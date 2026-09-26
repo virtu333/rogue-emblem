@@ -23,6 +23,7 @@ import { applyForge } from '../src/engine/ForgeSystem.js';
 import { serializeBattleUnit, restoreEquippedReference } from '../src/engine/BattleUnitState.js';
 import { relinkWeapon } from '../src/engine/RunManager.js';
 import { HealController } from '../src/ui/HealController.js';
+import { resetUnitForBattle } from '../src/scenes/BattleScene.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -269,6 +270,26 @@ describe('persistence', () => {
     expect(rm.completeBattle(deployed, node.id, 0)).toBe(true);
     expect(rm.roster[0].inventory[0]).toBe(rm.roster[0].weapon);
     expect(rm.roster[0].weapon.uid).toBe(deployed[0].weapon.uid);
+  });
+
+  // Carried over from the deleted WeaponPreviewSession.test.js: the only test of
+  // this out-of-battle path (roster Equip → run save → load → deploy → battle reset).
+  it('out-of-battle second-slot Equip moves it to the top and survives serialization + battle reset', () => {
+    const run = new RunManager(loadGameData());
+    run.startRun();
+    const unit = run.roster[0];
+    addToInventory(unit, { ...unit.weapon, uid: 'second', name: 'Second sword' });
+    const other = unit.inventory.at(-1);
+    const order = unit.inventory.map((item) => item.uid);
+    expect(rosterItemAction(run, unit, other, 'equip')).toBe('');
+    expect(unit.inventory[0]).toBe(other);
+    const expected = [other.uid, ...order.filter((uid) => uid !== other.uid)];
+    const restored = RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), loadGameData());
+    const deployed = restored.getRoster()[0];
+    resetUnitForBattle(deployed);
+    expect(deployed.weapon.uid).toBe(other.uid);
+    expect(deployed.inventory[0]).toBe(deployed.weapon);
+    expect(deployed.inventory.map((item) => item.uid)).toEqual(expected);
   });
 
   it('battle checkpoints restore the exact order and the equipped reference', () => {

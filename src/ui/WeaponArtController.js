@@ -11,7 +11,6 @@ import {
   getWeaponArtKillEffects,
 } from '../engine/WeaponArtSystem.js';
 import { resolveWeaponArtIds } from './WeaponArtVisibility.js';
-import { equipForAttackPlanning } from './WeaponPreviewSession.js';
 import { isStaff } from '../engine/Combat.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
@@ -138,7 +137,6 @@ export class WeaponArtController {
           }
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
-          if (unit.weapon !== weapon) equipForAttackPlanning(scene, unit, weapon);
           this._setSelectedWeaponArt(unit, art.id, weapon);
           scene.inEquipMenu = false;
           scene._beginAttackSelection(unit);
@@ -352,10 +350,9 @@ export class WeaponArtController {
       weaponArtHpCostDelta: scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
       ...context,
     });
-    if (!valid.ok) return null;
-
-    if (unit.weapon !== weapon) equipForAttackPlanning(scene, unit, weapon);
-    return art;
+    // Pure: the art's weapon is equipped on confirm (or by executeCombat for a
+    // resumed attack), never by asking which art is selected.
+    return valid.ok ? art : null;
   }
 
   _clearSelectedWeaponArtIfInvalid(unit, context = {}) {

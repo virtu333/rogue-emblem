@@ -8,12 +8,6 @@ import {
 import { hydrateBattleTimeline } from '../engine/BattleTimeline.js';
 import { combatTimelineFacts } from '../engine/BattleTimelineFacts.js';
 import { createBattleRng, keyedBattleRandom } from '../engine/BattleRng.js';
-import {
-  beginWeaponPreview,
-  restoreWeaponPreview,
-  commitWeaponPreview,
-  equipForAttackPlanning,
-} from '../ui/WeaponPreviewSession.js';
 import { AttackFlowController } from '../ui/AttackFlowController.js';
 import {
   getAttackRange,
@@ -85,6 +79,7 @@ import {
   addToConsumables,
   removeFromConsumables,
   equipWeapon,
+  normalizeEquippedFirst,
   getStaffWeapon,
   getCombatWeapons,
   canPromote,
@@ -1564,6 +1559,9 @@ export class BattleScene extends Phaser.Scene {
       this.staffRelocateTiles = [];
       this.forecastTarget = null;
       this.forecastObjects = null;
+      // The weapon the open forecast plans to attack with. Scene-only: it is
+      // never equipped before confirm and never saved.
+      this._forecastWeapon = null;
       this._forecastWeaponArt = null;
       this._forecastGamblerLine = null;
       this.actionMenu = null;
@@ -4183,7 +4181,6 @@ export class BattleScene extends Phaser.Scene {
     if (!this.canForceEndTurn()) return;
     if (this.battleState === 'PLAYER_IDLE') this._visionController?.settleParkedActivation?.();
     const cantoUnit = this.battleState === 'CANTO_MOVING' ? this.selectedUnit : null;
-    restoreWeaponPreview(this);
     this.commitVisionSnapshotIfPending();
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
@@ -4419,28 +4416,46 @@ export class BattleScene extends Phaser.Scene {
   confirmForecastCombat() {
     if (!this.forecastTarget || !this.selectedUnit || this.battleState !== 'SHOWING_FORECAST')
       return;
+    const unit = this.selectedUnit;
+    // The forecast only planned this weapon; confirming is the one place it is equipped.
+    const planned = this._forecastWeapon || unit.weapon;
     // Final legality guard: silenced units cannot confirm with a magic weapon
-    const w = this.selectedUnit.weapon;
     if (
-      isSilenced(this.selectedUnit) &&
-      w &&
-      (w.type === 'Tome' || w.type === 'Light' || w.type === 'Staff' || w.type === 'Breath')
+      isSilenced(unit) &&
+      planned &&
+      (planned.type === 'Tome' ||
+        planned.type === 'Light' ||
+        planned.type === 'Staff' ||
+        planned.type === 'Breath')
     ) {
       this.hideForecast();
-      this.showActionMenu(this.selectedUnit);
+      this.showActionMenu(unit);
+      return;
+    }
+    // equipWeapon fails silently: without this the attack would go ahead with
+    // the old weapon if the planned one left the bag or became unusable.
+    if (
+      planned &&
+      planned !== unit.weapon &&
+      (!unit.inventory?.includes(planned) || !canEquip(unit, planned))
+    ) {
+      this.hideForecast();
+      this.showActionMenu(unit);
       return;
     }
     const target = this.forecastTarget;
+    // Resolve the art by its pre-equip index, then re-set it with the new one.
     const artEntry =
-      this._selectedWeaponArt?.unitName === this.selectedUnit.name
-        ? this._resolveSelectedWeaponArtEntry(this.selectedUnit)
+      this._selectedWeaponArt?.unitName === unit.name
+        ? this._resolveSelectedWeaponArtEntry(unit)
         : null;
     // The confirmed weapon becomes the equipped weapon and moves to the top.
-    commitWeaponPreview(this);
-    if (artEntry) this._setSelectedWeaponArt(this.selectedUnit, artEntry.art.id, artEntry.weapon);
+    if (planned && planned !== unit.weapon) equipWeapon(unit, planned);
+    else normalizeEquippedFirst(unit);
+    if (artEntry) this._setSelectedWeaponArt(unit, artEntry.art.id, artEntry.weapon);
     this.commitVisionSnapshotIfPending();
     this.hideForecast();
-    this.executeCombat(this.selectedUnit, target);
+    this.executeCombat(unit, target);
   }
 
   // --- Unit selection & movement ---
@@ -4495,7 +4510,6 @@ export class BattleScene extends Phaser.Scene {
   }
 
   deselectUnit() {
-    restoreWeaponPreview(this);
     this._inputController?.clearPlanningInspection();
     if (this.selectedUnit && this.selectedUnit.graphic?.clearTint) {
       this.selectedUnit.graphic.clearTint();
@@ -5935,7 +5949,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showActionMenu(unit) {
-    restoreWeaponPreview(this);
+    // Back at the menu, any chosen weapon art is dropped (the attack is re-planned).
+    this._clearSelectedWeaponArt();
     this.hideActionMenu();
     this.inEquipMenu = false;
     this.tradeMutatedThisSession = unit._movementCommitted === true;
@@ -6126,14 +6141,8 @@ export class BattleScene extends Phaser.Scene {
             // Target first: the weapon is chosen in the forecast.
             this._attackFlow().begin(unit);
           } else if (label.startsWith('Weapon Art')) {
-            beginWeaponPreview(this, unit);
-            if (unit.weapon && isStaff(unit.weapon)) {
-              const combatWpn = getCombatWeapons(unit)[0];
-              if (combatWpn) {
-                equipForAttackPlanning(this, unit, combatWpn);
-                this.showAutoSwitchTooltip(unit, combatWpn);
-              }
-            }
+            // Nothing is equipped here, not even over a staff: an art attack
+            // equips its weapon on confirm, like any forecast weapon.
             this.showWeaponArtPicker(unit);
           } else if (label.startsWith('Heal (') || label.startsWith('Staff (')) {
             this.hideActionMenu();
@@ -7296,7 +7305,13 @@ export class BattleScene extends Phaser.Scene {
 
   // --- Skill context builder ---
 
-  buildSkillCtx(attacker, defender, weaponArt = null) {
+  /**
+   * Skill context for `attacker` against `defender`. `options.weapon` is the
+   * weapon the attacker plans to use when it is not the equipped one (the
+   * forecast): its conditional bonus and granted skill replace the equipped
+   * weapon's.
+   */
+  buildSkillCtx(attacker, defender, weaponArt = null, { weapon } = {}) {
     const rollSession = this._ensureCombatRollSession(attacker, defender);
     const skills = this.gameData.skills;
     const getAllies = (unit) => {
@@ -7327,7 +7342,7 @@ export class BattleScene extends Phaser.Scene {
       atkTerrain,
       true,
       affixes,
-      masteryCtx,
+      weapon === undefined ? masteryCtx : { ...masteryCtx, weapon },
     );
     const defMods = getSkillCombatMods(
       defender,
@@ -7531,9 +7546,9 @@ export class BattleScene extends Phaser.Scene {
     return this._attackFlow().beginTargetSelection(unit);
   }
 
-  _buildForecastSkillCtx(attacker, defender, weaponArt = null) {
+  _buildForecastSkillCtx(attacker, defender, weaponArt = null, options = {}) {
     return this._withForecastArtState(attacker, weaponArt, () =>
-      this.buildSkillCtx(attacker, defender, weaponArt),
+      this.buildSkillCtx(attacker, defender, weaponArt, options),
     );
   }
 
@@ -7542,18 +7557,20 @@ export class BattleScene extends Phaser.Scene {
    * with a weapon art, after its HP cost, the Recoil Guard buff and a Phoenix
    * Brooch heal (see _runCombatResolutionAtSpeed). Reading the numbers after
    * that state was restored overstated a Recoil Guard art's counter damage.
+   * `weapon` is the planned weapon; it need not be equipped (confirm equips it).
    */
   _computePlayerForecast(attacker, defender, weaponArt, { weapon, dist, atkTerrain, defTerrain }) {
+    const planned = weapon ?? attacker.weapon;
     return this._withForecastArtState(attacker, weaponArt, () =>
       getCombatForecast(
         attacker,
-        weapon ?? attacker.weapon,
+        planned,
         defender,
         defender.weapon,
         dist,
         atkTerrain,
         defTerrain,
-        this.buildSkillCtx(attacker, defender, weaponArt),
+        this.buildSkillCtx(attacker, defender, weaponArt, { weapon: planned }),
       ),
     );
   }
@@ -7658,6 +7675,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.forecastObjects = null;
     this.forecastTarget = null;
+    this._forecastWeapon = null;
     this._forecastValidWeapons = null;
     this._forecastWeaponArt = null;
     this._forecastGamblerLine = null;
@@ -7668,10 +7686,17 @@ export class BattleScene extends Phaser.Scene {
    * Used by executeCombat, executeEnemyCombat, and showForecast.
    * @param {object} attacker
    * @param {object} defender
-   * @param {{ isPlayerInitiator?: boolean }} opts
+   * `equipArtWeapon` (executeCombat only, after the intent is committed): equip
+   * the selected art's weapon, which a resumed committed attack relies on. The
+   * forecast never equips.
+   * @param {{ isPlayerInitiator?: boolean, equipArtWeapon?: boolean }} opts
    * @returns {{ dist: number, atkTerrain: object, defTerrain: object, selectedArt: object|null, rollSession: object }}
    */
-  _prepareCombatContext(attacker, defender, { isPlayerInitiator = true } = {}) {
+  _prepareCombatContext(
+    attacker,
+    defender,
+    { isPlayerInitiator = true, equipArtWeapon = false } = {},
+  ) {
     const dist =
       isEntity(attacker) || isEntity(defender)
         ? combatDistance(attacker, defender)
@@ -7682,6 +7707,10 @@ export class BattleScene extends Phaser.Scene {
     const selectedArt = isPlayerInitiator
       ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
       : this._selectEnemyWeaponArt(attacker, defender);
+    if (selectedArt && isPlayerInitiator && equipArtWeapon) {
+      const artWeapon = this._resolveSelectedWeaponArtEntry(attacker)?.weapon;
+      if (artWeapon && attacker.weapon !== artWeapon) equipWeapon(attacker, artWeapon);
+    }
     return { dist, atkTerrain, defTerrain, selectedArt, rollSession };
   }
 
@@ -7925,7 +7954,10 @@ export class BattleScene extends Phaser.Scene {
     const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
 
     try {
-      const ctx = this._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
+      const ctx = this._prepareCombatContext(attacker, defender, {
+        isPlayerInitiator: true,
+        equipArtWeapon: true,
+      });
       const { result } = await this._runCombatResolution(attacker, defender, ctx);
       // The outcome is applied to live state now; every checkpoint from here
       // on reflects it, so none may carry the pre-roll intent.
@@ -8819,30 +8851,6 @@ export class BattleScene extends Phaser.Scene {
       event,
       this.gameData.skills || [],
     );
-  }
-
-  /** Flash a brief tooltip when auto-switching from Staff to combat weapon. */
-  showAutoSwitchTooltip(unit, weapon) {
-    if (!unit.graphic) return;
-    const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const text = this.add
-      .text(pos.x, pos.y - 20, `Switched to ${weapon.name}`, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: UI_PALETTE.info,
-        backgroundColor: '#000000cc',
-        padding: { x: 4, y: 2 },
-      })
-      .setOrigin(0.5)
-      .setDepth(301);
-    this.tweens.add({
-      targets: text,
-      alpha: 0,
-      y: this._reduceMotion() ? pos.y - 20 : pos.y - 36,
-      duration: 1200,
-      delay: 400,
-      onComplete: () => text.destroy(),
-    });
   }
 
   /** Show poison damage floating text. */

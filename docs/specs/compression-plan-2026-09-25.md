@@ -1,6 +1,6 @@
 # Compression plan and verification audit (2026-09-25)
 
-**Status:** plan. Step 0 is done; nothing else is implemented yet except where marked.
+**Status:** plan. Steps 0–2 are done; nothing else is implemented yet except where marked.
 **Source:** an external architecture review, three read-only investigations and a fault-injection pilot, run against `main` at 74cc967 / dfb551f.
 **Line references** are as of those commits. Re-verify them before starting. Since then, #93 routed the attack forecast through `BattleScene._computePlayerForecast`.
 
@@ -12,7 +12,7 @@ The goal is **fewer ways for code to share and repair mutable state**, not fewer
 |---|---|---|---|
 | 0 | Test hygiene: fix stale browser specs, add a mechanical CI lane check, run harness/sim tests in CI (**done**, 2026-09-26; see below) | Specs that rot because nothing runs them | none |
 | 1 | One definition of the resolved-action continuation (done 2026-09-26) | Duplicate validation of the same shape | none |
-| 2 | Read-only attack forecast (equipment) | `WeaponPreviewSession.js` and the equip/restore round trip | characterisation tests first |
+| 2 | Read-only attack forecast (equipment) (done 2026-09-26) | `WeaponPreviewSession.js` and the equip/restore round trip | characterisation tests first |
 | 3 | Explicit gameplay RNG, one complete path at a time | The global `Math.random` install and presentation shielding wrappers | #2 settled |
 | 4 | Presentation fields off domain units; equipped weapon by identity | Serialization deny-lists; `relinkWeapon` repair | #2 |
 | 5 | The headless harness calls production operations as they become isolated | Mirrored orchestration in `tests/harness/HeadlessBattle.js` | alongside 2–4 |
@@ -91,7 +91,10 @@ They are otherwise identical: the same `kind` set, trim check, `unitId` rejectio
 
 **Found in passing:** `validateBattleState` never checks `pendingCommittedAction`; only `readCommittedAction` guards it.
 
-## 2. Read-only attack forecast (equipment)
+## 2. Read-only attack forecast (equipment) — done 2026-09-26
+
+**Done:** the forecast plans `scene._forecastWeapon` (set in `showForecast`, cleared in `hideForecast`, never saved) and confirm is the only equip. `WeaponPreviewSession.js` and every call site listed below are gone; the skill context takes `context.weapon`; confirm aborts to the action menu when the planned weapon left the bag or became unusable; `executeCombat` equips a selected art's weapon behind `_prepareCombatContext({ equipArtWeapon })`. Tests: `tests/ReadOnlyForecast.test.js` (characterisation + contract), `tests/MobileForecastWeapon.test.js`, the planned-weapon case in `ForecastOverlay.test.js`, the out-of-battle Equip case moved to `EquippedFirstInventory.test.js`, and a switched-weapon variant in `e2e/combat-refresh-commit.spec.js`. The Weapon Art menu no longer switches off an equipped staff; whether the player needs a replacement cue is an open UX question. Out of scope as planned: `_withForecastArtState` and the `HealController` staff hold.
+
 
 **Today:** previewing a weapon equips it on the live unit, and cancel restores the baseline weapon and bag order (`src/ui/WeaponPreviewSession.js`). The forecast then reads `attacker.weapon`.
 
