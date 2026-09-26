@@ -176,9 +176,11 @@ describe('ForecastOverlay', () => {
       const dmgTexts = overlay.displayObjects.filter((o) => o.text === '12' || o.text === '4');
       expect(dmgTexts.length).toBe(2);
       const labels = overlay.displayObjects.map((o) => o.text);
-      expect(labels).toContain('Hit rating');
-      expect(labels).toContain('90');
-      expect(labels).toContain('60');
+      // Hit is shown as the real two-roll chance: rating 90 lands 98%, 60 lands 68%.
+      expect(labels).toContain('Hit chance');
+      expect(labels).toContain('98%');
+      expect(labels).toContain('68%');
+      expect(labels).not.toContain('90');
       expect(labels).not.toContain('90%');
       expect(labels).toContain('5%');
     });
@@ -241,7 +243,7 @@ describe('ForecastOverlay', () => {
         validWeapons: [],
       });
 
-      const doubleText = overlay.displayObjects.find((o) => o.text === 'Planned hits: 2x');
+      const doubleText = overlay.displayObjects.find((o) => o.text === 'Planned hits: ×2');
       expect(doubleText).toBeTruthy();
     });
 

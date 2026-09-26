@@ -143,7 +143,7 @@ test('forecast requires explicit confirmation, keeps engine numbers and cancels 
       .locator('dl > div')
       .filter({ has: page.getByText('Planned hits', { exact: true }) })
       .locator('dd'),
-  ).toHaveText(`${expected.hits}x`);
+  ).toHaveText(`×${expected.hits}`);
   await page.screenshot({ path: 'test-results/mobile-battle-forecast.png' });
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).tap();
   await expect(dialog).toHaveCount(0);

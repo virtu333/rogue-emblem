@@ -11,7 +11,14 @@ import {
   observeContextualHint,
   isHintTextVisible,
 } from './HintDisplay.js';
-import { forecastProjection, forecastNotes, forecastTeachingHints } from './forecastDisplay.js';
+import {
+  forecastProjection,
+  forecastNotes,
+  forecastTeachingHints,
+  formatCritChance,
+  formatHitChance,
+  formatStrikes,
+} from './forecastDisplay.js';
 import {
   canInspectUnit,
   statusDescriptions,
@@ -276,7 +283,7 @@ export class MobileBattleHUD {
     const forecastNote = el(
       'p',
       'mb-detail',
-      'Hit rating uses the average of two rolls per strike, for both sides: 75 Hit succeeds about 87.5% of the time. Crit uses one roll. Critical hits and special effects can change damage. A defeated unit cannot finish its remaining strikes.',
+      'Hit chance is the real chance a strike lands. Hit is rolled as the average of two rolls, so a Hit rating of 75 lands about 88% of the time and 25 about 13%; the forecast shows that chance, for both sides. Crit uses one roll. Critical hits and special effects can change damage. A defeated unit cannot finish its remaining strikes.',
     );
     forecastNote.style.gridColumn = '1 / -1';
     const explanation = el('details', 'mb-detail');
@@ -449,14 +456,16 @@ export class MobileBattleHUD {
       : config.forecast.attacker.hp;
     if (attacking || info.canCounter) {
       const stats = el('dl', 'mb-stats');
-      for (const [name, value] of [
-        ['Damage per hit', `${info.damage}`],
-        ['Planned hits', `${info.attackCount || 1}x`],
-        ['Hit rating', `${info.hit}`],
-        ['Critical', `${info.crit}%`],
-        ['Attack speed', info.as],
+      // Each kind of number has its own shape: damage plain and largest,
+      // strikes as a multiplier, chances as percentages.
+      for (const [name, value, kind] of [
+        ['Damage per hit', `${info.damage}`, 'damage'],
+        ['Planned hits', formatStrikes(info.attackCount), 'count'],
+        ['Hit chance', formatHitChance(info.hit), 'chance'],
+        ['Critical', formatCritChance(info.crit), 'chance'],
+        ['Attack speed', `${info.as}`, 'count'],
       ]) {
-        const pair = el('div');
+        const pair = el('div', `mb-stat-${kind}`);
         pair.append(el('dt', '', name), el('dd', '', value));
         stats.append(pair);
       }

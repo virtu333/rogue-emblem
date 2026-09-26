@@ -29,7 +29,7 @@ export function forecastTutorialLesson(forecast, taught = new Set()) {
     ids = [];
   if (!taught.has('battle_forecast')) {
     lines.push(
-      'Review damage per hit and Hit rating before committing. Confirm attacks; Cancel returns to planning.',
+      'Review damage per hit and Hit chance before committing. Confirm attacks; Cancel returns to planning.',
     );
     ids.push('battle_forecast');
     return { message: lines[0], ids };
