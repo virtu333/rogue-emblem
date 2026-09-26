@@ -70,7 +70,7 @@ emblem-rogue/
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
 ├── tests/                 # Vitest: 4143 tests across 218 files + harness/ + e2e/
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
-├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx, 76 original music files + 142 ceremony stingers)
+├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx, 88 original music files + 142 ceremony stingers)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
 └── tools/                 # Build/asset processing scripts (sprite splitting, resize, bg removal)
 ```
@@ -125,7 +125,7 @@ Phases 1-9 complete ✅, Phase 10 (Deploy) live. (Grid → Combat → Units → 
 - Player units = blue palette, enemies = red palette, NPCs = green palette
 
 ## Music (composed in code)
-All music is original: 43 loop scores in `tools/music/scores/` and 30 ceremony cues (stingers) in `tools/music/stingers/`, rendered by `tools/music/engine/` (sampler + mixer) to `assets/audio/music/` and `assets/audio/stingers/`. Read `tools/music/SCORE.md` (leitmotifs, the Entity's finale, cue list, boss cards and enrage layers, device budget) and `tools/music/README.md` (setup, build, lint/analyze/pitchcheck tools).
+All music is original: 49 loop scores in `tools/music/scores/` and 30 ceremony cues (stingers) in `tools/music/stingers/`, rendered by `tools/music/engine/` (sampler + mixer) to `assets/audio/music/` and `assets/audio/stingers/`. Read `tools/music/SCORE.md` (leitmotifs, the Entity's finale, cue list, boss cards and enrage layers, device budget) and `tools/music/README.md` (setup, build, lint/analyze/pitchcheck tools).
 - **Rebuild:** `python3 tools/music/build.py <score>` (or `--all`; `--stingers [names]` for cues), then `npm run sync-assets`. The build regenerates `src/utils/musicLoops.js` (loop points + each track's `tonic`) and `src/utils/musicStingers.js`, so never hand-edit them. A form check refuses any score with a bar where nothing sounds (declare intended silence in `score.silent_ok`).
 - **Seamless loops:** each file is an intro plus a loop region. `AudioManager` plays it through `LoopedMusic` (Web Audio `loopStart`/`loopEnd`) and falls back to a whole-file loop without Web Audio. A layer that can't share the primary's timeline (stale cache) is dropped, never mis-looped.
 - **Adaptive battles:** field battle themes ship as `<key>` + `<key>_calm` on one timeline (`MUSIC_LAYERS`). `BattleMusicController` + `engine/MusicIntensity.js` crossfade calm↔full on combat and threat; `audio.setMusicIntensity()` is the API.
