@@ -900,6 +900,13 @@
 .ch-notes p {
   margin: 2px 0;
 }
+/* The chosen reward's story, set like the shop's. */
+.ch-notes .ch-reward-lore {
+  padding-left: 8px;
+  border-left: 2px solid var(--re-ember-deep);
+  font-style: italic;
+  color: var(--re-parchment-dim);
+}
 .mu-screen .ch-notes button {
   min-height: var(--re-tap);
   width: auto;

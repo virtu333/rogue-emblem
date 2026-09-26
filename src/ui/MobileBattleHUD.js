@@ -38,6 +38,7 @@ import { getEffectivenessMultiplier } from '../engine/Combat.js';
 import { threatSummaryText } from '../engine/ThreatForecast.js';
 import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js';
 import { equippedBadgeElement, EQUIPPED_MARKER } from './equippedBadge.js';
+import { itemIcon } from './itemIcons.js';
 
 // A horizontal swipe this long (and clearly more horizontal than vertical)
 // across the forecast switches weapons; shorter drags stay taps/scrolls.
@@ -1232,6 +1233,9 @@ export class MobileBattleHUD {
           }
         : null,
     );
+    // Weapon and item rows lead with the item's socketed icon, as every menu outside battle does.
+    if (item.item?.name && item.item.type)
+      button.prepend(itemIcon(item.item, { size: 16, className: 'mb-item-icon' }));
     if (equippedRow) button.append(equippedBadgeElement());
     if (item.description) button.append(el('small', 'mb-item-summary', item.description));
     else if (detail) {

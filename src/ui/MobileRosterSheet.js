@@ -585,6 +585,7 @@ export class MobileRosterSheet {
           scroll,
         );
         card.classList.add('mr-scroll-description');
+        this.aboutItem(card, scroll);
         if (!scroll.teachesWeaponArtId)
           card.append(this.button('Teach…', () => this.teachScroll(scroll)));
         else card.append(this.button('Bind to weapon…', () => this.bindArt(scroll)));
@@ -891,6 +892,7 @@ export class MobileRosterSheet {
     });
   }
   itemDescription(item, unit) {
+    if (item.type === 'Accessory') return formatAccessoryDetail(item);
     if (item.type === 'Consumable')
       return `${getConsumableDescription(item)} · ${formatUses(item)}`;
     if (item.type === 'Staff') {
@@ -906,7 +908,8 @@ export class MobileRosterSheet {
       ? `${forge.baseName.replace(/\s\+\d+$/, '')} +${forgeLevel}`
       : item.name;
     const c = this.card(displayName, this.itemDescription(item, unit), item);
-    if (unit && item === unit.weapon) c.querySelector('h4')?.append(equippedBadgeElement());
+    const equipped = !!unit && (item === unit.weapon || item === unit.accessory);
+    if (equipped) c.querySelector('h4')?.append(equippedBadgeElement());
     if (Object.values(forge.bonuses).some(Boolean))
       c.append(
         el(
@@ -919,18 +922,21 @@ export class MobileRosterSheet {
       );
     const imbue = getImbueDisplayInfo(item, this.gameData.imbues);
     if (imbue) c.append(el('p', `${imbue.name}: ${imbue.description}`));
-    if (item === unit.weapon) c.append(el('p', 'Equipped', 'mr-equipped'));
+    if (equipped) c.append(el('p', 'Equipped', 'mr-equipped'));
     if (item.special) c.append(el('p', item.special));
     if (item.description) c.append(el('p', item.description));
     appendItemArtDetails(c, item, this.gameData.weaponArts?.arts || []);
-    if (item.lore) {
-      const d = el('details');
-      const about = el('div', null, 'mr-about');
-      about.append(itemHero(item, { size: 96 }), el('p', item.lore, 'mr-lore'));
-      d.append(el('summary', 'About this item'), about);
-      c.append(d);
-    }
+    this.aboutItem(c, item);
     return c;
+  }
+  // The item's picture beside its story, one tap away (the hero decodes only when opened).
+  aboutItem(card, item) {
+    if (!item?.lore) return;
+    const d = el('details');
+    const about = el('div', null, 'mr-about');
+    about.append(itemHero(item, { size: 96 }), el('p', item.lore, 'mr-lore'));
+    d.append(el('summary', 'About this item'), about);
+    card.append(d);
   }
   action(card, label, unit, item, action) {
     const reason = rosterItemBlock(this.run, unit, item, action);
@@ -1037,13 +1043,11 @@ export class MobileRosterSheet {
     this.body.append(
       el('h3', `Accessories · ${unit.accessory ? 1 : 0}/1 equipped`, 'mr-gear-section'),
     );
-    const a = this.card(
-      'Equipped accessory',
-      unit.accessory
-        ? `${unit.accessory.name} · ${formatAccessoryDetail(unit.accessory)}`
-        : 'No accessory equipped.',
-      unit.accessory || null,
-    );
+    // The equipped accessory is an item card like any other: its name, its picture and
+    // its story (it used to be a generic "Equipped accessory" card).
+    const a = unit.accessory
+      ? this.itemCard(unit.accessory, unit)
+      : this.card('No accessory', 'No accessory equipped.');
     if (this.run) {
       if (unit.accessory)
         a.append(
@@ -1057,7 +1061,7 @@ export class MobileRosterSheet {
       if (this.run.accessories?.length)
         this.body.append(el('h4', 'Available accessories · Shared pool'));
       for (const item of this.run.accessories || []) {
-        const c = this.card(item.name, formatAccessoryDetail(item), item);
+        const c = this.itemCard(item, unit);
         c.append(
           this.button('Equip accessory', () =>
             this.render(

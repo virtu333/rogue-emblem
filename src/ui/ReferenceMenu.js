@@ -1,6 +1,7 @@
 import { appendDetailScrollControls } from './DetailScrollControls.js';
 import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
+import { itemHero, itemIcon } from './itemIcons.js';
 
 // A shared readable list/detail browser. Providers retain filtering/unlock rules.
 export class ReferenceMenu {
@@ -163,16 +164,26 @@ export class ReferenceMenu {
           this.selected = i;
           this.render();
         },
-        're-btn re-row',
+        entry.art ? 're-btn re-row re-row--item' : 're-btn re-row',
       );
       b.dataset.focus = `entry-${i}`;
       b.setAttribute('aria-pressed', String(i === this.selected));
+      if (entry.art) b.append(itemIcon(entry.art.subject, { size: 32, kind: entry.art.kind }));
       b.append(element('strong', entry.name));
       if (entry.summary) b.append(element('small', entry.summary));
       this.list.append(b);
     });
     const selected = entries[this.selected];
     if (selected) {
+      // Items and blessings lead with their picture, as in the shop; the text wraps beside it.
+      if (selected.art)
+        detail.append(
+          itemHero(selected.art.subject, {
+            size: 96,
+            kind: selected.art.kind,
+            className: 're-reference-art',
+          }),
+        );
       detail.append(element('h3', selected.name));
       for (const line of selected.lines) detail.append(element('p', line));
     } else
@@ -209,13 +220,18 @@ export class ReferenceMenu {
 
 // Reuse existing compendium formatting without building hidden Phaser text.
 // The receiver inherits the formatter methods and data, and owns only _text.
-export function compendiumEntries(controller, tab, filter) {
+// Tabs whose entries are things the game draws as items (their icon and picture).
+const ART_TABS = { weapons: 'item', items: 'item', blessings: 'blessing' };
+
+export function compendiumEntries(controller, tab, filter, tabKey = null) {
+  const artKind = ART_TABS[tabKey] || null;
   const view = Object.create(controller);
   view.activeTabIndex = tab;
   view.activeFilterIndex = filter;
   return view._getFilteredItems().map((item) => {
+    const art = artKind ? { subject: item, kind: artKind } : null;
     if (item.referenceLines)
-      return { name: item.name, summary: item.type, lines: item.referenceLines };
+      return { name: item.name, summary: item.type, lines: item.referenceLines, art };
     const lines = [];
     view._text = (_x, _y, text) => {
       if (text != null && text !== '') lines.push(String(text));
@@ -239,6 +255,7 @@ export function compendiumEntries(controller, tab, filter) {
       name: item.name || 'Unknown',
       summary: [item.type, item.tier, item.className].filter(Boolean).join(' · '),
       lines: lines.filter((line) => line !== item.name),
+      art,
     };
   });
 }
