@@ -346,6 +346,12 @@ test.describe('titled surfaces (phone 844×390)', () => {
     await expect(march.locator('li')).toHaveCount(2);
     await expect(march.locator('li').first()).toContainText('Who Held the Fort');
     await expect(march.locator('li.is-fallen')).toContainText('Rhapsody, Bane of the Knight Commander'); // prettier-ignore
+    // Name and title are never clipped: no ellipsis box shaving the italic
+    // title's last letter or cutting a long one short (it wraps).
+    const clipping = await march
+      .locator('li b')
+      .evaluateAll((all) => all.map((b) => getComputedStyle(b).overflowX));
+    expect(clipping).toEqual(['visible', 'visible']);
     await shot('deeds-of-the-march-phone');
     expect(errors).toEqual([]);
   });

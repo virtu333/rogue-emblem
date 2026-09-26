@@ -495,9 +495,8 @@
 }
 .re-deeds-march li b {
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  /* A long name and title wrap rather than end in an ellipsis (and the italic
+     title's last letter is no longer shaved off by the clipping box). */
   font-weight: 600;
 }
 .re-deeds-march li b i {
