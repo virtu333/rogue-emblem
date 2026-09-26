@@ -3,9 +3,15 @@
 The goddess's name was spent; the eclipse is the hole where she was. A drone
 on an open fifth (no third: nothing warm yet), a single high thread held over
 it, and bells tolling A-G-E and stopping where D should be. A solo violin
-states the Thread theme; the horns answer with Edric's oath; the orchestra
-takes the theme up, reaches the leading tone... and the name never comes: a
-bar of silence, bells, then the dark again.
+states the Thread theme and leaves it at rest on E over the dominant, never
+reaching the leading tone; the horns answer with Edric's oath; the orchestra
+takes the theme up, reaches the leading tone for the first time... and the
+name never comes: a bar of silence, bells, then the dark again.
+
+The thread's high A is one held note from the first bar to the end of the
+violin's phrase: the fifth of D minor, the seventh of B-flat, the ninth of
+G minor, the sixth of C, the root of A. The harp moves under it and the
+note changes meaning without changing.
 
 The calm variant (strings, harp, bells, choir) is the login screen's loop.
 """
@@ -13,18 +19,27 @@ The calm variant (strings, harp, bells, choir) is the login screen's loop.
 from engine.patterns import arp, bass, chart, drums, pad
 from engine.score import Score
 
-from scores._motifs import THREAD_THEME, THREAD_THEME_HOLLOW
+from scores._motifs import THREAD_THEME_HOLLOW
 
 KEY = 'music_title'
+
+# the solo violin's statement: the second phrase stops on E, at rest, over
+# the dominant (the F before it is the flat sixth leaning on the fifth, one
+# beat over the celli's E). The leading tone is kept for the tutti (bar 27),
+# where the hole at bar 28 is the first and only place the ending goes missing.
+THREAD_THEME_REST = """
+A4h D5q E5q | A5w | G5q. F5e E5q D5q | E5w |
+A4h D5q E5q | A5h C6h | Bb5q. A5e G5q F5q | E5w |
+"""
 
 HORN_CALL = """
 D4q F4q Bb4h | A4q. G4e F4h | G4q Bb4q D5q. C5e | C#5w |
 D5q. C5e Bb4q F4q | A4h C5h | Bb4q. A4e G4q A4q | A4w |
 """
 DESCANT = 'Bb5w | A5w | Bb5h G5h | A5w | D6w | C6w | Bb5h G5h | A5w |'
-CELLO_A = 'F3w | F3w | Bb3h G3h | A3w | F3w | A3w | G3h E3h | F3w |'
+CELLO_A = 'F3w | F3w | Bb3h G3h | A3w | F3w | A3w | G3h E3h | E3w |'
 
-CH_A = chart('Dm Bbmaj7 Gm7:2 C/E:2 A Dm F Gm:2 A7:2 Dm')
+CH_A = chart('Dm Bbmaj7 Gm7:2 C/E:2 A Dm F Gm:2 A7:2 A')      # bar 12 stays on the dominant
 CH_B = chart('Bb F/A Gm A Bb F/A Gm A')
 CH_C = chart('Dm Bbmaj7 Gm7:2 C/E:2 A Dm F Gm:2 A7:2')     # 7 bars; bar 28 is the hollow
 
@@ -54,8 +69,15 @@ def build():
     oohs.at(28).play('@p rq [A4 E5]h.~ | [A4 E5]w~ | [A4 E5]w | rw | rw |')
     oohs.expr((2, 0.3), (4.5, 1.0), (28, 0.8), (31, 0.2))
     thread = s.part('thread', 'shimmer', role='fx', gain=4)
+    # held from the first bar through the violin's phrase as the harmony moves
+    # under it (5th of Dm, 7th of Bbmaj7, 9th of Gm7, 6th of C/E, root of A),
+    # fading toward the phrase end. Written as two notes because a note may not
+    # cross from the intro into the loop: the intro note's release overlaps the
+    # loop note's attack at bar 5.
     thread.at(1).play('@mp A6w~ | A6w~ | A6w~ | A6w |')
+    thread.at(5).play('@mp ' + 'A6w~ | ' * 7 + 'A6w |')
     thread.at(29).play('@mp A6w~ | A6w~ | A6w~ | A6w |')
+    thread.expr((1, 1.0), (5, 1.0), (9, 1.0), (12.9, 0.3), (29, 1.0), (32.9, 1.0))
     bells = s.part('bells', 'bells', role='accent')
     bells.at(2).play('@mf A4h G4h | E4w | rw |')             # the hollow sun: A G E ...
     bells.at(28).play('@mf rq A4h. |')
@@ -63,7 +85,7 @@ def build():
 
     # ---------------------------------------------------------------- A: the thread theme
     solo = s.part('solo', 'solo_violin', role='lead')
-    solo.at(5).play('@mp' + THREAD_THEME)
+    solo.at(5).play('@mp' + THREAD_THEME_REST)
     solo.expr((5, 0.75), (8, 0.95), (9, 0.8), (11, 1.0), (12.9, 0.8))
     vn2 = s.part('vn2', 'violins2', role='pad', art='soft')
     pad(vn2, 5, CH_A, n=2, lo=62, hi=77, vel=0.42, art='soft')

@@ -18,14 +18,13 @@ def silent_bars(score, variant: str | None = None) -> list[int]:
     n_bars = int(round(total))
     gains = score.variants.get(variant, {}) if variant else {}
     sounding = [False] * n_bars
-    bb = score.bar_beats
     for pname, part in score.parts.items():
         if variant and _variant_gain(gains, pname) is None:
             continue
         for n in part.notes:
-            first = max(0, int(n.start // bb))
+            first = max(0, score.bar_at(n.start))
             # a note ending exactly on a barline doesn't sound in the next bar
-            last = min(n_bars - 1, int((n.end - 1e-6) // bb))
+            last = min(n_bars - 1, score.bar_at(n.end - 1e-6))
             for b in range(first, last + 1):
                 sounding[b] = True
     return [i + 1 for i, s in enumerate(sounding) if not s]

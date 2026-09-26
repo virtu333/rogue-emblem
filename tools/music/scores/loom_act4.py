@@ -4,6 +4,12 @@ True night. The land has warped toward the rite and only your units carry
 light. Almost nothing: a low drone, a timpani heartbeat, distant bells, and
 the cor anglais-dark oboe finding the Thread motif in B minor one fragment at
 a time, each fragment answered by the Empire's drill low in the bassoon.
+
+The oboe's line is the first route map's flute tune (loom_act1 MEL_A)
+remembered: its first three bars note for note a minor third down, the
+celli's G instead of the old bright bass under the second bar, and the
+fourth bar's answer never played. Every player reaches Act IV; this is the
+memory of the road they set out on, damaged.
 """
 
 from engine.patterns import chart, pad
@@ -27,6 +33,8 @@ def build():
     cb.expr((1, 0.4), (3, 0.9), (11, 0.7), (19, 1.0), (26.9, 0.6))
     vc = s.part('vc', 'celli', role='pad', art='soft')
     vc.at(A).play('@pp F#2w~ | F#2w | G2w | F#2w | F#2w~ | F#2w | G2w | F#2w |')
+    # the changed bass under the remembered tune: G under its second bar
+    vc.at(B + 2).play('@pp F#2w | G2w | F#2w~ | F#2w |')
     vc.at(C).play('@p [F#2 B2]w | [G2 D3]w | [E2 B2]w | [F#2 C#3]w | [F#2 C#3]w | [G2 D3]w | [C2 G2]w | [F#2 C#3]w |')
     heart = s.part('heart', 'timpani', role='timp', gain=-4)
     roots = ['F#2'] * 16 + ['F#2', 'G2', 'E2', 'F#2', 'F#2', 'G2', 'C3', 'F#2']
@@ -37,11 +45,14 @@ def build():
     for bar in (A + 1, B + 1, C + 1):
         bells.at(bar).play('@p rh F#4h | rw |')
 
+    # loom_act1 MEL_A, bars 1-3, transposed down a minor third; the fragments
+    # are its opening cut short, and the full statement (B + 2) stops where the
+    # fourth bar's answer (B) would be
     ob = s.part('ob', 'oboe', role='lead')
-    ob.at(A + 2).play('@mp F#4q B4q C#5q rq | rw |')
-    ob.at(A + 6).play('@mp F#4q B4q C#5q F#5q~ | F#5h. rq |')
-    ob.at(B + 2).play('@mf F#4q B4q C#5q F#5q~ | F#5h E5q D5q | C#5w | rw |')
-    ob.at(C + 4).play('@mp F#4q B4q C#5q rq | rw | rw | rw |')
+    ob.at(A + 2).play('@mp F#4q B4q C#5e rq. | rw |')
+    ob.at(A + 6).play('@mp F#4q B4q C#5e F#5q.~ | F#5h. rq |')
+    ob.at(B + 2).play('@mf F#4q B4q C#5e F#5q.~ | F#5h G#5q E5q | F#5q. E5e D5q C#5q | rw |')
+    ob.at(C + 4).play('@mp F#4q B4q C#5e rq. | rw | rw | rw |')
     bsn = s.part('bsn', 'bassoon', role='counter')
     bsn.at(A + 4).play('@mp B2q. C3e B2q A2q | G2h. rq |')
     bsn.at(B + 6).play('@mp B2q. C3e B2q A2q | G2h. rq |')

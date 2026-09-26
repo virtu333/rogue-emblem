@@ -223,7 +223,7 @@ class Kit:
     def play(self, bar, grid, vel=0.74, ramp=0.0, step=None):
         if step is None:
             cells = max(len([c for c in p if c not in '| ']) for p in grid.values())
-            step = self.score.bar_beats / cells if cells >= 4 else 0.25
+            step = self.score.bar_len(bar) / cells if cells >= 4 else 0.25
         by_piece = {}
         for name, pat in grid.items():
             by_piece.setdefault(self.route[name], {})[name] = pat

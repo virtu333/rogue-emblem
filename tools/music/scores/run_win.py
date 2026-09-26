@@ -1,9 +1,11 @@
 """Run victory — "The Last Light".
 
-The Thread theme in D major, whole at last. The horns sing it first, the
-violins take it up over the celli's counter-line, and in the tutti the
-phrase that the title leaves hanging on C-sharp finally resolves to D: the
-bells toll the root, the note the rest of the score never plays.
+The Thread theme in D major, whole at last. The horns sing it first and stop
+on the leading tone over the dominant, the title's hollow ending; the violins
+take it up over the celli's counter-line and hold the fifth, open, over the
+timpani's roll; and only in the tutti does the phrase that the title leaves
+hanging on C-sharp finally resolve to D: the bells toll the root, the note
+the rest of the score never plays. Withheld twice, given once.
 """
 
 from engine.patterns import arp, bass, chart, drums, pad
@@ -15,11 +17,22 @@ THEME = """
 A4h D5q E5q | A5w | G5q. F#5e E5q D5q | E5w |
 A4h D5q E5q | A5h D6h | B5q. A5e G5q C#5q | D5w |
 """
+# the horns' statement: the leading tone held over the dominant, unresolved
+THEME_HOLLOW = """
+A4h D5q E5q | A5w | G5q. F#5e E5q D5q | E5w |
+A4h D5q E5q | A5h D6h | B5q. A5e G5q C#5q~ | C#5w |
+"""
+# the violins' statement: the leading tone falls back to the fifth and holds
+THEME_OPEN = """
+A4h D5q E5q | A5w | G5q. F#5e E5q D5q | E5w |
+A4h D5q E5q | A5h D6h | B5q. A5e G5q C#5q | A5w |
+"""
 COUNTER = """
 F#3w | D3h F#3h | E3h A3h | C#4w |
-F#3w | F#3h B3h | G3h A3h | F#3w |
+F#3w | F#3h B3h | G3h A3h | E3w |
 """
 CH = chart('D Bm7 Em7:2 G/D:2 A D F#m:2 Bm:2 G:2 A7:2 D')
+CH_OPEN = chart('D Bm7 Em7:2 G/D:2 A D F#m:2 Bm:2 G:2 A7:2 A')   # the last bar stays on V
 
 
 def build():
@@ -34,30 +47,30 @@ def build():
     hp = s.part('harp', 'harp', role='keys')
     arp(hp, 1, chart('D Gmaj7'), '0 1 2 3 4 3 2 1', step=0.5, lo=50, hi=81, vel=0.45)
     for bar in (A, B):
-        arp(hp, bar, CH, '0 1 2 3 4 3 2 1', step=0.5, lo=50, hi=81, vel=0.45)
+        arp(hp, bar, CH_OPEN, '0 1 2 3 4 3 2 1', step=0.5, lo=50, hi=81, vel=0.45)
     arp(hp, D, chart('D Gmaj7 D D'), '0 2 4 6 4 2', step=0.5, lo=50, hi=86, vel=0.4)
 
     hn = s.part('hn', 'horns', role='lead')
-    hn.at(A).play('@mf' + THEME, transpose=-12)
+    hn.at(A).play('@mf' + THEME_HOLLOW, transpose=-12)
     hn.at(C).play('@f' + THEME, transpose=-12)
     hn.expr((A, 0.85), (B - 0.1, 1.0), (B, 0.6), (C, 0.95))
     vn = s.part('vn', 'violins', role='lead', art='sus')
-    vn.at(B).play('@mf' + THEME)
+    vn.at(B).play('@mf' + THEME_OPEN)
     vn.at(C).play('@ff' + THEME)
     vn.at(D).play('@mp A5w | rw | rw | rw |')
     vn.expr((B, 0.8), (C, 1.0), (D, 0.7), (D + 1, 0.3))
     vn2 = s.part('vn2', 'violins2', role='pad', art='soft')
-    pad(vn2, A, CH, n=2, lo=62, hi=76, vel=0.45, art='soft')
+    pad(vn2, A, CH_OPEN, n=2, lo=62, hi=76, vel=0.45, art='soft')
     pad(vn2, C, CH, n=2, lo=64, hi=79, vel=0.55, art='sus')
     va = s.part('va', 'violas', role='pad', art='soft')
-    for bar in (A, B, C):
-        pad(va, bar, CH, n=2, lo=53, hi=67, vel=0.45, art='soft')
+    for bar, ch in ((A, CH_OPEN), (B, CH_OPEN), (C, CH)):
+        pad(va, bar, ch, n=2, lo=53, hi=67, vel=0.45, art='soft')
     vc = s.part('vc', 'celli', role='counter', art='sus')
     vc.at(B).play('@mp' + COUNTER)
     bass(vc, C, CH, 'h h', 'r 5', floor=38, vel=0.55, art='sus')
     cb = s.part('cb', 'basses', role='low', art='soft')
-    for bar in (A, B, C):
-        bass(cb, bar, CH, 'w', 'b', floor=26, vel=0.5, art='soft')
+    for bar, ch in ((A, CH_OPEN), (B, CH_OPEN), (C, CH)):
+        bass(cb, bar, ch, 'w', 'b', floor=26, vel=0.5, art='soft')
     cb.at(D).play('@p D2w~ | D2w~ | D2w~ | D2w |')
 
     choir = s.part('choir', 'choir', role='choir')

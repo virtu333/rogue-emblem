@@ -33,10 +33,12 @@ one note). The first time anyone wounds the Entity, everything it took comes bac
    The whole army answers on beat one. A: Ember Dusk, the run's first battle theme, at
    double length over a motor whose eighths group in fours against the bar's two halves
    (3:2, after *Twilight of the Gods*): a broad line over moving ground (*The Apex of the
-   World*). B: a descending-fifths chain (i iv bVII bIII bVI ii° V, after *Id (Purpose)*);
-   horns, trumpets, then violins and the choir join one at a time, and the complete
-   Thread arrives only when they all sing it. A2: the choir Act I never had sings Ember
-   Dusk, and the phrase climbs to the leading tone (C#) and stops there. The cadence it
+   World*). B: *Id (Purpose)*'s descending-fifths chain (i iv bVII bIII bVI ii° V) over its walking
+   bass, every dotted quarter moving, the dominant in first inversion; horns, trumpets,
+   then violins and the choir join one at a time, and the complete Thread arrives only
+   when they all sing it. A2: the choir Act I never had sings Ember Dusk, and the phrase
+   climbs to the leading tone (C#) and stops there; on the bar's last beat the harmony
+   turns to bVII, so the C# falls to C and the loop returns without a V-i. The cadence it
    withholds is The Last Light's, which the killing blow starts.
 3. **The Entity pushes back.** `music_boss_entity_finale_hum` is the Entity's own stem
    on the finale's timeline (the D hum with its E-flat shadow, the cluster, the col legno
@@ -63,19 +65,19 @@ it was heard when the wound was dealt).
 
 | Key | Title | Notes |
 |---|---|---|
-| `music_title` | The Hollow Sun | 66 bpm, D minor. Drone on an open fifth, bells A-G-E, solo-violin theme, the hollow cadence |
+| `music_title` | The Hollow Sun | 66 bpm, D minor. Drone on an open fifth, bells A-G-E, solo-violin theme that leaves its ending unsaid, the hollow cadence. The thread's high A holds through the first statement while the harmony moves under it (fifth, seventh, ninth, sixth, root) |
 | `music_login` | The Hollow Sun (calm) | Strings/harp/choir mix of the title, exported as a whole-file loop for the HTML login screen |
 | `music_home_base` | Embers of the Old Kingdom | 6/8, F major: nylon guitar and harp, flute Thread, horn oath |
 | `music_shop` | Varen's Mark | G minor strut: clarinet, accordion, pizzicato walk, marimba |
-| `music_rest` | Liturgy of the Spent Name | Organ and choir hymn; the second phrase never ends |
+| `music_rest` | Liturgy of the Spent Name | Organ and choir hymn; the second phrase climbs to the leading tone and stops: a silent bar where the name was |
 | `music_loot` | Spoils of the March | Short bright loop |
 | `music_victory` | Routed | Brass fanfare of the oath, then the Thread at rest |
 | `music_defeat` | The Thread Is Cut | Solo cello breaks off mid-theme |
 | `music_run_win` | The Last Light | The Thread in D major; the hollow cadence resolves |
 | `music_explore_act1` | The Loom: Ember Dusk | Harp/pizzicato "shuttle", flute Thread in D dorian |
 | `music_explore_act2` | The Loom: Iron Rain | Celesta rain, muted-horn Empire drill, oboe Thread |
-| `music_explore_act3` | The Loom: Bleached Rite | 3/4, organ and choir between E and the Phrygian F; the Thread in E, bent down through F natural |
-| `music_explore_act4` | The Loom: Ashfall | Night: drone, heartbeat, bells, oboe fragments |
+| `music_explore_act3` | The Loom: Bleached Rite | 3/4, organ and choir between E and the Phrygian F; the Thread in E, bent down through F natural; a pizzicato pulse in twos against the three (the sacred ground's 3:2) |
+| `music_explore_act4` | The Loom: Ashfall | Night: drone, heartbeat, bells, oboe fragments. Its full statement is Act I's route-map tune note for note, over a changed bass, with its answer missing (after *A Song for Bygone Days*) |
 | `music_battle_act1` | Ember Dusk | 152 bpm D minor, the main battle theme |
 | `music_battle_act1_2` | Border Marches | 6/8 cavalry gallop, G minor |
 | `music_battle_act2` | Iron Rain | 160 bpm C minor; the Empire drill is the riff |
@@ -84,6 +86,19 @@ it was heard when the wound was dealt).
 | `music_battle_act3_2` | Against the Rite | B minor to a soaring D major choir chorus, then E major |
 | `music_battle_act4` | Ashfall | 132 bpm C-sharp minor doom march, tolling bells |
 | `music_battle_escape` | One More Crossing | Escape maps. 12/8, E minor: a modest motor under the Thread at half speed; B strain a minor third up; no choir |
+| `music_battle_act1_3` | Open Ground | Act I. 132 bpm, D: a minor-sixth leap on the push, where the harmony moves to bVI, a falling answer and two bars of air; the verse turns the leap over; the refrain climbs D → F → Ab by minor thirds on `i–bVI–bVII` and never uses a V (after *Blue Skies and a Battle*). Solo trumpet, harp and marimba fifths; no choir |
+| `music_battle_act1_4` | The Oath at the Ford | Act I. 116 bpm march, E: Edric's oath on horns in fourths over an E pedal that brightens through A/E, D/E, C/E; the call's rise never changes, only where it lands, and in A′ the violins hold the landings above it as a descant (after *One Final Effort*, *Conquest*) |
+| `music_battle_act2_3` | Old Kingdom Roads | Act II. 138 bpm, G minor: the partisans' signal (two quick notes, a leap of a seventh, a fall) in every key; the bass walks down the minor collection to Ab and then to the piece's only F#, where the violins sing the Empire's drill; then the partisans stop marching in four and dance in three, over a mazurka stamp on beat 2 (after *Chasing Daybreak*). The calm mix opens on a solo violin, not the shop's clarinet |
+| `music_battle_act3_3` | Petals on the Fen | Act III. 6/8, B minor: Bm → G/B in one voice over a kept B, C(add#11) → Bm through the F# they share, a plunge-and-climb figure (on the harp in the calm mix); the second strain is a lament over a ground (B–A–G–F#, a tritone up to C, down to B, then a plagal IV) with no dominant; returning phrases lose their breath in 5/8 and 4/8 sub-bars, not their notes (the lament bass and plagal arrivals after *A Funeral of Flowers*) |
+| `music_battle_act4_2` | Ember Dusk, in Ash | Act IV. Ember Dusk remembered after the ritual, a semitone down, in Ashfall's world rather than its own: its first phrase note for note (imported from `battle_act1.py`) over Ashfall's half-time tom groove, tremolo strings and tolling bells; the second over a changed bass, the answering tonic replaced by b3–b2 held against the leading tone, then silence. Ember Dusk's own band comes back once, for A3's first phrase; no choir sings the tune (after *A Song for Bygone Days*, *Between Heaven and Earth*) |
+| `music_battle_castle` | Stone That Remembers | Castle maps. 132 bpm, C minor, a larger hall: a `Cm–Ab–Bb–Cm` ground that never needs a dominant; once per loop the bass takes the sigh onto the only G major and the harmony turns to Dbmaj7(#11) while the horns bend Edric's oath onto the held G (after *Fódlan Winds*) |
+| `music_battle_swamp` | The Mire | Swamp maps. 5/4, F Phrygian: a drone held inside the texture, a one-pitch low cell with a kept rest and a Gb flinch that lands on the beat, then early; the tune sinks by semitone slips; in B the held C turns from a fifth into a tritone (after *Silver for Monsters*) |
+| `music_battle_tundra` | Rime | Tundra maps. 112 bpm, E: one held B survives four harmonies (9th, #11, 6th, 5th; E17) and changes colour whenever it changes meaning (violins, muted brass, clarinet, violas, a celesta strike), under a line that knows when to stop moving; the kick breathes on one and three (after *Terra's Theme*). Celesta, glock, harp harmonics; no warmth arrives |
+| `music_battle_volcano` | Caldera | Volcano maps. 120 bpm, Bb: a pedal under an E–A–Bb collection with no third, struck in a two-bar stamp with rests while only the taiko keeps the quarters, in modules with octatonic runs that land on the line's pitches and an anvil on beat 3 (after *One-Winged Angel*, E20) |
+| `music_battle_village` | Bells Over the Village | A village under attack. 3/4 at 172, A minor: the bell's E–A–A is the fiddle's call; the village answers, a few, then many, then nobody, and without the answer the harmony is stuck on A while the bell rings on (after *Steel for Humans*, *Silver for Monsters*) |
+| `music_battle_elite` | Against the Standard | Elite companies. 168 bpm, C minor: a 7-sixteenth cell crosses the bar line over a quarter-note floor, each cell head struck by a rim click and a high marimba, re-forming only at strain starts; a unison hit stops it dead and it resumes half a bar out. The tune climbs D–Eb–F# onto a cadential 6/4 |
+| `music_battle_rescue` | Someone Is Still Out There | Recruit rescues. 148 bpm, F minor into F major: the stranger's line has the Thread's rhythm and other intervals (a cry up a seventh); the two meet, and in the last strain the army plays the stranger's line while the bass walks it into F major; the hope is in the inner voices, the major IV over F and a whole-tone shadow of the dominant over the leading tone (after *Indomitable Will*) |
+| `music_battle_eclipsed` | Totality | Nodes the Eclipse has taken. 6/8 at 72 (dotted quarter, the slowest battle), D: the Eclipse cue's bell call and its failed answers, which stay under the call and end a step from its D, never on it; each strain loses light from the top down (the high voices, the harp, the cymbals, the choir sinking), the phrases lose their breath in real 5/8 and 4/8 bars, and only the loop brings the light back |
 | `music_colosseum` | The Pit Answers | A dorian, 3+3+2: a fiddle calls, the crowd answers... then a few voices, then nobody |
 | `music_shrine` | What the Sun Kept | Blessing select. G major 3/4, harp and celesta, Lydian gold; the hymn still stops on the leading tone |
 | `music_explore_deep` | The Loom: Unlight | The last act's route map: Act I's loom with its notes taken away in three stages over a D drone |
@@ -91,7 +106,7 @@ it was heard when the wound was dealt).
 | `music_boss_act2` | Doctrine of Lances | F minor, everything 3+3+2; the black rider's chromatic crawl |
 | `music_boss_act3` | The Perfect Duel | E minor duel; the Lieutenant's sign appears |
 | `music_boss_emperor` | Human, Powerful, and Wrong | Organ chorale, imperial anthem, the Thread over the drill |
-| `music_boss_lieutenant` | Every Future You Could Reach | Canon a tritone apart; the player's battle theme returns against his motif |
+| `music_boss_lieutenant` | Every Future You Could Reach | Canon a tritone apart; the player's battle theme returns against his motif; in the last strain Sera's violin answers him once with his own falling line, without the shadow |
 | `music_boss_entity` | · · · | A hole in the music: hum, a heartbeat losing beats, the Thread with notes missing; one clear Thread from the player's violin. No choir, no brass, under battle loudness (−19 LUFS). Plays until the Entity's first wound |
 | `music_boss_entity_finale` | All of Us Across | The Entity's finale (above): 12/8, Ember Dusk augmented, the choir, the Thread completed by everyone; ends on the leading tone. `_hum` is the Entity's stem under it, its level set by the Entity's HP |
 
@@ -151,7 +166,12 @@ Analysis dossier):
   battle's string ostinato; **3:2 against the beat** to the sacred ground; a **compound
   motor under a broad line** to escape maps.
 - **A completed tonic cadence of the Thread** is reserved for promotion and the run's
-  final victory.
+  final victory, which resolves it once (with the bells). The title, the victory fanfare,
+  the route maps and the field and boss battles stop on the leading tone, the fifth or the
+  second instead.
+- **Each new battle theme owns its mechanism** (the cue list names it): bar contraction to
+  Petals on the Fen and Totality, a cross-bar cycle to Against the Standard, a pedal under a
+  third-less collection to Caldera, a held note changing meaning to Rime and the title.
 
 ## Adaptive battle music
 
@@ -168,6 +188,25 @@ enemy phase in which some enemy can reach a player unit. It settles back to calm
 after a whole round with no combat and nobody inside the visible threat range.
 `src/utils/LoopedMusic.js` starts both layers at the same instant with identical loop
 points, so a change of layer is a sample-aligned crossfade: the music never restarts.
+
+## Which battle theme plays
+
+A battle's music answers the most specific thing true of it (`engine/BattleMusicSelection.js`):
+
+1. a boss plays its theme (the antagonists' own, else the act's);
+2. an escape map plays One More Crossing;
+3. a node the Eclipse has taken plays Totality; a village under attack, Bells Over the Village;
+   a recruit rescue, Someone Is Still Out There; an elite company, Against the Standard;
+4. the map's place: castles Stone That Remembers (two thirds of them), swamps The Mire,
+   tundra Rime, volcanoes Caldera; a third of the maps where bandits race for a village ring
+   the village's bells;
+5. otherwise the act's pool: Act I Ember Dusk, Border Marches, Open Ground, The Oath at the
+   Ford; Act II Iron Rain, Steel and Thread, Old Kingdom Roads; Act III Bleached Rite, Against
+   the Rite, Petals on the Fen; Act IV Ashfall, Ember Dusk in Ash.
+
+Picks are hashed from the run seed, never rolled, so a resumed battle plays what it played.
+The act pool is walked in a per-run order indexed by the node's row, so a path hears no theme
+twice until the pool is spent, and every run (and the tutorial) opens on Ember Dusk.
 
 ## Seamless loops
 

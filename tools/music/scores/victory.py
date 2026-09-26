@@ -1,19 +1,25 @@
 """Victory — "Routed". Edric's oath as a brass fanfare in D major (the
-battle's D minor, lit), then the Thread theme at rest on strings and harp."""
+battle's D minor, lit), then the Thread theme at rest on strings and harp.
+
+At rest, not home: both halves of the Thread end on the dominant, and the
+loop returns to D without the melody ever landing on it. The completed
+cadence is the run win's, not every battle's."""
 
 from engine.patterns import arp, bass, chart, drums, pad
 from engine.score import Score
 
 KEY = 'music_victory'
 
-FANFARE_TOP = 'A4q. D5e D5q C#5e D5e | F#5h D5h | G5q. F#5e E5q D5q | F#5w |'
+FANFARE_TOP = 'A4q. D5e D5q E5e D5e | F#5h D5h | G5q. F#5e E5q D5q | F#5w |'
 FANFARE_MID = 'F#4q. A4e A4q A4e A4e | D5h A4h | B4q. A4e G4q A4q | A4w |'
 FANFARE_LOW = 'D4q. F#4e F#4q E4e F#4e | A4h F#4h | G4q. D4e E4q E4q | D4w |'
 MEL = """
 A4h D5q E5q | F#5w | E5q. D5e C#5q B4q | A4w |
-A4h D5q E5q | F#5h A5h | G5q. F#5e E5q C#5q | D5w |
+A4h D5q E5q | F#5h A5h | G5q. F#5e E5q D5q | E5w |
 """
-CH = chart('D Bm7 A:2 E/G#:2 A D F#m:2 Bm:2 G:2 A7:2 D')
+# (bar 7's passing D over the A7 rubs the violas' C-sharp for one beat: a 4-3
+# on the dominant, on its way up to E)
+CH = chart('D Bm7 A:2 E/G#:2 A D F#m:2 Bm:2 G:2 A7:2 A7')
 
 
 def build():
@@ -45,7 +51,7 @@ def build():
     va = s.part('va', 'violas', role='pad', art='soft')
     pad(va, 5, CH, n=2, lo=53, hi=66, vel=0.42, art='soft')
     vc = s.part('vc', 'celli', role='counter', art='soft')
-    vc.at(5).play('@mp F#3w | D3w | C#3h B2h | A2w | F#3w | A3h F#3h | E3h A2h | D3w |')
+    vc.at(5).play('@mp F#3w | D3w | C#3h B2h | A2w | F#3w | A3h F#3h | E3h A2h | E3w |')
     cb = s.part('cb', 'basses', role='low', art='pizz')
     bass(cb, 5, CH, 'h h', 'r 5', floor=26, vel=0.5, art='pizz')
     hp = s.part('harp', 'harp', role='keys')

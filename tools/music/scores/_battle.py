@@ -151,6 +151,9 @@ class Battle:
 
     def _bars(self, sec):
         beats = sum(b for _, b in self.chart(sec))
+        if self.s.mixed_meter:
+            start = self.s.bar(self.bar(sec))
+            return self.s.bar_at(start + beats - 1e-6) - self.s.bar_at(start) + 1
         return int(round(beats / self.s.bar_beats))
 
     def rbass(self, sec, rhythm='e e e e e e e e', notes='r r r r r r 8 r', vel=0.74,

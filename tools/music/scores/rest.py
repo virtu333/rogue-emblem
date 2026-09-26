@@ -1,9 +1,10 @@
 """Rest / church — "Liturgy of the Spent Name".
 
 The old faith's hymn, kept by the seer order. Its first phrase closes
-properly on F. Its second phrase climbs to the place where the goddess's
-name would be sung... and the choir stops: a bar of silence and one bell,
-because the name was spent. A solo cello carries the tune between verses.
+properly on F. Its second phrase climbs to the leading tone, the place
+where the goddess's name would be sung... and the choir stops: a bar of
+silence and one bell, because the name was spent. A solo cello carries the
+tune between verses.
 """
 
 from engine.patterns import arp, chart, drums, pad, pad_under
@@ -15,14 +16,17 @@ S1 = """
 F4h G4h | A4h. G4q | F4q G4q A4q Bb4q | C5w |
 D5h C5h | Bb4q A4q G4h | A4q Bb4q C5q E4q | F4w |
 """
+# the second phrase's last bar climbs C D E to the leading tone over the
+# dominant and stops: the Hollow Sun (the name would be F, and the bar where
+# it belongs is silent)
 S2 = """
 A4h C5h | D5h. C5q | Bb4q A4q G4q F4q | G4w |
-A4h Bb4h | C5h D5h | C5q Bb4q A4q G4q | rw |
+A4h Bb4h | C5h D5h | C5q D5q E5h | rw |
 """
 CH1 = chart('F:2 C/E:2 F:3 C:1 Dm:1 Gm7:1 F/A:1 Bb:1 Csus4:2 C:2 '
             'Bb:2 F/A:2 Gm:1 F/A:1 C:2 F:1 Bb:1 F/C:1 C7:1 F:4')
 CH2 = chart('F:2 Am:2 Bb:3 F:1 Gm:1 F/A:1 C/E:1 Dm:1 C:4 '
-            'F:2 Gm:2 F/A:2 Bb:2 F/C:1 C7:1 F:1 C7:1')   # 7 bars: the eighth is silence
+            'F:2 Gm:2 F/A:2 Bb:2 F/C:2 C7:2')   # 7 bars: the eighth is silence
 
 
 def build():

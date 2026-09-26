@@ -20,9 +20,11 @@ MARCH = """
 D3q. Eb3e D3q C3q | Bb2h. A2q | D3q. Eb3e D3q F3q | Eb3h. D3q |
 D3q. Eb3e D3q C3q | Bb2h. G2q | A2q. Bb2e A2q G2q | A2w |
 """
+# the defiance stops on E over the dominant, as DEFY_D does: the Act I boss
+# does not get the Thread's cadence (that is promotion's and the run win's)
 DEFY = """
 A4q D5q E5e A5q.~ | A5h G5q F5q | E5q. D5e C#5q E5q | A4w |
-A4q D5q E5e A5q.~ | A5q C6q Bb5q A5q | G5q. F5e E5q C#5q | D5w |
+A4q D5q E5e A5q.~ | A5q C6q Bb5q A5q | G5q. F5e E5q C#5q | E5w |
 """
 # the defiance re-fitted over the march's own harmony, for the stacked strain
 DEFY_D = """
@@ -34,7 +36,7 @@ F3q. Gb3e F3q Eb3q | Db3h. C3q | F3q. Gb3e F3q Ab3q | Gb3h. F3q |
 Db3q. Eb3e F3q Gb3q | Ab3h. Bb3q | C4q. Db4e C4q Bb3q | C4w |
 """
 CH_A = chart('Dm Bb Dm Eb Dm Gm A A')
-CH_B = chart('Dm F:2 C:2 A7 Dm Dm F:2 Bb:2 Gm:2 A:2 Dm')
+CH_B = chart('Dm F:2 C:2 A7 Dm Dm F:2 Bb:2 Gm:2 A:2 A')      # the last bar stays on V
 CH_C = chart('Fm Db Fm Gb Db Ab C C')
 CH_BUILD = chart('Bb C Db A')
 
