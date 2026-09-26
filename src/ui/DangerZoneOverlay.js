@@ -109,8 +109,8 @@ export class DangerZoneOverlay {
     if (scene?.add?.renderTexture && scene?.make?.graphics && grid?.cols && grid?.rows) {
       if (!this.fillRT || this.fillRT.active === false) {
         const m = BAKE_MARGIN;
-        const w = grid.cols * TILE_SIZE + m * 2;
-        const h = grid.rows * TILE_SIZE + m * 2;
+        const w = (grid.mapPixelWidth ?? grid.cols * TILE_SIZE) + m * 2;
+        const h = (grid.mapPixelHeight ?? grid.rows * TILE_SIZE) + m * 2;
         const x = (grid.offsetX || 0) - m;
         const y = (grid.offsetY || 0) - m;
         this.bakeOrigin = { x, y };
@@ -179,10 +179,13 @@ export class DangerZoneOverlay {
       return;
     }
     // Outer edge of the damage zone: ink under-stroke, then the crimson line.
-    const origin = this.grid.gridToPixel(0, 0);
-    const ox = origin.x - S / 2;
-    const oy = origin.y - S / 2;
-    const edges = dangerEdges(damage);
+    // Edges are traced in drawn cells so a rotated (portrait) board outlines correctly.
+    const cellOf = (t) => this.grid.displayCellOf?.(t.col, t.row) || { col: t.col, row: t.row };
+    const anchor = this.grid.gridToPixel(damage[0].col, damage[0].row);
+    const anchorCell = cellOf(damage[0]);
+    const ox = anchor.x - S / 2 - anchorCell.col * S;
+    const oy = anchor.y - S / 2 - anchorCell.row * S;
+    const edges = dangerEdges(damage.map(cellOf));
     const w = this.style.edgeWidth;
     const stroke = (width, color, alpha) => {
       layers.edge.lineStyle(width, color, alpha);

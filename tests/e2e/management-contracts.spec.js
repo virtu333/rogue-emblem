@@ -186,9 +186,14 @@ test('zero-weight reward is blocked without claiming, and a useful stat remains 
 }) => {
   await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&battleLab=1');
   await waitForScene(page, 'Battle');
+  // Win from a settled player turn, not mid turn-start. The rewards open after the
+  // victory band (1.5 s) and its hand-off: allow for a loaded CI runner.
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle')?.battleState === 'PLAYER_IDLE',
+  );
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
   const dialog = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
-  await expect(dialog).toBeVisible();
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
   await page.evaluate(() => {
     const scene = window.__emblemRogueGame.scene.getScene('Battle');
     const c = scene._lootController;

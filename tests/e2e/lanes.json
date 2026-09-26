@@ -19,6 +19,7 @@
         "management-contracts.spec.js",
         "forecast-input-contract.spec.js",
         "contextual-help.spec.js",
+        "formation.spec.js",
         "journey-contracts.spec.js",
         "battle-timeline.spec.js"
       ]
@@ -58,6 +59,11 @@
         "mobile-home-base.spec.js",
         "mobile-run-loop.spec.js"
       ]
+    },
+    {
+      "name": "portrait",
+      "description": "Portrait battles (beta, opt-in): the turned board, the upright rail, rotation round trips and the locked shells",
+      "specs": ["portrait-battle.spec.js"]
     },
     {
       "name": "battle-input",

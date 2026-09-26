@@ -18,6 +18,7 @@
 import manifest from './Pc98PortraitManifest.json';
 import rebuiltManifest from './RebuiltPortraitManifest.json';
 import { variantPortraitId } from '../engine/PortraitVariants.js';
+import { promotedFromName } from '../engine/ClassLineage.js';
 
 export const PC98_MANIFEST = manifest;
 export const PC98_SIZES = Object.freeze([...manifest.sizes].sort((a, b) => b - a));
@@ -116,7 +117,7 @@ export function portraitCandidates(unit, gameData = {}) {
     return out;
   }
   const cls = normalize(unit.className);
-  const base = gameData.classes?.find((entry) => entry.name === unit.className)?.promotesFrom;
+  const base = promotedFromName(unit, gameData.classes);
   const baseNorm = typeof base === 'string' ? normalize(base) : null;
   if (unit.faction === 'enemy') {
     out.push(`enemy_${cls}`);

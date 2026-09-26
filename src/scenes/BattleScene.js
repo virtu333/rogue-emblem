@@ -169,6 +169,7 @@ import {
   ENTITY_PRIMARY_ATTACK_RANGE,
   ENTITY_WEAPON_NAMES,
 } from '../utils/constants.js';
+import { hasRoomRightOf } from '../utils/boardOrientation.js';
 import {
   getHPBarColor,
   applyTextResolution,
@@ -282,10 +283,12 @@ import {
 } from '../engine/BattleEntityIdentity.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
+import { PortraitBattleController } from '../ui/PortraitBattleController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
 import { AbilityController } from '../ui/AbilityController.js';
 import { GridCursorController } from '../ui/GridCursorController.js';
+import { FormationController, FORMATION_STATE } from '../ui/FormationController.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
 import { CombatChoreography } from '../ui/CombatChoreography.js';
@@ -388,6 +391,9 @@ export class BattleScene extends Phaser.Scene {
     this.isBoss = data.isBoss || false;
     this.isElite = data.isElite || false;
     this._resumeCheckpoint = data.resumeCheckpoint || null;
+    // Re-opened in the other orientation (portrait battles), not a player resume.
+    this._presentationSwitch = data.presentationSwitch === true;
+    this._portraitBattle = null;
     this._fatalResumeParked = false;
     this._battleSuspendController = null;
     this.escapedUnits = [];
@@ -512,6 +518,8 @@ export class BattleScene extends Phaser.Scene {
     if (audio) audio.releaseMusic(this, 0);
     this._musicCtrl?.destroy();
     this._musicCtrl = null;
+    this._formation?.destroy();
+    this._formation = null;
 
     this._stopLevelUpSfx();
     this.battleTradeMenu?.destroy();
@@ -548,6 +556,8 @@ export class BattleScene extends Phaser.Scene {
     this.hideForecast();
     this._mobileBattleHud?.destroy();
     this._mobileBattleHud = null;
+    this._portraitBattle?.destroy();
+    this._portraitBattle = null;
     this.closeVisionDialog();
     if (this._postCombatController) {
       this._postCombatController.destroy();
@@ -1291,6 +1301,10 @@ export class BattleScene extends Phaser.Scene {
 
       // Build the grid from generated map (with optional fog of war)
       const fogEnabled = this.battleParams.fogEnabled || false;
+      // Portrait battles (beta): an upright phone draws the board turned a quarter.
+      this._portraitBattle?.destroy();
+      this._portraitBattle = new PortraitBattleController(this);
+      const boardPresentation = this._portraitBattle.resolvePresentation(bc);
       this.grid = new Grid(
         this,
         bc.cols,
@@ -1299,7 +1313,9 @@ export class BattleScene extends Phaser.Scene {
         bc.mapLayout,
         fogEnabled,
         bc.biome || null,
+        boardPresentation,
       );
+      this._portraitBattle.create();
       this._battlefieldTerrain?.destroy();
       this._battlefieldTerrain = paintBattlefieldTerrain(this, this.grid);
 
@@ -1940,6 +1956,15 @@ export class BattleScene extends Phaser.Scene {
         this._bindDevToggleKey();
       }
 
+      // Formation (3+ units): the army leaves the field and waits for the player to
+      // place it; the boss card and pre-battle lines play over the empty tiles.
+      this._formation?.destroy();
+      this._formation = null;
+      if (FormationController.shouldRun(this)) {
+        this._formation = new FormationController(this);
+        this._formation.lift();
+      }
+
       await this._presentBossEncounter();
 
       if (this.isBoss && this._bossName && this.runManager) {
@@ -1971,6 +1996,10 @@ export class BattleScene extends Phaser.Scene {
         this._resumeCheckpoint = null;
         this._bossPresence?.sync({ silent: true });
       } else {
+        if (this._formation?.active) {
+          await this._formation.run();
+          if (!this._isSceneActiveForAsync()) return;
+        }
         this._bossPresence?.sync();
         this.turnManager.startBattle();
       }
@@ -3440,6 +3469,7 @@ export class BattleScene extends Phaser.Scene {
     this._pinnedThreats?.refresh();
     this._recruitBeacon?.sync();
     this._mobileBattleHud?.sync();
+    this._portraitBattle?.update();
     if (!this._uiCamera) return;
     const childCount = this.children?.list?.length || 0;
     if (!this._cameraFilterDirty && childCount === this._lastChildrenCount) return;
@@ -3451,8 +3481,8 @@ export class BattleScene extends Phaser.Scene {
     return {
       left: this.grid.offsetX,
       top: this.grid.offsetY,
-      width: this.grid.cols * TILE_SIZE,
-      height: this.grid.rows * TILE_SIZE,
+      width: this.grid.mapPixelWidth,
+      height: this.grid.mapPixelHeight,
     };
   }
 
@@ -3486,6 +3516,12 @@ export class BattleScene extends Phaser.Scene {
     if (!this._scaleResizeHandler && this.scale?.on) {
       this._scaleResizeHandler = () => {
         if (!this._uiCamera) return;
+        // The phone battle layout owns the UI camera's band (portrait battles).
+        const lab = this._mobileBattleHud?.lab;
+        if (lab && !lab.destroyed) {
+          lab.syncUiCamera();
+          return;
+        }
         const worldCam = this.cameras?.main;
         if (!worldCam) return;
         this._uiCamera.setSize(worldCam.width, worldCam.height);
@@ -3667,6 +3703,7 @@ export class BattleScene extends Phaser.Scene {
       return true;
     const allowedStates = new Set([
       'PLAYER_IDLE',
+      FORMATION_STATE,
       'UNIT_SELECTED',
       'SELECTING_TARGET',
       'SHOWING_FORECAST',
@@ -3761,6 +3798,7 @@ export class BattleScene extends Phaser.Scene {
 
   canRequestCancel({ allowPause = true } = {}) {
     if (this.isStoryInputLocked()) return false;
+    if (this.battleState === FORMATION_STATE && this._formation?.ready) return true;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) return true;
     if (this.visionDialog) return true;
     if (this.unitDetailOverlay?.visible) return true;
@@ -3788,6 +3826,15 @@ export class BattleScene extends Phaser.Scene {
       return true;
     }
     if (!this.canRequestCancel({ allowPause })) return false;
+    if (this.battleState === FORMATION_STATE && this._formation?.ready) {
+      // Placement: close the detail view or inspection first, then the tile choice;
+      // with nothing to back out of, Back opens the formation menu.
+      if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
+      else if (this.inspectionPanel?.visible) this.clearInspectionVisuals();
+      else if (!this._formation.cancel() && allowPause) this._formation.openMenu();
+      this.refreshEndTurnControl();
+      return true;
+    }
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) {
       this.debugOverlay.hide();
       this.refreshEndTurnControl();
@@ -4063,13 +4110,18 @@ export class BattleScene extends Phaser.Scene {
 
   _onDangerClick() {
     if (this.isStoryInputLocked()) return;
-    if (['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(this.battleState)) {
+    if (
+      ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU', FORMATION_STATE].includes(
+        this.battleState,
+      )
+    ) {
       if (this.dangerZoneStale || !this.dangerZoneCache) {
         this.dangerZoneCache = this.calculateDangerZone();
         this.dangerZoneStale = false;
       }
       this.dangerZone.toggle(this.dangerZoneCache);
       if (!this.dangerZone.visible) this.keepDangerVisible = false;
+      this._formation?.touch?.();
     }
   }
 
@@ -4077,7 +4129,9 @@ export class BattleScene extends Phaser.Scene {
     if (
       this.isStoryInputLocked() ||
       this._isTutorialStrictGateActive?.() ||
-      !['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(this.battleState)
+      !['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU', FORMATION_STATE].includes(
+        this.battleState,
+      )
     )
       return;
     this.keepDangerVisible = !this.keepDangerVisible;
@@ -5931,7 +5985,9 @@ export class BattleScene extends Phaser.Scene {
       healOptions.find((option) => option.staff === unit.weapon) || healOptions[0] || null;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 60;
+    const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - 60;
     const menuY = pos.y - 10;
 
     this.actionMenu = [];
@@ -6521,7 +6577,9 @@ export class BattleScene extends Phaser.Scene {
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     const menuWidth = 155;
-    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - menuWidth;
+    const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
 
     this.actionMenu = [];
@@ -6714,7 +6772,9 @@ export class BattleScene extends Phaser.Scene {
     // Use consumables array instead of filtering inventory
     const consumables = unit.consumables || [];
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 200;
+    const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - 200;
     const menuY = pos.y - 10;
 
     const itemHeight = this.isMobileInput ? 38 : 28;

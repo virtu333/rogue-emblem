@@ -22,6 +22,7 @@ const HOLD_DETAIL_STATES = new Set([
   'UNIT_SELECTED',
   'UNIT_ACTION_MENU',
   'SELECTING_TARGET',
+  'DEPLOY_POSITIONING',
 ]);
 
 // A tap on any tile of a (possibly multi-tile) unit.
@@ -386,6 +387,9 @@ export class InputController {
         break;
       case 'CANTO_MOVING':
         scene.handleCantoClick(gp);
+        break;
+      case 'DEPLOY_POSITIONING':
+        scene._formation?.handleTileTap(gp);
         break;
     }
   }

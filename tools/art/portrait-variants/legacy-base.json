@@ -1,0 +1,22 @@
+{
+  "generic_soldier": {
+    "prompt": "A 128 by 128 pixel art character portrait for a dark-fantasy tactics RPG, drawn exactly in the style of the first two reference images (the same game): crisp square pixels, a dark outline, three-tone cel shading lit from the upper left, a head-and-shoulders bust in three-quarter view facing right, the shoulders filling the bottom edge, on a flat dark navy (#1b1d33) background. One character, no text, no frame, no glow. The character: a Soldier, a young man in his twenties, fair skin, short brown hair under the helmet brim, a steady dependable look. Outfit: a padded blue gambeson with brass toggles over a short mail shirt, a plain open iron kettle helmet on the head with the face and hair visible, the shaft of a spear at the shoulder. The third reference image is the class's map sprite: follow its costume (left figure), in blue.",
+    "refs": [
+      "assets/portraits/generic_mercenary.png",
+      "assets/portraits/generic_cavalier.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/soldier.png"
+    ],
+    "take": 1,
+    "generator": "gen-legacy-base.mjs"
+  },
+  "enemy_soldier": {
+    "prompt": "A 128 by 128 pixel art character portrait for a dark-fantasy tactics RPG, drawn exactly in the style of the first two reference images (the same game): crisp square pixels, a dark outline, three-tone cel shading lit from the upper left, a head-and-shoulders bust in three-quarter view facing right, the shoulders filling the bottom edge, on a flat dark navy (#1b1d33) background. One character, no text, no frame, no glow. The character: an enemy Soldier of the Empire, an ordinary grim levy soldier (not a monster, no glowing eyes), face half shadowed by the helmet brim. Outfit: a padded blue gambeson with brass toggles over a short mail shirt, a plain open iron kettle helmet on the head with the face and hair visible, the shaft of a spear at the shoulder, recoloured for the Empire's army: iron grey and crimson cloth. The third reference image is the class's map sprite: follow the enemy's costume (right figure).",
+    "refs": [
+      "assets/portraits/enemy_fighter.png",
+      "assets/portraits/enemy_mercenary.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/soldier.png"
+    ],
+    "take": 2,
+    "generator": "gen-legacy-base.mjs"
+  }
+}

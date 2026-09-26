@@ -629,5 +629,21 @@
     "refs": [
       "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
     ]
+  },
+  {
+    "name": "Soldier",
+    "tier": "base",
+    "weapon": "Lances (P)",
+    "move": "Infantry",
+    "id": "soldier",
+    "count": 3,
+    "prompt": "Generate a SOLDIER tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Image 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Images 2 and 3 are review sheets of neighbouring classes from the same set: match their pixel scale, figure size, rendering, cell layout and three-quarter pose exactly, but draw this class's own costume and weapon. Full body with all equipment visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal gameplay scale. Generous padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth keeps clear BLUE or RED accents, natural skin and hair. Intended final size about 34px infantry or 40px mounted; a big readable silhouette, no tiny ornamental noise. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the whole canvas: no floor, shadow, gradient, glow, text, label, ring or frame. Do not use magenta or pink anywhere on the figures. Class Soldier, tier base, movement Infantry, engine weapons Lances (P). Specific design: A levy FOOT SOLDIER: a padded gambeson under a simple kettle helmet or open iron cap, a short mail shirt, leather belt and pouches, plain boots, a round wooden shield on the arm and a long SPEAR held upright. Lighter than a knight (no plate, no cape), sturdier than a sellsword. NO sword. Player: blue padded coat; the helmet leaves the face and hair visible. Enemy: the imperial levy in crimson, face half hidden by the cap brim.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/knight.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/mercenary.png"
+    ],
+    "generator": "tools/art/sprite-trace/gen-class-sheet.mjs",
+    "take": 3
   }
 ]
