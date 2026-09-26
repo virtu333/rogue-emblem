@@ -230,7 +230,7 @@ describe('Battle timeline view', () => {
   });
 
   it.each([
-    [{ charges: 0 }, 1, 'No rewind charges'],
+    [{ charges: 0 }, 1, 'No Visions'],
     [{ difficulty: 'lunatic' }, 2, 'turn starts only'],
     [{ allowPlayerActions: false }, 2, 'turn starts only'],
     [{ currentEntryId: 1 }, 1, 'already here'],

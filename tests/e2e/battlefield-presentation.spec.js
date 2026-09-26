@@ -261,7 +261,7 @@ test('desktop HUD plates keep every piece of information inside the frame', asyn
   });
   expect(layout.plates).toBe(true);
   expect(layout.turn.text).toMatch(/^Turn: 1 \/ Par: \d+ \([SABC]\)/);
-  expect(layout.eye.text).toMatch(/^Eye: \d+ left this run$/);
+  expect(layout.eye.text).toMatch(/^Vision · \d+ left · \[R\] Rewind$/);
   expect(layout.objective.text).toMatch(/^Rout:/);
   const all = [layout.turn, layout.eye, layout.objective, ...layout.buttons, layout.hint];
   for (const r of all.filter((r) => r.visible)) {

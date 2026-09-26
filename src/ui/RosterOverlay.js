@@ -1,3 +1,4 @@
+import { unitUidOf } from '../engine/UnitIdentity.js';
 import { teachRosterScroll } from '../engine/RosterTransfers.js';
 import { applyRosterClassChange } from '../engine/RosterCommands.js';
 import {
@@ -128,7 +129,14 @@ export class RosterOverlay {
     this.visible = false;
 
     // New state
-    this.selection = { kind: 'unit', index: 0 };
+    const initial = callbacks.initialUnit;
+    const roster = runManager.roster || [];
+    const identityIndex = roster.indexOf(initial);
+    const index =
+      identityIndex >= 0
+        ? identityIndex
+        : roster.findIndex((u) => unitUidOf(initial) && unitUidOf(u) === unitUidOf(initial));
+    this.selection = { kind: 'unit', index: Math.max(0, index) };
     this._activeTab = 'stats'; // 'stats' | 'gear'
     this._rosterScrollOffset = 0;
     this._rosterScrollMax = 0;

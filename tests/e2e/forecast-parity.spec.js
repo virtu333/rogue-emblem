@@ -78,15 +78,20 @@ for (const mobile of [false, true])
       expect(expected.projection).not.toBeNull();
       if (mobile) {
         const dialog = page.getByRole('dialog', { name: 'Combat forecast', exact: true });
-        await expect(dialog).toContainText('Damage per hit');
-        await expect(dialog).toContainText('Planned hits');
-        await expect(dialog).toContainText('Hit chance');
-        const hitValues = dialog
-          .locator('.mb-stats div')
-          .filter({ has: page.locator('dt', { hasText: /^Hit chance$/ }) })
-          .locator('dd');
+        await expect(dialog).toContainText('Damage × hits');
+        await expect(dialog.locator('.mb-ally [data-stat=damage] dd')).toHaveText(/\d+×2/);
+        await expect(dialog.locator('.mb-enemy [data-stat=damage] dd')).toHaveText(/\d+×1/);
+        await expect(dialog).toContainText('HP estimate: if all hits land; no crits/procs.');
+        const hitValues = dialog.locator('.mb-stats [data-stat=hit]').locator('dd');
         expect(await hitValues.allTextContents()).toEqual(['100%', '100%']);
-        for (const note of expected.notes) await expect(dialog).toContainText(note);
+        for (const note of expected.notes.filter((n) => !n.startsWith('If all hits land:')))
+          await expect(dialog).toContainText(note);
+        await expect(dialog.locator('.mb-ally .mb-hp')).toContainText(
+          String(expected.projection.attackerHP),
+        );
+        await expect(dialog.locator('.mb-enemy .mb-hp')).toContainText(
+          String(expected.projection.defenderHP),
+        );
         await expect(dialog.locator('.re-health-projection')).toHaveCount(2);
         expect(await dialog.locator('[role="meter"]').first().getAttribute('aria-valuenow')).toBe(
           '30',

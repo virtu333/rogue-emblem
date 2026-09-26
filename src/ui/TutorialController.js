@@ -341,7 +341,7 @@ export class TutorialController {
       'Edric';
     await scene._withTutorialHintState(async () => {
       await this.note(
-        `${unit.name} took a hit. A unit who falls is gone for good — only a Church can revive them later, for gold — but the battle goes on.\n` +
+        `${unit.name} took a hit. In a real run, a fallen ally stays down until a Church revives them for gold. The battle goes on unless your commander falls.\n` +
           `${commander} is your commander: if he falls, the battle is lost, and in a real run the whole run ends.`,
       );
     });
@@ -366,10 +366,7 @@ export class TutorialController {
     }
     scene.showVisionDialog({
       title: `${fallenName} has fallen!`,
-      body:
-        'Fallen units are gone for good -- only a\n' +
-        'Church can revive them, for gold. But fate\n' +
-        'grants one Vision: rewind to your last turn?',
+      body: 'In a real run, a fallen ally stays down until a Church revives them for gold. A fallen commander ends the run. Here, fate grants you a Vision: use it to Rewind to your last turn.',
       confirmLabel: 'Rewind',
       cancelLabel: 'Accept Fate',
       onConfirm: () => {

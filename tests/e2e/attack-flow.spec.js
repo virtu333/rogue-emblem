@@ -195,7 +195,7 @@ test.describe('desktop attack flow', () => {
     await page.keyboard.press('Enter');
     await expect
       .poll(() => state(page), { timeout: 20_000 })
-      .not.toMatch(/SHOWING_FORECAST|COMBAT_RESOLVING/);
+      .not.toMatch(/SHOWING_FORECAST|CONFIRMING_ATTACK|COMBAT_RESOLVING/);
     expect(await bagOrder(page)).toEqual(['Steel Sword', 'Iron Sword', 'Iron Bow']);
     expect(await weaponName(page)).toBe('Steel Sword');
     expect(errors).toEqual([]);
@@ -224,12 +224,23 @@ test.describe('phone attack flow (844×390)', () => {
     await expect(stepper).toContainText('Iron Sword');
     await expect(stepper).toContainText('1/2');
     await expect(stepper.getByRole('img', { name: 'Equipped' })).toBeVisible();
-    const damage = () =>
-      dialog
-        .locator('.mb-ally .mb-stats div')
-        .filter({ has: page.locator('dt', { hasText: /^Damage per hit$/ }) })
-        .locator('dd')
-        .innerText();
+    const damage = () => dialog.locator('.mb-ally [data-stat=damage]').locator('dd').innerText();
+    const sides = dialog.locator('.mb-forecast-sides');
+    await sides.evaluate((el) => {
+      el.scrollTop = 0;
+    });
+    const bounds = await sides.boundingBox();
+    for (const side of ['ally', 'enemy']) {
+      for (const stat of ['damage', 'hit', 'crit', 'speed']) {
+        const value = dialog.locator(`.mb-${side} [data-stat="${stat}"] dd`);
+        const box = await value.boundingBox();
+        expect(box.y, `${side} ${stat} top`).toBeGreaterThanOrEqual(bounds.y);
+        expect(box.y + box.height, `${side} ${stat} bottom`).toBeLessThanOrEqual(
+          bounds.y + bounds.height - 16,
+        );
+      }
+      await expect(dialog.locator(`.mb-${side} [data-stat="damage"] dd`)).toHaveText(/\d+×\d+/);
+    }
     const ironDamage = await damage();
     await page.screenshot({ path: info.outputPath('phone-forecast.png') });
 
@@ -337,8 +348,34 @@ test.describe('phone attack flow (844×390)', () => {
     await dialog.getByRole('button', { name: 'Confirm attack' }).tap();
     await expect
       .poll(() => state(page), { timeout: 20_000 })
-      .not.toMatch(/SHOWING_FORECAST|COMBAT_RESOLVING/);
+      .not.toMatch(/SHOWING_FORECAST|CONFIRMING_ATTACK|COMBAT_RESOLVING/);
     expect(await bagOrder(page)).toEqual(['Steel Sword', 'Iron Sword', 'Iron Bow']);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('phone forecast modifier explanations', () => {
+  test.use(phone);
+  test('Shieldmate expands to show its effect', async ({ page }) => {
+    const errors = await bootBattle(page, { mobile: true });
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = window.__af.unit;
+      u.traits = ['shieldmate'];
+      const ally = s.playerUnits.find((x) => x !== u);
+      ally.col = u.col;
+      ally.row = u.row - 1;
+    });
+    await openActionMenu(page);
+    const hud = page.getByRole('complementary', { name: 'Battle commands' });
+    await hud.getByRole('button', { name: 'Attack', exact: true }).tap();
+    await hud.getByRole('group', { name: 'Attack targets' }).getByRole('button').first().tap();
+    const detail = page
+      .getByRole('dialog', { name: 'Combat forecast' })
+      .locator('.mb-modifier')
+      .filter({ hasText: 'Shieldmate' });
+    await detail.locator('summary').tap();
+    await expect(detail.locator('p')).toContainText('+10 Avo');
     expect(errors).toEqual([]);
   });
 });

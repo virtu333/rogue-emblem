@@ -1,3 +1,4 @@
+import { shopRequirementLabel, forgeImpactLine } from './itemDecisionText.js';
 import { equipmentComparison } from './equipmentComparison.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { equippedBadgeElement } from './equippedBadge.js';
@@ -259,7 +260,8 @@ export class ShopMenu {
     const kicker = [item.tier, item.type].filter(Boolean).join(' · ');
     if (kicker) title.append(el('p', kicker, 'shop-kicker'));
     title.append(el('h3', item.name));
-    if (item.rankRequired) title.append(el('p', `Requires ${item.rankRequired}`, 'shop-meta'));
+    const requirement = shopRequirementLabel(item);
+    if (requirement) title.append(el('p', requirement, 'shop-meta'));
     head.append(itemHero(item, { size: 96 }), title);
     copy.append(head);
     const detailText = this.controller._getShopItemDetailText(row.entry || { item });
@@ -475,7 +477,7 @@ export class ShopMenu {
       choices: stats,
       label: (stat) => stat.label,
       describe: (stat) =>
-        `${Math.max(1, Math.floor(getForgeCost(weapon, stat.key) * (1 - this.forgeOptions().discount)))} gold · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${owner && stat.key === 'weight' ? ` · ${equipmentComparison(owner, { ...weapon, weight: Math.max(0, weapon.weight - 1) }, weapon)}` : ''}`,
+        `${Math.max(1, Math.floor(getForgeCost(weapon, stat.key) * (1 - this.forgeOptions().discount)))} gold · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${owner ? ` · ${forgeImpactLine(owner, weapon, stat.key)}` : ''}`,
       blocked: (stat) =>
         shopForgeBlock(this.run, weapon, stat.key, { ...this.forgeOptions(), expectedLevel }),
       apply: (stat) => {

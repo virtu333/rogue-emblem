@@ -1,3 +1,6 @@
+import { traitEffectText } from './traitContent.js';
+import { getMasteryPerk } from '../engine/MasterySystem.js';
+import { formatPerkMods } from './rosterDisplay.js';
 import { hitProbability } from '../engine/HitRoll.js';
 
 /**
@@ -104,4 +107,24 @@ export function forecastTeachingHints(forecast, attackerHP) {
       text: 'Swords beat axes, axes beat lances, and lances beat swords. The displayed damage and Hit chance already include this matchup.',
     });
   return hints;
+}
+
+/** Explain exactly the modifier listed by the combat engine, on either UI. */
+export function forecastModifierText(entry, unit, gameData = {}) {
+  const id = entry?.id;
+  if (!id) return '';
+  if (id === 'mastery')
+    return formatPerkMods(getMasteryPerk(unit, gameData.classes, gameData.traits)?.mods);
+  if (id.startsWith('trait_')) {
+    const traits = gameData.traits?.traits || gameData.traits || [];
+    return traitEffectText(
+      traits.find((t) => t.id === id.slice(6)),
+      unit,
+      gameData,
+    );
+  }
+  const skill = gameData.skills?.find((s) => s.id === id);
+  if (skill) return skill.description || '';
+  const affixes = gameData.affixes?.affixes || gameData.affixes || [];
+  return affixes.find((a) => a.id === id)?.description || entry.description || '';
 }

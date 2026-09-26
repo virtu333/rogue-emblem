@@ -1440,7 +1440,7 @@ export class NodeMapScene extends Phaser.Scene {
     );
   }
 
-  _openRoster() {
+  _openRoster(initialUnit = null) {
     // Advance hides the route menu, uncovering the mobile rail's Roster button
     // for the ~2s battle launch. An overlay opened now would be torn down by
     // shutdown mid-transition, so ignore it until the scene is stable again.
@@ -1450,6 +1450,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.churchOverlay && !this._churchViewingMap && !this._churchViewingRoster) return;
     if (this.pauseOverlay?.visible || this.settingsOverlay?.visible) return;
     this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
+      initialUnit,
       onClose: () => {
         this.rosterOverlay = null;
         // An ended run was already settled, persisted, and (on abandon)
@@ -1707,6 +1708,7 @@ export class NodeMapScene extends Phaser.Scene {
       this.pauseOverlay?.visible
     )
       return;
+    if (node.completed && !this.runManager.canReenterService?.(node.id)) return;
     if (node.type === NODE_TYPES.CHURCH) {
       this.runManager.currentNodeId = node.id;
       this.handleChurch(node);

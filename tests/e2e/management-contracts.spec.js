@@ -134,18 +134,8 @@ test('art replacement Back preserves weapon and slot, shows effects, and consume
     el.scrollTop = 80;
     el.dispatchEvent(new Event('scroll'));
   });
-  await slots.getByRole('button', { name: 'Confirm', exact: true }).click();
-  const final = page.getByRole('dialog', { name: `Replace ${names.old}?`, exact: true });
-  await expect(final).toContainText('Uses one Contract art scroll');
-  await expect(final.locator('.re-choice-preview')).toContainText('REMOVE');
-  await expect(final.locator('.re-choice-preview')).toContainText('ADD');
+  await expect(slots).toContainText('Uses one Contract art scroll on Replace');
   await page.screenshot({ path: testInfo.outputPath('art-replacement.png') });
-  await page.keyboard.press('Escape');
-  expect(await slots.locator('.re-choice-list').evaluate((el) => el.scrollTop)).toBe(listOffset);
-  await expect(slots.getByRole('button', { name: new RegExp(`^${names.old}`) })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
   await slots.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(weapons.locator('[aria-pressed="true"]')).toContainText(names.weapon);
   expect(
@@ -164,12 +154,11 @@ test('art replacement Back preserves weapon and slot, shows effects, and consume
     'aria-pressed',
     'true',
   );
-  await slots.getByRole('button', { name: 'Confirm', exact: true }).click();
-  await final.getByRole('button', { name: 'Confirm', exact: true }).evaluate((button) => {
+  await slots.getByRole('button', { name: 'Replace', exact: true }).evaluate((button) => {
     button.click();
     button.click();
   });
-  await expect(final).toHaveCount(0);
+  await expect(slots).toHaveCount(0);
   expect(
     await page.evaluate(() => {
       const run = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
@@ -231,3 +220,54 @@ test('zero-weight reward is blocked without claiming, and a useful stat remains 
     ),
   ).toBe(1);
 });
+
+for (const initialSlots of [0, 2]) {
+  test(`one Confirm fills art slot ${initialSlots + 1}, without a second dialog or touch keyboard hint`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 844, height: 390 });
+    await nodeMap(page);
+    const artId = await page.evaluate((slots) => {
+      const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+      const w = s.runManager.roster[0].inventory.find((w) => w.type === 'Sword');
+      const arts = s.gameData.weaponArts.arts.filter(
+        (a) => a.weaponType === 'Sword' && a.requiredRank === 'Prof',
+      );
+      for (const key of [
+        'weaponArtId',
+        'weaponArtSource',
+        'weaponArtBinding',
+        'weaponArt',
+        'artId',
+      ])
+        delete w[key];
+      w.weaponArtIds = arts.slice(0, slots).map((a) => a.id);
+      w.weaponArtSources = Array(slots).fill('scroll');
+      s.runManager.scrolls = [{ name: 'Test art scroll', teachesWeaponArtId: arts[slots].id }];
+      return arts[slots].id;
+    }, initialSlots);
+    await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).click();
+    await page.locator('.mr-sheet').getByRole('button', { name: 'Skills', exact: true }).click();
+    await page.getByRole('button', { name: 'Bind to weapon…' }).click();
+    const picker = page.getByRole('dialog', {
+      name: 'Choose weapon for Test art scroll',
+      exact: true,
+    });
+    await expect(picker).not.toContainText('Page Up');
+    await expect(picker).toContainText('Uses one Test art scroll on Confirm');
+    await picker.getByRole('button', { name: 'Confirm', exact: true }).evaluate((b) => {
+      b.click();
+      b.click();
+    });
+    await expect(page.locator('.re-choice-picker')).toHaveCount(0);
+    expect(
+      await page.evaluate(() => {
+        const r = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
+        return {
+          arts: r.roster[0].inventory.find((w) => w.type === 'Sword').weaponArtIds,
+          scrolls: r.scrolls.length,
+        };
+      }),
+    ).toMatchObject({ arts: expect.arrayContaining([artId]), scrolls: 0 });
+  });
+}

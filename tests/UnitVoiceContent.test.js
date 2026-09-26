@@ -164,3 +164,14 @@ describe('unit voice content contract', () => {
     expect(new Set(said).size).toBe(said.length);
   });
 });
+
+it('scout flavor avoids invented enemy counts, weapons and classes', () => {
+  // Figurative numbers and travel-time details do not promise encounter composition.
+  const allowed = /(?:this|that) one|one (?:way|name|vessel|army|more|chimney|last)|two days/gi;
+  for (const [path, line] of allLines(gameData.dialogue.nodeFlavor, 'nodeFlavor')) {
+    const literal = line.replace(allowed, '');
+    expect(literal, path).not.toMatch(
+      /\b(?:one|two|three|four|five|six|forty|\d+)\s+\w+|\b(?:swords?|lances?|axes?|bows?|knights?|mages?|fighters?|soldiers?|hammers?|picks)\b/i,
+    );
+  }
+});

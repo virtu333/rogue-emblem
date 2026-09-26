@@ -39,3 +39,6 @@ export function battleItemSummary(item, unit) {
   const stats = `Might ${item.might ?? 0} · Hit ${item.hit ?? 0} · Crit ${item.crit ?? 0}\nWeight ${item.weight ?? 0} · Range ${item.range ?? 1}`;
   return item.special ? `${stats}\n${item.special}` : stats;
 }
+
+export const ITEM_ACTION_NOTE =
+  'Using an item ends this unit’s action. Consumable uses do not refill.';

@@ -1,12 +1,13 @@
+import { fitHintSegments } from './visionLabel.js';
 // DesktopBattleHud — Ink & Ember reliquary styling for the desktop battle's canvas HUD.
 //
 // BattleScene still owns the HUD text objects and every piece of logic that writes
-// them (turn/par rating, Eye charges, objective, terrain hover, fog, command buttons);
+// them (turn/par rating, Vision charges, objective, terrain hover, fog, command buttons);
 // the phone DOM HUD reads the same objects. This controller only restyles them and
 // lays them onto chamfered ink plates:
 //
 //   ┌ TURN / PAR (rating color) ┐                       ┌ objective (1–3 lines) ┐
-//   │ Eye charges               │                       └───────────────────────┘
+//   │ Vision charges               │                       └───────────────────────┘
 //   │ ◐ Shadow +N (Eclipse)     │
 //   └───────────────────────────┘ ┌ par tooltip ┐        [ fog chip ]
 //   ┌ terrain / unit hover ┐
@@ -27,8 +28,13 @@ const CUT = 4; // chamfer
 const GAP = 4;
 const ECLIPSE_GLYPH = 10; // px reserved left of the Eclipse projection
 
-export const DESKTOP_HINT_TEXT =
-  '[N] next ready · [R] Vision · [V]/right-click: details · Esc/off-map: cancel';
+export const DESKTOP_HINT_SEGMENTS = [
+  '[R] Rewind',
+  '[N] next ready',
+  '[V]/right-click: details',
+  'Esc/off-map: cancel',
+];
+export const DESKTOP_HINT_TEXT = DESKTOP_HINT_SEGMENTS.join(' · ');
 // While a unit is selected (movement shown): what a click on the map will do. Short
 // enough to fit the 640px footer between End Turn and [X] Cancel (the idle line hides).
 export const DESKTOP_SELECTED_HINT_TEXT =
@@ -169,7 +175,7 @@ export class DesktopBattleHud {
     const g = this.plates;
     g.clear();
 
-    // Status plate: turn/par over Eye charges.
+    // Status plate: turn/par over Vision charges.
     const turn = s.turnCounterText;
     const eye = s.visionHudText;
     turn.setOrigin(0, 0).setPosition(MARGIN + PAD_X, MARGIN + PAD_Y + 1);
@@ -246,7 +252,7 @@ export class DesktopBattleHud {
     if (hasBottom) this._plate(strip, { faint: true });
     let x = MARGIN + PAD_X;
     for (const btn of [s.dangerButton, s.rosterButton, s.endTurnButton]) {
-      if (!btn) continue;
+      if (!btn || btn.visible === false) continue;
       btn.setPosition(x, y);
       x += btn.displayWidth + 12;
     }
@@ -255,9 +261,9 @@ export class DesktopBattleHud {
     const hint = s.instructionText2;
     if (hint) {
       const left = x;
-      const right = (cancel ? cancel.x : W - MARGIN) - 12;
+      const right = (cancel?.visible ? cancel.x : W - MARGIN) - 12;
       hint.setPosition(Math.round((left + right) / 2), y);
-      hint.setVisible(hint.displayWidth <= right - left || !s.dangerButton?.visible);
+      hint.setVisible(Boolean(hint.text) && hint.displayWidth <= right - left);
     }
     // Remember the state this layout produced, so its own tweaks never re-trigger it.
     this._signature = this._sig();
@@ -268,11 +274,26 @@ export class DesktopBattleHud {
     const s = this.scene;
     const hint = s.instructionText2;
     if (!hint?.setText) return;
-    const text =
+    const segments =
       s.battleState === 'UNIT_SELECTED' && s.selectedUnit
-        ? DESKTOP_SELECTED_HINT_TEXT
-        : DESKTOP_HINT_TEXT;
+        ? DESKTOP_SELECTED_HINT_TEXT.split(' · ')
+        : DESKTOP_HINT_SEGMENTS;
+    const used = [s.dangerButton, s.rosterButton, s.endTurnButton]
+      .filter((t) => t && t.visible !== false)
+      .reduce((sum, t) => sum + t.displayWidth + 12, 0);
+    const cancel = s.cancelButton;
+    const right =
+      s.cameras.main.width - MARGIN - (cancel?.visible ? PAD_X + cancel.displayWidth : 0) - 12;
+    const available = right - (MARGIN + PAD_X + used);
+    const fitKey = `${available}:${segments.join('|')}:${hint.style?.fontFamily}:${hint.style?.fontSize}:${hint.scaleX}`;
+    if (fitKey === this._hintFitKey && hint.text === this._hintFitText) return;
+    const text = fitHintSegments(segments, available, (candidate) => {
+      hint.setText(candidate);
+      return hint.displayWidth;
+    });
     if (hint.text !== text) hint.setText(text);
+    this._hintFitKey = fitKey;
+    this._hintFitText = text;
   }
 
   _pad(b, padX = PAD_X, padY = PAD_Y) {

@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 
@@ -16,11 +17,14 @@ export class ChoicePicker {
     confirmation = false,
     initialChoice = null,
     closeLabel = 'Close',
+    confirmLabel = 'Confirm',
     preview = null,
     face = null,
   }) {
     Object.assign(this, {
       choices,
+      confirmLabel,
+      scene,
       label,
       describe,
       blocked,
@@ -96,7 +100,7 @@ export class ChoicePicker {
     }
     this.status = element('p', message || (this.choices.length ? '' : 'No available choices.'));
     this.status.setAttribute('role', 'status');
-    const confirm = button('Confirm', () => this.confirm(), 're-btn re-btn--primary');
+    const confirm = button(this.confirmLabel, () => this.confirm(), 're-btn re-btn--primary');
     confirm.disabled = !this.selected || !!this.blocked(this.selected) || this.busy;
     if (this.preview) {
       const content = element('div', null, 're-choice-content');
@@ -106,7 +110,9 @@ export class ChoicePicker {
         element('p', this.selected ? this.preview(this.selected) : 'No available choices.'),
       );
       content.append(list, detail);
-      body.append(content, element('small', 'Scroll details · Page Up/Down or controller L/R'));
+      body.append(content);
+      const hint = inputHint(this.scene, 'Scroll details · Page Up/Down or controller L/R', null);
+      if (hint) body.append(element('small', hint));
     } else body.append(list);
     body.append(this.status, confirm);
     list.scrollTop = listScroll;

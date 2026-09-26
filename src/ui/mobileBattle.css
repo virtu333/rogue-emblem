@@ -384,3 +384,49 @@
   color: var(--re-threat-edge);
   font-weight: 700;
 }
+
+/* Put the decision numbers above steppers, with one compact row per combatant. */
+.mb-stats {
+  grid-template-columns: 1.6fr 1fr 1fr 0.7fr;
+  gap: 5px;
+}
+.mb-stats dt {
+  font-size: 11px;
+}
+.mb-stats dd,
+.mb-stats .mb-stat-damage dd {
+  font-size: 19px;
+}
+.mb-stat-hit dd,
+.mb-stat-crit dd {
+  color: var(--re-info);
+}
+.mb-projection-assumption {
+  margin: 0;
+  font-size: 11px;
+}
+@media (max-height: 480px) {
+  .mb-forecast-side {
+    padding: 5px 8px;
+  }
+  .mb-forecast-side .mb-portrait {
+    width: 32px;
+    height: 32px;
+  }
+  .mb-forecast-side .mb-eyebrow {
+    display: inline;
+    font-size: 10px;
+  }
+  .mb-forecast-side h3 {
+    margin: 2px 0;
+    font-size: 16px;
+  }
+  .mb-forecast-side .mb-stats {
+    margin: 5px 0;
+  }
+}
+@media (max-width: 480px) {
+  .mb-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}

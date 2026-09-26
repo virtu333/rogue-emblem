@@ -1,3 +1,4 @@
+import { getAttackRange } from '../engine/AttackOptions.js';
 // TutorialCoach — the tutorial's persistent, non-modal objective line.
 //
 // One goal at a time (tutorialCoachModel), docked over the map area on the side
@@ -101,6 +102,10 @@ export class TutorialCoach {
       acted: Boolean(u.hasActed),
       hp: Number(u.currentHP) || 0,
       maxHp: Number(u.stats?.HP) || 1,
+      attackRange:
+        u.weapon && u.weapon.type !== 'Staff'
+          ? getAttackRange(u, u.weapon, { skillsData: s.gameData?.skills })
+          : null,
       healer: (u.inventory || []).some((item) => item?.type === 'Staff' && !item.relocate),
     }));
     const commander = (s.playerUnits || []).find((u) => u.isCommander) || null;

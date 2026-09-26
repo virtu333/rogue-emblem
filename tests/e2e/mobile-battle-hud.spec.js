@@ -117,8 +117,8 @@ test('forecast requires explicit confirmation, keeps engine numbers and cancels 
   );
   const portrait = dialog.locator('.mb-portrait').first();
   await expect(portrait).toBeVisible();
-  await expect(portrait).toHaveCSS('width', '48px');
-  await expect(portrait).toHaveCSS('height', '48px');
+  await expect(portrait).toHaveCSS('width', '32px');
+  await expect(portrait).toHaveCSS('height', '32px');
   await expect(portrait).toHaveCSS('image-rendering', 'pixelated');
   const expected = await page.evaluate(() => {
     const battle = window.__emblemRogueGame.scene.getScene('Battle');
@@ -132,18 +132,9 @@ test('forecast requires explicit confirmation, keeps engine numbers and cancels 
   });
   expect(expected.state).toBe('SHOWING_FORECAST');
   const ally = dialog.locator('.mb-ally');
-  await expect(
-    ally
-      .locator('dl > div')
-      .filter({ has: page.getByText('Damage per hit', { exact: true }) })
-      .locator('dd'),
-  ).toHaveText(expected.damage);
-  await expect(
-    ally
-      .locator('dl > div')
-      .filter({ has: page.getByText('Planned hits', { exact: true }) })
-      .locator('dd'),
-  ).toHaveText(`×${expected.hits}`);
+  await expect(ally.locator('[data-stat=damage] dd')).toHaveText(
+    `${expected.damage}×${expected.hits}`,
+  );
   await page.screenshot({ path: 'test-results/mobile-battle-forecast.png' });
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).tap();
   await expect(dialog).toHaveCount(0);

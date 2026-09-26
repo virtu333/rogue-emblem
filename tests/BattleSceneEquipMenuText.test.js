@@ -35,6 +35,9 @@ beforeEach(() => {
 function makeDisplayObject(seed = {}) {
   return {
     ...seed,
+    setOrigin() {
+      return this;
+    },
     setDepth() {
       return this;
     },
@@ -53,6 +56,9 @@ function makeHandlerCapturingObject(seed = {}) {
   const handlers = {};
   return {
     ...seed,
+    setOrigin() {
+      return this;
+    },
     setDepth() {
       return this;
     },
@@ -60,9 +66,6 @@ function makeHandlerCapturingObject(seed = {}) {
       return this;
     },
     setColor() {
-      return this;
-    },
-    setOrigin() {
       return this;
     },
     setInteractive() {
@@ -128,12 +131,32 @@ function makeBaseScene() {
   };
   scene.add = {
     rectangle: () => makeDisplayObject(),
+    text: (_x, _y, text) => makeDisplayObject({ text }),
   };
   scene._clampMenuPosition = (x, y) => ({ x, y });
   return scene;
 }
 
 describe('BattleScene equip menu text', () => {
+  it('explains usable consumables and the action cost on desktop', () => {
+    const scene = makeBaseScene();
+    scene._pinToScreen = vi.fn();
+    scene._registerActionMenu = vi.fn();
+    scene._makeMenuTextButton = (_x, _y, text) => makeDisplayObject({ text });
+    const unit = {
+      col: 1,
+      row: 1,
+      currentHP: 4,
+      stats: { HP: 20 },
+      consumables: [{ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 }],
+    };
+    scene.showItemMenu(unit);
+    const labels = scene.actionMenu.map((o) => o.text || '').join(' ');
+    expect(labels).toContain('Restore 10 HP');
+    expect(labels).toContain('ends this unit’s action');
+    expect(labels).toContain('uses do not refill');
+  });
+
   it.each(['Item', 'Equip'])('restores pre-move destinations after %s and Back', (label) => {
     const scene = makeBaseScene();
     const unit = {
@@ -790,6 +813,9 @@ describe('BattleScene weapon detail tooltip', () => {
         return {
           width: 140,
           height: 48,
+          setOrigin() {
+            return this;
+          },
           setDepth() {
             return this;
           },
@@ -812,6 +838,9 @@ describe('BattleScene weapon detail tooltip', () => {
         },
       }),
       container: () => ({
+        setOrigin() {
+          return this;
+        },
         setDepth() {
           return this;
         },

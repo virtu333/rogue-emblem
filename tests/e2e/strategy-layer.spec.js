@@ -67,10 +67,14 @@ for (const vp of VIEWPORTS) {
       await expect(block.locator('.re-loom-recruit-traits li')).toHaveCount(expected.traits);
     await expect(card.locator('.re-loom-place')).toHaveText(new RegExp(`^${expected.name}, `));
     // The elite warning: extra hunters and a captain (difficulty data).
-    await expect(card.locator('.re-loom-tag.is-bad').first()).toHaveText(
+    await expect(card.locator('.re-loom-tag.is-bad summary').first()).toHaveText(
       `Hunters +${expected.mods.enemyCountBonus}`,
     );
     await expect(card.locator('.re-loom-tag', { hasText: 'Captain' })).toHaveCount(1);
+    const captain = card.locator('.re-loom-tag', { hasText: 'Captain' });
+    await captain.locator('summary').click();
+    await expect(captain.locator('p')).toBeVisible();
+    await expect(captain.locator('p')).toContainText('an affix');
     await expect(card.locator('.re-loom-text')).toHaveText(
       `Hunters are closing on ${expected.name}. Reach them with a lord and Talk.`,
     );

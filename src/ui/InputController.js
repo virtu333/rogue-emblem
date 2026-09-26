@@ -1,3 +1,4 @@
+import { sceneHealPreview } from './healTargetPreview.js';
 import { DangerZoneOverlay } from './DangerZoneOverlay.js';
 import { canInspectUnit } from '../engine/BattleInformation.js';
 import { computeEffectivePath } from '../engine/Grid.js';
@@ -45,6 +46,7 @@ export class InputController {
     }
     this.updateTouchInspectHold(pointer);
     if (scene.battleState === 'BATTLE_END') {
+      this._hoverTile = null;
       if (scene.cursorHighlight) scene.cursorHighlight.setVisible(false);
       if (scene.infoText) scene.infoText.setText('');
       this.updateTopLeftHudLayout();
@@ -53,6 +55,7 @@ export class InputController {
     if (scene._isTouchPointer(pointer)) return;
     const gp = this._pointerToGrid(pointer);
     if (!gp) {
+      this._hoverTile = null;
       scene._threatFocusTile = null;
       scene.cursorHighlight.setVisible(false);
       scene.infoText.setText('');
@@ -71,7 +74,8 @@ export class InputController {
   // (BattleScene._onGridCursorMoved).
   refreshTileInfo(col, row) {
     const scene = this.scene;
-    if (!scene.grid || !scene.infoText) return;
+    if (!scene.grid || !scene.infoText || scene.battleState === 'BATTLE_END') return;
+    this._hoverTile = { col, row };
     const terrain = scene.grid.getTerrainAt(col, row);
     scene._mobileTerrainFocus = { col, row };
     let info = terrain.name;
@@ -100,8 +104,30 @@ export class InputController {
         info += ` | XP ${hovered.xp}/100`;
       }
     }
+    if (
+      hoveredVisible &&
+      scene.battleState === 'SELECTING_HEAL_TARGET' &&
+      scene.healTargets?.includes(hovered)
+    ) {
+      const preview = sceneHealPreview(scene, hovered);
+      if (preview) info += `\n${preview.text}`;
+    }
     scene.infoText.setText(info);
     this.updateTopLeftHudLayout();
+  }
+
+  clearHoverInfo() {
+    this._hoverTile = null;
+    this.scene._threatFocusTile = null;
+    this.scene.cursorHighlight?.setVisible(false);
+    this.scene.infoText?.setText('');
+    this.updateTopLeftHudLayout();
+  }
+
+  // Re-read the tile under a stationary pointer after HP, movement or fog changes.
+  refreshHoverInfo() {
+    if (!this._hoverTile || this.scene.battleState === 'BATTLE_END') return;
+    this.refreshTileInfo(this._hoverTile.col, this._hoverTile.row);
   }
 
   // While a unit is selected, preview the movement path to (col,row) — or clear it
@@ -267,6 +293,7 @@ export class InputController {
    * pointerupoutside to onPointerUp until now).
    */
   onPointerUpOutside(pointer) {
+    this._hoverTile = null;
     const scene = this.scene;
     if (scene._isTouchPointer(pointer)) {
       const hadTouches = Boolean(scene._battleCamera?.clearTouches?.());

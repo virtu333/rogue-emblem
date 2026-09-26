@@ -86,7 +86,7 @@ export function tutorialCoachState(s) {
       detail: canAttack
         ? 'Attack opens a forecast first — nothing happens until you confirm.'
         : canHeal
-          ? `${s.selected || 'This unit'} can Heal a wounded ally next to her.`
+          ? `${s.selected || 'This unit'} can use a staff on a highlighted ally.`
           : 'No enemy in reach. Wait ends this move; Item uses a Vulnerary.',
       anchor: { kind: 'hud', hud: canAttack ? 'attack' : 'actions' },
       canSkip: false,
@@ -142,11 +142,18 @@ export function tutorialCoachState(s) {
       anchor: { kind: 'unit', name: healer.name },
       canSkip: false,
     };
+  const fighter =
+    ready.find((u) => u.name === s.selected) || ready.find((u) => !u.healer) || ready[0];
+  const range = fighter?.attackRange;
+  const approach =
+    range?.max > 1
+      ? `move into weapon range of a red enemy (${range.min === range.max ? range.max : `${range.min}–${range.max}`} tiles)`
+      : 'move next to a red enemy';
   return {
     id: 'fight',
     chapter: s.enemies === 1 ? 'win' : 'fight',
     goal: s.enemies === 1 ? 'Defeat the last enemy' : `Defeat ${remaining}`,
-    detail: `Select a unit, move next to a red enemy, then Attack. Keep ${lord} safe — if he falls, the battle is lost.`,
+    detail: `Select ${fighter?.name || 'a unit'}, ${approach}, then Attack. Keep ${lord} safe — if he falls, the battle is lost.`,
     anchor: null,
     canSkip: false,
   };

@@ -108,7 +108,7 @@ describe('VisionRewindPicker', () => {
     expect(picker.confirm.textContent).toBe('Rewind here · 1 charge');
     expect(picker.confirm.disabled).toBe(false);
     expect(picker.status.textContent).toBe('Undoes the last action. Same moves, same outcomes.');
-    expect(dom.doc.querySelector('.vr-charges').textContent).toContain('2 left');
+    expect(dom.doc.querySelector('.vr-charges').textContent).toContain('2 Visions left');
     expect(session.attach).toHaveBeenCalledWith(picker.map);
     expect(session.show).toHaveBeenCalledOnce();
     expect(session.show.mock.calls[0][0]).toEqual({ id: 5 });
@@ -153,7 +153,7 @@ describe('VisionRewindPicker', () => {
     picker.destroy();
     const broke = open({ charges: 0 });
     expect(broke.picker.confirm.disabled).toBe(true);
-    expect(broke.picker.status.textContent).toMatch(/No rewind charges left/);
+    expect(broke.picker.status.textContent).toMatch(/No Visions left/);
   });
 
   it('keyboard: arrows move the selection, Enter goes to the button, Escape closes', () => {

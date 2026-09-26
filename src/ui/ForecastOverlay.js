@@ -1,5 +1,7 @@
+import { presentationText } from '../utils/presentationText.js';
 import {
   forecastProjection,
+  forecastModifierText,
   forecastNotes,
   formatCritChance,
   formatHitChance,
@@ -582,6 +584,32 @@ export class ForecastOverlay {
         }),
       ).setDepth(textDepth);
       this.displayObjects.push(skillText);
+      const descriptions = (info.skills || [])
+        .map((s) => {
+          const effect = forecastModifierText(s, unit, scene.gameData);
+          return effect ? `${s.name}: ${effect}` : s.name;
+        })
+        .join('\n');
+      if (descriptions) {
+        const tip = presentationText(scene, x, y, descriptions, {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: UI_PALETTE.text,
+          backgroundColor: UI_PALETTE.panel,
+          padding: { x: 8, y: 8 },
+          wordWrap: { width: Math.min(300, scene.cameras.main.width - 32) },
+        })
+          .setDepth(textDepth + 20)
+          .setVisible(false);
+        tip.setPosition?.(
+          Math.max(8, Math.min(x, scene.cameras.main.width - (tip.width || 320) - 8)),
+          Math.max(8, y - (tip.height || 40) - 4),
+        );
+        skillText.setInteractive({ useHandCursor: true });
+        skillText.on('pointerover', () => tip.setVisible(true));
+        skillText.on('pointerout', () => tip.setVisible(false));
+        this.displayObjects.push(tip);
+      }
       y += skillText.height + 2;
     }
 
@@ -704,27 +732,27 @@ export class ForecastOverlay {
     this.displayObjects.push(hintBg);
 
     const confirmBtnBg = scene.add
-      .rectangle(confirmBtnX, confirmBtnY, confirmBtnW, confirmBtnH, UI_HEX.hpHigh, 0.95)
+      .rectangle(confirmBtnX, confirmBtnY, confirmBtnW, confirmBtnH, UI_HEX.accent, 1)
       .setDepth(depth + 1)
-      .setStrokeStyle(1, 0x4dff77)
+      .setStrokeStyle(1, UI_HEX.accentText)
       .setInteractive({ useHandCursor: true });
     const confirmBtnText = applyTextResolution(
       scene.add.text(confirmBtnX, confirmBtnY, 'CONFIRM ATTACK', {
         fontFamily: 'Arial',
         fontSize: '9px',
-        color: UI_PALETTE.good,
+        color: UI_PALETTE.bg,
         fontStyle: 'bold',
       }),
     )
       .setOrigin(0.5)
       .setDepth(depth + 2);
     confirmBtnBg.on('pointerover', () => {
-      confirmBtnBg.setFillStyle(0x2c7b3a, 1);
-      confirmBtnText.setColor(UI_PALETTE.text);
+      confirmBtnBg.setFillStyle(UI_HEX.accentText, 1);
+      confirmBtnText.setColor(UI_PALETTE.bg);
     });
     confirmBtnBg.on('pointerout', () => {
-      confirmBtnBg.setFillStyle(UI_HEX.hpHigh, 0.95);
-      confirmBtnText.setColor(UI_PALETTE.good);
+      confirmBtnBg.setFillStyle(UI_HEX.accent, 1);
+      confirmBtnText.setColor(UI_PALETTE.bg);
     });
     confirmBtnBg.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;

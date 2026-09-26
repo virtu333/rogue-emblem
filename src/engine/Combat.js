@@ -183,6 +183,7 @@ function normalizeCombatMods(mods) {
     halfPhysicalDamage: Boolean(mods.halfPhysicalDamage),
     vengeance: Boolean(mods.vengeance),
     weaponArt: Boolean(mods.weaponArt),
+    weaponArtProjectionSafe: mods.weaponArtProjectionSafe === true,
     ignoreTerrainAvoid: Boolean(mods.ignoreTerrainAvoid),
     vantage: Boolean(mods.vantage),
     quickRiposte: Boolean(mods.quickRiposte),
@@ -221,6 +222,9 @@ export function mergeCombatMods(baseMods, extraMods) {
     halfPhysicalDamage: base.halfPhysicalDamage || extra.halfPhysicalDamage,
     vengeance: base.vengeance || extra.vengeance,
     weaponArt: base.weaponArt || extra.weaponArt,
+    weaponArtProjectionSafe:
+      (!hasWeaponArtActivation(base) || base.weaponArtProjectionSafe) &&
+      (!hasWeaponArtActivation(extra) || extra.weaponArtProjectionSafe),
     ignoreTerrainAvoid: base.ignoreTerrainAvoid || extra.ignoreTerrainAvoid,
     vantage: base.vantage || extra.vantage,
     quickRiposte: base.quickRiposte || extra.quickRiposte,
@@ -1036,7 +1040,12 @@ export function getCombatForecast(
       // HP, ordering or special effects rather than imply a guaranteed outcome.
       simpleExchange:
         ![atkMods, defMods].some(
-          (m) => m?.vantage || m?.desperation || m?.drainPercent || hasWeaponArtActivation(m),
+          (m) =>
+            m?.vantage ||
+            m?.desperation ||
+            m?.drainPercent ||
+            m?.vengeance ||
+            (hasWeaponArtActivation(m) && !m.weaponArtProjectionSafe),
         ) &&
         !getImbuePostCombatPoison(atkWeapon, skillCtx?.imbuesData) &&
         !(defCanCounter && getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)) &&

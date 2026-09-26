@@ -733,7 +733,9 @@ export class LootScreenController {
       pickerGroup.push(btn);
 
       const nameColor = full ? UI_PALETTE.muted : cannotEquip ? UI_PALETTE.warn : UI_PALETTE.text;
-      const lockSuffix = cannotEquip ? `  (needs ${item.rankRequired || 'rank'})` : '';
+      const lockSuffix = cannotEquip
+        ? `  (needs ${item.type} ${item.rankRequired === 'Mast' ? 'Master ' : ''}rank)`
+        : '';
       const label = applyTextResolution(
         scene.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name + lockSuffix, {
           fontFamily: 'Arial',
@@ -1539,7 +1541,9 @@ export class LootScreenController {
       if (item.type) lines.push(item.type);
       const range = item.range == null ? '1' : String(item.range);
       lines.push(`Mt ${asNum(item.might)}  Hit ${asNum(item.hit)}  Crit ${asNum(item.crit)}`);
-      lines.push(`Wt ${asNum(item.weight)}  Range ${range}  ${item.rankRequired || 'Prof'}`);
+      lines.push(
+        `Wt ${asNum(item.weight)}  Range ${range}  Needs ${item.type} ${item.rankRequired === 'Mast' ? 'Master ' : ''}rank`,
+      );
       if (item.special) lines.push('', item.special);
       return lines.join('\n');
     }

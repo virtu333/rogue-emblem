@@ -390,3 +390,22 @@ describe('Loom header', () => {
     expect(toRoman(20)).toBe('20');
   });
 });
+
+it('explains recruit hunters and captains without guessing encounter details', () => {
+  const card = describeLoomNode(
+    { id: 'r', type: 'recruit', battleParams: { objective: 'rout' } },
+    {
+      state: 'live',
+      recruitMods: { enemyCountBonus: 1, affixCount: 1 },
+    },
+  );
+  expect(card.tags).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ text: 'Hunters +1', detail: 'One extra enemy hunts the recruit.' }),
+      expect.objectContaining({
+        text: 'Captain',
+        detail: 'One hunter carries an affix — inspect it in battle.',
+      }),
+    ]),
+  );
+});

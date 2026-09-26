@@ -5290,9 +5290,9 @@
         "The air tastes of iron here.",
         "Scouts spotted movement ahead.",
         "The ground is scarred from old battles.",
-        "The quarry roads are empty. The levies took even the picks to war.",
+        "The levy notices have faded. Nobody has taken them down.",
         "Half the blades dug from this ground still carry Varen's mark.",
-        "Scout's report: six at the ford, poorly shod, well armed. Quarry picks, mostly.",
+        "Scout's report: worn boots, fresh orders, no sign of leave.",
         "Sign nailed to the mile post: LEVY BY ORDER. Someone has scratched beneath it: AGAIN.",
         "'Whose side are they on?' 'Their own. Same as everyone this side of the river.'"
       ],
@@ -5302,7 +5302,7 @@
         "Old fortifications, hastily rebuilt.",
         "The old kingdom's roads run straight and true. The tolls are the empire's.",
         "This province feeds the war economy a cartload at a time.",
-        "Toll-house ledger, last entry: Soldiers, forty. Paid, none. Toll-keeper, departed.",
+        "Toll-house ledger, last entry: Payment deferred until victory. The ink is fading.",
         "The mile markers count down to the capital. Someone has scratched out the numbers.",
         "Camp talk: the garrison here hasn't been paid since the thaw. They'll be cranky."
       ],
@@ -5349,7 +5349,7 @@
         "An officer commands these troops. Stay sharp.",
         "Imperial elites. Not conscripts — true believers.",
         "This garrison was reinforced recently.",
-        "Requisition slip found in the mud: One captain, veteran. Delivered.",
+        "Requisition slip found in the mud: Experience required. Mercy optional.",
         "The pickets salute each other here. Bad sign. It means someone's in charge.",
         "Tavern rumor: the officer here has never lost a duel, and keeps the loser's gloves."
       ],
@@ -5358,7 +5358,7 @@
         "Whatever guards this place has forgotten mercy.",
         "The air crackles. Not lightning — something older.",
         "The reed-cutters won't cross this ground. They leave offerings at the edge instead.",
-        "Scout's report: one of them walked through the bog and didn't sink. Didn't even try to.",
+        "Scout's report: they barely spoke while making camp. They knew the drill.",
         "A priest's aside: whatever holds this ground once prayed. It has forgotten how."
       ],
       "act4": [
@@ -5366,7 +5366,7 @@
         "This one was shaped by the ritual itself.",
         "Even the ground trembles at what waits ahead.",
         "Palace guard roster, one name circled in red ink: DO NOT ENGAGE ALONE.",
-        "The household knights still wear their parade plate. It's been reforged for war.",
+        "Their parade finery has been patched with campaign cloth.",
         "Overheard at the barricade: 'That one doesn't sleep. I've watched it not sleep.'"
       ],
       "finalBoss": [
@@ -5385,14 +5385,14 @@
         "Their leader won't yield ground easily.",
         "The garrison captain's banner flies over the quarry works, freshly mended.",
         "Scout's report: the captain eats with the troops. They'll fight hard for that one.",
-        "Tacked to the bridge post: CROSSING CLOSED BY ORDER OF THE MARCH. Signed in iron."
+        "An imperial notice ends with: NO EXCEPTIONS. The signature is illegible."
       ],
       "act2": [
         "The lieutenant's chosen blocks our path.",
         "This one answers directly to the throne.",
         "Command tents and war banners. A true siege.",
         "The governor fled the province. The general stayed, and the general is worse.",
-        "Supply wagons circled three deep. Someone means to wait us out.",
+        "An intercepted order: Hold until relieved. No date for relief.",
         "Camp talk: the Lieutenant sent this one a letter. It said only: HOLD."
       ],
       "act3": [
@@ -5425,7 +5425,7 @@
         "Someone signals from the roadside.",
         "A survivor. Still willing to fight.",
         "Not everyone has given up on this land.",
-        "A quarryman flags you down with a hammer. A friendly wave. Probably.",
+        "Someone flags you down. A friendly wave. Probably.",
         "Notice on the chapel door: WILLING HANDS WANTED. Someone has already signed it.",
         "'You with the banner?' 'Depends who's asking.' 'Someone tired of hiding.'"
       ],
@@ -5439,11 +5439,11 @@
       ],
       "act3": [
         "Even here, someone still resists.",
-        "A fighter, hardened by what they've survived.",
+        "They have the tired patience of someone who's survived too much.",
         "They don't need convincing. They need a direction.",
         "Smoke from one chimney in a drowned village. Someone is still cooking.",
-        "Scout's report: one survivor. Well armed, poorly fed, very annoyed.",
-        "A reed boat drifts out of the mist carrying one passenger and far too many weapons."
+        "Scout's report: hungry, very annoyed, and willing to talk.",
+        "A traveler asks whether your army has room. They have stopped asking politely."
       ],
       "act4": [
         "To still fight, this deep in — that's something.",

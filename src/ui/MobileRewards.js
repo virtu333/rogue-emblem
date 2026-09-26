@@ -1,3 +1,4 @@
+import { forgeImpactLine } from './itemDecisionText.js';
 import { equipmentComparison } from './equipmentComparison.js';
 import { inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
@@ -550,7 +551,10 @@ export class MobileRewards {
           title: weapon.name,
           choices: imbue ? getImbueList(this.scene.gameData.imbues) : REWARD_FORGE_STATS,
           label: (entry) => (imbue ? entry.name : entry.label),
-          describe: (entry) => (imbue ? entry.description : 'Permanent weapon upgrade.'),
+          describe: (entry) =>
+            imbue
+              ? entry.description
+              : forgeImpactLine(unit, weapon, entry.key) || 'Permanent weapon upgrade.',
           blocked: (entry) => (imbue ? '' : forgeStatBlock(weapon, entry.key)),
           final: true,
           apply: (entry) => apply(weapon, imbue ? entry.id : entry.key),
