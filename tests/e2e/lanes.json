@@ -82,8 +82,9 @@
     },
     {
       "name": "battle-history",
-      "description": "Battle timeline, rewinds, threat sight and refresh-safe committed attacks",
+      "description": "Battle timeline, rewinds, threat sight, refresh-safe committed attacks and attack RNG determinism",
       "specs": [
+        "attack-rng-differential.spec.js",
         "combat-refresh-commit.spec.js",
         "rewind-action-types.spec.js",
         "rewind-any-action.spec.js",
