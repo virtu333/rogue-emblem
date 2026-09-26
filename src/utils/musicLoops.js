@@ -103,6 +103,20 @@ export const MUSIC_LOOPS = {
     tonic: 'D',
   },
   music_battle_elite: { loopStart: 9.714286, loopEnd: 72.571429, duration: 73.171, tonic: 'C' },
+  music_battle_elite_act2: {
+    loopStart: 8.864875,
+    loopEnd: 91.567574,
+    duration: 92.168,
+    tonic: 'F',
+  },
+  music_battle_elite_act2_calm: {
+    loopStart: 8.864875,
+    loopEnd: 91.567574,
+    duration: 92.168,
+    tonic: 'F',
+  },
+  music_battle_elite_act3: { loopStart: 7.0, loopEnd: 80.5, duration: 81.1, tonic: 'A' },
+  music_battle_elite_act3_calm: { loopStart: 7.0, loopEnd: 80.5, duration: 81.1, tonic: 'A' },
   music_battle_elite_act4: {
     loopStart: 9.853651,
     loopEnd: 80.097551,

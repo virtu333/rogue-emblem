@@ -362,6 +362,50 @@
     "title": "Against the Standard",
     "tonic": "C"
   },
+  "music_battle_elite_act2": {
+    "duration": 92.168,
+    "loopEnd": 91.567574,
+    "loopStart": 8.864875,
+    "lufs": -14.04,
+    "peakDb": -1.09,
+    "score": "battle_elite_act2",
+    "seamDb": -56.7,
+    "title": "The Iron Line",
+    "tonic": "F"
+  },
+  "music_battle_elite_act2_calm": {
+    "duration": 92.168,
+    "loopEnd": 91.567574,
+    "loopStart": 8.864875,
+    "lufs": -17.0,
+    "peakDb": -1.27,
+    "score": "battle_elite_act2",
+    "seamDb": -79.5,
+    "title": "The Iron Line",
+    "tonic": "F"
+  },
+  "music_battle_elite_act3": {
+    "duration": 81.1,
+    "loopEnd": 80.5,
+    "loopStart": 7.0,
+    "lufs": -14.01,
+    "peakDb": -1.09,
+    "score": "battle_elite_act3",
+    "seamDb": -64.5,
+    "title": "The Consecrated",
+    "tonic": "A"
+  },
+  "music_battle_elite_act3_calm": {
+    "duration": 81.1,
+    "loopEnd": 80.5,
+    "loopStart": 7.0,
+    "lufs": -17.0,
+    "peakDb": -1.09,
+    "score": "battle_elite_act3",
+    "seamDb": -113.4,
+    "title": "The Consecrated",
+    "tonic": "A"
+  },
   "music_battle_elite_act4": {
     "duration": 80.698,
     "loopEnd": 80.097551,
