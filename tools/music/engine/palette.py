@@ -297,7 +297,9 @@ for _inst in SSO_WINDS:
 CANDIDATES['celesta'] = {
     'sso': dict(label='Sonatina 4 Celeste',
                 what='SSO4 Percussion/Celeste (hard and soft layers by velocity), release '
-                     'held by its CC64 ring control at 40',
+                     'held by its CC64 ring control at 40; high-passed at 200 Hz (its samples '
+                     'carry a 40-100 Hz key/hammer thump on every note, below the instrument)',
+                inst=dict(hpf=200),
                 lab=dict(perform='plain', streams={'main': _strm(
                     ('plain', _p('sso', 'Percussion', 'Celeste.sfz')), cc={64: 40}, **SHORT)})),
 }

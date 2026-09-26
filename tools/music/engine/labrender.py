@@ -402,15 +402,16 @@ def render(inst, events, n_frames, seed, score=None, lane=None, calibrating=Fals
         gain_db, onset = stream_calibration(sfz_path, facts, st, inst['ref_key'],
                                             st.get('cal_key', sname))
         ps = sorted(ps, key=lambda p: p.t_on)
-        # onset compensation: a new bow speaks after `onset`; a legato
-        # transition is heard about halfway through its crossfade
+        # onset compensation: a new bow speaks after `onset`; a legato transition
+        # (entering at LEG_START) takes over about a fifth of the way into its
+        # crossfade (measured: at half-way the new pitch led the beat by ~26 ms)
         for p in ps:
             if st.get('attack'):
                 # a velocity-scaled attack: heard about 40% of the way in
                 a0, av = st['attack']
                 pre = 0.02 + 0.4 * max(0.0, a0 + av * p.vel / 127)
             elif p.stream == 'leg':
-                pre = 0.5 * {'slow': 0.18, 'medium': 0.10, 'fast': 0.05}[leg_band(p.vel)]
+                pre = 0.2 * {'slow': 0.18, 'medium': 0.10, 'fast': 0.05}[leg_band(p.vel)]
             else:
                 pre = onset * st.get('onset_scale', 1.0)
             p.t_on -= pre
