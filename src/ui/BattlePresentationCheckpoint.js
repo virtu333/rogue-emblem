@@ -1,30 +1,12 @@
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
-import { findBattleEntity } from '../engine/BattleEntityIdentity.js';
+import { findBattleEntity, isBattleEntityId } from '../engine/BattleEntityIdentity.js';
+import { readActionContinuation } from '../engine/ActionContinuation.js';
 import { LevelUpPopup } from './LevelUpPopup.js';
 import { gridDistance } from '../engine/Combat.js';
 import { levelUpKind } from './growthContent.js';
 
-// Save fields are untrusted; only these two resolved-action continuations exist.
-export function readActionContinuation(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  if (!['combat', 'finish'].includes(value.kind)) return null;
-  if (
-    value.unitId !== undefined &&
-    (typeof value.unitId !== 'string' || !/^u[1-9]\d*$/.test(value.unitId))
-  )
-    return null;
-  if (typeof value.unitName !== 'string' || !value.unitName.trim()) return null;
-  if (value.skipCanto !== undefined && typeof value.skipCanto !== 'boolean') return null;
-  if (value.gambitTriggered !== undefined && typeof value.gambitTriggered !== 'boolean')
-    return null;
-  return {
-    kind: value.kind,
-    unitName: value.unitName,
-    ...(value.unitId ? { unitId: value.unitId } : {}),
-    ...(value.skipCanto !== undefined ? { skipCanto: value.skipCanto } : {}),
-    ...(value.gambitTriggered !== undefined ? { gambitTriggered: value.gambitTriggered } : {}),
-  };
-}
+// Save fields are untrusted; the one definition of the shape lives in the engine.
+export { readActionContinuation };
 
 // A confirmed player attack is saved before any roll is revealed. Resume
 // replays exactly this attack from the saved RNG state (so the outcome is
@@ -33,7 +15,7 @@ export function readActionContinuation(value) {
 export function readCommittedAction(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   if (value.kind !== 'attack') return null;
-  const id = (v) => typeof v === 'string' && /^u[1-9]\d*$/.test(v);
+  const id = isBattleEntityId;
   if (!id(value.unitId) || !id(value.targetId) || value.unitId === value.targetId) return null;
   if (typeof value.unitName !== 'string' || !value.unitName.trim()) return null;
   let weaponArt = null;
