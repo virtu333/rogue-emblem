@@ -12,6 +12,7 @@ import { hasAnySlotMilestone } from '../engine/SlotManager.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { getImbueStoneItems } from '../engine/ImbueSystem.js';
+import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -136,7 +137,7 @@ export class CompendiumOverlay {
         this.scene,
         'Compendium',
         TAB_DEFS,
-        (tab, filter) => compendiumEntries(this, tab, filter),
+        (tab, filter) => compendiumEntries(this, tab, filter, TAB_DEFS[tab]?.key),
         () => this.hide(),
       );
       return;
@@ -956,27 +957,10 @@ export class CompendiumOverlay {
     this._text(rightX, y, `${item.type || ''}  ${item.price || 0}g`, UI_PALETTE.muted, 1);
 
     let desc = '';
-    if (item.combatEffects) {
-      const ce = item.combatEffects;
-      const parts = [];
-      if (ce.critBonus) parts.push(`Crit+${ce.critBonus}`);
-      if (ce.atkBonus) parts.push(`Atk+${ce.atkBonus}`);
-      if (ce.defBonus) parts.push(`Def+${ce.defBonus}`);
-      if (ce.resBonus) parts.push(`Res+${ce.resBonus}`);
-      if (ce.hitBonus) parts.push(`Hit+${ce.hitBonus}`);
-      if (ce.avoidBonus) parts.push(`Avo+${ce.avoidBonus}`);
-      if (ce.preventEnemyDouble || ce.preventDouble) parts.push('Prevent Double');
-      const dblThresholdReduction = ce.doubleThresholdReduction ?? ce.reduceDoubleThreshold;
-      if (dblThresholdReduction) parts.push(`Dbl Thres -${dblThresholdReduction}`);
-      if (ce.negateEffectiveness) parts.push('Negate Effectiveness');
-      if (ce.xpShare) parts.push(`XP Share ${Math.round(ce.xpShare * 100)}%`);
-      if (ce.moveTypeOverride) parts.push(`Move: ${ce.moveTypeOverride}`);
-      if (ce.condition) parts.push(`(${ce.condition})`);
-      desc = parts.join(', ');
-    } else if (item.effects && typeof item.effects === 'object') {
-      desc = Object.entries(item.effects)
-        .map(([k, v]) => `${k}+${v}`)
-        .join(', ');
+    // Accessories read as they do in the shop and roster ("+2 Def · +10 Avoid when on a
+    // forest tile"), not as effect codes.
+    if (item.type === 'Accessory') {
+      desc = formatAccessoryDetail(item);
     } else if (item.effect) {
       const effectText = getConsumableDescription(item);
       const usesText = formatUses(item);

@@ -10,6 +10,7 @@ import {
 } from '../engine/UnitManager.js';
 import { equippedBadgeElement } from './equippedBadge.js';
 import { itemKeywordText } from './itemKeywordChips.js';
+import { itemIcon } from './itemIcons.js';
 
 // Battle-only trading retains movement commitment and separate bag capacities.
 export class BattleTradeMenu {
@@ -58,12 +59,13 @@ export class BattleTradeMenu {
               this.render();
               body.querySelector('.trade-confirm')?.focus();
             },
-            're-btn re-row',
+            're-btn re-row re-row--item',
           );
           const name = element('strong', item.name);
           if (key === 'inventory' && item === owner.weapon)
             name.append(equippedBadgeElement((tag) => element(tag)));
           row.append(
+            itemIcon(item, { size: 32 }),
             name,
             element('small', detail),
             element(

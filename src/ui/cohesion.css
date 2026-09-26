@@ -84,6 +84,11 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* An item or blessing entry: its picture, with the name and details wrapping beside it. */
+.re-reference-detail .re-reference-art {
+  float: left;
+  margin: 0 var(--re-s3) var(--re-s2) 0;
+}
 .re-reference-detail p {
   margin: 0 0 10px;
 }
