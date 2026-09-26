@@ -17,8 +17,9 @@
 // Each flow also completes the real choice (scene change, recruit, reward applied),
 // so a layout that looks right but swallows the tap still fails.
 //
-// The portrait shell PR sets html.portrait-ui on an upright phone; until it lands
-// these specs set the class themselves and hide the rotate prompt.
+// The portrait shell sets html.portrait-ui for a real opt-in (the stored preference,
+// a touch screen, upright), so the portrait specs opt in; they also set the class
+// themselves and hide the rotate prompt for a build without the shell.
 import { test, expect } from '@playwright/test';
 
 const IPHONE_UA =
@@ -54,6 +55,7 @@ async function boot(page, { portrait = false, seeded = false } = {}) {
     });
   if (portrait)
     await page.addInitScript(() => {
+      localStorage.setItem('emblem_rogue_portrait_battles', 'on');
       const apply = () => {
         document.documentElement.classList.add('portrait-ui');
         const style = document.createElement('style');
