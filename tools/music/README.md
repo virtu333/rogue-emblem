@@ -53,7 +53,9 @@ that play through the loop jump, so you can listen to the seam.
 ## Engine (`engine/`)
 
 - `score.py`: the note-string notation (`D5q F#4e. [D4 F4 A4]h~ @mf %spic`), parts,
-  tempo map, loop structure and mix variants.
+  tempo map, meter changes (`s.meter_change(bar, (5, 8))`: bars from `bar` on are in the
+  new meter; `bar()`, the form check, drum grids and lint follow it), loop structure and
+  mix variants.
 - `patterns.py`: chord charts to pads with voice leading, arpeggios, ostinati, bass
   lines, drum grids and the split `Kit`.
 - `sampler.py`: an SFZ sampler for VSCO-2 CE. It adds velocity-layer crossfades,
