@@ -107,6 +107,41 @@ html.portrait-battle-capable #rotate-prompt {
   html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-dock .mb-hold-cue {
     display: none;
   }
+  /* In a unit's action menu Wait is pinned in the dock beside a compact Danger (playtest
+     4). Split evenly, the ~140px dock left each ~68px: Wait cramped and "Danger" broken
+     mid-word. Wait takes the wider share and Danger becomes a fifth tool cell (swatch
+     over its name, like Overview … Menu), so the bottom edge reads as one row of six
+     whole labels. Its state stays on the plate: crimson when shown, ringed when pinned. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-dock.has-pinned {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 3px;
+  }
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud
+    .mb-dock.has-pinned
+    .mb-danger-toggle.is-compact {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 3px 0;
+    text-align: center;
+  }
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud
+    .mb-dock.has-pinned
+    .mb-danger-toggle.is-compact
+    .mb-danger-text
+    strong {
+    font: 700 10px/1.1 var(--re-body);
+    white-space: nowrap;
+  }
+  /* The upright rail's command list is always short (~80–160px, like a short landscape
+     rail): the "tap a blue tile" reminder yields its row to the commands. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud.in-menu .mb-body > .mb-detail {
+    display: none;
+  }
 
   /* Actions: three across, so five commands never hide below a scroll. */
   html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-actions {

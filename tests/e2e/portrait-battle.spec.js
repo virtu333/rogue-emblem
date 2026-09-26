@@ -162,6 +162,133 @@ test('upright phone plays on a turned board with thumb-reach commands', async ({
   await page.screenshot({ path: 'test-results/portrait-battle-actions.png' });
 });
 
+// The bottom edge of the upright rail: the dock (Danger, plus the pinned Wait in a unit's
+// action menu) beside the four tools. Each control's box, whether anything covers its
+// centre, and whether any word of its label is broken across lines or spills out.
+function bottomRow(page) {
+  return page.evaluate(() => {
+    const hud = document.querySelector('.mobile-battle-hud');
+    const rail = hud.getBoundingClientRect();
+    const buttons = [...hud.querySelectorAll('.mb-dock > button, .bl-tools > button')];
+    return buttons.map((button) => {
+      const r = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      const brokenWords = [];
+      const walker = document.createTreeWalker(button, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (node.parentElement.closest('[hidden]')) continue;
+        if (getComputedStyle(node.parentElement).display === 'none') continue;
+        for (const match of node.textContent.matchAll(/\S+/g)) {
+          const range = document.createRange();
+          range.setStart(node, match.index);
+          range.setEnd(node, match.index + match[0].length);
+          const rects = [...range.getClientRects()].filter((q) => q.width > 0);
+          const inside = rects.every(
+            (q) =>
+              q.left >= r.left - 0.5 &&
+              q.right <= r.right + 0.5 &&
+              q.top >= r.top - 0.5 &&
+              q.bottom <= r.bottom + 0.5,
+          );
+          if (rects.length !== 1 || !inside) brokenWords.push(match[0]);
+        }
+      }
+      return {
+        name: button.getAttribute('aria-label') || button.innerText.replace(/\s+/g, ' ').trim(),
+        left: r.left,
+        right: r.right,
+        top: r.top,
+        width: r.width,
+        height: r.height,
+        onScreen: r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5,
+        inRail: r.top >= rail.top - 0.5 && r.bottom <= rail.bottom + 0.5,
+        onTop: Boolean(hit && button.contains(hit)),
+        brokenWords,
+      };
+    });
+  });
+}
+
+function expectWholeRow(row, names) {
+  expect(row.map((c) => c.name)).toEqual(names);
+  for (const [i, c] of row.entries()) {
+    expect(c, c.name).toMatchObject({ onScreen: true, inRail: true, onTop: true, brokenWords: [] });
+    expect(c.width, `${c.name} width`).toBeGreaterThanOrEqual(44);
+    expect(c.height, `${c.name} height`).toBeGreaterThanOrEqual(44);
+    expect(Math.abs(c.top - row[0].top), `${c.name} shares the row`).toBeLessThan(1);
+    if (i > 0)
+      expect(c.left, `${c.name} clear of ${row[i - 1].name}`).toBeGreaterThan(row[i - 1].right);
+  }
+}
+
+// Playtest 4 pinned Wait in the dock beside a compact Danger. On the upright rail the dock
+// shares the bottom edge with Overview, Recenter, Back and Menu: six controls on one row,
+// each whole, labelled, unbroken and tappable, from a small phone to a large one.
+for (const viewport of [
+  { width: 375, height: 667 },
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+]) {
+  test(`upright rail keeps Wait, Danger and the tools whole at ${viewport.width}x${viewport.height}`, async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize(viewport);
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        'emblem_rogue_settings',
+        JSON.stringify({ musicVolume: 0, sfxVolume: 0, hints: true, guidance: 'full' }),
+      ),
+    );
+    await page.goto('/?devScene=battle&preset=combat_actions&seed=42&portrait=1');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+    expect((await battleSnapshot(page)).rotation).toBe('ccw');
+    const tools = ['Overview', 'Recenter', 'Back', 'Menu'];
+    // Idle: Danger alone in the dock.
+    await expect.poll(async () => (await bottomRow(page)).length).toBe(5);
+    expectWholeRow(await bottomRow(page), ['Danger', ...tools]);
+
+    // Support's six-command menu (Guidance Full keeps a greyed Attack): Wait is pinned.
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = s.playerUnits.find((p) => p.name === 'Support');
+      s.selectUnit(u);
+      s.showActionMenu(u);
+    });
+    const hud = page.getByRole('complementary', { name: 'Battle commands' });
+    await expect(hud.locator('.mb-dock .mb-pinned-command')).toHaveText('Wait');
+    expectWholeRow(await bottomRow(page), ['Wait', 'Danger', ...tools]);
+    const [wait, danger] = await bottomRow(page);
+    expect(wait.width).toBeGreaterThan(danger.width);
+
+    // Danger works from the pinned row and keeps its place; pinned, it says so by name.
+    await hud.getByRole('button', { name: 'Danger', exact: true }).tap();
+    await expect(hud.getByRole('button', { name: 'Danger', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expectWholeRow(await bottomRow(page), ['Wait', 'Danger', ...tools]);
+    await page.evaluate(() =>
+      window.__emblemRogueGame.scene.getScene('Battle').togglePersistentDanger(),
+    );
+    await expect(hud.getByRole('button', { name: 'Danger · pinned', exact: true })).toBeVisible();
+    expectWholeRow(await bottomRow(page), ['Wait', 'Danger · pinned', ...tools]);
+
+    // A real tap on the pinned Wait ends Support's action.
+    await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const s = window.__emblemRogueGame.scene.getScene('Battle');
+          return [s.battleState, s.playerUnits.find((p) => p.name === 'Support').hasActed];
+        }),
+      )
+      .toEqual(['PLAYER_IDLE', true]);
+    expectWholeRow(await bottomRow(page), ['Danger · pinned', ...tools]);
+  });
+}
+
 test('turning the phone re-opens the battle exactly as it stood', async ({ page }) => {
   await bootBattle(page);
   await page.evaluate(() => {
