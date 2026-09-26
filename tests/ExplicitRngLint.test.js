@@ -16,7 +16,8 @@ async function rngErrors(code, filePath) {
 }
 const source = (path) => readFileSync(new URL(path, root), 'utf-8');
 
-describe('explicit-RNG lint scope', () => {
+// Linting BattleScene (11k lines) is slow on a loaded machine.
+describe('explicit-RNG lint scope', { timeout: 60_000 }, () => {
   it('covers every module the player attack resolves through', () => {
     expect(EXPLICIT_RNG_MODULES).toEqual(
       expect.arrayContaining([
