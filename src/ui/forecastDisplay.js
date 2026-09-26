@@ -1,3 +1,23 @@
+import { hitProbability } from '../engine/HitRoll.js';
+
+/**
+ * A strike's real chance to land, as a whole percent. Hit is rolled as the
+ * average of two numbers (HitRoll.js), so a rating of 72 lands about 84% of
+ * the time: the forecast shows that chance, not the raw rating. Only a sure
+ * hit reads 100% and only an impossible one 0%.
+ */
+export function hitChancePercent(hit) {
+  const p = hitProbability(hit);
+  if (p >= 1) return 100;
+  if (p <= 0) return 0;
+  return Math.min(99, Math.max(1, Math.round(p * 100)));
+}
+
+/** Forecast value formats, one shape per kind so the numbers never read alike. */
+export const formatHitChance = (hit) => `${hitChancePercent(hit)}%`;
+export const formatCritChance = (crit) => `${Math.max(0, Math.min(100, Number(crit) || 0))}%`;
+export const formatStrikes = (count) => `×${Math.max(1, Number(count) || 1)}`;
+
 // Conservative, RNG-free display estimate. Never used to resolve combat.
 export function forecastProjection(forecast) {
   if (!forecast?.display?.simpleExchange) return null;
@@ -81,7 +101,7 @@ export function forecastTeachingHints(forecast, attackerHP) {
   if (triangleText(forecast))
     hints.push({
       id: 'battle_triangle',
-      text: 'Swords beat axes, axes beat lances, and lances beat swords. The displayed damage and Hit rating already include this matchup.',
+      text: 'Swords beat axes, axes beat lances, and lances beat swords. The displayed damage and Hit chance already include this matchup.',
     });
   return hints;
 }

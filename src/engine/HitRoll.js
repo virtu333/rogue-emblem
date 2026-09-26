@@ -1,5 +1,6 @@
 // Symmetric continuous 2RN: use the same combat RNG stream for both draws.
-// Forecast Hit stays the familiar rating; Crit and skill activations remain 1RN.
+// The forecast shows the real chance (forecastDisplay.hitChancePercent); stat
+// panels keep the rating. Crit and skill activations remain 1RN.
 export function rollHit(hit, rng = Math.random) {
   return ((rng() + rng()) / 2) * 100 < hit;
 }

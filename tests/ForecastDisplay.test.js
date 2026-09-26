@@ -3,6 +3,10 @@ import { rollStrikeSkills, rollDefenseSkills } from '../src/engine/SkillSystem.j
 import { getCombatForecast, resolveCombat } from '../src/engine/Combat.js';
 import {
   forecastProjection,
+  formatCritChance,
+  formatHitChance,
+  formatStrikes,
+  hitChancePercent,
   counterRisk,
   forecastTeachingHints,
   triangleText,
@@ -150,5 +154,38 @@ describe('triangle note sign (playtest 3: "Triangle advantage · −1 damage")',
         expect(advantage).toBe(damage > 0);
         expect(text).toContain(`${damage > 0 ? '+' : ''}${damage} damage`);
       }
+  });
+});
+
+describe('forecast number formats', () => {
+  it('shows Hit as the real two-roll chance, not the raw rating', () => {
+    // Hand-computed from the average-of-two-rolls CDF (HitRoll.js):
+    // 72 -> 1 - 2(0.28)^2 = 84.3%; 75 -> 87.5%; 25 -> 12.5%; 50 -> 50%.
+    expect(hitChancePercent(72)).toBe(84);
+    expect(hitChancePercent(75)).toBe(88);
+    expect(hitChancePercent(25)).toBe(13);
+    expect(hitChancePercent(50)).toBe(50);
+    expect(formatHitChance(72)).toBe('84%');
+  });
+  it('only a certain strike reads 100% and only an impossible one 0%', () => {
+    expect(hitChancePercent(100)).toBe(100);
+    expect(hitChancePercent(140)).toBe(100);
+    expect(hitChancePercent(99.9)).toBe(99);
+    expect(hitChancePercent(0)).toBe(0);
+    expect(hitChancePercent(-10)).toBe(0);
+    expect(hitChancePercent(0.5)).toBe(1);
+  });
+  it('gives each kind of number its own shape', () => {
+    expect(formatStrikes(2)).toBe('×2');
+    expect(formatStrikes(0)).toBe('×1');
+    expect(formatStrikes(undefined)).toBe('×1');
+    expect(formatCritChance(0)).toBe('0%');
+    expect(formatCritChance(12)).toBe('12%');
+    // damage 15, strikes ×1, hit 84%, crit 0% never read alike
+    const shown = [String(15), formatStrikes(1), formatHitChance(72), formatCritChance(0)];
+    expect(new Set(shown).size).toBe(4);
+    expect(shown[0]).toMatch(/^\d+$/);
+    expect(shown[1]).toMatch(/^×\d+$/);
+    expect(shown[2]).toMatch(/^\d+%$/);
   });
 });

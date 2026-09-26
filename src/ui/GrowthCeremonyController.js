@@ -36,7 +36,7 @@ import {
   sealedBeats,
 } from './growthContent.js';
 import { unitDisplayName, unitEpithet } from '../engine/DeedTitles.js';
-import { levelUpCue, playCue, stopCues } from './ceremonyMusic.js';
+import { LEVEL_UP_CUE_WAIT_MS, levelUpCue, playCue, stopCues } from './ceremonyMusic.js';
 import { crestElement } from './crestArt.js';
 import { voiceContext } from '../engine/UnitVoice.js';
 import { projectedSpriteUnit, spriteElement, unitSpriteImage } from './growthSprites.js';
@@ -371,7 +371,11 @@ export class GrowthCeremonyController {
     const view = buildLevelCard(this.scene, unit, content, layer);
     root.append(el('div', 'gr-veil gr-veil--soft'), view.card);
     const releaseInput = this._holdSceneInput();
-    if (cue) void this._cue(levelUpCue(content.kind), { fallbackSfx: 'sfx_levelup' });
+    if (cue)
+      void this._cue(levelUpCue(content.kind), {
+        fallbackSfx: 'sfx_levelup',
+        waitMs: LEVEL_UP_CUE_WAIT_MS,
+      });
     let revealed = !timing.animate;
     const finishReveal = () => {
       revealed = true;
@@ -564,6 +568,8 @@ export class GrowthCeremonyController {
     let bindSkip = null; // wires each card's "Skip all" once the batch is running
     layer.addFitter(() => view && fitText(view.epithet, { min: 15 }));
     layer.addFitter(() => view && fitText(view.name, { min: 13 }));
+    // After the width fits: the band grows to hold every line (then the body type shrinks).
+    layer.addFitter(() => view && fitDeedBand(view.card));
     const nextLabel = () => (index + 1 < list.length ? 'Next deed' : 'Continue');
     const finishReveal = () => {
       revealed = true;
@@ -971,6 +977,51 @@ export function buildDeedCard(scene, unit, content, { skipAll = false } = {}) {
   controls.append(button);
   card.append(controls);
   return { card, button, skip, name, epithet };
+}
+
+/** Smallest body-type factor fitDeedBand will use before letting text clip. */
+const DEED_MIN_FIT = 0.78;
+
+/**
+ * Make a deed card's words fit its band on any frame: a narrow phone band
+ * wraps the kicker, epithet, lore and Oath onto more lines than the band's
+ * design height holds. The band first grows (centred, keeping clear of the
+ * Continue/Skip row below it); only if the frame has no more room does the
+ * body type (lore, note, Oath) shrink, never below DEED_MIN_FIT. Layout only
+ * (offset* ignore the skew and the entrance transforms). Returns what it did.
+ */
+export function fitDeedBand(card) {
+  const text = card?.querySelector?.('.gr-deed-text');
+  if (!text?.isConnected) return null;
+  card.style.removeProperty('--gr-deed-band');
+  card.style.removeProperty('--gr-deed-fit');
+  const need = () => {
+    const kids = [...text.children].filter((n) => n.offsetHeight > 0);
+    if (!kids.length) return 0;
+    const first = kids[0];
+    const last = kids[kids.length - 1];
+    const top = first.offsetTop - (parseFloat(getComputedStyle(first).marginTop) || 0);
+    const bottom = last.offsetTop + last.offsetHeight;
+    return bottom - top + 12; // breathing room inside the band's edges
+  };
+  const band = text.clientHeight;
+  let wanted = need();
+  if (!(band > 0) || wanted <= band) return { band, fit: 1 };
+  // Room: the frame minus the controls row (and the same margin mirrored above).
+  const frame = card.clientHeight || card.parentElement?.clientHeight || 0;
+  const controls = card.querySelector('.gr-deed-controls');
+  const reserve = controls ? controls.offsetHeight + 18 : 56;
+  const maxBand = Math.max(band, frame - 2 * reserve);
+  const grown = Math.min(maxBand, Math.ceil(wanted));
+  card.style.setProperty('--gr-deed-band', `${grown}px`);
+  let fit = 1;
+  wanted = need();
+  while (wanted > grown && fit > DEED_MIN_FIT) {
+    fit = Math.max(DEED_MIN_FIT, Math.round((fit - 0.04) * 100) / 100);
+    card.style.setProperty('--gr-deed-fit', String(fit));
+    wanted = need();
+  }
+  return { band: grown, fit };
 }
 
 export function buildJoinCard(scene, unit, content) {

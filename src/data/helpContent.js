@@ -72,6 +72,7 @@ const STATIC_HELP_TABS = [
           { text: '  Weapon Hit + (SKL x 2) + LCK' },
           { text: 'Attacks average two rolls, for both sides.', color: GRAY },
           { text: '75 Hit: ~87.5%; 25 Hit: ~12.5% actual.', color: GRAY },
+          { text: 'The forecast shows that real chance.', color: GRAY },
           { text: '' },
           { text: 'Avoid:', color: CYAN },
           { text: '  (SPD x 2) + LCK + Terrain Bonus' },
