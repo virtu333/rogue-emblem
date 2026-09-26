@@ -3,13 +3,13 @@ import { readFileSync, existsSync } from 'node:fs';
 import {
   tracedKeyFor,
   idleFrameAt,
-  hashName,
   TRACED_MANIFEST,
   tracedSpritesEnabled,
   startTracedIdle,
 } from '../src/ui/TracedSprites.js';
 import { battleRenderScale } from '../src/ui/BattlefieldLab.js';
 import { loadGameData } from './testData.js';
+import { displayedPerson } from '../src/engine/PortraitVariants.js';
 
 const sprites = TRACED_MANIFEST.sprites;
 const data = loadGameData();
@@ -52,7 +52,7 @@ describe('traced sprite coverage (every unit the game can spawn)', () => {
     expect(missing).toEqual([]);
   });
 
-  it('every class an NPC can hold has its own verdigris sprite', () => {
+  it('every class an NPC can hold has a verdigris sprite (its person, else the class)', () => {
     const recruitClasses = new Set(
       Object.entries(data.recruits)
         .filter(([k]) => k.startsWith('act'))
@@ -62,11 +62,15 @@ describe('traced sprite coverage (every unit the game can spawn)', () => {
     for (const c of data.classes)
       if (recruitClasses.has(c.name))
         for (const p of [c.promotesTo].flat().filter(Boolean)) recruitClasses.add(p);
-    const missing = [...recruitClasses].filter(
-      (name) =>
-        tracedKeyFor({ name: 'Villager', className: name, faction: 'npc' }, sprites) !==
-        `npc_${key(name)}`,
-    );
+    const missing = [...recruitClasses].filter((name) => {
+      const unit = { name: 'Villager', className: name, faction: 'npc' };
+      const person = displayedPerson(unit);
+      return (
+        tracedKeyFor(unit, sprites) !== `npc_${key(name)}-${person}` ||
+        !sprites[`${key(name)}-${person}`] ||
+        !sprites[`npc_${key(name)}`]
+      );
+    });
     expect(missing).toEqual([]);
   });
 
@@ -117,9 +121,10 @@ describe('traced sprite keys', () => {
         sprites,
       ),
     ).toBe('enemy_knight-corrupt');
-    expect(tracedKeyFor({ name: 'Villager', className: 'Cleric', faction: 'npc' }, sprites)).toBe(
-      'npc_cleric',
-    );
+    const villager = { name: 'Villager', className: 'Cleric', faction: 'npc' };
+    expect(tracedKeyFor(villager, sprites)).toBe(`npc_cleric-${displayedPerson(villager)}`);
+    // without the runtime colour swap the class's baked NPC is used
+    expect(tracedKeyFor(villager, sprites, { npcSwap: [] })).toBe('npc_cleric');
     expect(
       tracedKeyFor(
         { name: 'Blade Lord', className: 'Swordmaster', faction: 'enemy', isBoss: true },
@@ -129,7 +134,7 @@ describe('traced sprite keys', () => {
   });
 
   it('falls back to the closest traced sprite, then to nothing', () => {
-    const few = { knight: sprites['knight-0'], 'knight-0': sprites['knight-0'] };
+    const few = { 'knight-knight_a': sprites['knight-knight_a'] };
     // corrupted and boss fall back to the class enemy
     const enemies = { enemy_knight: sprites.enemy_knight };
     expect(
@@ -142,7 +147,9 @@ describe('traced sprite keys', () => {
       ),
     ).toBe('enemy_knight');
     // an NPC without its own sprite wears the player design
-    expect(tracedKeyFor({ name: 'V', className: 'Knight', faction: 'npc' }, few)).toBe('knight-0');
+    expect(
+      tracedKeyFor({ name: 'V', className: 'Knight', faction: 'npc' }, few, { npcSwap: [] }),
+    ).toBe('knight-knight_a');
     // a promoted lord without promoted art keeps the base lord sprite
     expect(
       tracedKeyFor(
@@ -161,13 +168,16 @@ describe('traced sprite keys', () => {
     expect(tracedKeyFor({ name: 'X', className: 'Nobody', faction: 'enemy' }, sprites)).toBe(null);
   });
 
-  it('gives a recruit the same seeded person in every class (promotion and reclass)', () => {
-    const base = tracedKeyFor({ name: 'Aldo', className: 'Myrmidon', faction: 'player' }, sprites);
-    expect(base).toBe(`myrmidon-${hashName('Aldo') % 6}`);
-    for (const cls of ['Swordmaster', 'Duelist', 'Fighter', 'Hero'])
-      expect(tracedKeyFor({ name: 'Aldo', className: cls, faction: 'player' }, sprites)).toBe(
-        base.replace('myrmidon', key(cls)),
-      );
+  it('gives a recruit the person its portrait shows (tests/TracedPersonSprites.test.js)', () => {
+    const unit = {
+      name: 'Aldo',
+      className: 'Myrmidon',
+      faction: 'player',
+      portraitVariant: 'myrmidon_c',
+    };
+    expect(tracedKeyFor(unit, sprites)).toBe('myrmidon-myrmidon_c');
+    for (const cls of ['Swordmaster', 'Duelist'])
+      expect(tracedKeyFor({ ...unit, className: cls }, sprites)).toBe(`${key(cls)}-myrmidon_c`);
   });
 });
 
@@ -224,7 +234,7 @@ describe('map idle loop vs the combat choreography', () => {
     return () => tick();
   };
   const unit = (frame, extra = {}) => ({
-    texture: { key: 'traced-myrmidon-0' },
+    texture: { key: 'traced-myrmidon-myrmidon_a' },
     frame: { name: frame },
     setFrame(name) {
       this.frame = { name };

@@ -2,9 +2,9 @@
 // shows the previous rebuilt set, ?spriteArt=classic the classic one).
 //
 // Baked by tools/art/sprite-trace (`node tools/art/sprite-trace/cli.mjs bake`, see
-// docs/art-direction/sprites-v3): every class the battlefield can show (seeded player
-// identities, enemy, corrupted enemy, NPC), the seven lords (base and promoted) and the
-// named bosses, each as six frames — idle0..idle3 (the map idle loop) and the attack key
+// docs/art-direction/sprites-v3): every class the battlefield can show (one sprite per
+// portrait person of the class, enemy, corrupted enemy, NPC), the seven lords (base and
+// promoted) and the named bosses, each as six frames — idle0..idle3 (the map idle loop) and the attack key
 // poses windup / strike (per weapon type) — at `density` art px per world px. The frames
 // are trimmed and packed into a few atlas pages; each sprite registers as its own
 // texture `traced-<key>` whose frames (idle0..idle3) point into the shared page, so the
@@ -16,6 +16,7 @@
 // the classic class sprite (BattleUnitVisuals).
 import manifest from './TracedSpriteManifest.json';
 import { battlefieldTracedSpritesEnabled } from './battlefieldArtFlags.js';
+import { displayedPerson, portraitPeopleForClass } from '../engine/PortraitVariants.js';
 
 export const TRACED_PREFIX = 'traced-';
 const PAGE_PREFIX = 'traced-page-';
@@ -28,41 +29,52 @@ export function tracedSpritesEnabled(search) {
   return battlefieldTracedSpritesEnabled(search);
 }
 
-/** Stable 32-bit FNV-1a hash (identity pick for recruits; never touches the battle RNG). */
-export function hashName(s) {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0;
-  return h >>> 0;
-}
-
 export const classKey = (name) =>
   String(name || '')
     .toLowerCase()
     .replace(/ /g, '_');
 
-/** Number of seeded identities baked for a generic class (`<class>-<i>` keys). */
-function identityCount(cls, has) {
-  let count = 0;
-  while (has(`${cls}-${count}`)) count++;
-  return count;
-}
+/** Key of a person's sprite in a class (`<class>-<person>`, e.g. `fighter-fighter_d`). */
+export const personSpriteKey = (cls, person) => `${classKey(cls)}-${person}`;
 
-/** A generic player unit's sprite: one of the class's seeded people, picked by name. */
-function playerClassKey(cls, name, has) {
-  const count = identityCount(cls, has);
-  if (count) return `${cls}-${hashName(String(name || '')) % count}`;
-  return has(cls) ? cls : null;
+/**
+ * A generic player-side unit's sprite: the person its portrait shows
+ * (PortraitVariants.displayedPerson: the stored person, the preview fallback, or the
+ * reclass counterpart), in its class. Falls back to the class's own sprite (enemy-only
+ * creatures a reclass seal can reach), then to any baked person of the class.
+ */
+function playerClassKey(unit, cls, has) {
+  const person = displayedPerson(unit);
+  if (person && has(`${cls}-${person}`)) return `${cls}-${person}`;
+  if (has(cls)) return cls;
+  for (const p of portraitPeopleForClass(unit.className))
+    if (has(`${cls}-${p}`)) return `${cls}-${p}`;
+  return null;
 }
 
 /**
- * Pure: which baked sprite a unit uses, or null. Named bosses use their own art; enemies
- * with affixes read as corrupted; NPCs take the verdigris treatment; lords use their own
- * sprite per tier; generic player units pick one of the six seeded identities of their
- * class by name (every class bakes the same six people, so a unit keeps its look through
- * either promotion branch or a reclass). Every step falls back to the closest traced
- * sprite the manifest has before giving up.
+ * An NPC's person sprite in verdigris: `npc_<class>-<person>`, derived at runtime from the
+ * person's player sprite by the manifest's colour swap (npcTexture), so a recruit keeps
+ * the same figure when it joins. Not baked (the atlas would grow by a third).
  */
-export function tracedKeyFor(unit, sprites = manifest.sprites) {
+export const isDerivedNpcKey = (key, sprites = manifest.sprites) =>
+  typeof key === 'string' &&
+  key.startsWith('npc_') &&
+  !Object.prototype.hasOwnProperty.call(sprites, key) &&
+  Object.prototype.hasOwnProperty.call(sprites, key.slice(4));
+
+/**
+ * Pure: which baked sprite a unit uses, or null. Named bosses use their own art; enemies
+ * with affixes read as corrupted; lords use their own sprite per tier; every other
+ * player-side unit (recruits, NPCs) wears the sprite of the person its portrait shows,
+ * NPCs in verdigris. Every step falls back to the closest traced sprite the manifest has
+ * before giving up.
+ */
+export function tracedKeyFor(
+  unit,
+  sprites = manifest.sprites,
+  { npcSwap = manifest.npcSwap } = {},
+) {
   if (!unit) return null;
   const cls = classKey(unit.className);
   const has = (k) => Object.prototype.hasOwnProperty.call(sprites, k);
@@ -75,15 +87,18 @@ export function tracedKeyFor(unit, sprites = manifest.sprites) {
     return has(`enemy_${cls}`) ? `enemy_${cls}` : null;
   }
   if (unit.faction === 'npc') {
+    const person = displayedPerson(unit);
+    const own = person && `npc_${cls}-${person}`;
+    if (own && (has(own) || (npcSwap?.length && has(own.slice(4))))) return own;
     if (has(`npc_${cls}`)) return `npc_${cls}`;
-    return playerClassKey(cls, unit.name, has);
+    return playerClassKey(unit, cls, has);
   }
   if (unit.isLord) {
     const base = `lord_${classKey(unit.name)}`;
     if (unit.tier === 'promoted' && has(`${base}_promoted`)) return `${base}_promoted`;
     if (has(base)) return base;
   }
-  return playerClassKey(cls, unit.name, has);
+  return playerClassKey(unit, cls, has);
 }
 
 export function preloadTracedSprites(scene) {
@@ -134,8 +149,94 @@ export function prepareTracedSprites(scene) {
 export function tracedSpriteKey(scene, unit) {
   if (!tracedSpritesEnabled()) return null;
   const key = tracedKeyFor(unit);
-  const texture = key && TRACED_PREFIX + key;
-  return texture && scene.textures.exists(texture) ? texture : null;
+  if (!key) return null;
+  if (isDerivedNpcKey(key)) {
+    if (npcTexture(scene, key)) return TRACED_PREFIX + key;
+    // no canvas (headless) or no page yet: the class's baked NPC, else the person as is
+    const cls = classKey(unit.className);
+    for (const k of [`npc_${cls}`, key.slice(4)])
+      if (scene.textures.exists(TRACED_PREFIX + k)) return TRACED_PREFIX + k;
+    return null;
+  }
+  const texture = TRACED_PREFIX + key;
+  return scene.textures.exists(texture) ? texture : null;
+}
+
+/**
+ * A recorded texture key (battle history, rewind) that may name a runtime NPC person:
+ * create it if needed so a replay after a reload shows the same figure. True when the
+ * texture exists afterwards.
+ */
+export function ensureTracedTexture(scene, textureKey) {
+  if (!textureKey || !scene?.textures) return false;
+  if (scene.textures.exists(textureKey)) return true;
+  const key = textureKey.startsWith(TRACED_PREFIX) ? textureKey.slice(TRACED_PREFIX.length) : null;
+  return Boolean(key && tracedSpritesEnabled() && isDerivedNpcKey(key) && npcTexture(scene, key));
+}
+
+const hex6 = (rgb) => (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
+
+/** The manifest's player -> NPC colour swap as a Map of packed RGB. */
+let swapMap = null;
+export function npcSwapMap(table = manifest.npcSwap) {
+  if (table === manifest.npcSwap && swapMap) return swapMap;
+  const map = new Map((table || []).map(([from, to]) => [parseInt(from, 16), parseInt(to, 16)]));
+  if (table === manifest.npcSwap) swapMap = map;
+  return map;
+}
+
+/** Recolour RGBA pixels in place through a swap map (opaque pixels only). Pure. */
+export function swapPixels(data, map) {
+  let changed = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (!data[i + 3]) continue;
+    const to = map.get(hex6([data[i], data[i + 1], data[i + 2]]));
+    if (to === undefined) continue;
+    data[i] = to >> 16;
+    data[i + 1] = (to >> 8) & 255;
+    data[i + 2] = to & 255;
+    changed++;
+  }
+  return changed;
+}
+
+/**
+ * Create (once) the verdigris texture of a derived NPC key from its player sprite's
+ * frames on the atlas page: one small canvas per NPC person shown (a battle has a few).
+ * Returns false when it cannot (no DOM canvas, the page is not loaded).
+ */
+export function npcTexture(scene, key) {
+  const target = TRACED_PREFIX + key;
+  if (scene?.textures?.exists?.(target)) return true;
+  const e = manifest.sprites[key.slice(4)];
+  if (!e || typeof document === 'undefined') return false;
+  const page = scene.textures.exists(PAGE_PREFIX + e.page)
+    ? scene.textures.get(PAGE_PREFIX + e.page).getSourceImage?.()
+    : null;
+  if (!page) return false;
+  try {
+    const n = manifest.frames.length;
+    const canvas = document.createElement('canvas');
+    canvas.width = (n - 1) * e.step + e.w;
+    canvas.height = e.h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return false;
+    ctx.drawImage(page, e.x, e.y, canvas.width, e.h, 0, 0, canvas.width, e.h);
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    swapPixels(pixels.data, npcSwapMap());
+    ctx.putImageData(pixels, 0, 0);
+    const texture = scene.textures.create(target, canvas, canvas.width, canvas.height);
+    if (!texture) return false;
+    ['__BASE', ...manifest.frames].forEach((name, i) => {
+      const col = Math.max(0, i - 1);
+      texture
+        .add(name, 0, col * e.step, 0, e.w, e.h)
+        ?.setTrim(e.size, e.size, e.ox, e.oy, e.w, e.h);
+    });
+    return true;
+  } catch {
+    return false; // presentation only: the fallback sprite is used
+  }
 }
 
 /** Idle frame for a time (ms); pure so the cadence is testable. Units are phase-offset by column. */

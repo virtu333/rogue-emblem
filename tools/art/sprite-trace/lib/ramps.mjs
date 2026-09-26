@@ -34,6 +34,18 @@ export const BIBLE_RAMPS = {
   hairAsh: R('#3a2a1e #6e5530 #a88a48 #d6bb6e #f2e2a0'),
   hairSilver: R('#2e293a #58505e #978b94 #ddd0bd #f4ecdb'),
   hairSlate: R('#101a2e #1e2638 #343c52 #56607a #8a93aa'),
+  // the portrait people's hair (tools/art/portrait-variants/catalog.mjs `sprite`): each
+  // separates from its skin family at map size and keeps the hue-shift rule
+  hairDarkBrown: R('#120b0e #26171a #3d2620 #58392a #7a5238'),
+  hairLightBrown: R('#2a1a14 #563622 #86592f #b0824a #d4aa72'),
+  hairSandy: R('#34241a #634526 #93703c #bd9a58 #dcc083'),
+  hairBlond: R('#473018 #7c5724 #b68b36 #e0b852 #f6de8a'),
+  hairCopper: R('#2c1010 #5c2416 #92401e #c4652a #e89046'),
+  hairGreyAuburn: R('#2e1c20 #573837 #85605a #ad8a82 #d2b6ac'),
+  hairPlum: R('#140b1a #29152f #422349 #5e3865 #825681'),
+  hairBlueBlack: R('#080a16 #121a30 #1f2b4b #33456c #506591'),
+  hairSaltPepper: R('#16141c #2e2b34 #4d4a52 #78757c #a9a6aa'),
+  hairGrey: R('#2a2731 #4a4751 #716e76 #9d9aa0 #cac7c9'),
   // identity accents (headbands): never a faction hue
   rustCloth: R('#22120f #45231a #6b3a26 #93573a #b97d57'),
   oliveCloth: R('#1d1a12 #34301d #4f4a2a #6e6a3b #938c55'),

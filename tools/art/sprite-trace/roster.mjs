@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import { LINES } from '../portrait-variants/catalog.mjs';
+import { PERSON_FITS } from './person-fits.mjs';
 
 // Roster: which reference figure each traced sprite comes from, and the per-figure
 // segmentation recipe (see lib/segment.mjs). Source priority (owner direction,
@@ -418,6 +420,25 @@ for (const [cls, sheet, kind, o = {}] of GENERIC_CLASSES) {
 for (const [cls, sheet, kind, recipe] of ENEMY_ONLY_CLASSES)
   ROSTER.sources[`${cls}_e`] ||= { src: S(sheet), kind, ...recipe };
 
+// --- person fits (2026-09-26): person-fits.mjs extends each player design's skin and
+// hair to the whole figure (bare arms, a ponytail, a beard) so a person's colours land
+// everywhere the design shows skin or hair.
+// Every player design gets the default fit (skin and hair grown by colour) unless its
+// entry says otherwise; enemy designs (hooded, helmeted) never wear a person.
+for (const [cls] of GENERIC_CLASSES)
+  for (const id of [`${cls}_a`, `${cls}_b`]) {
+    const fit = PERSON_FITS[id] || PERSON_FITS.default;
+    const e = ROSTER.sources[id];
+    const { rects, faceRects, match, ...rest } = fit;
+    // faceRects join the recipe overrides (before the face and its eyes are found)
+    if (faceRects) e.rects = [...(e.rects || []), ...faceRects];
+    if (rects) e.fitRects = [...(e.fitRects || []), ...rects];
+    if (match) e.match = [...(e.match || []), ...match];
+    Object.assign(e, rest);
+  }
+for (const id of Object.keys(PERSON_FITS))
+  if (id !== 'default' && !ROSTER.sources[id]) throw new Error(`PERSON_FITS: unknown source ${id}`);
+
 // --- lords: identity first (the portraits), then source priority ----------------------------
 // The lord-class sheets were drawn as the named lords, but Voss and Cael there are young,
 // bare-headed recruits while every portrait (and the rebuilt sprite) shows the bearded
@@ -657,24 +678,73 @@ export const BOSSES = {
 };
 
 /**
- * Seeded identities: every generic class bakes the same six people (design A/B, hair,
- * skin, headband), so `name hash % 6` picks the same person in every class and a unit
- * keeps its look through either promotion branch or a reclass.
+ * Portrait people on the map (2026-09-26): a generic player unit's sprite is the person
+ * its portrait shows. Every class bakes one sprite per person of its portrait pool
+ * (src/data/portraitVariants.json `classes`), keyed `<class>-<person>`, with that
+ * person's skin and hair (tools/art/portrait-variants/catalog.mjs `sprite`) on the
+ * design of their gender. The runtime resolves the person through the same function as
+ * the portrait (src/engine/PortraitVariants.js displayedPerson), so the two cannot
+ * disagree, including after a reclass.
  */
-export const RECRUITS = {
-  count: 6,
-  seedPrefix: '20260924:recruit:',
-  // a designed cast rather than six dice rolls: every skin family, hair that always
-  // separates from the face at map size, three with a band (which promotion turns gold)
-  cast: [
-    { design: 0, hair: 'hairBrown', skin: 'skinWarm', band: null },
-    { design: 1, hair: 'hairAuburn', skin: 'skinFair', band: null },
-    { design: 0, hair: 'hairBlack', skin: 'skinDeep', band: 'boneCloth' },
-    { design: 1, hair: 'hairSilver', skin: 'skinOlive', band: 'plumCloth' },
-    { design: 0, hair: 'hairAsh', skin: 'skinFair', band: 'rustCloth' },
-    { design: 1, hair: 'hairBlack', skin: 'skinTan', band: 'oliveCloth' },
-  ],
+export const PORTRAIT_VARIANTS = JSON.parse(
+  readFileSync(new URL('../../../src/data/portraitVariants.json', import.meta.url), 'utf8'),
+);
+
+/** person id -> { person, gender, skin, hair, bald } (the catalog, one place). */
+export const PEOPLE = Object.fromEntries(
+  Object.values(LINES).flatMap((line) =>
+    Object.entries(line.people).map(([person, p]) => [
+      person,
+      { person, gender: p.g, skin: p.sprite.skin, hair: p.sprite.hair, bald: !!p.sprite.bald },
+    ]),
+  ),
+);
+
+/**
+ * Which reviewed player design (A / B) is drawn as a man and which as a woman. The
+ * class-sheet prompts (docs/art/class-sprite-review-2026-09-22 catalogs) put the man
+ * left (A) and the woman centre (B) everywhere but the player-set-3 Pegasus Knight
+ * (A a woman, B a bearded man). The General's A wears a closed helm (no face at all).
+ */
+export const DESIGN_GENDER = {
+  default: { m: 'a', f: 'b' },
+  pegasus_knight: { m: 'b', f: 'a' },
 };
+
+export const designFor = (cls, gender) =>
+  (DESIGN_GENDER[cls] || DESIGN_GENDER.default)[gender === 'f' ? 'f' : 'm'];
+
+/** The people a class bakes (its portrait pool), by runtime class key. */
+export function peopleForClass(cls) {
+  const name = Object.keys(PORTRAIT_VARIANTS.classes).find(
+    (c) => c.toLowerCase().replace(/ /g, '_') === cls,
+  );
+  return name ? PORTRAIT_VARIANTS.classes[name] : [];
+}
+
+/** Bake entry of one person in one class (promotion adds the gold circlet). */
+export function personEntry(cls, person, faction = 'player') {
+  const who = PEOPLE[person];
+  if (!who) throw new Error(`Unknown portrait person: ${person}`);
+  const design = designFor(cls, who.gender);
+  const promoted = PROMOTED_CLASSES.has(cls);
+  const colours = { hair: who.hair, skin: who.skin, bald: who.bald };
+  return {
+    key: faction === 'npc' ? `npc_${cls}-${person}` : `${cls}-${person}`,
+    source: `${cls}_${design}`,
+    faction,
+    identity: promoted ? { ...colours, accent: 'gold', band: true } : colours,
+    // recorded in the runtime manifest (tests hold it to the catalog)
+    person: {
+      id: person,
+      g: who.gender,
+      skin: who.skin,
+      hair: who.hair,
+      ...(who.bald ? { bald: true } : {}),
+      design,
+    },
+  };
+}
 
 /** Promoted-tier classes (data/classes.json), by runtime key. */
 export const PROMOTED_CLASSES = new Set(
@@ -684,24 +754,16 @@ export const PROMOTED_CLASSES = new Set(
 );
 
 /** Every runtime texture: { key, source, faction, keepMain, corrupt, identity }. */
-export function bakeEntries(identities) {
+export function bakeEntries() {
   const out = [];
   for (const [name, base, promoted] of LORDS) {
     out.push({ key: `lord_${name}`, source: base, faction: 'player', keepMain: true });
     out.push({ key: `lord_${name}_promoted`, source: promoted, faction: 'player', keepMain: true });
   }
   for (const [cls] of GENERIC_CLASSES) {
-    // promotion keeps the person (hair, skin) and adds one signature accent: whatever
-    // band they wore becomes a gold circlet, and everyone promoted wears one
-    const promoted = PROMOTED_CLASSES.has(cls);
-    identities.forEach((id, i) =>
-      out.push({
-        key: `${cls}-${i}`,
-        source: `${cls}_${id.design ? 'b' : 'a'}`,
-        faction: 'player',
-        identity: promoted ? { ...id.colours, accent: 'gold', band: true } : id.colours,
-      }),
-    );
+    // one sprite per portrait person of the class (promotion keeps the person and adds
+    // the gold circlet)
+    for (const person of peopleForClass(cls)) out.push(personEntry(cls, person));
     out.push({ key: `enemy_${cls}`, source: `${cls}_e`, faction: 'enemy' });
     out.push({
       key: `enemy_${cls}-corrupt`,

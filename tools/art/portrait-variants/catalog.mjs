@@ -91,31 +91,42 @@ export const PLAYER_CLASSES_F = Object.freeze({
 
 // Five people per line. g = gender (m/f), look = face (age, skin, hair,
 // features, expression). anchor: { <Class>: { id, mode: keep|remaster } }.
+// sprite = the same person on the map (tools/art/sprite-trace bakes one sprite
+// per class x person): skin and hair ramps (tools/art/sprite-trace/lib/ramps.mjs),
+// picked against the drawn portraits, and `bald` (the crown shows skin; what hair
+// the design has below the brow keeps the hair ramp: grey sides, a beard). A
+// person's sprite design (A/B) follows `g` (roster.mjs DESIGN_GENDER).
+// tests/TracedPersonSprites.test.js holds `sprite` to `look` and `g`.
 export const LINES = Object.freeze({
   fighter: {
     classes: ['Fighter', 'Warrior', 'Berserker'],
     people: {
       fighter_a: {
         g: 'm',
+        sprite: { skin: 'skinWarm', hair: 'hairGrey', bald: true },
         look: 'a man in his late fifties, weathered light-tan skin, bald crown with grey hair at the sides, a full grey beard, heavy brows, stern',
         anchor: { Fighter: { id: 'generic_fighter', mode: 'keep' } },
       },
       fighter_b: {
         g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairDarkBrown' },
         look: 'a rugged man in his thirties, fair skin, shoulder-length dark brown hair, heavy stubble, a hard squint',
         anchor: { Warrior: { id: 'generic_warrior', mode: 'remaster' } },
       },
       fighter_c: {
         g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairCopper' },
         look: 'a big man in his forties, ruddy skin, a wild mane of auburn hair and a thick auburn beard, a scar across the nose, a fierce scowl',
         anchor: { Berserker: { id: 'generic_berserker', mode: 'remaster' } },
       },
       fighter_d: {
         g: 'f',
+        sprite: { skin: 'skinDeep', hair: 'hairBlack' },
         look: 'a strong young woman of about twenty, deep brown skin, black hair in two short puffs, small gold earrings, a broad confident grin',
       },
       fighter_e: {
         g: 'f',
+        sprite: { skin: 'skinWarm', hair: 'hairBlack' },
         look: 'a broad-shouldered East Asian woman in her thirties, long black hair tied in a low tail, a thin old scar across the bridge of the nose, calm narrow eyes',
       },
     },
@@ -125,24 +136,29 @@ export const LINES = Object.freeze({
     people: {
       myrmidon_a: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairBlack' },
         look: 'a young woman, pale skin, very long straight black hair with a thin red ribbon, dark red eyes, cool focused expression',
         anchor: { Myrmidon: { id: 'generic_myrmidon', mode: 'remaster' } },
       },
       myrmidon_b: {
         g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairBlueBlack' },
         look: 'a young man, pale skin, long blue-black hair tied high, a sharp jaw, a faint scar under one eye, quiet and severe',
         anchor: { Swordmaster: { id: 'generic_swordmaster', mode: 'remaster' } },
       },
       myrmidon_c: {
         g: 'm',
+        sprite: { skin: 'skinTan', hair: 'hairSandy' },
         look: 'a lanky young man, tan skin, messy sandy-brown hair, a small plaster on one cheek, a cocky smirk',
       },
       myrmidon_d: {
         g: 'f',
+        sprite: { skin: 'skinDeep', hair: 'hairBlack' },
         look: 'a woman in her late twenties, deep brown skin, black hair in tight cornrow braids, calm watchful eyes',
       },
       myrmidon_e: {
         g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairSilver' },
         look: 'an old swordsman in his sixties, fair skin, long white hair tied back and a short white beard, serene half-closed eyes',
       },
     },
@@ -152,24 +168,29 @@ export const LINES = Object.freeze({
     people: {
       knight_a: {
         g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairGrey' },
         look: 'a veteran in his fifties, fair lined skin, short slicked-back grey hair, grey stubble, a tired stern look',
         anchor: { Knight: { id: 'generic_knight', mode: 'remaster' } },
       },
       knight_b: {
         g: 'm',
+        sprite: { skin: 'skinWarm', hair: 'skinWarm', bald: true },
         look: 'a broad man in his forties, light-tan skin, shaved head, a heavy brow and a flattened nose, grim',
         anchor: { General: { id: 'generic_general', mode: 'remaster' } },
       },
       knight_c: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairCopper' },
         look: 'a sturdy woman in her thirties, fair freckled skin, copper hair in a short thick braid, a determined set jaw',
       },
       knight_d: {
         g: 'f',
+        sprite: { skin: 'skinDeep', hair: 'hairBlack' },
         look: 'a woman in her forties, deep brown skin, short natural black hair, a scar through one eyebrow, stoic',
       },
       knight_e: {
         g: 'm',
+        sprite: { skin: 'skinWarm', hair: 'hairBlack' },
         look: 'an earnest young East Asian man, short neat black hair, a round face, a small determined frown',
       },
     },
@@ -179,24 +200,29 @@ export const LINES = Object.freeze({
     people: {
       cavalier_a: {
         g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairDarkBrown' },
         look: 'a young man in his twenties, fair skin, short dark brown hair, a square jaw, composed',
         anchor: { Cavalier: { id: 'generic_cavalier', mode: 'remaster' } },
       },
       cavalier_b: {
         g: 'm',
+        sprite: { skin: 'skinWarm', hair: 'hairBrown' },
         look: 'a man in his forties, light skin, shoulder-length brown hair, a neat moustache and goatee, dignified',
         anchor: { Paladin: { id: 'generic_paladin', mode: 'remaster' } },
       },
       cavalier_c: {
         g: 'f',
+        sprite: { skin: 'skinOlive', hair: 'hairDarkBrown' },
         look: 'a young woman, olive skin, dark brown hair in a high ponytail, bright confident smile',
       },
       cavalier_d: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairGreyAuburn' },
         look: 'a woman in her forties, pale skin, greying auburn hair cut at the jaw, a thin scar on the chin, composed',
       },
       cavalier_e: {
         g: 'm',
+        sprite: { skin: 'skinDeep', hair: 'hairBlack' },
         look: 'a man in his thirties, deep brown skin, short twisted locks, a neatly trimmed beard, serious',
       },
     },
@@ -206,24 +232,29 @@ export const LINES = Object.freeze({
     people: {
       archer_a: {
         g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairBlond' },
         look: 'a young man, fair skin, sandy blond hair with a thin braid and a cloth headband, gentle eyes',
         anchor: { Archer: { id: 'generic_archer', mode: 'remaster' } },
       },
       archer_b: {
         g: 'm',
+        sprite: { skin: 'skinTan', hair: 'hairGrey' },
         look: 'a man in his fifties, tan skin, grey hair, a thick grey moustache, a hard squint',
         anchor: { Sniper: { id: 'generic_sniper', mode: 'keep' } },
       },
       archer_c: {
         g: 'f',
+        sprite: { skin: 'skinTan', hair: 'hairBlack' },
         look: 'a young woman, brown skin, black hair in two long braids, freckles across the nose, keen eyes',
       },
       archer_d: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairAuburn' },
         look: 'a woman in her thirties, fair skin, auburn hair in a low bun, a notched ear and a faint scar on the cheek, wry smile',
       },
       archer_e: {
         g: 'f',
+        sprite: { skin: 'skinTan', hair: 'hairGrey' },
         look: 'a woman in her fifties, tan skin, dark hair streaked with silver pulled back, crow feet, calm',
       },
     },
@@ -233,25 +264,30 @@ export const LINES = Object.freeze({
     people: {
       mage_a: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairPlum' },
         look: 'a young woman, pale skin, shaggy dark plum hair falling over one eye, round spectacles pushed up into the hair, bookish and wary',
         anchor: { Mage: { id: 'generic_mage', mode: 'remaster' } },
       },
       mage_b: {
         g: 'm',
+        sprite: { skin: 'skinWarm', hair: 'hairSaltPepper' },
         look: 'a gaunt man in his fifties, light-tan skin, long dark hair going grey, a lined face and a short beard, knowing half smile',
         anchor: { Sage: { id: 'generic_sage', mode: 'remaster' } },
       },
       mage_c: {
         g: 'm',
+        sprite: { skin: 'skinDeep', hair: 'hairBlack' },
         look: 'a young man, dark brown skin, dark eyes, a serious sidelong look',
         anchor: { Warlock: { id: 'generic_warlock', mode: 'keep' } },
       },
       mage_d: {
         g: 'f',
+        sprite: { skin: 'skinWarm', hair: 'hairBlack' },
         look: 'a young East Asian woman, straight black hair with blunt bangs, thin round spectacles, curious',
       },
       mage_e: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairSilver' },
         look: 'an elderly woman in her sixties, fair skin, white hair in a loose bun, sharp pale eyes, a faint smile',
       },
     },
@@ -261,25 +297,30 @@ export const LINES = Object.freeze({
     people: {
       cleric_a: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairLightBrown' },
         look: 'a young woman, fair skin, light brown hair in two long braids, soft kind eyes, a small smile',
         anchor: { Cleric: { id: 'generic_cleric', mode: 'remaster' } },
       },
       cleric_b: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairSilver' },
         look: 'an elderly woman in her seventies, fair wrinkled skin, grey hair in a neat bun, warm smile',
         anchor: { Bishop: { id: 'generic_bishop', mode: 'remaster' } },
       },
       cleric_c: {
         g: 'm',
+        sprite: { skin: 'skinWarm', hair: 'hairChestnut' },
         look: 'a young man, light-tan skin, spiky chestnut hair, an open determined look',
         anchor: { 'Battle Monk': { id: 'generic_battle_monk', mode: 'keep' } },
       },
       cleric_d: {
         g: 'm',
+        sprite: { skin: 'skinDeep', hair: 'hairGrey', bald: true },
         look: 'a man in his forties, deep brown skin, shaved head, a short grey beard, kind patient eyes',
       },
       cleric_e: {
         g: 'f',
+        sprite: { skin: 'skinTan', hair: 'hairDarkBrown' },
         look: 'a young woman, tan skin, dark wavy hair, freckles, gentle and shy',
       },
     },
@@ -289,23 +330,28 @@ export const LINES = Object.freeze({
     people: {
       thief_a: {
         g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairBlack' },
         look: 'a young man, pale skin, messy black hair falling over one eye, a flat unreadable stare',
         anchor: { Assassin: { id: 'generic_assassin', mode: 'remaster' } },
       },
       thief_b: {
         g: 'm',
+        sprite: { skin: 'skinOlive', hair: 'hairBlack' },
         look: 'a young man, olive skin, messy black curls, a small scar on the lip, a sly grin',
       },
       thief_c: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairCopper' },
         look: 'a young woman, fair freckled skin, short choppy copper hair, a mischievous smirk',
       },
       thief_d: {
         g: 'f',
+        sprite: { skin: 'skinDeep', hair: 'hairChestnut' },
         look: 'a woman in her thirties, deep brown skin, hair wrapped in a dark head scarf, a cool level gaze',
       },
       thief_e: {
         g: 'm',
+        sprite: { skin: 'skinTan', hair: 'hairGrey' },
         look: 'a wiry man in his forties, weathered tan skin, receding grey hair tied back, stubble, a crooked smile',
       },
     },
@@ -315,22 +361,27 @@ export const LINES = Object.freeze({
     people: {
       dancer_a: {
         g: 'f',
+        sprite: { skin: 'skinDeep', hair: 'hairBlack' },
         look: 'a young woman, deep brown skin, long black box braids with small gold cuffs, a radiant smile',
       },
       dancer_b: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairBlack' },
         look: 'an East Asian woman in her twenties, black hair in an elegant updo with a long hairpin, serene',
       },
       dancer_c: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairBlond' },
         look: 'a young woman, fair skin, honey-blonde wavy hair to the shoulders, bright playful eyes',
       },
       dancer_d: {
         g: 'f',
+        sprite: { skin: 'skinOlive', hair: 'hairDarkBrown' },
         look: 'a woman in her thirties, olive skin, long dark wavy hair, heavy-lidded confident eyes, a beauty mark',
       },
       dancer_e: {
         g: 'm',
+        sprite: { skin: 'skinTan', hair: 'hairBlack' },
         look: 'a lithe young man, tan skin, tousled black hair with a fringe, a single gold earring, a cheeky grin',
       },
     },
@@ -340,23 +391,28 @@ export const LINES = Object.freeze({
     people: {
       pegasus_a: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairSilver' },
         look: 'a young woman, fair skin, ash-white hair at chin length with a side braid, calm grey eyes',
         anchor: { 'Falcon Knight': { id: 'generic_falcon_knight', mode: 'remaster' } },
       },
       pegasus_b: {
         g: 'f',
+        sprite: { skin: 'skinTan', hair: 'hairDarkBrown' },
         look: 'a young woman, brown skin, short dark curls, a bright open smile',
       },
       pegasus_c: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairBlack' },
         look: 'a young woman, fair skin, long straight black hair in a high ponytail, determined',
       },
       pegasus_d: {
         g: 'm',
+        sprite: { skin: 'skinWarm', hair: 'hairDarkBrown' },
         look: 'a slender East Asian young man, chin-length dark brown hair, calm attentive eyes',
       },
       pegasus_e: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairLightBrown' },
         look: 'a teenage girl, freckled fair skin, light brown hair in two low pigtails, cheerful',
       },
     },
@@ -366,24 +422,29 @@ export const LINES = Object.freeze({
     people: {
       wyvern_a: {
         g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairAuburn' },
         look: 'a burly man in his forties, fair ruddy skin, swept-back red-brown hair and a full red-brown beard, stern',
         anchor: { 'Wyvern Lord': { id: 'generic_wyvern_lord', mode: 'remaster' } },
       },
       wyvern_b: {
         g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairBlond' },
         look: 'a young man, fair skin, short tousled blond hair, blue eyes, an eager half smile',
         anchor: { 'Wyvern Rider': { id: 'generic_wyvern_rider', mode: 'remaster' } },
       },
       wyvern_c: {
         g: 'f',
+        sprite: { skin: 'skinDeep', hair: 'hairBlack' },
         look: 'a woman in her thirties, deep brown skin, long black hair in one thick braid, a scar along the jaw, fierce',
       },
       wyvern_d: {
         g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairSaltPepper' },
         look: 'a grizzled man in his fifties, pale skin, short dark hair going grey at the temples, deep lines, stern',
       },
       wyvern_e: {
         g: 'f',
+        sprite: { skin: 'skinTan', hair: 'hairAuburn' },
         look: 'a young woman, tan skin, short spiky auburn hair, a fierce grin',
       },
     },
@@ -393,24 +454,29 @@ export const LINES = Object.freeze({
     people: {
       mercenary_a: {
         g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairLightBrown' },
         look: 'a young man, fair freckled skin, short light-brown hair, a boyish friendly grin',
         anchor: { Mercenary: { id: 'generic_mercenary', mode: 'remaster' } },
       },
       mercenary_b: {
         g: 'm',
+        sprite: { skin: 'skinWarm', hair: 'hairDarkBrown' },
         look: 'a man in his late twenties, light-tan skin, swept-back dark brown hair, a strong jaw with stubble, steady gaze',
         anchor: { Hero: { id: 'generic_hero', mode: 'remaster' } },
       },
       mercenary_c: {
         g: 'm',
+        sprite: { skin: 'skinDeep', hair: 'hairBlack', bald: true },
         look: 'a man in his forties, deep brown skin, shaved head, a thick black beard, a scar through one eyebrow',
       },
       mercenary_d: {
         g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairSandy' },
         look: 'a woman in her thirties, fair skin, dark blonde hair in a practical braided crown, stern grey eyes',
       },
       mercenary_e: {
         g: 'f',
+        sprite: { skin: 'skinWarm', hair: 'hairBlack' },
         look: 'a Southeast Asian woman in her thirties, black hair in a short tail, a calm, faintly amused look',
       },
     },

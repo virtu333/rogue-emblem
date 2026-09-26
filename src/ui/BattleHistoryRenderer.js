@@ -2,6 +2,7 @@ import { presentationText } from '../utils/presentationText.js';
 import { createBattleTerrain } from './BattleMapVisuals.js';
 import { drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
 import { softenGrassTexture, contrastSpriteKey } from './BattleContrast.js';
+import { ensureTracedTexture } from './TracedSprites.js';
 import { TILE_SIZE, FACTION_COLORS } from '../utils/constants.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
@@ -97,6 +98,8 @@ export class BattleHistoryRenderer {
       const ring = s.add
         .ellipse(0, unit.size > 1 ? unit.size * 16 - 10 : 6, unit.size * 24, 12)
         .setStrokeStyle(2, color, 0.9);
+      // an NPC person's verdigris texture is made at runtime: remake it after a reload
+      ensureTracedTexture(s, unit.spriteKey);
       const graphic =
         unit.spriteKey && s.textures.exists(unit.spriteKey)
           ? s.add

@@ -18,6 +18,7 @@ import { render } from './lib/render.mjs';
 import { Raster, hstack, vstack } from './lib/raster.mjs';
 import { bakeFrames, allEntries } from './lib/pipeline.mjs';
 import { packAtlas } from './lib/atlas.mjs';
+import { swapAccumulator, addSwapPair, finishSwap } from './lib/npcswap.mjs';
 
 const args = process.argv.slice(2);
 const cmd = args.shift();
@@ -93,11 +94,24 @@ if (cmd === 'recover') {
   const manifestPath = flag('manifest', 'src/ui/TracedSpriteManifest.json');
   const entries = allEntries();
   const baked = [];
+  // NPC people are derived at runtime from the player frames (lib/npcswap.mjs): learn the
+  // colour swap from both renders of every person sprite
+  const swap = swapAccumulator();
   for (const e of entries) {
     const f = await bakeFrames(e, { density });
-    baked.push({ key: e.key, kind: f.sprite.meta.kind, frames: [...f.idle, ...f.attack] });
+    const frames = [...f.idle, ...f.attack];
+    baked.push({ key: e.key, kind: f.sprite.meta.kind, frames, person: e.person });
+    if (e.person && e.faction === 'player') {
+      const n = await bakeFrames({ ...e, key: `npc_${e.key}`, faction: 'npc' }, { density });
+      [...n.idle, ...n.attack].forEach((frame, i) => addSwapPair(swap, frames[i], frame));
+    }
   }
-  const { pages, manifest } = packAtlas(baked, { density });
+  const { table: npcSwap, wrong, pixels } = finishSwap(swap);
+  const { pages, manifest } = packAtlas(baked, { density, npcSwap });
+  console.log(
+    `npc swap: ${npcSwap.length} colours, ${wrong} of ${pixels} person pixels differ from a baked NPC ` +
+      `(${((100 * wrong) / Math.max(1, pixels)).toFixed(3)} %)`,
+  );
   // the source folder and its public/ mirror (what the dev server and the build serve)
   for (const out of [dir, `public/${dir.replace(/^public\//, '')}`]) {
     mkdirSync(out, { recursive: true });
