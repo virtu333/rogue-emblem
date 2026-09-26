@@ -152,6 +152,7 @@
         "party-menus.spec.js",
         "playtest-polish.spec.js",
         "playtest-wave-19.spec.js",
+        "portrait-lists.spec.js",
         "roster-desktop.spec.js",
         "ui-completion.spec.js",
         "ux-ceremony-framing.spec.js",
