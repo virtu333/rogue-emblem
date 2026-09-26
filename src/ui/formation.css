@@ -1,0 +1,132 @@
+/* Formation: placing the army before turn 1 (FormationController). */
+.fm-lead {
+  margin: 0;
+  font: 600 14px/1.35 var(--re-body);
+  color: var(--re-text);
+}
+.fm-count {
+  margin: 2px 0 0;
+  font: var(--re-pf-9, 9px)/1.6 var(--re-pixel);
+  color: var(--re-accent-text);
+  text-transform: uppercase;
+}
+.fm-notice {
+  margin: 4px 0 0;
+  padding: 4px 8px;
+  border-left: 2px solid var(--re-warn);
+  font: 12px/1.35 var(--re-body);
+  color: var(--re-warn);
+}
+.fm-bench {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.fm-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 4px 6px;
+  text-align: left;
+}
+.fm-chip .mr-unit-face {
+  flex: none;
+  width: 32px;
+  height: 32px;
+}
+.fm-chip-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.fm-chip-text strong,
+.fm-chip-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fm-chip-text small {
+  font-size: 11px;
+  color: var(--re-muted);
+}
+.fm-chip[aria-pressed='true'] {
+  background: var(--re-selected);
+  border-color: var(--re-accent);
+  box-shadow: inset 3px 0 0 var(--re-accent);
+}
+.fm-tools {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.fm-tools > * {
+  flex: 1;
+}
+.fm-start {
+  width: 100%;
+  margin-top: 8px;
+}
+.fm-start:disabled {
+  opacity: 0.6;
+}
+
+/* Tile picker */
+.fm-picker-tile {
+  margin: 0 0 8px;
+  font: 13px/1.4 var(--re-body);
+  color: var(--re-muted);
+}
+.fm-picker .fm-pick small {
+  color: var(--re-muted);
+}
+.fm-picker .fm-pick:disabled small {
+  color: var(--re-warn);
+}
+.fm-tag {
+  font-weight: 400;
+  color: var(--re-accent-text);
+}
+.fm-clear {
+  margin-top: 8px;
+  width: 100%;
+}
+
+/* Desktop dock */
+.fm-dock {
+  position: absolute;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: min(300px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--re-raised);
+  border: 1px solid var(--re-line);
+  color: var(--re-text);
+  font: var(--re-t-body);
+  font-family: var(--re-body);
+  box-shadow: 0 6px 18px var(--re-shade);
+}
+.fm-dock[hidden] {
+  display: none;
+}
+.fm-title {
+  margin: 0 0 4px;
+  padding-bottom: 6px;
+  font: var(--re-pf-10, 10px)/1.5 var(--re-pixel);
+  color: var(--re-accent-text);
+  text-transform: uppercase;
+  border-bottom: 1px solid transparent;
+  border-image: var(--re-gilt-rule) 1;
+}
+.fm-dock .fm-danger {
+  margin-top: 6px;
+}
+.fm-dock .fm-danger[aria-pressed='true'] {
+  border-color: var(--re-danger-line);
+  background: var(--re-danger-bg);
+}
