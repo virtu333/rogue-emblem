@@ -6,6 +6,7 @@ import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
 import { unitPortrait } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
+import { rankRequirementText } from './rosterDisplay.js';
 import {
   shopOwnedItems,
   shopBuyBlock,
@@ -259,7 +260,8 @@ export class ShopMenu {
     const kicker = [item.tier, item.type].filter(Boolean).join(' · ');
     if (kicker) title.append(el('p', kicker, 'shop-kicker'));
     title.append(el('h3', item.name));
-    if (item.rankRequired) title.append(el('p', `Requires ${item.rankRequired}`, 'shop-meta'));
+    if (item.rankRequired)
+      title.append(el('p', rankRequirementText(item.type, item.rankRequired), 'shop-meta'));
     head.append(itemHero(item, { size: 96 }), title);
     copy.append(head);
     const detailText = this.controller._getShopItemDetailText(row.entry || { item });

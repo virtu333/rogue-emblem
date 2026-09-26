@@ -1,3 +1,4 @@
+import { rankRequirementText } from './rosterDisplay.js';
 import { weaponArtSecondaryDetails } from './weaponArtDisplay.js';
 import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
 
@@ -176,7 +177,7 @@ export function resolveWeaponArtStatus(art, options = {}) {
   const inferActUnlocked = Boolean(options.inferActUnlocked);
   const isUnlockedByAct = inferActUnlocked && unlockIdx !== -1 && unlockIdx <= currentIdx;
   const requiredRank = String(art?.requiredRank || 'Prof');
-  const requirementLabel = requiredRank === 'Mast' ? 'Requires Mast' : 'Requires Prof';
+  const requirementLabel = rankRequirementText(null, requiredRank);
 
   if (isMetaUnlocked) {
     return {

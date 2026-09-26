@@ -519,7 +519,10 @@ export class MobileBattleHUD {
       }
       side.append(stats);
     }
-    for (const note of forecastNotes(config.forecast, attacking, afterCost))
+    for (const note of forecastNotes(config.forecast, attacking, afterCost, {
+      planned: weapon,
+      equipped: config.equippedWeapon,
+    }))
       side.append(el('p', 'mb-notice', note));
     if (
       weapon &&

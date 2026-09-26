@@ -920,6 +920,9 @@ export class NodeMapScene extends Phaser.Scene {
   persistRunSave() {
     const cloud = this.registry.get('cloud');
     const slot = this.registry.get('activeSlot');
+    // Dev/QA routes and slotless sessions have nothing to save; saving would
+    // report a false "storage may be unavailable" failure.
+    if (!Number.isInteger(slot)) return { ok: false, reason: 'missing_slot' };
     const result = saveRun(
       this.runManager,
       cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
@@ -933,6 +936,7 @@ export class NodeMapScene extends Phaser.Scene {
           : 'Save failed — storage may be unavailable',
       );
     }
+    return result;
   }
 
   // Record which act this run has reached so the Compendium Foes tab can gate
@@ -1459,21 +1463,7 @@ export class NodeMapScene extends Phaser.Scene {
           if (!this.shopOverlay && !this.churchOverlay) this.drawMap();
           return;
         }
-        const cloud = this.registry.get('cloud');
-        const slot = this.registry.get('activeSlot');
-        const result = saveRun(
-          this.runManager,
-          cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
-          slot,
-        );
-        if (!result.ok) {
-          showMinorHint(
-            this,
-            result.isQuotaError
-              ? 'Save failed — storage full. Free device space and retry; keep this app’s saved data.'
-              : 'Save failed — storage may be unavailable',
-          );
-        }
+        this.persistRunSave();
         // Closed by scene shutdown: the camera and display list are already
         // being torn down, so redrawing would throw inside the shutdown event
         // and stall the next scene's start.

@@ -66,9 +66,17 @@ export function counterRisk(forecast, attackerHP = forecast?.attacker?.hp) {
 }
 
 // Shared readout for the canvas and DOM forecasts. Keep assumptions beside estimates.
-export function forecastNotes(forecast, attacking, attackerHP) {
+/**
+ * Short notes under a forecast side. `weapons` ({ planned, equipped }) lets the
+ * attacker side say that confirming switches weapons: the forecast only plans the
+ * weapon, and it is equipped on confirm (a staff user's weapon art, or any weapon
+ * cycled to in the forecast).
+ */
+export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
   const projection = forecastProjection(forecast);
   const notes = [];
+  const { planned, equipped } = weapons || {};
+  if (attacking && planned && planned !== equipped) notes.push(`Confirming equips ${planned.name}`);
   if (projection) {
     const hp = attacking ? projection.attackerHP : projection.defenderHP;
     notes.push(`If all hits land: ${hp === 0 ? 'KO' : `${hp} HP`} (no crits/procs)`);
