@@ -10,7 +10,9 @@ name: TestFlight
 #                     processing result and TestFlight state), in the run's summary
 # Upload and validate first require the CI workflow to have passed on the exact commit (it
 # waits while that run is still going). An upload then waits for Apple to process the
-# build and fails if Apple rejects it. A pull request that changes the iOS project or this
+# build and fails if Apple rejects it, then sends it to the `testers` group (default
+# Public Playtest, the public link): it sets "What to Test", adds the build to the group
+# and submits it for beta review, after which testers get it once Apple approves it. A pull request that changes the iOS project or this
 # pipeline runs it in validate mode.
 #
 # Signing: the archive is built unsigned and the export signs it for App Store
@@ -35,6 +37,14 @@ on:
         default: upload
       build_number:
         description: 'Build number (leave blank: one above the latest in App Store Connect)'
+        required: false
+        default: ''
+      testers:
+        description: 'TestFlight group to send the upload to (none: upload only)'
+        required: false
+        default: Public Playtest
+      whats_new:
+        description: 'What to Test, shown to testers (leave blank: the commit title)'
         required: false
         default: ''
   pull_request:
@@ -119,6 +129,7 @@ jobs:
       ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       MODE: ${{ inputs.mode || 'validate' }}
+      TESTERS: ${{ inputs.testers || 'Public Playtest' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -339,6 +350,27 @@ jobs:
             echo "::warning::Could not read the build's status from App Store Connect (the upload itself succeeded); run the workflow in status mode later."
             exit 0
           fi
+          exit $code
+
+      - name: Send to testers (${{ inputs.testers || 'Public Playtest' }})
+        if: env.TESTERS != 'none'
+        env:
+          WHATS_NEW: ${{ inputs.whats_new }}
+        run: |
+          # Not -e: the script's exit code decides the outcome below.
+          set +e -uo pipefail
+          # A validate run only checks that the group exists.
+          if [ "$MODE" = upload ]; then
+            node tools/ios/distributeBuild.mjs --bundle-id "$BUNDLE_ID" --build "$BUILD_NUMBER" \
+              --group "$TESTERS" --whats-new "$WHATS_NEW" \
+              --commit-subject "$(git log -1 --format=%s HEAD)" > "$RUNNER_TEMP/testers.md"
+          else
+            node tools/ios/distributeBuild.mjs --bundle-id "$BUNDLE_ID" --group "$TESTERS" \
+              --dry-run > "$RUNNER_TEMP/testers.md"
+          fi
+          code=$?
+          cat "$RUNNER_TEMP/testers.md"
+          { echo ""; cat "$RUNNER_TEMP/testers.md"; } >> "$GITHUB_STEP_SUMMARY"
           exit $code
 
       - name: Keep the logs

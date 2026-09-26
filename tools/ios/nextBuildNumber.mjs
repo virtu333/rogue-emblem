@@ -49,17 +49,30 @@ export function nextBuildNumber(existingVersions, min = 1) {
   return Math.max(highestBuildNumber(existingVersions) + 1, Number(min) || 1);
 }
 
-/** GET an App Store Connect API path (or a full `links.next` URL) as JSON. */
-export async function api(path, token) {
+/**
+ * Call an App Store Connect API path (or a full `links.next` URL). GET by default; `body` is
+ * sent as JSON. Returns the parsed response, or null for an empty one (204).
+ */
+export async function api(path, token, { method = 'GET', body } = {}) {
   const url = path.startsWith('http') ? path : `${API}${path}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const headers = { Authorization: `Bearer ${token}` };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const res = await fetch(url, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(
-      `App Store Connect ${res.status} for ${url.replace(API, '')}: ${body.slice(0, 400)}`,
+    const text = await res.text();
+    const error = new Error(
+      `App Store Connect ${res.status} for ${method} ${url.replace(API, '')}: ${text.slice(0, 400)}`,
     );
+    error.status = res.status;
+    throw error;
   }
-  return res.json();
+  if (res.status === 204) return null;
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
 // Rejected and failed builds still use up their build number, so every state counts.
