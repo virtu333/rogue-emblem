@@ -28,22 +28,27 @@ strings and the kit drop the syncopated ostinato for plain quarters, which
 the 4/4 simply regroups, while the low brass swell on the held B major and,
 on the anthem's downbeat, the same players turn it minor (D-sharp to D).
 
-The anthem (4/4) is the creed made public, and its tune is the crowd's, not
-the person's: the chant's own syllables, a quarter each, and like the chant's
-lines each motto opens on a repeated note; but where the chant steps down from
-it, the anthem climbs, through the chant's turn on its own notes (B B C# D |
-E F# D; the men sing D E F# where the chant did). It starts on B, climbs three
-times and ends on B, the note the personal tune never reaches. Under it, an
-eight-bar modal cycle, i - VI - VII - i - IV (E major, the Dorian colour) - IV
-- a bass that walks up by semitones under a held E major (G#, A, A#) - i. The
-walk-up is its only leading tone. Where the motto climbs off its repeated B
-(and E), the bass steps down a tone and back, so the climbing notes sit a
-tenth above it (A under C#, B under D; D under F#, E under G#) rather than
-doubling it in octaves. It is built in three blocks,
-each entering on a downbeat: the low instruments with the men (a tenor
-trombone on their line); then everything else with the women (brass, strings,
-snare rolls, the gong); then the high winds. The loudest music is not the
-last: the third block falls away in its last bars, and the loop turns on the
+The anthem (4/4) is the Empire's march in the crowd's mouth, and its tune is
+the crowd's, not the person's: the imperial drill chant ("Left, and the
+line. / Right, and the line. / What is, remains."), which the lore has sung
+on the root and its semitone shadow (D and E-flat), here B and C. Its words
+give the rhythm, a long syllable and two short ones, then a held one: "Left"
+on B, "and the" on C and B, "line" a third up on D; "Right, and the line" a
+step higher on the same half-step (C#, D, C#, then F#); "What is, remains"
+climbing by whole steps to A and falling to B. It starts on B, climbs three
+times and ends on B, the note the personal tune never reaches. It has none
+of the Emperor's anthem (no pickup leap, no dotted head, no climb 1-2-3-4):
+his guard's standard, The Emperor's Own, raises that in the same act. Under
+it, an eight-bar modal cycle, i - VI - VII - i - IV (E major, the Dorian
+colour) - IV - a bass that walks up by semitones under a held E major (G#,
+A, A#) - i. The walk-up is its only leading tone. Under the motto's moving
+notes the bass moves a tenth below them rather than doubling them in
+octaves: down to A under the shadow's C (A minor for a beat) and back to B;
+down to D under F# and back to E under G#. It is built in three blocks, each
+entering on a downbeat: the low instruments with the men (a tenor trombone
+on their line); then everything else with the women (brass, strings, snare
+rolls, the gong); then the high winds. The loudest music is not the last:
+the third block falls away in its last bars, and the loop turns on the
 personal tune alone.
 
 After *Id (Purpose)*'s medley arrangement, as verified (refscores/id_purpose.md
@@ -59,13 +64,15 @@ chant 21-36 | D bass 37 | T2 38-53 (piano, D minor, in two octaves) | E bass 54 
 falling back and then into step) | anthem 71-94 in 4/4 (block one 71-78,
 block two 79-86, block three 87-94, falling away from 91). Loop 5-94.
 
-The semitones lint reports are passing notes of the tune, the chant and the
-anthem's motto (a quarter each: the motto's F-sharp over G in bars 72, 80 and
-88 is VI's major seventh on a weak beat), and the walk-up's A and A-sharp
-under the held E major, which is the point of it.
+The semitones lint reports are passing notes of the tune and the chant (a
+quarter each); in bar 71 the downbeat boom still ringing B under the
+anthem's first C, the root and its shadow at once, which is the drill
+chant's own sound; and the walk-up's A and A-sharp under the held E major,
+which is the point of it.
 
-Leitmotif: the Hollow Sun (the personal tune). No Thread: the tune is the
-goddess's, not Sera's.
+Leitmotif: the Hollow Sun (the personal tune). The anthem's head carries the
+Empire's half-step (the root and its shadow, as the imperial drill chant is
+sung), not the whole drill. No Thread: the tune is the goddess's, not Sera's.
 
 calm: the same form heard from a side street: the ostinato plucked
 (pizzicato celli and basses on the beat, harp off it), the tune in the same
@@ -107,16 +114,19 @@ def chant_phrase(k):
 
 
 # the anthem (4/4, the women's octave; the men sing it an octave down): the
-# chant made public. Its syllables stay a quarter each, and like three of the
-# chant's four lines each motto opens on a repeated note; but where the chant
-# steps down from it, the anthem climbs (bars 1-2 pass through the chant's own
-# turn, D E F-sharp, on its notes). It starts on the tonic, climbs three times and ends on
-# it: the crowd owns the note the personal tune never reaches, and shares none
-# of its shape. (Not a dotted march head: that is the Emperor's anthem, which
-# his guard's standard already turns minor in the same act.)
+# imperial drill chant made public. "Left, and the line. / Right, and the
+# line. / What is, remains." is sung on the root and its semitone shadow (in
+# the lore, D and E-flat): here B and the C above it, a long syllable and two
+# short ones (B, C, B), and "line" a third up; the second line answers a step
+# higher on the same half-step (C#, D, C#, then F#); "What is, remains"
+# climbs by whole steps to A and falls to B. It starts on the tonic, climbs
+# three times and ends on it: the crowd owns the note the personal tune never
+# reaches, and shares none of its shape. (No pickup leap, no dotted head, no
+# climb 1-2-3-4: that is the Emperor's anthem, which his guard's standard
+# already turns minor in the same act.)
 ANTHEM = """
-B4q B4q C#5q D5q | E5q F#5q D5h | C#5q C#5q D5q E5q | F#5w |
-E5q E5q F#5q G#5q | A5h G#5h | F#5h E5h | B4w |
+B4h C5q B4q | D5w | C#5h D5q C#5q | F#5w |
+E5h F#5q G#5q | A5h G#5h | F#5h E5h | B4w |
 """
 ANTHEM_BARS = [x.strip() + ' |' for x in ANTHEM.strip().rstrip('|').split('|')]
 
@@ -126,12 +136,12 @@ def anthem_upto(n):
     return ' '.join(ANTHEM_BARS[:n])
 
 
-# the cycle: i VI VII i IV IV, the walk-up under a held E major, i. Where the
-# motto climbs off its repeated tonic (bars 1 and 5) the bass steps down and
-# back under it, so the climbing notes sound a tenth above the bass (A under
-# C-sharp, B under D; D under F-sharp, E under G-sharp) instead of doubling it
-# in octaves; in bar 3 it falls against the climb (A, F-sharp, E)
-CH_ANTHEM = chart('Bm:2 A:1 Bm:1 G A:2 D/F#:1 A/E:1 Bm E:2 D:1 E:1 Esus4:2 E:2 '
+# the cycle: i VI VII i IV IV, the walk-up under a held E major, i. Under the
+# motto's moving notes the bass moves too, a tenth below them, instead of
+# doubling them in octaves: in bar 1 it steps down to A under the shadow's C
+# (A minor for a beat) and back; in bar 5, down to D under F-sharp and back to
+# E under G-sharp; in bar 3 it falls against the line (A, F-sharp, E)
+CH_ANTHEM = chart('Bm:2 Am:1 Bm:1 G A:2 D/F#:1 A/E:1 Bm E:2 D:1 E:1 Esus4:2 E:2 '
                   'E/G#:2 E/A:1 E/A#:1 Bm')
 ANTHEM_BASS = [('B', 'B', 'A', 'B'), 'G', ('A', 'A', 'F#', 'E'), 'B', ('E', 'E', 'D', 'E'), 'E',
                ('G#', 'G#', 'A', 'A#'), 'B']
@@ -144,13 +154,16 @@ ANTHEM_BASS = [('B', 'B', 'A', 'B'), 'G', ('A', 'A', 'F#', 'E'), 'B', ('E', 'E',
 # duration, separately for the short notes and the held ones; the 'oohs'
 # program reads within 2 cents by the same method. It is applied as a pitch
 # bend on each note of the choir's single lines (render key_cents).
-CHOIR_AAH_CENTS = {47: 39, 49: 6, 50: 5, 52: -6, 54: -39, 55: -39, 57: -40, 59: 30, 61: 12,
-                   62: 12, 64: 16, 66: 17, 67: 17, 68: 2, 69: 2, 71: 1, 73: -6, 74: -6,
-                   76: 25, 78: 5, 80: 4}
+# (C4 and C5 short, C#4 and C#5 held, the anthem's half-step shadow, were
+# measured the same way when the anthem took them, as quarters and halves at
+# 176: C4 +33, C5 -6, C#4 -12, C#5 -6)
+CHOIR_AAH_CENTS = {47: 39, 49: 6, 50: 5, 52: -6, 54: -39, 55: -39, 57: -40, 59: 30, 60: 33,
+                   61: 12, 62: 12, 64: 16, 66: 17, 67: 17, 68: 2, 69: 2, 71: 1, 72: -6, 73: -6,
+                   74: -6, 76: 25, 78: 5, 80: 4}
 CHOIR_FIX = {k: -v for k, v in CHOIR_AAH_CENTS.items()}
 # ...and for the held notes (0.6 s and longer), which sit in the samples' sustain
-CHOIR_AAH_CENTS_LONG = {47: 31, 50: -25, 54: -6, 59: -2, 62: 0, 64: 13, 66: 9, 68: -3, 69: -3,
-                        71: 0, 74: -5, 76: 0, 78: 4, 80: 9, 81: 3}
+CHOIR_AAH_CENTS_LONG = {47: 31, 50: -25, 54: -6, 59: -2, 61: -12, 62: 0, 64: 13, 66: 9, 68: -3,
+                        69: -3, 71: 0, 73: -6, 74: -5, 76: 0, 78: 4, 80: 9, 81: 3}
 CHOIR_FIX_LONG = {k: -v for k, v in CHOIR_AAH_CENTS_LONG.items()}
 
 # the marcato ostinato inside a 3/4 bar: on, off, off, on, off
