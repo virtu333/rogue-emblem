@@ -7,6 +7,7 @@ one-shot stingers in tools/music/stingers/ to game-ready cues.
   python3 tools/music/build.py battle_border --preview  # also write jump previews
   python3 tools/music/build.py --stingers levelup       # render one stinger (every key)
   python3 tools/music/build.py --stingers               # render every stinger
+  python3 tools/music/build.py --prune-cache 14         # drop stems unused for 14 days
 
 Loops go to assets/audio/music/<key>.mp3 (+ <key>_<variant>.mp3); the loop
 table src/utils/musicLoops.js is rewritten from tools/music/loops.json.
@@ -33,7 +34,7 @@ sys.path.insert(0, HERE)
 from engine import palette  # noqa: E402
 from engine.form import check_form  # noqa: E402
 from engine.instruments import INSTRUMENTS  # noqa: E402
-from engine.render import Renderer  # noqa: E402
+from engine.render import Renderer, cache_dir, prune_cache  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 OUT = os.path.join(ROOT, 'assets', 'audio', 'music')
@@ -230,9 +231,17 @@ def main():
     ap.add_argument('--variants', nargs='*')
     ap.add_argument('--palette', help='palette (default: the house palette), e.g. '
                     'lab:choir=vpo_mixed for an audition (see engine/palette.py)')
+    ap.add_argument('--prune-cache', type=float, metavar='DAYS',
+                    help='first delete cached stems (any score) unused for DAYS days')
     args = ap.parse_args()
     if args.palette is not None:
         palette.request(args.palette)
+    if args.prune_cache is not None:
+        n, freed = prune_cache(args.prune_cache)
+        print(f'pruned {n} stems unused for {args.prune_cache:g} days ({freed / 1e6:.0f} MB)'
+              f' from {cache_dir()}')
+        if not (args.scores or args.all or args.stingers is not None):
+            return
     audition = palette.is_audition(palette.requested())
     if audition:
         # an audition never touches the game's assets or loop tables

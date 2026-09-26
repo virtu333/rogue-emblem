@@ -146,25 +146,12 @@ CH_ANTHEM = chart('Bm:2 Am:1 Bm:1 G A:2 D/F#:1 A/E:1 Bm E:2 D:1 E:1 Esus4:2 E:2 
 ANTHEM_BASS = [('B', 'B', 'A', 'B'), 'G', ('A', 'A', 'F#', 'E'), 'B', ('E', 'E', 'D', 'E'), 'E',
                ('G#', 'G#', 'A', 'A#'), 'B']
 
-# The GeneralUser 'Choir Aahs' samples are out of tune by zone, and their pitch
-# drifts inside a note (C#3-D3 start near true and sink 45 cents; F#3-A3 start
-# 40 cents flat). The correction is fitted to this score's own notes: every
-# choir note rendered alone at its own length and dynamic, its pitch measured
-# over the note body (harmonic sum, 0.3 s windows), averaged per key weighted by
-# duration, separately for the short notes and the held ones; the 'oohs'
-# program reads within 2 cents by the same method. It is applied as a pitch
-# bend on each note of the choir's single lines (render key_cents).
-# (C4 and C5 short, C#4 and C#5 held, the anthem's half-step shadow, were
-# measured the same way when the anthem took them, as quarters and halves at
-# 176: C4 +33, C5 -6, C#4 -12, C#5 -6)
-CHOIR_AAH_CENTS = {47: 39, 49: 6, 50: 5, 52: -6, 54: -39, 55: -39, 57: -40, 59: 30, 60: 33,
-                   61: 12, 62: 12, 64: 16, 66: 17, 67: 17, 68: 2, 69: 2, 71: 1, 72: -6, 73: -6,
-                   74: -6, 76: 25, 78: 5, 80: 4}
-CHOIR_FIX = {k: -v for k, v in CHOIR_AAH_CENTS.items()}
-# ...and for the held notes (0.6 s and longer), which sit in the samples' sustain
-CHOIR_AAH_CENTS_LONG = {47: 31, 50: -25, 54: -6, 59: -2, 61: -12, 62: 0, 64: 13, 66: 9, 68: -3,
-                        69: -3, 71: 0, 73: -6, 74: -5, 76: 0, 78: 4, 80: 9, 81: 3}
-CHOIR_FIX_LONG = {k: -v for k, v in CHOIR_AAH_CENTS_LONG.items()}
+# The choir sings as recorded. Per-key corrections fitted here once (0.3 s
+# windows of single notes) read the samples' first moments, where the pitch
+# swings by up to 60 cents; measured over the settled note by the engine's
+# tuning meter (tools/music/tunecheck.py), the 'Choir Aahs' keys this score
+# uses sit within about 10 cents, and those corrections pushed most of them
+# 15-30 cents off.
 
 # the marcato ostinato inside a 3/4 bar: on, off, off, on, off
 OST_AT = (0.0, 0.75, 1.25, 2.0, 2.25)
@@ -350,9 +337,9 @@ def build():
     # presence, so the voices read through the tutti)
     vox_eq = [('peak', 850, 1.0, -3.5), ('peak', 3000, 1.0, 2.0)]
     ch_w = b.part('choir_w', 'choir', layer='full', role='lead', pan=-0.1, humanize_ms=18,
-                  eq=vox_eq, key_cents=CHOIR_FIX)
+                  eq=vox_eq)
     ch_m = b.part('choir_m', 'choir', layer='full', role='lead2', pan=0.1, humanize_ms=18,
-                  eq=vox_eq, key_cents=CHOIR_FIX, hpf=110)
+                  eq=vox_eq, hpf=110)
     ch_x = b.part('choir_x', 'oohs', layer='full', role='choir', gain=-4, humanize_ms=26)
     # one syllable a quarter, every note re-struck; the men and the women
     # answer each other line by line (men, women, men, then everyone)
@@ -452,19 +439,6 @@ def build():
     # and each voice that leaves fades on its last notes
     for p, last in ((fl, 90), (ob, 90), (picc, 90), (tpt, 90), (stg, 90), (vn, 92), (ch_w, 93)):
         p.expr((5, 1.0), (last - 0.05, 1.0), (last + 0.95, 0.3), (last + 0.99, 1.0))
-    # the held notes of each choir line get their own tuning: the samples drift
-    # inside a note, so a quarter and a whole note on one key need different
-    # corrections (same sound, same lane, two parts)
-    for short, long_name in ((ch_w, 'choir_w_long'), (ch_m, 'choir_m_long')):
-        lp = b.part(long_name, 'choir', layer='full', role=short.opts['role'],
-                    pan=short.opts['pan'], humanize_ms=18, eq=vox_eq, key_cents=CHOIR_FIX_LONG,
-                    **({'hpf': short.opts['hpf']} if 'hpf' in short.opts else {}))
-        keep = []
-        for n in short.notes:
-            held = s.seconds(n.start + n.dur) - s.seconds(n.start) >= 0.6
-            (lp.notes if held else keep).append(n)
-        short.notes[:] = keep
-        lp.expr_points = list(short.expr_points)
 
     # ================================================================ drums
     b.kit = Kit(s, 'kit', gains={'kick': 0.5, 'snare': 1.0})
@@ -547,13 +521,6 @@ def build():
     b.hit(79, pieces=('crash', 'bd', 'gong'), vel=0.9)
     b.hit(87, pieces=('crash', 'bd'))
     b.riser(69, beats=6)
-
-    # the bass guitar (Growlybass) has no samples below A1: its lower notes
-    # would be silent, so they sound an octave up (the contrabasses keep the
-    # low octave)
-    for n in s.parts['ebass'].notes:
-        if n.pitch < 33:
-            n.pitch += 12
 
     # ================================================================ calm
     # the ostinato plucked: celli and basses on the beat, the harp off it

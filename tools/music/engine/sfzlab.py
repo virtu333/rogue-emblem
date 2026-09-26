@@ -7,7 +7,8 @@ tweak (a faster legato transition, an accent layer that fires only on a
 phrase's first note, a second round robin). Rather than edit the libraries,
 a program is parsed into blocks, transformed, and written as a flat file with
 absolute sample paths into the lab directory (`MUSIC_LAB_DIR`, default
-`References/music-lab`). Nothing here runs unless a lab palette is selected.
+`References/music-lab`). The default palette uses it only to hold the sfizz
+programs' samples in memory (engine/sfzrender.py), in a throwaway folder.
 
   prog = load(path)                      # flattened blocks
   prog = with_opcodes(prog, 'group', {'off_time': '0.12'}, where={'trigger': 'legato'})
@@ -182,7 +183,8 @@ def region_keys(ops) -> tuple[int, int, int]:
     k = get(ops, 'key')
     lo = _num_key(get(ops, 'lokey', k if k is not None else '0'))
     hi = _num_key(get(ops, 'hikey', k if k is not None else '127'))
-    kc = _num_key(get(ops, 'pitch_keycenter', k if k is not None else str(lo)))
+    # SFZ: `key` sets the keycenter too; with neither, the keycenter is 60
+    kc = _num_key(get(ops, 'pitch_keycenter', k if k is not None else '60'))
     return lo, hi, kc
 
 
@@ -358,6 +360,27 @@ def keep_regions(prog, pred):
     return out
 
 
+def retune(prog, cents_by_sample: dict):
+    """Add a tuning correction (cents) to every region playing one of the samples,
+    on top of the `tune` it inherits (engine/tuning.py measures them)."""
+    out, ctx = [], {'global': [], 'master': [], 'group': []}
+    for h, ops in copy.deepcopy(prog):
+        if h == 'global':
+            ctx.update(master=[], group=[])
+        elif h == 'master':
+            ctx['group'] = []
+        if h in ('global', 'master', 'group'):
+            ctx[h] = ops
+        if h == 'region' and get(ops, 'sample') in cents_by_sample:
+            eff = {}
+            for layer in (ctx['global'], ctx['master'], ctx['group'], ops):
+                eff.update(dict(layer))
+            tune = float(eff.get('tune', 0)) + cents_by_sample[get(ops, 'sample')]
+            set_op(ops, 'tune', round(tune))
+        out.append((h, ops))
+    return out
+
+
 def extend_range(prog, lo=0, hi=127):
     """Stretch the lowest and highest regions to cover the whole keyboard."""
     prog = copy.deepcopy(prog)
@@ -402,11 +425,12 @@ def ram_based(prog):
     return [('control', [('hint_ram_based', '1')])] + prog
 
 
-def write(prog, name: str) -> str:
-    """Write a program into the lab dir; the file name carries a content hash."""
-    body = text(ram_based(prog))
+def write(prog, name: str, directory: str | None = None, ram: bool = True) -> str:
+    """Write a program into the lab dir (or `directory`); the file name carries
+    a content hash. `ram`: samples held in memory (ram_based)."""
+    body = text(ram_based(prog) if ram else prog)
     h = hashlib.sha1(body.encode()).hexdigest()[:10]
-    d = os.path.join(LAB_DIR, 'sfz')
+    d = directory or os.path.join(LAB_DIR, 'sfz')
     os.makedirs(d, exist_ok=True)
     path = os.path.join(d, f'{name}-{h}.sfz')
     if not os.path.exists(path):

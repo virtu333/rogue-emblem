@@ -61,8 +61,7 @@ B is the second verse, in F minor (the tonic bar of A2 is its first chord,
 B-flat minor as iv): the same rhythm and harmony, but its sequence climbs
 where A's falls (the leaps reach C, then E-flat, then the horns' high F over
 G-flat major 7) against the bass walking down (the contrabasses from B-flat
-1; the bass guitar, which has nothing under A1, walks it an octave up with
-the fifth below each root, never folding); horns with trombones below;
+1, the bass guitar with them); horns with trombones below;
 flute and second violins run eighths through the stab rests.
 
 The build (29-32) is the piece's own material sped up: two bars of the
@@ -172,19 +171,7 @@ BASS_A = [('Eb2', 'Bb2', 'Eb2'), ('Db2', 'Ab2', 'Db2'), ('Cb2', 'Gb2', 'Cb2'), (
           ('Bb1', 'F2', 'Bb1')]
 BASS_B = [('Bb1', 'F2', 'Bb1'), ('Ab1', 'Eb2', 'Ab1'), ('Gb1', 'Db2', 'Gb1'), ('C2', None, None),
           ('Db2', 'Ab2', 'Db2'), ('Bb1', 'F2', 'Bb1'), ('Gb1', 'Db2', 'Gb1'), ('F1', 'C2', 'F1')]
-# ...and B for the bass guitar, which has nothing below A1: an octave up with
-# the fifth below each root, so the walk down (B-flat, A-flat, G-flat; then
-# D-flat, B-flat, G-flat, F) stays one line (C2-D-flat 3) instead of folding
-# up a seventh wherever a root fell under A1
-BASS_B_EB = [('Bb2', 'F2', 'Bb2'), ('Ab2', 'Eb2', 'Ab2'), ('Gb2', 'Db2', 'Gb2'), ('C3', None, None),
-             ('Db3', 'Ab2', 'Db3'), ('Bb2', 'F2', 'Bb2'), ('Gb2', 'Db2', 'Gb2'), ('F2', 'C2', 'F2')]
 
-# the 'Choir Aahs' tuning, per key, for this score's held choir notes: every
-# note rendered alone at its own length and dynamic, its pitch measured over
-# the note body (harmonic sum, 0.3 s windows), averaged per key
-CHOIR_AAH_CENTS = {57: 23, 58: -3, 59: 0, 60: -2, 61: 4, 63: 13, 65: 9, 66: 12, 69: -3, 70: -1,
-                   71: 1, 73: -5, 75: 15}
-CHOIR_FIX = {k: -v for k, v in CHOIR_AAH_CENTS.items()}
 
 # brass stabs (2 and 3.5), voiced by hand: trombones two notes, horns three.
 # m7 turns on its second stab: C-flat with A natural, the augmented sixth
@@ -383,7 +370,7 @@ def build():
     cb = b.part('cb', 'basses', layer='full', role='low', art='spic')
     for sec, rows in (('A1', BASS_A), ('A2', BASS_A), ('B', BASS_B), ('A3', BASS_A)):
         tied = sec == 'A1'
-        strain_bass(eb, b.bar(sec), BASS_B_EB if sec == 'B' else rows, vel=0.78, tied_in=tied)
+        strain_bass(eb, b.bar(sec), rows, vel=0.78, tied_in=tied)
         strain_bass(cb, b.bar(sec), rows, vel=0.72, tied_in=tied, art='spic')
     tuba = b.part('tuba', 'tuba', layer='full', role='low', art='stac')
     strain_bass(tuba, 41, BASS_A, vel=0.7, art='stac')
@@ -487,17 +474,16 @@ def build():
     timp.expr((30.97, 1.0), (31, 0.35), (32.95, 1.0), (33, 1.0))
 
     # ================================================================ C: the standard
-    # the choir, one part per voice: the 'Choir Aahs' samples are out of tune by
-    # zone, and a single line can be corrected note by note (a pitch bend per
-    # note, render key_cents), a chord on one channel cannot
+    # the choir, one part per voice (the 'Choir Aahs' sing as recorded: measured
+    # over the settled note, the keys used here sit within about 10 cents)
     tmp = s.part('_choir_voicing', 'choir')
     pad(tmp, 33, CH_C_PAD, n=4, lo=57, hi=77, vel=0.72)
     del s.parts['_choir_voicing']
     chords = {}
     for n in tmp.notes:
         chords.setdefault(round(n.start, 4), []).append(n)
-    voices = [b.part(f'choir_{i}', 'choir', layer='full', role='choir', gain=-6,
-                     key_cents=CHOIR_FIX) for i in range(4)]
+    voices = [b.part(f'choir_{i}', 'choir', layer='full', role='choir', gain=-6)
+              for i in range(4)]
     for start in sorted(chords):
         for v, n in zip(voices, sorted(chords[start], key=lambda n: n.pitch)):
             # (a voice that keeps its note across C4's mid-bar change holds it)
@@ -579,13 +565,7 @@ def build():
                  'stab_tpt', 'stab_str', 'stab_vc'):
         s.parts[name].expr((1, under), (32.9, under), (33, 1.0), (40.9, 1.0), (41, under))
 
-    # the bass guitar (Growlybass) has no samples below A1: its lower notes
-    # would be silent, so they sound an octave up (the contrabasses keep the
-    # low octave)
-    for n in s.parts['ebass'].notes:
-        if n.pitch < 33:
-            n.pitch += 12
-    # and the tuba's lowest samples (E1-G#1) drift by a third of a tone within
+    # the tuba's lowest samples (E1-G#1) drift by a third of a tone within
     # a note: its notes there move up an octave too
     for n in s.parts['tuba'].notes:
         if n.pitch < 33:
