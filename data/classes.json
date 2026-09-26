@@ -698,7 +698,7 @@
       "MAG": 5
     },
     "moveType": "Infantry",
-    "weaponProficiencies": "Tomes (M), Staves (P)",
+    "weaponProficiencies": "Tomes (M), Staves (P), Light (P)",
     "roleChange": "Gains healing",
     "description": "Keeps its devastating magic and picks up healing staves besides."
   },
@@ -1437,7 +1437,7 @@
       "RES": 5
     },
     "moveType": "Infantry",
-    "weaponProficiencies": "Staves (M), Axes (P)",
+    "weaponProficiencies": "Staves (M), Axes (P), Light (P)",
     "roleChange": "Gains Axes, Fortify Aura innate, frontline healer",
     "description": "An axe for the enemy and a Fortify aura for the friends beside it \u2014 healing from the front line."
   },
