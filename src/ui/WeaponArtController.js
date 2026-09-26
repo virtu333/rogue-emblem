@@ -1,5 +1,6 @@
 import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
 import { TILE_SIZE } from '../utils/constants.js';
+import { hasRoomRightOf } from '../utils/boardOrientation.js';
 import { TOOLTIP_HOVER_DELAY_MS, TOOLTIP_LONG_PRESS_MS } from '../utils/tooltipTiming.js';
 import {
   canUseWeaponArt,
@@ -46,7 +47,9 @@ export class WeaponArtController {
     }
 
     const pos = scene.grid.gridToPixel(unit.col, unit.row);
-    const menuX = unit.col < scene.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 280;
+    const menuX = hasRoomRightOf(scene.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - 280;
     const menuY = pos.y - 10;
 
     scene.actionMenu = [];

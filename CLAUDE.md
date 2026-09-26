@@ -9,6 +9,7 @@ Rogue Dawn (formerly "Emblem Rogue" / "Rogue Emblem") is a browser-based tactica
 **Class/Weapon Data:** `docs/emblem_rogue_class_data.xlsx` (already parsed into `data/*.json`)
 **Roadmap:** `ROADMAP.md` (long-term vision + architecture notes + actionable implementation waves)
 **Mobile Controls:** `docs/mobile-controls-spec.md` (HTML overlay, landscape, context-sensitive buttons)
+**Portrait Battles (beta):** `docs/portrait-battles.md` (opt-in upright battles on phones: board turned by a Grid presentation transform, orientation switches re-open from the battle checkpoint)
 **iOS Port:** `docs/ios-port-spec.md` (Capacitor wrapper, deferred until mobile web stable)
 
 ## Tech Stack

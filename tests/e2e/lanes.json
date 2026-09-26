@@ -60,6 +60,11 @@
       ]
     },
     {
+      "name": "portrait",
+      "description": "Portrait battles (beta, opt-in): the turned board, the upright rail, rotation round trips and the locked shells",
+      "specs": ["portrait-battle.spec.js"]
+    },
+    {
       "name": "battle-input",
       "description": "Battle input on every device: attack flow, menus, touch, keyboard and gamepad, input isolation, camera",
       "shards": 3,

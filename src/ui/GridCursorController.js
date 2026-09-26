@@ -46,8 +46,10 @@ export class GridCursorController {
     const rows = this._rows();
     if (cols <= 0 || rows <= 0) return;
     this.active = true;
-    this.cursorCol = clamp(this.cursorCol + dx, 0, cols - 1);
-    this.cursorRow = clamp(this.cursorRow + dy, 0, rows - 1);
+    // Arrows follow the board as drawn (a portrait board is turned a quarter).
+    const step = this.scene?.grid?.board?.displayDeltaToGrid?.(dx, dy) || { dc: dx, dr: dy };
+    this.cursorCol = clamp(this.cursorCol + step.dc, 0, cols - 1);
+    this.cursorRow = clamp(this.cursorRow + step.dr, 0, rows - 1);
     this._render();
   }
 

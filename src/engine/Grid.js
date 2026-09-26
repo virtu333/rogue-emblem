@@ -8,6 +8,7 @@ import {
   VISION_RANGES,
 } from '../utils/constants.js';
 import { parseRange } from './Combat.js';
+import { createBoardTransform } from '../utils/boardOrientation.js';
 
 const DIRECTIONS = [
   { dc: 0, dr: -1 },
@@ -213,10 +214,22 @@ export function computeEffectivePath(
 }
 
 export class Grid {
-  constructor(scene, cols, rows, terrainData, mapLayout, fogEnabled = false, biome = null) {
+  constructor(
+    scene,
+    cols,
+    rows,
+    terrainData,
+    mapLayout,
+    fogEnabled = false,
+    biome = null,
+    presentation = null,
+  ) {
     this.scene = scene;
     this.cols = cols;
     this.rows = rows;
+    // Presentation only: how the board is drawn (portrait play turns it a quarter).
+    // Every game rule keeps using (col, row); only pixel conversion goes through it.
+    this.board = createBoardTransform(cols, rows, presentation?.rotation);
     this.terrainData = terrainData;
     this.mapLayout = mapLayout; // 2D array of terrain indices
     this.biome = biome;
@@ -237,8 +250,8 @@ export class Grid {
     this.everSeenSet = new Set(); // ever revealed "col,row"
 
     // Center the grid on the canvas
-    const mapWidth = cols * TILE_SIZE;
-    const mapHeight = rows * TILE_SIZE;
+    const mapWidth = this.mapPixelWidth;
+    const mapHeight = this.mapPixelHeight;
     this.offsetX = Math.floor((scene.cameras.main.width - mapWidth) / 2);
     this.offsetY = Math.floor((scene.cameras.main.height - mapHeight) / 2);
 
@@ -361,19 +374,43 @@ export class Grid {
     }
   }
 
+  /** Drawn board width in world pixels (swaps with height on a rotated board). */
+  get mapPixelWidth() {
+    return this.board.displayCols * TILE_SIZE;
+  }
+
+  get mapPixelHeight() {
+    return this.board.displayRows * TILE_SIZE;
+  }
+
+  /** The cell a grid position is drawn in. */
+  displayCellOf(col, row) {
+    return this.board.toDisplay(col, row);
+  }
+
+  /**
+   * Whether a tile is drawn within `margin` cells of the board's right edge, for
+   * placing menus beside a unit on whichever side has room.
+   */
+  isNearDisplayRightEdge(col, row, margin = 3) {
+    return this.board.toDisplay(col, row).col >= this.board.displayCols - margin;
+  }
+
   // Convert pixel position to grid coordinates
   pixelToGrid(px, py) {
-    const col = Math.floor((px - this.offsetX) / TILE_SIZE);
-    const row = Math.floor((py - this.offsetY) / TILE_SIZE);
-    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return null;
-    return { col, row };
+    const dc = Math.floor((px - this.offsetX) / TILE_SIZE);
+    const dr = Math.floor((py - this.offsetY) / TILE_SIZE);
+    if (dc < 0 || dc >= this.board.displayCols || dr < 0 || dr >= this.board.displayRows)
+      return null;
+    return this.board.fromDisplay(dc, dr);
   }
 
   // Convert grid coordinates to pixel center of tile
   gridToPixel(col, row) {
+    const cell = this.board.toDisplay(col, row);
     return {
-      x: this.offsetX + col * TILE_SIZE + TILE_SIZE / 2,
-      y: this.offsetY + row * TILE_SIZE + TILE_SIZE / 2,
+      x: this.offsetX + cell.col * TILE_SIZE + TILE_SIZE / 2,
+      y: this.offsetY + cell.row * TILE_SIZE + TILE_SIZE / 2,
     };
   }
 

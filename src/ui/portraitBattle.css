@@ -1,0 +1,195 @@
+/* Portrait battles (beta) — PortraitBattleController sets the classes on <html>.
+   portrait-battle-capable: this battle can be played upright. The rotate prompt stays
+   away for its whole length (deployment and rewards still ask for landscape) and the
+   layout follows the phone at once; the upright board itself (class portrait-battle)
+   follows at the player's next safe moment. */
+
+html.portrait-battle-capable #rotate-prompt {
+  display: none !important;
+}
+
+/* Layout switch pending (phone turned mid-action): a quiet line over the map. */
+.portrait-battle-notice {
+  position: fixed;
+  z-index: var(--re-depth-forecast);
+  top: max(8px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(92vw, 420px);
+  box-sizing: border-box;
+  padding: 8px 12px;
+  background: var(--re-bg, #0a0c1e);
+  border: 1px solid var(--re-line, #3a3660);
+  color: var(--re-text, #eee);
+  font: 13px/1.35 var(--re-body, system-ui, sans-serif);
+  text-align: center;
+  pointer-events: none;
+}
+
+@media (orientation: portrait) {
+  html.touch-ui.portrait-battle-capable #game-wrapper.battlefield-lab {
+    --pb-rail-h: clamp(236px, 33dvh, 292px);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) var(--pb-rail-h);
+  }
+  html.touch-ui.portrait-battle-capable .battlefield-lab #game-container {
+    grid-area: 1 / 1;
+  }
+
+  /* The rail: status on top, commands in the middle, Danger + tools on the bottom
+     edge under the thumb. Its height is fixed so the map never resizes under a finger. */
+  html.touch-ui.portrait-battle-capable .battlefield-lab .mobile-battle-hud {
+    grid-area: 2 / 1;
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'phase objective'
+      'summary terrain'
+      'speed speed'
+      'body body'
+      'dock tools';
+    gap: 4px 8px;
+    padding: 6px 8px 6px;
+    border-left: 0;
+    border-top: 2px solid var(--re-line);
+  }
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-phase {
+    grid-area: phase;
+    align-self: start;
+    min-width: 0;
+  }
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-objective-slot {
+    grid-area: objective;
+    min-width: 0;
+  }
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-summary {
+    grid-area: summary;
+    min-width: 0;
+  }
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-terrain-slot {
+    grid-area: terrain;
+    min-width: 0;
+  }
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-button:not(.mb-objective) {
+    grid-area: speed;
+  }
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-body {
+    grid-area: body;
+  }
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-dock {
+    grid-area: dock;
+    align-self: end;
+    min-width: 0;
+  }
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .bl-tools {
+    grid-area: tools;
+    align-self: end;
+    min-width: 0;
+  }
+  /* A unit's name spans the rail when nothing else shares its row. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-summary:only-of-type {
+    min-width: 0;
+  }
+  html.portrait-battle-capable .battlefield-lab .mb-counters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 6px;
+  }
+  /* With no Danger dock (enemy phase, targeting) the tools take the whole row. */
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud:has(> .mb-dock[hidden])
+    > .bl-tools {
+    grid-column: 1 / -1;
+  }
+  /* Beside the tools the Danger toggle is ~140px: its state is the crimson plate. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-dock .mb-hold-cue {
+    display: none;
+  }
+  /* In a unit's action menu Wait is pinned in the dock beside a compact Danger (playtest
+     4). Split evenly, the ~140px dock left each ~68px: Wait cramped and "Danger" broken
+     mid-word. Wait takes the wider share and Danger becomes a fifth tool cell (swatch
+     over its name, like Overview … Menu), so the bottom edge reads as one row of six
+     whole labels. Its state stays on the plate: crimson when shown, ringed when pinned. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-dock.has-pinned {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 3px;
+  }
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud
+    .mb-dock.has-pinned
+    .mb-danger-toggle.is-compact {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 3px 0;
+    text-align: center;
+  }
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud
+    .mb-dock.has-pinned
+    .mb-danger-toggle.is-compact
+    .mb-danger-text
+    strong {
+    font: 700 10px/1.1 var(--re-body);
+    white-space: nowrap;
+  }
+  /* The upright rail's command list is always short (~80–160px, like a short landscape
+     rail): the "tap a blue tile" reminder yields its row to the commands. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud.in-menu .mb-body > .mb-detail {
+    display: none;
+  }
+
+  /* Actions: three across, so five commands never hide below a scroll. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /* Forecast: a bottom sheet. Cancel / Confirm sit under the thumb and the top of the
+     map (where the target usually stands on an upright board) stays in view. */
+  html.portrait-battle-capable .mb-forecast-backdrop {
+    align-items: end;
+    background: linear-gradient(180deg, transparent 0, transparent 18%, var(--re-scrim) 42%);
+  }
+  html.portrait-battle-capable .mb-forecast {
+    max-height: min(78dvh, 100%);
+  }
+
+  /* Each forecast column is ~150px wide upright: the weapon / target name takes its
+     own line above the ◀ ▶ steps instead of being squeezed between them. */
+  html.portrait-battle-capable .mb-forecast .mb-stepper {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      'value value'
+      'prev next';
+  }
+  html.portrait-battle-capable .mb-forecast .mb-stepper > .mb-step:first-child {
+    grid-area: prev;
+  }
+  html.portrait-battle-capable .mb-forecast .mb-stepper > .mb-step-value {
+    grid-area: value;
+  }
+  html.portrait-battle-capable .mb-forecast .mb-stepper > .mb-step:last-child {
+    grid-area: next;
+  }
+
+  /* Level-up card on a ~390px phone: a smaller portrait leaves room for both stat
+     columns and their gains. */
+  html.portrait-battle-capable .gr-level-portrait {
+    width: 64px;
+    height: 64px;
+  }
+  html.portrait-battle-capable .gr-level-stats {
+    column-gap: 8px;
+  }
+  html.portrait-battle-capable .gr-level-row,
+  html.portrait-battle-capable .gr-level-row dd {
+    gap: 4px;
+  }
+  html.portrait-battle-capable .gr-level-row {
+    padding: 0 2px;
+  }
+}
