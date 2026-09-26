@@ -31,6 +31,66 @@ const rect = (x, y, w, h) => ({ kind: 'rect', x, y, w, h });
  * Sword. opts: blade/fit metal, grip, accent (wrap or gem), variant:
  * 'broad' | 'rapier' | 'curved' | 'serrated' | 'twin' | 'short' | 'magic'
  */
+/**
+ * A blade outline around a bent centreline: `centre(s)` is the across-offset of the
+ * blade's middle at `along` s, `half(s)` its half-width. Sampled from s0 to the tip.
+ */
+function bentBlade(s0, len, centre, half, tip = 1.2, steps = 10) {
+  const top = [];
+  const bottom = [];
+  for (let i = 0; i <= steps; i++) {
+    const s = s0 + ((len - s0) * i) / steps;
+    top.push([s, centre(s) - half(s)]);
+    bottom.push([s, centre(s) + half(s)]);
+  }
+  return [...top, [len + tip, centre(len + tip)], ...bottom.reverse()];
+}
+
+/** Named silhouettes for storied blades (the painted hero's shape at icon size). */
+const SWORD_SHAPES = {
+  // Katana: long, gently curved, single-edged; the spine bows away from the edge.
+  katana: { len: 22.5, s0: 1.4, centre: (s) => -3.6 * (s / 22.5) ** 2, half: (s) => 1.55 - s * 0.018 },
+  // Wo dao and other sabres: shorter, the same curve.
+  curved: { len: 21, s0: 2, centre: (s) => -3.4 * (s / 21) ** 2, half: (s) => 1.9 - s * 0.02 },
+  // A gust frozen in steel: short and strongly swept.
+  gust: { len: 16.5, s0: 2, centre: (s) => -3.4 * (s / 16.5) ** 1.6, half: (s) => 2.1 - s * 0.05 },
+  // Lightning bolt: the centreline zig-zags in hard steps.
+  bolt: {
+    len: 21,
+    s0: 2,
+    steps: 24,
+    centre: (s) => {
+      const pts = [
+        [2, 0],
+        [7, 2.1],
+        [8, -1.2],
+        [13.5, 1.6],
+        [14.5, -1.4],
+        [21, 0],
+      ];
+      for (let i = 1; i < pts.length; i++)
+        if (s <= pts[i][0]) {
+          const [a, ca] = pts[i - 1];
+          const [b, cb] = pts[i];
+          return ca + ((cb - ca) * (s - a)) / (b - a);
+        }
+      return 0;
+    },
+    half: (s) => 1.55 - s * 0.02,
+  },
+  // Falchion: straight spine, the edge swells toward the tip and runs out to a needle
+  // point on the spine line (made to slip between plates).
+  falchion: {
+    len: 21.5,
+    s0: 2,
+    tip: 1.6,
+    centre: (s) => 0.9 * Math.sin(Math.PI * Math.min(1, s / 21.5)) ** 1.3,
+    half: (s) => 1.6 + 1.4 * Math.sin(Math.PI * Math.min(1, s / 21.5)) ** 1.3,
+  },
+  // Norse sword: broad, parallel-edged, rounded point.
+  viking: { len: 19.5, s0: 2, tip: 1.6, centre: () => 0, half: (s) => (s > 17.5 ? 2.7 - (s - 17.5) * 0.7 : 2.7) },
+};
+
 export function sword({
   blade = 'iron',
   fit = 'ironFit',
@@ -38,22 +98,18 @@ export function sword({
   gem = null,
   variant = 'broad',
   core = null,
+  temper = null,
+  wind = null,
+  tassel = null,
 } = {}) {
   const f = frame([7.5, 24.5], -45);
-  const len = variant === 'short' ? 15 : variant === 'rapier' ? 23 : 21;
+  const shaped = SWORD_SHAPES[variant];
+  const len = shaped ? shaped.len : variant === 'short' ? 15 : variant === 'rapier' ? 23 : 21;
   const w = variant === 'rapier' ? 1.15 : variant === 'broad' ? 2.35 : 2.05;
   const parts = [];
-  const bladePts =
-    variant === 'curved'
-      ? [
-          [2, -w],
-          [len * 0.55, -w - 0.6],
-          [len - 2, -w + 0.2],
-          [len + 1.2, 0.8],
-          [len * 0.55, w - 0.4],
-          [2, w],
-        ]
-      : variant === 'serrated'
+  const bladePts = shaped
+    ? bentBlade(shaped.s0, shaped.len, shaped.centre, shaped.half, shaped.tip, shaped.steps)
+    : variant === 'serrated'
         ? [
             [2, -w],
             [len - 3.5, -w],
@@ -76,35 +132,96 @@ export function sword({
           ];
   const bladeShape = poly(f.pts(bladePts));
   if (variant === 'twin') {
-    const g = frame(f.at(0, 3.2), -45);
+    // Two slender blades from one hilt, a clear gap between them.
+    for (const off of [-1.9, 1.9]) {
+      const g = frame(f.at(0, off), -45);
+      parts.push({
+        shape: poly(
+          g.pts([
+            [2, -1.05],
+            [len - 3, -1.05],
+            [len + 0.6, 0],
+            [len - 3, 1.05],
+            [2, 1.05],
+          ]),
+        ),
+        mat: blade,
+        shade: 'ridge',
+        axis: g.u,
+        spine0: g.at(0),
+        halfWidth: 1.05,
+        spec: 1.5,
+        sep: true,
+      });
+    }
+  } else
     parts.push({
-      shape: poly(
-        g.pts([
-          [3, -1.6],
-          [len - 5, -1.6],
-          [len - 2, 0],
-          [len - 5, 1.6],
-          [3, 1.6],
-        ]),
-      ),
+      shape: bladeShape,
       mat: blade,
       shade: 'ridge',
-      axis: g.u,
-      spine0: g.at(0),
-      halfWidth: 1.6,
-      spec: true,
+      axis: f.u,
+      spine0: f.at(0),
+      halfWidth: shaped ? shaped.half(len / 2) : w,
+      spec: 1.5,
     });
-  }
-  parts.push({
-    shape: bladeShape,
-    mat: blade,
-    shade: 'ridge',
-    axis: f.u,
-    spine0: f.at(0),
-    halfWidth: w,
-    spec: 1.5,
-  });
-  if (core)
+  if (wind)
+    // Wind curling around the blade.
+    for (const [c, r, a0, a1] of [
+      [f.at(len * 0.62, -3.4), 4.2, Math.PI * 0.9, Math.PI * 1.75],
+      [f.at(len * 0.32, 3.6), 3.6, -Math.PI * 0.15, Math.PI * 0.7],
+    ])
+      parts.push({
+        shape: arc(c[0], c[1], r, a0, a1, 0.8),
+        mat: wind,
+        shade: 'flat',
+        level: 3,
+        minSize: 24,
+        casts: false,
+        emissive: true,
+      });
+  if (temper && shaped)
+    // A temper line (hamon) running along the edge.
+    parts.push({
+      shape: poly(
+        f.pts(
+          bentBlade(
+            4,
+            len - 2.5,
+            (t) => shaped.centre(t) + shaped.half(t) * 0.5,
+            () => 0.36,
+            0.4,
+          ),
+        ),
+      ),
+      mat: temper,
+      shade: 'flat',
+      level: 3,
+      minSize: 24,
+      casts: false,
+      emissive: true,
+    });
+  if (core && shaped)
+    parts.push({
+      shape: poly(f.pts(bentBlade(4, len - 3, shaped.centre, () => 0.45, 0.5, shaped.steps))),
+      mat: core,
+      shade: 'flat',
+      level: 3,
+      minSize: 24,
+      casts: false,
+      emissive: true,
+    });
+  else if (core && variant === 'twin')
+    for (const off of [-1.9, 1.9])
+      parts.push({
+        shape: cap(f.at(4, off), f.at(len - 4, off), 0.35),
+        mat: core,
+        shade: 'flat',
+        level: 3,
+        minSize: 32,
+        casts: false,
+        emissive: true,
+      });
+  else if (core)
     parts.push({
       shape: cap(f.at(4), f.at(len - 4), 0.45),
       mat: core,
@@ -114,7 +231,7 @@ export function sword({
       casts: false,
       emissive: true,
     });
-  else if (variant !== 'rapier')
+  else if (variant !== 'rapier' && variant !== 'twin' && !shaped)
     parts.push({
       shape: cap(f.at(4.5), f.at(len - 5), 0.38),
       mat: blade,
@@ -124,6 +241,41 @@ export function sword({
       casts: false,
     });
   // Guard, grip, pommel.
+  if (variant === 'katana') {
+    // A round disc guard, a long two-handed grip and a tassel at the pommel.
+    parts.push({ shape: circ(...f.at(0.8), 2.5), mat: fit, shade: 'dome', spec: true, sep: true });
+    parts.push({
+      shape: cap(f.at(-0.6), f.at(-7.6), 0.95),
+      mat: grip,
+      shade: 'cyl',
+      stripes: { period: 1.6 },
+    });
+    parts.push({ shape: circ(...f.at(-8.3), 1.1), mat: fit, shade: 'sphere', sep: true });
+    if (tassel)
+      parts.push({
+        shape: poly([f.at(-8.6, 0.4), f.at(-9.4, 3.6), f.at(-10.6, 3.2), f.at(-9.2, 0.2)]),
+        mat: tassel,
+        shade: 'flat',
+        level: 2,
+        sep: true,
+      });
+    return { parts, shadow: true };
+  }
+  if (variant === 'viking') {
+    // Short thick guard and a heavy lobed pommel.
+    parts.push({
+      shape: cap(f.at(1, -3.4), f.at(1, 3.4), 1.3),
+      mat: fit,
+      shade: 'cyl',
+      sep: true,
+      spec: true,
+    });
+    parts.push({ shape: cap(f.at(-0.4), f.at(-4.6), 0.95), mat: grip, shade: 'cyl', stripes: { period: 2 } });
+    parts.push({ shape: cap(f.at(-5.6, -2.2), f.at(-5.6, 2.2), 1.2), mat: fit, shade: 'cyl', sep: true });
+    for (const t of [-1.5, 0, 1.5])
+      parts.push({ shape: circ(...f.at(-6.8, t), 1.05), mat: fit, shade: 'sphere', sep: true, spec: t === 0 });
+    return { parts, shadow: true };
+  }
   const gw = variant === 'rapier' ? 3.2 : 4.6;
   if (variant === 'rapier')
     parts.push({
@@ -199,7 +351,37 @@ export function lance({
     spec: true,
   });
   const hp =
-    variant === 'broad'
+    variant === 'glaive'
+      ? // A long single-edged sword head on the shaft.
+        [
+          [L - 11, -1.2],
+          [L - 9.4, -2.1],
+          [L + 0.4, -1.9],
+          [L + 3, -0.1],
+          [L + 0.6, 1.2],
+          [L - 9.4, 1.3],
+          [L - 11, 1.2],
+        ]
+      : variant === 'barbs'
+        ? // Barbs all the way down the head.
+          [
+            [L - 10.5, -1.1],
+            [L - 10.2, -3.6],
+            [L - 8.4, -1.2],
+            [L - 7.6, -3.3],
+            [L - 5.8, -1.1],
+            [L - 5, -2.9],
+            [L - 3.2, -1],
+            [L + 1, 0],
+            [L - 3.2, 1],
+            [L - 5, 2.9],
+            [L - 5.8, 1.1],
+            [L - 7.6, 3.3],
+            [L - 8.4, 1.2],
+            [L - 10.2, 3.6],
+            [L - 10.5, 1.1],
+          ]
+        : variant === 'broad'
       ? [
           [L - 10.5, -1.5],
           [L - 7.5, -3.8],
@@ -240,7 +422,34 @@ export function lance({
     spec: 1.5,
     sep: true,
   });
-  if (variant === 'javelin') parts[0].shape = cap(f.at(8), f.at(L - 10), 0.9);
+  if (variant === 'javelin' || variant === 'throwing')
+    parts[0].shape = cap(f.at(variant === 'throwing' ? 10 : 8), f.at(L - 10), 0.85);
+  if (variant === 'throwing') {
+    // Made to be thrown: a leather loop at the balance point and feathers at the butt.
+    parts.push({
+      shape: ring(...f.at(L - 17, 1.9), 1.1, 1.9),
+      mat: 'wood',
+      shade: 'flat',
+      level: 2,
+      minSize: 24,
+      sep: true,
+    });
+    for (const side of [-1, 1])
+      parts.push({
+        shape: poly(
+          f.pts([
+            [10.2, side * 0.6],
+            [13.6, side * 0.8],
+            [11.4, side * 2.9],
+            [8.6, side * 2.6],
+          ]),
+        ),
+        mat: 'pearl',
+        shade: 'flat',
+        level: 2,
+        sep: true,
+      });
+  }
   return { parts, shadow: true };
 }
 
@@ -266,7 +475,46 @@ export function axe({
   const k = variant === 'hand' ? 1.05 : 1.3;
   const sc = (list) => h.pts(list.map(([a, b]) => [a * k, b * k]));
   const big = variant === 'double' || variant === 'great';
-  if (variant === 'hammer') {
+  if (variant === 'hook') {
+    // A nimble sword-catcher: a small crescent bit whose beard sweeps down into a long
+    // hook (to catch and wrench a blade), and a short parrying spike on the back.
+    parts[0].shape = cap(f.at(0.5), f.at(H), 0.85);
+    parts.push({
+      shape: poly(
+        h.pts([
+          [2.2, 0.6],
+          [4.6, 4.2],
+          [2.2, 7.4],
+          [-2.6, 7.8],
+          [-6.8, 6.6],
+          [-9.6, 3.4],
+          [-8, 3.1],
+          [-6, 4.6],
+          [-3, 4.4],
+          [-1, 1.2],
+        ]),
+      ),
+      mat: head,
+      shade: 'dome',
+      domeDepth: 2,
+      domeStrength: 0.7,
+      spec: 1.5,
+      sep: true,
+    });
+    parts.push({
+      shape: poly(
+        h.pts([
+          [1.4, -0.4],
+          [0.4, -5.4],
+          [-0.6, -0.4],
+        ]),
+      ),
+      mat: head,
+      shade: 'bevel',
+      bevel: 0.6,
+      sep: true,
+    });
+  } else if (variant === 'hammer') {
     parts.push({
       shape: poly(
         h.pts([
@@ -883,6 +1131,27 @@ function glyphShape(kind, cx, cy, s = 1) {
         [cx, cy + 5],
         [cx - 4, cy],
       ]);
+    case 'blades': {
+      // Two short blades crossed (points up), as one outline.
+      const k = 5.2 * s;
+      const t = 0.95 * s;
+      return poly([
+        [cx - k, cy - k],
+        [cx - k + t * 1.6, cy - k],
+        [cx, cy - t * 1.1],
+        [cx + k - t * 1.6, cy - k],
+        [cx + k, cy - k],
+        [cx + k, cy - k + t * 1.6],
+        [cx + t * 1.1, cy],
+        [cx + k, cy + k - t * 0.4],
+        [cx + k - t * 1.4, cy + k],
+        [cx, cy + t * 1.1],
+        [cx - k + t * 1.4, cy + k],
+        [cx - k, cy + k - t * 0.4],
+        [cx - t * 1.1, cy],
+        [cx - k, cy - k + t * 1.6],
+      ]);
+    }
     default:
       return circ(cx, cy, 3.5 * s);
   }
@@ -1081,6 +1350,7 @@ export function ringItem({ band = 'gilt', gem = 'blood', cut = 'round', wide = f
 
 export function pendant({ chain = 'gilt', body = 'gilt', gem = 'pearl', form = 'oval' } = {}) {
   const parts = [];
+  if (form === 'phoenix') return phoenixBrooch({ body, gem });
   parts.push({
     shape: arc(16, 9, 9, Math.PI * 0.95, Math.PI * 2.05, 1.1),
     mat: chain,
@@ -1088,18 +1358,35 @@ export function pendant({ chain = 'gilt', body = 'gilt', gem = 'pearl', form = '
     level: 2,
     stripes: { period: 1.6, axis: [1, 0] },
   });
+  if (form === 'wing')
+    // Spread wings either side of the jewel, their feathers scalloped.
+    for (const m of [-1, 1])
+      parts.push({
+        shape: poly(
+          [
+            [13, 15],
+            [10, 11],
+            [5, 8.4],
+            [0.8, 7.2],
+            [3.6, 11.4],
+            [1.4, 12.6],
+            [5, 15.4],
+            [2.8, 16.8],
+            [7, 18.8],
+            [5.6, 20.4],
+            [10, 21],
+            [13, 19.6],
+          ].map(([x, y]) => [16 + m * (16 - x), y]),
+        ),
+        mat: body,
+        shade: 'dome',
+        domeDepth: 2,
+        spec: 1,
+        sep: true,
+      });
   const bodyShape =
     form === 'wing'
-      ? poly([
-          [16, 12],
-          [26, 9],
-          [24, 17],
-          [20, 23],
-          [16, 28],
-          [12, 23],
-          [8, 17],
-          [6, 9],
-        ])
+      ? ell(16, 18.5, 4.4, 6.2)
       : form === 'moon'
         ? circ(16, 20, 7.8)
         : form === 'leaf'
@@ -1122,7 +1409,8 @@ export function pendant({ chain = 'gilt', body = 'gilt', gem = 'pearl', form = '
   });
   if (gem && form !== 'moon')
     parts.push({
-      shape: form === 'leaf' ? ell(16, 20, 2.6, 4) : circ(16, 19.6, 3.4),
+      shape:
+        form === 'leaf' ? ell(16, 20, 2.6, 4) : form === 'wing' ? circ(16, 18.6, 2.7) : circ(16, 19.6, 3.4),
       mat: gem,
       shade: 'sphere',
       spec: 1,
@@ -1296,7 +1584,9 @@ export function gemItem({ mat = 'blood', cut = 'drop', fit = null } = {}) {
           [8.5, 19.5],
           [9.5, 14],
         ])
-      : cut === 'shard'
+      : cut === 'oval'
+        ? ell(16, 16, 7.2, 9.8)
+        : cut === 'shard'
         ? poly([
             [18, 2.5],
             [23.5, 12],
@@ -1312,10 +1602,15 @@ export function gemItem({ mat = 'blood', cut = 'drop', fit = null } = {}) {
             [9.5, 26],
             [6, 12],
           ]);
+  if (cut === 'oval' && fit)
+    // A gold setting around the stone, with four claws.
+    parts.push({ shape: ell(16, 16, 9.4, 12.2), mat: fit, shade: 'dome', domeDepth: 1.4, spec: 1 });
   parts.push({ shape, mat, shade: 'dome', domeStrength: 0.85, spec: 2, sep: true });
   parts.push({
     shape:
-      cut === 'drop'
+      cut === 'oval'
+        ? ell(15, 14, 3, 4.6)
+        : cut === 'drop'
         ? ell(16, 19, 3.2, 4.6)
         : cut === 'shard'
           ? poly([
@@ -1337,7 +1632,7 @@ export function gemItem({ mat = 'blood', cut = 'drop', fit = null } = {}) {
     minSize: 24,
     casts: false,
   });
-  if (fit)
+  if (fit && cut !== 'oval')
     parts.push({ shape: rect(12, 1.5, 8, 3), mat: fit, shade: 'bevel', bevel: 0.6, sep: true });
   return { parts, shadow: true };
 }
@@ -1520,9 +1815,156 @@ export function feather({ mat = 'sky' } = {}) {
   };
 }
 
-export function robe({ cloth = 'verdigris', trim = 'gilt' } = {}) {
+/** A brooch, not a pendant: wings sweeping down around the stone, a fan of tail below. */
+function phoenixBrooch({ body = 'ember', gem = 'blood' } = {}) {
+  const parts = [];
+  for (const m of [-1, 1])
+    parts.push({
+      shape: poly(
+        [
+          [12.8, 12.4],
+          [10, 7.4],
+          [6.4, 4.6],
+          [3, 5.2],
+          [1, 8.6],
+          [0.9, 13.6],
+          [2, 19],
+          [4.2, 24.6],
+          [5.4, 20.4],
+          [6.8, 22.4],
+          [7.4, 17.8],
+          [9, 19.2],
+          [9.8, 15.4],
+          [12.6, 17],
+        ].map(([x, y]) => [16 + m * (16 - x), y]),
+      ),
+      mat: body,
+      shade: 'dome',
+      domeDepth: 2,
+      spec: 1,
+      sep: true,
+    });
+  parts.push({
+    shape: poly([
+      [13.4, 20],
+      [18.6, 20],
+      [20.4, 28],
+      [18, 26.4],
+      [16, 29],
+      [14, 26.4],
+      [11.6, 28],
+    ]),
+    mat: 'gilt',
+    shade: 'bevel',
+    bevel: 0.6,
+    sep: true,
+  });
+  parts.push({ shape: ell(16, 15.5, 4.6, 5.8), mat: 'verdigris', shade: 'dome', spec: 1, sep: true });
+  parts.push({ shape: ell(16, 15.5, 3, 4), mat: gem, shade: 'sphere', spec: 1, sep: true, emissive: true });
+  return { parts, shadow: true };
+}
+
+/** A leaf plaited on a cord: pointed blade, midrib and side veins, no stone. */
+export function leafCharm({ leaf = 'leaf', cord = 'cloth' } = {}) {
+  const f = frame([11.5, 10.5], 58);
+  const L = 20.5;
+  const pts = [];
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    pts.push([t * L, -(Math.sin(Math.PI * t) ** 0.75) * 6.6]);
+  }
+  for (let i = 10; i >= 0; i--) {
+    const t = i / 10;
+    pts.push([t * L, Math.sin(Math.PI * t) ** 0.75 * 6.6]);
+  }
+  const parts = [
+    {
+      shape: arc(12, 8.5, 6.6, Math.PI * 0.85, Math.PI * 2.1, 1),
+      mat: cord,
+      shade: 'flat',
+      level: 2,
+      stripes: { period: 1.6, axis: [1, 0] },
+    },
+    { shape: poly(f.pts(pts)), mat: leaf, shade: 'dome', domeDepth: 2.2, spec: 1, sep: true },
+    {
+      shape: cap(f.at(0.6), f.at(L - 2.5), 0.5),
+      mat: 'verdigris',
+      shade: 'flat',
+      level: 1,
+      sep: true,
+      casts: false,
+    },
+  ];
+  for (const [a, side] of [
+    [5.5, -1],
+    [5.5, 1],
+    [10.5, -1],
+    [10.5, 1],
+  ])
+    parts.push({
+      shape: cap(f.at(a), f.at(a + 3.4, side * 3.6), 0.45),
+      mat: 'verdigris',
+      shade: 'flat',
+      level: 1,
+      minSize: 32,
+      casts: false,
+    });
+  parts.push({ shape: circ(...f.at(-0.4), 1.5), mat: 'wood', shade: 'sphere', sep: true });
+  return { parts, shadow: true };
+}
+
+export function robe({ cloth = 'verdigris', trim = 'gilt', wings = null, hood = false } = {}) {
+  const wingParts = wings
+    ? [-1, 1].map((m) => ({
+        shape: poly(
+          [
+            [9, 8.5],
+            [3.5, 3.2],
+            [1.4, 5.8],
+            [2.6, 7],
+            [1.2, 9.4],
+            [3, 10.2],
+            [2.4, 12.6],
+            [6, 12.4],
+            [9.6, 11.6],
+          ].map(([x, y]) => [16 + m * (16 - x), y]),
+        ),
+        mat: wings,
+        shade: 'dome',
+        domeDepth: 1.6,
+        spec: 1,
+        sep: true,
+      }))
+    : [];
+  if (hood)
+    // A hooded mantle: the hood's peak at the top, the cloak widening to the hem.
+    return {
+      parts: [
+        ...wingParts,
+        {
+          shape: poly([
+            [16, 2.5],
+            [21.5, 6.5],
+            [22.5, 11],
+            [26, 27.5],
+            [6, 27.5],
+            [9.5, 11],
+            [10.5, 6.5],
+          ]),
+          mat: cloth,
+          shade: 'bevel',
+          bevel: 1.5,
+          spec: 1,
+        },
+        { shape: ell(16, 9, 3.2, 3.6), mat: 'ink', shade: 'flat', level: 2, sep: true },
+        { shape: circ(16, 13.5, 1.3), mat: trim, shade: 'sphere', sep: true, spec: true },
+        { shape: rect(6.4, 25.5, 19.4, 2), mat: trim, shade: 'bevel', bevel: 0.5, sep: true },
+      ],
+      shadow: true,
+    };
   return {
     parts: [
+      ...wingParts,
       {
         shape: poly([
           [10, 4],

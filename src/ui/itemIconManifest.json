@@ -10,25 +10,25 @@
       "file": "atlas-16.png",
       "w": 256,
       "h": 304,
-      "bytes": 13960,
-      "hash": "c130a31a",
-      "rgba": "209d510edc447fbe"
+      "bytes": 14221,
+      "hash": "9cc74299",
+      "rgba": "5eb0003868866139"
     },
     "32": {
       "file": "atlas-32.png",
       "w": 512,
       "h": 608,
-      "bytes": 33402,
-      "hash": "6725b992",
-      "rgba": "3ce49fa050706dd7"
+      "bytes": 34226,
+      "hash": "3b2291ee",
+      "rgba": "87ac3e1b0a905b09"
     },
     "48": {
       "file": "atlas-48.png",
       "w": 768,
       "h": 912,
-      "bytes": 57286,
-      "hash": "14136b81",
-      "rgba": "fbbe3aa04d3167e9"
+      "bytes": 58741,
+      "hash": "0bddd400",
+      "rgba": "d656856b7936514b"
     }
   },
   "heroSize": 96,
