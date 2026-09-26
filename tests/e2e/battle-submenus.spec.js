@@ -136,6 +136,15 @@ for (const kind of ['equip', 'staff', 'art', 'ability', 'reclass']) {
         () => window.__emblemRogueGame.scene.getScene('Battle')._menuFocus.items.length,
       ),
     ).toBeGreaterThan(0);
+    // Submenu rows (an item and its stat summary) span the rail, one per row:
+    // halved into two columns they broke "Rng 3-7" and "Weight 8 · Range 1-2".
+    const rows = await hud
+      .locator('.mb-actions.mb-submenu')
+      .evaluate((list) =>
+        [...list.children].map((row) => row.getBoundingClientRect().width / list.clientWidth),
+      );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const share of rows) expect(share).toBeGreaterThan(0.97);
     await page.keyboard.press('Escape');
     await expect(hud.getByRole('button', { name: 'Item', exact: true })).toBeVisible();
     expect(await page.evaluate(() => window.testUnit.hasActed)).toBeFalsy();

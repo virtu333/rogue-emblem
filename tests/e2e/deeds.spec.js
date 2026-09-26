@@ -129,6 +129,16 @@ for (const [label, device] of [
       await expect(sheet.locator('.mr-unit-epithet').first()).toHaveText(
         'Bane of the Iron Captain',
       );
+      // The unit list's narrow column wraps the title; it never ends in an ellipsis.
+      expect(
+        await sheet
+          .locator('.mr-unit-epithet')
+          .first()
+          .evaluate((n) => ({
+            fits: n.scrollWidth <= n.clientWidth + 1,
+            ellipsis: getComputedStyle(n).textOverflow === 'ellipsis',
+          })),
+      ).toEqual({ fits: true, ellipsis: false });
       await expect(sheet.locator('.mr-summary .mr-epithet')).toHaveText('Bane of the Iron Captain');
       await expect(sheet.locator('.mr-deed')).toHaveCount(2);
       await sheet.locator('.mr-deed').first().scrollIntoViewIfNeeded();
@@ -297,6 +307,15 @@ test.describe('titled surfaces (phone 844×390)', () => {
     await expect(page.locator('.ce-fate .ce-band-sub')).toHaveText(
       'Edric, Who Held the Bridge, has fallen',
     );
+    // The band keeps its padding (its frame-relative safe insets are defined).
+    expect(
+      await page
+        .locator('.ce-fate .ce-band')
+        .evaluate((band) => [
+          getComputedStyle(band).paddingLeft,
+          getComputedStyle(band).paddingRight,
+        ]),
+    ).toEqual(['16px', '16px']);
     await page.waitForTimeout(900);
     await shot('titled-fallen-phone');
 
@@ -327,6 +346,12 @@ test.describe('titled surfaces (phone 844×390)', () => {
     await expect(march.locator('li')).toHaveCount(2);
     await expect(march.locator('li').first()).toContainText('Who Held the Fort');
     await expect(march.locator('li.is-fallen')).toContainText('Rhapsody, Bane of the Knight Commander'); // prettier-ignore
+    // Name and title are never clipped: no ellipsis box shaving the italic
+    // title's last letter or cutting a long one short (it wraps).
+    const clipping = await march
+      .locator('li b')
+      .evaluateAll((all) => all.map((b) => getComputedStyle(b).overflowX));
+    expect(clipping).toEqual(['visible', 'visible']);
     await shot('deeds-of-the-march-phone');
     expect(errors).toEqual([]);
   });

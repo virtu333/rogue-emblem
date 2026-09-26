@@ -45,3 +45,18 @@ describe('ceremony stylesheets', () => {
       );
   });
 });
+
+describe('frame-relative insets reach every ceremony root', () => {
+  it('the FALLEN stage (.ce-fate, not a .ce-layer) defines --ce-safe-* too', () => {
+    // Its band pads with var(--ce-safe-l/r); undefined there, the whole
+    // padding declaration was dropped and the band lost its padding.
+    const css = readFileSync('src/ui/ceremony.css', 'utf8');
+    const rule = css.match(/([^{}]+)\{[^{}]*--ce-safe-l:/);
+    expect(rule, 'the --ce-safe-* rule').not.toBeNull();
+    const selectors = rule[1]
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split(',')
+      .map((s) => s.trim());
+    expect(selectors).toEqual(expect.arrayContaining(['.ce-layer', '.ce-fate']));
+  });
+});

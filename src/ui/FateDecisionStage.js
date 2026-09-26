@@ -14,6 +14,7 @@ import {
   el,
   fitText,
   applyCeremonyPixelFonts,
+  frameEdges,
   frameScale,
   portraitPixelScale,
   hairline,
@@ -108,6 +109,10 @@ export function stageFateDecision(scene, surface, options) {
     applyCeremonyPixelFonts(style, rect);
     style.setProperty('--ce-px', String(portraitPixelScale(rect)));
     style.setProperty('--ce-w', `${Math.round(rect.width)}px`);
+    // The band's padding reads the frame-relative safe insets (--ce-safe-*):
+    // the map frame already sits inside the notch on its inner sides.
+    for (const [side, px] of Object.entries(frameEdges(rect)))
+      style.setProperty(`--ce-frame-${side}`, `${px}px`);
     fitText(word, { min: 20 });
   };
   place();

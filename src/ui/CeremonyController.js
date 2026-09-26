@@ -308,6 +308,9 @@ export class CeremonyController {
     layer.root.append(band);
     layer.root.setAttribute('aria-live', 'polite');
     layer.noticeSlot = slot;
+    // A long notice wraps (two or three lines on a phone map): the next one
+    // stacks under its real height, not a fixed one-line pitch.
+    layer.addFitter(() => this._stackNotices());
     let closed = false;
     const close = (exitMs) => {
       if (closed) return Promise.resolve();
@@ -316,6 +319,28 @@ export class CeremonyController {
     };
     const done = this._clock.wait(t.enterMs + hold).then(() => close(t.exitMs));
     return { root: layer.root, done, destroy: () => void close(0) };
+  }
+
+  /**
+   * Seat each showing notice, in slot order, below the one above it: never
+   * higher than its slot's place, never over a taller (wrapped) neighbour.
+   * The bands share one frame, so layout offsets compare directly; a notice
+   * already leaving is left to fade where it is. Layout only.
+   */
+  _stackNotices() {
+    const showing = [...this._layers]
+      .filter(
+        (l) => !l.destroyed && l.noticeSlot != null && !l.root.classList.contains('is-leaving'),
+      )
+      .sort((a, b) => a.noticeSlot - b.noticeSlot);
+    let below = 0;
+    for (const layer of showing) {
+      const band = layer.root.querySelector('.ce-notice');
+      if (!band) continue;
+      band.style.removeProperty('top');
+      if (band.offsetTop < below) band.style.top = `${below}px`;
+      below = band.offsetTop + band.offsetHeight + 4;
+    }
   }
 
   _noticeSlot() {
