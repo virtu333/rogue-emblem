@@ -5787,8 +5787,8 @@
           ],
           "blank": [
             "Ah. Well. Consistency is its own reward.",
-            "Nothing. Good. I'd hate to peak too early.",
-            "I'm saving my improvement for a special occasion.",
+            "A little. Good. I'd hate to peak too early.",
+            "I'm saving the grand improvement for a special occasion.",
             "Growing at the pace of a glacier. A dignified glacier."
           ]
         },
@@ -5821,8 +5821,8 @@
             "Strong as I'll ever be. Remember that when you bury me."
           ],
           "blank": [
-            "Nothing. Figures.",
-            "Same as yesterday. Same as tomorrow.",
+            "A scrap. Figures.",
+            "One inch further through the mud.",
             "Didn't expect more. Wasn't disappointed.",
             "The war takes more than it gives. Always has."
           ]
@@ -5856,9 +5856,9 @@
             "Fetch a bard. No, fetch three. This needs harmony."
           ],
           "blank": [
-            "Hm. The world wasn't ready for more of me today.",
-            "A rest day. Even legends pace themselves.",
-            "Clearly I was already at my peak. There's nowhere to go.",
+            "Hm. The world wasn't ready for much more of me today.",
+            "A measured step. Even legends pace themselves.",
+            "Clearly approaching perfection takes patience.",
             "We will not speak of this. Ever."
           ]
         },
@@ -5892,9 +5892,9 @@
           ],
           "blank": [
             "Figured. Honestly, that's almost a relief.",
-            "Nothing? Oh, thank goodness. No one will expect anything.",
+            "Just a little? Oh, thank goodness. Less to live up to.",
             "At least I'm consistent. Consistently... this.",
-            "I knew it. I knew it. I'm so sorry."
+            "That was all I had. I'm so sorry."
           ]
         },
         "fallen": [
@@ -5962,7 +5962,7 @@
           ],
           "blank": [
             "Bad trade today. Can't win every bargain.",
-            "Nothing? I'll overlook it. The fee stays the same.",
+            "A copper's worth? I'll overlook it. The fee stays the same.",
             "Some days you're paid in coppers. Keep marching.",
             "Don't tell the paymaster about this one."
           ]
@@ -5996,10 +5996,10 @@
             "If only the orchard back home could see me now."
           ],
           "blank": [
-            "A quiet day. Seeds sleep before they sprout.",
-            "Nothing grew. Winter is only a pause, I think.",
-            "I was watching a moth. I think I missed my chance.",
-            "Some days the wind just passes through."
+            "A quiet day. Seeds take their time.",
+            "One small shoot. Spring starts somewhere, I think.",
+            "I was watching a moth. Almost missed my little step.",
+            "Some days the wind only stirs a leaf."
           ]
         },
         "fallen": [
@@ -6028,9 +6028,9 @@
             "I should write to the school, {leader}. They'd call me a liar and ask for the debt."
           ],
           "blank": [
-            "The blade was faster today. I wasn't. Tomorrow, then.",
+            "A small lesson. I'll put it to use tomorrow.",
             "A swordsman polishes one cut ten thousand times. This was one of those times.",
-            "Nothing? Fine. Speed was never something you could hurry."
+            "A little? Fine. Speed was never something you could hurry."
           ]
         },
         "fallen": [
@@ -6056,9 +6056,9 @@
             "Stronger, sturdier, quicker. The whole suit finally feels like it fits me."
           ],
           "blank": [
-            "Nothing new. But nothing got through, either. I'll call it even.",
+            "A small gain. And nothing got through. I'll call it a good day.",
             "Still slow. Still standing. Some would call that consistency.",
-            "The armor didn't improve, but I polished it. That counts, surely."
+            "A little stronger beneath all this iron. Enough for today."
           ]
         },
         "fallen": [
@@ -6084,9 +6084,9 @@
             "Everything grew. I'm checking my axe for a curse."
           ],
           "blank": [
-            "Swung hard, learned nothing. Sounds like my whole apprenticeship.",
-            "Same arms, same axe. The trees never complained.",
-            "Nothing. Chop wood, carry water, try again tomorrow."
+            "Swung hard, learned a little. Sounds like my whole apprenticeship.",
+            "A small gain for a large pile of chopped wood.",
+            "One step. Chop wood, carry water, try again tomorrow."
           ]
         },
         "fallen": [
@@ -6112,7 +6112,7 @@
             "Better at everything. I suspect my mount of doing half the work."
           ],
           "blank": [
-            "Nothing? My mount improved, at least. I'll ride on its merits.",
+            "A little better. My mount still expects more of me.",
             "Steady means steady. Not every day's a gallop.",
             "The drill yard would call that discipline. I'd call it a trot."
           ]
@@ -6140,8 +6140,8 @@
             "Every arrow in the quiver just got better. Including me."
           ],
           "blank": [
-            "Missed the mark on that one. Not the first time. I'll nock another.",
-            "Nothing. Well, I've still got two hands and a string.",
+            "Just clipped the mark. I'll nock another.",
+            "A little. Well, I've still got two hands and a string.",
             "A quiet day at the butts. They happen."
           ]
         },
@@ -6168,9 +6168,9 @@
             "Remarkable. I've read of days like this, footnoted as unlikely."
           ],
           "blank": [
-            "I learned nothing. Which, academically, is still a finding.",
-            "A setback. My notes will call it an unexpected plateau.",
-            "The book stayed shut today. It happens to the best of us, and to me."
+            "A minor discovery. Academically, still publishable.",
+            "A modest result. My notes will need a smaller heading.",
+            "One useful page today. Better bookmark it."
           ]
         },
         "fallen": [
@@ -6196,8 +6196,8 @@
             "Such a blessing. I'll assume it's meant for the wounded, not for me."
           ],
           "blank": [
-            "Nothing. Then the goddess needs me as I am. Very well.",
-            "No change. The wounded won't mind; they never ask about me.",
+            "A little grace. Very well. I can work with that.",
+            "A small blessing. The wounded need every one.",
             "Patience is a virtue. I have been extremely virtuous today."
           ]
         },
@@ -6224,9 +6224,9 @@
             "A whole haul, and I didn't even pick a lock. Suspicious."
           ],
           "blank": [
-            "Came away empty-handed. Don't tell anyone; it's bad for my name.",
-            "Nothing. Can't steal from yourself, apparently. I tried.",
-            "Some jobs don't pay. You still leave through the window."
+            "Came away with coppers. Don't tell anyone; it's bad for my name.",
+            "Small takings. Still, they fit in a pocket.",
+            "Some jobs barely pay. You still leave through the window."
           ]
         },
         "fallen": [
@@ -6252,9 +6252,9 @@
             "A flawless performance! Nobody clap; they'll hear us."
           ],
           "blank": [
-            "I missed a step. Everyone does. We dance it again.",
-            "Nothing new today. Some nights the house is empty.",
-            "Same old routine. Well, it's a crowd favorite."
+            "A small step. We practice it again.",
+            "A little better today. Even for an empty house.",
+            "One change to the old routine. It's a crowd favorite."
           ]
         },
         "fallen": [
@@ -6280,9 +6280,9 @@
             "I've never flown like that. I'm not sure my feet should touch ground again."
           ],
           "blank": [
-            "A calm day aloft. Nothing gained, nothing shot off. I'll take it.",
-            "Nothing. My pegasus gave me a look I won't soon forget.",
-            "Some days the wind just won't lift you. You wait for tomorrow's."
+            "A small gain, nothing shot off. I'll take it.",
+            "A little. My pegasus expected more, judging by that look.",
+            "Some days the wind barely lifts you. You wait for tomorrow's."
           ]
         },
         "fallen": [
@@ -6308,9 +6308,9 @@
             "Everything at once. I half expect the beast to demand a cut."
           ],
           "blank": [
-            "Nothing. I think my wyvern ate the lesson.",
+            "A small lesson. I think my wyvern ate the rest.",
             "A stubborn day. The beast and I had that in common.",
-            "No change. In the mountains we call that surviving."
+            "An inch higher. In the mountains, that still counts."
           ]
         },
         "fallen": [
@@ -6336,8 +6336,8 @@
             "Everything at once. In my trade, that means someone's about to cheat you."
           ],
           "blank": [
-            "Nothing. Still, a contract's a contract, {leader}. I'll show up tomorrow.",
-            "Paid the same, learned nothing. Most jobs are like that.",
+            "A small gain. Still, a contract's a contract, {leader}. I'll be here tomorrow.",
+            "Paid the same, learned a little. Fair enough.",
             "Don't mention this to the guild. My reputation is my wages."
           ]
         },
@@ -6364,9 +6364,9 @@
             "Too perfect. A true master distrusts a day like this. I'll keep practicing."
           ],
           "blank": [
-            "Nothing new. A master learns that the last inch is the longest.",
-            "Stillness. Also a lesson, if a dull one.",
-            "Even masters have days when the sword teaches nothing."
+            "An inch. A master learns that the last inch is the longest.",
+            "A quiet lesson, if a dull one.",
+            "Even masters spend a day on one small lesson."
           ]
         },
         "fallen": [
@@ -6397,9 +6397,9 @@
             "All of it improved. I can already hear the hall masters calling it luck."
           ],
           "blank": [
-            "No improvement. I demand a rematch with myself.",
-            "A drawn bout. It happens, even in the best halls.",
-            "Nothing. A duelist bows anyway."
+            "So little? I demand a rematch with myself.",
+            "A narrow win. It happens, even in the best halls.",
+            "A modest gain. A duelist bows anyway."
           ]
         },
         "fallen": [
@@ -6430,9 +6430,9 @@
             "All of it? Check the plate for a hole. Nothing's this generous with me."
           ],
           "blank": [
-            "Unchanged. Unmoved. Unbothered. As a general should be.",
-            "Nothing new. Fortresses rarely grow; they simply endure.",
-            "No change. The armor didn't notice, and neither did I."
+            "One stone laid. Unmoved. Unbothered.",
+            "A small improvement. Fortresses take time.",
+            "A little sturdier. The armor almost didn't notice."
           ]
         },
         "fallen": [
@@ -6463,9 +6463,9 @@
             "Stronger and faster at once. Suspicious. Someone weigh me."
           ],
           "blank": [
-            "Nothing. Heavy things change slowly.",
-            "No progress. At least I'm no heavier. The mount will be pleased.",
-            "Same as before. Still a wall on four legs. I'll take it."
+            "A little. Heavy things change slowly.",
+            "A small step. At least I'm no heavier. The mount will be pleased.",
+            "A sturdier wall on four legs. I'll take it."
           ]
         },
         "fallen": [
@@ -6496,9 +6496,9 @@
             "Everything, at once. Where was this when I was chopping wood for coin?"
           ],
           "blank": [
-            "Nothing. Strange... I'd swear I've swung this exact swing before.",
-            "Didn't grow an inch. Good thing I was already enormous.",
-            "Same old me. The axe didn't seem to mind."
+            "A small gain. I'd swear I've swung this exact swing before.",
+            "A little better. Good thing I was already enormous.",
+            "A modest day's work. The axe didn't seem to mind."
           ]
         },
         "fallen": [
@@ -6529,9 +6529,9 @@
             "I feel magnificent. That's usually when somebody gets hurt."
           ],
           "blank": [
-            "Nothing grew but the anger. It doesn't count, they tell me.",
-            "Blank. Good. Something has to stay the same in here.",
-            "I learned nothing. I broke a table about it. Now I'm fine."
+            "A little stronger. A lot angrier. They only count the first part.",
+            "A small gain. Something has to be small in here.",
+            "Learned a little. Broke a table about the rest. Now I'm fine."
           ]
         },
         "fallen": [
@@ -6562,9 +6562,9 @@
             "Everything improved. I must have kept a vow I don't remember making."
           ],
           "blank": [
-            "Nothing new. An oath kept is its own reward. Mostly.",
-            "No change. A paladin doesn't sulk. I am simply reflecting nobly.",
-            "Steady as ever. Some call it stagnation; I call it bearing."
+            "A modest gain. An oath kept is its own reward. Mostly.",
+            "So little? A paladin doesn't sulk. I am simply reflecting nobly.",
+            "Slow progress. I call it bearing."
           ]
         },
         "fallen": [
@@ -6595,9 +6595,9 @@
             "Perfect. I've read that power this clean is always a loan."
           ],
           "blank": [
-            "Nothing. The tome went quiet today. I almost miss it.",
-            "No change. Perhaps the dark is rationing me.",
-            "Unchanged. I'll try reading louder."
+            "A small secret. The tome was quiet today.",
+            "A little. Perhaps the dark is rationing me.",
+            "One whisper. I'll try reading louder."
           ]
         },
         "fallen": [
@@ -6628,9 +6628,9 @@
             "Improved in every way. Somewhere, a target just felt a chill."
           ],
           "blank": [
-            "Nothing. A sniper waits. I'm good at waiting.",
-            "No change. Still hit what I aimed at. That's the only measure.",
-            "Nothing. The wind moved. I didn't."
+            "A little. A sniper waits. I'm good at waiting.",
+            "A small gain. Still hit what I aimed at. That's the main thing.",
+            "An inch closer to the mark."
           ]
         },
         "fallen": [
@@ -6661,9 +6661,9 @@
             "Improved in every way. I'll celebrate once I've ridden somewhere safe."
           ],
           "blank": [
-            "Nothing. Rode in, rode out, learned nothing. Classic skirmish.",
-            "No change. Tomorrow I'll ride faster and hope it catches up.",
-            "Well. That was a wasted ride."
+            "Rode in, rode out, learned a little. Classic skirmish.",
+            "A small gain. Tomorrow I'll ride faster and hope it catches up.",
+            "Well. A long ride for a short lesson."
           ]
         },
         "fallen": [
@@ -6694,9 +6694,9 @@
             "Better in every respect. I've rechecked my reasoning twice. It holds, alarmingly."
           ],
           "blank": [
-            "Nothing. I've been reading the same page for an hour, apparently.",
-            "No new insight. Even a library has an empty shelf.",
-            "Unchanged. The truth is patient; so am I, reluctantly."
+            "One insight. I've been reading that page for an hour.",
+            "A small discovery. It still deserves a shelf.",
+            "Slow progress. The truth is patient; so am I, reluctantly."
           ]
         },
         "fallen": [
@@ -6727,9 +6727,9 @@
             "Magnificent. I'll assume nothing will be collected later."
           ],
           "blank": [
-            "Nothing. The book kept it for itself this time.",
-            "Unchanged. Even darkness takes a day of rest.",
-            "No gain. I'll read deeper. That always works, in the end."
+            "A morsel. The book kept most for itself this time.",
+            "A little further into the dark.",
+            "A small gain. I'll read deeper. That always works, in the end."
           ]
         },
         "fallen": [
@@ -6760,9 +6760,9 @@
             "Perfection. I'm searching my conscience for whatever I've missed."
           ],
           "blank": [
-            "No change. Humility is also a lesson, and I've had plenty.",
-            "Nothing. The light is testing me. Well, I'll pass.",
-            "Unchanged. The wounded still need bandages. Onward."
+            "A small blessing. Humility is also a lesson, and I've had plenty.",
+            "A glimmer. The light is testing me. Well, I'll pass.",
+            "A little stronger. The wounded still need bandages. Onward."
           ]
         },
         "fallen": [
@@ -6793,9 +6793,9 @@
             "All of it at once! Either a miracle, or I finally prayed correctly."
           ],
           "blank": [
-            "Nothing. The spirit is willing and the axe is patient.",
-            "No change. I'll meditate on it, after I've hit something.",
-            "Unchanged. A monk learns to accept the empty bowl."
+            "A small gain. The spirit is willing and the axe is patient.",
+            "A modest lesson. I'll meditate on it, after I've hit something.",
+            "A grain in the bowl. A monk learns to be grateful."
           ]
         },
         "fallen": [
@@ -6826,9 +6826,9 @@
             "Stronger in every way. Somewhere, somebody's luck just ran out."
           ],
           "blank": [
-            "Nothing. As far as anyone knows, I was never here.",
-            "No change. I'll keep it out of the ledger.",
-            "Unchanged. Silence is also a skill."
+            "A quiet gain. As far as anyone knows, I was never here.",
+            "A little sharper. I'll keep it out of the ledger.",
+            "A small improvement, kept silent."
           ]
         },
         "fallen": [
@@ -6859,9 +6859,9 @@
             "Flawless. I know flawless when I see it; it's usually a forgery."
           ],
           "blank": [
-            "Nothing? I'll call it a tithe.",
-            "No gain. Even a trickster gets tricked.",
-            "Unchanged. I checked my pockets twice. Nothing new in either."
+            "So little? I'll call the rest a tithe.",
+            "A few coppers. Even a trickster gets tricked.",
+            "Small takings. I checked my pockets twice."
           ]
         },
         "fallen": [
@@ -6892,9 +6892,9 @@
             "Perfect pitch, perfect step. Mind the encore; I'll want one."
           ],
           "blank": [
-            "Nothing new. Even the best songs have a quiet bar.",
-            "No change. I'll write a ballad about persistence. It'll be short.",
-            "Unchanged. A rest is part of the music too."
+            "A quiet note. Even the best songs need them.",
+            "A little better. I'll write a ballad about persistence. It'll be short.",
+            "One new note for an old song."
           ]
         },
         "fallen": [
@@ -6925,9 +6925,9 @@
             "A flawless flight. I'm scanning the horizon for what it's warning me about."
           ],
           "blank": [
-            "Nothing. Even a falcon has to glide sometimes.",
-            "No change. The wind was against me today. It usually loses.",
-            "Unchanged. I'll try again once the clouds clear."
+            "A small gain. Even a falcon has to glide sometimes.",
+            "A little lift. The wind was against me today. It usually loses.",
+            "A modest rise. I'll try again once the clouds clear."
           ]
         },
         "fallen": [
@@ -6958,9 +6958,9 @@
             "All of it. I'm starting to see why the old kings feared us."
           ],
           "blank": [
-            "Nothing. My wyvern snorted at me. I'd rather it hadn't.",
-            "No change. The mountain didn't move today either.",
-            "Unchanged. A lord doesn't need to grow. Just to land."
+            "A little. My wyvern snorted at me. I'd rather it hadn't.",
+            "A small gain. More than the mountain managed today.",
+            "An inch higher. Still plenty of sky."
           ]
         },
         "fallen": [
@@ -6991,9 +6991,9 @@
             "All of me improved. The ranks will make a song of this. I'll hate it."
           ],
           "blank": [
-            "Nothing. Doesn't matter. I still show up.",
-            "No change. I've had worse days. I've had much worse.",
-            "Same as before. The soldiers won't notice, and that's how it should be."
+            "A little better. I still show up.",
+            "A modest gain. I've had worse days. Much worse.",
+            "A small step. The soldiers probably won't notice."
           ]
         },
         "fallen": [
@@ -7024,9 +7024,9 @@
             "In the woods, feeling this lucky usually means you're the bait."
           ],
           "blank": [
-            "Came home with an empty bag. Every hunter does, now and then.",
-            "No change. The deer don't grow every season either.",
-            "Unchanged. The woods don't hurry, so neither do I."
+            "A small catch. Every hunter has lean days.",
+            "A little growth. The deer don't hurry either.",
+            "Slow progress. The woods don't hurry, so neither do I."
           ]
         },
         "fallen": [
@@ -7277,13 +7277,13 @@
       ],
       "blank": [
         "The thread barely stirred.",
-        "The loom paused, and waited.",
-        "Not every thread catches.",
+        "One more thread in the weave.",
+        "One small gain, held fast.",
         "A long march. Little to show for it.",
-        "Some days only teach patience.",
-        "Mud, rain, and not much else.",
-        "Still alive. That counts for something.",
-        "The work goes on, unrewarded."
+        "Slow gains teach patience.",
+        "Mud, rain, and one small step.",
+        "A little stronger. Still alive.",
+        "The work goes on, inch by inch."
       ]
     },
     "lords": {
@@ -7313,11 +7313,11 @@
             "If I'd known it could feel like this, I'd have stopped doubting sooner. Maybe."
           ],
           "blank": [
-            "Nothing. That's fine. The banner doesn't need me grand, only standing.",
-            "Not a thing gained. Well, humility. I had plenty of that already.",
-            "Some days you only march. Everyone's still here. That's enough.",
-            "No better than yesterday. No worse either. I'll take it and keep counting.",
-            "Maybe the lesson was meant for someone watching me. Did anyone learn anything?"
+            "A little. That's fine. The banner needs me standing.",
+            "A small gain. And some humility. I had plenty of that already.",
+            "A short step. Everyone's still here. That's enough.",
+            "A little better than yesterday. I'll take it and keep counting.",
+            "A small lesson. Did anyone watching learn it too?"
           ],
           "milestones": {
             "10": [
@@ -7369,11 +7369,11 @@
             "All of it, at once. Remind me to never let this board close."
           ],
           "blank": [
-            "Nothing gained. A quiet move. Quiet moves are still moves.",
-            "Hm. A wasted tempo. Fine. I've won from worse.",
-            "No change. Good. My opponents will think I've plateaued.",
-            "Nothing. I'll call that a feint and pretend it was planned.",
-            "Blank. Even I misplay sometimes. Tell no one."
+            "A quiet gain. Quiet moves are still moves.",
+            "Hm. A small advantage. I've won from worse.",
+            "A little better. My opponents might not notice.",
+            "One small move. I'll pretend it was planned.",
+            "Modest. Even I misjudge the board sometimes. Tell no one."
           ],
           "milestones": {
             "10": [
@@ -7425,11 +7425,11 @@
             "My wife used to say I'd sharpen up one day. Took a war. She'd laugh."
           ],
           "blank": [
-            "Nothing. Still standing, though. That's the part that counts.",
-            "Not a thing. Some years the harvest doesn't come either.",
-            "No change. I've been the same stubborn man since before you were born.",
-            "Nothing gained. Nothing lost. I'll take that trade every day.",
-            "Blank. Put it in the ledger under 'still here'."
+            "A little. Still standing, too. That's the part that counts.",
+            "A thin harvest. Some years you take what grows.",
+            "A small gain. Still the same stubborn man underneath.",
+            "A little gained. Nothing lost. I'll take that trade.",
+            "A short step. Put it in the ledger under 'still here'."
           ],
           "milestones": {
             "10": [
@@ -7481,11 +7481,11 @@
             "Perfect. The Lieutenant saw every future but this one. I'm sure of it."
           ],
           "blank": [
-            "Nothing. Some threads are only for walking, not for weaving.",
-            "The light was silent. It's allowed to rest. So am I.",
-            "No change. I've walked this step before. It's always this quiet.",
-            "Nothing gained. But nobody lost. I'll hold on to that.",
-            "Still. Not every vision is a gift. This one was a pause."
+            "One thread caught. I can weave with that.",
+            "A little light. Enough for the next step.",
+            "A quiet gain. I've walked a step like this before.",
+            "A little gained. Nobody lost. I'll hold on to both.",
+            "A small glimpse. Not every vision reaches far."
           ],
           "milestones": {
             "10": [
@@ -7537,11 +7537,11 @@
             "Perfect ride, perfect form. I'll be insufferable for weeks. You were warned."
           ],
           "blank": [
-            "Nothing? Well. Even skill takes a day off.",
-            "Hm. My mount improved, I think. One of us did.",
-            "Not a thing. Fine. Fate's clearly saving up something enormous.",
-            "Nothing gained. Don't tell Voss. He'll just grunt, and I'll know exactly what it means.",
-            "Blank. That wasn't luck. That was restraint. I'm being modest for once."
+            "A little? Well. Even skill needs a rest.",
+            "A small gain. My mount expects applause for helping.",
+            "Just a little. Fine. Fate's saving up something enormous.",
+            "A modest gain. Don't tell Voss. He'll grunt, and I'll know what it means.",
+            "Restraint. I'm being modest for once."
           ],
           "milestones": {
             "10": [
@@ -7593,11 +7593,11 @@
             "Everything. My mount did a loop. It doesn't do loops."
           ],
           "blank": [
-            "Nothing. Calm air. It happens.",
-            "Dead wind. We'll catch the next one.",
-            "Nothing gained. I've flown through worse weather.",
-            "No change. Good. Nobody will come looking.",
-            "Nothing. My mount looked disappointed. It's usually right."
+            "A little lift. Calm air. It happens.",
+            "A light breeze. We'll catch the next one.",
+            "A small gain. I've flown through worse weather.",
+            "A quiet gain. Good. Less to draw attention.",
+            "A little. My mount looked disappointed. It's usually right."
           ],
           "milestones": {
             "10": [
@@ -7649,11 +7649,11 @@
             "Perfect. Kira, write that down. Then stand behind me again."
           ],
           "blank": [
-            "Nothing. Walls don't grow every day. They just stay.",
-            "Unchanged. As intended. Mostly.",
-            "Nothing gained. The stone is patient. I'm made of similar stuff.",
-            "No change. Don't worry. I'm still exactly as large as before.",
-            "Nothing. I'll stand here and think about what I did."
+            "One more stone. Walls take time.",
+            "A little sturdier. As intended. Mostly.",
+            "A small gain. The stone is patient. I'm made of similar stuff.",
+            "A little better. Don't worry. Still plenty of wall here.",
+            "A small lesson. I'll stand here and think about it."
           ],
           "milestones": {
             "10": [

@@ -218,7 +218,8 @@ export function sealedBeats(content) {
 
 /**
  * How a level-up reads: 'perfect' (every stat grew), 'blank' (one stat or
- * none — the engine's floor), or 'normal'. The card and its music share it.
+ * none for legacy results — normal leveling guarantees at least one gain),
+ * or 'normal'. The card and its music share it.
  */
 export function levelUpKind(result) {
   const gains = XP_STAT_NAMES.map((stat) => Math.max(0, Number(result?.gains?.[stat]) || 0));

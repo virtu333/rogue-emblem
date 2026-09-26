@@ -40,6 +40,14 @@ const recruitClasses = gameData.classes
   .map((c) => c.name);
 
 describe('unit voice content contract', () => {
+  it('lean-level lines never claim zero growth', () => {
+    for (const [path, line] of allLines(voice).filter(([p]) => p.includes('.blank'))) {
+      expect(line, path).not.toMatch(
+        /nothing(?:[.!?]| (?:gained|grew|new))|no (?:change|gain|progress|improvement|new insight)|unchanged|not a thing|learned nothing|same as (?:before|yesterday)|unrewarded/i,
+      );
+    }
+  });
+
   it('every line fits the budget, is single-line and quote-free', () => {
     const lines = allLines(voice);
     expect(lines.length).toBeGreaterThan(1000);
