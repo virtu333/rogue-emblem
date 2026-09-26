@@ -74,8 +74,8 @@ levelled note by note so its zones don't jump.
 """
 import numpy as np
 
+from engine import palette
 from engine.dsp import SR
-from engine.instruments import INSTRUMENTS
 from engine.patterns import Kit, bass, chart, drums, ostinato, pad
 from engine.render import _render_raw
 from engine.sampler import NoteEvent
@@ -161,7 +161,7 @@ _LEVELS = {}
 def _zone_level(inst, art, key, vel):
     k = (inst, art, key, round(vel, 2))
     if k not in _LEVELS:
-        spec = INSTRUMENTS[inst]
+        spec = palette.legacy_spec(inst)
         a = art if art in spec['arts'] else 'default'
         cfg = spec['arts'][a]
         # a held note is heard mostly through its sustain, a short one whole
@@ -184,7 +184,13 @@ def _lane_at(points, beat):
 
 def even(part, tol_db=1.5, cap_db=11.0, boost_db=4.0):
     """Flatten the sampler's zone jumps across a (monophonic) line."""
-    spec = INSTRUMENTS[part.inst]
+    # the zones are the legacy VSCO sections': a part the score's palette plays
+    # from another library (engine/palette.py) is left as written. Decided from
+    # the palette the score will render with, never from what happens to be
+    # applied while it builds (that depended on build order)
+    if part.inst in palette.for_score(palette.requested(), part.score.palette):
+        return part
+    spec = palette.legacy_spec(part.inst)
     if spec['kind'] != 'sfz' or not part.notes:
         return part
     notes = sorted(part.notes, key=lambda n: n.start)

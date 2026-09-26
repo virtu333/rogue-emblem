@@ -536,6 +536,13 @@ def apply(spec, instruments: dict) -> dict:
     return chosen
 
 
+def legacy_spec(inst_name: str) -> dict:
+    """The registry's own instrument, whatever palette is applied right now (a score
+    that measures its samples at build time must not see a lab instrument)."""
+    from .instruments import INSTRUMENTS
+    return (_ORIG if _ORIG is not None else INSTRUMENTS)[legacy_name(inst_name)]
+
+
 def legacy_name(inst_name: str) -> str:
     """'horns@legacy' -> 'horns' (calibration and onset tables are the registry's)."""
     return inst_name[:-len(ORIG_SUFFIX)] if inst_name.endswith(ORIG_SUFFIX) else inst_name
