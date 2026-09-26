@@ -40,17 +40,17 @@ single repeated cello note, a voice and not yet a chord.
 The company's standard is the head of the Emperor's own anthem (boss_emperor
 ANTHEM, F Bb. C D) turned minor: F, B-flat, C, D-flat. It is raised once per
 loop, in C, on the company's brass (trumpets, the horns an octave below,
-violins above), and it is the only place the tonic stands on a downbeat
-under the whole band: the choir enters there for the first and only time,
-the bass goes to whole notes and the snare to a roll (sixteenths while
-the standard is raised) that keeps the hocket's accents. Between its two raisings comes the company's cry
-(the held G-flat becomes the ninth of F7 and falls to F); after them, its
-cadence. It is approached from its dominant: the build is one unbroken
-crescendo over an F pedal, as in the verified reading of Tearing's (no rest
-before the arrival), and the trumpets' pickup, the Empire's half-step
-climbing (C, D-flat, E-flat), calls the standard in on the downbeat. It holds one V-i of its own (C4-C5):
-the Emperor's anthem keeps his leading-tone cadence; his guard's strains
-do not.
+violins above), and it is the only place the tonic stands on a downbeat under
+the whole band: the choir enters there for the first and only time, the bass
+goes to whole notes and the snare to a roll (sixteenths while the standard is
+raised) that keeps the hocket's accents. Between its two raisings comes the
+company's cry (the held G-flat becomes the ninth of F7 and falls to F); after
+them, its cadence. It is approached from its dominant: the build is one
+unbroken crescendo over an F pedal, as in the verified reading of Tearing's
+(no rest before the arrival), and the trumpets' pickup, the Empire's half-step
+climbing (C, D-flat, E-flat), calls the standard in on the downbeat. It holds
+one V-i of its own (C4-C5): the Emperor's anthem keeps his leading-tone
+cadence; his guard's strains do not.
 
 B is the second verse, in F minor (the tonic bar of A2 is its first chord,
 B-flat minor as iv): the same rhythm and harmony, but its sequence climbs
@@ -67,8 +67,8 @@ Form (bars, 4/4 at 164): intro 1-4 | A1 5-12 (trumpets) | A2 13-20 (violins,
 horns below; the trumpets on the stabs and the pickup) | B 21-28 (F minor) |
 build 29-32 (the intro's cell over an F pedal, then the groove, a sixteenth
 surface and the trumpets' pickup) | C 33-40 (the standard, B-flat minor) |
-A3 41-48 (the tune on trumpets and horns under a violin descant that falls by
-semitones) | turn 49-52 (the intro's two chords, back to A1). Loop 5-52.
+A3 41-48 (the tune on trumpets and horns under a high violin descant) |
+turn 49-52 (the intro's two chords, back to A1). Loop 5-52.
 
 Leitmotifs: none of the Thread (this is the enemy's music). The Emperor's
 anthem head, turned minor, is the standard; the Empire's half-step closes
@@ -130,10 +130,11 @@ STANDARD_BR = """
 F4q Bb4q. C5e Db5q~ | Db5h. rq | Bb4q. Gb5e~ Gb5h~ | Gb5h F5q rq |
 F4q Bb4q. C5e Db5q~ | Db5q. Bb5e~ Bb5q Ab5q | Db5q. Cb5e~ Cb5q A4e Bb4e~ | Bb4h. rq |
 """
-# A3: the violins' descant over the tune, falling by semitones (D-flat, C,
-# C-flat) and closing with it: its A natural doubles the tune's leading tone
+# A3: the violins' descant over the tune, held high on D-flat (lifting to
+# E-flat over C-flat) and closing with it: its A natural doubles the tune's
+# leading tone
 DESCANT = """
-Db6w | C6w | Cb6w | Ab5h rh |
+Db6w | Db6w | Eb6w | Db6h rh |
 Db6w | Bb5w | Cb6h. A5e Bb5e~ | Bb5h. rq |
 """
 
@@ -147,8 +148,8 @@ CH_CELL = chart('Gb/Bb Ab Gb/Bb Ab')
 # The semitones lint still reports are all intended: the tune's ninth over the
 # chord's minor third in m1 and m6 (F over G-flat; C over D-flat in B), the
 # C-flat major 7 of m3, the horns' high F as the major seventh of G-flat (B
-# m3), G-flat over the build's F pedal, the standard's G-flat as the ninth of
-# F7 falling to F (C4), and the descant's C over D-flat (A3 m2).
+# m3), G-flat over the build's F pedal, and the standard's G-flat as the
+# ninth of F7 falling to F (C4).
 CH_A_PAD = chart('Ebm7 Db Cbmaj7 Db/F Gb Ebm7 Cb:2.5 Cb7:1.5 Bbm')
 CH_B_PAD = chart('Bbm7 Ab Gbmaj7 Ab7/C Db Bbm7 Gb:2.5 Gb7:1.5 Fm')
 CH_C_PAD = chart('Bbm Gb Ebm F7 Bbm Gb Cb:3 Cb7:1 Bbm')
@@ -160,6 +161,13 @@ BASS_A = [('Eb2', 'Bb2', 'Eb2'), ('Db2', 'Ab2', 'Db2'), ('Cb2', 'Gb2', 'Cb2'), (
           ('Bb1', 'F2', 'Bb1')]
 BASS_B = [('Bb1', 'F2', 'Bb1'), ('Ab1', 'Eb2', 'Ab1'), ('Gb1', 'Db2', 'Gb1'), ('C2', None, None),
           ('Db2', 'Ab2', 'Db2'), ('Bb1', 'F2', 'Bb1'), ('Gb1', 'Db2', 'Gb1'), ('F1', 'C2', 'F1')]
+
+# the 'Choir Aahs' tuning, per key, for this score's held choir notes: every
+# note rendered alone at its own length and dynamic, its pitch measured over
+# the note body (harmonic sum, 0.3 s windows), averaged per key
+CHOIR_AAH_CENTS = {57: 23, 58: -3, 59: 0, 60: -2, 61: 4, 63: 13, 65: 9, 66: 12, 69: -3, 70: -1,
+                   71: 1, 73: -5, 75: 15}
+CHOIR_FIX = {k: -v for k, v in CHOIR_AAH_CENTS.items()}
 
 # brass stabs (2 and 3.5), voiced by hand: trombones two notes, horns three.
 # m7 turns on its second stab: C-flat with A natural, the augmented sixth
@@ -456,9 +464,22 @@ def build():
     timp.expr((30.97, 1.0), (31, 0.35), (32.95, 1.0), (33, 1.0))
 
     # ================================================================ C: the standard
-    ch = b.part('choir', 'choir', layer='full', role='choir')
-    pad(ch, 33, CH_C_PAD, n=4, lo=57, hi=77, vel=0.72)
-    ch.expr((33, 0.8), (36.9, 0.95), (37, 0.9), (40.9, 1.0))
+    # the choir, one part per voice: the 'Choir Aahs' samples are out of tune by
+    # zone, and a single line can be corrected note by note (a pitch bend per
+    # note, render key_cents), a chord on one channel cannot
+    tmp = s.part('_choir_voicing', 'choir')
+    pad(tmp, 33, CH_C_PAD, n=4, lo=57, hi=77, vel=0.72)
+    del s.parts['_choir_voicing']
+    chords = {}
+    for n in tmp.notes:
+        chords.setdefault(round(n.start, 4), []).append(n)
+    voices = [b.part(f'choir_{i}', 'choir', layer='full', role='choir', gain=-6,
+                     key_cents=CHOIR_FIX) for i in range(4)]
+    for start in sorted(chords):
+        for v, n in zip(voices, sorted(chords[start], key=lambda n: n.pitch)):
+            v.notes.append(n)
+    for v in voices:
+        v.expr((33, 0.8), (36.9, 0.95), (37, 0.9), (40.9, 1.0))
     c_bass = 'Bb1w | Gb1w | Eb2w | F1w | Bb1w | Gb1w | Cb2h.~ Cb2e Bb1e~ | Bb1h. rq |'
     for part in (eb, cb):
         part.at(33).play('%sus @f ' + c_bass)
@@ -528,6 +549,18 @@ def build():
     for name in ('kit_kick', 'kit_snare', 'kit_cym', 'ebass', 'cb', 'stab_hn', 'stab_tbn',
                  'stab_tpt', 'stab_str', 'stab_vc'):
         s.parts[name].expr((1, under), (32.9, under), (33, 1.0), (40.9, 1.0), (41, under))
+
+    # the bass guitar (Growlybass) has no samples below A1: its lower notes
+    # would be silent, so they sound an octave up (the contrabasses keep the
+    # low octave)
+    for n in s.parts['ebass'].notes:
+        if n.pitch < 33:
+            n.pitch += 12
+    # and the tuba's lowest samples (E1-G#1) drift by a third of a tone within
+    # a note: its notes there move up an octave too
+    for n in s.parts['tuba'].notes:
+        if n.pitch < 33:
+            n.pitch += 12
 
     # ================================================================ calm
     # the hocket from the walls: pizzicato basses on the bass's rhythm, harp
