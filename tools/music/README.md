@@ -49,6 +49,7 @@ that play through the loop jump, so you can listen to the seam.
 | `solo.py <score> <parts…>` | Audition a subset of parts |
 | `listen.py <files…> --prompt` | Ask a Gemini audio model for a critique. It is useful for glaring problems only; its detailed perception is unreliable |
 | `ab.py` | Blind A/B test of an engine tweak through the critic |
+| `midi.py [scores…] [--all] [--stingers …]` | Export the scores as Standard MIDI Files (`midi/`, see `midi/README.md`): one file per mix, a track per part, General MIDI sounds, loop markers. Needs only `mido`; every file is read back and checked against the score's timing |
 
 ## Engine (`engine/`)
 

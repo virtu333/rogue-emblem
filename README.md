@@ -2,11 +2,13 @@
 
 This branch collects the soundtrack of [Rogue Dawn](https://github.com/virtu333/rogue-emblem), a
 Fire Emblem-style tactics roguelike: the music, the code that composes it, and the game code that
-plays it. Every note is original and written as code. There are no DAW projects and no MIDI files.
-Each piece is a Python score, rendered by a small orchestral engine from free sample libraries.
+plays it. Every note is original and written as code. There are no DAW projects: each piece is a
+Python score, rendered by a small orchestral engine from free sample libraries. The scores are also
+exported as MIDI files (`midi/`), to play on any synth or load into a DAW or notation program.
 
 It is a snapshot of the game's `main` branch; the files keep their paths from the game repo, so
-anything here can be found there too. The game itself is at https://emblem-rogue.netlify.app.
+anything here can be found there too, except the MIDI export (`tools/music/midi.py` and `midi/`),
+which was added on this branch. The game itself is at https://emblem-rogue.netlify.app.
 
 ## What's here
 
@@ -19,6 +21,7 @@ anything here can be found there too. The game itself is at https://emblem-rogue
 | `tools/music/engine/` | The engine: the score notation, patterns and voice leading, the sampler, the mixer, loop export |
 | `assets/audio/music/` | The rendered loops (76 files, MP3): each piece, plus a calm mix for every adaptive battle theme and an enrage layer for every boss |
 | `assets/audio/stingers/` | The rendered ceremony cues (142 files) |
+| `midi/` | Every loop and ceremony cue as a Standard MIDI File (106 files), exported from the scores: a track per part, General MIDI sounds, loop markers. `midi/README.md` lists them |
 | `src/` | How the game plays it (below) |
 | `tests/` | The game's music tests. They run inside the game repo, not on this branch |
 
