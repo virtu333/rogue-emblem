@@ -212,11 +212,32 @@ export class MobileBattleHUD {
               onLongPress();
               this.lastSnapshot = '';
               this.sync();
+              // The hold usually rebuilds the rail: the lifting finger's click
+              // would land on the new copy of this control (which never saw
+              // the press) and fire its tap action too. Swallow that one click.
+              this.swallowNextClick();
             }
           : null,
       },
     );
     return button;
+  }
+
+  /** Ignore the click that follows a completed hold, wherever in the rail it lands. */
+  swallowNextClick(ms = 600) {
+    const root = this.root;
+    if (!root?.addEventListener) return;
+    const swallow = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      done();
+    };
+    const timer = setTimeout(() => done(), ms);
+    const done = () => {
+      clearTimeout(timer);
+      root.removeEventListener('click', swallow, true);
+    };
+    root.addEventListener('click', swallow, true);
   }
 
   requestEndTurn() {
