@@ -301,9 +301,13 @@ export function clampFocus(view, focus) {
  * 'prevTab' | 'nextTab'. Up/down stay in the column and stop at its ends;
  * left/right cross to the other column keeping the row index (clamped); tab
  * inputs wrap through the visible tabs and keep side and index (clamped).
+ * `stacked` (an upright phone: the right holder drawn below the left, trade.css):
+ * down from the left holder's last row steps to the right holder's first row, and
+ * up from the right holder's first row to the left holder's last row, so the
+ * arrows follow the screen; the outer ends still stop.
  * @returns {{ bag: string|null, focus: {side, index}|null }}
  */
-export function navigate(view, focus, input) {
+export function navigate(view, focus, input, { stacked = false } = {}) {
   const bag = view?.bag ?? null;
   const here = clampFocus(view, focus);
   if (input === 'prevTab' || input === 'nextTab') {
@@ -318,9 +322,16 @@ export function navigate(view, focus, input) {
   }
   if (!here) return { bag, focus: null };
   const counts = rowCounts(view);
-  if (input === 'up') return { bag, focus: { ...here, index: Math.max(0, here.index - 1) } };
-  if (input === 'down')
+  if (input === 'up') {
+    if (stacked && here.side === 'right' && here.index === 0 && counts.left > 0)
+      return { bag, focus: { side: 'left', index: counts.left - 1 } };
+    return { bag, focus: { ...here, index: Math.max(0, here.index - 1) } };
+  }
+  if (input === 'down') {
+    if (stacked && here.side === 'left' && here.index === counts.left - 1 && counts.right > 0)
+      return { bag, focus: { side: 'right', index: 0 } };
     return { bag, focus: { ...here, index: Math.min(counts[here.side] - 1, here.index + 1) } };
+  }
   const target = input === 'left' ? 'left' : input === 'right' ? 'right' : here.side;
   if (target === here.side || !counts[target]) return { bag, focus: here };
   return { bag, focus: { side: target, index: Math.min(here.index, counts[target] - 1) } };

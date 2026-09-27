@@ -1,7 +1,8 @@
 /* Item trade (TradeMenu.js; docs/specs/item-trade.md, "UI"). One header line
    (title, bag tabs, Done), then a column per holder that scrolls on its own, then
    the status line. Budget at 568×320 on a coarse pointer: 4 + 44 header + 2 + 4 +
-   16 column head + 5 × 44 rows + 4 + 15 status + 4 = 313 px. */
+   16 column head + 5 × 44 rows + 4 + 15 status + 4 = 313 px. Upright phones stack
+   the holders instead (end of file). */
 
 .tm-trade {
   --tm-tap: var(--re-tap);
@@ -192,5 +193,86 @@ html .tm-trade.re-compact-menu.re-screen {
   }
   .tm-trade .tm-row > .ia-icon {
     --ia-box: var(--ia-size, 32px);
+  }
+}
+
+/* ───────── Upright phones (portrait mode): the two holders stack ─────────
+   Keyed to html.portrait-ui inside a portrait orientation query, so landscape
+   phones and desktop keep the columns above. Two ~170px columns cut every brief
+   line and wrapped item names, so upright the dialog takes the whole screen (inside
+   the notch and the home bar), the header is two rows (title and Done, then the bag
+   tabs), and the holders stack: one on top, the other below, each full width and
+   scrolling on its own. The height split is even, and a holder that needs less
+   gives the rest away: a unit's five slots show whole in their half on a 375×667
+   phone, while a long convoy below scrolls in all the room the unit leaves. Budget
+   at 375×667 with two full bags: 8 + 97 header (44 title row, 44 tabs) + 4 + 250
+   upper (20 head + 5 × 46 rows) + 8 + 255 lower (rule, 4, head, rows) + 4 + 30
+   status + 8 = 664 px. TradeMenu turns Up/Down at a list's end into a step to the
+   other holder while they stack. */
+@media (orientation: portrait) {
+  html.portrait-ui .tm-trade.re-compact-menu.re-screen {
+    max-width: none;
+    max-height: none;
+    border: 0;
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+
+  /* Header: the title and Done share the top row; the bag tabs take the next. */
+  html.portrait-ui .tm-trade .re-header {
+    padding-bottom: var(--re-s1);
+  }
+  html.portrait-ui .tm-trade .tm-title {
+    order: 1;
+    flex: 1 1 0;
+  }
+  html.portrait-ui .tm-trade .tm-done.re-btn {
+    order: 2;
+  }
+  html.portrait-ui .tm-trade .tm-tabs {
+    order: 3;
+    flex: 1 1 100%;
+  }
+  html.portrait-ui .tm-trade .tm-tab.re-btn {
+    flex: 1 1 auto;
+    padding-inline: 8px;
+  }
+
+  /* The two holders, stacked; each list is its own scroll owner. */
+  html.portrait-ui .tm-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, max-content) minmax(0, max-content);
+    align-content: start;
+    gap: var(--re-s2);
+  }
+  html.portrait-ui .tm-col-right {
+    padding-top: var(--re-s1);
+    border-top: 1px solid var(--re-line-soft);
+  }
+  html.portrait-ui .tm-col-head {
+    padding-bottom: var(--re-s1);
+    line-height: 16px;
+  }
+
+  /* A list with rows below its fold fades at its lower edge (TradeMenu sets
+     data-more), so a cut-off row reads as "more below", not as clipped layout. */
+  html.portrait-ui .tm-list[data-more] {
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 18px), transparent);
+    mask-image: linear-gradient(180deg, #000 calc(100% - 18px), transparent);
+  }
+  /* A row scrolled into view (focus, the held item) stops clear of that fade. */
+  html.portrait-ui .tm-trade .tm-row {
+    scroll-margin-bottom: 18px;
+  }
+
+  /* Full-width rows have room for the whole brief line; a long one wraps. */
+  html.portrait-ui .tm-trade .tm-row .tm-brief {
+    overflow: visible;
+    white-space: normal;
+  }
+
+  /* Two lines held for the status, so a longer message never resizes the lists. */
+  html.portrait-ui .tm-status {
+    min-height: calc(2 * 1.35 * 11px);
   }
 }
