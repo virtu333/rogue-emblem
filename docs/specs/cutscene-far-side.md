@@ -1,7 +1,7 @@
 # "The Far Side of the Glass": the opening, second prototype
 
-Status: **draft 2, rendered** (2026-09-27): draft 1 plus a transition pass and a
-colder voice (see [Draft 2](#draft-2)). Source in `tools/cutscene/glass/`.
+Status: **draft 3, rendered** (2026-09-27): draft 1 plus a transition pass, a colder
+voice and two re-cut shots (see [Draft 2](#draft-2) and [Draft 3](#draft-3)). Source in `tools/cutscene/glass/`.
 A second candidate for the opening in [cutscenes.md](cutscenes.md), beside
 **"The Roll"** ([cutscene-the-roll.md](cutscene-the-roll.md)). The Roll is a hook in
 engraved ink that looks like nothing else in the game; this one is a narrated story
@@ -97,7 +97,7 @@ time after 0:32 is 4 s later and every time after 1:28 is 8 s later.
 | 3:04 | Sera's Thread on the violins | Sera at the Glass | *And a girl at the Glass looked into the water… and saw him coming.* |
 | 3:11 | The Lieutenant's motif (A-D-C-A) and its shadow a tritone off, a beat late | In the water, not her reflection: him, upside down | *I saw her seeing.* |
 | 3:16 | Heartbeat; a hit on each death | The thread trembles; Edric dies four times, each cut on its word, the thread snapping | *I have watched him die at the Ford. On the bridge. In the fens. At my feet.* |
-| 3:25 | A reversed swell, the Thread backwards; the home fire | Sera pulls the thread; sparks fall back into the fire; the seven at the camp | *And every time, she takes him back to the fire. To the night before.* |
+| 3:25 | A reversed swell, the Thread backwards; the home fire | The four deaths run backwards as the thread knits shut; the seven at the camp | *And every time, she takes him back to the fire. To the night before.* |
 | 3:36 | Everything drops; the hum | Sinking through the Glass to the stair under the mountain | |
 | 3:42 | His motif on the violins, the shadow in the violas | The Lieutenant lifts his head; the letterbox opens | *I have seen every way this ends.* / *Go on, then. Show me one I haven't seen.* |
 | 3:52 | **Hit**; the bells' A-G-E; the Hollow Sun cadence, stopping on C-sharp | The Hollow Sun drawn on the Thread cell; ROGUE DAWN | |
@@ -136,6 +136,17 @@ low-mid warmth, more presence, compressed). This is processing on draft 1's take
 the key lines) but not recorded: the Gemini project is at its spending cap. Once it is
 raised: audition voices with `tts.mjs --audition --style cold`, record with
 `tts.mjs --style cold`, and mix with `VOICE_TAKES=voice_cold python3 music.py --mix`.
+
+## Draft 3
+
+- **The Emperor on the wall** plays only the first 5.3 s of its clip, stretched over the
+  shot: he stands while the cape moves and the spears rise under "He called himself
+  the Emperor". The clip's later gesture (fists pulled to the chest) read as awkward.
+- **"She takes him back"** no longer shows Sera holding a thread (a stiff pose). The
+  four deaths play again, backwards and fast (at my feet, the fens, the bridge, the
+  Ford: Edric rises out of each), while the snapped thread closes once across all four;
+  then the camp on "to the night before". The rewind cue in the score already sat
+  there. Her `rewind` clip is no longer used and its sheet is gone.
 
 ## Lore
 

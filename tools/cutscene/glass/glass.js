@@ -83,7 +83,6 @@ const IN = {
   glass: 1.0,
   camp: 0.8,
   reveal: 1.2,
-  rewind: 0.25,
 };
 const FADE_IN = { oath: 1.2, stair: 1.6, unsworn: 0.4, king: 1.2, wendhall: 0.8, sink: 1.0 };
 const FADE_OUT = {
@@ -301,6 +300,10 @@ export async function loadGlass(base = '.') {
   const ax = art.getContext('2d');
   const img = new ImageData(new Uint8ClampedArray(buf.buffer), W, H);
 
+  // the rewound shots, as one span: the thread closes once across all of them
+  const mends = EDIT.filter((e) => e.mend);
+  const MEND = [mends[0].t0, mends[mends.length - 1].t1];
+
   const entryAt = (t) => EDIT.findIndex((e) => t >= e.t0 && t < e.t1);
 
   /** Draw edit entry e at film time t into a (Uint32 buffer). */
@@ -325,6 +328,8 @@ export async function loadGlass(base = '.') {
       dy: (e.pan?.[1] || 0) * k + (dk > 0.6 ? Math.round(Math.cos(t * 43) * dk) : 0),
     });
     if (e.death) drawSnap(a, t - e.t0);
+    // running back: the snapped thread closes up again as the shot rewinds
+    if (e.mend) drawSnap(a, 0.55 * (1 - prog(t, MEND[0], MEND[1])), false);
   }
 
   // black; a point of gold; the thread draws itself on the Thread cell's contour
@@ -393,8 +398,8 @@ export async function loadGlass(base = '.') {
   }
 
   // on each death: a white flash, and the thread snapping apart
-  function drawSnap(a, dt) {
-    if (dt < 0.09) flash(a, 1 - dt / 0.09);
+  function drawSnap(a, dt, withFlash = true) {
+    if (withFlash && dt < 0.09) flash(a, 1 - dt / 0.09);
     const k = prog(dt, 0, 0.5);
     if (k >= 1) return;
     const gap = 6 + 120 * k;

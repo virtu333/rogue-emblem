@@ -34,7 +34,8 @@ const FIRST = [
   { t0: 88, t1: 92, shot: 'list', from: 0.5 },
   { t0: 92, t1: 100, shot: 'hearth', from: 0 },
   { t0: 100, t1: 108, shot: 'unsworn', from: 0, speed: 0.62 },
-  { t0: 108, t1: 116, shot: 'wall', from: 0 },
+  // only the stretch before his arms move (the clip's fists at 6 s read as awkward)
+  { t0: 108, t1: 116, shot: 'wall', from: 0, speed: 0.66 },
   // IV. The Roll
   { t0: 116, t1: 122, shot: 'siege', from: 0 },
   { t0: 122, t1: 127.5, shot: 'king', from: 0 },
@@ -62,7 +63,11 @@ const FIRST = [
   { t0: 200.2, t1: 201.7, shot: 'd_bridge', from: 0.3, death: true },
   { t0: 201.7, t1: 203.4, shot: 'd_fens', from: 1.0, death: true },
   { t0: 203.4, t1: 205, shot: 'd_feet', from: 0, death: true },
-  { t0: 205, t1: 209.5, shot: 'rewind', from: 1 },
+  // she takes him back: the four deaths run backwards, the thread knitting shut
+  { t0: 205, t1: 206.1, shot: 'd_feet', from: 1.6, speed: -1.45, mend: true },
+  { t0: 206.1, t1: 207.2, shot: 'd_fens', from: 2.7, speed: -1.55, mend: true },
+  { t0: 207.2, t1: 208.3, shot: 'd_bridge', from: 1.8, speed: -1.36, mend: true },
+  { t0: 208.3, t1: 209.5, shot: 'd_ford', from: 2.5, speed: -1.4, mend: true },
   { t0: 209.5, t1: 216, shot: 'camp', from: 0 },
   // VIII. The far side
   { t0: 216, t1: 222, shot: 'sink', from: 0 },
@@ -80,8 +85,10 @@ export function usedRanges() {
   const r = {};
   for (const e of EDIT) {
     if (!e.shot) continue;
-    const a = e.from || 0;
-    const b = clipTime(e, e.t1) + 0.1;
+    // a shot can run backwards (negative speed), so take both ends either way round
+    const ends = [e.from || 0, clipTime(e, e.t1)];
+    const a = Math.max(0, Math.min(...ends));
+    const b = Math.max(...ends) + 0.1;
     const cur = r[e.shot];
     r[e.shot] = cur ? [Math.min(cur[0], a), Math.max(cur[1], b)] : [a, b];
   }
