@@ -449,7 +449,7 @@ export class ShopMenu {
         if (unit === 'convoy') return `${entry.price} gold · Store for later.`;
         const count = supply ? (unit.consumables || []).length : (unit.inventory || []).length;
         const max = supply ? CONSUMABLE_MAX : INVENTORY_MAX;
-        return `${supply ? 'Supplies' : 'Items'} ${count}/${max} · ${count >= max ? 'Full: sent to convoy' : supply ? 'Can carry' : canEquip(unit, entry.item) ? 'Can equip' : 'Cannot equip; can carry'} · ${entry.price} gold${!supply && canEquip(unit, entry.item) ? ` · ${equipmentComparison(unit, entry.item, unit.weapon, this.compareOptions())}` : ''}`;
+        return `${supply ? 'Supplies' : 'Items'} ${count}/${max} · ${count >= max ? 'Full: sent to convoy · trade it in from Roster' : supply ? 'Can carry' : canEquip(unit, entry.item) ? 'Can equip' : 'Cannot equip; can carry'} · ${entry.price} gold${!supply && canEquip(unit, entry.item) ? ` · ${equipmentComparison(unit, entry.item, unit.weapon, this.compareOptions())}` : ''}`;
       },
       blocked: (unit) => {
         const reason = shopBuyBlock(this.run, this.scene.shopBuyItems, entry);

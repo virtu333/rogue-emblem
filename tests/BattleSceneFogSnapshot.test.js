@@ -203,6 +203,15 @@ function makeUiObject(seed = {}) {
   };
 }
 
+// The canvas trade commits through BattleTradeController, whose guards want a
+// real session: both units fielded and adjacent, the left one selected.
+function fieldTradePair(scene, unitA, unitB) {
+  Object.assign(unitA, { col: 1, row: 1 });
+  Object.assign(unitB, { col: 2, row: 1 });
+  scene.playerUnits = [unitA, unitB];
+  scene.selectedUnit = unitA;
+}
+
 function attachUiHarness(scene) {
   const rectangles = [];
   const texts = [];
@@ -408,6 +417,7 @@ describe('BattleScene deferred vision snapshot commit', () => {
       inventory: [],
       consumables: [],
     });
+    fieldTradePair(scene, unitA, unitB);
 
     BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
     const swordRow = texts.find((obj) => obj.text === 'Iron Sword');
@@ -767,6 +777,7 @@ describe('BattleScene trade weapon gating', () => {
     });
 
     scene.preMoveLoc = { col: 2, row: 2 };
+    fieldTradePair(scene, unitA, unitB);
 
     BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
     // Equipped weapons carry the shared E marker.
@@ -878,6 +889,63 @@ describe('BattleScene trade weapon gating', () => {
     expect(consumableRow).toBeTruthy();
     expect(consumableRow.style?.color).toBe('#8a7f86');
     expect(consumableRow.handlers.pointerdown).toBeUndefined();
+  });
+
+  it("a supply given from the partner's column commits the acting unit, never the partner", () => {
+    const { scene } = setupScene();
+    const { texts } = attachUiHarness(scene);
+    const vulnerary = { name: 'Vulnerary', type: 'Consumable', uses: 3 };
+    const unitA = makeUnit({ name: 'Iris', consumables: [], weapon: null });
+    const unitB = makeUnit({ name: 'Mora', consumables: [vulnerary], weapon: null });
+    fieldTradePair(scene, unitA, unitB);
+    scene.preMoveLoc = { col: 0, row: 1 };
+    scene.commitVisionSnapshotIfPending = vi.fn();
+    scene._captureSuspendCheckpoint = vi.fn();
+
+    BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
+    texts.find((obj) => obj.text === 'Vulnerary').trigger('pointerdown', { button: 0 });
+
+    // The same instance moved from Mora's supplies to Iris's.
+    expect(unitB.consumables).toEqual([]);
+    expect(unitA.consumables[0]).toBe(vulnerary);
+    expect(unitA._movementCommitted).toBe(true);
+    expect(unitB._movementCommitted).toBeUndefined();
+    expect(unitB).toMatchObject({ hasMoved: false, hasActed: false });
+    expect(scene.preMoveLoc).toBeNull();
+    expect(scene.commitVisionSnapshotIfPending).toHaveBeenCalledOnce();
+    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledOnce();
+    // Redrawn from the new bags: the item now sits in the left column.
+    const redrawn = texts.filter((obj) => obj.text === 'Vulnerary' && !obj.destroyed);
+    expect(redrawn.at(-1).x).toBe(160);
+  });
+
+  it('a stale canvas row (the unit is no longer selected) changes nothing', () => {
+    const { scene } = setupScene();
+    const { texts } = attachUiHarness(scene);
+    const sword = { name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof', range: '1' };
+    const unitA = makeUnit({
+      name: 'Edric',
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      inventory: [sword],
+      weapon: sword,
+    });
+    const unitB = makeUnit({ name: 'Sera', proficiencies: [{ type: 'Sword', rank: 'Prof' }] });
+    fieldTradePair(scene, unitA, unitB);
+    scene.preMoveLoc = { col: 0, row: 1 };
+    scene.commitVisionSnapshotIfPending = vi.fn();
+
+    BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
+    const drawn = texts.length;
+    scene.selectedUnit = null;
+    texts.find((obj) => obj.text === 'E Iron Sword').trigger('pointerdown', { button: 0 });
+
+    expect(unitA.inventory).toEqual([sword]);
+    expect(unitB.inventory).toEqual([]);
+    expect(unitA._movementCommitted).toBeUndefined();
+    expect(scene.tradeMutatedThisSession).toBe(false);
+    expect(scene.preMoveLoc).toEqual({ col: 0, row: 1 });
+    expect(scene.commitVisionSnapshotIfPending).not.toHaveBeenCalled();
+    expect(texts).toHaveLength(drawn); // not redrawn
   });
 });
 

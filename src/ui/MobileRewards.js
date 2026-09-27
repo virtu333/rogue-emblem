@@ -7,7 +7,12 @@ import { ContextHelp, helpPreview } from './ContextHelp.js';
 import { attachInfo, bindHold } from './infoAffordance.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
-import { rewardPresentation, rewardIcon, isSkipDominated } from './rewardDisplay.js';
+import {
+  rewardPresentation,
+  rewardIcon,
+  isSkipDominated,
+  rewardRecipientBlockText,
+} from './rewardDisplay.js';
 import { rewardForWhom } from './choiceContent.js';
 import { choiceReducedMotion, fadeScroll, itemArtSlot } from './choiceCards.js';
 import { unitPortrait } from './unitPortrait.js';
@@ -541,7 +546,8 @@ export class MobileRewards {
             Number(!!bundleTargetBlock(run, item, b, choice.quantity || 1)),
         ),
         label: (unit) => (unit === 'convoy' ? 'Send to Convoy' : unit.name),
-        blocked: (unit) => bundleTargetBlock(run, item, unit, choice.quantity || 1),
+        blocked: (unit) =>
+          rewardRecipientBlockText(bundleTargetBlock(run, item, unit, choice.quantity || 1)),
         describe: (unit) =>
           unit === 'convoy'
             ? 'Shared storage. Withdraw it to any unit from Roster › Convoy between battles.'

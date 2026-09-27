@@ -4,7 +4,8 @@ vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 import { BattleScene, resetUnitForBattle } from '../src/scenes/BattleScene.js';
 import { VisionRewindController } from '../src/ui/VisionRewindController.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
-import { BattleTradeMenu } from '../src/ui/BattleTradeMenu.js';
+import { battleTradeController } from '../src/ui/BattleTradeController.js';
+import { unitHolder } from '../src/engine/ItemTrade.js';
 import { InputController } from '../src/ui/InputController.js';
 import { VillageController } from '../src/ui/VillageController.js';
 import { Grid } from '../src/engine/Grid.js';
@@ -138,19 +139,20 @@ describe('battle commitment and Canto completion contracts', () => {
       s.isMobileInput = mobile;
       const u = s.playerUnits[0],
         recipient = unit('Ally');
+      recipient.col = 2;
+      s.playerUnits.push(recipient);
       u.hasMoved = true;
       u._movementSpent = 3;
       s.selectedUnit = u;
       s.preMoveLoc = { col: 0, row: 0 };
-      const menu = Object.create(BattleTradeMenu.prototype);
-      Object.assign(menu, {
-        scene: s,
-        left: u,
-        selection: { owner: u, recipient, item: u.inventory[0], key: 'inventory', cap: 5 },
-        render: vi.fn(),
-        surface: { focusContent: vi.fn() },
-      });
-      menu.transfer();
+      s.battleState = 'TRADING';
+      const given = battleTradeController(s).commit(
+        u,
+        recipient,
+        { holder: unitHolder(u), bag: 'inventory', item: u.inventory[0] },
+        { holder: unitHolder(recipient), bag: 'inventory', item: null },
+      );
+      expect(given).toMatchObject({ ok: true, kind: 'give' });
       expect(u._movementCommitted).toBe(true);
       expect(u.inventory).toHaveLength(0);
       expect(recipient.inventory).toHaveLength(2);

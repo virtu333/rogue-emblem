@@ -216,6 +216,16 @@ export const INVENTORY_MAX = 5; // Combat weapons + staves only
 export const CONSUMABLE_MAX = 3; // Separate consumables array
 export const CONVOY_WEAPON_CAPACITY = 20;
 export const CONVOY_CONSUMABLE_CAPACITY = 15;
+/** Item types the convoy's weapon bucket stores (weapons and staves; never Scroll or Breath). */
+export const CONVOY_WEAPON_TYPES = new Set([
+  'Sword',
+  'Lance',
+  'Axe',
+  'Bow',
+  'Tome',
+  'Light',
+  'Staff',
+]);
 export const SHOP_REROLL_COST = 150;
 export const SHOP_REROLL_ESCALATION = 50;
 export const AMBUSH_SHOP_DISCOUNT = 0.8; // 20% off for liberated ambush villages

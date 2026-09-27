@@ -1618,12 +1618,16 @@ function applyAccessoryStats(unit, accessory, sign) {
       unit.stats[stat] = (unit.stats[stat] || 0) + value * sign;
     }
   }
-  // Sync currentHP with max HP changes
-  if (accessory.effects.HP) {
+  // Sync currentHP with max HP changes. Equipping raises current HP with max HP;
+  // unequipping keeps missing HP constant, floored at 1 and never raising HP (a
+  // unit at 0 stays at 0), so an equip/unequip loop cannot heal: 10/20 → 15/25 → 10/20.
+  const hp = accessory.effects.HP;
+  if (hp) {
     if (sign > 0) {
-      unit.currentHP += accessory.effects.HP;
+      unit.currentHP += hp;
     } else {
-      unit.currentHP = Math.min(unit.currentHP, unit.stats.HP);
+      const current = unit.currentHP;
+      unit.currentHP = Math.min(unit.stats.HP, Math.max(Math.min(current, 1), current - hp));
     }
   }
 }

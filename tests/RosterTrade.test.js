@@ -161,11 +161,12 @@ function makeUnit({ name, type, inventory, weapon }) {
 
 describe('Roster trade weapon gating', () => {
   it('allows trading equipped last weapon between one-weapon units', () => {
-    const { overlay, scene } = makeOverlay();
+    const { overlay, rm, scene } = makeOverlay();
     const elfire = makeWeapon('Wildfire', 'Tome');
     const fire = makeWeapon('Fire', 'Tome');
     const unitA = makeUnit({ name: 'Iris', type: 'Tome', inventory: [elfire], weapon: elfire });
     const unitB = makeUnit({ name: 'Mora', type: 'Tome', inventory: [fire], weapon: fire });
+    rm.roster = [unitA, unitB];
 
     overlay._showTradeScreen(unitA, unitB);
     const leftRowHit = scene.created.rectangles.find(
@@ -183,13 +184,14 @@ describe('Roster trade weapon gating', () => {
   });
 
   it('keeps weapon rows disabled when recipient inventory is full', () => {
-    const { overlay, scene } = makeOverlay();
+    const { overlay, rm, scene } = makeOverlay();
     const sword = makeWeapon('Iron Sword', 'Sword');
     const filler = Array.from({ length: INVENTORY_MAX }, (_v, idx) =>
       makeWeapon(`Filler ${idx + 1}`, 'Axe'),
     );
     const unitA = makeUnit({ name: 'Edric', type: 'Sword', inventory: [sword], weapon: sword });
     const unitB = makeUnit({ name: 'Bran', type: 'Axe', inventory: filler, weapon: filler[0] });
+    rm.roster = [unitA, unitB];
 
     overlay._showTradeScreen(unitA, unitB);
 
@@ -225,6 +227,88 @@ describe('Roster trade weapon gating', () => {
     overlay._drawGearTab(40, 60, unit);
 
     expect(scene.created.texts.some((obj) => obj.text === '*')).toBe(true);
+  });
+});
+
+// The canvas fallback stays give-only, but its moves are ItemTrade's (applyTrade):
+// the same rules and the same writes as the DOM roster. Expectations by hand:
+// a give splices from the giver and appends to the receiver as the same instance;
+// an unarmed receiver equips a usable incoming weapon; a stale row moves nothing.
+describe('Roster trade (canvas) gives through ItemTrade', () => {
+  const leftHits = (scene) =>
+    scene.created.rectangles
+      .filter((obj) => obj._interactive && obj.alpha === 0 && obj.x < 360)
+      .sort((a, b) => a.y - b.y);
+  const supplyButton = (scene, name) =>
+    scene.created.texts.find(
+      (obj) => obj._interactive && typeof obj.text === 'string' && obj.text.includes(name),
+    );
+
+  function pair(rm) {
+    const sword = { ...makeWeapon('Iron Sword', 'Sword'), uid: 'uid-sword' };
+    const spare = { ...makeWeapon('Steel Sword', 'Sword'), uid: 'uid-spare' };
+    const unitA = makeUnit({
+      name: 'Edric',
+      type: 'Sword',
+      inventory: [sword, spare],
+      weapon: sword,
+    });
+    const unitB = makeUnit({ name: 'Kai', type: 'Sword', inventory: [], weapon: null });
+    rm.roster = [unitA, unitB];
+    return { sword, spare, unitA, unitB };
+  }
+
+  it('moves the same instance and the unarmed receiver equips it', () => {
+    const { overlay, rm, scene } = makeOverlay();
+    const { sword, spare, unitA, unitB } = pair(rm);
+    overlay._showTradeScreen(unitA, unitB);
+    // Rows in display order: Iron Sword (equipped), then Steel Sword.
+    leftHits(scene)[1].trigger('pointerdown');
+    expect(unitA.inventory).toEqual([sword]);
+    expect(unitA.weapon).toBe(sword);
+    expect(unitB.inventory).toHaveLength(1);
+    expect(unitB.inventory[0]).toBe(spare);
+    expect(unitB.inventory[0].uid).toBe('uid-spare');
+    expect(unitB.weapon).toBe(spare);
+  });
+
+  it('a stale weapon row moves nothing (no duplicate)', () => {
+    const { overlay, rm, scene } = makeOverlay();
+    const { sword, unitA, unitB } = pair(rm);
+    overlay._showTradeScreen(unitA, unitB);
+    const hit = leftHits(scene)[1];
+    unitA.inventory.splice(1, 1); // stored elsewhere after the screen was drawn
+    hit.trigger('pointerdown');
+    expect(unitA.inventory).toEqual([sword]);
+    expect(unitB.inventory).toEqual([]);
+    expect(unitB.weapon).toBeNull();
+  });
+
+  it('gives a supply into a free slot, and a stale supply row moves nothing', () => {
+    const { overlay, rm, scene } = makeOverlay();
+    const { unitA, unitB } = pair(rm);
+    const vulnerary = { name: 'Vulnerary', type: 'Consumable', uses: 3, uid: 'uid-vul' };
+    const elixir = { name: 'Elixir', type: 'Consumable', uses: 1, uid: 'uid-elx' };
+    unitA.consumables = [vulnerary, elixir];
+    overlay._showTradeScreen(unitA, unitB);
+    const elixirRow = supplyButton(scene, 'Elixir');
+    supplyButton(scene, 'Vulnerary').trigger('pointerdown');
+    expect(unitA.consumables).toEqual([elixir]);
+    expect(unitB.consumables).toEqual([vulnerary]);
+    // The Elixir row from the first draw is stale once the item is gone.
+    unitA.consumables = [];
+    elixirRow.trigger('pointerdown');
+    expect(unitB.consumables).toEqual([vulnerary]);
+  });
+
+  it('offers no give to or from a unit that left the roster', () => {
+    const { overlay, rm, scene } = makeOverlay();
+    const { unitA, unitB } = pair(rm);
+    rm.roster = [unitA];
+    unitA.consumables = [{ name: 'Vulnerary', type: 'Consumable', uses: 3 }];
+    overlay._showTradeScreen(unitA, unitB);
+    expect(leftHits(scene)).toEqual([]);
+    expect(supplyButton(scene, 'Vulnerary')).toBeUndefined();
   });
 });
 

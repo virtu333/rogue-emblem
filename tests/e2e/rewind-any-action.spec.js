@@ -71,6 +71,52 @@ function digest(page) {
   });
 }
 
+/** Every carried item by instance (uid) and slot, plus the equipped slot and move lock. */
+function bags(page) {
+  return page.evaluate(() =>
+    window.__emblemRogueGame.scene.getScene('Battle').playerUnits.map((u) => ({
+      id: u.battleEntityId,
+      inventory: (u.inventory || []).map((w) => [w.uid, w.name, w.uses ?? null, w._usesSpent ?? 0]),
+      consumables: (u.consumables || []).map((c) => [c.uid, c.name, c.uses ?? null]),
+      equipped: (u.inventory || []).indexOf(u.weapon),
+      weapon: u.weapon?.uid ?? null,
+      committed: u._movementCommitted === true,
+    })),
+  );
+}
+
+/**
+ * Edric carries five weapons (the Iron Sword equipped); Sera's five are the preset's
+ * (Glimmer equipped). Every item gets its uid, recorded as the turn-start loadout.
+ */
+async function fullBags(page) {
+  await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const { ensureItemUid } = await import('/src/utils/itemUid.js');
+    const weapon = (name) => structuredClone(s.gameData.weapons.find((w) => w.name === name));
+    const edric = s.playerUnits.find((u) => u.name === 'Edric');
+    edric.inventory.push(...['Steel Sword', 'Rapier', 'Iron Lance', 'Iron Axe'].map(weapon));
+    for (const u of s.playerUnits)
+      [...u.inventory, ...(u.consumables || [])].forEach(ensureItemUid);
+    s._timelineBoundary = 'turn_start';
+    s._captureSuspendCheckpoint();
+  });
+}
+
+/** Edric (phone HUD) swaps his equipped Iron Sword for Sera's equipped Glimmer. */
+async function swapWithSera(page) {
+  const hud = page.getByRole('complementary', { name: 'Battle commands' });
+  await select(page, 'Edric');
+  await hud.getByRole('button', { name: 'Trade', exact: true }).tap();
+  await tapTile(page, 2, 3);
+  const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
+  await trade.getByRole('button', { name: 'Iron Sword, equipped', exact: true }).tap();
+  await trade.getByRole('button', { name: 'Trade Iron Sword for Glimmer', exact: true }).tap();
+  await expect(trade.locator('.tm-status')).toHaveText('Traded Iron Sword for Glimmer.');
+  await trade.getByRole('button', { name: 'Done', exact: true }).tap();
+  await expect(trade).toHaveCount(0);
+}
+
 const charges = (page) =>
   page.evaluate(
     () => window.__emblemRogueGame.scene.getScene('Battle').runManager.visionChargesRemaining,
@@ -262,7 +308,9 @@ test.describe('phone 844×390', () => {
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const support = s.playerUnits.find((u) => u.name === 'Support');
-      support.consumables = [{ name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 }];
+      support.consumables = [
+        { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
+      ];
       // Fixture loadout belongs to the turn start, not to a free bag change.
       s._timelineBoundary = 'turn_start';
       s._captureSuspendCheckpoint();
@@ -271,11 +319,13 @@ test.describe('phone 844×390', () => {
     await hud.getByRole('button', { name: 'Trade', exact: true }).tap();
     await tapTile(page, 2, 4);
     const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
+    await trade.getByRole('tab', { name: /^Supplies/ }).tap();
+    await trade.getByRole('button', { name: 'Vulnerary', exact: true }).tap();
+    // Patient's free supply slots all read as the same give.
     await trade
-      .getByRole('button', { name: /^Vulnerary/ })
+      .getByRole('button', { name: 'Give Vulnerary to Patient', exact: true })
       .first()
       .tap();
-    await trade.getByRole('button', { name: 'Give Vulnerary to Patient', exact: true }).tap();
     await trade.getByRole('button', { name: 'Done', exact: true }).tap();
     // Leave the action menu: Support stays committed but has not acted.
     await page.keyboard.press('Escape');
@@ -297,6 +347,84 @@ test.describe('phone 844×390', () => {
     await picker.getByRole('button', { name: 'Rewind here · 1 charge', exact: true }).tap();
     await idle(page);
     expect(await digest(page)).toEqual(afterTrade);
+    expect(errors).toEqual([]);
+  });
+
+  test('rewinding to before a full–full trade restores both bags, uids and the equipped slot exactly', async ({
+    page,
+  }) => {
+    const errors = await boot(page);
+    const hud = page.getByRole('complementary', { name: 'Battle commands' });
+    await fullBags(page);
+    await select(page, 'Patient');
+    await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
+    await idle(page);
+    const beforeTrade = { board: await digest(page), bags: await bags(page) };
+    const edricId = beforeTrade.bags.find((u) => u.inventory.length === 5 && u.equipped === 0)?.id;
+    await swapWithSera(page);
+    await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
+    await acted(page, 'Edric');
+    await idle(page);
+    const traded = await bags(page);
+    // The swap really happened (each item took the other's slot 0, then each side
+    // re-equipped): otherwise the rewind below would prove nothing.
+    const uidsOf = (list, id) => list.find((u) => u.id === id).inventory.map((w) => w[0]);
+    expect(uidsOf(traded, edricId)).not.toEqual(uidsOf(beforeTrade.bags, edricId));
+    expect(new Set(uidsOf(traded, edricId))).not.toEqual(
+      new Set(uidsOf(beforeTrade.bags, edricId)),
+    );
+    await select(page, 'Utility');
+    await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
+    await idle(page);
+    await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
+    const picker = page.getByRole('dialog', { name: 'Rewind', exact: true });
+    await expect(picker.locator('.vr-row .vr-title')).toHaveText([
+      'Before Utility’s wait',
+      'Before Edric’s trade with Sera',
+      'Start of turn 1',
+    ]);
+    await picker.locator('.vr-row').nth(1).tap();
+    await expect(picker.locator('.vr-row').nth(1)).toHaveAttribute('aria-selected', 'true');
+    await picker.getByRole('button', { name: 'Rewind here · 1 charge', exact: true }).tap();
+    await expect(picker).toHaveCount(0);
+    await idle(page);
+    expect(await digest(page)).toEqual(beforeTrade.board);
+    expect(await bags(page)).toEqual(beforeTrade.bags);
+    // The restored equipped weapon is the carried instance, not a detached copy.
+    expect(
+      await page.evaluate(() =>
+        window.__emblemRogueGame.scene
+          .getScene('Battle')
+          .playerUnits.every((u) => !u.weapon || u.inventory.includes(u.weapon)),
+      ),
+    ).toBe(true);
+    expect(errors).toEqual([]);
+  });
+
+  test('a trade survives refresh → Resume exactly, with the move still locked in', async ({
+    page,
+  }) => {
+    const errors = await boot(page);
+    const hud = page.getByRole('complementary', { name: 'Battle commands' });
+    await fullBags(page);
+    const before = await bags(page);
+    await swapWithSera(page);
+    const traded = { board: await digest(page), bags: await bags(page) };
+    expect(traded.bags).not.toEqual(before);
+    const edric = traded.bags.find((u) => u.committed);
+    expect(edric).toBeTruthy();
+    await reloadSavedBattle(page);
+    expect(await digest(page)).toEqual(traded.board);
+    expect(await bags(page)).toEqual(traded.bags);
+    // Edric has not acted: he can still Wait (once), but the trade locked his move.
+    await select(page, 'Edric');
+    expect(
+      await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').battleState),
+    ).toBe('UNIT_ACTION_MENU');
+    await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
+    await acted(page, 'Edric');
+    await idle(page);
+    expect((await bags(page)).find((u) => u.id === edric.id)).toEqual(edric);
     expect(errors).toEqual([]);
   });
 

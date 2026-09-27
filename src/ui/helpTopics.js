@@ -118,6 +118,10 @@ export function convoyHelp({ weapons, consumables }) {
         { term: 'Store', text: 'moves a carried item into the convoy.' },
         { term: 'Withdraw', text: 'gives an item to the unit shown (tap it to pick another).' },
         {
+          term: 'Trade',
+          text: 'swaps a convoy item for a carried one when the unit’s bag is full.',
+        },
+        {
           term: 'Overflow',
           text: 'Rewards, purchases and a fallen ally’s gear land here when no one has room.',
         },

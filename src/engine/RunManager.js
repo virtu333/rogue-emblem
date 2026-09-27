@@ -23,6 +23,7 @@ import {
   XP_STAT_NAMES,
   CONVOY_WEAPON_CAPACITY,
   CONVOY_CONSUMABLE_CAPACITY,
+  CONVOY_WEAPON_TYPES,
   RECRUIT_SKILL_POOL,
   REVIVE_BASE_COST,
   REVIVE_COST_PER_LEVEL,
@@ -39,6 +40,7 @@ import {
   addToInventory,
   addToConsumables,
   equipAccessory,
+  unequipAccessory,
   canEquip,
   getClassInnateSkills,
   normalizeUnitClassState,
@@ -107,7 +109,6 @@ import { unitBaseClassName } from './ClassLineage.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = UNIT_PRESENTATION_FIELDS;
-const CONVOY_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff']);
 const WEAPON_ART_SPAWN_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 const WEAPON_ART_SPAWN_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
 const KNOWN_ACT_IDS = new Set(Object.keys(ACT_CONFIG));
@@ -3245,6 +3246,29 @@ export class RunManager {
    * Accessories route to the team accessory pool.
    * Items that cannot be transferred remain on the fallen unit.
    */
+  /**
+   * The caravan Merchant (CaravanSystem, `isCaravan`) is an escort NPC, never an army
+   * unit. Before Talk learned to ignore it (#139), a lord could recruit it; old saves
+   * can hold it on the roster or awaiting revival. Drop it from both; a roster copy's
+   * carried items go to the convoy and its accessory to the pool.
+   */
+  _dropCaravanUnits() {
+    if (!Array.isArray(this.roster) || !Array.isArray(this.fallenUnits)) return;
+    if (!this.convoy || typeof this.convoy !== 'object')
+      this.convoy = { weapons: [], consumables: [] };
+    if (!Array.isArray(this.convoy.weapons)) this.convoy.weapons = [];
+    if (!Array.isArray(this.convoy.consumables)) this.convoy.consumables = [];
+    if (!Array.isArray(this.accessories)) this.accessories = [];
+    for (const unit of this.roster.filter((u) => u?.isCaravan)) {
+      for (const item of [...(unit.inventory || []), ...(unit.consumables || [])])
+        this.addToConvoy(item);
+      const accessory = unit.accessory ? unequipAccessory(unit) : null;
+      if (accessory) this.accessories.push(accessory);
+    }
+    this.roster = this.roster.filter((u) => !u?.isCaravan);
+    this.fallenUnits = this.fallenUnits.filter((u) => !u?.isCaravan);
+  }
+
   _transferFallenUnitItems(fallenUnit) {
     if (!fallenUnit || typeof fallenUnit !== 'object') return;
     this._sanitizeUnitPools();
@@ -3299,8 +3323,10 @@ export class RunManager {
     fallenUnit.consumables = keptConsumables;
 
     if (fallenUnit.accessory) {
-      this.accessories.push(ensureItemUid(structuredClone(fallenUnit.accessory)));
-      fallenUnit.accessory = null;
+      // Unequip (reversing its stats and move type) before pooling, so the fallen
+      // unit keeps its base stats: a revived unit never carries a phantom bonus.
+      const accessory = unequipAccessory(fallenUnit);
+      this.accessories.push(ensureItemUid(structuredClone(accessory)));
     }
 
     relinkWeapon(fallenUnit);
@@ -3768,6 +3794,10 @@ export class RunManager {
       return { unlockedArtIds: [], displacedSkills: {} };
     this.actIndex++;
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
+    // The act boss has fallen: the army rests before the next act and starts it whole.
+    for (const unit of this.roster) {
+      if (unit?.stats) unit.currentHP = unit.stats.HP;
+    }
     this.nodeMap = this._withNodeMapSeed(() =>
       generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
         fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
@@ -4487,6 +4517,7 @@ export class RunManager {
     rm.accessories = saved.accessories || [];
     rm.scrolls = saved.scrolls || [];
     rm.convoy = saved.convoy || { weapons: [], consumables: [] };
+    rm._dropCaravanUnits();
     rm.randomLegendary = saved.randomLegendary || null;
     const rawActiveBlessings = Array.isArray(saved.activeBlessings) ? saved.activeBlessings : [];
     rm.blessingHistory = saved.blessingHistory || [];

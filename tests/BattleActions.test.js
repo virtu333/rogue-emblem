@@ -4,39 +4,31 @@
 
 import { describe, it, expect } from 'vitest';
 import { shouldCommitTradeExit, shouldAllowUndoMove } from '../src/engine/TradeFlow.js';
+import { canTradeBetween } from '../src/engine/ItemTrade.js';
 
-describe('Battle Actions - Trade', () => {
-  it('should validate trade requirements (items or space)', () => {
-    // Trade requires:
-    // - Adjacent ally exists
-    // - At least one unit has items AND the other has space for items
-    const unitWithItems = {
-      inventory: [{ name: 'Iron Sword' }],
-      consumables: [],
-    };
-    const unitWithSpace = {
-      inventory: [],
-      consumables: [],
-    };
+describe('Battle Actions - Trade (canTradeBetween)', () => {
+  const sword = () => ({ name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof' });
+  const tonic = () => ({ name: 'Vulnerary', type: 'Consumable', uses: 3 });
+  const unit = (inventory = [], consumables = []) => ({ inventory, consumables });
 
-    const unitHasItems =
-      (unitWithItems.inventory?.length || 0) + (unitWithItems.consumables?.length || 0) > 0;
-    const spaceHasSpace = (unitWithSpace.inventory?.length || 0) < 5; // INVENTORY_MAX
-
-    expect(unitHasItems).toBe(true);
-    expect(spaceHasSpace).toBe(true);
+  it('is offered when either unit carries a weapon or a supply', () => {
+    expect(canTradeBetween(unit([sword()]), unit())).toBe(true);
+    expect(canTradeBetween(unit(), unit([sword()]))).toBe(true);
+    expect(canTradeBetween(unit([], [tonic()]), unit())).toBe(true);
+    expect(canTradeBetween(unit(), unit([], [tonic()]))).toBe(true);
   });
 
-  it('should reject trade when both units are full and have no items', () => {
-    const emptyUnit = {
-      inventory: [],
-      consumables: [],
-    };
+  it('is offered between two full bags (a swap needs no free slot)', () => {
+    const full = () => unit([1, 2, 3, 4, 5].map(sword), [tonic(), tonic(), tonic()]);
+    expect(canTradeBetween(full(), full())).toBe(true);
+  });
 
-    const unitHasItems =
-      (emptyUnit.inventory?.length || 0) + (emptyUnit.consumables?.length || 0) > 0;
-
-    expect(unitHasItems).toBe(false);
+  it('is not offered when neither carries anything, or without a partner', () => {
+    expect(canTradeBetween(unit(), unit())).toBe(false);
+    expect(canTradeBetween({}, {})).toBe(false);
+    const a = unit([sword()]);
+    expect(canTradeBetween(a, a)).toBe(false);
+    expect(canTradeBetween(a, null)).toBe(false);
   });
 });
 
@@ -107,12 +99,6 @@ describe('Battle Actions - Dance', () => {
 describe('Battle Actions - Integration Notes', () => {
   it('documents expected behavior for manual testing', () => {
     const testingChecklist = {
-      Trade: [
-        'Appears when adjacent ally exists with items/space',
-        'Opens two-column UI with clickable items',
-        'Transfers weapons and consumables',
-        'Done button ends turn',
-      ],
       Swap: [
         'Both units animate to swapped positions',
         'Infantry↔Flying swap works on varied terrain',
@@ -126,7 +112,6 @@ describe('Battle Actions - Integration Notes', () => {
       ],
     };
 
-    expect(testingChecklist.Trade.length).toBe(4);
     expect(testingChecklist.Swap.length).toBe(3);
     expect(testingChecklist.Dance.length).toBe(4);
   });

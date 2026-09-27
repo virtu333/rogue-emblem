@@ -50,4 +50,16 @@ describe('roster teaching and transfers', () => {
     expect(giveRosterItemBlock(run, a, a, sword)).toBeTruthy();
     expect(a.inventory).toEqual([sword]);
   });
+  it('gives the same instance and keeps the picker wording', () => {
+    const { a, b, sword, run } = fixture();
+    expect(giveRosterItemBlock(run, a, a, sword)).toBe('Already carried by this unit.');
+    b.inventory = Array.from({ length: 5 }, (_, n) => ({ name: `Other ${n}`, type: 'Sword' }));
+    expect(giveRosterItemBlock(run, a, b, sword)).toBe('Bag full.');
+    expect(giveRosterItem(run, a, b, sword)).toEqual({ ok: false, reason: 'Bag full.' });
+    b.inventory = [];
+    expect(giveRosterItemBlock(run, a, { ...b }, sword)).toBe('Unit is no longer in the roster.');
+    expect(giveRosterItem(run, a, b, sword).ok).toBe(true);
+    expect(b.inventory[0]).toBe(sword);
+    expect(giveRosterItemBlock(run, a, b, sword)).toBe('Item is no longer available.');
+  });
 });

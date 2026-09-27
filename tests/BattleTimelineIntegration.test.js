@@ -494,31 +494,34 @@ describe('production timeline boundaries and recovery', () => {
 describe('battlefield presentation integration', () => {
   it('preserves A trade → C action → A action chronology and parent identity across reload', async () => {
     const { scene, run } = fixture();
-    const { BattleTradeMenu } = await import('../src/ui/BattleTradeMenu.js');
+    const { battleTradeController } = await import('../src/ui/BattleTradeController.js');
+    const { unitHolder } = await import('../src/engine/ItemTrade.js');
     const { rememberHistoryPath } = await import('../src/ui/BattleHistoryRecorder.js');
     const { hydrateBattleTimeline } = await import('../src/engine/BattleTimeline.js');
     const { historyFrameAt } = await import('../src/engine/BattleHistoryPresentation.js');
     const [a, c] = scene.playerUnits;
+    // A walks (1,1) → (2,1) → (2,2), beside C at (1,2), then gives C a Vulnerary.
     const origin = { col: a.col, row: a.row };
-    rememberHistoryPath(scene, a, [origin, { col: a.col + 1, row: a.row }]);
-    a.col++;
-    const item = { name: 'Vulnerary', uses: 3 };
+    const path = [origin, { col: 2, row: 1 }, { col: 2, row: 2 }];
+    rememberHistoryPath(scene, a, path);
+    Object.assign(a, { col: 2, row: 2 });
+    const item = { name: 'Vulnerary', type: 'Consumable', uses: 3 };
     a.consumables = [item];
     c.consumables = [];
+    scene.selectedUnit = a;
     scene.battleState = 'TRADING';
-    BattleTradeMenu.prototype.transfer.call({
-      scene,
-      left: a,
-      right: c,
-      selection: { owner: a, recipient: c, item, key: 'consumables', cap: 3 },
-      render() {},
-      surface: { focusContent() {} },
-    });
+    const given = battleTradeController(scene).commit(
+      a,
+      c,
+      { holder: unitHolder(a), bag: 'consumables', item },
+      { holder: unitHolder(c), bag: 'consumables', item: null },
+    );
+    expect(given).toMatchObject({ ok: true, kind: 'give', detail: 'Vulnerary' });
     let archive = scene._battleTimeline.presentation;
     expect(archive).not.toBeNull();
     const trade = archive.records.at(-1);
     expect(trade.kind).toBe('recovery');
-    expect(trade.beats[0].path).toEqual([origin, { col: a.col, row: a.row }]);
+    expect(trade.beats[0].path).toEqual(path);
     expect(trade.beats[1].type).toBe('traded with');
     // The optional parent registry is recovered from the same persisted history.
     scene._battleTimeline = hydrateBattleTimeline(

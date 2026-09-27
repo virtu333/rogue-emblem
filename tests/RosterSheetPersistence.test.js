@@ -63,6 +63,14 @@ async function confirm(sheet, choice) {
   await vi.advanceTimersByTimeAsync(0);
 }
 
+// The trade menu opens holding the item; its first slot on the other side takes it.
+function commitToFirstRow(sheet) {
+  const row = sheet.picker.surface.root
+    .querySelectorAll('.tm-row')
+    .find((el) => el.dataset.side === 'right' && el.dataset.index === '0');
+  row.click();
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   installFakeDom(vi);
@@ -76,13 +84,15 @@ afterEach(() => {
 });
 
 describe('roster sheet saves each change as it applies', () => {
-  it('giving an item to another unit', async () => {
+  it('trading an item to another unit', async () => {
     const { sheet, archer, fighter } = setup();
     const vulnerary = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
     archer.consumables = [vulnerary];
-    sheet.giveItem(archer, vulnerary);
+    fighter.consumables = [];
+    sheet.tradeItem(archer, vulnerary);
     await confirm(sheet, fighter);
-    expect(fighter.consumables.map((c) => c.name)).toContain('Vulnerary');
+    commitToFirstRow(sheet);
+    expect(fighter.consumables).toEqual([vulnerary]);
     expect(archer.consumables).toEqual([]);
     expect(saveServiceRun).toHaveBeenCalledTimes(1);
     sheet.destroy();
@@ -94,11 +104,11 @@ describe('roster sheet saves each change as it applies', () => {
       gameData.weapons.find((w) => w.type === 'Lance' && w.tier === 'Iron'),
     );
     archer.inventory.push(lance);
-    sheet.giveItem(archer, lance);
+    sheet.tradeItem(archer, lance);
     // Fighters carry axes only; no Mast/Prof code reaches the player.
     const rows = sheet.picker.surface.body.querySelectorAll('button').map((b) => b.textContent);
     expect(rows).toContain(
-      `${fighter.name}Needs Lance proficiency · ${fighter.inventory.length}/5 items`,
+      `${fighter.name}Items ${fighter.inventory.length}/5 · Needs Lance proficiency`,
     );
     sheet.destroy();
   });
@@ -157,8 +167,10 @@ describe('roster sheet saves each change as it applies', () => {
     const { sheet, archer, fighter } = setup({ persist });
     const vulnerary = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
     archer.consumables = [vulnerary];
-    sheet.giveItem(archer, vulnerary);
+    fighter.consumables = [];
+    sheet.tradeItem(archer, vulnerary);
     await confirm(sheet, fighter);
+    commitToFirstRow(sheet);
     expect(persist).toHaveBeenCalledTimes(1);
     expect(saveServiceRun).not.toHaveBeenCalled();
     sheet.destroy();
