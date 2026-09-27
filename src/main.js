@@ -46,8 +46,9 @@ const GAME_INSTANCE_KEY = '__emblemRogueGame';
 const SHARED_AUDIO_CTX_KEY = '__emblemRogueSharedAudioContext';
 const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 const startupFlags = getStartupFlags();
-// `?portrait=1|0` opts this device in or out of portrait mode (beta); `portrait-ui`
-// on <html> then follows the phone for the life of the page.
+// Portrait mode is on by default on phones; `?portrait=0|1` turns it off or on for this
+// device (the escape hatch). `portrait-ui` on <html> then follows the phone for the
+// life of the page.
 applyPortraitQuery();
 installPortraitUi();
 if (startupFlags.isMobile) document.documentElement.classList.add('touch-ui');

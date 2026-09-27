@@ -455,7 +455,8 @@
       }
       .sw-update-restart,
       .sw-update-dismiss,
-      #rotate-lock {
+      #rotate-lock,
+      #rotate-portrait {
         min-width: 44px;
         min-height: 44px;
       }
@@ -465,7 +466,9 @@
           sans-serif;
         letter-spacing: 0;
       }
-      #rotate-lock {
+      #rotate-lock,
+      #rotate-portrait {
+        margin-top: 12px;
         color: #eee;
         background: #232638;
         border: 1px solid #8888aa;
@@ -547,6 +550,7 @@
     <div id="rotate-prompt" role="status" aria-live="polite">
       <p>&#x21bb; Rotate your device to landscape</p>
       <button type="button" id="rotate-lock" hidden>Use landscape</button>
+      <button type="button" id="rotate-portrait" hidden>Play upright</button>
     </div>
 
     <script>

@@ -1,4 +1,4 @@
-/* Portrait mode (beta): the shared menu kit on an upright phone. Every rule keys off
+/* Portrait mode: the shared menu kit on an upright phone. Every rule keys off
    html.portrait-ui (utils/portraitBattle.js installPortraitUi), so landscape and
    desktop are unchanged; the orientation query keeps the class inert if it is ever
    present on a landscape page. Screen-specific portrait layouts live with their screens. */

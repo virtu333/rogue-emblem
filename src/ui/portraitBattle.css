@@ -1,4 +1,4 @@
-/* Portrait battles (beta) — PortraitBattleController sets the classes on <html>.
+/* Portrait battles — PortraitBattleController sets the classes on <html>.
    portrait-battle-capable: this battle can be played upright. The rotate prompt stays
    away for its whole length (deployment and rewards still ask for landscape) and the
    layout follows the phone at once; the upright board itself (class portrait-battle)
@@ -6,9 +6,11 @@
 
 /* Portrait mode (utils/portraitBattle.js installPortraitUi): the whole page follows an
    upright phone, so the rotate prompt never shows. */
-html.portrait-ui #rotate-prompt,
-html.portrait-battle-capable #rotate-prompt {
-  display: none !important;
+@media (orientation: portrait) {
+  html.portrait-ui #rotate-prompt,
+  html.portrait-battle-capable #rotate-prompt {
+    display: none !important;
+  }
 }
 
 /* Layout switch pending (phone turned mid-action): a quiet line over the map. */

@@ -1,4 +1,4 @@
-// PortraitBattleController — portrait battles (beta) on phones.
+// PortraitBattleController — portrait battles on phones.
 //
 // Owns the battle's upright presentation: decides whether the board is drawn turned
 // (player side at the bottom), keeps the page classes that switch the phone layout
@@ -146,6 +146,17 @@ export class PortraitBattleController {
     );
   }
 
+  /** A press or camera gesture is under way on the board (wait for its release). */
+  _gestureActive() {
+    const s = this.scene;
+    return Boolean(
+      s._battleCamera?.hasActiveTouches?.() ||
+      s._touchTapDown ||
+      s._touchHoldStart ||
+      s.input?.activePointer?.isDown,
+    );
+  }
+
   switchState() {
     const s = this.scene;
     return {
@@ -162,6 +173,7 @@ export class PortraitBattleController {
       battleState: s.battleState,
       transitioning: Boolean(this.switching || s.isTransitioningOut),
       modalOpen: this._modalOpen(),
+      gestureActive: this._gestureActive(),
     };
   }
 

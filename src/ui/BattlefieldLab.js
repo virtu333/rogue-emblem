@@ -45,6 +45,22 @@ export function battleCanvasSize(cssWidth, cssHeight, k = 1) {
   };
 }
 
+/**
+ * The camera zoom that keeps a map tile the same size on screen when the panel or its
+ * canvas is resized. Screen size of a world unit = zoom x (CSS px per canvas px), so
+ * the zoom scales by the old CSS-per-canvas ratio over the new one. Landscape keeps a
+ * fixed 480 px canvas height, so there this is zoom x oldCssHeight / newCssHeight;
+ * a portrait canvas keeps its width and grows with the panel's height, so a
+ * height-only resize keeps the zoom. Pure.
+ */
+export function resizedZoom(zoom, before, after) {
+  const scale = (size) => size.cssHeight / size.canvasHeight;
+  const from = scale(before);
+  const to = scale(after);
+  if (!(from > 0) || !(to > 0)) return zoom;
+  return (zoom * from) / to;
+}
+
 /** Vertical band (canvas px) holding the 640x480 pinned layout on a tall canvas. Pure. */
 export function uiBand(width, height, k = 1) {
   const bandHeight = Math.min(height, Math.round(480 * k));
@@ -110,11 +126,19 @@ export class BattlefieldLab {
       ? {
           x: cam.scrollX + cam.width / 2,
           y: cam.scrollY + cam.height / 2,
-          zoom: (cam.zoom * this.viewHeight) / rect.height,
+          // Tiles keep their on-screen size, whichever way the canvas grew.
+          zoom: resizedZoom(
+            cam.zoom,
+            { cssHeight: this.viewHeight, canvasHeight: this.canvasHeight },
+            { cssHeight: rect.height, canvasHeight: height },
+          ),
           overview: Math.abs(cam.zoom - s._battleCamera?.minZoom) < 0.001,
         }
       : null;
     this.viewHeight = rect.height;
+    this.canvasHeight = height;
+    // A press begun under the old geometry would land on another tile: drop it.
+    if (previous) s._inputController?.invalidatePointerGestures?.();
     this.renderScale = k;
     this.portrait = portrait;
     s.scale.setGameSize(width, height);

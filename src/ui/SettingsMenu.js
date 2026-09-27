@@ -178,14 +178,14 @@ export class SettingsMenu {
         're-muted',
       ),
     );
-    // Phones only: device-local, never synced (see utils/portraitBattle.js). Not in the
-    // iOS app or the installed web app, which hold the screen in landscape.
+    // Touch devices only: device-local, never synced (see utils/portraitBattle.js). On by
+    // default on a phone. Not in the iPad app, which holds the screen in landscape.
     if (showPortraitBattleSetting({ mobile: detectMobileRuntime() })) {
       toggle(
-        'Portrait mode (beta)',
+        'Portrait mode',
         () => getPortraitBattlePreference(),
         (value) => setPortraitBattlePreference(value),
-        'Play with the phone upright. In battle the map turns so your army starts at the bottom (from your next turn). Some screens are still being adapted.',
+        'Play with the device upright. In battle the map turns so your army starts at the bottom (from your next turn). Off: the game always plays sideways.',
       );
     }
     this.surface.body.append(list);

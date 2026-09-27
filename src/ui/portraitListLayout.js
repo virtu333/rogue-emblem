@@ -1,6 +1,6 @@
 // Portrait mode for the list-and-detail screens (Reference menus, roster sheet).
 //
-// The portrait shell sets `portrait-ui` on <html> while an opted-in phone is held
+// The portrait shell sets `portrait-ui` on <html> while a phone in portrait mode is held
 // upright and announces each change with PORTRAIT_UI_EVENT. The CSS for these
 // screens keys off that class *and* `(orientation: portrait)`; the few behaviours
 // that need script (a master -> detail step, a Back button) ask the same question
