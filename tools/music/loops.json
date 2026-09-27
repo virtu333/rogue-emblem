@@ -457,20 +457,20 @@
     "lufs": -14.01,
     "peakDb": -1.09,
     "score": "battle_escape_2",
-    "seamDb": -66.9,
+    "seamDb": -67.4,
     "title": "We Came This Far Also",
-    "tonic": "D"
+    "tonic": "F"
   },
   "music_battle_escape_2_calm": {
     "duration": 73.566,
     "loopEnd": 72.96551,
     "loopStart": 6.758617,
     "lufs": -17.0,
-    "peakDb": -4.83,
+    "peakDb": -4.54,
     "score": "battle_escape_2",
-    "seamDb": -76.3,
+    "seamDb": -75.3,
     "title": "We Came This Far Also",
-    "tonic": "D"
+    "tonic": "F"
   },
   "music_battle_escape_calm": {
     "duration": 62.378,
