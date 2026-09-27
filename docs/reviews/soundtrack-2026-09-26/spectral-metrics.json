@@ -1,0 +1,38 @@
+[
+  {
+    "key": "music_explore_deep",
+    "bands_energy_pct": {
+      "0-150Hz": 18.4,
+      "150-500Hz": 69.1,
+      "500-4000Hz": 12.5,
+      "4000-22051Hz": 0.0
+    }
+  },
+  {
+    "key": "music_explore_act4",
+    "bands_energy_pct": {
+      "0-150Hz": 17.9,
+      "150-500Hz": 33.3,
+      "500-4000Hz": 48.8,
+      "4000-22051Hz": 0.0
+    }
+  },
+  {
+    "key": "music_boss_entity",
+    "bands_energy_pct": {
+      "0-150Hz": 33.5,
+      "150-500Hz": 36.1,
+      "500-4000Hz": 30.2,
+      "4000-22051Hz": 0.2
+    }
+  },
+  {
+    "key": "music_explore_act1",
+    "bands_energy_pct": {
+      "0-150Hz": 10.8,
+      "150-500Hz": 29.2,
+      "500-4000Hz": 59.3,
+      "4000-22051Hz": 0.7
+    }
+  }
+]
