@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installFakeDom, FakeEvent } from './helpers/fakeDom.js';
 import { CONVOY, fakeEngine, supply, unit, weapon } from './helpers/fakeTradeEngine.js';
-import { TradeMenu } from '../src/ui/TradeMenu.js';
+import { TradeMenu, tradeItemBrief } from '../src/ui/TradeMenu.js';
 import { InputAction } from '../src/utils/InputActions.js';
 import { _resetInputFocus, dispatchInputAction } from '../src/utils/inputFocus.js';
 import { cancelTopOverlay } from '../src/utils/overlayStack.js';
@@ -100,6 +100,14 @@ function pair() {
   const sera = unit('Sera', { inventory: [lance], cannotEquip: ['Rapier'] });
   return { iron, rapier, lance, edric, sera };
 }
+
+describe('item lines', () => {
+  it('a staff in the convoy (no wielder) shows its base range instead of breaking', () => {
+    const staff = { name: 'Silence Staff', type: 'Staff', range: '3-7', uses: 2 };
+    expect(tradeItemBrief(staff, null)).toBe('Staff · Rng 3-7');
+    expect(tradeItemBrief(staff, undefined)).toBe('Staff · Rng 3-7');
+  });
+});
 
 describe('structure', () => {
   it('a titled dialog with bag tabs, two labelled columns, a live status and Done', () => {
