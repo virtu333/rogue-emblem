@@ -28,6 +28,8 @@ import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.j
 import { earlyEnemyAllowed } from '../engine/EarlyEnemyRules.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { BattleTradeMenu } from '../ui/BattleTradeMenu.js';
+import { battleTradeController } from '../ui/BattleTradeController.js';
+import { canTradeBetween, unitHolder } from '../engine/ItemTrade.js';
 import { routeMobileAction } from '../utils/overlayStack.js';
 import { canUseTouchUI } from '../utils/domUI.js';
 import { unitPortraitKey } from '../ui/RebuiltPortraits.js';
@@ -88,7 +90,6 @@ import {
   resolvePromotionTargetClass,
   grantSecondaryWeapons,
   checkLevelUpSkills,
-  removeFromInventory,
   hasProficiency,
   canEquip,
   applyStatBoost,
@@ -96,7 +97,6 @@ import {
   getReclassTargets,
   reclassUnit,
   inventoryDisplayOrder,
-  equipIfUnarmed,
 } from '../engine/UnitManager.js';
 import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
 import { getXpShareRatio, getXpShareRecipients, calculateSharedXp } from '../engine/XpShare.js';
@@ -528,6 +528,8 @@ export class BattleScene extends Phaser.Scene {
     this._stopLevelUpSfx();
     this.battleTradeMenu?.destroy();
     this.battleTradeMenu = null;
+    this._tradeController?.destroy();
+    this._tradeController = null;
     const menuCleanup = this._actionMenuCleanup;
     this._actionMenuCleanup = null;
     menuCleanup?.();
@@ -5050,21 +5052,8 @@ export class BattleScene extends Phaser.Scene {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
       const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally) continue;
-
-      // Both units must have items OR space for items
-      const unitHasItems = (unit.inventory?.length || 0) + (unit.consumables?.length || 0) > 0;
-      const allyHasItems = (ally.inventory?.length || 0) + (ally.consumables?.length || 0) > 0;
-      const unitHasSpace =
-        (unit.inventory?.length || 0) < INVENTORY_MAX ||
-        (unit.consumables?.length || 0) < CONSUMABLE_MAX;
-      const allyHasSpace =
-        (ally.inventory?.length || 0) < INVENTORY_MAX ||
-        (ally.consumables?.length || 0) < CONSUMABLE_MAX;
-
-      if ((unitHasItems && allyHasSpace) || (allyHasItems && unitHasSpace)) {
-        targets.push({ ally });
-      }
+      // Give into a free slot or swap: two full bags can still trade.
+      if (ally && canTradeBetween(unit, ally)) targets.push({ ally });
     }
     return targets;
   }
@@ -5311,6 +5300,19 @@ export class BattleScene extends Phaser.Scene {
       .setDepth(401);
     this.tradeUIObjects.push(leftName, rightName, leftCounts, rightCounts);
 
+    // Give-only rows (headless fallback); the write is the controller's.
+    const giveCanvasItem = (giver, receiver, bag, item) => {
+      const result = battleTradeController(this).commit(
+        unitA,
+        unitB,
+        { holder: unitHolder(giver), bag, item },
+        { holder: unitHolder(receiver), bag, item: null },
+      );
+      if (!result.ok) return;
+      this.cleanupTradeUI();
+      this.showBattleTradeUI(unitA, unitB);
+    };
+
     // Two-column item lists (weapons + consumables)
     let yOffset = 90;
     const drawItems = (unit, x, otherUnit) => {
@@ -5349,21 +5351,7 @@ export class BattleScene extends Phaser.Scene {
           btn.on('pointerout', () => btn.setColor(color));
           btn.on('pointerdown', (pointer) => {
             if (pointer?.button !== 0) return;
-            if ((otherUnit.inventory?.length || 0) < INVENTORY_MAX) {
-              removeFromInventory(unit, item);
-              if (addToInventory(otherUnit, item))
-                equipIfUnarmed(otherUnit, otherUnit.inventory.at(-1));
-              if (!this.tradeMutatedThisSession) {
-                this.tradeMutatedThisSession = true;
-                unitA._movementCommitted = true;
-                this.preMoveLoc = null;
-                this.commitVisionSnapshotIfPending();
-              }
-              observeHistoryAction(this, 'traded with', unitA, unitB, item.name);
-              this._captureSuspendCheckpoint?.();
-              this.cleanupTradeUI();
-              this.showBattleTradeUI(unitA, unitB);
-            }
+            giveCanvasItem(unit, otherUnit, 'inventory', item);
           });
         }
         this.tradeUIObjects.push(btn);
@@ -5392,20 +5380,7 @@ export class BattleScene extends Phaser.Scene {
           btn.on('pointerout', () => btn.setColor(color));
           btn.on('pointerdown', (pointer) => {
             if (pointer?.button !== 0) return;
-            const idx = unit.consumables.indexOf(item);
-            if (idx !== -1) unit.consumables.splice(idx, 1);
-            if (!otherUnit.consumables) otherUnit.consumables = [];
-            otherUnit.consumables.push(item);
-            if (!this.tradeMutatedThisSession) {
-              this.tradeMutatedThisSession = true;
-              unitA._movementCommitted = true;
-              this.preMoveLoc = null;
-              this.commitVisionSnapshotIfPending();
-            }
-            observeHistoryAction(this, 'traded with', unitA, unitB, item.name);
-            this._captureSuspendCheckpoint?.();
-            this.cleanupTradeUI();
-            this.showBattleTradeUI(unitA, unitB);
+            giveCanvasItem(unit, otherUnit, 'consumables', item);
           });
         }
         this.tradeUIObjects.push(btn);

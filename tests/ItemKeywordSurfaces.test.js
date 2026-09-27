@@ -122,17 +122,13 @@ describe('battle trade', () => {
     const javelin = weapon('Javelin');
     const left = { name: 'Harl', inventory: [javelin], consumables: [], weapon: javelin };
     const right = { name: 'Brom', inventory: [], consumables: [], weapon: null };
-    const menu = Object.create(BattleTradeMenu.prototype);
-    Object.assign(menu, {
-      scene: {},
-      left,
-      right,
-      surface: { body: document.createElement('div') },
-    });
-    menu.render();
-    const row = menu.surface.body.querySelectorAll('.re-row')[0];
+    const menu = new BattleTradeMenu({ events: eventsFor() }, left, right, { commit: vi.fn() });
+    const row = menu.menu.surface.root
+      .querySelectorAll('.tm-row')
+      .find((r) => r.dataset.side === 'left' && r.dataset.index === '0');
     const detail = row.children.find((c) => c.tagName === 'SMALL').textContent;
     expect(detail).toMatch(/^Lance · Mt \d+ · Hit \d+ · Wt \d+ · Thrown$/);
+    menu.destroy();
   });
 });
 

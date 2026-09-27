@@ -119,6 +119,24 @@ test('battle trade transfers once and commits movement; rewind confirmation is n
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const [a, b] = s.playerUnits;
+    // Trading needs a neighbour: stand b on a free tile beside a.
+    const beside = [
+      [0, 1],
+      [1, 0],
+      [0, -1],
+      [-1, 0],
+    ]
+      .map(([dc, dr]) => ({ col: a.col + dc, row: a.row + dr }))
+      .find(
+        (p) =>
+          p.col >= 0 &&
+          p.row >= 0 &&
+          p.col < s.grid.cols &&
+          p.row < s.grid.rows &&
+          [undefined, null, b].includes(s.getUnitAt(p.col, p.row)),
+      );
+    Object.assign(b, beside);
+    s.updateUnitPosition(b);
     b.consumables = [];
     a.consumables = [
       { name: 'Test Vulnerary', type: 'Consumable', effect: 'heal', uses: 3, value: 10 },
@@ -127,8 +145,14 @@ test('battle trade transfers once and commits movement; rewind confirmation is n
     s.showBattleTradeUI(a, b);
   });
   const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
-  await trade.getByRole('button', { name: /Test Vulnerary.*Give to/ }).tap();
-  await trade.getByRole('button', { name: /^Give Test Vulnerary/ }).tap();
+  const tab = trade.getByRole('tab', { name: /^Supplies/ });
+  if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.tap();
+  await trade.getByRole('button', { name: 'Test Vulnerary', exact: true }).tap();
+  // Every free slot on the other side reads "Give Test Vulnerary to ⟨b⟩".
+  await trade
+    .getByRole('button', { name: /^Give Test Vulnerary to / })
+    .first()
+    .tap();
   expect(
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
