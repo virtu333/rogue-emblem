@@ -96,9 +96,9 @@ The current strict-slice windows are anchored to intentional gameplay shifts:
     reach the cap).
 
 - `progression_invincible` (`min_avg_recruits` 0.50 → 0.00): the army heals to full after
-  each act boss (`RunManager.advanceAct`), on branch `claude/item-trade`
+  each act boss (`RunManager.advanceAct`), on branch `claude/eloquent-edison-98qbyl`
   - attribution: `npm run sim:fullrun:triage -- --slice progression_invincible --range
-    0dda4bd1..a9933ea4` → `first_bad_sha=a9933ea4661d`, `parent_sha=0dda4bd1f813`; failing
+    edf39134..651f2f3e` → `first_bad_sha=651f2f3e4024`, `parent_sha=edf39134fe9b`; failing
     metric `avg_recruits=0.00 < threshold=0.50`; touched files `src/engine/RunManager.js`,
     `tests/RunManager.test.js`.
   - observed shift (seeds 201-206, normal, invincible): `avg_recruits` 0.50 → 0.00,
