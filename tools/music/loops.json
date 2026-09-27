@@ -517,24 +517,24 @@
     "tonic": "G"
   },
   "music_battle_fog_2": {
-    "duration": 75.754,
-    "loopEnd": 75.153832,
+    "duration": 76.523,
+    "loopEnd": 75.923061,
     "loopStart": 8.615374,
-    "lufs": -14.01,
+    "lufs": -14.0,
     "peakDb": -1.09,
     "score": "battle_fog_2",
-    "seamDb": -60.5,
+    "seamDb": -59.7,
     "title": "Out of Step",
     "tonic": "D"
   },
   "music_battle_fog_2_calm": {
-    "duration": 75.754,
-    "loopEnd": 75.153832,
+    "duration": 76.523,
+    "loopEnd": 75.923061,
     "loopStart": 8.615374,
     "lufs": -17.0,
-    "peakDb": -4.79,
+    "peakDb": -4.49,
     "score": "battle_fog_2",
-    "seamDb": -67.7,
+    "seamDb": -71.1,
     "title": "Out of Step",
     "tonic": "D"
   },
