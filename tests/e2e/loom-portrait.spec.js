@@ -14,7 +14,8 @@ const PORTRAIT_UI_EVENT = 'emblem-rogue:portrait-ui';
 async function openRoute(page, viewport, { portraitUi = true } = {}) {
   await page.setViewportSize(viewport);
   await page.addInitScript((on) => {
-    if (on) localStorage.setItem('emblem_rogue_portrait_battles', 'on');
+    // Portrait mode is on by default on a phone: "without it" means turned off.
+    localStorage.setItem('emblem_rogue_portrait_battles', on ? 'on' : 'off');
     document.addEventListener('DOMContentLoaded', () => {
       if (on) document.documentElement.classList.add('portrait-ui');
       const style = document.createElement('style');

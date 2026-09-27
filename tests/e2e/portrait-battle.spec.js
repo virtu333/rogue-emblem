@@ -400,44 +400,62 @@ test('without the opt-in an upright phone still asks for landscape', async ({ pa
   expect(info).toEqual({ rotation: 'none', prompt: 'flex' });
 });
 
-// The iOS app (Info.plist) and the installed web app (manifest) hold the screen in
-// landscape, so the beta is not offered there: no Settings toggle, and a stored opt-in
-// (the installed web app shares storage with the browser tab that set it) changes
-// nothing: the board is not turned, the page is not in portrait mode and the rotate
-// prompt shows.
+// Where portrait mode is offered. A phone turns upright in the browser tab, the
+// installed web app (the manifest asks for any orientation) and the iPhone app
+// (Info.plist allows portrait on iPhone). The iPad app stays in landscape
+// (UISupportedInterfaceOrientations~ipad), so there a stored "on" changes nothing: no
+// Settings toggle, the board is not turned and the rotate prompt shows. Nothing clears
+// the stored choice (the installed web app shares storage with the browser tab).
+const capacitor = () => {
+  window.Capacitor = {
+    nativePromise: () => Promise.reject(new Error('no native bridge in this test')),
+    isNativePlatform: () => true,
+    getPlatform: () => 'ios',
+    PluginHeaders: [],
+  };
+};
 const SHELLS = {
-  'browser tab': () => {},
-  'installed web app': () => {
-    const matchMedia = window.matchMedia.bind(window);
-    window.matchMedia = (query) =>
-      /display-mode/.test(query)
-        ? {
-            matches: query === '(display-mode: standalone)',
-            media: query,
-            onchange: null,
-            addEventListener() {},
-            removeEventListener() {},
-            addListener() {},
-            removeListener() {},
-          }
-        : matchMedia(query);
+  'browser tab': { offered: true, install: () => {} },
+  'installed web app': {
+    offered: true,
+    install: () => {
+      const matchMedia = window.matchMedia.bind(window);
+      window.matchMedia = (query) =>
+        /display-mode/.test(query)
+          ? {
+              matches: query === '(display-mode: standalone)',
+              media: query,
+              onchange: null,
+              addEventListener() {},
+              removeEventListener() {},
+              addListener() {},
+              removeListener() {},
+            }
+          : matchMedia(query);
+    },
   },
-  'iOS app': () => {
-    window.Capacitor = {
-      nativePromise: () => Promise.reject(new Error('no native bridge in this test')),
-      isNativePlatform: () => true,
-      getPlatform: () => 'ios',
-      PluginHeaders: [],
-    };
+  'iPhone app': { offered: true, install: capacitor },
+  'iPad app': {
+    offered: false,
+    install: () => {
+      // An iPad's screen (short side 820), whatever the test viewport.
+      Object.defineProperty(window.screen, 'width', { get: () => 820 });
+      Object.defineProperty(window.screen, 'height', { get: () => 1180 });
+      window.Capacitor = {
+        nativePromise: () => Promise.reject(new Error('no native bridge in this test')),
+        isNativePlatform: () => true,
+        getPlatform: () => 'ios',
+        PluginHeaders: [],
+      };
+    },
   },
 };
-for (const [shell, install] of Object.entries(SHELLS)) {
-  test(`portrait battles in the ${shell}: toggle and stored opt-in`, async ({ page }) => {
+for (const [shell, { offered, install }] of Object.entries(SHELLS)) {
+  test(`portrait mode in the ${shell}: toggle and stored choice`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.addInitScript(install);
     await page.addInitScript(() => localStorage.setItem('emblem_rogue_portrait_battles', 'on'));
     await bootBattle(page, '');
-    const offered = shell === 'browser tab';
     const info = await page.evaluate(() => ({
       rotation: window.__emblemRogueGame.scene.getScene('Battle').grid.board.rotation,
       prompt: getComputedStyle(document.getElementById('rotate-prompt')).display,
@@ -450,7 +468,6 @@ for (const [shell, install] of Object.entries(SHELLS)) {
       prompt: offered ? 'none' : 'flex',
       portraitUi: offered,
       capable: offered,
-      // The shell never clears the browser tab's choice.
       stored: 'on',
     });
     await page.evaluate(async () => {
@@ -460,9 +477,10 @@ for (const [shell, install] of Object.entries(SHELLS)) {
     });
     const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
     await expect(settings.getByRole('button', { name: /^Reduce motion/ })).toHaveCount(1);
-    await expect(settings.getByRole('button', { name: /^Portrait mode \(beta\)/ })).toHaveCount(
+    await expect(settings.getByRole('button', { name: /^Portrait mode/ })).toHaveCount(
       offered ? 1 : 0,
     );
+    await expect(settings.getByRole('button', { name: /beta/i })).toHaveCount(0);
   });
 }
 
