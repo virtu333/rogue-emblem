@@ -118,7 +118,7 @@
       },
       "avoidBonus": "10",
       "defBonus": "1",
-      "special": "Can be visited for items/events"
+      "special": "End a unit's action here to visit: gold and supplies."
     },
     {
       "name": "Ice",
