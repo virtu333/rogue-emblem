@@ -17,6 +17,7 @@ import {
   addToInventory,
   addToConsumables,
   canEquip,
+  equipIfUnarmed,
   applyStatBoost,
   gainExperience,
   checkLevelUpSkills,
@@ -775,7 +776,7 @@ export class LootScreenController {
       if (!full && !cannotEquip) {
         btn.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
-          addToInventory(unit, { ...item });
+          if (addToInventory(unit, { ...item })) equipIfUnarmed(unit, unit.inventory.at(-1));
           closePicker(() => scene.finalizeLootPick(lootGroup, cardIdx));
         });
       }

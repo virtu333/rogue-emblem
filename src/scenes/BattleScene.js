@@ -83,6 +83,7 @@ import {
   addToConsumables,
   removeFromConsumables,
   equipWeapon,
+  equipIfUnarmed,
   normalizeEquippedFirst,
   getStaffWeapon,
   getCombatWeapons,
@@ -7206,7 +7207,8 @@ export class BattleScene extends Phaser.Scene {
         (w) => w.type === prof.type && w.tier === 'Iron',
       );
       if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-        addToInventory(unit, newWeapon);
+        // A unit whose old weapon no longer fits (or had none) takes up the new one.
+        if (addToInventory(unit, newWeapon)) equipIfUnarmed(unit, unit.inventory.at(-1));
       }
     }
 

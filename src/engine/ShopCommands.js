@@ -3,6 +3,7 @@ import { TRADE_WARNINGS } from './ItemTrade.js';
 import {
   addToInventory,
   addToConsumables,
+  equipIfUnarmed,
   removeFromInventory,
   removeFromConsumables,
   isLastCombatWeapon,
@@ -88,10 +89,13 @@ export function purchaseShopItem(run, stock, entry, recipient) {
       rosterAccessoryAction(run, recipient, copy);
     added = true;
   } else if (convoy) added = run.addToConvoy(entry.item);
-  else
+  else {
     added = supply
       ? addToConsumables(recipient, entry.item)
       : addToInventory(recipient, entry.item);
+    // An unarmed buyer equips the usable weapon it bought (as a trade or Withdraw does).
+    if (added && !supply) equipIfUnarmed(recipient, recipient.inventory.at(-1));
+  }
   if (!added) {
     run.addGold(entry.price);
     return {

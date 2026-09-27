@@ -24,6 +24,8 @@ import { timelineChanges } from '../src/engine/BattleTimelineFacts.js';
 import { formationUnitLine } from '../src/ui/FormationPicker.js';
 import { rewardForWhom } from '../src/ui/choiceContent.js';
 import { equipmentComparison } from '../src/ui/equipmentComparison.js';
+import { applyRewardTarget } from '../src/engine/LootRewardCommands.js';
+import { purchaseShopItem } from '../src/engine/ShopCommands.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import { loadGameData } from './testData.js';
 
@@ -346,5 +348,71 @@ describe('screens that describe an unarmed unit', () => {
       tone: 'good',
     });
     expect(equipmentComparison(run.roster[0], sword)).toContain('Attack 0 → 13');
+  });
+});
+
+describe('a usable weapon given to an unarmed unit is equipped', () => {
+  // Before: rewards, the shop and in-battle class changes added the weapon but left
+  // `weapon: null`, so the unit read "Unarmed" and could not counter until it attacked.
+  const ironSword = () => structuredClone(gameData.weapons.find((w) => w.name === 'Iron Sword'));
+  const ironAxe = () => structuredClone(gameData.weapons.find((w) => w.name === 'Iron Axe'));
+
+  it('a reward weapon', () => {
+    const unit = bare();
+    const run = { roster: [unit] };
+    expect(applyRewardTarget(run, ironSword(), unit)).toEqual({ ok: true, reason: '' });
+    expect(unit.inventory.map((w) => w.name)).toEqual(['Iron Sword']);
+    expect(unit.weapon).toBe(unit.inventory[0]);
+  });
+
+  it('a weapon bought at the shop, but never one the buyer cannot wield', () => {
+    const run = new RunManager(gameData);
+    const unit = bare();
+    run.roster = [unit];
+    run.gold = 5000;
+    const axe = { item: ironAxe(), type: 'weapon', price: 100 };
+    const sword = { item: ironSword(), type: 'weapon', price: 100 };
+    const stock = [axe, sword];
+    expect(purchaseShopItem(run, stock, axe, unit).ok).toBe(true);
+    // No Axe rank: carried, not equipped.
+    expect(unit.weapon).toBeNull();
+    expect(purchaseShopItem(run, stock, sword, unit).ok).toBe(true);
+    // Equipped and moved to slot 0 (equipped-first).
+    expect(unit.inventory.map((w) => w.name)).toEqual(['Iron Sword', 'Iron Axe']);
+    expect(unit.weapon).toBe(unit.inventory[0]);
+  });
+
+  it('an armed recipient keeps its equipped weapon', () => {
+    const own = ironSword();
+    const unit = bare({ inventory: [own], weapon: own });
+    applyRewardTarget({ roster: [unit] }, ironSword(), unit);
+    expect(unit.weapon).toBe(own);
+  });
+
+  it('in battle, a reclass seal that grants a new weapon type arms an unarmed unit', async () => {
+    const s = new BattleScene();
+    Object.assign(s, {
+      gameData,
+      runManager: null,
+      hideActionMenu: vi.fn(),
+      removeUnitGraphic: vi.fn(),
+      addUnitGraphic: vi.fn(),
+      updateHPBar: vi.fn(),
+      showBriefBanner: vi.fn(async () => {}),
+      finishUnitAction: vi.fn(),
+    });
+    const fighter = gameData.classes.find((c) => c.name === 'Fighter');
+    const mercenary = gameData.classes.find((c) => c.name === 'Mercenary');
+    const unit = createRecruitUnit({ name: 'Kai', level: 3 }, fighter, gameData.weapons);
+    unit.inventory = [];
+    unit.weapon = null;
+    const seal = { name: 'Infantry Seal', type: 'Consumable', effect: 'reclass', uses: 1 };
+    unit.consumables = [seal];
+    await s.executeReclass(unit, seal, mercenary);
+    // Fighter (Axes) → Mercenary (Swords): the new Sword rank grants an Iron Sword.
+    expect(unit.className).toBe('Mercenary');
+    expect(unit.inventory.map((w) => w.name)).toEqual(['Iron Sword']);
+    expect(unit.weapon).toBe(unit.inventory[0]);
+    expect(unit.consumables).toEqual([]);
   });
 });

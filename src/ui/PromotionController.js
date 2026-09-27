@@ -12,6 +12,7 @@ import {
   formatDroppedSkillsNotice,
   resolvePromotionTargets,
   addToInventory,
+  equipIfUnarmed,
   removeFromConsumables,
 } from '../engine/UnitManager.js';
 import { LevelUpPopup } from './LevelUpPopup.js';
@@ -185,7 +186,8 @@ export class PromotionController {
       const wpnType = typeMap[newType] || newType;
       const newWeapon = scene.gameData.weapons.find((w) => w.type === wpnType && w.tier === 'Iron');
       if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-        addToInventory(unit, newWeapon);
+        // A unit left with nothing equipped takes up the granted weapon.
+        if (addToInventory(unit, newWeapon)) equipIfUnarmed(unit, unit.inventory.at(-1));
       }
     } else {
       // Non-Lord: grant Iron weapon for each newly gained proficiency type
@@ -196,7 +198,7 @@ export class PromotionController {
           (w) => w.type === prof.type && w.tier === tier,
         );
         if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-          addToInventory(unit, newWeapon);
+          if (addToInventory(unit, newWeapon)) equipIfUnarmed(unit, unit.inventory.at(-1));
         }
       }
     }

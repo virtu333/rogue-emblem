@@ -226,6 +226,10 @@ combat XP from being attacked (XP needs damage dealt), and enemies target it fre
 - Shop: selling a unit's last combat weapon is allowed too (`ShopCommands.shopSellWarnings`):
   the sell pane and the confirm say "Leaves ⟨unit⟩ unarmed.", and the message after the sale
   says the unit is now unarmed. (Before, "Keep at least one combat weapon." refused the sale.)
+- A usable combat weapon that reaches an unarmed unit is equipped (`equipIfUnarmed`): a trade,
+  Withdraw, a battle reward, a shop purchase, and a weapon granted by an in-battle promotion or
+  reclass. Before, the last three left `weapon: null`, so the unit read "Unarmed" and could not
+  counter until it attacked.
 - Saves, battle checkpoints, rewind and the timeline keep `weapon: null` and an empty bag.
 
 ## Out of scope (this wave)
