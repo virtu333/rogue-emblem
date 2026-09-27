@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { forgeImpactLine, shopRequirementLabel } from '../src/ui/itemDecisionText.js';
+import {
+  forgeImpactLine,
+  forgeImpactSuffix,
+  shopRequirementLabel,
+} from '../src/ui/itemDecisionText.js';
+import { applyForge } from '../src/engine/ForgeSystem.js';
+import { FORGE_STAT_CAP } from '../src/utils/constants.js';
 import { forecastModifierText } from '../src/ui/forecastDisplay.js';
 import { tutorialCoachState } from '../src/ui/tutorialCoachModel.js';
 import { loadGameData } from './testData.js';
@@ -42,6 +48,18 @@ describe('decision details', () => {
     expect(forgeImpactLine(owner, weapon, 'crit')).toBe('Crit 4 → 9');
     expect(forgeImpactLine(owner, weapon, 'weight')).toBe('Attack 15 → 15 · AS 1 → 2');
     expect(JSON.stringify(weapon)).toBe(before);
+  });
+  it('appends a forge row impact only when there is one to show', () => {
+    const owner = {
+      stats: { STR: 7, MAG: 2, SPD: 10, SKL: 8, LCK: 3 },
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+    };
+    const weapon = { name: 'Steel Sword', type: 'Sword', might: 8, hit: 80, crit: 0, weight: 10 };
+    expect(forgeImpactSuffix(owner, weapon, 'hit')).toBe(' · Hit 99 → 104');
+    // No owner (a convoy weapon) or a stat already at its cap: no dangling separator.
+    expect(forgeImpactSuffix(null, weapon, 'hit')).toBe('');
+    for (let i = 0; i < FORGE_STAT_CAP; i++) expect(applyForge(weapon, 'hit').success).toBe(true);
+    expect(forgeImpactSuffix(owner, weapon, 'hit')).toBe('');
   });
   it('explains catalog combat modifiers and class mastery', () => {
     for (const trait of data.traits.filter((t) => t.combatMods))
