@@ -489,9 +489,10 @@
     },
     "poultice": {
       "approved": true,
-      "source": "vulnerary-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "1b3496ed66b57e8f"
+      "source": "poultice-pro-t2",
+      "model": "gemini-3-pro-image",
+      "hash": "cf7b933983b79f26",
+      "note": "Repainted 2026-09-27 for the rename: a herb-stained linen pad tied with twine (was the Vulnerary vial)."
     },
     "elixir": {
       "approved": true,
@@ -501,15 +502,17 @@
     },
     "sovereign-seal": {
       "approved": true,
-      "source": "master-seal-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "839a650f9f2012cd"
+      "source": "sovereign-seal-pro-t3",
+      "model": "gemini-3-pro-image",
+      "hash": "881aaea5ec407c4d",
+      "note": "Repainted 2026-09-27 for the rename: crimson wax stamped with a gold crown (was the Master Seal star)."
     },
     "mightroot": {
       "approved": true,
-      "source": "energy-drop-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "3ae0dca3ee490f0c"
+      "source": "mightroot-pro-t3",
+      "model": "gemini-3-pro-image",
+      "hash": "c273e0d561d6e383",
+      "note": "Repainted 2026-09-27 for the rename: a split root glowing ember (was the Energy Drop gem)."
     },
     "spellstone-dust": {
       "approved": true,
@@ -531,15 +534,17 @@
     },
     "wyrmscale": {
       "approved": true,
-      "source": "dracoshield-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "a1b9d87b4b27c103"
+      "source": "wyrmscale-pro-t3",
+      "model": "gemini-3-pro-image",
+      "hash": "27aad84973b7e022",
+      "note": "Repainted 2026-09-27 for the rename: one torn dragon scale (was the Dracoshield shield)."
     },
     "warding-cord": {
       "approved": true,
-      "source": "talisman-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "b9b927bbbfa0215d"
+      "source": "warding-cord-pro-t3",
+      "model": "gemini-3-pro-image",
+      "hash": "2b07ae6b396c48ce",
+      "note": "Repainted 2026-09-27 for the rename: a knotted red-and-white cord with a bead (was the Talisman pendant)."
     },
     "blessed-vestment": {
       "approved": true,
@@ -620,9 +625,10 @@
     },
     "fatethread-pendant": {
       "approved": true,
-      "source": "goddess-icon-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "9bf2094e457bc110"
+      "source": "fatethread-pendant-pro-t2",
+      "model": "gemini-3-pro-image",
+      "hash": "6ff58b44c232b2fb",
+      "note": "Repainted 2026-09-27 for the rename: a worn hollow sun disc on crimson thread (was the winged Goddess Icon)."
     },
     "sisters-mantle": {
       "approved": true,
