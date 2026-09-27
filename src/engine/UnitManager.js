@@ -668,6 +668,12 @@ export function createRecruitUnit(
     if (handAxe) addToInventory(unit, handAxe);
   }
 
+  // Soldiers, a thin lance line, arrive with a Javelin: a ranged option like the axe line's.
+  if (classData.name === 'Soldier') {
+    const javelin = allWeapons.find((weapon) => weapon.name === 'Javelin');
+    if (javelin) addToInventory(unit, javelin);
+  }
+
   // Ensure already-leveled recruits receive any class learnables at current thresholds.
   if (Array.isArray(classesData) && classesData.length > 0) {
     checkLevelUpSkills(unit, classesData);

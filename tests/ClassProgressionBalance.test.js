@@ -117,6 +117,28 @@ describe('recruit and enemy class balance', () => {
     expect(axe).toBeTruthy();
     expect(axe).not.toBe(data.weapons.find((w) => w.name === 'Hand Axe'));
   });
+  it('Soldier recruits receive a cloned Javelin beside the weapon they hold', () => {
+    const unit = recruit('Soldier');
+    const javelin = unit.inventory.find((w) => w.name === 'Javelin');
+    expect(javelin).toBeTruthy();
+    expect(javelin).not.toBe(data.weapons.find((w) => w.name === 'Javelin'));
+    // The Javelin is a second weapon: the Soldier still holds its primary lance.
+    expect(unit.weapon).toBeTruthy();
+    expect(unit.weapon.name).not.toBe('Javelin');
+    expect(unit.weapon.type).toBe('Lance');
+  });
+  it('does not grant a Javelin to other lance classes or enemy Soldiers and tolerates missing data', () => {
+    expect(recruit('Cavalier').inventory.some((w) => w.name === 'Javelin')).toBe(false);
+    expect(
+      createEnemyUnit(cls('Soldier'), 1, data.weapons).inventory.some((w) => w.name === 'Javelin'),
+    ).toBe(false);
+    expect(() =>
+      recruit(
+        'Soldier',
+        data.weapons.filter((w) => w.name !== 'Javelin'),
+      ),
+    ).not.toThrow();
+  });
   it('does not grant a Hand Axe to other axe classes or enemies and tolerates missing data', () => {
     expect(recruit('Wyvern Rider').inventory.some((w) => w.name === 'Hand Axe')).toBe(false);
     expect(
