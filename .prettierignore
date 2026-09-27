@@ -16,3 +16,5 @@ ios/App/App/capacitor.config.json
 docs/art/
 # Generated cue sheets (tools/cutscene/cuesheet.py).
 tools/cutscene/pilot/cues/
+# Generated cue sheet (tools/cutscene/hook/music.py).
+tools/cutscene/hook/cues.json
