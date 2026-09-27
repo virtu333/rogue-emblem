@@ -224,7 +224,7 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "name": "Fortify",
       "type": "Staff",
       "rankRequired": "Mast",
-      "range": "2",
+      "range": "1-2",
       "special": "Heals all allies in range, MAG + 5 HP"
     },
     {

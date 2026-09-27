@@ -212,8 +212,9 @@ and the timeline fingerprint already covers bags.
 A player unit may carry no weapon at all (`inventory: []`, `weapon: null`), or only items it can't
 attack with (a staff, a weapon it can't wield, supplies). Such a unit deploys and plays normally:
 it can move, Wait, Trade, use items, heal with a staff it can use, Talk, Seize, Escape and visit.
-It can't attack, never counterattacks (the forecast says "No combat weapon equipped"), earns no
-combat XP from being attacked (XP needs damage dealt), and enemies target it freely.
+It can't attack, never counterattacks (the forecast says "No combat weapon equipped"), earns only
+the survival minimum when attacked and it lives (`XP_DEFEND_SURVIVE`, 1 XP: more combat XP needs
+damage dealt), and enemies target it freely.
 
 - Battle menu: Attack is hidden, as in FE. With Guidance on Full, a unit that has a combat
   proficiency but nothing it can wield shows a greyed Attack, "Unarmed: no weapon to attack

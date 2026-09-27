@@ -135,9 +135,9 @@ describe('NPC allies of the army', () => {
 });
 
 describe('heal staff targets', () => {
-  // Physic ("range": "2") reaches exactly 2 tiles at MAG 8 (its +1 bonus starts at
+  // Physic ("range": "1-2") reaches 1 to 2 tiles at MAG 8 (its +1 bonus starts at
   // MAG 10). Every candidate below stands 2 tiles from the healer at (4,4) except
-  // Tess, so only the rule under test can exclude it.
+  // Tess (3, out of reach), so only the rule under test can exclude it.
   function board() {
     const healer = makeHealer('Physic');
     const hurtAlly = {
@@ -277,8 +277,8 @@ describe('healing the merchant caravan', () => {
   });
 
   it('Fortify heals the army and every NPC ally in range for one use', async () => {
-    const healer = makeHealer('Fortify', { MAG: 10 }); // 10 + 5 = 15 per target, range 2
-    // Fortify's "range": "2" is exactly 2 tiles: everyone below stands 2 away.
+    const healer = makeHealer('Fortify', { MAG: 10 }); // 10 + 5 = 15 per target, range 1-2
+    // Everyone below stands within Fortify's reach of 1 to 2 tiles.
     const ally = { ...makeHealer('Heal'), name: 'Edric', col: 4, row: 6, currentHP: 4 };
     ally.stats = { HP: 30 };
     const caravan = createCaravanUnit('act2', { col: 5, row: 5 }); // 26 HP, distance 2
