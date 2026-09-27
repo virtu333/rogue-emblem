@@ -108,6 +108,61 @@ describe('battle music selection', () => {
     expect(rate(raid)).toBeLessThan(THEME_SHARE.villageRaid + 0.08);
   });
 
+  it('lets escapes and places choose by act, from a key, a pool or a table', () => {
+    const table = {
+      ...TABLE,
+      escape: { act1: 'esc1', act2: ['esc1', 'esc2'], act4: 'esc2' },
+      battleBiome: { ...TABLE.battleBiome, castle: { act2: 'castle1', act4: 'castle2' } },
+    };
+    const at = (ctx) => selectBattleMusic({ seed: 7, row: 0, ...ctx }, table);
+    expect(at({ act: 'act1', objective: 'escape' })).toEqual({ key: 'esc1', reason: 'escape' });
+    expect(at({ act: 'act4', objective: 'escape' }).key).toBe('esc2');
+    // an act the table doesn't list takes its first entry
+    expect(at({ act: 'act3', objective: 'escape' }).key).toBe('esc1');
+    // THEME_SHARE still gates the place; the act decides which castle theme
+    const castles = new Set();
+    for (let seed = 0; seed < 200; seed++) {
+      for (const act of ['act2', 'act4']) {
+        const r = at({ act, seed, biome: 'castle', nodeKey: `n${seed}` });
+        if (r.reason === 'biome:castle') castles.add(`${act}:${r.key}`);
+        else expect(r.reason).toBe('act');
+      }
+    }
+    expect([...castles].sort()).toEqual(['act2:castle1', 'act4:castle2']);
+    // a pool plays both, and a resumed battle hears the same one
+    const heard = new Set();
+    for (let seed = 0; seed < 40; seed++) {
+      const r = at({ act: 'act2', objective: 'escape', seed, nodeKey: `n${seed}` });
+      expect(at({ act: 'act2', objective: 'escape', seed, nodeKey: `n${seed}` })).toEqual(r);
+      heard.add(r.key);
+    }
+    expect([...heard].sort()).toEqual(['esc1', 'esc2']);
+  });
+
+  it('walks a situation pool along a path: consecutive rows hear different themes', () => {
+    const table = { ...TABLE, battleSituation: { ...TABLE.battleSituation, rescue: ['r1', 'r2'] } };
+    for (let seed = 0; seed < 50; seed++) {
+      const at = (row, nodeKey) =>
+        selectBattleMusic({ seed, act: 'act2', row, nodeKey, isRecruitBattle: true }, table).key;
+      expect(at(3, 'a')).not.toBe(at(4, 'b'));
+      // the row decides, not the node: the pick survives a changed node key
+      expect(at(3, 'a')).toBe(at(3, 'c'));
+      expect(at(5, 'a')).toBe(at(3, 'a'));
+    }
+    // each run orders the pool its own way
+    const openers = new Set();
+    for (let seed = 0; seed < 40; seed++) {
+      openers.add(
+        selectBattleMusic({ seed, act: 'act2', row: 0, isRecruitBattle: true }, table).key,
+      );
+    }
+    expect([...openers].sort()).toEqual(['r1', 'r2']);
+    // without a row the node's own hash picks, stably
+    const noRow = { seed: 3, act: 'act2', row: null, nodeKey: 'x', isRecruitBattle: true };
+    expect(['r1', 'r2']).toContain(selectBattleMusic(noRow, table).key);
+    expect(selectBattleMusic(noRow, table)).toEqual(selectBattleMusic(noRow, table));
+  });
+
   it('never repeats an act theme along a path until the pool is spent', () => {
     for (let seed = 0; seed < 50; seed++) {
       const heard = [0, 1, 2].map((row) => pick({ seed, row }).key);
