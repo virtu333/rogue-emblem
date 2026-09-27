@@ -1,8 +1,36 @@
 # Spec: Ruins — Guaranteed Pre-Boss Prep Node
 
 **Date:** 2026-07-02
-**Status:** Approved design, ready to implement
+**Status:** Implemented; amended 2026-09-27 (Rest or Scavenge, see below)
 **Evidence checked at:** main (post PR #39 merge)
+
+## Amendment 2026-09-27: Rest or Scavenge (supersedes decision 2 and §2's hub)
+
+The owner changed the Ruins from "all services" to **one choice per visit**:
+
+- **Rest** — Heal all (free, applied the moment Rest is chosen; the button stays for
+  units revived afterwards) + Revive fallen allies (paid, church prices).
+- **Scavenge** — the ruins' wares: the ruins shop, unchanged (5–6 items, 8–10 in the
+  finalBoss act, +25%, no Forge, Reroll kept).
+
+Rules (defaults chosen with the owner's delegation):
+
+- Revive belongs to Rest. The choice commits when confirmed (a confirmation picker, as
+  for Kindle and Revive); there is no browse-then-decide.
+- The choice is kept per ruins node on the run (`RunManager.ruinsChoiceByNodeId`, saved
+  and restored with the run, reset each act), so leaving, re-entering, reloading, the
+  map view, the roster and returning from the wares never open the other side. A save
+  from before this change has no choice yet (a legacy visit that already used both
+  sides stays as it is).
+- Before choosing, the sanctuary shows the two paths (plus View map / Roster / Leave);
+  after, only the chosen side and a line naming it. The band kicker reads
+  "Heal or wares", then "Rest · Heal · Revive" or "Scavenge · Wares".
+- The logic is the pure engine command module `src/engine/RuinsCommands.js`
+  (`ruinsChoice`, `chooseRuinsPath`, `ruinsServiceBlock`, `healAtRuins`,
+  `reviveAtRuins`); `ChurchMenu` only renders it and `ShopController.handleShop`
+  refuses the ruins wares without Scavenge (the sanctuary opens instead).
+- The balance sims never modelled the Ruins (they mark the node complete and move on),
+  so the rule change does not touch `sim:fullrun:pr`.
 
 ## Summary
 

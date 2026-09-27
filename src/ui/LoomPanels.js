@@ -3,6 +3,7 @@ import { createNodeArt } from './NodeArt.js';
 import { nodeFrame } from './RouteGraph.js';
 import { describeLoomNode, describeRecruitPreview, loomHeader } from './loomModel.js';
 import { traitLines } from './traitContent.js';
+import { ruinsChoice } from '../engine/RuinsCommands.js';
 import { crestElement } from './crestArt.js';
 import { regionName } from './placeDisplay.js';
 import { ACT_CONFIG, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS } from '../utils/constants.js';
@@ -128,6 +129,7 @@ export function renderLoomCard(card, node, ctx = {}) {
     eclipse,
     recruit,
     recruitMods: rm?.getRecruitNodeBattleMods?.(node) || null,
+    ruinsChoice: node.type === 'ruins' && rm ? ruinsChoice(rm, node.id) : null,
   });
   card.dataset.tone = info.eclipsed ? 'eclipsed' : info.elite && state === 'live' ? 'elite' : state;
 

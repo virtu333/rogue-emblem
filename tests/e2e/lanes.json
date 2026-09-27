@@ -139,6 +139,7 @@
         "reward-reload.spec.js",
         "rewards-desktop.spec.js",
         "run-recovery.spec.js",
+        "ruins-choice.spec.js",
         "save-lifecycle.spec.js",
         "service-audit.spec.js",
         "slot-picker.spec.js",

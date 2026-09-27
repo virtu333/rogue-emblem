@@ -302,6 +302,8 @@ describe('NodeMapScene Slice 4', () => {
     const node = { id: `ruins-${act}`, type: NODE_TYPES.RUINS };
     const scene = {
       runManager: {
+        nodeMap: { nodes: [node] },
+        ruinsChoiceByNodeId: { [node.id]: 'scavenge' },
         consumeSkipFirstShop: vi.fn(() => true),
         currentAct: act,
         roster: [],
@@ -335,6 +337,37 @@ describe('NodeMapScene Slice 4', () => {
       expect.objectContaining({ ruins: true }),
     );
   });
+
+  it.each([[undefined], ['rest']])(
+    'ruins wares stay closed without the Scavenge choice (%s) and the sanctuary opens',
+    (choice) => {
+      const node = { id: 'ruins-act1', type: NODE_TYPES.RUINS };
+      const scene = {
+        runManager: {
+          nodeMap: { nodes: [node] },
+          ruinsChoiceByNodeId: choice ? { [node.id]: choice } : {},
+          consumeSkipFirstShop: vi.fn(() => false),
+          currentAct: 'act1',
+          roster: [],
+          getWeaponArtSpawnConfig: vi.fn(() => null),
+          getShopItemCountDelta: vi.fn(() => 0),
+        },
+        gameData: { lootTables: {}, weapons: [], consumables: [], accessories: [] },
+        registry: { get: vi.fn(() => null) },
+        applyDifficultyShopPricing: vi.fn((items) => items),
+        applyRuinsMarkup: vi.fn((items) => items),
+        showShopOverlay: vi.fn(),
+        handleRuins: vi.fn(),
+      };
+      generateShopInventoryMock.mockClear();
+
+      NodeMapScene.prototype.handleShop.call(scene, node, { ruins: true });
+
+      expect(generateShopInventoryMock).not.toHaveBeenCalled();
+      expect(scene.showShopOverlay).not.toHaveBeenCalled();
+      expect(scene.handleRuins).toHaveBeenCalledWith(node);
+    },
+  );
 
   it('applyDifficultyShopPricing combines difficulty multiplier with blessing discount', () => {
     const scene = {

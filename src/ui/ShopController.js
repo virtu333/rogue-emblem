@@ -12,6 +12,7 @@ import {
   CARAVAN_SHOP_ITEM_COUNT_RANGE,
 } from '../utils/constants.js';
 import { generateShopInventory } from '../engine/LootSystem.js';
+import { ruinsServiceBlock } from '../engine/RuinsCommands.js';
 import { isImbueStone, getImbueStoneDetailText } from '../engine/ImbueSystem.js';
 import { MUSIC, getMusicKey, pickTrack } from '../utils/musicConfig.js';
 import { showImportantHint, showMinorHint } from './HintDisplay.js';
@@ -39,6 +40,11 @@ export class ShopController {
       (options?.ambushDiscount === true ||
         pendingAmbush ||
         (node?.isAmbush === true && node?.ambushCleared === true));
+    // The ruins' wares are the Scavenge path: without that choice the sanctuary opens.
+    if (ruins && ruinsServiceBlock(scene.runManager, node?.id, 'wares')) {
+      scene.handleRuins?.(node);
+      return;
+    }
     if (!ruins && !caravan && scene.runManager.consumeSkipFirstShop()) {
       showMinorHint(scene, 'Blessing effect: first shop skipped.');
       scene.runManager.markNodeComplete(node.id);
