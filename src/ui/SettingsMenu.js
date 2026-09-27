@@ -7,7 +7,6 @@ import {
   getPortraitBattlePreference,
   setPortraitBattlePreference,
   showPortraitBattleSetting,
-  syncRotatePromptCopy,
 } from '../utils/portraitBattle.js';
 export class SettingsMenu {
   constructor(scene, onClose) {
@@ -183,13 +182,10 @@ export class SettingsMenu {
     // iOS app or the installed web app, which hold the screen in landscape.
     if (showPortraitBattleSetting({ mobile: detectMobileRuntime() })) {
       toggle(
-        'Portrait battles (beta)',
+        'Portrait mode (beta)',
         () => getPortraitBattlePreference(),
-        (value) => {
-          setPortraitBattlePreference(value);
-          syncRotatePromptCopy();
-        },
-        'Play battles with the phone upright: the map turns so your army starts at the bottom. The route map and other menus stay landscape. Takes effect on your next turn.',
+        (value) => setPortraitBattlePreference(value),
+        'Play with the phone upright. In battle the map turns so your army starts at the bottom (from your next turn). Some screens are still being adapted.',
       );
     }
     this.surface.body.append(list);
