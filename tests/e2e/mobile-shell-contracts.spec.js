@@ -259,6 +259,14 @@ test('update toast stays off battle and modals; rotate instruction covers a port
     .getByRole('button', { name: 'Menu', exact: true })
     .tap();
   await page.setViewportSize({ width: 375, height: 667 });
+  // Portrait mode is on by default on a phone: the upright page shows no rotate prompt.
+  await expect(page.locator('html')).toHaveClass(/portrait-ui/);
+  await expect(page.locator('#rotate-prompt')).toBeHidden();
+  // With portrait mode off, the rotate instruction covers the modal.
+  await page.evaluate(async () => {
+    const { setPortraitBattlePreference } = await import('/src/utils/portraitBattle.js');
+    setPortraitBattlePreference(false);
+  });
   await expect(page.locator('#rotate-prompt')).toBeVisible();
   await expect(page.locator('#rotate-lock')).toBeHidden();
   expect(

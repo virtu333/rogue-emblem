@@ -42,8 +42,12 @@ export const NOTCH_LANDSCAPE = { top: 0, bottom: 21, left: 47, right: 47 };
 export function phone(viewport) {
   const short = Math.min(viewport.width, viewport.height);
   const long = Math.max(viewport.width, viewport.height);
+  // Without defaultBrowserType (webkit for this device): the config's browser runs the
+  // specs, and the context can be used inside a describe group.
+  // eslint-disable-next-line no-unused-vars
+  const { defaultBrowserType, ...device } = devices['iPhone 13'];
   return {
-    ...devices['iPhone 13'],
+    ...device,
     viewport,
     screen: { width: short, height: long },
   };
