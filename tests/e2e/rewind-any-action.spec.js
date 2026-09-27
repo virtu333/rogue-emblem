@@ -179,7 +179,7 @@ test.describe('phone 844×390', () => {
     await expect(rows.nth(0)).toHaveAttribute('aria-selected', 'true');
     await expect(rows.nth(0)).toBeInViewport();
     await expect(rows.nth(0).locator('.vr-chip')).toHaveText(['+9 HP']);
-    await expect(picker.locator('.vr-charges')).toContainText('3 left');
+    await expect(picker.locator('.vr-charges')).toContainText('3 Visions left');
     const confirm = picker.getByRole('button', { name: 'Rewind here · 1 charge', exact: true });
     await expect(confirm).toBeInViewport();
     // One tap previews (free, nothing changes)...
