@@ -270,8 +270,12 @@ export async function loadRoll(base = '.') {
         const cam = camAt(t, T(12), T(13), { z: 1.1, x: 470, y: 300 }, { z: 1.25, x: 440, y: 320 });
         shotTrace(g, 'quill', 0.6 + (t - T(12)) * 1.0, { pal: 'red', cam });
         g.save();
-        g.translate(560, 560);
+        g.fillStyle = 'rgba(7,6,11,0.35)';
+        g.fillRect(0, 0, W, H);
+        g.translate(560, 540);
         g.rotate(-0.16);
+        g.shadowColor = 'rgba(0,0,0,0.9)';
+        g.shadowBlur = 14;
         pen(g, t, {
           t0: T(12, 1.5),
           write: T(12, 3.5) - T(12, 1.5),
@@ -398,7 +402,13 @@ export async function loadRoll(base = '.') {
           { z: 1.3, x: 480, y: 300 },
         );
         const a = prog(t, T(15, 3), T(15, 3) + 0.8);
-        shotTrace(g, 'capital', (t - T(15, 3)) * 1.1, { pal: 'dusk', cam, alpha: a, loop: 'hold' });
+        shotTrace(g, 'capital', (t - T(15, 3)) * 1.1, {
+          pal: 'dusk',
+          cam,
+          alpha: a,
+          loop: 'hold',
+          rim: false,
+        });
         // the letters of the last line are still eroding over the city
         slam(g, t, {
           t0: T(15),
@@ -444,7 +454,7 @@ export async function loadRoll(base = '.') {
         const cam = { z: 1.3, x: 430, y: 330 };
         shotTrace(g, 'quill', 3.4 + (t - T(17)) * 0.8, { pal: 'red', cam });
         g.save();
-        g.fillStyle = 'rgba(7,6,11,0.45)';
+        g.fillStyle = 'rgba(7,6,11,0.68)';
         g.fillRect(0, 0, W, H);
         g.restore();
         const shaking = stamp(g, t, {
