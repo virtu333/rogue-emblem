@@ -14,3 +14,5 @@ ios/App/App/public/
 ios/App/App/capacitor.config.json
 # Reference-only art explorations (generated review scripts, not app code).
 docs/art/
+# Generated cue sheets (tools/cutscene/cuesheet.py).
+tools/cutscene/pilot/cues/
