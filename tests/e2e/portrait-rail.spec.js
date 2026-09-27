@@ -239,6 +239,34 @@ const closeAll = (page) =>
     `for (let i = 0; i < 6 && s.battleState !== 'PLAYER_IDLE'; i++) s.requestCancel({ allowPause: false });`,
   );
 
+/**
+ * The rail has stopped rebuilding its rows: opening a list renders the rail a few times
+ * as it settles (main behaves the same), so a row found before that is detached. Waits
+ * for a quiet spell with no rows added or removed.
+ */
+function railSettled(page, quietMs = 400) {
+  return page.evaluate(
+    (quietMs) =>
+      new Promise((resolve) => {
+        const hud = document.querySelector('.mobile-battle-hud');
+        let timer;
+        const observer = new MutationObserver((records) => {
+          if (records.some((r) => r.type === 'childList')) arm();
+        });
+        const arm = () => {
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            observer.disconnect();
+            resolve();
+          }, quietMs);
+        };
+        observer.observe(hud, { childList: true, subtree: true });
+        arm();
+      }),
+    quietMs,
+  );
+}
+
 for (const viewport of PORTRAIT_PHONES) {
   const size = `${viewport.width}x${viewport.height}`;
 
@@ -339,6 +367,7 @@ for (const viewport of PORTRAIT_PHONES) {
       const hud = rail(page);
       await hud.locator('.mb-actions').getByRole('button', { name: 'Attack', exact: true }).tap();
       await expect(hud.locator('.mb-targets')).toBeVisible();
+      await railSettled(page);
       await expectFullWidthRows(page, '.mobile-battle-hud .mb-targets');
       await expectSingleLine(hud.locator('.mb-targets .mb-item-summary'));
       expect(await clippedText(page, '.mobile-battle-hud .mb-body')).toEqual([]);
@@ -378,6 +407,7 @@ for (const viewport of PORTRAIT_PHONES) {
       const pick = hud.locator('.mb-submenu').getByRole('button', { name: /^Heal/ });
       if (await pick.count()) await pick.tap();
       await expect(hud.locator('.mb-heal-targets')).toBeVisible();
+      await railSettled(page);
       await expectFullWidthRows(page, '.mobile-battle-hud .mb-heal-targets');
       const merchant = hud.locator('.mb-heal-targets').getByRole('button', { name: /^Merchant/ });
       await expectTappable(merchant);
