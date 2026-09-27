@@ -494,6 +494,28 @@
     "title": "Someone Is Still Out There",
     "tonic": "F"
   },
+  "music_battle_rescue_2": {
+    "duration": 93.541,
+    "loopEnd": 92.941179,
+    "loopStart": 10.352948,
+    "lufs": -14.01,
+    "peakDb": -1.09,
+    "score": "battle_rescue_2",
+    "seamDb": -56.4,
+    "title": "Quick, Quick, Quick, Slow",
+    "tonic": "E"
+  },
+  "music_battle_rescue_2_calm": {
+    "duration": 93.541,
+    "loopEnd": 92.941179,
+    "loopStart": 10.352948,
+    "lufs": -17.0,
+    "peakDb": -2.72,
+    "score": "battle_rescue_2",
+    "seamDb": -60.9,
+    "title": "Quick, Quick, Quick, Slow",
+    "tonic": "E"
+  },
   "music_battle_rescue_calm": {
     "duration": 75.951,
     "loopEnd": 75.351361,
