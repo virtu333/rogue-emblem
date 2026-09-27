@@ -528,6 +528,10 @@ export class MobileRewards {
       });
     } else {
       const booster = item.type === 'Consumable' && item.effect === 'statBoost';
+      const compareOptions = {
+        arts: this.scene.gameData?.weaponArts?.arts || [],
+        imbues: this.scene.gameData?.imbues,
+      };
       this.pushStep({
         title: item.name,
         subject: item,
@@ -545,7 +549,7 @@ export class MobileRewards {
               ? `${item.stat}: ${unit.stats[item.stat] || 0} → ${(unit.stats[item.stat] || 0) + item.value}`
               : item.type === 'Consumable'
                 ? `${unit.consumables?.length || 0}/3 consumables${choice.quantity > 1 ? ` · ${choice.quantity} items; overflow goes to convoy` : ''}`
-                : `Can equip · ${equipmentComparison(unit, item)} · ${unit.inventory?.length || 0}/5 items`,
+                : `Can equip · ${equipmentComparison(unit, item, unit.weapon, compareOptions)} · ${unit.inventory?.length || 0}/5 items`,
         final: true,
         apply: (unit) => applyRewardBundle(run, item, unit, choice.quantity || 1),
       });

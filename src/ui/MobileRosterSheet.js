@@ -41,6 +41,7 @@ import {
 } from '../engine/RosterTransfers.js';
 import { canEquip, isLastCombatWeapon, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { equippedBadgeElement } from './equippedBadge.js';
+import { weaponComparisonParts } from './equipmentComparison.js';
 import { itemKeywordRow } from './itemKeywordChips.js';
 import { itemKeywords, itemBaseLine } from '../engine/ItemKeywords.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
@@ -991,18 +992,12 @@ export class MobileRosterSheet {
         item.type === unit.weapon.type &&
         item.type !== 'Staff'
       ) {
-        c.append(
-          el(
-            'p',
-            `Compared with ${unit.weapon.name}: ` +
-              ['might', 'hit', 'crit', 'weight']
-                .map(
-                  (k) =>
-                    `${k} ${Number(item[k] || 0) - Number(unit.weapon[k] || 0) >= 0 ? '+' : ''}${Number(item[k] || 0) - Number(unit.weapon[k] || 0)}`,
-                )
-                .join(' · '),
-          ),
-        );
+        // The shop and reward screen compare with the same helper, so all three agree.
+        const parts = weaponComparisonParts(unit, item, unit.weapon, {
+          arts: this.gameData?.weaponArts?.arts || [],
+          imbues: this.gameData?.imbues,
+        });
+        c.append(el('p', `Compared with ${unit.weapon.name}: ${parts.join(' · ')}`));
       }
       if (this.run) {
         if (unit.weapon !== item) this.action(c, 'Equip', unit, item, 'equip');

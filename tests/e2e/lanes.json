@@ -112,6 +112,7 @@
         "portrait-variety.spec.js",
         "portrait-variety-mobile.spec.js",
         "rebuilt-sprites.spec.js",
+        "shop-comparison.spec.js",
         "shop-readability.spec.js",
         "texture-reseed.spec.js",
         "title-layout.spec.js",
