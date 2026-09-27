@@ -66,7 +66,8 @@ describe('BattleMusicController', () => {
     const { audio, scene } = makeScene();
     const ctrl = new BattleMusicController(scene, { playersInDanger: () => false });
     const key = ctrl.create({ act: 'act3', objective: 'escape' });
-    expect(key).toBe(MUSIC.escape);
+    expect(key).toBe(MUSIC.escape.act3);
+    expect(ctrl.create({ act: 'act1', objective: 'escape' })).toBe(MUSIC.escape.act1);
     expect(MUSIC_LAYERS[key]).toBeTruthy();
     expect(audio.setMusicIntensity).toHaveBeenCalledWith('calm', 0);
     // a boss on an escape map still gets its own theme

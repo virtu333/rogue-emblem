@@ -128,7 +128,7 @@ describe('music library', () => {
   it('every field battle theme is adaptive: act pools, places and situations', () => {
     const battleThemes = new Set([
       ...Object.values(MUSIC.battle).flat(),
-      MUSIC.escape,
+      ...collectKeys(MUSIC.escape),
       ...collectKeys(MUSIC.battleBiome),
       ...collectKeys(MUSIC.battleSituation),
     ]);
@@ -151,6 +151,12 @@ describe('music library', () => {
     );
     for (const biome of Object.keys(MUSIC.battleBiome)) {
       expect(biomes.has(biome), `${biome} is a template biome`).toBe(true);
+    }
+    // escape and place entries may be tables by act too: only real acts
+    for (const entry of [MUSIC.escape, ...Object.values(MUSIC.battleBiome)]) {
+      if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+        for (const act of Object.keys(entry)) expect(MUSIC.battle, act).toHaveProperty(act);
+      }
     }
     const situations = ['eclipsed', 'village', 'rescue', 'elite', 'caravan', 'fog'];
     for (const [situation, entry] of Object.entries(MUSIC.battleSituation)) {
