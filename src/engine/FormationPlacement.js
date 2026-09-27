@@ -230,13 +230,17 @@ export function unitOnTile(formation, tileIndex) {
 }
 
 /**
- * Put unit `u` on tile `t`. A unit already there swaps into `u`'s old tile (or
- * leaves the field if `u` was not yet placed).
+ * Put unit `u` on tile `t`. A unit already there swaps into `u`'s old tile, but
+ * only if `allowed(occupant, tile)` lets it stand there; otherwise (or if `u` was
+ * not yet placed) it leaves the field and waits to be placed again.
  */
-export function placeUnit(formation, u, t) {
+export function placeUnit(formation, u, t, allowed = () => true) {
   const at = [...formation.at];
   const occupant = at.indexOf(t);
-  if (occupant !== -1 && occupant !== u) at[occupant] = at[u];
+  if (occupant !== -1 && occupant !== u) {
+    const vacated = at[u];
+    at[occupant] = vacated !== null && allowed(occupant, vacated) ? vacated : null;
+  }
   at[u] = t;
   return { ...formation, at };
 }

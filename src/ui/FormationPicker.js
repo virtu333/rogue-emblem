@@ -51,8 +51,15 @@ export class FormationPicker {
       const face = unitPortrait(scene, scene.gameData, unit, 'mr-unit-face');
       if (face) row.append(face);
       const name = element('strong', unit.name);
-      if (onField)
-        name.append(element('span', occupant === -1 ? ' · move here' : ' · swap', 'fm-tag'));
+      if (onField) {
+        const tag =
+          occupant === -1
+            ? ' · move here'
+            : formation.displaces(u, tileIndex)
+              ? ` · swap (${formation.units[occupant].name} waits)`
+              : ' · swap';
+        name.append(element('span', tag, 'fm-tag'));
+      }
       row.append(name, element('small', reason || formationUnitLine(unit)));
       if (reason) {
         row.disabled = true;

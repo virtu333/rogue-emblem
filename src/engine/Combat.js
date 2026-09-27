@@ -784,6 +784,18 @@ export function accessoryChangesExchangeHp(unit) {
   return Object.keys(effects).some((key) => !EXCHANGE_NEUTRAL_ACCESSORY_EFFECTS.has(key));
 }
 
+// On-attack procs that can make a counter hit harder than the forecast's proc-free
+// estimate (or kill outright). The forecast warns rather than predicting them.
+const COUNTER_DAMAGE_PROCS = new Set([
+  'aether',
+  'flare',
+  'seraph_strike',
+  'luna',
+  'lethality',
+  'adept',
+  'astra',
+]);
+
 /**
  * Returns what WOULD happen — no RNG, just the numbers.
  * Used by StatPanel/HUD to show combat preview before the player commits.
@@ -1017,9 +1029,7 @@ export function getCombatForecast(
     display: {
       triangle: atkTriangle,
       counterHasDamageProc: [...(defender.skills || []), defWeapon?._grantedSkill].some((skill) =>
-        ['aether', 'flare', 'seraph_strike'].includes(
-          typeof skill === 'string' ? skill : skill?.id,
-        ),
+        COUNTER_DAMAGE_PROCS.has(typeof skill === 'string' ? skill : skill?.id),
       ),
       counterReason: defCanCounter
         ? null

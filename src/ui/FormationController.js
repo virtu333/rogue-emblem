@@ -250,8 +250,17 @@ export class FormationController {
     return placedCount(this.formation);
   }
 
+  /** Everyone is placed, each on a tile they may stand on. */
   complete() {
-    return isComplete(this.formation);
+    return isComplete(this.formation) && this.formation.at.every((t, u) => !this.issue(u, t));
+  }
+
+  /** Whether placing u on t sends the unit there back to waiting (it can't take u's tile). */
+  displaces(u, t) {
+    const occupant = unitOnTile(this.formation, t);
+    const vacated = this.formation.at[u];
+    if (occupant === -1 || occupant === u) return false;
+    return vacated === null || Boolean(this.issue(occupant, vacated));
   }
 
   // --- Player actions ----------------------------------------------------------
@@ -312,7 +321,8 @@ export class FormationController {
 
   assign(u, t) {
     if (this.issue(u, t)) return false;
-    this.formation = placeUnit(this.formation, u, t);
+    // A displaced unit only swaps onto a tile it may stand on; otherwise it waits.
+    this.formation = placeUnit(this.formation, u, t, (o, tile) => !this.issue(o, tile));
     this.syncField();
     return true;
   }
