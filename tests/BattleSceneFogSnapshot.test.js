@@ -732,7 +732,7 @@ describe('BattleScene trade weapon gating', () => {
     const { scene } = setupScene();
     const { texts } = attachUiHarness(scene);
     const elfire = {
-      name: 'Elfire',
+      name: 'Wildfire',
       type: 'Tome',
       rankRequired: 'Prof',
       range: '1-2',
@@ -770,7 +770,7 @@ describe('BattleScene trade weapon gating', () => {
 
     BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
     // Equipped weapons carry the shared E marker.
-    const elfireRow = texts.find((obj) => obj.text === 'E Elfire');
+    const elfireRow = texts.find((obj) => obj.text === 'E Wildfire');
     expect(elfireRow).toBeTruthy();
     expect(elfireRow.handlers.pointerdown).toBeTruthy();
 
@@ -779,7 +779,7 @@ describe('BattleScene trade weapon gating', () => {
     expect(unitA.inventory).toHaveLength(0);
     expect(unitA.weapon).toBeNull();
     expect(unitB.inventory.map((item) => item.name)).toEqual(
-      expect.arrayContaining(['Fire', 'Elfire']),
+      expect.arrayContaining(['Fire', 'Wildfire']),
     );
     expect(scene.tradeMutatedThisSession).toBe(true);
     expect(scene.preMoveLoc).toBeNull();
@@ -1386,7 +1386,7 @@ describe('deploy clears _conditions (cross-battle leak prevention)', () => {
     u.hasActed = true;
     u._miracleUsed = true;
     u._gambitUsedThisTurn = true;
-    u.inventory = [{ name: 'Bolting', perBattleUses: 2, _usesSpent: 2 }];
+    u.inventory = [{ name: 'Breachbolt', perBattleUses: 2, _usesSpent: 2 }];
     applyCondition(u, 'sleep', 2);
     applyCondition(u, 'silence', 3);
     expect(isSleeping(u)).toBe(true);

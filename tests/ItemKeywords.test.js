@@ -21,9 +21,9 @@ describe('reversed-triangle weapons name the type they beat', () => {
   // Our triangle: swords beat axes, axes beat lances, lances beat swords.
   // Reversed, each weapon beats the type that normally beats it.
   it.each([
-    ['Lancereaver', 'Lance', 'Beats Lances'],
-    ['Swordreaver', 'Axe', 'Beats Axes'],
-    ['Axereaver', 'Sword', 'Beats Swords'],
+    ['Lancehook', 'Lance', 'Beats Lances'],
+    ['Axehook', 'Axe', 'Beats Axes'],
+    ['Bladehook', 'Sword', 'Beats Swords'],
   ])('%s', (name, victimType, text) => {
     const reaver = weapon(name);
     expect(reaverBeats(reaver)).toBe(victimType);
@@ -35,7 +35,7 @@ describe('reversed-triangle weapons name the type they beat', () => {
 
   it('only triangle-reversing weapons get a Beats tag', () => {
     const tagged = weapons.filter((w) => itemKeywords(w).some((t) => t.id === 'reaver'));
-    expect(tagged.map((w) => w.name).sort()).toEqual(['Axereaver', 'Lancereaver', 'Swordreaver']);
+    expect(tagged.map((w) => w.name).sort()).toEqual(['Axehook', 'Bladehook', 'Lancehook']);
   });
 });
 
@@ -44,11 +44,11 @@ describe('effectiveness tags match the combat multiplier', () => {
 
   it('covers every weapon combat treats as effective', () => {
     expect(effective.map((w) => w.name).sort()).toEqual([
-      'Armorslayer',
-      'Excalibur',
+      'Endword',
+      'Firstwind',
       'Hammer',
-      'Horseslayer',
-      'Luce',
+      'Horsebane',
+      'Mailbane',
       'Rapier',
     ]);
   });
@@ -69,16 +69,17 @@ describe('effectiveness tags match the combat multiplier', () => {
 
 describe('tags', () => {
   it('reads the rules players need from each family', () => {
-    expect(texts(weapon('Killing Edge'))).toEqual(['Crit 30']);
-    expect(texts(weapon('Brave Lance'))).toEqual(['Strikes twice']);
-    expect(texts(weapon('Venin Blade'))).toEqual(['Poison 5']);
-    expect(texts(weapon('Soulreaver'))).toEqual(['Drains HP']);
+    expect(texts(weapon('Keen Sword'))).toEqual(['Crit 30']);
+    expect(texts(weapon('Oathlance'))).toEqual(['Strikes twice']);
+    expect(texts(weapon('Adder Blade'))).toEqual(['Poison 5']);
+    expect(texts(weapon('Namethief'))).toEqual(['Drains HP']);
     expect(texts(weapon('Javelin'))).toEqual(['Thrown']);
-    expect(texts(weapon('Levin Sword'))).toEqual(['Uses MAG']);
+    expect(texts(weapon('Gust Blade'))).toEqual(['Wind gust']);
+    expect(texts(weapon('Thunderbrand'))).toEqual(['Uses MAG']);
     expect(texts(weapon('Sunder Axe'))).toEqual(['Halves DEF']);
-    expect(texts(weapon('Stormbreaker'))).toEqual(['+5 DEF', '+5 RES']);
+    expect(texts(weapon('Tidebreaker'))).toEqual(['+5 DEF', '+5 RES']);
     expect(texts(weapon('Gae Bolg'))).toEqual(['+5 STR on counter']);
-    expect(texts(weapon('Doublebow'))).toEqual(['Alone: +4 STR, +4 SPD']);
+    expect(texts(weapon("Hermit's Bow"))).toEqual(['Alone: +4 STR, +4 SPD']);
     expect(texts(weapon('Longbow'))).toEqual(['Range 2-3']);
   });
 
@@ -115,12 +116,12 @@ describe('tags', () => {
 
 describe('base line', () => {
   it('says what the item is', () => {
-    expect(itemBaseLine(weapon('Killing Edge'))).toBe('Silver Sword');
-    expect(itemBaseLine(weapon('Swordreaver'))).toBe('Steel Lance');
-    expect(itemBaseLine(weapon('Gemini'))).toBe('Legend Sword');
+    expect(itemBaseLine(weapon('Keen Sword'))).toBe('Silver Sword');
+    expect(itemBaseLine(weapon('Axehook'))).toBe('Steel Lance');
+    expect(itemBaseLine(weapon('Twinsworn'))).toBe('Legend Sword');
     expect(itemBaseLine(weapon('Sunder Bow'))).toBe('Rare Bow');
-    expect(itemBaseLine(weapon('Bolganone'))).toBe('Tome');
-    expect(itemBaseLine(weapon('Luce'))).toBe('Legend Light Tome');
+    expect(itemBaseLine(weapon('Conflagration'))).toBe('Tome');
+    expect(itemBaseLine(weapon('Endword'))).toBe('Legend Light Tome');
     expect(itemBaseLine(weapon('Mend'))).toBe('Staff');
   });
 
@@ -128,7 +129,7 @@ describe('base line', () => {
     expect(itemBaseLineFor(weapon('Silver Sword'))).toBeNull();
     expect(itemBaseLineFor(weapon('Iron Sword'), 'Iron Sword +2')).toBeNull();
     expect(itemBaseLineFor(weapon('Steel Axe'), 'Vampiric Steel Axe')).toBeNull();
-    expect(itemBaseLineFor(weapon('Wo Dao'))).toBe('Steel Sword');
+    expect(itemBaseLineFor(weapon('Jian'))).toBe('Steel Sword');
   });
 
   it('supplies, scrolls and accessories have none', () => {

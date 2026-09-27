@@ -163,7 +163,7 @@ describe('LootFlowController — imbue stone flow', () => {
     imbueButtons[2].handlers.pointerdown({ button: 0 }); // 'keen' (catalog order)
 
     expect(sword._imbueId).toBe('keen');
-    expect(sword.name).toBe('Keen Iron Sword');
+    expect(sword.name).toBe('Cruel Iron Sword');
     expect(finalizeSpy).toHaveBeenCalledWith(lootGroup, 1);
   });
 

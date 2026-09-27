@@ -689,33 +689,33 @@ export function createRecruitUnit(
 export const LETHAL_ARMORY_WEAPONS = {
   Sword: {
     steel: 'Steel Sword',
-    killer: 'Killing Edge',
+    killer: 'Keen Sword',
     silver: 'Silver Sword',
   },
   Lance: {
     steel: 'Steel Lance',
-    killer: 'Killer Lance',
+    killer: 'Keen Lance',
     silver: 'Silver Lance',
   },
   Axe: {
     steel: 'Steel Axe',
-    killer: 'Killer Axe',
+    killer: 'Keen Axe',
     silver: 'Silver Axe',
   },
   Bow: {
     steel: 'Steel Bow',
-    killer: 'Killer Bow',
+    killer: 'Keen Bow',
     silver: 'Silver Bow',
   },
   Tome: {
-    steel: 'Elfire',
+    steel: 'Wildfire',
     killer: 'Witchfire',
-    silver: 'Bolganone',
+    silver: 'Conflagration',
   },
   Light: {
-    steel: 'Shine',
+    steel: 'Brilliance',
     killer: 'Sunflare',
-    silver: 'Aura',
+    silver: 'Crownlight',
   },
 };
 

@@ -867,7 +867,7 @@ describe('BattleScene weapon art helpers', () => {
     expect(attacker._battleWeaponArtUsage?.turn?.[art.id]).toBe(1);
   });
 
-  it('applies weapon-art HP cost before Soulreaver drain heal during executeCombat', async () => {
+  it('applies weapon-art HP cost before Namethief drain heal during executeCombat', async () => {
     const scene = new BattleScene();
     const art = makeArt({ hpCost: 2, perTurnLimit: 1, perMapLimit: 3 });
     const attacker = {
@@ -879,7 +879,7 @@ describe('BattleScene weapon art helpers', () => {
       stats: { HP: 24, STR: 18, MAG: 0, SKL: 8, SPD: 8, DEF: 7, RES: 3, LCK: 5 },
       weaponRank: 'Prof',
       weapon: {
-        name: 'Soulreaver',
+        name: 'Namethief',
         type: 'Sword',
         might: 12,
         hit: 90,
@@ -1160,15 +1160,15 @@ describe('BattleScene weapon art helpers', () => {
     const scene = new BattleScene();
     const legendaryArt = makeArt({
       id: 'legend_gemini_tempest',
-      name: 'Gemini Tempest',
+      name: 'Twinsworn Tempest',
       requiredRank: 'Mast',
-      legendaryWeaponIds: ['Gemini'],
+      legendaryWeaponIds: ['Twinsworn'],
       combatMods: { atkBonus: 5, hitBonus: 15 },
     });
     const unit = makeUnit({
       currentHP: 20,
       proficiencies: [{ type: 'Sword', rank: 'Mast' }],
-      weapon: { type: 'Sword', name: 'Gemini' },
+      weapon: { type: 'Sword', name: 'Twinsworn' },
     });
     scene.turnManager = { turnNumber: 1 };
     scene.gameData = { weaponArts: { arts: [legendaryArt] } };
@@ -1187,9 +1187,9 @@ describe('BattleScene weapon art helpers', () => {
     const scene = new BattleScene();
     const legendaryArt = makeArt({
       id: 'legend_gemini_tempest',
-      name: 'Gemini Tempest',
+      name: 'Twinsworn Tempest',
       requiredRank: 'Mast',
-      legendaryWeaponIds: ['Gemini'],
+      legendaryWeaponIds: ['Twinsworn'],
       combatMods: { atkBonus: 5, hitBonus: 15 },
     });
     const unit = makeUnit({
@@ -1209,10 +1209,10 @@ describe('BattleScene weapon art helpers', () => {
     const scene = new BattleScene();
     const legendaryArt = makeArt({
       id: 'legend_gemini_tempest',
-      name: 'Gemini Tempest',
+      name: 'Twinsworn Tempest',
       requiredRank: 'Mast',
       allowedFactions: ['player'],
-      legendaryWeaponIds: ['Gemini'],
+      legendaryWeaponIds: ['Twinsworn'],
       combatMods: { atkBonus: 5, hitBonus: 15 },
     });
     const enemy = makeUnit({
@@ -1221,7 +1221,7 @@ describe('BattleScene weapon art helpers', () => {
       currentHP: 20,
       stats: { HP: 24 },
       proficiencies: [{ type: 'Sword', rank: 'Mast' }],
-      weapon: { type: 'Sword', name: 'Gemini' },
+      weapon: { type: 'Sword', name: 'Twinsworn' },
     });
     const target = makeUnit({ name: 'Edric', faction: 'player' });
     scene.turnManager = { turnNumber: 1 };

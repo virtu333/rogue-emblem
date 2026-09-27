@@ -442,8 +442,8 @@ const SILVER_BASES = {
   Lance: 'Silver Lance',
   Axe: 'Silver Axe',
   Bow: 'Silver Bow',
-  Tome: 'Bolganone',
-  Light: 'Aura',
+  Tome: 'Conflagration',
+  Light: 'Crownlight',
 };
 
 const LEGENDARY_SKILL_POOL = ['sol', 'luna', 'vantage', 'wrath', 'adept'];

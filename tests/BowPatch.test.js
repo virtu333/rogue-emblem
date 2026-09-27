@@ -68,8 +68,8 @@ describe('Bow Patch — Data Validation', () => {
     expect(w.price).toBe(2200);
   });
 
-  it('Doublebow exists with correct stats', () => {
-    const w = findWeapon('Doublebow');
+  it("Hermit's Bow exists with correct stats", () => {
+    const w = findWeapon("Hermit's Bow");
     expect(w).toBeDefined();
     expect(w.type).toBe('Bow');
     expect(w.tier).toBe('Legend');
@@ -146,17 +146,17 @@ describe('Bow Patch — Range & Counter-Attack', () => {
     expect(canCounter({}, ironBow, 2)).toBe(true);
   });
 
-  it('Doublebow covers range 1-2', () => {
-    const doublebow = findWeapon('Doublebow');
+  it("Hermit's Bow covers range 1-2", () => {
+    const doublebow = findWeapon("Hermit's Bow");
     expect(isInRange(doublebow, 1)).toBe(true);
     expect(isInRange(doublebow, 2)).toBe(true);
     expect(isInRange(doublebow, 3)).toBe(false);
   });
 });
 
-describe('Bow Patch — Doublebow Conditional Bonus', () => {
+describe("Bow Patch — Hermit's Bow Conditional Bonus", () => {
   it('returns +4 ATK/SPD when unit has no adjacent allies', () => {
-    const doublebow = findWeapon('Doublebow');
+    const doublebow = findWeapon("Hermit's Bow");
     const unit = makeUnit({ weapon: doublebow, col: 5, row: 5 });
     const farAlly = makeUnit({ name: 'FarAlly', col: 5, row: 7 }); // distance 2
     const result = getConditionalWeaponBonuses(doublebow, unit, [unit, farAlly]);
@@ -165,7 +165,7 @@ describe('Bow Patch — Doublebow Conditional Bonus', () => {
   });
 
   it('returns 0 when adjacent ally present', () => {
-    const doublebow = findWeapon('Doublebow');
+    const doublebow = findWeapon("Hermit's Bow");
     const unit = makeUnit({ weapon: doublebow, col: 5, row: 5 });
     const adjacentAlly = makeUnit({ name: 'Adjacent', col: 5, row: 6 }); // distance 1
     const result = getConditionalWeaponBonuses(doublebow, unit, [unit, adjacentAlly]);
@@ -174,7 +174,7 @@ describe('Bow Patch — Doublebow Conditional Bonus', () => {
   });
 
   it('ally at distance 2 does not block bonus', () => {
-    const doublebow = findWeapon('Doublebow');
+    const doublebow = findWeapon("Hermit's Bow");
     const unit = makeUnit({ weapon: doublebow, col: 3, row: 3 });
     const allyD2 = makeUnit({ name: 'D2Ally', col: 3, row: 5 }); // distance 2
     const result = getConditionalWeaponBonuses(doublebow, unit, [unit, allyD2]);
@@ -191,7 +191,7 @@ describe('Bow Patch — Doublebow Conditional Bonus', () => {
   });
 
   it('returns bonus when unit is completely alone', () => {
-    const doublebow = findWeapon('Doublebow');
+    const doublebow = findWeapon("Hermit's Bow");
     const unit = makeUnit({ weapon: doublebow, col: 3, row: 3 });
     const result = getConditionalWeaponBonuses(doublebow, unit, [unit]);
     expect(result.atkBonus).toBe(4);
@@ -199,7 +199,7 @@ describe('Bow Patch — Doublebow Conditional Bonus', () => {
   });
 
   it('treats null ally list as empty for conditional weapon bonus checks', () => {
-    const doublebow = findWeapon('Doublebow');
+    const doublebow = findWeapon("Hermit's Bow");
     const unit = makeUnit({ weapon: doublebow, col: 3, row: 3 });
     const result = getConditionalWeaponBonuses(doublebow, unit, null);
     expect(result.atkBonus).toBe(4);
@@ -208,8 +208,8 @@ describe('Bow Patch — Doublebow Conditional Bonus', () => {
 });
 
 describe('Bow Patch — Combat Integration', () => {
-  it('Doublebow bonus works even without skillsData (null)', () => {
-    const doublebow = findWeapon('Doublebow');
+  it("Hermit's Bow bonus works even without skillsData (null)", () => {
+    const doublebow = findWeapon("Hermit's Bow");
     const unit = makeUnit({ weapon: doublebow, col: 5, row: 5 });
     const opponent = makeUnit({ name: 'Enemy', col: 5, row: 4, faction: 'enemy' });
     const mods = getSkillCombatMods(unit, opponent, [unit], [opponent], null, null, true);
@@ -217,8 +217,8 @@ describe('Bow Patch — Combat Integration', () => {
     expect(mods.spdBonus).toBe(4);
   });
 
-  it('getSkillCombatMods includes Doublebow bonus when isolated', () => {
-    const doublebow = findWeapon('Doublebow');
+  it("getSkillCombatMods includes Hermit's Bow bonus when isolated", () => {
+    const doublebow = findWeapon("Hermit's Bow");
     const unit = makeUnit({
       weapon: doublebow,
       col: 5,
@@ -231,8 +231,8 @@ describe('Bow Patch — Combat Integration', () => {
     expect(mods.spdBonus).toBe(4);
   });
 
-  it('getSkillCombatMods excludes Doublebow bonus when adjacent ally', () => {
-    const doublebow = findWeapon('Doublebow');
+  it("getSkillCombatMods excludes Hermit's Bow bonus when adjacent ally", () => {
+    const doublebow = findWeapon("Hermit's Bow");
     const unit = makeUnit({
       weapon: doublebow,
       col: 5,
@@ -254,8 +254,8 @@ describe('Bow Patch — Combat Integration', () => {
     expect(mods.spdBonus).toBe(0);
   });
 
-  it('getCombatForecast reflects Doublebow bonus in damage', () => {
-    const doublebow = findWeapon('Doublebow');
+  it("getCombatForecast reflects Hermit's Bow bonus in damage", () => {
+    const doublebow = findWeapon("Hermit's Bow");
     const unit = makeUnit({
       weapon: doublebow,
       col: 5,
@@ -285,7 +285,7 @@ describe('Bow Patch — Combat Integration', () => {
       plain,
       skillCtx,
     );
-    // Doublebow: STR(8) + bonus(4) + might(11) = 23, minus enemy DEF(5) = 18
+    // Hermit's Bow: STR(8) + bonus(4) + might(11) = 23, minus enemy DEF(5) = 18
     expect(forecast.attacker.damage).toBe(18);
   });
 });
@@ -299,7 +299,7 @@ describe('Bow Patch — Loot Tables', () => {
     expect(data.lootTables.act2.weapons).toContain('Recurve Bow');
   });
 
-  it('Doublebow is in act3 legendaryWeapon pool', () => {
-    expect(data.lootTables.act3.legendaryWeapon).toContain('Doublebow');
+  it("Hermit's Bow is in act3 legendaryWeapon pool", () => {
+    expect(data.lootTables.act3.legendaryWeapon).toContain("Hermit's Bow");
   });
 });

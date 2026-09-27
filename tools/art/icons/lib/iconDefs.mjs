@@ -29,7 +29,8 @@ const rect = (x, y, w, h) => ({ kind: 'rect', x, y, w, h });
 
 /**
  * Sword. opts: blade/fit metal, grip, accent (wrap or gem), variant:
- * 'broad' | 'rapier' | 'curved' | 'serrated' | 'twin' | 'short' | 'magic'
+ * 'broad' | 'rapier' | 'curved' | 'serrated' | 'twin' | 'short' | 'magic' | 'hook',
+ * or a named shape (SWORD_SHAPES: katana, jian, gust, bolt, falchion, viking)
  */
 /**
  * A blade outline around a bent centreline: `centre(s)` is the across-offset of the
@@ -55,8 +56,10 @@ const SWORD_SHAPES = {
     centre: (s) => -3.6 * (s / 22.5) ** 2,
     half: (s) => 1.55 - s * 0.018,
   },
-  // Wo dao and other sabres: shorter, the same curve.
+  // Sabres: shorter, the same curve.
   curved: { len: 21, s0: 2, centre: (s) => -3.4 * (s / 21) ** 2, half: (s) => 1.9 - s * 0.02 },
+  // Jian: straight, slim and double-edged, tapering to a point.
+  jian: { len: 21.5, s0: 2, tip: 1.4, centre: () => 0, half: (s) => 1.45 - s * 0.018 },
   // A gust frozen in steel: short and strongly swept.
   gust: { len: 16.5, s0: 2, centre: (s) => -3.4 * (s / 16.5) ** 1.6, half: (s) => 2.1 - s * 0.05 },
   // Lightning bolt: the centreline zig-zags in hard steps.
@@ -337,6 +340,35 @@ export function sword({
     spec: true,
     sep: true,
   });
+  if (variant === 'hook')
+    // A hooked quillon on one side that runs up beside the blade: it catches a haft.
+    parts.push({
+      shape: poly(
+        // A prong from the guard's end, parallel to the blade with a gap between,
+        // its tip turned in toward the blade.
+        f.pts([
+          [0.2, gw - 1.2],
+          [0.2, gw + 1.1],
+          [8.6, gw + 1.3],
+          [11, gw - 0.4],
+          [10.6, gw - 1.3],
+          [8.6, gw - 0.2],
+          [1.8, gw - 0.3],
+        ]),
+      ),
+      mat: fit,
+      shade: 'flat',
+      level: 2,
+      sep: true,
+    });
+  if (tassel)
+    parts.push({
+      shape: poly([f.at(-7.6, 0.5), f.at(-8.6, 3.8), f.at(-9.8, 3.3), f.at(-8.3, 0.2)]),
+      mat: tassel,
+      shade: 'flat',
+      level: 2,
+      sep: true,
+    });
   return { parts, shadow: true };
 }
 
@@ -449,6 +481,29 @@ export function lance({
     spec: 1.5,
     sep: true,
   });
+  if (variant === 'hook')
+    // A bill hook below the head, curling back toward the butt: it catches an axe's beard.
+    parts.push({
+      shape: poly(
+        f.pts([
+          [L - 11.4, -0.9],
+          [L - 11.2, -3.6],
+          [L - 12.6, -6.2],
+          [L - 15.6, -7.2],
+          [L - 18, -6.4],
+          [L - 15.4, -5.4],
+          [L - 13.6, -3.8],
+          [L - 13.4, -0.9],
+        ]),
+      ),
+      mat: head,
+      shade: 'ridge',
+      axis: f.u,
+      spine0: f.at(0),
+      halfWidth: 3,
+      spec: 1.2,
+      sep: true,
+    });
   if (variant === 'javelin' || variant === 'throwing')
     parts[0].shape = cap(f.at(variant === 'throwing' ? 10 : 8), f.at(L - 10), 0.85);
   if (variant === 'throwing') {

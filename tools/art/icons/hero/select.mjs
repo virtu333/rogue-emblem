@@ -4,6 +4,9 @@
 // take was picked), and the model that produced it is recorded from its provenance.
 //   node tools/art/icons/hero/select.mjs
 // Review notes live here so the next curation pass can see why a take was chosen.
+// Items renamed on 2026-09-26 (docs/specs/item-names.md) keep their raw takes under
+// the old ids and later rerolls live only in selections.json: re-running this script
+// as it stands would drop them, so edit selections.json directly for those items.
 import fs from 'node:fs';
 import prettier from 'prettier';
 import { HERO_SUBJECTS } from './prompts.mjs';
@@ -25,7 +28,7 @@ const PICKS = {
   'skill-ring': ['flash-t1', 'Re-prompted for a plain band.'],
   'shield-ring': ['flash-t1', 'Re-prompted for a plain band.'],
   'silence-staff': ['flash-t1', 'Re-prompted: no rainbow ring.'],
-  'tempest-blade': ['flash-t1', 'Re-prompted: no wind ribbons.'],
+  'gale-blade': ['flash-t1', 'Re-prompted: no wind ribbons.'],
   'silver-sword': ['flash-t1', 'Re-prompted: the first take striped the blade red and gold.'],
   'binding-imbuing-stone': ['flash-t1', 'Re-prompted: earth-brown snapped to gold; now olive.'],
 };

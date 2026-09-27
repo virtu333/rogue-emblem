@@ -6,11 +6,11 @@ function readJson(path) {
 }
 
 describe('data consistency workflow guards', () => {
-  it('Doublebow uses a valid, existing weapon-art linkage', () => {
+  it("Hermit's Bow uses a valid, existing weapon-art linkage", () => {
     const weapons = readJson('data/weapons.json');
     const arts = readJson('data/weaponArts.json')?.arts || [];
     const artById = new Map(arts.map((art) => [art.id, art]));
-    const doublebow = weapons.find((weapon) => weapon.name === 'Doublebow');
+    const doublebow = weapons.find((weapon) => weapon.name === "Hermit's Bow");
 
     expect(doublebow).toBeTruthy();
     expect(Array.isArray(doublebow.weaponArtIds)).toBe(true);
@@ -20,7 +20,7 @@ describe('data consistency workflow guards', () => {
       const art = artById.get(artId);
       expect(art).toBeTruthy();
       expect(Array.isArray(art.legendaryWeaponIds)).toBe(true);
-      expect(art.legendaryWeaponIds).toContain('Doublebow');
+      expect(art.legendaryWeaponIds).toContain("Hermit's Bow");
     }
   });
 
@@ -49,10 +49,10 @@ describe('data consistency workflow guards', () => {
     expect(guardSkill.description).toBe('+3 DEF/RES when adjacent to an ally');
   });
 
-  it('enemy-only Sunder weapons and Venin Bow are excluded from standard loot pools', () => {
+  it('enemy-only Sunder weapons and Adder Bow are excluded from standard loot pools', () => {
     const lootTables = readJson('data/lootTables.json');
     const enemyOnlyWeapons = [
-      'Venin Bow',
+      'Adder Bow',
       'Sunder Sword',
       'Sunder Lance',
       'Sunder Axe',

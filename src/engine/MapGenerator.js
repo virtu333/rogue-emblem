@@ -3226,7 +3226,7 @@ function estimateMaxWeaponRange(className, classesData, weaponsData) {
     const hi = parts[parts.length - 1];
     if (hi > maxRange) maxRange = hi;
   }
-  // Cap at 2 for practical turn-1 reach estimation (long-range tomes like Bolting are rare)
+  // Cap at 2 for practical turn-1 reach estimation (long-range tomes like Breachbolt are rare)
   return Math.min(maxRange, 2);
 }
 

@@ -2230,7 +2230,7 @@ describe('RunManager', () => {
       const sera = rmMeta.roster[1];
       const lightWeapons = sera.inventory.filter((w) => w.type === 'Light');
       expect(lightWeapons).toHaveLength(1);
-      expect(lightWeapons[0].name).toBe('Lightning');
+      expect(lightWeapons[0].name).toBe('Glimmer');
     });
 
     it('starting_accessory equips Goddess Icon on Edric at tier 1', () => {

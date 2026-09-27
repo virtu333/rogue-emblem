@@ -204,9 +204,9 @@ printHeader('SCENARIO TESTS');
 
 installSeed(opts.seed);
 
-// Scenario 1: Swordmaster with Killing Edge + Wrath + crit_plus_15
+// Scenario 1: Swordmaster with Keen Sword + Wrath + crit_plus_15
 {
-  console.log('\n--- Swordmaster (Killing Edge + Wrath + Crit+15) vs Promoted Classes ---');
+  console.log('\n--- Swordmaster (Keen Sword + Wrath + Crit+15) vs Promoted Classes ---');
   const promotedEnemies = ['General', 'Paladin', 'Sage', 'Hero', 'Sniper'];
   const rows = promotedEnemies.map((defCls) => {
     const result = runMatchup(
@@ -216,7 +216,7 @@ installSeed(opts.seed);
       opts.trials,
       ['wrath', 'crit_plus_15'],
       [],
-      'Killing Edge',
+      'Keen Sword',
     );
     return { Defender: defCls, ...result };
   });
@@ -231,19 +231,19 @@ installSeed(opts.seed);
   if (avgWR > 80) {
     issues.push({
       severity: 'CRITICAL',
-      label: 'Wrath + Killing Edge + Crit+15 is overpowered',
+      label: 'Wrath + Keen Sword + Crit+15 is overpowered',
       detail: `Swordmaster avg win rate ${avgWR.toFixed(1)}% vs promoted classes`,
       suggestion: 'Consider reducing Wrath crit bonus from +30 to +20, or cap total crit at 80%',
     });
   }
 }
 
-// Scenario 2: Hero with Brave Sword + Astra
+// Scenario 2: Hero with Oathblade + Astra
 {
-  console.log('\n--- Hero (Brave Sword + Astra) vs Promoted Classes ---');
+  console.log('\n--- Hero (Oathblade + Astra) vs Promoted Classes ---');
   const promotedEnemies = ['General', 'Paladin', 'Sage', 'Swordmaster', 'Sniper'];
   const rows = promotedEnemies.map((defCls) => {
-    const result = runMatchup('Hero', defCls, 5, opts.trials, ['astra'], [], 'Brave Sword');
+    const result = runMatchup('Hero', defCls, 5, opts.trials, ['astra'], [], 'Oathblade');
     return { Defender: defCls, ...result };
   });
   if (opts.csv) {

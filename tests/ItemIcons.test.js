@@ -60,8 +60,8 @@ describe('item icon coverage', () => {
       type: 'Lance',
     };
     expect(itemIconId(imbued)).toBe('silver-lance');
-    expect(baseItemName('Keen Killer Axe +3')).toBe('Keen Killer Axe');
-    expect(itemIconId({ name: 'Keen Killer Axe +3', type: 'Axe' })).toBe('killer-axe');
+    expect(baseItemName('Keen Keen Axe +3')).toBe('Keen Keen Axe');
+    expect(itemIconId({ name: 'Keen Keen Axe +3', type: 'Axe' })).toBe('keen-axe');
   });
 
   it('reward choices, gold and unknown items still get an icon', () => {

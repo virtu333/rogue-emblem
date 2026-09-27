@@ -61,7 +61,7 @@ afterEach(() => random.mockRestore());
 
 describe('UnitManager ordering primitives', () => {
   it('equipWeapon moves the weapon to the top and keeps the rest in order', () => {
-    const [a, b, c] = [w('Iron Sword'), w('Steel Sword'), w('Killing Edge')];
+    const [a, b, c] = [w('Iron Sword'), w('Steel Sword'), w('Keen Sword')];
     const u = swordsman([a, b, c]);
     equipWeapon(u, c);
     expect(u.weapon).toBe(c);
@@ -89,7 +89,7 @@ describe('UnitManager ordering primitives', () => {
   });
 
   it('normalizeEquippedFirst is idempotent and ignores dangling weapons', () => {
-    const [a, b, c] = [w('Iron Sword'), w('Steel Sword'), w('Killing Edge')];
+    const [a, b, c] = [w('Iron Sword'), w('Steel Sword'), w('Keen Sword')];
     const u = swordsman([a, b, c], c);
     expect(normalizeEquippedFirst(u)).toBe(true);
     expect(u.inventory).toEqual([c, a, b]);
@@ -103,7 +103,7 @@ describe('UnitManager ordering primitives', () => {
   });
 
   it('inventoryDisplayOrder shows equipped first without mutating', () => {
-    const [a, b, c] = [w('Iron Sword'), w('Steel Sword'), w('Killing Edge')];
+    const [a, b, c] = [w('Iron Sword'), w('Steel Sword'), w('Keen Sword')];
     const u = swordsman([a, b, c], b);
     expect(inventoryDisplayOrder(u)).toEqual([b, a, c]);
     expect(u.inventory).toEqual([a, b, c]);
@@ -293,7 +293,7 @@ describe('persistence', () => {
   });
 
   it('battle checkpoints restore the exact order and the equipped reference', () => {
-    const [a, b, c] = [w('Iron Sword'), w('Steel Sword'), w('Killing Edge')];
+    const [a, b, c] = [w('Iron Sword'), w('Steel Sword'), w('Keen Sword')];
     // A legacy checkpoint may hold the equipped weapon anywhere: restore exactly.
     const u = swordsman([a, b, c], c);
     const snapshot = JSON.parse(JSON.stringify(serializeBattleUnit(u)));
@@ -309,7 +309,7 @@ describe('persistence', () => {
     relinkWeapon(modern);
     expect(modern.equippedInventoryIndex).toBeUndefined();
     expect(modern.inventory[0]).toBe(modern.weapon);
-    expect(modern.weapon.name).toBe('Killing Edge');
+    expect(modern.weapon.name).toBe('Keen Sword');
   });
 });
 

@@ -71,10 +71,10 @@ for (const view of VIEWS) {
     }) => {
       const errors = collectErrors(page);
       await nodeMap(page, view.query);
-      const shop = await openShop(page, ['Killer Lance', 'Sol Scroll', "Gambler's Coin", 'Elixir']);
+      const shop = await openShop(page, ['Keen Lance', 'Sol Scroll', "Gambler's Coin", 'Elixir']);
       const rows = shop.locator('.shop-row');
       await expect(rows).toHaveCount(4);
-      await expect(rows.nth(0).locator('.ia-icon')).toHaveAttribute('data-icon-id', 'killer-lance');
+      await expect(rows.nth(0).locator('.ia-icon')).toHaveAttribute('data-icon-id', 'keen-lance');
       await expect(rows.nth(0).locator('.ia-icon')).toHaveAttribute('data-socket', 'weapon');
       await expect(rows.nth(0).locator('.ia-icon')).toHaveAttribute('data-rim', 'Silver');
       await expect(rows.nth(1).locator('.ia-icon')).toHaveAttribute('data-socket', 'scroll');
@@ -87,7 +87,7 @@ for (const view of VIEWS) {
       // The detail pane: hero picture, kicker, name and numbers side by side.
       const hero = shop.locator('.shop-hero .ia-hero');
       await expect(hero).toBeVisible();
-      await expect(hero).toHaveAttribute('data-icon-id', 'killer-lance');
+      await expect(hero).toHaveAttribute('data-icon-id', 'keen-lance');
       // What it is above the name, its rule as a tag below it (docs/specs/item-keywords.md).
       await expect(shop.locator('.shop-kicker')).toHaveText('Silver Lance');
       await expect(shop.locator('.shop-hero .re-item-tag')).toHaveText(['Crit 30']);
@@ -218,7 +218,7 @@ for (const view of VIEWS) {
         const find = (n) =>
           structuredClone([...d.weapons, ...d.accessories].find((x) => x.name === n));
         const spoils = [
-          { type: 'weapon', item: find('Killer Lance') },
+          { type: 'weapon', item: find('Keen Lance') },
           { type: 'accessory', item: find("Gambler's Coin") },
           { type: 'weapon', item: find('Ragnarok') },
         ];
@@ -257,7 +257,7 @@ for (const view of VIEWS) {
         ),
       ).toBe(true);
       const art = (i) => cards.nth(i).locator('.ch-item-art');
-      await expect(art(0)).toHaveAttribute('data-item-icon', 'killer-lance');
+      await expect(art(0)).toHaveAttribute('data-item-icon', 'keen-lance');
       await expect(art(1).locator('.ch-item-compact')).toHaveAttribute('data-socket', 'accessory');
       await expect(art(2).locator('.ch-item-compact')).toHaveAttribute('data-rim', 'Legend');
       await expect(art(3)).toHaveAttribute('data-item-icon', 'gold');

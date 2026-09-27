@@ -650,7 +650,7 @@ describe('BattleScene loot meta wiring', () => {
           range: '1',
         },
         {
-          name: 'Killing Edge',
+          name: 'Keen Sword',
           type: 'Sword',
           rankRequired: 'Prof',
           might: 9,

@@ -82,6 +82,7 @@ Auth/offline gate (main.js) → Boot → Title → SlotPicker → HomeBase → D
 ## Data File Gotchas
 Read the JSON files directly for full schemas. Non-obvious behaviors:
 - **classes.json** — Base classes have `growthRanges` (string "55-70", rolled once at recruitment). Promoted classes have `promotionBonuses`. Some have `learnableSkills: [{ skillId, level }]`.
+- **Item names are identity** (saves store whole items; weapon-art gates, siege lookups, icons and fx key on names). Renaming an item goes through `ITEM_RENAMES` + `ITEM_NAMES_REVISION` in `engine/ItemNameMigration.js`, which `RunManager.fromJSON` runs over old saves (`docs/specs/item-names.md`). Weapon names follow the family grammar there; rule tags come from `engine/ItemKeywords.js` (`docs/specs/item-keywords.md`).
 - **weapons.json** — Scrolls have `skillId` field (consumable, not equippable as weapons). Staves gain +1 use at MAG 8/14/20; uses tracked via `_usesSpent` (survives serialization). Prices: Iron=500, Steel=1000, Silver=2000, Legend=0, Scrolls=2500, Staves 300/600/1000/1200/0.
 - **consumables.json** — Stat boosters are loot-only (not in shops). Reclass seals: Infantry Seal, Mounted Seal.
 - **lootTables.json** — Act 1: no rare pool, limited forge pool. Loot weapons filtered by roster proficiencies.

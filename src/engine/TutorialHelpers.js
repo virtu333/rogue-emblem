@@ -47,7 +47,7 @@ export function buildTutorialRoster(gameData) {
   const vuln = consumables.find((c) => c.name === 'Vulnerary');
   if (vuln) addToConsumables(edric, vuln);
 
-  // Sera -- Light Sage: Lightning (from createLordUnit, stays equipped so she
+  // Sera -- Light Sage: Glimmer (from createLordUnit, stays equipped so she
   // can fight) + Heal staff for the healing lesson + Vulnerary
   const seraDef = lords.find((l) => l.name === 'Sera');
   const seraClass = classes.find((c) => c.name === seraDef.class);

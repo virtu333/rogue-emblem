@@ -13,7 +13,7 @@ A weapon card says two things beside the name:
   (`Iron Sword +2`, `Vampiric Steel Axe`).
 - **What it does:** one tag per rule. `Crit 30`, `Strikes twice`, `Beats Axes`,
   `x3 vs Armored`, `Uses MAG`, `Halves DEF`, `Poison 5`, `Drains HP`, `Thrown`,
-  `Close range`, `Range 2-3`, `No triangle penalty`, `+5 STR on counter`, `+5 DEF`,
+  `Wind gust`, `Close range`, `Range 2-3`, `No triangle penalty`, `+5 STR on counter`, `+5 DEF`,
   `Alone: +4 STR, +4 SPD`.
 
 Names carry flavour; tags carry rules. This is the Diablo and Slay the Spire split.
