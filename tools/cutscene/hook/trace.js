@@ -238,16 +238,22 @@ export function drawTrace(g, tr, idx, o = {}) {
     g.stroke(P('fg'));
   }
   if (o.glow !== false && has('gl')) {
+    // light is a bloom, never a flat shape: a wide soft halo, a tighter one, and
+    // only a faint trace of the hard edge
     g.globalCompositeOperation = 'lighter';
-    g.filter = `blur(${Math.round(10 * cam.z)}px)`;
     g.fillStyle = pal.glow;
-    g.globalAlpha = (o.alpha ?? 1) * 0.55;
-    g.fill(P('gl'), 'evenodd');
+    for (const [blur, alpha] of [
+      [28, 0.5],
+      [9, 0.45],
+    ]) {
+      g.filter = `blur(${Math.round(blur * cam.z)}px)`;
+      g.globalAlpha = (o.alpha ?? 1) * alpha * (o.glowGain ?? 1);
+      g.fill(P('gl'), 'evenodd');
+    }
     g.filter = 'none';
-    g.globalAlpha = o.alpha ?? 1;
-    g.globalCompositeOperation = 'source-over';
-    g.fillStyle = pal.glow;
+    g.globalAlpha = (o.alpha ?? 1) * 0.25 * (o.glowGain ?? 1);
     g.fill(P('gl'), 'evenodd');
+    g.globalCompositeOperation = 'source-over';
   }
   g.restore();
 }

@@ -389,3 +389,32 @@ export function fire(g, t, { x, y, s = 1, n = 7, seed = 3, light = 1 } = {}) {
   }
   g.restore();
 }
+
+/** Light breaking out of a point: engraved rays that grow and flicker. */
+export function rays(g, t, { x, y, t0, n = 48, len = 700, color = COL.goldHi, seed = 21 } = {}) {
+  const k = easeOut(prog(t, t0, t0 + 0.5));
+  if (k <= 0) return;
+  const f = boil(t);
+  g.save();
+  g.globalCompositeOperation = 'lighter';
+  g.strokeStyle = color;
+  g.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const ang = (i / n) * TAU + hash2(seed, i) * 0.1;
+    const L = len * k * (0.35 + hash2(seed + f, i) * 0.65);
+    const r0 = 30 * k;
+    g.globalAlpha = 0.18 + hash2(seed, i + 7) * 0.3;
+    g.lineWidth = 1 + hash2(seed, i + 9) * 2.5;
+    g.beginPath();
+    g.moveTo(x + Math.cos(ang) * r0, y + Math.sin(ang) * r0);
+    g.lineTo(x + Math.cos(ang) * (r0 + L), y + Math.sin(ang) * (r0 + L));
+    g.stroke();
+  }
+  const core = g.createRadialGradient(x, y, 0, x, y, 160 * k);
+  core.addColorStop(0, 'rgba(255,245,210,0.9)');
+  core.addColorStop(1, 'rgba(255,245,210,0)');
+  g.globalAlpha = 1;
+  g.fillStyle = core;
+  g.fillRect(x - 200, y - 200, 400, 400);
+  g.restore();
+}

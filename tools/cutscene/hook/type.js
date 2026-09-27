@@ -172,9 +172,9 @@ export function say(g, t, o) {
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   if (o.speaker) {
-    g.font = CINZEL(600, 15);
-    g.letterSpacing = '6px';
-    g.globalAlpha = a * 0.9;
+    g.font = CINZEL(700, 19);
+    g.letterSpacing = '7px';
+    g.globalAlpha = a;
     g.fillStyle = o.speakerColor ?? COL.gold;
     g.fillText(o.speaker.toUpperCase(), W / 2 + 3, y - 36);
   }

@@ -18,6 +18,7 @@ import {
   grid,
   hollowSun,
   fire,
+  rays,
   finish,
   flash,
   boil,
@@ -697,7 +698,17 @@ export async function loadRoll(base = '.') {
           { z: 1.08, x: 480, y: 270 },
           { z: 1.18, x: 480, y: 270 },
         );
-        shotTrace(g, id, c0 + (t - T(bar)) * 1.0, { pal: 'gold', cam, loop: 'hold' });
+        const light = id === 'sera_light';
+        shotTrace(g, id, c0 + (t - T(bar)) * 1.0, {
+          pal: 'gold',
+          cam,
+          loop: 'hold',
+          glowGain: light ? 0.12 : 1,
+        });
+        if (light) {
+          const p = toOut(W, H, cam, 600, 200);
+          rays(g, t, { x: p[0], y: p[1], t0: T(bar) });
+        }
         grid(g, t, { W, H, cell: 80, alpha: 0.1 });
         flash(g, t, T(bar), { dur: 0.12, color: COL.goldHi, peak: 0.35 });
         hero(g, t, {
@@ -725,13 +736,21 @@ export async function loadRoll(base = '.') {
           pal: 'gold',
           cam,
           loop: 'hold',
-          clip: (gg) => gg.rect(0, 0, sx, H),
+          clip: (gg) => {
+            gg.beginPath();
+            gg.rect(0, 0, sx, H);
+            gg.clip();
+          },
         });
         shotTrace(g, 'edric_clash', c, {
           pal: 'red',
           cam,
           loop: 'hold',
-          clip: (gg) => gg.rect(sx, 0, W - sx, H),
+          clip: (gg) => {
+            gg.beginPath();
+            gg.rect(sx, 0, W - sx, H);
+            gg.clip();
+          },
         });
         flash(g, t, T(32), { dur: 0.12, color: COL.goldHi, peak: 0.35 });
         hero(g, t, { t0: T(32, 1.5), t1: T(34) - 0.05, text: 'EDRIC', sub: 'Lord', x: 90, y: 600 });
