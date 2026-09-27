@@ -381,6 +381,9 @@ html.mobile-preview .re-screen {
     overscroll-behavior-x: contain;
     scroll-padding-inline: var(--re-s4, 16px);
     touch-action: pan-x;
+    /* A strip's width is fractional; without end room the last tab stays clipped by a
+       fraction of a pixel even when scrolled fully (seen with Linux font metrics). */
+    padding-inline: 2px;
   }
   html.portrait-ui .re-reference .re-tabs .re-btn {
     flex: none;

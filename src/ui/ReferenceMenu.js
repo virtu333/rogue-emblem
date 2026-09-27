@@ -305,10 +305,7 @@ export class ReferenceMenu {
     }
     this.list.scrollTop = previousScroll;
     if (showList) {
-      for (const strip of [tabs, filterRow])
-        strip
-          ?.querySelector('[aria-pressed="true"]')
-          ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      for (const strip of [tabs, filterRow]) revealInStrip(strip);
     }
     if (portrait)
       for (const box of [tabs, filterRow, this.list, detail])
@@ -318,6 +315,21 @@ export class ReferenceMenu {
   destroy() {
     this.surface.destroy();
   }
+}
+
+/**
+ * Scroll a sideways strip so its chosen tab sits wholly inside it, clear of the strip's
+ * scroll padding (the faded edge). Rounds outwards: a fractional shortfall would leave
+ * the tab clipped by part of a pixel.
+ */
+function revealInStrip(strip) {
+  const chosen = strip?.querySelector('[aria-pressed="true"]');
+  if (!chosen) return;
+  const box = strip.getBoundingClientRect();
+  const tab = chosen.getBoundingClientRect();
+  const pad = parseFloat(getComputedStyle(strip).scrollPaddingInlineStart) || 0;
+  if (tab.left < box.left + pad) strip.scrollLeft -= Math.ceil(box.left + pad - tab.left);
+  else if (tab.right > box.right - pad) strip.scrollLeft += Math.ceil(tab.right - box.right + pad);
 }
 
 /**

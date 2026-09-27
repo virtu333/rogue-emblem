@@ -620,11 +620,18 @@ async function sheetTabOrder(page) {
   const reading = await page.evaluate((ids) => {
     const els = ids.map((id) => document.querySelector(`[data-tab-probe="${id}"]`));
     const boxes = els.map((el, i) => ({ id: ids[i], r: el.getBoundingClientRect() }));
-    return boxes
-      .sort((a, b) =>
-        Math.abs(a.r.top - b.r.top) > a.r.height / 2 ? a.r.top - b.r.top : a.r.left - b.r.left,
-      )
-      .map((b) => b.id);
+    // Rows: two controls share a row when each one's middle lies within the other's
+    // height (a tall card below a short button is a row of its own, whatever the
+    // platform's font metrics). Rows run top to bottom, controls left to right.
+    const mid = (b) => (b.r.top + b.r.bottom) / 2;
+    const within = (b, of) => mid(b) > of.r.top && mid(b) < of.r.bottom;
+    const rows = [];
+    for (const b of [...boxes].sort((x, y) => x.r.top - y.r.top)) {
+      const row = rows.find((r) => r.every((o) => within(b, o) && within(o, b)));
+      if (row) row.push(b);
+      else rows.push([b]);
+    }
+    return rows.flatMap((r) => r.sort((x, y) => x.r.left - y.r.left)).map((b) => b.id);
   }, visited);
   const labels = await page.evaluate(
     (ids) =>
