@@ -130,7 +130,7 @@ export class ArenaMenu {
     const m = new ArenaMenu(c, 'Arena · Combat forecast', () => c._showTierSelect());
     const grid = el('div', null, 'service-columns');
     for (const [u, f, weapon] of [
-      [c._selectedUnit, forecast.attacker, c._fighterWeapon ?? c._selectedUnit.weapon],
+      [c._selectedUnit, forecast.attacker, c._fighterWeapon],
       [c._challenger.unit, forecast.defender, c._challenger.unit.weapon],
     ]) {
       const card = el('article', null, 'service-card');

@@ -1037,7 +1037,7 @@ export class MobileRosterSheet {
         if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
           this.scene.registry.get('audio')?.playSFX('sfx_heal');
         this.render(
-          result || `${label}: ${item.name}${warning ? ` ${warning}` : ''}${this.persistNow()}`,
+          result || `${label}: ${item.name}${warning ? `. ${warning}` : ''}${this.persistNow()}`,
         );
       },
       reason,

@@ -38,7 +38,7 @@ export function rosterItemBlock(run, unit, item, action) {
   }
   if (!owned) return 'Item is no longer carried by this unit.';
   if (action === 'equip') return canEquip(unit, item) ? '' : 'This unit cannot equip this weapon.';
-  // Storing a unit's last combat weapon is allowed: rosterItemWarning says so.
+  // Storing a unit's last combat weapon is allowed: rosterItemWarnings says so.
   if (action === 'store') return run.canAddToConvoy(item) ? '' : 'Convoy is full.';
   if (action === 'heal' || action === 'use') {
     if (!consumable) return 'This item cannot be used.';

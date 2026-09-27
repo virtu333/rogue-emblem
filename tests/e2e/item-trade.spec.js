@@ -516,7 +516,7 @@ for (const vp of VIEWPORTS) {
       await page.screenshot({ path: info.outputPath(`${vp.name}-store-last-weapon.png`) });
       await press(vp, store);
       await expect(sheet.getByRole('status')).toContainText(
-        'Store: Edric Blade 1 Leaves Edric unarmed.',
+        'Store: Edric Blade 1. Leaves Edric unarmed.',
       );
       await expect(sheet.getByRole('heading', { name: /^Equipment · 0\/5/ })).toBeVisible();
       await expect(sheet).toContainText(
