@@ -108,7 +108,11 @@ export class HealController {
     return usable[0];
   }
 
-  findHealTargets(unit, staffOverride = null) {
+  /**
+   * Heal/cure targets for `unit`'s staff. `from` (a tile) measures reach from there
+   * instead of where the unit stands: what the staff would offer after moving.
+   */
+  findHealTargets(unit, staffOverride = null, { from = null } = {}) {
     const scene = this.scene;
     if (!hasStaff(unit)) return [];
     const staff = staffOverride || scene.getActiveHealStaff(unit);
@@ -122,29 +126,34 @@ export class HealController {
       );
     }
     const range = getEffectiveStaffRange(staff, unit);
-    const cure = isCureStaff(staff);
+    const origin = from || unit;
     const healOpts = this.getHealOptions();
     const targets = [];
     // Heal and cure staves mend green units too (recruit NPCs, the merchant
-    // caravan), listed after the army. Fog hides an NPC the army cannot see, so
-    // a long-range staff never reveals one by offering it as a target.
+    // caravan), listed after the army.
     for (const ally of staffAllyCandidates(scene.playerUnits, scene.npcUnits)) {
-      if (ally === unit) continue; // Can't staff self
-      if (ally.currentHP <= 0 || ally._removing) continue;
-      if (!canInspectUnit(scene.grid, ally)) continue;
-      if (cure) {
-        if ((ally._conditions || []).length === 0) continue; // Nothing to cure
-      } else if (ally.currentHP >= ally.stats.HP) {
-        continue; // Full HP
-      } else if (resolveHeal(staff, unit, ally, healOpts).healAmount <= 0) {
-        continue; // Would restore nothing (never spend a use on a 0 heal)
-      }
-      const dist = gridDistance(unit.col, unit.row, ally.col, ally.row);
+      if (!this.wouldMend(unit, staff, ally, healOpts)) continue;
+      const dist = gridDistance(origin.col, origin.row, ally.col, ally.row);
       if (dist >= range.min && dist <= range.max) {
         targets.push(ally);
       }
     }
     return targets;
+  }
+
+  /**
+   * Would `staff` in `unit`'s hands do something for `ally` (reach aside)? A heal
+   * staff needs a hurt ally it would restore HP to (never a use spent on 0); a cure
+   * staff, an ally with a status. Fog hides an NPC the army cannot see, so a
+   * long-range staff (or a coaching note) never reveals one by offering it.
+   */
+  wouldMend(unit, staff, ally, healOpts = this.getHealOptions()) {
+    if (!ally || ally === unit) return false; // Can't staff self
+    if (ally.currentHP <= 0 || ally._removing) return false;
+    if (!canInspectUnit(this.scene.grid, ally)) return false;
+    if (isCureStaff(staff)) return (ally._conditions || []).length > 0; // Nothing to cure
+    if (ally.currentHP >= ally.stats.HP) return false; // Full HP
+    return resolveHeal(staff, unit, ally, healOpts).healAmount > 0;
   }
 
   startHealTargetSelection(unit, targets, chosenStaff = null) {

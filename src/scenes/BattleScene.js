@@ -6445,8 +6445,12 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  findHealTargets(unit, staffOverride = null) {
-    return (this._healController ||= new HealController(this)).findHealTargets(unit, staffOverride);
+  findHealTargets(unit, staffOverride = null, ...options) {
+    return (this._healController ||= new HealController(this)).findHealTargets(
+      unit,
+      staffOverride,
+      ...options,
+    );
   }
 
   startHealTargetSelection(unit, targets, chosenStaff = null) {
