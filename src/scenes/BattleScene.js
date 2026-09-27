@@ -6252,6 +6252,8 @@ export class BattleScene extends Phaser.Scene {
       );
 
       if (blockedActions.has(label)) text._menuDescription = blockedActions.get(label);
+      // No Visit command exists: Wait says when ending here visits the village.
+      if (label === 'Wait') text._menuNote = this._villageController?.getWaitNote(unit) || null;
       this.actionMenu.push(text);
     });
     this._pinToScreen(this.actionMenu);
@@ -6270,6 +6272,7 @@ export class BattleScene extends Phaser.Scene {
         label: button.text,
         item: button._menuItem,
         description: button._menuDescription,
+        note: button._menuNote || null,
         button,
         disabled: Boolean(button._menuDisabled),
         color: button._menuColor || UI_PALETTE.text,

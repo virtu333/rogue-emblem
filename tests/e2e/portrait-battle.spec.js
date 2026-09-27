@@ -542,3 +542,55 @@ test('turning the phone mid-battle does not change how the battle plays out', as
   for (let i = 0; i < control.states.length; i++)
     expect(turned.states[i], `after ${i} enemy phases`).toEqual(control.states[i]);
 });
+
+// A unit on an intact village: the upright rail's pinned Wait carries "Visits village"
+// (playtest 2026-09-26: no Visit command, so only Waiting revealed the rule) and the
+// bottom row stays six whole, unbroken controls.
+async function edricOnVillage(page) {
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const u = s.playerUnits.find((p) => p.name === 'Edric');
+    const pos = { col: u.col, row: u.row };
+    s.battleConfig.villageTile = pos;
+    s._villageState = { ...pos, status: 'intact' };
+    s.grid.setTerrainAt(
+      pos.col,
+      pos.row,
+      s.gameData.terrain.findIndex((t) => t.name === 'Village'),
+    );
+    s._villageController._renderMarker();
+    s.updateObjectiveText();
+    s.selectUnit(u);
+    s.showActionMenu(u);
+  });
+}
+
+for (const viewport of [
+  { width: 375, height: 667 },
+  { width: 390, height: 844 },
+]) {
+  test(`upright Wait notes the village visit at ${viewport.width}x${viewport.height}`, async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize(viewport);
+    await page.goto('/?devScene=battle&preset=combat_actions&seed=42&portrait=1');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+    await edricOnVillage(page);
+    const hud = page.getByRole('complementary', { name: 'Battle commands' });
+    await expect(hud.locator('.mb-dock .mb-pinned-command .mb-item-note')).toHaveText(
+      'Visits village',
+    );
+    await expect(hud.getByRole('button', { name: 'Wait', exact: true })).toHaveCount(1);
+    // The note sits inside Wait, unbroken; the row keeps all six controls whole.
+    expectWholeRow(await bottomRow(page), [
+      'Wait',
+      'Danger',
+      'Overview',
+      'Recenter',
+      'Back',
+      'Menu',
+    ]);
+  });
+}

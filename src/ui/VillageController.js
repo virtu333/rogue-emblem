@@ -13,6 +13,7 @@ import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import {
   createVillageState,
   visitVillage,
+  isUnitOnIntactVillage,
   razeVillage,
   clearSeekTileBandits,
   getVillageGoldReward,
@@ -23,6 +24,11 @@ import { TERRAIN, TILE_SIZE } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { showMinorHint } from './HintDisplay.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
+
+/** The objective line while the village is intact: how to visit, and the race. */
+export const VILLAGE_OBJECTIVE_LINE = "Village: end a unit's action on it before bandits";
+/** Under Wait in the action menu when waiting here would visit the village. */
+export const VILLAGE_WAIT_NOTE = 'Visits village';
 
 export class VillageController {
   constructor(scene) {
@@ -68,12 +74,35 @@ export class VillageController {
     return Boolean(this.scene?.battleConfig?.villageTile);
   }
 
-  /** Objective subtext while the village is still worth racing for. */
+  /**
+   * Objective subtext while the village is still worth racing for. There is no
+   * Visit command: the line says how a visit happens (playtest 2026-09-26).
+   */
   getObjectiveSuffix() {
     if (this.scene?._villageState?.status === VILLAGE_STATUS.INTACT) {
-      return 'Village: Visit before bandits!';
+      return VILLAGE_OBJECTIVE_LINE;
     }
     return null;
+  }
+
+  /**
+   * True when ending this unit's action where it stands visits the village: a
+   * living player unit on the intact village tile. handleUnitActionEnd and the
+   * action menu's Wait note share it, so the note never promises a visit the
+   * action would not make.
+   */
+  canVisit(unit) {
+    return Boolean(
+      unit &&
+      unit.faction === 'player' &&
+      unit.currentHP > 0 &&
+      isUnitOnIntactVillage(this.scene?._villageState, unit),
+    );
+  }
+
+  /** The action menu's note under Wait for a unit that would visit by waiting, else null. */
+  getWaitNote(unit) {
+    return this.canVisit(unit) ? VILLAGE_WAIT_NOTE : null;
   }
 
   /**
@@ -86,9 +115,7 @@ export class VillageController {
   handleUnitActionEnd(unit) {
     const scene = this.scene;
     const state = scene?._villageState;
-    if (!state || state.status !== VILLAGE_STATUS.INTACT) return false;
-    if (!unit || unit.faction !== 'player' || unit.currentHP <= 0) return false;
-    if (unit.col !== state.col || unit.row !== state.row) return false;
+    if (!this.canVisit(unit)) return false;
     if (!visitVillage(state)) return false;
 
     this._resolveTile(state);

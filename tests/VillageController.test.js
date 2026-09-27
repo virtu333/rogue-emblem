@@ -7,6 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { VillageController } from '../src/ui/VillageController.js';
 import { TERRAIN, VILLAGE_GOLD_BY_ACT } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
+import { HELP_TABS } from '../src/data/helpContent.js';
 
 const gameData = loadGameData();
 
@@ -173,6 +174,75 @@ describe('VillageController', () => {
     });
   });
 
+  // Playtest 2026-09-26: Edric stood on the village with Attack/Equip/Wait offered and no
+  // Visit; only Waiting revealed the rule. The action menu's Wait now says it visits.
+  describe('Wait note (how a visit happens)', () => {
+    function setupIntact() {
+      const scene = makeScene({ battleConfig: { villageTile: { ...TILE } } });
+      const ctrl = new VillageController(scene);
+      ctrl.create();
+      return { scene, ctrl };
+    }
+
+    // [unit, visits when its action ends there] — the rule is written out here, not
+    // read back from the controller.
+    const cases = [
+      ['a player unit on the tile', makeUnit(), true],
+      ['a non-lord recruit on the tile', makeUnit({ name: 'Ottoline', isLord: false }), true],
+      ['a player unit one tile away', makeUnit({ col: 3 }), false],
+      ['a green NPC on the tile', makeUnit({ faction: 'npc' }), false],
+      ['an enemy on the tile', makeUnit({ faction: 'enemy' }), false],
+      ['a fallen unit on the tile', makeUnit({ currentHP: 0 }), false],
+    ];
+    for (const [who, unit, visits] of cases) {
+      it(`${who}: note ${visits ? 'shown' : 'absent'}, and ending the action ${visits ? 'visits' : 'does not'}`, () => {
+        const { scene, ctrl } = setupIntact();
+        expect(ctrl.getWaitNote(unit)).toBe(visits ? 'Visits village' : null);
+        // The note is a promise about the real hook: ending the action does exactly that.
+        expect(ctrl.handleUnitActionEnd(unit)).toBe(visits);
+        expect(scene._villageState.status).toBe(visits ? 'visited' : 'intact');
+      });
+    }
+
+    it('no note once the village is visited or razed', () => {
+      for (const status of ['visited', 'razed']) {
+        const { scene, ctrl } = setupIntact();
+        scene._villageState.status = status;
+        expect(ctrl.getWaitNote(makeUnit())).toBeNull();
+      }
+    });
+
+    it('no note on a map without a village', () => {
+      const scene = makeScene();
+      const ctrl = new VillageController(scene);
+      ctrl.create();
+      expect(ctrl.getWaitNote(makeUnit())).toBeNull();
+    });
+  });
+
+  describe('village copy', () => {
+    const village = gameData.terrain.find((t) => t.name === 'Village');
+
+    it("the terrain details say a visit is ending a unit's action there", () => {
+      // Shown by the rail's Terrain details and the desktop hover panel.
+      expect(village.special).toBe("End a unit's action here to visit: gold and supplies.");
+    });
+
+    it('the Terrain help lists the village with its data numbers and the visit rule', () => {
+      const page = HELP_TABS.find((t) => t.label === 'Terrain').pages[0];
+      const texts = page.lines.map((l) => l.text);
+      const row = texts.find((t) => t.startsWith('Village'));
+      const [, avo, def] = row.match(/^Village\s+\+(\d+)\s+\+(\d+)/);
+      expect(Number(avo)).toBe(Number(village.avoidBonus));
+      expect(Number(def)).toBe(Number(village.defBonus));
+      const note = texts.slice(texts.indexOf(row) + 1).join(' ');
+      expect(note).toContain("end any unit's action on it");
+      expect(note).toContain('Wait works');
+      // The help overlay's page budget (see HelpContentInput.test.js).
+      for (const text of texts) expect(text.length).toBeLessThanOrEqual(42);
+    });
+  });
+
   describe('handleEnemyUnitDone (raze)', () => {
     function setupIntact(sceneOverrides = {}) {
       const scene = makeScene({ battleConfig: { villageTile: { ...TILE } }, ...sceneOverrides });
@@ -333,7 +403,8 @@ describe('VillageController', () => {
       const scene = makeScene({ battleConfig: { villageTile: { ...TILE } } });
       const ctrl = new VillageController(scene);
       ctrl.create();
-      expect(ctrl.getObjectiveSuffix()).toBe('Village: Visit before bandits!');
+      // Playtest 2026-09-26: there is no Visit command, so the line says how to visit.
+      expect(ctrl.getObjectiveSuffix()).toBe("Village: end a unit's action on it before bandits");
       scene._villageState.status = 'razed';
       expect(ctrl.getObjectiveSuffix()).toBeNull();
     });

@@ -1338,7 +1338,13 @@ export class MobileBattleHUD {
       button.prepend(itemIcon(item.item, { size: 16, className: 'mb-item-icon' }));
     if (equippedRow) button.append(equippedBadgeElement());
     if (item.description) button.append(el('small', 'mb-item-summary', item.description));
-    else if (detail) {
+    else if (item.note) {
+      // A note (Wait on an intact village) informs without renaming the command:
+      // the button is still announced and found as its label.
+      button.append(el('small', 'mb-item-summary mb-item-note', item.note));
+      button.setAttribute('aria-label', item.label);
+      button.setAttribute('aria-description', item.note);
+    } else if (detail) {
       const brief = battleItemBrief(item.item, menu.unit);
       button.append(el('small', 'mb-item-summary', expanded ? detail : brief));
       // Screen readers always hear every stat and the effect.
