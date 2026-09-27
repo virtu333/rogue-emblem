@@ -220,6 +220,27 @@ describe('assignment', () => {
     expect(isComplete(kept)).toBe(true);
   });
 
+  it('auto-fill seeds are preferences: kept when free, given up only for a fuller fill', () => {
+    // Unit 2 may only stand on tile 0, which is unit 0's seed: unit 0 moves to the
+    // tile left over (2) and unit 1 keeps its seed.
+    const only0 = (u, t) => (u === 2 ? t === 0 : true);
+    expect(autoFill(createFormation(3, tiles.slice(0, 3)), only0, { seeds: [0, 1, 2] }).at).toEqual(
+      [2, 1, 0],
+    );
+    // Nothing competes: every seed is kept, whatever the tile order says.
+    const free = autoFill(createFormation(3, tiles), () => true, {
+      seeds: [3, 0, 2],
+      tileOrder: [0, 1, 2, 3],
+    });
+    expect(free.at).toEqual([3, 0, 2]);
+    // A seed on the player's tile, off the formation or missing is ignored: those
+    // units fill the free tiles in order, and the player's unit stays.
+    const odd = autoFill(placeUnit(createFormation(3, tiles), 2, 0), () => true, {
+      seeds: [0, 9, -1],
+    });
+    expect(odd.at).toEqual([1, 2, 0]);
+  });
+
   it('auto-fill honours tile preference and leaves a unit out when nothing fits', () => {
     const f = autoFill(createFormation(2, tiles), () => true, { tileOrder: [3, 2, 1, 0] });
     expect(f.at).toEqual([3, 2]);

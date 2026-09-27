@@ -263,39 +263,107 @@ export function isComplete(formation) {
 }
 
 /**
- * Fill every unplaced unit, keeping the player's placements. `allowed(u, t)` says
- * whether unit u may stand on tile t; units are served in `unitOrder` and try
- * tiles in `tileOrder` (earlier is preferred). Bipartite matching (augmenting
- * paths) guarantees a full fill whenever one exists among the free tiles.
+ * Fill every unplaced unit, keeping the player's placements: a unit already on a
+ * tile never moves and its tile is never offered. `allowed(u, t)` says whether
+ * unit u may stand on tile t.
+ *
+ * `seeds[u]` is a tile unplaced unit u would like (Auto-place passes its default
+ * tile). A seed is a preference, never a lock: the fill places as many units as
+ * any assignment could, and among those assignments keeps the most units on their
+ * seed tiles, so a seed gives way only when a fuller formation needs its tile.
+ * Remaining ties favour fewer units moved along a path, then earlier tiles in
+ * `tileOrder` and earlier units in `unitOrder`.
+ *
+ * Bipartite matching by augmenting paths (Kuhn), started from the seeds and
+ * always taking the cheapest path, where moving a unit off its seed costs 1 and
+ * onto it gains 1 (successive shortest paths). Each path places one more unit;
+ * the fill stops when no path is left, which by Berge's theorem means no
+ * assignment places more. Starting from the seeds is the cheapest start for its
+ * size, and cheapest paths keep it cheapest, so the result also keeps the most seeds.
  */
-export function autoFill(formation, allowed, { unitOrder = null, tileOrder = null } = {}) {
+export function autoFill(
+  formation,
+  allowed,
+  { unitOrder = null, tileOrder = null, seeds = null } = {},
+) {
   const at = [...formation.at];
   const tileCount = formation.tiles.length;
-  const tilesPref = tileOrder || [...Array(tileCount).keys()];
-  const units = (unitOrder || [...at.keys()]).filter((u) => at[u] === null);
   const fixed = new Set(at.filter((t) => t !== null));
-  const owner = new Map(); // tile -> unit (only for units placed by this fill)
-  // A unit takes its most-preferred free tile; only when none is left does it
-  // displace an earlier unit along an augmenting path (Kuhn's algorithm), so
-  // earlier units keep their preferred tiles unless a full fill needs them.
-  const tryUnit = (u, visited) => {
-    const options = tilesPref.filter((t) => !fixed.has(t) && !visited.has(t) && allowed(u, t));
-    const free = options.find((t) => !owner.has(t));
-    if (free !== undefined) {
-      owner.set(free, u);
-      return true;
-    }
-    for (const t of options) {
-      visited.add(t);
-      if (tryUnit(owner.get(t), visited)) {
-        owner.set(t, u);
-        return true;
-      }
-    }
-    return false;
+  const tiles = (tileOrder || [...Array(tileCount).keys()]).filter((t) => !fixed.has(t));
+  const tileRank = new Map(tiles.map((t, i) => [t, i]));
+  const units = (unitOrder || [...at.keys()]).filter((u) => at[u] === null);
+  const options = new Map(units.map((u) => [u, tiles.filter((t) => allowed(u, t))]));
+  const seedOf = (u) => {
+    const t = seeds?.[u];
+    return Number.isInteger(t) && tileRank.has(t) ? t : null;
   };
-  for (const u of units) tryUnit(u, new Set());
-  for (const [t, u] of owner) at[u] = t;
+  // Cost of putting u on t: a unit landing on its seed tile gains 1.
+  const cost = (u, t) => (seedOf(u) === t ? -1 : 0);
+  const owner = new Map(); // tile -> unit placed by this fill
+  const tileOf = new Map(); // unit -> tile
+  const put = (u, t) => {
+    owner.set(t, u);
+    tileOf.set(u, t);
+  };
+  // Start with every unit on its seed where it may stand (first come for a shared seed).
+  for (const u of units) {
+    const t = seedOf(u);
+    if (t !== null && !owner.has(t) && options.get(u).includes(t)) put(u, t);
+  }
+
+  // Lexicographic path labels: cheapest first, then fewest units moved.
+  const better = (a, b) => !b || a.cost < b.cost || (a.cost === b.cost && a.hops < b.hops);
+  for (;;) {
+    // Bellman-Ford from every unplaced unit over alternating paths: a unit steps
+    // onto a tile it may use; an occupied tile hands its unit on to find another.
+    // No path ever has a negative cycle (see above), so labels settle.
+    const reached = new Map(); // tile -> { cost, hops, unit }
+    const unitLabel = new Map();
+    let frontier = new Set();
+    for (const u of units) {
+      if (tileOf.has(u)) continue;
+      unitLabel.set(u, { cost: 0, hops: 0 });
+      frontier.add(u);
+    }
+    for (let pass = 0; frontier.size && pass <= units.length + tiles.length; pass++) {
+      const next = new Set();
+      for (const u of units) {
+        if (!frontier.has(u)) continue;
+        const from = unitLabel.get(u);
+        for (const t of options.get(u)) {
+          if (tileOf.get(u) === t) continue;
+          const label = { cost: from.cost + cost(u, t), hops: from.hops + 1, unit: u };
+          if (!better(label, reached.get(t))) continue;
+          reached.set(t, label);
+          const v = owner.get(t);
+          if (v === undefined) continue;
+          const moved = { cost: label.cost - cost(v, t), hops: label.hops };
+          if (better(moved, unitLabel.get(v))) {
+            unitLabel.set(v, moved);
+            next.add(v);
+          }
+        }
+      }
+      frontier = next;
+    }
+    let target = null;
+    for (const t of tiles) {
+      const label = reached.get(t);
+      if (!label || owner.has(t)) continue;
+      const best = target === null ? null : reached.get(target);
+      if (!best || label.cost < best.cost || (label.cost === best.cost && label.hops < best.hops))
+        target = t;
+    }
+    if (target === null) break;
+    // Walk the path back: each unit moves onto the tile it reached, freeing its old one.
+    for (let t = target; t !== undefined; ) {
+      const u = reached.get(t).unit;
+      const previous = tileOf.get(u);
+      put(u, t);
+      t = previous;
+    }
+  }
+  for (const [u, t] of tileOf) at[u] = t;
   return { ...formation, at };
 }
 
