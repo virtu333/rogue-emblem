@@ -565,6 +565,17 @@ withdrawn over the fallen sprite), Sera saying *Tamlin*, the Iron Wall reading h
 order thirty-four years late, a unit lifting the crown from the ford's gravel. Each
 is earned by play and plays once per save.
 
+### Later: credits that know the save
+
+For the anime opening (the Broken Sun piece): the staff credits that roll over an
+opening's shots name the player's army instead, read from the save — each unit's
+name and class over its sprite, the units lost on the last run greyed under the
+fallen banner, the real run count ticking on the "again and again" beat. The player
+already draws each frame from `t` alone, so the roster is one more input (a JSON
+snapshot taken when the opening starts); without a save it falls back to the lords.
+Needs a pure `openingRoster(meta, run)` in `src/engine/` and a test that a missing or
+old save still yields a full card list.
+
 ---
 
 ## Questions for the owner
