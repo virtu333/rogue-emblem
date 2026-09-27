@@ -880,6 +880,10 @@
 .mu-screen .ch-card:disabled {
   opacity: 1;
 }
+/* A skip worth less than a gold card still on offer: kept, but quiet until chosen. */
+.ch-reward.is-dominated:not([aria-pressed='true']) .ch-plate {
+  filter: saturate(0.5) brightness(0.85);
+}
 .ch-reward .ch-stamp {
   top: 18px;
   left: auto;

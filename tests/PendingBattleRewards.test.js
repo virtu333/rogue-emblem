@@ -18,6 +18,7 @@ import { PendingRewardController } from '../src/ui/PendingRewardController.js';
 import { loadGameData } from './testData.js';
 import { saveServiceRun } from '../src/ui/serviceSave.js';
 import { rewardRevealPending } from '../src/ui/rewardReveal.js';
+import { isSkipDominated } from '../src/ui/rewardDisplay.js';
 let writesFail;
 beforeEach(() => {
   writesFail = false;
@@ -127,6 +128,37 @@ describe('durable native rewards', () => {
     expect(loadRun(s.gameData, 1).gold).toBe(old + bonus);
     expect(loadRun(s.gameData, 1).pendingBattleReward).toBeNull();
     expect(done).toHaveBeenCalledOnce();
+  });
+});
+
+// The skip card ("Take N gold instead") stays on the screen; it is only quieted when a
+// gold card still on offer pays at least as much (a gold card also adds team XP).
+describe('dominated skip card', () => {
+  const gold = (goldAmount) => ({ type: 'gold', goldAmount, xpAmount: 25 });
+  const weapon = { type: 'weapon', item: { name: 'Iron Sword', type: 'Sword' } };
+  it('is dominated only by a gold card paying at least the skip', () => {
+    expect(isSkipDominated([weapon, gold(300)], 200)).toBe(true);
+    expect(isSkipDominated([gold(200)], 200)).toBe(true);
+    expect(isSkipDominated([weapon, gold(199)], 200)).toBe(false);
+    expect(isSkipDominated([weapon, weapon], 200)).toBe(false);
+    expect(isSkipDominated([], 200)).toBe(false);
+    expect(isSkipDominated(null, 200)).toBe(false);
+  });
+  it('ignores a gold card that is no longer available', () => {
+    const choices = [gold(300), weapon, gold(250)];
+    expect(isSkipDominated(choices, 200, (i) => i !== 0)).toBe(true);
+    expect(isSkipDominated(choices, 200, (i) => i === 1)).toBe(false);
+  });
+  it("follows the reward screen's own availability: an elite's claimed gold card no longer counts", () => {
+    const s = setup();
+    const record = s.runManager.pendingBattleReward;
+    record.choices = [gold(record.skipGold + 50), weapon, weapon];
+    const c = new PendingRewardController(s, { onLeave: vi.fn(), onComplete: vi.fn() });
+    const available = (i) => c.isRewardAvailable(i);
+    expect(isSkipDominated(c.choices, record.skipGold, available)).toBe(true);
+    c.activateReward(0); // first of the elite's two picks
+    expect(s.runManager.pendingBattleReward).toBe(record);
+    expect(isSkipDominated(c.choices, record.skipGold, available)).toBe(false);
   });
 });
 

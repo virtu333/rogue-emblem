@@ -6,7 +6,7 @@ import { ContextHelp, helpPreview } from './ContextHelp.js';
 import { attachInfo, bindHold } from './infoAffordance.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
-import { rewardPresentation, rewardIcon } from './rewardDisplay.js';
+import { rewardPresentation, rewardIcon, isSkipDominated } from './rewardDisplay.js';
 import { rewardForWhom } from './choiceContent.js';
 import { choiceReducedMotion, fadeScroll, itemArtSlot } from './choiceCards.js';
 import { unitPortrait } from './unitPortrait.js';
@@ -197,6 +197,10 @@ export class MobileRewards {
       const available = all.findIndex((_, i) => this.controller.isRewardAvailable(i));
       if (available >= 0) this.selected = available;
     }
+    // A gold card still on offer that pays at least as much makes the skip a loss.
+    const skipDominated = isSkipDominated(this.choices, this.skipGold, (i) =>
+      this.controller.isRewardAvailable(i),
+    );
     const label = (c) =>
       c.type === 'skip'
         ? `Take ${this.skipGold} gold instead`
@@ -204,7 +208,9 @@ export class MobileRewards {
           `${c.goldAmount || 0} gold${c.xpAmount ? ` + ${c.xpAmount} team XP` : ''}`;
     const describe = (c) =>
       c.type === 'skip'
-        ? 'Pass on the remaining rewards and add this gold to your vault.'
+        ? skipDominated
+          ? 'The gold reward pays more.'
+          : 'Pass on the remaining rewards and add this gold to your vault.'
         : c.item
           ? scene._getLootTooltipText(c, c.item)
           : 'Gold is added to your vault. Team XP is shared with your roster.';
@@ -228,6 +234,7 @@ export class MobileRewards {
         presentation.tier || (c.type === 'skip' || c.type === 'gold' ? 'Gold' : 'none');
       b.classList.toggle('reward-legend', presentation.tier === 'Legend');
       b.classList.toggle('is-claimed', claimed);
+      b.classList.toggle('is-dominated', c.type === 'skip' && skipDominated);
       const plate = node('span', null, 'ch-plate');
       const top = node('span', null, 'ch-reward-top');
       const rarity = node('span', null, 'ch-rarity reward-quality');
