@@ -195,20 +195,6 @@
     grid-area: next;
   }
 
-  /* Level-up card on a ~390px phone: a smaller portrait leaves room for both stat
-     columns and their gains. */
-  html.portrait-battle-capable .gr-level-portrait {
-    width: 64px;
-    height: 64px;
-  }
-  html.portrait-battle-capable .gr-level-stats {
-    column-gap: 8px;
-  }
-  html.portrait-battle-capable .gr-level-row,
-  html.portrait-battle-capable .gr-level-row dd {
-    gap: 4px;
-  }
-  html.portrait-battle-capable .gr-level-row {
-    padding: 0 2px;
-  }
+  /* The level-up card's upright layout lives with the card (growth.css, "Upright
+     phones"): it shows over the colosseum and the roster too, not only in battle. */
 }

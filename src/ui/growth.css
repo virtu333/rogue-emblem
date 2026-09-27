@@ -1513,3 +1513,123 @@
     visibility: visible;
   }
 }
+
+/* ─────────────────────────────────────────────── Upright phones
+   Portrait mode (html.portrait-ui, or html.portrait-battle-capable while a battle is
+   laid out upright), only in an upright viewport: landscape and desktop never match.
+   The frames are the phone's width (375–430 px) and --ce-scale is 1. */
+@media (orientation: portrait) {
+  /* The rite: the figure stands over the words, which get the full width (seven
+     bonuses on two rows, sealed beats in two columns). Upright the rite takes the
+     screen (GrowthCeremonyController, upright frame), and --gr-rite-stack tells it to
+     size the figure for a row: 192 px where the words leave room. */
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-rite-layer {
+    --gr-rite-stack: 1;
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-rite,
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-rite.is-tighter {
+    grid-template-columns: minmax(0, 1fr);
+    /* Figure and words centred together; the words' row never outgrows the frame
+       (fitRite measures it and compacts). */
+    grid-template-rows: auto minmax(0, max-content);
+    align-content: center;
+    align-items: stretch;
+    row-gap: 6px;
+    padding: max(12px, var(--ce-safe-t)) max(16px, var(--ce-safe-r)) max(10px, var(--ce-safe-b))
+      max(16px, var(--ce-safe-l));
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-rite-figure {
+    --gr-fig-now: var(--gr-fig);
+    height: var(--gr-fig-now);
+  }
+  /* fitRite step 2 upright: the figure's row gives way (the words keep the width). */
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-rite.is-tighter .gr-rite-figure {
+    --gr-fig-now: calc(var(--gr-fig) * 0.62);
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-rite .gr-rite-bust {
+    width: var(--gr-fig-now);
+    height: var(--gr-fig-now);
+    margin-top: 0;
+  }
+  /* The sun sits where it does beside the words (behind the head and shoulders), now
+     that the bust is not lifted; it stays inside the figure's row, clear of the notch. */
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-rite .gr-sun {
+    top: 52%;
+    width: calc(var(--gr-fig-now) * 0.92);
+    height: auto;
+  }
+  /* The new sprite stands at the portrait's lower right, as it does beside it. */
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-rite .gr-rite-plinth {
+    left: calc(50% + var(--gr-fig-now) * 0.16);
+    right: auto;
+    bottom: 0;
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-rite-text {
+    padding-left: 0;
+  }
+  /* A frame too short even for the compact rite: the words scroll above the corner
+     button (the reserve moves out of the scrolling box, so nothing runs under it). */
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-rite.is-overflowing .gr-rite-text {
+    padding-bottom: 0;
+    margin-bottom: calc(var(--re-tap) + 4px);
+  }
+
+  /* The level-up card: the portrait sits in the header's corner (beside the name,
+     class and level, as tall as they are, so it costs no height) and every row below
+     takes the card's full width: both stat columns keep their pips and gains, and the
+     line reads in two lines, not three. */
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-level > .gr-level-portrait {
+    position: absolute;
+    top: calc(10px * var(--ce-scale));
+    left: calc(12px * var(--ce-scale));
+    width: 56px;
+    height: 56px;
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-level.is-tight > .gr-level-portrait {
+    top: calc(8px * var(--ce-scale));
+  }
+  html:is(.portrait-ui, .portrait-battle-capable)
+    .gr-level:has(> .gr-level-portrait)
+    .gr-level-head {
+    min-height: 56px;
+    padding-left: 66px;
+  }
+  /* fitLevelCard's last step hides the portrait: the header takes the corner back. */
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-level.is-tighter .gr-level-head {
+    min-height: 0;
+    padding-left: 0;
+  }
+
+  /* Joins your army: the bust stands over a full-width band (--gr-join-lift keeps the
+     bust's least height clear when fitJoinBand grows the band). */
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-join {
+    --ce-stack-t: calc(16px + var(--ce-safe-t));
+    --ce-stack-b: calc(32px + var(--ce-safe-b));
+    --gr-join-lift: 112px;
+    --ce-bust: max(
+      0px,
+      min(
+        calc(192px * var(--ce-bust-px, 1)),
+        calc(var(--ce-w, 375px) * 0.62),
+        calc(var(--ce-h, 480px) - var(--ce-stack-t) - var(--ce-stack-b) - var(--ce-band-h))
+      )
+    );
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-join-band {
+    top: calc(
+      (
+          var(--ce-h, 480px) + var(--ce-stack-t) - var(--ce-stack-b) + var(--ce-bust) -
+            var(--ce-band-h)
+        ) /
+        2
+    );
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-join-bust {
+    bottom: calc(100% - 4px);
+    left: calc(10px + var(--ce-safe-l));
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-join-text {
+    left: calc(16px + var(--ce-safe-l));
+    right: calc(16px + var(--ce-safe-r));
+  }
+}

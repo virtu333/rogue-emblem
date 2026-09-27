@@ -596,3 +596,72 @@
     transform: translate(1px, 0);
   }
 }
+
+/* ─────────────────────────────────────────────── Upright phones
+   Portrait mode (html.portrait-ui, or html.portrait-battle-capable while a battle is
+   laid out upright), only in an upright viewport: landscape and desktop never match.
+   Beside a 32% bust and under the seal the words had ~140 px of a 375 px band: the
+   kicker ran to three lines and the Oath broke around its skill. Upright the unit
+   stands over the band's left end and the seal is stamped over its right end; the
+   words take the band's full width. The pair sits between a top margin and the
+   Next / Skip row (--gr-deed-lift: the bust's least height and that margin, which
+   fitDeedBand keeps clear when the band grows). */
+@media (orientation: portrait) {
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-deed {
+    --gr-deed-stack-t: calc(12px + var(--ce-safe-t));
+    --gr-deed-stack-b: calc(var(--re-tap, 44px) + max(10px, var(--ce-safe-b)) + 14px);
+    --gr-deed-lift: 108px;
+    --gr-deed-bust: max(
+      0px,
+      min(
+        calc(192px * var(--ce-bust-px, 1)),
+        calc(var(--ce-w, 375px) * 0.58),
+        calc(
+          var(--ce-h, 480px) - var(--gr-deed-stack-t) - var(--gr-deed-stack-b) - var(--gr-deed-band)
+        )
+      )
+    );
+    /* The band's top edge: the bust and the band centred together in the room. */
+    --gr-deed-top: calc(
+      (
+          var(--ce-h, 480px) + var(--gr-deed-stack-t) - var(--gr-deed-stack-b) +
+            var(--gr-deed-bust) - var(--gr-deed-band)
+        ) /
+        2
+    );
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-deed.is-faceless {
+    --gr-deed-bust: 0px;
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-deed-slash {
+    top: var(--gr-deed-top);
+  }
+  /* Its feet meet the band where the slant has lowered the band's edge (~10px). */
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-deed-bust {
+    top: calc(var(--gr-deed-top) - var(--gr-deed-bust) + 10px);
+    left: calc(12px + var(--ce-safe-l));
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-deed-text,
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-deed.is-faceless .gr-deed-text {
+    top: var(--gr-deed-top);
+    left: calc(16px + var(--ce-safe-l));
+    right: calc(16px + var(--ce-safe-r));
+  }
+  /* The kicker keeps clear of the seal's lower edge at the band's right end. */
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-deed-text > .gr-deed-kicker {
+    max-width: calc(100% - var(--gr-deed-seal-size) * 0.8);
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-deed-seal {
+    top: calc(var(--gr-deed-top) - var(--gr-deed-seal-size) * 0.86);
+    right: calc(16px + var(--ce-safe-r));
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .gr-deed-flash {
+    background: radial-gradient(
+      circle at calc(100% - 16px - var(--gr-deed-seal-size) / 2)
+        calc(var(--gr-deed-top) - var(--gr-deed-seal-size) * 0.36),
+      rgba(255, 240, 189, 0.42),
+      rgba(232, 120, 46, 0.12) 22%,
+      transparent 42%
+    ); /* prettier-ignore */
+  }
+}
