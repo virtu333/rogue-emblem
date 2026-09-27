@@ -5,12 +5,12 @@
 //   node tools/cutscene/glass/tts.mjs                 all lines in script.mjs
 //   node tools/cutscene/glass/tts.mjs --only l03 --force
 //   node tools/cutscene/glass/tts.mjs --audition      one line in several voices
-//   add --style cold for the Lieutenant's cold direction (see script.mjs)
+//   add --style cold for the Lieutenant's cold direction, --lang ja for Japanese
 
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { LINES, VOICE, STYLES, COLD_NOTES } from './script.mjs';
+import { LINES, VOICE, STYLES, COLD_NOTES, JA } from './script.mjs';
 import { curlJson } from '../../art/gen/geminiImage.mjs';
 
 const API = 'https://generativelanguage.googleapis.com/v1beta';
@@ -65,17 +65,22 @@ export async function speak({ text, voice, style, model, out, force }) {
 }
 
 const model = arg('model', VOICE.model);
-// --style soft (draft 1, into voice/) | cold (into voice_cold/)
-const styleName = arg('style', 'soft');
+// --style soft (draft 1, into voice/) | cold (into voice_cold/); --lang ja speaks the
+// Japanese lines in the cold direction (into voice_ja/)
+const lang = arg('lang', 'en');
+const styleName = lang === 'ja' ? 'cold_ja' : arg('style', 'soft');
 const STYLE = STYLES[styleName];
-const OUT = `References/cutscene/glass/${styleName === 'soft' ? 'voice' : `voice_${styleName}`}`;
+const OUT = `References/cutscene/glass/${
+  lang === 'ja' ? 'voice_ja' : styleName === 'soft' ? 'voice' : `voice_${styleName}`
+}`;
 const lineStyle = (l) =>
-  styleName === 'cold'
+  styleName.startsWith('cold')
     ? `${STYLE.replace(/ The line:$/, '')} ${COLD_NOTES[l.id] || ''} The line:`
     : l.style || STYLE;
+const lineText = (l) => (lang === 'ja' ? JA[l.id] : l.say || l.text);
 if (has('audition')) {
   const voices = arg('voices', 'Enceladus,Algieba,Charon,Iapetus,Algenib,Umbriel').split(',');
-  const text = arg('text', LINES[0].text);
+  const text = arg('text', lang === 'ja' ? JA.l16 : LINES[0].text);
   await Promise.all(
     voices.map(async (v) => {
       const r = await speak({
@@ -100,7 +105,7 @@ if (has('audition')) {
         const l = queue.shift();
         try {
           const r = await speak({
-            text: l.say || l.text,
+            text: lineText(l),
             voice: l.voice || VOICE.name,
             style: lineStyle(l),
             model,

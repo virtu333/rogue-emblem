@@ -4,12 +4,20 @@
   python3 tools/cutscene/glass/music.py            # score + narration mix + cues
   python3 tools/cutscene/glass/music.py --cues     # cue sheet only
   python3 tools/cutscene/glass/music.py --mix      # re-mix without re-rendering the score
+  add --version soft|cold|ja|captions (default soft)
 
-Outputs (committed; the sample libraries and TTS takes are not in the repo):
-  tools/cutscene/glass/far_side.mp3   the score with the narrator's lines laid in at
-                                      score.LINES, the music ducked under his voice
-  tools/cutscene/glass/cues.json      bar times, sections, each line's time, length
-                                      and phrases (from the take), the deaths and cuts
+Versions (VERSIONS): the same score and picture, a different narrator.
+  soft      draft 1's English takes (voice/), treated (tritone shadow, drier, deeper)
+  cold      English takes in the cold direction (voice_cold/, `tts.mjs --style cold`)
+  ja        Japanese takes (voice_ja/, `tts.mjs --lang ja`), English captions
+  captions  no voice at all; the score is not ducked; captions timed as the soft takes
+
+Outputs per version (committed; the sample libraries and TTS takes are not in the repo):
+  tools/cutscene/glass/far_side<_v>.mp3   the score with the lines laid in at score.LINES,
+                                          the music ducked under the voice
+  tools/cutscene/glass/cues<_v>.json      bar times, sections, each line's time, length
+                                          and phrases (from the take), the deaths, cuts
+The soft version has no suffix (far_side.mp3, cues.json).
 """
 
 import argparse
@@ -30,9 +38,25 @@ sys.path.insert(0, HERE)
 
 import score as sc  # noqa: E402
 
-# which takes: voice/ (draft 1, soft direction) or VOICE_TAKES=voice_cold
-VOICE = os.path.join(ROOT, 'References/cutscene/glass', os.environ.get('VOICE_TAKES', 'voice'))
+TAKES = os.path.join(ROOT, 'References/cutscene/glass')
+VERSIONS = {
+    'soft': dict(takes='voice', suffix=''),
+    'cold': dict(takes='voice_cold', suffix='_cold'),
+    # l21's places ("at the Ford. On the bridge...") are laid on the four death cuts
+    'ja': dict(takes='voice_ja', suffix='_ja', anchor_deaths=True),
+    # no voice: the score, mixed to sit under one, comes up to hold the film alone
+    'captions': dict(takes=None, caption_takes='voice', suffix='_captions', music_db=3.5),
+}
+V = VERSIONS['soft']
+VOICE = os.path.join(TAKES, 'voice')
 SR = 48000
+
+
+def use_version(name):
+    global V, VOICE, VOICE_FX
+    V = VERSIONS[name]
+    VOICE = os.path.join(TAKES, V['takes'] or V['caption_takes'])
+    VOICE_FX = VOICE + '_fx'
 
 
 def ffmpeg():
@@ -104,13 +128,34 @@ def phrases(path):
     return len(x) / sr, segs
 
 
+def placements(lid, t, segs, dur):
+    """Where a take goes: [(take_from, take_to, film_time)]. Normally the whole take at
+    the line's time; with anchor_deaths, l21's four places start on the four deaths."""
+    if V.get('anchor_deaths') and lid == 'l21':
+        if len(segs) == 5:
+            first = [0.0, segs[1][0] - 0.05]
+            lead = first[1] - segs[0][0]
+            out = [(first[0], first[1], min(t, sc.DEATHS[0] - 0.25 - lead) - segs[0][0])]
+            for i in range(4):
+                a = segs[i + 1][0] - 0.05
+                b = segs[i + 2][0] - 0.05 if i < 3 else dur
+                out.append((a, b, sc.DEATHS[i] - 0.05))
+            return out
+        print(f'warning: {lid} has {len(segs)} phrases, not 5; placed whole')
+    return [(0.0, dur, t)]
+
+
 def cues(s):
     bar_t = [round(s.seconds(s.bar(n)), 6) for n in range(1, sc.BARS + 2)]
     lines = {}
     for lid, t in sc.LINES.items():
         f = os.path.join(VOICE, f'{lid}.wav')
         dur, segs = phrases(f) if os.path.exists(f) else (0, [])
-        lines[lid] = {'t': t, 'dur': round(dur, 3), 'phrases': segs}
+        place = placements(lid, t, segs, dur)
+        start = place[0][2] + place[0][0]
+        end = place[-1][2] + (place[-1][1] - place[-1][0])
+        lines[lid] = {'t': round(start, 3), 'dur': round(end - start, 3), 'phrases': segs,
+                      'place': [[round(x, 3) for x in p] for p in place]}
     return {'title': s.title, 'bars': bar_t, 'sections': sc.SECTIONS, 'lines': lines,
             'deaths': sc.DEATHS, 'officers': sc.OFFICERS, 'emperor': sc.EMPEROR,
             'end': bar_t[-1]}
@@ -122,16 +167,19 @@ def mix(music_path, out_mp3, cue):
     music = np.zeros((total, 2), np.float32)
     music[: len(m)] = m
     voice = np.zeros((total, 2), np.float32)
-    for lid, L in cue['lines'].items():
+    for lid, L in cue['lines'].items() if V['takes'] else []:
         v = read_audio(treat(lid) if os.environ.get('VOICE_FX', '1') != '0'
                        else os.path.join(VOICE, f'{lid}.wav'))
-        a = int(L['t'] * SR)
-        voice[a: a + len(v)] += v[: total - a]
+        for a0, a1, at in L['place']:
+            # the treated take can run a little longer (the shadow's tail)
+            seg = v[int(a0 * SR): int(a1 * SR) + (int(0.15 * SR) if a1 >= L['dur'] else 0)]
+            a = int((at + a0) * SR)
+            voice[a: a + len(seg)] += seg[: total - a]
     # the voice: a touch of warmth and room, level-matched
     vr = np.sqrt((voice ** 2).mean(1))
     speech = vr > 1e-4
-    rms = np.sqrt((voice[speech] ** 2).mean()) if speech.any() else 1
-    voice *= 0.16 / rms
+    if speech.any():
+        voice *= 0.16 / np.sqrt((voice[speech] ** 2).mean())
     # duck the music under the voice (-8 dB, 120 ms attack, 600 ms release)
     env = np.zeros(total, np.float32)
     k = int(0.05 * SR)
@@ -144,7 +192,7 @@ def mix(music_path, out_mp3, cue):
         c = att if tgt < g else rel
         g = tgt + (g - tgt) * c
         env[i] = g
-    out = music * env[:, None] + voice
+    out = music * env[:, None] * 10 ** (V.get('music_db', 0) / 20) + voice
     # a look-ahead limiter at -1 dBFS, so the booms don't turn the whole film down
     from scipy.ndimage import maximum_filter1d, uniform_filter1d
     ceiling = 10 ** (-1 / 20)
@@ -164,12 +212,20 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--cues', action='store_true')
     ap.add_argument('--mix', action='store_true')
+    ap.add_argument('--version', default='soft', choices=list(VERSIONS))
     a = ap.parse_args()
+    use_version(a.version)
+    sfx = V['suffix']
     s = sc.build()
     cue = cues(s)
-    with open(os.path.join(HERE, 'cues.json'), 'w') as fh:
+    L = cue['lines']
+    ids = list(L)
+    for x, y in zip(ids, ids[1:]):
+        if L[y]['t'] < L[x]['t'] + L[x]['dur'] - 0.3:
+            print(f'warning: {x} runs {L[x]["t"] + L[x]["dur"] - L[y]["t"]:.2f} s into {y}')
+    with open(os.path.join(HERE, f'cues{sfx}.json'), 'w') as fh:
         json.dump(cue, fh, separators=(',', ':'))
-    print('cues.json: end at', cue['end'], 's')
+    print(f'cues{sfx}.json: end at', cue['end'], 's')
     if a.cues:
         return
     score_dir = os.path.join(ROOT, 'References/cutscene/glass/score')
@@ -185,7 +241,8 @@ def main():
            and f.endswith(('.ogg', '.mp3', '.wav', '.m4a'))]
     if not src:
         raise SystemExit('no rendered score in ' + score_dir)
-    print(mix(os.path.join(score_dir, sorted(src)[0]), os.path.join(HERE, 'far_side.mp3'), cue))
+    print(mix(os.path.join(score_dir, sorted(src)[0]), os.path.join(HERE, f'far_side{sfx}.mp3'),
+              cue))
 
 
 if __name__ == '__main__':

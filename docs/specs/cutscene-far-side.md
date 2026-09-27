@@ -148,6 +148,37 @@ raised: audition voices with `tts.mjs --audition --style cold`, record with
   then the camp on "to the night before". The rewind cue in the score already sat
   there. Her `rewind` clip is no longer used and its sheet is gone.
 
+## Versions: who narrates
+
+A synthetic voice is hard to direct, so the film is built to carry more than one
+narrator over the same picture and score (`music.py --version`; the player's `?v=`;
+`render.mjs --piece glass_<v>`). Each version has its own mix (`far_side<_v>.mp3`) and
+caption timing (`cues<_v>.json`).
+
+| Version | Narrator | State |
+|---|---|---|
+| `soft` | Draft 1's English takes, treated (tritone shadow, drier, deeper) | Done (drafts 1-3) |
+| `captions` | None. English captions only, timed as the soft takes; the score is not ducked and comes up 3.5 dB | Done |
+| `cold` | English, re-recorded in the cold direction (`STYLES.cold`, `COLD_NOTES`) | Written; waiting on the API |
+| `ja` | Japanese (`JA` in `script.mjs`), cold direction (`STYLES.cold_ja`), English captions; l21's four places are laid on the four death cuts | Written; waiting on the API |
+
+Japanese narration under English captions has a real advantage: an English-speaking
+player hears performance, not diction, so the small flatnesses of a synthetic read are
+much harder to hear. The translation keeps the Lieutenant formal and cold (私, plain
+forms, the officers as 彼ら, the listener as お前 once).
+
+To record (once the Gemini project's spending cap allows it):
+
+```sh
+node tools/cutscene/glass/tts.mjs --audition --style cold --voices Charon,Algenib,Orus,Iapetus
+node tools/cutscene/glass/tts.mjs --style cold          # into References/cutscene/glass/voice_cold/
+node tools/cutscene/glass/tts.mjs --lang ja             # into References/cutscene/glass/voice_ja/
+MUSIC_ENGINE=<music checkout>/tools/music python3 tools/cutscene/glass/music.py --mix --version cold
+MUSIC_ENGINE=<music checkout>/tools/music python3 tools/cutscene/glass/music.py --mix --version ja
+```
+
+`music.py` warns if a take runs into the next line (Japanese reads run longer).
+
 ## Lore
 
 This version follows the bible (PR 119) closely; it adds nothing The Roll's lore

@@ -285,8 +285,10 @@ function wrap(text, max) {
 
 // ------------------------------------------------------------------ the film
 
-export async function loadGlass(base = '.') {
-  const cues = await (await fetch(`${base}/cues.json`)).json();
+/** version: '' (soft), 'cold', 'ja' or 'captions' (music.py VERSIONS): the cue sheet. */
+export async function loadGlass(base = '.', version = '') {
+  const sfx = version && version !== 'soft' ? `_${version}` : '';
+  const cues = await (await fetch(`${base}/cues${sfx}.json`)).json();
   const { LINES } = await import('./script.mjs');
   const text = Object.fromEntries(LINES.map((l) => [l.id, l.text]));
   const names = [...new Set(EDIT.flatMap((e) => [e.shot, e.top]).filter(Boolean))];

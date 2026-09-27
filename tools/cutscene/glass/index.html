@@ -80,6 +80,9 @@
       import { loadGlass } from './glass.js';
 
       const params = new URLSearchParams(location.search);
+      // ?v=cold|ja|captions picks a narrator (music.py VERSIONS); none is the soft takes
+      const version = params.get('v') || '';
+      const sfx = version && version !== 'soft' ? `_${version}` : '';
       const canvas = document.getElementById('c');
       const g = canvas.getContext('2d');
       if (params.has('export')) document.body.classList.add('export');
@@ -88,7 +91,7 @@
         await document.fonts.load('700 26px Cinzel');
         await document.fonts.load('8px "Press Start 2P"');
         await document.fonts.ready;
-        return loadGlass('.');
+        return loadGlass('.', version);
       })();
 
       window.cutscene = {
@@ -113,7 +116,7 @@
       seek.addEventListener('input', () => show(Number(seek.value)));
 
       // Playback: the music is the clock. The frame is whatever the audio position says.
-      const audio = new Audio('./far_side.mp3');
+      const audio = new Audio(`./far_side${sfx}.mp3`);
       let playing = false;
       document.getElementById('play').addEventListener('click', () => {
         if (playing) {

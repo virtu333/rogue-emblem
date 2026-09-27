@@ -5,7 +5,8 @@
 //   node tools/cutscene/render.mjs --sheet --out <dir>              contact sheet: first/last frame of every shot
 //   node tools/cutscene/render.mjs --video <file.mp4> [--fps 24] [--workers 4] [--from s] [--to s]
 //   --piece hook   renders "The Roll" (tools/cutscene/hook) instead of the pilot
-//   --piece glass  renders "The Far Side of the Glass" (tools/cutscene/glass)
+//   --piece glass  renders "The Far Side of the Glass" (tools/cutscene/glass);
+//                  glass_cold, glass_ja, glass_captions for its other narrators
 //
 // The player's frame is a pure function of t, so frames can be rendered in any order,
 // in parallel, and resumed. A Vite dev server is started in-process (the page imports
@@ -36,6 +37,15 @@ const PIECES = {
     page: '/tools/cutscene/glass/index.html?export=1',
     music: 'tools/cutscene/glass/far_side.mp3',
   },
+  ...Object.fromEntries(
+    ['cold', 'ja', 'captions'].map((v) => [
+      `glass_${v}`,
+      {
+        page: `/tools/cutscene/glass/index.html?export=1&v=${v}`,
+        music: `tools/cutscene/glass/far_side_${v}.mp3`,
+      },
+    ]),
+  ),
 };
 const PIECE = PIECES[arg('piece', 'pilot')];
 const PAGE = PIECE.page;
