@@ -89,17 +89,61 @@
   text-transform: uppercase;
   white-space: nowrap;
 }
-/* Upright phones (portrait mode, html.portrait-ui): the act title keeps its whole
-   line ("Act II · Old Kingdom Roads", not "Act II · Old K…"); the Eclipse, gold and
-   difficulty move under it, right-aligned, when they no longer fit beside it. */
+/* Upright phones (portrait mode, html.portrait-ui): the act title is never cut
+   ("Act II · Old Kingdom Roads", not "Act II · Old K…"; a longer one wraps), and the
+   subline breaks only between its parts. Travel: the title, the subline, then gold
+   and difficulty stack in one column beside the Eclipse, whose 44 px tap target spans
+   the three lines without covering any of them. The Campaign Map keeps Close beside
+   the title. */
 @media (orientation: portrait) {
   html.portrait-ui .re-loom-screen .re-loom-header {
     flex-wrap: wrap;
     row-gap: 4px;
   }
-  html.portrait-ui .re-loom-screen .re-loom-heading {
-    flex: 1 0 auto;
-    max-width: 100%;
+  html.portrait-ui .re-loom-screen .re-loom-header .re-loom-title,
+  html.portrait-ui .re-loom-screen .re-loom-sub {
+    white-space: normal;
+    overflow: visible;
+  }
+  html.portrait-ui .re-loom-screen .re-loom-sub {
+    line-height: 1.4;
+  }
+  html.portrait-ui .re-loom-screen .re-loom-sub-part {
+    white-space: nowrap;
+  }
+  html.portrait-ui .re-node-map .re-loom-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'title title medal'
+      'sub sub medal'
+      'gold diff medal';
+    align-items: center;
+    gap: 3px 12px;
+  }
+  html.portrait-ui .re-node-map .re-loom-header > :is(.re-loom-heading, .re-loom-meta) {
+    display: contents;
+  }
+  html.portrait-ui .re-node-map .re-loom-header .re-loom-title {
+    grid-area: title;
+  }
+  html.portrait-ui .re-node-map .re-loom-header .re-loom-sub {
+    grid-area: sub;
+    margin: 0;
+  }
+  html.portrait-ui .re-node-map .re-loom-header .re-eclipse-medal {
+    grid-area: medal;
+    margin: 0;
+  }
+  html.portrait-ui .re-node-map .re-loom-header .re-loom-gold {
+    grid-area: gold;
+  }
+  html.portrait-ui .re-node-map .re-loom-header .re-loom-diff {
+    grid-area: diff;
+  }
+  html.portrait-ui .re-campaign-map .re-loom-header .re-loom-heading {
+    flex: 1 1 0;
+    min-width: 0;
   }
 }
 
@@ -919,9 +963,11 @@ html:not(.touch-ui):not(.mobile-preview) .re-loom-card {
   }
   /* Upright, a choice's label rides above its medal (the way the party travels), so
      it never sits on the party's own knot or the gold threads coming up to it. */
+  /* It sits just clear of its own rim, so the row above's selection ring (6 px out)
+     does not cross it. */
   html.portrait-ui .re-loom--vertical .re-loom-label {
     top: auto;
-    bottom: calc(50% + var(--medal, 40px) / 2 + 7px);
+    bottom: calc(50% + var(--medal, 40px) / 2 + 4px);
   }
   html.portrait-ui .re-loom-screen .re-node-scroll {
     overflow-x: hidden;
@@ -978,9 +1024,63 @@ html:not(.touch-ui):not(.mobile-preview) .re-loom-card {
   }
   html.portrait-ui .re-loom-screen .re-loom-card {
     grid-area: card;
-    /* A fixed height: selecting a knot must not resize the loom above it. */
+    /* A fixed height: selecting a knot must not resize the loom above it. It grows
+       with the phone; a small phone still shows a whole battle card. */
     flex: none;
-    height: 128px;
+    height: clamp(150px, 20dvh, 200px);
+  }
+  /* What the knot is, where it stands in reach and a note from the screen (rewards
+     still to choose) come before its flavour line, the line most often past the fold
+     on a small phone. Only text moves: every control keeps its place in the reading
+     and focus order. */
+  html.portrait-ui .re-loom-screen .re-loom-card {
+    display: flex;
+    flex-direction: column;
+  }
+  html.portrait-ui .re-loom-screen .re-loom-card > .re-loom-note {
+    order: 1;
+  }
+  html.portrait-ui .re-loom-screen .re-loom-card > .re-loom-flavor {
+    order: 2;
+  }
+  /* Encounter chips centre their text when a neighbour is taller (an open captain's
+     note), and a chip that opens a note answers a whole thumb: the summary's hit area
+     reaches 44 px without changing the chip's size. */
+  html.portrait-ui .re-loom-screen .re-loom-tag {
+    display: flex;
+    align-items: center;
+  }
+  html.portrait-ui .re-loom-screen .re-loom-tag summary {
+    min-height: 44px;
+    padding-block: 10px;
+    margin-block: -10px;
+  }
+  /* A card longer than its height scrolls (LoomPanels trackLoomCardOverflow): the
+     edge with more to read fades out, so the recruit's stats or an opened captain's
+     note read as "more below", not as the end of the card. */
+  html.portrait-ui .re-loom-screen .re-loom-card.is-more-below {
+    -webkit-mask-image: linear-gradient(180deg, var(--re-void) calc(100% - 40px), transparent);
+    mask-image: linear-gradient(180deg, var(--re-void) calc(100% - 40px), transparent);
+  }
+  html.portrait-ui .re-loom-screen .re-loom-card.is-more-above {
+    -webkit-mask-image: linear-gradient(0deg, var(--re-void) calc(100% - 28px), transparent);
+    mask-image: linear-gradient(0deg, var(--re-void) calc(100% - 28px), transparent);
+  }
+  html.portrait-ui .re-loom-screen .re-loom-card.is-more-above.is-more-below {
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      transparent,
+      var(--re-void) 28px,
+      var(--re-void) calc(100% - 40px),
+      transparent
+    );
+    mask-image: linear-gradient(
+      180deg,
+      transparent,
+      var(--re-void) 28px,
+      var(--re-void) calc(100% - 40px),
+      transparent
+    );
   }
   html.portrait-ui .re-loom-screen .re-loom-travel {
     grid-area: travel;
@@ -989,8 +1089,9 @@ html:not(.touch-ui):not(.mobile-preview) .re-loom-card {
   html.portrait-ui .re-loom-screen .re-loom-party {
     grid-area: party;
   }
-  /* The Eclipse's fall line reads at the head of the loom, not over the sheet's
-     buttons, and wraps instead of clipping on a narrow phone. */
+  /* The Eclipse's fall line reads at the head of the loom (NodeMapMenu puts it in the
+     loom's frame), not over the header's gold or the sheet's buttons, and wraps
+     instead of clipping on a narrow phone. */
   html.portrait-ui .re-loom-screen .re-eclipse-toast {
     top: calc(max(10px, env(safe-area-inset-top)) + 52px);
     bottom: auto;
@@ -998,13 +1099,17 @@ html:not(.touch-ui):not(.mobile-preview) .re-loom-card {
     max-width: calc(100% - 32px);
     white-space: normal;
   }
+  html.portrait-ui .re-loom-screen .re-loom-wrap > .re-eclipse-toast {
+    top: 10px;
+    max-width: calc(100% - 24px);
+  }
   /* Campaign Map (read-only): the card and its note. */
   html.portrait-ui .re-campaign-map .re-node-side.re-campaign-side {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: 'card';
   }
   html.portrait-ui .re-campaign-map .re-campaign-side .re-loom-card {
-    height: 150px;
+    height: clamp(160px, 24dvh, 230px);
   }
 }
 

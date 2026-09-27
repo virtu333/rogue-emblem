@@ -99,6 +99,47 @@ async function expectTabsOnOneLineAndVisible(page, selector, expectedCount) {
   }
 }
 
+/**
+ * A strip of tabs that scrolls sideways (the reference menus' categories and filters):
+ * one row, every label whole on one line, and every tab reachable: scrolled into view
+ * it sits whole inside the strip and the viewport, without the page scrolling sideways.
+ */
+async function expectStripReachable(page, selector, expectedCount) {
+  const tabs = page.locator(selector);
+  await expect(tabs).toHaveCount(expectedCount);
+  const rows = await tabs.evaluateAll(
+    (els) => new Set(els.map((el) => Math.round(el.getBoundingClientRect().top))).size,
+  );
+  expect(rows, `${selector} is one row`).toBe(1);
+  for (let i = 0; i < expectedCount; i++) {
+    const tab = tabs.nth(i);
+    await tab.scrollIntoViewIfNeeded();
+    const fit = await tab.evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const lines = new Set(
+        [...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.top)),
+      ).size;
+      const r = el.getBoundingClientRect();
+      const strip = el.parentElement.getBoundingClientRect();
+      return {
+        label: el.textContent,
+        lines,
+        clipped: el.scrollWidth > el.clientWidth + 1,
+        inStrip: r.left >= strip.left - 0.5 && r.right <= strip.right + 0.5,
+        inView: r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5,
+        height: r.height,
+      };
+    });
+    expect(fit.lines, `${fit.label} wraps`).toBe(1);
+    expect(fit.clipped, `${fit.label} is clipped`).toBe(false);
+    expect(fit.inStrip, `${fit.label} scrolls into the strip`).toBe(true);
+    expect(fit.inView, `${fit.label} scrolls into view`).toBe(true);
+    expect(fit.height).toBeGreaterThanOrEqual(43.5);
+  }
+  await expectNoSidewaysScroll(page, '.re-reference');
+}
+
 /** A thumb-sized control fully on screen. */
 async function expectReachable(locator) {
   await expect(locator).toBeVisible();
@@ -350,10 +391,12 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
       expect((await search.boundingBox()).width).toBeGreaterThanOrEqual(
         page.viewportSize().width * 0.8,
       );
+      // Categories and filters are one-row strips that scroll sideways (portrait-screens
+      // spec: they leave the list most of the screen); every tab is still a tap away.
       const tabCount = await dialog.locator('nav[aria-label="Categories"] .re-btn').count();
-      await expectTabsOnOneLineAndVisible(page, 'nav[aria-label="Categories"] .re-btn', tabCount);
+      await expectStripReachable(page, 'nav[aria-label="Categories"] .re-btn', tabCount);
       const filterCount = await dialog.locator('nav[aria-label="Filters"] .re-btn').count();
-      await expectTabsOnOneLineAndVisible(page, 'nav[aria-label="Filters"] .re-btn', filterCount);
+      await expectStripReachable(page, 'nav[aria-label="Filters"] .re-btn', filterCount);
       // The list has the screen; the detail waits for a tap.
       await expect(dialog.locator('.re-reference-detail')).toHaveCount(0);
       const list = dialog.locator('[aria-label="Entries"]');
@@ -427,7 +470,7 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
       const help = page.getByRole('dialog', { name: 'Help', exact: true });
       const count = await help.locator('nav[aria-label="Categories"] .re-btn').count();
       expect(count).toBeGreaterThan(6);
-      await expectTabsOnOneLineAndVisible(page, 'nav[aria-label="Categories"] .re-btn', count);
+      await expectStripReachable(page, 'nav[aria-label="Categories"] .re-btn', count);
       // The last category is on screen and a tap away.
       await help.locator('nav[aria-label="Categories"] .re-btn').last().tap();
       await expect(help.locator('nav[aria-label="Categories"] .re-btn').last()).toHaveAttribute(

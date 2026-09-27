@@ -11,6 +11,7 @@ import {
   fadeScroll,
   fitDraft,
   keepDraftScroll,
+  softList,
 } from './choiceCards.js';
 
 export class RunSetupMenu {
@@ -189,7 +190,8 @@ export class RunSetupMenu {
       row.append(card);
     });
     const chosen = difficultyBannerContent(s.modes[s.selectedIndex], s.selectedIndex);
-    const detail = element('article', null, 're-card re-scroll ch-banner-detail');
+    // The terms scroll when long (Lunatic upright); their edges fade while there is more.
+    const detail = softList(element('article', null, 're-card re-scroll ch-banner-detail'));
     detail.append(element('h3', `${chosen.name || 'Choose an option'} · the terms`));
     const list = (lines, className = '') => {
       const ul = element('ul', null, className);

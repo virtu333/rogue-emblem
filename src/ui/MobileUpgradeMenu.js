@@ -4,6 +4,7 @@ import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { itemIcon } from './itemIcons.js';
 import { prefersStill } from './itemMoments.js';
+import { portraitListLayout, watchPortraitListLayout } from './portraitListLayout.js';
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 const roman = (n) => ROMAN[n] || String(n);
 const categories = [
@@ -85,6 +86,8 @@ export class MobileUpgradeMenu {
       if (action === InputAction.CONFIRM && this.root.contains(document.activeElement))
         document.activeElement.click();
     });
+    // Upright phones draw the detail's icon smaller (mobileUpgrade.css): re-render on a turn.
+    this.unwatchPortrait = watchPortraitListLayout(() => this.render());
     this.render(false);
     this.root.querySelector('button')?.focus();
   }
@@ -104,6 +107,7 @@ export class MobileUpgradeMenu {
     this.offsets.set(this.category, this.list.scrollTop);
     this.visible = false;
     this.refundPending = false;
+    this.unwatchPortrait?.();
     popInputScope(this);
     this.root.remove();
     this.scene.input.enabled = this.previousInput;
@@ -166,6 +170,8 @@ export class MobileUpgradeMenu {
       const level = m.getUpgradeLevel(item.id),
         hidden = level === 0 && m.isMilestoneLocked(item),
         maxed = m.isMaxed(item.id);
+      // An upgrade still waiting on another says so in the list, not only once opened.
+      const needs = hidden || maxed ? [] : m.getPrerequisiteInfo(item.id).missing;
       const b = this.button('', () => {
         if (this.selected !== item.id) this.justBought = null;
         this.selected = item.id;
@@ -173,7 +179,7 @@ export class MobileUpgradeMenu {
         this.status.textContent = '';
         this.render();
       });
-      b.className = 'mu-row';
+      b.className = needs.length ? 'mu-row is-blocked' : 'mu-row';
       b.dataset.upgrade = item.id;
       b.dataset.focus = 'row-' + item.id;
       b.setAttribute('aria-pressed', String(item.id === this.selected));
@@ -199,10 +205,17 @@ export class MobileUpgradeMenu {
         pip.setAttribute('aria-hidden', 'true');
         pips.append(pip);
       }
-      b.append(
-        pips,
-        node('small', '', hidden ? 'Tap for requirements' : `Tier ${level} / ${item.maxLevel}`),
+      const note = node(
+        'small',
+        needs.length ? 'mu-row-needs' : '',
+        hidden
+          ? 'Tap for requirements'
+          : needs.length
+            ? `Needs ${needs.join(', ')}`
+            : `Tier ${level} / ${item.maxLevel}`,
       );
+      if (needs.length) note.title = note.textContent;
+      b.append(pips, note);
       this.list.append(b);
     }
     this.list.scrollTop = scroll;
@@ -218,7 +231,7 @@ export class MobileUpgradeMenu {
     const copy = node('div', 'mu-copy');
     const head = node('div', 'mu-head');
     head.append(
-      this.upgradeIcon(u, { level, hidden, maxed, size: 64 }),
+      this.upgradeIcon(u, { level, hidden, maxed, size: portraitListLayout() ? 32 : 64 }),
       node('h2', '', hidden ? 'Unknown upgrade' : u.name),
     );
     if (this.justBought?.id === u.id && !hidden) {
@@ -230,13 +243,14 @@ export class MobileUpgradeMenu {
     if (!hidden) {
       copy.append(node('p', '', u.description || this.scene._getActionDesc(u)));
       const values = this.scene._getValueTexts(u, level);
-      copy.append(
-        node(
-          'p',
-          'mu-effects',
-          `Current: ${values.current || 'None'}\nNext: ${maxed ? 'Fully upgraded' : values.next || 'See description'}`,
-        ),
+      // Two lines ("Current: …\nNext: …"); upright phones set them on one line.
+      const effects = node('p', 'mu-effects');
+      effects.append(
+        node('span', '', `Current: ${values.current || 'None'}`),
+        '\n',
+        node('span', '', `Next: ${maxed ? 'Fully upgraded' : values.next || 'See description'}`),
       );
+      copy.append(effects);
       const tips = this.scene
         ._getUpgradeTooltipLines(u)
         .filter((t) => t !== u.name && t !== u.description);
@@ -335,6 +349,7 @@ export class MobileUpgradeMenu {
   }
   destroy() {
     if (this.visible) {
+      this.unwatchPortrait?.();
       popInputScope(this);
       this.root.remove();
       this.scene.input.enabled = this.previousInput;

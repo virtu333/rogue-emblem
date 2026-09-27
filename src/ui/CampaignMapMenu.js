@@ -1,6 +1,6 @@
 import { MenuSurface, element } from './MenuSurface.js';
 import { createRouteGraph } from './RouteGraph.js';
-import { createLoomHeading, renderLoomCard } from './LoomPanels.js';
+import { createLoomHeading, renderLoomCard, trackLoomCardOverflow } from './LoomPanels.js';
 import { ACT_SEQUENCE } from '../utils/constants.js';
 import { throttledRead } from '../utils/throttledRead.js';
 
@@ -96,6 +96,8 @@ export class CampaignMapMenu {
     const side = element('aside', null, 're-node-side re-campaign-side');
     this.card = element('section', null, 're-scroll re-node-detail re-loom-card');
     this.card.setAttribute('aria-live', 'polite');
+    this._cardOverflow?.destroy();
+    this._cardOverflow = trackLoomCardOverflow(this.card);
     side.append(
       this.card,
       element(
@@ -128,6 +130,8 @@ export class CampaignMapMenu {
   }
 
   destroy() {
+    this._cardOverflow?.destroy();
+    this._cardOverflow = null;
     this.routeGraph?.destroy();
     this.routeGraph = null;
     this.surface.destroy();

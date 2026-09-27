@@ -119,6 +119,25 @@
   text-align: right;
   color: var(--re-muted);
 }
+/* An upgrade waiting on another names it under its own name (the gems move right). */
+.mu-row.is-blocked .mu-row-state {
+  color: var(--re-muted);
+}
+.mu-row.is-blocked .mu-pips {
+  grid-column: 3;
+  grid-row: 2;
+  justify-content: flex-end;
+}
+.mu-row .mu-row-needs {
+  grid-column: 2;
+  grid-row: 2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-align: left;
+  color: var(--re-warn);
+}
 .mu-pips {
   display: flex;
   gap: 3px;
@@ -602,8 +621,73 @@ html.mobile-preview .mu-screen {
   html.portrait-ui .mu-upgrades .mu-tabs {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  /* The upgrade list is the thing being browsed: leave it the larger share. */
+  /* The upgrade list is the thing being browsed: leave it the larger share. The detail
+     is a compact sheet: a small icon beside the name, the effect lines, then help and
+     requirements scrolling under a fade, Buy (and Refund beside it) pinned below. */
   html.portrait-ui .mu-upgrades .mu-detail {
-    max-height: 44dvh;
+    max-height: clamp(150px, 26dvh, 240px);
+    padding: 8px 10px 10px;
+  }
+  /* What stands in the way (a prerequisite, not enough currency) comes first. */
+  html.portrait-ui .mu-upgrades .mu-copy {
+    display: flex;
+    flex-direction: column;
+  }
+  html.portrait-ui .mu-upgrades .mu-copy > * {
+    order: 2;
+    flex-shrink: 0;
+  }
+  html.portrait-ui .mu-upgrades .mu-copy > .mu-head {
+    order: 0;
+  }
+  html.portrait-ui .mu-upgrades .mu-copy > .mu-requirements {
+    order: 1;
+  }
+  html.portrait-ui .mu-upgrades .mu-head {
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+  html.portrait-ui .mu-upgrades .mu-detail h2 {
+    font-size: 16px;
+  }
+  html.portrait-ui .mu-upgrades .mu-detail p {
+    margin: 4px 0;
+  }
+  html.portrait-ui .mu-upgrades .mu-effects {
+    padding: 4px 0;
+    white-space: normal;
+  }
+  html.portrait-ui .mu-upgrades .mu-effects > span {
+    display: inline-block;
+  }
+  html.portrait-ui .mu-upgrades .mu-effects > span + span::before {
+    content: '→ ';
+    color: var(--re-muted);
+  }
+  html.portrait-ui .mu-upgrades .mu-copy {
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 12px), transparent);
+    mask-image: linear-gradient(180deg, #000 calc(100% - 12px), transparent);
+    padding-bottom: 8px;
+  }
+  html.portrait-ui .mu-upgrades .mu-actions {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  html.portrait-ui .mu-upgrades .mu-actions button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  html.portrait-ui .mu-upgrades .mu-actions .mu-refund-info {
+    flex: 1 0 100%;
+    margin: 0;
+  }
+  html.portrait-ui .mu-upgrades .mu-row {
+    min-height: 56px !important;
+    margin-bottom: 4px;
+    padding: 6px 8px !important;
+  }
+  html.portrait-ui .mu-upgrades .mu-group {
+    margin: 4px 0 6px;
   }
 }

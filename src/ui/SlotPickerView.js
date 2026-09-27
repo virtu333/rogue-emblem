@@ -10,6 +10,7 @@ import { element, button } from './MenuSurface.js';
 import { pc98PortraitElement, portraitFaction } from './portraitArt.js';
 import { mountKeyArtBackdrop } from '../art/keyart/keyArtBackdrop.js';
 import { readSlotMilestones, selectTitleVariant } from '../art/keyart/titleVariant.js';
+import { trackScrollEdges } from './scrollEdgeCue.js';
 
 const EMBER_COUNT = 9;
 
@@ -196,6 +197,8 @@ export function mountSlotPickerArt(root, { reducedMotion }) {
   } catch {
     backdrop = null; // decoration only: the ink background stays
   }
+  // Upright, three candles can outgrow a short phone: fade the edge with more to scroll.
+  const edges = trackScrollEdges(root.querySelector('.re-menu-body'));
   return {
     art,
     refresh() {
@@ -206,6 +209,7 @@ export function mountSlotPickerArt(root, { reducedMotion }) {
       backdrop?.setPaused?.(value);
     },
     destroy() {
+      edges.destroy();
       backdrop?.destroy?.();
       backdrop = null;
       art.remove();

@@ -72,7 +72,8 @@
         "portrait-trade.spec.js",
         "portrait-services.spec.js",
         "portrait-ceremonies.spec.js",
-        "portrait-rail.spec.js"
+        "portrait-rail.spec.js",
+        "portrait-screens.spec.js"
       ],
       "shards": 2
     },

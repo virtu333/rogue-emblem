@@ -5,13 +5,17 @@ import { itemKeywordRow, itemKeywordText } from './itemKeywordChips.js';
 import { itemBaseLine, isCombatWeapon } from '../engine/ItemKeywords.js';
 import { itemHero, itemIcon } from './itemIcons.js';
 import { portraitListLayout, watchPortraitListLayout } from './portraitListLayout.js';
+import { trackScrollEdges } from './scrollEdgeCue.js';
 
 // A shared readable list/detail browser. Providers retain filtering/unlock rules.
 //
 // Upright phones (portrait mode, portraitListLayout()) show it as master -> detail:
 // the list fills the screen, tapping an entry opens its text full-width with a Back
-// button, and Back / Escape / cancel return to the list where it was. Elsewhere the
-// list and detail sit side by side as before; `view` is then always 'list'.
+// button, and Back / Escape / cancel return to the list where it was. Categories and
+// filters are one-row strips that scroll sideways (their hidden edge fades), so the
+// list keeps most of the screen; a menu with one category shows no strip, and a
+// category holding a single entry opens that entry in place. Elsewhere the list and
+// detail sit side by side as before; `view` is then always 'list'.
 export class ReferenceMenu {
   constructor(scene, title, tabs, provider, onClose, { searchAllTabs = false } = {}) {
     Object.assign(this, { tabs, provider, searchAllTabs });
@@ -23,6 +27,7 @@ export class ReferenceMenu {
     this.listScrollMemo = 0;
     this.surface = new MenuSurface(scene, title, onClose);
     this.surface.root.classList.add('re-reference');
+    this.edgeTrackers = [];
     const unwatch = watchPortraitListLayout(() => {
       if (this.surface.destroyed) return;
       const detail = this.view === 'detail';
@@ -33,6 +38,7 @@ export class ReferenceMenu {
     const destroySurface = this.surface.destroy.bind(this.surface);
     this.surface.destroy = () => {
       unwatch();
+      for (const tracker of this.edgeTrackers.splice(0)) tracker.destroy();
       destroySurface();
     };
     const search = element('label', null, 're-search');
@@ -159,6 +165,7 @@ export class ReferenceMenu {
       : null;
     const previousScroll = this.list?.scrollTop || 0;
     const body = this.surface.body;
+    for (const tracker of this.edgeTrackers.splice(0)) tracker.destroy();
     body.replaceChildren();
     const portrait = portraitListLayout();
     if (!portrait) this.view = 'list';
@@ -178,10 +185,13 @@ export class ReferenceMenu {
       b.setAttribute('aria-pressed', String(i === this.tab));
       tabs.append(b);
     });
-    if (showList) body.append(tabs);
+    // Upright, a menu with a single category (How to play) needs no category strip.
+    if (showList && !(portrait && this.tabs.length === 1)) body.append(tabs);
     const filters = this.tabs[this.tab].filters || [];
+    let filterRow = null;
     if (filters.length && showList) {
       const row = element('nav', null, 're-tabs re-filter-tabs');
+      filterRow = row;
       row.setAttribute('aria-label', 'Filters');
       filters.forEach((label, i) => {
         const b = button(label, () => {
@@ -214,6 +224,9 @@ export class ReferenceMenu {
     );
     this.entryCount = entries.length;
     this.selected = Math.min(this.selected, Math.max(0, entries.length - 1));
+    // Upright, a category with one entry (several Help pages) opens it in place: a
+    // one-row list would only cost a tap. Search results always stay a list.
+    const direct = portrait && showList && !query && entries.length === 1;
     const split = element('div', null, 're-split');
     this.list = element('div', null, 're-scroll re-menu');
     this.list.setAttribute('aria-label', 'Entries');
@@ -281,19 +294,25 @@ export class ReferenceMenu {
       back.setAttribute('aria-label', 'Back to list');
       split.append(back);
     }
-    if (showList) split.append(this.list);
-    if (showDetail) split.append(detail);
+    if (showList && !direct) split.append(this.list);
+    if (showDetail || direct) split.append(detail);
+    if (direct) this.surface.root.dataset.refView = 'entry';
     body.append(split);
-    if (showDetail) {
+    if (showDetail || direct) {
       const footer = element('footer', null, 're-footer');
       appendDetailScrollControls(footer, detail);
       body.append(footer);
     }
     this.list.scrollTop = previousScroll;
-    if (showList)
-      tabs
-        .querySelector('[aria-pressed="true"]')
-        ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (showList) {
+      for (const strip of [tabs, filterRow])
+        strip
+          ?.querySelector('[aria-pressed="true"]')
+          ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+    if (portrait)
+      for (const box of [tabs, filterRow, this.list, detail])
+        if (box?.isConnected) this.edgeTrackers.push(trackScrollEdges(box));
     if (oldFocus) body.querySelector(`[data-focus="${oldFocus}"]`)?.focus({ preventScroll: true });
   }
   destroy() {

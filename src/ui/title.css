@@ -410,6 +410,129 @@ html.mobile-preview .re-title--phone {
   }
 }
 
+/* ───────── Upright phones (portrait mode) ─────────
+   One column: the lockup keeps the upper left (as in landscape), the key art is a band
+   that shows the plate's important width (TitleScreen.js sizes it: --rt-art-h, and
+   places the Hollow Sun beside the lockup), then the run actions as full-width plates,
+   the guides in a 2x2 grid, Settings, and the footer, all clear of the notch and the
+   home bar. The stage and the lead dissolve (display: contents) so their parts sit in
+   the title's own grid; DOM order already matches the reading order. */
+@media (orientation: portrait) {
+  html.portrait-ui .re-title--phone {
+    --rt-g: 16px;
+    --rt-bleed: 40px;
+    display: grid;
+    grid-template-columns: var(--rt-g) minmax(0, 1fr) var(--rt-g);
+    grid-template-rows:
+      [top] max(12px, calc(env(safe-area-inset-top, 0px) + 6px))
+      [lockup] auto
+      [window] minmax(0, 1fr)
+      [run] auto
+      [reference] auto
+      [corner] auto
+      [foot] auto
+      [bottom] max(10px, calc(env(safe-area-inset-bottom, 0px) + 2px));
+  }
+  html.portrait-ui .re-title--phone .re-title-stage,
+  html.portrait-ui .re-title--phone .re-title-lead {
+    display: contents;
+  }
+  /* The band rests on the menu and bleeds under its first plate; it fades into the
+     ink at both edges. On a short screen it rises under the lockup (the sky is calm). */
+  html.portrait-ui .re-title--phone > .re-title-art {
+    grid-column: 1 / -1;
+    grid-row: top / run;
+    inset: auto 0 calc(-1 * var(--rt-bleed)) 0;
+    height: var(--rt-art-h, 320px);
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      transparent 0,
+      #000 36px,
+      #000 calc(100% - var(--rt-bleed) - 20px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      180deg,
+      transparent 0,
+      #000 36px,
+      #000 calc(100% - var(--rt-bleed) - 20px),
+      transparent 100%
+    );
+  }
+  html.portrait-ui .re-title--phone > .re-title-veil {
+    display: none;
+  }
+  /* Grid items paint over the positioned art only when positioned themselves. */
+  html.portrait-ui
+    .re-title--phone
+    :is(.re-keyart-lockup, .re-title-run, .re-title-reference, .re-title-corner, .re-title-foot) {
+    position: relative;
+    inset: auto;
+    grid-column: 2;
+  }
+  html.portrait-ui .re-title--phone .re-keyart-lockup {
+    --rt-h1: clamp(26px, 8.2vw, 36px);
+    grid-row: lockup;
+    justify-self: start;
+    max-width: 100%;
+  }
+  html.portrait-ui .re-title--phone .re-title-run {
+    grid-row: run;
+    width: auto;
+    margin-top: 0;
+  }
+  html.portrait-ui .re-title--phone .re-title-reference {
+    grid-row: reference;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 8px;
+  }
+  html.portrait-ui .re-title--phone .re-title-corner {
+    grid-row: corner;
+    justify-content: flex-end;
+    min-width: 0;
+    margin-top: 8px;
+  }
+  html.portrait-ui .re-title--phone .re-title-sound {
+    margin-right: auto;
+    white-space: nowrap;
+  }
+  html.portrait-ui .re-title--phone .re-title-user {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  /* While the sound hint shows, the account name gives way (Log Out stays). */
+  html.portrait-ui
+    .re-title--phone
+    .re-title-corner:has(.re-title-sound:not([hidden]))
+    .re-title-user {
+    display: none;
+  }
+  html.portrait-ui .re-title--phone .re-title-corner-btn {
+    flex: none;
+    white-space: nowrap;
+  }
+  html.portrait-ui .re-title--phone .re-title-foot {
+    grid-row: foot;
+    justify-content: center;
+    max-width: none;
+    margin-top: 8px;
+  }
+  /* Notices and errors float over the art's window, never over the menu. */
+  html.portrait-ui .re-title--phone .re-title-notices {
+    grid-column: 2;
+    grid-row: window;
+    top: 8px;
+    right: 0;
+    max-width: 100%;
+  }
+  html.portrait-ui .re-title--phone .re-title-message {
+    grid-column: 2;
+    grid-row: window;
+    bottom: 8px;
+    max-width: 100%;
+  }
+}
+
 /* Desktop letterbox beside the 4:3 title stage reads as ink, not the boot navy. */
 #game-wrapper:has(> .re-title) #game-container {
   background: var(--re-void);
