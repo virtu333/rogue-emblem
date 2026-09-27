@@ -1628,8 +1628,12 @@
     bottom: calc(100% - 4px);
     left: calc(10px + var(--ce-safe-l));
   }
+  /* The words keep a margin inside the band's edges (fitJoinBand counts it), so the
+     hairline's knot never sits on the band's lower border. */
   html:is(.portrait-ui, .portrait-battle-capable) .gr-join-text {
     left: calc(16px + var(--ce-safe-l));
     right: calc(16px + var(--ce-safe-r));
+    padding-block: 8px;
+    box-sizing: border-box;
   }
 }
