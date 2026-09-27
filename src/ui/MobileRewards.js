@@ -16,10 +16,10 @@ import {
 import { rewardForWhom } from './choiceContent.js';
 import {
   choiceReducedMotion,
-  draftScrollTop,
   fadeScroll,
   itemArtSlot,
   keepDraftScroll,
+  softList,
 } from './choiceCards.js';
 import { unitPortrait } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
@@ -123,10 +123,11 @@ export class MobileRewards {
         document.activeElement.click();
     });
     this.render();
+    // render() already placed the list (keepDraftScroll); focus must not move it.
     (
       this.root.querySelector('[aria-pressed="true"]:not(:disabled)') ||
       this.root.querySelector('.reward-card:not(:disabled), .mh-skill:not(:disabled)')
-    )?.focus();
+    )?.focus({ preventScroll: true });
   }
   tools(header) {
     const tools = node('div', null, 'reward-tools');
@@ -177,6 +178,16 @@ export class MobileRewards {
       });
     }
   }
+  /**
+   * Every choice rebuilds the screen: note where the spoils and the current step's
+   * list were scrolled, so the rebuilt ones (and a step returned to) open there.
+   */
+  rememberScroll() {
+    const draft = this.root.querySelector('.ch-draft');
+    if (draft) this.draftScroll = draft.scrollTop;
+    const list = this.root.querySelector('.mu-list');
+    if (list && this.renderedStep) this.renderedStep.listScroll = list.scrollTop;
+  }
   moveFocus(delta) {
     if (this.busy) return;
     const buttons = [...this.root.querySelectorAll('button:not(:disabled),summary')];
@@ -190,7 +201,8 @@ export class MobileRewards {
     const focus = this.root.contains(document.activeElement)
       ? document.activeElement.dataset.focus
       : null;
-    const scrollTop = draftScrollTop(this.root);
+    this.rememberScroll();
+    this.renderedStep = null;
     this.root.replaceChildren();
     this.root.classList.add('ch-reward-screen');
     this.root.classList.toggle('is-still', choiceReducedMotion(this.overlayScene));
@@ -227,8 +239,9 @@ export class MobileRewards {
         : c.item
           ? scene._getLootTooltipText(c, c.item)
           : 'Gold is added to your vault. Team XP is shared with your roster.';
-    // The spoils as cards: art, rarity frame, what it does, and for whom.
-    const row = node('div', null, 'ch-draft ch-rewards');
+    // The spoils as cards: art, rarity frame, what it does, and for whom. Upright
+    // they are a list that scrolls, its edges fading while there is more.
+    const row = softList(node('div', null, 'ch-draft ch-rewards'));
     row.dataset.count = String(all.length);
     row.style.setProperty('--ch-n', String(all.length));
     all.forEach((c, i) => {
@@ -352,8 +365,11 @@ export class MobileRewards {
     this.root.append(header, row);
     if (notes.childElementCount) this.root.append(notes);
     this.root.append(actions);
-    keepDraftScroll(row, scrollTop);
-    if (focus) this.root.querySelector(`[data-focus="${focus}"]:not(:disabled)`)?.focus();
+    keepDraftScroll(row, this.draftScroll || 0);
+    if (focus)
+      this.root
+        .querySelector(`[data-focus="${focus}"]:not(:disabled)`)
+        ?.focus({ preventScroll: true });
     if (this.revealPending) this.startReveal(row, all);
   }
   /** Reward reveal: Hollow Sun backs turn in order (presentation only; tap skips). */
@@ -433,6 +449,7 @@ export class MobileRewards {
   renderStep(message = '') {
     if (this.controller.saveError) return this.renderSaveFailure();
     const step = this.steps.at(-1);
+    this.rememberScroll();
     this.root.replaceChildren();
     const header = node('header', null, 'mu-header');
     header.append(
@@ -442,7 +459,7 @@ export class MobileRewards {
     const trail = node('p', ['Rewards', ...this.steps.map((s) => s.title)].join(' › '), 'mu-help');
     this.tools(header);
     const split = node('div', null, 'mu-split');
-    const list = node('div', null, 'mu-list');
+    const list = softList(node('div', null, 'mu-list'));
     step.selected ??= step.choices[0];
     for (const choice of step.choices) {
       const reason = step.blocked?.(choice);
@@ -511,6 +528,8 @@ export class MobileRewards {
     split.append(list, detail);
     if (!header.querySelector('.reward-tools')) this.tools(header);
     this.root.append(header, trail, split);
+    this.renderedStep = step;
+    list.scrollTop = step.listScroll || 0;
   }
   startChoice(choice) {
     const item = choice.item;

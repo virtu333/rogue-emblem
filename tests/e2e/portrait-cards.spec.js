@@ -21,6 +21,18 @@
 // a touch screen, upright), so the portrait specs opt in; they also set the class
 // themselves and hide the rotate prompt for a build without the shell.
 import { test, expect } from '@playwright/test';
+import {
+  PORTRAIT_PHONES,
+  NOTCH_PORTRAIT,
+  phone,
+  emulateSafeArea,
+  expectInsideSafeArea,
+  expectPortraitUi,
+  expectTappable as tappable,
+  expectNoSidewaysScroll as noSideways,
+  clippedText,
+  pageErrors,
+} from './portraitHelpers.js';
 
 const IPHONE_UA =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148';
@@ -549,6 +561,518 @@ for (const phone of PHONES)
     });
   });
 
+// ── Upright phones, the real shell: edges, scroll, recipients, safe areas ──
+// These run on a real phone context (portraitHelpers phone(): touch, coarse
+// pointer, a phone-sized screen), so portrait mode is on by default and nothing
+// forces the class. Safe areas are emulated (the notch above, the home bar below).
+//
+// Failure modes, one test (or assertion group) each:
+//   8. a scrolling list ends in a hard slice under the header or above the footer
+//      (no fade), or fades where there is nothing more (a list that fits); a long
+//      mercenary contract squeezes its terms panel shorter than its text;
+//   9. a tapped card half under a fade stays there after the rebuild, or a tap on
+//      a card in plain view moves the list (scroll position lost);
+//  10. the spoils open scrolled a few pixels (focus scrolling a tall chosen card),
+//      so its first line sits in the fade;
+//  11. the chosen spoil's lore (the longest in the data) is cut, or pushes the
+//      primary off screen; the dominated skip-gold card does not read as quiet
+//      until chosen, or taking it does not pay;
+//  12. the recipient step leaves a gap between a short list and the detail, Apply
+//      is not on the bottom row, a long roster pushes Apply or the detail off
+//      screen, a choice in the list loses its scroll, or Back loses the spoils'
+//      place;
+//  13. a header or footer control sits under the notch or the home bar.
+
+/** A phone context usable inside a describe group (no browser-type switch). */
+function uprightPhone(viewport) {
+  const context = phone(viewport);
+  delete context.defaultBrowserType;
+  return context;
+}
+
+/** A list's fade edges as drawn (its computed mask) and its scroll state. */
+function listEdges(list) {
+  return list.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    const mask = cs.maskImage && cs.maskImage !== 'none' ? cs.maskImage : cs.webkitMaskImage;
+    const clear = '(?:rgba\\(0, 0, 0, 0\\)|transparent)';
+    const r = el.getBoundingClientRect();
+    return {
+      top: new RegExp(`^linear-gradient\\((?:180deg, )?${clear}`).test(mask || ''),
+      bottom: new RegExp(`${clear}\\)$`).test(mask || ''),
+      fade: parseFloat(cs.getPropertyValue('--ch-fade')) || 0,
+      scrollTop: el.scrollTop,
+      max: el.scrollHeight - el.clientHeight,
+      viewTop: r.top,
+      viewBottom: r.bottom,
+    };
+  });
+}
+
+/** Scroll a list to `to` ('start' | 'middle' | 'end') and wait for its edges to follow. */
+async function scrollList(list, to) {
+  await list.evaluate((el, to) => {
+    const max = el.scrollHeight - el.clientHeight;
+    el.scrollTop = to === 'start' ? 0 : to === 'end' ? max : Math.round(max / 2);
+  }, to);
+  await expect
+    .poll(async () => {
+      const e = await listEdges(list);
+      return to === 'start' ? !e.top : to === 'end' ? !e.bottom : e.top && e.bottom;
+    })
+    .toBe(true);
+}
+
+/**
+ * A list that scrolls fades exactly where it continues; a list that fits never
+ * fades. Returns whether it scrolls.
+ */
+async function expectSoftEdges(list, label) {
+  const first = await listEdges(list);
+  if (first.max <= 1) {
+    expect(first, `${label}: a list that fits does not fade`).toMatchObject({
+      top: false,
+      bottom: false,
+    });
+    return false;
+  }
+  expect(first.fade, `${label}: a fade length`).toBeGreaterThan(8);
+  await scrollList(list, 'start');
+  expect(await listEdges(list), `${label} at its start`).toMatchObject({
+    top: false,
+    bottom: true,
+  });
+  await scrollList(list, 'middle');
+  expect(await listEdges(list), `${label} mid-way`).toMatchObject({ top: true, bottom: true });
+  await scrollList(list, 'end');
+  expect(await listEdges(list), `${label} at its end`).toMatchObject({ top: true, bottom: false });
+  return true;
+}
+
+/** The chosen card lies whole inside the list and clear of any fade drawn over it. */
+async function expectChosenClear(list, chosen, label) {
+  const e = await listEdges(list);
+  const card = await chosen.boundingBox();
+  expect(card.y, `${label}: top clear of the fade`).toBeGreaterThanOrEqual(
+    e.viewTop + (e.top ? e.fade : 0) - 1,
+  );
+  expect(card.y + card.height, `${label}: bottom clear of the fade`).toBeLessThanOrEqual(
+    e.viewBottom - (e.bottom ? e.fade : 0) + 1,
+  );
+}
+
+/**
+ * Tap, with a finger and without scrolling first, the card the bottom fade half
+ * covers; it becomes the chosen card, brought clear of the fade.
+ */
+async function tapUnderBottomFade(page, list, cardSelector, label) {
+  await scrollList(list, 'start');
+  const e = await listEdges(list);
+  const edge = e.viewBottom - e.fade;
+  const target = await list.locator(cardSelector).evaluateAll(
+    (cards, edge) =>
+      cards.findIndex((c) => {
+        const r = c.getBoundingClientRect();
+        return r.top < edge - 12 && r.bottom > edge;
+      }),
+    edge,
+  );
+  expect(target, `${label}: a card runs under the bottom fade`).toBeGreaterThanOrEqual(0);
+  const card = list.locator(cardSelector).nth(target);
+  const box = await card.boundingBox();
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + 6);
+  await expect(card).toHaveAttribute('aria-pressed', 'true');
+  await expectChosenClear(list, card, label);
+  return card;
+}
+
+/** A tap on a card in plain view leaves the list where it was. */
+async function expectTapKeepsScroll(page, list, cardSelector, label) {
+  await scrollList(list, 'middle');
+  const e = await listEdges(list);
+  const target = await list.locator(cardSelector).evaluateAll(
+    (cards, { top, bottom }) =>
+      cards.findIndex((c) => {
+        const r = c.getBoundingClientRect();
+        return c.getAttribute('aria-pressed') === 'false' && r.top >= top && r.bottom <= bottom;
+      }),
+    { top: e.viewTop + e.fade, bottom: e.viewBottom - e.fade },
+  );
+  expect(target, `${label}: a card in plain view mid-list`).toBeGreaterThanOrEqual(0);
+  const card = list.locator(cardSelector).nth(target);
+  const box = await card.boundingBox();
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(card).toHaveAttribute('aria-pressed', 'true');
+  const after = await listEdges(list);
+  expect(
+    Math.abs(after.scrollTop - e.scrollTop),
+    `${label}: the list stays put`,
+  ).toBeLessThanOrEqual(1);
+  await expectChosenClear(list, card, label);
+}
+
+/** Header and footer controls clear the notch and the home bar; the primary is a thumb target. */
+async function expectFrameInSafeArea(page, scope, primary) {
+  await expectInsideSafeArea(page, `${scope} :is(header, .re-header, .mu-header) button`);
+  await expectInsideSafeArea(page, `${scope} :is(.ch-footer, .service-footer, .mu-actions) button`);
+  await tappable(primary);
+}
+
+for (const viewport of PORTRAIT_PHONES)
+  test.describe(`upright shell ${viewport.width}x${viewport.height}`, () => {
+    test.use(uprightPhone(viewport));
+    // A short phone (375x667) scrolls every long list; taller ones may fit it.
+    const short = viewport.height < 700;
+    const tall = viewport.height >= 900;
+
+    test('difficulty terms and blessings: soft edges, the chosen card clear, the place kept', async ({
+      page,
+    }, info) => {
+      test.setTimeout(120_000);
+      const errors = pageErrors(page);
+      await boot(page);
+      await emulateSafeArea(page, NOTCH_PORTRAIT);
+      const setup = await openDifficulty(page, false);
+      await expectPortraitUi(page);
+      // Lunatic's terms are the longest: they scroll in their panel and fade there.
+      await setup.locator('.ch-banner[data-mode="lunatic"]').tap();
+      const terms = setup.locator('.ch-banner-detail');
+      await expect(terms).toContainText('Lunatic');
+      const scrolls = await expectSoftEdges(terms, 'Lunatic terms');
+      if (viewport.height <= 700)
+        expect(scrolls, 'Lunatic terms scroll on a short phone').toBe(true);
+      await expectFrameInSafeArea(
+        page,
+        '[aria-label="Choose difficulty"]',
+        setup.getByRole('button', { name: 'Confirm', exact: true }),
+      );
+      await setup.locator('.ch-banner[data-mode="normal"]').tap();
+      await setup.getByRole('button', { name: 'Confirm', exact: true }).tap();
+      await waitForScene(page, 'BlessingSelect');
+
+      const shrine = page.getByRole('dialog', { name: 'Choose a blessing', exact: true });
+      await expect(shrine).toBeVisible();
+      await longestBlessings(page);
+      const list = shrine.locator('.ch-draft');
+      if (await expectSoftEdges(list, 'blessings')) {
+        await tapUnderBottomFade(page, list, '.ch-tarot', 'blessings');
+        await expectTapKeepsScroll(page, list, '.ch-tarot', 'blessings');
+      } else expect(tall, 'four blessings scroll on all but the tallest phone').toBe(true);
+      await expectFrameInSafeArea(
+        page,
+        '[aria-label="Choose a blessing"]',
+        shrine.getByRole('button', { name: 'Confirm', exact: true }),
+      );
+      await page.screenshot({ path: info.outputPath(`shell-blessings-${viewport.width}.png`) });
+      expect(errors).toEqual([]);
+    });
+
+    test('boss recruit and lord arrival: soft edges and a chosen card clear of them', async ({
+      page,
+    }, info) => {
+      test.setTimeout(120_000);
+      const errors = pageErrors(page);
+      await boot(page);
+      await emulateSafeArea(page, NOTCH_PORTRAIT);
+      await openBattle(page, false);
+      await expectPortraitUi(page);
+      const recruit = await openBossRecruit(page);
+      const list = recruit.locator('.ch-draft');
+      const scrolls = await expectSoftEdges(list, 'boss recruit');
+      if (short) expect(scrolls, 'three candidates scroll on a short phone').toBe(true);
+      if (scrolls) await tapUnderBottomFade(page, list, '.ch-card', 'boss recruit');
+      await expectFrameInSafeArea(
+        page,
+        '[aria-label="Boss recruit"]',
+        recruit.getByRole('button', { name: 'Recruit', exact: true }),
+      );
+      await page.screenshot({ path: info.outputPath(`shell-boss-recruit-${viewport.width}.png`) });
+      await recruit.getByRole('button', { name: 'Recruit', exact: true }).tap();
+      await expect(recruit).toHaveCount(0);
+
+      const lords = await openLordArrival(page);
+      const lordList = lords.locator('.ch-draft');
+      const lordsScroll = await expectSoftEdges(lordList, 'lord arrival');
+      if (short) expect(lordsScroll, 'three lords scroll on a short phone').toBe(true);
+      if (lordsScroll) await tapUnderBottomFade(page, lordList, '.ch-card', 'lord arrival');
+      await expectFrameInSafeArea(
+        page,
+        '[aria-label="Lord arrival"]',
+        lords.getByRole('button', { name: 'Welcome', exact: true }),
+      );
+      expect(errors).toEqual([]);
+    });
+
+    test('mercenary board and a long contract fade where they continue', async ({ page }, info) => {
+      test.setTimeout(120_000);
+      const errors = pageErrors(page);
+      await boot(page, { seeded: true });
+      await emulateSafeArea(page, NOTCH_PORTRAIT);
+      const board = await openMercBoard(page, false);
+      await expectPortraitUi(page);
+      await expectSoftEdges(board.locator('.ch-draft'), 'mercenary board');
+      await expectInsideSafeArea(page, '[aria-label="Mercenary board"] .re-header button');
+      // The longest skills in the data make the contract taller than any phone.
+      await page.evaluate(() => {
+        const unit = window.arena._mercCandidates[0].unit;
+        unit.skills = [
+          ...new Set([
+            ...(unit.skills || []),
+            'luna',
+            'divine_charge',
+            'rally_cry_skill',
+            'ensnare',
+            'adept',
+          ]),
+        ];
+      });
+      const first = board.locator('.ch-card').first();
+      const name = (await first.locator('.ch-name').textContent()).trim();
+      await first.tap();
+      const contract = page.getByRole('dialog', { name: `Hire ${name}`, exact: true });
+      await expect(contract.locator('.ch-terms')).toContainText('Luna');
+      // The card and the terms each hold their whole text (the contract scrolls).
+      for (const part of ['.ch-contract .ch-card', '.ch-terms'])
+        expect(
+          await contract.locator(part).evaluate((el) => el.scrollHeight - el.clientHeight),
+          `${part} holds its text`,
+        ).toBeLessThanOrEqual(1);
+      const contractScrolls = await expectSoftEdges(contract.locator('.ch-contract'), 'contract');
+      if (short) expect(contractScrolls, 'the long contract scrolls on a short phone').toBe(true);
+      const hire = contract.getByRole('button', { name: 'Confirm hire', exact: true });
+      await expectFrameInSafeArea(page, `[aria-label="Hire ${name}"]`, hire);
+      await page.screenshot({ path: info.outputPath(`shell-contract-${viewport.width}.png`) });
+      expect(errors).toEqual([]);
+    });
+
+    test('battle rewards: open at the top, the longest lore whole, the dominated skip quiet until chosen', async ({
+      page,
+    }, info) => {
+      test.setTimeout(120_000);
+      const errors = pageErrors(page);
+      await boot(page);
+      await emulateSafeArea(page, NOTCH_PORTRAIT);
+      await openBattle(page, false);
+      await expectPortraitUi(page);
+      await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
+      const rewards = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
+      await expect(rewards).toBeVisible();
+      // The longest reading and the longest lore in the data lead the spoils, and a
+      // gold card pays at least the skip, so the skip is dominated.
+      const { lore, skipGold } = await page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        const r = s._lootController.mobileRewards;
+        r.reveal?.skip();
+        const find = (list, name) => structuredClone(list.find((x) => x.name === name));
+        const accessories = s.gameData.accessories?.accessories || s.gameData.accessories || [];
+        const scroll = find(s.gameData.weapons, 'Glowing Ember Scroll');
+        r.choices.splice(
+          0,
+          r.choices.length,
+          { type: 'skillScroll', item: scroll },
+          { type: 'accessory', item: find(accessories, "Bounty Hunter's Mark") },
+          { type: 'weapon', item: find(s.gameData.weapons, 'Gale Blade') },
+          { type: 'gold', goldAmount: r.skipGold + 50, xpAmount: 0 },
+        );
+        r.selected = 0;
+        r.draftScroll = 0;
+        // Rebuilt with the chosen (first) card focused, as on arrival.
+        r.render();
+        return { lore: scroll.lore, skipGold: r.skipGold };
+      });
+      await expect(rewards.locator('.reward-card')).toHaveCount(5);
+      await expect(rewards.locator('.ia-revealing')).toHaveCount(0);
+      const list = rewards.locator('.ch-draft');
+      // Opens at the very top: the tall chosen scroll's first line is not in a fade.
+      await expect
+        .poll(() => listEdges(list))
+        .toMatchObject({ scrollTop: 0, top: false, bottom: true });
+      await expect(rewards.locator('.reward-card').first()).toHaveAttribute('aria-pressed', 'true');
+
+      // The lore, whole, between the list and the footer.
+      const loreLine = rewards.locator('.ch-reward-lore');
+      await expect(loreLine).toHaveText(lore);
+      const [noteBox, loreBox, footerBox, listBox] = await Promise.all([
+        rewards.locator('.ch-notes').boundingBox(),
+        loreLine.boundingBox(),
+        rewards.locator('.ch-rewards-footer').boundingBox(),
+        list.boundingBox(),
+      ]);
+      expect(loreBox.y).toBeGreaterThanOrEqual(noteBox.y - 0.5);
+      expect(loreBox.y + loreBox.height).toBeLessThanOrEqual(noteBox.y + noteBox.height + 0.5);
+      expect(noteBox.y).toBeGreaterThanOrEqual(listBox.y + listBox.height - 0.5);
+      expect(noteBox.y + noteBox.height).toBeLessThanOrEqual(footerBox.y + 0.5);
+      expect(await clippedText(page, '.ch-notes')).toEqual([]);
+      await expectFrameInSafeArea(
+        page,
+        '[aria-label="Battle rewards"]',
+        rewards.getByRole('button', { name: 'Choose reward', exact: true }),
+      );
+      await noSideways(page, '.ch-reward-screen');
+      await page.screenshot({ path: info.outputPath(`shell-rewards-${viewport.width}.png`) });
+
+      // The dominated skip: quiet while set aside, full once chosen; then it pays.
+      const skip = rewards.locator('.reward-card.is-dominated');
+      await expect(skip).toHaveCount(1);
+      await expect(skip.locator('.ch-reward-name')).toHaveText(`Take ${skipGold} gold instead`);
+      const quiet = () => skip.locator('.ch-plate').evaluate((el) => getComputedStyle(el).filter);
+      expect(await quiet()).toMatch(/saturate/);
+      await skip.scrollIntoViewIfNeeded();
+      await skip.tap();
+      await expect(skip).toHaveAttribute('aria-pressed', 'true');
+      await expectChosenClear(list, skip, 'skip gold');
+      expect(await quiet()).toBe('none');
+      const take = rewards.getByRole('button', { name: 'Take gold', exact: true });
+      await tappable(take);
+      const before = await page.evaluate(
+        () => window.__emblemRogueGame.scene.getScene('Battle').runManager.gold,
+      );
+      await take.tap();
+      await expect
+        .poll(() =>
+          page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').runManager.gold),
+        )
+        .toBe(before + skipGold);
+      expect(errors).toEqual([]);
+    });
+
+    test('reward recipients: the detail under a short list, Apply on the bottom row, a long roster keeps its place', async ({
+      page,
+    }, info) => {
+      test.setTimeout(120_000);
+      const errors = pageErrors(page);
+      await boot(page);
+      await emulateSafeArea(page, NOTCH_PORTRAIT);
+      await openBattle(page, false);
+      await expectPortraitUi(page);
+      const rewards = await openRewards(page);
+      const blade = rewards.locator('.reward-card').nth(2);
+      await blade.scrollIntoViewIfNeeded();
+      await blade.tap();
+      await expect(blade).toHaveAttribute('aria-pressed', 'true');
+      // Park the spoils mid-way through the places that keep the blade clear of the
+      // fades (not where a fresh "bring it into view" would put it).
+      const draftPlace = await rewards.locator('.ch-draft').evaluate((el) => {
+        const card = el.querySelector('.reward-card[aria-pressed="true"]').getBoundingClientRect();
+        const view = el.getBoundingClientRect();
+        const fade = parseFloat(getComputedStyle(el).getPropertyValue('--ch-fade')) || 0;
+        const top = card.top - view.top + el.scrollTop;
+        const low = Math.max(0, top + card.height - el.clientHeight + fade);
+        const high = Math.min(el.scrollHeight - el.clientHeight, top - fade);
+        el.scrollTop = Math.round((low + high) / 2);
+        return el.scrollTop;
+      });
+      await rewards.getByRole('button', { name: 'Choose reward', exact: true }).tap();
+      const apply = rewards.getByRole('button', { name: 'Apply reward', exact: true });
+      await expect(apply).toBeVisible();
+
+      // A short list (two lords and the convoy): the detail follows it directly and
+      // Apply sits on the bottom row, above the home bar.
+      const layout = () =>
+        page.evaluate(() => {
+          const box = (el) => el.getBoundingClientRect().toJSON();
+          const list = document.querySelector('.ch-reward-screen .mu-list');
+          const rows = [...list.querySelectorAll('.mh-skill')];
+          return {
+            lastRow: box(rows.at(-1)),
+            list: box(list),
+            listScrolls: list.scrollHeight > list.clientHeight + 1,
+            copy: box(document.querySelector('.ch-reward-screen .mu-copy')),
+            apply: box(document.querySelector('.ch-reward-screen .mu-actions .mu-buy')),
+            pageScrolls: document.documentElement.scrollHeight > innerHeight,
+            vh: innerHeight,
+          };
+        });
+      let l = await layout();
+      expect(l.copy.top - l.list.bottom, 'the detail follows the list').toBeLessThanOrEqual(10);
+      if (!l.listScrolls)
+        expect(l.copy.top - l.lastRow.bottom, 'no gap above the detail').toBeLessThanOrEqual(16);
+      expect(l.apply.top).toBeGreaterThanOrEqual(l.copy.bottom);
+      expect(
+        l.vh - NOTCH_PORTRAIT.bottom - l.apply.bottom,
+        'Apply on the bottom row',
+      ).toBeLessThanOrEqual(12);
+      await expectFrameInSafeArea(page, '[aria-label="Battle rewards"]', apply);
+      await noSideways(page, '.ch-reward-screen');
+      await page.screenshot({ path: info.outputPath(`shell-recipient-${viewport.width}.png`) });
+
+      // Back: the spoils return where they were, the blade still chosen and in view.
+      await rewards.getByRole('button', { name: 'Back', exact: true }).tap();
+      await expect(blade).toHaveAttribute('aria-pressed', 'true');
+      expect(
+        Math.abs((await rewards.locator('.ch-draft').evaluate((el) => el.scrollTop)) - draftPlace),
+      ).toBeLessThanOrEqual(1);
+      await expectChosenClear(rewards.locator('.ch-draft'), blade, 'blade after Back');
+
+      // A long roster: the list scrolls in its own box, the detail and Apply stay on screen.
+      await page.evaluate(() => {
+        const rm = window.__emblemRogueGame.scene.getScene('Battle').runManager;
+        const edric = rm.roster[0];
+        for (let i = 0; i < 12; i++)
+          rm.roster.push({
+            ...structuredClone(edric),
+            name: `Benedetta ${i + 1}`,
+            isLord: false,
+            inventory: [],
+            weapon: null,
+            consumables: [],
+          });
+      });
+      await rewards.getByRole('button', { name: 'Choose reward', exact: true }).tap();
+      await expect(apply).toBeVisible();
+      l = await layout();
+      expect(l.listScrolls).toBe(true);
+      expect(l.pageScrolls).toBe(false);
+      await tappable(apply);
+      await expect(rewards.locator('.mu-copy h2')).toBeInViewport({ ratio: 1 });
+      // The list fades where it continues; a row chosen mid-list keeps its place.
+      const rowsList = rewards.locator('.mu-list');
+      expect(await expectSoftEdges(rowsList, 'recipients')).toBe(true);
+      await rowsList.evaluate((el) => (el.scrollTop = (el.scrollHeight - el.clientHeight) / 2));
+      const place = await rowsList.evaluate((el) => el.scrollTop);
+      const pick = await rowsList.locator('.mh-skill').evaluateAll((rows) => {
+        const view = rows[0].parentElement.getBoundingClientRect();
+        return rows.findIndex((r) => {
+          const b = r.getBoundingClientRect();
+          return (
+            r.getAttribute('aria-pressed') === 'false' &&
+            !r.disabled &&
+            b.top >= view.top + 4 &&
+            b.bottom <= view.bottom - 4
+          );
+        });
+      });
+      expect(pick).toBeGreaterThanOrEqual(0);
+      const row = rowsList.locator('.mh-skill').nth(pick);
+      const rowName = (await row.locator('strong').textContent()).trim();
+      const box = await row.boundingBox();
+      await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+      await expect(rowsList.locator('.mh-skill').nth(pick)).toHaveAttribute('aria-pressed', 'true');
+      await expect(rewards.locator('.mu-copy h2')).toHaveText(rowName);
+      expect(Math.abs((await rowsList.evaluate((el) => el.scrollTop)) - place)).toBeLessThanOrEqual(
+        1,
+      );
+      await expect(rowsList.locator('.mh-skill').nth(pick)).toBeInViewport({ ratio: 1 });
+      await page.screenshot({
+        path: info.outputPath(`shell-recipient-long-${viewport.width}.png`),
+      });
+      await apply.tap();
+      await expect
+        .poll(() =>
+          page.evaluate(
+            (name) =>
+              window.__emblemRogueGame.scene
+                .getScene('Battle')
+                .runManager.roster.find((u) => u.name === name)
+                ?.inventory?.some((w) => w?.name === 'Gale Blade') ?? false,
+            rowName,
+          ),
+        )
+        .toBe(true);
+      expect(errors).toEqual([]);
+    });
+  });
+
 // ── Landscape and desktop: unchanged ────────────────────────────────────
 // Card boxes (left, top, width) measured on origin/main with these same flows;
 // each screen's cards must sit exactly there (±1 px) and share one row. Heights
@@ -626,6 +1150,56 @@ const MAIN = {
   },
 };
 const DUMP = process.env.PORTRAIT_CARDS_DUMP === '1';
+// The reward recipient step and the mercenary contract: [x, width] of each box,
+// measured on origin/main (their tops follow the body font, a system face, so
+// only the columns are pinned).
+const MAIN_STEPS = {
+  '844x390': {
+    recipient: {
+      '.mu-list': [12, 405],
+      '.mu-detail': [427, 405],
+      '.mu-actions .mu-buy': [438, 383],
+    },
+    contract: {
+      '.ch-contract .ch-card': [17, 395],
+      '.ch-terms': [427, 405],
+      '.service-footer .re-btn--primary': [12, 820],
+    },
+  },
+  '640x480': {
+    recipient: {
+      '.mu-list': [12, 295.6],
+      '.mu-detail': [317.6, 310.4],
+      '.mu-actions .mu-buy': [326.6, 292.4],
+    },
+    contract: {
+      '.ch-contract .ch-card': [17, 293],
+      '.ch-terms': [325, 303],
+      '.service-footer .re-btn--primary': [12, 616],
+    },
+  },
+};
+
+async function expectColumnsAsOnMain(page, expected, label) {
+  const boxes = await page.evaluate(
+    (sels) =>
+      Object.fromEntries(
+        sels.map((sel) => {
+          const r = document.querySelector(sel).getBoundingClientRect();
+          return [sel, [Math.round(r.left * 10) / 10, Math.round(r.width * 10) / 10]];
+        }),
+      ),
+    Object.keys(expected),
+  );
+  if (DUMP) {
+    console.log(`MAIN ${label} ${JSON.stringify(boxes)}`);
+    return;
+  }
+  for (const [sel, [x, w]] of Object.entries(expected)) {
+    expect(Math.abs(boxes[sel][0] - x), `${label} ${sel} left`).toBeLessThanOrEqual(1);
+    expect(Math.abs(boxes[sel][1] - w), `${label} ${sel} width`).toBeLessThanOrEqual(1);
+  }
+}
 
 async function expectRowAsOnMain(page, dialog, card, expected, label) {
   // A resting pointer would lift the card under it (the desktop hover); wait for
@@ -717,10 +1291,34 @@ for (const { width, height, preview } of [
       await expectRowAsOnMain(page, rewards, '.reward-card', MAIN[key].rewards, `${key} rewards`);
     });
 
-    test('the mercenary board is unchanged', async ({ page }) => {
+    test('the mercenary board and contract are unchanged', async ({ page }) => {
       test.setTimeout(120_000);
       await boot(page, { seeded: true });
       const board = await openMercBoard(page, preview);
       await expectRowAsOnMain(page, board, '.ch-card', MAIN[key].mercs, `${key} mercenaries`);
+      const first = board.locator('.ch-card').first();
+      const name = (await first.locator('.ch-name').textContent()).trim();
+      await first.click();
+      await expect(page.getByRole('dialog', { name: `Hire ${name}`, exact: true })).toBeVisible();
+      await expectColumnsAsOnMain(page, MAIN_STEPS[key].contract, `${key} contract`);
+    });
+
+    test('the reward recipient step is unchanged', async ({ page }) => {
+      test.setTimeout(120_000);
+      await boot(page);
+      await openBattle(page, preview);
+      const rewards = await openRewards(page);
+      await rewards.locator('.reward-card').nth(2).click();
+      await rewards.getByRole('button', { name: 'Choose reward', exact: true }).click();
+      await expect(
+        rewards.getByRole('button', { name: 'Apply reward', exact: true }),
+      ).toBeVisible();
+      await expectColumnsAsOnMain(page, MAIN_STEPS[key].recipient, `${key} recipient`);
+      // Side by side, as on main: the list's top row level with the detail.
+      const [list, detail] = await Promise.all([
+        rewards.locator('.mu-list').boundingBox(),
+        rewards.locator('.mu-detail').boundingBox(),
+      ]);
+      expect(Math.abs(list.y - detail.y)).toBeLessThanOrEqual(1);
     });
   });
