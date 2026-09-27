@@ -15,13 +15,17 @@ test('real purchase, refund fee, selection, scroll and saved reload', async ({ p
     s.meta._save();
     s.mobileUpgrades.render();
   });
+  // Price from the data, so a rebalance doesn't break the flow under test.
+  const cost = await page.evaluate(() =>
+    window.__emblemRogueGame.scene.getScene('HomeBase').meta.getNextCost('recruit_hp_growth'),
+  );
   const row = page.locator('[data-upgrade="recruit_hp_growth"]');
   await row.tap();
   await expect(page.locator('.mu-effects')).toContainText('Next: +5%');
-  await page.getByRole('button', { name: 'Buy · 50 supply', exact: true }).tap();
+  await page.getByRole('button', { name: `Buy · ${cost} supply`, exact: true }).tap();
   await expect(row).toHaveAttribute('aria-pressed', 'true');
   await expect(row).toContainText('Tier 1 / 5');
-  await expect(page.locator('.mu-currency.active')).toContainText('950');
+  await expect(page.locator('.mu-currency.active')).toContainText(String(1000 - cost));
   await page.reload();
   await waitForScene(page, 'HomeBase');
   await page.getByRole('button', { name: 'Upgrades', exact: true }).tap();
@@ -33,10 +37,12 @@ test('real purchase, refund fee, selection, scroll and saved reload', async ({ p
   await page.getByRole('button', { name: 'Refund one tier' }).tap();
   await page.getByRole('button', { name: 'Confirm refund' }).tap();
   await expect(row).toContainText('Tier 0 / 5');
+  // Refund returns the tier's cost less the flat 20 fee.
   await expect(page.locator('.mu-currency.active')).toContainText('980');
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('HomeBase');
-    for (let i = 0; i < 3; i++) s.meta.purchaseUpgrade('recruit_res_growth');
+    // Unlock the list's last row (recruit_lck_flat) so its buy button is live.
+    for (let i = 0; i < 3; i++) s.meta.purchaseUpgrade('recruit_lck_growth');
     s.mobileUpgrades.render();
   });
   const last = page.locator('.mu-row').last();

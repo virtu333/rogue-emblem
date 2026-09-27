@@ -48,33 +48,41 @@ describe('meta upgrades rebalance patch guards', () => {
     { id: 'extra_skill_slot', costs: [750] },
     // 2026-09-27 stat upgrade value pricing: every lord/recruit stat track is
     // priced as (value weight x a shared escalating curve), so buying the next
-    // tier of any stat is roughly equally worth it. Weights (SPD = 1): DEF 1,
-    // STR 0.8, HP 0.55 growth / 0.85 flat, RES 0.45, SKL 0.4. The total cost
-    // to max each group is unchanged. Measured with sim/metaStatValue.js.
-    { id: 'lord_spd_growth', costs: [90, 130, 230, 320, 495] },
+    // tier of any stat is roughly equally worth it. Weights (DEF = 1): SPD 1.15,
+    // STR 0.8, HP 0.55 growth / 0.85 flat, MAG 0.5, RES 0.45, SKL 0.4, LCK 0.3.
+    // Measured with sim/metaStatValue.js.
+    { id: 'lord_spd_growth', costs: [105, 150, 260, 365, 570] },
     { id: 'lord_def_growth', costs: [90, 130, 230, 320, 495] },
     { id: 'lord_str_growth', costs: [70, 105, 180, 255, 400] },
     { id: 'lord_hp_growth', costs: [50, 70, 125, 175, 275] },
+    { id: 'lord_mag_growth', costs: [50, 65, 115, 160, 250] },
     { id: 'lord_res_growth', costs: [50, 60, 100, 145, 225] },
     { id: 'lord_skl_growth', costs: [50, 55, 90, 125, 200] },
-    { id: 'lord_spd_flat', costs: [220, 605, 1270] },
+    { id: 'lord_lck_growth', costs: [50, 55, 70, 95, 150] },
+    { id: 'lord_spd_flat', costs: [250, 695, 1460] },
     { id: 'lord_def_flat', costs: [220, 605, 1270] },
     { id: 'lord_str_flat', costs: [175, 485, 1015] },
     { id: 'lord_hp_flat', costs: [185, 515, 1080] },
+    { id: 'lord_mag_flat', costs: [125, 305, 635] },
     { id: 'lord_res_flat', costs: [125, 275, 570] },
     { id: 'lord_skl_flat', costs: [125, 240, 510] },
-    { id: 'recruit_spd_growth', costs: [55, 75, 115, 155, 225] },
+    { id: 'lord_lck_flat', costs: [125, 180, 380] },
+    { id: 'recruit_spd_growth', costs: [65, 85, 130, 175, 260] },
     { id: 'recruit_def_growth', costs: [55, 75, 115, 155, 225] },
     { id: 'recruit_str_growth', costs: [45, 60, 90, 120, 180] },
     { id: 'recruit_hp_growth', costs: [35, 40, 60, 85, 125] },
+    { id: 'recruit_mag_growth', costs: [35, 40, 55, 75, 115] },
     { id: 'recruit_res_growth', costs: [35, 40, 50, 70, 100] },
     { id: 'recruit_skl_growth', costs: [35, 40, 45, 60, 90] },
-    { id: 'recruit_spd_flat', costs: [130, 315, 660] },
+    { id: 'recruit_lck_growth', costs: [35, 40, 45, 50, 70] },
+    { id: 'recruit_spd_flat', costs: [150, 365, 760] },
     { id: 'recruit_def_flat', costs: [130, 315, 660] },
     { id: 'recruit_str_flat', costs: [105, 255, 530] },
     { id: 'recruit_hp_flat', costs: [110, 270, 560] },
+    { id: 'recruit_mag_flat', costs: [90, 160, 330] },
     { id: 'recruit_res_flat', costs: [90, 145, 295] },
     { id: 'recruit_skl_flat', costs: [90, 125, 265] },
+    { id: 'recruit_lck_flat', costs: [90, 120, 200] },
     // Identity purchases stay untouched by the rebalance.
     { id: 'legendary_heir', costs: [1000, 500, 250, 750] },
     { id: 'commander_choice', costs: [1500] },
@@ -105,27 +113,26 @@ describe('meta upgrades rebalance patch guards', () => {
   ];
 
   it('prices every stat track by value: no weaker stat costs more than a stronger one', () => {
-    // Value order within each group/kind, strongest first; ties share a price.
+    // Value order within each group/kind, strongest first.
     const order = {
-      growth: [['SPD', 'DEF'], ['STR'], ['HP'], ['RES'], ['SKL']],
-      flat: [['SPD', 'DEF'], ['HP'], ['STR'], ['RES'], ['SKL']],
+      growth: ['SPD', 'DEF', 'STR', 'HP', 'MAG', 'RES', 'SKL', 'LCK'],
+      flat: ['SPD', 'DEF', 'HP', 'STR', 'MAG', 'RES', 'SKL', 'LCK'],
     };
     for (const group of ['lord', 'recruit']) {
-      for (const [kind, ranks] of Object.entries(order)) {
+      for (const [kind, stats] of Object.entries(order)) {
         const costsOf = (stat) => byId.get(`${group}_${stat.toLowerCase()}_${kind}`).costs;
-        for (const tier of ranks) {
-          for (const stat of tier.slice(1)) expect(costsOf(stat)).toEqual(costsOf(tier[0]));
-        }
-        for (let i = 1; i < ranks.length; i++) {
-          const stronger = costsOf(ranks[i - 1][0]);
-          const weaker = costsOf(ranks[i][0]);
-          weaker.forEach((cost, t) => {
-            expect(cost, `${group} ${kind} ${ranks[i][0]} tier ${t + 1}`).toBeLessThanOrEqual(
+        for (let i = 1; i < stats.length; i++) {
+          const stronger = costsOf(stats[i - 1]);
+          costsOf(stats[i]).forEach((cost, t) => {
+            expect(cost, `${group} ${kind} ${stats[i]} tier ${t + 1}`).toBeLessThanOrEqual(
               stronger[t],
             );
           });
         }
-        for (const stat of ranks.flat()) {
+        // SPD is worth more than DEF (offense and defense), so it costs more in total.
+        const total = (stat) => costsOf(stat).reduce((a, b) => a + b, 0);
+        expect(total('SPD')).toBeGreaterThan(total('DEF'));
+        for (const stat of stats) {
           const costs = costsOf(stat);
           for (let t = 1; t < costs.length; t++) expect(costs[t]).toBeGreaterThan(costs[t - 1]);
         }

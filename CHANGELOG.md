@@ -3,7 +3,8 @@
 ## Unreleased
 
 ### Home Base Stat Upgrade Pricing (Sep 27, 2026)
-- **Stat upgrades priced by value**: Every lord/recruit growth and flat stat track now costs (value weight x a shared escalating curve), so the next tier of any stat is roughly as good a buy as any other. Weights (SPD = 1): DEF 1, STR 0.8, HP 0.55 growth / 0.85 flat, RES 0.45, SKL 0.4. SPD/DEF cost more (lord SPD flat `220 / 605 / 1270`), RES/SKL much less (lord RES flat `125 / 275 / 570`); the total cost to max each group is unchanged.
+- **Stat upgrades priced by value**: Every lord/recruit growth and flat stat track now costs (value weight x a shared escalating curve), so the next tier of any stat is roughly as good a buy as any other. Weights (DEF = 1): SPD 1.15 (offense and defense), STR 0.8, HP 0.55 growth / 0.85 flat, MAG 0.5, RES 0.45, SKL 0.4, LCK 0.3. SPD costs most (lord SPD flat `250 / 695 / 1460`), RES/SKL/LCK least (lord RES flat `125 / 275 / 570`).
+- **MAG and LCK tracks**: eight new stat upgrades (lord and recruit, growth and flat) on the same curves: Keen Minds / Lucky Stars, Recruit Arcana / Recruit Fortune, Lord Sorcery / Lord Fortune, Lord Arcana / Lord Providence. Flat tiers unlock at growth tier 3; Lord Arcana also needs Act 1 beaten, like the other offensive lord flats.
 - **`sim/metaStatValue.js`**: paired-seed full-run sweep (real run loop) that measures what each stat track is worth in battles won; the weights above blend its results with design judgement.
 
 ### Village Ambush + Coverage Hardening (Feb 18, 2026)

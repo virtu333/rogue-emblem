@@ -19,7 +19,7 @@ import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
 import { RunSimulationDriver } from '../tests/sim/RunSimulationDriver.js';
 import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
 
-const STATS = ['HP', 'STR', 'SKL', 'SPD', 'DEF', 'RES'];
+const STATS = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 const STAT_TRACK_IDS = [];
 for (const group of ['lord', 'recruit']) {
   for (const kind of ['growth', 'flat']) {

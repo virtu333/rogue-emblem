@@ -72,6 +72,42 @@
     ]
   },
   {
+    "id": "recruit_mag_growth",
+    "name": "Keen Minds",
+    "description": "+5% MAG growth per tier",
+    "category": "recruit_stats",
+    "maxLevel": 5,
+    "costs": [
+      35,
+      40,
+      55,
+      75,
+      115
+    ],
+    "effects": [
+      {
+        "recruitGrowth": "MAG",
+        "growthValue": 5
+      },
+      {
+        "recruitGrowth": "MAG",
+        "growthValue": 10
+      },
+      {
+        "recruitGrowth": "MAG",
+        "growthValue": 15
+      },
+      {
+        "recruitGrowth": "MAG",
+        "growthValue": 20
+      },
+      {
+        "recruitGrowth": "MAG",
+        "growthValue": 25
+      }
+    ]
+  },
+  {
     "id": "recruit_def_growth",
     "name": "Tough Recruits",
     "description": "+5% DEF growth per tier",
@@ -114,11 +150,11 @@
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
-      55,
-      75,
-      115,
-      155,
-      225
+      65,
+      85,
+      130,
+      175,
+      260
     ],
     "effects": [
       {
@@ -216,6 +252,42 @@
     ]
   },
   {
+    "id": "recruit_lck_growth",
+    "name": "Lucky Stars",
+    "description": "+5% LCK growth per tier",
+    "category": "recruit_stats",
+    "maxLevel": 5,
+    "costs": [
+      35,
+      40,
+      45,
+      50,
+      70
+    ],
+    "effects": [
+      {
+        "recruitGrowth": "LCK",
+        "growthValue": 5
+      },
+      {
+        "recruitGrowth": "LCK",
+        "growthValue": 10
+      },
+      {
+        "recruitGrowth": "LCK",
+        "growthValue": 15
+      },
+      {
+        "recruitGrowth": "LCK",
+        "growthValue": 20
+      },
+      {
+        "recruitGrowth": "LCK",
+        "growthValue": 25
+      }
+    ]
+  },
+  {
     "id": "recruit_hp_flat",
     "name": "Recruit Vitality",
     "description": "+HP for recruits",
@@ -226,14 +298,6 @@
       270,
       560
     ],
-    "requires": {
-      "upgrades": [
-        {
-          "id": "recruit_hp_growth",
-          "level": 3
-        }
-      ]
-    },
     "effects": [
       {
         "stat": "HP",
@@ -247,7 +311,15 @@
         "stat": "HP",
         "value": 10
       }
-    ]
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "recruit_hp_growth",
+          "level": 3
+        }
+      ]
+    }
   },
   {
     "id": "recruit_str_flat",
@@ -260,14 +332,6 @@
       255,
       530
     ],
-    "requires": {
-      "upgrades": [
-        {
-          "id": "recruit_str_growth",
-          "level": 3
-        }
-      ]
-    },
     "effects": [
       {
         "stat": "STR",
@@ -281,7 +345,49 @@
         "stat": "STR",
         "value": 5
       }
-    ]
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "recruit_str_growth",
+          "level": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "recruit_mag_flat",
+    "name": "Recruit Arcana",
+    "description": "+MAG for recruits",
+    "category": "recruit_stats",
+    "maxLevel": 3,
+    "costs": [
+      90,
+      160,
+      330
+    ],
+    "effects": [
+      {
+        "stat": "MAG",
+        "value": 1
+      },
+      {
+        "stat": "MAG",
+        "value": 3
+      },
+      {
+        "stat": "MAG",
+        "value": 5
+      }
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "recruit_mag_growth",
+          "level": 3
+        }
+      ]
+    }
   },
   {
     "id": "recruit_def_flat",
@@ -294,14 +400,6 @@
       315,
       660
     ],
-    "requires": {
-      "upgrades": [
-        {
-          "id": "recruit_def_growth",
-          "level": 3
-        }
-      ]
-    },
     "effects": [
       {
         "stat": "DEF",
@@ -315,7 +413,15 @@
         "stat": "DEF",
         "value": 5
       }
-    ]
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "recruit_def_growth",
+          "level": 3
+        }
+      ]
+    }
   },
   {
     "id": "recruit_spd_flat",
@@ -324,18 +430,10 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      130,
-      315,
-      660
+      150,
+      365,
+      760
     ],
-    "requires": {
-      "upgrades": [
-        {
-          "id": "recruit_spd_growth",
-          "level": 3
-        }
-      ]
-    },
     "effects": [
       {
         "stat": "SPD",
@@ -349,7 +447,15 @@
         "stat": "SPD",
         "value": 5
       }
-    ]
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "recruit_spd_growth",
+          "level": 3
+        }
+      ]
+    }
   },
   {
     "id": "recruit_skl_flat",
@@ -362,14 +468,6 @@
       125,
       265
     ],
-    "requires": {
-      "upgrades": [
-        {
-          "id": "recruit_skl_growth",
-          "level": 3
-        }
-      ]
-    },
     "effects": [
       {
         "stat": "SKL",
@@ -383,7 +481,15 @@
         "stat": "SKL",
         "value": 5
       }
-    ]
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "recruit_skl_growth",
+          "level": 3
+        }
+      ]
+    }
   },
   {
     "id": "recruit_res_flat",
@@ -396,14 +502,6 @@
       145,
       295
     ],
-    "requires": {
-      "upgrades": [
-        {
-          "id": "recruit_res_growth",
-          "level": 3
-        }
-      ]
-    },
     "effects": [
       {
         "stat": "RES",
@@ -417,7 +515,49 @@
         "stat": "RES",
         "value": 5
       }
-    ]
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "recruit_res_growth",
+          "level": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "recruit_lck_flat",
+    "name": "Recruit Fortune",
+    "description": "+LCK for recruits",
+    "category": "recruit_stats",
+    "maxLevel": 3,
+    "costs": [
+      90,
+      120,
+      200
+    ],
+    "effects": [
+      {
+        "stat": "LCK",
+        "value": 1
+      },
+      {
+        "stat": "LCK",
+        "value": 3
+      },
+      {
+        "stat": "LCK",
+        "value": 5
+      }
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "recruit_lck_growth",
+          "level": 3
+        }
+      ]
+    }
   },
   {
     "id": "lord_hp_growth",
@@ -492,6 +632,42 @@
     ]
   },
   {
+    "id": "lord_mag_growth",
+    "name": "Lord Sorcery",
+    "description": "+5% MAG growth per tier",
+    "category": "lord_bonuses",
+    "maxLevel": 5,
+    "costs": [
+      50,
+      65,
+      115,
+      160,
+      250
+    ],
+    "effects": [
+      {
+        "lordGrowth": "MAG",
+        "growthValue": 5
+      },
+      {
+        "lordGrowth": "MAG",
+        "growthValue": 10
+      },
+      {
+        "lordGrowth": "MAG",
+        "growthValue": 15
+      },
+      {
+        "lordGrowth": "MAG",
+        "growthValue": 20
+      },
+      {
+        "lordGrowth": "MAG",
+        "growthValue": 25
+      }
+    ]
+  },
+  {
     "id": "lord_def_growth",
     "name": "Lord Resilience",
     "description": "+5% DEF growth per tier",
@@ -534,11 +710,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      90,
-      130,
-      230,
-      320,
-      495
+      105,
+      150,
+      260,
+      365,
+      570
     ],
     "effects": [
       {
@@ -636,6 +812,42 @@
     ]
   },
   {
+    "id": "lord_lck_growth",
+    "name": "Lord Fortune",
+    "description": "+5% LCK growth per tier",
+    "category": "lord_bonuses",
+    "maxLevel": 5,
+    "costs": [
+      50,
+      55,
+      70,
+      95,
+      150
+    ],
+    "effects": [
+      {
+        "lordGrowth": "LCK",
+        "growthValue": 5
+      },
+      {
+        "lordGrowth": "LCK",
+        "growthValue": 10
+      },
+      {
+        "lordGrowth": "LCK",
+        "growthValue": 15
+      },
+      {
+        "lordGrowth": "LCK",
+        "growthValue": 20
+      },
+      {
+        "lordGrowth": "LCK",
+        "growthValue": 25
+      }
+    ]
+  },
+  {
     "id": "lord_hp_flat",
     "name": "Lord Constitution",
     "description": "+HP for lords",
@@ -646,17 +858,6 @@
       515,
       1080
     ],
-    "requires": {
-      "upgrades": [
-        {
-          "id": "lord_hp_growth",
-          "level": 3
-        }
-      ],
-      "milestones": [
-        "beatAct1"
-      ]
-    },
     "effects": [
       {
         "lordStat": "HP",
@@ -670,7 +871,18 @@
         "lordStat": "HP",
         "value": 10
       }
-    ]
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lord_hp_growth",
+          "level": 3
+        }
+      ],
+      "milestones": [
+        "beatAct1"
+      ]
+    }
   },
   {
     "id": "lord_str_flat",
@@ -683,17 +895,6 @@
       485,
       1015
     ],
-    "requires": {
-      "upgrades": [
-        {
-          "id": "lord_str_growth",
-          "level": 3
-        }
-      ],
-      "milestones": [
-        "beatAct1"
-      ]
-    },
     "effects": [
       {
         "lordStat": "STR",
@@ -707,7 +908,55 @@
         "lordStat": "STR",
         "value": 5
       }
-    ]
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lord_str_growth",
+          "level": 3
+        }
+      ],
+      "milestones": [
+        "beatAct1"
+      ]
+    }
+  },
+  {
+    "id": "lord_mag_flat",
+    "name": "Lord Arcana",
+    "description": "+MAG for lords",
+    "category": "lord_bonuses",
+    "maxLevel": 3,
+    "costs": [
+      125,
+      305,
+      635
+    ],
+    "effects": [
+      {
+        "lordStat": "MAG",
+        "value": 1
+      },
+      {
+        "lordStat": "MAG",
+        "value": 3
+      },
+      {
+        "lordStat": "MAG",
+        "value": 5
+      }
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lord_mag_growth",
+          "level": 3
+        }
+      ],
+      "milestones": [
+        "beatAct1"
+      ]
+    }
   },
   {
     "id": "lord_def_flat",
@@ -720,17 +969,6 @@
       605,
       1270
     ],
-    "requires": {
-      "upgrades": [
-        {
-          "id": "lord_def_growth",
-          "level": 3
-        }
-      ],
-      "milestones": [
-        "beatAct1"
-      ]
-    },
     "effects": [
       {
         "lordStat": "DEF",
@@ -744,7 +982,18 @@
         "lordStat": "DEF",
         "value": 5
       }
-    ]
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lord_def_growth",
+          "level": 3
+        }
+      ],
+      "milestones": [
+        "beatAct1"
+      ]
+    }
   },
   {
     "id": "lord_spd_flat",
@@ -753,9 +1002,23 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      220,
-      605,
-      1270
+      250,
+      695,
+      1460
+    ],
+    "effects": [
+      {
+        "lordStat": "SPD",
+        "value": 1
+      },
+      {
+        "lordStat": "SPD",
+        "value": 3
+      },
+      {
+        "lordStat": "SPD",
+        "value": 5
+      }
     ],
     "requires": {
       "upgrades": [
@@ -767,21 +1030,7 @@
       "milestones": [
         "beatAct1"
       ]
-    },
-    "effects": [
-      {
-        "lordStat": "SPD",
-        "value": 1
-      },
-      {
-        "lordStat": "SPD",
-        "value": 3
-      },
-      {
-        "lordStat": "SPD",
-        "value": 5
-      }
-    ]
+    }
   },
   {
     "id": "lord_skl_flat",
@@ -794,14 +1043,6 @@
       240,
       510
     ],
-    "requires": {
-      "upgrades": [
-        {
-          "id": "lord_skl_growth",
-          "level": 3
-        }
-      ]
-    },
     "effects": [
       {
         "lordStat": "SKL",
@@ -815,7 +1056,15 @@
         "lordStat": "SKL",
         "value": 5
       }
-    ]
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lord_skl_growth",
+          "level": 3
+        }
+      ]
+    }
   },
   {
     "id": "lord_res_flat",
@@ -828,14 +1077,6 @@
       275,
       570
     ],
-    "requires": {
-      "upgrades": [
-        {
-          "id": "lord_res_growth",
-          "level": 3
-        }
-      ]
-    },
     "effects": [
       {
         "lordStat": "RES",
@@ -849,7 +1090,49 @@
         "lordStat": "RES",
         "value": 5
       }
-    ]
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lord_res_growth",
+          "level": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "lord_lck_flat",
+    "name": "Lord Providence",
+    "description": "+LCK for lords",
+    "category": "lord_bonuses",
+    "maxLevel": 3,
+    "costs": [
+      125,
+      180,
+      380
+    ],
+    "effects": [
+      {
+        "lordStat": "LCK",
+        "value": 1
+      },
+      {
+        "lordStat": "LCK",
+        "value": 3
+      },
+      {
+        "lordStat": "LCK",
+        "value": 5
+      }
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lord_lck_growth",
+          "level": 3
+        }
+      ]
+    }
   },
   {
     "id": "starting_gold",
@@ -918,11 +1201,6 @@
       150,
       300
     ],
-    "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
-    },
     "effects": [
       {
         "lootWeaponQualityBonus": 10
@@ -930,7 +1208,12 @@
       {
         "lootWeaponQualityBonus": 20
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    }
   },
   {
     "id": "studied_training",
@@ -942,11 +1225,6 @@
       150,
       300
     ],
-    "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
-    },
     "effects": [
       {
         "lootCategoryWeightBonuses": {
@@ -966,7 +1244,12 @@
           "gold": -2
         }
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    }
   },
   {
     "id": "trinket_collector",
@@ -978,11 +1261,6 @@
       150,
       300
     ],
-    "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
-    },
     "effects": [
       {
         "lootCategoryWeightBonuses": {
@@ -1000,7 +1278,12 @@
           "gold": -2
         }
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    }
   },
   {
     "id": "heros_call",
@@ -1013,11 +1296,6 @@
       300,
       500
     ],
-    "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
-    },
     "effects": [
       {
         "lordRecruitChanceBonus": 0.08
@@ -1028,7 +1306,12 @@
       {
         "lordRecruitChanceBonus": 0.24
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    }
   },
   {
     "id": "trade_contacts",
@@ -1040,11 +1323,6 @@
       150,
       250
     ],
-    "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
-    },
     "effects": [
       {
         "caravanChanceBonus": 0.07
@@ -1052,7 +1330,12 @@
       {
         "caravanChanceBonus": 0.15
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    }
   },
   {
     "id": "deploy_limit",
@@ -1063,16 +1346,16 @@
     "costs": [
       500
     ],
-    "requires": {
-      "milestones": [
-        "beatAct2"
-      ]
-    },
     "effects": [
       {
         "deployBonus": 1
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct2"
+      ]
+    }
   },
   {
     "id": "roster_cap",
@@ -1083,16 +1366,16 @@
     "costs": [
       175
     ],
-    "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
-    },
     "effects": [
       {
         "rosterCapBonus": 3
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    }
   },
   {
     "id": "vision_charges_2",
@@ -1118,6 +1401,11 @@
     "costs": [
       350
     ],
+    "effects": [
+      {
+        "visionChargesBonus": 2
+      }
+    ],
     "requires": {
       "upgrades": [
         {
@@ -1125,12 +1413,7 @@
           "level": 1
         }
       ]
-    },
-    "effects": [
-      {
-        "visionChargesBonus": 2
-      }
-    ]
+    }
   },
   {
     "id": "legendary_heir",
@@ -1144,11 +1427,6 @@
       250,
       750
     ],
-    "requires": {
-      "milestones": [
-        "beatHard"
-      ]
-    },
     "effects": [
       {
         "thirdLordMode": "random"
@@ -1162,7 +1440,12 @@
       {
         "thirdLordMode": "pick_all"
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatHard"
+      ]
+    }
   },
   {
     "id": "commander_choice",
@@ -1172,6 +1455,11 @@
     "maxLevel": 1,
     "costs": [
       1500
+    ],
+    "effects": [
+      {
+        "commanderChoiceTier": 1
+      }
     ],
     "requires": {
       "upgrades": [
@@ -1183,12 +1471,7 @@
       "milestones": [
         "beatHard"
       ]
-    },
-    "effects": [
-      {
-        "commanderChoiceTier": 1
-      }
-    ]
+    }
   },
   {
     "id": "partner_choice",
@@ -1198,6 +1481,11 @@
     "maxLevel": 1,
     "costs": [
       1000
+    ],
+    "effects": [
+      {
+        "commanderChoiceTier": 2
+      }
     ],
     "requires": {
       "upgrades": [
@@ -1209,12 +1497,7 @@
       "milestones": [
         "beatHard"
       ]
-    },
-    "effects": [
-      {
-        "commanderChoiceTier": 2
-      }
-    ]
+    }
   },
   {
     "id": "recruit_skill",
@@ -1240,6 +1523,11 @@
     "costs": [
       250
     ],
+    "effects": [
+      {
+        "recruitStartingVulnerary": 1
+      }
+    ],
     "requires": {
       "upgrades": [
         {
@@ -1247,12 +1535,7 @@
           "level": 1
         }
       ]
-    },
-    "effects": [
-      {
-        "recruitStartingVulnerary": 1
-      }
-    ]
+    }
   },
   {
     "id": "veteran_recruits",
@@ -1265,11 +1548,6 @@
       450,
       700
     ],
-    "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
-    },
     "effects": [
       {
         "recruitPromotionChanceBonus": 0.08
@@ -1280,7 +1558,12 @@
       {
         "recruitPromotionChanceBonus": 0.24
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    }
   },
   {
     "id": "extra_starting_unit_pool",
@@ -1333,6 +1616,11 @@
     "costs": [
       600
     ],
+    "effects": [
+      {
+        "lethalArmoryTier": 2
+      }
+    ],
     "requires": {
       "upgrades": [
         {
@@ -1340,12 +1628,7 @@
           "level": 1
         }
       ]
-    },
-    "effects": [
-      {
-        "lethalArmoryTier": 2
-      }
-    ]
+    }
   },
   {
     "id": "lethal_armory_silver",
@@ -1356,6 +1639,11 @@
     "costs": [
       900
     ],
+    "effects": [
+      {
+        "lethalArmoryTier": 3
+      }
+    ],
     "requires": {
       "upgrades": [
         {
@@ -1363,12 +1651,7 @@
           "level": 1
         }
       ]
-    },
-    "effects": [
-      {
-        "lethalArmoryTier": 3
-      }
-    ]
+    }
   },
   {
     "id": "master_of_arms",
@@ -1379,16 +1662,16 @@
     "costs": [
       350
     ],
-    "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
-    },
     "effects": [
       {
         "masterOfArms": true
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    }
   },
   {
     "id": "recruit_xp",
@@ -1418,16 +1701,16 @@
     "costs": [
       650
     ],
-    "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
-    },
     "effects": [
       {
         "recruitStartingAccessory": 1
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    }
   },
   {
     "id": "recruit_weapon_forge",
@@ -1439,6 +1722,14 @@
       400,
       700
     ],
+    "effects": [
+      {
+        "recruitWeaponForge": 1
+      },
+      {
+        "recruitWeaponForge": 2
+      }
+    ],
     "requires": {
       "upgrades": [
         {
@@ -1449,15 +1740,7 @@
       "milestones": [
         "beatAct1"
       ]
-    },
-    "effects": [
-      {
-        "recruitWeaponForge": 1
-      },
-      {
-        "recruitWeaponForge": 2
-      }
-    ]
+    }
   },
   {
     "id": "weapon_forge",
@@ -1506,6 +1789,11 @@
     "costs": [
       600
     ],
+    "effects": [
+      {
+        "deadlyArsenalTier": 2
+      }
+    ],
     "requires": {
       "upgrades": [
         {
@@ -1513,12 +1801,7 @@
           "level": 1
         }
       ]
-    },
-    "effects": [
-      {
-        "deadlyArsenalTier": 2
-      }
-    ]
+    }
   },
   {
     "id": "iron_arms",
@@ -1544,6 +1827,11 @@
     "costs": [
       800
     ],
+    "effects": [
+      {
+        "steelArms": 1
+      }
+    ],
     "requires": {
       "upgrades": [
         {
@@ -1551,12 +1839,7 @@
           "level": 1
         }
       ]
-    },
-    "effects": [
-      {
-        "steelArms": 1
-      }
-    ]
+    }
   },
   {
     "id": "art_adept",
@@ -1774,16 +2057,16 @@
     "costs": [
       500
     ],
-    "requires": {
-      "milestones": [
-        "beatGame"
-      ]
-    },
     "effects": [
       {
         "unlockSkill": "pavise"
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatGame"
+      ]
+    }
   },
   {
     "id": "unlock_aegis",
@@ -1794,16 +2077,16 @@
     "costs": [
       500
     ],
-    "requires": {
-      "milestones": [
-        "beatGame"
-      ]
-    },
     "effects": [
       {
         "unlockSkill": "aegis"
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatGame"
+      ]
+    }
   },
   {
     "id": "unlock_renewal",
@@ -1814,16 +2097,16 @@
     "costs": [
       500
     ],
-    "requires": {
-      "milestones": [
-        "beatGame"
-      ]
-    },
     "effects": [
       {
         "unlockSkill": "renewal"
       }
-    ]
+    ],
+    "requires": {
+      "milestones": [
+        "beatGame"
+      ]
+    }
   },
   {
     "id": "legendary_lord_chance",
