@@ -36,6 +36,8 @@ import {
 } from '../engine/RosterTransfers.js';
 import { canEquip, isLastCombatWeapon, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { equippedBadgeElement } from './equippedBadge.js';
+import { itemKeywordRow } from './itemKeywordChips.js';
+import { itemKeywords, itemBaseLine } from '../engine/ItemKeywords.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
 import {
   getWeaponArtIds,
@@ -342,14 +344,15 @@ export class MobileRosterSheet {
         preventScroll: true,
       });
   }
-  card(title, description = '', item = null) {
+  card(title, description = '', item = null, { keys = null } = {}) {
     const c = el('article', null, 'mr-card');
     if (item) {
-      // Item cards lead with the item's socketed icon.
+      // Item cards lead with the item's socketed icon, then what it is and its rules.
       c.classList.add('mr-item-card');
       const head = el('div', null, 'mr-card-head');
       head.append(itemIcon(item, { size: 32 }), el('h4', title));
       c.append(head);
+      if (keys) c.append(keys);
     } else c.append(el('h4', title));
     if (description) c.append(el('p', description));
     this.body.append(c);
@@ -888,7 +891,9 @@ export class MobileRosterSheet {
       const range = getEffectiveStaffRange(item, unit);
       return `Staff · Range ${range.min === range.max ? range.max : `${range.min}–${range.max}`} · Uses ${getStaffRemainingUses(item, unit)}/${getStaffMaxUses(item, unit)}${item.perBattleUses ? ' · Refills after battle' : ''}`;
     }
-    return `${item.type} · Might ${item.might ?? '—'} · Hit ${item.hit ?? '—'} · Crit ${item.crit ?? '—'} · Weight ${item.weight ?? '—'} · Range ${item.range ?? '—'}`;
+    // The keyword row above already names the type ("Silver Sword").
+    const kind = itemBaseLine(item) ? '' : `${item.type} · `;
+    return `${kind}Might ${item.might ?? '—'} · Hit ${item.hit ?? '—'} · Crit ${item.crit ?? '—'} · Weight ${item.weight ?? '—'} · Range ${item.range ?? '—'}`;
   }
   itemCard(item, unit) {
     const forge = getForgeDisplayInfo(item);
@@ -896,7 +901,9 @@ export class MobileRosterSheet {
     const displayName = forgeLevel
       ? `${forge.baseName.replace(/\s\+\d+$/, '')} +${forgeLevel}`
       : item.name;
-    const c = this.card(displayName, this.itemDescription(item, unit), item);
+    const c = this.card(displayName, this.itemDescription(item, unit), item, {
+      keys: itemKeywordRow(item, { displayName }),
+    });
     const equipped = !!unit && (item === unit.weapon || item === unit.accessory);
     if (equipped) c.querySelector('h4')?.append(equippedBadgeElement());
     if (Object.values(forge.bonuses).some(Boolean))
@@ -912,7 +919,8 @@ export class MobileRosterSheet {
     const imbue = getImbueDisplayInfo(item, this.gameData.imbues);
     if (imbue) c.append(el('p', `${imbue.name}: ${imbue.description}`));
     if (equipped) c.append(el('p', 'Equipped', 'mr-equipped'));
-    if (item.special) c.append(el('p', item.special));
+    // A special the tags already state isn't repeated; staves and flavour keep theirs.
+    if (item.special && !itemKeywords(item).length) c.append(el('p', item.special));
     if (item.description) c.append(el('p', item.description));
     appendItemArtDetails(c, item, this.gameData.weaponArts?.arts || []);
     this.aboutItem(c, item);
