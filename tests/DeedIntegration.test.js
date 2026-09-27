@@ -147,7 +147,7 @@ describe('Oaths', () => {
     expect(result.ok).toBe(true);
     expect(unit.skills).toContain('pavise');
     expect(unit.deeds.oath).toMatchObject({ skillId: 'pavise', name: 'Oath of the Bridge' });
-    expect(result.notices).toContain('Oath of the Bridge: learned Pavise.');
+    expect(result.notices).toContain('Oath of the Bridge: learned Shieldwall.');
   });
 
   it('church promotion swears the Oath; the skill cap drops it visibly', () => {
@@ -157,13 +157,13 @@ describe('Oaths', () => {
     run.roster = [unit];
     const target = resolvePromotionTargets(unit, data.classes, data.lords)[0];
     const ok = promoteAtChurch(run, unit, 'c1', target, data);
-    expect(ok.message).toContain('Oath of the Bridge: learned Pavise.');
+    expect(ok.message).toContain('Oath of the Bridge: learned Shieldwall.');
     const full = withDeed(fighter('Bram'), bridge);
     full.skills = ['sol', 'luna', 'astra', 'vantage', 'wrath'];
     run.roster = [full];
     const capped = promoteAtChurch(run, full, 'c2', target, data);
     expect(capped.message).toContain('could not learn');
-    expect(capped.message).toContain('Pavise');
+    expect(capped.message).toContain('Shieldwall');
     expect(full.deeds.oath).toBeUndefined();
   });
 
@@ -176,7 +176,7 @@ describe('Oaths', () => {
     expect(unit.deeds.oath).toBeUndefined();
     expect(sealedBeats(content).at(-1)).toEqual({
       kind: 'oath',
-      title: 'Pavise',
+      title: 'Shieldwall',
       detail: 'Oath of the Bridge',
       skillId: 'pavise',
     });
@@ -240,7 +240,7 @@ describe('presentation content', () => {
       seal: 'H',
       ordinal: 'IV',
       note: '',
-      oath: 'Oath at promotion · Pavise',
+      oath: 'Oath at promotion · Shieldwall',
       count: '1 / 2',
     });
     expect(keen).toMatchObject({ appositive: false, count: '2 / 2' });

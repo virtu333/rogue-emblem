@@ -112,7 +112,7 @@ describe('deed rite', () => {
     expect(rite.querySelector('.gr-deed-epithet-text').textContent).toBe(
       'Bane of the Knight Commander',
     );
-    expect(rite.querySelector('.gr-deed-oath').textContent).toBe('Oath at promotion · Fiendish Blow'); // prettier-ignore
+    expect(rite.querySelector('.gr-deed-oath').textContent).toBe('Oath at promotion · Hellfire Charge'); // prettier-ignore
     await vi.advanceTimersByTimeAsync(4000); // reveals by itself
     expect(button().getAttribute('aria-label')).toBe('Next deed');
     pointer(rite);

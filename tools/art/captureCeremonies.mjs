@@ -255,7 +255,7 @@ const scenarios = {
             unit,
             unitName: unit.name,
             weaponName: unit.weapon?.name,
-            label: v === 'art' ? 'Galeforce Assault' : 'CRITICAL HIT',
+            label: v === 'art' ? 'Oathstorm' : 'CRITICAL HIT',
             category: v === 'art' ? 'art' : 'offense',
             side: v === 'boss' ? 'right' : 'left',
           }).finally(() => {

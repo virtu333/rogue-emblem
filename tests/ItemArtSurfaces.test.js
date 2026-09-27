@@ -140,15 +140,15 @@ describe('roster sheet', () => {
 
   it('team scrolls tell their story beside their seal', () => {
     const { run, sheet } = rosterSheet();
-    const scroll = structuredClone(gameData.weapons.find((w) => w.name === 'Sol Scroll'));
+    const scroll = structuredClone(gameData.weapons.find((w) => w.name === 'Reclaim Scroll'));
     run.scrolls = [scroll];
     sheet.tab = 'skills';
     sheet.render();
     const card = sheet.root
       .querySelectorAll('.mr-item-card')
       .map(cardParts)
-      .find((c) => c.title === 'Sol Scroll');
-    expect(card.icon).toBe('sol-scroll');
+      .find((c) => c.title === 'Reclaim Scroll');
+    expect(card.icon).toBe('reclaim-scroll');
     expect(card.lore).toBe(scroll.lore);
     sheet.destroy();
   });

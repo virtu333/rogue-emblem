@@ -228,7 +228,7 @@ const flows = {
       ['levelup-normal', { HP: 1, STR: 1, SKL: 1, SPD: 1 }, []],
       ['levelup-perfect', { HP: 1, STR: 1, MAG: 1, SKL: 1, SPD: 1, DEF: 1, RES: 1, LCK: 1 }, []],
       ['levelup-blank', { DEF: 1 }, []],
-      ['levelup-skill', { HP: 1, SPD: 1, LCK: 1 }, ['Vantage']],
+      ['levelup-skill', { HP: 1, SPD: 1, LCK: 1 }, ['Forestall']],
     ];
     for (const [name, gains, skills] of variants) {
       await page.evaluate(

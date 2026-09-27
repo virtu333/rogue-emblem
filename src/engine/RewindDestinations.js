@@ -212,7 +212,7 @@ export function describeBefore(fact, fallbackTitle = '') {
     return fallbackTitle ? `Before: ${fallbackTitle}` : 'Before the next action';
   }
   // The thing used names the action when it is known: an art, staff, item
-  // or ability ("Before Edric’s Wrath Strike on Knight").
+  // or ability ("Before Edric’s Grim Stroke on Knight").
   const named = ['attack', 'warp', 'item', 'rally'].includes(fact.verb) && fact.detail;
   const noun = named ? fact.detail : ACTION_NOUNS[fact.verb] || fact.verb;
   const target =

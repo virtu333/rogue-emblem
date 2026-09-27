@@ -206,3 +206,76 @@ describe('battle checkpoint and rewind timeline', () => {
     expect(renameItemsDeep(tree, gameData)).toBe(0);
   });
 });
+
+describe('revision 2: scrolls, arts and skill grants', () => {
+  const scroll = (name) => structuredClone(gameData.weapons.find((w) => w.name === name));
+
+  it('an old scroll takes its new name and its new "Teaches" line; a skill scroll keeps its id', () => {
+    const save = {
+      itemNamesRevision: 1,
+      scrolls: [{ ...scroll('Reclaim Scroll'), name: 'Sol Scroll', special: 'Teaches Sol' }],
+      convoy: {
+        weapons: [
+          {
+            ...scroll('Gale Cut Scroll'),
+            name: 'Windsweep Scroll',
+            special: 'Teaches Windsweep (Weapon Art)',
+          },
+        ],
+      },
+    };
+    migrateSavedItemNames(save, gameData);
+    expect(save.scrolls[0]).toMatchObject({
+      name: 'Reclaim Scroll',
+      special: 'Teaches Reclaim',
+      skillId: 'sol',
+    });
+    expect(save.convoy.weapons[0]).toMatchObject({
+      name: 'Gale Cut Scroll',
+      special: 'Teaches Gale Cut (Weapon Art)',
+      teachesWeaponArtId: 'sword_windsweep',
+    });
+    expect(save.itemNamesRevision).toBe(ITEM_NAMES_REVISION);
+  });
+
+  it('a save from before revision 1 gets both tables', () => {
+    const save = { roster: [{ inventory: [legacy('Keen Sword', 'Killing Edge')] }] };
+    save.roster[0].inventory.push({ ...scroll('Constellation Scroll'), name: 'Astra Scroll' });
+    migrateSavedItemNames(save, gameData);
+    expect(save.roster[0].inventory.map((i) => i.name)).toEqual([
+      'Keen Sword',
+      'Constellation Scroll',
+    ]);
+  });
+
+  it('art names in battle history are renamed; skill names and look-alikes are not', () => {
+    const history = [
+      { name: 'Wrath Strike', weapon: 'Iron Sword' },
+      { name: 'Wrath' },
+      { name: 'Cancel' },
+      { name: 'Wrath Band', type: 'Accessory' },
+    ];
+    migrateSavedItemNames({ itemNamesRevision: 1, history }, gameData);
+    expect(history.map((h) => h.name)).toEqual(['Grim Stroke', 'Wrath', 'Cancel', 'Wrath Band']);
+  });
+
+  it("a random legendary's granted skill is named as skills.json names it", () => {
+    const relic = {
+      name: 'Old Relic',
+      type: 'Sword',
+      special: 'Grants Sol to wielder',
+      _grantedSkill: 'sol',
+      _isRandomLegendary: true,
+    };
+    migrateSavedItemNames({ itemNamesRevision: 1, randomLegendary: relic }, gameData);
+    const sol = gameData.skills.find((s) => s.id === 'sol').name;
+    expect(relic.special).toBe(`Grants ${sol} to wielder`);
+    expect(relic.name).toBe('Old Relic');
+  });
+
+  it('a save at revision 2 is left alone', () => {
+    const save = { itemNamesRevision: 2, scrolls: [{ name: 'Sol Scroll', type: 'Scroll' }] };
+    migrateSavedItemNames(save, gameData);
+    expect(save.scrolls[0].name).toBe('Sol Scroll');
+  });
+});

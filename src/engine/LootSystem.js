@@ -454,7 +454,29 @@ const LEGENDARY_SKILL_POOL = ['sol', 'luna', 'vantage', 'wrath', 'adept'];
  * @param {Array} allWeapons - weapons.json array
  * @returns {object} a unique legendary weapon object
  */
-export function generateRandomLegendary(allWeapons) {
+/**
+ * The special text of a weapon that grants a skill, naming the skill as
+ * skills.json does today ("Grants Reclaim to wielder"). Saves keep this text, so
+ * the item-name migration rewrites it with this too.
+ */
+export function grantedSkillSpecial(skillId, skillsData = null) {
+  const name =
+    (Array.isArray(skillsData) && skillsData.find((s) => s.id === skillId)?.name) ||
+    GRANTED_SKILL_FALLBACK_NAMES[skillId] ||
+    skillId;
+  return `Grants ${name} to wielder`;
+}
+
+// For callers without skills.json at hand; matches its names.
+const GRANTED_SKILL_FALLBACK_NAMES = {
+  sol: 'Reclaim',
+  luna: 'Umbra',
+  vantage: 'Forestall',
+  wrath: 'Seethe',
+  adept: 'Flurry',
+};
+
+export function generateRandomLegendary(allWeapons, skillsData = null) {
   const name = LEGENDARY_NAMES[Math.floor(Math.random() * LEGENDARY_NAMES.length)];
   const types = Object.keys(SILVER_BASES);
   const type = types[Math.floor(Math.random() * types.length)];
@@ -505,14 +527,7 @@ export function generateRandomLegendary(allWeapons) {
   } else {
     // Skill grant: embed a skill from pool
     const skillId = LEGENDARY_SKILL_POOL[Math.floor(Math.random() * LEGENDARY_SKILL_POOL.length)];
-    const skillNames = {
-      sol: 'Sol',
-      luna: 'Luna',
-      vantage: 'Vantage',
-      wrath: 'Wrath',
-      adept: 'Adept',
-    };
-    weapon.special = `Grants ${skillNames[skillId]} to wielder`;
+    weapon.special = grantedSkillSpecial(skillId, skillsData);
     weapon._grantedSkill = skillId;
   }
 

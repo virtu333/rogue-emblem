@@ -537,7 +537,7 @@ export class RunManager {
     this.rngSeed = this.runSeed >>> 0;
     this.visionChargesRemaining = this.getBaseVisionCharges();
     this.visionCount = 0;
-    this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
+    this.randomLegendary = generateRandomLegendary(this.gameData.weapons, this.gameData.skills);
     this.nodeMap = this._withNodeMapSeed(() =>
       generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
         fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),

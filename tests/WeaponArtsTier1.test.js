@@ -365,16 +365,16 @@ describe('Tier 1 Weapon Arts Expansion', () => {
   describe('Silver innate art spawning config', () => {
     it('loot tables have updated act2 weapon art scroll pool', () => {
       const act2Pool = gameData.lootTables.act2.weaponArtScroll;
-      expect(act2Pool).toContain('Windsweep Scroll');
-      expect(act2Pool).toContain('Seraphim Scroll');
+      expect(act2Pool).toContain('Gale Cut Scroll');
+      expect(act2Pool).toContain('Scouring Fire Scroll');
       expect(act2Pool).not.toContain('Precise Cut Scroll');
       expect(act2Pool.length).toBe(13);
     });
 
     it('loot tables have updated act3 weapon art scroll pool', () => {
       const act3Pool = gameData.lootTables.act3.weaponArtScroll;
-      expect(act3Pool).toContain('Dragonhaze Scroll');
-      expect(act3Pool).toContain('Nosferatu Scroll');
+      expect(act3Pool).toContain('Heat Haze Scroll');
+      expect(act3Pool).toContain('Grave Hunger Scroll');
       expect(act3Pool).not.toContain('Comet Edge Scroll');
       expect(act3Pool.length).toBe(22);
     });

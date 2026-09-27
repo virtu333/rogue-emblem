@@ -19,9 +19,9 @@ it('explains ally buffs, exclusions and duration', () => {
 });
 it('exposes drawbacks, debuffs and movement timing', () => {
   expect(details('All or Nothing')).toContain('Each missed strike costs the user 5 HP');
-  expect(details('Galeforce Assault')).toContain('HP is set to 5, even if every strike misses');
-  expect(details('Seal Speed')).toContain('rest of this battle');
-  expect(details('Hit and Run')).toContain('counterattack before you retreat');
+  expect(details('Oathstorm')).toContain('HP is set to 5, even if every strike misses');
+  expect(details('Hamstring')).toContain('rest of this battle');
+  expect(details('Strike and Fade')).toContain('counterattack before you retreat');
 });
 it('every art has cost, requirements, limits, and follow-up rules in its details', () => {
   for (const art of arts) {

@@ -530,7 +530,7 @@ export class MobileBattleHUD {
       side.append(el('p', 'mb-notice', 'Effective damage'));
     const skills = (info.skills || []).map((skill) => skill.name);
     if (unit.skills?.some((skill) => (typeof skill === 'string' ? skill : skill?.id) === 'miracle'))
-      skills.push(`Miracle: ${unit._miracleUsed ? 'used' : 'ready'}`);
+      skills.push(`Reprieve: ${unit._miracleUsed ? 'used' : 'ready'}`);
     if (skills.length) side.append(el('p', 'mb-detail', skills.join(' · ')));
     if (attacking && config.weaponArt) {
       const cost = this.scene._formatWeaponArtCostLabel(unit, config.weaponArt);

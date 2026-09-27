@@ -106,7 +106,7 @@ test('reclass UI save reload deploy preserves learned skill, spent seal and usab
   await roster.getByRole('button', { name: 'Reclass', exact: true }).tap();
   const picker = page.getByRole('dialog', { name: 'Reclass Reload Veteran', exact: true });
   await picker.getByRole('button', { name: /^Myrmidon/ }).tap();
-  await expect(picker.locator('.re-choice-preview')).toContainText('Learn: Vantage');
+  await expect(picker.locator('.re-choice-preview')).toContainText('Learn: Forestall');
   await picker.getByRole('button', { name: 'Confirm', exact: true }).tap();
   await expect(picker).toHaveCount(0);
   await roster.getByRole('button', { name: 'Close', exact: true }).tap();

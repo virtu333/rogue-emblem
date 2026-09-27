@@ -71,7 +71,12 @@ for (const view of VIEWS) {
     }) => {
       const errors = collectErrors(page);
       await nodeMap(page, view.query);
-      const shop = await openShop(page, ['Keen Lance', 'Sol Scroll', "Gambler's Coin", 'Elixir']);
+      const shop = await openShop(page, [
+        'Keen Lance',
+        'Reclaim Scroll',
+        "Gambler's Coin",
+        'Elixir',
+      ]);
       const rows = shop.locator('.shop-row');
       await expect(rows).toHaveCount(4);
       await expect(rows.nth(0).locator('.ia-icon')).toHaveAttribute('data-icon-id', 'keen-lance');
@@ -106,7 +111,7 @@ for (const view of VIEWS) {
       ).toEqual([96, 96]);
       // Scroll: the pixel icon at 2x (its glyph is the point).
       await rows.nth(1).click();
-      await expect(hero).toHaveAttribute('data-icon-id', 'sol-scroll');
+      await expect(hero).toHaveAttribute('data-icon-id', 'reclaim-scroll');
       await expect(hero).toHaveAttribute('data-art', 'pixel');
       expect((await glyphStyle(hero)).size).toBe('96px');
       // The place: a desktop header band, or the painting behind the phone pane.

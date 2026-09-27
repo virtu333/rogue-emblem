@@ -1647,7 +1647,7 @@
   },
   {
     "id": "unlock_sol",
-    "name": "Sol",
+    "name": "Reclaim",
     "description": "SKL/2% chance to heal damage dealt",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1662,7 +1662,7 @@
   },
   {
     "id": "unlock_luna",
-    "name": "Luna",
+    "name": "Umbra",
     "description": "SKL% chance on hit to halve the target’s DEF or RES (rounded down). Terrain protection remains.",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1677,7 +1677,7 @@
   },
   {
     "id": "unlock_astra",
-    "name": "Astra",
+    "name": "Constellation",
     "description": "SKL/2% chance to strike 5 times at half damage",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1692,7 +1692,7 @@
   },
   {
     "id": "unlock_vantage",
-    "name": "Vantage",
+    "name": "Forestall",
     "description": "Attack first when below 50% HP",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1707,7 +1707,7 @@
   },
   {
     "id": "unlock_wrath",
-    "name": "Wrath",
+    "name": "Seethe",
     "description": "+30 Crit when below 50% HP",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1722,7 +1722,7 @@
   },
   {
     "id": "unlock_adept",
-    "name": "Adept",
+    "name": "Flurry",
     "description": "SPD% chance for follow-up attack",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1737,7 +1737,7 @@
   },
   {
     "id": "unlock_miracle",
-    "name": "Miracle",
+    "name": "Reprieve",
     "description": "LCK% chance to survive lethal hit at 1 HP",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1767,8 +1767,8 @@
   },
   {
     "id": "unlock_pavise",
-    "name": "Pavise",
-    "description": "Unlock Pavise as an assignable starting skill: SKL% chance to halve physical damage.",
+    "name": "Shieldwall",
+    "description": "Unlock Shieldwall as an assignable starting skill: SKL% chance to halve physical damage.",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
@@ -1787,8 +1787,8 @@
   },
   {
     "id": "unlock_aegis",
-    "name": "Aegis",
-    "description": "Unlock Aegis as an assignable starting skill: SKL% chance to halve magical damage.",
+    "name": "Spellward",
+    "description": "Unlock Spellward as an assignable starting skill: SKL% chance to halve magical damage.",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [

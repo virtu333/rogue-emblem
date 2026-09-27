@@ -37,7 +37,7 @@ test.describe('Accessory UI smoke', () => {
       s.runManager.gold = 10000;
       s.onNodeClick(n);
       s.shopBuyItems = [
-        { type: 'scroll', price: 100, item: { name: 'Sol Scroll', type: 'Scroll' } },
+        { type: 'scroll', price: 100, item: { name: 'Reclaim Scroll', type: 'Scroll' } },
         {
           type: 'accessory',
           price: 100,
@@ -53,11 +53,11 @@ test.describe('Accessory UI smoke', () => {
     await expect(shop).toBeVisible();
     const status = shop.getByRole('status');
 
-    await shop.locator('.shop-row', { hasText: 'Sol Scroll' }).click();
+    await shop.locator('.shop-row', { hasText: 'Reclaim Scroll' }).click();
     await shop.getByRole('button', { name: 'Buy · 100 G', exact: true }).click();
-    const confirm = page.getByRole('dialog', { name: 'Buy Sol Scroll?', exact: true });
+    const confirm = page.getByRole('dialog', { name: 'Buy Reclaim Scroll?', exact: true });
     await confirm.getByRole('button', { name: 'Confirm', exact: true }).click();
-    await expect(status).toContainText('Sol Scroll → Scroll pool.');
+    await expect(status).toContainText('Reclaim Scroll → Scroll pool.');
 
     await shop.locator('.shop-row', { hasText: 'Goddess Icon' }).click();
     await shop.getByRole('button', { name: 'Buy · 100 G', exact: true }).click();

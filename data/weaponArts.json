@@ -36,7 +36,7 @@
     },
     {
       "id": "sword_wrath_strike",
-      "name": "Wrath Strike",
+      "name": "Grim Stroke",
       "weaponType": "Sword",
       "tierAffinity": "Iron",
       "unlockAct": "act1",
@@ -51,7 +51,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Wrath Strike"
+            "name": "Grim Stroke"
           }
         ]
       }
@@ -79,7 +79,7 @@
     },
     {
       "id": "sword_grounder",
-      "name": "Grounder",
+      "name": "Sweep",
       "weaponType": "Sword",
       "tierAffinity": "Iron",
       "unlockAct": "act1",
@@ -98,7 +98,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Grounder"
+            "name": "Sweep"
           }
         ]
       }
@@ -159,7 +159,7 @@
     },
     {
       "id": "sword_windsweep",
-      "name": "Windsweep",
+      "name": "Gale Cut",
       "weaponType": "Sword",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -174,14 +174,14 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Windsweep"
+            "name": "Gale Cut"
           }
         ]
       }
     },
     {
       "id": "sword_hexblade",
-      "name": "Hexblade",
+      "name": "Witchcut",
       "weaponType": "Sword",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -197,7 +197,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Hexblade"
+            "name": "Witchcut"
           }
         ]
       }
@@ -235,7 +235,7 @@
     },
     {
       "id": "sword_seal_speed",
-      "name": "Seal Speed",
+      "name": "Hamstring",
       "weaponType": "Sword",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -260,7 +260,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Seal Speed"
+            "name": "Hamstring"
           }
         ]
       }
@@ -299,7 +299,7 @@
     },
     {
       "id": "sword_finesse_blade",
-      "name": "Finesse Blade",
+      "name": "Deft Cut",
       "weaponType": "Sword",
       "tierAffinity": "Silver",
       "unlockAct": "act3",
@@ -320,7 +320,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Finesse Blade"
+            "name": "Deft Cut"
           }
         ]
       }
@@ -353,7 +353,7 @@
     },
     {
       "id": "sword_dragonhaze",
-      "name": "Dragonhaze",
+      "name": "Heat Haze",
       "weaponType": "Sword",
       "tierAffinity": "Silver",
       "unlockAct": "act3",
@@ -374,14 +374,14 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Dragonhaze"
+            "name": "Heat Haze"
           }
         ]
       }
     },
     {
       "id": "sword_astra_strike",
-      "name": "Astra Strike",
+      "name": "Falling Stars",
       "weaponType": "Sword",
       "tierAffinity": "Silver",
       "unlockAct": "act3",
@@ -402,7 +402,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Astra Strike"
+            "name": "Falling Stars"
           }
         ]
       }
@@ -433,7 +433,7 @@
     },
     {
       "id": "lance_tempest_lance",
-      "name": "Tempest Lance",
+      "name": "Surging Thrust",
       "weaponType": "Lance",
       "tierAffinity": "Iron",
       "unlockAct": "act1",
@@ -447,7 +447,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Tempest Lance"
+            "name": "Surging Thrust"
           }
         ]
       }
@@ -475,7 +475,7 @@
     },
     {
       "id": "lance_hit_and_run",
-      "name": "Hit and Run",
+      "name": "Strike and Fade",
       "weaponType": "Lance",
       "tierAffinity": "Iron",
       "unlockAct": "act1",
@@ -497,7 +497,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Hit and Run"
+            "name": "Strike and Fade"
           }
         ]
       }
@@ -528,7 +528,7 @@
     },
     {
       "id": "lance_knightkneeler",
-      "name": "Knightkneeler",
+      "name": "Kneebreaker",
       "weaponType": "Lance",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -548,7 +548,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Knightkneeler"
+            "name": "Kneebreaker"
           }
         ]
       }
@@ -577,7 +577,7 @@
     },
     {
       "id": "lance_shatter_slash",
-      "name": "Shatter Slash",
+      "name": "Guardsplitter",
       "weaponType": "Lance",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -602,14 +602,14 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Shatter Slash"
+            "name": "Guardsplitter"
           }
         ]
       }
     },
     {
       "id": "lance_glowing_ember",
-      "name": "Glowing Ember",
+      "name": "Forgefire Thrust",
       "weaponType": "Lance",
       "tierAffinity": "Silver",
       "unlockAct": "act3",
@@ -631,14 +631,14 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Glowing Ember"
+            "name": "Forgefire Thrust"
           }
         ]
       }
     },
     {
       "id": "lance_longearche",
-      "name": "Longearche",
+      "name": "Serpent's Reach",
       "weaponType": "Lance",
       "tierAffinity": "Silver",
       "unlockAct": "act3",
@@ -660,7 +660,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Longearche"
+            "name": "Serpent's Reach"
           }
         ]
       }
@@ -769,7 +769,7 @@
     },
     {
       "id": "axe_helm_splitter",
-      "name": "Helm Splitter",
+      "name": "Helmcleaver",
       "weaponType": "Axe",
       "tierAffinity": "Iron",
       "unlockAct": "act1",
@@ -788,7 +788,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Helm Splitter"
+            "name": "Helmcleaver"
           }
         ]
       }
@@ -820,7 +820,7 @@
     },
     {
       "id": "axe_diamond_axe",
-      "name": "Diamond Axe",
+      "name": "Adamant Cleave",
       "weaponType": "Axe",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -835,14 +835,14 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Diamond Axe"
+            "name": "Adamant Cleave"
           }
         ]
       }
     },
     {
       "id": "axe_wild_abandon",
-      "name": "Wild Abandon",
+      "name": "Reckless Swing",
       "weaponType": "Axe",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -858,14 +858,14 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Wild Abandon"
+            "name": "Reckless Swing"
           }
         ]
       }
     },
     {
       "id": "axe_rushing_blow",
-      "name": "Rushing Blow",
+      "name": "Charging Cut",
       "weaponType": "Axe",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -889,7 +889,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Rushing Blow"
+            "name": "Charging Cut"
           }
         ]
       }
@@ -928,7 +928,7 @@
     },
     {
       "id": "axe_armored_strike",
-      "name": "Armored Strike",
+      "name": "Ironclad Blow",
       "weaponType": "Axe",
       "tierAffinity": "Silver",
       "unlockAct": "act3",
@@ -949,7 +949,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Armored Strike"
+            "name": "Ironclad Blow"
           }
         ]
       }
@@ -1042,7 +1042,7 @@
     },
     {
       "id": "bow_curved_shot",
-      "name": "Curved Shot",
+      "name": "Arcing Shot",
       "weaponType": "Bow",
       "tierAffinity": "Iron",
       "unlockAct": "act1",
@@ -1057,14 +1057,14 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Curved Shot"
+            "name": "Arcing Shot"
           }
         ]
       }
     },
     {
       "id": "bow_heavy_draw",
-      "name": "Heavy Draw",
+      "name": "Full Draw",
       "weaponType": "Bow",
       "tierAffinity": "Iron",
       "unlockAct": "act1",
@@ -1078,7 +1078,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Heavy Draw"
+            "name": "Full Draw"
           }
         ]
       }
@@ -1110,7 +1110,7 @@
     },
     {
       "id": "bow_encloser",
-      "name": "Encloser",
+      "name": "Pinning Shot",
       "weaponType": "Bow",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -1134,14 +1134,14 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Encloser"
+            "name": "Pinning Shot"
           }
         ]
       }
     },
     {
       "id": "bow_ward_arrow",
-      "name": "Ward Arrow",
+      "name": "Gag Arrow",
       "weaponType": "Bow",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -1165,14 +1165,14 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Ward Arrow"
+            "name": "Gag Arrow"
           }
         ]
       }
     },
     {
       "id": "bow_break_shot",
-      "name": "Break Shot",
+      "name": "Joint Shot",
       "weaponType": "Bow",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -1197,14 +1197,14 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Break Shot"
+            "name": "Joint Shot"
           }
         ]
       }
     },
     {
       "id": "bow_waning_shot",
-      "name": "Waning Shot",
+      "name": "Sapping Shot",
       "weaponType": "Bow",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -1229,14 +1229,14 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Waning Shot"
+            "name": "Sapping Shot"
           }
         ]
       }
     },
     {
       "id": "bow_seal_magic",
-      "name": "Seal Magic",
+      "name": "Rattle",
       "weaponType": "Bow",
       "tierAffinity": "Steel",
       "unlockAct": "act2",
@@ -1261,7 +1261,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Seal Magic"
+            "name": "Rattle"
           }
         ]
       }
@@ -1321,7 +1321,7 @@
     },
     {
       "id": "bow_hunters_volley",
-      "name": "Hunter's Volley",
+      "name": "Hawk's Talons",
       "weaponType": "Bow",
       "tierAffinity": "Silver",
       "unlockAct": "act3",
@@ -1342,7 +1342,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Hunter's Volley"
+            "name": "Hawk's Talons"
           }
         ]
       }
@@ -1428,7 +1428,7 @@
     },
     {
       "id": "magic_seraphim",
-      "name": "Seraphim",
+      "name": "Scouring Fire",
       "weaponType": "Tome",
       "allowedTypes": [
         "Tome",
@@ -1453,7 +1453,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Seraphim"
+            "name": "Scouring Fire"
           }
         ]
       }
@@ -1516,7 +1516,7 @@
     },
     {
       "id": "magic_burning_quake",
-      "name": "Burning Quake",
+      "name": "Cinder Quake",
       "weaponType": "Tome",
       "allowedTypes": [
         "Tome"
@@ -1545,7 +1545,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Burning Quake"
+            "name": "Cinder Quake"
           }
         ]
       }
@@ -1627,7 +1627,7 @@
     },
     {
       "id": "magic_nosferatu",
-      "name": "Nosferatu",
+      "name": "Grave Hunger",
       "weaponType": "Tome",
       "allowedTypes": [
         "Tome",
@@ -1650,7 +1650,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Nosferatu"
+            "name": "Grave Hunger"
           }
         ]
       }
@@ -1803,7 +1803,7 @@
     },
     {
       "id": "legend_galeforce_assault",
-      "name": "Galeforce Assault",
+      "name": "Oathstorm",
       "weaponType": "Axe",
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
@@ -1852,7 +1852,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Galeforce Assault"
+            "name": "Oathstorm"
           }
         ]
       }

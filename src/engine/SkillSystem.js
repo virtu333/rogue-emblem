@@ -25,6 +25,15 @@ function getSkill(skillId, skillsData) {
   return skillsData.find((s) => s.id === skillId) || null;
 }
 
+/**
+ * A skill's display name from skills.json (ids never change; names can). Proc
+ * banners and timeline facts show it, and ProcVisualTheme looks the skill back
+ * up by it, so it must be the data's name, never a copy.
+ */
+export function skillDisplayName(skillId, skillsData) {
+  return (Array.isArray(skillsData) && getSkill(skillId, skillsData)?.name) || skillId;
+}
+
 function isBelow50(unit) {
   return unit.currentHP <= Math.floor(unit.stats.HP / 2);
 }
@@ -472,7 +481,7 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
     switch (skill.id) {
       case 'lethality':
         result.lethal = true;
-        result.activated.push({ id: 'lethality', name: 'Lethality' });
+        result.activated.push({ id: 'lethality', name: skillDisplayName('lethality', skillsData) });
         break;
 
       case 'adept':
@@ -482,12 +491,15 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
           combatState.adeptUsed.add(attacker);
         }
         result.extraStrike = true;
-        result.activated.push({ id: 'adept', name: 'Adept' });
+        result.activated.push({ id: 'adept', name: skillDisplayName('adept', skillsData) });
         break;
 
       case 'commanders_gambit':
         result.commandersGambit = true;
-        result.activated.push({ id: 'commanders_gambit', name: "Commander's Gambit" });
+        result.activated.push({
+          id: 'commanders_gambit',
+          name: skillDisplayName('commanders_gambit', skillsData),
+        });
         break;
 
       case 'divine_charge':
@@ -495,7 +507,10 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
           percent: skill.effects?.healLowestAlly?.percent || 50,
           range: skill.effects?.healLowestAlly?.range || 3,
         };
-        result.activated.push({ id: 'divine_charge', name: 'Divine Charge' });
+        result.activated.push({
+          id: 'divine_charge',
+          name: skillDisplayName('divine_charge', skillsData),
+        });
         break;
 
       case 'seraph_strike': {
@@ -505,7 +520,10 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
         const normalDef = usesMagic(attacker.weapon) ? resStat : defStat;
         const defBonus = Math.max(0, normalDef - lowerDef);
         result.modifiedDamage = normalDamage + defBonus;
-        result.activated.push({ id: 'seraph_strike', name: 'Seraph Strike' });
+        result.activated.push({
+          id: 'seraph_strike',
+          name: skillDisplayName('seraph_strike', skillsData),
+        });
         break;
       }
 
@@ -523,17 +541,17 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
     result.heal = normalDamage;
     result.extraStrike = true;
     result.aetherLuna = true;
-    result.activated.push({ id: 'aether', name: 'Aether' });
+    result.activated.push({ id: 'aether', name: skillDisplayName('aether', skillsData) });
   } else if (selectedOffensiveProcId === 'flare') {
     result.modifiedDamage = normalDamage + (target.stats?.RES || 0);
     result.heal = result.modifiedDamage;
-    result.activated.push({ id: 'flare', name: 'Flare' });
+    result.activated.push({ id: 'flare', name: skillDisplayName('flare', skillsData) });
   } else if (selectedOffensiveProcId === 'luna') {
     result.luna = true;
-    result.activated.push({ id: 'luna', name: 'Luna' });
+    result.activated.push({ id: 'luna', name: skillDisplayName('luna', skillsData) });
   } else if (selectedOffensiveProcId === 'sol') {
     result.heal = normalDamage;
-    result.activated.push({ id: 'sol', name: 'Sol' });
+    result.activated.push({ id: 'sol', name: skillDisplayName('sol', skillsData) });
   }
 
   return result;
@@ -576,23 +594,26 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
 
     if (skill.id === 'cancel') {
       result.cancelFollowUp = true;
-      result.activated.push({ id: 'cancel', name: 'Cancel' });
+      result.activated.push({ id: 'cancel', name: skillDisplayName('cancel', skillsData) });
     }
 
     if (skill.id === 'pavise' && isPhysicalAttack) {
       result.modifiedDamage = Math.floor(result.modifiedDamage / 2);
-      result.activated.push({ id: 'pavise', name: 'Pavise' });
+      result.activated.push({ id: 'pavise', name: skillDisplayName('pavise', skillsData) });
     }
 
     if (skill.id === 'aegis' && !isPhysicalAttack) {
       result.modifiedDamage = Math.floor(result.modifiedDamage / 2);
-      result.activated.push({ id: 'aegis', name: 'Aegis' });
+      result.activated.push({ id: 'aegis', name: skillDisplayName('aegis', skillsData) });
     }
 
     if (skill.id === 'dragon_scale') {
       const reduction = skill.effects?.damageReduction || 3;
       result.modifiedDamage = Math.max(0, result.modifiedDamage - reduction);
-      result.activated.push({ id: 'dragon_scale', name: 'Dragon Scale' });
+      result.activated.push({
+        id: 'dragon_scale',
+        name: skillDisplayName('dragon_scale', skillsData),
+      });
     }
 
     if (skill.id === 'miracle' && !defender._miracleUsed) {
@@ -602,13 +623,13 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
         result.modifiedDamage = hp - 1;
         result.miracleTriggered = true;
         defender._miracleUsed = true;
-        result.activated.push({ id: 'miracle', name: 'Miracle' });
+        result.activated.push({ id: 'miracle', name: skillDisplayName('miracle', skillsData) });
       }
     }
 
     if (skill.id === 'intimidate' && skill.effects?.debuffAttacker) {
       result.debuffAttacker = skill.effects.debuffAttacker;
-      result.activated.push({ id: 'intimidate', name: 'Intimidate' });
+      result.activated.push({ id: 'intimidate', name: skillDisplayName('intimidate', skillsData) });
     }
   }
 
@@ -632,7 +653,7 @@ export function checkAstra(attacker, skillsData) {
   const chance = getActivationChance(attacker, skill.activation);
   if (Math.random() * 100 >= chance) return { triggered: false };
 
-  return { triggered: true, strikeCount: 5, damageMult: 0.5, name: 'Astra' };
+  return { triggered: true, strikeCount: 5, damageMult: 0.5, name: skill.name };
 }
 
 // --- Turn-start effects ---

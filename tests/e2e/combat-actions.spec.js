@@ -110,8 +110,8 @@ test('Weapon art forecast cancel has no cost; confirmed combat charges once', as
   await select(page, 'Edric');
   const before = await unit(page, 'Edric');
   await hud.getByRole('button', { name: /^Weapon Art/ }).tap();
-  await expect(hud.getByRole('button', { name: /Wrath Strike/ }).locator('small')).toBeVisible();
-  await hud.getByRole('button', { name: /Wrath Strike/ }).tap();
+  await expect(hud.getByRole('button', { name: /Grim Stroke/ }).locator('small')).toBeVisible();
+  await hud.getByRole('button', { name: /Grim Stroke/ }).tap();
   await tapTile(page, 4, 3);
   await expect(page.getByRole('button', { name: 'Confirm attack', exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/combat-art-forecast.png' });
@@ -257,7 +257,7 @@ test('Low HP and spent abilities show disabled reasons without consuming an acti
   await select(page, 'Edric');
   await hud.getByRole('button', { name: /^Weapon Art/ }).tap();
   await expect(hud.getByRole('button', { name: /Dueling Blade.*Not enough HP/ })).toBeDisabled();
-  await expect(hud.getByRole('button', { name: /Wrath Strike/ })).toBeEnabled();
+  await expect(hud.getByRole('button', { name: /Grim Stroke/ })).toBeEnabled();
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   // Cancel can return to the selected movement state; deselect before changing units.

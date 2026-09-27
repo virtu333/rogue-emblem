@@ -88,7 +88,7 @@ describe('item icon coverage', () => {
   it('sockets follow the category and rims follow the tier', () => {
     expect(itemIconMeta('iron-sword')).toMatchObject({ socket: 'weapon', rim: 'Iron' });
     expect(itemIconMeta('ragnarok')).toMatchObject({ socket: 'weapon', rim: 'Legend' });
-    expect(itemIconMeta('sol-scroll')).toMatchObject({ socket: 'scroll', rim: 'Rare' });
+    expect(itemIconMeta('reclaim-scroll')).toMatchObject({ socket: 'scroll', rim: 'Rare' });
     expect(itemIconMeta('vulnerary').socket).toBe('supply');
     expect(itemIconMeta('gamblers-coin').socket).toBe('accessory');
     expect(itemIconMeta('mentors-band').rim).toBe('Legend');
@@ -213,7 +213,7 @@ describe('itemIcon helper', () => {
   });
 
   it('shows the pixel icon at 2x when an item has no approved painting', () => {
-    const hero = itemHero({ name: 'Sol Scroll', type: 'Scroll', skillId: 'sol' });
+    const hero = itemHero({ name: 'Reclaim Scroll', type: 'Scroll', skillId: 'sol' });
     expect(hero.dataset.art).toBe('pixel');
     expect(hero.children[1].dataset.atlas).toBe('48');
     const painted = Object.keys(manifest.heroes)[0];

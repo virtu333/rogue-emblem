@@ -178,7 +178,7 @@ for (const kind of ['equip', 'staff', 'art', 'ability', 'reclass']) {
     if (kind === 'reclass')
       await expect(hud.getByRole('button', { name: 'Myrmidon', exact: true })).toBeVisible();
     if (kind === 'art')
-      await expect(hud.getByRole('button', { name: /Wrath Strike/ })).toBeVisible();
+      await expect(hud.getByRole('button', { name: /Grim Stroke/ })).toBeVisible();
     await expect(hud.locator('.mb-actions button:enabled').first()).toBeFocused();
     expect(
       await page.evaluate(

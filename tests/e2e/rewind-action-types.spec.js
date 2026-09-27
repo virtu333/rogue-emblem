@@ -146,14 +146,14 @@ const ACTIONS = [
     },
   ],
   [
-    'Before Edric’s Wrath Strike on Knight',
+    'Before Edric’s Grim Stroke on Knight',
     async (page) => {
       await select(page, 'Edric');
       await hud(page)
         .getByRole('button', { name: /^Weapon Art/ })
         .tap();
       await hud(page)
-        .getByRole('button', { name: /Wrath Strike/ })
+        .getByRole('button', { name: /Grim Stroke/ })
         .tap();
       await tapTile(page, 4, 3);
       await page.getByRole('button', { name: 'Confirm attack', exact: true }).tap();

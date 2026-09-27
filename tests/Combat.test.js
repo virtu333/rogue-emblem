@@ -971,7 +971,7 @@ describe('Combat resolution', () => {
       ]);
       expect(result.events).toContainEqual({
         type: 'skill',
-        name: 'Desperation',
+        name: "Death's Door",
         unit: defender.name,
       });
     } finally {
@@ -1013,7 +1013,7 @@ describe('Combat resolution', () => {
         defender.name,
       ]);
       const desperationEvents = result.events.filter(
-        (e) => e.type === 'skill' && e.name === 'Desperation',
+        (e) => e.type === 'skill' && e.name === "Death's Door",
       );
       expect(desperationEvents.length).toBe(1);
       expect(desperationEvents[0].unit).toBe(attacker.name);
@@ -1049,7 +1049,7 @@ describe('Combat resolution', () => {
         { atkMods: {}, defMods: { quickRiposte: true, desperation: true } },
       );
       const defenderDesperationEvents = result.events.filter(
-        (e) => e.type === 'skill' && e.name === 'Desperation' && e.unit === defender.name,
+        (e) => e.type === 'skill' && e.name === "Death's Door" && e.unit === defender.name,
       );
       expect(defenderDesperationEvents.length).toBe(0);
     } finally {

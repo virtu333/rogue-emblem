@@ -675,7 +675,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Bows (M)",
-    "roleChange": "Sure Shot: ignores terrain avoid",
+    "roleChange": "True Aim: ignores terrain avoid",
     "description": "No cover saves the target; this shot ignores terrain dodge entirely."
   },
   {
@@ -747,7 +747,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Bows (P)",
-    "roleChange": "Lethality chance, gains Bows",
+    "roleChange": "Fell Stroke chance, gains Bows",
     "description": "A hit that can simply end a life, now with bows for the foes out of reach."
   },
   {
@@ -847,7 +847,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Axes (P)",
     "roleChange": "Gains Axes, versatile",
-    "description": "Axes in hand and Sol to mend himself mid-swing; a veteran with no seam to exploit.",
+    "description": "Axes in hand and Reclaim to mend himself mid-swing; a veteran with no seam to exploit.",
     "learnableSkills": [
       {
         "skillId": "sol",
@@ -1314,7 +1314,7 @@
     },
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Axes (P), Swords (P)",
-    "roleChange": "Gains Axes/Swords, Cavalry, Canto, Armored Blow innate",
+    "roleChange": "Gains Axes/Swords, Cavalry, Canto, Iron Advance innate",
     "description": "Wall enough and horse enough at once \u2014 trades pure armor for speed and Canto after acting."
   },
   {
@@ -1363,8 +1363,8 @@
     },
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Tomes (P)",
-    "roleChange": "Gains Tomes, Fiendish Blow innate, mixed offense",
-    "description": "Rides with tome magic now, Fiendish Blow lending extra bite whenever it opens the attack."
+    "roleChange": "Gains Tomes, Hellfire Charge innate, mixed offense",
+    "description": "Rides with tome magic now, Hellfire Charge lending extra bite whenever it opens the attack."
   },
   {
     "name": "Bow Knight",
@@ -1462,8 +1462,8 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Staves (P)",
-    "roleChange": "Gains Staves, Darting Blow innate, fast utility",
-    "description": "Staves for support, Darting Blow for speed \u2014 a rogue who blurs on the attack."
+    "roleChange": "Gains Staves, Quickstep innate, fast utility",
+    "description": "Staves for support, Quickstep for speed \u2014 a rogue who blurs on the attack."
   },
   {
     "name": "Hunter",

@@ -645,7 +645,7 @@ describe('LootSystem', () => {
     it('classifies scroll shop entries as scroll type', () => {
       const customTables = {
         act2: {
-          weapons: ['Windsweep Scroll'],
+          weapons: ['Gale Cut Scroll'],
           healing: ['Vulnerary'],
           statBooster: [],
           promotion: [],
@@ -676,7 +676,7 @@ describe('LootSystem', () => {
         gameData.consumables,
         gameData.accessories,
       );
-      const scrollEntry = inv.find((entry) => entry.item.name === 'Windsweep Scroll');
+      const scrollEntry = inv.find((entry) => entry.item.name === 'Gale Cut Scroll');
       expect(scrollEntry).toBeTruthy();
       expect(scrollEntry.type).toBe('scroll');
     });
@@ -684,7 +684,7 @@ describe('LootSystem', () => {
     it('respects roster weapon type filter for shop scroll pools', () => {
       const customTables = {
         act2: {
-          weapons: ['Windsweep Scroll'],
+          weapons: ['Gale Cut Scroll'],
           healing: ['Vulnerary'],
           statBooster: [],
           promotion: [],
@@ -721,7 +721,7 @@ describe('LootSystem', () => {
         gameData.accessories,
         roster,
       );
-      expect(inv.some((entry) => entry.item.name === 'Windsweep Scroll')).toBe(false);
+      expect(inv.some((entry) => entry.item.name === 'Gale Cut Scroll')).toBe(false);
     });
 
     it('no zero-price Legend-tier items in shop (Warp Staff is the priced exception)', () => {
@@ -1051,10 +1051,10 @@ describe('LootSystem', () => {
       const act2Rare = gameData.lootTables.act2.weaponArtScroll;
       const act3Rare = gameData.lootTables.act3.weaponArtScroll;
       const expected = [
-        'Knightkneeler Scroll',
+        'Kneebreaker Scroll',
         'Vengeance Scroll',
-        'Encloser Scroll',
-        'Seraphim Scroll',
+        'Pinning Shot Scroll',
+        'Scouring Fire Scroll',
       ];
       for (const name of expected) {
         expect(act2Rare).toContain(name);

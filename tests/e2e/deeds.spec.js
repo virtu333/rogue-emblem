@@ -191,7 +191,9 @@ for (const [label, device] of [
       const chooser = page.getByRole('dialog', { name: 'Choose promotion', exact: true });
       await expect(chooser).toBeVisible();
       for (const path of await chooser.locator('.gr-path').all()) {
-        await expect(path.locator('.gr-path-oath')).toContainText('Oath of the Bridge · Pavise');
+        await expect(path.locator('.gr-path-oath')).toContainText(
+          'Oath of the Bridge · Shieldwall',
+        );
         expect(await path.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
       }
       await page.screenshot({ path: info.outputPath(`oath-chooser-${label}.png`) });
@@ -202,7 +204,7 @@ for (const [label, device] of [
       await expect(rite.locator('.gr-kicker')).toHaveText(
         'Promotion · Seraphina, Who Held the Bridge',
       );
-      await expect(rite.locator('.gr-seal--oath')).toContainText('Pavise');
+      await expect(rite.locator('.gr-seal--oath')).toContainText('Shieldwall');
       await expect(rite.locator('.gr-seal--oath')).toContainText('Oath of the Bridge');
       if (SHOTS) await page.waitForTimeout(3200);
       await page.screenshot({ path: info.outputPath(`oath-rite-${label}.png`) });
