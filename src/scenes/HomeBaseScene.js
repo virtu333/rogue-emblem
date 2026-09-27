@@ -9,6 +9,7 @@ import Phaser from 'phaser';
 import { resolveStartingLordDefs } from '../engine/Commander.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import {
+  DOUBLE_ATTACK_SPD_THRESHOLD,
   MAX_STARTING_SKILLS,
   STARTING_ACCESSORY_TIERS,
   STARTING_STAFF_TIERS,
@@ -85,7 +86,8 @@ const STAT_GAMEPLAY_HINTS = {
   STR: 'Strength — adds to physical attack damage.',
   MAG: 'Magic — adds to magical damage and healing.',
   SKL: 'Skill — improves hit rate, crit chance, and skill activation.',
-  SPD: 'Speed — improves avoid. Double attack if SPD >= foe +5.',
+  // Doubling runs on Atk Spd (SPD less weapon weight past STR / 5), as Combat.canDouble does.
+  SPD: `Speed — improves avoid and Atk Spd. Strike twice when Atk Spd beats the foe's by ${DOUBLE_ATTACK_SPD_THRESHOLD}; heavy weapons lower it.`,
   DEF: 'Defense — reduces physical damage taken.',
   RES: 'Resistance — reduces magical damage taken.',
   LCK: 'Luck — small hit/avoid bonus, reduces enemy crit.',
