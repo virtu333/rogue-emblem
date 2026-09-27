@@ -231,6 +231,7 @@ import { showImportantHint, showMinorHint, showContextualHint } from '../ui/Hint
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
 import { buildRecruitNodeUnit, spawnTilesForDeployment } from '../engine/RecruitNodeSystem.js';
+import { battleDeployCount } from '../engine/BattleDeployCount.js';
 import {
   adaptDialogueEntries,
   adaptDialogueLine,
@@ -1253,12 +1254,13 @@ export class BattleScene extends Phaser.Scene {
         this.nonDeployedUnits = [];
       }
 
-      // Set deployCount for MapGenerator spawn generation
-      const deployCount = this.battleParams?.tutorialMode
-        ? 2
-        : deployedRoster
-          ? deployedRoster.length
-          : 2;
+      // deployCount: MapGenerator spawn generation and the Last deed at victory.
+      const deployCount = battleDeployCount({
+        tutorialMode: this.battleParams?.tutorialMode,
+        deployedRoster,
+        resuming: Boolean(this._resumeCheckpoint),
+        recorded: this.battleParams?.deployCount,
+      });
       this.battleParams.deployCount = deployCount;
       this.battleParams.isBoss = !!this.isBoss;
 
