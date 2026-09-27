@@ -545,3 +545,20 @@
   font-style: italic;
   color: var(--re-muted);
 }
+
+/* A section heading with its action beside it (Equipment · Trade with…). */
+.mr-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  margin: 0 0 8px;
+}
+.mr-sheet .mr-heading-row h3 {
+  margin: 0;
+  min-width: 0;
+}
+.mr-heading-row > button {
+  flex: none;
+}

@@ -5,15 +5,9 @@
 // pickers reuse the same trade layer; cross-cutting seams are invoked via the
 // overlay's delegating wrappers so tests can intercept them as before.
 
-import { INVENTORY_MAX, CONSUMABLE_MAX, LORE_TEXT_COLOR } from '../utils/constants.js';
-import {
-  addToInventory,
-  removeFromInventory,
-  hasProficiency,
-  canEquip,
-  equipIfUnarmed,
-  inventoryDisplayOrder,
-} from '../engine/UnitManager.js';
+import { LORE_TEXT_COLOR } from '../utils/constants.js';
+import { hasProficiency, canEquip, inventoryDisplayOrder } from '../engine/UnitManager.js';
+import { applyTrade, planTrade, unitHolder } from '../engine/ItemTrade.js';
 import { getStaffRemainingUses, getStaffMaxUses, parseRange } from '../engine/Combat.js';
 import { getConsumableDescription } from '../utils/consumableText.js';
 import { hasWeaponArt } from './WeaponArtVisibility.js';
@@ -333,11 +327,17 @@ export class RosterTradeController {
     overlay._tradeText(rightX, y, formatUnitCapacityLabel(unitB, 11), UI_PALETTE.text, '11px');
     y += 18;
 
-    // Left side items (unitA) → click to give to unitB
+    // Left side items (unitA) → click to give to unitB. Give only (no swaps
+    // here); the rules and the move are ItemTrade's, as in the DOM roster.
+    const ctx = { context: 'roster', run: overlay.runManager };
+    const giveSlots = (unit, otherUnit, bag, item) => [
+      { holder: unitHolder(unit), bag, item },
+      { holder: unitHolder(otherUnit), bag, item: null },
+    ];
+    const canGive = (...slots) => planTrade(ctx, ...slots).ok;
     const drawSide = (unit, otherUnit, xPos, startY) => {
       let sy = startY;
       const inventory = unit.inventory || [];
-      const otherInventory = otherUnit.inventory || [];
 
       // Inventory
       if (inventory.length === 0) {
@@ -373,7 +373,8 @@ export class RosterTradeController {
             segments.push({ text: ` (${rem}/${max})`, color: rowColor });
           }
 
-          if (otherInventory.length < INVENTORY_MAX) {
+          const slots = giveSlots(unit, otherUnit, 'inventory', item);
+          if (canGive(...slots)) {
             const interactiveSegments = [...segments, { text: '  \u25b6', color: UI_PALETTE.text }];
             const row = overlay._tradeTextSegments(xPos, sy, interactiveSegments, '10px');
             const hit = overlay.scene.add
@@ -402,9 +403,7 @@ export class RosterTradeController {
               overlay._drawTradeDetailPane(null);
             });
             hit.on('pointerdown', () => {
-              removeFromInventory(unit, item);
-              if (addToInventory(otherUnit, item))
-                equipIfUnarmed(otherUnit, otherUnit.inventory.at(-1));
+              applyTrade(ctx, ...slots);
               overlay._showTradeScreen(unitA, unitB); // redraw
             });
             overlay.tradeObjects.push(hit);
@@ -427,7 +426,8 @@ export class RosterTradeController {
           const color = UI_PALETTE.good;
           const label = `${marker}${item.name} (${item.uses})`;
 
-          if ((otherUnit.consumables || []).length < CONSUMABLE_MAX) {
+          const slots = giveSlots(unit, otherUnit, 'consumables', item);
+          if (canGive(...slots)) {
             const btn = overlay.scene.add
               .text(xPos, sy, label + '  \u25b6', {
                 fontFamily: 'monospace',
@@ -445,10 +445,7 @@ export class RosterTradeController {
               overlay._drawTradeDetailPane(null);
             });
             btn.on('pointerdown', () => {
-              const idx = unit.consumables.indexOf(item);
-              if (idx !== -1) unit.consumables.splice(idx, 1);
-              if (!otherUnit.consumables) otherUnit.consumables = [];
-              otherUnit.consumables.push(item);
+              applyTrade(ctx, ...slots);
               overlay._showTradeScreen(unitA, unitB); // redraw
             });
             overlay.tradeObjects.push(btn);

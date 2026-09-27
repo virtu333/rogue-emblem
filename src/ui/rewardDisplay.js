@@ -68,3 +68,9 @@ export function isSkipDominated(choices, skipGold, isAvailable = () => true) {
     (c, i) => c?.type === 'gold' && (Number(c.goldAmount) || 0) >= skip && isAvailable(i),
   );
 }
+
+/** A full bag's reward recipient row: where the reward can go instead (UI words only). */
+export const REWARD_BAG_FULL_TEXT = 'Bag full: send to convoy, or trade in Roster';
+export function rewardRecipientBlockText(reason) {
+  return reason === 'Bag full' ? REWARD_BAG_FULL_TEXT : reason;
+}

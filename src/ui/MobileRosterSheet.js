@@ -11,12 +11,7 @@ import {
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
-import {
-  formatPerkMods,
-  MASTERY_HELP,
-  proficiencyLabel,
-  rankRequirementText,
-} from './rosterDisplay.js';
+import { formatPerkMods, MASTERY_HELP, proficiencyLabel } from './rosterDisplay.js';
 import { ContextHelp, helpPreview } from './ContextHelp.js';
 import { attributesHelp, combatBaselineHelp, convoyHelp, WEAPON_ARTS_HELP } from './helpTopics.js';
 import { attachInfo, holdTip } from './infoAffordance.js';
@@ -33,13 +28,26 @@ import { traitLines } from './traitContent.js';
 import { calculateAvoid } from '../engine/Combat.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_PER_LEVEL } from '../utils/constants.js';
+import { teachScrollBlock, teachRosterScroll } from '../engine/RosterTransfers.js';
 import {
-  teachScrollBlock,
-  teachRosterScroll,
-  giveRosterItemBlock,
-  giveRosterItem,
-} from '../engine/RosterTransfers.js';
-import { canEquip, isLastCombatWeapon, inventoryDisplayOrder } from '../engine/UnitManager.js';
+  CONVOY_HOLDER,
+  applyTrade,
+  bagCapacity,
+  bagItems,
+  planTrade,
+  unitHolder,
+} from '../engine/ItemTrade.js';
+import { TradeMenu } from './TradeMenu.js';
+import { commitMessage, tradeWarningText } from './tradeMenuModel.js';
+import {
+  partnerHolder,
+  partnerLabel,
+  rosterTradePartners,
+  tradeBagFor,
+  tradePartnerItemText,
+  tradePartnerText,
+} from './rosterTradeChoices.js';
+import { inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { equippedBadgeElement } from './equippedBadge.js';
 import { weaponComparisonParts } from './equipmentComparison.js';
 import { itemKeywordRow } from './itemKeywordChips.js';
@@ -738,22 +746,94 @@ export class MobileRosterSheet {
       },
     });
   }
-  giveItem(source, item) {
-    this.chooseUnit(
-      `Give ${item.name}${item.type !== 'Consumable' && isLastCombatWeapon(source, item) ? ' — leaves unit unarmed' : ''}`,
-      (target) => giveRosterItemBlock(this.run, source, target, item),
-      (target) => {
-        const result = giveRosterItem(this.run, source, target, item);
-        if (result.ok) this.render(`${item.name} given to ${target.name}.${this.persistNow()}`);
-        return result;
+  tradeCtx() {
+    return { context: 'roster', run: this.run };
+  }
+  /**
+   * Choose a trade partner (other units, then the convoy), then run `open(partner)`
+   * once the picker is gone. The picker blocks nobody: the trade menu's rows say
+   * why a slot is closed.
+   */
+  chooseTradePartner(title, partners, describe, open) {
+    if (this.picker || this.destroyed || !this.run) return;
+    let chosen = null;
+    this.picker = new ChoicePicker({
+      scene: this.scene,
+      title,
+      choices: partners,
+      label: partnerLabel,
+      describe,
+      confirmLabel: 'Trade',
+      apply: (partner) => {
+        chosen = partner;
+        return { ok: true };
       },
-      (target) => {
-        if (item.type === 'Consumable') return `${target.consumables?.length || 0}/3 supplies`;
-        if (!canEquip(target, item))
-          return `${rankRequirementText(item.type, item.rankRequired)} · ${target.inventory.length}/5 items`;
-        return `Can equip · AS ${getStaticCombatStats(target, target.weapon).as} → ${getStaticCombatStats(target, item).as} if equipped · ${target.inventory.length}/5 items`;
+      onClose: () => {
+        this.picker = null;
+        if (this.destroyed) return;
+        if (chosen) open(chosen);
+        else this.root.querySelector('button')?.focus();
       },
+    });
+  }
+  /** Trade… on an item card: pick a partner, then trade with this item held. */
+  tradeItem(source, item) {
+    const bag = tradeBagFor(item);
+    const ctx = this.tradeCtx();
+    this.chooseTradePartner(
+      `Trade ${item.name} with…`,
+      rosterTradePartners(this.units, source, bag),
+      (partner) => tradePartnerItemText(ctx, partner, item),
+      (partner) =>
+        this.openTrade(source, partnerHolder(partner), {
+          held: { holder: unitHolder(source), bag, item },
+          bag,
+        }),
     );
+  }
+  /** Trade with… in the Equipment heading: pick a partner, open with nothing held. */
+  tradeWith(unit) {
+    const ctx = this.tradeCtx();
+    this.chooseTradePartner(
+      `${unit.name}: trade with…`,
+      rosterTradePartners(this.units, unit),
+      (partner) => tradePartnerText(ctx, partner),
+      (partner) => this.openTrade(unit, partnerHolder(partner)),
+    );
+  }
+  /**
+   * The trade menu over this sheet. It lives in `picker`, so the sheet's guards and
+   * destroy() cover it. Each commit applies at once and saves the run the moment it
+   * lands (the context's persist when given); the sheet re-renders on close.
+   */
+  openTrade(left, right, { held = null, bag = null } = {}) {
+    if (this.picker || this.destroyed || !this.run) return;
+    const ctx = this.tradeCtx();
+    let message = '';
+    this.picker = new TradeMenu({
+      scene: this.scene,
+      ctx,
+      left,
+      right,
+      held,
+      bag,
+      engine: { planTrade, bagItems, bagCapacity, unitHolder },
+      commit: (from, to) => {
+        const result = applyTrade(ctx, from, to);
+        if (!result.ok) return result;
+        const warnings = result.warnings
+          .map(tradeWarningText)
+          .filter(Boolean)
+          .map((text) => ` ${text}.`)
+          .join('');
+        message = `${commitMessage(from, to, result.kind)}${warnings}${this.persistNow()}`;
+        return { ok: true, message };
+      },
+      onClose: () => {
+        this.picker = null;
+        if (!this.destroyed) this.render(message);
+      },
+    });
   }
   teachScroll(scroll) {
     this.chooseUnit(
@@ -983,7 +1063,16 @@ export class MobileRosterSheet {
     });
   }
   gear(unit) {
-    this.body.append(el('h3', `Equipment · ${unit.inventory?.length || 0}/5`));
+    const heading = el('h3', `Equipment · ${unit.inventory?.length || 0}/5`);
+    if (this.run) {
+      // Trade with… opens the trade menu with nothing held (after picking a partner).
+      const row = el('div', null, 'mr-heading-row');
+      row.append(
+        heading,
+        this.button('Trade with…', () => this.tradeWith(unit)),
+      );
+      this.body.append(row);
+    } else this.body.append(heading);
     for (const item of inventoryDisplayOrder(unit)) {
       const c = this.itemCard(item, unit);
       if (
@@ -1001,7 +1090,7 @@ export class MobileRosterSheet {
       }
       if (this.run) {
         if (unit.weapon !== item) this.action(c, 'Equip', unit, item, 'equip');
-        c.append(this.button('Give…', () => this.giveItem(unit, item)));
+        c.append(this.button('Trade…', () => this.tradeItem(unit, item)));
         this.action(c, 'Store', unit, item, 'store');
       }
     }
@@ -1026,7 +1115,7 @@ export class MobileRosterSheet {
           );
           if (reason) c.append(el('small', reason));
         }
-        c.append(this.button('Give…', () => this.giveItem(unit, item)));
+        c.append(this.button('Trade…', () => this.tradeItem(unit, item)));
         this.action(c, 'Store', unit, item, 'store');
       }
     }
@@ -1041,7 +1130,7 @@ export class MobileRosterSheet {
       ? this.itemCard(unit.accessory, unit)
       : this.card('No accessory', 'No accessory equipped.');
     if (this.run) {
-      if (unit.accessory)
+      if (unit.accessory) {
         a.append(
           this.button('Unequip accessory', () =>
             this.render(
@@ -1050,6 +1139,10 @@ export class MobileRosterSheet {
             ),
           ),
         );
+        // Accessories trade only between units (the Accessory tab).
+        if (this.units.some((other) => other !== unit))
+          a.append(this.button('Trade…', () => this.tradeItem(unit, unit.accessory)));
+      }
       if (this.run.accessories?.length)
         this.body.append(el('h4', 'Available accessories · Shared pool'));
       for (const item of this.run.accessories || []) {
@@ -1078,7 +1171,7 @@ export class MobileRosterSheet {
     shared.append(
       el(
         'p',
-        'Storage shared by the whole army between battles. Store puts a carried item here; Withdraw gives it to the unit below.',
+        'Storage shared by the whole army between battles. Store puts a carried item here; Withdraw gives it to the unit below, or Trade… swaps it when their bag is full.',
         'mr-convoy-explain',
       ),
     );
@@ -1105,10 +1198,32 @@ export class MobileRosterSheet {
         ),
       ),
     );
-    for (const item of [...items.weapons, ...items.consumables]) {
+    // getConvoyItems hands out clones in convoy order; a trade holds the live item.
+    const live = [...this.run.convoy.weapons, ...this.run.convoy.consumables];
+    [...items.weapons, ...items.consumables].forEach((item, index) => {
       const c = this.itemCard(item, unit);
-      this.action(c, 'Withdraw', unit, item, 'withdraw');
-    }
+      const bag = tradeBagFor(item);
+      const holder = unitHolder(unit);
+      if (
+        bagItems(this.tradeCtx(), holder, bag).length < bagCapacity(this.tradeCtx(), holder, bag)
+      ) {
+        this.action(c, 'Withdraw', unit, item, 'withdraw');
+        return;
+      }
+      // A full bag: Withdraw becomes Trade…, a swap with one of the unit's items.
+      c.append(
+        this.button('Trade…', () =>
+          this.openTrade(unit, CONVOY_HOLDER, {
+            held: { holder: CONVOY_HOLDER, bag, item: live[index] },
+            bag,
+          }),
+        ),
+        el(
+          'small',
+          `${bag === 'consumables' ? 'Consumables' : 'Equipment'} full: trade to swap it for a carried item.`,
+        ),
+      );
+    });
     if (!items.weapons.length && !items.consumables.length)
       this.card('Convoy is empty', 'Store carried items here to share them with your roster.');
   }
