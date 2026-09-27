@@ -223,6 +223,9 @@ combat XP from being attacked (XP needs damage dealt), and enemies target it fre
   the first carried combat weapon when a staff is equipped, and equips it on Fight. A unit with
   none can't enter ("⟨unit⟩ has no weapon to fight with."); before, such a fight was an empty
   draw that still paid draw XP.
+- Shop: selling a unit's last combat weapon is allowed too (`ShopCommands.shopSellWarnings`):
+  the sell pane and the confirm say "Leaves ⟨unit⟩ unarmed.", and the message after the sale
+  says the unit is now unarmed. (Before, "Keep at least one combat weapon." refused the sale.)
 - Saves, battle checkpoints, rewind and the timeline keep `weapon: null` and an empty bag.
 
 ## Out of scope (this wave)

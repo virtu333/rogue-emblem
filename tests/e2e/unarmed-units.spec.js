@@ -206,3 +206,58 @@ for (const mobile of [true, false]) {
     });
   });
 }
+
+test.describe('shop', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test('selling the last weapon warns first, then leaves the unit unarmed (saved)', async ({
+    page,
+  }, testInfo) => {
+    const errors = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.addInitScript((s) => localStorage.setItem('emblem_rogue_settings', s), SETTINGS);
+    await page.goto('/?devScene=nodemap&preset=battle_smoke&seed=42');
+    await waitForScene(page, 'NodeMap');
+    const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
+    await expect(skip).toBeVisible();
+    await skip.click();
+    const weapon = await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+      s.registry.set('activeSlot', 1);
+      const edric = s.runManager.roster.find((u) => u.name === 'Edric');
+      edric.inventory = edric.inventory.slice(0, 1);
+      edric.weapon = edric.inventory[0];
+      const n = s.runManager.getAvailableNodes()[0];
+      n.type = 'shop';
+      s.showShopOverlay(n, []);
+      return edric.weapon.name;
+    });
+    const shop = page.locator('.shop-menu');
+    await expect(shop).toBeVisible();
+    await shop.getByRole('button', { name: 'Sell', exact: true }).click();
+    await shop
+      .locator('.shop-row')
+      .filter({ hasText: weapon })
+      .filter({ hasText: 'Edric' })
+      .click();
+    await expect(shop.locator('.shop-warning')).toHaveText('Leaves Edric unarmed.');
+    const sell = shop.locator('.shop-commit button');
+    await expect(sell).toBeEnabled();
+    await expect(sell).toHaveAttribute('aria-description', 'Leaves Edric unarmed.');
+    await page.screenshot({ path: testInfo.outputPath('shop-sell-last-weapon.png') });
+    await sell.click();
+    const sale = page.getByRole('dialog', { name: `Sell ${weapon}?`, exact: true });
+    await expect(sale).toContainText('Edric loses this item. Leaves Edric unarmed.');
+    await sale.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await expect(shop.locator('.shop-status')).toContainText(`Sold ${weapon} for`);
+    await expect(shop.locator('.shop-status')).toContainText('Edric is now unarmed.');
+    const saved = await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+      const { loadRun } = await import('/src/engine/RunManager.js');
+      const edric = loadRun(s.gameData, 1).roster.find((u) => u.name === 'Edric');
+      return { inventory: edric.inventory.length, weapon: edric.weapon };
+    });
+    expect(saved).toEqual({ inventory: 0, weapon: null });
+    expect(errors).toEqual([]);
+  });
+});

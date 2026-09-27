@@ -1,4 +1,5 @@
 import { rosterAccessoryAction } from './RosterInventory.js';
+import { TRADE_WARNINGS } from './ItemTrade.js';
 import {
   addToInventory,
   addToConsumables,
@@ -104,16 +105,28 @@ export function purchaseShopItem(run, stock, entry, recipient) {
     message: `${entry.item.name} → ${pool === 'accessories' && recipient != null && recipient !== 'pool' ? `${recipient.name} (equipped)` : pool ? (pool === 'scrolls' ? 'Scroll pool' : 'Accessory pool') : convoy ? 'Convoy' : recipient.name}.`,
   };
 }
+// Selling a unit's last combat weapon is allowed (a unit may carry nothing);
+// shopSellWarnings says so first.
 export function shopSellBlock(run, row) {
   if (!shopItemOwned(run, row)) return 'This item is no longer available.';
   if (getSellPrice(row.item) <= 0) return 'This item cannot be sold.';
-  if (row.kind === 'inventory' && isLastCombatWeapon(row.unit, row.item))
-    return 'Keep at least one combat weapon.';
   return '';
+}
+/**
+ * What an allowed sale costs the seller, as ItemTrade-style warnings: selling a
+ * unit's last combat weapon leaves it unarmed ([{ code: 'leaves_unarmed', unit }],
+ * worded by tradeWarningText). [] when blocked or when there is nothing to say.
+ */
+export function shopSellWarnings(run, row) {
+  if (shopSellBlock(run, row)) return [];
+  return row.kind === 'inventory' && isLastCombatWeapon(row.unit, row.item)
+    ? [{ code: TRADE_WARNINGS.leavesUnarmed, unit: row.unit }]
+    : [];
 }
 export function sellShopItem(run, row) {
   const reason = shopSellBlock(run, row);
   if (reason) return { ok: false, reason };
+  const leavesUnarmed = shopSellWarnings(run, row).length > 0;
   const price = getSellPrice(row.item);
   if (row.kind === 'inventory') removeFromInventory(row.unit, row.item);
   else if (row.kind === 'consumable') removeFromConsumables(row.unit, row.item);
@@ -127,7 +140,10 @@ export function sellShopItem(run, row) {
   }
   if (typeof run.awardGold === 'function') run.awardGold(price);
   else run.addGold(price);
-  return { ok: true, message: `Sold ${row.item.name} for ${price}G.` };
+  return {
+    ok: true,
+    message: `Sold ${row.item.name} for ${price}G.${leavesUnarmed ? ` ${row.unit.name} is now unarmed.` : ''}`,
+  };
 }
 export function shopForgeBlock(
   run,
