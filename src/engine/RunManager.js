@@ -23,6 +23,7 @@ import {
   XP_STAT_NAMES,
   CONVOY_WEAPON_CAPACITY,
   CONVOY_CONSUMABLE_CAPACITY,
+  CONVOY_WEAPON_TYPES,
   RECRUIT_SKILL_POOL,
   REVIVE_BASE_COST,
   REVIVE_COST_PER_LEVEL,
@@ -39,6 +40,7 @@ import {
   addToInventory,
   addToConsumables,
   equipAccessory,
+  unequipAccessory,
   canEquip,
   getClassInnateSkills,
   normalizeUnitClassState,
@@ -107,7 +109,6 @@ import { unitBaseClassName } from './ClassLineage.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = UNIT_PRESENTATION_FIELDS;
-const CONVOY_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff']);
 const WEAPON_ART_SPAWN_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 const WEAPON_ART_SPAWN_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
 const KNOWN_ACT_IDS = new Set(Object.keys(ACT_CONFIG));
@@ -3299,8 +3300,10 @@ export class RunManager {
     fallenUnit.consumables = keptConsumables;
 
     if (fallenUnit.accessory) {
-      this.accessories.push(ensureItemUid(structuredClone(fallenUnit.accessory)));
-      fallenUnit.accessory = null;
+      // Unequip (reversing its stats and move type) before pooling, so the fallen
+      // unit keeps its base stats: a revived unit never carries a phantom bonus.
+      const accessory = unequipAccessory(fallenUnit);
+      this.accessories.push(ensureItemUid(structuredClone(accessory)));
     }
 
     relinkWeapon(fallenUnit);
