@@ -20,6 +20,7 @@
 
 import { canInspectUnit } from '../engine/BattleInformation.js';
 import { findCommander } from '../engine/Commander.js';
+import { isRecruitNpc } from '../engine/RecruitNpc.js';
 import { parseRange } from '../engine/Combat.js';
 import { getCombatWeapons } from '../engine/UnitManager.js';
 import {
@@ -181,9 +182,10 @@ export class GuidanceController {
       return { id: 'guide_commander_low_hp', context: { commander, touch }, anchor: commander };
     // The recruit's gold banner shows through fog (RecruitBeaconController), so the
     // note may name a recruit the fog still hides; other green units must be seen.
+    // The merchant caravan is an NPC but never a recruit: it must not spend the note.
     const beaconed = s._recruitBeacon?.npc || null;
     const npc = (s.npcUnits || []).find(
-      (u) => u.currentHP > 0 && (u === beaconed || canInspectUnit(s.grid, u)),
+      (u) => isRecruitNpc(u) && (u === beaconed || canInspectUnit(s.grid, u)),
     );
     if (npc && this.allows('guide_recruit_on_map'))
       return { id: 'guide_recruit_on_map', context: { npc, touch }, anchor: npc };

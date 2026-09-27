@@ -236,6 +236,7 @@ import {
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
 import { recordBattleRecruit } from '../engine/BattleRecruits.js';
+import { hasRecruitNpc, isRecruitNpc } from '../engine/RecruitNpc.js';
 import { isSameUnit } from '../engine/UnitIdentity.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
 import { deedsFor } from '../ui/DeedController.js';
@@ -1939,7 +1940,7 @@ export class BattleScene extends Phaser.Scene {
       this._atmosphere = new AtmosphereController(this).create();
 
       // Not in a recruit battle: it would open as a dialog there (see battle_first_turn_hints).
-      if (this.mobileCameraEnabled && !(this.npcUnits?.length > 0)) {
+      if (this.mobileCameraEnabled && !hasRecruitNpc(this.npcUnits)) {
         const hints = this.registry.get('hints');
         if (hints && !hints.hasSeen('battle_mobile_camera')) {
           showContextualHint(
@@ -6367,6 +6368,8 @@ export class BattleScene extends Phaser.Scene {
 
   findTalkTarget(unit) {
     for (const npc of this.npcUnits) {
+      // The merchant caravan is an NPC, never a recruit (engine/RecruitNpc.js).
+      if (!isRecruitNpc(npc)) continue;
       const dist = Math.abs(unit.col - npc.col) + Math.abs(unit.row - npc.row);
       if (dist === 1) return npc;
     }
@@ -9529,7 +9532,7 @@ export class BattleScene extends Phaser.Scene {
                 // A recruit battle opens without a lesson dialog: the Guidance field
                 // note (guide_recruit_on_map) names the recruit, never blocks, and
                 // honours Guidance Off. Other first-battle lessons wait for a later fight.
-                if (this.npcUnits.length > 0) return;
+                if (hasRecruitNpc(this.npcUnits)) return;
                 if (objective === 'seize')
                   showContextualHint(
                     this,
@@ -10803,7 +10806,7 @@ export class BattleScene extends Phaser.Scene {
       const foes = `${count} ${count === 1 ? 'enemy' : 'enemies'}`;
       label = tombCount > 0 ? `Rout: ${foes} + ${tombCount} reviving` : `Rout: ${foes} remaining`;
     }
-    if (this.npcUnits.length > 0) {
+    if (hasRecruitNpc(this.npcUnits)) {
       label += `\n${this._recruitBeacon?.getObjectiveSuffix() || 'Recruit: Talk to green unit'}`;
     }
     const villageSuffix = this._villageController?.getObjectiveSuffix();

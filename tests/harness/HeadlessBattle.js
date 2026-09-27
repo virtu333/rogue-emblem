@@ -13,6 +13,7 @@ import {
 import { AIController } from '../../src/engine/AIController.js';
 import { generateBattle, reconcileRecruitSpawnTile } from '../../src/engine/MapGenerator.js';
 import { scheduleReinforcementsForTurn } from '../../src/engine/ReinforcementScheduler.js';
+import { isRecruitNpc } from '../../src/engine/RecruitNpc.js';
 import {
   resolveCombat,
   resolveHeal,
@@ -1236,6 +1237,8 @@ export class HeadlessBattle {
   _findTalkTarget(unit) {
     if (!unit.isLord) return null;
     for (const npc of this.npcUnits) {
+      // Mirrors BattleScene.findTalkTarget: the merchant caravan is never a recruit.
+      if (!isRecruitNpc(npc)) continue;
       const dist = gridDistance(unit.col, unit.row, npc.col, npc.row);
       if (dist === 1) return npc;
     }

@@ -16,6 +16,7 @@ import {
   recruitObjectiveLine,
 } from '../src/ui/RecruitBeaconController.js';
 import { showContextualHint, showImportantHint, showMinorHint } from '../src/ui/HintDisplay.js';
+import { createCaravanUnit } from '../src/engine/CaravanSystem.js';
 
 beforeEach(() => {
   showMinorHint.mockClear();
@@ -141,6 +142,23 @@ describe('RecruitBeaconController', () => {
     expect(empty.updateObjectiveText).not.toHaveBeenCalled();
     beacon.destroy();
     expect(beacon.scene).toBeNull();
+  });
+
+  it('never marks the merchant caravan: it is an NPC, not a recruit', () => {
+    const caravan = createCaravanUnit('act2', { col: 5, row: 1 });
+    const scene = makeScene([caravan]);
+    const beacon = new RecruitBeaconController(scene);
+    beacon.create();
+    expect(beacon.npc).toBeNull();
+    expect(scene.made).toHaveLength(0);
+    expect(beacon.getObjectiveSuffix()).toBeNull();
+    expect(scene.updateObjectiveText).not.toHaveBeenCalled();
+    // Listed ahead of a recruit (it spawns first), the banner still finds the recruit.
+    const recruit = npc();
+    scene.npcUnits.push(recruit);
+    beacon.sync();
+    expect(beacon.npc).toBe(recruit);
+    expect(beacon.getObjectiveSuffix()).toBe('Recruit: reach Garrick with a lord · Talk');
   });
 
   it('skips the halo pulse under reduced motion', () => {

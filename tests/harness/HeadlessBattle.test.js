@@ -10,6 +10,7 @@ import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
 import { gridDistance } from '../../src/engine/Combat.js';
 import { hasStaff, createPromotedEnemyUnit } from '../../src/engine/UnitManager.js';
 import { RECRUIT_SKILL_POOL } from '../../src/utils/constants.js';
+import { createCaravanUnit } from '../../src/engine/CaravanSystem.js';
 
 const ACT4_BOSS_INTENT_TEMPLATE_ID = 'act4_boss_intent_bastion';
 const ACT3_DARK_CHAMPION_TEMPLATE_ID = 'act3_dark_champion_keep';
@@ -435,6 +436,41 @@ describe('HeadlessBattle', () => {
     battle.selectUnit('TalkRecruit');
     expect(battle.selectedUnit).toBe(recruited);
     expect(battle.selectedUnit.hasActed).toBe(false);
+  });
+
+  it('offers no Talk to the merchant caravan (an NPC, never a recruit)', () => {
+    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
+    battle.init();
+    const lord = battle.playerUnits.find((u) => u.name === 'Edric') || battle.playerUnits[0];
+    const occupied = new Set(
+      [...battle.playerUnits, ...battle.enemyUnits, ...battle.npcUnits].map(
+        (u) => `${u.col},${u.row}`,
+      ),
+    );
+    const adjacent = [
+      { col: lord.col + 1, row: lord.row },
+      { col: lord.col - 1, row: lord.row },
+      { col: lord.col, row: lord.row + 1 },
+      { col: lord.col, row: lord.row - 1 },
+    ].find(
+      ({ col, row }) =>
+        col >= 0 &&
+        row >= 0 &&
+        col < battle.grid.cols &&
+        row < battle.grid.rows &&
+        !occupied.has(`${col},${row}`),
+    );
+    expect(adjacent).toBeTruthy();
+    const caravan = createCaravanUnit('act1', adjacent);
+    battle.npcUnits.splice(0, battle.npcUnits.length, caravan);
+
+    battle.selectUnit(lord.name);
+    battle.moveTo(lord.col, lord.row);
+    expect(battle.getAvailableActions().some((a) => a.label === 'Talk')).toBe(false);
+    expect(() => battle.chooseAction('Talk')).toThrow(/No talk target/);
+    expect(battle.npcUnits).toEqual([caravan]);
+    expect(caravan.faction).toBe('npc');
+    expect(battle.playerUnits).not.toContain(caravan);
   });
 
   it('chooseAction throws for unsupported action', () => {

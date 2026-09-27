@@ -332,4 +332,35 @@ describe('BattleScene · recruit battles', () => {
     expect(scene.npcUnits[0]?.className).toBe('Fighter');
     expect(scene.npcUnits[0]?.name).toBe('Bram');
   });
+
+  it('a caravan battle is not a recruit battle: the phone camera lesson still queues', () => {
+    // A recruit battle skips it (the recruit's field note owns the opening); the
+    // merchant caravan is an NPC but never a recruit (engine/RecruitNpc.js).
+    const queued = (battle) => {
+      const rm = realRun();
+      const deployed = rm.roster.map((u) => structuredClone(u));
+      const scene = makeScene({ runManager: rm, deployed, npcSpawn: battle.npcSpawn });
+      const config = rm.getLockedBattleConfig();
+      if (battle.caravanSpawn) config.caravanSpawn = battle.caravanSpawn;
+      scene.battleParams.isRecruitBattle = Boolean(battle.npcSpawn);
+      const hints = { hasSeen: () => false, markSeen: vi.fn(), shouldShow: () => false };
+      scene.registry.get = (key) => {
+        if (key === 'startupFlags') return { isMobile: false, mobileCameraEnabled: true };
+        if (key === 'hints') return hints;
+        return null;
+      };
+      scene.events = { once: vi.fn(), on: vi.fn(), off: vi.fn() };
+      scene._setupBattleCameraSystem = vi.fn(); // the pinch camera itself is not under test
+      BattleScene.prototype.beginBattle.call(scene, deployed);
+      return { scene, pending: [...(scene._pendingContextualHints || [])] };
+    };
+    const caravan = queued({ caravanSpawn: { col: 5, row: 0 } });
+    expect(caravan.scene.npcUnits.map((u) => u.isCaravan)).toEqual([true]);
+    expect(caravan.pending).toContain('battle_mobile_camera');
+    const recruit = queued({
+      npcSpawn: { className: 'Archer', name: 'Wren', col: 3, row: 2, level: 1 },
+    });
+    expect(recruit.scene.npcUnits).toHaveLength(1);
+    expect(recruit.pending).not.toContain('battle_mobile_camera');
+  });
 });

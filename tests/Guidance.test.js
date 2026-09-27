@@ -12,6 +12,7 @@ import {
 import { parseRange } from '../src/engine/Combat.js';
 import { SettingsManager, normalizeSettings } from '../src/utils/SettingsManager.js';
 import { GuidanceController } from '../src/ui/GuidanceController.js';
+import { createCaravanUnit } from '../src/engine/CaravanSystem.js';
 
 describe('Guidance levels', () => {
   it('Auto is Full for a new save and Light once a run has finished', () => {
@@ -237,6 +238,23 @@ describe('Recruit battle intro (playtest 4: a field note, never a dialog)', () =
     settings.getGuidance = () => 'light';
     const g = new GuidanceController(scene);
     expect(g.pick()).toBeNull(); // hidden and unmarked
+    scene._recruitBeacon = { npc: recruit };
+    expect(g.pick()).toMatchObject({ id: 'guide_recruit_on_map', anchor: recruit });
+  });
+
+  it('never spends the once-per-save recruit note on the merchant caravan', () => {
+    const caravan = createCaravanUnit('act2', { col: 6, row: 4 });
+    const { scene, settings } = guidanceScene({ npcUnits: [caravan] });
+    settings.getGuidance = () => 'light';
+    const g = new GuidanceController(scene);
+    expect(g.pick()).toBeNull(); // visible, alive, green-ish: still not a recruit
+    scene._recruitBeacon = { npc: caravan }; // even if something marked it
+    expect(g.pick()).toBeNull();
+    settings.getGuidance = () => 'full';
+    expect(g.pick()?.id).toBe('guide_first_turn');
+    // The note is still there for the first real recruit.
+    const recruit = garrick();
+    scene.npcUnits = [caravan, recruit];
     scene._recruitBeacon = { npc: recruit };
     expect(g.pick()).toMatchObject({ id: 'guide_recruit_on_map', anchor: recruit });
   });
