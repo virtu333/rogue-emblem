@@ -50,9 +50,15 @@ export const MUSIC = {
   // Escape maps (get out before the dark closes) have their own pursuit theme.
   escape: 'music_battle_escape',
 
-  // A map's place has its own battle theme (mapTemplates.json `biome`).
+  // A map's place has its own battle theme (mapTemplates.json `biome`). An
+  // entry may be a table by act (as the situations below): the old kingdom's
+  // castles remember in Act II, the Empire's forts answer in fugue by Act IV.
   battleBiome: {
-    castle: 'music_battle_castle',
+    castle: {
+      act2: 'music_battle_castle',
+      act3: ['music_battle_castle', 'music_battle_castle_2'],
+      act4: 'music_battle_castle_2',
+    },
     swamp: 'music_battle_swamp',
     tundra: 'music_battle_tundra',
     volcano: 'music_battle_volcano',
@@ -64,7 +70,13 @@ export const MUSIC = {
   battleSituation: {
     eclipsed: 'music_battle_eclipsed',
     village: 'music_battle_village',
-    rescue: 'music_battle_rescue',
+    // the two rescues alternate act by act
+    rescue: {
+      act1: 'music_battle_rescue',
+      act2: 'music_battle_rescue_2',
+      act3: 'music_battle_rescue',
+      act4: 'music_battle_rescue_2',
+    },
     elite: {
       act1: 'music_battle_elite',
       act2: 'music_battle_elite_act2',
@@ -114,6 +126,8 @@ export const MUSIC_LAYERS = {
   music_battle_swamp: { calm: 'music_battle_swamp_calm' },
   music_battle_village: { calm: 'music_battle_village_calm' },
   music_battle_rescue: { calm: 'music_battle_rescue_calm' },
+  music_battle_rescue_2: { calm: 'music_battle_rescue_2_calm' },
+  music_battle_castle_2: { calm: 'music_battle_castle_2_calm' },
   music_battle_escape: { calm: 'music_battle_escape_calm' },
 };
 
