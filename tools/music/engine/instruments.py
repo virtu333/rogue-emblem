@@ -234,6 +234,26 @@ INSTRUMENTS = {
                                ('3', 'emily_clean.sfz', 2), ('_pm', 'emily_basic.sfz', 0),
                                ('_pm2', 'emily_basic.sfz', 1))},
 
+    # electronic voices (engine/edm.py); a score shapes them with its own `params`
+    **{name: dict(kind='synth', voice=voice, params=params, range=rng, pan=0.0, width=1.0,
+                  depth=depth, ref_key=ref, bus=bus, humanize_ms=0, **extra)
+       for name, voice, params, rng, depth, ref, bus, extra in (
+           ('saw_stack', 'supersaw', {}, (36, 96), 0.35, 60, 'synth', {}),
+           ('saw_pluck', 'supersaw', dict(voices=3, detune=0.12, decay=0.14, sustain=0.0,
+                                          release=0.12, cutoff=900, env_hz=5000,
+                                          env_decay=0.09, res=0.3), (48, 100), 0.3, 72,
+            'synth', {}),
+           ('saw_pad', 'supersaw', dict(attack=0.35, decay=1.0, sustain=0.9, release=0.9,
+                                        cutoff=1400, env_hz=0, res=0.1, drive=1.0),
+            (36, 96), 0.55, 60, 'synth', {}),
+           ('sub808', 'sub808', {}, (20, 55), 0.0, 33, 'rhythm', {'duck': 'kit_kick'}),
+           ('kick_synth', 'kick_synth', {}, (0, 127), 0.0, 36, 'drums',
+            {'fixed_pitch': True}),
+           ('noise_riser', 'noise_riser', {}, (24, 96), 0.4, 48, 'synth', {}),
+           ('downlifter', 'downlifter', {}, (24, 96), 0.4, 60, 'synth', {}),
+           ('impact', 'impact', {}, (0, 127), 0.3, 36, 'perc', {'fixed_pitch': True}),
+       )},
+
     # ------------------------------------------------------------ plucked & drums (GeneralUser)
     'nylon': dict(kind='sf2', font=GU, bank=0, program=24, range=(40, 88), pan=0.3,
                   width=0.4, depth=0.35, ref_key=60, bus='keys', humanize_ms=5),
