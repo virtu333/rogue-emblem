@@ -8,6 +8,9 @@ vi.mock('phaser', () => ({
 }));
 
 import { HomeBaseScene } from '../src/scenes/HomeBaseScene.js';
+import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
+import { RunManager } from '../src/engine/RunManager.js';
+import { loadGameData } from './testData.js';
 
 function createDisplayObject({
   kind = 'text',
@@ -681,5 +684,67 @@ describe('HomeBaseScene Skills layout', () => {
     expect(scene.textures.exists).toHaveBeenCalledWith('portrait_lord_edric');
     expect(scene.textures.exists).toHaveBeenCalledWith('portrait_lord_sera');
     expect(scene.textures.exists).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('HomeBaseScene upgrade value text covers every metaUpgrades tier', () => {
+  const upgrades = loadGameData().metaUpgrades;
+  // Placeholder or broken renders a player must never see in Current/Next.
+  const BROKEN = /\?|undefined|NaN|null|\[object/;
+
+  it('formats every tier of every upgrade in data/metaUpgrades.json', () => {
+    const scene = new HomeBaseScene();
+    const failures = [];
+    for (const upgrade of upgrades) {
+      upgrade.effects.forEach((effect, index) => {
+        const text = scene._formatEffectValue(effect);
+        if (typeof text !== 'string' || !text.trim() || BROKEN.test(text))
+          failures.push(`${upgrade.id} tier ${index + 1}: ${JSON.stringify(text)}`);
+      });
+      for (let level = 0; level <= upgrade.maxLevel; level++) {
+        const { current, next } = scene._getValueTexts(upgrade, level);
+        for (const [slot, text] of [
+          ['current', current],
+          ['next', next],
+        ]) {
+          if (text != null && BROKEN.test(text))
+            failures.push(`${upgrade.id} level ${level} ${slot}: ${JSON.stringify(text)}`);
+        }
+        // Owned tiers always say what they give; unfinished ones say what's next.
+        if (level > 0 && !current) failures.push(`${upgrade.id} level ${level}: no current`);
+        if (level < upgrade.maxLevel && !next)
+          failures.push(`${upgrade.id} level ${level}: no next`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it("states the run's starting Vision count for Prophet's Glimpse and Sera's Revelation", () => {
+    const scene = new HomeBaseScene();
+    const glimpse = upgrades.find((u) => u.id === 'vision_charges_2');
+    const revelation = upgrades.find((u) => u.id === 'vision_charges_3');
+
+    expect(scene._getValueTexts(glimpse, 0)).toEqual({
+      current: null,
+      next: 'Start with 2 Visions',
+    });
+    expect(scene._getValueTexts(glimpse, 1)).toEqual({
+      current: 'Start with 2 Visions',
+      next: null,
+    });
+    expect(scene._getValueTexts(revelation, 1).current).toBe('Start with 3 Visions');
+
+    // The count agrees with what a run actually starts with once bought.
+    for (const [owned, id] of [
+      [['vision_charges_2'], 'vision_charges_2'],
+      [['vision_charges_2', 'vision_charges_3'], 'vision_charges_3'],
+    ]) {
+      const meta = new MetaProgressionManager(upgrades);
+      for (const ownedId of owned) meta.purchasedUpgrades[ownedId] = 1;
+      const run = { metaEffects: meta.getActiveEffects() };
+      const charges = RunManager.prototype.getBaseVisionCharges.call(run);
+      const upgrade = upgrades.find((u) => u.id === id);
+      expect(scene._getValueTexts(upgrade, 1).current).toBe(`Start with ${charges} Visions`);
+    }
   });
 });

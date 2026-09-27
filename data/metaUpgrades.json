@@ -1097,7 +1097,7 @@
   {
     "id": "vision_charges_2",
     "name": "Prophet's Glimpse",
-    "description": "+1 Vision charge per run",
+    "description": "+1 Vision at run start (spend to Rewind)",
     "category": "lord_bonuses",
     "maxLevel": 1,
     "costs": [
@@ -1112,7 +1112,7 @@
   {
     "id": "vision_charges_3",
     "name": "Sera's Revelation",
-    "description": "+1 Vision charge per run",
+    "description": "+1 Vision at run start (spend to Rewind)",
     "category": "lord_bonuses",
     "maxLevel": 1,
     "costs": [
