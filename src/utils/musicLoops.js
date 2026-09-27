@@ -84,6 +84,13 @@ export const MUSIC_LOOPS = {
     tonic: 'E',
   },
   music_battle_castle: { loopStart: 7.636372, loopEnd: 94.909093, duration: 95.509, tonic: 'C' },
+  music_battle_castle_2: { loopStart: 7.428571, loopEnd: 70.857143, duration: 71.457, tonic: 'D' },
+  music_battle_castle_2_calm: {
+    loopStart: 7.428571,
+    loopEnd: 70.857143,
+    duration: 71.457,
+    tonic: 'D',
+  },
   music_battle_castle_calm: {
     loopStart: 7.636372,
     loopEnd: 94.909093,
