@@ -80,7 +80,7 @@ export const RUNTIME_CACHE_ROUTES = Object.freeze([
     // Music + SFX — same stable-filename reasoning as images.
     urlPattern: /\/assets\/audio\/.*\.(mp3|ogg|wav|m4a)$/i,
     cacheName: 'er-audio-assets',
-    // 236 audio files with the composed soundtrack: 76 music loops and layers,
+    // 248 audio files with the composed soundtrack: 88 music loops and layers,
     // 142 ceremony stingers, 18 SFX. 400 leaves headroom for new tracks and
     // tonics; purgeOnQuotaError is the real safety valve.
     maxEntries: 400,

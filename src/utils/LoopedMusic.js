@@ -36,6 +36,9 @@ export function validLoopFor(buffer, loop) {
 const LOOP_POINT_TOLERANCE_S = 0.001;
 // Sources are scheduled this far ahead so every layer starts sample-aligned.
 const START_LEAD_S = 0.03;
+// A stop fades the output over this long instead of cutting the waveform
+// mid-cycle (a click); the nodes are released once it has passed.
+export const STOP_RELEASE_S = 0.025;
 
 function clampGain(value) {
   const v = Number(value);
@@ -215,6 +218,16 @@ export class LoopedMusic {
    */
   play(at = null) {
     if (this._destroyed || this.isPlaying) return false;
+    // A restart after stop(): undo the stop's release on the output.
+    if (this._releaseEnd !== undefined) {
+      const param = this._out.gain;
+      try {
+        param.cancelScheduledValues?.(this.context.currentTime);
+        param.setValueAtTime?.(this.volume, this.context.currentTime);
+      } catch (_) {}
+      param.value = this.volume;
+      this._releaseEnd = undefined;
+    }
     // All layers share one start time; a small lead keeps them sample-aligned
     // even if creating the sources takes a moment.
     const soonest = this.context.currentTime + START_LEAD_S;
@@ -259,16 +272,39 @@ export class LoopedMusic {
   }
 
   stop() {
-    for (const entry of this._layers.values()) {
-      if (!entry.source) continue;
+    const now = this.context.currentTime;
+    const param = this._out.gain;
+    let end = now;
+    if (this.isPlaying && typeof param.linearRampToValueAtTime === 'function') {
+      end = now + STOP_RELEASE_S;
       try {
-        entry.source.stop();
-      } catch (_) {}
-      try {
-        entry.source.disconnect();
-      } catch (_) {}
-      entry.source = null;
+        param.cancelScheduledValues?.(now);
+        param.setValueAtTime?.(param.value, now);
+        param.linearRampToValueAtTime(0, end);
+      } catch (_) {
+        end = now;
+      }
     }
+    for (const entry of this._layers.values()) {
+      const source = entry.source;
+      if (!source) continue;
+      entry.source = null;
+      try {
+        source.stop(end);
+      } catch (_) {}
+      if (end > now) {
+        source.onended = () => {
+          try {
+            source.disconnect();
+          } catch (_) {}
+        };
+      } else {
+        try {
+          source.disconnect();
+        } catch (_) {}
+      }
+    }
+    this._releaseEnd = end;
     this.isPlaying = false;
     return true;
   }
@@ -276,17 +312,22 @@ export class LoopedMusic {
   destroy() {
     if (this._destroyed) return;
     this.stop();
-    for (const entry of this._layers.values()) {
-      try {
-        entry.gain.disconnect();
-      } catch (_) {}
-    }
-    try {
-      this._out.disconnect();
-    } catch (_) {}
-    try {
-      this._duck.disconnect();
-    } catch (_) {}
+    const nodes = [
+      ...Array.from(this._layers.values(), (entry) => entry.gain),
+      this._out,
+      this._duck,
+    ];
+    const release = () => {
+      for (const node of nodes) {
+        try {
+          node.disconnect();
+        } catch (_) {}
+      }
+    };
+    // Let a stop's release reach silence before the graph is torn down.
+    const remainingMs = ((this._releaseEnd ?? 0) - this.context.currentTime) * 1000;
+    if (remainingMs > 0) setTimeout(release, Math.ceil(remainingMs) + 20);
+    else release();
     this._layers.clear();
     this._destroyed = true;
     this.pendingRemove = true;

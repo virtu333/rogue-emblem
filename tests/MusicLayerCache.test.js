@@ -155,6 +155,7 @@ function mobileAudio(sound, opts = {}) {
   });
   // Stingers have their own cache; keep them out of the music fetch log.
   audio._fetchAndDecodeStinger = vi.fn(async (key) => decodedBuffer(key));
+  audio._fetchStingerBytes = vi.fn(async () => new ArrayBuffer(8));
   return audio;
 }
 

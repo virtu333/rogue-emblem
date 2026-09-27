@@ -1,6 +1,6 @@
 """Act IV battle — "Ashfall".
 
-Night on the Empire's heartland. Heavy and slow for a battle: the Empire
+Night on the Hearth. Heavy and slow for a battle: the Empire
 drill has become the ground itself, a riff in C-sharp minor (C#-D-C#-B,
 falling to A and G#) under toms and tolling bells. The horns sing the Thread
 as a lament; a muted trumpet keeps it alive through the quiet ash; at the
