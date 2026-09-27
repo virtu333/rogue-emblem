@@ -352,7 +352,6 @@ function ensureSeraBaseStaffProficiency(unit) {
   unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
 }
 
-/** Calculate level-scaled revive cost for a fallen unit. */
 /** Vision charges a run starts with, given the meta `visionChargesBonus` (base 1). */
 export function baseVisionChargesFor(visionChargesBonus = 0) {
   return Math.max(1, 1 + Math.trunc(Number(visionChargesBonus) || 0));
@@ -363,6 +362,7 @@ export function legendaryLordChanceFor(legendaryLordChanceBonus = 0) {
   return Math.min(0.15, 0.05 + Math.max(0, Number(legendaryLordChanceBonus) || 0));
 }
 
+/** Calculate level-scaled revive cost for a fallen unit. */
 export function getReviveCost(unit) {
   const raw = Number(unit?.level);
   const level = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
