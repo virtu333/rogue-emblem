@@ -151,6 +151,14 @@ def _plain(path):
     return sfzlab.load(path)
 
 
+def _retuned(path, fixes):
+    """A library program with tuning corrections: fixes = ((sample path as the
+    program writes it, cents), ...), added to each region's `tune`."""
+    root = os.path.dirname(os.path.abspath(path))
+    return sfzlab.retune(sfzlab.load(path),
+                         {os.path.normpath(os.path.join(root, s)): c for s, c in fixes})
+
+
 def darken(prog, hz):
     """A low-pass on every group: the first filter slot if the group has none
     (sfizz silences a region given only a second filter), else the second."""
@@ -216,6 +224,7 @@ PROGRAM_BUILDERS = {
     'legato': _legato,
     'rr': _rr,
     'plain': _plain,
+    'retuned': _retuned,
     'with': lambda path, ops: _with(path, **dict(ops)),
     'dark': lambda path, hz: darken(sfzlab.load(path), hz),
     'chorus': _chorus,
