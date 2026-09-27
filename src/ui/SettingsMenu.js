@@ -8,9 +8,12 @@ import {
   setPortraitBattlePreference,
   showPortraitBattleSetting,
 } from '../utils/portraitBattle.js';
+import { trackScrollEdges } from './scrollEdgeCue.js';
 export class SettingsMenu {
   constructor(scene, onClose) {
     this.surface = new MenuSurface(scene, 'Settings', onClose, { modal: true });
+    // Upright phones show Settings as a full-screen sheet (cohesion.css).
+    this.surface.root.classList.add('re-settings');
     const settings = scene.registry.get('settings');
     const audio = scene.registry.get('audio');
     const list = element('div', null, 're-scroll re-menu');
@@ -185,13 +188,16 @@ export class SettingsMenu {
         'Portrait mode',
         () => getPortraitBattlePreference(),
         (value) => setPortraitBattlePreference(value),
-        'Play with the device upright. In battle the map turns so your army starts at the bottom (from your next turn). Off: the game always plays sideways.',
+        'Hold the phone upright to play. Off: the game stays sideways.',
       );
     }
     this.surface.body.append(list);
+    // The long list fades the edge that has more to scroll.
+    this.edges = trackScrollEdges(list);
     this.surface.focusContent();
   }
   destroy() {
+    this.edges?.destroy();
     this.surface.destroy();
   }
 }

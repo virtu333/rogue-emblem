@@ -336,3 +336,104 @@ html.mobile-preview .re-screen {
     white-space: nowrap;
   }
 }
+
+/* ───────── Upright phones: reference menus, condensed (portrait stream, screens) ─────────
+   Overrides the block above. Upright, the Compendium's twelve categories and up to ten
+   filters used to wrap onto five rows, about half of a 375x667 screen. Each is now one
+   strip that scrolls sideways (as the landscape strips always did); the edge with more
+   to see fades (ReferenceMenu tracks it with scrollEdgeCue.js), and the chosen tab is
+   scrolled into view. Search keeps its own full-width row under the title. The list
+   and an open entry fade the edge that has more to scroll. Settings upright is a
+   full-screen sheet rather than an inset frame whose border ran under the notch. */
+@media (orientation: portrait) {
+  html.portrait-ui .re-reference .re-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: var(--re-s4, 16px);
+    touch-action: pan-x;
+  }
+  html.portrait-ui .re-reference .re-tabs .re-btn {
+    flex: none;
+  }
+  html.portrait-ui .re-reference .re-tabs.is-more-right {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+  }
+  html.portrait-ui .re-reference .re-tabs.is-more-left {
+    -webkit-mask-image: linear-gradient(270deg, #000 calc(100% - 36px), transparent);
+    mask-image: linear-gradient(270deg, #000 calc(100% - 36px), transparent);
+  }
+  html.portrait-ui .re-reference .re-tabs.is-more-left.is-more-right {
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent,
+      #000 36px,
+      #000 calc(100% - 36px),
+      transparent
+    );
+    mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent);
+  }
+  html.portrait-ui .re-reference .re-menu-body {
+    gap: 6px;
+  }
+  html.portrait-ui .re-reference[data-ref-view='entry'] .re-split {
+    grid-template-rows: minmax(0, 1fr);
+  }
+  html.portrait-ui .re-reference .re-scroll.is-more-below {
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
+  }
+  html.portrait-ui .re-reference .re-scroll.is-more-above {
+    -webkit-mask-image: linear-gradient(0deg, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(0deg, #000 calc(100% - 28px), transparent);
+  }
+  html.portrait-ui .re-reference .re-scroll.is-more-above.is-more-below {
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      transparent,
+      #000 28px,
+      #000 calc(100% - 28px),
+      transparent
+    );
+    mask-image: linear-gradient(
+      180deg,
+      transparent,
+      #000 28px,
+      #000 calc(100% - 28px),
+      transparent
+    );
+  }
+
+  /* Settings: the whole screen, the list fading the edge with more below/above. */
+  html.portrait-ui .re-settings.re-compact-menu {
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border: 0;
+  }
+  html.portrait-ui .re-settings .re-scroll.is-more-below {
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
+  }
+  html.portrait-ui .re-settings .re-scroll.is-more-above {
+    -webkit-mask-image: linear-gradient(0deg, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(0deg, #000 calc(100% - 28px), transparent);
+  }
+  html.portrait-ui .re-settings .re-scroll.is-more-above.is-more-below {
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      transparent,
+      #000 28px,
+      #000 calc(100% - 28px),
+      transparent
+    );
+    mask-image: linear-gradient(
+      180deg,
+      transparent,
+      #000 28px,
+      #000 calc(100% - 28px),
+      transparent
+    );
+  }
+}
