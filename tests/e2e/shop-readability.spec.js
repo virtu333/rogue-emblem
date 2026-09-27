@@ -13,7 +13,7 @@ for (const width of [667, 844]) {
       await waitForScene(page, 'NodeMap');
       const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
       if (await skip.isVisible()) await skip.tap();
-      await page.evaluate(() => {
+      const shopId = await page.evaluate(() => {
         const s = window.__emblemRogueGame.scene.getScene('NodeMap');
         s.dialogueOverlay?.hide?.();
         s._storyDialogueActive = false;
@@ -21,12 +21,15 @@ for (const width of [667, 844]) {
         s.runManager.gold = 10000;
         const n = s.runManager.getAvailableNodes()[0];
         n.type = 'shop';
+        // Entering a service knot makes it the party's (NodeMapScene.onNodeClick).
+        s.runManager.currentNodeId = n.id;
         const sword = structuredClone(s.gameData.weapons.find((w) => w.name === 'Steel Sword'));
         const icon = structuredClone(s.gameData.accessories.find((w) => w.name === 'Goddess Icon'));
         s.showShopOverlay(n, [
           { type: 'weapon', item: sword, price: 1000 },
           { type: 'accessory', item: icon, price: 1000 },
         ]);
+        return n.id;
       });
       const shop = page.locator('.shop-menu');
       await expect(shop).toBeVisible();
@@ -78,6 +81,12 @@ for (const width of [667, 844]) {
       await shop.getByRole('button', { name: 'View map', exact: true }).tap();
       const map = page.getByRole('dialog', { name: 'Campaign map', exact: true });
       await expect(map).toBeVisible();
+      // A shop is not a battle: the party's knot reads as where it stands.
+      await expect(map.locator(`.re-node[data-node="${shopId}"]`)).toHaveAttribute(
+        'aria-label',
+        /· You are here ·/,
+      );
+      await expect(map.locator('.re-loom-card .re-loom-state')).toHaveText('The party rests here');
       await map.getByRole('button', { name: 'Close', exact: true }).tap();
       await expect(shop).toBeVisible();
       await page.setViewportSize({ width: 390, height: 844 });

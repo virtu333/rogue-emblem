@@ -793,6 +793,7 @@ export class NodeMapScene extends Phaser.Scene {
       currentNodeId: rm.currentNodeId,
       activeNodeId: rm.currentNodeId,
       actId: rm.currentAct,
+      service: true,
       onClose,
     });
     view.show();
