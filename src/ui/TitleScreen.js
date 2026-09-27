@@ -1,8 +1,10 @@
 import { element } from './MenuSurface.js';
 import { applyPixelFontVariables } from '../utils/pixelFontGrid.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
-import { mountKeyArtBackdrop } from '../art/keyart/keyArtBackdrop.js';
+import { computeBackdropFrame, mountKeyArtBackdrop } from '../art/keyart/keyArtBackdrop.js';
+import { PLATE_H, PLATE_W } from '../art/keyart/hollowSun.js';
 import { GAME_TITLE } from '../utils/gameIdentity.js';
+import { portraitListLayout, watchPortraitListLayout } from './portraitListLayout.js';
 
 // TitleScreen — DOM title over The Hollow Sun key art (ART_BIBLE "Title").
 // Owns presentation only: the lockup, the reliquary menu, corner actions, notices and
@@ -11,6 +13,81 @@ import { GAME_TITLE } from '../utils/gameIdentity.js';
 
 const COVERING_SCREENS = '.re-screen:not(.re-title):not([hidden]), .re-modal-shield, .mu-screen';
 const DESIGN_W = 640;
+
+// ── Upright phones (portrait mode) ──
+// The 424x240 plate cannot cover a tall screen and still read: covering 375x667 shows
+// ~135 plate px of its width. Upright, the art is a band instead: the whole plate height
+// at a whole device-pixel scale, as large as the room above the menu allows while still
+// showing UPRIGHT_BAND.narrowest plate px of its width, and never so small that it shows
+// more than UPRIGHT_BAND.widest (hollowSun.js keeps everything important inside x
+// 52..372: the keep, the figure, the Hollow Sun). The band rests on the menu
+// (title.css); the lockup keeps the upper left, as in landscape, so the sun is placed
+// beside it when they share rows.
+export const UPRIGHT_BAND = { widest: 300, narrowest: 215 };
+// Plate anchors per variant (hollowSun.js VARIANTS and FIGURE_FEET; the portrait title
+// spec checks them against the art module).
+export const TITLE_ART_ANCHORS = {
+  figure: { x: 172, y: 171 },
+  sun: {
+    dusk: { x: 292, y: 68, r: 22 },
+    ashfall: { x: 292, y: 62, r: 22 },
+    rising: { x: 318, y: 124, r: 40 },
+  },
+};
+
+/**
+ * Device-pixel scale of the upright band for a screen `width` CSS px wide, with `room`
+ * CSS px from the top of the screen to where the band's lower edge rests.
+ */
+export function uprightArtScale(width, dpr = 1, room = Infinity) {
+  const dev = Math.max(1, Math.round(width * dpr));
+  const cover = Math.ceil(dev / PLATE_W - 1e-6);
+  const lo = Math.max(1, cover, Math.ceil(dev / UPRIGHT_BAND.widest - 1e-6));
+  const hi = Math.max(lo, Math.floor(dev / UPRIGHT_BAND.narrowest));
+  const fit = Math.floor((Math.max(0, room) * dpr) / PLATE_H);
+  return Math.max(lo, Math.min(hi, fit));
+}
+
+/** CSS height of the upright band: the whole plate at uprightArtScale (never over it). */
+export function uprightArtHeight(width, dpr = 1, room = Infinity) {
+  return Math.floor((PLATE_H * uprightArtScale(width, dpr, room)) / dpr);
+}
+
+/**
+ * Where the upright band's crop starts (plate x), so the Hollow Sun is whole and clear
+ * of the lockup and the lone figure stays in view. `visW` is the visible plate width,
+ * `k` CSS px per plate px, `top` the plate row at the band's top edge, and `lockup`
+ * the lockup's right / bottom edges in CSS px from the band's top-left corner. When
+ * everything cannot fit, the title wins over the sun's far rim, and the sun over the
+ * figure. Returns { sx, anchorX } for computeBackdropFrame.
+ */
+export function uprightArtAnchor({ visW, k, top = 0, lockup = null, sun, figure }) {
+  const span = Math.max(0, PLATE_W - visW);
+  if (!span) return { sx: 0, anchorX: 0.5 };
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const beside = (pad, gap) => {
+    // Rows the sun (with its corona) shares with the lockup: it must start right of it.
+    const sunTop = (sun.y - sun.r - pad - top) * k;
+    if (!lockup || sunTop >= lockup.bottom + gap) return span;
+    return sun.x - sun.r - pad - (lockup.right + gap) / k;
+  };
+  // Most wanted first: the plate centred, the corona whole, the figure in view.
+  let sx = span / 2;
+  let lo = Math.max(0, sun.x + sun.r + 6 - visW, figure.x + 12 - visW);
+  let hi = Math.min(span, figure.x - 12, beside(6, 10));
+  if (lo > hi) {
+    // Tight: drop the corona's margin and the figure, keep the disc and the title apart.
+    lo = Math.max(0, sun.x + sun.r - visW);
+    hi = Math.min(span, beside(0, 4));
+    if (lo > hi) lo = hi; // the title wins: the disc may run off the edge
+  }
+  lo = Math.max(0, lo);
+  hi = Math.max(0, hi);
+  // Whole plate px, rounded towards the side that keeps the title clear.
+  sx = Math.round(clamp(sx, lo, hi));
+  if (sx > hi) sx = Math.floor(hi);
+  return { sx, anchorX: sx / span };
+}
 
 /** The key-art lockup shared by the title and the auth screen. */
 export function createKeyArtLockup({ subtitle = 'The Hollow Sun', level = 'h1' } = {}) {
@@ -59,11 +136,13 @@ export class TitleScreen {
     root.append(this.art, veil, this.stage);
 
     const lead = element('div', null, 're-title-lead');
-    lead.append(createKeyArtLockup());
+    this.lockup = createKeyArtLockup();
+    lead.append(this.lockup);
     // Two groups: run actions under the lockup, guides and records bottom-right.
     const run = element('div', null, 're-title-run');
     run.setAttribute('role', 'group');
     run.setAttribute('aria-label', 'Play');
+    this.runGroup = run;
     const reference = element('div', null, 're-title-reference');
     reference.setAttribute('role', 'group');
     reference.setAttribute('aria-label', 'Guides and records');
@@ -134,12 +213,23 @@ export class TitleScreen {
     const host = document.getElementById('game-wrapper');
     host.append(root);
 
+    // Phones keep a crisp integer scale (the 2x plate) even if it crops a little more.
+    this.maxCrop = this.phone ? 1.3 : 1.12;
+    this._syncUpright();
     this.backdrop = mountKeyArtBackdrop(this.art, {
       variant: opts.variant,
       reducedMotion: opts.reducedMotion,
-      // Phones keep a crisp integer scale (the 2x plate) even if it crops a little more.
-      maxCrop: this.phone ? 1.3 : 1.12,
+      maxCrop: this.maxCrop,
+      anchor: (box) => this._artAnchor(box),
     });
+    if (this.phone) {
+      // Upright: size the band to the screen and re-place the sun whenever the phone
+      // turns, portrait mode changes, or the lockup's font arrives.
+      this._onUprightResize = () => this._syncUpright();
+      window.addEventListener('resize', this._onUprightResize);
+      this._unwatchUpright = watchPortraitListLayout(() => this._syncUpright());
+      document.fonts?.ready?.then(() => this._syncUpright(true));
+    }
 
     this._syncStage = () => this._fitStage();
     if (!this.phone) {
@@ -164,6 +254,51 @@ export class TitleScreen {
     });
     this._syncCovered();
     this.root.classList.toggle('is-still', !!opts.reducedMotion?.());
+  }
+
+  /** Upright phone layout (title.css), keyed like every portrait layout. */
+  _upright() {
+    return this.phone && portraitListLayout();
+  }
+
+  /** Upright: the band's height for this screen; then re-frame the art if asked. */
+  _syncUpright(reframe = false) {
+    if (this.destroyed) return;
+    let value = '';
+    if (this._upright()) {
+      // The band rests on the menu: its room runs from the screen's top to the first
+      // run plate, plus the bleed under it.
+      const top = this.root.getBoundingClientRect().top;
+      const bleed = parseFloat(getComputedStyle(this.root).getPropertyValue('--rt-bleed')) || 0;
+      const room = this.runGroup.getBoundingClientRect().top - top + bleed;
+      value = `${uprightArtHeight(this.root.clientWidth, globalThis.devicePixelRatio || 1, room)}px`;
+    }
+    if (this.root.style.getPropertyValue('--rt-art-h') !== value) {
+      if (value) this.root.style.setProperty('--rt-art-h', value);
+      else this.root.style.removeProperty('--rt-art-h');
+      reframe = true;
+    }
+    if (reframe) this.backdrop?.resize();
+  }
+
+  /** Backdrop crop anchor: the default framing, except the upright band (see above). */
+  _artAnchor({ width, height }) {
+    if (!this._upright() || !(width > 0 && height > 0)) return {};
+    const dpr = globalThis.devicePixelRatio || 1;
+    const frame = computeBackdropFrame({ width, height, dpr, maxCrop: this.maxCrop });
+    const k = frame.scale / dpr;
+    const art = this.art.getBoundingClientRect();
+    const lockup = this.lockup.getBoundingClientRect();
+    const sun = TITLE_ART_ANCHORS.sun[this.opts.variant] || TITLE_ART_ANCHORS.sun.dusk;
+    const { anchorX } = uprightArtAnchor({
+      visW: (width * dpr) / frame.scale,
+      k,
+      top: frame.sy,
+      lockup: { right: lockup.right - art.left, bottom: lockup.bottom - art.top },
+      sun,
+      figure: TITLE_ART_ANCHORS.figure,
+    });
+    return { anchorX };
   }
 
   _cornerButton(label, onClick) {
@@ -272,6 +407,8 @@ export class TitleScreen {
     this.backdrop = null;
     this._coverObserver?.disconnect();
     this._stageObserver?.disconnect();
+    this._unwatchUpright?.();
+    if (this._onUprightResize) window.removeEventListener('resize', this._onUprightResize);
     window.removeEventListener('resize', this._syncStage);
     this.scene.scale?.off?.('resize', this._syncStage);
     this.root.remove();
