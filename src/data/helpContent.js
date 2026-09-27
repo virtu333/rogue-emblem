@@ -508,7 +508,7 @@ const STATIC_HELP_TABS = [
           { text: 'VSCO 2 CE, VCSL: Versilian Studios', color: CYAN },
           { text: 'GeneralUser GS: S. Christian Collins', color: CYAN },
           { text: 'Virtuosity Drums, Growlybass,', color: CYAN },
-          { text: '  Splendid Grand Piano' },
+          { text: '  Emilyguitar, Splendid Grand Piano' },
           { text: '' },
           { text: 'The soundtrack is CC BY-SA 4.0.', color: GOLD },
         ],

@@ -35,7 +35,7 @@ the music in marketing.
 | [GeneralUser GS](https://github.com/mrbumpy409/GeneralUser-GS) | S. Christian Collins | free for commercial music | taiko, accordion, nylon guitar; the Emperor's theme's choir |
 | [Virtuosity Drums](https://github.com/sfzinstruments/virtuosity_drums) | Versilian Studios | CC0 | drum kit |
 | [Karoryfer Growlybass](https://github.com/sfzinstruments/karoryfer.growlybass) | Karoryfer Samples | CC0 | bass guitar |
-| [Karoryfer Emilyguitar](https://github.com/sfzinstruments/karoryfer.emilyguitar) | Karoryfer Samples (D. Smolken) | CC0 | electric guitar (clean DI samples through the engine's own amp, `engine/guitar.py`); so far only in drafts and auditions, not in the shipped music |
+| [Karoryfer Emilyguitar](https://github.com/sfzinstruments/karoryfer.emilyguitar) | Karoryfer Samples (D. Smolken) | CC0 | electric guitar (clean DI samples through the engine's own amp, `engine/guitar.py`): Under the Broken Sun |
 | [Splendid Grand Piano](https://github.com/sfzinstruments/SplendidGrandPiano) | AKAI (via sfzinstruments) | public domain | piano |
 
 VPO3's own solo violin is not used: its source recording's licence is unclear and may be

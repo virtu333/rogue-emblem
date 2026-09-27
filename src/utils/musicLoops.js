@@ -76,6 +76,8 @@ export const MUSIC_LOOPS = {
     duration: 77.327,
     tonic: 'Db',
   },
+  music_battle_broken_sun: { loopStart: 10.4, loopEnd: 93.6, duration: 94.2, tonic: 'E' },
+  music_battle_broken_sun_calm: { loopStart: 10.4, loopEnd: 93.6, duration: 94.2, tonic: 'E' },
   music_battle_caravan: { loopStart: 10.575351, loopEnd: 82.904127, duration: 83.504, tonic: 'E' },
   music_battle_caravan_calm: {
     loopStart: 10.575351,

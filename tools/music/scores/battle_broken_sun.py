@@ -1,5 +1,5 @@
-"""Battle (draft) — "Under the Broken Sun": the anime OP (欠けた太陽, round 1's guitar
-version) turned into a battle theme. DRAFT: an audition, not wired into the game.
+"""Battle — "Under the Broken Sun": the anime OP (欠けた太陽, round 1's guitar
+version) turned into a battle theme. A change-up in every act's battle pool.
 
 150 bpm, E minor. The band is a J-rock band (Karoryfer Emilyguitar through
 engine/guitar.py: double-tracked distorted rhythm, palm mutes, a singing lead; the
@@ -30,7 +30,6 @@ from engine.score import Score
 from scores._battle import Battle
 
 KEY = 'music_battle_broken_sun'
-DRAFT = True   # an audition: build.py --all leaves it out; not in musicConfig
 BAR = 4.0
 
 # ------------------------------------------------------------------ the tunes (from the OP)

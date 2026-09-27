@@ -20,15 +20,33 @@ export const MUSIC = {
   },
 
   battle: {
+    // Under the Broken Sun (the anime-opening theme as a battle) is the change-up in
+    // every act: once per act on a path, like any pool entry.
     act1: [
       'music_battle_act1',
       'music_battle_act1_2',
       'music_battle_act1_3',
       'music_battle_act1_4',
+      'music_battle_broken_sun',
     ],
-    act2: ['music_battle_act2', 'music_battle_act2_2', 'music_battle_act2_3'],
-    act3: ['music_battle_act3', 'music_battle_act3_2', 'music_battle_act3_3'],
-    act4: ['music_battle_act4', 'music_battle_act4_2', 'music_battle_act4_3'],
+    act2: [
+      'music_battle_act2',
+      'music_battle_act2_2',
+      'music_battle_act2_3',
+      'music_battle_broken_sun',
+    ],
+    act3: [
+      'music_battle_act3',
+      'music_battle_act3_2',
+      'music_battle_act3_3',
+      'music_battle_broken_sun',
+    ],
+    act4: [
+      'music_battle_act4',
+      'music_battle_act4_2',
+      'music_battle_act4_3',
+      'music_battle_broken_sun',
+    ],
     finalBoss: ['music_battle_act4'],
   },
 
@@ -114,6 +132,7 @@ export const MUSIC = {
 // the full ("thunder") mix, so the game can crossfade between them mid-loop.
 export const MUSIC_LAYERS = {
   music_battle_act1: { calm: 'music_battle_act1_calm' },
+  music_battle_broken_sun: { calm: 'music_battle_broken_sun_calm' },
   music_battle_act1_2: { calm: 'music_battle_act1_2_calm' },
   music_battle_act1_3: { calm: 'music_battle_act1_3_calm' },
   music_battle_act1_4: { calm: 'music_battle_act1_4_calm' },
