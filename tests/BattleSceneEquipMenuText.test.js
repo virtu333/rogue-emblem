@@ -157,6 +157,32 @@ describe('BattleScene equip menu text', () => {
     expect(labels).toContain('uses do not refill');
   });
 
+  it('opens the desktop item menu clear of a unit near the right edge', () => {
+    const scene = makeBaseScene();
+    scene._pinToScreen = vi.fn();
+    scene._registerActionMenu = vi.fn();
+    scene._makeMenuTextButton = (_x, _y, text) => makeDisplayObject({ text });
+    const rects = [];
+    scene.add.rectangle = (x, y, w) => {
+      rects.push({ x, w });
+      return makeDisplayObject();
+    };
+    // Column 8 of 10: no room on the right, so the menu flips to the unit's left.
+    // gridToPixel is the tile centre (64); the tile spans x 48..80.
+    const unit = {
+      col: 8,
+      row: 1,
+      currentHP: 4,
+      stats: { HP: 20 },
+      consumables: [{ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 }],
+    };
+    scene.showItemMenu(unit);
+    const bg = rects.reduce((widest, r) => (r.w > widest.w ? r : widest));
+    expect(bg.w).toBe(240);
+    // Its right edge stays left of the unit's tile (half a tile of clearance).
+    expect(bg.x + bg.w / 2).toBeLessThanOrEqual(48);
+  });
+
   it.each(['Item', 'Equip'])('restores pre-move destinations after %s and Back', (label) => {
     const scene = makeBaseScene();
     const unit = {

@@ -6777,13 +6777,13 @@ export class BattleScene extends Phaser.Scene {
     // Use consumables array instead of filtering inventory
     const consumables = unit.consumables || [];
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
-      ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - 200;
-    const menuY = pos.y - 10;
-
     const itemHeight = 38;
     const menuWidth = 240;
+    const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - menuWidth;
+    const menuY = pos.y - 10;
+
     const noteHeight = 36;
     const menuHeight = (consumables.length + 1) * itemHeight + noteHeight + 8; // +1 for Back
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
