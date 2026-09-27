@@ -384,6 +384,7 @@ export class HealController {
 
   async executeHeal(healer, target) {
     const scene = this.scene;
+    if (scene.battleState === 'HEAL_RESOLVING') return;
     scene.battleState = 'HEAL_RESOLVING';
     scene.grid.clearAttackHighlights();
 

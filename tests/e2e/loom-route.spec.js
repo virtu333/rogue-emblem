@@ -123,3 +123,11 @@ test('fx run only while the route is visible and motion is allowed', async ({ pa
   // Reduced motion: one static frame, no loop (the setting is re-read within 500ms).
   await expect.poll(() => animating(page)).toBe(false);
 });
+
+test('second lord chip opens that unit in the roster', async ({ page }) => {
+  const route = await openRoute(page);
+  await route.locator('.re-node-unit').nth(1).tap();
+  const roster = page.locator('.mr-sheet');
+  await expect(roster).toBeVisible();
+  await expect(roster.locator('[aria-pressed="true"]').filter({ hasText: 'Sera' })).toHaveCount(1);
+});

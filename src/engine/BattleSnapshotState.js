@@ -1,5 +1,5 @@
 import { migrateUnitTraits } from './TraitSystem.js';
-import { normalizeBattleRecruits } from './BattleRecruits.js';
+import { normalizeBattleRecruits, reconcileRecruitIdentities } from './BattleRecruits.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
 // in snapshot order; references into that table survive JSON and duplicate names.
 const UNIT_GROUPS = ['playerUnits', 'enemyUnits', 'npcUnits'];
@@ -54,6 +54,11 @@ export function restoreBattleWorldState(scene, snapshot) {
   }
   // Older snapshots predate the list; they carry no mid-battle recruit record.
   scene._battleRecruits = normalizeBattleRecruits(snapshot.battleRecruits);
+  reconcileRecruitIdentities(
+    scene._battleRecruits,
+    [...UNIT_GROUPS, 'escapedUnits', 'nonDeployedUnits'].flatMap((group) => scene[group] || []),
+    scene.runManager?.assignUnitUid ? (unit) => scene.runManager.assignUnitUid(unit) : null,
+  );
   if ('latePressureWarningShown' in snapshot) {
     scene._latePressureWarningShown = snapshot.latePressureWarningShown === true;
   }

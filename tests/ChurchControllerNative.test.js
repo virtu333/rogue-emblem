@@ -50,3 +50,25 @@ it('native map-view visibility keeps status and restores the same visit', async 
   expect(menu.surface.body.all().some((n) => n.textContent === 'Retained notice')).toBe(true);
   expect(d.node('church').completed).toBe(false);
 });
+
+it('church re-entry preserves promotion and Kindle use after a save round trip', () => {
+  const node = d.node('church');
+  d.run.currentNodeId = node.id;
+  d.run.setChurchPromotionCount(node.id, 1);
+  d.run.eclipse = { ...d.run.eclipse, shadow: 12, actShadow: 10 };
+  const kindle = d.run.kindleSun(node.id);
+  expect(kindle.ok).toBe(true);
+  d.church.handleChurch(node);
+  d.church.leaveChurchNode();
+  expect(d.run.canReenterService(node.id)).toBe(true);
+  d.run = d.run.constructor.fromJSON(d.run.toJSON(), d.data);
+  d.bindScene();
+  const gold = d.run.gold;
+  d.church.handleChurch(d.node('church'));
+  expect(d.scene._churchPromotionsThisVisit).toBe(1);
+  expect(d.run.getChurchPromotionCount(node.id)).toBe(1);
+  expect(d.run.kindleSun(node.id).ok).toBe(false);
+  expect(d.run.gold).toBe(gold);
+  d.run.currentNodeId = 'next';
+  expect(d.run.canReenterService(node.id)).toBe(false);
+});

@@ -286,7 +286,7 @@ export class BattleTimelineView {
   disabledReason(entry) {
     if (entry.id === this.currentEntryId) return 'You are already here.';
     if (!Number.isFinite(this.charges) || this.charges < 1)
-      return 'No rewind charges remaining. You can still review every retained event.';
+      return 'No Visions remaining. You can still review every retained event.';
     if (canRewindToEntry(this.history, entry.id, this)) return '';
     if (
       entry.kind === 'player_action' &&

@@ -1,3 +1,5 @@
+import { sceneHealPreview } from './healTargetPreview.js';
+import { visionLabel } from './visionLabel.js';
 import { ContextHelp } from './ContextHelp.js';
 import { renderFormationPanel, startButton } from './FormationPanel.js';
 import { objectiveHelp, terrainHelp } from './helpTopics.js';
@@ -15,6 +17,7 @@ import {
 } from './HintDisplay.js';
 import {
   forecastProjection,
+  forecastModifierText,
   forecastNotes,
   forecastTeachingHints,
   formatCritChance,
@@ -30,7 +33,7 @@ import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
-import { battleItemBrief, battleItemSummary } from './battleItemSummary.js';
+import { battleItemBrief, battleItemSummary, ITEM_ACTION_NOTE } from './battleItemSummary.js';
 import { BattlefieldLab, battlefieldLabEnabled } from './BattlefieldLab.js';
 import { createHealthBar } from './healthBar.js';
 import { textureImageSource } from './textureImageSource.js';
@@ -61,6 +64,7 @@ const PLAY_STATES = new Set([
 ]);
 const HINTS = {
   PLAYER_IDLE: 'Tap a unit to begin. Pinch to zoom the map.',
+  SELECTING_HEAL_TARGET: 'Choose an ally here or on the map. Back returns without using the staff.',
   UNIT_MOVING: 'Moving…',
   UNIT_SELECTED: 'Tap a highlighted tile to move.',
   UNIT_ACTION_MENU: 'Choose an action for this unit.',
@@ -338,6 +342,14 @@ export class MobileBattleHUD {
     explanation.append(el('summary', '', 'How to read this forecast'), forecastNote);
     explanation.style.gridColumn = '1 / -1';
     sides.append(explanation);
+    if (forecastProjection(config.forecast))
+      panel.append(
+        el(
+          'p',
+          'mb-projection-assumption mb-detail',
+          'HP estimate: if all hits land; no crits/procs.',
+        ),
+      );
     panel.append(sides);
     const footer = el('div', 'mb-forecast-footer');
     const cancel = this.button('Cancel', () => this.scene.requestCancel({ allowPause: false }));
@@ -472,16 +484,6 @@ export class MobileBattleHUD {
       }
     }
     side.append(el('h3', '', unit.name));
-    if (!attacking && config.targetCount >= 2 && config.targetIndex >= 0)
-      side.append(this.forecastStepper('target', config));
-    if (attacking && !config.weaponArt && config.validWeapons.length > 1)
-      side.append(this.forecastStepper('weapon', config));
-    else {
-      const label = el('div', 'mb-weapon', weapon?.name || 'Unarmed');
-      if (attacking && weapon && weapon === config.equippedWeapon)
-        label.append(equippedBadgeElement());
-      side.append(label);
-    }
     const projection = forecastProjection(config.forecast);
     const hpAfter = projection ? (attacking ? projection.attackerHP : projection.defenderHP) : null;
     const hp = el('div', 'mb-hp', `HP ${unit.currentHP} / ${unit.stats.HP}`);
@@ -509,22 +511,32 @@ export class MobileBattleHUD {
       // Each kind of number has its own shape: damage plain and largest,
       // strikes as a multiplier, chances as percentages.
       for (const [name, value, kind] of [
-        ['Damage per hit', `${info.damage}`, 'damage'],
-        ['Planned hits', formatStrikes(info.attackCount), 'count'],
-        ['Hit chance', formatHitChance(info.hit), 'chance'],
-        ['Critical', formatCritChance(info.crit), 'chance'],
-        ['Attack speed', `${info.as}`, 'count'],
+        ['Damage × hits', `${info.damage}${formatStrikes(info.attackCount)}`, 'damage'],
+        ['Hit', formatHitChance(info.hit), 'hit'],
+        ['Crit', formatCritChance(info.crit), 'crit'],
+        ['AS', `${info.as}`, 'speed'],
       ]) {
         const pair = el('div', `mb-stat-${kind}`);
+        pair.dataset.stat = kind;
         pair.append(el('dt', '', name), el('dd', '', value));
         stats.append(pair);
       }
       side.append(stats);
     }
+    if (!attacking && config.targetCount >= 2 && config.targetIndex >= 0)
+      side.append(this.forecastStepper('target', config));
+    if (attacking && !config.weaponArt && config.validWeapons.length > 1)
+      side.append(this.forecastStepper('weapon', config));
+    else {
+      const label = el('div', 'mb-weapon', weapon?.name || 'Unarmed');
+      if (attacking && weapon && weapon === config.equippedWeapon)
+        label.append(equippedBadgeElement());
+      side.append(label);
+    }
     for (const note of forecastNotes(config.forecast, attacking, afterCost, {
       planned: weapon,
       equipped: config.equippedWeapon,
-    }))
+    }).filter((n) => !n.startsWith('If all hits land:')))
       side.append(el('p', 'mb-notice', note));
     if (
       weapon &&
@@ -532,10 +544,16 @@ export class MobileBattleHUD {
       getEffectivenessMultiplier(weapon, opponent) > 1
     )
       side.append(el('p', 'mb-notice', 'Effective damage'));
-    const skills = (info.skills || []).map((skill) => skill.name);
+    for (const skill of info.skills || []) {
+      const detail = forecastModifierText(skill, unit, this.scene.gameData);
+      if (detail) {
+        const disclosure = el('details', 'mb-detail mb-modifier');
+        disclosure.append(el('summary', '', skill.name), el('p', '', detail));
+        side.append(disclosure);
+      } else side.append(el('p', 'mb-detail', skill.name));
+    }
     if (unit.skills?.some((skill) => (typeof skill === 'string' ? skill : skill?.id) === 'miracle'))
-      skills.push(`Miracle: ${unit._miracleUsed ? 'used' : 'ready'}`);
-    if (skills.length) side.append(el('p', 'mb-detail', skills.join(' · ')));
+      side.append(el('p', 'mb-detail', `Miracle: ${unit._miracleUsed ? 'used' : 'ready'}`));
     if (attacking && config.weaponArt) {
       const cost = this.scene._formatWeaponArtCostLabel(unit, config.weaponArt);
       const after = this.scene._getWeaponArtHpAfterCost(unit, config.weaponArt);
@@ -756,6 +774,14 @@ export class MobileBattleHUD {
       s.visionHudText?.text,
       s._eclipseHud?.label?.(),
       state === 'SELECTING_TARGET' ? this.targetListKey() : null,
+      state === 'SELECTING_HEAL_TARGET'
+        ? (s.healTargets || []).map((t) => [
+            t.battleEntityId || t.name,
+            t.currentHP,
+            t._conditions,
+            sceneHealPreview(s, t)?.text,
+          ])
+        : null,
       formation ? s._formation.version : null,
       formation ? Boolean(s.dangerZone?.visible) : null,
     ]);
@@ -935,7 +961,7 @@ export class MobileBattleHUD {
       place.title,
       place.lore,
       s.turnCounterText?.text,
-      s.visionHudText?.text?.replace(/^Eye:/, 'Rewinds:'),
+      visionLabel(s.getVisionChargesRemaining?.() ?? s.runManager?.visionChargesRemaining),
       s.infoText?.text,
     ]
       .filter(Boolean)
@@ -1044,11 +1070,12 @@ export class MobileBattleHUD {
             ? 'Tap an ally or enemy to view their details.'
             : HINTS[state] ||
                 (state.startsWith('SELECTING_')
-                  ? 'Tap a highlighted target. Cancel to go back.'
+                  ? 'Tap a highlighted target. Back to go back.'
                   : 'Choose an action on the battlefield.'),
         ),
       );
     if (state === 'SELECTING_TARGET') this.appendTargetList();
+    if (state === 'SELECTING_HEAL_TARGET') this.appendHealTargetList();
     if (state === 'UNIT_ACTION_MENU' && this.menu) {
       const menu = this.menu;
       if (s._inputController?._planningInspection && unit) {
@@ -1069,6 +1096,8 @@ export class MobileBattleHUD {
         this.body.append(el('p', 'mb-detail mb-hold-hint', 'Hold a row for its full details.'));
       // The pinned command (Wait) was built into the dock by syncDock.
       for (const item of menu.items) if (item !== pinned) list.append(this.menuButton(menu, item));
+      if (menu.items.some((entry) => entry.item?.type === 'Consumable'))
+        this.body.append(el('p', 'mb-detail', ITEM_ACTION_NOTE));
       this.body.append(list);
       if (s._escapeController)
         this.body.append(
@@ -1155,6 +1184,41 @@ export class MobileBattleHUD {
     );
     cancel.setAttribute('aria-label', 'Cancel selection');
     return cancel;
+  }
+
+  appendHealTargetList() {
+    const s = this.scene;
+    const healer = s.selectedUnit;
+    if (!healer) return;
+    const list = el('div', 'mb-actions mb-heal-targets');
+    list.setAttribute('role', 'group');
+    list.setAttribute('aria-label', 'Heal targets');
+    for (const target of s.healTargets || []) {
+      const preview = sceneHealPreview(s, target);
+      if (!preview) continue;
+      const button = this.button(target.name, () => {
+        if (
+          s.battleState !== 'SELECTING_HEAL_TARGET' ||
+          s.selectedUnit !== healer ||
+          !s.healTargets?.includes(target) ||
+          target.currentHP <= 0 ||
+          target._removing
+        )
+          return;
+        s.executeHeal(healer, target);
+      });
+      button.append(
+        el(
+          'small',
+          'mb-item-summary',
+          preview.conditions
+            ? preview.text
+            : `HP ${preview.from}/${preview.max} → ${preview.to}/${preview.max} (+${preview.amount})`,
+        ),
+      );
+      list.append(button);
+    }
+    this.body.append(list);
   }
 
   targetListKey() {

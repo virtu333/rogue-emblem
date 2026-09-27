@@ -63,12 +63,15 @@ export class VisionRewindPicker {
     back.textContent = options.fatal ? 'Back to decision' : 'Back';
     back.classList.add('vr-back');
     const charges = element('span', null, 'vr-charges');
-    charges.setAttribute('aria-label', `${plural(this.charges, 'charge')} left this run`);
+    charges.setAttribute('aria-label', `${plural(this.charges, 'Vision')} left this run`);
     const pips = element('span', null, 'vr-pips');
     pips.setAttribute('aria-hidden', 'true');
     for (let i = 0; i < Math.min(this.charges, 5); i++) pips.append(element('i', null, 'vr-pip'));
     if (!this.charges) pips.append(element('i', null, 'vr-pip vr-pip--spent'));
-    charges.append(pips, element('span', `${this.charges} left`, 'vr-charges-count'));
+    charges.append(
+      pips,
+      element('span', `${plural(this.charges, 'Vision')} left`, 'vr-charges-count'),
+    );
     surface.header.insertBefore(charges, back);
     if (options.onHistory) {
       this.historyButton = this.press(
@@ -254,7 +257,7 @@ export class VisionRewindPicker {
   reason(row) {
     if (!row) return 'Select a moment to preview it.';
     if (!row.available) return row.reason;
-    if (this.charges < 1) return 'No rewind charges left. You can still preview.';
+    if (this.charges < 1) return 'No Visions left. You can still preview.';
     return '';
   }
 

@@ -268,10 +268,29 @@ describe('battle deeds', () => {
     expect(bossPhrase('Dark Champion', deedsData)).toBe('the Lieutenant');
   });
 
+  it.each([0, 1])('does not award the Last with %i fallen allies', (fallenCount) => {
+    const recruit = unit();
+    commit([unit({ isLord: true }), unit({ isLord: true }), unit({ isLord: true }), recruit], {
+      deployedCount: 4,
+      fallenCount,
+    });
+    expect(earned(recruit)).not.toContain('last_of_them');
+  });
+
+  it('counts fallen lords and recruits, and commits the Last only once', () => {
+    const recruit = unit();
+    const living = [unit({ isLord: true }), recruit];
+    const ctx = { deployedCount: 6, fallenCount: 4, battleKey: 'last-test' };
+    commit(living, ctx);
+    expect(earned(recruit)).toContain('last_of_them');
+    expect(commitBattleDeeds(living, deedsData, ctx)).toEqual([]);
+    expect(recruit.deeds.stats.fallenAllies).toBeUndefined();
+  });
+
   it('the Last: the only non-lord standing after a battle with four or more deployed', () => {
     const lord = unit({ isLord: true });
     const last = unit();
-    commit([lord, last], { deployedCount: 4 });
+    commit([lord, last], { deployedCount: 4, fallenCount: 2 });
     expect(earned(last)).toContain('last_of_them');
     expect(earned(lord)).not.toContain('last_of_them');
     const few = unit();

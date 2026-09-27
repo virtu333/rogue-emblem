@@ -88,6 +88,21 @@ describe('roster sheet saves each change as it applies', () => {
     sheet.destroy();
   });
 
+  it('a recipient who cannot wield the weapon is told the rank in plain words', () => {
+    const { sheet, archer, fighter } = setup();
+    const lance = structuredClone(
+      gameData.weapons.find((w) => w.type === 'Lance' && w.tier === 'Iron'),
+    );
+    archer.inventory.push(lance);
+    sheet.giveItem(archer, lance);
+    // Fighters carry axes only; no Mast/Prof code reaches the player.
+    const rows = sheet.picker.surface.body.querySelectorAll('button').map((b) => b.textContent);
+    expect(rows).toContain(
+      `${fighter.name}Needs Lance proficiency · ${fighter.inventory.length}/5 items`,
+    );
+    sheet.destroy();
+  });
+
   it('teaching a scroll', async () => {
     const { run, sheet, fighter } = setup();
     const scroll = structuredClone(gameData.weapons.find((w) => w.type === 'Scroll'));

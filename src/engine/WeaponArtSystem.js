@@ -520,6 +520,10 @@ export function getWeaponArtCombatMods(art) {
     halfPhysicalDamage: Boolean(mods.halfPhysicalDamage),
     vengeance: Boolean(mods.vengeance),
     weaponArt: true,
+    // Fail closed for hooks resolved outside Combat (damage, movement, conditions).
+    // Unknown hook names stay ineligible too, even if empty today.
+    weaponArtProjectionSafe:
+      Boolean(art) && Object.keys(art.effects || {}).length === 0 && !mods.vengeance,
     ignoreTerrainAvoid: Boolean(mods.ignoreTerrainAvoid),
     multiHit: normalizeMultiHit(mods.multiHit),
     drainPercent: normalizeDrainPercent(mods.drainPercent),

@@ -21,7 +21,7 @@ describe('battle sidebar labels', () => {
     );
   });
   it('keeps par/rating and charges explicit, omitting unavailable par', () => {
-    expect(sidebarCounters('Turn: 4 / Par: 7 (S)', 1)).toBe('Par 7 · S | Rewinds 1');
-    expect(sidebarCounters('Turn: 4', 0)).toBe('Rewinds 0');
+    expect(sidebarCounters('Turn: 4 / Par: 7 (S)', 1)).toBe('Par 7 · S | Visions 1');
+    expect(sidebarCounters('Turn: 4', 0)).toBe('Visions 0');
   });
 });

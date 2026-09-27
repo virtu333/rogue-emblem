@@ -144,6 +144,7 @@ export class DeedController {
         act: rm.currentAct || null,
         battle: (Number(rm.completedBattles) || 0) + 1,
         deployedCount: s.battleParams?.deployCount,
+        fallenCount: s._playerDeathsThisBattle,
       });
       s._newDeeds = announcements.length ? announcements : null;
       return announcements;

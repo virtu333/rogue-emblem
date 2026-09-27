@@ -94,8 +94,9 @@ describe('DesktopBattleHud', () => {
     expect(scene.turnCounterText.depth).toBeGreaterThan(UI_DEPTHS.SCREEN_UI);
     expect(scene.turnCounterText.text).toBe('Turn: 1 / Par: 8 (S)');
     expect(scene.objectiveText.text).toBe('Rout: 3 enemies remaining');
-    expect(scene.instructionText2.text).toBe(DESKTOP_HINT_TEXT);
-    for (const key of ['Vision', 'right-click', 'details', 'Esc', 'off-map', 'cancel'])
+    expect(scene.instructionText2.text).toContain('[R] Rewind');
+    expect(scene.instructionText2.visible).toBe(true);
+    for (const key of ['Rewind', 'right-click', 'details', 'Esc', 'off-map', 'cancel'])
       expect(DESKTOP_HINT_TEXT).toContain(key);
     expect(scene.graphics.fillPoints).toHaveBeenCalled();
   });
@@ -120,17 +121,20 @@ describe('DesktopBattleHud', () => {
   it('while a unit is selected the hint says what a map click does, then reverts', () => {
     const scene = makeScene({ battleState: 'PLAYER_IDLE' });
     new DesktopBattleHud(scene).create();
-    expect(scene.instructionText2.text).toBe(DESKTOP_HINT_TEXT);
+    expect(scene.instructionText2.text).toContain('[R] Rewind');
+    expect(scene.instructionText2.visible).toBe(true);
     scene.battleState = 'UNIT_SELECTED';
     scene.selectedUnit = { name: 'Edric' };
     scene.events.emit('postupdate');
-    expect(scene.instructionText2.text).toBe(DESKTOP_SELECTED_HINT_TEXT);
+    expect(scene.instructionText2.text).toContain('Blue tile: move');
+    expect(scene.instructionText2.visible).toBe(true);
     for (const key of ['move', 'enemy in reach: attack', 'unit: actions'])
       expect(DESKTOP_SELECTED_HINT_TEXT).toContain(key);
     scene.battleState = 'PLAYER_IDLE';
     scene.selectedUnit = null;
     scene.events.emit('postupdate');
-    expect(scene.instructionText2.text).toBe(DESKTOP_HINT_TEXT);
+    expect(scene.instructionText2.text).toContain('[R] Rewind');
+    expect(scene.instructionText2.visible).toBe(true);
   });
 
   it('destroy removes plates and listeners and restores the camera background', () => {

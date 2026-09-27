@@ -573,8 +573,8 @@ const STATIC_HELP_TABS = [
             color: CYAN,
           },
           {
-            text: 'R            Vision rewind viewer',
-            mobileText: 'Vision       Open the rewind viewer',
+            text: 'R            Rewind (restore: 1 Vision)',
+            mobileText: 'Rewind       Restore costs 1 Vision',
             color: CYAN,
           },
           {

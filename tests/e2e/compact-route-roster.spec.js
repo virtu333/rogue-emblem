@@ -184,15 +184,14 @@ test('art binding confirms replacement and empty promotion choices are safe', as
     .getByRole('dialog', { name: 'Choose weapon for Test art scroll' })
     .getByRole('button', { name: 'Confirm', exact: true })
     .tap();
-  await page
-    .getByRole('dialog', { name: 'Choose art to replace' })
-    .getByRole('button', { name: 'Confirm', exact: true })
-    .tap();
-  const confirm = page.getByRole('dialog', { name: `Replace ${names.old}?` });
-  await expect(confirm).toContainText('Innate');
-  await expect(confirm.locator('.re-row')).toHaveCount(0);
-  await confirm.getByRole('button', { name: 'Confirm', exact: true }).tap();
-  await expect(confirm).toHaveCount(0);
+  // A full weapon asks which art to replace; Replace is the one confirmation
+  // (round-three WS8: no second "Replace X?" dialog).
+  const slots = page.getByRole('dialog', { name: 'Choose art to replace' });
+  await expect(slots.locator('[aria-pressed="true"]')).toContainText(names.old);
+  await expect(slots.locator('[aria-pressed="true"]')).toContainText('Innate');
+  await expect(slots).toContainText('Uses one Test art scroll on Replace');
+  await slots.getByRole('button', { name: 'Replace', exact: true }).tap();
+  await expect(page.locator('.re-choice-picker')).toHaveCount(0);
   const state = await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
     return {

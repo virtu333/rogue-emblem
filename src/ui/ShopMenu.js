@@ -1,3 +1,4 @@
+import { shopRequirementLabel, forgeImpactLine } from './itemDecisionText.js';
 import { equipmentComparison } from './equipmentComparison.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { equippedBadgeElement } from './equippedBadge.js';
@@ -8,7 +9,6 @@ import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
 import { unitPortrait } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
-import { rankRequirementText } from './rosterDisplay.js';
 import {
   shopOwnedItems,
   shopBuyBlock,
@@ -267,8 +267,8 @@ export class ShopMenu {
     title.append(el('h3', item.name));
     const keys = itemKeywordRow(item, { baseLine: false, make: (tag) => el(tag) });
     if (keys) title.append(keys);
-    if (item.rankRequired)
-      title.append(el('p', rankRequirementText(item.type, item.rankRequired), 'shop-meta'));
+    const requirement = shopRequirementLabel(item);
+    if (requirement) title.append(el('p', requirement, 'shop-meta'));
     head.append(itemHero(item, { size: 96 }), title);
     copy.append(head);
     const detailText = this.controller._getShopItemDetailText(row.entry || { item });
@@ -484,7 +484,7 @@ export class ShopMenu {
       choices: stats,
       label: (stat) => stat.label,
       describe: (stat) =>
-        `${Math.max(1, Math.floor(getForgeCost(weapon, stat.key) * (1 - this.forgeOptions().discount)))} gold · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${owner && stat.key === 'weight' ? ` · ${equipmentComparison(owner, { ...weapon, weight: Math.max(0, weapon.weight - 1) }, weapon)}` : ''}`,
+        `${Math.max(1, Math.floor(getForgeCost(weapon, stat.key) * (1 - this.forgeOptions().discount)))} gold · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${owner ? ` · ${forgeImpactLine(owner, weapon, stat.key)}` : ''}`,
       blocked: (stat) =>
         shopForgeBlock(this.run, weapon, stat.key, { ...this.forgeOptions(), expectedLevel }),
       apply: (stat) => {

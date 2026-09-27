@@ -384,6 +384,14 @@ describe('applyEnemyDifficultyModifiers', () => {
 });
 
 describe('levelUp', () => {
+  it('guarantees exactly one gain when all normal growth rolls fail', () => {
+    const cls = data.classes.find((c) => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(cls, 1, data.weapons);
+    unit.growths = Object.fromEntries(Object.keys(unit.growths).map((k) => [k, 0]));
+    const result = levelUp(unit);
+    expect(Object.values(result.gains).reduce((a, b) => a + b, 0)).toBe(1);
+  });
+
   it('returns stat gains based on growth rates', () => {
     const myrmidon = data.classes.find((c) => c.name === 'Myrmidon');
     const unit = createEnemyUnit(myrmidon, 1, data.weapons);
