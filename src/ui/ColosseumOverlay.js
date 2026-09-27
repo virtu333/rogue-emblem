@@ -21,7 +21,7 @@ import { resolveCombat, getCombatForecast } from '../engine/Combat.js';
 import { getSkillCombatMods, rollStrikeSkills, rollDefenseSkills } from '../engine/SkillSystem.js';
 import {
   gainExperience,
-  grantSecondaryWeapons,
+  grantMasterOfArmsWeapons,
   checkLevelUpSkills,
 } from '../engine/UnitManager.js';
 import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
@@ -499,11 +499,7 @@ export class ColosseumOverlay {
       if (this.runManager?.metaEffects?.masterOfArms && this._mercCandidates.length > 0) {
         for (const entry of this._mercCandidates) {
           if (entry?.unit) {
-            grantSecondaryWeapons(
-              entry.unit,
-              this.gameData.weapons,
-              entry.unit.weapon?.tier || 'Iron',
-            );
+            grantMasterOfArmsWeapons(entry.unit, this.gameData.weapons);
           }
         }
       }

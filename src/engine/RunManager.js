@@ -45,7 +45,7 @@ import {
   getClassInnateSkills,
   normalizeUnitClassState,
   grantLethalArmoryWeapon,
-  grantSecondaryWeapons,
+  grantMasterOfArmsWeapons,
   applyRecruitWeaponForge,
   grantRecruitStartingAccessory,
   learnSkill,
@@ -2729,13 +2729,13 @@ export class RunManager {
     if (className === 'Paladin') {
       this._applyExtraStarterPaladinLoadout(unit);
     }
-    const cadreSpawnTier = unit.weapon?.tier || 'Iron';
     grantLethalArmoryWeapon(unit, this.gameData?.weapons || [], this.metaEffects?.lethalArmoryTier);
-    if (this.metaEffects?.masterOfArms) {
-      grantSecondaryWeapons(unit, this.gameData?.weapons || [], cadreSpawnTier);
-    }
     if (this.metaEffects?.recruitWeaponForge) {
       applyRecruitWeaponForge(unit, this.metaEffects.recruitWeaponForge);
+    }
+    // After the forge: Master of Arms extras arrive plain (grantMasterOfArmsWeapons).
+    if (this.metaEffects?.masterOfArms) {
+      grantMasterOfArmsWeapons(unit, this.gameData?.weapons || []);
     }
     if (this.metaEffects?.recruitStartingAccessory) {
       grantRecruitStartingAccessory(

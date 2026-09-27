@@ -1373,7 +1373,7 @@
   {
     "id": "master_of_arms",
     "name": "Master of Arms",
-    "description": "Recruits spawn with weapons for all proficiencies",
+    "description": "Recruits also carry a plain Iron weapon of each other type they can wield",
     "category": "capacity",
     "maxLevel": 1,
     "costs": [

@@ -892,6 +892,16 @@ export function grantRecruitStartingAccessory(
  * Falls back to Iron tier if requested tier unavailable. Respects inventory cap.
  * Returns the number of weapons granted.
  */
+/**
+ * Master of Arms: one plain Iron weapon for each weapon type a recruit is proficient in
+ * but carries nothing of. Callers grant it after the recruit's other join upgrades
+ * (Quartermaster's Craft forges, Lethal Armory), so the extras are never forged or
+ * raised to the primary's tier: the upgrade widens a recruit's reach, not its power.
+ */
+export function grantMasterOfArmsWeapons(unit, allWeapons) {
+  return grantSecondaryWeapons(unit, allWeapons, 'Iron');
+}
+
 export function grantSecondaryWeapons(unit, allWeapons, weaponTier) {
   if (!unit || !Array.isArray(unit.proficiencies) || !Array.isArray(allWeapons)) return 0;
   if (!Array.isArray(unit.inventory)) return 0;
