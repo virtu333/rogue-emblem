@@ -117,7 +117,7 @@ test('DOM promotion can cancel, then apply once without the legacy roster', asyn
   expect(result).toEqual({ className: 'Warrior', seals: 0, bows: 1 });
 });
 
-test('Skills teaching, giving and convoy recipient work without leaving DOM roster', async ({
+test('Skills teaching, trading and convoy recipient work without leaving DOM roster', async ({
   page,
 }) => {
   await page.goto('/?devScene=nodemap&preset=battle_smoke&seed=42&mobilePreview=1');
@@ -146,12 +146,19 @@ test('Skills teaching, giving and convoy recipient work without leaving DOM rost
   await roster
     .locator('article')
     .filter({ has: page.getByRole('heading', { name: 'Test blade', exact: true }) })
-    .getByRole('button', { name: 'Give…' })
+    .getByRole('button', { name: 'Trade…', exact: true })
     .tap();
-  const give = page.getByRole('dialog', { name: 'Give Test blade' });
-  await give.getByRole('button', { name: /^Sera/ }).tap();
-  await give.getByRole('button', { name: 'Confirm', exact: true }).tap();
-  await expect(roster.getByRole('status')).toContainText('given to Sera');
+  // Trade…: pick a partner, then place the held blade in one of Sera's free slots.
+  const partner = page.getByRole('dialog', { name: 'Trade Test blade with…' });
+  await partner.getByRole('button', { name: /^Sera/ }).tap();
+  await partner.getByRole('button', { name: 'Trade', exact: true }).tap();
+  const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
+  await trade.getByRole('button', { name: 'Give Test blade to Sera' }).first().tap();
+  await expect(trade.getByRole('status')).toContainText('Gave Test blade to Sera.');
+  expect(await trade.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
+  await trade.getByRole('button', { name: 'Done', exact: true }).tap();
+  await expect(trade).toHaveCount(0);
+  await expect(roster.getByRole('status')).toContainText('Gave Test blade to Sera.');
   await roster.getByRole('button', { name: 'Convoy', exact: true }).tap();
   await roster.getByRole('button', { name: /^Withdraw to:/ }).tap();
   const convoy = page.getByRole('dialog', { name: 'Convoy recipient' });
@@ -233,7 +240,8 @@ test('battle inspection shows terrain and mastery without a legacy link', async 
   await expect(sheet.getByRole('button', { name: 'More details', exact: true })).toHaveCount(0);
   await expect(sheet.locator('footer')).toHaveCount(0);
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
-  await expect(sheet.getByRole('button', { name: 'Give…' })).toHaveCount(0);
+  await expect(sheet.getByRole('button', { name: 'Trade…' })).toHaveCount(0);
+  await expect(sheet.getByRole('button', { name: 'Trade with…' })).toHaveCount(0);
   await page.screenshot({ path: `test-results/native-inspect-${page.viewportSize().width}.png` });
   await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(sheet).toHaveCount(0);

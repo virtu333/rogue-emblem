@@ -182,3 +182,15 @@ html .tm-trade.re-compact-menu.re-screen {
   margin: 0;
   color: var(--re-muted);
 }
+
+/* Short screens (568×320 landscape phones): the socketed icon's 40px box made a
+   row 49px, so five rows overflowed the 224px column. The bare 32px box and 1px
+   block padding keep a row at the 44px tap height and all five slots in view. */
+@media (max-height: 360px) {
+  .tm-trade .tm-row.re-row {
+    padding-block: 1px;
+  }
+  .tm-trade .tm-row > .ia-icon {
+    --ia-box: var(--ia-size, 32px);
+  }
+}
