@@ -47,8 +47,15 @@ export const MUSIC = {
     'The Entity': 'music_boss_entity',
   },
 
-  // Escape maps (get out before the dark closes) have their own pursuit theme.
-  escape: 'music_battle_escape',
+  // Escape maps (get out before the dark closes): One More Crossing on the
+  // border, the endless climb of We Came This Far Also from the fens on.
+  escape: {
+    act1: 'music_battle_escape',
+    act2: ['music_battle_escape', 'music_battle_escape_2'],
+    act3: 'music_battle_escape_2',
+    act4: 'music_battle_escape_2',
+    finalBoss: 'music_battle_escape_2',
+  },
 
   // A map's place has its own battle theme (mapTemplates.json `biome`). An
   // entry may be a table by act (as the situations below): the old kingdom's
@@ -136,6 +143,7 @@ export const MUSIC_LAYERS = {
   music_battle_rescue_2: { calm: 'music_battle_rescue_2_calm' },
   music_battle_castle_2: { calm: 'music_battle_castle_2_calm' },
   music_battle_escape: { calm: 'music_battle_escape_calm' },
+  music_battle_escape_2: { calm: 'music_battle_escape_2_calm' },
 };
 
 // Each boss's encounter card plays its own motif (tools/music/stingers/boss_*).

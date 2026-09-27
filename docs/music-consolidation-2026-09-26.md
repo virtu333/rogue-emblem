@@ -118,6 +118,34 @@ The world bible (`claude/kind-ride-yejupz`, a3c900e) was read against the score:
 - The anthem uses the canon drill chant (see §1).
 - No music text used the retired "ring" or "shattered" wording.
 
+## After the report: pass 4 (27 September)
+
+Committed to this branch after the freeze report, still with no new PR:
+
+- **Four second themes**, one each for escape maps, recruit rescues, fog of war and castles,
+  written by four composers, measured by an editor, and revised once:
+  - *We Came This Far Also* (`battle_escape_2`, F minor): an endless Shepard–Risset climb.
+  - *Quick, Quick, Quick, Slow* (`battle_rescue_2`, E Dorian, 9/8): the army adopts a
+    stranger's 2+2+2+3.
+  - *Out of Step* (`battle_fog_2`, D): an Imperial band off stage in 2/4 against the army's
+    3/4.
+  - *Every Voice at Its Post* (`battle_castle_2`, G minor): a fugue on the Empire's drill.
+- **Selection by act.** `BattleMusicSelection.js`: escape and place entries may be a key, a
+  pool or a table by act, like the situations, and a pool is walked by node row.
+  `musicConfig.js` splits the four map types by act (the table is in SCORE.md, "Which battle
+  theme plays").
+- **Verified points from the external review** (`codex/soundtrack-review`):
+  - `LoopedMusic.stop()` releases over 25 ms instead of cutting mid-waveform;
+  - the Entity's hum tops out at 0.9;
+  - Iron Rain's calm mix keeps its motor 6 dB down;
+  - SCORE.md and the shrine's docstring corrected.
+  - The items that need the owner to listen first are not done.
+- **`palette.py`:** two VCSL candidates for the rescue's zither and darbuka (CC0, credited in
+  `docs/music-credits.md`).
+- **Size:** 96 music files; the iOS re-encode adds about 9 MB (about 164 MB app).
+- **Gates:** the unit suite (7,666), lint, format, `check:reference`, `check:data-parity`,
+  build and `sim:fullrun:harness:pr` all pass.
+
 ## Files outside `tools/music/` (check these for conflicts)
 
 | File | Change |
