@@ -5,13 +5,9 @@ merged in at ecb93ec. There are 53 commits. Apart from rendered audio, the diff 
 files, +7,908 / −240. Most of it is under `tools/music/`; 17 files are outside it,
 listed below.
 
-**Status when this was written:** the code is final for this pass, and PRs are frozen.
-A full re-render of the soundtrack (49 scores, 30 cues in every key) is running. When it
-finishes, the new MP3s and the regenerated loop and cue tables will be **committed to
-this branch, with no new PR** (it rides on #134). They will be synced to `public/` and
-checked first (see "Verification" below). Nothing else is added during the freeze. Until then the branch carries this pass's scores
-and engine alongside the previous pass's audio. The MusicLibrary tests pass in that
-state, because the file names, keys and loop structure are unchanged.
+**Status:** complete, and PRs are frozen. The full re-render (49 scores, 30 cues in every
+key) is committed to this branch, with no new PR (it rides on #134), and checked (see
+"Verification" below).
 
 ## What this pass adds
 
@@ -156,21 +152,25 @@ Done:
 - The credits page was screenshotted at 640×480 and in phone landscape.
 - The ceremony cues were probed in a real browser session.
 
-Pending, after the render (committed to this branch, no new PR):
-- Commit the audio and the regenerated tables, then `npm run sync-assets`.
-- Check each file's decoded length against its loop-table duration. Two render processes
-  crashed on a full disk and were restarted: their MP3s are rewritten, but their loop
-  table entries must be confirmed.
-- The full unit suite and the CI gates (`check:reference`, `check:data-parity`,
-  `sim:fullrun:harness:pr`), plus lint and format.
-- The iOS bundle-size measurement.
-- Republishing the owner's score showcase.
+After the render (committed to this branch, no new PR):
+- All 88 music files, 142 cues and `sfx_levelup.mp3` were re-rendered and synced to `public/`.
+  Every loop-table entry matches its file's decoded length. The level-up fallback is
+  byte-identical to its cue.
+- The full unit suite passes: 7,660 of 7,660, in 470 files.
+- The gates pass: `check:reference`, `check:data-parity`, `lint`, `format:check`,
+  `sim:fullrun:harness:pr` ("All runs passed"), and `npm run build`.
+- Size: the web build (`dist/`) is 185 MB, of which music is 131 MB. The iOS app's music
+  re-encodes to 105 MB, putting the app at about 155 MB, under Apple's 200 MB cellular
+  prompt.
+- One score needed a fix mid-render: The Consecrated's hymn trumpets went above their
+  range after the critique pass (694415b). Every score was then checked for
+  out-of-range notes; none remain.
 
 ## Known issues and open items
 
-- **`tests/sim/RunSimulationDriver.test.js` › "passes meta effects and fallen units into
-  battle params"** fails on this branch. It also fails with this branch's `src/` and
-  `tests/` reverted, so it comes from `main` as merged. Not investigated here.
+- **`tests/sim/RunSimulationDriver.test.js`** failed once mid-pass (it also failed with
+  this branch's `src/` and `tests/` reverted). It passes in the final full run, so treat
+  it as intermittent in `main`.
 - **The first full-suite run** also failed `MusicLayerCache` › "nothing is refetched",
   because the new prefetch tripped its fetch log. The test's stub is fixed and it passes
   now.
