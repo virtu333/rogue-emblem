@@ -75,3 +75,32 @@ Normal has felt demanding but recoverable. Edric dropping to3HP followed poor po
 
 ## Supporting reports
 See `review.md` and `continuation.md` in this report directory for earlier evidence/screenshots. `normal-act2-session.md` contains chronological continuation notes. Patch agents should report current-main reproduction and tests separately from this historical baseline.
+
+## Follow-up observations during continued Normal run
+Same baseline: main b8e13bf plus portrait stack7689a2c.
+
+### P2/P3 — Shop comparison hides a critical upgrade
+At Act2 Ruins, Witchfire3306G compared with Ottoline Elfire as Attack20->20 andAS3->3 only. Witchfire actually adds30crit and Mire while matching might/hit/weight. Roster comparison correctly showedcrit+30. Extend the shop comparison to show meaningful crit/range/art differences, without making every row noisy. Verify against two equal-Mt/weight weapons with differentcrit and an addedart.
+
+### Balance observations, not automatic changes
+- Healing Light reward:7HP upfront,30%damage healing,+10Hit,2uses/battle,no normalfollowup. A20damagehit heals6, losing1HPoverall. Unattractive besideWardingCharm for this party; examine intended highdamage niche before changing.
+- Promoted Ottoline Sage cost1052G, with13MAG, Elfire, Hungry/LastEmber andSpellHarmony/QuickRiposte. Strong immediate value compared with1500GShine earlier;deploymentcap5 is a meaningfulconstraint. Sampletoo small for blankethire nerf.
+- Talisman reward recommends highestRESgrowth Ottoline, whereas lowRESfrontlinerCael was more useful recipient. Consider whether growth-based advice should be framed as growth information rather than an implied best recipient.
+- Mire proved useful:5HP bought safeextendedrange and avoidedVantagecounter. Costs/useswereclear. Preserve thatdistinct tacticalbenefit.
+
+### Recovery observation
+Unexpected page reload around2026-09-27 03:25:52UTC duringVossmove atRiverCrossingTurn4. Capturedlogs showVite reconnect, noerror;sourceHEADunchanged. Resume restoredcompletedactions,oneenemy,oneunitready. Causeunknown; do not call this a confirmedgamecrash withoutreproduction.
+
+### Clarifications / small polish
+- Elite victory explicitly displayed Caravan destroyed; casualty feedback does exist at victory.
+- Arena preview offered no obviousweaponselector; hadtoleave andchangeweapon inRoster to improve matchup. Confirm latestbehaviorbeforepatching.
+- Sera gained+1SPD on a leanlevel butquote said Nothing gained. Lowpriority flavor mismatch.
+
+### P2 — “The Last” deed awarded with the entire deployment alive (confirmed)
+- Act 2 Great Hall victory: Edric, Sera, Cael, Voss and Ottoline all survived, but Ottoline received “The Last”: “Came back alone, carrying the names of the rest.” Screenshot: `ottoline-last-deed.png`.
+- On the tested checkout, `src/engine/DeedSystem.js:574–588` filters living units to non-lords, then sets `lastStanding = deployedCount` when exactly one non-lord survives. Four living lords plus Ottoline therefore qualify. `data/deeds.json:230–247` awards `last_of_them` when `lastStanding >= 4`.
+- Align the condition with actual survivor/casualty semantics. Regression: four lords and one non-lord, all alive, must not earn this deed. Also retain a test for the intended genuine last-survivor case.
+- This is a narrative/state accuracy bug; no crash or stat corruption observed. Reproduce on current main before patching.
+
+## Continuation milestone
+Normal Act 2 cleared at turn 8, rank S, with no player casualties. Entered Act 3 with 8 living units and 8,415 G after recruiting Adela and selecting Hexblade. Normal completion, progression purchases and Hard Act 1 remain in progress. Baseline remains main `b8e13bf` + portrait stack `7689a2c`.
