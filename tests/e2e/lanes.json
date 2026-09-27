@@ -62,8 +62,14 @@
     },
     {
       "name": "portrait",
-      "description": "Portrait battles (beta, opt-in): the turned board, the upright rail, rotation round trips and the locked shells",
-      "specs": ["portrait-battle.spec.js"]
+      "description": "Portrait mode on upright phones: the turned board and upright rail, rotation round trips, the upright route map, drafts, lists and every other upright surface",
+      "specs": [
+        "portrait-battle.spec.js",
+        "loom-portrait.spec.js",
+        "portrait-cards.spec.js",
+        "portrait-lists.spec.js"
+      ],
+      "shards": 2
     },
     {
       "name": "battle-input",
@@ -134,10 +140,8 @@
         "legendary-lord-traits.spec.js",
         "loading-progress-contract.spec.js",
         "local-play.spec.js",
-        "loom-portrait.spec.js",
         "loom-route.spec.js",
         "native-rewards.spec.js",
-        "portrait-cards.spec.js",
         "reward-reload.spec.js",
         "rewards-desktop.spec.js",
         "run-recovery.spec.js",
@@ -162,7 +166,6 @@
         "party-menus.spec.js",
         "playtest-polish.spec.js",
         "playtest-wave-19.spec.js",
-        "portrait-lists.spec.js",
         "roster-desktop.spec.js",
         "ui-completion.spec.js",
         "ux-ceremony-framing.spec.js",
