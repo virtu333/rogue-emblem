@@ -149,6 +149,20 @@ settleEquipped(unit, preferred)
 - In battle, until the unit's move is committed, the header reads "Trading locks in ⟨unit⟩'s
   move."
 
+**Upright phones (portrait mode, `docs/portrait-battles.md`)**
+- The menu fills the screen inside the notch and home bar. The header has two rows: the title and
+  Done, then the bag tabs at full width.
+- The two holders stack, one above the other, each full width and scrolling on its own. Each gets
+  half the height; a holder that needs less gives the rest to the other, so two full 5-slot bags
+  show whole at 375×667 and a long convoy scrolls in the room the unit leaves.
+- A list with more rows below fades at its lower edge; a focused or held row scrolls clear of the
+  fade. Item briefs wrap at full width.
+- Keyboard and gamepad: Left/Right still switch holders; Up/Down also cross between the holders
+  where they meet. The menu measures whether the holders are stacked, so side-by-side columns keep
+  the behaviour above.
+- Turning the phone restyles the menu without a re-render: the held item and focus stay, and both
+  rows are scrolled back into their resized lists.
+
 ## Battle: `src/ui/BattleTradeController.js` (`create`/`destroy`)
 
 `commit(left, right, from, to)`:
