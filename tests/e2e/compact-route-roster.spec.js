@@ -153,7 +153,10 @@ test('Skills teaching, trading and convoy recipient work without leaving DOM ros
   await partner.getByRole('button', { name: /^Sera/ }).tap();
   await partner.getByRole('button', { name: 'Trade', exact: true }).tap();
   const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
-  await trade.getByRole('button', { name: 'Give Test blade to Sera' }).first().tap();
+  await trade
+    .getByRole('button', { name: /^Give Test blade to Sera, slot \d$/ })
+    .first()
+    .tap();
   await expect(trade.getByRole('status')).toContainText('Gave Test blade to Sera.');
   expect(await trade.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
   await trade.getByRole('button', { name: 'Done', exact: true }).tap();

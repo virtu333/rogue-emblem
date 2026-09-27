@@ -131,9 +131,9 @@ describe('structure', () => {
     expect(labels(root, 'left')).toEqual([
       'Iron Sword, equipped',
       'Rapier',
-      'Empty',
-      'Empty',
-      'Empty',
+      'Empty slot 3',
+      'Empty slot 4',
+      'Empty slot 5',
     ]);
     expect(root.querySelector('.tm-notice').hidden).toBe(true);
     // Rows are never natively disabled: blocked and empty rows stay focusable.
@@ -170,10 +170,10 @@ describe('hold and commit', () => {
     );
     expect(labels(root, 'right')).toEqual([
       'Trade Rapier for Iron Lance',
-      'Give Rapier to Sera',
-      'Give Rapier to Sera',
-      'Give Rapier to Sera',
-      'Give Rapier to Sera',
+      'Give Rapier to Sera, slot 2',
+      'Give Rapier to Sera, slot 3',
+      'Give Rapier to Sera, slot 4',
+      'Give Rapier to Sera, slot 5',
     ]);
     // Sera can't wield the held Rapier whichever slot takes it: the status line says so
     // once (above), and the target rows carry no repeated warning line.
@@ -371,7 +371,7 @@ describe('keyboard and gamepad', () => {
     expect(row(root, 'left', 1).getAttribute('aria-pressed')).toBe('true');
     dom.key('e');
     expect(tabs(root).map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true']);
-    expect(labels(root, 'left')).toEqual(['Vulnerary', 'Empty', 'Empty']);
+    expect(labels(root, 'left')).toEqual(['Vulnerary', 'Empty slot 2', 'Empty slot 3']);
     expect(rowsOf(root).some((el) => el.getAttribute('aria-pressed') === 'true')).toBe(false);
     expect(focused()).toBe('left:1');
     dom.key('PageUp');
@@ -406,6 +406,6 @@ describe('keyboard and gamepad', () => {
     });
     expect(row(root, 'left', 1).getAttribute('aria-pressed')).toBe('true');
     expect(focused()).toBe('right:1');
-    expect(document.activeElement.getAttribute('aria-label')).toBe('Give Rapier to Sera');
+    expect(document.activeElement.getAttribute('aria-label')).toBe('Give Rapier to Sera, slot 2');
   });
 });

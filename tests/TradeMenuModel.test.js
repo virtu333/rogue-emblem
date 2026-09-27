@@ -179,7 +179,8 @@ describe('rows', () => {
     expect(states(v.columns.right)).toEqual(['hold', 'inert', 'inert', 'inert', 'inert']);
     expect(v.columns.left.rows.map((r) => r.pressed)).toEqual([false, false, null, null, null]);
     expect(v.columns.left.rows.map((r) => r.disabled)).toEqual([false, false, true, true, true]);
-    expect(v.columns.left.rows[2].name).toBe('Empty');
+    // Empty slots are told apart by number (the third of Edric's five slots).
+    expect(v.columns.left.rows[2].name).toBe('Empty slot 3');
     expect(baseStatus(v)).toBe('Choose an item to trade.');
   });
 
@@ -193,7 +194,7 @@ describe('rows', () => {
     expect(v.columns.right.rows.map((r) => r.pressed)).toEqual([null, null, null, null, null]);
     // Accessible names: a swap names both items, a give names the holder.
     expect(v.columns.right.rows[0].name).toBe('Trade Rapier for Iron Lance');
-    expect(v.columns.right.rows[1].name).toBe('Give Rapier to Sera');
+    expect(v.columns.right.rows[1].name).toBe('Give Rapier to Sera, slot 2');
     // Sera can't wield the held Rapier: said once, in the status line, not on each row.
     expect(baseStatus(v)).toBe("Holding Rapier. Sera can't wield Rapier. Choose where it goes.");
     // Every target was planned from the held slot to that row's slot.
@@ -213,6 +214,16 @@ describe('rows', () => {
     expect(v.heldNotes).toEqual(["Sera can't wield Rapier"]);
   });
 
+  it('no two rows in a column share an accessible name, held or not', () => {
+    const { L, rapier, view } = pair();
+    for (const v of [view(), view({ held: { holder: L, bag: 'inventory', item: rapier } })]) {
+      for (const side of ['left', 'right']) {
+        const names = v.columns[side].rows.map((r) => r.name);
+        expect(new Set(names).size, `${side}: ${names.join(' | ')}`).toBe(names.length);
+      }
+    }
+  });
+
   it('a unit left unarmed is warned about, not blocked', () => {
     const lance = weapon('Iron Lance');
     const sera = unit('Sera', { inventory: [lance] });
@@ -222,7 +233,7 @@ describe('rows', () => {
     });
     const v = view({ held: { holder: R, bag: 'inventory', item: lance } });
     const give = v.columns.left.rows[1];
-    expect(give.name).toBe('Give Iron Lance to Edric');
+    expect(give.name).toBe('Give Iron Lance to Edric, slot 2');
     expect(give.blocked).toBeNull();
     expect(give.disabled).toBe(false);
     expect(give.warnings).toEqual(['Leaves Sera unarmed']);
@@ -260,7 +271,7 @@ describe('rows', () => {
     );
     // From Sera's side, Edric's empty slots take a give.
     const back = view({ held: { holder: unitHolder(sera), bag: 'inventory', item: items[0] } });
-    expect(back.columns.left.rows[1].name).toBe('Give A to Edric');
+    expect(back.columns.left.rows[1].name).toBe('Give A to Edric, slot 2');
     expect(back.columns.left.rows[1].blocked).toBeNull();
   });
 
