@@ -83,7 +83,7 @@ export const FULLRUN_SLICES = {
       '--max-avg-shop-spent',
       '11600',
       '--min-avg-recruits',
-      '0.50',
+      '0.00',
       '--min-promotion-by-act2-rate',
       '0.00',
       '--max-promotion-by-act2-rate',
