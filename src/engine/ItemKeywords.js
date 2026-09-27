@@ -45,6 +45,7 @@ export const KEYWORDS = {
   alone: { tone: 'plain', label: 'Alone' },
   equipped: { tone: 'plain', label: 'Equipped' },
   siege: { tone: 'thrown', label: 'Siege' },
+  boost: { tone: 'boost', label: 'Stat boost' },
 };
 
 function specialOf(item) {
@@ -79,11 +80,28 @@ function effectiveness(special) {
 }
 
 /**
+ * A stat booster's one tag: the stat it raises and by how much ("+2 STR"). The
+ * booster names are lore objects that only point at their stat, so the tag says it.
+ */
+function statBoostTag(item) {
+  if (item?.effect !== 'statBoost' || !item.stat || !Number.isFinite(item.value)) return null;
+  return {
+    id: 'boost',
+    tone: KEYWORDS.boost.tone,
+    text: `+${item.value} ${item.stat}`,
+    title: `Permanently raises ${item.stat} by ${item.value}.`,
+  };
+}
+
+/**
  * The keyword tags for an item, in display order. Each tag is
  * `{ id, tone, text, title }`: `text` is what the chip shows, `title` the full
- * rule. Items without combat rules (staves, supplies, accessories) return [].
+ * rule. A stat booster gets its stat; other items without combat rules (staves,
+ * supplies, accessories) return [].
  */
 export function itemKeywords(item) {
+  const boost = statBoostTag(item);
+  if (boost) return [boost];
   if (!isCombatWeapon(item)) return [];
   const special = specialOf(item);
   const tags = [];

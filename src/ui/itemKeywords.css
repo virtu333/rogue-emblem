@@ -59,3 +59,7 @@
   color: var(--re-parchment-dim);
   box-shadow: inset 0 0 0 1px var(--re-line);
 }
+.re-item-tag.is-boost {
+  color: var(--re-info);
+  box-shadow: inset 0 0 0 1px var(--re-line);
+}

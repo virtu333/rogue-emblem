@@ -16,6 +16,11 @@ A weapon card says two things beside the name:
   `Wind gust`, `Close range`, `Range 2-3`, `No triangle penalty`, `+5 STR on counter`, `+5 DEF`,
   `Alone: +4 STR, +4 SPD`.
 
+A **stat booster** gets one tag, the stat it raises (`+2 STR`, `+5 HP`, `+1 MOV`). The
+booster names are lore objects that only point at their stat (owner direction, naming
+pass round two), so the tag says it outright; the roster card's line then drops the
+stat. Other supplies, staves, scrolls and accessories have no tags.
+
 Names carry flavour; tags carry rules. This is the Diablo and Slay the Spire split.
 Relics get their proper names (the lore keeps proper nouns scarce, so a name marks
 something rare), and the base line says `Relic` instead of a tag.
@@ -41,6 +46,7 @@ something rare), and the base line says `Relic` instead of a tag.
 | Roster and convoy cards | Base line and tags under the name; the raw special paragraph is dropped when tags state it |
 | Battle trade | Tag text after the numbers |
 | Compendium (Arms) | List summary `Silver Sword · Crit 30`; tags under the name in the detail |
+| Compendium (Items) | A booster's summary ends with its stat (`Consumable · +2 STR`) |
 
 The phone battle rail keeps its one-line brief (36 characters, the numbers that decide
 a pick) with its `✦` mark and full text on a long press; the tags don't fit on that line.

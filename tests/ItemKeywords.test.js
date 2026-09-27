@@ -105,6 +105,19 @@ describe('tags', () => {
     expect(itemKeywords(null)).toEqual([]);
   });
 
+  it('a stat booster says which stat it raises, and nothing else does', () => {
+    // The booster names are lore objects that only point at their stat.
+    const booster = (stat) => consumables.find((c) => c.effect === 'statBoost' && c.stat === stat);
+    expect(texts(booster('STR'))).toEqual(['+2 STR']);
+    expect(texts(booster('HP'))).toEqual(['+5 HP']);
+    expect(texts(booster('MOV'))).toEqual(['+1 MOV']);
+    const boosters = consumables.filter((c) => c.effect === 'statBoost');
+    expect(boosters.length).toBeGreaterThanOrEqual(8);
+    for (const c of boosters) expect(itemKeywords(c), c.name).toHaveLength(1);
+    const others = consumables.filter((c) => c.effect !== 'statBoost');
+    expect(others.filter((c) => itemKeywords(c).length).map((c) => c.name)).toEqual([]);
+  });
+
   it('every tag carries its full rule for the tooltip', () => {
     for (const w of weapons)
       for (const tag of itemKeywords(w)) {

@@ -33,12 +33,13 @@ function eventsFor() {
   };
 }
 
-function rosterSheet(inventory) {
+function rosterSheet(inventory, consumables = []) {
   const run = new RunManager(gameData);
   run.startRun();
   const soldier = createRecruitUnit({ name: 'Harl', level: 3 }, cls('Knight'), gameData.weapons);
   soldier.inventory = inventory;
   soldier.weapon = inventory[0];
+  soldier.consumables = consumables;
   run.roster.push(soldier);
   const scene = {
     gameData,
@@ -113,6 +114,21 @@ describe('roster sheet', () => {
     const iron = cards.find((c) => c.title.startsWith('Iron Lance'));
     expect(iron.base).toBeNull();
     expect(iron.tags).toEqual([]);
+    sheet.destroy();
+  });
+
+  it('a stat booster card names its stat once, as a tag', () => {
+    const booster = structuredClone(
+      gameData.consumables.find((c) => c.effect === 'statBoost' && c.stat === 'STR'),
+    );
+    const sheet = rosterSheet([weapon('Iron Lance')], [booster]);
+    const card = sheet.root
+      .querySelectorAll('.mr-item-card')
+      .map(keysOf)
+      .find((c) => c.title.startsWith(booster.name));
+    expect(card.tags).toEqual(['+2 STR']);
+    expect(card.paragraphs.filter((p) => p.includes('+2 STR'))).toEqual([]);
+    expect(card.paragraphs.some((p) => p.startsWith('Permanent'))).toBe(true);
     sheet.destroy();
   });
 });
