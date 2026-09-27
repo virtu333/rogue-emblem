@@ -285,6 +285,28 @@
     "title": "Ashfall",
     "tonic": "Db"
   },
+  "music_battle_broken_sun": {
+    "duration": 94.2,
+    "loopEnd": 93.6,
+    "loopStart": 10.4,
+    "lufs": -14.0,
+    "peakDb": -1.1,
+    "score": "battle_broken_sun",
+    "seamDb": -52.4,
+    "title": "Under the Broken Sun",
+    "tonic": "E"
+  },
+  "music_battle_broken_sun_calm": {
+    "duration": 94.2,
+    "loopEnd": 93.6,
+    "loopStart": 10.4,
+    "lufs": -17.0,
+    "peakDb": -1.09,
+    "score": "battle_broken_sun",
+    "seamDb": -62.0,
+    "title": "Under the Broken Sun",
+    "tonic": "E"
+  },
   "music_battle_caravan": {
     "duration": 83.504,
     "loopEnd": 82.904127,
