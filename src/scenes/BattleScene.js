@@ -162,6 +162,7 @@ import {
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
   XP_BASE_DANCE,
+  XP_DEFEND_SURVIVE,
   XP_SPECIAL_ENEMY_MULTIPLIER,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
@@ -8937,15 +8938,31 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  /** Award XP to a player unit after combat. Shows floating text + level-up popups. */
-  async awardXP(playerUnit, opponent, opponentDied, damageDealt = null, defenderHpAtStart = null) {
+  /**
+   * Award XP to a player unit after combat. Shows floating text + level-up popups.
+   * `survivedAttack`: the unit was attacked and lived. It then earns at least
+   * XP_DEFEND_SURVIVE, even unarmed, out of counter reach or with every counter
+   * missed; only XP earned by damage dealt is shared by a Mentor's Band.
+   */
+  async awardXP(
+    playerUnit,
+    opponent,
+    opponentDied,
+    damageDealt = null,
+    defenderHpAtStart = null,
+    { survivedAttack = false } = {},
+  ) {
     if (opponent?._noXP) return;
+    const survivalXp = survivedAttack && playerUnit?.currentHP > 0 ? XP_DEFEND_SURVIVE : 0;
     let baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
     let damageRatio = 1;
     if (!opponentDied && Number.isFinite(damageDealt) && Number.isFinite(defenderHpAtStart)) {
       const safeDamage = Math.max(0, Math.trunc(damageDealt));
       const safeStartHp = Math.max(1, Math.trunc(defenderHpAtStart));
-      if (safeDamage <= 0) return;
+      if (safeDamage <= 0) {
+        if (survivalXp > 0) await this.awardScaledXP(playerUnit, survivalXp);
+        return;
+      }
       damageRatio = Math.min(1, safeDamage / safeStartHp);
       baseXp = Math.floor(baseXp * damageRatio);
     }
@@ -8955,8 +8972,9 @@ export class BattleScene extends Phaser.Scene {
     const recruitXpBonus = playerUnit?.isLord
       ? 0
       : Number(this.runManager?.metaEffects?.recruitXpBonus) || 0;
-    const adjustedBaseXp = Math.floor(
-      baseXp * rewardMultiplier * pressureXpMultiplier * (1 + recruitXpBonus),
+    const adjustedBaseXp = Math.max(
+      survivalXp,
+      Math.floor(baseXp * rewardMultiplier * pressureXpMultiplier * (1 + recruitXpBonus)),
     );
     // Mentor's Band (EXP Share): capture recipients before the holder's award
     // so a mid-award level-up can't change eligibility. Mirrored by the
@@ -10583,13 +10601,16 @@ export class BattleScene extends Phaser.Scene {
       const ctx = this._prepareCombatContext(enemy, target, { isPlayerInitiator: false });
       const { result } = await this._runCombatResolution(enemy, target, ctx);
 
-      // Award XP to player defender if they survived
+      // Award XP to player defender if they survived: at least the survival
+      // minimum, even with no counter (unarmed, out of reach) or no damage dealt.
       if (target.faction === 'player' && target.currentHP > 0) {
         const counterDamage = Math.max(
           0,
           enemyHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)),
         );
-        await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart);
+        await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart, {
+          survivedAttack: true,
+        });
       }
 
       // Tutorial: the first hit on a non-commander lord teaches permadeath
