@@ -19,6 +19,16 @@ def V(name):
     return os.path.join(VSCO, name)
 
 
+def _emily(program, take):
+    """An Emilyguitar program, round robins rotated for take > 0 (engine/guitar.py).
+    Without the library the plain path stands in (fetch_libraries.sh fetches it)."""
+    path = os.path.join(LIBS, 'karoryfer.emilyguitar', program)
+    if not take or not os.path.exists(path):
+        return path
+    from .guitar import take_program
+    return take_program(program, take)
+
+
 STR_SUS = dict(mode='sustain', release=0.45, legato=True, veltrack_db=11, attack_ms=90,
                swell=0.22, glide_ms=40, glide_frac=0.15, detune_jitter=3, tone_oct=2.0,
                soft_attack=0.09)
@@ -212,6 +222,17 @@ INSTRUMENTS = {
     'grand': dict(kind='sfizz', sfz=os.path.join(LIBS, 'SplendidGrandPiano', 'Splendid Grand Piano.sfz'),
                   range=(21, 108), pan=-0.1, width=0.9, depth=0.3, ref_key=64, bus='keys',
                   humanize_ms=4, cc={64: 0, 99: 40}),
+
+    # Karoryfer Emilyguitar (CC0): clean DI samples, sounding pitch, A1-F6. The amp is
+    # the part's `amp=dict(rig=True, ...)` (engine/guitar.py). Takes 2 and 3 play the
+    # same program with its round robins rotated (double tracking); `_pm` programs keep
+    # the library's string-mute release noises (palm-muted chugs)
+    **{f'egtr{sfx}': dict(kind='sfizz', sfz=_emily(prog, take), range=(33, 89), pan=0.0,
+                          width=0.0, depth=0.1, ref_key=52, bus='guitars', humanize_ms=4,
+                          hpf=0)
+       for sfx, prog, take in (('', 'emily_clean.sfz', 0), ('2', 'emily_clean.sfz', 1),
+                               ('3', 'emily_clean.sfz', 2), ('_pm', 'emily_basic.sfz', 0),
+                               ('_pm2', 'emily_basic.sfz', 1))},
 
     # ------------------------------------------------------------ plucked & drums (GeneralUser)
     'nylon': dict(kind='sf2', font=GU, bank=0, program=24, range=(40, 88), pan=0.3,
