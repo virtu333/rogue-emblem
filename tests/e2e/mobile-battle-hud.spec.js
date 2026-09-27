@@ -590,3 +590,64 @@ for (const viewport of [
     expect(errors).toEqual([]);
   });
 }
+
+// Battle details opens as a panel over the map, left of the side rail (the upright rail
+// pushed it off screen, playtest 2026-09-26). In landscape it stays on screen, beside
+// the rail and clear of it, and the rail's controls stay reachable.
+for (const viewport of [
+  { width: 844, height: 390 },
+  { width: 667, height: 375 },
+  { width: 568, height: 320 },
+]) {
+  test(`Battle details stays on screen beside the rail at ${viewport.width}x${viewport.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/?devScene=battle&preset=combat_actions&seed=42');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+    );
+    // Edric on an intact village with his action menu open (the playtest's state).
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = s.playerUnits.find((p) => p.name === 'Edric');
+      const pos = { col: u.col, row: u.row };
+      s.battleConfig.villageTile = pos;
+      s._villageState = { ...pos, status: 'intact' };
+      s.grid.setTerrainAt(
+        pos.col,
+        pos.row,
+        s.gameData.terrain.findIndex((t) => t.name === 'Village'),
+      );
+      s._villageController._renderMarker();
+      s.selectUnit(u);
+      s.showActionMenu(u);
+    });
+    await page.locator('.mb-battle-info > summary').tap();
+    await expect(page.locator('.mb-more-content')).toBeVisible();
+    const layout = () =>
+      page.evaluate(() => {
+        const panel = document.querySelector('.mb-battle-info[open] > .mb-more-content');
+        const rail = document.querySelector('.mobile-battle-hud').getBoundingClientRect();
+        const p = panel.getBoundingClientRect();
+        const covered = [...document.querySelectorAll('.mb-dock > button, .bl-tools > button')]
+          .filter((button) => {
+            const r = button.getBoundingClientRect();
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return !(hit && button.contains(hit));
+          })
+          .map((button) => button.getAttribute('aria-label') || button.innerText.trim());
+        return {
+          onScreen:
+            p.left >= -0.5 &&
+            p.top >= -0.5 &&
+            p.right <= innerWidth + 0.5 &&
+            p.bottom <= innerHeight + 0.5,
+          clearOfRail: p.right <= rail.left + 0.5,
+          covered,
+        };
+      });
+    await expect.poll(layout).toEqual({ onScreen: true, clearOfRail: true, covered: [] });
+  });
+}

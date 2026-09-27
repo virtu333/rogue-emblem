@@ -594,3 +594,67 @@ for (const viewport of [
     ]);
   });
 }
+
+// Battle details opens as a panel over the map. Landscape anchors it left of the side
+// rail; upright, that anchor put it past the left screen edge and over the commands
+// (playtest 2026-09-26, 390x844, Edric on a village). It must stay on screen, clear of
+// the rail, with every rail control still reachable.
+function detailsPanel(page) {
+  return page.evaluate(() => {
+    const panel = document.querySelector('.mb-battle-info[open] > .mb-more-content');
+    const rail = document.querySelector('.mobile-battle-hud').getBoundingClientRect();
+    const p = panel.getBoundingClientRect();
+    const covered = [...document.querySelectorAll('.mb-dock > button, .bl-tools > button')]
+      .filter((button) => {
+        const r = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !(hit && button.contains(hit));
+      })
+      .map((button) => button.getAttribute('aria-label') || button.innerText.trim());
+    return {
+      onScreen:
+        p.left >= -0.5 &&
+        p.top >= -0.5 &&
+        p.right <= innerWidth + 0.5 &&
+        p.bottom <= innerHeight + 0.5,
+      clearOfRail: p.bottom <= rail.top + 0.5,
+      readable: p.width >= 200 && panel.scrollWidth <= panel.clientWidth + 1,
+      covered,
+    };
+  });
+}
+
+for (const viewport of [
+  { width: 375, height: 667 },
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+]) {
+  test(`upright Battle details stays on screen and clear of the rail at ${viewport.width}x${viewport.height}`, async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize(viewport);
+    await page.goto('/?devScene=battle&preset=combat_actions&seed=42&portrait=1');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+    const summary = page.locator('.mb-battle-info > summary');
+    const panel = page.locator('.mb-more-content');
+    const expected = { onScreen: true, clearOfRail: true, readable: true, covered: [] };
+
+    // Idle rail.
+    await summary.tap();
+    await expect(panel).toBeVisible();
+    await expect.poll(() => detailsPanel(page)).toEqual(expected);
+    await summary.tap();
+    await expect(panel).toBeHidden();
+
+    // The playtest's state: Edric on an intact village, his action menu open.
+    await edricOnVillage(page);
+    await summary.tap();
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('Vision');
+    await expect.poll(() => detailsPanel(page)).toEqual(expected);
+    if (viewport.width === 390)
+      await page.screenshot({ path: testInfo.outputPath('portrait-battle-details.png') });
+  });
+}

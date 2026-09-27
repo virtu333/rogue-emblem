@@ -143,6 +143,20 @@ html.portrait-battle-capable #rotate-prompt {
     display: none;
   }
 
+  /* Battle details opens over the map. Landscape anchors it left of the side rail; the
+     upright rail spans the screen, so that anchor pushed it past the left edge and over
+     the commands (playtest 2026-09-26). Upright it sits above the rail, edge to edge. */
+  html.touch-ui.portrait-battle-capable .battlefield-lab .mb-battle-info[open] > .mb-more-content {
+    left: calc(env(safe-area-inset-left) + 8px);
+    right: calc(env(safe-area-inset-right) + 8px);
+    bottom: calc(var(--pb-rail-h) + env(safe-area-inset-bottom) + 8px);
+    width: auto;
+    max-height: calc(
+      100dvh - var(--pb-rail-h) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px
+    );
+    box-sizing: border-box;
+  }
+
   /* Actions: three across, so five commands never hide below a scroll. */
   html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-actions {
     grid-template-columns: repeat(3, minmax(0, 1fr));
