@@ -166,6 +166,15 @@ npx cap open ios  # Opens Xcode
 - [ ] Touch buttons scale with device resolution (min 60×60 logical px)
 
 #### 2. Orientation Lock (Critical)
+
+> **Update (2026-09-27): the iPhone app turns upright.** Portrait mode shipped
+> (`docs/portrait-battles.md`). `Info.plist` `UISupportedInterfaceOrientations` now lists
+> `UIInterfaceOrientationPortrait` beside both landscapes; `~ipad` stays landscape-only
+> (the upright layouts are built for phone widths, and `isLandscapeLockedShell` treats
+> the iPad app as locked, hiding the Settings toggle), so `UIRequiresFullScreen` stays
+> `true`. `tests/GameIdentity.test.js` holds these lists and the web manifest's
+> `"orientation": "any"` together. The original landscape-only plan follows.
+
 **Problem:** Game is 4:3 landscape, phones default to portrait.
 
 **Solution:**
@@ -511,7 +520,8 @@ npx cap open ios  # Opens Xcode
    - **Decision:** Defer to v1.1—use iPhone layout scaled up initially
 
 3. **Landscape-Only Restriction:** Could we support portrait with redesigned UI?
-   - **Decision:** No—game is 4:3 landscape by design, portrait would need full redesign
+   - **Decision (2026-02):** No—game is 4:3 landscape by design, portrait would need full redesign
+   - **Revisited (2026-09):** Yes, on iPhone. The redesign happened screen by screen (portrait mode, `docs/portrait-battles.md`); iPad stays landscape.
 
 4. **TestFlight Duration:** How long to test before App Store submission?
    - **Decision:** 1 week internal testing minimum (25 testers from existing community)

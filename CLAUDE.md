@@ -9,7 +9,7 @@ Rogue Dawn (formerly "Emblem Rogue" / "Rogue Emblem") is a browser-based tactica
 **Class/Weapon Data:** `docs/emblem_rogue_class_data.xlsx` (already parsed into `data/*.json`)
 **Roadmap:** `ROADMAP.md` (long-term vision + architecture notes + actionable implementation waves)
 **Mobile Controls:** `docs/mobile-controls-spec.md` (HTML overlay, landscape, context-sensitive buttons)
-**Portrait mode (beta):** `docs/portrait-battles.md` (opt-in upright play on phones: `html.portrait-ui` keys every portrait layout; battles turn the board by a Grid presentation transform and orientation switches re-open from the battle checkpoint; the whole-run plan and its status)
+**Portrait mode:** `docs/portrait-battles.md` (upright play on phones, on by default; Settings → Portrait mode or `?portrait=0` turns it off; iPad app stays landscape. `html.portrait-ui` keys every portrait layout, and every such rule sits inside `@media (orientation: portrait)` (`tests/PortraitCssGating.test.js`); battles turn the board by a Grid presentation transform and orientation switches re-open from the battle checkpoint; upright browser specs live in the `portrait` e2e lane and share `tests/e2e/portraitHelpers.js`)
 **iOS Port:** `docs/ios-port-spec.md` (Capacitor wrapper, deferred until mobile web stable)
 
 ## Tech Stack
