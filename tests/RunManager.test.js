@@ -724,6 +724,25 @@ describe('RunManager', () => {
       expect(restored.getPendingCaravanShop()).toBeNull();
     });
 
+    it('advanceAct heals the army to full for the next act', () => {
+      rm.startRun();
+      const [edric, sera] = rm.roster;
+      edric.currentHP = 3;
+      sera.currentHP = 1;
+      const maxHP = rm.roster.map((u) => u.stats.HP);
+      expect(maxHP.every((hp) => hp > 3)).toBe(true);
+      rm.advanceAct();
+      expect(rm.roster.map((u) => u.currentHP)).toEqual(maxHP);
+    });
+
+    it('the last act has no next act to heal for', () => {
+      rm.startRun();
+      rm.actIndex = rm.actSequence.length - 1;
+      rm.roster[0].currentHP = 2;
+      rm.advanceAct();
+      expect(rm.roster[0].currentHP).toBe(2);
+    });
+
     it('advanceAct clears any pending caravan shop', () => {
       rm.startRun();
       const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);

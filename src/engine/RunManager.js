@@ -3794,6 +3794,10 @@ export class RunManager {
       return { unlockedArtIds: [], displacedSkills: {} };
     this.actIndex++;
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
+    // The act boss has fallen: the army rests before the next act and starts it whole.
+    for (const unit of this.roster) {
+      if (unit?.stats) unit.currentHP = unit.stats.HP;
+    }
     this.nodeMap = this._withNodeMapSeed(() =>
       generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
         fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
