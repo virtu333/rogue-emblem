@@ -5,8 +5,19 @@ import { readFileSync } from 'node:fs';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 import { threatPreviewLine } from '../src/ui/MobileBattleHUD.js';
 
+/** Enough of a DOM element for the rail: class, dataset, children (nodes or text). */
 function fakeElement(tag) {
-  return { tag, className: '', textContent: '', dataset: {} };
+  const node = { tag, className: '', dataset: {}, children: [], ownText: '' };
+  Object.defineProperty(node, 'textContent', {
+    get: () =>
+      node.ownText + node.children.map((c) => (typeof c === 'string' ? c : c.textContent)).join(''),
+    set: (value) => {
+      node.ownText = String(value);
+      node.children = [];
+    },
+  });
+  node.append = (...kids) => node.children.push(...kids);
+  return node;
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -38,6 +49,30 @@ describe('rail threat line', () => {
     const clear = threatPreviewLine(result(0, 0, true));
     expect(clear.textContent).toBe('No foe can reach · fog may hide more');
     expect(classes(clear)).toEqual(['mb-threat-line']);
+  });
+
+  it('a long line breaks only between whole clauses, never inside one', () => {
+    vi.stubGlobal('document', { createElement: fakeElement });
+    const line = threatPreviewLine(result(0, 2, true));
+    expect(line.textContent).toBe('Only 2 staves can reach · fog may hide more');
+    // Clause spans (kept whole) with a plain space between them: the only place the
+    // card may wrap the line.
+    expect(line.children.map((c) => (typeof c === 'string' ? c : c.className))).toEqual([
+      'mb-threat-clause',
+      ' ',
+      'mb-threat-clause',
+    ]);
+    expect(line.children.filter((c) => typeof c !== 'string').map((c) => c.textContent)).toEqual([
+      'Only 2 staves can reach',
+      '· fog may hide more',
+    ]);
+    const css = readFileSync('src/ui/mobileBattle.css', 'utf8');
+    expect(css).toMatch(/\.mb-terrain \.mb-threat-clause\s*\{[^}]*white-space:\s*nowrap/);
+    // The compact card (a unit selected) keeps its other spans on one line, but not this one.
+    const rail = readFileSync('src/ui/battleRail.css', 'utf8');
+    expect(rail).toMatch(
+      /\.has-unit \.mb-terrain > \.mb-threat-line\s*\{[^}]*white-space:\s*normal/,
+    );
   });
 
   it('the status tone has its own colour, distinct from the muted safe line', () => {

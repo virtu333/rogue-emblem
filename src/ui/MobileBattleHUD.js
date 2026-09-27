@@ -103,15 +103,23 @@ function el(tag, className, text) {
 /**
  * The terrain card's move preview: how many visible foes could strike this tile next
  * phase. Crimson when one can; violet (the status eyes' colour) when only status
- * staves can, so that tile never looks safe; plain otherwise.
+ * staves can, so that tile never looks safe; plain otherwise. Each " · " clause is
+ * its own unbreakable span with a plain space between, so a narrow card wraps
+ * between clauses ("… can reach" / "· fog may hide more"), never inside one; the
+ * line's text stays exactly threatSummaryText.
  */
 export function threatPreviewLine(result) {
   const tone = threatSummaryTone(result);
   const line = el(
     'span',
     tone === 'clear' ? 'mb-threat-line' : `mb-threat-line mb-threat-line--${tone}`,
-    threatSummaryText(result),
   );
+  threatSummaryText(result)
+    .split(' · ')
+    .forEach((clause, i) => {
+      if (i) line.append(' ');
+      line.append(el('span', 'mb-threat-clause', i ? `· ${clause}` : clause));
+    });
   line.dataset.threatCount = String(result?.count ?? 0);
   return line;
 }
