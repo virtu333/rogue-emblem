@@ -18,3 +18,4 @@ docs/art/
 tools/cutscene/pilot/cues/
 # Generated cue sheet (tools/cutscene/hook/music.py).
 tools/cutscene/hook/cues.json
+tools/cutscene/glass/cues.json

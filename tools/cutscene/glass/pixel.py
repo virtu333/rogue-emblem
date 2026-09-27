@@ -14,7 +14,7 @@ pixels in a fixed palette of a few dozen colours, the way a 16-bit intro was dra
                where the image is a smooth gradient (skies, glows, mist)
   5. tidy      single stray pixels are absorbed into their neighbours
 
-Output: tools/cutscene/glass/px/<shot>.png, a sheet of frames whose grey value is
+Output: tools/cutscene/glass/px/<shot>.webp (lossless), a sheet of frames whose grey value is
 the palette index, and <shot>.json with the palette. The player maps indices to
 colours at run time, so palette effects (fades through a ramp, flashes, the Roll's
 red) are free.
@@ -284,10 +284,12 @@ def main():
     for i, fr in enumerate(out):
         r, c = divmod(i, cols)
         sheet[r * H: (r + 1) * H, c * W: (c + 1) * W] = fr
-    png = os.path.join(OUT, f'{o.shot}.png')
-    cv2.imwrite(png, sheet, [cv2.IMWRITE_PNG_COMPRESSION, 9])
+    # lossless WebP: grey value = palette index (about 30% smaller than PNG here)
+    from PIL import Image
+    png = os.path.join(OUT, f'{o.shot}.webp')
+    Image.fromarray(sheet, 'L').save(png, lossless=True, method=6, quality=100)
     meta = {'shot': o.shot, 'w': W, 'h': H, 'fps': o.fps, 'n': len(out), 'cols': cols,
-            'palette': hexes}
+            'from': o.t0 or 0, 'palette': hexes}
     with open(os.path.join(OUT, f'{o.shot}.json'), 'w') as fh:
         json.dump(meta, fh)
     print(f'{png}  {len(out)} frames  {len(hexes)} colours  {os.path.getsize(png) / 1024:.0f} KB')

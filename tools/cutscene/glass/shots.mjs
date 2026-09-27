@@ -175,11 +175,13 @@ export const SHOTS = [
   {
     id: 'kneel',
     key:
-      `Night, a storm-lashed lowland fen. ${DAWN} kneels alone in the reeds, head bowed, ` +
+      'Night, a storm-lashed lowland fen. A tall woman wrapped in a long hooded mantle ' +
+      'that glows soft white-gold, her face hidden in the shadow of the hood, kneels alone ' +
+      'in the reeds, head bowed, ' +
       'hands open on her knees, the only light in the world. Rain, wind flattening the ' +
       'reeds. Seen from a little behind and to the side.',
     motion:
-      'She lifts her face (lost in glare) and her light swells; wind and rain whip the reeds.',
+      'The hooded figure slowly lifts her head and the glow of her mantle swells; wind and rain whip the reeds around her.',
     dur: 8,
     model: 'veo',
   },

@@ -5,9 +5,36 @@ Dev tools only: nothing here ships or is imported by the game.
 - **`hook/` — "The Roll"**, the opening cutscene (draft 1): rotoscoped generated
   clips redrawn as engraved ink, on a score written for it. Storyboard and pipeline:
   [docs/specs/cutscene-the-roll.md](../../docs/specs/cutscene-the-roll.md).
+- **`glass/` — "The Far Side of the Glass"**, a second opening prototype (draft 1): a
+  narrated story trailer in pixel art traced from anime cels, told by the Lieutenant.
+  Storyboard and pipeline: [docs/specs/cutscene-far-side.md](../../docs/specs/cutscene-far-side.md).
 - **`pilot/` — "The Night Before"**, slice 0 of
   [docs/specs/cutscenes.md](../../docs/specs/cutscenes.md): the Historia plates on the
   title theme. Superseded as the opening by `hook/`; kept for its pixel techniques.
+
+## The Far Side of the Glass (`glass/`)
+
+```sh
+npx vite --port 3290      # open http://localhost:3290/tools/cutscene/glass/
+CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/cutscene/render.mjs --piece glass --stills 64,193 --out References/cutscene
+CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/cutscene/render.mjs --piece glass --video References/cutscene/far-side.mp4 --workers 4
+
+# regenerate sources (paid; cached by request hash)
+node tools/cutscene/glass/tts.mjs [--only l08 --force]     # narration takes
+node tools/cutscene/glass/gen.mjs --keys|--clips [--only glass]
+node tools/cutscene/glass/trace.mjs [--only glass]         # pixel pass over the frames edit.mjs uses
+python3 tools/cutscene/glass/music.py [--mix]              # score + narration mix + cues.json
+```
+
+| File | What it is |
+|---|---|
+| `glass/script.mjs` | The narration, line by line, and the TTS voice and style. |
+| `glass/shots.mjs` | The shot list: anime keyframe prompt, PC-98 portrait references, Veo motion prompt. |
+| `glass/edit.mjs` | The cut: which clip plays when, from where, how fast. Also what gets traced. |
+| `glass/pixel.py` | The pixel pass: a clip becomes palette-indexed 480x270 drawings (lossless WebP sheets in `glass/px/`). |
+| `glass/score.py`, `glass/music.py` | The score ("Every Way It Ends", 60 bpm so a beat is a second) and the narration mix; `far_side.mp3`, `cues.json`. |
+| `glass/glass.js` | The player: one 480x270 buffer, dither dissolves, pixel text, the thread, the mirror, the Hollow Sun. |
+| `glass/judge.py` | Ask Gemini about audio or image files (voice auditions, take QC). |
 
 ## The Roll (`hook/`)
 

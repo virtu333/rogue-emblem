@@ -3,7 +3,9 @@
 Status: **plan** (2026-09-27). Nothing here is built yet except the pilot in
 `tools/cutscene/` (see [The pilot](#the-pilot)) and a first draft of a new opening,
 **"The Roll"** ([cutscene-the-roll.md](cutscene-the-roll.md)): a hook that replaces
-the pilot's history-lesson prologue, in a new rotoscoped ink style on its own score.
+the pilot's history-lesson prologue, in a new rotoscoped ink style on its own score;
+and a second candidate, **"The Far Side of the Glass"** ([cutscene-far-side.md](cutscene-far-side.md)):
+a narrated story trailer told by the Lieutenant, in pixel art traced from anime cels.
 
 Rogue Dawn has no cutscenes. Its story reaches the player as a dialogue box over an
 act card, a boss card, and a run-end band. This spec decides which cutscenes to
