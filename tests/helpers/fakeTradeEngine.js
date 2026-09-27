@@ -70,7 +70,7 @@ export function fakeEngine({
       const warnings = [];
       const receiver = to.holder.unit;
       if (receiver?.cannotEquip.includes(from.item.name))
-        warnings.push({ code: 'cannot_equip', unit: receiver });
+        warnings.push({ code: 'cannot_equip', unit: receiver, item: from.item });
       if (from.bag === 'inventory' && giver && !to.item && giver.inventory.length === 1)
         warnings.push({ code: 'leaves_unarmed', unit: giver });
       return { ok: true, kind: to.item ? 'swap' : 'give', warnings, detail: from.item.name };

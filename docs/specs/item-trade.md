@@ -125,7 +125,7 @@ settleEquipped(unit, preferred)
 - Blocked targets:
   - use `aria-disabled` (not `disabled`), so they stay focusable;
   - put their reason in the `role=status` line.
-- Warnings sit on a second line, e.g. "Sera can't equip this; can carry" or "Leaves Edric
+- Warnings sit on a second line, e.g. "Sera can't wield Iron Axe" or "Leaves Edric
   unarmed".
 
 **Committing and closing**

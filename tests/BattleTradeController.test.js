@@ -147,7 +147,7 @@ describe('BattleTradeController.commit', () => {
       ok: true,
       kind: 'swap',
       detail: 'Iron Sword +1 for Iron Lance',
-      warnings: [{ code: 'cannot_equip', unit: edric }],
+      warnings: [{ code: 'cannot_equip', unit: edric, item: ironLance }],
     });
     // Edric: slot 0 took the Iron Lance (unusable); his first usable weapon, the
     // Steel Sword in slot 1, is equipped and moved to slot 0.

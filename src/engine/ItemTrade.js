@@ -254,9 +254,9 @@ function resolveTrade(ctx, from, to) {
       unarmed.push(unit);
     }
     if (isUnitHolder(to.holder) && !canUnitEquip(to.holder.unit, fromItem))
-      warnings.push({ code: TRADE_WARNINGS.cannotEquip, unit: to.holder.unit });
+      warnings.push({ code: TRADE_WARNINGS.cannotEquip, unit: to.holder.unit, item: fromItem });
     if (toItem && isUnitHolder(from.holder) && !canUnitEquip(from.holder.unit, toItem))
-      warnings.push({ code: TRADE_WARNINGS.cannotEquip, unit: from.holder.unit });
+      warnings.push({ code: TRADE_WARNINGS.cannotEquip, unit: from.holder.unit, item: toItem });
     for (const unit of unarmed) warnings.push({ code: TRADE_WARNINGS.leavesUnarmed, unit });
   }
 

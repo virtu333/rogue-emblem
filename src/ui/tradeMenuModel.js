@@ -40,10 +40,16 @@ export function sameItem(holder, a, b) {
   return isConvoyHolder(holder) && a.uid != null && a.uid === b.uid;
 }
 
-/** "Sera can't equip this; can carry" / "Leaves Edric unarmed"; '' for an unknown code. */
+/**
+ * "Sera can't wield Iron Axe" / "Leaves Edric unarmed"; '' for an unknown code. A swap
+ * can warn about both items, so each warning names its own.
+ */
 export function tradeWarningText(warning) {
   const name = warning?.unit?.name || 'This unit';
-  if (warning?.code === 'cannot_equip') return `${name} can't equip this; can carry`;
+  if (warning?.code === 'cannot_equip')
+    return warning.item?.name
+      ? `${name} can't wield ${warning.item.name}`
+      : `${name} can't wield this`;
   if (warning?.code === 'leaves_unarmed') return `Leaves ${name} unarmed`;
   return '';
 }

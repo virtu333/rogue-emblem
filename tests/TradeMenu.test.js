@@ -176,7 +176,7 @@ describe('hold and commit', () => {
     // The warning sits on its own line and describes the row.
     const target = row(root, 'right', 1);
     const warn = target.querySelector('.tm-warn');
-    expect(warn.textContent).toBe("Sera can't equip this; can carry");
+    expect(warn.textContent).toBe("Sera can't wield Rapier");
     expect(target.getAttribute('aria-describedby')).toContain(warn.id);
     expect(commits).toHaveLength(0);
 

@@ -208,7 +208,7 @@ describe('rows', () => {
     const v = view({ held: { holder: L, bag: 'inventory', item: rapier } });
     expect(v.columns.right.rows[0].kind).toBe('swap');
     expect(v.columns.right.rows[1].kind).toBe('give');
-    expect(v.columns.right.rows[1].warnings).toEqual(["Sera can't equip this; can carry"]);
+    expect(v.columns.right.rows[1].warnings).toEqual(["Sera can't wield Rapier"]);
   });
 
   it('a unit left unarmed is warned about, not blocked', () => {
@@ -389,8 +389,15 @@ describe('cancel and messages', () => {
   });
 
   it('warning codes read as sentences; unknown codes say nothing', () => {
+    expect(
+      tradeWarningText({
+        code: 'cannot_equip',
+        unit: { name: 'Sera' },
+        item: { name: 'Iron Axe' },
+      }),
+    ).toBe("Sera can't wield Iron Axe");
     expect(tradeWarningText({ code: 'cannot_equip', unit: { name: 'Sera' } })).toBe(
-      "Sera can't equip this; can carry",
+      "Sera can't wield this",
     );
     expect(tradeWarningText({ code: 'leaves_unarmed', unit: { name: 'Edric' } })).toBe(
       'Leaves Edric unarmed',

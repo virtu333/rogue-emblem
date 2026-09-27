@@ -162,7 +162,7 @@ describe('give', () => {
       slot(giver, 'inventory', steel),
       slot(receiver, 'inventory', null),
     );
-    expect(result.warnings).toEqual([{ code: 'cannot_equip', unit: receiver }]);
+    expect(result.warnings).toEqual([{ code: 'cannot_equip', unit: receiver, item: steel }]);
     expect(receiver.inventory).toEqual([steel]);
     expect(receiver.weapon).toBeNull();
   });
@@ -177,7 +177,7 @@ describe('give', () => {
       slot(giver, 'inventory', silver),
       slot(receiver, 'inventory', null),
     );
-    expect(result.warnings).toEqual([{ code: 'cannot_equip', unit: receiver }]);
+    expect(result.warnings).toEqual([{ code: 'cannot_equip', unit: receiver, item: silver }]);
     expect(receiver.weapon).toBeNull();
   });
 
@@ -258,8 +258,8 @@ describe('swap', () => {
     const result = applyTrade(battle, slot(a, 'inventory', aSword), slot(b, 'inventory', bHammer));
     // B receives the sword first, then A receives the hammer.
     expect(result.warnings).toEqual([
-      { code: 'cannot_equip', unit: b },
-      { code: 'cannot_equip', unit: a },
+      { code: 'cannot_equip', unit: b, item: aSword },
+      { code: 'cannot_equip', unit: a, item: bHammer },
     ]);
     // A after the write: [Hammer, Steel] → Steel is the only usable weapon → moved first.
     expect(a.weapon).toBe(aSteel);
@@ -276,8 +276,8 @@ describe('swap', () => {
     const b = unit('B', ['Axe'], [bAxe, bHammer]);
     const result = applyTrade(battle, slot(a, 'inventory', aSword), slot(b, 'inventory', bHammer));
     expect(result.warnings).toEqual([
-      { code: 'cannot_equip', unit: b },
-      { code: 'cannot_equip', unit: a },
+      { code: 'cannot_equip', unit: b, item: aSword },
+      { code: 'cannot_equip', unit: a, item: bHammer },
       { code: 'leaves_unarmed', unit: a },
     ]);
     expect(a.inventory).toEqual([bHammer]);
