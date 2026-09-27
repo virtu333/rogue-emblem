@@ -252,3 +252,12 @@ loop start where the intro's tails have died, so the jump is inaudible. Any cons
 MP3 decoder delay shorter than M only shifts both points by the same content offset.
 The build checks every file's seam numerically (`seamDb`, which must be under −45 dB).
 The shipped files measure between −53 and −130 dB.
+
+## Drafts (not in the game)
+
+A score that declares `DRAFT = True` is an audition: `build.py --all` leaves it out and
+`musicConfig.js` does not know it.
+
+| Score | Title | Notes |
+|---|---|---|
+| `battle_broken_sun` | Under the Broken Sun | 150 bpm, E minor, adaptive. The anime OP experiment (`experiments/anime_op/`, 欠けた太陽) turned into a battle theme: a J-rock band (the Emilyguitar through `engine/guitar.py`, double-tracked; the Growlybass; the kit) and the house choir on "ah". The OP's kime and the Empire drill open it; the hook (the Thread) on lead guitar; a verse over which the low choir chants the drill (E-F-E-D, then A-Bb-A-G) against palm mutes; the B-melo in half time with an accelerating roll; the chorus sung by the choir in octaves with the guitar a third below over a pumping pad; a new strain, the choir's own hymn (the Thread augmented), first alone over palm mutes, then with the band; the turnaround is the Hollow Sun: choir and guitar climb to D#, the band cuts, and three beats of silence stand where E should be. Calm: clean chorused guitars, a string pad, the clean bass, light drums |
