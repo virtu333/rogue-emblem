@@ -87,8 +87,9 @@ def build():
     b.lead('D', MEL_A2, inst='flute', transpose=12, dyn='f', layer='calm', name='lead_flute')
 
     # strings texture
+    # the motor is the full mix's: calm keeps it 6 dB under its solo voices
     for sec in ('A', 'A2', 'D'):
-        b.spic16(sec, 'violins2', pattern='0 1 2 1', lo=60, hi=79)
+        b.spic16(sec, 'violins2', pattern='0 1 2 1', lo=60, hi=79, calm_db=-6)
     b.spic8('B', 'celli', degrees='b b b b b b b b', lo=39, hi=55)
     b.pads('B', 'violas', n=2, lo=55, hi=70)
     b.pads('C', 'violas', n=2, lo=53, hi=67, art='trem')
@@ -96,7 +97,7 @@ def build():
     b.low('B', 'q')
     b.low('C', 'w')
     b.low('build', 'w')
-    b.spic16('build', 'violins2', pattern='0 1 2 3', lo=60, hi=84)
+    b.spic16('build', 'violins2', pattern='0 1 2 3', lo=60, hi=84, calm_db=-6)
 
     # brass & choir
     b.brass_pad('B', 'horns', n=3, lo=51, hi=67, vel=0.58)
