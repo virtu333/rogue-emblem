@@ -74,11 +74,12 @@ test.afterEach(async ({ page }, testInfo) => {
 });
 
 // SceneGuard findings this journey also raises in landscape (844x390, the same run,
-// seed and taps), so they are not portrait mode's: combat sounds counted while
-// muted, and the rewards overlay still flagged open as the battle hands off to the
+// seed and taps), so they are not portrait mode's: combat sounds still counted as
+// playing while muted (periodically, or at the hand-off to the route, depending on
+// timing), and the rewards overlay still flagged open as the battle hands off to the
 // route. Any other invariant error fails the journey.
 const LANDSCAPE_TOO = [
-  /^sound_leak_periodic: /,
+  /^sound_leak(_periodic)?: /,
   /^shutdown_overlay_leak: 1 overlays still open in Battle$/,
 ];
 
