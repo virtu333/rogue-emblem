@@ -121,6 +121,11 @@ export function noTargetReason(range) {
   return range ? `No target in range ${range}` : 'No target in range';
 }
 
+/** Greyed Attack row for a unit carrying no weapon it can wield (Full Guidance). */
+export function unarmedReason() {
+  return 'Unarmed: no weapon to attack with';
+}
+
 /**
  * The distances a unit can strike at, from each usable weapon's {min, max} range:
  * "1", "1–3", or "1, 3–10" when the weapons leave a gap. Null without a range.

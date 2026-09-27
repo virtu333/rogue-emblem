@@ -1,5 +1,5 @@
 import { MenuSurface, element as el, button } from './MenuSurface.js';
-import { canFight, getAvailableTiers } from '../engine/ColosseumEngine.js';
+import { arenaEntryBlock, canFight, getAvailableTiers } from '../engine/ColosseumEngine.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { describeUnit } from './PartyMenus.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
@@ -103,9 +103,7 @@ export class ArenaMenu {
           c._selectedUnit = u;
           c._showTierSelect();
         },
-        canFight(u, used, c._maxFights)
-          ? ''
-          : `${u.name} cannot fight: check HP, weapon and visit limit.`,
+        arenaEntryBlock(u, used, c._maxFights),
         u,
       );
     }
@@ -131,15 +129,15 @@ export class ArenaMenu {
   static forecast(c, forecast) {
     const m = new ArenaMenu(c, 'Arena · Combat forecast', () => c._showTierSelect());
     const grid = el('div', null, 'service-columns');
-    for (const [u, f] of [
-      [c._selectedUnit, forecast.attacker],
-      [c._challenger.unit, forecast.defender],
+    for (const [u, f, weapon] of [
+      [c._selectedUnit, forecast.attacker, c._fighterWeapon ?? c._selectedUnit.weapon],
+      [c._challenger.unit, forecast.defender, c._challenger.unit.weapon],
     ]) {
       const card = el('article', null, 'service-card');
       card.append(
         el('h3', u.name),
         el('p', `${u.className} · Lv ${getDisplayLevel(u)} · HP ${u.currentHP}/${u.stats.HP}`),
-        el('p', u.weapon?.name || 'Unarmed'),
+        el('p', weapon?.name || 'Unarmed'),
         el(
           'p',
           `Damage ${f.damage} · Hits ${formatStrikes(f.attackCount)} · Hit ${formatHitChance(f.hit)} · Crit ${formatCritChance(f.crit)}`,

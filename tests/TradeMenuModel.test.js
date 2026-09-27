@@ -240,22 +240,34 @@ describe('rows', () => {
   });
 
   it('blocked targets carry the engine reason and stay rows (aria-disabled)', () => {
-    const iron = weapon('Iron Sword');
-    const edric = unit('Edric', { inventory: [iron] });
-    edric.keepLast = true;
+    const breath = weapon('Fire Breath', { noConvoy: true });
+    const edric = unit('Edric', { inventory: [breath, weapon('Iron Sword')] });
     const engine = fakeEngine({ convoy: { weapons: [weapon('Axe')], consumables: [] } });
     const { L, view } = setup({ left: edric, right: CONVOY, engine });
-    const v = view({ held: { holder: L, bag: 'inventory', item: iron } });
+    const v = view({ held: { holder: L, bag: 'inventory', item: breath } });
     const [swap, give] = v.columns.right.rows;
-    expect(swap.blocked).toBeNull();
-    expect(give.blocked).toBe('Keep at least one combat weapon.');
+    expect(swap.blocked).toBe('The convoy cannot store this item.');
+    expect(give.blocked).toBe('The convoy cannot store this item.');
     expect(give.disabled).toBe(true);
-    expect(give.name).toBe('Give Iron Sword to Convoy');
+    expect(give.name).toBe('Give Fire Breath to Convoy');
     expect(give.warnings).toEqual([]);
     expect(activateRow(v, give)).toEqual({
       type: 'blocked',
-      reason: 'Keep at least one combat weapon.',
+      reason: 'The convoy cannot store this item.',
     });
+  });
+
+  it('giving the last weapon to the convoy is open, with the unarmed warning', () => {
+    const iron = weapon('Iron Sword');
+    const edric = unit('Edric', { inventory: [iron] });
+    const engine = fakeEngine({ convoy: { weapons: [weapon('Axe')], consumables: [] } });
+    const { L, view } = setup({ left: edric, right: CONVOY, engine });
+    const v = view({ held: { holder: L, bag: 'inventory', item: iron } });
+    const give = v.columns.right.rows[1];
+    expect(give.name).toBe('Give Iron Sword to Convoy');
+    expect(give.blocked).toBeNull();
+    expect(give.disabled).toBe(false);
+    expect(give.warnings).toEqual(['Leaves Edric unarmed']);
   });
 
   it('a give into a full bag is blocked with "Bag full." while swaps stay open', () => {

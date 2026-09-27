@@ -482,6 +482,75 @@ for (const vp of VIEWPORTS) {
       await expect(rewards).toBeVisible();
     });
 
+    test('the last weapon: Store and a convoy trade are allowed, warn, and leave the unit unarmed', async ({
+      page,
+    }, info) => {
+      await bootNodeMap(page, vp);
+      await seedFullBags(page, 'NodeMap');
+      await page.evaluate(() => {
+        const run = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
+        // One weapon each: Edric's blade, Sera's tome (both equipped).
+        for (const name of ['Edric', 'Sera']) {
+          const unit = run.roster.find((u) => u.name === name);
+          unit.inventory = unit.inventory.slice(0, 1);
+          unit.weapon = unit.inventory[0];
+        }
+        run.convoy.weapons = [];
+      });
+      await press(
+        vp,
+        page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }),
+      );
+      const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+      await expect(sheet).toBeVisible();
+      await press(vp, sheet.getByRole('button', { name: 'Equipment', exact: true }));
+      await expect(sheet.getByRole('heading', { name: /^Equipment · 1\/5/ })).toBeVisible();
+
+      // Store: open, with the warning as its description and beside it.
+      const card = itemCard(sheet, 'Edric Blade 1');
+      await card.scrollIntoViewIfNeeded();
+      const store = card.getByRole('button', { name: 'Store', exact: true });
+      await expect(store).toBeEnabled();
+      await expect(store).toHaveAttribute('aria-description', 'Leaves Edric unarmed.');
+      await expect(card.locator('small.mr-warn')).toHaveText('Leaves Edric unarmed.');
+      await page.screenshot({ path: info.outputPath(`${vp.name}-store-last-weapon.png`) });
+      await press(vp, store);
+      await expect(sheet.getByRole('status')).toContainText(
+        'Store: Edric Blade 1 Leaves Edric unarmed.',
+      );
+      await expect(sheet.getByRole('heading', { name: /^Equipment · 0\/5/ })).toBeVisible();
+      await expect(sheet).toContainText(
+        'Unarmed: this unit cannot attack or counterattack until it carries a weapon.',
+      );
+      await expectSaved(page, 'NodeMap', {
+        'edric.inventory': [],
+        'edric.weapon': null,
+        convoy: ['Edric Blade 1#e1'],
+      });
+
+      // A trade into the convoy: the give row carries the same warning, and commits.
+      await press(
+        vp,
+        sheet.getByRole('navigation', { name: 'Units' }).getByRole('button', { name: /Sera/ }),
+      );
+      await expect(sheet.getByRole('heading', { name: /^Equipment · 1\/5/ })).toBeVisible();
+      const { menu } = await tradeFromCard(page, vp, sheet, 'Sera Tome 1', 'Convoy');
+      const give = menu.getByRole('button', { name: 'Give Sera Tome 1 to Convoy' });
+      await expect(give).not.toHaveAttribute('aria-disabled', 'true');
+      await expect(give.locator('.tm-warn')).toContainText('Leaves Sera unarmed');
+      await press(vp, give);
+      await expect(menu.getByRole('status')).toHaveText(
+        'Gave Sera Tome 1 to Convoy. Leaves Sera unarmed.',
+      );
+      await expectSaved(page, 'NodeMap', {
+        'sera.inventory': [],
+        'sera.weapon': null,
+        convoy: ['Edric Blade 1#e1', 'Sera Tome 1#s1'],
+      });
+      await press(vp, menu.getByRole('button', { name: 'Done', exact: true }));
+      await expect(menu).toHaveCount(0);
+    });
+
     test('gamepad: L1/R1 switch tabs, A holds and commits, B releases then closes', async ({
       page,
     }) => {

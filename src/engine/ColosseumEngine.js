@@ -22,6 +22,7 @@ import {
   calculateCombatXP,
   learnSkill,
   getClassInnateSkills,
+  getCombatWeapons,
 } from './UnitManager.js';
 
 /** Apply class abilities to new mercenaries and older persisted boards. */
@@ -184,14 +185,46 @@ export function calculateArenaReward(tier, outcome, baseXP, levelsGainedThisVisi
 }
 
 /**
- * Check if a unit can fight in the arena.
+ * The weapon a fighter uses in the arena: the equipped weapon when it is a combat
+ * weapon the unit can wield, otherwise the first one carried (a healer with a staff
+ * equipped fights with its tome), otherwise null. The fight equips it (FE: you fight
+ * with what you hold); the forecast only plans it.
+ * @param {Object} unit
+ * @returns {Object|null}
+ */
+export function getArenaWeapon(unit) {
+  if (!unit || !Array.isArray(unit.inventory) || !Array.isArray(unit.proficiencies)) return null;
+  const usable = getCombatWeapons(unit);
+  return usable.includes(unit.weapon) ? unit.weapon : usable[0] || null;
+}
+
+/**
+ * Why a unit can't enter the arena now, or '' when it can. A fighter needs more
+ * than 1 HP, a fight left this visit, and a combat weapon it can wield: without
+ * one the exchange is empty (an unarmed or staff-only unit can't strike, and the
+ * challenger never gets to), which used to count as a draw and pay draw XP.
+ * @param {Object} unit
+ * @param {number} fightsThisVisit - fights this unit has done at this colosseum visit
+ * @param {number} maxFights
+ * @returns {string}
+ */
+export function arenaEntryBlock(unit, fightsThisVisit, maxFights) {
+  const name = unit?.name || 'This unit';
+  if ((unit?.currentHP || 0) <= 1) return `${name} needs more than 1 HP to fight.`;
+  if (fightsThisVisit >= maxFights) return `${name} has no arena fights left this visit.`;
+  if (!getArenaWeapon(unit)) return `${name} has no weapon to fight with.`;
+  return '';
+}
+
+/**
+ * Check if a unit can fight in the arena (see arenaEntryBlock).
  * @param {Object} unit
  * @param {number} fightsThisVisit - fights this unit has done at this colosseum visit
  * @param {number} maxFights
  * @returns {boolean}
  */
 export function canFight(unit, fightsThisVisit, maxFights) {
-  return (unit.currentHP || 0) > 1 && fightsThisVisit < maxFights;
+  return arenaEntryBlock(unit, fightsThisVisit, maxFights) === '';
 }
 
 /**

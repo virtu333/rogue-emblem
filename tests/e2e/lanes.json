@@ -12,6 +12,7 @@
       "workers": 2,
       "specs": [
         "battle-contracts.spec.js",
+        "unarmed-units.spec.js",
         "battle-information.spec.js",
         "reload-contracts.spec.js",
         "save-choice-contracts.spec.js",

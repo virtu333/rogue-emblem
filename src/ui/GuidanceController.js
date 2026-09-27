@@ -26,6 +26,7 @@ import { canInspectUnit } from '../engine/BattleInformation.js';
 import { findCommander } from '../engine/Commander.js';
 import { isRecruitNpc } from '../engine/RecruitNpc.js';
 import { getAttackRange, getAttackWeapons } from '../engine/AttackOptions.js';
+import { isUnarmed } from '../engine/UnitManager.js';
 import {
   canUseStaff,
   guidanceAllows,
@@ -34,6 +35,7 @@ import {
   isVeteranMeta,
   noTargetReason,
   noteScope,
+  unarmedReason,
   noteTier,
   reachFromRanges,
   resolveGuidance,
@@ -103,6 +105,17 @@ export class GuidanceController {
     return noTargetReason(
       reachFromRanges(weapons.map((w) => getAttackRange(unit, w, { skillsData }))),
     );
+  }
+
+  /**
+   * Reason for a greyed Attack row when the unit has nothing to attack with, or null.
+   * Full Guidance only, like noTargetAttackReason. Only a unit that could fight
+   * (a combat proficiency) and carries no combat weapon it can wield; a healer with
+   * only staff ranks keeps Fire Emblem's hidden Attack.
+   */
+  unarmedAttackReason(unit) {
+    if (!unit || unit.faction !== 'player' || this.level() !== 'full') return null;
+    return isUnarmed(unit) ? unarmedReason() : null;
   }
 
   covered() {

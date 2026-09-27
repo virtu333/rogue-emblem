@@ -25,7 +25,6 @@ import {
   equipWeapon,
   addToInventory,
   removeFromInventory,
-  isLastCombatWeapon,
   canEquip,
   canPromote,
   getSkillDisplayNames,
@@ -1397,7 +1396,8 @@ export class RosterOverlay {
             this.refresh();
           });
         }
-        if (!isLastCombatWeapon(unit, item) && this.runManager.canAddToConvoy(item)) {
+        // Storing the last combat weapon is allowed (the unit is left unarmed).
+        if (this.runManager.canAddToConvoy(item)) {
           this._actionBtn(storeX, y, '[Store]', () => {
             if (!this.runManager.addToConvoy(item)) return;
             removeFromInventory(unit, item);

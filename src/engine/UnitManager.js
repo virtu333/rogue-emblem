@@ -1580,15 +1580,30 @@ export function removeFromConsumables(unit, consumable) {
   if (idx !== -1) unit.consumables.splice(idx, 1);
 }
 
-/** Remove a weapon from inventory. Auto-equips first remaining combat weapon if active weapon removed. */
+/**
+ * Remove a weapon from inventory. If it was equipped, the first remaining combat
+ * weapon is equipped, else a staff the unit can use (as ItemTrade.settleEquipped
+ * and relinkWeapon do), else nothing: the unit is unarmed.
+ */
 export function removeFromInventory(unit, weapon) {
   const idx = unit.inventory.indexOf(weapon);
   if (idx === -1) return;
   unit.inventory.splice(idx, 1);
   if (unit.weapon === weapon) {
-    unit.weapon = getCombatWeapons(unit)[0] || null;
+    unit.weapon = getCombatWeapons(unit)[0] || getStaffWeapon(unit) || null;
     normalizeEquippedFirst(unit);
   }
+}
+
+/**
+ * True for a unit that could fight (it has a non-staff weapon rank) but carries no
+ * combat weapon it can wield: it can't attack or counter. A healer with only staff
+ * ranks is never "unarmed" (it never attacks). Pure; never mutates.
+ */
+export function isUnarmed(unit) {
+  if (!unit || !Array.isArray(unit.proficiencies)) return false;
+  const fighter = unit.proficiencies.some((p) => p?.type && p.type !== 'Staff');
+  return fighter && getCombatWeapons({ ...unit, inventory: unit.inventory || [] }).length === 0;
 }
 
 /** True if removing this weapon would leave the unit with no combat weapons. */

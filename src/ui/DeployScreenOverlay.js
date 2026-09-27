@@ -8,7 +8,7 @@ import { inputHint } from '../utils/inputHint.js';
  * Renders the deploy unit selection UI before battle.
  * Supports scroll, commander lock, ROSTER reopen, and BACK navigation.
  */
-import { getDisplayLevel } from '../engine/UnitManager.js';
+import { getDisplayLevel, isUnarmed } from '../engine/UnitManager.js';
 import { findCommander } from '../engine/Commander.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
@@ -204,8 +204,10 @@ export class DeployScreenOverlay {
       const hp =
         unit.currentHP !== undefined ? `${unit.currentHP}/${unit.stats.HP}` : `${unit.stats.HP}`;
       const infoStr = `${unit.name}  Lv${lvl} ${cls}  HP ${hp}`;
+      // A fighter carrying nothing it can wield may deploy; the row says so.
+      const unarmed = isUnarmed(unit);
       const infoText = applyTextResolution(
-        scene.add.text(cam.centerX - listWidth / 2 + 40, ry, infoStr, {
+        scene.add.text(cam.centerX - listWidth / 2 + 40, unarmed ? ry - 6 : ry, infoStr, {
           fontFamily: 'Arial',
           fontSize: '12px',
           color: UI_PALETTE.text,
@@ -214,6 +216,19 @@ export class DeployScreenOverlay {
         .setOrigin(0, 0.5)
         .setDepth(702);
       deployGroup.push(infoText);
+      const unarmedText = unarmed
+        ? applyTextResolution(
+            scene.add.text(
+              cam.centerX - listWidth / 2 + 40,
+              ry + 8,
+              'Unarmed: cannot attack or counter',
+              { fontFamily: 'Arial', fontSize: '9px', color: UI_PALETTE.warn },
+            ),
+          )
+            .setOrigin(0, 0.5)
+            .setDepth(702)
+        : null;
+      if (unarmedText) deployGroup.push(unarmedText);
 
       // Lock label for the commander
       let lockLabel = null;
@@ -243,6 +258,7 @@ export class DeployScreenOverlay {
         rowBg,
         checkText,
         infoText,
+        unarmedText,
         lockLabel,
         updateRow,
       });
@@ -294,11 +310,13 @@ export class DeployScreenOverlay {
         const rowY = startY + visibleIdx * rowHeight;
         rowObj.rowBg.y = rowY;
         rowObj.checkText.y = rowY;
-        rowObj.infoText.y = rowY;
+        rowObj.infoText.y = rowObj.unarmedText ? rowY - 6 : rowY;
+        if (rowObj.unarmedText) rowObj.unarmedText.y = rowY + 8;
         if (rowObj.lockLabel) rowObj.lockLabel.y = rowY;
         setVisibleSafe(rowObj.rowBg, visible);
         setVisibleSafe(rowObj.checkText, visible);
         setVisibleSafe(rowObj.infoText, visible);
+        setVisibleSafe(rowObj.unarmedText, visible);
         if (rowObj.lockLabel) setVisibleSafe(rowObj.lockLabel, visible);
         setRowInteractive(rowObj, visible);
       }

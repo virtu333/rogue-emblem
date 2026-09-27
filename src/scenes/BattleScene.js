@@ -5993,9 +5993,12 @@ export class BattleScene extends Phaser.Scene {
       if (!silenced || hasPhysical) items.push('Attack');
     }
     // Guidance (Full): a greyed Attack row says why it is missing instead of hiding it.
+    // An unarmed fighter gets its own reason (Full Guidance): nothing to attack with.
     const noReachReason = silenced
       ? null
-      : this._guidance?.noTargetAttackReason?.(unit, normalAttackTargets);
+      : this._guidance?.noTargetAttackReason?.(unit, normalAttackTargets) ||
+        this._guidance?.unarmedAttackReason?.(unit) ||
+        null;
     if (noReachReason && !items.includes('Attack')) {
       items.push('Attack');
       blockedActions.set('Attack', noReachReason);

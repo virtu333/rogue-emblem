@@ -3,10 +3,11 @@
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { unitPortrait } from './unitPortrait.js';
 import { unitOnTile } from '../engine/FormationPlacement.js';
-import { getDisplayLevel } from '../engine/UnitManager.js';
+import { getDisplayLevel, isUnarmed } from '../engine/UnitManager.js';
 
+/** "Lv 5 Fighter · Iron Axe"; a fighter with nothing it can wield reads "· Unarmed". */
 export function formationUnitLine(unit) {
-  const weapon = unit.weapon?.name ? ` · ${unit.weapon.name}` : '';
+  const weapon = isUnarmed(unit) ? ' · Unarmed' : unit.weapon?.name ? ` · ${unit.weapon.name}` : '';
   return `Lv ${getDisplayLevel(unit)} ${unit.className || ''}${weapon}`.trim();
 }
 

@@ -223,25 +223,24 @@ describe('hold and commit', () => {
   });
 
   it('a blocked target explains itself in the status line and never commits', () => {
-    const iron = weapon('Iron Sword');
-    const edric = unit('Edric', { inventory: [iron] });
-    edric.keepLast = true;
+    const breath = weapon('Fire Breath', { noConvoy: true });
+    const edric = unit('Edric', { inventory: [breath, weapon('Iron Sword')] });
     const engine = fakeEngine({ convoy: { weapons: [weapon('Axe')], consumables: [] } });
     const commit = vi.fn(() => ({ ok: true }));
     const { root } = open({ left: edric, right: CONVOY, engine, commit });
     row(root, 'left', 0).click();
     const give = row(root, 'right', 1);
-    expect(give.getAttribute('aria-label')).toBe('Give Iron Sword to Convoy');
+    expect(give.getAttribute('aria-label')).toBe('Give Fire Breath to Convoy');
     expect(give.getAttribute('aria-disabled')).toBe('true');
     expect(give.disabled).toBe(false);
     give.click();
     expect(commit).not.toHaveBeenCalled();
-    expect(status(root).textContent).toBe('Keep at least one combat weapon.');
+    expect(status(root).textContent).toBe('The convoy cannot store this item.');
     // Focus alone says why too; an open row restores the line.
     row(root, 'left', 0).dispatchEvent(new FakeEvent('focus'));
-    expect(status(root).textContent).toBe('Holding Iron Sword. Choose where it goes.');
+    expect(status(root).textContent).toBe('Holding Fire Breath. Choose where it goes.');
     give.dispatchEvent(new FakeEvent('focus'));
-    expect(status(root).textContent).toBe('Keep at least one combat weapon.');
+    expect(status(root).textContent).toBe('The convoy cannot store this item.');
   });
 
   it('a refused commit keeps the item held and shows the reason', () => {

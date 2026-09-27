@@ -12,6 +12,7 @@ import {
   unequipAccessory,
 } from './UnitManager.js';
 import { clearAllConditions, getConditions } from './StatusConditionSystem.js';
+import { TRADE_WARNINGS } from './ItemTrade.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 
 function convoyIndex(list, item) {
@@ -37,10 +38,8 @@ export function rosterItemBlock(run, unit, item, action) {
   }
   if (!owned) return 'Item is no longer carried by this unit.';
   if (action === 'equip') return canEquip(unit, item) ? '' : 'This unit cannot equip this weapon.';
-  if (action === 'store') {
-    if (!consumable && isLastCombatWeapon(unit, item)) return 'Keep at least one combat weapon.';
-    return run.canAddToConvoy(item) ? '' : 'Convoy is full.';
-  }
+  // Storing a unit's last combat weapon is allowed: rosterItemWarning says so.
+  if (action === 'store') return run.canAddToConvoy(item) ? '' : 'Convoy is full.';
   if (action === 'heal' || action === 'use') {
     if (!consumable) return 'This item cannot be used.';
     if (!(item.uses > 0)) return 'No uses remaining.';
@@ -61,6 +60,18 @@ export function rosterItemBlock(run, unit, item, action) {
     return 'Use the dedicated action for this item.';
   }
   return 'Unavailable action.';
+}
+
+/**
+ * What an allowed roster action costs the unit, as ItemTrade-style warnings
+ * ([{ code: 'leaves_unarmed', unit }], worded by tradeWarningText): today only
+ * Store of the unit's last combat weapon. [] when there is nothing to say, or
+ * when the action is blocked (the block reason says it instead). Never mutates.
+ */
+export function rosterItemWarnings(run, unit, item, action) {
+  if (action !== 'store' || item?.type === 'Consumable') return [];
+  if (rosterItemBlock(run, unit, item, action)) return [];
+  return isLastCombatWeapon(unit, item) ? [{ code: TRADE_WARNINGS.leavesUnarmed, unit }] : [];
 }
 
 export function rosterItemAction(run, unit, item, action) {
