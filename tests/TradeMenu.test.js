@@ -165,7 +165,9 @@ describe('hold and commit', () => {
     row(root, 'left', 1).click();
     expect(row(root, 'left', 1).getAttribute('aria-pressed')).toBe('true');
     expect(row(root, 'left', 0).getAttribute('aria-pressed')).toBe('false');
-    expect(status(root).textContent).toBe('Holding Rapier. Choose where it goes.');
+    expect(status(root).textContent).toBe(
+      "Holding Rapier. Sera can't wield Rapier. Choose where it goes.",
+    );
     expect(labels(root, 'right')).toEqual([
       'Trade Rapier for Iron Lance',
       'Give Rapier to Sera',
@@ -173,11 +175,10 @@ describe('hold and commit', () => {
       'Give Rapier to Sera',
       'Give Rapier to Sera',
     ]);
-    // The warning sits on its own line and describes the row.
+    // Sera can't wield the held Rapier whichever slot takes it: the status line says so
+    // once (above), and the target rows carry no repeated warning line.
     const target = row(root, 'right', 1);
-    const warn = target.querySelector('.tm-warn');
-    expect(warn.textContent).toBe("Sera can't wield Rapier");
-    expect(target.getAttribute('aria-describedby')).toContain(warn.id);
+    expect(target.querySelector('.tm-warn')).toBeNull();
     expect(commits).toHaveLength(0);
 
     target.click();

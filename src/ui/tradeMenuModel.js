@@ -132,7 +132,8 @@ function plan(engine, ctx, from, to) {
  *   engine: { planTrade, bagItems, bagCapacity } }} options
  *   `left`/`right` are holders; `held` is a slot of one of them (or null).
  * @returns {{ ctx, left, right, bag: string|null, tabs: object[], columns: object|null,
- *   held: object|null, heldRow: {side, index}|null, notice: string, empty: boolean }}
+ *   held: object|null, heldRow: {side, index}|null, heldNotes: string[], notice: string,
+ *   empty: boolean }}
  *   `held` is re-resolved against the bags: the current instance, or null when the
  *   item left (or its bag is not the visible tab).
  */
@@ -212,6 +213,7 @@ export function buildTradeView({ ctx, left, right, bags = null, bag = null, held
     if (row) heldRow = { side, index: row.index };
   }
   const heldSlot = heldRow ? columns[heldRow.side].rows[heldRow.index].slot : null;
+  const heldNotes = new Set();
 
   for (const side of SIDES) {
     for (const row of columns[side].rows) {
@@ -228,7 +230,17 @@ export function buildTradeView({ ctx, left, right, bags = null, bag = null, held
         const result = plan(engine, ctx, heldSlot, row.slot);
         if (result.ok) {
           row.kind = result.kind || (row.empty ? 'give' : 'swap');
-          row.warnings = (result.warnings || []).map(tradeWarningText).filter(Boolean);
+          // The receiver's "can't wield" about the held item is the same on every target
+          // row: it is said once, in the status line (heldNotes), not on each row.
+          const own = [];
+          for (const warning of result.warnings || []) {
+            const text = tradeWarningText(warning);
+            if (!text) continue;
+            if (warning.code === 'cannot_equip' && warning.item && warning.item === heldSlot.item)
+              heldNotes.add(text);
+            else own.push(text);
+          }
+          row.warnings = own;
         } else row.blocked = result.reason || 'Cannot trade here.';
       }
       row.disabled = state === 'inert' || row.blocked != null;
@@ -247,6 +259,7 @@ export function buildTradeView({ ctx, left, right, bags = null, bag = null, held
     columns,
     held: heldSlot,
     heldRow,
+    heldNotes: [...heldNotes],
     notice,
     empty: false,
   };
@@ -362,7 +375,10 @@ export function cancelAction(view) {
 /** The status line when nothing else is being said. */
 export function baseStatus(view) {
   if (!view || view.empty) return 'Nothing to trade.';
-  if (view.held) return `Holding ${view.held.item.name}. Choose where it goes.`;
+  if (view.held) {
+    const notes = (view.heldNotes || []).map((note) => `${note}. `).join('');
+    return `Holding ${view.held.item.name}. ${notes}Choose where it goes.`;
+  }
   return 'Choose an item to trade.';
 }
 

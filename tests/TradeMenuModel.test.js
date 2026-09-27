@@ -194,7 +194,8 @@ describe('rows', () => {
     // Accessible names: a swap names both items, a give names the holder.
     expect(v.columns.right.rows[0].name).toBe('Trade Rapier for Iron Lance');
     expect(v.columns.right.rows[1].name).toBe('Give Rapier to Sera');
-    expect(baseStatus(v)).toBe('Holding Rapier. Choose where it goes.');
+    // Sera can't wield the held Rapier: said once, in the status line, not on each row.
+    expect(baseStatus(v)).toBe("Holding Rapier. Sera can't wield Rapier. Choose where it goes.");
     // Every target was planned from the held slot to that row's slot.
     expect(engine.calls).toHaveLength(5);
     expect(engine.calls[0].from).toEqual({ holder: L, bag: 'inventory', item: rapier });
@@ -208,7 +209,8 @@ describe('rows', () => {
     const v = view({ held: { holder: L, bag: 'inventory', item: rapier } });
     expect(v.columns.right.rows[0].kind).toBe('swap');
     expect(v.columns.right.rows[1].kind).toBe('give');
-    expect(v.columns.right.rows[1].warnings).toEqual(["Sera can't wield Rapier"]);
+    expect(v.columns.right.rows[1].warnings).toEqual([]);
+    expect(v.heldNotes).toEqual(["Sera can't wield Rapier"]);
   });
 
   it('a unit left unarmed is warned about, not blocked', () => {

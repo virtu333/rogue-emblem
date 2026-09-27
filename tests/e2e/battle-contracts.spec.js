@@ -325,7 +325,7 @@ for (const layout of TRADE_LAYOUTS) {
       // Hold an item so every target row carries its name and warnings (the tallest rows).
       await trade.getByRole('button', { name: 'Iron Sword, equipped', exact: true }).click();
       await expect(trade.locator('.tm-status')).toHaveText(
-        'Holding Iron Sword. Choose where it goes.',
+        "Holding Iron Sword. Sera can't wield Iron Sword. Choose where it goes.",
       );
       const box = async (locator) => {
         const b = await locator.boundingBox();

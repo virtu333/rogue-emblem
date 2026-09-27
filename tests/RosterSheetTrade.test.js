@@ -190,7 +190,7 @@ describe('roster sheet: Trade… on an item card', () => {
     await pickPartner(sheet, 'Brom');
     let root = tm(sheet);
     expect(row(root, 'left', 2).getAttribute('aria-pressed')).toBe('true');
-    expect(tmStatus(root)).toBe('Holding B3. Choose where it goes.');
+    expect(tmStatus(root)).toBe("Holding B3. Brom can't wield B3. Choose where it goes.");
     expect(saveServiceRun).not.toHaveBeenCalled();
 
     row(root, 'right', 3).click();

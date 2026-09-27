@@ -236,8 +236,9 @@ for (const vp of VIEWPORTS) {
       await press(vp, picker.getByRole('button', { name: 'Trade', exact: true }));
       const menu = page.getByRole('dialog', { name: 'Trade items', exact: true });
       await expect(menu).toBeVisible();
+      // Sera can't wield the held blade: the status line says it once for every target.
       await expect(menu.getByRole('status')).toHaveText(
-        'Holding Edric Blade 3. Choose where it goes.',
+        "Holding Edric Blade 3. Sera can't wield Edric Blade 3. Choose where it goes.",
       );
       await checkLayout(page, vp, menu);
       await page.screenshot({ path: info.outputPath(`${vp.name}-unit-trade.png`) });
