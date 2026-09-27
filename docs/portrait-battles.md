@@ -48,14 +48,13 @@ The phone playtest (2026-09-26) showed that turning the phone between the route 
 | Card screens | difficulty (Confirm off-screen), blessings, rewards (cards overlap), mercenaries, boss recruit, lord arrival | choice.css `.ch-draft`, MobileRewards.js | in progress |
 | Vertical Loom | route map + in-battle campaign map; side pane → bottom sheet | loomModel.js, RouteGraph.js, loomThreads.js, loom.css | in progress |
 | List / detail | Home base + upgrades (tab strip), Compendium/Help/How to Play, roster sheet (stat grid overlaps, tabs break mid-word) | MobileHomeBase, ReferenceMenu, MobileRosterSheet | later |
-| Battle edges | set the battle's orientation before deployment; keep portrait through rewards; turn the history/timeline board | PortraitBattleController, BattleHistoryRenderer | later |
+| Battle edges | keep the upright board and rail through the rewards; history, timeline and rewind previews drawn on the turned board | PortraitBattleController, BattleHistorySession | in progress |
 | Release | unlock `manifest.webmanifest` / iOS `Info.plist`, `isLandscapeLockedShell`, the "Use landscape" button, tutorial copy that names directions, offer the setting to everyone | | last |
 
 ## Limits of the prototype
 
 - **Installed app / TestFlight:** the PWA manifest and the iOS `Info.plist` still lock landscape, so test in a browser tab. There (`isLandscapeLockedShell`: native Capacitor, or an installed display mode — `standalone`, `fullscreen`, `minimal-ui`) the Settings toggle is hidden and a stored opt-in is ignored without being cleared (the installed web app shares storage with the browser tab that set it): the board never turns and the rotate prompt keeps its plain copy. Unlocking them is a release step.
 - **Tutorial battles** and slotless dev routes have no run save to re-open from: the board keeps the orientation it started in (the layout still follows the phone).
-- **Battle history / timeline replays** draw the board unrotated.
 - **Tutorial copy** that names screen directions was written for landscape.
 - Switching orientation restarts the battle music track.
 - Only the battle is upright. Full-run portrait (route map, menus) is the next stage; see the review in this session.

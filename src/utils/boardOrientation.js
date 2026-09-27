@@ -103,3 +103,55 @@ export function hasRoomRightOf(grid, col, row, margin = 3) {
     return !grid.isNearDisplayRightEdge(col, row, margin);
   return col < (grid?.cols ?? 0) - margin;
 }
+
+/**
+ * The top-left display cell of a size x size footprint whose top-left grid cell is
+ * (col, row). A turned footprint's corner moves, so it is the minimum over its corners.
+ */
+export function displayFootprint(transform, col, row, size = 1) {
+  if (!transform?.rotated) return { col, row };
+  const far = Math.max(1, size) - 1;
+  const a = transform.toDisplay(col, row);
+  const b = transform.toDisplay(col + far, row + far);
+  return { col: Math.min(a.col, b.col), row: Math.min(a.row, b.row) };
+}
+
+/**
+ * A battle-history frame ({cols, rows, tiles, units}) in display cells, so the
+ * history board is drawn the way the battle was: tiles re-indexed row-major over the
+ * display grid, units at their turned footprints. Unrotated boards and frames of
+ * another size are returned as they are.
+ */
+export function displayHistoryFrame(frame, transform) {
+  if (!frame || !transform?.rotated) return frame;
+  if (frame.cols !== transform.cols || frame.rows !== transform.rows) return frame;
+  const tiles = new Array(frame.tiles.length);
+  for (const tile of frame.tiles) {
+    const d = transform.toDisplay(tile.col, tile.row);
+    tiles[d.row * transform.displayCols + d.col] = { ...tile, col: d.col, row: d.row };
+  }
+  const units = frame.units.map((u) => ({
+    ...u,
+    ...displayFootprint(transform, u.col, u.row, u.size || 1),
+  }));
+  return { ...frame, cols: transform.displayCols, rows: transform.displayRows, tiles, units };
+}
+
+/** History beats (positions and movement paths) in display cells; see displayHistoryFrame. */
+export function displayHistoryBeats(beats, transform) {
+  if (!Array.isArray(beats) || !transform?.rotated) return beats;
+  const at = (p) => (p ? { ...p, ...displayFootprint(transform, p.col, p.row, p.size || 1) } : p);
+  return beats.map((beat) => {
+    const size = beat.actorPosition?.size || 1;
+    return {
+      ...beat,
+      actorPosition: at(beat.actorPosition),
+      targetPosition: at(beat.targetPosition),
+      path: Array.isArray(beat.path)
+        ? beat.path.map((p) =>
+            p ? { ...p, ...displayFootprint(transform, p.col, p.row, size) } : p,
+          )
+        : beat.path,
+    };
+  });
+}

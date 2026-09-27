@@ -223,13 +223,15 @@ function expectWholeRow(row, names) {
 
 // Playtest 4 pinned Wait in the dock beside a compact Danger. On the upright rail the dock
 // shares the bottom edge with Overview, Recenter, Back and Menu: six controls on one row,
-// each whole, labelled, unbroken and tappable, from a small phone to a large one.
+// each whole, labelled, unbroken and tappable, from a small phone to a large one. End turn
+// takes Wait's place there while no unit menu is open: in the scrolling stack, a tile's
+// terrain pushed it under the fold at 375x667 (playtest 2026-09-26).
 for (const viewport of [
   { width: 375, height: 667 },
   { width: 390, height: 844 },
   { width: 430, height: 932 },
 ]) {
-  test(`upright rail keeps Wait, Danger and the tools whole at ${viewport.width}x${viewport.height}`, async ({
+  test(`upright rail keeps End turn, Wait, Danger and the tools whole at ${viewport.width}x${viewport.height}`, async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -245,9 +247,32 @@ for (const viewport of [
     await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
     expect((await battleSnapshot(page)).rotation).toBe('ccw');
     const tools = ['Overview', 'Recenter', 'Back', 'Menu'];
-    // Idle: Danger alone in the dock.
-    await expect.poll(async () => (await bottomRow(page)).length).toBe(5);
-    expectWholeRow(await bottomRow(page), ['Danger', ...tools]);
+    // Idle, with a tile's terrain in the rail: End turn beside Danger, and the commands
+    // above stay whole inside the scrolling stack.
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = s.playerUnits[0];
+      s._inputController.refreshTileInfo(u.col, u.row);
+    });
+    const hud = page.getByRole('complementary', { name: 'Battle commands' });
+    await expect(hud.locator('.mb-terrain-slot')).not.toBeEmpty();
+    await expect.poll(async () => (await bottomRow(page)).length).toBe(6);
+    expectWholeRow(await bottomRow(page), ['End turn…', 'Danger', ...tools]);
+    const stack = await page.evaluate(() => {
+      const body = document.querySelector('.mobile-battle-hud .mb-body').getBoundingClientRect();
+      return [...document.querySelectorAll('.mobile-battle-hud .mb-body .mb-command-row > button')]
+        .map((b) => b.getBoundingClientRect())
+        .map((r) => r.top >= body.top - 0.5 && r.bottom <= body.bottom + 0.5);
+    });
+    expect(stack).toEqual([true, true, true]);
+    await expect(hud.locator('.mb-body .mb-end-turn')).toHaveCount(0);
+    // A real tap on the docked End turn asks to confirm; Keep playing returns to idle.
+    await hud.getByRole('button', { name: 'End turn…', exact: true }).tap();
+    await expect(hud.getByRole('button', { name: 'End turn now', exact: true })).toBeVisible();
+    await hud.getByRole('button', { name: 'Keep playing', exact: true }).tap();
+    await expect
+      .poll(async () => (await bottomRow(page)).map((c) => c.name))
+      .toEqual(['End turn…', 'Danger', ...tools]);
 
     // Support's six-command menu (Guidance Full keeps a greyed Attack): Wait is pinned.
     await page.evaluate(() => {
@@ -256,7 +281,6 @@ for (const viewport of [
       s.selectUnit(u);
       s.showActionMenu(u);
     });
-    const hud = page.getByRole('complementary', { name: 'Battle commands' });
     await expect(hud.locator('.mb-dock .mb-pinned-command')).toHaveText('Wait');
     expectWholeRow(await bottomRow(page), ['Wait', 'Danger', ...tools]);
     const [wait, danger] = await bottomRow(page);
@@ -285,7 +309,7 @@ for (const viewport of [
         }),
       )
       .toEqual(['PLAYER_IDLE', true]);
-    expectWholeRow(await bottomRow(page), ['Danger · pinned', ...tools]);
+    expectWholeRow(await bottomRow(page), ['End turn…', 'Danger · pinned', ...tools]);
   });
 }
 
@@ -684,3 +708,70 @@ for (const viewport of [
       await page.screenshot({ path: testInfo.outputPath('portrait-battle-details.png') });
   });
 }
+test('an upright battle stays upright through its rewards', async ({ page }) => {
+  await bootBattle(page);
+  await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
+  const rewards = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
+  await expect(rewards).toBeVisible({ timeout: 15_000 });
+  const info = await page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    const html = document.documentElement.classList;
+    return {
+      rotation: b.grid.board.rotation,
+      upright: html.contains('portrait-battle'),
+      capable: html.contains('portrait-battle-capable'),
+      tallCanvas: b.scale.height > b.scale.width,
+      prompt: getComputedStyle(document.getElementById('rotate-prompt')).display,
+    };
+  });
+  expect(info).toEqual({
+    rotation: 'ccw',
+    upright: true,
+    capable: true,
+    tallCanvas: true,
+    prompt: 'none',
+  });
+});
+
+test('rewind previews draw the board the way the upright battle does', async ({ page }) => {
+  await bootBattle(page);
+  await page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    b.runManager.visionChargesRemaining = 3;
+    const u = b.playerUnits.find((x) => !x.hasActed);
+    b.selectUnit(u);
+    b.showActionMenu(u);
+  });
+  const hud = page.getByRole('complementary', { name: 'Battle commands' });
+  await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
+  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+  await hud.getByRole('button', { name: 'Rewind', exact: true }).tap();
+  await expect(page.getByRole('dialog', { name: 'Rewind', exact: true })).toBeVisible();
+  // The preview's history scene draws each unit at its turned display cell.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const game = window.__emblemRogueGame;
+        const history = game.scene.scenes.find((s) =>
+          s.sys.settings.key.startsWith('BattleHistory-'),
+        );
+        return history?.renderer?.units?.size || 0;
+      }),
+    )
+    .toBeGreaterThan(0);
+  const drawn = await page.evaluate(() => {
+    const game = window.__emblemRogueGame;
+    const b = game.scene.getScene('Battle');
+    const history = game.scene.scenes.find((s) => s.sys.settings.key.startsWith('BattleHistory-'));
+    return b.playerUnits.map((u) => {
+      const d = b.grid.board.toDisplay(u.col, u.row);
+      const group = history.renderer.units.get(u.battleEntityId);
+      return {
+        expected: [(d.col + 0.5) * 32, (d.row + 0.5) * 32],
+        drawn: group ? [group.x, group.y] : null,
+      };
+    });
+  });
+  expect(drawn.length).toBeGreaterThan(0);
+  for (const unit of drawn) expect(unit.drawn).toEqual(unit.expected);
+});
