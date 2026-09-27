@@ -156,6 +156,12 @@ def arcs(part, spans, lo=0.78, hi=1.0, length=4):
     return part
 
 
+def s_parts_notes(b, name, bar0, bar1):
+    """The notes of part `name` starting in bars bar0..bar1-1."""
+    sc = b.s
+    return [n for n in sc.parts[name].notes if sc.bar(bar0) - 1e-6 <= n.start < sc.bar(bar1) - 1e-6]
+
+
 def build():
     s = Score('battle_elite_act3', tonic='A', bpm=160, meter=(2, 2), intro_bars=2, loop_bars=49,
               title='The Consecrated', seed=307)
@@ -307,6 +313,10 @@ def build():
     # at pitch, the pad's own register
     b.lead('H', HYMN, inst='trumpets', name='hymn_tpt', transpose=12, dyn='ff', layer='full',
            gain=3, legato=False, humanize_ms=14, vel_jitter=0.08)
+    # (the second phrase at pitch: an octave up its D would be D6, over the top of
+    # the trumpets; the phrase boundary takes the octave change)
+    for n in s_parts_notes(b, 'hymn_tpt', H + 4, H + 8):
+        n.pitch -= 12
     b.lead('H', HYMN, inst='horns', name='hymn_hn', dyn='ff', layer='full',
            role='lead2', legato=False)
     # (in eighths: at sixteenths the library's staccato trombones stop
