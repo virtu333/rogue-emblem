@@ -578,12 +578,18 @@ test.describe('the rotate prompt and the Settings toggle', () => {
 
   test('the Settings toggle stores off and on and never deletes the choice', async ({ page }) => {
     const errors = pageErrors(page);
+    await instrumentLeaks(page);
     await quietSettings(page);
     await page.goto('/');
     await waitForGame(page);
     await activeScene(page, 'Title');
     const stored = () => page.evaluate(() => localStorage.getItem('emblem_rogue_portrait_battles'));
     expect(await stored()).toBe(null);
+    const listening = () =>
+      page.evaluate(
+        () => window.__leakProbe().listeners['window emblem-rogue:portrait-battles'] || 0,
+      );
+    const closed = await listening();
     await page.getByRole('button', { name: 'Settings', exact: true }).tap();
     const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
     const toggle = settings.getByRole('button', { name: /^Portrait mode/ });
@@ -609,6 +615,10 @@ test.describe('the rotate prompt and the Settings toggle', () => {
     expect(await stored()).toBe('on');
     await page.setViewportSize(UPRIGHT);
     await expectPortraitUi(page);
+    // Closed, the menu stops listening for the preference.
+    await settings.getByRole('button', { name: 'Close', exact: true }).tap();
+    await expect(settings).toHaveCount(0);
+    expect(await listening()).toBe(closed);
     expect(errors).toEqual([]);
   });
 });
@@ -727,6 +737,32 @@ async function instrumentLeaks(page) {
 }
 
 /**
+ * The switch note sits over the map: inside its area, clear of the rail, and short
+ * enough to read at a glance (at most three lines).
+ */
+async function expectNoteOverMap(page) {
+  const fit = await page.evaluate(() => {
+    const note = document.querySelector('.portrait-battle-notice').getBoundingClientRect();
+    const map = document.getElementById('game-container').getBoundingClientRect();
+    const rail = document.querySelector('.mobile-battle-hud').getBoundingClientRect();
+    const line = parseFloat(
+      getComputedStyle(document.querySelector('.portrait-battle-notice')).lineHeight,
+    );
+    return {
+      insideMap: note.left >= map.left - 0.5 && note.right <= map.right + 0.5,
+      clearOfRail:
+        note.right <= rail.left + 0.5 ||
+        note.left >= rail.right - 0.5 ||
+        note.bottom <= rail.top + 0.5 ||
+        note.top >= rail.bottom - 0.5,
+      lines: Math.round((note.height - 18) / line),
+    };
+  });
+  expect(fit).toMatchObject({ insideMap: true, clearOfRail: true });
+  expect(fit.lines, 'note lines').toBeLessThanOrEqual(3);
+}
+
+/**
  * What grew between two probes. A leak piles up with every round trip; a count that
  * holds or falls (a transient note or cache released) is not one.
  */
@@ -749,9 +785,18 @@ test('ten round trips in battle leak no listeners, observers, cameras or texture
   await quietSettings(page);
   await openDevBattle(page);
   await moveAndWait(page, 'Edric');
+  // The painted terrain texture is built off the main thread after each re-open:
+  // count once it is there, so a paint still under way is not read as a change.
+  const painted = () =>
+    page.waitForFunction(() => {
+      const art = window.__emblemRogueGame.scene.getScene('Battle')._battlefieldTerrain;
+      return !art || art.painted === true;
+    });
   const roundTrip = async () => {
     await turnPhone(page, SIDEWAYS, 'none');
+    await painted();
     await turnPhone(page, UPRIGHT, 'ccw');
+    await painted();
   };
   // Two round trips first: lazily built art and caches for both orientations exist.
   await roundTrip();
@@ -825,6 +870,7 @@ test('a switch whose save fails keeps the battle playable, and turning again ret
   await expect(note).toHaveText(
     'The battle could not be saved, so the board stays as it is. Turn the phone again to retry.',
   );
+  await expectNoteOverMap(page);
   // Nothing re-opened, nothing changed, and the player can act on the turned board.
   expect(await sameScene()).toBe(true);
   expect(await battleSnapshot(page)).toMatchObject({ rotation: 'ccw', state: 'PLAYER_IDLE' });
@@ -868,6 +914,17 @@ test('a switch whose save fails keeps the battle playable, and turning again ret
   expect(savedUnits).toEqual(
     played.domain.state.playerUnits.map((u) => [u.name, u.col, u.row, u.hasActed]),
   );
+  // The other way too: writes fail again, the phone turns upright, the board stays.
+  await scene(page, () => {
+    window.__failRunWrites = true;
+  });
+  await page.setViewportSize(UPRIGHT);
+  await expect(note).toHaveText(
+    'The battle could not be saved, so the board stays as it is. Turn the phone again to retry.',
+  );
+  await expectNoteOverMap(page);
+  expect(await battleSnapshot(page)).toMatchObject({ rotation: 'none', state: 'PLAYER_IDLE' });
+  expect((await battleDomainState(page)).domain).toEqual(played.domain);
   expect(errors).toEqual([]);
 });
 

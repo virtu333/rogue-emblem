@@ -331,13 +331,21 @@ export class PortraitBattleController {
     this._placeNotice();
   }
 
-  // The tutorial guide docks over the map too (top or bottom, and it re-docks as
-  // the layout turns): where the note's own place would cover it, the note sits just
-  // below the guide instead, never over its Skip step / Leave buttons. Checked every
-  // frame while the note shows (a few seconds).
+  // The note sits over the map, never over the rail: centred on the map's area (the
+  // landscape rail stands beside it) and no wider than it. The tutorial guide docks
+  // over the map too (top or bottom, and it re-docks as the layout turns): where the
+  // note's own place would cover it, the note sits just below the guide instead,
+  // never over its Skip step / Leave buttons. Checked every frame while the note
+  // shows (a few seconds).
   _placeNotice() {
     const notice = this.notice;
     if (!notice?.isConnected) return;
+    const map = document.getElementById('game-container')?.getBoundingClientRect();
+    const left = map?.width > 0 ? `${Math.round(map.left + map.width / 2)}px` : '';
+    const room = map?.width > 0 ? Math.max(160, Math.floor(map.width - 16)) : 0;
+    const maxWidth = room ? `min(92vw, 420px, ${room}px)` : '';
+    if (notice.style.left !== left) notice.style.left = left;
+    if (notice.style.maxWidth !== maxWidth) notice.style.maxWidth = maxWidth;
     const coach = document.querySelector('.re-coach:not([hidden])')?.getBoundingClientRect();
     let top = '';
     if (coach && coach.height > 0) {

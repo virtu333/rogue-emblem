@@ -1,8 +1,8 @@
 // E2E: portrait mode through the real default path (docs/portrait-battles.md).
 //
 // A phone context (portraitHelpers.phone: touch, an iPhone's screen) with no
-// ?portrait=1, no forced class and no save: portrait mode is on only because the
-// shell's default says so. Each spec asserts what a player would see at every step:
+// ?portrait=1, no forced class and no save (only the quiet audio / hints settings
+// every spec stores): portrait mode is on only because the shell's default says so. Each spec asserts what a player would see at every step:
 // portrait mode on (html.portrait-ui, no rotate prompt), nothing scrolls sideways,
 // the step's primary action is tappable, and no page errors; and it reads back what
 // was saved.
@@ -52,12 +52,16 @@ function phoneContext(viewport) {
 const RAIL_MIN = 38;
 
 // New runs take their seed from the clock. Pin it so the route and the battles repeat:
-// with this seed the act opens battle, battle, village (shop), battle, no fog.
+// with this seed the act opens battle, battle, village (shop), battle, no fog. The pin
+// goes on the class the game itself uses, reached through a live run (a module URL
+// imported from the test can be a separate copy of the class once the dev server has
+// reloaded that file), so it applies to every run started after it.
 const RUN_SEED = 11;
 
 async function pinRunSeed(page, seed = RUN_SEED) {
-  await page.evaluate(async (seed) => {
-    const { RunManager } = await import('/src/engine/RunManager.js');
+  await page.evaluate((seed) => {
+    const run = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
+    const RunManager = run.constructor;
     const startRun = RunManager.prototype.startRun;
     RunManager.prototype.startRun = function (options = {}) {
       return startRun.call(this, { ...options, runSeed: options.runSeed ?? seed });
@@ -323,7 +327,6 @@ for (const viewport of [PORTRAIT_PHONES[0], PORTRAIT_PHONES[1]]) {
       expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_portrait_battles'))).toBe(
         null,
       );
-      await pinRunSeed(page);
       const newGame = page.getByRole('button', { name: 'New Game', exact: true });
       await uprightStep(page, errors, newGame);
 
@@ -332,6 +335,7 @@ for (const viewport of [PORTRAIT_PHONES[0], PORTRAIT_PHONES[1]]) {
       await newGame.tap();
       await activeScene(page, 'NodeMap');
       await readyRoute(page);
+      await pinRunSeed(page);
       const menu = page.locator('.re-node-map').getByRole('button', { name: 'Menu', exact: true });
       await uprightStep(page, errors, menu);
       await menu.tap();
@@ -368,6 +372,12 @@ for (const viewport of [PORTRAIT_PHONES[0], PORTRAIT_PHONES[1]]) {
       await uprightStep(page, errors, confirmBlessing);
       await confirmBlessing.tap();
       await activeScene(page, 'NodeMap');
+      expect(
+        await page.evaluate(
+          () => window.__emblemRogueGame.scene.getScene('NodeMap').runManager.runSeed,
+        ),
+        'the pinned run seed',
+      ).toBe(RUN_SEED);
 
       // The first battle, played through: two moves, an enemy phase, the win.
       await travel(page, errors, await nextKnot(page, 'shop'));
@@ -658,23 +668,25 @@ async function expectKeepsBoard(page, { tutorial = false } = {}) {
   // The guide steps aside while the layout turns, then docks over the map again.
   if (tutorial) await expect(page.getByRole('region', { name: 'Tutorial guide' })).toBeVisible();
   await expect(notice).toBeVisible();
-  const covered = await page.evaluate(() => {
-    const note = document.querySelector('.portrait-battle-notice')?.getBoundingClientRect();
-    return [...document.querySelectorAll('.re-coach:not([hidden]) button, .mobile-battle-hud')]
-      .filter((b) => {
-        const r = b.getBoundingClientRect();
-        return (
-          note &&
-          r.width > 0 &&
-          r.left < note.right &&
-          r.right > note.left &&
-          r.top < note.bottom &&
-          r.bottom > note.top
-        );
-      })
-      .map((b) => b.getAttribute('aria-label') || b.textContent.trim().slice(0, 20));
-  });
-  expect(covered, 'under the note').toEqual([]);
+  // The guide re-docks over a few frames as the layout turns; the note follows it.
+  const covered = () =>
+    page.evaluate(() => {
+      const note = document.querySelector('.portrait-battle-notice')?.getBoundingClientRect();
+      if (!note) return null; // gone before it cleared them: not a pass
+      return [...document.querySelectorAll('.re-coach:not([hidden]) button, .mobile-battle-hud')]
+        .filter((b) => {
+          const r = b.getBoundingClientRect();
+          return (
+            r.width > 0 &&
+            r.left < note.right &&
+            r.right > note.left &&
+            r.top < note.bottom &&
+            r.bottom > note.top
+          );
+        })
+        .map((b) => b.getAttribute('aria-label') || b.textContent.trim().slice(0, 20));
+    });
+  await expect.poll(covered, { message: 'under the note' }).toEqual([]);
 }
 
 async function openTutorial(page, errors) {

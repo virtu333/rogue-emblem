@@ -552,13 +552,13 @@ export async function endPlayerTurn(page, { duringEnemyPhase = null } = {}) {
 export async function turnPhone(page, size, rotation = null) {
   await page.setViewportSize(size);
   if (rotation === null) return;
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.__emblemRogueGame.scene.getScene('Battle')?.grid?.board?.rotation ?? null,
-      ),
-    )
-    .toBe(rotation);
+  // Re-opening a battle takes seconds on a loaded machine: wait on the board itself.
+  await page.waitForFunction(
+    (rotation) =>
+      window.__emblemRogueGame.scene.getScene('Battle')?.grid?.board?.rotation === rotation,
+    rotation,
+    { timeout: 30_000 },
+  );
   await battleIdle(page);
 }
 

@@ -20,6 +20,8 @@
   top: max(8px, env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
+  /* Its own width (not half the screen, which left: 50% would leave it). */
+  width: max-content;
   max-width: min(92vw, 420px);
   box-sizing: border-box;
   padding: 8px 12px;
