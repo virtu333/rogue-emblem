@@ -32,7 +32,7 @@ const MIME = {
   '.webp': 'image/webp',
 };
 
-function curlJson(url, body, { method = 'POST', timeoutMs = 300000 } = {}) {
+export function curlJson(url, body, { method = 'POST', timeoutMs = 300000 } = {}) {
   const headers = ['-H', 'Content-Type: application/json'];
   const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (key) headers.push('-H', `x-goog-api-key: ${key}`);
