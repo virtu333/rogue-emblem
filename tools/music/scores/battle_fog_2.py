@@ -4,100 +4,131 @@ The second fog theme: the army hides in the fog while an Imperial patrol's
 band marches somewhere out there, in another meter, at another tempo. Two
 musics sound at once and never share a barline until the fight forces them
 into one grid (after Ives's two bands in *Putnam's Camp*, and Mahler's
-off-stage bands).
+off-stage bands). Planned for Act II, and shared with What the Fog Keeps in
+Acts III and IV (weighted to this one in Act IV); not Act I.
 
-Near: the army, D minor, 3/4 at 156. Its tune starts every phrase after a
-silent downbeat: a note said twice, a leap up a minor sixth onto the next
-downbeat, held (D D, B-flat), and the way down by step to E; then the same
-shape from E (E F, C) down to A, the half cadence. The second time the answer
-climbs instead: a seventh up from the held E to D, then D C D E to the high F.
-Its accompaniment is a waltz without its downbeat: pizzicato on 2 and 3 only.
-In the calm mix the downbeat is never struck (the army holding its breath);
-in the full mix the timpani and a tom strike it.
+Near: the army, D minor, 3/4 at 156. Every phrase of its tune starts after a
+silent downbeat and a silent second beat: one note on beat three, a leap onto
+the next downbeat, held. First E up a tritone to B-flat, sighing to A (the
+army's E against the band's key, in its first two notes; the B-flat lands as
+the third of G minor, not on a flat sixth); then F up a fifth to C, sighing to
+B-flat; then G up a fourth to C, held: the pickups climb while the leaps close
+in. Then the way down, B-flat A G, to A, the half cadence. The second time the
+answer climbs instead: D C, D E, to the high F. Its accompaniment is a waltz
+without its downbeat: pizzicato on 2 and 3 only. In the calm mix the downbeat
+is never struck (the army holding its breath); in the full mix the timpani and
+a tom strike it.
 
 Far: the patrol, B-flat major (the Emperor's key), 2/4 at 117, a quarter of
 the band for every four-thirds of the army's: its beats meet the army's only
 every fourth army beat, its downbeats every eight army bars (nine of its own).
-Its tune is a proper march, dotted and bugle-like (B-flat F B-flat D, F E-flat
-D), and its cadence is the Empire's drill at pitch: D E-flat D C, falling to
-B-flat. In the band's own key the drill is a bright 3-4-3-2-1; under the
-army's D it is the Phrygian half-step. The two keys are the drill's own frame
-(D down to B-flat), so they share six notes: the collision is in time, not in
-tune. The first phrase stops on A, the leading tone, after the drill's four
-notes have run past the tonic.
+Its tune is a proper march, dotted and bugle-like (B-flat F B-flat D, F
+E-flat D), and its cadence is the Empire's drill at pitch: D E-flat D C,
+falling to B-flat. In the band's own key the drill is a bright 3-4-3-2-1;
+under the army's D it is the Phrygian half-step. The two keys are the drill's
+own frame (D down to B-flat), so they share six notes: the collision is in
+time, not in tune. The first phrase stops on A, the leading tone, after the
+drill's four notes have run past the tonic. The march is the Emperor's
+anthem's regimental cousin, on purpose: the same key and dotted step, the
+anthem's E-flat D sigh (its second bar) in the march's sixth, and a phrase
+that closes through A as the anthem's does. It is the Emperor's own
+patrol; a player who has met the anthem should hear whose band it is.
 
 The distance device. Every note the band plays is written twice, to two
 bands on one timeline (`put`): the far one (calm only) is a muted trumpet, a
-piccolo, a bell lyre, a tuba, trombones, a side drum with its snares off and a
-bass drum, seated far right and narrow with most of their level in the hall
-(sends of 0.8-1.2 against gains of -6 to -23 dB) and two-pole low-passes from
-700 Hz to 3.2 kHz; the near one (full only) is the same notes on open
-trumpets, the snares on, dry, loud and wide. So the calm hears the patrol
-through the fog, and a crossfade to the full mix (blows exchanged) brings
-the same band into the room, mid-phrase or anywhere: the enemy arriving, not
-a tune revealed. Near the end the far band marches out of earshot (its lane
-falls through D2); its last B-flat is cut off.
+piccolo, a bell lyre, a tuba, trombones, a side drum (snares on, low-passed
+near 5 kHz, so its march reads on a phone speaker) and a bass drum, seated far
+right and narrow with most of their level in the hall (sends of 0.8-1.2
+against gains of -6 to -23 dB) and two-pole low-passes from 700 Hz to 5 kHz;
+in B the trumpet and piccolo carry the tune 5 dB up, on parts of their own.
+The near one (full only) is the same notes on open trumpets, dry, loud and
+wide. So the calm hears the patrol through the fog, and a crossfade to the
+full mix (blows exchanged) brings the same band into the room, mid-phrase or
+anywhere: the enemy arriving, not a tune revealed. Near the end the far band
+marches out of earshot (its lane falls through D2); its last B-flat is cut
+off.
 
 Form (bars; 3/4 unless noted): intro 1-4 (the patrol's bugle far off, the
 march's head, over a D pedal and the pizzicato; A seven) | A 5-12 (the army's
-tune: calm, a low clarinet; full, violas and horns in unison, celli holding
-the bass; far off the patrol's drum beats the step) | A2 13-20 (the second
-phrase: calm, a low flute without vibrato; full, violins run eighths through
-2 and 3, a second horn holds the harmony; the street beat, which the full mix
-hears only as it comes out of the fog, and the roll-off, in the room) | B
-21-36 (the march: sixteen march bars, a drum tag and a roll-off, exactly
-sixteen of the army's. The first phrase on the trumpet with the bell lyre, the
-second with the piccolo; oom on the bar, pah on its second beat. Under it the
-army keeps only its downbeat and its waltz, which takes the band's chord of
-the moment, and answers twice with its head: at 27, landing its B-flat on the
-band's as the band starts its second phrase, and at 34, in the band's drum
-tag. Where the grids meet, bar 29, the band's cymbal and the army's heaviest
-stroke fall together) | C 37-44 (the band quickens: its tempo climbs from 117
-to 156 as 1-(1-u)^2, twenty-two march beats in the army's twenty-four, so it
-arrives on the army's beat without a jolt (`Clock`), its head climbing
-B-flat, C minor, D minor, E-flat, then hammering F, the side drum's recorded
-roll growing under it; the army holds a tremolo on F and climbs its own head
-in sequence, D D B-flat, E-flat E-flat C, G G E-flat, A A F, each leap landing
-on the band's chord) | D 45-60, 2/4 at 156 (one grid: a rock kit, the band's
-march on the trumpets, and the army's tune forced into the march's rhythm (a
-2/4 bar for each 3/4 bar, the silent downbeat kept, the pickup dotted, its E
-bent down to E-flat) an octave below on horns and celli. The bass is the
-army's: the band's chords stand on D and its E-flat (I6, iii, IV, ii6/5, V), and
-at the drill's cadence the army mirrors the band, D C D E-flat F against D
-E-flat D C B-flat, over a bass walking G, A, D: the band hears vi, V6/5, I6,
-the army iv, V, i. The calm keeps its pizzicato in three against the band's
-two, now at one tempo, the barlines crossing, and whispers its head once) |
-D2 61-66, 2/4 (the second statement, the loop's peak: the piccolo over the
-trumpets, the violas over the horns; the drill runs D E-flat D C and the
-army's E-flat goes up to E) | turn 67-69, 3/4 (the band's last B-flat is cut
-off by the army's A seven, whose C-sharp the band's key has no room for: the
-exhale E D C-sharp dies away onto the loop's D minor). Loop 5-69, 66.5 s.
+tune over Dm Gm6 F C7 | C F Gm A: calm, a low clarinet; full, violas and horns
+in unison, celli holding the bass; far off the patrol's drum beats the step) |
+A2 13-20 (the second phrase over Dm Gm6 F C7 | B-flat C Dm: calm, a low flute
+without vibrato; full, violins run eighths through 2 and 3, a second horn
+holds the harmony; the street beat, which the full mix hears only as it comes
+out of the fog. At 19 the full mix's army stops short on its high F and falls
+back to the pizzicato and the pedal, held back too, under the band's
+roll-off, in the room) | B 21-36 (the march: sixteen march bars, a drum tag
+and a roll-off, exactly sixteen of the army's; the first phrase on the trumpet
+with the bell lyre, the second with the piccolo; oom on the bar, pah on its
+second beat. The first collision is staged: in the full mix bar 21 arrives
+4.5 dB above bar 19 and 6 above bar 20, and for the band's first phrase the
+army keeps only its timpani downbeat and one answer, its head in the horns and
+celli at 27, landing its B-flat on the band's as the band starts its second
+phrase; then its waltz creeps back, the celli on the downbeat and the
+pizzicato on beat 3 from 28, on 2 and 3 from 32, so the two musics are heard
+to meet, not two tracks by mistake. The calm's pizzicato keeps beat 3 only
+through the band's first phrase, so the far march is heard; its clarinet
+answers at 21, 27 and 34. The army's waltz takes the band's chord of the
+moment; where the grids meet, bar 29, the band's cymbal and the army's
+heaviest stroke fall together) | C 37-44 (the band quickens: its tempo climbs
+from 117 to 156 as 1-(1-u)^2, twenty-two march beats in the army's
+twenty-four, so it arrives on the army's beat without a jolt (`Clock`), its
+head climbing B-flat, C minor, D minor, E-flat, then hammering F, the side
+drum's recorded roll growing under it; the army holds a tremolo on F and
+climbs its own head in sequence, E to B-flat, F to C, G to E-flat, A to F,
+each leap landing on the band's chord; the full mix lets go of the last F a
+beat early) | the fusion, bar 45, 2/4 (both bands and the army strike one
+unison D, a short stroke; the drums are choked and the stroke's pitched voices
+are sent almost dry, so beat 2 is a silence with only the hall in it) | D
+46-61, 2/4 at 156 (one grid, landing on the kit, the timpani and the army's
+tom: the band's march on the trumpets, and the army's tune forced into the
+march's rhythm (a 2/4 bar for each 3/4 bar, the silent downbeat kept, its E
+bent down to E-flat, so its tritone becomes the band's fifth) an octave below
+on horns and celli. The bass is the army's: the band's chords stand on D and
+its E-flat (I6, iii, IV, ii6/5, V), and at the drill's cadence the army
+mirrors the band, D C D E-flat F against D E-flat D C B-flat, over a bass
+walking G, A, D: the band hears vi, V6/5, I6, the army iv, V, i. The calm
+keeps its pizzicato in three against the band's two, now at one tempo, the
+barlines crossing, and whispers its head once, E to B-flat) | D2 62-67, 2/4
+(the second statement, the loop's peak: the piccolo over the trumpets, the
+violas over the horns, the army's line a dB further forward; the drill runs D
+E-flat D C and the army's E-flat goes up to E) | turn 68-70, 3/4 (the band's
+last B-flat is cut off by the army's A seven, whose C-sharp the band's key has
+no room for: the exhale E D C-sharp dies away onto the loop's D minor). Loop
+5-70, 67.3 s.
 
-The wow is bar 21 in the full mix: the band crashes into the room on the
-army's downbeat and at once walks off at its own tempo. The second is bar 45,
-where the quickening band lands on the army's beat and the kit comes in. In
-the calm mix it is C, the far band breaking into a run.
+The wow is bar 21 in the full mix: the army holds its breath, the band
+crashes into the room on the army's downbeat and at once walks off at its own
+tempo. The second is bar 45, where the quickening band lands on the army's
+beat, everyone strikes the same D, and after a beat of silence the kit comes
+in. In the calm mix it is C, the far band breaking into a run.
 
 Leitmotifs: the Empire's drill, at pitch, is the march's cadence and the
-bass's D and E-flat under the fused section; the E natural the army loses to
-it and takes back is the piece's pitch story. No Thread (the army here is
-hiding, not Sera's sight), no Old Kingdom call, no choir.
+bass's D and E-flat under the fused section; the E natural the army sings
+against the band (its tritone to B-flat), loses to it (forced to E-flat, a
+fifth) and takes back in D2 is the piece's pitch story. No Thread (the army
+here is hiding, not Sera's sight), no Old Kingdom call, no choir.
 
 Distinct from What the Fog Keeps: no echo device; the calm plays its tune
 whole (no fragments); D, not G; a kit in the full mix; its crossfade brings the
-enemy in, not the tune out. D minor is used by no Act II or Act IV field theme;
-3/4 against 2/4 at 4:3 is not the sacred ground's 3:2.
+enemy in, not the tune out. Distinct from Open Ground: no held tonic before
+the leap, no minor sixth onto a flat sixth; every phrase starts off the beat on
+a single note. D minor is used by no Act II or Act IV field theme; 3/4 against
+2/4 at 4:3 is not the sacred ground's 3:2.
 
 Tuning, measured before these choices: the bass drum is the GeneralUser taiko
 on key 48, which rings on B-flat (the orchestral bass drum rings a
 quarter-tone below B and read as a wrong bass note under the march); the
-army's tom is key 56, on D; the side drum's shell ring is notched (with snares
-237 Hz, without 220 Hz); the tuba plays its sustain samples between F2 and E3
-(its staccato F1 and A1 are 70 cents flat, and lower its fundamental is weak
-enough that an oom on B-flat is heard as an F); the piccolo is Sonatina's
-(the legacy one is 33 cents sharp on its high G); the pizzicato is the second
-violins' and the spiccato the first violins' (the Sonatina violas' pizzicato
-is up to 26 cents out, its first violins' 44). Lint is clean in both mixes.
+army's tom is key 56, on D; the side drum's shell ring (237 Hz) is notched;
+the tuba plays its sustain samples between F2 and E3 (its staccato F1 and A1
+are 70 cents flat, and lower its fundamental is weak enough that an oom on
+B-flat is heard as an F); the piccolo is Sonatina's (the legacy one is 33
+cents sharp on its high G); the pizzicato is the second violins' and the
+spiccato the first violins' (the Sonatina violas' pizzicato is up to 26 cents
+out, its first violins' 44). At the fusion the drums and the bass guitar
+strike 20-60 ms after the beat and the slowest attacks (tuba, spiccato) 20-27
+ms before it, so every voice peaks within 60 ms of the others and the stroke
+is one, not a flam. Lint is clean in both mixes.
 """
 
 from __future__ import annotations
@@ -116,56 +147,84 @@ TUBA_ART = 'default'   # (the VSCO tuba's staccato F1 and A1 are 70 cents flat)
 MID_FROM = -12         # march beat from which the full mix hears the patrol's drum in A
 BD_KEY = 48            # the taiko key that rings on B-flat
 TOM_D = 56             # ... and on D
-# the side drum's shell rings at a pitch: with its snares on at 237 Hz (a
-# quarter-tone above B-flat), with them off on A (220 Hz). Notched, so neither
-# reads as a wrong note under the band
+# the side drum's shell rings at a pitch, 237 Hz (a quarter-tone above
+# B-flat): notched, so it never reads as a wrong note under the band
 SNARE_RING = ('peak', 237, 5.0, -9.0)
-SNARE_OFF_RING = ('peak', 220, 5.0, -10.0)
 
-INTRO, A, A2, B, C, D, D2, OUT = 1, 5, 13, 21, 37, 45, 61, 67
-END = 70
+INTRO, A, A2, B, C, HIT, D, D2, OUT = 1, 5, 13, 21, 37, 45, 46, 62, 68
+HUSH = 19      # the full mix's army falls back to the pizzicato and pedal here
+END = 71
+HIT_LEN = 0.3  # the fusion's unison is a stroke, not a held chord
+# where each part strikes it, in beats from the hit: the sampled strings and
+# brass speak 50-100 ms after the drums, so the drums wait a little and the
+# slowest attacks lead a little, and the stroke lands as one (not a flam)
+HIT_AT = {'drum': 0.13, 'cym': 0.05, 'ebass': 0.15, 'stab': -0.05, 'tuba': -0.07}
+# (the stroke's own parts, trimmed to the level each voice had on its section's
+# part)
+HIT_GAIN = {'tpt': 6.0, 'pah': 3.0, 'tuba': 10.0, 'hn': 6.5, 'timp': 4.0}
+
+
+def CHOKE(h):
+    """An expression lane (in beats) that damps a ringing part for the fusion's
+    silent beat: full through the hit's stroke, gone before the second beat,
+    back just before the next downbeat."""
+    return ((h + 0.45, 1.0), (h + 0.8, 0.0), (h + 1.9, 0.0), (h + 1.97, 1.0))
 
 # ------------------------------------------------------------------ the army's tune
-# D minor, 3/4. Every phrase starts after a silent downbeat: a note said twice,
-# a leap up a minor sixth onto the next downbeat, held (D D, B-flat), and the
-# way down by step (A G F) to E; then the same shape a step higher (E F, C) and
-# down to A. The second time the answer climbs instead, from a seventh up (E to
-# D), D C D E to the high F.
+# D minor, 3/4. Every phrase starts after a silent downbeat and a silent second
+# beat: one note on beat three, and a leap onto the next downbeat, held. First
+# E up a tritone to B-flat (the army's E against the band's key, in its first
+# two notes), sighing to A; then F up a fifth to C, sighing to B-flat; then G up
+# a fourth to C, held: the pickups climb while the leaps close in. Then the way
+# down, B-flat A G, to A. The second time the answer climbs instead: D C D E
+# to the high F.
 N1 = """
-rq D4q. D4e | Bb4h. | A4q. G4e F4q | E4h. | rq E4q. F4e | C5h. | Bb4q. A4e G4q | A4h. |
+rq rq E4q | Bb4h A4q | rq rq F4q | C5h Bb4q | rq rq G4q | C5h. | Bb4q. A4e G4q | A4h. |
 """
 N2 = """
-rq D4q. D4e | Bb4h. | A4q. G4e F4q | E4h. | D5h C5q | D5h E5q | F5h.~ | F5h. |
+rq rq E4q | Bb4h A4q | rq rq F4q | C5h Bb4q | D5h C5q | D5h E5q | F5h.~ | F5h. |
+"""
+# the full mix's A2 stops short: the army holds its breath before the band
+N2_FULL = """
+rq rq E4q | Bb4h A4q | rq rq F4q | C5h Bb4q | D5h C5q | D5h E5q | F5q rh | rh. |
 """
 # forced into the march's grid (2/4): each 3/4 bar squeezed into a 2/4 bar, the
-# silent downbeat kept, the pickup in the march's dotted rhythm, and the E bent
-# down to the Empire's E-flat
+# silent first beat kept, the sighs gone, and the E bent down to the Empire's
+# E-flat, so the army's tritone becomes the band's perfect fifth (E-flat to
+# B-flat)
 N1_FORCED = """
-rq D4e. D4s | Bb4h | A4e. G4s F4q | Eb4h | rq Eb4e. F4s | C5h | Bb4e. A4s G4q | A4h |
+rq Eb4q | Bb4h | rq F4q | C5q Bb4q | rq G4q | C5h | Bb4e. A4s G4q | A4h |
 """
 # the second phrase answers the drill with its mirror: where the band falls
 # D E-flat D C B-flat, the army climbs D C D E-flat F
 N2_FORCED = """
-rq D4e. D4s | Bb4h | A4e. G4s F4q | Eb4h | D5q. C5e | D5q Eb5q | F5h~ | F5h |
+rq Eb4q | Bb4h | rq F4q | C5q Bb4q | D5q. C5e | D5q Eb5q | F5h~ | F5h |
 """
 # the second time the army does not wait for the band's cadence: its E-flat
 # goes up to E, and the meter breaks back into three (OUT)
 N3_FORCED = """
-rq D4e. D4s | Bb4h | A4e. G4s F4q | Eb4h | D5q. C5e | D5q Eb5q |
+rq Eb4q | Bb4h | rq F4q | C5q Bb4q | D5q. C5e | D5q Eb5q |
 """
 EXHALE = 'E5h. | D5h. | C#5h. |'
-# the army's answer to the band in B: its head, landing on the band's B-flat
-CELL = 'rq D4q. D4e | Bb4h. |'
+# the army's answer to the band in B: its head, E up to the band's B-flat
+CELL = 'rq rq E4q | Bb4h. |'
 # where the army answers in B: the calm's clarinet as the band starts, between
 # its phrases and when it has finished its tune (its drum tag and roll-off);
 # the full mix's horns and celli at the last two
 CELLS_B = (B, B + 6, B + 13)
 CELLS_B_FULL = (B + 6, B + 13)
-# C: the head climbs in sequence while the band quickens, each leap landing on
-# the band's chord of the moment (D D B-flat, E-flat E-flat C, G G E-flat,
-# A A F)
+# the bars whose third beat carries the army's pickup under the band (B, C)
+PICKUPS = CELLS_B + (C, C + 2, C + 4, C + 6)
+# C: the head climbs in sequence while the band quickens, the pickups rising
+# E F G A and each leap landing on the band's chord of the moment (B-flat, C,
+# E-flat, F)
 CLIMB = """
-rq D4q. D4e | Bb4h. | rq Eb4q. Eb4e | C5h. | rq G4q. G4e | Eb5h. | rq A4q. A4e | F5h. |
+rq rq E4q | Bb4h. | rq rq F4q | C5h. | rq rq G4q | Eb5h. | rq rq A4q | F5h. |
+"""
+# the full mix's climb lets go of its F a beat before the fusion: the army
+# breathes in, and the unison D lands clean (not out of a held F)
+CLIMB_FULL = """
+rq rq E4q | Bb4h. | rq rq F4q | C5h. | rq rq G4q | Eb5h. | rq rq A4q | F5h rq |
 """
 
 # ------------------------------------------------------------------ the patrol's march
@@ -214,29 +273,29 @@ F5e. C5s F5e. A5s | F5e. C5s F5e. A5s | F5q rq |
 CMQ = ('C2', 'Eb4 G4 C5')
 H_QUICK = [BB, BB, CMQ, CMQ, DM, DM, EB, EB, FF, F7, F7]
 
-# the fused section's bass (the army's, and the band's tuba forced onto it). The
+# the fused section's bass (the army's, and the band's tuba forced onto it). It
+# steps to E-flat under the army's forced E-flat pickup (the drill's half-step). The
 # band's chords stand on the army's D wherever they can (B-flat as I6, D minor),
 # and the bass creeps D, E-flat, F under the first phrase (IV, ii6/5, V); at
 # the drill's cadence it walks G, A, D: the band hears vi, V6/5, I6 and lands on
 # B-flat, the army hears iv, V, i and lands on D
-BASS_D1 = 'D D D Eb Eb Eb F F D D D Eb D G/A D D'.split()
-BASS_D2 = 'D D D Eb D G/A'.split()
+BASS_D1 = 'D/Eb D D Eb Eb Eb F F D/Eb D D Eb D G/A D D'.split()
+BASS_D2 = 'D/Eb D D Eb D G/A'.split()
 
 # ------------------------------------------------------------------ the army's harmony
 # per 3/4 bar: (bass, the pizzicato's two notes on beats 2 and 3).
-# A: Dm Bb F A | C/E F Gm A; A2: Dm Bb F A | Bb C Dm Dm; OUT: A7
+# A: Dm Gm6 F C7 | C F Gm A; A2: Dm Gm6 F C7 | Bb C Dm Dm; the turn: A7
 H_ARMY = {
     1: ('D2', 'D4 F4'), 2: ('D2', 'D4 F4'), 3: ('D2', 'D4 F4'), 4: ('A1', 'C#4 G4'),
-    5: ('D2', 'F4 A4'), 6: ('Bb1', 'D4 F4'), 7: ('F1', 'C4 F4'), 8: ('A1', 'C#4 E4'),
-    9: ('C2', 'E4 G4'), 10: ('F1', 'F4 A4'), 11: ('G1', 'D4 G4'), 12: ('A1', 'C#4 E4'),
-    13: ('D2', 'F4 A4'), 14: ('Bb1', 'D4 F4'), 15: ('F1', 'C4 F4'), 16: ('A1', 'C#4 E4'),
+    5: ('D2', 'D4 A4'), 6: ('G1', 'D4 E4'), 7: ('F1', 'C4 A4'), 8: ('C2', 'E4 G4'),
+    9: ('C2', 'C4 E4'), 10: ('F1', 'F4 A4'), 11: ('G1', 'D4 G4'), 12: ('A1', 'C#4 E4'),
+    13: ('D2', 'D4 A4'), 14: ('G1', 'D4 E4'), 15: ('F1', 'C4 A4'), 16: ('C2', 'E4 G4'),
     17: ('Bb1', 'D4 F4'), 18: ('C2', 'E4 G4'), 19: ('D2', 'F4 A4'), 20: ('D2', 'F4 A4'),
-    67: ('A1', 'C#4 G4'), 68: ('A1', 'D4 G4'), 69: ('A1', 'C#4 G4'),
+    68: ('A1', 'C#4 G4'), 69: ('A1', 'D4 G4'), 70: ('A1', 'C#4 G4'),
 }
-# A's chords, for the full mix's violins (A2) and celli
-H_CHORD = {5: 'D F A', 6: 'Bb D F', 7: 'F A C', 8: 'A C# E', 9: 'C E G', 10: 'F A C',
-           11: 'G Bb D', 12: 'A C# E', 13: 'D F A', 14: 'Bb D F', 15: 'F A C', 16: 'A C# E',
-           17: 'Bb D F', 18: 'C E G', 19: 'D F A', 20: 'D F A'}
+# A2's chords, for the full mix's violins
+H_CHORD = {13: 'D F A', 14: 'G Bb D E', 15: 'F A C', 16: 'C E G Bb', 17: 'Bb D F',
+           18: 'C E G', 19: 'D F A', 20: 'D F A'}
 PC = {'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'Eb': 3, 'E': 4, 'F': 5, 'F#': 6, 'G': 7, 'Ab': 8,
       'A': 9, 'Bb': 10, 'B': 11}
 
@@ -254,13 +313,13 @@ class Clock:
     """The patrol's march beats -> the score's beats. March beat 0 is B's first
     downbeat. Before C the march runs at 3/4 of the army's tempo (117 against
     156); through C it quickens smoothly until its beat is the army's (the
-    ratio climbs as 1-(1-u)^2, so it arrives without a jolt); from D on the two
-    share one grid."""
+    ratio climbs as 1-(1-u)^2, so it arrives without a jolt); from the hit
+    (bar 45) on the two share one grid."""
 
     def __init__(self, s):
         self.b0 = s.bar(B)
         self.c0 = s.bar(C)
-        self.d0 = s.bar(D)
+        self.d0 = s.bar(HIT)
         self.L = self.d0 - self.c0
         self.mc = (self.c0 - self.b0) * RATIO
         self.md = self.mc + self.L * (RATIO + (1 - RATIO) * 2 / 3)
@@ -330,9 +389,9 @@ def tuba_note(name):
 
 # ------------------------------------------------------------------ build
 def build():
-    s = Score('battle_fog_2', tonic='D', bpm=TEMPO, meter=(3, 4), intro_bars=4, loop_bars=65,
+    s = Score('battle_fog_2', tonic='D', bpm=TEMPO, meter=(3, 4), intro_bars=4, loop_bars=66,
               title='Out of Step', seed=4141)
-    s.meter_change(D, (2, 4))
+    s.meter_change(HIT, (2, 4))
     s.meter_change(OUT, (3, 4))
     s.reverb = dict(rt60=2.8, predelay_ms=40, wet_db=-0.5, damp=0.55, bright=0.85)
     # the ensemble lives in the middle (horns, violas, trombones, the army's
@@ -373,12 +432,19 @@ def band(b, s, clock):
             ('tuba', 'tuba', 'low', TUBA_ART, -16, 0.9, lp(700)),
             ('pah', 'trombones', 'section', 'stac', -23, 1.1, lp(2200, 260)),
             ('bd', 'taiko', 'accent', None, -6, 0.8, lp(900)),
-            ('sn', 'orch_perc', 'accent', None, -13, 1.0, lp(2400, 200) + [SNARE_OFF_RING]),
+            ('sn', 'orch_perc', 'accent', None, -13, 1.0, lp(5000, 250) + [SNARE_RING]),
             ('cym', 'orch_perc', 'accent', None, -20, 1.2, lp(3000))):
         opts = dict(FAR, reverb=send, eq=eq, gain=gain, role=role)
         if art:
             opts['art'] = art
         far[name] = b.part(f'f_{name}', inst, layer='calm', **opts)
+    # the march itself, in B: the far trumpet and piccolo 5 dB up (on their own
+    # parts, so the rest of the far band keeps its level), so the calm hears a
+    # tune, not a murmur
+    far_b = dict(far)
+    for k, g in (('tpt', -10), ('picc', -17)):
+        o = dict(b.s.parts[f'f_{k}'].opts, gain=g)
+        far_b[k] = b.part(f'f_{k}_b', b.s.parts[f'f_{k}'].inst, layer='calm', **o)
     # near: the same band in the room (full only)
     near = {
         'tpt': b.part('n_tpt', 'trumpets', layer='full', role='lead', pan=0.3, gain=2, hpf=200,
@@ -398,10 +464,10 @@ def band(b, s, clock):
                       **NEAR),
     }
 
-    def tune(text, m0, who_far, who_near, v_far=0.42, v_near=0.8):
+    def tune(text, m0, who_far, who_near, v_far=0.42, v_near=0.8, far_band=None):
         """The tune on the named sections of each band: the piccolo an octave up,
         the bell lyre written an octave up (it sounds two)."""
-        for bandp, who, v in ((far, who_far, v_far), (near, who_near, v_near)):
+        for bandp, who, v in ((far_band or far, who_far, v_far), (near, who_near, v_near)):
             for k in who:
                 tr = 12 if k in ('picc', 'glk') else 0
                 put(bandp[k], T, march_notes(text), m0, v - (0.08 if k != 'tpt' else 0), tr)
@@ -462,16 +528,15 @@ def band(b, s, clock):
                 heard = ((far, v_far),) if far_only or (approach and m0 < MID_FROM) else \
                     ((far, v_far), (mid if approach else near, v_near))
                 for bandp, v in heard:
-                    # far: the snares are off (a dull drum); near: on
-                    key = 40 if (bandp is far and name == 'sn') else KEYS[name]
+                    key = KEYS[name]
                     bandp[name].note(a, key, 0.5, vel=min(1.0, v * acc))
 
-    # rolls: the side drum's own recorded roll (snares off far, on near), cut
+    # rolls: the side drum's own recorded roll (far and near), cut
     # to length and shaped by the part's expression lane (a crescendo, then
     # silence the moment the roll's last stroke is struck)
     rolls = {
         'far': b.part('f_roll', 'orch_perc', layer='calm', role='accent', gain=-16, reverb=1.0,
-                      eq=lp(2400, 200) + [SNARE_OFF_RING], **FAR),
+                      eq=lp(5000, 250) + [SNARE_RING], **FAR),
         'near': b.part('n_roll', 'orch_perc', layer='full', role='accent', gain=-5, pan=0.25,
                        eq=[SNARE_RING], **NEAR),
     }
@@ -479,7 +544,7 @@ def band(b, s, clock):
 
     def roll(m0, m1, v0, v1):
         a, e = T(m0), T(m1)
-        for k, key in (('far', 41), ('near', 39)):
+        for k, key in (('far', 39), ('near', 39)):
             rolls[k].note(a, key, e - a, vel=0.7)
             lanes[k] += [(a - 0.02, 0.0), (a, v0), (e, v1), (e + 0.03, 0.0)]
 
@@ -494,13 +559,15 @@ def band(b, s, clock):
     for k in range(7):
         drums(STREET[k % 2], -18 + 2 * k, v_far=0.5, v_near=0.62, approach=True)
     roll(-4, -2.5, 0.45, 0.85)
-    drums(ROLL1, -4, v_far=0.55, v_near=0.7)
+    # (in the room it starts lower than the second one: B's downbeat must
+    # arrive well above the army's held breath)
+    drums(ROLL1, -4, v_far=0.55, v_near=0.6)
     drums(ROLL2, -2, v_far=0.6, v_near=0.8)
 
     # B: the march. The first phrase on the trumpet with the bell lyre, the
     # second with the piccolo (the fife)
-    tune(M_A, 0, ('tpt', 'glk'), ('tpt', 'glk'), v_near=0.86)
-    tune(M_B, 16, ('tpt', 'picc'), ('tpt', 'picc'), v_near=0.88)
+    tune(M_A, 0, ('tpt', 'glk'), ('tpt', 'glk'), v_near=0.86, far_band=far_b)
+    tune(M_B, 16, ('tpt', 'picc'), ('tpt', 'picc'), v_near=0.88, far_band=far_b)
     oompah(H_MA + H_MB, 0)
     UNDER = [{'bd': 'x...x...', 'sn': 'X...x.x.', 'cym': 'x.......'},
              {'bd': 'x...x...', 'sn': 'x.x.X...'}]
@@ -530,9 +597,39 @@ def band(b, s, clock):
     # from the sixth bar the side drum rolls, growing into the fused downbeat
     roll(mc + 12, mc + 22, 0.35, 1.0)
 
-    # D: one grid. The trumpets alone on the tune against the army's (D1); the
-    # peak, with the piccolo and the bell lyre, and no cadence (D2)
+    # the fusion: the moment the grids become one is a unison D struck by both
+    # bands and the army together (the army's part is in army()), then a beat
+    # of silence; the fused music starts on the next bar
     md = clock.md
+    b.hit_beat = T(md)
+    # in the room the stroke's pitched voices play on parts of their own, sent
+    # almost dry to the hall: the hall's answer to a fortissimo unison would
+    # otherwise fill the silence after it
+    b.hit = {k: b.part(f'hit_{k}', inst, layer='full', role='accent', gain=g, pan=pan,
+                       depth=0.05, reverb=0.06, **opts)
+             for k, inst, g, pan, opts in (
+                 ('tpt', 'trumpets', HIT_GAIN['tpt'], 0.3,
+                  dict(hpf=200, eq=[('peak', 3000, 1.0, -2.5), ('highshelf', 7000, 0.7, -3.0)])),
+                 ('pah', 'trombones', HIT_GAIN['pah'], 0.45, {}),
+                 ('tuba', 'tuba', HIT_GAIN['tuba'], 0.45,
+                  dict(art=TUBA_ART, eq=[('peak', 300, 1.0, -3.0)])),
+                 ('hn', 'horns', HIT_GAIN['hn'], -0.3, dict(eq=[('peak', 1400, 1.0, 2.5)])),
+                 ('timp', 'timpani', HIT_GAIN['timp'], -0.05, dict(eq=[('peak', 220, 1.0, -3.0)])),
+             )}
+    for bandp, v, v_drum in ((far, 0.55, 0.69), (near, 0.95, 1.0)):
+        for k, p in (('tpt', 'D5'), ('pah', 'D4'), ('tuba', 'D3')):
+            (b.hit[k] if bandp is near else bandp[k]).note(
+                T(md) + HIT_AT.get(k, 0.0), p, HIT_LEN, vel=v, rearticulate=True)
+        for k, at in (('bd', HIT_AT['drum']), ('cym', HIT_AT['cym'])):
+            bandp[k].note(T(md) + at, KEYS[k], 0.5, vel=v_drum)
+    # the drums are choked on the second beat (the cymbal grabbed, the bass
+    # drum's head damped), so the silence is a silence and not a ring
+    h = b.hit_beat
+    for part in (near['bd'], near['cym'], far['bd'], far['cym']):
+        part.expr_beats(*CHOKE(h))
+    md += 2
+    # D: one grid. The trumpets alone on the tune against the army's (D1); the
+    # peak, with the piccolo, and no cadence (D2)
     tune(M_A + M_B, md, ('tpt',), ('tpt',), v_far=0.45, v_near=0.88)
     oompah(H_MA + H_MB, md, BASS_D1, double=True)
     tune(M_C, md + 32, ('tpt', 'picc'), ('tpt', 'picc'), v_far=0.46, v_near=0.95)
@@ -589,32 +686,58 @@ def army(b, s, clock):
     for bar in list(range(INTRO, B)) + list(range(OUT, END)):
         bs, dy = H_ARMY[bar]
         t = s.bar(bar)
+        # (held back in the two bars before the band: the army holds its breath)
+        hush = 0.08 if HUSH <= bar < B else 0.0
         for off in (1.0, 2.0):
             for p in dy.split():
-                pz.note(t + off, p, 0.5, vel=0.5 if off == 1.0 else 0.42)
-        ped.note(t, bs, 3.0, vel=0.45, rearticulate=True)
+                pz.note(t + off, p, 0.5, vel=(0.5 if off == 1.0 else 0.42) - hush)
+        ped.note(t, bs, 3.0, vel=0.45 - hush, rearticulate=True)
     # B, C: the army's waltz takes the band's chord of the moment: the two
-    # musics fight in time, not in tune
-    for bar in range(B, D):
+    # musics fight in time, not in tune. In B each mix has its own waltz. The
+    # calm's plucks only beat 3 while the far band plays its first phrase, so
+    # the march is heard; the full mix's is silent for that phrase (the army
+    # keeps only its downbeat and its answer) and creeps back in the second:
+    # beat 3 alone, then 2 and 3
+    pz_bc = b.part('pz_bc', 'violins2', layer='calm', role='ostinato', art='pizz', gain=2,
+                   eq=CLOSE, pan=-0.15, **DRY)
+    pz_bf = b.part('pz_bf', 'violins2', layer='full', role='ostinato', art='pizz',
+                   eq=CLOSE, pan=-0.15, **DRY)
+    for bar in range(B, HIT):
         t = s.bar(bar)
         for off in (1.0, 2.0):
             for p in waltz_notes(b, t + off):
-                pz.note(t + off, p, 0.5, vel=0.46 if off == 1.0 else 0.4)
+                v = 0.46 if off == 1.0 else 0.4
+                if off == 2.0 and bar in PICKUPS:
+                    continue      # the army's own E pickup sounds alone
+                if bar >= C:
+                    pz.note(t + off, p, 0.5, vel=v)
+                    continue
+                if off == 2.0 or bar >= B + 7:
+                    # (and a little under the band's second phrase, whose fife
+                    # carries less far than the trumpet)
+                    pz_bc.note(t + off, p, 0.5, vel=v - 0.05 * (bar >= B + 7))
+                if bar >= B + 11 or (bar >= B + 7 and off == 2.0):
+                    pz_bf.note(t + off, p, 0.5, vel=v + 0.04 * (bar >= B + 11))
     # A2 (full): the army at full stride. The violins run eighths through
     # beats 2 and 3 (up the chord and back), and leave the downbeat to the
     # timpani: the waltz still has no downbeat of its own
     stab_pre = []
-    for bar in range(A2, B):
+    for bar in range(A2, HUSH):
         ch = H_CHORD[bar]
         tones = sorted(p for p in range(62, 82) if p % 12 in {PC[x] for x in ch.split()})
         t = s.bar(bar)
-        for i, k in enumerate((0, 1, 2, 1)):
+        # (under a pickup the last eighth stays off it: up the chord, held)
+        shape = (0, 1, 2, 2) if bar == A2 else (0, 1, 2, 1)
+        for i, k in enumerate(shape):
             stab_pre.append((t + 1.0 + 0.5 * i, tones[k % len(tones)],
                              (0.58, 0.42, 0.5, 0.4)[i]))
     stab = b.part('stab', 'violins', layer='full', role='section', art='spic', pan=-0.35,
                   **DRY)
     for at, p, v in stab_pre:
         stab.note(at, p, 0.5, vel=v)
+    # the fusion (bar 45): the army strikes the same unison D as the band
+    for part, p, v in ((stab, 'D5', 0.9), (pz, 'D4', 0.8)):
+        part.note(b.hit_beat + HIT_AT.get(part.name, 0.0), p, HIT_LEN, vel=v, rearticulate=True)
     # D (calm): the pizzicato keeps its three against the band's two, on the
     # band's chords
     pz_d = b.part('pz_d', 'violins2', layer='calm', role='ostinato', art='pizz', gain=2, eq=CLOSE,
@@ -630,10 +753,11 @@ def army(b, s, clock):
     # the band runs
     press = b.part('press', 'celli', role='pad', art='trem', calm_db=-4, pan=0.3, **DRY)
     press_cb = b.part('press_cb', 'basses', role='low', art='trem', calm_db=-4, pan=0.4, **DRY)
-    press.note(s.bar(C), 'F3', 24.0, vel=0.5)
-    press_cb.note(s.bar(C), 'F2', 24.0, vel=0.5)
+    # (from C's second bar: its first leaves the climb's E pickup alone)
+    press.note(s.bar(C + 1), 'F3', 21.0, vel=0.5)
+    press_cb.note(s.bar(C + 1), 'F2', 21.0, vel=0.5)
     for p in (press, press_cb):
-        p.expr((C, 0.35), (C + 4, 0.6), (D - 0.05, 1.0), (D, 0.3))
+        p.expr((C + 1, 0.35), (C + 4, 0.6), (HIT - 0.05, 1.0), (HIT, 0.3))
 
     # the tune (calm): a clarinet in its low register, close; the second time a
     # low flute, all breath, without vibrato
@@ -646,8 +770,10 @@ def army(b, s, clock):
     cl.at(C).play('@mp' + CLIMB)
     # D (calm): while the patrol runs past, the army whispers its head once, in
     # its own three, landing on the band's B-flat as the band lands on it
-    for n in (('D4', 1.0, 1.5), ('D4', 2.5, 0.5), ('Bb4', 3.0, 3.0)):
-        cl.note(s.bar(D + 14) + n[1], n[0], n[2], vel=0.5)
+    # (two silent beats: the band's cadence bar; E on its drum bar, B-flat on
+    # its next downbeat)
+    cl.note(s.bar(D + 15), 'E4', 1.0, vel=0.5)
+    cl.note(s.bar(D + 15) + 1.0, 'Bb4', 3.0, vel=0.5)
     cl.at(OUT).play('@mp' + EXHALE)
 
     va = b.part('tune_va', 'violas', layer='full', role='lead', pan=-0.2, **DRY)
@@ -657,13 +783,14 @@ def army(b, s, clock):
                 eq=[('peak', 1400, 1.0, 2.5)])
     for part in (va, hn):
         part.at(A).play('@f' + N1)
-        part.at(A2).play('@f' + N2)
-        part.at(C).play('@f' + CLIMB)
+        part.at(A2).play('@f' + N2_FULL)
+        part.at(C).play('@f' + CLIMB_FULL)
         part.at(OUT).play('@ff' + EXHALE)
         # (pushed through the fused section, where the band's tune is above it;
         # the exhale dies away into the loop)
-        part.expr((A, 1.0), (D - 0.02, 1.0), (D, 1.15), (OUT - 0.02, 1.15), (OUT, 1.0),
-                  (OUT + 1.2, 0.7), (END - 0.3, 0.5), (END - 0.02, 0.5))
+        part.expr((A, 1.0), (D - 0.02, 1.0), (D, 1.15), (D2 - 0.02, 1.15), (D2, 1.25),
+                  (OUT - 0.02, 1.25), (OUT, 1.0), (OUT + 1.2, 0.7), (END - 0.3, 0.5),
+                  (END - 0.02, 0.5))
     # D: in the one grid the army's tune lies an octave under the band's, on
     # the horns and celli, so the two lines keep their own registers and
     # colours; the violas add its upper octave only in D2, the loop's peak
@@ -673,7 +800,8 @@ def army(b, s, clock):
     lo_cell = b.part('cell_lo', 'celli', layer='full', role='lead2', pan=-0.25, hpf=110,
                      eq=[('peak', 1200, 1.0, 2.5)], **DRY)
     lo_cell.at(D).play('@ff' + N1_FORCED + N2_FORCED + N3_FORCED, transpose=-12)
-    lo_cell.expr((A, 1.0), (D - 0.02, 1.0), (D, 1.15), (OUT - 0.02, 1.15), (OUT, 1.0))
+    lo_cell.expr((A, 1.0), (D - 0.02, 1.0), (D, 1.15), (D2 - 0.02, 1.15), (D2, 1.25),
+                 (OUT - 0.02, 1.25), (OUT, 1.0))
     for bar in CELLS_B_FULL:
         lo_cell.at(bar).play('@ff' + CELL, transpose=-12)
         hn.at(bar).play('@ff' + CELL)
@@ -686,38 +814,52 @@ def army(b, s, clock):
     TIMP = {'D2': 'D2', 'C2': 'C3', 'Bb1': 'Bb2', 'G1': 'G2', 'A1': 'A2', 'F1': 'F2',
             'E2': 'E2', 'F2': 'F2'}
     for bar in list(range(A, D)) + list(range(OUT, END)):
+        if HUSH <= bar < B:
+            continue      # the army holds its breath; only the band's roll-off
         t = s.bar(bar)
         bs = H_ARMY[bar][0] if bar in H_ARMY else band_root(b, t, 2)
-        meet = bar in (B, B + 8)
-        tp.note(t, TIMP.get(bs, bs), 1.0, vel=0.95 if meet else 0.7 if bar < A2 else 0.8,
-                art='default')
+        meet = bar in (B, B + 8, HIT)
+        # (the fusion's stroke is on its own part; the low D speaks slowly,
+        # with the strings, so it is not delayed like the drums)
+        (b.hit['timp'] if bar == HIT else tp).note(
+            t, TIMP.get(bs, bs), 1.0, vel=0.95 if meet else 0.7 if bar < A2 else 0.8,
+            art='default')
         if bar < B:
             tk.note(t, TOM_D, 0.5, vel=0.5 if bar < A2 else 0.64)
         pat = ((0.0, 0.7), (2.5, 0.45)) if bar < A2 else \
             ((0.0, 0.7), (0.5, 0.45), (1.0, 0.5), (2.0, 0.5), (2.5, 0.45))
         if B <= bar < C:
-            # under the band, the army keeps only its downbeat: the low end is
-            # the tuba's between the strokes
-            pat = ((0.0, 0.72),)
+            # under the band's first phrase the army keeps only its timpani;
+            # the celli rejoin its downbeat in the second
+            pat = ((0.0, 0.72),) if bar >= B + 7 else ()
         if C <= bar < D:
             # C: the army holds (the tremolo, the climb) while the band runs
             pat = ((0.0, 0.62 + 0.02 * (bar - C)),)
         if bar >= OUT:
             pat = ((0.0, 0.7),)
+        if bar == HIT:
+            pat = ((0.0, 0.9),)
         for off, v in pat:
             lo.note(t + off, band_root(b, t + off, 3) if B <= bar < D else bs[:-1] + '3',
                     0.5, vel=v)
     tp.at(C + 6).play('%roll @p F2h. | @mf F2h. |')
 
+    eb = b.part('ebass', 'rbass', layer='full', role='bass', duck='kit_kick',
+                eq=[('peak', 280, 1.2, -4.0)])
     # A (full): the army's weight. The celli hold the bass line under the
     # tune; in A2 a second horn holds the harmony in the tenor
     lo_sus = b.part('lo_sus', 'celli', layer='full', role='bass', art='sus', pan=0.35, **DRY)
-    for bar in range(A, B):
+    for bar in range(A, HUSH):
         bs = H_ARMY[bar][0]
         lo_sus.note(s.bar(bar), bs[:-1] + '3', 3.0, vel=0.5 if bar < A2 else 0.6,
                     rearticulate=True)
     hn2 = b.part('hn2', 'horns', layer='full', role='pad', pan=-0.4, depth=0.25)
-    hn2.at(A2).play('@mp A3h. | D4h. | C4h. | C#4h. | F4h. | G4h. | A4h. | A4h. |')
+    hn2.at(A2).play('@mp A3h. | D4h. | C4h. | Bb3h. | F4h. | G4h. |')
+    # the fusion's unison D: short strokes, the horn on the stroke's own
+    # near-dry part (see band())
+    b.hit['hn'].note(b.hit_beat, 'D4', HIT_LEN, vel=0.95)
+    lo_sus.note(b.hit_beat, 'D3', HIT_LEN, vel=0.95, rearticulate=True, art='default')
+    eb.note(b.hit_beat + HIT_AT['ebass'], 'D2', HIT_LEN, vel=0.9)
     # OUT: the army's own dominant held under the exhale, dying away
     hn2.at(OUT).play('@f [C#4 G4]h. | [D4 G4]h. | [C#4 G4]h. |')
     lo_sus.note(s.bar(OUT), 'A2', 9.0, vel=0.62, rearticulate=True)
@@ -729,8 +871,6 @@ def army(b, s, clock):
     # band's tuba forced onto it
     kit = Kit(s, 'kit')
     b.full_only.update(kit.names())
-    eb = b.part('ebass', 'rbass', layer='full', role='bass', duck='kit_kick',
-                eq=[('peak', 280, 1.2, -4.0)])
     for k, note in enumerate(BASS_D1 + BASS_D2):
         bar = D + k
         t = s.bar(bar)
@@ -743,15 +883,20 @@ def army(b, s, clock):
         notes = note.split('/')
         for beat, nn in enumerate(notes * (2 // len(notes))):
             if (beat == 0 and k % 2 == 0) or nn != notes[0]:
-                tp.note(t + beat, f'{nn}2', 1.0, vel=0.85, art='default')
+                tp.note(t + beat, f'{nn}2', 1.0, vel=0.95 if k == 0 and beat == 0 else 0.85,
+                        art='default')
             for i in range(2):
                 v = 0.74 if i == 0 else 0.6
                 at = t + beat + 0.5 * i
                 eb.note(at, f'{nn}2', 0.5, vel=v)
 
+    # out of the silence the fused music lands on the army's drum as well
+    tk.note(s.bar(D), TOM_D, 0.5, vel=0.8)
     # OUT: the army takes the downbeat back
     kit.play(OUT, {'crash': 'X', 'kick': 'x'})
     tp.at(OUT + 2).play('%roll @p A2h. |')
     # the rolls swell (into D; into the loop)
-    tp.expr((A, 1.0), (C + 6 - 0.01, 1.0), (C + 6, 0.5), (D - 0.05, 1.0), (OUT + 2 - 0.01, 1.0),
-            (OUT + 2, 0.4), (END - 0.05, 1.0))
+    tp.expr((A, 1.0), (C + 6 - 0.01, 1.0), (C + 6, 0.5), (HIT - 0.05, 1.0), (HIT, 1.0),
+            (OUT + 2 - 0.01, 1.0), (OUT + 2, 0.4), (END - 0.05, 1.0))
+    # (damped for the fusion's silent beat)
+    tp.expr_beats(*CHOKE(b.hit_beat))
