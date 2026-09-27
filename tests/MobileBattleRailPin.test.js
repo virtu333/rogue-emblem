@@ -7,6 +7,7 @@ import {
   MobileBattleHUD,
   dockedEndTurn,
   pinnedRailCommand,
+  unitFocusedRail,
   uprightBattleRail,
 } from '../src/ui/MobileBattleHUD.js';
 
@@ -200,5 +201,37 @@ describe('End turn on the upright rail', () => {
     hud.syncDock('PLAYER_IDLE', null, true);
     expect(hud.dock.hidden).toBe(true);
     expect(hud.dock.children).toHaveLength(0);
+  });
+});
+
+describe('the upright header yields to a unit in action', () => {
+  it('while a unit is chosen, moving, acting, targeting or reading its forecast', () => {
+    for (const state of [
+      'UNIT_SELECTED',
+      'UNIT_MOVING',
+      'CANTO_MOVING',
+      'SELECTING_TARGET',
+      'SELECTING_HEAL_TARGET',
+      'SELECTING_TRADE_TARGET',
+      'SHOWING_FORECAST',
+      'CONFIRMING_ATTACK',
+    ])
+      expect(unitFocusedRail({ state, selected: true }), state).toBe(true);
+    expect(unitFocusedRail({ state: 'UNIT_ACTION_MENU', selected: true, menu: true })).toBe(true);
+  });
+
+  it('never at idle, in the enemy phase, in Formation, or without a selected unit', () => {
+    for (const state of [
+      'PLAYER_IDLE',
+      'ENEMY_PHASE',
+      'COMBAT_RESOLVING',
+      'TURN_START_RESOLVING',
+      'DEPLOY_POSITIONING',
+      'BATTLE_END',
+    ])
+      expect(unitFocusedRail({ state, selected: true, menu: true }), state).toBe(false);
+    // An action menu still being built (no rail menu yet), or no unit selected.
+    expect(unitFocusedRail({ state: 'UNIT_ACTION_MENU', selected: true, menu: false })).toBe(false);
+    expect(unitFocusedRail({ state: 'SELECTING_TARGET', selected: false })).toBe(false);
   });
 });
