@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import BattleMusicController, { entityHumGain } from '../src/ui/BattleMusicController.js';
+import BattleMusicController, {
+  HUM_MAX_GAIN,
+  entityHumGain,
+} from '../src/ui/BattleMusicController.js';
 import { entityHealth } from '../src/engine/EntitySystem.js';
 import { ENTITY_FINALE, MUSIC, MUSIC_LAYERS } from '../src/utils/musicConfig.js';
 import { MUSIC_STINGERS } from '../src/utils/musicStingers.js';
@@ -228,7 +231,7 @@ describe("BattleMusicController — the Entity's finale", () => {
     // the answer, sample-aligned to the cue's handoff
     expect(audio.playMusic).toHaveBeenCalledWith(ENTITY_FINALE.track, scene, 0, {
       layers: { hum: ENTITY_FINALE.hum },
-      layerGains: { hum: 0.75 },
+      layerGains: { hum: 0.75 * HUM_MAX_GAIN },
       startAt: 12.5 + MUSIC_STINGERS[ENTITY_FINALE.hinge].handoff,
     });
     expect(ctrl.entityStage).toBe('finale');
@@ -237,7 +240,11 @@ describe("BattleMusicController — the Entity's finale", () => {
     entity.currentHP = 20;
     ctrl.onCombatResolved();
     expect(audio.stopMusic).not.toHaveBeenCalled();
-    expect(audio.setMusicLayerGain).toHaveBeenLastCalledWith('hum', 0.25, expect.any(Number));
+    expect(audio.setMusicLayerGain).toHaveBeenLastCalledWith(
+      'hum',
+      0.25 * HUM_MAX_GAIN,
+      expect.any(Number),
+    );
     entity.currentHP = 0;
     ctrl.onPhaseStart('enemy');
     expect(audio.setMusicLayerGain).toHaveBeenLastCalledWith('hum', 0, expect.any(Number));
@@ -277,7 +284,7 @@ describe("BattleMusicController — the Entity's finale", () => {
       ENTITY_FINALE.track,
       expect.anything(),
       0,
-      expect.objectContaining({ layerGains: { hum: 1 } }),
+      expect.objectContaining({ layerGains: { hum: HUM_MAX_GAIN } }),
     );
     expect(ctrl.onBossEnrage()).toBe(false); // once
   });
@@ -315,7 +322,7 @@ describe("BattleMusicController — the Entity's finale", () => {
     expect(audio.playMusic).toHaveBeenCalledTimes(1);
     expect(audio.playMusic).toHaveBeenCalledWith(ENTITY_FINALE.track, scene, 800, {
       layers: { hum: ENTITY_FINALE.hum },
-      layerGains: { hum: 0.5 },
+      layerGains: { hum: 0.5 * HUM_MAX_GAIN },
       startAt: null,
     });
   });
@@ -384,10 +391,12 @@ describe("BattleMusicController — the Entity's finale", () => {
   });
 
   it('maps HP to the hum level and reads the Entity among the enemies', () => {
-    expect(entityHumGain(1)).toBe(1);
-    expect(entityHumGain(0.3)).toBeCloseTo(0.3);
+    // the finale + hum sum reaches full scale at hum 1 (+0.05 dBFS): stay under it
+    expect(entityHumGain(1)).toBe(HUM_MAX_GAIN);
+    expect(HUM_MAX_GAIN).toBeLessThanOrEqual(0.9);
+    expect(entityHumGain(0.3)).toBeCloseTo(0.3 * HUM_MAX_GAIN);
     expect(entityHumGain(-1)).toBe(0);
-    expect(entityHumGain(NaN)).toBe(1);
+    expect(entityHumGain(NaN)).toBe(HUM_MAX_GAIN);
     expect(entityHealth([{ stats: { HP: 10 }, currentHP: 3 }])).toBeNull();
     expect(entityHealth([{ isEntity: true, stats: { HP: 50 }, currentHP: 60 }])).toEqual({
       current: 50,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { LoopedMusic, validLoopFor } from '../src/utils/LoopedMusic.js';
+import { LoopedMusic, STOP_RELEASE_S, validLoopFor } from '../src/utils/LoopedMusic.js';
 
 function makeParam(value) {
   return {
@@ -275,6 +275,70 @@ describe('LoopedMusic', () => {
     m.destroy();
     expect(m.pendingRemove).toBe(true);
     expect(m.play()).toBe(false);
+  });
+});
+
+describe('LoopedMusic — stopping without a click', () => {
+  const loops = { full: { loopStart: 9.3, loopEnd: 79.8, duration: 80.4 } };
+  const make = (ctx) =>
+    new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'k',
+      layers: { full: buf(80.4) },
+      loops,
+      volume: 0.5,
+    });
+
+  it('fades the output out over the release, then stops the sources at its end', () => {
+    const { ctx, sources } = makeContext();
+    const m = make(ctx);
+    m.play();
+    m.stop();
+    expect(m._out.gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(
+      0,
+      ctx.currentTime + STOP_RELEASE_S,
+    );
+    expect(sources[0].stop).toHaveBeenCalledWith(ctx.currentTime + STOP_RELEASE_S);
+    // the source lets go of the graph only once it has ended
+    expect(sources[0].disconnect).not.toHaveBeenCalled();
+    sources[0].onended();
+    expect(sources[0].disconnect).toHaveBeenCalled();
+  });
+
+  it('tears the graph down only after the release has passed', () => {
+    vi.useFakeTimers();
+    try {
+      const { ctx } = makeContext();
+      const m = make(ctx);
+      m.play();
+      const out = m._out;
+      m.destroy();
+      expect(out.disconnect).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(STOP_RELEASE_S * 1000 + 25);
+      expect(out.disconnect).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a track that never played is torn down at once', () => {
+    const { ctx } = makeContext();
+    const m = make(ctx);
+    const out = m._out;
+    m.destroy();
+    expect(out.disconnect).toHaveBeenCalled();
+  });
+
+  it('plays at its volume again after a stop', () => {
+    const { ctx, sources } = makeContext();
+    const m = make(ctx);
+    m.play();
+    m.stop();
+    expect(m._out.gain.value).toBe(0);
+    expect(m.play()).toBe(true);
+    expect(m._out.gain.value).toBe(0.5);
+    expect(sources).toHaveLength(2);
   });
 });
 

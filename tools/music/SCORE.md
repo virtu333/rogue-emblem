@@ -18,7 +18,9 @@ the story.
 | **Unlight** | no melody at all: a hum on D and its semitone shadow, and the Thread with its notes taken away (the answer, then the downbeat, then all but one inner note) | the Entity, which has no words | The secret boss, the Deep route map, the Entity's card (silence); under its finale, the hum is the Entity's own stem |
 
 The last cue closes the story: in **The Last Light** (run victory) the phrase the title
-leaves hanging finally resolves, and the bells toll D, the root no other cue plays.
+leaves hanging finally resolves, and the bells toll D. Other cues strike a D bell as a call
+(Totality, the eclipse and deed cues, the Act IV card, the Entity's finale); only here does the
+Hollow Sun's leading tone rise onto it.
 
 ## The Entity's finale
 
@@ -72,7 +74,7 @@ it was heard when the wound was dealt).
 | `music_rest` | Liturgy of the Spent Name | Organ and choir hymn; the second phrase climbs to the leading tone and stops: a silent bar where the name was |
 | `music_loot` | Spoils of the March | Short bright loop |
 | `music_victory` | Routed | Brass fanfare of the oath, then the Thread at rest |
-| `music_defeat` | The Thread Is Cut | Solo cello breaks off mid-theme |
+| `music_defeat` | The Thread Is Cut | The celli break off mid-theme |
 | `music_run_win` | The Last Light | The Thread in D major; the hollow cadence resolves |
 | `music_explore_act1` | The Loom: Ember Dusk | Harp/pizzicato "shuttle", flute Thread in D dorian |
 | `music_explore_act2` | The Loom: Iron Rain | Celesta rain, muted-horn Empire drill, oboe Thread |
@@ -163,18 +165,21 @@ the Act II battle sounds in C and one in the shop sounds in G.
 What each cue may spend, so escalation stays earned (after the Reference Track
 Analysis dossier):
 
-- **Choir** is not used in Act I (battles, boss, route). Voices arrive with the rite
-  in Act III, the Emperor and the Lieutenant. The Entity never sings; its finale is
+- **Choir** is not used in Act I (battles, boss, route). In Act II it is a far colour
+  under the tune (oohs and a choir pad in Iron Rain and Steel and Thread, and in the
+  Act II boss's last two strains); voices take the foreground with the rite in Act III, the
+  Emperor and the Lieutenant. The Entity never sings; its finale is
   where the choir finally sings Ember Dusk.
 - **Massed doubling** (piccolo over the tune, trumpets doubling horns) is kept out of
   the most frequent theme (Act I battle).
 - **Displaced accents on a straight grid** (three-sixteenth groups) belong to the Act I
   battle's string ostinato; **3:2 against the beat** to the sacred ground; a **compound
   motor under a broad line** to escape maps.
-- **A completed tonic cadence of the Thread** is reserved for promotion and the run's
-  final victory, which resolves it once (with the bells). The title, the victory fanfare,
-  the route maps and the field and boss battles stop on the leading tone, the fifth or the
-  second instead.
+- **The Hollow Sun's resolution** (its phrase climbing to the leading tone and rising
+  onto the tonic, with tolled bells) is reserved for promotion and the run's final victory,
+  which resolves it once. The title, the church hymn, the shrine and every cue that quotes
+  the phrase stop on the leading tone instead. Ordinary melodic landings on the tonic
+  (Ember Dusk's 3-2-1, the finale's A strain) are not that cadence and are allowed.
 - **Each new battle theme owns its mechanism** (the cue list names it): bar contraction to
   Petals on the Fen and Totality, a cross-bar cycle to Against the Standard, a pedal under a
   third-less collection to Caldera, a held note changing meaning to Rime and the title, a stab cycle that spells the drill to The Iron Line, a reciting tone to The Consecrated, the stop bar with a pickup to The Emperor's Own, an unsung tune passed between keys to The Name Is Not Spoken, a tune revealed by the full mix to What the Fog Keeps, a bass that never gives the root to Coin and Canvas.
@@ -186,7 +191,8 @@ Every field battle theme exists as two mixes on one timeline (`<key>` and
 
 - **calm**: a solo voice (solo violin, flute, oboe, clarinet) carries the tune over
   legato low strings, piano in quarters and a soft heartbeat kick.
-- **full**: rock kit, bass guitar, brass unisons and string ostinati (choir from Act III on).
+- **full**: rock kit, bass guitar, brass unisons and string ostinati (a far choir colour in
+  Act II, the choir itself from Act III on).
 
 `src/engine/MusicIntensity.js` decides the layer and `src/ui/BattleMusicController.js`
 drives it. A battle opens calm. Any exchange of blows raises it to full, and so does an

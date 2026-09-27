@@ -35,10 +35,14 @@ const HINGE_WAIT_MS = 1500;
 // one bar of the finale (12/8 at dotted quarter = 136): the hinge cue is two
 const FINALE_BAR_MS = 1000 * ((MUSIC_STINGERS[ENTITY_FINALE.hinge]?.handoff || 3.529) / 2);
 
-/** The Entity's hum level under its finale: full at full HP, gone as it dies. */
+// The hum at full HP. The finale and its hum are mastered apart and summed at
+// runtime; at 1 the sum just reaches full scale, so it tops out a little under.
+export const HUM_MAX_GAIN = 0.9;
+
+/** The Entity's hum level under its finale: highest at full HP, gone as it dies. */
 export function entityHumGain(ratio) {
   const r = Number(ratio);
-  return Number.isFinite(r) ? Math.max(0, Math.min(1, r)) : 1;
+  return HUM_MAX_GAIN * (Number.isFinite(r) ? Math.max(0, Math.min(1, r)) : 1);
 }
 
 export default class BattleMusicController {
