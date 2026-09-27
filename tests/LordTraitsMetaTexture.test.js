@@ -94,7 +94,7 @@ describe('advanced starting-skill unlocks', () => {
     const total = data.metaUpgrades
       .filter((u) => u.id !== 'legendary_lord_chance')
       .reduce((sum, u) => sum + u.costs.reduce((a, b) => a + b, 0), 0);
-    expect(total).toBe(52628);
+    expect(total).toBe(52630);
     expect(total / 53428).toBeLessThan(1.03);
   });
 });

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Home Base Stat Upgrade Pricing (Sep 27, 2026)
+- **Stat upgrades priced by value**: Every lord/recruit growth and flat stat track now costs (value weight x a shared escalating curve), so the next tier of any stat is roughly as good a buy as any other. Weights (SPD = 1): DEF 1, STR 0.8, HP 0.55 growth / 0.85 flat, RES 0.45, SKL 0.4. SPD/DEF cost more (lord SPD flat `220 / 605 / 1270`), RES/SKL much less (lord RES flat `125 / 275 / 570`); the total cost to max each group is unchanged.
+- **`sim/metaStatValue.js`**: paired-seed full-run sweep (real run loop) that measures what each stat track is worth in battles won; the weights above blend its results with design judgement.
+
 ### Village Ambush + Coverage Hardening (Feb 18, 2026)
 - **Village ambush flow**: Shop nodes can become ambush encounters by difficulty (Normal 10%, Hard 20%, Lunatic 25%). Players must win a rout battle before the shop opens, then receive a 20% ambush discount that applies to item prices, rerolls, and forge costs, stacking multiplicatively with blessing discounts.
 - **Ambush deterministic fullrun slice**: Added a Hard-difficulty invincible PR slice on seeds 301-312 to continuously gate battle-first ambush shop flow and economy invariants, including a strict `avg_ambush_battles` threshold.

@@ -6,11 +6,11 @@
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
-      50,
-      50,
-      53,
-      70,
-      105
+      35,
+      40,
+      60,
+      85,
+      125
     ],
     "effects": [
       {
@@ -42,11 +42,11 @@
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
-      50,
-      50,
-      75,
-      125,
-      200
+      45,
+      60,
+      90,
+      120,
+      180
     ],
     "effects": [
       {
@@ -78,11 +78,11 @@
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
-      50,
-      50,
+      55,
       75,
-      125,
-      200
+      115,
+      155,
+      225
     ],
     "effects": [
       {
@@ -114,11 +114,11 @@
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
-      50,
-      50,
-      100,
-      125,
-      200
+      55,
+      75,
+      115,
+      155,
+      225
     ],
     "effects": [
       {
@@ -150,11 +150,11 @@
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
-      50,
-      50,
-      75,
-      100,
-      150
+      35,
+      40,
+      45,
+      60,
+      90
     ],
     "effects": [
       {
@@ -186,11 +186,11 @@
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
+      35,
+      40,
       50,
-      50,
-      50,
-      100,
-      125
+      70,
+      100
     ],
     "effects": [
       {
@@ -222,9 +222,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      100,
-      225,
-      450
+      110,
+      270,
+      560
     ],
     "requires": {
       "upgrades": [
@@ -256,9 +256,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      125,
-      275,
-      550
+      105,
+      255,
+      530
     ],
     "requires": {
       "upgrades": [
@@ -290,9 +290,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      125,
-      275,
-      550
+      130,
+      315,
+      660
     ],
     "requires": {
       "upgrades": [
@@ -324,9 +324,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      125,
-      300,
-      625
+      130,
+      315,
+      660
     ],
     "requires": {
       "upgrades": [
@@ -358,9 +358,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      100,
-      200,
-      400
+      90,
+      125,
+      265
     ],
     "requires": {
       "upgrades": [
@@ -392,9 +392,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      100,
-      175,
-      350
+      90,
+      145,
+      295
     ],
     "requires": {
       "upgrades": [
@@ -426,11 +426,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      75,
-      80,
-      105,
-      130,
-      210
+      50,
+      70,
+      125,
+      175,
+      275
     ],
     "effects": [
       {
@@ -462,11 +462,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      75,
-      110,
-      190,
-      265,
-      375
+      70,
+      105,
+      180,
+      255,
+      400
     ],
     "effects": [
       {
@@ -498,11 +498,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      75,
-      110,
-      190,
-      265,
-      375
+      90,
+      130,
+      230,
+      320,
+      495
     ],
     "effects": [
       {
@@ -534,11 +534,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      75,
-      110,
-      190,
-      265,
-      415
+      90,
+      130,
+      230,
+      320,
+      495
     ],
     "effects": [
       {
@@ -570,11 +570,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      75,
-      110,
-      150,
-      190,
-      300
+      50,
+      55,
+      90,
+      125,
+      200
     ],
     "effects": [
       {
@@ -606,11 +606,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      75,
-      110,
-      150,
-      190,
-      300
+      50,
+      60,
+      100,
+      145,
+      225
     ],
     "effects": [
       {
@@ -642,9 +642,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      190,
-      450,
-      875
+      185,
+      515,
+      1080
     ],
     "requires": {
       "upgrades": [
@@ -679,9 +679,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      190,
-      500,
-      1025
+      175,
+      485,
+      1015
     ],
     "requires": {
       "upgrades": [
@@ -716,9 +716,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      190,
-      500,
-      1025
+      220,
+      605,
+      1270
     ],
     "requires": {
       "upgrades": [
@@ -753,9 +753,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      190,
-      525,
-      1100
+      220,
+      605,
+      1270
     ],
     "requires": {
       "upgrades": [
@@ -790,9 +790,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      190,
-      425,
-      750
+      125,
+      240,
+      510
     ],
     "requires": {
       "upgrades": [
@@ -824,9 +824,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      190,
-      425,
-      750
+      125,
+      275,
+      570
     ],
     "requires": {
       "upgrades": [
@@ -1462,7 +1462,7 @@
   {
     "id": "weapon_forge",
     "name": "Honed Blades",
-    "description": "Starting lords’ combat weapons gain 1 random forge improvement per tier",
+    "description": "Starting lords\u2019 combat weapons gain 1 random forge improvement per tier",
     "category": "starting_equipment",
     "maxLevel": 3,
     "costs": [
@@ -1663,7 +1663,7 @@
   {
     "id": "unlock_luna",
     "name": "Luna",
-    "description": "SKL% chance on hit to halve the target’s DEF or RES (rounded down). Terrain protection remains.",
+    "description": "SKL% chance on hit to halve the target\u2019s DEF or RES (rounded down). Terrain protection remains.",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [

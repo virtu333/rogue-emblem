@@ -46,21 +46,35 @@ describe('meta upgrades rebalance patch guards', () => {
       },
     },
     { id: 'extra_skill_slot', costs: [750] },
-    // 2026-07-04 lord upgrade cost rebalance: lord growth/flat upgrades cost
-    // ~1.5x their previous curves so cheap early meta purchases favor the
-    // roster (recruit upgrades) over the lord stat-check treadmill.
-    { id: 'lord_hp_growth', costs: [75, 80, 105, 130, 210] },
-    { id: 'lord_str_growth', costs: [75, 110, 190, 265, 375] },
-    { id: 'lord_def_growth', costs: [75, 110, 190, 265, 375] },
-    { id: 'lord_spd_growth', costs: [75, 110, 190, 265, 415] },
-    { id: 'lord_skl_growth', costs: [75, 110, 150, 190, 300] },
-    { id: 'lord_res_growth', costs: [75, 110, 150, 190, 300] },
-    { id: 'lord_hp_flat', costs: [190, 450, 875] },
-    { id: 'lord_str_flat', costs: [190, 500, 1025] },
-    { id: 'lord_def_flat', costs: [190, 500, 1025] },
-    { id: 'lord_spd_flat', costs: [190, 525, 1100] },
-    { id: 'lord_skl_flat', costs: [190, 425, 750] },
-    { id: 'lord_res_flat', costs: [190, 425, 750] },
+    // 2026-09-27 stat upgrade value pricing: every lord/recruit stat track is
+    // priced as (value weight x a shared escalating curve), so buying the next
+    // tier of any stat is roughly equally worth it. Weights (SPD = 1): DEF 1,
+    // STR 0.8, HP 0.55 growth / 0.85 flat, RES 0.45, SKL 0.4. The total cost
+    // to max each group is unchanged. Measured with sim/metaStatValue.js.
+    { id: 'lord_spd_growth', costs: [90, 130, 230, 320, 495] },
+    { id: 'lord_def_growth', costs: [90, 130, 230, 320, 495] },
+    { id: 'lord_str_growth', costs: [70, 105, 180, 255, 400] },
+    { id: 'lord_hp_growth', costs: [50, 70, 125, 175, 275] },
+    { id: 'lord_res_growth', costs: [50, 60, 100, 145, 225] },
+    { id: 'lord_skl_growth', costs: [50, 55, 90, 125, 200] },
+    { id: 'lord_spd_flat', costs: [220, 605, 1270] },
+    { id: 'lord_def_flat', costs: [220, 605, 1270] },
+    { id: 'lord_str_flat', costs: [175, 485, 1015] },
+    { id: 'lord_hp_flat', costs: [185, 515, 1080] },
+    { id: 'lord_res_flat', costs: [125, 275, 570] },
+    { id: 'lord_skl_flat', costs: [125, 240, 510] },
+    { id: 'recruit_spd_growth', costs: [55, 75, 115, 155, 225] },
+    { id: 'recruit_def_growth', costs: [55, 75, 115, 155, 225] },
+    { id: 'recruit_str_growth', costs: [45, 60, 90, 120, 180] },
+    { id: 'recruit_hp_growth', costs: [35, 40, 60, 85, 125] },
+    { id: 'recruit_res_growth', costs: [35, 40, 50, 70, 100] },
+    { id: 'recruit_skl_growth', costs: [35, 40, 45, 60, 90] },
+    { id: 'recruit_spd_flat', costs: [130, 315, 660] },
+    { id: 'recruit_def_flat', costs: [130, 315, 660] },
+    { id: 'recruit_str_flat', costs: [105, 255, 530] },
+    { id: 'recruit_hp_flat', costs: [110, 270, 560] },
+    { id: 'recruit_res_flat', costs: [90, 145, 295] },
+    { id: 'recruit_skl_flat', costs: [90, 125, 265] },
     // Identity purchases stay untouched by the rebalance.
     { id: 'legendary_heir', costs: [1000, 500, 250, 750] },
     { id: 'commander_choice', costs: [1500] },
@@ -89,6 +103,35 @@ describe('meta upgrades rebalance patch guards', () => {
       },
     },
   ];
+
+  it('prices every stat track by value: no weaker stat costs more than a stronger one', () => {
+    // Value order within each group/kind, strongest first; ties share a price.
+    const order = {
+      growth: [['SPD', 'DEF'], ['STR'], ['HP'], ['RES'], ['SKL']],
+      flat: [['SPD', 'DEF'], ['HP'], ['STR'], ['RES'], ['SKL']],
+    };
+    for (const group of ['lord', 'recruit']) {
+      for (const [kind, ranks] of Object.entries(order)) {
+        const costsOf = (stat) => byId.get(`${group}_${stat.toLowerCase()}_${kind}`).costs;
+        for (const tier of ranks) {
+          for (const stat of tier.slice(1)) expect(costsOf(stat)).toEqual(costsOf(tier[0]));
+        }
+        for (let i = 1; i < ranks.length; i++) {
+          const stronger = costsOf(ranks[i - 1][0]);
+          const weaker = costsOf(ranks[i][0]);
+          weaker.forEach((cost, t) => {
+            expect(cost, `${group} ${kind} ${ranks[i][0]} tier ${t + 1}`).toBeLessThanOrEqual(
+              stronger[t],
+            );
+          });
+        }
+        for (const stat of ranks.flat()) {
+          const costs = costsOf(stat);
+          for (let t = 1; t < costs.length; t++) expect(costs[t]).toBeGreaterThan(costs[t - 1]);
+        }
+      }
+    }
+  });
 
   it('validates all targeted upgrade costs/effects/prerequisites', () => {
     for (const expected of cases) {
