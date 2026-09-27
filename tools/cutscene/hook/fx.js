@@ -131,10 +131,12 @@ export function converge(g, t, o) {
     const sx = side === 0 ? r * W : side === 1 ? W + 20 : side === 2 ? r * W : -20;
     const sy = side === 0 ? -20 : side === 1 ? r * H : side === 2 ? H + 20 : r * H * 0.9;
     // bend: a control point pulled sideways
-    const mx = lerp(sx, cx, 0.5) + (hash2(seed, i + 77) - 0.5) * 260;
-    const my = lerp(sy, cy, 0.5) + (hash2(seed, i + 78) - 0.5) * 160;
+    const mx = lerp(sx, cx, 0.5) + (hash2(seed, i + 77) - 0.5) * 520;
+    const my = lerp(sy, cy, 0.5) + (hash2(seed, i + 78) - 0.5) * 320;
+    // a streak that travels in: a short bright head, its tail catching up
     const head = easeInOut(clamp(a));
-    const tail = easeInOut(clamp(a - 0.35));
+    const tail = easeInOut(clamp(a - 0.22));
+    if (head >= 0.999 && tail >= 0.999) continue;
     const q = (u) => [
       (1 - u) * (1 - u) * sx + 2 * (1 - u) * u * mx + u * u * cx,
       (1 - u) * (1 - u) * sy + 2 * (1 - u) * u * my + u * u * cy,

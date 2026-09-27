@@ -347,7 +347,7 @@ export async function loadRoll(base = '.') {
       draw(g, t) {
         const cam = camAt(t, T(14), T(15), { z: 1.0, x: 480, y: 270 }, { z: 1.12, x: 470, y: 250 });
         shotTrace(g, 'wren', (t - T(14)) * 1.15, { pal: 'gold', cam, loop: 'hold' });
-        const face = toOut(W, H, cam, 470, 180);
+        const face = toOut(W, H, cam, 440, 130);
         nameTag(g, t, {
           t0: T(14) + 0.3,
           t1: T(15) - 0.1,
