@@ -210,6 +210,7 @@ describe('BattleScene equip menu text', () => {
       equipped,
       expect.any(Object),
       expect.any(Number),
+      unit,
     );
   });
 
@@ -639,6 +640,7 @@ describe('BattleScene equip menu text', () => {
       noProfWeapon,
       expect.any(Object),
       expect.any(Number),
+      unit,
     );
   });
 });
@@ -668,6 +670,7 @@ describe('BattleScene equip menu tooltip lifecycle', () => {
       secondary,
       expect.any(Object),
       expect.any(Number),
+      unit,
     );
 
     const outHandlers = textObjects[1].handlers.pointerout;
@@ -776,6 +779,7 @@ describe('equip menu overflow', () => {
       equipped,
       expect.any(Object),
       updatedY,
+      unit,
     );
   });
 });
@@ -837,5 +841,64 @@ describe('BattleScene weapon detail tooltip', () => {
     );
 
     expect(tooltipText).toContain('Art: Sword Art - Hit +10');
+  });
+
+  it('shows attack speed, and the change from the held weapon, from the real equip menu', () => {
+    // AS = SPD − max(0, weight − floor(STR / 5)); SPD 10, STR 7 → offset 1.
+    //   Iron Sword weight 5 → 6 (held); Hand Axe weight 8 → 3 (−3).
+    const scene = makeBaseScene();
+    const texts = [];
+    const tooltipTexts = [];
+    scene._makeMenuTextButton = vi.fn((_x, y, label) => {
+      const obj = makeHandlerCapturingObject({ label, y });
+      texts.push(obj);
+      return obj;
+    });
+    scene.add = {
+      rectangle: () =>
+        makeDisplayObject({
+          width: 152,
+          height: 60,
+          setOrigin() {
+            return this;
+          },
+        }),
+      text: (_x, _y, text) => {
+        tooltipTexts.push(String(text));
+        return makeDisplayObject({ width: 140, height: 48, setPosition() {} });
+      },
+      container: () => makeDisplayObject({ setPosition() {} }),
+    };
+    scene._pinToScreen = vi.fn();
+    scene._showWeaponDetailTooltip = BattleScene.prototype._showWeaponDetailTooltip;
+    scene._hideWeaponDetailTooltip = BattleScene.prototype._hideWeaponDetailTooltip;
+    scene._formatSpecialLinesForUi = BattleScene.prototype._formatSpecialLinesForUi;
+    scene._getWeaponArtCatalog = () => [];
+    const handAxe = {
+      name: 'Hand Axe',
+      type: 'Axe',
+      might: 5,
+      hit: 65,
+      crit: 0,
+      weight: 8,
+      range: '1-2',
+    };
+    const unit = {
+      col: 1,
+      row: 1,
+      stats: { HP: 20, STR: 7, MAG: 0, SKL: 6, SPD: 10, LCK: 4, DEF: 5, RES: 2 },
+      weapon: equipped,
+      inventory: [equipped, handAxe],
+    };
+
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+    // The held weapon's tooltip opens with the menu.
+    expect(tooltipTexts.at(-1).split('\n')).toContain('5Wt Rng1 6AS');
+
+    const axeRow = texts.find((t) => t.label.includes('Hand Axe'));
+    axeRow.handlers.pointerover.at(-1)();
+    expect(tooltipTexts.at(-1).split('\n')).toContain('8Wt Rng1-2 3AS (\u22123)');
+    expect(unit.weapon).toBe(equipped);
+    expect(unit.inventory).toEqual([equipped, handAxe]);
   });
 });

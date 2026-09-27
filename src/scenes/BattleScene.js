@@ -15,6 +15,7 @@ import {
   isSilenceBlockedWeapon,
 } from '../engine/AttackOptions.js';
 import { EQUIPPED_MARKER } from '../ui/equippedBadge.js';
+import { attackSpeedDelta, attackSpeedValue, weaponAttackSpeed } from '../ui/battleItemSummary.js';
 import { PinnedThreatController } from '../ui/PinnedThreatController.js';
 import { battlePlace } from '../ui/placeDisplay.js';
 import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
@@ -5896,7 +5897,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  _showWeaponDetailTooltip(wpn, menuRect, itemY) {
+  _showWeaponDetailTooltip(wpn, menuRect, itemY, unit = null) {
     if (!wpn) return;
     this._hideWeaponDetailTooltip();
     const might = Number.isFinite(Number(wpn?.might)) ? Number(wpn.might) : 0;
@@ -5908,7 +5909,11 @@ export class BattleScene extends Phaser.Scene {
     const lines = [];
     if (wpn.type) lines.push(wpn.type);
     lines.push(`${might}Mt ${hit}Hit ${crit}Crt`);
-    lines.push(`${weight}Wt Rng${range}`);
+    // Attack speed with this weapon, and the change from the one held (equip menu).
+    const speed = weaponAttackSpeed(wpn, unit);
+    const delta = attackSpeedDelta(speed);
+    const as = speed ? ` ${attackSpeedValue(speed.as)}AS${delta ? ` (${delta})` : ''}` : '';
+    lines.push(`${weight}Wt Rng${range}${as}`);
     if (wpn.special) {
       const specialLines = this._formatSpecialLinesForUi(wpn.special, 28, 2);
       lines.push(...specialLines);
@@ -6658,7 +6663,7 @@ export class BattleScene extends Phaser.Scene {
 
       text._menuItem = wpn;
       text.on('pointerover', () => {
-        this._showWeaponDetailTooltip(wpn, menuRect, text.y);
+        this._showWeaponDetailTooltip(wpn, menuRect, text.y, unit);
       });
       text.on('pointerout', (pointer) => {
         if (!this._isTouchPointer(pointer)) {
@@ -6717,7 +6722,7 @@ export class BattleScene extends Phaser.Scene {
       if (equippedWpn) {
         const eqIdx = displayWeapons.indexOf(equippedWpn);
         const autoY = menuPos.y + 4 + eqIdx * itemHeight + itemHeight / 2;
-        this._showWeaponDetailTooltip(equippedWpn, menuRect, autoY);
+        this._showWeaponDetailTooltip(equippedWpn, menuRect, autoY, unit);
         this._weaponPreviewedItem = equippedWpn;
       }
     }
