@@ -5,15 +5,16 @@
 //   node tools/cutscene/glass/tts.mjs                 all lines in script.mjs
 //   node tools/cutscene/glass/tts.mjs --only l03 --force
 //   node tools/cutscene/glass/tts.mjs --audition      one line in several voices
+//   add --style cold for the Lieutenant's cold direction (see script.mjs)
 
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { LINES, VOICE, STYLE } from './script.mjs';
+import { LINES, VOICE, STYLES, COLD_NOTES } from './script.mjs';
 import { curlJson } from '../../art/gen/geminiImage.mjs';
 
 const API = 'https://generativelanguage.googleapis.com/v1beta';
-const OUT = 'References/cutscene/glass/voice';
+
 const argv = process.argv.slice(2);
 const has = (k) => argv.includes(`--${k}`);
 const arg = (k, d) => (has(k) ? argv[argv.indexOf(`--${k}`) + 1] : d);
@@ -64,6 +65,14 @@ export async function speak({ text, voice, style, model, out, force }) {
 }
 
 const model = arg('model', VOICE.model);
+// --style soft (draft 1, into voice/) | cold (into voice_cold/)
+const styleName = arg('style', 'soft');
+const STYLE = STYLES[styleName];
+const OUT = `References/cutscene/glass/${styleName === 'soft' ? 'voice' : `voice_${styleName}`}`;
+const lineStyle = (l) =>
+  styleName === 'cold'
+    ? `${STYLE.replace(/ The line:$/, '')} ${COLD_NOTES[l.id] || ''} The line:`
+    : l.style || STYLE;
 if (has('audition')) {
   const voices = arg('voices', 'Enceladus,Algieba,Charon,Iapetus,Algenib,Umbriel').split(',');
   const text = arg('text', LINES[0].text);
@@ -93,7 +102,7 @@ if (has('audition')) {
           const r = await speak({
             text: l.say || l.text,
             voice: l.voice || VOICE.name,
-            style: l.style || STYLE,
+            style: lineStyle(l),
             model,
             out: path.join(OUT, l.id),
             force: has('force'),

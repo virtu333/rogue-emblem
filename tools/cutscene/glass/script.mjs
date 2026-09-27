@@ -5,11 +5,40 @@
 
 export const VOICE = { name: 'Charon', model: 'gemini-2.5-pro-preview-tts' };
 
-export const STYLE =
-  'Read this as the narrator of a dark fantasy film. You are a tired young man, ' +
-  'soft-spoken and low, very close to the microphone, unhurried, leaving real pauses ' +
-  'at commas and at the ellipses. Calm and melancholic, as if remembering something ' +
-  'you have seen too many times. Never theatrical, never loud. The line:';
+// Two directions. 'soft' made the takes in draft 1 (a tired, gentle narrator). 'cold'
+// is the Lieutenant as he should sound: a man who has watched every future end and
+// finds the living a little tedious; menace by restraint. `tts.mjs --style cold`
+// records it (the takes go to References/cutscene/glass/voice_cold/; music.py plays
+// them with VOICE_TAKES=voice_cold).
+export const STYLES = {
+  soft:
+    'Read this as the narrator of a dark fantasy film. You are a tired young man, ' +
+    'soft-spoken and low, very close to the microphone, unhurried, leaving real pauses ' +
+    'at commas and at the ellipses. Calm and melancholic, as if remembering something ' +
+    'you have seen too many times. Never theatrical, never loud. The line:',
+  cold:
+    'Read this as the narrator of a dark fantasy film. You are a young man who has ' +
+    'watched every possible future end, many times, and finds the living faintly ' +
+    'tedious. Speak quietly and very precisely, close to the microphone, each word ' +
+    'placed like a chess move, with silence left after the important ones. Cold, ' +
+    'calculating, faintly amused; menace by restraint. No warmth, no pity, never ' +
+    'raise your voice, never theatrical. The line:',
+};
+export const STYLE = STYLES.soft;
+// per-line notes for the cold direction (appended to its style)
+export const COLD_NOTES = {
+  l09: 'Slow and admiring, as if describing an elegant move.',
+  l10: 'Almost a smile: he respects the price.',
+  l14: 'Flat, clinical, the way a clerk reads a list.',
+  l16: 'Flat certainty, almost bored.',
+  l20: 'Barely above a whisper, intimate and unsettling.',
+  l21: 'Each place an item on an inventory; no grief at all.',
+  l22: 'A trace of contempt for her effort.',
+  l23: 'Utterly certain, very quiet.',
+  l24:
+    'Slowly, straight to the listener, a thin smile you can hear: a dare, with ' +
+    'contempt on top and, buried under it, the hope of being surprised.',
+};
 
 // id, text (as subtitled), say (as spoken, if different), part
 export const LINES = [

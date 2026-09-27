@@ -30,7 +30,8 @@ sys.path.insert(0, HERE)
 
 import score as sc  # noqa: E402
 
-VOICE = os.path.join(ROOT, 'References/cutscene/glass/voice')
+# which takes: voice/ (draft 1, soft direction) or VOICE_TAKES=voice_cold
+VOICE = os.path.join(ROOT, 'References/cutscene/glass', os.environ.get('VOICE_TAKES', 'voice'))
 SR = 48000
 
 
@@ -42,6 +43,37 @@ def read_audio(path):
     raw = subprocess.run([ffmpeg(), '-loglevel', 'error', '-i', path, '-f', 'f32le', '-ac', '2',
                           '-ar', str(SR), '-'], capture_output=True, check=True).stdout
     return np.frombuffer(raw, np.float32).reshape(-1, 2).copy()
+
+
+# The narrator's voice. He is the Lieutenant, whose motif is shadowed a beat late a
+# tritone away (a seer who sees two futures at once), so his voice has that shadow: a
+# copy a tritone down, a beat behind, dark and quiet. It is barely there in the myth and
+# grows when he speaks of himself. The voice itself is made a little deeper, drier and
+# closer (less warmth, more presence, held steady by a compressor).
+SHADOW_DB = {'default': -22, 'l16': -15, 'l20': -13, 'l21': -16, 'l22': -18, 'l23': -12,
+             'l24': -11}
+VOICE_FX = VOICE + '_fx'
+
+
+def treat(lid):
+    src = os.path.join(VOICE, f'{lid}.wav')
+    out = os.path.join(VOICE_FX, f'{lid}.wav')
+    if os.path.exists(out) and os.path.getmtime(out) > max(os.path.getmtime(src),
+                                                            os.path.getmtime(__file__)):
+        return out
+    os.makedirs(VOICE_FX, exist_ok=True)
+    g = SHADOW_DB.get(lid, SHADOW_DB['default'])
+    graph = (
+        '[0:a]aresample=48000,asplit=2[m][s];'
+        '[m]rubberband=pitch=0.955:formant=shifted,highpass=f=80,'
+        'equalizer=f=260:t=q:w=1:g=-3,equalizer=f=4500:t=q:w=1.2:g=2,'
+        'acompressor=threshold=-24dB:ratio=3:attack=5:release=90:makeup=2[mm];'
+        '[s]rubberband=pitch=0.7071:formant=preserved,lowpass=f=2000,highpass=f=90,'
+        f'volume={g}dB,adelay=110[ss];'
+        '[mm][ss]amix=inputs=2:normalize=0:duration=longest[out]')
+    subprocess.run([ffmpeg(), '-y', '-loglevel', 'error', '-i', src, '-filter_complex', graph,
+                    '-map', '[out]', '-ac', '1', out], check=True)
+    return out
 
 
 def phrases(path):
@@ -91,7 +123,8 @@ def mix(music_path, out_mp3, cue):
     music[: len(m)] = m
     voice = np.zeros((total, 2), np.float32)
     for lid, L in cue['lines'].items():
-        v = read_audio(os.path.join(VOICE, f'{lid}.wav'))
+        v = read_audio(treat(lid) if os.environ.get('VOICE_FX', '1') != '0'
+                       else os.path.join(VOICE, f'{lid}.wav'))
         a = int(L['t'] * SR)
         voice[a: a + len(v)] += v[: total - a]
     # the voice: a touch of warmth and room, level-matched

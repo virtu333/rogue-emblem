@@ -1,6 +1,7 @@
 # "The Far Side of the Glass": the opening, second prototype
 
-Status: **draft 1, rendered** (2026-09-27). Source in `tools/cutscene/glass/`.
+Status: **draft 2, rendered** (2026-09-27): draft 1 plus a transition pass and a
+colder voice (see [Draft 2](#draft-2)). Source in `tools/cutscene/glass/`.
 A second candidate for the opening in [cutscenes.md](cutscenes.md), beside
 **"The Roll"** ([cutscene-the-roll.md](cutscene-the-roll.md)). The Roll is a hook in
 engraved ink that looks like nothing else in the game; this one is a narrated story
@@ -67,7 +68,9 @@ loop.
 
 ## Beat sheet
 
-Times are seconds on the score's clock (60 bpm, so bars are four seconds).
+Times are seconds on the score's clock (60 bpm, so bars are four seconds), as in
+draft 1: draft 2 inserts 4 s at 0:32 and 4 s after the oath's horn call, so every
+time after 0:32 is 4 s later and every time after 1:28 is 8 s later.
 
 | Time | Music | Picture | Narration |
 |---|---|---|---|
@@ -98,6 +101,41 @@ Times are seconds on the score's clock (60 bpm, so bars are four seconds).
 | 3:36 | Everything drops; the hum | Sinking through the Glass to the stair under the mountain | |
 | 3:42 | His motif on the violins, the shadow in the violas | The Lieutenant lifts his head; the letterbox opens | *I have seen every way this ends.* / *Go on, then. Show me one I haven't seen.* |
 | 3:52 | **Hit**; the bells' A-G-E; the Hollow Sun cadence, stopping on C-sharp | The Hollow Sun drawn on the Thread cell; ROGUE DAWN | |
+
+## Draft 2
+
+**Transitions.** Time was inserted where the picture had no room (`WARP` in `score.py`
+and `edit.mjs`; notes held across an insertion are held longer, later cues move, and
+each gap has its own music):
+
+- **After "last of all, us" (+4 s).** The morning holds; the harp's last F chord rings
+  out; then the colour drains toward unlight violet (a palette slide, in steps) and the
+  frame shudders by a pixel while a hum, a timpani roll, a riser and a reversed swell
+  climb into the boom of the Sleeper turning.
+- **After the oath (+4 s).** The Old Kingdom call finishes; the oath fades out; a beat
+  of dark with the hum, one bell and the low choir; the stair rises out of black; then
+  "It took one man".
+- A pass over every boundary (the `IN` / `FADE_IN` / `FADE_OUT` tables in `glass.js`):
+  dissolves where time flows (kneel into the starfall, the ledger into the reading), a
+  fade to black before midnight, the king rising out of black after the siege is cut
+  off, and hard cuts kept only for hits (the quake, "one list", the drill, the
+  officers, the deaths).
+- l06 no longer starts under the end of l05 (draft 1 overlapped them by half a second).
+
+**The voice.** Draft 1's narrator read as neutral. The Lieutenant's motif is shadowed a
+beat late a tritone away (a seer who sees two futures at once), so his voice now has
+the same shadow: a copy a tritone down, a beat (110 ms) behind, dark and low-passed.
+It is barely there in the myth (−22 dB) and grows when he speaks of himself ("I know
+how every one of them dies" −15, "I saw her seeing" −13, the last two lines −12 and
+−11). The voice itself is a little deeper (−0.8 semitones), drier and closer (less
+low-mid warmth, more presence, compressed). This is processing on draft 1's takes
+(`music.py` `treat()`); the delivery is still draft 1's.
+
+**Not done: new takes.** A cold direction is written (`STYLES.cold` and `COLD_NOTES` in
+`script.mjs`: precise, calculating, faintly amused, menace by restraint, with notes for
+the key lines) but not recorded: the Gemini project is at its spending cap. Once it is
+raised: audition voices with `tts.mjs --audition --style cold`, record with
+`tts.mjs --style cold`, and mix with `VOICE_TAKES=voice_cold python3 music.py --mix`.
 
 ## Lore
 
@@ -167,6 +205,6 @@ reached its monthly spending cap at the end of generation.
   measurement: speech sits 8–10 dB over the ducked score.
 - **Size:** the sheets are about 29 MB. Shipping it would need harder trimming, fewer
   drawings on held shots, or a video codec for the frames.
-- **Length:** 4:08. As a first-run opening it is long; the officers and the Roll are
+- **Length:** 4:16. As a first-run opening it is long; the officers and the Roll are
   the obvious places to cut if it needs to be under three minutes.
 - Offline only, like The Roll: no in-game player, skip or seen flag yet.

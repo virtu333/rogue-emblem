@@ -6,12 +6,21 @@
 //
 // Shots with no clip (`kind`) are drawn by the player itself.
 
-export const EDIT = [
+// Time inserted where the picture breathes: (at, seconds) on the first clock. Must match
+// WARP in score.py. The list below is written on the first clock; w() moves it.
+const WARP = [
+  [32, 4], // after "last of all, us": the morning holds, then drains and shudders
+  [88, 4], // after the oath's horn call: the dark, a bell, then the stair
+];
+const w = (t) => t + WARP.reduce((a, [at, d]) => a + (t >= at - 1e-9 ? d : 0), 0);
+
+const FIRST = [
   // I. The Morning
   { t0: 0, t1: 10, kind: 'void' },
   { t0: 10, t1: 20, shot: 'weave', from: 0, speed: 0.8 },
   { t0: 20, t1: 26, shot: 'dragons', from: 1 },
-  { t0: 26, t1: 32, shot: 'first_names', from: 0 },
+  // held into the first breath (to 36), draining toward violet as the Sleeper stirs
+  { t0: 26, t1: 32, shot: 'first_names', from: 0, speed: 0.6, drain: 2.2 },
   // II. The Spending
   { t0: 32, t1: 38, shot: 'turning', from: 0 },
   { t0: 38, t1: 46, shot: 'kneel', from: 0 },
@@ -19,8 +28,9 @@ export const EDIT = [
   { t0: 54, t1: 60, shot: 'dragons_lie', from: 0, speed: 0.42, pan: [0, -6] },
   { t0: 60, t1: 72, shot: 'hollow', from: 0, speed: 0.5 },
   // III. The Unsworn Night
-  { t0: 72, t1: 82, shot: 'oath', from: 0, speed: 0.8 },
-  { t0: 82, t1: 88, shot: 'stair', from: 0 },
+  // the oath fades as its call dies; a breath of dark; the stair comes up out of it
+  { t0: 72, t1: 83, shot: 'oath', from: 0, speed: 0.7 },
+  { t0: 83, t1: 88, shot: 'stair', from: 0, speed: 0.78 },
   { t0: 88, t1: 92, shot: 'list', from: 0.5 },
   { t0: 92, t1: 100, shot: 'hearth', from: 0 },
   { t0: 100, t1: 108, shot: 'unsworn', from: 0, speed: 0.62 },
@@ -59,6 +69,8 @@ export const EDIT = [
   { t0: 222, t1: 232, shot: 'reveal', from: 0, speed: 0.8 },
   { t0: 232, t1: 248, kind: 'title' },
 ];
+
+export const EDIT = FIRST.map((e) => ({ ...e, t0: w(e.t0), t1: w(e.t1) }));
 
 /** The clip time a shot has reached at film time t. */
 export const clipTime = (e, t) => (e.from || 0) + (t - e.t0) * (e.speed ?? 1);

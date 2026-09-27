@@ -47,28 +47,56 @@ const scale32 = (c, k) => {
   return (0xff << 24) | (Math.min(255, b) << 16) | (Math.min(255, g) << 8) | Math.min(255, r);
 };
 
-// how each shot comes in (dither dissolve, seconds) and goes out (to black)
+/** A colour pulled toward the unlight ramp by k (0..1), matched by brightness. */
+function drain32(c, k) {
+  const r = c & 0xff;
+  const g = (c >> 8) & 0xff;
+  const b = (c >> 16) & 0xff;
+  const l = (0.3 * r + 0.59 * g + 0.11 * b) / 255;
+  const u = UNLIGHT[Math.min(5, Math.floor(l * 6))];
+  const mix = (x, y) => Math.round(x + (y - x) * k);
+  return (
+    (0xff << 24) |
+    (mix(b, (u >> 16) & 0xff) << 16) |
+    (mix(g, (u >> 8) & 0xff) << 8) |
+    mix(r, u & 0xff)
+  );
+}
+
+// How each shot comes in (IN: dither dissolve from the shot before, seconds; FADE_IN:
+// up from black) and goes out (FADE_OUT: down to black). Hard cuts are the default and
+// are kept for hits: the quake, "one list", midnight, the drill, the officers, deaths.
 const IN = {
   weave: 1.2,
-  dragons: 0.7,
-  first_names: 0.7,
-  kneel: 0.6,
-  dragons_lie: 0.8,
-  hollow: 1.0,
+  dragons: 1.0,
+  first_names: 0.8,
+  kneel: 0.8,
+  starfall: 0.8,
+  dragons_lie: 1.0,
+  hollow: 1.2,
   oath: 1.0,
-  stair: 0.5,
-  hearth: 0.6,
-  king: 0.8,
+  hearth: 0.8,
   crown: 0.6,
   ledger: 0.5,
+  read: 0.4,
   counting: 1.0,
   glass: 1.0,
   camp: 0.8,
   reveal: 1.2,
   rewind: 0.25,
 };
-const FADE_IN = { oath: 1.2, wendhall: 0.8, sink: 1.0, o_captain: 0 };
-const FADE_OUT = { hollow: 1.6, o_emperor: 0.6, camp: 1.2, reveal: 0.35, read: 0.3 };
+const FADE_IN = { oath: 1.2, stair: 1.6, unsworn: 0.4, king: 1.2, wendhall: 0.8, sink: 1.0 };
+const FADE_OUT = {
+  hollow: 1.6,
+  oath: 1.4,
+  hearth: 0.5,
+  read: 0.3,
+  o_emperor: 0.6,
+  camp: 1.2,
+  reveal: 0.35,
+};
+// the unlight ramp: colour drains toward it where the Sleeper stirs
+const UNLIGHT = ['#170c24', '#2c1645', '#4a2270', '#763aa0', '#a863cc', '#dcaaf0'].map(rgb32);
 
 // ------------------------------------------------------------------ loading
 
@@ -286,7 +314,16 @@ export async function loadGlass(base = '.') {
     const ct = clipTime(e, t);
     const i = (ct - s.from) * s.fps;
     const k = prog(t, e.t0, e.t1);
-    blit(a, s, i, { dx: (e.pan?.[0] || 0) * k, dy: (e.pan?.[1] || 0) * k });
+    // drain: the palette slides toward unlight violet (in steps, as a palette fade
+    // would) and the frame shudders by a pixel as the thing below turns
+    const dk = e.drain ? prog(t, e.t1 - e.drain, e.t1 - 0.2) : 0;
+    const lut = dk > 0 ? s.lut.map((c) => drain32(c, (Math.round(dk * 5) / 5) * 0.7)) : s.lut;
+    const shake = dk > 0.3 ? Math.round(Math.sin(t * 57) * dk * 1.5) : 0;
+    blit(a, s, i, {
+      lut,
+      dx: (e.pan?.[0] || 0) * k + shake,
+      dy: (e.pan?.[1] || 0) * k + (dk > 0.6 ? Math.round(Math.cos(t * 43) * dk) : 0),
+    });
     if (e.death) drawSnap(a, t - e.t0);
   }
 
@@ -486,7 +523,7 @@ export async function loadGlass(base = '.') {
 
   function letterbox(a, t) {
     // the bars open for the last line: the narrator, face to face
-    const open = prog(t, 226.4, 228.2) * (1 - prog(t, 231.5, 231.6));
+    const open = prog(t, 234.4, 236.2) * (1 - prog(t, 239.5, 239.6));
     const b = Math.round(BAR * (1 - open));
     if (b <= 0) return;
     for (let y = 0; y < b; y++) a.fill(INK32, y * W, (y + 1) * W);
@@ -508,7 +545,7 @@ export async function loadGlass(base = '.') {
     if (FADE_IN[e.shot]) toInk(buf, 1 - prog(t, e.t0, e.t0 + FADE_IN[e.shot]));
     if (FADE_OUT[e.shot]) toInk(buf, prog(t, e.t1 - FADE_OUT[e.shot], e.t1));
     // "every oath in the kingdom broke": a white flash on the word
-    if (t > 105 && t < 105.12) flash(buf, 1 - (t - 105) / 0.12);
+    if (t > 113 && t < 113.12) flash(buf, 1 - (t - 113) / 0.12);
     // each officer and the Emperor land on a hit
     if (e.title && t - e.t0 < 0.06) flash(buf, 0.5, C.bone);
     if (e.kind === 'title' && t - e.t0 < 0.1) flash(buf, 1 - (t - e.t0) / 0.1);

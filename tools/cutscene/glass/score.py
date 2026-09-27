@@ -36,24 +36,51 @@ from engine.patterns import arp, bass, chart, drums, ostinato, pad
 from engine.score import Score
 
 TITLE = 'Every Way It Ends'
-BARS = 62
 
-# where each narration line starts, in seconds (= beats; bar n starts at 4(n-1))
-LINES = {
+# The score is written on a first clock (bars of four seconds), then time is inserted
+# where the picture needs to breathe: (at, seconds) on that first clock. Notes after a
+# point move later; notes held across it are held longer; the gaps get their own music
+# (end of build()). edit.mjs applies the same WARP to the cut.
+WARP = [(32, 4), (88, 4)]   # after "last of all, us"; after the oath's horn call
+
+
+def w(t):
+    """A time on the first clock -> the film's clock."""
+    return t + sum(d for at, d in WARP if t >= at - 1e-9)
+
+
+def w_end(t):
+    """The end of a note: a note that ends where time is inserted is not held over it."""
+    return t + sum(d for at, d in WARP if t > at + 1e-9)
+
+
+BARS = 64
+
+# where each narration line starts, on the first clock (w() gives film seconds)
+_LINES = {
     'l01': 4, 'l02': 10, 'l03': 20, 'l04': 34, 'l05': 40, 'l06': 44, 'l07': 62,
     'l08': 74, 'l09': 82, 'l10': 88, 'l11': 101, 'l12': 110, 'l13': 122, 'l14': 134,
     'l15': 144, 'l16': 158, 'l17': 165, 'l18': 176, 'l19': 185, 'l20': 193,
     'l21': 196, 'l22': 205, 'l23': 221, 'l24': 227,
 }
+# lines placed by hand, in film seconds: l06 clears the end of l05; around the second
+# gap the oath's line ends at 86.2, the dark comes, then "It took one man"; l22 breathes
+# after the last death
+_PLACED = {'l06': 49, 'l09': 90, 'l10': 97, 'l22': 213.5}
+LINES = {k: _PLACED.get(k, w(v)) for k, v in _LINES.items()}
 # the four deaths of l21 ("at the Ford. On the bridge. In the fens. At my feet."):
-# word onsets measured from the take
-DEATHS = [198.5, 200.2, 201.7, 203.4]
-# officer cuts (every two beats) and the Emperor
-OFFICERS = [144, 146, 148, 150, 152, 154, 156]
-EMPEROR = 158
+# word onsets measured from the take (first clock)
+_DEATHS = [198.5, 200.2, 201.7, 203.4]
+# officer cuts (every two beats) and the Emperor (first clock)
+_OFFICERS = [144, 146, 148, 150, 152, 154, 156]
+_EMPEROR = 158
+DEATHS = [w(t) for t in _DEATHS]
+OFFICERS = [w(t) for t in _OFFICERS]
+EMPEROR = w(_EMPEROR)
 
-SECTIONS = {'morning': 1, 'spending': 9, 'unsworn': 19, 'roll': 30, 'officers': 37,
-            'counts': 42, 'ends': 50, 'far': 55, 'title': 59, 'end': 63}
+_SECTIONS = {'morning': 1, 'spending': 9, 'unsworn': 19, 'roll': 30, 'officers': 37,
+             'counts': 42, 'ends': 50, 'far': 55, 'title': 59, 'end': 63}
+SECTIONS = {k: round(1 + w(4 * (b - 1)) / 4, 2) for k, b in _SECTIONS.items()}
 
 OLD_KINGDOM = 'D4q. A4e A4q G4e A4e | D5h A4h |'
 EMPIRE = 'D3q. Eb3e D3q C3q | Bb2h. rq |'
@@ -276,7 +303,7 @@ def build():
              lo=38, hi=52, vel=0.62, art='spic', accents='> - - - > - - - > - - - > - - -')
     cb.at(37).play('%sus @mf D2w~ | D2w~ | D2w~ | D2h rh |')
     tuba.at(37).play('@mf D2w~ | D2w~ | D2w~ | D2h rh |')
-    for t in OFFICERS:
+    for t in _OFFICERS:
         boom.note(t, 'D1', 1.2, vel=0.8)
         perc.note(t, 49, 1.5, vel=0.7)
         for p in ('D3', 'A3', 'D4'):
@@ -284,19 +311,19 @@ def build():
         tbn.note(t, 'D2', 0.4, vel=0.85)
         tbn.note(t, 'A2', 0.4, vel=0.85)
     # the stab shifts up the Empire cell as the ranks rise
-    for t, p in zip(OFFICERS, ['D5', 'Eb5', 'D5', 'C5', 'D5', 'Eb5', 'F5']):
+    for t, p in zip(_OFFICERS, ['D5', 'Eb5', 'D5', 'C5', 'D5', 'Eb5', 'F5']):
         vn.note(t, p, 0.4, vel=0.8, art='sus')
-    vn.note(EMPEROR, 'D5', 6, vel=0.7, art='sus')
+    vn.note(_EMPEROR, 'D5', 6, vel=0.7, art='sus')
     # the Emperor: an organ chord, the choir, gold
-    boom.note(EMPEROR, 'D1', 4, vel=0.95)
-    perc.note(EMPEROR, 46, 4, vel=0.8)
-    organ.note(EMPEROR, 'D2', 6, vel=0.8)
+    boom.note(_EMPEROR, 'D1', 4, vel=0.95)
+    perc.note(_EMPEROR, 46, 4, vel=0.8)
+    organ.note(_EMPEROR, 'D2', 6, vel=0.8)
     for p in ('D3', 'A3', 'D4', 'F4', 'A4'):
-        organ.note(EMPEROR, p, 6, vel=0.7)
-        choir.note(EMPEROR, p, 6, vel=0.7)
-    tbn.note(EMPEROR, 'D2', 5, vel=0.8)
-    tbn.note(EMPEROR, 'A2', 5, vel=0.8)
-    timp.note(EMPEROR, 'D2', 0.5, vel=0.95, art='default')
+        organ.note(_EMPEROR, p, 6, vel=0.7)
+        choir.note(_EMPEROR, p, 6, vel=0.7)
+    tbn.note(_EMPEROR, 'D2', 5, vel=0.8)
+    tbn.note(_EMPEROR, 'A2', 5, vel=0.8)
+    timp.note(_EMPEROR, 'D2', 0.5, vel=0.95, art='default')
     drone.at(37).play('@mp D2w~ | D2w~ | D2w~ | D2w~ | D2w |')
     drone.expr((37, 0.6), (41.9, 0.8))
 
@@ -345,7 +372,7 @@ def build():
     vn.at(50).play('%trem @pp [D5 Eb5]w~ | [D5 Eb5]w~ | [D5 Eb5]q rq rh |')
     vn.expr((50, 0.3), (52, 1.0))
     cb.at(50).play('%trem @mp D2w~ | D2w~ | D2q rq rh |')
-    for i, t in enumerate(DEATHS):
+    for i, t in enumerate(_DEATHS):
         boom.note(t, 'D1', 1.4, vel=0.8 + 0.05 * i)
         timp.note(t, 'D2', 0.5, vel=0.85 + 0.03 * i, art='default')
         perc.note(t, 49, 1.2, vel=0.6 + 0.05 * i)
@@ -407,4 +434,35 @@ def build():
     bells.at(60).play('@mf A4h G4h | E4w | rw |')          # A, G, E... and not D
     drone.at(59).play('@p D2w~ | D2w~ | D2w~ | D2w |')
     drone.expr((59, 0.3), (61, 0.5), (62.95, 0.0))
+
+    # ============================================================ the breaths
+    warp(s)
+    # (1) after "last of all, us" (32-36): the morning holds, then something stirs
+    for p, v in (('F3', 0.34), ('A3', 0.32), ('C4', 0.3), ('F4', 0.3), ('A4', 0.28)):
+        hp.note(32 + 0.35 * ['F3', 'A3', 'C4', 'F4', 'A4'].index(p), p, 3, vel=v)
+    for p in ('F4', 'C5'):
+        oohs.note(32, p, 2.5, vel=0.34)
+    for p in ('A4', 'C5', 'F5'):
+        vn2.note(32, p, 2.6, vel=0.32, art='soft')
+    vn2.expr_beats((32, 0.8), (34.6, 0.0), (36, 1.0))
+    hum.note(33, 'Eb2', 3, vel=0.45)
+    drone.note(33.5, 'D2', 2.5, vel=0.5)
+    timp.note(34, 'D2', 2, vel=0.5, art='roll')
+    timp.expr_beats((34, 0.15), (35.95, 1.0))
+    riser.note(33, 60, 3, vel=0.45)
+    rev.note(34.5, 'C3', 1.5, vel=0.55)
+    # (2) after the oath (92-96): the call dies away; a bell; the stair in the dark
+    bells.note(92, 'D5', 4, vel=0.55)
+    for p in ('D3', 'A3'):
+        choir.note(92.5, p, 3.5, vel=0.4)
+    cb.note(92, 'D2', 4, vel=0.4, art='trem')
     return s
+
+
+def warp(s):
+    """Insert WARP's time into a built score (see the top of this file)."""
+    for part in s.parts.values():
+        for n in part.notes:
+            a, b = n.start, n.start + n.dur
+            n.start, n.dur = w(a), w_end(b) - w(a)
+        part.expr_points = [(w(t), v) for t, v in part.expr_points]
