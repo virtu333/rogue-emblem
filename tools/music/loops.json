@@ -325,20 +325,20 @@
     "lufs": -14.01,
     "peakDb": -1.09,
     "score": "battle_castle_2",
-    "seamDb": -86.9,
+    "seamDb": -72.4,
     "title": "Every Voice at Its Post",
-    "tonic": "D"
+    "tonic": "G"
   },
   "music_battle_castle_2_calm": {
     "duration": 71.457,
     "loopEnd": 70.857143,
     "loopStart": 7.428571,
     "lufs": -17.0,
-    "peakDb": -4.55,
+    "peakDb": -4.11,
     "score": "battle_castle_2",
-    "seamDb": -128.9,
+    "seamDb": -82.2,
     "title": "Every Voice at Its Post",
-    "tonic": "D"
+    "tonic": "G"
   },
   "music_battle_castle_calm": {
     "duration": 95.509,
