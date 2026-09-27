@@ -473,6 +473,50 @@ describe('HeadlessBattle', () => {
     expect(battle.playerUnits).not.toContain(caravan);
   });
 
+  it('mirrors staff heals on the merchant caravan (an NPC ally)', () => {
+    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
+    battle.init();
+    const sera = battle.playerUnits.find((u) => u.name === 'Sera');
+    expect(sera).toBeTruthy();
+    for (const u of battle.playerUnits) u.currentHP = u.stats.HP; // only the caravan is hurt
+    const occupied = new Set(
+      [...battle.playerUnits, ...battle.enemyUnits, ...battle.npcUnits].map(
+        (u) => `${u.col},${u.row}`,
+      ),
+    );
+    const adjacent = [
+      { col: sera.col + 1, row: sera.row },
+      { col: sera.col - 1, row: sera.row },
+      { col: sera.col, row: sera.row + 1 },
+      { col: sera.col, row: sera.row - 1 },
+    ].find(
+      ({ col, row }) =>
+        col >= 0 &&
+        row >= 0 &&
+        col < battle.grid.cols &&
+        row < battle.grid.rows &&
+        !occupied.has(`${col},${row}`),
+    );
+    expect(adjacent).toBeTruthy();
+    const caravan = createCaravanUnit('act2', adjacent); // 18 + 4 × 2 = 26 HP
+    caravan.currentHP = 4;
+    const gone = { ...createCaravanUnit('act2', adjacent), currentHP: 0 };
+    battle.npcUnits.splice(0, battle.npcUnits.length, gone, caravan);
+
+    battle.selectUnit('Sera');
+    battle.moveTo(sera.col, sera.row);
+    expect(battle.getAvailableActions().some((a) => a.label === 'Heal')).toBe(true);
+    battle.chooseAction('Heal');
+    expect(battle.healTargets).toEqual([caravan]);
+    const staff = sera.weapon;
+    battle.chooseHealTarget('Merchant');
+    // Heal: MAG + 5.
+    expect(caravan.currentHP).toBe(Math.min(26, 4 + sera.stats.MAG + 5));
+    expect(staff._usesSpent).toBe(1);
+    expect(caravan.faction).toBe('npc');
+    expect(battle.playerUnits).not.toContain(caravan);
+  });
+
   it('chooseAction throws for unsupported action', () => {
     const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
     battle.init();

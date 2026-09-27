@@ -200,7 +200,7 @@ const STATIC_HELP_TABS = [
       {
         title: 'Staves',
         lines: [
-          { text: 'Staves heal allies instead of attacking.', color: GOLD },
+          { text: 'Staves heal allies, recruits and caravans.', color: GOLD },
           { text: '' },
           { text: 'Limited uses per battle:', color: CYAN },
           { text: '  Heal (3)  Mend (2)  Physic (1)' },

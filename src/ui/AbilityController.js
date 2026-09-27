@@ -18,6 +18,8 @@ import {
   abilityHasTargets,
 } from '../engine/ActionAbilitySystem.js';
 import { applyCondition } from '../engine/StatusConditionSystem.js';
+import { staffAllyCandidates } from '../engine/RecruitNpc.js';
+import { canInspectUnit } from '../engine/BattleInformation.js';
 import { deedsFor } from './DeedController.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
@@ -37,6 +39,21 @@ export class AbilityController {
 
   // --- Availability ---
 
+  /**
+   * The units an ability of `kind` counts as allies. Healing Circle mends whoever
+   * a heal staff can (HealController.findHealTargets): for a player caster, the
+   * army plus the living NPC allies it can see. Rally Cry and the rest keep the
+   * caster's own side.
+   */
+  _allyPool(unit, kind) {
+    const scene = this.scene;
+    const allies = scene.getDivineChargeAllies(unit);
+    if (kind !== 'aoe_heal' || unit?.faction !== 'player') return allies;
+    return staffAllyCandidates(allies, scene.npcUnits).filter((ally) =>
+      canInspectUnit(scene.grid, ally),
+    );
+  }
+
   _getAbilityEntries(unit) {
     const scene = this.scene;
     const skillsData = scene.gameData?.skills || [];
@@ -45,7 +62,7 @@ export class AbilityController {
       const hasTargets = abilityHasTargets(unit, skill, {
         grid: scene.grid,
         getUnitAt: (col, row) => scene.getUnitAt(col, row),
-        allies: scene.getDivineChargeAllies(unit),
+        allies: this._allyPool(unit, skill.actionAbility?.kind),
         enemies: scene._getTier5HostileUnitsFor(unit),
       });
       return { skill, canUse: check.ok, reason: check.reason, hasTargets };
@@ -284,7 +301,9 @@ export class AbilityController {
 
     const ability = skill.actionAbility;
     const hostile = ability.kind === 'aoe_root';
-    const pool = hostile ? scene._getTier5HostileUnitsFor(unit) : scene.getDivineChargeAllies(unit);
+    const pool = hostile
+      ? scene._getTier5HostileUnitsFor(unit)
+      : this._allyPool(unit, ability.kind);
     const affected = collectAffected(unit, ability, pool);
     const tiles = affected.map((target) => ({ col: target.col, row: target.row }));
     scene.grid.showAttackRange(tiles, hostile ? ENEMY_AOE_COLOR : ALLY_AOE_COLOR, 0.4);
@@ -417,7 +436,7 @@ export class AbilityController {
     const scene = this.scene;
     const ability = skill.actionAbility;
     const amount = Math.max(0, Math.trunc(Number(ability.amount) || 0));
-    const affected = collectAffected(unit, ability, scene.getDivineChargeAllies(unit));
+    const affected = collectAffected(unit, ability, this._allyPool(unit, ability.kind));
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
     for (const ally of affected) {
