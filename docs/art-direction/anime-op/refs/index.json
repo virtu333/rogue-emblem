@@ -1,0 +1,215 @@
+[
+  {
+    "ref": "refs/b01_edric_eye.webp",
+    "source": "batch-1/b01_edric_eye.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b01_hilt.webp",
+    "source": "batch-1/b01_hilt.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b01_empire_boots.webp",
+    "source": "batch-2/b01_empire_boots.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b13_empire_soldier_march.webp",
+    "source": "batch-2/b13_empire_soldier_march.png",
+    "verdict": "use",
+    "cutout": "cutouts/empire_soldier_march.webp",
+    "cutoutOffset": [129, 56]
+  },
+  {
+    "ref": "refs/b05_camp_night_plate.webp",
+    "source": "batch-1/b05_camp_night_plate.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b05_edric_at_fire.webp",
+    "source": "batch-1/b05_edric_at_fire.png",
+    "verdict": "use",
+    "cutout": "cutouts/edric_at_fire.webp",
+    "cutoutOffset": [69, 204]
+  },
+  {
+    "ref": "refs/b53_edric_looks_up.webp",
+    "source": "batch-1/b53_edric_looks_up.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b05_edric_standing.webp",
+    "source": "rogue-dawn-sketchbook-tests/01-edric-standing-greenscreen.png",
+    "verdict": "use",
+    "cutout": "cutouts/edric_standing.webp",
+    "cutoutOffset": [81, 31]
+  },
+  {
+    "ref": "refs/b13_card_astrid.webp",
+    "source": "batch-2/b13_card_astrid.png",
+    "verdict": "use",
+    "cutout": "cutouts/astrid.webp",
+    "cutoutOffset": [177, 45]
+  },
+  {
+    "ref": "refs/b13_card_cael.webp",
+    "source": "batch-2/b13_card_cael.png",
+    "verdict": "use",
+    "cutout": "cutouts/cael.webp",
+    "cutoutOffset": [65, 70]
+  },
+  {
+    "ref": "refs/b13_card_kira.webp",
+    "source": "batch-2/b13_card_kira.png",
+    "verdict": "use",
+    "cutout": "cutouts/kira.webp",
+    "cutoutOffset": [96, 24]
+  },
+  {
+    "ref": "refs/b13_card_rowan.webp",
+    "source": "batch-2/b13_card_rowan.png",
+    "verdict": "use",
+    "cutout": "cutouts/rowan.webp",
+    "cutoutOffset": [431, 51]
+  },
+  {
+    "ref": "refs/b13_card_sera.webp",
+    "source": "batch-2/b13_card_sera.png",
+    "verdict": "use",
+    "cutout": "cutouts/sera.webp",
+    "cutoutOffset": [161, 20]
+  },
+  {
+    "ref": "refs/b13_card_voss.webp",
+    "source": "batch-2/b13_card_voss.png",
+    "verdict": "use",
+    "cutout": "cutouts/voss.webp",
+    "cutoutOffset": [67, 38]
+  },
+  {
+    "ref": "refs/b13_empire_road_plate.webp",
+    "source": "batch-2/b13_empire_road_plate.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b13_bridge_hand_in_hand.webp",
+    "source": "rogue-dawn-sketchbook-tests/04-bridge-thread.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b13_empire_soldier.webp",
+    "source": "batch-1/b13_empire_soldier.png",
+    "verdict": "maybe",
+    "cutout": "cutouts/empire_soldier.webp",
+    "cutoutOffset": [268, 118]
+  },
+  {
+    "ref": "refs/b21_emperor.webp",
+    "source": "batch-1/b21_emperor.png",
+    "verdict": "use",
+    "cutout": "cutouts/emperor.webp",
+    "cutoutOffset": [130, 93]
+  },
+  {
+    "ref": "refs/b21_lieutenant_eyes.webp",
+    "source": "batch-1/b21_lieutenant_eyes.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b21_sera_eyes.webp",
+    "source": "batch-1/b21_sera_eyes.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b21_sera_window.webp",
+    "source": "rogue-dawn-sketchbook-tests/03-sera-window.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b21_lieutenant_reveal_old.webp",
+    "source": "anime-op-reference/06-lieutenant-reveal.png",
+    "verdict": "maybe"
+  },
+  {
+    "ref": "refs/b29_edric_charge.webp",
+    "source": "batch-1/b29_edric_charge.png",
+    "verdict": "use",
+    "cutout": "cutouts/edric_charge.webp",
+    "cutoutOffset": [65, 170]
+  },
+  {
+    "ref": "refs/b29_edric_falls.webp",
+    "source": "batch-1/b29_edric_falls.png",
+    "verdict": "use",
+    "cutout": "cutouts/edric_falls.webp",
+    "cutoutOffset": [72, 317]
+  },
+  {
+    "ref": "refs/b29_ford_plate.webp",
+    "source": "batch-1/b29_ford_plate.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b29_bridge_plate.webp",
+    "source": "batch-2/b29_bridge_plate.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b29_edric_collapse.webp",
+    "source": "batch-2/b29_edric_collapse.png",
+    "verdict": "use",
+    "cutout": "cutouts/edric_collapse.webp",
+    "cutoutOffset": [45, 267]
+  },
+  {
+    "ref": "refs/b29_fens_plate.webp",
+    "source": "batch-2/b29_fens_plate.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b29_ridge_plate.webp",
+    "source": "batch-2/b29_ridge_plate.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b29_stair_plate.webp",
+    "source": "batch-2/b29_stair_plate.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b29_chorus_run_old.webp",
+    "source": "anime-op-reference/storyboard/11-chorus-run-clean.png",
+    "verdict": "maybe"
+  },
+  {
+    "ref": "refs/b29_thread_frays_old.webp",
+    "source": "anime-op-reference/storyboard/12-thread-frays.png",
+    "verdict": "maybe"
+  },
+  {
+    "ref": "refs/b29_first_light_old.webp",
+    "source": "anime-op-reference/storyboard/14-unnamed-dawn.png",
+    "verdict": "maybe"
+  },
+  {
+    "ref": "refs/b45_thread_on_paper.webp",
+    "source": "anime-op-reference/07-thread-transition.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b45_hymn_plate.webp",
+    "source": "rogue-dawn-sketchbook-tests/02-hymn-plate.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b53_thread_silence.webp",
+    "source": "anime-op-reference/storyboard/17-half-beat-silence.png",
+    "verdict": "use"
+  },
+  {
+    "ref": "refs/b53_edric_final_frame.webp",
+    "source": "batch-2/b53_edric_final_frame.png",
+    "verdict": "use"
+  }
+]
