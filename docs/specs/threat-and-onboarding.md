@@ -43,7 +43,9 @@ While a player unit is selected (`UNIT_SELECTED`, or the action menu before it a
   chokepoint) or closes are honoured. Tested tile-for-tile against the overlay (incl. ice).
 - **Fog.** Only enemies the player can see are evaluated; hidden units are never revealed.
 - **Cost.** A cheap key is compared each frame; the query runs only when the focus tile,
-  selection, turn or state changes, is memoized per tile against a world signature, and
+  selection, turn, state or terrain changes, is memoized per tile against a world signature
+  (units, ballistas and the grid's `terrainRevision`, so Break, temporary terrain and its
+  expiry, villages and rewinds never leave a stale answer), and
   prunes enemies beyond movement + reach (exact without ice). ~0.3 ms per hovered tile with
   6 enemies, ~1.7 ms average / 6 ms worst with 27. Graphics redraw only when the answer
   changes; the eye's bob is a stepped 2-px transform tween (static under Reduce Motion).

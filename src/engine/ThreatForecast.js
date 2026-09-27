@@ -202,11 +202,13 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
 
 /**
  * A cheap fingerprint of everything threatsOnTile reads, so a cache can tell when
- * a remembered answer went stale (moves, deaths, roots, fog, weapons, staff uses).
+ * a remembered answer went stale (moves, deaths, roots, fog, weapons, staff uses,
+ * and terrain: Grid.setTerrainAt bumps `terrainRevision` for Break, temporary
+ * terrain and its expiry, villages and snapshot restores).
  */
 export function threatWorldSignature(ctx, units = []) {
   const { grid } = ctx;
-  const parts = [];
+  const parts = [`T${grid?.terrainRevision ?? 0}`];
   for (const u of units) {
     if (!u) continue;
     const alive = u.currentHP > 0 && !u._removing;

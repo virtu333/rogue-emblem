@@ -237,6 +237,27 @@ describe('ThreatForecast — one computation for Danger and threat sight', () =>
     expect(threatWorldSignature(ctx, units)).not.toBe(rooted);
   });
 
+  it('world signature changes when terrain changes (Break, expiry, villages, rewinds)', () => {
+    // A wall between the foe and the tile: breaking it opens the path, so any
+    // answer remembered against the old signature is stale.
+    const g = grid(['...#......']);
+    const enemy = foe(6, 0, { mov: 4, stats: { MOV: 4 } });
+    const units = [enemy, ally(0, 0)];
+    const ctx = ctxFor(g, units);
+    const walled = threatWorldSignature(ctx, units);
+    expect(threatsOnTile(ctx, 2, 0).count).toBe(0);
+    g.setTerrainAt(3, 0, T.Plain);
+    expect(threatsOnTile(ctx, 2, 0).count).toBe(1);
+    const open = threatWorldSignature(ctx, units);
+    expect(open).not.toBe(walled);
+    // A temporary wall (and its expiry) changes it too.
+    g.setTemporaryTerrain(3, 0, 'Wall', 1);
+    const tempWall = threatWorldSignature(ctx, units);
+    expect(tempWall).not.toBe(open);
+    g.tickTemporaryTerrains();
+    expect(threatWorldSignature(ctx, units)).not.toBe(tempWall);
+  });
+
   it('summaries read plainly', () => {
     expect(threatSummaryText({ count: 0, status: [], fogged: false })).toBe('No foe can reach');
     expect(threatSummaryText({ count: 2, status: [], fogged: false })).toBe('2 foes can reach');

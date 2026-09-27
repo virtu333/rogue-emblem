@@ -1,10 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Grid } from '../src/engine/Grid.js';
 import { ThreatSightController } from '../src/ui/ThreatSightController.js';
+import { threatsOnTile } from '../src/engine/ThreatForecast.js';
 import { rasterizeThreatSigil, THREAT_SIGIL_SIZE } from '../src/art/threatSigil.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
+const WALL = gameData.terrain.findIndex((t) => t.name === 'Wall');
+const PLAIN = gameData.terrain.findIndex((t) => t.name === 'Plain');
 
 function stub() {
   const obj = {};
@@ -156,6 +159,39 @@ describe('ThreatSightController', () => {
     const after = sight.query(player, 5, 2);
     expect(after).not.toBe(first);
     expect(after.count).toBe(0);
+  });
+
+  it('a remembered answer does not outlive a terrain change', () => {
+    // A full-height wall at col 7 keeps the foe (col 9, 3 moves) away from (5,2).
+    const player = sera();
+    const enemy = foe(9, 2);
+    const scene = makeScene({ enemies: [enemy], player });
+    for (let row = 0; row < 5; row++) scene.grid.setTerrainAt(7, row, WALL);
+    const sight = new ThreatSightController(scene);
+    expect(sight.query(player, 5, 2).count).toBe(0);
+    // Break (or a temporary wall expiring) opens the middle of the wall.
+    scene.grid.setTerrainAt(7, 2, PLAIN);
+    const fresh = threatsOnTile(scene.threatContext(), 5, 2, { mover: player });
+    expect(fresh.damage).toEqual([enemy]);
+    expect(sight.query(player, 5, 2)).toEqual(fresh);
+  });
+
+  it('re-reads a still selection when terrain changes under it', () => {
+    // Sera stands at (5,2) in her action menu; nothing about the focus changes.
+    const player = sera();
+    player.col = 5;
+    const enemy = foe(9, 2);
+    const scene = makeScene({ enemies: [enemy], player, state: 'UNIT_ACTION_MENU' });
+    for (let row = 0; row < 5; row++) scene.grid.setTerrainAt(7, row, WALL);
+    const sight = new ThreatSightController(scene).create();
+    sight.sync();
+    expect(sight.current.result.count).toBe(0);
+    expect(sight.sigils).toHaveLength(0);
+    scene.grid.setTerrainAt(7, 2, PLAIN);
+    sight.sync();
+    expect(sight.current.result.damage).toEqual([enemy]);
+    expect(sight.sigils).toHaveLength(1); // the foe's eye appears without a new hover
+    expect(sight.describe(5, 2)).toBe('1 foe can reach');
   });
 
   it('does not pulse under reduced motion and never touches Math.random', () => {
