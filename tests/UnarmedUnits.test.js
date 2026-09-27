@@ -227,7 +227,7 @@ describe('BattleScene: an enemy attacks an unarmed unit', () => {
     return s;
   }
 
-  it('takes the hit, strikes nothing back and earns no XP (the real awardXP)', async () => {
+  it('takes the hit, strikes nothing back and earns only the survival XP (the real awardXP)', async () => {
     const s = scene();
     const enemy = brute();
     const unit = bare();
@@ -240,9 +240,8 @@ describe('BattleScene: an enemy attacks an unarmed unit', () => {
     // animateStrike(event, attacker, defender): every animated strike is the enemy's.
     const sides = s.animateStrike.mock.calls.map(([event]) => event.attackerSide);
     expect(sides).toEqual(['attacker']);
-    // awardXP returns before any award when the defender dealt no damage.
-    expect(s.awardScaledXP).not.toHaveBeenCalled();
-    expect(unit.xp).toBe(0);
+    // It dealt no damage, but it was attacked and lived: XP_DEFEND_SURVIVE (1).
+    expect(s.awardScaledXP.mock.calls).toEqual([[unit, 1]]);
     expect(s.removeUnit).not.toHaveBeenCalled();
   });
 });

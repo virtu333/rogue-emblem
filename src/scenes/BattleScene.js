@@ -162,6 +162,7 @@ import {
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
   XP_BASE_DANCE,
+  XP_DEFEND_SURVIVE,
   XP_SPECIAL_ENEMY_MULTIPLIER,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
@@ -240,7 +241,7 @@ import {
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
 import { recordBattleRecruit } from '../engine/BattleRecruits.js';
-import { hasRecruitNpc, isRecruitNpc } from '../engine/RecruitNpc.js';
+import { armyAndNpcAllies, hasRecruitNpc, isRecruitNpc } from '../engine/RecruitNpc.js';
 import { isSameUnit } from '../engine/UnitIdentity.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
 import { deedsFor } from '../ui/DeedController.js';
@@ -6445,8 +6446,12 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  findHealTargets(unit, staffOverride = null) {
-    return (this._healController ||= new HealController(this)).findHealTargets(unit, staffOverride);
+  findHealTargets(unit, staffOverride = null, ...options) {
+    return (this._healController ||= new HealController(this)).findHealTargets(
+      unit,
+      staffOverride,
+      ...options,
+    );
   }
 
   startHealTargetSelection(unit, targets, chosenStaff = null) {
@@ -8933,15 +8938,31 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  /** Award XP to a player unit after combat. Shows floating text + level-up popups. */
-  async awardXP(playerUnit, opponent, opponentDied, damageDealt = null, defenderHpAtStart = null) {
+  /**
+   * Award XP to a player unit after combat. Shows floating text + level-up popups.
+   * `survivedAttack`: the unit was attacked and lived. It then earns at least
+   * XP_DEFEND_SURVIVE, even unarmed, out of counter reach or with every counter
+   * missed; only XP earned by damage dealt is shared by a Mentor's Band.
+   */
+  async awardXP(
+    playerUnit,
+    opponent,
+    opponentDied,
+    damageDealt = null,
+    defenderHpAtStart = null,
+    { survivedAttack = false } = {},
+  ) {
     if (opponent?._noXP) return;
+    const survivalXp = survivedAttack && playerUnit?.currentHP > 0 ? XP_DEFEND_SURVIVE : 0;
     let baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
     let damageRatio = 1;
     if (!opponentDied && Number.isFinite(damageDealt) && Number.isFinite(defenderHpAtStart)) {
       const safeDamage = Math.max(0, Math.trunc(damageDealt));
       const safeStartHp = Math.max(1, Math.trunc(defenderHpAtStart));
-      if (safeDamage <= 0) return;
+      if (safeDamage <= 0) {
+        if (survivalXp > 0) await this.awardScaledXP(playerUnit, survivalXp);
+        return;
+      }
       damageRatio = Math.min(1, safeDamage / safeStartHp);
       baseXp = Math.floor(baseXp * damageRatio);
     }
@@ -8951,8 +8972,9 @@ export class BattleScene extends Phaser.Scene {
     const recruitXpBonus = playerUnit?.isLord
       ? 0
       : Number(this.runManager?.metaEffects?.recruitXpBonus) || 0;
-    const adjustedBaseXp = Math.floor(
-      baseXp * rewardMultiplier * pressureXpMultiplier * (1 + recruitXpBonus),
+    const adjustedBaseXp = Math.max(
+      survivalXp,
+      Math.floor(baseXp * rewardMultiplier * pressureXpMultiplier * (1 + recruitXpBonus)),
     );
     // Mentor's Band (EXP Share): capture recipients before the holder's award
     // so a mid-award level-up can't change eligibility. Mirrored by the
@@ -9422,8 +9444,11 @@ export class BattleScene extends Phaser.Scene {
         );
 
       // Condition recovery runs FIRST so sleeping/silenced units get their chance
-      // before the all-sleeping auto-advance check
-      const earlyRecovery = processConditionRecovery(this.playerUnits);
+      // before the all-sleeping auto-advance check. NPC allies (the caravan,
+      // recruits) share the army's turn start, after the army (armyAndNpcAllies).
+      const earlyRecovery = processConditionRecovery(
+        armyAndNpcAllies(this.playerUnits, this.npcUnits),
+      );
       for (const evt of earlyRecovery) {
         const labelByCondition = {
           sleep: 'woke up',
@@ -9432,7 +9457,8 @@ export class BattleScene extends Phaser.Scene {
           root: 'can move again',
         };
         const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
-        this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
+        if (this._showsTurnEffectOn(evt.unit))
+          this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
         this._removeConditionIcon(evt.unit, evt.conditionId);
         this.undimUnit(evt.unit);
       }
@@ -9466,14 +9492,16 @@ export class BattleScene extends Phaser.Scene {
       }
       this.updateVisionHud();
 
-      // Process turn-start effects (skills + affixes) (after banner settles)
+      // Process turn-start effects (skills + affixes) (after banner settles).
+      // NPC allies take the army's turn start with it: an aura or fort mends
+      // them, acid ticks on them (armyAndNpcAllies, after the army).
       scheduleSafeDelayedAsync(
         1200,
         'player_phase_turn_start_pipeline',
         async () => {
           try {
             if (!isCurrentTurnStart()) return;
-            await this.processTurnStartEffects(this.playerUnits, {
+            await this.processTurnStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits), {
               skipRecovery: true,
               isCurrent: isCurrentTurnStart,
             });
@@ -9619,7 +9647,8 @@ export class BattleScene extends Phaser.Scene {
           ) {
             return;
           }
-          await this.processTerrainDamage(this.playerUnits);
+          // The army's end-of-phase hazards also reach its NPC allies.
+          await this.processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
           await this.processTurnStartEffects(this.enemyUnits);
           await this.processZombieRevival();
           await this.processBallistaFire(this.playerUnits, 'enemy');
@@ -9648,7 +9677,8 @@ export class BattleScene extends Phaser.Scene {
           root: 'can move again',
         };
         const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
-        await this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
+        if (this._showsTurnEffectOn(evt.unit))
+          await this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
         if (!isCurrent()) return;
         this._removeConditionIcon(evt.unit, evt.conditionId);
         this.undimUnit(evt.unit);
@@ -9669,7 +9699,8 @@ export class BattleScene extends Phaser.Scene {
           effect.target.currentHP + effect.amount,
         );
         this.updateHPBar(effect.target);
-        await this.animateHeal(effect.target, effect.amount);
+        if (this._showsTurnEffectOn(effect.target))
+          await this.animateHeal(effect.target, effect.amount);
       }
     }
 
@@ -9684,7 +9715,8 @@ export class BattleScene extends Phaser.Scene {
           effect.target.currentHP + effect.amount,
         );
         this.updateHPBar(effect.target);
-        await this.animateHeal(effect.target, effect.amount);
+        if (this._showsTurnEffectOn(effect.target))
+          await this.animateHeal(effect.target, effect.amount);
       } else if (effect.type === 'spawn_terrain') {
         await this.executeWallerSpawn(effect);
       }
@@ -9704,8 +9736,17 @@ export class BattleScene extends Phaser.Scene {
       if (appliedDamage <= 0) continue;
       unit.currentHP = nextHP;
       this.updateHPBar(unit);
-      await this.showAcidDamage(unit, appliedDamage);
+      if (this._showsTurnEffectOn(unit)) await this.showAcidDamage(unit, appliedDamage);
     }
+  }
+
+  /**
+   * Whether a phase effect on `unit` (a heal, a hazard, a recovery banner) is shown.
+   * The effect always applies; an NPC ally the fog hides takes it unseen, so turn
+   * starts never reveal where it stands. The army's and enemies' effects show as before.
+   */
+  _showsTurnEffectOn(unit) {
+    return unit?.faction !== 'npc' || canInspectUnit(this.grid, unit);
   }
 
   /** Backward-compatible alias for older call sites/cherry-picks. */
@@ -10033,7 +10074,7 @@ export class BattleScene extends Phaser.Scene {
       if (healAmount <= 0) continue;
       unit.currentHP = Math.min(unit.stats.HP, unit.currentHP + healAmount);
       this.updateHPBar(unit);
-      await this.animateHeal(unit, healAmount);
+      if (this._showsTurnEffectOn(unit)) await this.animateHeal(unit, healAmount);
     }
   }
 
@@ -10047,7 +10088,8 @@ export class BattleScene extends Phaser.Scene {
         if (appliedDamage <= 0) continue;
         unit.currentHP = nextHP;
         this.updateHPBar(unit);
-        await this.showTerrainDamage(unit, appliedDamage);
+        const shown = this._showsTurnEffectOn(unit);
+        if (shown) await this.showTerrainDamage(unit, appliedDamage);
         // Lava damage wakes sleeping units
         if (isSleeping(unit)) {
           removeCondition(unit, 'sleep');
@@ -10055,7 +10097,8 @@ export class BattleScene extends Phaser.Scene {
           // Un-dim only units that can still act — keep the acted-grey on
           // units that already moved this phase (same pattern as cures).
           if (!unit.hasActed) this.undimUnit(unit);
-          await this.showBriefBanner(`${unit.name} woke up from lava damage!`, UI_PALETTE.warn);
+          if (shown)
+            await this.showBriefBanner(`${unit.name} woke up from lava damage!`, UI_PALETTE.warn);
         }
         await this._checkPhoenixBrooch(unit);
         continue;
@@ -10065,13 +10108,19 @@ export class BattleScene extends Phaser.Scene {
       if (unit.moveType === 'Flying') continue;
       if (unit.poisonImmune || unit.terrainHazardImmune) continue;
 
+      const shown = this._showsTurnEffectOn(unit);
       if (!applyCondition(unit, 'acid')) {
         // statusImmunity accessory — surface the block like the staff/art paths
         const pos = this.grid.gridToPixel(unit.col, unit.row);
-        this.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);
+        if (shown) this.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);
         continue;
       }
       this._addConditionIcon(unit, 'acid');
+      if (!shown) {
+        // Its badge stays hidden with it until the army sees it (updateEnemyVisibility).
+        unit._conditionIcons?.acid?.setVisible?.(false);
+        continue;
+      }
       {
         const pos = this.grid.gridToPixel(unit.col, unit.row);
         (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y, 'acid');
@@ -10552,13 +10601,16 @@ export class BattleScene extends Phaser.Scene {
       const ctx = this._prepareCombatContext(enemy, target, { isPlayerInitiator: false });
       const { result } = await this._runCombatResolution(enemy, target, ctx);
 
-      // Award XP to player defender if they survived
+      // Award XP to player defender if they survived: at least the survival
+      // minimum, even with no counter (unarmed, out of reach) or no damage dealt.
       if (target.faction === 'player' && target.currentHP > 0) {
         const counterDamage = Math.max(
           0,
           enemyHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)),
         );
-        await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart);
+        await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart, {
+          survivedAttack: true,
+        });
       }
 
       // Tutorial: the first hit on a non-commander lord teaches permadeath
@@ -10914,6 +10966,8 @@ export class BattleScene extends Phaser.Scene {
       if (npc.affixPips) {
         npc.affixPips.forEach((p) => p.setVisible(vis));
       }
+      // Status badges (acid ground, an enemy art) hide with the NPC they sit on.
+      Object.values(npc._conditionIcons || {}).forEach((icon) => icon?.setVisible?.(vis));
     }
   }
 

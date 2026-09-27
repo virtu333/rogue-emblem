@@ -23,7 +23,7 @@ describe('battleItemSummary', () => {
       {
         name: 'Physic',
         type: 'Staff',
-        range: '2',
+        range: '1-2',
         uses: 1,
         perBattleUses: true,
         special: 'Ranged heal, MAG + 5 HP',
@@ -36,7 +36,7 @@ describe('battleItemSummary', () => {
     );
 
     expect(text).toContain('Ranged heal, MAG + 5 HP');
-    expect(text).toContain('Range 2-4');
+    expect(text).toContain('Range 1-4');
     expect(text).toContain('Refills each battle');
   });
 });
