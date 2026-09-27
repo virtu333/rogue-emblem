@@ -263,13 +263,13 @@ export function weaponSpec(w, ctx = grammarContext()) {
 }
 
 const BOOSTER = {
-  STR: () => D.gemItem({ mat: 'blood', cut: 'drop' }),
+  STR: () => D.root(),
   MAG: () => D.pouch({ cloth: 'unlight', sparkle: 'lilac' }),
   SKL: () =>
     D.tome({ cover: 'pearl', fit: 'gilt', emblem: 'dark', emblemMat: 'ink', pages: 'parchment' }),
   SPD: () => D.feather({ mat: 'sky' }),
-  DEF: () => D.shield({ face: 'steel', rim: 'silverFit', emblem: 'diamond', emblemMat: 'sky' }),
-  RES: () => D.pendant({ chain: 'silverFit', body: 'silver', gem: 'lilac', form: 'leaf' }),
+  DEF: () => D.dragonScale(),
+  RES: () => D.knotCord(),
   HP: () => D.robe({ cloth: 'pearl', trim: 'gilt', wings: 'pearl' }),
   MOV: () => D.boot({ leather: 'wood', trim: 'leaf', wing: true }),
 };
@@ -277,11 +277,11 @@ const BOOSTER = {
 export function consumableSpec(c) {
   switch (c.effect) {
     case 'heal':
-      return D.vial({ liquid: 'verdigris' });
+      return D.poultice();
     case 'healFull':
       return D.vial({ shape: 'flask', liquid: 'ember', cork: 'gilt' });
     case 'promote':
-      return D.seal({ wax: 'blood', ribbon: 'cloth', metal: 'gilt', glyph: 'star' });
+      return D.seal({ wax: 'blood', ribbon: 'lilac', metal: 'gilt', glyph: 'crown' });
     case 'reclass':
       return D.seal({
         wax: c.subEffect === 'mounted' ? 'earth' : 'steel',
@@ -322,7 +322,7 @@ export function accessorySpec(a) {
     return D.ringItem({ band: 'silver', gem: 'pearl' });
   }
   const table = {
-    'Fatethread Pendant': () => D.pendant({ form: 'wing', gem: 'blood' }),
+    'Fatethread Pendant': () => D.pendant({ form: 'sun', chain: 'blood' }),
     "Sisters' Mantle": () => D.robe({ cloth: 'pearl', trim: 'gilt', wings: 'gilt', hood: true }),
     "Courier's Boots": () => D.boot({ leather: 'wood', trim: 'leaf' }),
     'Picket Buckler': () =>
