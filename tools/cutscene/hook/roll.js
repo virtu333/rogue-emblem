@@ -59,7 +59,7 @@ function makeClock(cue) {
   /** Bar `bar` (1-based), beat `bt` (1-based, fractional). */
   const T = (bar, bt = 1) => beat(start[bar - 1] + bt - 1);
   const notes = (part, t0 = 0, t1 = Infinity) =>
-    (cue.parts[part] || []).filter(([s]) => s >= t0 - 1e-6 && s < t1 - 1e-6);
+    (cue.parts[part] || []).filter(([s]) => s >= t0 - 2e-3 && s < t1 - 2e-3);
   return { T, notes };
 }
 
@@ -161,8 +161,8 @@ export async function loadRoll(base = '.') {
           t0: T(1, 2),
           t1: T(3) - 0.5,
           text: 'Every name is written down.',
-          size: 34,
-          y: 640,
+          size: 42,
+          y: 610,
           color: COL.bone,
         });
       },
@@ -245,7 +245,7 @@ export async function loadRoll(base = '.') {
           // the door comes open: the crack widens into red light
           const k = easeOut(prog(t, last + 0.1, T(11)));
           g.save();
-          g.globalAlpha = k * 0.35;
+          g.globalAlpha = k * 0.16 * (1 - k * 0.5);
           g.fillStyle = COL.red;
           g.fillRect(W / 2 - (k * W) / 2, 0, k * W, H);
           g.restore();
