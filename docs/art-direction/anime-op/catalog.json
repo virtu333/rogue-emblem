@@ -1,0 +1,592 @@
+{
+  "version": 1,
+  "beats": [
+    {
+      "bars": "1-4",
+      "picture": "Band hits; flashes; Empire boots"
+    },
+    {
+      "bars": "5-12",
+      "picture": "The camp on the night before; the Thread; Edric rises"
+    },
+    {
+      "bars": "13-20",
+      "picture": "Cross-cut: our army against the Empire"
+    },
+    {
+      "bars": "21-28",
+      "picture": "The seers; officers and the Emperor"
+    },
+    {
+      "bars": "29-44",
+      "picture": "Chorus: the charge, the fraying thread, the falls"
+    },
+    {
+      "bars": "45-48",
+      "picture": "The hymn: stillness, violet"
+    },
+    {
+      "bars": "49-52",
+      "picture": "The rewind"
+    },
+    {
+      "bars": "53-56",
+      "picture": "Edric looks up; silence; the Hollow Sun and title"
+    }
+  ],
+  "rows": [
+    {
+      "file": "b01_edric_eye.png",
+      "source": "batch-1",
+      "kind": "closeup",
+      "subject": "Edric's eye; a banner reflected in the iris",
+      "beats": ["1-4"],
+      "verdict": "use",
+      "why": "Survives conversion.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "b01_hilt.png",
+      "source": "batch-1",
+      "kind": "closeup",
+      "subject": "Gloved hand closing on a plain longsword hilt; teal cloak",
+      "beats": ["1-4"],
+      "verdict": "use",
+      "why": "The teal cloak and belt make it Edric's. Code adds the thread at the wrist.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "b01_empire_boots.png",
+      "source": "batch-2",
+      "kind": "closeup",
+      "subject": "Six iron-shod boots stamping in step on bare paper",
+      "beats": ["1-4"],
+      "verdict": "use",
+      "why": "Dense and flat, as the Empire is drawn. Survives conversion.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "b13_empire_soldier_march.png",
+      "source": "batch-2",
+      "kind": "character",
+      "subject": "Imperial pikeman marching in profile, facing left",
+      "beats": ["1-4", "13-20"],
+      "verdict": "use",
+      "why": "Tiles into lockstep ranks (tested on the road plate).",
+      "size": "1024x1536",
+      "layers": "cloak, pike arm, near leg, far leg, body"
+    },
+    {
+      "file": "storyboard/01-valley-intro.png",
+      "source": "anime-op-reference",
+      "kind": "plate",
+      "subject": "The Hollow Sun setting over a dark valley",
+      "beats": ["1-4"],
+      "verdict": "reject",
+      "why": "Dark and dense. The camp plate opens the story, and code draws the sun.",
+      "size": "1672x941"
+    },
+    {
+      "file": "storyboard/18-vocal-chop-drop.png",
+      "source": "anime-op-reference",
+      "kind": "key",
+      "subject": "Four diagonal panels: Sera, crimson, a violet city, a yellow sun",
+      "beats": ["1-4"],
+      "verdict": "reject",
+      "why": "Made for the vocal version. The last panel shows a bright yellow sun, not the Hollow Sun. The diagonal-panel layout is a good idea for the bar 1-4 flashes, done in code.",
+      "size": "1672x941"
+    },
+    {
+      "file": "b05_camp_night_plate.png",
+      "source": "batch-1",
+      "kind": "plate",
+      "subject": "Night camp, empty; fire low; a clear sky band for the Thread",
+      "beats": ["5-12"],
+      "verdict": "use",
+      "why": "Right layout: no people, fire low, an empty sky band, tall for the tilt. Detailed, so convert with the background settings.",
+      "size": "1024x1536"
+    },
+    {
+      "file": "b05_edric_at_fire.png",
+      "source": "batch-1",
+      "kind": "character",
+      "subject": "Edric seated, sword drawn across his knees, looking to the side",
+      "beats": ["5-12"],
+      "verdict": "use",
+      "why": "Keys cleanly. Hair drifts auburn (the portrait is chestnut).",
+      "size": "1024x1536",
+      "layers": "head and hair, cloak, arms with sword, body"
+    },
+    {
+      "file": "b53_edric_looks_up.png",
+      "source": "batch-1",
+      "kind": "key",
+      "subject": "Edric looks up at the night sky; firelight below",
+      "beats": ["5-12"],
+      "verdict": "use",
+      "why": "Use for Edric seeing the Thread in bars 5-12. Not the final frame: b53_edric_final_frame replaces it there.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "01-edric-standing-greenscreen.png",
+      "source": "rogue-dawn-sketchbook-tests",
+      "kind": "character",
+      "subject": "Edric standing, three-quarter view, looking up past the viewer; gold thread at his wrist",
+      "beats": ["5-12", "13-20"],
+      "verdict": "use",
+      "why": "Clean key, on-model; the model for all character assets. \"Edric rises\", and the standing Edric in the ensemble.",
+      "size": "1024x1536",
+      "layers": "hair, head, cloak, sword arm, body, legs"
+    },
+    {
+      "file": "storyboard/08-edric-ahead.png",
+      "source": "anime-op-reference",
+      "kind": "group",
+      "subject": "Edric reaches back for Sera's hand in ruins",
+      "beats": ["5-12"],
+      "verdict": "reject",
+      "why": "Replaced by sketchbook 04-bridge-thread: the same hands-joined beat, in style.",
+      "size": "1672x941"
+    },
+    {
+      "file": "b13_card_astrid.png",
+      "source": "batch-2",
+      "kind": "character",
+      "subject": "Astrid mounted on a white winged horse, facing right",
+      "beats": ["13-20"],
+      "verdict": "use",
+      "why": "On-model. Mounted cards need about 1.45x scale to match the figures on foot.",
+      "size": "1536x1024",
+      "layers": "near wing, far wing, rider with lance, horse, tail"
+    },
+    {
+      "file": "b13_card_cael.png",
+      "source": "batch-2",
+      "kind": "character",
+      "subject": "Cael in plate with an open helm, axe across his body",
+      "beats": ["13-20"],
+      "verdict": "use",
+      "why": "On-model.",
+      "size": "1024x1536",
+      "layers": "scarf and cloak, arms with axe, body"
+    },
+    {
+      "file": "b13_card_kira.png",
+      "source": "batch-2",
+      "kind": "character",
+      "subject": "Kira pointing right, tome in hand",
+      "beats": ["13-20"],
+      "verdict": "use",
+      "why": "On-model. Fix before use: paint out a small pale-blue glint behind the head.",
+      "size": "1024x1536",
+      "layers": "hair, pointing arm, coat tails, body"
+    },
+    {
+      "file": "b13_card_rowan.png",
+      "source": "batch-2",
+      "kind": "character",
+      "subject": "Rowan mounted on a bay horse, lance upright",
+      "beats": ["13-20"],
+      "verdict": "use",
+      "why": "On-model. About 1.45x scale to match the figures on foot.",
+      "size": "1536x1024",
+      "layers": "rider with lance, scarf, horse, tail"
+    },
+    {
+      "file": "b13_card_sera.png",
+      "source": "batch-2",
+      "kind": "character",
+      "subject": "Sera standing, one hand raised, feeling for the thread",
+      "beats": ["13-20"],
+      "verdict": "use",
+      "why": "Gold cross present; on-model.",
+      "size": "1024x1536",
+      "layers": "hair, head, raised arm and sleeve, robe"
+    },
+    {
+      "file": "b13_card_voss.png",
+      "source": "batch-2",
+      "kind": "character",
+      "subject": "Voss with bow, quiver and green cloak",
+      "beats": ["13-20"],
+      "verdict": "use",
+      "why": "On-model: scar, beard, tied-back hair.",
+      "size": "1024x1536",
+      "layers": "cloak, bow arm, body"
+    },
+    {
+      "file": "b13_empire_road_plate.png",
+      "source": "batch-2",
+      "kind": "plate",
+      "subject": "Straight road side-on under a crimson sky",
+      "beats": ["13-20"],
+      "verdict": "use",
+      "why": "For the marching column. Match the left and right edges before tiling.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "04-bridge-thread.png",
+      "source": "rogue-dawn-sketchbook-tests",
+      "kind": "key",
+      "subject": "Edric and Sera hand in hand, crossing a ruined bridge along the thread",
+      "beats": ["13-20"],
+      "verdict": "use",
+      "why": "Wide establishing shot. The figures are about 80 px tall at game size, so no acting at this scale. Crop the torn border.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "b13_empire_soldier.png",
+      "source": "batch-1",
+      "kind": "character",
+      "subject": "Imperial spearman standing front-on at rest",
+      "beats": ["13-20"],
+      "verdict": "maybe",
+      "why": "Livery is right (crimson, cross clasps), but he stands front-on at rest. Usable as-is for ranks facing the camera; b13_empire_soldier_march covers the march.",
+      "size": "1024x1536"
+    },
+    {
+      "file": "05-bridge-ensemble.png",
+      "source": "anime-op-reference",
+      "kind": "group",
+      "subject": "Kira points with a map, Astrid overhead, Edric braces on a bridge in iron rain",
+      "beats": ["13-20"],
+      "verdict": "reject",
+      "why": "Replaced by the batch-2 cast cards. The figures are part of a busy scene, so they cannot be layered.",
+      "size": "1672x941"
+    },
+    {
+      "file": "storyboard/03-banner-hook.png",
+      "source": "anime-op-reference",
+      "kind": "key",
+      "subject": "Torn crimson banner over a city under the black sun; travellers below",
+      "beats": ["13-20"],
+      "verdict": "reject",
+      "why": "Dense. The soldier, boots and road assets carry the Empire now.",
+      "size": "1672x941"
+    },
+    {
+      "file": "storyboard/15-bridge-clean.png",
+      "source": "anime-op-reference",
+      "kind": "group",
+      "subject": "Cleaner redraw of 05-bridge-ensemble",
+      "beats": ["13-20"],
+      "verdict": "reject",
+      "why": "Replaced by the cast cards; cannot be layered.",
+      "size": "1672x941"
+    },
+    {
+      "file": "b21_emperor.png",
+      "source": "batch-1",
+      "kind": "character",
+      "subject": "The Emperor standing with a sceptre",
+      "beats": ["21-28"],
+      "verdict": "use",
+      "why": "Close to the portrait. Stands with a sceptre, not on a throne; more flexible.",
+      "size": "1024x1536",
+      "layers": "crown and head, cloak, sceptre arm, body"
+    },
+    {
+      "file": "b21_lieutenant_eyes.png",
+      "source": "batch-1",
+      "kind": "closeup",
+      "subject": "The Lieutenant's eyes; white streak, cracks and a red eye",
+      "beats": ["21-28"],
+      "verdict": "use",
+      "why": "On-model: the cracks and the red eye are on the same side as in the portrait.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "b21_sera_eyes.png",
+      "source": "batch-1",
+      "kind": "closeup",
+      "subject": "Sera's eyes; a gold crack in one iris",
+      "beats": ["21-28"],
+      "verdict": "use",
+      "why": "Green eyes, as in the portrait. Same eye height as the Lieutenant's, for the mirrored cut.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "03-sera-window.png",
+      "source": "rogue-dawn-sketchbook-tests",
+      "kind": "key",
+      "subject": "Sera at a ruined window finds the thread",
+      "beats": ["21-28"],
+      "verdict": "use",
+      "why": "On-model, and survives conversion well. The robe has no gold cross (minor). Crop the torn border.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "04-sera-closeup.png",
+      "source": "anime-op-reference",
+      "kind": "closeup",
+      "subject": "Sera winds a gold thread round her fingers; dawn in her eye",
+      "beats": ["21-28"],
+      "verdict": "maybe",
+      "why": "Best line work in the old set, and it survives conversion, but in the old style. Fix: redo as an Unwritten Page closeup. b21_sera_eyes and 03-sera-window cover the beat until then.",
+      "size": "1672x941"
+    },
+    {
+      "file": "06-lieutenant-reveal.png",
+      "source": "anime-op-reference",
+      "kind": "key",
+      "subject": "The Lieutenant, symmetrical, holding gold and snapped crimson threads",
+      "beats": ["21-28"],
+      "verdict": "maybe",
+      "why": "On-model, and a medium shot of the Lieutenant that the new set does not have (only his eyes). Fix: redo in the new style on a plain dark field; code draws the threads.",
+      "size": "1672x941"
+    },
+    {
+      "file": "storyboard/09-future-window.png",
+      "source": "anime-op-reference",
+      "kind": "key",
+      "subject": "Sera at a rain-streaked window; her reflection shows a future city",
+      "beats": ["21-28"],
+      "verdict": "reject",
+      "why": "Replaced by sketchbook 03-sera-window.",
+      "size": "1672x941"
+    },
+    {
+      "file": "b29_edric_charge.png",
+      "source": "batch-1",
+      "kind": "character",
+      "subject": "Edric running right, sword low, cloak streaming",
+      "beats": ["29-44", "13-20"],
+      "verdict": "use",
+      "why": "Runs right (our side's direction). Clean, held pose.",
+      "size": "1024x1536",
+      "layers": "hair, cloak, sword arm, far arm, body, legs"
+    },
+    {
+      "file": "b29_edric_falls.png",
+      "source": "batch-1",
+      "kind": "character",
+      "subject": "Edric stumbling as he is hit",
+      "beats": ["29-44"],
+      "verdict": "use",
+      "why": "The fall on each hit. Hair drifts auburn.",
+      "size": "1024x1536",
+      "layers": "hair, cloak, sword arm, body"
+    },
+    {
+      "file": "b29_ford_plate.png",
+      "source": "batch-1",
+      "kind": "plate",
+      "subject": "Shallow ford at dusk; torn blue banner; no people",
+      "beats": ["29-44"],
+      "verdict": "use",
+      "why": "First fall. Convert with the background settings.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "b29_bridge_plate.png",
+      "source": "batch-2",
+      "kind": "plate",
+      "subject": "Stone bridge over a misty gorge; torn blue banner",
+      "beats": ["29-44"],
+      "verdict": "use",
+      "why": "Second fall. The orange sunset and visible sun break the one-warm-light rule: take the sun out and cool the grade in code (tested). Convert with the background settings.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "b29_edric_collapse.png",
+      "source": "batch-2",
+      "kind": "character",
+      "subject": "Edric on one knee, sword planted, head bowed",
+      "beats": ["29-44"],
+      "verdict": "use",
+      "why": "The held collapse for the freeze and crack. Rips in the cloak key through as holes, which reads as torn cloth.",
+      "size": "1024x1536",
+      "layers": "hair and head, cloak, body with arms and sword"
+    },
+    {
+      "file": "b29_fens_plate.png",
+      "source": "batch-2",
+      "kind": "plate",
+      "subject": "Grey fens; broken spears; ruins in the fog",
+      "beats": ["29-44"],
+      "verdict": "use",
+      "why": "Third fall. Same sunset fix as the bridge (tested). Convert with the background settings.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "b29_ridge_plate.png",
+      "source": "batch-2",
+      "kind": "plate",
+      "subject": "Grassy ridge under a clear violet dusk sky",
+      "beats": ["29-44"],
+      "verdict": "use",
+      "why": "The sky is clear for the code-drawn Hollow Sun. Tested with the charge and with the whole cast.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "b29_stair_plate.png",
+      "source": "batch-2",
+      "kind": "plate",
+      "subject": "Wide stair to a fortress gate; crimson banners",
+      "beats": ["29-44"],
+      "verdict": "use",
+      "why": "Fourth fall. Convert with the background settings.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "storyboard/11-chorus-run-clean.png",
+      "source": "anime-op-reference",
+      "kind": "group",
+      "subject": "Sera and Edric run together, black sun behind",
+      "beats": ["29-44"],
+      "verdict": "maybe",
+      "why": "The only shot of Sera running beside Edric in the chorus. It fails at game size. Fix: a running Sera cut-out on green, to pair with b29_edric_charge on the ridge plate.",
+      "size": "1672x941"
+    },
+    {
+      "file": "storyboard/12-thread-frays.png",
+      "source": "anime-op-reference",
+      "kind": "closeup",
+      "subject": "Sera's hands pull a gold thread taut as it frays",
+      "beats": ["29-44"],
+      "verdict": "maybe",
+      "why": "The only image of Sera's thread fraying. Fix: redo as a three-frame strip of her hands (whole, fraying, half unravelled) in the new style.",
+      "size": "1672x941"
+    },
+    {
+      "file": "storyboard/14-unnamed-dawn.png",
+      "source": "anime-op-reference",
+      "kind": "group",
+      "subject": "Sera and Edric on a hill above a valley at dawn",
+      "beats": ["29-44"],
+      "verdict": "maybe",
+      "why": "Closest image to \"the army at first light\", but a bright visible sun breaks the one-warm-light rule. Fix: a wide first-light plate with no sun, with the cast cards composited on it.",
+      "size": "1672x941"
+    },
+    {
+      "file": "02-chorus-run.png",
+      "source": "anime-op-reference",
+      "kind": "key",
+      "subject": "Sera and Edric run under the black sun",
+      "beats": ["29-44"],
+      "verdict": "reject",
+      "why": "Failed the pixel test: the dense texture turns to mush at 480×270. 11-chorus-run-clean is the cleaner version.",
+      "size": "1672x941"
+    },
+    {
+      "file": "storyboard/13-edric-falls.png",
+      "source": "anime-op-reference",
+      "kind": "key",
+      "subject": "Edric kneels; his earlier falls ghosted behind him",
+      "beats": ["29-44"],
+      "verdict": "reject",
+      "why": "Replaced by the falls on four plates (batches 1 and 2). The ghosted-repeat idea is done in code.",
+      "size": "1672x941"
+    },
+    {
+      "file": "07-thread-transition.png",
+      "source": "anime-op-reference",
+      "kind": "fx",
+      "subject": "Gold thread stitched across paper, fraying beside an ink eclipse",
+      "beats": ["45-48", "49-52"],
+      "verdict": "use",
+      "why": "Already the Unwritten Page idea: bare paper, a stitched thread, an ink eclipse. Sparse, so it survives conversion. Code redraws the thread so it can animate.",
+      "size": "1672x941"
+    },
+    {
+      "file": "02-hymn-plate.png",
+      "source": "rogue-dawn-sketchbook-tests",
+      "kind": "plate",
+      "subject": "Empty page: a half-erased battlefield, a sewn thread ending at the centre",
+      "beats": ["45-48"],
+      "verdict": "use",
+      "why": "The hymn. Convert with the background settings. Crop the torn paper border, and cover the painted thread so code can draw it.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "storyboard/06-the-roll.png",
+      "source": "anime-op-reference",
+      "kind": "key",
+      "subject": "A ghosted crowd walks backward over wet stone (the Roll)",
+      "beats": ["49-52"],
+      "verdict": "reject",
+      "why": "In \"Again\" the rewind uses the opening's own frames, stripped back to paper in code. Keep only as a concept note.",
+      "size": "1672x940"
+    },
+    {
+      "file": "storyboard/17-half-beat-silence.png",
+      "source": "anime-op-reference",
+      "kind": "fx",
+      "subject": "One gold thread hanging over a faint ring on black",
+      "beats": ["53-56", "1-4"],
+      "verdict": "use",
+      "why": "Sparse, and it survives conversion. Composition reference for the silence at the end; code draws the thread and the ring.",
+      "size": "1672x941"
+    },
+    {
+      "file": "b53_edric_final_frame.png",
+      "source": "batch-2",
+      "kind": "key",
+      "subject": "Edric at the fire looks straight into the camera; full colour",
+      "beats": ["53-56"],
+      "verdict": "use",
+      "why": "The final frame, and the only fully painted one. Chestnut hair; the ghost of a smile.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "storyboard/20-hollow-cut-clean.png",
+      "source": "anime-op-reference",
+      "kind": "key",
+      "subject": "Cleaner redraw of 03-hollow-sun-cut",
+      "beats": ["53-56"],
+      "verdict": "reject",
+      "why": "The old ending. Code draws the final Hollow Sun and the title.",
+      "size": "1672x941"
+    },
+    {
+      "file": "01-ash-city.png",
+      "source": "anime-op-reference",
+      "kind": "key",
+      "subject": "Sera kneels at a thread by a fallen banner; Edric looks to the road; ash city",
+      "beats": [],
+      "verdict": "reject",
+      "why": "The ash city is from the old storyboard and has no place in \"Again\". Dense watercolour turns to mush at 480×270. 04-ash-city-clean is the same shot.",
+      "size": "1672x941"
+    },
+    {
+      "file": "03-hollow-sun-cut.png",
+      "source": "anime-op-reference",
+      "kind": "key",
+      "subject": "Sera small in a ruined shrine under the black sun; the thread ends in the air",
+      "beats": [],
+      "verdict": "reject",
+      "why": "The old ending. \"Again\" ends on Edric at the fire, then the Hollow Sun and the title, drawn in code.",
+      "size": "1672x941"
+    },
+    {
+      "file": "storyboard/04-ash-city-clean.png",
+      "source": "anime-op-reference",
+      "kind": "key",
+      "subject": "Cleaner redraw of 01-ash-city",
+      "beats": [],
+      "verdict": "reject",
+      "why": "Old-storyboard beat; the figures are part of a busy scene.",
+      "size": "1672x941"
+    },
+    {
+      "file": "storyboard/05-sera-wakes.png",
+      "source": "anime-op-reference",
+      "kind": "key",
+      "subject": "Sera on the ground, fingertips on the thread",
+      "beats": [],
+      "verdict": "reject",
+      "why": "Old-storyboard beat (Sera wakes in the ash city); no place in \"Again\".",
+      "size": "1672x941"
+    },
+    {
+      "file": "storyboard/19-not-yet.png",
+      "source": "anime-op-reference",
+      "kind": "group",
+      "subject": "Sera and Edric in ruins under the black sun",
+      "beats": [],
+      "verdict": "reject",
+      "why": "The old ending; dense.",
+      "size": "1672x941"
+    }
+  ]
+}
