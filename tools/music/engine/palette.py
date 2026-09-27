@@ -380,15 +380,19 @@ CANDIDATES['kit'] = {
 # the same darbuka as one hand drum part (a score's own `taiko`, so a rock kit can play
 # beside it): written key -> stroke, 36 doum, 38 tek, 42 ka, 48 slap, 40 a soft stroke.
 # The drum rings: its body at 144 Hz (35 cents under D3) and the tek at 728 Hz (28
-# under F#5), a quarter-tone off any key. Raised 335 cents, the body sounds F3 and
-# the tek A5: the third and fifth of D minor (and F major's root and third)
+# under F#5), a quarter-tone off any key. Each stroke is retuned on its own, by as
+# little as puts it on a pitch: the body (doum, slap, soft stroke) up 235 cents to E3,
+# the tek and ka up 128 cents to G5 (E minor's root and third)
+_DARB_FIX = tuple((f'Darbuka/Darbuka_{k}_hit_vl{v}_rr{r}.wav', c)
+                  for k, c in ((1, 235), (2, 128), (3, 128), (4, 235), (5, 235))
+                  for v in (1, 2) for r in (1, 2))
 CANDIDATES['taiko']['vcsl_darbuka'] = dict(
-    label='VCSL darbuka as a hand drum, tuned to F and A',
-    what="VCSL 'Darbuka' (2 round robins per stroke), raised 335 cents so its body rings F3 "
-         'and the tek A5: written keys 36 doum, 38 tek, 42 ka, 48 slap, 40 a soft stroke; '
-         'other keys left out',
+    label='VCSL darbuka as a hand drum, tuned to E and G',
+    what="VCSL 'Darbuka' (2 round robins per stroke), each stroke retuned: the body rings "
+         'E3 (doum, slap and soft stroke up 235 cents), the tek and ka G5 (up 128); written '
+         'keys 36 doum, 38 tek, 42 ka, 48 slap, 40 a soft stroke; other keys left out',
     lab=dict(perform='plain', streams={'main': _strm(
-        ('with', _p('vcsl', *_MEMB, 'Darbuka.sfz'), (('transpose', '3'), ('tune', '35'))),
+        ('retuned', _p('vcsl', *_MEMB, 'Darbuka.sfz'), _DARB_FIX),
         key_map={36: _DOUM, 38: _TEK, 42: _KA, 48: _SLAP, 40: 64}, **SHORT)}))
 CANDIDATES['accordion'] = {
     'psaltery': dict(label='VCSL bowed psaltery',
