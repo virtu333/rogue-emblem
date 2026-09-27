@@ -6,6 +6,7 @@ import {
   isFragileUnit,
   isVeteranMeta,
   noTargetReason,
+  reachFromRanges,
   reachText,
   resolveGuidance,
 } from '../src/engine/Guidance.js';
@@ -13,6 +14,7 @@ import { parseRange } from '../src/engine/Combat.js';
 import { SettingsManager, normalizeSettings } from '../src/utils/SettingsManager.js';
 import { GuidanceController } from '../src/ui/GuidanceController.js';
 import { createCaravanUnit } from '../src/engine/CaravanSystem.js';
+import { loadGameData } from './testData.js';
 
 describe('Guidance levels', () => {
   it('Auto is Full for a new save and Light once a run has finished', () => {
@@ -339,6 +341,84 @@ describe('GuidanceController moments', () => {
     settings.getGuidance = () => 'full';
     scene.enemyUnits = [];
     expect(g.noTargetAttackReason(sera, [])).toBeNull();
+  });
+
+  describe('greyed Attack reach matches what targeting can strike', () => {
+    const gameData = loadGameData();
+    const weapon = (name) => structuredClone(gameData.weapons.find((w) => w.name === name));
+    const reason = (unit, extra = {}) => {
+      const { scene } = guidanceScene({ gameData: { skills: gameData.skills }, ...extra });
+      return new GuidanceController(scene).noTargetAttackReason(unit, []);
+    };
+    const unit = (inventory, proficiencies, over = {}) => ({
+      name: 'Test',
+      faction: 'player',
+      col: 1,
+      row: 1,
+      currentHP: 20,
+      stats: { HP: 20, MAG: 6 },
+      skills: [],
+      inventory,
+      weapon: inventory[0],
+      proficiencies,
+      ...over,
+    });
+
+    it('one weapon keeps its own range', () => {
+      const sword = weapon('Iron Sword');
+      expect(reason(unit([sword], [{ type: 'Sword', rank: 'Prof' }]))).toBe('No target in range 1');
+    });
+
+    it('two weapons: the distances either can strike, a gap written out', () => {
+      const sword = weapon('Iron Sword'); // 1
+      const bow = weapon('Iron Bow'); // 2
+      const profs = [
+        { type: 'Sword', rank: 'Prof' },
+        { type: 'Bow', rank: 'Prof' },
+        { type: 'Tome', rank: 'Mast' },
+      ];
+      expect(reason(unit([sword, bow], profs))).toBe('No target in range 1–2');
+      // Sword 1 + Breachbolt 3–10: nothing strikes at 2, so the reach is not "1–10".
+      expect(reason(unit([sword, weapon('Breachbolt')], profs))).toBe('No target in range 1, 3–10');
+    });
+
+    it('counts Foresight (+1 tome range), as combat does', () => {
+      const fire = weapon('Fire'); // 1–2
+      const mage = unit([fire], [{ type: 'Tome', rank: 'Prof' }], { skills: ['foresight'] });
+      expect(reason(mage)).toBe('No target in range 1–3');
+      mage.skills = [];
+      expect(reason(mage)).toBe('No target in range 1–2');
+    });
+
+    it('leaves out a weapon with no uses left', () => {
+      const fire = weapon('Fire'); // 1–2
+      const bolt = weapon('Breachbolt'); // 3–10, one use per battle
+      const profs = [{ type: 'Tome', rank: 'Mast' }];
+      const mage = unit([fire, bolt], profs);
+      expect(reason(mage)).toBe('No target in range 1–10');
+      bolt._usesSpent = 1;
+      expect(reason(mage)).toBe('No target in range 1–2');
+      // Nothing left to attack with: Fire Emblem's hidden Attack, not a wrong range.
+      expect(reason(unit([bolt], profs))).toBeNull();
+    });
+
+    it('writes merged spans', () => {
+      expect(reachFromRanges([{ min: 1, max: 1 }])).toBe('1');
+      expect(
+        reachFromRanges([
+          { min: 3, max: 10 },
+          { min: 1, max: 2 },
+        ]),
+      ).toBe('1–10');
+      expect(
+        reachFromRanges([
+          { min: 2, max: 3 },
+          { min: 1, max: 1 },
+          { min: 5, max: 5 },
+        ]),
+      ).toBe('1–3, 5');
+      expect(reachFromRanges([])).toBeNull();
+    });
   });
 
   it('never draws from Math.random', () => {

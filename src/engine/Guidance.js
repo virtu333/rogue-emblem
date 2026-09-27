@@ -110,16 +110,27 @@ export function noTargetReason(range) {
   return range ? `No target in range ${range}` : 'No target in range';
 }
 
-/** "1–2" / "1" from the unit's usable combat weapons, or null. */
-export function reachText(weapons = [], parse) {
-  let min = Infinity;
-  let max = 0;
-  for (const weapon of weapons) {
-    const range = parse ? parse(weapon?.range) : null;
-    if (!range) continue;
-    min = Math.min(min, range.min);
-    max = Math.max(max, range.max);
+/**
+ * The distances a unit can strike at, from each usable weapon's {min, max} range:
+ * "1", "1–3", or "1, 3–10" when the weapons leave a gap. Null without a range.
+ */
+export function reachFromRanges(ranges = []) {
+  const spans = ranges
+    .filter((r) => r && Number.isFinite(r.min) && Number.isFinite(r.max) && r.max >= r.min)
+    .map((r) => [Math.max(1, r.min), r.max])
+    .filter(([min, max]) => max >= min)
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const merged = [];
+  for (const [min, max] of spans) {
+    const last = merged[merged.length - 1];
+    if (last && min <= last[1] + 1) last[1] = Math.max(last[1], max);
+    else merged.push([min, max]);
   }
-  if (!Number.isFinite(min) || max <= 0) return null;
-  return min === max ? `${max}` : `${min}–${max}`;
+  if (!merged.length) return null;
+  return merged.map(([min, max]) => (min === max ? `${min}` : `${min}–${max}`)).join(', ');
+}
+
+/** "1–2" / "1" from weapons' listed ranges (no skill bonus), or null. */
+export function reachText(weapons = [], parse) {
+  return reachFromRanges(weapons.map((weapon) => (parse ? parse(weapon?.range) : null)));
 }

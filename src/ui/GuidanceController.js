@@ -21,8 +21,7 @@
 import { canInspectUnit } from '../engine/BattleInformation.js';
 import { findCommander } from '../engine/Commander.js';
 import { isRecruitNpc } from '../engine/RecruitNpc.js';
-import { parseRange } from '../engine/Combat.js';
-import { getCombatWeapons } from '../engine/UnitManager.js';
+import { getAttackRange, getAttackWeapons } from '../engine/AttackOptions.js';
 import {
   canUseStaff,
   guidanceAllows,
@@ -31,7 +30,7 @@ import {
   isVeteranMeta,
   noTargetReason,
   noteTier,
-  reachText,
+  reachFromRanges,
   resolveGuidance,
 } from '../engine/Guidance.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -86,11 +85,16 @@ export class GuidanceController {
     const s = this.scene;
     if (!unit || unit.faction !== 'player' || targets.length) return null;
     if (this.level() !== 'full') return null;
-    const weapons = getCombatWeapons(unit).filter((w) => w?.type !== 'Staff');
+    // The weapons and ranges targeting uses (BattleScene.findAttackTargets): proficient,
+    // not silenced, uses left, skill range bonuses (Foresight) included.
+    const weapons = getAttackWeapons(unit);
     if (!weapons.length) return null;
     const foes = (s.enemyUnits || []).some((e) => e.currentHP > 0 && canInspectUnit(s.grid, e));
     if (!foes) return null;
-    return noTargetReason(reachText(weapons, parseRange));
+    const skillsData = s.gameData?.skills || null;
+    return noTargetReason(
+      reachFromRanges(weapons.map((w) => getAttackRange(unit, w, { skillsData }))),
+    );
   }
 
   covered() {
