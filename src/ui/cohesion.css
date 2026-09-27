@@ -281,3 +281,58 @@ html.mobile-preview .re-screen {
   > .mobile-battle-hud {
   visibility: hidden;
 }
+
+/* ───────── Upright phones (portrait mode): Compendium / Help / How to play ─────────
+   ReferenceMenu turns master -> detail when html.portrait-ui is set in a portrait
+   orientation (portraitListLayout.js): the list fills the screen, an entry opens
+   full-width behind a Back button. Here: search gets its own full-width row, tab and
+   filter strips wrap instead of hiding tabs past the right edge, and the split is a
+   single column. Landscape and desktop never match these rules. */
+@media (orientation: portrait) {
+  html.portrait-ui .re-reference .re-header {
+    flex-wrap: wrap;
+    row-gap: var(--re-s2);
+  }
+  html.portrait-ui .re-reference .re-header h2 {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  html.portrait-ui .re-reference .re-header > .re-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  html.portrait-ui .re-reference .re-header .re-search {
+    order: 3;
+    flex: 1 1 100%;
+    width: auto;
+    margin-left: 0;
+    min-height: var(--re-tap);
+  }
+  html.portrait-ui .re-reference .re-header .re-search input {
+    min-height: var(--re-tap);
+  }
+  html.portrait-ui .re-reference .re-tabs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+  html.portrait-ui .re-reference .re-tabs .re-btn {
+    white-space: nowrap;
+  }
+  html.portrait-ui .re-reference .re-split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: stretch;
+  }
+  html.portrait-ui .re-reference[data-ref-view='list'] .re-split {
+    grid-template-rows: minmax(0, 1fr);
+  }
+  html.portrait-ui .re-reference .re-reference-back {
+    justify-self: start;
+    min-width: 96px;
+    white-space: nowrap;
+  }
+  html.portrait-ui .re-reference .re-footer .re-btn {
+    flex: 1 1 0;
+    white-space: nowrap;
+  }
+}

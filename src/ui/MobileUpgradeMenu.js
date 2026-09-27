@@ -49,7 +49,7 @@ export class MobileUpgradeMenu {
     this.previousFocus = document.activeElement;
     this.previousInput = this.scene.input.enabled;
     this.scene.input.enabled = false;
-    this.root = node('section', 'mu-screen');
+    this.root = node('section', 'mu-screen mu-upgrades');
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-label', 'Army upgrades');
