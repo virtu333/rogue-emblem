@@ -296,6 +296,14 @@ export class InputController {
 
     this.cancelTouchInspectHold();
     let clickPos = null;
+    if (scene._isTouchPointer(pointer) && !scene._touchTapDown) {
+      // A finger lifting with no press on record is not a tap: the press landed before
+      // this battle took input (a scene restart or orientation re-open under a held
+      // finger) or while story input was locked (dialogue, a ceremony, turn start).
+      // Its lift position names whatever tile is there now. Mouse clicks are unchanged.
+      scene._touchHoldTriggered = false;
+      return;
+    }
     if (scene._isTouchPointer(pointer) && scene._touchTapDown) {
       if (scene._touchHoldTriggered) {
         scene._touchHoldTriggered = false;

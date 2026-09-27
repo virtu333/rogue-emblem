@@ -189,6 +189,19 @@
 .battlefield-lab .re-modal-shield:has(.re-tutorial-note) {
   right: calc(clamp(222px, 24vw, 240px) + env(safe-area-inset-right));
 }
+/* Upright the rail runs along the bottom (portraitBattle.css): the note spans the map's
+   width and sits on the rail's top edge. The side inset left it ~150px wide, and the
+   note spilled out of it over the rail. */
+@media (orientation: portrait) {
+  html.touch-ui.portrait-battle-capable .battlefield-lab .re-modal-shield:has(.re-tutorial-note) {
+    right: 0;
+    bottom: calc(var(--pb-rail-h, 0px) + env(safe-area-inset-bottom));
+  }
+  html.touch-ui.portrait-battle-capable .battlefield-lab .re-tutorial-note.re-compact-menu {
+    margin-bottom: 8px;
+    max-height: min(42dvh, calc(100% - 16px - env(safe-area-inset-top)));
+  }
+}
 .re-tutorial-note .re-header h2::before {
   content: '◆ ';
   color: var(--re-accent);

@@ -150,6 +150,11 @@
 .mb-enemy {
   border-top-color: var(--re-bad);
 }
+/* A forecast side's name and HP line: no box of its own here (the upright sheet lays
+   them out on one row, portraitBattle.css). */
+.mb-forecast-who {
+  display: contents;
+}
 .mb-forecast-side h3 {
   margin: 4px 0 2px;
   font-size: 19px;

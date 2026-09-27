@@ -1,8 +1,10 @@
 /* Portrait battles — PortraitBattleController sets the classes on <html>.
    portrait-battle-capable: this battle can be played upright. The rotate prompt stays
-   away for its whole length (deployment and rewards still ask for landscape) and the
-   layout follows the phone at once; the upright board itself (class portrait-battle)
-   follows at the player's next safe moment. */
+   away for its whole length and the layout follows the phone at once; the upright board
+   itself (class portrait-battle) follows at the player's next safe moment. Before the
+   battle begins (the deploy menu) and after it (rewards) portrait mode's own class,
+   portrait-ui, keeps the page upright; the board's orientation is chosen when Deploy
+   begins the battle, so Formation and turn 1 open on the board the phone asks for. */
 
 /* Portrait mode (utils/portraitBattle.js installPortraitUi): the whole page follows an
    upright phone, so the rotate prompt never shows. */
@@ -11,6 +13,24 @@
   html.portrait-battle-capable #rotate-prompt {
     display: none !important;
   }
+}
+
+/* The side-objective line under the objective (MobileBattleHUD): shown on the upright
+   rail only (below); the landscape rail keeps its layout. */
+.mb-objective-status {
+  display: none;
+}
+.mb-objective-part.is-open {
+  color: var(--re-text);
+}
+.mb-objective-part.is-good {
+  color: var(--re-good);
+}
+.mb-objective-part.is-warn {
+  color: var(--re-warn);
+}
+.mb-objective-part.is-bad {
+  color: var(--re-bad);
 }
 
 /* Layout switch pending (phone turned mid-action): a quiet line over the map. */
@@ -54,7 +74,9 @@
       'speed speed'
       'body body'
       'dock tools';
-    gap: 4px 8px;
+    /* Rows are spaced by their items' margins, not a row gap: an empty row (no unit,
+       no tile, no speed control) then costs nothing, and the commands keep its height. */
+    gap: 0 8px;
     padding: 6px 8px 6px;
     border-left: 0;
     border-top: 2px solid var(--re-line);
@@ -63,24 +85,89 @@
     grid-area: phase;
     align-self: start;
     min-width: 0;
+    margin-bottom: 4px;
   }
   html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-objective-slot {
     grid-area: objective;
+    align-self: start;
     min-width: 0;
+    margin-bottom: 4px;
   }
   html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-summary {
     grid-area: summary;
+    align-self: start;
     min-width: 0;
+    margin-bottom: 4px;
   }
   html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-terrain-slot {
     grid-area: terrain;
+    align-self: start;
     min-width: 0;
+    margin-bottom: 4px;
   }
   html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-button:not(.mb-objective) {
     grid-area: speed;
+    margin-bottom: 4px;
   }
   html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-body {
     grid-area: body;
+    margin-bottom: 4px;
+  }
+  /* A row with nothing in it (idle: no unit; a unit with no tile to read) takes no
+     room, and the one beside it spans the rail: a tile read at idle is one line. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-summary:empty,
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-terrain-slot:empty {
+    display: none;
+  }
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud:has(> .mb-summary:empty)
+    > .mb-terrain-slot,
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud:has(> .mb-terrain-slot:empty)
+    > .mb-summary {
+    grid-column: 1 / -1;
+  }
+  /* The tile's facts flow as one line where they fit (name, move, defence), wrapping
+     whole phrases; the threat reading and the terrain help take their own lines. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-terrain {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 6px;
+  }
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-terrain > span {
+    white-space: nowrap;
+  }
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-terrain > .mb-threat-line,
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-terrain > .mb-terrain-help {
+    flex: 1 1 100%;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* While a unit is chosen, moving or acting (MobileBattleHUD unitFocusedRail) the
+     header is that unit and its tile: the turn and objective row yields its ~50px so a
+     unit's commands, an Equip or Item list, a target list or the tile choice with its
+     Cancel fit the short rail. The turn and objective return with the idle rail. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud.is-acting > .mb-phase,
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud.is-acting > .mb-objective-slot {
+    display: none;
+  }
+
+  /* Side objectives under the main one (village, caravan): the compact objective keeps
+     only its first line, so without this they showed only in the objective popover. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-objective-status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 10px;
+    margin: 3px 0 0;
+    font: 600 11px/1.3 var(--re-body);
+  }
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-objective-part {
+    white-space: nowrap;
   }
   html.portrait-battle-capable .battlefield-lab .mobile-battle-hud > .mb-dock {
     grid-area: dock;
@@ -117,14 +204,17 @@
      mid-word. Wait takes the wider share and Danger becomes a fifth tool cell (swatch
      over its name, like Overview … Menu), so the bottom edge reads as one row of six
      whole labels. Its state stays on the plate: crimson when shown, ringed when pinned. */
-  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-dock.has-pinned {
+  /* Formation's dock is laid out the same way: Start battle takes the wider share and
+     Danger is the tool cell. Split evenly it broke "Dan / ger" mid-word. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-dock.has-pinned,
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-dock.is-formation {
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
     gap: 3px;
   }
   html.portrait-battle-capable
     .battlefield-lab
     .mobile-battle-hud
-    .mb-dock.has-pinned
+    .mb-dock:is(.has-pinned, .is-formation)
     .mb-danger-toggle.is-compact {
     flex-direction: column;
     justify-content: center;
@@ -135,17 +225,44 @@
   html.portrait-battle-capable
     .battlefield-lab
     .mobile-battle-hud
-    .mb-dock.has-pinned
+    .mb-dock:is(.has-pinned, .is-formation)
     .mb-danger-toggle.is-compact
     .mb-danger-text
     strong {
     font: 700 10px/1.1 var(--re-body);
     white-space: nowrap;
   }
-  /* The upright rail's command list is always short (~80–160px, like a short landscape
-     rail): the "tap a blue tile" reminder yields its row to the commands. */
-  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud.in-menu .mb-body > .mb-detail {
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-dock.is-formation .fm-start {
+    padding-inline: 4px;
+    line-height: 1.15;
+  }
+  /* The upright rail's command list is always short (~110–200px, like a short
+     landscape rail): in a unit's own menu the "tap a blue tile" reminder yields its row
+     to the commands. A submenu keeps its notes: "Using an item ends this unit's action"
+     and the one-time "Hold a row for its full details" explain the list below them. */
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud.in-menu:not(.in-submenu)
+    .mb-body
+    > .mb-detail {
     display: none;
+  }
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud.in-submenu
+    .mb-body
+    > .mb-detail {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  /* Formation's waiting units: the upright rail is ~360px wide, so each chip (two
+     across) has room for the class line the narrow landscape rail hides. It carries
+     the "· Unarmed" mark (#141), so a unit that cannot fight is known before it is
+     placed. A long line ellipsises; the chip's label keeps it whole. */
+  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .fm-chip-text small {
+    display: block;
   }
 
   /* Battle details opens over the map. Landscape anchors it left of the side rail; the
@@ -162,9 +279,55 @@
     box-sizing: border-box;
   }
 
-  /* Actions: three across, so five commands never hide below a scroll. */
-  html.portrait-battle-capable .battlefield-lab .mobile-battle-hud .mb-actions {
+  /* A unit's commands: three across, so six fit two rows. A greyed command that says
+     why (Attack: "No target in range 1–2", "Unarmed: no weapon to attack with") takes a
+     whole row, its reason on one line, instead of a three-line cell, and follows the
+     commands the unit can use: at 375x667 it pushed Trade and Swap under the fold.
+     (Disabled rows are never focus targets, so keyboard and pad order is unchanged.) */
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud
+    .mb-actions:not(.mb-submenu, .mb-targets, .mb-heal-targets) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud
+    .mb-actions:not(.mb-submenu, .mb-targets, .mb-heal-targets)
+    > .mb-button:has(> .mb-item-summary) {
+    grid-column: 1 / -1;
+  }
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud
+    .mb-actions:not(.mb-submenu, .mb-targets, .mb-heal-targets)
+    > .mb-button:disabled:has(> .mb-item-summary) {
+    order: 1;
+  }
+  /* Lists (Equip, Item, a staff or art pick, attack and heal targets): one full-width
+     row each, read left to right like every other list upright: icon and name, then
+     the brief ("Mt 5 · Hit 65 · Rng 1-2 ✦" / "Attack speed 5 (−2)", "HP 12/20 → 20/20
+     (+8)"). Three ~117px columns cut the briefs and ellipsised the notes. */
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud
+    .mb-actions:is(.mb-submenu, .mb-targets, .mb-heal-targets) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud
+    .mb-actions:is(.mb-submenu, .mb-targets, .mb-heal-targets)
+    > .mb-button {
+    padding: 6px 10px;
+    text-align: left;
+  }
+  html.portrait-battle-capable
+    .battlefield-lab
+    .mobile-battle-hud
+    .mb-actions:is(.mb-submenu, .mb-targets, .mb-heal-targets)
+    .mb-item-summary {
+    margin-top: 2px;
   }
 
   /* Forecast: a bottom sheet. Cancel / Confirm sit under the thumb and the top of the
@@ -177,22 +340,102 @@
     max-height: min(78dvh, 100%);
   }
 
-  /* Each forecast column is ~150px wide upright: the weapon / target name takes its
-     own line above the ◀ ▶ steps instead of being squeezed between them. */
-  html.portrait-battle-capable .mb-forecast .mb-stepper {
+  /* The two sides stack, one full-width row per combatant: side by side each was
+     ~150px, so "Damage × hits" broke over two lines, "HP 20 / 20 → 9" wrapped under the
+     portrait and the four numbers fell into a 2×2 block. Stacked, the four numbers
+     (Damage × hits, Hit, Crit, AS) share one row per side and line up with the other
+     side's, like a table, and the ◀ weapon ▶ stepper is one row again. */
+  html.portrait-battle-capable .mb-forecast .mb-forecast-sides {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  html.portrait-battle-capable .mb-forecast .mb-forecast-side {
+    padding: 8px 10px;
+  }
+  /* Name and HP (with its projected result) share one line beside the portrait; a long
+     name pushes the HP to the next line whole. */
+  html.portrait-battle-capable .mb-forecast .mb-forecast-who {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 10px;
+  }
+  html.portrait-battle-capable .mb-forecast .mb-forecast-side h3 {
+    min-width: 0;
+    margin: 1px 0;
+    font-size: 17px;
+  }
+  html.portrait-battle-capable .mb-forecast .mb-forecast-side .mb-portrait {
+    width: 36px;
+    height: 36px;
+    margin: 0 0 2px 8px;
+  }
+  html.portrait-battle-capable .mb-forecast .mb-forecast-side .mb-hp {
+    margin: 0;
+    white-space: nowrap;
+  }
+  html.portrait-battle-capable .mb-forecast .mb-stats {
+    grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(0, 1fr)) minmax(0, 0.7fr);
+    margin: 6px 0;
+  }
+  html.portrait-battle-capable .mb-forecast .mb-stats dt {
+    white-space: nowrap;
+  }
+  /* A tutorial lesson over the forecast (tutorialForecastLayout.js) shows only the numbers
+     it teaches, in the strip between the top and the lesson note: there the two sides
+     stay side by side, so both sides' lesson numbers fit above the note. */
+  html.portrait-battle-capable .mb-tutorial-forecast .mb-forecast .mb-forecast-sides {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas:
-      'value value'
-      'prev next';
   }
-  html.portrait-battle-capable .mb-forecast .mb-stepper > .mb-step:first-child {
-    grid-area: prev;
+  html.portrait-battle-capable .mb-tutorial-forecast .mb-forecast .mb-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  html.portrait-battle-capable .mb-forecast .mb-stepper > .mb-step-value {
-    grid-area: value;
+  html.portrait-battle-capable .mb-tutorial-forecast .mb-forecast .mb-stats dt {
+    white-space: normal;
   }
-  html.portrait-battle-capable .mb-forecast .mb-stepper > .mb-step:last-child {
-    grid-area: next;
+
+  /* A skill that changes the numbers (details.mb-modifier, "Sol", "Luna"…): a 44px row
+     naming it; opening it explains what it does here. */
+  html.portrait-battle-capable .mb-forecast details.mb-modifier {
+    margin: 4px 0 0;
+    border-top: 1px solid var(--re-line-soft);
+  }
+  html.portrait-battle-capable .mb-forecast details.mb-modifier > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: var(--re-tap);
+    color: var(--re-text);
+    font: 600 13px/1.25 var(--re-body);
+    cursor: pointer;
+    list-style: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html.portrait-battle-capable .mb-forecast details.mb-modifier > summary::-webkit-details-marker {
+    display: none;
+  }
+  html.portrait-battle-capable .mb-forecast details.mb-modifier > summary::before {
+    content: '';
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-right: 2px solid var(--re-accent);
+    border-bottom: 2px solid var(--re-accent);
+    transform: rotate(-45deg);
+  }
+  html.portrait-battle-capable .mb-forecast details.mb-modifier[open] > summary::before {
+    transform: rotate(45deg);
+  }
+  html.portrait-battle-capable .mb-forecast details.mb-modifier > summary:focus-visible {
+    outline: 2px solid var(--re-gold);
+    outline-offset: -2px;
+  }
+  html.portrait-battle-capable .mb-forecast details.mb-modifier > p {
+    margin: 0 0 6px 14px;
+    color: var(--re-muted);
+    font-size: 12px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
   }
 
   /* The level-up card's upright layout lives with the card (growth.css, "Upright

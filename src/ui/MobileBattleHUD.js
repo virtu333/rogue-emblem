@@ -4,7 +4,12 @@ import { ContextHelp } from './ContextHelp.js';
 import { renderFormationPanel, startButton } from './FormationPanel.js';
 import { objectiveHelp, terrainHelp } from './helpTopics.js';
 import { locateUnit, nextReadyUnit, readyUnits } from './UnitLocator.js';
-import { compactBattleObjective, sidebarCounters } from './battleSidebarDisplay.js';
+import {
+  compactBattleObjective,
+  secondaryObjectiveStatus,
+  sideObjectiveInputs,
+  sidebarCounters,
+} from './battleSidebarDisplay.js';
 import { battlePlace } from './placeDisplay.js';
 import { bindHoldBattleSpeed, canHoldBattleSpeed } from './HoldBattleSpeed.js';
 import { syncTutorialForecastLayout } from './tutorialForecastLayout.js';
@@ -141,6 +146,25 @@ export function uprightBattleRail(env = globalThis) {
   } catch {
     return false;
   }
+}
+
+// A unit is being moved or acted with: the upright rail gives its header to that unit
+// (portraitBattle.css hides the turn and objective row) so its commands, lists and
+// the tile it chose fit the short strip without a scroll.
+const UNIT_FOCUS_STATES = new Set([
+  'UNIT_SELECTED',
+  'UNIT_MOVING',
+  'UNIT_ACTION_MENU',
+  'CANTO_MOVING',
+  'SHOWING_FORECAST',
+  'CONFIRMING_ATTACK',
+]);
+
+/** The rail is about one unit's action (its header yields to it on the upright rail). */
+export function unitFocusedRail({ state = '', selected = false, menu = false } = {}) {
+  if (!selected) return false;
+  if (state === 'UNIT_ACTION_MENU') return Boolean(menu);
+  return UNIT_FOCUS_STATES.has(state) || state.startsWith('SELECTING_');
 }
 
 // A view over BattleScene's existing actions. Combat calculations and move rules
@@ -508,7 +532,11 @@ export class MobileBattleHUD {
         side.append(portrait);
       }
     }
-    side.append(el('h3', '', unit.name));
+    // The name and HP line share a wrapper: `display: contents` on the landscape sheet
+    // (unchanged layout); the upright sheet sets them on one row (portraitBattle.css).
+    const who = el('div', 'mb-forecast-who');
+    who.append(el('h3', '', unit.name));
+    side.append(who);
     const projection = forecastProjection(config.forecast);
     const hpAfter = projection ? (attacking ? projection.attackerHP : projection.defenderHP) : null;
     const hp = el('div', 'mb-hp', `HP ${unit.currentHP} / ${unit.stats.HP}`);
@@ -521,7 +549,7 @@ export class MobileBattleHUD {
           hpAfter === 0 ? ' → KO' : ` → ${hpAfter}`,
         ),
       );
-    side.append(hp);
+    who.append(hp);
     side.append(
       createHealthBar(
         unit,
@@ -768,8 +796,11 @@ export class MobileBattleHUD {
     const remaining = (s.playerUnits || []).filter((u) => u.currentHP > 0 && !u.hasActed).length;
     const threat = s._threatSight?.current || null;
     const upright = uprightBattleRail();
+    // Village and caravan: the compact objective keeps only the main line (upright shows these).
+    const sideStatus = secondaryObjectiveStatus(sideObjectiveInputs(s, (this._sideMemory ||= {})));
     const key = JSON.stringify([
       upright,
+      sideStatus.map((part) => part.text),
       threat ? [threat.col, threat.row, threat.result?.count, threat.result?.status?.length] : null,
       state,
       turn,
@@ -858,6 +889,15 @@ export class MobileBattleHUD {
     );
     objective.append(el('span', 'mb-info-cue', 'ⓘ'));
     this.objective.append(objective);
+    if (sideStatus.length) {
+      const status = el('p', 'mb-objective-status');
+      for (const part of sideStatus) {
+        const chip = el('span', `mb-objective-part is-${part.tone}`, part.text);
+        chip.dataset.objective = part.id;
+        status.append(chip);
+      }
+      this.objective.append(status);
+    }
     this.terrain.replaceChildren();
     this.summary.replaceChildren();
     if (s._inputController?._planningInspection && s.selectedUnit) {
@@ -955,6 +995,15 @@ export class MobileBattleHUD {
     this._scrollKey = scrollKey;
     this.root.classList.toggle('has-unit', Boolean(unit));
     this.root.classList.toggle('in-menu', state === 'UNIT_ACTION_MENU' && Boolean(this.menu));
+    // A submenu (Equip, Item, a staff or art pick) lists rows with stat briefs.
+    this.root.classList.toggle(
+      'in-submenu',
+      state === 'UNIT_ACTION_MENU' && Boolean(this.menu) && Boolean(s.inEquipMenu),
+    );
+    this.root.classList.toggle(
+      'is-acting',
+      unitFocusedRail({ state, selected: Boolean(s.selectedUnit), menu: Boolean(this.menu) }),
+    );
     this.syncDock(state, pinned, endTurnDocked);
     queueMicrotask(() => {
       if (!this.body.isConnected) return;
