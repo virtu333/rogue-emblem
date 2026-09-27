@@ -223,3 +223,91 @@ test('AOE confirm clears preview on Back and healing circle can complete', async
   expect(await page.evaluate(() => window.testUnit.currentHP)).toBeGreaterThan(1);
   expect(errors).toEqual([]);
 });
+
+test('heal rows preview HP, Back cancels, and repeated taps spend only one staff use', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  const { hud, errors } = await boot(page);
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.registry.get('settings')?.setHints?.(false);
+    s.hideActionMenu();
+    const healer = window.testUnit;
+    const target = s.playerUnits.find((u) => u !== healer);
+    healer.stats.MAG = 1;
+    target.stats.HP = 20;
+    target.currentHP = 12;
+    const staff = {
+      ...s.gameData.weapons.find((w) => w.name === 'Heal'),
+      uses: 4,
+      maxUses: 4,
+      healBase: 5,
+    };
+    healer.inventory.push(staff);
+    s.startHealTargetSelection(healer, [target], staff);
+    window.healCase = { healer, target, staff };
+  });
+  let row = hud.getByRole('group', { name: 'Heal targets' }).getByRole('button');
+  await expect(row).toContainText('HP 12/20 → 18/20 (+6)');
+  await expect(hud).not.toContainText('Cancel to go back');
+  await hud.getByRole('button', { name: 'Back', exact: true }).click();
+  expect(
+    await page.evaluate(() => ({
+      hp: window.healCase.target.currentHP,
+      uses: window.healCase.staff.uses - (window.healCase.staff._usesSpent || 0),
+    })),
+  ).toEqual({ hp: 12, uses: 4 });
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.hideActionMenu();
+    const { healer, target, staff } = window.healCase;
+    s.startHealTargetSelection(healer, [target], staff);
+  });
+  await expect(row).toContainText('HP 12/20 → 18/20 (+6)');
+  await row.evaluate((b) => {
+    b.click();
+    b.click();
+  });
+  await expect.poll(() => page.evaluate(() => window.healCase.healer.hasActed)).toBe(true);
+  expect(
+    await page.evaluate(() => ({
+      hp: window.healCase.target.currentHP,
+      uses: window.healCase.staff.uses - (window.healCase.staff._usesSpent || 0),
+    })),
+  ).toEqual({ hp: 18, uses: 3 });
+  expect(errors).toEqual([]);
+});
+
+test('Cure rows name the removed conditions without promising HP', async ({ page }) => {
+  const { hud, errors } = await boot(page);
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.registry.get('settings')?.setHints?.(false);
+    s.hideActionMenu();
+    const healer = window.testUnit;
+    const target = s.playerUnits.find((u) => u !== healer);
+    target.currentHP = target.stats.HP;
+    target._conditions = [{ id: 'sleep', turnsLeft: 2 }];
+    const staff = { ...s.gameData.weapons.find((w) => w.name === 'Heal'), cureConditions: true };
+    healer.inventory.push(staff);
+    s.startHealTargetSelection(healer, [target], staff);
+    window.cureCase = { healer, target, staff, hp: target.currentHP };
+  });
+  const row = hud.getByRole('group', { name: 'Heal targets' }).getByRole('button');
+  await expect(row).toContainText(/Cure: removes Sleep/i);
+  await expect(row).not.toContainText('HP');
+  await row.tap();
+  await expect.poll(() => page.evaluate(() => window.cureCase.healer.hasActed)).toBe(true);
+  expect(
+    await page.evaluate(() => {
+      const { target, staff, hp } = window.cureCase;
+      return {
+        conditions: target._conditions,
+        unchangedHp: target.currentHP === hp,
+        spent: staff._usesSpent,
+      };
+    }),
+  ).toEqual({ conditions: [], unchangedHp: true, spent: 1 });
+  expect(errors).toEqual([]);
+});

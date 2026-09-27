@@ -117,7 +117,7 @@ test('timeline preview is free; cancellation preserves action; confirmed rewind 
     await view.getByRole('button', { name: 'History', exact: true }).tap();
   await view.locator('.bt-entry').first().tap();
   await view.getByRole('button', { name: 'Rewind… · 1 charge', exact: true }).tap();
-  await confirm.getByRole('button', { name: 'Spend 1 rewind', exact: true }).tap();
+  await confirm.getByRole('button', { name: 'Spend 1 Vision', exact: true }).tap();
   await expect(view).toHaveCount(0);
   await expect
     .poll(() =>
@@ -181,7 +181,7 @@ test('zero charges still allows review, rotation and return to landscape, and ke
   if (!(await view.locator('.bt-entry').first().isVisible()))
     await view.getByRole('button', { name: 'History', exact: true }).tap();
   await view.locator('.bt-entry').first().tap();
-  await expect(view.locator('.bt-reason')).toContainText('No rewind charges');
+  await expect(view.locator('.bt-reason')).toContainText('No Visions');
   await expect(view.locator('.bt-rewind')).toBeDisabled();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: '/tmp/battle-timeline-portrait.png' });

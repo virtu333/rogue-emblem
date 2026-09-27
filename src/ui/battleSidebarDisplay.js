@@ -17,5 +17,5 @@ export function compactBattleObjective(text = 'Battle') {
 }
 export function sidebarCounters(turnText, charges) {
   const par = String(turnText || '').match(/Par:\s*(\d+)\s*\(([^)]+)\)/);
-  return `${par ? `Par ${par[1]} · ${par[2]} | ` : ''}Rewinds ${Math.max(0, Math.trunc(charges || 0))}`;
+  return `${par ? `Par ${par[1]} · ${par[2]} | ` : ''}Visions ${Math.max(0, Math.trunc(charges || 0))}`;
 }

@@ -11,7 +11,12 @@ import {
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
-import { formatPerkMods, MASTERY_HELP, proficiencyLabel } from './rosterDisplay.js';
+import {
+  formatPerkMods,
+  MASTERY_HELP,
+  proficiencyLabel,
+  rankRequirementText,
+} from './rosterDisplay.js';
 import { ContextHelp, helpPreview } from './ContextHelp.js';
 import { attributesHelp, combatBaselineHelp, convoyHelp, WEAPON_ARTS_HELP } from './helpTopics.js';
 import { attachInfo, holdTip } from './infoAffordance.js';
@@ -603,7 +608,13 @@ export class MobileRosterSheet {
     };
     const sourceLabel = (source) =>
       ({ meta_innate: 'Meta Innate', scroll: 'Scroll', innate: 'Innate' })[source] || 'Innate';
-    const flow = { weapon: null, replacement: null, weaponScroll: 0, replacementScroll: 0 };
+    const flow = {
+      weapon: null,
+      replacement: null,
+      bound: false,
+      weaponScroll: 0,
+      replacementScroll: 0,
+    };
     const openStep = (options, onApplied, onBack, scrollKey) => {
       if (this.destroyed) return;
       let committed = false;
@@ -618,6 +629,7 @@ export class MobileRosterSheet {
           return result;
         },
         onClose: () => {
+          if (scrollKey === 'replacementScroll') flow.replacement = this.picker?.selected;
           this.picker = null;
           if (this.destroyed) return;
           if (committed) onApplied?.();
@@ -640,31 +652,13 @@ export class MobileRosterSheet {
         );
       }
     };
-    const showConfirm = () => {
-      const { unit, weapon } = flow.weapon;
-      const replacement = flow.replacement;
-      const old = replacement ? arts.find((a) => a.id === replacement.id) : null;
-      openStep(
-        {
-          title: old ? `Replace ${old.name}?` : 'Bind weapon art',
-          choices: [weapon],
-          confirmation: true,
-          label: (w) => w.name,
-          describe: () =>
-            `${unit.name} · Uses one ${scroll.name} on Confirm. Back uses nothing.${replacement ? `\nReplaces ${sourceLabel(replacement.source)} art ${old?.name || replacement.id}.` : ''}`,
-          preview: () =>
-            `${replacement ? `REMOVE\n${artDescription(replacement.id, unit)}\n\n` : ''}ADD\n${artDescription(scroll.teachesWeaponArtId?.trim(), unit)}`,
-          blocked: () => rosterArtBlock(this.run, unit, weapon, scroll, arts),
-          apply: () => {
-            const result = bindRosterArt(this.run, unit, weapon, scroll, arts, replacement);
-            if (result.ok)
-              this.render(`${scroll.name} bound to ${weapon.name}.${this.persistNow()}`);
-            return result;
-          },
-        },
-        () => this.root.querySelector('button')?.focus(),
-        replacement ? showReplacement : showWeapons,
-      );
+    const bind = (unit, weapon, replacement = null) => {
+      const result = bindRosterArt(this.run, unit, weapon, scroll, arts, replacement);
+      if (result.ok) {
+        flow.bound = true;
+        this.render(`${scroll.name} bound to ${weapon.name}.${this.persistNow()}`);
+      }
+      return result;
     };
     const showReplacement = () => {
       const { unit, weapon } = flow.weapon;
@@ -673,22 +667,24 @@ export class MobileRosterSheet {
       openStep(
         {
           title: 'Choose art to replace',
+          confirmLabel: 'Replace',
           choices: bindings,
           initialChoice: bindings.find(
             (b) =>
               b.index === previous?.index && b.id === previous.id && b.source === previous.source,
           ),
           label: (b) => arts.find((a) => a.id === b.id)?.name || b.id,
-          describe: (b) => `Slot ${b.index + 1} · ${sourceLabel(b.source)}`,
+          describe: (b) =>
+            `Slot ${b.index + 1} · ${sourceLabel(b.source)}. Uses one ${scroll.name} on Replace. Back uses nothing.`,
           preview: (b) =>
             `REMOVE\n${artDescription(b.id, unit)}\n\nADD\n${artDescription(scroll.teachesWeaponArtId?.trim(), unit)}`,
           blocked: () => rosterArtBlock(this.run, unit, weapon, scroll, arts),
           apply: (choice) => {
             flow.replacement = choice;
-            return { ok: true };
+            return bind(unit, weapon, choice);
           },
         },
-        showConfirm,
+        () => this.root.querySelector('button')?.focus(),
         showWeapons,
         'replacementScroll',
       );
@@ -700,19 +696,23 @@ export class MobileRosterSheet {
           choices,
           initialChoice: flow.weapon,
           label: (c) => `${c.unit.name} · ${c.weapon.name}`,
-          describe: (c) => `${getWeaponArtBindings(c.weapon).length}/3 art slots`,
+          describe: (c) =>
+            `${getWeaponArtBindings(c.weapon).length}/3 art slots. ${getWeaponArtBindings(c.weapon).length < 3 ? `Uses one ${scroll.name} on Confirm. Back uses nothing.` : 'Next: choose an art to replace.'}`,
+          preview: (c) => artDescription(scroll.teachesWeaponArtId?.trim(), c.unit),
           blocked: (c) => rosterArtBlock(this.run, c.unit, c.weapon, scroll, arts),
           apply: (choice) => {
             if (flow.weapon !== choice) flow.replacement = null;
             flow.weapon = choice;
-            return { ok: true };
+            return getWeaponArtBindings(choice.weapon).length < 3
+              ? bind(choice.unit, choice.weapon)
+              : { ok: true };
           },
         },
         () => {
-          if (getWeaponArtBindings(flow.weapon.weapon).length >= 3) showReplacement();
+          if (!flow.bound) showReplacement();
           else {
             flow.replacement = null;
-            showConfirm();
+            this.root.querySelector('button')?.focus();
           }
         },
         null,
@@ -749,7 +749,7 @@ export class MobileRosterSheet {
       (target) => {
         if (item.type === 'Consumable') return `${target.consumables?.length || 0}/3 supplies`;
         if (!canEquip(target, item))
-          return `Needs ${item.type} ${item.rankRequired || 'Prof'} · ${target.inventory.length}/5 items`;
+          return `${rankRequirementText(item.type, item.rankRequired)} · ${target.inventory.length}/5 items`;
         return `Can equip · AS ${getStaticCombatStats(target, target.weapon).as} → ${getStaticCombatStats(target, item).as} if equipped · ${target.inventory.length}/5 items`;
       },
     );

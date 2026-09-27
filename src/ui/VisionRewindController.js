@@ -1,3 +1,4 @@
+import { visionLabel } from './visionLabel.js';
 import { BattleHistorySession } from './BattleHistorySession.js';
 import { observeHistoryAction, resetHistoryRecording } from './BattleHistoryRecorder.js';
 import { fingerprintChanges, rewindFingerprint } from './BattleTimelineRecorder.js';
@@ -463,7 +464,7 @@ export class VisionRewindController {
     const intent = this.createRewindIntent(scene.visionSnapshot);
     this.showDialog({
       title: 'Foresee a different path?',
-      body: `Spend 1 rewind to return to the start of player turn ${scene.visionSnapshot.turnNumber}?\n(${remaining} left this run)`,
+      body: `Spend 1 Vision to rewind to the start of player turn ${scene.visionSnapshot.turnNumber}?\n(${remaining} left this run)`,
       confirmLabel: 'Confirm',
       cancelLabel: 'Cancel',
       onConfirm: () => this.executeRewind(intent.target, null, intent),
@@ -637,8 +638,8 @@ export class VisionRewindController {
         this.closeDialog();
         this.showDialog({
           title: 'Rewind to this point?',
-          body: `Return to turn ${target.turnNumber}, ${row.kind === 'turn_start' ? 'start of player phase' : 'right after this player action'}?${row.preview?.enemiesActNext ? ' Enemies will act next.' : ''} This spends 1 rewind charge. Later actions will be removed.`,
-          confirmLabel: 'Spend 1 rewind',
+          body: `Return to turn ${target.turnNumber}, ${row.kind === 'turn_start' ? 'start of player phase' : 'right after this player action'}?${row.preview?.enemiesActNext ? ' Enemies will act next.' : ''} This spends 1 Vision. Later actions will be removed.`,
+          confirmLabel: 'Spend 1 Vision',
           cancelLabel: 'Back',
           onConfirm: () => this.executeRewind(target, branch, intent),
           onCancel: () => this.openTimeline({ fatal, fromRewind }),
@@ -758,7 +759,7 @@ export class VisionRewindController {
     this._rewindFatalOrigin = true;
     const intent = usableAnchor ? this.createRewindIntent(anchor) : null;
     const fallen = this.scene._battleCommanderName || 'Your commander';
-    const charges = `${remaining} rewind${remaining === 1 ? '' : 's'} left this run`;
+    const charges = `${remaining} Vision${remaining === 1 ? '' : 's'} left this run`;
     this.showDialog({
       fate: {
         fallen: this._fallenCommander(),
@@ -814,6 +815,11 @@ export class VisionRewindController {
       scene.visionDialog = { group: [], prevState, onConfirm, onCancel, dismissible };
       const surface = new MenuSurface(scene, title, () => this.dismissDialog(), { modal: true });
       scene.visionDialog.surface = surface;
+      if (!fate) {
+        surface.root.style.height = 'auto';
+        surface.root.style.maxHeight = 'calc(100dvh - 32px)';
+        surface.root.style.width = 'min(540px, calc(100vw - 32px))';
+      }
       const headerButton = surface.header.querySelector('button');
       const confirm = button(confirmLabel, () => this.confirmDialog(), 're-btn re-btn--primary');
       confirm.dataset.visionAction = 'confirm';
@@ -1005,7 +1011,7 @@ export class VisionRewindController {
         this.lastRewindError = result.reason;
         this.showDialog({
           title: 'Rewind was not saved',
-          body: 'The battle and your rewind charge are unchanged. Try again or return to the battle.',
+          body: 'The battle and your Vision charge are unchanged. Try again or return to the battle.',
           confirmLabel: 'Retry',
           cancelLabel: 'Cancel',
           onConfirm: () => this.executeRewind(target, history, intent),
@@ -1111,7 +1117,9 @@ export class VisionRewindController {
   updateHud() {
     if (!this.scene.visionHudText) return;
     const charges = this.getChargesRemaining();
-    this.scene.visionHudText.setText(`Eye: ${charges} left this run`);
+    this.scene.visionHudText.setText(
+      visionLabel(charges, { desktop: !this.scene._mobileBattleHud && !this.scene.isMobileInput }),
+    );
     this.scene.visionHudText.setColor(charges > 0 ? UI_PALETTE.info : UI_PALETTE.lineStrong);
     this._bindHudPress(this.scene.visionHudText);
     this.scene.updateTopLeftHudLayout();

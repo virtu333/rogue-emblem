@@ -83,7 +83,8 @@ for (const vp of VIEWPORTS)
         const dialog = page.getByRole('dialog', { name: 'Combat forecast', exact: true });
         await expect(dialog).toBeVisible();
         await expect(dialog).toContainText(/Triangle disadvantage/);
-        await expect(dialog).toContainText('If all hits land: 6 HP');
+        await expect(dialog).toContainText('HP estimate: if all hits land; no crits/procs.');
+        await expect(dialog.locator('.mb-enemy .mb-hp')).toContainText('→ 6');
         const loss = dialog.locator('.re-health-projection');
         await expect(loss.first()).toBeVisible();
         const widths = await loss.evaluateAll((els) =>

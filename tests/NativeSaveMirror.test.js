@@ -941,6 +941,31 @@ describe('lost deletions', () => {
     expect(newest(backend, runKey)).toMatchObject({ seq: 2, removed: true, deletedSavedAt: 10 });
   });
 
+  it('advances an existing tombstone after a second create/delete burst', async () => {
+    const backend = fakeBackend();
+    await session(new FakeStorage(), backend, async ({ mirror }) => {
+      mirror.storage.setItem(runKey, run(100));
+      await mirror.flush();
+      mirror.storage.removeItem(runKey);
+      await mirror.flush();
+      const before = newest(backend, runKey).seq;
+      mirror.storage.setItem(runKey, run(200));
+      mirror.storage.removeItem(runKey);
+      await mirror.flush();
+      expect(newest(backend, runKey)).toMatchObject({
+        seq: before + 1,
+        removed: true,
+        deletedSavedAt: 200,
+      });
+      const writes = backend.writes.length;
+      mirror.noteRemove(runKey, null);
+      await mirror.flush();
+      expect(backend.writes.length).toBe(writes);
+    });
+    const { storage } = await relaunch(backend, { [runKey]: run(200) });
+    expect(storage.getItem(runKey)).toBeNull();
+  });
+
   it('a deletion the mirror missed is tombstoned with the stamp it had mirrored', async () => {
     // Intact store, key gone locally, live native record: the reconcile
     // tombstone dates the deletion by the mirrored save.

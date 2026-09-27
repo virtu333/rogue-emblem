@@ -1,3 +1,4 @@
+import { battleItemBrief, ITEM_ACTION_NOTE } from '../ui/battleItemSummary.js';
 import {
   historyUnitVisible,
   observeHistoryAction,
@@ -1724,7 +1725,7 @@ export class BattleScene extends Phaser.Scene {
           helpRowY,
           this.isMobileInput
             ? 'Vision: rewind  |  Inspect: unit details  |  Cancel: go back'
-            : '[R] Vision  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
+            : '[R] Rewind  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
           { fontFamily: 'monospace', fontSize: '11px', color: UI_PALETTE.info },
         )
         .setOrigin(0.5)
@@ -1781,6 +1782,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Input handlers
       this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
+      this.input.on('gameout', () => this._inputController?.clearHoverInfo());
       this.input.on('pointerdown', (pointer) => this.onPointerDown(pointer));
       this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
       this.input.on('pointerupoutside', (pointer) => this.onPointerUpOutside(pointer));
@@ -3297,6 +3299,7 @@ export class BattleScene extends Phaser.Scene {
     unit.hpBar.fill.setSize(fillWidth, barHeight);
     unit.hpBar.fill.setFillStyle(getHPBarColor(ratio));
     if (unit.isBoss) this._bossPresence?.onUnitHp(unit);
+    this._inputController?.refreshHoverInfo();
   }
 
   removeUnitGraphic(unit) {
@@ -4836,6 +4839,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.showActionMenu(unit);
     this._inputController?.resumeMoveAttack(unit);
+    this._inputController?.refreshHoverInfo();
   }
 
   _getCombatRangeForUnitWeapon(unit, weapon, weaponArt = null) {
@@ -6773,14 +6777,15 @@ export class BattleScene extends Phaser.Scene {
     // Use consumables array instead of filtering inventory
     const consumables = unit.consumables || [];
     const pos = this.grid.gridToPixel(unit.col, unit.row);
+    const itemHeight = 38;
+    const menuWidth = 240;
     const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
       ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - 200;
+      : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
 
-    const itemHeight = this.isMobileInput ? 38 : 28;
-    const menuWidth = 200;
-    const menuHeight = (consumables.length + 1) * itemHeight + 8; // +1 for Back
+    const noteHeight = 36;
+    const menuHeight = (consumables.length + 1) * itemHeight + noteHeight + 8; // +1 for Back
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = this.add
@@ -6841,11 +6846,11 @@ export class BattleScene extends Phaser.Scene {
       const usable = !reason;
       let label = item.name;
       if (item.uses !== undefined) label += ` (${item.uses})`;
-      if (reason) label += `\n${reason}`;
+
       const color = usable ? UI_PALETTE.good : UI_PALETTE.lineStrong;
       const text = this._makeMenuTextButton(
         ix,
-        iy,
+        iy - 4,
         label,
         {
           fontFamily: 'monospace',
@@ -6866,11 +6871,33 @@ export class BattleScene extends Phaser.Scene {
         { hitWidth: menuWidth - 10, hitHeight: itemHeight, disabled: !usable },
       );
       text._menuItem = item;
-      this.actionMenu.push(text);
+      text._menuDescription = reason;
+      const brief = presentationText(this, ix, iy + 8, reason || battleItemBrief(item, unit), {
+        fontFamily: 'Arial',
+        fontSize: '10px',
+        color: UI_PALETTE.muted,
+      })
+        .setOrigin(0.5)
+        .setDepth(401);
+      this.actionMenu.push(text, brief);
     });
 
+    const note = presentationText(
+      this,
+      menuPos.x + 8,
+      menuPos.y + 4 + consumables.length * itemHeight,
+      ITEM_ACTION_NOTE,
+      {
+        fontFamily: 'Arial',
+        fontSize: '10px',
+        color: UI_PALETTE.muted,
+        wordWrap: { width: menuWidth - 16 },
+      },
+    ).setDepth(401);
+    this.actionMenu.push(note);
+
     // Back button
-    const backY = menuPos.y + 4 + consumables.length * itemHeight + itemHeight / 2;
+    const backY = menuPos.y + 4 + consumables.length * itemHeight + noteHeight + itemHeight / 2;
     const backText = this._makeMenuTextButton(
       menuPos.x + menuWidth / 2,
       backY,
@@ -9233,6 +9260,7 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     }
+    this._inputController?.refreshHoverInfo();
     this.dangerZoneStale = true;
     this._pinnedThreats?.invalidate();
     // Boss death: the bar drains away; FOE VANQUISHED when the battle goes on

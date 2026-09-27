@@ -154,7 +154,15 @@ export function renderLoomCard(card, node, ctx = {}) {
   if (info.tags.length) {
     const tags = element('ul', null, 're-loom-tags');
     tags.setAttribute('aria-label', 'Encounter details');
-    for (const tag of info.tags) tags.append(element('li', tag.text, `re-loom-tag is-${tag.tone}`));
+    for (const tag of info.tags) {
+      const row = element('li', null, `re-loom-tag is-${tag.tone}`);
+      if (tag.detail) {
+        const details = element('details');
+        details.append(element('summary', tag.text), element('p', tag.detail));
+        row.append(details);
+      } else row.textContent = tag.text;
+      tags.append(row);
+    }
     card.append(tags);
   }
   if (info.recruit) card.append(recruitBlock(info.recruit));

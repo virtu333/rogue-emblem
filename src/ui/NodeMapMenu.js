@@ -114,7 +114,8 @@ export class NodeMapMenu {
   _available() {
     const rm = this.scene.runManager;
     const available = new Set(rm.getAvailableNodes().map((n) => n.id));
-    for (const node of rm.nodeMap.nodes) if (rm.canReenterShop?.(node.id)) available.add(node.id);
+    for (const node of rm.nodeMap.nodes)
+      if (rm.canReenterService?.(node.id)) available.add(node.id);
     return available;
   }
 
@@ -222,7 +223,7 @@ export class NodeMapMenu {
     );
     const party = element('div', null, 're-node-party re-loom-party');
     for (const unit of (rm.roster || []).filter((u) => u.isLord).slice(0, 2)) {
-      const row = button(null, () => s._openRoster(), 're-btn re-node-unit');
+      const row = button(null, () => s._openRoster(unit), 're-btn re-node-unit');
       const key = rebuiltPortraitKey(s, unit);
       const pc98Id = usePc98() ? portraitIdForUnit(unit, s.gameData || {}) : null;
       if (pc98Id) {
@@ -276,7 +277,7 @@ export class NodeMapMenu {
       nodes = rm.nodeMap.nodes;
     const available = this._available();
     const selected = nodes.find((n) => n.id === this.selected);
-    const shopOpen = !!rm.canReenterShop?.(this.selected);
+    const shopOpen = !!rm.canReenterService?.(this.selected);
     renderLoomCard(this.detail, selected, {
       model: this.routeGraph.model,
       actId: rm.nodeMap.actId || rm.currentAct,
@@ -297,7 +298,9 @@ export class NodeMapMenu {
     const label = rm.pendingBattleReward
       ? 'Return to rewards'
       : shopOpen
-        ? 'Re-enter shop'
+        ? selected?.type === 'ruins'
+          ? 'Return to ruins'
+          : `Re-enter ${selected?.type === 'church' ? 'church' : 'shop'}`
         : 'Travel';
     this.travel.replaceChildren(element('span', label));
     const enabled = !!rm.pendingBattleReward || available.has(this.selected);

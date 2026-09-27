@@ -417,9 +417,18 @@ export function describeLoomNode(
   if (node.type === 'recruit' && !eclipsed) {
     const hunters = Math.max(0, Math.trunc(Number(recruitMods?.enemyCountBonus) || 0));
     const captains = Math.max(0, Math.trunc(Number(recruitMods?.affixCount) || 0));
-    if (hunters) tags.push({ text: `Hunters +${hunters}`, tone: 'bad' });
+    if (hunters)
+      tags.push({
+        text: `Hunters +${hunters}`,
+        tone: 'bad',
+        detail: `${hunters === 1 ? 'One extra enemy hunts' : `${hunters} extra enemies hunt`} the recruit.`,
+      });
     if (captains)
-      tags.push({ text: captains > 1 ? `${captains} captains` : 'Captain', tone: 'bad' });
+      tags.push({
+        text: captains > 1 ? `${captains} captains` : 'Captain',
+        tone: 'bad',
+        detail: `${captains === 1 ? 'One hunter carries' : `${captains} hunters carry`} an affix — inspect ${captains === 1 ? 'it' : 'them'} in battle.`,
+      });
   }
   if (params && node.encounterLocked) tags.push({ text: 'Encounter locked', tone: 'plain' });
 
@@ -433,7 +442,14 @@ export function describeLoomNode(
     Array.isArray(pool) && pool.length ? pool[stableIndex(node.id, pool.length)] : null;
 
   let stateLine;
-  if (shopOpen) stateLine = { tone: 'done', text: 'Shop still open · Stock and prices retained' };
+  if (shopOpen)
+    stateLine = {
+      tone: 'done',
+      text:
+        node.type === 'shop'
+          ? 'Shop still open · Stock and prices retained'
+          : 'Still open · Purchases and services retained',
+    };
   else if (state === 'current')
     stateLine = { tone: 'done', text: activeLabel || 'The party rests here' };
   else if (state === 'done') stateLine = { tone: 'done', text: 'Woven · already walked' };

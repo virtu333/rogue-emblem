@@ -36,14 +36,16 @@ function makeDisplayObject(seed = {}) {
     setStrokeStyle() {
       return this;
     },
-    setFillStyle() {
+    setFillStyle(fill) {
+      this.fill = fill;
       return this;
     },
     setVisible(v) {
       this.visible = v;
       return this;
     },
-    setColor() {
+    setColor(color) {
+      this.color = color;
       return this;
     },
     on(event, cb) {
@@ -68,13 +70,14 @@ function makeScene() {
     _getWeaponArtHpAfterCost: vi.fn(() => 15),
     _formatWeaponArtCostLabel: vi.fn(() => '5'),
     add: {
-      rectangle: (x, y, w, h) => makeDisplayObject({ x, y, width: w, height: h }),
+      rectangle: (x, y, w, h, fill) => makeDisplayObject({ x, y, width: w, height: h, fill }),
       text: (...args) => {
         const content = typeof args[2] === 'string' ? args[2] : '';
         return makeDisplayObject({
           x: args[0],
           y: args[1],
           text: content,
+          color: args[3]?.color,
           width: Math.max(1, content.length) * 6,
         });
       },
@@ -328,6 +331,69 @@ describe('ForecastOverlay', () => {
       // AS -2 is Steel's own speed: shown neutral, not as a penalty.
       const asValue = overlay.displayObjects.find((o) => o.text === '-2');
       expect(styles.get(asValue).color).toBe(UI_PALETTE.text);
+    });
+
+    it('explains active modifiers on hover and destroys their tooltip with the forecast', () => {
+      scene.gameData = {
+        traits: [
+          {
+            id: 'shieldmate',
+            name: 'Shieldmate',
+            description: '+10 Avo while adjacent to an ally.',
+          },
+        ],
+      };
+      const overlay = new ForecastOverlay(scene);
+      overlay.render({
+        attacker: makeUnit(),
+        defender: makeUnit({ name: 'Bandit' }),
+        forecast: makeForecast({ skills: [{ id: 'trait_shieldmate', name: 'Shieldmate' }] }),
+        validWeapons: [{ name: 'Iron Sword' }],
+        weaponIndex: 0,
+        confirmAttack: vi.fn(),
+      });
+      const label = overlay.displayObjects.find((o) => o.text === 'Shieldmate');
+      const tip = overlay.displayObjects.find((o) => o.text.includes('Shieldmate:'));
+      expect(tip.text).toContain('+10 Avo');
+      expect(tip.visible).toBe(false);
+      label.handlers.pointerover();
+      expect(tip.visible).toBe(true);
+      label.handlers.pointerout();
+      expect(tip.visible).toBe(false);
+      overlay.destroy();
+      expect(tip.destroy).toHaveBeenCalled();
+    });
+
+    it('confirm has readable primary contrast at rest and hover', () => {
+      const overlay = new ForecastOverlay(scene);
+      overlay.render({
+        attacker: makeUnit(),
+        defender: makeUnit({ name: 'Enemy' }),
+        forecast: makeForecast(),
+        weaponArt: null,
+        gamblerLine: null,
+        validWeapons: [],
+      });
+      const text = overlay.displayObjects.find((o) => o.text === 'CONFIRM ATTACK');
+      const bg = overlay.displayObjects.find(
+        (o) => o.interactive && o.handlers?.pointerdown && o.text !== '◄' && o.text !== '►',
+      );
+      const luminance = (c) => {
+        const n = typeof c === 'number' ? c : parseInt(c.slice(1), 16);
+        const rgb = [n >> 16, (n >> 8) & 255, n & 255].map((v) => {
+          const s = v / 255;
+          return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        });
+        return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
+      };
+      const contrast = () => {
+        const a = luminance(bg.fill),
+          b = luminance(text.color);
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      };
+      expect(contrast()).toBeGreaterThanOrEqual(4.5);
+      bg.handlers.pointerover();
+      expect(contrast()).toBeGreaterThanOrEqual(4.5);
     });
 
     it('confirm button calls scene.confirmForecastCombat()', () => {

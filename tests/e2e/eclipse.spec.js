@@ -133,7 +133,7 @@ for (const vp of VIEWPORTS) {
     if (vp.mobile) {
       const hud = page.getByRole('complementary', { name: 'Battle commands' });
       await expect(hud.locator('.mb-shadow')).toHaveText('Shadow +5');
-      await expect(hud.locator('.mb-counters')).toContainText(/Par \d+ · [SABC] \| Rewinds/);
+      await expect(hud.locator('.mb-counters')).toContainText(/Par \d+ · [SABC] \| Visions/);
     } else {
       await expect
         .poll(() =>
@@ -229,7 +229,7 @@ for (const vp of VIEWPORTS) {
     if (vp.mobile) {
       const hud = page.getByRole('complementary', { name: 'Battle commands' });
       await expect(hud.locator('.mb-shadow')).toHaveText('Shadow +5 (land only)');
-      await expect(hud.locator('.mb-counters')).toContainText(/Par \d+ · [SABC] \| Rewinds/);
+      await expect(hud.locator('.mb-counters')).toContainText(/Par \d+ · [SABC] \| Visions/);
       // One line, inside the rail.
       const [shadowBox, railBox] = await Promise.all([
         hud.locator('.mb-shadow').boundingBox(),

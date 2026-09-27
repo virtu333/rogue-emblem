@@ -58,6 +58,7 @@ const BATTLE_NUMBER_KEYS = Object.freeze([
   'heldStreak',
   'shieldPhases',
   'lastStanding',
+  'fallenAllies',
 ]);
 const MAX_LIST = 32;
 
@@ -564,7 +565,7 @@ function freshDeeds(unit) {
  * the save; present the returned announcements AFTER the save.
  * @param {object[]} units  every living player unit of the battle (incl. escaped)
  * @param {{deeds: object[]}} deedsData
- * @param {{battleKey?: string, act?: string, battle?: number, deployedCount?: number}} ctx
+ * @param {{battleKey?: string, act?: string, battle?: number, deployedCount?: number, fallenCount?: number}} ctx
  * @returns {{unit, deedId, name, epithet, form, lore, prestige, oath, oathSkill,
  *            titled: string, isTitle: boolean}[]}
  */
@@ -583,8 +584,10 @@ export function commitBattleDeeds(units, deedsData, ctx = {}) {
       continue;
     }
     const battle = sanitizeBattleDeeds(unit._battleDeeds);
-    if (nonLords.length === 1 && nonLords[0] === unit && deployed > 0)
+    if (nonLords.length === 1 && nonLords[0] === unit && deployed > 0) {
       battle.lastStanding = deployed;
+      battle.fallenAllies = count(ctx.fallenCount);
+    }
     mergeRunStats(state.stats, battle);
     const have = new Set(state.earned.map((e) => e.id));
     let seq = state.earned.reduce((max, e) => Math.max(max, e.seq), 0);

@@ -28,7 +28,7 @@ for (const viewport of [
     });
     const hud = page.getByRole('complementary', { name: 'Battle commands' });
     await expect(hud.locator('.mb-terrain')).toContainText('Avoid');
-    await expect(hud.locator('.mb-counters')).toContainText('Rewinds');
+    await expect(hud.locator('.mb-counters')).toContainText('Visions');
     // region: the scroll box, or the fixed dock that pins Wait beside Danger (playtest 4).
     const visibleWithoutScroll = async (label, region = '.mb-body') => {
       const b = hud.getByRole('button', { name: label, exact: true });

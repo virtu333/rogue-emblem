@@ -15,7 +15,7 @@ test('canvas item submenu supports keyboard selection and consumes one charge', 
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const u = s.playerUnits[0];
     u.currentHP = 1;
-    u.consumables = [{ name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 }];
+    u.consumables = [{ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 }];
     s.selectUnit(u);
     s.showActionMenu(u);
     s.showItemMenu(u);
@@ -26,6 +26,15 @@ test('canvas item submenu supports keyboard selection and consumes one charge', 
       Boolean(window.__emblemRogueGame.scene.getScene('Battle')._mobileBattleHud),
     ),
   ).toBe(false);
+  const labels = await page.evaluate(() =>
+    window.__emblemRogueGame.scene
+      .getScene('Battle')
+      .actionMenu.map((o) => o.text || '')
+      .join(' '),
+  );
+  expect(labels).toContain('Restore 10 HP');
+  expect(labels).toContain('ends this unit’s action');
+  expect(labels).toContain('uses do not refill');
   await page.keyboard.press('ArrowDown');
   // Focus paints the palette's accent text (Ink & Ember, #67), the same colour as
   // pointer hover; the item that lost focus returns to its own colour.
@@ -50,4 +59,31 @@ test('canvas item submenu supports keyboard selection and consumes one charge', 
     })),
   ).toEqual({ hp: 11, uses: 2 });
   expect(errors).toEqual([]);
+});
+
+test('stationary tile information follows HP and unit movement', async ({ page }) => {
+  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42');
+  await waitForScene(page, 'Battle');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+  );
+  const result = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const unit = s.playerUnits[0];
+    s._inputController.refreshTileInfo(unit.col, unit.row);
+    unit.currentHP -= 3;
+    s.updateHPBar(unit);
+    const hp = s.infoText.text;
+    const expected = `HP ${unit.currentHP}/${unit.stats.HP}`;
+    unit.col += 1;
+    s.updateUnitPosition(unit);
+    const moved = s.infoText.text;
+    s._inputController.clearHoverInfo();
+    unit.currentHP -= 1;
+    s.updateHPBar(unit);
+    return { hp, expected, moved, name: unit.name, cleared: s.infoText.text };
+  });
+  expect(result.hp).toContain(result.expected);
+  expect(result.moved).not.toContain(result.name);
+  expect(result.cleared).toBe('');
 });

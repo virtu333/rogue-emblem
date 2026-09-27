@@ -542,6 +542,19 @@
   background: var(--re-panel);
   box-shadow: inset 0 0 0 1px var(--re-line-soft);
 }
+.re-loom-tag summary {
+  cursor: pointer;
+  min-height: 24px;
+  align-content: center;
+}
+.re-loom-tag details[open] {
+  max-width: 240px;
+}
+.re-loom-tag details p {
+  margin: 6px 0 2px;
+  font: 400 13px/1.35 var(--re-body);
+  color: var(--re-parchment);
+}
 .re-loom-tag.is-info {
   color: var(--re-info);
   box-shadow: inset 0 0 0 1px var(--re-line);

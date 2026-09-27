@@ -2,10 +2,10 @@
 export function runReferenceEntries() {
   return [
     [
-      'Rewinds',
+      'Visions',
       'Resources',
       'Charges last the run, not one battle.',
-      'Return to the saved start of your player turn. +1 rewind charge after each act boss; unused charges carry forward.',
+      'Spend a Vision to Rewind to an earlier player action. +1 Vision charge after each act boss; unused charges carry forward.',
       'Check the remaining count before spending; all charges can be used in one battle.',
     ],
     [

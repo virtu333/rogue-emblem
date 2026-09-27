@@ -241,7 +241,7 @@
       "id": "last_of_them",
       "name": "The Last",
       "scope": "battle",
-      "condition": { "type": "battleStat", "stat": "lastStanding", "min": 4 },
+      "condition": { "type": "all", "of": [{ "type": "battleStat", "stat": "lastStanding", "min": 4 }, { "type": "battleStat", "stat": "fallenAllies", "min": 2 }] },
       "epithet": { "form": "the", "text": "the Last" },
       "prestige": 4,
       "lore": "Came back alone, carrying the names of the rest."

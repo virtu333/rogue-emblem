@@ -3115,15 +3115,23 @@ export class RunManager {
     if (node) node.encounterLocked = true;
   }
 
-  canReenterShop(nodeId) {
+  canReenterService(nodeId) {
     const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
     return Boolean(
       node &&
       node.id === this.currentNodeId &&
-      node.type === 'shop' &&
+      ['shop', 'church', 'ruins'].includes(node.type) &&
       node.completed &&
       !this.battleInProgress &&
-      this.shopStateByNodeId?.[nodeId],
+      (node.type !== 'shop' || this.shopStateByNodeId?.[nodeId]),
+    );
+  }
+
+  // Compatibility for callers explicitly asking about a shop.
+  canReenterShop(nodeId) {
+    return (
+      this.nodeMap?.nodes?.find((n) => n.id === nodeId)?.type === 'shop' &&
+      this.canReenterService(nodeId)
     );
   }
 
