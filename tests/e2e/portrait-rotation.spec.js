@@ -624,9 +624,7 @@ test.describe('the rotate prompt and the Settings toggle', () => {
 });
 
 test.describe('a tablet browser tab', () => {
-  // eslint-disable-next-line no-unused-vars
-  const { defaultBrowserType, ...tablet } = phone({ width: 820, height: 1180 });
-  test.use(tablet);
+  test.use(phone({ width: 820, height: 1180 }));
 
   test('is sideways by default (the prompt shows) and can opt in from it', async ({ page }) => {
     const errors = pageErrors(page);

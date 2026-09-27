@@ -39,14 +39,6 @@ import {
   turnPhone,
 } from './portraitHelpers.js';
 
-// phone() for a describe group (a group cannot pick the browser type; the config's
-// Chromium runs every spec anyway).
-function phoneContext(viewport) {
-  // eslint-disable-next-line no-unused-vars
-  const { defaultBrowserType, ...context } = phone(viewport);
-  return context;
-}
-
 // Compact battle-rail commands at >= 38 px are accepted by the owner
 // (mobile-battle-hud.spec.js); everything else is held to 44.
 const RAIL_MIN = 38;
@@ -312,7 +304,7 @@ function savedRunHolds(page, name) {
 
 for (const viewport of [PORTRAIT_PHONES[0], PORTRAIT_PHONES[1]]) {
   test.describe(`${viewport.width}x${viewport.height}`, () => {
-    test.use(phoneContext(viewport));
+    test.use(phone(viewport));
 
     test('a run slice upright on the default path: menus, a won battle, rewards, a shop, the next battles', async ({
       page,
@@ -480,7 +472,7 @@ async function resumeFromTitle(page, errors, choice, { upright = true } = {}) {
 }
 
 test.describe('refresh mid-battle, upright', () => {
-  test.use(phoneContext(UPRIGHT));
+  test.use(phone(UPRIGHT));
 
   test('Resume Battle restores the exact battle, upright', async ({ page }) => {
     test.setTimeout(120_000);
@@ -615,7 +607,7 @@ test.describe('refresh mid-battle, upright', () => {
 });
 
 test.describe('refresh mid-battle, landscape phone', () => {
-  test.use(phoneContext(SIDEWAYS));
+  test.use(phone(SIDEWAYS));
 
   test('Resume Battle in landscape is unchanged by portrait mode', async ({ page }) => {
     test.setTimeout(120_000);
@@ -702,7 +694,7 @@ async function openTutorial(page, errors) {
 }
 
 test.describe('battles without a run save, upright start', () => {
-  test.use(phoneContext(UPRIGHT));
+  test.use(phone(UPRIGHT));
 
   test('the tutorial keeps its turned board when the phone turns, and stays playable', async ({
     page,
@@ -768,7 +760,7 @@ test.describe('battles without a run save, upright start', () => {
 });
 
 test.describe('battles without a run save, landscape start', () => {
-  test.use(phoneContext(SIDEWAYS));
+  test.use(phone(SIDEWAYS));
 
   test('the tutorial begun sideways keeps its board upright; no rotate prompt', async ({
     page,
