@@ -1,4 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// The note itself is DOM (GuidanceNote.js); these tests drive the controller with a
+// handle that behaves like it: close(false) never marks a note read, close(true) does.
+const { domHost, notes } = vi.hoisted(() => ({ domHost: { on: false }, notes: [] }));
+vi.mock('../src/utils/domUI.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  hasDOMHost: () => domHost.on,
+}));
+vi.mock('../src/ui/GuidanceNote.js', () => ({
+  showGuidanceNote: vi.fn((_scene, { id, onRead }) => {
+    const handle = {
+      id,
+      read: false,
+      closed: false,
+      onClose: null,
+      isRead: () => handle.read,
+      readFor: () => {
+        // stayed on screen long enough to read (GuidanceNote's reading window)
+        handle.read = true;
+        onRead?.();
+      },
+      close: vi.fn((acknowledged = false) => {
+        if (handle.closed) return;
+        handle.closed = true;
+        if (acknowledged && !handle.read) handle.readFor();
+        handle.onClose?.(handle.read);
+      }),
+    };
+    notes.push(handle);
+    return handle;
+  }),
+}));
 import {
   GUIDANCE_NOTES,
   guidanceAllows,
@@ -427,5 +459,152 @@ describe('GuidanceController moments', () => {
     new GuidanceController(scene).pick();
     expect(random).not.toHaveBeenCalled();
     random.mockRestore();
+  });
+});
+
+describe('unit-scoped notes step aside when their moment is over', () => {
+  beforeEach(() => {
+    domHost.on = true;
+    notes.length = 0;
+  });
+
+  // Sera moved to a tile with no enemy in reach: guide_no_attack names her.
+  function noAttackMoment() {
+    notes.length = 0;
+    const env = guidanceScene();
+    const { scene, hints, sera } = env;
+    hints.markSeen('guide_first_turn'); // keep the idle map quiet between moments
+    hints.markSeen.mockClear();
+    Object.assign(scene, {
+      battleState: 'UNIT_ACTION_MENU',
+      selectedUnit: sera,
+      preMoveLoc: { col: 2, row: 2 },
+      _threatSight: { current: { col: 4, row: 2, result: { count: 0 } } },
+    });
+    const g = new GuidanceController(scene);
+    g.sync();
+    expect(notes.map((n) => n.id)).toEqual(['guide_no_attack']);
+    expect(g.coachShown).toBe(1);
+    return { ...env, g, note: notes[0] };
+  }
+
+  it('Wait closes an unread note unacknowledged: still unseen, coaching slot given back', () => {
+    const { scene, hints, sera, g, note } = noAttackMoment();
+    sera.hasActed = true; // Wait
+    Object.assign(scene, { battleState: 'PLAYER_IDLE', selectedUnit: null });
+    g.sync();
+    expect(note.close).toHaveBeenCalledWith(false);
+    expect(g.note).toBeNull();
+    expect(hints.markSeen).not.toHaveBeenCalled();
+    expect(hints.hasSeen('guide_no_attack')).toBe(false);
+    expect(g.coachShown).toBe(0);
+    // A later unit in the same spot is taught it after all.
+    sera.hasActed = false;
+    Object.assign(scene, {
+      battleState: 'UNIT_ACTION_MENU',
+      selectedUnit: sera,
+      preMoveLoc: { col: 2, row: 2 },
+    });
+    g.sync();
+    expect(notes.map((n) => n.id)).toEqual(['guide_no_attack', 'guide_no_attack']);
+    expect(g.coachShown).toBe(1);
+  });
+
+  it('closes when another unit is selected, or Back takes the unit to another tile', () => {
+    const first = noAttackMoment();
+    first.scene.selectedUnit = first.edric;
+    first.scene.battleState = 'UNIT_SELECTED';
+    first.g.sync();
+    expect(first.note.close).toHaveBeenCalledWith(false);
+
+    const back = noAttackMoment();
+    back.sera.col = 2; // Back: the move is undone
+    back.scene.battleState = 'UNIT_SELECTED';
+    back.g.sync();
+    expect(back.note.close).toHaveBeenCalledWith(false);
+    expect(back.hints.markSeen).not.toHaveBeenCalled();
+  });
+
+  it('closes on the enemy phase and on a new turn', () => {
+    const phase = noAttackMoment();
+    phase.scene.turnManager.currentPhase = 'enemy';
+    phase.g.sync();
+    expect(phase.note.close).toHaveBeenCalledWith(false);
+
+    const turn = noAttackMoment();
+    turn.scene.turnManager.turnNumber = 2;
+    turn.g.sync();
+    expect(turn.note.close).toHaveBeenCalledWith(false);
+  });
+
+  it('stays open while its moment lasts', () => {
+    const { g, note } = noAttackMoment();
+    g.sync();
+    g.sync();
+    expect(note.close).not.toHaveBeenCalled();
+    expect(g.note).toBe(note);
+  });
+
+  it('a note already read stays read and keeps its slot when it steps aside', () => {
+    const { scene, hints, sera, g, note } = noAttackMoment();
+    note.readFor();
+    expect(hints.markSeen).toHaveBeenCalledTimes(1);
+    sera.hasActed = true;
+    Object.assign(scene, { battleState: 'PLAYER_IDLE', selectedUnit: null });
+    g.sync();
+    expect(note.close).toHaveBeenCalledWith(false);
+    expect(hints.hasSeen('guide_no_attack')).toBe(true);
+    expect(hints.markSeen).toHaveBeenCalledTimes(1);
+    expect(g.coachShown).toBe(1);
+  });
+
+  it('the healer note follows the healer as it moves, and goes when it acts', () => {
+    const { scene, hints, sera, edric } = guidanceScene();
+    hints.markSeen('guide_first_turn');
+    edric.currentHP = 14;
+    Object.assign(scene, { battleState: 'UNIT_SELECTED', selectedUnit: sera });
+    const g = new GuidanceController(scene);
+    g.sync();
+    const [note] = notes;
+    expect(note.id).toBe('guide_healer_heals');
+    // Moving next to the hurt ally is following the advice.
+    scene.battleState = 'UNIT_MOVING';
+    sera.col = 2;
+    g.sync();
+    scene.battleState = 'UNIT_ACTION_MENU';
+    g.sync();
+    expect(note.close).not.toHaveBeenCalled();
+    sera.hasActed = true; // healed (or waited)
+    Object.assign(scene, { battleState: 'PLAYER_IDLE', selectedUnit: null });
+    g.sync();
+    expect(note.close).toHaveBeenCalledWith(false);
+  });
+
+  it('general notes (first turn, commander at half HP, recruit) never auto-close', () => {
+    for (const setup of [
+      () => {},
+      ({ edric }) => (edric.currentHP = 9),
+      ({ scene }) =>
+        (scene.npcUnits = [{ name: 'Bram', faction: 'npc', col: 5, row: 5, currentHP: 18 }]),
+    ]) {
+      notes.length = 0;
+      const env = guidanceScene();
+      setup(env);
+      const { scene, sera } = env;
+      const g = new GuidanceController(scene);
+      g.sync();
+      const [note] = notes;
+      expect(note).toBeTruthy();
+      Object.assign(scene, { battleState: 'UNIT_SELECTED', selectedUnit: sera });
+      g.sync();
+      sera.hasActed = true;
+      Object.assign(scene, { battleState: 'PLAYER_IDLE', selectedUnit: null });
+      scene.turnManager.currentPhase = 'enemy';
+      g.sync();
+      scene.turnManager = { currentPhase: 'player', turnNumber: 2 };
+      g.sync();
+      expect(note.close, note.id).not.toHaveBeenCalled();
+      expect(g.note, note.id).toBe(note);
+    }
   });
 });

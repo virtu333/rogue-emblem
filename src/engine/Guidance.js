@@ -35,11 +35,17 @@ export function guidanceAllows(level, tier) {
   return level === 'full';
 }
 
+// scope: what a note talks about, so it can step aside once that is gone.
+//   'tile'  this unit on this tile ("would be in reach here"): gone when the unit
+//           moves, acts, is deselected, or the turn moves on.
+//   'unit'  this unit ("Sera heals with a staff"): gone when it acts, is
+//           deselected, or the turn moves on; moving it is following the advice.
+//   none    the battle as a whole: stays until read or dismissed.
 export const GUIDANCE_NOTES = Object.freeze({
   guide_first_turn: { tier: 'coach' },
-  guide_fragile_in_reach: { tier: 'coach' },
-  guide_healer_heals: { tier: 'coach' },
-  guide_no_attack: { tier: 'coach' },
+  guide_fragile_in_reach: { tier: 'coach', scope: 'tile' },
+  guide_healer_heals: { tier: 'coach', scope: 'unit' },
+  guide_no_attack: { tier: 'coach', scope: 'tile' },
   guide_commander_low_hp: { tier: 'essential' },
   guide_recruit_on_map: { tier: 'essential' },
   guide_convoy: { tier: 'essential' },
@@ -47,6 +53,11 @@ export const GUIDANCE_NOTES = Object.freeze({
 
 export function noteTier(id) {
   return GUIDANCE_NOTES[id]?.tier || 'essential';
+}
+
+/** 'tile' | 'unit' for a note about one unit's moment, else null. */
+export function noteScope(id) {
+  return GUIDANCE_NOTES[id]?.scope || null;
 }
 
 /** Units that can use a staff (healers). */
