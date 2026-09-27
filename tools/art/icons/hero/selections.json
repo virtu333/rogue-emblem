@@ -548,10 +548,10 @@
     },
     "blessed-vestment": {
       "approved": true,
-      "source": "angelic-robe-pro-t5",
-      "model": "gemini-3-pro-image",
-      "hash": "346ff1871f7e616e",
-      "note": "Rerolled 2026-09-26: a winged white-and-gold vestment; takes 1-4 kept a keyed halo from a glow in the prompt."
+      "source": "angelic-robe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "ad2099cc942938e9",
+      "note": "Restored 2026-09-27 (owner): the plain folded robe from before the winged reroll, which suited the old Angelic Robe name."
     },
     "swiftsoles": {
       "approved": true,
@@ -632,10 +632,10 @@
     },
     "sisters-mantle": {
       "approved": true,
-      "source": "seraph-robe-pro-t4",
-      "model": "gemini-3-pro-image",
-      "hash": "0fc622ff6ef32882",
-      "note": "Rerolled 2026-09-26: a hooded mantle with three pairs of wings (owner direction)."
+      "source": "seraph-robe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "e7cb60b016ace89b",
+      "note": "Restored 2026-09-27 (owner): the plain folded robe from before the winged reroll, which suited the old Seraph Robe name."
     },
     "couriers-boots": {
       "approved": true,

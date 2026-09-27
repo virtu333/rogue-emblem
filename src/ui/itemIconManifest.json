@@ -10,25 +10,25 @@
       "file": "atlas-16.png",
       "w": 256,
       "h": 304,
-      "bytes": 14331,
-      "hash": "7df8e735",
-      "rgba": "1a04cad93ce3607f"
+      "bytes": 14312,
+      "hash": "cbb7e68e",
+      "rgba": "1c0c43c871d09427"
     },
     "32": {
       "file": "atlas-32.png",
       "w": 512,
       "h": 608,
-      "bytes": 34534,
-      "hash": "5a25e3a9",
-      "rgba": "6a025663ea577040"
+      "bytes": 34437,
+      "hash": "6d85989d",
+      "rgba": "9b79e816b985c975"
     },
     "48": {
       "file": "atlas-48.png",
       "w": 768,
       "h": 912,
-      "bytes": 59135,
-      "hash": "4eec769a",
-      "rgba": "01cbcb1ffe2e51f8"
+      "bytes": 58931,
+      "hash": "dd4e438f",
+      "rgba": "49146888e659118d"
     }
   },
   "heroSize": 96,
@@ -120,7 +120,7 @@
     "fleet-plume": "8429c279",
     "wyrmscale": "2d6f566b",
     "warding-cord": "fb113198",
-    "blessed-vestment": "b7a97b3c",
+    "blessed-vestment": "460ebd08",
     "swiftsoles": "85a88b3d",
     "infantry-seal": "b9864f41",
     "mounted-seal": "795ad30d",
@@ -133,7 +133,7 @@
     "barrier-ring": "9e55c562",
     "skill-ring": "50d9e159",
     "fatethread-pendant": "36bf3b02",
-    "sisters-mantle": "4a39e26e",
+    "sisters-mantle": "31d1c43b",
     "couriers-boots": "cb51755c",
     "picket-buckler": "96a14aca",
     "veterans-crest": "5390eac6",

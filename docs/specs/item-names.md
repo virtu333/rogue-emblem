@@ -92,8 +92,9 @@ at least as dramatic as the one it replaces, and it need not be a literal transl
 Old names that are plain words (Restore, Boots, Mend, …) are renamed only on items.
 
 Six paintings changed subject with their names and were redrawn: Mightroot, Wyrmscale,
-Warding Cord, Fatethread Pendant, Sovereign Seal and Poultice. The rest kept their
-pictures under the new ids.
+Warding Cord, Fatethread Pendant, Sovereign Seal and Poultice. Blessed Vestment and
+Sisters' Mantle went back to the plain folded robes they had before the winged reroll
+(owner's call). The rest kept their pictures under the new ids.
 
 ## Not renamed here
 

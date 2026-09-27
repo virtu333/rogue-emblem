@@ -270,7 +270,7 @@ const BOOSTER = {
   SPD: () => D.feather({ mat: 'sky' }),
   DEF: () => D.dragonScale(),
   RES: () => D.knotCord(),
-  HP: () => D.robe({ cloth: 'pearl', trim: 'gilt', wings: 'pearl' }),
+  HP: () => D.robe({ cloth: 'verdigris', trim: 'gilt' }),
   MOV: () => D.boot({ leather: 'wood', trim: 'leaf', wing: true }),
 };
 
@@ -323,7 +323,7 @@ export function accessorySpec(a) {
   }
   const table = {
     'Fatethread Pendant': () => D.pendant({ form: 'sun', chain: 'blood' }),
-    "Sisters' Mantle": () => D.robe({ cloth: 'pearl', trim: 'gilt', wings: 'gilt', hood: true }),
+    "Sisters' Mantle": () => D.robe({ cloth: 'pearl', trim: 'verdigris' }),
     "Courier's Boots": () => D.boot({ leather: 'wood', trim: 'leaf' }),
     'Picket Buckler': () =>
       D.shield({ face: 'lilac', rim: 'gilt', emblem: 'diamond', emblemMat: 'pearl' }),
