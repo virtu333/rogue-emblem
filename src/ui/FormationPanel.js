@@ -2,6 +2,7 @@
 // Start. The phone rail renders them inside the battle HUD; desktop gets a dock.
 import { unitPortrait } from './unitPortrait.js';
 import { formationUnitLine } from './FormationPicker.js';
+import { isUnarmed } from '../engine/UnitManager.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 
@@ -52,7 +53,9 @@ export function renderFormationPanel(container, formation, makeButton, { withSta
       const face = unitPortrait(s, s.gameData, unit, 'mr-unit-face');
       if (face) chip.append(face);
       const text = el('span', 'fm-chip-text');
-      text.append(el('strong', '', unit.name), el('small', '', unit.className || ''));
+      // A fighter with nothing it can wield is marked on the bench, before it is placed.
+      const role = `${unit.className || ''}${isUnarmed(unit) ? ' · Unarmed' : ''}`;
+      text.append(el('strong', '', unit.name), el('small', '', role));
       chip.append(text);
       list.append(chip);
     }

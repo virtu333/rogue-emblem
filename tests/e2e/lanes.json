@@ -12,6 +12,7 @@
       "workers": 2,
       "specs": [
         "battle-contracts.spec.js",
+        "unarmed-units.spec.js",
         "battle-information.spec.js",
         "reload-contracts.spec.js",
         "save-choice-contracts.spec.js",
@@ -139,6 +140,7 @@
         "reward-reload.spec.js",
         "rewards-desktop.spec.js",
         "run-recovery.spec.js",
+        "ruins-choice.spec.js",
         "save-lifecycle.spec.js",
         "service-audit.spec.js",
         "slot-picker.spec.js",

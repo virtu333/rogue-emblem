@@ -13,7 +13,8 @@ import {
 import { AIController } from '../../src/engine/AIController.js';
 import { generateBattle, reconcileRecruitSpawnTile } from '../../src/engine/MapGenerator.js';
 import { scheduleReinforcementsForTurn } from '../../src/engine/ReinforcementScheduler.js';
-import { isRecruitNpc } from '../../src/engine/RecruitNpc.js';
+import { isRecruitNpc, staffAllyCandidates } from '../../src/engine/RecruitNpc.js';
+import { canInspectUnit } from '../../src/engine/BattleInformation.js';
 import {
   resolveCombat,
   resolveHeal,
@@ -1221,8 +1222,12 @@ export class HeadlessBattle {
     const range = getEffectiveStaffRange(staff, unit);
     const healOpts = this._healOptions();
     const targets = [];
-    for (const ally of this.playerUnits) {
+    // Mirrors HealController: the army first, then living NPC allies (recruits,
+    // the merchant caravan) the army can see.
+    for (const ally of staffAllyCandidates(this.playerUnits, this.npcUnits)) {
       if (ally === unit) continue;
+      if (ally.currentHP <= 0 || ally._removing) continue;
+      if (!canInspectUnit(this.grid, ally)) continue;
       if (ally.currentHP >= ally.stats.HP) continue;
       // Mirrors HealController: never offer a target the heal would restore 0 HP to.
       if (resolveHeal(staff, unit, ally, healOpts).healAmount <= 0) continue;

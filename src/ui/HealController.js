@@ -33,6 +33,8 @@ import {
   findRelocateTargets,
   getRelocationDestinations,
 } from '../engine/StaffRelocation.js';
+import { staffAllyCandidates } from '../engine/RecruitNpc.js';
+import { canInspectUnit } from '../engine/BattleInformation.js';
 import { showContextualHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
@@ -113,7 +115,8 @@ export class HealController {
     if (!staff) return [];
     if (isRelocateStaff(staff)) {
       // Warp/Rescue: phase-1 ally targets (destination legality by the
-      // ALLY's moveType is checked inside findRelocateTargets).
+      // ALLY's moveType is checked inside findRelocateTargets). Army only: a
+      // warped caravan could skip its escort walk, a warped recruit its rescue.
       return findRelocateTargets(staff, unit, scene.playerUnits, scene.grid, (c, r) =>
         scene.getUnitAt(c, r),
       );
@@ -122,10 +125,14 @@ export class HealController {
     const cure = isCureStaff(staff);
     const healOpts = this.getHealOptions();
     const targets = [];
-    for (const ally of scene.playerUnits) {
+    // Heal and cure staves mend green units too (recruit NPCs, the merchant
+    // caravan), listed after the army. Fog hides an NPC the army cannot see, so
+    // a long-range staff never reveals one by offering it as a target.
+    for (const ally of staffAllyCandidates(scene.playerUnits, scene.npcUnits)) {
       if (ally === unit) continue; // Can't staff self
+      if (ally.currentHP <= 0 || ally._removing) continue;
+      if (!canInspectUnit(scene.grid, ally)) continue;
       if (cure) {
-        if (ally.currentHP <= 0 || ally._removing) continue;
         if ((ally._conditions || []).length === 0) continue; // Nothing to cure
       } else if (ally.currentHP >= ally.stats.HP) {
         continue; // Full HP

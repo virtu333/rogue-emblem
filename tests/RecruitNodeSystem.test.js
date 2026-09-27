@@ -55,6 +55,21 @@ function build(overrides = {}) {
 
 afterEach(() => vi.restoreAllMocks());
 
+describe('Master of Arms on a recruit node', () => {
+  it('adds a plain Iron weapon for the missing proficiency, unforged by Quartermaster', () => {
+    const unit = build({
+      preview: { className: 'Ranger', name: 'Test Ranger' },
+      metaEffects: { masterOfArms: true, recruitWeaponForge: 1 },
+    }).unit;
+    const sword = unit.inventory.find((w) => w?.type === 'Sword');
+    const bow = unit.inventory.find((w) => w?.type === 'Bow');
+    expect(sword?._forgeLevel).toBe(1);
+    expect(bow).toBeTruthy();
+    expect(bow.tier).toBe('Iron');
+    expect(bow._forgeLevel || 0).toBe(0);
+  });
+});
+
 describe('recruit previews', () => {
   const nodeMap = () => ({
     actId: 'act1',

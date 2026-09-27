@@ -200,7 +200,7 @@ const STATIC_HELP_TABS = [
       {
         title: 'Staves',
         lines: [
-          { text: 'Staves heal allies instead of attacking.', color: GOLD },
+          { text: 'Staves heal allies, recruits and caravans.', color: GOLD },
           { text: '' },
           { text: 'Limited uses per battle:', color: CYAN },
           { text: '  Heal (3)  Mend (2)  Physic (1)' },
@@ -456,8 +456,8 @@ const STATIC_HELP_TABS = [
           { text: 'Village:', color: CYAN },
           { text: '  Buy, sell, and forge weapons.' },
           { text: 'Ruins:', color: GOLD },
-          { text: '  Pre-boss camp: scarce marked-up wares,' },
-          { text: '  plus rest and revive services.' },
+          { text: '  Pre-boss camp: rest (heal, revive)' },
+          { text: '  or scavenge marked-up wares. One only.' },
           { text: 'Church:', color: '#e0e0e0' },
           { text: '  Heal, revive allies, and promote.' },
           { text: 'Colosseum:', color: GOLD },

@@ -1,6 +1,12 @@
 import { rankRequirementText } from '../ui/rosterDisplay.js';
 import { rosterAccessoryAction } from './RosterInventory.js';
-import { addToInventory, addToConsumables, canEquip, applyStatBoost } from './UnitManager.js';
+import {
+  addToInventory,
+  addToConsumables,
+  canEquip,
+  applyStatBoost,
+  equipIfUnarmed,
+} from './UnitManager.js';
 import { canForge, canForgeStat, forgeStatBlock, applyForge } from './ForgeSystem.js';
 import {
   canImbue,
@@ -49,6 +55,8 @@ export function applyRewardTarget(run, item, target) {
     item.type === 'Consumable'
       ? addToConsumables(target, { ...item })
       : addToInventory(target, { ...item });
+  // An unarmed recipient equips a usable weapon it is given (as a trade or Withdraw does).
+  if (ok && item.type !== 'Consumable') equipIfUnarmed(target, target.inventory.at(-1));
   return { ok: !!ok, reason: ok ? '' : 'Bag full' };
 }
 export function applyRewardForge(run, gameData, item, unit, weapon, selection) {

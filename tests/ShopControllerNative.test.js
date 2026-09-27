@@ -5,6 +5,7 @@ import { InputAction } from '../src/utils/InputActions.js';
 import { getForgeCost } from '../src/engine/ForgeSystem.js';
 import { AMBUSH_SHOP_DISCOUNT } from '../src/utils/constants.js';
 import { showMinorHint } from '../src/ui/HintDisplay.js';
+import { chooseRuinsPath } from '../src/engine/RuinsCommands.js';
 let d;
 beforeEach(async () => {
   const storage = new JourneyStorage();
@@ -154,6 +155,8 @@ it('ruins stock, prices and visit limits survive leave, reload and re-entry', ()
   d.scene.handleRuins = (n) => d.church.handleRuins(n);
   d.shop.closeShopOverlay();
   d.run.clearShopState(node.id);
+  // The wares are the Ruins' Scavenge path (RuinsCommands).
+  expect(chooseRuinsPath(d.run, node.id, 'scavenge').ok).toBe(true);
   d.shop.handleShop(node, { ruins: true });
   d.scene.shopBuyItems.splice(0, 1);
   d.scene.shopForgesUsed = 1;

@@ -55,13 +55,15 @@ settleEquipped(unit, preferred)
    `type === 'Consumable'`. `accessory` receives only `type === 'Accessory'`.
 7. **Capacity.** A **give** (`to.item === null`) needs room: "Bag full." for units, or
    `run.canAddToConvoy(item)` → "Convoy is full." A **swap never needs capacity**.
-8. **Convoy last-weapon rule** (today's Store rule). A unit that had a combat weapon may not end
-   with none when the other side is the convoy: "Keep at least one combat weapon." Between two
-   units this is allowed, with a warning.
-9. **Warnings** never block:
+8. **Warnings** never block:
    - `cannot_equip`: a weapon lands on a unit whose `canEquip` is false; the unit can still
      carry it.
-   - `leaves_unarmed`: the rule-8 situation between two units.
+   - `leaves_unarmed`: a unit that had a combat weapon ends with none, whether the other side
+     is a unit or the convoy. A unit may carry nothing at all (see "Unarmed units" below).
+
+   (Until 2026-09-27 a trade into the convoy that left a unit with no combat weapon was
+   refused, "Keep at least one combat weapon."; that rule and `TRADE_REASONS.keepWeapon` are
+   gone.)
 
 ### Apply
 
@@ -188,7 +190,12 @@ and the timeline fingerprint already covers bags.
   trade".
 - **Trade with…** in the Equipment heading opens `TradeMenu` with nothing held.
 - **Convoy tab.** When the unit's bag is full, Withdraw becomes **Trade…**: `TradeMenu(unit,
-  Convoy)` with the convoy item held. Store is unchanged.
+  Convoy)` with the convoy item held.
+- **Store** (`RosterInventory.rosterItemBlock` / `rosterItemAction`) may take a unit's last
+  combat weapon. `rosterItemWarnings` returns the same `leaves_unarmed` warning, and the Store
+  button carries it as its description, with "Leaves ⟨unit⟩ unarmed." beside it and in the
+  message after the store. Removing the equipped weapon re-equips the first combat weapon, else
+  a usable staff, else nothing (`UnitManager.removeFromInventory`, as `settleEquipped`).
 - **Accessory card.** Gets **Trade…**, which leads to the Accessory tab. Pool Equip / Unequip
   are unchanged.
 - **Wiring.** `TradeMenu` is stored in the sheet's `picker`, so the existing guards and
@@ -199,6 +206,31 @@ and the timeline fingerprint already covers bags.
   - shop: "Full: sent to convoy · trade it in from Roster";
   - a full-bag reward row: "Bag full: send to convoy, or trade in Roster" (a UI string; the
     engine string is unchanged).
+
+## Unarmed units
+
+A player unit may carry no weapon at all (`inventory: []`, `weapon: null`), or only items it can't
+attack with (a staff, a weapon it can't wield, supplies). Such a unit deploys and plays normally:
+it can move, Wait, Trade, use items, heal with a staff it can use, Talk, Seize, Escape and visit.
+It can't attack, never counterattacks (the forecast says "No combat weapon equipped"), earns no
+combat XP from being attacked (XP needs damage dealt), and enemies target it freely.
+
+- Battle menu: Attack is hidden, as in FE. With Guidance on Full, a unit that has a combat
+  proficiency but nothing it can wield shows a greyed Attack, "Unarmed: no weapon to attack
+  with".
+- Deploy list, Formation bench and picker: the unit is marked "Unarmed".
+- Arena: a fighter needs a combat weapon it can wield. The fight uses the equipped weapon, or
+  the first carried combat weapon when a staff is equipped, and equips it on Fight. A unit with
+  none can't enter ("⟨unit⟩ has no weapon to fight with."); before, such a fight was an empty
+  draw that still paid draw XP.
+- Shop: selling a unit's last combat weapon is allowed too (`ShopCommands.shopSellWarnings`):
+  the sell pane and the confirm say "Leaves ⟨unit⟩ unarmed.", and the message after the sale
+  says the unit is now unarmed. (Before, "Keep at least one combat weapon." refused the sale.)
+- A usable combat weapon that reaches an unarmed unit is equipped (`equipIfUnarmed`): a trade,
+  Withdraw, a battle reward, a shop purchase, and a weapon granted by an in-battle promotion or
+  reclass. Before, the last three left `weapon: null`, so the unit read "Unarmed" and could not
+  counter until it attacked.
+- Saves, battle checkpoints, rewind and the timeline keep `weapon: null` and an empty bag.
 
 ## Out of scope (this wave)
 
@@ -229,7 +261,7 @@ and the timeline fingerprint already covers bags.
   - cross-bag, stale, and same-holder requests are rejected with no mutation;
   - context rules (battle: no convoy or accessory; roster: unit not in the roster);
   - convoy:
-    - Store (capacity, last weapon, uid);
+    - Store (capacity, uid; the last combat weapon is allowed with `leaves_unarmed`);
     - a swap when both the convoy and the bag are full;
     - Withdraw equips an unarmed unit;
     - clones are found by uid;

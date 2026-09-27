@@ -28,6 +28,7 @@ import {
   REVIVE_BASE_COST,
   REVIVE_COST_PER_LEVEL,
   REVIVE_PROMOTION_MULTIPLIER,
+  RUINS_PATHS,
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
 import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapGenerator.js';
@@ -45,7 +46,7 @@ import {
   getClassInnateSkills,
   normalizeUnitClassState,
   grantLethalArmoryWeapon,
-  grantSecondaryWeapons,
+  grantMasterOfArmsWeapons,
   applyRecruitWeaponForge,
   grantRecruitStartingAccessory,
   learnSkill,
@@ -142,6 +143,15 @@ function getConvoyBucket(item) {
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+// The Ruins' chosen paths from a save: keep only known paths on string node ids.
+function sanitizeRuinsChoices(raw) {
+  const out = {};
+  if (!isPlainObject(raw)) return out;
+  for (const [nodeId, path] of Object.entries(raw))
+    if (nodeId && RUINS_PATHS.includes(path)) out[nodeId] = path;
+  return out;
 }
 
 function createBlessingRuntimeModifiers() {
@@ -410,6 +420,8 @@ export class RunManager {
     this.usedRecruitNames = {}; // Track used names per class: { Fighter: ['Galvin', 'Bjorn'] }
     this.battleConfigsByNodeId = {};
     this.shopStateByNodeId = {};
+    // The Ruins' one path per node ('rest' | 'scavenge'); see RuinsCommands.js.
+    this.ruinsChoiceByNodeId = {};
     this.difficultyId = 'normal';
     this.difficultyModifiers = {
       ...DIFFICULTY_DEFAULTS,
@@ -567,6 +579,7 @@ export class RunManager {
     this.battleConfigsByNodeId = {};
     this.ensureRecruitPreviews();
     this.shopStateByNodeId = {};
+    this.ruinsChoiceByNodeId = {};
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
     this.unlockedWeaponArts = [];
@@ -2729,13 +2742,13 @@ export class RunManager {
     if (className === 'Paladin') {
       this._applyExtraStarterPaladinLoadout(unit);
     }
-    const cadreSpawnTier = unit.weapon?.tier || 'Iron';
     grantLethalArmoryWeapon(unit, this.gameData?.weapons || [], this.metaEffects?.lethalArmoryTier);
-    if (this.metaEffects?.masterOfArms) {
-      grantSecondaryWeapons(unit, this.gameData?.weapons || [], cadreSpawnTier);
-    }
     if (this.metaEffects?.recruitWeaponForge) {
       applyRecruitWeaponForge(unit, this.metaEffects.recruitWeaponForge);
+    }
+    // After the forge: Master of Arms extras arrive plain (grantMasterOfArmsWeapons).
+    if (this.metaEffects?.masterOfArms) {
+      grantMasterOfArmsWeapons(unit, this.gameData?.weapons || []);
     }
     if (this.metaEffects?.recruitStartingAccessory) {
       grantRecruitStartingAccessory(
@@ -3808,6 +3821,7 @@ export class RunManager {
       }),
     );
     this.shopStateByNodeId = {};
+    this.ruinsChoiceByNodeId = {};
     this.ensureRecruitPreviews();
     // Every act opens on a fresh land: act pressure restarts at 0 (the global meter,
     // after any boss relief, carries on).
@@ -4188,6 +4202,7 @@ export class RunManager {
       usedRecruitNames: this.usedRecruitNames || {},
       battleConfigsByNodeId: this.battleConfigsByNodeId || {},
       shopStateByNodeId: this.shopStateByNodeId || {},
+      ruinsChoiceByNodeId: this.ruinsChoiceByNodeId || {},
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || {
         ...DIFFICULTY_DEFAULTS,
@@ -4698,6 +4713,8 @@ export class RunManager {
     rm.ensurePortraitVariants(Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : 0);
     rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
     rm.shopStateByNodeId = saved.shopStateByNodeId || {};
+    // Saves from before the Ruins' choice carry none: no path chosen yet.
+    rm.ruinsChoiceByNodeId = sanitizeRuinsChoices(saved.ruinsChoiceByNodeId);
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
     if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {
       rm.difficultyModifiers = {

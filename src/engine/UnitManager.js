@@ -668,6 +668,12 @@ export function createRecruitUnit(
     if (handAxe) addToInventory(unit, handAxe);
   }
 
+  // Soldiers, a thin lance line, arrive with a Javelin: a ranged option like the axe line's.
+  if (classData.name === 'Soldier') {
+    const javelin = allWeapons.find((weapon) => weapon.name === 'Javelin');
+    if (javelin) addToInventory(unit, javelin);
+  }
+
   // Ensure already-leveled recruits receive any class learnables at current thresholds.
   if (Array.isArray(classesData) && classesData.length > 0) {
     checkLevelUpSkills(unit, classesData);
@@ -886,6 +892,16 @@ export function grantRecruitStartingAccessory(
  * Falls back to Iron tier if requested tier unavailable. Respects inventory cap.
  * Returns the number of weapons granted.
  */
+/**
+ * Master of Arms: one plain Iron weapon for each weapon type a recruit is proficient in
+ * but carries nothing of. Callers grant it after the recruit's other join upgrades
+ * (Quartermaster's Craft forges, Lethal Armory), so the extras are never forged or
+ * raised to the primary's tier: the upgrade widens a recruit's reach, not its power.
+ */
+export function grantMasterOfArmsWeapons(unit, allWeapons) {
+  return grantSecondaryWeapons(unit, allWeapons, 'Iron');
+}
+
 export function grantSecondaryWeapons(unit, allWeapons, weaponTier) {
   if (!unit || !Array.isArray(unit.proficiencies) || !Array.isArray(allWeapons)) return 0;
   if (!Array.isArray(unit.inventory)) return 0;
@@ -1564,15 +1580,30 @@ export function removeFromConsumables(unit, consumable) {
   if (idx !== -1) unit.consumables.splice(idx, 1);
 }
 
-/** Remove a weapon from inventory. Auto-equips first remaining combat weapon if active weapon removed. */
+/**
+ * Remove a weapon from inventory. If it was equipped, the first remaining combat
+ * weapon is equipped, else a staff the unit can use (as ItemTrade.settleEquipped
+ * and relinkWeapon do), else nothing: the unit is unarmed.
+ */
 export function removeFromInventory(unit, weapon) {
   const idx = unit.inventory.indexOf(weapon);
   if (idx === -1) return;
   unit.inventory.splice(idx, 1);
   if (unit.weapon === weapon) {
-    unit.weapon = getCombatWeapons(unit)[0] || null;
+    unit.weapon = getCombatWeapons(unit)[0] || getStaffWeapon(unit) || null;
     normalizeEquippedFirst(unit);
   }
+}
+
+/**
+ * True for a unit that could fight (it has a non-staff weapon rank) but carries no
+ * combat weapon it can wield: it can't attack or counter. A healer with only staff
+ * ranks is never "unarmed" (it never attacks). Pure; never mutates.
+ */
+export function isUnarmed(unit) {
+  if (!unit || !Array.isArray(unit.proficiencies)) return false;
+  const fighter = unit.proficiencies.some((p) => p?.type && p.type !== 'Staff');
+  return fighter && getCombatWeapons({ ...unit, inventory: unit.inventory || [] }).length === 0;
 }
 
 /** True if removing this weapon would leave the unit with no combat weapons. */

@@ -128,7 +128,12 @@ export function timelineChanges(previous, next) {
       facts.push(`${unit.name} moved to column ${unit.col + 1}, row ${unit.row + 1}.`);
     if (JSON.stringify(unit.items) !== JSON.stringify(before.items))
       facts.push(`${unit.name}'s items changed: ${unit.items.join(', ') || 'none'}.`);
-    if (unit.weapon !== before.weapon) facts.push(`${unit.name} equipped ${unit.weapon}.`);
+    if (unit.weapon !== before.weapon)
+      facts.push(
+        unit.weapon === 'Unarmed'
+          ? `${unit.name} is now unarmed.`
+          : `${unit.name} equipped ${unit.weapon}.`,
+      );
     if (JSON.stringify(unit.conditions) !== JSON.stringify(before.conditions))
       facts.push(`${unit.name}: ${unit.conditions.join(', ') || 'no status conditions'}.`);
   }

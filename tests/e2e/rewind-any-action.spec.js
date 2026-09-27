@@ -321,9 +321,9 @@ test.describe('phone 844×390', () => {
     const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
     await trade.getByRole('tab', { name: /^Supplies/ }).tap();
     await trade.getByRole('button', { name: 'Vulnerary', exact: true }).tap();
-    // Patient's free supply slots all read as the same give.
+    // Patient's free supply slots are numbered gives; the first free one takes it.
     await trade
-      .getByRole('button', { name: 'Give Vulnerary to Patient', exact: true })
+      .getByRole('button', { name: /^Give Vulnerary to Patient, slot \d$/ })
       .first()
       .tap();
     await trade.getByRole('button', { name: 'Done', exact: true }).tap();

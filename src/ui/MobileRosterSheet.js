@@ -87,6 +87,7 @@ import { getDisplayLevel } from '../engine/UnitManager.js';
 import {
   rosterItemAction,
   rosterItemBlock,
+  rosterItemWarnings,
   rosterAccessoryAction,
 } from '../engine/RosterInventory.js';
 import { getStaffRemainingUses, getStaffMaxUses } from '../engine/Combat.js';
@@ -1018,23 +1019,36 @@ export class MobileRosterSheet {
   }
   action(card, label, unit, item, action) {
     const reason = rosterItemBlock(this.run, unit, item, action);
-    card.append(
-      this.button(
-        label,
-        () => {
-          if (action === 'use' && item.effect === 'statBoost') {
-            this.useBooster(unit, item);
-            return;
-          }
-          const result = rosterItemAction(this.run, unit, item, action);
-          if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
-            this.scene.registry.get('audio')?.playSFX('sfx_heal');
-          this.render(result || `${label}: ${item.name}${this.persistNow()}`);
-        },
-        reason,
-      ),
+    // An allowed action can still cost something ("Leaves Edric unarmed"): the
+    // button carries it as its description and the card says it beside the button.
+    const warning = rosterItemWarnings(this.run, unit, item, action)
+      .map(tradeWarningText)
+      .filter(Boolean)
+      .map((text) => `${text}.`)
+      .join(' ');
+    const b = this.button(
+      label,
+      () => {
+        if (action === 'use' && item.effect === 'statBoost') {
+          this.useBooster(unit, item);
+          return;
+        }
+        const result = rosterItemAction(this.run, unit, item, action);
+        if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
+          this.scene.registry.get('audio')?.playSFX('sfx_heal');
+        this.render(
+          result || `${label}: ${item.name}${warning ? `. ${warning}` : ''}${this.persistNow()}`,
+        );
+      },
+      reason,
     );
+    card.append(b);
     if (reason) card.append(el('small', reason));
+    else if (warning) {
+      b.setAttribute('aria-description', warning);
+      b.title = warning;
+      card.append(el('small', warning, 'mr-warn'));
+    }
   }
   useBooster(unit, item) {
     if (this.picker || this.destroyed) return;
@@ -1095,7 +1109,10 @@ export class MobileRosterSheet {
       }
     }
     if (!unit.inventory?.length)
-      this.card('No equipment', 'This unit is not carrying any weapons.');
+      this.card(
+        'No equipment',
+        'Unarmed: this unit cannot attack or counterattack until it carries a weapon.',
+      );
     this.body.append(
       el('h3', `Consumables · ${unit.consumables?.length || 0}/3`, 'mr-gear-section'),
     );

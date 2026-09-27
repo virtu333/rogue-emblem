@@ -375,6 +375,36 @@ describe('GuidanceController moments', () => {
     expect(g.noTargetAttackReason(sera, [])).toBeNull();
   });
 
+  it('greys Attack for an unarmed fighter on Full only; a pure healer keeps it hidden', () => {
+    const { scene, settings, edric } = guidanceScene();
+    const g = new GuidanceController(scene);
+    edric.proficiencies = [{ type: 'Sword', rank: 'Prof' }];
+    const sword = { name: 'Iron Sword', type: 'Sword', range: '1', rankRequired: 'Prof' };
+    const axe = { name: 'Iron Axe', type: 'Axe', range: '1', rankRequired: 'Prof' };
+    edric.inventory = [];
+    edric.weapon = null;
+    expect(g.unarmedAttackReason(edric)).toBe('Unarmed: no weapon to attack with');
+    // Carrying only what it can't wield is still unarmed.
+    edric.inventory = [axe];
+    expect(g.unarmedAttackReason(edric)).toBe('Unarmed: no weapon to attack with');
+    edric.inventory = [sword];
+    edric.weapon = sword;
+    expect(g.unarmedAttackReason(edric)).toBeNull();
+    const cleric = {
+      name: 'Saul',
+      faction: 'player',
+      proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+      inventory: [],
+      weapon: null,
+    };
+    expect(g.unarmedAttackReason(cleric)).toBeNull();
+    expect(g.unarmedAttackReason({ ...cleric, faction: 'enemy' })).toBeNull();
+    edric.inventory = [];
+    edric.weapon = null;
+    settings.getGuidance = () => 'light';
+    expect(g.unarmedAttackReason(edric)).toBeNull();
+  });
+
   describe('greyed Attack reach matches what targeting can strike', () => {
     const gameData = loadGameData();
     const weapon = (name) => structuredClone(gameData.weapons.find((w) => w.name === name));

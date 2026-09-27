@@ -163,6 +163,73 @@ describe('ColosseumOverlay', () => {
     expect(hasText(scene, 'Not enough gold')).toBe(true);
   });
 
+  it('an unarmed fighter cannot enter: its row says why and a forced fight does nothing', () => {
+    const scene = makeScene();
+    const unit = makeUnit(gameData, 'Bare');
+    unit.inventory = [];
+    unit.weapon = null;
+    const runManager = makeRunManager({ roster: [unit] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    overlay.show({ id: 'col-unarmed' }, vi.fn());
+    overlay._showUnitSelect();
+    const row = activeTexts(scene).find((obj) => String(obj.text).startsWith('Bare ·'));
+    expect(row).toBeTruthy();
+    expect(row.interactive).toBe(false);
+    expect(hasText(scene, 'Bare has no weapon to fight with.')).toBe(true);
+
+    // Before the fix this was an empty exchange scored as a draw that paid draw XP.
+    overlay._selectedUnit = unit;
+    overlay._selectedTier = {
+      name: 'bronze',
+      entryFee: 50,
+      goldReward: 120,
+      xpMultiplier: 1,
+      levelOffset: [0, 0],
+    };
+    overlay._challenger = { unit: makeUnit(gameData, 'Challenger') };
+    const before = { xp: unit.xp, level: unit.level, gold: runManager.gold };
+    overlay._executeFight();
+    expect(overlay._fightsPerUnit.Bare || 0).toBe(0);
+    expect({ xp: unit.xp, level: unit.level, gold: runManager.gold }).toEqual(before);
+  });
+
+  it('a healer holding a staff fights with its tome, equipping it on Fight', () => {
+    const scene = makeScene();
+    const unit = makeUnit(gameData, 'Priest');
+    const heal = structuredClone(gameData.weapons.find((w) => w.name === 'Heal'));
+    const glimmer = structuredClone(gameData.weapons.find((w) => w.name === 'Glimmer'));
+    unit.proficiencies = [
+      { type: 'Light', rank: 'Prof' },
+      { type: 'Staff', rank: 'Prof' },
+    ];
+    unit.inventory = [heal, glimmer];
+    unit.weapon = heal;
+    const runManager = makeRunManager({ roster: [unit] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    overlay.show({ id: 'col-staff' }, vi.fn());
+    overlay._selectedUnit = unit;
+    overlay._selectedTier = {
+      name: 'bronze',
+      entryFee: 50,
+      goldReward: 120,
+      xpMultiplier: 1,
+      levelOffset: [0, 0],
+    };
+    overlay._challenger = { unit: makeUnit(gameData, 'Sparring') };
+    overlay._showForecast();
+    // The forecast plans Glimmer without equipping it.
+    expect(hasText(scene, 'Glimmer')).toBe(true);
+    expect(unit.weapon).toBe(heal);
+    overlay._executeFight();
+    expect(overlay._fightsPerUnit.Priest).toBe(1);
+    expect(unit.weapon).toBe(glimmer);
+    expect(unit.inventory).toEqual([glimmer, heal]);
+    // The exchange happened: the log has the fighter's own strike line.
+    expect(
+      activeTexts(scene).some((obj) => /^Priest (attacks|lands a critical hit)/.test(obj.text)),
+    ).toBe(true);
+  });
+
   it('hides Fight Again when post-result gold is below entry fee', () => {
     const scene = makeScene();
     const unit = makeUnit(gameData, 'ResultUnit');

@@ -37,7 +37,6 @@ export const TRADE_REASONS = Object.freeze({
   convoyCannotStore: 'The convoy cannot store this item.',
   bagFull: 'Bag full.',
   convoyFull: 'Convoy is full.',
-  keepWeapon: 'Keep at least one combat weapon.',
 });
 
 export const TRADE_WARNINGS = Object.freeze({
@@ -230,7 +229,8 @@ function resolveTrade(ctx, from, to) {
     }
   }
 
-  // 8 + 9. Last combat weapon (blocks against the convoy) and warnings.
+  // 8. Warnings (never block): a weapon its receiver can't wield, and a unit left
+  // with no combat weapon (either side, the convoy included).
   const warnings = [];
   if (bag === 'inventory') {
     const fromList = liveList(ctx, from.holder, bag) || [];
@@ -242,16 +242,15 @@ function resolveTrade(ctx, from, to) {
       ? toList.map((item, index) => (index === toIndex ? fromItem : item))
       : [...toList, fromItem];
     const sides = [
-      { holder: from.holder, before: fromList, after: fromAfter, other: to.holder },
-      { holder: to.holder, before: toList, after: toAfter, other: from.holder },
+      { holder: from.holder, before: fromList, after: fromAfter },
+      { holder: to.holder, before: toList, after: toAfter },
     ];
     const unarmed = [];
     for (const side of sides) {
       if (!isUnitHolder(side.holder)) continue;
       const unit = side.holder.unit;
-      if (!hasCombatWeapon(unit, side.before) || hasCombatWeapon(unit, side.after)) continue;
-      if (isConvoyHolder(side.other)) return fail(TRADE_REASONS.keepWeapon);
-      unarmed.push(unit);
+      if (hasCombatWeapon(unit, side.before) && !hasCombatWeapon(unit, side.after))
+        unarmed.push(unit);
     }
     if (isUnitHolder(to.holder) && !canUnitEquip(to.holder.unit, fromItem))
       warnings.push({ code: TRADE_WARNINGS.cannotEquip, unit: to.holder.unit, item: fromItem });

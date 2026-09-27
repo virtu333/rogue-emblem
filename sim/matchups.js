@@ -10,7 +10,7 @@ import {
   printRecommendations,
   printHeader,
 } from './lib/TableFormatter.js';
-import { resolveCombat } from '../src/engine/Combat.js';
+import { getCombatForecast, resolveCombat } from '../src/engine/Combat.js';
 import { getSkillCombatMods, rollStrikeSkills, checkAstra } from '../src/engine/SkillSystem.js';
 import { XP_STAT_NAMES } from '../src/utils/constants.js';
 
@@ -100,6 +100,20 @@ function runMatchup(
       skillsData: data.skills,
     };
 
+    // Doubling uses attack speed (SPD less weapon weight beyond STR/5, plus skill and
+    // accessory bonuses), exactly as the fight resolves it: read it from the forecast of
+    // this same exchange, taken before the fight changes anyone's HP.
+    const forecast = getCombatForecast(
+      atk,
+      atk.weapon,
+      def,
+      def.weapon,
+      distance,
+      atkTerrain,
+      defTerrain,
+      skillCtx,
+    );
+
     const result = resolveCombat(
       atk,
       atk.weapon,
@@ -117,8 +131,8 @@ function runMatchup(
     totalDmgDealt += (def.currentHP || def.stats.HP) - Math.max(0, result.defenderHP);
     totalDmgTaken += (atk.currentHP || atk.stats.HP) - Math.max(0, result.attackerHP);
 
-    if (atk.stats.SPD >= def.stats.SPD + 5) doublesCount++;
-    if (def.stats.SPD >= atk.stats.SPD + 5) atkDoubled++;
+    if (forecast.attacker?.doubles) doublesCount++;
+    if (forecast.defender?.doubles) atkDoubled++;
   }
 
   return {

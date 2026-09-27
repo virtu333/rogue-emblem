@@ -83,6 +83,7 @@ import {
   addToConsumables,
   removeFromConsumables,
   equipWeapon,
+  equipIfUnarmed,
   normalizeEquippedFirst,
   getStaffWeapon,
   getCombatWeapons,
@@ -5993,9 +5994,12 @@ export class BattleScene extends Phaser.Scene {
       if (!silenced || hasPhysical) items.push('Attack');
     }
     // Guidance (Full): a greyed Attack row says why it is missing instead of hiding it.
+    // An unarmed fighter gets its own reason (Full Guidance): nothing to attack with.
     const noReachReason = silenced
       ? null
-      : this._guidance?.noTargetAttackReason?.(unit, normalAttackTargets);
+      : this._guidance?.noTargetAttackReason?.(unit, normalAttackTargets) ||
+        this._guidance?.unarmedAttackReason?.(unit) ||
+        null;
     if (noReachReason && !items.includes('Attack')) {
       items.push('Attack');
       blockedActions.set('Attack', noReachReason);
@@ -7203,7 +7207,8 @@ export class BattleScene extends Phaser.Scene {
         (w) => w.type === prof.type && w.tier === 'Iron',
       );
       if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-        addToInventory(unit, newWeapon);
+        // A unit whose old weapon no longer fits (or had none) takes up the new one.
+        if (addToInventory(unit, newWeapon)) equipIfUnarmed(unit, unit.inventory.at(-1));
       }
     }
 

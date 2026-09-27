@@ -131,9 +131,9 @@ describe('structure', () => {
     expect(labels(root, 'left')).toEqual([
       'Iron Sword, equipped',
       'Rapier',
-      'Empty',
-      'Empty',
-      'Empty',
+      'Empty slot 3',
+      'Empty slot 4',
+      'Empty slot 5',
     ]);
     expect(root.querySelector('.tm-notice').hidden).toBe(true);
     // Rows are never natively disabled: blocked and empty rows stay focusable.
@@ -170,10 +170,10 @@ describe('hold and commit', () => {
     );
     expect(labels(root, 'right')).toEqual([
       'Trade Rapier for Iron Lance',
-      'Give Rapier to Sera',
-      'Give Rapier to Sera',
-      'Give Rapier to Sera',
-      'Give Rapier to Sera',
+      'Give Rapier to Sera, slot 2',
+      'Give Rapier to Sera, slot 3',
+      'Give Rapier to Sera, slot 4',
+      'Give Rapier to Sera, slot 5',
     ]);
     // Sera can't wield the held Rapier whichever slot takes it: the status line says so
     // once (above), and the target rows carry no repeated warning line.
@@ -223,25 +223,24 @@ describe('hold and commit', () => {
   });
 
   it('a blocked target explains itself in the status line and never commits', () => {
-    const iron = weapon('Iron Sword');
-    const edric = unit('Edric', { inventory: [iron] });
-    edric.keepLast = true;
+    const breath = weapon('Fire Breath', { noConvoy: true });
+    const edric = unit('Edric', { inventory: [breath, weapon('Iron Sword')] });
     const engine = fakeEngine({ convoy: { weapons: [weapon('Axe')], consumables: [] } });
     const commit = vi.fn(() => ({ ok: true }));
     const { root } = open({ left: edric, right: CONVOY, engine, commit });
     row(root, 'left', 0).click();
     const give = row(root, 'right', 1);
-    expect(give.getAttribute('aria-label')).toBe('Give Iron Sword to Convoy');
+    expect(give.getAttribute('aria-label')).toBe('Give Fire Breath to Convoy');
     expect(give.getAttribute('aria-disabled')).toBe('true');
     expect(give.disabled).toBe(false);
     give.click();
     expect(commit).not.toHaveBeenCalled();
-    expect(status(root).textContent).toBe('Keep at least one combat weapon.');
+    expect(status(root).textContent).toBe('The convoy cannot store this item.');
     // Focus alone says why too; an open row restores the line.
     row(root, 'left', 0).dispatchEvent(new FakeEvent('focus'));
-    expect(status(root).textContent).toBe('Holding Iron Sword. Choose where it goes.');
+    expect(status(root).textContent).toBe('Holding Fire Breath. Choose where it goes.');
     give.dispatchEvent(new FakeEvent('focus'));
-    expect(status(root).textContent).toBe('Keep at least one combat weapon.');
+    expect(status(root).textContent).toBe('The convoy cannot store this item.');
   });
 
   it('a refused commit keeps the item held and shows the reason', () => {
@@ -371,7 +370,7 @@ describe('keyboard and gamepad', () => {
     expect(row(root, 'left', 1).getAttribute('aria-pressed')).toBe('true');
     dom.key('e');
     expect(tabs(root).map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true']);
-    expect(labels(root, 'left')).toEqual(['Vulnerary', 'Empty', 'Empty']);
+    expect(labels(root, 'left')).toEqual(['Vulnerary', 'Empty slot 2', 'Empty slot 3']);
     expect(rowsOf(root).some((el) => el.getAttribute('aria-pressed') === 'true')).toBe(false);
     expect(focused()).toBe('left:1');
     dom.key('PageUp');
@@ -406,6 +405,6 @@ describe('keyboard and gamepad', () => {
     });
     expect(row(root, 'left', 1).getAttribute('aria-pressed')).toBe('true');
     expect(focused()).toBe('right:1');
-    expect(document.activeElement.getAttribute('aria-label')).toBe('Give Rapier to Sera');
+    expect(document.activeElement.getAttribute('aria-label')).toBe('Give Rapier to Sera, slot 2');
   });
 });

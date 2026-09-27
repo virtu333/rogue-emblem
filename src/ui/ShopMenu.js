@@ -9,11 +9,13 @@ import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
 import { unitPortrait } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
+import { tradeWarningText } from './tradeMenuModel.js';
 import {
   shopOwnedItems,
   shopBuyBlock,
   purchaseShopItem,
   shopSellBlock,
+  shopSellWarnings,
   sellShopItem,
   shopForgeBlock,
   forgeShopWeapon,
@@ -332,17 +334,27 @@ export class ShopMenu {
       action.append(b);
     } else if (tab === 'sell') {
       reason = shopSellBlock(this.run, row);
+      // Selling the last weapon is allowed; say what it costs before and at the confirm.
+      const warning = shopSellWarnings(this.run, row)
+        .map(tradeWarningText)
+        .filter(Boolean)
+        .map((text) => `${text}.`)
+        .join(' ');
       const b = button(
         `Sell · ${getSellPrice(item)} G`,
         () =>
           this.confirm(
             `Sell ${item.name}?`,
-            `${row.owner} loses this item. Receive ${getSellPrice(item)} gold.`,
+            `${row.owner} loses this item.${warning ? ` ${warning}` : ''} Receive ${getSellPrice(item)} gold.`,
             () => this.complete(sellShopItem(this.run, row)),
           ),
         're-btn re-btn--primary',
       );
       b.disabled = !!reason;
+      if (warning && !reason) {
+        b.setAttribute('aria-description', warning);
+        action.append(el('p', warning, 'shop-warning'));
+      }
       action.append(b);
     } else {
       const options = this.forgeOptions();
