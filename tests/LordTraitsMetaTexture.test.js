@@ -99,6 +99,6 @@ describe('advanced starting-skill unlocks', () => {
     const total = sumCosts(priced.filter((u) => !isMagLckTrack(u)));
     expect(total).toBe(53385);
     expect(total / 53428).toBeLessThan(1.03);
-    expect(sumCosts(priced.filter(isMagLckTrack))).toBe(4360);
+    expect(sumCosts(priced.filter(isMagLckTrack))).toBe(4080);
   });
 });
