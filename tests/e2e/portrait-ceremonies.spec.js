@@ -255,6 +255,60 @@ for (const viewport of PORTRAIT_PHONES) {
       await boss.tap();
       await expect(boss).toHaveCount(0);
 
+      // The Entity (the 3x3 final boss): no name; its image fills the band, in frame.
+      await page.evaluate(async () => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        const gd = s.gameData;
+        const { createUnit } = await import('/src/engine/UnitManager.js');
+        const base = gd.classes.find((c) => c.name === 'Fighter');
+        const u = createUnit(base, 20, gd.weapons, { name: 'The Entity' });
+        Object.assign(u, { faction: 'enemy', isBoss: true, isEntity: true });
+        void s._getCeremonies().showBossIntro({ unit: u, actId: 'act4' });
+      });
+      const entity = page.locator('.ce-boss-layer--entity');
+      await expect(entity.locator('.ce-boss-mark')).toHaveText('· · ·');
+      const entityFit = await entity.evaluate((layer) => {
+        const f = layer.getBoundingClientRect();
+        const band = layer.querySelector('.ce-boss-band').getBoundingClientRect();
+        const mark = layer.querySelector('.ce-boss-mark').getBoundingClientRect();
+        return {
+          band: band.left >= f.left - 1 && band.right <= f.right + 1 && band.top >= f.top,
+          mark: mark.top >= band.top - 1 && mark.bottom <= band.bottom + 1,
+        };
+      });
+      expect(entityFit).toEqual({ band: true, mark: true });
+      await page.waitForTimeout(250);
+      await entity.tap();
+      await expect(entity).toHaveCount(0);
+
+      // Victory: "Turn 12 · Par 10 · Rank A · …" wraps between its parts, inside the band.
+      await page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        s._getCeremonies().showVictory({
+          objective: 'rout',
+          turn: 12,
+          par: 10,
+          rating: 'A',
+          shadowGain: 3,
+          shadowRelief: 1,
+        });
+      });
+      const victory = page.locator('.ce-band-layer--victory');
+      await expect(victory.locator('.ce-band-word')).toHaveText('ROUTED');
+      await expectSingleLine(victory.locator('.ce-band-word'));
+      await expectSingleLine(victory.locator('.ce-band-sub > .ce-part'));
+      expect(
+        await page.evaluate(auditText, {
+          root: '.ce-band-layer--victory',
+          bandSel: '.ce-band',
+          insets: NOTCH_PORTRAIT,
+        }),
+      ).toEqual([]);
+      await page.evaluate(() =>
+        window.__emblemRogueGame.scene.getScene('Battle')._ceremonies?.destroy(),
+      );
+      await expect(victory).toHaveCount(0);
+
       // Recruit: the longest name with a long line, then a lord's legendary arrival.
       for (const kind of ['recruit', 'lord']) {
         await page.evaluate(
