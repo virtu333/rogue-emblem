@@ -84,7 +84,13 @@ export const MUSIC = {
       act4: 'music_battle_elite_act4',
     },
     caravan: 'music_battle_caravan',
-    fog: 'music_battle_fog',
+    // fog: the tune the fog keeps in Act I; the Empire's patrol band from Act II
+    fog: {
+      act1: 'music_battle_fog',
+      act2: 'music_battle_fog_2',
+      act3: ['music_battle_fog', 'music_battle_fog_2'],
+      act4: ['music_battle_fog_2', 'music_battle_fog'],
+    },
   },
   colosseum: 'music_colosseum',
   // Choosing blessings at the start of a run.
@@ -121,6 +127,7 @@ export const MUSIC_LAYERS = {
   music_battle_elite_act4: { calm: 'music_battle_elite_act4_calm' },
   music_battle_caravan: { calm: 'music_battle_caravan_calm' },
   music_battle_fog: { calm: 'music_battle_fog_calm' },
+  music_battle_fog_2: { calm: 'music_battle_fog_2_calm' },
   music_battle_eclipsed: { calm: 'music_battle_eclipsed_calm' },
   music_battle_castle: { calm: 'music_battle_castle_calm' },
   music_battle_swamp: { calm: 'music_battle_swamp_calm' },
