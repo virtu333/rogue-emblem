@@ -494,6 +494,28 @@
     "title": "What the Fog Keeps",
     "tonic": "G"
   },
+  "music_battle_fog_2": {
+    "duration": 76.523,
+    "loopEnd": 75.923061,
+    "loopStart": 8.615374,
+    "lufs": -14.0,
+    "peakDb": -1.09,
+    "score": "battle_fog_2",
+    "seamDb": -59.7,
+    "title": "Out of Step",
+    "tonic": "D"
+  },
+  "music_battle_fog_2_calm": {
+    "duration": 76.523,
+    "loopEnd": 75.923061,
+    "loopStart": 8.615374,
+    "lufs": -17.0,
+    "peakDb": -4.49,
+    "score": "battle_fog_2",
+    "seamDb": -71.1,
+    "title": "Out of Step",
+    "tonic": "D"
+  },
   "music_battle_fog_calm": {
     "duration": 100.6,
     "loopEnd": 100.0,
