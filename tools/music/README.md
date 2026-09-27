@@ -110,6 +110,12 @@ its own parts and never deletes another score's. Nothing else is evicted unless 
   program with its round robins rotated, so a second take never repeats the first
   take's samples (sfizz's round-robin draw is the same on every render). In a loop, give
   the chorus a `chorus_rate` with a whole number of cycles per loop.
+- `edm.py`: electronic voices (`supersaw` stacks, plucks and pads with a resonant filter
+  envelope and a tempo LFO for future-bass wobble, `sub808`, a `kick_synth` layer,
+  `noise_riser`, `downlifter`, `impact`) and two part options: `sweep=[(bar, hz), ...]`
+  (a moving 24 dB/oct low-pass) and `pump=dict(beats=[...], depth_db, release)`
+  (sidechain pumping keyed to given beats). A synth part may carry its own voice
+  settings (`synth=dict(...)`).
 - Other part options: `fader=[(bar, dB), ...]` moves a part's level after its processing
   (for level changes a velocity cannot make, such as a distorted guitar's).
 - `render.py`: per-part rendering with auto-calibrated levels and onset pre-roll, role

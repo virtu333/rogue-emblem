@@ -368,6 +368,9 @@ class Renderer:
     def render_part(self, part):
         s = self.s
         inst = INSTRUMENTS[part.inst]
+        if inst['kind'] == 'synth' and part.opts.get('synth'):
+            # a synth part's own voice settings (engine/edm.py), over the registry's
+            inst = {**inst, 'params': {**inst.get('params', {}), **part.opts['synth']}}
         if inst.get('keep_arts'):
             kept, rest = self._split_kept(part, inst)
             if kept is not None:
@@ -519,6 +522,19 @@ class Renderer:
         if fader:
             g = self._lane([(s.bar(b), d) for b, d in fader], len(x))
             x = x * (10 ** (g / 20)).astype(np.float32)[:, None]
+        # EDM production (engine/edm.py): a moving low-pass, and sidechain pumping
+        # keyed to given beats (usually the kick's)
+        sweep = part.opts.get('sweep')
+        if sweep:
+            from . import edm
+            x = edm.lowpass_sweep(x, [(s.seconds(s.bar(b)), f) for b, f in sweep])
+        pump = part.opts.get('pump')
+        if pump:
+            from . import edm
+            g = edm.pump_gain(len(x), [s.seconds(b) for b in pump['beats']],
+                              depth_db=pump.get('depth_db', 8.0),
+                              release=pump.get('release', 0.25), shape=pump.get('shape', 1.6))
+            x = x * g[:, None]
         width = part.opts.get('width', inst.get('width', 0.6))
         pan = part.opts.get('pan', inst.get('pan', 0.0))
         x = dsp.pan_stereo(x, pan, width)
