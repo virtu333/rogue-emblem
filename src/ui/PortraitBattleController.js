@@ -48,6 +48,11 @@ export class PortraitBattleController {
     // Set when this battle cannot re-open (no run save, e.g. the tutorial): the layout
     // still follows the phone, the board keeps its orientation.
     this.locked = false;
+    // Set when a switch's save did not reach storage (full, private mode): the request
+    // that failed (phone upright?, portrait mode on?). The board keeps its orientation
+    // and nothing retries per frame; the next request (turning the phone, or the
+    // Settings toggle) tries once more, so a player never needs a refresh.
+    this.saveFailed = null;
     this.notice = null;
     this._listeners = [];
   }
@@ -74,6 +79,11 @@ export class PortraitBattleController {
     this.enabled = Boolean(portraitBattlesEnabled() && this.phoneLayout());
     // An upright board keeps the upright layout until it turns back.
     this.capable = this.enabled || this.rotated;
+  }
+
+  /** The request a failed save is held against: which way the phone is, which mode. */
+  _request() {
+    return `${isPortraitViewport()}:${this.enabled}`;
   }
 
   /** What the phone asks for right now. */
@@ -162,11 +172,13 @@ export class PortraitBattleController {
     return {
       // Only fixed-v1 battles keep one RNG stream across saves. A battle begun under
       // the legacy policy reseeds by save count, so an extra save would change later
-      // outcomes: it keeps its board.
+      // outcomes: it keeps its board. A battle without a save slot (dev routes) has
+      // nowhere to write the save it would re-open from.
       hasRunCheckpoint: Boolean(
         s.runManager?.battleInProgress &&
         !s.battleParams?.tutorialMode &&
-        s._battleRewindPolicy === 'fixed-v1',
+        s._battleRewindPolicy === 'fixed-v1' &&
+        Number.isInteger(s.registry?.get?.('activeSlot')),
       ),
       boundary: classifyBattleBoundary(s),
       phase: s.turnManager?.currentPhase,
@@ -179,6 +191,7 @@ export class PortraitBattleController {
 
   /** Per frame (cheap): finish a pending switch once the battle reaches a safe point. */
   update() {
+    if (this.notice) this._placeNotice();
     if (this.switching) return;
     const over = this.scene.battleState === 'BATTLE_END';
     if (over !== this.ended) {
@@ -201,9 +214,14 @@ export class PortraitBattleController {
     const mismatch = this.mismatch();
     if (!mismatch) {
       this.pending = false;
+      // The phone is back in the board's orientation: a later turn tries again.
+      this.saveFailed = null;
       if (!this.locked) this._showNotice(null);
       return false;
     }
+    // A save just failed: hold until the player asks again.
+    if (this.saveFailed === this._request()) return false;
+    this.saveFailed = null;
     this.pending = true;
     const state = this.switchState();
     if (!state.hasRunCheckpoint) {
@@ -235,8 +253,13 @@ export class PortraitBattleController {
     const bip = rm?.battleInProgress;
     const checkpoint = bip?.checkpoint;
     if (!saved || !checkpoint || (Number(checkpoint.checkpointIndex) || 0) <= before) {
-      // No durable save to re-open from: keep playing on the present board.
-      this._lock();
+      // No durable save to re-open from: keep playing on the present board. Storage
+      // can recover (space freed, a transient error), so this is not for good.
+      this.saveFailed = this._request();
+      this.pending = false;
+      this._showNotice(
+        'The battle could not be saved, so the board stays as it is. Turn the phone again to retry.',
+      );
       return false;
     }
     this.switching = true;
@@ -305,6 +328,39 @@ export class PortraitBattleController {
       document.body.append(this.notice);
     }
     if (this.notice.textContent !== text) this.notice.textContent = text;
+    this._placeNotice();
+  }
+
+  // The note sits over the map, never over the rail: centred on the map's area (the
+  // landscape rail stands beside it) and no wider than it. The tutorial guide docks
+  // over the map too (top or bottom, and it re-docks as the layout turns): where the
+  // note's own place would cover it, the note sits just below the guide instead,
+  // never over its Skip step / Leave buttons. Checked every frame while the note
+  // shows (a few seconds).
+  _placeNotice() {
+    const notice = this.notice;
+    if (!notice?.isConnected) return;
+    const map = document.getElementById('game-container')?.getBoundingClientRect();
+    const left = map?.width > 0 ? `${Math.round(map.left + map.width / 2)}px` : '';
+    const room = map?.width > 0 ? Math.max(160, Math.floor(map.width - 16)) : 0;
+    const maxWidth = room ? `min(92vw, 420px, ${room}px)` : '';
+    if (notice.style.left !== left) notice.style.left = left;
+    if (notice.style.maxWidth !== maxWidth) notice.style.maxWidth = maxWidth;
+    const coach = document.querySelector('.re-coach:not([hidden])')?.getBoundingClientRect();
+    let top = '';
+    if (coach && coach.height > 0) {
+      const previous = notice.style.top;
+      notice.style.top = '';
+      const own = notice.getBoundingClientRect();
+      notice.style.top = previous;
+      const covers =
+        own.top < coach.bottom &&
+        own.bottom > coach.top &&
+        own.left < coach.right &&
+        own.right > coach.left;
+      if (covers) top = `${Math.round(coach.bottom + 8)}px`;
+    }
+    if (notice.style.top !== top) notice.style.top = top;
   }
 
   destroy() {

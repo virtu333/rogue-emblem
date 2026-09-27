@@ -4,6 +4,7 @@ import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { GUIDANCE_LABELS, isVeteranMeta, resolveGuidance } from '../engine/Guidance.js';
 import {
+  PORTRAIT_BATTLE_CHANGE_EVENT,
   getPortraitBattlePreference,
   setPortraitBattlePreference,
   showPortraitBattleSetting,
@@ -69,6 +70,7 @@ export class SettingsMenu {
       };
       render();
       list.append(control, element('p', help, 're-muted'));
+      return render;
     };
     // Guidance: Full / Light / Off. Shows the effective level; while untouched it is
     // Full for a save slot that has not finished a run and Light afterwards.
@@ -184,12 +186,22 @@ export class SettingsMenu {
     // Touch devices only: device-local, never synced (see utils/portraitBattle.js). On by
     // default on a phone. Not in the iPad app, which holds the screen in landscape.
     if (showPortraitBattleSetting({ mobile: detectMobileRuntime() })) {
-      toggle(
+      const renderPortrait = toggle(
         'Portrait mode',
         () => getPortraitBattlePreference(),
         (value) => setPortraitBattlePreference(value),
         'Hold the phone upright to play. Off: the game stays sideways.',
       );
+      // The rotate prompt's "Play upright" can turn it on while this menu is open
+      // behind the prompt: keep the label true to the setting.
+      if (typeof window !== 'undefined') {
+        window.addEventListener(PORTRAIT_BATTLE_CHANGE_EVENT, renderPortrait);
+        const destroySurface = this.surface.destroy.bind(this.surface);
+        this.surface.destroy = () => {
+          window.removeEventListener(PORTRAIT_BATTLE_CHANGE_EVENT, renderPortrait);
+          destroySurface();
+        };
+      }
     }
     this.surface.body.append(list);
     // The long list fades the edge that has more to scroll.

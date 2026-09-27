@@ -220,3 +220,419 @@ export function pageErrors(page) {
   page.on('pageerror', (e) => errors.push(e.message));
   return errors;
 }
+
+// ---------------------------------------------------------------------------
+// Battle and run flows shared by the portrait battle, journey and rotation specs.
+// Every wait is on game state (window.__sceneState, the Battle scene), never on time.
+
+/**
+ * Attach the page's run to a save slot (dev routes have none), so the battle can be
+ * saved, re-opened in the other orientation and resumed. The test profile is isolated.
+ */
+export async function attachSlot(page, slot = 1) {
+  await page.evaluate(async (slot) => {
+    const game = window.__emblemRogueGame;
+    const { getMetaKey, setActiveSlot } = await import('/src/engine/SlotManager.js');
+    const meta = game.registry.get('meta');
+    meta.storageKey = getMetaKey(slot);
+    meta._save();
+    game.registry.set('activeSlot', slot);
+    setActiveSlot(slot);
+  }, slot);
+}
+
+/** Board orientation, battle state and a short unit summary of the live battle. */
+export function battleSnapshot(page) {
+  return page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    return {
+      rotation: b.grid?.board?.rotation ?? null,
+      state: b.battleState,
+      phase: b.turnManager?.currentPhase ?? null,
+      units: [...b.playerUnits, ...b.enemyUnits, ...(b.npcUnits || [])].map((u) => [
+        u.name,
+        u.col,
+        u.row,
+        u.currentHP,
+        Boolean(u.hasActed),
+      ]),
+      rng: b._battleRng?.getState?.() ?? null,
+    };
+  });
+}
+
+/**
+ * Full domain state of the live battle, through the production checkpoint adapter:
+ * units (HP, positions, equipment, conditions), enemies, NPCs, fog knowledge,
+ * temporary terrain, village and ballista state, the RNG stream, convoy and gold;
+ * plus the turn, Vision charges and the deployment record the run keeps for it.
+ * Bookkeeping that legitimately counts saves (the checkpoint index; an orientation
+ * switch is one save) is returned apart, never compared as gameplay.
+ *
+ * Values are compared the way a save stores them, so live play and a restore from
+ * the save compare equal: JSON (an unset distance, Infinity, reads back as null,
+ * which the game reads as Infinity) and the commander flag as a boolean (a restore
+ * writes false where live play leaves it unset). Nothing else is normalized.
+ */
+export function battleDomainState(page) {
+  return page.evaluate(async () => {
+    const { captureBattleState } = await import('/src/ui/BattleCheckpointAdapter.js');
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    const state = JSON.parse(JSON.stringify(captureBattleState(b)));
+    for (const group of [
+      'playerUnits',
+      'enemyUnits',
+      'npcUnits',
+      'escapedUnits',
+      'nonDeployedUnits',
+    ])
+      for (const unit of state[group] || []) unit.isCommander = unit.isCommander === true;
+    if (state.fog) {
+      state.fog.visible.sort();
+      state.fog.everSeen.sort();
+    }
+    delete state.checkpointIndex; // a capture argument (0 here), not battle state
+    const rm = b.runManager;
+    const bip = rm?.battleInProgress;
+    const bookkeeping = { checkpointIndex: bip?.checkpoint?.checkpointIndex ?? null };
+    return {
+      bookkeeping,
+      domain: {
+        state,
+        turn: b.turnManager?.turnNumber ?? null,
+        phase: b.turnManager?.currentPhase ?? null,
+        visionCharges: rm?.visionChargesRemaining ?? null,
+        visionCount: rm?.visionCount ?? null,
+        deployment: {
+          deployCount: b.battleParams?.deployCount ?? null,
+          lastDeployment: rm?.lastDeployment ?? null,
+          battleParams: bip?.battleParams ?? null,
+          entry: bip
+            ? {
+                nodeId: bip.nodeId,
+                isBoss: bip.isBoss,
+                isElite: bip.isElite,
+                rewindPolicy: bip.rewindPolicy,
+                visionChargesAtEntry: bip.visionChargesAtEntry,
+                visionCountAtEntry: bip.visionCountAtEntry,
+                rngSeedAtEntry: bip.rngSeedAtEntry,
+                entryBattleState: bip.entryBattleState,
+              }
+            : null,
+        },
+      },
+    };
+  });
+}
+
+/**
+ * The CSS point at the centre of a tile, after the camera brings it into view (the
+ * same pan a player would make). Works for the turned and the landscape board.
+ */
+export function tileOnScreen(page, col, row) {
+  return page.evaluate(
+    ([col, row]) => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      const world = b.grid.gridToPixel(col, row);
+      b._battleCamera?.ensureWorldVisible?.(world.x, world.y, 24);
+      const screen = b._worldToScreen(world.x, world.y);
+      const rect = b.game.canvas.getBoundingClientRect();
+      return {
+        x: rect.left + (screen.x * rect.width) / b.scale.width,
+        y: rect.top + (screen.y * rect.height) / b.scale.height,
+      };
+    },
+    [col, row],
+  );
+}
+
+/** A real tap on a board tile. */
+export async function tapTile(page, col, row) {
+  const point = await tileOnScreen(page, col, row);
+  await page.touchscreen.tap(point.x, point.y);
+}
+
+export function battleRail(page) {
+  return page.getByRole('complementary', { name: 'Battle commands' });
+}
+
+/** Wait until the player can act (turn ready, nothing selected). */
+export async function battleIdle(page, timeout = 30_000) {
+  await page.waitForFunction(
+    () => {
+      const b = window.__emblemRogueGame?.scene?.getScene('Battle');
+      return (
+        window.__sceneState?.activeScene === 'Battle' &&
+        b?.battleState === 'PLAYER_IDLE' &&
+        b.turnManager?.currentPhase === 'player' &&
+        !b.selectedUnit
+      );
+    },
+    null,
+    { timeout },
+  );
+}
+
+/**
+ * Select a unit by tapping it, tap a destination, and Wait from the rail: one whole
+ * player action through real input. `dest` ({ col, row }) defaults to the reachable
+ * free tile closest to the nearest enemy (`toward: true`) or farthest from every
+ * enemy (`toward: false`); ties go to the lowest row, then column, so the same call
+ * plays the same move in any orientation.
+ */
+export async function moveAndWait(page, name, { dest = null, toward = true } = {}) {
+  const plan = await page.evaluate(
+    ([name, dest, toward]) => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = b.playerUnits.find((x) => x.name === name);
+      if (!u || u.hasActed) throw new Error(`${name} cannot act`);
+      if (dest) return { from: [u.col, u.row], to: [dest.col, dest.row] };
+      const occupied = new Set(
+        [...b.playerUnits, ...b.enemyUnits, ...(b.npcUnits || [])].map((x) => `${x.col},${x.row}`),
+      );
+      const foes = b.enemyUnits.filter((e) => e.currentHP > 0);
+      const gap = (c, r) => Math.min(...foes.map((e) => Math.abs(e.col - c) + Math.abs(e.row - r)));
+      let best = null;
+      for (const key of b.grid.getMovementRange(u.col, u.row, u.stats.MOV, u.moveType).keys()) {
+        if (occupied.has(key)) continue;
+        const [col, row] = key.split(',').map(Number);
+        const score = (toward ? gap(col, row) : -gap(col, row)) * 10_000 + row * 100 + col;
+        if (!best || score < best.score) best = { col, row, score };
+      }
+      return { from: [u.col, u.row], to: best ? [best.col, best.row] : [u.col, u.row] };
+    },
+    [name, dest, toward],
+  );
+  await tapTile(page, ...plan.from);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.__emblemRogueGame.scene.getScene('Battle').selectedUnit?.name ?? null,
+      ),
+    )
+    .toBe(name);
+  await tapTile(page, ...plan.to);
+  const wait = battleRail(page).getByRole('button', { name: 'Wait', exact: true });
+  await expect(wait).toBeVisible();
+  await wait.tap();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (name) =>
+          window.__emblemRogueGame.scene.getScene('Battle').playerUnits.find((x) => x.name === name)
+            ?.hasActed === true,
+        name,
+      ),
+    )
+    .toBe(true);
+  return plan.to;
+}
+
+/**
+ * Attack from where the unit stands, through real input: tap the unit, tap its own
+ * tile (stay), Attack, pick the target, Confirm on the forecast. Resolves once the
+ * attack has played out (the unit has acted, or the battle ended).
+ */
+export async function attackInPlace(page, attacker, target) {
+  const at = await page.evaluate(
+    ([attacker, target]) => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = b.playerUnits.find((x) => x.name === attacker);
+      const e = b.enemyUnits.find((x) => x.battleEntityId === target);
+      return { unit: [u.col, u.row], enemy: e ? e.name : null };
+    },
+    [attacker, target],
+  );
+  await tapTile(page, ...at.unit);
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').selectedUnit?.name),
+    )
+    .toBe(attacker);
+  await tapTile(page, ...at.unit);
+  const rail = battleRail(page);
+  await rail.getByRole('button', { name: 'Attack', exact: true }).tap();
+  const targets = rail.getByRole('group', { name: 'Attack targets' });
+  await expect(targets).toBeVisible();
+  // The list shows the attackable foes in the scene's order.
+  const index = await page.evaluate(
+    (target) =>
+      window.__emblemRogueGame.scene
+        .getScene('Battle')
+        .attackTargets.findIndex((e) => e.battleEntityId === target),
+    target,
+  );
+  expect(index, `${at.enemy} is in reach`).toBeGreaterThanOrEqual(0);
+  await targets.getByRole('button').nth(index).tap();
+  const forecast = page.getByRole('dialog', { name: 'Combat forecast' });
+  await expect(forecast).toBeVisible();
+  const turn = await page.evaluate(
+    () => window.__emblemRogueGame.scene.getScene('Battle').turnManager.turnNumber,
+  );
+  await forecast.getByRole('button', { name: 'Confirm attack' }).tap();
+  // Played out: the battle ended, the turn moved on (the last unit to act ends the
+  // phase), or the attacker is done and the player can act again.
+  await settleBattle(
+    page,
+    ([attacker, turn]) => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      if (!b || b.battleState === 'BATTLE_END') return true;
+      if (b.turnManager.turnNumber !== turn || b.turnManager.currentPhase !== 'player') return true;
+      const u = b.playerUnits.find((x) => x.name === attacker);
+      return (!u || u.hasActed || u.currentHP <= 0) && b.battleState === 'PLAYER_IDLE';
+    },
+    [attacker, turn],
+  );
+}
+
+/**
+ * Wait for `done(arg)` in the page, tapping through the progression popups a battle
+ * raises on the way (level ups: Continue / Reveal gains).
+ */
+export async function settleBattle(page, done, arg = null, timeout = 90_000) {
+  const popup = page.getByRole('button', { name: /^(Continue|Reveal gains)$/ }).first();
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    const left = deadline - Date.now();
+    if (left <= 0) throw new Error('the battle never settled');
+    const next = await Promise.race([
+      page.waitForFunction(done, arg, { timeout: left }).then(
+        () => 'done',
+        () => 'timeout',
+      ),
+      popup.waitFor({ state: 'visible', timeout: left }).then(
+        () => 'popup',
+        () => 'timeout',
+      ),
+    ]);
+    if (next === 'done') return;
+    if (next === 'popup') await popup.tap().catch(() => {});
+  }
+}
+
+/**
+ * End the player turn through the rail (confirming when units have not acted) and
+ * wait for the next player turn. `duringEnemyPhase` runs once the enemy phase has
+ * begun, before it ends (e.g. to turn the phone mid-phase).
+ */
+export async function endPlayerTurn(page, { duringEnemyPhase = null } = {}) {
+  const rail = battleRail(page);
+  const turn = await page.evaluate(
+    () => window.__emblemRogueGame.scene.getScene('Battle').turnManager.turnNumber,
+  );
+  await rail.getByRole('button', { name: /^End turn/ }).tap();
+  const confirm = rail.getByRole('button', { name: 'End turn now', exact: true });
+  const phase = () =>
+    page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').turnManager.currentPhase);
+  await expect
+    .poll(async () => (await confirm.isVisible()) || (await phase()) !== 'player')
+    .toBe(true);
+  if ((await phase()) === 'player') await confirm.tap();
+  if (duringEnemyPhase) {
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').turnManager.currentPhase === 'enemy',
+    );
+    await duringEnemyPhase();
+  }
+  await settleBattle(
+    page,
+    (turn) => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      return (
+        b.battleState === 'BATTLE_END' ||
+        (b.turnManager.turnNumber > turn &&
+          b.turnManager.currentPhase === 'player' &&
+          b.battleState === 'PLAYER_IDLE')
+      );
+    },
+    turn,
+  );
+}
+
+/**
+ * Turn the phone (a new viewport) and, for a battle, wait until the board shows
+ * `rotation` and the player can act again.
+ */
+export async function turnPhone(page, size, rotation = null) {
+  await page.setViewportSize(size);
+  if (rotation === null) return;
+  // Re-opening a battle takes seconds on a loaded machine: wait on the board itself.
+  await page.waitForFunction(
+    (rotation) =>
+      window.__emblemRogueGame.scene.getScene('Battle')?.grid?.board?.rotation === rotation,
+    rotation,
+    { timeout: 30_000 },
+  );
+  await battleIdle(page);
+}
+
+/**
+ * Leave the page and put back a saved profile (every localStorage key), so the next
+ * load starts from exactly that save. Leaving first keeps anything the game writes
+ * on its way out from overwriting the fixture.
+ */
+export async function restoreProfile(page, saved) {
+  await page.goto('/data/terrain.json');
+  await page.evaluate((entries) => {
+    localStorage.clear();
+    for (const [key, value] of JSON.parse(entries)) localStorage.setItem(key, value);
+  }, saved);
+}
+
+/** Every localStorage key, for restoreProfile. */
+export function saveProfile(page) {
+  return page.evaluate(() => JSON.stringify(Object.entries(localStorage)));
+}
+
+/**
+ * The shipping recovery path after a refresh: Title -> Save Slots -> Slot 1, then the
+ * suspended battle's choice ('Resume Battle' or 'Continue from Map').
+ */
+export async function openSavedRun(page, choice = 'Resume Battle') {
+  await page.goto('/');
+  await activeScene(page, 'Title');
+  await page.getByRole('button', { name: /^Save Slots/ }).tap();
+  await activeScene(page, 'SlotPicker');
+  await page.getByRole('button', { name: 'Select Slot 1', exact: true }).tap();
+  await page.getByRole('button', { name: choice, exact: true }).tap();
+  if (choice === 'Resume Battle') {
+    await activeScene(page, 'Battle');
+    await battleIdle(page);
+  } else await activeScene(page, 'NodeMap');
+}
+
+/** Wait for a scene to be the active one (as helpers.js waitForScene). */
+export async function activeScene(page, key, timeout = 20_000) {
+  await page.waitForFunction((k) => window.__sceneState?.activeScene === k, key, { timeout });
+}
+
+/**
+ * A dev-route battle on the phone as it stands (no ?portrait=, so portrait mode is
+ * the device default), past deployment to the first player turn. `slot` attaches the
+ * run to that save slot (null: a slotless battle, as dev routes are); `query` adds
+ * route parameters (e.g. '&devNode=recruit').
+ */
+export async function openDevBattle(
+  page,
+  { preset = 'battle_smoke', seed = 42, slot = 1, query = '' } = {},
+) {
+  await page.goto(`/?devScene=battle&preset=${preset}&seed=${seed}${query}`);
+  await page.waitForFunction(() => window.__sceneState?.ready === true, null, { timeout: 20_000 });
+  await activeScene(page, 'Battle');
+  await page.waitForFunction(
+    () => ['DEPLOY_SELECTION', 'PLAYER_IDLE'].includes(window.__sceneState?.battle?.state),
+    null,
+    { timeout: 30_000 },
+  );
+  // The dev route's canvas deployment step: take the default deployment.
+  await page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    if (b.battleState !== 'DEPLOY_SELECTION') return;
+    b.children.list
+      .filter((o) => o.type === 'Rectangle' && o.input?.enabled && o.listenerCount('pointerdown'))
+      .at(-1)
+      ?.emit('pointerdown');
+  });
+  await battleIdle(page);
+  if (slot != null) await attachSlot(page, slot);
+}
