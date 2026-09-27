@@ -245,7 +245,7 @@ for (const vp of VIEWPORTS) {
       // Swap 1: Blade 3 (slot 2) for Tome 2 (slot 1); both keep their equipped weapon.
       await press(vp, menu.getByRole('button', { name: 'Trade Edric Blade 3 for Sera Tome 2' }));
       await expect(menu.getByRole('status')).toHaveText(
-        "Traded Edric Blade 3 for Sera Tome 2. Sera can't equip this; can carry. Edric can't equip this; can carry.",
+        "Traded Edric Blade 3 for Sera Tome 2. Sera can't wield Edric Blade 3. Edric can't wield Sera Tome 2.",
       );
       await expectSaved(page, 'NodeMap', {
         'edric.inventory': [
@@ -464,7 +464,7 @@ for (const vp of VIEWPORTS) {
       const { menu } = await tradeFromCard(page, vp, sheet, 'Edric Blade 2', 'Sera');
       await press(vp, menu.getByRole('button', { name: 'Trade Edric Blade 2 for Sera Tome 4' }));
       await expect(menu.getByRole('status')).toHaveText(
-        "Traded Edric Blade 2 for Sera Tome 4. Sera can't equip this; can carry. Edric can't equip this; can carry.",
+        "Traded Edric Blade 2 for Sera Tome 4. Sera can't wield Edric Blade 2. Edric can't wield Sera Tome 4.",
       );
       expect(await page.evaluate(() => window.__rewardPersists)).toBe(persistsBefore + 1);
       await expectSaved(page, 'Battle', {

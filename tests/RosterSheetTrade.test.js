@@ -202,9 +202,7 @@ describe('roster sheet: Trade… on an item card', () => {
     expect([archer.weapon, fighter.weapon]).toEqual([b1, a1]);
     expect(saveServiceRun).toHaveBeenCalledTimes(1);
     // Warnings ride the message: the receiver of B3 first, then of A4.
-    expect(tmStatus(root)).toBe(
-      "Traded B3 for A4. Brom can't equip this; can carry. Daska can't equip this; can carry.",
-    );
+    expect(tmStatus(root)).toBe("Traded B3 for A4. Brom can't wield B3. Daska can't wield A4.");
 
     // Swap both equipped weapons: neither can use what it receives, so each
     // re-equips its first usable weapon and moves it to slot 0.
@@ -220,7 +218,7 @@ describe('roster sheet: Trade… on an item card', () => {
     expect(sheet.picker).toBeNull();
     await Promise.resolve();
     expect(sheet.root.querySelector('.mr-status').textContent).toBe(
-      "Traded B1 for A1. Brom can't equip this; can carry. Daska can't equip this; can carry.",
+      "Traded B1 for A1. Brom can't wield B1. Daska can't wield A1.",
     );
     expect(sheet.root.querySelectorAll('h4').map((h) => h.textContent)).toContain('A4');
     expect(saveServiceRun).toHaveBeenCalledTimes(2);
