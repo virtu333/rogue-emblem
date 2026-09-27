@@ -258,7 +258,7 @@ export async function loadRoll(base = '.') {
       from: T(11),
       to: T(12),
       draw(g, t) {
-        const cam = camAt(t, T(11), T(12), { z: 1.0, x: 480, y: 270 }, { z: 1.18, x: 470, y: 260 });
+        const cam = camAt(t, T(11), T(12), { z: 1.0, x: 480, y: 250 }, { z: 1.1, x: 480, y: 240 });
         shotTrace(g, 'door', (t - T(11)) * 1.3, { pal: 'red', cam });
       },
     },
@@ -840,8 +840,8 @@ export async function loadRoll(base = '.') {
           const s = T(37, 3) + i * 0.5;
           const k = prog(t, s, s + 0.3);
           if (k <= 0) return;
-          const x = 180 + i * 88 + (hash2(i, 5) - 0.5) * 24;
-          const y = 290 - hash2(i, 6) * 50 - (t - s) * 12;
+          const x = 610 + i * 54 + (hash2(i, 5) - 0.5) * 16;
+          const y = 262 - hash2(i, 6) * 46 - (t - s) * 12;
           g.globalAlpha = k;
           g.fillStyle = COL.goldHi;
           g.shadowColor = COL.gold;

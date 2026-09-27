@@ -159,16 +159,24 @@ def main():
     ap.add_argument('--from', dest='t0', type=float)
     ap.add_argument('--to', dest='t1', type=float)
     ap.add_argument('--preview', type=float, help='write one traced frame at this time (s)')
+    ap.add_argument('--nomatte', type=float, default=None, metavar='PCT',
+                    help='no foreground matte: everything brighter than this luminance '
+                         'percentile of the clip is "figure" (silhouettes, pages)')
     o = ap.parse_args()
 
     src = os.path.join(CLIPS, f'{o.shot}.mp4')
     frames = read_frames(src, o.fps, o.t0, o.t1)
-    matte = Matte()
+    matte = Matte() if o.nomatte is None else None
     if o.preview is not None:
         i = min(len(frames) - 1, int(round((o.preview - (o.t0 or 0)) * o.fps)))
         frames = frames[i: i + 1]
     mattes = []
-    for i, f in enumerate(frames):
+    if matte is None:
+        lums = [cv2.GaussianBlur(cv2.cvtColor(f, cv2.COLOR_BGR2LAB)[:, :, 0], (0, 0), 1.5)
+                for f in frames]
+        cut = np.percentile(np.stack(lums[:: max(1, len(lums) // 12)]), o.nomatte)
+        mattes = [(lum > cut).astype(np.float32) for lum in lums]
+    for i, f in enumerate(frames if matte else []):
         mattes.append(matte(f))
         if i % 24 == 0:
             print(f'  matte {i}/{len(frames)}', file=sys.stderr)
