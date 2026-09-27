@@ -201,26 +201,67 @@ export async function generateAll(jobs, { concurrency = 3, onDone } = {}) {
 
 /**
  * Veo motion reference (long-running). Returns the saved .mp4 path.
- * @param {object} o { prompt, image (optional first-frame path), model, aspectRatio, out }
+ * Cached like generateImage: `<out>.gen.json` records a hash of the request, and a
+ * re-run with the same request reuses the file instead of paying again.
+ * @param {object} o
+ * @param {string} o.prompt
+ * @param {string} [o.image] first-frame image path (image-to-video)
+ * @param {string} [o.lastFrame] last-frame image path (interpolation; needs `image`)
+ * @param {string[]} [o.refs] up to 3 asset reference images (identity), Veo 3.1 only
+ * @param {string} [o.model] MODELS.veoFast by default
+ * @param {string} [o.aspectRatio] '16:9' | '9:16'
+ * @param {number} [o.durationSeconds] 4 | 6 | 8
+ * @param {string} [o.resolution] '720p' | '1080p'
+ * @param {string} [o.negativePrompt]
+ * @param {string} o.out output path without extension
+ * @param {boolean} [o.force] ignore the cache
  */
 export async function generateVideo({
   prompt,
   image,
+  lastFrame,
+  refs = [],
   model = MODELS.veoFast,
   aspectRatio = '16:9',
+  durationSeconds,
+  resolution,
+  negativePrompt,
   out,
+  force = false,
   pollMs = 10000,
 }) {
-  const instance = { prompt };
-  if (image) {
-    const p = refPart(image).inlineData;
-    instance.image = { bytesBase64Encoded: p.data, mimeType: p.mimeType };
+  const inline = (f) => {
+    const p = refPart(f).inlineData;
+    return { bytesBase64Encoded: p.data, mimeType: p.mimeType };
+  };
+  const files = [image, lastFrame, ...refs].filter(Boolean);
+  const hash = createHash('sha256')
+    .update(
+      JSON.stringify({ model, prompt, aspectRatio, durationSeconds, resolution, negativePrompt }),
+    )
+    .update(JSON.stringify({ image: !!image, lastFrame: !!lastFrame, refs: refs.length }))
+    .update(
+      Buffer.concat(files.map((f) => createHash('sha256').update(fs.readFileSync(f)).digest())),
+    )
+    .digest('hex')
+    .slice(0, 16);
+  const file = `${out}.mp4`;
+  const cacheFile = `${out}.gen.json`;
+  if (!force && fs.existsSync(cacheFile) && fs.existsSync(file)) {
+    const c = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+    if (c.hash === hash) return file;
   }
+  const instance = { prompt };
+  if (image) instance.image = inline(image);
+  if (lastFrame) instance.lastFrame = inline(lastFrame);
+  if (refs.length)
+    instance.referenceImages = refs.map((f) => ({ image: inline(f), referenceType: 'asset' }));
+  const parameters = { aspectRatio };
+  if (durationSeconds) parameters.durationSeconds = durationSeconds;
+  if (resolution) parameters.resolution = resolution;
+  if (negativePrompt) parameters.negativePrompt = negativePrompt;
   const op = await withRetry(() =>
-    curlJson(`${API}/models/${model}:predictLongRunning`, {
-      instances: [instance],
-      parameters: { aspectRatio },
-    }),
+    curlJson(`${API}/models/${model}:predictLongRunning`, { instances: [instance], parameters }),
   );
   if (op.error) throw new Error(`${op.error.code} ${op.error.message}`);
   let state = op;
@@ -232,9 +273,8 @@ export async function generateVideo({
   const uri =
     state.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri ||
     state.response?.generatedVideos?.[0]?.video?.uri;
-  if (!uri) throw new Error(`no video in response: ${JSON.stringify(state).slice(0, 300)}`);
+  if (!uri) throw new Error(`no video in response: ${JSON.stringify(state).slice(0, 400)}`);
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  const file = `${out}.mp4`;
   await new Promise((resolve, reject) => {
     const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     const args = ['-sSL', '-o', file, uri];
@@ -243,6 +283,25 @@ export async function generateVideo({
       err ? reject(new Error(stderr || err.message)) : resolve(),
     );
   });
+  const record = {
+    hash,
+    model,
+    prompt,
+    image,
+    lastFrame,
+    refs,
+    aspectRatio,
+    durationSeconds,
+    resolution,
+    negativePrompt,
+    file,
+    at: new Date().toISOString(),
+  };
+  fs.writeFileSync(cacheFile, JSON.stringify(record, null, 2));
+  fs.appendFileSync(
+    path.join(path.dirname(out), 'generations.jsonl'),
+    `${JSON.stringify(record)}\n`,
+  );
   return file;
 }
 

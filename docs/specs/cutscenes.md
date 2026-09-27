@@ -1,7 +1,9 @@
 # Cutscenes — "The Thread, Seen"
 
 Status: **plan** (2026-09-27). Nothing here is built yet except the pilot in
-`tools/cutscene/` (see [The pilot](#the-pilot)).
+`tools/cutscene/` (see [The pilot](#the-pilot)) and a first draft of a new opening,
+**"The Roll"** ([cutscene-the-roll.md](cutscene-the-roll.md)): a hook that replaces
+the pilot's history-lesson prologue, in a new rotoscoped ink style on its own score.
 
 Rogue Dawn has no cutscenes. Its story reaches the player as a dialogue box over an
 act card, a boss card, and a run-end band. This spec decides which cutscenes to

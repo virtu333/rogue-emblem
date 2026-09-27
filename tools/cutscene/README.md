@@ -1,9 +1,40 @@
-# tools/cutscene — the cutscene pilot
+# tools/cutscene — cutscene drafts
 
-Slice 0 of [docs/specs/cutscenes.md](../../docs/specs/cutscenes.md): a standalone,
-offline player that plays a first draft of the **prologue** ("The Night Before") on
-the title theme, and exports it to video. Dev tool only: nothing here ships or is
-imported by the game.
+Dev tools only: nothing here ships or is imported by the game.
+
+- **`hook/` — "The Roll"**, the opening cutscene (draft 1): rotoscoped generated
+  clips redrawn as engraved ink, on a score written for it. Storyboard and pipeline:
+  [docs/specs/cutscene-the-roll.md](../../docs/specs/cutscene-the-roll.md).
+- **`pilot/` — "The Night Before"**, slice 0 of
+  [docs/specs/cutscenes.md](../../docs/specs/cutscenes.md): the Historia plates on the
+  title theme. Superseded as the opening by `hook/`; kept for its pixel techniques.
+
+## The Roll (`hook/`)
+
+```sh
+npx vite --port 3290      # open http://localhost:3290/tools/cutscene/hook/
+CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/cutscene/render.mjs --piece hook --sheet --out References/cutscene
+CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/cutscene/render.mjs --piece hook --video References/cutscene/the-roll.mp4 --workers 4
+
+# regenerate sources (paid; cached by request hash, so re-runs only pay for changes)
+node tools/cutscene/hook/gen.mjs --keys [--only hearth,quill]
+node tools/cutscene/hook/gen.mjs --clips [--only hearth]
+python3 tools/cutscene/hook/trace.py hearth          # needs: pip install opencv-python-headless "rembg[cpu]"
+python3 tools/cutscene/hook/music.py                 # needs the tools/music sample libraries
+```
+
+| File | What it is |
+|---|---|
+| `hook/shots.mjs` | The shot list: keyframe prompt, identity references and Veo motion prompt per shot. |
+| `hook/gen.mjs` | Keyframes (Gemini 3 Pro Image) and clips (Veo 3.1) into `References/cutscene/hook/` (gitignored). |
+| `hook/trace.py` | The rotoscope: a clip becomes layers of polygons per drawing (matte, tones, ink lines, glow, background). |
+| `hook/traces/` | The traced drawings (committed; the clips are not). |
+| `hook/score.py`, `music.py` | The score, in the game's music engine; renders `the_roll.mp3` and the exact cue sheet `cues.json`. |
+| `hook/trace.js` | Redraws a trace as engraved ink in a palette, under a vector camera. |
+| `hook/fx.js`, `type.js` | The thread, peeling and converging threads, Sera's branches, the grid, the Hollow Sun, fire, grain; the words. |
+| `hook/roll.js` | The timeline: every shot and word on a bar or beat of the score. |
+
+## The Night Before (`pilot/`)
 
 ## Run it
 

@@ -4,6 +4,7 @@
 //   node tools/cutscene/render.mjs --stills 12.5,40 --out <dir>     PNG stills at those times
 //   node tools/cutscene/render.mjs --sheet --out <dir>              contact sheet: first/last frame of every shot
 //   node tools/cutscene/render.mjs --video <file.mp4> [--fps 24] [--workers 4] [--from s] [--to s]
+//   --piece hook   renders "The Roll" (tools/cutscene/hook) instead of the pilot
 //
 // The player's frame is a pure function of t, so frames can be rendered in any order,
 // in parallel, and resumed. A Vite dev server is started in-process (the page imports
@@ -21,9 +22,20 @@ const argv = process.argv.slice(2);
 const has = (k) => argv.includes(`--${k}`);
 const arg = (k, d) => (has(k) ? argv[argv.indexOf(`--${k}`) + 1] : d);
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
-const PAGE = '/tools/cutscene/pilot/index.html?export=1';
+const PIECES = {
+  pilot: {
+    page: '/tools/cutscene/pilot/index.html?export=1',
+    music: 'public/assets/audio/music/music_title.mp3',
+  },
+  hook: {
+    page: '/tools/cutscene/hook/index.html?export=1',
+    music: 'tools/cutscene/hook/the_roll.mp3',
+  },
+};
+const PIECE = PIECES[arg('piece', 'pilot')];
+const PAGE = PIECE.page;
 const FFMPEG = process.env.FFMPEG || 'ffmpeg';
-const MUSIC = path.join(ROOT, 'public/assets/audio/music/music_title.mp3');
+const MUSIC = path.join(ROOT, PIECE.music);
 
 async function withPlayer(workers, fn) {
   const server = await createServer({
@@ -50,6 +62,7 @@ async function withPlayer(workers, fn) {
     for (let i = 0; i < workers; i++) {
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
       page.on('pageerror', (e) => console.error('page error:', e.message));
+      page.on('console', (m) => m.type() !== 'log' && console.error('console:', m.text()));
       await page.goto(base + PAGE);
       await page.waitForFunction(() => window.cutscene);
       pages.push(page);

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Roll</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500&display=block"
+      rel="stylesheet"
+    />
+    <style>
+      @font-face {
+        font-family: 'Cinzel';
+        src: url('/docs/art-direction/board/fonts/Cinzel-latin-var.woff2') format('woff2');
+        font-weight: 400 900;
+        font-display: block;
+      }
+      :root {
+        color-scheme: dark;
+      }
+      html,
+      body {
+        margin: 0;
+        background: #07060b;
+        color: #ddd0bd;
+        font:
+          14px system-ui,
+          sans-serif;
+      }
+      main {
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        gap: 12px;
+        padding: 16px;
+        box-sizing: border-box;
+      }
+      canvas {
+        width: min(100%, 1280px);
+        aspect-ratio: 16 / 9;
+        image-rendering: pixelated;
+        background: #07060b;
+      }
+      .bar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        width: min(100%, 1280px);
+      }
+      button {
+        font: inherit;
+        background: #dca044;
+        color: #07060b;
+        border: 0;
+        padding: 8px 16px;
+        cursor: pointer;
+      }
+      input[type='range'] {
+        flex: 1;
+      }
+      body.export .bar {
+        display: none;
+      }
+      body.export main {
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <canvas id="c" width="1280" height="720"></canvas>
+      <div class="bar">
+        <button id="play">Play with music</button>
+        <input id="seek" type="range" min="0" max="120" step="0.01" value="0" />
+        <span id="clock">0.00</span>
+      </div>
+    </main>
+    <script type="module">
+      import { loadRoll } from './roll.js';
+
+      const params = new URLSearchParams(location.search);
+      const canvas = document.getElementById('c');
+      const g = canvas.getContext('2d');
+      if (params.has('export')) document.body.classList.add('export');
+
+      const ready = (async () => {
+        await document.fonts.load('38px Cinzel');
+        await document.fonts.load('italic 500 30px "Cormorant Garamond"');
+        await document.fonts.ready;
+        return loadRoll('.');
+      })();
+
+      window.cutscene = {
+        ready: ready.then((c) => ({ duration: c.duration, cuts: c.cuts, shots: c.shots })),
+        /** Render time t and return the frame as a PNG data URL (for the exporter). */
+        async frame(t) {
+          const c = await ready;
+          c.render(g, t);
+          return canvas.toDataURL('image/png');
+        },
+      };
+
+      const c = await ready;
+      const seek = document.getElementById('seek');
+      const clock = document.getElementById('clock');
+      seek.max = c.duration.toFixed(2);
+      const show = (t) => {
+        c.render(g, t);
+        clock.textContent = t.toFixed(2);
+      };
+      show(Number(params.get('t') ?? 0));
+      seek.addEventListener('input', () => show(Number(seek.value)));
+
+      // Playback: the music is the clock. The frame is whatever the audio position says.
+      const audio = new Audio('./the_roll.mp3');
+      let playing = false;
+      document.getElementById('play').addEventListener('click', () => {
+        if (playing) {
+          audio.pause();
+          playing = false;
+          return;
+        }
+        audio.currentTime = Number(seek.value);
+        audio.play();
+        playing = true;
+        const tick = () => {
+          if (!playing) return;
+          const t = audio.currentTime;
+          if (t >= c.duration) {
+            audio.pause();
+            playing = false;
+          }
+          seek.value = t;
+          show(t);
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+    </script>
+  </body>
+</html>
