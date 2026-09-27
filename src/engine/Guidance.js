@@ -85,6 +85,12 @@ function recruitWho(npc) {
   return npc.className ? `${npc.name} (${npc.className})` : npc.name;
 }
 
+/** "staves mend the merchant caravan too: move within reach of it" / "... of Garrick". */
+function npcHealAdvice(npc) {
+  if (npc?.isCaravan) return 'staves mend the merchant caravan too: move within reach of it';
+  return `staves mend green units too: move within reach of ${npc?.name || 'the green unit'}`;
+}
+
 /** Copy for each note. `touch` picks the tap / key wording. */
 export function guidanceText(id, context = {}) {
   const { unit, commander, count = 0, touch = true, npc } = context;
@@ -100,6 +106,9 @@ export function guidanceText(id, context = {}) {
         touch ? 'Tap Back' : 'Press Esc or right-click'
       } to choose a safer tile.`;
     case 'guide_healer_heals':
+      // Only an NPC ally is hurt (context.npc): staves mend green units too.
+      if (npc)
+        return `${name} heals with a staff, and ${npcHealAdvice(npc)} and choose Heal. Keep ${name} out of enemy reach.`;
       return `${name} heals with a staff: move next to a hurt ally and choose Heal. Early on, keep ${name} out of reach and heal ${lord}.`;
     case 'guide_no_attack':
       return `No enemy is in reach of ${name} here, so Attack is greyed out. ${
@@ -119,6 +128,11 @@ export function guidanceText(id, context = {}) {
 /** Short reason on a greyed Attack row when nobody is in reach: "No target in range 1–2". */
 export function noTargetReason(range) {
   return range ? `No target in range ${range}` : 'No target in range';
+}
+
+/** Greyed Attack row for a unit carrying no weapon it can wield (Full Guidance). */
+export function unarmedReason() {
+  return 'Unarmed: no weapon to attack with';
 }
 
 /**

@@ -1568,7 +1568,7 @@ export class NodeMapScene extends Phaser.Scene {
     } else if (node.type === NODE_TYPES.CHURCH) {
       label = 'Church — Heal, revive fallen, promote';
     } else if (node.type === NODE_TYPES.RUINS) {
-      label = 'Ruins — Scarce wares, heal, and revive';
+      label = 'Ruins — Rest (heal, revive) or scavenge (wares)';
     } else if (node.type === NODE_TYPES.SHOP) {
       label = 'Village — Buy, sell, and forge';
     } else if (node.type === NODE_TYPES.RECRUIT) {

@@ -5,6 +5,8 @@ import {
   generateChallenger,
   calculateArenaReward,
   canFight,
+  arenaEntryBlock,
+  getArenaWeapon,
   getMaxFights,
   getArenaDistance,
   generateMercenaryCandidates,
@@ -321,25 +323,84 @@ describe('ColosseumEngine', () => {
   });
 
   describe('canFight', () => {
-    it('allows fight when HP > 1 and under max', () => {
-      expect(canFight({ currentHP: 10 }, 0, 3)).toBe(true);
-      expect(canFight({ currentHP: 2 }, 2, 3)).toBe(true);
+    const sword = { name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof', range: '1' };
+    const heal = { name: 'Heal', type: 'Staff', rankRequired: 'Prof', range: '1' };
+    const fighter = (currentHP, extra = {}) => ({
+      name: 'Kai',
+      currentHP,
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      inventory: [sword],
+      weapon: sword,
+      ...extra,
+    });
+
+    it('allows fight when HP > 1, under max and armed', () => {
+      expect(canFight(fighter(10), 0, 3)).toBe(true);
+      expect(canFight(fighter(2), 2, 3)).toBe(true);
     });
 
     it('rejects at 1 HP', () => {
-      expect(canFight({ currentHP: 1 }, 0, 3)).toBe(false);
+      expect(canFight(fighter(1), 0, 3)).toBe(false);
+      expect(arenaEntryBlock(fighter(1), 0, 3)).toBe('Kai needs more than 1 HP to fight.');
     });
 
     it('rejects at 0 HP', () => {
-      expect(canFight({ currentHP: 0 }, 0, 3)).toBe(false);
+      expect(canFight(fighter(0), 0, 3)).toBe(false);
     });
 
     it('rejects when max fights reached', () => {
-      expect(canFight({ currentHP: 10 }, 3, 3)).toBe(false);
+      expect(canFight(fighter(10), 3, 3)).toBe(false);
+      expect(arenaEntryBlock(fighter(10), 3, 3)).toBe('Kai has no arena fights left this visit.');
     });
 
     it('rejects when over max fights', () => {
-      expect(canFight({ currentHP: 10 }, 5, 3)).toBe(false);
+      expect(canFight(fighter(10), 5, 3)).toBe(false);
+    });
+
+    it('rejects a fighter with nothing it can attack with', () => {
+      // Empty bag; only a staff; only a weapon it can't wield.
+      for (const extra of [
+        { inventory: [], weapon: null },
+        {
+          proficiencies: [
+            { type: 'Sword', rank: 'Prof' },
+            { type: 'Staff', rank: 'Prof' },
+          ],
+          inventory: [heal],
+          weapon: heal,
+        },
+        { proficiencies: [{ type: 'Lance', rank: 'Prof' }], inventory: [sword], weapon: null },
+      ]) {
+        expect(canFight(fighter(10, extra), 0, 3)).toBe(false);
+        expect(arenaEntryBlock(fighter(10, extra), 0, 3)).toBe('Kai has no weapon to fight with.');
+      }
+    });
+  });
+
+  describe('getArenaWeapon', () => {
+    const glimmer = { name: 'Glimmer', type: 'Light', rankRequired: 'Prof', range: '1-2' };
+    const heal = { name: 'Heal', type: 'Staff', rankRequired: 'Prof', range: '1' };
+    const sera = (weapon, inventory) => ({
+      proficiencies: [
+        { type: 'Light', rank: 'Prof' },
+        { type: 'Staff', rank: 'Prof' },
+      ],
+      inventory,
+      weapon,
+    });
+
+    it('keeps an equipped combat weapon', () => {
+      expect(getArenaWeapon(sera(glimmer, [glimmer, heal]))).toBe(glimmer);
+    });
+
+    it('draws the first combat weapon when a staff is equipped', () => {
+      expect(getArenaWeapon(sera(heal, [heal, glimmer]))).toBe(glimmer);
+    });
+
+    it('is null for an unarmed or staff-only unit', () => {
+      expect(getArenaWeapon(sera(null, []))).toBeNull();
+      expect(getArenaWeapon(sera(heal, [heal]))).toBeNull();
+      expect(getArenaWeapon(null)).toBeNull();
     });
   });
 

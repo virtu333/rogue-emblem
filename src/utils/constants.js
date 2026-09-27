@@ -56,6 +56,10 @@ export const XP_SPECIAL_ENEMY_MULTIPLIER = 1.3;
 export const XP_LEVEL_DIFF_SCALE = 5;
 export const XP_LEVEL_DIFF_STEEP = 8; // Steep XP penalty per level for advantage 4-6
 export const XP_MIN = 1;
+// A player unit that is attacked and survives earns at least this much combat XP
+// (before the battle-wide par/difficulty/blessing/trait multipliers), even when it
+// could not counter or dealt no damage: Fire Emblem's minimum, the combat floor above.
+export const XP_DEFEND_SURVIVE = XP_MIN;
 export const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 
 // Deploy limits by act
@@ -212,6 +216,8 @@ export const SHOP_ITEM_COUNT = { min: 8, max: 10 };
 export const RUINS_SHOP_ITEM_COUNT = { min: 5, max: 6 };
 export const RUINS_SHOP_ITEM_COUNT_FINAL = { min: 8, max: 10 };
 export const RUINS_SHOP_MARKUP = 1.25;
+// The Ruins offer one of two paths per visit: rest (heal, revive) or scavenge (wares).
+export const RUINS_PATHS = Object.freeze(['rest', 'scavenge']);
 export const INVENTORY_MAX = 5; // Combat weapons + staves only
 export const CONSUMABLE_MAX = 3; // Separate consumables array
 export const CONVOY_WEAPON_CAPACITY = 20;

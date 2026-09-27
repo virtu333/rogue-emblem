@@ -166,9 +166,10 @@ describe('merchant caravan is not a recruit', () => {
     );
   });
 
-  it("the caravan hint says staves can't heal it, which is true", () => {
+  it('the caravan hint says staves can heal it, and a staff in reach offers it', () => {
     expect(CARAVAN_HINT).toContain('if it survives, it will trade with you.');
-    expect(CARAVAN_HINT).toContain("Staves can't heal it.");
+    expect(CARAVAN_HINT).toContain('Staves can heal it.');
+    expect(CARAVAN_HINT).not.toMatch(/can't heal/i);
     const heal = loadGameData().weapons.find((w) => w.name === 'Heal');
     const healer = {
       ...makeLord(),
@@ -186,7 +187,8 @@ describe('merchant caravan is not a recruit', () => {
     scene.playerUnits = [healer, hurtAlly];
     scene.getActiveHealStaff = BattleScene.prototype.getActiveHealStaff;
     scene.getUsableStaves = BattleScene.prototype.getUsableStaves;
-    // The healer reaches both; only the army is a staff target.
-    expect(BattleScene.prototype.findHealTargets.call(scene, healer)).toEqual([hurtAlly]);
+    // The healer reaches both: the army first, then the caravan, still an NPC.
+    expect(BattleScene.prototype.findHealTargets.call(scene, healer)).toEqual([hurtAlly, caravan]);
+    expect(caravan.faction).toBe('npc');
   });
 });

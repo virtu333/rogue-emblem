@@ -13,7 +13,12 @@ import {
 import { AIController } from '../../src/engine/AIController.js';
 import { generateBattle, reconcileRecruitSpawnTile } from '../../src/engine/MapGenerator.js';
 import { scheduleReinforcementsForTurn } from '../../src/engine/ReinforcementScheduler.js';
-import { isRecruitNpc } from '../../src/engine/RecruitNpc.js';
+import {
+  armyAndNpcAllies,
+  isRecruitNpc,
+  staffAllyCandidates,
+} from '../../src/engine/RecruitNpc.js';
+import { canInspectUnit } from '../../src/engine/BattleInformation.js';
 import {
   resolveCombat,
   resolveHeal,
@@ -104,6 +109,7 @@ import {
   POISON_WEAPON_BY_TYPE,
   ROSTER_CAP,
   TERRAIN,
+  XP_DEFEND_SURVIVE,
   XP_SPECIAL_ENEMY_MULTIPLIER,
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
@@ -1054,7 +1060,8 @@ export class HeadlessBattle {
         });
       // Condition recovery mirrors BattleScene: tick at the start of the
       // afflicted side's phase, before units act (art statuses expire here).
-      processConditionRecovery(this.playerUnits);
+      // NPC allies share the army's turn start, after the army.
+      processConditionRecovery(armyAndNpcAllies(this.playerUnits, this.npcUnits));
       for (const u of this.playerUnits) {
         u.hasMoved = false;
         u.hasActed = false;
@@ -1063,7 +1070,7 @@ export class HeadlessBattle {
       }
       // Apply turn-start effects (Renewal, etc.) — skip turn 1 to match BattleScene
       if (turn > 1) {
-        this._processTurnStartEffects(this.playerUnits);
+        this._processTurnStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits));
       }
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
@@ -1221,8 +1228,12 @@ export class HeadlessBattle {
     const range = getEffectiveStaffRange(staff, unit);
     const healOpts = this._healOptions();
     const targets = [];
-    for (const ally of this.playerUnits) {
+    // Mirrors HealController: the army first, then living NPC allies (recruits,
+    // the merchant caravan) the army can see.
+    for (const ally of staffAllyCandidates(this.playerUnits, this.npcUnits)) {
       if (ally === unit) continue;
+      if (ally.currentHP <= 0 || ally._removing) continue;
+      if (!canInspectUnit(this.grid, ally)) continue;
       if (ally.currentHP >= ally.stats.HP) continue;
       // Mirrors HealController: never offer a target the heal would restore 0 HP to.
       if (resolveHeal(staff, unit, ally, healOpts).healAmount <= 0) continue;
@@ -2428,7 +2439,7 @@ export class HeadlessBattle {
   async _processEnemyPhase() {
     this._reinforcementsPendingThisTurn = true;
     try {
-      this._processTerrainDamage(this.playerUnits);
+      this._processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
       this._processTurnStartEffects(this.enemyUnits);
       this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
       this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();
@@ -2552,11 +2563,16 @@ export class HeadlessBattle {
     this._checkPhoenixBrooch(attacker);
     this._checkPhoenixBrooch(defender);
 
-    // Award XP to player defender
+    // Award XP to player defender: at least the survival minimum
+    // (XP_DEFEND_SURVIVE), as BattleScene.awardXP grants a unit that lived through
+    // an attack. (The harness does not model the scene's damage-dealt scaling.)
     if (defender.faction === 'player' && defender.currentHP > 0) {
       const baseXp = calculateCombatXP(defender, attacker, attacker.currentHP <= 0);
-      const xp = Math.floor(
-        baseXp * this._getEnemyXpMultiplier(attacker) * this._getRecruitXpMultiplier(defender),
+      const xp = Math.max(
+        attacker._noXP ? 0 : XP_DEFEND_SURVIVE,
+        Math.floor(
+          baseXp * this._getEnemyXpMultiplier(attacker) * this._getRecruitXpMultiplier(defender),
+        ),
       );
       // Shares are computed from the recipient's own formula, so award them
       // even when the holder's rounded XP is 0 (mirrors BattleScene.awardXP).

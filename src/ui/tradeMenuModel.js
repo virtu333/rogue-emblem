@@ -107,13 +107,19 @@ function tradePossible(a, b) {
   );
 }
 
+// A unit's empty slots all look alike, so each one's accessible name carries its slot
+// number (1-based); the convoy shows a single empty row and needs none.
+function emptySlotSuffix(row) {
+  return isConvoyHolder(row.slot?.holder) ? '' : `, slot ${row.index + 1}`;
+}
+
 function rowName(row, held) {
   if (row.state === 'commit') {
     return row.empty
-      ? `Give ${held.item.name} to ${holderName(row.slot.holder)}`
+      ? `Give ${held.item.name} to ${holderName(row.slot.holder)}${emptySlotSuffix(row)}`
       : `Trade ${held.item.name} for ${row.item.name}`;
   }
-  if (row.empty) return 'Empty';
+  if (row.empty) return isConvoyHolder(row.slot?.holder) ? 'Empty' : `Empty slot ${row.index + 1}`;
   return row.equipped ? `${row.item.name}, equipped` : row.item.name;
 }
 

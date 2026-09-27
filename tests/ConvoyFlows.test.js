@@ -130,7 +130,7 @@ describe('convoy scene/UI flows', () => {
     expect(rm.getConvoyCounts().consumables).toBe(1);
   });
 
-  it('keeps roster [Store] locked for a unit last combat weapon', () => {
+  it('offers roster [Store] for a unit last combat weapon, leaving it unarmed', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
@@ -160,7 +160,12 @@ describe('convoy scene/UI flows', () => {
     overlay.drawUnitDetails();
 
     const storeAction = actions.find((a) => a.label === '[Store]');
-    expect(storeAction).toBeUndefined();
+    expect(storeAction).toBeDefined();
+    storeAction.onClick();
+    expect(unit.inventory).toEqual([]);
+    expect(unit.weapon).toBeNull();
+    // addToConvoy stores its own copy (with a uid).
+    expect(rm.convoy.weapons.map((w) => w.name)).toEqual([weapon.name]);
   });
 
   it('applies a weapon-art scroll to an eligible weapon and consumes the scroll', () => {

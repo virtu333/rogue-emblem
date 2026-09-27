@@ -7,6 +7,7 @@
 // No DOM, no Phaser: unit-tested in tests/LoomModel.test.js.
 
 import { fallCountdownText } from './eclipseContent.js';
+import { chosenLine } from '../engine/RuinsCommands.js';
 
 export const LOOM_LANES = 5;
 
@@ -385,7 +386,7 @@ const ECLIPSED_TEXT = {
 const SERVICE = {
   shop: 'Buy, sell and forge equipment.',
   church: 'Heal, revive allies and promote units.',
-  ruins: 'Supplies and services among the ruins.',
+  ruins: 'Rest (heal, revive) or scavenge the wares. Only one.',
   colosseum: 'Arena and mercenary board.',
   recruit: 'Battle with a potential ally.',
 };
@@ -490,6 +491,7 @@ export function describeLoomNode(
     eclipse = null,
     recruit = null,
     recruitMods = null,
+    ruinsChoice = null,
   } = {},
 ) {
   if (!node) return null;
@@ -547,7 +549,9 @@ export function describeLoomNode(
     ? ECLIPSED_TEXT[node.eclipse.fromType] || ECLIPSED_TEXT.battle
     : recruitView
       ? `Hunters are closing on ${recruitView.name}. Reach them with a lord and Talk.`
-      : SERVICE[node.type] || objective?.[1] || '';
+      : node.type === 'ruins' && ruinsChoice
+        ? chosenLine(ruinsChoice)
+        : SERVICE[node.type] || objective?.[1] || '';
   const pool = state === 'cut' || eclipsed ? null : flavorPool(node, dialogue, actId);
   const flavor =
     Array.isArray(pool) && pool.length ? pool[stableIndex(node.id, pool.length)] : null;

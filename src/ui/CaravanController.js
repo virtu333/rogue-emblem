@@ -12,10 +12,10 @@ import { RING_OFFSET_Y, restyleFactionRing } from './FactionRings.js';
 
 const CARAVAN_RING_COLOR = UI_HEX.accent;
 
-// First-encounter hint. Staves heal only the army (HealController.findHealTargets),
-// so the caravan's HP is the player's to protect, not to mend.
+// First-encounter hint. Heal staves mend the caravan like any ally
+// (HealController.findHealTargets), so the hint says so.
 export const CARAVAN_HINT =
-  "A merchant caravan is caught in the fighting -- if it survives, it will trade with you. Staves can't heal it.";
+  'A merchant caravan is caught in the fighting -- if it survives, it will trade with you. Staves can heal it.';
 
 export class CaravanController {
   constructor(scene) {

@@ -304,6 +304,66 @@ test('heal rows preview HP, Back cancels, and repeated taps spend only one staff
   expect(errors).toEqual([]);
 });
 
+test('a staff heals the caravan Merchant from the phone rail', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  const { hud, errors } = await boot(page);
+  await page.evaluate(async () => {
+    const { createCaravanUnit } = await import('/src/engine/CaravanSystem.js');
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.registry.get('settings')?.setHints?.(false);
+    s.hideActionMenu();
+    const healer = window.testUnit;
+    for (const u of s.playerUnits) u.currentHP = u.stats.HP; // only the Merchant is hurt
+    healer.stats.MAG = 1;
+    const staff = { ...s.gameData.weapons.find((w) => w.name === 'Heal') };
+    healer.inventory = healer.inventory.filter((w) => w.type !== 'Staff');
+    healer.inventory.push(staff);
+    const tile = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]
+      .map(([dc, dr]) => ({ col: healer.col + dc, row: healer.row + dr }))
+      .find(
+        ({ col, row }) =>
+          col >= 0 &&
+          row >= 0 &&
+          col < s.grid.cols &&
+          row < s.grid.rows &&
+          !s.getUnitAt(col, row) &&
+          s.grid.getMoveCost(col, row, 'Infantry') !== Infinity,
+      );
+    const caravan = createCaravanUnit('act2', tile); // 18 + 4 × 2 = 26 HP
+    caravan.currentHP = 12;
+    s.npcUnits.push(caravan);
+    s.addUnitGraphic(caravan);
+    s.selectUnit(healer);
+    s.showActionMenu(healer);
+    window.caravanCase = { healer, staff, caravan };
+  });
+  await hud.getByRole('button', { name: /^Heal \(/ }).tap();
+  const row = hud.getByRole('group', { name: 'Heal targets' }).getByRole('button');
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText('Merchant');
+  // Heal: MAG 1 + 5 = 6.
+  await expect(row).toContainText('HP 12/26 → 18/26 (+6)');
+  await row.tap();
+  await expect.poll(() => page.evaluate(() => window.caravanCase.healer.hasActed)).toBe(true);
+  expect(
+    await page.evaluate(() => {
+      const { caravan, staff } = window.caravanCase;
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      return {
+        hp: caravan.currentHP,
+        spent: staff._usesSpent,
+        npc: s.npcUnits.includes(caravan) && caravan.faction === 'npc',
+      };
+    }),
+  ).toEqual({ hp: 18, spent: 1, npc: true });
+  expect(errors).toEqual([]);
+});
+
 test('Cure rows name the removed conditions without promising HP', async ({ page }) => {
   const { hud, errors } = await boot(page);
   await page.evaluate(() => {

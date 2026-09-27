@@ -100,6 +100,16 @@ describe('promotionPathContent', () => {
 });
 
 describe('levelUpContent', () => {
+  it('orders the card so its left column reads HP, STR, SPD, RES', () => {
+    const unit = { name: 'Edric', className: 'Lord', stats: { HP: 21, STR: 7, MAG: 2, SKL: 9, SPD: 10, DEF: 7, RES: 3, LCK: 8 } }; // prettier-ignore
+    const c = levelUpContent(unit, { newLevel: 3, gains: { SKL: 1 } });
+    const order = c.rows.map((r) => r.stat);
+    expect(order).toEqual(['HP', 'MAG', 'STR', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']);
+    // The card is a two-column grid filled row by row.
+    expect(order.filter((_, i) => i % 2 === 0)).toEqual(['HP', 'STR', 'SPD', 'RES']);
+    expect(order.filter((_, i) => i % 2 === 1)).toEqual(['MAG', 'SKL', 'DEF', 'LCK']);
+    expect(c.rows.find((r) => r.stat === 'SKL')).toMatchObject({ before: 8, after: 9, gain: 1 });
+  });
   const unit = { name: 'Edric', className: 'Lord', stats: { HP: 20, STR: 6, MAG: 2, SKL: 7, SPD: 9, DEF: 5, RES: 3, LCK: 6 } }; // prettier-ignore
 
   it('rows reconstruct before/after from the (already applied) stats', () => {

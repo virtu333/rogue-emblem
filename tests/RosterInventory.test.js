@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
 import { addToInventory } from '../src/engine/UnitManager.js';
-import { rosterItemAction, rosterAccessoryAction } from '../src/engine/RosterInventory.js';
+import {
+  rosterItemAction,
+  rosterItemBlock,
+  rosterItemWarnings,
+  rosterAccessoryAction,
+} from '../src/engine/RosterInventory.js';
 import { loadGameData } from './testData.js';
 function fixture() {
   const run = new RunManager(loadGameData());
@@ -43,15 +48,54 @@ describe('roster inventory actions', () => {
     expect(rosterItemAction(run, unit, item, 'withdraw')).toBe('Equipment full.');
     expect(run.getConvoyCounts().weapons).toBe(1);
   });
-  it('protects the final weapon and stores a spare without duplication', () => {
+  it('stores a spare without duplication, and warns only for the last weapon', () => {
     const { run, unit } = fixture();
     unit.inventory = [unit.weapon];
-    expect(rosterItemAction(run, unit, unit.weapon, 'store')).toContain('at least one');
     addToInventory(unit, unit.weapon);
-    const spare = unit.inventory[1];
+    const [equipped, spare] = unit.inventory;
+    // Two usable copies: storing either leaves a combat weapon, so no warning.
+    expect(rosterItemWarnings(run, unit, spare, 'store')).toEqual([]);
     expect(rosterItemAction(run, unit, spare, 'store')).toBe('');
     expect(rosterItemAction(run, unit, spare, 'store')).toContain('no longer');
+    expect(rosterItemWarnings(run, unit, spare, 'store')).toEqual([]); // blocked: no warning
     expect(run.getConvoyCounts().weapons).toBe(1);
+    expect(unit.inventory).toEqual([equipped]);
+    expect(unit.weapon).toBe(equipped);
+  });
+  it('stores the last combat weapon: allowed, warned, and the unit is left unarmed', () => {
+    const { run, unit } = fixture();
+    const weapon = unit.weapon;
+    unit.inventory = [weapon];
+    expect(rosterItemBlock(run, unit, weapon, 'store')).toBe('');
+    expect(rosterItemWarnings(run, unit, weapon, 'store')).toEqual([
+      { code: 'leaves_unarmed', unit },
+    ]);
+    expect(rosterItemAction(run, unit, weapon, 'store')).toBe('');
+    expect(unit.inventory).toEqual([]);
+    expect(unit.weapon).toBeNull();
+    expect(run.getConvoyCounts().weapons).toBe(1);
+    expect(run.getConvoyItems().weapons[0].uid).toBe(weapon.uid);
+  });
+  it('storing the last combat weapon beside a usable staff equips the staff', () => {
+    const { run, unit } = fixture();
+    const weapon = unit.weapon;
+    const staff = { name: 'Heal', type: 'Staff', rankRequired: 'Prof', uses: 3, uid: 'heal-1' };
+    unit.proficiencies = [...unit.proficiencies, { type: 'Staff', rank: 'Prof' }];
+    unit.inventory = [weapon, staff];
+    expect(rosterItemWarnings(run, unit, weapon, 'store')).toEqual([
+      { code: 'leaves_unarmed', unit },
+    ]);
+    expect(rosterItemAction(run, unit, weapon, 'store')).toBe('');
+    expect(unit.inventory).toEqual([staff]);
+    expect(unit.weapon).toBe(staff);
+  });
+  it('supplies and non-store actions carry no unarmed warning', () => {
+    const { run, unit } = fixture();
+    const potion = { name: 'Potion', type: 'Consumable', effect: 'heal', value: 10, uses: 1 };
+    unit.inventory = [unit.weapon];
+    unit.consumables = [potion];
+    expect(rosterItemWarnings(run, unit, potion, 'store')).toEqual([]);
+    expect(rosterItemWarnings(run, unit, unit.weapon, 'equip')).toEqual([]);
   });
   it('consumes healing only when damaged and removes the exhausted item', () => {
     const { run, unit } = fixture();

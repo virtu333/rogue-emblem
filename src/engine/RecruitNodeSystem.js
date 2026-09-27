@@ -49,7 +49,7 @@ import {
   getClassInnateSkills,
   grantLethalArmoryWeapon,
   grantRecruitStartingAccessory,
-  grantSecondaryWeapons,
+  grantMasterOfArmsWeapons,
   learnSkill,
   levelUp,
   promoteUnit,
@@ -495,12 +495,12 @@ export function buildRecruitNodeUnit(opts = {}) {
       if (seasoned) ensureOneTrait(unit, gameData.traits, rng, profile);
 
       applyAct3RecruitBonus(unit, act);
-      const tier = unit.weapon?.tier || 'Iron';
       if (metaEffects?.lethalArmoryTier)
         grantLethalArmoryWeapon(unit, gameData.weapons, metaEffects.lethalArmoryTier);
-      if (metaEffects?.masterOfArms) grantSecondaryWeapons(unit, gameData.weapons, tier);
       if (metaEffects?.recruitWeaponForge)
         applyRecruitWeaponForge(unit, metaEffects.recruitWeaponForge);
+      // After the forge: Master of Arms extras arrive plain (grantMasterOfArmsWeapons).
+      if (metaEffects?.masterOfArms) grantMasterOfArmsWeapons(unit, gameData.weapons);
       if (metaEffects?.recruitStartingAccessory)
         grantRecruitStartingAccessory(
           unit,

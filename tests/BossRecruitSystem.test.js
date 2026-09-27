@@ -882,6 +882,26 @@ describe('BossRecruitSystem', () => {
       expect(invTypes.has('Bow')).toBe(true);
     });
 
+    it('masterOfArms extras are plain Iron and skip the Quartermaster forge', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      const localData = makeRangerOnlyAct2PoolData();
+      const meta = { masterOfArms: true, recruitWeaponForge: 2, lordRecruitChanceBonus: -1 };
+      const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), localData, meta);
+      expect(candidates).toHaveLength(1);
+      const unit = candidates[0].unit;
+      // The Ranger joins holding a sword (its first proficiency) and gains a bow.
+      const sword = unit.inventory.find((w) => w?.type === 'Sword');
+      const bow = unit.inventory.find((w) => w?.type === 'Bow');
+      expect(sword).toBeTruthy();
+      expect(bow).toBeTruthy();
+      // Quartermaster's Craft II forges the weapon the recruit joined with twice...
+      expect(sword._forgeLevel).toBe(2);
+      // ...but the Master of Arms bow arrives plain Iron, whatever the join tier.
+      expect(bow.tier).toBe('Iron');
+      expect(bow._forgeLevel || 0).toBe(0);
+      expect(bow._forgeBonuses).toBeUndefined();
+    });
+
     it('masterOfArms uses spawn tier, not Lethal Armory tier', () => {
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
       const localData = makeRangerOnlyAct2PoolData();

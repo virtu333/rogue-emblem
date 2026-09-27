@@ -17,11 +17,32 @@ import {
   churchKindleBlock,
   kindleAtChurch,
 } from '../engine/ChurchCommands.js';
+import {
+  ruinsChoice,
+  chooseRuinsPath,
+  ruinsChoiceBlock,
+  chosenLine,
+  healAtRuins,
+  ruinsReviveBlock,
+  reviveAtRuins,
+} from '../engine/RuinsCommands.js';
 import { eclipsePhase, kindlePrice } from '../engine/EclipseSystem.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
-import { CHURCH_PROMOTE_COST } from '../utils/constants.js';
+import { CHURCH_PROMOTE_COST, RUINS_SHOP_MARKUP } from '../utils/constants.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
+// The sanctuary's band kicker: both paths before the choice, the chosen one after.
+const RUINS_KICKER = Object.freeze({
+  none: 'Heal or wares',
+  rest: 'Rest · Heal · Revive',
+  scavenge: 'Scavenge · Wares',
+});
+const ruinsMarkupPct = () => Math.round((RUINS_SHOP_MARKUP - 1) * 100);
+export function ruinsPathLabel(path) {
+  return path === 'rest'
+    ? 'Rest — heal everyone, revive the fallen'
+    : `Scavenge — the ruins' wares (+${ruinsMarkupPct()}%)`;
+}
 export class ChurchMenu {
   constructor(c) {
     this.c = c;
@@ -53,10 +74,13 @@ export class ChurchMenu {
     const scroll = body.scrollTop;
     body.replaceChildren();
     const ruins = !!this.scene._churchRuinsMode;
+    // The Ruins: rest OR scavenge, one per node, kept on the run (RuinsCommands).
+    const nodeId = this.scene._churchNode?.id;
+    const path = ruins ? ruinsChoice(run, nodeId) : null;
     body.append(
       applyServiceVignette(this.surface.root, ruins ? 'ruins' : 'church', {
         title: ruins ? 'Ruins sanctuary' : 'Church',
-        kicker: ruins ? 'Heal · Revive · Wares' : 'Heal · Revive · Promote',
+        kicker: ruins ? RUINS_KICKER[path] || RUINS_KICKER.none : 'Heal · Revive · Promote',
         still: prefersStill(this.scene),
         backdrop: true,
       }),
@@ -66,25 +90,36 @@ export class ChurchMenu {
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
     body.append(status);
+    if (ruins && !path) {
+      this.renderRuinsChoice(body, run, nodeId);
+      this.renderTools(body);
+      body.scrollTop = scroll;
+      return;
+    }
+    if (ruins) body.append(el('p', chosenLine(path), 'ruins-chosen'));
+    if (ruins && path === 'scavenge') {
+      body.append(button('Browse wares', () => this.browseWares()));
+      this.renderTools(body);
+      body.scrollTop = scroll;
+      return;
+    }
     body.append(
       button('Heal all · Free', () => {
+        if (ruins) {
+          this.finish(healAtRuins(run, nodeId));
+          return;
+        }
         for (const u of run.roster) u.currentHP = u.stats.HP;
         this.finish({ ok: true, message: 'All units healed.' });
       }),
     );
-    if (this.scene._churchRuinsMode)
-      body.append(
-        button('Browse wares', () => {
-          const node = this.scene._churchNode;
-          this.c.closeChurchOverlay();
-          this.scene.handleShop(node, { ruins: true });
-        }),
-      );
-    if (!this.scene._churchRuinsMode) this.renderKindle(body, run);
+    if (!ruins) this.renderKindle(body, run);
+    const reviveBlock = (u) =>
+      ruins ? ruinsReviveBlock(run, nodeId, u) : churchReviveBlock(run, u);
     body.append(el('h3', 'Revive fallen ally'));
     if (!run.fallenUnits.length) body.append(el('p', 'No fallen allies.'));
     for (const unit of run.fallenUnits) {
-      const reason = churchReviveBlock(run, unit);
+      const reason = reviveBlock(unit);
       const catchUp = revivalCatchUpPlan(unit, run.roster);
       const b = button(`${unit.name} · ${unit.className} · Revive ${getReviveCost(unit)} G`, () =>
         this.choose({
@@ -94,20 +129,19 @@ export class ChurchMenu {
           label: (u) => u.name,
           describe: () =>
             `${getReviveCost(unit)} gold. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels toward the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
-          blocked: (u) => churchReviveBlock(run, u),
-          apply: (u) => this.finish(reviveAtChurch(run, u)),
+          blocked: (u) => reviveBlock(u),
+          apply: (u) => this.finish(ruins ? reviveAtRuins(run, nodeId, u) : reviveAtChurch(run, u)),
         }),
       );
       b.disabled = !!reason;
       body.append(withUnitFace(b, this.scene, this.scene.gameData, unit));
       if (reason) body.append(el('p', reason));
     }
-    if (!this.scene._churchRuinsMode) {
+    if (!ruins) {
       body.append(el('h3', `Promote · ${CHURCH_PROMOTE_COST} G`));
       const eligible = run.roster.filter(canPromote);
       if (!eligible.length)
         body.append(el('p', 'No units eligible yet. Base classes can promote from level 10.'));
-      const nodeId = this.scene._churchNode.id;
       for (const unit of eligible) {
         const reason = churchPromotionBlock(run, unit, nodeId, this.scene.gameData);
         const b = button(`${unit.name} · ${unit.className} · Lv ${getDisplayLevel(unit)}`, () =>
@@ -118,13 +152,68 @@ export class ChurchMenu {
         if (reason) body.append(el('p', reason));
       }
     }
+    this.renderTools(body);
+    body.scrollTop = scroll;
+  }
+  renderTools(body) {
     const tools = el('div', null, 'shop-tools');
     tools.append(
       button('View map', () => this.scene._enterChurchMapView()),
       button('Roster', () => this.roster()),
     );
     body.append(tools);
-    body.scrollTop = scroll;
+  }
+  // Before a path is chosen: the two paths, each behind a confirmation (the choice is final).
+  renderRuinsChoice(body, run, nodeId) {
+    body.append(el('p', 'Rest or scavenge. The ruins allow only one.'));
+    const markup = ruinsMarkupPct();
+    const fallen = run.fallenUnits.length;
+    const paths = [
+      {
+        path: 'rest',
+        title: 'Rest here?',
+        confirmLabel: 'Rest',
+        describe: `Every unit is healed now, free.${fallen ? ` You can then revive the fallen for gold (${fallen} waiting).` : ''} The wares stay buried. This cannot be undone.`,
+      },
+      {
+        path: 'scavenge',
+        title: 'Scavenge the ruins?',
+        confirmLabel: 'Scavenge',
+        describe: `Buy and sell from the ruins' stock at ${markup}% over village prices. No healing or revival here. This cannot be undone.`,
+      },
+    ];
+    for (const option of paths) {
+      const b = button(ruinsPathLabel(option.path), () =>
+        this.choose({
+          title: option.title,
+          choices: [option.path],
+          confirmation: true,
+          confirmLabel: option.confirmLabel,
+          label: () => ruinsPathLabel(option.path),
+          describe: () => option.describe,
+          blocked: (p) => ruinsChoiceBlock(run, nodeId, p),
+          apply: (p) => {
+            const result = chooseRuinsPath(run, nodeId, p);
+            if (!result.ok) return result;
+            // Scavenge goes straight to the wares once the picker closes.
+            if (p === 'scavenge') {
+              this.afterChoose = () => this.browseWares();
+              this.status = result.message + saveServiceRun(this.scene);
+              return result;
+            }
+            return this.finish(result);
+          },
+        }),
+      );
+      b.classList.add('ruins-path');
+      b.dataset.path = option.path;
+      body.append(b);
+    }
+  }
+  browseWares() {
+    const node = this.scene._churchNode;
+    this.c.closeChurchOverlay();
+    this.scene.handleShop(node, { ruins: true });
   }
   // The Eclipse: Kindle lifts shadow for gold, once per chapel.
   renderKindle(body, run) {
@@ -250,14 +339,18 @@ export class ChurchMenu {
   }
   choose(options) {
     if (this.child) return;
+    this.afterChoose = null;
     this.surface.root.inert = true;
     this.child = new ChoicePicker({
       scene: this.scene,
       ...options,
       onClose: () => {
         this.child = null;
+        const next = this.afterChoose;
+        this.afterChoose = null;
         if (!this.surface || this.destroyed) return;
         this.surface.root.inert = false;
+        if (next) return next();
         this.render();
         this.surface.focusContent();
       },

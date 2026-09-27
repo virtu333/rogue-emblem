@@ -148,7 +148,7 @@ test('battle trade transfers once and commits movement; rewind confirmation is n
   const tab = trade.getByRole('tab', { name: /^Supplies/ });
   if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.tap();
   await trade.getByRole('button', { name: 'Test Vulnerary', exact: true }).tap();
-  // Every free slot on the other side reads "Give Test Vulnerary to ⟨b⟩".
+  // Every free slot on the other side reads "Give Test Vulnerary to ⟨b⟩, slot N".
   await trade
     .getByRole('button', { name: /^Give Test Vulnerary to / })
     .first()

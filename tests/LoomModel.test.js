@@ -557,6 +557,23 @@ describe('Loom inspect card', () => {
     expect(boss.stateLine.text).toBe('Possible future');
     expect(describeLoomNode(null)).toBeNull();
   });
+
+  it('a ruins card names both paths until one is chosen, then only that one', () => {
+    const ruins = { id: 'r', type: 'ruins' };
+    expect(describeLoomNode(ruins, { state: 'live' }).text).toBe(
+      'Rest (heal, revive) or scavenge the wares. Only one.',
+    );
+    expect(describeLoomNode(ruins, { state: 'current', ruinsChoice: 'rest' }).text).toBe(
+      'You chose to rest here. The wares stay buried.',
+    );
+    expect(describeLoomNode(ruins, { state: 'current', ruinsChoice: 'scavenge' }).text).toBe(
+      'You chose to scavenge here. No rest tonight.',
+    );
+    // A choice never leaks onto another kind of node.
+    expect(
+      describeLoomNode({ id: 'c', type: 'church' }, { state: 'live', ruinsChoice: 'rest' }).text,
+    ).toBe('Heal, revive allies and promote units.');
+  });
 });
 
 describe('Loom header', () => {

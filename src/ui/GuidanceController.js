@@ -6,7 +6,9 @@
 //
 //   guide_first_turn        first player phase: select a unit; red eyes = reach
 //   guide_fragile_in_reach  a healer / thin unit was moved where enemies reach it
-//   guide_healer_heals      a healer is selected while an ally is hurt
+//   guide_healer_heals      a healer is selected while an ally is hurt, or while
+//                           only an NPC ally (caravan, recruit) is hurt and this
+//                           healer's staff can mend it this turn (names it)
 //   guide_no_attack         a unit ended its move with nobody in weapon reach
 //   guide_commander_low_hp  the commander starts a player phase at half HP or less
 //   guide_recruit_on_map    a recruitable (green) unit is on the map: names the recruit
@@ -24,8 +26,10 @@
 
 import { canInspectUnit } from '../engine/BattleInformation.js';
 import { findCommander } from '../engine/Commander.js';
-import { isRecruitNpc } from '../engine/RecruitNpc.js';
+import { isNpcAlly, isRecruitNpc } from '../engine/RecruitNpc.js';
+import { isHealStaff } from '../engine/StatusConditionSystem.js';
 import { getAttackRange, getAttackWeapons } from '../engine/AttackOptions.js';
+import { isUnarmed } from '../engine/UnitManager.js';
 import {
   canUseStaff,
   guidanceAllows,
@@ -34,6 +38,7 @@ import {
   isVeteranMeta,
   noTargetReason,
   noteScope,
+  unarmedReason,
   noteTier,
   reachFromRanges,
   resolveGuidance,
@@ -103,6 +108,17 @@ export class GuidanceController {
     return noTargetReason(
       reachFromRanges(weapons.map((w) => getAttackRange(unit, w, { skillsData }))),
     );
+  }
+
+  /**
+   * Reason for a greyed Attack row when the unit has nothing to attack with, or null.
+   * Full Guidance only, like noTargetAttackReason. Only a unit that could fight
+   * (a combat proficiency) and carries no combat weapon it can wield; a healer with
+   * only staff ranks keeps Fire Emblem's hidden Attack.
+   */
+  unarmedAttackReason(unit) {
+    if (!unit || unit.faction !== 'player' || this.level() !== 'full') return null;
+    return isUnarmed(unit) ? unarmedReason() : null;
   }
 
   covered() {
@@ -212,12 +228,17 @@ export class GuidanceController {
       !unit.hasActed &&
       canUseStaff(unit) &&
       (s.getUsableStaves?.(unit) || []).length &&
-      (s.playerUnits || []).some(
-        (u) => u !== unit && u.currentHP > 0 && u.currentHP < u.stats?.HP,
-      ) &&
       coach('guide_healer_heals')
-    )
-      return { id: 'guide_healer_heals', context: { unit, commander, touch }, anchor: unit };
+    ) {
+      const armyHurt = (s.playerUnits || []).some(
+        (u) => u !== unit && u.currentHP > 0 && u.currentHP < u.stats?.HP,
+      );
+      if (armyHurt)
+        return { id: 'guide_healer_heals', context: { unit, commander, touch }, anchor: unit };
+      const npc = this.npcToMend(unit);
+      if (npc)
+        return { id: 'guide_healer_heals', context: { unit, commander, touch, npc }, anchor: unit };
+    }
     if (state !== 'PLAYER_IDLE') return null;
     if (
       commander &&
@@ -237,6 +258,37 @@ export class GuidanceController {
       return { id: 'guide_recruit_on_map', context: { npc, touch }, anchor: npc };
     if ((s.turnManager?.turnNumber ?? 1) <= 1 && coach('guide_first_turn'))
       return { id: 'guide_first_turn', context: { touch }, anchor: commander };
+    return null;
+  }
+
+  /**
+   * A hurt NPC ally (the caravan, a recruit) this healer's heal staff would mend this
+   * turn, or null. Uses the Heal command's own target rules (BattleScene.findHealTargets:
+   * seen through the fog, hurt, a heal worth a use, in staff reach), measured from
+   * every tile the healer can still end its move on while choosing where to go, or
+   * from where it stands once at the action menu. The note never promises a heal the
+   * Heal command would not offer.
+   */
+  npcToMend(unit) {
+    const s = this.scene;
+    if (!(s.npcUnits || []).some(isNpcAlly) || typeof s.findHealTargets !== 'function') return null;
+    const staves = (s.getUsableStaves?.(unit) || []).filter(isHealStaff);
+    if (!staves.length) return null;
+    const tiles = [];
+    if (s.battleState === 'UNIT_SELECTED' && s.movementRange instanceof Map) {
+      for (const [key, entry] of s.movementRange) {
+        if (entry?.stoppable === false) continue;
+        const [col, row] = key.split(',').map(Number);
+        tiles.push({ col, row });
+      }
+    }
+    if (!tiles.length) tiles.push({ col: unit.col, row: unit.row });
+    for (const staff of staves) {
+      for (const from of tiles) {
+        const npc = s.findHealTargets(unit, staff, { from }).find((t) => t.faction === 'npc');
+        if (npc) return npc;
+      }
+    }
     return null;
   }
 

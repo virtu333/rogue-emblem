@@ -110,10 +110,9 @@ for (const mobile of [true, false]) {
       const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
       await trade.getByRole('tab', { name: /^Supplies/ }).click();
       await trade.getByRole('button', { name: 'Vulnerary', exact: true }).click();
-      // Sera's three free supply slots all read as the same give.
+      // Sera carries no supplies: her free slots are numbered, and slot 1 takes it.
       await trade
-        .getByRole('button', { name: 'Give Vulnerary to Sera', exact: true })
-        .first()
+        .getByRole('button', { name: 'Give Vulnerary to Sera, slot 1', exact: true })
         .click();
       await trade.getByRole('button', { name: 'Done', exact: true }).click();
       await action(page, 'Trade', mobile);

@@ -40,7 +40,7 @@ export function runReferenceEntries() {
       'Services',
       'Route',
       'Villages buy, sell and forge; Churches offer recovery and promotion.',
-      'Colosseums offer wagers and mercenaries. Ruins offer a pre-boss rest and limited wares.',
+      'Colosseums offer wagers and mercenaries. Ruins, before the boss: rest or scavenge wares.',
       'Inspect a node for its type. Service transactions and completed visits are saved.',
     ],
     [

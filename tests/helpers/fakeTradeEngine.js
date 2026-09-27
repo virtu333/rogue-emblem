@@ -27,8 +27,9 @@ export function unit(
 /**
  * Rules (a subset of ItemTrade's, enough to drive every row state):
  * convoy / accessory refused in battle; same holder; different bags; give into a
- * full bag; `unit.keepLast` refuses giving away the last weapon; warnings for
- * `cannotEquip` names and for a unit left with no weapon.
+ * full bag; an item marked `noConvoy` is refused by the convoy (the engine's
+ * convoyCannotStore); warnings for `cannotEquip` names and for a unit left with no
+ * weapon (to a unit or to the convoy alike).
  */
 export function fakeEngine({
   convoy = { weapons: [], consumables: [] },
@@ -62,11 +63,11 @@ export function fakeEngine({
       if (from.holder === to.holder) return { ok: false, reason: 'Choose another unit.' };
       if (from.bag !== to.bag)
         return { ok: false, reason: 'Items trade only within the same bag.' };
+      if (to.holder.kind === 'convoy' && from.item.noConvoy)
+        return { ok: false, reason: 'The convoy cannot store this item.' };
       if (!to.item && items(to.holder, to.bag).length >= capacity(to.holder, to.bag))
         return { ok: false, reason: to.holder.kind === 'convoy' ? 'Convoy is full.' : 'Bag full.' };
       const giver = from.holder.unit;
-      if (giver?.keepLast && !to.item && giver.inventory.length === 1)
-        return { ok: false, reason: 'Keep at least one combat weapon.' };
       const warnings = [];
       const receiver = to.holder.unit;
       if (receiver?.cannotEquip.includes(from.item.name))

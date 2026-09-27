@@ -491,36 +491,87 @@ describe('convoy', () => {
     ).toEqual({ ok: false, reason: 'Convoy is full.' });
   });
 
-  it('Store refuses the last combat weapon; between units it only warns', () => {
+  it('Store takes the last combat weapon with a warning, like a give between units', () => {
     const sword = weapon('Iron Sword', 'Sword');
     const heal = weapon('Heal', 'Staff');
     const a = unit('A', ['Sword', 'Staff'], [sword, heal]);
     const b = unit('B', ['Sword'], []);
     const run = realRun(a, b);
     const ctx = { context: 'roster', run };
-    expect(planTrade(ctx, slot(a, 'inventory', sword), convoySlot('inventory', null))).toEqual({
-      ok: false,
-      reason: 'Keep at least one combat weapon.',
+    const toConvoy = [slot(a, 'inventory', sword), convoySlot('inventory', null)];
+    expect(planTrade(ctx, ...toConvoy)).toEqual({
+      ok: true,
+      kind: 'give',
+      warnings: [{ code: 'leaves_unarmed', unit: a }],
+      detail: 'Iron Sword',
     });
-    expect(run.convoy.weapons).toEqual([]);
+    // Between units: the same warning (unchanged).
     expect(
       planTrade(ctx, slot(a, 'inventory', sword), slot(b, 'inventory', null)).warnings,
     ).toEqual([{ code: 'leaves_unarmed', unit: a }]);
+    const result = applyTrade(ctx, ...toConvoy);
+    expect(result.warnings).toEqual([{ code: 'leaves_unarmed', unit: a }]);
+    // The same instance is stored; A keeps [Heal], which it can use, so settleEquipped
+    // (rule 4) equips the staff: A has no combat weapon, but is not empty-handed.
+    expect(run.convoy.weapons).toEqual([sword]);
+    expect(run.convoy.weapons[0]).toBe(sword);
+    expect(a.inventory).toEqual([heal]);
+    expect(a.weapon).toBe(heal);
   });
 
-  it('a swap of the last combat weapon for a convoy staff is refused', () => {
+  it('Store of the only item leaves the unit carrying nothing, with weapon null', () => {
+    const sword = weapon('Iron Sword', 'Sword');
+    const a = unit('A', ['Sword'], [sword]);
+    const run = realRun(a);
+    const result = applyTrade(
+      { context: 'roster', run },
+      slot(a, 'inventory', sword),
+      convoySlot('inventory', null),
+    );
+    expect(result).toEqual({
+      ok: true,
+      kind: 'give',
+      warnings: [{ code: 'leaves_unarmed', unit: a }],
+      detail: 'Iron Sword',
+    });
+    expect(a.inventory).toEqual([]);
+    expect(a.weapon).toBeNull();
+    expect(run.convoy.weapons).toEqual([sword]);
+  });
+
+  it('a unit with no combat weapon before the trade gets no unarmed warning', () => {
+    // Warned only on the change: a staff-only unit storing its staff was never armed.
+    const heal = weapon('Heal', 'Staff');
+    const a = unit('A', ['Staff'], [heal]);
+    const run = realRun(a);
+    expect(
+      planTrade(
+        { context: 'roster', run },
+        slot(a, 'inventory', heal),
+        convoySlot('inventory', null),
+      ).warnings,
+    ).toEqual([]);
+  });
+
+  it('a swap of the last combat weapon for a convoy staff is allowed, with a warning', () => {
     const sword = weapon('Iron Sword', 'Sword');
     const heal = weapon('Heal', 'Staff');
     const a = unit('A', ['Sword', 'Staff'], [sword]);
     const run = realRun(a);
     run.convoy.weapons.push(heal);
-    expect(
-      planTrade(
-        { context: 'roster', run },
-        slot(a, 'inventory', sword),
-        convoySlot('inventory', heal),
-      ),
-    ).toEqual({ ok: false, reason: 'Keep at least one combat weapon.' });
+    const ctx = { context: 'roster', run };
+    const clone = run.getConvoyItems().weapons[0];
+    const result = applyTrade(ctx, slot(a, 'inventory', sword), convoySlot('inventory', clone));
+    expect(result).toEqual({
+      ok: true,
+      kind: 'swap',
+      warnings: [{ code: 'leaves_unarmed', unit: a }],
+      detail: 'Iron Sword for Heal',
+    });
+    // Each item takes the slot the other left; A equips the incoming staff (rule 4).
+    expect(a.inventory).toEqual([heal]);
+    expect(a.weapon).toBe(heal);
+    expect(run.convoy.weapons).toEqual([sword]);
   });
 
   it('swaps when both the convoy (20/20) and the bag (5/5) are full', () => {

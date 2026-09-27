@@ -132,6 +132,9 @@
   margin: 5px 0;
   color: var(--re-accent-text);
 }
+.mr-card small.mr-warn {
+  color: var(--re-warn);
+}
 .mr-card summary {
   min-height: var(--re-tap);
   padding: 10px 0;

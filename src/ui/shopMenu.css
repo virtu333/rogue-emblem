@@ -162,6 +162,10 @@
   margin: 0 0 6px;
   color: var(--re-muted);
 }
+.shop-warning {
+  margin: 0 0 6px;
+  color: var(--re-warn);
+}
 .shop-footer {
   display: flex;
   justify-content: space-between;
