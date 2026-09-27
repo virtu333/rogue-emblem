@@ -336,3 +336,32 @@ html.mobile-preview .re-screen {
     white-space: nowrap;
   }
 }
+
+/* ───────── Upright phones (portrait mode): story dialogue ─────────
+   (DialogueOverlay: recruit lines, act transitions, story sequences, farewells.)
+   A 96px face beside the line left ~215px of 16px text on a 375px phone, so a long
+   line ran to six narrow lines. Upright the face floats at the start of the copy: the
+   name and the first lines sit beside it and the rest wraps under it at full width.
+   The two buttons share the bottom row (Continue, the primary, on the right), each at
+   least 44px; the screen's own padding keeps them above the home bar. Landscape and
+   desktop never match. */
+@media (orientation: portrait) {
+  html.portrait-ui .re-dialogue-copy {
+    display: flow-root;
+  }
+  html.portrait-ui .re-dialogue-copy > :is(img, picture) {
+    float: left;
+    margin: 0 12px 0 0;
+  }
+  html.portrait-ui .re-dialogue p {
+    margin: 6px 0 0;
+  }
+  html.portrait-ui .re-dialogue footer {
+    margin-top: 12px;
+  }
+  html.portrait-ui .re-dialogue footer .re-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: var(--re-tap);
+  }
+}

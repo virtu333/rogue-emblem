@@ -70,7 +70,8 @@
         "portrait-cards.spec.js",
         "portrait-lists.spec.js",
         "portrait-trade.spec.js",
-        "portrait-services.spec.js"
+        "portrait-services.spec.js",
+        "portrait-ceremonies.spec.js"
       ],
       "shards": 2
     },
