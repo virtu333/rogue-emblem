@@ -99,9 +99,11 @@ test('Church heal, roster, map, promotion cancellation and arena forecast/reward
   await page.screenshot({ path: 'test-results/audit-mercenary.png' });
   await page.setViewportSize({ width: 375, height: 667 });
   expect(await hire.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
-  // Portrait intentionally places the landscape prompt above the game.
-  // Verify layout while rotated, then restore the supported play orientation.
-  await expect(page.getByRole('button', { name: 'Use landscape', exact: true })).toBeVisible();
+  // Portrait mode is on by default on a phone: turned upright, the hire screen itself
+  // shows (no rotate prompt), Confirm hire still in view; then turn back.
+  await expect(page.locator('html')).toHaveClass(/\bportrait-ui\b/);
+  await expect(page.getByRole('button', { name: 'Use landscape', exact: true })).toBeHidden();
+  await expect(hire.getByRole('button', { name: 'Confirm hire', exact: true })).toBeInViewport();
   await page.setViewportSize({ width: 667, height: 375 });
   await expect(page.getByRole('button', { name: 'Use landscape', exact: true })).toBeHidden();
   await hire.getByRole('button', { name: 'Back', exact: true }).tap();

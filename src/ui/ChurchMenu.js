@@ -165,7 +165,7 @@ export class ChurchMenu {
   }
   // Before a path is chosen: the two paths, each behind a confirmation (the choice is final).
   renderRuinsChoice(body, run, nodeId) {
-    body.append(el('p', 'Rest or scavenge. The ruins allow only one.'));
+    body.append(el('p', 'Rest or scavenge. The ruins allow only one.', 'ruins-rule'));
     const markup = ruinsMarkupPct();
     const fallen = run.fallenUnits.length;
     const paths = [
@@ -174,22 +174,34 @@ export class ChurchMenu {
         title: 'Rest here?',
         confirmLabel: 'Rest',
         describe: `Every unit is healed now, free.${fallen ? ` You can then revive the fallen for gold (${fallen} waiting).` : ''} The wares stay buried. This cannot be undone.`,
+        // What each path gives and costs, a line each (shown on upright phones; the
+        // button's description everywhere).
+        effects: [
+          'Heal every unit now · Free',
+          fallen ? `Revive the fallen for gold · ${fallen} waiting` : 'No fallen allies to revive',
+          'The wares stay buried',
+        ],
       },
       {
         path: 'scavenge',
         title: 'Scavenge the ruins?',
         confirmLabel: 'Scavenge',
         describe: `Buy and sell from the ruins' stock at ${markup}% over village prices. No healing or revival here. This cannot be undone.`,
+        effects: [
+          `Buy and sell the ruins' stock · +${markup}% over village prices`,
+          'No healing or revival here',
+        ],
       },
     ];
     for (const option of paths) {
-      const b = button(ruinsPathLabel(option.path), () =>
+      const label = ruinsPathLabel(option.path);
+      const b = button(label, () =>
         this.choose({
           title: option.title,
           choices: [option.path],
           confirmation: true,
           confirmLabel: option.confirmLabel,
-          label: () => ruinsPathLabel(option.path),
+          label: () => label,
           describe: () => option.describe,
           blocked: (p) => ruinsChoiceBlock(run, nodeId, p),
           apply: (p) => {
@@ -207,6 +219,15 @@ export class ChurchMenu {
       );
       b.classList.add('ruins-path');
       b.dataset.path = option.path;
+      // The name stays the label; the effect lines are its description, not part of
+      // the name (shown on upright phones only, shopMenu.css).
+      b.setAttribute('aria-label', label);
+      const effects = el('span', null, 'ruins-path-effects');
+      effects.id = `ruins-path-${option.path}-effects`;
+      effects.setAttribute('aria-hidden', 'true');
+      for (const line of option.effects) effects.append(el('span', line, 'ruins-path-effect'));
+      b.setAttribute('aria-describedby', effects.id);
+      b.append(effects);
       body.append(b);
     }
   }

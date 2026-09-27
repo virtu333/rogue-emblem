@@ -202,6 +202,9 @@
     font-size: 17px;
   }
 }
+/* Any upright window up to 700px wide (a narrow desktop window included) stacks the
+   list over the detail. A phone in portrait mode (html.portrait-ui) always falls in
+   here; its refinements are at the end of the file. */
 @media (orientation: portrait) and (max-width: 700px) {
   .shop-split {
     grid-template-columns: 1fr;
@@ -266,4 +269,78 @@
 }
 .service-footer .re-btn {
   width: 100%;
+}
+
+/* The Ruins paths' effect lines (ChurchMenu): shown on upright phones only, where the
+   choice has the room; elsewhere they are the button's description alone. */
+.ruins-path-effects {
+  display: none;
+}
+
+/* ───────── Upright phones (portrait mode): shop, caravan, church, ruins, arena ─────────
+   Keyed to html.portrait-ui inside a portrait orientation query; landscape phones and
+   desktop never see these rules. */
+@media (orientation: portrait) {
+  /* Footer tools size to their labels and keep each on one line ("Restock · 150 G",
+     never "Restock · 150 / G"); a row too narrow wraps whole buttons. */
+  html.portrait-ui .shop-tools .re-btn {
+    flex: 1 1 auto;
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+  /* The list takes what its rows need, up to 42% of the split (about the old
+     0.75fr share), so a short stock (a caravan's one or two items) leaves the room to
+     the detail instead of an empty band above it. */
+  html.portrait-ui .shop-split {
+    grid-template-rows: fit-content(42%) minmax(180px, 1fr);
+  }
+  /* The stock list fades at its lower edge, so a row cut by the fold reads as "more
+     below"; the padding lets the last row clear the fade. */
+  html.portrait-ui .shop-stock {
+    padding-bottom: 16px;
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
+    mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
+  }
+
+  /* The price notes over the detail (ruins markup, liberated-village discount) sit
+     inside the pane's padding, not against its border. */
+  html.portrait-ui .shop-detail > p {
+    margin: 0;
+    padding: 8px 12px 0;
+    color: var(--re-muted);
+  }
+
+  /* The Ruins choice: the "only one" rule as a banner, then each path as a full-width
+     card, its name over what it gives and costs. */
+  html.portrait-ui .service-menu .ruins-rule,
+  html.portrait-ui .service-menu .ruins-chosen {
+    margin: 0;
+    padding: 8px 12px;
+    border-left: 3px solid var(--re-accent);
+    background: var(--re-sunken);
+    color: var(--re-accent-text);
+    font-weight: 600;
+  }
+  html.portrait-ui .service-menu .ruins-path {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 12px 14px;
+    font-size: 15px;
+    line-height: 1.3;
+    text-align: left;
+  }
+  html.portrait-ui .ruins-path-effects {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font: var(--re-t-small);
+    font-family: var(--re-body);
+    color: var(--re-muted);
+  }
+  html.portrait-ui .ruins-path-effect::before {
+    content: '• ';
+    color: var(--re-accent);
+  }
 }

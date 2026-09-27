@@ -505,6 +505,54 @@ describe('navigation', () => {
     });
   });
 
+  it('stacked (upright): down and up cross between holders at the facing ends only', () => {
+    const v = board().view();
+    const stacked = { stacked: true };
+    // Left (the upper holder) has 5 rows, the convoy below it 3.
+    expect(navigate(v, { side: 'left', index: 4 }, 'down', stacked).focus).toEqual({
+      side: 'right',
+      index: 0,
+    });
+    expect(navigate(v, { side: 'right', index: 0 }, 'up', stacked).focus).toEqual({
+      side: 'left',
+      index: 4,
+    });
+    // Inside a holder, and at the outer ends, nothing changes.
+    expect(navigate(v, { side: 'left', index: 2 }, 'down', stacked).focus).toEqual({
+      side: 'left',
+      index: 3,
+    });
+    expect(navigate(v, { side: 'left', index: 0 }, 'up', stacked).focus).toEqual({
+      side: 'left',
+      index: 0,
+    });
+    expect(navigate(v, { side: 'right', index: 2 }, 'down', stacked).focus).toEqual({
+      side: 'right',
+      index: 2,
+    });
+    // Left and right still switch holders keeping the row.
+    expect(navigate(v, { side: 'left', index: 1 }, 'right', stacked).focus).toEqual({
+      side: 'right',
+      index: 1,
+    });
+    // Side by side (the default), down at the end of the left column stays.
+    expect(navigate(v, { side: 'left', index: 4 }, 'down').focus).toEqual({
+      side: 'left',
+      index: 4,
+    });
+  });
+
+  it('stacked: an empty holder is never crossed into', () => {
+    const edric = unit('Edric', { inventory: [weapon('Iron Sword')] });
+    const v = setup({ left: edric, right: unit('Sera') }).view();
+    // Sera shows five empty slots; with no rows at all there would be nothing to reach.
+    const noRight = { ...v, columns: { ...v.columns, right: { ...v.columns.right, rows: [] } } };
+    expect(navigate(noRight, { side: 'left', index: 4 }, 'down', { stacked: true }).focus).toEqual({
+      side: 'left',
+      index: 4,
+    });
+  });
+
   it('tab inputs wrap through visible tabs and clamp the focus to the new tab', () => {
     const v = board().view();
     expect(v.tabs.map((t) => t.bag)).toEqual(['inventory', 'consumables']);
