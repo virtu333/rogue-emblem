@@ -635,6 +635,19 @@
     margin: 0;
   }
 
+  /* Choice pickers with a preview (art binding, class changes): the choices take the
+     room they need first and the preview the rest (at least 120px; it scrolls, Page
+     Up/Down or L/R), instead of three choices cut off over a mostly empty preview.
+     The list fades at its lower edge; its padding lets the last choice clear it. */
+  html.portrait-ui .re-choice-content {
+    grid-template-rows: minmax(0, max-content) minmax(120px, 1fr);
+  }
+  html.portrait-ui .re-choice-content > .re-choice-list {
+    padding-bottom: 14px;
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent);
+  }
+
   /* Two label/value pairs per row: "Strength 6 · Magic 2", never "Stre6gMa2c". */
   html.portrait-ui .mr-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr) auto);

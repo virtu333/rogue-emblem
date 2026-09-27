@@ -12,8 +12,12 @@ import { loadGameData } from '../testData.js';
 import { createHash } from 'node:crypto';
 
 const targetHash = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+// A control's text as a browser names it: content hidden from assistive tech
+// (aria-hidden, e.g. the Ruins paths' effect lines, which are their description) is left out.
 const nodeText = (node) =>
-  [node.textContent, ...(node.children || []).map(nodeText)].filter(Boolean).join(' ');
+  node.attributes?.['aria-hidden'] === 'true'
+    ? ''
+    : [node.textContent, ...(node.children || []).map(nodeText)].filter(Boolean).join(' ');
 import {
   journeySnapshot,
   assertJourneyEqual,
