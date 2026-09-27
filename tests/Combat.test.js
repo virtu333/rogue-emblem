@@ -1371,29 +1371,32 @@ describe('Staff effective range', () => {
     expect(range).toEqual({ min: 1, max: 1 });
   });
 
-  it('Physic base range is 2', () => {
+  // Staves reach from 1 to N (Fire Emblem): an adjacent ally is always in reach.
+  it('Physic base range is 1-2', () => {
     const physic = data.weapons.find((w) => w.name === 'Physic');
     const range = getEffectiveStaffRange(physic, makeHealer(5));
-    expect(range).toEqual({ min: 2, max: 2 });
+    expect(range).toEqual({ min: 1, max: 2 });
   });
 
   it('Physic gains +1 range at MAG 10', () => {
     const physic = data.weapons.find((w) => w.name === 'Physic');
+    expect(getEffectiveStaffRange(physic, makeHealer(9))).toEqual({ min: 1, max: 2 });
     const range = getEffectiveStaffRange(physic, makeHealer(10));
-    expect(range).toEqual({ min: 2, max: 3 });
+    expect(range).toEqual({ min: 1, max: 3 });
   });
 
   it('Physic gains +2 range at MAG 18', () => {
     const physic = data.weapons.find((w) => w.name === 'Physic');
+    expect(getEffectiveStaffRange(physic, makeHealer(17))).toEqual({ min: 1, max: 3 });
     const range = getEffectiveStaffRange(physic, makeHealer(18));
-    expect(range).toEqual({ min: 2, max: 4 });
+    expect(range).toEqual({ min: 1, max: 4 });
   });
 
-  it('Fortify has range 2 with healAll flag', () => {
+  it('Fortify has range 1-2 with healAll flag', () => {
     const fortify = data.weapons.find((w) => w.name === 'Fortify');
     expect(fortify.healAll).toBe(true);
     const range = getEffectiveStaffRange(fortify, makeHealer(5));
-    expect(range).toEqual({ min: 2, max: 2 });
+    expect(range).toEqual({ min: 1, max: 2 });
   });
 
   it('Rescue Staff targeting range scales at MAG 10 and 18 breakpoints', () => {
@@ -1435,6 +1438,18 @@ describe('Staff data integrity', () => {
       expect(staff.uses).toBeDefined();
       expect(typeof staff.uses).toBe('number');
     }
+  });
+
+  it('every heal and cure staff reaches an adjacent ally (range 1 to N)', () => {
+    // Relocation (Rescue pulls from 2+, Warp sends an adjacent ally) and the
+    // enemy-only status staves (Sleep, Silence) keep their own reach.
+    const menders = data.weapons.filter(
+      (w) => w.type === 'Staff' && !w.statusEffect && !w.relocate,
+    );
+    expect(menders.map((w) => w.name).sort()).toEqual(
+      ['Fortify', 'Heal', 'Mend', 'Physic', 'Recover', 'Restore'].sort(),
+    );
+    for (const staff of menders) expect(parseRange(staff.range).min, staff.name).toBe(1);
   });
 
   it('all staves have perBattleUses flag', () => {
