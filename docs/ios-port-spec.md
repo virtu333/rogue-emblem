@@ -173,7 +173,11 @@ npx cap open ios  # Opens Xcode
 > (the upright layouts are built for phone widths, and `isLandscapeLockedShell` treats
 > the iPad app as locked, hiding the Settings toggle), so `UIRequiresFullScreen` stays
 > `true`. `tests/GameIdentity.test.js` holds these lists and the web manifest's
-> `"orientation": "any"` together. The original landscape-only plan follows.
+> `"orientation": "any"` together. Upright, an iPhone shows the status bar (landscape hides
+> it), so the app hides it (`UIStatusBarHidden` true, `UIViewControllerBasedStatusBarAppearance`
+> false): the clock never sits over the game's dark top edge in the system's text colour. The
+> notch and Dynamic Island still reserve their space through `env(safe-area-inset-top)`. The
+> original landscape-only plan follows.
 
 **Problem:** Game is 4:3 landscape, phones default to portrait.
 

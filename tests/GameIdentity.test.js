@@ -77,6 +77,10 @@ describe('game identity', () => {
       'UIInterfaceOrientationLandscapeRight',
     ]);
     expect(plist).toMatch(/<key>UIRequiresFullScreen<\/key>\s*<true\/>/);
+    // Upright, an iPhone shows the status bar (landscape hides it); the app hides it so
+    // the clock never sits over the game's dark top edge in the system's text colour.
+    expect(plist).toMatch(/<key>UIStatusBarHidden<\/key>\s*<true\/>/);
+    expect(plist).toMatch(/<key>UIViewControllerBasedStatusBarAppearance<\/key>\s*<false\/>/);
   });
 
   it('introduces the game by name in How to Play', () => {
