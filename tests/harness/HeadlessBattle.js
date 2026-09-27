@@ -13,7 +13,11 @@ import {
 import { AIController } from '../../src/engine/AIController.js';
 import { generateBattle, reconcileRecruitSpawnTile } from '../../src/engine/MapGenerator.js';
 import { scheduleReinforcementsForTurn } from '../../src/engine/ReinforcementScheduler.js';
-import { isRecruitNpc, staffAllyCandidates } from '../../src/engine/RecruitNpc.js';
+import {
+  armyAndNpcAllies,
+  isRecruitNpc,
+  staffAllyCandidates,
+} from '../../src/engine/RecruitNpc.js';
 import { canInspectUnit } from '../../src/engine/BattleInformation.js';
 import {
   resolveCombat,
@@ -1055,7 +1059,8 @@ export class HeadlessBattle {
         });
       // Condition recovery mirrors BattleScene: tick at the start of the
       // afflicted side's phase, before units act (art statuses expire here).
-      processConditionRecovery(this.playerUnits);
+      // NPC allies share the army's turn start, after the army.
+      processConditionRecovery(armyAndNpcAllies(this.playerUnits, this.npcUnits));
       for (const u of this.playerUnits) {
         u.hasMoved = false;
         u.hasActed = false;
@@ -1064,7 +1069,7 @@ export class HeadlessBattle {
       }
       // Apply turn-start effects (Renewal, etc.) — skip turn 1 to match BattleScene
       if (turn > 1) {
-        this._processTurnStartEffects(this.playerUnits);
+        this._processTurnStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits));
       }
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
@@ -2433,7 +2438,7 @@ export class HeadlessBattle {
   async _processEnemyPhase() {
     this._reinforcementsPendingThisTurn = true;
     try {
-      this._processTerrainDamage(this.playerUnits);
+      this._processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
       this._processTurnStartEffects(this.enemyUnits);
       this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
       this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();

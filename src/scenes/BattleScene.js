@@ -240,7 +240,7 @@ import {
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
 import { recordBattleRecruit } from '../engine/BattleRecruits.js';
-import { hasRecruitNpc, isRecruitNpc } from '../engine/RecruitNpc.js';
+import { armyAndNpcAllies, hasRecruitNpc, isRecruitNpc } from '../engine/RecruitNpc.js';
 import { isSameUnit } from '../engine/UnitIdentity.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
 import { deedsFor } from '../ui/DeedController.js';
@@ -9422,8 +9422,11 @@ export class BattleScene extends Phaser.Scene {
         );
 
       // Condition recovery runs FIRST so sleeping/silenced units get their chance
-      // before the all-sleeping auto-advance check
-      const earlyRecovery = processConditionRecovery(this.playerUnits);
+      // before the all-sleeping auto-advance check. NPC allies (the caravan,
+      // recruits) share the army's turn start, after the army (armyAndNpcAllies).
+      const earlyRecovery = processConditionRecovery(
+        armyAndNpcAllies(this.playerUnits, this.npcUnits),
+      );
       for (const evt of earlyRecovery) {
         const labelByCondition = {
           sleep: 'woke up',
@@ -9432,7 +9435,8 @@ export class BattleScene extends Phaser.Scene {
           root: 'can move again',
         };
         const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
-        this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
+        if (this._showsTurnEffectOn(evt.unit))
+          this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
         this._removeConditionIcon(evt.unit, evt.conditionId);
         this.undimUnit(evt.unit);
       }
@@ -9466,14 +9470,16 @@ export class BattleScene extends Phaser.Scene {
       }
       this.updateVisionHud();
 
-      // Process turn-start effects (skills + affixes) (after banner settles)
+      // Process turn-start effects (skills + affixes) (after banner settles).
+      // NPC allies take the army's turn start with it: an aura or fort mends
+      // them, acid ticks on them (armyAndNpcAllies, after the army).
       scheduleSafeDelayedAsync(
         1200,
         'player_phase_turn_start_pipeline',
         async () => {
           try {
             if (!isCurrentTurnStart()) return;
-            await this.processTurnStartEffects(this.playerUnits, {
+            await this.processTurnStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits), {
               skipRecovery: true,
               isCurrent: isCurrentTurnStart,
             });
@@ -9619,7 +9625,8 @@ export class BattleScene extends Phaser.Scene {
           ) {
             return;
           }
-          await this.processTerrainDamage(this.playerUnits);
+          // The army's end-of-phase hazards also reach its NPC allies.
+          await this.processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
           await this.processTurnStartEffects(this.enemyUnits);
           await this.processZombieRevival();
           await this.processBallistaFire(this.playerUnits, 'enemy');
@@ -9648,7 +9655,8 @@ export class BattleScene extends Phaser.Scene {
           root: 'can move again',
         };
         const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
-        await this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
+        if (this._showsTurnEffectOn(evt.unit))
+          await this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
         if (!isCurrent()) return;
         this._removeConditionIcon(evt.unit, evt.conditionId);
         this.undimUnit(evt.unit);
@@ -9669,7 +9677,8 @@ export class BattleScene extends Phaser.Scene {
           effect.target.currentHP + effect.amount,
         );
         this.updateHPBar(effect.target);
-        await this.animateHeal(effect.target, effect.amount);
+        if (this._showsTurnEffectOn(effect.target))
+          await this.animateHeal(effect.target, effect.amount);
       }
     }
 
@@ -9684,7 +9693,8 @@ export class BattleScene extends Phaser.Scene {
           effect.target.currentHP + effect.amount,
         );
         this.updateHPBar(effect.target);
-        await this.animateHeal(effect.target, effect.amount);
+        if (this._showsTurnEffectOn(effect.target))
+          await this.animateHeal(effect.target, effect.amount);
       } else if (effect.type === 'spawn_terrain') {
         await this.executeWallerSpawn(effect);
       }
@@ -9704,8 +9714,17 @@ export class BattleScene extends Phaser.Scene {
       if (appliedDamage <= 0) continue;
       unit.currentHP = nextHP;
       this.updateHPBar(unit);
-      await this.showAcidDamage(unit, appliedDamage);
+      if (this._showsTurnEffectOn(unit)) await this.showAcidDamage(unit, appliedDamage);
     }
+  }
+
+  /**
+   * Whether a phase effect on `unit` (a heal, a hazard, a recovery banner) is shown.
+   * The effect always applies; an NPC ally the fog hides takes it unseen, so turn
+   * starts never reveal where it stands. The army's and enemies' effects show as before.
+   */
+  _showsTurnEffectOn(unit) {
+    return unit?.faction !== 'npc' || canInspectUnit(this.grid, unit);
   }
 
   /** Backward-compatible alias for older call sites/cherry-picks. */
@@ -10033,7 +10052,7 @@ export class BattleScene extends Phaser.Scene {
       if (healAmount <= 0) continue;
       unit.currentHP = Math.min(unit.stats.HP, unit.currentHP + healAmount);
       this.updateHPBar(unit);
-      await this.animateHeal(unit, healAmount);
+      if (this._showsTurnEffectOn(unit)) await this.animateHeal(unit, healAmount);
     }
   }
 
@@ -10047,7 +10066,8 @@ export class BattleScene extends Phaser.Scene {
         if (appliedDamage <= 0) continue;
         unit.currentHP = nextHP;
         this.updateHPBar(unit);
-        await this.showTerrainDamage(unit, appliedDamage);
+        const shown = this._showsTurnEffectOn(unit);
+        if (shown) await this.showTerrainDamage(unit, appliedDamage);
         // Lava damage wakes sleeping units
         if (isSleeping(unit)) {
           removeCondition(unit, 'sleep');
@@ -10055,7 +10075,8 @@ export class BattleScene extends Phaser.Scene {
           // Un-dim only units that can still act — keep the acted-grey on
           // units that already moved this phase (same pattern as cures).
           if (!unit.hasActed) this.undimUnit(unit);
-          await this.showBriefBanner(`${unit.name} woke up from lava damage!`, UI_PALETTE.warn);
+          if (shown)
+            await this.showBriefBanner(`${unit.name} woke up from lava damage!`, UI_PALETTE.warn);
         }
         await this._checkPhoenixBrooch(unit);
         continue;
@@ -10065,13 +10086,19 @@ export class BattleScene extends Phaser.Scene {
       if (unit.moveType === 'Flying') continue;
       if (unit.poisonImmune || unit.terrainHazardImmune) continue;
 
+      const shown = this._showsTurnEffectOn(unit);
       if (!applyCondition(unit, 'acid')) {
         // statusImmunity accessory — surface the block like the staff/art paths
         const pos = this.grid.gridToPixel(unit.col, unit.row);
-        this.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);
+        if (shown) this.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);
         continue;
       }
       this._addConditionIcon(unit, 'acid');
+      if (!shown) {
+        // Its badge stays hidden with it until the army sees it (updateEnemyVisibility).
+        unit._conditionIcons?.acid?.setVisible?.(false);
+        continue;
+      }
       {
         const pos = this.grid.gridToPixel(unit.col, unit.row);
         (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y, 'acid');
@@ -10914,6 +10941,8 @@ export class BattleScene extends Phaser.Scene {
       if (npc.affixPips) {
         npc.affixPips.forEach((p) => p.setVisible(vis));
       }
+      // Status badges (acid ground, an enemy art) hide with the NPC they sit on.
+      Object.values(npc._conditionIcons || {}).forEach((icon) => icon?.setVisible?.(vis));
     }
   }
 
