@@ -65,7 +65,10 @@ export async function quietSettings(page, extra = {}) {
  * Emulate the phone's safe areas (env(safe-area-inset-*)) through the DevTools
  * protocol. Returns false where the browser cannot (the check is then skipped).
  */
+const safeAreaEmulated = new WeakMap();
+
 export async function emulateSafeArea(page, insets = NOTCH_PORTRAIT) {
+  safeAreaEmulated.set(page, false);
   try {
     const cdp = await page.context().newCDPSession(page);
     const full = {};
@@ -74,6 +77,7 @@ export async function emulateSafeArea(page, insets = NOTCH_PORTRAIT) {
       full[`${side}Max`] = insets[side] || 0;
     }
     await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: full });
+    safeAreaEmulated.set(page, true);
     return true;
   } catch {
     return false;
@@ -179,6 +183,8 @@ export async function clippedText(page, rootSelector) {
  * inset and above the bottom inset. Pass the insets emulated with emulateSafeArea.
  */
 export async function expectInsideSafeArea(page, selector, insets = NOTCH_PORTRAIT) {
+  // A browser without safe-area emulation (WebKit) has no notch to clear: skip the check.
+  if (safeAreaEmulated.get(page) === false) return;
   const boxes = await page.evaluate((sel) => {
     return [...document.querySelectorAll(sel)]
       .filter((el) => {
