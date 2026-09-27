@@ -228,15 +228,37 @@ export function threatWorldSignature(ctx, units = []) {
   return parts.join('|');
 }
 
-/** Short, plain move-preview text: "2 foes can reach", "No foe can reach". */
+const staves = (n) => `${n} ${n === 1 ? 'staff' : 'staves'}`;
+
+/**
+ * How a move preview should read: 'reached' when a foe (or ballista) can strike
+ * the tile, 'status' when only status staves can reach it, else 'clear'.
+ */
+export function threatSummaryTone(result) {
+  if (!result) return 'clear';
+  if (result.count > 0) return 'reached';
+  return result.status?.length ? 'status' : 'clear';
+}
+
+/**
+ * Short, plain move-preview text: "2 foes can reach", "2 foes can reach · 1 staff",
+ * "Only 1 staff can reach" (no foe can strike, but a status staff can), "No foe can
+ * reach"; under fog, " · fog may hide more". `status` lists enemies that reach the
+ * tile with a status staff only (those that can also strike are in `count`).
+ */
 export function threatSummaryText(result) {
   if (!result) return '';
-  const statusOnly = result.status?.length || 0;
-  let text =
-    result.count === 0
-      ? 'No foe can reach'
-      : `${result.count} ${result.count === 1 ? 'foe' : 'foes'} can reach`;
-  if (statusOnly) text += ` · ${statusOnly} staff`;
+  const hits = result.count || 0;
+  const staffOnly = result.status?.length || 0;
+  let text;
+  if (hits > 0) {
+    text = `${hits} ${hits === 1 ? 'foe' : 'foes'} can reach`;
+    if (staffOnly) text += ` · ${staves(staffOnly)}`;
+  } else if (staffOnly) {
+    text = `Only ${staves(staffOnly)} can reach`;
+  } else {
+    text = 'No foe can reach';
+  }
   if (result.fogged) text += ' · fog may hide more';
   return text;
 }

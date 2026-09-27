@@ -31,8 +31,10 @@ While a player unit is selected (`UNIT_SELECTED`, or the action menu before it a
   iteration also drew corner ticks on each enemy's tile and a count badge on the target
   tile; both were removed after playtester feedback ("more systems ≠ better") — the lines
   read better than a tile badge, and the count lives in the HUD only.
-- **Move preview.** Phone rail terrain card: "2 foes can reach" (crimson when > 0; "No foe can
-  reach" otherwise; "· 1 staff"; "· fog may hide more" under fog). Desktop info panel:
+- **Move preview.** Phone rail terrain card: "2 foes can reach" (crimson), with "· 1 staff" /
+  "· 2 staves" when status staves reach it too; "Only 1 staff can reach" when no foe can strike
+  but a status staff can (violet like the status eyes, never the muted safe style); "No foe
+  can reach" otherwise; "· fog may hide more" under fog. Desktop info panel:
   `Threat: 2 foes can reach`. Worded "foes can reach" so it never reads like the Danger
   dock's "2 in reach" (allies standing inside the overlay).
 - **Same computation as Danger.** `src/engine/ThreatForecast.js` now owns the Danger

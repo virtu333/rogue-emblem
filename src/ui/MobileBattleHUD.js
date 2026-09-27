@@ -40,7 +40,7 @@ import { textureImageSource } from './textureImageSource.js';
 import { hasInputFocus, pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { getEffectivenessMultiplier } from '../engine/Combat.js';
-import { threatSummaryText } from '../engine/ThreatForecast.js';
+import { threatSummaryText, threatSummaryTone } from '../engine/ThreatForecast.js';
 import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js';
 import { equippedBadgeElement, EQUIPPED_MARKER } from './equippedBadge.js';
 import { itemIcon } from './itemIcons.js';
@@ -98,6 +98,22 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text != null) node.textContent = String(text);
   return node;
+}
+
+/**
+ * The terrain card's move preview: how many visible foes could strike this tile next
+ * phase. Crimson when one can; violet (the status eyes' colour) when only status
+ * staves can, so that tile never looks safe; plain otherwise.
+ */
+export function threatPreviewLine(result) {
+  const tone = threatSummaryTone(result);
+  const line = el(
+    'span',
+    tone === 'clear' ? 'mb-threat-line' : `mb-threat-line mb-threat-line--${tone}`,
+    threatSummaryText(result),
+  );
+  line.dataset.threatCount = String(result?.count ?? 0);
+  return line;
 }
 
 /** The forecast attacker's planned weapon (confirm equips it); else the equipped one. */
@@ -873,12 +889,8 @@ export class MobileBattleHUD {
           el('span', '', `Def ${bonus(terrain.defBonus)} · Avoid ${bonus(terrain.avoidBonus)}`),
         );
         // Move preview: how many visible foes could strike this tile next phase.
-        if (threat && threat.col === focus.col && threat.row === focus.row) {
-          const line = el('span', 'mb-threat-line', threatSummaryText(threat.result));
-          line.dataset.threatCount = String(threat.result.count);
-          if (threat.result.count > 0) line.classList.add('mb-threat-line--reached');
-          card.append(line);
-        }
+        if (threat && threat.col === focus.col && threat.row === focus.row)
+          card.append(threatPreviewLine(threat.result));
         if (terrain.special) {
           const help = this.button(
             'Terrain details ⓘ',

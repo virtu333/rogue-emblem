@@ -7,6 +7,7 @@ import {
   threatsOnTile,
   threatWorldSignature,
   threatSummaryText,
+  threatSummaryTone,
   positionsWithMoverAt,
   isThreatSourceVisible,
 } from '../src/engine/ThreatForecast.js';
@@ -262,5 +263,41 @@ describe('ThreatForecast — one computation for Danger and threat sight', () =>
     expect(threatSummaryText({ count: 0, status: [], fogged: false })).toBe('No foe can reach');
     expect(threatSummaryText({ count: 2, status: [], fogged: false })).toBe('2 foes can reach');
     expect(threatSummaryText(null)).toBe('');
+  });
+
+  it('never calls a tile safe when a status staff can reach it', () => {
+    const staffer = foe(8, 1, { weapon: null });
+    const read = (count, staves, fogged = false) => {
+      const result = { count, status: Array(staves).fill(staffer), fogged };
+      return { text: threatSummaryText(result), tone: threatSummaryTone(result) };
+    };
+    expect(read(0, 0)).toEqual({ text: 'No foe can reach', tone: 'clear' });
+    expect(read(0, 1)).toEqual({ text: 'Only 1 staff can reach', tone: 'status' });
+    expect(read(0, 2)).toEqual({ text: 'Only 2 staves can reach', tone: 'status' });
+    expect(read(0, 1, true)).toEqual({
+      text: 'Only 1 staff can reach · fog may hide more',
+      tone: 'status',
+    });
+    expect(read(2, 1)).toEqual({ text: '2 foes can reach · 1 staff', tone: 'reached' });
+    expect(read(1, 2)).toEqual({ text: '1 foe can reach · 2 staves', tone: 'reached' });
+    expect(read(1, 0)).toEqual({ text: '1 foe can reach', tone: 'reached' });
+    expect(read(0, 0, true)).toEqual({
+      text: 'No foe can reach · fog may hide more',
+      tone: 'clear',
+    });
+    expect(threatSummaryTone(null)).toBe('clear');
+  });
+
+  it('a status-staff-only tile from the real computation reads as reachable by a staff', () => {
+    const g = grid(['..........', '..........', '..........']);
+    const staffer = foe(8, 1, {
+      weapon: null,
+      statusStaff: { name: 'Sleep', type: 'Staff', range: '1-3', uses: 3, statusEffect: 'sleep' },
+    });
+    const result = threatsOnTile(ctxFor(g, [staffer]), 2, 1);
+    expect(result.count).toBe(0);
+    expect(result.status).toEqual([staffer]);
+    expect(threatSummaryText(result)).toBe('Only 1 staff can reach');
+    expect(threatSummaryTone(result)).toBe('status');
   });
 });
