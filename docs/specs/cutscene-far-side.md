@@ -137,8 +137,15 @@ score.py ──► music.py ──► far_side.mp3 (score + narration, ducked, l
 - **The clock:** the score is written at 60 bpm so a beat is a second. Each line
   starts on a beat (`score.LINES`); cuts land on bars, beats, or measured word onsets
   within a take (the four deaths).
-- **Score:** composed in the game's engine (`tools/music`), in D minor, never
-  resolving to D. It quotes the Thread, the Hollow Sun, the Old Kingdom call, the
+- **Score:** composed in the game's engine, in D minor, never resolving to D.
+  Rendered with the engine on the music branch (`claude/game-music-composition-vxrodt`:
+  `MUSIC_ENGINE=<that checkout>/tools/music python3 tools/cutscene/glass/music.py`),
+  so it plays the **house palette**: Sonatina (SSO4) string sections, choir, celesta
+  and the performed solo violin (Sera's Thread, the Lieutenant's motif, the closing
+  phrase), with that engine's tuning corrections and onset compensation. The brass
+  stays on the legacy VSCO instruments (`score.palette`), because VPO3's SFZ edition
+  is not fetchable from here (its repo carries only the DecentSampler edition). Run
+  without `MUSIC_ENGINE`, the older engine on this branch renders the same score. It quotes the Thread, the Hollow Sun, the Old Kingdom call, the
   Empire drill, the hum, the Eclipse bell, the home-base fire and the Lieutenant's
   motif with its shadow.
 - **Mix:** narration laid in at its times, music ducked 8 dB under the voice, a

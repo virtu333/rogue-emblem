@@ -24,6 +24,7 @@ node tools/cutscene/glass/tts.mjs [--only l08 --force]     # narration takes
 node tools/cutscene/glass/gen.mjs --keys|--clips [--only glass]
 node tools/cutscene/glass/trace.mjs [--only glass]         # pixel pass over the frames edit.mjs uses
 python3 tools/cutscene/glass/music.py [--mix]              # score + narration mix + cues.json
+# the committed mix uses the music branch's engine (house palette): MUSIC_ENGINE=<checkout>/tools/music
 ```
 
 | File | What it is |

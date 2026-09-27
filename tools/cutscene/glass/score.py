@@ -21,11 +21,11 @@ The music never resolves to D. It quotes the game's motifs (tools/music/SCORE.md
   V    The officers (37-42)    a machine: taiko and spiccato on D/E-flat, a brass stab
                                on every cut; the Emperor's organ chord
   VI   The one who counts      fire; then the home fire (nylon guitar and harp in F,
-       (42-49)                 as at home base); Sera's Thread; the Lieutenant's motif
+       (42-49)                 as at home base); Sera's Thread (solo violin); the Lieutenant's motif
                                (A-D-C-A) and its shadow a tritone away, a beat late
   VII  Every way it ends       a heartbeat; a hit on each death; the rewind (a
        (50-55)                 reversed swell, the Thread backwards); the fire again
-  VIII The far side (55-62)    the Lieutenant's motif on the violins, the shadow in
+  VIII The far side (55-62)    the Lieutenant's motif on the solo violin, the shadow in
                                the violas; silence; the title: a hit, the bells'
                                A-G-E, the Hollow Sun cadence stopping on C-sharp
 
@@ -65,6 +65,10 @@ def build():
     s.reverb = dict(rt60=3.4, predelay_ms=35, wet_db=1.0, damp=0.45)
     s.master = dict(lufs=-17.0, glue_ratio=1.4, lead_duck=1.0)
     s.variant('full', {}, lufs=-17.0)
+    # the house palette (SSO4 strings, solo violin, celesta and choir), brass on the legacy
+    # instruments: VPO3's SFZ brass is not fetchable here (its repo carries only the
+    # DecentSampler edition). An older engine ignores this attribute.
+    s.palette = {'horns': 'legacy', 'trumpets': 'legacy', 'trombones': 'legacy'}
 
     thread = s.part('thread', 'shimmer', role='fx', gain=-4)
     drone = s.part('drone', 'drone', role='low', gain=-4)
@@ -72,6 +76,8 @@ def build():
     hp = s.part('harp', 'harp', role='keys', gain=-6)
     fl = s.part('flute', 'flute', role='lead', gain=-4)
     vn = s.part('vn', 'violins', role='lead', art='soft', gain=-3)
+    # Sera's violin (the house palette performs it: tools/music/engine/perform.py)
+    solo = s.part('solo', 'solo_violin', role='lead', gain=-2)
     vn2 = s.part('vn2', 'violins2', role='pad', art='soft', gain=-5)
     va = s.part('va', 'violas', role='pad', art='soft', gain=-5)
     vc = s.part('vc', 'celli', role='counter', art='soft', gain=-4)
@@ -320,8 +326,8 @@ def build():
     sight = chart('Dm Bbmaj7 Gm:2 A:2')
     thread.at(47).play('@mp A6w~ | A6w~ | A6w |')
     thread.expr((47, 0.2), (47.5, 0.8), (49.9, 0.6))
-    vn.at(47.25).play('%soft @mp A4h D5q   E5q A5h.   rw  ')
-    vn.expr((47.25, 0.8), (48, 1.0), (48.9, 0.6))
+    solo.at(47.25).play('@mp A4h D5q   E5q A5h.   rw  ')
+    solo.expr((47.25, 0.8), (48, 1.0), (48.9, 0.6))
     pad(vn2, 47.25, sight[:1], n=2, lo=60, hi=74, vel=0.34, art='soft')
     arp(hp, 48, sight[1:], '0 1 2 3 4 3 2 1', step=0.5, lo=50, hi=81, vel=0.34)
     # "and saw him coming": the Lieutenant's motif, and its shadow a beat late a tritone off
@@ -372,8 +378,8 @@ def build():
     oohs.at(55).play('@pp [D4 A4]w~ | [D4 A4]w |')
     arp(glock, 55, chart('Dmadd9'), '4 3 2 1 0 1 2 1', step=0.5, lo=76, hi=100, vel=0.22)
     # him: the motif on the violins, the shadow in the violas a beat late
-    vn.at(56).play('%soft @mp A4h D5h | C5h A4h | A4w |')
-    vn.expr((56, 0.7), (57, 0.9), (58, 0.6), (58.7, 0.0))
+    solo.at(56).play('@mp A4h D5h | C5h A4h | A4w |')
+    solo.expr((56, 0.7), (57, 0.9), (58, 0.6), (58.7, 0.0))
     va.at(56).play('%soft @p rq Eb4h G#3q~ | G#3q F#3h Eb3q~ | Eb3h. rq |')
     va.expr((56, 0.6), (58.7, 0.0))
     thread.at(57).play('@p A6w~ | A6h. rq |')
@@ -396,8 +402,8 @@ def build():
     arp(hp, 59.5, title[:3], '0 1 2 3 4 5 4 3', step=0.5, lo=46, hi=86, vel=0.38)
     thread.at(59).play('@mp A6w~ | A6w~ | A6w~ | A6w |')
     thread.expr((59, 0.3), (59.5, 1.0), (62, 0.8), (62.95, 0.0))
-    vn.at(60).play('%soft @mf A4q D5q E5q F5q | G5q A5q Bb5q C#6q~ | C#6w |')
-    vn.expr((60, 0.7), (61, 0.9), (62, 0.8), (62.95, 0.1))
+    solo.at(60).play('@mf A4q D5q E5q F5q | G5q A5q Bb5q C#6q~ | C#6w |')
+    solo.expr((60, 0.7), (61, 0.9), (62, 0.8), (62.95, 0.1))
     bells.at(60).play('@mf A4h G4h | E4w | rw |')          # A, G, E... and not D
     drone.at(59).play('@p D2w~ | D2w~ | D2w~ | D2w |')
     drone.expr((59, 0.3), (61, 0.5), (62.95, 0.0))
