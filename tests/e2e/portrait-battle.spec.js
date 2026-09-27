@@ -1,5 +1,14 @@
 import { test, expect, devices } from '@playwright/test';
 import { waitForGame, waitForScene } from './helpers.js';
+import {
+  attachSlot,
+  battleDomainState,
+  endPlayerTurn,
+  openSavedRun,
+  restoreProfile,
+  saveProfile,
+  turnPhone,
+} from './portraitHelpers.js';
 
 // Portrait battles (beta): an upright phone draws the board turned a quarter with the
 // player's side at the bottom; taps, commands and the rotate prompt follow.
@@ -25,18 +34,7 @@ async function bootBattle(page, query = '&portrait=1') {
 }
 
 // An orientation switch re-opens only from a save that reached storage, so the battle
-// needs a real slot (the dev route has none). This test profile is isolated.
-async function attachSlot(page) {
-  await page.evaluate(async () => {
-    const game = window.__emblemRogueGame;
-    const { getMetaKey, setActiveSlot } = await import('/src/engine/SlotManager.js');
-    const meta = game.registry.get('meta');
-    meta.storageKey = getMetaKey(1);
-    meta._save();
-    game.registry.set('activeSlot', 1);
-    setActiveSlot(1);
-  });
-}
+// needs a real slot (the dev route has none): attachSlot (portraitHelpers).
 
 // The battle checkpoint as written to the slot's run save.
 function savedCheckpoint(page) {
@@ -485,67 +483,11 @@ for (const [shell, { offered, install }] of Object.entries(SHELLS)) {
 }
 
 // Full domain state of the battle (units with equipment and conditions, fog knowledge,
-// RNG, convoy, gold, Vision charges) through the production checkpoint adapter.
-function domainState(page) {
-  return page.evaluate(async () => {
-    const { captureBattleState } = await import('/src/ui/BattleCheckpointAdapter.js');
-    const b = window.__emblemRogueGame.scene.getScene('Battle');
-    const state = captureBattleState(b);
-    if (state.fog) {
-      state.fog.visible.sort();
-      state.fog.everSeen.sort();
-    }
-    delete state.checkpointIndex; // counts saves, including the orientation switches
-    return {
-      state,
-      turn: b.turnManager?.turnNumber,
-      visionCharges: b.runManager?.visionChargesRemaining ?? null,
-    };
-  });
-}
-
-// Ends the player turn through the rail and waits for the next player turn,
-// dismissing level-up popups the enemy phase raises.
-async function endTurn(page) {
-  const hud = page.getByRole('complementary', { name: 'Battle commands' });
-  const turn = await page.evaluate(
-    () => window.__emblemRogueGame.scene.getScene('Battle').turnManager.turnNumber,
-  );
-  await hud.getByRole('button', { name: /^End turn/ }).tap();
-  const confirm = hud.getByRole('button', { name: 'End turn now', exact: true });
-  if (await confirm.isVisible().catch(() => false)) await confirm.tap();
-  for (let i = 0; i < 240; i++) {
-    const done = await page.evaluate((t) => {
-      const b = window.__emblemRogueGame.scene.getScene('Battle');
-      return b.turnManager.turnNumber > t && b.battleState === 'PLAYER_IDLE';
-    }, turn);
-    if (done) return;
-    const next = page.getByRole('button', { name: /^(Continue|Reveal gains)$/ }).first();
-    if (await next.isVisible().catch(() => false)) await next.tap();
-    await page.waitForTimeout(250);
-  }
-  throw new Error('the next player turn never began');
-}
-
-async function turnPhone(page, size, rotation) {
-  await page.setViewportSize(size);
-  await expect.poll(async () => (await battleSnapshot(page)).rotation).toBe(rotation);
-  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
-}
-
-// Title -> Save Slots -> Slot 1 -> Resume Battle: the shipping recovery path.
-async function resumeBattle(page) {
-  await page.goto('/');
-  await waitForScene(page, 'Title');
-  await page.waitForTimeout(1300); // boot-to-title router cooldown
-  await page.getByRole('button', { name: /^Save Slots/ }).tap();
-  await waitForScene(page, 'SlotPicker');
-  await page.waitForTimeout(500);
-  await page.getByRole('button', { name: 'Select Slot 1', exact: true }).tap();
-  await page.getByRole('button', { name: 'Resume Battle', exact: true }).tap();
-  await waitForScene(page, 'Battle');
-  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
-}
+// NPCs, temporary terrain, RNG, convoy, gold, Vision charges, deployment) through the
+// production checkpoint adapter: battleDomainState (portraitHelpers), shared with the
+// journey and rotation specs. Its bookkeeping (the checkpoint index, which counts the
+// orientation switches' saves) is kept apart and not compared here.
+const domainState = async (page) => (await battleDomainState(page)).domain;
 
 test('turning the phone mid-battle does not change how the battle plays out', async ({ page }) => {
   test.setTimeout(300_000);
@@ -572,22 +514,14 @@ test('turning the phone mid-battle does not change how the battle plays out', as
     s.registry.get('settings').setHints(false);
     if (!s._captureSuspendCheckpoint()) throw new Error('setup save failed');
   });
-  const saved = await page.evaluate(() => JSON.stringify(Object.entries(localStorage)));
-  const restore = async () => {
-    // Leave the game first so nothing it saves on exit overwrites the fixture.
-    await page.goto('/data/terrain.json');
-    await page.evaluate((entries) => {
-      localStorage.clear();
-      for (const [key, value] of JSON.parse(entries)) localStorage.setItem(key, value);
-    }, saved);
-  };
+  const saved = await saveProfile(page);
 
   // Both runs resume the same save in landscape and play the same turns; one first
   // turns the phone upright and back (two presentation switches).
   await page.setViewportSize(landscape);
   const play = async (turnPhoneFirst) => {
-    await restore();
-    await resumeBattle(page);
+    await restoreProfile(page, saved);
+    await openSavedRun(page);
     const resumed = await domainState(page);
     if (turnPhoneFirst) {
       await turnPhone(page, upright, 'ccw');
@@ -595,7 +529,7 @@ test('turning the phone mid-battle does not change how the battle plays out', as
     }
     const states = [await domainState(page)];
     for (let i = 0; i < 3; i++) {
-      await endTurn(page);
+      await endPlayerTurn(page);
       states.push(await domainState(page));
     }
     return { resumed, states };

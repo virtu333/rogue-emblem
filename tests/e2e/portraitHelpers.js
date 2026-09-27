@@ -287,10 +287,10 @@ export function battleDomainState(page) {
       state.fog.visible.sort();
       state.fog.everSeen.sort();
     }
-    const bookkeeping = { checkpointIndex: state.checkpointIndex };
-    delete state.checkpointIndex;
+    delete state.checkpointIndex; // a capture argument (0 here), not battle state
     const rm = b.runManager;
     const bip = rm?.battleInProgress;
+    const bookkeeping = { checkpointIndex: bip?.checkpoint?.checkpointIndex ?? null };
     return {
       bookkeeping,
       domain: {
@@ -605,10 +605,14 @@ export async function activeScene(page, key, timeout = 20_000) {
 /**
  * A dev-route battle on the phone as it stands (no ?portrait=, so portrait mode is
  * the device default), past deployment to the first player turn. `slot` attaches the
- * run to that save slot (null: a slotless battle, as dev routes are).
+ * run to that save slot (null: a slotless battle, as dev routes are); `query` adds
+ * route parameters (e.g. '&devNode=recruit').
  */
-export async function openDevBattle(page, { preset = 'battle_smoke', seed = 42, slot = 1 } = {}) {
-  await page.goto(`/?devScene=battle&preset=${preset}&seed=${seed}`);
+export async function openDevBattle(
+  page,
+  { preset = 'battle_smoke', seed = 42, slot = 1, query = '' } = {},
+) {
+  await page.goto(`/?devScene=battle&preset=${preset}&seed=${seed}${query}`);
   await page.waitForFunction(() => window.__sceneState?.ready === true, null, { timeout: 20_000 });
   await activeScene(page, 'Battle');
   await page.waitForFunction(
