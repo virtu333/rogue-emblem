@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { classifyNodes, CampaignMapOverlay } from '../src/ui/CampaignMapOverlay.js';
+import { partyKnotLabels } from '../src/ui/CampaignMapMenu.js';
+import { describeLoomNode } from '../src/ui/loomModel.js';
 
 // --- Phaser scene mock ---
 
@@ -358,5 +360,47 @@ describe('PauseOverlay campaign map button', () => {
       .filter((t) => typeof t.text === 'string')
       .map((t) => t.text);
     expect(buttonTexts).not.toContain('Campaign Map');
+  });
+});
+
+// --- The party's knot: battle copy only mid-battle ---
+
+describe('partyKnotLabels', () => {
+  const BATTLE = { currentLabel: 'Current battle', activeLabel: 'The party fights here' };
+
+  it('names an unfinished knot the current battle when opened from a battle', () => {
+    expect(partyKnotLabels({ id: 'n1', type: 'battle', completed: false })).toEqual(BATTLE);
+    // A village ambush is fought on a shop knot: the pause map still says battle.
+    expect(partyKnotLabels({ id: 'n2', type: 'shop', completed: false })).toEqual(BATTLE);
+  });
+
+  it('uses plain copy when opened from a village, shop, church or ruins', () => {
+    for (const type of ['shop', 'church', 'ruins']) {
+      const labels = partyKnotLabels({ id: 'n3', type, completed: false }, { service: true });
+      expect(labels).toEqual({ currentLabel: 'You are here', activeLabel: null });
+    }
+  });
+
+  it('never says battle for a walked knot or when there is no party knot', () => {
+    const plain = { currentLabel: 'You are here', activeLabel: null };
+    expect(partyKnotLabels({ id: 'n4', type: 'battle', completed: true })).toEqual(plain);
+    expect(partyKnotLabels(null)).toEqual(plain);
+    expect(partyKnotLabels(undefined, { service: true })).toEqual(plain);
+  });
+
+  it("gives the service card the travel screen's resting line", () => {
+    const node = { id: 'n5', type: 'shop', row: 1, col: 0, edges: [] };
+    const { activeLabel } = partyKnotLabels({ ...node, completed: false }, { service: true });
+    const info = describeLoomNode(node, { state: 'current', activeLabel });
+    expect(info.stateLine.text).toBe('The party rests here');
+  });
+});
+
+describe('CampaignMapOverlay service flag', () => {
+  const opts = { nodeMap: { nodes: [] }, currentNodeId: null, activeNodeId: null, actId: 'act1' };
+
+  it('defaults to a battle map and keeps a service flag it is given', () => {
+    expect(new CampaignMapOverlay(makeScene(), opts).service).toBe(false);
+    expect(new CampaignMapOverlay(makeScene(), { ...opts, service: true }).service).toBe(true);
   });
 });

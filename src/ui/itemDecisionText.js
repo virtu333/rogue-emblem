@@ -31,3 +31,9 @@ export function forgeImpactLine(owner, weapon, key) {
     .map(([stat, label]) => `${label} ${before[stat]} → ${after[stat]}`)
     .join(' · ');
 }
+
+/** " · Attack 9 → 10" for a forge row, or "" when there is no owner or no change to show. */
+export function forgeImpactSuffix(owner, weapon, key) {
+  const line = forgeImpactLine(owner, weapon, key);
+  return line ? ` · ${line}` : '';
+}

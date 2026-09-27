@@ -154,8 +154,13 @@ export const ROSTER_ROLES = Object.freeze([
   },
 ]);
 
+// A weapon role needs the rank and a weapon of that type to use it: a Ranger
+// carrying only a sword is not the army's archer, nor a Sage with only a tome its healer.
 function hasWeapon(unit, type) {
-  return Array.isArray(unit?.proficiencies) && unit.proficiencies.some((p) => p?.type === type);
+  if (!Array.isArray(unit?.proficiencies) || !unit.proficiencies.some((p) => p?.type === type))
+    return false;
+  if (unit.weapon?.type === type) return true;
+  return Array.isArray(unit.inventory) && unit.inventory.some((item) => item?.type === type);
 }
 
 export function unitRoles(unit) {

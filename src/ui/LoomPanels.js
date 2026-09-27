@@ -150,6 +150,10 @@ export function renderLoomCard(card, node, ctx = {}) {
   if (info.templateName) titles.append(element('p', info.templateName, 're-loom-was'));
   head.append(medal, titles);
   card.append(head);
+  // A recruit card leads with the Talk instruction: the recruit block is tall and the
+  // card scrolls without a cue, so on a phone the instruction would sit below the fold.
+  const text = info.text ? element('p', info.text, 're-loom-text') : null;
+  if (text && info.recruit) card.append(text);
 
   if (info.tags.length) {
     const tags = element('ul', null, 're-loom-tags');
@@ -166,7 +170,7 @@ export function renderLoomCard(card, node, ctx = {}) {
     card.append(tags);
   }
   if (info.recruit) card.append(recruitBlock(info.recruit));
-  if (info.text) card.append(element('p', info.text, 're-loom-text'));
+  if (text && !info.recruit) card.append(text);
   if (info.warning) card.append(element('p', info.warning, 're-loom-eclipse-warn'));
   if (info.flavor) card.append(element('p', `“${info.flavor}”`, 're-loom-flavor'));
   card.append(

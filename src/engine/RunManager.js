@@ -352,6 +352,16 @@ function ensureSeraBaseStaffProficiency(unit) {
   unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
 }
 
+/** Vision charges a run starts with, given the meta `visionChargesBonus` (base 1). */
+export function baseVisionChargesFor(visionChargesBonus = 0) {
+  return Math.max(1, 1 + Math.trunc(Number(visionChargesBonus) || 0));
+}
+
+/** Legendary lord trait chance for a new run, given the meta bonus (5% base, 15% cap). */
+export function legendaryLordChanceFor(legendaryLordChanceBonus = 0) {
+  return Math.min(0.15, 0.05 + Math.max(0, Number(legendaryLordChanceBonus) || 0));
+}
+
 /** Calculate level-scaled revive cost for a fallen unit. */
 export function getReviveCost(unit) {
   const raw = Number(unit?.level);
@@ -473,8 +483,7 @@ export class RunManager {
   }
 
   getBaseVisionCharges() {
-    const visionBonus = Math.trunc(this.metaEffects?.visionChargesBonus || 0);
-    return Math.max(1, 1 + visionBonus);
+    return baseVisionChargesFor(this.metaEffects?.visionChargesBonus);
   }
 
   /** The commander is the permadeath anchor — the unit whose death ends the run. */
@@ -521,10 +530,7 @@ export class RunManager {
     this.lastEclipseCommit = null;
     this.usedRecruitNames = {};
     this.lastDeployment = [];
-    this.legendaryLordChance = Math.min(
-      0.15,
-      0.05 + Math.max(0, Number(this.metaEffects?.legendaryLordChanceBonus) || 0),
-    );
+    this.legendaryLordChance = legendaryLordChanceFor(this.metaEffects?.legendaryLordChanceBonus);
     // Seed first: starting lords roll their traits from the run seed.
     if (!Number.isFinite(this.runSeed)) {
       const initialSeed = runSeed ?? Date.now();

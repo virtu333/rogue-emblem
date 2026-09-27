@@ -87,7 +87,7 @@ test('unavailable consumables explain why; keyboard Back and gamepad focus are v
   expect(errors).toEqual([]);
 });
 
-test('equip rows show a one-line brief; a long press opens the full stats without equipping', async ({
+test('equip rows show a stats brief and attack speed; a long press opens the full stats without equipping', async ({
   page,
 }) => {
   const { hud, errors } = await boot(page);
@@ -104,9 +104,31 @@ test('equip rows show a one-line brief; a long press opens the full stats withou
   const row = hud.getByRole('button', { name: /^Hand Axe/ });
   await expect(row).toBeVisible();
   const summary = row.locator('.mb-item-summary');
-  // One short line: the numbers that decide a pick, ✦ for the effect.
-  await expect(summary).toHaveText('Mt 5 · Hit 65 · Rng 1-2\u00a0✦');
-  expect(await summary.evaluate((n) => n.getClientRects().length)).toBe(1);
+  // The numbers that decide a pick (✦ for the effect), then the attack speed this
+  // weapon gives and its change from the held one. By hand, not through the engine:
+  // AS = SPD − max(0, weight − floor(STR / 5)); a held staff (or nothing) is bare SPD.
+  const speed = await page.evaluate(() => {
+    const u = window.testUnit;
+    const as = (w) =>
+      !w || w.type === 'Staff'
+        ? u.stats.SPD
+        : u.stats.SPD - Math.max(0, (w.weight || 0) - Math.floor(u.stats.STR / 5));
+    return { axe: as(u.inventory.find((w) => w.uid === 'brief-axe')), held: as(u.weapon) };
+  });
+  const minus = (n) => (n < 0 ? `\u2212${-n}` : `${n}`);
+  const delta = speed.axe - speed.held;
+  const speedText = `Attack speed ${minus(speed.axe)}${
+    delta ? ` (${delta > 0 ? `+${delta}` : minus(delta)})` : ''
+  }`;
+  await expect
+    .poll(() => summary.evaluate((n) => n.textContent))
+    .toBe(`Mt 5 · Hit 65 · Rng 1-2\u00a0✦\n${speedText}`);
+  // Exactly two lines in the phone rail: neither wraps.
+  expect(
+    await summary.evaluate((n) =>
+      Math.round(n.getBoundingClientRect().height / parseFloat(getComputedStyle(n).lineHeight)),
+    ),
+  ).toBe(2);
   // The row leads with the weapon's socketed icon, and keeps its height.
   await expect(row.locator('.mb-item-icon')).toHaveAttribute('data-icon-id', 'hand-axe');
   await expect(row.locator('.mb-item-icon')).toHaveAttribute('aria-hidden', 'true');
@@ -125,6 +147,9 @@ test('equip rows show a one-line brief; a long press opens the full stats withou
   const open = hud.getByRole('button', { name: /^Hand Axe/ });
   await expect(open).toHaveClass(/is-expanded/);
   await expect(open.locator('.mb-item-summary')).toContainText('Weight 8');
+  await expect(open.locator('.mb-item-summary')).toContainText(
+    `Attack speed ${minus(speed.held)} → ${minus(speed.axe)}`,
+  );
   await expect(open.locator('.mb-item-summary')).toContainText('Throwable, lower stats');
   expect(await page.evaluate(() => window.testUnit.weapon?.name)).toBe(
     await page.evaluate(() => window.before),

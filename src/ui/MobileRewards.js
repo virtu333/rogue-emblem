@@ -7,7 +7,7 @@ import { ContextHelp, helpPreview } from './ContextHelp.js';
 import { attachInfo, bindHold } from './infoAffordance.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
-import { rewardPresentation, rewardIcon } from './rewardDisplay.js';
+import { rewardPresentation, rewardIcon, isSkipDominated } from './rewardDisplay.js';
 import { rewardForWhom } from './choiceContent.js';
 import { choiceReducedMotion, fadeScroll, itemArtSlot } from './choiceCards.js';
 import { unitPortrait } from './unitPortrait.js';
@@ -198,6 +198,10 @@ export class MobileRewards {
       const available = all.findIndex((_, i) => this.controller.isRewardAvailable(i));
       if (available >= 0) this.selected = available;
     }
+    // A gold card still on offer that pays at least as much makes the skip a loss.
+    const skipDominated = isSkipDominated(this.choices, this.skipGold, (i) =>
+      this.controller.isRewardAvailable(i),
+    );
     const label = (c) =>
       c.type === 'skip'
         ? `Take ${this.skipGold} gold instead`
@@ -205,7 +209,9 @@ export class MobileRewards {
           `${c.goldAmount || 0} gold${c.xpAmount ? ` + ${c.xpAmount} team XP` : ''}`;
     const describe = (c) =>
       c.type === 'skip'
-        ? 'Pass on the remaining rewards and add this gold to your vault.'
+        ? skipDominated
+          ? 'The gold reward pays more.'
+          : 'Pass on the remaining rewards and add this gold to your vault.'
         : c.item
           ? scene._getLootTooltipText(c, c.item)
           : 'Gold is added to your vault. Team XP is shared with your roster.';
@@ -229,6 +235,7 @@ export class MobileRewards {
         presentation.tier || (c.type === 'skip' || c.type === 'gold' ? 'Gold' : 'none');
       b.classList.toggle('reward-legend', presentation.tier === 'Legend');
       b.classList.toggle('is-claimed', claimed);
+      b.classList.toggle('is-dominated', c.type === 'skip' && skipDominated);
       const plate = node('span', null, 'ch-plate');
       const top = node('span', null, 'ch-reward-top');
       const rarity = node('span', null, 'ch-rarity reward-quality');
@@ -521,6 +528,10 @@ export class MobileRewards {
       });
     } else {
       const booster = item.type === 'Consumable' && item.effect === 'statBoost';
+      const compareOptions = {
+        arts: this.scene.gameData?.weaponArts?.arts || [],
+        imbues: this.scene.gameData?.imbues,
+      };
       this.pushStep({
         title: item.name,
         subject: item,
@@ -538,7 +549,7 @@ export class MobileRewards {
               ? `${item.stat}: ${unit.stats[item.stat] || 0} → ${(unit.stats[item.stat] || 0) + item.value}`
               : item.type === 'Consumable'
                 ? `${unit.consumables?.length || 0}/3 consumables${choice.quantity > 1 ? ` · ${choice.quantity} items; overflow goes to convoy` : ''}`
-                : `Can equip · ${equipmentComparison(unit, item)} · ${unit.inventory?.length || 0}/5 items`,
+                : `Can equip · ${equipmentComparison(unit, item, unit.weapon, compareOptions)} · ${unit.inventory?.length || 0}/5 items`,
         final: true,
         apply: (unit) => applyRewardBundle(run, item, unit, choice.quantity || 1),
       });

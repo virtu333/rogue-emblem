@@ -86,8 +86,14 @@ The Merchant Caravan (PR #54) is the architectural template — copy its shape:
   - Item: one roll from the act's consumable/statBooster loot pool via `LootSystem` helpers,
     delivered to the convoy (avoids inventory-full edge cases), named in the banner.
 - Visited village converts to Plain (visited state must not re-trigger), sparkle/indicator removed.
-- Objective subtext appended while intact: "Village: visit before bandits!" (pattern:
-  `updateObjectiveText` NPC recruit suffix :9886-9888).
+- Objective subtext appended while intact: "Village: end a unit's action on it before bandits"
+  (pattern: `updateObjectiveText` NPC recruit suffix :9886-9888).
+- Discovery (playtest 2026-09-26: a player on the village saw Attack/Equip/Wait and no Visit):
+  there is still no Visit command. The copy says how a visit happens instead: the Village
+  terrain's `special` ("End a unit's action here to visit: gold and supplies."), the objective
+  line, the Terrain help page, and a one-line "Visits village" note under the phone rail's Wait
+  when the selected unit stands on the intact village (`VillageController.getWaitNote`, which
+  shares `canVisit` with the visit hook so the note never promises a visit that won't happen).
 
 ### Persistence / suspend-resume
 

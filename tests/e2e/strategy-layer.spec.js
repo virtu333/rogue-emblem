@@ -71,6 +71,23 @@ for (const vp of VIEWPORTS) {
       `Hunters +${expected.mods.enemyCountBonus}`,
     );
     await expect(card.locator('.re-loom-tag', { hasText: 'Captain' })).toHaveCount(1);
+    // Measured on arrival, before the Captain click below scrolls the card to reach its
+    // summary. The Talk instruction leads the card, above the tall recruit block, so it shows
+    // without scrolling the card (the phone side pane is short and has no scrollbar).
+    const talk = await card.evaluate((el) => {
+      const text = el.querySelector('.re-loom-text');
+      const recruit = el.querySelector('.re-loom-recruit');
+      const pane = el.getBoundingClientRect();
+      const top = pane.top + el.clientTop;
+      const line = text.getBoundingClientRect();
+      return {
+        leads: !!(text.compareDocumentPosition(recruit) & Node.DOCUMENT_POSITION_FOLLOWING),
+        scrollTop: el.scrollTop,
+        inPane: line.top >= top - 1 && line.bottom <= top + el.clientHeight + 1,
+        onScreen: line.top >= 0 && line.bottom <= window.innerHeight,
+      };
+    });
+    expect(talk).toEqual({ leads: true, scrollTop: 0, inPane: true, onScreen: true });
     const captain = card.locator('.re-loom-tag', { hasText: 'Captain' });
     await captain.locator('summary').click();
     await expect(captain.locator('p')).toBeVisible();

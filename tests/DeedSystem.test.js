@@ -277,6 +277,15 @@ describe('battle deeds', () => {
     expect(earned(recruit)).not.toContain('last_of_them');
   });
 
+  // Playtest 2026-09-26 (Great Hall): Edric, Sera, Cael, Voss and Ottoline all survived
+  // and Ottoline was still named the Last.
+  it('four lords and one recruit, all alive: no Last', () => {
+    const ottoline = unit({ name: 'Ottoline' });
+    const lords = ['Edric', 'Sera', 'Cael', 'Voss'].map((name) => unit({ name, isLord: true }));
+    commit([...lords, ottoline], { deployedCount: 5, fallenCount: 0 });
+    for (const u of [...lords, ottoline]) expect(earned(u)).not.toContain('last_of_them');
+  });
+
   it('counts fallen lords and recruits, and commits the Last only once', () => {
     const recruit = unit();
     const living = [unit({ isLord: true }), recruit];

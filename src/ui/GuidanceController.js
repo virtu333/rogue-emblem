@@ -12,6 +12,10 @@
 //   guide_recruit_on_map    a recruitable (green) unit is on the map: names the recruit
 //                           and how to win them (the recruit battle's only intro note)
 //
+// A note about one unit's moment (fragile / no attack / healer: Guidance.noteScope)
+// steps aside when that moment ends — Wait, another unit, Back to another tile, the
+// enemy phase — without being marked read, so an unread one can still teach later.
+//
 // Also answers BattleScene's action menu: with Guidance on Full, a unit with no
 // target in reach shows a greyed "Attack" with the reason instead of no Attack.
 //
@@ -20,8 +24,8 @@
 
 import { canInspectUnit } from '../engine/BattleInformation.js';
 import { findCommander } from '../engine/Commander.js';
-import { parseRange } from '../engine/Combat.js';
-import { getCombatWeapons } from '../engine/UnitManager.js';
+import { isRecruitNpc } from '../engine/RecruitNpc.js';
+import { getAttackRange, getAttackWeapons } from '../engine/AttackOptions.js';
 import {
   canUseStaff,
   guidanceAllows,
@@ -29,8 +33,9 @@ import {
   isFragileUnit,
   isVeteranMeta,
   noTargetReason,
+  noteScope,
   noteTier,
-  reachText,
+  reachFromRanges,
   resolveGuidance,
 } from '../engine/Guidance.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -38,11 +43,14 @@ import { TILE_SIZE } from '../utils/constants.js';
 import { showGuidanceNote } from './GuidanceNote.js';
 
 const COACH_NOTES_PER_BATTLE = 2;
+// The unit's own planning: selected, walking to a tile, choosing an action.
+const UNIT_TURN_STATES = new Set(['UNIT_SELECTED', 'UNIT_MOVING', 'UNIT_ACTION_MENU']);
 
 export class GuidanceController {
   constructor(scene) {
     this.scene = scene;
     this.note = null;
+    this.scope = null; // the unit moment an open unit-scoped note is about
     this.coachShown = 0;
     this._key = '';
     this.destroyed = false;
@@ -85,11 +93,16 @@ export class GuidanceController {
     const s = this.scene;
     if (!unit || unit.faction !== 'player' || targets.length) return null;
     if (this.level() !== 'full') return null;
-    const weapons = getCombatWeapons(unit).filter((w) => w?.type !== 'Staff');
+    // The weapons and ranges targeting uses (BattleScene.findAttackTargets): proficient,
+    // not silenced, uses left, skill range bonuses (Foresight) included.
+    const weapons = getAttackWeapons(unit);
     if (!weapons.length) return null;
     const foes = (s.enemyUnits || []).some((e) => e.currentHP > 0 && canInspectUnit(s.grid, e));
     if (!foes) return null;
-    return noTargetReason(reachText(weapons, parseRange));
+    const skillsData = s.gameData?.skills || null;
+    return noTargetReason(
+      reachFromRanges(weapons.map((w) => getAttackRange(unit, w, { skillsData }))),
+    );
   }
 
   covered() {
@@ -105,7 +118,11 @@ export class GuidanceController {
   }
 
   sync() {
-    if (this.destroyed || this.note || !hasDOMHost()) return;
+    if (this.destroyed || !hasDOMHost()) return;
+    // A note about one unit's moment steps aside once that moment is over (Wait,
+    // another unit, Back to another tile, the enemy phase), read or not.
+    if (this.note && this.scope && !this.scopeHolds()) this.cancelScopedNote();
+    if (this.note) return;
     const s = this.scene;
     const unit = s.selectedUnit;
     const key = [
@@ -131,6 +148,36 @@ export class GuidanceController {
     }
     const candidate = this.pick();
     if (candidate) this.show(candidate);
+  }
+
+  /** Is the unit moment the open note talks about still going on? */
+  scopeHolds() {
+    const scope = this.scope;
+    if (!scope) return true;
+    const s = this.scene;
+    const unit = scope.unit;
+    if (s.selectedUnit !== unit || !unit || unit.hasActed || unit.currentHP <= 0) return false;
+    if (!UNIT_TURN_STATES.has(s.battleState)) return false;
+    if ((s.turnManager?.currentPhase ?? 'player') !== 'player') return false;
+    if ((s.turnManager?.turnNumber ?? null) !== scope.turn) return false;
+    if (scope.kind === 'tile' && (unit.col !== scope.col || unit.row !== scope.row)) return false;
+    return true;
+  }
+
+  /**
+   * Close the open unit-scoped note without acknowledging it: read (shown long
+   * enough) it stays read; unread, it stays unseen and gives back its coaching slot,
+   * so a later moment can still teach it.
+   */
+  cancelScopedNote() {
+    const handle = this.note;
+    const coach = this.scope?.coach === true;
+    this.scope = null;
+    if (!handle) return;
+    const read = handle.isRead?.() === true;
+    handle.close(false);
+    if (this.note === handle) this.note = null;
+    if (coach && !read) this.coachShown = Math.max(0, this.coachShown - 1);
   }
 
   /** The most useful note for this moment, or null. */
@@ -181,9 +228,10 @@ export class GuidanceController {
       return { id: 'guide_commander_low_hp', context: { commander, touch }, anchor: commander };
     // The recruit's gold banner shows through fog (RecruitBeaconController), so the
     // note may name a recruit the fog still hides; other green units must be seen.
+    // The merchant caravan is an NPC but never a recruit: it must not spend the note.
     const beaconed = s._recruitBeacon?.npc || null;
     const npc = (s.npcUnits || []).find(
-      (u) => u.currentHP > 0 && (u === beaconed || canInspectUnit(s.grid, u)),
+      (u) => isRecruitNpc(u) && (u === beaconed || canInspectUnit(s.grid, u)),
     );
     if (npc && this.allows('guide_recruit_on_map'))
       return { id: 'guide_recruit_on_map', context: { npc, touch }, anchor: npc };
@@ -284,10 +332,27 @@ export class GuidanceController {
       onFewerTips: settings?.setGuidance ? () => settings.setGuidance('light') : null,
     });
     if (!handle) return;
-    if (noteTier(id) === 'coach') this.coachShown += 1;
+    const coach = noteTier(id) === 'coach';
+    if (coach) this.coachShown += 1;
     this.note = handle;
+    const kind = noteScope(id);
+    const unit = context?.unit || null;
+    this.scope =
+      kind && unit
+        ? {
+            kind,
+            unit,
+            col: unit.col,
+            row: unit.row,
+            turn: s.turnManager?.turnNumber ?? null,
+            coach,
+          }
+        : null;
     handle.onClose = () => {
-      if (this.note === handle) this.note = null;
+      if (this.note === handle) {
+        this.note = null;
+        this.scope = null;
+      }
       this._key = ''; // let the next moment be considered
     };
   }

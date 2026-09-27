@@ -62,6 +62,16 @@
   opacity: 1;
   background-color: var(--re-threat-haze);
 }
+/* A command's one-line note (Wait on an intact village: "Visits village"). Sized like
+   Danger's hold cue so the pinned Wait keeps the dock's single row height. */
+.mobile-battle-hud .mb-button .mb-item-note {
+  margin: 1px 0 0;
+  color: var(--re-accent-text);
+  font: 11px/1.2 var(--re-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .mobile-battle-hud .mb-danger-toggle.is-on .mb-hold-cue {
   color: var(--re-bad);
 }

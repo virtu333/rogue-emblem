@@ -81,15 +81,17 @@ export function classifyNodes(nodes, activeNodeId) {
 export class CampaignMapOverlay {
   /**
    * @param {Phaser.Scene} scene
-   * @param {{ nodeMap: object, currentNodeId: string|null, actId: string, activeNodeId: string|null, onClose: Function }} opts
+   * @param {{ nodeMap: object, currentNodeId: string|null, actId: string, activeNodeId: string|null, onClose: Function, service?: boolean }} opts
+   *   service: opened from a village/shop/church/ruins rather than a battle (non-combat copy)
    */
-  constructor(scene, { nodeMap, currentNodeId, actId, activeNodeId, onClose }) {
+  constructor(scene, { nodeMap, currentNodeId, actId, activeNodeId, onClose, service = false }) {
     this.scene = scene;
     this.nodeMap = nodeMap;
     this.currentNodeId = currentNodeId;
     this.actId = actId;
     this.activeNodeId = activeNodeId;
     this.onClose = onClose;
+    this.service = !!service;
     this.objects = [];
     this.visible = false;
     this.escKey = null;

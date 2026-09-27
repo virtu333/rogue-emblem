@@ -16,6 +16,7 @@ import {
   isSilenceBlockedWeapon,
 } from '../engine/AttackOptions.js';
 import { EQUIPPED_MARKER } from '../ui/equippedBadge.js';
+import { attackSpeedDelta, attackSpeedValue, weaponAttackSpeed } from '../ui/battleItemSummary.js';
 import { PinnedThreatController } from '../ui/PinnedThreatController.js';
 import { battlePlace } from '../ui/placeDisplay.js';
 import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
@@ -230,6 +231,7 @@ import { showImportantHint, showMinorHint, showContextualHint } from '../ui/Hint
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
 import { buildRecruitNodeUnit, spawnTilesForDeployment } from '../engine/RecruitNodeSystem.js';
+import { battleDeployCount } from '../engine/BattleDeployCount.js';
 import {
   adaptDialogueEntries,
   adaptDialogueLine,
@@ -237,6 +239,7 @@ import {
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
 import { recordBattleRecruit } from '../engine/BattleRecruits.js';
+import { hasRecruitNpc, isRecruitNpc } from '../engine/RecruitNpc.js';
 import { isSameUnit } from '../engine/UnitIdentity.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
 import { deedsFor } from '../ui/DeedController.js';
@@ -1251,12 +1254,13 @@ export class BattleScene extends Phaser.Scene {
         this.nonDeployedUnits = [];
       }
 
-      // Set deployCount for MapGenerator spawn generation
-      const deployCount = this.battleParams?.tutorialMode
-        ? 2
-        : deployedRoster
-          ? deployedRoster.length
-          : 2;
+      // deployCount: MapGenerator spawn generation and the Last deed at victory.
+      const deployCount = battleDeployCount({
+        tutorialMode: this.battleParams?.tutorialMode,
+        deployedRoster,
+        resuming: Boolean(this._resumeCheckpoint),
+        recorded: this.battleParams?.deployCount,
+      });
       this.battleParams.deployCount = deployCount;
       this.battleParams.isBoss = !!this.isBoss;
 
@@ -1941,7 +1945,7 @@ export class BattleScene extends Phaser.Scene {
       this._atmosphere = new AtmosphereController(this).create();
 
       // Not in a recruit battle: it would open as a dialog there (see battle_first_turn_hints).
-      if (this.mobileCameraEnabled && !(this.npcUnits?.length > 0)) {
+      if (this.mobileCameraEnabled && !hasRecruitNpc(this.npcUnits)) {
         const hints = this.registry.get('hints');
         if (hints && !hints.hasSeen('battle_mobile_camera')) {
           showContextualHint(
@@ -5899,7 +5903,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  _showWeaponDetailTooltip(wpn, menuRect, itemY) {
+  _showWeaponDetailTooltip(wpn, menuRect, itemY, unit = null) {
     if (!wpn) return;
     this._hideWeaponDetailTooltip();
     const might = Number.isFinite(Number(wpn?.might)) ? Number(wpn.might) : 0;
@@ -5911,7 +5915,11 @@ export class BattleScene extends Phaser.Scene {
     const lines = [];
     if (wpn.type) lines.push(wpn.type);
     lines.push(`${might}Mt ${hit}Hit ${crit}Crt`);
-    lines.push(`${weight}Wt Rng${range}`);
+    // Attack speed with this weapon, and the change from the one held (equip menu).
+    const speed = weaponAttackSpeed(wpn, unit);
+    const delta = attackSpeedDelta(speed);
+    const as = speed ? ` ${attackSpeedValue(speed.as)}AS${delta ? ` (${delta})` : ''}` : '';
+    lines.push(`${weight}Wt Rng${range}${as}`);
     if (wpn.special) {
       const specialLines = this._formatSpecialLinesForUi(wpn.special, 28, 2);
       lines.push(...specialLines);
@@ -6246,6 +6254,8 @@ export class BattleScene extends Phaser.Scene {
       );
 
       if (blockedActions.has(label)) text._menuDescription = blockedActions.get(label);
+      // No Visit command exists: Wait says when ending here visits the village.
+      if (label === 'Wait') text._menuNote = this._villageController?.getWaitNote(unit) || null;
       this.actionMenu.push(text);
     });
     this._pinToScreen(this.actionMenu);
@@ -6264,6 +6274,7 @@ export class BattleScene extends Phaser.Scene {
         label: button.text,
         item: button._menuItem,
         description: button._menuDescription,
+        note: button._menuNote || null,
         button,
         disabled: Boolean(button._menuDisabled),
         color: button._menuColor || UI_PALETTE.text,
@@ -6371,6 +6382,8 @@ export class BattleScene extends Phaser.Scene {
 
   findTalkTarget(unit) {
     for (const npc of this.npcUnits) {
+      // The merchant caravan is an NPC, never a recruit (engine/RecruitNpc.js).
+      if (!isRecruitNpc(npc)) continue;
       const dist = Math.abs(unit.col - npc.col) + Math.abs(unit.row - npc.row);
       if (dist === 1) return npc;
     }
@@ -6659,7 +6672,7 @@ export class BattleScene extends Phaser.Scene {
 
       text._menuItem = wpn;
       text.on('pointerover', () => {
-        this._showWeaponDetailTooltip(wpn, menuRect, text.y);
+        this._showWeaponDetailTooltip(wpn, menuRect, text.y, unit);
       });
       text.on('pointerout', (pointer) => {
         if (!this._isTouchPointer(pointer)) {
@@ -6718,7 +6731,7 @@ export class BattleScene extends Phaser.Scene {
       if (equippedWpn) {
         const eqIdx = displayWeapons.indexOf(equippedWpn);
         const autoY = menuPos.y + 4 + eqIdx * itemHeight + itemHeight / 2;
-        this._showWeaponDetailTooltip(equippedWpn, menuRect, autoY);
+        this._showWeaponDetailTooltip(equippedWpn, menuRect, autoY, unit);
         this._weaponPreviewedItem = equippedWpn;
       }
     }
@@ -9557,7 +9570,7 @@ export class BattleScene extends Phaser.Scene {
                 // A recruit battle opens without a lesson dialog: the Guidance field
                 // note (guide_recruit_on_map) names the recruit, never blocks, and
                 // honours Guidance Off. Other first-battle lessons wait for a later fight.
-                if (this.npcUnits.length > 0) return;
+                if (hasRecruitNpc(this.npcUnits)) return;
                 if (objective === 'seize')
                   showContextualHint(
                     this,
@@ -10831,7 +10844,7 @@ export class BattleScene extends Phaser.Scene {
       const foes = `${count} ${count === 1 ? 'enemy' : 'enemies'}`;
       label = tombCount > 0 ? `Rout: ${foes} + ${tombCount} reviving` : `Rout: ${foes} remaining`;
     }
-    if (this.npcUnits.length > 0) {
+    if (hasRecruitNpc(this.npcUnits)) {
       label += `\n${this._recruitBeacon?.getObjectiveSuffix() || 'Recruit: Talk to green unit'}`;
     }
     const villageSuffix = this._villageController?.getObjectiveSuffix();
