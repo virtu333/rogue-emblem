@@ -71,14 +71,8 @@ for (const vp of VIEWPORTS) {
       `Hunters +${expected.mods.enemyCountBonus}`,
     );
     await expect(card.locator('.re-loom-tag', { hasText: 'Captain' })).toHaveCount(1);
-    const captain = card.locator('.re-loom-tag', { hasText: 'Captain' });
-    await captain.locator('summary').click();
-    await expect(captain.locator('p')).toBeVisible();
-    await expect(captain.locator('p')).toContainText('an affix');
-    await expect(card.locator('.re-loom-text')).toHaveText(
-      `Hunters are closing on ${expected.name}. Reach them with a lord and Talk.`,
-    );
-    // The Talk instruction leads the card, above the tall recruit block, so it shows
+    // Measured on arrival, before the Captain click below scrolls the card to reach its
+    // summary. The Talk instruction leads the card, above the tall recruit block, so it shows
     // without scrolling the card (the phone side pane is short and has no scrollbar).
     const talk = await card.evaluate((el) => {
       const text = el.querySelector('.re-loom-text');
@@ -94,6 +88,13 @@ for (const vp of VIEWPORTS) {
       };
     });
     expect(talk).toEqual({ leads: true, scrollTop: 0, inPane: true, onScreen: true });
+    const captain = card.locator('.re-loom-tag', { hasText: 'Captain' });
+    await captain.locator('summary').click();
+    await expect(captain.locator('p')).toBeVisible();
+    await expect(captain.locator('p')).toContainText('an affix');
+    await expect(card.locator('.re-loom-text')).toHaveText(
+      `Hunters are closing on ${expected.name}. Reach them with a lord and Talk.`,
+    );
 
     // The card stays inside its pane (no horizontal overflow at either size).
     const overflow = await card.evaluate((el) => el.scrollWidth - el.clientWidth);
