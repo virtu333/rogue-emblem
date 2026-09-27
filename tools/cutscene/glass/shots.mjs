@@ -144,7 +144,9 @@ export const SHOTS = [
       'river, under a whole white-gold sun (a normal bright sun, not dark). Clean air, ' +
       'soft clouds. Wide shot, low horizon.',
     motion:
-      'The dragons glide across the frame with slow wingbeats; clouds drift; the camera pans to follow.',
+      'Graceful, slow wingbeats; the dragons glide in a steady line and keep their ' +
+      'shapes; clouds drift; the camera pans slowly to follow.',
+    negative: 'morphing bodies, melting wings',
     dur: 8,
     model: 'veoFast',
   },
@@ -205,8 +207,10 @@ export const SHOTS = [
       'fens, curled nose to tail, eyes closing; the nearest are already turning to grey ' +
       'standing stone, moss creeping over their scales. High angle, the ring centred.',
     motion:
-      'The dragons lower their heads and close their eyes; stone and moss spread over ' +
-      'them as if ages pass; light fades from day to night and back.',
+      'Locked-off static camera, the same scene throughout. The dragons slowly lower ' +
+      'their heads to the ground and close their eyes, one after another; grey stone and ' +
+      'moss creep over their scales. Mist drifts across the black water.',
+    negative: 'scene change, new location, daylight, statues on a hill',
     dur: 8,
     model: 'veo',
   },
@@ -288,12 +292,16 @@ export const SHOTS = [
     id: 'wall',
     cast: ['emperor'],
     key:
-      '{emperor}, bareheaded, stands on the battlements of a black stone fortress on a ' +
-      'mountain shoulder. Low angle from below. Behind him the sky is dusk-gold and in ' +
-      'it hangs a black sun with a thin gold corona. Crimson banners, ranks of soldiers ' +
-      'with spears below the wall in silhouette.',
+      '{emperor}, bareheaded, stands tall and perfectly upright on the battlements of a ' +
+      'black stone fortress on a mountain shoulder, chin raised, both gauntleted hands ' +
+      'resting on the pommel of a greatsword planted point-down before him, looking out ' +
+      'over his army. Low angle from below. Behind him the sky is dusk-gold and in it ' +
+      'hangs a black sun with a thin gold corona. Crimson banners; ranks of soldiers with ' +
+      'spears below the wall in silhouette.',
     motion:
-      'He looks down at his soldiers; crimson banners unfurl in the wind; the ranks raise their spears. Slow push in.',
+      'Locked camera, very slow push in. He stands completely still and upright like a ' +
+      'statue, hands on the sword pommel; only his crimson cloak and the banners move in ' +
+      'the wind. Below the wall the ranks raise their spears together.',
     dur: 8,
     model: 'veo',
   },
@@ -383,8 +391,13 @@ export const SHOTS = [
     cast: ['archmage'],
     key:
       '{archmage} writes in a small leather notebook by the light of the red orb on his ' +
-      'staff, in a dark library; he glances up with a curious, amused smile.',
-    motion: 'He stops writing and looks up with a slow, knowing smile; the red orb pulses.',
+      'staff, in a dark library; his face serious and absorbed, eyes down on the page, ' +
+      'mouth closed.',
+    motion:
+      'Subtle, restrained acting. He pauses his writing and slowly lifts only his eyes to ' +
+      'the camera; the corner of his mouth moves very slightly, a scholar noticing ' +
+      'something interesting. Natural eyes (no glow). Otherwise still.',
+    negative: 'glowing eyes, grin, open mouth',
     dur: 4,
     model: 'veo',
   },
@@ -415,7 +428,10 @@ export const SHOTS = [
     key:
       '{iron_wall} slams his tower shield down into the ground in a castle breach, ' +
       'rubble and smoke around him. Low angle.',
-    motion: 'He slams the shield down; the ground cracks; smoke bursts outward.',
+    motion:
+      'He slams the tower shield down into the ground in one heavy motion and stays ' +
+      'braced behind it, low and immovable; the shield stays upright, facing the camera; ' +
+      'dust and smoke burst outward.',
     dur: 4,
     model: 'veoFast',
   },
@@ -448,7 +464,9 @@ export const SHOTS = [
       'furled teal banner and a small clay pot glowing with a live ember. Sparks, smoke, ' +
       'orange firelight.',
     motion:
-      'The smith runs out of the burning hall carrying the boy; the boy reaches back toward the flames; the roof collapses behind them.',
+      'The huge smith runs out of the burning hall toward the camera, away from the fire, ' +
+      'carrying the boy, who looks back over his shoulder at the flames; burning timbers ' +
+      'fall behind them. They keep coming toward the camera.',
     dur: 8,
     model: 'veo',
   },
@@ -540,6 +558,22 @@ export const SHOTS = [
       'hang in the air. Medium close shot.',
     motion:
       'She pulls the gold thread tight with effort; the sparks above the fire stop and drift back down into it.',
+    dur: 6,
+    model: 'veo',
+  },
+  {
+    id: 'weaving',
+    cast: ['sera'],
+    key:
+      'Night, by a campfire on a hill above a river ford. {sera} kneels by the fire with ' +
+      'her hands raised before her, weaving: dozens of fine threads of gold light are ' +
+      'strung between her fingers like the warp of a loom, and she draws one bright ' +
+      'thread across them. The gold light reflects in her green eyes. Calm, focused, ' +
+      'graceful. Medium close shot, her face and hands.',
+    motion:
+      'Graceful, unhurried hands, like a weaver at a loom: she passes the bright thread ' +
+      'over and under the others and draws it tight; the gold threads shimmer and ' +
+      'brighten; the fire flickers; her face stays calm and focused.',
     dur: 6,
     model: 'veo',
   },

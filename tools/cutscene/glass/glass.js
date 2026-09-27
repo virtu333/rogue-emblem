@@ -81,6 +81,7 @@ const IN = {
   read: 0.4,
   counting: 1.0,
   glass: 1.0,
+  weaving: 0.4,
   camp: 0.8,
   reveal: 1.2,
 };
@@ -326,8 +327,11 @@ export async function loadGlass(base = '.', version = '') {
     const shake = dk > 0.3 ? Math.round(Math.sin(t * 57) * dk * 1.5) : 0;
     blit(a, s, i, {
       lut,
-      dx: (e.pan?.[0] || 0) * k + shake,
-      dy: (e.pan?.[1] || 0) * k + (dk > 0.6 ? Math.round(Math.cos(t * 43) * dk) : 0),
+      dx: (e.offset?.[0] || 0) + (e.pan?.[0] || 0) * k + shake,
+      dy:
+        (e.offset?.[1] || 0) +
+        (e.pan?.[1] || 0) * k +
+        (dk > 0.6 ? Math.round(Math.cos(t * 43) * dk) : 0),
     });
     if (e.death) drawSnap(a, t - e.t0);
     // running back: the snapped thread closes up again as the shot rewinds

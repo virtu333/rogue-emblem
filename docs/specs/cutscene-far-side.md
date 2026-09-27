@@ -1,7 +1,8 @@
 # "The Far Side of the Glass": the opening, second prototype
 
-Status: **draft 3, rendered** (2026-09-27): draft 1 plus a transition pass, a colder
-voice and two re-cut shots (see [Draft 2](#draft-2) and [Draft 3](#draft-3)). Source in `tools/cutscene/glass/`.
+Status: **draft 4, rendered** (2026-09-27): draft 1 plus a transition pass, a colder
+voice, and two polish passes on the acting (see [Draft 2](#draft-2), [Draft 3](#draft-3),
+[Draft 4](#draft-4)). Source in `tools/cutscene/glass/`.
 A second candidate for the opening in [cutscenes.md](cutscenes.md), beside
 **"The Roll"** ([cutscene-the-roll.md](cutscene-the-roll.md)). The Roll is a hook in
 engraved ink that looks like nothing else in the game; this one is a narrated story
@@ -97,7 +98,7 @@ time after 0:32 is 4 s later and every time after 1:28 is 8 s later.
 | 3:04 | Sera's Thread on the violins | Sera at the Glass | *And a girl at the Glass looked into the water… and saw him coming.* |
 | 3:11 | The Lieutenant's motif (A-D-C-A) and its shadow a tritone off, a beat late | In the water, not her reflection: him, upside down | *I saw her seeing.* |
 | 3:16 | Heartbeat; a hit on each death | The thread trembles; Edric dies four times, each cut on its word, the thread snapping | *I have watched him die at the Ford. On the bridge. In the fens. At my feet.* |
-| 3:25 | A reversed swell, the Thread backwards; the home fire | The four deaths run backwards as the thread knits shut; the seven at the camp | *And every time, she takes him back to the fire. To the night before.* |
+| 3:25 | A reversed swell, the Thread backwards; the home fire | The four deaths run backwards as the thread knits shut; Sera at the fire, weaving; the seven at the camp | *And every time, she takes him back to the fire. To the night before.* |
 | 3:36 | Everything drops; the hum | Sinking through the Glass to the stair under the mountain | |
 | 3:42 | His motif on the violins, the shadow in the violas | The Lieutenant lifts his head; the letterbox opens | *I have seen every way this ends.* / *Go on, then. Show me one I haven't seen.* |
 | 3:52 | **Hit**; the bells' A-G-E; the Hollow Sun cadence, stopping on C-sharp | The Hollow Sun drawn on the Thread cell; ROGUE DAWN | |
@@ -147,6 +148,31 @@ raised: audition voices with `tts.mjs --audition --style cold`, record with
   Ford: Edric rises out of each), while the snapped thread closes once across all four;
   then the camp on "to the night before". The rewind cue in the score already sat
   there. Her `rewind` clip is no longer used and its sheet is gone.
+
+## Draft 4: a polish pass on the acting
+
+Every shot reviewed as it plays (six frames per shot from the render), plus an
+animation-director critique of the whole film from Gemini (used for glaring problems
+only). Changed:
+
+| Shot | Problem | Fix |
+|---|---|---|
+| The Emperor on the wall | Leaned over the battlement throughout | New keyframe and clip: upright, hands on a planted greatsword, still; only the cloak, banners and spears move. Shifted 24 px down so his head and the sun clear the letterbox |
+| The Archmage | An exaggerated grin (and, regenerated once, glowing eyes) | New keyframe with a serious, absorbed face; the clip only lifts his eyes (a per-shot negative prompt keeps out glowing eyes and grins) |
+| The Iron Captain | The stamp's wind-up took the whole two seconds | Played at 1.6x so the stamp lands early and holds |
+| The Iron Wall | The shield swung over his head after the slam | New clip; the cut starts at the slam and holds him braced |
+| Wendhall | The smith and the boy ended up walking back into the fire | New clip: they run toward the camera, the boy looking back, the ember pot in his hands |
+| Edric counting | His eyes glowed gold in the clip's last seconds | Only the first 4.2 s are used, held longer |
+| The first dragons | Wings and bodies morphing | New clip (steadier glide) |
+| The dragons lie down | The clip turned into another scene, so only 2.5 s were usable, slowed | New clip that stays in the scene; stone and moss creep, mist fills the mere |
+
+New: **Sera weaving.** After the four deaths run backwards, a shot of her at the fire
+with gold threads strung between her fingers like a loom, passing one bright thread
+through (it answers the Dawn weaving in the opening); then the camp. The deaths
+rewind faster (0.7 s each) to make room.
+
+Per-shot negative prompts (`negative` in `shots.mjs`) extend the shared one without
+changing any other clip's cache key.
 
 ## Versions: who narrates
 

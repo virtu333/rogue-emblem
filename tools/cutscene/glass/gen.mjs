@@ -101,7 +101,7 @@ async function clips() {
           model: MODELS[shot.model || 'veoFast'],
           durationSeconds: shot.dur,
           resolution: '720p',
-          negativePrompt: NEGATIVE,
+          negativePrompt: shot.negative ? `${NEGATIVE}, ${shot.negative}` : NEGATIVE,
           out: path.join(OUT, 'clips', shot.id),
           force,
         });
