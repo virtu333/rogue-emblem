@@ -126,7 +126,7 @@ describe('frameFromCompactPreview', () => {
         level: 3,
         acted: true,
         weapon: 'Iron Sword',
-        items: ['Iron Sword', 'Vulnerary (3)'],
+        items: ['Iron Sword', 'Poultice (3)'],
         conditions: [],
       },
       { id: 'u5', name: 'Cavalier', faction: 'enemy', col: 1, row: 1, hp: 9, maxHP: 20 },

@@ -497,7 +497,7 @@ export function spendPerBattleUse(weapon) {
 
 // --- Staff range ---
 
-/** Get effective range for a staff, accounting for MAG-based range bonuses (Physic). */
+/** Get effective range for a staff, accounting for MAG-based range bonuses (Farcall). */
 export function getEffectiveStaffRange(staff, healer) {
   const baseRange = parseRange(staff.range);
   if (!staff.rangeBonuses) return baseRange;

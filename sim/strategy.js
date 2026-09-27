@@ -501,7 +501,7 @@ class ProtectedDriver extends RunSimulationDriver {
     const deployBonus = rm.getDeployBonus();
     const cap = limits.max + deployBonus;
     s.deploySlotsEmpty += Math.max(0, cap - rm.roster.length);
-    // A real player promotes: buy a Master Seal (2500 G) for any unit at level 15+
+    // A real player promotes: buy a Sovereign Seal (2500 G) for any unit at level 15+
     // (lords first) while gold allows. The stock driver only promotes at churches.
     for (const u of [...rm.roster].sort((a, b) => Number(b.isLord) - Number(a.isLord))) {
       if (u.tier === 'promoted' || (u.level || 1) < 15 || rm.gold < 2500) continue;

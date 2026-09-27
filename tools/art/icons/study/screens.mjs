@@ -78,10 +78,10 @@ export const STUDY_STOCK = [
   'Longbow',
   'Conflagration',
   'Brilliance',
-  'Physic',
-  'Vulnerary',
-  'Master Seal',
-  'Speedwing',
+  'Farcall',
+  'Poultice',
+  'Sovereign Seal',
+  'Fleet Plume',
   'Power Ring',
   "Gambler's Coin",
   'Silver Whetstone',
@@ -266,7 +266,7 @@ export const SCREENS = {
       'Keen Lance',
       "Gambler's Coin",
       'Silver Whetstone',
-      'Energy Drop',
+      'Mightroot',
     ]);
   },
   async 'roster-equipment'(page, base) {
@@ -288,7 +288,7 @@ export const SCREENS = {
         const it = [...d.weapons, ...d.accessories, ...d.consumables].find((x) => x.name === n);
         if (it) r.addToConvoy?.(structuredClone(it));
       };
-      ['Steel Axe', 'Elixir', 'Talisman', 'Pursuit Ring', 'Heal'].forEach(add);
+      ['Steel Axe', 'Elixir', 'Warding Cord', 'Pursuit Ring', 'Heal'].forEach(add);
     });
     await openShop(page);
     await press(page.getByRole('button', { name: 'Roster', exact: true }).last(), page);

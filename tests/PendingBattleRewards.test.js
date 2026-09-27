@@ -144,11 +144,11 @@ it('boss-reaching payout is once per run, durable, and shared by settlement/prev
   expect(restored.settleEndRunRewards(null, 'defeat')).toMatchObject({ valor: 75, supply: 75 });
 });
 
-it('Vulnerary bundle spills to convoy with distinct IDs and cannot partially grant when full', () => {
+it('Poultice bundle spills to convoy with distinct IDs and cannot partially grant when full', () => {
   const s = setup(),
     run = s.runManager,
     unit = run.roster[0];
-  const item = s.gameData.consumables.find((c) => c.name === 'Vulnerary');
+  const item = s.gameData.consumables.find((c) => c.name === 'Poultice');
   unit.consumables = [structuredClone(item), structuredClone(item)];
   expect(applyRewardBundle(run, item, unit, 3).ok).toBe(true);
   expect(unit.consumables.length).toBe(3);
@@ -181,7 +181,7 @@ it('seen stock falls back to valid repeats instead of unresolvable fresh names',
     );
     expect(stock).toHaveLength(6);
     expect(new Set(stock.map((entry) => entry.item.name)).size).toBe(6);
-    expect(stock.some((entry) => entry.item.name === 'Vulnerary')).toBe(true);
+    expect(stock.some((entry) => entry.item.name === 'Poultice')).toBe(true);
   } finally {
     random.mockRestore();
   }

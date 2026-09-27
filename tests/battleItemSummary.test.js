@@ -21,7 +21,7 @@ describe('battleItemSummary', () => {
   it('shows staff mechanics and MAG-adjusted range', () => {
     const text = battleItemSummary(
       {
-        name: 'Physic',
+        name: 'Farcall',
         type: 'Staff',
         range: '2',
         uses: 1,
@@ -82,7 +82,7 @@ describe('battleItemBrief (one line per menu row; the rest on a long press)', ()
   });
   it('briefs consumables and staves by what they do and what is left', () => {
     expect(
-      battleItemBrief({ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10 }),
+      battleItemBrief({ name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10 }),
     ).toBe('Restore 10 HP');
     expect(
       battleItemBrief(

@@ -806,7 +806,7 @@ export class MobileRosterSheet {
       gameData: this.gameData,
       title: `Promote ${unit.name}`,
       closeLabel: 'Close',
-      note: `Uses 1 ${item.name || 'Master Seal'}`,
+      note: `Uses 1 ${item.name || 'Sovereign Seal'}`,
       blocked: () => rosterClassChangeBlock(this.run, unit, item, this.gameData),
       apply: (choice) => {
         const content = promotionPathContent(unit, choice, this.gameData);

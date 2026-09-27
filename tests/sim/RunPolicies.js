@@ -66,7 +66,7 @@ export function chooseShopPurchases(runManager, inventory) {
   if (!Array.isArray(inventory) || inventory.length === 0) return picks;
 
   const roster = runManager.roster || [];
-  const vulnCount = countConsumable(roster, 'Vulnerary');
+  const vulnCount = countConsumable(roster, 'Poultice');
   const needVulnerary = vulnCount < desiredVulneraries(roster);
 
   const sorted = [...inventory].sort((a, b) => {
@@ -77,7 +77,7 @@ export function chooseShopPurchases(runManager, inventory) {
 
   for (const entry of sorted) {
     if ((entry.price || 0) > runManager.gold) continue;
-    if (entry.type === 'consumable' && entry.item?.name === 'Vulnerary' && needVulnerary) {
+    if (entry.type === 'consumable' && entry.item?.name === 'Poultice' && needVulnerary) {
       picks.push(entry);
       continue;
     }

@@ -74,7 +74,7 @@ function makeAlly(overrides = {}) {
 describe('executeRelocate', () => {
   it('moves the ally, spends one use, awards XP once, finishes the CASTER action', async () => {
     const ctx = makeSceneCtx();
-    const staff = freshStaff('Rescue Staff');
+    const staff = freshStaff('Deliverance Staff');
     const healer = makeHealer(staff);
     const ally = makeAlly();
 
@@ -92,7 +92,7 @@ describe('executeRelocate', () => {
 
   it("does NOT touch the moved ally's acted state (un-acted ally can still act)", async () => {
     const ctx = makeSceneCtx();
-    const staff = freshStaff('Warp Staff');
+    const staff = freshStaff('Fold Staff');
     const healer = makeHealer(staff);
     const unacted = makeAlly({ hasActed: false });
 
@@ -102,7 +102,7 @@ describe('executeRelocate', () => {
     expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer);
 
     const ctx2 = makeSceneCtx();
-    const staff2 = freshStaff('Warp Staff');
+    const staff2 = freshStaff('Fold Staff');
     const healer2 = makeHealer(staff2);
     const acted = makeAlly({ hasActed: true });
     await BattleScene.prototype.executeRelocate.call(ctx2, healer2, acted, { col: 8, row: 4 });
@@ -112,7 +112,7 @@ describe('executeRelocate', () => {
 
   it('enters HEAL_RESOLVING and clears the relocation selection state', async () => {
     const ctx = makeSceneCtx();
-    const staff = freshStaff('Rescue Staff');
+    const staff = freshStaff('Deliverance Staff');
     const healer = makeHealer(staff);
     const ally = makeAlly();
     ctx.staffRelocateTargets = [ally];
@@ -135,7 +135,7 @@ describe('executeRelocate', () => {
 
   it('auto-swaps to a combat weapon when the staff is depleted', async () => {
     const ctx = makeSceneCtx();
-    const staff = freshStaff('Warp Staff'); // 1 use at MAG < 8
+    const staff = freshStaff('Fold Staff'); // 1 use at MAG < 8
     const sword = structuredClone(gameData.weapons.find((w) => w.name === 'Iron Sword'));
     const healer = makeHealer(staff, {
       inventory: [staff, sword],
@@ -154,7 +154,7 @@ describe('executeRelocate', () => {
 
   it('keeps the staff equipped while uses remain', async () => {
     const ctx = makeSceneCtx();
-    const staff = freshStaff('Rescue Staff'); // 2 uses at MAG < 8
+    const staff = freshStaff('Deliverance Staff'); // 2 uses at MAG < 8
     const sword = structuredClone(gameData.weapons.find((w) => w.name === 'Iron Sword'));
     const healer = makeHealer(staff, {
       inventory: [staff, sword],
@@ -176,7 +176,7 @@ describe('executeRelocate', () => {
     ctx.awardScaledXP = vi.fn(async () => {
       throw new Error('popup failed');
     });
-    const staff = freshStaff('Rescue Staff');
+    const staff = freshStaff('Deliverance Staff');
     const healer = makeHealer(staff);
     const ally = makeAlly();
 
@@ -197,7 +197,7 @@ describe('executeRelocate', () => {
     ctx._awaitSceneTween = vi.fn(async () => {
       throw new Error('tween exploded');
     });
-    const staff = freshStaff('Rescue Staff');
+    const staff = freshStaff('Deliverance Staff');
     const healer = makeHealer(staff);
     const ally = makeAlly({ graphic: {} });
 
@@ -216,7 +216,7 @@ describe('executeRelocate', () => {
     ctx.grid.updateFogOfWar = vi.fn();
     ctx.updateEnemyVisibility = vi.fn();
     ctx.playerUnits = [];
-    const staff = freshStaff('Warp Staff');
+    const staff = freshStaff('Fold Staff');
     const healer = makeHealer(staff);
     const ally = makeAlly();
 
@@ -230,7 +230,7 @@ describe('executeRelocate', () => {
 describe('two-phase targeting handlers', () => {
   it('startHealTargetSelection with a relocate staff enters SELECTING_STAFF_ALLY', () => {
     const ctx = makeSceneCtx();
-    const staff = freshStaff('Rescue Staff');
+    const staff = freshStaff('Deliverance Staff');
     const healer = makeHealer(staff);
     const ally = makeAlly();
     ctx.registry = { get: () => null };
@@ -244,7 +244,7 @@ describe('two-phase targeting handlers', () => {
 
   it('handleStaffAllyClick stores the ally, shows destinations, enters SELECTING_STAFF_TILE', () => {
     const ctx = makeSceneCtx();
-    const staff = freshStaff('Rescue Staff');
+    const staff = freshStaff('Deliverance Staff');
     const healer = makeHealer(staff);
     const ally = makeAlly();
     ctx.selectedUnit = healer;
@@ -266,7 +266,7 @@ describe('two-phase targeting handlers', () => {
     const ctx = makeSceneCtx();
     ctx.battleState = 'SELECTING_STAFF_ALLY';
     ctx.staffRelocateTargets = [makeAlly()];
-    ctx.selectedUnit = makeHealer(freshStaff('Rescue Staff'));
+    ctx.selectedUnit = makeHealer(freshStaff('Deliverance Staff'));
 
     BattleScene.prototype.handleStaffAllyClick.call(ctx, { col: 0, row: 0 });
 
@@ -276,7 +276,7 @@ describe('two-phase targeting handlers', () => {
 
   it('handleStaffTileClick resolves the relocation for a highlighted tile only', () => {
     const ctx = makeSceneCtx();
-    const staff = freshStaff('Warp Staff');
+    const staff = freshStaff('Fold Staff');
     const healer = makeHealer(staff);
     const ally = makeAlly({ col: 4, row: 5 });
     ctx.selectedUnit = healer;
@@ -293,7 +293,7 @@ describe('two-phase targeting handlers', () => {
 
   it('findHealTargets routes relocate staves through findRelocateTargets (ally targeting)', () => {
     const ctx = makeSceneCtx();
-    const staff = freshStaff('Rescue Staff');
+    const staff = freshStaff('Deliverance Staff');
     const healer = makeHealer(staff);
     const farAlly = makeAlly({ col: 4, row: 7, currentHP: 30 }); // full HP, dist 3
     const adjacentAlly = makeAlly({ name: 'Near', col: 4, row: 5, currentHP: 10 });
@@ -316,7 +316,7 @@ describe('cancel flow', () => {
     ctx.registry = { get: () => ({ playSFX() {} }) };
     ctx.showActionMenu = vi.fn();
     ctx.refreshEndTurnControl = vi.fn();
-    ctx.selectedUnit = makeHealer(freshStaff('Rescue Staff'));
+    ctx.selectedUnit = makeHealer(freshStaff('Deliverance Staff'));
     return ctx;
   }
 

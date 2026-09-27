@@ -79,7 +79,7 @@ it.each(['weapon', 'consumable'])(
     const menu = d.shop.nativeMenu,
       unit = d.run.roster[0];
     const item = structuredClone(
-      type === 'weapon' ? unit.weapon : d.data.consumables.find((i) => i.name === 'Vulnerary'),
+      type === 'weapon' ? unit.weapon : d.data.consumables.find((i) => i.name === 'Poultice'),
     );
     const field = type === 'weapon' ? 'inventory' : 'consumables';
     unit[field] = Array.from({ length: type === 'weapon' ? 5 : 3 }, () => structuredClone(item));

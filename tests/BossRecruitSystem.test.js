@@ -408,12 +408,12 @@ describe('BossRecruitSystem', () => {
       expect(nonLordCandidates.every((c) => c.unit.inventory.length > 1)).toBe(true);
     });
 
-    it('grants non-lord boss candidates a Vulnerary when recruit field supplies is active', () => {
+    it('grants non-lord boss candidates a Poultice when recruit field supplies is active', () => {
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const meta = { recruitStartingVulnerary: 1 };
       const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, meta);
       expect(
-        candidates.every((c) => c.unit.consumables.some((item) => item.name === 'Vulnerary')),
+        candidates.every((c) => c.unit.consumables.some((item) => item.name === 'Poultice')),
       ).toBe(true);
       expect(
         candidates.every((c) =>
@@ -716,11 +716,11 @@ describe('BossRecruitSystem', () => {
       expect(unitWith.stats.DEF).toBe(unitWithout.stats.DEF + 2);
     });
 
-    it('gives a Vulnerary', () => {
+    it('gives a Poultice', () => {
       const lordDef = gameData.lords.find((l) => l.name === 'Kira');
       const classData = gameData.classes.find((c) => c.name === lordDef.class);
       const unit = createBossLordUnit(lordDef, classData, gameData.weapons, 5, null);
-      const vulnerary = unit.consumables.find((c) => c.name === 'Vulnerary');
+      const vulnerary = unit.consumables.find((c) => c.name === 'Poultice');
       expect(vulnerary).toBeTruthy();
       expect(typeof vulnerary?.uid).toBe('string');
       expect(vulnerary?.uid?.length || 0).toBeGreaterThan(0);

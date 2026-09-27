@@ -826,7 +826,7 @@ export function applyRecruitWeaponForge(unit, forgeCount = 0, rng = Math.random)
 
 /**
  * Basic stat accessories a recruit can join with (Outfitted Recruits meta upgrade).
- * Pure stat accessories only — combat-effect accessories and chase items (Boots)
+ * Pure stat accessories only — combat-effect accessories and chase items (Courier's Boots)
  * are excluded.
  */
 export const RECRUIT_STARTING_ACCESSORY_POOL = [
@@ -836,8 +836,8 @@ export const RECRUIT_STARTING_ACCESSORY_POOL = [
   'Shield Ring',
   'Barrier Ring',
   'Skill Ring',
-  'Goddess Icon',
-  'Seraph Robe',
+  'Fatethread Pendant',
+  "Sisters' Mantle",
 ];
 
 /**

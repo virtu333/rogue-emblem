@@ -98,7 +98,7 @@ function promote(unit, item, promotedClassData, gameData) {
       notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
   }
 
-  // Consume the Master Seal
+  // Consume the Sovereign Seal
   item.uses = (item.uses ?? 1) - 1;
   if (item.uses <= 0) {
     removeFromConsumables(unit, item);

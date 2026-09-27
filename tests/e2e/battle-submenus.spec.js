@@ -14,7 +14,7 @@ async function boot(page) {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const u = s.playerUnits.find((u) => u.name === 'Sera') || s.playerUnits[0];
     u.currentHP = 1;
-    u.consumables = [{ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 }];
+    u.consumables = [{ name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 }];
     s.selectUnit(u);
     s.showActionMenu(u);
     window.testUnit = u;
@@ -22,10 +22,10 @@ async function boot(page) {
   return { hud: page.getByRole('complementary', { name: 'Battle commands' }), errors };
 }
 
-test('Vulnerary heals once; resolution rejects repeat activation and cancel', async ({ page }) => {
+test('Poultice heals once; resolution rejects repeat activation and cancel', async ({ page }) => {
   const { hud, errors } = await boot(page);
   await hud.getByRole('button', { name: 'Item', exact: true }).tap();
-  const use = hud.getByRole('button', { name: /^Vulnerary \(3\).*Restore 10 HP/ });
+  const use = hud.getByRole('button', { name: /^Poultice \(3\).*Restore 10 HP/ });
   await expect(use).toBeFocused();
   await page.screenshot({ path: 'test-results/battle-items-se.png' });
   await page.evaluate(() => {
@@ -65,7 +65,7 @@ test('unavailable consumables explain why; keyboard Back and gamepad focus are v
     u.currentHP = u.stats.HP;
   });
   await hud.getByRole('button', { name: 'Item', exact: true }).tap();
-  await expect(hud.getByRole('button', { name: /Vulnerary.*HP already full/ })).toBeDisabled();
+  await expect(hud.getByRole('button', { name: /Poultice.*HP already full/ })).toBeDisabled();
   await page.screenshot({ path: 'test-results/battle-items-disabled-se.png' });
   await expect(
     hud.locator('.mb-actions').getByRole('button', { name: 'Back', exact: true }),

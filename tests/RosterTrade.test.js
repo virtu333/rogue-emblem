@@ -235,7 +235,7 @@ describe('Roster trade copy', () => {
     const axe = makeWeapon('Iron Axe', 'Axe');
     const unitA = makeUnit({ name: 'Edric', type: 'Sword', inventory: [sword], weapon: sword });
     const unitB = makeUnit({ name: 'Bran', type: 'Axe', inventory: [axe], weapon: axe });
-    unitA.consumables = [{ name: 'Vulnerary', type: 'Consumable', uses: 3 }];
+    unitA.consumables = [{ name: 'Poultice', type: 'Consumable', uses: 3 }];
     unitB.consumables = [{ name: 'Elixir', type: 'Consumable', uses: 1 }];
     rm.roster = [unitA, unitB];
     overlay.selection = { type: 'unit', index: 0 };
@@ -251,7 +251,7 @@ describe('Roster trade copy', () => {
     const sword = makeWeapon('Iron Sword', 'Sword');
     const unitA = makeUnit({ name: 'Edric', type: 'Sword', inventory: [sword], weapon: sword });
     const unitB = makeUnit({ name: 'Bran', type: 'Axe', inventory: [], weapon: null });
-    unitA.consumables = [{ name: 'Vulnerary', type: 'Consumable', uses: 3 }];
+    unitA.consumables = [{ name: 'Poultice', type: 'Consumable', uses: 3 }];
     unitB.inventory = undefined;
     unitB.consumables = undefined;
 

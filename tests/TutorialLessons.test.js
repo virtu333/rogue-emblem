@@ -136,7 +136,7 @@ describe('completed tutorial import and explicit reset', () => {
     applyCompletedTutorialHints(nextSlot);
     expect(nextSlot.hasSeen('battle_triangle')).toBe(true);
   });
-  it('uses the actual consumable effect and avoids a hardcoded Vulnerary example', async () => {
+  it('uses the actual consumable effect and avoids a hardcoded Poultice example', async () => {
     const { controller } = fixture();
     await controller.showResourceLesson([
       { item: { type: 'Consumable', name: 'Elixir', effect: 'healFull' } },

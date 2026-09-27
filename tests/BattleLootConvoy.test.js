@@ -111,7 +111,7 @@ describe('battle loot convoy guard', () => {
   it('does not finalize consumable loot pick when convoy add fails', () => {
     const { context, textObjects } = buildBattleContext(false);
     const lootGroup = [makeDisplayObject(), makeDisplayObject()];
-    const item = { name: 'Vulnerary', type: 'Consumable', uses: 3 };
+    const item = { name: 'Poultice', type: 'Consumable', uses: 3 };
 
     BattleScene.prototype.showConsumableUnitPicker.call(context, item, lootGroup, 1);
 

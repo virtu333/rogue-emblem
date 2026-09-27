@@ -63,7 +63,9 @@ test('DOM promotion can cancel, then apply once without the legacy roster', asyn
       scene.gameData.weapons,
       { name: 'Test fighter' },
     );
-    fighter.consumables = [{ name: 'Master Seal', type: 'Consumable', effect: 'promote', uses: 1 }];
+    fighter.consumables = [
+      { name: 'Sovereign Seal', type: 'Consumable', effect: 'promote', uses: 1 },
+    ];
     scene.runManager.roster.unshift(fighter);
   });
   await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();

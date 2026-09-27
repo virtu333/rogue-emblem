@@ -164,7 +164,7 @@ for (const [label, device] of [
         const s = window.__emblemRogueGame.scene.getScene('Battle');
         const deeds = await import('/src/engine/DeedSystem.js');
         const u = s.playerUnits.find((x) => x.name === 'Sera');
-        // A Myrmidon (two paths) who held a bridge, with a Master Seal.
+        // A Myrmidon (two paths) who held a bridge, with a Sovereign Seal.
         Object.assign(u, {
           name: 'Seraphina',
           isLord: false,

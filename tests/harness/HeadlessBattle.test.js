@@ -241,7 +241,7 @@ describe('HeadlessBattle', () => {
     });
 
     expect(metaNpc.inventory.length).toBeGreaterThan(1);
-    expect(metaNpc.consumables.some((item) => item.name === 'Vulnerary')).toBe(true);
+    expect(metaNpc.consumables.some((item) => item.name === 'Poultice')).toBe(true);
     expect(metaNpc.skills.some((skillId) => RECRUIT_SKILL_POOL.includes(skillId))).toBe(true);
     expect(metaNpc.currentHP - controlNpc.currentHP).toBe(2);
   });
@@ -464,7 +464,7 @@ describe('HeadlessBattle', () => {
     }
   });
 
-  it('Promote action requires Master Seal in consumables', () => {
+  it('Promote action requires Sovereign Seal in consumables', () => {
     const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
     battle.init();
     battle.selectUnit('Edric');
@@ -476,7 +476,7 @@ describe('HeadlessBattle', () => {
     let actions = battle.getAvailableActions();
     expect(actions.some((a) => a.label === 'Promote')).toBe(false);
 
-    const seal = gameData.consumables.find((c) => c.name === 'Master Seal');
+    const seal = gameData.consumables.find((c) => c.name === 'Sovereign Seal');
     expect(seal).toBeTruthy();
     edric.consumables.push(structuredClone(seal));
 

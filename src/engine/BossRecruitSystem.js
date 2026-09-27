@@ -278,11 +278,11 @@ export function createBossLordUnit(
     normalizeEquippedFirst(unit);
   }
 
-  // Give a Vulnerary
+  // Give a Poultice
   unit.consumables.push(
     ensureItemUid(
       structuredClone({
-        name: 'Vulnerary',
+        name: 'Poultice',
         type: 'Consumable',
         effect: 'heal',
         value: 10,
@@ -540,7 +540,7 @@ function createRecruitFromPool(
   const growthBonuses = metaEffects?.growthBonuses || null;
   const maybeAddStartingVulnerary = (unit) => {
     if (!metaEffects?.recruitStartingVulnerary) return;
-    const vulnerary = (consumables || []).find((c) => c.name === 'Vulnerary');
+    const vulnerary = (consumables || []).find((c) => c.name === 'Poultice');
     if (vulnerary) unit.consumables.push(ensureItemUid(structuredClone(vulnerary)));
   };
   const applyRecruitJoinBonuses = (unit) => {

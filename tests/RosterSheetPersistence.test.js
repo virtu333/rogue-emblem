@@ -78,11 +78,11 @@ afterEach(() => {
 describe('roster sheet saves each change as it applies', () => {
   it('giving an item to another unit', async () => {
     const { sheet, archer, fighter } = setup();
-    const vulnerary = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
+    const vulnerary = structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'));
     archer.consumables = [vulnerary];
     sheet.giveItem(archer, vulnerary);
     await confirm(sheet, fighter);
-    expect(fighter.consumables.map((c) => c.name)).toContain('Vulnerary');
+    expect(fighter.consumables.map((c) => c.name)).toContain('Poultice');
     expect(archer.consumables).toEqual([]);
     expect(saveServiceRun).toHaveBeenCalledTimes(1);
     sheet.destroy();
@@ -140,7 +140,7 @@ describe('roster sheet saves each change as it applies', () => {
   it('uses the context persist (rewards) instead of a direct save when given', async () => {
     const persist = vi.fn(() => true);
     const { sheet, archer, fighter } = setup({ persist });
-    const vulnerary = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
+    const vulnerary = structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'));
     archer.consumables = [vulnerary];
     sheet.giveItem(archer, vulnerary);
     await confirm(sheet, fighter);

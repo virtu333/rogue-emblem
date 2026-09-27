@@ -1,5 +1,5 @@
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
-// PromotionController -- Master Seal promotion flow extracted from BattleScene.
+// PromotionController -- Sovereign Seal promotion flow extracted from BattleScene.
 // Owns target resolution, the promotion choice panel, applying the promotion,
 // and the banner/popup/dropped-skills sequencing. Cross-cutting seams
 // (showActionMenu, showBriefBanner, showPromotionBanner, finishUnitAction,
@@ -33,7 +33,7 @@ export class PromotionController {
     const scene = this.scene;
     const seal = promotionItem || scene.getPromotionConsumable(unit);
     if (!seal) {
-      await scene.showBriefBanner('Master Seal required to promote.', UI_PALETTE.bad);
+      await scene.showBriefBanner('Sovereign Seal required to promote.', UI_PALETTE.bad);
       scene.battleState = 'UNIT_ACTION_MENU';
       scene.showActionMenu(unit);
       return false;

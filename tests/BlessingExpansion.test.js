@@ -121,7 +121,7 @@ describe('Blessing Expansion v2 � effect handlers', () => {
       .filter((u) => u.isLord)
       .forEach((unit, idx) => {
         expect(unit.consumables.length).toBeGreaterThanOrEqual(lordConsumableCounts[idx]);
-        expect(unit.consumables.some((item) => item.name === 'Vulnerary')).toBe(true);
+        expect(unit.consumables.some((item) => item.name === 'Poultice')).toBe(true);
       });
   });
 

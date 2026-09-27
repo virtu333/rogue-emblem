@@ -1114,7 +1114,7 @@ export function generateShopInventory(
   }
 
   // Guarantee at least one weapon. A single random pick can land on an
-  // unsellable entry (price <= 0, e.g. the Fortify staff in the weapons pool)
+  // unsellable entry (price <= 0, e.g. the Canticle staff in the weapons pool)
   // or an already-used name, which addByName silently rejects — leaving the
   // shop with no weapon. Start at a random index and scan the whole pool so a
   // sellable weapon is added whenever one exists.
@@ -1142,7 +1142,7 @@ export function generateShopInventory(
   // tight 3-4 item count has no room for two more unconditional guarantees
   // on top of the rare-item guarantee above.
   if (!generateOptions?.rareBias) {
-    const guaranteedConsumables = ['Vulnerary', 'Elixir'];
+    const guaranteedConsumables = ['Poultice', 'Elixir'];
     for (const name of guaranteedConsumables) {
       if (usedNames.has(name)) continue;
       const inHealingOrPromotion = [
@@ -1193,11 +1193,11 @@ export function generateShopInventory(
     });
   }
 
-  // Append cure items (Herb + Remedy + Restore staff) if shop cure gating is
+  // Append cure items (Herb + Remedy + Cleanse staff) if shop cure gating is
   // active for this act, so a gated shop always stocks the full reactive kit.
   const shopCureGating = generateOptions?.shopCureGating;
   if (shopCureGating && shopCureGating[actId]) {
-    for (const cureName of ['Herb', 'Remedy', 'Restore']) {
+    for (const cureName of ['Herb', 'Remedy', 'Cleanse']) {
       if (usedNames.has(cureName)) continue;
       const cureItem = findItem(cureName, allWeapons, consumables, allAccessories);
       if (cureItem && cureItem.price > 0) {

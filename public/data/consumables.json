@@ -1,6 +1,6 @@
 [
   {
-    "name": "Vulnerary",
+    "name": "Poultice",
     "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
     "type": "Consumable",
     "effect": "heal",
@@ -18,8 +18,8 @@
     "price": 1500
   },
   {
-    "name": "Master Seal",
-    "lore": "Commission, name line blank. Whoever signs it wakes up promoted, and sore.",
+    "name": "Sovereign Seal",
+    "lore": "The crown's own wax. Whoever signs beneath it wakes up promoted, and sore.",
     "type": "Consumable",
     "effect": "promote",
     "value": 0,
@@ -27,8 +27,8 @@
     "price": 2500
   },
   {
-    "name": "Energy Drop",
-    "lore": "One drop, one dose. Two drops, one fistfight you started. Keep from recruits.",
+    "name": "Mightroot",
+    "lore": "Chew one root, haul one wagon. Chew two, start one fistfight. Keep from recruits.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "STR",
@@ -37,7 +37,7 @@
     "price": 2000
   },
   {
-    "name": "Spirit Dust",
+    "name": "Spellstone Dust",
     "lore": "Ground from a chapel ward-stone. Taken on the tongue, the words come easier.",
     "type": "Consumable",
     "effect": "statBoost",
@@ -47,7 +47,7 @@
     "price": 2000
   },
   {
-    "name": "Secret Book",
+    "name": "Drill Primer",
     "lore": "Margin note in a second hand: page nine is wrong. Do it my way.",
     "type": "Consumable",
     "effect": "statBoost",
@@ -57,7 +57,7 @@
     "price": 2000
   },
   {
-    "name": "Speedwing",
+    "name": "Fleet Plume",
     "lore": "A pegasus pinion that still twitches whenever the wind changes.",
     "type": "Consumable",
     "effect": "statBoost",
@@ -67,7 +67,7 @@
     "price": 2500
   },
   {
-    "name": "Dracoshield",
+    "name": "Wyrmscale",
     "lore": "Genuine dragon scale! Sew it over the heart. No refunds issued to the dead.",
     "type": "Consumable",
     "effect": "statBoost",
@@ -77,7 +77,7 @@
     "price": 2000
   },
   {
-    "name": "Talisman",
+    "name": "Warding Cord",
     "lore": "Knot of red, knot of white, keep the hex-fire off tonight.",
     "type": "Consumable",
     "effect": "statBoost",
@@ -87,7 +87,7 @@
     "price": 2000
   },
   {
-    "name": "Angelic Robe",
+    "name": "Blessed Vestment",
     "lore": "Temple linen, blessed once and holding it still. Wear it under the mail.",
     "type": "Consumable",
     "effect": "statBoost",

@@ -221,14 +221,14 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "special": "Effective vs dark enemies"
     },
     {
-      "name": "Fortify",
+      "name": "Canticle",
       "type": "Staff",
       "rankRequired": "Mast",
       "range": "2",
       "special": "Heals all allies in range, MAG + 5 HP"
     },
     {
-      "name": "Warp Staff",
+      "name": "Fold Staff",
       "type": "Staff",
       "rankRequired": "Mast",
       "range": "1-4",

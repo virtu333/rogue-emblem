@@ -341,8 +341,13 @@ export const RECRUIT_SKILL_POOL = [
   'death_blow',
   'darting_blow',
 ];
-export const STARTING_ACCESSORY_TIERS = [null, 'Goddess Icon', 'Speed Ring', "Veteran's Crest"];
-export const STARTING_STAFF_TIERS = ['Heal', 'Mend', 'Recover'];
+export const STARTING_ACCESSORY_TIERS = [
+  null,
+  'Fatethread Pendant',
+  'Speed Ring',
+  "Veteran's Crest",
+];
+export const STARTING_STAFF_TIERS = ['Heal', 'Solace', 'Remembrance'];
 
 // Biome weights per act (used by template selection)
 // Templates without a biome field are treated as 'grassland'.

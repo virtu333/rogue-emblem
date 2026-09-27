@@ -232,9 +232,9 @@ describe('TutorialBattle', () => {
       expect(edric.level).toBe(3);
     });
 
-    it('Edric has 1 consumable (Vulnerary)', () => {
+    it('Edric has 1 consumable (Poultice)', () => {
       expect(edric.consumables).toHaveLength(1);
-      expect(edric.consumables[0].name).toBe('Vulnerary');
+      expect(edric.consumables[0].name).toBe('Poultice');
     });
 
     it('Sera carries Lightning (equipped) plus the Heal staff', () => {
@@ -250,9 +250,9 @@ describe('TutorialBattle', () => {
       expect(hasStaff).toBe(true);
     });
 
-    it('Sera has 1 consumable (Vulnerary)', () => {
+    it('Sera has 1 consumable (Poultice)', () => {
       expect(sera.consumables).toHaveLength(1);
-      expect(sera.consumables[0].name).toBe('Vulnerary');
+      expect(sera.consumables[0].name).toBe('Poultice');
     });
 
     it('Sera is level 3 with boosted stats', () => {

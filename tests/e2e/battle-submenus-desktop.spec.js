@@ -15,7 +15,7 @@ test('canvas item submenu supports keyboard selection and consumes one charge', 
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const u = s.playerUnits[0];
     u.currentHP = 1;
-    u.consumables = [{ name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 }];
+    u.consumables = [{ name: 'Poultice', effect: 'heal', value: 10, uses: 3 }];
     s.selectUnit(u);
     s.showActionMenu(u);
     s.showItemMenu(u);

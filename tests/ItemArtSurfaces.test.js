@@ -157,7 +157,7 @@ describe('roster sheet', () => {
 describe('battle trade', () => {
   it('every row leads with its item icon', () => {
     const iron = structuredClone(gameData.weapons.find((w) => w.name === 'Iron Bow'));
-    const salve = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
+    const salve = structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'));
     const left = { name: 'Daska', inventory: [iron], consumables: [salve], weapon: iron };
     const right = { name: 'Brom', inventory: [], consumables: [], weapon: null };
     const menu = Object.create(BattleTradeMenu.prototype);
@@ -174,7 +174,7 @@ describe('battle trade', () => {
     const ids = rows.map(
       (r) => r.children.find((c) => c.classList?.contains('ia-icon'))?.dataset.iconId,
     );
-    expect(ids).toEqual(['iron-bow', 'vulnerary']);
+    expect(ids).toEqual(['iron-bow', 'poultice']);
   });
 });
 

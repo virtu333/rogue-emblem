@@ -54,16 +54,16 @@
     "lore": "Pawn ticket still tied on: one ring, fletcher's, redeem by spring. Unredeemed."
   },
   {
-    "name": "Goddess Icon",
+    "name": "Fatethread Pendant",
     "type": "Accessory",
     "effects": {
       "LCK": 8
     },
     "price": 1000,
-    "lore": "Thumbed blank by the dying. The goddess's name was not forgotten; it was spent."
+    "lore": "Strung on shrine thread, thumbed blank by the dying. The goddess's name was spent."
   },
   {
-    "name": "Seraph Robe",
+    "name": "Sisters' Mantle",
     "type": "Accessory",
     "effects": {
       "HP": 5
@@ -72,7 +72,7 @@
     "lore": "Temple sisters sewed it for a son they never had. It fits whoever needs it."
   },
   {
-    "name": "Boots",
+    "name": "Courier's Boots",
     "type": "Accessory",
     "effects": {
       "MOV": 1
@@ -81,7 +81,7 @@
     "lore": "Resoled four times. The courier inside them was never caught, or paid."
   },
   {
-    "name": "Delphi Shield",
+    "name": "Picket Buckler",
     "type": "Accessory",
     "effects": {
       "DEF": 1,

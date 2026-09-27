@@ -508,7 +508,7 @@ export function buildRecruitNodeUnit(opts = {}) {
           metaEffects.recruitStartingAccessory,
         );
       if (metaEffects?.recruitStartingVulnerary) {
-        const vulnerary = (gameData.consumables || []).find((c) => c.name === 'Vulnerary');
+        const vulnerary = (gameData.consumables || []).find((c) => c.name === 'Poultice');
         if (vulnerary) addToConsumables(unit, vulnerary);
       }
       unit.faction = 'npc';

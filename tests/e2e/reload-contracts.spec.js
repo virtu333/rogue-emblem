@@ -215,7 +215,7 @@ for (const action of ['level up', 'promotion']) {
     const hud = page.getByRole('complementary', { name: 'Battle commands' });
     if (action === 'promotion') {
       await hud.getByRole('button', { name: 'Item', exact: true }).tap();
-      await hud.getByRole('button', { name: /^Master Seal/ }).tap();
+      await hud.getByRole('button', { name: /^Sovereign Seal/ }).tap();
     } else {
       // Target first: Attack goes straight to target selection.
       await hud.getByRole('button', { name: 'Attack', exact: true }).tap();
@@ -300,7 +300,7 @@ test('Canto completion survives normal saved-battle resume with village reward a
       u = s.playerUnits[0];
     if (!u.skills.includes('canto')) u.skills.push('canto');
     u.currentHP = Math.max(1, u.stats.HP - 10);
-    u.consumables = [structuredClone(s.gameData.consumables.find((i) => i.name === 'Vulnerary'))];
+    u.consumables = [structuredClone(s.gameData.consumables.find((i) => i.name === 'Poultice'))];
     s.updateHPBar(u);
     const tile = { col: u.col, row: u.row };
     s.battleConfig.villageTile = tile;
@@ -317,7 +317,7 @@ test('Canto completion survives normal saved-battle resume with village reward a
   await tapUnit(page, name);
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
   await hud.getByRole('button', { name: 'Item', exact: true }).tap();
-  await hud.getByRole('button', { name: /^Vulnerary/ }).tap();
+  await hud.getByRole('button', { name: /^Poultice/ }).tap();
   await page.waitForFunction(
     () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'CANTO_MOVING',
   );

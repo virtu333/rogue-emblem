@@ -87,7 +87,7 @@ export function tutorialCoachState(s) {
         ? 'Attack opens a forecast first — nothing happens until you confirm.'
         : canHeal
           ? `${s.selected || 'This unit'} can Heal a wounded ally next to her.`
-          : 'No enemy in reach. Wait ends this move; Item uses a Vulnerary.',
+          : 'No enemy in reach. Wait ends this move; Item uses a Poultice.',
       anchor: { kind: 'hud', hud: canAttack ? 'attack' : 'actions' },
       canSkip: false,
     };
@@ -129,7 +129,7 @@ export function tutorialCoachState(s) {
       id: 'protect',
       chapter: 'fight',
       goal: `Protect ${wounded.name}`,
-      detail: `${wounded.name} is badly hurt. Select ${wounded.name}, then Item → Vulnerary — or pull back out of reach.`,
+      detail: `${wounded.name} is badly hurt. Select ${wounded.name}, then Item → Poultice — or pull back out of reach.`,
       anchor: { kind: 'unit', name: wounded.name },
       canSkip: false,
     };

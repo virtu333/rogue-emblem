@@ -56,7 +56,9 @@ describe('composed names', () => {
 
 describe('the rename table', () => {
   it('every old weapon name is gone from the catalog and every new one is in it', () => {
-    const names = new Set(gameData.weapons.map((w) => w.name));
+    const names = new Set(
+      [...gameData.weapons, ...gameData.consumables, ...gameData.accessories].map((w) => w.name),
+    );
     const stones = new Set((gameData.imbues?.imbues || []).map((i) => i.stone?.name));
     const arts = new Set(gameData.weaponArts.arts.map((a) => a.name));
     for (const [oldName, newName] of Object.entries(ITEM_RENAMES)) {
@@ -277,5 +279,57 @@ describe('revision 2: scrolls, arts and skill grants', () => {
     const save = { itemNamesRevision: 2, scrolls: [{ name: 'Sol Scroll', type: 'Scroll' }] };
     migrateSavedItemNames(save, gameData);
     expect(save.scrolls[0].name).toBe('Sol Scroll');
+  });
+});
+
+describe('revision 2: supplies, gear and staves', () => {
+  const find = (name) =>
+    structuredClone(
+      [...gameData.weapons, ...gameData.consumables, ...gameData.accessories].find(
+        (i) => i.name === name,
+      ),
+    );
+
+  it('renames them wherever a save keeps them, with their new lore', () => {
+    const icon = { ...find('Fatethread Pendant'), name: 'Goddess Icon', lore: 'old line' };
+    const save = {
+      itemNamesRevision: 1,
+      roster: [
+        {
+          name: 'Sera',
+          accessory: icon,
+          consumables: [{ ...find('Poultice'), name: 'Vulnerary' }],
+          inventory: [{ ...find('Solace'), name: 'Mend' }],
+          recruitBlessingGrants: ['supply_blessing:Vulnerary', 'other:Elixir'],
+        },
+      ],
+      convoy: { consumables: [{ ...find('Sovereign Seal'), name: 'Master Seal' }], weapons: [] },
+    };
+    migrateSavedItemNames(save, gameData);
+    const sera = save.roster[0];
+    expect(sera.accessory.name).toBe('Fatethread Pendant');
+    expect(sera.accessory.lore).toBe(find('Fatethread Pendant').lore);
+    expect(sera.consumables[0].name).toBe('Poultice');
+    expect(sera.inventory[0].name).toBe('Solace');
+    expect(sera.recruitBlessingGrants).toEqual(['supply_blessing:Poultice', 'other:Elixir']);
+    expect(save.convoy.consumables[0].name).toBe('Sovereign Seal');
+  });
+
+  it('an old name that is a plain word is renamed only on an item', () => {
+    const save = {
+      itemNamesRevision: 1,
+      menu: { name: 'Restore' },
+      log: [{ name: 'Boots', kind: 'deed' }],
+      bag: [
+        { name: 'Restore', type: 'Staff' },
+        { name: 'Boots', type: 'Accessory' },
+      ],
+      history: [{ itemName: 'Mend' }],
+    };
+    migrateSavedItemNames(save, gameData);
+    expect(save.menu.name).toBe('Restore');
+    expect(save.log[0].name).toBe('Boots');
+    expect(save.bag.map((i) => i.name)).toEqual(['Cleanse', "Courier's Boots"]);
+    expect(save.history[0].itemName).toBe('Solace');
   });
 });

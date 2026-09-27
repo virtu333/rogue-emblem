@@ -109,7 +109,7 @@ async function nodemap(page) {
 
 const shot = (page, name) => page.screenshot({ path: `${outDir}/${name}-${tag}.png` });
 
-// Promotion via the battle Master Seal, frozen at points of the rite.
+// Promotion via the battle Sovereign Seal, frozen at points of the rite.
 async function sealRite(page, { unitIndex = 1 } = {}) {
   await battle(page);
   await page.evaluate((unitIndex) => {
@@ -288,7 +288,7 @@ const flows = {
     await battle(page);
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
-      s.showBriefBanner('Village saved! +300g, Vulnerary sent to convoy', '#95c487');
+      s.showBriefBanner('Village saved! +300g, Poultice sent to convoy', '#95c487');
     });
     await page.waitForTimeout(450);
     await shot(page, 'audit-notice-village');

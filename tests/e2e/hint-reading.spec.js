@@ -62,7 +62,7 @@ test('item-menu teaching hint waits for idle and remains unread until dismissed'
     s._contextualHintBattle = null;
     const unit = s.playerUnits[0];
     unit.consumables = [
-      { ...s.gameData.consumables.find((item) => item.name === 'Vulnerary'), uses: 3 },
+      { ...s.gameData.consumables.find((item) => item.name === 'Poultice'), uses: 3 },
     ];
     s.selectUnit(unit);
     s.showItemMenu(unit);

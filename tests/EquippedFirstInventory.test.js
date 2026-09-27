@@ -330,7 +330,7 @@ describe('staff use is provisional (HealController)', () => {
   });
 
   it('a staff-only unit gets its original staff back on top', () => {
-    const [heal, mend] = [w('Heal'), w('Mend')];
+    const [heal, mend] = [w('Heal'), w('Solace')];
     const u = swordsman([heal, mend]);
     const hc = controller();
     hc.holdStaff(u, mend);

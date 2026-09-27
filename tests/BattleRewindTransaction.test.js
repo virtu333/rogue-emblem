@@ -32,7 +32,7 @@ describe('durable rewind candidate', () => {
       setItem: (k, v) => store.set(k, v),
     });
     const { rm, state } = fixture();
-    state.runBattleState.convoy.consumables = [{ name: 'Vulnerary', uses: 3 }];
+    state.runBattleState.convoy.consumables = [{ name: 'Poultice', uses: 3 }];
     const current = structuredClone(rm.toJSON());
     const prepared = prepareBattleRewind(current, state, { history: { revision: 1 } });
     const result = persistBattleRewind(prepared, (candidate) =>

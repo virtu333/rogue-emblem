@@ -502,7 +502,7 @@ describe('battlefield presentation integration', () => {
     const origin = { col: a.col, row: a.row };
     rememberHistoryPath(scene, a, [origin, { col: a.col + 1, row: a.row }]);
     a.col++;
-    const item = { name: 'Vulnerary', uses: 3 };
+    const item = { name: 'Poultice', uses: 3 };
     a.consumables = [item];
     c.consumables = [];
     scene.battleState = 'TRADING';

@@ -59,10 +59,10 @@ const REVISION_1 = {
 };
 
 /**
- * Revision 2 (2026-09-27): skills and arts move off Fire Emblem's names. Skills
- * are saved by id, so only the scrolls that teach them and the arts (whose names
- * battle history keeps) are renamed here; old skill names left in a saved
- * battle log stay as they were.
+ * Revision 2 (2026-09-27): skills, arts, supplies, gear and staves move off Fire
+ * Emblem's names. Skills are saved by id, so only the scrolls that teach them and
+ * the arts (whose names battle history keeps) are renamed here; old skill names
+ * left in a saved battle log stay as they were.
  */
 const REVISION_2 = {
   // Scrolls, named for the skill or art they teach (skill and art ids are unchanged).
@@ -127,7 +127,44 @@ const REVISION_2 = {
   Nosferatu: 'Grave Hunger',
   Seraphim: 'Scouring Fire',
   'Galeforce Assault': 'Oathstorm',
+  // Supplies, gear and staves (owner review of the naming ledger, round two).
+  Vulnerary: 'Poultice',
+  'Master Seal': 'Sovereign Seal',
+  'Energy Drop': 'Mightroot',
+  'Spirit Dust': 'Spellstone Dust',
+  'Secret Book': 'Drill Primer',
+  Speedwing: 'Fleet Plume',
+  Dracoshield: 'Wyrmscale',
+  Talisman: 'Warding Cord',
+  'Angelic Robe': 'Blessed Vestment',
+  'Goddess Icon': 'Fatethread Pendant',
+  'Seraph Robe': "Sisters' Mantle",
+  Boots: "Courier's Boots",
+  'Delphi Shield': 'Picket Buckler',
+  Mend: 'Solace',
+  Recover: 'Remembrance',
+  Physic: 'Farcall',
+  Fortify: 'Canticle',
+  Restore: 'Cleanse',
+  'Rescue Staff': 'Deliverance Staff',
+  'Warp Staff': 'Fold Staff',
+  'Sleep Staff': 'Lullaby Staff',
+  'Silence Staff': 'Hush Staff',
 };
+
+/**
+ * Old names that are also plain words ("Restore", "Boots"): renamed only on an
+ * item (or in an item-only field), never on some other named thing in a save.
+ */
+const PLAIN_WORD_NAMES = new Set([
+  'Mend',
+  'Recover',
+  'Physic',
+  'Fortify',
+  'Restore',
+  'Boots',
+  'Talisman',
+]);
 
 /** Every rename, old name -> new name. No new name is another rename's old name. */
 export const ITEM_RENAMES = Object.freeze({ ...REVISION_1, ...REVISION_2 });
@@ -228,7 +265,11 @@ function refreshFromCatalog(item, catalog) {
 export function renameItemsDeep(root, gameData = null) {
   const catalog = gameData
     ? new Map(
-        [...(gameData.weapons || []), ...(gameData.consumables || [])].map((w) => [w.name, w]),
+        [
+          ...(gameData.weapons || []),
+          ...(gameData.consumables || []),
+          ...(gameData.accessories || []),
+        ].map((w) => [w.name, w]),
       )
     : null;
   const renamedTargets = new Set(Object.values(ITEM_RENAMES));
@@ -248,6 +289,12 @@ export function renameItemsDeep(root, gameData = null) {
     for (const key of Object.keys(node)) {
       const value = node[key];
       if (typeof value === 'string' && NAME_KEYS.has(key)) {
+        if (
+          key === 'name' &&
+          PLAIN_WORD_NAMES.has(value.replace(/\s\+\d+$/, '')) &&
+          !isItemLike(node)
+        )
+          continue;
         const next = renameItemName(value, { imbueId, knownBases });
         if (next !== value) {
           node[key] = next;
@@ -267,6 +314,16 @@ export function renameItemsDeep(root, gameData = null) {
           value.$ = next;
           changed += 1;
         }
+      } else if (key === 'recruitBlessingGrants' && Array.isArray(value)) {
+        // "blessingId:Item Name" keys: a renamed item must not be granted twice.
+        node[key] = value.map((grant) => {
+          if (typeof grant !== 'string') return grant;
+          const at = grant.indexOf(':');
+          const next =
+            at < 0 ? grant : grant.slice(0, at + 1) + renameItemName(grant.slice(at + 1));
+          if (next !== grant) changed += 1;
+          return next;
+        });
       } else if (value && typeof value === 'object') visit(value, depth + 1);
     }
     // A weapon that grants a skill names the skill in its special.

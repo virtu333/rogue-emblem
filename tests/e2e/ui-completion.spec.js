@@ -121,14 +121,14 @@ test('battle trade transfers once and commits movement; rewind confirmation is n
     const [a, b] = s.playerUnits;
     b.consumables = [];
     a.consumables = [
-      { name: 'Test Vulnerary', type: 'Consumable', effect: 'heal', uses: 3, value: 10 },
+      { name: 'Test Poultice', type: 'Consumable', effect: 'heal', uses: 3, value: 10 },
     ];
     s.selectUnit(a);
     s.showBattleTradeUI(a, b);
   });
   const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
-  await trade.getByRole('button', { name: /Test Vulnerary.*Give to/ }).tap();
-  await trade.getByRole('button', { name: /^Give Test Vulnerary/ }).tap();
+  await trade.getByRole('button', { name: /Test Poultice.*Give to/ }).tap();
+  await trade.getByRole('button', { name: /^Give Test Poultice/ }).tap();
   expect(
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');

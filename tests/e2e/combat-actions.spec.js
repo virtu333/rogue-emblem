@@ -148,7 +148,7 @@ test('Heal restores HP and re-equips combat weapon', async ({ page }) => {
   expect((await unit(page, 'Patient')).hp).toBeGreaterThan(10);
   expect(errors).toEqual([]);
 });
-for (const staff of ['Warp Staff', 'Rescue Staff']) {
+for (const staff of ['Fold Staff', 'Deliverance Staff']) {
   test(`${staff}: cancel destination costs nothing; valid destination spends one use`, async ({
     page,
   }) => {
@@ -156,7 +156,7 @@ for (const staff of ['Warp Staff', 'Rescue Staff']) {
     await select(page, 'Sera');
     await hud.getByRole('button', { name: /^Heal \(/ }).tap();
     await hud.getByRole('button', { name: new RegExp(staff) }).tap();
-    const target = staff === 'Warp Staff' ? [2, 4] : [4, 4];
+    const target = staff === 'Fold Staff' ? [2, 4] : [4, 4];
     await tapTile(page, ...target);
     await page.keyboard.press('Escape');
     expect((await unit(page, 'Sera')).acted).toBe(false);
@@ -177,7 +177,7 @@ for (const staff of ['Warp Staff', 'Rescue Staff']) {
     );
     await tapTile(page, dest.col, dest.row);
     await expect.poll(async () => (await unit(page, 'Sera')).acted).toBe(true);
-    expect(await unit(page, staff === 'Warp Staff' ? 'Patient' : 'Utility')).toMatchObject({
+    expect(await unit(page, staff === 'Fold Staff' ? 'Patient' : 'Utility')).toMatchObject({
       col: dest.col,
       row: dest.row,
     });
@@ -227,7 +227,7 @@ test('Dance refreshes a spent ally, Restore cures a condition', async ({ page })
   ).toEqual([]);
   expect(errors).toEqual([]);
 });
-for (const staff of ['Heal', 'Warp Staff', 'Rescue Staff']) {
+for (const staff of ['Heal', 'Fold Staff', 'Deliverance Staff']) {
   test(`Backing out of ${staff} targeting restores the combat weapon before Wait`, async ({
     page,
   }) => {

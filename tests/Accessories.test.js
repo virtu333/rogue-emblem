@@ -48,7 +48,7 @@ describe('Accessories', () => {
       const unit = makeUnit();
       const origStats = { ...unit.stats };
       const delphi = {
-        name: 'Delphi Shield',
+        name: 'Picket Buckler',
         type: 'Accessory',
         effects: { DEF: 1, RES: 1 },
         combatEffects: { negateFlierWeakness: true },
@@ -76,7 +76,7 @@ describe('Accessories', () => {
 
     it('clamps currentHP when unequipping HP accessory', () => {
       const unit = makeUnit();
-      const robe = { name: 'Seraph Robe', type: 'Accessory', effects: { HP: 5 }, price: 2000 };
+      const robe = { name: "Sisters' Mantle", type: 'Accessory', effects: { HP: 5 }, price: 2000 };
       equipAccessory(unit, robe);
       // Damage unit so currentHP is at the new max
       unit.currentHP = unit.stats.HP;
@@ -87,7 +87,12 @@ describe('Accessories', () => {
     it('applies MOV bonus correctly', () => {
       const unit = makeUnit();
       const origMOV = unit.stats.MOV;
-      const boots = { name: 'Boots', type: 'Accessory', effects: { MOV: 1 }, price: 3000 };
+      const boots = {
+        name: "Courier's Boots",
+        type: 'Accessory',
+        effects: { MOV: 1 },
+        price: 3000,
+      };
       equipAccessory(unit, boots);
       expect(unit.stats.MOV).toBe(origMOV + 1);
       unequipAccessory(unit);

@@ -247,7 +247,7 @@ describe('reward item art', () => {
     expect(itemIconId({ type: 'weapon', item: { name: 'Steel Sword', type: 'Sword' } })).toBe(
       'steel-sword',
     );
-    expect(itemIconId({ type: 'consumable', item: { name: 'Speedwing', type: 'Consumable' } })).toBe('speedwing'); // prettier-ignore
+    expect(itemIconId({ type: 'consumable', item: { name: 'Fleet Plume', type: 'Consumable' } })).toBe('fleet-plume'); // prettier-ignore
     expect(itemIconId({ type: 'accessory', item: { name: "Veteran's Crest", type: 'Accessory' } })).toBe('veterans-crest'); // prettier-ignore
     expect(itemIconId({ type: 'consumable', item: { name: 'Herb', type: 'Consumable', effect: 'cure' } })).toBe('herb'); // prettier-ignore
     expect(itemIconId({ type: 'forge', item: { name: 'Prismatic Stone', type: 'Whetstone' } })).toBe('prismatic-stone'); // prettier-ignore

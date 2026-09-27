@@ -95,7 +95,7 @@ for (const mobile of [true, false]) {
       await page.evaluate(() => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
         s.playerUnits.find((u) => u.name === 'Edric').consumables = [
-          structuredClone(s.gameData.consumables.find((i) => i.name === 'Vulnerary')),
+          structuredClone(s.gameData.consumables.find((i) => i.name === 'Poultice')),
         ];
         s.playerUnits.find((u) => u.name === 'Sera').consumables = [];
       });
@@ -106,8 +106,8 @@ for (const mobile of [true, false]) {
       );
       await action(page, 'Trade', mobile);
       await tile(page, 2, 3, mobile);
-      await page.getByRole('button', { name: /^Vulnerary/ }).click();
-      await page.getByRole('button', { name: 'Give Vulnerary to Sera', exact: true }).click();
+      await page.getByRole('button', { name: /^Poultice/ }).click();
+      await page.getByRole('button', { name: 'Give Poultice to Sera', exact: true }).click();
       await page.getByRole('button', { name: 'Done', exact: true }).click();
       await action(page, 'Trade', mobile);
       await back(page, mobile);
@@ -154,7 +154,7 @@ test.describe('phone Canto and rewind contracts', () => {
         u.skills.push('canto');
         u.currentHP -= 10;
         u.consumables = [
-          structuredClone(s.gameData.consumables.find((i) => i.name === 'Vulnerary')),
+          structuredClone(s.gameData.consumables.find((i) => i.name === 'Poultice')),
         ];
         s.updateHPBar(u);
         s.battleConfig.villageTile = pos;
@@ -165,7 +165,7 @@ test.describe('phone Canto and rewind contracts', () => {
           s.gameData.terrain.findIndex((t) => t.name === 'Village'),
         );
         s._villageController._renderMarker();
-        // The injected loadout (a fresh Vulnerary instance) is fixture state that belongs
+        // The injected loadout (a fresh Poultice instance) is fixture state that belongs
         // to the turn start, not a free bag change between activations: rewind
         // fingerprints items by identity, so record it as the turn-start point.
         s._timelineBoundary = 'turn_start';
@@ -177,7 +177,7 @@ test.describe('phone Canto and rewind contracts', () => {
       await action(page, 'Item', true);
       await page
         .getByRole('complementary', { name: 'Battle commands' })
-        .getByRole('button', { name: /^Vulnerary/ })
+        .getByRole('button', { name: /^Poultice/ })
         .tap();
       await page.waitForFunction(
         () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'CANTO_MOVING',

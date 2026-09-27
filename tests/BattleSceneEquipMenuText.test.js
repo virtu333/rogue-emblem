@@ -143,7 +143,7 @@ describe('BattleScene equip menu text', () => {
       inventory: [equipped, secondary],
       stats: { HP: 20 },
       currentHP: 10,
-      consumables: [{ name: 'Vulnerary', type: 'Consumable', effect: 'heal', uses: 3 }],
+      consumables: [{ name: 'Poultice', type: 'Consumable', effect: 'heal', uses: 3 }],
       skills: [],
     };
     scene.selectedUnit = unit;
@@ -392,7 +392,7 @@ describe('BattleScene equip menu text', () => {
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
 
     const heal = { name: 'Heal', type: 'Staff', uses: 3, _usesSpent: 0 };
-    const physic = { name: 'Physic', type: 'Staff', uses: 1, _usesSpent: 0 };
+    const physic = { name: 'Farcall', type: 'Staff', uses: 1, _usesSpent: 0 };
     const ally = { name: 'Ally' };
 
     scene.getUsableStaves = vi.fn(() => [heal, physic]);
@@ -425,7 +425,7 @@ describe('BattleScene equip menu text', () => {
     scene.startHealTargetSelection = vi.fn();
 
     const heal = { name: 'Heal', type: 'Staff', uses: 3, _usesSpent: 0 };
-    const physic = { name: 'Physic', type: 'Staff', uses: 1, _usesSpent: 0 };
+    const physic = { name: 'Farcall', type: 'Staff', uses: 1, _usesSpent: 0 };
     const ally = { name: 'Ally' };
 
     scene.getUsableStaves = vi.fn(() => [heal, physic]);
@@ -459,7 +459,7 @@ describe('BattleScene equip menu text', () => {
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
 
     const rescue = {
-      name: 'Rescue Staff',
+      name: 'Deliverance Staff',
       type: 'Staff',
       relocate: 'rescue',
       uses: 2,
@@ -494,7 +494,7 @@ describe('BattleScene equip menu text', () => {
     scene.startHealTargetSelection = vi.fn();
 
     const rescue = {
-      name: 'Rescue Staff',
+      name: 'Deliverance Staff',
       type: 'Staff',
       relocate: 'rescue',
       uses: 2,
@@ -532,7 +532,7 @@ describe('BattleScene equip menu text', () => {
 
     const heal = { name: 'Heal', type: 'Staff', uses: 3, _usesSpent: 0 };
     const rescue = {
-      name: 'Rescue Staff',
+      name: 'Deliverance Staff',
       type: 'Staff',
       relocate: 'rescue',
       uses: 2,

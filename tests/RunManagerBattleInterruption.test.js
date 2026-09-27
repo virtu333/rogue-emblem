@@ -218,7 +218,7 @@ describe('RunManager suspended battle (anti-refresh)', () => {
       rm.battleInProgress.visionCountAtEntry = 0;
       rm.battleInProgress.rngSeedAtEntry = 1111;
       if (villageUid)
-        rm.addToConvoy({ name: 'Vulnerary', type: 'Consumable', uses: 3, uid: villageUid });
+        rm.addToConvoy({ name: 'Poultice', type: 'Consumable', uses: 3, uid: villageUid });
       rm.setBattleCheckpoint(
         makeCheckpoint({
           villageState: villageUid ? { status: 'visited', rewardItemUid: villageUid } : null,
@@ -296,7 +296,7 @@ describe('RunManager suspended battle (anti-refresh)', () => {
       rm.gold = 500;
       rm.beginBattleInProgress('node_3');
       rm.gold = 900;
-      rm.addToConvoy({ name: 'Vulnerary', type: 'Consumable', uses: 3, uid: 'mid-battle' });
+      rm.addToConvoy({ name: 'Poultice', type: 'Consumable', uses: 3, uid: 'mid-battle' });
       rm.setBattleCheckpoint(makeCheckpoint({ version: 2 }));
 
       expect(rm.revertBattleInProgressToEntry()).toBe(true);

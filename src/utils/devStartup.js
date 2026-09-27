@@ -264,7 +264,7 @@ function createRunPreset(gameData, meta, config) {
       { type: 'Light', rank: 'Prof' },
       { type: 'Staff', rank: 'Mast' },
     ];
-    sera.inventory = ['Glimmer', 'Heal', 'Restore', 'Rescue Staff', 'Warp Staff'].map(item);
+    sera.inventory = ['Glimmer', 'Heal', 'Cleanse', 'Deliverance Staff', 'Fold Staff'].map(item);
     sera.weapon = sera.inventory[0];
     for (const [name, className, skills] of [
       ['Utility', 'Mage', ['blink', 'rally_cry_skill', 'healing_circle', 'ensnare']],

@@ -363,7 +363,7 @@ describe('bounded battle timeline', () => {
           weaponType: 'Axe',
         })),
         consumables: Array.from({ length: 3 }, (_, i) => ({
-          name: 'Vulnerary',
+          name: 'Poultice',
           uid: `c${index}-${i}`,
           uses: 3,
         })),

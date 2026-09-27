@@ -896,7 +896,7 @@
   {
     "id": "starting_vulnerary",
     "name": "Field Supplies",
-    "description": "Extra Vulnerary for lord at start",
+    "description": "Extra Poultice for lord at start",
     "category": "economy",
     "maxLevel": 1,
     "costs": [
@@ -1234,7 +1234,7 @@
   {
     "id": "recruit_field_supplies",
     "name": "Field Supplies II",
-    "description": "Recruits start with a Vulnerary",
+    "description": "Recruits start with a Poultice",
     "category": "capacity",
     "maxLevel": 1,
     "costs": [

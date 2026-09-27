@@ -23,7 +23,7 @@ describe('itemUid', () => {
 
   it('uid survives structuredClone and JSON round-trip', () => {
     _resetUidCounter();
-    const item = ensureItemUid({ name: 'Vulnerary', type: 'Consumable' });
+    const item = ensureItemUid({ name: 'Poultice', type: 'Consumable' });
     const cloned = structuredClone(item);
     const roundTripped = JSON.parse(JSON.stringify(item));
     expect(cloned.uid).toBe(item.uid);

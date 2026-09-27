@@ -15,7 +15,7 @@ const data = loadGameData();
 const clone = (value) => structuredClone(value);
 let run, unit;
 const sword = () => clone(data.weapons.find((item) => item.name === 'Iron Sword'));
-const supply = () => clone(data.consumables.find((item) => item.name === 'Vulnerary'));
+const supply = () => clone(data.consumables.find((item) => item.name === 'Poultice'));
 const entryFor = (item, type = item.type === 'Consumable' ? 'consumable' : 'weapon') => ({
   item,
   type,

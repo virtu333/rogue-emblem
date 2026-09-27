@@ -769,8 +769,8 @@
     "price": 300
   },
   {
-    "name": "Mend",
-    "lore": "Triage, day nine: two mends left. Chose the one still arguing.",
+    "name": "Solace",
+    "lore": "Triage, day nine: two charges left. Chose the one still arguing.",
     "type": "Staff",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -786,7 +786,7 @@
     "price": 1500
   },
   {
-    "name": "Physic",
+    "name": "Farcall",
     "lore": "Let it reach the ones I cannot run to. Let it reach them first.",
     "type": "Staff",
     "tier": "Silver",
@@ -813,7 +813,7 @@
     "price": 4000
   },
   {
-    "name": "Recover",
+    "name": "Remembrance",
     "lore": "Closes the wound and breaks the fever. Leaves the dreams where it found them.",
     "type": "Staff",
     "tier": "Silver",
@@ -830,7 +830,7 @@
     "price": 4000
   },
   {
-    "name": "Restore",
+    "name": "Cleanse",
     "lore": "Cures sleep, silence, venom. Does not cure the sergeant who got you into it.",
     "type": "Staff",
     "tier": "Steel",
@@ -847,7 +847,7 @@
     "price": 1200
   },
   {
-    "name": "Fortify",
+    "name": "Canticle",
     "lore": "The last page of the healing rite: everyone, at once, and let the cost be mine.",
     "type": "Staff",
     "tier": "Legend",
@@ -865,7 +865,7 @@
     "price": 0
   },
   {
-    "name": "Sleep Staff",
+    "name": "Lullaby Staff",
     "lore": "Hush now, soldier, down you lie; wake when struck or wake to die.",
     "type": "Staff",
     "tier": "Rare",
@@ -882,7 +882,7 @@
     "price": 0
   },
   {
-    "name": "Silence Staff",
+    "name": "Hush Staff",
     "lore": "It does not still the tongue. It convinces the world not to listen.",
     "type": "Staff",
     "tier": "Rare",
@@ -899,7 +899,7 @@
     "price": 0
   },
   {
-    "name": "Rescue Staff",
+    "name": "Deliverance Staff",
     "lore": "'I was winning!' 'You were surrounded.' 'Tactically winning.'",
     "type": "Staff",
     "tier": "Steel",
@@ -926,7 +926,7 @@
     "price": 2400
   },
   {
-    "name": "Warp Staff",
+    "name": "Fold Staff",
     "lore": "Banned by the war colleges: marching is doctrine, not a suggestion.",
     "type": "Staff",
     "tier": "Legend",

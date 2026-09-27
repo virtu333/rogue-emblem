@@ -126,8 +126,8 @@ describe('StatusConditionSystem', () => {
   describe('isStatusStaff / isHealStaff', () => {
     it('classifies status staves from game data', () => {
       const gd = loadGameData();
-      const sleepStaff = gd.weapons.find((w) => w.name === 'Sleep Staff');
-      const silenceStaff = gd.weapons.find((w) => w.name === 'Silence Staff');
+      const sleepStaff = gd.weapons.find((w) => w.name === 'Lullaby Staff');
+      const silenceStaff = gd.weapons.find((w) => w.name === 'Hush Staff');
       const healStaff = gd.weapons.find((w) => w.name === 'Heal');
       expect(isStatusStaff(sleepStaff)).toBe(true);
       expect(isStatusStaff(silenceStaff)).toBe(true);
@@ -341,10 +341,10 @@ describe('StatusConditionSystem', () => {
 
   // --- Data integrity ---
   describe('data integrity', () => {
-    it('Sleep Staff and Silence Staff exist in weapons.json with correct fields', () => {
+    it('Lullaby Staff and Hush Staff exist in weapons.json with correct fields', () => {
       const gd = loadGameData();
-      const sleepStaff = gd.weapons.find((w) => w.name === 'Sleep Staff');
-      const silenceStaff = gd.weapons.find((w) => w.name === 'Silence Staff');
+      const sleepStaff = gd.weapons.find((w) => w.name === 'Lullaby Staff');
+      const silenceStaff = gd.weapons.find((w) => w.name === 'Hush Staff');
 
       expect(sleepStaff).toBeDefined();
       expect(sleepStaff.type).toBe('Staff');

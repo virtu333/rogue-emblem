@@ -138,9 +138,9 @@ describe('victory records', () => {
 });
 
 describe('Oaths', () => {
-  it('roster Master Seal swears the Oath and reports it', () => {
+  it('roster Sovereign Seal swears the Oath and reports it', () => {
     const unit = withDeed(fighter(), bridge);
-    const seal = { name: 'Master Seal', type: 'Consumable', effect: 'promote', uses: 1 };
+    const seal = { name: 'Sovereign Seal', type: 'Consumable', effect: 'promote', uses: 1 };
     unit.consumables = [seal];
     const target = resolvePromotionTargets(unit, data.classes, data.lords)[0];
     const result = applyRosterClassChange({ roster: [unit] }, unit, seal, target, data);
@@ -182,7 +182,7 @@ describe('Oaths', () => {
     });
   });
 
-  it('battle Master Seal: the PromotionController applies the Oath with the promotion', async () => {
+  it('battle Sovereign Seal: the PromotionController applies the Oath with the promotion', async () => {
     vi.resetModules();
     const { PromotionController } = await import('../src/ui/PromotionController.js');
     const edric = createLordUnit(data.lords.find((l) => l.name === 'Edric'), data.classes, data.weapons); // prettier-ignore

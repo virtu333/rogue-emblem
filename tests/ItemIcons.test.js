@@ -89,7 +89,7 @@ describe('item icon coverage', () => {
     expect(itemIconMeta('iron-sword')).toMatchObject({ socket: 'weapon', rim: 'Iron' });
     expect(itemIconMeta('ragnarok')).toMatchObject({ socket: 'weapon', rim: 'Legend' });
     expect(itemIconMeta('reclaim-scroll')).toMatchObject({ socket: 'scroll', rim: 'Rare' });
-    expect(itemIconMeta('vulnerary').socket).toBe('supply');
+    expect(itemIconMeta('poultice').socket).toBe('supply');
     expect(itemIconMeta('gamblers-coin').socket).toBe('accessory');
     expect(itemIconMeta('mentors-band').rim).toBe('Legend');
     expect(itemIconMeta('silver-whetstone').socket).toBe('forge');

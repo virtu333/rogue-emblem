@@ -135,7 +135,7 @@ describe('base line', () => {
     expect(itemBaseLine(weapon('Sunder Bow'))).toBe('Rare Bow');
     expect(itemBaseLine(weapon('Conflagration'))).toBe('Tome');
     expect(itemBaseLine(weapon('Endword'))).toBe('Relic Light Tome');
-    expect(itemBaseLine(weapon('Mend'))).toBe('Staff');
+    expect(itemBaseLine(weapon('Solace'))).toBe('Staff');
   });
 
   it('is left out when the name already says it', () => {

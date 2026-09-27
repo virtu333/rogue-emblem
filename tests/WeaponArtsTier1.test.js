@@ -255,7 +255,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
 
     it("Hermit's Bow is bound while Fortify remains unbound", () => {
       const doublebow = gameData.weapons.find((w) => w.name === "Hermit's Bow");
-      const fortify = gameData.weapons.find((w) => w.name === 'Fortify');
+      const fortify = gameData.weapons.find((w) => w.name === 'Canticle');
       expect(doublebow.weaponArtIds).toContain('legend_starfall_volley');
       expect(fortify.weaponArtIds).toBeUndefined();
     });

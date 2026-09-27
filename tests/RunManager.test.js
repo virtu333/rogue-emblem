@@ -163,7 +163,7 @@ describe('RunManager', () => {
       }
     });
 
-    it('extra starter receives a Vulnerary when recruit_field_supplies is active', () => {
+    it('extra starter receives a Poultice when recruit_field_supplies is active', () => {
       const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
       try {
         const rmMeta = new RunManager(gameData, {
@@ -172,7 +172,7 @@ describe('RunManager', () => {
         });
         rmMeta.startRun();
         const extra = rmMeta.roster[2];
-        expect(extra.consumables.some((c) => c.name === 'Vulnerary')).toBe(true);
+        expect(extra.consumables.some((c) => c.name === 'Poultice')).toBe(true);
       } finally {
         randomSpy.mockRestore();
       }
@@ -495,7 +495,7 @@ describe('RunManager', () => {
         inventory: [weapon],
         weapon: weapon,
         skills: ['sol'],
-        consumables: [{ name: 'Vulnerary', uses: 3 }],
+        consumables: [{ name: 'Poultice', uses: 3 }],
         proficiencies: [{ type: 'Sword', rank: 'Prof' }],
         accessory: { name: 'Power Ring', effects: { STR: 2 } },
         graphic: null,
@@ -764,10 +764,10 @@ describe('RunManager', () => {
       const roster = rm.getRoster();
       roster[1].inventory = [staff];
       roster[1].weapon = staff;
-      roster[1].consumables = [{ name: 'Vulnerary', uses: 1 }];
+      roster[1].consumables = [{ name: 'Poultice', uses: 1 }];
       rm.roster = roster.map(serializeUnit);
       rm.convoy.weapons = [{ ...staff }];
-      rm.convoy.consumables = [{ name: 'Vulnerary', uses: 2 }];
+      rm.convoy.consumables = [{ name: 'Poultice', uses: 2 }];
       const before = RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), gameData);
       expect(before.roster[1].inventory[0]._usesSpent).toBe(3);
       expect(before.convoy.weapons[0]._usesSpent).toBe(3);
@@ -1413,12 +1413,12 @@ describe('RunManager', () => {
     it('stores weapons and consumables in separate convoy pools', () => {
       rm.startRun();
       const sword = gameData.weapons.find((w) => w.name === 'Iron Sword');
-      const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
+      const vuln = gameData.consumables.find((c) => c.name === 'Poultice');
       expect(rm.addToConvoy(sword)).toBe(true);
       expect(rm.addToConvoy(vuln)).toBe(true);
       expect(rm.getConvoyCounts()).toEqual({ weapons: 1, consumables: 1 });
       expect(rm.convoy.weapons[0].name).toBe('Iron Sword');
-      expect(rm.convoy.consumables[0].name).toBe('Vulnerary');
+      expect(rm.convoy.consumables[0].name).toBe('Poultice');
     });
 
     it('takeFromConvoy removes and returns an item', () => {
@@ -1474,7 +1474,7 @@ describe('RunManager', () => {
     it('toJSON/fromJSON preserves convoy data', () => {
       rm.startRun();
       const sword = gameData.weapons.find((w) => w.name === 'Iron Sword');
-      const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
+      const vuln = gameData.consumables.find((c) => c.name === 'Poultice');
       rm.addToConvoy(sword);
       rm.addToConvoy(vuln);
       const restored = RunManager.fromJSON(rm.toJSON(), gameData);
@@ -2233,13 +2233,13 @@ describe('RunManager', () => {
       expect(lightWeapons[0].name).toBe('Glimmer');
     });
 
-    it('starting_accessory equips Goddess Icon on Edric at tier 1', () => {
+    it('starting_accessory equips Fatethread Pendant on Edric at tier 1', () => {
       const metaEffects = { startingAccessoryTier: 1 };
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const edric = rmMeta.roster[0];
       expect(edric.accessory).toBeTruthy();
-      expect(edric.accessory.name).toBe('Goddess Icon');
+      expect(edric.accessory.name).toBe('Fatethread Pendant');
     });
 
     it("starting_accessory tier 3 equips Veteran's Crest", () => {
@@ -2255,7 +2255,7 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const sera = rmMeta.roster[1];
-      expect(sera.inventory.some((w) => w.name === 'Mend')).toBe(true);
+      expect(sera.inventory.some((w) => w.name === 'Solace')).toBe(true);
       expect(sera.inventory.some((w) => w.name === 'Heal')).toBe(false);
     });
 
@@ -2264,7 +2264,7 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const sera = rmMeta.roster[1];
-      expect(sera.inventory.some((w) => w.name === 'Recover')).toBe(true);
+      expect(sera.inventory.some((w) => w.name === 'Remembrance')).toBe(true);
     });
 
     it('startingReclassSeal adds one Infantry Seal to convoy at run start', () => {
@@ -2372,8 +2372,7 @@ describe('Fallen unit tracking and revival', () => {
       gameData.weapons.find((w) => w.type === profType && w.name !== weaponA?.name) ||
       gameData.weapons.find((w) => w.type === 'Sword' && w.name !== weaponA?.name) ||
       weaponA;
-    const vuln =
-      gameData.consumables.find((c) => c.name === 'Vulnerary') || gameData.consumables[0];
+    const vuln = gameData.consumables.find((c) => c.name === 'Poultice') || gameData.consumables[0];
     const accessory = gameData.accessories[0];
 
     const fallen = structuredClone(rm.roster[0]);
@@ -2404,8 +2403,7 @@ describe('Fallen unit tracking and revival', () => {
     const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
 
     const sword = gameData.weapons.find((w) => w.type === 'Sword') || gameData.weapons[0];
-    const vuln =
-      gameData.consumables.find((c) => c.name === 'Vulnerary') || gameData.consumables[0];
+    const vuln = gameData.consumables.find((c) => c.name === 'Poultice') || gameData.consumables[0];
     const caps = rm.getConvoyCapacities();
     for (let i = 0; i < caps.weapons; i++) rm.addToConvoy(sword);
     for (let i = 0; i < caps.consumables; i++) rm.addToConvoy(vuln);
@@ -2440,8 +2438,7 @@ describe('Fallen unit tracking and revival', () => {
     const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
 
     const sword = gameData.weapons.find((w) => w.type === 'Sword') || gameData.weapons[0];
-    const vuln =
-      gameData.consumables.find((c) => c.name === 'Vulnerary') || gameData.consumables[0];
+    const vuln = gameData.consumables.find((c) => c.name === 'Poultice') || gameData.consumables[0];
     const caps = rm.getConvoyCapacities();
     for (let i = 0; i < caps.weapons; i++) rm.addToConvoy(sword);
 
@@ -2837,7 +2834,7 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     const unit = json.roster[0];
     // Inject a Consumable at inventory[0] to simulate pre-migration save
     const vuln = {
-      name: 'Vulnerary',
+      name: 'Poultice',
       type: 'Consumable',
       effect: 'heal',
       value: 10,

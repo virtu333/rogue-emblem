@@ -173,8 +173,8 @@ function simulateRunEconomy(strategy, metaLevel) {
         const shopInv = generateShopInventory(act, data.lootTables, data.weapons, data.consumables);
 
         if (strategy === 'save-for-seal') {
-          // Only buy Master Seal when affordable
-          const seal = shopInv.find((i) => i.item.name === 'Master Seal');
+          // Only buy Sovereign Seal when affordable
+          const seal = shopInv.find((i) => i.item.name === 'Sovereign Seal');
           if (seal && gold >= seal.price && !masterSealBought) {
             gold -= seal.price;
             shopSpent += seal.price;
@@ -190,7 +190,7 @@ function simulateRunEconomy(strategy, metaLevel) {
           }
         } else {
           // balanced: buy vulnerary + maybe a weapon if affordable
-          const vuln = shopInv.find((i) => i.item.name === 'Vulnerary');
+          const vuln = shopInv.find((i) => i.item.name === 'Poultice');
           if (vuln && gold >= vuln.price) {
             gold -= vuln.price;
             shopSpent += vuln.price;
@@ -282,15 +282,15 @@ for (const strategy of strategies) {
       issues.push({
         severity: 'WARNING',
         label: `SEAL TOO EXPENSIVE (meta=${metaLevel})`,
-        detail: `Only ${sealRate.toFixed(1)}% of runs can afford Master Seal by end Act 2`,
-        suggestion: 'Reduce Master Seal price from 2500 to 2000, or increase battle gold',
+        detail: `Only ${sealRate.toFixed(1)}% of runs can afford Sovereign Seal by end Act 2`,
+        suggestion: 'Reduce Sovereign Seal price from 2500 to 2000, or increase battle gold',
       });
     }
     if (sealRate > 90 && metaLevel === 0) {
       issues.push({
         severity: 'INFO',
         label: `ECONOMY GENEROUS (meta=${metaLevel})`,
-        detail: `${sealRate.toFixed(1)}% of runs afford Master Seal by Act 2 while saving`,
+        detail: `${sealRate.toFixed(1)}% of runs afford Sovereign Seal by Act 2 while saving`,
       });
     }
   }

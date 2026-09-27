@@ -192,7 +192,7 @@ describe('BattleScene loot meta wiring', () => {
       {
         type: 'accessory',
         item: {
-          name: 'Goddess Icon',
+          name: 'Fatethread Pendant',
           type: 'Accessory',
           effects: { LCK: 5 },
           price: 1000,
@@ -214,9 +214,9 @@ describe('BattleScene loot meta wiring', () => {
     lootCard.handlers.pointerdown({ button: 0 });
 
     expect(scene.runManager.accessories).toHaveLength(1);
-    expect(scene.runManager.accessories[0].name).toBe('Goddess Icon');
+    expect(scene.runManager.accessories[0].name).toBe('Fatethread Pendant');
     expect(scene.showLootStatus).toHaveBeenCalledWith(
-      'Added Goddess Icon to Accessory Pool.',
+      'Added Fatethread Pendant to Accessory Pool.',
       '#95c487',
     );
     expect(scene.finalizeLootPick).toHaveBeenCalledTimes(1);
@@ -228,7 +228,7 @@ describe('BattleScene loot meta wiring', () => {
       {
         type: 'statBooster',
         item: {
-          name: 'Energy Drop',
+          name: 'Mightroot',
           type: 'Consumable',
           effect: 'statBoost',
           stat: 'STR',
@@ -295,7 +295,7 @@ describe('BattleScene loot meta wiring', () => {
     scene.add.text = (...args) => makeDisplayObject({ args, text: args[2] });
 
     const lootGroup = [makeDisplayObject(), makeDisplayObject()];
-    const item = { name: 'Talisman', effect: 'statBoost', stat: 'RES', value: 2 };
+    const item = { name: 'Warding Cord', effect: 'statBoost', stat: 'RES', value: 2 };
     BattleScene.prototype.showStatBoostUnitPicker.call(scene, item, lootGroup, 0);
 
     expect(rowButtons).toHaveLength(14);
@@ -332,7 +332,7 @@ describe('BattleScene loot meta wiring', () => {
     scene.add.text = (...args) => makeDisplayObject({ args, text: args[2] });
 
     const lootGroup = [makeDisplayObject(), makeDisplayObject()];
-    const item = { name: 'Dracoshield', effect: 'statBoost', stat: 'DEF', value: 2 };
+    const item = { name: 'Wyrmscale', effect: 'statBoost', stat: 'DEF', value: 2 };
     BattleScene.prototype.showStatBoostUnitPicker.call(scene, item, lootGroup, 0);
 
     const wheelCall = scene.input.on.mock.calls.find((call) => call[0] === 'wheel');
@@ -381,7 +381,7 @@ describe('BattleScene loot meta wiring', () => {
       {
         type: 'promotion',
         item: {
-          name: 'Master Seal',
+          name: 'Sovereign Seal',
           type: 'Consumable',
           effect: 'promote',
           uses: 1,

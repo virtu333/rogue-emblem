@@ -9,7 +9,7 @@
       "Steel Bow",
       "Wildfire",
       "Brilliance",
-      "Mend",
+      "Solace",
       "Horsebane",
       "Mailbane",
       "Lancehook",
@@ -19,20 +19,20 @@
       "Shortbow"
     ],
     "healing": [
-      "Vulnerary",
-      "Vulnerary",
-      "Vulnerary",
-      "Vulnerary"
+      "Poultice",
+      "Poultice",
+      "Poultice",
+      "Poultice"
     ],
     "statBooster": [],
     "promotion": [
-      "Master Seal"
+      "Sovereign Seal"
     ],
     "skillScroll": [],
     "weaponArtScroll": [],
     "legendaryWeapon": [],
     "accessories": [
-      "Goddess Icon",
+      "Fatethread Pendant",
       "Shield Ring",
       "Forest Charm",
       "Soothing Stone",
@@ -71,22 +71,22 @@
       ],
       "healing": [],
       "statBooster": [
-        "Angelic Robe",
-        "Energy Drop",
-        "Spirit Dust",
-        "Secret Book",
-        "Speedwing",
-        "Dracoshield",
-        "Talisman"
+        "Blessed Vestment",
+        "Mightroot",
+        "Spellstone Dust",
+        "Drill Primer",
+        "Fleet Plume",
+        "Wyrmscale",
+        "Warding Cord"
       ],
       "promotion": [
-        "Master Seal"
+        "Sovereign Seal"
       ],
       "skillScroll": [],
       "weaponArtScroll": [],
       "legendaryWeapon": [],
       "accessories": [
-        "Goddess Icon",
+        "Fatethread Pendant",
         "Shield Ring",
         "Forest Charm",
         "Soothing Stone",
@@ -128,30 +128,30 @@
       "Hammer",
       "Spear",
       "Keen Lance",
-      "Physic",
-      "Restore",
+      "Farcall",
+      "Cleanse",
       "Conflagration",
       "Crownlight",
       "Recurve Bow",
-      "Rescue Staff"
+      "Deliverance Staff"
     ],
     "healing": [
-      "Vulnerary",
+      "Poultice",
       "Elixir",
       "Herb"
     ],
     "statBooster": [
-      "Energy Drop",
-      "Spirit Dust",
-      "Secret Book",
-      "Speedwing",
-      "Dracoshield",
-      "Talisman",
-      "Angelic Robe",
+      "Mightroot",
+      "Spellstone Dust",
+      "Drill Primer",
+      "Fleet Plume",
+      "Wyrmscale",
+      "Warding Cord",
+      "Blessed Vestment",
       "Swiftsoles"
     ],
     "promotion": [
-      "Master Seal",
+      "Sovereign Seal",
       "Infantry Seal"
     ],
     "skillScroll": [
@@ -192,7 +192,7 @@
       "Moontide Amulet",
       "Bounty Hunter's Mark",
       "Vampire's Bloodshard",
-      "Boots",
+      "Courier's Boots",
       "Warding Charm",
       "Mentor's Band"
     ],
@@ -234,9 +234,9 @@
       "Silver Bow",
       "Conflagration",
       "Crownlight",
-      "Recover",
-      "Physic",
-      "Restore",
+      "Remembrance",
+      "Farcall",
+      "Cleanse",
       "Keen Sword",
       "Witchfire",
       "Sunflare",
@@ -249,8 +249,8 @@
       "Keen Bow",
       "Gale Blade",
       "Thunderbrand",
-      "Rescue Staff",
-      "Warp Staff"
+      "Deliverance Staff",
+      "Fold Staff"
     ],
     "healing": [
       "Elixir",
@@ -258,17 +258,17 @@
       "Remedy"
     ],
     "statBooster": [
-      "Energy Drop",
-      "Spirit Dust",
-      "Secret Book",
-      "Speedwing",
-      "Dracoshield",
-      "Talisman",
-      "Angelic Robe",
+      "Mightroot",
+      "Spellstone Dust",
+      "Drill Primer",
+      "Fleet Plume",
+      "Wyrmscale",
+      "Warding Cord",
+      "Blessed Vestment",
       "Swiftsoles"
     ],
     "promotion": [
-      "Master Seal",
+      "Sovereign Seal",
       "Infantry Seal",
       "Mounted Seal"
     ],
@@ -331,10 +331,10 @@
       "Endword"
     ],
     "accessories": [
-      "Seraph Robe",
+      "Sisters' Mantle",
       "Magic Ring",
-      "Boots",
-      "Delphi Shield",
+      "Courier's Boots",
+      "Picket Buckler",
       "Wrath Band",
       "Counter Seal",
       "Pursuit Ring",
@@ -387,17 +387,17 @@
       "Silver Bow",
       "Conflagration",
       "Crownlight",
-      "Recover",
-      "Fortify",
-      "Warp Staff",
-      "Rescue Staff",
-      "Sleep Staff",
-      "Silence Staff",
+      "Remembrance",
+      "Canticle",
+      "Fold Staff",
+      "Deliverance Staff",
+      "Lullaby Staff",
+      "Hush Staff",
       "Tomahawk",
       "Spear",
       "Gale Blade",
       "Thunderbrand",
-      "Restore",
+      "Cleanse",
       "Witchfire",
       "Sunflare"
     ],
@@ -406,17 +406,17 @@
       "Remedy"
     ],
     "statBooster": [
-      "Energy Drop",
-      "Spirit Dust",
-      "Secret Book",
-      "Speedwing",
-      "Dracoshield",
-      "Talisman",
-      "Angelic Robe",
+      "Mightroot",
+      "Spellstone Dust",
+      "Drill Primer",
+      "Fleet Plume",
+      "Wyrmscale",
+      "Warding Cord",
+      "Blessed Vestment",
       "Swiftsoles"
     ],
     "promotion": [
-      "Master Seal",
+      "Sovereign Seal",
       "Infantry Seal",
       "Mounted Seal"
     ],
@@ -465,10 +465,10 @@
       "Endword"
     ],
     "accessories": [
-      "Seraph Robe",
+      "Sisters' Mantle",
       "Magic Ring",
-      "Boots",
-      "Delphi Shield",
+      "Courier's Boots",
+      "Picket Buckler",
       "Wrath Band",
       "Counter Seal",
       "Pursuit Ring",

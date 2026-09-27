@@ -428,7 +428,7 @@ describe('BattleScene deferred vision snapshot commit', () => {
     unit.stats = { ...unit.stats, HP: 20 };
     scene.updateHPBar = vi.fn();
     scene.finishUnitAction = vi.fn();
-    const item = { name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 };
+    const item = { name: 'Poultice', effect: 'heal', value: 10, uses: 3 };
     unit.consumables = [item];
 
     let resolveBanner;
@@ -451,7 +451,7 @@ describe('BattleScene deferred vision snapshot commit', () => {
   it('does not promote pending snapshot on useConsumable promote (cancelled)', async () => {
     const { scene, unit } = setupScene();
     const { previous, pending } = primeVisionSnapshots(scene);
-    const item = { name: 'Master Seal', effect: 'promote', uses: 1 };
+    const item = { name: 'Sovereign Seal', effect: 'promote', uses: 1 };
     scene.executePromotion = vi.fn(async () => false);
     scene.finishUnitAction = vi.fn();
 
@@ -839,7 +839,7 @@ describe('BattleScene trade weapon gating', () => {
   it('shows labeled capacities and disables consumable rows when recipient consumables are full', () => {
     const { scene } = setupScene();
     const { texts } = attachUiHarness(scene);
-    const vulnerary = { name: 'Vulnerary', type: 'Consumable', uses: 3, price: 300 };
+    const vulnerary = { name: 'Poultice', type: 'Consumable', uses: 3, price: 300 };
     const unitA = makeUnit({
       name: 'Iris',
       proficiencies: [{ type: 'Tome', rank: 'Prof' }],
@@ -874,7 +874,7 @@ describe('BattleScene trade weapon gating', () => {
       ),
     ).toBe(true);
 
-    const consumableRow = texts.find((obj) => obj.text === 'Vulnerary (consumables full)');
+    const consumableRow = texts.find((obj) => obj.text === 'Poultice (consumables full)');
     expect(consumableRow).toBeTruthy();
     expect(consumableRow.style?.color).toBe('#8a7f86');
     expect(consumableRow.handlers.pointerdown).toBeUndefined();

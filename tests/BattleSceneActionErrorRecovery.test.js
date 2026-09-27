@@ -148,7 +148,7 @@ describe('executeHealAll error recovery', () => {
   it('finishes the healer action when a target animation throws', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const scene = makeScene();
-    const staff = { name: 'Fortify', type: 'Staff', healPower: 10, uses: 20, _usesSpent: 0 };
+    const staff = { name: 'Canticle', type: 'Staff', healPower: 10, uses: 20, _usesSpent: 0 };
     const healer = makeUnit({ name: 'Bishop', weapon: staff, inventory: [staff] });
     const target = makeUnit({ name: 'Hurt', currentHP: 5 });
     scene.animateHeal = vi.fn(async () => {
@@ -167,7 +167,7 @@ describe('executePromotion error recovery', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const scene = makeScene();
     const unit = makeUnit({ name: 'Knight' });
-    const seal = { name: 'Master Seal', effect: 'promote', uses: 1 };
+    const seal = { name: 'Sovereign Seal', effect: 'promote', uses: 1 };
     unit.consumables = [seal];
     resolvePromotionTargetsMock.mockImplementation(() => {
       throw new Error('targets boom');
@@ -187,7 +187,7 @@ describe('executePromotion error recovery', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const scene = makeScene();
     const unit = makeUnit({ name: 'Knight' });
-    const seal = { name: 'Master Seal', effect: 'promote', uses: 1 };
+    const seal = { name: 'Sovereign Seal', effect: 'promote', uses: 1 };
     unit.consumables = [seal];
     resolvePromotionTargetsMock.mockReturnValue([
       { name: 'General', promotionBonuses: { HP: 3, DEF: 2 } },

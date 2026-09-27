@@ -227,11 +227,11 @@ describe('createInitialRoster with chosen lords', () => {
     expect(sera.isCommander).toBe(true);
     expect(findWeapon(sera, 'Brilliance')).toBeTruthy(); // Steel-tier Light
     expect(findWeapon(sera, 'Heal')).toBeTruthy();
-    expect(sera.accessory?.name).toBe('Goddess Icon');
-    expect(sera.consumables.filter((c) => c.name === 'Vulnerary')).toHaveLength(2);
+    expect(sera.accessory?.name).toBe('Fatethread Pendant');
+    expect(sera.consumables.filter((c) => c.name === 'Poultice')).toHaveLength(2);
     expect(edric.isCommander).not.toBe(true);
     expect(findWeapon(edric, 'Steel Sword')).toBeFalsy();
-    expect(edric.consumables.filter((c) => c.name === 'Vulnerary')).toHaveLength(1);
+    expect(edric.consumables.filter((c) => c.name === 'Poultice')).toHaveLength(1);
   });
 
   it('Deadly Arsenal generalizes per primary type (tome commander -> Witchfire)', () => {
