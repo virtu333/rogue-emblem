@@ -7,6 +7,7 @@ one-shot stingers in tools/music/stingers/ to game-ready cues.
   python3 tools/music/build.py battle_border --preview  # also write jump previews
   python3 tools/music/build.py --stingers levelup       # render one stinger (every key)
   python3 tools/music/build.py --stingers               # render every stinger
+  python3 tools/music/build.py --prune-cache 14         # drop stems unused for 14 days
 
 Loops go to assets/audio/music/<key>.mp3 (+ <key>_<variant>.mp3); the loop
 table src/utils/musicLoops.js is rewritten from tools/music/loops.json.
@@ -22,6 +23,7 @@ import argparse
 import importlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -29,12 +31,17 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+from engine import palette  # noqa: E402
 from engine.form import check_form  # noqa: E402
-from engine.render import Renderer  # noqa: E402
+from engine.instruments import INSTRUMENTS  # noqa: E402
+from engine.render import Renderer, cache_dir, prune_cache  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 OUT = os.path.join(ROOT, 'assets', 'audio', 'music')
 STINGER_OUT = os.path.join(ROOT, 'assets', 'audio', 'stingers')
+SFX_OUT = os.path.join(ROOT, 'assets', 'audio', 'sfx')
+# the file the level-up plays when its cue can't sound (see AudioManager.playStinger)
+LEVELUP_FALLBACK_FROM = 'stinger_levelup_D'
 PREVIEW = os.path.join(ROOT, 'References', 'music-preview')
 LOOPS_JSON = os.path.join(HERE, 'loops.json')
 LOOPS_JS = os.path.join(ROOT, 'src', 'utils', 'musicLoops.js')
@@ -194,6 +201,10 @@ def build_stingers(names, args, tonics, stingers):
                 key, variants=['full'], out_dir=None if args.no_out else STINGER_OUT,
                 preview_dir=PREVIEW if args.preview else None)
             rendered[key] = meta[key]
+            if key == LEVELUP_FALLBACK_FROM and not args.no_out and STINGER_OUT != SFX_OUT:
+                # the level-up's fallback sound is this cue, so it never sounds out of date
+                shutil.copyfile(os.path.join(STINGER_OUT, f'{key}.mp3'),
+                                os.path.join(SFX_OUT, 'sfx_levelup.mp3'))
             print(f'[stinger {name}] done in {time.time() - t:.1f}s')
         if not args.no_out:
             stingers[name] = {
@@ -210,6 +221,22 @@ def build_stingers(names, args, tonics, stingers):
                 stingers[name]['handoff'] = round(score.seconds(score.bar(bars + 1)), 6)
 
 
+def _tables_lock():
+    import contextlib
+    import fcntl
+
+    @contextlib.contextmanager
+    def lock():
+        import tempfile
+        with open(os.path.join(tempfile.gettempdir(), 'rogue-dawn-music-tables.lock'), 'w') as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
+    return lock()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('scores', nargs='*')
@@ -218,30 +245,66 @@ def main():
     ap.add_argument('--preview', action='store_true')
     ap.add_argument('--no-out', action='store_true', help='skip writing game assets')
     ap.add_argument('--variants', nargs='*')
+    ap.add_argument('--palette', help='palette (default: the house palette), e.g. '
+                    'lab:choir=vpo_mixed for an audition (see engine/palette.py)')
+    ap.add_argument('--prune-cache', type=float, metavar='DAYS',
+                    help='first delete cached stems (any score) unused for DAYS days')
     args = ap.parse_args()
+    if args.palette is not None:
+        palette.request(args.palette)
+    if args.prune_cache is not None:
+        n, freed = prune_cache(args.prune_cache)
+        print(f'pruned {n} stems unused for {args.prune_cache:g} days ({freed / 1e6:.0f} MB)'
+              f' from {cache_dir()}')
+        if not (args.scores or args.all or args.stingers is not None):
+            return
+    audition = palette.is_audition(palette.requested())
+    if audition:
+        # an audition never touches the game's assets or loop tables
+        global OUT, STINGER_OUT, PREVIEW
+        lab_out = os.path.join(palette.lab_dir(), 'out')
+        OUT, STINGER_OUT, PREVIEW = lab_out, lab_out, os.path.join(lab_out, 'preview')
+        palette.apply(palette.parse(palette.requested()), INSTRUMENTS)
+        print(palette.describe(), '-> writing to', lab_out)
 
     table = load_json(LOOPS_JSON)
     names = list_scores() if args.all else args.scores
     build_scores(names, args, table)
     refresh_tonics(table)
+    built_keys = [k for k, v in table.items() if v.get('score') in names]
 
     stingers = load_json(STINGERS_JSON)
+    built_stingers = []
     if args.stingers is not None:
         chosen = args.stingers or list_modules('stingers')
         build_stingers(chosen, args, music_tonics(table), stingers)
+        built_stingers = list(chosen)
 
-    if not args.no_out:
-        save_json(LOOPS_JSON, table)
-        write_loops_js(table)
-        # every keyed stinger must cover every key the music uses
-        missing = {n: sorted(set(music_tonics(table)) - set(e['tonics']))
-                   for n, e in stingers.items() if e['keyed']}
-        missing = {n: m for n, m in missing.items() if m}
-        if missing:
-            print(f'WARNING: keyed stingers missing tonics (re-render them): {missing}')
-        save_json(STINGERS_JSON, stingers)
-        write_stingers_js(stingers)
-        prettier(LOOPS_JSON, LOOPS_JS, STINGERS_JSON, STINGERS_JS)
+    if not args.no_out and not audition:
+        # builds may run side by side (disjoint scores): each merges only what it
+        # rendered into the tables as they are now, under a lock
+        with _tables_lock():
+            fresh = load_json(LOOPS_JSON)
+            fresh.update({k: table[k] for k in built_keys})
+            table = fresh
+            fresh = load_json(STINGERS_JSON)
+            fresh.update({n: stingers[n] for n in built_stingers})
+            stingers = fresh
+            _save_tables(table, stingers)
+
+
+def _save_tables(table, stingers):
+    save_json(LOOPS_JSON, table)
+    write_loops_js(table)
+    # every keyed stinger must cover every key the music uses
+    missing = {n: sorted(set(music_tonics(table)) - set(e['tonics']))
+               for n, e in stingers.items() if e['keyed']}
+    missing = {n: m for n, m in missing.items() if m}
+    if missing:
+        print(f'WARNING: keyed stingers missing tonics (re-render them): {missing}')
+    save_json(STINGERS_JSON, stingers)
+    write_stingers_js(stingers)
+    prettier(LOOPS_JSON, LOOPS_JS, STINGERS_JSON, STINGERS_JS)
 
 
 if __name__ == '__main__':

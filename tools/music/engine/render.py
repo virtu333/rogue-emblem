@@ -16,19 +16,22 @@ pass is a sample-exact copy of the first. The exported file covers
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
 import os
 import pickle
+import re
 import subprocess
+import time
 import zlib
 from dataclasses import asdict
 
 import numpy as np
 import soundfile as sf
 
-from . import dsp
+from . import dsp, onsets, palette, tuning
 from .dsp import SR
 from .instruments import INSTRUMENTS
 from .sampler import NoteEvent, SfzVoicer
@@ -39,8 +42,45 @@ from .synth import VOICES
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 CACHE = os.path.join(ROOT, 'References', 'music-cache')
+
+
+def cache_dir() -> str:
+    """Stem cache: MUSIC_CACHE if set; an audition keeps its own, so auditions
+    never evict the stems of what the game ships."""
+    if os.environ.get('MUSIC_CACHE'):
+        return os.environ['MUSIC_CACHE']
+    return palette.cache_dir() if palette.is_audition(palette.requested()) else CACHE
+
+
+_STEM_KEY = re.compile(r'[0-9a-f]{16}\.npy')
+
+
+def prune_cache(max_age_days: float, directory: str | None = None) -> tuple[int, int]:
+    """Delete stems not used for `max_age_days` (a cache hit refreshes a stem's
+    time), across every score. Only run when asked: a build never deletes
+    another score's stems. Returns (files removed, bytes freed)."""
+    d = directory or cache_dir()
+    if not os.path.isdir(d):
+        return 0, 0
+    cutoff = time.time() - max_age_days * 86400
+    n = freed = 0
+    for f in os.listdir(d):
+        p = os.path.join(d, f)
+        if not f.endswith('.npy') or '__' not in f:
+            continue
+        try:
+            st = os.stat(p)
+            if st.st_mtime < cutoff:
+                os.remove(p)
+                n += 1
+                freed += st.st_size
+        except FileNotFoundError:
+            pass
+    return n, freed
+
+
 CALIB_PATH = os.path.join(os.path.dirname(__file__), '..', 'calibration.json')
-ENGINE_VERSION = 9  # bump to invalidate stem caches
+ENGINE_VERSION = 12  # bump to invalidate stem caches
 
 M_MIN = 4.0
 EXTRA = 0.6
@@ -62,6 +102,14 @@ def _load_calib():
     return {}
 
 
+def _save_calib():
+    # the repo's JSON style (prettier): two-space indent, final newline
+    tmp = f'{CALIB_PATH}.{os.getpid()}.tmp'
+    with open(tmp, 'w') as f:
+        f.write(json.dumps(_CALIB, indent=2, sort_keys=True) + '\n')
+    os.replace(tmp, CALIB_PATH)
+
+
 _CALIB = None
 
 
@@ -70,10 +118,12 @@ def calibration_db(inst_name: str, art: str = 'default') -> float:
     global _CALIB
     if _CALIB is None:
         _CALIB = _load_calib()
-    key = f'{inst_name}:{art}'
+    inst = INSTRUMENTS[inst_name]
+    if inst['kind'] == 'lab':
+        return 0.0   # lab streams are levelled by their own calibration (labrender)
+    key = f'{palette.legacy_name(inst_name)}:{art}'
     if key in _CALIB:
         return _CALIB[key]
-    inst = INSTRUMENTS[inst_name]
     n = int(3.0 * SR)
     ev = [NoteEvent(t=0.1, dur=1.5, key=inst['ref_key'], vel=0.62, art=art)]
     buf = _render_raw(inst_name, inst, ev, n, seed=1, calibrating=True)
@@ -82,42 +132,11 @@ def calibration_db(inst_name: str, art: str = 'default') -> float:
     rms = math.sqrt(float(np.mean(win.astype(np.float64) ** 2)) + 1e-12)
     g = -20.0 - dsp.db(rms)
     _CALIB[key] = round(g, 2)
-    json.dump(_CALIB, open(CALIB_PATH, 'w'), indent=1, sort_keys=True)
+    _save_calib()
     return _CALIB[key]
 
 
-def onset_pre(inst_name: str, art_name: str) -> float:
-    """Seconds to start a note early so its perceived onset (the envelope
-    reaching half its early peak) lands on the beat. Measured once per
-    articulation over several pitches and two dynamics, then cached."""
-    global _CALIB
-    if _CALIB is None:
-        _CALIB = _load_calib()
-    key = f'pre|{inst_name}:{art_name}'
-    if key in _CALIB:
-        return _CALIB[key]
-    inst = INSTRUMENTS[inst_name]
-    art = inst['arts'][art_name]
-    v = _voicer(inst_name, art_name, art)
-    lo, hi = inst['range']
-    keys = [inst['ref_key']] if inst.get('fixed_pitch') else \
-        [int(k) for k in np.linspace(lo + 3, hi - 5, 4)]
-    ds = []
-    for k in keys:
-        for vel in (0.55, 0.8):
-            out = np.zeros((int(2 * SR), 2), np.float32)
-            v.rng = np.random.default_rng(1)
-            v.render(NoteEvent(t=0.5, dur=1.0, key=k, vel=vel, art=art_name), out)
-            e = np.sqrt(np.convolve(out.mean(axis=1).astype(np.float64) ** 2,
-                                    np.ones(441) / 441, 'same'))
-            seg = e[int(0.5 * SR):int(1.1 * SR)]
-            if seg.max() <= 0:
-                continue
-            ds.append(np.nonzero(seg >= 0.5 * seg.max())[0][0] / SR)
-    pre = float(min(np.median(ds) if ds else 0.0, 0.15))
-    _CALIB[key] = round(pre, 4)
-    json.dump(_CALIB, open(CALIB_PATH, 'w'), indent=1, sort_keys=True)
-    return _CALIB[key]
+# onset pre-roll (how early each note starts) lives in engine/onsets.py
 
 
 # ------------------------------------------------------------------ raw rendering
@@ -132,9 +151,21 @@ def _voicer(inst_name, art_name, art):
     return _VOICERS[k]
 
 
+def sf2_key_tuning(inst, key_cents=None) -> dict:
+    """{key: cents} a SoundFont part is retuned by: the part's own `key_cents`
+    when it has them (a score that fitted its own table, e.g. per note length,
+    keeps exactly that: the two never stack), otherwise the preset's measured
+    correction (tools/music/tuning.json, from tunecheck.py)."""
+    if key_cents:
+        return {int(k): float(v) for k, v in key_cents.items()}
+    return tuning.preset_cents(inst['font'], inst['bank'], inst['program'])
+
+
 def _render_raw(inst_name, inst, events: list[NoteEvent], n_frames, seed, calibrating=False,
-                sustain_pedal=False):
-    """Events -> stereo buffer, no calibration/mix processing."""
+                sustain_pedal=False, key_cents=None, score=None, lane=None):
+    """Events -> stereo buffer, no calibration/mix processing. `key_cents` (SoundFont
+    parts only, per part) maps a key to a tuning correction in cents; it replaces the
+    preset's default correction (sf2_key_tuning)."""
     out = np.zeros((n_frames, 2), np.float32)
     kind = inst['kind']
     if kind == 'sfz':
@@ -150,18 +181,34 @@ def _render_raw(inst_name, inst, events: list[NoteEvent], n_frames, seed, calibr
                 v.rng = np.random.default_rng(_seed(seed, round(ev.t, 4), ev.key))
                 v._rr = {}
                 v.render(ev, out)
-    elif kind == 'sf2':
-        evs = [(ev.t, ev.dur, ev.key, ev.vel) for ev in events]
-        cc = {64: 127} if sustain_pedal else None
-        out = render_sf2(inst['font'], inst['bank'], inst['program'], evs, n_frames,
-                         channel=inst.get('channel', 0), cc=cc)
-    elif kind == 'sfizz':
-        evs = [(ev.t, ev.dur, ev.key, ev.vel) for ev in events]
-        out = render_sfz(inst['sfz'], evs, n_frames, cc=inst.get('cc'))
+    elif kind in ('sf2', 'sfizz'):
+        # MIDI renderers cannot start a note before 0: a note pulled early by its
+        # onset pre-roll is rendered after a lead-in that is then cut off, so it
+        # enters mid-attack exactly as the sampler crops it (with a 2 ms fade)
+        lead = int(math.ceil(max([0.0] + [-ev.t for ev in events]) * SR))
+        sh = lead / SR
+        # `transpose`: a program mapped away from sounding pitch (the Growlybass)
+        tr = inst.get('transpose', 0) if kind == 'sfizz' else 0
+        evs = [(ev.t + sh, ev.dur, ev.key + tr, ev.vel) for ev in events]
+        if kind == 'sf2':
+            cc = {64: 127} if sustain_pedal else None
+            out = render_sf2(inst['font'], inst['bank'], inst['program'], evs, n_frames + lead,
+                             channel=inst.get('channel', 0), cc=cc,
+                             key_tuning=sf2_key_tuning(inst, key_cents))
+        else:
+            out = render_sfz(inst['sfz'], evs, n_frames + lead, cc=inst.get('cc'))
+        if lead:
+            out = out[lead:].copy()
+            f = min(len(out), int(0.002 * SR))
+            out[:f] *= np.linspace(0, 1, f, dtype=np.float32)[:, None]
     elif kind == 'synth':
         fn = VOICES[inst['voice']]
         evs = [(ev.t, ev.dur, ev.key, ev.vel) for ev in events]
         out = fn(evs, n_frames, np.random.default_rng(seed), **inst.get('params', {}))
+    elif kind == 'lab':
+        from . import labrender
+        out = labrender.render(inst, events, n_frames, seed, score=score, lane=lane,
+                               calibrating=calibrating)
     else:
         raise ValueError(kind)
     return out
@@ -172,6 +219,8 @@ class Renderer:
     def __init__(self, score: Score, verbose=True):
         self.s = score
         self.verbose = verbose
+        # the palette this score plays: the requested one plus the score's own changes
+        palette.apply(palette.for_score(palette.requested(), score.palette), INSTRUMENTS)
         s = score
         self.I_b = s.intro_beats
         self.P_b = s.loop_beats
@@ -194,11 +243,11 @@ class Renderer:
         self.loop_end_f = self.loop_start_f + self.P_f
         self.file_f = self.loop_end_f + int(EXTRA * SR)
         self.n_f = self.file_f + int(TAIL * SR)
-        os.makedirs(CACHE, exist_ok=True)
-        # bound the disk: stems of other scores are dropped
-        for f in os.listdir(CACHE):
-            if not f.startswith(f'{score.name}__'):
-                os.remove(os.path.join(CACHE, f))
+        self.cache = cache_dir()
+        os.makedirs(self.cache, exist_ok=True)
+        # the cache is shared by every score (and by builds running side by side):
+        # a render only ever replaces its own parts' stems (render_part); stale
+        # stems of other scores go only when asked (prune_cache, build.py --prune-cache)
 
     def log(self, *a):
         if self.verbose:
@@ -235,22 +284,36 @@ class Renderer:
             if art == 'default':
                 art = part.opts.get('art', 'default')
             art_def = inst['arts'].get(art, inst['arts']['default']) if inst['kind'] == 'sfz' else {}
-            pre = art_def.get('pre')
-            if pre is None and inst['kind'] == 'sfz':
-                art_key = art if art in inst['arts'] else 'default'
-                pre = onset_pre(part.inst, art_key)
-            pre = pre or 0.0
+            art_key = art if inst['kind'] == 'sfz' and art in inst['arts'] else 'default'
             jitter = float(np.clip(rng.normal(0, hum / 2), -hum, hum)) if hum > 0 else 0.0
             vj = part.opts.get('vel_jitter', inst.get('vel_jitter', 0.06))
             vel = float(np.clip(n.vel + rng.normal(0, vj), 0.02, 1.0))
-            ev = NoteEvent(t=t0 - pre + jitter, dur=max(0.02, t1 - t0), key=pitch, vel=vel, art=art)
+            ev = NoteEvent(t=t0 + jitter, dur=max(0.02, t1 - t0), key=pitch, vel=vel, art=art)
+            ev.pre_of = (art_def.get('pre'), art_key)   # the onset pre-roll, applied below
             ev.rearticulate = n.rearticulate
             ev.in_loop = n.start >= self.I_b - 1e-9
             ev.beat_start, ev.beat_end = n.start, n.start + n.dur
+            if inst['kind'] == 'lab':
+                # what the lab palette's performer reads (not part of the note's identity
+                # for the default palette, so its cache keys do not change)
+                ev.accent, ev.staccato = n.accent, n.staccato
             evs.append(ev)
         # legato flags (sustain arts of legato instruments, monophonic lines)
         if inst['kind'] == 'sfz' and part.opts.get('legato', True):
             self._legato(evs, inst, part)
+        # onset pre-roll: every sampled note starts early by the time it takes to
+        # speak, for its key and velocity; a slurred note by the time it takes
+        # to take over from the one before it (engine/onsets.py)
+        if onsets.compensates(inst):
+            for e in evs:
+                fixed, art_key = e.pre_of
+                e.t -= fixed if fixed is not None else \
+                    onsets.pre(part.inst, art_key, e.key, e.vel, legato=e.legato_in)
+            # a slur is one crossfade: the old note fades out as the new one fades in
+            for e in evs:
+                nxt = getattr(e, 'slur_to', None)
+                if nxt and e.legato_out and nxt[0].legato_in:
+                    e.dur = max(0.02, nxt[0].t + nxt[1] - e.t)
         intro = [e for e in evs if not e.in_loop]
         loop = [e for e in evs if e.in_loop]
         return intro, loop
@@ -276,6 +339,9 @@ class Renderer:
                 a.legato_out = True
                 b.legato_in = True
                 b.prev_key = a.key
+                # the note it slurs into, and the seconds to add to its time (the
+                # loop's wrap: b is heard a loop later)
+                a.slur_to = (b, self.P_s if wrap else 0.0)
 
         def chain(lst):
             for a, b in zip(lst, lst[1:]):
@@ -302,6 +368,15 @@ class Renderer:
     def render_part(self, part):
         s = self.s
         inst = INSTRUMENTS[part.inst]
+        if inst.get('keep_arts'):
+            kept, rest = self._split_kept(part, inst)
+            if kept is not None:
+                out = self.render_part(rest) if rest.notes else np.zeros((self.n_f, 2), np.float32)
+                k = self.render_part(kept)
+                if part.expr_points:
+                    # the lab instrument plays the lane itself (expr_cc); the kept notes need it here
+                    k = k * (self._lane(part.expr_points, len(k)) ** 1.3)[:, None]
+                return out + k
         intro, loop = self._events(part, inst)
         seed = _seed(s.seed, s.name, part.name, 'render')
         key = _h((ENGINE_VERSION, part.inst, inst.get('arts', {}), inst.get('program'),
@@ -309,9 +384,21 @@ class Renderer:
                   [asdict(e) | {'r': e.rearticulate, 'p': getattr(e, 'prev_key', None)} for e in intro],
                   [asdict(e) | {'r': e.rearticulate, 'p': getattr(e, 'prev_key', None)} for e in loop],
                   self.n_f, self.P_f,
-                  self.I_f, seed, part.opts.get('pedal', False)))
-        path = os.path.join(CACHE, f'{s.name}__{part.name}__{key}.npy')
+                  self.I_f, seed, part.opts.get('pedal', False))
+               + (((sorted(part.opts['key_cents'].items()),) if part.opts.get('key_cents')
+                   else ()))
+               + ((tuning.token(inst),) if inst['kind'] in ('sfz', 'sfizz', 'sf2') else ())
+               + (((inst['sfz'], inst.get('cc'), inst.get('transpose', 0)),)
+                  if inst['kind'] == 'sfizz' else ())
+               + (() if inst['kind'] != 'lab' else (
+                   palette.cache_token(inst), part.expr_points, self.I_b, self.P_b,
+                   [(e.accent, e.staccato) for e in intro + loop])))
+        path = os.path.join(self.cache, f'{s.name}__{part.name}__{key}.npy')
         if os.path.exists(path):
+            try:
+                os.utime(path)   # last use, for prune_cache
+            except OSError:
+                pass
             return np.load(path).astype(np.float32)
         self.log(f'  render {part.name:14s} ({part.inst}, {len(intro)}+{len(loop)} notes)')
         pedal = part.opts.get('pedal', False)
@@ -324,10 +411,15 @@ class Renderer:
                 groups.setdefault((tag, a), []).append(e)
         loop_len = self.I_f + self.P_f + int(TAIL * SR) + int(self.M_s * SR) + int(2 * SR)
         loop_len = min(loop_len, self.n_f)
+        lab = {}
+        if inst['kind'] == 'lab':
+            lab = dict(score=s, lane=self._lane(part.expr_points, self.n_f)
+                       if part.expr_points else None)
         for (tag, a), evs in groups.items():
             g = dsp.undb(calibration_db(part.inst, a))
             buf = _render_raw(part.inst, inst, evs, loop_len if tag == 'loop' else self.n_f,
-                              seed=_seed(seed, tag, a), sustain_pedal=pedal) * g
+                              seed=_seed(seed, tag, a), sustain_pedal=pedal,
+                              key_cents=part.opts.get('key_cents'), **lab) * g
             if tag == 'intro':
                 out += buf
             else:
@@ -338,13 +430,39 @@ class Renderer:
                 if sh < self.n_f:
                     m = min(len(buf), self.n_f - sh)
                     out[sh:sh + m] += buf[:m]
-        # keep one cached version per part (the cache is only an iteration aid)
+        # keep one cached version per part of this score (the cache is only an
+        # iteration aid). Names are <score>__<part>__<key>.npy: the prefix match
+        # never reaches another score's or another part's stems
         prefix = f'{s.name}__{part.name}__'
-        for f in os.listdir(CACHE):
-            if f.startswith(prefix) and f != os.path.basename(path):
-                os.remove(os.path.join(CACHE, f))
-        np.save(path, out.astype(np.float16))
+        for f in os.listdir(self.cache):
+            if f.startswith(prefix) and f != os.path.basename(path) \
+                    and _STEM_KEY.fullmatch(f[len(prefix):]):
+                try:
+                    os.remove(os.path.join(self.cache, f))
+                except FileNotFoundError:
+                    pass   # a concurrent render of the same part got there first
+        # written whole, then renamed: a render running beside this one never
+        # loads half a stem
+        tmp = f'{path}.{os.getpid()}.tmp.npy'
+        np.save(tmp, out.astype(np.float16))
+        os.replace(tmp, path)
         return out
+
+    def _split_kept(self, part, inst):
+        """A lab instrument without some articulation (VPO3 has no muted brass):
+        (the notes asking for it, on the registry's own instrument; the rest)."""
+        art = part.opts.get('art', 'default')
+
+        def kept(n):
+            return (n.art if n.art != 'default' else art) in inst['keep_arts']
+
+        if not any(kept(n) for n in part.notes):
+            return None, None
+        k, rest = copy.copy(part), copy.copy(part)
+        k.name, k.inst = part.name + palette.ORIG_SUFFIX, inst['orig_name']
+        k.notes = [n for n in part.notes if kept(n)]
+        rest.notes = [n for n in part.notes if not kept(n)]
+        return k, rest
 
     def _process_part(self, part, dry):
         """Expression lane, dynamic tone, EQ, role leveling, pan/width -> (dry, send)."""
@@ -352,7 +470,8 @@ class Renderer:
         inst = INSTRUMENTS[part.inst]
         x = dry
         hpf = part.opts.get('hpf', inst.get('hpf', HPF_BY_BUS.get(inst.get('bus'), 30)))
-        if part.expr_points:
+        if part.expr_points and not inst.get('expr_cc'):
+            # (a lab instrument has already played the lane as its dynamics CC)
             lane = self._lane(part.expr_points, len(x))
             if inst.get('expr_tone') or part.opts.get('expr_tone'):
                 x = dsp.dynamic_tone(x, lane, amount=part.opts.get('tone_amount', 0.6))
@@ -528,7 +647,8 @@ class Renderer:
             d = buses['drums']
             crush = dsp.compress(d, thresh_db=-24, ratio=5, attack_ms=3, release_ms=120,
                                  makeup_db=8)
-            buses['drums'] = d * 0.75 + crush * 0.45
+            # (less of the crushed copy than before: it made every hit snap)
+            buses['drums'] = d * 0.8 + crush * 0.3
         for bname, cfg in master.get('bus', {}).items():
             if bname in buses and cfg.get('eq'):
                 buses[bname] = dsp.eq(buses[bname], cfg['eq'])
@@ -644,12 +764,15 @@ class Renderer:
         return info
 
 
-# level (dBFS RMS while playing) each role is brought to before the mix
+# level (dBFS RMS while playing) each role is brought to before the mix. The
+# percussion sits back: a listener heard snares, cymbals and quick sharp hits
+# dominate most pieces (the sound lab, round 2), so the snare, the cymbals and the
+# orchestral drums came down 2-3 dB, the kick, toms and accents 1 dB
 ROLE_TARGETS = {
     'lead': -18.0, 'lead2': -21.0, 'counter': -21.0, 'section': -22.0, 'ostinato': -23.0,
-    'pad': -25.0, 'bass': -21.0, 'low': -24.0, 'drums': -19.5, 'timp': -24.0,
-    'accent': -26.0, 'choir': -24.0, 'keys': -22.5, 'fx': -28.0, 'sub': -25.0,
-    'kick': -20.5, 'snare': -21.5, 'toms': -24.0, 'cym': -27.5,
+    'pad': -25.0, 'bass': -21.0, 'low': -24.0, 'drums': -21.5, 'timp': -24.0,
+    'accent': -27.0, 'choir': -24.0, 'keys': -22.5, 'fx': -28.0, 'sub': -25.0,
+    'kick': -21.5, 'snare': -24.5, 'toms': -25.0, 'cym': -30.5,
 }
 LIFE_BY_ROLE = {'lead': 1.0, 'lead2': 1.2, 'counter': 1.4, 'section': 1.4, 'pad': 2.0,
                 'choir': 2.0, 'low': 1.2}

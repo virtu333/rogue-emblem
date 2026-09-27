@@ -152,8 +152,8 @@ INSTRUMENTS = {
     'celesta': dict(kind='sf2', font=GU, bank=0, program=8, range=(60, 108), pan=-0.25,
                     width=0.6, depth=0.4, ref_key=84, bus='keys', humanize_ms=4),
     'glock': dict(kind='sfz', arts={
-        'default': dict(file=V('Glockenspiel.sfz'), mode='oneshot', max_len=3.0, veltrack_db=14,
-                        tune_cents=-14),
+        # each sample's tuning is corrected by tools/music/tuning.json (all run sharp)
+        'default': dict(file=V('Glockenspiel.sfz'), mode='oneshot', max_len=3.0, veltrack_db=14),
     }, range=(67, 108), pan=0.25, width=0.3, depth=0.55, ref_key=84, bus='perc', humanize_ms=4),
     'bells': dict(kind='sfz', arts={
         'default': dict(file=V('TubularBells.sfz'), mode='oneshot', max_len=6.0, veltrack_db=12),
@@ -199,7 +199,12 @@ INSTRUMENTS = {
     'kit': dict(kind='sfizz', sfz=os.path.join(LIBS, 'virtuosity_drums', 'Programs', '02-full-kit.sfz'),
                 range=(0, 127), pan=0.0, width=1.0, depth=0.15, ref_key=38, bus='drums',
                 humanize_ms=4, fixed_pitch=True, keys=VDRUM_KEYS, hpf=0),
+    # Growlybass maps its samples an octave above sounding pitch (bass-clef
+    # convention: its key 40 plays E1, 41 Hz). `transpose` plays key k from the
+    # program's key k + 12, so a written E1 (28) sounds E1 from the low-E sample
+    # like every other instrument here (the program's keys 33-84 cover 21-72)
     'rbass': dict(kind='sfizz', room=True, duck='kit_kick', sfz=os.path.join(LIBS, 'karoryfer.growlybass', 'growlybass_dirty.sfz'),
+                  transpose=12,
                   range=(28, 67), pan=0.0, width=0.0, depth=0.05, ref_key=40, bus='rhythm',
                   humanize_ms=5, hpf=35,
                   comp=dict(thresh_db=-26, ratio=4, attack_ms=6, release_ms=110, makeup_db=6),
@@ -239,6 +244,10 @@ DRUM_KEYS = {
     'tom_hi': 50, 'tom_floor': 41, 'crash': 49, 'crash2': 57, 'ride': 51, 'ride_bell': 53,
     'china': 52, 'splash': 55, 'tamb': 54,
 }
+# This registry is the legacy palette. What a render actually plays is chosen per
+# score by engine/palette.py (the house palette, a score's own changes, an audition):
+# the Renderer applies it.
+
 ORCH_KEYS = {
     'bd': 36, 'sn': 38, 'sn_taps': 37, 'sn_roll': 39, 'sn_off': 40, 'crash': 49, 'sus': 51,
     'sus_stick': 59, 'swell_s': 47, 'swell_m': 48, 'swell_l': 50, 'gong': 46,

@@ -1,12 +1,12 @@
 {
   "act_card_act1": {
-    "duration": 6.962,
+    "duration": 6.921,
     "files": {
       "stinger_act_card_act1": {
-        "duration": 6.962,
+        "duration": 6.921,
         "lufs": -17.0,
         "notesEnd": 5.0,
-        "peakDb": -4.83
+        "peakDb": -5.56
       }
     },
     "keyed": false,
@@ -15,13 +15,13 @@
     "tonics": []
   },
   "act_card_act2": {
-    "duration": 5.933,
+    "duration": 5.952,
     "files": {
       "stinger_act_card_act2": {
-        "duration": 5.933,
+        "duration": 5.952,
         "lufs": -17.0,
         "notesEnd": 4.8,
-        "peakDb": -2.34
+        "peakDb": -5.15
       }
     },
     "keyed": false,
@@ -30,13 +30,13 @@
     "tonics": []
   },
   "act_card_act3": {
-    "duration": 8.187,
+    "duration": 7.924,
     "files": {
       "stinger_act_card_act3": {
-        "duration": 8.187,
+        "duration": 7.924,
         "lufs": -18.0,
         "notesEnd": 6.0,
-        "peakDb": -7.21
+        "peakDb": -7.82
       }
     },
     "keyed": false,
@@ -51,7 +51,7 @@
         "duration": 9.722,
         "lufs": -19.0,
         "notesEnd": 6.667,
-        "peakDb": -1.37
+        "peakDb": -3.41
       }
     },
     "keyed": false,
@@ -60,13 +60,13 @@
     "tonics": []
   },
   "act_card_finalBoss": {
-    "duration": 11.247,
+    "duration": 11.26,
     "files": {
       "stinger_act_card_finalBoss": {
-        "duration": 11.247,
+        "duration": 11.26,
         "lufs": -21.0,
         "notesEnd": 8.0,
-        "peakDb": -9.17
+        "peakDb": -10.24
       }
     },
     "keyed": false,
@@ -75,61 +75,61 @@
     "tonics": []
   },
   "arrival": {
-    "duration": 3.579,
+    "duration": 3.539,
     "files": {
       "stinger_arrival_A": {
-        "duration": 3.579,
+        "duration": 3.344,
         "lufs": -17.0,
         "notesEnd": 2.0,
-        "peakDb": -4.74
+        "peakDb": -4.18
       },
       "stinger_arrival_B": {
-        "duration": 3.243,
+        "duration": 3.244,
         "lufs": -17.0,
         "notesEnd": 2.0,
-        "peakDb": -3.66
+        "peakDb": -4.23
       },
       "stinger_arrival_Bb": {
-        "duration": 3.424,
+        "duration": 3.389,
         "lufs": -17.0,
         "notesEnd": 2.0,
-        "peakDb": -2.55
+        "peakDb": -4.82
       },
       "stinger_arrival_C": {
-        "duration": 3.409,
+        "duration": 3.453,
         "lufs": -17.0,
         "notesEnd": 2.0,
-        "peakDb": -5.8
+        "peakDb": -5.22
       },
       "stinger_arrival_D": {
-        "duration": 3.359,
+        "duration": 3.416,
         "lufs": -17.0,
         "notesEnd": 2.0,
-        "peakDb": -4.47
+        "peakDb": -4.33
       },
       "stinger_arrival_Db": {
-        "duration": 3.381,
+        "duration": 3.539,
         "lufs": -17.0,
         "notesEnd": 2.0,
-        "peakDb": -2.91
+        "peakDb": -3.38
       },
       "stinger_arrival_E": {
-        "duration": 3.359,
+        "duration": 3.202,
         "lufs": -17.0,
         "notesEnd": 2.0,
-        "peakDb": -4.35
+        "peakDb": -4.92
       },
       "stinger_arrival_F": {
-        "duration": 3.153,
+        "duration": 3.126,
         "lufs": -17.0,
         "notesEnd": 2.0,
-        "peakDb": -3.78
+        "peakDb": -5.35
       },
       "stinger_arrival_G": {
-        "duration": 3.243,
+        "duration": 3.182,
         "lufs": -17.0,
         "notesEnd": 2.0,
-        "peakDb": -4.3
+        "peakDb": -5.53
       }
     },
     "keyed": true,
@@ -138,13 +138,13 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "boss_archmage": {
-    "duration": 6.016,
+    "duration": 6.137,
     "files": {
       "stinger_boss_archmage": {
-        "duration": 6.016,
+        "duration": 6.137,
         "lufs": -18.0,
         "notesEnd": 4.138,
-        "peakDb": -6.8
+        "peakDb": -6.75
       }
     },
     "keyed": false,
@@ -153,13 +153,13 @@
     "tonics": []
   },
   "boss_berserker_king": {
-    "duration": 5.358,
+    "duration": 5.253,
     "files": {
       "stinger_boss_berserker_king": {
-        "duration": 5.358,
+        "duration": 5.253,
         "lufs": -15.5,
         "notesEnd": 3.429,
-        "peakDb": -3.22
+        "peakDb": -4.39
       }
     },
     "keyed": false,
@@ -168,13 +168,13 @@
     "tonics": []
   },
   "boss_blade_lord": {
-    "duration": 5.479,
+    "duration": 5.616,
     "files": {
       "stinger_boss_blade_lord": {
-        "duration": 5.479,
-        "lufs": -18.65,
+        "duration": 5.616,
+        "lufs": -18.58,
         "notesEnd": 4.0,
-        "peakDb": -2.16
+        "peakDb": -2.33
       }
     },
     "keyed": false,
@@ -183,61 +183,61 @@
     "tonics": []
   },
   "boss_card": {
-    "duration": 5.938,
+    "duration": 5.904,
     "files": {
       "stinger_boss_card_A": {
-        "duration": 5.785,
-        "lufs": -16.5,
-        "notesEnd": 4.286,
-        "peakDb": -3.03
-      },
-      "stinger_boss_card_B": {
-        "duration": 5.812,
-        "lufs": -16.5,
-        "notesEnd": 4.286,
-        "peakDb": -3.37
-      },
-      "stinger_boss_card_Bb": {
-        "duration": 5.907,
-        "lufs": -16.5,
-        "notesEnd": 4.286,
-        "peakDb": -1.56
-      },
-      "stinger_boss_card_C": {
-        "duration": 5.854,
-        "lufs": -16.5,
-        "notesEnd": 4.286,
-        "peakDb": -2.84
-      },
-      "stinger_boss_card_D": {
-        "duration": 5.793,
-        "lufs": -16.5,
-        "notesEnd": 4.286,
-        "peakDb": -3.84
-      },
-      "stinger_boss_card_Db": {
-        "duration": 5.857,
-        "lufs": -16.5,
-        "notesEnd": 4.286,
-        "peakDb": -1.83
-      },
-      "stinger_boss_card_E": {
-        "duration": 5.855,
-        "lufs": -16.5,
-        "notesEnd": 4.286,
-        "peakDb": -4.46
-      },
-      "stinger_boss_card_F": {
-        "duration": 5.83,
-        "lufs": -16.5,
-        "notesEnd": 4.286,
-        "peakDb": -4.56
-      },
-      "stinger_boss_card_G": {
-        "duration": 5.938,
+        "duration": 5.725,
         "lufs": -16.5,
         "notesEnd": 4.286,
         "peakDb": -4.0
+      },
+      "stinger_boss_card_B": {
+        "duration": 5.721,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -3.11
+      },
+      "stinger_boss_card_Bb": {
+        "duration": 5.69,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -4.1
+      },
+      "stinger_boss_card_C": {
+        "duration": 5.868,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -4.68
+      },
+      "stinger_boss_card_D": {
+        "duration": 5.729,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -5.4
+      },
+      "stinger_boss_card_Db": {
+        "duration": 5.763,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -5.63
+      },
+      "stinger_boss_card_E": {
+        "duration": 5.775,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -4.39
+      },
+      "stinger_boss_card_F": {
+        "duration": 5.833,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -5.52
+      },
+      "stinger_boss_card_G": {
+        "duration": 5.904,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -4.93
       }
     },
     "keyed": true,
@@ -246,13 +246,13 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "boss_dark_rider": {
-    "duration": 5.115,
+    "duration": 5.131,
     "files": {
       "stinger_boss_dark_rider": {
-        "duration": 5.115,
+        "duration": 5.131,
         "lufs": -17.0,
         "notesEnd": 3.81,
-        "peakDb": -5.34
+        "peakDb": -5.31
       }
     },
     "keyed": false,
@@ -261,13 +261,13 @@
     "tonics": []
   },
   "boss_emperor_card": {
-    "duration": 6.421,
+    "duration": 6.387,
     "files": {
       "stinger_boss_emperor_card": {
-        "duration": 6.421,
+        "duration": 6.387,
         "lufs": -16.0,
         "notesEnd": 4.615,
-        "peakDb": -4.61
+        "peakDb": -4.79
       }
     },
     "keyed": false,
@@ -276,61 +276,61 @@
     "tonics": []
   },
   "boss_felled": {
-    "duration": 4.873,
+    "duration": 4.884,
     "files": {
       "stinger_boss_felled_A": {
-        "duration": 4.778,
+        "duration": 4.697,
         "lufs": -16.0,
         "notesEnd": 2.5,
-        "peakDb": -3.9
+        "peakDb": -3.85
       },
       "stinger_boss_felled_B": {
-        "duration": 4.564,
+        "duration": 4.686,
         "lufs": -16.0,
         "notesEnd": 2.5,
-        "peakDb": -3.27
+        "peakDb": -4.13
       },
       "stinger_boss_felled_Bb": {
-        "duration": 4.601,
+        "duration": 4.684,
         "lufs": -16.0,
         "notesEnd": 2.5,
-        "peakDb": -3.58
+        "peakDb": -3.5
       },
       "stinger_boss_felled_C": {
-        "duration": 4.669,
+        "duration": 4.884,
         "lufs": -16.0,
         "notesEnd": 2.5,
-        "peakDb": -3.0
+        "peakDb": -4.32
       },
       "stinger_boss_felled_D": {
-        "duration": 4.873,
+        "duration": 4.737,
         "lufs": -16.0,
         "notesEnd": 2.5,
-        "peakDb": -3.44
+        "peakDb": -3.46
       },
       "stinger_boss_felled_Db": {
-        "duration": 4.533,
+        "duration": 4.802,
         "lufs": -16.0,
         "notesEnd": 2.5,
-        "peakDb": -4.75
+        "peakDb": -3.54
       },
       "stinger_boss_felled_E": {
-        "duration": 4.474,
+        "duration": 4.505,
         "lufs": -16.0,
         "notesEnd": 2.5,
-        "peakDb": -4.36
+        "peakDb": -4.96
       },
       "stinger_boss_felled_F": {
-        "duration": 4.582,
+        "duration": 4.65,
         "lufs": -16.0,
         "notesEnd": 2.5,
-        "peakDb": -3.14
+        "peakDb": -4.93
       },
       "stinger_boss_felled_G": {
-        "duration": 4.53,
+        "duration": 4.549,
         "lufs": -16.0,
         "notesEnd": 2.5,
-        "peakDb": -3.55
+        "peakDb": -4.23
       }
     },
     "keyed": true,
@@ -339,13 +339,13 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "boss_iron_captain": {
-    "duration": 5.001,
+    "duration": 4.962,
     "files": {
       "stinger_boss_iron_captain": {
-        "duration": 5.001,
+        "duration": 4.962,
         "lufs": -16.5,
         "notesEnd": 4.138,
-        "peakDb": -2.61
+        "peakDb": -3.51
       }
     },
     "keyed": false,
@@ -354,13 +354,13 @@
     "tonics": []
   },
   "boss_iron_wall": {
-    "duration": 6.663,
+    "duration": 6.588,
     "files": {
       "stinger_boss_iron_wall": {
-        "duration": 6.663,
+        "duration": 6.588,
         "lufs": -17.0,
         "notesEnd": 5.0,
-        "peakDb": -6.14
+        "peakDb": -4.68
       }
     },
     "keyed": false,
@@ -369,13 +369,13 @@
     "tonics": []
   },
   "boss_knight_commander": {
-    "duration": 5.71,
+    "duration": 5.165,
     "files": {
       "stinger_boss_knight_commander": {
-        "duration": 5.71,
+        "duration": 5.165,
         "lufs": -16.0,
         "notesEnd": 3.636,
-        "peakDb": -6.1
+        "peakDb": -5.08
       }
     },
     "keyed": false,
@@ -384,13 +384,13 @@
     "tonics": []
   },
   "boss_lieutenant_card": {
-    "duration": 5.927,
+    "duration": 6.281,
     "files": {
       "stinger_boss_lieutenant_card": {
-        "duration": 5.927,
+        "duration": 6.281,
         "lufs": -17.5,
         "notesEnd": 4.8,
-        "peakDb": -4.05
+        "peakDb": -5.0
       }
     },
     "keyed": false,
@@ -399,13 +399,13 @@
     "tonics": []
   },
   "boss_warchief": {
-    "duration": 6.04,
+    "duration": 5.861,
     "files": {
       "stinger_boss_warchief": {
-        "duration": 6.04,
+        "duration": 5.861,
         "lufs": -16.5,
         "notesEnd": 4.0,
-        "peakDb": -5.22
+        "peakDb": -5.69
       }
     },
     "keyed": false,
@@ -414,61 +414,61 @@
     "tonics": []
   },
   "deed": {
-    "duration": 5.757,
+    "duration": 5.719,
     "files": {
       "stinger_deed_A": {
-        "duration": 5.53,
+        "duration": 5.603,
         "lufs": -16.5,
         "notesEnd": 1.875,
-        "peakDb": -3.9
+        "peakDb": -2.12
       },
       "stinger_deed_B": {
-        "duration": 5.725,
-        "lufs": -16.5,
-        "notesEnd": 1.875,
-        "peakDb": -2.62
-      },
-      "stinger_deed_Bb": {
-        "duration": 5.757,
-        "lufs": -16.5,
-        "notesEnd": 1.875,
-        "peakDb": -3.6
-      },
-      "stinger_deed_C": {
-        "duration": 5.699,
-        "lufs": -16.5,
-        "notesEnd": 1.875,
-        "peakDb": -4.39
-      },
-      "stinger_deed_D": {
-        "duration": 5.576,
-        "lufs": -16.5,
-        "notesEnd": 1.875,
-        "peakDb": -3.8
-      },
-      "stinger_deed_Db": {
-        "duration": 5.699,
-        "lufs": -16.5,
-        "notesEnd": 1.875,
-        "peakDb": -4.12
-      },
-      "stinger_deed_E": {
         "duration": 5.618,
         "lufs": -16.5,
         "notesEnd": 1.875,
-        "peakDb": -2.96
+        "peakDb": -4.56
+      },
+      "stinger_deed_Bb": {
+        "duration": 5.719,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -2.83
+      },
+      "stinger_deed_C": {
+        "duration": 5.644,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -2.76
+      },
+      "stinger_deed_D": {
+        "duration": 5.587,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -4.97
+      },
+      "stinger_deed_Db": {
+        "duration": 5.661,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -1.65
+      },
+      "stinger_deed_E": {
+        "duration": 5.478,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -2.51
       },
       "stinger_deed_F": {
-        "duration": 5.549,
+        "duration": 5.618,
         "lufs": -16.5,
         "notesEnd": 1.875,
-        "peakDb": -4.88
+        "peakDb": -4.25
       },
       "stinger_deed_G": {
-        "duration": 5.441,
+        "duration": 5.394,
         "lufs": -16.5,
         "notesEnd": 1.875,
-        "peakDb": -3.62
+        "peakDb": -3.88
       }
     },
     "keyed": true,
@@ -477,61 +477,61 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "eclipse": {
-    "duration": 6.765,
+    "duration": 6.742,
     "files": {
       "stinger_eclipse_A": {
-        "duration": 6.559,
+        "duration": 6.611,
         "lufs": -19.5,
         "notesEnd": 3.636,
-        "peakDb": -5.54
+        "peakDb": -4.96
       },
       "stinger_eclipse_B": {
-        "duration": 6.552,
+        "duration": 6.553,
         "lufs": -19.5,
         "notesEnd": 3.636,
-        "peakDb": -5.28
+        "peakDb": -5.07
       },
       "stinger_eclipse_Bb": {
-        "duration": 6.596,
+        "duration": 6.666,
         "lufs": -19.5,
         "notesEnd": 3.636,
-        "peakDb": -4.72
+        "peakDb": -4.02
       },
       "stinger_eclipse_C": {
-        "duration": 6.59,
+        "duration": 6.605,
         "lufs": -19.5,
         "notesEnd": 3.636,
-        "peakDb": -4.95
+        "peakDb": -4.29
       },
       "stinger_eclipse_D": {
         "duration": 6.66,
         "lufs": -19.5,
         "notesEnd": 3.636,
-        "peakDb": -3.71
+        "peakDb": -4.21
       },
       "stinger_eclipse_Db": {
         "duration": 6.693,
         "lufs": -19.5,
         "notesEnd": 3.636,
-        "peakDb": -4.87
+        "peakDb": -5.14
       },
       "stinger_eclipse_E": {
         "duration": 6.656,
         "lufs": -19.5,
         "notesEnd": 3.636,
-        "peakDb": -6.31
+        "peakDb": -6.44
       },
       "stinger_eclipse_F": {
-        "duration": 6.765,
+        "duration": 6.742,
         "lufs": -19.5,
         "notesEnd": 3.636,
-        "peakDb": -5.21
+        "peakDb": -5.82
       },
       "stinger_eclipse_G": {
         "duration": 6.656,
         "lufs": -19.5,
         "notesEnd": 3.636,
-        "peakDb": -5.7
+        "peakDb": -6.21
       }
     },
     "keyed": true,
@@ -540,13 +540,13 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "entity_answer": {
-    "duration": 5.031,
+    "duration": 4.799,
     "files": {
       "stinger_entity_answer": {
-        "duration": 5.031,
+        "duration": 4.799,
         "lufs": -18.0,
         "notesEnd": 3.529,
-        "peakDb": -5.78
+        "peakDb": -7.76
       }
     },
     "handoff": 3.529412,
@@ -556,61 +556,61 @@
     "tonics": []
   },
   "levelup": {
-    "duration": 4.489,
+    "duration": 4.414,
     "files": {
       "stinger_levelup_A": {
-        "duration": 4.489,
+        "duration": 4.401,
         "lufs": -17.0,
         "notesEnd": 1.818,
-        "peakDb": -4.7
+        "peakDb": -2.83
       },
       "stinger_levelup_B": {
-        "duration": 4.48,
+        "duration": 4.402,
         "lufs": -17.0,
         "notesEnd": 1.818,
-        "peakDb": -3.94
+        "peakDb": -4.64
       },
       "stinger_levelup_Bb": {
-        "duration": 4.4,
+        "duration": 4.414,
         "lufs": -17.0,
         "notesEnd": 1.818,
-        "peakDb": -4.38
+        "peakDb": -4.87
       },
       "stinger_levelup_C": {
-        "duration": 4.4,
+        "duration": 4.402,
         "lufs": -17.0,
         "notesEnd": 1.818,
-        "peakDb": -4.74
+        "peakDb": -3.3
       },
       "stinger_levelup_D": {
-        "duration": 4.4,
+        "duration": 4.247,
         "lufs": -17.0,
         "notesEnd": 1.818,
-        "peakDb": -2.79
+        "peakDb": -5.31
       },
       "stinger_levelup_Db": {
-        "duration": 4.4,
+        "duration": 4.401,
         "lufs": -17.0,
         "notesEnd": 1.818,
-        "peakDb": -4.11
+        "peakDb": -2.89
       },
       "stinger_levelup_E": {
-        "duration": 4.48,
+        "duration": 4.401,
         "lufs": -17.0,
         "notesEnd": 1.818,
-        "peakDb": -5.23
+        "peakDb": -5.01
       },
       "stinger_levelup_F": {
-        "duration": 4.4,
+        "duration": 4.276,
         "lufs": -17.0,
         "notesEnd": 1.818,
-        "peakDb": -3.76
+        "peakDb": -5.82
       },
       "stinger_levelup_G": {
-        "duration": 4.4,
+        "duration": 4.159,
         "lufs": -17.0,
         "notesEnd": 1.818,
-        "peakDb": -5.79
+        "peakDb": -4.82
       }
     },
     "keyed": true,
@@ -622,58 +622,58 @@
     "duration": 3.221,
     "files": {
       "stinger_levelup_blank_A": {
-        "duration": 2.776,
+        "duration": 2.943,
         "lufs": -19.0,
         "notesEnd": 0.909,
-        "peakDb": -7.1
+        "peakDb": -5.96
       },
       "stinger_levelup_blank_B": {
-        "duration": 2.948,
+        "duration": 3.186,
         "lufs": -19.0,
         "notesEnd": 0.909,
-        "peakDb": -3.89
+        "peakDb": -6.93
       },
       "stinger_levelup_blank_Bb": {
-        "duration": 2.893,
+        "duration": 3.086,
         "lufs": -19.0,
         "notesEnd": 0.909,
-        "peakDb": -5.36
+        "peakDb": -6.81
       },
       "stinger_levelup_blank_C": {
+        "duration": 3.17,
+        "lufs": -19.0,
+        "notesEnd": 0.909,
+        "peakDb": -7.02
+      },
+      "stinger_levelup_blank_D": {
         "duration": 3.221,
         "lufs": -19.0,
         "notesEnd": 0.909,
-        "peakDb": -3.83
-      },
-      "stinger_levelup_blank_D": {
-        "duration": 3.021,
-        "lufs": -19.0,
-        "notesEnd": 0.909,
-        "peakDb": -3.68
+        "peakDb": -3.5
       },
       "stinger_levelup_blank_Db": {
-        "duration": 2.834,
+        "duration": 2.932,
         "lufs": -19.0,
         "notesEnd": 0.909,
-        "peakDb": -5.03
+        "peakDb": -6.52
       },
       "stinger_levelup_blank_E": {
-        "duration": 2.3,
+        "duration": 2.204,
         "lufs": -19.0,
         "notesEnd": 0.909,
-        "peakDb": -4.92
+        "peakDb": -5.2
       },
       "stinger_levelup_blank_F": {
-        "duration": 2.287,
+        "duration": 2.483,
         "lufs": -19.0,
         "notesEnd": 0.909,
-        "peakDb": -5.15
+        "peakDb": -7.19
       },
       "stinger_levelup_blank_G": {
-        "duration": 2.876,
+        "duration": 2.873,
         "lufs": -19.0,
         "notesEnd": 0.909,
-        "peakDb": -4.42
+        "peakDb": -5.29
       }
     },
     "keyed": true,
@@ -682,61 +682,61 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "levelup_perfect": {
-    "duration": 5.588,
+    "duration": 5.488,
     "files": {
       "stinger_levelup_perfect_A": {
-        "duration": 5.509,
+        "duration": 5.436,
         "lufs": -16.0,
         "notesEnd": 3.636,
-        "peakDb": -3.58
+        "peakDb": -2.18
       },
       "stinger_levelup_perfect_B": {
-        "duration": 5.347,
+        "duration": 5.286,
         "lufs": -16.0,
         "notesEnd": 3.636,
-        "peakDb": -1.5
+        "peakDb": -2.59
       },
       "stinger_levelup_perfect_Bb": {
-        "duration": 5.32,
+        "duration": 5.222,
         "lufs": -16.0,
         "notesEnd": 3.636,
-        "peakDb": -3.0
+        "peakDb": -3.88
       },
       "stinger_levelup_perfect_C": {
-        "duration": 5.588,
+        "duration": 5.488,
         "lufs": -16.0,
         "notesEnd": 3.636,
-        "peakDb": -1.56
+        "peakDb": -3.67
       },
       "stinger_levelup_perfect_D": {
-        "duration": 5.459,
+        "duration": 5.383,
         "lufs": -16.0,
         "notesEnd": 3.636,
-        "peakDb": -4.52
+        "peakDb": -3.77
       },
       "stinger_levelup_perfect_Db": {
-        "duration": 5.567,
+        "duration": 5.293,
         "lufs": -16.0,
         "notesEnd": 3.636,
-        "peakDb": -4.15
+        "peakDb": -4.6
       },
       "stinger_levelup_perfect_E": {
-        "duration": 5.29,
+        "duration": 5.212,
         "lufs": -16.0,
         "notesEnd": 3.636,
-        "peakDb": -2.61
+        "peakDb": -3.09
       },
       "stinger_levelup_perfect_F": {
-        "duration": 5.246,
+        "duration": 5.255,
         "lufs": -16.0,
         "notesEnd": 3.636,
-        "peakDb": -4.22
+        "peakDb": -4.25
       },
       "stinger_levelup_perfect_G": {
-        "duration": 5.396,
+        "duration": 5.363,
         "lufs": -16.0,
         "notesEnd": 3.636,
-        "peakDb": -1.49
+        "peakDb": -4.04
       }
     },
     "keyed": true,
@@ -745,61 +745,61 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "lord_fallen": {
-    "duration": 5.201,
+    "duration": 5.074,
     "files": {
       "stinger_lord_fallen_A": {
-        "duration": 5.041,
+        "duration": 4.985,
         "lufs": -19.0,
         "notesEnd": 3.333,
-        "peakDb": -4.42
+        "peakDb": -6.74
       },
       "stinger_lord_fallen_B": {
-        "duration": 5.09,
+        "duration": 5.031,
         "lufs": -19.0,
         "notesEnd": 3.333,
-        "peakDb": -5.07
+        "peakDb": -5.34
       },
       "stinger_lord_fallen_Bb": {
-        "duration": 5.018,
+        "duration": 5.072,
         "lufs": -19.0,
         "notesEnd": 3.333,
-        "peakDb": -6.4
+        "peakDb": -8.02
       },
       "stinger_lord_fallen_C": {
-        "duration": 5.158,
+        "duration": 5.035,
         "lufs": -19.0,
         "notesEnd": 3.333,
-        "peakDb": -6.87
+        "peakDb": -6.14
       },
       "stinger_lord_fallen_D": {
-        "duration": 5.098,
+        "duration": 5.074,
         "lufs": -19.0,
         "notesEnd": 3.333,
-        "peakDb": -4.62
+        "peakDb": -7.63
       },
       "stinger_lord_fallen_Db": {
-        "duration": 4.993,
+        "duration": 5.051,
         "lufs": -19.0,
         "notesEnd": 3.333,
-        "peakDb": -6.72
+        "peakDb": -6.95
       },
       "stinger_lord_fallen_E": {
-        "duration": 5.201,
+        "duration": 4.959,
         "lufs": -19.0,
         "notesEnd": 3.333,
-        "peakDb": -5.78
+        "peakDb": -5.68
       },
       "stinger_lord_fallen_F": {
-        "duration": 4.952,
+        "duration": 4.968,
         "lufs": -19.0,
         "notesEnd": 3.333,
-        "peakDb": -5.45
+        "peakDb": -6.83
       },
       "stinger_lord_fallen_G": {
-        "duration": 4.98,
+        "duration": 4.894,
         "lufs": -19.0,
         "notesEnd": 3.333,
-        "peakDb": -7.67
+        "peakDb": -6.71
       }
     },
     "keyed": true,
@@ -808,61 +808,61 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "promotion_crown": {
-    "duration": 7.318,
+    "duration": 7.527,
     "files": {
       "stinger_promotion_crown_A": {
-        "duration": 7.301,
+        "duration": 7.41,
         "lufs": -15.5,
         "notesEnd": 4.545,
-        "peakDb": -2.03
+        "peakDb": -4.11
       },
       "stinger_promotion_crown_B": {
-        "duration": 7.222,
+        "duration": 7.527,
         "lufs": -15.5,
         "notesEnd": 4.545,
-        "peakDb": -3.78
+        "peakDb": -3.89
       },
       "stinger_promotion_crown_Bb": {
-        "duration": 7.19,
+        "duration": 7.41,
         "lufs": -15.5,
         "notesEnd": 4.545,
-        "peakDb": -3.85
+        "peakDb": -4.47
       },
       "stinger_promotion_crown_C": {
-        "duration": 7.318,
+        "duration": 7.527,
         "lufs": -15.5,
         "notesEnd": 4.545,
-        "peakDb": -4.98
+        "peakDb": -4.6
       },
       "stinger_promotion_crown_D": {
-        "duration": 7.179,
+        "duration": 7.527,
         "lufs": -15.5,
         "notesEnd": 4.545,
-        "peakDb": -3.46
+        "peakDb": -4.89
       },
       "stinger_promotion_crown_Db": {
-        "duration": 7.264,
+        "duration": 7.41,
         "lufs": -15.5,
         "notesEnd": 4.545,
-        "peakDb": -3.18
+        "peakDb": -5.09
       },
       "stinger_promotion_crown_E": {
-        "duration": 7.183,
+        "duration": 7.41,
         "lufs": -15.5,
         "notesEnd": 4.545,
-        "peakDb": -4.48
+        "peakDb": -5.36
       },
       "stinger_promotion_crown_F": {
-        "duration": 7.117,
+        "duration": 7.41,
         "lufs": -15.5,
         "notesEnd": 4.545,
-        "peakDb": -4.67
+        "peakDb": -5.25
       },
       "stinger_promotion_crown_G": {
-        "duration": 7.117,
+        "duration": 7.41,
         "lufs": -15.5,
         "notesEnd": 4.545,
-        "peakDb": -4.16
+        "peakDb": -5.27
       }
     },
     "keyed": true,
@@ -871,61 +871,61 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "promotion_gather": {
-    "duration": 4.624,
+    "duration": 4.67,
     "files": {
       "stinger_promotion_gather_A": {
-        "duration": 4.522,
+        "duration": 4.67,
         "lufs": -18.0,
         "notesEnd": 3.0,
-        "peakDb": -4.92
+        "peakDb": -5.22
       },
       "stinger_promotion_gather_B": {
-        "duration": 4.39,
+        "duration": 4.497,
         "lufs": -18.0,
         "notesEnd": 3.0,
-        "peakDb": -5.97
+        "peakDb": -5.48
       },
       "stinger_promotion_gather_Bb": {
-        "duration": 4.494,
+        "duration": 4.458,
         "lufs": -18.0,
         "notesEnd": 3.0,
-        "peakDb": -5.84
+        "peakDb": -4.26
       },
       "stinger_promotion_gather_C": {
-        "duration": 4.57,
+        "duration": 4.556,
         "lufs": -18.0,
         "notesEnd": 3.0,
-        "peakDb": -5.89
+        "peakDb": -5.63
       },
       "stinger_promotion_gather_D": {
-        "duration": 4.624,
+        "duration": 4.572,
         "lufs": -18.0,
         "notesEnd": 3.0,
-        "peakDb": -5.83
+        "peakDb": -4.82
       },
       "stinger_promotion_gather_Db": {
-        "duration": 4.511,
+        "duration": 4.521,
         "lufs": -18.0,
         "notesEnd": 3.0,
-        "peakDb": -4.63
+        "peakDb": -5.43
       },
       "stinger_promotion_gather_E": {
-        "duration": 4.496,
+        "duration": 4.574,
         "lufs": -18.0,
         "notesEnd": 3.0,
-        "peakDb": -6.24
+        "peakDb": -5.52
       },
       "stinger_promotion_gather_F": {
-        "duration": 4.548,
+        "duration": 4.603,
         "lufs": -18.0,
         "notesEnd": 3.0,
-        "peakDb": -4.72
+        "peakDb": -5.88
       },
       "stinger_promotion_gather_G": {
-        "duration": 4.563,
+        "duration": 4.583,
         "lufs": -18.0,
         "notesEnd": 3.0,
-        "peakDb": -5.79
+        "peakDb": -3.75
       }
     },
     "keyed": true,
@@ -934,61 +934,61 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "recruit": {
-    "duration": 6.553,
+    "duration": 6.537,
     "files": {
       "stinger_recruit_A": {
-        "duration": 6.2,
+        "duration": 6.263,
         "lufs": -17.5,
         "notesEnd": 3.6,
-        "peakDb": -6.75
+        "peakDb": -6.53
       },
       "stinger_recruit_B": {
-        "duration": 5.875,
+        "duration": 5.965,
         "lufs": -17.5,
         "notesEnd": 3.6,
-        "peakDb": -6.43
+        "peakDb": -7.04
       },
       "stinger_recruit_Bb": {
-        "duration": 6.553,
+        "duration": 6.537,
         "lufs": -17.5,
         "notesEnd": 3.6,
-        "peakDb": -5.8
+        "peakDb": -5.48
       },
       "stinger_recruit_C": {
-        "duration": 6.275,
+        "duration": 6.266,
         "lufs": -17.5,
         "notesEnd": 3.6,
-        "peakDb": -5.59
+        "peakDb": -5.64
       },
       "stinger_recruit_D": {
-        "duration": 6.148,
+        "duration": 6.269,
         "lufs": -17.5,
         "notesEnd": 3.6,
-        "peakDb": -5.38
+        "peakDb": -5.14
       },
       "stinger_recruit_Db": {
-        "duration": 6.126,
+        "duration": 6.135,
         "lufs": -17.5,
         "notesEnd": 3.6,
-        "peakDb": -4.95
+        "peakDb": -5.63
       },
       "stinger_recruit_E": {
-        "duration": 5.964,
+        "duration": 5.943,
         "lufs": -17.5,
         "notesEnd": 3.6,
-        "peakDb": -4.42
+        "peakDb": -6.45
       },
       "stinger_recruit_F": {
-        "duration": 6.21,
+        "duration": 6.151,
         "lufs": -17.5,
         "notesEnd": 3.6,
-        "peakDb": -6.65
+        "peakDb": -6.49
       },
       "stinger_recruit_G": {
-        "duration": 6.045,
+        "duration": 6.082,
         "lufs": -17.5,
         "notesEnd": 3.6,
-        "peakDb": -4.94
+        "peakDb": -5.44
       }
     },
     "keyed": true,
@@ -997,61 +997,61 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "rewind": {
-    "duration": 4.498,
+    "duration": 4.526,
     "files": {
       "stinger_rewind_A": {
-        "duration": 4.498,
+        "duration": 4.526,
         "lufs": -18.5,
         "notesEnd": 2.4,
-        "peakDb": -5.23
+        "peakDb": -7.15
       },
       "stinger_rewind_B": {
-        "duration": 4.091,
+        "duration": 4.253,
         "lufs": -18.5,
         "notesEnd": 2.4,
-        "peakDb": -4.6
+        "peakDb": -5.8
       },
       "stinger_rewind_Bb": {
-        "duration": 4.313,
+        "duration": 4.34,
         "lufs": -18.5,
         "notesEnd": 2.4,
-        "peakDb": -5.39
+        "peakDb": -4.95
       },
       "stinger_rewind_C": {
-        "duration": 4.269,
+        "duration": 4.523,
         "lufs": -18.5,
         "notesEnd": 2.4,
-        "peakDb": -3.63
+        "peakDb": -6.51
       },
       "stinger_rewind_D": {
-        "duration": 3.854,
+        "duration": 3.939,
         "lufs": -18.5,
         "notesEnd": 2.4,
-        "peakDb": -3.44
+        "peakDb": -5.31
       },
       "stinger_rewind_Db": {
-        "duration": 4.021,
+        "duration": 4.059,
         "lufs": -18.5,
         "notesEnd": 2.4,
-        "peakDb": -5.76
+        "peakDb": -4.69
       },
       "stinger_rewind_E": {
-        "duration": 3.999,
+        "duration": 4.012,
         "lufs": -18.5,
         "notesEnd": 2.4,
-        "peakDb": -5.96
+        "peakDb": -4.8
       },
       "stinger_rewind_F": {
-        "duration": 3.781,
+        "duration": 3.849,
         "lufs": -18.5,
         "notesEnd": 2.4,
-        "peakDb": -4.37
+        "peakDb": -5.04
       },
       "stinger_rewind_G": {
-        "duration": 3.678,
+        "duration": 4.042,
         "lufs": -18.5,
         "notesEnd": 2.4,
-        "peakDb": -6.12
+        "peakDb": -4.9
       }
     },
     "keyed": true,
@@ -1060,61 +1060,61 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "sealed": {
-    "duration": 4.254,
+    "duration": 4.2,
     "files": {
       "stinger_sealed_A": {
-        "duration": 3.845,
+        "duration": 3.893,
         "lufs": -18.5,
         "notesEnd": 2.0,
-        "peakDb": -3.72
+        "peakDb": -3.67
       },
       "stinger_sealed_B": {
-        "duration": 3.439,
+        "duration": 3.413,
         "lufs": -18.5,
         "notesEnd": 2.0,
-        "peakDb": -2.81
+        "peakDb": -2.76
       },
       "stinger_sealed_Bb": {
-        "duration": 4.254,
+        "duration": 4.2,
         "lufs": -18.5,
         "notesEnd": 2.0,
-        "peakDb": -4.28
+        "peakDb": -4.96
       },
       "stinger_sealed_C": {
-        "duration": 3.983,
+        "duration": 3.888,
         "lufs": -18.5,
         "notesEnd": 2.0,
-        "peakDb": -3.22
+        "peakDb": -4.27
       },
       "stinger_sealed_D": {
-        "duration": 3.964,
+        "duration": 3.8,
         "lufs": -18.5,
         "notesEnd": 2.0,
-        "peakDb": -3.24
+        "peakDb": -5.92
       },
       "stinger_sealed_Db": {
-        "duration": 4.038,
+        "duration": 4.086,
         "lufs": -18.5,
         "notesEnd": 2.0,
-        "peakDb": -4.55
+        "peakDb": -3.68
       },
       "stinger_sealed_E": {
-        "duration": 4.067,
+        "duration": 3.813,
         "lufs": -18.5,
         "notesEnd": 2.0,
-        "peakDb": -3.62
+        "peakDb": -5.79
       },
       "stinger_sealed_F": {
-        "duration": 4.019,
+        "duration": 3.888,
         "lufs": -18.5,
         "notesEnd": 2.0,
-        "peakDb": -5.27
+        "peakDb": -3.82
       },
       "stinger_sealed_G": {
-        "duration": 4.13,
+        "duration": 4.139,
         "lufs": -18.5,
         "notesEnd": 2.0,
-        "peakDb": -3.12
+        "peakDb": -2.91
       }
     },
     "keyed": true,

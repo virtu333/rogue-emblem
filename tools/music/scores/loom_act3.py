@@ -33,6 +33,9 @@ def build():
     s = Score('loom_act3', tonic='E', bpm=72, meter=(3, 4), intro_bars=2, loop_bars=24,
               title='The Loom: Bleached Rite', seed=53)
     s.reverb = dict(rt60=4.0, predelay_ms=40, wet_db=1.5, damp=0.4, bright=1.2)
+    # the lament's violin unshaped: each note from its own bow, the written
+    # dynamic only (the sound lab's pick for this line)
+    s.palette = {'solo_violin': 'sso_plain'}
     s.master = dict(lufs=-18.0, glue_ratio=1.2, lead_duck=1.0)
     s.variant('full', {}, lufs=-18.0)
     A, B = 3, 15

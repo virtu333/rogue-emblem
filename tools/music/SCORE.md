@@ -18,7 +18,9 @@ the story.
 | **Unlight** | no melody at all: a hum on D and its semitone shadow, and the Thread with its notes taken away (the answer, then the downbeat, then all but one inner note) | the Entity, which has no words | The secret boss, the Deep route map, the Entity's card (silence); under its finale, the hum is the Entity's own stem |
 
 The last cue closes the story: in **The Last Light** (run victory) the phrase the title
-leaves hanging finally resolves, and the bells toll D, the root no other cue plays.
+leaves hanging finally resolves, and the bells toll D. Other cues strike a D bell as a call
+(Totality, the eclipse and deed cues, the Act IV card, the Entity's finale); only here does the
+Hollow Sun's leading tone rise onto it.
 
 ## The Entity's finale
 
@@ -72,7 +74,7 @@ it was heard when the wound was dealt).
 | `music_rest` | Liturgy of the Spent Name | Organ and choir hymn; the second phrase climbs to the leading tone and stops: a silent bar where the name was |
 | `music_loot` | Spoils of the March | Short bright loop |
 | `music_victory` | Routed | Brass fanfare of the oath, then the Thread at rest |
-| `music_defeat` | The Thread Is Cut | Solo cello breaks off mid-theme |
+| `music_defeat` | The Thread Is Cut | The celli break off mid-theme |
 | `music_run_win` | The Last Light | The Thread in D major; the hollow cadence resolves |
 | `music_explore_act1` | The Loom: Ember Dusk | Harp/pizzicato "shuttle", flute Thread in D dorian |
 | `music_explore_act2` | The Loom: Iron Rain | Celesta rain, muted-horn Empire drill, oboe Thread |
@@ -99,6 +101,12 @@ it was heard when the wound was dealt).
 | `music_battle_elite` | Against the Standard | Elite companies. 168 bpm, C minor: a 7-sixteenth cell crosses the bar line over a quarter-note floor, each cell head struck by a rim click and a high marimba, re-forming only at strain starts; a unison hit stops it dead and it resumes half a bar out. The tune climbs D–Eb–F# onto a cadential 6/4 |
 | `music_battle_rescue` | Someone Is Still Out There | Recruit rescues. 148 bpm, F minor into F major: the stranger's line has the Thread's rhythm and other intervals (a cry up a seventh); the two meet, and in the last strain the army plays the stranger's line while the bass walks it into F major; the hope is in the inner voices, the major IV over F and a whole-tone shadow of the dominant over the leading tone (after *Indomitable Will*) |
 | `music_battle_eclipsed` | Totality | Nodes the Eclipse has taken. 6/8 at 72 (dotted quarter, the slowest battle), D: the Eclipse cue's bell call and its failed answers, which stay under the call and end a step from its D, never on it; each strain loses light from the top down (the high voices, the harp, the cymbals, the choir sinking), the phrases lose their breath in real 5/8 and 4/8 bars, and only the loop brings the light back |
+| `music_battle_elite_act2` | The Iron Line | Act II elite companies. 148 bpm, F minor: an Imperial heavy company. The stabs spell the Empire drill (F–Gb–F–Eb, falling to Db) at the speed of armour, in a three-bar cycle that crosses the bar line (a landing on beat 1, the next chord struck on beat 3 as a pickup to the following landing; in A the bass spells the drill with the top, in outer voices, and only C's bass rises by step); a two-bar low riff with one Gb/G pair walks the harmony away and home only by moving its root. The song leaps an octave onto each landing. No V–i (after *God-Shattering Star*) |
+| `music_battle_elite_act3` | The Consecrated | Act III elite companies. Cut time at half = 80, A with the Phrygian Bb: the rite's own guard. The choir recites on one tone (E), a syllable a beat, over stabs rising A–Bb–C–D with every other bar empty; the dominant is a pedal the bass leaves by step, never V–i. The hymn goes to horns and trumpets in F over hammering trombones while the choir holds one note into it and stops; when the choir takes the hymn back it climbs to G# and falls silent where A should be (the Hollow Sun; after *God-Shattering Star*) |
+| `music_battle_elite_act4` | The Emperor's Own | Act IV elite companies. 164 bpm, Bb minor, the Emperor's key: square strains of 3 bars + a stop bar + 3 bars + a tonic bar; in each stop bar, after a stamp on its downbeat, the bass and the stabs withdraw, the kit keeps going and the trumpets re-enter with a three-note pickup; the tonic arrives only by anticipation. Bass, snare and brass stabs interlock (the stabs are the snare hits). Once per loop the company's standard: the head of the Emperor's anthem, turned minor, with the choir (after *Tearing Through Heaven*) |
+| `music_battle_act4_3` | The Name Is Not Spoken | Act IV. 176 bpm, B minor, 3/4 into 4/4: the tune that stands for a person is only ever played, never sung, a new instrument and a new key each time (clarinet in B, piano in D, horns in E), and it climbs to the leading tone and stops (the Hollow Sun). The choir sings only the Empire's public chant, a syllable a beat over a marcato ostinato; then the anthem in 4/4, the imperial drill chant ("Left, and the line") on the tonic and its semitone shadow, climbing a step at a time to end on B (not a dotted march head: that is the Emperor's, and his guard's standard), over an eight-bar modal cycle whose only leading tone is a bass walking G#–A–A#–B, built in three blocks, which falls away so the loop turns on the lone tune (after *Id ~ Purpose*) |
+| `music_battle_fog` | What the Fog Keeps | Fog of war. 100 bpm, G Dorian, no drum kit: the calm mix hears the tune only in fragments (its notes passed between distant voices, most of them missing); the full mix, when blows are exchanged, fills it in, so the crossfade is the fog lifting. A phrase's last notes come back a dotted quarter later from the other side of the room; the harmony has no third until the full mix's cadences |
+| `music_battle_caravan` | Coin and Canvas | A merchant caravan to protect. 146 bpm, E major, the first joyful battle theme: the tune states the tonic plainly (5–1–3, then a leap to the tonic an octave up) while the bass never plays E at all, sitting on IV and inversions, so the loop never closes (after *Conquest*). The wheel: the bass rolling in eighths with one missing, a strummed nylon guitar, tambourine and harness bells; B turns to C# minor over a G# pedal when the wagons can burn |
 | `music_colosseum` | The Pit Answers | A dorian, 3+3+2: a fiddle calls, the crowd answers... then a few voices, then nobody |
 | `music_shrine` | What the Sun Kept | Blessing select. G major 3/4, harp and celesta, Lydian gold; the hymn still stops on the leading tone |
 | `music_explore_deep` | The Loom: Unlight | The last act's route map: Act I's loom with its notes taken away in three stages over a D drone |
@@ -157,21 +165,24 @@ the Act II battle sounds in C and one in the shop sounds in G.
 What each cue may spend, so escalation stays earned (after the Reference Track
 Analysis dossier):
 
-- **Choir** is not used in Act I (battles, boss, route). Voices arrive with the rite
-  in Act III, the Emperor and the Lieutenant. The Entity never sings; its finale is
+- **Choir** is not used in Act I (battles, boss, route). In Act II it is a far colour
+  under the tune (oohs and a choir pad in Iron Rain and Steel and Thread, and in the
+  Act II boss's last two strains); voices take the foreground with the rite in Act III, the
+  Emperor and the Lieutenant. The Entity never sings; its finale is
   where the choir finally sings Ember Dusk.
 - **Massed doubling** (piccolo over the tune, trumpets doubling horns) is kept out of
   the most frequent theme (Act I battle).
 - **Displaced accents on a straight grid** (three-sixteenth groups) belong to the Act I
   battle's string ostinato; **3:2 against the beat** to the sacred ground; a **compound
   motor under a broad line** to escape maps.
-- **A completed tonic cadence of the Thread** is reserved for promotion and the run's
-  final victory, which resolves it once (with the bells). The title, the victory fanfare,
-  the route maps and the field and boss battles stop on the leading tone, the fifth or the
-  second instead.
+- **The Hollow Sun's resolution** (its phrase climbing to the leading tone and rising
+  onto the tonic, with tolled bells) is reserved for promotion and the run's final victory,
+  which resolves it once. The title, the church hymn, the shrine and every cue that quotes
+  the phrase stop on the leading tone instead. Ordinary melodic landings on the tonic
+  (Ember Dusk's 3-2-1, the finale's A strain) are not that cadence and are allowed.
 - **Each new battle theme owns its mechanism** (the cue list names it): bar contraction to
   Petals on the Fen and Totality, a cross-bar cycle to Against the Standard, a pedal under a
-  third-less collection to Caldera, a held note changing meaning to Rime and the title.
+  third-less collection to Caldera, a held note changing meaning to Rime and the title, a stab cycle that spells the drill to The Iron Line, a reciting tone to The Consecrated, the stop bar with a pickup to The Emperor's Own, an unsung tune passed between keys to The Name Is Not Spoken, a tune revealed by the full mix to What the Fog Keeps, a bass that never gives the root to Coin and Canvas.
 
 ## Adaptive battle music
 
@@ -180,7 +191,8 @@ Every field battle theme exists as two mixes on one timeline (`<key>` and
 
 - **calm**: a solo voice (solo violin, flute, oboe, clarinet) carries the tune over
   legato low strings, piano in quarters and a soft heartbeat kick.
-- **full**: rock kit, bass guitar, brass unisons and string ostinati (choir from Act III on).
+- **full**: rock kit, bass guitar, brass unisons and string ostinati (a far choir colour in
+  Act II, the choir itself from Act III on).
 
 `src/engine/MusicIntensity.js` decides the layer and `src/ui/BattleMusicController.js`
 drives it. A battle opens calm. Any exchange of blows raises it to full, and so does an
@@ -196,13 +208,16 @@ A battle's music answers the most specific thing true of it (`engine/BattleMusic
 1. a boss plays its theme (the antagonists' own, else the act's);
 2. an escape map plays One More Crossing;
 3. a node the Eclipse has taken plays Totality; a village under attack, Bells Over the Village;
-   a recruit rescue, Someone Is Still Out There; an elite company, Against the Standard;
+   a recruit rescue, Someone Is Still Out There; an elite company, its act's own: Against the
+   Standard (Act I), The Iron Line (Act II), The Consecrated (Act III), The Emperor's Own (Act IV);
 4. the map's place: castles Stone That Remembers (two thirds of them), swamps The Mire,
-   tundra Rime, volcanoes Caldera; a third of the maps where bandits race for a village ring
-   the village's bells;
-5. otherwise the act's pool: Act I Ember Dusk, Border Marches, Open Ground, The Oath at the
+   tundra Rime, volcanoes Caldera;
+5. a share of the rest: most maps with a merchant caravan to protect play Coin and Canvas; a
+   third of the maps where bandits race for a village ring the village's bells; most maps in
+   fog of war play What the Fog Keeps;
+6. otherwise the act's pool: Act I Ember Dusk, Border Marches, Open Ground, The Oath at the
    Ford; Act II Iron Rain, Steel and Thread, Old Kingdom Roads; Act III Bleached Rite, Against
-   the Rite, Petals on the Fen; Act IV Ashfall, Ember Dusk in Ash.
+   the Rite, Petals on the Fen; Act IV Ashfall, Ember Dusk in Ash, The Name Is Not Spoken.
 
 Picks are hashed from the run seed, never rolled, so a resumed battle plays what it played.
 The act pool is walked in a per-run order indexed by the node's row, so a path hears no theme

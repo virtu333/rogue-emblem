@@ -1,8 +1,8 @@
 """The blessing shrine — "What the Sun Kept".
 
 Where a run chooses its blessings: gold, warm, reverent without weight.
-G major in 3/4, harp and celesta over soft strings, with the Lydian C-sharp
-(over C) for the light. The flute's hymn climbs to the leading tone and
+G major in 3/4, harp and celesta over soft strings; one high C-sharp in the
+second hymn (bar 25, over E minor) catches the light. The flute's hymn climbs to the leading tone and
 stops: the Hollow Sun, still withholding its name, even here. The middle
 strain sets the Thread (D-G-A-D) on the celesta over a hush of voices.
 """
