@@ -3246,6 +3246,29 @@ export class RunManager {
    * Accessories route to the team accessory pool.
    * Items that cannot be transferred remain on the fallen unit.
    */
+  /**
+   * The caravan Merchant (CaravanSystem, `isCaravan`) is an escort NPC, never an army
+   * unit. Before Talk learned to ignore it (#139), a lord could recruit it; old saves
+   * can hold it on the roster or awaiting revival. Drop it from both; a roster copy's
+   * carried items go to the convoy and its accessory to the pool.
+   */
+  _dropCaravanUnits() {
+    if (!Array.isArray(this.roster) || !Array.isArray(this.fallenUnits)) return;
+    if (!this.convoy || typeof this.convoy !== 'object')
+      this.convoy = { weapons: [], consumables: [] };
+    if (!Array.isArray(this.convoy.weapons)) this.convoy.weapons = [];
+    if (!Array.isArray(this.convoy.consumables)) this.convoy.consumables = [];
+    if (!Array.isArray(this.accessories)) this.accessories = [];
+    for (const unit of this.roster.filter((u) => u?.isCaravan)) {
+      for (const item of [...(unit.inventory || []), ...(unit.consumables || [])])
+        this.addToConvoy(item);
+      const accessory = unit.accessory ? unequipAccessory(unit) : null;
+      if (accessory) this.accessories.push(accessory);
+    }
+    this.roster = this.roster.filter((u) => !u?.isCaravan);
+    this.fallenUnits = this.fallenUnits.filter((u) => !u?.isCaravan);
+  }
+
   _transferFallenUnitItems(fallenUnit) {
     if (!fallenUnit || typeof fallenUnit !== 'object') return;
     this._sanitizeUnitPools();
@@ -4490,6 +4513,7 @@ export class RunManager {
     rm.accessories = saved.accessories || [];
     rm.scrolls = saved.scrolls || [];
     rm.convoy = saved.convoy || { weapons: [], consumables: [] };
+    rm._dropCaravanUnits();
     rm.randomLegendary = saved.randomLegendary || null;
     const rawActiveBlessings = Array.isArray(saved.activeBlessings) ? saved.activeBlessings : [];
     rm.blessingHistory = saved.blessingHistory || [];

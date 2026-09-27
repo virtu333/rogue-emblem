@@ -10,6 +10,7 @@ import {
 } from '../src/engine/RunManager.js';
 import * as NodeMapGenerator from '../src/engine/NodeMapGenerator.js';
 import { loadGameData } from './testData.js';
+import { createCaravanUnit } from '../src/engine/CaravanSystem.js';
 import { NODE_TYPES, ELITE_GOLD_MULTIPLIER, ROSTER_CAP } from '../src/utils/constants.js';
 import { calculateBattleGold } from '../src/engine/LootSystem.js';
 import { getStartupTelemetry } from '../src/utils/startupTelemetry.js';
@@ -684,6 +685,35 @@ describe('RunManager', () => {
 
       const restored = RunManager.fromJSON(saved, gameData);
       expect(restored.getPendingCaravanShop()).toEqual({ actId: rm.currentAct });
+    });
+
+    it('drops a caravan Merchant a lord talked into the army from old saves', () => {
+      rm.startRun();
+      const saved = JSON.parse(JSON.stringify(rm.toJSON()));
+      const armyNames = saved.roster.map((u) => u.name);
+      const sword = gameData.weapons.find((w) => w.name === 'Iron Sword');
+      const vulnerary = gameData.consumables.find((c) => c.name === 'Vulnerary');
+      // As the pre-#139 Talk left it: a player unit that still carries isCaravan.
+      const recruited = {
+        ...createCaravanUnit('act2', { col: 0, row: 0 }),
+        faction: 'player',
+        inventory: [{ ...sword, uid: 'merchant-sword' }],
+        consumables: [{ ...vulnerary, uid: 'merchant-vulnerary' }],
+      };
+      const fallen = { ...createCaravanUnit('act2', { col: 0, row: 0 }), faction: 'player' };
+      saved.roster.push(recruited);
+      saved.fallenUnits = [...(saved.fallenUnits || []), fallen];
+      const weaponsBefore = saved.convoy.weapons.length;
+      const suppliesBefore = saved.convoy.consumables.length;
+
+      const restored = RunManager.fromJSON(saved, gameData);
+      expect(restored.roster.map((u) => u.name)).toEqual(armyNames);
+      expect(restored.fallenUnits.some((u) => u.isCaravan)).toBe(false);
+      // What it carried is kept, in the convoy.
+      expect(restored.convoy.weapons).toHaveLength(weaponsBefore + 1);
+      expect(restored.convoy.weapons.at(-1).name).toBe('Iron Sword');
+      expect(restored.convoy.consumables).toHaveLength(suppliesBefore + 1);
+      expect(restored.convoy.consumables.at(-1).name).toBe('Vulnerary');
     });
 
     it('back-compat: loading a save with no pendingCaravanShop field defaults to null', () => {
