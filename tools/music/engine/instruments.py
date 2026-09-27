@@ -219,6 +219,13 @@ INSTRUMENTS = {
                   humanize_ms=5, hpf=35,
                   comp=dict(thresh_db=-26, ratio=4, attack_ms=6, release_ms=110, makeup_db=6),
                   eq=[('lowshelf', 90, 0.7, 2.0), ('peak', 250, 1.0, -2.0), ('peak', 1400, 1.0, 2.5)]),
+    # the same bass, clean (a calm layer with no distortion anywhere)
+    'rbass_clean': dict(kind='sfizz', room=True, duck='kit_kick',
+                        sfz=os.path.join(LIBS, 'karoryfer.growlybass', 'growlybass_clean.sfz'),
+                        transpose=12, range=(28, 67), pan=0.0, width=0.0, depth=0.05, ref_key=40,
+                        bus='rhythm', humanize_ms=5, hpf=35,
+                        comp=dict(thresh_db=-26, ratio=3, attack_ms=8, release_ms=120, makeup_db=5),
+                        eq=[('lowshelf', 90, 0.7, 1.5), ('peak', 250, 1.0, -2.0)]),
     'grand': dict(kind='sfizz', sfz=os.path.join(LIBS, 'SplendidGrandPiano', 'Splendid Grand Piano.sfz'),
                   range=(21, 108), pan=-0.1, width=0.9, depth=0.3, ref_key=64, bus='keys',
                   humanize_ms=4, cc={64: 0, 99: 40}),

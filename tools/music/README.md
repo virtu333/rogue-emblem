@@ -19,7 +19,7 @@ with `-DSFIZZ_RENDER=ON`) for the drum kit, bass guitar and grand piano.
 
 ```bash
 python3 tools/music/build.py battle_act1 --preview   # one score, + jump previews
-python3 tools/music/build.py --all                   # every score
+python3 tools/music/build.py --all                   # every score (drafts: `DRAFT = True`, left out)
 python3 tools/music/build.py --stingers levelup      # one ceremony cue, in every key
 python3 tools/music/build.py --stingers              # every ceremony cue
 ```
