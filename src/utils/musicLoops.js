@@ -143,6 +143,13 @@ export const MUSIC_LOOPS = {
     tonic: 'C',
   },
   music_battle_escape: { loopStart: 8.444444, loopEnd: 61.777778, duration: 62.378, tonic: 'E' },
+  music_battle_escape_2: { loopStart: 6.758617, loopEnd: 72.96551, duration: 73.566, tonic: 'F' },
+  music_battle_escape_2_calm: {
+    loopStart: 6.758617,
+    loopEnd: 72.96551,
+    duration: 73.566,
+    tonic: 'F',
+  },
   music_battle_escape_calm: {
     loopStart: 8.444444,
     loopEnd: 61.777778,
