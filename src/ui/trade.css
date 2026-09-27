@@ -1,0 +1,184 @@
+/* Item trade (TradeMenu.js; docs/specs/item-trade.md, "UI"). One header line
+   (title, bag tabs, Done), then a column per holder that scrolls on its own, then
+   the status line. Budget at 568×320 on a coarse pointer: 4 + 44 header + 2 + 4 +
+   16 column head + 5 × 44 rows + 4 + 15 status + 4 = 313 px. */
+
+.tm-trade {
+  --tm-tap: var(--re-tap);
+}
+@media (pointer: fine) {
+  .tm-trade {
+    --tm-tap: 32px;
+  }
+}
+
+/* A fixed-height dialog, so the columns (not the page) scroll. Keeps the home-bar inset. */
+html .tm-trade.re-compact-menu.re-screen {
+  max-width: 760px;
+  max-height: min(520px, 100%);
+  gap: var(--re-s1);
+  padding: max(4px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+    max(4px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+
+/* Header: the title and the battle notice shrink first; tabs and Done keep their size. */
+.tm-trade .re-header {
+  flex-wrap: wrap;
+  gap: var(--re-s1) var(--re-s2);
+  padding-bottom: 2px;
+}
+.tm-title {
+  display: flex;
+  flex: 1 1 100px;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.tm-trade .re-header .tm-title h2 {
+  margin: 0;
+}
+.tm-notice {
+  margin: 0;
+  font: var(--re-t-micro);
+  font-family: var(--re-body);
+  color: var(--re-warn);
+  overflow-wrap: anywhere;
+}
+.tm-notice[hidden] {
+  display: none;
+}
+.tm-tabs {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--re-s1);
+}
+.tm-tabs[hidden] {
+  display: none;
+}
+.tm-trade .tm-tab.re-btn,
+.tm-trade .tm-done.re-btn {
+  min-height: var(--tm-tap);
+  padding: 2px 6px;
+  font: var(--re-t-micro);
+  font-family: var(--re-body);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tm-trade .tm-tab[aria-selected='true'] {
+  background: var(--re-selected);
+  border-color: var(--re-accent);
+  color: var(--re-accent-text);
+}
+.tm-trade .tm-done.re-btn {
+  flex: none;
+  min-width: 64px;
+  font: var(--re-t-small);
+  font-family: var(--re-body);
+  font-weight: 600;
+}
+
+/* Two columns, each scrolling on its own. */
+.tm-trade .re-menu-body {
+  gap: var(--re-s1);
+  min-width: 0;
+}
+.tm-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* A bounded row: the lists scroll instead of growing the dialog. */
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--re-s2);
+  min-height: 0;
+}
+.tm-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.tm-col-head {
+  display: flex;
+  flex: none;
+  gap: var(--re-s2);
+  align-items: baseline;
+  margin: 0;
+  font: 700 12px/16px var(--re-body);
+  color: var(--re-accent-text);
+}
+.tm-col-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tm-col-count {
+  flex: none;
+  font-weight: 400;
+  color: var(--re-muted);
+}
+.tm-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+/* Rows: icon, then the name, a brief line and any warning. */
+.tm-trade .tm-row.re-row {
+  flex: none;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 var(--re-s2);
+  min-height: var(--tm-tap);
+  padding: 2px var(--re-s2);
+}
+.tm-row > .ia-icon {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  align-self: center;
+}
+.tm-row > strong,
+.tm-row > small {
+  grid-column: 2;
+  min-width: 0;
+}
+.tm-trade .tm-row strong {
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.tm-trade .tm-row .tm-brief {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tm-trade .tm-row .tm-warn {
+  color: var(--re-warn);
+}
+.tm-trade .tm-row.is-empty {
+  grid-template-columns: minmax(0, 1fr);
+}
+.tm-trade .tm-row.is-empty > strong {
+  grid-column: 1;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--re-muted);
+}
+/* Where the held item can go: a gilt edge on every open target. */
+.tm-trade .tm-row[data-state='commit']:not(.is-blocked) {
+  border-color: var(--re-accent);
+}
+
+.tm-status {
+  flex: none;
+  min-height: 15px;
+  margin: 0;
+  font: var(--re-t-micro);
+  font-family: var(--re-body);
+  color: var(--re-text);
+}
+.tm-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--re-muted);
+}
