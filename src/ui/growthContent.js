@@ -218,6 +218,21 @@ export function sealedBeats(content) {
 // ── Level-up ────────────────────────────────────────────────────────────
 
 /**
+ * The level-up card's stat order. The card fills a two-column grid row by row, so this
+ * reads HP | MAG, STR | SKL, SPD | DEF, RES | LCK: the left column is HP, STR, SPD, RES.
+ */
+export const LEVEL_UP_CARD_STATS = Object.freeze([
+  'HP',
+  'MAG',
+  'STR',
+  'SKL',
+  'SPD',
+  'DEF',
+  'RES',
+  'LCK',
+]);
+
+/**
  * How a level-up reads: 'perfect' (every stat grew), 'blank' (one stat or
  * none for legacy results — normal leveling guarantees at least one gain),
  * or 'normal'. The card and its music share it.
@@ -236,7 +251,7 @@ export function levelUpKind(result) {
  */
 export function levelUpContent(unit, result, learnedNames = [], voice = null) {
   const stats = result?.displayStats || unit?.stats || {};
-  const rows = XP_STAT_NAMES.map((stat) => {
+  const rows = LEVEL_UP_CARD_STATS.map((stat) => {
     const gain = Math.max(0, Number(result?.gains?.[stat]) || 0);
     const after = Number(stats[stat]) || 0;
     return { stat, gain, before: after - gain, after };
