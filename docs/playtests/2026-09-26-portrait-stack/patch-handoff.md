@@ -104,3 +104,31 @@ Unexpected page reload around2026-09-27 03:25:52UTC duringVossmove atRiverCrossi
 
 ## Continuation milestone
 Normal Act 2 cleared at turn 8, rank S, with no player casualties. Entered Act 3 with 8 living units and 8,415 G after recruiting Adela and selecting Hexblade. Normal completion, progression purchases and Hard Act 1 remain in progress. Baseline remains main `b8e13bf` + portrait stack `7689a2c`.
+
+### P3 — Village interaction does not say to finish the unit's action
+Act 3 Corridor Siege: Edric stood on the intact village and the command rail offered Attack/Equip/Wait, with no Visit action. Terrain details only said “Can be visited for items/events.” Waiting correctly resolved “Village saved! +500g, Dracoshield sent to convoy.” Suggested copy: “End a unit's action here to visit.” This is a discovery issue, not a broken village reward.
+
+### P2/P3 — Expanded Battle details shows a clipped legacy panel in portrait
+At 390×844, expanding Battle details while Edric stood on the village also displayed a dark panel partly beyond the left screen edge, overlapping the map and command area. Inspect DOM/canvas coexistence and clamp/remove the duplicate presentation. Verify the current portrait stack before patching.
+
+## Final Normal / progression follow-up
+**Baseline: main `b8e13bf` + portrait stack `7689a2c`.** Normal ended in Act 3's second battle, turn 4, after 13 wins. Earned 310 Valor and 310 Supply. Hard gameplay has not started; paused at user request. Earlier continuation milestones above are historical.
+
+### P3 — Prophet's Glimpse displays unknown benefit values (reproduced)
+Home Base → Upgrades → Lords → Prophet's Glimpse. Description says “+1 Vision charge per run” but comparison shows “Current: None / Next: ?”. Purchase for 200 Valor succeeds, then shows “Current: ? / Next: Fully upgraded”. Replace the unsupported formatter output with an explicit charge count. Screenshot: `prophet-upgrade-unknown.png`. Also consider using the same Rewind/Vision terminology as battle controls.
+
+### P3 — Speed upgrade help omits weapon weight (observed copy)
+Lord Swiftness and Quick Feet help says “Double attack if SPD >= foe +5.” Combat decisions use attack speed, affected by weapon weight. Explain the attack-speed threshold rather than implying raw SPD alone determines follow-ups; verify current mechanics and shared helper text before patching.
+
+### P3 — Purchase list conceals prerequisites until selection
+Recruit Agility looks like an available 125-Supply purchase in the list. Only selecting it reveals disabled Buy and “Requires: Quick Feet Lv3”. Consider a small prerequisite/locked indicator in list rows. This is discovery friction, not a purchase bypass.
+
+### P3 — Defeat deed summary may use stale levels (needs code verification)
+Final battle roster showed Sera Lv15 and Cael Lv13, but Game Over's Deeds of the March listed Lv14 and Lv12. Determine whether the summary intentionally describes a prior snapshot; if meant as final roster, capture end-of-run levels. Do not infer lost progression from summary alone.
+
+### Gameplay and coverage
+- Normal attempt ended through genuine tactical mistakes: an exposed Sage and Dancer fell to a Paladin; Edric later died after healing and retreat, following Archer damage. The free zero-charge battle report successfully explained the sequence.
+- The collapse illustrates the value of protecting support units and planning the entire enemy phase. It does not establish a need to nerf Normal globally.
+- Starting lords were still unpromoted in Act 3 despite banked gold. Investigate route/promotion access across more samples before changing costs or availability.
+- The 310/310 payout supported several meaningful purchases: extra rewind, lord speed growth, starting gold, extra Vulnerary, recruit speed growth. Currency deductions and tier updates worked.
+- Hard unlock gate worked: requires a Normal win. User approved a separate test fixture but paused before creation. Hard Act 1 and new-run blessings are not covered.
