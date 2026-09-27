@@ -66,6 +66,7 @@ const FOREST = terrainByName.Forest || null;
 // Every base class a recruit, merc or boss recruit can roll traits on.
 const RECRUIT_CLASSES = [
   'Myrmidon',
+  'Soldier',
   'Mercenary',
   'Fighter',
   'Knight',

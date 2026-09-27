@@ -24,7 +24,7 @@ keep weapons as easy to classify as FE's are. The brainstorm and the choices are
 - **Relics keep proper names.** Legend-tier weapons are one of a kind, and the lore
   keeps proper nouns scarce, so a name marks something rare: Twinsworn, Namethief,
   Tidebreaker, Hermit's Bow, Firstwind, Breachbolt, Endword (Ragnarok, Gae Bolg,
-  Doomblade, Ruin, Starfall kept theirs). Their card's base line says "Relic Sword".
+  Doomblade, Ruin, Starfall kept theirs). Their card's base line says "Legend Sword", matching the reward tier.
 - **Tomes climb a ladder.** Fire → Wildfire → Conflagration; Glimmer → Brilliance →
   Crownlight (the sun's crown, the lore's name for the corona).
 - **Imbues** follow the same one-word-one-rule idea: the crit imbue is **Cruel** (it was

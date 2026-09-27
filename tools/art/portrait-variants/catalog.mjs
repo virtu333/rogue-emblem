@@ -31,6 +31,8 @@ export const PLAYER_CLASSES = Object.freeze({
     'a dark indigo long coat with a high collar over cloth wraps, a pale grey scarf, the long hilt of a katana over the shoulder',
   Duelist:
     'a fitted steel-blue fencing doublet with silver buttons and a short dark cape over one shoulder, leather gloves, the swept hilt of a rapier at the shoulder',
+  Soldier:
+    'a padded blue gambeson with brass toggles over a short mail shirt, a plain open iron kettle helmet on the head with the face and hair visible, the shaft of a spear at the shoulder',
   Knight:
     'full polished steel plate armour with a high gorget and rounded pauldrons, a dark blue gambeson collar showing, no helmet so the face and hair are visible',
   General:
@@ -192,6 +194,39 @@ export const LINES = Object.freeze({
         g: 'm',
         sprite: { skin: 'skinWarm', hair: 'hairBlack' },
         look: 'an earnest young East Asian man, short neat black hair, a round face, a small determined frown',
+      },
+    },
+  },
+  // The levy's spear. Its promotions are other lines' classes (Duelist, Paladin): a
+  // soldier keeps their own face there (plan.mjs CROSS leaves those defaults alone).
+  soldier: {
+    classes: ['Soldier', 'Duelist', 'Paladin'],
+    people: {
+      soldier_a: {
+        g: 'm',
+        sprite: { skin: 'skinFair', hair: 'hairBrown' },
+        look: 'a young man in his twenties, fair skin, short brown hair under the helmet brim, a steady dependable look',
+        anchor: { Soldier: { id: 'generic_soldier', mode: 'remaster' } },
+      },
+      soldier_b: {
+        g: 'f',
+        sprite: { skin: 'skinFair', hair: 'hairCopper' },
+        look: 'a woman in her twenties, fair skin, long copper-red hair tied back, level green eyes, a firm mouth',
+      },
+      soldier_c: {
+        g: 'm',
+        sprite: { skin: 'skinDeep', hair: 'hairSaltPepper' },
+        look: 'a broad man in his forties, deep brown skin, a close salt-and-pepper beard, patient heavy-lidded eyes',
+      },
+      soldier_d: {
+        g: 'f',
+        sprite: { skin: 'skinTan', hair: 'hairBlack' },
+        look: 'a wiry woman in her thirties, tan skin, black hair in a short braid, a once-broken nose, a wry half smile',
+      },
+      soldier_e: {
+        g: 'm',
+        sprite: { skin: 'skinWarm', hair: 'hairGrey' },
+        look: 'a grizzled levy veteran in his fifties, weathered light skin, cropped grey hair and stubble, a gap-toothed grin',
       },
     },
   },
@@ -518,6 +553,9 @@ export const ENEMY_CLASSES = Object.freeze([
   'Warrior',
   'Wyvern Lord',
   'Wyvern Rider',
+  // Appended, not sorted in: each class's enemy faces rotate through ENEMY_LOOKS by
+  // position, and inserting would redraw every class after it.
+  'Soldier',
 ]);
 
 // Enemy faces beyond the remastered one: drawn from this library, three per
@@ -673,8 +711,18 @@ export const NAME_GENDERS = Object.freeze({
     'Hector',
     'Leonidas',
     'Merric',
+    'Rufus',
+    'Garrow',
+    'Merritt',
+    'Harl',
+    'Jory',
   ],
   f: [
+    'Wynn',
+    'Lise',
+    'Odila',
+    'Brisa',
+    'Elsbet',
     'Hedda',
     'Maud',
     'Gerd',

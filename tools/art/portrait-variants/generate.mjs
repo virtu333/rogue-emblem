@@ -90,6 +90,15 @@ async function styleSheet() {
   return out;
 }
 
+// The prepared source of a shipped portrait (docs/art/portrait-variant-sources/<id>.png).
+// Raw generations are not kept in the repo, so in a fresh checkout a class added later
+// takes its costume and identity references from the shipped art instead.
+const SHIPPED_SOURCES = join(ROOT, 'docs/art/portrait-variant-sources');
+const shippedSource = (id) => {
+  const file = join(SHIPPED_SOURCES, `${id}.png`);
+  return existsSync(file) ? file : null;
+};
+
 /** Reference image for an id used as identity or costume reference. */
 async function refImage(id) {
   const job = jobs.find((j) => j.id === id);
@@ -99,7 +108,10 @@ async function refImage(id) {
       join(REFS, `${id}.png`),
       1024,
     );
-  return rawFile(id);
+  const raw = rawFile(id);
+  if (raw) return raw;
+  const shipped = shippedSource(id);
+  return shipped ? flatOnWhite(shipped, join(REFS, `shipped-${id}.png`), 1024) : null;
 }
 
 /** Legacy 128 px portrait being remastered, enlarged so the model reads it. */
@@ -153,7 +165,8 @@ async function specFor(j) {
 async function fresh(id) {
   const j = byId.get(id);
   if (!j || j.mode === 'keep') return true;
-  if (!rawFile(id)) return false;
+  // Shipped art without its raw (not in this checkout): current unless being redrawn now.
+  if (!rawFile(id)) return Boolean(shippedSource(id)) && !selectedIds.has(id);
   // Reviewed and accepted (review.mjs): kept even if a reference was redrawn.
   if (accepted[id] && accepted[id] === sha(readFileSync(rawFile(id)))) return true;
   const cache = join(RAW, `${id}.gen.json`);
@@ -203,6 +216,7 @@ async function paced(spec) {
 const selected = jobs.filter(
   (j) => j.mode !== 'keep' && (!ONLY || ONLY.includes(j.id)) && (!SIDE || j.side === SIDE),
 );
+const selectedIds = new Set(selected.map((j) => j.id));
 let wave = 0;
 let done = 0;
 const failed = new Set();

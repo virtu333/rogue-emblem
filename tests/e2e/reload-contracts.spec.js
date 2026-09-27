@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { finishFormation, waitForScene } from './helpers.js';
 
 test.use({
   ...devices['iPhone SE'],
@@ -128,7 +128,9 @@ test('reclass UI save reload deploy preserves learned skill, spent seal and usab
   await page.locator(`[data-node="${nodeId}"]`).tap();
   await page.getByRole('button', { name: 'Travel', exact: true }).tap();
   await waitForScene(page, 'Battle');
-  await battleIdle(page); // This small roster follows the normal automatic deployment path.
+  // Three units: the run opens Formation first; take the default placement.
+  await finishFormation(page);
+  await battleIdle(page);
   // A resumed slot with no seen hints shows the first-battle camera Field notes
   // shortly after controls unlock; it owns map input until dismissed.
   await expect(notes).toBeVisible();

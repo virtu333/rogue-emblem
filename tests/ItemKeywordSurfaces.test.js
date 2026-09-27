@@ -166,7 +166,7 @@ describe('compendium', () => {
     const byName = (name) => entries.find((e) => e.name === name);
     expect(byName('Keen Sword').summary).toBe('Silver Sword · Crit 30');
     expect(byName('Axehook').summary).toBe('Steel Lance · Beats Axes');
-    expect(byName('Twinsworn').summary).toBe('Relic Sword · Strikes twice');
+    expect(byName('Twinsworn').summary).toBe('Legend Sword · Strikes twice');
     expect(byName('Iron Sword').summary).toBe('Iron Sword');
     expect(byName('Axehook').item.name).toBe('Axehook');
   });

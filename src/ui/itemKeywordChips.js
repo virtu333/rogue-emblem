@@ -1,5 +1,5 @@
 // The keyword row every DOM item card shows under the item's name: the base line
-// ("Silver Lance", "Relic Sword") and the rule tags ("Crit 30", "Beats Axes").
+// ("Silver Lance", "Legend Sword") and the rule tags ("Crit 30", "Beats Axes").
 // The words come from engine/ItemKeywords.js; this only draws them.
 import './itemKeywords.css';
 import { itemKeywords, itemBaseLineFor } from '../engine/ItemKeywords.js';
