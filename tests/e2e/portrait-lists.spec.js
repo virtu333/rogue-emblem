@@ -396,7 +396,7 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
       await entry.tap();
       await dialog.getByRole('searchbox').fill('Silver');
       await expect(dialog.locator('.re-reference-detail')).toHaveCount(0);
-      await expect(dialog.getByRole('button', { name: /Silver Sword/ })).toBeVisible();
+      await expect(dialog.getByRole('button', { name: /^Silver Sword/ })).toBeVisible();
       await page.keyboard.press('Escape');
       await expect(dialog).toHaveCount(0);
     });

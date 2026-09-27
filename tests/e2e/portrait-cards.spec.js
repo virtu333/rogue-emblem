@@ -185,7 +185,7 @@ async function openRewards(page) {
       r.choices.length,
       { type: 'skillScroll', item: find(s.gameData.weapons, "Hunter's Volley Scroll") },
       { type: 'accessory', item: find(accessories, "Bounty Hunter's Mark") },
-      { type: 'weapon', item: find(s.gameData.weapons, 'Tempest Blade') },
+      { type: 'weapon', item: find(s.gameData.weapons, 'Gale Blade') },
       { type: 'healing', item: find(consumables, 'Infantry Seal'), quantity: 2 },
     );
     r.selected = 0;
@@ -493,7 +493,7 @@ for (const phone of PHONES)
       }
       await expectNoSidewaysScroll(page, rewards);
 
-      // Tap the Tempest Blade (below the fold on a short phone), choose, apply.
+      // Tap the Gale Blade (below the fold on a short phone), choose, apply.
       const cards = rewards.locator('.reward-card');
       const blade = cards.nth(2);
       await blade.scrollIntoViewIfNeeded();
@@ -512,7 +512,7 @@ for (const phone of PHONES)
         .poll(() =>
           page.evaluate(() => {
             const rm = window.__emblemRogueGame.scene.getScene('Battle').runManager;
-            const has = (list) => (list || []).some((w) => w?.name === 'Tempest Blade');
+            const has = (list) => (list || []).some((w) => w?.name === 'Gale Blade');
             return rm.roster.some((u) => has(u.inventory)) || has(rm.convoy?.weapons || rm.convoy);
           }),
         )
