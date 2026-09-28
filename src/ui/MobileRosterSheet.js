@@ -17,6 +17,7 @@ import {
   attributesHelp,
   combatBaselineHelp,
   convoyHelp,
+  DEEDS_HELP,
   SCROLLS_HELP,
   WEAPON_ARTS_HELP,
 } from './helpTopics.js';
@@ -79,10 +80,14 @@ import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import {
+  chooseTitle,
   deedsForDisplay,
   deedTallyText,
   epithetText,
-  promotionOath,
+  oathOptionsInOrder,
+  pledgeOath,
+  promotionOathCandidates,
+  TITLE_NONE,
   unitDisplayName,
 } from '../engine/DeedSystem.js';
 import { actLabel } from './ceremonyContent.js';
@@ -514,25 +519,89 @@ export class MobileRosterSheet {
     if (unit.growths && unit.faction !== 'enemy') this.body.append(growthsCard(unit.growths));
   }
   // Deeds & Epithets: the titles this unit earned, the title first, then newest, with the
-  // run's tallies and its Oath (sworn, or the one a promotion would swear).
+  // run's tallies and its Oath. Between battles the player picks the title the unit goes
+  // by and, before promotion, which deed's Oath it will swear (saved at once).
   deeds(unit) {
     const list = deedsForDisplay(unit, this.gameData.deeds);
-    this.body.append(el('h3', list.length ? `Deeds · ${list.length}` : 'Deeds'));
+    const heading = el('h3', list.length ? `Deeds · ${list.length}` : 'Deeds');
+    this.body.append(heading);
+    if (list.length) this.explain(heading, 'deeds', 'Deeds', DEEDS_HELP);
     const tally = deedTallyText(unit);
     if (tally) this.body.append(el('p', `This march: ${tally}`, 'mr-deed-tally'));
     const skillText = (id) => {
       const skill = this.gameData.skills?.find((s) => s.id === id);
       return `${skill?.name || id}${skill?.description ? ` — ${skill.description}` : ''}`;
     };
+    // Choices are run state: only the manage view (between battles) makes them.
+    const manage = Boolean(this.run?.roster?.includes(unit));
+    const choose = (change, done) => {
+      if (!change()) return;
+      this.render(`${done}${this.persistNow()}`);
+    };
     const sworn = unit.deeds?.oath;
     if (sworn?.skillId) this.card(`${sworn.name || 'Oath'} · sworn`, skillText(sworn.skillId));
     else if (unit.tier !== 'promoted') {
-      const next = promotionOath(unit, this.gameData.deeds, this.gameData.skills);
-      if (next) this.card(`${next.name} · sworn at promotion`, skillText(next.skillId));
+      const options = promotionOathCandidates(unit, this.gameData.deeds, this.gameData.skills);
+      if (options.length === 1)
+        this.card(`${options[0].name} · sworn at promotion`, skillText(options[0].skillId));
+      else if (options.length > 1) {
+        // One Oath per unit: the player picks which deed it swears on.
+        const card = this.card(
+          'Oath at promotion',
+          'Choose the deed this unit swears on. Only one Oath, ever.',
+        );
+        card.classList.add('mr-oath-choice');
+        // A stable order (greatest first); the one it will swear is marked.
+        for (const option of oathOptionsInOrder(options)) {
+          const chosen = option.deedId === options[0].deedId;
+          const b = manage
+            ? this.button(`${option.name} · ${option.skillName}`, () =>
+                choose(
+                  () => pledgeOath(unit, option.deedId),
+                  `${unit.name} will swear ${option.name}.`,
+                ),
+              )
+            : el('p', `${option.name} · ${option.skillName}`);
+          b.classList.add('mr-oath-option');
+          if (manage) b.setAttribute('aria-pressed', String(chosen));
+          else if (chosen) b.classList.add('is-chosen');
+          if (option.skillDescription) b.title = option.skillDescription;
+          card.append(b);
+        }
+        card.append(el('p', skillText(options[0].skillId), 'mr-deed-meta'));
+      }
     }
     if (!list.length) {
       this.card('No deeds yet', 'Titles come from what a unit does in battle, not from a list.');
       return;
+    }
+    const chosenTitle = unit.deeds?.chosenTitle ?? null;
+    if (manage) {
+      const mode = el(
+        'p',
+        chosenTitle === TITLE_NONE
+          ? 'Title: none. Goes by name alone.'
+          : chosenTitle
+            ? 'Title: chosen by you.'
+            : 'Title: the greatest deed (automatic).',
+        'mr-deed-mode',
+      );
+      if (chosenTitle)
+        mode.append(
+          this.button('Greatest deed', () =>
+            choose(
+              () => chooseTitle(unit, null),
+              `${unit.name}'s title follows the greatest deed.`,
+            ),
+          ),
+        );
+      if (chosenTitle !== TITLE_NONE)
+        mode.append(
+          this.button('No title', () =>
+            choose(() => chooseTitle(unit, TITLE_NONE), `${unit.name} goes by name alone.`),
+          ),
+        );
+      this.body.append(mode);
     }
     for (const deed of list) {
       const card = el('article', null, `mr-card mr-deed${deed.isTitle ? ' is-title' : ''}`);
@@ -545,6 +614,12 @@ export class MobileRosterSheet {
         .filter(Boolean)
         .join(' · ');
       if (meta) card.append(el('p', meta, 'mr-deed-meta'));
+      if (manage && !deed.isTitle)
+        card.append(
+          this.button('Use as title', () =>
+            choose(() => chooseTitle(unit, deed.id), `${unit.name} now goes by ${deed.epithet}.`),
+          ),
+        );
       this.body.append(card);
     }
   }

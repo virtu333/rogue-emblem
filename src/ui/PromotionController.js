@@ -21,7 +21,7 @@ import { UI_PALETTE } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
-import { applyPromotionOath } from '../engine/DeedSystem.js';
+import { applyPromotionOath, promotionOathCandidates } from '../engine/DeedSystem.js';
 
 const sceneEnded = (scene) => scene._sceneShutdownCleanedUp || scene.sys?.isActive?.() === false;
 
@@ -97,7 +97,12 @@ export class PromotionController {
     }
 
     let promotedClassData;
-    if (targets.length === 1) {
+    // One path and no Oath to pick: nothing to choose. With two or more Oaths open,
+    // the chooser opens anyway so the player picks the deed the unit swears on.
+    const oathChoice =
+      hasDOMHost() &&
+      promotionOathCandidates(unit, scene.gameData.deeds, scene.gameData.skills).length > 1;
+    if (targets.length === 1 && !oathChoice) {
       promotedClassData = targets[0];
     } else {
       scene.battleState = 'COMBAT_RESOLVING'; // block gameplay hotkeys while chooser is open

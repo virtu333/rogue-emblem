@@ -116,6 +116,26 @@ export const WEAPON_ARTS_HELP = [
   { tip: 'Outside battle this sheet shows eligibility and cost only.' },
 ];
 
+export const DEEDS_HELP = [
+  { lead: 'Deeds come from what a unit does in battle. Each one is a title.' },
+  {
+    title: 'Title',
+    points: [
+      'A unit goes by one title: its greatest deed, unless you pick another.',
+      'Between battles, pick any earned title here, or none.',
+    ],
+  },
+  {
+    title: 'Oath',
+    points: [
+      'Some deeds carry an Oath: a skill the class never teaches.',
+      'A unit swears one Oath, ever, when it promotes. You choose which.',
+      'With five skills already, the Oath cannot be learned. Keep a slot free.',
+    ],
+  },
+  { tip: 'The Compendium lists every deed you have earned.' },
+];
+
 export const SCROLLS_HELP = [
   { lead: 'Scrolls wait in Team scrolls until you use them.' },
   {

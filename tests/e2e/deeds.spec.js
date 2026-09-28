@@ -380,3 +380,125 @@ test.describe('640×480 canvas design size', () => {
     expect(errors).toEqual([]);
   });
 });
+
+// Playtest 2026-09-28: the player picks the Oath (one, ever) and the title a unit goes
+// by, and the Compendium lists the deeds earned, hiding the rest.
+test.describe('player choices (phone 390×844)', () => {
+  const { defaultBrowserType: _ignored, ...use } = {
+    ...devices['iPhone 13'],
+    viewport: { width: 390, height: 844 },
+  };
+  test.use(use);
+
+  test('the promotion chooser asks which Oath; the chosen one is sworn', async ({ page }, info) => {
+    const errors = collect(page);
+    await quiet(page, 'fast');
+    await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
+    await waitForBattle(page);
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+      null,
+      { timeout: 30000 },
+    );
+    await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const deeds = await import('/src/engine/DeedSystem.js');
+      const u = s.playerUnits.find((x) => x.name === 'Sera');
+      // A Myrmidon who held a bridge (Oath: Pavise) and landed three crits (Critical +15).
+      Object.assign(u, {
+        name: 'Seraphina',
+        isLord: false,
+        className: 'Myrmidon',
+        tier: 'base',
+        level: 10,
+        proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+        skills: [],
+      });
+      u._battleDeeds = {
+        v: 1,
+        heldPhases: 3,
+        heldPlaces: ['Bridge', 'Bridge', 'Bridge'],
+        crits: 3,
+      };
+      deeds.commitBattleDeeds([u], s.gameData.deeds, { battleKey: 'earlier' });
+      const sword = s.gameData.weapons.find((w) => w.name === 'Iron Sword');
+      u.inventory = [structuredClone(sword)];
+      u.weapon = u.inventory[0];
+      u.consumables = [structuredClone(s.gameData.consumables.find((i) => i.effect === 'promote'))];
+      s.removeUnitGraphic(u);
+      s.addUnitGraphic(u);
+      s.selectUnit(u);
+      const { PromotionController } = await import('/src/ui/PromotionController.js');
+      window.__promotion = new PromotionController(s).executePromotion(u, u.consumables[0]);
+    });
+    const chooser = page.getByRole('dialog', { name: 'Choose promotion', exact: true });
+    await expect(chooser).toBeVisible();
+    // A Duelist can learn either Oath (a Swordmaster already has Critical +15).
+    await chooser.getByRole('button', { name: 'Select Duelist', exact: true }).click();
+    const oaths = chooser.getByRole('group', { name: 'Oath to swear', exact: true });
+    await expect(oaths.getByRole('button')).toHaveText([
+      'Oath of the Bridge · Pavise',
+      'Oath of the Edge · Critical +15',
+    ]);
+    await expect(oaths.getByRole('button').first()).toHaveAttribute('aria-pressed', 'true');
+    await oaths.getByRole('button', { name: 'Oath of the Edge · Critical +15' }).click();
+    await expect(
+      oaths.getByRole('button', { name: 'Oath of the Edge · Critical +15' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(chooser.locator('.gr-path[data-path="Duelist"] .gr-path-oath')).toContainText(
+      'Oath of the Edge',
+    );
+    // The Swordmaster path explains why it would swear the other Oath.
+    await chooser.getByRole('button', { name: 'Select Swordmaster', exact: true }).click();
+    await expect(chooser.locator('.gr-oath-note')).toHaveText(
+      'A Swordmaster already has Critical +15, so this path swears Oath of the Bridge.',
+    );
+    await chooser.getByRole('button', { name: 'Select Duelist', exact: true }).click();
+    await expect(
+      chooser.getByRole('button', { name: 'Confirm promotion', exact: true }),
+    ).toBeInViewport();
+    await page.screenshot({ path: info.outputPath('oath-choice-phone.png') });
+    await chooser.getByRole('button', { name: 'Confirm promotion', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Promotion', exact: true })).toBeVisible();
+    const after = await page.evaluate(() => {
+      const u = window.__emblemRogueGame.scene
+        .getScene('Battle')
+        .playerUnits.find((x) => x.name === 'Seraphina');
+      return { skills: u.skills, oath: u.deeds.oath?.skillId };
+    });
+    expect(after.oath).toBe('crit_plus_15');
+    expect(after.skills).toContain('crit_plus_15');
+    expect(after.skills).not.toContain('pavise');
+    expect(errors).toEqual([]);
+  });
+
+  test('the Compendium lists the deeds this player earned and hides the rest', async ({
+    page,
+  }, info) => {
+    const errors = collect(page);
+    await quiet(page);
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        'emblem_rogue_slot_2_meta',
+        JSON.stringify({ deedsEarned: ['held_the_line'], savedAt: 1 }),
+      ),
+    );
+    await page.goto('/?devScene=battle&preset=combat_actions&seed=42&mobilePreview=1');
+    await waitForBattle(page);
+    await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const { CompendiumOverlay } = await import('/src/ui/CompendiumOverlay.js');
+      new CompendiumOverlay(s, s.gameData).show();
+    });
+    const dialog = page.getByRole('dialog', { name: 'Compendium', exact: true });
+    await dialog.getByRole('button', { name: 'Deeds', exact: true }).click();
+    await expect(dialog.getByRole('button', { name: /more to find/ })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /^Bossbane/ })).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath('compendium-deeds-list-phone.png') });
+    await dialog.getByRole('button', { name: /^Held the Line/ }).click();
+    await expect(dialog.getByText('Title: Who Held the Line · ★★★★')).toBeVisible();
+    await expect(dialog.getByText(/^Oath: Pavise/)).toBeVisible();
+    await page.screenshot({ path: info.outputPath('compendium-deeds-phone.png') });
+    expect(errors).toEqual([]);
+  });
+});

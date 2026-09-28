@@ -268,6 +268,34 @@ export function hasAnySlotMilestone(milestone) {
   return false;
 }
 
+/**
+ * Deed ids earned in any slot (1-3): each save's record, plus the deeds on its run's
+ * units (living and fallen), so saves from before the record still count. Read
+ * cross-slot like hasAnySlotMilestone, so the Title-screen Compendium matches in-run.
+ * @returns {Set<string>}
+ */
+export function earnedDeedIdsAcrossSlots() {
+  const ids = new Set();
+  const addUnits = (units) => {
+    for (const unit of Array.isArray(units) ? units : [])
+      for (const entry of Array.isArray(unit?.deeds?.earned) ? unit.deeds.earned : [])
+        if (typeof entry?.id === 'string') ids.add(entry.id);
+  };
+  for (let i = 1; i <= MAX_SLOTS; i++) {
+    try {
+      const meta = JSON.parse(localStorage.getItem(getMetaKey(i)) || 'null');
+      for (const id of Array.isArray(meta?.deedsEarned) ? meta.deedsEarned : [])
+        if (typeof id === 'string') ids.add(id);
+      const run = JSON.parse(localStorage.getItem(getRunKey(i)) || 'null');
+      addUnits(run?.roster);
+      addUnits(run?.fallenUnits);
+    } catch (_) {
+      /* an unreadable slot adds nothing */
+    }
+  }
+  return ids;
+}
+
 /** Clear all slot data + active slot key. Used by logout. */
 export function clearAllSlotData() {
   for (let i = 1; i <= MAX_SLOTS; i++) {

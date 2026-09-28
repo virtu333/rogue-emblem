@@ -325,6 +325,15 @@ describe('DeedController', () => {
     expect(hero.deeds.stats.battles).toBe(1);
   });
 
+  it('a victory tells the save which deeds its army earned (the Compendium lists them)', () => {
+    const hero = fighter();
+    hero._battleDeeds = { ...emptyBattleDeeds(), ...bridge };
+    const recordDeedsEarned = vi.fn();
+    const s = scene({ registry: { get: (k) => (k === 'meta' ? { recordDeedsEarned } : null) } });
+    new DeedController(s).commitVictory([hero]);
+    expect(recordDeedsEarned).toHaveBeenCalledWith(['held_the_line']);
+  });
+
   it('heals count only HP actually restored to someone else', () => {
     const cleric = fighter('Cleric');
     const ally = { ...fighter('Ally'), currentHP: 20 };

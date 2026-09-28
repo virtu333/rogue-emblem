@@ -28,6 +28,8 @@ also leave a mark on promotion (an **Oath**) — the seed of hidden promotions.
   `titledName`, `sentenceName`). Nothing writes into `name`.
 - No deed rewards doing something the player would regret; deeds celebrate and never
   become a checklist (the help page explains the idea; no compendium list of conditions).
+  The Compendium's Deeds tab lists only deeds some unit has earned (title, Oath, lore)
+  and a count of the rest (playtest 2026-09-28).
 
 ## Data: `data/deeds.json` (schema `schemas/deeds.schema.json`)
 
@@ -120,12 +122,24 @@ phase that ended (and a victory won inside the enemy phase closes it at commit),
 or in the tutorial. `tests/harness/HeadlessBattle.js` mirrors every call and commits at
 its victory, so the harness and the full-run sim exercise deeds.
 
+## Titles (player choice)
+
+The displayed title is `deeds.epithet`, recomputed by `pickEpithet(earned, chosenTitle)`:
+the player's pick (`chooseTitle`: an earned deed's id, or `TITLE_NONE`) wins, else the
+highest prestige. Between battles the roster's Deeds section offers "Use as title",
+"No title" and "Greatest deed"; each choice saves at once. A saved choice naming a deed
+the unit no longer has is dropped on load.
+
 ## Oaths (promotion)
 
 Player promotions — battle Master Seal (`PromotionController`), church
 (`promoteAtChurch`), roster seal (`RosterCommands.promote`) — swear the Oath right after
-`promoteUnit`: the highest-prestige earned deed (ties: most recent) whose Oath skill the
-unit does not already know (class innates count) teaches that skill, once per run. The
+`promoteUnit`: the pledged deed (`deeds.pledge`, set by `pledgeOath` from the roster's
+Deeds section or the path chooser), else the highest-prestige earned deed (ties: most
+recent), whose Oath skill the unit does not already know (class innates count) teaches
+that skill, once per run. The chooser lists the Oaths open on the selected path
+(`content.oathOptions`); a path whose class already has the pledged skill swears the next
+one and says so. The
 path chooser card and the rite project it through the same function
 (`promotionPathContent` → `content.oath`, a sealed `oath` beat in ember). At the skill cap
 the Oath is shown as dropped, never silent. Silent engine promotions (recruit spawns,

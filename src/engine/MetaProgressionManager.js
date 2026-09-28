@@ -149,6 +149,15 @@ export function exclusiveSkillAssignments(assignments) {
   return out;
 }
 
+/** Deed ids as a sorted, de-duplicated list (unions any number of lists). */
+export function mergeDeedIds(...lists) {
+  const ids = new Set();
+  for (const list of lists)
+    for (const id of Array.isArray(list) ? list : [])
+      if (typeof id === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(id)) ids.add(id);
+  return [...ids].sort();
+}
+
 export class MetaProgressionManager {
   /**
    * @param {Array} upgradesData - metaUpgrades.json array
@@ -170,6 +179,7 @@ export class MetaProgressionManager {
     this.runRecords = [];
     this.settledRunIds = []; // recent runs whose end rewards were paid (idempotency)
     this.seenDialogueKeys = [];
+    this.deedsEarned = []; // deed ids any unit of this save has earned (the Compendium's)
     this.hintState = null;
     this.skillAssignments = {}; // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
     this.lordSelection = { ...DEFAULT_LORD_SELECTION }; // commander-choice picks, persisted
@@ -220,6 +230,7 @@ export class MetaProgressionManager {
         this.runRecords = mergeRunRecords(saved.runRecords || []);
         this.settledRunIds = mergeSettledRunIds(saved.settledRunIds);
         this.seenDialogueKeys = mergeSeenDialogueKeys(saved.seenDialogueKeys || []);
+        this.deedsEarned = mergeDeedIds(saved.deedsEarned);
         if (saved.storyFlags) this.storyFlags = normalizeStoryFlags(saved.storyFlags);
         this.solRefundBasis = Number(saved.solRefundBasis) === 400 ? 400 : 600;
         if (!saved.balanceRevision) {
@@ -407,6 +418,18 @@ export class MetaProgressionManager {
    */
   hasSeenDialogue(key) {
     return this.seenDialogueKeys.includes(key);
+  }
+
+  /** Deeds any unit of this save has earned: the Compendium lists these, hides the rest. */
+  hasEarnedDeed(id) {
+    return this.deedsEarned.includes(id);
+  }
+
+  recordDeedsEarned(ids) {
+    const merged = mergeDeedIds(this.deedsEarned, ids);
+    if (merged.length === this.deedsEarned.length) return;
+    this.deedsEarned = merged;
+    this._save();
   }
 
   markDialogueSeen(key) {
@@ -1109,6 +1132,7 @@ export class MetaProgressionManager {
       this.seenDialogueKeys,
       disk.seenDialogueKeys || [],
     );
+    this.deedsEarned = mergeDeedIds(this.deedsEarned, disk.deedsEarned);
     if (disk.storyFlags && typeof disk.storyFlags === 'object') {
       const diskFlags = normalizeStoryFlags(disk.storyFlags);
       // Counters are monotonic, so per-name max can only over-remember —
@@ -1176,6 +1200,7 @@ export class MetaProgressionManager {
       runRecords: this.runRecords,
       settledRunIds: this.settledRunIds,
       seenDialogueKeys: this.seenDialogueKeys,
+      deedsEarned: this.deedsEarned,
       hintState: this.hintState,
       savedAt: this.savedAt,
     });
@@ -1209,6 +1234,7 @@ export class MetaProgressionManager {
       runRecords: this.runRecords,
       settledRunIds: this.settledRunIds,
       seenDialogueKeys: this.seenDialogueKeys,
+      deedsEarned: this.deedsEarned,
       hintState: this.hintState,
       savedAt: this.savedAt,
     };
