@@ -1,3 +1,4 @@
+import { battleItemBrief, ITEM_ACTION_NOTE } from '../ui/battleItemSummary.js';
 import {
   historyUnitVisible,
   observeHistoryAction,
@@ -15,6 +16,7 @@ import {
   isSilenceBlockedWeapon,
 } from '../engine/AttackOptions.js';
 import { EQUIPPED_MARKER } from '../ui/equippedBadge.js';
+import { attackSpeedDelta, attackSpeedValue, weaponAttackSpeed } from '../ui/battleItemSummary.js';
 import { PinnedThreatController } from '../ui/PinnedThreatController.js';
 import { battlePlace } from '../ui/placeDisplay.js';
 import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
@@ -26,6 +28,8 @@ import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.j
 import { earlyEnemyAllowed } from '../engine/EarlyEnemyRules.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { BattleTradeMenu } from '../ui/BattleTradeMenu.js';
+import { battleTradeController } from '../ui/BattleTradeController.js';
+import { canTradeBetween, unitHolder } from '../engine/ItemTrade.js';
 import { routeMobileAction } from '../utils/overlayStack.js';
 import { canUseTouchUI } from '../utils/domUI.js';
 import { unitPortraitKey } from '../ui/RebuiltPortraits.js';
@@ -79,6 +83,7 @@ import {
   addToConsumables,
   removeFromConsumables,
   equipWeapon,
+  equipIfUnarmed,
   normalizeEquippedFirst,
   getStaffWeapon,
   getCombatWeapons,
@@ -86,7 +91,6 @@ import {
   resolvePromotionTargetClass,
   grantSecondaryWeapons,
   checkLevelUpSkills,
-  removeFromInventory,
   hasProficiency,
   canEquip,
   applyStatBoost,
@@ -94,7 +98,6 @@ import {
   getReclassTargets,
   reclassUnit,
   inventoryDisplayOrder,
-  equipIfUnarmed,
 } from '../engine/UnitManager.js';
 import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
 import { getXpShareRatio, getXpShareRecipients, calculateSharedXp } from '../engine/XpShare.js';
@@ -159,6 +162,7 @@ import {
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
   XP_BASE_DANCE,
+  XP_DEFEND_SURVIVE,
   XP_SPECIAL_ENEMY_MULTIPLIER,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
@@ -229,6 +233,7 @@ import { showImportantHint, showMinorHint, showContextualHint } from '../ui/Hint
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
 import { buildRecruitNodeUnit, spawnTilesForDeployment } from '../engine/RecruitNodeSystem.js';
+import { battleDeployCount } from '../engine/BattleDeployCount.js';
 import {
   adaptDialogueEntries,
   adaptDialogueLine,
@@ -236,6 +241,7 @@ import {
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
 import { recordBattleRecruit } from '../engine/BattleRecruits.js';
+import { armyAndNpcAllies, hasRecruitNpc, isRecruitNpc } from '../engine/RecruitNpc.js';
 import { isSameUnit } from '../engine/UnitIdentity.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
 import { deedsFor } from '../ui/DeedController.js';
@@ -524,6 +530,8 @@ export class BattleScene extends Phaser.Scene {
     this._stopLevelUpSfx();
     this.battleTradeMenu?.destroy();
     this.battleTradeMenu = null;
+    this._tradeController?.destroy();
+    this._tradeController = null;
     const menuCleanup = this._actionMenuCleanup;
     this._actionMenuCleanup = null;
     menuCleanup?.();
@@ -1250,12 +1258,13 @@ export class BattleScene extends Phaser.Scene {
         this.nonDeployedUnits = [];
       }
 
-      // Set deployCount for MapGenerator spawn generation
-      const deployCount = this.battleParams?.tutorialMode
-        ? 2
-        : deployedRoster
-          ? deployedRoster.length
-          : 2;
+      // deployCount: MapGenerator spawn generation and the Last deed at victory.
+      const deployCount = battleDeployCount({
+        tutorialMode: this.battleParams?.tutorialMode,
+        deployedRoster,
+        resuming: Boolean(this._resumeCheckpoint),
+        recorded: this.battleParams?.deployCount,
+      });
       this.battleParams.deployCount = deployCount;
       this.battleParams.isBoss = !!this.isBoss;
 
@@ -1301,7 +1310,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Build the grid from generated map (with optional fog of war)
       const fogEnabled = this.battleParams.fogEnabled || false;
-      // Portrait battles (beta): an upright phone draws the board turned a quarter.
+      // Portrait battles: an upright phone draws the board turned a quarter.
       this._portraitBattle?.destroy();
       this._portraitBattle = new PortraitBattleController(this);
       const boardPresentation = this._portraitBattle.resolvePresentation(bc);
@@ -1724,7 +1733,7 @@ export class BattleScene extends Phaser.Scene {
           helpRowY,
           this.isMobileInput
             ? 'Vision: rewind  |  Inspect: unit details  |  Cancel: go back'
-            : '[R] Vision  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
+            : '[R] Rewind  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
           { fontFamily: 'monospace', fontSize: '11px', color: UI_PALETTE.info },
         )
         .setOrigin(0.5)
@@ -1781,6 +1790,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Input handlers
       this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
+      this.input.on('gameout', () => this._inputController?.clearHoverInfo());
       this.input.on('pointerdown', (pointer) => this.onPointerDown(pointer));
       this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
       this.input.on('pointerupoutside', (pointer) => this.onPointerUpOutside(pointer));
@@ -1939,7 +1949,7 @@ export class BattleScene extends Phaser.Scene {
       this._atmosphere = new AtmosphereController(this).create();
 
       // Not in a recruit battle: it would open as a dialog there (see battle_first_turn_hints).
-      if (this.mobileCameraEnabled && !(this.npcUnits?.length > 0)) {
+      if (this.mobileCameraEnabled && !hasRecruitNpc(this.npcUnits)) {
         const hints = this.registry.get('hints');
         if (hints && !hints.hasSeen('battle_mobile_camera')) {
           showContextualHint(
@@ -3297,6 +3307,7 @@ export class BattleScene extends Phaser.Scene {
     unit.hpBar.fill.setSize(fillWidth, barHeight);
     unit.hpBar.fill.setFillStyle(getHPBarColor(ratio));
     if (unit.isBoss) this._bossPresence?.onUnitHp(unit);
+    this._inputController?.refreshHoverInfo();
   }
 
   removeUnitGraphic(unit) {
@@ -4836,6 +4847,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.showActionMenu(unit);
     this._inputController?.resumeMoveAttack(unit);
+    this._inputController?.refreshHoverInfo();
   }
 
   _getCombatRangeForUnitWeapon(unit, weapon, weaponArt = null) {
@@ -5042,21 +5054,8 @@ export class BattleScene extends Phaser.Scene {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
       const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally) continue;
-
-      // Both units must have items OR space for items
-      const unitHasItems = (unit.inventory?.length || 0) + (unit.consumables?.length || 0) > 0;
-      const allyHasItems = (ally.inventory?.length || 0) + (ally.consumables?.length || 0) > 0;
-      const unitHasSpace =
-        (unit.inventory?.length || 0) < INVENTORY_MAX ||
-        (unit.consumables?.length || 0) < CONSUMABLE_MAX;
-      const allyHasSpace =
-        (ally.inventory?.length || 0) < INVENTORY_MAX ||
-        (ally.consumables?.length || 0) < CONSUMABLE_MAX;
-
-      if ((unitHasItems && allyHasSpace) || (allyHasItems && unitHasSpace)) {
-        targets.push({ ally });
-      }
+      // Give into a free slot or swap: two full bags can still trade.
+      if (ally && canTradeBetween(unit, ally)) targets.push({ ally });
     }
     return targets;
   }
@@ -5303,6 +5302,19 @@ export class BattleScene extends Phaser.Scene {
       .setDepth(401);
     this.tradeUIObjects.push(leftName, rightName, leftCounts, rightCounts);
 
+    // Give-only rows (headless fallback); the write is the controller's.
+    const giveCanvasItem = (giver, receiver, bag, item) => {
+      const result = battleTradeController(this).commit(
+        unitA,
+        unitB,
+        { holder: unitHolder(giver), bag, item },
+        { holder: unitHolder(receiver), bag, item: null },
+      );
+      if (!result.ok) return;
+      this.cleanupTradeUI();
+      this.showBattleTradeUI(unitA, unitB);
+    };
+
     // Two-column item lists (weapons + consumables)
     let yOffset = 90;
     const drawItems = (unit, x, otherUnit) => {
@@ -5341,21 +5353,7 @@ export class BattleScene extends Phaser.Scene {
           btn.on('pointerout', () => btn.setColor(color));
           btn.on('pointerdown', (pointer) => {
             if (pointer?.button !== 0) return;
-            if ((otherUnit.inventory?.length || 0) < INVENTORY_MAX) {
-              removeFromInventory(unit, item);
-              if (addToInventory(otherUnit, item))
-                equipIfUnarmed(otherUnit, otherUnit.inventory.at(-1));
-              if (!this.tradeMutatedThisSession) {
-                this.tradeMutatedThisSession = true;
-                unitA._movementCommitted = true;
-                this.preMoveLoc = null;
-                this.commitVisionSnapshotIfPending();
-              }
-              observeHistoryAction(this, 'traded with', unitA, unitB, item.name);
-              this._captureSuspendCheckpoint?.();
-              this.cleanupTradeUI();
-              this.showBattleTradeUI(unitA, unitB);
-            }
+            giveCanvasItem(unit, otherUnit, 'inventory', item);
           });
         }
         this.tradeUIObjects.push(btn);
@@ -5384,20 +5382,7 @@ export class BattleScene extends Phaser.Scene {
           btn.on('pointerout', () => btn.setColor(color));
           btn.on('pointerdown', (pointer) => {
             if (pointer?.button !== 0) return;
-            const idx = unit.consumables.indexOf(item);
-            if (idx !== -1) unit.consumables.splice(idx, 1);
-            if (!otherUnit.consumables) otherUnit.consumables = [];
-            otherUnit.consumables.push(item);
-            if (!this.tradeMutatedThisSession) {
-              this.tradeMutatedThisSession = true;
-              unitA._movementCommitted = true;
-              this.preMoveLoc = null;
-              this.commitVisionSnapshotIfPending();
-            }
-            observeHistoryAction(this, 'traded with', unitA, unitB, item.name);
-            this._captureSuspendCheckpoint?.();
-            this.cleanupTradeUI();
-            this.showBattleTradeUI(unitA, unitB);
+            giveCanvasItem(unit, otherUnit, 'consumables', item);
           });
         }
         this.tradeUIObjects.push(btn);
@@ -5895,7 +5880,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  _showWeaponDetailTooltip(wpn, menuRect, itemY) {
+  _showWeaponDetailTooltip(wpn, menuRect, itemY, unit = null) {
     if (!wpn) return;
     this._hideWeaponDetailTooltip();
     const might = Number.isFinite(Number(wpn?.might)) ? Number(wpn.might) : 0;
@@ -5907,7 +5892,11 @@ export class BattleScene extends Phaser.Scene {
     const lines = [];
     if (wpn.type) lines.push(wpn.type);
     lines.push(`${might}Mt ${hit}Hit ${crit}Crt`);
-    lines.push(`${weight}Wt Rng${range}`);
+    // Attack speed with this weapon, and the change from the one held (equip menu).
+    const speed = weaponAttackSpeed(wpn, unit);
+    const delta = attackSpeedDelta(speed);
+    const as = speed ? ` ${attackSpeedValue(speed.as)}AS${delta ? ` (${delta})` : ''}` : '';
+    lines.push(`${weight}Wt Rng${range}${as}`);
     if (wpn.special) {
       const specialLines = this._formatSpecialLinesForUi(wpn.special, 28, 2);
       lines.push(...specialLines);
@@ -6006,9 +5995,12 @@ export class BattleScene extends Phaser.Scene {
       if (!silenced || hasPhysical) items.push('Attack');
     }
     // Guidance (Full): a greyed Attack row says why it is missing instead of hiding it.
+    // An unarmed fighter gets its own reason (Full Guidance): nothing to attack with.
     const noReachReason = silenced
       ? null
-      : this._guidance?.noTargetAttackReason?.(unit, normalAttackTargets);
+      : this._guidance?.noTargetAttackReason?.(unit, normalAttackTargets) ||
+        this._guidance?.unarmedAttackReason?.(unit) ||
+        null;
     if (noReachReason && !items.includes('Attack')) {
       items.push('Attack');
       blockedActions.set('Attack', noReachReason);
@@ -6242,6 +6234,8 @@ export class BattleScene extends Phaser.Scene {
       );
 
       if (blockedActions.has(label)) text._menuDescription = blockedActions.get(label);
+      // No Visit command exists: Wait says when ending here visits the village.
+      if (label === 'Wait') text._menuNote = this._villageController?.getWaitNote(unit) || null;
       this.actionMenu.push(text);
     });
     this._pinToScreen(this.actionMenu);
@@ -6260,6 +6254,7 @@ export class BattleScene extends Phaser.Scene {
         label: button.text,
         item: button._menuItem,
         description: button._menuDescription,
+        note: button._menuNote || null,
         button,
         disabled: Boolean(button._menuDisabled),
         color: button._menuColor || UI_PALETTE.text,
@@ -6367,6 +6362,8 @@ export class BattleScene extends Phaser.Scene {
 
   findTalkTarget(unit) {
     for (const npc of this.npcUnits) {
+      // The merchant caravan is an NPC, never a recruit (engine/RecruitNpc.js).
+      if (!isRecruitNpc(npc)) continue;
       const dist = Math.abs(unit.col - npc.col) + Math.abs(unit.row - npc.row);
       if (dist === 1) return npc;
     }
@@ -6449,8 +6446,12 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  findHealTargets(unit, staffOverride = null) {
-    return (this._healController ||= new HealController(this)).findHealTargets(unit, staffOverride);
+  findHealTargets(unit, staffOverride = null, ...options) {
+    return (this._healController ||= new HealController(this)).findHealTargets(
+      unit,
+      staffOverride,
+      ...options,
+    );
   }
 
   startHealTargetSelection(unit, targets, chosenStaff = null) {
@@ -6655,7 +6656,7 @@ export class BattleScene extends Phaser.Scene {
 
       text._menuItem = wpn;
       text.on('pointerover', () => {
-        this._showWeaponDetailTooltip(wpn, menuRect, text.y);
+        this._showWeaponDetailTooltip(wpn, menuRect, text.y, unit);
       });
       text.on('pointerout', (pointer) => {
         if (!this._isTouchPointer(pointer)) {
@@ -6714,7 +6715,7 @@ export class BattleScene extends Phaser.Scene {
       if (equippedWpn) {
         const eqIdx = displayWeapons.indexOf(equippedWpn);
         const autoY = menuPos.y + 4 + eqIdx * itemHeight + itemHeight / 2;
-        this._showWeaponDetailTooltip(equippedWpn, menuRect, autoY);
+        this._showWeaponDetailTooltip(equippedWpn, menuRect, autoY, unit);
         this._weaponPreviewedItem = equippedWpn;
       }
     }
@@ -6773,14 +6774,15 @@ export class BattleScene extends Phaser.Scene {
     // Use consumables array instead of filtering inventory
     const consumables = unit.consumables || [];
     const pos = this.grid.gridToPixel(unit.col, unit.row);
+    const itemHeight = 38;
+    const menuWidth = 240;
     const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
       ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - 200;
+      : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
 
-    const itemHeight = this.isMobileInput ? 38 : 28;
-    const menuWidth = 200;
-    const menuHeight = (consumables.length + 1) * itemHeight + 8; // +1 for Back
+    const noteHeight = 36;
+    const menuHeight = (consumables.length + 1) * itemHeight + noteHeight + 8; // +1 for Back
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = this.add
@@ -6841,11 +6843,11 @@ export class BattleScene extends Phaser.Scene {
       const usable = !reason;
       let label = item.name;
       if (item.uses !== undefined) label += ` (${item.uses})`;
-      if (reason) label += `\n${reason}`;
+
       const color = usable ? UI_PALETTE.good : UI_PALETTE.lineStrong;
       const text = this._makeMenuTextButton(
         ix,
-        iy,
+        iy - 4,
         label,
         {
           fontFamily: 'monospace',
@@ -6866,11 +6868,33 @@ export class BattleScene extends Phaser.Scene {
         { hitWidth: menuWidth - 10, hitHeight: itemHeight, disabled: !usable },
       );
       text._menuItem = item;
-      this.actionMenu.push(text);
+      text._menuDescription = reason;
+      const brief = presentationText(this, ix, iy + 8, reason || battleItemBrief(item, unit), {
+        fontFamily: 'Arial',
+        fontSize: '10px',
+        color: UI_PALETTE.muted,
+      })
+        .setOrigin(0.5)
+        .setDepth(401);
+      this.actionMenu.push(text, brief);
     });
 
+    const note = presentationText(
+      this,
+      menuPos.x + 8,
+      menuPos.y + 4 + consumables.length * itemHeight,
+      ITEM_ACTION_NOTE,
+      {
+        fontFamily: 'Arial',
+        fontSize: '10px',
+        color: UI_PALETTE.muted,
+        wordWrap: { width: menuWidth - 16 },
+      },
+    ).setDepth(401);
+    this.actionMenu.push(note);
+
     // Back button
-    const backY = menuPos.y + 4 + consumables.length * itemHeight + itemHeight / 2;
+    const backY = menuPos.y + 4 + consumables.length * itemHeight + noteHeight + itemHeight / 2;
     const backText = this._makeMenuTextButton(
       menuPos.x + menuWidth / 2,
       backY,
@@ -7188,7 +7212,8 @@ export class BattleScene extends Phaser.Scene {
         (w) => w.type === prof.type && w.tier === 'Iron',
       );
       if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-        addToInventory(unit, newWeapon);
+        // A unit whose old weapon no longer fits (or had none) takes up the new one.
+        if (addToInventory(unit, newWeapon)) equipIfUnarmed(unit, unit.inventory.at(-1));
       }
     }
 
@@ -8913,15 +8938,31 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  /** Award XP to a player unit after combat. Shows floating text + level-up popups. */
-  async awardXP(playerUnit, opponent, opponentDied, damageDealt = null, defenderHpAtStart = null) {
+  /**
+   * Award XP to a player unit after combat. Shows floating text + level-up popups.
+   * `survivedAttack`: the unit was attacked and lived. It then earns at least
+   * XP_DEFEND_SURVIVE, even unarmed, out of counter reach or with every counter
+   * missed; only XP earned by damage dealt is shared by a Mentor's Band.
+   */
+  async awardXP(
+    playerUnit,
+    opponent,
+    opponentDied,
+    damageDealt = null,
+    defenderHpAtStart = null,
+    { survivedAttack = false } = {},
+  ) {
     if (opponent?._noXP) return;
+    const survivalXp = survivedAttack && playerUnit?.currentHP > 0 ? XP_DEFEND_SURVIVE : 0;
     let baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
     let damageRatio = 1;
     if (!opponentDied && Number.isFinite(damageDealt) && Number.isFinite(defenderHpAtStart)) {
       const safeDamage = Math.max(0, Math.trunc(damageDealt));
       const safeStartHp = Math.max(1, Math.trunc(defenderHpAtStart));
-      if (safeDamage <= 0) return;
+      if (safeDamage <= 0) {
+        if (survivalXp > 0) await this.awardScaledXP(playerUnit, survivalXp);
+        return;
+      }
       damageRatio = Math.min(1, safeDamage / safeStartHp);
       baseXp = Math.floor(baseXp * damageRatio);
     }
@@ -8931,8 +8972,9 @@ export class BattleScene extends Phaser.Scene {
     const recruitXpBonus = playerUnit?.isLord
       ? 0
       : Number(this.runManager?.metaEffects?.recruitXpBonus) || 0;
-    const adjustedBaseXp = Math.floor(
-      baseXp * rewardMultiplier * pressureXpMultiplier * (1 + recruitXpBonus),
+    const adjustedBaseXp = Math.max(
+      survivalXp,
+      Math.floor(baseXp * rewardMultiplier * pressureXpMultiplier * (1 + recruitXpBonus)),
     );
     // Mentor's Band (EXP Share): capture recipients before the holder's award
     // so a mid-award level-up can't change eligibility. Mirrored by the
@@ -9233,6 +9275,7 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     }
+    this._inputController?.refreshHoverInfo();
     this.dangerZoneStale = true;
     this._pinnedThreats?.invalidate();
     // Boss death: the bar drains away; FOE VANQUISHED when the battle goes on
@@ -9401,8 +9444,11 @@ export class BattleScene extends Phaser.Scene {
         );
 
       // Condition recovery runs FIRST so sleeping/silenced units get their chance
-      // before the all-sleeping auto-advance check
-      const earlyRecovery = processConditionRecovery(this.playerUnits);
+      // before the all-sleeping auto-advance check. NPC allies (the caravan,
+      // recruits) share the army's turn start, after the army (armyAndNpcAllies).
+      const earlyRecovery = processConditionRecovery(
+        armyAndNpcAllies(this.playerUnits, this.npcUnits),
+      );
       for (const evt of earlyRecovery) {
         const labelByCondition = {
           sleep: 'woke up',
@@ -9411,7 +9457,8 @@ export class BattleScene extends Phaser.Scene {
           root: 'can move again',
         };
         const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
-        this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
+        if (this._showsTurnEffectOn(evt.unit))
+          this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
         this._removeConditionIcon(evt.unit, evt.conditionId);
         this.undimUnit(evt.unit);
       }
@@ -9445,14 +9492,16 @@ export class BattleScene extends Phaser.Scene {
       }
       this.updateVisionHud();
 
-      // Process turn-start effects (skills + affixes) (after banner settles)
+      // Process turn-start effects (skills + affixes) (after banner settles).
+      // NPC allies take the army's turn start with it: an aura or fort mends
+      // them, acid ticks on them (armyAndNpcAllies, after the army).
       scheduleSafeDelayedAsync(
         1200,
         'player_phase_turn_start_pipeline',
         async () => {
           try {
             if (!isCurrentTurnStart()) return;
-            await this.processTurnStartEffects(this.playerUnits, {
+            await this.processTurnStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits), {
               skipRecovery: true,
               isCurrent: isCurrentTurnStart,
             });
@@ -9529,7 +9578,7 @@ export class BattleScene extends Phaser.Scene {
                 // A recruit battle opens without a lesson dialog: the Guidance field
                 // note (guide_recruit_on_map) names the recruit, never blocks, and
                 // honours Guidance Off. Other first-battle lessons wait for a later fight.
-                if (this.npcUnits.length > 0) return;
+                if (hasRecruitNpc(this.npcUnits)) return;
                 if (objective === 'seize')
                   showContextualHint(
                     this,
@@ -9598,7 +9647,8 @@ export class BattleScene extends Phaser.Scene {
           ) {
             return;
           }
-          await this.processTerrainDamage(this.playerUnits);
+          // The army's end-of-phase hazards also reach its NPC allies.
+          await this.processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
           await this.processTurnStartEffects(this.enemyUnits);
           await this.processZombieRevival();
           await this.processBallistaFire(this.playerUnits, 'enemy');
@@ -9627,7 +9677,8 @@ export class BattleScene extends Phaser.Scene {
           root: 'can move again',
         };
         const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
-        await this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
+        if (this._showsTurnEffectOn(evt.unit))
+          await this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
         if (!isCurrent()) return;
         this._removeConditionIcon(evt.unit, evt.conditionId);
         this.undimUnit(evt.unit);
@@ -9648,7 +9699,8 @@ export class BattleScene extends Phaser.Scene {
           effect.target.currentHP + effect.amount,
         );
         this.updateHPBar(effect.target);
-        await this.animateHeal(effect.target, effect.amount);
+        if (this._showsTurnEffectOn(effect.target))
+          await this.animateHeal(effect.target, effect.amount);
       }
     }
 
@@ -9663,7 +9715,8 @@ export class BattleScene extends Phaser.Scene {
           effect.target.currentHP + effect.amount,
         );
         this.updateHPBar(effect.target);
-        await this.animateHeal(effect.target, effect.amount);
+        if (this._showsTurnEffectOn(effect.target))
+          await this.animateHeal(effect.target, effect.amount);
       } else if (effect.type === 'spawn_terrain') {
         await this.executeWallerSpawn(effect);
       }
@@ -9683,8 +9736,17 @@ export class BattleScene extends Phaser.Scene {
       if (appliedDamage <= 0) continue;
       unit.currentHP = nextHP;
       this.updateHPBar(unit);
-      await this.showAcidDamage(unit, appliedDamage);
+      if (this._showsTurnEffectOn(unit)) await this.showAcidDamage(unit, appliedDamage);
     }
+  }
+
+  /**
+   * Whether a phase effect on `unit` (a heal, a hazard, a recovery banner) is shown.
+   * The effect always applies; an NPC ally the fog hides takes it unseen, so turn
+   * starts never reveal where it stands. The army's and enemies' effects show as before.
+   */
+  _showsTurnEffectOn(unit) {
+    return unit?.faction !== 'npc' || canInspectUnit(this.grid, unit);
   }
 
   /** Backward-compatible alias for older call sites/cherry-picks. */
@@ -10012,7 +10074,7 @@ export class BattleScene extends Phaser.Scene {
       if (healAmount <= 0) continue;
       unit.currentHP = Math.min(unit.stats.HP, unit.currentHP + healAmount);
       this.updateHPBar(unit);
-      await this.animateHeal(unit, healAmount);
+      if (this._showsTurnEffectOn(unit)) await this.animateHeal(unit, healAmount);
     }
   }
 
@@ -10026,7 +10088,8 @@ export class BattleScene extends Phaser.Scene {
         if (appliedDamage <= 0) continue;
         unit.currentHP = nextHP;
         this.updateHPBar(unit);
-        await this.showTerrainDamage(unit, appliedDamage);
+        const shown = this._showsTurnEffectOn(unit);
+        if (shown) await this.showTerrainDamage(unit, appliedDamage);
         // Lava damage wakes sleeping units
         if (isSleeping(unit)) {
           removeCondition(unit, 'sleep');
@@ -10034,7 +10097,8 @@ export class BattleScene extends Phaser.Scene {
           // Un-dim only units that can still act — keep the acted-grey on
           // units that already moved this phase (same pattern as cures).
           if (!unit.hasActed) this.undimUnit(unit);
-          await this.showBriefBanner(`${unit.name} woke up from lava damage!`, UI_PALETTE.warn);
+          if (shown)
+            await this.showBriefBanner(`${unit.name} woke up from lava damage!`, UI_PALETTE.warn);
         }
         await this._checkPhoenixBrooch(unit);
         continue;
@@ -10044,13 +10108,19 @@ export class BattleScene extends Phaser.Scene {
       if (unit.moveType === 'Flying') continue;
       if (unit.poisonImmune || unit.terrainHazardImmune) continue;
 
+      const shown = this._showsTurnEffectOn(unit);
       if (!applyCondition(unit, 'acid')) {
         // statusImmunity accessory — surface the block like the staff/art paths
         const pos = this.grid.gridToPixel(unit.col, unit.row);
-        this.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);
+        if (shown) this.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);
         continue;
       }
       this._addConditionIcon(unit, 'acid');
+      if (!shown) {
+        // Its badge stays hidden with it until the army sees it (updateEnemyVisibility).
+        unit._conditionIcons?.acid?.setVisible?.(false);
+        continue;
+      }
       {
         const pos = this.grid.gridToPixel(unit.col, unit.row);
         (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y, 'acid');
@@ -10531,13 +10601,16 @@ export class BattleScene extends Phaser.Scene {
       const ctx = this._prepareCombatContext(enemy, target, { isPlayerInitiator: false });
       const { result } = await this._runCombatResolution(enemy, target, ctx);
 
-      // Award XP to player defender if they survived
+      // Award XP to player defender if they survived: at least the survival
+      // minimum, even with no counter (unarmed, out of reach) or no damage dealt.
       if (target.faction === 'player' && target.currentHP > 0) {
         const counterDamage = Math.max(
           0,
           enemyHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)),
         );
-        await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart);
+        await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart, {
+          survivedAttack: true,
+        });
       }
 
       // Tutorial: the first hit on a non-commander lord teaches permadeath
@@ -10803,7 +10876,7 @@ export class BattleScene extends Phaser.Scene {
       const foes = `${count} ${count === 1 ? 'enemy' : 'enemies'}`;
       label = tombCount > 0 ? `Rout: ${foes} + ${tombCount} reviving` : `Rout: ${foes} remaining`;
     }
-    if (this.npcUnits.length > 0) {
+    if (hasRecruitNpc(this.npcUnits)) {
       label += `\n${this._recruitBeacon?.getObjectiveSuffix() || 'Recruit: Talk to green unit'}`;
     }
     const villageSuffix = this._villageController?.getObjectiveSuffix();
@@ -10893,6 +10966,8 @@ export class BattleScene extends Phaser.Scene {
       if (npc.affixPips) {
         npc.affixPips.forEach((p) => p.setVisible(vis));
       }
+      // Status badges (acid ground, an enemy art) hide with the NPC they sit on.
+      Object.values(npc._conditionIcons || {}).forEach((icon) => icon?.setVisible?.(vis));
     }
   }
 

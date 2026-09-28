@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   createBoardTransform,
+  displayFootprint,
+  displayHistoryBeats,
+  displayHistoryFrame,
   displayLayout,
   rotationForPlayerSide,
 } from '../src/utils/boardOrientation.js';
@@ -171,5 +174,88 @@ describe('Grid presentation rotation', () => {
     // Row 9 (bottom edge of the game map) is drawn along the right edge.
     expect(turned.isNearDisplayRightEdge(0, 9)).toBe(true);
     expect(turned.isNearDisplayRightEdge(15, 0)).toBe(false);
+  });
+});
+
+// A 16x10 history frame: an army on the left edge and a 3x3 boss on the right.
+function historyFrame() {
+  const tiles = allCells(16, 10).map(({ col, row }) => ({ col, row, label: `T${col},${row}` }));
+  return {
+    cols: 16,
+    rows: 10,
+    tiles,
+    units: [
+      { id: 'u1', col: 0, row: 4, size: 1 },
+      { id: 'u2', col: 12, row: 3, size: 3 },
+    ],
+  };
+}
+
+describe('battle history drawn on a turned board', () => {
+  it('leaves an unturned board, and a frame of another size, as they are', () => {
+    const frame = historyFrame();
+    expect(displayHistoryFrame(frame, createBoardTransform(16, 10, 'none'))).toBe(frame);
+    expect(displayHistoryFrame(frame, createBoardTransform(12, 10, 'ccw'))).toBe(frame);
+    const beats = [{ path: [{ col: 1, row: 1 }] }];
+    expect(displayHistoryBeats(beats, null)).toBe(beats);
+  });
+
+  for (const rotation of ['ccw', 'cw']) {
+    it(`${rotation}: every tile sits row-major at the cell it is drawn in`, () => {
+      const t = createBoardTransform(16, 10, rotation);
+      const out = displayHistoryFrame(historyFrame(), t);
+      expect([out.cols, out.rows]).toEqual([10, 16]);
+      expect(out.tiles).toHaveLength(160);
+      out.tiles.forEach((tile, i) => {
+        expect(tile.row * out.cols + tile.col).toBe(i);
+        const g = t.fromDisplay(tile.col, tile.row);
+        expect(tile.label).toBe(`T${g.col},${g.row}`);
+      });
+    });
+  }
+
+  it('turns unit footprints by their far corner (hand-derived)', () => {
+    // ccw on 16x10: (c, r) is drawn at (r, 15 - c).
+    const ccw = displayHistoryFrame(historyFrame(), createBoardTransform(16, 10, 'ccw'));
+    expect(ccw.units.map(({ col, row }) => [col, row])).toEqual([
+      [4, 15], // (0,4)
+      [3, 1], // cols 12-14, rows 3-5 -> display cols 3-5, rows 1-3
+    ]);
+    // cw on 16x10: (c, r) is drawn at (9 - r, c).
+    const cw = displayHistoryFrame(historyFrame(), createBoardTransform(16, 10, 'cw'));
+    expect(cw.units.map(({ col, row }) => [col, row])).toEqual([
+      [5, 0],
+      [4, 12], // display cols 4-6, rows 12-14
+    ]);
+    expect(displayFootprint(createBoardTransform(16, 10, 'ccw'), 12, 3, 3)).toEqual({
+      col: 3,
+      row: 1,
+    });
+  });
+
+  it("turns beat positions and a mover's path with the mover's size", () => {
+    const t = createBoardTransform(16, 10, 'ccw');
+    const [beat] = displayHistoryBeats(
+      [
+        {
+          actorId: 'u2',
+          targetId: 'u1',
+          actorPosition: { col: 12, row: 3, size: 3 },
+          targetPosition: { col: 0, row: 4, size: 1 },
+          path: [
+            { col: 12, row: 3 },
+            { col: 11, row: 3 },
+          ],
+        },
+      ],
+      t,
+    );
+    expect(beat.actorPosition).toEqual({ col: 3, row: 1, size: 3 });
+    expect(beat.targetPosition).toEqual({ col: 4, row: 15, size: 1 });
+    // (11,3) size 3: cols 11-13 -> display rows 2-4, so its top-left is (3, 2).
+    expect(beat.path).toEqual([
+      { col: 3, row: 1 },
+      { col: 3, row: 2 },
+    ]);
   });
 });

@@ -1,3 +1,4 @@
+import { forgeImpactLine } from './itemDecisionText.js';
 import { equipmentComparison } from './equipmentComparison.js';
 import { inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
@@ -6,9 +7,20 @@ import { ContextHelp, helpPreview } from './ContextHelp.js';
 import { attachInfo, bindHold } from './infoAffordance.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
-import { rewardPresentation, rewardIcon } from './rewardDisplay.js';
+import {
+  rewardPresentation,
+  rewardIcon,
+  isSkipDominated,
+  rewardRecipientBlockText,
+} from './rewardDisplay.js';
 import { rewardForWhom } from './choiceContent.js';
-import { choiceReducedMotion, fadeScroll, itemArtSlot } from './choiceCards.js';
+import {
+  choiceReducedMotion,
+  fadeScroll,
+  itemArtSlot,
+  keepDraftScroll,
+  softList,
+} from './choiceCards.js';
 import { unitPortrait } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
@@ -111,10 +123,11 @@ export class MobileRewards {
         document.activeElement.click();
     });
     this.render();
+    // render() already placed the list (keepDraftScroll); focus must not move it.
     (
       this.root.querySelector('[aria-pressed="true"]:not(:disabled)') ||
       this.root.querySelector('.reward-card:not(:disabled), .mh-skill:not(:disabled)')
-    )?.focus();
+    )?.focus({ preventScroll: true });
   }
   tools(header) {
     const tools = node('div', null, 'reward-tools');
@@ -165,6 +178,16 @@ export class MobileRewards {
       });
     }
   }
+  /**
+   * Every choice rebuilds the screen: note where the spoils and the current step's
+   * list were scrolled, so the rebuilt ones (and a step returned to) open there.
+   */
+  rememberScroll() {
+    const draft = this.root.querySelector('.ch-draft');
+    if (draft) this.draftScroll = draft.scrollTop;
+    const list = this.root.querySelector('.mu-list');
+    if (list && this.renderedStep) this.renderedStep.listScroll = list.scrollTop;
+  }
   moveFocus(delta) {
     if (this.busy) return;
     const buttons = [...this.root.querySelectorAll('button:not(:disabled),summary')];
@@ -178,6 +201,8 @@ export class MobileRewards {
     const focus = this.root.contains(document.activeElement)
       ? document.activeElement.dataset.focus
       : null;
+    this.rememberScroll();
+    this.renderedStep = null;
     this.root.replaceChildren();
     this.root.classList.add('ch-reward-screen');
     this.root.classList.toggle('is-still', choiceReducedMotion(this.overlayScene));
@@ -197,6 +222,10 @@ export class MobileRewards {
       const available = all.findIndex((_, i) => this.controller.isRewardAvailable(i));
       if (available >= 0) this.selected = available;
     }
+    // A gold card still on offer that pays at least as much makes the skip a loss.
+    const skipDominated = isSkipDominated(this.choices, this.skipGold, (i) =>
+      this.controller.isRewardAvailable(i),
+    );
     const label = (c) =>
       c.type === 'skip'
         ? `Take ${this.skipGold} gold instead`
@@ -204,12 +233,15 @@ export class MobileRewards {
           `${c.goldAmount || 0} gold${c.xpAmount ? ` + ${c.xpAmount} team XP` : ''}`;
     const describe = (c) =>
       c.type === 'skip'
-        ? 'Pass on the remaining rewards and add this gold to your vault.'
+        ? skipDominated
+          ? 'The gold reward pays more.'
+          : 'Pass on the remaining rewards and add this gold to your vault.'
         : c.item
           ? scene._getLootTooltipText(c, c.item)
           : 'Gold is added to your vault. Team XP is shared with your roster.';
-    // The spoils as cards: art, rarity frame, what it does, and for whom.
-    const row = node('div', null, 'ch-draft ch-rewards');
+    // The spoils as cards: art, rarity frame, what it does, and for whom. Upright
+    // they are a list that scrolls, its edges fading while there is more.
+    const row = softList(node('div', null, 'ch-draft ch-rewards'));
     row.dataset.count = String(all.length);
     row.style.setProperty('--ch-n', String(all.length));
     all.forEach((c, i) => {
@@ -228,6 +260,7 @@ export class MobileRewards {
         presentation.tier || (c.type === 'skip' || c.type === 'gold' ? 'Gold' : 'none');
       b.classList.toggle('reward-legend', presentation.tier === 'Legend');
       b.classList.toggle('is-claimed', claimed);
+      b.classList.toggle('is-dominated', c.type === 'skip' && skipDominated);
       const plate = node('span', null, 'ch-plate');
       const top = node('span', null, 'ch-reward-top');
       const rarity = node('span', null, 'ch-rarity reward-quality');
@@ -332,7 +365,11 @@ export class MobileRewards {
     this.root.append(header, row);
     if (notes.childElementCount) this.root.append(notes);
     this.root.append(actions);
-    if (focus) this.root.querySelector(`[data-focus="${focus}"]:not(:disabled)`)?.focus();
+    keepDraftScroll(row, this.draftScroll || 0);
+    if (focus)
+      this.root
+        .querySelector(`[data-focus="${focus}"]:not(:disabled)`)
+        ?.focus({ preventScroll: true });
     if (this.revealPending) this.startReveal(row, all);
   }
   /** Reward reveal: Hollow Sun backs turn in order (presentation only; tap skips). */
@@ -412,6 +449,7 @@ export class MobileRewards {
   renderStep(message = '') {
     if (this.controller.saveError) return this.renderSaveFailure();
     const step = this.steps.at(-1);
+    this.rememberScroll();
     this.root.replaceChildren();
     const header = node('header', null, 'mu-header');
     header.append(
@@ -421,7 +459,7 @@ export class MobileRewards {
     const trail = node('p', ['Rewards', ...this.steps.map((s) => s.title)].join(' › '), 'mu-help');
     this.tools(header);
     const split = node('div', null, 'mu-split');
-    const list = node('div', null, 'mu-list');
+    const list = softList(node('div', null, 'mu-list'));
     step.selected ??= step.choices[0];
     for (const choice of step.choices) {
       const reason = step.blocked?.(choice);
@@ -490,6 +528,8 @@ export class MobileRewards {
     split.append(list, detail);
     if (!header.querySelector('.reward-tools')) this.tools(header);
     this.root.append(header, trail, split);
+    this.renderedStep = step;
+    list.scrollTop = step.listScroll || 0;
   }
   startChoice(choice) {
     const item = choice.item;
@@ -520,6 +560,10 @@ export class MobileRewards {
       });
     } else {
       const booster = item.type === 'Consumable' && item.effect === 'statBoost';
+      const compareOptions = {
+        arts: this.scene.gameData?.weaponArts?.arts || [],
+        imbues: this.scene.gameData?.imbues,
+      };
       this.pushStep({
         title: item.name,
         subject: item,
@@ -529,7 +573,8 @@ export class MobileRewards {
             Number(!!bundleTargetBlock(run, item, b, choice.quantity || 1)),
         ),
         label: (unit) => (unit === 'convoy' ? 'Send to Convoy' : unit.name),
-        blocked: (unit) => bundleTargetBlock(run, item, unit, choice.quantity || 1),
+        blocked: (unit) =>
+          rewardRecipientBlockText(bundleTargetBlock(run, item, unit, choice.quantity || 1)),
         describe: (unit) =>
           unit === 'convoy'
             ? 'Shared storage. Withdraw it to any unit from Roster › Convoy between battles.'
@@ -537,7 +582,7 @@ export class MobileRewards {
               ? `${item.stat}: ${unit.stats[item.stat] || 0} → ${(unit.stats[item.stat] || 0) + item.value}`
               : item.type === 'Consumable'
                 ? `${unit.consumables?.length || 0}/3 consumables${choice.quantity > 1 ? ` · ${choice.quantity} items; overflow goes to convoy` : ''}`
-                : `Can equip · ${equipmentComparison(unit, item)} · ${unit.inventory?.length || 0}/5 items`,
+                : `Can equip · ${equipmentComparison(unit, item, unit.weapon, compareOptions)} · ${unit.inventory?.length || 0}/5 items`,
         final: true,
         apply: (unit) => applyRewardBundle(run, item, unit, choice.quantity || 1),
       });
@@ -569,7 +614,10 @@ export class MobileRewards {
           // Each imbue row wears its stone's icon.
           icon: imbue ? (entry) => entry.stone || null : null,
           label: (entry) => (imbue ? entry.name : entry.label),
-          describe: (entry) => (imbue ? entry.description : 'Permanent weapon upgrade.'),
+          describe: (entry) =>
+            imbue
+              ? entry.description
+              : forgeImpactLine(unit, weapon, entry.key) || 'Permanent weapon upgrade.',
           blocked: (entry) => (imbue ? '' : forgeStatBlock(weapon, entry.key)),
           final: true,
           apply: (entry) => apply(weapon, imbue ? entry.id : entry.key),

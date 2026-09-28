@@ -63,11 +63,25 @@ export const MUSIC_LOOPS = {
   music_battle_act4: { loopStart: 11.272721, loopEnd: 76.727256, duration: 77.327, tonic: 'Db' },
   music_battle_act4_2: { loopStart: 10.666667, loopEnd: 84.0, duration: 84.6, tonic: 'Db' },
   music_battle_act4_2_calm: { loopStart: 10.666667, loopEnd: 84.0, duration: 84.6, tonic: 'Db' },
+  music_battle_act4_3: { loopStart: 8.090907, loopEnd: 108.318186, duration: 108.918, tonic: 'B' },
+  music_battle_act4_3_calm: {
+    loopStart: 8.090907,
+    loopEnd: 108.318186,
+    duration: 108.918,
+    tonic: 'B',
+  },
   music_battle_act4_calm: {
     loopStart: 11.272721,
     loopEnd: 76.727256,
     duration: 77.327,
     tonic: 'Db',
+  },
+  music_battle_caravan: { loopStart: 10.575351, loopEnd: 82.904127, duration: 83.504, tonic: 'E' },
+  music_battle_caravan_calm: {
+    loopStart: 10.575351,
+    loopEnd: 82.904127,
+    duration: 83.504,
+    tonic: 'E',
   },
   music_battle_castle: { loopStart: 7.636372, loopEnd: 94.909093, duration: 95.509, tonic: 'C' },
   music_battle_castle_calm: {
@@ -89,6 +103,32 @@ export const MUSIC_LOOPS = {
     tonic: 'D',
   },
   music_battle_elite: { loopStart: 9.714286, loopEnd: 72.571429, duration: 73.171, tonic: 'C' },
+  music_battle_elite_act2: {
+    loopStart: 8.864875,
+    loopEnd: 91.567574,
+    duration: 92.168,
+    tonic: 'F',
+  },
+  music_battle_elite_act2_calm: {
+    loopStart: 8.864875,
+    loopEnd: 91.567574,
+    duration: 92.168,
+    tonic: 'F',
+  },
+  music_battle_elite_act3: { loopStart: 7.0, loopEnd: 80.5, duration: 81.1, tonic: 'A' },
+  music_battle_elite_act3_calm: { loopStart: 7.0, loopEnd: 80.5, duration: 81.1, tonic: 'A' },
+  music_battle_elite_act4: {
+    loopStart: 9.853651,
+    loopEnd: 80.097551,
+    duration: 80.698,
+    tonic: 'Bb',
+  },
+  music_battle_elite_act4_calm: {
+    loopStart: 9.853651,
+    loopEnd: 80.097551,
+    duration: 80.698,
+    tonic: 'Bb',
+  },
   music_battle_elite_calm: {
     loopStart: 9.714286,
     loopEnd: 72.571429,
@@ -102,6 +142,8 @@ export const MUSIC_LOOPS = {
     duration: 62.378,
     tonic: 'E',
   },
+  music_battle_fog: { loopStart: 13.6, loopEnd: 100.0, duration: 100.6, tonic: 'G' },
+  music_battle_fog_calm: { loopStart: 13.6, loopEnd: 100.0, duration: 100.6, tonic: 'G' },
   music_battle_rescue: { loopStart: 10.486485, loopEnd: 75.351361, duration: 75.951, tonic: 'F' },
   music_battle_rescue_calm: {
     loopStart: 10.486485,

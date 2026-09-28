@@ -87,7 +87,7 @@ test('unavailable consumables explain why; keyboard Back and gamepad focus are v
   expect(errors).toEqual([]);
 });
 
-test('equip rows show a one-line brief; a long press opens the full stats without equipping', async ({
+test('equip rows show a stats brief and attack speed; a long press opens the full stats without equipping', async ({
   page,
 }) => {
   const { hud, errors } = await boot(page);
@@ -104,9 +104,31 @@ test('equip rows show a one-line brief; a long press opens the full stats withou
   const row = hud.getByRole('button', { name: /^Hand Axe/ });
   await expect(row).toBeVisible();
   const summary = row.locator('.mb-item-summary');
-  // One short line: the numbers that decide a pick, ✦ for the effect.
-  await expect(summary).toHaveText('Mt 5 · Hit 65 · Rng 1-2\u00a0✦');
-  expect(await summary.evaluate((n) => n.getClientRects().length)).toBe(1);
+  // The numbers that decide a pick (✦ for the effect), then the attack speed this
+  // weapon gives and its change from the held one. By hand, not through the engine:
+  // AS = SPD − max(0, weight − floor(STR / 5)); a held staff (or nothing) is bare SPD.
+  const speed = await page.evaluate(() => {
+    const u = window.testUnit;
+    const as = (w) =>
+      !w || w.type === 'Staff'
+        ? u.stats.SPD
+        : u.stats.SPD - Math.max(0, (w.weight || 0) - Math.floor(u.stats.STR / 5));
+    return { axe: as(u.inventory.find((w) => w.uid === 'brief-axe')), held: as(u.weapon) };
+  });
+  const minus = (n) => (n < 0 ? `\u2212${-n}` : `${n}`);
+  const delta = speed.axe - speed.held;
+  const speedText = `Attack speed ${minus(speed.axe)}${
+    delta ? ` (${delta > 0 ? `+${delta}` : minus(delta)})` : ''
+  }`;
+  await expect
+    .poll(() => summary.evaluate((n) => n.textContent))
+    .toBe(`Mt 5 · Hit 65 · Rng 1-2\u00a0✦\n${speedText}`);
+  // Exactly two lines in the phone rail: neither wraps.
+  expect(
+    await summary.evaluate((n) =>
+      Math.round(n.getBoundingClientRect().height / parseFloat(getComputedStyle(n).lineHeight)),
+    ),
+  ).toBe(2);
   // The row leads with the weapon's socketed icon, and keeps its height.
   await expect(row.locator('.mb-item-icon')).toHaveAttribute('data-icon-id', 'hand-axe');
   await expect(row.locator('.mb-item-icon')).toHaveAttribute('aria-hidden', 'true');
@@ -125,6 +147,9 @@ test('equip rows show a one-line brief; a long press opens the full stats withou
   const open = hud.getByRole('button', { name: /^Hand Axe/ });
   await expect(open).toHaveClass(/is-expanded/);
   await expect(open.locator('.mb-item-summary')).toContainText('Weight 8');
+  await expect(open.locator('.mb-item-summary')).toContainText(
+    `Attack speed ${minus(speed.held)} → ${minus(speed.axe)}`,
+  );
   await expect(open.locator('.mb-item-summary')).toContainText('Throwable, lower stats');
   expect(await page.evaluate(() => window.testUnit.weapon?.name)).toBe(
     await page.evaluate(() => window.before),
@@ -221,5 +246,153 @@ test('AOE confirm clears preview on Back and healing circle can complete', async
   await hud.getByRole('button', { name: /^Use Healing Circle/ }).tap();
   await expect.poll(() => page.evaluate(() => window.testUnit.hasActed)).toBe(true);
   expect(await page.evaluate(() => window.testUnit.currentHP)).toBeGreaterThan(1);
+  expect(errors).toEqual([]);
+});
+
+test('heal rows preview HP, Back cancels, and repeated taps spend only one staff use', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  const { hud, errors } = await boot(page);
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.registry.get('settings')?.setHints?.(false);
+    s.hideActionMenu();
+    const healer = window.testUnit;
+    const target = s.playerUnits.find((u) => u !== healer);
+    healer.stats.MAG = 1;
+    target.stats.HP = 20;
+    target.currentHP = 12;
+    const staff = {
+      ...s.gameData.weapons.find((w) => w.name === 'Heal'),
+      uses: 4,
+      maxUses: 4,
+      healBase: 5,
+    };
+    healer.inventory.push(staff);
+    s.startHealTargetSelection(healer, [target], staff);
+    window.healCase = { healer, target, staff };
+  });
+  let row = hud.getByRole('group', { name: 'Heal targets' }).getByRole('button');
+  await expect(row).toContainText('HP 12/20 → 18/20 (+6)');
+  await expect(hud).not.toContainText('Cancel to go back');
+  await hud.getByRole('button', { name: 'Back', exact: true }).click();
+  expect(
+    await page.evaluate(() => ({
+      hp: window.healCase.target.currentHP,
+      uses: window.healCase.staff.uses - (window.healCase.staff._usesSpent || 0),
+    })),
+  ).toEqual({ hp: 12, uses: 4 });
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.hideActionMenu();
+    const { healer, target, staff } = window.healCase;
+    s.startHealTargetSelection(healer, [target], staff);
+  });
+  await expect(row).toContainText('HP 12/20 → 18/20 (+6)');
+  await row.evaluate((b) => {
+    b.click();
+    b.click();
+  });
+  await expect.poll(() => page.evaluate(() => window.healCase.healer.hasActed)).toBe(true);
+  expect(
+    await page.evaluate(() => ({
+      hp: window.healCase.target.currentHP,
+      uses: window.healCase.staff.uses - (window.healCase.staff._usesSpent || 0),
+    })),
+  ).toEqual({ hp: 18, uses: 3 });
+  expect(errors).toEqual([]);
+});
+
+test('a staff heals the caravan Merchant from the phone rail', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  const { hud, errors } = await boot(page);
+  await page.evaluate(async () => {
+    const { createCaravanUnit } = await import('/src/engine/CaravanSystem.js');
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.registry.get('settings')?.setHints?.(false);
+    s.hideActionMenu();
+    const healer = window.testUnit;
+    for (const u of s.playerUnits) u.currentHP = u.stats.HP; // only the Merchant is hurt
+    healer.stats.MAG = 1;
+    const staff = { ...s.gameData.weapons.find((w) => w.name === 'Heal') };
+    healer.inventory = healer.inventory.filter((w) => w.type !== 'Staff');
+    healer.inventory.push(staff);
+    const tile = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]
+      .map(([dc, dr]) => ({ col: healer.col + dc, row: healer.row + dr }))
+      .find(
+        ({ col, row }) =>
+          col >= 0 &&
+          row >= 0 &&
+          col < s.grid.cols &&
+          row < s.grid.rows &&
+          !s.getUnitAt(col, row) &&
+          s.grid.getMoveCost(col, row, 'Infantry') !== Infinity,
+      );
+    const caravan = createCaravanUnit('act2', tile); // 18 + 4 × 2 = 26 HP
+    caravan.currentHP = 12;
+    s.npcUnits.push(caravan);
+    s.addUnitGraphic(caravan);
+    s.selectUnit(healer);
+    s.showActionMenu(healer);
+    window.caravanCase = { healer, staff, caravan };
+  });
+  await hud.getByRole('button', { name: /^Heal \(/ }).tap();
+  const row = hud.getByRole('group', { name: 'Heal targets' }).getByRole('button');
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText('Merchant');
+  // Heal: MAG 1 + 5 = 6.
+  await expect(row).toContainText('HP 12/26 → 18/26 (+6)');
+  await row.tap();
+  await expect.poll(() => page.evaluate(() => window.caravanCase.healer.hasActed)).toBe(true);
+  expect(
+    await page.evaluate(() => {
+      const { caravan, staff } = window.caravanCase;
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      return {
+        hp: caravan.currentHP,
+        spent: staff._usesSpent,
+        npc: s.npcUnits.includes(caravan) && caravan.faction === 'npc',
+      };
+    }),
+  ).toEqual({ hp: 18, spent: 1, npc: true });
+  expect(errors).toEqual([]);
+});
+
+test('Cure rows name the removed conditions without promising HP', async ({ page }) => {
+  const { hud, errors } = await boot(page);
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.registry.get('settings')?.setHints?.(false);
+    s.hideActionMenu();
+    const healer = window.testUnit;
+    const target = s.playerUnits.find((u) => u !== healer);
+    target.currentHP = target.stats.HP;
+    target._conditions = [{ id: 'sleep', turnsLeft: 2 }];
+    const staff = { ...s.gameData.weapons.find((w) => w.name === 'Heal'), cureConditions: true };
+    healer.inventory.push(staff);
+    s.startHealTargetSelection(healer, [target], staff);
+    window.cureCase = { healer, target, staff, hp: target.currentHP };
+  });
+  const row = hud.getByRole('group', { name: 'Heal targets' }).getByRole('button');
+  await expect(row).toContainText(/Cure: removes Sleep/i);
+  await expect(row).not.toContainText('HP');
+  await row.tap();
+  await expect.poll(() => page.evaluate(() => window.cureCase.healer.hasActed)).toBe(true);
+  expect(
+    await page.evaluate(() => {
+      const { target, staff, hp } = window.cureCase;
+      return {
+        conditions: target._conditions,
+        unchangedHp: target.currentHP === hp,
+        spent: staff._usesSpent,
+      };
+    }),
+  ).toEqual({ conditions: [], unchangedHp: true, spent: 1 });
   expect(errors).toEqual([]);
 });

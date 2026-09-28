@@ -7,6 +7,7 @@
 // No DOM, no Phaser: unit-tested in tests/LoomModel.test.js.
 
 import { fallCountdownText } from './eclipseContent.js';
+import { chosenLine } from '../engine/RuinsCommands.js';
 
 export const LOOM_LANES = 5;
 
@@ -196,9 +197,32 @@ export function buildLoomModel({
 
 /**
  * Loom geometry for a visible area of `width` x `height` CSS px.
- * Rows run left to right; the five generator lanes are horizontal warp threads.
+ *
+ * `axis: 'horizontal'` (landscape, desktop): rows run left to right and the five
+ * generator lanes are horizontal warp threads; the loom scrolls sideways.
+ * `axis: 'vertical'` (upright phones, `html.portrait-ui`): the act climbs from the
+ * bottom (row 0, where the party enters, like the army at the foot of the upright
+ * battle board) to the boss at the top; lanes run left to right and the loom scrolls
+ * up and down. Row numerals ride beside the rows on the left.
+ *
+ * Both axes expose the same generic geometry, which the painter and the route use:
+ *   row(r) / lane(l)  coordinate of a row / lane along its own axis
+ *   pos(r, l)         {x, y} of a knot
+ *   rowStep, laneStep spacing along each axis
+ *   innerW, innerH    full weave size (the scrolled content)
+ *   scrollSpan        how far the viewport can scroll along the row axis
+ * The horizontal loom keeps its original names too (x, y, dx, dy, padL, padT,
+ * numeralY, tickY); its numbers are pinned in tests/LoomModel.test.js.
  */
-export function layoutLoom({ rows, width, height, medal = LOOM_MEDAL, lanes = LOOM_LANES }) {
+export function layoutLoom({
+  rows,
+  width,
+  height,
+  medal = LOOM_MEDAL,
+  lanes = LOOM_LANES,
+  axis = 'horizontal',
+}) {
+  if (axis === 'vertical') return layoutVertical({ rows, width, height, medal, lanes });
   const W = Math.max(0, width || 0);
   const H = Math.max(0, height || 0);
   const span = Math.max(1, rows - 1);
@@ -213,10 +237,15 @@ export function layoutLoom({ rows, width, height, medal = LOOM_MEDAL, lanes = LO
   const block = top + bottom + dy * laneGaps;
   const offY = H > block ? Math.floor((H - block) / 2) : 0;
   const padT = top + offY;
+  const x = (row) => padL + row * dx;
+  const y = (col) => padT + col * dy;
   return {
+    axis: 'horizontal',
+    rows,
     width: W,
     height: H,
     innerW,
+    innerH: H,
     medal,
     dx,
     dy,
@@ -225,17 +254,100 @@ export function layoutLoom({ rows, width, height, medal = LOOM_MEDAL, lanes = LO
     // The heddle ruler (row numerals) rides just above the top lane.
     numeralY: padT - 27,
     tickY: padT - 22,
-    x: (row) => padL + row * dx,
-    y: (col) => padT + col * dy,
+    x,
+    y,
+    rowStep: dx,
+    laneStep: dy,
+    row: x,
+    lane: y,
+    pos: (row, col) => ({ x: x(row), y: y(col) }),
+    viewSpan: W,
+    scrollSpan: innerW - W,
   };
 }
 
-/** Horizontal scroll that anchors a fresh loom on the choices (two rows of lead-in). */
+// Vertical metrics (CSS px). The left pad holds the row numerals ("VIII" is four 8px
+// glyphs); the bottom pad lets the run's thread enter below the first knot and the top
+// pad leaves room for the Hollow Sun. Rows keep a label's height between medals.
+export const LOOM_PAD_V = Object.freeze({ left: 66, right: 34, top: 38, bottom: 44 });
+export const LOOM_DY_GAP_V = 20;
+
+function layoutVertical({ rows, width, height, medal, lanes }) {
+  const W = Math.max(0, width || 0);
+  const H = Math.max(0, height || 0);
+  const last = Math.max(0, rows - 1);
+  const span = Math.max(1, last);
+  const { left, right, top, bottom } = LOOM_PAD_V;
+  const minStep = medal + LOOM_DY_GAP_V;
+  const rowStep = Math.min(LOOM_DX_MAX, Math.max(minStep, (H - top - bottom) / span));
+  const content = top + bottom + rowStep * span;
+  const innerH = Math.max(H, Math.ceil(content));
+  const padT = top + (innerH > content ? (innerH - content) / 2 : 0);
+  const laneGaps = Math.max(1, lanes - 1);
+  const laneStep = Math.max(0, Math.min(medal * LOOM_DY_PER_MEDAL, (W - left - right) / laneGaps));
+  const block = left + right + laneStep * laneGaps;
+  const padL = left + (W > block ? Math.floor((W - block) / 2) : 0);
+  // Row 0 sits lowest; the boss row is at the top.
+  const row = (r) => padT + (last - r) * rowStep;
+  const lane = (l) => padL + l * laneStep;
+  return {
+    axis: 'vertical',
+    rows,
+    width: W,
+    height: H,
+    innerW: W,
+    innerH,
+    medal,
+    rowStep,
+    laneStep,
+    padL,
+    padT,
+    // The heddle ruler stands beside the loom: a right-aligned numeral left of the
+    // first lane and a short tick pointing at each row.
+    numeralX: padL - medal / 2 - 13,
+    tickX: padL - medal / 2 - 10,
+    row,
+    lane,
+    pos: (r, l) => ({ x: lane(l), y: row(r) }),
+    viewSpan: H,
+    scrollSpan: innerH - H,
+  };
+}
+
+const clampScroll = (layout, v) => Math.max(0, Math.min(layout.scrollSpan, Math.round(v)));
+
+// Upright lead-in below the choices: one row, plus the party's medal, its rim and
+// "you are here" ring, so the knot the party stands on is whole at the bottom edge.
+export const LOOM_LEAD_V = 14;
+
+/**
+ * Scroll (along the row axis: scrollLeft horizontal, scrollTop vertical) that anchors
+ * a fresh loom on the choices with a little lead-in behind them: 1.4 rows from the
+ * left edge sideways; upright, the row below the choices (where the party stands)
+ * whole above the bottom edge.
+ */
 export function loomAnchorScroll(layout, model) {
   const rows = [...model.available].map((id) => model.byId.get(id)?.row ?? 0);
   if (!rows.length) return 0;
-  const x = layout.x(Math.min(...rows));
-  return Math.max(0, Math.min(layout.innerW - layout.width, Math.round(x - layout.dx * 1.4)));
+  const at = layout.row(Math.min(...rows));
+  if (layout.axis === 'vertical') {
+    const lead = layout.rowStep + layout.medal / 2 + LOOM_LEAD_V;
+    return clampScroll(layout, at + lead - layout.viewSpan);
+  }
+  return Math.max(0, Math.min(layout.innerW - layout.width, Math.round(at - layout.dx * 1.4)));
+}
+
+/** The (fractional) row at the centre of the view for a scroll offset. */
+export function loomViewRow(layout, scroll) {
+  const c = (Number(scroll) || 0) + layout.viewSpan / 2;
+  const r = (c - layout.row(0)) / (layout.axis === 'vertical' ? -layout.rowStep : layout.rowStep);
+  return Number.isFinite(r) ? r : 0;
+}
+
+/** Scroll offset that centres a (fractional) row in the view, clamped. */
+export function loomScrollToRow(layout, row) {
+  const at = layout.row(0) + (layout.axis === 'vertical' ? -1 : 1) * layout.rowStep * row;
+  return clampScroll(layout, at - layout.viewSpan / 2);
 }
 
 /** Deterministic index for per-node flavour so copy never flickers between renders. */
@@ -274,7 +386,7 @@ const ECLIPSED_TEXT = {
 const SERVICE = {
   shop: 'Buy, sell and forge equipment.',
   church: 'Heal, revive allies and promote units.',
-  ruins: 'Supplies and services among the ruins.',
+  ruins: 'Rest (heal, revive) or scavenge the wares. Only one.',
   colosseum: 'Arena and mercenary board.',
   recruit: 'Battle with a potential ally.',
 };
@@ -379,6 +491,7 @@ export function describeLoomNode(
     eclipse = null,
     recruit = null,
     recruitMods = null,
+    ruinsChoice = null,
   } = {},
 ) {
   if (!node) return null;
@@ -417,9 +530,18 @@ export function describeLoomNode(
   if (node.type === 'recruit' && !eclipsed) {
     const hunters = Math.max(0, Math.trunc(Number(recruitMods?.enemyCountBonus) || 0));
     const captains = Math.max(0, Math.trunc(Number(recruitMods?.affixCount) || 0));
-    if (hunters) tags.push({ text: `Hunters +${hunters}`, tone: 'bad' });
+    if (hunters)
+      tags.push({
+        text: `Hunters +${hunters}`,
+        tone: 'bad',
+        detail: `${hunters === 1 ? 'One extra enemy hunts' : `${hunters} extra enemies hunt`} the recruit.`,
+      });
     if (captains)
-      tags.push({ text: captains > 1 ? `${captains} captains` : 'Captain', tone: 'bad' });
+      tags.push({
+        text: captains > 1 ? `${captains} captains` : 'Captain',
+        tone: 'bad',
+        detail: `${captains === 1 ? 'One hunter carries' : `${captains} hunters carry`} an affix — inspect ${captains === 1 ? 'it' : 'them'} in battle.`,
+      });
   }
   if (params && node.encounterLocked) tags.push({ text: 'Encounter locked', tone: 'plain' });
 
@@ -427,13 +549,22 @@ export function describeLoomNode(
     ? ECLIPSED_TEXT[node.eclipse.fromType] || ECLIPSED_TEXT.battle
     : recruitView
       ? `Hunters are closing on ${recruitView.name}. Reach them with a lord and Talk.`
-      : SERVICE[node.type] || objective?.[1] || '';
+      : node.type === 'ruins' && ruinsChoice
+        ? chosenLine(ruinsChoice)
+        : SERVICE[node.type] || objective?.[1] || '';
   const pool = state === 'cut' || eclipsed ? null : flavorPool(node, dialogue, actId);
   const flavor =
     Array.isArray(pool) && pool.length ? pool[stableIndex(node.id, pool.length)] : null;
 
   let stateLine;
-  if (shopOpen) stateLine = { tone: 'done', text: 'Shop still open · Stock and prices retained' };
+  if (shopOpen)
+    stateLine = {
+      tone: 'done',
+      text:
+        node.type === 'shop'
+          ? 'Shop still open · Stock and prices retained'
+          : 'Still open · Purchases and services retained',
+    };
   else if (state === 'current')
     stateLine = { tone: 'done', text: activeLabel || 'The party rests here' };
   else if (state === 'done') stateLine = { tone: 'done', text: 'Woven · already walked' };

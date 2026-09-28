@@ -13,7 +13,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getCombatForecast, resolveCombat, parseRange, isStaff } from '../src/engine/Combat.js';
 import { getSkillCombatMods, applyAccessoryPhaseCombatMods } from '../src/engine/SkillSystem.js';
-import { getWeaponArtCombatMods } from '../src/engine/WeaponArtSystem.js';
+import { getWeaponArtCombatMods, applyWeaponArtCost } from '../src/engine/WeaponArtSystem.js';
 import { forecastProjection } from '../src/ui/forecastDisplay.js';
 import { loadGameData } from './testData.js';
 
@@ -90,7 +90,17 @@ function makeUnit(rng, name, faction, col, row) {
 }
 
 // Mirrors BattleScene.buildSkillCtx without per-strike roll hooks.
-function buildSkillCtx(rng, attacker, defender, allies, enemies, atkTerrain, defTerrain) {
+function buildSkillCtx(
+  rng,
+  attacker,
+  defender,
+  allies,
+  enemies,
+  atkTerrain,
+  defTerrain,
+  forcedArt = null,
+) {
+  if (forcedArt) applyWeaponArtCost(attacker, forcedArt);
   const ctx = { classesData: data.classes, traitsData: data.traits };
   const atkMods = getSkillCombatMods(
     attacker, defender, allies, enemies, data.skills, atkTerrain, true, data.affixes, ctx,
@@ -104,7 +114,7 @@ function buildSkillCtx(rng, attacker, defender, allies, enemies, atkTerrain, def
   applyAccessoryPhaseCombatMods(attacker, atkMods, { turnNumber, rollSession, rng: fixedRng });
   applyAccessoryPhaseCombatMods(defender, defMods, { turnNumber, rollSession, rng: fixedRng });
   const arts = ARTS.filter((a) => a.weaponType === attacker.weapon.type && a.combatMods);
-  const art = arts.length && rng() < 0.25 ? pick(rng, arts) : null;
+  const art = forcedArt || (arts.length && rng() < 0.25 ? pick(rng, arts) : null);
   return {
     atkMods,
     defMods,
@@ -255,48 +265,62 @@ describe('forecast equals resolution for random matchups', () => {
     expect(mismatches.slice(0, 5)).toEqual([]);
   }, 120_000);
 
-  it('the "if all hits land" projection equals the resolved HP when shown', () => {
-    const mismatches = [];
-    let shown = 0;
-    for (let seed = 1; seed <= SAMPLES; seed++) {
-      const m = makeMatchup(seed + 100_000);
-      // Realistic HP so exchanges can be lethal.
-      for (const u of [m.attacker, m.defender]) {
-        u.stats.HP = 15 + (seed % 40);
-        u.currentHP = 1 + ((seed * 7) % u.stats.HP);
+  it.each([false, true])(
+    'the all-hits projection matches resolved HP (force art: %s)',
+    (forceArt) => {
+      const mismatches = [];
+      let shown = 0;
+      for (let seed = 1; seed <= SAMPLES; seed++) {
+        const m = makeMatchup(seed + 100_000);
+        // Realistic HP so exchanges can be lethal.
+        for (const u of [m.attacker, m.defender]) {
+          u.stats.HP = 15 + (seed % 40);
+          u.currentHP = 1 + ((seed * 7) % u.stats.HP);
+        }
+        m.skillCtx = buildSkillCtx(
+          mulberry32(seed),
+          m.attacker,
+          m.defender,
+          [m.attacker],
+          [m.defender],
+          m.atkTerrain,
+          m.defTerrain,
+          forceArt
+            ? ARTS.filter(
+                (a) => a.weaponType === m.attacker.weapon.type && !a.combatMods?.drainPercent,
+              )[
+                seed %
+                  ARTS.filter(
+                    (a) => a.weaponType === m.attacker.weapon.type && !a.combatMods?.drainPercent,
+                  ).length
+              ]
+            : null,
+        );
+        const f = forecastOf(m);
+        const projection = forecastProjection(f);
+        if (!projection) continue;
+        if (f.attacker.crit >= 100 || f.defender.crit >= 100) continue;
+        if (f.attacker.hit <= 0 || (f.defender.canCounter && f.defender.hit <= 0)) continue;
+        // Every strike lands (both Hit > c), none crit (both Crit ≤ c).
+        const c = Math.max(f.attacker.crit, f.defender.canCounter ? f.defender.crit : 0);
+        const lowestHit = Math.min(f.attacker.hit, f.defender.canCounter ? f.defender.hit : 100);
+        if (c >= lowestHit) continue;
+        shown++;
+        const result = resolveWith((c + 0.5) / 100, m);
+        if (
+          result.attackerHP !== projection.attackerHP ||
+          result.defenderHP !== projection.defenderHP
+        )
+          mismatches.push({
+            seed,
+            projection,
+            resolved: { attackerHP: result.attackerHP, defenderHP: result.defenderHP },
+            weapons: [m.attacker.weapon.name, m.defender.weapon.name],
+          });
       }
-      m.skillCtx = buildSkillCtx(
-        mulberry32(seed),
-        m.attacker,
-        m.defender,
-        [m.attacker],
-        [m.defender],
-        m.atkTerrain,
-        m.defTerrain,
-      );
-      const f = forecastOf(m);
-      const projection = forecastProjection(f);
-      if (!projection) continue;
-      if (f.attacker.crit >= 100 || f.defender.crit >= 100) continue;
-      if (f.attacker.hit <= 0 || (f.defender.canCounter && f.defender.hit <= 0)) continue;
-      // Every strike lands (both Hit > c), none crit (both Crit ≤ c).
-      const c = Math.max(f.attacker.crit, f.defender.canCounter ? f.defender.crit : 0);
-      const lowestHit = Math.min(f.attacker.hit, f.defender.canCounter ? f.defender.hit : 100);
-      if (c >= lowestHit) continue;
-      shown++;
-      const result = resolveWith((c + 0.5) / 100, m);
-      if (
-        result.attackerHP !== projection.attackerHP ||
-        result.defenderHP !== projection.defenderHP
-      )
-        mismatches.push({
-          seed,
-          projection,
-          resolved: { attackerHP: result.attackerHP, defenderHP: result.defenderHP },
-          weapons: [m.attacker.weapon.name, m.defender.weapon.name],
-        });
-    }
-    expect(shown).toBeGreaterThan(40);
-    expect(mismatches.slice(0, 5)).toEqual([]);
-  }, 120_000);
+      expect(shown).toBeGreaterThan(40);
+      expect(mismatches.slice(0, 5)).toEqual([]);
+    },
+    120_000,
+  );
 });

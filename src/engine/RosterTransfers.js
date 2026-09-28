@@ -1,12 +1,6 @@
-import { MAX_SKILLS, INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
-import {
-  learnSkill,
-  addToInventory,
-  addToConsumables,
-  removeFromInventory,
-  removeFromConsumables,
-  equipIfUnarmed,
-} from './UnitManager.js';
+import { MAX_SKILLS } from '../utils/constants.js';
+import { learnSkill } from './UnitManager.js';
+import { planTrade, applyTrade, unitHolder, TRADE_REASONS } from './ItemTrade.js';
 
 export function teachScrollBlock(run, unit, scroll, skills) {
   if (!run?.roster?.includes(unit)) return 'Unit is no longer in the roster.';
@@ -29,28 +23,24 @@ export function teachRosterScroll(run, unit, scroll, skills) {
   run.scrolls.splice(run.scrolls.indexOf(scroll), 1);
   return { ok: true };
 }
+/** Unit-to-unit give between battles (the Give… picker); a thin wrapper over ItemTrade. */
+function giveSlots(source, target, item) {
+  const bag = item?.type === 'Consumable' ? 'consumables' : 'inventory';
+  return [
+    { holder: unitHolder(source), bag, item },
+    { holder: unitHolder(target), bag, item: null },
+  ];
+}
+function giveReason(reason) {
+  // The picker lists the giver too; keep its row's wording.
+  return reason === TRADE_REASONS.sameHolder ? 'Already carried by this unit.' : reason;
+}
 export function giveRosterItemBlock(run, source, target, item) {
-  if (!run?.roster?.includes(source) || !run.roster.includes(target))
-    return 'Unit is no longer in the roster.';
-  if (source === target) return 'Already carried by this unit.';
-  const consumable = item.type === 'Consumable';
-  if (!(consumable ? source.consumables : source.inventory)?.includes(item))
-    return 'Item is no longer available.';
-  if (
-    (consumable ? target.consumables || [] : target.inventory || []).length >=
-    (consumable ? CONSUMABLE_MAX : INVENTORY_MAX)
-  )
-    return 'Bag full.';
-  // Trading permits carrying an unusable weapon, matching the existing trade UI.
-  return '';
+  // Trading permits carrying an unusable weapon (a cannot_equip warning, never a block).
+  const plan = planTrade({ context: 'roster', run }, ...giveSlots(source, target, item));
+  return plan.ok ? '' : giveReason(plan.reason);
 }
 export function giveRosterItem(run, source, target, item) {
-  const reason = giveRosterItemBlock(run, source, target, item);
-  if (reason) return { ok: false, reason };
-  const consumable = item.type === 'Consumable';
-  if (!(consumable ? addToConsumables : addToInventory)(target, item))
-    return { ok: false, reason: 'Cannot carry this item.' };
-  (consumable ? removeFromConsumables : removeFromInventory)(source, item);
-  if (!consumable) equipIfUnarmed(target, target.inventory.at(-1));
-  return { ok: true };
+  const result = applyTrade({ context: 'roster', run }, ...giveSlots(source, target, item));
+  return result.ok ? result : { ok: false, reason: giveReason(result.reason) };
 }

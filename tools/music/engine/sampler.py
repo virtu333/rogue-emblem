@@ -21,6 +21,7 @@ import soundfile as sf
 from scipy import signal
 
 from .dsp import SR
+from .tuning import sample_cents
 
 
 @dataclass
@@ -39,6 +40,7 @@ class Region:
     seq_position: int = 1
     lorand: float = 0.0
     hirand: float = 1.0
+    fix: float = 0.0          # measured tuning correction, cents (engine/tuning.py)
 
 
 @dataclass
@@ -255,6 +257,8 @@ class SfzVoicer:
                  blare=0.0, detune_jitter=0.0, layer_xfade=14, soft_attack=0.0,
                  rr_emulate=False, attack_ms=None):
         self.inst = parse_sfz(sfz_path)
+        for r in self.inst.regions:
+            r.fix = sample_cents(r.sample)
         assert mode in ('sustain', 'decay', 'oneshot'), mode
         self.mode = mode
         self.release = release
@@ -343,7 +347,8 @@ class SfzVoicer:
     # ------------------------------------------------------------ render
     def _one(self, reg, ev, key):
         jitter = self.rng.normal(0, self.detune_jitter) if self.detune_jitter else 0.0
-        cents = int(round((key - reg.keycenter) * 100 + reg.tune + self.tune_cents + jitter))
+        cents = int(round((key - reg.keycenter) * 100 + reg.tune + reg.fix + self.tune_cents
+                          + jitter))
         if self.attack_ms and not ev.legato_in:
             # softer notes keep more of the natural (slower) bow / breath
             T = self.attack_ms * (1.0 if ev.vel >= 0.55 else 1.8)

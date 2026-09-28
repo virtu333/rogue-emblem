@@ -316,3 +316,40 @@ for (const width of [844, 667])
     const tools = await page.locator('.bl-tools').boundingBox();
     expect(more.y + more.height).toBeLessThanOrEqual(tools.y);
   });
+
+test('acid ground says what Acid does and for how long (it read "Acid (2T)")', async ({ page }) => {
+  await boot(page, '&labMap=mire_crossing');
+  const tile = await page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    for (let row = 0; row < b.grid.rows; row++)
+      for (let col = 0; col < b.grid.cols; col++)
+        if (b.grid.getTerrainAt(col, row).hazardStatus === 'acid' && !b.getUnitAt(col, row))
+          return { col, row, placed: false };
+    // This seed rolled no acid: lay Acidic Bog on an empty tile (text only).
+    const bog = b.gameData.terrain.findIndex((t) => t.name === 'Acidic Bog');
+    for (let row = 0; row < b.grid.rows; row++)
+      for (let col = 0; col < b.grid.cols; col++)
+        if (!b.getUnitAt(col, row)) {
+          b.grid.setTerrainAt(col, row, bog);
+          return { col, row, placed: true };
+        }
+  });
+  await page.evaluate((tile) => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    b._mobileTerrainFocus = tile;
+    b._mobileBattleHud.lastSnapshot = '';
+    b._mobileBattleHud.sync();
+  }, tile);
+  const card = page.locator('.mb-terrain');
+  await expect(card).toContainText(/Acidic (Swamp|Bog)/);
+  const name = (await card.locator('strong').textContent()).trim();
+  await card.getByRole('button', { name: 'Terrain details ⓘ', exact: true }).tap();
+  const help = page.getByRole('dialog', { name, exact: true });
+  await expect(help).toContainText('Ending a turn here causes Acid. Flying units are immune.');
+  await expect(help).toContainText(
+    'Acid: loses 5% of max HP at turn start, for 2 turns. Never below 1 HP.',
+  );
+  await expect(help).not.toContainText('(2T)');
+  await help.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(help).toHaveCount(0);
+});

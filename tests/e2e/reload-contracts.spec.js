@@ -357,3 +357,73 @@ test('Canto completion survives normal saved-battle resume with village reward a
   await page.screenshot({ path: testInfo.outputPath('canto-village-reloaded.png') });
   expect(errors).toEqual([]);
 });
+
+// Playtest 2026-09-26 follow-up ("The Last": the only non-lord standing at victory with
+// four or more deployed and two or more allies fallen). A resumed battle rebuilt its
+// deployment count as 2, so a battle that was ever refreshed, saved and exited, or
+// closed by iOS could never award the deed; the fallen count must survive as well.
+test('a resumed battle keeps its deployment and fallen counts for the Last', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/?devScene=battle&preset=combat_actions&seed=42&mobilePreview=1');
+  await waitForScene(page, 'Battle');
+  await battleIdle(page);
+  await attachSlot(page);
+  // Edric and Sera (lords) with three recruits: Utility and Support fall through the
+  // shipping removal path (the counted one); Patient is the last recruit standing.
+  const before = await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const deployed = s.playerUnits.map((u) => ({ name: u.name, lord: Boolean(u.isLord) }));
+    s.dialogueOverlay = { show: async () => {} }; // a recruit's last words wait for a tap
+    for (const name of ['Utility', 'Support']) {
+      const unit = s.playerUnits.find((u) => u.name === name);
+      unit.currentHP = 0;
+      await s.removeUnit(unit);
+    }
+    s._captureSuspendCheckpoint();
+    return { deployed, deployCount: s.battleParams.deployCount };
+  });
+  expect(before.deployed).toEqual([
+    { name: 'Edric', lord: true },
+    { name: 'Sera', lord: true },
+    { name: 'Utility', lord: false },
+    { name: 'Support', lord: false },
+    { name: 'Patient', lord: false },
+  ]);
+  expect(before.deployCount).toBe(5);
+
+  await resumeSavedRun(page, true);
+  await battleIdle(page);
+  const resumed = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    return {
+      living: s.playerUnits.map((u) => u.name),
+      deployCount: s.battleParams.deployCount,
+      saved: s.runManager.battleInProgress.battleParams.deployCount,
+      fallen: s._playerDeathsThisBattle,
+    };
+  });
+  expect(resumed).toEqual({
+    living: ['Edric', 'Sera', 'Patient'],
+    deployCount: 5,
+    saved: 5,
+    fallen: 2,
+  });
+
+  // Win: Patient, the only recruit left of five deployed with two fallen, is the Last.
+  await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const run = JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run'));
+        const ids = (name) =>
+          (run.roster.find((u) => u.name === name)?.deeds?.earned || []).map((e) => e.id);
+        return {
+          patient: ids('Patient').includes('last_of_them'),
+          lords: ids('Edric').includes('last_of_them') || ids('Sera').includes('last_of_them'),
+        };
+      }),
+    )
+    .toEqual({ patient: true, lords: false });
+  expect(errors).toEqual([]);
+});

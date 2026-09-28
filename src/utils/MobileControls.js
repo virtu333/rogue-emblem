@@ -1,5 +1,6 @@
 import { bindCancelablePress } from './cancelablePress.js';
 import { isolateDOMInput } from './domInputBoundary.js';
+import { portraitBattlesAvailable, setPortraitBattlePreference } from './portraitBattle.js';
 // MobileControls.js — HTML overlay virtual controls for mobile
 // Pure DOM, no Phaser imports. Communicates via game.events bridge.
 
@@ -133,6 +134,14 @@ export class MobileControls {
         }
       };
       if (supported) this._rotateButton.addEventListener('click', this._onRotateTap);
+    }
+    // Portrait mode switched off (or a tablet, where it starts off): the prompt offers
+    // to play upright instead, since Settings is out of reach behind it.
+    this._portraitButton = document.getElementById('rotate-portrait');
+    if (this._portraitButton) {
+      this._portraitButton.hidden = !portraitBattlesAvailable();
+      this._onPortraitTap = () => setPortraitBattlePreference(true);
+      this._portraitButton.addEventListener('click', this._onPortraitTap);
     }
   }
 
@@ -271,5 +280,7 @@ export class MobileControls {
     this._rightButtons = [];
     if (this._rotateButton && this._onRotateTap)
       this._rotateButton.removeEventListener('click', this._onRotateTap);
+    if (this._portraitButton && this._onPortraitTap)
+      this._portraitButton.removeEventListener('click', this._onPortraitTap);
   }
 }

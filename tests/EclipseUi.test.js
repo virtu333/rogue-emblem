@@ -207,9 +207,9 @@ describe('ceremonies', () => {
 
 describe('HUD and records', () => {
   it('the sidebar parser still reads the turn label (the Eclipse never joins it)', () => {
-    expect(sidebarCounters('Turn: 4 / Par: 8 (A)', 1)).toBe('Par 8 · A | Rewinds 1');
+    expect(sidebarCounters('Turn: 4 / Par: 8 (A)', 1)).toBe('Par 8 · A | Visions 1');
     expect(sidebarCounters('Turn: 9 / Par: 8 (B) | Boss enrages next turn (turn 10)', 0)).toBe(
-      'Par 8 · B | Rewinds 0',
+      'Par 8 · B | Visions 0',
     );
   });
 

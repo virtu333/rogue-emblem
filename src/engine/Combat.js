@@ -183,6 +183,7 @@ function normalizeCombatMods(mods) {
     halfPhysicalDamage: Boolean(mods.halfPhysicalDamage),
     vengeance: Boolean(mods.vengeance),
     weaponArt: Boolean(mods.weaponArt),
+    weaponArtProjectionSafe: mods.weaponArtProjectionSafe === true,
     ignoreTerrainAvoid: Boolean(mods.ignoreTerrainAvoid),
     vantage: Boolean(mods.vantage),
     quickRiposte: Boolean(mods.quickRiposte),
@@ -221,6 +222,9 @@ export function mergeCombatMods(baseMods, extraMods) {
     halfPhysicalDamage: base.halfPhysicalDamage || extra.halfPhysicalDamage,
     vengeance: base.vengeance || extra.vengeance,
     weaponArt: base.weaponArt || extra.weaponArt,
+    weaponArtProjectionSafe:
+      (!hasWeaponArtActivation(base) || base.weaponArtProjectionSafe) &&
+      (!hasWeaponArtActivation(extra) || extra.weaponArtProjectionSafe),
     ignoreTerrainAvoid: base.ignoreTerrainAvoid || extra.ignoreTerrainAvoid,
     vantage: base.vantage || extra.vantage,
     quickRiposte: base.quickRiposte || extra.quickRiposte,
@@ -784,6 +788,18 @@ export function accessoryChangesExchangeHp(unit) {
   return Object.keys(effects).some((key) => !EXCHANGE_NEUTRAL_ACCESSORY_EFFECTS.has(key));
 }
 
+// On-attack procs that can make a counter hit harder than the forecast's proc-free
+// estimate (or kill outright). The forecast warns rather than predicting them.
+const COUNTER_DAMAGE_PROCS = new Set([
+  'aether',
+  'flare',
+  'seraph_strike',
+  'luna',
+  'lethality',
+  'adept',
+  'astra',
+]);
+
 /**
  * Returns what WOULD happen — no RNG, just the numbers.
  * Used by StatPanel/HUD to show combat preview before the player commits.
@@ -1017,9 +1033,7 @@ export function getCombatForecast(
     display: {
       triangle: atkTriangle,
       counterHasDamageProc: [...(defender.skills || []), defWeapon?._grantedSkill].some((skill) =>
-        ['aether', 'flare', 'seraph_strike'].includes(
-          typeof skill === 'string' ? skill : skill?.id,
-        ),
+        COUNTER_DAMAGE_PROCS.has(typeof skill === 'string' ? skill : skill?.id),
       ),
       counterReason: defCanCounter
         ? null
@@ -1036,7 +1050,12 @@ export function getCombatForecast(
       // HP, ordering or special effects rather than imply a guaranteed outcome.
       simpleExchange:
         ![atkMods, defMods].some(
-          (m) => m?.vantage || m?.desperation || m?.drainPercent || hasWeaponArtActivation(m),
+          (m) =>
+            m?.vantage ||
+            m?.desperation ||
+            m?.drainPercent ||
+            m?.vengeance ||
+            (hasWeaponArtActivation(m) && !m.weaponArtProjectionSafe),
         ) &&
         !getImbuePostCombatPoison(atkWeapon, skillCtx?.imbuesData) &&
         !(defCanCounter && getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)) &&

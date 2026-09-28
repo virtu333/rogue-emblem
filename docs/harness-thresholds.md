@@ -36,7 +36,7 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
   - `min_avg_nodes=10.00`
   - `min_avg_gold=4000`, `max_avg_gold=11000`
   - `min_avg_shop_spent=1000`, `max_avg_shop_spent=11600`
-  - `min_avg_recruits=0.50`
+  - `min_avg_recruits=0.00`
   - `min_promotion_by_act2_rate=0.00`, `max_promotion_by_act2_rate=50.00`
   - `max_avg_units_lost=0.00`
   - `max_avg_invalid_shop_entries=0.00`
@@ -94,6 +94,25 @@ The current strict-slice windows are anchored to intentional gameplay shifts:
   - window per the procedure: `floor(7965 * 0.85)` = 6770. No other slice moved
     (`progression_invincible` and both Act I pressure slices are byte-identical: they never
     reach the cap).
+
+- `progression_invincible` (`min_avg_recruits` 0.50 → 0.00): the army heals to full after
+  each act boss (`RunManager.advanceAct`), on branch `claude/eloquent-edison-98qbyl`
+  - attribution: `npm run sim:fullrun:triage -- --slice progression_invincible --range
+    edf39134..651f2f3e` → `first_bad_sha=651f2f3e4024`, `parent_sha=edf39134fe9b`; failing
+    metric `avg_recruits=0.00 < threshold=0.50`; touched files `src/engine/RunManager.js`,
+    `tests/RunManager.test.js`.
+  - observed shift (seeds 201-206, normal, invincible): `avg_recruits` 0.50 → 0.00,
+    `avg_gold` 9821 → 10329, `avg_shop_spent` 7564 → 5981, `avg_turns` 188.0 → 166.5; win
+    rate, nodes, units lost and invalid shop entries unchanged.
+  - cause: this slice's scripted agent never goes for a recruit. Its 3 recruits (of ~40
+    recruit battles) were incidental Talks. Which battles produce one depends on the HP the
+    lords bring in (invincibility only floors them at 1), so starting each act at full HP
+    changes those battles and, on these seeds, none ends in a Talk. Recruiting itself is unchanged;
+    it is covered by the harness Talk tests (`tests/harness/HeadlessBattle.test.js`), the
+    scene's `executeTalk` tests, the recruit-battle e2e (`strategy-layer.spec.js`) and the
+    RescueAgent recruit routes in `sim/strategy.js`, not by this slice.
+  - window per the procedure: `floor(0.00 * 0.85)` = 0.00. No other slice moved outside
+    its window.
 
 Do not attribute these shifts to later UI/refactor commits without first-bad verification.
 

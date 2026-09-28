@@ -31,8 +31,10 @@ While a player unit is selected (`UNIT_SELECTED`, or the action menu before it a
   iteration also drew corner ticks on each enemy's tile and a count badge on the target
   tile; both were removed after playtester feedback ("more systems ≠ better") — the lines
   read better than a tile badge, and the count lives in the HUD only.
-- **Move preview.** Phone rail terrain card: "2 foes can reach" (crimson when > 0; "No foe can
-  reach" otherwise; "· 1 staff"; "· fog may hide more" under fog). Desktop info panel:
+- **Move preview.** Phone rail terrain card: "2 foes can reach" (crimson), with "· 1 staff" /
+  "· 2 staves" when status staves reach it too; "Only 1 staff can reach" when no foe can strike
+  but a status staff can (violet like the status eyes, never the muted safe style); "No foe
+  can reach" otherwise; "· fog may hide more" under fog. Desktop info panel:
   `Threat: 2 foes can reach`. Worded "foes can reach" so it never reads like the Danger
   dock's "2 in reach" (allies standing inside the overlay).
 - **Same computation as Danger.** `src/engine/ThreatForecast.js` now owns the Danger
@@ -43,7 +45,9 @@ While a player unit is selected (`UNIT_SELECTED`, or the action menu before it a
   chokepoint) or closes are honoured. Tested tile-for-tile against the overlay (incl. ice).
 - **Fog.** Only enemies the player can see are evaluated; hidden units are never revealed.
 - **Cost.** A cheap key is compared each frame; the query runs only when the focus tile,
-  selection, turn or state changes, is memoized per tile against a world signature, and
+  selection, turn, state or terrain changes, is memoized per tile against a world signature
+  (units, ballistas and the grid's `terrainRevision`, so Break, temporary terrain and its
+  expiry, villages and rewinds never leave a stale answer), and
   prunes enemies beyond movement + reach (exact without ice). ~0.3 ms per hovered tile with
   6 enemies, ~1.7 ms average / 6 ms worst with 27. Graphics redraw only when the answer
   changes; the eye's bob is a stepped 2-px transform tween (static under Reduce Motion).
@@ -90,7 +94,7 @@ in tutorial battles. "Fewer tips" sets Guidance to Light.
 |---|---|---|---|
 | `guide_first_turn` | coach | first player phase | Tap a unit with a blue ring to see where it can move. While you choose a tile, a red eye marks each enemy that could reach it next turn. |
 | `guide_fragile_in_reach` | coach | a healer / thin unit (DEF ≤ 4, HP ≤ 22) was moved where ≥ 1 enemy reaches | Sera would be in reach of 2 enemies and can't take many hits. Tap Back to choose a safer tile. |
-| `guide_healer_heals` | coach | a healer with staff uses is selected while an ally is hurt | Sera heals with a staff: move next to a hurt ally and choose Heal. Early on, keep Sera out of reach and heal Edric. |
+| `guide_healer_heals` | coach | a healer with staff uses is selected while an ally is hurt, or while only an NPC ally (the caravan, a recruit) is hurt and one of the healer's heal staves would mend it this turn (the Heal command's own targeting, from any tile it can still end its move on) | Sera heals with a staff: move next to a hurt ally and choose Heal. Early on, keep Sera out of reach and heal Edric. NPC only: Sera heals with a staff, and staves mend the merchant caravan too: move within reach of it and choose Heal. Keep Sera out of enemy reach. (A recruit: "staves mend green units too: move within reach of Garrick".) |
 | `guide_no_attack` | coach | a unit ended its move with no target | No enemy is in reach of Sera here, so Attack is greyed out. Tap Back to try a closer tile, or Wait. |
 | `guide_commander_low_hp` | essential | commander starts a player phase at ≤ 50% HP | Edric is badly hurt. If Edric falls, the run ends. Pull back, heal with a staff, or use a Vulnerary from Item. |
 | `guide_recruit_on_map` | essential | a green (recruitable) unit that is visible or marked by the recruit banner | Garrick (Cavalier) under the gold banner can join you. Move a Lord next to them and choose Talk before enemies reach them. |

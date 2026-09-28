@@ -1,22 +1,32 @@
-# Portrait battles (beta prototype)
+# Portrait mode
 
-**Status:** Prototype, opt-in, phones only. Battles only; the route map and every other screen stay landscape.
-**Date:** 2026-09-25
+**Status:** shipped. On by default on phones, in the browser tab, the installed web app and the iPhone app. The iPad app stays in landscape.
+**Dates:** 2026-09-25 (battles), 2026-09-26 (whole-run plan), 2026-09-27 (every screen upright, on by default).
 
-## Try it on a phone
+## For players
 
-1. Open the game in the phone's browser (Safari or Chrome, not the installed app; see Limits) with `?portrait=1` added to the URL, e.g. `https://<site>/?portrait=1`. The choice is remembered on that device; `?portrait=0` turns it off. Once opted in, a phone browser tab also shows **Menu → Settings → Portrait battles (beta)** to switch it off; the toggle is not offered to anyone who has not opted in by link, since only battles turn upright so far (the rest of the run still asks for landscape).
-2. Play normally in landscape. Once a battle begins, turn the phone upright.
-3. The board re-opens upright at the next moment you are free to act (your turn, nothing selected). Turn it back to landscape the same way.
-4. Deployment, rewards and the route map still ask for landscape.
+- **Turning it on.** On a touch phone (the screen's short side under 600 CSS px), portrait mode is on unless the player turns it off. A phone held upright plays upright; a phone held sideways plays the landscape game. Every screen follows the phone.
+- **Turning it off.** Menu → Settings → **Portrait mode** switches it off or on again on this device. `?portrait=0` in the URL turns it off; `?portrait=1` turns it on. The choice is device-local (`emblem_rogue_portrait_battles`: `on`, `off`, or unset = the device default) and is never cloud-synced.
+- **With portrait mode off,** a phone held upright shows the rotate prompt. The prompt has **Play upright**, which turns portrait mode on, since Settings is out of reach behind it. Where the browser can lock orientation (not iOS Safari), it also has **Use landscape**.
+- **Tablets.** Portrait mode is off by default on tablets (the upright layouts are built for 375–430 px phones). A tablet browser can still choose Play upright. The iPad app allows landscape only (`UISupportedInterfaceOrientations~ipad`, `UIRequiresFullScreen`), so there the setting is not offered and a stored "on" is ignored.
+- **In a battle,** turning the phone re-opens the board in the other orientation at the next moment the player is free to act (their turn, nothing selected, no finger on the board).
 
-## What changes
+## Battles
 
-- **The board turns a quarter.** The player's deployment side is drawn at the bottom and the advance runs upward. Every template deploys players on one horizontal side, so the short side of each map (8–13 tiles) spans the phone's width. Most maps show whole at ~30–35 CSS px per tile, about the same as landscape, because the landscape layout loses width to the 4:3 canvas and the side rail.
-- **Layout:** the map fills the top; the command rail is a fixed-height band at the bottom (status and objective, then commands, then Danger, Overview, Recenter, Back and Menu along the bottom edge). In a unit's action menu Wait is pinned at the start of that edge (as on the landscape rail) and Danger narrows to a tool-sized cell, so the edge holds six whole labels. The rail never changes height, so the map never resizes under a finger.
-- **Forecast** is a bottom sheet: Cancel / Confirm sit under the thumb, and the top of the map (where targets usually are) stays visible. The weapon ◀ ▶ stepper puts the weapon name on its own line.
-- **Rotation mid-battle** never re-lays out a live battle. At the player's next clean idle boundary the controller saves the battle as it stands (same RNG position, no reseed) and re-opens it through the existing Resume battle path in the other orientation. A refresh restores exactly the same thing. While a switch waits (a unit mid-action, enemy phase), the layout already follows the phone and a short note says the board will turn.
-- **When the board keeps its orientation instead.** The switch re-opens only from a save that reached storage (`captureCheckpoint` returns true); it never trusts the in-memory checkpoint alone, which `captureCheckpoint` updates before writing. If the write fails (storage full, private mode), or the battle has no run save to re-open from (tutorial, `?devScene=` routes without a slot), or the battle began under the legacy `legacy-v1` rewind policy (which reseeds by save count, so an extra save would change later outcomes), the board stays as it is for the rest of that battle and a note says so. The layout still follows the phone.
+- **The board turns a quarter.** The player's deployment side is drawn at the bottom and the advance runs upward. Every template deploys players on one horizontal side, so the short side of each map (8–13 tiles) spans the phone's width at ~30–35 CSS px per tile.
+- **Orientation is chosen when the battle begins.** The deploy menu is a full-screen DOM menu with no board behind it. Deploy starts the battle in the phone's current orientation, so there is no re-open after deployment. Formation's board follows that orientation.
+- **The rail.** The map fills the top; the command rail is a fixed-height band at the bottom: status and objective, then commands, then the dock along the bottom edge.
+  - The dock holds End turn (idle), Danger and the tools. In a unit's menu Wait is pinned at the start and Danger narrows to a tool cell.
+  - While a unit acts (selected, moving, in its menu, choosing a target, in the forecast), the turn/objective row gives its height to the commands, so a unit's commands and Equip rows fit without scrolling. It returns at idle.
+  - Submenus and target lists (Equip, Item, staff, attack and heal targets) are one full-width row each with their two-line briefs. A unit's own commands sit three across; a greyed command with a reason ("Unarmed: no weapon to attack with") takes its own row after the usable ones.
+  - Side objectives read under the objective, e.g. "Village intact · Caravan 8/26 HP". The caravan's HP shows only while its tile is in sight.
+  - The rail never changes height, so the map never resizes under a finger.
+- **Forecast** is a bottom sheet. The two sides stack, one row of numbers each, with Cancel / Confirm under the thumb above the home bar. Tutorial lessons keep the sides side by side so their notes can point at the numbers.
+- **Formation.** Turning the phone mid-placement keeps the board as it is until turn 1, then re-opens it in the new orientation with every unit on its chosen tile.
+- **Through the end of the battle.** The upright classes stay until the scene is destroyed, so rewards, level-ups, deeds, boss recruit, lord arrival and "View map" stay upright. History, timeline and rewind previews are drawn on the turned board.
+- **Rotation never re-lays out a live battle.** At the player's next clean idle boundary the controller saves the battle as it stands (same RNG position, no reseed) and re-opens it through the Resume battle path in the other orientation. A refresh restores exactly the same thing. While a switch waits (a unit mid-action, the enemy phase, a finger on the board), the layout already follows the phone and a short note says the board will turn.
+- **When the board keeps its orientation.** The switch re-opens only from a save that reached storage. If the write fails (storage full, private mode), the battle stays playable in its current orientation and a note says to turn the phone again; the next request (turning the phone again, or the Settings toggle) retries. A battle with no run save to re-open from (tutorial, slotless `?devScene=` routes) locks at once without trying a save, as does one that began under the legacy `legacy-v1` rewind policy; a note says so. The layout still follows the phone. The note sits over the map, below the tutorial guide when it would cover it.
+- **Input across a layout change.** A press that began before the board's geometry changed (a resize, a turn, the browser bars sliding) never completes as a tap, long press or camera gesture. A touch release with no recorded press never acts on the board. Tile size on screen is kept across a resize (CSS px per canvas px, not the CSS height).
 
 Rules are untouched: the rotation is Grid presentation only. Movement, combat, AI, saves, seeds and checkpoints stay in game coordinates.
 
@@ -24,33 +34,48 @@ Rules are untouched: the rotation is Grid presentation only. Movement, combat, A
 
 | Piece | Role |
 | --- | --- |
-| `src/utils/boardOrientation.js` | Pure quarter-turn transform (`toDisplay`, `fromDisplay`, arrow-key mapping) and the display-indexed terrain layout |
-| `src/engine/Grid.js` | Optional `presentation` argument; `gridToPixel` / `pixelToGrid` go through the transform; `mapPixelWidth/Height` |
-| `src/ui/BattlefieldArt.js` | Paints terrain art from the rotated layout, so shores, walls and bridges join their drawn neighbours and trees stay upright |
-| `src/ui/BattlefieldLab.js` | Portrait canvas: 640 logical px wide, tall; pinned Phaser UI keeps its 640×480 layout in a centred band of the UI camera |
-| `src/ui/PortraitBattleController.js` | Decides the presentation at `beginBattle`, owns the `<html>` classes, follows the phone and preference, and performs the checkpoint re-open at a safe point |
-| `src/utils/portraitBattle.js` | Device-local preference (`emblem_rogue_portrait_battles`, never cloud-synced), `?portrait=` link, switch gating |
-| `src/ui/portraitBattle.css` | Upright rail, forecast sheet and small portrait fixes, applied only inside `@media (orientation: portrait)` while `portrait-battle-capable` is set |
+| `src/utils/portraitBattle.js` | The preference (on / off / unset and the device default), `?portrait=`, `isLandscapeLockedShell` (the iPad app only), the Settings gate, the `portrait-ui` class (`installPortraitUi`) and the switch gate |
+| `src/utils/boardOrientation.js` | Pure quarter-turn transform (`toDisplay`, `fromDisplay`, arrow-key mapping), footprints and history frames on the turned board |
+| `src/engine/Grid.js` | Optional `presentation` argument; `gridToPixel` / `pixelToGrid` go through the transform |
+| `src/ui/BattlefieldArt.js` | Paints terrain from the rotated layout, so shores, walls and bridges join their drawn neighbours and trees stay upright |
+| `src/ui/BattlefieldLab.js` | Portrait canvas: 640 logical px wide, tall; pinned Phaser UI keeps its 640×480 layout in a centred band; `resizedZoom` keeps tile size across resizes |
+| `src/ui/PortraitBattleController.js` | Chooses the presentation at `beginBattle`, owns the battle `<html>` classes, follows the phone and preference, and performs the checkpoint re-open at a safe point |
+| `src/ui/InputController.js` | `invalidatePointerGestures` on a geometry change; a touch release with no press never clicks |
+| `src/ui/portraitBattle.css` | The upright rail, dock, forecast sheet and battle fixes |
+| `src/ui/portraitMode.css` | Shared menu-kit rules upright |
 
-Other presentation sites made rotation-aware: danger-zone outline, light layer, grid cursor arrows, and the side canvas menus open towards.
+**The contract.** `installPortraitUi()` (called once in main.js) keeps the class `portrait-ui` on `<html>` while portrait mode is active: on (by choice or by default), not the iPad app, a coarse pointer, and held upright. It re-checks on resize, orientation change and preference change, and dispatches `emblem-rogue:portrait-ui` on `window` when it flips. Every upright layout keys off that class **and** sits inside `@media (orientation: portrait)` (`tests/PortraitCssGating.test.js` scans every stylesheet), so the class is inert on a landscape page. Battle-only rules may key on `portrait-battle` / `portrait-battle-capable`. While the class is set the rotate prompt never shows. JS that must agree with the CSS gate uses `portraitListLayout()` or `uprightPage()` (ceremonies).
 
-## Limits of the prototype
+**Native and installed shells.** `ios/App/App/Info.plist` allows portrait on iPhone and landscape only on iPad; `public/manifest.webmanifest` asks for `"orientation": "any"`. `tests/GameIdentity.test.js` holds the manifest and both plist lists together.
 
-- **Installed app / TestFlight:** the PWA manifest and the iOS `Info.plist` still lock landscape, so test in a browser tab. There (`isLandscapeLockedShell`: native Capacitor, or an installed display mode — `standalone`, `fullscreen`, `minimal-ui`) the Settings toggle is hidden and a stored opt-in is ignored without being cleared (the installed web app shares storage with the browser tab that set it): the board never turns and the rotate prompt keeps its plain copy. Unlocking them is a release step.
-- **Tutorial battles** and slotless dev routes have no run save to re-open from: the board keeps the orientation it started in (the layout still follows the phone).
-- **Battle history / timeline replays** draw the board unrotated.
-- **Tutorial copy** that names screen directions was written for landscape.
-- Switching orientation restarts the battle music track.
-- Only the battle is upright. Full-run portrait (route map, menus) is the next stage; see the review in this session.
+## Every screen upright
+
+Outside battles every screen is a DOM surface over the hidden canvas; the upright work is responsive CSS plus a few layout changes. Each screen's upright rules live with the screen.
+
+| Area | Upright layout | Where |
+|---|---|---|
+| Auth, boot, title | Title: one column, lockup top-left, key art as a band sized by `TitleScreen.uprightArtScale` (the sun whole, clear of the lockup), full-width run buttons, guides 2×2, Settings and account at the bottom. Auth: a 320 px art band between lockup and form | title.css, TitleScreen.js, index.html |
+| Save slots | Compact cards fit 375×667 with the notch; more slots scroll with an edge fade (`scrollEdgeCue.js`) | slotPicker.css |
+| Home base, upgrades | Compact detail (three rows show at 375×667); "Needs …" marks an upgrade that waits on another (all layouts) | mobileUpgrade.css, MobileUpgradeMenu.js |
+| Card screens | Difficulty, blessings, rewards, boss recruit, lord arrival, mercenaries: full-width rows in one list, soft edges where the list continues, the chosen card kept in view | choice.css, choiceCards.js |
+| Route map (Loom) | Runs bottom to top over a bottom sheet (card, Travel, then Menu/Roster in both visual and focus order); the in-battle campaign map too | loomModel.js, RouteGraph.js, loomThreads.js, loom.css |
+| Reference menus | Compendium / Help / How to Play: list then full-width entry with Back; categories and filters are one sideways strip each; a one-page Help category opens directly | ReferenceMenu.js, cohesion.css |
+| Roster sheet | Unit strip over a full-width detail; two stat pairs per row | mobileRoster.css |
+| Trade | The two holders stack, full width, each scrolling on its own (even split; unused room goes to the other). Up/Down cross between holders where they meet; Left/Right switch holders. Turning the phone keeps the held item and focus | trade.css, TradeMenu.js |
+| Services | Shop stacks stock over detail; Ruins: Rest and Scavenge as full-width cards with what each gives and costs; church, arena and colosseum in one column | shopMenu.css, ChurchMenu.js |
+| Ceremonies | Boss, recruit and deed cards stand the bust over a full-width band; the promotion rite takes the whole screen (figure over words); the level-up card puts the portrait in its header corner; "a · b · c" lines wrap between parts (`partedLine`) | ceremony.css, growth.css, deeds.css, ceremonyDom.js, GrowthCeremonyController.js |
+| Dialogue, run end | The face floats beside the first lines; Skip and Continue share the bottom row. Run result: one full-width list | cohesion.css, runFlow.css |
+| Settings, pause, records | Settings fills the screen; pause and records unchanged | cohesion.css, SettingsMenu.js |
+
+## Limits
+
+- Switching orientation mid-battle restarts the battle music track.
+- A tablet that chooses Play upright gets the phone layouts, stretched.
+- Browser emulation cannot prove real Safari pointer detection, touch, safe areas or OS rotation; the TestFlight device checklist covers those.
 
 ## Tests
 
-- `tests/BoardOrientation.test.js`: transform round trips, adjacency, arrow mapping, tap hit-testing on every tile of a rotated grid, and movement ranges unchanged.
-- `tests/PortraitBattle.test.js`: preference and link, canvas sizing, UI band, the switch gate (safe point, overlays, tutorial lock, failed capture, preference off, battle end), and landscape-locked shells (iOS app, installed web app: no toggle, a stored opt-in ignored but kept).
-- `tests/e2e/portrait-battle.spec.js` (runs in CI via `npm run test:ux-contracts`):
-  - real touch select and move on the turned board, commands in view;
-  - rotation round trip with identical units and RNG, and the switch's save written to the slot;
-  - a deferred switch, and the rotate prompt without the opt-in;
-  - a stored opt-in in a browser tab, the installed web app and the iOS app (stubbed display mode / Capacitor bridge): only the tab turns the board and offers the Settings toggle;
-  - the bottom edge at 375×667, 390×844 and 430×932: Wait, Danger and the four tools on one row, each on screen, uncovered, at least 44 px, with no label broken mid-word (idle, a six-command menu, Danger shown and pinned, and after a real tap on Wait);
-  - **presentation invariance:** one saved battle is resumed twice through Title → Save Slots → Resume Battle; one run turns the phone upright and back, both then play the same enemy phases (with real attacks). The full domain state (`captureBattleState`: units, equipment, conditions, fog, RNG, convoy, gold) and Vision charges must match after every phase. A switch that consumes one gameplay random draw fails this test and the round trip.
+- Unit: `tests/BoardOrientation.test.js` (transform, adjacency, arrows, hit-testing, footprints), `tests/PortraitBattle.test.js` (preference, default, link, shells, Settings gate, canvas sizing, the switch gate), `tests/BattlefieldLabResize.test.js`, `tests/InputGeometryInvalidation.test.js`, `tests/InputReleaseWithoutPress.test.js`, `tests/PortraitCssGating.test.js`, `tests/TitleUpright.test.js`, `tests/CeremonyUpright.test.js`, `tests/PortraitListLayout.test.js`.
+- Browser (`portrait` lane in `tests/e2e/lanes.json`, helpers in `tests/e2e/portraitHelpers.js`: phone contexts on the real default path, safe-area emulation, no sideways scroll, 44 px uncovered controls, single-line labels, clipped text): `portrait-battle`, `portrait-rail`, `loom-portrait`, `portrait-cards`, `portrait-lists`, `portrait-screens`, `portrait-trade`, `portrait-services`, `portrait-ceremonies`, `portrait-journey`, `portrait-rotation`.
+  - **Presentation invariance:** a saved battle resumed twice, one run turning the phone upright and back, both then play the same enemy phases; the full domain state and the RNG must match after every phase.
+  - Every upright spec also checks that landscape phones (568×320, 667×375, 844×390) and desktops (640×480, 1280×800) are unchanged.

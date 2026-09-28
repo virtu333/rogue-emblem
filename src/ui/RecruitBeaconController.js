@@ -6,6 +6,7 @@
 // layer, like the old "?" marker it replaces), follows the recruit, and goes away the
 // moment the recruit joins or falls. `sync()` re-derives everything from
 // scene.npcUnits, so Talk, a death, a Vision rewind or a resume all just work.
+// The merchant caravan is an NPC too, but never a recruit (engine/RecruitNpc.js).
 // Rendering only: no game state lives here. BattleScene owns one instance
 // (create / sync from update / destroy), per the controller extraction rule.
 //
@@ -13,6 +14,7 @@
 // the Guidance field note `guide_recruit_on_map` (GuidanceController): non-blocking,
 // once per save slot, and silent with Guidance Off (playtest 4).
 
+import { findRecruitNpc } from '../engine/RecruitNpc.js';
 import { TILE_SIZE } from '../utils/constants.js';
 import { UI_FONT_FAMILIES, UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
 
@@ -51,7 +53,7 @@ export class RecruitBeaconController {
   sync() {
     const scene = this.scene;
     if (!scene) return;
-    const npc = (scene.npcUnits || []).find((u) => u && u.currentHP > 0 && !u._removing) || null;
+    const npc = findRecruitNpc(scene.npcUnits);
     if (!npc) {
       if (this.objects.length) this._clear();
       this.npc = null;

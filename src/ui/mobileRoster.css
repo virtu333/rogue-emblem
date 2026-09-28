@@ -132,6 +132,9 @@
   margin: 5px 0;
   color: var(--re-accent-text);
 }
+.mr-card small.mr-warn {
+  color: var(--re-warn);
+}
 .mr-card summary {
   min-height: var(--re-tap);
   padding: 10px 0;
@@ -544,4 +547,115 @@
 .mr-card.mr-flavor p {
   font-style: italic;
   color: var(--re-muted);
+}
+
+/* A section heading with its action beside it (Equipment · Trade with…). */
+.mr-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  margin: 0 0 8px;
+}
+.mr-sheet .mr-heading-row h3 {
+  margin: 0;
+  min-width: 0;
+}
+.mr-heading-row > button {
+  flex: none;
+}
+
+/* ───────── Upright phones (portrait mode): roster sheet / unit details ─────────
+   Keyed to html.portrait-ui (the portrait shell's class) inside a portrait
+   orientation query; landscape phones and desktop never see these rules. The unit
+   list becomes a sideways strip above a full-width detail, the view tabs take their
+   own row under the title (one line each: "STATS", never "STA / TS"), and the
+   attribute grid shows two label/value pairs per row so no label runs into its
+   value. Shared by the roster, battle inspection and the shop/church/reward
+   roster buttons, which all open this sheet. */
+@media (orientation: portrait) {
+  html.portrait-ui .mr-sheet > header {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  html.portrait-ui .mr-sheet > header h2 {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: var(--re-pf-10, 10px);
+  }
+  html.portrait-ui .mr-sheet > header > button {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  html.portrait-ui .mr-sheet > header .mr-tabs {
+    order: 3;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: stretch;
+    gap: 6px;
+  }
+  html.portrait-ui .mr-sheet > header .mr-tabs button {
+    flex: 1 0 auto;
+    padding: 6px 8px;
+    font-size: var(--re-pf-10, 10px);
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+
+  html.portrait-ui .mr-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 8px;
+  }
+  /* The strip: cards side by side, scrolled sideways; the right edge fades while
+     more cards wait off-screen (padding lets the last card clear the fade). */
+  html.portrait-ui .mr-units {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    touch-action: pan-x;
+    padding-right: 28px;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+  }
+  html.portrait-ui .mr-units::-webkit-scrollbar {
+    display: none;
+  }
+  html.portrait-ui .mr-units .mr-unit-card {
+    flex: 0 0 min(152px, 44vw);
+    min-width: 0;
+    scroll-snap-align: start;
+    touch-action: pan-x;
+  }
+  html.portrait-ui .mr-units > p {
+    margin: 0;
+  }
+
+  /* Choice pickers with a preview (art binding, class changes): the choices take the
+     room they need first and the preview the rest (at least 120px; it scrolls, Page
+     Up/Down or L/R), instead of three choices cut off over a mostly empty preview.
+     The list fades at its lower edge; its padding lets the last choice clear it. */
+  html.portrait-ui .re-choice-content {
+    grid-template-rows: minmax(0, max-content) minmax(120px, 1fr);
+  }
+  html.portrait-ui .re-choice-content > .re-choice-list {
+    padding-bottom: 14px;
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent);
+  }
+
+  /* Two label/value pairs per row: "Strength 6 · Magic 2", never "Stre6gMa2c". */
+  html.portrait-ui .mr-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr) auto);
+    column-gap: 12px;
+  }
+  html.portrait-ui .mr-stats dt {
+    min-width: 0;
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
 }

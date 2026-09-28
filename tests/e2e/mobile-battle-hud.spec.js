@@ -117,8 +117,8 @@ test('forecast requires explicit confirmation, keeps engine numbers and cancels 
   );
   const portrait = dialog.locator('.mb-portrait').first();
   await expect(portrait).toBeVisible();
-  await expect(portrait).toHaveCSS('width', '48px');
-  await expect(portrait).toHaveCSS('height', '48px');
+  await expect(portrait).toHaveCSS('width', '32px');
+  await expect(portrait).toHaveCSS('height', '32px');
   await expect(portrait).toHaveCSS('image-rendering', 'pixelated');
   const expected = await page.evaluate(() => {
     const battle = window.__emblemRogueGame.scene.getScene('Battle');
@@ -132,18 +132,9 @@ test('forecast requires explicit confirmation, keeps engine numbers and cancels 
   });
   expect(expected.state).toBe('SHOWING_FORECAST');
   const ally = dialog.locator('.mb-ally');
-  await expect(
-    ally
-      .locator('dl > div')
-      .filter({ has: page.getByText('Damage per hit', { exact: true }) })
-      .locator('dd'),
-  ).toHaveText(expected.damage);
-  await expect(
-    ally
-      .locator('dl > div')
-      .filter({ has: page.getByText('Planned hits', { exact: true }) })
-      .locator('dd'),
-  ).toHaveText(`×${expected.hits}`);
+  await expect(ally.locator('[data-stat=damage] dd')).toHaveText(
+    `${expected.damage}×${expected.hits}`,
+  );
   await page.screenshot({ path: 'test-results/mobile-battle-forecast.png' });
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).tap();
   await expect(dialog).toHaveCount(0);
@@ -493,5 +484,170 @@ for (const viewport of [
       .toBe(true);
     await expect(hud.locator('.mb-dock .mb-pinned-command')).toHaveCount(0);
     expect(errors).toEqual([]);
+  });
+}
+
+// Playtest 2026-09-26: Edric stood on an intact village and the rail offered
+// Attack/Equip/Wait with no Visit; only Waiting revealed that ending the action visits.
+// The pinned Wait now says so in one quiet line, sized so the dock keeps its row.
+for (const viewport of [
+  { width: 844, height: 390 },
+  { width: 667, height: 375 },
+  { width: 568, height: 320 },
+]) {
+  test(`Wait notes the village visit at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.setViewportSize(viewport);
+    await page.goto('/?devScene=battle&preset=combat_actions&seed=42');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+    );
+    const menuFor = (name) =>
+      page.evaluate((name) => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        if (s.battleState === 'UNIT_ACTION_MENU') {
+          s.hideActionMenu();
+          s.deselectUnit();
+        }
+        const u = s.playerUnits.find((p) => p.name === name);
+        s.selectUnit(u);
+        s.showActionMenu(u);
+      }, name);
+    // An intact village under Edric (a real village tile, marker and state).
+    const before = await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const edric = s.playerUnits.find((u) => u.name === 'Edric');
+      const pos = { col: edric.col, row: edric.row };
+      s.battleConfig.villageTile = pos;
+      s._villageState = { ...pos, status: 'intact' };
+      s.grid.setTerrainAt(
+        pos.col,
+        pos.row,
+        s.gameData.terrain.findIndex((t) => t.name === 'Village'),
+      );
+      s._villageController._renderMarker();
+      return { gold: s.goldEarned || 0 };
+    });
+    const hud = page.getByRole('complementary', { name: 'Battle commands' });
+    const pinned = hud.locator('.mb-dock .mb-pinned-command');
+
+    // A unit off the village: plain Wait.
+    await menuFor('Support');
+    await expect(pinned).toHaveText('Wait');
+    await expect(pinned.locator('.mb-item-note')).toHaveCount(0);
+    const dockHeight = () =>
+      page.evaluate(() => document.querySelector('.mb-dock').getBoundingClientRect().height);
+    const plainDock = await dockHeight();
+
+    // Edric on the village: Wait says it visits; the command keeps its name.
+    await menuFor('Edric');
+    const wait = hud.getByRole('button', { name: 'Wait', exact: true });
+    await expect(wait).toHaveCount(1);
+    await expect(pinned.locator('.mb-item-note')).toHaveText('Visits village');
+    await expect(wait).toHaveAttribute('aria-description', 'Visits village');
+    const box = await page.evaluate(() => {
+      const w = document.querySelector('.mb-dock .mb-pinned-command');
+      const d = document.querySelector('.mb-dock .mb-danger-toggle');
+      const note = w.querySelector('.mb-item-note');
+      const r = w.getBoundingClientRect();
+      const q = d.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return {
+        // The note reads whole on one line, inside its button.
+        noteWhole: note.scrollWidth <= note.clientWidth + 0.5 && note.getClientRects().length === 1,
+        noteInside: note.getBoundingClientRect().right <= r.right + 0.5,
+        // The dock keeps one row: Wait no taller than Danger beside it.
+        sameRow: Math.abs(r.top - q.top) < 1 && r.height <= q.height + 1,
+        inView: r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5,
+        onTop: Boolean(hit?.closest('.mb-pinned-command')),
+      };
+    });
+    // The note costs the command list no height: the dock is as tall as with plain Wait.
+    expect(Math.abs((await dockHeight()) - plainDock)).toBeLessThan(1);
+    expect(box).toEqual({
+      noteWhole: true,
+      noteInside: true,
+      sameRow: true,
+      inView: true,
+      onTop: true,
+    });
+    if (viewport.width === 568)
+      await page.screenshot({ path: test.info().outputPath('wait-visits-village.png') });
+
+    // The note keeps its promise: Wait visits.
+    await wait.tap();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const s = window.__emblemRogueGame.scene.getScene('Battle');
+          return { status: s._villageState.status, paid: (s.goldEarned || 0) > 0 };
+        }),
+      )
+      .toEqual({ status: 'visited', paid: true });
+    expect(before.gold).toBe(0);
+    expect(errors).toEqual([]);
+  });
+}
+
+// Battle details opens as a panel over the map, left of the side rail (the upright rail
+// pushed it off screen, playtest 2026-09-26). In landscape it stays on screen, beside
+// the rail and clear of it, and the rail's controls stay reachable.
+for (const viewport of [
+  { width: 844, height: 390 },
+  { width: 667, height: 375 },
+  { width: 568, height: 320 },
+]) {
+  test(`Battle details stays on screen beside the rail at ${viewport.width}x${viewport.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/?devScene=battle&preset=combat_actions&seed=42');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+    );
+    // Edric on an intact village with his action menu open (the playtest's state).
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = s.playerUnits.find((p) => p.name === 'Edric');
+      const pos = { col: u.col, row: u.row };
+      s.battleConfig.villageTile = pos;
+      s._villageState = { ...pos, status: 'intact' };
+      s.grid.setTerrainAt(
+        pos.col,
+        pos.row,
+        s.gameData.terrain.findIndex((t) => t.name === 'Village'),
+      );
+      s._villageController._renderMarker();
+      s.selectUnit(u);
+      s.showActionMenu(u);
+    });
+    await page.locator('.mb-battle-info > summary').tap();
+    await expect(page.locator('.mb-more-content')).toBeVisible();
+    const layout = () =>
+      page.evaluate(() => {
+        const panel = document.querySelector('.mb-battle-info[open] > .mb-more-content');
+        const rail = document.querySelector('.mobile-battle-hud').getBoundingClientRect();
+        const p = panel.getBoundingClientRect();
+        const covered = [...document.querySelectorAll('.mb-dock > button, .bl-tools > button')]
+          .filter((button) => {
+            const r = button.getBoundingClientRect();
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return !(hit && button.contains(hit));
+          })
+          .map((button) => button.getAttribute('aria-label') || button.innerText.trim());
+        return {
+          onScreen:
+            p.left >= -0.5 &&
+            p.top >= -0.5 &&
+            p.right <= innerWidth + 0.5 &&
+            p.bottom <= innerHeight + 0.5,
+          clearOfRail: p.right <= rail.left + 0.5,
+          covered,
+        };
+      });
+    await expect.poll(layout).toEqual({ onScreen: true, clearOfRail: true, covered: [] });
   });
 }

@@ -8,6 +8,7 @@
 // cue computed from the roster, a reward's "for whom", a blessing's boon and
 // cost. Presentation only: it never mutates a unit, a reward or the run, never
 // reads Math.random, and every engine helper it calls is a read.
+import { rankRequirementText } from './rosterDisplay.js';
 import { traitLines } from './traitContent.js';
 import { epithetText } from '../engine/DeedTitles.js';
 import { getDisplayLevel, canEquip } from '../engine/UnitManager.js';
@@ -153,8 +154,13 @@ export const ROSTER_ROLES = Object.freeze([
   },
 ]);
 
+// A weapon role needs the rank and a weapon of that type to use it: a Ranger
+// carrying only a sword is not the army's archer, nor a Sage with only a tome its healer.
 function hasWeapon(unit, type) {
-  return Array.isArray(unit?.proficiencies) && unit.proficiencies.some((p) => p?.type === type);
+  if (!Array.isArray(unit?.proficiencies) || !unit.proficiencies.some((p) => p?.type === type))
+    return false;
+  if (unit.weapon?.type === type) return true;
+  return Array.isArray(unit.inventory) && unit.inventory.some((item) => item?.type === type);
 }
 
 export function unitRoles(unit) {
@@ -229,7 +235,8 @@ function attackOf(unit, weapon) {
  * "For whom" for a reward: { who, detail, tone } lines a card can show.
  * Weapons name the wielder who gains the most attack (and how many can
  * wield it); staves name the healer with the most uses; forge stones count
- * the weapons that can take them. Reads only.
+ * the weapons that can take them; stat boosters give the stat and amount
+ * only (never a recipient). Reads only.
  */
 export function rewardForWhom(choice, run) {
   const roster = Array.isArray(run?.roster) ? run.roster : [];
@@ -272,15 +279,12 @@ export function rewardForWhom(choice, run) {
   }
   if (item.type === 'Consumable') {
     if (item.effect === 'statBoost') {
+      // No recipient advice: a high growth rate is no reason to take a flat bonus
+      // now. The recipient step shows each unit's stat before → after instead.
       const stat = item.stat || '';
-      const grower = roster
-        .filter((u) => u?.growths)
-        .sort((a, b) => num(b.growths?.[stat]) - num(a.growths?.[stat]))[0];
       return {
         who: 'Any unit · permanent',
-        detail: stat
-          ? `${stat} +${num(item.value) || 1}${grower ? ` · ${grower.name} grows it best` : ''}`
-          : '',
+        detail: stat ? `${stat} +${num(item.value) || 1}` : '',
         tone: 'good',
       };
     }
@@ -297,7 +301,7 @@ export function rewardForWhom(choice, run) {
   if (!wielders.length)
     return {
       who: 'No one can wield it',
-      detail: `Needs ${item.type || 'a weapon'} rank${item.rankRequired === 'Mast' ? ': Master' : ''}`,
+      detail: rankRequirementText(item.type, item.rankRequired),
       tone: 'bad',
     };
   const count = `${wielders.length} can wield`;

@@ -617,7 +617,7 @@
     },
     "moveType": "Armored",
     "weaponProficiencies": "Lances (M), Axes (P)",
-    "roleChange": "Gains Axes, even tankier",
+    "roleChange": "even tankier",
     "description": "Doctrine made flesh: gains axes and shrugs off nearly every physical blow."
   },
   {
@@ -641,7 +641,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (M), Bows (P)",
-    "roleChange": "Gains Bows, raw power",
+    "roleChange": "raw power",
     "description": "Hits like a falling tree, and bows now give the swing reach.",
     "learnableSkills": [
       {
@@ -668,7 +668,7 @@
     },
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Swords (P)",
-    "roleChange": "Gains Swords, +MOV",
+    "roleChange": "+MOV",
     "description": "Swords, extra reach, and defenses that lean nowhere \u2014 the knight the old oaths still fit.",
     "learnableSkills": [
       {
@@ -722,7 +722,6 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (M), Staves (P), Light (P)",
-    "roleChange": "Gains healing",
     "description": "Keeps its devastating magic and picks up healing staves besides."
   },
   {
@@ -746,7 +745,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Staves (M), Light (P)",
-    "roleChange": "Gains Light magic offense",
+    "roleChange": "can now attack",
     "description": "Light magic to strike with, and a mend that arrives each turn on its own."
   },
   {
@@ -770,7 +769,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Bows (P)",
-    "roleChange": "Fell Stroke chance, gains Bows",
+    "roleChange": "Fell Stroke chance",
     "description": "A hit that can simply end a life, now with bows for the foes out of reach."
   },
   {
@@ -791,7 +790,6 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Staves (P)",
-    "roleChange": "Gains staff proficiency",
     "description": "Refreshes allies for another action and mends them with staves between songs."
   },
   {
@@ -812,7 +810,6 @@
     },
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Swords (P)",
-    "roleChange": "Gains Swords",
     "description": "Fast, warded, and now sword-armed, she commands the sky on grace alone.",
     "learnableSkills": [
       {
@@ -839,7 +836,7 @@
     },
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Axes (P)",
-    "roleChange": "Gains Axes, heavy flying bruiser, Draconic Aura innate",
+    "roleChange": "heavy flying bruiser, Draconic Aura innate",
     "description": "Axes, crushing bulk, and a shadow that owns the airspace it crosses.",
     "learnableSkills": [
       {
@@ -869,7 +866,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Axes (P)",
-    "roleChange": "Gains Axes, versatile",
+    "roleChange": "versatile",
     "description": "Axes in hand and Reclaim to mend himself mid-swing; a veteran with no seam to exploit.",
     "learnableSkills": [
       {
@@ -1048,7 +1045,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Lances (P)",
-    "roleChange": "Gains Lances, +MOV",
+    "roleChange": "+MOV",
     "description": "The crown's weight settled; gains lances, more reach, and leads from the front rank."
   },
   {
@@ -1069,7 +1066,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (M), Swords (P)",
-    "roleChange": "Gains Swords, magic mastery",
+    "roleChange": "magic mastery",
     "description": "Mastered magic, with swords added on top. Almost nothing it cannot answer."
   },
   {
@@ -1090,7 +1087,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Axes (P), Bows (P)",
-    "roleChange": "Gains Axes, heavy armor",
+    "roleChange": "more STR and DEF",
     "description": "First through every breach: gains axes, piles on STR and DEF, and simply does not stop."
   },
   {
@@ -1111,7 +1108,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Light (M), Staves (P)",
-    "roleChange": "Gains Staves, healing",
+    "roleChange": "+MOV",
     "description": "Mastered light to smite with, staves to mend with \u2014 the order's highest office."
   },
   {
@@ -1170,7 +1167,7 @@
     },
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Staves (P), Light (P)",
-    "roleChange": "Gains Staves/Light, +MOV, mixed offense",
+    "roleChange": "+MOV, mixed offense",
     "description": "A surge of magic, plus staves and Light \u2014 one saddle to heal from or to strike from."
   },
   {
@@ -1229,7 +1226,7 @@
     },
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Light (P)",
-    "roleChange": "Gains Light magic, +MOV",
+    "roleChange": "+MOV",
     "description": "Light magic for mixed damage and a longer reach on the wing."
   },
   {
@@ -1288,7 +1285,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (M), Lances (P)",
-    "roleChange": "Gains Lances, +MOV, massive bulk",
+    "roleChange": "+MOV, massive bulk",
     "description": "Owns close quarters with lances now, and staying power nothing wears through."
   },
   {
@@ -1312,7 +1309,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Lances (P)",
-    "roleChange": "Sword and lance, Duelist Stance innate",
+    "roleChange": "Duelist Stance innate",
     "description": "Counters better than most units attack; fights with sword and lance and thrives on being struck at."
   },
   {
@@ -1337,7 +1334,7 @@
     },
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Axes (P), Swords (P)",
-    "roleChange": "Gains Axes/Swords, Cavalry, Canto, Iron Advance innate",
+    "roleChange": "Cavalry, Canto, Iron Advance innate",
     "description": "Wall enough and horse enough at once \u2014 trades pure armor for speed and Canto after acting."
   },
   {
@@ -1386,7 +1383,7 @@
     },
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Tomes (P)",
-    "roleChange": "Gains Tomes, Hellfire Charge innate, mixed offense",
+    "roleChange": "Hellfire Charge innate, mixed offense",
     "description": "Rides with tome magic now, Hellfire Charge lending extra bite whenever it opens the attack."
   },
   {
@@ -1411,7 +1408,7 @@
     },
     "moveType": "Cavalry",
     "weaponProficiencies": "Bows (M), Swords (P)",
-    "roleChange": "Gains Swords, Cavalry, Skirmisher innate",
+    "roleChange": "Cavalry, Skirmisher innate",
     "description": "Bow from the saddle, sword up close, and Skirmisher rewarding every opening strike."
   },
   {
@@ -1461,7 +1458,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Staves (M), Axes (P), Light (P)",
-    "roleChange": "Gains Axes, Fortify Aura innate, frontline healer",
+    "roleChange": "Fortify Aura innate, frontline healer",
     "description": "An axe for the enemy and a Fortify aura for the friends beside it \u2014 healing from the front line."
   },
   {
@@ -1485,7 +1482,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Staves (P)",
-    "roleChange": "Gains Staves, Quickstep innate, fast utility",
+    "roleChange": "Quickstep innate, fast utility",
     "description": "Staves for support, Quickstep for speed \u2014 a rogue who blurs on the attack."
   },
   {
@@ -1510,7 +1507,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Bows (P)",
-    "roleChange": "Gains Bows, Pathfinder innate, terrain master",
+    "roleChange": "Pathfinder innate, terrain master",
     "description": "Bows in hand and terrain no obstacle; Pathfinder carries him cheaply across any ground."
   },
   {
@@ -1570,7 +1567,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (M), Swords (P)",
-    "roleChange": "Gains Swords, Life Drain innate, stronger undead",
+    "roleChange": "Life Drain innate, stronger undead",
     "learnableSkills": [
       {
         "skillId": "zombie_drain",

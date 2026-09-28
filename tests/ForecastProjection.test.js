@@ -1,3 +1,4 @@
+import { getWeaponArtCombatMods, applyWeaponArtCost } from '../src/engine/WeaponArtSystem.js';
 import { describe, expect, it } from 'vitest';
 import {
   getCombatForecast,
@@ -107,5 +108,49 @@ describe('forecast HP projection keeps descriptive specials and static accessori
       .map((a) => a.name)
       .sort();
     expect(dynamic).toEqual(['Phoenix Brooch', "Vampire's Bloodshard"]);
+  });
+});
+
+describe('weapon-art projection eligibility', () => {
+  it('includes Hunter’s Volley after the upfront cost, stopping at a kill', () => {
+    const art = data.weaponArts.arts.find((a) => a.name === "Hawk's Talons");
+    expect(art).toBeTruthy();
+    const attacker = unit('A', { ...sword, type: 'Bow', range: '2' });
+    const defender = unit('D');
+    defender.currentHP = 15;
+    applyWeaponArtCost(attacker, art);
+    const f = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      2,
+      null,
+      null,
+      { atkWeaponArtMods: getWeaponArtCombatMods(art) },
+    );
+    expect(f.attacker.attackCount).toBe(2);
+    expect(forecastProjection(f)).toEqual({ attackerHP: 20 - art.hpCost, defenderHP: 0 });
+  });
+  it.each(['sword_poison_strike', 'lance_vengeance', 'sword_advancing_strike'])(
+    'fails closed for unmodeled or changing effects: %s',
+    (id) => {
+      const a = unit('A'),
+        d = unit('D');
+      const art = data.weaponArts.arts.find((a) => a.id === id);
+      expect(art).toBeTruthy();
+      const f = getCombatForecast(a, a.weapon, d, d.weapon, 1, null, null, {
+        atkWeaponArtMods: getWeaponArtCombatMods(art),
+      });
+      expect(forecastProjection(f)).toBeNull();
+    },
+  );
+  it('does not trust art mods without an explicit safe-effects result', () => {
+    const a = unit('A'),
+      d = unit('D');
+    const f = getCombatForecast(a, a.weapon, d, d.weapon, 1, null, null, {
+      atkWeaponArtMods: { weaponArt: true, atkBonus: 3 },
+    });
+    expect(forecastProjection(f)).toBeNull();
   });
 });

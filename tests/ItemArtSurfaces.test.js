@@ -155,26 +155,23 @@ describe('roster sheet', () => {
 });
 
 describe('battle trade', () => {
-  it('every row leads with its item icon', () => {
+  it('every item row leads with its item icon, on both tabs', () => {
     const iron = structuredClone(gameData.weapons.find((w) => w.name === 'Iron Bow'));
     const salve = structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'));
     const left = { name: 'Daska', inventory: [iron], consumables: [salve], weapon: iron };
     const right = { name: 'Brom', inventory: [], consumables: [], weapon: null };
-    const menu = Object.create(BattleTradeMenu.prototype);
-    Object.assign(menu, {
-      scene: {},
-      left,
-      right,
-      surface: { body: document.createElement('div') },
-    });
-    menu.render();
-    const rows = menu.surface.body.querySelectorAll('.re-row');
-    expect(rows).toHaveLength(2);
-    expect(rows.every((r) => r.classList.contains('re-row--item'))).toBe(true);
-    const ids = rows.map(
-      (r) => r.children.find((c) => c.classList?.contains('ia-icon'))?.dataset.iconId,
-    );
-    expect(ids).toEqual(['iron-bow', 'poultice']);
+    const menu = new BattleTradeMenu({ events: eventsFor() }, left, right, { commit: vi.fn() });
+    const icons = () =>
+      menu.menu.surface.root
+        .querySelectorAll('.tm-row')
+        .filter((r) => !r.classList.contains('is-empty'))
+        .map((r) =>
+          r.children[0].classList.contains('ia-icon') ? r.children[0].dataset.iconId : null,
+        );
+    expect(icons()).toEqual(['iron-bow']);
+    menu.menu.setBag('consumables');
+    expect(icons()).toEqual(['poultice']);
+    menu.destroy();
   });
 });
 

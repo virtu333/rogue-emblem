@@ -142,6 +142,16 @@ test('Sera moved into reach gets the fragile warning; Attack explains itself', a
   await expect(note(page)).toContainText(`Sera would be in reach of ${enemies}`);
   await expect(note(page)).toContainText('Tap Back');
   await page.screenshot({ path: test.info().outputPath('guidance-fragile.png') });
+  // Tell the controller's dismissal apart from the note's own read-then-fade (which
+  // a slow run can reach first): only the controller calls the handle's close().
+  await page.evaluate(() => {
+    const handle = window.__emblemRogueGame.scene.getScene('Battle')._guidance.note;
+    const close = handle.close;
+    handle.close = (acknowledged) => {
+      window.__fragileNoteClosedBy = acknowledged ? 'answer' : 'moment-over';
+      return close(acknowledged);
+    };
+  });
   // The advice works while the note is up: Back undoes the move.
   await hud.getByRole('button', { name: 'Back', exact: true }).last().tap();
   await expect
@@ -152,7 +162,20 @@ test('Sera moved into reach gets the fragile warning; Attack explains itself', a
       }),
     )
     .toEqual(sera);
-  // "Fewer tips" steps Guidance down to Light.
+  // The note was about Sera on that tile: once the move is undone it steps aside
+  // (unread, it stays unseen for a later moment: tests/Guidance.test.js).
+  await expect(note(page)).toHaveCount(0);
+  expect(await page.evaluate(() => window.__fragileNoteClosedBy)).toBe('moment-over');
+  // "Fewer tips" steps Guidance down to Light (here on the commander's note, which is
+  // about the whole battle and stays until answered).
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.deselectUnit();
+    const edric = s.playerUnits.find((u) => u.isCommander) || s.playerUnits[0];
+    edric.currentHP = Math.floor(edric.stats.HP / 2);
+    s._guidance._key = '';
+  });
+  await expect(note(page)).toHaveAttribute('data-guide', 'guide_commander_low_hp');
   await note(page)
     .getByRole('button', { name: /Fewer tips/ })
     .tap();
@@ -162,7 +185,7 @@ test('Sera moved into reach gets the fragile warning; Attack explains itself', a
       window.__emblemRogueGame.scene.getScene('Battle').registry.get('settings').getGuidance(),
     ),
   ).toBe('light');
-  expect(await seen(page, 'guide_fragile_in_reach')).toBe(true);
+  expect(await seen(page, 'guide_commander_low_hp')).toBe(true);
 });
 
 test('Light skips coaching but keeps essentials; Off shows nothing', async ({ page }) => {

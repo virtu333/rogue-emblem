@@ -14,8 +14,9 @@
 // presentation RNG and nothing here draws randomness.
 //
 // Cost: a cheap key is compared each frame; the threat query runs only when the
-// focus tile, selection, turn or battle state changes, and is memoized per tile
-// against a world signature. Graphics are redrawn only when the answer changes.
+// focus tile, selection, turn, battle state or terrain changes, and is memoized
+// per tile against a world signature (units, ballistas and the grid's terrain
+// revision). Graphics are redrawn only when the answer changes.
 // The eye's bob is a stepped transform tween (static under Reduce Motion).
 
 import { TILE_SIZE } from '../utils/constants.js';
@@ -137,6 +138,7 @@ export class ThreatSightController {
           focus.row,
           s.turnManager?.turnNumber ?? 0,
           s.grid?.fogEnabled ? (s.grid.visibleSet?.size ?? 0) : 0,
+          s.grid?.terrainRevision ?? 0,
         ].join('|')
       : '';
     if (!force && key === this._key) return;

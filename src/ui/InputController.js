@@ -1,5 +1,6 @@
+import { sceneHealPreview } from './healTargetPreview.js';
 import { DangerZoneOverlay } from './DangerZoneOverlay.js';
-import { canInspectUnit } from '../engine/BattleInformation.js';
+import { canInspectUnit, terrainRuleLines } from '../engine/BattleInformation.js';
 import { computeEffectivePath } from '../engine/Grid.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
 import {
@@ -45,6 +46,7 @@ export class InputController {
     }
     this.updateTouchInspectHold(pointer);
     if (scene.battleState === 'BATTLE_END') {
+      this._hoverTile = null;
       if (scene.cursorHighlight) scene.cursorHighlight.setVisible(false);
       if (scene.infoText) scene.infoText.setText('');
       this.updateTopLeftHudLayout();
@@ -53,6 +55,7 @@ export class InputController {
     if (scene._isTouchPointer(pointer)) return;
     const gp = this._pointerToGrid(pointer);
     if (!gp) {
+      this._hoverTile = null;
       scene._threatFocusTile = null;
       scene.cursorHighlight.setVisible(false);
       scene.infoText.setText('');
@@ -71,7 +74,8 @@ export class InputController {
   // (BattleScene._onGridCursorMoved).
   refreshTileInfo(col, row) {
     const scene = this.scene;
-    if (!scene.grid || !scene.infoText) return;
+    if (!scene.grid || !scene.infoText || scene.battleState === 'BATTLE_END') return;
+    this._hoverTile = { col, row };
     const terrain = scene.grid.getTerrainAt(col, row);
     scene._mobileTerrainFocus = { col, row };
     let info = terrain.name;
@@ -85,8 +89,7 @@ export class InputController {
     const avoidBonus = parseInt(terrain.avoidBonus, 10);
     if (avoidBonus) info += ` | Avo ${avoidBonus > 0 ? '+' : ''}${avoidBonus}`;
     if (parseInt(terrain.defBonus)) info += ` | Def +${terrain.defBonus}`;
-    const specialText = typeof terrain.special === 'string' ? terrain.special.trim() : '';
-    if (specialText) info += `\n${specialText}`;
+    for (const line of terrainRuleLines(terrain)) info += `\n${line}`;
 
     const threat = scene._threatSight?.describe(col, row);
     if (threat) info += `\nThreat: ${threat}`;
@@ -100,8 +103,30 @@ export class InputController {
         info += ` | XP ${hovered.xp}/100`;
       }
     }
+    if (
+      hoveredVisible &&
+      scene.battleState === 'SELECTING_HEAL_TARGET' &&
+      scene.healTargets?.includes(hovered)
+    ) {
+      const preview = sceneHealPreview(scene, hovered);
+      if (preview) info += `\n${preview.text}`;
+    }
     scene.infoText.setText(info);
     this.updateTopLeftHudLayout();
+  }
+
+  clearHoverInfo() {
+    this._hoverTile = null;
+    this.scene._threatFocusTile = null;
+    this.scene.cursorHighlight?.setVisible(false);
+    this.scene.infoText?.setText('');
+    this.updateTopLeftHudLayout();
+  }
+
+  // Re-read the tile under a stationary pointer after HP, movement or fog changes.
+  refreshHoverInfo() {
+    if (!this._hoverTile || this.scene.battleState === 'BATTLE_END') return;
+    this.refreshTileInfo(this._hoverTile.col, this._hoverTile.row);
   }
 
   // While a unit is selected, preview the movement path to (col,row) — or clear it
@@ -175,8 +200,29 @@ export class InputController {
     }
   }
 
+  /**
+   * The battle's screen geometry changed under a live pointer (the phone panel resized,
+   * the phone turned, the browser bars slid). A press that began under the old
+   * geometry must never complete as a tap, long press or camera gesture under the new
+   * one: its saved screen position now names a different tile. The release of that
+   * press is swallowed (it may arrive without a pointercancel); a new press works.
+   */
+  invalidatePointerGestures() {
+    const scene = this.scene;
+    this.cancelTouchInspectHold();
+    scene._touchTapDown = null;
+    scene._touchHoldTriggered = false;
+    this._hoverTile = null;
+    const hadTouches = Boolean(scene._battleCamera?.clearTouches?.());
+    scene._cameraGestureTapSuppressed = true;
+    this._staleRelease = true;
+    if (hadTouches) scene._syncMobileResetViewButton?.();
+  }
+
   onPointerDown(pointer) {
     const scene = this.scene;
+    // A fresh press: whatever geometry change came before, this one is current.
+    this._staleRelease = false;
     if (scene.isStoryInputLocked()) return;
     if (scene._isTouchPointer(pointer)) {
       scene._battleCamera?.pruneInactiveTouches?.(pointer);
@@ -198,6 +244,14 @@ export class InputController {
   onPointerUp(pointer) {
     const scene = this.scene;
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
+    if (this._staleRelease) {
+      // Pressed before a geometry change (invalidatePointerGestures): not a tap.
+      this._staleRelease = false;
+      this.cancelTouchInspectHold();
+      scene._touchTapDown = null;
+      scene._touchHoldTriggered = false;
+      return;
+    }
     const uiClickBlocked = Boolean(scene._uiClickBlocked);
     if (uiClickBlocked) scene._uiClickBlocked = false;
 
@@ -241,6 +295,14 @@ export class InputController {
 
     this.cancelTouchInspectHold();
     let clickPos = null;
+    if (scene._isTouchPointer(pointer) && !scene._touchTapDown) {
+      // A finger lifting with no press on record is not a tap: the press landed before
+      // this battle took input (a scene restart or orientation re-open under a held
+      // finger) or while story input was locked (dialogue, a ceremony, turn start).
+      // Its lift position names whatever tile is there now. Mouse clicks are unchanged.
+      scene._touchHoldTriggered = false;
+      return;
+    }
     if (scene._isTouchPointer(pointer) && scene._touchTapDown) {
       if (scene._touchHoldTriggered) {
         scene._touchHoldTriggered = false;
@@ -267,6 +329,7 @@ export class InputController {
    * pointerupoutside to onPointerUp until now).
    */
   onPointerUpOutside(pointer) {
+    this._hoverTile = null;
     const scene = this.scene;
     if (scene._isTouchPointer(pointer)) {
       const hadTouches = Boolean(scene._battleCamera?.clearTouches?.());

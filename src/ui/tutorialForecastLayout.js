@@ -15,15 +15,12 @@ export function syncTutorialForecastLayout(modal, scene, active) {
   modal.style.setProperty('--mb-tutorial-note-top', `${note.getBoundingClientRect().top}px`);
   const fields =
     lesson === 'battle_doubling'
-      ? ['Attack speed', 'Planned hits']
+      ? ['speed', 'damage']
       : lesson === 'battle_forecast'
-        ? ['Damage per hit', 'Hit chance']
+        ? ['damage', 'hit']
         : [];
   for (const pair of modal.querySelectorAll('.mb-stats > div'))
-    pair.classList.toggle(
-      'mb-tutorial-subject',
-      fields.includes(pair.querySelector('dt')?.textContent),
-    );
+    pair.classList.toggle('mb-tutorial-subject', fields.includes(pair.dataset.stat));
   for (const notice of modal.querySelectorAll('.mb-notice'))
     notice.classList.toggle(
       'mb-tutorial-subject',

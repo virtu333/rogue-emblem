@@ -792,7 +792,7 @@ describe('VisionRewindController', () => {
       const body = texts.find((t) => /has fallen/.test(t || ''));
       expect(body).toMatch(/Edric has fallen/);
       expect(body).toMatch(/ends this run/);
-      expect(body).toMatch(/1 rewind left/);
+      expect(body).toMatch(/1 Vision left/);
     });
   });
 
@@ -1173,7 +1173,7 @@ describe('VisionRewindController', () => {
       scene.visionHudText = makeDisplayObject({ text: '' });
       runManager.visionChargesRemaining = 3;
       controller.updateHud();
-      expect(scene.visionHudText.text).toBe('Eye: 3 left this run');
+      expect(scene.visionHudText.text).toBe('Vision · 3 left · [R] Rewind');
     });
 
     it('sets cyan color when charges > 0', () => {

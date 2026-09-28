@@ -55,3 +55,22 @@ export function rewardIcon(category) {
   svg.append(path);
   return svg;
 }
+
+/**
+ * True when a gold card still on offer pays at least the skip card's gold (and adds
+ * team XP), so "Take N gold instead" can only lose. The skip card stays on screen and
+ * keeps its index; this only quiets it. `isAvailable(i)` is the screen's own check, so
+ * a gold card already claimed (an elite's second pick) no longer counts.
+ */
+export function isSkipDominated(choices, skipGold, isAvailable = () => true) {
+  const skip = Number(skipGold) || 0;
+  return (Array.isArray(choices) ? choices : []).some(
+    (c, i) => c?.type === 'gold' && (Number(c.goldAmount) || 0) >= skip && isAvailable(i),
+  );
+}
+
+/** A full bag's reward recipient row: where the reward can go instead (UI words only). */
+export const REWARD_BAG_FULL_TEXT = 'Bag full: send to convoy, or trade in Roster';
+export function rewardRecipientBlockText(reason) {
+  return reason === 'Bag full' ? REWARD_BAG_FULL_TEXT : reason;
+}

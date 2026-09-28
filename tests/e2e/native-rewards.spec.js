@@ -38,6 +38,22 @@ for (const kind of ['weapon', 'forge', 'imbue', 'booster', 'consumable', 'convoy
       s.runManager.roster[0].consumables = [];
       s.runManager.convoy = { weapons: [], consumables: [] };
     }, kind);
+    if (kind === 'booster') {
+      // The card states the bonus, never a recipient (no "grows it best" advice);
+      // each recipient row then shows that unit's stat before → after.
+      const whom = dialog.locator('.reward-card').first().locator('.ch-forwhom');
+      await expect(whom.locator('b')).toHaveText('Any unit · permanent');
+      await expect(whom.locator('span')).toHaveText('STR +2');
+      const [name, str] = await page.evaluate(() => {
+        const u = window.__emblemRogueGame.scene.getScene('Battle').runManager.roster[0];
+        return [u.name, u.stats.STR];
+      });
+      await dialog.getByRole('button', { name: 'Choose reward', exact: true }).tap();
+      await expect(dialog.getByRole('button', { name: new RegExp(`^${name}`) })).toContainText(
+        `STR: ${str} → ${str + 2}`,
+      );
+      await dialog.getByRole('button', { name: 'Back', exact: true }).tap();
+    }
     await dialog.getByRole('button', { name: 'Choose reward', exact: true }).tap();
     await dialog.getByRole('button', { name: 'Back', exact: true }).tap();
     await dialog.getByRole('button', { name: 'Choose reward', exact: true }).tap();

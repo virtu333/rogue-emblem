@@ -88,6 +88,7 @@ class Note:
     rearticulate: bool = False
     tie: bool = False
     gate: float = 1.0     # fraction of written length actually held
+    accent: int = 0       # 1 for '>', 2 for '^' (read by the lab palette's performer)
 
     @property
     def end(self):
@@ -233,7 +234,8 @@ class Part:
                     continue
                 n = Note(start=self.cursor, dur=d, pitch=p, vel=vel, art=self.art,
                          staccato="'" in mods, tenuto='_' in mods,
-                         rearticulate='!' in mods or '^' in mods, gate=gate)
+                         rearticulate='!' in mods or '^' in mods, gate=gate,
+                         accent=2 if '^' in mods else (1 if '>' in mods else 0))
                 if '^' in mods:
                     n.gate = min(n.gate, 0.75)
                 self.notes.append(n)
@@ -258,6 +260,8 @@ class Score:
         # semitones applied to every pitched note at render time
         self.transpose = transpose
         self.silent_ok: set = set()
+        # this score's own palette changes, {instrument: candidate} (engine/palette.py)
+        self.palette: dict = {}
         self.title = title or name
         self.meter = meter
         self.bar_beats = meter[0] * 4 / meter[1]

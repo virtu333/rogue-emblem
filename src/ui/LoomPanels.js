@@ -3,9 +3,11 @@ import { createNodeArt } from './NodeArt.js';
 import { nodeFrame } from './RouteGraph.js';
 import { describeLoomNode, describeRecruitPreview, loomHeader } from './loomModel.js';
 import { traitLines } from './traitContent.js';
+import { ruinsChoice } from '../engine/RuinsCommands.js';
 import { crestElement } from './crestArt.js';
 import { regionName } from './placeDisplay.js';
 import { ACT_CONFIG, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS } from '../utils/constants.js';
+import { portraitListLayout } from './portraitListLayout.js';
 
 // DOM pieces shared by node travel and the read-only Campaign Map: the act header
 // (Cinzel title + pixel subline) and the inspect card for the selected knot.
@@ -33,9 +35,75 @@ export function createLoomHeading({
     document.createTextNode(info.title),
   );
   title.setAttribute('aria-label', `${info.act} · ${info.title}`);
-  const sub = [prefix.toUpperCase(), info.sub].filter(Boolean).join(' · ');
-  wrap.append(title, element('p', sub, 're-loom-sub'));
+  // Each part of the subline stays whole with the dot after it ("ROW 2 OF 9", never
+  // "ROW 2 / OF 9" or a line opening on "·") when an upright header wraps it; sideways
+  // it is one line, as before.
+  const sub = element('p', null, 're-loom-sub');
+  const parts = [prefix.toUpperCase(), ...info.sub.split(' · ')].filter(Boolean);
+  parts.forEach((part, i) => {
+    if (i) sub.append(document.createTextNode(' '));
+    sub.append(element('span', i < parts.length - 1 ? `${part} ·` : part, 're-loom-sub-part'));
+  });
+  wrap.append(title, sub);
   return wrap;
+}
+
+// Cards whose overflow cue is being kept up to date (trackLoomCardOverflow).
+const overflowTrackers = new WeakMap();
+
+/**
+ * Keep `is-more-above` / `is-more-below` on an inspect card while its text runs past
+ * its fixed height, so the upright sheet can fade the edge that has more to scroll
+ * (loom.css; the sideways pane does not use the classes). Follows scrolling, the card
+ * or its content changing size (a <details> opening, fonts arriving) and every
+ * renderLoomCard. Returns { destroy }.
+ */
+export function trackLoomCardOverflow(card) {
+  const update = () => {
+    const more = card.scrollHeight - card.clientHeight;
+    card.classList.toggle('is-more-above', more > 1 && card.scrollTop > 1);
+    card.classList.toggle('is-more-below', more > 1 && card.scrollTop < more - 1);
+  };
+  const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(update) : null;
+  const refresh = () => {
+    if (observer) {
+      observer.disconnect();
+      observer.observe(card);
+      for (const child of card.children) observer.observe(child);
+    }
+    update();
+  };
+  // Upright, a chip's note that opens below the fold scrolls into the card's view
+  // (its summary stays in view), so the tap visibly answers.
+  const reveal = (event) => {
+    const details = event.target;
+    if (!details?.open || !portraitListLayout()) return;
+    const box = card.getBoundingClientRect();
+    const r = details.getBoundingClientRect();
+    const below = r.bottom - (box.top + card.clientTop + card.clientHeight);
+    const room = r.top - (box.top + card.clientTop);
+    // Clear the card's faded foot too (loom.css), unless that would hide the summary.
+    if (below > -40) card.scrollTop += Math.min(below + 44, Math.max(0, room));
+  };
+  const onToggle = (event) => {
+    reveal(event);
+    update();
+  };
+  card.addEventListener('scroll', update, { passive: true });
+  // <details> toggle events do not bubble: listen in the capture phase.
+  card.addEventListener('toggle', onToggle, true);
+  const tracker = {
+    refresh,
+    destroy() {
+      observer?.disconnect();
+      card.removeEventListener('scroll', update);
+      card.removeEventListener('toggle', onToggle, true);
+      overflowTrackers.delete(card);
+    },
+  };
+  overflowTrackers.set(card, tracker);
+  refresh();
+  return tracker;
 }
 
 /**
@@ -93,7 +161,11 @@ function recruitBlock(view) {
 export function renderLoomCard(card, node, ctx = {}) {
   card.replaceChildren();
   card.removeAttribute('data-tone');
-  if (!node) return;
+  if (!node) {
+    delete card.dataset.cardNode;
+    overflowTrackers.get(card)?.refresh();
+    return;
+  }
   const { model, actId, gameData, runManager: rm } = ctx;
   const state = model.nodeState(node.id);
   const eclipse = ctx.eclipse?.nodes?.get?.(node.id) || null;
@@ -128,6 +200,7 @@ export function renderLoomCard(card, node, ctx = {}) {
     eclipse,
     recruit,
     recruitMods: rm?.getRecruitNodeBattleMods?.(node) || null,
+    ruinsChoice: node.type === 'ruins' && rm ? ruinsChoice(rm, node.id) : null,
   });
   card.dataset.tone = info.eclipsed ? 'eclipsed' : info.elite && state === 'live' ? 'elite' : state;
 
@@ -150,18 +223,40 @@ export function renderLoomCard(card, node, ctx = {}) {
   if (info.templateName) titles.append(element('p', info.templateName, 're-loom-was'));
   head.append(medal, titles);
   card.append(head);
+  // A recruit card leads with the Talk instruction: the recruit block is tall and the
+  // card scrolls without a cue, so on a phone the instruction would sit below the fold.
+  const text = info.text ? element('p', info.text, 're-loom-text') : null;
+  if (text && info.recruit) card.append(text);
 
   if (info.tags.length) {
     const tags = element('ul', null, 're-loom-tags');
     tags.setAttribute('aria-label', 'Encounter details');
-    for (const tag of info.tags) tags.append(element('li', tag.text, `re-loom-tag is-${tag.tone}`));
+    for (const tag of info.tags) {
+      const row = element('li', null, `re-loom-tag is-${tag.tone}`);
+      if (tag.detail) {
+        const details = element('details');
+        details.append(element('summary', tag.text), element('p', tag.detail));
+        row.append(details);
+      } else row.textContent = tag.text;
+      tags.append(row);
+    }
     card.append(tags);
   }
   if (info.recruit) card.append(recruitBlock(info.recruit));
-  if (info.text) card.append(element('p', info.text, 're-loom-text'));
+  if (text && !info.recruit) card.append(text);
   if (info.warning) card.append(element('p', info.warning, 're-loom-eclipse-warn'));
   if (info.flavor) card.append(element('p', `“${info.flavor}”`, 're-loom-flavor'));
   card.append(
     element('p', info.stateLine.text, `re-node-state re-loom-state is-${info.stateLine.tone}`),
   );
+  // Another knot's card starts at its top (a redraw of the same knot keeps its place).
+  if (card.dataset.cardNode !== node.id) card.scrollTop = 0;
+  card.dataset.cardNode = node.id;
+  overflowTrackers.get(card)?.refresh();
+}
+
+/** Add a line under the card's text (a note from the screen) and re-check its overflow. */
+export function appendLoomCardNote(card, text) {
+  card.append(element('p', text, 're-loom-note'));
+  overflowTrackers.get(card)?.refresh();
 }

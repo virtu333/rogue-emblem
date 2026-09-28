@@ -880,6 +880,10 @@
 .mu-screen .ch-card:disabled {
   opacity: 1;
 }
+/* A skip worth less than a gold card still on offer: kept, but quiet until chosen. */
+.ch-reward.is-dominated:not([aria-pressed='true']) .ch-plate {
+  filter: saturate(0.5) brightness(0.85);
+}
 .ch-reward .ch-stamp {
   top: 18px;
   left: auto;
@@ -1391,6 +1395,322 @@
   }
   .ch-banner-detail {
     flex: 0 1 auto;
+  }
+}
+
+/* ─────────────────────────────────────────────── Upright phones: the draft as a list */
+/* html.portrait-ui is set by the portrait shell while an upright phone plays
+   upright (no class: the landscape and desktop rules above are untouched); the
+   orientation query keeps the class inert if it is ever present on a landscape page,
+   as every portrait stylesheet does.
+   Every draft becomes one column of full-width rows that scrolls on its own;
+   the header and the footer stay put, so the primary action (Confirm, Recruit,
+   Choose reward) always sits on the bottom row under the thumb. Rows keep what
+   is compared across the draft (a candidate's stats, a spoil's rarity, name and
+   for whom, a blessing's boon and cost); once a card is chosen the others fold
+   their longer reading away and the chosen one opens it in full. */
+@media (orientation: portrait) {
+  html.portrait-ui .ch-draft,
+  html.portrait-ui .ch-draft[data-count] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
+    align-content: start;
+    justify-content: stretch;
+    gap: 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    scrollbar-width: none;
+    /* The lift and the rim glow still need their room above the first card. */
+    padding: 8px 5px 10px;
+  }
+  html.portrait-ui .ch-draft::-webkit-scrollbar {
+    display: none;
+  }
+  /* Soft edges, as a card's own reading has (softList in choiceCards.js): a list
+     that scrolls dissolves under the header and above the footer only while there
+     is more that way, so a card is never hard-sliced and the next one is
+     announced. Drafts, the mercenary contract (one scroll upright), the
+     difficulty terms and a reward's list of recipients. */
+  html.portrait-ui .ch-soft {
+    /* DRAFT_FADE_PX in choiceCards.js: a chosen card is brought clear of it. */
+    --ch-fade: 28px;
+  }
+  html.portrait-ui .ch-soft.has-more:not(.at-end) {
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - var(--ch-fade)), transparent);
+    mask-image: linear-gradient(180deg, #000 calc(100% - var(--ch-fade)), transparent);
+  }
+  html.portrait-ui .ch-soft.has-more:not(.at-start):not(.at-end) {
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      transparent,
+      #000 var(--ch-fade),
+      #000 calc(100% - var(--ch-fade)),
+      transparent
+    );
+    mask-image: linear-gradient(
+      180deg,
+      transparent,
+      #000 var(--ch-fade),
+      #000 calc(100% - var(--ch-fade)),
+      transparent
+    );
+  }
+  html.portrait-ui .ch-soft.has-more.at-end:not(.at-start) {
+    -webkit-mask-image: linear-gradient(180deg, transparent, #000 var(--ch-fade));
+    mask-image: linear-gradient(180deg, transparent, #000 var(--ch-fade));
+  }
+  html.portrait-ui .ch-draft > .ch-card {
+    align-items: stretch;
+  }
+  /* Folded: a card set aside keeps its comparison and hides its long reading. */
+  html.portrait-ui
+    .ch-draft:has(.ch-card:is([aria-pressed='true'], .is-chosen))
+    .ch-unit[aria-pressed='false']
+    .ch-lines {
+    display: none;
+  }
+  /* Open: the chosen card reads in full (the list scrolls, never the card). */
+  html.portrait-ui .ch-card .ch-lines {
+    flex: none;
+    overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  /* Candidates: the face beside the name, the seven stats in two rows of four. */
+  html.portrait-ui .ch-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 3px 8px;
+  }
+  html.portrait-ui .ch-stat {
+    grid-template-columns: 32px 18px minmax(0, 1fr);
+    gap: 3px;
+  }
+
+  /* Spoils: the item's art on the left, rarity, name, what it does and for whom
+   on the right. A folded spoil keeps the first line of what it does. */
+  html.portrait-ui .ch-reward .ch-plate {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-content: start;
+    gap: 3px 10px;
+  }
+  html.portrait-ui .ch-reward-top {
+    display: contents;
+  }
+  html.portrait-ui .ch-reward .ch-item-art {
+    grid-column: 1;
+    grid-row: 1 / span 4;
+    align-self: start;
+  }
+  html.portrait-ui .ch-reward .ch-plate > :not(.ch-reward-top),
+  html.portrait-ui .ch-reward .ch-rarity {
+    grid-column: 2;
+    min-width: 0;
+  }
+  html.portrait-ui .ch-reward[aria-pressed='false'] .ch-lines p:not(:first-child) {
+    display: none;
+  }
+  html.portrait-ui .ch-reward[aria-pressed='false'] .ch-lines p {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  html.portrait-ui .ch-reward .ch-stamp {
+    top: 8px;
+  }
+
+  /* Blessings: the shrine's painting (or the Hollow Sun) on the left; name, boon
+   and cost read on the right, the cost always in view. */
+  html.portrait-ui .ch-tarot .ch-plate {
+    align-items: stretch;
+    justify-content: flex-start;
+    text-align: left;
+    gap: 5px;
+    min-height: 112px;
+    padding: 11px 12px 11px 92px;
+  }
+  html.portrait-ui .ch-tarot .ch-sun,
+  html.portrait-ui .ch-tarot.has-art .ch-plate > .ch-sun {
+    position: absolute;
+    left: 25px;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    translate: 0 -50%;
+  }
+  html.portrait-ui .ch-tarot.has-art .ch-plate > .ch-sun {
+    left: 12px;
+    top: 12px;
+    width: 32px;
+    height: 32px;
+    translate: none;
+  }
+  html.portrait-ui .ch-tarot .ia-card-art {
+    top: 6px;
+    bottom: 6px;
+    left: 6px;
+    right: auto;
+    width: 78px;
+    height: auto;
+    -webkit-mask-image: linear-gradient(90deg, black 70%, transparent);
+    mask-image: linear-gradient(90deg, black 70%, transparent);
+  }
+  html.portrait-ui .ch-tarot-name {
+    font-size: 15px;
+  }
+
+  /* Difficulty: each banner a pennant pointing on; its terms read beneath. */
+  html.portrait-ui .ch-banners {
+    flex: none;
+  }
+  html.portrait-ui .ch-banner .ch-plate {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    align-items: center;
+    justify-items: start;
+    text-align: left;
+    gap: 2px 12px;
+    padding: 10px 28px 10px 14px;
+    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%);
+  }
+  html.portrait-ui .ch-banner .ch-threads {
+    grid-area: 1 / 1;
+  }
+  html.portrait-ui .ch-banner .ch-banner-name {
+    grid-column: 1;
+    grid-row: 2 / span 2;
+    align-self: start;
+    max-width: 100%;
+  }
+  html.portrait-ui .ch-banner .ch-plate > :is(.ch-banner-tag, .ch-banner-reward, .ch-lock) {
+    grid-column: 2;
+  }
+  html.portrait-ui .ch-banner-detail {
+    flex: 1 1 auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The mercenary contract: the card, then its terms, in one scroll. The card's
+   traits read in full in the terms, so the card folds them away. */
+  html.portrait-ui .ch-contract {
+    grid-template-columns: minmax(0, 1fr);
+    /* Rows as tall as what they hold: a long contract scrolls, it never squeezes
+       its terms panel shorter than its text. */
+    grid-auto-rows: max-content;
+    align-content: start;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  html.portrait-ui .ch-contract .ch-draft {
+    overflow: visible;
+  }
+  html.portrait-ui .ch-contract .ch-card .ch-lines {
+    display: none;
+  }
+  html.portrait-ui .ch-terms {
+    overflow: visible;
+  }
+
+  /* Footer: the quiet lead on its own line, the controls on at most two rows,
+   the primary last and widest, on the bottom row. */
+  html.portrait-ui .ch-footer {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  html.portrait-ui .ch-footer-lead {
+    flex: 1 1 100%;
+    order: -1;
+  }
+  html.portrait-ui .ch-footer-lead:empty {
+    display: none;
+  }
+  html.portrait-ui .ch-footer > button {
+    flex: 1 1 auto;
+    min-height: var(--re-tap);
+    padding-inline: 10px;
+    white-space: nowrap;
+  }
+  html.portrait-ui .ch-footer > :is(.re-btn--primary, .mu-buy) {
+    order: 1;
+    flex: 1 1 45%;
+    min-width: 0;
+    margin-left: 0;
+  }
+
+  /* Battle rewards header: the title, the gold and the earnings note on the
+   first row (the note shrinks, never the title), the tools as one row of equal
+   buttons beneath. An opened note reads on its own row at the foot. */
+  html.portrait-ui .ch-reward-screen .mu-header {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+  html.portrait-ui .ch-reward-screen .mu-header h1,
+  html.portrait-ui .ch-reward-screen .mu-header button {
+    flex: none;
+    white-space: nowrap;
+  }
+  html.portrait-ui .ch-reward-screen .mu-header > .mu-help {
+    order: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+  html.portrait-ui .ch-reward-screen .mu-header > .mu-help > summary {
+    min-height: var(--re-tap);
+    padding-block: 7px;
+    overflow-wrap: normal;
+  }
+  html.portrait-ui .ch-reward-screen .mu-header > .mu-currency {
+    order: 2;
+  }
+  html.portrait-ui .ch-reward-screen .mu-header > .mu-help[open] {
+    order: 4;
+    flex-basis: 100%;
+  }
+  html.portrait-ui .ch-reward-screen .reward-tools {
+    order: 3;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  html.portrait-ui .ch-reward-screen .reward-tools button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  /* A reward's recipient step: the list, the chosen one's detail right under it
+   (no gap when the list is short), and Apply reward on the bottom row like every
+   draft's primary. The detail's frame moves to its copy so the action can leave
+   it; a long list scrolls and a long detail scrolls, never the page. */
+  html.portrait-ui .ch-reward-screen .mu-split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, max-content) max-content minmax(0, 1fr) auto;
+    row-gap: 8px;
+  }
+  html.portrait-ui .ch-reward-screen .mu-list {
+    grid-row: 1;
+    padding-bottom: 0;
+  }
+  html.portrait-ui .ch-reward-screen .mu-detail {
+    display: contents;
+  }
+  html.portrait-ui .ch-reward-screen .mu-copy {
+    grid-row: 2;
+    min-height: 0;
+    max-height: 40dvh;
+    padding: 8px 10px;
+    border: 1px solid var(--re-line);
+    background: var(--re-panel);
+    box-shadow: var(--re-bevel);
+  }
+  html.portrait-ui .ch-reward-screen .mu-copy p[role='status']:empty {
+    margin: 0;
+  }
+  html.portrait-ui .ch-reward-screen .mu-actions {
+    grid-row: 4;
+    margin-top: 0;
   }
 }
 

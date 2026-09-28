@@ -129,8 +129,8 @@ describe('music library', () => {
     const battleThemes = new Set([
       ...Object.values(MUSIC.battle).flat(),
       MUSIC.escape,
-      ...Object.values(MUSIC.battleBiome),
-      ...Object.values(MUSIC.battleSituation),
+      ...collectKeys(MUSIC.battleBiome),
+      ...collectKeys(MUSIC.battleSituation),
     ]);
     for (const key of battleThemes) {
       expect(MUSIC_LAYERS[key]?.calm, `${key} has a calm mix`).toBeTruthy();
@@ -152,9 +152,18 @@ describe('music library', () => {
     for (const biome of Object.keys(MUSIC.battleBiome)) {
       expect(biomes.has(biome), `${biome} is a template biome`).toBe(true);
     }
-    for (const situation of Object.keys(MUSIC.battleSituation)) {
-      expect(['eclipsed', 'village', 'rescue', 'elite']).toContain(situation);
+    const situations = ['eclipsed', 'village', 'rescue', 'elite', 'caravan', 'fog'];
+    for (const [situation, entry] of Object.entries(MUSIC.battleSituation)) {
+      expect(situations).toContain(situation);
+      // a table by act names only real acts
+      if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+        for (const act of Object.keys(entry)) expect(MUSIC.battle, act).toHaveProperty(act);
+      }
     }
+    // every act that fights an elite company has its own
+    const elite = MUSIC.battleSituation.elite;
+    const eliteKeys = ['act1', 'act2', 'act3', 'act4'].map((act) => elite[act]);
+    expect(new Set(eliteKeys).size).toBe(4);
   });
 
   it('the story antagonists get their own themes, wherever they are fought', () => {
@@ -200,6 +209,14 @@ describe('stinger library', () => {
     for (const [name, entry] of Object.entries(MUSIC_STINGERS)) {
       if (!entry.keyed) continue;
       for (const t of tonics) expect(entry.tonics, `${name} in ${t}`).toContain(t);
+    }
+  });
+
+  it("the level-up's fallback sound is its cue in D (the stinger build copies it)", () => {
+    for (const root of [join(ROOT, 'assets'), join(ROOT, 'public', 'assets')]) {
+      const sfx = readFileSync(join(root, 'audio', 'sfx', 'sfx_levelup.mp3'));
+      const cue = readFileSync(join(root, 'audio', 'stingers', 'stinger_levelup_D.mp3'));
+      expect(sfx.equals(cue), root).toBe(true);
     }
   });
 

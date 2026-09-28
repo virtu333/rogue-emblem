@@ -16,6 +16,7 @@ import {
   statChipText,
 } from '../src/ui/growthContent.js';
 import { createLordUnit, createRecruitUnit, promoteUnit } from '../src/engine/UnitManager.js';
+import { RunManager } from '../src/engine/RunManager.js';
 
 import dialogue from '../data/dialogue.json';
 
@@ -81,6 +82,73 @@ describe('promotionPathContent', () => {
     for (const row of content.stats) expect(row.bonus, row.stat).toBe(lordBonus[row.stat]);
   });
 
+  describe('role line: weapons the promotion really adds', () => {
+    // Independent of the code under test: class data spells weapons in the plural.
+    const PLURAL = { Sword: 'Swords', Lance: 'Lances', Axe: 'Axes', Bow: 'Bows', Tome: 'Tomes', Light: 'Light', Staff: 'Staves', Breath: 'Breath' }; // prettier-ignore
+    const TYPE = Object.fromEntries(Object.entries(PLURAL).map(([type, word]) => [word, type]));
+    const typesIn = (profs) =>
+      String(profs || '')
+        .split(',')
+        .map((part) => TYPE[part.trim().replace(/\s*\([PM]\)$/, '')])
+        .filter(Boolean);
+    const lordFor = (base) => gameData.lords.find((l) => l.class === base.name);
+
+    it('Sera already heals with staves: Light Priestess names the rank, never "Gains Staves"', () => {
+      const run = new RunManager(gameData);
+      run.startRun();
+      const sera = run.roster.find((u) => u.name === 'Sera');
+      sera.level = 10;
+      // The playtest's case: a Light Sage carries Heal and can use it.
+      expect(sera.className).toBe('Light Sage');
+      expect(sera.proficiencies).toContainEqual({ type: 'Staff', rank: 'Prof' });
+      const content = promotionPathContent(sera, cls('Light Priestess'), gameData);
+      expect(content.role).toBe('Staves: Master, +MOV');
+      expect(content.ranks.find((r) => r.type === 'Staff')).toMatchObject({ from: 'Prof', to: 'Mast', change: 'up' }); // prettier-ignore
+      // What the line keeps: the path's MOV bonus is real.
+      expect(content.stats.find((r) => r.stat === 'MOV')?.bonus).toBe(1);
+    });
+
+    it('a Light Sage without staves (Sera before her healer kit) is told she gains them', () => {
+      const sera = createLordUnit(gameData.lords.find((l) => l.name === 'Sera'), cls('Light Sage'), gameData.weapons); // prettier-ignore
+      sera.level = 10;
+      expect(sera.proficiencies.map((p) => p.type)).toEqual(['Light']);
+      expect(promotionPathContent(sera, cls('Light Priestess'), gameData).role).toBe('Gains Staves, +MOV'); // prettier-ignore
+    });
+
+    it('every promotion path names as gained exactly the weapons new to the unit', () => {
+      const bases = gameData.classes.filter((c) => c.tier === 'base' && c.promotesTo);
+      expect(bases.length).toBeGreaterThan(10);
+      for (const base of bases) {
+        const lord = lordFor(base);
+        for (const target of lord ? [lord.promotedClass] : [].concat(base.promotesTo)) {
+          const unit = lord
+            ? createLordUnit(lord, base, gameData.weapons)
+            : createRecruitUnit({ name: 'Probe', level: 10 }, base, gameData.weapons, null, null, null); // prettier-ignore
+          unit.level = 10;
+          const role = promotionPathContent(unit, cls(target), gameData).role;
+          const had = new Set(typesIn(base.weaponProficiencies));
+          const fresh = typesIn(cls(target).weaponProficiencies)
+            .filter((type) => !had.has(type))
+            .map((type) => PLURAL[type]);
+          const gained = /^Gains ([^,]+)/.exec(role)?.[1].split('/') ?? [];
+          expect(gained, `${base.name} → ${target}: "${role}"`).toEqual(fresh);
+          // A weapon the unit already uses is never offered as a gain.
+          for (const type of had) expect(gained, `${base.name} → ${target}`).not.toContain(PLURAL[type]); // prettier-ignore
+          // These units hold only their class's weapons, so no rank note either
+          // (the chips show every P→M; the line names only what the class adds).
+          expect(role, `${base.name} → ${target}`).not.toMatch(/: Master\b/);
+        }
+      }
+    });
+
+    it('class notes never name a weapon: weapon gains come from the proficiency data', () => {
+      const weaponWords =
+        /\b(gains?|swords?|lances?|axes?|bows?|tomes?|staff|staves|light|breath)\b/i;
+      for (const c of gameData.classes.filter((x) => x.roleChange))
+        expect(c.roleChange, c.name).not.toMatch(weaponWords);
+    });
+  });
+
   it('missing data yields null rather than throwing', () => {
     expect(promotionPathContent(null, cls('Hero'), gameData)).toBeNull();
     expect(promotionPathContent(myrmidon(), null, gameData)).toBeNull();
@@ -100,6 +168,16 @@ describe('promotionPathContent', () => {
 });
 
 describe('levelUpContent', () => {
+  it('orders the card so its left column reads HP, STR, SPD, RES', () => {
+    const unit = { name: 'Edric', className: 'Lord', stats: { HP: 21, STR: 7, MAG: 2, SKL: 9, SPD: 10, DEF: 7, RES: 3, LCK: 8 } }; // prettier-ignore
+    const c = levelUpContent(unit, { newLevel: 3, gains: { SKL: 1 } });
+    const order = c.rows.map((r) => r.stat);
+    expect(order).toEqual(['HP', 'MAG', 'STR', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']);
+    // The card is a two-column grid filled row by row.
+    expect(order.filter((_, i) => i % 2 === 0)).toEqual(['HP', 'STR', 'SPD', 'RES']);
+    expect(order.filter((_, i) => i % 2 === 1)).toEqual(['MAG', 'SKL', 'DEF', 'LCK']);
+    expect(c.rows.find((r) => r.stat === 'SKL')).toMatchObject({ before: 8, after: 9, gain: 1 });
+  });
   const unit = { name: 'Edric', className: 'Lord', stats: { HP: 20, STR: 6, MAG: 2, SKL: 7, SPD: 9, DEF: 5, RES: 3, LCK: 6 } }; // prettier-ignore
 
   it('rows reconstruct before/after from the (already applied) stats', () => {

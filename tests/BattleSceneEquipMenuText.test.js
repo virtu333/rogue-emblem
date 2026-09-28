@@ -35,6 +35,9 @@ beforeEach(() => {
 function makeDisplayObject(seed = {}) {
   return {
     ...seed,
+    setOrigin() {
+      return this;
+    },
     setDepth() {
       return this;
     },
@@ -53,6 +56,9 @@ function makeHandlerCapturingObject(seed = {}) {
   const handlers = {};
   return {
     ...seed,
+    setOrigin() {
+      return this;
+    },
     setDepth() {
       return this;
     },
@@ -60,9 +66,6 @@ function makeHandlerCapturingObject(seed = {}) {
       return this;
     },
     setColor() {
-      return this;
-    },
-    setOrigin() {
       return this;
     },
     setInteractive() {
@@ -128,12 +131,58 @@ function makeBaseScene() {
   };
   scene.add = {
     rectangle: () => makeDisplayObject(),
+    text: (_x, _y, text) => makeDisplayObject({ text }),
   };
   scene._clampMenuPosition = (x, y) => ({ x, y });
   return scene;
 }
 
 describe('BattleScene equip menu text', () => {
+  it('explains usable consumables and the action cost on desktop', () => {
+    const scene = makeBaseScene();
+    scene._pinToScreen = vi.fn();
+    scene._registerActionMenu = vi.fn();
+    scene._makeMenuTextButton = (_x, _y, text) => makeDisplayObject({ text });
+    const unit = {
+      col: 1,
+      row: 1,
+      currentHP: 4,
+      stats: { HP: 20 },
+      consumables: [{ name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 }],
+    };
+    scene.showItemMenu(unit);
+    const labels = scene.actionMenu.map((o) => o.text || '').join(' ');
+    expect(labels).toContain('Restore 10 HP');
+    expect(labels).toContain('ends this unit’s action');
+    expect(labels).toContain('uses do not refill');
+  });
+
+  it('opens the desktop item menu clear of a unit near the right edge', () => {
+    const scene = makeBaseScene();
+    scene._pinToScreen = vi.fn();
+    scene._registerActionMenu = vi.fn();
+    scene._makeMenuTextButton = (_x, _y, text) => makeDisplayObject({ text });
+    const rects = [];
+    scene.add.rectangle = (x, y, w) => {
+      rects.push({ x, w });
+      return makeDisplayObject();
+    };
+    // Column 8 of 10: no room on the right, so the menu flips to the unit's left.
+    // gridToPixel is the tile centre (64); the tile spans x 48..80.
+    const unit = {
+      col: 8,
+      row: 1,
+      currentHP: 4,
+      stats: { HP: 20 },
+      consumables: [{ name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 }],
+    };
+    scene.showItemMenu(unit);
+    const bg = rects.reduce((widest, r) => (r.w > widest.w ? r : widest));
+    expect(bg.w).toBe(240);
+    // Its right edge stays left of the unit's tile (half a tile of clearance).
+    expect(bg.x + bg.w / 2).toBeLessThanOrEqual(48);
+  });
+
   it.each(['Item', 'Equip'])('restores pre-move destinations after %s and Back', (label) => {
     const scene = makeBaseScene();
     const unit = {
@@ -210,6 +259,7 @@ describe('BattleScene equip menu text', () => {
       equipped,
       expect.any(Object),
       expect.any(Number),
+      unit,
     );
   });
 
@@ -639,6 +689,7 @@ describe('BattleScene equip menu text', () => {
       noProfWeapon,
       expect.any(Object),
       expect.any(Number),
+      unit,
     );
   });
 });
@@ -668,6 +719,7 @@ describe('BattleScene equip menu tooltip lifecycle', () => {
       secondary,
       expect.any(Object),
       expect.any(Number),
+      unit,
     );
 
     const outHandlers = textObjects[1].handlers.pointerout;
@@ -776,6 +828,7 @@ describe('equip menu overflow', () => {
       equipped,
       expect.any(Object),
       updatedY,
+      unit,
     );
   });
 });
@@ -790,6 +843,9 @@ describe('BattleScene weapon detail tooltip', () => {
         return {
           width: 140,
           height: 48,
+          setOrigin() {
+            return this;
+          },
           setDepth() {
             return this;
           },
@@ -812,6 +868,9 @@ describe('BattleScene weapon detail tooltip', () => {
         },
       }),
       container: () => ({
+        setOrigin() {
+          return this;
+        },
         setDepth() {
           return this;
         },
@@ -837,5 +896,64 @@ describe('BattleScene weapon detail tooltip', () => {
     );
 
     expect(tooltipText).toContain('Art: Sword Art - Hit +10');
+  });
+
+  it('shows attack speed, and the change from the held weapon, from the real equip menu', () => {
+    // AS = SPD − max(0, weight − floor(STR / 5)); SPD 10, STR 7 → offset 1.
+    //   Iron Sword weight 5 → 6 (held); Hand Axe weight 8 → 3 (−3).
+    const scene = makeBaseScene();
+    const texts = [];
+    const tooltipTexts = [];
+    scene._makeMenuTextButton = vi.fn((_x, y, label) => {
+      const obj = makeHandlerCapturingObject({ label, y });
+      texts.push(obj);
+      return obj;
+    });
+    scene.add = {
+      rectangle: () =>
+        makeDisplayObject({
+          width: 152,
+          height: 60,
+          setOrigin() {
+            return this;
+          },
+        }),
+      text: (_x, _y, text) => {
+        tooltipTexts.push(String(text));
+        return makeDisplayObject({ width: 140, height: 48, setPosition() {} });
+      },
+      container: () => makeDisplayObject({ setPosition() {} }),
+    };
+    scene._pinToScreen = vi.fn();
+    scene._showWeaponDetailTooltip = BattleScene.prototype._showWeaponDetailTooltip;
+    scene._hideWeaponDetailTooltip = BattleScene.prototype._hideWeaponDetailTooltip;
+    scene._formatSpecialLinesForUi = BattleScene.prototype._formatSpecialLinesForUi;
+    scene._getWeaponArtCatalog = () => [];
+    const handAxe = {
+      name: 'Hand Axe',
+      type: 'Axe',
+      might: 5,
+      hit: 65,
+      crit: 0,
+      weight: 8,
+      range: '1-2',
+    };
+    const unit = {
+      col: 1,
+      row: 1,
+      stats: { HP: 20, STR: 7, MAG: 0, SKL: 6, SPD: 10, LCK: 4, DEF: 5, RES: 2 },
+      weapon: equipped,
+      inventory: [equipped, handAxe],
+    };
+
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+    // The held weapon's tooltip opens with the menu.
+    expect(tooltipTexts.at(-1).split('\n')).toContain('5Wt Rng1 6AS');
+
+    const axeRow = texts.find((t) => t.label.includes('Hand Axe'));
+    axeRow.handlers.pointerover.at(-1)();
+    expect(tooltipTexts.at(-1).split('\n')).toContain('8Wt Rng1-2 3AS (\u22123)');
+    expect(unit.weapon).toBe(equipped);
+    expect(unit.inventory).toEqual([equipped, handAxe]);
   });
 });

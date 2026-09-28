@@ -1,8 +1,23 @@
 import { MenuSurface, element } from './MenuSurface.js';
 import { createRouteGraph } from './RouteGraph.js';
-import { createLoomHeading, renderLoomCard } from './LoomPanels.js';
+import { createLoomHeading, renderLoomCard, trackLoomCardOverflow } from './LoomPanels.js';
 import { ACT_SEQUENCE } from '../utils/constants.js';
 import { throttledRead } from '../utils/throttledRead.js';
+
+/**
+ * How the map names the party's knot. Mid-battle (the pause menu) an unfinished knot
+ * is the current battle; opened from a service (a village, shop, church or ruins,
+ * which completes only when the party leaves) it is just where the party stands. The
+ * service flag, not the node type, decides: a village ambush is fought on a shop knot.
+ * A null card label falls back to the travel screen's own "The party rests here".
+ */
+export function partyKnotLabels(party, { service = false } = {}) {
+  const fighting = !!party && !party.completed && !service;
+  return {
+    currentLabel: fighting ? 'Current battle' : 'You are here',
+    activeLabel: fighting ? 'The party fights here' : null,
+  };
+}
 
 // Read-only counterpart of the travel screen, drawn as the same Loom. Selection only
 // inspects; it never advances the run.
@@ -46,7 +61,7 @@ export class CampaignMapMenu {
         party ? party.edges || [] : c.nodeMap?.startNodeId ? [c.nodeMap.startNodeId] : [],
       ),
       currentId: party?.id || null,
-      currentLabel: party && !party.completed ? 'Current battle' : 'You are here',
+      currentLabel: partyKnotLabels(party, { service: c.service }).currentLabel,
       selectedId: this.selected,
       actId: c.actId,
       reducedMotion: () => this._reducedMotion(),
@@ -81,6 +96,8 @@ export class CampaignMapMenu {
     const side = element('aside', null, 're-node-side re-campaign-side');
     this.card = element('section', null, 're-scroll re-node-detail re-loom-card');
     this.card.setAttribute('aria-live', 'polite');
+    this._cardOverflow?.destroy();
+    this._cardOverflow = trackLoomCardOverflow(this.card);
     side.append(
       this.card,
       element(
@@ -92,7 +109,8 @@ export class CampaignMapMenu {
     layout.append(wrap, side);
     this.surface.body.replaceChildren(layout);
     this._renderCard();
-    this.routeGraph.mount(this.scroll);
+    // Edge cues only on the upright loom: the sideways Campaign Map never had them.
+    this.routeGraph.mount(this.scroll, { cues: wrap, horizontalCues: false });
   }
 
   _renderCard() {
@@ -105,13 +123,15 @@ export class CampaignMapMenu {
       actId: c.actId,
       gameData: c.scene?.gameData,
       runManager: c.scene?.runManager,
-      activeLabel: party && !party.completed ? 'The party fights here' : null,
+      activeLabel: partyKnotLabels(party, { service: c.service }).activeLabel,
       isFirstBattle: (n) => n.id === party?.id,
       eclipse: this.eclipse,
     });
   }
 
   destroy() {
+    this._cardOverflow?.destroy();
+    this._cardOverflow = null;
     this.routeGraph?.destroy();
     this.routeGraph = null;
     this.surface.destroy();

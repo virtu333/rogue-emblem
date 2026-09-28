@@ -14,6 +14,7 @@ import {
   canFight,
   getMaxFights,
   getArenaDistance,
+  getArenaWeapon,
   generateMercenaryCandidates,
   grantMercenaryClassSkills,
 } from '../engine/ColosseumEngine.js';
@@ -21,8 +22,9 @@ import { resolveCombat, getCombatForecast } from '../engine/Combat.js';
 import { getSkillCombatMods, rollStrikeSkills, rollDefenseSkills } from '../engine/SkillSystem.js';
 import {
   gainExperience,
-  grantSecondaryWeapons,
+  grantMasterOfArmsWeapons,
   checkLevelUpSkills,
+  equipWeapon,
 } from '../engine/UnitManager.js';
 import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
@@ -151,9 +153,12 @@ export class ColosseumOverlay {
 
     const unit = this._selectedUnit;
     const challenger = this._challenger.unit;
+    // The weapon the fight will use (Fight equips it); the forecast only plans it.
+    const weapon = getArenaWeapon(unit);
+    this._fighterWeapon = weapon;
 
     // Build forecast
-    const distance = getArenaDistance(unit.weapon, challenger.weapon);
+    const distance = getArenaDistance(weapon, challenger.weapon);
     const plainTerrain = { avoidBonus: 0, defBonus: 0 };
 
     // Minimal skill context for forecast (arena = isolated 1v1, no allies)
@@ -171,7 +176,7 @@ export class ColosseumOverlay {
       plainTerrain,
       true,
       null,
-      masteryCtx,
+      { ...masteryCtx, weapon },
     );
     const defMods = getSkillCombatMods(
       challenger,
@@ -187,7 +192,7 @@ export class ColosseumOverlay {
 
     const forecast = getCombatForecast(
       unit,
-      unit.weapon,
+      weapon,
       challenger,
       challenger.weapon,
       distance,
@@ -211,6 +216,9 @@ export class ColosseumOverlay {
     }
     if (!canFight(unit, this._fightsPerUnit[unit.name] || 0, this._maxFights)) return;
     this._fightResolved = true;
+    // Fight with the planned weapon: equip it (a healer holding a staff draws its tome).
+    const weapon = getArenaWeapon(unit);
+    if (weapon !== unit.weapon) equipWeapon(unit, weapon);
 
     const distance = getArenaDistance(unit.weapon, challenger.weapon);
     const plainTerrain = { avoidBonus: 0, defBonus: 0 };
@@ -499,11 +507,7 @@ export class ColosseumOverlay {
       if (this.runManager?.metaEffects?.masterOfArms && this._mercCandidates.length > 0) {
         for (const entry of this._mercCandidates) {
           if (entry?.unit) {
-            grantSecondaryWeapons(
-              entry.unit,
-              this.gameData.weapons,
-              entry.unit.weapon?.tier || 'Iron',
-            );
+            grantMasterOfArmsWeapons(entry.unit, this.gameData.weapons);
           }
         }
       }

@@ -19,7 +19,11 @@
       },
       "avoidBonus": { "type": "string", "pattern": "^(--|-?\\d+)$" },
       "defBonus": { "type": "string", "pattern": "^(--|-?\\d+)$" },
-      "special": { "type": "string" }
+      "special": { "type": "string" },
+      "hazardStatus": {
+        "description": "Status the ground applies to a unit ending its phase here. Its player-facing words come from BattleInformation.terrainRuleLines; the engine applies it by terrain index (ACID_TERRAIN_TYPES).",
+        "enum": ["acid"]
+      }
     },
     "required": ["name", "moveCost", "avoidBonus", "defBonus", "special"],
     "additionalProperties": false

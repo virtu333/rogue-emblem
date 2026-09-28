@@ -9,7 +9,7 @@ Rogue Dawn (formerly "Emblem Rogue" / "Rogue Emblem") is a browser-based tactica
 **Class/Weapon Data:** `docs/emblem_rogue_class_data.xlsx` (already parsed into `data/*.json`)
 **Roadmap:** `ROADMAP.md` (long-term vision + architecture notes + actionable implementation waves)
 **Mobile Controls:** `docs/mobile-controls-spec.md` (HTML overlay, landscape, context-sensitive buttons)
-**Portrait Battles (beta):** `docs/portrait-battles.md` (opt-in upright battles on phones: board turned by a Grid presentation transform, orientation switches re-open from the battle checkpoint)
+**Portrait mode:** `docs/portrait-battles.md` (upright play on phones, on by default; Settings → Portrait mode or `?portrait=0` turns it off; iPad app stays landscape. `html.portrait-ui` keys every portrait layout, and every such rule sits inside `@media (orientation: portrait)` (`tests/PortraitCssGating.test.js`); battles turn the board by a Grid presentation transform and orientation switches re-open from the battle checkpoint; upright browser specs live in the `portrait` e2e lane and share `tests/e2e/portraitHelpers.js`)
 **iOS Port:** `docs/ios-port-spec.md` (Capacitor wrapper, deferred until mobile web stable)
 
 ## Tech Stack
@@ -71,7 +71,7 @@ emblem-rogue/
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
 ├── tests/                 # Vitest unit tests + harness/ + sim/, Playwright e2e/ (browser CI lanes: tests/e2e/lanes.json)
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
-├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx, 76 original music files + 142 ceremony stingers)
+├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx, 88 original music files + 142 ceremony stingers)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
 └── tools/                 # Build/asset processing scripts (sprite splitting, resize, bg removal)
 ```
@@ -110,8 +110,10 @@ Hit Rate        = Weapon Hit + (SKL × 2) + LCK - Enemy Avoid
 Avoid           = (SPD × 2) + LCK + Terrain Bonus
 Critical Rate   = SKL / 2 + Weapon Crit + Skill Bonuses - Enemy LCK
 Critical Damage = 3× normal damage
-Double Attack   = attacker SPD >= defender SPD + 5
+Attack Speed    = SPD - max(0, Weapon Weight - floor(STR / 5))   (+ weapon/skill SPD bonuses; staves: SPD)
+Double Attack   = attacker Attack Speed >= defender Attack Speed + 5
 ```
+Doubling reads attack speed, never raw SPD: `calculateEffectiveSpeed` / `canDouble` in `Combat.js` (threshold `DOUBLE_ATTACK_SPD_THRESHOLD`; the Pursuit Ring lowers it, `preventEnemyDouble` effects block the foe's double, an active weapon art gives up its follow-up, and Quick Riposte forces a defender's double). Sims should read `getCombatForecast(...).attacker.doubles` rather than recompute it.
 
 ### Weapon Triangle
 Swords → Axes → Lances → Swords: +10 Hit, +1 Damage (advantage) / -10 Hit, -1 Damage (disadvantage). Mastery rank: +15/+2 advantage, -5/-1 disadvantage. Magic and Bows are outside the triangle.
@@ -127,14 +129,16 @@ Phases 1-9 complete ✅, Phase 10 (Deploy) live. (Grid → Combat → Units → 
 - Player units = blue palette, enemies = red palette, NPCs = green palette
 
 ## Music (composed in code)
-All music is original: 43 loop scores in `tools/music/scores/` and 30 ceremony cues (stingers) in `tools/music/stingers/`, rendered by `tools/music/engine/` (sampler + mixer) to `assets/audio/music/` and `assets/audio/stingers/`. Read `tools/music/SCORE.md` (leitmotifs, the Entity's finale, cue list, boss cards and enrage layers, device budget) and `tools/music/README.md` (setup, build, lint/analyze/pitchcheck tools).
+All music is original: 49 loop scores in `tools/music/scores/` and 30 ceremony cues (stingers) in `tools/music/stingers/`, rendered by `tools/music/engine/` (sampler + mixer) to `assets/audio/music/` and `assets/audio/stingers/`. Read `tools/music/SCORE.md` (leitmotifs, the Entity's finale, cue list, boss cards and enrage layers, device budget) and `tools/music/README.md` (setup, build, lint/analyze/pitchcheck tools).
 - **Rebuild:** `python3 tools/music/build.py <score>` (or `--all`; `--stingers [names]` for cues), then `npm run sync-assets`. The build regenerates `src/utils/musicLoops.js` (loop points + each track's `tonic`) and `src/utils/musicStingers.js`, so never hand-edit them. A form check refuses any score with a bar where nothing sounds (declare intended silence in `score.silent_ok`).
+- **The palette:** `tools/music/engine/palette.py` picks each instrument's library at render time. The game ships `HOUSE` (the sound lab's blind-A/B verdicts): Sonatina Symphonic Orchestra 4 for string sections, solo violin (the performer's `clean` style), oboe, celesta, choir and oohs; Virtual Playing Orchestra 3 for horns/trumpets/trombones; the legacy registry (VSCO 2 CE, GeneralUser GS) for the rest. A score may change one for itself (`s.palette`). Any other `--palette` is an audition and never writes game assets. Those licences need credit: the help overlay's Meta › Music Credits page and `docs/music-credits.md` (the soundtrack is CC BY-SA 4.0; `tests/MusicCredits.test.js` holds the credit to the palette). `bash tools/music/fetch_libraries.sh` fetches every library.
 - **Seamless loops:** each file is an intro plus a loop region. `AudioManager` plays it through `LoopedMusic` (Web Audio `loopStart`/`loopEnd`) and falls back to a whole-file loop without Web Audio. A layer that can't share the primary's timeline (stale cache) is dropped, never mis-looped.
 - **Adaptive battles:** field battle themes ship as `<key>` + `<key>_calm` on one timeline (`MUSIC_LAYERS`). `BattleMusicController` + `engine/MusicIntensity.js` crossfade calm↔full on combat and threat; `audio.setMusicIntensity()` is the API.
-- **Which battle theme:** `engine/BattleMusicSelection.js` (pure) picks a non-boss battle's track from `battleMusicContext(...)`: escape → eclipsed / village under attack / recruit rescue / elite (`MUSIC.battleSituation`) → the map's biome (`MUSIC.battleBiome`; castles and bandit villages take only a share, `THEME_SHARE`) → the act pool (`MUSIC.battle`). Picks are hashed from the run seed (a resumed battle keeps its track); the act pool is walked per run by node row, so a path never repeats a theme until the pool is spent, and every run opens on Ember Dusk. A new place or situation theme is a score plus one table entry; `MusicLibrary.test.js` checks every one is adaptive and every biome key is a real template biome.
+- **Which battle theme:** `engine/BattleMusicSelection.js` (pure) picks a non-boss battle's track from `battleMusicContext(...)`: escape → eclipsed / village under attack / recruit rescue / elite, each act its own company (`MUSIC.battleSituation`; an entry is a key, a pool, or a table by act) → the map's biome (`MUSIC.battleBiome`) → a caravan, a bandit village, fog of war → the act pool (`MUSIC.battle`). Castles, caravans, bandit villages and fog take only a share of their battles (`THEME_SHARE`). Picks are hashed from the run seed (a resumed battle keeps its track); the act pool is walked per run by node row, so a path never repeats a theme until the pool is spent, and every run opens on Ember Dusk. A new place or situation theme is a score plus one table entry; `MusicLibrary.test.js` checks every one is adaptive and every biome key is a real template biome.
 - **Boss enrage:** each boss theme ships `<theme>_enrage_<boss>` (same timeline, `getBossEnrageLayer`); `BattleMusicController.onBossEnrage()` crossfades to it when turn pressure enrages the boss (`setMusicIntensity('enrage')`).
 - **Entity finale (`ENTITY_FINALE`):** the Entity has no enrage layer. Its first wound (`onCombatResolved`, or turn-pressure enrage first) cuts its theme, leaves 2 s of silence, plays the `entity_answer` hinge cue and starts `music_boss_entity_finale` on the cue's `handoff` downbeat (`playMusic(..., { startAt })`, sample-aligned). The `_hum` stem is an additive layer (`layerGains`) whose level follows the Entity's HP (`audio.setMusicLayerGain`). A resumed battle with a wounded Entity opens on the finale. On the finale's downbeat the army answers, one line every two bars over each speaker's unit (`onFinale` → `BattleBeatsController.entityRally`, composed by `engine/FinaleRally.js`).
 - **Stingers:** `audio.playStinger(name, { fallbackSfx, duck, waitMs })` plays a cue in the key of the current track (keyed cues exist per tonic) and ducks the music; `stopStingers()` fades them. Ceremonies call them through `src/ui/ceremonyMusic.js`; boss cards map in `BOSS_CARD_CUES` (the Entity: silence).
+- **The iOS app's music:** the TestFlight workflow re-encodes every music track at LAME V6 (`tools/ios/compactMusic.mjs`, about a quarter smaller, checked sample-for-sample against the original's length) so the app stays under Apple's 200 MB cellular download limit; the web game keeps the build's V4.
 - **Adding a cue:** write a score (or stinger), build it, add the key to `musicConfig.js`. `tests/MusicLibrary.test.js` fails on missing files, orphans, bad loop points, a boss without an enrage layer (the Entity excepted) or a keyed stinger missing a key.
 
 ## Art Pipeline (Imagen API)

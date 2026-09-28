@@ -250,8 +250,17 @@ export class FormationController {
     return placedCount(this.formation);
   }
 
+  /** Everyone is placed, each on a tile they may stand on. */
   complete() {
-    return isComplete(this.formation);
+    return isComplete(this.formation) && this.formation.at.every((t, u) => !this.issue(u, t));
+  }
+
+  /** Whether placing u on t sends the unit there back to waiting (it can't take u's tile). */
+  displaces(u, t) {
+    const occupant = unitOnTile(this.formation, t);
+    const vacated = this.formation.at[u];
+    if (occupant === -1 || occupant === u) return false;
+    return vacated === null || Boolean(this.issue(occupant, vacated));
   }
 
   // --- Player actions ----------------------------------------------------------
@@ -312,7 +321,8 @@ export class FormationController {
 
   assign(u, t) {
     if (this.issue(u, t)) return false;
-    this.formation = placeUnit(this.formation, u, t);
+    // A displaced unit only swaps onto a tile it may stand on; otherwise it waits.
+    this.formation = placeUnit(this.formation, u, t, (o, tile) => !this.issue(o, tile));
     this.syncField();
     return true;
   }
@@ -330,20 +340,16 @@ export class FormationController {
   }
 
   /**
-   * Place everyone still benched: a unit first takes its default tile (the one the
-   * battle would have given it), then matching fills the rest, strict rules first.
+   * Place everyone still benched. Each unit's default tile (the one the battle
+   * would have given it) is a preference, not a lock: the fill places as many
+   * units as any assignment could and keeps the most of them on their defaults,
+   * moving a default only when a fuller formation needs its tile. Units the player
+   * placed never move.
    */
   autoPlace() {
     if (!this.ready) return;
-    let f = this.formation;
-    for (const [u, tile] of this.defaultTiles.entries()) {
-      if (f.at[u] !== null) continue;
-      const t = this.tileIndexAt(tile.col, tile.row);
-      if (t === -1 || unitOnTile(f, t) !== -1 || this.issue(u, t)) continue;
-      f = placeUnit(f, u, t);
-    }
-    f = autoFill(f, (u, t) => !this.issue(u, t));
-    this.formation = f;
+    const seeds = this.defaultTiles.map((tile) => this.tileIndexAt(tile.col, tile.row));
+    this.formation = autoFill(this.formation, (u, t) => !this.issue(u, t), { seeds });
     this.heldUnit = null;
     this.syncField();
   }

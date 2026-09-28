@@ -4,14 +4,17 @@ import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { GUIDANCE_LABELS, isVeteranMeta, resolveGuidance } from '../engine/Guidance.js';
 import {
+  PORTRAIT_BATTLE_CHANGE_EVENT,
   getPortraitBattlePreference,
   setPortraitBattlePreference,
   showPortraitBattleSetting,
-  syncRotatePromptCopy,
 } from '../utils/portraitBattle.js';
+import { trackScrollEdges } from './scrollEdgeCue.js';
 export class SettingsMenu {
   constructor(scene, onClose) {
     this.surface = new MenuSurface(scene, 'Settings', onClose, { modal: true });
+    // Upright phones show Settings as a full-screen sheet (cohesion.css).
+    this.surface.root.classList.add('re-settings');
     const settings = scene.registry.get('settings');
     const audio = scene.registry.get('audio');
     const list = element('div', null, 're-scroll re-menu');
@@ -67,6 +70,7 @@ export class SettingsMenu {
       };
       render();
       list.append(control, element('p', help, 're-muted'));
+      return render;
     };
     // Guidance: Full / Light / Off. Shows the effective level; while untouched it is
     // Full for a save slot that has not finished a run and Light afterwards.
@@ -179,23 +183,33 @@ export class SettingsMenu {
         're-muted',
       ),
     );
-    // Phones only: device-local, never synced (see utils/portraitBattle.js). Not in the
-    // iOS app or the installed web app, which hold the screen in landscape.
+    // Touch devices only: device-local, never synced (see utils/portraitBattle.js). On by
+    // default on a phone. Not in the iPad app, which holds the screen in landscape.
     if (showPortraitBattleSetting({ mobile: detectMobileRuntime() })) {
-      toggle(
-        'Portrait battles (beta)',
+      const renderPortrait = toggle(
+        'Portrait mode',
         () => getPortraitBattlePreference(),
-        (value) => {
-          setPortraitBattlePreference(value);
-          syncRotatePromptCopy();
-        },
-        'Play battles with the phone upright: the map turns so your army starts at the bottom. The route map and other menus stay landscape. Takes effect on your next turn.',
+        (value) => setPortraitBattlePreference(value),
+        'Hold the phone upright to play. Off: the game stays sideways.',
       );
+      // The rotate prompt's "Play upright" can turn it on while this menu is open
+      // behind the prompt: keep the label true to the setting.
+      if (typeof window !== 'undefined') {
+        window.addEventListener(PORTRAIT_BATTLE_CHANGE_EVENT, renderPortrait);
+        const destroySurface = this.surface.destroy.bind(this.surface);
+        this.surface.destroy = () => {
+          window.removeEventListener(PORTRAIT_BATTLE_CHANGE_EVENT, renderPortrait);
+          destroySurface();
+        };
+      }
     }
     this.surface.body.append(list);
+    // The long list fades the edge that has more to scroll.
+    this.edges = trackScrollEdges(list);
     this.surface.focusContent();
   }
   destroy() {
+    this.edges?.destroy();
     this.surface.destroy();
   }
 }

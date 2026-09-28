@@ -380,6 +380,7 @@ export class NativeSaveMirror {
       this.records.set(key, {
         seq: record.seq,
         value: record.value,
+        deletedSavedAt: record.deletedSavedAt ?? null,
         slot: slots.get(key),
         pending: 0,
       });
@@ -509,13 +510,18 @@ export class NativeSaveMirror {
         continue;
       }
       const previous = this.records.get(key);
-      if (previous && previous.value === value) continue;
+      const deletedSavedAt = value === null ? (this.stamps.get(key) ?? null) : null;
+      if (
+        previous &&
+        previous.value === value &&
+        (value !== null || (previous.deletedSavedAt ?? null) === deletedSavedAt)
+      )
+        continue;
       // A key that never reached disk needs no tombstone — unless a stamped
       // save of it was seen (written, then removed within one debounce): its
       // tombstone is what lets a launch remove that save if WebKit kept it.
       if (!previous && value === null && !this.stamps.has(key)) continue;
       if (value !== null) this.noteStamp(key, readSavedAt(value));
-      const deletedSavedAt = value === null ? (this.stamps.get(key) ?? null) : null;
       const entry = previous || { seq: 0, value: undefined, slot: null, pending: 0 };
       const [a, b] = recordFileNames(key);
       // writeFile is not atomic (a kill or a full disk can tear the file), so
@@ -528,6 +534,7 @@ export class NativeSaveMirror {
       const seq = entry.seq + 1;
       entry.seq = seq;
       entry.value = value;
+      entry.deletedSavedAt = deletedSavedAt;
       entry.pending = (entry.pending || 0) + 1;
       this.records.set(key, entry);
       const settle = (ok, error) => {

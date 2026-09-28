@@ -10,7 +10,13 @@ import { rebuiltPortraitKey } from './RebuiltPortraits.js';
 import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js';
 import { textureImageSource } from './textureImageSource.js';
 import { createRouteGraph } from './RouteGraph.js';
-import { createLoomHeading, renderLoomCard } from './LoomPanels.js';
+import {
+  appendLoomCardNote,
+  createLoomHeading,
+  renderLoomCard,
+  trackLoomCardOverflow,
+} from './LoomPanels.js';
+import { portraitListLayout, watchPortraitListLayout } from './portraitListLayout.js';
 import { throttledRead } from '../utils/throttledRead.js';
 import { createEclipseMedallion, openEclipseCard } from './EclipsePanels.js';
 import { fallToastText, kindlePrice } from '../engine/EclipseSystem.js';
@@ -99,6 +105,12 @@ export class NodeMapMenu {
       this._syncEclipseFalls(hidden);
     };
     scene.events.on('postupdate', this.sync);
+    // Turning the phone moves the sheet's controls into reading order for the new
+    // layout (and the Eclipse's fall line to where that layout shows it).
+    this._unwatchLayout = watchPortraitListLayout(() => {
+      this._orderSheet();
+      this._placeToast();
+    });
     this.shutdown = () => this.destroy();
     scene.events.once('shutdown', this.shutdown);
   }
@@ -114,7 +126,8 @@ export class NodeMapMenu {
   _available() {
     const rm = this.scene.runManager;
     const available = new Set(rm.getAvailableNodes().map((n) => n.id));
-    for (const node of rm.nodeMap.nodes) if (rm.canReenterShop?.(node.id)) available.add(node.id);
+    for (const node of rm.nodeMap.nodes)
+      if (rm.canReenterService?.(node.id)) available.add(node.id);
     return available;
   }
 
@@ -136,9 +149,10 @@ export class NodeMapMenu {
       ? document.activeElement.dataset.node
       : null;
     // Preserve browsing position across selection, services and redraws of the same
-    // act; a new act's loom anchors on its first choices.
+    // act (even if the loom turned upright meanwhile); a new act's loom anchors on its
+    // first choices.
     const sameMap = this._nodeMap === rm.nodeMap;
-    const scroll = sameMap ? (this.routeGraph?.scrollLeft ?? null) : null;
+    const scroll = sameMap ? (this.routeGraph?.scrollPosition ?? null) : null;
     this._nodeMap = rm.nodeMap;
     this.routeGraph?.destroy();
     this.root.replaceChildren();
@@ -190,14 +204,9 @@ export class NodeMapMenu {
     const frame = element('div', null, 're-loom-frame');
     frame.setAttribute('aria-hidden', 'true');
     wrap.append(this.scroll, frame);
-    const updateHints = () => {
-      const el = this.scroll;
-      wrap.classList.toggle('more-left', el.scrollLeft > 2);
-      wrap.classList.toggle('more-right', el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
-    };
-    this.scroll.addEventListener('scroll', updateHints, { passive: true });
 
-    // Pane order (README): Menu/Roster, inspect card, Travel, lord chips.
+    // Pane order (README): Menu/Roster, inspect card, Travel, lord chips. Upright the
+    // sheet reads card, Travel, then Menu/Roster beside the lords (_orderSheet).
     const side = element('aside', null, 're-node-side');
     side.setAttribute('aria-label', 'Route actions');
     const actions = element('div', null, 're-node-actions');
@@ -207,6 +216,8 @@ export class NodeMapMenu {
     );
     this.detail = element('section', null, 're-scroll re-node-detail re-loom-card');
     this.detail.setAttribute('aria-live', 'polite');
+    this._cardOverflow?.destroy();
+    this._cardOverflow = trackLoomCardOverflow(this.detail);
     this.travel = button(
       null,
       () => {
@@ -222,7 +233,7 @@ export class NodeMapMenu {
     );
     const party = element('div', null, 're-node-party re-loom-party');
     for (const unit of (rm.roster || []).filter((u) => u.isLord).slice(0, 2)) {
-      const row = button(null, () => s._openRoster(), 're-btn re-node-unit');
+      const row = button(null, () => s._openRoster(unit), 're-btn re-node-unit');
       const key = rebuiltPortraitKey(s, unit);
       const pc98Id = usePc98() ? portraitIdForUnit(unit, s.gameData || {}) : null;
       if (pc98Id) {
@@ -248,20 +259,44 @@ export class NodeMapMenu {
       party.append(row);
     }
     side.append(actions, this.detail, this.travel, party);
+    Object.assign(this, { side, actions, party, wrap });
+    this._orderSheet();
     layout.append(wrap, side);
     this.root.append(header, layout);
-    if (this._toast?.isConnected === false && this._toastUntil > Date.now())
-      this.root.append(this._toast);
+    if (this._toast?.isConnected === false && this._toastUntil > Date.now()) this._placeToast();
 
     this._renderSelection();
-    this.routeGraph.mount(this.scroll, { scrollLeft: scroll ?? null });
+    // The route owns the edge cues (more-left/right, or more-up/down upright).
+    this.routeGraph.mount(this.scroll, { position: scroll, cues: wrap });
     this.routeGraph.setActive(!this.root.hidden);
-    updateHints();
     if (focus)
       [...this.root.querySelectorAll('[data-node]')]
         .find((b) => b.dataset.node === focus)
         ?.focus({ preventScroll: true });
     this.sync();
+  }
+
+  /**
+   * Keyboard, gamepad and screen-reader order follow what the player sees: sideways
+   * the pane reads Menu/Roster, card, Travel, lords; upright the sheet reads card,
+   * Travel, then Menu/Roster beside the lords (loom.css grid areas).
+   */
+  _orderSheet() {
+    const { side, actions, party, detail } = this;
+    if (!side || !actions || !party || !detail || this.destroyed) return;
+    const before = portraitListLayout() ? party : detail;
+    if (actions.nextElementSibling === before) return;
+    const focused = actions.contains(document.activeElement) ? document.activeElement : null;
+    side.insertBefore(actions, before);
+    focused?.focus({ preventScroll: true });
+  }
+
+  /** The fall line sits over the loom's head upright, over the screen's foot sideways. */
+  _placeToast() {
+    const toast = this._toast;
+    if (!toast || this.destroyed || !(this._toastUntil > Date.now())) return;
+    const host = portraitListLayout() && this.wrap ? this.wrap : this.root;
+    if (toast.parentElement !== host) host.append(toast);
   }
 
   _select(id) {
@@ -276,7 +311,7 @@ export class NodeMapMenu {
       nodes = rm.nodeMap.nodes;
     const available = this._available();
     const selected = nodes.find((n) => n.id === this.selected);
-    const shopOpen = !!rm.canReenterShop?.(this.selected);
+    const shopOpen = !!rm.canReenterService?.(this.selected);
     renderLoomCard(this.detail, selected, {
       model: this.routeGraph.model,
       actId: rm.nodeMap.actId || rm.currentAct,
@@ -287,17 +322,16 @@ export class NodeMapMenu {
       eclipse: this.eclipseView,
     });
     if (rm.pendingBattleReward)
-      this.detail.append(
-        element(
-          'p',
-          'Choose your remaining battle rewards before advancing. You can still review your roster and menu.',
-          're-loom-note',
-        ),
+      appendLoomCardNote(
+        this.detail,
+        'Choose your remaining battle rewards before advancing. You can still review your roster and menu.',
       );
     const label = rm.pendingBattleReward
       ? 'Return to rewards'
       : shopOpen
-        ? 'Re-enter shop'
+        ? selected?.type === 'ruins'
+          ? 'Return to ruins'
+          : `Re-enter ${selected?.type === 'church' ? 'church' : 'shop'}`
         : 'Travel';
     this.travel.replaceChildren(element('span', label));
     const enabled = !!rm.pendingBattleReward || available.has(this.selected);
@@ -379,7 +413,7 @@ export class NodeMapMenu {
     toast.setAttribute('role', 'status');
     this._toast = toast;
     this._toastUntil = Date.now() + ECLIPSE_TOAST_MS;
-    this.root.append(toast);
+    this._placeToast();
     clearTimeout(this._toastTimer);
     this._toastTimer = setTimeout(() => {
       toast.remove();
@@ -391,6 +425,8 @@ export class NodeMapMenu {
     if (this.destroyed) return;
     this.destroyed = true;
     clearTimeout(this._toastTimer);
+    this._unwatchLayout?.();
+    this._cardOverflow?.destroy();
     this._eclipseCard?.destroy();
     this._eclipseCard = null;
     popInputScope(this);

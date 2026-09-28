@@ -321,6 +321,36 @@ test('church: chooser shows the path; the rite plays after gold, promotion and s
   expect(errors).toEqual([]);
 });
 
+test('church chooser for Sera: staves she already uses read as a rank, not a gain', async ({
+  page,
+}) => {
+  const errors = collect(page);
+  await settings(page);
+  await page.goto('/?devScene=nodemap&preset=battle_smoke&seed=42&mobilePreview=1');
+  await waitForScene(page, 'NodeMap');
+  await page.getByRole('button', { name: 'Skip conversation', exact: true }).tap();
+  const before = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    s.runManager.gold = 10000;
+    const sera = s.runManager.roster.find((u) => u.name === 'Sera');
+    sera.level = 10;
+    s.handleChurch(s.runManager.getAvailableNodes()[0]);
+    return { className: sera.className, staff: sera.proficiencies.find((p) => p.type === 'Staff') };
+  });
+  // A Light Sage already heals: the run gives Sera Staff (Proficient) and a staff.
+  expect(before).toEqual({ className: 'Light Sage', staff: { type: 'Staff', rank: 'Prof' } });
+  const church = page.getByRole('dialog', { name: 'Church', exact: true });
+  await church.getByRole('button', { name: /Sera.*Light Sage/ }).tap();
+  const chooser = page.getByRole('dialog', { name: 'Promote Sera', exact: true });
+  const card = chooser.locator('.gr-path[data-path="Light Priestess"]');
+  await expect(card.locator('.gr-path-title small')).toHaveText('Infantry · Staves: Master, +MOV');
+  await expect(card).not.toContainText('Gains Staves');
+  await expect(card.locator('.gr-rank.is-up')).toHaveText(['Light P→M', 'Staff P→M']);
+  await chooser.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(chooser).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('roster Sovereign Seal between battles: chooser, save, rite over the roster', async ({
   page,
 }) => {

@@ -40,6 +40,14 @@ const recruitClasses = gameData.classes
   .map((c) => c.name);
 
 describe('unit voice content contract', () => {
+  it('lean-level lines never claim zero growth', () => {
+    for (const [path, line] of allLines(voice).filter(([p]) => p.includes('.blank'))) {
+      expect(line, path).not.toMatch(
+        /nothing(?:[.!?]| (?:gained|grew|new|today))|no (?:change|gain|progress|improvement|new insight)|unchanged|not a thing|learned nothing|same as (?:before|yesterday)|\bsame\b[^.]*\bsame\b|unrewarded/i,
+      );
+    }
+  });
+
   it('every line fits the budget, is single-line and quote-free', () => {
     const lines = allLines(voice);
     expect(lines.length).toBeGreaterThan(1000);
@@ -155,4 +163,15 @@ describe('unit voice content contract', () => {
     }
     expect(new Set(said).size).toBe(said.length);
   });
+});
+
+it('scout flavor avoids invented enemy counts, weapons and classes', () => {
+  // Figurative numbers and travel-time details do not promise encounter composition.
+  const allowed = /(?:this|that) one|one (?:way|name|vessel|army|more|chimney|last)|two days/gi;
+  for (const [path, line] of allLines(gameData.dialogue.nodeFlavor, 'nodeFlavor')) {
+    const literal = line.replace(allowed, '');
+    expect(literal, path).not.toMatch(
+      /\b(?:one|two|three|four|five|six|forty|\d+)\s+\w+|\b(?:swords?|lances?|axes?|bows?|knights?|mages?|fighters?|soldiers?|hammers?|picks)\b/i,
+    );
+  }
 });

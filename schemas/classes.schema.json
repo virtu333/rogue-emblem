@@ -135,7 +135,10 @@
         "promotionBonuses": { "$ref": "#/$defs/statBlock" },
         "moveType": { "$ref": "#/$defs/moveType" },
         "weaponProficiencies": { "type": "string" },
-        "roleChange": { "type": "string" },
+        "roleChange": {
+          "type": "string",
+          "description": "The promotion path's note after its weapons. Never name a weapon: the chooser builds 'Gains Axes' (or 'Staves: Master' for a weapon the unit already uses) from weaponProficiencies."
+        },
         "growthBonuses": { "$ref": "#/$defs/partialStatBlock" },
         "learnableSkills": {
           "type": "array",

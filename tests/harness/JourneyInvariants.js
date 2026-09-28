@@ -79,6 +79,7 @@ export function journeySnapshot(run) {
       ? { ...clone(run.activeCaravanShop), shopState: stock(run.activeCaravanShop.shopState) }
       : null,
     churchPromotionTracker: clone(run._churchPromotionTracker),
+    ruinsChoices: clone(run.ruinsChoiceByNodeId || {}),
     shownDialogueKeys: clone(run.shownDialogueKeys || []),
   };
 }

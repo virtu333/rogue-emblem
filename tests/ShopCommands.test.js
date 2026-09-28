@@ -4,6 +4,7 @@ import { loadGameData } from './testData.js';
 import {
   purchaseShopItem,
   sellShopItem,
+  shopSellWarnings,
   shopOwnedItems,
   forgeShopWeapon,
 } from '../src/engine/ShopCommands.js';
@@ -145,11 +146,33 @@ describe('shop purchase transaction boundaries', () => {
 });
 
 describe('shop sell ownership and equipment safety', () => {
-  it('refuses the last combat weapon even when a non-proficient weapon is carried', () => {
-    unit.inventory.push(clone(data.weapons.find((w) => w.name === 'Iron Bow')));
-    const before = state();
-    expect(sellShopItem(run, ownedRow(unit.weapon)).ok).toBe(false);
-    expect(state()).toBe(before);
+  it('sells the last combat weapon with a warning, leaving the unit unarmed', () => {
+    const bow = clone(data.weapons.find((w) => w.name === 'Iron Bow'));
+    unit.inventory.push(bow);
+    const last = unit.weapon;
+    const row = ownedRow(last);
+    // Edric has no Bow rank, so the sword is his last combat weapon.
+    expect(shopSellWarnings(run, row)).toEqual([{ code: 'leaves_unarmed', unit }]);
+    const gold = run.gold;
+    expect(sellShopItem(run, row)).toEqual({
+      ok: true,
+      message: `Sold Iron Sword for ${getSellPrice(last)}G. Edric is now unarmed.`,
+    });
+    // He keeps the bow he can't wield; nothing is equipped.
+    expect(unit.inventory).toEqual([bow]);
+    expect(unit.weapon).toBeNull();
+    expect(run.gold).toBe(gold + getSellPrice(last));
+    // A stale row is refused and carries no warning.
+    expect(sellShopItem(run, row).ok).toBe(false);
+    expect(shopSellWarnings(run, row)).toEqual([]);
+  });
+  it('warns for no other sale: a spare weapon or a supply', () => {
+    const spare = sword();
+    unit.inventory.push(spare);
+    unit.consumables = [supply()];
+    expect(shopSellWarnings(run, ownedRow(spare))).toEqual([]);
+    expect(shopSellWarnings(run, ownedRow(unit.weapon))).toEqual([]);
+    expect(shopSellWarnings(run, ownedRow(unit.consumables[0]))).toEqual([]);
   });
   it('auto-equips the remaining usable weapon and prevents selling the stale row twice', () => {
     const sold = unit.weapon,

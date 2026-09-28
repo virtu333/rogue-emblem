@@ -9,6 +9,7 @@ import Phaser from 'phaser';
 import { resolveStartingLordDefs } from '../engine/Commander.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import {
+  DOUBLE_ATTACK_SPD_THRESHOLD,
   MAX_STARTING_SKILLS,
   STARTING_ACCESSORY_TIERS,
   STARTING_STAFF_TIERS,
@@ -25,7 +26,11 @@ import { BoundingFocusController } from '../ui/BoundingFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { portraitCanvasFrame } from '../ui/portraitArt.js';
-import { retryPendingEndRunPayout } from '../engine/RunManager.js';
+import {
+  retryPendingEndRunPayout,
+  baseVisionChargesFor,
+  legendaryLordChanceFor,
+} from '../engine/RunManager.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 
 const CATEGORIES = [
@@ -81,7 +86,8 @@ const STAT_GAMEPLAY_HINTS = {
   STR: 'Strength — adds to physical attack damage.',
   MAG: 'Magic — adds to magical damage and healing.',
   SKL: 'Skill — improves hit rate, crit chance, and skill activation.',
-  SPD: 'Speed — improves avoid. Double attack if SPD >= foe +5.',
+  // Doubling runs on Atk Spd (SPD less weapon weight past STR / 5), as Combat.canDouble does.
+  SPD: `Speed — improves avoid and Atk Spd. Strike twice when Atk Spd beats the foe's by ${DOUBLE_ATTACK_SPD_THRESHOLD}; heavy weapons lower it.`,
   DEF: 'Defense — reduces physical damage taken.',
   RES: 'Resistance — reduces magical damage taken.',
   LCK: 'Luck — small hit/avoid bonus, reduces enemy crit.',
@@ -961,6 +967,16 @@ export class HomeBaseScene extends Phaser.Scene {
       return `+${Math.round(effect.lordRecruitChanceBonus * 100)}%`;
     if (effect.recruitPromotionChanceBonus !== undefined)
       return `+${Math.round(effect.recruitPromotionChanceBonus * 100)}%`;
+    if (effect.caravanChanceBonus !== undefined)
+      return `+${Math.round(effect.caravanChanceBonus * 100)}%`;
+    if (effect.legendaryLordChanceBonus !== undefined)
+      return `${Math.round(legendaryLordChanceFor(effect.legendaryLordChanceBonus) * 100)}% chance`;
+    if (effect.visionChargesBonus !== undefined) {
+      // The bonus is the run's total (tiers and chained upgrades replace, never
+      // add), so name the charges a run starts with, as the battle counts them.
+      const charges = baseVisionChargesFor(effect.visionChargesBonus);
+      return `Start with ${charges} ${charges === 1 ? 'Vision' : 'Visions'}`;
+    }
     if (effect.deployBonus !== undefined) return `+${effect.deployBonus}`;
     if (effect.rosterCapBonus !== undefined) return `+${effect.rosterCapBonus}`;
     if (effect.recruitStartingVulnerary !== undefined) return `+${effect.recruitStartingVulnerary}`;
@@ -978,9 +994,20 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.deadlyArsenal !== undefined) return 'Tier 2';
     if (effect.recruitRandomSkill) return '+1 random combat skill';
     if (effect.startingAccessoryTier !== undefined)
-      return STARTING_ACCESSORY_TIERS[effect.startingAccessoryTier] || '?';
+      return (
+        STARTING_ACCESSORY_TIERS[effect.startingAccessoryTier] ||
+        `Tier ${effect.startingAccessoryTier}`
+      );
     if (effect.startingStaffTier !== undefined)
-      return STARTING_STAFF_TIERS[effect.startingStaffTier] || '?';
+      return STARTING_STAFF_TIERS[effect.startingStaffTier] || `Tier ${effect.startingStaffTier}`;
+    if (effect.startingReclassSeal !== undefined)
+      return `+${effect.startingReclassSeal} Infantry Seal`;
+    if (effect.ironArms !== undefined || effect.steelArms !== undefined) return 'Enabled';
+    if (effect.artAdept !== undefined) return `+${effect.artAdept} art`;
+    if (effect.extraSkillSlot !== undefined)
+      return `${Math.min(1 + effect.extraSkillSlot, MAX_STARTING_SKILLS)} skill slots`;
+    if (effect.commanderChoiceTier !== undefined)
+      return effect.commanderChoiceTier >= 2 ? 'Choose both lords' : 'Choose commander';
     if (effect.unlockSkill !== undefined) return 'Unlocked';
     if (effect.masterOfArms) return 'Enabled';
     if (effect.thirdLordMode !== undefined) {
@@ -990,14 +1017,17 @@ export class HomeBaseScene extends Phaser.Scene {
         pick3_reroll: '+ Reroll',
         pick_all: 'Pick any lord',
       };
-      return labels[effect.thirdLordMode] || '?';
+      return labels[effect.thirdLordMode] || 'Enabled';
     }
-    return '?';
+    // Unknown effect: _getValueTexts names the tier instead of a placeholder.
+    return null;
   }
 
   _getValueTexts(upgrade, level) {
-    const current = level > 0 ? this._formatEffectValue(upgrade.effects[level - 1]) : null;
-    const next = level < upgrade.maxLevel ? this._formatEffectValue(upgrade.effects[level]) : null;
+    const format = (tier) =>
+      this._formatEffectValue(upgrade.effects?.[tier - 1] || {}) || `Tier ${tier}`;
+    const current = level > 0 ? format(level) : null;
+    const next = level < upgrade.maxLevel ? format(level + 1) : null;
     return { current, next };
   }
 

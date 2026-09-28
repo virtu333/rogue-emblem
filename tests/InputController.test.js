@@ -496,6 +496,20 @@ describe('tile info + path preview (shared by mouse hover and the gamepad cursor
     expect(scene.turnCounterText.setY).toHaveBeenCalled(); // updateTopLeftHudLayout ran
   });
 
+  it('refreshTileInfo spells out acid ground on its own lines (it read "Acid (2T)")', () => {
+    const bog = loadGameData().terrain.find((t) => t.name === 'Acidic Bog');
+    const scene = makeInfoScene();
+    scene.grid.getTerrainAt = vi.fn(() => bog);
+    const controller = new InputController(scene);
+    controller.refreshTileInfo(2, 3);
+    expect(scene.infoText.text.split('\n')).toEqual([
+      'Acidic Bog | Move: 2 | Avo -5',
+      'Ending a turn here causes Acid. Flying units are immune.',
+      'Acid: loses 5% of max HP at turn start, for 2 turns. Never below 1 HP.',
+      'Slow for all.',
+    ]);
+  });
+
   it('refreshTileInfo appends the unit line (weapon + XP) for a visible unit', () => {
     const unit = {
       name: 'Edric',
@@ -528,6 +542,59 @@ describe('tile info + path preview (shared by mouse hover and the gamepad cursor
     controller.refreshTileInfo(2, 3);
     expect(scene.infoText.text).not.toContain('Bandit');
     expect(scene.infoText.text).toContain('| Move: 2'); // Infantry cost, not Cavalry's 3
+  });
+
+  it('previews deterministic healing while hovering a highlighted ally', () => {
+    const unit = {
+      name: 'Edric',
+      currentHP: 12,
+      stats: { HP: 20 },
+      faction: 'player',
+      moveType: 'Infantry',
+    };
+    const scene = makeInfoScene({ getUnitAt: vi.fn(() => unit) });
+    scene.battleState = 'SELECTING_HEAL_TARGET';
+    scene.selectedUnit = { weapon: { type: 'Staff', healBase: 5 }, stats: { MAG: 1 } };
+    scene.healTargets = [unit];
+    const controller = new InputController(scene);
+    controller.refreshTileInfo(2, 3);
+    expect(scene.infoText.text).toContain('Heal +6 → 18/20 HP');
+    scene.healTargets = [];
+    controller.refreshHoverInfo();
+    expect(scene.infoText.text).not.toContain('Heal +');
+  });
+
+  it('refreshes stationary hover after HP changes, removal and fog without restoring cleared focus', () => {
+    const unit = {
+      name: 'Bandit',
+      level: 1,
+      currentHP: 12,
+      stats: { HP: 20 },
+      moveType: 'Cavalry',
+      faction: 'enemy',
+    };
+    const scene = makeInfoScene({ getUnitAt: vi.fn(() => unit) });
+    const controller = new InputController(scene);
+    controller.refreshTileInfo(2, 3);
+    unit.currentHP = 7;
+    controller.refreshHoverInfo();
+    expect(scene.infoText.text).toContain('HP 7/20');
+    scene.grid.fogEnabled = true;
+    scene.grid.isVisible.mockReturnValue(false);
+    controller.refreshHoverInfo();
+    expect(scene.infoText.text).not.toContain('Bandit');
+    expect(scene.infoText.text).toContain('Move: 2');
+    scene.grid.isVisible.mockReturnValue(true);
+    scene.getUnitAt.mockReturnValue(null);
+    controller.refreshHoverInfo();
+    expect(scene.infoText.text).not.toContain('HP');
+    controller.clearHoverInfo();
+    controller.refreshHoverInfo();
+    expect(scene.infoText.text).toBe('');
+    controller._hoverTile = { col: 2, row: 3 };
+    scene.battleState = 'BATTLE_END';
+    controller.refreshHoverInfo();
+    expect(scene.infoText.text).toBe('');
   });
 
   it('refreshTileInfo is a safe no-op before the info panel exists', () => {

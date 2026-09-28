@@ -28,14 +28,28 @@ import { traitLines } from './traitContent.js';
 import { calculateAvoid } from '../engine/Combat.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_PER_LEVEL } from '../utils/constants.js';
+import { teachScrollBlock, teachRosterScroll } from '../engine/RosterTransfers.js';
 import {
-  teachScrollBlock,
-  teachRosterScroll,
-  giveRosterItemBlock,
-  giveRosterItem,
-} from '../engine/RosterTransfers.js';
-import { canEquip, isLastCombatWeapon, inventoryDisplayOrder } from '../engine/UnitManager.js';
+  CONVOY_HOLDER,
+  applyTrade,
+  bagCapacity,
+  bagItems,
+  planTrade,
+  unitHolder,
+} from '../engine/ItemTrade.js';
+import { TradeMenu } from './TradeMenu.js';
+import { commitMessage, tradeWarningText } from './tradeMenuModel.js';
+import {
+  partnerHolder,
+  partnerLabel,
+  rosterTradePartners,
+  tradeBagFor,
+  tradePartnerItemText,
+  tradePartnerText,
+} from './rosterTradeChoices.js';
+import { inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { equippedBadgeElement } from './equippedBadge.js';
+import { weaponComparisonParts } from './equipmentComparison.js';
 import { itemKeywordRow } from './itemKeywordChips.js';
 import { itemKeywords, itemBaseLine } from '../engine/ItemKeywords.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
@@ -73,6 +87,7 @@ import { getDisplayLevel } from '../engine/UnitManager.js';
 import {
   rosterItemAction,
   rosterItemBlock,
+  rosterItemWarnings,
   rosterAccessoryAction,
 } from '../engine/RosterInventory.js';
 import { getStaffRemainingUses, getStaffMaxUses } from '../engine/Combat.js';
@@ -84,6 +99,7 @@ import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { unitTemperament } from './unitVoiceDisplay.js';
 import { itemIcon, itemHero } from './itemIcons.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
+import { portraitListLayout } from './portraitListLayout.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
 // and pen. Mice hold a line far tighter, so they keep the original 10px.
@@ -91,6 +107,18 @@ const DRAG_SLOP_TOUCH = 24;
 
 export function canShowMobileRoster() {
   return hasDOMHost();
+}
+// Scroll the portrait unit strip just enough to show the selected card whole.
+function revealInStrip(strip, card) {
+  if (!card) return;
+  const fade = 28; // the strip's right padding, under its fade-out edge
+  const box = strip.getBoundingClientRect();
+  const rect = card.getBoundingClientRect();
+  const left = rect.left - box.left - strip.clientLeft + strip.scrollLeft;
+  const right = left + rect.width;
+  if (left < strip.scrollLeft) strip.scrollLeft = left;
+  else if (right > strip.scrollLeft + strip.clientWidth - fade)
+    strip.scrollLeft = right - strip.clientWidth + fade;
 }
 function el(tag, text, cls) {
   const node = document.createElement(tag);
@@ -229,6 +257,8 @@ export class MobileRosterSheet {
   render(message = '') {
     if (this.destroyed) return;
     const oldScroll = this.root.querySelector('.mr-content')?.scrollTop || 0;
+    // Upright, the unit list is a sideways strip; keep its position across renders.
+    const oldStrip = this.root.querySelector('.mr-units')?.scrollLeft || 0;
     const focusKey = document.activeElement?.dataset?.focusKey;
     this.root.replaceChildren();
     const head = el('header');
@@ -339,6 +369,8 @@ export class MobileRosterSheet {
       b.dataset.focusKey = String(i);
     });
     body.scrollTop = oldScroll;
+    nav.scrollLeft = oldStrip;
+    if (portraitListLayout()) revealInStrip(nav, nav.querySelector('[aria-pressed="true"]'));
     if (focusKey)
       (this.root.querySelector(`[data-focus-key="${focusKey}"]`) || this.root).focus({
         preventScroll: true,
@@ -603,7 +635,13 @@ export class MobileRosterSheet {
     };
     const sourceLabel = (source) =>
       ({ meta_innate: 'Meta Innate', scroll: 'Scroll', innate: 'Innate' })[source] || 'Innate';
-    const flow = { weapon: null, replacement: null, weaponScroll: 0, replacementScroll: 0 };
+    const flow = {
+      weapon: null,
+      replacement: null,
+      bound: false,
+      weaponScroll: 0,
+      replacementScroll: 0,
+    };
     const openStep = (options, onApplied, onBack, scrollKey) => {
       if (this.destroyed) return;
       let committed = false;
@@ -618,6 +656,7 @@ export class MobileRosterSheet {
           return result;
         },
         onClose: () => {
+          if (scrollKey === 'replacementScroll') flow.replacement = this.picker?.selected;
           this.picker = null;
           if (this.destroyed) return;
           if (committed) onApplied?.();
@@ -640,31 +679,13 @@ export class MobileRosterSheet {
         );
       }
     };
-    const showConfirm = () => {
-      const { unit, weapon } = flow.weapon;
-      const replacement = flow.replacement;
-      const old = replacement ? arts.find((a) => a.id === replacement.id) : null;
-      openStep(
-        {
-          title: old ? `Replace ${old.name}?` : 'Bind weapon art',
-          choices: [weapon],
-          confirmation: true,
-          label: (w) => w.name,
-          describe: () =>
-            `${unit.name} · Uses one ${scroll.name} on Confirm. Back uses nothing.${replacement ? `\nReplaces ${sourceLabel(replacement.source)} art ${old?.name || replacement.id}.` : ''}`,
-          preview: () =>
-            `${replacement ? `REMOVE\n${artDescription(replacement.id, unit)}\n\n` : ''}ADD\n${artDescription(scroll.teachesWeaponArtId?.trim(), unit)}`,
-          blocked: () => rosterArtBlock(this.run, unit, weapon, scroll, arts),
-          apply: () => {
-            const result = bindRosterArt(this.run, unit, weapon, scroll, arts, replacement);
-            if (result.ok)
-              this.render(`${scroll.name} bound to ${weapon.name}.${this.persistNow()}`);
-            return result;
-          },
-        },
-        () => this.root.querySelector('button')?.focus(),
-        replacement ? showReplacement : showWeapons,
-      );
+    const bind = (unit, weapon, replacement = null) => {
+      const result = bindRosterArt(this.run, unit, weapon, scroll, arts, replacement);
+      if (result.ok) {
+        flow.bound = true;
+        this.render(`${scroll.name} bound to ${weapon.name}.${this.persistNow()}`);
+      }
+      return result;
     };
     const showReplacement = () => {
       const { unit, weapon } = flow.weapon;
@@ -673,22 +694,24 @@ export class MobileRosterSheet {
       openStep(
         {
           title: 'Choose art to replace',
+          confirmLabel: 'Replace',
           choices: bindings,
           initialChoice: bindings.find(
             (b) =>
               b.index === previous?.index && b.id === previous.id && b.source === previous.source,
           ),
           label: (b) => arts.find((a) => a.id === b.id)?.name || b.id,
-          describe: (b) => `Slot ${b.index + 1} · ${sourceLabel(b.source)}`,
+          describe: (b) =>
+            `Slot ${b.index + 1} · ${sourceLabel(b.source)}. Uses one ${scroll.name} on Replace. Back uses nothing.`,
           preview: (b) =>
             `REMOVE\n${artDescription(b.id, unit)}\n\nADD\n${artDescription(scroll.teachesWeaponArtId?.trim(), unit)}`,
           blocked: () => rosterArtBlock(this.run, unit, weapon, scroll, arts),
           apply: (choice) => {
             flow.replacement = choice;
-            return { ok: true };
+            return bind(unit, weapon, choice);
           },
         },
-        showConfirm,
+        () => this.root.querySelector('button')?.focus(),
         showWeapons,
         'replacementScroll',
       );
@@ -700,19 +723,23 @@ export class MobileRosterSheet {
           choices,
           initialChoice: flow.weapon,
           label: (c) => `${c.unit.name} · ${c.weapon.name}`,
-          describe: (c) => `${getWeaponArtBindings(c.weapon).length}/3 art slots`,
+          describe: (c) =>
+            `${getWeaponArtBindings(c.weapon).length}/3 art slots. ${getWeaponArtBindings(c.weapon).length < 3 ? `Uses one ${scroll.name} on Confirm. Back uses nothing.` : 'Next: choose an art to replace.'}`,
+          preview: (c) => artDescription(scroll.teachesWeaponArtId?.trim(), c.unit),
           blocked: (c) => rosterArtBlock(this.run, c.unit, c.weapon, scroll, arts),
           apply: (choice) => {
             if (flow.weapon !== choice) flow.replacement = null;
             flow.weapon = choice;
-            return { ok: true };
+            return getWeaponArtBindings(choice.weapon).length < 3
+              ? bind(choice.unit, choice.weapon)
+              : { ok: true };
           },
         },
         () => {
-          if (getWeaponArtBindings(flow.weapon.weapon).length >= 3) showReplacement();
+          if (!flow.bound) showReplacement();
           else {
             flow.replacement = null;
-            showConfirm();
+            this.root.querySelector('button')?.focus();
           }
         },
         null,
@@ -737,22 +764,94 @@ export class MobileRosterSheet {
       },
     });
   }
-  giveItem(source, item) {
-    this.chooseUnit(
-      `Give ${item.name}${item.type !== 'Consumable' && isLastCombatWeapon(source, item) ? ' — leaves unit unarmed' : ''}`,
-      (target) => giveRosterItemBlock(this.run, source, target, item),
-      (target) => {
-        const result = giveRosterItem(this.run, source, target, item);
-        if (result.ok) this.render(`${item.name} given to ${target.name}.${this.persistNow()}`);
-        return result;
+  tradeCtx() {
+    return { context: 'roster', run: this.run };
+  }
+  /**
+   * Choose a trade partner (other units, then the convoy), then run `open(partner)`
+   * once the picker is gone. The picker blocks nobody: the trade menu's rows say
+   * why a slot is closed.
+   */
+  chooseTradePartner(title, partners, describe, open) {
+    if (this.picker || this.destroyed || !this.run) return;
+    let chosen = null;
+    this.picker = new ChoicePicker({
+      scene: this.scene,
+      title,
+      choices: partners,
+      label: partnerLabel,
+      describe,
+      confirmLabel: 'Trade',
+      apply: (partner) => {
+        chosen = partner;
+        return { ok: true };
       },
-      (target) => {
-        if (item.type === 'Consumable') return `${target.consumables?.length || 0}/3 supplies`;
-        if (!canEquip(target, item))
-          return `Needs ${item.type} ${item.rankRequired || 'Prof'} · ${target.inventory.length}/5 items`;
-        return `Can equip · AS ${getStaticCombatStats(target, target.weapon).as} → ${getStaticCombatStats(target, item).as} if equipped · ${target.inventory.length}/5 items`;
+      onClose: () => {
+        this.picker = null;
+        if (this.destroyed) return;
+        if (chosen) open(chosen);
+        else this.root.querySelector('button')?.focus();
       },
+    });
+  }
+  /** Trade… on an item card: pick a partner, then trade with this item held. */
+  tradeItem(source, item) {
+    const bag = tradeBagFor(item);
+    const ctx = this.tradeCtx();
+    this.chooseTradePartner(
+      `Trade ${item.name} with…`,
+      rosterTradePartners(this.units, source, bag),
+      (partner) => tradePartnerItemText(ctx, partner, item),
+      (partner) =>
+        this.openTrade(source, partnerHolder(partner), {
+          held: { holder: unitHolder(source), bag, item },
+          bag,
+        }),
     );
+  }
+  /** Trade with… in the Equipment heading: pick a partner, open with nothing held. */
+  tradeWith(unit) {
+    const ctx = this.tradeCtx();
+    this.chooseTradePartner(
+      `${unit.name}: trade with…`,
+      rosterTradePartners(this.units, unit),
+      (partner) => tradePartnerText(ctx, partner),
+      (partner) => this.openTrade(unit, partnerHolder(partner)),
+    );
+  }
+  /**
+   * The trade menu over this sheet. It lives in `picker`, so the sheet's guards and
+   * destroy() cover it. Each commit applies at once and saves the run the moment it
+   * lands (the context's persist when given); the sheet re-renders on close.
+   */
+  openTrade(left, right, { held = null, bag = null } = {}) {
+    if (this.picker || this.destroyed || !this.run) return;
+    const ctx = this.tradeCtx();
+    let message = '';
+    this.picker = new TradeMenu({
+      scene: this.scene,
+      ctx,
+      left,
+      right,
+      held,
+      bag,
+      engine: { planTrade, bagItems, bagCapacity, unitHolder },
+      commit: (from, to) => {
+        const result = applyTrade(ctx, from, to);
+        if (!result.ok) return result;
+        const warnings = result.warnings
+          .map(tradeWarningText)
+          .filter(Boolean)
+          .map((text) => ` ${text}.`)
+          .join('');
+        message = `${commitMessage(from, to, result.kind)}${warnings}${this.persistNow()}`;
+        return { ok: true, message };
+      },
+      onClose: () => {
+        this.picker = null;
+        if (!this.destroyed) this.render(message);
+      },
+    });
   }
   teachScroll(scroll) {
     this.chooseUnit(
@@ -940,23 +1039,36 @@ export class MobileRosterSheet {
   }
   action(card, label, unit, item, action) {
     const reason = rosterItemBlock(this.run, unit, item, action);
-    card.append(
-      this.button(
-        label,
-        () => {
-          if (action === 'use' && item.effect === 'statBoost') {
-            this.useBooster(unit, item);
-            return;
-          }
-          const result = rosterItemAction(this.run, unit, item, action);
-          if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
-            this.scene.registry.get('audio')?.playSFX('sfx_heal');
-          this.render(result || `${label}: ${item.name}${this.persistNow()}`);
-        },
-        reason,
-      ),
+    // An allowed action can still cost something ("Leaves Edric unarmed"): the
+    // button carries it as its description and the card says it beside the button.
+    const warning = rosterItemWarnings(this.run, unit, item, action)
+      .map(tradeWarningText)
+      .filter(Boolean)
+      .map((text) => `${text}.`)
+      .join(' ');
+    const b = this.button(
+      label,
+      () => {
+        if (action === 'use' && item.effect === 'statBoost') {
+          this.useBooster(unit, item);
+          return;
+        }
+        const result = rosterItemAction(this.run, unit, item, action);
+        if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
+          this.scene.registry.get('audio')?.playSFX('sfx_heal');
+        this.render(
+          result || `${label}: ${item.name}${warning ? `. ${warning}` : ''}${this.persistNow()}`,
+        );
+      },
+      reason,
     );
+    card.append(b);
     if (reason) card.append(el('small', reason));
+    else if (warning) {
+      b.setAttribute('aria-description', warning);
+      b.title = warning;
+      card.append(el('small', warning, 'mr-warn'));
+    }
   }
   useBooster(unit, item) {
     if (this.picker || this.destroyed) return;
@@ -985,7 +1097,16 @@ export class MobileRosterSheet {
     });
   }
   gear(unit) {
-    this.body.append(el('h3', `Equipment · ${unit.inventory?.length || 0}/5`));
+    const heading = el('h3', `Equipment · ${unit.inventory?.length || 0}/5`);
+    if (this.run) {
+      // Trade with… opens the trade menu with nothing held (after picking a partner).
+      const row = el('div', null, 'mr-heading-row');
+      row.append(
+        heading,
+        this.button('Trade with…', () => this.tradeWith(unit)),
+      );
+      this.body.append(row);
+    } else this.body.append(heading);
     for (const item of inventoryDisplayOrder(unit)) {
       const c = this.itemCard(item, unit);
       if (
@@ -994,27 +1115,24 @@ export class MobileRosterSheet {
         item.type === unit.weapon.type &&
         item.type !== 'Staff'
       ) {
-        c.append(
-          el(
-            'p',
-            `Compared with ${unit.weapon.name}: ` +
-              ['might', 'hit', 'crit', 'weight']
-                .map(
-                  (k) =>
-                    `${k} ${Number(item[k] || 0) - Number(unit.weapon[k] || 0) >= 0 ? '+' : ''}${Number(item[k] || 0) - Number(unit.weapon[k] || 0)}`,
-                )
-                .join(' · '),
-          ),
-        );
+        // The shop and reward screen compare with the same helper, so all three agree.
+        const parts = weaponComparisonParts(unit, item, unit.weapon, {
+          arts: this.gameData?.weaponArts?.arts || [],
+          imbues: this.gameData?.imbues,
+        });
+        c.append(el('p', `Compared with ${unit.weapon.name}: ${parts.join(' · ')}`));
       }
       if (this.run) {
         if (unit.weapon !== item) this.action(c, 'Equip', unit, item, 'equip');
-        c.append(this.button('Give…', () => this.giveItem(unit, item)));
+        c.append(this.button('Trade…', () => this.tradeItem(unit, item)));
         this.action(c, 'Store', unit, item, 'store');
       }
     }
     if (!unit.inventory?.length)
-      this.card('No equipment', 'This unit is not carrying any weapons.');
+      this.card(
+        'No equipment',
+        'Unarmed: this unit cannot attack or counterattack until it carries a weapon.',
+      );
     this.body.append(
       el('h3', `Consumables · ${unit.consumables?.length || 0}/3`, 'mr-gear-section'),
     );
@@ -1034,7 +1152,7 @@ export class MobileRosterSheet {
           );
           if (reason) c.append(el('small', reason));
         }
-        c.append(this.button('Give…', () => this.giveItem(unit, item)));
+        c.append(this.button('Trade…', () => this.tradeItem(unit, item)));
         this.action(c, 'Store', unit, item, 'store');
       }
     }
@@ -1049,7 +1167,7 @@ export class MobileRosterSheet {
       ? this.itemCard(unit.accessory, unit)
       : this.card('No accessory', 'No accessory equipped.');
     if (this.run) {
-      if (unit.accessory)
+      if (unit.accessory) {
         a.append(
           this.button('Unequip accessory', () =>
             this.render(
@@ -1058,6 +1176,10 @@ export class MobileRosterSheet {
             ),
           ),
         );
+        // Accessories trade only between units (the Accessory tab).
+        if (this.units.some((other) => other !== unit))
+          a.append(this.button('Trade…', () => this.tradeItem(unit, unit.accessory)));
+      }
       if (this.run.accessories?.length)
         this.body.append(el('h4', 'Available accessories · Shared pool'));
       for (const item of this.run.accessories || []) {
@@ -1086,7 +1208,7 @@ export class MobileRosterSheet {
     shared.append(
       el(
         'p',
-        'Storage shared by the whole army between battles. Store puts a carried item here; Withdraw gives it to the unit below.',
+        'Storage shared by the whole army between battles. Store puts a carried item here; Withdraw gives it to the unit below, or Trade… swaps it when their bag is full.',
         'mr-convoy-explain',
       ),
     );
@@ -1113,10 +1235,32 @@ export class MobileRosterSheet {
         ),
       ),
     );
-    for (const item of [...items.weapons, ...items.consumables]) {
+    // getConvoyItems hands out clones in convoy order; a trade holds the live item.
+    const live = [...this.run.convoy.weapons, ...this.run.convoy.consumables];
+    [...items.weapons, ...items.consumables].forEach((item, index) => {
       const c = this.itemCard(item, unit);
-      this.action(c, 'Withdraw', unit, item, 'withdraw');
-    }
+      const bag = tradeBagFor(item);
+      const holder = unitHolder(unit);
+      if (
+        bagItems(this.tradeCtx(), holder, bag).length < bagCapacity(this.tradeCtx(), holder, bag)
+      ) {
+        this.action(c, 'Withdraw', unit, item, 'withdraw');
+        return;
+      }
+      // A full bag: Withdraw becomes Trade…, a swap with one of the unit's items.
+      c.append(
+        this.button('Trade…', () =>
+          this.openTrade(unit, CONVOY_HOLDER, {
+            held: { holder: CONVOY_HOLDER, bag, item: live[index] },
+            bag,
+          }),
+        ),
+        el(
+          'small',
+          `${bag === 'consumables' ? 'Consumables' : 'Equipment'} full: trade to swap it for a carried item.`,
+        ),
+      );
+    });
     if (!items.weapons.length && !items.consumables.length)
       this.card('Convoy is empty', 'Store carried items here to share them with your roster.');
   }

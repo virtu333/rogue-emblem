@@ -3,7 +3,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { loadGameData } from './testData.js';
 import { createRecruitUnit } from '../src/engine/UnitManager.js';
-import { generateBossRecruitCandidates } from '../src/engine/BossRecruitSystem.js';
+import {
+  createBossLordUnit,
+  generateBossRecruitCandidates,
+} from '../src/engine/BossRecruitSystem.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import {
   CHOICE_STATS,
@@ -17,6 +20,7 @@ import {
   rewardForWhom,
   rosterGaps,
   unitLines,
+  unitRoles,
   weaponMarks,
 } from '../src/ui/choiceContent.js';
 import { itemIconId } from '../src/ui/itemIcons.js';
@@ -95,8 +99,84 @@ describe('roster cue', () => {
   it('orders roles healer first', () => {
     expect(ROSTER_ROLES[0].id).toBe('healer');
     // An empty army lacks everything; a mounted healer reads as the healer.
-    const staffFlier = { moveType: 'Flying', proficiencies: [{ type: 'Staff', rank: 'Prof' }] };
+    const staffFlier = {
+      moveType: 'Flying',
+      proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+      inventory: [{ name: 'Heal', type: 'Staff' }],
+    };
     expect(candidateCue(staffFlier, [])?.role).toBe('healer');
+  });
+
+  // A weapon role (healer, mage, archer) takes the rank and a weapon of that type to
+  // use it. Loadouts are by design (a boss lord gets one tier weapon); the cue must
+  // not promise an archer who has no bow.
+  describe('weapon roles need the weapon', () => {
+    // Everything but an archer: healer, flier, mage, cavalry, armor, dancer (the test
+    // helper builds without the skills catalog, so the Dancer's innate dance is added).
+    const noArcher = () => {
+      const army = ['Cleric', 'Pegasus Knight', 'Mage', 'Cavalier', 'Knight', 'Dancer'].map((c) =>
+        recruit(c),
+      );
+      army.at(-1).skills.push('dance');
+      return army;
+    };
+    const voss = () => {
+      const lord = data.lords.find((l) => l.name === 'Voss');
+      const cls = data.classes.find((c) => c.name === lord.class);
+      return createBossLordUnit(lord, cls, data.weapons, 8, null, {
+        act: 'act2',
+        classes: data.classes,
+      });
+    };
+
+    it('the fixture army lacks only an archer', () => {
+      expect(rosterGaps(noArcher())).toEqual(['archer']);
+    });
+
+    it('boss lord Voss (Ranger, sword only) is not offered as the archer', () => {
+      const unit = voss();
+      expect(unit.proficiencies.map((p) => p.type)).toContain('Bow');
+      expect(unit.inventory.map((w) => w.type)).toEqual(['Sword']);
+      expect(unitRoles(unit)).not.toContain('archer');
+      expect(candidateCue(unit, noArcher())).toBeNull();
+      // Hand him a bow and he is one.
+      unit.inventory.push({ ...data.weapons.find((w) => w.name === 'Iron Bow') });
+      expect(candidateCue(unit, noArcher())).toEqual({
+        role: 'archer',
+        text: 'Your army lacks an archer',
+      });
+    });
+
+    it('a generated Archer still fills the gap', () => {
+      expect(candidateCue(recruit('Archer'), noArcher())).toEqual({
+        role: 'archer',
+        text: 'Your army lacks an archer',
+      });
+    });
+
+    it('a Sage with only a tome reads as a mage, not a healer', () => {
+      const sage = recruit('Sage');
+      expect(sage.inventory.map((w) => w.type)).not.toContain('Staff');
+      expect(candidateCue(sage, [recruit('Myrmidon')])).toEqual({
+        role: 'magic',
+        text: 'Your army lacks a mage',
+      });
+    });
+
+    it('Holy Knight (lance only) and Assassin/Warrior (no bow) cover no weapon role', () => {
+      for (const name of ['Holy Knight', 'Assassin', 'Warrior']) {
+        const roles = unitRoles(recruit(name));
+        expect(roles, name).not.toContain('healer');
+        expect(roles, name).not.toContain('magic');
+        expect(roles, name).not.toContain('archer');
+      }
+    });
+
+    it('an army member without the weapon leaves the gap open', () => {
+      // A Ranger holding only a sword does not cover the army's archer.
+      const roster = [...noArcher().filter((u) => u.className !== 'Cleric'), voss()];
+      expect(rosterGaps(roster)).toEqual(['healer', 'archer']);
+    });
   });
 });
 
@@ -181,7 +261,31 @@ describe('rewardForWhom', () => {
       data.weapons.find((w) => w.type === 'Lance' && w.tier === 'Silver'),
     );
     const result = rewardForWhom({ type: 'weapon', item: lance }, run([recruit('Myrmidon')]));
-    expect(result).toMatchObject({ who: 'No one can wield it', tone: 'bad' });
+    expect(result).toMatchObject({
+      who: 'No one can wield it',
+      detail: 'Needs Lance proficiency',
+      tone: 'bad',
+    });
+  });
+  it('a stat booster says the stat and amount, never who should take it', () => {
+    // The playtest's steer: "SPD +2 · Anouk grows it best". A fast grower is no
+    // reason to take a flat bonus now; the recipient step shows before → after.
+    const anouk = recruit('Myrmidon', 'Anouk');
+    const brom = recruit('Fighter', 'Brom');
+    anouk.growths.SPD = 95;
+    brom.growths.SPD = 5;
+    const boosters = data.consumables.filter((c) => c.effect === 'statBoost');
+    expect(boosters.length).toBeGreaterThan(5);
+    for (const item of boosters) {
+      const result = rewardForWhom({ type: 'consumable', item }, run([brom, anouk]));
+      expect(result, item.name).toEqual({
+        who: 'Any unit · permanent',
+        detail: `${item.stat} +${item.value}`,
+        tone: 'good',
+      });
+    }
+    const speedwing = boosters.find((c) => c.name === 'Fleet Plume');
+    expect(rewardForWhom({ type: 'consumable', item: speedwing }, run([brom, anouk])).detail).toBe('SPD +2'); // prettier-ignore
   });
   it('covers staves, forge stones, supplies, boosters, gold and skipping', () => {
     const cleric = recruit('Cleric', 'Mira');

@@ -520,6 +520,10 @@ export function getWeaponArtCombatMods(art) {
     halfPhysicalDamage: Boolean(mods.halfPhysicalDamage),
     vengeance: Boolean(mods.vengeance),
     weaponArt: true,
+    // Fail closed for hooks resolved outside Combat (damage, movement, conditions).
+    // Unknown hook names stay ineligible too, even if empty today.
+    weaponArtProjectionSafe:
+      Boolean(art) && Object.keys(art.effects || {}).length === 0 && !mods.vengeance,
     ignoreTerrainAvoid: Boolean(mods.ignoreTerrainAvoid),
     multiHit: normalizeMultiHit(mods.multiHit),
     drainPercent: normalizeDrainPercent(mods.drainPercent),
@@ -528,6 +532,25 @@ export function getWeaponArtCombatMods(art) {
     ignoreRES: Boolean(mods.ignoreRES),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
+}
+
+/**
+ * The names a weapon instance may go by in the catalog. Forging adds " +N" and an
+ * imbue prefixes one adjective ("Cruel Twinsworn +1"), so a legendary gate
+ * compares the undecorated name as well as the display name.
+ */
+function catalogNameTokens(weapon) {
+  const raw = [weapon?._baseName, weapon?.id, weapon?.name]
+    .map((t) => toNonEmptyString(t))
+    .filter(Boolean);
+  const tokens = new Set(raw);
+  for (const token of raw) {
+    const unforged = token.replace(/\s\+\d+$/, '');
+    tokens.add(unforged);
+    // One imbue per weapon, and every imbue adjective is a single word.
+    if (weapon?._imbueId) tokens.add(unforged.replace(/^\S+\s+/, ''));
+  }
+  return [...tokens];
 }
 
 export function canUseWeaponArt(unit, weapon, art, context = {}) {
@@ -547,9 +570,7 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
     }
   }
   if (Array.isArray(config.legendaryIds) && config.legendaryIds.length > 0) {
-    const tokens = [weapon?._baseName, weapon?.id, weapon?.name]
-      .map((t) => toNonEmptyString(t))
-      .filter(Boolean);
+    const tokens = catalogNameTokens(weapon);
     if (tokens.length === 0 || !tokens.some((t) => config.legendaryIds.includes(t))) {
       return { ok: false, reason: 'legendary_weapon_required' };
     }

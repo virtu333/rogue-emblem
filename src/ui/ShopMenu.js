@@ -1,3 +1,4 @@
+import { shopRequirementLabel, forgeImpactSuffix } from './itemDecisionText.js';
 import { equipmentComparison } from './equipmentComparison.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { equippedBadgeElement } from './equippedBadge.js';
@@ -8,12 +9,13 @@ import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
 import { unitPortrait } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
-import { rankRequirementText } from './rosterDisplay.js';
+import { tradeWarningText } from './tradeMenuModel.js';
 import {
   shopOwnedItems,
   shopBuyBlock,
   purchaseShopItem,
   shopSellBlock,
+  shopSellWarnings,
   sellShopItem,
   shopForgeBlock,
   forgeShopWeapon,
@@ -55,6 +57,11 @@ export class ShopMenu {
   }
   get run() {
     return this.scene.runManager;
+  }
+  /** Catalogs the equip comparison names arts and imbues from. */
+  compareOptions() {
+    const data = this.scene.gameData || {};
+    return { arts: data.weaponArts?.arts || [], imbues: data.imbues };
   }
   open() {
     if (this.surface || this.destroyed) return;
@@ -267,8 +274,8 @@ export class ShopMenu {
     title.append(el('h3', item.name));
     const keys = itemKeywordRow(item, { baseLine: false, make: (tag) => el(tag) });
     if (keys) title.append(keys);
-    if (item.rankRequired)
-      title.append(el('p', rankRequirementText(item.type, item.rankRequired), 'shop-meta'));
+    const requirement = shopRequirementLabel(item);
+    if (requirement) title.append(el('p', requirement, 'shop-meta'));
     head.append(itemHero(item, { size: 96 }), title);
     copy.append(head);
     const detailText = this.controller._getShopItemDetailText(row.entry || { item });
@@ -292,7 +299,12 @@ export class ShopMenu {
       const comparisons = el('details');
       comparisons.append(el('summary', 'Compare with your roster'));
       for (const unit of this.run.roster.filter((u) => canEquip(u, item)))
-        comparisons.append(el('p', `${unit.name}: ${equipmentComparison(unit, item)}`));
+        comparisons.append(
+          el(
+            'p',
+            `${unit.name}: ${equipmentComparison(unit, item, unit.weapon, this.compareOptions())}`,
+          ),
+        );
       copy.append(comparisons);
     }
     const forge = getForgeDisplayInfo(item);
@@ -322,17 +334,27 @@ export class ShopMenu {
       action.append(b);
     } else if (tab === 'sell') {
       reason = shopSellBlock(this.run, row);
+      // Selling the last weapon is allowed; say what it costs before and at the confirm.
+      const warning = shopSellWarnings(this.run, row)
+        .map(tradeWarningText)
+        .filter(Boolean)
+        .map((text) => `${text}.`)
+        .join(' ');
       const b = button(
         `Sell · ${getSellPrice(item)} G`,
         () =>
           this.confirm(
             `Sell ${item.name}?`,
-            `${row.owner} loses this item. Receive ${getSellPrice(item)} gold.`,
+            `${row.owner} loses this item.${warning ? ` ${warning}` : ''} Receive ${getSellPrice(item)} gold.`,
             () => this.complete(sellShopItem(this.run, row)),
           ),
         're-btn re-btn--primary',
       );
       b.disabled = !!reason;
+      if (warning && !reason) {
+        b.setAttribute('aria-description', warning);
+        action.append(el('p', warning, 'shop-warning'));
+      }
       action.append(b);
     } else {
       const options = this.forgeOptions();
@@ -439,7 +461,7 @@ export class ShopMenu {
         if (unit === 'convoy') return `${entry.price} gold · Store for later.`;
         const count = supply ? (unit.consumables || []).length : (unit.inventory || []).length;
         const max = supply ? CONSUMABLE_MAX : INVENTORY_MAX;
-        return `${supply ? 'Supplies' : 'Items'} ${count}/${max} · ${count >= max ? 'Full: sent to convoy' : supply ? 'Can carry' : canEquip(unit, entry.item) ? 'Can equip' : 'Cannot equip; can carry'} · ${entry.price} gold${!supply && canEquip(unit, entry.item) ? ` · ${equipmentComparison(unit, entry.item)}` : ''}`;
+        return `${supply ? 'Supplies' : 'Items'} ${count}/${max} · ${count >= max ? 'Full: sent to convoy · trade it in from Roster' : supply ? 'Can carry' : canEquip(unit, entry.item) ? 'Can equip' : 'Cannot equip; can carry'} · ${entry.price} gold${!supply && canEquip(unit, entry.item) ? ` · ${equipmentComparison(unit, entry.item, unit.weapon, this.compareOptions())}` : ''}`;
       },
       blocked: (unit) => {
         const reason = shopBuyBlock(this.run, this.scene.shopBuyItems, entry);
@@ -484,7 +506,7 @@ export class ShopMenu {
       choices: stats,
       label: (stat) => stat.label,
       describe: (stat) =>
-        `${Math.max(1, Math.floor(getForgeCost(weapon, stat.key) * (1 - this.forgeOptions().discount)))} gold · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${owner && stat.key === 'weight' ? ` · ${equipmentComparison(owner, { ...weapon, weight: Math.max(0, weapon.weight - 1) }, weapon)}` : ''}`,
+        `${Math.max(1, Math.floor(getForgeCost(weapon, stat.key) * (1 - this.forgeOptions().discount)))} gold · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`,
       blocked: (stat) =>
         shopForgeBlock(this.run, weapon, stat.key, { ...this.forgeOptions(), expectedLevel }),
       apply: (stat) => {

@@ -27,6 +27,22 @@ beforeAll(async () => {
   ({ RosterOverlay } = await import('../src/ui/RosterOverlay.js'));
 });
 
+it('opens a requested roster identity, including a deserialized unit with a duplicate name', () => {
+  const roster = [
+    { name: 'Same', unitUid: 'ru1' },
+    { name: 'Same', unitUid: 'ru2' },
+  ];
+  expect(
+    new RosterOverlay({}, { roster }, gameData, { initialUnit: roster[1] }).selection.index,
+  ).toBe(1);
+  expect(
+    new RosterOverlay({}, { roster }, gameData, { initialUnit: { ...roster[1] } }).selection.index,
+  ).toBe(1);
+  expect(
+    new RosterOverlay({}, { roster }, gameData, { initialUnit: { name: 'Same' } }).selection.index,
+  ).toBe(0);
+});
+
 beforeEach(() => _resetInputFocus());
 
 // A chainable display-object mock complete enough for BoundingFocusController

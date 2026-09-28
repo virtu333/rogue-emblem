@@ -1,3 +1,4 @@
+import { unitUidOf } from '../engine/UnitIdentity.js';
 import { teachRosterScroll } from '../engine/RosterTransfers.js';
 import { applyRosterClassChange } from '../engine/RosterCommands.js';
 import {
@@ -24,7 +25,6 @@ import {
   equipWeapon,
   addToInventory,
   removeFromInventory,
-  isLastCombatWeapon,
   canEquip,
   canPromote,
   getSkillDisplayNames,
@@ -128,7 +128,14 @@ export class RosterOverlay {
     this.visible = false;
 
     // New state
-    this.selection = { kind: 'unit', index: 0 };
+    const initial = callbacks.initialUnit;
+    const roster = runManager.roster || [];
+    const identityIndex = roster.indexOf(initial);
+    const index =
+      identityIndex >= 0
+        ? identityIndex
+        : roster.findIndex((u) => unitUidOf(initial) && unitUidOf(u) === unitUidOf(initial));
+    this.selection = { kind: 'unit', index: Math.max(0, index) };
     this._activeTab = 'stats'; // 'stats' | 'gear'
     this._rosterScrollOffset = 0;
     this._rosterScrollMax = 0;
@@ -1389,7 +1396,8 @@ export class RosterOverlay {
             this.refresh();
           });
         }
-        if (!isLastCombatWeapon(unit, item) && this.runManager.canAddToConvoy(item)) {
+        // Storing the last combat weapon is allowed (the unit is left unarmed).
+        if (this.runManager.canAddToConvoy(item)) {
           this._actionBtn(storeX, y, '[Store]', () => {
             if (!this.runManager.addToConvoy(item)) return;
             removeFromInventory(unit, item);

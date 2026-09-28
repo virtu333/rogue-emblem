@@ -7,8 +7,11 @@ import {
   choiceButton,
   choiceReducedMotion,
   draftRow,
+  draftScrollTop,
   fadeScroll,
   fitDraft,
+  keepDraftScroll,
+  softList,
 } from './choiceCards.js';
 
 export class RunSetupMenu {
@@ -56,6 +59,7 @@ export class RunSetupMenu {
       : null;
     this.surface.root.classList.add('ch-setup');
     this.surface.root.classList.toggle('is-still', choiceReducedMotion(s));
+    const scrollTop = draftScrollTop(this.surface.body);
     const footer = element('footer', null, 're-footer ch-footer');
     const lead = element('p', null, 'ch-footer-lead');
     const parts = blessing ? this.blessings(lead) : this.difficulties(footer);
@@ -82,6 +86,7 @@ export class RunSetupMenu {
     confirm.disabled = !!chosen?.locked || s.isTransitioning;
     footer.append(confirm);
     this.surface.body.replaceChildren(...parts, footer);
+    keepDraftScroll(parts[0], scrollTop);
     this.fitStop?.();
     this.fitStop = fitDraft(this.surface.body, '.ch-banner-name, .ch-tarot-name', { min: 10 });
     if (!this.initialFocusSet) {
@@ -185,7 +190,8 @@ export class RunSetupMenu {
       row.append(card);
     });
     const chosen = difficultyBannerContent(s.modes[s.selectedIndex], s.selectedIndex);
-    const detail = element('article', null, 're-card re-scroll ch-banner-detail');
+    // The terms scroll when long (Lunatic upright); their edges fade while there is more.
+    const detail = softList(element('article', null, 're-card re-scroll ch-banner-detail'));
     detail.append(element('h3', `${chosen.name || 'Choose an option'} · the terms`));
     const list = (lines, className = '') => {
       const ul = element('ul', null, className);

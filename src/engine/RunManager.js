@@ -23,10 +23,12 @@ import {
   XP_STAT_NAMES,
   CONVOY_WEAPON_CAPACITY,
   CONVOY_CONSUMABLE_CAPACITY,
+  CONVOY_WEAPON_TYPES,
   RECRUIT_SKILL_POOL,
   REVIVE_BASE_COST,
   REVIVE_COST_PER_LEVEL,
   REVIVE_PROMOTION_MULTIPLIER,
+  RUINS_PATHS,
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
 import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapGenerator.js';
@@ -39,11 +41,12 @@ import {
   addToInventory,
   addToConsumables,
   equipAccessory,
+  unequipAccessory,
   canEquip,
   getClassInnateSkills,
   normalizeUnitClassState,
   grantLethalArmoryWeapon,
-  grantSecondaryWeapons,
+  grantMasterOfArmsWeapons,
   applyRecruitWeaponForge,
   grantRecruitStartingAccessory,
   learnSkill,
@@ -107,7 +110,6 @@ import { unitBaseClassName } from './ClassLineage.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = UNIT_PRESENTATION_FIELDS;
-const CONVOY_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff']);
 const WEAPON_ART_SPAWN_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 const WEAPON_ART_SPAWN_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
 const KNOWN_ACT_IDS = new Set(Object.keys(ACT_CONFIG));
@@ -141,6 +143,15 @@ function getConvoyBucket(item) {
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+// The Ruins' chosen paths from a save: keep only known paths on string node ids.
+function sanitizeRuinsChoices(raw) {
+  const out = {};
+  if (!isPlainObject(raw)) return out;
+  for (const [nodeId, path] of Object.entries(raw))
+    if (nodeId && RUINS_PATHS.includes(path)) out[nodeId] = path;
+  return out;
 }
 
 function createBlessingRuntimeModifiers() {
@@ -352,6 +363,16 @@ function ensureSeraBaseStaffProficiency(unit) {
   unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
 }
 
+/** Vision charges a run starts with, given the meta `visionChargesBonus` (base 1). */
+export function baseVisionChargesFor(visionChargesBonus = 0) {
+  return Math.max(1, 1 + Math.trunc(Number(visionChargesBonus) || 0));
+}
+
+/** Legendary lord trait chance for a new run, given the meta bonus (5% base, 15% cap). */
+export function legendaryLordChanceFor(legendaryLordChanceBonus = 0) {
+  return Math.min(0.15, 0.05 + Math.max(0, Number(legendaryLordChanceBonus) || 0));
+}
+
 /** Calculate level-scaled revive cost for a fallen unit. */
 export function getReviveCost(unit) {
   const raw = Number(unit?.level);
@@ -399,6 +420,8 @@ export class RunManager {
     this.usedRecruitNames = {}; // Track used names per class: { Fighter: ['Galvin', 'Bjorn'] }
     this.battleConfigsByNodeId = {};
     this.shopStateByNodeId = {};
+    // The Ruins' one path per node ('rest' | 'scavenge'); see RuinsCommands.js.
+    this.ruinsChoiceByNodeId = {};
     this.difficultyId = 'normal';
     this.difficultyModifiers = {
       ...DIFFICULTY_DEFAULTS,
@@ -473,8 +496,7 @@ export class RunManager {
   }
 
   getBaseVisionCharges() {
-    const visionBonus = Math.trunc(this.metaEffects?.visionChargesBonus || 0);
-    return Math.max(1, 1 + visionBonus);
+    return baseVisionChargesFor(this.metaEffects?.visionChargesBonus);
   }
 
   /** The commander is the permadeath anchor — the unit whose death ends the run. */
@@ -521,10 +543,7 @@ export class RunManager {
     this.lastEclipseCommit = null;
     this.usedRecruitNames = {};
     this.lastDeployment = [];
-    this.legendaryLordChance = Math.min(
-      0.15,
-      0.05 + Math.max(0, Number(this.metaEffects?.legendaryLordChanceBonus) || 0),
-    );
+    this.legendaryLordChance = legendaryLordChanceFor(this.metaEffects?.legendaryLordChanceBonus);
     // Seed first: starting lords roll their traits from the run seed.
     if (!Number.isFinite(this.runSeed)) {
       const initialSeed = runSeed ?? Date.now();
@@ -560,6 +579,7 @@ export class RunManager {
     this.battleConfigsByNodeId = {};
     this.ensureRecruitPreviews();
     this.shopStateByNodeId = {};
+    this.ruinsChoiceByNodeId = {};
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
     this.unlockedWeaponArts = [];
@@ -2722,13 +2742,13 @@ export class RunManager {
     if (className === 'Paladin') {
       this._applyExtraStarterPaladinLoadout(unit);
     }
-    const cadreSpawnTier = unit.weapon?.tier || 'Iron';
     grantLethalArmoryWeapon(unit, this.gameData?.weapons || [], this.metaEffects?.lethalArmoryTier);
-    if (this.metaEffects?.masterOfArms) {
-      grantSecondaryWeapons(unit, this.gameData?.weapons || [], cadreSpawnTier);
-    }
     if (this.metaEffects?.recruitWeaponForge) {
       applyRecruitWeaponForge(unit, this.metaEffects.recruitWeaponForge);
+    }
+    // After the forge: Master of Arms extras arrive plain (grantMasterOfArmsWeapons).
+    if (this.metaEffects?.masterOfArms) {
+      grantMasterOfArmsWeapons(unit, this.gameData?.weapons || []);
     }
     if (this.metaEffects?.recruitStartingAccessory) {
       grantRecruitStartingAccessory(
@@ -3115,15 +3135,23 @@ export class RunManager {
     if (node) node.encounterLocked = true;
   }
 
-  canReenterShop(nodeId) {
+  canReenterService(nodeId) {
     const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
     return Boolean(
       node &&
       node.id === this.currentNodeId &&
-      node.type === 'shop' &&
+      ['shop', 'church', 'ruins'].includes(node.type) &&
       node.completed &&
       !this.battleInProgress &&
-      this.shopStateByNodeId?.[nodeId],
+      (node.type !== 'shop' || this.shopStateByNodeId?.[nodeId]),
+    );
+  }
+
+  // Compatibility for callers explicitly asking about a shop.
+  canReenterShop(nodeId) {
+    return (
+      this.nodeMap?.nodes?.find((n) => n.id === nodeId)?.type === 'shop' &&
+      this.canReenterService(nodeId)
     );
   }
 
@@ -3231,6 +3259,29 @@ export class RunManager {
    * Accessories route to the team accessory pool.
    * Items that cannot be transferred remain on the fallen unit.
    */
+  /**
+   * The caravan Merchant (CaravanSystem, `isCaravan`) is an escort NPC, never an army
+   * unit. Before Talk learned to ignore it (#139), a lord could recruit it; old saves
+   * can hold it on the roster or awaiting revival. Drop it from both; a roster copy's
+   * carried items go to the convoy and its accessory to the pool.
+   */
+  _dropCaravanUnits() {
+    if (!Array.isArray(this.roster) || !Array.isArray(this.fallenUnits)) return;
+    if (!this.convoy || typeof this.convoy !== 'object')
+      this.convoy = { weapons: [], consumables: [] };
+    if (!Array.isArray(this.convoy.weapons)) this.convoy.weapons = [];
+    if (!Array.isArray(this.convoy.consumables)) this.convoy.consumables = [];
+    if (!Array.isArray(this.accessories)) this.accessories = [];
+    for (const unit of this.roster.filter((u) => u?.isCaravan)) {
+      for (const item of [...(unit.inventory || []), ...(unit.consumables || [])])
+        this.addToConvoy(item);
+      const accessory = unit.accessory ? unequipAccessory(unit) : null;
+      if (accessory) this.accessories.push(accessory);
+    }
+    this.roster = this.roster.filter((u) => !u?.isCaravan);
+    this.fallenUnits = this.fallenUnits.filter((u) => !u?.isCaravan);
+  }
+
   _transferFallenUnitItems(fallenUnit) {
     if (!fallenUnit || typeof fallenUnit !== 'object') return;
     this._sanitizeUnitPools();
@@ -3285,8 +3336,10 @@ export class RunManager {
     fallenUnit.consumables = keptConsumables;
 
     if (fallenUnit.accessory) {
-      this.accessories.push(ensureItemUid(structuredClone(fallenUnit.accessory)));
-      fallenUnit.accessory = null;
+      // Unequip (reversing its stats and move type) before pooling, so the fallen
+      // unit keeps its base stats: a revived unit never carries a phantom bonus.
+      const accessory = unequipAccessory(fallenUnit);
+      this.accessories.push(ensureItemUid(structuredClone(accessory)));
     }
 
     relinkWeapon(fallenUnit);
@@ -3754,6 +3807,10 @@ export class RunManager {
       return { unlockedArtIds: [], displacedSkills: {} };
     this.actIndex++;
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
+    // The act boss has fallen: the army rests before the next act and starts it whole.
+    for (const unit of this.roster) {
+      if (unit?.stats) unit.currentHP = unit.stats.HP;
+    }
     this.nodeMap = this._withNodeMapSeed(() =>
       generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
         fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
@@ -3764,6 +3821,7 @@ export class RunManager {
       }),
     );
     this.shopStateByNodeId = {};
+    this.ruinsChoiceByNodeId = {};
     this.ensureRecruitPreviews();
     // Every act opens on a fresh land: act pressure restarts at 0 (the global meter,
     // after any boss relief, carries on).
@@ -4144,6 +4202,7 @@ export class RunManager {
       usedRecruitNames: this.usedRecruitNames || {},
       battleConfigsByNodeId: this.battleConfigsByNodeId || {},
       shopStateByNodeId: this.shopStateByNodeId || {},
+      ruinsChoiceByNodeId: this.ruinsChoiceByNodeId || {},
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || {
         ...DIFFICULTY_DEFAULTS,
@@ -4473,6 +4532,7 @@ export class RunManager {
     rm.accessories = saved.accessories || [];
     rm.scrolls = saved.scrolls || [];
     rm.convoy = saved.convoy || { weapons: [], consumables: [] };
+    rm._dropCaravanUnits();
     rm.randomLegendary = saved.randomLegendary || null;
     const rawActiveBlessings = Array.isArray(saved.activeBlessings) ? saved.activeBlessings : [];
     rm.blessingHistory = saved.blessingHistory || [];
@@ -4653,6 +4713,8 @@ export class RunManager {
     rm.ensurePortraitVariants(Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : 0);
     rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
     rm.shopStateByNodeId = saved.shopStateByNodeId || {};
+    // Saves from before the Ruins' choice carry none: no path chosen yet.
+    rm.ruinsChoiceByNodeId = sanitizeRuinsChoices(saved.ruinsChoiceByNodeId);
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
     if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {
       rm.difficultyModifiers = {

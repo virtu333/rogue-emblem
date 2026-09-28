@@ -57,7 +57,7 @@ vi.mock('../src/ui/HintDisplay.js', () => ({
 }));
 
 import { LootScreenController } from '../src/ui/LootScreenController.js';
-import { addToInventory, applyStatBoost } from '../src/engine/UnitManager.js';
+import { addToInventory, applyStatBoost, canEquip } from '../src/engine/UnitManager.js';
 import {
   ELITE_LOOT_CHOICES,
   LOOT_CHOICES,
@@ -655,6 +655,23 @@ describe('LootScreenController', () => {
       expect(result).toContain('Sword');
     });
 
+    it('states the rank requirement in the shared plain wording, never a Mast/Prof code', () => {
+      const base = { type: 'Lance', might: 12, hit: 70, crit: 0, weight: 9, range: 1 };
+      const prof = LootScreenController.getTooltipText(
+        stubScene,
+        { type: 'weapon' },
+        { ...base, name: 'Steel Lance', rankRequired: 'Prof' },
+      );
+      const mast = LootScreenController.getTooltipText(
+        stubScene,
+        { type: 'weapon' },
+        { ...base, name: 'Silver Lance', rankRequired: 'Mast' },
+      );
+      expect(prof).toContain('Range 1  Needs Lance proficiency');
+      expect(mast).toContain('Range 1  Needs Lance Master rank');
+      expect(`${prof}\n${mast}`).not.toMatch(/\b(Prof|Mast)\b/);
+    });
+
     it('returns text for consumable items', () => {
       const item = { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
       const result = LootScreenController.getTooltipText(stubScene, { type: 'consumable' }, item);
@@ -765,6 +782,29 @@ describe('LootScreenController', () => {
         .filter((text) => typeof text === 'string');
       expect(nameTexts.some((t) => t.includes('Edric'))).toBe(true);
       expect(nameTexts.some((t) => t.includes('Lyn'))).toBe(true);
+    });
+
+    it('a unit that cannot wield the weapon shows the shared rank wording', async () => {
+      const actual = await vi.importActual('../src/engine/UnitManager.js');
+      vi.mocked(canEquip).mockImplementation(actual.canEquip);
+      const scene = makeScene();
+      const unit = (name, rank) => ({
+        name,
+        className: 'Lord',
+        stats: { HP: 20 },
+        inventory: [],
+        consumables: [],
+        proficiencies: rank ? [{ type: 'Sword', rank }] : [],
+      });
+      scene.runManager.roster = [unit('Edric', null), unit('Lyn', 'Prof')];
+      const item = { name: 'Rune Sword', type: 'Sword', might: 11, rankRequired: 'Mast' };
+
+      LootScreenController.renderUnitPicker(scene, item, [makeDisplayObject()], 0);
+
+      const texts = scene._textCalls.map((call) => call[2]).filter((t) => typeof t === 'string');
+      vi.mocked(canEquip).mockImplementation(() => true);
+      expect(texts).toContain('Edric  (Needs Sword Master rank)');
+      expect(texts).toContain('Lyn  (Needs Sword Master rank)');
     });
   });
 

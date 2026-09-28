@@ -26,7 +26,7 @@ import {
   getClassInnateSkills,
   isPromotionClassBlocked,
   grantLethalArmoryWeapon,
-  grantSecondaryWeapons,
+  grantMasterOfArmsWeapons,
   applyRecruitWeaponForge,
   grantRecruitStartingAccessory,
   checkLevelUpSkills,
@@ -595,14 +595,12 @@ function createRecruitFromPool(
 
     checkLevelUpSkills(unit, classes);
 
-    const promotedSpawnTier = unit.weapon?.tier || 'Iron';
     if (metaEffects?.lethalArmoryTier) {
       grantLethalArmoryWeapon(unit, weapons, metaEffects.lethalArmoryTier);
     }
-    if (metaEffects?.masterOfArms) {
-      grantSecondaryWeapons(unit, weapons, promotedSpawnTier);
-    }
     applyRecruitJoinBonuses(unit);
+    // After the join forges: Master of Arms extras arrive plain (grantMasterOfArmsWeapons).
+    if (metaEffects?.masterOfArms) grantMasterOfArmsWeapons(unit, weapons);
     maybeAddStartingVulnerary(unit);
     return unit;
   } else {
@@ -625,14 +623,12 @@ function createRecruitFromPool(
       { traitsData, skillsData: skills, rng: Math.random },
     );
     addClassInnates(unit, classData.name);
-    const baseSpawnTier = unit.weapon?.tier || 'Iron';
     if (metaEffects?.lethalArmoryTier) {
       grantLethalArmoryWeapon(unit, weapons, metaEffects.lethalArmoryTier);
     }
-    if (metaEffects?.masterOfArms) {
-      grantSecondaryWeapons(unit, weapons, baseSpawnTier);
-    }
     applyRecruitJoinBonuses(unit);
+    // After the join forges: Master of Arms extras arrive plain (grantMasterOfArmsWeapons).
+    if (metaEffects?.masterOfArms) grantMasterOfArmsWeapons(unit, weapons);
     maybeAddStartingVulnerary(unit);
     return unit;
   }

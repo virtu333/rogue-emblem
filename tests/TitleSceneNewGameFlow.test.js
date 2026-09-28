@@ -8,6 +8,9 @@ const {
   getMetaKeyMock,
   ensureAudioUnlockedMock,
   metaInstances,
+  getSlotCountMock,
+  getSlotSummaryMock,
+  hasDOMHostMock,
 } = vi.hoisted(() => ({
   transitionToSceneMock: vi.fn(),
   startFirstRunFastPathMock: vi.fn(),
@@ -16,6 +19,9 @@ const {
   getMetaKeyMock: vi.fn((slot) => `slot_${slot}_meta`),
   ensureAudioUnlockedMock: vi.fn(async () => {}),
   metaInstances: [],
+  getSlotCountMock: vi.fn(() => 0),
+  getSlotSummaryMock: vi.fn(() => null),
+  hasDOMHostMock: vi.fn(() => false),
 }));
 
 vi.mock('phaser', () => ({
@@ -28,6 +34,7 @@ vi.mock('../src/utils/SceneRouter.js', () => ({
   TRANSITION_REASONS: {
     NEW_GAME: 'new_game',
     BEGIN_RUN: 'begin_run',
+    CONTINUE: 'continue',
   },
   transitionToScene: transitionToSceneMock,
 }));
@@ -39,11 +46,24 @@ vi.mock('../src/utils/firstRunFastPath.js', () => ({
 }));
 
 vi.mock('../src/engine/SlotManager.js', () => ({
-  getSlotCount: vi.fn(() => 0),
+  MAX_SLOTS: 3,
+  getSlotCount: getSlotCountMock,
+  getSlotSummary: getSlotSummaryMock,
   getNextAvailableSlot: getNextAvailableSlotMock,
   setActiveSlot: setActiveSlotMock,
   getMetaKey: getMetaKeyMock,
   clearAllSlotData: vi.fn(),
+}));
+
+// The New Game dialog as plain nodes (no DOM in unit tests).
+vi.mock('../src/utils/domUI.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  hasDOMHost: hasDOMHostMock,
+}));
+vi.mock('../src/ui/MenuSurface.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  element: (tag, text) => ({ tag, text }),
+  button: (label, onClick, className = '') => ({ tag: 'button', label, onClick, className }),
 }));
 
 vi.mock('../src/utils/audioUnlock.js', () => ({
@@ -114,6 +134,9 @@ describe('TitleScene NEW GAME → first-run fast path', () => {
     vi.clearAllMocks();
     startFirstRunFastPathMock.mockResolvedValue(true);
     getNextAvailableSlotMock.mockReturnValue(1);
+    getSlotCountMock.mockReturnValue(0);
+    getSlotSummaryMock.mockReturnValue(null);
+    hasDOMHostMock.mockReturnValue(false);
     metaInstances.length = 0;
   });
 
@@ -216,5 +239,112 @@ describe('TitleScene NEW GAME → first-run fast path', () => {
     expect(scene.showMessage).toHaveBeenCalledWith('Transition failed. Please click again.');
     expect(audio.playMusic).toHaveBeenCalledTimes(1);
     expect(setActiveSlotMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('TitleScene NEW GAME: the slot that keeps its upgrades', () => {
+  // Slot summaries as SlotManager.getSlotSummary reports them.
+  const withRun = (slot) => ({ slot, hasActiveRun: true, upgradesOwned: 4, metaSavedAt: 900 });
+  const upgraded = (slot, metaSavedAt = 500) => ({
+    slot,
+    hasActiveRun: false,
+    runCorrupt: false,
+    upgradesOwned: 3,
+    runsCompleted: 2,
+    metaSavedAt,
+  });
+  function openDialog(slots, nextSlot) {
+    hasDOMHostMock.mockReturnValue(true);
+    getNextAvailableSlotMock.mockReturnValue(nextSlot);
+    getSlotCountMock.mockReturnValue(slots.filter(Boolean).length);
+    getSlotSummaryMock.mockImplementation((slot) => slots[slot - 1] || null);
+    const { scene } = makeScene();
+    const menu = {
+      body: { children: [], append: (...nodes) => menu.body.children.push(...nodes) },
+    };
+    menu.focusContent = vi.fn();
+    scene._openTitleMenu = vi.fn(() => menu);
+    scene._closeTitleMenu = vi.fn();
+    return { scene, menu };
+  }
+  const buttons = (menu) =>
+    menu.body.children.filter((n) => n.tag === 'button').map((n) => [n.label, n.className]);
+  const text = (menu) => menu.body.children.find((n) => n.tag === 'p').text;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    transitionToSceneMock.mockResolvedValue(true);
+    metaInstances.length = 0;
+  });
+
+  it('offers the upgraded slot first, then the empty slot, then the saves', async () => {
+    const { scene, menu } = openDialog([withRun(1), upgraded(2), null], 3);
+    expect(await TitleScene.prototype.handleNewGame.call(scene)).toBe(false);
+    expect(scene._openTitleMenu).toHaveBeenCalledWith('Start another run?');
+    expect(buttons(menu)).toEqual([
+      ['New run in Slot 2 · keeps upgrades', 're-btn re-btn--primary'],
+      ['Start new run in Slot 3', ''],
+      ['Keep playing my saves', ''],
+    ]);
+    expect(text(menu)).toBe(
+      'Slot 2 has no run in progress. A new run there keeps its upgrades. Empty Slot 3 starts without them. Your other saves stay as they are.',
+    );
+    expect(menu.focusContent).toHaveBeenCalled();
+    expect(startFirstRunFastPathMock).not.toHaveBeenCalled();
+  });
+
+  it("the upgraded slot opens through Save Slots' own load (SlotPicker openSlot)", async () => {
+    const { scene, menu } = openDialog([withRun(1), upgraded(2), null], 3);
+    await TitleScene.prototype.handleNewGame.call(scene);
+    menu.body.children.find((n) => n.label?.startsWith('New run in Slot 2')).onClick();
+    await vi.waitFor(() => expect(transitionToSceneMock).toHaveBeenCalledTimes(1));
+    expect(transitionToSceneMock).toHaveBeenCalledWith(
+      scene,
+      'SlotPicker',
+      { gameData: scene.gameData, openSlot: 2 },
+      { reason: 'continue', retryBlocked: true },
+    );
+    // Nothing is staged or started here: SlotPicker.selectSlot owns the load.
+    expect(startFirstRunFastPathMock).not.toHaveBeenCalled();
+    expect(setActiveSlotMock).not.toHaveBeenCalled();
+    expect(metaInstances).toHaveLength(0);
+  });
+
+  it('several upgraded slots: the most recently saved is offered', async () => {
+    const { scene, menu } = openDialog([upgraded(1, 100), upgraded(2, 700), upgraded(3, 300)], null); // prettier-ignore
+    await TitleScene.prototype.handleNewGame.call(scene);
+    expect(buttons(menu)[0][0]).toBe('New run in Slot 2 · keeps upgrades');
+  });
+
+  it('all slots full: the upgraded slot is offered instead of "slots are full"', async () => {
+    const { scene, menu } = openDialog([withRun(1), withRun(2), upgraded(3)], null);
+    expect(await TitleScene.prototype.handleNewGame.call(scene)).toBe(false);
+    expect(scene.showMessage).not.toHaveBeenCalled();
+    expect(buttons(menu)).toEqual([
+      ['New run in Slot 3 · keeps upgrades', 're-btn re-btn--primary'],
+      ['Keep playing my saves', ''],
+    ]);
+    expect(text(menu)).toBe(
+      'Slot 3 has no run in progress. A new run there keeps its upgrades. Your other saves stay as they are.',
+    );
+  });
+
+  it('a slot with a run in progress is never offered: the old choice stays', async () => {
+    const { scene, menu } = openDialog([withRun(1), null, null], 2);
+    await TitleScene.prototype.handleNewGame.call(scene);
+    expect(buttons(menu)).toEqual([
+      ['Keep playing my saves', 're-btn re-btn--primary'],
+      ['Start new run in Slot 2', ''],
+    ]);
+    expect(text(menu)).toContain('A new run will use Slot 2.');
+  });
+
+  it('all slots full with runs in progress: still "slots are full"', async () => {
+    const { scene } = openDialog([withRun(1), withRun(2), withRun(3)], null);
+    expect(await TitleScene.prototype.handleNewGame.call(scene)).toBe(false);
+    expect(scene._openTitleMenu).not.toHaveBeenCalled();
+    expect(scene.showMessage).toHaveBeenCalledWith(
+      'All 3 save slots are full.\nDelete a slot from Save Slots to free space.',
+    );
   });
 });

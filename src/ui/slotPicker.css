@@ -696,6 +696,55 @@
   }
 }
 
+/* ───────── Upright phones (portrait mode) ─────────
+   The three candles stack. Tighter spacing, and the unlit candle keeps its name and
+   its button only (the crest and the "new chronicle" line are decoration), so three
+   slots with two runs in progress fit a 375x667 phone without scrolling. */
+@media (orientation: portrait) {
+  html.portrait-ui .re-run-flow.sp-shrine .re-menu-body {
+    padding-top: 0;
+  }
+  html.portrait-ui .sp-cards {
+    gap: 8px;
+  }
+  html.portrait-ui .sp-card {
+    gap: 4px;
+    padding: 6px 10px 10px;
+  }
+  html.portrait-ui .sp-card.is-empty :is(.sp-crest, .sp-lines),
+  html.portrait-ui .sp-card .sp-foot:empty {
+    display: none;
+  }
+  html.portrait-ui .sp-card.is-empty .sp-head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Three runs in progress outgrow a short phone: fade the edge with more to scroll. */
+  html.portrait-ui .sp-shrine > .re-menu-body.is-more-below {
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(180deg, #000 calc(100% - 32px), transparent);
+  }
+  html.portrait-ui .sp-shrine > .re-menu-body.is-more-above {
+    -webkit-mask-image: linear-gradient(0deg, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(0deg, #000 calc(100% - 32px), transparent);
+  }
+  html.portrait-ui .sp-shrine > .re-menu-body.is-more-above.is-more-below {
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      transparent,
+      #000 32px,
+      #000 calc(100% - 32px),
+      transparent
+    );
+    mask-image: linear-gradient(
+      180deg,
+      transparent,
+      #000 32px,
+      #000 calc(100% - 32px),
+      transparent
+    );
+  }
+}
+
 /* ───────── Reduced motion ───────── */
 .sp-shrine.is-still .sp-embers,
 .sp-shrine.is-still .sp-flame,
