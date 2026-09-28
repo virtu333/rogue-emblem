@@ -437,63 +437,96 @@ const TAB = 4096; // ridge profile samples around the circle
 const TWO_PI = Math.PI * 2;
 
 const RIDGES = [
+  // uneven on purpose: spacing and amplitude vary (a clump of near hills, a long gap,
+  // the far range), and each range rises and falls along its own envelope, so the
+  // silhouettes never run parallel like waves
   {
-    R: 170,
-    base: 6,
-    amp: 30,
-    freq: 3.2,
+    R: 150,
+    base: 5,
+    amp: 28,
+    freq: 3.0,
     seed: 11,
     valley: 1,
     drop: 9,
-    ridged: 0.35,
+    ridged: 0.3,
+    env: 0.7,
+    envFreq: 1.3,
+    ink: 0.2,
     lit: [130, 126, 118],
     sh: [104, 101, 104],
-    mist: 8,
+    mist: 7,
     skew: 1.6,
     brush: 0.12,
   },
   {
-    R: 440,
-    base: 12,
-    amp: 80,
-    freq: 2.5,
-    seed: 23,
-    valley: 0.8,
-    drop: 14,
-    ridged: 0.55,
-    lit: [155, 150, 151],
-    sh: [135, 130, 138],
-    mist: 24,
-    skew: 1.3,
-    brush: 0.06,
+    R: 235,
+    base: 4,
+    amp: 24,
+    freq: 4.3,
+    seed: 17,
+    valley: 0.9,
+    drop: 8,
+    ridged: 0.45,
+    env: 0.95,
+    envFreq: 1.8,
+    ink: 0,
+    lit: [143, 138, 135],
+    sh: [121, 117, 121],
+    mist: 10,
+    skew: 1.4,
+    brush: 0.07,
   },
   {
-    R: 1150,
-    base: 40,
-    amp: 240,
-    freq: 1.9,
+    R: 640,
+    base: 18,
+    amp: 125,
+    freq: 2.2,
+    seed: 23,
+    valley: 0.65,
+    drop: 12,
+    ridged: 0.6,
+    env: 0.8,
+    envFreq: 1.1,
+    ink: -0.1,
+    lit: [160, 155, 156],
+    sh: [142, 137, 145],
+    mist: 34,
+    skew: 1.2,
+    brush: 0.03,
+  },
+  {
+    R: 1500,
+    base: 60,
+    amp: 300,
+    freq: 1.8,
     seed: 37,
-    valley: 0.35,
+    valley: 0.25,
     drop: 0,
     ridged: 0.75,
-    lit: [176, 170, 171],
-    sh: [159, 154, 163],
-    mist: 70,
+    env: 0.7,
+    envFreq: 0.9,
+    ink: -0.2,
+    lit: [178, 172, 173],
+    sh: [162, 157, 165],
+    mist: 90,
     skew: 1.1,
     brush: 0,
   },
   {
-    R: 2900,
-    base: 160,
-    amp: 600,
-    freq: 1.45,
+    R: 3200,
+    base: 180,
+    amp: 640,
+    freq: 1.4,
     seed: 53,
     valley: 0,
     drop: 0,
     ridged: 0.85,
-    lit: [191, 185, 184],
-    sh: [179, 174, 179],
-    mist: 200,
+    env: 0.6,
+    envFreq: 0.7,
+    ink: -0.3,
+    lit: [192, 186, 185],
+    sh: [180, 175, 180],
+    mist: 220,
     skew: 1,
     brush: 0,
   },
@@ -501,15 +534,16 @@ const RIDGES = [
 
 function buildRidge(L) {
   const h = new Float32Array(TAB + 1);
+  const eq = new Float32Array(TAB / 8 + 1);
   let hmax = 0;
   for (let i = 0; i <= TAB; i++) {
     const th = -Math.PI + (i / TAB) * TWO_PI;
-    const cx = Math.cos(th) * L.freq;
-    const cz = Math.sin(th) * L.freq;
+    const cx = Math.cos(th);
+    const cz = Math.sin(th);
     // rounded hills near, ridged mountains far (noise on a circle: periodic)
     let s = 0;
     let amp = 0.55;
-    let f = 1;
+    let f = L.freq;
     let n = 0;
     for (let o = 0; o < 4; o++) {
       const v = valueNoise(cx * f + 17, cz * f + 31, L.seed + o * 13);
@@ -519,7 +553,9 @@ function buildRidge(L) {
       amp *= 0.5;
       f *= 2.1;
     }
-    const p = s / n;
+    // the range's own envelope: it rises and falls along the horizon
+    const e = valueNoise(cx * L.envFreq + 5, cz * L.envFreq + 9, L.seed + 500);
+    const p = (s / n) * (1 - L.env * 0.7 + L.env * 1.1 * e);
     // the river's valley, upstream (th = 0) and downstream (th = pi): the near hills
     // part and sink below the ground there, so the far ones show through the gap
     const a = Math.abs(th);
@@ -529,9 +565,16 @@ function buildRidge(L) {
     h[i] = y;
     if (y > hmax) hmax = y;
   }
+  // edge quality along the contour: found (> 0.5, inked), soft (bleeds), lost (> haze)
+  for (let k = 0; k <= TAB / 8; k++) {
+    const th = (k / (TAB / 8)) * TWO_PI;
+    eq[k] = clamp(
+      valueNoise(Math.cos(th) * 5 + 3, Math.sin(th) * 5 + 7, L.seed + 900) * 1.3 - 0.15 + L.ink,
+    );
+  }
   const d = new Float32Array(TAB + 1);
   for (let i = 0; i <= TAB; i++) d[i] = h[Math.min(TAB, i + 2)] - h[Math.max(0, i - 2)];
-  return { ...L, h, d, hmax };
+  return { ...L, h, d, eq, hmax };
 }
 
 /** River half-shape: depth by normalised distance from the centre (FORD.md). */
@@ -957,7 +1000,8 @@ export class World {
    * The background (ridges, sky, clouds) along a ray from (ox, oy, oz). thg: horizontal
    * distance to the ground hit (Infinity for none); if the ground is nearer than the
    * curtain in the way, returns 0 (the caller shades ground). Else writes the wash colour
-   * into out and returns the id; this._bt is the distance along the ray.
+   * into out and returns the id; this._bt is the distance along the ray, this._ri the
+   * ridge's profile index (for the edge pass).
    */
   bg(ox, oy, oz, dx, dy, dz, thg, mt, t, out, mirror = false) {
     const hl = Math.sqrt(dx * dx + dz * dz) + 1e-9;
@@ -967,6 +1011,15 @@ export class World {
     const Rs = this.ridges;
     const b = ox * ux + oz * uz;
     const c0 = ox * ox + oz * oz;
+    let r = 0;
+    let g = 0;
+    let bb = 0;
+    let id = 0;
+    // a soft edge: the nearer range's wash bleeding a few pixels past its line
+    let sk = 0;
+    let sr = 0;
+    let sg = 0;
+    let sb = 0;
     for (let li = 0; li < Rs.length; li++) {
       const L = Rs[li];
       const th = -b + Math.sqrt(b * b - c0 + L.R * L.R);
@@ -982,18 +1035,30 @@ export class World {
       if (i >= TAB) i = TAB - 1;
       f -= i;
       const top = L.h[i] + (L.h[i + 1] - L.h[i]) * f;
-      if (Y >= top) continue;
+      const eq = L.eq[i >> 3];
+      if (Y >= top) {
+        if (sk === 0 && !mirror && li < 3 && eq > 0.22 && eq <= 0.5) {
+          const miss = ((Y - top) / th) * this.F;
+          if (miss < 3) {
+            sk = (1 - miss / 3) * 0.5;
+            sr = (L.sh[0] + L.lit[0]) * 0.5;
+            sg = (L.sh[1] + L.lit[1]) * 0.5;
+            sb = (L.sh[2] + L.lit[2]) * 0.5;
+          }
+        }
+        continue;
+      }
       // a ridge: two flat tones split along spurs running down from the peaks
       const q = top - Y;
       let j = i - Math.round(((q / L.R) * L.skew * TAB) / TWO_PI);
       j = ((j % TAB) + TAB) % TAB;
       const sl = L.d[j] * (Math.cos(this.sun.az) > 0 ? 1 : -1);
       const lit = smooth(-0.02 * L.amp, 0.02 * L.amp, -sl);
-      let r = L.sh[0] + (L.lit[0] - L.sh[0]) * lit;
-      let g = L.sh[1] + (L.lit[1] - L.sh[1]) * lit;
-      let bb = L.sh[2] + (L.lit[2] - L.sh[2]) * lit;
+      r = L.sh[0] + (L.lit[0] - L.sh[0]) * lit;
+      g = L.sh[1] + (L.lit[1] - L.sh[1]) * lit;
+      bb = L.sh[2] + (L.lit[2] - L.sh[2]) * lit;
       // brush: darker masses (trees, scrub) on the near slopes
-      if (L.brush > 0) {
+      if (L.brush > 0 && !mirror) {
         const tx = (ang * L.R) / 7;
         const n = samp(this.tex.ground[1].d, this.tex.ground[1].N, tx, Y * 0.35 + li * 50);
         const k = smooth(0.58, 0.64, n) * L.brush * smooth(top * 0.15, top * 0.5, q);
@@ -1001,79 +1066,116 @@ export class World {
         g -= g * k * 2;
         bb -= bb * k * 1.8;
       }
-      // pigment pools at the top edge of the wash
+      // the top edge: pigment pools where it is found, melts into the haze where lost
       const pxBelow = (q / th) * this.F;
-      if (pxBelow < 2.2 && li < 3) {
-        const k = 0.1 - li * 0.03;
-        r -= r * k;
-        g -= g * k;
-        bb -= bb * k * 0.8;
+      let mkEdge = 0;
+      if (pxBelow < 2.5 && li < 3) {
+        if (eq > 0.22) {
+          const k = (0.1 - li * 0.03) * (eq > 0.5 ? 1 : 0.5);
+          r -= r * k;
+          g -= g * k;
+          bb -= bb * k * 0.8;
+        } else mkEdge = 0.45 * (1 - pxBelow / 2.5);
       }
       // mist lying low between the ridges, drifting
       const mh = this.mistTab[li][Math.floor((i / TAB) * 512) & 511];
-      const mk = (1 - smooth(0, mh, Y)) * 0.85;
-      out[0] = r + (MIST[0] - r) * mk;
-      out[1] = g + (MIST[1] - g) * mk;
-      out[2] = bb + (MIST[2] - bb) * mk;
+      const mk = Math.min(1, (1 - smooth(0, mh, Y)) * 0.85 + mkEdge);
+      r += (MIST[0] - r) * mk;
+      g += (MIST[1] - g) * mk;
+      bb += (MIST[2] - bb) * mk;
       this._bt = th / hl;
-      return ID_RIDGE + li;
+      this._ri = i;
+      id = ID_RIDGE + li;
+      break;
     }
-    if (thg < Infinity) return 0;
-    // the sky: vellum near the horizon, a cool grey wash overhead
-    const e = smooth(-0.05, 0.7, dy);
-    let r = SKY_HOR[0] + (SKY_ZEN[0] - SKY_HOR[0]) * e;
-    let g = SKY_HOR[1] + (SKY_ZEN[1] - SKY_HOR[1]) * e;
-    let bb = SKY_HOR[2] + (SKY_ZEN[2] - SKY_HOR[2]) * e;
-    let id = ID_SKY;
-    this._ca = 0;
-    if (dy > 0.004) {
-      const tc = (this.cloudH - oy) / dy;
-      const T = this.cloudTexel;
-      const cu = (ox + dx * tc + this.cloudWX * t + this.cloudOX) / T;
-      const cv = (oz + dz * tc + this.cloudWZ * t + this.cloudOZ) / T;
-      let dens;
-      if (mirror) {
-        // seen in the water it is broken up anyway: one mip level is enough
-        const m = this.tex.cloud[2];
-        dens = samp(m.d, m.N, cu * 0.25, cv * 0.25);
-      } else {
-        const fp = tc / (this.F * Math.sqrt(dy));
-        dens = sampMip(this.tex.cloud, cu, cv, Math.log2(fp / T + 1e-6) + 0.3);
-      }
-      const hk = smooth(0.012, 0.16, dy);
-      const th1 = this.cloudTh;
-      const th2 = th1 + 0.1;
-      if (dens > th1) {
-        let cr;
-        let cg;
-        let cb;
-        if (dens > th2) {
-          const pool = dens < th2 + 0.035 ? 1 : 0;
-          cr = pool ? CLOUD_POOL[0] : CLOUD_THICK[0];
-          cg = pool ? CLOUD_POOL[1] : CLOUD_THICK[1];
-          cb = pool ? CLOUD_POOL[2] : CLOUD_THICK[2];
-          if (hk > 0.7) id = ID_THICK;
-          this._ca = 0.8 * hk;
+    if (!id) {
+      if (thg < Infinity) return 0;
+      id = ID_SKY;
+      // the sky: vellum near the horizon, a cool grey wash overhead, never a perfect
+      // ramp: the haze wanders, so it brightens and dims unevenly round the horizon
+      const az = atan2f(dx, dz);
+      const sv = this.skyVar(az, dy);
+      const e = smooth(-0.05, 0.75, dy + (sv - 0.5) * 0.22);
+      const lum = 0.95 + 0.1 * sv;
+      r = (SKY_HOR[0] + (SKY_ZEN[0] - SKY_HOR[0]) * e) * lum;
+      g = (SKY_HOR[1] + (SKY_ZEN[1] - SKY_HOR[1]) * e) * lum;
+      bb = (SKY_HOR[2] + (SKY_ZEN[2] - SKY_HOR[2]) * e) * lum;
+      this._ca = 0;
+      if (dy > 0.004) {
+        const tc = (this.cloudH - oy) / dy;
+        const T = this.cloudTexel;
+        // stretched along the wind (clouds drawn out by it)
+        const wx = ox + dx * tc + this.cloudWX * t + this.cloudOX;
+        const wz = oz + dz * tc + this.cloudWZ * t + this.cloudOZ;
+        const cu = (wx * this.windU + wz * this.windV) / (T * 1.8);
+        const cv = (-wx * this.windV + wz * this.windU) / T;
+        let dens;
+        if (mirror) {
+          // seen in the water it is broken up anyway: one mip level is enough
+          const m = this.tex.cloud[2];
+          dens = samp(m.d, m.N, cu * 0.25, cv * 0.25);
         } else {
-          const pool = dens < th1 + 0.03 ? 0.6 : 0;
-          cr = CLOUD_THIN[0] + (CLOUD_POOL[0] - CLOUD_THIN[0]) * pool;
-          cg = CLOUD_THIN[1] + (CLOUD_POOL[1] - CLOUD_THIN[1]) * pool;
-          cb = CLOUD_THIN[2] + (CLOUD_POOL[2] - CLOUD_THIN[2]) * pool;
-          if (hk > 0.7) id = ID_THIN;
-          this._ca = 0.5 * hk;
+          const fp = tc / (this.F * Math.sqrt(dy));
+          dens = sampMip(this.tex.cloud, cu, cv, Math.log2(fp / T + 1e-6) + 0.3);
         }
-        // clouds far off melt into the haze at the horizon
-        const k = hk * 0.9;
-        r += (cr - r) * k;
-        g += (cg - g) * k;
-        bb += (cb - bb) * k;
+        const hk = smooth(0.012, 0.16, dy);
+        const th1 = this.cloudTh;
+        const th2 = th1 + 0.1;
+        if (dens > th1) {
+          let cr;
+          let cg;
+          let cb;
+          if (dens > th2) {
+            const pool = dens < th2 + 0.035 ? 1 : 0;
+            cr = pool ? CLOUD_POOL[0] : CLOUD_THICK[0];
+            cg = pool ? CLOUD_POOL[1] : CLOUD_THICK[1];
+            cb = pool ? CLOUD_POOL[2] : CLOUD_THICK[2];
+            if (hk > 0.7) id = ID_THICK;
+            this._ca = 0.8 * hk;
+          } else {
+            const pool = dens < th1 + 0.03 ? 0.6 : 0;
+            cr = CLOUD_THIN[0] + (CLOUD_POOL[0] - CLOUD_THIN[0]) * pool;
+            cg = CLOUD_THIN[1] + (CLOUD_POOL[1] - CLOUD_THIN[1]) * pool;
+            cb = CLOUD_THIN[2] + (CLOUD_POOL[2] - CLOUD_THIN[2]) * pool;
+            if (hk > 0.7) id = ID_THIN;
+            this._ca = 0.5 * hk;
+          }
+          // clouds far off melt into the haze at the horizon
+          const k = hk * 0.9;
+          r += (cr - r) * k;
+          g += (cg - g) * k;
+          bb += (cb - bb) * k;
+        }
       }
+      this._bt = Infinity;
+    }
+    if (sk > 0) {
+      r += (sr - r) * sk;
+      g += (sg - g) * sk;
+      bb += (sb - bb) * sk;
     }
     out[0] = r;
     out[1] = g;
     out[2] = bb;
-    this._bt = Infinity;
     return id;
+  }
+
+  /** The sky's unevenness (0..1) by direction: azimuth (radians) and ray height. */
+  skyVar(az, dy) {
+    const T = this.tex.skyv;
+    const u = (az + Math.PI) * (256 / TWO_PI);
+    const v = Math.max(0, Math.min(46.99, (dy + 0.1) * 42));
+    const x = Math.floor(u);
+    const y = v | 0;
+    const fx = u - x;
+    const fy = v - y;
+    const x0 = x & 255;
+    const x1 = (x + 1) & 255;
+    const a = T[y * 256 + x0];
+    const b = T[y * 256 + x1];
+    const c = T[(y + 1) * 256 + x0];
+    const d = T[(y + 1) * 256 + x1];
+    return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
   }
 
   /** Per-frame ridge limits: the steepest ray (tan of elevation) each layer can stop. */
