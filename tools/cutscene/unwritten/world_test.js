@@ -151,11 +151,11 @@ export class WorldTest extends Piece {
       const lt = t - at(30);
       const u = lt / (at(31) - at(30));
       const cam = lookAt(
-        { x: lerp(5.3, 5.9, u), y: 0.24, z: lerp(-2.9, -2.4, u) },
+        { x: lerp(5.3, 5.9, u), y: 0.34, z: lerp(-2.9, -2.4, u) },
         { x: 7.9, y: 0.55, z: 0.3 },
         { focal: 380 },
       );
-      const wx = lerp(8.9, 7.1, smooth(0.05, 0.85, u));
+      const wx = lerp(8.7, 6.6, smooth(0.0, 0.75, u));
       const steps = [at(30) + 0.25, at(30) + 0.8, at(30) + 1.3];
       world().render(f, t, cam, {
         rain: 0.6,
@@ -190,11 +190,12 @@ export class WorldTest extends Piece {
     const ring = [];
     for (let k = 0; k < 9; k++) {
       const a = -1.25 + k * 0.28;
+      const stone = k % 4 === 2;
       ring.push({
-        X: 3.3 + Math.sin(a) * 2.9,
-        Z: -Math.cos(a) * 2.9,
-        kind: k % 3 === 1 ? 'stone' : 'reeds',
-        h: 1.1,
+        X: 3.3 + Math.sin(a) * 3.1,
+        Z: -Math.cos(a) * 3.1,
+        kind: stone ? 'stone' : 'reeds',
+        h: stone ? 0.22 : 1.3,
         seed: 40 + k,
         Y: 0,
       });
@@ -245,10 +246,10 @@ export class WorldTest extends Piece {
       const u = lt / (DURATION - at(35));
       const cam = {
         x: 4.1,
-        y: lerp(7.4, 4.9, easeOut(u)),
-        z: lerp(-0.9, -0.4, u),
+        y: lerp(6.2, 3.6, easeOut(u)),
+        z: lerp(-2.6, -1.6, u),
         yaw: 0.15,
-        pitch: lerp(-1.4, -1.52, u),
+        pitch: lerp(-1.42, -1.12, easeOut(u)),
         roll: 0.28 * u,
         focal: 330,
       };

@@ -226,7 +226,19 @@ const reach = (sx, sy, tx, ty, L) => {
   return d <= L ? [tx, ty] : [sx + ((tx - sx) * L) / d, sy + ((ty - sy) * L) / d];
 };
 
-const POSE_KEYS = ['hipY', 'lean', 'curve', 'head', 'rear', 'ang', 'gap', 'rt', 'free', 'swing', 'bob'];
+const POSE_KEYS = [
+  'hipY',
+  'lean',
+  'curve',
+  'head',
+  'rear',
+  'ang',
+  'gap',
+  'rt',
+  'free',
+  'swing',
+  'bob',
+];
 
 /** A pose: the base merged with overrides (so a library entry lists only what differs). */
 const BASE = {
@@ -340,7 +352,18 @@ function makeActor(spec) {
     const s = gait ? (t - gait.t0) / gait.every : 0;
     const u = s - Math.floor(s);
     const bob = P.swing ? -P.bob * scale * P.swing * Math.cos(2 * Math.PI * (u - 0.35)) : 0;
-    const hips = [x, groundY(x, z) + P.hipY * scale + bob];
+    // what the hips are held above: the mean of what the two feet stand on (a foot up on a
+    // stone lifts the hips, a stone under the hips does not)
+    const fN = feet.N(t);
+    const fF = feet.F(t);
+    const wN = 1 - sm(fN.lift / 0.14);
+    const wF = 1 - sm(fF.lift / 0.14);
+    const stoneUp =
+      wN + wF < 0.05
+        ? 0
+        : (wN * (groundY(fN.x, z) - bedY(fN.x)) + wF * (groundY(fF.x, z) - bedY(fF.x))) / (wN + wF);
+    const ref = bedY(x) + 0.25 * stoneUp;
+    const hips = [x, ref + P.hipY * scale + bob];
     const tv = [Math.sin(P.lean) * f, Math.cos(P.lean)];
     const nv = [Math.cos(P.lean) * f, -Math.sin(P.lean)]; // toward the chest
     const neck = [hips[0] + tv[0] * D.trunk, hips[1] + tv[1] * D.trunk];
@@ -356,11 +379,15 @@ function makeActor(spec) {
 
     const legs = {};
     for (const nm of ['N', 'F']) {
-      const ft = feet[nm](t);
+      const ft = nm === 'N' ? fN : fF;
       const ty = groundY(ft.x, z) + ANKLE + ft.lift;
       const r = ik2(hips[0], hips[1], ft.x, ty, D.thigh, D.shin, [f, 0.15]);
       over += r.over;
-      legs[nm] = { knee: r.joint, foot: r.end, toe: [r.end[0] + 0.19 * scale * f, r.end[1] - 0.05] };
+      legs[nm] = {
+        knee: r.joint,
+        foot: r.end,
+        toe: [r.end[0] + 0.19 * scale * f, r.end[1] - 0.05],
+      };
     }
 
     // the weapon: rear hand from the pose, then aimed if a contact point pulls on it
@@ -499,61 +526,312 @@ function runSteps(feet, lands, Xp, who, t0, n, o) {
 const EDRIC_LIB = Object.fromEntries(
   Object.entries({
     // on the bank, braced to run: the weight is over the front leg, the blade trails
-    brace: { hipY: 0.78, lean: 0.32, curve: 0.05, head: -0.2, rear: [-0.05, -0.5], ang: 2.9, free: [0.2, -0.35] },
+    brace: {
+      hipY: 0.78,
+      lean: 0.32,
+      curve: 0.05,
+      head: -0.2,
+      rear: [-0.05, -0.5],
+      ang: 2.9,
+      free: [0.2, -0.35],
+    },
     // running: the body falls forward and the legs catch it
-    runLand: { hipY: 0.84, lean: 0.4, curve: 0.06, head: -0.3, rear: [0.05, -0.5], ang: 2.95, swing: 1, bob: 0.05 },
+    runLand: {
+      hipY: 0.84,
+      lean: 0.4,
+      curve: 0.06,
+      head: -0.3,
+      rear: [0.05, -0.5],
+      ang: 2.95,
+      swing: 1,
+      bob: 0.05,
+    },
     // wading: knees high, more upright, every stride a fight with the water
-    runWade: { hipY: 0.8, lean: 0.32, curve: 0.05, head: -0.25, rear: [0.05, -0.5], ang: 2.9, swing: 0.8, bob: 0.05 },
+    runWade: {
+      hipY: 0.8,
+      lean: 0.32,
+      curve: 0.05,
+      head: -0.25,
+      rear: [0.05, -0.5],
+      ang: 2.9,
+      swing: 0.8,
+      bob: 0.05,
+    },
     // the charge into measure: chest over the knee, the blade tucked back and low
-    charge: { hipY: 0.74, lean: 0.52, curve: 0.07, head: -0.42, rear: [-0.05, -0.55], ang: 3.0, swing: 1, bob: 0.06 },
+    charge: {
+      hipY: 0.74,
+      lean: 0.52,
+      curve: 0.07,
+      head: -0.42,
+      rear: [-0.05, -0.55],
+      ang: 3.0,
+      swing: 1,
+      bob: 0.06,
+    },
     // he has read the Warden's shoulders sink: the weight drops, the trunk comes upright
-    dropAnt: { hipY: 0.52, lean: 0.1, curve: 0.05, head: -0.1, rear: [-0.05, -0.5], ang: 3.0, free: [0.3, -0.3] },
+    dropAnt: {
+      hipY: 0.52,
+      lean: 0.1,
+      curve: 0.05,
+      head: -0.1,
+      rear: [-0.05, -0.5],
+      ang: 3.0,
+      free: [0.3, -0.3],
+    },
     // the slide: hips on the bed, trunk thrown back, chin up, eyes on the point, one hand dragging
-    slide: { hipY: 0.19, lean: -0.95, curve: -0.05, head: 0.75, rear: [-0.1, -0.2], ang: 2.85, free: [0.2, -0.5] },
-    slideEnd: { hipY: 0.2, lean: -0.7, curve: -0.03, head: 0.55, rear: [-0.05, -0.25], ang: 2.7, free: [0.25, -0.5] },
+    slide: {
+      hipY: 0.19,
+      lean: -0.95,
+      curve: -0.05,
+      head: 0.75,
+      rear: [-0.1, -0.2],
+      ang: 2.85,
+      free: [0.2, -0.5],
+    },
+    slideEnd: {
+      hipY: 0.2,
+      lean: -0.7,
+      curve: -0.03,
+      head: 0.55,
+      rear: [-0.05, -0.25],
+      ang: 2.7,
+      free: [0.25, -0.5],
+    },
     // gathering in the spray: knees drawn in, both hands on the hilt, the blade cocked back
-    coil: { hipY: 0.4, lean: 0.3, curve: 0.06, head: -0.3, rear: [0.05, -0.55], gap: 0.16, ang: 2.4 },
+    coil: {
+      hipY: 0.4,
+      lean: 0.3,
+      curve: 0.06,
+      head: -0.3,
+      rear: [0.05, -0.55],
+      gap: 0.16,
+      ang: 2.4,
+    },
     // the clash: a deep lunge, the blade rising to beat the shaft
-    clash: { hipY: 0.62, lean: 0.52, curve: 0.06, head: -0.4, rear: [0.48, -0.1], gap: 0.14, ang: 0.85 },
-    bindPush: { hipY: 0.58, lean: 0.6, curve: 0.07, head: -0.45, rear: [0.48, -0.1], gap: 0.14, ang: 0.85 },
-    bindHard: { hipY: 0.54, lean: 0.7, curve: 0.08, head: -0.55, rear: [0.5, -0.12], gap: 0.14, ang: 0.85 },
+    clash: {
+      hipY: 0.62,
+      lean: 0.52,
+      curve: 0.06,
+      head: -0.4,
+      rear: [0.48, -0.1],
+      gap: 0.14,
+      ang: 0.85,
+    },
+    bindPush: {
+      hipY: 0.58,
+      lean: 0.6,
+      curve: 0.07,
+      head: -0.45,
+      rear: [0.48, -0.1],
+      gap: 0.14,
+      ang: 0.85,
+    },
+    bindHard: {
+      hipY: 0.54,
+      lean: 0.7,
+      curve: 0.08,
+      head: -0.55,
+      rear: [0.5, -0.12],
+      gap: 0.14,
+      ang: 0.85,
+    },
     // the yield: the resistance is gone, the weight goes on, the blade is pressed down
-    overbal: { hipY: 0.55, lean: 1.05, curve: 0.06, head: -0.7, rear: [0.5, -0.5], gap: 0.12, ang: -0.1 },
-    slipCatch: { hipY: 0.4, lean: 1.22, curve: 0.05, head: -0.85, rear: [0.45, -0.6], gap: 0.12, ang: -0.3 },
+    overbal: {
+      hipY: 0.46,
+      lean: 1.1,
+      curve: 0.06,
+      head: -0.7,
+      rear: [0.5, -0.36],
+      gap: 0.12,
+      ang: 0.1,
+    },
+    slipCatch: {
+      hipY: 0.4,
+      lean: 1.22,
+      curve: 0.05,
+      head: -0.85,
+      rear: [0.45, -0.42],
+      gap: 0.12,
+      ang: 0.05,
+    },
     // the cut: the chest opens, the head is thrown back, the sword arm flung up
-    cutHit: { hipY: 0.5, lean: -0.15, curve: -0.1, head: -0.5, rear: [0.15, 0.15], ang: 1.3, free: [0.5, 0.2] },
-    stagger: { hipY: 0.52, lean: -0.45, curve: -0.08, head: -0.35, rear: [0.25, 0.1], ang: 1.0, free: [0.45, 0.1] },
-    falling: { hipY: 0.36, lean: -0.85, curve: -0.06, head: -0.2, rear: [0.3, 0.0], ang: 0.6, free: [0.4, 0.15] },
-    land: { hipY: 0.15, lean: -1.3, curve: -0.04, head: -0.1, rear: [0.3, 0.05], ang: 0.3, free: [0.4, 0.1] },
-    lying: { hipY: 0.12, lean: -1.5, curve: -0.02, head: 0.05, rear: [0.25, 0.05], ang: 0.15, free: [0.45, 0.05] },
+    cutHit: {
+      hipY: 0.5,
+      lean: -0.15,
+      curve: -0.1,
+      head: -0.5,
+      rear: [0.15, 0.15],
+      ang: 1.3,
+      free: [0.5, 0.2],
+    },
+    stagger: {
+      hipY: 0.52,
+      lean: -0.45,
+      curve: -0.08,
+      head: -0.35,
+      rear: [0.25, 0.1],
+      ang: 1.0,
+      free: [0.45, 0.1],
+    },
+    falling: {
+      hipY: 0.36,
+      lean: -0.85,
+      curve: -0.06,
+      head: -0.2,
+      rear: [0.3, 0.0],
+      ang: 0.6,
+      free: [0.4, 0.15],
+    },
+    land: {
+      hipY: 0.15,
+      lean: -1.3,
+      curve: -0.04,
+      head: -0.1,
+      rear: [0.3, 0.05],
+      ang: 0.3,
+      free: [0.4, 0.1],
+    },
+    lying: {
+      hipY: 0.12,
+      lean: -1.5,
+      curve: -0.02,
+      head: 0.05,
+      rear: [0.25, 0.05],
+      ang: 0.15,
+      free: [0.45, 0.05],
+    },
   }).map(([k, v]) => [k, mkPose(v)]),
 );
 
 const WARDEN_LIB = Object.fromEntries(
   Object.entries({
     // on the bank: the spear grounded and upright at his side
-    ready: { hipY: 0.92, lean: -0.02, curve: 0, rear: [0.12, -0.3], gap: 0.5, ang: 1.5 },
-    march: { hipY: 0.9, lean: 0.05, rear: [0.12, -0.3], gap: 0.5, ang: 1.3, swing: 0.5, bob: 0.03 },
+    ready: { hipY: 0.86, lean: 0.0, curve: 0, rear: [0.12, -0.3], gap: 0.5, ang: 1.5 },
+    march: { hipY: 0.76, lean: 0.1, rear: [0.12, -0.3], gap: 0.5, ang: 1.3, swing: 0.5, bob: 0.03 },
     // the spear comes down to level, the point at Edric's chest
-    guard: { hipY: 0.82, lean: 0.08, curve: 0.02, rear: [0.1, -0.3], gap: 0.42, ang: 0.04 },
+    guard: {
+      hipY: 0.72,
+      lean: 0.14,
+      curve: 0.03,
+      rear: [0.1, -0.3],
+      gap: 0.42,
+      ang: 0.04,
+      rt: 2.36,
+    },
     // anticipation: the weight sinks back over the rear leg, the point lifts a hair
-    thrustAnt: { hipY: 0.76, lean: -0.04, curve: -0.03, head: 0.05, rear: [-0.02, -0.3], gap: 0.42, ang: 0.1 },
+    thrustAnt: {
+      hipY: 0.68,
+      lean: 0.0,
+      curve: -0.03,
+      head: 0.05,
+      rear: [-0.02, -0.3],
+      gap: 0.42,
+      ang: 0.1,
+      rt: 2.36,
+    },
     // full extension: the rear arm to the shoulder, the lead arm straight, the front knee deep
-    thrust: { hipY: 0.7, lean: 0.5, curve: 0.06, head: -0.4, rear: [0.1, -0.2], gap: 0.45, ang: 0.04, rt: 2.9 },
-    recover: { hipY: 0.78, lean: 0.12, curve: 0.02, rear: [0.05, -0.3], gap: 0.42, ang: 0.25 },
+    thrust: {
+      hipY: 0.66,
+      lean: 0.5,
+      curve: 0.06,
+      head: -0.4,
+      rear: [0.1, -0.2],
+      gap: 0.45,
+      ang: 0.04,
+      rt: 2.83,
+    },
+    recover: {
+      hipY: 0.72,
+      lean: 0.14,
+      curve: 0.02,
+      rear: [0.05, -0.3],
+      gap: 0.42,
+      ang: 0.25,
+      rt: 2.4,
+    },
     // the block: the shaft up across the body to meet whatever comes out of the spray
-    block: { hipY: 0.8, lean: 0.1, curve: 0.02, rear: [0.05, -0.28], gap: 0.45, ang: 0.3, rt: 2.75 },
-    bindHold: { hipY: 0.78, lean: 0.1, curve: 0.03, rear: [0.05, -0.28], gap: 0.45, ang: 0.3, rt: 2.75 },
+    block: {
+      hipY: 0.7,
+      lean: 0.16,
+      curve: 0.03,
+      rear: [0.05, -0.28],
+      gap: 0.45,
+      ang: 0.3,
+      rt: 2.6,
+    },
+    bindHold: {
+      hipY: 0.66,
+      lean: 0.2,
+      curve: 0.04,
+      rear: [0.05, -0.28],
+      gap: 0.45,
+      ang: 0.3,
+      rt: 2.6,
+    },
     // he decides: only the helm moves (a tilt down at the blade)
-    decide: { hipY: 0.78, lean: 0.1, curve: 0.03, head: 0.26, rear: [0.05, -0.28], gap: 0.45, ang: 0.3, rt: 2.75 },
+    decide: {
+      hipY: 0.66,
+      lean: 0.2,
+      curve: 0.04,
+      head: 0.26,
+      rear: [0.05, -0.28],
+      gap: 0.45,
+      ang: 0.3,
+      rt: 2.6,
+    },
     // the tell: his knees loosen, the weight goes back
-    yieldAnt: { hipY: 0.73, lean: -0.02, curve: -0.02, head: 0.1, rear: [0.05, -0.3], gap: 0.45, ang: 0.3, rt: 2.75 },
+    yieldAnt: {
+      hipY: 0.62,
+      lean: 0.12,
+      curve: -0.02,
+      head: 0.1,
+      rear: [0.05, -0.3],
+      gap: 0.45,
+      ang: 0.3,
+      rt: 2.6,
+    },
     // the step back, the shaft turned down over the blade
-    yield: { hipY: 0.8, lean: -0.2, curve: -0.05, head: -0.05, rear: [0.1, -0.3], gap: 0.45, ang: -0.3, rt: 2.6 },
+    yield: {
+      hipY: 0.74,
+      lean: -0.15,
+      curve: -0.05,
+      head: -0.05,
+      rear: [0.1, -0.3],
+      gap: 0.45,
+      ang: 0.0,
+      rt: 2.6,
+    },
     // the wind-up: hands to the head, the point up
-    wind: { hipY: 0.82, lean: -0.12, curve: -0.04, head: -0.2, rear: [0.1, 0.2], gap: 0.3, ang: 0.95, rt: 2.2 },
-    cutFollow: { hipY: 0.66, lean: 0.55, curve: 0.06, head: 0.15, rear: [0.35, -0.25], gap: 0.3, ang: -0.9, rt: 2.0 },
-    standOver: { hipY: 0.9, lean: 0.08, curve: 0.02, head: 0.3, rear: [0.12, -0.35], gap: 0.5, ang: -0.5, rt: 2.5 },
+    wind: {
+      hipY: 0.82,
+      lean: -0.12,
+      curve: -0.04,
+      head: -0.2,
+      rear: [0.1, 0.2],
+      gap: 0.3,
+      ang: 0.95,
+      rt: 2.2,
+    },
+    cutFollow: {
+      hipY: 0.66,
+      lean: 0.55,
+      curve: 0.06,
+      head: 0.15,
+      rear: [0.35, -0.1],
+      gap: 0.3,
+      ang: -0.5,
+      rt: 1.9,
+    },
+    standOver: {
+      hipY: 0.84,
+      lean: 0.1,
+      curve: 0.02,
+      head: 0.3,
+      rear: [0.12, -0.35],
+      gap: 0.5,
+      ang: -0.5,
+      rt: 2.4,
+    },
   }).map(([k, v]) => [k, mkPose(v)]),
 );
 
@@ -564,21 +842,26 @@ const SOLDIER_LIB = { stand: WARDEN_LIB.ready, march: WARDEN_LIB.march };
 const LANDS = []; // every footfall: { t, foot, x, actor, stance }
 
 // ---- the contact points (the bind, then the yield dragging it down Edric's blade)
-const BIND = { t0: TIME.clash, t1: 10.75 };
+// The yield: the shaft is drawn away and Edric's blade slides out along it toward his own
+// point (the contact runs down the blade, away from his hands) until it clears the shaft.
+// The shaft ends up lying across the back of a man who has pitched forward under it.
+const BIND = { t0: TIME.clash, t1: 10.72 };
 const bindX = keyed([
   [7.2, 3.7],
   [7.5, 3.72, 'out'],
   [9.6, 3.85],
   [10.4, 3.9],
-  [10.75, 4.05, 'in'],
+  [10.72, 4.75, 'in'],
 ]);
 const bindY = keyed([
   [7.2, 0.9],
   [9.6, 0.86],
   [10.4, 0.8],
-  [10.75, 0.05, 'in'],
+  [10.72, 0.66, 'in'],
 ]);
 const bindPt = (t) => [bindX(t), bindY(t)];
+/** [from, to]: the seconds the weapons are locked together. */
+export const BIND_SPAN = [BIND.t0, BIND.t1];
 
 // ---- Edric
 const edricPath = path([
@@ -599,7 +882,7 @@ const edricPath = path([
   [8.7, 2.68, 0],
   [9.05, 2.78, 0],
   [10.3, 2.8, 0],
-  [10.4, 2.8, 0.5],
+  [10.4, 2.8, 0.2],
   [10.6, 3.15, 1.8],
   [10.95, 3.5, 0.8],
   [11.2, 3.58, 0.3],
@@ -632,12 +915,13 @@ edricFeet.N.push(
   [7.12, 3.15, 0, 0.18, 'out'], // the lead foot of the lunge
   [8.9, 3.15, 0],
   [9.05, 3.3, 0, 0.1],
-  [10.3, 3.3, 0],
+  [10.4, 3.3, 0],
   [10.6, SLICK.x, 0, 0.16, 'out'], // onto the slick stone
   [10.7, SLICK.x, 0],
-  [10.95, 4.45, 0], // and off the far side of it
-  [11.2, 4.5, 0],
-  [11.9, 4.75, 0.06],
+  [10.95, 4.3, 0], // and off the far side of it
+  [11.7, 4.35, 0],
+  [11.9, 4.6, 0.06, 0.1],
+  [12.0, 4.75, 0.1],
   [12.4, 4.95, 0.12],
 );
 edricFeet.F.push(
@@ -646,10 +930,13 @@ edricFeet.F.push(
   [6.8, eX(6.8) + 0.25, 0.04],
   [6.95, 2.0, 0, 0.12], // the rear foot of the lunge
   [8.55, 2.0, 0],
-  [8.72, 2.1, 0, 0.12],
-  [10.45, 2.1, 0],
-  [10.95, 3.0, 0, 0.2],
-  [11.4, 3.2, 0],
+  [8.72, 2.2, 0, 0.12],
+  [10.4, 2.2, 0],
+  [10.72, 2.85, 0, 0.14],
+  [10.95, 3.05, 0],
+  [11.4, 3.35, 0, 0.1],
+  [11.75, 3.35, 0],
+  [12.0, 4.55, 0.1, 0.1],
   [12.4, 4.85, 0.06],
 );
 const edric = makeActor({
@@ -657,6 +944,11 @@ const edric = makeActor({
   kind: 'sword',
   scale: 1,
   X: edricPath,
+  Zf: keyed([
+    [0, 0],
+    [11.55, 0],
+    [12.4, 0.55],
+  ]),
   face: () => 1,
   gait: { t0: 0.85, every: 0.25 },
   feet: { N: footTrack(edricFeet.N), F: footTrack(edricFeet.F) },
@@ -705,17 +997,14 @@ const edric = makeActor({
     [11.55, 'fall'],
     [12.4, 'down'],
   ]),
-  aims: [{ a: 7.1, b: 7.2, c: 10.7, d: 10.85, pt: bindPt, through: 'ray' }],
+  aims: [{ a: 7.1, b: 7.2, c: 10.72, d: 10.78, pt: bindPt, through: 'ray' }],
 });
 
-// the crimson cut lands on the middle of Edric's back
+// the crimson cut lands on the middle of Edric's back (the chest's normal, reversed)
 const backPt = (t) => {
   const s = edric.skeleton(t);
-  const n = [-Math.cos(Math.asin(clamp((s.neck[0] - s.hips[0]) / edric.dims.trunk, -1, 1))), 0];
   const lean = Math.atan2((s.neck[0] - s.hips[0]) * s.facing, s.neck[1] - s.hips[1]);
-  n[0] = -Math.cos(lean) * s.facing;
-  n[1] = Math.sin(lean);
-  return [s.spine[0] + n[0] * 0.11, s.spine[1] + n[1] * 0.11];
+  return [s.spine[0] - Math.cos(lean) * s.facing * 0.11, s.spine[1] + Math.sin(lean) * 0.11];
 };
 
 // ---- the Warden
@@ -737,40 +1026,42 @@ const wardenPath = path([
   [8.6, 4.88, 0],
   [8.95, 5.05, 0],
   [10.4, 5.05, 0],
-  [10.6, 5.6, null, 'snap'],
+  [10.65, 5.6, null, 'snap'],
   [11.0, 5.6, 0],
   [11.2, 5.35, null, 'snap'],
   [11.6, 5.35, 0],
-  [12.0, 5.5, 0],
+  [12.0, 5.6, 0],
 ]);
 const wX = (t) => wardenPath.pos(t);
 const wardenFeet = { N: [[0, 8.7, 0]], F: [[0, 9.3, 0]] };
 runSteps(wardenFeet, LANDS, wardenPath, 'warden', 1.6, 7, {
   every: 0.4,
-  stance: 0.46,
+  stance: 0.34,
   h: 0.22,
-  override: { 5: 5.05, 6: 4.35 },
+  override: { 5: 5.25, 6: 4.25 }, // the last two steps set his stance: rear foot, then front foot
 });
 wardenFeet.N.push(
-  [5.86, 4.35, 0],
-  [6.0, 4.23, 0, 0, 'snap'], // the lunge slides the front foot
-  [6.45, 4.23, 0],
-  [6.8, 4.35, 0],
-  [8.85, 4.35, 0],
-  [9.0, 4.65, 0, 0.1],
-  [10.5, 4.65, 0],
-  [10.7, 5.25, 0, 0.12],
-  [10.95, 5.25, 0],
+  [8.7, 4.25, 0],
+  [8.95, 4.55, 0, 0.1],
+  [10.4, 4.55, 0],
+  [10.5, 4.95, 0.02, 0, 'out'], // dragged back by the yield
+  [10.72, 5.15, 0, 0.1],
+  [10.95, 5.15, 0],
   [11.15, 4.95, 0, 0.15, 'snap'],
-  [12.4, 4.95, 0],
+  [11.6, 4.95, 0],
+  [11.95, 5.2, 0, 0.1],
+  [12.4, 5.2, 0],
 );
 wardenFeet.F.push(
-  [8.6, 5.05, 0],
-  [8.8, 5.35, 0, 0.12],
-  [10.4, 5.35, 0],
-  [10.55, 5.95, 0, 0.18, 'out'], // the step back
-  [11.5, 5.95, 0],
-  [11.8, 5.6, 0, 0.1],
+  [6.0, 5.25, 0],
+  [8.45, 5.25, 0],
+  [8.7, 5.5, 0, 0.12],
+  [10.4, 5.5, 0],
+  [10.55, 6.0, 0, 0.18, 'out'], // the step back
+  [11.0, 6.0, 0],
+  [11.2, 5.75, 0, 0.08, 'snap'],
+  [11.6, 5.75, 0],
+  [11.9, 5.9, 0, 0.1],
 );
 LANDS.push(
   { t: 6.0, foot: 'N', x: 4.23, actor: 'warden', stance: 0.5, lunge: true },
@@ -832,7 +1123,7 @@ const warden = makeActor({
     [12.0, 'stand'],
   ]),
   aims: [
-    { a: 7.1, b: 7.2, c: 10.7, d: 10.85, pt: bindPt, through: 'ray' },
+    { a: 7.1, b: 7.2, c: 10.72, d: 10.85, pt: bindPt, through: 'ray' },
     { a: 11.1, b: 11.2, c: 11.2, d: 11.32, pt: backPt, through: 'reach' },
   ],
 });
@@ -870,3 +1161,451 @@ const soldiers = Array.from({ length: 8 }, (_, i) => {
   });
 });
 LANDS.sort((a, b) => a.t - b.t);
+
+// ---------------------------------------------------------------------------- queries
+
+const ALL = { edric, warden };
+for (const s of soldiers) ALL[s.name] = s;
+export const ACTORS = ALL;
+export const LINE = soldiers.map((s) => s.name);
+
+/** { X, Y (hips above the surface), Z, facing, action, pose (the solved skeleton), speed } */
+export function actorAt(name, t) {
+  if (name === 'line') return soldiers.map((s) => s.at(t));
+  if (!ALL[name]) throw new Error(`no actor "${name}"`);
+  return ALL[name].at(t);
+}
+export const skeletonAt = (name, t) => ALL[name].skeleton(t);
+
+const pt = (p) => ({ x: p[0], y: p[1] });
+/** The spear's point (x, y) at t. */
+export const spearTip = (t) => pt(warden.skeleton(t).weapon.tip);
+/** The sword's point (x, y) at t. */
+export const swordTip = (t) => pt(edric.skeleton(t).weapon.tip);
+/** The contact point while the weapons are locked (clash to yield), else null. */
+export const bindPoint = (t) => (t >= BIND.t0 && t <= BIND.t1 ? pt(bindPt(t)) : null);
+
+// ------------------------------------------------------------------------ initiative
+
+// [from, holder (who really has it), apparent (who the audience thinks has it), note]
+const INITIATIVE = [
+  [0, 'edric', 'edric', 'The rush down the Thread; he is the one who moves.'],
+  [TIME.run, 'edric', 'edric', 'Edric picks the moment and the line: straight at the ford.'],
+  [
+    TIME.water,
+    'warden',
+    'warden',
+    'The Warden holds the shallows. The spear sets the range; Edric must come to it, slowed by the water.',
+  ],
+  [
+    TIME.drop,
+    'edric',
+    'warden',
+    "Edric reads the sink of the Warden's weight and drops before the thrust exists. The audience still thinks the Warden is acting.",
+  ],
+  [
+    TIME.thrust,
+    'edric',
+    'edric',
+    'The thrust is spent (fully extended, blind in the spray). Edric is under it.',
+  ],
+  [
+    TIME.clash,
+    'edric',
+    'edric',
+    'He beats the shaft and is inside the point. Every beat says Edric is winning.',
+  ],
+  [
+    8.6,
+    'warden',
+    'edric',
+    'The bind. Edric pushes and the Warden gives ground on purpose: a step of ground for a pitch of weight.',
+  ],
+  [TIME.decide, 'warden', 'warden', 'The helm tilts. He has decided.'],
+  [
+    TIME.yield,
+    'warden',
+    'warden',
+    'The yield: resistance vanishes, the bind point runs down the blade, the stone does the rest.',
+  ],
+  [TIME.cut, 'warden', 'warden', 'The crimson cut. The Empire wins by patience and certainty.'],
+];
+/** { holder, apparent, note } at t: who holds the initiative, and who seems to. */
+export function initiative(t) {
+  let r = INITIATIVE[0];
+  for (const k of INITIATIVE) if (t >= k[0]) r = k;
+  return { holder: r[1], apparent: r[2], note: r[3] };
+}
+export const INITIATIVE_KEYS = INITIATIVE.map(([t, holder, apparent, note]) => ({
+  t,
+  holder,
+  apparent,
+  note,
+}));
+
+// --------------------------------------------------------------------------- events
+
+/**
+ * The staging events with exact times. kind: footfall, enterWater, lineStep, halt, level,
+ * plant, thrustAnt, drop, thrustGo, thrust, spray, recover, burst, clash, shockRing, sparks,
+ * bind, decide, yieldTell, yield, stone, slip, cutWind, cut, stagger, fall, landed, settle,
+ * paintLift. Positions are world metres; t1 marks an interval.
+ */
+export const EVENTS = [];
+const ev = (t, kind, o = {}) => EVENTS.push({ t, kind, ...o });
+
+for (const l of LANDS) {
+  if (l.lunge || l.yield) continue;
+  const depth = waterDepth(l.x);
+  ev(l.t, 'footfall', {
+    actor: l.actor,
+    foot: l.foot,
+    x: l.x,
+    y: 0,
+    depth,
+    wet: depth > 0.03,
+    speed: Math.abs(ALL[l.actor].X.speed(l.t + l.stance / 2)),
+  });
+}
+const firstWet = LANDS.find((l) => l.actor === 'edric' && waterDepth(l.x) > 0.03);
+ev(firstWet.t, 'enterWater', { actor: 'edric', x: firstWet.x, y: 0 });
+const wardenWet = LANDS.find((l) => l.actor === 'warden' && waterDepth(l.x) > 0.03);
+ev(wardenWet.t, 'enterWater', { actor: 'warden', x: wardenWet.x, y: 0 });
+for (const t of [2.4, 2.8, 3.2])
+  ev(t, 'lineStep', { actor: 'line', x: 11 + 0.43 * 3.5 - 0.45 * ((t - 2.4) / 0.4 + 1), y: 0 });
+ev(3.2, 'halt', { actor: 'line', x: 10.6, y: 0 });
+ev(TIME.level, 'level', { actor: 'warden', note: 'the spear is levelled at the lens' });
+ev(TIME.plant, 'plant', { actor: 'warden', x: wX(TIME.plant), y: 0 });
+ev(5.5, 'thrustAnt', { actor: 'warden', x: wX(5.5), y: 0, note: 'the weight sinks back' });
+ev(TIME.drop, 'drop', {
+  actor: 'edric',
+  x: eX(TIME.drop),
+  y: 0,
+  note: 'Edric reads the sink and drops',
+});
+ev(TIME.thrustGo, 'thrustGo', { actor: 'warden', x: wX(TIME.thrustGo), y: 0 });
+ev(TIME.thrust, 'thrust', {
+  actor: 'warden',
+  x: spearTip(TIME.thrust).x,
+  y: spearTip(TIME.thrust).y,
+  hitStop: true,
+});
+ev(TIME.thrust, 'spray', {
+  actor: 'edric',
+  t1: TIME.sprayEnd,
+  x: eX(5.95),
+  x1: eX(TIME.sprayEnd),
+  y: 0,
+  note: 'the sheet of spray, from the drop to the coil',
+});
+ev(TIME.recover, 'recover', { actor: 'warden' });
+ev(6.95, 'burst', {
+  actor: 'edric',
+  x: 2.0,
+  y: 0,
+  note: 'the rear foot plants; the lunge is launched',
+});
+ev(TIME.clash, 'clash', { x: bindPt(TIME.clash)[0], y: bindPt(TIME.clash)[1], hitStop: true });
+ev(TIME.clash, 'shockRing', {
+  x: bindPt(TIME.clash)[0],
+  y: 0,
+  t1: TIME.clash + 0.6,
+  note: 'a ring across the water',
+});
+ev(TIME.clash, 'sparks', {
+  x: bindPt(TIME.clash)[0],
+  y: bindPt(TIME.clash)[1],
+  t1: TIME.clash + 0.5,
+});
+ev(TIME.clash + 0.4, 'bind', {
+  t1: BIND.t1,
+  x: bindPt(8)[0],
+  y: bindPt(8)[1],
+  note: 'grinding on twos',
+});
+ev(TIME.decide, 'decide', { actor: 'warden', note: 'the helm tilts' });
+ev(10.2, 'yieldTell', { actor: 'warden', note: 'the knees loosen' });
+ev(TIME.yield, 'yield', {
+  actor: 'warden',
+  x: 5.6,
+  y: 0,
+  t1: 10.75,
+  note: 'steps back; the bind point runs down the blade',
+});
+ev(TIME.stone, 'stone', {
+  actor: 'edric',
+  x: SLICK.x,
+  y: SLICK.top,
+  note: 'the lead foot on the slick stone',
+});
+ev(10.7, 'slip', {
+  actor: 'edric',
+  x: SLICK.x,
+  y: SLICK.top,
+  t1: 10.95,
+  note: 'the foot skids off the far side',
+});
+ev(11.05, 'cutWind', { actor: 'warden' });
+const cutC = backPt(TIME.cut);
+ev(TIME.cut, 'cut', { actor: 'warden', x: cutC[0], y: cutC[1], hitStop: true });
+ev(11.55, 'stagger', { actor: 'edric' });
+const fallX = edric.skeleton(TIME.fall).hips[0];
+ev(TIME.fall, 'fall', { actor: 'edric', x: fallX, y: 0, note: 'hips touch the water' });
+const landX = edric.skeleton(TIME.landed).hips[0];
+ev(TIME.landed, 'landed', {
+  actor: 'edric',
+  x: landX,
+  y: 0,
+  t1: TIME.landed + 0.8,
+  note: 'back and head down; the splash, then ripples',
+});
+ev(12.8, 'settle', { actor: 'edric', x: landX, y: 0 });
+ev(TIME.lift, 'paintLift', { note: 'the paint begins to lift off the page' });
+EVENTS.sort((a, b) => a.t - b.t);
+
+/** Every event of a kind. */
+export const events = (kind) => EVENTS.filter((e) => e.kind === kind);
+/** Events starting in [t0, t1). */
+export const eventsIn = (t0, t1) => EVENTS.filter((e) => e.t >= t0 && e.t < t1);
+
+// -------------------------------------------------------------------------- checks
+
+/** Distance from point p to segment ab. */
+function segPt(p, a, b) {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const L2 = dx * dx + dy * dy || 1e-9;
+  const u = clamp(((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2);
+  return Math.hypot(p[0] - (a[0] + dx * u), p[1] - (a[1] + dy * u));
+}
+const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+/** Distance between segments ab and cd (0 when they cross). */
+function segSeg(a, b, c, d) {
+  if (cross(a, b, c) * cross(a, b, d) < 0 && cross(c, d, a) * cross(c, d, b) < 0) return 0;
+  return Math.min(segPt(a, c, d), segPt(b, c, d), segPt(c, a, b), segPt(d, a, b));
+}
+
+/** The body as capsules [a, b, radius] (not the weapon). */
+export function bodyCapsules(s) {
+  const c = [
+    [s.hips, s.neck, 0.09],
+    [s.neck, s.head, 0.05],
+    [s.shoulder, s.arms.N.elbow, 0.045],
+    [s.arms.N.elbow, s.arms.N.hand, 0.04],
+    [s.shoulder, s.arms.F.elbow, 0.045],
+    [s.arms.F.elbow, s.arms.F.hand, 0.04],
+  ];
+  for (const nm of ['N', 'F']) {
+    c.push([s.hips, s.legs[nm].knee, 0.07], [s.legs[nm].knee, s.legs[nm].foot, 0.055]);
+  }
+  return c;
+}
+
+/** How far a segment ab is from the body of skeleton s (metres, past the flesh). */
+export function clearanceFrom(a, b, s) {
+  let m = Infinity;
+  for (const [p, q, r] of bodyCapsules(s)) m = Math.min(m, segSeg(a, b, p, q) - r);
+  m = Math.min(m, segPt(s.head, a, b) - s.headR);
+  return m;
+}
+
+/**
+ * The physical story, checked. Returns [{ name, ok, value, want }]. Run it in node:
+ *   node -e "import('./ford_blocking.js').then(m => console.table(m.validate()))"
+ */
+export function validate() {
+  const out = [];
+  const chk = (name, ok, value, want) => out.push({ name, ok: !!ok, value, want });
+  const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
+  const kit = (n) => KIT[n].map((h) => h.t - MUSIC_OFFSET);
+  const onHit = (t, names) => names.some((n) => kit(n).some((h) => near(h, t)));
+
+  // the hits land on the drums
+  for (const [k, names] of Object.entries({
+    thrust: ['snare'],
+    clash: ['kick', 'crash'],
+    yield: ['kick'],
+    cut: ['crash'],
+    fall: ['kick'],
+    landed: ['snare'],
+  }))
+    chk(
+      `${k} on the ${names.join('/')}`,
+      onHit(events(k)[0].t, names),
+      events(k)[0].t.toFixed(3),
+      'a hit',
+    );
+
+  // running speeds
+  const v = (n, t) => Math.abs(ALL[n].X.speed(t));
+  let land = 0;
+  for (let t = 0.8; t < 2.4; t += 0.02) land = Math.max(land, v('edric', t));
+  chk('Edric on land: peak m/s (4-5)', land >= 4 && land <= 5, land.toFixed(2), '4-5');
+  const wade = (eX(5.6) - eX(3.2)) / (5.6 - 3.2);
+  chk('Edric wading: mean m/s (2-3)', wade >= 2 && wade <= 3, wade.toFixed(2), '2-3');
+  chk(
+    'Edric charge: peak m/s (<= 3.6)',
+    v('edric', 5.85) <= 3.6,
+    v('edric', 5.85).toFixed(2),
+    '<= 3.6',
+  );
+
+  // feet: planted feet never move; nothing is driven through the ground; the IK never stretches
+  let slide = 0;
+  for (const l of LANDS) {
+    if (l.lunge || l.yield || l.actor.startsWith('line')) continue;
+    for (let u = 0; u <= l.stance; u += 0.01) {
+      const f = ALL[l.actor].skeleton(l.t + u).legs[l.foot].foot;
+      slide = Math.max(slide, Math.abs(f[0] - l.x));
+    }
+  }
+  chk('planted feet do not slide (m)', slide < 2e-3, slide.toFixed(4), '0');
+  for (const n of ['edric', 'warden']) {
+    let m = 0;
+    let mt = 0;
+    for (let t = 0; t < DURATION; t += 1 / 96) {
+      const o = ALL[n].skeleton(t).over;
+      if (o > m) {
+        m = o;
+        mt = t;
+      }
+    }
+    chk(`${n}: IK overreach (m) worst`, m < 0.03, `${m.toFixed(3)} @ ${mt.toFixed(2)}`, '< 0.03');
+  }
+
+  // the spear
+  const cen = (s) => {
+    const w = s.weapon;
+    const g = w.lead || w.rear;
+    return [(w.rear[0] + g[0]) / 2, (w.rear[1] + g[1]) / 2];
+  };
+  const wt = warden.skeleton(TIME.thrust);
+  const reachT = Math.hypot(wt.weapon.tip[0] - cen(wt)[0], wt.weapon.tip[1] - cen(wt)[1]);
+  chk('spear reach at full thrust (m)', reachT > 2.5 && reachT < 2.7, reachT.toFixed(2), '2.6');
+  const wg = warden.skeleton(5.0);
+  const reachG = Math.hypot(wg.weapon.tip[0] - cen(wg)[0], wg.weapon.tip[1] - cen(wg)[1]);
+  chk('spear reach in guard (m)', reachG > 2.0 && reachG < 2.3, reachG.toFixed(2), '2.15');
+
+  // the thrust passes over the sliding Edric (and never touches him)
+  let clr = Infinity;
+  let clrT = 0;
+  let cross_ = 0;
+  for (let t = 5.6; t <= 7.2; t += 1 / 240) {
+    const w = warden.skeleton(t).weapon;
+    const c = clearanceFrom(w.tip, w.rear, edric.skeleton(t));
+    if (c < clr) {
+      clr = c;
+      clrT = t;
+    }
+    if (t > 5.85 && t < 6.5) cross_ = Math.max(cross_, w.tip[1]);
+  }
+  chk(
+    'the point clears Edric (m, closest)',
+    clr > 0.08,
+    `${clr.toFixed(2)} @ ${clrT.toFixed(2)}`,
+    '> 0.08 and a near miss',
+  );
+  chk('...but only just (m < 0.5)', clr < 0.5, clr.toFixed(2), '< 0.5');
+
+  // inside the reach at the clash
+  const e = edric.skeleton(TIME.clash);
+  const w = warden.skeleton(TIME.clash);
+  chk(
+    'at the clash Edric is past the point (m)',
+    e.hips[0] - w.weapon.tip[0] > 0.2,
+    (e.hips[0] - w.weapon.tip[0]).toFixed(2),
+    '> 0.2',
+  );
+  const rb = Math.hypot(
+    bindPt(TIME.clash)[0] - e.weapon.rear[0],
+    bindPt(TIME.clash)[1] - e.weapon.rear[1],
+  );
+  chk(
+    "the contact is on the sword's blade (m from the hands)",
+    rb > 0.25 && rb < 0.95,
+    rb.toFixed(2),
+    '0.25-0.95',
+  );
+
+  // the bind: both weapons through one point, all the way
+  let worst = 0;
+  for (let t = 7.25; t <= 10.72; t += 1 / 48) {
+    const a = edric.skeleton(t).weapon;
+    const b = warden.skeleton(t).weapon;
+    worst = Math.max(worst, segSeg(a.butt, a.tip, b.butt, b.tip));
+  }
+  chk('the weapons cross through the bind (m gap)', worst < 0.01, worst.toFixed(3), '0');
+
+  // the yield: the contact runs down the blade, the weight goes onto the stone
+  const ft = edric.skeleton(TIME.stone).legs.N.foot;
+  chk(
+    "Edric's lead foot is on the slick stone at 10.6",
+    Math.abs(ft[0] - SLICK.x) < SLICK.w / 2,
+    ft[0].toFixed(2),
+    `${SLICK.x} +-${SLICK.w / 2}`,
+  );
+  chk(
+    '...and the crown is what it stands on',
+    near(ft[1], SLICK.top + ANKLE, 0.03),
+    ft[1].toFixed(2),
+    (SLICK.top + ANKLE).toFixed(2),
+  );
+  const moved = bindPt(10.75)[0] - bindPt(10.4)[0];
+  chk(
+    "the yield moves the contact toward Edric's point (m)",
+    moved > 0.1,
+    moved.toFixed(2),
+    '> 0.1',
+  );
+  const sl = edric.skeleton(10.95).legs.N.foot[1];
+  chk(
+    'the foot has skidded off the stone by 10.95 (foot Y below the crown)',
+    sl < SLICK.top,
+    sl.toFixed(2),
+    `< ${SLICK.top}`,
+  );
+
+  // the shaft passes over Edric as he pitches forward under it: never through him
+  let yc = Infinity;
+  let yct = 0;
+  for (let t = 10.3; t <= 11.15; t += 1 / 240) {
+    const wpn = warden.skeleton(t).weapon;
+    const c = clearanceFrom(wpn.tip, wpn.rear, edric.skeleton(t));
+    if (c < yc) {
+      yc = c;
+      yct = t;
+    }
+  }
+  chk(
+    'the shaft clears Edric through the yield (m)',
+    yc > 0.02,
+    `${yc.toFixed(2)} @ ${yct.toFixed(2)}`,
+    '> 0.02',
+  );
+
+  // the cut lands on the back
+  const cw = warden.skeleton(TIME.cut).weapon.tip;
+  const dc = Math.hypot(cw[0] - cutC[0], cw[1] - cutC[1]);
+  chk("the cut's point is on Edric's back (m)", dc < 0.12, dc.toFixed(2), '< 0.12');
+
+  // the Warden never stands on the slick stone
+  let close = Infinity;
+  for (let t = 0; t < DURATION; t += 0.02) {
+    const s = warden.skeleton(t);
+    for (const nm of ['N', 'F']) close = Math.min(close, Math.abs(s.legs[nm].foot[0] - SLICK.x));
+  }
+  chk("the Warden's feet keep off the slick stone (m)", close > 0.3, close.toFixed(2), '> 0.3');
+
+  // he stands over him: bodies apart at the end
+  const fe = edric.skeleton(13.2);
+  const fw = warden.skeleton(13.2);
+  let gap = Infinity;
+  for (const [p, q, r] of bodyCapsules(fw)) gap = Math.min(gap, clearanceFrom(p, q, fe) - r);
+  chk(
+    'the fallen Edric and the standing Warden do not overlap (m)',
+    gap > 0.05,
+    gap.toFixed(2),
+    '> 0.05',
+  );
+  return out;
+}
