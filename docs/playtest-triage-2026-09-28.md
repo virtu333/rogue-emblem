@@ -119,7 +119,8 @@ Deferred: team-XP rewards still learn class skills without a card (nothing is lo
 ## Next round progress
 
 - Done: 1 caravan migration keeps gear (9a9d9c36); 2 HP accessory debt (78ca81ae); 3 Formation Menu opens the pause menu, with Back to Map before turn 1 (desktop: Esc → Formation menu → Pause menu).
-- Next: 4 fog batch, 5 Edric's rotation, 6 difficulty ladder.
+- Done: 4 fog batch. Rescue/Warp and Blink lift the fog only when the action commits (the combat shove/pull reveal stays: combat is saved as committed first); Shove/Pull never offer a fogged landing tile; hidden enemies no longer shape the blue range, and a move (or Canto) that runs into one stops before it: "Ambush!", the enemy shows, the move is locked in and saved, and the unit can still act (`engine/FogAmbush.js`); Terrain › Fog of War help page and the first-fog hint explain reveal-on-commit and ambushes.
+- Next: 5 Edric's rotation, 6 difficulty ladder.
 
 ## Wave 2 status (branch `claude/playtest-notes-triage-z12dht`)
 

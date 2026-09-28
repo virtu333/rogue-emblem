@@ -356,6 +356,90 @@ describe('Shove and Pull never land in the fog', () => {
   });
 });
 
+describe('a hidden enemy never shapes the blue range; running into it is an ambush', () => {
+  // The brigand hides at (4,1), one step past Edric's sight from (0,1).
+  function ambushSetup() {
+    const env = setup();
+    const { scene, grid, brigand } = env;
+    brigand.col = 4;
+    grid.updateFogOfWar(scene.playerUnits);
+    scene.updateEnemyVisibility();
+    expect(grid.isVisible(4, 1)).toBe(false);
+    scene.getUnitAt = (c, r) =>
+      [...scene.playerUnits, ...scene.enemyUnits].find((u) => u.col === c && u.row === r) || null;
+    scene.updateUnitPosition = vi.fn();
+    scene.tweens = { add: ({ onComplete }) => onComplete?.() };
+    scene.time = { delayedCall: vi.fn() };
+    scene.showMinorHintAt = vi.fn();
+    scene.inspectionPanel = { hide: vi.fn() };
+    scene.dangerZone = { hide: vi.fn() };
+    grid.showMovementRange = vi.fn();
+    grid.clearHighlights = vi.fn();
+    return env;
+  }
+
+  it('the range is the same whether or not the fogged tile holds an enemy', () => {
+    const { scene, edric, brigand } = ambushSetup();
+    scene.selectUnit(edric);
+    const withFoe = [...scene.movementRange.keys()].sort();
+    brigand.col = 11;
+    scene.selectUnit(edric);
+    expect([...scene.movementRange.keys()].sort()).toEqual(withFoe);
+    expect(withFoe).toContain('4,1');
+    expect(withFoe).toContain('5,1');
+  });
+
+  it('a move through it stops before it, reveals it, locks the move in and saves', async () => {
+    const { scene, grid, edric, brigand } = ambushSetup();
+    scene.selectUnit(edric);
+    scene.moveUnit(edric, 5, 1);
+    await Promise.resolve();
+    expect([edric.col, edric.row]).toEqual([3, 1]);
+    expect(edric._movementSpent).toBe(3);
+    expect(grid.isVisible(4, 1)).toBe(true);
+    expect(brigand.graphic.visible).toBe(true);
+    expect(edric._movementCommitted).toBe(true);
+    expect(scene.preMoveLoc).toBeNull();
+    // The save that records the ambush sees the brigand's tile lit.
+    expect(scene.saved.at(-1)).toBe(true);
+    // The unit can still act, and Back cannot take the move back.
+    expect(scene.showActionMenu).toHaveBeenCalledWith(edric);
+    scene.selectUnit = vi.fn();
+    scene.undoMove(edric);
+    expect([edric.col, edric.row]).toEqual([3, 1]);
+    expect(scene.showMinorHintAt).toHaveBeenCalledWith(
+      expect.any(Number),
+      expect.any(Number),
+      'Ambush!',
+      expect.anything(),
+    );
+  });
+
+  it('a move that stays clear of it reveals nothing, as before', async () => {
+    const { scene, grid, edric } = ambushSetup();
+    scene.selectUnit(edric);
+    scene.moveUnit(edric, 3, 1);
+    await Promise.resolve();
+    expect([edric.col, edric.row]).toEqual([3, 1]);
+    expect(grid.isVisible(4, 1)).toBe(false);
+    expect(edric._movementCommitted).toBeFalsy();
+    expect(scene.saved).toEqual([]);
+  });
+
+  it('Canto into it stops short too; the action then completes and saves', () => {
+    const { scene, grid, edric, brigand } = ambushSetup();
+    scene.selectedUnit = edric;
+    edric.hasActed = true;
+    scene.startCantoMove(edric, 5);
+    expect(scene.cantoRange.has('5,1')).toBe(true);
+    scene.handleCantoClick({ col: 5, row: 1 });
+    expect([edric.col, edric.row]).toEqual([3, 1]);
+    expect(grid.isVisible(brigand.col, brigand.row)).toBe(true);
+    expect(scene.saved).toEqual([true]);
+    expect(scene.turnManager.unitActed).toHaveBeenCalledWith(edric);
+  });
+});
+
 describe('previews after an uncommitted move name only what the player sees', () => {
   it('Ensnare is not offered for a foe hidden in the fog; once seen, it is', async () => {
     const { scene, edric } = setup();

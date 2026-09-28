@@ -28,6 +28,7 @@ import {
   seenTileOccupant,
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
+import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
 import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.js';
 import { earlyEnemyAllowed } from '../engine/EarlyEnemyRules.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -360,6 +361,13 @@ const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 
 /** Reset per-battle state on a unit at deploy time. */
+/** An enemy the fog hides from the player (as updateEnemyVisibility draws it). */
+function isHiddenEnemy(grid, unit) {
+  if (!grid?.fogEnabled || unit?.faction !== 'enemy') return false;
+  if (isEntity(unit)) return !getFootprint(unit).some((t) => grid.isVisible(t.col, t.row));
+  return !grid.isVisible(unit.col, unit.row);
+}
+
 export function resetUnitForBattle(unit) {
   delete unit._legendaryGraceTurn;
   unit.hasMoved = false;
@@ -1949,7 +1957,7 @@ export class BattleScene extends Phaser.Scene {
           showContextualHint(
             this,
             'battle_fog',
-            'Fog of War \u2014 enemies beyond vision range are hidden.',
+            'Fog of War \u2014 enemies beyond sight are hidden. The fog lifts when an action ends.',
           );
         }
       }
@@ -3406,8 +3414,11 @@ export class BattleScene extends Phaser.Scene {
 
   buildUnitPositionMap(moverFaction) {
     const map = new Map();
+    // In fog the player plans around the enemies they can see (FogAmbush.js).
+    const seenOnly = moverFaction === 'player';
     for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       if (!u || u._removing || u.currentHP <= 0) continue;
+      if (seenOnly && isHiddenEnemy(this.grid, u)) continue;
       if (isEntity(u)) {
         for (const tile of getFootprint(u)) {
           map.set(`${tile.col},${tile.row}`, { faction: u.faction });
@@ -3419,10 +3430,11 @@ export class BattleScene extends Phaser.Scene {
     return map;
   }
 
-  buildOccupiedSet(excludeUnit = null) {
+  buildOccupiedSet(excludeUnit = null, { seenOnly = false } = {}) {
     const occupied = new Set();
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       if (!unit || unit === excludeUnit || unit._removing || unit.currentHP <= 0) continue;
+      if (seenOnly && isHiddenEnemy(this.grid, unit)) continue;
       if (isEntity(unit)) {
         for (const tile of getFootprint(unit)) {
           occupied.add(`${tile.col},${tile.row}`);
@@ -3432,6 +3444,64 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     return occupied;
+  }
+
+  /** An enemy the fog hides from the player (as updateEnemyVisibility draws it). */
+  _isHiddenEnemy(unit) {
+    return isHiddenEnemy(this.grid, unit);
+  }
+
+  /**
+   * Cut a player's planned path where it runs into an enemy hidden in the fog
+   * (FogAmbush.js). Returns the path to walk, its movement cost and the ambusher.
+   */
+  _ambushCut(unit, effective) {
+    const path = effective.effectivePath;
+    if (unit?.faction !== 'player' || !this.grid?.fogEnabled)
+      return { path, cost: effective.movementCost, ambusher: null };
+    const occupant = (col, row) =>
+      [...this.enemyUnits, ...this.playerUnits, ...this.npcUnits].find(
+        (u) =>
+          u &&
+          u !== unit &&
+          !u._removing &&
+          u.currentHP > 0 &&
+          (isEntity(u)
+            ? getFootprint(u).some((t) => t.col === col && t.row === row)
+            : u.col === col && u.row === row),
+      ) || null;
+    const cut = ambushStop(path, {
+      hiddenAt: (col, row) => {
+        const found = occupant(col, row);
+        return found && this._isHiddenEnemy(found) ? found : null;
+      },
+      blockedAt: (col, row) => Boolean(occupant(col, row)),
+    });
+    if (!cut.ambusher) return { path, cost: effective.movementCost, ambusher: null };
+    const costMod = this._getCostModifier(unit);
+    const cost = pathCostTo(path, effective.slideSegments, cut.stopIndex, (col, row) =>
+      this.grid.getMoveCost(col, row, unit.moveType, costMod),
+    );
+    return { path: cut.path, cost, ambusher: cut.ambusher };
+  }
+
+  /**
+   * A move stopped by a hidden enemy: the move is locked in (no undo: it has shown
+   * something), the fog lifts from where the unit stands, and the save records it.
+   * The unit may still act.
+   */
+  _resolveAmbush(unit, ambusher, { canto = false } = {}) {
+    observeHistoryAction(this, 'was ambushed by', unit, ambusher);
+    if (this._inputController) this._inputController._pendingMoveAttack = null;
+    const pos = this.grid.gridToPixel(ambusher.col, ambusher.row);
+    this.showMinorHintAt?.(pos.x, pos.y, 'Ambush!', UI_PALETTE.bad);
+    if (canto) return; // Canto's end completes the action, which lifts the fog and saves.
+    unit._movementCommitted = true;
+    this.preMoveLoc = null;
+    this._preFogSnapshot = null;
+    this.commitVisionSnapshotIfPending?.();
+    revealSettledVision(this);
+    this._captureSuspendCheckpoint?.();
   }
 
   /** Get terrain cost reduction for a unit from passive skills (e.g. Pathfinder). */
@@ -4752,7 +4822,7 @@ export class BattleScene extends Phaser.Scene {
 
     let effective;
     try {
-      const occupied = this.buildOccupiedSet(unit);
+      const occupied = this.buildOccupiedSet(unit, { seenOnly: unit.faction === 'player' });
       effective = computeEffectivePath(
         path,
         this.grid.mapLayout,
@@ -4774,8 +4844,7 @@ export class BattleScene extends Phaser.Scene {
       this.deselectUnit();
       return;
     }
-    const finalPath = effective.effectivePath;
-    if (!finalPath || finalPath.length < 2) {
+    if (!effective.effectivePath || effective.effectivePath.length < 2) {
       console.warn('[moveUnit] effectivePath returned null/short path', {
         from,
         to,
@@ -4783,6 +4852,9 @@ export class BattleScene extends Phaser.Scene {
       this.deselectUnit();
       return;
     }
+    // A hidden enemy on the way stops the move short (it may not move at all).
+    const ambush = this._ambushCut(unit, effective);
+    const finalPath = ambush.path;
     const finalDest = finalPath[finalPath.length - 1];
     const rollbackLoc = { col: unit.col, row: unit.row };
     const rollbackMovementSpent = unit._movementSpent;
@@ -4807,12 +4879,13 @@ export class BattleScene extends Phaser.Scene {
     const finalizeMove = () => {
       if (finalizeTriggered || recoveryTriggered) return;
       finalizeTriggered = true;
-      rememberHistoryPath(this, unit, finalPath);
+      if (finalPath.length > 1) rememberHistoryPath(this, unit, finalPath);
       unit.col = finalDest.col;
       unit.row = finalDest.row;
       unit.hasMoved = true;
       try {
         this.updateUnitPosition(unit);
+        if (ambush.ambusher) this._resolveAmbush(unit, ambush.ambusher);
       } catch (err) {
         failMove('Error while finalizing move position update', err);
         return;
@@ -4858,7 +4931,7 @@ export class BattleScene extends Phaser.Scene {
       this.preMoveLoc = { ...rollbackLoc };
       this._preFogSnapshot = null;
       this._preFogSnapshot = this.grid.snapshotFogState();
-      unit._movementSpent = effective.movementCost;
+      unit._movementSpent = ambush.cost;
 
       this.grid.clearHighlights();
       if (unit.graphic.clearTint) unit.graphic.clearTint();
@@ -5737,7 +5810,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     // Apply computeEffectivePath for ice slides
-    const cantoOccupied = this.buildOccupiedSet(unit);
+    const cantoOccupied = this.buildOccupiedSet(unit, { seenOnly: unit.faction === 'player' });
     const cantoEffective = computeEffectivePath(
       path,
       this.grid.mapLayout,
@@ -5748,11 +5821,12 @@ export class BattleScene extends Phaser.Scene {
       cantoOccupied,
       this._getCostModifier(unit),
     );
-    const cantoFinalPath = cantoEffective.effectivePath;
-    if (!cantoFinalPath || cantoFinalPath.length < 2) {
+    if (!cantoEffective.effectivePath || cantoEffective.effectivePath.length < 2) {
       console.warn('[handleCantoClick] effectivePath returned null/short path', { from, to });
       return;
     }
+    const cantoAmbush = this._ambushCut(unit, cantoEffective);
+    const cantoFinalPath = cantoAmbush.path;
     this.battleState = 'UNIT_MOVING';
     const targets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
     const cantoDest = cantoFinalPath[cantoFinalPath.length - 1];
@@ -5772,11 +5846,12 @@ export class BattleScene extends Phaser.Scene {
     const finalizeCantoMove = () => {
       if (finalizeTriggered || recoveryTriggered) return;
       finalizeTriggered = true;
-      rememberHistoryPath(this, unit, cantoFinalPath, false);
+      if (cantoFinalPath.length > 1) rememberHistoryPath(this, unit, cantoFinalPath, false);
       unit.col = destCol;
       unit.row = destRow;
       try {
         this.updateUnitPosition(unit);
+        if (cantoAmbush.ambusher) this._resolveAmbush(unit, cantoAmbush.ambusher, { canto: true });
         this.cantoRange = null;
         this._resetCantoPreInitFaultTracking();
         // Canto's end is the turn's end: completeBattleAction lifts the fog here.
