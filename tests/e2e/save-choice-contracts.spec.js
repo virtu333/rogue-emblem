@@ -137,3 +137,124 @@ test('single-run Resume preserves the cloud conflict choice instead of bypassing
   await expect(page.getByRole('dialog', { name: 'Choose save version', exact: true })).toBeHidden();
   expect(errors).toEqual([]);
 });
+
+// New Game with a slot that holds upgrades and no run: that slot is the first choice
+// and opens through Save Slots' own load into its Home Base, upgrades intact. A
+// slot with a run in progress is never offered, however recent.
+async function keepUpgradesFlow(page, info, press) {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
+  await waitForGame(page);
+  await waitForScene(page, 'Battle');
+  const seeded = await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const { getMetaKey, getRunKey } = await import('/src/engine/SlotManager.js');
+    const { MetaProgressionManager } = await import('/src/engine/MetaProgressionManager.js');
+    for (const slot of [1, 2, 3]) {
+      localStorage.removeItem(getMetaKey(slot));
+      localStorage.removeItem(getRunKey(slot));
+    }
+    const upgrade = s.gameData.metaUpgrades.find((u) => !u.requires && u.costs?.[0] > 0);
+    const progress = (slot) => {
+      const meta = new MetaProgressionManager(s.gameData.metaUpgrades, getMetaKey(slot));
+      meta.addValor(5000);
+      meta.addSupply(5000);
+      meta.incrementRunsStarted();
+      meta.incrementRunsCompleted();
+      meta.purchaseUpgrade(upgrade.id);
+      return meta;
+    };
+    // Slot 1: upgrades and no run in progress.
+    const one = progress(1);
+    // Slot 2: saved later, but a run is in progress there.
+    progress(2);
+    const run = s.runManager.toJSON();
+    run.savedAt = Date.now();
+    run.battleInProgress = null;
+    localStorage.setItem(getRunKey(2), JSON.stringify(run));
+    const { ensureSceneLoaded } = await import('/src/utils/sceneLoader.js');
+    await ensureSceneLoaded(s, 'Title');
+    s.scene.start('Title', { gameData: s.gameData });
+    return {
+      id: upgrade.id,
+      level: one.getUpgradeLevel(upgrade.id),
+      valor: one.getTotalValor(),
+      supply: one.getTotalSupply(),
+      run2: localStorage.getItem(getRunKey(2)),
+    };
+  });
+  expect(seeded.level).toBe(1);
+  await waitForScene(page, 'Title');
+  await press(page.getByRole('button', { name: 'New Game', exact: true }));
+  const dialog = page.getByRole('dialog', { name: 'Start another run?', exact: true });
+  await expect(dialog).toBeVisible();
+  const keep = dialog.getByRole('button', {
+    name: 'New run in Slot 1 · keeps upgrades',
+    exact: true,
+  });
+  await expect(keep).toBeFocused();
+  await expect(dialog.getByRole('button')).toHaveText([
+    'Close',
+    'New run in Slot 1 · keeps upgrades',
+    'Start new run in Slot 3',
+    'Keep playing my saves',
+  ]);
+  await expect(dialog).toContainText('Empty Slot 3 starts without them.');
+  // Each choice fits the frame.
+  for (const button of await dialog.getByRole('button').all()) {
+    await expect(button).toBeInViewport();
+    expect(await button.evaluate((b) => b.scrollWidth <= b.clientWidth + 1)).toBe(true);
+  }
+  await page.screenshot({ path: info.outputPath('new-game-keeps-upgrades.png') });
+  await press(keep);
+  await waitForScene(page, 'HomeBase');
+  const landed = await page.evaluate(async (id) => {
+    const game = window.__emblemRogueGame;
+    const { getMetaKey, getRunKey, ACTIVE_SLOT_KEY } = await import('/src/engine/SlotManager.js');
+    const meta = game.registry.get('meta');
+    return {
+      activeSlot: game.registry.get('activeSlot'),
+      storedActiveSlot: localStorage.getItem(ACTIVE_SLOT_KEY),
+      slot1Meta: meta.storageKey === getMetaKey(1),
+      level: meta.getUpgradeLevel(id),
+      valor: meta.getTotalValor(),
+      supply: meta.getTotalSupply(),
+      run1: localStorage.getItem(getRunKey(1)),
+      run2: localStorage.getItem(getRunKey(2)),
+      slot3: localStorage.getItem(getMetaKey(3)),
+    };
+  }, seeded.id);
+  expect(landed).toEqual({
+    activeSlot: 1,
+    storedActiveSlot: '1',
+    slot1Meta: true,
+    level: seeded.level,
+    valor: seeded.valor,
+    supply: seeded.supply,
+    run1: null,
+    run2: seeded.run2,
+    slot3: null,
+  });
+  expect(errors).toEqual([]);
+}
+
+test.describe('New Game keeps upgrades, landscape phone 844×390', () => {
+  test.use({ viewport: { width: 844, height: 390 } });
+  test('offers the slot that keeps its upgrades and lands in its Home Base', async ({
+    page,
+  }, info) => {
+    await keepUpgradesFlow(page, info, (locator) => locator.tap());
+  });
+});
+
+// A touch phone held upright shows the rotate prompt over every menu (#64), so the
+// upright frame is checked with a mouse pointer (a narrow window).
+test.describe('New Game keeps upgrades, portrait 390×844', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: false, isMobile: false });
+  test('offers the slot that keeps its upgrades and lands in its Home Base', async ({
+    page,
+  }, info) => {
+    await keepUpgradesFlow(page, info, (locator) => locator.click());
+  });
+});

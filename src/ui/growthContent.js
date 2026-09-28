@@ -6,7 +6,11 @@
 // may touch it). Previews project a *copy* of the unit through the real
 // promoteUnit, so the rite shows exactly what the engine applies.
 import { XP_STAT_NAMES } from '../utils/constants.js';
-import { promoteUnit, getClassInnateSkills } from '../engine/UnitManager.js';
+import {
+  promoteUnit,
+  getClassInnateSkills,
+  parseWeaponProficiencies,
+} from '../engine/UnitManager.js';
 import { getClassChangeWeaponGrants } from '../engine/RosterCommands.js';
 import { applyPromotionOath, promotionOath } from '../engine/DeedSystem.js';
 import { crestSpecForClass } from './classCrests.js';
@@ -80,6 +84,54 @@ function rankChanges(before, after) {
   });
 }
 
+// Weapon types as promotion copy names them (the plural classes.json uses).
+const WEAPON_WORDS = Object.freeze({
+  Sword: 'Swords',
+  Lance: 'Lances',
+  Axe: 'Axes',
+  Bow: 'Bows',
+  Tome: 'Tomes',
+  Light: 'Light',
+  Staff: 'Staves',
+  Breath: 'Breath',
+});
+const weaponWord = (type) => WEAPON_WORDS[type] || type;
+
+/**
+ * A promotion path's one-line summary for this unit: the weapons the class
+ * adds, then the class's own note (classes.json `roleChange`, which never
+ * names a weapon). A weapon new to the unit reads "Gains Axes". A weapon the
+ * class adds that this unit already uses (Sera carries staves as a Light
+ * Sage) names its new rank instead ("Staves: Master"), so the line never
+ * promises what the unit already has.
+ * @param {object} unit       the unit before promotion
+ * @param {object} cls        the promoted class
+ * @param {object[]} ranks    rankChanges(before, after) for this unit
+ * @param {object[]} classes  classes.json (to read the unit's current class)
+ */
+export function promotionRoleLine(unit, cls, ranks = [], classes = []) {
+  const gains = ranks.filter((r) => r.change === 'new').map((r) => weaponWord(r.type));
+  const current = (classes || []).find((c) => c?.name === unit?.className);
+  const classTypes = current
+    ? new Set(parseWeaponProficiencies(current.weaponProficiencies).map((p) => p.type))
+    : null;
+  // Rank-ups the class itself adds (not in the unit's current class list).
+  const byRank = new Map();
+  for (const r of ranks) {
+    if (r.change !== 'up' || !classTypes || classTypes.has(r.type)) continue;
+    const words = byRank.get(r.to) || [];
+    words.push(weaponWord(r.type));
+    byRank.set(r.to, words);
+  }
+  const parts = [
+    gains.length ? `Gains ${gains.join('/')}` : '',
+    ...[...byRank].map(([rank, words]) => `${words.join('/')}: ${RANK_NAMES[rank] || rank}`),
+    typeof cls?.roleChange === 'string' ? cls.roleChange.trim() : '',
+  ].filter(Boolean);
+  const line = parts.join(', ');
+  return line ? line[0].toUpperCase() + line.slice(1) : '';
+}
+
 /**
  * What a promotion path does to this unit (preview and rite share it).
  * @returns {null | {
@@ -147,6 +199,7 @@ export function promotionPathContent(unit, cls, gameData = {}) {
   }
   const fromSpec = crestSpecForClass(unit.className);
   const toSpec = crestSpecForClass(cls.name);
+  const ranks = rankChanges(unit.proficiencies, projected.proficiencies);
   return {
     unitName: unit.name,
     fromClass: unit.className,
@@ -159,7 +212,7 @@ export function promotionPathContent(unit, cls, gameData = {}) {
     levelTo: projected.level,
     stats,
     growths,
-    ranks: rankChanges(unit.proficiencies, projected.proficiencies),
+    ranks,
     moveType:
       projected.moveType && projected.moveType !== unit.moveType
         ? { from: unit.moveType, to: projected.moveType }
@@ -168,7 +221,7 @@ export function promotionPathContent(unit, cls, gameData = {}) {
     dropped,
     grants,
     oath,
-    role: cls.role || cls.roleChange || cls.description || '',
+    role: promotionRoleLine(unit, cls, ranks, gameData.classes) || cls.description || '',
   };
 }
 

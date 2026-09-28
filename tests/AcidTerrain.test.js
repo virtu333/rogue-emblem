@@ -7,7 +7,10 @@ import {
   processConditionRecovery,
 } from '../src/engine/StatusConditionSystem.js';
 import { computeAcidDamage, isAcidTerrainIndex } from '../src/engine/TerrainHazards.js';
-import { STATUS_CONDITIONS, TERRAIN } from '../src/utils/constants.js';
+import { ACID_TERRAIN_TYPES, STATUS_CONDITIONS, TERRAIN } from '../src/utils/constants.js';
+import { statusDescriptions, terrainRuleLines } from '../src/engine/BattleInformation.js';
+import { terrainHelp } from '../src/ui/helpTopics.js';
+import { loadGameData } from './testData.js';
 
 describe('Acid terrain and condition', () => {
   it('acid condition defaults to configured duration and can be queried', () => {
@@ -65,5 +68,67 @@ describe('Acid terrain and condition', () => {
       recoveryChance: 0,
       wakesOnDamage: false,
     });
+  });
+});
+
+describe('acid ground says what Acid does and for how long', () => {
+  const data = loadGameData();
+  // Independent of the text builder: replay the engine's order. Standing on the
+  // ground at the end of a phase applies Acid (processTerrainDamage); each turn
+  // start counts conditions down, then an Acid unit takes its tick.
+  function acidTicksAfterLeaving() {
+    const unit = { name: 'Probe', stats: { HP: 40 } };
+    applyCondition(unit, 'acid');
+    let ticks = 0;
+    for (let turn = 0; turn < 10; turn++) {
+      processConditionRecovery([unit], () => 0);
+      if (!isAcidPoisoned(unit)) break;
+      ticks++;
+    }
+    return ticks;
+  }
+  const pct = computeAcidDamage(100); // 100 max HP: the tick in percent
+  const acidTerrains = data.terrain.filter((t) => t.hazardStatus);
+
+  it('names the status, its damage and its real number of turns (the playtest read "Acid (2T)")', () => {
+    const ticks = acidTicksAfterLeaving();
+    expect(ticks).toBeGreaterThan(1);
+    expect(acidTerrains.map((t) => t.name)).toEqual(['Acidic Swamp', 'Acidic Bog']);
+    for (const terrain of acidTerrains) {
+      expect(terrainRuleLines(terrain), terrain.name).toEqual([
+        'Ending a turn here causes Acid. Flying units are immune.',
+        `Acid: loses ${pct}% of max HP at turn start, for ${ticks} turns. Never below 1 HP.`,
+        terrain.special,
+      ]);
+    }
+    expect(terrainRuleLines(acidTerrains[0]).at(-1)).toBe('Infantry and Flying only.');
+    expect(terrainRuleLines(acidTerrains[1]).at(-1)).toBe('Slow for all.');
+  });
+
+  it("the unit's Acid line uses the same words", () => {
+    const unit = { name: 'Probe', stats: { HP: 40 } };
+    applyCondition(unit, 'acid');
+    processConditionRecovery([unit], () => 0);
+    const left = getConditions(unit)[0].turnsRemaining;
+    expect(statusDescriptions(unit)).toEqual([
+      `Acid · ${left} turns. Loses ${pct}% of max HP at turn start. Never below 1 HP.`,
+    ]);
+  });
+
+  it('only the ground the engine treats as acid says so, and no terrain note hides a turn count', () => {
+    const flagged = data.terrain.flatMap((t, i) => (t.hazardStatus === 'acid' ? [i] : []));
+    expect(new Set(flagged)).toEqual(ACID_TERRAIN_TYPES);
+    for (const t of data.terrain) {
+      expect(t.special, t.name).not.toMatch(/\(\d+T\)|\bAcid\b/);
+      expect(terrainRuleLines(t).join(' '), t.name).not.toMatch(/\(\d+T\)/);
+    }
+    // Other terrain keeps its own note, unchanged.
+    expect(terrainRuleLines(data.terrain[TERRAIN.LavaCrack])).toEqual([data.terrain[TERRAIN.LavaCrack].special]); // prettier-ignore
+    expect(terrainRuleLines(data.terrain[TERRAIN.Plain])).toEqual([]);
+  });
+
+  it('Terrain details (phones) lead with the same lines', () => {
+    const [swamp] = acidTerrains;
+    expect(terrainHelp(swamp, 'Infantry')[0]).toEqual({ lead: terrainRuleLines(swamp).join(' ') });
   });
 });

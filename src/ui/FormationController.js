@@ -340,20 +340,16 @@ export class FormationController {
   }
 
   /**
-   * Place everyone still benched: a unit first takes its default tile (the one the
-   * battle would have given it), then matching fills the rest, strict rules first.
+   * Place everyone still benched. Each unit's default tile (the one the battle
+   * would have given it) is a preference, not a lock: the fill places as many
+   * units as any assignment could and keeps the most of them on their defaults,
+   * moving a default only when a fuller formation needs its tile. Units the player
+   * placed never move.
    */
   autoPlace() {
     if (!this.ready) return;
-    let f = this.formation;
-    for (const [u, tile] of this.defaultTiles.entries()) {
-      if (f.at[u] !== null) continue;
-      const t = this.tileIndexAt(tile.col, tile.row);
-      if (t === -1 || unitOnTile(f, t) !== -1 || this.issue(u, t)) continue;
-      f = placeUnit(f, u, t);
-    }
-    f = autoFill(f, (u, t) => !this.issue(u, t));
-    this.formation = f;
+    const seeds = this.defaultTiles.map((tile) => this.tileIndexAt(tile.col, tile.row));
+    this.formation = autoFill(this.formation, (u, t) => !this.issue(u, t), { seeds });
     this.heldUnit = null;
     this.syncField();
   }

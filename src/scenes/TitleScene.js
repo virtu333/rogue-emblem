@@ -13,7 +13,7 @@ import { HowToPlayOverlay } from '../ui/HowToPlayOverlay.js';
 import { HelpOverlay } from '../ui/HelpOverlay.js';
 import { CompendiumOverlay } from '../ui/CompendiumOverlay.js';
 import { TitleScreen } from '../ui/TitleScreen.js';
-import { buildTitleMenu, pickResumeSlot } from '../ui/titleMenuModel.js';
+import { buildTitleMenu, pickResumeSlot, pickUpgradeSlot } from '../ui/titleMenuModel.js';
 import { readSlotMilestones, selectTitleVariant } from '../art/keyart/titleVariant.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
@@ -493,47 +493,27 @@ export class TitleScene extends Phaser.Scene {
     }
   }
 
+  /** The slot whose upgrades a new run should keep (pickUpgradeSlot), or null. */
+  _slotToKeepUpgrades() {
+    const summaries = Array.from({ length: MAX_SLOTS }, (_, index) => {
+      const summary = getSlotSummary(index + 1);
+      return summary && { ...summary, cloudConflict: Boolean(getCloudSaveConflict(index + 1)) };
+    });
+    return pickUpgradeSlot(summaries);
+  }
+
   async handleNewGame({ confirmed = false } = {}) {
     const nextSlot = getNextAvailableSlot();
-    if (!nextSlot) {
+    // A slot with upgrades and no run in progress: a new run there keeps them.
+    const keepSlot = confirmed ? null : this._slotToKeepUpgrades();
+    if (!nextSlot && !keepSlot) {
       this.showMessage('All 3 save slots are full.\nDelete a slot from Save Slots to free space.');
       return false;
     }
 
     if (!confirmed && getSlotCount() > 0) {
-      if (hasDOMHost()) {
-        const menu = this._openTitleMenu('Start another run?');
-        menu.body.append(
-          element(
-            'p',
-            `A new run will use Slot ${nextSlot}. Your existing saves, including any suspended battle, stay in their current slots. Use Save Slots to return to them.`,
-          ),
-        );
-        menu.body.append(
-          button(
-            'Keep playing my saves',
-            () => {
-              this._closeTitleMenu();
-              void this.runMenuTransition(() =>
-                transitionToScene(
-                  this,
-                  'SlotPicker',
-                  { gameData: this.gameData },
-                  { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
-                ),
-              );
-            },
-            're-btn re-btn--primary',
-          ),
-        );
-        menu.body.append(
-          button(`Start new run in Slot ${nextSlot}`, () => {
-            this._closeTitleMenu();
-            void this.runMenuTransition(() => this.handleNewGame({ confirmed: true }));
-          }),
-        );
-        menu.focusContent();
-      } else this.showMessage(`Existing saves are preserved. Choose Save Slots to return to them.`);
+      if (hasDOMHost()) this._showNewRunChoice(nextSlot, keepSlot?.slot ?? null);
+      else this.showMessage(`Existing saves are preserved. Choose Save Slots to return to them.`);
       return false;
     }
 
@@ -590,6 +570,57 @@ export class TitleScene extends Phaser.Scene {
 
     setActiveSlot(nextSlot);
     return true;
+  }
+
+  /**
+   * "Start another run?": where a new run goes. A slot with upgrades and no run
+   * in progress (keepSlot) comes first; it opens through Save Slots' own load
+   * (SlotPicker `openSlot` → selectSlot → Home Base, where Begin Run lives). An
+   * empty slot (nextSlot) starts fresh; Keep playing returns to the saves.
+   */
+  _showNewRunChoice(nextSlot, keepSlot) {
+    const menu = this._openTitleMenu('Start another run?');
+    const toSlots = (data = {}) => {
+      this._closeTitleMenu();
+      void this.runMenuTransition(() =>
+        transitionToScene(
+          this,
+          'SlotPicker',
+          { gameData: this.gameData, ...data },
+          { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+        ),
+      );
+    };
+    const startFresh = () =>
+      button(`Start new run in Slot ${nextSlot}`, () => {
+        this._closeTitleMenu();
+        void this.runMenuTransition(() => this.handleNewGame({ confirmed: true }));
+      });
+    if (keepSlot) {
+      menu.body.append(
+        element(
+          'p',
+          `Slot ${keepSlot} has no run in progress. A new run there keeps its upgrades.${nextSlot ? ` Empty Slot ${nextSlot} starts without them.` : ''} Your other saves stay as they are.`,
+        ),
+        button(
+          `New run in Slot ${keepSlot} · keeps upgrades`,
+          () => toSlots({ openSlot: keepSlot }),
+          're-btn re-btn--primary',
+        ),
+      );
+      if (nextSlot) menu.body.append(startFresh());
+      menu.body.append(button('Keep playing my saves', () => toSlots()));
+    } else {
+      menu.body.append(
+        element(
+          'p',
+          `A new run will use Slot ${nextSlot}. Your existing saves, including any suspended battle, stay in their current slots. Use Save Slots to return to them.`,
+        ),
+        button('Keep playing my saves', () => toSlots(), 're-btn re-btn--primary'),
+        startFresh(),
+      );
+    }
+    menu.focusContent();
   }
 
   buildTutorialRoster() {

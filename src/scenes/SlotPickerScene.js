@@ -29,6 +29,7 @@ import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { isFirstRunSlot, startFirstRunFastPath } from '../utils/firstRunFastPath.js';
+import { hasMetaProgression } from '../ui/titleMenuModel.js';
 
 export class SlotPickerScene extends Phaser.Scene {
   constructor() {
@@ -38,21 +39,29 @@ export class SlotPickerScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
-    this.resumeSlot =
-      Number.isInteger(data.resumeSlot) && data.resumeSlot >= 1 && data.resumeSlot <= MAX_SLOTS
-        ? data.resumeSlot
-        : null;
+    const slotArg = (value) =>
+      Number.isInteger(value) && value >= 1 && value <= MAX_SLOTS ? value : null;
+    // Title's Resume: continue this slot's run in progress.
+    this.resumeSlot = slotArg(data.resumeSlot);
+    // Title's New Game: open this slot (upgrades, no run in progress) as Select does.
+    this.openSlot = slotArg(data.openSlot);
   }
 
   create() {
-    if (Number.isInteger(this.resumeSlot)) {
-      const slot = this.resumeSlot;
+    if (Number.isInteger(this.resumeSlot) || Number.isInteger(this.openSlot)) {
+      const resume = Number.isInteger(this.resumeSlot);
+      const slot = resume ? this.resumeSlot : this.openSlot;
       this.resumeSlot = null;
+      this.openSlot = null;
       this._resumeTimer = this.time.delayedCall(0, () => {
         this._resumeTimer = null;
         if (this.sys?.isActive?.() === false) return;
         const summary = getSlotSummary(slot);
-        if (summary?.hasActiveRun && !summary.runCorrupt) void this.selectSlot(slot, summary);
+        // Only a slot still in the state Title offered; otherwise the list stays up.
+        const ready = resume
+          ? summary?.hasActiveRun && !summary.runCorrupt
+          : hasMetaProgression(summary);
+        if (ready) void this.selectSlot(slot, summary);
       });
     }
     const cx = this.cameras.main.centerX;

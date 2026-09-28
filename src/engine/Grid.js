@@ -239,7 +239,8 @@ export class Grid {
     this.attackHighlightTiles = [];
     this.temporaryTerrains = [];
     // Presentation hooks: bumped/notified whenever a cell's terrain is rebuilt so
-    // painted terrain and night light can follow. Never read by game rules.
+    // painted terrain, night light and cached threat answers can follow. Never
+    // read by game rules.
     this.terrainRevision = 0;
     this._terrainListeners = new Set();
 

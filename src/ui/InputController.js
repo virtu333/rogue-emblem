@@ -1,6 +1,6 @@
 import { sceneHealPreview } from './healTargetPreview.js';
 import { DangerZoneOverlay } from './DangerZoneOverlay.js';
-import { canInspectUnit } from '../engine/BattleInformation.js';
+import { canInspectUnit, terrainRuleLines } from '../engine/BattleInformation.js';
 import { computeEffectivePath } from '../engine/Grid.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
 import {
@@ -89,8 +89,7 @@ export class InputController {
     const avoidBonus = parseInt(terrain.avoidBonus, 10);
     if (avoidBonus) info += ` | Avo ${avoidBonus > 0 ? '+' : ''}${avoidBonus}`;
     if (parseInt(terrain.defBonus)) info += ` | Def +${terrain.defBonus}`;
-    const specialText = typeof terrain.special === 'string' ? terrain.special.trim() : '';
-    if (specialText) info += `\n${specialText}`;
+    for (const line of terrainRuleLines(terrain)) info += `\n${line}`;
 
     const threat = scene._threatSight?.describe(col, row);
     if (threat) info += `\nThreat: ${threat}`;

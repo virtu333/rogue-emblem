@@ -37,12 +37,12 @@ describe('Swamp Biome', () => {
     expect(acidicSwamp).toBeTruthy();
     expect(acidicSwamp.moveCost).toEqual(data.terrain[TERRAIN.Swamp].moveCost);
     expect(acidicSwamp.avoidBonus).toBe('-10');
-    expect(acidicSwamp.special).toContain('Acid (2T)');
+    expect(acidicSwamp.hazardStatus).toBe('acid');
 
     expect(acidicBog).toBeTruthy();
     expect(acidicBog.moveCost).toEqual(data.terrain[TERRAIN.Bog].moveCost);
     expect(acidicBog.avoidBonus).toBe('-5');
-    expect(acidicBog.special).toContain('Acid (2T)');
+    expect(acidicBog.hazardStatus).toBe('acid');
   });
 
   it('TERRAIN enum aligns with terrain.json indices for Swamp/Bog', () => {
