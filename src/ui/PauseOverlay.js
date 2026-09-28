@@ -186,7 +186,7 @@ export class PauseOverlay {
 
     // Campaign Map (only when run data available)
     if (this.campaignMapData) {
-      this._addButton(cx, btnY, 'Campaign Map', () => {
+      this._addButton(cx, btnY, 'View Campaign Map', () => {
         if (this.campaignMapOverlay?.visible) return;
         this._hideConfirm();
         this.campaignMapOverlay = new CampaignMapOverlay(this.scene, {

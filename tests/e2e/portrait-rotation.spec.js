@@ -1036,7 +1036,7 @@ test('UI-only actions never advance the gameplay RNG', async ({ page }) => {
         await expect(control).not.toHaveText(label);
       }
       await settings.getByRole('button', { name: 'Close', exact: true }).tap();
-      await pause.getByRole('button', { name: 'Campaign Map', exact: true }).tap();
+      await pause.getByRole('button', { name: 'View Campaign Map', exact: true }).tap();
       const map = page.getByRole('dialog', { name: 'Campaign map', exact: true });
       await expect(map.locator('.re-node').first()).toBeVisible();
       await map.getByRole('button', { name: 'Close', exact: true }).tap();

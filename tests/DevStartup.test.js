@@ -218,6 +218,27 @@ describe('phone review routes (deploy previews)', () => {
     expect(edric.currentHP).toBe(1);
     expect(edric.consumables.map((c) => c.name)).toEqual(['Elixir', 'Vulnerary']);
     expect(registry.get('activeSlot')).toBeNull();
+    // First-time lessons teach once, in memory (no slot): the waiting Oath's included.
+    const hints = registry.get('hints');
+    expect(hints.shouldShow('roster_oath_waiting')).toBe(true);
+    expect(hints.shouldShow('roster_oath_waiting')).toBe(false);
+    expect(hints.hasSeen('roster_oath_waiting')).toBe(true);
+    // Nothing else interrupts the review (the route map's own first-visit notes).
+    expect(hints.shouldShow('nodemap_intro')).toBe(false);
+    expect(hints.hasSeen('nodemap_hp_persist')).toBe(true);
+  });
+
+  it('roster_checks keeps a real save slot’s hints, and hints off stays off', () => {
+    const kept = { shouldShow: () => false };
+    const registry = createRegistry();
+    registry.set('hints', kept);
+    route('?devScene=nodemap&preset=roster_checks&seed=1', registry);
+    expect(registry.get('hints')).toBe(kept);
+
+    const off = createRegistry();
+    off.set('settings', { getHints: () => false });
+    route('?devScene=nodemap&preset=roster_checks&seed=1', off);
+    expect(off.get('hints').shouldShow('roster_oath_waiting')).toBe(false);
   });
 
   it('ladder: Dusk and Nightfall open on the difficulty screen', () => {

@@ -311,9 +311,12 @@ export class MobileRosterSheet {
       const hpRow = el('span', null, 'mr-unit-hp');
       hpRow.append(createHealthBar(unit), el('small', `${unit.currentHP}/${unit.stats.HP}`));
       info.append(classLine, hpRow);
+      // A waiting Oath is a choice left to make: the unit says so in the list.
+      const oathWaits = Boolean(this.run && waitingOath(unit));
+      if (oathWaits) info.append(el('span', 'Oath waiting', 'mr-unit-flag'));
       b.setAttribute(
         'aria-label',
-        `${unit.name}, Level ${getDisplayLevel(unit)} ${unit.className}, HP ${unit.currentHP} of ${unit.stats.HP}`,
+        `${unit.name}, Level ${getDisplayLevel(unit)} ${unit.className}, HP ${unit.currentHP} of ${unit.stats.HP}${oathWaits ? ', Oath waiting' : ''}`,
       );
       b.append(info);
       b.setAttribute('aria-pressed', String(index === this.index));
@@ -364,6 +367,7 @@ export class MobileRosterSheet {
       );
       summary.append(createHealthBar(unit));
       body.append(summary);
+      this.waitingOathCallout(unit);
       if (this.tab === 'stats') this.stats(unit);
       if (this.tab === 'skills') this.skills(unit);
       if (this.tab === 'gear') this.gear(unit);
@@ -628,6 +632,52 @@ export class MobileRosterSheet {
         );
       this.body.append(card);
     }
+  }
+  /**
+   * A waiting Oath, at the top of the unit's pane on every tab: the choice lives at the
+   * foot of Stats (Deeds), so the pane says so and takes the player there. The first
+   * time a save meets one, it also says what a waiting Oath is (playtest 2026-09-28).
+   */
+  waitingOathCallout(unit) {
+    const waiting = this.run ? waitingOath(unit) : null;
+    if (!waiting) return;
+    const box = el('aside', null, 'mr-callout mr-oath-callout');
+    box.setAttribute('aria-label', `${waiting.name || 'Oath'} is waiting`);
+    box.append(el('h4', `${waiting.name || 'An Oath'} is waiting`));
+    const full = (unit.skills?.length || 0) >= MAX_SKILLS;
+    box.append(
+      el(
+        'p',
+        full
+          ? `All ${MAX_SKILLS} skill slots are full. Give up a skill to swear it, or keep your skills and let it go.`
+          : 'A skill slot is free: swear it now.',
+      ),
+    );
+    // Told once per save; it stays up for as long as this sheet is open.
+    const hints = this.scene?.registry?.get?.('hints');
+    if (this._oathLesson === undefined)
+      this._oathLesson = Boolean(hints?.shouldShow?.('roster_oath_waiting'));
+    if (this._oathLesson)
+      box.append(
+        el(
+          'p',
+          'New: a unit swears one Oath when it promotes. If every skill slot is full, the Oath waits here instead of being lost. Lord and class skills can’t be given up.',
+          'mr-callout-lesson',
+        ),
+      );
+    const onStats = this.tab === 'stats';
+    box.append(
+      this.button(onStats ? 'Go to the Oath' : 'Choose in Deeds', () => {
+        if (this.tab !== 'stats') {
+          this.tab = 'stats';
+          this.render();
+        }
+        const card = this.root.querySelector('.mr-oath-waiting');
+        card?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+        card?.querySelector('button')?.focus({ preventScroll: true });
+      }),
+    );
+    this.body.append(box);
   }
   /**
    * An Oath earned at promotion while every skill slot was full: it waits here until

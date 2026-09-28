@@ -48,6 +48,7 @@ import { hasInputFocus, pushInputScope, popInputScope } from '../utils/inputFocu
 import { InputAction } from '../utils/InputActions.js';
 import { getEffectivenessMultiplier } from '../engine/Combat.js';
 import { threatSummaryText, threatSummaryTone } from '../engine/ThreatForecast.js';
+import { relocatePrompt } from '../engine/StaffRelocation.js';
 import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js';
 import { equippedBadgeElement, EQUIPPED_MARKER } from './equippedBadge.js';
 import { itemIcon } from './itemIcons.js';
@@ -81,6 +82,14 @@ const HINTS = {
   TURN_START_RESOLVING: 'Applying turn-start effects…',
   SHOWING_FORECAST: 'Review the forecast before committing.',
 };
+
+// Warp/Rescue: step 1 names the ally to pick, step 2 where the chosen ally lands.
+function staffRelocateHint(s, state) {
+  if (state !== 'SELECTING_STAFF_ALLY' && state !== 'SELECTING_STAFF_TILE') return null;
+  const caster = s.selectedUnit;
+  const ally = state === 'SELECTING_STAFF_TILE' ? s.staffRelocateAlly : null;
+  return relocatePrompt(caster?.weapon, caster, ally);
+}
 
 // Item rows teach their long press once: the hint line shows until the player
 // has opened a row's details (per device; storage blocked = never nag).
@@ -880,6 +889,7 @@ export class MobileBattleHUD {
         : null,
       formation ? s._formation.version : null,
       formation ? Boolean(s.dangerZone?.visible) : null,
+      state === 'SELECTING_STAFF_TILE' ? s.staffRelocateAlly?.name : null,
     ]);
     if (key === this.lastSnapshot) return;
     if (
@@ -1184,7 +1194,8 @@ export class MobileBattleHUD {
           'mb-hint',
           s.inspectMode
             ? 'Tap an ally or enemy to view their details.'
-            : HINTS[state] ||
+            : staffRelocateHint(s, state) ||
+                HINTS[state] ||
                 (state.startsWith('SELECTING_')
                   ? 'Tap a highlighted target. Back to go back.'
                   : 'Choose an action on the battlefield.'),

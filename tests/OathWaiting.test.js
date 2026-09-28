@@ -22,6 +22,7 @@ import {
   oathTradeableSkills,
   promotionOathCandidates,
   releaseWaitingOath,
+  rosterOathsWaiting,
   swearWaitingOath,
   waitingOath,
 } from '../src/engine/DeedSystem.js';
@@ -145,20 +146,21 @@ describe('the waiting Oath in the roster', () => {
     _resetInputFocus();
   });
 
-  function open() {
+  function open({ hints = null, tab = 'stats' } = {}) {
     const { run, unit } = promotedAtCap();
     const events = new Map();
     const scene = {
       gameData: data,
       runManager: run,
       events: { once: () => {}, on: () => {}, off: () => {}, emit: () => {} },
-      registry: { get: () => null },
+      registry: { get: (k) => (k === 'hints' ? hints : null) },
       textures: { exists: () => false },
       sys: { settings: { key: 'NodeMap' } },
     };
     void events;
     const sheet = new MobileRosterSheet({ scene, units: run.roster, run, gameData: data, onClose: vi.fn() }); // prettier-ignore
     sheet.index = sheet.units.indexOf(unit);
+    sheet.tab = tab;
     sheet.render();
     const buttons = () => sheet.root.querySelectorAll('button').map((b) => b.textContent);
     const press = (label) => {
@@ -194,5 +196,81 @@ describe('the waiting Oath in the roster', () => {
     expect(unit.skills).not.toContain('pavise');
     expect(saveServiceRun).toHaveBeenCalledTimes(1);
     sheet.destroy();
+  });
+
+  /** HintManager's contract: shouldShow is true once per id, then marks it seen. */
+  function fakeHints(seen = []) {
+    const ids = new Set(seen);
+    return {
+      shouldShow: vi.fn((id) => (ids.has(id) ? false : (ids.add(id), true))),
+      hasSeen: (id) => ids.has(id),
+    };
+  }
+  const LESSON = /New: a unit swears one Oath when it promotes/;
+  const callout = (sheet) => sheet.root.querySelector('.mr-oath-callout');
+
+  // Playtest 2026-09-28: the waiting card sits at the foot of Stats; a promotion that
+  // leaves an Oath waiting must say so where the player is looking.
+  it('a waiting Oath heads the unit pane, flags the unit, and is taught once per save', () => {
+    const hints = fakeHints();
+    const { sheet, unit, press } = open({ hints, tab: 'skills' });
+    const box = callout(sheet);
+    expect(box).toBeTruthy();
+    expect(box.textContent).toContain('Oath of the Bridge is waiting');
+    expect(box.textContent).toContain('All 5 skill slots are full');
+    expect(box.textContent).toMatch(LESSON);
+    // It comes before any tab's content (right after the unit summary).
+    const pane = sheet.root.querySelector('.mr-content');
+    expect(pane.children.indexOf(box)).toBe(1);
+    const card = sheet.root
+      .querySelectorAll('.mr-unit-card')
+      .find((b) => b.textContent.includes(unit.name));
+    expect(card.textContent).toContain('Oath waiting');
+    expect(card.getAttribute('aria-label')).toMatch(/, Oath waiting$/);
+    // The lesson stays while this sheet is open (re-renders), and is told only once.
+    press('Choose in Deeds');
+    expect(sheet.tab).toBe('stats');
+    expect(callout(sheet).textContent).toMatch(LESSON);
+    expect(sheet.root.querySelector('.mr-oath-waiting')).toBeTruthy();
+    expect(hints.shouldShow).toHaveBeenCalledTimes(1);
+    sheet.destroy();
+
+    const again = open({ hints });
+    expect(callout(again.sheet).textContent).not.toMatch(LESSON);
+    expect(callout(again.sheet).textContent).toContain('Oath of the Bridge is waiting');
+    again.sheet.destroy();
+  });
+
+  it('once the Oath is sworn, the callout and the flag are gone', () => {
+    const { sheet, unit, press } = open({ hints: fakeHints(['roster_oath_waiting']) });
+    press('Give up Luna');
+    expect(waitingOath(unit)).toBeNull();
+    expect(callout(sheet)).toBeFalsy();
+    expect(sheet.root.textContent).not.toContain('Oath waiting');
+    sheet.destroy();
+  });
+
+  it('read-only inspection (no run) shows no callout', () => {
+    const { unit } = promotedAtCap();
+    const scene = {
+      gameData: data,
+      events: { once: () => {}, on: () => {}, off: () => {}, emit: () => {} },
+      registry: { get: () => fakeHints() },
+      textures: { exists: () => false },
+      sys: { settings: { key: 'Battle' } },
+    };
+    const sheet = new MobileRosterSheet({ scene, units: [unit], gameData: data, onClose: vi.fn() }); // prettier-ignore
+    sheet.render();
+    expect(callout(sheet)).toBeFalsy();
+    expect(sheet.root.textContent).not.toContain('Oath waiting');
+    sheet.destroy();
+  });
+
+  it('rosterOathsWaiting counts the units with an Oath waiting', () => {
+    const { run, unit } = promotedAtCap();
+    expect(rosterOathsWaiting(run.roster)).toBe(1);
+    releaseWaitingOath(unit);
+    expect(rosterOathsWaiting(run.roster)).toBe(0);
+    expect(rosterOathsWaiting(null)).toBe(0);
   });
 });

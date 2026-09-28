@@ -340,7 +340,7 @@ describe('PauseOverlay campaign map button', () => {
     const buttonTexts = scene.created.texts
       .filter((t) => typeof t.text === 'string')
       .map((t) => t.text);
-    expect(buttonTexts).toContain('Campaign Map');
+    expect(buttonTexts).toContain('View Campaign Map');
   });
 
   it('does not add Campaign Map button when campaignMapData is null', async () => {
@@ -359,7 +359,7 @@ describe('PauseOverlay campaign map button', () => {
     const buttonTexts = scene.created.texts
       .filter((t) => typeof t.text === 'string')
       .map((t) => t.text);
-    expect(buttonTexts).not.toContain('Campaign Map');
+    expect(buttonTexts).not.toContain('View Campaign Map');
   });
 });
 

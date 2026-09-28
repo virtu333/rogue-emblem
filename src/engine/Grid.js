@@ -9,6 +9,7 @@ import {
 } from '../utils/constants.js';
 import { parseRange } from './Combat.js';
 import { createBoardTransform } from '../utils/boardOrientation.js';
+import { UI_HEX } from '../utils/uiStyles.js';
 
 const DIRECTIONS = [
   { dc: 0, dr: -1 },
@@ -722,8 +723,47 @@ export class Grid {
     }
   }
 
+  /**
+   * Warp/Rescue, second step: the chosen ally shimmers in a gold outline and its
+   * landing tiles show as gold squares. Shares attackHighlightTiles, so every
+   * clearAttackHighlights (cancel, commit, turn end) removes it.
+   */
+  showRelocateGuide(ally, tiles, { reduceMotion = false } = {}) {
+    this.clearAttackHighlights();
+    for (const { col, row } of tiles) {
+      const { x, y } = this.gridToPixel(col, row);
+      const square = this.scene.add
+        .rectangle(x, y, TILE_SIZE - 3, TILE_SIZE - 3, UI_HEX.accent, 0.35)
+        .setStrokeStyle(2, UI_HEX.accentText, 0.95)
+        .setDepth(5);
+      this.attackHighlightTiles.push(square);
+    }
+    if (!ally) return;
+    const { x, y } = this.gridToPixel(ally.col, ally.row);
+    // Above the unit graphic (depth 10), so the outline reads over the sprite.
+    const outline = this.scene.add
+      .rectangle(x, y, TILE_SIZE - 2, TILE_SIZE - 2)
+      .setStrokeStyle(3, UI_HEX.accentText, 1)
+      .setDepth(11);
+    outline._relocateAlly = true;
+    this.attackHighlightTiles.push(outline);
+    if (!reduceMotion && typeof this.scene.tweens?.add === 'function') {
+      this.scene.tweens.add({
+        targets: outline,
+        alpha: 0.5,
+        duration: 520,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
+  }
+
   clearAttackHighlights() {
-    this.attackHighlightTiles.forEach((h) => h.destroy());
+    this.attackHighlightTiles.forEach((h) => {
+      this.scene.tweens?.killTweensOf?.(h);
+      h.destroy();
+    });
     this.attackHighlightTiles = [];
   }
 

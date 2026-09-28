@@ -157,8 +157,32 @@ for (const staff of ['Warp Staff', 'Rescue Staff']) {
     await hud.getByRole('button', { name: /^Heal \(/ }).tap();
     await hud.getByRole('button', { name: new RegExp(staff) }).tap();
     const target = staff === 'Warp Staff' ? [2, 4] : [4, 4];
+    const kind = staff === 'Warp Staff' ? 'Warp' : 'Rescue';
+    const moved = staff === 'Warp Staff' ? 'Patient' : 'Utility';
+    // Step 1 says what to tap; step 2 names the chosen ally, outlines it in gold
+    // and shows its landing squares (playtest 2026-09-28).
+    await expect(hud.getByText(new RegExp(`^${kind}: tap a green ally`))).toBeVisible();
     await tapTile(page, ...target);
+    await expect(
+      hud.getByText(`${moved} chosen. Tap a gold square`, { exact: false }),
+    ).toBeVisible();
+    const guide = () =>
+      page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        const marks = s.grid.attackHighlightTiles.filter((h) => h.active !== false);
+        return {
+          outlines: marks.filter((h) => h._relocateAlly).length,
+          squares: marks.filter((h) => !h._relocateAlly).length,
+          tiles: s.staffRelocateTiles.length,
+        };
+      });
+    const shown = await guide();
+    expect(shown.outlines).toBe(1);
+    expect(shown.squares).toBe(shown.tiles);
+    expect(shown.tiles).toBeGreaterThan(0);
     await page.keyboard.press('Escape');
+    await expect(hud.getByText(new RegExp(`^${kind}: tap a green ally`))).toBeVisible();
+    expect((await guide()).outlines).toBe(0);
     expect((await unit(page, 'Sera')).acted).toBe(false);
     expect(
       await page.evaluate(

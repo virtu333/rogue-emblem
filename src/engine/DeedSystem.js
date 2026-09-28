@@ -834,6 +834,11 @@ export function waitingOath(unit) {
   return isObject(w) && typeof w.skillId === 'string' ? w : null;
 }
 
+/** How many units in a roster have an Oath waiting on them. */
+export function rosterOathsWaiting(roster) {
+  return (Array.isArray(roster) ? roster : []).filter((u) => waitingOath(u)).length;
+}
+
 /**
  * Swear the waiting Oath: give up `giveUpSkillId` (one of oathTradeableSkills) for
  * it, or pass null when a slot is already free. The new skill takes the old one's

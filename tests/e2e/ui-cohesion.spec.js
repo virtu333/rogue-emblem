@@ -78,7 +78,7 @@ test('in-battle campaign overview is read-only and returns to pause', async ({ p
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     s.showPauseMenu();
   });
-  await page.getByRole('button', { name: 'Campaign Map', exact: true }).tap();
+  await page.getByRole('button', { name: 'View Campaign Map', exact: true }).tap();
   const map = page.getByRole('dialog', { name: 'Campaign map', exact: true });
   await expect(map).toBeVisible();
   const before = await page.evaluate(

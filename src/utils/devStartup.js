@@ -395,6 +395,29 @@ function pickBattleNode(runManager, nodeType = null) {
   return preferred || available[0] || runManager.nodeMap?.nodes?.[0] || null;
 }
 
+/**
+ * HintManager's interface, kept in memory: the review routes own no save slot. Only
+ * the lessons named in `teach` are taught (once); every other one reads as already
+ * seen, so a review opens on what it is there to show.
+ */
+export function sessionHints(registry, teach = []) {
+  const lessons = new Set(teach);
+  const told = new Set();
+  const enabled = () => registry?.get?.('settings')?.getHints?.() !== false;
+  const hasSeen = (id) => !lessons.has(id) || told.has(id);
+  return {
+    isNew: false,
+    shouldShow(id) {
+      if (!enabled() || hasSeen(id)) return false;
+      told.add(id);
+      return true;
+    },
+    hasSeen,
+    markSeen: (id) => void told.add(id),
+    reset: () => told.clear(),
+  };
+}
+
 function ensureMetaRegistry(registry, gameData, preset) {
   let meta = registry.get('meta');
   if (!meta) {
@@ -470,6 +493,10 @@ export function buildDevStartupRoute(gameData, registry, config) {
     config.sceneKey === 'RunComplete'
   )
     registry.set('activeSlot', null);
+  // Roster review: first-time lessons (the waiting Oath's) teach as in a fresh save,
+  // remembered for this page only, never in a slot.
+  if (config.preset === 'roster_checks' && !registry.get('hints'))
+    registry.set('hints', sessionHints(registry, ['roster_oath_waiting']));
 
   const meta = ensureMetaRegistry(registry, gameData, config.preset);
 

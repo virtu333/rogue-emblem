@@ -321,7 +321,7 @@ export class HealController {
     if (tiles.length === 0) return; // phase-1 filter should prevent this
     scene.staffRelocateAlly = ally;
     scene.staffRelocateTiles = tiles;
-    scene.grid.showAttackRange(tiles, UI_HEX.lineStrong, 0.4);
+    scene.grid.showRelocateGuide(ally, tiles, { reduceMotion: Boolean(scene._reduceMotion?.()) });
     scene.battleState = 'SELECTING_STAFF_TILE';
   }
 

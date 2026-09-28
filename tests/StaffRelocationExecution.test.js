@@ -30,6 +30,7 @@ function makeSceneCtx() {
       clearAttackHighlights: vi.fn(),
       showAttackRange: vi.fn(),
       showHealRange: vi.fn(),
+      showRelocateGuide: vi.fn(),
       gridToPixel: () => ({ x: 0, y: 0 }),
     },
     _awaitSceneTween: vi.fn(async () => {}),
@@ -267,7 +268,10 @@ describe('two-phase targeting handlers', () => {
     expect(ctx.battleState).toBe('SELECTING_STAFF_TILE');
     expect(ctx.staffRelocateAlly).toBe(ally);
     expect(ctx.staffRelocateTiles).toHaveLength(4); // all four caster-adjacent tiles free
-    expect(ctx.grid.showAttackRange).toHaveBeenCalledWith(ctx.staffRelocateTiles, 0x8a7f86, 0.4);
+    // The chosen ally shimmers and its landing squares show in gold.
+    expect(ctx.grid.showRelocateGuide).toHaveBeenCalledWith(ally, ctx.staffRelocateTiles, {
+      reduceMotion: false,
+    });
   });
 
   it('handleStaffAllyClick ignores clicks on non-target tiles', () => {
