@@ -143,7 +143,9 @@ describe('church revival transactions', () => {
     expect(run.roster).toContain(unit);
     expect(run.fallenUnits).not.toContain(unit);
     expect(unit.currentHP).toBe(1);
-    expect(unit.inventory).toEqual([]);
+    // Unarmed after death, it is handed a fresh Iron weapon; the convoy's stays put.
+    expect(unit.inventory.map((w) => w.name)).toEqual(['Iron Axe']);
+    expect(unit.weapon).toBe(unit.inventory[0]);
     expect(run.convoy).toEqual(convoy);
     expect(run.hasShownDialogue('revive_convoy_hint')).toBe(true);
     const after = snapshot();

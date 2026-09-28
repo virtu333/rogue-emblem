@@ -1606,6 +1606,37 @@ export function isUnarmed(unit) {
   return fighter && getCombatWeapons({ ...unit, inventory: unit.inventory || [] }).length === 0;
 }
 
+/**
+ * The weapon a revived unit is handed when it has nothing to fight (or heal) with:
+ * death sends its gear to the convoy. The Iron weapon of its first combat
+ * proficiency, or a Heal staff for a staff-only unit without one. Null when it is
+ * already armed or its bag is full. Pure: returns the catalog weapon.
+ */
+export function reviveStarterWeapon(unit, allWeapons, max = 5) {
+  if (!unit || !Array.isArray(unit.proficiencies) || !unit.proficiencies.length) return null;
+  const inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
+  if (inventory.length >= max) return null;
+  const fighter = unit.proficiencies.some((p) => p?.type && p.type !== 'Staff');
+  const needs = fighter ? isUnarmed({ ...unit, inventory }) : !hasStaff({ ...unit, inventory });
+  if (!needs) return null;
+  return getDefaultWeapon(unit.proficiencies, allWeapons || []) || null;
+}
+
+/** "an Iron Axe", "a Heal": an item name with its indefinite article. */
+export function withIndefiniteArticle(name) {
+  const text = String(name || '');
+  return `${/^[aeiou]/i.test(text) ? 'an' : 'a'} ${text}`;
+}
+
+/** Give a revived unit its reviveStarterWeapon, equipped. Returns the carried copy or null. */
+export function grantReviveStarterWeapon(unit, allWeapons, max = 5) {
+  const weapon = reviveStarterWeapon(unit, allWeapons, max);
+  if (!weapon || !addToInventory(unit, weapon, max)) return null;
+  const carried = unit.inventory[unit.inventory.length - 1];
+  if (carried.type !== 'Staff') equipWeapon(unit, carried);
+  return carried;
+}
+
 /** True if removing this weapon would leave the unit with no combat weapons. */
 export function isLastCombatWeapon(unit, weapon) {
   const combatWeapons = getCombatWeapons(unit);

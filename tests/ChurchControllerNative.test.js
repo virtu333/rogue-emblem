@@ -2,6 +2,17 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import './harness/JourneyTestSetup.js';
 import { RunDriver, JourneyStorage } from './harness/RunDriver.js';
 import { loadRun } from '../src/engine/RunManager.js';
+// The unit sheet is a DOM view; record how the church opens it.
+vi.mock('../src/ui/MobileRosterSheet.js', () => ({
+  MobileRosterSheet: class {
+    constructor(options) {
+      Object.assign(this, options);
+    }
+    destroy() {
+      this.destroyed = true;
+    }
+  },
+}));
 let d;
 beforeEach(() => {
   const storage = new JourneyStorage();
@@ -201,4 +212,32 @@ it('church re-entry preserves promotion and Kindle use after a save round trip',
   expect(d.run.gold).toBe(gold);
   d.run.currentNodeId = 'next';
   expect(d.run.canReenterService(node.id)).toBe(false);
+});
+
+// Playtest (Sep 2026): a fallen ally's details could not be seen before paying to
+// revive them, and they came back unarmed (death sends their gear to the convoy).
+it('a fallen ally shows their details and comes back with an Iron weapon', async () => {
+  await d.step({ type: 'enter', service: 'church' });
+  const fallen = d.run.fallenUnits[0];
+  fallen.inventory = [];
+  fallen.weapon = null;
+  d.press("Journey Fallen's details");
+  const sheet = d.church.nativeMenu.child;
+  expect(sheet.run).toBeNull();
+  expect(sheet.units[sheet.index]).toBe(fallen);
+  sheet.onClose();
+  expect(d.church.nativeMenu.child).toBeNull();
+
+  d.press(/^Journey Fallen · Fighter · Revive/);
+  expect(d.church.nativeMenu.child.options.describe()).toContain(
+    'Comes back carrying an Iron Axe.',
+  );
+  const result = d.confirm(0);
+  expect(result.ok).toBe(true);
+  expect(result.message).toContain('Carries an Iron Axe.');
+  const revived = d.run.roster.find((u) => u.name === 'Journey Fallen');
+  expect(revived.weapon?.name).toBe('Iron Axe');
+  expect(revived.inventory[0]).toBe(revived.weapon);
+  const saved = loadRun(d.data, 1).roster.find((u) => u.name === 'Journey Fallen');
+  expect(saved.weapon?.name).toBe('Iron Axe');
 });

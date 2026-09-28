@@ -29,6 +29,7 @@ import {
   REVIVE_COST_PER_LEVEL,
   REVIVE_PROMOTION_MULTIPLIER,
   RUINS_PATHS,
+  INVENTORY_MAX,
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
 import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapGenerator.js';
@@ -53,6 +54,7 @@ import {
   LETHAL_ARMORY_WEAPONS,
   equipWeapon,
   normalizeEquippedFirst,
+  grantReviveStarterWeapon,
 } from './UnitManager.js';
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
@@ -3749,6 +3751,12 @@ export class RunManager {
       createSeededRng(seed),
     );
     unit.currentHP = 1; // Catch-up HP gains do not turn revival into a full heal.
+    // Death sent its gear to the convoy: an unarmed unit comes back with an Iron weapon.
+    const starter = grantReviveStarterWeapon(unit, this.gameData?.weapons || [], INVENTORY_MAX);
+    this.lastRevivalResult = {
+      ...(this.lastRevivalResult || {}),
+      starterWeapon: starter?.name || null,
+    };
 
     this.roster.push(unit);
     return true;

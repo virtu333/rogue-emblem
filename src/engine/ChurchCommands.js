@@ -4,6 +4,7 @@ import {
   resolvePromotionTargets,
   promoteUnit,
   getSkillDisplayNames,
+  withIndefiniteArticle,
 } from './UnitManager.js';
 import { getReviveCost } from './RunManager.js';
 import { applyPromotionOath } from './DeedSystem.js';
@@ -59,7 +60,7 @@ export function reviveAtChurch(run, unit) {
   const dropped = getSkillDisplayNames(run.lastRevivalResult?.droppedSkills, run.gameData.skills);
   return {
     ok: true,
-    message: `${unit.name} revived at level ${unit.level} with 1 HP.${catchUp.levels ? ` Gained ${catchUp.levels} catch-up levels at growths minus 10 percentage points; future growths are unchanged.` : ''} Use Heal all, then Roster to re-equip from the convoy.${learned.length ? ` Learned: ${learned.join(', ')}.` : ''}${dropped.length ? ` Skill limit: could not learn ${dropped.join(', ')}.` : ''}`,
+    message: `${unit.name} revived at level ${unit.level} with 1 HP.${catchUp.levels ? ` Gained ${catchUp.levels} catch-up levels at growths minus 10 percentage points; future growths are unchanged.` : ''}${run.lastRevivalResult?.starterWeapon ? ` Carries ${withIndefiniteArticle(run.lastRevivalResult.starterWeapon)}.` : ''} Use Heal all, then Roster to re-equip from the convoy.${learned.length ? ` Learned: ${learned.join(', ')}.` : ''}${dropped.length ? ` Skill limit: could not learn ${dropped.join(', ')}.` : ''}`,
   };
 }
 // Kindle: pay gold to lift the Eclipse's shadow, once per church node.
