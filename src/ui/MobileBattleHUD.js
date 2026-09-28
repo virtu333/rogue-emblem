@@ -28,6 +28,7 @@ import {
   canInspectUnit,
   statusDescriptions,
   statusStaffInfo,
+  terrainRuleLines,
 } from '../engine/BattleInformation.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
@@ -899,7 +900,7 @@ export class MobileBattleHUD {
         // Move preview: how many visible foes could strike this tile next phase.
         if (threat && threat.col === focus.col && threat.row === focus.row)
           card.append(threatPreviewLine(threat.result));
-        if (terrain.special) {
+        if (terrainRuleLines(terrain).length) {
           const help = this.button(
             'Terrain details ⓘ',
             () => {

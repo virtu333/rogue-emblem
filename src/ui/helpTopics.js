@@ -3,6 +3,7 @@
 import { getStaticCombatStats, isStaff, usesMagic } from '../engine/Combat.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import { DOUBLE_ATTACK_SPD_THRESHOLD } from '../utils/constants.js';
+import { terrainRuleLines } from '../engine/BattleInformation.js';
 
 const signed = (n) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`);
 
@@ -160,8 +161,9 @@ export function terrainHelp(terrain, moveType = 'Infantry') {
   const def = num(terrain?.defBonus);
   const avo = num(terrain?.avoidBonus);
   const cost = num(terrain?.moveCost?.[moveType]);
+  const rules = terrainRuleLines(terrain);
   return [
-    terrain?.special ? { lead: terrain.special } : null,
+    rules.length ? { lead: rules.join(' ') } : null,
     {
       stats: [
         { label: 'Defense', value: def == null ? '—' : signed(def) },
