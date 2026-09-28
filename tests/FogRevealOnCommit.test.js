@@ -310,6 +310,52 @@ describe('moves inside an action (Rescue/Warp, Blink) lift the fog only on commi
   });
 });
 
+describe('Shove and Pull never land in the fog', () => {
+  // Edric at (3,1) beside Sera at (4,1); the brigand at (5,1) is in the fog.
+  function beside() {
+    const { scene, grid, edric, brigand } = setup();
+    edric.col = 3;
+    edric.skills = ['shove', 'pull'];
+    const sera = { ...edric, name: 'Sera', col: 4, row: 1, skills: [] };
+    scene.playerUnits.push(sera);
+    scene.getUnitAt = (c, r) =>
+      [...scene.playerUnits, ...scene.enemyUnits].find((u) => u.col === c && u.row === r) || null;
+    return { scene, grid, edric, sera, brigand };
+  }
+
+  it('a fogged tile past the ally is not offered for Shove, occupied or not', () => {
+    const { scene, grid, edric, brigand } = beside();
+    expect(grid.isVisible(5, 1)).toBe(false);
+    const hidden = scene.findShoveTargets(edric).map((t) => [t.destCol, t.destRow]);
+    brigand.col = 9; // the same fogged tile, now empty: the offer must not change
+    const empty = scene.findShoveTargets(edric).map((t) => [t.destCol, t.destRow]);
+    expect(hidden).not.toContainEqual([5, 1]);
+    expect(empty).toEqual(hidden);
+  });
+
+  it('a seen free tile past the ally is offered', () => {
+    const { scene, grid, edric, brigand } = beside();
+    brigand.col = 9;
+    grid.fogEnabled = false;
+    expect(scene.findShoveTargets(edric).map((t) => [t.destCol, t.destRow])).toContainEqual([5, 1]);
+  });
+
+  it('Pull: the retreat tile must be seen, so a hidden foe behind never shows', () => {
+    const { scene, grid, edric, sera, brigand } = beside();
+    // Sera at (3,1) beside Edric at (4,1); Pull sends Edric back to (5,1), in the fog.
+    sera.col = 3;
+    edric.col = 4;
+    brigand.col = 5;
+    grid.updateFogOfWar([{ ...sera, col: 0 }]); // settled vision: (0,1) sees 3 tiles
+    expect(grid.isVisible(5, 1)).toBe(false);
+    expect(scene.findPullTargets(edric)).toEqual([]);
+    brigand.col = 9;
+    expect(scene.findPullTargets(edric)).toEqual([]);
+    grid.fogEnabled = false;
+    expect(scene.findPullTargets(edric).map((t) => [t.retreatCol, t.retreatRow])).toEqual([[5, 1]]);
+  });
+});
+
 describe('previews after an uncommitted move name only what the player sees', () => {
   it('Ensnare is not offered for a foe hidden in the fog; once seen, it is', async () => {
     const { scene, edric } = setup();

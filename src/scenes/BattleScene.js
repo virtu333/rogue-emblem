@@ -23,7 +23,11 @@ import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
 import { presentationText, isolateBattleTextFactory } from '../utils/presentationText.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
-import { canInspectUnit, statusStaffThreat } from '../engine/BattleInformation.js';
+import {
+  canInspectUnit,
+  seenTileOccupant,
+  statusStaffThreat,
+} from '../engine/BattleInformation.js';
 import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.js';
 import { earlyEnemyAllowed } from '../engine/EarlyEnemyRules.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -5049,7 +5053,8 @@ export class BattleScene extends Phaser.Scene {
       if (destC < 0 || destC >= this.grid.cols || destR < 0 || destR >= this.grid.rows) continue;
       const moveCost = this.grid.getMoveCost(destC, destR, ally.moveType);
       if (moveCost === Infinity) continue;
-      if (this.getUnitAt(destC, destR)) continue;
+      // A fogged tile counts as taken: a hidden foe must not show by the option's absence.
+      if (this._seenTileOccupant(destC, destR)) continue;
       targets.push({ ally, destCol: destC, destRow: destR, dc, dr });
     }
     return targets;
@@ -5078,10 +5083,15 @@ export class BattleScene extends Phaser.Scene {
       // Ally moves to unit's old position -- passable for ally?
       const allyDestCost = this.grid.getMoveCost(unit.col, unit.row, ally.moveType);
       if (allyDestCost === Infinity) continue;
-      if (this.getUnitAt(retreatC, retreatR)) continue;
+      if (this._seenTileOccupant(retreatC, retreatR)) continue;
       targets.push({ ally, retreatCol: retreatC, retreatRow: retreatR, dc, dr });
     }
     return targets;
+  }
+
+  /** Taken as far as the player knows: a unit stands there, or fog hides the tile. */
+  _seenTileOccupant(col, row) {
+    return seenTileOccupant(this.grid, (c, r) => this.getUnitAt(c, r))(col, row);
   }
 
   findTradeTargets(unit) {
