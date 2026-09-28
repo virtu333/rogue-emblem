@@ -22,15 +22,22 @@ export function renderFormationPanel(container, formation, makeButton, { withSta
   const n = formation.units.length;
   const placed = formation.placed();
   const held = formation.heldUnit;
+  // A placed unit in hand moves, swaps or goes back to wait; a waiting one is placed.
+  const moving = held && formation.heldTile() !== null;
+  const bench = formation.benched();
   container.append(
     el(
       'p',
       'fm-lead',
-      held
-        ? `Tap a blue tile for ${held.name}.`
-        : placed < n
-          ? 'Tap a blue tile to choose who stands there.'
-          : 'Everyone is in place. Tap a tile to swap.',
+      moving
+        ? bench.length
+          ? `Move ${held.name}: tap a tile, a unit to swap, or a waiting unit to send in instead.`
+          : `Move ${held.name}: tap a tile, or a unit to swap.`
+        : held
+          ? `Tap a blue tile for ${held.name}.`
+          : placed < n
+            ? 'Tap a blue tile to choose who stands there, or a unit to move it.'
+            : 'Everyone is in place. Tap a unit to move or swap it.',
     ),
   );
   const count = el('p', 'fm-count', `${placed} / ${n} placed`);
@@ -38,10 +45,19 @@ export function renderFormationPanel(container, formation, makeButton, { withSta
   container.append(count);
   if (formation.notice) container.append(el('p', 'fm-notice', formation.notice));
 
-  const bench = formation.benched();
   const tools = el('div', 'fm-tools');
-  if (bench.length) tools.append(makeButton('Auto-place', () => formation.autoPlace(), 'fm-auto'));
-  if (placed > 0) tools.append(makeButton('Clear', () => formation.clearAll(), 'fm-clearall'));
+  if (moving) {
+    const u = formation.heldIndex();
+    tools.append(
+      makeButton('Options', () => formation.openUnitMenu(u), 'fm-options'),
+      makeButton('Remove', () => formation.unplace(u), 'fm-remove'),
+      makeButton('Cancel', () => formation.release(), 'fm-release'),
+    );
+  } else {
+    if (bench.length)
+      tools.append(makeButton('Auto-place', () => formation.autoPlace(), 'fm-auto'));
+    if (placed > 0) tools.append(makeButton('Clear', () => formation.clearAll(), 'fm-clearall'));
+  }
   if (tools.childElementCount) container.append(tools);
   if (bench.length) {
     const list = el('div', 'fm-bench');

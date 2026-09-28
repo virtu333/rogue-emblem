@@ -82,6 +82,39 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
   return { damage, status };
 }
 
+/**
+ * Where a unit can stop with `mov` movement, and the tiles its weapon reaches
+ * beyond them (the attack fringe the move preview draws in red).
+ * @returns {{ moveRange: Map, attackTiles: Array<{col,row}> }}
+ */
+export function unitReach(grid, unit, { mov = 0, positions = null, costModifier = 0 } = {}) {
+  const moveRange = grid.getMovementRange(
+    unit.col,
+    unit.row,
+    mov,
+    unit.moveType,
+    positions,
+    unit.faction,
+    costModifier,
+  );
+  const attack = new Set();
+  if (unit.weapon) {
+    for (const [key, entry] of moveRange) {
+      if (entry?.stoppable === false) continue;
+      const [mc, mr] = key.split(',').map(Number);
+      for (const t of grid.getAttackRange(mc, mr, unit.weapon)) {
+        const tk = tileKey(t.col, t.row);
+        if (!moveRange.has(tk)) attack.add(tk);
+      }
+    }
+  }
+  const attackTiles = Array.from(attack).map((k) => {
+    const [col, row] = k.split(',').map(Number);
+    return { col, row };
+  });
+  return { moveRange, attackTiles };
+}
+
 function visibleEnemyBallistas(ctx) {
   const { grid } = ctx;
   return (ctx.ballistas || []).filter(

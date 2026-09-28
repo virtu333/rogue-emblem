@@ -1,5 +1,7 @@
 // "Who stands here?" — the unit list for one formation tile. One tap places the
-// unit (swapping with whoever was there); the tile can also be emptied.
+// unit (swapping with whoever was there); the tile can also be emptied. Opened
+// for a placed unit (`subject`), the same list is that unit's menu: swap it with
+// anyone, send it back to wait, or open its details.
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { unitPortrait } from './unitPortrait.js';
 import { unitOnTile } from '../engine/FormationPlacement.js';
@@ -12,16 +14,22 @@ export function formationUnitLine(unit) {
 }
 
 export class FormationPicker {
-  constructor(scene, formation, tileIndex, { onPick, onClear, onClose }) {
+  constructor(
+    scene,
+    formation,
+    tileIndex,
+    { subject = null, onPick, onClear, onDetails, onClose },
+  ) {
     Object.assign(this, { scene, formation, tileIndex, onPick, onClear, onClose });
     const tile = formation.tiles[tileIndex];
     const terrain = scene.grid?.getTerrainAt?.(tile.col, tile.row);
-    this.surface = new MenuSurface(scene, 'Who stands here?', () => this.close(), {
-      modal: true,
-    });
+    const held = subject === null ? null : formation.units[subject];
+    const title = held ? held.name : 'Who stands here?';
+    this.surface = new MenuSurface(scene, title, () => this.close(), { modal: true });
     this.surface.root.classList.add('re-choice-picker', 'fm-picker');
     const body = this.surface.body;
     body.classList.add('re-scroll');
+    if (held) body.append(element('p', formationUnitLine(held), 'fm-picker-unit'));
     if (terrain) {
       const bonus = (v) => {
         const n = parseInt(v, 10) || 0;
@@ -36,6 +44,18 @@ export class FormationPicker {
       );
     }
     const occupant = unitOnTile(formation.formation, tileIndex);
+    if (held && onDetails)
+      body.append(
+        button(
+          'Details',
+          () => {
+            this.close();
+            onDetails();
+          },
+          're-btn fm-details',
+        ),
+      );
+    if (held) body.append(element('p', `Swap ${held.name} with`, 'fm-picker-head'));
     const list = element('div', null, 're-choice-list fm-picker-list');
     // Waiting units first, then those already on the field (a pick swaps them).
     const order = [...formation.units.keys()].sort(
@@ -52,7 +72,9 @@ export class FormationPicker {
       const face = unitPortrait(scene, scene.gameData, unit, 'mr-unit-face');
       if (face) row.append(face);
       const name = element('strong', unit.name);
-      if (onField) {
+      if (held && !onField) {
+        name.append(element('span', ` · ${held.name} waits`, 'fm-tag'));
+      } else if (onField) {
         const tag =
           occupant === -1
             ? ' · move here'
@@ -71,7 +93,9 @@ export class FormationPicker {
     body.append(list);
     if (occupant !== -1) {
       const clear = button(
-        `Empty this tile (${formation.units[occupant].name} waits)`,
+        held
+          ? `Send ${held.name} back to wait`
+          : `Empty this tile (${formation.units[occupant].name} waits)`,
         () => {
           this.onClear();
           this.close();

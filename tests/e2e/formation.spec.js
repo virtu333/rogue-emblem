@@ -126,6 +126,88 @@ test.describe('phone', () => {
     expect(errors).toEqual([]);
   });
 
+  test('tap a placed unit to pick it up: move it, swap it, open its menu, send it to wait', async ({
+    page,
+  }) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await ready(page, PHONE);
+    const rail = page.getByRole('complementary', { name: 'Battle commands' });
+    await rail.getByRole('button', { name: 'Auto-place', exact: true }).tap();
+    let snap = await snapshot(page);
+    expect(snap.at.every((t) => t !== null)).toBe(true);
+    const free = [...Array(snap.tiles).keys()].filter((t) => !snap.at.includes(t));
+    const tapTile = async (t) => {
+      const at = await tileOnPage(page, t);
+      await page.touchscreen.tap(at.x, at.y);
+    };
+    const held = () => battle(page, 'return s._formation.heldUnit?.name ?? null;');
+    const reach = () =>
+      battle(
+        page,
+        `const r = s._formation.reachTiles(); return r ? r.move.length + r.attack.length : 0;`,
+      );
+
+    // Tap Edric: he is picked up (no picker), his turn-1 reach shows, the rail says what to do.
+    const edric = snap.at[0];
+    await tapTile(edric);
+    expect(await held()).toBe('Edric');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(await reach()).toBeGreaterThan(0);
+    await expect(rail).toContainText('Move Edric: tap a tile, or a unit to swap.');
+
+    // An empty tile: he moves there and is set down.
+    await tapTile(free[0]);
+    snap = await snapshot(page);
+    expect(snap.at[0]).toBe(free[0]);
+    expect(await held()).toBeNull();
+    expect(await reach()).toBe(0);
+
+    // Edric onto Sera: they trade tiles.
+    const sera = snap.at[1];
+    await tapTile(free[0]);
+    await tapTile(sera);
+    snap = await snapshot(page);
+    expect([snap.at[0], snap.at[1]]).toEqual([sera, free[0]]);
+
+    // Edric twice: his menu. Close keeps him in hand; Cancel on the rail sets him down.
+    await tapTile(sera);
+    await tapTile(sera);
+    const menu = page.getByRole('dialog', { name: 'Edric', exact: true });
+    await expect(menu).toBeVisible();
+    await menu.getByRole('button', { name: 'Close', exact: true }).tap();
+    await expect(menu).toHaveCount(0);
+    expect(await held()).toBe('Edric');
+    await rail.getByRole('button', { name: 'Cancel', exact: true }).tap();
+    expect(await held()).toBeNull();
+
+    // The menu sends him back to wait; then a waiting unit's chip is placed as before.
+    await tapTile(sera);
+    await tapTile(sera);
+    await menu.getByRole('button', { name: 'Send Edric back to wait', exact: true }).tap();
+    await expect(menu).toHaveCount(0);
+    snap = await snapshot(page);
+    expect(snap.at[0]).toBeNull();
+    await expect(rail).toContainText('4 / 5 placed');
+
+    // A placed unit in hand + Edric's chip: Edric takes that unit's tile and it waits.
+    const third = snap.at[2];
+    await tapTile(third);
+    expect(await held()).toBe(snap.names[2]);
+    await rail.getByRole('button', { name: /^Edric,/ }).tap();
+    snap = await snapshot(page);
+    expect(snap.at[0]).toBe(third);
+    expect(snap.at[2]).toBeNull();
+
+    // Remove on the rail sends the unit in hand back to wait.
+    await tapTile(third);
+    await rail.getByRole('button', { name: 'Remove', exact: true }).tap();
+    snap = await snapshot(page);
+    expect(snap.at[0]).toBeNull();
+    expect(await held()).toBeNull();
+    expect(errors).toEqual([]);
+  });
+
   test('a tile a unit cannot stand on is offered but blocked, with the reason', async ({
     page,
   }) => {
@@ -180,6 +262,30 @@ test('desktop: the dock stays off the map, Esc opens the formation menu, Start n
   await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
   await expect(page.locator('.fm-dock')).toHaveCount(0);
   expect(await battle(page, 'return s.playerUnits.length;')).toBe(5);
+});
+
+test('desktop: click a placed unit to pick it up; Esc closes its menu, then sets it down', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await ready(page, DESKTOP);
+  const dock = page.getByRole('region', { name: 'Formation' });
+  await dock.getByRole('button', { name: 'Auto-place', exact: true }).click();
+  const snap = await snapshot(page);
+  const at = await tileOnPage(page, snap.at[1]);
+  await page.mouse.click(at.x, at.y);
+  expect(await battle(page, 'return s._formation.heldUnit?.name ?? null;')).toBe('Sera');
+  await dock.getByRole('button', { name: 'Options', exact: true }).click();
+  const menu = page.getByRole('dialog', { name: 'Sera', exact: true });
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  expect(await battle(page, 'return s._formation.heldUnit?.name ?? null;')).toBe('Sera');
+  await page.keyboard.press('Escape');
+  expect(await battle(page, 'return s._formation.heldUnit?.name ?? null;')).toBeNull();
+  // Nothing held: Esc opens the formation menu, as before.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Formation', exact: true })).toBeVisible();
 });
 
 test('dev routes without formation=1 still start on turn 1', async ({ page }) => {

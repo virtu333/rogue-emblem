@@ -58,11 +58,14 @@
 }
 .fm-tools {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
 }
+/* A narrow dock wraps the buttons rather than breaking a word across lines. */
 .fm-tools > * {
-  flex: 1;
+  flex: 1 1 auto;
+  white-space: nowrap;
 }
 .fm-start {
   width: 100%;
@@ -100,6 +103,20 @@
 .fm-clear {
   margin-top: 8px;
   width: 100%;
+}
+.fm-picker-unit {
+  margin: 0 0 4px;
+  font: 600 14px/1.4 var(--re-body);
+  color: var(--re-text);
+}
+.fm-details {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.fm-picker-head {
+  margin: 0 0 6px;
+  font: 13px/1.4 var(--re-body);
+  color: var(--re-muted);
 }
 
 /* Desktop dock */
