@@ -3,6 +3,7 @@ import {
   BOSS_RECRUIT_PROMOTION_CHANCE_BASE,
   NODE_RECRUIT_PROMOTION_CHANCE_BASE,
   RECRUIT_PROMOTION_CHANCE_CAP,
+  RECRUIT_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
 
 export const RECRUIT_PROMOTION_CONTEXT = {
@@ -91,4 +92,16 @@ export function getFailBaseLevel(targetLevel, dynamicPromotionLevel) {
   const cappedPromotion = clamp(Number(dynamicPromotionLevel) || 1, 1, BASE_CLASS_LEVEL_CAP);
   const sourceLevel = Math.min(cappedTarget, cappedPromotion, BASE_CLASS_LEVEL_CAP);
   return clamp(sourceLevel - 1, 1, BASE_CLASS_LEVEL_CAP);
+}
+
+/**
+ * The base-class level a recruit that joins promoted reaches before promoting. The
+ * commander promotes at RECRUIT_PROMOTION_BASE_LEVEL at the earliest, so a recruit does
+ * the same, then levels in its promoted class to the commander's promoted level. The
+ * commander's promoted levels are counted once, after promotion — never also as extra
+ * base-class levels (Rowan at Great Lord 8 joined with 24 level-ups to Edric's 16).
+ */
+export function getPromotionBaseLevel(targetLevel) {
+  const cappedTarget = clamp(Math.trunc(Number(targetLevel)) || 1, 1, BASE_CLASS_LEVEL_CAP);
+  return Math.min(cappedTarget, RECRUIT_PROMOTION_BASE_LEVEL);
 }

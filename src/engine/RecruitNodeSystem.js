@@ -36,6 +36,7 @@ import {
 import {
   RECRUIT_PROMOTION_CONTEXT,
   getFailBaseLevel,
+  getPromotionBaseLevel,
   isPromotedRecruitSource,
   rollRecruitPromotion,
 } from './RecruitPromotion.js';
@@ -462,7 +463,7 @@ export function buildRecruitNodeUnit(opts = {}) {
             {
               ...def,
               className: baseClass.name,
-              level: Math.min(level, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP),
+              level: getPromotionBaseLevel(level),
             },
             baseClass,
             { traitClassData: npcClassData },
