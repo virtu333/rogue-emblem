@@ -105,6 +105,7 @@ import {
   getReclassTargets,
   reclassUnit,
   inventoryDisplayOrder,
+  settleAccessoryHpOwed,
 } from '../engine/UnitManager.js';
 import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
 import { getXpShareRatio, getXpShareRecipients, calculateSharedXp } from '../engine/XpShare.js';
@@ -3327,6 +3328,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   updateHPBar(unit) {
+    // Every heal in battle redraws the bar: a unit healed to full owes nothing from
+    // an HP accessory it took off, so later damage cannot make the debt stale.
+    settleAccessoryHpOwed(unit);
     let pos, barWidth, barHeight;
     if (isEntity(unit)) {
       const center = getEntityCenter(unit);

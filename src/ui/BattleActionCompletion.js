@@ -1,4 +1,5 @@
 import { commitHistoryPath, observeHistoryAction } from './BattleHistoryRecorder.js';
+import { settleAccessoryHpOwed } from '../engine/UnitManager.js';
 /**
  * Fog of war shows what settled units see. A move reveals nothing on its own: the
  * fog lifts from a unit's new tile only once its action there is committed (Wait,
@@ -36,6 +37,8 @@ export function completeBattleAction(scene, unit, { skipDim = false } = {}) {
   scene._timelineBoundary = 'player_action';
   scene._timelineFacts = [...(scene._timelineFacts || []), `${unit.name} finished their action.`];
   revealSettledVision(scene);
+  // Before the save: an ally healed to full this action owes no HP accessory debt.
+  for (const ally of scene.playerUnits || []) settleAccessoryHpOwed(ally);
   scene._captureSuspendCheckpoint?.();
   scene.turnManager.unitActed(unit);
 }
