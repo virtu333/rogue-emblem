@@ -459,6 +459,7 @@ def analyse(meta, cells, o):
     linked_in = set()  # (drawing, foot) reached from the previous drawing's planted foot
     named_pairs = {}
     linked_out = {}
+    best_pair = {}
     parent = {}
 
     def find(a):
@@ -483,10 +484,15 @@ def analyse(meta, cells, o):
         else:
             grp = sel[p][1]
             pairs = []
+            scored = []
             for g in grp:
                 if g['mate'] is None:
                     continue
-                pairs.append((g['foot'], g['mate']) if g['reg']['sgn'] == 1 else (g['mate'], g['foot']))
+                pr = (g['foot'], g['mate']) if g['reg']['sgn'] == 1 else (g['mate'], g['foot'])
+                pairs.append(pr)
+                scored.append((g['score'], pr))
+            if scored:
+                best_pair[p] = max(scored, key=lambda t: t[0])[1]
             if not pairs:
                 # a foot that only one end could name: the lowest ground foot at each end
                 fi = [k for k, f in enumerate(feet[i]) if f['ground']]
@@ -502,12 +508,14 @@ def analyse(meta, cells, o):
             union((i, ki), (j, kj))
             linked_in.add((j, kj))
         if pairs:
-            # the foot that the advance follows: the lowest of them
-            ki, kj = max(pairs, key=lambda t: feet[i][t[0]]['y'])
-            if plant[i] is None:
-                plant[i] = ki
-            if plant[j] is None:
-                plant[j] = kj
+            # the foot the advance follows: the best matched (else the lowest)
+            best_pair.setdefault(p, max(pairs, key=lambda t: feet[i][t[0]]['y']))
+    for p, (ki, kj) in best_pair.items():
+        if plant[p] is None:
+            plant[p] = ki
+    for p, (ki, kj) in best_pair.items():
+        if plant[(p + 1) % n] is None:
+            plant[(p + 1) % n] = kj
     ids = {}
     for i in range(n):
         for k, f in enumerate(feet[i]):
