@@ -2133,7 +2133,9 @@ export function rollEnemyCount({
   const [minOff, maxOff] = offset;
   const scaledDeployment =
     act === 'act1' && deployCountCap > 0 ? Math.min(deployCount, deployCountCap) : deployCount;
-  const base = enemyCountBase > 0 ? enemyCountBase : scaledDeployment;
+  // A difficulty's base is a floor, never a replacement: a bigger army still meets
+  // more enemies, so a harder rung never fields fewer than an easier one.
+  const base = Math.max(Math.trunc(enemyCountBase) || 0, scaledDeployment);
   const count =
     base + minOff + Math.floor(Math.random() * (maxOff - minOff + 1)) + Math.trunc(enemyCountBonus);
 

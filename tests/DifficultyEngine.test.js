@@ -112,6 +112,6 @@ describe('DifficultyEngine', () => {
     const lunatic = resolveDifficultyMode(difficulty, 'lunatic');
     const lines = generateModifierSummary(lunatic.modifiers);
     expect(lines.some((l) => l.includes('Enemy levels'))).toBe(true);
-    expect(lines.some((l) => l.includes('Base enemy count'))).toBe(true);
+    expect(lines.some((l) => l.includes('as if you field at least'))).toBe(true);
   });
 });

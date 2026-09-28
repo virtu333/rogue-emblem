@@ -148,7 +148,7 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
     lines.push(`Enemy levels +${mode.enemyLevelBonus}`);
   }
   if (mode.enemyCountBase > (defaults.enemyCountBase || 0)) {
-    lines.push(`Base enemy count: ${mode.enemyCountBase}`);
+    lines.push(`Enemies scale as if you field at least ${mode.enemyCountBase} units`);
   }
   if (mode.enemySkillChance > (defaults.enemySkillChance || 0)) {
     lines.push(`+${Math.round(mode.enemySkillChance * 100)}% enemy skill chance`);

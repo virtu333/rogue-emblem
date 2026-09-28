@@ -35,3 +35,39 @@ describe('Normal Act 1 recruitment relief', () => {
     }
   });
 });
+
+describe('a difficulty base is a floor, never a replacement', () => {
+  const modes = data.difficulty.modes;
+  const count = (id, deployCount, act = 'act4') =>
+    rollEnemyCount({
+      deployCount,
+      act,
+      deployCountCap: modes[id].act1EnemyCountDeployCap,
+      row: 3,
+      tiles: 400, // a big map: the density cap stays out of the way
+      densityCap: data.enemies.enemyCountByTiles,
+      enemyCountBonus: modes[id].enemyCountBonus,
+      enemyCountBase: modes[id].enemyCountBase,
+    });
+
+  it('a small army meets at least the base; a big one meets its own size', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    // Nightfall: base 5. Two units meet the base; eight meet eight.
+    expect(count('hard', 8) - count('hard', 2)).toBe(8 - 5);
+  });
+
+  it('the rungs never invert: harder is never fewer, whatever the army size', () => {
+    for (const roll of [0, 0.5, 0.999]) {
+      vi.spyOn(Math, 'random').mockReturnValue(roll);
+      for (let deploy = 1; deploy <= 12; deploy++)
+        for (const act of ['act2', 'act3', 'act4']) {
+          const ladder = ['normal', 'dusk', 'hard', 'lunatic'].map((id) => count(id, deploy, act));
+          for (let i = 1; i < ladder.length; i++)
+            expect(ladder[i], `deploy ${deploy} ${act} ${ladder}`).toBeGreaterThanOrEqual(
+              ladder[i - 1],
+            );
+        }
+      vi.restoreAllMocks();
+    }
+  });
+});
