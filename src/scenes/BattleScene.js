@@ -91,6 +91,7 @@ import {
   resolvePromotionTargetClass,
   grantSecondaryWeapons,
   checkLevelUpSkills,
+  skillGateLevels,
   hasProficiency,
   canEquip,
   applyStatBoost,
@@ -9094,6 +9095,10 @@ export class BattleScene extends Phaser.Scene {
 
     // Apply every skill grant before any presentation. Informational popups
     // wait for a resolved action/turn checkpoint, never suspend halfway through combat.
+    // A skill that comes due at a level reached now but finds all five slots full is
+    // named on the card (once: later level-ups retry it silently).
+    const reachedLevels = new Set((result.levelUps || []).map((lv) => lv.newLevel));
+    const gateLevels = skillGateLevels(playerUnit, this.gameData.classes);
     for (const lvUp of levelUpDisplayResults(playerUnit.stats, result.levelUps)) {
       // The scene may have shut down while a previous popup was showing (its
       // shutdown hook resolves the await) -- don't build popups on a dead scene.
@@ -9101,11 +9106,15 @@ export class BattleScene extends Phaser.Scene {
       // Update HP bar after level-up (maxHP may have increased)
       this.updateHPBar(playerUnit);
       // Check for new skills learned at this level
-      const learnedIds = checkLevelUpSkills(playerUnit, this.gameData.classes);
-      const learnedNames = learnedIds.map((id) => {
-        const skill = this.gameData.skills.find((s) => s.id === id);
-        return skill ? skill.name : id;
-      });
+      const droppedIds = [];
+      const learnedIds = checkLevelUpSkills(playerUnit, this.gameData.classes, droppedIds);
+      const skillName = (id) => this.gameData.skills.find((s) => s.id === id)?.name || id;
+      const learnedNames = learnedIds.map(skillName);
+      const blockedNames = droppedIds
+        .filter((id) => reachedLevels.has(gateLevels.get(id)))
+        .map(skillName);
+      if (blockedNames.length) lvUp.blockedSkills = blockedNames;
+      reachedLevels.clear();
       (this._pendingLevelUpPopups ||= []).push({
         unitName: playerUnit.name,
         ...(playerUnit.battleEntityId ? { unitId: playerUnit.battleEntityId } : {}),

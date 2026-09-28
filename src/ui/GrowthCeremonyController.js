@@ -36,6 +36,7 @@ import {
   recruitCardContent,
   riteSchedule,
   sealedBeats,
+  skillLimitNote,
 } from './growthContent.js';
 import { unitDisplayName, unitEpithet } from '../engine/DeedTitles.js';
 import { LEVEL_UP_CUE_WAIT_MS, levelUpCue, playCue, stopCues } from './ceremonyMusic.js';
@@ -848,7 +849,7 @@ export function buildRite(scene, { unit, before, content, quote = null }) {
   if (content.growths.length)
     notes.push(`Growth ${content.growths.map((g) => `${g.stat} +${g.bonus}%`).join(', ')}`);
   if (content.moveType) notes.push(`${content.moveType.from} → ${content.moveType.to}`);
-  if (content.dropped.length) notes.push(`Skill limit: could not learn ${content.dropped.join(', ')}`); // prettier-ignore
+  if (content.dropped.length) notes.push(skillLimitNote(content.dropped));
   if (notes.length) text.append(el('p', 'gr-rite-note', notes.join(' · ')));
   if (quote) text.append(el('p', 'gr-rite-quote', `“${quote}”`));
   card.append(text);
@@ -947,6 +948,8 @@ export function buildLevelCard(scene, unit, content, layer = null) {
     });
     main.append(seals);
   }
+  if (content.blocked.length)
+    main.append(el('p', 'gr-rite-note gr-level-note', skillLimitNote(content.blocked)));
   const foot = el('div', 'gr-level-foot');
   const status = el('p', 'gr-level-status', 'Revealing stat gains…');
   status.setAttribute('role', 'status');

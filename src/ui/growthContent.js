@@ -5,7 +5,7 @@
 // no randomness (the battle RNG is Math.random during combat — nothing here
 // may touch it). Previews project a *copy* of the unit through the real
 // promoteUnit, so the rite shows exactly what the engine applies.
-import { XP_STAT_NAMES } from '../utils/constants.js';
+import { XP_STAT_NAMES, MAX_SKILLS } from '../utils/constants.js';
 import {
   promoteUnit,
   getClassInnateSkills,
@@ -298,6 +298,11 @@ export function levelUpKind(result) {
   return 'normal';
 }
 
+/** The card note for skills that could not be learned because every slot is full. */
+export function skillLimitNote(names) {
+  return `Skill limit (${MAX_SKILLS} skills): could not learn ${names.join(', ')}`;
+}
+
 /**
  * Rows and the beat for one level-up result (XP already applied; the
  * display stats reconstruct the intermediate values). kind: see levelUpKind.
@@ -328,6 +333,8 @@ export function levelUpContent(unit, result, learnedNames = [], voice = null) {
     kind,
     beat: LEVEL_BEATS[kind],
     skills: [...(learnedNames || [])].filter(Boolean),
+    // Skills that came due at this level but found every skill slot full.
+    blocked: [...(result?.blockedSkills || [])].filter(Boolean),
     quote: null,
   };
   // The unit's own reaction, and a varied caption for the banner

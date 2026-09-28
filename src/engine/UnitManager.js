@@ -182,6 +182,30 @@ export function checkLevelUpSkills(unit, classesData, droppedSkills = []) {
   return learned;
 }
 
+/**
+ * The level at which each skill checkLevelUpSkills can grant becomes available to the
+ * unit in its current class: class curriculum levels, promoted level 10 for the base
+ * line's missed skills, and the lord's personal skill (base 20 / promoted 10).
+ * Map of skillId → gate level (the lowest when several sources grant it).
+ */
+export function skillGateLevels(unit, classesData = []) {
+  const gates = new Map();
+  const add = (skillId, level) => {
+    if (!skillId) return;
+    if (!gates.has(skillId) || level < gates.get(skillId)) gates.set(skillId, level);
+  };
+  const cls = classesData.find((c) => c.name === unit?.className);
+  for (const entry of cls?.learnableSkills || []) add(entry.skillId, entry.level);
+  if (unit?.tier === 'promoted') {
+    const lineBase = unitBaseClassName(unit, classesData);
+    const baseClass = lineBase ? classesData.find((c) => c.name === lineBase) : null;
+    for (const entry of baseClass?.learnableSkills || []) add(entry.skillId, 10);
+  }
+  if (unit?._personalSkillL20)
+    add(unit._personalSkillL20.skillId, unit.tier === 'promoted' ? 10 : 20);
+  return gates;
+}
+
 // --- Unit creation ---
 
 /**
