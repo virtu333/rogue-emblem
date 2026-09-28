@@ -6,6 +6,7 @@
 //   node tools/cutscene/render.mjs --video <file.mp4> [--fps 24] [--workers 4] [--from s] [--to s]
 //   --piece hook   renders "The Roll" (tools/cutscene/hook) instead of the pilot
 //   --piece unwritten  renders the Unwritten Page proof (tools/cutscene/unwritten)
+//   --piece again  renders "Again", bars 28-56 of the opening, on the same engine
 //   --piece glass  renders "The Far Side of the Glass" (tools/cutscene/glass);
 //                  glass_cold, glass_ja, glass_captions for its other narrators
 //
@@ -41,9 +42,14 @@ const PIECES = {
   // the Unwritten Page proof: bars 47-56 of "Under the Broken Sun" (local copy of the
   // track from the music branch; References/ is not committed)
   unwritten: {
-    page: '/tools/cutscene/unwritten/index.html?export=1',
+    page: '/tools/cutscene/unwritten/index.html?export=1&piece=proof',
     music: 'References/cutscene/unwritten/broken_sun.mp3',
     musicOffset: 73.6,
+  },
+  again: {
+    page: '/tools/cutscene/unwritten/index.html?export=1&piece=again',
+    music: 'References/cutscene/unwritten/broken_sun.mp3',
+    musicOffset: 43.2,
   },
   ...Object.fromEntries(
     ['cold', 'ja', 'captions'].map((v) => [

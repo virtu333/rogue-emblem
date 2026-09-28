@@ -8,10 +8,12 @@ Dev tools only: nothing here ships or is imported by the game.
 - **`glass/` — "The Far Side of the Glass"**, a second opening prototype (draft 1): a
   narrated story trailer in pixel art traced from anime cels, told by the Lieutenant.
   Storyboard and pipeline: [docs/specs/cutscene-far-side.md](../../docs/specs/cutscene-far-side.md).
-- **`unwritten/` — the Unwritten Page engine** (proof): generated paintings stripped
-  back to paper and inked in again by code, on the score's clock. The style for all
-  cutscenes: [docs/art-direction/anime-op/STYLE.md](../../docs/art-direction/anime-op/STYLE.md).
-  See [unwritten/README.md](unwritten/README.md).
+- **`unwritten/` — the Unwritten Page engine**: generated paintings stripped back to
+  paper and inked in again by code, with a camera, anime effects (focus and speed lines,
+  impact frames, smears, page turns, the page cracking) and cuts locked to the score.
+  Pieces: "Again" bars 28–56 (`--piece again`) and the first proof (`--piece unwritten`).
+  The style for all cutscenes: [docs/art-direction/anime-op/STYLE.md](../../docs/art-direction/anime-op/STYLE.md).
+  How it works: [unwritten/ENGINE.md](unwritten/ENGINE.md).
 - **`pilot/` — "The Night Before"**, slice 0 of
   [docs/specs/cutscenes.md](../../docs/specs/cutscenes.md): the Historia plates on the
   title theme. Superseded as the opening by `hook/`; kept for its pixel techniques.

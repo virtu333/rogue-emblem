@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Unwritten Page Proof</title>
+    <title>Unwritten Page Player</title>
     <style>
       @font-face {
         font-family: 'Cinzel';
@@ -106,8 +106,8 @@
       <canvas id="c" width="480" height="270"></canvas>
       <div class="bar">
         <button id="play">Play</button>
-        <input id="time" type="range" min="0" max="16" step="0.01" value="0" />
-        <span id="clock">bar 47 · 0.00 s</span>
+        <input id="time" type="range" min="0" max="60" step="0.01" value="0" />
+        <span id="clock">bar · 0.00 s</span>
         <label style="grid-template-columns: auto auto; gap: 6px"
           ><input id="pixel" type="checkbox" checked /> pixel</label
         >
@@ -123,15 +123,19 @@
     </main>
     <audio id="music" src="/References/cutscene/unwritten/broken_sun.mp3" preload="auto"></audio>
     <script type="module">
-      import { Proof, W, H, DURATION, MUSIC_OFFSET, BAR, FIRST_BAR, SHOTS } from './proof.js';
       import { DEFAULTS } from './engine/stages.js';
 
       const params = new URLSearchParams(location.search);
+      // ?piece=again (default): bars 28-56 of the opening; ?piece=proof: the first proof
+      const which = params.get('piece') || 'again';
+      const mod = which === 'proof' ? await import('./proof.js') : await import('./again.js');
+      const { W, H, DURATION, MUSIC_OFFSET, BAR, FIRST_BAR } = mod;
       if (params.has('export')) document.body.classList.add('export');
       const cv = document.getElementById('c');
       const g = cv.getContext('2d');
       const img = g.createImageData(W, H);
-      const proof = new Proof();
+      const proof = new (mod.Again || mod.Proof)();
+      const SHOTS = mod.SHOTS || mod.SHOTS_OF(proof);
       const status = document.getElementById('status');
       status.textContent = 'loading…';
       await proof.load();

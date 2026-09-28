@@ -91,6 +91,10 @@ into speckle that reads as freckles. Convert big faces with `--dither 0.2`.
 
 Red writing (the Roll) must be converted with `--no-ink`: the ink pass turns thin red strokes black and the red names are lost.
 
+The code engine (`tools/cutscene/unwritten/`) adds a **skin ramp for people only**: the
+art bible's ramps have no skin tone, so faces snapped to the olive earth ramp. Only pixels
+a figure or a face close-up was drawn on may use it, so skies stay cool.
+
 Soft plates behind crisp figures also give the shots depth. Where a plate shows a warm
 sunset (bridge, fens), take the sun out and cool the grade before conversion.
 
