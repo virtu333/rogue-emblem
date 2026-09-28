@@ -161,3 +161,16 @@ Device checklist before wider distribution (Dave, on iPhone):
 - Check help pop-ups upright and sideways. Rotate on the title, with a finger down, and during an action and the enemy phase.
 - Formation: pick up and legal/illegal swaps, replacing a waiting unit, Details, Back, Start.
 - Fog: move then Back, Wait, Canto, a relocation staff, reload. Also a trade, a Ruins path, unarmed defence and a music transition.
+
+## Phone review links (deploy previews and the dev server)
+
+Dev routes run on Netlify deploy previews (`VITE_DEV_ROUTES`); append these to the preview URL (PR #152: `https://deploy-preview-152--emblem-rogue.netlify.app`). None of them touch a save slot.
+
+- **Fog ambush + Rescue with Canto:** `/?devScene=battle&preset=fog_ambush&seed=1234`. Place the army (the placement screen runs on previews), Start: a hint names the unit and a gold outline marks a fogged tile it can reach; move onto it and the move stops short ("Ambush!"). Sera has Canto and the Rescue/Warp staves for the relocation check. `devScenarios.js` picks the tile; a seed whose army cannot reach the fog says so.
+- **Placement Menu / Back to Map:** `/?devScene=battle&preset=combat_actions&seed=42`: Menu on the placement screen, then Back to Map.
+- **Difficulty ladder:** `/?devScene=difficulty&preset=ladder` (Dusk and Nightfall open, Black Sun locked with its reason); `&preset=fresh` shows only First Light open.
+- **Roster checks:** `/?devScene=nodemap&preset=roster_checks&seed=1`, then Roster:
+  - Bramwell's Oath of the Bridge waits in Deeds (give up a skill, or Keep my skills twice).
+  - Corwin (five skills, Master Seal) promotes into the waiting note.
+  - Edric wears a Seraph Robe at 1 HP with an Elixir and a Vulnerary: take the robe off, heal, put it back.
+- **Endings:** `/?devScene=victory&route=lieutenant` (First Light), `route=emperor` (Dusk), `route=entity` (Nightfall).

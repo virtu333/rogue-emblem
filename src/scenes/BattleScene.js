@@ -30,6 +30,7 @@ import {
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
 import { isDifficultyAtLeast } from '../engine/DifficultyEngine.js';
+import { applyDevScenario } from '../utils/devScenarios.js';
 import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.js';
 import { earlyEnemyAllowed } from '../engine/EarlyEnemyRules.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -2052,6 +2053,8 @@ export class BattleScene extends Phaser.Scene {
           await this._formation.run();
           if (!this._isSceneActiveForAsync()) return;
         }
+        // Dev/preview review setups only (devStartup sets battleParams.devScenario).
+        if (this.battleParams?.devScenario) applyDevScenario(this);
         this._bossPresence?.sync();
         this.turnManager.startBattle();
       }
