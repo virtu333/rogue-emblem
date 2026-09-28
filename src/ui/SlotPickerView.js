@@ -124,7 +124,15 @@ export function buildSlotCard(model, { onPrimary, onDelete }) {
 
   const head = element('div', null, 'sp-head');
   const titles = element('div', null, 'sp-titles');
-  if (model.actKicker) titles.append(element('p', model.actKicker, 'sp-act'));
+  if (model.actKicker) {
+    const act = element('p', model.actKicker, 'sp-act');
+    if (model.difficulty) {
+      const mode = element('span', model.difficulty.label, 'sp-difficulty');
+      mode.dataset.mode = model.difficulty.id;
+      act.append(' · ', mode);
+    }
+    titles.append(act);
+  }
   const title = element('h3', model.title, 'sp-title');
   title.id = headingId;
   titles.append(title);
