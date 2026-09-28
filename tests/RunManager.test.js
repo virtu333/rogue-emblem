@@ -716,6 +716,139 @@ describe('RunManager', () => {
       expect(restored.convoy.consumables.at(-1).name).toBe('Vulnerary');
     });
 
+    describe('dropping a legacy caravan never destroys its gear', () => {
+      const uidsIn = (saved) => JSON.stringify(saved).match(/"uid":"merchant-[^"]+"/g) || [];
+
+      function legacySave({ fillWeapons = false, fillSupplies = false } = {}) {
+        rm.startRun();
+        const saved = JSON.parse(JSON.stringify(rm.toJSON()));
+        const sword = gameData.weapons.find((w) => w.name === 'Iron Sword');
+        const vulnerary = gameData.consumables.find((c) => c.name === 'Vulnerary');
+        const caps = rm.getConvoyCapacities();
+        if (fillWeapons)
+          saved.convoy.weapons = Array.from({ length: caps.weapons }, (_, i) => ({
+            ...sword,
+            uid: `full-weapon-${i}`,
+          }));
+        if (fillSupplies)
+          saved.convoy.consumables = Array.from({ length: caps.consumables }, (_, i) => ({
+            ...vulnerary,
+            uid: `full-supply-${i}`,
+          }));
+        return { saved, sword, vulnerary, caps };
+      }
+
+      function merchant(extra) {
+        return { ...createCaravanUnit('act2', { col: 0, row: 0 }), faction: 'player', ...extra };
+      }
+
+      it("keeps a live caravan's weapons and supplies when both convoy bags are full", () => {
+        const { saved, sword, vulnerary, caps } = legacySave({
+          fillWeapons: true,
+          fillSupplies: true,
+        });
+        const forged = {
+          ...sword,
+          uid: 'merchant-forged',
+          might: sword.might + 2,
+          _forgeLevel: 2,
+          _forgeBonuses: { might: 2 },
+          _imbueId: 'vampiric',
+        };
+        saved.roster.push(
+          merchant({
+            inventory: [forged],
+            weapon: forged,
+            consumables: [{ ...vulnerary, uid: 'merchant-vulnerary' }],
+          }),
+        );
+
+        const restored = RunManager.fromJSON(saved, gameData);
+        expect(restored.roster.some((u) => u.isCaravan)).toBe(false);
+        expect(restored.convoy.weapons).toHaveLength(caps.weapons + 1);
+        expect(restored.convoy.consumables).toHaveLength(caps.consumables + 1);
+        const kept = restored.convoy.weapons.find((w) => w.uid === 'merchant-forged');
+        // Forge and imbue survive as instance state.
+        expect(kept).toMatchObject({
+          name: 'Iron Sword',
+          might: sword.might + 2,
+          _forgeLevel: 2,
+          _forgeBonuses: { might: 2 },
+          _imbueId: 'vampiric',
+        });
+        expect(restored.convoy.consumables.some((c) => c.uid === 'merchant-vulnerary')).toBe(true);
+        // A full convoy stays usable: taking an item out works, adding waits for room.
+        expect(restored.canAddToConvoy(sword)).toBe(false);
+        expect(restored.takeFromConvoy('weapon', 0)).not.toBeNull();
+      });
+
+      it('recovers gear a fallen caravan still held, and its accessory', () => {
+        const { saved, sword, vulnerary } = legacySave({ fillWeapons: true });
+        const ring = gameData.accessories.find((a) => a.name === 'Power Ring');
+        const scroll = gameData.weapons.find((w) => w.type === 'Scroll');
+        const accessoriesBefore = saved.accessories.length;
+        const scrollsBefore = (saved.scrolls || []).length;
+        saved.fallenUnits = [
+          ...(saved.fallenUnits || []),
+          merchant({
+            inventory: [
+              { ...sword, uid: 'merchant-fallen-sword' },
+              { ...scroll, uid: 'merchant-scroll' },
+            ],
+            consumables: [{ ...vulnerary, uid: 'merchant-fallen-vulnerary' }],
+            accessory: { ...ring, uid: 'merchant-ring' },
+          }),
+        ];
+
+        const restored = RunManager.fromJSON(saved, gameData);
+        expect(restored.fallenUnits.some((u) => u.isCaravan)).toBe(false);
+        expect(restored.convoy.weapons.some((w) => w.uid === 'merchant-fallen-sword')).toBe(true);
+        expect(restored.convoy.consumables.some((c) => c.uid === 'merchant-fallen-vulnerary')).toBe(
+          true,
+        );
+        expect(restored.scrolls).toHaveLength(scrollsBefore + 1);
+        expect(restored.scrolls.at(-1).uid).toBe('merchant-scroll');
+        expect(restored.accessories).toHaveLength(accessoriesBefore + 1);
+        expect(restored.accessories.at(-1).uid).toBe('merchant-ring');
+      });
+
+      it('recovers an equipped weapon a corrupt save left outside the inventory', () => {
+        const { saved, sword } = legacySave();
+        const weaponsBefore = saved.convoy.weapons.length;
+        saved.roster.push(merchant({ inventory: [], weapon: { ...sword, uid: 'merchant-loose' } }));
+
+        const restored = RunManager.fromJSON(saved, gameData);
+        expect(restored.convoy.weapons).toHaveLength(weaponsBefore + 1);
+        expect(restored.convoy.weapons.at(-1).uid).toBe('merchant-loose');
+      });
+
+      it('keeps every item exactly once across repeated loads and saves', () => {
+        const { saved, sword, vulnerary } = legacySave({ fillWeapons: true, fillSupplies: true });
+        saved.roster.push(
+          merchant({
+            inventory: [
+              { ...sword, uid: 'merchant-a' },
+              { ...sword, uid: 'merchant-b' },
+            ],
+            consumables: [{ ...vulnerary, uid: 'merchant-c' }],
+          }),
+        );
+        saved.fallenUnits = [
+          ...(saved.fallenUnits || []),
+          merchant({ inventory: [{ ...sword, uid: 'merchant-d' }] }),
+        ];
+        const expected = ['merchant-a', 'merchant-b', 'merchant-c', 'merchant-d'];
+
+        const once = JSON.parse(JSON.stringify(RunManager.fromJSON(saved, gameData).toJSON()));
+        const twice = JSON.parse(JSON.stringify(RunManager.fromJSON(once, gameData).toJSON()));
+        for (const snapshot of [once, twice]) {
+          const found = uidsIn(snapshot).map((m) => m.slice(7, -1));
+          expect(found.sort()).toEqual(expected);
+        }
+        expect(twice.convoy).toEqual(once.convoy);
+      });
+    });
+
     it('back-compat: loading a save with no pendingCaravanShop field defaults to null', () => {
       rm.startRun();
       const saved = rm.toJSON();

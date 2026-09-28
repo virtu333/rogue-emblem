@@ -150,6 +150,22 @@ function getConvoyBucket(item) {
   return null;
 }
 
+/**
+ * Every item a unit holds in its bags, plus an equipped weapon a corrupt legacy save
+ * left outside its inventory (matched by identity, then uid), each once.
+ */
+function caravanCarriedItems(unit) {
+  const inventory = Array.isArray(unit?.inventory) ? unit.inventory.filter(Boolean) : [];
+  const consumables = Array.isArray(unit?.consumables) ? unit.consumables.filter(Boolean) : [];
+  const items = [...inventory, ...consumables];
+  const equipped = unit?.weapon;
+  if (equipped && typeof equipped === 'object' && !items.includes(equipped)) {
+    const uid = typeof equipped.uid === 'string' ? equipped.uid : '';
+    if (!uid || !items.some((item) => item?.uid === uid)) items.push(equipped);
+  }
+  return items;
+}
+
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -3281,24 +3297,42 @@ export class RunManager {
   /**
    * The caravan Merchant (CaravanSystem, `isCaravan`) is an escort NPC, never an army
    * unit. Before Talk learned to ignore it (#139), a lord could recruit it; old saves
-   * can hold it on the roster or awaiting revival. Drop it from both; a roster copy's
-   * carried items go to the convoy and its accessory to the pool.
+   * can hold it on the roster or awaiting revival. Drop it from both, keeping every
+   * item it carried: weapons and consumables go to the convoy (past its capacity if
+   * need be, so a full convoy never destroys gear; the player can take them out),
+   * scrolls to the scroll pool and its accessory to the accessory pool.
    */
   _dropCaravanUnits() {
     if (!Array.isArray(this.roster) || !Array.isArray(this.fallenUnits)) return;
+    const caravans = [...this.roster, ...this.fallenUnits].filter((u) => u?.isCaravan);
+    if (!caravans.length) return;
     if (!this.convoy || typeof this.convoy !== 'object')
       this.convoy = { weapons: [], consumables: [] };
     if (!Array.isArray(this.convoy.weapons)) this.convoy.weapons = [];
     if (!Array.isArray(this.convoy.consumables)) this.convoy.consumables = [];
     if (!Array.isArray(this.accessories)) this.accessories = [];
-    for (const unit of this.roster.filter((u) => u?.isCaravan)) {
-      for (const item of [...(unit.inventory || []), ...(unit.consumables || [])])
-        this.addToConvoy(item);
+    if (!Array.isArray(this.scrolls)) this.scrolls = [];
+    for (const unit of caravans) {
+      for (const item of caravanCarriedItems(unit)) this._keepMigratedItem(item);
       const accessory = unit.accessory ? unequipAccessory(unit) : null;
-      if (accessory) this.accessories.push(accessory);
+      if (accessory) this.accessories.push(ensureItemUid(accessory));
+      unit.inventory = [];
+      unit.consumables = [];
+      unit.weapon = null;
     }
     this.roster = this.roster.filter((u) => !u?.isCaravan);
     this.fallenUnits = this.fallenUnits.filter((u) => !u?.isCaravan);
+  }
+
+  /** Store an item taken off a unit that is leaving the run; never refuses it. */
+  _keepMigratedItem(item) {
+    if (!item || typeof item !== 'object') return;
+    if (this.addToConvoy(item)) return;
+    const kept = ensureItemUid(item);
+    if (kept.type === 'Accessory') this.accessories.push(kept);
+    else if (kept.type === 'Scroll') this.scrolls.push(kept);
+    else if (kept.type === 'Consumable') this.convoy.consumables.push(kept);
+    else this.convoy.weapons.push(kept);
   }
 
   _transferFallenUnitItems(fallenUnit) {
