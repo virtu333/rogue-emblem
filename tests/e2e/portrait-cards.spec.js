@@ -641,10 +641,11 @@ async function expectSoftEdges(list, label) {
   }
   expect(first.fade, `${label}: a fade length`).toBeGreaterThan(8);
   await scrollList(list, 'start');
-  expect(await listEdges(list), `${label} at its start`).toMatchObject({
-    top: false,
-    bottom: true,
-  });
+  // A list just drawn (or already at its start, so no scroll event) gets its edge
+  // classes on the next frame (choiceCards fadeScroll): wait for them.
+  await expect
+    .poll(() => listEdges(list), { message: `${label} at its start` })
+    .toMatchObject({ top: false, bottom: true });
   await scrollList(list, 'middle');
   expect(await listEdges(list), `${label} mid-way`).toMatchObject({ top: true, bottom: true });
   await scrollList(list, 'end');
