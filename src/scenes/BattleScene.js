@@ -238,7 +238,7 @@ import {
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
 import { buildRecruitNodeUnit, spawnTilesForDeployment } from '../engine/RecruitNodeSystem.js';
-import { battleDeployCount } from '../engine/BattleDeployCount.js';
+import { battleDeployCount, resolveDeployLimits } from '../engine/BattleDeployCount.js';
 import {
   adaptDialogueEntries,
   adaptDialogueLine,
@@ -490,9 +490,15 @@ export class BattleScene extends Phaser.Scene {
 
     // Determine deploy limits for this act (+ meta upgrade bonus)
     const act = this.battleParams.act || 'act1';
-    const baseLimits = DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1;
-    const deployBonus = this.runManager?.getDeployBonus?.() || 0;
-    const limits = { min: baseLimits.min + deployBonus, max: baseLimits.max + deployBonus };
+    // A re-entered battle keeps its locked map, so it deploys no more units than that
+    // map has spawns (resolveDeployLimits).
+    const limits = resolveDeployLimits({
+      base: DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1,
+      deployBonus: this.runManager?.getDeployBonus?.() || 0,
+      lockedSpawnCount: this.battleParams?.tutorialMode
+        ? null
+        : this.runManager?.getLockedSpawnCount?.(this.nodeId),
+    });
 
     if (this._resumeCheckpoint) {
       // Resuming a suspended battle -- units come from the checkpoint
@@ -1409,8 +1415,15 @@ export class BattleScene extends Phaser.Scene {
           lordsFirst: Boolean(bc.npcSpawn),
         });
         for (let i = 0; i < deployedRoster.length; i++) {
-          if (!tiles[i]) continue;
           const unit = deployedRoster[i];
+          if (!tiles[i]) {
+            // No spawn left for this unit: bench it rather than lose it. A unit on
+            // neither the field nor the bench is counted as fallen at victory.
+            console.warn(`[BattleScene] No spawn tile for ${unit?.name}; benched.`);
+            this.nonDeployedUnits.push(unit);
+            registerBattleEntity(this, unit);
+            continue;
+          }
           unit.col = tiles[i].col;
           unit.row = tiles[i].row;
           resetUnitForBattle(unit);

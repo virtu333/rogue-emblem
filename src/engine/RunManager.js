@@ -3125,6 +3125,12 @@ export class RunManager {
     });
   }
 
+  /** Player spawns on the node's locked map (the deploy cap on re-entry), or null. */
+  getLockedSpawnCount(nodeId) {
+    const spawns = this.battleConfigsByNodeId?.[nodeId]?.playerSpawns;
+    return Array.isArray(spawns) ? spawns.length : null;
+  }
+
   lockBattleConfig(nodeId, battleConfig) {
     if (!nodeId || !battleConfig) return;
     if (!this.battleConfigsByNodeId) this.battleConfigsByNodeId = {};
