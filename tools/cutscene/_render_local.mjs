@@ -84,6 +84,21 @@ async function withPlayer(workers, fn) {
     root: ROOT,
     configFile: false,
     logLevel: 'error',
+    plugins: [
+      {
+        name: 'stub-missing-pieces',
+        enforce: 'pre',
+        resolveId(id, importer) {
+          if (/\.\/(ford|ford_previs|world_test)\.js$/.test(id) && importer?.includes('unwritten/index.html')) {
+            const f = path.join(ROOT, 'tools/cutscene/unwritten', id);
+            return fs.existsSync(f) ? null : '\0stub' + id;
+          }
+        },
+        load(id) {
+          if (id.startsWith('\0stub')) return 'export const W=480,H=270;';
+        },
+      },
+    ],
     optimizeDeps: { noDiscovery: true, entries: [] },
     server: {
       port: Number(arg('port', 3290)),

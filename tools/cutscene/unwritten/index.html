@@ -134,6 +134,7 @@
         ford: () => import('./ford.js'),
         ford_previs: () => import('./ford_previs.js'),
         world_test: () => import('./world_test.js'),
+        loco_test: () => import('./loco_test.js'),
       };
       const which = params.get('piece') || 'again';
       const mod = await (PIECES[which] || PIECES.again)();
