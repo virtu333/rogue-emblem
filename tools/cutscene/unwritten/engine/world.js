@@ -987,21 +987,36 @@ export class World {
     });
     this.line.fill(0);
     this.pencil.fill(0);
+    const P = (this.prof = {});
+    let tp = performance.now();
+    const lap = (k) => {
+      const n = performance.now();
+      P[k] = n - tp;
+      tp = n;
+    };
     this.passRays(B);
+    lap('rays');
     this.passReflection(B, t);
+    lap('refl');
     this.passShade(frame, B, t);
+    lap('shade');
     this.drawSun(frame, B, t);
     this.drawStones(frame, B);
+    lap('stones');
     this.passEdges(frame);
+    lap('edges');
     this.drawReeds(frame, B, t2, o.wind ?? 1, true);
     this.drawReeds(frame, B, t2, o.wind ?? 1, false);
+    lap('reeds');
     this.combine(frame, stage);
     if (o.actors?.length) this.drawActors(frame, cam, B, t, o.actors, stage);
+    lap('actors');
     for (const s of o.splashes || [])
       this.splashAt(frame, cam, s.X, s.Z, t, s.t0, s.strength ?? 1, s.seed ?? 1);
     for (const s of o.sprays || []) this.spraySheet(frame, cam, s);
     if (this.rain > 0) this.drawRain(frame, B, t, o.rainWind || [1.2, 0]);
     if (o.foreground?.length) this.drawForeground(frame, B, t2, o.foreground, o.wind ?? 1);
+    lap('fx');
     for (let i = 0; i < N; i++) if (frame[i * 4 + 3] === 0) frame[i * 4 + 3] = 255;
   }
 

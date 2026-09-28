@@ -11,7 +11,7 @@
 // References/cutscene/unwritten/clips/ (not committed); every submission is logged with
 // its cost in clips/spend.jsonl.
 //
-// Needs MINIMAX_API_KEY in .env (gitignored). Price (Sep 2026): H3 768P $0.08/s.
+// Needs MINIMAX_API_KEY in .env (gitignored), or an environment proxy that adds the key. Price (Sep 2026): H3 768P $0.08/s.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -24,19 +24,24 @@ const CUTS = path.join(ROOT, 'docs/art-direction/anime-op/cutouts');
 const BASE = 'https://api.minimax.io';
 const PRICE = { '768P': 0.08, '2K': 0.13, '480P': 0.05 };
 
-const env = Object.fromEntries(
-  fs
-    .readFileSync(path.join(ROOT, '.env'), 'utf8')
-    .split('\n')
-    .filter((l) => /^[A-Z_]+=/.test(l))
-    .map((l) => [
-      l.slice(0, l.indexOf('=')),
-      l.slice(l.indexOf('=') + 1).replace(/^["']|["']$/g, ''),
-    ]),
-);
-const KEY = env.MINIMAX_API_KEY;
-if (!KEY) throw new Error('MINIMAX_API_KEY missing from .env');
-const H = { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
+let env = {};
+try {
+  env = Object.fromEntries(
+    fs
+      .readFileSync(path.join(ROOT, '.env'), 'utf8')
+      .split('\n')
+      .filter((l) => /^[A-Z_]+=/.test(l))
+      .map((l) => [
+        l.slice(0, l.indexOf('=')),
+        l.slice(l.indexOf('=') + 1).replace(/^["']|["']$/g, ''),
+      ]),
+  );
+} catch {
+  /* no .env: fine when a proxy adds the key */
+}
+const KEY = env.MINIMAX_API_KEY || process.env.MINIMAX_API_KEY;
+// No local key: send no Authorization header and let the environment's proxy add it.
+const H = { 'Content-Type': 'application/json', ...(KEY ? { Authorization: `Bearer ${KEY}` } : {}) };
 
 const JOBS = JSON.parse(fs.readFileSync(path.join(HERE, 'jobs.json'), 'utf8'));
 fs.mkdirSync(OUT, { recursive: true });
