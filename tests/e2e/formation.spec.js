@@ -234,6 +234,49 @@ test.describe('phone', () => {
     await expect(picker).toHaveCount(0);
     expect((await snapshot(page)).state).toBe('DEPLOY_POSITIONING');
   });
+
+  test('Menu opens the pause menu; Back to Map returns to the route map before turn 1', async ({
+    page,
+  }) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await ready(page, PHONE);
+    const nodeId = await battle(page, 'return s.nodeId;');
+    await page
+      .getByRole('button', { name: 'Menu', exact: true })
+      .and(page.locator(':visible'))
+      .tap();
+    const paused = page.getByRole('dialog', { name: 'Paused', exact: true });
+    await expect(paused).toBeVisible();
+    for (const label of ['Resume', 'Settings', 'More Info', 'Back to Map'])
+      await expect(paused.getByRole('button', { name: label, exact: true })).toBeVisible();
+
+    // Resume returns to placement, untouched.
+    await paused.getByRole('button', { name: 'Resume', exact: true }).tap();
+    await expect(paused).toHaveCount(0);
+    expect((await snapshot(page)).state).toBe('DEPLOY_POSITIONING');
+
+    await page
+      .getByRole('button', { name: 'Menu', exact: true })
+      .and(page.locator(':visible'))
+      .tap();
+    await paused.getByRole('button', { name: 'Back to Map', exact: true }).tap();
+    const confirm = page.getByRole('dialog', { name: 'Paused', exact: true });
+    await expect(confirm).toContainText('The battle has not started');
+    await confirm.getByRole('button', { name: 'Back to map', exact: true }).tap();
+    await waitForScene(page, 'NodeMap');
+    const run = await page.evaluate(() => {
+      const map = window.__emblemRogueGame.scene.getScene('NodeMap');
+      const rm = map.runManager;
+      return {
+        flag: rm.battleInProgress,
+        completed: rm.nodeMap.nodes.map((n) => [n.id, !!n.completed]),
+      };
+    });
+    expect(run.flag).toBeNull();
+    expect(Object.fromEntries(run.completed)[nodeId]).toBe(false);
+    expect(errors).toEqual([]);
+  });
 });
 
 test('desktop: the dock stays off the map, Esc opens the formation menu, Start needs everyone', async ({
@@ -287,6 +330,22 @@ test('desktop: click a placed unit to pick it up; Esc closes its menu, then sets
   // Nothing held: Esc opens the formation menu, as before.
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Formation', exact: true })).toBeVisible();
+});
+
+test('desktop: the formation menu reaches the pause menu and Back to Map', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await ready(page, DESKTOP);
+  await page.keyboard.press('Escape');
+  const menu = page.getByRole('dialog', { name: 'Formation', exact: true });
+  await menu.getByRole('button', { name: 'Pause menu', exact: true }).click();
+  await expect(menu).toHaveCount(0);
+  const paused = page.getByRole('dialog', { name: 'Paused', exact: true });
+  await paused.getByRole('button', { name: 'Back to Map', exact: true }).click();
+  // Cancel is the default on the confirm; it keeps placement.
+  await paused.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await paused.getByRole('button', { name: 'Resume', exact: true }).click();
+  await expect.poll(async () => (await snapshot(page)).state).toBe('DEPLOY_POSITIONING');
+  await expect(page.getByRole('region', { name: 'Formation' })).toBeVisible();
 });
 
 test('dev routes without formation=1 still start on turn 1', async ({ page }) => {

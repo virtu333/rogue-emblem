@@ -26,6 +26,7 @@ export class PauseOverlay {
       onAbandon,
       onAbandonWarning,
       onSaveAndExitWarning,
+      onBackToMap,
       campaignMapData,
       gameData,
       tutorial,
@@ -35,6 +36,8 @@ export class PauseOverlay {
     this.onResume = onResume;
     this.onSaveAndExit = onSaveAndExit || null;
     this.onSaveAndExitWarning = onSaveAndExitWarning || null;
+    // Formation only: leave for the route map before turn 1.
+    this.onBackToMap = onBackToMap || null;
     this.onAbandon = onAbandon;
     this.onAbandonWarning = onAbandonWarning;
     this.campaignMapData = campaignMapData || null;
@@ -109,6 +112,7 @@ export class PauseOverlay {
     let buttonCount = 3; // Resume + Settings + Help always
     if (this.gameData) buttonCount++; // Compendium
     if (this.campaignMapData) buttonCount++;
+    if (this.onBackToMap) buttonCount++;
     if (this.onSaveAndExit) buttonCount++;
     if (this.onAbandon) buttonCount++;
     if (this.tutorial) buttonCount += this.tutorial.onStartRun ? 2 : 1;
@@ -206,6 +210,12 @@ export class PauseOverlay {
       btnY += 40;
     }
 
+    // Back to Map (placement before turn 1)
+    if (this.onBackToMap) {
+      this._addButton(cx, btnY, 'Back to Map', () => this.requestBackToMap(), UI_PALETTE.info);
+      btnY += 40;
+    }
+
     // Save & Return to Title
     if (this.onSaveAndExit) {
       this._addButton(
@@ -271,6 +281,23 @@ export class PauseOverlay {
 
     this._setupFocus();
     if (hasDOMHost()) this._mobileMenu = new MobilePauseMenu(this);
+  }
+
+  /** Confirm leaving placement for the route map (Cancel stays the default). */
+  requestBackToMap() {
+    if (!this.onBackToMap || !this.visible) return false;
+    this._showConfirm(
+      'Back to the map?\nThe battle has not started. It waits on the map,\nthe same fight; your placement is not kept.',
+      () => {
+        this.hideForTransition();
+        Promise.resolve()
+          .then(() => this.onBackToMap())
+          .catch((err) => console.error('[PauseOverlay] onBackToMap rejected:', err));
+      },
+      UI_PALETTE.info,
+      'Back to map',
+    );
+    return true;
   }
 
   /** Confirm leaving the practice battle for the title (Cancel stays the default). */

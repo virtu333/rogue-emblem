@@ -3826,8 +3826,14 @@ export class BattleScene extends Phaser.Scene {
 
   /** The rail's Menu opens the pause menu whenever a turn is being planned; Back cancels. */
   canOpenPauseFromMenu() {
+    // Placement too, once nothing of its own (its menu, a unit's options) is open.
+    const placing =
+      this.battleState === FORMATION_STATE &&
+      Boolean(this._formation?.ready) &&
+      !this._formation.menu &&
+      !this._formation.picker;
     return Boolean(
-      ['UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(this.battleState) &&
+      (placing || ['UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(this.battleState)) &&
       this.turnManager?.currentPhase !== 'enemy' &&
       !this.pauseOverlay?.visible &&
       !this.visionDialog &&
@@ -4430,6 +4436,10 @@ export class BattleScene extends Phaser.Scene {
           activeNodeId: this.nodeId,
         }
       : null;
+    // Before turn 1 nothing is saved but the entry: leaving goes back to the map.
+    const placing = this.prePauseState === FORMATION_STATE;
+    const backToMap =
+      placing && this._formation?.canReturnToMap() ? () => this._formation.returnToMap() : null;
     this.pauseOverlay = new PauseOverlay(this, {
       onAbandonWarning: abandonPayout
         ? `Abandon this run?\nKeep ${abandonPayout.valor} Valor and ${abandonPayout.supply} Supply. This run and its gold, items and route progress will end.`
@@ -4443,7 +4453,10 @@ export class BattleScene extends Phaser.Scene {
       onSaveAndExit: saveExitCb,
       onSaveAndExitWarning: fromRewards
         ? 'Your battle and remaining rewards are saved. Resume returns to the map, where you can reopen rewards.'
-        : 'Battle suspended. Choose Resume on the Title screen to pick up where you left off.',
+        : backToMap
+          ? 'The battle has not started. Resume on the Title screen returns to the map; this battle waits there.'
+          : 'Battle suspended. Choose Resume on the Title screen to pick up where you left off.',
+      onBackToMap: backToMap,
       onAbandon: abandonCb,
       campaignMapData,
       gameData: this.gameData,

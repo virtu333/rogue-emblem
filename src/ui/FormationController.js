@@ -28,6 +28,11 @@ import {
 import { FormationPicker } from './FormationPicker.js';
 import { FormationDock, renderFormationPanel } from './FormationPanel.js';
 import { MenuSurface, button as menuButton } from './MenuSurface.js';
+import {
+  transitionToSceneWithBlockedRetry,
+  TRANSITION_REASONS,
+  TRANSITION_RESULTS,
+} from '../utils/SceneRouter.js';
 import { unitReach } from '../engine/ThreatForecast.js';
 import { isRooted } from '../engine/StatusConditionSystem.js';
 import { UI_HEX } from '../utils/uiStyles.js';
@@ -539,7 +544,53 @@ export class FormationController {
       return b;
     };
     renderFormationPanel(menu.body, this, make);
+    // Settings, help, Save & Exit and Back to map live in the pause menu.
+    menu.body.append(make('Pause menu', () => this.scene.showPauseMenu?.(), 'fm-pause'));
     menu.focusContent();
+  }
+
+  // --- Leaving before turn 1 ------------------------------------------------------
+
+  /**
+   * Back to map is offered while nothing has happened yet: a run battle whose entry
+   * is recorded and that has no suspend checkpoint (the first one is taken at the
+   * first player phase).
+   */
+  canReturnToMap() {
+    const s = this.scene;
+    const flag = s.runManager?.battleInProgress;
+    return Boolean(
+      this.ready &&
+      flag &&
+      !flag.checkpoint &&
+      (!flag.nodeId || flag.nodeId === s.nodeId) &&
+      !s.battleParams?.tutorialMode,
+    );
+  }
+
+  /**
+   * Leave placement for the route map, as Continue from Map would: the run goes
+   * back to its entry state (Vision and RNG refunded) and is saved without the
+   * battle flag. The node stays open and its battle is locked, so it is the same
+   * fight when the player returns. Placement is not kept.
+   */
+  async returnToMap() {
+    const s = this.scene;
+    if (!this.canReturnToMap()) return false;
+    const rm = s.runManager;
+    rm.revertBattleInProgressToEntry();
+    s._persistBattleRunState?.();
+    s.registry?.get?.('audio')?.stopMusic?.(s, 0);
+    const result = await transitionToSceneWithBlockedRetry(
+      s,
+      'NodeMap',
+      { gameData: s.gameData, runManager: rm },
+      { reason: TRANSITION_REASONS.BACK },
+    );
+    if (result?.status === TRANSITION_RESULTS.STARTED) return true;
+    // The save already says "on the map": the title's Continue lands there.
+    if (s.sys?.isActive?.() !== false) s.showPauseTransitionRecovery?.(TRANSITION_REASONS.BACK);
+    return false;
   }
 
   /** Esc / Back / the pad's B during placement. */

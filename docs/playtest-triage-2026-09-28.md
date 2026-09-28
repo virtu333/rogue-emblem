@@ -116,6 +116,11 @@ Deferred: team-XP rewards still learn class skills without a card (nothing is lo
 5. Edric's run-start rotation (P3, below).
 6. Difficulty ladder (Dusk / Nightfall / Black Sun).
 
+## Next round progress
+
+- Done: 1 caravan migration keeps gear (9a9d9c36); 2 HP accessory debt (78ca81ae); 3 Formation Menu opens the pause menu, with Back to Map before turn 1 (desktop: Esc → Formation menu → Pause menu).
+- Next: 4 fog batch, 5 Edric's rotation, 6 difficulty ladder.
+
 ## Wave 2 status (branch `claude/playtest-notes-triage-z12dht`)
 
 Done, with unit and browser tests:
