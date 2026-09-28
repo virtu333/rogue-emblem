@@ -268,6 +268,7 @@ async function openSlots(page, kinds) {
           JSON.stringify({
             ...run,
             actIndex: 1,
+            difficultyId: 'lunatic',
             completedBattles: 9,
             savedAt: Date.now() - 42 * 60 * 1000,
             battleInProgress: {
@@ -302,6 +303,10 @@ for (const vp of PORTRAIT_PHONES) {
       await emulateSafeArea(page);
       const menu = await openSlots(page, ['battle', 'home', 'empty']);
       await expect(menu).toContainText('An unlit candle');
+      // The run's difficulty sits beside its act, on the act's line.
+      await expect(menu.locator('.sp-act .sp-difficulty')).toHaveText('Lunatic');
+      const act = menu.locator('.sp-act').first();
+      expect(await act.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
       const body = menu.locator('.re-menu-body');
       expect(await body.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
       await expect(body).not.toHaveClass(/is-more-(above|below)/);

@@ -111,6 +111,15 @@ function sealsFor(milestones) {
   }));
 }
 
+/** The run's difficulty ({ id, label }) from difficulty.json's modes, or null. */
+export function slotDifficulty(gameData, difficultyId) {
+  if (typeof difficultyId !== 'string' || !difficultyId) return null;
+  const id = difficultyId.toLowerCase();
+  const label =
+    gameData?.difficulty?.modes?.[id]?.label || id.charAt(0).toUpperCase() + id.slice(1);
+  return { id, label: String(label) };
+}
+
 function tallyLine(summary) {
   const started = summary.runsStarted || 0;
   const finished = summary.runsCompleted || 0;
@@ -223,6 +232,7 @@ export function slotCardModel(slot, summary, { gameData = {}, now = Date.now(), 
     tone,
     grade: ACT_GRADE_KEYS[actId] || 'act1',
     actKicker: act.kicker || `Act ${summary.actReached || 1}`,
+    difficulty: slotDifficulty(gameData, summary.difficultyId),
     title: act.title || 'The road',
     gradeName: act.grade,
     status,

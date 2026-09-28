@@ -322,6 +322,19 @@
 .sp-card[data-grade='unlit'] .sp-act {
   color: var(--re-muted);
 }
+/* The run's difficulty beside its act, in the difficulty banners' colours. */
+.sp-difficulty {
+  color: var(--re-muted);
+}
+.sp-difficulty[data-mode='normal'] {
+  color: var(--re-good);
+}
+.sp-difficulty[data-mode='hard'] {
+  color: var(--re-warn);
+}
+.sp-difficulty[data-mode='lunatic'] {
+  color: var(--re-bad);
+}
 .sp-title {
   display: -webkit-box;
   -webkit-box-orient: vertical;

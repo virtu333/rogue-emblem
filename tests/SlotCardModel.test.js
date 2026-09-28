@@ -156,4 +156,33 @@ describe('slotCardModel', () => {
     expect(legacy.saved.text).toBe('Save time unknown');
     expect(legacy.seals.every((s) => !s.lit)).toBe(true);
   });
+
+  it("shows the run's difficulty beside its act, named from difficulty.json", () => {
+    // Labels come from the data, not the id: planting a hard-coded 'Normal' fails here.
+    expect(gameData.difficulty.modes.lunatic.label).toBe('Lunatic');
+    const cases = [
+      ['normal', 'Normal'],
+      ['hard', 'Hard'],
+      ['lunatic', 'Lunatic'],
+    ];
+    for (const [id, label] of cases) {
+      const model = slotCardModel(1, activeSummary({ difficultyId: id }), { gameData, now: NOW });
+      expect(model.difficulty).toEqual({ id, label });
+      const onRoad = slotCardModel(1, activeSummary({ difficultyId: id, battleSuspended: false }), {
+        gameData,
+        now: NOW,
+      });
+      expect(onRoad.difficulty).toEqual({ id, label });
+    }
+    // A save from before difficulty was recorded shows none rather than guessing.
+    expect(
+      slotCardModel(1, activeSummary({ difficultyId: null }), { gameData, now: NOW }).difficulty,
+    ).toBeNull();
+    // Between runs there is no run, so no difficulty.
+    const home = slotCardModel(1, activeSummary({ hasActiveRun: false, difficultyId: 'hard' }), {
+      gameData,
+      now: NOW,
+    });
+    expect(home.difficulty).toBeUndefined();
+  });
 });
