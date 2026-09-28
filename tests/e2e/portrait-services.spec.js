@@ -219,10 +219,12 @@ for (const viewport of [SE, IPHONE_13]) {
           const lore = copy.querySelector('.shop-lore')?.getBoundingClientRect();
           return {
             scrolled: copy.scrollTop,
-            // Its label's line clears the pane's 16px fade.
+            // Its label's line (centred in the 44px row) sits inside the pane, above the
+            // deepest half of its 16px fade; the pane's height varies with the flavour line.
             inPane:
               summary.top >= pane.top - 0.5 &&
-              summary.top + summary.height / 2 + 9 <= pane.bottom - 16,
+              summary.top + summary.height / 2 + 9 <= pane.bottom &&
+              summary.top + summary.height / 2 <= pane.bottom - 8,
             beforeLore: !lore || summary.bottom <= lore.top + 0.5,
           };
         });
