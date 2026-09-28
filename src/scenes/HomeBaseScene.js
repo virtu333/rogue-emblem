@@ -1596,7 +1596,9 @@ export class HomeBaseScene extends Phaser.Scene {
     let iy = bgY + 5;
     for (const skillId of available) {
       const skill = skillsData.find((s) => s.id === skillId);
-      const name = skill ? skill.name : skillId;
+      // One lord per skill: another lord's skill is moved here when chosen.
+      const holder = this.meta.getSkillHolder(skillId);
+      const name = `${skill ? skill.name : skillId}${holder ? ` (from ${holder})` : ''}`;
       const entry = applyTextResolution(
         this.add.text(bgX + 8, iy, name, {
           fontFamily: 'Arial',
@@ -1612,7 +1614,7 @@ export class HomeBaseScene extends Phaser.Scene {
       entry.on('pointerover', () => entry.setColor(UI_PALETTE.accent));
       entry.on('pointerout', () => entry.setColor(UI_PALETTE.info));
       entry.on('pointerdown', () => {
-        this.meta.assignSkill(lordName, skillId);
+        this.meta.assignSkill(lordName, skillId, { move: true });
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_confirm');
         this._destroySkillPicker();

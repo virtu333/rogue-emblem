@@ -1916,7 +1916,7 @@
   {
     "id": "extra_skill_slot",
     "name": "Extra Skill Slot",
-    "description": "Each lord can equip a second starting skill",
+    "description": "Each lord can equip a second starting skill (each skill still goes to one lord)",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [

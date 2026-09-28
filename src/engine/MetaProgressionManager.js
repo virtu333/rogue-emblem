@@ -132,6 +132,23 @@ function normalizeLootCategoryWeightBonuses(rawMap) {
   return added ? out : null;
 }
 
+/**
+ * Starting-skill assignments with each skill on one lord only: a skill listed for
+ * several lords (saves from before the rule) stays with the first, in save order.
+ */
+export function exclusiveSkillAssignments(assignments) {
+  const out = {};
+  const taken = new Set();
+  if (!assignments || typeof assignments !== 'object') return out;
+  for (const [lord, slots] of Object.entries(assignments)) {
+    if (!Array.isArray(slots)) continue;
+    const kept = slots.filter((id) => typeof id === 'string' && !taken.has(id));
+    for (const id of kept) taken.add(id);
+    if (kept.length) out[lord] = kept;
+  }
+  return out;
+}
+
 export class MetaProgressionManager {
   /**
    * @param {Array} upgradesData - metaUpgrades.json array
@@ -192,7 +209,8 @@ export class MetaProgressionManager {
         // Migration: saves predating the started counter — every finished run
         // was started, so the completed count is a floor.
         if (this.runsStarted < this.runsCompleted) this.runsStarted = this.runsCompleted;
-        if (saved.skillAssignments) this.skillAssignments = saved.skillAssignments;
+        if (saved.skillAssignments)
+          this.skillAssignments = exclusiveSkillAssignments(saved.skillAssignments);
         if (saved.lordSelection) this.lordSelection = normalizeLordSelection(saved.lordSelection);
         if (Number.isFinite(saved.savedAt)) this.savedAt = saved.savedAt;
         // Migration: old saves without milestones default to empty
@@ -598,15 +616,32 @@ export class MetaProgressionManager {
     return Math.min(1 + this.getUpgradeLevel('extra_skill_slot'), MAX_STARTING_SKILLS);
   }
 
-  /** Assign a skill to a lord (max getStartingSkillSlots() per lord). Returns true on success. */
-  assignSkill(lordName, skillId) {
-    if (!this.skillAssignments[lordName]) this.skillAssignments[lordName] = [];
-    const slots = this.skillAssignments[lordName];
+  /** The lord a starting skill is assigned to, or null. Each skill sits on one lord. */
+  getSkillHolder(skillId) {
+    for (const [lord, slots] of Object.entries(this.skillAssignments))
+      if (Array.isArray(slots) && slots.includes(skillId)) return lord;
+    return null;
+  }
+
+  /**
+   * Assign a skill to a lord (max getStartingSkillSlots() per lord). An unlocked
+   * skill sits on one lord at a time: held by another lord, it is refused, or with
+   * `{ move: true }` taken from that lord. Returns true on success.
+   */
+  assignSkill(lordName, skillId, { move = false } = {}) {
+    const holder = this.getSkillHolder(skillId);
+    if (holder === lordName) return false;
+    if (holder && !move) return false;
+    const slots = this.skillAssignments[lordName] || [];
     if (slots.length >= this.getStartingSkillSlots()) return false;
-    if (slots.includes(skillId)) return false;
     // Must be an unlocked skill
     if (!this.getUnlockedSkills().includes(skillId)) return false;
-    slots.push(skillId);
+    if (holder) {
+      const held = this.skillAssignments[holder];
+      held.splice(held.indexOf(skillId), 1);
+      if (held.length === 0) delete this.skillAssignments[holder];
+    }
+    this.skillAssignments[lordName] = [...slots, skillId];
     this._save();
     return true;
   }
@@ -868,9 +903,9 @@ export class MetaProgressionManager {
       effects.startingLords = this.getLordSelection();
     }
 
-    // Trim startingSkills per lord to available slot count
+    // Trim startingSkills per lord to available slot count (each skill on one lord)
     const maxSlots = this.getStartingSkillSlots();
-    const rawAssignments = this.getSkillAssignments();
+    const rawAssignments = exclusiveSkillAssignments(this.getSkillAssignments());
     for (const [lord, skills] of Object.entries(rawAssignments)) {
       if (Array.isArray(skills) && skills.length > 0) {
         effects.startingSkills[lord] = skills.slice(0, maxSlots);
@@ -1056,6 +1091,7 @@ export class MetaProgressionManager {
       for (const [lord, slots] of Object.entries(disk.skillAssignments)) {
         if (this.skillAssignments[lord] === undefined) this.skillAssignments[lord] = slots;
       }
+      this.skillAssignments = exclusiveSkillAssignments(this.skillAssignments);
     }
     // Adopt-if-default: a still-default local selection takes the disk's picks.
     if (

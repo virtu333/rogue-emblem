@@ -755,13 +755,45 @@ describe('MetaProgressionManager', () => {
     expect(result).toBe(false);
   });
 
-  it('same skill can be assigned to multiple lords', () => {
+  // Playtest (Sep 2026): each unlocked starting skill sits on one lord at a time.
+  it('a skill already on one lord is refused for another', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.unlock_sol = 1;
     expect(meta.assignSkill('Edric', 'sol')).toBe(true);
-    expect(meta.assignSkill('Sera', 'sol')).toBe(true);
-    expect(meta.getSkillAssignments().Edric).toEqual(['sol']);
-    expect(meta.getSkillAssignments().Sera).toEqual(['sol']);
+    expect(meta.assignSkill('Sera', 'sol')).toBe(false);
+    expect(meta.getSkillHolder('sol')).toBe('Edric');
+    expect(meta.getSkillAssignments()).toEqual({ Edric: ['sol'] });
+  });
+
+  it('moving a skill takes it from the lord who held it', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.purchasedUpgrades.unlock_sol = 1;
+    meta.assignSkill('Edric', 'sol');
+    expect(meta.assignSkill('Sera', 'sol', { move: true })).toBe(true);
+    expect(meta.getSkillAssignments()).toEqual({ Sera: ['sol'] });
+    expect(meta.getActiveEffects().startingSkills).toEqual({ Sera: ['sol'] });
+  });
+
+  it('a move into a full lord changes nothing', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.purchasedUpgrades.unlock_sol = 1;
+    meta.purchasedUpgrades.unlock_luna = 1;
+    meta.assignSkill('Edric', 'sol');
+    meta.assignSkill('Sera', 'luna');
+    expect(meta.assignSkill('Sera', 'sol', { move: true })).toBe(false);
+    expect(meta.getSkillAssignments()).toEqual({ Edric: ['sol'], Sera: ['luna'] });
+  });
+
+  it('a save from before the rule keeps a shared skill on its first lord only', () => {
+    clearStore();
+    const key = 'meta_exclusive_skills';
+    store[key] = JSON.stringify({
+      purchasedUpgrades: { unlock_sol: 1, unlock_luna: 1, extra_skill_slot: 1 },
+      skillAssignments: { Edric: ['sol', 'luna'], Sera: ['sol'], Kira: ['luna', 'sol'] },
+    });
+    const meta = new MetaProgressionManager(upgradesData, key);
+    expect(meta.getSkillAssignments()).toEqual({ Edric: ['sol', 'luna'] });
+    expect(meta.getActiveEffects().startingSkills).toEqual({ Edric: ['sol', 'luna'] });
   });
 
   it('unassignSkill removes skill from lord', () => {
