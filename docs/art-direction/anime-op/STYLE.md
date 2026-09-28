@@ -66,6 +66,12 @@ A code test on the batch-3 heads showed:
   notice, and pushed further it looks deformed. Kira's sharper chin was rejected.
 - **The structure has to come from generation.** That is why each face is in the prompt.
 
+**Result (batch 4):** the described faces read as five different people, and the new
+head sheets are registered: 97–99% silhouette overlap between heads, against 87–96% in
+batch 3. A blink is made by aligning the closed head to the open one and patching only
+the changed eye region inside the face (`px/blink_patch_test.jpg`). It worked for all
+five.
+
 Code edits need face positions placed by hand, so they are made once per rig head, not
 per shot. The rig puts these heads on every body, so fixing the heads fixes every
 animated shot. Single-image closeups (eyes, final frame) keep the face they were painted

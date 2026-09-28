@@ -1,348 +1,379 @@
 [
   {
-    "ref": "refs/b01_edric_eye.webp",
     "source": "batch-1/b01_edric_eye.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b01_edric_eye.webp"
   },
   {
-    "ref": "refs/b01_hilt.webp",
     "source": "batch-1/b01_hilt.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b01_hilt.webp"
   },
   {
-    "ref": "refs/b01_empire_boots.webp",
     "source": "batch-2/b01_empire_boots.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b01_empire_boots.webp"
   },
   {
-    "ref": "refs/b13_empire_soldier_march.webp",
     "source": "batch-2/b13_empire_soldier_march.png",
     "verdict": "use",
+    "ref": "refs/b13_empire_soldier_march.webp",
     "cutout": "cutouts/empire_soldier_march.webp",
     "cutoutOffset": [129, 56]
   },
   {
-    "ref": "refs/b05_camp_night_plate.webp",
     "source": "batch-1/b05_camp_night_plate.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b05_camp_night_plate.webp"
   },
   {
-    "ref": "refs/b05_edric_at_fire.webp",
     "source": "batch-1/b05_edric_at_fire.png",
     "verdict": "use",
+    "ref": "refs/b05_edric_at_fire.webp",
     "cutout": "cutouts/edric_at_fire.webp",
     "cutoutOffset": [69, 204]
   },
   {
-    "ref": "refs/b53_edric_looks_up.webp",
     "source": "batch-1/b53_edric_looks_up.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b53_edric_looks_up.webp"
   },
   {
-    "ref": "refs/b05_edric_standing.webp",
+    "source": "batch-4/b05_kira_at_camp.png",
+    "verdict": "use",
+    "ref": "refs/b05_kira_at_camp.webp",
+    "cutout": "cutouts/kira_at_camp.webp",
+    "cutoutOffset": [15, 67]
+  },
+  {
+    "source": "batch-4/b05_sera_at_camp.png",
+    "verdict": "use",
+    "ref": "refs/b05_sera_at_camp.webp",
+    "cutout": "cutouts/sera_at_camp.webp",
+    "cutoutOffset": [34, 135]
+  },
+  {
     "source": "rogue-dawn-sketchbook-tests/01-edric-standing-greenscreen.png",
     "verdict": "use",
+    "ref": "refs/b05_edric_standing.webp",
     "cutout": "cutouts/edric_standing.webp",
     "cutoutOffset": [81, 31]
   },
   {
-    "ref": "refs/b13_card_astrid.webp",
     "source": "batch-2/b13_card_astrid.png",
     "verdict": "use",
+    "ref": "refs/b13_card_astrid.webp",
     "cutout": "cutouts/astrid.webp",
     "cutoutOffset": [177, 45]
   },
   {
-    "ref": "refs/b13_card_cael.webp",
     "source": "batch-2/b13_card_cael.png",
     "verdict": "use",
+    "ref": "refs/b13_card_cael.webp",
     "cutout": "cutouts/cael.webp",
     "cutoutOffset": [65, 70]
   },
   {
-    "ref": "refs/b13_card_kira.webp",
     "source": "batch-2/b13_card_kira.png",
     "verdict": "use",
+    "ref": "refs/b13_card_kira.webp",
     "cutout": "cutouts/kira.webp",
     "cutoutOffset": [96, 24]
   },
   {
-    "ref": "refs/b13_card_rowan.webp",
     "source": "batch-2/b13_card_rowan.png",
     "verdict": "use",
+    "ref": "refs/b13_card_rowan.webp",
     "cutout": "cutouts/rowan.webp",
     "cutoutOffset": [431, 51]
   },
   {
-    "ref": "refs/b13_card_sera.webp",
     "source": "batch-2/b13_card_sera.png",
     "verdict": "use",
+    "ref": "refs/b13_card_sera.webp",
     "cutout": "cutouts/sera.webp",
     "cutoutOffset": [161, 20]
   },
   {
-    "ref": "refs/b13_card_voss.webp",
     "source": "batch-2/b13_card_voss.png",
     "verdict": "use",
+    "ref": "refs/b13_card_voss.webp",
     "cutout": "cutouts/voss.webp",
     "cutoutOffset": [67, 38]
   },
   {
-    "ref": "refs/b13_empire_road_plate.webp",
     "source": "batch-2/b13_empire_road_plate.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b13_empire_road_plate.webp"
   },
   {
-    "ref": "refs/b21_officer_drill.webp",
     "source": "batch-3/b21_officer_drill.png",
     "verdict": "use",
+    "ref": "refs/b21_officer_drill.webp",
     "cutout": "cutouts/officer_drill.webp",
     "cutoutOffset": [176, 52]
   },
   {
-    "ref": "refs/b21_officer_mounted.webp",
     "source": "batch-3/b21_officer_mounted.png",
     "verdict": "use",
+    "ref": "refs/b21_officer_mounted.webp",
     "cutout": "cutouts/officer_mounted.webp",
     "cutoutOffset": [240, 39]
   },
   {
-    "ref": "refs/b21_officer_standard.webp",
     "source": "batch-3/b21_officer_standard.png",
     "verdict": "use",
+    "ref": "refs/b21_officer_standard.webp",
     "cutout": "cutouts/officer_standard.webp",
     "cutoutOffset": [173, 30]
   },
   {
-    "ref": "refs/b13_bridge_hand_in_hand.webp",
     "source": "rogue-dawn-sketchbook-tests/04-bridge-thread.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b13_bridge_hand_in_hand.webp"
   },
   {
-    "ref": "refs/b13_empire_soldier.webp",
     "source": "batch-1/b13_empire_soldier.png",
     "verdict": "maybe",
+    "ref": "refs/b13_empire_soldier.webp",
     "cutout": "cutouts/empire_soldier.webp",
     "cutoutOffset": [268, 118]
   },
   {
-    "ref": "refs/b21_emperor.webp",
     "source": "batch-1/b21_emperor.png",
     "verdict": "use",
+    "ref": "refs/b21_emperor.webp",
     "cutout": "cutouts/emperor.webp",
     "cutoutOffset": [130, 93]
   },
   {
-    "ref": "refs/b21_lieutenant_eyes.webp",
     "source": "batch-1/b21_lieutenant_eyes.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b21_lieutenant_eyes.webp"
   },
   {
-    "ref": "refs/b21_sera_eyes.webp",
     "source": "batch-1/b21_sera_eyes.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b21_sera_eyes.webp"
   },
   {
-    "ref": "refs/b21_lieutenant_full.webp",
     "source": "batch-3/b21_lieutenant_full.png",
     "verdict": "use",
+    "ref": "refs/b21_lieutenant_full.webp",
     "cutout": "cutouts/lieutenant_full.webp",
     "cutoutOffset": [94, 52]
   },
   {
-    "ref": "refs/b21_lieutenant_threads.webp",
     "source": "batch-3/b21_lieutenant_threads.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b21_lieutenant_threads.webp"
   },
   {
-    "ref": "refs/b21_sera_closeup.webp",
     "source": "batch-3/b21_sera_closeup.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b21_sera_closeup.webp"
   },
   {
-    "ref": "refs/b21_sera_window.webp",
+    "source": "batch-4/b21_sera_closeup_v2.png",
+    "verdict": "use",
+    "ref": "refs/b21_sera_closeup_v2.webp"
+  },
+  {
     "source": "rogue-dawn-sketchbook-tests/03-sera-window.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b21_sera_window.webp"
   },
   {
-    "ref": "refs/b29_edric_charge.webp",
     "source": "batch-1/b29_edric_charge.png",
     "verdict": "use",
+    "ref": "refs/b29_edric_charge.webp",
     "cutout": "cutouts/edric_charge.webp",
     "cutoutOffset": [65, 170]
   },
   {
-    "ref": "refs/b29_edric_falls.webp",
     "source": "batch-1/b29_edric_falls.png",
     "verdict": "use",
+    "ref": "refs/b29_edric_falls.webp",
     "cutout": "cutouts/edric_falls.webp",
     "cutoutOffset": [72, 317]
   },
   {
-    "ref": "refs/b29_ford_plate.webp",
     "source": "batch-1/b29_ford_plate.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b29_ford_plate.webp"
   },
   {
-    "ref": "refs/b29_bridge_plate.webp",
     "source": "batch-2/b29_bridge_plate.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b29_bridge_plate.webp"
   },
   {
-    "ref": "refs/b29_edric_collapse.webp",
     "source": "batch-2/b29_edric_collapse.png",
     "verdict": "use",
+    "ref": "refs/b29_edric_collapse.webp",
     "cutout": "cutouts/edric_collapse.webp",
     "cutoutOffset": [45, 267]
   },
   {
-    "ref": "refs/b29_fens_plate.webp",
     "source": "batch-2/b29_fens_plate.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b29_fens_plate.webp"
   },
   {
-    "ref": "refs/b29_ridge_plate.webp",
     "source": "batch-2/b29_ridge_plate.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b29_ridge_plate.webp"
   },
   {
-    "ref": "refs/b29_stair_plate.webp",
     "source": "batch-2/b29_stair_plate.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b29_stair_plate.webp"
   },
   {
-    "ref": "refs/b29_first_light_plate.webp",
     "source": "batch-3/b29_first_light_plate.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b29_first_light_plate.webp"
   },
   {
-    "ref": "refs/b29_sera_hands_fray_strip.webp",
     "source": "batch-3/b29_sera_hands_fray_strip.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b29_sera_hands_fray_strip.webp"
   },
   {
-    "ref": "refs/b29_sera_run.webp",
     "source": "batch-3/b29_sera_run.png",
     "verdict": "use",
+    "ref": "refs/b29_sera_run.webp",
     "cutout": "cutouts/sera_run.webp",
     "cutoutOffset": [47, 161]
   },
   {
-    "ref": "refs/b45_thread_on_paper.webp",
+    "source": "batch-4/b29_ally_spear.png",
+    "verdict": "use",
+    "ref": "refs/b29_ally_spear.webp",
+    "cutout": "cutouts/ally_spear.webp",
+    "cutoutOffset": [232, 0]
+  },
+  {
+    "source": "batch-4/b29_ally_sword_shield.png",
+    "verdict": "maybe",
+    "ref": "refs/b29_ally_sword_shield.webp",
+    "cutout": "cutouts/ally_sword_shield.webp",
+    "cutoutOffset": [203, 37]
+  },
+  {
     "source": "anime-op-reference/07-thread-transition.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b45_thread_on_paper.webp"
   },
   {
-    "ref": "refs/b45_hymn_plate.webp",
+    "source": "batch-4/b45_sera_hymn_kneel.png",
+    "verdict": "use",
+    "ref": "refs/b45_sera_hymn_kneel.webp",
+    "cutout": "cutouts/sera_hymn_kneel.webp",
+    "cutoutOffset": [56, 105]
+  },
+  {
     "source": "rogue-dawn-sketchbook-tests/02-hymn-plate.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b45_hymn_plate.webp"
   },
   {
-    "ref": "refs/b53_thread_silence.webp",
     "source": "anime-op-reference/storyboard/17-half-beat-silence.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b53_thread_silence.webp"
   },
   {
-    "ref": "refs/b53_edric_final_frame.webp",
     "source": "batch-2/b53_edric_final_frame.png",
-    "verdict": "use"
+    "verdict": "use",
+    "ref": "refs/b53_edric_final_frame.webp"
   },
   {
-    "ref": "refs/ms_astrid_turn.webp",
+    "source": "batch-4/b53_edric_final_frame_v2.png",
+    "verdict": "use",
+    "ref": "refs/b53_edric_final_frame_v2.webp"
+  },
+  {
     "source": "batch-3/ms_astrid_turn.png",
     "verdict": "use",
     "cutout": "cutouts/sheets/ms_astrid_turn.webp",
     "cutoutOffset": [58, 53]
   },
   {
-    "ref": "refs/ms_cael_heads.webp",
     "source": "batch-3/ms_cael_heads.png",
     "verdict": "use",
     "cutout": "cutouts/sheets/ms_cael_heads.webp",
     "cutoutOffset": [38, 251]
   },
   {
-    "ref": "refs/ms_cael_turn.webp",
     "source": "batch-3/ms_cael_turn.png",
     "verdict": "use",
     "cutout": "cutouts/sheets/ms_cael_turn.webp",
     "cutoutOffset": [39, 68]
   },
   {
-    "ref": "refs/ms_edric_turn.webp",
     "source": "batch-3/ms_edric_turn.png",
     "verdict": "use",
     "cutout": "cutouts/sheets/ms_edric_turn.webp",
     "cutoutOffset": [66, 59]
   },
   {
-    "ref": "refs/ms_kira_turn.webp",
     "source": "batch-3/ms_kira_turn.png",
     "verdict": "use",
     "cutout": "cutouts/sheets/ms_kira_turn.webp",
     "cutoutOffset": [45, 37]
   },
   {
-    "ref": "refs/ms_rowan_turn.webp",
     "source": "batch-3/ms_rowan_turn.png",
     "verdict": "use",
     "cutout": "cutouts/sheets/ms_rowan_turn.webp",
     "cutoutOffset": [62, 60]
   },
   {
-    "ref": "refs/ms_sera_turn.webp",
     "source": "batch-3/ms_sera_turn.png",
     "verdict": "use",
     "cutout": "cutouts/sheets/ms_sera_turn.webp",
     "cutoutOffset": [56, 49]
   },
   {
-    "ref": "refs/ms_voss_heads.webp",
     "source": "batch-3/ms_voss_heads.png",
     "verdict": "use",
     "cutout": "cutouts/sheets/ms_voss_heads.webp",
     "cutoutOffset": [23, 253]
   },
   {
-    "ref": "refs/ms_voss_turn.webp",
     "source": "batch-3/ms_voss_turn.png",
     "verdict": "use",
     "cutout": "cutouts/sheets/ms_voss_turn.webp",
     "cutoutOffset": [48, 69]
   },
   {
-    "ref": "refs/ms_astrid_heads.webp",
-    "source": "batch-3/ms_astrid_heads.png",
-    "verdict": "maybe",
-    "cutout": "cutouts/sheets/ms_astrid_heads.webp",
-    "cutoutOffset": [42, 236]
+    "source": "batch-4/ms2_astrid_heads.png",
+    "verdict": "use",
+    "cutout": "cutouts/sheets/ms2_astrid_heads.webp",
+    "cutoutOffset": [16, 20]
   },
   {
-    "ref": "refs/ms_edric_heads.webp",
-    "source": "batch-3/ms_edric_heads.png",
-    "verdict": "maybe",
-    "cutout": "cutouts/sheets/ms_edric_heads.webp",
-    "cutoutOffset": [78, 24]
+    "source": "batch-4/ms2_edric_heads.png",
+    "verdict": "use",
+    "cutout": "cutouts/sheets/ms2_edric_heads.webp",
+    "cutoutOffset": [51, 26]
   },
   {
-    "ref": "refs/ms_kira_heads.webp",
-    "source": "batch-3/ms_kira_heads.png",
-    "verdict": "maybe",
-    "cutout": "cutouts/sheets/ms_kira_heads.webp",
-    "cutoutOffset": [44, 247]
+    "source": "batch-4/ms2_kira_heads.png",
+    "verdict": "use",
+    "cutout": "cutouts/sheets/ms2_kira_heads.webp",
+    "cutoutOffset": [68, 21]
   },
   {
-    "ref": "refs/ms_rowan_heads.webp",
-    "source": "batch-3/ms_rowan_heads.png",
-    "verdict": "maybe",
-    "cutout": "cutouts/sheets/ms_rowan_heads.webp",
-    "cutoutOffset": [36, 251]
+    "source": "batch-4/ms2_rowan_heads.png",
+    "verdict": "use",
+    "cutout": "cutouts/sheets/ms2_rowan_heads.webp",
+    "cutoutOffset": [57, 40]
   },
   {
-    "ref": "refs/ms_sera_heads.webp",
-    "source": "batch-3/ms_sera_heads.png",
-    "verdict": "maybe",
-    "cutout": "cutouts/sheets/ms_sera_heads.webp",
-    "cutoutOffset": [61, 42]
+    "source": "batch-4/ms2_sera_heads.png",
+    "verdict": "use",
+    "cutout": "cutouts/sheets/ms2_sera_heads.webp",
+    "cutoutOffset": [33, 35]
   }
 ]

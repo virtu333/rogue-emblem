@@ -132,6 +132,28 @@
       "size": "1536x1024"
     },
     {
+      "file": "b05_kira_at_camp.png",
+      "source": "batch-4",
+      "kind": "character",
+      "subject": "Kira on a crate, reading a map across the knees",
+      "beats": ["5-12"],
+      "verdict": "use",
+      "why": "On-model; the face leans androgynous as asked.",
+      "size": "1024x1536",
+      "layers": "head, map and hands, coat, crate"
+    },
+    {
+      "file": "b05_sera_at_camp.png",
+      "source": "batch-4",
+      "kind": "character",
+      "subject": "Sera seated, knees up, blanket round her shoulders, looking up",
+      "beats": ["5-12"],
+      "verdict": "use",
+      "why": "On-model; the gold cross is there.",
+      "size": "1024x1536",
+      "layers": "hair, blanket, body"
+    },
+    {
       "file": "01-edric-standing-greenscreen.png",
       "source": "rogue-dawn-sketchbook-tests",
       "kind": "character",
@@ -374,6 +396,16 @@
       "size": "1536x1024"
     },
     {
+      "file": "b21_sera_closeup_v2.png",
+      "source": "batch-4",
+      "kind": "closeup",
+      "subject": "Sera close-up, repainted with the new face",
+      "beats": ["21-28"],
+      "verdict": "use",
+      "why": "Nearly identical to the batch-3 version; either works.",
+      "size": "1536x1024"
+    },
+    {
       "file": "03-sera-window.png",
       "source": "rogue-dawn-sketchbook-tests",
       "kind": "key",
@@ -528,6 +560,28 @@
       "layers": "hair, reaching arm and sleeve, skirt-hand arm, robe, legs"
     },
     {
+      "file": "b29_ally_spear.png",
+      "source": "batch-4",
+      "kind": "character",
+      "subject": "Allied militia spearman, kettle helm, teal armband, facing right",
+      "beats": ["29-44"],
+      "verdict": "use",
+      "why": "For filling out the army at first light; repeat and vary in code.",
+      "size": "1024x1536",
+      "layers": "spear arm, pack, body"
+    },
+    {
+      "file": "b29_ally_sword_shield.png",
+      "source": "batch-4",
+      "kind": "character",
+      "subject": "Allied militia, mail shirt and round shield, facing right",
+      "beats": ["29-44"],
+      "verdict": "maybe",
+      "why": "His face and hair read as Voss (long brown hair tied back, stubble). Fix: recolour the hair and add a helm in code, or regenerate with a helm.",
+      "size": "1024x1536",
+      "layers": "shield arm, body"
+    },
+    {
       "file": "02-chorus-run.png",
       "source": "anime-op-reference",
       "kind": "key",
@@ -588,6 +642,17 @@
       "size": "1672x941"
     },
     {
+      "file": "b45_sera_hymn_kneel.png",
+      "source": "batch-4",
+      "kind": "character",
+      "subject": "Sera kneeling, eyes closed, drawing the thread back",
+      "beats": ["45-48"],
+      "verdict": "use",
+      "why": "Side view facing right; hair and sleeves ready for a wind spring in code.",
+      "size": "1024x1536",
+      "layers": "hair, sleeves and hands, robe"
+    },
+    {
       "file": "02-hymn-plate.png",
       "source": "rogue-dawn-sketchbook-tests",
       "kind": "plate",
@@ -645,6 +710,16 @@
       "beats": ["53-56"],
       "verdict": "use",
       "why": "The final frame, and the only fully painted one. Chestnut hair; the ghost of a smile.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "b53_edric_final_frame_v2.png",
+      "source": "batch-4",
+      "kind": "key",
+      "subject": "Final frame, repainted with the new Edric face",
+      "beats": ["53-56"],
+      "verdict": "use",
+      "why": "Firmer face that matches ms2_edric_heads. The batch-2 version stays as the alternate: owner picks.",
       "size": "1536x1024"
     },
     {
@@ -748,13 +823,63 @@
       "size": "1536x1024"
     },
     {
+      "file": "ms2_astrid_heads.png",
+      "source": "batch-4",
+      "kind": "sheet",
+      "subject": "Astrid: six heads, distinct face, facing right",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Registered for swaps: silhouettes overlap 99% between heads (batch 3: 95%). Blink tested: the closed eyes patch cleanly onto the open head. ",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms2_edric_heads.png",
+      "source": "batch-4",
+      "kind": "sheet",
+      "subject": "Edric: six heads, distinct face, facing right",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Registered for swaps: silhouettes overlap 99% between heads (batch 3: 87%). Blink tested: the closed eyes patch cleanly onto the open head. Heavier, lower brows. A stray line runs down the neck: paint out or keep as a scar.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms2_kira_heads.png",
+      "source": "batch-4",
+      "kind": "sheet",
+      "subject": "Kira: six heads, androgynous face, facing right",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Registered for swaps: silhouettes overlap 97% between heads (batch 3: 96%). Blink tested: the closed eyes patch cleanly onto the open head. ",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms2_rowan_heads.png",
+      "source": "batch-4",
+      "kind": "sheet",
+      "subject": "Rowan: six heads, broad face, no tooth gap, facing right",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Registered for swaps: silhouettes overlap 97% between heads (batch 3: 98%). Blink tested: the closed eyes patch cleanly onto the open head. The closed eyes are a smiling squint, which suits his grin.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms2_sera_heads.png",
+      "source": "batch-4",
+      "kind": "sheet",
+      "subject": "Sera: six heads, distinct face, facing right",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Registered for swaps: silhouettes overlap 98% between heads (batch 3: 96%). Blink tested: the closed eyes patch cleanly onto the open head. ",
+      "size": "1536x1024"
+    },
+    {
       "file": "ms_astrid_heads.png",
       "source": "batch-3",
       "kind": "sheet",
       "subject": "Astrid model sheet: four heads",
       "beats": ["model"],
-      "verdict": "maybe",
-      "why": "Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md \"Faces\". Faces left: flip in code.",
+      "verdict": "reject",
+      "why": "Replaced by batch-4 ms2_astrid_heads (distinct face, registered heads).",
       "size": "1536x1024"
     },
     {
@@ -763,8 +888,8 @@
       "kind": "sheet",
       "subject": "Edric model sheet: six heads",
       "beats": ["model"],
-      "verdict": "maybe",
-      "why": "Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md \"Faces\". Faces left: flip in code.",
+      "verdict": "reject",
+      "why": "Replaced by batch-4 ms2_edric_heads (distinct face, registered heads).",
       "size": "1536x1024"
     },
     {
@@ -773,8 +898,8 @@
       "kind": "sheet",
       "subject": "Kira model sheet: four heads",
       "beats": ["model"],
-      "verdict": "maybe",
-      "why": "Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md \"Faces\". ",
+      "verdict": "reject",
+      "why": "Replaced by batch-4 ms2_kira_heads (distinct face, registered heads).",
       "size": "1536x1024"
     },
     {
@@ -783,8 +908,8 @@
       "kind": "sheet",
       "subject": "Rowan model sheet: four heads",
       "beats": ["model"],
-      "verdict": "maybe",
-      "why": "Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md \"Faces\". ",
+      "verdict": "reject",
+      "why": "Replaced by batch-4 ms2_rowan_heads (distinct face, registered heads).",
       "size": "1536x1024"
     },
     {
@@ -793,8 +918,8 @@
       "kind": "sheet",
       "subject": "Sera model sheet: six heads",
       "beats": ["model"],
-      "verdict": "maybe",
-      "why": "Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md \"Faces\". ",
+      "verdict": "reject",
+      "why": "Replaced by batch-4 ms2_sera_heads (distinct face, registered heads).",
       "size": "1536x1024"
     },
     {

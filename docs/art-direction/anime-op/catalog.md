@@ -1,14 +1,15 @@
 # Anime opening: reference catalogue
 
-79 images: 50 use, 6 maybe, 23 reject. Sorted by beat (first listed), then verdict. The style target is **The Unwritten Page** ([STYLE.md](STYLE.md)); verdicts judge each image against it and against the PC-98 portraits.
+91 images: 61 use, 2 maybe, 28 reject. Sorted by beat (first listed), then verdict. The style target is **The Unwritten Page** ([STYLE.md](STYLE.md)); verdicts judge each image against it and against the PC-98 portraits.
 
-| Source folder (`~/Downloads/…`) | Images | What it is |
+| Source folder | Images | What it is |
 |---|---|---|
-| `anime-op-reference` | 23 | The first painterly studies and storyboard, made for an earlier, vocal version of the opening. Old style: composition reference only. |
-| `rogue-dawn-sketchbook-tests` | 4 | The four tests that set the Unwritten Page style. |
-| `batch-1` | 12 | First production batch ([prompts-batch-1.md](prompts-batch-1.md)). |
-| `batch-2` | 15 | Second production batch ([prompts-batch-2.md](prompts-batch-2.md)). |
-| `batch-3` | 25 | Third batch: the redone maybes, model sheets, officers, the rewind test ([prompts-batch-3.md](prompts-batch-3.md)). |
+| `~/Downloads/anime-op-reference` | 23 | The first painterly studies and storyboard, made for an earlier, vocal version of the opening. Old style: composition reference only. |
+| `~/Downloads/rogue-dawn-sketchbook-tests` | 4 | The four tests that set the Unwritten Page style. |
+| `~/Documents/rogue-emblem-assets/batch-1` | 12 | First production batch ([prompts-batch-1.md](prompts-batch-1.md)). |
+| `~/Documents/rogue-emblem-assets/batch-2` | 15 | Second production batch ([prompts-batch-2.md](prompts-batch-2.md)). |
+| `~/Documents/rogue-emblem-assets/batch-3` | 25 | Third batch: the redone maybes, model sheets, officers, the rewind test ([prompts-batch-3.md](prompts-batch-3.md)). |
+| `~/Documents/rogue-emblem-assets/batch-4` | 12 | Fourth batch: distinct faces, closeup redos, allied soldiers, camp and hymn ([prompts-batch-4.md](prompts-batch-4.md)). |
 
 Not catalogued: the READMEs and `index.html` review pages in each folder.
 
@@ -34,6 +35,8 @@ Not catalogued: the READMEs and `index.html` review pages in each folder.
 | `b05_camp_night_plate.png` | batch-1 | plate | Night camp, empty; fire low; a clear sky band for the Thread | 5-12 | **use** | Right layout: no people, fire low, an empty sky band, tall for the tilt. Detailed, so convert with the background settings. | 1024×1536 |  |
 | `b05_edric_at_fire.png` | batch-1 | character | Edric seated, sword drawn across his knees, looking to the side | 5-12 | **use** | Keys cleanly. Hair drifts auburn (the portrait is chestnut). | 1024×1536 | head and hair, cloak, arms with sword, body |
 | `b53_edric_looks_up.png` | batch-1 | key | Edric looks up at the night sky; firelight below | 5-12 | **use** | Use for Edric seeing the Thread in bars 5-12. Not the final frame: b53_edric_final_frame replaces it there. | 1536×1024 |  |
+| `b05_kira_at_camp.png` | batch-4 | character | Kira on a crate, reading a map across the knees | 5-12 | **use** | On-model; the face leans androgynous as asked. | 1024×1536 | head, map and hands, coat, crate |
+| `b05_sera_at_camp.png` | batch-4 | character | Sera seated, knees up, blanket round her shoulders, looking up | 5-12 | **use** | On-model; the gold cross is there. | 1024×1536 | hair, blanket, body |
 | `01-edric-standing-greenscreen.png` | rogue-dawn-sketchbook-tests | character | Edric standing, three-quarter view, looking up past the viewer; gold thread at his wrist | 5-12, 13-20 | **use** | Clean key, on-model; the model for all character assets. "Edric rises", and the standing Edric in the ensemble. | 1024×1536 | hair, head, cloak, sword arm, body, legs |
 | `storyboard/08-edric-ahead.png` | anime-op-reference | group | Edric reaches back for Sera's hand in ruins | 5-12 | **reject** | Replaced by sketchbook 04-bridge-thread: the same hands-joined beat, in style. | 1672×941 |  |
 
@@ -67,6 +70,7 @@ Not catalogued: the READMEs and `index.html` review pages in each folder.
 | `b21_lieutenant_full.png` | batch-3 | character | The Lieutenant standing, hand raised, mirroring a seer | 21-28 | **use** | Faces left. Mirrors Sera reaching for the thread. | 1024×1536 | raised arm, head, cloak, body |
 | `b21_lieutenant_threads.png` | batch-3 | key | The Lieutenant, gold threads whole in one hand, crimson snapped in the other | 21-28 | **use** | Replaces the old reveal. Cracks and red eye on the correct side. Delivered 1672x941 and centre-cropped to 3:2 by the generator. | 1536×1024 |  |
 | `b21_sera_closeup.png` | batch-3 | closeup | Sera winds a gold thread round two fingers | 21-28 | **use** | Replaces the old close-up. Delivered 1672x941 and centre-cropped to 3:2. | 1536×1024 |  |
+| `b21_sera_closeup_v2.png` | batch-4 | closeup | Sera close-up, repainted with the new face | 21-28 | **use** | Nearly identical to the batch-3 version; either works. | 1536×1024 |  |
 | `03-sera-window.png` | rogue-dawn-sketchbook-tests | key | Sera at a ruined window finds the thread | 21-28 | **use** | On-model, and survives conversion well. The robe has no gold cross (minor). Crop the torn border. | 1536×1024 |  |
 | `04-sera-closeup.png` | anime-op-reference | closeup | Sera winds a gold thread round her fingers; dawn in her eye | 21-28 | **reject** | Replaced by batch-3 b21_sera_closeup. | 1672×941 |  |
 | `06-lieutenant-reveal.png` | anime-op-reference | key | The Lieutenant, symmetrical, holding gold and snapped crimson threads | 21-28 | **reject** | Replaced by batch-3 b21_lieutenant_threads. | 1672×941 |  |
@@ -87,6 +91,8 @@ Not catalogued: the READMEs and `index.html` review pages in each folder.
 | `b29_first_light_plate.png` | batch-3 | plate | Cold first light over a misty valley; an open hilltop | 29-44 | **use** | No sun. Wide enough for the whole cast. Convert with the background settings. | 1536×1024 |  |
 | `b29_sera_hands_fray_strip.png` | batch-3 | strip | Sera's hands on the thread: whole, fraying, half unravelled | 29-44, 45-48 | **use** | The three frames are registered, so they play in sequence. Frame 1 doubles for the hymn. | 1536×1024 |  |
 | `b29_sera_run.png` | batch-3 | character | Sera running right, skirts gathered, hand reaching forward | 29-44 | **use** | Pairs with b29_edric_charge. Matches the cast card costume. | 1024×1536 | hair, reaching arm and sleeve, skirt-hand arm, robe, legs |
+| `b29_ally_spear.png` | batch-4 | character | Allied militia spearman, kettle helm, teal armband, facing right | 29-44 | **use** | For filling out the army at first light; repeat and vary in code. | 1024×1536 | spear arm, pack, body |
+| `b29_ally_sword_shield.png` | batch-4 | character | Allied militia, mail shirt and round shield, facing right | 29-44 | **maybe** | His face and hair read as Voss (long brown hair tied back, stubble). Fix: recolour the hair and add a helm in code, or regenerate with a helm. | 1024×1536 | shield arm, body |
 | `02-chorus-run.png` | anime-op-reference | key | Sera and Edric run under the black sun | 29-44 | **reject** | Failed the pixel test: the dense texture turns to mush at 480×270. 11-chorus-run-clean is the cleaner version. | 1672×941 |  |
 | `storyboard/11-chorus-run-clean.png` | anime-op-reference | group | Sera and Edric run together, black sun behind | 29-44 | **reject** | Replaced by batch-3 b29_sera_run with b29_edric_charge on the ridge plate. | 1672×941 |  |
 | `storyboard/12-thread-frays.png` | anime-op-reference | closeup | Sera's hands pull a gold thread taut as it frays | 29-44 | **reject** | Replaced by batch-3 b29_sera_hands_fray_strip. | 1672×941 |  |
@@ -98,6 +104,7 @@ Not catalogued: the READMEs and `index.html` review pages in each folder.
 | File | Source | Kind | Subject | Beats | Verdict | Why | Size | Layers |
 |---|---|---|---|---|---|---|---|---|
 | `07-thread-transition.png` | anime-op-reference | fx | Gold thread stitched across paper, fraying beside an ink eclipse | 45-48, 49-52 | **use** | Already the Unwritten Page idea: bare paper, a stitched thread, an ink eclipse. Sparse, so it survives conversion. Code redraws the thread so it can animate. | 1672×941 |  |
+| `b45_sera_hymn_kneel.png` | batch-4 | character | Sera kneeling, eyes closed, drawing the thread back | 45-48 | **use** | Side view facing right; hair and sleeves ready for a wind spring in code. | 1024×1536 | hair, sleeves and hands, robe |
 | `02-hymn-plate.png` | rogue-dawn-sketchbook-tests | plate | Empty page: a half-erased battlefield, a sewn thread ending at the centre | 45-48 | **use** | The hymn. Convert with the background settings. Crop the torn paper border, and cover the painted thread so code can draw it. | 1536×1024 |  |
 
 ## Bars 49-52: The rewind
@@ -114,6 +121,7 @@ Not catalogued: the READMEs and `index.html` review pages in each folder.
 |---|---|---|---|---|---|---|---|---|
 | `storyboard/17-half-beat-silence.png` | anime-op-reference | fx | One gold thread hanging over a faint ring on black | 53-56, 1-4 | **use** | Sparse, and it survives conversion. Composition reference for the silence at the end; code draws the thread and the ring. | 1672×941 |  |
 | `b53_edric_final_frame.png` | batch-2 | key | Edric at the fire looks straight into the camera; full colour | 53-56 | **use** | The final frame, and the only fully painted one. Chestnut hair; the ghost of a smile. | 1536×1024 |  |
+| `b53_edric_final_frame_v2.png` | batch-4 | key | Final frame, repainted with the new Edric face | 53-56 | **use** | Firmer face that matches ms2_edric_heads. The batch-2 version stays as the alternate: owner picks. | 1536×1024 |  |
 | `storyboard/20-hollow-cut-clean.png` | anime-op-reference | key | Cleaner redraw of 03-hollow-sun-cut | 53-56 | **reject** | The old ending. Code draws the final Hollow Sun and the title. | 1672×941 |  |
 
 ## Bars model: Model sheets (for the rig, not a beat)
@@ -129,11 +137,16 @@ Not catalogued: the READMEs and `index.html` review pages in each folder.
 | `ms_sera_turn.png` | batch-3 | sheet | Sera model sheet: turnaround | model | **use** | Turnaround: front, three-quarter, side, back.  | 1536×1024 |  |
 | `ms_voss_heads.png` | batch-3 | sheet | Voss model sheet: four heads | model | **use** | Expression heads. Distinct face (age, beard, scar). Not registered: align before swapping. | 1536×1024 |  |
 | `ms_voss_turn.png` | batch-3 | sheet | Voss model sheet: turnaround | model | **use** | Turnaround: front, three-quarter, side, back.  | 1536×1024 |  |
-| `ms_astrid_heads.png` | batch-3 | sheet | Astrid model sheet: four heads | model | **maybe** | Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md "Faces". Faces left: flip in code. | 1536×1024 |  |
-| `ms_edric_heads.png` | batch-3 | sheet | Edric model sheet: six heads | model | **maybe** | Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md "Faces". Faces left: flip in code. | 1536×1024 |  |
-| `ms_kira_heads.png` | batch-3 | sheet | Kira model sheet: four heads | model | **maybe** | Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md "Faces".  | 1536×1024 |  |
-| `ms_rowan_heads.png` | batch-3 | sheet | Rowan model sheet: four heads | model | **maybe** | Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md "Faces".  | 1536×1024 |  |
-| `ms_sera_heads.png` | batch-3 | sheet | Sera model sheet: six heads | model | **maybe** | Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md "Faces".  | 1536×1024 |  |
+| `ms2_astrid_heads.png` | batch-4 | sheet | Astrid: six heads, distinct face, facing right | model | **use** | Registered for swaps: silhouettes overlap 99% between heads (batch 3: 95%). Blink tested: the closed eyes patch cleanly onto the open head.  | 1536×1024 |  |
+| `ms2_edric_heads.png` | batch-4 | sheet | Edric: six heads, distinct face, facing right | model | **use** | Registered for swaps: silhouettes overlap 99% between heads (batch 3: 87%). Blink tested: the closed eyes patch cleanly onto the open head. Heavier, lower brows. A stray line runs down the neck: paint out or keep as a scar. | 1536×1024 |  |
+| `ms2_kira_heads.png` | batch-4 | sheet | Kira: six heads, androgynous face, facing right | model | **use** | Registered for swaps: silhouettes overlap 97% between heads (batch 3: 96%). Blink tested: the closed eyes patch cleanly onto the open head.  | 1536×1024 |  |
+| `ms2_rowan_heads.png` | batch-4 | sheet | Rowan: six heads, broad face, no tooth gap, facing right | model | **use** | Registered for swaps: silhouettes overlap 97% between heads (batch 3: 98%). Blink tested: the closed eyes patch cleanly onto the open head. The closed eyes are a smiling squint, which suits his grin. | 1536×1024 |  |
+| `ms2_sera_heads.png` | batch-4 | sheet | Sera: six heads, distinct face, facing right | model | **use** | Registered for swaps: silhouettes overlap 98% between heads (batch 3: 96%). Blink tested: the closed eyes patch cleanly onto the open head.  | 1536×1024 |  |
+| `ms_astrid_heads.png` | batch-3 | sheet | Astrid model sheet: four heads | model | **reject** | Replaced by batch-4 ms2_astrid_heads (distinct face, registered heads). | 1536×1024 |  |
+| `ms_edric_heads.png` | batch-3 | sheet | Edric model sheet: six heads | model | **reject** | Replaced by batch-4 ms2_edric_heads (distinct face, registered heads). | 1536×1024 |  |
+| `ms_kira_heads.png` | batch-3 | sheet | Kira model sheet: four heads | model | **reject** | Replaced by batch-4 ms2_kira_heads (distinct face, registered heads). | 1536×1024 |  |
+| `ms_rowan_heads.png` | batch-3 | sheet | Rowan model sheet: four heads | model | **reject** | Replaced by batch-4 ms2_rowan_heads (distinct face, registered heads). | 1536×1024 |  |
+| `ms_sera_heads.png` | batch-3 | sheet | Sera model sheet: six heads | model | **reject** | Replaced by batch-4 ms2_sera_heads (distinct face, registered heads). | 1536×1024 |  |
 
 ## No beat in "Again"
 
