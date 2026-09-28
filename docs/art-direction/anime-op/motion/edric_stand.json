@@ -1,0 +1,13 @@
+{
+  "name": "edric_stand",
+  "frames": 14,
+  "cols": 14,
+  "cell": [239, 360],
+  "fps": 12,
+  "loop": true,
+  "source": "References/cutscene/unwritten/clips/edric_stand.mp4",
+  "range": [0.5, 5.1],
+  "cycle": [37, 51],
+  "plate": false,
+  "anchor": [72.3, 356.0]
+}

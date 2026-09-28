@@ -1,0 +1,12 @@
+{
+  "name": "rowan_gallop",
+  "frames": 6,
+  "cols": 6,
+  "cell": [322, 360],
+  "fps": 12,
+  "loop": true,
+  "source": "References/cutscene/unwritten/clips/rowan_gallop.mp4",
+  "range": [1.4, 5.1],
+  "cycle": [10, 16],
+  "anchor": [155.2, 324.0]
+}

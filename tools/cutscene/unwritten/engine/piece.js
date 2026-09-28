@@ -12,6 +12,7 @@ import { quantise } from './palette.js';
 import { drawSprite } from './view.js';
 import { burnWipe, inkWipe, pageTurn } from './transitions.js';
 import { flash } from './anime.js';
+import { Motion } from './motion.js';
 
 export const loadImage = (src) =>
   new Promise((res, rej) => {
@@ -73,6 +74,37 @@ export class Piece {
     const imgs = await Promise.all(e.map(([, s]) => loadImage(s)));
     this.img = Object.fromEntries(e.map(([k], i) => [k, imgs[i]]));
     this.paper = makePaper(this.W, this.H);
+  }
+
+  /**
+   * Load motion clips (atlas + JSON from motion/clip.py) by name. A clip that hasn't been
+   * made yet is skipped, and shots fall back to their still cut-out.
+   */
+  async loadMotions(dir, names) {
+    this.motionSrc = {};
+    await Promise.all(
+      names.map(async (n) => {
+        try {
+          const r = await fetch(`${dir}/${n}.json`);
+          if (!r.ok) return;
+          const meta = await r.json();
+          const img = await loadImage(`${dir}/${n}.webp`);
+          this.motionSrc[n] = { meta, img };
+        } catch {
+          /* not made yet */
+        }
+      }),
+    );
+  }
+
+  /** A Motion (see motion.js) at height h art px, or null if the clip isn't there. */
+  motion(name, h, o = {}) {
+    const m = this.motionSrc?.[name];
+    if (!m) return null;
+    return this.memo(
+      `motion:${name}:${h}:${o.flip ? 1 : 0}`,
+      () => new Motion(m.img, m.meta, h, { ...o, params: this.params }),
+    );
   }
 
   /** Forget built layers (after the line settings change). */

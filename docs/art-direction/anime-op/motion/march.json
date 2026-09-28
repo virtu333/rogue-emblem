@@ -1,0 +1,13 @@
+{
+  "name": "march",
+  "frames": 11,
+  "cols": 11,
+  "cell": [226, 360],
+  "fps": 12,
+  "loop": true,
+  "source": "References/cutscene/unwritten/clips/march.mp4",
+  "range": [0.5, 5.0],
+  "cycle": [19, 30],
+  "plate": false,
+  "anchor": [125.7, 356.0]
+}

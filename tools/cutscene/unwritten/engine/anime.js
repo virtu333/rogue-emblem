@@ -4,7 +4,7 @@
 // arguments; effects that are "drawn by hand" take a drawing index (on twos: 12 a
 // second) so they boil the way hand-drawn effects do, instead of sliding.
 
-import { bayer, clamp, hash, hexToRgb, smooth, valueNoise } from './raster.js';
+import { bayer, clamp, hash, hexToRgb, noiseField, smooth, valueNoise } from './raster.js';
 import { C } from './palette.js';
 
 export const RGB = {
@@ -572,3 +572,34 @@ export function hollowSunRays(frame, fw, fh, cx, cy, r, t, rays = 0) {
 export const easeOut = (k) => 1 - (1 - clamp(k)) ** 3;
 export const easeIn = (k) => clamp(k) ** 3;
 export const easeInOut = (k) => smooth(0, 1, k);
+
+const STRIP = new Map();
+
+/**
+ * Paint coming off a live frame (a moving shot, which has no paint stages of its own):
+ * by k (0..1), pixels in organic patches go back to the page, and only the dark edges
+ * (the drawing) stay, as ink, then as pencil. Cheap enough to run every frame.
+ */
+export function stripLive(frame, paper, fw, fh, k, seed = 5) {
+  if (k <= 0) return;
+  if (!STRIP.has(seed)) STRIP.set(seed, noiseField(fw, fh, seed, 40));
+  const nf = STRIP.get(seed);
+  const L = new Float32Array(fw * fh);
+  for (let i = 0; i < fw * fh; i++)
+    L[i] = (0.299 * frame[i * 4] + 0.587 * frame[i * 4 + 1] + 0.114 * frame[i * 4 + 2]) / 255;
+  const pencil = k > 0.7;
+  const c = pencil ? RGB.graphite : RGB.sepia;
+  for (let y = 1; y < fh - 1; y++)
+    for (let x = 1; x < fw - 1; x++) {
+      const i = y * fw + x;
+      if (0.8 * nf[i] + 0.2 * bayer(x, y) >= k) continue;
+      const o = i * 4;
+      const around = (L[i - 1] + L[i + 1] + L[i - fw] + L[i + fw]) / 4;
+      const edge = L[i] < around - (pencil ? 0.11 : 0.07) && L[i] < 0.55;
+      const col = edge ? c : [paper[o], paper[o + 1], paper[o + 2]];
+      frame[o] = col[0];
+      frame[o + 1] = col[1];
+      frame[o + 2] = col[2];
+      frame[o + 3] = 255;
+    }
+}

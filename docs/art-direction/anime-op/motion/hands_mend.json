@@ -1,0 +1,13 @@
+{
+  "name": "hands_mend",
+  "frames": 41,
+  "cols": 8,
+  "cell": [473, 270],
+  "fps": 8.0,
+  "loop": false,
+  "source": "References/cutscene/unwritten/clips/hands_mend.mp4",
+  "range": [0, null],
+  "cycle": null,
+  "plate": true,
+  "anchor": [236.0, 269.0]
+}

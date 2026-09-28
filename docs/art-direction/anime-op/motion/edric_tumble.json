@@ -1,0 +1,13 @@
+{
+  "name": "edric_tumble",
+  "frames": 20,
+  "cols": 13,
+  "cell": [301, 300],
+  "fps": 8.0,
+  "loop": false,
+  "source": "References/cutscene/unwritten/clips/edric_tumble.mp4",
+  "range": [1.4, 3.9],
+  "cycle": null,
+  "plate": false,
+  "anchor": [90.4, 290.0]
+}

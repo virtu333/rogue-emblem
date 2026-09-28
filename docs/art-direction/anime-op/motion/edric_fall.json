@@ -1,0 +1,13 @@
+{
+  "name": "edric_fall",
+  "frames": 18,
+  "cols": 14,
+  "cell": [287, 300],
+  "fps": 10.0,
+  "loop": false,
+  "source": "References/cutscene/unwritten/clips/edric_fall.mp4",
+  "range": [1.8, 3.6],
+  "cycle": null,
+  "plate": false,
+  "anchor": [129.8, 288.0]
+}

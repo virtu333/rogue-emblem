@@ -43,6 +43,7 @@ import {
   speedLines,
   splash,
   star,
+  stripLive,
   stroke,
   threadPath,
   threadSnap,
@@ -108,6 +109,25 @@ const SRC = {
   hVoss: `${K}/sheets/ms_voss_heads.webp`,
 };
 
+// generated motion clips (tools/cutscene/unwritten/motion/), used where they exist
+const MOTIONS = [
+  'rowan_gallop',
+  'edric_run',
+  'sera_run',
+  'astrid_fly',
+  'march',
+  'edric_fall',
+  'edric_tumble',
+  'kira_point',
+  'sera_kneel',
+  'hands_mend',
+  'edric_looks_up',
+  'sera_eyes',
+  'clash',
+  'army_ready',
+  'edric_stand',
+];
+
 const NIGHT = [0.86, 0.74, 0.8];
 const GOLD_RIM = { w: 1.6, color: RGB.goldHi };
 
@@ -118,6 +138,12 @@ const scr = (x, y, c) => {
   const cs = Math.cos(c.rot);
   const sn = Math.sin(c.rot);
   return [cs * dx - sn * dy + W / 2, sn * dx + cs * dy + H / 2];
+};
+
+/** Layer point (u, v) of a layer placed by xf, seen through camera c -> screen. */
+const toScreen = (xf, c, u, v) => {
+  const m = layerMatrix(xf, c, W, H);
+  return [m[0] * u + m[1] * v + m[2], m[3] * u + m[4] * v + m[5]];
 };
 
 /** Wind in a figure's trailing side (it faces right, so the left): cloth and hair. */
@@ -185,6 +211,7 @@ export class Again extends Piece {
 
   async load() {
     await this.loadImages(SRC);
+    await this.loadMotions('/docs/art-direction/anime-op/motion', MOTIONS);
     await document.fonts.load('600 40px Cinzel');
     this.title = makeTitle('ROGUE DAWN', 34, 0.12);
     this.build(this.params);
@@ -212,7 +239,9 @@ export class Again extends Piece {
         });
       case 'sky':
         return this.plate('sky', I.ridge, {
-          zoom: 1.25,
+          w: 540,
+          h: 304,
+          zoom: 1.2,
           crop: { x: 0, y: 0, w: 1536, h: 864 },
           tint: [0.8, 0.76, 0.9],
         });
@@ -231,7 +260,11 @@ export class Again extends Piece {
           crop: crop169(I.firstLight, 0.6),
         });
       case 'field':
-        return this.plate('field', I.firstLight, { zoom: 1.35, crop: crop169(I.firstLight, 1) });
+        return this.plate('field', I.firstLight, {
+          w: 600,
+          h: 338,
+          crop: crop169(I.firstLight, 1),
+        });
       case 'hymn': {
         const c = { x: 1536 * 0.07, y: 1024 * 0.12, w: 1536 * 0.86, h: 1536 * 0.86 * (9 / 16) };
         return this.plate('hymn', I.hymn, { zoom: 1.08, crop: c });
@@ -294,7 +327,10 @@ export class Again extends Piece {
       const lt = t - at(28);
       const z = 1 + 0.12 * easeOut(lt / 0.8) + 0.1 * pulse(t, [at(28)], 0.12);
       const c = cam(240, 136, z, 0);
-      this.draw(f, this.L('seraEyes'), 0, null, c);
+      const Me = this.motion('sera_eyes', 270);
+      if (Me)
+        this.draw(f, Me.layer(Me.index(lt, { mode: 'once', rate: 2.4 })), 0, Me.fill(W, H), c);
+      else this.draw(f, this.L('seraEyes'), 0, null, c);
       // the thread, reflected in each iris
       for (const ex of [130, 382]) {
         const [sx, sy] = scr(ex, 136, c);
@@ -375,9 +411,21 @@ export class Again extends Piece {
         color: RGB.graphite,
         len: 70,
       });
-      const E = this.fig('charge', 210);
-      const xf = this.at(E, cx + 8, 266 + bob(t), 1, 0.05);
-      this.draw(f, E, 0, xf, c, { warp: wind(E, t, 2.5), rim: { ...GOLD_RIM, dir: [-0.8, -0.6] } });
+      const Mr = this.motion('edric_run', 214);
+      if (Mr) {
+        // the generated run: two strides a beat-and-a-bit, drawn on twos
+        const i = Mr.index(lt, { rate: 1.05 });
+        this.draw(f, Mr.layer(i), 0, Mr.place(cx + 8, 268, 1, 0.02), c, {
+          rim: { ...GOLD_RIM, dir: [-0.8, -0.6] },
+        });
+      } else {
+        const E = this.fig('charge', 210);
+        const xf = this.at(E, cx + 8, 266 + bob(t), 1, 0.05);
+        this.draw(f, E, 0, xf, c, {
+          warp: wind(E, t, 2.5),
+          rim: { ...GOLD_RIM, dir: [-0.8, -0.6] },
+        });
+      }
       // dust off the back foot, a puff a stride
       const b = Math.floor(lt / BEAT);
       for (let i = Math.max(0, b - 1); i <= b; i++)
@@ -494,13 +542,26 @@ export class Again extends Piece {
         len: 70 + 400 * u,
         thin: u > 0.1 ? 2 : 1,
       });
-      const Sr = this.fig('seraRun', 205);
       const x = 240 + 120 * lt - 16;
-      const xf = this.at(Sr, x, 266 + bob(t, BEAT, 3), 1, 0.03);
-      if (u > 0) drawSmear(f, W, H, this.paper, Sr, 0, xf, c, {}, 30 + 160 * u, 0, 5);
-      this.draw(f, Sr, 0, xf, c, { warp: wind(Sr, t, 3, 0.55) });
+      const Ms = this.motion('sera_run', 210);
+      let hx;
+      let hy;
+      if (Ms) {
+        // the generated run, one cycle every two beats; the thread hangs off her hand
+        const i = Ms.index(lt, { rate: 0.75 / (2 * BEAT) });
+        const xf = Ms.place(x, 268);
+        if (u > 0) drawSmear(f, W, H, this.paper, Ms.layer(i), 0, xf, c, {}, 30 + 160 * u, 0, 5);
+        this.draw(f, Ms.layer(i), 0, xf, c);
+        const hand = Ms.extreme(i, 'right', 0.15, 0.55) || [Ms.w, Ms.h * 0.35];
+        [hx, hy] = toScreen(xf, c, hand[0], hand[1]);
+      } else {
+        const Sr = this.fig('seraRun', 205);
+        const xf = this.at(Sr, x, 266 + bob(t, BEAT, 3), 1, 0.03);
+        if (u > 0) drawSmear(f, W, H, this.paper, Sr, 0, xf, c, {}, 30 + 160 * u, 0, 5);
+        this.draw(f, Sr, 0, xf, c, { warp: wind(Sr, t, 3, 0.55) });
+        [hx, hy] = scr(x + (0.87 - 0.5) * Sr.st.w, 266 - 0.65 * Sr.st.h, c);
+      }
       // the broken end of the thread, flying ahead of her hand
-      const [hx, hy] = scr(x + (0.87 - 0.5) * Sr.st.w, 266 - 0.65 * Sr.st.h, c);
       const gap = 16 + 70 * lt;
       threadPath(f, W, H, wavePts(hx + gap, hy - 4, 520, hy - 26, t * 3, 7, 2), 1, {
         spark: false,
@@ -560,13 +621,15 @@ export class Again extends Piece {
     });
 
     // --- 37: the army at first light ----------------------------------------------
-    const ROW = [
+    const ROW_STILL = [
       ['kira', 160, 170],
       ['cael', 268, 176],
       ['voss', 372, 172],
       ['sera', 478, 166],
-      ['rowan', 610, 204],
-      ['astrid', 716, 196],
+    ];
+    const ROW = [
+      ['rowan', 470, 204],
+      ['astrid', 640, 196],
     ];
     shot(
       'army',
@@ -575,7 +638,7 @@ export class Again extends Piece {
       (f, t) => {
         const lt = t - at(37);
         const u = easeInOut(lt / (2 * BAR));
-        const camx = 240 + 330 * u;
+        const camx = 240 + 260 * u;
         const c = cam(camx, 135, 1 + 0.03 * u, 0);
         this.draw(f, this.L('firstLight'), 0, { x: 350, y: 135, ax: 350, ay: 197, scale: 1 }, c, {
           par: 0.45,
@@ -591,6 +654,20 @@ export class Again extends Piece {
         const pts = wavePts(-40, 158, 900, 150, t, 5, 3, 120);
         const sp = pts.map(([x, y]) => scr(x, y, c));
         threadPath(f, W, H, sp, clamp((head + 40) / 940));
+        // the four on foot: the generated clip (breathing, wind, weight shifting); its
+        // left edge (where Kira is cut by the clip's frame) stays off screen
+        const Ma = this.motion('army_ready', 186);
+        if (Ma) {
+          const i = Ma.index(lt, { rate: 1 });
+          const xf = { x: -24, y: 268, ax: 0, ay: Ma.meta.anchor[1] * Ma.s, scale: 1 };
+          this.draw(f, Ma.layer(i), 0, xf, c, {
+            rim: head > 150 ? { ...GOLD_RIM, dir: [0.3, -1] } : null,
+          });
+        } else
+          for (const [name, x, h] of ROW_STILL) {
+            const l = this.fig(name, h);
+            this.draw(f, l, 0, this.at(l, x, 268, 1), c, { warp: wind(l, t + x, 1.5) });
+          }
         for (const [name, x, h] of ROW) {
           const l = this.fig(name, h);
           const lit = head > x + 10;
@@ -611,14 +688,23 @@ export class Again extends Piece {
       const c = cam(240 + 60 * (u - 0.5), 135, 1, 0);
       this.draw(f, this.L('sky'), 0, null, c, { par: 0.3 });
       speedLines(f, W, H, t, { density: 0.22, speed: -1600, color: RGB.paperHi, len: 90 });
-      const A = this.fig('astrid', 190);
       const q = u < 0.5 ? 0.5 - 0.5 * (1 - 2 * u) ** 0.55 : 0.5 + 0.5 * (2 * u - 1) ** 0.55;
       const x = -170 + 820 * q;
       const y = 196 - 44 * Math.sin(Math.PI * u);
-      const flap = twos(t) % 3 === 0 ? 0.93 : 1;
-      const xf = this.at(A, x + 60 * (u - 0.5), y, 1, -0.06, { sy: flap });
-      drawSmear(f, W, H, this.paper, A, 0, xf, c, {}, 60, 4, 4);
-      this.draw(f, A, 0, xf, c, { warp: wind(A, t, 2, 0.4) });
+      const Mf = this.motion('astrid_fly', 210);
+      if (Mf) {
+        // the generated wingbeat: one full stroke every two beats
+        const i = Mf.index(lt, { rate: 0.75 / (2 * BEAT) });
+        const xf = Mf.place(x + 60 * (u - 0.5), y + 20, 1, -0.04);
+        drawSmear(f, W, H, this.paper, Mf.layer(i), 0, xf, c, {}, 60, 4, 4);
+        this.draw(f, Mf.layer(i), 0, xf, c);
+      } else {
+        const A = this.fig('astrid', 190);
+        const flap = twos(t) % 3 === 0 ? 0.93 : 1;
+        const xf = this.at(A, x + 60 * (u - 0.5), y, 1, -0.06, { sy: flap });
+        drawSmear(f, W, H, this.paper, A, 0, xf, c, {}, 60, 4, 4);
+        this.draw(f, A, 0, xf, c, { warp: wind(A, t, 2, 0.4) });
+      }
     });
 
     // --- 39.3: Rowan's gallop -----------------------------------------------------
@@ -643,13 +729,20 @@ export class Again extends Piece {
         len: 60,
         seed: 4,
       });
-      const Rw = this.fig('rowan', 200);
-      const g = onTwos(lt);
-      const y = 272 + bob(lt, 0.2, 6);
-      const rot = 0.035 * Math.sin((2 * Math.PI * g) / 0.2);
-      this.draw(f, Rw, 0, this.at(Rw, 226 + 14 * lt, y, 1, rot), cam(240, 135, 1.05), {
-        warp: wind(Rw, t, 2, 0.45),
-      });
+      const M = this.motion('rowan_gallop', 214);
+      if (M) {
+        // the generated gallop: one stride a beat (the clip's stride is 0.5 s)
+        const i = M.index(lt, { rate: 0.5 / BEAT });
+        this.draw(f, M.layer(i), 0, M.place(228 + 14 * lt, 268), cam(240, 135, 1.05));
+      } else {
+        const Rw = this.fig('rowan', 200);
+        const g = onTwos(lt);
+        const y = 272 + bob(lt, 0.2, 6);
+        const rot = 0.035 * Math.sin((2 * Math.PI * g) / 0.2);
+        this.draw(f, Rw, 0, this.at(Rw, 226 + 14 * lt, y, 1, rot), cam(240, 135, 1.05), {
+          warp: wind(Rw, t, 2, 0.45),
+        });
+      }
       for (let i = 0; i < 4; i++)
         splash(f, W, H, 170, 266, t, at(39, 3) + i * 0.2, {
           count: 16,
@@ -675,8 +768,13 @@ export class Again extends Piece {
         color: RGB.graphite,
         width: 5,
       });
-      const Kl = this.fig('kira', 300);
-      this.draw(f, Kl, 0, this.at(Kl, 188, 392, 1), c, { warp: wind(Kl, t, 2.5, 0.5) });
+      const Mk = this.motion('kira_point', 300);
+      if (Mk)
+        this.draw(f, Mk.layer(Mk.index(lt, { mode: 'once', rate: 1.4 })), 0, Mk.place(196, 392), c);
+      else {
+        const Kl = this.fig('kira', 300);
+        this.draw(f, Kl, 0, this.at(Kl, 188, 392, 1), c, { warp: wind(Kl, t, 2.5, 0.5) });
+      }
     });
 
     // --- 40.3: the battle cry, a face a sixteenth ---------------------------------
@@ -733,24 +831,43 @@ export class Again extends Piece {
           this.at(A, 150 + 60 * lt + i * 40 - 120, 250 + bob(t + i * 0.13, BEAT, 3), 1, 0.04),
           cL,
         );
-      const E = this.fig('charge', 190);
-      this.draw(L, E, 0, this.at(E, 190 + 100 * lt, 270 + bob(t), 1, 0.05), cL, {
-        warp: wind(E, t, 2.5),
-      });
+      const Mr = this.motion('edric_run', 194);
+      if (Mr)
+        this.draw(L, Mr.layer(Mr.index(lt, { rate: 1.05 })), 0, Mr.place(190 + 100 * lt, 272), cL);
+      else {
+        const E = this.fig('charge', 190);
+        this.draw(L, E, 0, this.at(E, 190 + 100 * lt, 270 + bob(t), 1, 0.05), cL, {
+          warp: wind(E, t, 2.5),
+        });
+      }
       // theirs, marching left, in lockstep
       Rb.set(this.paper);
       const cR = cam(240 - 40 * lt - inL * -1, 135, z, 0);
       this.draw(Rb, this.L('stair'), 0, null, cR, { par: 0.5 });
-      const M = this.fig('march', 180, { flip: true });
-      const stomp = -Math.abs(Math.sin((Math.PI * onTwos(lt)) / BEAT)) * 2;
-      for (let i = 2; i >= 0; i--)
-        this.draw(
-          Rb,
-          M,
-          0,
-          this.at(M, 400 - 70 * lt + i * 56, 272 - i * 10 + stomp, 1 - i * 0.12),
-          cR,
-        );
+      const Mm = this.motion('march', 184);
+      if (Mm) {
+        // the drill: every soldier on the same drawing, a step a beat
+        const i = Mm.index(lt, { rate: Mm.n / 12 / (2 * BEAT) });
+        for (let k = 2; k >= 0; k--)
+          this.draw(
+            Rb,
+            Mm.layer(i),
+            0,
+            Mm.place(400 - 70 * lt + k * 56, 272 - k * 10, 1 - k * 0.12),
+            cR,
+          );
+      } else {
+        const M = this.fig('march', 180, { flip: true });
+        const stomp = -Math.abs(Math.sin((Math.PI * onTwos(lt)) / BEAT)) * 2;
+        for (let k = 2; k >= 0; k--)
+          this.draw(
+            Rb,
+            M,
+            0,
+            this.at(M, 400 - 70 * lt + k * 56, 272 - k * 10 + stomp, 1 - k * 0.12),
+            cR,
+          );
+      }
       const xt = 300;
       const xb = 196;
       copyPanel(
@@ -806,24 +923,36 @@ export class Again extends Piece {
         width: 7,
         aspect: 1.2,
       });
-      const push = 10 * smooth(at(42, 2.5), at(42, 2.8), t);
-      const E = this.fig('charge', 240);
-      this.draw(f, E, 0, this.at(E, 160 - push, 296, 1, 0.14), c, {
-        warp: wind(E, t, 3),
-        rim: { ...GOLD_RIM, dir: [1, -0.3], color: RGB.paperHi },
-      });
-      const M = this.fig('march', 250, { flip: true });
-      this.draw(f, M, 0, this.at(M, 334 + push, 300, 1, -0.1), c, {
-        rim: { ...GOLD_RIM, dir: [-1, -0.3], color: RGB.paperHi },
-      });
-      sparks(f, W, H, 246, 170, t, at(42), { count: 60, speed: 300, seed: 3 });
-      sparks(f, W, H, 246, 170, t, at(42, 2.5), { count: 30, speed: 220, seed: 4 });
+      let [kx, ky] = [246, 170];
+      const Mc = this.motion('clash', 262);
+      if (Mc) {
+        // the generated exchange: the lunge, blade on spear shaft, the strain
+        const i = Mc.index(lt, { mode: 'once', rate: 2.1 });
+        const xf = { x: 240, y: 290, ax: Mc.w * 0.53, ay: Mc.h, scale: 1 };
+        this.draw(f, Mc.layer(i), 0, xf, c, {
+          rim: { ...GOLD_RIM, dir: [0, -1], color: RGB.paperHi },
+        });
+        [kx, ky] = toScreen(xf, c, Mc.w * 0.53, Mc.h * 0.28);
+      } else {
+        const push = 10 * smooth(at(42, 2.5), at(42, 2.8), t);
+        const E = this.fig('charge', 240);
+        this.draw(f, E, 0, this.at(E, 160 - push, 296, 1, 0.14), c, {
+          warp: wind(E, t, 3),
+          rim: { ...GOLD_RIM, dir: [1, -0.3], color: RGB.paperHi },
+        });
+        const M = this.fig('march', 250, { flip: true });
+        this.draw(f, M, 0, this.at(M, 334 + push, 300, 1, -0.1), c, {
+          rim: { ...GOLD_RIM, dir: [-1, -0.3], color: RGB.paperHi },
+        });
+      }
+      sparks(f, W, H, kx, ky, t, at(42) + 0.12, { count: 60, speed: 300, seed: 3 });
+      sparks(f, W, H, kx, ky, t, at(42, 2.5), { count: 30, speed: 220, seed: 4 });
       // the shockwave
       const r = 300 * lt;
       if (lt < 0.25)
         for (let a = 0; a < 720; a++) {
           const th = (a / 720) * Math.PI * 2;
-          put(f, W, H, 246 + Math.cos(th) * r, 170 + Math.sin(th) * r * 0.6, RGB.paperHi);
+          put(f, W, H, kx + Math.cos(th) * r, ky + Math.sin(th) * r * 0.6, RGB.paperHi);
         }
       if (lt < 1 / 24) flash(f, W, H, 1);
       else if (lt < 3 / 24) impact(f, W, H, { mode: 'neg' });
@@ -851,12 +980,17 @@ export class Again extends Piece {
       hollowSunRays(f, W, H, 240, 112, r, t, 0.8);
       hollowSun(f, W, H, 240, 112, r, t, 1);
       ground(f, 238, RGB.ink, 5, 6);
-      const E = this.fig('standing', 196);
-      this.draw(f, E, 0, this.at(E, 240, 262, 1), cam(240, 135), {
-        silhouette: RGB.ink,
-        rim: { dir: [0, -1], w: 2, color: RGB.goldHi },
-        warp: wind(E, t, 2, 0.45),
-      });
+      const Mst = this.motion('edric_stand', 200);
+      const sil = { silhouette: RGB.ink, rim: { dir: [0, -1], w: 2, color: RGB.goldHi } };
+      if (Mst)
+        this.draw(f, Mst.layer(Mst.index(lt + 0.4)), 0, Mst.place(240, 262), cam(240, 135), sil);
+      else {
+        const E = this.fig('standing', 196);
+        this.draw(f, E, 0, this.at(E, 240, 262, 1), cam(240, 135), {
+          ...sil,
+          warp: wind(E, t, 2, 0.45),
+        });
+      }
     });
 
     // --- 43.3: struck; he falls in slow motion --------------------------------------
@@ -878,6 +1012,19 @@ export class Again extends Piece {
         len: 50,
       });
       ground(f, 244, RGB.ink, 5, 6);
+      const Mt = this.motion('edric_tumble', 214);
+      if (Mt) {
+        // the generated fall: he twists, arms flung out, and lands on his back just as
+        // the frame freezes
+        const i = Mt.index(lt, { mode: 'once', rate: Mt.n / Mt.meta.fps / 0.78 });
+        const xf = Mt.place(236, 264);
+        const c2 = cam(240 + sx, 135 + sy);
+        if (lt < 0.3) drawSmear(f, W, H, this.paper, Mt.layer(i), 0, xf, c2, {}, 6, -8, 3);
+        this.draw(f, Mt.layer(i), 0, xf, c2, { rim: { dir: [0.3, -1], w: 2, color: RGB.goldHi } });
+        slash(f, W, H, 380, 40, 110, 230, clamp(lt / (2 / 24)), 22, 7);
+        if (lt < 2 / 24) impact(f, W, H, { mode: 'neg', light: RGB.crimson });
+        return;
+      }
       const Fl = this.fig('falls', 200);
       const v = easeOut(lt / 0.8);
       // pivot at the waist, so he topples where he stood
@@ -926,8 +1073,20 @@ export class Again extends Piece {
       const c = cam(240, 135, 1 + 0.06 * (lt / (2 * BAR)), 0);
       const s = 3 * (1 - step(prog(t, at(45), at(45, 3)), 8));
       this.draw(f, this.L('hymn'), s, null, c);
-      const Sk = this.fig('seraKneel', 150, { tint: [0.84, 0.8, 0.96] });
-      this.draw(f, Sk, Math.max(0, s - 0.5), this.at(Sk, 240, 262, 1), c);
+      const Mk = this.motion('sera_kneel', 156, { tint: [0.84, 0.8, 0.96] });
+      let hand;
+      if (Mk) {
+        // the generated hymn: her hair and robe stir, and her hands rise to hold the thread
+        const i = Mk.index(lt, { mode: 'once', rate: Mk.n / Mk.meta.fps / (2 * BAR) });
+        const xf = Mk.place(240, 262);
+        this.draw(f, Mk.layer(i), Math.max(0, s - 0.5), xf, c);
+        const e = Mk.extreme(i, 'right', 0.3, 0.62) || [Mk.w * 0.6, Mk.h * 0.42];
+        hand = toScreen(xf, c, e[0] - 2, e[1]);
+      } else {
+        const Sk = this.fig('seraKneel', 150, { tint: [0.84, 0.8, 0.96] });
+        this.draw(f, Sk, Math.max(0, s - 0.5), this.at(Sk, 240, 262, 1), c);
+        hand = scr(240 + 0.1 * Sk.st.w, 262 - 0.58 * Sk.st.h, c);
+      }
       // the future's pages drift backwards past her
       CARDS.forEach(([name, st], i) => {
         const l = this.snapLayer(name, st, 70 + i);
@@ -942,7 +1101,7 @@ export class Again extends Piece {
       });
       drain(f, W, H, 0.45);
       // the thread, from her hands
-      const [hx, hy] = scr(240 + 0.1 * Sk.st.w, 262 - 0.58 * Sk.st.h, c);
+      const [hx, hy] = hand;
       const p = prog(t, at(45, 2), at(46, 3));
       threadPath(f, W, H, wavePts(hx, hy, -12, 96, t, 8, 1.2), p);
       threadPath(f, W, H, wavePts(hx, hy, 492, 74, t, 8, 1.3, 60, 1.5), p);
@@ -954,6 +1113,22 @@ export class Again extends Piece {
     shot('hands', at(47), at(49), (f, t) => {
       const lt = t - at(47);
       const c = cam(240, 135, 1 + 0.05 * (lt / (2 * BAR)), 0);
+      const Mh = this.motion('hands_mend', 270);
+      if (Mh) {
+        // the generated mend: the loose fibres knot and pull back into one strand, then
+        // the hands draw it taut; hold the whole thread and let the light build
+        const i = Mh.index(t - at(47, 2), {
+          mode: 'once',
+          rate: Mh.n / Mh.meta.fps / (at(48, 4) - at(47, 2)),
+        });
+        this.draw(f, Mh.layer(i), 0, Mh.fill(W, H), c);
+        drain(f, W, H, 0.3);
+        const taut = smooth(at(48, 3), at(48, 4.5), t);
+        glow(f, W, H, 240, 140, 40 + 170 * taut, 0.2 + 0.8 * taut);
+        if (taut > 0) star(f, W, H, 240, 140, 6 + 30 * taut, RGB.goldWhite);
+        flash(f, W, H, smooth(at(48, 4), at(49), t), RGB.goldWhite);
+        return;
+      }
       const s2 = 3 * step(prog(t, at(47, 3), at(48)), 8);
       const s1 = 3 * step(prog(t, at(48), at(48, 3)), 8);
       if (t < at(48, 3)) this.draw(f, this.L('hands1'), 0, null, c);
@@ -986,22 +1161,24 @@ export class Again extends Piece {
     });
 
     // --- 49: the rewind: the book riffles back to the camp --------------------------
+    // each page plays its shot BACKWARDS from this moment, faster page by page: Edric
+    // gets up from his falls and runs back, the snapped thread rejoins, the army
+    // un-gathers, and the book turns back to the camp
     const PAGES = [
-      ['hands', at(48, 2.5)],
-      ['stair', at(36, 2.4)],
-      ['fens', at(35, 3.4)],
-      ['bridge', at(34, 2.9)],
-      ['ford', at(33, 3.4)],
-      ['army', at(38)],
-      ['run', at(32, 2)],
-      ['fray', at(31, 3.6)],
-      ['eye', at(30, 4.5)],
-      ['hilt', at(30, 2)],
-      ['charge', at(29, 3)],
-      ['seraEyes', at(28, 2)],
+      ['hands', at(48, 3.5)],
+      ['stair', at(36, 4.5)],
+      ['fens', at(35, 4.5)],
+      ['bridge', at(34, 4.5)],
+      ['ford', at(33, 4.5)],
+      ['army', at(38, 4.5)],
+      ['run', at(32, 3.8)],
+      ['fray', at(31, 4.9)],
+      ['eye', at(30, 4.9)],
+      ['hilt', at(30, 2.9)],
+      ['charge', at(29, 4.9)],
+      ['seraEyes', at(28, 2.9)],
       ['camp', at(51)],
     ];
-    const CLOSE = new Set(['hands', 'fray', 'eye', 'hilt', 'seraEyes']);
     const SLOTS = [1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
     shot('rewind', at(49), at(51), (f, t) => {
       let t0 = at(49);
@@ -1009,19 +1186,31 @@ export class Again extends Piece {
       while (k < SLOTS.length - 1 && t >= t0 + SLOTS[k] * BEAT) t0 += SLOTS[k++] * BEAT;
       const dur = SLOTS[k] * BEAT;
       const u = (t - t0) / dur;
-      const page = (j, buf) => {
-        const [name, st] = PAGES[j];
-        const l = this.snapLayer(name, st, 80 + j, CLOSE.has(name)); // (may render a shot)
-        buf.set(this.paper);
-        this.draw(buf, l, name === 'camp' ? 0 : Math.min(1.3, j * 0.11));
+      // page j, `tau` s after it came up: its shot running in reverse, losing its paint
+      const page = (j, buf, tau) => {
+        const [name, ref] = PAGES[j];
+        const idx = this.shots.findIndex((sh) => sh.name === name);
+        const sh = this.shots[idx];
+        const rate = 1.2 + 0.4 * j;
+        const tt = name === 'camp' ? ref : Math.max(sh.from, ref - rate * Math.max(0, tau));
+        this.drawShot(buf, idx, tt);
+        if (name !== 'camp')
+          stripLive(
+            buf,
+            this.paper,
+            W,
+            H,
+            Math.min(0.9, 0.06 * j + 0.25 * clamp(tau / 0.8)),
+            7 + j,
+          );
       };
       const A = this.bufs[2];
       const B = this.bufs[3];
-      page(k, A);
+      page(k, A, t - t0);
       const jolt = t - t0 < 1 / 24 ? 2 : 0;
       if (u < 0.3) f.set(A);
       else {
-        page(k + 1, B);
+        page(k + 1, B, 0);
         pageTurn(f, A, B, W, H, easeInOut((u - 0.3) / 0.7), { dir: 'back', tilt: 0.28 });
       }
       if (jolt) f.copyWithin(0, W * 4 * jolt);
@@ -1035,7 +1224,11 @@ export class Again extends Piece {
     shot('inkin', at(52), at(53), (f, t) => {
       thread(f, W, H, -10, 490, 118, 10, t, 1, 0.3);
       const u = step(prog(t, at(52, 1.5), at(52, 4.5)), 6);
-      if (t >= at(52, 1.5)) this.draw(f, this.L('final'), 3 - 2 * u);
+      const Mf = this.motion('edric_looks_up', 270);
+      if (t >= at(52, 1.5)) {
+        if (Mf) this.draw(f, Mf.layer(0), 3 - 2 * u, Mf.fill(W, H));
+        else this.draw(f, this.L('final'), 3 - 2 * u);
+      }
     });
 
     // --- 53: full colour, on the downbeat: Edric looks up ---------------------------
@@ -1047,7 +1240,17 @@ export class Again extends Piece {
         1 + 0.04 * easeOut(lt / (2 * BAR)) + 0.03 * pulse(t, [at(53)], 0.2),
         0,
       );
-      this.draw(f, this.L('final'), 0, null, c);
+      const Mf = this.motion('edric_looks_up', 270);
+      // the generated shot: he lifts his eyes to the camera; firelight and embers move
+      if (Mf)
+        this.draw(
+          f,
+          Mf.layer(Mf.index(lt, { mode: 'once', rate: Mf.n / Mf.meta.fps / (2 * BAR) })),
+          0,
+          Mf.fill(W, H),
+          c,
+        );
+      else this.draw(f, this.L('final'), 0, null, c);
       fireLight(f, W, H, 240, 300, 170, 0.35, t);
       embers(f, W, H, 250, 285, t, { count: 45, spread: 260, rise: 42, period: 0.06, life: 4 });
       if (lt < 1 / 24) flash(f, W, H, 0.6);
@@ -1058,10 +1261,14 @@ export class Again extends Piece {
       this.draw(f, this.L('titleSky'), 0);
       const t0 = at(55);
       hollowSun(f, W, H, 330, 84, 38, t, smooth(t0, t0 + BEAT, t));
-      drawTitle(f, W, H, this.title, 158, 152, prog(t, at(55, 2), at(56, 1)));
-      const E = this.fig('standing', 290, { tint: [0.78, 0.74, 0.88] });
-      this.draw(f, E, 0, this.at(E, 78, 300, 1), null, { warp: wind(E, t, 1.5) });
-      thread(f, W, H, 158, 490, 204, 4, t, prog(t, at(56, 1), at(56, 4)), 1.2);
+      drawTitle(f, W, H, this.title, 172, 152, prog(t, at(55, 2), at(56, 1)));
+      const Ms = this.motion('edric_stand', 294, { tint: [0.78, 0.74, 0.88] });
+      if (Ms) this.draw(f, Ms.layer(Ms.index(t - at(55))), 0, Ms.place(62, 300));
+      else {
+        const E = this.fig('standing', 290, { tint: [0.78, 0.74, 0.88] });
+        this.draw(f, E, 0, this.at(E, 78, 300, 1), null, { warp: wind(E, t, 1.5) });
+      }
+      thread(f, W, H, 172, 490, 204, 4, t, prog(t, at(56, 1), at(56, 4)), 1.2);
     });
 
     return S;
@@ -1110,15 +1317,27 @@ export class Again extends Piece {
     const cs = cam(240 + sx, 135 + sy, 1 + (z - F.z), sr); // figures don't take the plate's build zoom
     if (t < hit) {
       const u = clamp((t - t0) / (hit - t0));
-      const E = this.fig('charge', 150);
-      const xf = this.at(
-        E,
-        lerp(x0, x1, u),
-        lerp(y0, y1, u) + bob(t, BEAT, 3),
-        lerp(s0, s1, u),
-        0.05,
-      );
-      this.draw(f, E, 0, xf, cs, { warp: wind(E, t, 2) });
+      const Mr = this.motion('edric_run', 152);
+      if (Mr) {
+        const i = Mr.index(lt + F.bar * 0.13, { rate: 1.05 });
+        this.draw(
+          f,
+          Mr.layer(i),
+          0,
+          Mr.place(lerp(x0, x1, u), lerp(y0, y1, u) + 2, lerp(s0, s1, u), 0.02),
+          cs,
+        );
+      } else {
+        const E = this.fig('charge', 150);
+        const xf = this.at(
+          E,
+          lerp(x0, x1, u),
+          lerp(y0, y1, u) + bob(t, BEAT, 3),
+          lerp(s0, s1, u),
+          0.05,
+        );
+        this.draw(f, E, 0, xf, cs, { warp: wind(E, t, 2) });
+      }
       if (F.fx === 'water')
         for (let i = 0; i < 4; i++)
           splash(
@@ -1133,11 +1352,20 @@ export class Again extends Piece {
           );
     } else {
       const v = t - hit;
-      const k = easeOut(v / 0.9);
-      const Fl = this.fig('falls', 150);
-      const xf = this.at(Fl, x1 - 28 * k, y1 + 6 * k, s1, -0.7 * k);
-      if (v < 0.25) drawSmear(f, W, H, this.paper, Fl, 0, xf, cs, {}, -8, 5, 3);
-      this.draw(f, Fl, 0, xf, cs);
+      const Mf = this.motion('edric_fall', 156);
+      if (Mf) {
+        // the generated fall: he staggers, his legs go, he drops to his knees
+        const i = Mf.index(v, { mode: 'once', rate: 2.2 });
+        const xf = Mf.place(x1 - 6, y1 + 2, s1);
+        if (v < 0.2) drawSmear(f, W, H, this.paper, Mf.layer(i), 0, xf, cs, {}, -8, 4, 3);
+        this.draw(f, Mf.layer(i), 0, xf, cs);
+      } else {
+        const k = easeOut(v / 0.9);
+        const Fl = this.fig('falls', 150);
+        const xf = this.at(Fl, x1 - 28 * k, y1 + 6 * k, s1, -0.7 * k);
+        if (v < 0.25) drawSmear(f, W, H, this.paper, Fl, 0, xf, cs, {}, -8, 5, 3);
+        this.draw(f, Fl, 0, xf, cs);
+      }
       slash(f, W, H, x1 + 120, y1 - 190 * s1, x1 - 90, y1 - 10, clamp(v / (2 / 24)), 18, F.bar);
       if (F.fx === 'water')
         splash(f, W, H, x1 - 30, y1, t, hit + 0.45, { count: 60, speed: 160, seed: F.bar * 3 });

@@ -1,0 +1,194 @@
+{
+  "rowan_gallop": {
+    "cutout": "rowan.webp",
+    "place": {
+      "h": 0.82,
+      "x": 0.5,
+      "y": 0.95
+    },
+    "duration": 5,
+    "prompt": "2D hand-drawn anime animation. The rider on the brown horse gallops at full speed toward the right, in place: the camera tracks alongside at the same speed, so horse and rider stay centred in the frame for the whole clip. A clear, strong gallop cycle: the legs reach and gather, hooves lift high, the horse's back and head rise and fall with each stride, the mane and tail stream back in the wind, the rider's cream cape flutters behind him and he rides the motion with the long spear held upright. Keep exactly the art style of the first frame: fine sepia ink lines and soft watercolour, the same character design and colours. The background stays a flat, uniform pure green (#00FF00) the whole time: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  },
+  "edric_run": {
+    "cutout": "edric_charge.webp",
+    "place": {
+      "h": 0.8,
+      "x": 0.5,
+      "y": 0.95
+    },
+    "duration": 5,
+    "prompt": "The young swordsman sprints at full speed toward the right, in place: the camera tracks alongside at his speed, so he stays centred the whole clip. A strong, clear running cycle: legs driving, knees high, the free arm pumping, the longsword held low in his right hand trailing back, body leaning forward, the teal cloak streaming and snapping behind him, shaggy hair bouncing, a fierce determined face. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  },
+  "sera_run": {
+    "cutout": "sera_run.webp",
+    "place": {
+      "h": 0.82,
+      "x": 0.5,
+      "y": 0.95
+    },
+    "duration": 5,
+    "prompt": "The red-haired seer runs desperately toward the right, in place: the camera tracks alongside so she stays centred. A clear running cycle, her right hand reaching forward for something just out of reach, the long wavy crimson hair, the wide purple sleeves and the long robe streaming back in the wind. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  },
+  "astrid_fly": {
+    "cutout": "astrid.webp",
+    "place": {
+      "h": 0.62,
+      "x": 0.5,
+      "y": 0.82
+    },
+    "duration": 5,
+    "prompt": "The blonde knight rides her white pegasus, flying toward the right, in place: the camera flies alongside so they stay centred. Big, powerful wingbeats, full strokes up and down, the pegasus legs tucked, mane and tail streaming, the rider leaning forward with her spear and her blue scarf whipping back. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  },
+  "march": {
+    "cutout": "empire_soldier_march.webp",
+    "flip": true,
+    "place": {
+      "h": 0.82,
+      "x": 0.5,
+      "y": 0.95
+    },
+    "duration": 5,
+    "prompt": "The armoured imperial soldier marches toward the left in a heavy, mechanical drill step, in place: the camera tracks alongside so he stays centred. Each step stamps down hard, the spear held upright and perfectly still, the crimson cape swinging with each step, the black helmet facing forward, no expression. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  },
+  "edric_fall": {
+    "cutout": "edric_charge.webp",
+    "place": {
+      "h": 0.78,
+      "x": 0.45,
+      "y": 0.95
+    },
+    "last": {
+      "cutout": "edric_collapse.webp",
+      "place": {
+        "h": 0.64,
+        "x": 0.5,
+        "y": 0.95
+      }
+    },
+    "duration": 5,
+    "prompt": "The young swordsman is struck hard from the front by an unseen blow: he recoils, staggers back, his legs give way, and he falls to his knees with his sword planted in the ground, head bowed, cloak settling around him. Dramatic, weighty, readable motion. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  },
+  "edric_tumble": {
+    "cutout": "edric_falls.webp",
+    "place": {
+      "h": 0.72,
+      "x": 0.5,
+      "y": 0.88
+    },
+    "duration": 5,
+    "prompt": "In slow motion, the young swordsman, already struck, twists and falls backward, arms flung out, sword slipping from his hand, the teal cloak billowing up around him, hair lifting, his face in shock, until he lands on his back. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  },
+  "kira_point": {
+    "cutout": "kira.webp",
+    "place": {
+      "h": 0.86,
+      "x": 0.45,
+      "y": 0.96
+    },
+    "duration": 4,
+    "prompt": "The silver-haired commander thrusts one arm forward and points ahead with authority, holding the point; the long coat tails whip in a strong wind, the ponytail and loose hair blow, a small step forward. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  },
+  "sera_kneel": {
+    "cutout": "sera_hymn_kneel.webp",
+    "place": {
+      "h": 0.84,
+      "x": 0.5,
+      "y": 0.96
+    },
+    "duration": 6,
+    "prompt": "The red-haired seer kneels, eyes half closed, singing softly. Slow and still: her long crimson hair and the purple robe stir gently in a slow wind, and she slowly raises both hands in front of her chest as if holding one fine thread between her fingertips. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  },
+  "hands_mend": {
+    "image": "docs/art-direction/anime-op/refs/b29_sera_hands_fray_strip.webp",
+    "crop": [0.6667, 0.171, 0.3333, 0.281],
+    "last": {
+      "image": "docs/art-direction/anime-op/refs/b29_sera_hands_fray_strip.webp",
+      "crop": [0.0, 0.171, 0.3333, 0.281]
+    },
+    "duration": 5,
+    "prompt": "Close-up of two hands holding a single golden thread. The frayed, unravelling thread slowly mends itself: the loose golden fibres draw back together and twist into one whole strand, and the hands pull it taut. Dark purple background. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The camera is locked off: no cuts, no zoom, no pan, no text."
+  },
+  "edric_looks_up": {
+    "image": "docs/art-direction/anime-op/refs/b53_edric_final_frame_v2.webp",
+    "crop": [0, 0.0781, 1, 0.8438],
+    "duration": 5,
+    "prompt": "By the campfire at night, the young man slowly lifts his eyes and looks straight into the camera with a faint, determined smile. Warm firelight flickers across his face, embers drift up past him, his hair stirs slightly. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The camera is locked off: no cuts, no zoom, no pan, no text."
+  },
+  "sera_eyes": {
+    "image": "docs/art-direction/anime-op/refs/b21_sera_eyes.webp",
+    "crop": [0, 0.0781, 1, 0.8438],
+    "duration": 4,
+    "prompt": "Extreme close-up of the woman's eyes. Her eyes widen sharply in alarm, the irises contract, a faint golden glint crosses them, then one slow blink; strands of red hair move slightly in the wind. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The camera is locked off: no cuts, no zoom, no pan, no text."
+  },
+  "clash": {
+    "layers": [
+      {
+        "cutout": "edric_charge.webp",
+        "place": {
+          "h": 0.8,
+          "x": 0.33,
+          "y": 0.96
+        }
+      },
+      {
+        "cutout": "empire_soldier_march.webp",
+        "flip": true,
+        "place": {
+          "h": 0.84,
+          "x": 0.68,
+          "y": 0.97
+        }
+      }
+    ],
+    "duration": 5,
+    "prompt": "The young swordsman on the left lunges and clashes with the armoured imperial soldier on the right: sword meets spear shaft in the centre, they strain against each other, the swordsman is pushed back a step, then drives forward again. Weighty, readable action, cloaks and capes whipping. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  },
+  "army_ready": {
+    "layers": [
+      {
+        "cutout": "voss.webp",
+        "place": {
+          "h": 0.8,
+          "x": 0.43,
+          "y": 0.95
+        }
+      },
+      {
+        "cutout": "cael.webp",
+        "place": {
+          "h": 0.82,
+          "x": 0.25,
+          "y": 0.96
+        }
+      },
+      {
+        "cutout": "sera.webp",
+        "place": {
+          "h": 0.78,
+          "x": 0.61,
+          "y": 0.96
+        }
+      },
+      {
+        "cutout": "kira.webp",
+        "place": {
+          "h": 0.82,
+          "x": 0.08,
+          "y": 0.96
+        }
+      }
+    ],
+    "duration": 5,
+    "prompt": "Four companions stand in a row at dawn, ready for battle, all facing right. Small living movements only: breathing, shifting weight, cloaks, capes and hair moving in a steady wind, the archer checks his bow, the armoured man tightens his grip on his axe, the seer's red hair blows. They stay in place. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  },
+  "edric_stand": {
+    "cutout": "edric_standing.webp",
+    "place": {
+      "h": 0.86,
+      "x": 0.5,
+      "y": 0.96
+    },
+    "duration": 5,
+    "prompt": "The young swordsman stands still, sword low, and slowly raises his head to look up toward the sky ahead, resolved. The teal cloak and his shaggy hair move in a steady wind. Small breathing movement. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  }
+}

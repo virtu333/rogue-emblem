@@ -1,0 +1,13 @@
+{
+  "name": "astrid_fly",
+  "frames": 9,
+  "cols": 7,
+  "cell": [513, 360],
+  "fps": 12,
+  "loop": true,
+  "source": "References/cutscene/unwritten/clips/astrid_fly.mp4",
+  "range": [0.4, 5.0],
+  "cycle": [38, 47],
+  "plate": false,
+  "anchor": [303.5, 315.0]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "sera_kneel",
+  "frames": 36,
+  "cols": 22,
+  "cell": [182, 260],
+  "fps": 6.0,
+  "loop": false,
+  "source": "References/cutscene/unwritten/clips/sera_kneel.mp4",
+  "range": [0.0, 6.0],
+  "cycle": null,
+  "plate": false,
+  "anchor": [91.8, 257.0]
+}

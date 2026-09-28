@@ -24,4 +24,6 @@ git show origin/claude/anime-op-broken-sun:public/assets/audio/music/music_battl
   > References/cutscene/unwritten/broken_sun.mp3
 ```
 
-The files are listed in [ENGINE.md](ENGINE.md#files).
+Generated motion (MiniMax H3 clips of our cut-outs) is described in
+[ENGINE.md](ENGINE.md#motion-generated-clips-enginemotionjs-motion). The files are listed in
+[ENGINE.md](ENGINE.md#files).

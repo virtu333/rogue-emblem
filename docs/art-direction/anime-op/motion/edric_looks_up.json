@@ -1,0 +1,13 @@
+{
+  "name": "edric_looks_up",
+  "frames": 31,
+  "cols": 8,
+  "cell": [473, 270],
+  "fps": 6.0,
+  "loop": false,
+  "source": "References/cutscene/unwritten/clips/edric_looks_up.mp4",
+  "range": [0, null],
+  "cycle": null,
+  "plate": true,
+  "anchor": [236.0, 269.0]
+}

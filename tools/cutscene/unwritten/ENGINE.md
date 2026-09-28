@@ -33,7 +33,9 @@ smoothing.
 | `engine/fx.js` | The first effects: firelight, embers, the sine thread, the Hollow Sun, the drain to unlight, Cinzel titles. |
 | `engine/transitions.js` | Two frames into one: page turn (forward and back), ink blot, burning ring, the page cracking into shards, manga panels. |
 | `engine/score.js` | "Under the Broken Sun" as events, transcribed from its score: every kick, snare, crash, the bar-28 roll, and the choir's tune. `T(bar, beat)`, `hitsIn`, `pulse`. |
-| `engine/piece.js` | `Piece`: loads images, builds and caches layers (`plate`, `figure`), snapshots, the shot timeline with transitions, and the render entry point. |
+| `engine/piece.js` | `Piece`: loads images and motion clips, builds and caches layers (`plate`, `figure`, `motion`), snapshots, the shot timeline with transitions, and the render entry point. |
+| `engine/motion.js` | `Motion`: a generated clip as drawings with their own paint stages; playback modes, placement, and body points for effects. |
+| `motion/` | The clip pipeline: `jobs.json` (what to generate), `minimax.mjs` (MiniMax H3), `clip.py` (key, stabilise, loop, pack). |
 | `engine/palette.js` | The ramps, a skin ramp for people only, and the ordered-dither snap. |
 | `again.js` | "Again", bars 28–56 of the opening (46.4 s, 29 shots). |
 | `proof.js` | The first proof, bars 47–56 (kept as a reference; uses the older `drawLayer`). |
@@ -151,6 +153,63 @@ hymn, the falls' ghosts and the frozen frame that cracks are all snapshots.
 
 **Scratch buffers:** a shot that composes in passes (panels) uses `this.scratch(name)`,
 never the shared `bufs`, because a snapshot can render it while another shot holds those.
+
+## Motion: generated clips (`engine/motion.js`, `motion/`)
+
+Stills moved by code look like puppets. Real motion (a gallop, a run, a fall, wings, hair
+in wind) comes from a video model, **MiniMax H3** (image to video), fed our own cut-outs
+so every character stays on-model. The engine then treats each generated drawing like
+any painting: paint stages, the palette snap, the rewind.
+
+```sh
+node tools/cutscene/unwritten/motion/minimax.mjs rowan_gallop        # generate (jobs.json)
+python3 tools/cutscene/unwritten/motion/clip.py rowan_gallop --from 1.4 --to 5.1 --loop
+```
+
+1. **`motion/jobs.json`**: one entry per clip. `cutout` (on flat green, placed by
+   `place`), or `layers` (several cut-outs in one frame, e.g. a clash), or `image` +
+   `crop` (a painting, for a close-up clip with no key). `last` gives an end pose: H3
+   animates between two of our drawings (Edric's charge into his collapse). The prompt
+   always asks for the first frame's style and a flat green background that stays.
+2. **`motion/minimax.mjs`** pads the first frame to 1280×720, submits, polls (retrying
+   through network drops), downloads to `References/cutscene/unwritten/clips/`, and logs
+   the cost of every submission in `clips/spend.jsonl`. Needs `MINIMAX_API_KEY` in
+   `.env`. H3 at 768P is $0.08 a second.
+3. **`motion/clip.py`** keys the green, pins the body in place (`--stabilise body`, so a
+   runner runs on the spot while the legs swing), finds the best seamless cycle
+   (`--loop`), crops, and packs the drawings into
+   `docs/art-direction/anime-op/motion/<name>.webp` + `.json`. `--plate` is for a
+   painted clip (no key). Sample at 12 fps (anime drawings are on twos), or lower for slow
+   clips; keep each atlas to the part its shot uses, for the size budget.
+4. **In a shot:**
+
+```js
+const M = this.motion('rowan_gallop', 214);                  // null if not made yet
+const i = M.index(lt, { rate: 0.5 / BEAT });                 // a stride a beat
+this.draw(f, M.layer(i), 0, M.place(228, 268), c);            // feet on the ground
+const hand = M.extreme(i, 'right', 0.15, 0.55);              // for effects on the body
+```
+
+`index` modes: `loop`, `once` (hold the last drawing), `pingpong`, `reverse`. `rate`
+retimes a clip to the music (a stride a beat, a mend that ends on a downbeat). `fill` places
+a painted clip over the frame. Every shot keeps its still cut-out as a fallback.
+
+**Clips that exist** (Sep 2026, $6 total): Rowan's gallop, Edric's run, fall to his
+knees, tumble onto his back and standing in the wind, Sera's run and hymn, Astrid's
+wingbeat, the Empire's drill step, Kira's point, the clash, the four on foot at dawn,
+Sera's hands mending the thread, her eyes widening, Edric looking up by the fire.
+
+**What to watch in a generated clip:** the model wanders (Edric's fall stood up and turned
+before collapsing: use only the part you need); it may zoom (take the cycle from before
+the zoom); wings and weapons can leave the frame (give them room in `place`).
+
+## Time running backwards (the rewind)
+
+Every shot is a pure function of time, so the rewind plays them **backwards**: each page
+of the riffle draws its shot at `ref - rate * tau`, faster page by page, while
+`stripLive` (anime.js) lifts its paint in patches (only the dark edges stay, as ink, then
+as pencil). Edric gets up from his falls and runs back, the snapped thread rejoins, and
+the book turns back to the camp.
 
 ## People and the palette
 
