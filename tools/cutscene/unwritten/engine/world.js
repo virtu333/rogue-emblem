@@ -336,10 +336,8 @@ function sampMip(m, u, v, lod) {
   return a + (b - a) * f;
 }
 
-let WX = 0;
-let WZ = 0;
-let WH = 0;
-/** Bilinear sample of the interleaved wave texture: sets WX, WZ (slope), WH (height). */
+const WS = new Float64Array(3);
+/** Bilinear sample of the interleaved wave texture into WS: slope x, slope z, height. */
 function sampWave(d, N, u, v) {
   const x = Math.floor(u);
   const y = Math.floor(v);
@@ -358,9 +356,9 @@ function sampWave(d, N, u, v) {
   const wb = fx * (1 - fy);
   const wc = (1 - fx) * fy;
   const we = fx * fy;
-  WX = d[a] * wa + d[b] * wb + d[c] * wc + d[e] * we;
-  WZ = d[a + 1] * wa + d[b + 1] * wb + d[c + 1] * wc + d[e + 1] * we;
-  WH = d[a + 2] * wa + d[b + 2] * wb + d[c + 2] * wc + d[e + 2] * we;
+  WS[0] = d[a] * wa + d[b] * wb + d[c] * wc + d[e] * we;
+  WS[1] = d[a + 1] * wa + d[b + 1] * wb + d[c + 1] * wc + d[e + 1] * we;
+  WS[2] = d[a + 2] * wa + d[b + 2] * wb + d[c + 2] * wc + d[e + 2] * we;
 }
 
 let TEX = null;
@@ -573,7 +571,9 @@ function makeStones(seed) {
     const s = 0.22 + hash(i, 3, seed) ** 2 * 0.55;
     S.push({
       Z,
-      u: edge ? (side < 0.22 ? -1 : 1) * (0.93 + hash(i, 4, seed) * 0.12) : hash(i, 4, seed) * 1.7 - 0.85,
+      u: edge
+        ? (side < 0.22 ? -1 : 1) * (0.93 + hash(i, 4, seed) * 0.12)
+        : hash(i, 4, seed) * 1.7 - 0.85,
       a: s * (1 + hash(i, 5, seed) * 0.5),
       c: s * (0.8 + hash(i, 6, seed) * 0.4),
       top: 0.05 + hash(i, 7, seed) * 0.22 * (s / 0.5),
@@ -704,6 +704,20 @@ export class World {
     return Math.max(0, -this.groundY(X, Z));
   }
 
+  /**
+   * The ground or water under screen point (sx, sy) through camera cam:
+   * { X, Y, Z, water } or null (sky).
+   */
+  pick(cam, sx, sy) {
+    const [dx, dy, dz] = unproject(cam, sx, sy, this.W, this.H);
+    this.hitGround(cam.x, cam.y, cam.z, dx, dy, dz);
+    if (!(this._ht < Infinity)) return null;
+    const X = this._hx;
+    const Z = this._hz;
+    const water = this._htype === 1;
+    return { X, Y: water ? 0 : this.groundY(X, Z), Z, water };
+  }
+
   /** Signed distance outside the water (m): negative in the river, positive on a bank. */
   outside(X, Z) {
     this.edges(Z);
@@ -730,20 +744,32 @@ export class World {
     };
   }
 
-  /** Stones by 4 m cell (X -64..64, Z -64..128), for the water's foam and wakes. */
+  /**
+   * Stones by 4 m cell (X -64..64, Z -64..128), for the water's foam and wakes, packed
+   * flat: sgrid[k] is an offset into sidx (count first), sdat holds X, Z, a, c.
+   */
   buildStoneGrid() {
-    this.sgrid = new Array(32 * 48).fill(null);
-    for (const s of this.stones) {
+    const lists = Array.from({ length: 32 * 48 }, () => []);
+    this.sdat = new Float32Array(this.stones.length * 4);
+    this.stones.forEach((s, n) => {
+      this.sdat.set([s.X, s.Z, s.a, s.c], n * 4);
       const r = Math.max(s.a, s.c);
       for (let gz = Math.floor((s.Z - 5.5) / 4); gz <= Math.floor((s.Z + r + 0.6) / 4); gz++)
         for (let gx = Math.floor((s.X - r - 2) / 4); gx <= Math.floor((s.X + r + 2) / 4); gx++) {
           const cx = gx + 16;
           const cz = gz + 16;
           if (cx < 0 || cz < 0 || cx >= 32 || cz >= 48) continue;
-          const k = cz * 32 + cx;
-          (this.sgrid[k] ||= []).push(s);
+          lists[cz * 32 + cx].push(n);
         }
-    }
+    });
+    this.sgrid = new Int32Array(32 * 48).fill(-1);
+    const idx = [];
+    lists.forEach((l, k) => {
+      if (!l.length) return;
+      this.sgrid[k] = idx.length;
+      idx.push(l.length, ...l);
+    });
+    this.sidx = new Int16Array(idx);
   }
 
   /** Reed clumps on the banks and in the shallows, packed into typed arrays. */
@@ -823,6 +849,39 @@ export class World {
     let bz = 0;
     let zg = oz + dz * 20;
     let xa = ox; // where the ray comes down through the bank height
+    if (dy < -1e-7 && oy > BH) {
+      // the common case first: straight down onto open water
+      const t0 = -oy / dy;
+      const x0 = ox + dx * t0;
+      const z0 = oz + dz * t0;
+      this.edges(z0);
+      const x1 = ox + (dx * (BH - oy)) / dy;
+      if (
+        x0 > this._el + 0.05 &&
+        x0 < this._er - 0.05 &&
+        x1 > this._el + 0.05 &&
+        x1 < this._er - 0.05
+      ) {
+        this._ht = t0;
+        this._hx = x0;
+        this._hz = z0;
+        this._htype = 1;
+        return;
+      }
+    } else if (dy > 1e-7 && oy < BH) {
+      // looking up from below the bank tops: only a bank reached before the ray climbs
+      // past their height can be hit
+      const tb = (BH - oy) / dy;
+      const xb = ox + dx * tb;
+      this.edges(oz + dz * tb * 0.5);
+      const lo = Math.min(ox, xb);
+      const hi = Math.max(ox, xb);
+      if (lo > this._el + 0.02 && hi < this._er - 0.02) {
+        this._ht = Infinity;
+        this._htype = 0;
+        return;
+      }
+    }
     if (dy < -1e-7) {
       if (oy > BH) {
         const t1 = (BH - oy) / dy;
@@ -900,7 +959,7 @@ export class World {
    * curtain in the way, returns 0 (the caller shades ground). Else writes the wash colour
    * into out and returns the id; this._bt is the distance along the ray.
    */
-  bg(ox, oy, oz, dx, dy, dz, thg, mt, t, out) {
+  bg(ox, oy, oz, dx, dy, dz, thg, mt, t, out, mirror = false) {
     const hl = Math.sqrt(dx * dx + dz * dz) + 1e-9;
     const ux = dx / hl;
     const uz = dz / hl;
@@ -970,11 +1029,17 @@ export class World {
     if (dy > 0.004) {
       const tc = (this.cloudH - oy) / dy;
       const T = this.cloudTexel;
-      const cu = (ox + dx * tc + this.cloudWX * t) / T;
-      const cv = (oz + dz * tc + this.cloudWZ * t) / T;
-      const fp = tc / (this.F * Math.sqrt(dy));
-      const lod = Math.log2(fp / T + 1e-6) + 0.3;
-      const dens = sampMip(this.tex.cloud, cu, cv, lod);
+      const cu = (ox + dx * tc + this.cloudWX * t + this.cloudOX) / T;
+      const cv = (oz + dz * tc + this.cloudWZ * t + this.cloudOZ) / T;
+      let dens;
+      if (mirror) {
+        // seen in the water it is broken up anyway: one mip level is enough
+        const m = this.tex.cloud[2];
+        dens = samp(m.d, m.N, cu * 0.25, cv * 0.25);
+      } else {
+        const fp = tc / (this.F * Math.sqrt(dy));
+        dens = sampMip(this.tex.cloud, cu, cv, Math.log2(fp / T + 1e-6) + 0.3);
+      }
       const hk = smooth(0.012, 0.16, dy);
       const th1 = this.cloudTh;
       const th2 = th1 + 0.1;
@@ -1039,7 +1104,6 @@ export class World {
   render(frame, t, cam, o = {}) {
     const W = this.W;
     const H = this.H;
-    const N = this.N;
     const paper = this.paper;
     const stage = Math.max(0, o.stage ?? 0);
     this.last = { cam, t };
@@ -1060,6 +1124,8 @@ export class World {
     this.cloudTh = 0.72 - cov * 0.36;
     this.cloudWX = 22;
     this.cloudWZ = -9;
+    this.cloudOX = o.cloudOffset?.[0] ?? 2600;
+    this.cloudOZ = o.cloudOffset?.[1] ?? 900;
     this.rain = o.rain ?? 0.6;
     this.impulses = o.impulses || [];
     // drifting mist heights around each ridge circle
@@ -1158,10 +1224,12 @@ export class World {
     const { W, H } = this;
     // the sun's patch in the reflection image
     const z = s[0] * B.fx - s[1] * B.fy + s[2] * B.fz;
+    this.reflSunBox = null;
     if (z > 0.05) {
       const px = B.cx + ((s[0] * B.rx - s[1] * B.ry + s[2] * B.rz) * B.F) / z;
       const py = B.cy - ((s[0] * B.ux - s[1] * B.uy + s[2] * B.uz) * B.F) / z;
       const R = (B.F * Math.tan(this.sun.r)) / z + 10;
+      this.reflSunBox = [px - R, py - R, px + R, py + R];
       for (let y = Math.max(0, Math.floor(py - R)); y <= Math.min(H - 1, py + R); y++)
         for (let x = Math.max(0, Math.floor(px - R)); x <= Math.min(W - 1, px + R); x++)
           this.reflAt(y * W + x, t);
@@ -1185,7 +1253,19 @@ export class World {
       return;
     }
     const out = this.bgOut;
-    const id = this.bg(B.ox, -B.oy, B.oz, this.rdx[j], -dy, this.rdz[j], Infinity, this.mtMirror, t, out);
+    const id = this.bg(
+      B.ox,
+      -B.oy,
+      B.oz,
+      this.rdx[j],
+      -dy,
+      this.rdz[j],
+      Infinity,
+      this.mtMirror,
+      t,
+      out,
+      true,
+    );
     refl[o] = out[0];
     refl[o + 1] = out[1];
     refl[o + 2] = out[2];
@@ -1227,8 +1307,9 @@ export class World {
         if (id !== ID_SKY && id !== ID_THIN && id !== ID_THICK) continue;
         const o = i * 4;
         let a = 1;
-        // clouds pass in front of the sun, but never hide it
-        if (!mirror) a = 1 - this.cloudA[i] * 0.75;
+        // clouds drift across its corona; the disc and the ring always read
+        const d2 = (x - px) * (x - px) + (y - py) * (y - py);
+        if (!mirror && d2 > (r + 1.6) * (r + 1.6)) a = 1 - this.cloudA[i] * 0.6;
         buf[o] = tmp[o] * a + this.cloudC[o] * (1 - a);
         buf[o + 1] = tmp[o + 1] * a + this.cloudC[o + 1] * (1 - a);
         buf[o + 2] = tmp[o + 2] * a + this.cloudC[o + 2] * (1 - a);
@@ -1399,27 +1480,27 @@ export class World {
     if (w0 > 0) {
       if (w0 > 1) w0 = 1;
       sampWave(wv, M, X / 0.28 + 11, zf / 0.28 + 0.1 * t);
-      gx += WX * w0;
-      gz += WZ * w0;
+      gx += WS[0] * w0;
+      gz += WS[1] * w0;
     }
     let w1 = (0.8 * ip - 1.5) * 0.2857;
     if (w1 > 0) {
       if (w1 > 1) w1 = 1;
       sampWave(wv, M, X / 0.075, zf / 0.075 + 0.3 * t);
-      gx += WX * w1 * 0.55;
-      gz += WZ * w1 * 0.55;
-      hv = WH;
-      g1 = Math.sqrt(WX * WX + WZ * WZ);
+      gx += WS[0] * w1 * 0.55;
+      gz += WS[1] * w1 * 0.55;
+      hv = WS[2];
+      g1 = Math.sqrt(WS[0] * WS[0] + WS[1] * WS[1]);
     } else w1 = 0;
     let w2 = (0.28 * ip - 1.5) * 0.2857;
     if (w2 > 0) {
       if (w2 > 1) w2 = 1;
       w2 *= 0.3;
       sampWave(wv, M, X / 0.026 + 37, (zf * 1.3) / 0.026 - 0.9 * t);
-      gx += WX * w2;
-      gz += WZ * w2;
-      hv2 = WH;
-      g2 = Math.sqrt(WX * WX + WZ * WZ);
+      gx += WS[0] * w2;
+      gz += WS[1] * w2;
+      hv2 = WS[2];
+      g2 = Math.sqrt(WS[0] * WS[0] + WS[1] * WS[1]);
     }
     // slope -> screen displacement of the reflection: along the view it stretches the
     // image vertically (the glitter path), across it shifts it a little sideways
@@ -1459,6 +1540,12 @@ export class World {
     else if (sx >= W) sx = W - 1;
     if (sy < 0) sy = 0;
     else if (sy >= H) sy = H - 1;
+    const sb = this.reflSunBox;
+    if (!sb || sx < sb[0] || sx > sb[2] || sy < sb[1] || sy > sb[3]) {
+      // the waves break the mirrored sky up anyway: look it up on a 2x2 grid
+      sx &= ~1;
+      sy &= ~1;
+    }
     let j = sy * W + sx;
     if (this.rdy[j] > -0.0005) j = i; // displaced out of the reflection: stay put
     this.reflAt(j, t);
@@ -1468,7 +1555,8 @@ export class World {
     let rg = this.refl[ro + 1] * 0.95;
     let rb = this.refl[ro + 2];
     let glint = 0;
-    if (rr - rb > 60 && rr > 126) glint = 1; // the gold ring
+    if (rr - rb > 60 && rr > 126)
+      glint = 1; // the gold ring
     else if (rr < 24 && rg < 24 && rb < 30) glint = 2; // its black disc
     // the banks seen in the water near the edges (along the displaced ray: broken too)
     const el = this.gEL[i];
@@ -1496,7 +1584,8 @@ export class World {
     let br = BED[0];
     let bg = BED[1];
     let bb = BED[2];
-    if (fpL < 0.3) {
+    const ad0 = -dy;
+    if (fpL < 0.3 && ad0 > 0.25) {
       // rock shelves and pebbles, seen through the moving surface
       const g0 = T.ground[0];
       const bx = X + gx * 0.08;
@@ -1549,7 +1638,10 @@ export class World {
         ? Math.max(0.01, 0.6 * g2 * (fpL / 0.026))
         : Math.max(0.012, 0.75 * g1 * (fpL / 0.075));
       const dh = (fine ? hv2 : hv) - 0.7;
-      if (dh < band && dh > -band && (fine || samp(T.streak, M, X / 0.02 + 5, zf / 0.2) > 0.45)) {
+      const gate = fine
+        ? samp(T.streak, M, X / 0.012 + 5, zf / 0.03)
+        : samp(T.streak, M, X / 0.02 + 5, zf / 0.2);
+      if (dh < band && dh > -band && gate > (fine ? 0.5 : 0.45)) {
         // near ripples are drawn strokes too (they stay, thinly, in the line stage)
         if (gt < 14) this.line[i] = 0.35 * w1;
         const k = 0.5 * w1;
@@ -1570,22 +1662,34 @@ export class World {
     // stones: a broken foam collar, a pillow upstream, a wake downstream
     const gcx = Math.floor(X / 4) + 16;
     const gcz = Math.floor(Z / 4) + 16;
-    const cell = gcx >= 0 && gcz >= 0 && gcx < 32 && gcz < 48 ? this.sgrid[gcz * 32 + gcx] : null;
-    if (cell && gt < 90) {
-      for (let k = 0; k < cell.length; k++) {
-        const s = cell[k];
-        const ddx = X - s.X;
-        const ddz = Z - s.Z;
-        if (ddz > s.c * 1.4 || ddz < -s.c - 5 || Math.abs(ddx) > s.a * 1.8 + 0.3 - ddz * 0.2) continue;
-        const e = Math.sqrt((ddx / s.a) * (ddx / s.a) + (ddz / s.c) * (ddz / s.c));
-        const rim = Math.max(0.03, fpA * 1.1) / s.a;
-        if (e > 0.95 && e < 1 + rim) {
-          if (valueNoise(Math.atan2(ddz, ddx) * 5 + t * 4, e * 4, 17) > 0.4)
+    const cell = gcx >= 0 && gcz >= 0 && gcx < 32 && gcz < 48 ? this.sgrid[gcz * 32 + gcx] : -1;
+    if (cell >= 0 && gt < 90) {
+      const sidx = this.sidx;
+      const sd = this.sdat;
+      const cnt = sidx[cell];
+      for (let k = 1; k <= cnt; k++) {
+        const q = sidx[cell + k] * 4;
+        const sa = sd[q + 2];
+        const scc = sd[q + 3];
+        const ddx = X - sd[q];
+        const ddz = Z - sd[q + 1];
+        if (ddz > scc * 1.4 || ddz < -scc - 5 || Math.abs(ddx) > sa * 1.8 + 0.3 - ddz * 0.2)
+          continue;
+        const ex = ddx / sa;
+        const ez = ddz / scc;
+        let e = Math.sqrt(ex * ex + ez * ez);
+        const rim = Math.max(0.03, fpA * 1.1) / sa;
+        if (e > 0.9 && e < 1.4) {
+          // an irregular collar, lapping: never a clean ellipse
+          const an = Math.atan2(ddz, ddx);
+          e -= 0.16 * (valueNoise(an * 2.5 + k * 3, t * 1.5, 19) - 0.3);
+          if (e > 0.95 && e < 1 + rim && valueNoise(an * 5 + t * 4, e * 4, 17) > 0.45)
             foam = Math.max(foam, 0.95);
-        } else if (ddz > 0 && e < 1.25 && e >= 1) foam = Math.max(foam, 0.18);
-        const dn = -ddz - s.c * 0.4;
+          else if (ddz > 0 && e >= 1 && e < 1.25) foam = Math.max(foam, 0.18); // the pillow
+        }
+        const dn = -ddz - scc * 0.4;
         if (dn > 0 && dn < 5) {
-          const spread = s.a * (0.7 + 0.2 * dn);
+          const spread = sa * (0.7 + 0.2 * dn);
           const lat = Math.abs(ddx);
           const aw = 0.025 + 0.012 * dn + fpA * 0.6;
           const q = (lat - spread) / aw;
@@ -1604,29 +1708,28 @@ export class World {
     }
     // rain rings: each 1.1 m cell has a drop every so often
     if (this.rain > 0 && gt < 30) {
-      const cs = 1.1;
+      // rain rings: each 0.8 m cell has a drop every so often, kept inside the cell so
+      // one lookup per pixel is enough
+      const cs = 0.8;
       const rc = T.rc;
-      const w = Math.max(0.012, fpA * 0.6);
-      const gx0 = Math.floor(X / cs - 0.5);
-      const gz0 = Math.floor(Z / cs - 0.5);
-      for (let a = 0; a < 2; a++)
-        for (let bq = 0; bq < 2; bq++) {
-          const cx = gx0 + a;
-          const cz = gz0 + bq;
-          const k = ((cz & 63) * 64 + (cx & 63)) * 3;
-          if (rc[k] > this.rain * 0.75) continue;
-          const per = rc[k + 1];
-          const ph = rc[k + 2] * per;
-          const n = Math.floor((t + ph) / per);
-          const age = t + ph - n * per;
-          if (age > 0.5) continue;
-          const px = (cx + 0.2 + hash(cx * 3 + n, cz, 204) * 0.6) * cs;
-          const pz = (cz + 0.2 + hash(cx, cz * 3 + n, 205) * 0.6) * cs;
+      const cx = Math.floor(X / cs);
+      const cz = Math.floor(Z / cs);
+      const k = ((cz & 63) * 64 + (cx & 63)) * 3;
+      if (rc[k] < this.rain * 0.8) {
+        const per = rc[k + 1];
+        const ph = rc[k + 2] * per;
+        const n = Math.floor((t + ph) / per);
+        const age = t + ph - n * per;
+        if (age < 0.5) {
+          const px = (cx + 0.3 + hash(cx * 3 + n, cz, 204) * 0.4) * cs;
+          const pz = (cz + 0.3 + hash(cx, cz * 3 + n, 205) * 0.4) * cs;
           const ex = X - px;
           const ez = Z - pz;
           const d = Math.sqrt(ex * ex + ez * ez);
-          if (Math.abs(d - 0.025 - age * 0.32) < w) foam = Math.max(foam, (1 - age / 0.5) * 0.75);
+          const w = Math.max(0.012, fpA * 0.6);
+          if (Math.abs(d - 0.02 - age * 0.3) < w) foam = Math.max(foam, (1 - age / 0.5) * 0.75);
         }
+      }
     }
     if (shock > 0.2) foam = Math.max(foam, shock);
     if (foam > 0) {
@@ -1747,10 +1850,21 @@ export class World {
               const nl = Math.sqrt(nxw * nxw + nyw * nyw + nzw * nzw);
               const dif = (nxw * Lx + nyw * Ly + nzw * Lz) / nl;
               // lit on top, dark and wet low down, the slick one wet all over
-              let c = dif > 0.66 && hy > s.top * 0.45 ? STONE_LIT : dif > 0.25 ? STONE_MID : STONE_SH;
+              let c =
+                dif > 0.66 && hy > s.top * 0.45 ? STONE_LIT : dif > 0.25 ? STONE_MID : STONE_SH;
               if (hy < 0.035 + 0.05 * s.a) c = STONE_WET;
               else if (s.slick && c === STONE_LIT) c = STONE_MID;
-              const tn = s.tone;
+              // wet patches and lichen: a flat second tone over the surface
+              let tn = s.tone;
+              const g0 = this.tex.ground[0];
+              const pn = samp(
+                g0.d,
+                g0.N,
+                (ox + dx * st) / 0.012 + s.i * 37,
+                (oz + dz * st) / 0.012 + hy / 0.012,
+              );
+              if (pn > 0.66) tn *= 0.86;
+              else if (pn < 0.26 && c !== STONE_WET) tn *= 1.08;
               frame[o] = paper[o] * c[0] * KR * tn;
               frame[o + 1] = paper[o + 1] * c[1] * KG * tn;
               frame[o + 2] = paper[o + 2] * c[2] * KB * tn;
@@ -2174,12 +2288,15 @@ export class World {
     const vy = head.sy - feet.sy;
     const pxH = Math.hypot(vx, vy);
     if (pxH < 2) return;
-    const layer = a.layer || a.layerFor(pxH);
-    const st = layer.st;
-    const s = (feet.scale * a.height) / st.h;
+    // a figure layer, or a draw callback (something drawn in code: a spear, a banner)
+    const layer = a.draw ? null : a.layer || a.layerFor(pxH);
+    const st = layer ? layer.st : null;
+    const s = st ? (feet.scale * a.height) / st.h : feet.scale;
     const sy = pxH / (feet.scale * a.height);
     const rot = Math.atan2(vx, -vy);
-    const base = a.place ? a.place(feet.sx, feet.sy, s) : { x: feet.sx, y: feet.sy, ax: st.w / 2, ay: st.h, scale: s };
+    const base = a.place
+      ? a.place(feet.sx, feet.sy, s)
+      : { x: feet.sx, y: feet.sy, ax: st ? st.w / 2 : 0, ay: st ? st.h : 0, scale: s };
     const xf = { ...base, ...(a.xf || {}) };
     xf.x = base.x;
     xf.y = base.y;
@@ -2187,25 +2304,31 @@ export class World {
     xf.rot = (xf.rot || 0) + rot;
     xf.sy = (xf.sy ?? 1) * sy;
     const cam2 = { x: W / 2, y: H / 2, zoom: 1, rot: 0 };
-    // the figure's screen box
-    const m = layerMatrix(xf, cam2, W, H);
-    let x0 = Infinity;
-    let y0 = Infinity;
-    let x1 = -Infinity;
-    let y1 = -Infinity;
-    for (const [u, v] of [
-      [0, 0],
-      [st.w, 0],
-      [0, st.h],
-      [st.w, st.h],
-    ]) {
-      const X = m[0] * u + m[1] * v + m[2];
-      const Y = m[3] * u + m[4] * v + m[5];
-      x0 = Math.min(x0, X);
-      y0 = Math.min(y0, Y);
-      x1 = Math.max(x1, X);
-      y1 = Math.max(y1, Y);
-    }
+    // the figure's screen box (a draw callback gives its own, or gets the frame)
+    let x0 = 0;
+    let y0 = 0;
+    let x1 = W;
+    let y1 = H;
+    if (st) {
+      const m = layerMatrix(xf, cam2, W, H);
+      x0 = Infinity;
+      y0 = Infinity;
+      x1 = -Infinity;
+      y1 = -Infinity;
+      for (const [u, v] of [
+        [0, 0],
+        [st.w, 0],
+        [0, st.h],
+        [st.w, st.h],
+      ]) {
+        const X = m[0] * u + m[1] * v + m[2];
+        const Y = m[3] * u + m[4] * v + m[5];
+        x0 = Math.min(x0, X);
+        y0 = Math.min(y0, Y);
+        x1 = Math.max(x1, X);
+        y1 = Math.max(y1, Y);
+      }
+    } else if (a.box) [x0, y0, x1, y1] = a.box;
     const pad = a.opts?.warp ? 9 : 2;
     const X0 = Math.max(0, Math.floor(x0 - pad));
     const Y0s = Math.max(0, Math.floor(y0 - pad));
@@ -2222,7 +2345,8 @@ export class World {
         sc[o + 3] = 0;
       }
     const sA = a.stage ?? stage;
-    drawSprite(sc, W, H, paper, layer, sA, xf, cam2, a.opts || {});
+    if (a.draw) a.draw(sc, { W, H, xf, feet, head, scale: feet.scale, stage: sA, paper, t });
+    else drawSprite(sc, W, H, paper, layer, sA, xf, cam2, a.opts || {});
     const drawn = (o) => sc[o + 3] !== 0 && !(sc[o] === 1 && sc[o + 1] === 0 && sc[o + 2] === 1);
     // the waterline: world Y = 0 on the figure's card
     const wade = a.wade !== false && depth > 0.02 && Y0 < 0;
@@ -2232,7 +2356,10 @@ export class World {
     const pw = project(cam, a.X, 0, a.Z, W, H);
     const t2 = this.t2;
     const aboveW = (x, y) =>
-      (x - pw.sx) * ax + (y - pw.sy) * ay + 0.6 * Math.sin(x * 0.8 + t2 * 9) + 0.4 * Math.sin(x * 1.9 - t2 * 13);
+      (x - pw.sx) * ax +
+      (y - pw.sy) * ay +
+      0.6 * Math.sin(x * 0.8 + t2 * 9) +
+      0.4 * Math.sin(x * 1.9 - t2 * 13);
     const zA = feet.depth;
     // reflection: the part above the water, flipped about the waterline, broken by the
     // waves, darker and a little blue
@@ -2285,7 +2412,10 @@ export class World {
     // a contact shadow on the bank
     if (!wade && a.shadow !== false && Y0 > -0.01) {
       const rx = 0.42 * feet.scale;
-      const ry = Math.max(1.6, rx * clamp(Math.abs(this.rdy[this.pix(feet.sx, feet.sy)] || 0.2) * 1.2, 0.12, 1));
+      const ry = Math.max(
+        1.6,
+        rx * clamp(Math.abs(this.rdy[this.pix(feet.sx, feet.sy)] || 0.2) * 1.2, 0.12, 1),
+      );
       for (let y = Math.floor(feet.sy - ry); y <= feet.sy + ry; y++)
         for (let x = Math.floor(feet.sx - rx); x <= feet.sx + rx; x++) {
           if (x < 0 || y < 0 || x >= W || y >= H) continue;
@@ -2493,11 +2623,23 @@ export class World {
     const { W, H } = this;
     const s = strength;
     const paper = this.paper;
-    const foamC = (o) => [paper[o] * FOAM[0] * KR, paper[o + 1] * FOAM[1] * KG, paper[o + 2] * FOAM[2] * KB];
+    const foamC = (o) => [
+      paper[o] * FOAM[0] * KR,
+      paper[o + 1] * FOAM[1] * KG,
+      paper[o + 2] * FOAM[2] * KB,
+    ];
     const hi = [240, 234, 220];
     // the ring
     this.ringOnWater(frame, cam, X, Z, 0.15 + 1.25 * u ** 0.7 * s, (1 - u / 1.5) * 0.95);
-    if (u > 0.9) this.ringOnWater(frame, cam, X, Z, 0.1 + 0.9 * (u - 0.9) ** 0.7 * s, 0.6 * (1 - (u - 0.9) / 0.6));
+    if (u > 0.9)
+      this.ringOnWater(
+        frame,
+        cam,
+        X,
+        Z,
+        0.1 + 0.9 * (u - 0.9) ** 0.7 * s,
+        0.6 * (1 - (u - 0.9) / 0.6),
+      );
     // the crown
     const u2 = Math.floor(u * 12) / 12;
     const cd = 0.42 * Math.sqrt(s);
@@ -2549,7 +2691,14 @@ export class World {
       const pz = Z + Math.sin(a) * (0.1 + vh * uu);
       const p = project(cam, px, Y, pz, W, H);
       if (p.depth < 0.3) continue;
-      const q = project(cam, px - Math.cos(a) * vh * 0.03, Y - (vy - 9.8 * uu) * 0.03, pz - Math.sin(a) * vh * 0.03, W, H);
+      const q = project(
+        cam,
+        px - Math.cos(a) * vh * 0.03,
+        Y - (vy - 9.8 * uu) * 0.03,
+        pz - Math.sin(a) * vh * 0.03,
+        W,
+        H,
+      );
       const big = p.scale > 140 ? 2 : 1;
       const L = Math.ceil(Math.hypot(p.sx - q.sx, p.sy - q.sy));
       for (let k = 0; k <= L; k++) {
@@ -2568,41 +2717,43 @@ export class World {
 
   /**
    * A sheet of spray thrown up from a line on the water (Edric's slide): a curtain of
-   * white water rising and falling, with droplets above its ragged crest. It hides what
-   * is behind it. o: { X, Z (centre), width (m, along X), age (s since it was thrown;
-   * slow it down or hold it for a time warp), dir (+1 thrown toward +X), height (m),
-   * strength, seed, angle (radians: the sheet's line turned from the X axis) }.
+   * white water in columns, each thrown at its own speed so the crest breaks into
+   * fingers, streaked as it falls, droplets flung above it. It hides what is behind it.
+   * o: { X, Z (centre), width (m, along the line), age (s since it was thrown: slow it
+   * or hold it for a time warp), dir (+1 thrown toward +X), height (m), strength, seed,
+   * angle (radians: the line turned from the X axis) }.
    */
   spraySheet(frame, cam, o) {
     const { W, H } = this;
     const paper = this.paper;
     const age = o.age ?? 0;
-    if (age < 0 || age > 2.2) return;
+    if (age < 0 || age > 2.4) return;
     const w = o.width ?? 2.6;
     const hgt = o.height ?? 2.2;
     const dir = o.dir ?? 1;
     const seed = o.seed ?? 1;
+    const str = o.strength ?? 1;
     const ang = o.angle ?? 0;
     const lx = Math.cos(ang);
     const lz = Math.sin(ang);
-    const n = Math.max(24, Math.round(w * 26));
-    const cols = [];
     const up = Math.sqrt(2 * 9.8 * hgt);
+    const apex = up / 9.8;
+    const fall = smooth(apex * 0.85, apex * 2, age);
+    const n = Math.max(30, Math.round(w * 34));
+    const cols = [];
     for (let j = 0; j <= n; j++) {
       const v = j / n - 0.5;
-      const prof = Math.cos(v * Math.PI) ** 0.6 * (0.8 + 0.4 * valueNoise(j * 0.35, seed, 3));
-      const vy = up * prof;
-      const vf = (1.2 + 1.2 * hash(j, seed, 2)) * dir;
-      const uu = age;
-      const crest = Math.max(0, vy * uu - 4.9 * uu * uu);
-      const X = o.X + lx * v * w + vf * uu * lz * 0 + vf * uu * 0.35;
+      const finger = 0.7 + 0.6 * valueNoise(j * 0.55, seed * 7.1, 3);
+      const vy = up * Math.cos(v * Math.PI) ** 0.7 * finger;
+      const crest = Math.max(0, vy * age - 4.9 * age * age);
+      const X = o.X + lx * v * w + dir * (0.4 + 0.5 * hash(j, seed, 2)) * age;
       const Z = o.Z + lz * v * w;
-      const b = project(cam, X, 0, Z, W, H);
-      const c = project(cam, X, crest, Z, W, H);
-      cols.push({ b, c, crest, prof });
+      cols.push({
+        b: project(cam, X, 0, Z, W, H),
+        c: project(cam, X, crest, Z, W, H),
+        tip: finger > 1.05,
+      });
     }
-    const apex = up / 9.8;
-    const fall = smooth(apex * 0.9, apex * 1.9, age);
     const white = [241, 236, 224];
     for (let j = 0; j < n; j++) {
       const A = cols[j];
@@ -2610,43 +2761,46 @@ export class World {
       if (A.b.depth < 0.3 || Bc.b.depth < 0.3) continue;
       const xa = A.b.sx;
       const xb = Bc.b.sx;
-      const xs = Math.min(xa, xb);
-      const xe = Math.max(xa, xb);
-      for (let x = Math.floor(xs); x <= Math.ceil(xe); x++) {
-        const v = xe > xs ? clamp((x - xa) / (xb - xa)) : 0;
+      for (let x = Math.floor(Math.min(xa, xb)); x <= Math.ceil(Math.max(xa, xb)); x++) {
+        const v = xb !== xa ? clamp((x - xa) / (xb - xa)) : 0;
         const yb = A.b.sy + (Bc.b.sy - A.b.sy) * v;
-        const yc = A.c.sy + (Bc.c.sy - A.c.sy) * v;
-        const z = A.b.depth + (Bc.b.depth - A.b.depth) * v;
-        if (yb - yc < 1) continue;
-        const rag = (valueNoise(x * 0.3, age * 6, seed + 9) - 0.5) * (yb - yc) * 0.18;
-        const top = yc + rag;
+        const top = A.c.sy + (Bc.c.sy - A.c.sy) * v;
+        const z = A.b.depth + (Bc.b.depth - A.b.depth) * v - 0.02;
+        if (yb - top < 1) continue;
+        // falling streams: vertical streaks, steady across the sheet
+        const streak = 0.55 + 0.45 * valueNoise(x * 0.45, 3.3, seed);
         for (let y = Math.floor(top); y <= Math.ceil(yb); y++) {
           if (x < 0 || y < 0 || x >= W || y >= H) continue;
-          const hk = (yb - y) / Math.max(1, yb - top); // 0 at the water, 1 at the crest
-          // dense near the water, thinning upward and as it falls; streaked vertically
-          const stre = 0.75 + 0.25 * Math.sin(x * 1.3 + j * 0.7);
-          const dens = (0.95 - 0.45 * hk) * (1 - fall * 0.8) * stre * (o.strength ?? 1);
+          const hk = (yb - y) / (yb - top); // 0 at the water, 1 at the crest
+          if (valueNoise(x * 0.3, y * 0.3 + age * 9, seed + 5) > 0.82 - 0.35 * hk) continue;
+          const dens = str * (1 - fall * 0.85) * streak * (0.98 - 0.55 * hk * hk);
           const i = y * W + x;
           const oo = i * 4;
-          if (y <= top + 1 && hk > 0.9) {
-            this.fxPut(frame, x, y, z - 0.02, SEPIA, 1 - fall, true);
+          if (hk > 0.93 && (A.tip || Bc.tip)) {
+            this.fxPut(frame, x, y, z, SEPIA, 1 - fall, true);
             continue;
           }
-          const c = dens > 0.62 ? white : [paper[oo] * FOAM[0] * KR, paper[oo + 1] * FOAM[1] * KG, paper[oo + 2] * FOAM[2] * KB];
-          this.fxPut(frame, x, y, z - 0.02, c, dens);
+          const c =
+            dens > 0.6
+              ? white
+              : [
+                  paper[oo] * FOAM[0] * KR,
+                  paper[oo + 1] * FOAM[1] * KG,
+                  paper[oo + 2] * FOAM[2] * KB,
+                ];
+          this.fxPut(frame, x, y, z, c, dens);
           if (dens > 0.5 && this.stg[i] === 0 && z < this.zbuf[i]) this.ids[i] = ID_FX;
         }
       }
     }
-    // droplets thrown above the crest
-    const nd = Math.round(160 * (o.strength ?? 1));
+    // droplets flung above the crest
+    const nd = Math.round(240 * str);
     for (let j = 0; j < nd; j++) {
       const v = hash(j, seed, 21) - 0.5;
-      const vy = up * (0.5 + 0.75 * hash(j, seed, 22));
-      const vf = (0.6 + 2.2 * hash(j, seed, 23)) * dir;
-      const vz = (hash(j, seed, 24) - 0.5) * 2;
-      const born = hash(j, seed, 25) * 0.15;
-      const uu = age - born;
+      const vy = up * (0.45 + 0.85 * hash(j, seed, 22));
+      const vf = (0.4 + 2.4 * hash(j, seed, 23)) * dir;
+      const vz = (hash(j, seed, 24) - 0.5) * 2.2;
+      const uu = age - hash(j, seed, 25) * 0.2;
       if (uu < 0) continue;
       const Y = vy * uu - 4.9 * uu * uu;
       if (Y < 0) continue;
@@ -2654,14 +2808,26 @@ export class World {
       const Z = o.Z + lz * v * w + vz * uu;
       const p = project(cam, X, Y, Z, W, H);
       if (p.depth < 0.3) continue;
-      this.fxPut(frame, p.sx, p.sy, p.depth, white);
-      if (p.scale > 120) {
+      const q = project(cam, X - vf * 0.025, Y - (vy - 9.8 * uu) * 0.025, Z - vz * 0.025, W, H);
+      const L = Math.min(8, Math.ceil(Math.hypot(p.sx - q.sx, p.sy - q.sy)));
+      for (let k = 0; k <= L; k++) {
+        const s = L ? k / L : 0;
+        this.fxPut(
+          frame,
+          p.sx + (q.sx - p.sx) * s,
+          p.sy + (q.sy - p.sy) * s,
+          p.depth,
+          white,
+          1 - s * 0.6,
+        );
+      }
+      if (p.scale > 110) {
         this.fxPut(frame, p.sx + 1, p.sy, p.depth, white);
         this.fxPut(frame, p.sx, p.sy + 1, p.depth, SEPIA, 1, true);
       }
     }
     // the base churns
-    this.ringOnWater(frame, cam, o.X, o.Z, w * 0.55 + age * 1.2, (1 - age / 2.2) * 0.9, 0.5);
+    this.ringOnWater(frame, cam, o.X, o.Z, w * 0.55 + age * 1.2, (1 - age / 2.4) * 0.9, 0.5);
   }
 
   // ---------------------------------------------------------------- rain
@@ -2772,7 +2938,12 @@ export class World {
       const z = vx * B.fx + vy * B.fy + vz * B.fz;
       if (z < NEAR) return null;
       const iz = B.F / z;
-      return [B.cx + (vx * B.rx + vy * B.ry + vz * B.rz) * iz, B.cy - (vx * B.ux + vy * B.uy + vz * B.uz) * iz, iz, z];
+      return [
+        B.cx + (vx * B.rx + vy * B.ry + vz * B.rz) * iz,
+        B.cy - (vx * B.ux + vy * B.uy + vz * B.uz) * iz,
+        iz,
+        z,
+      ];
     };
     for (const it of items) {
       const seed = it.seed ?? 1;
@@ -2863,7 +3034,14 @@ export class World {
         const m = mask[i];
         if (!m) continue;
         const edge =
-          x === 0 || y === 0 || x === W - 1 || y === H - 1 || !mask[i - 1] || !mask[i + 1] || !mask[i - W] || !mask[i + W];
+          x === 0 ||
+          y === 0 ||
+          x === W - 1 ||
+          y === H - 1 ||
+          !mask[i - 1] ||
+          !mask[i + 1] ||
+          !mask[i - W] ||
+          !mask[i + W];
         const s = this.stg[i];
         const o = i * 4;
         this.ids[i] = ID_FX;
@@ -2949,4 +3127,3 @@ export function smearFrame(frame, W, H, vx, vy) {
       frame[o + 2] = b / c;
     }
 }
-

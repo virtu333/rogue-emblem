@@ -15,15 +15,7 @@ import { Piece } from './engine/piece.js';
 import { T, BAR, BEAT } from './engine/score.js';
 import { clamp, lerp, smooth } from './engine/raster.js';
 import { easeInOut, easeOut } from './engine/anime.js';
-import {
-  World,
-  crane,
-  foregroundRow,
-  impulse,
-  lookAt,
-  orbit,
-  smearFrame,
-} from './engine/world.js';
+import { World, crane, foregroundRow, impulse, lookAt, orbit, smearFrame } from './engine/world.js';
 
 export const W = 480;
 export const H = 270;
@@ -40,11 +32,13 @@ const SRC = {
   edric: `${K}/edric_standing.webp`,
   warden: `${K}/empire_soldier.webp`,
   march: `${K}/empire_soldier_march.webp`,
-  collapse: `${K}/edric_collapse.webp`,
 };
 
-/** Build figures near the size they are seen at (in 12 px steps). */
-const bucket = (px) => Math.max(12, Math.min(420, Math.round(px / 12) * 12));
+/** Build figures near the size they are seen at (in steps of about a tenth). */
+const bucket = (px) => {
+  const p = Math.max(12, Math.min(480, px));
+  return Math.round(12 * 1.1 ** Math.round(Math.log(p / 12) / Math.log(1.1)));
+};
 
 // Edric's run along the ford (FORD.md blocking): X by time
 const EDRIC = [
@@ -91,14 +85,13 @@ export class WorldTest extends Piece {
     const running = o.run ?? (t > at(29) && t < at(32, 2));
     if (running && this.motionSrc.edric_run) {
       let M = null;
-      const i = Math.floor(((t - at(29)) * 12 * 1.05) / 1) % 5;
       return {
         X,
         Z: o.Z ?? 0,
         height: 2.05, // the clip's cell, with its margin
         layerFor: (px) => {
           M = this.motion('edric_run', bucket(px));
-          return M.layer(M.index(t - at(29), { rate: 1.05 }) + 0 * i);
+          return M.layer(M.index(t - at(29), { rate: 1.05 }));
         },
         place: (x, y, s) => M.place(x, y, s),
         seed: 1,
@@ -111,8 +104,8 @@ export class WorldTest extends Piece {
     return { X, Z, height: 2.6, layerFor: this.fig('warden'), seed: 2, ...o };
   }
 
-  /** The Empire's line on the far bank, in step. */
-  line(t) {
+  /** The Empire's line on the far bank. */
+  line() {
     const out = [];
     for (let k = 0; k < 5; k++) {
       const X = 11 + k * 0.85 + (k % 2) * 0.3;
@@ -142,7 +135,7 @@ export class WorldTest extends Piece {
       world().render(f, t, cam, {
         stage,
         rain: 0.5,
-        actors: [this.edric(t), this.warden(9.2, 0.4), ...this.line(t)],
+        actors: [this.edric(t), this.warden(9.2, 0.4), ...this.line()],
       });
     });
 
@@ -159,14 +152,29 @@ export class WorldTest extends Piece {
       const steps = [at(30) + 0.25, at(30) + 0.8, at(30) + 1.3];
       world().render(f, t, cam, {
         rain: 0.6,
-        actors: [this.warden(wx, 0.3, { rings: 0.9 }), ...this.line(t)],
-        splashes: steps.map((t0, i) => ({ X: wx - 0.15 + i * 0.05, Z: 0.3, t0, strength: 0.45, seed: i + 3 })),
+        actors: [this.warden(wx, 0.3, { rings: 0.9 }), ...this.line()],
+        splashes: steps.map((t0, i) => ({
+          X: wx - 0.15 + i * 0.05,
+          Z: 0.3,
+          t0,
+          strength: 0.45,
+          seed: i + 3,
+        })),
       });
     });
 
     // --- 31.1: tracking profile, running speed; the slide throws up the spray -------
-    const fg = foregroundRow({ z: -3.9, x0: -12, x1: 4, step: 1.25, kind: 'mixed', h: 1.2, seed: 5, Y: 0 });
-    const slide = at(32, 2) - 0.15;
+    const fg = foregroundRow({
+      z: -3.9,
+      x0: -12,
+      x1: 4,
+      step: 1.25,
+      kind: 'mixed',
+      h: 1.2,
+      seed: 5,
+      Y: 0,
+    });
+    const slide = at(31, 4) - 0.05; // the slide throws up the spray before the cut
     shot('track', at(31), at(32), (f, t) => {
       const X = edricX(t);
       const cam = { x: X + 0.5, y: 1.0, z: -5.4, yaw: 0, pitch: -0.035, roll: 0, focal: 320 };
@@ -174,14 +182,21 @@ export class WorldTest extends Piece {
       for (let k = 0; k < 10; k++) {
         const t0 = at(31) - 0.4 + k * BEAT * 0.5;
         if (t0 > t) break;
-        falls.push({ X: edricX(t0) + (k % 2 ? 0.1 : -0.1), Z: k % 2 ? 0.12 : -0.1, t0, strength: 0.6, seed: 20 + k });
+        falls.push({
+          X: edricX(t0) + (k % 2 ? 0.1 : -0.1),
+          Z: k % 2 ? 0.12 : -0.1,
+          t0,
+          strength: 0.6,
+          seed: 20 + k,
+        });
       }
       world().render(f, t, cam, {
         rain: 0.6,
         actors: [this.edric(t)],
         splashes: falls.slice(-4),
         foreground: fg,
-        sprays: t > slide ? [{ X: X + 0.6, Z: 0.35, age: t - slide, width: 2.4, dir: 1, seed: 4 }] : [],
+        sprays:
+          t > slide ? [{ X: X + 0.6, Z: 0.35, age: t - slide, width: 2.4, dir: 1, seed: 4 }] : [],
       });
     });
 
