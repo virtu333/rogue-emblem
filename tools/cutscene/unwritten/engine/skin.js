@@ -21,10 +21,6 @@
 // measured from the art's bone lengths against the blocking's). The art must face the
 // way the blocking faces: pass `flip` and the layer is mirrored (joints and regions too).
 
-import { hexToRgb } from './raster.js';
-
-void hexToRgb;
-
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -146,6 +142,21 @@ function dilate(core, alpha, w, h, r) {
   return out;
 }
 
+/** A capsule (thick segment with round ends) as a polygon. */
+function capsule(a, b, r) {
+  const ang = angle(a, b);
+  const pts = [];
+  for (let i = 0; i <= 8; i++) {
+    const t = ang - Math.PI / 2 + (Math.PI * i) / 8;
+    pts.push([b[0] + Math.cos(t) * r, b[1] + Math.sin(t) * r]);
+  }
+  for (let i = 0; i <= 8; i++) {
+    const t = ang + Math.PI / 2 + (Math.PI * i) / 8;
+    pts.push([a[0] + Math.cos(t) * r, a[1] + Math.sin(t) * r]);
+  }
+  return pts;
+}
+
 const segDist = (px, py, a, b) => {
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
@@ -167,26 +178,21 @@ function boneMatrix(ra, rb, ta, tb, out) {
     out[5] = ta[1] - ra[1];
     return out;
   }
-  const rot = angle(ta, tb) - angle(ra, rb);
   const k = tl < 1e-6 ? 1 : tl / rl;
-  const c = Math.cos(rot);
-  const s = Math.sin(rot);
-  // p' = ta + R * S * R0^-1 (p - ra); S stretches along the bone (k), R0 undoes the rest angle
+  // p' = ta + Rt * diag(k, 1) * R0^-1 (p - ra): into the bone's frame, stretch along the bone,
+  // out again at the target angle
   const a0 = angle(ra, rb);
   const c0 = Math.cos(a0);
   const s0 = Math.sin(a0);
-  // in the bone frame: (u, v) = (c0*dx + s0*dy, -s0*dx + c0*dy); scale u by k; then rotate to target
-  const ct = Math.cos(a0 + rot);
-  const st = Math.sin(a0 + rot);
-  // world = ct*(k*u) - st*v , st*(k*u) + ct*v
+  const at = tl < 1e-6 ? a0 : angle(ta, tb);
+  const ct = Math.cos(at);
+  const st = Math.sin(at);
   out[0] = ct * k * c0 + st * s0;
   out[1] = ct * k * s0 - st * c0;
   out[2] = st * k * c0 - ct * s0;
   out[3] = st * k * s0 + ct * c0;
   out[4] = ta[0] - (out[0] * ra[0] + out[1] * ra[1]);
   out[5] = ta[1] - (out[2] * ra[0] + out[3] * ra[1]);
-  void c;
-  void s;
   return out;
 }
 
@@ -345,14 +351,17 @@ export class Skin {
       z: r.z ?? 3,
       bones: r.bones || null,
       lag: r.lag || null,
-      poly: r.poly.map(P),
+      poly: (r.poly || []).map(P),
+      // capsules [x0, y0, x1, y1, r] (r is a share of the image width): thick strokes
+      caps: (r.caps || []).map(([x0, y0, x1, y1, rr]) => [P([x0, y0]), P([x1, y1]), rr * w]),
     }));
     // the default part: whatever no region claims
     regions.unshift({ name: 'body', z: this.spec.bodyZ ?? 3, bones: ['torso', 'head'], poly: null });
     const label = new Int16Array(w * h).fill(0);
     for (let i = 1; i < regions.length; i++) {
       const m = new Uint8Array(w * h);
-      fillPoly(m, w, h, regions[i].poly, 1);
+      if (regions[i].poly.length > 2) fillPoly(m, w, h, regions[i].poly, 1);
+      for (const [a, b, rr] of regions[i].caps) fillPoly(m, w, h, capsule(a, b, rr), 1);
       for (let j = 0; j < w * h; j++) if (m[j]) label[j] = i;
     }
     this.label = label;
@@ -656,7 +665,7 @@ export class Skin {
     if (wt) {
       for (const s of ['N', 'F']) {
         const gi = wt.knots.findIndex((k) => k.roles.includes(`g${s}`));
-        if (gi >= 0 && this.grips[s]) {
+        if (gi >= 0 && this.grips[s] && (s === 'N' || B.lead)) {
           hand[s] = wt.pos[gi];
           const seg = Math.min(gi, wt.pos.length - 2);
           const sb = this.bones[this.wk.ix[seg]];
