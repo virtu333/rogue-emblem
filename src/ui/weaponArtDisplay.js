@@ -117,7 +117,9 @@ export function formatWeaponArtEffects(art) {
   if (mods.statScaling)
     parts.push(`Adds ${mods.statScaling.stat} ÷ ${mods.statScaling.divisor} to Attack`);
   if (mods.drainPercent)
-    parts.push(`Heals ${Math.round(mods.drainPercent * 100)}% of damage dealt`);
+    parts.push(
+      `Heals ${Math.round(mods.drainPercent * 100)}% of damage dealt${mods.drainMaxPerHit ? ` (at most ${mods.drainMaxPerHit} HP a hit)` : ''}`,
+    );
   for (const [key, label] of Object.entries({
     preventCounter: 'Prevents counterattacks',
     ignoreRES: 'Ignores Resistance',

@@ -42,7 +42,7 @@ is either a `combatMods` object (attacker-side, merged like weapon-art mods) or 
 
 | id | adjective | effect |
 |---|---|---|
-| `vampiric` | Vampiric | `combatMods: { drainPercent: 0.3 }` — heal 30% of damage dealt per strike |
+| `vampiric` | Vampiric | `combatMods: { drainPercent: 0.15, drainMaxPerHit: 2 }` — heal 15% of damage dealt per strike, rounded down, at most 2 HP a strike (`drainMaxPerHit`; a stronger uncapped drain on the same unit wins) |
 | `armorbane` | Sundering | `combatMods: { effectiveness: { moveTypes: ["Armored"], multiplier: 2 } }` |
 | `keen` | Keen | `combatMods: { critBonus: 10, hitBonus: 5 }` |
 | `venom` | Venomous | post-combat: poison 5 (reuse the `poisonEffects` path) |
