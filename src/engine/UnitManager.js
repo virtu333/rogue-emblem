@@ -1696,6 +1696,7 @@ export function getCombatWeapons(unit) {
 /** Apply accessory stat bonuses (sign=1 to add, sign=-1 to remove). */
 function applyAccessoryStats(unit, accessory, sign) {
   if (!accessory?.effects) return;
+  if (sign > 0) settleAccessoryHpOwed(unit); // judged against the max HP before this bonus
   for (const [stat, value] of Object.entries(accessory.effects)) {
     if (stat === 'MOV') {
       unit.mov = (unit.mov || unit.stats.MOV) + value * sign;
@@ -1704,18 +1705,46 @@ function applyAccessoryStats(unit, accessory, sign) {
       unit.stats[stat] = (unit.stats[stat] || 0) + value * sign;
     }
   }
-  // Sync currentHP with max HP changes. Equipping raises current HP with max HP;
-  // unequipping keeps missing HP constant, floored at 1 and never raising HP (a
-  // unit at 0 stays at 0), so an equip/unequip loop cannot heal: 10/20 → 15/25 → 10/20.
+  // Sync currentHP with max HP changes. Unequipping keeps missing HP constant but
+  // never kills: the floor at 1 is HP the unit did not pay for, so it is owed
+  // (`_accessoryHpOwed`) and the next HP bonus pays it back before raising HP. So no
+  // equip/unequip loop heals: 10/20 → 15/25 → 10/20, and 1/25 → 1/20 → 1/25.
   const hp = accessory.effects.HP;
   if (hp) {
     if (sign > 0) {
-      unit.currentHP += hp;
+      const owed = hp > 0 ? Math.min(hp, accessoryHpOwed(unit)) : 0;
+      unit.currentHP += hp - owed;
+      setAccessoryHpOwed(unit, accessoryHpOwed(unit) - owed);
     } else {
       const current = unit.currentHP;
-      unit.currentHP = Math.min(unit.stats.HP, Math.max(Math.min(current, 1), current - hp));
+      const target = current - hp;
+      unit.currentHP = Math.min(unit.stats.HP, Math.max(Math.min(current, 1), target));
+      if (current > 0 && target < unit.currentHP)
+        setAccessoryHpOwed(unit, accessoryHpOwed(unit) + (unit.currentHP - target));
     }
   }
+}
+
+function accessoryHpOwed(unit) {
+  const owed = Math.trunc(Number(unit?._accessoryHpOwed) || 0);
+  return owed > 0 ? owed : 0;
+}
+
+function setAccessoryHpOwed(unit, amount) {
+  if (amount > 0) unit._accessoryHpOwed = amount;
+  else delete unit._accessoryHpOwed;
+}
+
+/**
+ * Forget HP a unit owes from taking off an HP accessory at critical HP once it no
+ * longer matters: the unit is back at full HP (it rested or was healed past the
+ * debt) or is down. Revival starts a unit afresh, so it clears the debt outright.
+ */
+export function settleAccessoryHpOwed(unit) {
+  if (!unit || typeof unit !== 'object' || unit._accessoryHpOwed === undefined) return;
+  const current = Number(unit.currentHP);
+  const max = Number(unit.stats?.HP);
+  if (!accessoryHpOwed(unit) || !(current > 0) || current >= max) delete unit._accessoryHpOwed;
 }
 
 /**

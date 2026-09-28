@@ -768,6 +768,135 @@ describe('accessories (roster)', () => {
   });
 });
 
+describe('an HP accessory never heals at critical HP', () => {
+  it.each([
+    ['1/25', 1, 1],
+    ['3/25', 3, 1],
+    ['5/25', 5, 1],
+    ['6/25', 6, 1],
+    ['7/25', 7, 2],
+  ])(
+    'at %s: off and on through the pool leaves HP where it was',
+    (_label, hpBefore, hpWhileOff) => {
+      const robe = accessory('Seraph Robe');
+      const a = unit('A', ['Sword'], []);
+      const b = unit('B', ['Sword'], []);
+      const run = realRun(a, b);
+      run.accessories = [];
+      equipAccessory(a, robe); // 25/25
+      a.currentHP = hpBefore;
+      for (let i = 0; i < 3; i++) {
+        expect(rosterAccessoryAction(run, a)).toBe('');
+        expect([a.currentHP, a.stats.HP]).toEqual([hpWhileOff, 20]);
+        expect(rosterAccessoryAction(run, a, robe)).toBe('');
+        expect([a.currentHP, a.stats.HP]).toEqual([hpBefore, 25]);
+      }
+    },
+  );
+
+  it('a trade swap at 1 HP gives the robe away and back without healing', () => {
+    const robe = accessory('Seraph Robe');
+    const ring = accessory('Power Ring');
+    const a = unit('A', ['Sword'], []);
+    const b = unit('B', ['Sword'], []);
+    const ctx = { context: 'roster', run: realRun(a, b) };
+    equipAccessory(a, robe);
+    equipAccessory(b, ring);
+    a.currentHP = 1; // 1/25
+    applyTrade(ctx, slot(a, 'accessory', robe), slot(b, 'accessory', ring));
+    expect([a.currentHP, a.stats.HP]).toEqual([1, 20]);
+    // B was at full: the robe is a real +5 for B.
+    expect([b.currentHP, b.stats.HP]).toEqual([25, 25]);
+    applyTrade(ctx, slot(a, 'accessory', ring), slot(b, 'accessory', robe));
+    expect([a.currentHP, a.stats.HP]).toEqual([1, 25]);
+    expect([b.currentHP, b.stats.HP]).toEqual([20, 20]);
+  });
+
+  it('a heal that does not fill the bar keeps the debt; a full heal clears it', () => {
+    const robe = accessory('Seraph Robe');
+    const a = unit('A', ['Sword'], []);
+    equipAccessory(a, robe);
+    a.currentHP = 1;
+    unequipAccessory(a); // 1/20, owes 5 (1 - 5 = -4 lifted to 1)
+    a.currentHP += 10; // a Vulnerary: 11/20
+    equipAccessory(a, robe);
+    // Same as healing 10 with the robe on: 1/25 → 11/25.
+    expect([a.currentHP, a.stats.HP]).toEqual([11, 25]);
+
+    a.currentHP = 1;
+    unequipAccessory(a); // 1/20, owes 5 (1 - 5 = -4 lifted to 1)
+    a.currentHP = a.stats.HP; // rested: 20/20
+    equipAccessory(a, robe);
+    expect([a.currentHP, a.stats.HP]).toEqual([25, 25]);
+  });
+
+  it('resting, a battle or revival clear a debt the unit no longer owes', () => {
+    const run = new RunManager(gameData);
+    run.startRun();
+    const [lord] = run.roster;
+    const robe = accessory('Seraph Robe');
+    equipAccessory(lord, robe);
+    lord.currentHP = 1;
+    unequipAccessory(lord); // owes 5
+    const max = lord.stats.HP;
+    const restNode = run.nodeMap.nodes.find((n) => n.id !== run.nodeMap.startNodeId);
+    run.rest(restNode.id); // full HP, node complete
+    lord.currentHP = max - 8; // hurt in the next battle
+    equipAccessory(lord, robe);
+    expect([lord.currentHP, lord.stats.HP]).toEqual([max - 3, max + 5]);
+
+    lord.currentHP = 1;
+    unequipAccessory(lord); // owes 5 again
+    lord.currentHP = lord.stats.HP; // an Elixir between nodes
+    run.beginBattleInProgress(run.nodeMap.startNodeId, {});
+    lord.currentHP = max - 8;
+    equipAccessory(lord, robe);
+    expect([lord.currentHP, lord.stats.HP]).toEqual([max - 3, max + 5]);
+  });
+
+  it('the debt survives a save and load', () => {
+    const run = new RunManager(gameData);
+    run.startRun();
+    const lord = run.roster[0];
+    const robe = accessory('Seraph Robe');
+    equipAccessory(lord, robe);
+    lord.currentHP = 1;
+    unequipAccessory(lord);
+    const restored = RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), gameData);
+    const again = restored.roster.find((u) => u.name === lord.name);
+    equipAccessory(again, robe);
+    expect(again.currentHP).toBe(1);
+  });
+
+  it('a unit that died owes nothing once revived', () => {
+    const run = new RunManager(gameData);
+    run.startRun();
+    const lord = run.roster[1];
+    const robe = accessory('Seraph Robe');
+    equipAccessory(lord, robe);
+    lord.currentHP = 1;
+    unequipAccessory(lord); // owes 5
+    expect(lord._accessoryHpOwed).toBe(5);
+    lord.currentHP = 0; // falls in battle
+    run.roster.splice(run.roster.indexOf(lord), 1);
+    run.fallenUnits.push(lord);
+    expect(run.reviveFallenUnit(lord, 0)).toBe(true);
+    const revived = run.roster.find((u) => u.name === lord.name);
+    expect(revived?._accessoryHpOwed).toBeUndefined();
+    expect(revived.currentHP).toBe(1);
+  });
+
+  it('taking the robe off a unit at 0 HP neither revives it nor leaves a debt', () => {
+    const robe = accessory('Seraph Robe');
+    const a = unit('A', ['Sword'], []);
+    equipAccessory(a, robe);
+    a.currentHP = 0;
+    unequipAccessory(a);
+    expect(a.currentHP).toBe(0);
+    expect(a._accessoryHpOwed).toBeUndefined();
+  });
+});
+
 describe('instance fields travel with the item', () => {
   it('uid, uses, imbue, forge and weapon-art fields are deep-equal after a give and a swap', () => {
     const forged = weapon('Iron Sword', 'Sword', 'Prof', {

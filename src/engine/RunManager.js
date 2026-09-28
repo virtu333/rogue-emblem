@@ -43,6 +43,7 @@ import {
   addToConsumables,
   equipAccessory,
   unequipAccessory,
+  settleAccessoryHpOwed,
   canEquip,
   getClassInnateSkills,
   normalizeUnitClassState,
@@ -3435,6 +3436,8 @@ export class RunManager {
    * battle progresses.
    */
   beginBattleInProgress(nodeId, entryInfo = {}) {
+    // Healed to full since taking off an HP accessory: the debt is gone before battle.
+    for (const unit of this.roster || []) settleAccessoryHpOwed(unit);
     if (this.currentAct === 'act1' && entryInfo.isBoss === true) this.reachedFirstActBoss = true;
     this.battleInProgress = {
       rewindPolicy: 'fixed-v1',
@@ -3796,6 +3799,7 @@ export class RunManager {
       createSeededRng(seed),
     );
     unit.currentHP = 1; // Catch-up HP gains do not turn revival into a full heal.
+    delete unit._accessoryHpOwed; // A revived unit owes nothing from its last life.
     // Death sent its gear to the convoy: an unarmed unit comes back with an Iron weapon.
     const starter = grantReviveStarterWeapon(unit, this.gameData?.weapons || [], INVENTORY_MAX);
     this.lastRevivalResult = {
@@ -3823,6 +3827,8 @@ export class RunManager {
 
   /** Mark a node as completed and update currentNodeId. */
   markNodeComplete(nodeId) {
+    // A unit that rested or healed to full since taking off an HP accessory owes nothing.
+    for (const unit of this.roster || []) settleAccessoryHpOwed(unit);
     const node = this.nodeMap.nodes.find((n) => n.id === nodeId);
     if (node) node.completed = true;
     this.currentNodeId = nodeId;
@@ -3869,6 +3875,7 @@ export class RunManager {
     // The act boss has fallen: the army rests before the next act and starts it whole.
     for (const unit of this.roster) {
       if (unit?.stats) unit.currentHP = unit.stats.HP;
+      settleAccessoryHpOwed(unit);
     }
     this.nodeMap = this._withNodeMapSeed(() =>
       generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
