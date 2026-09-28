@@ -109,8 +109,21 @@ Deferred: team-XP rewards still learn class skills without a card (nothing is lo
 
 ## Next round, in order (updated: Dave picked Wave 2 first)
 
-1. Wave 2 — readability (weapon arts, scrolls, forecast hint, Deeds tab with title/Oath choice, currency tabs, Resume latest).
+1. ~~Wave 2 — readability~~ done (see Wave 2 status).
 2. Formation Menu → pause menu (Save & Exit, Settings, Help) and "Back to map" (triage #3).
 3. Shove/Pull fog fix.
 4. Hidden-enemy ambush stop (movement design above).
 5. Difficulty ladder (Dusk / Nightfall / Black Sun).
+
+## Wave 2 status (branch `claude/playtest-notes-triage-z12dht`)
+
+Done, with unit and browser tests:
+
+- Upgrade tabs sit under the currency they spend (Valor: Lords, Equipment, Skills; Supply: Recruits, Economy, Battalion); costs say "Supply"/"Valor".
+- Title: with several runs going, Resume opens the newest save and names its slot. Save select: the save played last has a gold rim and a Latest tag.
+- Forecast: "How to read" is a list; the speed/doubling note lives inside it.
+- Weapon arts: labelled sheet (Cost, Effect, On hit…, Needs, one flavour line); shared rules behind "How weapon arts work". 24 descriptions no longer repeat numbers (Silence Strike and Mire were wrong).
+- Scrolls: "Skill scroll: teaches Blink, a battle command, to one unit." vs "Weapon art scroll: binds X to one Sword weapon". Team scrolls split by kind; Scrolls help.
+- Deeds: the player picks the title (or none) and the one Oath (roster or promotion chooser); Compendium Deeds tab lists earned deeds and a count of the rest.
+
+Still open from Wave 2: an Oath is lost if the unit already has five skills at promotion (help now warns; a skill loadout, Wave 4, would fix it).
