@@ -294,6 +294,22 @@
   html.portrait-ui .shop-split {
     grid-template-rows: fit-content(42%) minmax(180px, 1fr);
   }
+  /* What the item does for your army comes before its story: at 375x667 the lore
+     ended cleanly at the fold and "Compare with your roster" sat unseen below it
+     (review, build 24). The quote now closes the pane. */
+  html.portrait-ui .shop-copy {
+    display: flex;
+    flex-direction: column;
+  }
+  html.portrait-ui .shop-copy > * {
+    flex: none;
+  }
+  html.portrait-ui .shop-copy > .shop-lore {
+    order: 1;
+  }
+  html.portrait-ui .shop-copy > details {
+    margin: 0 0 12px;
+  }
   /* The stock list fades at its lower edge, so a row cut by the fold reads as "more
      below"; the padding lets the last row clear the fade. */
   html.portrait-ui .shop-stock {

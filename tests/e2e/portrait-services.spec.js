@@ -209,6 +209,24 @@ for (const viewport of [SE, IPHONE_13]) {
       ]);
       await expectShopLayout(page, shop, insets);
       await page.screenshot({ path: info.outputPath(`shop-buy-${size}.png`) });
+      // The roster comparison shows without scrolling the pane: the story closes it
+      // (at 375x667 the lore hid it below the fold, review of build 24).
+      // Polled: the painting and fonts settle the pane's layout after it opens.
+      const compare = () =>
+        shop.locator('.shop-copy').evaluate((copy) => {
+          const pane = copy.getBoundingClientRect();
+          const summary = copy.querySelector('details > summary').getBoundingClientRect();
+          const lore = copy.querySelector('.shop-lore')?.getBoundingClientRect();
+          return {
+            scrolled: copy.scrollTop,
+            // Its label's line clears the pane's 16px fade.
+            inPane:
+              summary.top >= pane.top - 0.5 &&
+              summary.top + summary.height / 2 + 9 <= pane.bottom - 16,
+            beforeLore: !lore || summary.bottom <= lore.top + 0.5,
+          };
+        });
+      await expect.poll(compare).toEqual({ scrolled: 0, inPane: true, beforeLore: true });
 
       // The Rapier's keyword chips (#130) and the roster comparison (#139) fit.
       await press(shop.locator('.shop-row').filter({ hasText: 'Rapier' }));

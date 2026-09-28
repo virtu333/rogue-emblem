@@ -192,6 +192,20 @@ export function unitFocusedRail({ state = '', selected = false, menu = false } =
   return UNIT_FOCUS_STATES.has(state) || state.startsWith('SELECTING_');
 }
 
+/**
+ * Column spans (of six) for a unit's usable commands on the upright rail, so every row
+ * is filled: three across, a last pair split in halves, and never one command alone
+ * beside empty cells (four read as two pairs, seven as three, two and two). Pure.
+ */
+export function commandSpans(count) {
+  const n = Math.max(0, Math.floor(count) || 0);
+  if (n === 1) return [6];
+  const spans = Array(n).fill(2);
+  const wide = n % 3 === 2 ? 2 : n % 3 === 1 ? 4 : 0;
+  for (let i = n - wide; i < n; i++) spans[i] = 3;
+  return spans;
+}
+
 // A view over BattleScene's existing actions. Combat calculations and move rules
 // remain in the scene/engine; this layer only owns DOM presentation and gestures.
 export class MobileBattleHUD {
@@ -1015,6 +1029,7 @@ export class MobileBattleHUD {
     const keepScroll = scrollKey === this._scrollKey ? this.body.scrollTop : 0;
     this._scrollKey = scrollKey;
     this.root.classList.toggle('has-unit', Boolean(unit));
+    this.root.classList.toggle('in-formation', formation);
     this.root.classList.toggle('in-menu', state === 'UNIT_ACTION_MENU' && Boolean(this.menu));
     // A submenu (Equip, Item, a staff or art pick) lists rows with stat briefs.
     this.root.classList.toggle(
@@ -1198,6 +1213,13 @@ export class MobileBattleHUD {
         this.body.append(el('p', 'mb-detail mb-hold-hint', 'Hold a row for its full details.'));
       // The pinned command (Wait) was built into the dock by syncDock.
       for (const item of menu.items) if (item !== pinned) list.append(this.menuButton(menu, item));
+      if (!s.inEquipMenu) {
+        // Usable commands fill their rows upright; a greyed one with its reason takes a row.
+        const usable = [...list.children].filter(
+          (b) => !(b.disabled && b.querySelector('.mb-item-summary')),
+        );
+        commandSpans(usable.length).forEach((span, i) => (usable[i].dataset.span = span));
+      }
       if (menu.items.some((entry) => entry.item?.type === 'Consumable'))
         this.body.append(el('p', 'mb-detail', ITEM_ACTION_NOTE));
       this.body.append(list);

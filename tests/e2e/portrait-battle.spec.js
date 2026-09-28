@@ -121,8 +121,10 @@ test('upright phone plays on a turned board with thumb-reach commands', async ({
   const canvasBox = await page.locator('#game-container canvas').boundingBox();
   const hudBox = await hud.boundingBox();
   expect(hudBox.y).toBeGreaterThanOrEqual(canvasBox.y + canvasBox.height - 1);
-  for (const name of ['Overview', 'Recenter', 'Back', 'Menu'])
+  for (const name of ['Overview', 'Back', 'Menu'])
     await expect(hud.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 });
+  // The whole board fits upright: Overview is the camera tool, Recenter steps aside.
+  await expect(hud.locator('[data-tool="recenter"]')).toBeHidden();
 
   // Real taps on the turned board select the unit and move it to the tapped tile.
   const unit = await page.evaluate(() => {
@@ -169,7 +171,9 @@ function bottomRow(page) {
   return page.evaluate(() => {
     const hud = document.querySelector('.mobile-battle-hud');
     const rail = hud.getBoundingClientRect();
-    const buttons = [...hud.querySelectorAll('.mb-dock > button, .bl-tools > button')];
+    const buttons = [...hud.querySelectorAll('.mb-dock > button, .bl-tools > button')].filter(
+      (b) => b.getClientRects().length,
+    );
     return buttons.map((button) => {
       const r = button.getBoundingClientRect();
       const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
@@ -222,7 +226,7 @@ function expectWholeRow(row, names) {
 }
 
 // Playtest 4 pinned Wait in the dock beside a compact Danger. On the upright rail the dock
-// shares the bottom edge with Overview, Recenter, Back and Menu: six controls on one row,
+// shares the bottom edge with Overview, Back and Menu: five controls on one row,
 // each whole, labelled, unbroken and tappable, from a small phone to a large one. End turn
 // takes Wait's place there while no unit menu is open: in the scrolling stack, a tile's
 // terrain pushed it under the fold at 375x667 (playtest 2026-09-26).
@@ -246,7 +250,7 @@ for (const viewport of [
     await waitForScene(page, 'Battle');
     await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
     expect((await battleSnapshot(page)).rotation).toBe('ccw');
-    const tools = ['Overview', 'Recenter', 'Back', 'Menu'];
+    const tools = ['Overview', 'Back', 'Menu'];
     // Idle, with a tile's terrain in the rail: End turn beside Danger, and the commands
     // above stay whole inside the scrolling stack.
     await page.evaluate(() => {
@@ -256,7 +260,7 @@ for (const viewport of [
     });
     const hud = page.getByRole('complementary', { name: 'Battle commands' });
     await expect(hud.locator('.mb-terrain-slot')).not.toBeEmpty();
-    await expect.poll(async () => (await bottomRow(page)).length).toBe(6);
+    await expect.poll(async () => (await bottomRow(page)).length).toBe(5);
     expectWholeRow(await bottomRow(page), ['End turn…', 'Danger', ...tools]);
     const stack = await page.evaluate(() => {
       const body = document.querySelector('.mobile-battle-hud .mb-body').getBoundingClientRect();
@@ -357,8 +361,13 @@ test('a turn mid-action waits for the next safe moment', async ({ page }) => {
     b.showActionMenu(u);
   });
   await page.setViewportSize({ width: 844, height: 390 });
-  await expect(page.locator('.portrait-battle-notice')).toContainText('when your turn is ready');
+  const notice = page.locator('.portrait-battle-notice');
+  await expect(notice).toHaveText('The board turns back when this action is done.');
   expect((await battleSnapshot(page)).rotation).toBe('ccw');
+  // The note stays for the whole wait: a timed note (4 s) was gone long before a slow
+  // enemy phase ended (playtest, build 24). Asserting an absence over time needs a wait.
+  await page.waitForTimeout(4_500);
+  await expect(notice).toBeVisible();
   await page
     .getByRole('complementary', { name: 'Battle commands' })
     .getByRole('button', { name: 'Back', exact: true })
@@ -591,15 +600,8 @@ for (const viewport of [
       'Visits village',
     );
     await expect(hud.getByRole('button', { name: 'Wait', exact: true })).toHaveCount(1);
-    // The note sits inside Wait, unbroken; the row keeps all six controls whole.
-    expectWholeRow(await bottomRow(page), [
-      'Wait',
-      'Danger',
-      'Overview',
-      'Recenter',
-      'Back',
-      'Menu',
-    ]);
+    // The note sits inside Wait, unbroken; the row keeps all five controls whole.
+    expectWholeRow(await bottomRow(page), ['Wait', 'Danger', 'Overview', 'Back', 'Menu']);
   });
 }
 
@@ -613,6 +615,7 @@ function detailsPanel(page) {
     const rail = document.querySelector('.mobile-battle-hud').getBoundingClientRect();
     const p = panel.getBoundingClientRect();
     const covered = [...document.querySelectorAll('.mb-dock > button, .bl-tools > button')]
+      .filter((b) => b.getClientRects().length)
       .filter((button) => {
         const r = button.getBoundingClientRect();
         const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);

@@ -156,14 +156,17 @@ export class PortraitBattleController {
     );
   }
 
-  /** A press or camera gesture is under way on the board (wait for its release). */
+  /**
+   * A press or camera gesture is under way on the board (wait for its release). A press
+   * begun before the phone turned no longer counts: the turn dropped it (its release acts
+   * on nothing), and iOS may never deliver that release, which left the board waiting
+   * for another tap (playtest, build 24).
+   */
   _gestureActive() {
     const s = this.scene;
+    const pointerDown = s.input?.activePointer?.isDown && !s._inputController?.hasStalePress?.();
     return Boolean(
-      s._battleCamera?.hasActiveTouches?.() ||
-      s._touchTapDown ||
-      s._touchHoldStart ||
-      s.input?.activePointer?.isDown,
+      s._battleCamera?.hasActiveTouches?.() || s._touchTapDown || s._touchHoldStart || pointerDown,
     );
   }
 
@@ -229,11 +232,22 @@ export class PortraitBattleController {
       return false;
     }
     if (!canSwitchBattlePresentation(state)) {
-      this._showNotice(
-        this.wantsRotated()
-          ? 'The board turns upright when your turn is ready.'
-          : 'The board turns back when your turn is ready.',
-      );
+      // The note stays up for the whole wait (an enemy phase can outlast a timed note)
+      // and names what the board waits for.
+      const upright = this.wantsRotated();
+      const text =
+        state.battleState === 'DEPLOY_POSITIONING'
+          ? upright
+            ? 'The board turns upright when the battle begins.'
+            : 'The board turns back when the battle begins.'
+          : state.phase !== 'player'
+            ? upright
+              ? 'The board turns upright when your turn begins.'
+              : 'The board turns back when your turn begins.'
+            : upright
+              ? 'The board turns upright when this action is done.'
+              : 'The board turns back when this action is done.';
+      this._showNotice(text, { persist: true });
       return false;
     }
     return this._switch();
@@ -303,7 +317,7 @@ export class PortraitBattleController {
 
   // A quiet line over the top of the map. Each message shows once for a few seconds
   // (update() re-checks every frame while a switch is pending) and never takes input.
-  _showNotice(text) {
+  _showNotice(text, { persist = false } = {}) {
     if (typeof document === 'undefined') return;
     if (!text) {
       clearTimeout(this._noticeTimer);
@@ -316,10 +330,13 @@ export class PortraitBattleController {
     if (this._noticeText === text) return;
     this._noticeText = text;
     clearTimeout(this._noticeTimer);
-    this._noticeTimer = setTimeout(() => {
-      this.notice?.remove();
-      this.notice = null;
-    }, NOTICE_MS);
+    // A waiting note clears when the switch happens or the phone turns back.
+    this._noticeTimer = persist
+      ? null
+      : setTimeout(() => {
+          this.notice?.remove();
+          this.notice = null;
+        }, NOTICE_MS);
     if (!this.notice) {
       this.notice = document.createElement('div');
       this.notice.className = 'portrait-battle-notice';

@@ -218,6 +218,45 @@ for (const vp of PORTRAIT_PHONES) {
         expect(art.art.bottom).toBeGreaterThanOrEqual(art.runTop);
       });
 
+    test('turned sideways and back, the art band settles to the upright frame', async ({
+      page,
+    }) => {
+      await openTitle(page);
+      const frame = () =>
+        page.evaluate(() => {
+          const view = window.__emblemRogueGame.scene.getScene('Title').titleView;
+          const f = view.backdrop.frame;
+          return {
+            band: view.root.style.getPropertyValue('--rt-art-h'),
+            scale: f.scale,
+            sx: f.sx,
+            sy: f.sy,
+            cssW: f.cssW,
+            cssH: f.cssH,
+          };
+        });
+      const upright = await frame();
+      await page.setViewportSize({ width: vp.height, height: vp.width });
+      await expect.poll(frame).not.toEqual(upright);
+      await page.setViewportSize(vp);
+      await expect.poll(frame).toEqual(upright);
+      // iOS can announce the turn back before its layout settles and send nothing after:
+      // the band is measured on the sideways layout, then the layout settles quietly.
+      await page.evaluate(async () => {
+        const view = window.__emblemRogueGame.scene.getScene('Title').titleView;
+        const frames = (n) =>
+          new Promise((done) => {
+            const step = () => (n-- > 0 ? requestAnimationFrame(step) : done());
+            step();
+          });
+        view.root.style.width = `${Math.max(innerWidth, innerHeight)}px`;
+        window.dispatchEvent(new Event('resize'));
+        await frames(2);
+        view.root.style.width = '';
+      });
+      await expect.poll(frame).toEqual(upright);
+    });
+
     test('focus follows the column top to bottom', async ({ page }) => {
       await openTitle(page);
       const order = await page.evaluate(() =>
