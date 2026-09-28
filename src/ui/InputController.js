@@ -2,6 +2,7 @@ import { sceneHealPreview } from './healTargetPreview.js';
 import { DangerZoneOverlay } from './DangerZoneOverlay.js';
 import { canInspectUnit, terrainRuleLines } from '../engine/BattleInformation.js';
 import { computeEffectivePath } from '../engine/Grid.js';
+import { unitReach } from '../engine/ThreatForecast.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
 import {
   isSleeping,
@@ -991,33 +992,13 @@ export class InputController {
         unit.faction === 'player' ? isRooted(unit) : willRemainRootedNextPhase(unit);
       const asleepPlayer = unit.faction === 'player' && isSleeping(unit);
       const mov = rootedForPreview || asleepPlayer ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0);
-      const moveRange = scene.grid.getMovementRange(
-        unit.col,
-        unit.row,
+      const { moveRange, attackTiles } = unitReach(scene.grid, unit, {
         mov,
-        unit.moveType,
         positions,
-        unit.faction,
-        scene._getCostModifier(unit),
-      );
+        costModifier: scene._getCostModifier(unit),
+      });
       scene.grid.showMovementRange(moveRange, unit.col, unit.row, moveColor, moveAlpha);
-
-      if (unit.weapon && !asleepPlayer) {
-        const attackTiles = new Set();
-        for (const [key, entry] of moveRange) {
-          if (entry.stoppable === false) continue;
-          const [mc, mr] = key.split(',').map(Number);
-          for (const t of scene.grid.getAttackRange(mc, mr, unit.weapon)) {
-            const tk = `${t.col},${t.row}`;
-            if (!moveRange.has(tk)) attackTiles.add(tk);
-          }
-        }
-        const tiles = Array.from(attackTiles).map((k) => {
-          const [col, row] = k.split(',').map(Number);
-          return { col, row };
-        });
-        scene.grid.showAttackRange(tiles);
-      }
+      if (unit.weapon && !asleepPlayer) scene.grid.showAttackRange(attackTiles);
       if (unit.faction === 'enemy') this._showInspectedThreat(unit);
     }
 

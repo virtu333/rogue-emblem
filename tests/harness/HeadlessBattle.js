@@ -394,7 +394,7 @@ export class HeadlessBattle {
     this.selectedUnit.col = col;
     this.selectedUnit.row = row;
     this.selectedUnit.hasMoved = true;
-    this._refreshFogVisibility();
+    // Fog waits for the action to be committed (BattleActionCompletion.revealSettledVision).
     this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
   }
 
@@ -578,6 +578,7 @@ export class HeadlessBattle {
         u.hasActed = true;
       }
     }
+    this._refreshFogVisibility();
     this.turnManager.endPlayerPhase();
     // Note: enemy phase processing is handled by GameDriver after step()
   }
@@ -2219,6 +2220,7 @@ export class HeadlessBattle {
       this.attackTargets = [];
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
       this._clearCombatRollSession();
+      this._refreshFogVisibility();
       return;
     }
 
@@ -2245,6 +2247,7 @@ export class HeadlessBattle {
         this.attackTargets = [];
         this.battleState = HEADLESS_STATES.PLAYER_IDLE;
         this._clearCombatRollSession();
+        this._refreshFogVisibility();
         return;
       }
     }
@@ -2332,6 +2335,7 @@ export class HeadlessBattle {
     this.selectedUnit = null;
     this.preMoveLoc = null;
     this.battleState = HEADLESS_STATES.PLAYER_IDLE;
+    this._refreshFogVisibility();
     this.turnManager.unitActed(unit);
   }
 
@@ -2386,6 +2390,7 @@ export class HeadlessBattle {
     this.battleState = HEADLESS_STATES.PLAYER_IDLE;
 
     if (this._checkBattleEnd()) return;
+    this._refreshFogVisibility();
     this.turnManager.unitActed(unit);
   }
 

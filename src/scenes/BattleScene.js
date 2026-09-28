@@ -122,7 +122,7 @@ import {
   getAffixMovBonus,
 } from '../engine/AffixSystem.js';
 import { shouldAllowUndoMove } from '../engine/TradeFlow.js';
-import { completeBattleAction } from '../ui/BattleActionCompletion.js';
+import { completeBattleAction, revealSettledVision } from '../ui/BattleActionCompletion.js';
 import {
   getWeaponArtCombatMods,
   recordWeaponArtUse,
@@ -4291,6 +4291,8 @@ export class BattleScene extends Phaser.Scene {
       // once; all units are acted, so unitActed performs the phase transition.
       completeBattleAction(this, cantoUnit);
     } else {
+      // A moved unit that never acted ends its turn where it stands: reveal now.
+      revealSettledVision(this);
       this._captureSuspendCheckpoint?.();
       this.turnManager.endPlayerPhase();
     }
@@ -4861,11 +4863,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async afterMove(unit) {
-    // Update fog of war after player movement
-    if (this.grid.fogEnabled && unit.faction === 'player') {
-      this.grid.updateFogOfWar(this.playerUnits);
-      this.updateEnemyVisibility();
-    }
+    // No fog update here: the move can still be undone, so its vision waits until
+    // the unit's action is committed (revealSettledVision).
     if (this.battleParams.tutorialMode && this.tutorialStep === 3) {
       this.tutorialStep = 4;
       this._clearTutorialGuideHighlights();
@@ -4969,6 +4968,8 @@ export class BattleScene extends Phaser.Scene {
         this.selectedUnit = unit;
         this.preMoveLoc = null;
         this._preFogSnapshot = null;
+        // The turn isn't over: the fog lifts where Canto ends (completeBattleAction),
+        // with the suspend save that records it.
         this.startCantoMove(unit, remaining);
         return;
       }
@@ -5753,12 +5754,9 @@ export class BattleScene extends Phaser.Scene {
       unit.row = destRow;
       try {
         this.updateUnitPosition(unit);
-        if (this.grid.fogEnabled) {
-          this.grid.updateFogOfWar(this.playerUnits);
-          this.updateEnemyVisibility();
-        }
         this.cantoRange = null;
         this._resetCantoPreInitFaultTracking();
+        // Canto's end is the turn's end: completeBattleAction lifts the fog here.
         completeBattleAction(this, unit);
       } catch (err) {
         failCantoMove('Error while finalizing canto move', err);

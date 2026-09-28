@@ -23,14 +23,15 @@ import {
   placeUnit,
   placedCount,
   playerSpawnBounds,
-  tileKey,
   unitOnTile,
 } from '../engine/FormationPlacement.js';
 import { FormationPicker } from './FormationPicker.js';
 import { FormationDock, renderFormationPanel } from './FormationPanel.js';
 import { MenuSurface, button as menuButton } from './MenuSurface.js';
+import { unitReach } from '../engine/ThreatForecast.js';
+import { isRooted } from '../engine/StatusConditionSystem.js';
 import { UI_HEX } from '../utils/uiStyles.js';
-import { TILE_SIZE } from '../utils/constants.js';
+import { ATTACK_RANGE_ALPHA, ATTACK_RANGE_COLOR, TILE_SIZE } from '../utils/constants.js';
 import './formation.css';
 
 export const FORMATION_STATE = 'DEPLOY_POSITIONING';
@@ -122,6 +123,8 @@ export class FormationController {
     }
     this.active = false;
     this.ready = false;
+    this.heldUnit = null;
+    this.selectedTile = null;
     if (s.battleState === FORMATION_STATE) s.battleState = 'PLAYER_IDLE';
     if (s.grid?.fogEnabled) {
       s.grid.updateFogOfWar(s.playerUnits);
@@ -265,26 +268,52 @@ export class FormationController {
 
   // --- Player actions ----------------------------------------------------------
 
-  /** A map tap (or gamepad confirm) during placement. */
+  /** Index of the unit in hand, or -1. */
+  heldIndex() {
+    return this.heldUnit ? this.unitIndex(this.heldUnit) : -1;
+  }
+
+  /** The held unit's tile, or null when nothing is held or the held unit is waiting. */
+  heldTile() {
+    const u = this.heldIndex();
+    return u === -1 ? null : this.formation.at[u];
+  }
+
+  /**
+   * A map tap (or gamepad confirm) during placement. Tap a unit to pick it up, then
+   * a tile to move it there or another unit to swap; tap it again for its menu.
+   * An empty tile with nothing in hand asks who stands there.
+   */
   handleTileTap(gp) {
     if (!this.ready) return;
     const s = this.scene;
     const t = this.tileIndexAt(gp.col, gp.row);
     if (t === -1) {
-      this.selectTile(null);
-      // Off the formation: enemies and terrain inspect as on a normal turn.
+      if (this.selectedTile !== null) this.selectTile(null);
+      // Off the formation: enemies and terrain inspect as on a normal turn, and a
+      // unit in hand stays there (check a threat, then set it down).
       s._inputController?.handleIdleClick?.(gp);
       return;
     }
     if (this.heldUnit) {
-      const u = this.unitIndex(this.heldUnit);
+      const u = this.heldIndex();
+      const from = this.formation.at[u];
+      if (from === t) {
+        this.openUnitMenu(u);
+        return;
+      }
       const reason = this.issue(u, t);
       if (reason) {
         this.flash(reason);
         return;
       }
       this.heldUnit = null;
-      this.assign(u, t);
+      this.moveTo(u, t);
+      return;
+    }
+    const occupant = unitOnTile(this.formation, t);
+    if (occupant !== -1) {
+      this.holdUnit(this.units[occupant]);
       return;
     }
     this.selectTile(t);
@@ -297,11 +326,49 @@ export class FormationController {
     this.touch();
   }
 
-  /** Rail: tap a benched unit, then a tile. Tapping it again lets go. */
+  /**
+   * Pick a unit up (a tile tap on a placed unit, or a waiting unit's chip); picking
+   * the same unit again lets go. With a placed unit in hand, a waiting unit's chip
+   * sends that unit in on its tile and the held unit waits.
+   */
   holdUnit(unit) {
     if (!this.ready) return;
+    const from = this.heldTile();
+    const u = this.unitIndex(unit);
+    if (from !== null && this.heldUnit !== unit && this.formation.at[u] === null) {
+      const reason = this.issue(u, from);
+      if (reason) {
+        this.flash(reason);
+        return;
+      }
+      this.heldUnit = null;
+      this.assign(u, from);
+      return;
+    }
     this.heldUnit = this.heldUnit === unit ? null : unit;
     this.selectedTile = null;
+    this.drawMarkers();
+    this.touch();
+  }
+
+  /**
+   * Place u on t, setting down whatever is in hand. When a placed unit moves onto
+   * another that can't take its old tile, that one waits, and the rail says why.
+   */
+  moveTo(u, t) {
+    const from = this.formation.at[u];
+    const occupant = unitOnTile(this.formation, t);
+    const benched = from !== null && occupant !== -1 && occupant !== u && this.displaces(u, t);
+    this.heldUnit = null;
+    if (!this.assign(u, t)) return false;
+    if (benched) this.flash(`${this.units[occupant].name} waits: ${this.issue(occupant, from)}`);
+    return true;
+  }
+
+  /** Set the unit in hand down where it is. */
+  release() {
+    if (!this.heldUnit) return;
+    this.heldUnit = null;
     this.drawMarkers();
     this.touch();
   }
@@ -319,6 +386,46 @@ export class FormationController {
     });
   }
 
+  /** A placed unit's menu: swap it with anyone, send it back to wait, or read its details. */
+  openUnitMenu(u) {
+    const t = this.formation.at[u];
+    if (!this.ready || t === null) return;
+    this.picker?.destroy();
+    this.picker = new FormationPicker(this.scene, this, t, {
+      subject: u,
+      onPick: (v) => this.moveTo(v, t),
+      onClear: () => {
+        this.heldUnit = null;
+        this.clear(t);
+      },
+      onDetails: () => this.showDetails(u),
+      // Closing the menu keeps the unit in hand; Back again sets it down.
+      onClose: () => {
+        this.picker = null;
+        this.drawMarkers();
+        this.touch();
+      },
+    });
+  }
+
+  /**
+   * The unit's detail sheet, paging through the units on the field (the sheet reads
+   * terrain from where a unit stands; a waiting unit stands nowhere).
+   */
+  showDetails(u) {
+    const s = this.scene;
+    const unit = this.units[u];
+    const t = this.formation.at[u];
+    if (!unit || t === null || !s.unitDetailOverlay) return;
+    const placed = this.units.filter((_, v) => this.formation.at[v] !== null);
+    const tile = this.tiles[t];
+    s.unitDetailOverlay.show(unit, s.grid?.getTerrainAt?.(tile.col, tile.row), s.gameData, {
+      rosterUnits: placed,
+      rosterIndex: placed.indexOf(unit),
+    });
+    s.refreshEndTurnControl?.();
+  }
+
   assign(u, t) {
     if (this.issue(u, t)) return false;
     // A displaced unit only swaps onto a tile it may stand on; otherwise it waits.
@@ -330,6 +437,14 @@ export class FormationController {
   clear(t) {
     this.formation = clearTile(this.formation, t);
     this.syncField();
+  }
+
+  /** Send a placed unit back to wait. */
+  unplace(u) {
+    const t = this.formation.at[u];
+    if (!this.ready || t === null) return;
+    if (this.heldUnit === this.units[u]) this.heldUnit = null;
+    this.clear(t);
   }
 
   clearAll() {
@@ -368,6 +483,9 @@ export class FormationController {
     this.menu?.destroy();
     this.menu = null;
     this.ready = false;
+    this.heldUnit = null;
+    this.selectedTile = null;
+    if (s.unitDetailOverlay?.visible) s.unitDetailOverlay.hide();
     for (const [u, unit] of this.units.entries()) {
       const tile = this.tiles[this.formation.at[u]];
       unit.col = tile.col;
@@ -482,12 +600,14 @@ export class FormationController {
     const s = this.scene;
     this.clearMarkers();
     if (!this.active || !s.add) return;
-    const held = this.heldUnit ? this.unitIndex(this.heldUnit) : -1;
+    const held = this.heldIndex();
+    const heldTile = this.heldTile();
+    this.drawReach();
     for (const [t, tile] of this.tiles.entries()) {
       const { x, y } = s.grid.gridToPixel(tile.col, tile.row);
       const occupied = unitOnTile(this.formation, t) !== -1;
-      const selected = this.selectedTile === t;
-      const blockedForHeld = held !== -1 && Boolean(this.issue(held, t));
+      const selected = this.selectedTile === t || heldTile === t;
+      const blockedForHeld = held !== -1 && heldTile !== t && Boolean(this.issue(held, t));
       const fill = s.add
         .rectangle(x, y, TILE_SIZE - 2, TILE_SIZE - 2, UI_HEX.info, occupied ? 0.16 : 0.34)
         .setDepth(6);
@@ -511,11 +631,66 @@ export class FormationController {
         this.markers.push(plus);
       }
     }
+    this.tintHeld();
+  }
+
+  /** Where the placed unit in hand could move and strike on turn 1, from its tile. */
+  reachTiles() {
+    const s = this.scene;
+    const u = this.heldIndex();
+    if (u === -1 || this.formation.at[u] === null || !s.grid?.getMovementRange) return null;
+    const unit = this.units[u];
+    const positions = s.buildUnitPositionMap?.('player') || new Map();
+    // Fog: an unseen enemy never shapes the preview (it would give itself away).
+    if (s.grid.fogEnabled)
+      for (const [key, entry] of positions) {
+        const [col, row] = key.split(',').map(Number);
+        if (entry?.faction !== 'player' && !s.grid.isVisible(col, row)) positions.delete(key);
+      }
+    const { moveRange, attackTiles } = unitReach(s.grid, unit, {
+      mov: isRooted(unit) ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0),
+      positions,
+      costModifier: s._getCostModifier?.(unit) || 0,
+    });
+    const move = [];
+    for (const [key, entry] of moveRange) {
+      if (entry?.stoppable === false || key === `${unit.col},${unit.row}`) continue;
+      const [col, row] = key.split(',').map(Number);
+      move.push({ col, row });
+    }
+    return { move, attack: attackTiles };
+  }
+
+  drawReach() {
+    const s = this.scene;
+    const reach = this.reachTiles();
+    if (!reach) return;
+    const paint = (tiles, color, alpha) => {
+      for (const { col, row } of tiles) {
+        const { x, y } = s.grid.gridToPixel(col, row);
+        this.markers.push(
+          s.add.rectangle(x, y, TILE_SIZE - 1, TILE_SIZE - 1, color, alpha).setDepth(5),
+        );
+      }
+    };
+    paint(reach.move, 0x3366cc, 0.4);
+    paint(reach.attack, ATTACK_RANGE_COLOR, ATTACK_RANGE_ALPHA);
+  }
+
+  /** The unit in hand wears the selection tint, as a selected unit does in battle. */
+  tintHeld() {
+    const unit = this.heldTile() === null ? null : this.heldUnit;
+    if (this.tinted === unit) return;
+    this.tinted?.graphic?.clearTint?.();
+    this.tinted = unit;
+    unit?.graphic?.setTint?.(0xaaaaff);
   }
 
   clearMarkers() {
     for (const marker of this.markers) marker?.destroy?.();
     this.markers = [];
+    this.tinted?.graphic?.clearTint?.();
+    this.tinted = null;
   }
 
   /** Fog during placement: what the formation tiles would see (foot vision). */
@@ -576,6 +751,8 @@ export class FormationController {
     }
     this.active = false;
     this.ready = false;
+    this.heldUnit = null;
+    this.selectedTile = null;
     this.resolve = null;
   }
 }

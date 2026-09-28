@@ -34,7 +34,7 @@ import {
   getRelocationDestinations,
 } from '../engine/StaffRelocation.js';
 import { staffAllyCandidates } from '../engine/RecruitNpc.js';
-import { canInspectUnit } from '../engine/BattleInformation.js';
+import { canInspectUnit, seenTileOccupant } from '../engine/BattleInformation.js';
 import { showContextualHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
@@ -121,8 +121,12 @@ export class HealController {
       // Warp/Rescue: phase-1 ally targets (destination legality by the
       // ALLY's moveType is checked inside findRelocateTargets). Army only: a
       // warped caravan could skip its escort walk, a warped recruit its rescue.
-      return findRelocateTargets(staff, unit, scene.playerUnits, scene.grid, (c, r) =>
-        scene.getUnitAt(c, r),
+      return findRelocateTargets(
+        staff,
+        unit,
+        scene.playerUnits,
+        scene.grid,
+        seenTileOccupant(scene.grid, (c, r) => scene.getUnitAt(c, r)),
       );
     }
     const range = getEffectiveStaffRange(staff, unit);
@@ -307,8 +311,12 @@ export class HealController {
     const caster = scene.selectedUnit;
     const staff = caster?.weapon; // equipped by startHealTargetSelection
     if (!caster || !isRelocateStaff(staff)) return;
-    const tiles = getRelocationDestinations(staff, caster, ally, scene.grid, (c, r) =>
-      scene.getUnitAt(c, r),
+    const tiles = getRelocationDestinations(
+      staff,
+      caster,
+      ally,
+      scene.grid,
+      seenTileOccupant(scene.grid, (c, r) => scene.getUnitAt(c, r)),
     );
     if (tiles.length === 0) return; // phase-1 filter should prevent this
     scene.staffRelocateAlly = ally;

@@ -9,6 +9,14 @@ export function canInspectUnit(grid, unit) {
   if (unit.faction === 'player' || !grid?.fogEnabled) return true;
   return (isEntity(unit) ? getFootprint(unit) : [unit]).some((t) => grid.isVisible(t.col, t.row));
 }
+/**
+ * `getUnitAt` for choosing a destination tile (Blink, Warp/Rescue): a tile the fog
+ * hides counts as taken. Offering unseen tiles "if free" would give a hidden unit
+ * away by its tile's absence from the list.
+ */
+export function seenTileOccupant(grid, getUnitAt) {
+  return (col, row) => (grid?.fogEnabled && !grid.isVisible(col, row)) || getUnitAt(col, row);
+}
 // Acid's words, shared by the unit's status line and the ground that applies it:
 // the tick is TerrainHazards.computeAcidDamage and never leaves a unit below 1 HP.
 const ACID_TICK = `loses ${Math.round(ACID_DAMAGE_PERCENT * 100)}% of max HP at turn start`;

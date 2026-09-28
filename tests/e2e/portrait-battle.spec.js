@@ -740,3 +740,48 @@ test('rewind previews draw the board the way the upright battle does', async ({ 
   expect(drawn.length).toBeGreaterThan(0);
   for (const unit of drawn) expect(unit.drawn).toEqual(unit.expected);
 });
+
+// The (i) pop-ups in unit details: upright they read whole, inside the notch and home
+// bar, and only a text longer than the screen scrolls (landscape keeps its 410px cap).
+// WebKit once drew them as a bare header (flex-basis 0% under fit-content), which only
+// tests/ContextHelpSizing.test.js can pin: Chromium lays that case out either way.
+test('upright help pop-ups show their whole answer', async ({ page }) => {
+  await bootBattle(page);
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const u = s.playerUnits[0];
+    s.unitDetailOverlay.show(u, s.grid.getTerrainAt(u.col, u.row), s.gameData, {
+      rosterUnits: s.playerUnits,
+      rosterIndex: 0,
+    });
+  });
+  const infos = page.locator('.re-info-btn');
+  await expect(infos.first()).toBeVisible();
+  const count = await infos.count();
+  expect(count).toBeGreaterThan(1);
+  for (let i = 0; i < count; i++) {
+    await infos.nth(i).tap();
+    const help = page.locator('.re-help');
+    await expect(help).toBeVisible();
+    const box = await help.evaluate((h) => {
+      const body = h.querySelector('.re-menu-body');
+      const r = h.getBoundingClientRect();
+      return {
+        title: h.querySelector('h2')?.textContent,
+        top: r.top,
+        bottom: r.bottom,
+        body: body.clientHeight,
+        text: body.scrollHeight,
+        arrows: !h.querySelector('.ch-scroll')?.hidden,
+      };
+    });
+    // Some text shows, all of it (no scrolling needed on a 844px phone), on screen.
+    expect(box.body, box.title).toBeGreaterThan(60);
+    expect(box.text - box.body, box.title).toBeLessThanOrEqual(1);
+    expect(box.arrows, box.title).toBe(false);
+    expect(box.top, box.title).toBeGreaterThanOrEqual(0);
+    expect(box.bottom, box.title).toBeLessThanOrEqual(844);
+    await help.getByRole('button', { name: 'Close', exact: true }).tap();
+    await expect(help).toHaveCount(0);
+  }
+});

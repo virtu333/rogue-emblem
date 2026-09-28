@@ -19,7 +19,7 @@ import {
 } from '../engine/ActionAbilitySystem.js';
 import { applyCondition } from '../engine/StatusConditionSystem.js';
 import { staffAllyCandidates } from '../engine/RecruitNpc.js';
-import { canInspectUnit } from '../engine/BattleInformation.js';
+import { canInspectUnit, seenTileOccupant } from '../engine/BattleInformation.js';
 import { deedsFor } from './DeedController.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
@@ -54,6 +54,17 @@ export class AbilityController {
     );
   }
 
+  /**
+   * Foes the menu and the confirm prompt may count: only those the player sees. A
+   * unit that moved next to the fog hasn't lifted it yet (revealSettledVision), so an
+   * unfiltered count would name what hides there. The effect itself still lands on
+   * everyone in its radius.
+   */
+  _seenHostiles(unit) {
+    const scene = this.scene;
+    return scene._getTier5HostileUnitsFor(unit).filter((foe) => canInspectUnit(scene.grid, foe));
+  }
+
   _getAbilityEntries(unit) {
     const scene = this.scene;
     const skillsData = scene.gameData?.skills || [];
@@ -61,9 +72,9 @@ export class AbilityController {
       const check = canUseAbility(unit, skill);
       const hasTargets = abilityHasTargets(unit, skill, {
         grid: scene.grid,
-        getUnitAt: (col, row) => scene.getUnitAt(col, row),
+        getUnitAt: seenTileOccupant(scene.grid, (col, row) => scene.getUnitAt(col, row)),
         allies: this._allyPool(unit, skill.actionAbility?.kind),
-        enemies: scene._getTier5HostileUnitsFor(unit),
+        enemies: this._seenHostiles(unit),
       });
       return { skill, canUse: check.ok, reason: check.reason, hasTargets };
     });
@@ -217,8 +228,11 @@ export class AbilityController {
     scene.hideActionMenu();
     scene.inEquipMenu = false;
     scene.battleState = 'SELECTING_ABILITY_TILE';
-    const tiles = getBlinkTiles(unit, skill.actionAbility.range, scene.grid, (col, row) =>
-      scene.getUnitAt(col, row),
+    const tiles = getBlinkTiles(
+      unit,
+      skill.actionAbility.range,
+      scene.grid,
+      seenTileOccupant(scene.grid, (col, row) => scene.getUnitAt(col, row)),
     );
     scene.abilityTiles = tiles;
     scene._pendingAbility = { unitName: unit.name, skillId: skill.id };
@@ -301,9 +315,7 @@ export class AbilityController {
 
     const ability = skill.actionAbility;
     const hostile = ability.kind === 'aoe_root';
-    const pool = hostile
-      ? scene._getTier5HostileUnitsFor(unit)
-      : this._allyPool(unit, ability.kind);
+    const pool = hostile ? this._seenHostiles(unit) : this._allyPool(unit, ability.kind);
     const affected = collectAffected(unit, ability, pool);
     const tiles = affected.map((target) => ({ col: target.col, row: target.row }));
     scene.grid.showAttackRange(tiles, hostile ? ENEMY_AOE_COLOR : ALLY_AOE_COLOR, 0.4);
