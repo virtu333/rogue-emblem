@@ -92,14 +92,17 @@ export function generateBattle(params, deps) {
   const resolvedHybridAnchors = resolveHybridAnchors(template.hybridArena, cols, rows);
   applyHybridArenaOverlay(mapLayout, template.hybridArena, cols, rows, terrain);
 
-  // 4. Place features (Throne for Seize, Ballista for Hard/Lunatic)
+  // 4. Place features (Throne for Seize, Ballista for Hard/Lunatic from Act 2)
   let thronePos = null;
   const ballistas = [];
   const diffMode = params.difficultyId || 'normal';
+  // Ballistas are Hard/Lunatic only, and never in Act 1: a range-5 bolt every enemy
+  // phase against two level-1 lords was the opening map's hardest threat.
+  const ballistasAllowed =
+    (diffMode === 'hard' || diffMode === 'lunatic') && (params.act || 'act1') !== 'act1';
   if (template.features) {
     for (const feat of template.features) {
-      // Ballistas are Hard/Lunatic only — skip on Normal
-      if (feat.type === 'Ballista' && diffMode !== 'hard' && diffMode !== 'lunatic') continue;
+      if (feat.type === 'Ballista' && !ballistasAllowed) continue;
       const pos = resolveFeaturePosition(feat.position, cols, rows, template);
       const idx = terrainNameToIndex(feat.type || feat.terrain, terrain);
       if (idx !== -1) {

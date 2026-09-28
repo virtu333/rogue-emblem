@@ -255,6 +255,18 @@ describe('BallistaEngine', () => {
       }
     });
 
+    it('no Ballista in Act 1 on any difficulty', () => {
+      for (const difficultyId of ['normal', 'hard', 'lunatic'])
+        for (const templateId of ['open_field', 'river_crossing', 'chokepoint'])
+          for (let seed = 1; seed <= 5; seed++) {
+            const config = withSeed(seed, () =>
+              generateBattle({ act: 'act1', objective: 'rout', templateId, difficultyId }, data),
+            );
+            expect(config.ballistas).toBeUndefined();
+            expect(config.mapLayout.flat()).not.toContain(TERRAIN.Ballista);
+          }
+    });
+
     it('Ballista terrain NOT placed on Normal', () => {
       // Run several seeds to account for randomness
       for (let seed = 1; seed <= 10; seed++) {
