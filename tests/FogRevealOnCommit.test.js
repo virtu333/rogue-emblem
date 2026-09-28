@@ -10,6 +10,7 @@ import { completeBattleAction } from '../src/ui/BattleActionCompletion.js';
 import { completeResolvedAction } from '../src/ui/BattlePresentationCheckpoint.js';
 import { EscapeObjectiveController } from '../src/ui/EscapeObjectiveController.js';
 import { AbilityController } from '../src/ui/AbilityController.js';
+import { HealController } from '../src/ui/HealController.js';
 import { seenTileOccupant } from '../src/engine/BattleInformation.js';
 import { getRelocationTiles } from '../src/engine/StaffRelocation.js';
 import { loadGameData } from './testData.js';
@@ -230,6 +231,82 @@ describe('fog lifts only once an action is committed', () => {
     expect(grid.everSeenSet.has('5,1')).toBe(false);
     expect(scene.saved).toEqual([false]);
     expect(scene.turnManager.unitActed).toHaveBeenCalledWith(edric);
+  });
+});
+
+describe('moves inside an action (Rescue/Warp, Blink) lift the fog only on commit', () => {
+  const RESCUE = gameData.weapons.find((w) => w.name === 'Rescue Staff');
+
+  /** Edric (a Canto caster when asked) moves to (4,1), then relocates Sera to (3,1). */
+  async function rescue({ canto }) {
+    const { scene, grid, edric } = setup();
+    edric.weapon = { ...RESCUE };
+    edric.inventory = [edric.weapon];
+    edric.proficiencies = [{ type: 'Staff', rank: 'Prof' }];
+    if (canto) {
+      edric.skills = ['canto'];
+      edric._movementSpent = 4;
+    }
+    const sera = { ...edric, name: 'Sera', col: 0, row: 0, skills: [], graphic: edric.graphic };
+    scene.playerUnits.push(sera);
+    grid.updateFogOfWar(scene.playerUnits);
+    scene.updateEnemyVisibility();
+    await moveNextToBrigand(scene, edric);
+    let litAtCanto = null;
+    scene.startCantoMove = vi.fn(() => {
+      litAtCanto = grid.isVisible(5, 1);
+    });
+    scene.awardScaledXP = vi.fn(async () => {});
+    const heal = new HealController(scene);
+    heal.animateRelocate = vi.fn(async (ally, dest) => {
+      ally.col = dest.col;
+      ally.row = dest.row;
+    });
+    heal.restoreCombatWeapon = vi.fn();
+    scene.selectedUnit = edric;
+    await heal.executeRelocate(edric, sera, { col: 3, row: 1 });
+    return { scene, grid, edric, sera, litAtCanto: () => litAtCanto };
+  }
+
+  it('Rescue with Canto: the landing reveals nothing until Canto ends, then with the save', async () => {
+    const { scene, grid, edric, sera, litAtCanto } = await rescue({ canto: true });
+    expect([sera.col, sera.row]).toEqual([3, 1]);
+    expect(scene.startCantoMove).toHaveBeenCalledWith(edric, 1);
+    expect(litAtCanto()).toBe(false);
+    expect(grid.everSeenSet.has('5,1')).toBe(false);
+    expect(scene.saved).toEqual([]);
+    completeBattleAction(scene, edric);
+    expect(grid.isVisible(5, 1)).toBe(true);
+    expect(scene.saved).toEqual([true]);
+  });
+
+  it("Rescue without Canto: the fog lifts with the action's suspend save", async () => {
+    const { scene, grid } = await rescue({ canto: false });
+    expect(grid.isVisible(5, 1)).toBe(true);
+    expect(scene.saved).toEqual([true]);
+  });
+
+  it('Blink with Canto: the new tile reveals nothing until Canto ends', async () => {
+    const { scene, grid, edric } = setup();
+    edric.skills = ['blink', 'canto'];
+    edric._movementSpent = 1;
+    let litAtCanto = null;
+    scene.startCantoMove = vi.fn(() => {
+      litAtCanto = grid.isVisible(5, 1);
+    });
+    scene.updateUnitPosition = vi.fn();
+    scene._awaitSceneTween = vi.fn(async () => {});
+    scene._refreshPostCombatMovementState =
+      BattleScene.prototype._refreshPostCombatMovementState.bind(scene);
+    const blink = scene.gameData.skills.find((sk) => sk.id === 'blink');
+    await new AbilityController(scene).executeBlink(edric, blink, { col: 4, row: 1 });
+    expect([edric.col, edric.row]).toEqual([4, 1]);
+    expect(scene.startCantoMove).toHaveBeenCalled();
+    expect(litAtCanto).toBe(false);
+    expect(scene.saved).toEqual([]);
+    completeBattleAction(scene, edric);
+    expect(grid.isVisible(5, 1)).toBe(true);
+    expect(scene.saved).toEqual([true]);
   });
 });
 

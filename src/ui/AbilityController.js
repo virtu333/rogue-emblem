@@ -297,8 +297,9 @@ export class AbilityController {
           { label: 'ability_blink_fade_in' },
         );
       }
-      // A teleport is movement: refresh fog/visibility + mark danger zone stale
-      scene._refreshPostCombatMovementState([unit]);
+      // A teleport is movement: the danger zone is stale; the fog lifts only when
+      // the action is committed (finishUnitAction, or where Canto ends).
+      scene._refreshPostCombatMovementState([unit], { revealFog: false });
       scene.finishUnitAction(unit);
     } catch (err) {
       scene._recoverUnitActionError(unit, 'ability_blink', err);

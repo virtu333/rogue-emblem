@@ -210,7 +210,7 @@ describe('executeRelocate', () => {
     );
   });
 
-  it('refreshes fog of war when fog is enabled', async () => {
+  it('leaves the fog to the action completion (finishUnitAction), never before it', async () => {
     const ctx = makeSceneCtx();
     ctx.grid.fogEnabled = true;
     ctx.grid.updateFogOfWar = vi.fn();
@@ -220,10 +220,18 @@ describe('executeRelocate', () => {
     const healer = makeHealer(staff);
     const ally = makeAlly();
 
+    let fogBeforeFinish = null;
+    const finish = ctx.finishUnitAction;
+    ctx.finishUnitAction = vi.fn((...args) => {
+      fogBeforeFinish = ctx.grid.updateFogOfWar.mock.calls.length;
+      return finish?.(...args);
+    });
+
     await BattleScene.prototype.executeRelocate.call(ctx, healer, ally, { col: 8, row: 4 });
 
-    expect(ctx.grid.updateFogOfWar).toHaveBeenCalled();
-    expect(ctx.updateEnemyVisibility).toHaveBeenCalled();
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer);
+    expect(fogBeforeFinish).toBe(0);
+    expect(ctx.updateEnemyVisibility).not.toHaveBeenCalled();
   });
 });
 

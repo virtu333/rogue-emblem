@@ -280,7 +280,7 @@ describe('Blink (SELECTING_ABILITY_TILE)', () => {
     expect(scene.grid.clearAttackHighlights).toHaveBeenCalled();
   });
 
-  it('executeBlink relocates the unit, marks usage, refreshes fog, and ends the action', async () => {
+  it('executeBlink relocates the unit, marks usage, leaves fog to the commit, and ends the action', async () => {
     const unit = makeUnit({ skills: ['blink'] });
     const scene = makeAbilityScene({ unit });
     scene.hideActionMenu = vi.fn();
@@ -292,7 +292,9 @@ describe('Blink (SELECTING_ABILITY_TILE)', () => {
     expect(unit.row).toBe(4);
     expect(unit._battleAbilityUsage.map.blink).toBe(1);
     expect(scene.updateUnitPosition).toHaveBeenCalledWith(unit);
-    expect(scene._refreshPostCombatMovementState).toHaveBeenCalledWith([unit]);
+    expect(scene._refreshPostCombatMovementState).toHaveBeenCalledWith([unit], {
+      revealFog: false,
+    });
     expect(scene.commitVisionSnapshotIfPending).toHaveBeenCalled();
     // finishUnitAction without skipCanto — Canto applies like other actions
     expect(scene.finishUnitAction).toHaveBeenCalledWith(unit);

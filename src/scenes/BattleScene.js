@@ -8722,10 +8722,15 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
-  _refreshPostCombatMovementState(movedUnits) {
+  /**
+   * Units moved mid-action. Combat shoves/pulls reveal at once: the attack was saved
+   * as committed before it resolved. A move that is not yet saved (Blink) passes
+   * revealFog: false and lifts the fog when its action completes.
+   */
+  _refreshPostCombatMovementState(movedUnits, { revealFog = true } = {}) {
     if (!Array.isArray(movedUnits) || movedUnits.length <= 0) return;
     this.refreshVisibleDangerZone?.();
-    if (this.grid.fogEnabled) {
+    if (revealFog && this.grid.fogEnabled) {
       this.grid.updateFogOfWar(this.playerUnits);
       this.updateEnemyVisibility();
     }

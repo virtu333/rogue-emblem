@@ -355,11 +355,9 @@ export class HealController {
       await this.animateRelocate(ally, dest);
       observeHistoryAction(scene, 'relocated', healer, ally, healer.weapon?.name);
 
-      // A long-range landing can change fog visibility.
-      if (scene.grid.fogEnabled) {
-        scene.grid.updateFogOfWar(scene.playerUnits);
-        scene.updateEnemyVisibility();
-      }
+      // The landing's vision lifts the fog only when the caster's action is
+      // committed (finishUnitAction, or where Canto ends), with the suspend save.
+      scene.refreshVisibleDangerZone?.();
 
       // Spend a use and check depletion (same pattern as executeHeal)
       spendStaffUse(staff);
