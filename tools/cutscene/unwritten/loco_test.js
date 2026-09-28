@@ -18,10 +18,9 @@
 //   node tools/cutscene/render.mjs --piece loco_test --stills 0.5,1,2 --out <dir>
 
 import { Piece } from './engine/piece.js';
-import { T, BEAT, BAR } from './engine/score.js';
-import { hash } from './engine/raster.js';
+import { T, BAR } from './engine/score.js';
+import { hash, hexToRgb } from './engine/raster.js';
 import { RGB, put, splash } from './engine/anime.js';
-import { hexToRgb } from './engine/raster.js';
 import { Stride, lockToWorld, marksInView, rateForSpeed } from './engine/locomotion.js';
 
 export const W = 480;
@@ -60,7 +59,8 @@ function drawGround(f, ground) {
     const m = Math.round(wx / SPACING);
     const x = Math.round(wx + ground);
     const post = ((m % 4) + 4) % 4 === 0;
-    for (let d = 1; d <= (post ? 16 : 6); d++) put(f, W, H, x, GROUND_Y + d, post ? RGB.ink : RGB.sepia);
+    for (let d = 1; d <= (post ? 16 : 6); d++)
+      put(f, W, H, x, GROUND_Y + d, post ? RGB.ink : RGB.sepia);
     if (hash(m, 3, 9) < 0.55) {
       // a stone: a little dome on the line
       const w = 2 + Math.floor(hash(m, 4, 9) * 4);
@@ -152,7 +152,8 @@ export class PieceClass extends Piece {
       const last = falls[falls.length - 1];
       if (last) cross(f, Math.round(pageX(last)), GROUND_Y + 3, 4, RGB.crimson);
       const p = S.plantedFoot(i);
-      if (p) cross(f, Math.round(xf.x + p[0] - xf.ax), Math.round(xf.y + p[1] - xf.ay), 2, RGB.paperHi);
+      if (p)
+        cross(f, Math.round(xf.x + p[0] - xf.ax), Math.round(xf.y + p[1] - xf.ay), 2, RGB.paperHi);
     }
   }
 }

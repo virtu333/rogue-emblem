@@ -294,9 +294,9 @@ def analyse(meta, cells, o):
         if not rs:
             return None
         S = sum(np.clip(r['c'] - 0.25, 0, None) for r in rs)
-        S = np.where(A * facing > 0, S, 0.0)
-        k = int(np.argmax(S))
-        if S[k] <= 0:
+        Sm = np.where(A * facing >= 0, S, 0.0)
+        k = int(np.argmax(Sm))
+        if Sm[k] <= 0:
             return None
         a = A[k] + subpixel(S, k)
         grp = []

@@ -27,6 +27,7 @@ import sys
 import cv2
 import numpy as np
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import contacts as C  # noqa: E402
 
@@ -112,8 +113,10 @@ def check_atlas(name, h, args):
         shift, sc = r
         indep = -shift  # body advance the independent match implies
         rows.append((p, adv, indep, (adv - indep) * sx))
-    print(f"\n{name} @ h {h} (1 cell px = {sx:.3f} art px): stride {c['stride']} cell px, "
-          f"facing {c['facing']:+d} ({c['facingBy']}), confidence {c['confidence']}")
+    print(
+        f"\n{name} @ h {h} (1 cell px = {sx:.3f} art px): stride {c['stride']} cell px, "
+        f"facing {c['facing']:+d} ({c['facingBy']}), confidence {c['confidence']}"
+    )
     print('  pair  advance  independent   slip (art px)')
     for p, a, ind, s in rows:
         print(f'  {p:3d}   {a:7.1f}   {ind:9.1f}   {s:+6.2f}')
@@ -121,7 +124,9 @@ def check_atlas(name, h, args):
     if filled:
         print('  filled pairs (no planted foot): ' + ', '.join(f'{p}:{a:.0f}' for p, a in filled))
     if slips:
-        print(f'  max |slip| {max(slips):.2f} art px, mean {np.mean(slips):.2f}, over {len(slips)} planted pairs')
+        print(
+            f'  max |slip| {max(slips):.2f} art px, mean {np.mean(slips):.2f}, over {len(slips)} planted pairs'
+        )
     return slips
 
 
@@ -194,7 +199,7 @@ def check_frames(frames, args):
                     fx = int(round(ppx + ppl[0] * sx - ax))
                     fy = int(round(GROUND_Y + ppl[1] * sy - ay))
                     pw_ = int(round(0.11 * cw * sx))
-                    ph_ = int(round(0.10 * 0.9 * h))
+                    ph_ = int(round(0.08 * h))
                     tmpl = pgrey[max(0, fy - ph_) : fy + 1, max(0, fx - pw_) : fx + pw_]
                     ok = tmpl.size > 0 and tmpl.std() > 4
                     if ok:
@@ -208,13 +213,15 @@ def check_frames(frames, args):
                             m = np.unravel_index(np.argmax(r), r.shape)
                             score = float(r[m])
                             db = xs0 + m[1] - max(0, fx - pw_) + C.subpixel(r[m[0]], m[1])
-                            if score > 0.6:
+                            if score > args.min_match:
                                 slips.append((pf, f, db - dg, score, dg, db))
             prev = cur
         out[name] = slips
         print(f'\n{name}: rate {rate:.2f}, {len(slips)} planted pair(s) in the frames')
         for pf, f, s, sc, dg, db in slips:
-            print(f'  frame {pf}->{f}: ground {dg:+6.1f}, boot {db:+6.1f}, slip {s:+5.2f} art px (match {sc:.2f})')
+            print(
+                f'  frame {pf}->{f}: ground {dg:+6.1f}, boot {db:+6.1f}, slip {s:+5.2f} art px (match {sc:.2f})'
+            )
         if slips:
             print(f'  max |slip| {max(abs(x[2]) for x in slips):.2f} art px')
     return out
@@ -240,7 +247,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('names', nargs='*', default=CLIPS)
     ap.add_argument('--h', type=float, default=214, help='figure height in art px')
-    ap.add_argument('--frames', default=None, help='rendered loco_test frames (a .frames directory)')
+    ap.add_argument("--frames", default=None, help="rendered loco_test frames (a .frames directory)")
+    ap.add_argument(
+        "--min-match", type=float, default=0.6, help="template match below which a frame pair is not trusted"
+    )
     args = ap.parse_args()
     if args.frames:
         check_frames(args.frames, args)
