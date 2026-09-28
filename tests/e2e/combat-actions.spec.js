@@ -195,7 +195,7 @@ for (const staff of ['Fold Staff', 'Deliverance Staff']) {
     expect(errors).toEqual([]);
   });
 }
-test('Dance refreshes a spent ally, Restore cures a condition', async ({ page }) => {
+test('Dance refreshes a spent ally, Cleanse cures a condition', async ({ page }) => {
   const { hud, errors } = await boot(page);
   await select(page, 'Patient');
   await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
@@ -214,7 +214,7 @@ test('Dance refreshes a spent ally, Restore cures a condition', async ({ page })
   });
   await select(page, 'Sera');
   await hud.getByRole('button', { name: /^Heal \(/ }).tap();
-  await hud.getByRole('button', { name: /Restore/ }).tap();
+  await hud.getByRole('button', { name: /Cleanse/ }).tap();
   await tapTile(page, 2, 4);
   await expect.poll(async () => (await unit(page, 'Sera')).acted).toBe(true);
   expect(

@@ -200,7 +200,7 @@ const ACTIONS = [
         .getByRole('button', { name: /^Heal \(/ })
         .tap();
       await hud(page)
-        .getByRole('button', { name: /Restore/ })
+        .getByRole('button', { name: /Cleanse/ })
         .tap();
       await tapTile(page, 2, 4);
       await hasActed(page, 'Sera');
