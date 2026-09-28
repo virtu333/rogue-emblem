@@ -91,10 +91,14 @@ describe('advanced starting-skill unlocks', () => {
     },
   );
   it('keeps the reduced supply progression total within the prior ceiling', () => {
-    const total = data.metaUpgrades
-      .filter((u) => u.id !== 'legendary_lord_chance')
-      .reduce((sum, u) => sum + u.costs.reduce((a, b) => a + b, 0), 0);
-    expect(total).toBe(52628);
+    // The MAG/LCK stat tracks (added 2026-09-27) are new content priced on
+    // their own; the ceiling guards everything that existed before them.
+    const isMagLckTrack = (u) => /^(lord|recruit)_(mag|lck)_(growth|flat)$/.test(u.id);
+    const sumCosts = (list) => list.reduce((sum, u) => sum + u.costs.reduce((a, b) => a + b, 0), 0);
+    const priced = data.metaUpgrades.filter((u) => u.id !== 'legendary_lord_chance');
+    const total = sumCosts(priced.filter((u) => !isMagLckTrack(u)));
+    expect(total).toBe(53385);
     expect(total / 53428).toBeLessThan(1.03);
+    expect(sumCosts(priced.filter(isMagLckTrack))).toBe(4080);
   });
 });
