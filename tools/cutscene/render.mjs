@@ -7,6 +7,7 @@
 //   --piece hook   renders "The Roll" (tools/cutscene/hook) instead of the pilot
 //   --piece unwritten  renders the Unwritten Page proof (tools/cutscene/unwritten)
 //   --piece again  renders "Again", bars 28-56 of the opening, on the same engine
+//   --piece ford   renders "The Ford", the vertical slice (ford_previs, world_test: its parts)
 //   --piece glass  renders "The Far Side of the Glass" (tools/cutscene/glass);
 //                  glass_cold, glass_ja, glass_captions for its other narrators
 //
@@ -51,6 +52,17 @@ const PIECES = {
     music: 'References/cutscene/unwritten/broken_sun.mp3',
     musicOffset: 43.2,
   },
+  // the vertical slice (tools/cutscene/unwritten/FORD.md): bars 28.3-36, from 44.0 s
+  ...Object.fromEntries(
+    ['ford', 'ford_previs', 'world_test'].map((k) => [
+      k,
+      {
+        page: `/tools/cutscene/unwritten/index.html?export=1&piece=${k}`,
+        music: 'References/cutscene/unwritten/broken_sun.mp3',
+        musicOffset: 44.0,
+      },
+    ]),
+  ),
   ...Object.fromEntries(
     ['cold', 'ja', 'captions'].map((v) => [
       `glass_${v}`,

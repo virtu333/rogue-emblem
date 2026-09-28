@@ -126,15 +126,23 @@
       import { DEFAULTS } from './engine/stages.js';
 
       const params = new URLSearchParams(location.search);
-      // ?piece=again (default): bars 28-56 of the opening; ?piece=proof: the first proof
+      // ?piece=again (default): bars 28-56 of the opening; ?piece=proof: the first proof;
+      // ?piece=ford: the vertical slice (FORD.md), with its previs and the world test
+      const PIECES = {
+        again: () => import('./again.js'),
+        proof: () => import('./proof.js'),
+        ford: () => import('./ford.js'),
+        ford_previs: () => import('./ford_previs.js'),
+        world_test: () => import('./world_test.js'),
+      };
       const which = params.get('piece') || 'again';
-      const mod = which === 'proof' ? await import('./proof.js') : await import('./again.js');
+      const mod = await (PIECES[which] || PIECES.again)();
       const { W, H, DURATION, MUSIC_OFFSET, BAR, FIRST_BAR } = mod;
       if (params.has('export')) document.body.classList.add('export');
       const cv = document.getElementById('c');
       const g = cv.getContext('2d');
       const img = g.createImageData(W, H);
-      const proof = new (mod.Again || mod.Proof)();
+      const proof = new (mod.Again || mod.Proof || mod.PieceClass)();
       const SHOTS = mod.SHOTS || mod.SHOTS_OF(proof);
       const status = document.getElementById('status');
       status.textContent = 'loading…';
@@ -206,7 +214,7 @@
         return t0 + (performance.now() - wall) / 1000;
       };
       const label = (t) => {
-        const bar = FIRST_BAR + Math.floor(t / BAR);
+        const bar = 1 + Math.floor((t + MUSIC_OFFSET) / BAR);
         const shot = SHOTS.find((s) => t >= s.from && t < s.to) || SHOTS[SHOTS.length - 1];
         clock.textContent = `bar ${Math.min(bar, 56)} · ${t.toFixed(2)} s · ${shot.name}`;
       };
