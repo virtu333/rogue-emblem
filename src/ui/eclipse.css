@@ -555,3 +555,27 @@
     animation: none;
   }
 }
+
+/* ───────── Upright phones (portrait mode) ─────────
+   The explainer is a compact card: upright it hugs its words (the shared compact-menu
+   rule would stretch it to the screen's height, a tall empty panel under the notch),
+   centred inside the notch and the home bar, and scrolls only when it must. Landscape
+   and desktop never match. */
+@media (orientation: portrait) {
+  html.portrait-ui .re-modal-shield:has(> .re-eclipse-card) {
+    display: grid;
+    place-items: center;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+  html.portrait-ui .re-eclipse-card.re-compact-menu {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: 460px;
+    height: auto;
+    max-height: 100%;
+    margin: 0;
+    padding: 12px;
+  }
+}

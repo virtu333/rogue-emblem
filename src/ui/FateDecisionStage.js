@@ -19,6 +19,7 @@ import {
   portraitPixelScale,
   hairline,
   measureFrame,
+  partedLine,
 } from './ceremonyDom.js';
 import { pc98PortraitElement } from './portraitArt.js';
 
@@ -57,7 +58,7 @@ export function stageFateDecision(scene, surface, options) {
   const bandEl = el('div', 'ce-band ce-band--crimson');
   const word = el('div', 'ce-band-word', band.word);
   bandEl.append(word);
-  if (band.sub) bandEl.append(el('div', 'ce-band-sub', band.sub));
+  if (band.sub) bandEl.append(partedLine('ce-band-sub', band.sub));
   bandEl.append(hairline('crimson'));
 
   const card = el('div', 'ce-offer');

@@ -88,6 +88,26 @@ export function figureSize(w, h) {
   return k >= 1 ? 192 * k : Math.max(96, Math.floor(room));
 }
 
+/**
+ * The rite's figure size when it stands over the words (an upright phone): the same
+ * integer scales, capped by ~30% of the frame's height (the words take the rest)
+ * and 60% of its width.
+ */
+export function stackedFigureSize(w, h) {
+  const room = Math.min(h * 0.3, w * 0.6);
+  const k = Math.floor(room / 192);
+  return k >= 1 ? 192 * k : Math.max(96, Math.floor(room));
+}
+
+/** The rite stands its figure over its words (growth.css sets --gr-rite-stack upright). */
+function riteStacked(root) {
+  try {
+    return globalThis.getComputedStyle?.(root)?.getPropertyValue('--gr-rite-stack').trim() === '1';
+  } catch {
+    return false;
+  }
+}
+
 /** Integer display scale for a pixel image of natural width `w` in a `target` px box. */
 export function spriteScale(w, target) {
   return Math.max(1, Math.round(target / Math.max(1, w)));
@@ -151,10 +171,11 @@ export class GrowthCeremonyController {
     stopCues(this.scene, fadeMs);
   }
 
-  _open({ frame, className, label, depth, animate, dialog = true }) {
+  _open({ frame, upright = null, className, label, depth, animate, dialog = true }) {
     if (this.destroyed || !canRenderCeremony()) return null;
     const layer = new CeremonyLayer(this.scene, {
       frame,
+      upright,
       className,
       blocking: true,
       label,
@@ -248,6 +269,9 @@ export class GrowthCeremonyController {
     const schedule = riteSchedule(content, timing);
     const layer = this._open({
       frame,
+      // Upright, the map above the rail is too short for the rite: it takes the
+      // screen (the rail is inert under it anyway) and stands the figure over the words.
+      upright: 'screen',
       className: 'gr-rite-layer',
       label: 'Promotion',
       depth: DOM_UI_DEPTHS.RITE,
@@ -266,11 +290,13 @@ export class GrowthCeremonyController {
     const quote = promotionQuote(unit, content.toClass, this.voice());
     const view = buildRite(this.scene, { unit, before, content, quote });
     root.append(el('div', 'gr-veil'), view.card);
-    // The 192px PC-98 figure at the largest integer scale the frame allows.
+    // The 192px PC-98 figure at the largest integer scale the frame allows (over
+    // the words when the rite stands upright, beside them otherwise).
     layer.addFitter(() => {
       const w = parseFloat(root.style.width) || 0;
       const h = parseFloat(root.style.height) || 0;
-      root.style.setProperty('--gr-fig', `${figureSize(w, h)}px`);
+      const size = riteStacked(root) ? stackedFigureSize(w, h) : figureSize(w, h);
+      root.style.setProperty('--gr-fig', `${size}px`);
     });
     // Every line (seals, notes, the spoken line) inside the frame and clear of
     // the corner button: the rite compacts on a short phone frame. The class
@@ -932,6 +958,15 @@ export function buildLevelCard(scene, unit, content, layer = null) {
   return { card, button, status };
 }
 
+/** A custom property's length in px on `node` (0 when unset). */
+function cssPx(node, name) {
+  try {
+    return parseFloat(globalThis.getComputedStyle?.(node)?.getPropertyValue(name)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** Compaction steps for the join card once its band has grown to the frame. */
 export const JOIN_FIT_STEPS = Object.freeze(['is-tight']);
 
@@ -949,7 +984,9 @@ export function fitJoinBand(card) {
   const frame = card.clientHeight || card.parentElement?.clientHeight || 0;
   const hint = card.querySelector('.ce-skip');
   const reserve = (hint?.offsetHeight || 12) + 16;
-  const most = Math.max(designed, frame - 2 * reserve);
+  // Upright the bust stands over the band (growth.css --gr-join-lift): its least
+  // height stays clear above the band.
+  const most = Math.max(designed, frame - 2 * reserve - cssPx(card, '--gr-join-lift'));
   const grow = () => {
     card.style.removeProperty('--ce-band-h');
     const over = flowOverflow(text);
@@ -1091,7 +1128,10 @@ export function fitDeedBand(card) {
   const frame = card.clientHeight || card.parentElement?.clientHeight || 0;
   const controls = card.querySelector('.gr-deed-controls');
   const reserve = controls ? controls.offsetHeight + 18 : 56;
-  const maxBand = Math.max(band, frame - 2 * reserve);
+  // Upright the bust stands over the band (deeds.css --gr-deed-lift: its least height
+  // and the top margin); the band may grow into the rest, down to the controls.
+  const lift = cssPx(card, '--gr-deed-lift');
+  const maxBand = Math.max(band, lift > 0 ? frame - reserve - lift : frame - 2 * reserve);
   const grown = Math.min(maxBand, Math.ceil(wanted));
   card.style.setProperty('--gr-deed-band', `${grown}px`);
   let fit = 1;

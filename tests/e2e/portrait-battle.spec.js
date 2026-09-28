@@ -1,5 +1,14 @@
 import { test, expect, devices } from '@playwright/test';
 import { waitForGame, waitForScene } from './helpers.js';
+import {
+  attachSlot,
+  battleDomainState,
+  endPlayerTurn,
+  openSavedRun,
+  restoreProfile,
+  saveProfile,
+  turnPhone,
+} from './portraitHelpers.js';
 
 // Portrait battles (beta): an upright phone draws the board turned a quarter with the
 // player's side at the bottom; taps, commands and the rotate prompt follow.
@@ -25,18 +34,7 @@ async function bootBattle(page, query = '&portrait=1') {
 }
 
 // An orientation switch re-opens only from a save that reached storage, so the battle
-// needs a real slot (the dev route has none). This test profile is isolated.
-async function attachSlot(page) {
-  await page.evaluate(async () => {
-    const game = window.__emblemRogueGame;
-    const { getMetaKey, setActiveSlot } = await import('/src/engine/SlotManager.js');
-    const meta = game.registry.get('meta');
-    meta.storageKey = getMetaKey(1);
-    meta._save();
-    game.registry.set('activeSlot', 1);
-    setActiveSlot(1);
-  });
-}
+// needs a real slot (the dev route has none): attachSlot (portraitHelpers).
 
 // The battle checkpoint as written to the slot's run save.
 function savedCheckpoint(page) {
@@ -95,6 +93,8 @@ function battleSnapshot(page) {
 }
 
 test('upright phone plays on a turned board with thumb-reach commands', async ({ page }) => {
+  // Boots a battle: give it the slow-runner budget (CI runners are slower).
+  test.slow();
   await bootBattle(page);
   const info = await page.evaluate(() => {
     const b = window.__emblemRogueGame.scene.getScene('Battle');
@@ -223,13 +223,15 @@ function expectWholeRow(row, names) {
 
 // Playtest 4 pinned Wait in the dock beside a compact Danger. On the upright rail the dock
 // shares the bottom edge with Overview, Recenter, Back and Menu: six controls on one row,
-// each whole, labelled, unbroken and tappable, from a small phone to a large one.
+// each whole, labelled, unbroken and tappable, from a small phone to a large one. End turn
+// takes Wait's place there while no unit menu is open: in the scrolling stack, a tile's
+// terrain pushed it under the fold at 375x667 (playtest 2026-09-26).
 for (const viewport of [
   { width: 375, height: 667 },
   { width: 390, height: 844 },
   { width: 430, height: 932 },
 ]) {
-  test(`upright rail keeps Wait, Danger and the tools whole at ${viewport.width}x${viewport.height}`, async ({
+  test(`upright rail keeps End turn, Wait, Danger and the tools whole at ${viewport.width}x${viewport.height}`, async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -245,9 +247,32 @@ for (const viewport of [
     await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
     expect((await battleSnapshot(page)).rotation).toBe('ccw');
     const tools = ['Overview', 'Recenter', 'Back', 'Menu'];
-    // Idle: Danger alone in the dock.
-    await expect.poll(async () => (await bottomRow(page)).length).toBe(5);
-    expectWholeRow(await bottomRow(page), ['Danger', ...tools]);
+    // Idle, with a tile's terrain in the rail: End turn beside Danger, and the commands
+    // above stay whole inside the scrolling stack.
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = s.playerUnits[0];
+      s._inputController.refreshTileInfo(u.col, u.row);
+    });
+    const hud = page.getByRole('complementary', { name: 'Battle commands' });
+    await expect(hud.locator('.mb-terrain-slot')).not.toBeEmpty();
+    await expect.poll(async () => (await bottomRow(page)).length).toBe(6);
+    expectWholeRow(await bottomRow(page), ['End turn…', 'Danger', ...tools]);
+    const stack = await page.evaluate(() => {
+      const body = document.querySelector('.mobile-battle-hud .mb-body').getBoundingClientRect();
+      return [...document.querySelectorAll('.mobile-battle-hud .mb-body .mb-command-row > button')]
+        .map((b) => b.getBoundingClientRect())
+        .map((r) => r.top >= body.top - 0.5 && r.bottom <= body.bottom + 0.5);
+    });
+    expect(stack).toEqual([true, true, true]);
+    await expect(hud.locator('.mb-body .mb-end-turn')).toHaveCount(0);
+    // A real tap on the docked End turn asks to confirm; Keep playing returns to idle.
+    await hud.getByRole('button', { name: 'End turn…', exact: true }).tap();
+    await expect(hud.getByRole('button', { name: 'End turn now', exact: true })).toBeVisible();
+    await hud.getByRole('button', { name: 'Keep playing', exact: true }).tap();
+    await expect
+      .poll(async () => (await bottomRow(page)).map((c) => c.name))
+      .toEqual(['End turn…', 'Danger', ...tools]);
 
     // Support's six-command menu (Guidance Full keeps a greyed Attack): Wait is pinned.
     await page.evaluate(() => {
@@ -256,7 +281,6 @@ for (const viewport of [
       s.selectUnit(u);
       s.showActionMenu(u);
     });
-    const hud = page.getByRole('complementary', { name: 'Battle commands' });
     await expect(hud.locator('.mb-dock .mb-pinned-command')).toHaveText('Wait');
     expectWholeRow(await bottomRow(page), ['Wait', 'Danger', ...tools]);
     const [wait, danger] = await bottomRow(page);
@@ -285,11 +309,13 @@ for (const viewport of [
         }),
       )
       .toEqual(['PLAYER_IDLE', true]);
-    expectWholeRow(await bottomRow(page), ['Danger · pinned', ...tools]);
+    expectWholeRow(await bottomRow(page), ['End turn…', 'Danger · pinned', ...tools]);
   });
 }
 
 test('turning the phone re-opens the battle exactly as it stood', async ({ page }) => {
+  // Boots a battle: give it the slow-runner budget (CI runners are slower).
+  test.slow();
   await bootBattle(page);
   await page.evaluate(() => {
     const b = window.__emblemRogueGame.scene.getScene('Battle');
@@ -321,6 +347,8 @@ test('turning the phone re-opens the battle exactly as it stood', async ({ page 
 });
 
 test('a turn mid-action waits for the next safe moment', async ({ page }) => {
+  // Boots a battle: give it the slow-runner budget (CI runners are slower).
+  test.slow();
   await bootBattle(page);
   await page.evaluate(() => {
     const b = window.__emblemRogueGame.scene.getScene('Battle');
@@ -338,6 +366,33 @@ test('a turn mid-action waits for the next safe moment', async ({ page }) => {
   await expect.poll(async () => (await battleSnapshot(page)).rotation).toBe('none');
 });
 
+test('portrait mode: the title and save slots show upright and follow the phone', async ({
+  page,
+}) => {
+  await page.goto('/?portrait=1');
+  await waitForScene(page, 'Title');
+  const prompt = page.locator('#rotate-prompt');
+  const slots = page
+    .getByRole('button', { name: /^Save Slots|^New Game|^Start First Run/ })
+    .first();
+  await expect(page.locator('html')).toHaveClass(/(^|\s)portrait-ui(\s|$)/);
+  await expect(prompt).toBeHidden();
+  await expect(slots).toBeInViewport();
+  // Turned to landscape the page is the landscape game; upright again, portrait mode.
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expect(page.locator('html')).not.toHaveClass(/(^|\s)portrait-ui(\s|$)/);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('html')).toHaveClass(/(^|\s)portrait-ui(\s|$)/);
+  await expect(prompt).toBeHidden();
+  // Opting out brings the rotate prompt back at once.
+  await page.evaluate(async () => {
+    const { setPortraitBattlePreference } = await import('/src/utils/portraitBattle.js');
+    setPortraitBattlePreference(false);
+  });
+  await expect(page.locator('html')).not.toHaveClass(/(^|\s)portrait-ui(\s|$)/);
+  await expect(prompt).toBeVisible();
+});
+
 test('without the opt-in an upright phone still asks for landscape', async ({ page }) => {
   // A landscape board under the rotate prompt resolves turn start slowly (~6s alone).
   test.setTimeout(90_000);
@@ -349,58 +404,74 @@ test('without the opt-in an upright phone still asks for landscape', async ({ pa
   expect(info).toEqual({ rotation: 'none', prompt: 'flex' });
 });
 
-// The iOS app (Info.plist) and the installed web app (manifest) hold the screen in
-// landscape, so the beta is not offered there: no Settings toggle, and a stored opt-in
-// (the installed web app shares storage with the browser tab that set it) changes
-// nothing: the board is not turned and the rotate prompt keeps its plain copy.
+// Where portrait mode is offered. A phone turns upright in the browser tab, the
+// installed web app (the manifest asks for any orientation) and the iPhone app
+// (Info.plist allows portrait on iPhone). The iPad app stays in landscape
+// (UISupportedInterfaceOrientations~ipad), so there a stored "on" changes nothing: no
+// Settings toggle, the board is not turned and the rotate prompt shows. Nothing clears
+// the stored choice (the installed web app shares storage with the browser tab).
+const capacitor = () => {
+  window.Capacitor = {
+    nativePromise: () => Promise.reject(new Error('no native bridge in this test')),
+    isNativePlatform: () => true,
+    getPlatform: () => 'ios',
+    PluginHeaders: [],
+  };
+};
 const SHELLS = {
-  'browser tab': () => {},
-  'installed web app': () => {
-    const matchMedia = window.matchMedia.bind(window);
-    window.matchMedia = (query) =>
-      /display-mode/.test(query)
-        ? {
-            matches: query === '(display-mode: standalone)',
-            media: query,
-            onchange: null,
-            addEventListener() {},
-            removeEventListener() {},
-            addListener() {},
-            removeListener() {},
-          }
-        : matchMedia(query);
+  'browser tab': { offered: true, install: () => {} },
+  'installed web app': {
+    offered: true,
+    install: () => {
+      const matchMedia = window.matchMedia.bind(window);
+      window.matchMedia = (query) =>
+        /display-mode/.test(query)
+          ? {
+              matches: query === '(display-mode: standalone)',
+              media: query,
+              onchange: null,
+              addEventListener() {},
+              removeEventListener() {},
+              addListener() {},
+              removeListener() {},
+            }
+          : matchMedia(query);
+    },
   },
-  'iOS app': () => {
-    window.Capacitor = {
-      nativePromise: () => Promise.reject(new Error('no native bridge in this test')),
-      isNativePlatform: () => true,
-      getPlatform: () => 'ios',
-      PluginHeaders: [],
-    };
+  'iPhone app': { offered: true, install: capacitor },
+  'iPad app': {
+    offered: false,
+    install: () => {
+      // An iPad's screen (short side 820), whatever the test viewport.
+      Object.defineProperty(window.screen, 'width', { get: () => 820 });
+      Object.defineProperty(window.screen, 'height', { get: () => 1180 });
+      window.Capacitor = {
+        nativePromise: () => Promise.reject(new Error('no native bridge in this test')),
+        isNativePlatform: () => true,
+        getPlatform: () => 'ios',
+        PluginHeaders: [],
+      };
+    },
   },
 };
-for (const [shell, install] of Object.entries(SHELLS)) {
-  test(`portrait battles in the ${shell}: toggle and stored opt-in`, async ({ page }) => {
+for (const [shell, { offered, install }] of Object.entries(SHELLS)) {
+  test(`portrait mode in the ${shell}: toggle and stored choice`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.addInitScript(install);
     await page.addInitScript(() => localStorage.setItem('emblem_rogue_portrait_battles', 'on'));
     await bootBattle(page, '');
-    const offered = shell === 'browser tab';
     const info = await page.evaluate(() => ({
       rotation: window.__emblemRogueGame.scene.getScene('Battle').grid.board.rotation,
       prompt: getComputedStyle(document.getElementById('rotate-prompt')).display,
-      copy: document.querySelector('#rotate-prompt p').textContent,
+      portraitUi: document.documentElement.classList.contains('portrait-ui'),
       capable: document.documentElement.classList.contains('portrait-battle-capable'),
       stored: localStorage.getItem('emblem_rogue_portrait_battles'),
     }));
     expect(info).toEqual({
       rotation: offered ? 'ccw' : 'none',
       prompt: offered ? 'none' : 'flex',
-      copy: offered
-        ? '↻ Rotate to landscape for the map and menus. Battles can be played upright.'
-        : '↻ Rotate your device to landscape',
+      portraitUi: offered,
       capable: offered,
-      // The shell never clears the browser tab's choice.
       stored: 'on',
     });
     await page.evaluate(async () => {
@@ -410,74 +481,19 @@ for (const [shell, install] of Object.entries(SHELLS)) {
     });
     const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
     await expect(settings.getByRole('button', { name: /^Reduce motion/ })).toHaveCount(1);
-    await expect(settings.getByRole('button', { name: /^Portrait battles \(beta\)/ })).toHaveCount(
+    await expect(settings.getByRole('button', { name: /^Portrait mode/ })).toHaveCount(
       offered ? 1 : 0,
     );
+    await expect(settings.getByRole('button', { name: /beta/i })).toHaveCount(0);
   });
 }
 
 // Full domain state of the battle (units with equipment and conditions, fog knowledge,
-// RNG, convoy, gold, Vision charges) through the production checkpoint adapter.
-function domainState(page) {
-  return page.evaluate(async () => {
-    const { captureBattleState } = await import('/src/ui/BattleCheckpointAdapter.js');
-    const b = window.__emblemRogueGame.scene.getScene('Battle');
-    const state = captureBattleState(b);
-    if (state.fog) {
-      state.fog.visible.sort();
-      state.fog.everSeen.sort();
-    }
-    delete state.checkpointIndex; // counts saves, including the orientation switches
-    return {
-      state,
-      turn: b.turnManager?.turnNumber,
-      visionCharges: b.runManager?.visionChargesRemaining ?? null,
-    };
-  });
-}
-
-// Ends the player turn through the rail and waits for the next player turn,
-// dismissing level-up popups the enemy phase raises.
-async function endTurn(page) {
-  const hud = page.getByRole('complementary', { name: 'Battle commands' });
-  const turn = await page.evaluate(
-    () => window.__emblemRogueGame.scene.getScene('Battle').turnManager.turnNumber,
-  );
-  await hud.getByRole('button', { name: /^End turn/ }).tap();
-  const confirm = hud.getByRole('button', { name: 'End turn now', exact: true });
-  if (await confirm.isVisible().catch(() => false)) await confirm.tap();
-  for (let i = 0; i < 240; i++) {
-    const done = await page.evaluate((t) => {
-      const b = window.__emblemRogueGame.scene.getScene('Battle');
-      return b.turnManager.turnNumber > t && b.battleState === 'PLAYER_IDLE';
-    }, turn);
-    if (done) return;
-    const next = page.getByRole('button', { name: /^(Continue|Reveal gains)$/ }).first();
-    if (await next.isVisible().catch(() => false)) await next.tap();
-    await page.waitForTimeout(250);
-  }
-  throw new Error('the next player turn never began');
-}
-
-async function turnPhone(page, size, rotation) {
-  await page.setViewportSize(size);
-  await expect.poll(async () => (await battleSnapshot(page)).rotation).toBe(rotation);
-  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
-}
-
-// Title -> Save Slots -> Slot 1 -> Resume Battle: the shipping recovery path.
-async function resumeBattle(page) {
-  await page.goto('/');
-  await waitForScene(page, 'Title');
-  await page.waitForTimeout(1300); // boot-to-title router cooldown
-  await page.getByRole('button', { name: /^Save Slots/ }).tap();
-  await waitForScene(page, 'SlotPicker');
-  await page.waitForTimeout(500);
-  await page.getByRole('button', { name: 'Select Slot 1', exact: true }).tap();
-  await page.getByRole('button', { name: 'Resume Battle', exact: true }).tap();
-  await waitForScene(page, 'Battle');
-  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
-}
+// NPCs, temporary terrain, RNG, convoy, gold, Vision charges, deployment) through the
+// production checkpoint adapter: battleDomainState (portraitHelpers), shared with the
+// journey and rotation specs. Its bookkeeping (the checkpoint index, which counts the
+// orientation switches' saves) is kept apart and not compared here.
+const domainState = async (page) => (await battleDomainState(page)).domain;
 
 test('turning the phone mid-battle does not change how the battle plays out', async ({ page }) => {
   test.setTimeout(300_000);
@@ -504,22 +520,14 @@ test('turning the phone mid-battle does not change how the battle plays out', as
     s.registry.get('settings').setHints(false);
     if (!s._captureSuspendCheckpoint()) throw new Error('setup save failed');
   });
-  const saved = await page.evaluate(() => JSON.stringify(Object.entries(localStorage)));
-  const restore = async () => {
-    // Leave the game first so nothing it saves on exit overwrites the fixture.
-    await page.goto('/data/terrain.json');
-    await page.evaluate((entries) => {
-      localStorage.clear();
-      for (const [key, value] of JSON.parse(entries)) localStorage.setItem(key, value);
-    }, saved);
-  };
+  const saved = await saveProfile(page);
 
   // Both runs resume the same save in landscape and play the same turns; one first
   // turns the phone upright and back (two presentation switches).
   await page.setViewportSize(landscape);
   const play = async (turnPhoneFirst) => {
-    await restore();
-    await resumeBattle(page);
+    await restoreProfile(page, saved);
+    await openSavedRun(page);
     const resumed = await domainState(page);
     if (turnPhoneFirst) {
       await turnPhone(page, upright, 'ccw');
@@ -527,7 +535,7 @@ test('turning the phone mid-battle does not change how the battle plays out', as
     }
     const states = [await domainState(page)];
     for (let i = 0; i < 3; i++) {
-      await endTurn(page);
+      await endPlayerTurn(page);
       states.push(await domainState(page));
     }
     return { resumed, states };
@@ -658,3 +666,74 @@ for (const viewport of [
       await page.screenshot({ path: testInfo.outputPath('portrait-battle-details.png') });
   });
 }
+test('an upright battle stays upright through its rewards', async ({ page }) => {
+  // Boots a battle: give it the slow-runner budget (CI runners are slower).
+  test.slow();
+  await bootBattle(page);
+  await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
+  const rewards = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
+  await expect(rewards).toBeVisible({ timeout: 15_000 });
+  const info = await page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    const html = document.documentElement.classList;
+    return {
+      rotation: b.grid.board.rotation,
+      upright: html.contains('portrait-battle'),
+      capable: html.contains('portrait-battle-capable'),
+      tallCanvas: b.scale.height > b.scale.width,
+      prompt: getComputedStyle(document.getElementById('rotate-prompt')).display,
+    };
+  });
+  expect(info).toEqual({
+    rotation: 'ccw',
+    upright: true,
+    capable: true,
+    tallCanvas: true,
+    prompt: 'none',
+  });
+});
+
+test('rewind previews draw the board the way the upright battle does', async ({ page }) => {
+  // Boots a battle: give it the slow-runner budget (CI runners are slower).
+  test.slow();
+  await bootBattle(page);
+  await page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    b.runManager.visionChargesRemaining = 3;
+    const u = b.playerUnits.find((x) => !x.hasActed);
+    b.selectUnit(u);
+    b.showActionMenu(u);
+  });
+  const hud = page.getByRole('complementary', { name: 'Battle commands' });
+  await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
+  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+  await hud.getByRole('button', { name: 'Rewind', exact: true }).tap();
+  await expect(page.getByRole('dialog', { name: 'Rewind', exact: true })).toBeVisible();
+  // The preview's history scene draws each unit at its turned display cell.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const game = window.__emblemRogueGame;
+        const history = game.scene.scenes.find((s) =>
+          s.sys.settings.key.startsWith('BattleHistory-'),
+        );
+        return history?.renderer?.units?.size || 0;
+      }),
+    )
+    .toBeGreaterThan(0);
+  const drawn = await page.evaluate(() => {
+    const game = window.__emblemRogueGame;
+    const b = game.scene.getScene('Battle');
+    const history = game.scene.scenes.find((s) => s.sys.settings.key.startsWith('BattleHistory-'));
+    return b.playerUnits.map((u) => {
+      const d = b.grid.board.toDisplay(u.col, u.row);
+      const group = history.renderer.units.get(u.battleEntityId);
+      return {
+        expected: [(d.col + 0.5) * 32, (d.row + 0.5) * 32],
+        drawn: group ? [group.x, group.y] : null,
+      };
+    });
+  });
+  expect(drawn.length).toBeGreaterThan(0);
+  for (const unit of drawn) expect(unit.drawn).toEqual(unit.expected);
+});

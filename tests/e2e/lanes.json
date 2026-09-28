@@ -63,8 +63,21 @@
     },
     {
       "name": "portrait",
-      "description": "Portrait battles (beta, opt-in): the turned board, the upright rail, rotation round trips and the locked shells",
-      "specs": ["portrait-battle.spec.js"]
+      "description": "Portrait mode on upright phones: the turned board and upright rail, rotation round trips, the upright route map, drafts, lists and every other upright surface",
+      "specs": [
+        "portrait-battle.spec.js",
+        "loom-portrait.spec.js",
+        "portrait-cards.spec.js",
+        "portrait-lists.spec.js",
+        "portrait-trade.spec.js",
+        "portrait-services.spec.js",
+        "portrait-ceremonies.spec.js",
+        "portrait-rail.spec.js",
+        "portrait-screens.spec.js",
+        "portrait-journey.spec.js",
+        "portrait-rotation.spec.js"
+      ],
+      "shards": 6
     },
     {
       "name": "battle-input",

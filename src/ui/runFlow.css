@@ -85,3 +85,17 @@ html .re-run-flow.re-compact-menu {
   max-height: 42dvh;
   margin-bottom: max(8px, env(safe-area-inset-bottom));
 }
+
+/* Upright phones (portrait mode): the run's numbers read as one full-width list, each
+   value against the right edge beside its label, rather than a narrow centred block.
+   Landscape and desktop never match. */
+@media (orientation: portrait) {
+  html.portrait-ui .re-run-flow .re-run-summary {
+    width: 100%;
+    margin-inline: 0;
+    gap: 8px 16px;
+  }
+  html.portrait-ui .re-run-flow .re-run-summary dd {
+    text-align: right;
+  }
+}

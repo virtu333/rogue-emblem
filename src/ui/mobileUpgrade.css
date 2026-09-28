@@ -119,6 +119,25 @@
   text-align: right;
   color: var(--re-muted);
 }
+/* An upgrade waiting on another names it under its own name (the gems move right). */
+.mu-row.is-blocked .mu-row-state {
+  color: var(--re-muted);
+}
+.mu-row.is-blocked .mu-pips {
+  grid-column: 3;
+  grid-row: 2;
+  justify-content: flex-end;
+}
+.mu-row .mu-row-needs {
+  grid-column: 2;
+  grid-row: 2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-align: left;
+  color: var(--re-warn);
+}
 .mu-pips {
   display: flex;
   gap: 3px;
@@ -502,4 +521,173 @@ html.mobile-preview .mu-screen {
 
 .re-progression-footer .re-btn {
   width: 100%;
+}
+
+/* ───────── Upright phones (portrait mode): Home base and Army upgrades ─────────
+   Keyed to html.portrait-ui (the portrait shell's class) inside a portrait
+   orientation query, so landscape phones and desktop never see these rules. The two
+   ~170px columns become the list over a full-width detail; the detail keeps its
+   action (Begin Run / Buy) pinned at its foot, so it stays in thumb reach while the
+   copy above it scrolls. Tabs sit on a grid instead of scrolling sideways out of view.
+   Scoped to .mh-screen / .mu-upgrades: reward screens reuse .mu-screen (choice.css). */
+@media (orientation: portrait) {
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-list {
+    padding-right: 0;
+    /* A cut-off card reads as "more below" rather than a clipped layout. */
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent);
+    padding-bottom: 14px;
+  }
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-detail {
+    align-self: stretch;
+    max-height: 50dvh;
+  }
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-copy {
+    flex: 0 1 auto;
+  }
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-tabs {
+    display: grid;
+    overflow: visible;
+  }
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-tabs button {
+    min-width: 0;
+    padding-inline: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-header button {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* Home base: loadout tabs on one row, the lord pair on the next. */
+  html.portrait-ui .mh-screen .mu-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* Lords: two compact cards per row, so the whole court shows above the detail. */
+  html.portrait-ui .mh-screen .mu-list:has(.mh-lord) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: 6px;
+  }
+  html.portrait-ui .mh-screen .mh-lord {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 0 8px;
+    min-height: 58px;
+    margin: 0;
+    padding: 6px 8px;
+  }
+  html.portrait-ui .mh-screen .mh-lord .mh-portrait {
+    width: 40px;
+    height: 40px;
+  }
+  html.portrait-ui .mh-screen .mh-lord :is(strong, span) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  html.portrait-ui .mh-screen .mh-identity .mh-portrait {
+    width: 48px;
+    height: 48px;
+  }
+
+  /* Army upgrades: title and Home base on one row, balances under them. */
+  html.portrait-ui .mu-upgrades .mu-header {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    column-gap: 12px;
+    row-gap: 2px;
+  }
+  html.portrait-ui .mu-upgrades .mu-header h1 {
+    grid-column: 1 / 4;
+    grid-row: 1;
+    margin: 0;
+  }
+  html.portrait-ui .mu-upgrades .mu-header button {
+    grid-column: 4;
+    grid-row: 1;
+  }
+  html.portrait-ui .mu-upgrades .mu-header .mu-currency {
+    grid-row: 2;
+  }
+  html.portrait-ui .mu-upgrades .mu-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* The upgrade list is the thing being browsed: leave it the larger share. The detail
+     is a compact sheet: a small icon beside the name, the effect lines, then help and
+     requirements scrolling under a fade, Buy (and Refund beside it) pinned below. */
+  html.portrait-ui .mu-upgrades .mu-detail {
+    max-height: clamp(150px, 26dvh, 240px);
+    padding: 8px 10px 10px;
+  }
+  /* What stands in the way (a prerequisite, not enough currency) comes first. */
+  html.portrait-ui .mu-upgrades .mu-copy {
+    display: flex;
+    flex-direction: column;
+  }
+  html.portrait-ui .mu-upgrades .mu-copy > * {
+    order: 2;
+    flex-shrink: 0;
+  }
+  html.portrait-ui .mu-upgrades .mu-copy > .mu-head {
+    order: 0;
+  }
+  html.portrait-ui .mu-upgrades .mu-copy > .mu-requirements {
+    order: 1;
+  }
+  html.portrait-ui .mu-upgrades .mu-head {
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+  html.portrait-ui .mu-upgrades .mu-detail h2 {
+    font-size: 16px;
+  }
+  html.portrait-ui .mu-upgrades .mu-detail p {
+    margin: 4px 0;
+  }
+  html.portrait-ui .mu-upgrades .mu-effects {
+    padding: 4px 0;
+    white-space: normal;
+  }
+  html.portrait-ui .mu-upgrades .mu-effects > span {
+    display: inline-block;
+  }
+  html.portrait-ui .mu-upgrades .mu-effects > span + span::before {
+    content: '→ ';
+    color: var(--re-muted);
+  }
+  html.portrait-ui .mu-upgrades .mu-copy {
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 12px), transparent);
+    mask-image: linear-gradient(180deg, #000 calc(100% - 12px), transparent);
+    padding-bottom: 8px;
+  }
+  html.portrait-ui .mu-upgrades .mu-actions {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  html.portrait-ui .mu-upgrades .mu-actions button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  html.portrait-ui .mu-upgrades .mu-actions .mu-refund-info {
+    flex: 1 0 100%;
+    margin: 0;
+  }
+  html.portrait-ui .mu-upgrades .mu-row {
+    min-height: 56px !important;
+    margin-bottom: 4px;
+    padding: 6px 8px !important;
+  }
+  html.portrait-ui .mu-upgrades .mu-group {
+    margin: 4px 0 6px;
+  }
 }

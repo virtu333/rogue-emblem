@@ -404,6 +404,31 @@ describe('keyboard and gamepad', () => {
     expect(tabs(root)[0].getAttribute('aria-selected')).toBe('true');
   });
 
+  it('stacked holders (upright): Down at the end of the upper one reaches the lower one', () => {
+    const { edric, sera } = pair();
+    const { root } = open({ left: edric, right: sera });
+    // Lay the columns out one above the other, as trade.css does upright.
+    const stack = () => {
+      root.querySelector('.tm-col-left').rect = { left: 0, top: 100, width: 375, height: 250 };
+      root.querySelector('.tm-col-right').rect = { left: 0, top: 358, width: 375, height: 250 };
+    };
+    stack();
+    for (let i = 0; i < 4; i++) dom.key('ArrowDown');
+    expect(focused()).toBe('left:4');
+    dom.key('ArrowDown');
+    expect(focused()).toBe('right:0');
+    dom.key('ArrowUp');
+    expect(focused()).toBe('left:4');
+    // Side by side (the default boxes), the same key stays in the column.
+    root.querySelector('.tm-col-right').rect = { left: 190, top: 100, width: 180, height: 250 };
+    dom.key('ArrowDown');
+    expect(focused()).toBe('left:4');
+    // The gamepad follows the same layout.
+    stack();
+    dispatchInputAction(InputAction.NAVIGATE, { dx: 0, dy: 1 });
+    expect(focused()).toBe('right:0');
+  });
+
   it('opened with an item held: focus starts on the other column', () => {
     const { edric, sera, rapier } = pair();
     const { root } = open({

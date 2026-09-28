@@ -166,9 +166,11 @@ export function itemArtSlot(choice, category, { count = 0 } = {}) {
 
 /**
  * Soft fade edges on a scroll region: top/bottom masks appear only while
- * there is more to read that way (never hard-sliced text).
+ * there is more to read that way (never hard-sliced text). With `rows`, the
+ * region's children are watched too: a list's rows can grow or shrink (a card
+ * opens, art loads) without the list itself changing size.
  */
-export function fadeScroll(node) {
+export function fadeScroll(node, { rows = false } = {}) {
   if (!hasDocument() || !node?.addEventListener) return node;
   const update = () => {
     const more = node.scrollHeight - node.clientHeight > 1;
@@ -178,8 +180,37 @@ export function fadeScroll(node) {
   };
   node.addEventListener('scroll', update, { passive: true });
   requestAnimationFrame(update);
-  if (typeof ResizeObserver === 'function') new ResizeObserver(update).observe(node);
+  if (typeof ResizeObserver === 'function') {
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    // The rows are appended after the list is made: watch them from the next frame.
+    if (rows)
+      requestAnimationFrame(() => {
+        for (const row of node.children) observer.observe(row);
+      });
+  }
   return node;
+}
+
+/**
+ * A list of cards or rows that scrolls upright (choice.css `.ch-soft`): its edges
+ * fade where there is more, as a card's own reading does. Elsewhere it never
+ * scrolls, and the classes it gets draw nothing.
+ */
+export function softList(node) {
+  node?.classList?.add('ch-soft');
+  return fadeScroll(node, { rows: true });
+}
+
+/**
+ * The upright mercenary contract (card and terms) scrolls as one; its menu
+ * (ArenaMenu) builds it and calls fitDraft once it is in the document, which
+ * softens its edges here.
+ */
+function softenContracts(root) {
+  const regions = [...root.querySelectorAll('.ch-contract:not(.ch-soft)')];
+  if (root.matches?.('.ch-contract:not(.ch-soft)')) regions.push(root);
+  for (const region of regions) softList(region);
 }
 
 // ── Pieces ───────────────────────────────────────────────────────────────
@@ -368,6 +399,7 @@ export function unitCardLabel(content, suffix = '') {
  */
 export function fitDraft(root, selector = '.ch-name', { min = 12 } = {}) {
   if (!hasDocument() || !root?.querySelectorAll) return () => {};
+  softenContracts(root);
   let frame = 0;
   const fit = () => {
     frame = 0;
@@ -409,12 +441,44 @@ export function priceSeal({ amount, after = null, short = false }) {
   return seal;
 }
 
-/** The row cards sit in (`count` sizes the columns). */
+/** How far a scrolling draft under `root` is scrolled (0 when there is none). */
+export function draftScrollTop(root) {
+  return root?.querySelector?.('.ch-draft')?.scrollTop || 0;
+}
+
+/** How far a scrolling draft's edges fade (choice.css, upright phones). */
+export const DRAFT_FADE_PX = 28;
+
+/**
+ * A draft that scrolls (the upright phone's list, choice.css) is rebuilt on
+ * every selection: keep it where the reader left it and bring the chosen card
+ * fully into view, clear of the faded edges (a chosen card opens, the one set
+ * aside folds). A card taller than the list keeps its top in view. A row that
+ * does not scroll (landscape, desktop) is left untouched.
+ */
+export function keepDraftScroll(row, scrollTop = 0) {
+  if (!hasDocument() || !row?.isConnected) return;
+  if (row.scrollHeight <= row.clientHeight + 1) return;
+  row.scrollTop = scrollTop;
+  const chosen = row.querySelector('.ch-card:is([aria-pressed="true"], .is-chosen)');
+  if (!chosen) return;
+  const view = row.getBoundingClientRect();
+  const card = chosen.getBoundingClientRect();
+  const fade = DRAFT_FADE_PX;
+  if (card.top < view.top + fade) row.scrollTop -= view.top + fade - card.top;
+  else if (card.bottom > view.bottom - fade)
+    row.scrollTop += Math.min(card.bottom - view.bottom + fade, card.top - view.top - fade);
+}
+
+/**
+ * The row cards sit in (`count` sizes the columns). Upright it is a list that
+ * scrolls; its edges fade while there are more cards that way (choice.css).
+ */
 export function draftRow(count, className = '') {
   const row = element('div', null, `ch-draft ${className}`.trim());
   row.dataset.count = String(count);
   setVar(row, '--ch-n', count);
-  return row;
+  return softList(row);
 }
 
 /** Footer: a quiet legend/status on the left, actions on the right. */

@@ -29,6 +29,12 @@
         padding: 0;
         box-sizing: border-box;
       }
+      /* iOS enlarges text after a turn to landscape unless told not to; the layouts
+         size their own type for both orientations. */
+      html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
       body {
         background: #0a0c1e;
         display: flex;
@@ -230,6 +236,37 @@
         .auth-panel {
           width: min(420px, 100%);
           box-sizing: border-box;
+        }
+      }
+      /* Upright phones: covering a tall screen showed a narrow strip of the plate with
+         the Hollow Sun under the subtitle. The art is a band instead (as on the title,
+         TitleScreen.js): the whole plate height at 320px (4 device px per plate px on a
+         3x phone), centred between the lockup and the form and fading into the ink.
+         Wider than tall, so main.js keeps the default crop: keep, figure and sun. */
+      @media (orientation: portrait) and (pointer: coarse) {
+        #auth-wrapper {
+          inset: auto 0 auto 0;
+          top: max(
+            calc(env(safe-area-inset-top, 0px) + 48px),
+            calc(
+              50dvh + (env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) / 2 - 245px
+            )
+          );
+          height: 320px;
+          -webkit-mask-image: linear-gradient(
+            180deg,
+            transparent,
+            #000 40px,
+            #000 calc(100% - 56px),
+            transparent
+          );
+          mask-image: linear-gradient(
+            180deg,
+            transparent,
+            #000 40px,
+            #000 calc(100% - 56px),
+            transparent
+          );
         }
       }
       #offline-confirm {
@@ -455,7 +492,8 @@
       }
       .sw-update-restart,
       .sw-update-dismiss,
-      #rotate-lock {
+      #rotate-lock,
+      #rotate-portrait {
         min-width: 44px;
         min-height: 44px;
       }
@@ -465,7 +503,9 @@
           sans-serif;
         letter-spacing: 0;
       }
-      #rotate-lock {
+      #rotate-lock,
+      #rotate-portrait {
+        margin-top: 12px;
         color: #eee;
         background: #232638;
         border: 1px solid #8888aa;
@@ -547,6 +587,7 @@
     <div id="rotate-prompt" role="status" aria-live="polite">
       <p>&#x21bb; Rotate your device to landscape</p>
       <button type="button" id="rotate-lock" hidden>Use landscape</button>
+      <button type="button" id="rotate-portrait" hidden>Play upright</button>
     </div>
 
     <script>

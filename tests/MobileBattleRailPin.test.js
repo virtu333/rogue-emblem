@@ -3,7 +3,13 @@
 // The canvas menu and the keyboard/gamepad order (scene._menuFocus) are untouched.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
-import { MobileBattleHUD, pinnedRailCommand } from '../src/ui/MobileBattleHUD.js';
+import {
+  MobileBattleHUD,
+  dockedEndTurn,
+  pinnedRailCommand,
+  unitFocusedRail,
+  uprightBattleRail,
+} from '../src/ui/MobileBattleHUD.js';
 
 function fakeElement(tag) {
   const node = {
@@ -145,5 +151,87 @@ describe('the dock', () => {
     expect(hud.dock.hidden).toBe(true);
     expect(hud.dock.children).toHaveLength(0);
     expect(hud.dock.classList.contains('has-pinned')).toBe(false);
+  });
+});
+
+// Playtest 2026-09-26: on the upright rail at 375x667, terrain details pushed End turn
+// under the fold. There End turn joins the dock whenever it is offered.
+describe('End turn on the upright rail', () => {
+  it('docks End turn only on the upright rail, idle or with a unit selected', () => {
+    for (const state of ['PLAYER_IDLE', 'UNIT_SELECTED'])
+      expect(dockedEndTurn({ state, uprightRail: true }), state).toBe(true);
+    expect(dockedEndTurn({ state: 'PLAYER_IDLE', uprightRail: false })).toBe(false);
+    // The end-turn prompt has its own End turn now; a unit's menu pins Wait instead.
+    expect(dockedEndTurn({ state: 'PLAYER_IDLE', uprightRail: true, endTurnPending: true })).toBe(
+      false,
+    );
+    for (const state of ['UNIT_ACTION_MENU', 'SELECTING_TARGET', 'ENEMY_PHASE'])
+      expect(dockedEndTurn({ state, uprightRail: true }), state).toBe(false);
+  });
+
+  it('reads the rail as upright only for the capable touch layout held upright', () => {
+    const env = (classes, portrait) => ({
+      document: { documentElement: { classList: { contains: (c) => classes.includes(c) } } },
+      matchMedia: (q) => ({ matches: q === '(orientation: portrait)' && portrait }),
+    });
+    expect(uprightBattleRail(env(['touch-ui', 'portrait-battle-capable'], true))).toBe(true);
+    expect(uprightBattleRail(env(['touch-ui', 'portrait-battle-capable'], false))).toBe(false);
+    expect(uprightBattleRail(env(['portrait-battle-capable'], true))).toBe(false);
+    expect(uprightBattleRail(env(['touch-ui'], true))).toBe(false);
+    expect(uprightBattleRail({})).toBe(false);
+  });
+
+  it('puts End turn beside a compact Danger in one dock row', () => {
+    const { hud } = hudFor('PLAYER_IDLE', null);
+    hud.syncDock('PLAYER_IDLE', null, true);
+    expect(hud.dock.classList.contains('has-pinned')).toBe(true);
+    const [endTurn, danger] = hud.dock.children;
+    expect(hud.dock.children).toHaveLength(2);
+    expect(endTurn.textContent).toBe('End turn…');
+    expect(endTurn.className).toContain('mb-end-turn');
+    expect(danger.className).toContain('is-compact');
+  });
+
+  it('never shows End turn beside a pinned Wait or in the enemy phase', () => {
+    const { hud, scene } = hudFor('UNIT_ACTION_MENU', SIX);
+    hud.syncDock('UNIT_ACTION_MENU', hud.menu.items[5], true);
+    expect(hud.dock.children.map((c) => c.textContent)).toContain('Wait');
+    expect(hud.dock.children.some((c) => c.textContent === 'End turn…')).toBe(false);
+    scene.turnManager.currentPhase = 'enemy';
+    hud.syncDock('PLAYER_IDLE', null, true);
+    expect(hud.dock.hidden).toBe(true);
+    expect(hud.dock.children).toHaveLength(0);
+  });
+});
+
+describe('the upright header yields to a unit in action', () => {
+  it('while a unit is chosen, moving, acting, targeting or reading its forecast', () => {
+    for (const state of [
+      'UNIT_SELECTED',
+      'UNIT_MOVING',
+      'CANTO_MOVING',
+      'SELECTING_TARGET',
+      'SELECTING_HEAL_TARGET',
+      'SELECTING_TRADE_TARGET',
+      'SHOWING_FORECAST',
+      'CONFIRMING_ATTACK',
+    ])
+      expect(unitFocusedRail({ state, selected: true }), state).toBe(true);
+    expect(unitFocusedRail({ state: 'UNIT_ACTION_MENU', selected: true, menu: true })).toBe(true);
+  });
+
+  it('never at idle, in the enemy phase, in Formation, or without a selected unit', () => {
+    for (const state of [
+      'PLAYER_IDLE',
+      'ENEMY_PHASE',
+      'COMBAT_RESOLVING',
+      'TURN_START_RESOLVING',
+      'DEPLOY_POSITIONING',
+      'BATTLE_END',
+    ])
+      expect(unitFocusedRail({ state, selected: true, menu: true }), state).toBe(false);
+    // An action menu still being built (no rail menu yet), or no unit selected.
+    expect(unitFocusedRail({ state: 'UNIT_ACTION_MENU', selected: true, menu: false })).toBe(false);
+    expect(unitFocusedRail({ state: 'SELECTING_TARGET', selected: false })).toBe(false);
   });
 });

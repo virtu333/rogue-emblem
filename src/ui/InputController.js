@@ -200,8 +200,29 @@ export class InputController {
     }
   }
 
+  /**
+   * The battle's screen geometry changed under a live pointer (the phone panel resized,
+   * the phone turned, the browser bars slid). A press that began under the old
+   * geometry must never complete as a tap, long press or camera gesture under the new
+   * one: its saved screen position now names a different tile. The release of that
+   * press is swallowed (it may arrive without a pointercancel); a new press works.
+   */
+  invalidatePointerGestures() {
+    const scene = this.scene;
+    this.cancelTouchInspectHold();
+    scene._touchTapDown = null;
+    scene._touchHoldTriggered = false;
+    this._hoverTile = null;
+    const hadTouches = Boolean(scene._battleCamera?.clearTouches?.());
+    scene._cameraGestureTapSuppressed = true;
+    this._staleRelease = true;
+    if (hadTouches) scene._syncMobileResetViewButton?.();
+  }
+
   onPointerDown(pointer) {
     const scene = this.scene;
+    // A fresh press: whatever geometry change came before, this one is current.
+    this._staleRelease = false;
     if (scene.isStoryInputLocked()) return;
     if (scene._isTouchPointer(pointer)) {
       scene._battleCamera?.pruneInactiveTouches?.(pointer);
@@ -223,6 +244,14 @@ export class InputController {
   onPointerUp(pointer) {
     const scene = this.scene;
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
+    if (this._staleRelease) {
+      // Pressed before a geometry change (invalidatePointerGestures): not a tap.
+      this._staleRelease = false;
+      this.cancelTouchInspectHold();
+      scene._touchTapDown = null;
+      scene._touchHoldTriggered = false;
+      return;
+    }
     const uiClickBlocked = Boolean(scene._uiClickBlocked);
     if (uiClickBlocked) scene._uiClickBlocked = false;
 
@@ -266,6 +295,14 @@ export class InputController {
 
     this.cancelTouchInspectHold();
     let clickPos = null;
+    if (scene._isTouchPointer(pointer) && !scene._touchTapDown) {
+      // A finger lifting with no press on record is not a tap: the press landed before
+      // this battle took input (a scene restart or orientation re-open under a held
+      // finger) or while story input was locked (dialogue, a ceremony, turn start).
+      // Its lift position names whatever tile is there now. Mouse clicks are unchanged.
+      scene._touchHoldTriggered = false;
+      return;
+    }
     if (scene._isTouchPointer(pointer) && scene._touchTapDown) {
       if (scene._touchHoldTriggered) {
         scene._touchHoldTriggered = false;

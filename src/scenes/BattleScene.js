@@ -1310,7 +1310,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Build the grid from generated map (with optional fog of war)
       const fogEnabled = this.battleParams.fogEnabled || false;
-      // Portrait battles (beta): an upright phone draws the board turned a quarter.
+      // Portrait battles: an upright phone draws the board turned a quarter.
       this._portraitBattle?.destroy();
       this._portraitBattle = new PortraitBattleController(this);
       const boardPresentation = this._portraitBattle.resolvePresentation(bc);

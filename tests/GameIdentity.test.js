@@ -50,6 +50,39 @@ describe('game identity', () => {
     );
   });
 
+  // Portrait mode (docs/portrait-battles.md): the iPhone app and the installed web app
+  // turn upright with the phone; the iPad app stays in landscape, where its layouts were
+  // built (utils/portraitBattle.js isLandscapeLockedShell), and so keeps
+  // UIRequiresFullScreen (an iPad app without every orientation must opt out of
+  // multitasking). Changing one of these without the others strands a shell.
+  it('agrees on orientations across the web manifest and the iOS app', () => {
+    const manifest = JSON.parse(read('public/manifest.webmanifest'));
+    expect(manifest.orientation).toBe('any');
+
+    const plist = read('ios/App/App/Info.plist');
+    const orientations = (key) => {
+      const match = plist.match(
+        new RegExp(`<key>${key.replace('~', '\\~')}</key>\\s*<array>([\\s\\S]*?)</array>`),
+      );
+      expect(match, key).not.toBeNull();
+      return [...match[1].matchAll(/<string>([^<]+)<\/string>/g)].map((m) => m[1]).sort();
+    };
+    expect(orientations('UISupportedInterfaceOrientations')).toEqual([
+      'UIInterfaceOrientationLandscapeLeft',
+      'UIInterfaceOrientationLandscapeRight',
+      'UIInterfaceOrientationPortrait',
+    ]);
+    expect(orientations('UISupportedInterfaceOrientations~ipad')).toEqual([
+      'UIInterfaceOrientationLandscapeLeft',
+      'UIInterfaceOrientationLandscapeRight',
+    ]);
+    expect(plist).toMatch(/<key>UIRequiresFullScreen<\/key>\s*<true\/>/);
+    // Upright, an iPhone shows the status bar (landscape hides it); the app hides it so
+    // the clock never sits over the game's dark top edge in the system's text colour.
+    expect(plist).toMatch(/<key>UIStatusBarHidden<\/key>\s*<true\/>/);
+    expect(plist).toMatch(/<key>UIViewControllerBasedStatusBarAppearance<\/key>\s*<false\/>/);
+  });
+
   it('introduces the game by name in How to Play', () => {
     expect(HOW_TO_PLAY_PAGES[0].lines[0].text).toBe(`${GAME_TITLE} is a tactical RPG with`);
   });

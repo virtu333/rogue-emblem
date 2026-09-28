@@ -1,3 +1,5 @@
+import { displayHistoryBeats, displayHistoryFrame } from '../utils/boardOrientation.js';
+
 let nextSession = 1;
 
 // A session outlives the viewer/confirmation swap. All mutation here is UI-only.
@@ -116,7 +118,19 @@ export class BattleHistorySession {
     );
     this.bounds();
   }
+  // An upright battle's board is turned a quarter: history is drawn the same way.
+  _board() {
+    return this.host.grid?.board || null;
+  }
   async show(frame, transition, onSettled) {
+    const board = this._board();
+    frame = displayHistoryFrame(frame, board);
+    if (transition)
+      transition = {
+        ...transition,
+        from: displayHistoryFrame(transition.from, board),
+        beats: displayHistoryBeats(transition.beats, board),
+      };
     const generation = ++this.generation;
     const scene = await this.ready;
     if (this.destroyed || generation !== this.generation) return;
@@ -178,10 +192,11 @@ export class BattleHistorySession {
     const zoom = Math.min(c.width / (this.frame.cols * 32), c.height / (this.frame.rows * 32));
     c.setZoom(Math.max(0.65, Math.min(maxZoom, zoom)));
     this.bounds();
-    this.scene.renderer.focus(this.frame, beats);
+    this.scene.renderer.focus(this.frame, displayHistoryBeats(beats, this._board()));
   }
   focus(beats) {
-    if (this.frame) this.scene?.renderer.focus(this.frame, beats);
+    if (this.frame)
+      this.scene?.renderer.focus(this.frame, displayHistoryBeats(beats, this._board()));
   }
   inspect(event) {
     if (!this.scene || !this.frame) return;

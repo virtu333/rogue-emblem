@@ -67,13 +67,22 @@ function bezier(p0, p1, p2, p3, t) {
 }
 
 /**
- * Sample a horizontal-tangent S-curve between two node centres, trimmed at the medal
- * rims. Each sample carries its arc length `s`, unit tangent and normal.
+ * Sample an S-curve between two node centres, trimmed at the medal rims: tangents are
+ * horizontal at both knots on the sideways loom, vertical on the upright one (`axis`).
+ * Each sample carries its arc length `s`, unit tangent and normal.
  */
-export function samplePath(a, b, ra, rb, samples = 64) {
-  const mx = (b.x - a.x) * 0.52;
-  const p1 = { x: a.x + mx, y: a.y };
-  const p2 = { x: b.x - mx, y: b.y };
+export function samplePath(a, b, ra, rb, samples = 64, axis = 'horizontal') {
+  let p1;
+  let p2;
+  if (axis === 'vertical') {
+    const my = (b.y - a.y) * 0.52;
+    p1 = { x: a.x, y: a.y + my };
+    p2 = { x: b.x, y: b.y - my };
+  } else {
+    const mx = (b.x - a.x) * 0.52;
+    p1 = { x: a.x + mx, y: a.y };
+    p2 = { x: b.x - mx, y: b.y };
+  }
   const pts = [];
   for (let i = 0; i <= samples; i++) pts.push(bezier(a, p1, p2, b, i / samples));
   const kept = pts.filter(
@@ -280,6 +289,10 @@ const radiusOf = (node, medal) => (node?.type === 'boss' ? medal + 8 : medal) / 
 function drawLaneDark(ctx, { model, layout, W, H, laneDarkness, under }) {
   const lanes = Array.isArray(laneDarkness) ? laneDarkness.map((v) => Number(v) || 0) : [];
   if (!lanes.some((v) => v > 0)) return;
+  if (layout.axis === 'vertical') {
+    drawLaneDarkVertical(ctx, { model, layout, W, H, lanes, under });
+    return;
+  }
   const front = Math.max(0, model.frontierRow);
   const xa = layout.x(front + (under ? 0.45 : 1.5));
   const xb = xa + layout.dx * (under ? 0.9 : 1.2);
@@ -349,6 +362,78 @@ function drawLaneDark(ctx, { model, layout, W, H, laneDarkness, under }) {
   }
 }
 
+/**
+ * The upright loom's Eclipse: the same dither, turned. Lanes are columns (lane I at the
+ * left edge, lane V at the right) and the dark ramps in upward, ahead of the party.
+ */
+function drawLaneDarkVertical(ctx, { model, layout, W, H, lanes, under }) {
+  const front = Math.max(0, model.frontierRow);
+  const ya = layout.row(front + (under ? 0.45 : 1.5));
+  const yb = ya - layout.rowStep * (under ? 0.9 : 1.2);
+  const cap = under ? 0.8 : 0.4;
+  const step = Math.max(1, layout.laneStep);
+  const last = lanes.length - 1;
+  const left = lanes[0] || 0;
+  const right = lanes[last] || 0;
+  const colK = new Float32Array(Math.ceil(W));
+  for (let x = 0; x < colK.length; x++) {
+    let k = 0;
+    for (let i = 0; i <= last; i++) {
+      const d = Math.abs(x - layout.lane(i)) / (step * 0.62);
+      if (d < 1) k = Math.max(k, lanes[i] * (1 - d * d));
+    }
+    if (x < layout.lane(0)) k = Math.max(k, left);
+    if (x > layout.lane(last)) k = Math.max(k, right);
+    colK[x] = Math.min(cap, k * (under ? 0.85 : 0.5));
+  }
+  const ink0 = hexRgb(C.ink0);
+  ctx.drawImage(
+    pixelLayer(Math.ceil(W), Math.ceil(H), (d, w, h) => {
+      for (let y = 0; y < Math.min(h, Math.ceil(ya)); y++) {
+        const ramp = y <= yb ? 1 : (ya - y) / Math.max(1, ya - yb);
+        for (let x = 0; x < w; x++) {
+          const kx = colK[x];
+          if (kx <= 0) continue;
+          if (kx * ramp * 64 <= BAYER8[(x & 7) + (y & 7) * 8]) continue;
+          const i = (y * w + x) * 4;
+          d[i] = ink0[0];
+          d[i + 1] = ink0[1];
+          d[i + 2] = ink0[2];
+          d[i + 3] = 255;
+        }
+      }
+    }),
+    0,
+    0,
+    Math.ceil(W),
+    Math.ceil(H),
+  );
+  if (!under || ya <= 0) return;
+  // The unlight bruise pools in from whichever side has fallen.
+  for (const [amount, x0, x1] of [
+    [left, 0, layout.lane(0) + step * 0.5],
+    [right, W, layout.lane(last) - step * 0.5],
+  ]) {
+    if (amount <= 0) continue;
+    const g = ctx.createLinearGradient(x0, 0, x1, 0);
+    g.addColorStop(0, `rgba(44,22,69,${(0.34 * amount).toFixed(3)})`);
+    g.addColorStop(1, 'rgba(23,12,36,0)');
+    const yg = ctx.createLinearGradient(0, ya, 0, yb);
+    ctx.save();
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.rect(Math.min(x0, x1), 0, Math.abs(x1 - x0), ya);
+    ctx.clip();
+    ctx.fillRect(Math.min(x0, x1), 0, Math.abs(x1 - x0), ya);
+    // Soften the leading edge so the bruise has no hard horizontal start.
+    yg.addColorStop(0, 'rgba(14,12,20,0.9)');
+    yg.addColorStop(1, 'rgba(14,12,20,0)');
+    ctx.fillStyle = yg;
+    ctx.fillRect(Math.min(x0, x1), yb, Math.abs(x1 - x0), ya - yb);
+    ctx.restore();
+  }
+}
+
 /** A small hollow sun under an eclipsed medal: an unlight pool and a thin gold corona. */
 function drawEclipsedHalo(ctx, p, medal, id) {
   const r0 = medal / 2 + 3;
@@ -389,8 +474,9 @@ export function drawLoomWeave(
   { model, layout, positions, dpr = 1, seed = 1, fontReady, eclipse = null },
 ) {
   const W = layout.innerW;
-  const H = layout.height;
+  const H = layout.innerH ?? layout.height;
   const { medal } = layout;
+  const vertical = layout.axis === 'vertical';
   const byId = model.byId;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = false;
@@ -399,17 +485,20 @@ export function drawLoomWeave(
   // 1. vellum ground with a faint ember pool where the party stands
   ctx.fillStyle = C.ink1;
   ctx.fillRect(0, 0, W, H);
-  const startPos = positions.get(model.startId) || { x: layout.padL, y: layout.y(2) };
+  const startPos = positions.get(model.startId) || layout.pos(0, 2);
+  // Before the act starts the party waits just behind its first knot.
   const here = model.current
     ? positions.get(model.current)
-    : { x: layout.padL - 30, y: startPos.y };
+    : vertical
+      ? { x: startPos.x, y: startPos.y + 30 }
+      : { x: layout.padL - 30, y: startPos.y };
   const pool = ctx.createRadialGradient(
     here.x,
     here.y,
     0,
     here.x,
     here.y,
-    Math.max(220, layout.dx * 3.2),
+    Math.max(220, layout.rowStep * 3.2),
   );
   pool.addColorStop(0, 'rgba(128,70,31,0.16)');
   pool.addColorStop(0.45, 'rgba(79,44,22,0.07)');
@@ -446,10 +535,15 @@ export function drawLoomWeave(
   ctx.globalAlpha = 0.9;
   ctx.setLineDash([3, 2]);
   for (let lane = 0; lane < 5; lane++) {
-    const y = Math.round(layout.y(lane)) + 0.5;
+    const at = Math.round(layout.lane(lane)) + 0.5;
     ctx.beginPath();
-    ctx.moveTo(6, y);
-    ctx.lineTo(W - 6, y);
+    if (vertical) {
+      ctx.moveTo(at, 6);
+      ctx.lineTo(at, H - 6);
+    } else {
+      ctx.moveTo(6, at);
+      ctx.lineTo(W - 6, at);
+    }
     ctx.stroke();
   }
   ctx.setLineDash([]);
@@ -477,6 +571,8 @@ export function drawLoomWeave(
       positions.get(e.to),
       radiusOf(a, medal),
       radiusOf(b, medal),
+      64,
+      layout.axis,
     );
     paths.set(`${e.from}>${e.to}`, pts);
   }
@@ -487,8 +583,11 @@ export function drawLoomWeave(
   });
   for (const e of sorted)
     if (e.kind !== 'live') drawThread(ctx, e.kind, paths.get(`${e.from}>${e.to}`), edgeStyle(e));
+  // The run's thread enters from the near beam: the left edge, or the foot of the
+  // upright loom.
+  const leadFrom = vertical ? { x: startPos.x, y: H + 8 } : { x: -8, y: startPos.y };
   const leadPts = model.startId
-    ? samplePath({ x: -8, y: startPos.y }, startPos, 0, radiusOf(byId.get(model.startId), medal))
+    ? samplePath(leadFrom, startPos, 0, radiusOf(byId.get(model.startId), medal), 64, layout.axis)
     : [];
   if (leadPts.length)
     drawThread(ctx, model.leadKind, leadPts, {
@@ -499,7 +598,8 @@ export function drawLoomWeave(
     if (e.kind === 'live') drawThread(ctx, 'live', paths.get(`${e.from}>${e.to}`), edgeStyle(e));
 
   // 5. the far end dissolves (ordered dither + soft gradient)
-  const x0 = layout.x(model.dissolveRow) - layout.dx * 0.5;
+  if (vertical) drawDissolveVertical(ctx, { model, layout, W, H });
+  const x0 = vertical ? Infinity : layout.x(model.dissolveRow) - layout.dx * 0.5;
   if (x0 < W) {
     const ink0 = hexRgb(C.ink0);
     ctx.drawImage(
@@ -533,7 +633,8 @@ export function drawLoomWeave(
     drawLaneDark(ctx, { model, layout, W, H, laneDarkness: eclipse.laneDarkness, under: false });
 
   // 6. heddle ruler: row numerals above the dissolve so progress stays legible
-  if (fontReady !== false) {
+  if (fontReady !== false && vertical) drawRulerVertical(ctx, { model, layout });
+  else if (fontReady !== false) {
     ctx.font = '8px "Press Start 2P", monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
@@ -600,6 +701,55 @@ export function drawLoomWeave(
   return { paths, leadPts };
 }
 
+/** The upright loom's far end (the top) dissolves the same way, upward. */
+function drawDissolveVertical(ctx, { model, layout, W, H }) {
+  const y0 = layout.row(model.dissolveRow) + layout.rowStep * 0.5;
+  if (y0 <= 0) return;
+  const end = Math.min(H, y0);
+  const ink0 = hexRgb(C.ink0);
+  ctx.drawImage(
+    pixelLayer(Math.ceil(W), Math.ceil(H), (d, w, h) => {
+      for (let y = 0; y < Math.min(h, Math.ceil(y0)); y++) {
+        const k = Math.min(0.62, ((y0 - y) / Math.max(80, y0)) * 0.8);
+        for (let x = 0; x < w; x++)
+          if (k * 64 > BAYER8[(x & 7) + (y & 7) * 8]) {
+            const i = (y * w + x) * 4;
+            d[i] = ink0[0];
+            d[i + 1] = ink0[1];
+            d[i + 2] = ink0[2];
+            d[i + 3] = 255;
+          }
+      }
+    }),
+    0,
+    0,
+    Math.ceil(W),
+    Math.ceil(H),
+  );
+  const g = ctx.createLinearGradient(0, end, 0, 0);
+  g.addColorStop(0, 'rgba(7,6,11,0)');
+  g.addColorStop(1, 'rgba(7,6,11,0.35)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, end);
+}
+
+/** The upright ruler: numerals beside their rows (left of lane I), ticks toward them. */
+function drawRulerVertical(ctx, { model, layout }) {
+  ctx.font = '8px "Press Start 2P", monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let row = 0; row < model.rows; row++) {
+    const y = layout.row(row);
+    const doneRow = row <= model.frontierRow;
+    const nextRow = row === model.frontierRow + 1;
+    ctx.fillStyle = nextRow ? C.gold5 : doneRow ? C.gold2 : C.ink6;
+    ctx.globalAlpha = nextRow || doneRow ? 1 : Math.max(0.5, model.rowFade(row));
+    ctx.fillText(ROMAN[row] || String(row + 1), layout.numeralX, y);
+    ctx.fillRect(layout.tickX, Math.round(y) - 0.5, nextRow ? 4 : 2, 1);
+  }
+  ctx.globalAlpha = 1;
+}
+
 /**
  * Paint one frame of the fx layer. `timeMs` is ignored under reduced motion (a single
  * static glint per thread and still dashes).
@@ -644,7 +794,7 @@ export function drawLoomFx(
   { model, layout, paths, leadPts, selectedId, dpr = 1, timeMs = 0, reduced = false, falls = [] },
 ) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, layout.innerW, layout.height);
+  ctx.clearRect(0, 0, layout.innerW, layout.innerH ?? layout.height);
   const t = reduced ? 0 : timeMs / 1000;
 
   // The Eclipse: ember bursts where the dark is taking a knot right now.

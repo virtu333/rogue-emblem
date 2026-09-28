@@ -28,6 +28,31 @@ import {
   usePc98,
 } from './portraitArt.js';
 import { DISPLAY_FONT_PROBE } from '../utils/loadGameFont.js';
+import { PORTRAIT_UI_CHANGE_EVENT, PORTRAIT_UI_CLASS } from '../utils/portraitBattle.js';
+
+// PortraitBattleController's class for a battle laid out upright (not imported: that
+// module pulls in the battle's save and scene plumbing).
+const PORTRAIT_CAPABLE_CLASS = 'portrait-battle-capable';
+
+/**
+ * The page is laid out upright (portrait mode on a phone held upright, or a battle
+ * laid out upright), the same condition as the upright CSS: one of the portrait
+ * classes on <html> and a portrait viewport.
+ */
+export function uprightPage(env = globalThis) {
+  const root = env?.document?.documentElement;
+  if (!root?.classList) return false;
+  if (
+    !root.classList.contains(PORTRAIT_UI_CLASS) &&
+    !root.classList.contains(PORTRAIT_CAPABLE_CLASS)
+  )
+    return false;
+  try {
+    return env.matchMedia?.('(orientation: portrait)')?.matches === true;
+  } catch {
+    return false;
+  }
+}
 
 export function el(tag, className = '', text = null) {
   const node = document.createElement(tag);
@@ -187,13 +212,20 @@ export function bustPixelScale(rect, master = 192) {
 /**
  * A positioned element that follows its frame. `blocking` layers take
  * pointer input (tap to skip); others let every touch through to the map.
+ * `upright` names the frame to use instead while the page is laid out upright
+ * (a ceremony too tall for the map above the upright rail takes the screen); the
+ * layer switches as the phone turns.
  */
 export class CeremonyLayer {
-  constructor(scene, { frame = 'map', className = '', blocking = false, depth, label = '' } = {}) {
+  constructor(
+    scene,
+    { frame = 'map', upright = null, className = '', blocking = false, depth, label = '' } = {},
+  ) {
     this.scene = scene;
     this.frame = frame;
+    this.uprightFrame = upright;
     this.root = el('div', `ce-layer ${className}`.trim());
-    this.root.dataset.frame = frame;
+    this.root.dataset.frame = this.activeFrame();
     if (blocking) this.root.classList.add('is-blocking');
     this.root.style.zIndex = String(depth ?? DOM_UI_DEPTHS.CEREMONY);
     if (label) this.root.setAttribute('aria-label', label);
@@ -201,6 +233,8 @@ export class CeremonyLayer {
     this._onResize = () => this.applyFrame();
     globalThis.addEventListener?.('resize', this._onResize);
     globalThis.addEventListener?.('orientationchange', this._onResize);
+    // The upright classes can change after the window's resize listeners ran.
+    globalThis.addEventListener?.(PORTRAIT_UI_CHANGE_EVENT, this._onResize);
     const Observer = globalThis.ResizeObserver;
     if (Observer) {
       this._observer = new Observer(() => this.applyFrame());
@@ -224,9 +258,16 @@ export class CeremonyLayer {
     }
   }
 
+  /** The frame this layer covers now ('map' or 'screen'). */
+  activeFrame() {
+    return this.uprightFrame && uprightPage() ? this.uprightFrame : this.frame;
+  }
+
   applyFrame() {
     if (this.destroyed) return;
-    const rect = measureFrame(this.scene, this.frame);
+    const frame = this.activeFrame();
+    if (this.root.dataset.frame !== frame) this.root.dataset.frame = frame;
+    const rect = measureFrame(this.scene, frame);
     const style = this.root.style;
     style.left = `${Math.round(rect.left)}px`;
     style.top = `${Math.round(rect.top)}px`;
@@ -246,7 +287,7 @@ export class CeremonyLayer {
     }
     // Bands sit over the battlefield itself, not the letterbox beside it.
     const span =
-      this.frame === 'map' ? bandSpan(rect, measureMapRect(this.scene)) : bandSpan(rect, null);
+      frame === 'map' ? bandSpan(rect, measureMapRect(this.scene)) : bandSpan(rect, null);
     style.setProperty('--ce-band-l', `${span.left}px`);
     style.setProperty('--ce-band-r', `${span.right}px`);
     style.setProperty('--ce-band-w', `${span.width}px`);
@@ -276,6 +317,7 @@ export class CeremonyLayer {
     if (this._kickerFrame) globalThis.cancelAnimationFrame?.(this._kickerFrame);
     globalThis.removeEventListener?.('resize', this._onResize);
     globalThis.removeEventListener?.('orientationchange', this._onResize);
+    globalThis.removeEventListener?.(PORTRAIT_UI_CHANGE_EVENT, this._onResize);
     this._observer?.disconnect();
     this._observer = null;
     this._fitters = null;
@@ -452,6 +494,22 @@ export class CeremonyClock {
 
 export function hairline(tone = 'gold') {
   return el('div', `ce-hairline ce-hairline--${tone}`);
+}
+
+/**
+ * A "Turn 12 · Par 10 · Rank A" line: each part in its own span, so a narrow frame
+ * wraps the line between parts, never inside one ("Turn / 12"; ceremony.css, upright).
+ * The text is unchanged.
+ */
+export function partedLine(className, text) {
+  const line = el('div', className);
+  String(text ?? '')
+    .split(' · ')
+    .forEach((part, i) => {
+      if (i) line.append(' · ');
+      line.append(el('span', 'ce-part', part));
+    });
+  return line;
 }
 
 export function skipHint() {

@@ -328,6 +328,16 @@ Each scene needs minimal changes — just emit context events at state transitio
 
 ## Landscape Enforcement
 
+> **Superseded (2026-09-27): portrait mode ships.** Phones play upright by default
+> (`docs/portrait-battles.md`): every screen has an upright layout, battles draw the
+> board turned a quarter with the command rail under it, and the rotate prompt below
+> shows only when portrait mode is off (Settings → Portrait mode, or `?portrait=0`) or
+> on a tablet, where portrait mode starts off. The prompt then offers **Use landscape**
+> (fullscreen + orientation lock, where supported) and **Play upright** (turns portrait
+> mode on, since Settings is out of reach behind the prompt). The iPhone app and the
+> installed web app turn upright too; only the iPad app stays landscape. The rest of
+> this section is the original landscape-only design.
+
 ### Web approach (no native lock available)
 
 1. **CSS `@media (orientation: portrait)`** — show a "Rotate your device" overlay

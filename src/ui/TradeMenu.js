@@ -8,6 +8,7 @@ import { itemIcon } from './itemIcons.js';
 import { equippedBadgeElement } from './equippedBadge.js';
 import { battleItemBrief } from './battleItemSummary.js';
 import { itemKeywordText } from './itemKeywordChips.js';
+import { watchPortraitListLayout } from './portraitListLayout.js';
 import {
   activateRow,
   baseStatus,
@@ -121,8 +122,19 @@ export class TradeMenu {
 
     this.surface.onKey = (event) => this.onKey(event);
     this.surface.onAction = (action, payload) => this.onAction(action, payload);
+    // Turning the phone restyles the menu (columns <-> stacked, trade.css) without a
+    // render: the held item and focus stay; the rows that matter are scrolled back
+    // into their resized lists.
+    this.unwatchLayout = watchPortraitListLayout(() => this.keepInView());
+    // A list with rows below its fold says so (upright, trade.css fades its lower edge).
+    const Observer = globalThis.ResizeObserver;
+    this.listSizes = Observer
+      ? new Observer((entries) => entries.forEach((entry) => this.markMore(entry.target)))
+      : null;
     this.render();
     this.focusRow(initialFocus(this.view));
+    // Opened holding an item deep in a long list (a convoy card's Trade…): show it.
+    this.keepInView();
   }
 
   /** A caller's slot re-pointed at this menu's own holder objects. */
@@ -143,6 +155,7 @@ export class TradeMenu {
     for (const side of ['left', 'right'])
       scroll[side] = this.grid.querySelector(`.tm-list-${side}`)?.scrollTop || 0;
     for (const release of this.releases.splice(0)) release();
+    this.listSizes?.disconnect();
     this.rowEls.clear();
     this.serial++;
 
@@ -171,6 +184,7 @@ export class TradeMenu {
         this.grid.append(column);
         const list = column.querySelector(`.tm-list-${side}`);
         if (list) list.scrollTop = scroll[side];
+        this.watchList(list);
       }
     this.setStatus(this.message || baseStatus(view));
 
@@ -262,6 +276,41 @@ export class TradeMenu {
     if (this.tabButtons?.some((t) => t.el === active)) return 'tab';
     if (active === this.done) return 'done';
     return null;
+  }
+
+  /**
+   * The holders are drawn one above the other (upright phones, trade.css): the right
+   * column starts below the left one. Measured, so it follows whatever the CSS did.
+   */
+  isStacked() {
+    const left = this.grid.querySelector('.tm-col-left')?.getBoundingClientRect();
+    const right = this.grid.querySelector('.tm-col-right')?.getBoundingClientRect();
+    return Boolean(
+      left && right && left.height > 0 && right.height > 0 && right.top >= left.bottom - 1,
+    );
+  }
+
+  /** Keep a list's `data-more` (rows below its fold) true through scrolls and resizes. */
+  watchList(list) {
+    if (!list) return;
+    this.markMore(list);
+    list.addEventListener('scroll', () => this.markMore(list), { passive: true });
+    this.listSizes?.observe(list);
+  }
+
+  markMore(list) {
+    const below = Number(list.scrollHeight) - Number(list.scrollTop) - Number(list.clientHeight);
+    if (below > 1) list.setAttribute('data-more', '');
+    else list.removeAttribute('data-more');
+  }
+
+  /** The held row, then the focused row, whole in their own lists (after a layout change). */
+  keepInView() {
+    if (this.closed) return;
+    const held = this.view?.heldRow ? this.rowEl(this.view.heldRow) : null;
+    const active = globalThis.document?.activeElement;
+    const focused = [...this.rowEls.values()].includes(active) ? active : null;
+    for (const el of [held, focused]) el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   }
 
   focusRow(focus) {
@@ -362,7 +411,8 @@ export class TradeMenu {
   move(direction) {
     const kind = this.focusKind();
     if (kind === 'row') {
-      this.focusRow(navigate(this.view, this.focus, direction).focus);
+      const stacked = this.isStacked();
+      this.focusRow(navigate(this.view, this.focus, direction, { stacked }).focus);
       return;
     }
     if (kind === 'tab') {
@@ -448,6 +498,8 @@ export class TradeMenu {
   destroy() {
     if (this.closed) return;
     this.closed = true;
+    this.unwatchLayout?.();
+    this.listSizes?.disconnect();
     for (const release of this.releases.splice(0)) release();
     this.surface.destroy();
   }

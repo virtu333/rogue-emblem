@@ -1154,3 +1154,53 @@
     opacity: 0.9;
   }
 }
+
+/* ─────────────────────────────────────────────── Upright phones
+   Portrait mode: html.portrait-ui page-wide, html.portrait-battle-capable while a
+   battle is laid out upright, and only in an upright viewport (landscape phones and
+   desktop never match). The map frame above the upright rail is the phone's width
+   (375–430 px) and --ce-scale is 1 there: a bust beside the words left ~215 px for a
+   34 px name, which wrapped. Upright the bust stands over a full-width nameplate; the
+   pair sits between a top margin and the "Tap to continue" line. */
+@media (orientation: portrait) {
+  html:is(.portrait-ui, .portrait-battle-capable) .ce-boss-layer:not(.ce-boss-layer--entity) {
+    --ce-stack-t: calc(16px + var(--ce-safe-t));
+    --ce-stack-b: calc(32px + var(--ce-safe-b));
+    --ce-bust: max(
+      0px,
+      min(
+        calc(190px * var(--ce-scale)),
+        calc(var(--ce-w, 375px) * 0.62),
+        calc(var(--ce-h, 480px) - var(--ce-stack-t) - var(--ce-stack-b) - var(--ce-band-h))
+      )
+    );
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .ce-boss:not(.ce-boss--entity) .ce-boss-band {
+    top: calc(
+      (
+          var(--ce-h, 480px) + var(--ce-stack-t) - var(--ce-stack-b) + var(--ce-bust) -
+            var(--ce-band-h)
+        ) /
+        2
+    );
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .ce-boss:not(.ce-boss--entity) .ce-boss-bust {
+    bottom: calc(100% - 4px);
+    left: calc(10px + var(--ce-safe-l));
+  }
+  html:is(.portrait-ui, .portrait-battle-capable) .ce-boss:not(.ce-boss--entity) .ce-boss-text {
+    left: calc(16px + var(--ce-safe-l));
+    right: calc(16px + var(--ce-safe-r));
+  }
+
+  /* With story lines to follow, the title keeps clear of the notch. */
+  html:is(.portrait-ui, .portrait-battle-capable) .ce-story-layer.has-lines {
+    padding-top: max(calc(28px * var(--ce-scale)), 7vh, calc(var(--ce-safe-t) + 12px));
+  }
+  /* "Old Kingdom Roads · Act II · Turn 12" and "Turn 12 · Par 10 · Rank A" wrap
+     between their parts, never inside one (a part wider than the line still wraps
+     inside itself). */
+  html:is(.portrait-ui, .portrait-battle-capable) :is(.ce-runend-meta, .ce-band-sub) > .ce-part {
+    display: inline-block;
+  }
+}

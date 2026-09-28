@@ -33,6 +33,7 @@ import {
   el,
   fitText,
   hairline,
+  partedLine,
   skipHint,
 } from './ceremonyDom.js';
 import { actPhaseName } from './eclipseContent.js';
@@ -205,7 +206,7 @@ export class CeremonyController {
     const band = el('div', `ce-band ce-band--${tone}`);
     const wordEl = el('div', 'ce-band-word', word);
     band.append(wordEl);
-    if (sub) band.append(el('div', 'ce-band-sub', sub));
+    if (sub) band.append(partedLine('ce-band-sub', sub));
     band.append(hairline(tone === 'gold' ? 'gold' : 'crimson'));
     layer.root.append(band);
     layer.addFitter(() => fitText(wordEl, { min: 18 }));
@@ -516,7 +517,7 @@ export class CeremonyController {
         thread.append(el('span', 'ce-thread-a'), el('span', 'ce-thread-b'));
         card.append(word, thread);
         if (content.sub) card.append(el('div', 'ce-runend-sub', content.sub));
-        if (content.meta) card.append(el('div', 'ce-runend-meta', content.meta));
+        if (content.meta) card.append(partedLine('ce-runend-meta', content.meta));
         layer.root.append(card);
         layer.addFitter(() => fitText(word, { min: 16 }));
         for (const line of card.querySelectorAll('.ce-runend-sub, .ce-runend-meta'))

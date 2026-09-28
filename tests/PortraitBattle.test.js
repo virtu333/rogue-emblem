@@ -5,13 +5,19 @@ import {
   canSwitchBattlePresentation,
   getPortraitBattlePreference,
   isLandscapeLockedShell,
+  isPhoneSized,
   isPortraitSize,
+  PHONE_MAX_SHORT_SIDE,
   portraitBattlesAvailable,
+  portraitDefault,
   portraitBattlesEnabled,
   portraitQueryOverride,
   setPortraitBattlePreference,
   showPortraitBattleSetting,
-  syncRotatePromptCopy,
+  storedPortraitChoice,
+  PORTRAIT_UI_CHANGE_EVENT,
+  installPortraitUi,
+  portraitUiActive,
   wantsPortraitBattle,
 } from '../src/utils/portraitBattle.js';
 import { battleCanvasSize, uiBand } from '../src/ui/BattlefieldLab.js';
@@ -27,6 +33,8 @@ function memoryStorage() {
   };
 }
 
+const coarse = (on) => (query) => ({ matches: query === '(pointer: coarse)' ? on : false });
+
 describe('portrait battle preference', () => {
   it('parses ?portrait= links', () => {
     expect(portraitQueryOverride('?portrait=1')).toBe(true);
@@ -37,7 +45,7 @@ describe('portrait battle preference', () => {
     expect(portraitQueryOverride('')).toBeNull();
   });
 
-  it('is off by default, device-local, and set by a link', () => {
+  it('is off by default without a touch phone, device-local, and set by a link', () => {
     const env = { localStorage: memoryStorage(), location: { search: '' } };
     expect(getPortraitBattlePreference(env)).toBe(false);
     env.location.search = '?portrait=1';
@@ -49,6 +57,57 @@ describe('portrait battle preference', () => {
     expect(getPortraitBattlePreference(env)).toBe(false);
   });
 
+  it('is on by default on a touch phone, and ?portrait=0 turns it off for good', () => {
+    const env = {
+      localStorage: memoryStorage(),
+      location: { search: '' },
+      screen: { width: 390, height: 844 },
+      matchMedia: coarse(true),
+    };
+    expect(storedPortraitChoice(env)).toBeNull();
+    expect(getPortraitBattlePreference(env)).toBe(true);
+    expect(applyPortraitQuery(env)).toBe(true); // no link: nothing stored
+    expect(env.localStorage.getItem(PORTRAIT_BATTLE_STORAGE_KEY)).toBeNull();
+    env.location.search = '?portrait=0';
+    expect(applyPortraitQuery(env)).toBe(false);
+    // Off is stored, not cleared: clearing would fall back to the phone's default (on).
+    expect(env.localStorage.getItem(PORTRAIT_BATTLE_STORAGE_KEY)).toBe('off');
+    env.location.search = '';
+    expect(applyPortraitQuery(env)).toBe(false);
+    expect(setPortraitBattlePreference(true, env)).toBe(true);
+    expect(getPortraitBattlePreference(env)).toBe(true);
+  });
+
+  it('defaults off on tablets and desktops, which can still opt in', () => {
+    const tablet = { localStorage: memoryStorage(), screen: { width: 820, height: 1180 } };
+    tablet.matchMedia = coarse(true);
+    expect(getPortraitBattlePreference(tablet)).toBe(false);
+    const desktop = { localStorage: memoryStorage(), screen: { width: 390, height: 844 } };
+    desktop.matchMedia = coarse(false);
+    expect(getPortraitBattlePreference(desktop)).toBe(false);
+    setPortraitBattlePreference(true, tablet);
+    expect(getPortraitBattlePreference(tablet)).toBe(true);
+  });
+
+  it('measures a phone by its screen, whichever way it is held', () => {
+    expect(isPhoneSized({ screen: { width: 390, height: 844 } })).toBe(true);
+    expect(isPhoneSized({ screen: { width: 932, height: 430 } })).toBe(true);
+    expect(isPhoneSized({ screen: { width: 744, height: 1133 } })).toBe(false); // iPad mini
+    expect(isPhoneSized({ screen: { width: 1280, height: 800 } })).toBe(false);
+    // No screen: the viewport stands in.
+    expect(isPhoneSized({ innerWidth: 375, innerHeight: 667 })).toBe(true);
+    expect(isPhoneSized({})).toBe(false);
+    expect(PHONE_MAX_SHORT_SIDE).toBe(600);
+  });
+
+  it('ignores a stored value it does not know (falls back to the default)', () => {
+    const env = { localStorage: memoryStorage(), screen: { width: 390, height: 844 } };
+    env.matchMedia = coarse(true);
+    env.localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, 'maybe');
+    expect(storedPortraitChoice(env)).toBeNull();
+    expect(getPortraitBattlePreference(env)).toBe(true);
+  });
+
   it('survives blocked storage', () => {
     const env = {
       get localStorage() {
@@ -57,6 +116,15 @@ describe('portrait battle preference', () => {
     };
     expect(getPortraitBattlePreference(env)).toBe(false);
     expect(setPortraitBattlePreference(true, env)).toBe(false);
+  });
+
+  it('turning it on releases a landscape lock from the rotate prompt', () => {
+    const unlock = vi.fn();
+    const env = { localStorage: memoryStorage(), screen: { orientation: { unlock } } };
+    setPortraitBattlePreference(false, env);
+    expect(unlock).not.toHaveBeenCalled();
+    setPortraitBattlePreference(true, env);
+    expect(unlock).toHaveBeenCalledTimes(1);
   });
 
   it('announces a change so a live battle can follow it', () => {
@@ -93,6 +161,7 @@ describe('portrait battle preference', () => {
       ['battleState', 'SHOWING_FORECAST'],
       ['transitioning', true],
       ['modalOpen', true],
+      ['gestureActive', true],
     ]) {
       expect(canSwitchBattlePresentation({ ...safe, [key]: value })).toBe(false);
     }
@@ -100,78 +169,140 @@ describe('portrait battle preference', () => {
   });
 });
 
-// The iOS app (Info.plist: landscape only) and the installed web app (manifest:
-// landscape) can never show an upright battle.
+// The iOS app on an iPad (Info.plist ~ipad: landscape only) can never show an upright
+// screen. The iPhone app and the installed web app can.
 const nativeApp = () => ({
   nativePromise: () => Promise.resolve(),
   isNativePlatform: () => true,
 });
 const displayMode = (mode) => (query) => ({ matches: query === `(display-mode: ${mode})` });
+const PHONE = { width: 390, height: 844 };
+const IPAD = { width: 820, height: 1180 };
 
 describe('landscape-locked shells', () => {
-  it('recognises the iOS app, installed web apps and a fullscreen-locked tab', () => {
-    expect(isLandscapeLockedShell({ Capacitor: nativeApp() })).toBe(true);
-    expect(isLandscapeLockedShell({ navigator: { standalone: true } })).toBe(true);
-    for (const mode of ['standalone', 'fullscreen', 'minimal-ui'])
-      expect(isLandscapeLockedShell({ matchMedia: displayMode(mode) }), mode).toBe(true);
+  it('is only the iPad app', () => {
+    expect(isLandscapeLockedShell({ Capacitor: nativeApp(), screen: IPAD })).toBe(true);
+    expect(isLandscapeLockedShell({ Capacitor: nativeApp(), screen: PHONE })).toBe(false);
   });
 
-  it('leaves a browser tab free, including the web build that bundles Capacitor', () => {
-    expect(isLandscapeLockedShell({ matchMedia: displayMode('browser') })).toBe(false);
-    expect(isLandscapeLockedShell({ navigator: { standalone: false } })).toBe(false);
+  it('leaves browser tabs and installed web apps free', () => {
+    for (const mode of ['browser', 'standalone', 'fullscreen', 'minimal-ui'])
+      expect(isLandscapeLockedShell({ matchMedia: displayMode(mode), screen: PHONE }), mode).toBe(
+        false,
+      );
+    expect(isLandscapeLockedShell({ navigator: { standalone: true }, screen: PHONE })).toBe(false);
     expect(isLandscapeLockedShell({})).toBe(false);
     const web = { nativePromise: () => Promise.resolve(), isNativePlatform: () => false };
-    expect(isLandscapeLockedShell({ Capacitor: web })).toBe(false);
-    const broken = () => {
-      throw new Error('no media queries');
-    };
-    expect(isLandscapeLockedShell({ matchMedia: broken })).toBe(false);
+    expect(isLandscapeLockedShell({ Capacitor: web, screen: IPAD })).toBe(false);
   });
 
-  it('shows the Settings toggle only on a phone browser tab that opted in by link', () => {
-    const localStorage = memoryStorage();
-    localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, 'on');
-    const tab = { localStorage, matchMedia: displayMode('browser') };
-    expect(showPortraitBattleSetting({ mobile: true, env: tab })).toBe(true);
-    expect(showPortraitBattleSetting({ mobile: false, env: tab })).toBe(false);
-    expect(
-      showPortraitBattleSetting({ mobile: true, env: { localStorage, Capacitor: nativeApp() } }),
-    ).toBe(false);
+  it('shows the Settings toggle on every touch device that can turn upright', () => {
+    const fresh = () => ({ localStorage: memoryStorage(), screen: PHONE });
+    expect(showPortraitBattleSetting({ mobile: true, env: fresh() })).toBe(true);
+    expect(showPortraitBattleSetting({ mobile: false, env: fresh() })).toBe(false); // desktop
     expect(
       showPortraitBattleSetting({
         mobile: true,
-        env: { localStorage, matchMedia: displayMode('standalone') },
+        env: { ...fresh(), matchMedia: displayMode('standalone') },
       }),
-    ).toBe(false);
-    // Not offered to a phone that never opted in.
-    const fresh = { localStorage: memoryStorage(), matchMedia: displayMode('browser') };
-    expect(showPortraitBattleSetting({ mobile: true, env: fresh })).toBe(false);
+    ).toBe(true);
+    expect(
+      showPortraitBattleSetting({ mobile: true, env: { ...fresh(), Capacitor: nativeApp() } }),
+    ).toBe(true); // the iPhone app
+    expect(
+      showPortraitBattleSetting({
+        mobile: true,
+        env: { localStorage: memoryStorage(), screen: IPAD, Capacitor: nativeApp() },
+      }),
+    ).toBe(false); // the iPad app
+    expect(
+      showPortraitBattleSetting({
+        mobile: true,
+        env: { localStorage: memoryStorage(), screen: IPAD },
+      }),
+    ).toBe(true); // an iPad browser tab
   });
 
-  it('ignores a stored opt-in in a locked shell and keeps it for the browser tab', () => {
+  it('ignores a stored opt-in in the iPad app and keeps it', () => {
     const localStorage = memoryStorage();
     localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, 'on');
-    const tab = { localStorage, matchMedia: displayMode('browser') };
-    const installed = { localStorage, matchMedia: displayMode('standalone') };
-    const app = { localStorage, Capacitor: nativeApp() };
-    expect(portraitBattlesEnabled(tab)).toBe(true);
-    expect(portraitBattlesAvailable(installed)).toBe(false);
-    expect(portraitBattlesEnabled(installed)).toBe(false);
+    const app = { localStorage, Capacitor: nativeApp(), screen: IPAD };
+    expect(portraitBattlesAvailable(app)).toBe(false);
     expect(portraitBattlesEnabled(app)).toBe(false);
-    // The shared storage still holds the tab's choice.
-    expect(getPortraitBattlePreference(installed)).toBe(true);
+    expect(getPortraitBattlePreference(app)).toBe(true);
     expect(localStorage.getItem(PORTRAIT_BATTLE_STORAGE_KEY)).toBe('on');
+    const phoneApp = { localStorage, Capacitor: nativeApp(), screen: PHONE };
+    expect(portraitBattlesEnabled(phoneApp)).toBe(true);
+  });
+});
+
+// A page environment for portrait mode: storage, media queries, viewport and events.
+function portraitPage({
+  optedIn = true,
+  coarse = true,
+  width = 390,
+  height = 844,
+  mode = 'browser',
+  app = false,
+} = {}) {
+  const env = new EventTarget();
+  const localStorage = memoryStorage();
+  // true / false: the player's choice; null: never chosen (the device default).
+  if (optedIn !== null) localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, optedIn ? 'on' : 'off');
+  const classes = new Set();
+  Object.assign(env, {
+    localStorage,
+    innerWidth: width,
+    innerHeight: height,
+    matchMedia: (query) => ({
+      matches: query === '(pointer: coarse)' ? coarse : query === `(display-mode: ${mode})`,
+    }),
+    document: {
+      documentElement: {
+        classList: {
+          contains: (c) => classes.has(c),
+          toggle: (c, on) => (on ? classes.add(c) : classes.delete(c), on),
+        },
+      },
+    },
+    classes,
+  });
+  if (app) env.Capacitor = nativeApp();
+  return env;
+}
+
+describe('portrait mode page class', () => {
+  it('is on for a touch phone held upright, unless the player turned it off', () => {
+    expect(portraitUiActive(portraitPage())).toBe(true);
+    expect(portraitUiActive(portraitPage({ optedIn: null }))).toBe(true); // the default
+    expect(portraitUiActive(portraitPage({ optedIn: false }))).toBe(false);
+    expect(portraitUiActive(portraitPage({ coarse: false }))).toBe(false); // desktop
+    expect(portraitUiActive(portraitPage({ coarse: false, optedIn: true }))).toBe(false);
+    expect(portraitUiActive(portraitPage({ width: 844, height: 390 }))).toBe(false);
+    expect(portraitUiActive(portraitPage({ mode: 'standalone' }))).toBe(true); // installed
+    expect(portraitUiActive(portraitPage({ app: true }))).toBe(true); // the iPhone app
+    // The iPad app is locked sideways; an iPad tab starts off and can opt in.
+    expect(portraitUiActive(portraitPage({ app: true, width: 820, height: 1180 }))).toBe(false);
+    expect(portraitUiActive(portraitPage({ optedIn: null, width: 820, height: 1180 }))).toBe(false);
+    expect(portraitUiActive(portraitPage({ width: 820, height: 1180 }))).toBe(true);
   });
 
-  it('keeps the plain rotate prompt in a locked shell', () => {
-    const text = { textContent: '' };
-    const localStorage = memoryStorage();
-    localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, 'on');
-    const document = { querySelector: () => text };
-    syncRotatePromptCopy({ localStorage, document, matchMedia: displayMode('browser') });
-    expect(text.textContent).toMatch(/Battles can be played upright/);
-    syncRotatePromptCopy({ localStorage, document, Capacitor: nativeApp() });
-    expect(text.textContent).toBe('\u21bb Rotate your device to landscape');
+  it('follows the phone as it turns and the preference as it changes, and stops on uninstall', () => {
+    const env = portraitPage({ width: 844, height: 390 });
+    const changes = [];
+    env.addEventListener(PORTRAIT_UI_CHANGE_EVENT, (e) => changes.push(e.detail.active));
+    const uninstall = installPortraitUi(env);
+    expect(env.classes.has('portrait-ui')).toBe(false);
+    Object.assign(env, { innerWidth: 390, innerHeight: 844 });
+    env.dispatchEvent(new Event('resize'));
+    expect(env.classes.has('portrait-ui')).toBe(true);
+    env.dispatchEvent(new Event('orientationchange')); // no change: no second event
+    setPortraitBattlePreference(false, env); // dispatches the preference event
+    expect(env.classes.has('portrait-ui')).toBe(false);
+    expect(changes).toEqual([true, false]);
+    uninstall();
+    setPortraitBattlePreference(true, env);
+    expect(env.classes.has('portrait-ui')).toBe(false);
   });
 });
 
@@ -218,7 +349,7 @@ describe('PortraitBattleController', () => {
     globalThis.innerHeight = height;
   }
 
-  function fakeScene({ checkpoint = true } = {}) {
+  function fakeScene({ checkpoint = true, slot = 1 } = {}) {
     const rm = {
       battleInProgress: checkpoint
         ? {
@@ -239,6 +370,7 @@ describe('PortraitBattleController', () => {
       gameData: { id: 'data' },
       input: { enabled: true },
       sys: { settings: { key: 'Battle' } },
+      registry: { get: (key) => (key === 'activeSlot' ? slot : undefined) },
       scene: { restart: vi.fn() },
       isStoryInputLocked: () => false,
       _battleRewindPolicy: 'fixed-v1',
@@ -267,43 +399,80 @@ describe('PortraitBattleController', () => {
     expect(controller(fakeScene()).presentation).toBeNull();
   });
 
-  it('never turns the board without the opt-in', () => {
-    globalThis.localStorage.removeItem(PORTRAIT_BATTLE_STORAGE_KEY);
+  it('never turns the board with portrait mode off', () => {
+    globalThis.localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, 'off');
     viewport(390, 844);
     const c = controller(fakeScene());
     expect(c.presentation).toBeNull();
     expect(c.capable).toBe(false);
   });
 
+  it('never turns the board or hides the rotate prompt in the iPad app, even opted in', () => {
+    globalThis.Capacitor = nativeApp();
+    globalThis.screen = IPAD;
+    try {
+      viewport(820, 1180);
+      const scene = fakeScene();
+      const c = controller(scene);
+      expect(c.presentation).toBeNull();
+      expect(c.enabled).toBe(false);
+      // Not capable: the page class that hides the rotate prompt is never set.
+      expect(c.capable).toBe(false);
+      expect(c.mismatch()).toBe(false);
+      expect(c.check()).toBe(false);
+      expect(c.pending).toBe(false);
+      expect(c.locked).toBe(false);
+      expect(scene._battleSuspendController.captureCheckpoint).not.toHaveBeenCalled();
+      expect(scene.scene.restart).not.toHaveBeenCalled();
+    } finally {
+      delete globalThis.Capacitor;
+      delete globalThis.screen;
+    }
+  });
+
   for (const [shell, install, remove] of [
-    ['the iOS app', () => (globalThis.Capacitor = nativeApp()), () => delete globalThis.Capacitor],
+    [
+      'the iPhone app',
+      () => Object.assign(globalThis, { Capacitor: nativeApp(), screen: PHONE }),
+      () => (delete globalThis.Capacitor, delete globalThis.screen),
+    ],
     [
       'the installed web app',
       () => (globalThis.matchMedia = displayMode('standalone')),
       () => delete globalThis.matchMedia,
     ],
   ]) {
-    it(`never turns the board or hides the rotate prompt in ${shell}, even opted in`, () => {
+    it(`turns the board upright in ${shell}`, () => {
       install();
       try {
         viewport(390, 844);
-        const scene = fakeScene();
-        const c = controller(scene);
-        expect(c.presentation).toBeNull();
-        expect(c.enabled).toBe(false);
-        // Not capable: the page class that hides the rotate prompt is never set.
-        expect(c.capable).toBe(false);
-        expect(c.mismatch()).toBe(false);
-        expect(c.check()).toBe(false);
-        expect(c.pending).toBe(false);
-        expect(c.locked).toBe(false);
-        expect(scene._battleSuspendController.captureCheckpoint).not.toHaveBeenCalled();
-        expect(scene.scene.restart).not.toHaveBeenCalled();
+        const c = controller(fakeScene());
+        expect(c.presentation).toEqual({ rotation: 'ccw' });
+        expect(c.enabled).toBe(true);
+        expect(c.capable).toBe(true);
       } finally {
         remove();
       }
     });
   }
+
+  it('waits for a finger on the board to lift before it re-opens', () => {
+    viewport(390, 844);
+    const scene = fakeScene();
+    const c = controller(scene);
+    viewport(844, 390);
+    scene._touchTapDown = { x: 10, y: 10 };
+    expect(c.check()).toBe(false);
+    expect(c.pending).toBe(true);
+    expect(scene._battleSuspendController.captureCheckpoint).not.toHaveBeenCalled();
+    scene._touchTapDown = null;
+    scene._battleCamera = { hasActiveTouches: () => true }; // a pinch under way
+    c.update();
+    expect(scene._battleSuspendController.captureCheckpoint).not.toHaveBeenCalled();
+    scene._battleCamera = { hasActiveTouches: () => false };
+    c.update();
+    expect(scene._battleSuspendController.captureCheckpoint).toHaveBeenCalledTimes(1);
+  });
 
   it('re-opens the saved battle in the new orientation at a safe moment', () => {
     viewport(390, 844);
@@ -373,29 +542,104 @@ describe('PortraitBattleController', () => {
     const c = controller(scene);
     viewport(844, 390);
     expect(c.check()).toBe(false);
-    expect(c.locked).toBe(true);
+    expect(c.rotated).toBe(true);
+    expect(c.switching).toBe(false);
+    expect(scene.input.enabled).toBe(true);
     expect(scene.scene.restart).not.toHaveBeenCalled();
   });
+
+  // A failed write (storage full, private mode, a transient error) keeps the board and
+  // the battle playable, never retries on its own every frame, and never needs a
+  // refresh: the player's next request (turning the phone, the Settings toggle) retries.
+  function failingWrites(scene) {
+    const rm = scene.runManager;
+    const io = { writable: false };
+    // captureCheckpoint sets the in-memory checkpoint before persisting, then
+    // reports the failed write by returning false.
+    scene._battleSuspendController.captureCheckpoint = vi.fn(() => {
+      const index = rm.battleInProgress.checkpoint.checkpointIndex + 1;
+      rm.battleInProgress.checkpoint = { checkpointIndex: index };
+      return io.writable;
+    });
+    return io;
+  }
 
   it('keeps playing when the save advances in memory but cannot be written', () => {
     viewport(390, 844);
     const scene = fakeScene();
-    const rm = scene.runManager;
-    // captureCheckpoint sets the in-memory checkpoint before persisting, then
-    // reports the failed write (quota, private mode) by returning false.
-    scene._battleSuspendController.captureCheckpoint = vi.fn(() => {
-      rm.battleInProgress.checkpoint = { checkpointIndex: 4 };
-      return false;
-    });
+    failingWrites(scene);
+    const capture = scene._battleSuspendController.captureCheckpoint;
+    const c = controller(scene);
+    viewport(844, 390);
+    expect(c.check()).toBe(false);
+    expect(c.switching).toBe(false);
+    expect(c.pending).toBe(false);
+    expect(scene.input.enabled).toBe(true);
+    expect(scene.scene.restart).not.toHaveBeenCalled();
+    // Later frames and resize events of the same request do not retry the write.
+    c.update();
+    c.check();
+    c.update();
+    expect(capture).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries a failed switch when the phone turns again, without a refresh', () => {
+    viewport(390, 844);
+    const scene = fakeScene();
+    const io = failingWrites(scene);
+    const capture = scene._battleSuspendController.captureCheckpoint;
+    const c = controller(scene);
+    viewport(844, 390);
+    expect(c.check()).toBe(false);
+    expect(capture).toHaveBeenCalledTimes(1);
+    // Upright again: the board already matches, nothing to save.
+    viewport(390, 844);
+    expect(c.check()).toBe(false);
+    expect(capture).toHaveBeenCalledTimes(1);
+    // Storage recovered; turning the phone again re-opens the battle sideways.
+    io.writable = true;
+    viewport(844, 390);
+    expect(c.check()).toBe(true);
+    expect(capture).toHaveBeenCalledTimes(2);
+    expect(scene.scene.restart).toHaveBeenCalledTimes(1);
+    expect(scene.scene.restart.mock.calls[0][0].resumeCheckpoint).toEqual({ checkpointIndex: 5 });
+  });
+
+  it('retries a failed switch when the preference changes', () => {
+    viewport(390, 844);
+    const scene = fakeScene();
+    const io = failingWrites(scene);
+    const capture = scene._battleSuspendController.captureCheckpoint;
+    const c = controller(scene);
+    viewport(844, 390);
+    expect(c.check()).toBe(false);
+    c.update();
+    expect(capture).toHaveBeenCalledTimes(1);
+    // Still sideways, portrait mode switched off in Settings: a new request, so one
+    // more try (the board still has to turn back), which now succeeds.
+    io.writable = true;
+    globalThis.localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, 'off');
+    c._refreshEnabled();
+    expect(c.check()).toBe(true);
+    expect(capture).toHaveBeenCalledTimes(2);
+    expect(scene.scene.restart).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the board of a battle without a save slot, without trying to save', () => {
+    viewport(390, 844);
+    const scene = fakeScene({ slot: null });
     const c = controller(scene);
     viewport(844, 390);
     expect(c.check()).toBe(false);
     expect(c.locked).toBe(true);
-    expect(c.switching).toBe(false);
-    expect(scene.scene.restart).not.toHaveBeenCalled();
-    // Locked: later frames do not retry the write.
+    // Locked for good: turning back and again changes nothing.
+    viewport(390, 844);
+    c.check();
+    viewport(844, 390);
+    c.check();
     c.update();
-    expect(scene._battleSuspendController.captureCheckpoint).toHaveBeenCalledTimes(1);
+    expect(scene._battleSuspendController.captureCheckpoint).not.toHaveBeenCalled();
+    expect(scene.scene.restart).not.toHaveBeenCalled();
   });
 
   it('keeps the board of a battle begun under the legacy reseed-per-save policy', () => {
@@ -430,5 +674,172 @@ describe('PortraitBattleController', () => {
     viewport(844, 390);
     expect(c.check()).toBe(false);
     expect(scene.scene.restart).not.toHaveBeenCalled();
+  });
+});
+
+// Portrait mode ships on by default on phones. The stored preference is 'on', 'off' or
+// nothing (the device default), and only the player's explicit choices are ever stored.
+describe('portrait mode preference: links, defaults and the Settings toggle', () => {
+  // A storage that records every write and removal.
+  function recordingStorage() {
+    const store = memoryStorage();
+    const log = [];
+    return {
+      log,
+      getItem: store.getItem,
+      setItem: (k, v) => (log.push(['set', k, v]), store.setItem(k, v)),
+      removeItem: (k) => (log.push(['remove', k]), store.removeItem(k)),
+    };
+  }
+  const device = ({ screen = { width: 390, height: 844 }, coarse: touch = true, search = '' }) => ({
+    localStorage: recordingStorage(),
+    location: { search },
+    screen,
+    matchMedia: coarse(touch),
+  });
+
+  for (const [search, stored, on] of [
+    ['?portrait=0', 'off', false],
+    ['?portrait=off', 'off', false],
+    ['?portrait=FALSE', 'off', false],
+    ['?portrait=no', 'off', false],
+    ['?portrait=1', 'on', true],
+    ['?portrait=%20On%20', 'on', true],
+    ['?portrait=true', 'on', true],
+    ['?portrait=yes', 'on', true],
+  ]) {
+    it(`${search} stores '${stored}' on a phone and a desktop, and it outlives the link`, () => {
+      for (const env of [device({ search }), device({ search, coarse: false })]) {
+        expect(applyPortraitQuery(env)).toBe(on);
+        expect(env.localStorage.getItem(PORTRAIT_BATTLE_STORAGE_KEY)).toBe(stored);
+        env.location.search = '';
+        expect(applyPortraitQuery(env)).toBe(on);
+        expect(getPortraitBattlePreference(env)).toBe(on);
+        expect(env.localStorage.log.filter(([op]) => op === 'remove')).toEqual([]);
+      }
+    });
+  }
+
+  it('an explicit ?portrait=1 is stored even where it matches the default', () => {
+    // A phone is on by default; the link still records the choice, so a later
+    // change of default (or a new screen) cannot undo what the player asked for.
+    const env = device({ search: '?portrait=1' });
+    expect(getPortraitBattlePreference(env)).toBe(true);
+    applyPortraitQuery(env);
+    expect(storedPortraitChoice(env)).toBe(true);
+  });
+
+  it('an unknown ?portrait= value changes nothing, stored or not', () => {
+    const fresh = device({ search: '?portrait=sideways' });
+    expect(applyPortraitQuery(fresh)).toBe(true); // the phone default
+    expect(fresh.localStorage.log).toEqual([]);
+    const off = device({ search: '?portrait=' });
+    off.localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, 'off');
+    expect(applyPortraitQuery(off)).toBe(false);
+    expect(off.localStorage.getItem(PORTRAIT_BATTLE_STORAGE_KEY)).toBe('off');
+  });
+
+  it('unset follows the device: a touch screen whose short side is under 600 px', () => {
+    const cases = [
+      [{ width: 375, height: 667 }, true, true], // iPhone SE
+      [{ width: 430, height: 932 }, true, true], // iPhone Pro Max
+      [{ width: 932, height: 430 }, true, true], // the same phone, screen read sideways
+      [{ width: 599, height: 900 }, true, true], // just under the line
+      [{ width: 600, height: 960 }, true, false], // the line itself: a tablet
+      [{ width: 744, height: 1133 }, true, false], // iPad mini
+      [{ width: 1024, height: 1366 }, true, false], // iPad Pro
+      [{ width: 390, height: 844 }, false, false], // a small window with a mouse
+      [{ width: 1280, height: 800 }, false, false], // desktop
+    ];
+    for (const [screen, touch, on] of cases) {
+      const env = device({ screen, coarse: touch });
+      expect(storedPortraitChoice(env), JSON.stringify(screen)).toBeNull();
+      expect(portraitDefault(env), `${JSON.stringify(screen)} touch=${touch}`).toBe(on);
+      expect(getPortraitBattlePreference(env)).toBe(on);
+      expect(env.localStorage.log).toEqual([]); // reading the default stores nothing
+    }
+  });
+
+  it('the Settings toggle stores off and on, and never deletes the choice', () => {
+    // SettingsMenu's toggle: write(!read()) with the preference's getter and setter.
+    const env = device({});
+    const tap = () => setPortraitBattlePreference(!getPortraitBattlePreference(env), env);
+    expect(getPortraitBattlePreference(env)).toBe(true); // default on a phone
+    tap();
+    expect(env.localStorage.getItem(PORTRAIT_BATTLE_STORAGE_KEY)).toBe('off');
+    expect(getPortraitBattlePreference(env)).toBe(false); // off holds against the default
+    tap();
+    expect(env.localStorage.getItem(PORTRAIT_BATTLE_STORAGE_KEY)).toBe('on');
+    tap();
+    expect(env.localStorage.log).toEqual([
+      ['set', PORTRAIT_BATTLE_STORAGE_KEY, 'off'],
+      ['set', PORTRAIT_BATTLE_STORAGE_KEY, 'on'],
+      ['set', PORTRAIT_BATTLE_STORAGE_KEY, 'off'],
+    ]);
+    // A tablet (default off) stores its opt-in the same way.
+    const tablet = device({ screen: { width: 820, height: 1180 } });
+    setPortraitBattlePreference(!getPortraitBattlePreference(tablet), tablet);
+    expect(tablet.localStorage.getItem(PORTRAIT_BATTLE_STORAGE_KEY)).toBe('on');
+  });
+});
+
+// The rotate prompt (index.html) shows on a touch screen held upright unless
+// portrait-ui (or an upright-capable battle) hides it (portraitBattle.css), so it
+// shows exactly where portrait mode is not active on an upright touch screen.
+describe('where portrait mode is active, and so where the rotate prompt shows', () => {
+  const cases = [
+    // [label, page options, portrait mode active upright]
+    ['a phone tab, never chosen (the default)', { optedIn: null }, true],
+    ['a phone tab, turned off', { optedIn: false }, false],
+    ['a phone tab, turned on', { optedIn: true }, true],
+    ['the iPhone app, never chosen', { optedIn: null, app: true }, true],
+    ['the iPhone app, turned off', { optedIn: false, app: true }, false],
+    ['the installed web app on a phone', { optedIn: null, mode: 'standalone' }, true],
+    ['an iPad tab, never chosen', { optedIn: null, width: 820, height: 1180 }, false],
+    ['an iPad tab, turned on', { optedIn: true, width: 820, height: 1180 }, true],
+    ['the iPad app, turned on', { optedIn: true, app: true, width: 820, height: 1180 }, false],
+    ['the iPad app, never chosen', { optedIn: null, app: true, width: 820, height: 1180 }, false],
+    ['a desktop, turned on', { optedIn: true, coarse: false }, false],
+  ];
+  // portraitPage has no `screen`: the viewport stands in for it, as on a page whose
+  // screen object is missing. Upright is width < height.
+  for (const [label, options, active] of cases) {
+    it(`${label}: ${active ? 'upright, no prompt' : 'the prompt asks for landscape'}`, () => {
+      const env = portraitPage(options);
+      expect(portraitUiActive(env)).toBe(active);
+      // The same page held sideways is never in portrait mode (and needs no prompt).
+      const sideways = portraitPage({
+        ...options,
+        width: options.height ?? 844,
+        height: options.width ?? 390,
+      });
+      expect(portraitUiActive(sideways)).toBe(false);
+    });
+  }
+
+  it('the iPad app is the only landscape-locked shell', () => {
+    const shells = [
+      ['browser tab (phone)', { screen: PHONE }, false],
+      ['browser tab (iPad)', { screen: IPAD }, false],
+      [
+        'installed web app (phone)',
+        { screen: PHONE, matchMedia: displayMode('standalone') },
+        false,
+      ],
+      ['installed web app (iPad)', { screen: IPAD, matchMedia: displayMode('standalone') }, false],
+      ['iPhone app upright', { screen: PHONE, Capacitor: nativeApp() }, false],
+      [
+        'iPhone app sideways',
+        { screen: { width: 844, height: 390 }, Capacitor: nativeApp() },
+        false,
+      ],
+      ['iPad app', { screen: IPAD, Capacitor: nativeApp() }, true],
+      ['iPad app sideways', { screen: { width: 1180, height: 820 }, Capacitor: nativeApp() }, true],
+    ];
+    for (const [label, env, locked] of shells) {
+      expect(isLandscapeLockedShell(env), label).toBe(locked);
+      expect(portraitBattlesAvailable(env), label).toBe(!locked);
+      expect(showPortraitBattleSetting({ mobile: true, env }), label).toBe(!locked);
+    }
   });
 });

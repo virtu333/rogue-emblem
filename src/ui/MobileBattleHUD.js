@@ -4,7 +4,12 @@ import { ContextHelp } from './ContextHelp.js';
 import { renderFormationPanel, startButton } from './FormationPanel.js';
 import { objectiveHelp, terrainHelp } from './helpTopics.js';
 import { locateUnit, nextReadyUnit, readyUnits } from './UnitLocator.js';
-import { compactBattleObjective, sidebarCounters } from './battleSidebarDisplay.js';
+import {
+  compactBattleObjective,
+  secondaryObjectiveStatus,
+  sideObjectiveInputs,
+  sidebarCounters,
+} from './battleSidebarDisplay.js';
 import { battlePlace } from './placeDisplay.js';
 import { bindHoldBattleSpeed, canHoldBattleSpeed } from './HoldBattleSpeed.js';
 import { syncTutorialForecastLayout } from './tutorialForecastLayout.js';
@@ -141,6 +146,50 @@ function forecastWeapon(config) {
 export function pinnedRailCommand(menu, { state, submenu = false, endTurnPending = false } = {}) {
   if (state !== 'UNIT_ACTION_MENU' || submenu || endTurnPending || !menu?.items) return null;
   return menu.items.find((item) => item?.label === 'Wait') || null;
+}
+
+/**
+ * The upright rail (portrait mode, portraitBattle.css) is a short strip under the
+ * board: terrain details or a Cancel row pushed End turn below the fold at 375×667
+ * (playtest 2026-09-26). There End turn joins the fixed dock beside a compact Danger
+ * whenever it is offered, as Wait does in a unit's menu. The sideways rail is tall
+ * and keeps End turn in the command stack.
+ */
+export function dockedEndTurn({ state, uprightRail = false, endTurnPending = false } = {}) {
+  return (
+    Boolean(uprightRail) && !endTurnPending && ['PLAYER_IDLE', 'UNIT_SELECTED'].includes(state)
+  );
+}
+
+/** The rail is laid out upright (the portrait-battle-capable rules in portraitBattle.css). */
+export function uprightBattleRail(env = globalThis) {
+  const root = env?.document?.documentElement;
+  if (!root?.classList.contains('portrait-battle-capable') || !root.classList.contains('touch-ui'))
+    return false;
+  try {
+    return env.matchMedia?.('(orientation: portrait)')?.matches === true;
+  } catch {
+    return false;
+  }
+}
+
+// A unit is being moved or acted with: the upright rail gives its header to that unit
+// (portraitBattle.css hides the turn and objective row) so its commands, lists and
+// the tile it chose fit the short strip without a scroll.
+const UNIT_FOCUS_STATES = new Set([
+  'UNIT_SELECTED',
+  'UNIT_MOVING',
+  'UNIT_ACTION_MENU',
+  'CANTO_MOVING',
+  'SHOWING_FORECAST',
+  'CONFIRMING_ATTACK',
+]);
+
+/** The rail is about one unit's action (its header yields to it on the upright rail). */
+export function unitFocusedRail({ state = '', selected = false, menu = false } = {}) {
+  if (!selected) return false;
+  if (state === 'UNIT_ACTION_MENU') return Boolean(menu);
+  return UNIT_FOCUS_STATES.has(state) || state.startsWith('SELECTING_');
 }
 
 // A view over BattleScene's existing actions. Combat calculations and move rules
@@ -508,7 +557,11 @@ export class MobileBattleHUD {
         side.append(portrait);
       }
     }
-    side.append(el('h3', '', unit.name));
+    // The name and HP line share a wrapper: `display: contents` on the landscape sheet
+    // (unchanged layout); the upright sheet sets them on one row (portraitBattle.css).
+    const who = el('div', 'mb-forecast-who');
+    who.append(el('h3', '', unit.name));
+    side.append(who);
     const projection = forecastProjection(config.forecast);
     const hpAfter = projection ? (attacking ? projection.attackerHP : projection.defenderHP) : null;
     const hp = el('div', 'mb-hp', `HP ${unit.currentHP} / ${unit.stats.HP}`);
@@ -521,7 +574,7 @@ export class MobileBattleHUD {
           hpAfter === 0 ? ' → KO' : ` → ${hpAfter}`,
         ),
       );
-    side.append(hp);
+    who.append(hp);
     side.append(
       createHealthBar(
         unit,
@@ -767,7 +820,12 @@ export class MobileBattleHUD {
     const turn = s.turnManager?.turnNumber || 1;
     const remaining = (s.playerUnits || []).filter((u) => u.currentHP > 0 && !u.hasActed).length;
     const threat = s._threatSight?.current || null;
+    const upright = uprightBattleRail();
+    // Village and caravan: the compact objective keeps only the main line (upright shows these).
+    const sideStatus = secondaryObjectiveStatus(sideObjectiveInputs(s, (this._sideMemory ||= {})));
     const key = JSON.stringify([
+      upright,
+      sideStatus.map((part) => part.text),
       threat ? [threat.col, threat.row, threat.result?.count, threat.result?.status?.length] : null,
       state,
       turn,
@@ -856,6 +914,15 @@ export class MobileBattleHUD {
     );
     objective.append(el('span', 'mb-info-cue', 'ⓘ'));
     this.objective.append(objective);
+    if (sideStatus.length) {
+      const status = el('p', 'mb-objective-status');
+      for (const part of sideStatus) {
+        const chip = el('span', `mb-objective-part is-${part.tone}`, part.text);
+        chip.dataset.objective = part.id;
+        status.append(chip);
+      }
+      this.objective.append(status);
+    }
     this.terrain.replaceChildren();
     this.summary.replaceChildren();
     if (s._inputController?._planningInspection && s.selectedUnit) {
@@ -932,6 +999,11 @@ export class MobileBattleHUD {
       submenu: Boolean(s.inEquipMenu),
       endTurnPending: Boolean(this.endTurnPending),
     });
+    const endTurnDocked = dockedEndTurn({
+      state,
+      uprightRail: upright,
+      endTurnPending: Boolean(this.endTurnPending),
+    });
     // A new menu or state starts at the top (its primary action first); a
     // re-render of the same menu keeps the player's scroll position.
     const scrollKey = [
@@ -944,7 +1016,16 @@ export class MobileBattleHUD {
     this._scrollKey = scrollKey;
     this.root.classList.toggle('has-unit', Boolean(unit));
     this.root.classList.toggle('in-menu', state === 'UNIT_ACTION_MENU' && Boolean(this.menu));
-    this.syncDock(state, pinned);
+    // A submenu (Equip, Item, a staff or art pick) lists rows with stat briefs.
+    this.root.classList.toggle(
+      'in-submenu',
+      state === 'UNIT_ACTION_MENU' && Boolean(this.menu) && Boolean(s.inEquipMenu),
+    );
+    this.root.classList.toggle(
+      'is-acting',
+      unitFocusedRail({ state, selected: Boolean(s.selectedUnit), menu: Boolean(this.menu) }),
+    );
+    this.syncDock(state, pinned, endTurnDocked);
     queueMicrotask(() => {
       if (!this.body.isConnected) return;
       this.body.scrollTop = keepScroll;
@@ -1166,17 +1247,18 @@ export class MobileBattleHUD {
         (inspecting && ['roster', 'objective'].includes(action) ? secondary : trio).append(button);
       }
       if (trio.childElementCount) commands.append(trio);
-      const endTurn = this.button('End turn…', () => this.requestEndTurn(), 'mb-end-turn');
-      if (inspecting) commands.append(endTurn);
+      // On the upright rail End turn waits in the dock (syncDock) instead.
+      const endTurn = endTurnDocked ? null : this.endTurnButton();
+      if (inspecting && endTurn) commands.append(endTurn);
       // Cancel pairs with End turn (or joins the inspection grid): one row, no scroll.
       if (cancel && inspecting) commands.append(cancel);
       this.body.append(commands);
       if (inspecting) this.body.append(secondary);
-      else if (cancel) {
+      else if (cancel && endTurn) {
         const pair = el('div', 'mb-command-grid mb-tile-choice-actions');
         pair.append(cancel, endTurn);
         this.body.append(pair);
-      } else this.body.append(endTurn);
+      } else if (cancel || endTurn) this.body.append(cancel || endTurn);
       if (s._escapeController)
         this.body.append(
           this.button('Show exits', () => s._escapeController.showExits(), 'mb-secondary'),
@@ -1383,12 +1465,17 @@ export class MobileBattleHUD {
     return button;
   }
 
+  endTurnButton(className = '') {
+    return this.button('End turn…', () => this.requestEndTurn(), `mb-end-turn ${className}`.trim());
+  }
+
   /**
    * The fixed dock: Danger whenever a turn is being planned. In a unit's action menu
    * the pinned command (Wait) shares the row with a compact Danger, so the dock stays
-   * one row high and the scroll region keeps its height.
+   * one row high and the scroll region keeps its height; on the upright rail End turn
+   * does the same while no unit menu is open (dockedEndTurn).
    */
-  syncDock(state, pinned = null) {
+  syncDock(state, pinned = null, endTurn = false) {
     const s = this.scene;
     this.dock.replaceChildren();
     if (state === 'DEPLOY_POSITIONING' && s._formation?.ready) {
@@ -1408,11 +1495,16 @@ export class MobileBattleHUD {
       s.turnManager?.currentPhase !== 'enemy';
     this.dock.hidden = !planning;
     const pin = planning && pinned && this.menu ? pinned : null;
-    this.dock.classList.toggle('has-pinned', Boolean(pin));
+    const dockEndTurn = planning && !pin && endTurn;
+    this.dock.classList.toggle('has-pinned', Boolean(pin || dockEndTurn));
     if (!planning) return;
     if (pin) this.dock.append(this.menuButton(this.menu, pin, 'mb-pinned-command'));
+    else if (dockEndTurn) this.dock.append(this.endTurnButton('mb-pinned-command'));
     this.dock.append(
-      this.dangerToggle({ compact: Boolean(pin), viaEvent: state !== 'UNIT_ACTION_MENU' }),
+      this.dangerToggle({
+        compact: Boolean(pin || dockEndTurn),
+        viaEvent: state !== 'UNIT_ACTION_MENU',
+      }),
     );
   }
 
