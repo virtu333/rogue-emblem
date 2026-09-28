@@ -111,13 +111,12 @@ a flat pure #00FF00 background, evenly spaced, margin all round. No text, no lab
 Character expression sheet, hand-drawn in the manner of a Renaissance sketchbook: fine
 sepia ink linework, one thicker contour, pale transparent watercolour. SIX heads of
 Rowan (attached references), in two rows of three. HIS FACE: a broad, round face, a
-wide nose, an easy grin with a small gap between the front teeth, warm brown eyes;
+wide nose, an easy grin, warm brown eyes;
 friendly and a little rough. Tousled copper-orange hair, cream scarf.
 EVERY head FACES RIGHT in the same three-quarter view, at EXACTLY THE SAME ANGLE, SIZE
 AND POSITION, with IDENTICAL hair, head outline, neck and scarf in all six, like one
 drawing traced six times; ONLY the eyes, brows and mouth change. Top row: 1 easy grin,
-eyes open; 2 IDENTICAL TO 1 WITH EYES CLOSED; 3 charging yell, mouth open, the tooth gap
-visible. Bottom row: 4 serious and determined; 5 laughing; 6 speaking, mouth half open.
+eyes open; 2 IDENTICAL TO 1 WITH EYES CLOSED; 3 charging yell, mouth open. Bottom row: 4 serious and determined; 5 laughing; 6 speaking, mouth half open.
 On a flat pure #00FF00 background, evenly spaced, margin all round. No text, no labels.
 1536×1024.
 ```

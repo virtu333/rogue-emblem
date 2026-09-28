@@ -50,8 +50,16 @@ Code adds one mark per head: Edric's eyebrow nick, Astrid's mole, Rowan's freckl
 | `ms_edric_heads`, `ms_astrid_heads` | Face left; flip in code if used before batch 4 lands. |
 | Head sheets | Align the eyes between heads before swapping (not registered). |
 
+## Villains (batch 5)
+
+The owner extended the Unwritten Page style to every cutscene, so the villains the
+cutscene plan puts on screen are in [prompts-batch-5.md](prompts-batch-5.md):
+
+- the Lieutenant (model sheet, back turned, fallen, the Sanctum and the landing);
+- the Emperor (model sheet, the hand on the Roll and slipping off it, the throne hall);
+- a bust of each of the eight act bosses, for the boss encounter cut-in;
+- the Entity's eyes in the dark.
+
 ## Later, only if needed
 
-- An Empire throne hall plate for the Emperor, painted dense and flat.
-- Model sheets for the Emperor and the Lieutenant.
 - Face descriptions for the officers, if they get closeups.

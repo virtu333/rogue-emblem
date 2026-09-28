@@ -1,7 +1,11 @@
-# Anime opening style: The Unwritten Page
+# Cutscene style: The Unwritten Page
 
-Owner-approved direction for "Again" (2026-09-27), influenced by Shadows of Valentia's
-hand-drawn art. It adds to `docs/art-direction/ART_BIBLE.md`; it does not replace it.
+Owner-approved direction (2026-09-27), influenced by Shadows of Valentia's hand-drawn
+art. It began with the anime opening "Again". The owner then extended it to **all
+cutscenes** (boss approaches, endings, boss encounter cut-ins). Where
+`docs/specs/cutscenes.md` → The vibe says otherwise (PC-98 plates, "never an anime
+opening"), this file wins. It adds to `docs/art-direction/ART_BIBLE.md`; it does not
+replace it.
 
 **The idea:** the opening is a page in Sera's book of futures. Each shot is painted the
 way she sees it. When she rewinds, the paint comes off the page.
@@ -52,7 +56,7 @@ description that goes into every prompt that shows the face, and one mark that c
 | Sera | Long oval face, heavy-lidded eyes, a long straight nose, faint shadows under the eyes (a seer who doesn't sleep). | none |
 | Kira | Androgynous: long narrow face, straight level brows, narrow hooded eyes, a thin straight mouth, the chin as in the reference. Reads as neither clearly a young man nor a young woman. No gendered words in Kira's prompts. | none |
 | Astrid | Heart-shaped face, large round eyes, a short upturned nose, a wide mouth. | A mole beside one eye. |
-| Rowan | Broad round face, a wide nose, a gap-toothed grin. | Freckles across the nose and cheeks. |
+| Rowan | Broad round face, a wide nose, an easy grin (no tooth gap: owner, after a first output). | Freckles across the nose and cheeks. |
 | Voss, Cael | Already distinct (age, beard, scar; helm, heavy brow). Keep as drawn. | none |
 
 A code test on the batch-3 heads showed:
@@ -86,5 +90,5 @@ sunset (bridge, fens), take the sun out and cool the grade before conversion.
 
 Every prompt is sent complete, including the style text; the batch-1 shots that were
 sent as a table row alone missed their key requirement. The current full prompts are
-in [prompts-batch-4.md](prompts-batch-4.md), and verdicts on everything generated so far
+in the newest `prompts-batch-*.md` (batch 5: the villains), and verdicts on everything generated so far
 are in [catalog.md](catalog.md).

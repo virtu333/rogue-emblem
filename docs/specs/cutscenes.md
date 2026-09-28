@@ -73,6 +73,12 @@ thing in this world that works.
 
 ## The vibe
 
+> **Superseded (owner, 2026-09-27):** the look of every cutscene now follows
+> **The Unwritten Page** (`docs/art-direction/anime-op/STYLE.md`), including the
+> anime opening "Again". Where this section conflicts with it (PC-98 plates, "never an
+> anime opening"), STYLE.md wins. The timing rules (the music is the clock, hard cuts
+> on beats, the Hollow Sun, the gold thread) still hold.
+
 **Illuminated chronicle, SNES/PC-98 era.** Think of the opening narrations of 16-bit
 tactics games and PC-98 adventure intros: a still painting, slow parallax, fire and
 water that move by palette cycling, words that arrive one line at a time, a hard cut
