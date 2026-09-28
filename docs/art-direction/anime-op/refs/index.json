@@ -232,6 +232,12 @@
     "cutoutOffset": [232, 0]
   },
   {
+    "source": "batch-6/b29_ally_sword_shield_v2.png",
+    "verdict": "use",
+    "cutout": "cutouts/ally_sword_shield_v2.webp",
+    "cutoutOffset": [262, 88]
+  },
+  {
     "source": "anime-op-reference/07-thread-transition.png",
     "verdict": "use",
     "ref": "refs/b45_thread_on_paper.webp"
@@ -413,9 +419,9 @@
     "cutoutOffset": [39, 133]
   },
   {
-    "source": "batch-5/v_landing_plate.png",
-    "verdict": "maybe",
-    "ref": "refs/v_landing_plate.webp"
+    "source": "batch-6/v_landing_plate_v2.png",
+    "verdict": "use",
+    "ref": "refs/v_landing_plate_v2.webp"
   },
   {
     "source": "batch-5/boss_archmage.png",

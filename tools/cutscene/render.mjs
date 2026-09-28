@@ -5,6 +5,7 @@
 //   node tools/cutscene/render.mjs --sheet --out <dir>              contact sheet: first/last frame of every shot
 //   node tools/cutscene/render.mjs --video <file.mp4> [--fps 24] [--workers 4] [--from s] [--to s]
 //   --piece hook   renders "The Roll" (tools/cutscene/hook) instead of the pilot
+//   --piece unwritten  renders the Unwritten Page proof (tools/cutscene/unwritten)
 //   --piece glass  renders "The Far Side of the Glass" (tools/cutscene/glass);
 //                  glass_cold, glass_ja, glass_captions for its other narrators
 //
@@ -36,6 +37,13 @@ const PIECES = {
   glass: {
     page: '/tools/cutscene/glass/index.html?export=1',
     music: 'tools/cutscene/glass/far_side.mp3',
+  },
+  // the Unwritten Page proof: bars 47-56 of "Under the Broken Sun" (local copy of the
+  // track from the music branch; References/ is not committed)
+  unwritten: {
+    page: '/tools/cutscene/unwritten/index.html?export=1',
+    music: 'References/cutscene/unwritten/broken_sun.mp3',
+    musicOffset: 73.6,
   },
   ...Object.fromEntries(
     ['cold', 'ja', 'captions'].map((v) => [
@@ -171,7 +179,7 @@ async function video(file) {
       '-i',
       path.join(dir, '%06d.png'),
       '-ss',
-      String(from),
+      String(from + (PIECE.musicOffset || 0)),
       '-i',
       MUSIC,
       '-t',

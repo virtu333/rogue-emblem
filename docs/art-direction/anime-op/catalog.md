@@ -1,6 +1,6 @@
 # Cutscene art: reference catalogue
 
-112 images: 81 use, 2 maybe, 29 reject. Sorted by beat (first listed), then verdict. The style target is **The Unwritten Page** ([STYLE.md](STYLE.md)); verdicts judge each image against it and against the PC-98 portraits.
+114 images: 83 use, 1 maybe, 30 reject. Sorted by beat (first listed), then verdict. The style target is **The Unwritten Page** ([STYLE.md](STYLE.md)); verdicts judge each image against it and against the PC-98 portraits.
 
 | Source folder | Images | What it is |
 |---|---|---|
@@ -11,6 +11,7 @@
 | `~/Documents/rogue-emblem-assets/batch-3` | 25 | Third batch: the redone maybes, model sheets, officers, the rewind test ([prompts-batch-3.md](prompts-batch-3.md)). |
 | `~/Documents/rogue-emblem-assets/batch-4` | 12 | Fourth batch: distinct faces, closeup redos, allied soldiers, camp and hymn ([prompts-batch-4.md](prompts-batch-4.md)). |
 | `~/Documents/rogue-emblem-assets/batch-5` | 21 | Fifth batch: the villains ([prompts-batch-5.md](prompts-batch-5.md)). Pre-feedback versions in `earlier-versions/` are not catalogued. |
+| `~/Documents/rogue-emblem-assets/batch-6` | 2 | Sixth batch: reworks ([prompts-batch-6.md](prompts-batch-6.md)). |
 
 Not catalogued: the READMEs and `index.html` review pages in each folder.
 
@@ -93,6 +94,7 @@ Not catalogued: the READMEs and `index.html` review pages in each folder.
 | `b29_sera_hands_fray_strip.png` | batch-3 | strip | Sera's hands on the thread: whole, fraying, half unravelled | 29-44, 45-48 | **use** | The three frames are registered, so they play in sequence. Frame 1 doubles for the hymn. | 1536×1024 |  |
 | `b29_sera_run.png` | batch-3 | character | Sera running right, skirts gathered, hand reaching forward | 29-44 | **use** | Pairs with b29_edric_charge. Matches the cast card costume. | 1024×1536 | hair, reaching arm and sleeve, skirt-hand arm, robe, legs |
 | `b29_ally_spear.png` | batch-4 | character | Allied militia spearman, kettle helm, teal armband, facing right | 29-44 | **use** | For filling out the army at first light; repeat and vary in code. | 1024×1536 | spear arm, pack, body |
+| `b29_ally_sword_shield_v2.png` | batch-6 | character | Allied militia, nasal helm, mail, round shield, facing right | 29-44 | **use** | Background ranks only: no longer reads as Voss, but rendered more realistically than the cast (owner). Regenerate both allies with anime faces if they ever come forward. | 1024×1536 | shield arm, body |
 | `02-chorus-run.png` | anime-op-reference | key | Sera and Edric run under the black sun | 29-44 | **reject** | Failed the pixel test: the dense texture turns to mush at 480×270. 11-chorus-run-clean is the cleaner version. | 1672×941 |  |
 | `storyboard/11-chorus-run-clean.png` | anime-op-reference | group | Sera and Edric run together, black sun behind | 29-44 | **reject** | Replaced by batch-3 b29_sera_run with b29_edric_charge on the ridge plate. | 1672×941 |  |
 | `storyboard/12-thread-frays.png` | anime-op-reference | closeup | Sera's hands pull a gold thread taut as it frays | 29-44 | **reject** | Replaced by batch-3 b29_sera_hands_fray_strip. | 1672×941 |  |
@@ -170,7 +172,8 @@ Not catalogued: the READMEs and `index.html` review pages in each folder.
 | `v_entity_eyes_plate.png` | batch-5 | plate | Violet-black wash full of small eyes | ending | **use** | For thread_cut and end_true. No mouths, no gore. | 1536×1024 |  |
 | `v_entity_form.png` | batch-5 | plate | Pale scraped folds around one closed eye | ending | **use** | Optional form; strong. For the boss card only, per the cutscene plan. | 1536×1024 |  |
 | `v_lieutenant_fallen.png` | batch-5 | character | The Lieutenant fallen, legs out, head bowed | ending | **use** | For end_normal. Reclining rather than seated against a wall; reads well. | 1536×1024 | head, cloak, body |
-| `v_landing_plate.png` | batch-5 | plate | Stone landing, stair at right, arches behind | ending | **maybe** | Missing the upright black Glass the ending needs, and a stray thin line crosses the back. Fix: regenerate (prompts-batch-6.md), or draw the Glass in code. | 1536×1024 |  |
+| `v_landing_plate_v2.png` | batch-6 | plate | Stone landing before an upright wall of black Glass | ending | **use** | For end_normal. Code adds a faint reflection to the Glass. Convert with the background settings. | 1536×1024 |  |
+| `v_landing_plate.png` | batch-5 | plate | Stone landing, stair at right, arches behind | ending | **reject** | Replaced by batch-6 v_landing_plate_v2 (with the Glass). | 1536×1024 |  |
 
 ## Bars bosscard: Boss encounter cut-in
 

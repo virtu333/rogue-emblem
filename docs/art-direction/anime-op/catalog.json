@@ -583,6 +583,17 @@
       "layers": "spear arm, pack, body"
     },
     {
+      "file": "b29_ally_sword_shield_v2.png",
+      "source": "batch-6",
+      "kind": "character",
+      "subject": "Allied militia, nasal helm, mail, round shield, facing right",
+      "beats": ["29-44"],
+      "verdict": "use",
+      "why": "Background ranks only: no longer reads as Voss, but rendered more realistically than the cast (owner). Regenerate both allies with anime faces if they ever come forward.",
+      "size": "1024x1536",
+      "layers": "shield arm, body"
+    },
+    {
       "file": "02-chorus-run.png",
       "source": "anime-op-reference",
       "kind": "key",
@@ -1056,13 +1067,23 @@
       "layers": "head, cloak, body"
     },
     {
+      "file": "v_landing_plate_v2.png",
+      "source": "batch-6",
+      "kind": "plate",
+      "subject": "Stone landing before an upright wall of black Glass",
+      "beats": ["ending"],
+      "verdict": "use",
+      "why": "For end_normal. Code adds a faint reflection to the Glass. Convert with the background settings.",
+      "size": "1536x1024"
+    },
+    {
       "file": "v_landing_plate.png",
       "source": "batch-5",
       "kind": "plate",
       "subject": "Stone landing, stair at right, arches behind",
       "beats": ["ending"],
-      "verdict": "maybe",
-      "why": "Missing the upright black Glass the ending needs, and a stray thin line crosses the back. Fix: regenerate (prompts-batch-6.md), or draw the Glass in code.",
+      "verdict": "reject",
+      "why": "Replaced by batch-6 v_landing_plate_v2 (with the Glass).",
       "size": "1536x1024"
     },
     {
