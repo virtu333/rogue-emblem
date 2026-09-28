@@ -3,6 +3,7 @@ import {
   KNOWN_WHEN_KEYS,
   buildNarrativeContext,
   evaluateWhen,
+  pickPoolEntry,
   selectDialogueEntries,
 } from '../src/engine/NarrativeDirector.js';
 
@@ -129,6 +130,7 @@ describe('buildNarrativeContext', () => {
       commanderTitled: null,
       partner: null,
       difficulty: 'normal',
+      runsStarted: 0,
       runsCompleted: 0,
       lastRunResult: 'none',
       lastRunAct: null,
@@ -169,6 +171,7 @@ describe('buildNarrativeContext', () => {
       commanderTitled: null,
       partner: 'Cael',
       difficulty: 'lunatic',
+      runsStarted: 0,
       runsCompleted: 7,
       lastRunResult: 'defeat',
       lastRunAct: null,
@@ -206,6 +209,70 @@ describe('KNOWN_WHEN_KEYS', () => {
       'lastRunDefeatedByKnown',
       'lastRunResult',
       'minRunsCompleted',
+      'partner',
     ]);
+  });
+});
+
+describe('pools: one line per run, walked without repeats', () => {
+  const line = (text, when) => ({ speaker: 'Edric', line: text, ...(when ? { when } : {}) });
+  const general = Array.from({ length: 7 }, (_, i) => line(`general ${i}`));
+  const lost = [
+    line('lost a', { lastRunResult: 'defeat' }),
+    line('lost b', { lastRunResult: 'defeat' }),
+  ];
+  const run = (runsStarted, extra = {}) => ({
+    ...CTX,
+    lastRunResult: 'none',
+    runsStarted,
+    ...extra,
+  });
+
+  it('plays every general line once before any repeats, the same line for the same run', () => {
+    const picks = Array.from({ length: 7 }, (_, i) => pickPoolEntry(general, run(i)).line);
+    expect(new Set(picks).size).toBe(7);
+    // The next lap repeats the same order, so a run's line is stable.
+    for (let i = 0; i < 7; i++) expect(pickPoolEntry(general, run(i + 7)).line).toBe(picks[i]);
+  });
+
+  it('alternates contextual and general lines while the context holds', () => {
+    const pool = [...general, ...lost];
+    const picks = Array.from(
+      { length: 14 },
+      (_, i) => pickPoolEntry(pool, run(i, { lastRunResult: 'defeat' })).line,
+    );
+    picks.forEach((text, i) =>
+      expect(text.startsWith(i % 2 === 0 ? 'lost' : 'general')).toBe(true),
+    );
+    // Each set steps once per pair of runs: both lost lines, all seven general lines.
+    expect(new Set(picks.filter((t) => t.startsWith('lost'))).size).toBe(2);
+    expect(new Set(picks.filter((t) => t.startsWith('general'))).size).toBe(7);
+    // Out of that context the lost lines never play.
+    for (let i = 0; i < 14; i++) expect(pickPoolEntry(pool, run(i)).line).toMatch(/^general/);
+  });
+
+  it('strips the entry condition and leaves the source untouched', () => {
+    const picked = pickPoolEntry(lost, run(0, { lastRunResult: 'defeat' }));
+    expect(picked).toEqual({ speaker: 'Edric', line: expect.stringMatching(/^lost/) });
+    expect(lost[0].when).toEqual({ lastRunResult: 'defeat' });
+  });
+
+  it('a variant whose pool has no line for this context falls through', () => {
+    const section = {
+      base: [line('base')],
+      variants: [{ when: { commander: 'Kira' }, pool: lost }],
+    };
+    expect(selectDialogueEntries(section, run(0))).toEqual([line('base')]);
+    expect(selectDialogueEntries(section, run(0, { lastRunResult: 'defeat' }))[0].line).toMatch(
+      /^lost/,
+    );
+  });
+
+  it('matches the partner and counts runs from the save', () => {
+    expect(evaluateWhen({ partner: 'Voss' }, CTX)).toBe(true);
+    expect(evaluateWhen({ partner: 'Sera' }, CTX)).toBe(false);
+    expect(buildNarrativeContext({ meta: { getRunsStarted: () => 12 } }).runsStarted).toBe(12);
+    expect(buildNarrativeContext({ meta: { runsStarted: 3 } }).runsStarted).toBe(3);
+    expect(buildNarrativeContext().runsStarted).toBe(0);
   });
 });

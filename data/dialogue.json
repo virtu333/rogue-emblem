@@ -288,13 +288,528 @@
       "variants": [
         {
           "when": {
-            "commander": "Edric"
+            "commander": "Edric",
+            "lastRunResult": "none"
           },
           "entries": [
             {
               "speaker": "Edric",
               "portrait": "portrait_lord_edric",
               "line": "Then the banner goes forward. Rally to me — we finish this march together."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric"
+          },
+          "pool": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Whatever path you've found, we walk it together. Everyone count off."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Packs checked, boots laced, names counted. Twice. Let's go."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I'll hold the banner. You all hold each other. That's the whole plan."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Another road. Same promise: nobody gets left at the side of it."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The border's quiet this morning. I don't trust it, but I like it."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "If the path breaks, we carry each other over the gaps. Forward."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I dreamed of bridges last night. Probably nothing. Move out."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Form up. Close ranks on the road, loose ranks at the fords."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The quartermaster says we have bread for a week. Let's be home in six days."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Every one of you comes home. I don't know how yet. I'll work it out as we walk."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Banner up, heads up. And someone wake the rear guard, please."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "My father said a lord walks first and eats last. I'll manage the first part."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I've stopped counting the marches. I never stop counting all of you."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Whatever waits out there has to get through all of us, together."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Rain and woodsmoke on the wind. Good marching weather. Mostly."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Then that's our road. I'll take the front. Shout if I walk into a tree."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Before we go: water, whetstones, and a prayer for whoever needs one."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "A broken path beats no path. We'll mend it as we walk."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I can't see what you see. I can see who's standing here. That's enough."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Pace yourselves. It's a long road and I want every one of us at the end of it."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Nobody plays the hero today. We go steady, we go together, we go home."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "If I look nervous, it's because I am. Walk with me anyway."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The village children asked for a story when we're back. Let's make it a short one."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Stay close. That's an order. Also a request. Mostly a request."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The first step is the hardest. After that it's only every step."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The banner's patched in three places now. It still flies. So do we."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Scouts ahead, healers in the middle, and me wherever I'm some use."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I count everyone here. I'll count everyone again tonight. That's the job."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "A fresh road. Let's leave it better than we found it."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I don't need to know the ending. I need to know you're with me. You are."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Break camp. We walk until the light goes, then a little further."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "My grandfather cursed this road every time he walked it. I'll try to curse it less."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Mind the fords. Last time someone lost a boot in the river. It was me."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "No speeches today. You know why we march. Let's march."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Another dawn on the border. I never tire of seeing all of you in it."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "It's a path. That's more than the folk behind us have. Let's clear it for them."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We have a banner, a map and each other. Two of those are reliable."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "This road feels familiar somehow. Let's not dwell on it. Forward."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "If it goes wrong, fall back to me. Not away. To me."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The quarries first. Watch your footing, and each other's backs."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Eat something before we go. I mean it. Nobody fights well hungry."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I'm no great tactician. I just don't leave people behind. Let's go."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Whoever carries the pot today, thank you. Whoever cooks tonight, I'm sorry in advance."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "One more look at the map. Right. I still can't read it. Follow the path."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Keep the line tight on the road. Gaps are where people go missing."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The banner goes where you all go. I just carry it a step ahead."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Sun's up, packs are on. Nothing left to do but the hard part."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I wrote every name down this morning. I intend to read the list again at the end."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We fell last time. I still feel the weight of it. Let's put it down together.",
+              "when": {
+                "lastRunResult": "defeat"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Whatever went wrong before, it went wrong for the last time. Stay close.",
+              "when": {
+                "lastRunResult": "defeat"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I lost people on a road like this. I'm not losing any today.",
+              "when": {
+                "lastRunResult": "defeat"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I woke up counting heads. All here. Let's keep it that way.",
+              "when": {
+                "lastRunResult": "defeat"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We learn, we mend, we march. In that order.",
+              "when": {
+                "lastRunResult": "defeat"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Something beat us once. Let's show it we were paying attention.",
+              "when": {
+                "lastRunResult": "defeat"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Falling isn't the end of the road. Staying down would be. Up, all of you.",
+              "when": {
+                "lastRunResult": "defeat"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Slower this time, and smarter. Nobody runs ahead of the banner.",
+              "when": {
+                "lastRunResult": "defeat"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I carry the ones we lost. There's room beside them for all of you to walk.",
+              "when": {
+                "lastRunResult": "defeat"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "It hurt. It should hurt. Now let it make us careful.",
+              "when": {
+                "lastRunResult": "defeat"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "{lastFoe}. Then we meet it better armed, better fed, and together.",
+              "when": {
+                "lastRunResult": "defeat",
+                "lastRunDefeatedByKnown": true
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I still hear {lastFoe} in my sleep. Good. I'll know its step when it comes.",
+              "when": {
+                "lastRunResult": "defeat",
+                "lastRunDefeatedByKnown": true
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "{lastFoe} won last time. It only has to lose once.",
+              "when": {
+                "lastRunResult": "defeat",
+                "lastRunDefeatedByKnown": true
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We won once. That doesn't mean it stays won. Banner up.",
+              "when": {
+                "lastRunResult": "victory"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "They're still singing about the last march. I'd rather not need another song.",
+              "when": {
+                "lastRunResult": "victory"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We finished it before. Let's finish it again, and bring everyone home.",
+              "when": {
+                "lastRunResult": "victory"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I thought I'd hung this banner up for good. Apparently not.",
+              "when": {
+                "lastRunResult": "victory"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The peace didn't hold. Then we go and hold it ourselves.",
+              "when": {
+                "lastRunResult": "victory"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I've walked this road so often the stones know my boots. Still counting you.",
+              "when": {
+                "minRunsCompleted": 10
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Ten marches, maybe more. The fear never goes away. Neither do I.",
+              "when": {
+                "minRunsCompleted": 10
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Every march, I learn a few more of your names by heart. I'll learn the rest.",
+              "when": {
+                "minRunsCompleted": 10
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The scouts say they're stronger this time. Then we stand closer this time.",
+              "when": {
+                "difficulty": "hard"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "A hard road ahead. I won't pretend otherwise. I won't leave anyone on it either.",
+              "when": {
+                "difficulty": "hard"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "This is madness. We're doing it anyway, and we're doing it together.",
+              "when": {
+                "difficulty": "lunatic"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Anyone who wants to turn back, now's the time. No one? Then I'm proud of you.",
+              "when": {
+                "difficulty": "lunatic"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "They'll give us no quarter. So we give each other all of it.",
+              "when": {
+                "difficulty": "lunatic"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I trust your eyes, Sera. You trust my feet. Between us, we'll get there.",
+              "when": {
+                "partner": "Sera"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "If you can see the road, Sera, I'll make sure we're all still on it.",
+              "when": {
+                "partner": "Sera"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "You always have a plan, Kira. I'll try to be the part of it that works.",
+              "when": {
+                "partner": "Kira"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "You've walked the border longer than anyone, Voss. Lead us the quiet way.",
+              "when": {
+                "partner": "Voss"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Rowan, stay with the line. Your horse doesn't count as the line.",
+              "when": {
+                "partner": "Rowan"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Keep the sky, Astrid. I'll keep an eye on everyone down here.",
+              "when": {
+                "partner": "Astrid"
+              }
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "You take the front, Cael, I'll take the banner. Everyone else, take care.",
+              "when": {
+                "partner": "Cael"
+              }
             }
           ]
         },
