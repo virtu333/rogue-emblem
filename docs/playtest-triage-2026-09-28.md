@@ -57,3 +57,16 @@ Verdicts: **BUG** · **GAP** (design gap) · **OK** (working as designed; maybe 
 - Hard/Lunatic "recruit guardian" code is dead (`MapGenerator.js:243-275`; no data).
 - `docs/specs/difficulty_spec.md:13` is stale (says every mode runs acts 1–3 + final).
 - Outfitted-recruit accessories are sellable (~500–1000 G per recruit).
+
+## Decisions (Dave, 2026-09-28)
+
+- **Vampiric:** heals at most 2 HP per hit (floored).
+- **Starting skills:** each unlocked skill can sit on only one lord at a time.
+- **Difficulty ladder:** four tiers, named First Light / Dusk / Nightfall / Black Sun.
+  - First Light = today's Normal (ends at the Lieutenant).
+  - Dusk = new tier: today's Hard (acts 1–IV, ends at the Emperor), made easier.
+  - Nightfall = today's Hard tuning, now continuing to the Entity.
+  - Black Sun = today's Lunatic (Entity).
+  - Internal ids stay `normal` / `hard` / `lunatic`; the new tier gets a new id.
+- **Deeds:** players pick their displayed title; each unit swears one Oath, chosen by the player. The Compendium hides anything not yet encountered.
+- **Supports:** backlog; bonds without conversations are acceptable.
