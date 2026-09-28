@@ -532,7 +532,9 @@ export class BattleScene extends Phaser.Scene {
     this._sceneShutdownCleanedUp = true;
 
     const audio = this.registry.get('audio');
-    if (audio) audio.releaseMusic(this, 0);
+    // Turning the phone re-opens the battle from its checkpoint; the re-opened scene
+    // asks for the same track, which then plays on from where it was.
+    if (audio && !this._portraitBattle?.switching) audio.releaseMusic(this, 0);
     this._musicCtrl?.destroy();
     this._musicCtrl = null;
     this._formation?.destroy();
@@ -1909,6 +1911,8 @@ export class BattleScene extends Phaser.Scene {
           isElite: this.isElite,
         }),
         releaseFirst: Boolean(this.battleParams?.tutorialMode),
+        // After a turn of the phone the track plays on: ease its calm/full level.
+        intensityFadeMs: this._presentationSwitch ? 600 : 0,
       });
 
       // Initial fog of war update

@@ -40,7 +40,7 @@ Rules are untouched: the rotation is Grid presentation only. Movement, combat, A
 | `src/engine/Grid.js` | Optional `presentation` argument; `gridToPixel` / `pixelToGrid` go through the transform |
 | `src/ui/BattlefieldArt.js` | Paints terrain from the rotated layout, so shores, walls and bridges join their drawn neighbours and trees stay upright |
 | `src/ui/BattlefieldLab.js` | Portrait canvas: 640 logical px wide, tall; pinned Phaser UI keeps its 640×480 layout in a centred band; `resizedZoom` keeps tile size across resizes |
-| `src/ui/PortraitBattleController.js` | Chooses the presentation at `beginBattle`, owns the battle `<html>` classes, follows the phone and preference, and performs the checkpoint re-open at a safe point |
+| `src/ui/PortraitBattleController.js` | Chooses the presentation at `beginBattle`, owns the battle `<html>` classes, follows the phone and preference, and performs the checkpoint re-open at a safe point (the battle music plays on through it: shutdown keeps the track while `switching`, and the re-opened scene asks for the same key) |
 | `src/ui/InputController.js` | `invalidatePointerGestures` on a geometry change; a touch release with no press never clicks |
 | `src/ui/portraitBattle.css` | The upright rail, dock, forecast sheet and battle fixes |
 | `src/ui/portraitMode.css` | Shared menu-kit rules upright |
@@ -70,7 +70,6 @@ Outside battles every screen is a DOM surface over the hidden canvas; the uprigh
 
 ## Limits
 
-- Switching orientation mid-battle restarts the battle music track.
 - A tablet that chooses Play upright gets the phone layouts, stretched.
 - Browser emulation cannot prove real Safari pointer detection, touch, safe areas or OS rotation; the TestFlight device checklist covers those.
 

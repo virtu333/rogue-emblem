@@ -9,6 +9,7 @@
 //   - mid-battle, both ways and once during the enemy phase: the same battle as a run
 //     that never turned (RNG, units, fog, NPCs, temporary terrain, convoy, gold,
 //     Vision, deployment), before and after identical actions;
+//   - the battle music plays on (the same voice, never restarted from its intro);
 //   - Formation: the switch waits for Start battle and keeps the placement;
 //   - with the forecast open: the switch waits, the sheet stays usable, the attack
 //     resolves exactly as without the turn;
@@ -181,6 +182,39 @@ test('turning the phone both ways, once in the enemy phase, plays out like never
     (s, i) => s.bookkeeping.checkpointIndex - control[i].bookkeeping.checkpointIndex,
   );
   expect(extra).toEqual([0, 1, 1, 2, 2, 2]);
+  expect(errors).toEqual([]);
+});
+
+test('the battle music plays on through a turn of the phone, both ways', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors = pageErrors(page);
+  await quietSettings(page, { musicVolume: 0.05 });
+  await openDevBattle(page);
+  const music = () =>
+    page.evaluate(() => {
+      const audio = window.__emblemRogueGame.registry.get('audio');
+      return {
+        key: audio.currentMusicKey,
+        playing: Boolean(audio.currentMusic?.isPlaying),
+        same: audio.currentMusic?.__turnMarker === true,
+      };
+    });
+  // Browsers start audio only after a user gesture.
+  await page.keyboard.press('Shift');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.registry.get('audio').currentMusic?.isPlaying,
+    null,
+    { timeout: 30_000 },
+  );
+  const before = await music();
+  // Mark the playing voice: a restarted track would be a new sound object.
+  await page.evaluate(() => {
+    window.__emblemRogueGame.registry.get('audio').currentMusic.__turnMarker = true;
+  });
+  await turnPhone(page, SIDEWAYS, 'none');
+  expect(await music()).toEqual({ key: before.key, playing: true, same: true });
+  await turnPhone(page, UPRIGHT, 'ccw');
+  expect(await music()).toEqual({ key: before.key, playing: true, same: true });
   expect(errors).toEqual([]);
 });
 

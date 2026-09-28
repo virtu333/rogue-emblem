@@ -118,6 +118,7 @@ export default class BattleMusicController {
     context = null,
     fadeMs = 800,
     releaseFirst = false,
+    intensityFadeMs = 0,
   } = {}) {
     let key;
     if (isBoss) key = getBossMusicKey(bossName, act);
@@ -139,7 +140,7 @@ export default class BattleMusicController {
     const audio = this._audio();
     if (audio) {
       if (releaseFirst) audio.releaseMusic(this.scene, 0);
-      audio.setMusicIntensity?.(this.enraged ? 'enrage' : this.state.level, 0);
+      audio.setMusicIntensity?.(this.enraged ? 'enrage' : this.state.level, intensityFadeMs);
     }
     // A resumed battle where the Entity is already wounded (or enraged) goes
     // straight to the finale: the hinge belongs to the moment of the wound.
