@@ -32,6 +32,10 @@
     {
       "bars": "53-56",
       "picture": "Edric looks up; silence; the Hollow Sun and title"
+    },
+    {
+      "bars": "model",
+      "picture": "Model sheets (for the rig, not a beat)"
     }
   ],
   "rows": [
@@ -225,6 +229,39 @@
       "size": "1536x1024"
     },
     {
+      "file": "b21_officer_drill.png",
+      "source": "batch-3",
+      "kind": "character",
+      "subject": "Bareheaded drill officer, sword raised, calling the count",
+      "beats": ["13-20", "21-28"],
+      "verdict": "use",
+      "why": "Dense and flat, faces left. A scar already gives him his own face.",
+      "size": "1024x1536",
+      "layers": "sword arm, head, cloak, body"
+    },
+    {
+      "file": "b21_officer_mounted.png",
+      "source": "batch-3",
+      "kind": "character",
+      "subject": "Mounted officer on a black horse, walking left",
+      "beats": ["13-20", "21-28"],
+      "verdict": "use",
+      "why": "Profile, one foreleg raised: a walk cycle can start from this pose.",
+      "size": "1536x1024",
+      "layers": "rider, cloak, caparison, horse, tail"
+    },
+    {
+      "file": "b21_officer_standard.png",
+      "source": "batch-3",
+      "kind": "character",
+      "subject": "Standard-bearer marching left; black sword on crimson",
+      "beats": ["13-20"],
+      "verdict": "use",
+      "why": "Profile march, matches the soldier. The banner can hang on a spring in code.",
+      "size": "1024x1536",
+      "layers": "banner, pole arm, cloak, legs, body"
+    },
+    {
       "file": "04-bridge-thread.png",
       "source": "rogue-dawn-sketchbook-tests",
       "kind": "key",
@@ -306,6 +343,37 @@
       "size": "1536x1024"
     },
     {
+      "file": "b21_lieutenant_full.png",
+      "source": "batch-3",
+      "kind": "character",
+      "subject": "The Lieutenant standing, hand raised, mirroring a seer",
+      "beats": ["21-28"],
+      "verdict": "use",
+      "why": "Faces left. Mirrors Sera reaching for the thread.",
+      "size": "1024x1536",
+      "layers": "raised arm, head, cloak, body"
+    },
+    {
+      "file": "b21_lieutenant_threads.png",
+      "source": "batch-3",
+      "kind": "key",
+      "subject": "The Lieutenant, gold threads whole in one hand, crimson snapped in the other",
+      "beats": ["21-28"],
+      "verdict": "use",
+      "why": "Replaces the old reveal. Cracks and red eye on the correct side. Delivered 1672x941 and centre-cropped to 3:2 by the generator.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "b21_sera_closeup.png",
+      "source": "batch-3",
+      "kind": "closeup",
+      "subject": "Sera winds a gold thread round two fingers",
+      "beats": ["21-28"],
+      "verdict": "use",
+      "why": "Replaces the old close-up. Delivered 1672x941 and centre-cropped to 3:2.",
+      "size": "1536x1024"
+    },
+    {
       "file": "03-sera-window.png",
       "source": "rogue-dawn-sketchbook-tests",
       "kind": "key",
@@ -321,8 +389,8 @@
       "kind": "closeup",
       "subject": "Sera winds a gold thread round her fingers; dawn in her eye",
       "beats": ["21-28"],
-      "verdict": "maybe",
-      "why": "Best line work in the old set, and it survives conversion, but in the old style. Fix: redo as an Unwritten Page closeup. b21_sera_eyes and 03-sera-window cover the beat until then.",
+      "verdict": "reject",
+      "why": "Replaced by batch-3 b21_sera_closeup.",
       "size": "1672x941"
     },
     {
@@ -331,8 +399,8 @@
       "kind": "key",
       "subject": "The Lieutenant, symmetrical, holding gold and snapped crimson threads",
       "beats": ["21-28"],
-      "verdict": "maybe",
-      "why": "On-model, and a medium shot of the Lieutenant that the new set does not have (only his eyes). Fix: redo in the new style on a plain dark field; code draws the threads.",
+      "verdict": "reject",
+      "why": "Replaced by batch-3 b21_lieutenant_threads.",
       "size": "1672x941"
     },
     {
@@ -429,34 +497,35 @@
       "size": "1536x1024"
     },
     {
-      "file": "storyboard/11-chorus-run-clean.png",
-      "source": "anime-op-reference",
-      "kind": "group",
-      "subject": "Sera and Edric run together, black sun behind",
+      "file": "b29_first_light_plate.png",
+      "source": "batch-3",
+      "kind": "plate",
+      "subject": "Cold first light over a misty valley; an open hilltop",
       "beats": ["29-44"],
-      "verdict": "maybe",
-      "why": "The only shot of Sera running beside Edric in the chorus. It fails at game size. Fix: a running Sera cut-out on green, to pair with b29_edric_charge on the ridge plate.",
-      "size": "1672x941"
+      "verdict": "use",
+      "why": "No sun. Wide enough for the whole cast. Convert with the background settings.",
+      "size": "1536x1024"
     },
     {
-      "file": "storyboard/12-thread-frays.png",
-      "source": "anime-op-reference",
-      "kind": "closeup",
-      "subject": "Sera's hands pull a gold thread taut as it frays",
-      "beats": ["29-44"],
-      "verdict": "maybe",
-      "why": "The only image of Sera's thread fraying. Fix: redo as a three-frame strip of her hands (whole, fraying, half unravelled) in the new style.",
-      "size": "1672x941"
+      "file": "b29_sera_hands_fray_strip.png",
+      "source": "batch-3",
+      "kind": "strip",
+      "subject": "Sera's hands on the thread: whole, fraying, half unravelled",
+      "beats": ["29-44", "45-48"],
+      "verdict": "use",
+      "why": "The three frames are registered, so they play in sequence. Frame 1 doubles for the hymn.",
+      "size": "1536x1024"
     },
     {
-      "file": "storyboard/14-unnamed-dawn.png",
-      "source": "anime-op-reference",
-      "kind": "group",
-      "subject": "Sera and Edric on a hill above a valley at dawn",
+      "file": "b29_sera_run.png",
+      "source": "batch-3",
+      "kind": "character",
+      "subject": "Sera running right, skirts gathered, hand reaching forward",
       "beats": ["29-44"],
-      "verdict": "maybe",
-      "why": "Closest image to \"the army at first light\", but a bright visible sun breaks the one-warm-light rule. Fix: a wide first-light plate with no sun, with the cast cards composited on it.",
-      "size": "1672x941"
+      "verdict": "use",
+      "why": "Pairs with b29_edric_charge. Matches the cast card costume.",
+      "size": "1024x1536",
+      "layers": "hair, reaching arm and sleeve, skirt-hand arm, robe, legs"
     },
     {
       "file": "02-chorus-run.png",
@@ -469,6 +538,26 @@
       "size": "1672x941"
     },
     {
+      "file": "storyboard/11-chorus-run-clean.png",
+      "source": "anime-op-reference",
+      "kind": "group",
+      "subject": "Sera and Edric run together, black sun behind",
+      "beats": ["29-44"],
+      "verdict": "reject",
+      "why": "Replaced by batch-3 b29_sera_run with b29_edric_charge on the ridge plate.",
+      "size": "1672x941"
+    },
+    {
+      "file": "storyboard/12-thread-frays.png",
+      "source": "anime-op-reference",
+      "kind": "closeup",
+      "subject": "Sera's hands pull a gold thread taut as it frays",
+      "beats": ["29-44"],
+      "verdict": "reject",
+      "why": "Replaced by batch-3 b29_sera_hands_fray_strip.",
+      "size": "1672x941"
+    },
+    {
       "file": "storyboard/13-edric-falls.png",
       "source": "anime-op-reference",
       "kind": "key",
@@ -476,6 +565,16 @@
       "beats": ["29-44"],
       "verdict": "reject",
       "why": "Replaced by the falls on four plates (batches 1 and 2). The ghosted-repeat idea is done in code.",
+      "size": "1672x941"
+    },
+    {
+      "file": "storyboard/14-unnamed-dawn.png",
+      "source": "anime-op-reference",
+      "kind": "group",
+      "subject": "Sera and Edric on a hill above a valley at dawn",
+      "beats": ["29-44"],
+      "verdict": "reject",
+      "why": "Replaced by batch-3 b29_first_light_plate with the cast cards. It also shows a bright sun.",
       "size": "1672x941"
     },
     {
@@ -509,6 +608,26 @@
       "size": "1672x940"
     },
     {
+      "file": "rw_camp_lines.png",
+      "source": "batch-3",
+      "kind": "fx",
+      "subject": "Line-only redraw of the camp plate (rewind test)",
+      "beats": ["49-52"],
+      "verdict": "reject",
+      "why": "Shapes move and new things appear (stars, a palisade). Cannot cross-fade with the painting; code fakes the paint stages.",
+      "size": "1024x1536"
+    },
+    {
+      "file": "rw_edric_final_lines.png",
+      "source": "batch-3",
+      "kind": "fx",
+      "subject": "Line-only redraw of the final frame (rewind test)",
+      "beats": ["49-52"],
+      "verdict": "reject",
+      "why": "Face, hair and cloth move. Keep only as a reference for the line style.",
+      "size": "1536x1024"
+    },
+    {
       "file": "storyboard/17-half-beat-silence.png",
       "source": "anime-op-reference",
       "kind": "fx",
@@ -537,6 +656,146 @@
       "verdict": "reject",
       "why": "The old ending. Code draws the final Hollow Sun and the title.",
       "size": "1672x941"
+    },
+    {
+      "file": "ms_astrid_turn.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Astrid model sheet: turnaround, on foot",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Turnaround: front, three-quarter, side, back. The three-quarter view faces left.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_cael_heads.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Cael model sheet: four heads",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Expression heads. Distinct face (age, helm). Not registered: align before swapping.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_cael_turn.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Cael model sheet: turnaround",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Turnaround: front, three-quarter, side, back. ",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_edric_turn.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Edric model sheet: turnaround",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Turnaround: front, three-quarter, side, back. Chestnut hair held in every view; thread at the wrist.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_kira_turn.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Kira model sheet: turnaround",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Turnaround: front, three-quarter, side, back. ",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_rowan_turn.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Rowan model sheet: turnaround, on foot",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Turnaround: front, three-quarter, side, back. ",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_sera_turn.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Sera model sheet: turnaround",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Turnaround: front, three-quarter, side, back. ",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_voss_heads.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Voss model sheet: four heads",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Expression heads. Distinct face (age, beard, scar). Not registered: align before swapping.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_voss_turn.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Voss model sheet: turnaround",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Turnaround: front, three-quarter, side, back. ",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_astrid_heads.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Astrid model sheet: four heads",
+      "beats": ["model"],
+      "verdict": "maybe",
+      "why": "Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md \"Faces\". Faces left: flip in code.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_edric_heads.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Edric model sheet: six heads",
+      "beats": ["model"],
+      "verdict": "maybe",
+      "why": "Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md \"Faces\". Faces left: flip in code.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_kira_heads.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Kira model sheet: four heads",
+      "beats": ["model"],
+      "verdict": "maybe",
+      "why": "Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md \"Faces\". ",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_rowan_heads.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Rowan model sheet: four heads",
+      "beats": ["model"],
+      "verdict": "maybe",
+      "why": "Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md \"Faces\". ",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_sera_heads.png",
+      "source": "batch-3",
+      "kind": "sheet",
+      "subject": "Sera model sheet: six heads",
+      "beats": ["model"],
+      "verdict": "maybe",
+      "why": "Expression heads. Not registered: align the eyes before swapping heads for blinks. Faces are too alike across the young cast; see STYLE.md \"Faces\". ",
+      "size": "1536x1024"
     },
     {
       "file": "01-ash-city.png",

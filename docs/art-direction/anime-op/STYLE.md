@@ -40,6 +40,33 @@ way she sees it. When she rewinds, the paint comes off the page.
 - Identity: the PC-98 portraits in `public/assets/portraits/pc98/192/` win. Edric's hair
   is dark chestnut, not red or auburn (it drifts; check every image).
 
+## Faces
+
+Owner review of batch 3: the young cast (Edric, Kira, Astrid, Rowan) share one face, so
+they read apart only by hair and colour. Each character now has a fixed face
+description that goes into every prompt that shows the face, and one mark that code adds.
+
+| Character | Face (in every prompt) | Mark (added in code, once per rig head) |
+|---|---|---|
+| Edric | Square jaw, heavy straight brows, deep-set tired eyes, a nose broken once. | A small nick through one eyebrow. |
+| Sera | Long oval face, heavy-lidded eyes, a long straight nose, faint shadows under the eyes (a seer who doesn't sleep). | none |
+| Kira | Androgynous: long narrow face, straight level brows, narrow hooded eyes, a thin straight mouth, the chin as in the reference. Reads as neither clearly a young man nor a young woman. No gendered words in Kira's prompts. | none |
+| Astrid | Heart-shaped face, large round eyes, a short upturned nose, a wide mouth. | A mole beside one eye. |
+| Rowan | Broad round face, a wide nose, a gap-toothed grin. | Freckles across the nose and cheeks. |
+| Voss, Cael | Already distinct (age, beard, scar; helm, heavy brow). Keep as drawn. | none |
+
+A code test on the batch-3 heads showed:
+
+- **Marks work.** Freckles and a mole change a face at a glance.
+- **Warps don't carry the change.** Moving the jaw or narrowing the eyes is too subtle to
+  notice, and pushed further it looks deformed. Kira's sharper chin was rejected.
+- **The structure has to come from generation.** That is why each face is in the prompt.
+
+Code edits need face positions placed by hand, so they are made once per rig head, not
+per shot. The rig puts these heads on every body, so fixing the heads fixes every
+animated shot. Single-image closeups (eyes, final frame) keep the face they were painted
+with.
+
 ## Converting to game pixels
 
 `tools/cutscene/glass/pixel.py <name> --still <image> --preview 0 --colors 28`
@@ -49,6 +76,9 @@ way she sees it. When she rewinds, the paint comes off the page.
 | Figures, closeups, keys | defaults | The ink pass keeps the line work. |
 | Plates | `--no-ink --bilateral 6 --dither 0.3` | With the defaults, fine texture and hatching turn into black speckle. |
 
+In large faces (for example `b21_sera_closeup`), watercolour mottling on the skin dithers
+into speckle that reads as freckles. Convert big faces with `--dither 0.2`.
+
 Soft plates behind crisp figures also give the shots depth. Where a plate shows a warm
 sunset (bridge, fens), take the sun out and cool the grade before conversion.
 
@@ -56,5 +86,5 @@ sunset (bridge, fens), take the sun out and cool the grade before conversion.
 
 Every prompt is sent complete, including the style text; the batch-1 shots that were
 sent as a table row alone missed their key requirement. The current full prompts are
-in [prompts-batch-2.md](prompts-batch-2.md), and verdicts on everything generated so far
+in [prompts-batch-4.md](prompts-batch-4.md), and verdicts on everything generated so far
 are in [catalog.md](catalog.md).
