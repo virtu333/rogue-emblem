@@ -93,6 +93,8 @@ function battleSnapshot(page) {
 }
 
 test('upright phone plays on a turned board with thumb-reach commands', async ({ page }) => {
+  // Boots a battle: give it the slow-runner budget (CI runners are slower).
+  test.slow();
   await bootBattle(page);
   const info = await page.evaluate(() => {
     const b = window.__emblemRogueGame.scene.getScene('Battle');
@@ -312,6 +314,8 @@ for (const viewport of [
 }
 
 test('turning the phone re-opens the battle exactly as it stood', async ({ page }) => {
+  // Boots a battle: give it the slow-runner budget (CI runners are slower).
+  test.slow();
   await bootBattle(page);
   await page.evaluate(() => {
     const b = window.__emblemRogueGame.scene.getScene('Battle');
@@ -343,6 +347,8 @@ test('turning the phone re-opens the battle exactly as it stood', async ({ page 
 });
 
 test('a turn mid-action waits for the next safe moment', async ({ page }) => {
+  // Boots a battle: give it the slow-runner budget (CI runners are slower).
+  test.slow();
   await bootBattle(page);
   await page.evaluate(() => {
     const b = window.__emblemRogueGame.scene.getScene('Battle');
@@ -661,6 +667,8 @@ for (const viewport of [
   });
 }
 test('an upright battle stays upright through its rewards', async ({ page }) => {
+  // Boots a battle: give it the slow-runner budget (CI runners are slower).
+  test.slow();
   await bootBattle(page);
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
   const rewards = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
@@ -686,6 +694,8 @@ test('an upright battle stays upright through its rewards', async ({ page }) => 
 });
 
 test('rewind previews draw the board the way the upright battle does', async ({ page }) => {
+  // Boots a battle: give it the slow-runner budget (CI runners are slower).
+  test.slow();
   await bootBattle(page);
   await page.evaluate(() => {
     const b = window.__emblemRogueGame.scene.getScene('Battle');

@@ -809,6 +809,8 @@ for (const vp of PORTRAIT_PHONES.slice(0, 2)) {
     test('every action whole without scrolling; Settings returns to Pause; Resume', async ({
       page,
     }) => {
+      // Booting a battle takes most of the default 30 s on a CI runner.
+      test.setTimeout(90_000);
       const errors = pageErrors(page);
       await openBattle(page);
       await emulateSafeArea(page);

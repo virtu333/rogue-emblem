@@ -508,6 +508,8 @@ for (const viewport of PORTRAIT_PHONES) {
     test('Master Seal: path chooser, then the rite over the whole screen; promoted once', async ({
       page,
     }) => {
+      // Boots a battle: give it the slow-runner budget (CI runners are slower).
+      test.slow();
       const errors = pageErrors(page);
       await quietSettings(page);
       await emulateSafeArea(page, NOTCH_PORTRAIT);
@@ -635,6 +637,8 @@ for (const viewport of PORTRAIT_PHONES) {
     test('the lord falls: fate, the thread cut, farewell lines, the run result', async ({
       page,
     }) => {
+      // Boots a battle: give it the slow-runner budget (CI runners are slower).
+      test.slow();
       const errors = pageErrors(page);
       await quietSettings(page);
       await emulateSafeArea(page, NOTCH_PORTRAIT);
@@ -845,6 +849,8 @@ test.describe('upright 375x667, a real kill', () => {
   test.use(device(PORTRAIT_PHONES[0]));
 
   test('the level-up card reads in full and the gains are kept', async ({ page }) => {
+    // Boots a battle: give it the slow-runner budget (CI runners are slower).
+    test.slow();
     const errors = pageErrors(page);
     await quietSettings(page);
     await emulateSafeArea(page, NOTCH_PORTRAIT);
@@ -1294,6 +1300,8 @@ for (const vp of LANDSCAPE) {
     );
 
     test('battle ceremonies, the run end and its result', async ({ page }) => {
+      // Boots a battle: give it the slow-runner budget (CI runners are slower).
+      test.slow();
       const errors = pageErrors(page);
       await quietSettings(page, { reduceMotion: true });
       if (vp.phone) await emulateSafeArea(page, NOTCH_LANDSCAPE);

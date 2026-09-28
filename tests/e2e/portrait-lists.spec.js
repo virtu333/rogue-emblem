@@ -483,6 +483,8 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
     });
 
     test('battle: enemy details and the rewards roster use the upright sheet', async ({ page }) => {
+      // Boots a battle: give it the slow-runner budget (CI runners are slower).
+      test.slow();
       await page.goto('/?devScene=battle&preset=battle_smoke&seed=42');
       await waitForGame(page);
       await waitForScene(page, 'Battle');

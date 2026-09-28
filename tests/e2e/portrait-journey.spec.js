@@ -735,6 +735,8 @@ test.describe('battles without a run save, upright start', () => {
   });
 
   test('a battle without a save slot keeps its board and never tries to save', async ({ page }) => {
+    // Boots a battle: give it the slow-runner budget (CI runners are slower).
+    test.slow();
     const errors = pageErrors(page);
     await quietSettings(page);
     await openDevBattle(page, { slot: null });

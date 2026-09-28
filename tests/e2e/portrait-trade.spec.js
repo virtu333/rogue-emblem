@@ -645,6 +645,8 @@ test.describe('upright battle trade', () => {
   test('adjacent units trade on the turned board; the swap reaches the checkpoint', async ({
     page,
   }, info) => {
+    // Boots a battle: give it the slow-runner budget (CI runners are slower).
+    test.slow();
     const errors = pageErrors(page);
     expect(await emulateSafeArea(page, NOTCH_PORTRAIT)).toBe(true);
     await quietSettings(page);
