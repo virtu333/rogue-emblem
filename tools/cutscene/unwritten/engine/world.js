@@ -226,6 +226,7 @@ const FG_RIM = hexToRgb('#403949');
 const ID_SKY = 1;
 const ID_THIN = 2;
 const ID_THICK = 3;
+const ID_SUN = 5;
 const ID_RIDGE = 10; // + layer
 const ID_BANK = 20;
 const ID_SLOPE = 21;
@@ -1231,6 +1232,8 @@ export class World {
         buf[o] = tmp[o] * a + this.cloudC[o] * (1 - a);
         buf[o + 1] = tmp[o + 1] * a + this.cloudC[o + 1] * (1 - a);
         buf[o + 2] = tmp[o + 2] * a + this.cloudC[o + 2] * (1 - a);
+        if (!mirror && (x - px) * (x - px) + (y - py) * (y - py) <= (r + 0.6) * (r + 0.6))
+          ids[i] = ID_SUN;
       }
     return { px, py, r };
   }
@@ -1547,6 +1550,8 @@ export class World {
         : Math.max(0.012, 0.75 * g1 * (fpL / 0.075));
       const dh = (fine ? hv2 : hv) - 0.7;
       if (dh < band && dh > -band && (fine || samp(T.streak, M, X / 0.02 + 5, zf / 0.2) > 0.45)) {
+        // near ripples are drawn strokes too (they stay, thinly, in the line stage)
+        if (gt < 14) this.line[i] = 0.35 * w1;
         const k = 0.5 * w1;
         r += (SKY_HOR[0] + 14 - r) * k;
         g += (SKY_HOR[1] + 14 - g) * k;
@@ -1831,6 +1836,10 @@ export class World {
                 pc = Math.max(pc, 0.5);
               } else ln = Math.max(ln, li === 2 ? 0.7 : 0.4);
             }
+          } else if (a === ID_SUN && b !== ID_SUN) {
+            // drawn in code: its ring stays as a line when the paint lifts
+            ln = 1;
+            pc = 1;
           } else if (a === ID_THICK && b === ID_SKY) {
             wash = Math.max(wash, 2.5);
             ln = Math.max(ln, 0.85);
@@ -1962,8 +1971,8 @@ export class World {
         cg += (MIDREED[1] - cg) * k;
         cb += (MIDREED[2] - cb) * k;
       }
-      const lineCov = z < 30 ? 1 : 0;
-      const penCov = z < 9 ? 1 : 0;
+      const lineCov = z < 8 ? 1 : z < 20 ? 0.55 : 0;
+      const penCov = z < 6 ? 1 : 0;
       const wide = iz > 110 && !mirror;
       const first = C_[c + 3];
       const nb = C_[c + 4];
@@ -2053,7 +2062,7 @@ export class World {
               frame[o + 1] = paper[o + 1] * cg * KG;
               frame[o + 2] = paper[o + 2] * cb * KB;
             }
-            if (lineCov) this.line[i] = 1;
+            if (lineCov > this.line[i]) this.line[i] = lineCov;
             if (penCov) this.pencil[i] = 1;
             // a little wash beside the stroke when close
             if (wide && k < 3 && X_ + 1 < W && zz < zbuf[i + 1]) {
@@ -2089,7 +2098,7 @@ export class World {
                 frame[o + 2] = paper[o + 2] * cb * KB * 0.8;
               }
               zbuf[i] = pts[14];
-              if (lineCov) this.line[i] = 1;
+              if (lineCov > this.line[i]) this.line[i] = lineCov;
             }
         }
       }
