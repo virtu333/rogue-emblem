@@ -260,3 +260,24 @@ export function selectDialogueEntries(sectionValue, ctx) {
     return null;
   }
 }
+
+/**
+ * Which ending a won run earned, by where its road ended (the run's own act list),
+ * never by difficulty id: a Hard run saved before the ladder still ends at the
+ * Emperor, while Nightfall now goes on to the Entity.
+ * @returns {'victory_lieutenant'|'victory_emperor'|'victory_entity'}
+ */
+export function victoryEndingKey(runManager, gameData) {
+  const acts = Array.isArray(runManager?.actSequence) ? runManager.actSequence : [];
+  const last = acts.at(-1);
+  if (last === 'act4') return 'victory_emperor';
+  if (last === 'finalBoss') {
+    const id = runManager?.difficultyId || 'normal';
+    const bosses = gameData?.enemies?.bosses?.finalBoss || [];
+    const faced = bosses.find(
+      (b) => !Array.isArray(b?.difficultyFilter) || b.difficultyFilter.includes(id),
+    );
+    if (faced?.isEntity) return 'victory_entity';
+  }
+  return 'victory_lieutenant';
+}

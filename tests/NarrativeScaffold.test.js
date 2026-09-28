@@ -198,7 +198,7 @@ describe('Narrative data', () => {
       }
     }
 
-    for (const key of ['victory_normal', 'victory_hard', 'victory_lunatic', 'defeat']) {
+    for (const key of ['victory_lieutenant', 'victory_emperor', 'victory_entity', 'defeat']) {
       expect(dialogue.runComplete?.[key], `runComplete.${key}`).toBeTruthy();
       validateSection(dialogue.runComplete[key], `runComplete.${key}`);
     }
@@ -213,7 +213,7 @@ describe('Narrative data', () => {
       ['actTransitions', 'act1_to_act2'],
       ['actTransitions', 'act2_to_act3'],
       ['actTransitions', 'act3_to_finalBoss_normal'],
-      ['runComplete', 'victory_normal'],
+      ['runComplete', 'victory_lieutenant'],
       ['runComplete', 'defeat'],
     ];
     for (const [section, key] of commanderBeats) {
@@ -237,7 +237,7 @@ describe('Narrative data', () => {
     expect(runStartVariants.some((v) => v?.when?.lastRunResult === 'victory')).toBe(true);
 
     // First full clear gets its own victory beat, ahead of commander variants.
-    expect(dialogue.runComplete?.victory_normal?.variants?.[0]?.when?.firstClear).toBe(true);
+    expect(dialogue.runComplete?.victory_lieutenant?.variants?.[0]?.when?.firstClear).toBe(true);
 
     // Every boss remembers: gloat when it has killed you, unease on a rematch,
     // and a distinct repeat-defeat line.
@@ -429,31 +429,46 @@ describe('Scene wiring', () => {
     expect(scene._storyDialogueActive).toBe(false);
   });
 
-  it('run-complete dialogue key derivation follows result and difficulty', () => {
+  it('the run-complete ending follows where the road ended, not the difficulty id', () => {
+    const enemies = JSON.parse(fs.readFileSync('data/enemies.json', 'utf8'));
+    const toLieutenant = ['act1', 'act2', 'act3', 'finalBoss'];
+    const toEmperor = ['act1', 'act2', 'act3', 'act4'];
+    const toEntity = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
     const base = {
       registry: { get: () => null },
       gameData: {
+        enemies,
         dialogue: {
           runComplete: {
-            victory_normal: [{ speaker: 'Sera', line: 'n' }],
-            victory_hard: [{ speaker: 'Sera', line: 'h' }],
-            victory_lunatic: [{ speaker: 'Sera', line: 'l' }],
+            victory_lieutenant: [{ speaker: 'Sera', line: 'lieutenant' }],
+            victory_emperor: [{ speaker: 'Sera', line: 'emperor' }],
+            victory_entity: [{ speaker: 'Sera', line: 'entity' }],
             defeat: [{ speaker: 'Sera', line: 'd' }],
           },
         },
       },
-      runManager: { difficultyId: 'normal' },
+      runManager: { difficultyId: 'normal', actSequence: toLieutenant },
       result: 'defeat',
+    };
+    const ending = (difficultyId, actSequence) => {
+      base.runManager = { difficultyId, actSequence };
+      return RunCompleteScene.prototype._getRunCompleteDialogue.call(base)?.[0]?.line;
     };
 
     expect(RunCompleteScene.prototype._getRunCompleteDialogue.call(base)?.[0]?.line).toBe('d');
     base.result = 'victory';
-    base.runManager.difficultyId = 'normal';
-    expect(RunCompleteScene.prototype._getRunCompleteDialogue.call(base)?.[0]?.line).toBe('n');
-    base.runManager.difficultyId = 'hard';
-    expect(RunCompleteScene.prototype._getRunCompleteDialogue.call(base)?.[0]?.line).toBe('h');
-    base.runManager.difficultyId = 'lunatic';
-    expect(RunCompleteScene.prototype._getRunCompleteDialogue.call(base)?.[0]?.line).toBe('l');
+    expect(ending('normal', toLieutenant)).toBe('lieutenant');
+    expect(ending('dusk', toEmperor)).toBe('emperor');
+    expect(ending('hard', toEntity)).toBe('entity');
+    expect(ending('lunatic', toEntity)).toBe('entity');
+    // A Hard run saved before the ladder keeps its road, and its Emperor ending.
+    expect(ending('hard', toEmperor)).toBe('emperor');
+  });
+
+  it('every road has its ending in the real dialogue', () => {
+    const dialogue = JSON.parse(fs.readFileSync('data/dialogue.json', 'utf8'));
+    for (const key of ['victory_lieutenant', 'victory_emperor', 'victory_entity'])
+      expect(selectDialogueEntries(dialogue.runComplete[key], {})?.length, key).toBeGreaterThan(0);
   });
 
   it('NodeMap runStart composes seer vision + commander voice into one sequence', async () => {

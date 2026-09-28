@@ -19,7 +19,7 @@ const ctx = (commander, overrides = {}) => ({
 });
 describe('story slice selection contracts', () => {
   it('preserves the first-clear beat even after many failed runs', () => {
-    const section = data.runComplete.victory_normal;
+    const section = data.runComplete.victory_lieutenant;
     const firstClear = section.variants.find((v) => v.when.firstClear === true);
     for (const commander of commanders) {
       expect(
