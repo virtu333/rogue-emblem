@@ -104,7 +104,39 @@ export const WEAPON_ARTS_HELP = [
       'Proficiency, rank, the weapon and Silence can lock an art.',
     ],
   },
+  {
+    title: 'In combat',
+    points: [
+      'An art never adds a Speed follow-up. Multi-strike arts use their own count.',
+      { term: 'On hit', text: 'happens after combat, if any strike landed.' },
+      'The foe still counters before you step, push or swap.',
+      'Moves need an adjacent target and a free tile; Root stops them.',
+    ],
+  },
   { tip: 'Outside battle this sheet shows eligibility and cost only.' },
+];
+
+export const SCROLLS_HELP = [
+  { lead: 'Scrolls wait in Team scrolls until you use them.' },
+  {
+    title: 'Two kinds',
+    points: [
+      { term: 'Skill scroll', text: 'teaches a skill to one unit (Roster → Skills → Teach).' },
+      {
+        term: 'Weapon art scroll',
+        text: 'binds a weapon art to one weapon (Roster → Skills → Bind to weapon).',
+      },
+    ],
+  },
+  {
+    title: 'Rules',
+    points: [
+      'A scroll is used up only once it is taught or bound.',
+      'A unit holds at most five skills.',
+      'A bound art stays on that weapon for this run.',
+      'Some skills are commands, like Blink: they add an action, not an attack.',
+    ],
+  },
 ];
 
 export function convoyHelp({ weapons, consumables }) {

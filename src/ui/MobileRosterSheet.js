@@ -1,5 +1,5 @@
 import { saveServiceRun } from './serviceSave.js';
-import { weaponArtScrollText } from './weaponArtDisplay.js';
+import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { statusDescriptions, statusStaffInfo } from '../engine/BattleInformation.js';
 import { classChangePreview } from './classChangeDisplay.js';
@@ -13,7 +13,13 @@ import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { formatPerkMods, MASTERY_HELP, proficiencyLabel } from './rosterDisplay.js';
 import { ContextHelp, helpPreview } from './ContextHelp.js';
-import { attributesHelp, combatBaselineHelp, convoyHelp, WEAPON_ARTS_HELP } from './helpTopics.js';
+import {
+  attributesHelp,
+  combatBaselineHelp,
+  convoyHelp,
+  SCROLLS_HELP,
+  WEAPON_ARTS_HELP,
+} from './helpTopics.js';
 import { attachInfo, holdTip } from './infoAffordance.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
@@ -598,21 +604,32 @@ export class MobileRosterSheet {
     if (count) this.explain(artsHeading, 'weapon arts', 'Weapon arts', WEAPON_ARTS_HELP);
     if (!count) this.card('No weapon arts', 'No arts bound to carried weapons.');
     if (this.run) {
-      this.body.append(el('h3', `Team scrolls · ${this.run.scrolls?.length || 0}`));
-      for (const scroll of this.run.scrolls || []) {
-        const skill = this.gameData.skills.find((s) => s.id === scroll.skillId);
-        const card = this.card(
-          scroll.name,
-          scroll.teachesWeaponArtId
-            ? weaponArtScrollText(scroll, this.gameData.weaponArts?.arts || [])
-            : skill?.description || scroll.description || '',
-          scroll,
-        );
-        card.classList.add('mr-scroll-description');
-        this.aboutItem(card, scroll);
-        if (!scroll.teachesWeaponArtId)
-          card.append(this.button('Teach…', () => this.teachScroll(scroll)));
-        else card.append(this.button('Bind to weapon…', () => this.bindArt(scroll)));
+      const scrolls = this.run.scrolls || [];
+      const heading = el('h3', `Team scrolls · ${scrolls.length}`);
+      this.body.append(heading);
+      if (scrolls.length) this.explain(heading, 'scrolls', 'Scrolls', SCROLLS_HELP);
+      // Skill scrolls, then art scrolls, each under its own name: Blink is a skill.
+      const groups = [
+        ['Skill scrolls', scrolls.filter((s) => !s.teachesWeaponArtId)],
+        ['Weapon art scrolls', scrolls.filter((s) => s.teachesWeaponArtId)],
+      ];
+      for (const [title, list] of groups) {
+        if (!list.length) continue;
+        this.body.append(el('h4', `${title} · ${list.length}`, 'mr-scroll-group'));
+        for (const scroll of list) {
+          const card = this.card(
+            scroll.name,
+            scroll.teachesWeaponArtId
+              ? weaponArtScrollText(scroll, this.gameData.weaponArts?.arts || [])
+              : skillScrollText(scroll, this.gameData.skills),
+            scroll,
+          );
+          card.classList.add('mr-scroll-description');
+          this.aboutItem(card, scroll);
+          if (!scroll.teachesWeaponArtId)
+            card.append(this.button('Teach…', () => this.teachScroll(scroll)));
+          else card.append(this.button('Bind to weapon…', () => this.bindArt(scroll)));
+        }
       }
     }
   }
@@ -1021,7 +1038,9 @@ export class MobileRosterSheet {
     // A special the tags already state isn't repeated; staves and flavour keep theirs.
     if (item.special && !itemKeywords(item).length) c.append(el('p', item.special));
     if (item.description) c.append(el('p', item.description));
-    appendItemArtDetails(c, item, this.gameData.weaponArts?.arts || []);
+    appendItemArtDetails(c, item, this.gameData.weaponArts?.arts || [], {
+      openHelp: (title, blocks) => this.showHelp(title, blocks),
+    });
     this.aboutItem(c, item);
     return c;
   }

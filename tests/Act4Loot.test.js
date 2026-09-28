@@ -75,9 +75,10 @@ describe('Act 4 reward identity', () => {
       expect(data.weapons.find((w) => w.name === name)?.type).toBe('Staff');
     }
   });
-  it('explains the shared follow-up tradeoff in item details', () => {
-    expect(weaponArtDetailLines(lateArts[0]).join(' ')).toContain(
-      'do not gain a follow-up attack from Speed',
-    );
+  it('late arts read their cost and requirement in item details', () => {
+    const [art] = lateArts;
+    const lines = weaponArtDetailLines(art);
+    expect(lines[0]).toMatch(new RegExp(`^Cost: ${art.hpCost} HP · ${art.perMapLimit} per battle`));
+    expect(lines.some((line) => line.startsWith('Needs: '))).toBe(true);
   });
 });

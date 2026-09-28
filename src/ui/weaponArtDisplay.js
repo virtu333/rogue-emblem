@@ -17,93 +17,110 @@ const MOD_LABELS = {
   rangeBonus: 'range',
 };
 
-/** Mechanical details shared by item overviews, scrolls and battle art panels. */
-export function weaponArtSecondaryDetails(art) {
-  const parts = [];
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const tiles = (n) => plural(n, 'tile');
+const phases = (n) => plural(n, 'phase');
+const signed = (n) => `${n >= 0 ? '+' : ''}${n}`;
+const statList = (values) =>
+  Object.entries(values)
+    .map(([stat, value]) => `${signed(value)} ${stat}`)
+    .join(', ');
+const STATUS_MEANING = {
+  root: 'it cannot move',
+  silence: 'no magic or staves',
+  sleep: 'it cannot move or act',
+  acid: 'damage each turn',
+};
+
+/**
+ * What an art does beyond its numbers, one labelled row per effect: On hit, After
+ * combat, On miss, On kill. Rules every art shares (moves need room, the foe still
+ * counters first) live in WEAPON_ARTS_HELP, not here.
+ * @returns {Array<{label:string, text:string}>}
+ */
+export function weaponArtEffectRows(art) {
+  const rows = [];
+  const onHit = (text) => rows.push({ label: 'On hit', text });
   const effects = getWeaponArtTier2Effects(art);
-  const who = (target) => (target === 'attacker' ? 'user' : 'target');
+  const self = (target) => target === 'attacker';
   for (const e of effects.afterCombatDamage || [])
-    parts.push(
-      `After a hit: ${e.amount} extra damage to ${who(e.target)} after combat${e.nonLethal ? ' (cannot kill)' : ''}`,
+    onHit(
+      `${self(e.target) ? 'you take' : 'the target takes'} ${e.amount} more damage after combat${e.nonLethal ? ' (cannot kill)' : ''}`,
     );
   for (const e of effects.afterCombatDebuff || [])
-    parts.push(
-      `After a hit: ${who(e.target)} ${e.stat} ${e.amount} after combat for the rest of this battle`,
-    );
+    onHit(`${self(e.target) ? 'your' : 'target'} ${e.stat} ${signed(e.amount)} for the battle`);
   for (const e of effects.inflictStatus || []) {
-    const meaning = {
-      root: 'cannot move, but can act',
-      silence: 'cannot use magic or staves',
-      sleep: 'cannot move or act',
-      acid: 'takes damage over time',
-    }[e.status];
-    parts.push(
-      `After a hit: ${e.status} on ${who(e.target)} for ${e.durationPhases} phase(s) (${meaning})`,
+    const meaning = STATUS_MEANING[e.status];
+    onHit(
+      `${e.status} ${self(e.target) ? 'you' : 'the target'} for ${phases(e.durationPhases)}${meaning ? ` (${meaning})` : ''}`,
     );
   }
-  for (const e of effects.postCombatMove || []) {
-    const movement = {
-      advance: `advance ${e.distance} tile(s) toward the target`,
-      retreat: `retreat ${e.distance} tile(s) away from the target`,
-      swap: 'swap positions with the target',
-      push: `push the target ${e.distance} tile(s) away`,
-      through: `move ${e.distance} tile(s) through the target`,
-    }[e.mode];
-    parts.push(
-      `After a hit: ${movement} after combat against an adjacent target, if terrain, occupied tiles and Root permit`,
+  for (const e of effects.postCombatMove || [])
+    onHit(
+      {
+        advance: `step ${tiles(e.distance)} toward the target`,
+        retreat: `step back ${tiles(e.distance)}`,
+        swap: 'swap places with the target',
+        push: `push the target back ${tiles(e.distance)}`,
+        through: `pass ${tiles(e.distance)} through the target`,
+      }[e.mode] || `move (${e.mode})`,
     );
-  }
   for (const e of effects.pierceThrough || [])
-    parts.push(
-      `After a hit: also damages up to ${e.maxTargets} enemy directly behind the target for the damage of each landed strike`,
-    );
-  for (const e of effects.setHp || [])
-    parts.push(
-      `After combat: surviving ${who(e.target)} HP is set to ${e.value}, even if every strike misses`,
+    onHit(
+      `each hit also strikes ${e.maxTargets === 1 ? 'the enemy' : `up to ${e.maxTargets} enemies`} right behind the target`,
     );
   const { aoeSplash, allyBuff } = getWeaponArtTier5Effects(art);
   if (aoeSplash) {
     const amount =
       aoeSplash.damageKind === 'fixed'
         ? `${aoeSplash.fixedDamage} damage`
-        : `${Math.round(aoeSplash.damageMultiplier * 100)}% of the first landed strike's damage`;
-    parts.push(
-      `After a hit: deals ${amount} to ${aoeSplash.maxTargets ? `up to ${aoeSplash.maxTargets} other enemies` : 'other enemies'} within ${aoeSplash.radius} tile(s) of the target${aoeSplash.nonLethal ? ' (cannot kill)' : ' (can kill)'}`,
+        : `${Math.round(aoeSplash.damageMultiplier * 100)}% of the first hit`;
+    const who = aoeSplash.maxTargets
+      ? `up to ${plural(aoeSplash.maxTargets, 'other enemy', 'other enemies')}`
+      : 'other enemies';
+    onHit(
+      `${amount} to ${who} within ${tiles(aoeSplash.radius)} of the target${aoeSplash.nonLethal ? ' (cannot kill)' : ''}`,
     );
   }
-  const stats = (values) =>
-    Object.entries(values)
-      .map(([stat, value]) => `${value >= 0 ? '+' : ''}${value} ${stat}`)
-      .join(', ');
   if (allyBuff)
-    parts.push(
-      `After a hit: allies within ${allyBuff.range} tile(s) of the user gain ${stats(allyBuff.stats)} for ${allyBuff.durationPhases} phase(s)${allyBuff.includeSelf ? ', including the user' : '; excludes the user'}`,
+    onHit(
+      `allies within ${tiles(allyBuff.range)} get ${statList(allyBuff.stats)} for ${phases(allyBuff.durationPhases)}${allyBuff.includeSelf ? ', you included' : ''}`,
     );
+  for (const e of effects.setHp || [])
+    rows.push({
+      label: 'After combat',
+      text: `${self(e.target) ? 'your' : "the target's"} HP becomes ${e.value}, hit or miss`,
+    });
   const { selfDamageOnMiss } = getWeaponArtMissEffects(art);
   if (selfDamageOnMiss)
-    parts.push(
-      `Each missed strike costs the user ${selfDamageOnMiss} HP after combat (cannot kill)`,
-    );
+    rows.push({
+      label: 'On miss',
+      text: `you lose ${selfDamageOnMiss} HP per missed strike (cannot kill)`,
+    });
   const { killBuff } = getWeaponArtKillEffects(art);
   if (killBuff)
-    parts.push(
-      `On kill: user gains ${stats(killBuff.stats)} for ${killBuff.durationPhases} phase(s)`,
-    );
-  return parts;
+    rows.push({
+      label: 'On kill',
+      text: `you get ${statList(killBuff.stats)} for ${phases(killBuff.durationPhases)}`,
+    });
+  return rows;
 }
 
-// Authored prose retains complex positional/conditional effects; numeric combat
-// modifiers are displayed explicitly so flavor text never hides an art's benefit.
-export function formatWeaponArtEffects(art) {
-  if (!art) return '';
-  const mods = art.combatMods || {};
+/** The effect rows as single lines ("On hit: step back 1 tile"), for tooltips. */
+export function weaponArtSecondaryDetails(art) {
+  return weaponArtEffectRows(art).map((row) => `${row.label}: ${row.text}`);
+}
+
+/** The art's numbers: "+8 Attack · +10 Hit · 3 strikes at 60%". */
+export function weaponArtModsText(art) {
+  const mods = art?.combatMods || {};
   const parts = Object.entries(MOD_LABELS)
     .filter(([key]) => Number.isFinite(mods[key]) && mods[key] !== 0)
-    .map(([key, label]) => `${mods[key] > 0 ? '+' : ''}${mods[key]} ${label}`);
+    .map(([key, label]) => `${signed(mods[key])} ${label}`);
   if (mods.damageMultiplier) parts.push(`×${mods.damageMultiplier} damage`);
   if (mods.multiHit)
     parts.push(
-      `${mods.multiHit.count} strikes at ${Math.round(mods.multiHit.damageMultiplier * 100)}% damage`,
+      `${mods.multiHit.count} strikes at ${Math.round(mods.multiHit.damageMultiplier * 100)}%`,
     );
   if (mods.effectiveness) {
     const targets = [
@@ -121,17 +138,25 @@ export function formatWeaponArtEffects(art) {
       `Heals ${Math.round(mods.drainPercent * 100)}% of damage dealt${mods.drainMaxPerHit ? ` (at most ${mods.drainMaxPerHit} HP a hit)` : ''}`,
     );
   for (const [key, label] of Object.entries({
-    preventCounter: 'Prevents counterattacks',
+    preventCounter: 'No counterattack',
     ignoreRES: 'Ignores Resistance',
     targetsRES: 'Targets Resistance',
     ignoreTerrainAvoid: 'Ignores terrain Avoid',
     ignoreWeaponTriangle: 'Ignores weapon triangle',
-    halfPhysicalDamage: 'Halves physical damage',
+    halfPhysicalDamage: 'Halves physical damage taken',
   }))
     if (mods[key]) parts.push(label);
-  if (mods.vengeance) parts.push('Adds the user’s missing HP to damage');
-  parts.push(...weaponArtSecondaryDetails(art));
-  return [parts.join(' · '), art.description].filter(Boolean).join('. ');
+  if (mods.vengeance) parts.push('Adds your missing HP to damage');
+  return parts.join(' · ');
+}
+
+/**
+ * The art in one line for battle menus, the forecast and roster cards: its numbers,
+ * then its effects. No flavour and no rules; those sit behind ⓘ.
+ */
+export function formatWeaponArtEffects(art) {
+  if (!art) return '';
+  return [weaponArtModsText(art), ...weaponArtSecondaryDetails(art)].filter(Boolean).join(' · ');
 }
 
 export function weaponArtCostText(unit, art, options = {}) {
@@ -154,30 +179,42 @@ export function weaponArtUsesText(unit, art, turnNumber) {
   return parts.join(' · ') || 'No usage limit';
 }
 
-/** Static item/reference copy: never carries last battle's usage counters. */
-export function weaponArtDetailLines(art) {
-  if (!art) return ['Weapon art details unavailable.'];
+const RANK_NAMES = { Prof: 'Proficient', Mast: 'Master rank' };
+
+/**
+ * The art's sheet for item details and scrolls, one labelled row each: Cost, Effect,
+ * On hit / After combat / On miss / On kill, Needs, then its flavour line (label '').
+ * Static copy: never carries last battle's usage counters.
+ * @returns {Array<{label:string, text:string}>}
+ */
+export function weaponArtSheet(art) {
+  if (!art) return [{ label: '', text: 'Weapon art details unavailable.' }];
   const types = art.allowedTypes?.length ? art.allowedTypes : [art.weaponType].filter(Boolean);
-  const rank =
-    { Prof: 'Proficient', Mast: 'Master rank' }[art.requiredRank] ||
-    art.requiredRank ||
-    'Proficient';
-  const limits = [];
-  if (art.perMapLimit)
-    limits.push(
-      `${art.perMapLimit} ${art.perMapLimit === 1 ? 'use' : 'uses'} per battle (reset each battle)`,
-    );
-  if (art.perTurnLimit)
-    limits.push(`${art.perTurnLimit} ${art.perTurnLimit === 1 ? 'use' : 'uses'} per turn`);
-  return [
-    formatWeaponArtEffects(art),
-    `Requires ${types.join(' / ')} · ${rank}.`,
-    `Base HP cost: ${Math.max(0, Number(art.hpCost) || 0)} per use. The user must have more HP than the effective cost.`,
-    limits.join(' · ') || 'No usage limit.',
-    'Active attack: choose Weapon Art in battle, then confirm the attack to spend HP and a use.',
-    'Weapon arts do not gain a follow-up attack from Speed. Arts with multiple strikes use their stated strike count.',
-  ];
+  const cost = [`${Math.max(0, Number(art.hpCost) || 0)} HP`];
+  if (art.perMapLimit) cost.push(`${art.perMapLimit} per battle`);
+  if (art.perTurnLimit) cost.push(`${art.perTurnLimit} per turn`);
+  const rows = [{ label: 'Cost', text: cost.join(' · ') }];
+  const mods = weaponArtModsText(art);
+  if (mods) rows.push({ label: 'Effect', text: mods });
+  rows.push(...weaponArtEffectRows(art));
+  rows.push({
+    label: 'Needs',
+    text: `${types.join(' / ')} · ${RANK_NAMES[art.requiredRank] || art.requiredRank || 'Proficient'}`,
+  });
+  if (art.description) rows.push({ label: '', text: art.description });
+  return rows;
 }
+
+/** The sheet as plain lines ("Cost: 8 HP · 2 per battle"). */
+export function weaponArtDetailLines(art) {
+  return weaponArtSheet(art).map((row) => (row.label ? `${row.label}: ${row.text}` : row.text));
+}
+
+/** Where a scroll is used, for its first lines. */
+const SCROLL_USE = {
+  art: 'Use: Roster → Skills → Bind to weapon. Kept until bound.',
+  skill: 'Use: Roster → Skills → Teach. Kept until taught.',
+};
 
 export function weaponArtScrollText(scroll, catalog = []) {
   const art = catalog.find((a) => a.id === scroll?.teachesWeaponArtId);
@@ -187,8 +224,23 @@ export function weaponArtScrollText(scroll, catalog = []) {
       ? art.allowedTypes
       : [art?.weaponType].filter(Boolean);
   return [
-    `Weapon Art Scroll — adds ${art?.name || 'an active attack'} to one compatible ${types.length ? `${types.join(' / ')} ` : ''}weapon.`,
-    'Stored in Team scrolls. Open Roster → Skills → Bind to weapon. The scroll is consumed only after binding; the art stays on that weapon for this run.',
+    `Weapon art scroll: binds ${art?.name || 'a weapon art'} to one ${types.length ? `${types.join(' / ')} ` : ''}weapon for this run.`,
+    SCROLL_USE.art,
+    '',
     ...weaponArtDetailLines(art),
-  ].join('\n\n');
+  ].join('\n');
+}
+
+/**
+ * A skill scroll's text: what it teaches (an action skill says it adds a command, the
+ * answer to "is Blink a weapon art?"), then the skill's own description.
+ */
+export function skillScrollText(scroll, skills = []) {
+  const skill = skills.find((s) => s.id === scroll?.skillId);
+  const name = skill?.name || scroll?.name?.replace(/ Scroll$/, '') || 'a skill';
+  const kind = skill?.trigger === 'action' ? ', a battle command,' : '';
+  const lines = [`Skill scroll: teaches ${name}${kind} to one unit.`, SCROLL_USE.skill];
+  const about = skill?.description || scroll?.special;
+  if (about) lines.push('', about);
+  return lines.join('\n');
 }

@@ -1,4 +1,4 @@
-import { weaponArtScrollText } from './weaponArtDisplay.js';
+import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 import { rankRequirementText } from './rosterDisplay.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -1462,15 +1462,19 @@ export class LootScreenController {
           : '';
       if (item.teachesWeaponArtId || type === 'weaponArtScroll') {
         return {
-          lines: wrapDetailLines(['Teaches Weapon Art', ...(typeHint ? [typeHint] : [])], 2),
+          lines: wrapDetailLines(
+            ['Weapon art scroll: binds to a weapon', ...(typeHint ? [typeHint] : [])],
+            2,
+          ),
           color: UI_PALETTE.warn,
         };
       }
-      const special =
-        typeof item.special === 'string' && item.special.trim().length > 0
-          ? item.special.trim()
-          : 'Teaches a skill';
       const skillDef = scene.gameData?.skills?.find((s) => s.id === item.skillId);
+      const special = skillDef?.name
+        ? `Skill scroll: ${skillDef.name}`
+        : typeof item.special === 'string' && item.special.trim().length > 0
+          ? item.special.trim()
+          : 'Skill scroll';
       const descLine = skillDef?.description || '';
       return {
         lines: wrapDetailLines([special, ...(descLine ? [descLine] : [])], 3),
@@ -1556,20 +1560,8 @@ export class LootScreenController {
     }
 
     // Skill scrolls
-    if (item.type === 'Scroll' || type === 'skillScroll') {
-      const skillDef = item.skillId && scene.gameData?.skills?.find((s) => s.id === item.skillId);
-      const lines = [];
-      lines.push(item.name || 'Skill Scroll');
-      lines.push(
-        'Skill Scroll — teaches a skill to one unit. Stored in Team scrolls; open Roster → Skills → Teach. Consumed only after teaching.',
-      );
-      if (skillDef) {
-        if (skillDef.description) lines.push('', skillDef.description);
-      } else if (item.special) {
-        lines.push('', item.special);
-      }
-      return lines.join('\n');
-    }
+    if (item.type === 'Scroll' || type === 'skillScroll')
+      return skillScrollText(item, scene.gameData?.skills || []);
 
     // Accessories
     if (item.type === 'Accessory' || type === 'accessory') {
