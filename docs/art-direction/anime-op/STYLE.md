@@ -16,7 +16,7 @@ way she sees it. When she rewinds, the paint comes off the page.
 |---|---|
 | Paper | Cool bone-grey vellum, smooth, with faint grain only. Not warm cream: the gold thread must stay the only warm light. |
 | Our side | Fine sepia ink inside the figure, one thicker contour around the silhouette, pale transparent watercolour that stops short of the lines. Worn cloth and leather, no ornate armour. The thick contour is what keeps a figure readable at 480×270. |
-| The Empire | Dense, flat iron-gall black and crimson lacquer, fully painted, no paper showing. Heavy and certain; we look like a sketch that isn't finished. |
+| The Empire | Rank and file (soldiers, officers, boots, banners) and the Lieutenant: dense, flat iron-gall black and crimson lacquer, fully painted, no paper showing. Heavy and certain; we look like a sketch that isn't finished. **Named villains with faces** (the Emperor, the eight act bosses): softer watercolour, matte materials, restrained faces, crimson still dominant (owner feedback on batch 5: the dense versions read harsh and caricatured). |
 | The gold thread | Gold leaf stitched through the paper. The only thing that shines. **Drawn in code**, not painted: at game size a painted thread becomes a dull 1 px line, and it has to stitch, fray and rush. |
 | The Hollow Sun | Black disc, thin gold ring. **Drawn in code.** No visible ordinary sun in any plate. |
 | The unlight | The page scraped back to bare paper, colour drained. We don't paint darkness. |
@@ -89,6 +89,8 @@ with.
 In large faces (for example `b21_sera_closeup`), watercolour mottling on the skin dithers
 into speckle that reads as freckles. Convert big faces with `--dither 0.2`.
 
+Red writing (the Roll) must be converted with `--no-ink`: the ink pass turns thin red strokes black and the red names are lost.
+
 Soft plates behind crisp figures also give the shots depth. Where a plate shows a warm
 sunset (bridge, fens), take the sun out and cool the grade before conversion.
 
@@ -96,5 +98,5 @@ sunset (bridge, fens), take the sun out and cool the grade before conversion.
 
 Every prompt is sent complete, including the style text; the batch-1 shots that were
 sent as a table row alone missed their key requirement. The current full prompts are
-in the newest `prompts-batch-*.md` (batch 5: the villains), and verdicts on everything generated so far
+in the newest `prompts-batch-*.md` (batch 6: reworks), and verdicts on everything generated so far
 are in [catalog.md](catalog.md).

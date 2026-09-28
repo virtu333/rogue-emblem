@@ -17,7 +17,6 @@
   {
     "source": "batch-2/b13_empire_soldier_march.png",
     "verdict": "use",
-    "ref": "refs/b13_empire_soldier_march.webp",
     "cutout": "cutouts/empire_soldier_march.webp",
     "cutoutOffset": [129, 56]
   },
@@ -29,7 +28,6 @@
   {
     "source": "batch-1/b05_edric_at_fire.png",
     "verdict": "use",
-    "ref": "refs/b05_edric_at_fire.webp",
     "cutout": "cutouts/edric_at_fire.webp",
     "cutoutOffset": [69, 204]
   },
@@ -41,63 +39,54 @@
   {
     "source": "batch-4/b05_kira_at_camp.png",
     "verdict": "use",
-    "ref": "refs/b05_kira_at_camp.webp",
     "cutout": "cutouts/kira_at_camp.webp",
     "cutoutOffset": [15, 67]
   },
   {
     "source": "batch-4/b05_sera_at_camp.png",
     "verdict": "use",
-    "ref": "refs/b05_sera_at_camp.webp",
     "cutout": "cutouts/sera_at_camp.webp",
     "cutoutOffset": [34, 135]
   },
   {
     "source": "rogue-dawn-sketchbook-tests/01-edric-standing-greenscreen.png",
     "verdict": "use",
-    "ref": "refs/b05_edric_standing.webp",
     "cutout": "cutouts/edric_standing.webp",
     "cutoutOffset": [81, 31]
   },
   {
     "source": "batch-2/b13_card_astrid.png",
     "verdict": "use",
-    "ref": "refs/b13_card_astrid.webp",
     "cutout": "cutouts/astrid.webp",
     "cutoutOffset": [177, 45]
   },
   {
     "source": "batch-2/b13_card_cael.png",
     "verdict": "use",
-    "ref": "refs/b13_card_cael.webp",
     "cutout": "cutouts/cael.webp",
     "cutoutOffset": [65, 70]
   },
   {
     "source": "batch-2/b13_card_kira.png",
     "verdict": "use",
-    "ref": "refs/b13_card_kira.webp",
     "cutout": "cutouts/kira.webp",
     "cutoutOffset": [96, 24]
   },
   {
     "source": "batch-2/b13_card_rowan.png",
     "verdict": "use",
-    "ref": "refs/b13_card_rowan.webp",
     "cutout": "cutouts/rowan.webp",
     "cutoutOffset": [431, 51]
   },
   {
     "source": "batch-2/b13_card_sera.png",
     "verdict": "use",
-    "ref": "refs/b13_card_sera.webp",
     "cutout": "cutouts/sera.webp",
     "cutoutOffset": [161, 20]
   },
   {
     "source": "batch-2/b13_card_voss.png",
     "verdict": "use",
-    "ref": "refs/b13_card_voss.webp",
     "cutout": "cutouts/voss.webp",
     "cutoutOffset": [67, 38]
   },
@@ -109,21 +98,18 @@
   {
     "source": "batch-3/b21_officer_drill.png",
     "verdict": "use",
-    "ref": "refs/b21_officer_drill.webp",
     "cutout": "cutouts/officer_drill.webp",
     "cutoutOffset": [176, 52]
   },
   {
     "source": "batch-3/b21_officer_mounted.png",
     "verdict": "use",
-    "ref": "refs/b21_officer_mounted.webp",
     "cutout": "cutouts/officer_mounted.webp",
     "cutoutOffset": [240, 39]
   },
   {
     "source": "batch-3/b21_officer_standard.png",
     "verdict": "use",
-    "ref": "refs/b21_officer_standard.webp",
     "cutout": "cutouts/officer_standard.webp",
     "cutoutOffset": [173, 30]
   },
@@ -135,14 +121,12 @@
   {
     "source": "batch-1/b13_empire_soldier.png",
     "verdict": "maybe",
-    "ref": "refs/b13_empire_soldier.webp",
     "cutout": "cutouts/empire_soldier.webp",
     "cutoutOffset": [268, 118]
   },
   {
     "source": "batch-1/b21_emperor.png",
     "verdict": "use",
-    "ref": "refs/b21_emperor.webp",
     "cutout": "cutouts/emperor.webp",
     "cutoutOffset": [130, 93]
   },
@@ -159,7 +143,6 @@
   {
     "source": "batch-3/b21_lieutenant_full.png",
     "verdict": "use",
-    "ref": "refs/b21_lieutenant_full.webp",
     "cutout": "cutouts/lieutenant_full.webp",
     "cutoutOffset": [94, 52]
   },
@@ -186,14 +169,12 @@
   {
     "source": "batch-1/b29_edric_charge.png",
     "verdict": "use",
-    "ref": "refs/b29_edric_charge.webp",
     "cutout": "cutouts/edric_charge.webp",
     "cutoutOffset": [65, 170]
   },
   {
     "source": "batch-1/b29_edric_falls.png",
     "verdict": "use",
-    "ref": "refs/b29_edric_falls.webp",
     "cutout": "cutouts/edric_falls.webp",
     "cutoutOffset": [72, 317]
   },
@@ -210,7 +191,6 @@
   {
     "source": "batch-2/b29_edric_collapse.png",
     "verdict": "use",
-    "ref": "refs/b29_edric_collapse.webp",
     "cutout": "cutouts/edric_collapse.webp",
     "cutoutOffset": [45, 267]
   },
@@ -242,23 +222,14 @@
   {
     "source": "batch-3/b29_sera_run.png",
     "verdict": "use",
-    "ref": "refs/b29_sera_run.webp",
     "cutout": "cutouts/sera_run.webp",
     "cutoutOffset": [47, 161]
   },
   {
     "source": "batch-4/b29_ally_spear.png",
     "verdict": "use",
-    "ref": "refs/b29_ally_spear.webp",
     "cutout": "cutouts/ally_spear.webp",
     "cutoutOffset": [232, 0]
-  },
-  {
-    "source": "batch-4/b29_ally_sword_shield.png",
-    "verdict": "maybe",
-    "ref": "refs/b29_ally_sword_shield.webp",
-    "cutout": "cutouts/ally_sword_shield.webp",
-    "cutoutOffset": [203, 37]
   },
   {
     "source": "anime-op-reference/07-thread-transition.png",
@@ -268,7 +239,6 @@
   {
     "source": "batch-4/b45_sera_hymn_kneel.png",
     "verdict": "use",
-    "ref": "refs/b45_sera_hymn_kneel.webp",
     "cutout": "cutouts/sera_hymn_kneel.webp",
     "cutoutOffset": [56, 105]
   },
@@ -375,5 +345,124 @@
     "verdict": "use",
     "cutout": "cutouts/sheets/ms2_sera_heads.webp",
     "cutoutOffset": [33, 35]
+  },
+  {
+    "source": "batch-5/ms_emperor_heads.png",
+    "verdict": "use",
+    "cutout": "cutouts/sheets/ms_emperor_heads.webp",
+    "cutoutOffset": [22, 218]
+  },
+  {
+    "source": "batch-5/ms_emperor_turn.png",
+    "verdict": "use",
+    "cutout": "cutouts/sheets/ms_emperor_turn.webp",
+    "cutoutOffset": [19, 51]
+  },
+  {
+    "source": "batch-5/ms_lieutenant_heads.png",
+    "verdict": "use",
+    "cutout": "cutouts/sheets/ms_lieutenant_heads.webp",
+    "cutoutOffset": [50, 16]
+  },
+  {
+    "source": "batch-5/ms_lieutenant_turn.png",
+    "verdict": "use",
+    "cutout": "cutouts/sheets/ms_lieutenant_turn.webp",
+    "cutoutOffset": [7, 32]
+  },
+  {
+    "source": "batch-5/v_emperor_hand_on_roll.png",
+    "verdict": "use",
+    "ref": "refs/v_emperor_hand_on_roll.webp"
+  },
+  {
+    "source": "batch-5/v_lieutenant_waiting.png",
+    "verdict": "use",
+    "cutout": "cutouts/lieutenant_waiting.webp",
+    "cutoutOffset": [144, 54]
+  },
+  {
+    "source": "batch-5/v_sanctum_plate.png",
+    "verdict": "use",
+    "ref": "refs/v_sanctum_plate.webp"
+  },
+  {
+    "source": "batch-5/v_throne_hall_plate.png",
+    "verdict": "use",
+    "ref": "refs/v_throne_hall_plate.webp"
+  },
+  {
+    "source": "batch-5/v_emperor_hand_slips.png",
+    "verdict": "use",
+    "ref": "refs/v_emperor_hand_slips.webp"
+  },
+  {
+    "source": "batch-5/v_entity_eyes_plate.png",
+    "verdict": "use",
+    "ref": "refs/v_entity_eyes_plate.webp"
+  },
+  {
+    "source": "batch-5/v_entity_form.png",
+    "verdict": "use",
+    "ref": "refs/v_entity_form.webp"
+  },
+  {
+    "source": "batch-5/v_lieutenant_fallen.png",
+    "verdict": "use",
+    "cutout": "cutouts/lieutenant_fallen.webp",
+    "cutoutOffset": [39, 133]
+  },
+  {
+    "source": "batch-5/v_landing_plate.png",
+    "verdict": "maybe",
+    "ref": "refs/v_landing_plate.webp"
+  },
+  {
+    "source": "batch-5/boss_archmage.png",
+    "verdict": "use",
+    "cutout": "cutouts/archmage.webp",
+    "cutoutOffset": [26, 171]
+  },
+  {
+    "source": "batch-5/boss_berserker_king.png",
+    "verdict": "use",
+    "cutout": "cutouts/berserker_king.webp",
+    "cutoutOffset": [4, 175]
+  },
+  {
+    "source": "batch-5/boss_blade_lord.png",
+    "verdict": "use",
+    "cutout": "cutouts/blade_lord.webp",
+    "cutoutOffset": [61, 117]
+  },
+  {
+    "source": "batch-5/boss_dark_rider.png",
+    "verdict": "use",
+    "cutout": "cutouts/dark_rider.webp",
+    "cutoutOffset": [23, 150]
+  },
+  {
+    "source": "batch-5/boss_iron_captain.png",
+    "verdict": "use",
+    "cutout": "cutouts/iron_captain.webp",
+    "cutoutOffset": [26, 74]
+  },
+  {
+    "source": "batch-5/boss_iron_wall.png",
+    "verdict": "use",
+    "cutout": "cutouts/iron_wall.webp",
+    "cutoutOffset": [7, 205]
+  },
+  {
+    "source": "batch-5/boss_knight_commander.png",
+    "verdict": "use",
+    "cutout": "cutouts/knight_commander.webp",
+    "cutoutOffset": [26, 39]
+  },
+  {
+    "source": "batch-5/boss_warchief.png",
+    "verdict": "use",
+    "cutout": "cutouts/warchief.webp",
+    "cutoutOffset": [6, 193]
   }
 ]

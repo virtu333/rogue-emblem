@@ -36,6 +36,18 @@
     {
       "bars": "model",
       "picture": "Model sheets (for the rig, not a beat)"
+    },
+    {
+      "bars": "approach",
+      "picture": "Boss approaches (approach_lieutenant, approach_emperor)"
+    },
+    {
+      "bars": "ending",
+      "picture": "Endings and defeat (end_normal, end_hard, thread_cut, end_true)"
+    },
+    {
+      "bars": "bosscard",
+      "picture": "Boss encounter cut-in"
     }
   ],
   "rows": [
@@ -571,17 +583,6 @@
       "layers": "spear arm, pack, body"
     },
     {
-      "file": "b29_ally_sword_shield.png",
-      "source": "batch-4",
-      "kind": "character",
-      "subject": "Allied militia, mail shirt and round shield, facing right",
-      "beats": ["29-44"],
-      "verdict": "maybe",
-      "why": "His face and hair read as Voss (long brown hair tied back, stubble). Fix: recolour the hair and add a helm in code, or regenerate with a helm.",
-      "size": "1024x1536",
-      "layers": "shield arm, body"
-    },
-    {
       "file": "02-chorus-run.png",
       "source": "anime-op-reference",
       "kind": "key",
@@ -630,6 +631,16 @@
       "verdict": "reject",
       "why": "Replaced by batch-3 b29_first_light_plate with the cast cards. It also shows a bright sun.",
       "size": "1672x941"
+    },
+    {
+      "file": "b29_ally_sword_shield.png",
+      "source": "batch-4",
+      "kind": "character",
+      "subject": "Allied militia, mail shirt and round shield, facing right",
+      "beats": ["29-44"],
+      "verdict": "reject",
+      "why": "Reads as Voss (long brown hair tied back, stubble). Owner: rework. Replacement prompt in prompts-batch-6.md.",
+      "size": "1024x1536"
     },
     {
       "file": "07-thread-transition.png",
@@ -873,6 +884,46 @@
       "size": "1536x1024"
     },
     {
+      "file": "ms_emperor_heads.png",
+      "source": "batch-5",
+      "kind": "sheet",
+      "subject": "Emperor model sheet: four heads",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Registered: 98% silhouette overlap.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_emperor_turn.png",
+      "source": "batch-5",
+      "kind": "sheet",
+      "subject": "Emperor model sheet: turnaround",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Revised to softer watercolour. Robed with pauldrons, lighter than the plate armour in his portrait.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_lieutenant_heads.png",
+      "source": "batch-5",
+      "kind": "sheet",
+      "subject": "Lieutenant model sheet: six heads",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Own face (gaunt, shadowed eyes). Registered: 99% silhouette overlap.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "ms_lieutenant_turn.png",
+      "source": "batch-5",
+      "kind": "sheet",
+      "subject": "Lieutenant model sheet: turnaround",
+      "beats": ["model"],
+      "verdict": "use",
+      "why": "Dense, owner-approved. Faces left in the turning views.",
+      "size": "1536x1024"
+    },
+    {
       "file": "ms_astrid_heads.png",
       "source": "batch-3",
       "kind": "sheet",
@@ -921,6 +972,178 @@
       "verdict": "reject",
       "why": "Replaced by batch-4 ms2_sera_heads (distinct face, registered heads).",
       "size": "1536x1024"
+    },
+    {
+      "file": "v_emperor_hand_on_roll.png",
+      "source": "batch-5",
+      "kind": "key",
+      "subject": "Gauntlet resting on the open Roll",
+      "beats": ["approach"],
+      "verdict": "use",
+      "why": "For approach_emperor. Convert with --no-ink: the ink pass turns the red names black.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "v_lieutenant_waiting.png",
+      "source": "batch-5",
+      "kind": "character",
+      "subject": "The Lieutenant, back turned, looking up",
+      "beats": ["approach"],
+      "verdict": "use",
+      "why": "For approach_lieutenant; code hangs the cut threads above him (tested).",
+      "size": "1024x1536",
+      "layers": "cloak, arms, body"
+    },
+    {
+      "file": "v_sanctum_plate.png",
+      "source": "batch-5",
+      "kind": "plate",
+      "subject": "Dark round chamber, a pool of light on the floor",
+      "beats": ["approach"],
+      "verdict": "use",
+      "why": "Empty dark above for the hanging threads. Convert with the background settings.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "v_throne_hall_plate.png",
+      "source": "batch-5",
+      "kind": "plate",
+      "subject": "Symmetrical throne hall, empty throne, sword banners",
+      "beats": ["approach", "ending"],
+      "verdict": "use",
+      "why": "Cleaner, glossier than the sketchbook plates. Convert with the background settings.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "v_emperor_hand_slips.png",
+      "source": "batch-5",
+      "kind": "key",
+      "subject": "The gauntlet sliding off the Roll",
+      "beats": ["ending"],
+      "verdict": "use",
+      "why": "For end_hard. Registered to the first frame (under 1 px shift), so the two cut or blend.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "v_entity_eyes_plate.png",
+      "source": "batch-5",
+      "kind": "plate",
+      "subject": "Violet-black wash full of small eyes",
+      "beats": ["ending"],
+      "verdict": "use",
+      "why": "For thread_cut and end_true. No mouths, no gore.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "v_entity_form.png",
+      "source": "batch-5",
+      "kind": "plate",
+      "subject": "Pale scraped folds around one closed eye",
+      "beats": ["ending"],
+      "verdict": "use",
+      "why": "Optional form; strong. For the boss card only, per the cutscene plan.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "v_lieutenant_fallen.png",
+      "source": "batch-5",
+      "kind": "character",
+      "subject": "The Lieutenant fallen, legs out, head bowed",
+      "beats": ["ending"],
+      "verdict": "use",
+      "why": "For end_normal. Reclining rather than seated against a wall; reads well.",
+      "size": "1536x1024",
+      "layers": "head, cloak, body"
+    },
+    {
+      "file": "v_landing_plate.png",
+      "source": "batch-5",
+      "kind": "plate",
+      "subject": "Stone landing, stair at right, arches behind",
+      "beats": ["ending"],
+      "verdict": "maybe",
+      "why": "Missing the upright black Glass the ending needs, and a stray thin line crosses the back. Fix: regenerate (prompts-batch-6.md), or draw the Glass in code.",
+      "size": "1536x1024"
+    },
+    {
+      "file": "boss_archmage.png",
+      "source": "batch-5",
+      "kind": "character",
+      "subject": "Archmage bust, hand at chin, book",
+      "beats": ["bosscard"],
+      "verdict": "use",
+      "why": "Boss cut-in bust, facing left, on green. Softer watercolour per owner feedback (supersedes dense-flat for named villains). ",
+      "size": "1024x1536"
+    },
+    {
+      "file": "boss_berserker_king.png",
+      "source": "batch-5",
+      "kind": "character",
+      "subject": "Berserker King bust, red mane, war paint, great axe",
+      "beats": ["bosscard"],
+      "verdict": "use",
+      "why": "Boss cut-in bust, facing left, on green. Softer watercolour per owner feedback (supersedes dense-flat for named villains). ",
+      "size": "1024x1536"
+    },
+    {
+      "file": "boss_blade_lord.png",
+      "source": "batch-5",
+      "kind": "character",
+      "subject": "Blade Lord bust, hand at collar, slim sword low",
+      "beats": ["bosscard"],
+      "verdict": "use",
+      "why": "Boss cut-in bust, facing left, on green. Softer watercolour per owner feedback (supersedes dense-flat for named villains). ",
+      "size": "1024x1536"
+    },
+    {
+      "file": "boss_dark_rider.png",
+      "source": "batch-5",
+      "kind": "character",
+      "subject": "Dark Rider bust, finned helm, sealed letter",
+      "beats": ["bosscard"],
+      "verdict": "use",
+      "why": "Boss cut-in bust, facing left, on green. Softer watercolour per owner feedback (supersedes dense-flat for named villains). The helm fin is swept, not spiked.",
+      "size": "1024x1536"
+    },
+    {
+      "file": "boss_iron_captain.png",
+      "source": "batch-5",
+      "kind": "character",
+      "subject": "Iron Captain bust, sallet helm, hands on a sword",
+      "beats": ["bosscard"],
+      "verdict": "use",
+      "why": "Boss cut-in bust, facing left, on green. Softer watercolour per owner feedback (supersedes dense-flat for named villains). ",
+      "size": "1024x1536"
+    },
+    {
+      "file": "boss_iron_wall.png",
+      "source": "batch-5",
+      "kind": "character",
+      "subject": "Iron Wall bust, great helm, tower shield",
+      "beats": ["bosscard"],
+      "verdict": "use",
+      "why": "Boss cut-in bust, facing left, on green. Softer watercolour per owner feedback (supersedes dense-flat for named villains). ",
+      "size": "1024x1536"
+    },
+    {
+      "file": "boss_knight_commander.png",
+      "source": "batch-5",
+      "kind": "character",
+      "subject": "Knight Commander bust, lance, gold sun emblem",
+      "beats": ["bosscard"],
+      "verdict": "use",
+      "why": "Boss cut-in bust, facing left, on green. Softer watercolour per owner feedback (supersedes dense-flat for named villains). Keeps the gold sun emblem from his portrait; check it against the one-sun rule.",
+      "size": "1024x1536"
+    },
+    {
+      "file": "boss_warchief.png",
+      "source": "batch-5",
+      "kind": "character",
+      "subject": "Warchief bust, red crest, axe on shoulder",
+      "beats": ["bosscard"],
+      "verdict": "use",
+      "why": "Boss cut-in bust, facing left, on green. Softer watercolour per owner feedback (supersedes dense-flat for named villains). ",
+      "size": "1024x1536"
     },
     {
       "file": "01-ash-city.png",

@@ -4,9 +4,11 @@ What we have for each part of "Again", what is missing, and who makes it: a new 
 or code. File names are in `refs/` and `cutouts/`; verdicts are in
 [catalog.md](catalog.md).
 
-**Short version (after batch 4):** every shot in "Again" has usable images, and the
-young cast now have distinct, swappable faces. Batch 5 (villains, in progress) covers
-the other cutscenes. Everything else that is missing is code.
+**Short version (after batch 5):** every shot in "Again" has usable images; the young
+cast and the villains have distinct, swappable faces; and the boss approaches, the
+endings, the defeat and the boss cut-ins have their art. Two reworks are in
+[prompts-batch-6.md](prompts-batch-6.md): the sword-and-shield ally (read as Voss) and
+the landing plate (no Glass). Everything else that is missing is code.
 
 ## By beat
 
@@ -40,9 +42,12 @@ Astrid's mole, Rowan's freckles.
 | `cutouts/astrid`, `cutouts/rowan`, `cutouts/officer_mounted` | Scale about 1.45x against the figures on foot. |
 | Head sheets | Align each head to the open one, then patch only the eye or mouth region inside the face. |
 | `ms2_edric_heads` | A stray line runs down the neck: paint out, or keep it as a scar. |
-| `b29_ally_sword_shield` | Reads as Voss: recolour the hair and add a helm, or regenerate. |
+| `b29_ally_sword_shield` | Rework in batch 6 (owner). |
+| `v_emperor_hand_on_roll`, `v_emperor_hand_slips` | Convert with `--no-ink` so the red names stay red. Add the kept gold's glow in code. |
+| `v_landing_plate` | Rework in batch 6, or draw the Glass in code. |
+| `boss_knight_commander` | Gold sun emblem from his portrait: owner to decide against the one-sun rule. |
 
-## Villains (batch 5)
+## Villains (batch 5, done)
 
 The owner extended the Unwritten Page style to every cutscene, so the villains the
 cutscene plan puts on screen are in [prompts-batch-5.md](prompts-batch-5.md):
