@@ -10,7 +10,8 @@
  * @param {object} state
  * @param {boolean} state.hasSlots        any save slot exists
  * @param {boolean} state.tutorialDone    tutorial completed on this device
- * @param {{slot:number, actReached:number}|null} state.resumeSlot  the only active run
+ * @param {{slot:number, actReached:number, latestOf?:number}|null} state.resumeSlot
+ *   the run Resume opens (pickResumeSlot); `latestOf` > 1 when it is the newest of several
  * @param {boolean} state.seenHowToPlay
  * @returns {Array<{id:string,label:string,group:'run'|'reference',sub?:string,
  *   badge?:string, primary?:boolean}>}
@@ -36,6 +37,8 @@ export function buildTitleMenu({
       id: 'resume',
       label: `Resume · Act ${resumeSlot.actReached ?? 1}`,
       group: 'run',
+      // With several runs going, say which one Resume opens.
+      ...(resumeSlot.latestOf > 1 ? { sub: `Latest save · Slot ${resumeSlot.slot}` } : {}),
     });
   run.push({
     id: 'newGame',
@@ -60,10 +63,42 @@ export function buildTitleMenu({
   return [...run, ...reference];
 }
 
-/** The single active, uncorrupted run that gets a direct Resume shortcut (or null). */
+/**
+ * The active, uncorrupted run Resume opens: the only one, or with several the most
+ * recently saved (then `latestOf` counts them). Null when there is none, or when no
+ * single run is known to be newest (a legacy save without a time, or a tie).
+ */
 export function pickResumeSlot(slotSummaries = []) {
   const active = slotSummaries.filter((slot) => slot?.hasActiveRun && !slot.runCorrupt);
-  return active.length === 1 ? active[0] : null;
+  if (active.length === 1) return active[0];
+  const newest = newestBy(active, (slot) => slot.savedAt);
+  return newest ? { ...newest, latestOf: active.length } : null;
+}
+
+/**
+ * The slot number of the most recently played save (its run or its meta, whichever
+ * saved later) when at least two slots hold saves; null for fewer, or no clear newest.
+ */
+export function latestSlot(slotSummaries = []) {
+  const saved = slotSummaries.filter(Boolean);
+  if (saved.length < 2) return null;
+  return newestBy(saved, (s) => Math.max(s.savedAt || 0, s.metaSavedAt || 0))?.slot ?? null;
+}
+
+/** The entry with the strictly greatest positive time, or null. */
+function newestBy(entries, timeOf) {
+  let best = null;
+  let bestTime = 0;
+  let tie = false;
+  for (const entry of entries) {
+    const time = Number(timeOf(entry)) || 0;
+    if (time > bestTime) {
+      best = entry;
+      bestTime = time;
+      tie = false;
+    } else if (time === bestTime && time > 0) tie = true;
+  }
+  return tie ? null : best;
 }
 
 /**

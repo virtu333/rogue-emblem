@@ -24,6 +24,7 @@ import {
   forecastProjection,
   forecastModifierText,
   forecastNotes,
+  forecastReadingPoints,
   forecastTeachingHints,
   formatCritChance,
   formatHitChance,
@@ -420,11 +421,9 @@ export class MobileBattleHUD {
       );
       heading.append(control);
     }
-    const forecastNote = el(
-      'p',
-      'mb-detail',
-      'Hit chance is the real chance a strike lands. Hit is rolled as the average of two rolls, so a Hit rating of 75 lands about 88% of the time and 25 about 13%; the forecast shows that chance, for both sides. Crit uses one roll. Critical hits and special effects can change damage. A defeated unit cannot finish its remaining strikes.',
-    );
+    const forecastNote = el('ul', 'mb-detail mb-reading');
+    for (const point of forecastReadingPoints(config.forecast))
+      forecastNote.append(el('li', '', point));
     forecastNote.style.gridColumn = '1 / -1';
     const explanation = el('details', 'mb-detail');
     explanation.append(el('summary', '', 'How to read this forecast'), forecastNote);

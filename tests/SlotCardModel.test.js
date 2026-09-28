@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { installFakeDom } from './helpers/fakeDom.js';
+import { buildSlotCard } from '../src/ui/SlotPickerView.js';
 import { loadGameData } from './testData.js';
 import { friendlySavedTime, slotCardModel, templateName } from '../src/ui/slotCardModel.js';
 
@@ -184,5 +186,22 @@ describe('slotCardModel', () => {
       now: NOW,
     });
     expect(home.difficulty).toBeUndefined();
+  });
+});
+
+describe('the latest save card', () => {
+  it('wears the gold rim and a Latest tag only when marked latest', () => {
+    installFakeDom(vi);
+    try {
+      const model = slotCardModel(1, activeSummary(), { gameData, now: NOW });
+      const plain = buildSlotCard(model, { onPrimary() {}, onDelete() {} });
+      expect(plain.classList.contains('is-latest')).toBe(false);
+      expect(plain.querySelector('.sp-latest')).toBeNull();
+      const latest = buildSlotCard({ ...model, latest: true }, { onPrimary() {}, onDelete() {} });
+      expect(latest.classList.contains('is-latest')).toBe(true);
+      expect(latest.querySelector('.sp-latest')?.textContent).toBe('Latest');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
