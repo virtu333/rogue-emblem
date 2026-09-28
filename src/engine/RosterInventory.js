@@ -10,6 +10,7 @@ import {
   isLastCombatWeapon,
   equipAccessory,
   unequipAccessory,
+  settleAccessoryHpOwed,
 } from './UnitManager.js';
 import { clearAllConditions, getConditions } from './StatusConditionSystem.js';
 import { TRADE_WARNINGS } from './ItemTrade.js';
@@ -105,6 +106,9 @@ export function rosterItemAction(run, unit, item, action) {
       );
     }
     if (['cure', 'cureHeal'].includes(item.effect)) clearAllConditions(unit);
+    // Healed to full: no HP accessory debt is owed any more (a later fight must not
+    // find a stale one; a partial heal keeps it).
+    settleAccessoryHpOwed(unit);
     if (--item.uses <= 0) removeFromConsumables(unit, item);
   }
   return '';

@@ -1,3 +1,4 @@
+import { settleAccessoryHpOwed } from '../engine/UnitManager.js';
 import { revivalCatchUpPlan } from '../engine/RevivalCatchUp.js';
 import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
@@ -120,7 +121,10 @@ export class ChurchMenu {
           this.finish(healAtRuins(run, nodeId));
           return;
         }
-        for (const u of run.roster) u.currentHP = u.stats.HP;
+        for (const u of run.roster) {
+          u.currentHP = u.stats.HP;
+          settleAccessoryHpOwed(u);
+        }
         this.finish({ ok: true, message: 'All units healed.' });
       }),
     );

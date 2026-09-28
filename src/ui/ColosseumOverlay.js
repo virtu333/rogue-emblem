@@ -25,6 +25,7 @@ import {
   grantMasterOfArmsWeapons,
   checkLevelUpSkills,
   equipWeapon,
+  settleAccessoryHpOwed,
 } from '../engine/UnitManager.js';
 import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
@@ -215,6 +216,8 @@ export class ColosseumOverlay {
       return;
     }
     if (!canFight(unit, this._fightsPerUnit[unit.name] || 0, this._maxFights)) return;
+    // No battle start runs before an arena bout: settle a stale accessory debt here.
+    settleAccessoryHpOwed(unit);
     this._fightResolved = true;
     // Fight with the planned weapon: equip it (a healer holding a staff draws its tome).
     const weapon = getArenaWeapon(unit);

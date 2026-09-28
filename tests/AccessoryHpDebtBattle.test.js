@@ -76,3 +76,59 @@ describe('HP accessory debt and a full heal in battle', () => {
     expect(wearer.currentHP).toBe(healed);
   });
 });
+
+describe('HP accessory debt and a full heal between battles', () => {
+  // Real roster paths: the robe comes off through the pool, the heal is a roster
+  // item. A fight (arena or battle) then damages the unit before the robe goes back.
+  async function setup() {
+    const { RunManager } = await import('../src/engine/RunManager.js');
+    const { rosterAccessoryAction, rosterItemAction } =
+      await import('../src/engine/RosterInventory.js');
+    const run = new RunManager(gameData);
+    run.startRun();
+    const unit = run.roster[0];
+    const robe = ROBE();
+    run.accessories = [robe];
+    expect(rosterAccessoryAction(run, unit, robe)).toBe('');
+    const max = unit.stats.HP; // with the robe
+    unit.currentHP = 1;
+    expect(rosterAccessoryAction(run, unit)).toBe(''); // 1/(max-5), owes 5
+    expect(unit._accessoryHpOwed).toBe(5);
+    const item = (name) => {
+      const it = structuredClone(gameData.consumables.find((c) => c.name === name));
+      unit.consumables = [it];
+      return it;
+    };
+    return { run, unit, robe, max, rosterAccessoryAction, rosterItemAction, item };
+  }
+
+  it('review case: an Elixir from the roster clears it; 8 damage later, the robe gives +5', async () => {
+    const { run, unit, robe, max, rosterAccessoryAction, rosterItemAction, item } = await setup();
+    expect(rosterItemAction(run, unit, item('Elixir'), 'use')).toBe('');
+    expect(unit.currentHP).toBe(max - 5);
+    expect(unit._accessoryHpOwed).toBeUndefined();
+    unit.currentHP -= 8; // an arena bout
+    expect(rosterAccessoryAction(run, unit, robe)).toBe('');
+    expect([unit.currentHP, unit.stats.HP]).toEqual([max - 8, max]);
+  });
+
+  it('a Vulnerary that stops short of full keeps the debt', async () => {
+    const { run, unit, robe, rosterAccessoryAction, rosterItemAction, item } = await setup();
+    expect(rosterItemAction(run, unit, item('Vulnerary'), 'use')).toBe('');
+    expect(unit.currentHP).toBe(11);
+    expect(unit._accessoryHpOwed).toBe(5);
+    expect(rosterAccessoryAction(run, unit, robe)).toBe('');
+    // As if healed 10 with the robe on from 1: 11, not 16.
+    expect(unit.currentHP).toBe(11);
+  });
+
+  it('a Ruins rest clears it too', async () => {
+    const { run, unit } = await setup();
+    const { chooseRuinsPath } = await import('../src/engine/RuinsCommands.js');
+    const node = run.nodeMap.nodes[0];
+    node.type = 'ruins';
+    expect(chooseRuinsPath(run, node.id, 'rest').ok).toBe(true);
+    expect(unit.currentHP).toBe(unit.stats.HP);
+    expect(unit._accessoryHpOwed).toBeUndefined();
+  });
+});

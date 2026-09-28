@@ -6,6 +6,7 @@
 // can never open the other side. Saves from before the choice existed carry none:
 // that ruins simply has no path chosen yet. Pure: no Phaser, no DOM.
 import { RUINS_PATHS } from '../utils/constants.js';
+import { settleAccessoryHpOwed } from './UnitManager.js';
 import { churchReviveBlock, reviveAtChurch } from './ChurchCommands.js';
 
 export { RUINS_PATHS };
@@ -84,5 +85,9 @@ export function chosenLine(path) {
 }
 
 function healRoster(run) {
-  for (const unit of run.roster || []) if (unit?.stats) unit.currentHP = unit.stats.HP;
+  for (const unit of run.roster || []) {
+    if (!unit?.stats) continue;
+    unit.currentHP = unit.stats.HP;
+    settleAccessoryHpOwed(unit);
+  }
 }
