@@ -1065,7 +1065,11 @@ test.describe('input lifecycle', () => {
 
   test('a finger lifted with no press on record never acts on the board; real taps still do', async ({
     page,
+    browserName,
   }) => {
+    // A lone touchStart / touchEnd needs the DevTools protocol (Input.dispatchTouchEvent),
+    // which only Chromium has; tests/InputReleaseWithoutPress.test.js covers the rule.
+    test.skip(browserName !== 'chromium', 'raw touch events need CDP (Chromium only)');
     test.setTimeout(120_000);
     await boot(page);
     await attachSlot(page);

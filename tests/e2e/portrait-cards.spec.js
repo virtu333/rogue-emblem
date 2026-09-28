@@ -30,8 +30,11 @@ import {
   expectPortraitUi,
   expectTappable as tappable,
   expectNoSidewaysScroll as noSideways,
+  expectWholeInViewport,
   clippedText,
+  engineOf,
   pageErrors,
+  safeAreaInsets,
 } from './portraitHelpers.js';
 
 const IPHONE_UA =
@@ -318,7 +321,7 @@ async function expectNoSidewaysScroll(page, dialog) {
 
 /** A control a thumb can hit: whole in the viewport, ≥44 px, and not covered. */
 async function expectTappable(page, control) {
-  await expect(control).toBeInViewport({ ratio: 1 });
+  await expectWholeInViewport(control);
   const box = await control.boundingBox();
   expect(box.height).toBeGreaterThanOrEqual(TAP - 0.5);
   expect(box.width).toBeGreaterThanOrEqual(TAP - 0.5);
@@ -638,10 +641,11 @@ async function expectSoftEdges(list, label) {
   }
   expect(first.fade, `${label}: a fade length`).toBeGreaterThan(8);
   await scrollList(list, 'start');
-  expect(await listEdges(list), `${label} at its start`).toMatchObject({
-    top: false,
-    bottom: true,
-  });
+  // A list just drawn (or already at its start, so no scroll event) gets its edge
+  // classes on the next frame (choiceCards fadeScroll): wait for them.
+  await expect
+    .poll(() => listEdges(list), { message: `${label} at its start` })
+    .toMatchObject({ top: false, bottom: true });
   await scrollList(list, 'middle');
   expect(await listEdges(list), `${label} mid-way`).toMatchObject({ top: true, bottom: true });
   await scrollList(list, 'end');
@@ -669,14 +673,21 @@ async function tapUnderBottomFade(page, list, cardSelector, label) {
   await scrollList(list, 'start');
   const e = await listEdges(list);
   const edge = e.viewBottom - e.fade;
-  const target = await list.locator(cardSelector).evaluateAll(
-    (cards, edge) =>
-      cards.findIndex((c) => {
-        const r = c.getBoundingClientRect();
-        return r.top < edge - 12 && r.bottom > edge;
-      }),
-    edge,
-  );
+  // A card whose top is clear of the fade and whose foot runs under it (`clear`), or
+  // one that starts under the fade, at least 12 px on screen.
+  const underFade = (clear) =>
+    list.locator(cardSelector).evaluateAll(
+      (cards, { edge, bottom, clear }) =>
+        cards.findIndex((c) => {
+          const r = c.getBoundingClientRect();
+          return r.top < (clear ? edge : bottom) - 12 && r.bottom > edge;
+        }),
+      { edge, bottom: e.viewBottom, clear },
+    );
+  let target = await underFade(true);
+  // WebKit's text lines run a pixel or two shorter, so a card can end exactly at the
+  // fade's edge and the next one start under it: that is the card the fade covers.
+  if (target < 0 && engineOf(page) === 'webkit') target = await underFade(false);
   expect(target, `${label}: a card runs under the bottom fade`).toBeGreaterThanOrEqual(0);
   const card = list.locator(cardSelector).nth(target);
   const box = await card.boundingBox();
@@ -723,7 +734,6 @@ for (const viewport of PORTRAIT_PHONES)
     test.use(uprightPhone(viewport));
     // A short phone (375x667) scrolls every long list; taller ones may fit it.
     const short = viewport.height < 700;
-    const tall = viewport.height >= 900;
 
     test('difficulty terms and blessings: soft edges, the chosen card clear, the place kept', async ({
       page,
@@ -731,7 +741,10 @@ for (const viewport of PORTRAIT_PHONES)
       test.setTimeout(120_000);
       const errors = pageErrors(page);
       await boot(page);
-      await emulateSafeArea(page, NOTCH_PORTRAIT);
+      const insets = await safeAreaInsets(page, NOTCH_PORTRAIT);
+      // The height left once the notch and home bar are taken out (the whole screen
+      // in WebKit, which cannot emulate them): only a roomy phone may fit four blessings.
+      const roomy = viewport.height - insets.top - insets.bottom >= 800;
       const setup = await openDifficulty(page, false);
       await expectPortraitUi(page);
       // Lunatic's terms are the longest: they scroll in their panel and fade there.
@@ -757,7 +770,7 @@ for (const viewport of PORTRAIT_PHONES)
       if (await expectSoftEdges(list, 'blessings')) {
         await tapUnderBottomFade(page, list, '.ch-tarot', 'blessings');
         await expectTapKeepsScroll(page, list, '.ch-tarot', 'blessings');
-      } else expect(tall, 'four blessings scroll on all but the tallest phone').toBe(true);
+      } else expect(roomy, 'four blessings scroll on all but the tallest phone').toBe(true);
       await expectFrameInSafeArea(
         page,
         '[aria-label="Choose a blessing"]',
