@@ -30,6 +30,7 @@ import {
   DESKTOPS,
   LANDSCAPE_PHONES,
   NOTCH_LANDSCAPE,
+  NO_INSETS,
   NOTCH_PORTRAIT,
   PORTRAIT_PHONES,
   emulateSafeArea,
@@ -41,6 +42,7 @@ import {
   pageErrors,
   phone,
   quietSettings,
+  safeAreaInsets,
 } from './portraitHelpers.js';
 
 test.setTimeout(150_000);
@@ -202,7 +204,7 @@ for (const viewport of PORTRAIT_PHONES) {
       const errors = pageErrors(page);
       // Reduced motion: every card at its end state at once (no entrance transforms).
       await quietSettings(page, { reduceMotion: true });
-      await emulateSafeArea(page, NOTCH_PORTRAIT);
+      const insets = await safeAreaInsets(page, NOTCH_PORTRAIT);
       await bootBattle(page);
       await expectPortraitUi(page);
 
@@ -236,11 +238,9 @@ for (const viewport of PORTRAIT_PHONES) {
           text: '.ce-boss-text',
         }),
         'boss',
-        NOTCH_PORTRAIT,
+        insets,
       );
-      expect(
-        await page.evaluate(auditText, { root: '.ce-boss-layer', insets: NOTCH_PORTRAIT }),
-      ).toEqual([]);
+      expect(await page.evaluate(auditText, { root: '.ce-boss-layer', insets })).toEqual([]);
       // The skip line stays clear of the band.
       const hint = await page.evaluate(() => {
         const layer = document.querySelector('.ce-boss-layer');
@@ -301,7 +301,7 @@ for (const viewport of PORTRAIT_PHONES) {
         await page.evaluate(auditText, {
           root: '.ce-band-layer--victory',
           bandSel: '.ce-band',
-          insets: NOTCH_PORTRAIT,
+          insets,
         }),
       ).toEqual([]);
       await page.evaluate(() =>
@@ -347,14 +347,14 @@ for (const viewport of PORTRAIT_PHONES) {
             text: '.gr-join-text',
           }),
           kind,
-          NOTCH_PORTRAIT,
+          insets,
         );
         expect(
           await page.evaluate(auditText, {
             root: '.gr-join-layer',
             scope: '.gr-join-text',
             bandSel: '.gr-join-band',
-            insets: NOTCH_PORTRAIT,
+            insets,
           }),
           kind,
         ).toEqual([]);
@@ -396,12 +396,12 @@ for (const viewport of PORTRAIT_PHONES) {
         bust: '.gr-deed-portrait',
         text: '.gr-deed-text',
       });
-      expectStacked(deedBoxes, 'deed', NOTCH_PORTRAIT);
+      expectStacked(deedBoxes, 'deed', insets);
       expect(
         await page.evaluate(auditText, {
           root: '.gr-deed-layer',
           scope: '.gr-deed-text',
-          insets: NOTCH_PORTRAIT,
+          insets,
         }),
       ).toEqual([]);
       // Every line inside the (grown) band, the band clear of the Next / Skip row and the
@@ -471,7 +471,7 @@ for (const viewport of PORTRAIT_PHONES) {
       const level = page.locator('.gr-level-layer');
       await expect(level.locator('.gr-level-row')).toHaveCount(8);
       await expect
-        .poll(() => page.evaluate(auditText, { root: '.gr-level-layer', insets: NOTCH_PORTRAIT }))
+        .poll(() => page.evaluate(auditText, { root: '.gr-level-layer', insets }))
         .toEqual([]);
       const card = await page.evaluate(() => {
         const layer = document.querySelector('.gr-level-layer').getBoundingClientRect();
@@ -510,7 +510,7 @@ for (const viewport of PORTRAIT_PHONES) {
     }) => {
       const errors = pageErrors(page);
       await quietSettings(page);
-      await emulateSafeArea(page, NOTCH_PORTRAIT);
+      const insets = await safeAreaInsets(page, NOTCH_PORTRAIT);
       await bootBattle(page);
       // A Knight with the longest name, a Master Seal and a deed's Oath: the fullest rite
       // (seven bonuses, two new weapons, a rank, two skills and the Oath, a growth note).
@@ -587,7 +587,7 @@ for (const viewport of PORTRAIT_PHONES) {
         await page.evaluate(auditText, {
           root: '.gr-rite-layer',
           scope: '.gr-rite-text',
-          insets: NOTCH_PORTRAIT,
+          insets,
         }),
       ).toEqual([]);
       const layout = await rite.evaluate((el) => {
@@ -637,7 +637,7 @@ for (const viewport of PORTRAIT_PHONES) {
     }) => {
       const errors = pageErrors(page);
       await quietSettings(page);
-      await emulateSafeArea(page, NOTCH_PORTRAIT);
+      const insets = await safeAreaInsets(page, NOTCH_PORTRAIT);
       await bootBattle(page);
       await page.evaluate(async () => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -682,9 +682,7 @@ for (const viewport of PORTRAIT_PHONES) {
       // The title and its lines clear the notch; each part of the place line is whole.
       await expectInsideSafeArea(page, '.ce-runend-word', NOTCH_PORTRAIT);
       await expectSingleLine(card.locator('.ce-runend-meta > .ce-part'));
-      expect(
-        await page.evaluate(auditText, { root: '.ce-runend-layer', insets: NOTCH_PORTRAIT }),
-      ).toEqual([]);
+      expect(await page.evaluate(auditText, { root: '.ce-runend-layer', insets })).toEqual([]);
 
       // The farewell lines over the card.
       const dialogue = page.locator('.re-dialogue');
@@ -847,7 +845,7 @@ test.describe('upright 375x667, a real kill', () => {
   test('the level-up card reads in full and the gains are kept', async ({ page }) => {
     const errors = pageErrors(page);
     await quietSettings(page);
-    await emulateSafeArea(page, NOTCH_PORTRAIT);
+    const insets = await safeAreaInsets(page, NOTCH_PORTRAIT);
     await bootBattle(page);
     const before = await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -900,9 +898,7 @@ test.describe('upright 375x667, a real kill', () => {
     const card = page.getByRole('dialog', { name: 'Level up', exact: true });
     await expect(card).toBeVisible({ timeout: 25_000 });
     await expect(page.locator('.gr-level-layer')).toHaveClass(/is-done/, { timeout: 5000 });
-    expect(
-      await page.evaluate(auditText, { root: '.gr-level-layer', insets: NOTCH_PORTRAIT }),
-    ).toEqual([]);
+    expect(await page.evaluate(auditText, { root: '.gr-level-layer', insets })).toEqual([]);
     // Above the rail, inside the map frame; the portrait in the header's corner.
     const fit = await page.evaluate(() => {
       const c = document.querySelector('.gr-level').getBoundingClientRect();
@@ -1161,6 +1157,17 @@ async function expectAsOnMain(page, size, screen) {
   });
 }
 
+/**
+ * A landscape phone gets its side notch and home bar (emulated). Returns whether MAIN
+ * applies: its phone boxes were measured with those insets, so a browser that cannot
+ * emulate them (WebKit) lays the phone out without them; there only the comparison
+ * with and without the portrait classes (expectClassesInert) holds.
+ */
+async function emulateSideNotch(page, vp) {
+  if (!vp.phone) return true;
+  return (await safeAreaInsets(page, NOTCH_LANDSCAPE)) !== NO_INSETS;
+}
+
 const MAIN = {
   '568x320': {
     boss: [
@@ -1296,14 +1303,14 @@ for (const vp of LANDSCAPE) {
     test('battle ceremonies, the run end and its result', async ({ page }) => {
       const errors = pageErrors(page);
       await quietSettings(page, { reduceMotion: true });
-      if (vp.phone) await emulateSafeArea(page, NOTCH_LANDSCAPE);
+      const onMain = await emulateSideNotch(page, vp);
       await bootBattle(page);
       await expectPortraitUi(page, false);
       for (const kind of Object.keys(ROOTS)) {
         await openCeremony(page, kind);
         await expect(page.locator(ROOTS[kind]).last()).toBeVisible();
         await expectClassesInert(page, ROOTS[kind], `${size} ${kind}`);
-        await expectAsOnMain(page, size, kind);
+        if (onMain) await expectAsOnMain(page, size, kind);
         await closeCeremonies(page);
       }
 
@@ -1324,7 +1331,7 @@ for (const vp of LANDSCAPE) {
       await expect(page.locator('.re-dialogue')).toBeVisible();
       await expectClassesInert(page, '.ce-runend-layer', `${size} run end`);
       await expectClassesInert(page, '.re-dialogue', `${size} farewell`);
-      await expectAsOnMain(page, size, 'dialogue');
+      if (onMain) await expectAsOnMain(page, size, 'dialogue');
       const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
       await ((await skip.count()) ? skip : page.getByRole('button', { name: 'Continue' })).click();
       const result = page.getByRole('dialog', { name: 'Game over', exact: true });
@@ -1336,20 +1343,20 @@ for (const vp of LANDSCAPE) {
     test('route map: story lines and the Eclipse card', async ({ page }) => {
       const errors = pageErrors(page);
       await quietSettings(page, { reduceMotion: true });
-      if (vp.phone) await emulateSafeArea(page, NOTCH_LANDSCAPE);
+      const onMain = await emulateSideNotch(page, vp);
       await page.goto('/?devScene=nodemap&preset=eclipse&seed=42');
       await waitForScene(page, 'NodeMap');
       await expect(page.locator('.ce-act-layer')).toBeVisible();
       await expect(page.locator('.re-dialogue')).toBeVisible();
       await expectClassesInert(page, '.ce-act-layer', `${size} act title`);
       await expectClassesInert(page, '.re-dialogue', `${size} story lines`);
-      await expectAsOnMain(page, size, 'dialogue');
+      if (onMain) await expectAsOnMain(page, size, 'dialogue');
       await page.getByRole('button', { name: 'Skip conversation', exact: true }).click();
       await expect(page.locator('.re-eclipse-toast')).toHaveCount(1, { timeout: 15_000 });
       await page.locator('.re-eclipse-medal').click();
       await expect(page.getByRole('dialog', { name: 'The Eclipse', exact: true })).toBeVisible();
       await expectClassesInert(page, '.re-modal-shield:has(> .re-eclipse-card)', `${size} Eclipse`);
-      await expectAsOnMain(page, size, 'eclipse');
+      if (onMain) await expectAsOnMain(page, size, 'eclipse');
       expect(errors).toEqual([]);
     });
   });

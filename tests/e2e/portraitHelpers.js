@@ -119,7 +119,7 @@ export async function expectNoSidewaysScroll(page, rootSelector = null) {
 export async function expectTappable(locator, { min = TAP } = {}) {
   await expect(locator).toBeVisible();
   await locator.scrollIntoViewIfNeeded();
-  await expect(locator).toBeInViewport({ ratio: 1 });
+  await expectWholeInViewport(locator);
   const box = await locator.boundingBox();
   const label = (await locator.getAttribute('aria-label')) || (await locator.innerText());
   expect(box.height, `"${label}" height`).toBeGreaterThanOrEqual(min - 0.5);
@@ -641,4 +641,76 @@ export async function openDevBattle(
   });
   await battleIdle(page);
   if (slot != null) await attachSlot(page, slot);
+}
+
+// ---------------------------------------------------------------------------
+// Browser engines. CI runs Chromium; the iPhone app renders through WKWebView
+// (WebKit), which runs locally with `npx playwright test --browser=webkit`. These
+// helpers follow the engine only where the thing measured is the engine's own (the
+// DevTools protocol, layout rounding, Safari's keyboard defaults). Chromium keeps
+// every assertion exactly as strict.
+
+/** The engine the page runs in: 'chromium', 'webkit' or 'firefox'. */
+export function engineOf(page) {
+  return page.context().browser()?.browserType().name() ?? 'chromium';
+}
+
+export const NO_INSETS = { top: 0, bottom: 0, left: 0, right: 0 };
+
+/**
+ * emulateSafeArea for a spec that measures against the insets itself. Chromium must
+ * emulate them (asserted). A browser without the DevTools override (WebKit) lays the
+ * page out with no insets: the insets returned there are zero, so the spec's own
+ * notch and home-bar checks measure against what the page really has.
+ */
+export async function safeAreaInsets(page, insets = NOTCH_PORTRAIT) {
+  const emulated = await emulateSafeArea(page, insets);
+  if (engineOf(page) === 'chromium') expect(emulated, 'safe areas emulated').toBe(true);
+  return emulated ? insets : NO_INSETS;
+}
+
+/** How far (CSS px) an element is cut by the viewport or a clipping ancestor, per side. */
+function cutByViewport(el) {
+  return new Promise((resolve) => {
+    const observer = new IntersectionObserver(([entry]) => {
+      observer.disconnect();
+      const b = entry.boundingClientRect;
+      const i = entry.intersectionRect;
+      resolve(
+        entry.isIntersecting
+          ? Math.max(i.left - b.left, i.top - b.top, b.right - i.right, b.bottom - i.bottom)
+          : Infinity,
+      );
+    });
+    observer.observe(el);
+  });
+}
+
+/**
+ * Whole in the viewport: toBeInViewport({ ratio: 1 }). WebKit lays boxes out in 1/64
+ * px units, so a flex item flush with its row's end can overhang its clipping parent
+ * by 1/64 px, which toBeInViewport reads as a ratio of 0.9999. In WebKit the cut is
+ * measured instead (the same IntersectionObserver, side by side) and may be that
+ * rounding, under 0.05 px, and no more.
+ */
+export async function expectWholeInViewport(locator) {
+  if (engineOf(locator.page()) !== 'webkit') {
+    await expect(locator).toBeInViewport({ ratio: 1 });
+    return;
+  }
+  await expect(locator).toBeInViewport({ ratio: 0.99 });
+  await expect
+    .poll(() => locator.evaluate(cutByViewport), {
+      message: 'cut by more than WebKit layout rounding (1/64 px)',
+    })
+    .toBeLessThan(0.05);
+}
+
+/**
+ * The key that moves focus to the next control. Safari (WebKit on macOS) skips
+ * buttons on Tab unless the user turns on "Press Tab to highlight each item";
+ * Option-Tab reaches every control, in the same order.
+ */
+export function nextFocusKey(page) {
+  return engineOf(page) === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
 }

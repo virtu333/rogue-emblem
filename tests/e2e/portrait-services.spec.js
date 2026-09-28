@@ -22,7 +22,6 @@ import {
   NOTCH_PORTRAIT,
   phone,
   quietSettings,
-  emulateSafeArea,
   expectPortraitUi,
   expectNoSidewaysScroll,
   expectTappable,
@@ -30,6 +29,7 @@ import {
   clippedText,
   expectInsideSafeArea,
   pageErrors,
+  safeAreaInsets,
 } from './portraitHelpers.js';
 import { waitForScene } from './helpers.js';
 
@@ -186,7 +186,7 @@ for (const viewport of [SE, IPHONE_13]) {
     test.use(phoneContext(viewport));
     test.describe.configure({ timeout: 90_000 });
     test.beforeEach(async ({ page }) => {
-      if (insets) expect(await emulateSafeArea(page, insets)).toBe(true);
+      if (insets) await safeAreaInsets(page, insets);
     });
 
     test('shop: buy with a comparison, sell the last weapon, forge; each is saved', async ({
@@ -524,7 +524,7 @@ for (const viewport of [SE, IPHONE_13]) {
     test.use(phoneContext(viewport));
     test.describe.configure({ timeout: 90_000 });
     test.beforeEach(async ({ page }) => {
-      if (insets) expect(await emulateSafeArea(page, insets)).toBe(true);
+      if (insets) await safeAreaInsets(page, insets);
     });
 
     test('two full-width choices with their effects; Rest heals, saves and re-enters', async ({

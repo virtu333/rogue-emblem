@@ -6,14 +6,15 @@ import {
   LANDSCAPE_PHONES,
   NOTCH_PORTRAIT,
   clippedText,
-  emulateSafeArea,
   expectInsideSafeArea,
   expectNoSidewaysScroll,
   expectPortraitUi,
   expectSingleLine,
   expectTappable,
+  nextFocusKey,
   phone,
   quietSettings,
+  safeAreaInsets,
 } from './portraitHelpers.js';
 
 // The upright Loom (html.portrait-ui on an upright phone): the act climbs from the
@@ -359,7 +360,7 @@ async function openUprightRoute(page, { preset = 'battle_smoke', notch = true } 
   await quietSettings(page);
   await page.goto(`/?devScene=nodemap&preset=${preset}&seed=42`);
   await waitForScene(page, 'NodeMap');
-  if (notch) expect(await emulateSafeArea(page, NOTCH_PORTRAIT)).toBe(true);
+  if (notch) await safeAreaInsets(page, NOTCH_PORTRAIT);
   await expectPortraitUi(page);
   const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
   await skip.tap();
@@ -600,13 +601,14 @@ test.describe('upright 375x667: the card follows the knot', () => {
 
 /**
  * Tab from the loom's last knot through the sheet: the order focus takes, and the
- * same controls in reading order (row by row, top to bottom, left to right).
+ * same controls in reading order (row by row, top to bottom, left to right). Safari
+ * tabs to buttons with Option-Tab (nextFocusKey).
  */
 async function sheetTabOrder(page) {
   await page.locator('.re-node-map .re-node').last().focus();
   const visited = [];
   for (let i = 0; i < 12; i++) {
-    await page.keyboard.press('Tab');
+    await page.keyboard.press(nextFocusKey(page));
     const inSheet = await page.evaluate(() => {
       const el = document.activeElement;
       const side = document.querySelector('.re-node-map .re-node-side');

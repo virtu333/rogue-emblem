@@ -682,13 +682,15 @@ for (const [width, height] of [
       await expectClassInert(page, 'roster');
     });
 
-    test('compendium keeps list and detail side by side', async ({ page }) => {
+    test('compendium keeps list and detail side by side', async ({ page, browserName }) => {
       await openTitleReference(page, 'compendium');
       const dialog = page.getByRole('dialog', { name: 'Compendium', exact: true });
       const entry = dialog.locator('[data-focus="entry-1"]');
       await entry.tap();
-      // Landscape never goes master -> detail: the list stays, focus stays on it.
-      await expect(entry).toBeFocused();
+      // Landscape never goes master -> detail: the list stays, focus stays on it. Safari
+      // never focuses a tapped or clicked button, so WebKit checks the choice alone.
+      await expect(entry).toHaveAttribute('aria-pressed', 'true');
+      if (browserName !== 'webkit') await expect(entry).toBeFocused();
       await expect(dialog.getByRole('button', { name: 'Back to list' })).toHaveCount(0);
       await expectPins(page, size, 'compendium');
       await expectClassInert(page, 'compendium');

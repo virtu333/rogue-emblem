@@ -26,7 +26,6 @@ import {
   NOTCH_PORTRAIT,
   phone,
   quietSettings,
-  emulateSafeArea,
   expectPortraitUi,
   expectNoSidewaysScroll,
   expectTappable,
@@ -34,6 +33,7 @@ import {
   clippedText,
   expectInsideSafeArea,
   pageErrors,
+  safeAreaInsets,
 } from './portraitHelpers.js';
 import { waitForScene, installSimPad, padTap } from './helpers.js';
 
@@ -307,7 +307,7 @@ for (const viewport of PORTRAIT_PHONES) {
       page,
     }, info) => {
       const errors = pageErrors(page);
-      if (insets) expect(await emulateSafeArea(page, insets)).toBe(true);
+      if (insets) await safeAreaInsets(page, insets);
       await bootRoute(page);
       await expectPortraitUi(page);
       await seedBags(page);
@@ -375,7 +375,7 @@ for (const viewport of PORTRAIT_PHONES) {
     });
 
     test('two full bags: each holder shows its five slots whole', async ({ page }) => {
-      if (insets) expect(await emulateSafeArea(page, insets)).toBe(true);
+      if (insets) await safeAreaInsets(page, insets);
       await bootRoute(page);
       await seedBags(page, { seraFull: true });
       const { menu } = await tradeWith(page, 'Sera');
@@ -394,7 +394,7 @@ for (const viewport of PORTRAIT_PHONES) {
       page,
     }, info) => {
       const errors = pageErrors(page);
-      if (insets) expect(await emulateSafeArea(page, insets)).toBe(true);
+      if (insets) await safeAreaInsets(page, insets);
       await bootRoute(page);
       // Eighteen convoy weapons, staves among them (a convoy staff has no wielder).
       await seedBags(page, { convoy: 18 });
@@ -512,7 +512,7 @@ for (const viewport of PORTRAIT_PHONES) {
     test('accessories: three bag tabs fit the row, and the swap moves the stats', async ({
       page,
     }, info) => {
-      if (insets) expect(await emulateSafeArea(page, insets)).toBe(true);
+      if (insets) await safeAreaInsets(page, insets);
       await bootRoute(page);
       await seedBags(page, { accessories: true });
       const before = (await bags(page)).live;
@@ -646,7 +646,7 @@ test.describe('upright battle trade', () => {
     page,
   }, info) => {
     const errors = pageErrors(page);
-    expect(await emulateSafeArea(page, NOTCH_PORTRAIT)).toBe(true);
+    await safeAreaInsets(page, NOTCH_PORTRAIT);
     await quietSettings(page);
     // battleLab=1: the dev fixture map for this preset (Edric at 3,3 beside Sera at 2,3).
     await page.goto('/?devScene=battle&preset=combat_actions&seed=42&battleLab=1');
