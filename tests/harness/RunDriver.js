@@ -333,6 +333,7 @@ export class RunDriver {
         if (
           button.disabled ||
           ['View map', 'Roster'].includes(label) ||
+          / details$/.test(label) || // a fallen ally's unit sheet (church revive list)
           button.attributes['aria-pressed'] === 'true'
         )
           return [];
