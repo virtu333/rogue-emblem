@@ -190,5 +190,77 @@
     },
     "duration": 5,
     "prompt": "The young swordsman stands still, sword low, and slowly raises his head to look up toward the sky ahead, resolved. The teal cloak and his shaggy hair move in a steady wind. Small breathing movement. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera cuts, no zoom, no text."
+  },
+  "warden_thrust": {
+    "cutout": "f_warden_poses_1_guard_spear.webp",
+    "place": {
+      "h": 0.6812,
+      "x": 0.6279,
+      "y": 0.9217
+    },
+    "last": {
+      "cutout": "f_warden_poses_2_thrust.webp",
+      "place": {
+        "h": 0.6493,
+        "x": 0.4693,
+        "y": 0.9217
+      }
+    },
+    "duration": 5,
+    "prompt": "Side view. The armoured imperial spearman in black iron helm and crimson tabard, facing LEFT, waits in a low guard, feet wide and planted, the spear levelled to the left. For the first second he holds almost perfectly still, patient, only the tattered crimson skirts stirring. Then a slow anticipation: his weight sinks onto the rear leg and the spear draws back a little. Then one very fast strike: his front knee drives forward and he thrusts the spear straight out to the left at full reach in a single snap, the whole body stretching into one straight diagonal with the rear leg straight, the spear shaft sliding through his front hand, the crimson skirts whipping behind him. He holds the full extension for a beat with a slight tremor, then stays there. His feet stay on the same spot; the spear stays level and straight; the figure stays whole in frame. Keep exactly the art style of the first frame: dense flat iron-gall black plate and crimson lacquer cloth, fully coloured, thick outer contour, fine ink lines. 2D hand-drawn anime animation, camera locked off. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera movement, no zoom, no camera cuts, no new objects, no text."
+  },
+  "warden_yield_cut": {
+    "cutout": "f_warden_cut_1_yield.webp",
+    "place": {
+      "h": 0.8396,
+      "x": 0.479,
+      "y": 0.9473
+    },
+    "last": {
+      "cutout": "f_warden_cut_3_cut.webp",
+      "place": {
+        "h": 0.7121,
+        "x": 0.4916,
+        "y": 0.9643
+      }
+    },
+    "duration": 5,
+    "prompt": "Side view. The armoured imperial spearman in black iron helm and crimson cloak, facing LEFT, steps back and away with the spear shaft held across his body, turning it as if giving way to a push, his rear foot reaching behind him. He plants that foot, then in one continuous movement whips the spear up and over his right shoulder in both hands, point down and back, a brief wind-up held for a moment with the body coiled. Then a very fast downward cut: the spear blade sweeps down and across to the low right in a single snap, his body turning with it, and the long crimson cloak swings on after it in a big arc. The follow-through settles slowly, the cloak still settling at the end. The figure stays whole in frame; nothing else appears. Keep exactly the art style of the first frame: dense flat iron-gall black plate and crimson lacquer cloth, fully coloured, thick outer contour, fine ink lines. 2D hand-drawn anime animation, camera locked off. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera movement, no zoom, no camera cuts, no new objects, no text."
+  },
+  "edric_slide_burst": {
+    "cutout": "f_edric_slide_burst_1_slide.webp",
+    "place": {
+      "h": 0.49,
+      "x": 0.3591,
+      "y": 0.9493
+    },
+    "last": {
+      "cutout": "f_edric_slide_burst_3_rising_cut.webp",
+      "place": {
+        "h": 0.888,
+        "x": 0.5145,
+        "y": 0.9503
+      }
+    },
+    "duration": 5,
+    "prompt": "Side view. The young swordsman with shaggy brown hair and a teal cloak, facing RIGHT, is sliding low along the ground on his back leg, one leg stretched out in front, the longsword held back low in his right hand, the cloak billowing behind him. He slides on for a moment, coiling, then in one explosive burst he pushes up off his bent knee, rising fast and driving forward to the right, the cloak whipping up behind him, and finishes in a rising cut: the sword sweeping up in a big arc to point high up and forward to the upper right, front leg braced, body stretched in a long diagonal, the cloak streaming behind. Strong anticipation, a fast burst, then a short held follow-through. The figure stays whole in frame. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation, camera locked off. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera movement, no zoom, no camera cuts, no new objects, no text."
+  },
+  "edric_slip_fall": {
+    "cutout": "f_edric_slip_fall_1_overbalance.webp",
+    "place": {
+      "h": 0.7733,
+      "x": 0.6047,
+      "y": 0.9546
+    },
+    "last": {
+      "cutout": "f_edric_slip_fall_3_fall.webp",
+      "place": {
+        "h": 0.6233,
+        "x": 0.4755,
+        "y": 0.8719
+      }
+    },
+    "duration": 5,
+    "prompt": "Side view. The young swordsman with shaggy brown hair and a teal cloak, facing RIGHT, is overbalanced, pitched forward mid-stride with his free hand reaching out and the sword in his other hand. He slips: his foot goes from under him, then a heavy unseen blow hits him from the front, snapping his head back, his mouth open in shock, his body arching backward, the sword flying loose from his hand and tumbling away, the teal cloak billowing up. He falls backwards, arms flung out, body turning until he is lying almost horizontal on his back in the air, legs kicked up, head to the left, the cloak spread beneath him. Fast slip, sharp impact, then a slow floating fall. The figure stays whole in frame. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation, camera locked off. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera movement, no zoom, no camera cuts, no new objects, no text."
   }
 }

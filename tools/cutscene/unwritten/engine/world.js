@@ -17,6 +17,12 @@
 //   world.render(frame, t, cam, { stage, actors, impulses, rain, foreground, ... });
 //   world.splashAt(frame, cam, X, Z, t, t0, strength);   // after render: depth-tested
 //   world.spraySheet(frame, cam, { X, Z, age, ... });
+//   world.groundY(X, Z), world.waterDepth(X, Z)          // for feet on the riverbed
+//   world.pick(cam, sx, sy)                              // screen -> ground or water
+//
+// Cameras: project, unproject, lookAt, orbit, crane, lerpCam, nudge (screen shake).
+// Also impulse (a shock wave for render), foregroundRow (maemono along a line) and
+// smearFrame (a whip pan's drag). world.prof holds the last frame's per-pass times (ms).
 //
 // How it is drawn: every pixel casts a ray. Rays that hit the ground find the river (a
 // trench along Z with sloped banks) or the bank top; the rest meet ridge "curtains" on
@@ -365,7 +371,8 @@ let TEX = null;
 /** The noise textures, built once per page (a few tens of ms). */
 function textures() {
   if (TEX) return TEX;
-  // clouds: gently domain-warped fbm, masses a few hundred metres across
+  // clouds: fbm domain-warped twice (folds within folds, after Quilez), masses a few
+  // hundred metres across; sampled stretched along the wind
   const N = 256;
   const cl = new Float32Array(N * N);
   for (let j = 0; j < N; j++)
@@ -374,9 +381,17 @@ function textures() {
       const y = (j / N) * 5;
       const q1 = tfbm(x, y, 5, 5, 31, 2);
       const q2 = tfbm(x + 3.7, y + 1.9, 5, 5, 37, 2);
-      cl[j * N + i] = tfbm(x + 1.1 * q1, y + 1.1 * q2, 5, 5, 41, 4);
+      const r1 = tfbm(x + 1.3 * q1 + 1.7, y + 1.3 * q2 + 9.2, 5, 5, 43, 2);
+      const r2 = tfbm(x + 1.3 * q1 + 8.3, y + 1.3 * q2 + 2.8, 5, 5, 47, 2);
+      cl[j * N + i] = tfbm(x + 1.2 * r1, y + 1.2 * r2, 5, 5, 41, 4);
     }
   stretch01(cl);
+  // the sky's own unevenness by direction (azimuth x height): haze that wanders
+  const skyv = new Float32Array(256 * 48);
+  for (let j = 0; j < 48; j++)
+    for (let i = 0; i < 256; i++)
+      skyv[j * 256 + i] = tfbm((i / 256) * 6, (j / 48) * 4, 6, 64, 83, 3);
+  stretch01(skyv);
   // ground blotches (grass tones, mud, pebbles, the ridges' brush)
   const gr = new Float32Array(N * N);
   for (let j = 0; j < N; j++)
@@ -415,7 +430,7 @@ function textures() {
     wv[k * 3 + 1] = gz[k];
     wv[k * 3 + 2] = hw[k];
   }
-  TEX = { cloud: mipChain(cl, N), ground: mipChain(gr, N), M, wv, streak: st, rc };
+  TEX = { cloud: mipChain(cl, N), ground: mipChain(gr, N), M, wv, streak: st, rc, skyv };
   return TEX;
 }
 
@@ -482,15 +497,15 @@ const RIDGES = [
     amp: 125,
     freq: 2.2,
     seed: 23,
-    valley: 0.65,
-    drop: 12,
+    valley: 0.4,
+    drop: 4,
     ridged: 0.6,
     env: 0.8,
     envFreq: 1.1,
     ink: -0.1,
-    lit: [160, 155, 156],
-    sh: [142, 137, 145],
-    mist: 34,
+    lit: [158, 153, 154],
+    sh: [139, 134, 142],
+    mist: 22,
     skew: 1.2,
     brush: 0.03,
   },
@@ -506,9 +521,9 @@ const RIDGES = [
     env: 0.7,
     envFreq: 0.9,
     ink: -0.2,
-    lit: [178, 172, 173],
-    sh: [162, 157, 165],
-    mist: 90,
+    lit: [176, 170, 171],
+    sh: [159, 154, 162],
+    mist: 60,
     skew: 1.1,
     brush: 0,
   },
@@ -630,12 +645,45 @@ function makeStones(seed) {
 /**
  * The world. o: { paper (the page, W*H RGBA; required), W, H, seed, sun: { az, el, r }
  * (direction of the Hollow Sun, radians; r its angular radius), flow (m/s),
- * wind: { dir (radians, the direction it blows toward), strength }, stones (extra) }.
+ * wind: { dir (radians, the direction it blows toward), strength }, stones (extra:
+ * { X, Z, a, c (half sizes, m), top (m above water), ry, yaw, slick }),
+ * cloudOffset: [x, z] (m: which stretch of cloud is overhead) }.
+ * Build once per piece (a few hundred ms), after the page exists.
  */
 export class World {
   constructor(o = {}) {
     this.W = o.W ?? 480;
     this.H = o.H ?? 270;
+    // every scratch field exists from the start, as a double where it holds numbers:
+    // a field added (or retyped) mid-render changes the object's shape and throws the
+    // optimised code away, which costs whole frames in the browser
+    this._el = 0.5;
+    this._er = 0.5;
+    this._ht = 0.5;
+    this._hx = 0.5;
+    this._hz = 0.5;
+    this._htype = 0;
+    this._bt = 0.5;
+    this._ri = 0;
+    this._ca = 0.5;
+    this._st = 0.5;
+    this._sn = new Float32Array(3);
+    this._px = 0.5;
+    this._pz = 0.5;
+    this._rp = new Float32Array(15);
+    this.F = 360.5;
+    this.t = 0.5;
+    this.t2 = 0.5;
+    this.rain = 0.5;
+    this.cloudTh = 0.5;
+    this.cloudWX = 22.5;
+    this.cloudWZ = -9.5;
+    this.impulses = [];
+    this.prof = {};
+    this.sunBox = null;
+    this.reflSunBox = null;
+    this.frameNo = 0;
+    this.last = null;
     this.paper = o.paper;
     this.seed = o.seed ?? 3;
     this.sun = { az: 0.06, el: 0.33, r: 0.075, ...(o.sun || {}) };
@@ -666,6 +714,7 @@ export class World {
     this.gX = new Float32Array(N);
     this.gZ = new Float32Array(N);
     this.gType = new Uint8Array(N);
+    this.ridx = new Uint16Array(N); // the ridge profile index seen (edge quality)
     this.gEL = new Float32Array(N); // the river's edges at the hit
     this.gER = new Float32Array(N);
     this.zbuf = new Float32Array(N);
@@ -677,7 +726,6 @@ export class World {
     this.refl = new Uint8ClampedArray(N * 4);
     this.reflId = new Uint8Array(N);
     this.rstamp = new Uint32Array(N); // which frame computed each reflection pixel
-    this.frameNo = 0;
     this.rmark = new Uint8Array(N); // water already darkened by a reed's reflection
     this.stg = new Uint8Array(N);
     this.tmp = new Uint8ClampedArray(N * 4);
@@ -691,7 +739,9 @@ export class World {
       for (let x = 0; x < W; x++) this.thr[y * W + x] = 0.8 * mask[y * W + x] + 0.2 * bayer(x, y);
     this.col = new Float32Array(3);
     this.bgOut = new Float32Array(3);
-    this.last = null;
+    this.B = basis({ x: 0, y: 1.5, z: -10, yaw: 0, pitch: 0, roll: 0, focal: 360 }, W, H);
+    this.mistTab = this.ridges.map(() => new Float32Array(512));
+    this.mtMirror = this.ridges.map(() => 0.5);
   }
 
   // ---------------------------------------------------------------- geometry
@@ -1190,17 +1240,26 @@ export class World {
    * Draw the world into frame (W*H RGBA) at time t through camera cam.
    * opts:
    *   stage       paint stage 0 wash .. 1 lines .. 2 pencil .. 3 paper (fractional ok)
-   *   actors      [{ X, Z, height (m, the layer's full height), layer | layerFor(px),
-   *                  place(x, y, scale) (a Motion's placement), Y (feet height, default
-   *                  the ground/riverbed), xf (extra placement: flip, rot...), opts
-   *                  (drawSprite options), wade (default true), reflect (default true),
-   *                  shadow (default true), stage, rings (0..1 wading rings), flat
-   *                  ({ yaw }: lying on the water, seen from above), sink (0..1) }]
+   *   actors      [{ X, Z, height (m, the layer's full height), layer | layerFor(px)
+   *                  (given the figure's on-screen height, returns a layer built near
+   *                  it), place(x, y, scale) (a Motion's placement), Y (feet height,
+   *                  default the ground or riverbed: in water the feet stand on the bed
+   *                  and the surface crosses the legs), xf (extra placement: flip,
+   *                  rot...), opts (drawSprite options), wade / reflect / shadow
+   *                  (default true), stage (own paint stage), rings (0..1 wading rings),
+   *                  seed, flat ({ yaw }: lying on the water, seen from above), sink
+   *                  (0..1, how much of a flat actor the water covers),
+   *                  draw(buf, { W, H, xf, feet, head, scale, stage, paper, t }) to draw
+   *                  in code instead of a layer (write RGBA with alpha > 0; box
+   *                  [x0, y0, x1, y1] limits the work) }]. Depth-tested per pixel
+   *                  against reeds, stones, banks and each other.
    *   impulses    [impulse(x, z, t0, strength)]: shock rings, reeds flattened outward
    *   rain        0..1 (default 0.6); rainWind [wx, wz] m/s
    *   wind        gust strength multiplier (default 1)
-   *   foreground  [{ X, Z, kind: 'reeds' | 'stone', h, seed }] near-lens silhouettes
-   *   splashes    [{ X, Z, t0, strength, seed }]; sprays [{ X, Z, age, ... }]
+   *   foreground  [{ X, Z, kind: 'reeds' | 'stone', h, Y, seed }] near-lens silhouettes
+   *               (foregroundRow builds a row of them)
+   *   splashes    [{ X, Z, t0, strength, seed }]; sprays [{ X, Z, age, ... }] (same as
+   *               calling splashAt / spraySheet after render)
    *   clouds      coverage 0..1 (default 0.5)
    */
   render(frame, t, cam, o = {}) {
@@ -1224,10 +1283,13 @@ export class World {
     this.t2 = t2;
     const cov = o.clouds ?? 0.5;
     this.cloudTh = 0.72 - cov * 0.36;
-    this.cloudWX = 22;
-    this.cloudWZ = -9;
+    this.cloudWX = 22.5;
+    this.cloudWZ = -9.5;
     this.cloudOX = o.cloudOffset?.[0] ?? 2600;
     this.cloudOZ = o.cloudOffset?.[1] ?? 900;
+    const wl = Math.hypot(this.cloudWX, this.cloudWZ);
+    this.windU = this.cloudWX / wl;
+    this.windV = this.cloudWZ / wl;
     this.rain = o.rain ?? 0.6;
     this.impulses = o.impulses || [];
     // drifting mist heights around each ridge circle
@@ -1447,6 +1509,7 @@ export class World {
         if (id) {
           this.ids[i] = id;
           this.zbuf[i] = this._bt * this.il[i];
+          if (id >= ID_RIDGE) this.ridx[i] = this._ri;
           let r = out[0];
           let g = out[1];
           let b = out[2];
@@ -1485,11 +1548,17 @@ export class World {
           // a slope faces the camera more than the flat ground: finer footprint
           this.shadeBank(i, X, Z, gt, type === 3 ? fpA * 2.2 : fpL, type, c);
         }
-        // aerial perspective over the ground
-        const fog = gt / (gt + 240);
-        const r = c[0] + (HAZE[0] - c[0]) * fog;
-        const g = c[1] + (HAZE[1] - c[1]) * fog;
-        const b = c[2] + (HAZE[2] - c[2]) * fog;
+        // aerial perspective over the ground: the haze thickens unevenly round the
+        // horizon and turns to mist far off, so the far edge is never a ruled line
+        let fog = gt / (gt + 240);
+        if (gt > 40) fog = Math.min(1, fog * (0.7 + 0.6 * this.skyVar(atan2f(dx, dz), 0.02)));
+        const fm = gt > 60 ? Math.min(1, (gt - 60) / 400) : 0;
+        const hr = HAZE[0] + (MIST[0] - HAZE[0]) * fm;
+        const hg = HAZE[1] + (MIST[1] - HAZE[1]) * fm;
+        const hb = HAZE[2] + (MIST[2] - HAZE[2]) * fm;
+        const r = c[0] + (hr - c[0]) * fog;
+        const g = c[1] + (hg - c[1]) * fog;
+        const b = c[2] + (hb - c[2]) * fog;
         frame[o] = paper[o] * r * KR;
         frame[o + 1] = paper[o + 1] * g * KG;
         frame[o + 2] = paper[o + 2] * b * KB;
@@ -2039,26 +2108,34 @@ export class World {
               ln = 1;
               pc = Math.max(pc, za < 14 ? 1 : 0);
             }
-          } else if (a >= ID_RIDGE && a < ID_RIDGE + 4) {
+          } else if (a >= ID_RIDGE && a < ID_RIDGE + 5) {
             if ((b < ID_RIDGE || b > a) && b < ID_BANK) {
+              // only the found stretches of a contour are inked; soft ones bleed, lost
+              // ones melt into the haze (bg), and the drawing keeps them thinner
               const li = a - ID_RIDGE;
+              const eq = this.ridges[li].eq[this.ridx[i] >> 3];
+              const found = eq > 0.5;
+              const keep = eq > 0.22 ? 1 : 0.45;
               if (li === 0) {
-                wash = Math.max(wash, 1);
-                ln = 1;
-                pc = 1;
+                if (found) wash = Math.max(wash, 1);
+                ln = Math.max(ln, keep);
+                pc = Math.max(pc, found ? 1 : 0);
               } else if (li === 1) {
-                wash = Math.max(wash, 2.55);
-                ln = Math.max(ln, 1);
-                pc = Math.max(pc, 0.5);
-              } else ln = Math.max(ln, li === 2 ? 0.7 : 0.4);
+                if (found) wash = Math.max(wash, 2.5);
+                ln = Math.max(ln, keep * 0.9);
+                pc = Math.max(pc, found ? 0.5 : 0);
+              } else ln = Math.max(ln, keep * (li === 2 ? 0.7 : 0.4));
             }
           } else if (a === ID_SUN && b !== ID_SUN) {
             // drawn in code: its ring stays as a line when the paint lifts
             ln = 1;
             pc = 1;
           } else if (a === ID_THICK && b === ID_SKY) {
-            wash = Math.max(wash, 2.5);
-            ln = Math.max(ln, 0.85);
+            // cloud cores: inked here and there, never all round
+            const az = atan2f(this.rdx[i], this.rdz[i]);
+            const cq = valueNoise(az * 7 + 11, this.rdy[i] * 9, 77);
+            if (cq > 0.5) wash = Math.max(wash, 2.5);
+            ln = Math.max(ln, cq > 0.3 ? 0.85 : 0.3);
           } else if ((a === ID_BANK || a === ID_SLOPE) && b === ID_WATER) {
             const k = 1 - smooth(8, 40, za);
             if (k > 0) {
@@ -2214,9 +2291,11 @@ export class World {
         let py = by;
         let pz = bz;
         const seg = h / 4;
+        const curl = 1.05 + 0.9 * ((ph * 7.3) % 1);
+        const press = 0.5 + 0.5 * ((ph * 3.1) % 1);
         for (let k = 0; k <= 4; k++) {
           if (k > 0) {
-            const phi = th * ((k - 0.5) / 4) ** 1.3;
+            const phi = th * ((k - 0.5) / 4) ** curl;
             const sp = Math.sin(phi) * seg;
             px += tx * sp;
             pz += tz * sp;
@@ -2266,6 +2345,8 @@ export class World {
               continue;
             }
             if (zz >= zbuf[i]) continue;
+            // the pen lifts toward the tip, some blades pressed harder than others
+            if (ink && press * (1 - 0.18 * k) < bayer(X_ + bI, Y_) * 0.85) continue;
             zbuf[i] = zz;
             ids[i] = ID_REED;
             const o = i * 4;
@@ -2950,7 +3031,7 @@ export class World {
       [16, 420, 3.5, 12, 0.5, 0.024],
       [44, 600, 12, 40, 0.36, 0.03],
     ];
-    const fall = 8.5;
+    const fall0 = 8.5;
     const mod = (v, m) => ((v % m) + m) % m;
     for (let L = 0; L < 3; L++) {
       const [Bx, n, zmin, zmax, alpha, ex] = LAYERS[L];
@@ -2959,12 +3040,16 @@ export class World {
         const hx = hash(k, L, 301) * Bx;
         const hy = hash(k, L, 302) * Bx;
         const hz = hash(k, L, 303) * Bx;
-        let wx = wind[0];
-        let wz = wind[1];
+        // every drop its own speed and drift
+        const fall = fall0 * (0.8 + 0.4 * hash(k, L, 304));
+        let wx = wind[0] * (0.7 + 0.6 * hash(k, L, 305));
+        let wz = wind[1] * (0.7 + 0.6 * hash(k, L, 306));
         const X = ox - Bx / 2 + mod(hx + wx * t - (ox - Bx / 2), Bx);
         const Y = oy - Bx / 2 + mod(hy - fall * t - (oy - Bx / 2), Bx);
         const Z = oz - Bx / 2 + mod(hz + wz * t - (oz - Bx / 2), Bx);
         if (Y < 0) continue;
+        // the rain comes in sheets: thinner between the gusts
+        if (hash(k, L, 309) > 0.3 + 0.9 * valueNoise(X * 0.07 - t * 0.5, Z * 0.07, 91)) continue;
         if (this.impulses.length) {
           this.push(X, Z, t);
           wx += this._px * 9;
@@ -2979,9 +3064,10 @@ export class World {
         const sx = cx + (vx * rx + vy * ry + vz * rz) * iz;
         const sy = cy - (vx * ux + vy * uy + vz * uz) * iz;
         if (sx < -20 || sx > W + 20 || sy < -40 || sy > H + 20) continue;
-        const qx = vx - wx * ex;
-        const qy = vy + fall * ex;
-        const qz = vz - wz * ex;
+        const exk = ex * (0.7 + 0.6 * hash(k, L, 307));
+        const qx = vx - wx * exk;
+        const qy = vy + fall * exk;
+        const qz = vz - wz * exk;
         const z2 = qx * fx + qy * fy + qz * fz;
         if (z2 < NEAR) continue;
         const iz2 = F / z2;

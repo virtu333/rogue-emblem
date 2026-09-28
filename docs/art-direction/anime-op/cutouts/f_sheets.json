@@ -1,0 +1,475 @@
+{
+ "warden_poses": {
+  "source": "docs/art-direction/anime-op/batch-7/f_warden_poses.png",
+  "sheet": [
+   1536,
+   1024
+  ],
+  "facing": -1,
+  "ground": 835.0,
+  "scale": 1,
+  "note": "1 cut-out px = 1 sheet px; place anchorSheet.y on the ground and use one scale for the whole sheet",
+  "cutouts": [
+   {
+    "file": "f_warden_poses_1_guard.webp",
+    "pose": "guard",
+    "n": 1,
+    "box": [
+     52,
+     274,
+     475,
+     577
+    ],
+    "anchor": [
+     217.2,
+     560.0
+    ],
+    "anchorSheet": [
+     269.2,
+     834.0
+    ],
+    "size": [
+     475,
+     577
+    ],
+    "figure": [
+     16,
+     16,
+     443,
+     545
+    ],
+    "pixels": 91246
+   },
+   {
+    "file": "f_warden_poses_2_thrust.webp",
+    "pose": "thrust",
+    "n": 2,
+    "box": [
+     20,
+     301,
+     1005,
+     550
+    ],
+    "anchor": [
+     736.9,
+     533.0
+    ],
+    "anchorSheet": [
+     756.9,
+     834.0
+    ],
+    "size": [
+     1005,
+     550
+    ],
+    "figure": [
+     16,
+     16,
+     973,
+     518
+    ],
+    "pixels": 97644
+   },
+   {
+    "file": "f_warden_poses_3_recover.webp",
+    "pose": "recover",
+    "n": 3,
+    "box": [
+     822,
+     264,
+     483,
+     589
+    ],
+    "anchor": [
+     334.7,
+     572.0
+    ],
+    "anchorSheet": [
+     1156.7,
+     836.0
+    ],
+    "size": [
+     483,
+     589
+    ],
+    "figure": [
+     16,
+     16,
+     451,
+     557
+    ],
+    "pixels": 83204
+   },
+   {
+    "file": "f_warden_poses_4_decide.webp",
+    "pose": "decide",
+    "n": 4,
+    "box": [
+     1286,
+     68,
+     230,
+     786
+    ],
+    "anchor": [
+     130.2,
+     769.0
+    ],
+    "anchorSheet": [
+     1416.2,
+     837.0
+    ],
+    "size": [
+     230,
+     786
+    ],
+    "figure": [
+     16,
+     16,
+     198,
+     754
+    ],
+    "pixels": 78318
+   },
+   {
+    "file": "f_warden_poses_1_guard_spear.webp",
+    "pose": "guard_spear",
+    "n": 1,
+    "variantOf": "guard",
+    "box": [
+     20,
+     274,
+     507,
+     577
+    ],
+    "anchor": [
+     249.2,
+     560.0
+    ],
+    "anchorSheet": [
+     269.2,
+     834.0
+    ],
+    "size": [
+     507,
+     577
+    ],
+    "figure": [
+     16,
+     16,
+     475,
+     545
+    ],
+    "pixels": 94876
+   }
+  ]
+ },
+ "warden_cut": {
+  "source": "docs/art-direction/anime-op/batch-7/f_warden_cut.png",
+  "sheet": [
+   1536,
+   1024
+  ],
+  "facing": -1,
+  "ground": 922.0,
+  "scale": 1,
+  "note": "1 cut-out px = 1 sheet px; place anchorSheet.y on the ground and use one scale for the whole sheet",
+  "cutouts": [
+   {
+    "file": "f_warden_cut_1_yield.webp",
+    "pose": "yield",
+    "n": 1,
+    "box": [
+     3,
+     39,
+     528,
+     889
+    ],
+    "anchor": [
+     303.5,
+     872.0
+    ],
+    "anchorSheet": [
+     306.5,
+     911.0
+    ],
+    "size": [
+     528,
+     889
+    ],
+    "figure": [
+     16,
+     16,
+     496,
+     857
+    ],
+    "pixels": 187995
+   },
+   {
+    "file": "f_warden_cut_2_windup.webp",
+    "pose": "windup",
+    "n": 2,
+    "box": [
+     468,
+     0,
+     544,
+     943
+    ],
+    "anchor": [
+     247.1,
+     926.0
+    ],
+    "anchorSheet": [
+     715.1,
+     926.0
+    ],
+    "size": [
+     544,
+     943
+    ],
+    "figure": [
+     16,
+     7,
+     512,
+     920
+    ],
+    "pixels": 195339
+   },
+   {
+    "file": "f_warden_cut_3_cut.webp",
+    "pose": "cut",
+    "n": 3,
+    "box": [
+     983,
+     192,
+     553,
+     754
+    ],
+    "anchor": [
+     292.4,
+     730.0
+    ],
+    "anchorSheet": [
+     1275.4,
+     922.0
+    ],
+    "size": [
+     553,
+     754
+    ],
+    "figure": [
+     16,
+     16,
+     527,
+     722
+    ],
+    "pixels": 199873
+   }
+  ]
+ },
+ "edric_slide_burst": {
+  "source": "docs/art-direction/anime-op/batch-7/f_edric_slide_burst.png",
+  "sheet": [
+   1536,
+   1024
+  ],
+  "facing": 1,
+  "ground": 884.0,
+  "scale": 1,
+  "note": "1 cut-out px = 1 sheet px; place anchorSheet.y on the ground and use one scale for the whole sheet",
+  "cutouts": [
+   {
+    "file": "f_edric_slide_burst_1_slide.webp",
+    "pose": "slide",
+    "n": 1,
+    "box": [
+     0,
+     410,
+     774,
+     490
+    ],
+    "anchor": [
+     401.4,
+     473.0
+    ],
+    "anchorSheet": [
+     401.4,
+     883.0
+    ],
+    "size": [
+     774,
+     490
+    ],
+    "figure": [
+     13,
+     16,
+     745,
+     458
+    ],
+    "pixels": 159358
+   },
+   {
+    "file": "f_edric_slide_burst_2_rise.webp",
+    "pose": "rise",
+    "n": 2,
+    "box": [
+     456,
+     185,
+     549,
+     716
+    ],
+    "anchor": [
+     411.2,
+     699.0
+    ],
+    "anchorSheet": [
+     867.2,
+     884.0
+    ],
+    "size": [
+     549,
+     716
+    ],
+    "figure": [
+     16,
+     16,
+     517,
+     684
+    ],
+    "pixels": 151513
+   },
+   {
+    "file": "f_edric_slide_burst_3_rising_cut.webp",
+    "pose": "rising_cut",
+    "n": 3,
+    "box": [
+     957,
+     13,
+     579,
+     888
+    ],
+    "anchor": [
+     347.0,
+     871.0
+    ],
+    "anchorSheet": [
+     1304.0,
+     884.0
+    ],
+    "size": [
+     579,
+     888
+    ],
+    "figure": [
+     16,
+     16,
+     550,
+     856
+    ],
+    "pixels": 186281
+   }
+  ]
+ },
+ "edric_slip_fall": {
+  "source": "docs/art-direction/anime-op/batch-7/f_edric_slip_fall.png",
+  "sheet": [
+   1536,
+   1024
+  ],
+  "facing": 1,
+  "ground": 828.0,
+  "scale": 1,
+  "note": "1 cut-out px = 1 sheet px; place anchorSheet.y on the ground and use one scale for the whole sheet",
+  "cutouts": [
+   {
+    "file": "f_edric_slip_fall_1_overbalance.webp",
+    "pose": "overbalance",
+    "n": 1,
+    "box": [
+     5,
+     191,
+     587,
+     655
+    ],
+    "anchor": [
+     300.5,
+     637.0
+    ],
+    "anchorSheet": [
+     305.5,
+     828.0
+    ],
+    "size": [
+     587,
+     655
+    ],
+    "figure": [
+     16,
+     16,
+     555,
+     623
+    ],
+    "pixels": 162460
+   },
+   {
+    "file": "f_edric_slip_fall_2_struck.webp",
+    "pose": "struck",
+    "n": 2,
+    "box": [
+     513,
+     154,
+     469,
+     693
+    ],
+    "anchor": [
+     223.6,
+     676.0
+    ],
+    "anchorSheet": [
+     736.6,
+     830.0
+    ],
+    "size": [
+     469,
+     693
+    ],
+    "figure": [
+     16,
+     16,
+     437,
+     661
+    ],
+    "pixels": 131052
+   },
+   {
+    "file": "f_edric_slip_fall_3_fall.webp",
+    "pose": "fall",
+    "n": 3,
+    "box": [
+     892,
+     248,
+     644,
+     528
+    ],
+    "anchor": [
+     382.4,
+     499.0
+    ],
+    "anchorSheet": [
+     1274.4,
+     747.0
+    ],
+    "size": [
+     644,
+     528
+    ],
+    "figure": [
+     16,
+     16,
+     619,
+     496
+    ],
+    "pixels": 167740
+   }
+  ]
+ }
+}
