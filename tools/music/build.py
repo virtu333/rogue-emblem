@@ -71,8 +71,15 @@ def list_modules(folder):
                   if f.endswith('.py') and not f.startswith('_'))
 
 
+def is_draft(name):
+    """A score that declares `DRAFT = True` is an audition piece, not in the game: --all
+    leaves it out (build it by name, with --palette or --no-out, to hear it)."""
+    with open(os.path.join(HERE, 'scores', f'{name}.py')) as f:
+        return any(line.split('#')[0].replace(' ', '').strip() == 'DRAFT=True' for line in f)
+
+
 def list_scores():
-    return list_modules('scores')
+    return [n for n in list_modules('scores') if not is_draft(n)]
 
 
 def check_or_exit(score):

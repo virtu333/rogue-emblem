@@ -193,3 +193,8 @@ VOICES = {
     'sub': sub, 'pad': pad, 'shimmer': shimmer, 'drone': drone,
     'boom': boom, 'riser': riser, 'reverse': reverse_swell,
 }
+
+# the electronic voices (engine/edm.py): supersaw, 808, synth kick, risers, impacts
+from . import edm as _edm  # noqa: E402
+
+VOICES.update(_edm.VOICES)

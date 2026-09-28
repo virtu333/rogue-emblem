@@ -91,10 +91,10 @@
     "duration": 76.6,
     "loopEnd": 76.0,
     "loopStart": 10.0,
-    "lufs": -13.53,
+    "lufs": -13.5,
     "peakDb": -1.09,
     "score": "battle_act2",
-    "seamDb": -73.1,
+    "seamDb": -74.1,
     "title": "Iron Rain",
     "tonic": "C"
   },
@@ -147,9 +147,9 @@
     "loopEnd": 76.0,
     "loopStart": 10.0,
     "lufs": -17.0,
-    "peakDb": -4.95,
+    "peakDb": -4.75,
     "score": "battle_act2",
-    "seamDb": -105.3,
+    "seamDb": -111.9,
     "title": "Iron Rain",
     "tonic": "C"
   },
@@ -285,6 +285,28 @@
     "title": "Ashfall",
     "tonic": "Db"
   },
+  "music_battle_broken_sun": {
+    "duration": 94.2,
+    "loopEnd": 93.6,
+    "loopStart": 10.4,
+    "lufs": -14.0,
+    "peakDb": -1.1,
+    "score": "battle_broken_sun",
+    "seamDb": -52.4,
+    "title": "Under the Broken Sun",
+    "tonic": "E"
+  },
+  "music_battle_broken_sun_calm": {
+    "duration": 94.2,
+    "loopEnd": 93.6,
+    "loopStart": 10.4,
+    "lufs": -17.0,
+    "peakDb": -1.09,
+    "score": "battle_broken_sun",
+    "seamDb": -62.0,
+    "title": "Under the Broken Sun",
+    "tonic": "E"
+  },
   "music_battle_caravan": {
     "duration": 83.504,
     "loopEnd": 82.904127,
@@ -317,6 +339,28 @@
     "seamDb": -70.7,
     "title": "Stone That Remembers",
     "tonic": "C"
+  },
+  "music_battle_castle_2": {
+    "duration": 71.457,
+    "loopEnd": 70.857143,
+    "loopStart": 7.428571,
+    "lufs": -14.01,
+    "peakDb": -1.09,
+    "score": "battle_castle_2",
+    "seamDb": -72.4,
+    "title": "Every Voice at Its Post",
+    "tonic": "G"
+  },
+  "music_battle_castle_2_calm": {
+    "duration": 71.457,
+    "loopEnd": 70.857143,
+    "loopStart": 7.428571,
+    "lufs": -17.0,
+    "peakDb": -4.11,
+    "score": "battle_castle_2",
+    "seamDb": -82.2,
+    "title": "Every Voice at Its Post",
+    "tonic": "G"
   },
   "music_battle_castle_calm": {
     "duration": 95.509,
@@ -450,6 +494,28 @@
     "title": "One More Crossing",
     "tonic": "E"
   },
+  "music_battle_escape_2": {
+    "duration": 73.566,
+    "loopEnd": 72.96551,
+    "loopStart": 6.758617,
+    "lufs": -14.01,
+    "peakDb": -1.09,
+    "score": "battle_escape_2",
+    "seamDb": -67.4,
+    "title": "We Came This Far Also",
+    "tonic": "F"
+  },
+  "music_battle_escape_2_calm": {
+    "duration": 73.566,
+    "loopEnd": 72.96551,
+    "loopStart": 6.758617,
+    "lufs": -17.0,
+    "peakDb": -4.54,
+    "score": "battle_escape_2",
+    "seamDb": -75.3,
+    "title": "We Came This Far Also",
+    "tonic": "F"
+  },
   "music_battle_escape_calm": {
     "duration": 62.378,
     "loopEnd": 61.777778,
@@ -472,6 +538,28 @@
     "title": "What the Fog Keeps",
     "tonic": "G"
   },
+  "music_battle_fog_2": {
+    "duration": 76.523,
+    "loopEnd": 75.923061,
+    "loopStart": 8.615374,
+    "lufs": -14.0,
+    "peakDb": -1.09,
+    "score": "battle_fog_2",
+    "seamDb": -59.7,
+    "title": "Out of Step",
+    "tonic": "D"
+  },
+  "music_battle_fog_2_calm": {
+    "duration": 76.523,
+    "loopEnd": 75.923061,
+    "loopStart": 8.615374,
+    "lufs": -17.0,
+    "peakDb": -4.49,
+    "score": "battle_fog_2",
+    "seamDb": -71.1,
+    "title": "Out of Step",
+    "tonic": "D"
+  },
   "music_battle_fog_calm": {
     "duration": 100.6,
     "loopEnd": 100.0,
@@ -493,6 +581,28 @@
     "seamDb": -69.8,
     "title": "Someone Is Still Out There",
     "tonic": "F"
+  },
+  "music_battle_rescue_2": {
+    "duration": 93.541,
+    "loopEnd": 92.941179,
+    "loopStart": 10.352948,
+    "lufs": -14.01,
+    "peakDb": -1.09,
+    "score": "battle_rescue_2",
+    "seamDb": -56.4,
+    "title": "Quick, Quick, Quick, Slow",
+    "tonic": "E"
+  },
+  "music_battle_rescue_2_calm": {
+    "duration": 93.541,
+    "loopEnd": 92.941179,
+    "loopStart": 10.352948,
+    "lufs": -17.0,
+    "peakDb": -2.72,
+    "score": "battle_rescue_2",
+    "seamDb": -60.9,
+    "title": "Quick, Quick, Quick, Slow",
+    "tonic": "E"
   },
   "music_battle_rescue_calm": {
     "duration": 75.951,

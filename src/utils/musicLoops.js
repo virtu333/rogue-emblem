@@ -76,6 +76,8 @@ export const MUSIC_LOOPS = {
     duration: 77.327,
     tonic: 'Db',
   },
+  music_battle_broken_sun: { loopStart: 10.4, loopEnd: 93.6, duration: 94.2, tonic: 'E' },
+  music_battle_broken_sun_calm: { loopStart: 10.4, loopEnd: 93.6, duration: 94.2, tonic: 'E' },
   music_battle_caravan: { loopStart: 10.575351, loopEnd: 82.904127, duration: 83.504, tonic: 'E' },
   music_battle_caravan_calm: {
     loopStart: 10.575351,
@@ -84,6 +86,13 @@ export const MUSIC_LOOPS = {
     tonic: 'E',
   },
   music_battle_castle: { loopStart: 7.636372, loopEnd: 94.909093, duration: 95.509, tonic: 'C' },
+  music_battle_castle_2: { loopStart: 7.428571, loopEnd: 70.857143, duration: 71.457, tonic: 'G' },
+  music_battle_castle_2_calm: {
+    loopStart: 7.428571,
+    loopEnd: 70.857143,
+    duration: 71.457,
+    tonic: 'G',
+  },
   music_battle_castle_calm: {
     loopStart: 7.636372,
     loopEnd: 94.909093,
@@ -136,6 +145,13 @@ export const MUSIC_LOOPS = {
     tonic: 'C',
   },
   music_battle_escape: { loopStart: 8.444444, loopEnd: 61.777778, duration: 62.378, tonic: 'E' },
+  music_battle_escape_2: { loopStart: 6.758617, loopEnd: 72.96551, duration: 73.566, tonic: 'F' },
+  music_battle_escape_2_calm: {
+    loopStart: 6.758617,
+    loopEnd: 72.96551,
+    duration: 73.566,
+    tonic: 'F',
+  },
   music_battle_escape_calm: {
     loopStart: 8.444444,
     loopEnd: 61.777778,
@@ -143,8 +159,22 @@ export const MUSIC_LOOPS = {
     tonic: 'E',
   },
   music_battle_fog: { loopStart: 13.6, loopEnd: 100.0, duration: 100.6, tonic: 'G' },
+  music_battle_fog_2: { loopStart: 8.615374, loopEnd: 75.923061, duration: 76.523, tonic: 'D' },
+  music_battle_fog_2_calm: {
+    loopStart: 8.615374,
+    loopEnd: 75.923061,
+    duration: 76.523,
+    tonic: 'D',
+  },
   music_battle_fog_calm: { loopStart: 13.6, loopEnd: 100.0, duration: 100.6, tonic: 'G' },
   music_battle_rescue: { loopStart: 10.486485, loopEnd: 75.351361, duration: 75.951, tonic: 'F' },
+  music_battle_rescue_2: { loopStart: 10.352948, loopEnd: 92.941179, duration: 93.541, tonic: 'E' },
+  music_battle_rescue_2_calm: {
+    loopStart: 10.352948,
+    loopEnd: 92.941179,
+    duration: 93.541,
+    tonic: 'E',
+  },
   music_battle_rescue_calm: {
     loopStart: 10.486485,
     loopEnd: 75.351361,

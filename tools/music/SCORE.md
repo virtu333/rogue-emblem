@@ -98,6 +98,7 @@ it was heard when the wound was dealt).
 | `music_battle_tundra` | Rime | Tundra maps. 112 bpm, E: one held B survives four harmonies (9th, #11, 6th, 5th; E17) and changes colour whenever it changes meaning (violins, muted brass, clarinet, violas, a celesta strike), under a line that knows when to stop moving; the kick breathes on one and three (after *Terra's Theme*). Celesta, glock, harp harmonics; no warmth arrives |
 | `music_battle_volcano` | Caldera | Volcano maps. 120 bpm, Bb: a pedal under an E–A–Bb collection with no third, struck in a two-bar stamp with rests while only the taiko keeps the quarters, in modules with octatonic runs that land on the line's pitches and an anvil on beat 3 (after *One-Winged Angel*, E20) |
 | `music_battle_village` | Bells Over the Village | A village under attack. 3/4 at 172, A minor: the bell's E–A–A is the fiddle's call; the village answers, a few, then many, then nobody, and without the answer the harmony is stuck on A while the bell rings on (after *Steel for Humans*, *Silver for Monsters*) |
+| `music_battle_broken_sun` | Under the Broken Sun | The change-up in every act's pool. 150 bpm, E minor. The anime OP experiment (`experiments/anime_op/`, 欠けた太陽) turned into a battle theme: a J-rock band (the Emilyguitar through `engine/guitar.py`, double-tracked; the Growlybass; the kit) and the house choir on "ah". The OP's kime and the Empire drill open it; the hook (the Thread) on lead guitar; a verse over which the low choir chants the drill (E-F-E-D, then A-Bb-A-G) against palm mutes; the B-melo in half time with an accelerating roll; the chorus sung by the choir in octaves with the guitar a third below over a pumping pad; a new strain, the choir's own hymn (the Thread augmented), first alone over palm mutes, then with the band; the turnaround is the Hollow Sun: choir and guitar climb to D#, the band cuts, and three beats of silence stand where E should be. Calm: clean chorused guitars, a string pad, the clean bass, light drums |
 | `music_battle_elite` | Against the Standard | Elite companies. 168 bpm, C minor: a 7-sixteenth cell crosses the bar line over a quarter-note floor, each cell head struck by a rim click and a high marimba, re-forming only at strain starts; a unison hit stops it dead and it resumes half a bar out. The tune climbs D–Eb–F# onto a cadential 6/4 |
 | `music_battle_rescue` | Someone Is Still Out There | Recruit rescues. 148 bpm, F minor into F major: the stranger's line has the Thread's rhythm and other intervals (a cry up a seventh); the two meet, and in the last strain the army plays the stranger's line while the bass walks it into F major; the hope is in the inner voices, the major IV over F and a whole-tone shadow of the dominant over the leading tone (after *Indomitable Will*) |
 | `music_battle_eclipsed` | Totality | Nodes the Eclipse has taken. 6/8 at 72 (dotted quarter, the slowest battle), D: the Eclipse cue's bell call and its failed answers, which stay under the call and end a step from its D, never on it; each strain loses light from the top down (the high voices, the harp, the cymbals, the choir sinking), the phrases lose their breath in real 5/8 and 4/8 bars, and only the loop brings the light back |
@@ -107,6 +108,10 @@ it was heard when the wound was dealt).
 | `music_battle_act4_3` | The Name Is Not Spoken | Act IV. 176 bpm, B minor, 3/4 into 4/4: the tune that stands for a person is only ever played, never sung, a new instrument and a new key each time (clarinet in B, piano in D, horns in E), and it climbs to the leading tone and stops (the Hollow Sun). The choir sings only the Empire's public chant, a syllable a beat over a marcato ostinato; then the anthem in 4/4, the imperial drill chant ("Left, and the line") on the tonic and its semitone shadow, climbing a step at a time to end on B (not a dotted march head: that is the Emperor's, and his guard's standard), over an eight-bar modal cycle whose only leading tone is a bass walking G#–A–A#–B, built in three blocks, which falls away so the loop turns on the lone tune (after *Id ~ Purpose*) |
 | `music_battle_fog` | What the Fog Keeps | Fog of war. 100 bpm, G Dorian, no drum kit: the calm mix hears the tune only in fragments (its notes passed between distant voices, most of them missing); the full mix, when blows are exchanged, fills it in, so the crossfade is the fog lifting. A phrase's last notes come back a dotted quarter later from the other side of the room; the harmony has no third until the full mix's cadences |
 | `music_battle_caravan` | Coin and Canvas | A merchant caravan to protect. 146 bpm, E major, the first joyful battle theme: the tune states the tonic plainly (5–1–3, then a leap to the tonic an octave up) while the bass never plays E at all, sitting on IV and inversions, so the loop never closes (after *Conquest*). The wheel: the bass rolling in eighths with one missing, a strummed nylon guitar, tambourine and harness bells; B turns to C# minor over a G# pedal when the wagons can burn |
+| `music_battle_escape_2` | We Came This Far Also | Escape maps, Acts III–IV and the final act, shared in Act II. 4/4 at 174, F minor: an endless climb (a Shepard–Risset scale) in the strings, one pitch class in every octave under a loudness bell, each section climbing its two octaves and handing over without a leap, twelve octaves a loop so it returns to itself; the wrap is hidden mid-phrase, never under the tonic. Over it a head that worries the semitone above the fifth (G Ab G Ab C) and a long answer falling while the climb rises. The climb's speed is the form (one step a bar, two, then four and eight in the sprint); after it, one blow and three beats of stillness on the leading tone. Named for the oldest carving on the old kings' stair |
+| `music_battle_rescue_2` | Quick, Quick, Quick, Slow | Recruit rescues, Acts II and IV. 9/8 at 170, E Dorian: a stranger on a plucked zither (VCSL dan tranh) and a darbuka counts the bar 2+2+2+3; the army counts it 3+3+3, and learns the stranger's step one section at a time (the bass in C, the kit in D, the brass in E, the strings in F). The tune gives one note to each of the stranger's groups (E E B A C#, the long note the Dorian sixth over A). After a bar where only the stranger plays, the whole band stamps the stranger's quick-quick-quick-slow at once (bar 45). The calm mix states the army's count on soft timpani, so its change is heard there too |
+| `music_battle_fog_2` | Out of Step | Fog of war, Act II and shared in Acts III–IV. The army in D minor, 3/4 at 156, its phrases starting on beat 3 (E up a tritone to B-flat); an Imperial patrol band in B-flat, 2/4 at 117, its march cadencing on the drill at pitch (after Ives's two bands). Every band note is written twice: a far band (calm; muted, filtered, mostly hall) and a near one (full; open, dry), so the crossfade is the enemy arriving. The band quickens until its beat is the army's (bar 45: one unison D, a beat of silence, the kit), then the army's tune is forced into the march, its E bent to E-flat, and takes the E back in D2 |
+| `music_battle_castle_2` | Every Voice at Its Post | Castle maps, Act IV and shared in Act III. 4/4 at 140, G minor: a real four-voice fugue whose subject is the Empire's drill a fifth down (G Ab G F / Eb D Eb F Bb A), so every answer is the drill at its own pitch; an invertible countersubject, episodes built from its fragments, middle entries in B-flat and C minor, a stretto of five entries a bar apart, climbing (the choir takes one), and a pedal with the subject in augmentation over the Neapolitan. Strings carry the voices, winds join them at unison in the episodes; the calm mix is the fugue on the organ's quiet stops, the bass voice plucked |
 | `music_colosseum` | The Pit Answers | A dorian, 3+3+2: a fiddle calls, the crowd answers... then a few voices, then nobody |
 | `music_shrine` | What the Sun Kept | Blessing select. G major 3/4, harp and celesta, Lydian gold; the hymn still stops on the leading tone |
 | `music_explore_deep` | The Loom: Unlight | The last act's route map: Act I's loom with its notes taken away in three stages over a D drone |
@@ -182,7 +187,7 @@ Analysis dossier):
   (Ember Dusk's 3-2-1, the finale's A strain) are not that cadence and are allowed.
 - **Each new battle theme owns its mechanism** (the cue list names it): bar contraction to
   Petals on the Fen and Totality, a cross-bar cycle to Against the Standard, a pedal under a
-  third-less collection to Caldera, a held note changing meaning to Rime and the title, a stab cycle that spells the drill to The Iron Line, a reciting tone to The Consecrated, the stop bar with a pickup to The Emperor's Own, an unsung tune passed between keys to The Name Is Not Spoken, a tune revealed by the full mix to What the Fog Keeps, a bass that never gives the root to Coin and Canvas.
+  third-less collection to Caldera, a held note changing meaning to Rime and the title, a stab cycle that spells the drill to The Iron Line, a reciting tone to The Consecrated, the stop bar with a pickup to The Emperor's Own, an unsung tune passed between keys to The Name Is Not Spoken, a tune revealed by the full mix to What the Fog Keeps, a bass that never gives the root to Coin and Canvas, an endless (Shepard–Risset) climb to We Came This Far Also, the army adopting a stranger's grouping of the bar to Quick, Quick, Quick, Slow, an off-stage band in another meter to Out of Step, fugue and stretto to Every Voice at Its Post.
 
 ## Adaptive battle music
 
@@ -206,22 +211,40 @@ points, so a change of layer is a sample-aligned crossfade: the music never rest
 A battle's music answers the most specific thing true of it (`engine/BattleMusicSelection.js`):
 
 1. a boss plays its theme (the antagonists' own, else the act's);
-2. an escape map plays One More Crossing;
+2. an escape map plays a pursuit theme;
 3. a node the Eclipse has taken plays Totality; a village under attack, Bells Over the Village;
-   a recruit rescue, Someone Is Still Out There; an elite company, its act's own: Against the
-   Standard (Act I), The Iron Line (Act II), The Consecrated (Act III), The Emperor's Own (Act IV);
-4. the map's place: castles Stone That Remembers (two thirds of them), swamps The Mire,
-   tundra Rime, volcanoes Caldera;
+   a recruit rescue, a rescue theme; an elite company, its act's own: Against the Standard
+   (Act I), The Iron Line (Act II), The Consecrated (Act III), The Emperor's Own (Act IV);
+4. the map's place: castles (two thirds of them), swamps The Mire, tundra Rime, volcanoes
+   Caldera;
 5. a share of the rest: most maps with a merchant caravan to protect play Coin and Canvas; a
    third of the maps where bandits race for a village ring the village's bells; most maps in
-   fog of war play What the Fog Keeps;
+   fog of war play a fog theme;
 6. otherwise the act's pool: Act I Ember Dusk, Border Marches, Open Ground, The Oath at the
    Ford; Act II Iron Rain, Steel and Thread, Old Kingdom Roads; Act III Bleached Rite, Against
    the Rite, Petals on the Fen; Act IV Ashfall, Ember Dusk in Ash, The Name Is Not Spoken.
+   Every act's pool also holds Under the Broken Sun (the anime-opening theme turned battle),
+   the change-up: a path meets it about once an act.
+
+Escapes, rescues, castles and fog have two themes each, chosen by act (`MUSIC.escape`,
+`battleSituation`, `battleBiome`), so the same kind of battle sounds different act to act:
+
+| | Act I | Act II | Act III | Act IV and after |
+|---|---|---|---|---|
+| Escape | One More Crossing | both | We Came This Far Also | We Came This Far Also |
+| Rescue | Someone Is Still Out There | Quick, Quick, Quick, Slow | Someone Is Still Out There | Quick, Quick, Quick, Slow |
+| Castle | (none) | Stone That Remembers | both | Every Voice at Its Post |
+| Fog | What the Fog Keeps | Out of Step | both | both |
+
+Why: One More Crossing (E) stays out of Act III, where Bleached Rite is in E; the rescues
+alternate so consecutive acts differ, and Quick, Quick, Quick, Slow (an additive meter in E)
+stays out of Bleached Rite's act; the fugue sings, so it waits for Act III; Out of Step is the
+Empire's patrol, and Acts III and IV, a third and nearly half of whose battles are in fog, need
+both fog themes.
 
 Picks are hashed from the run seed, never rolled, so a resumed battle plays what it played.
-The act pool is walked in a per-run order indexed by the node's row, so a path hears no theme
-twice until the pool is spent, and every run (and the tutorial) opens on Ember Dusk.
+The act pool (and an act's pair of situation themes) is walked in a per-run order indexed by
+the node's row, so a path hears no theme twice until the pool is spent, and every run (and the tutorial) opens on Ember Dusk.
 
 ## Seamless loops
 
@@ -232,3 +255,12 @@ loop start where the intro's tails have died, so the jump is inaudible. Any cons
 MP3 decoder delay shorter than M only shifts both points by the same content offset.
 The build checks every file's seam numerically (`seamDb`, which must be under −45 dB).
 The shipped files measure between −53 and −130 dB.
+
+## Drafts (not in the game)
+
+A score that declares `DRAFT = True` is an audition: `build.py --all` leaves it out and
+`musicConfig.js` does not know it.
+
+| Score | Title | Notes |
+|---|---|---|
+| (none at the moment) | | |

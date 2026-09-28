@@ -20,15 +20,33 @@ export const MUSIC = {
   },
 
   battle: {
+    // Under the Broken Sun (the anime-opening theme as a battle) is the change-up in
+    // every act: once per act on a path, like any pool entry.
     act1: [
       'music_battle_act1',
       'music_battle_act1_2',
       'music_battle_act1_3',
       'music_battle_act1_4',
+      'music_battle_broken_sun',
     ],
-    act2: ['music_battle_act2', 'music_battle_act2_2', 'music_battle_act2_3'],
-    act3: ['music_battle_act3', 'music_battle_act3_2', 'music_battle_act3_3'],
-    act4: ['music_battle_act4', 'music_battle_act4_2', 'music_battle_act4_3'],
+    act2: [
+      'music_battle_act2',
+      'music_battle_act2_2',
+      'music_battle_act2_3',
+      'music_battle_broken_sun',
+    ],
+    act3: [
+      'music_battle_act3',
+      'music_battle_act3_2',
+      'music_battle_act3_3',
+      'music_battle_broken_sun',
+    ],
+    act4: [
+      'music_battle_act4',
+      'music_battle_act4_2',
+      'music_battle_act4_3',
+      'music_battle_broken_sun',
+    ],
     finalBoss: ['music_battle_act4'],
   },
 
@@ -47,12 +65,25 @@ export const MUSIC = {
     'The Entity': 'music_boss_entity',
   },
 
-  // Escape maps (get out before the dark closes) have their own pursuit theme.
-  escape: 'music_battle_escape',
+  // Escape maps (get out before the dark closes): One More Crossing on the
+  // border, the endless climb of We Came This Far Also from the fens on.
+  escape: {
+    act1: 'music_battle_escape',
+    act2: ['music_battle_escape', 'music_battle_escape_2'],
+    act3: 'music_battle_escape_2',
+    act4: 'music_battle_escape_2',
+    finalBoss: 'music_battle_escape_2',
+  },
 
-  // A map's place has its own battle theme (mapTemplates.json `biome`).
+  // A map's place has its own battle theme (mapTemplates.json `biome`). An
+  // entry may be a table by act (as the situations below): the old kingdom's
+  // castles remember in Act II, the Empire's forts answer in fugue by Act IV.
   battleBiome: {
-    castle: 'music_battle_castle',
+    castle: {
+      act2: 'music_battle_castle',
+      act3: ['music_battle_castle', 'music_battle_castle_2'],
+      act4: 'music_battle_castle_2',
+    },
     swamp: 'music_battle_swamp',
     tundra: 'music_battle_tundra',
     volcano: 'music_battle_volcano',
@@ -64,7 +95,13 @@ export const MUSIC = {
   battleSituation: {
     eclipsed: 'music_battle_eclipsed',
     village: 'music_battle_village',
-    rescue: 'music_battle_rescue',
+    // the two rescues alternate act by act
+    rescue: {
+      act1: 'music_battle_rescue',
+      act2: 'music_battle_rescue_2',
+      act3: 'music_battle_rescue',
+      act4: 'music_battle_rescue_2',
+    },
     elite: {
       act1: 'music_battle_elite',
       act2: 'music_battle_elite_act2',
@@ -72,7 +109,13 @@ export const MUSIC = {
       act4: 'music_battle_elite_act4',
     },
     caravan: 'music_battle_caravan',
-    fog: 'music_battle_fog',
+    // fog: the tune the fog keeps in Act I; the Empire's patrol band from Act II
+    fog: {
+      act1: 'music_battle_fog',
+      act2: 'music_battle_fog_2',
+      act3: ['music_battle_fog', 'music_battle_fog_2'],
+      act4: ['music_battle_fog_2', 'music_battle_fog'],
+    },
   },
   colosseum: 'music_colosseum',
   // Choosing blessings at the start of a run.
@@ -89,6 +132,7 @@ export const MUSIC = {
 // the full ("thunder") mix, so the game can crossfade between them mid-loop.
 export const MUSIC_LAYERS = {
   music_battle_act1: { calm: 'music_battle_act1_calm' },
+  music_battle_broken_sun: { calm: 'music_battle_broken_sun_calm' },
   music_battle_act1_2: { calm: 'music_battle_act1_2_calm' },
   music_battle_act1_3: { calm: 'music_battle_act1_3_calm' },
   music_battle_act1_4: { calm: 'music_battle_act1_4_calm' },
@@ -109,12 +153,16 @@ export const MUSIC_LAYERS = {
   music_battle_elite_act4: { calm: 'music_battle_elite_act4_calm' },
   music_battle_caravan: { calm: 'music_battle_caravan_calm' },
   music_battle_fog: { calm: 'music_battle_fog_calm' },
+  music_battle_fog_2: { calm: 'music_battle_fog_2_calm' },
   music_battle_eclipsed: { calm: 'music_battle_eclipsed_calm' },
   music_battle_castle: { calm: 'music_battle_castle_calm' },
   music_battle_swamp: { calm: 'music_battle_swamp_calm' },
   music_battle_village: { calm: 'music_battle_village_calm' },
   music_battle_rescue: { calm: 'music_battle_rescue_calm' },
+  music_battle_rescue_2: { calm: 'music_battle_rescue_2_calm' },
+  music_battle_castle_2: { calm: 'music_battle_castle_2_calm' },
   music_battle_escape: { calm: 'music_battle_escape_calm' },
+  music_battle_escape_2: { calm: 'music_battle_escape_2_calm' },
 };
 
 // Each boss's encounter card plays its own motif (tools/music/stingers/boss_*).

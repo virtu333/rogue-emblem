@@ -31,10 +31,11 @@ the music in marketing.
 | - Mattias Westlund additional samples | Mattias Westlund | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | horns |
 | - No Budget Orchestra 2 | Jeff Glatt | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) | trumpets, trombones |
 | [VSCO 2 Community Edition](https://github.com/sgossner/VSCO-2-CE) | Versilian Studios | CC0 | woodwinds (except the oboe), tuba, muted brass, harp, organ, pitched and orchestral percussion, timpani; the Emperor's theme's strings and brass; the village's fiddle |
-| [Versilian Community Sample Library](https://github.com/sgossner/VCSL) | Versilian Studios | CC0 | the colosseum's frame drum |
+| [Versilian Community Sample Library](https://github.com/sgossner/VCSL) | Versilian Studios | CC0 | the colosseum's frame drum; the rescue theme's zither (đàn tranh) and darbuka |
 | [GeneralUser GS](https://github.com/mrbumpy409/GeneralUser-GS) | S. Christian Collins | free for commercial music | taiko, accordion, nylon guitar; the Emperor's theme's choir |
 | [Virtuosity Drums](https://github.com/sfzinstruments/virtuosity_drums) | Versilian Studios | CC0 | drum kit |
 | [Karoryfer Growlybass](https://github.com/sfzinstruments/karoryfer.growlybass) | Karoryfer Samples | CC0 | bass guitar |
+| [Karoryfer Emilyguitar](https://github.com/sfzinstruments/karoryfer.emilyguitar) | Karoryfer Samples (D. Smolken) | CC0 | electric guitar (clean DI samples through the engine's own amp, `engine/guitar.py`): Under the Broken Sun |
 | [Splendid Grand Piano](https://github.com/sfzinstruments/SplendidGrandPiano) | AKAI (via sfzinstruments) | public domain | piano |
 
 VPO3's own solo violin is not used: its source recording's licence is unclear and may be
