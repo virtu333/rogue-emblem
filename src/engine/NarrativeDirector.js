@@ -99,6 +99,7 @@ export function buildNarrativeContext({ meta = null, runManager = null, bossName
     bossSlainCount: resolvedBossName ? (meta?.getBossSlainCount?.(resolvedBossName) ?? 0) : 0,
     bossKilledYouCount: resolvedBossName ? (meta?.getDefeatedByCount?.(resolvedBossName) ?? 0) : 0,
     firstClear: runManager?.endRunRewards?.firstClear === true,
+    linesPlayed: Array.isArray(flags?.linesPlayed) ? [...flags.linesPlayed] : [],
   };
 }
 
@@ -180,20 +181,39 @@ function lineHash(text) {
   return h;
 }
 
-/** Walk `lines` in a fixed shuffled order, one step per `turn`. */
-function rotate(lines, turn) {
-  const order = [...lines].sort(
-    (a, b) => lineHash(String(a.line)) - lineHash(String(b.line)) || (a.line < b.line ? -1 : 1),
-  );
-  return order[((turn % order.length) + order.length) % order.length];
+/** The key a pool line is remembered by once played (MetaProgressionManager.linesPlayed). */
+export function narrativeLineKey(line) {
+  return `l${lineHash(String(line)).toString(36)}`;
 }
 
 /**
- * Pick one line from a variant's pool for this run. Pure: the pick depends
- * only on the pool and ctx.runsStarted, never on RNG, so a save walks the pool
- * in a fixed shuffled order: a set repeats only once all of it has played.
- * Lines with a `when` that holds (a loss, Lunatic, a partner) take the even
- * runs while any apply, the general lines the odd ones.
+ * The line of `lines` played longest ago on this save (never played first), ties
+ * broken by a fixed shuffled order. So a set walks every line before any repeats,
+ * however the set changes from run to run (a partner, a loss, the difficulty).
+ */
+function leastRecent(lines, played) {
+  const order = [...lines].sort(
+    (a, b) => lineHash(String(a.line)) - lineHash(String(b.line)) || (a.line < b.line ? -1 : 1),
+  );
+  let best = null;
+  let bestAt = Infinity;
+  for (const entry of order) {
+    const at = played.lastIndexOf(narrativeLineKey(entry.line));
+    if (at < bestAt) {
+      best = entry;
+      bestAt = at;
+    }
+  }
+  return best;
+}
+
+/**
+ * Pick one line from a variant's pool for this run. Pure: the pick depends only on
+ * the pool, ctx.runsStarted and the lines this save has played (ctx.linesPlayed),
+ * never on RNG. Lines with a `when` that holds (a loss, Lunatic, a partner) take
+ * the even runs while any apply, the general lines the odd ones; within the set,
+ * the line played longest ago plays. The caller records what it shows
+ * (entry.lineKey → MetaProgressionManager.recordLinesPlayed).
  * @returns {object|null} the entry, without its `when`; null when none applies
  */
 export function pickPoolEntry(pool, ctx) {
@@ -202,16 +222,14 @@ export function pickPoolEntry(pool, ctx) {
   const contextual = valid.filter((e) => e.when && evaluateWhen(e.when, ctx));
   const general = valid.filter((e) => !e.when);
   const run = Number.isFinite(ctx?.runsStarted) ? Math.max(0, Math.floor(ctx.runsStarted)) : 0;
+  const played = Array.isArray(ctx?.linesPlayed) ? ctx.linesPlayed : [];
   let picked = null;
-  // While contextual lines apply, runs alternate between the two sets and each
-  // set steps once per pair of runs; otherwise every run steps the general set.
-  const shared = contextual.length && general.length;
-  const turn = shared ? Math.floor(run / 2) : run;
-  if (contextual.length && (run % 2 === 0 || !general.length)) picked = rotate(contextual, turn);
-  else if (general.length) picked = rotate(general, turn);
+  if (contextual.length && (run % 2 === 0 || !general.length))
+    picked = leastRecent(contextual, played);
+  else if (general.length) picked = leastRecent(general, played);
   if (!picked) return null;
   const { when: _when, ...entry } = picked;
-  return entry;
+  return { ...entry, lineKey: narrativeLineKey(picked.line) };
 }
 
 /**

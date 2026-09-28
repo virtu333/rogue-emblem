@@ -456,6 +456,10 @@ export class NodeMapScene extends Phaser.Scene {
           ) {
             this._storyDialogueActive = true;
             this.runManager.markDialogueShown('runStart');
+            // The commander's pool rotates by what this save has heard (NarrativeDirector).
+            this.registry
+              .get('meta')
+              ?.recordLinesPlayed?.(entries.map((e) => e?.lineKey).filter(Boolean));
             this.persistRunSave();
             // The run opens on its act title (once: after the run-start mark).
             const actCard = hasDOMHost()

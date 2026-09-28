@@ -36,7 +36,27 @@ function normalizeLordSelection(raw) {
 }
 
 function defaultStoryFlags() {
-  return { bossSlain: {}, defeatedBy: {}, lordFalls: {}, lastRun: null };
+  return { bossSlain: {}, defeatedBy: {}, lordFalls: {}, lastRun: null, linesPlayed: [] };
+}
+
+const MAX_LINES_PLAYED = 64;
+
+/**
+ * Pool lines already played on this save (NarrativeDirector line keys), least
+ * recent first; later lists are more recent. Bounded, one entry per key.
+ */
+function mergeLinesPlayed(...lists) {
+  const keys = [];
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const key of list) {
+      if (typeof key !== 'string' || !key) continue;
+      const existing = keys.indexOf(key);
+      if (existing !== -1) keys.splice(existing, 1);
+      keys.push(key);
+    }
+  }
+  return keys.slice(-MAX_LINES_PLAYED);
 }
 
 function normalizeStoryCountMap(raw) {
@@ -69,6 +89,7 @@ function normalizeStoryFlags(raw) {
     defeatedBy: normalizeStoryCountMap(raw.defeatedBy),
     lordFalls: normalizeStoryCountMap(raw.lordFalls),
     lastRun: normalizeLastRun(raw.lastRun),
+    linesPlayed: mergeLinesPlayed(raw.linesPlayed),
   };
 }
 
@@ -402,6 +423,14 @@ export class MetaProgressionManager {
 
   getDefeatedByCount(name) {
     return Math.max(0, Math.floor(Number(this.storyFlags?.defeatedBy?.[name]) || 0));
+  }
+
+  /** Remember pool lines just played (NarrativeDirector keys) so a set rotates fully. */
+  recordLinesPlayed(keys) {
+    const fresh = (Array.isArray(keys) ? keys : []).filter((k) => typeof k === 'string' && k);
+    if (!fresh.length) return;
+    this.storyFlags.linesPlayed = mergeLinesPlayed(this.storyFlags.linesPlayed, fresh);
+    this._save();
   }
 
   recordBossSlain(name) {
@@ -1143,6 +1172,11 @@ export class MetaProgressionManager {
           this.storyFlags[mapKey][name] = Math.max(local, count);
         }
       }
+      // Either copy may hold lines the other has not played yet; local is the newer.
+      this.storyFlags.linesPlayed = mergeLinesPlayed(
+        diskFlags.linesPlayed,
+        this.storyFlags.linesPlayed,
+      );
       const diskEndedAt = Number(diskFlags.lastRun?.endedAt) || 0;
       const localEndedAt = Number(this.storyFlags.lastRun?.endedAt) || 0;
       if (diskFlags.lastRun && diskEndedAt > localEndedAt) {
