@@ -173,7 +173,9 @@ npx cap open ios  # Opens Xcode
 > (the upright layouts are built for phone widths, and `isLandscapeLockedShell` treats
 > the iPad app as locked, hiding the Settings toggle), so `UIRequiresFullScreen` stays
 > `true`. `tests/GameIdentity.test.js` holds these lists and the web manifest's
-> `"orientation": "any"` together. Upright, an iPhone shows the status bar (landscape hides
+> `"orientation": "any"` together. The app's minimum is iOS 15.4 (`IPHONEOS_DEPLOYMENT_TARGET`):
+> the web code relies on `structuredClone`, `Array.prototype.at`, `Object.hasOwn`, `dvh` and
+> `:has()`, all first shipped in Safari 15.4. Upright, an iPhone shows the status bar (landscape hides
 > it), so the app hides it (`UIStatusBarHidden` true, `UIViewControllerBasedStatusBarAppearance`
 > false): the clock never sits over the game's dark top edge in the system's text colour. The
 > notch and Dynamic Island still reserve their space through `env(safe-area-inset-top)`. The
@@ -547,11 +549,11 @@ npx cap open ios  # Opens Xcode
 ### Device Test Matrix
 | Device | Screen Size | Resolution | iOS Version | Priority |
 |--------|-------------|------------|-------------|----------|
-| iPhone SE (2nd gen) | 4.7" | 1334×750 | 15.0+ | High (min spec) |
-| iPhone 12 | 6.1" | 2532×1170 | 15.0+ | High (baseline) |
+| iPhone SE (2nd gen) | 4.7" | 1334×750 | 15.4+ | High (min spec) |
+| iPhone 12 | 6.1" | 2532×1170 | 15.4+ | High (baseline) |
 | iPhone 14 Pro | 6.1" | 2556×1179 | 16.0+ | High (Dynamic Island) |
 | iPhone 15 Pro Max | 6.7" | 2796×1290 | 17.0+ | Medium (screenshots) |
-| iPad Air (5th gen) | 10.9" | 2360×1640 | 15.0+ | Low (v1.1) |
+| iPad Air (5th gen) | 10.9" | 2360×1640 | 15.4+ | Low (v1.1) |
 
 ### Capacitor Plugins Needed
 - `@capacitor/preferences` — Replaces localStorage with iOS-native storage

@@ -29,6 +29,12 @@
         padding: 0;
         box-sizing: border-box;
       }
+      /* iOS enlarges text after a turn to landscape unless told not to; the layouts
+         size their own type for both orientations. */
+      html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
       body {
         background: #0a0c1e;
         display: flex;
