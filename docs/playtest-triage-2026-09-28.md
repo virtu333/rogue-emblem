@@ -70,3 +70,22 @@ Verdicts: **BUG** · **GAP** (design gap) · **OK** (working as designed; maybe 
   - Internal ids stay `normal` / `hard` / `lunatic`; the new tier gets a new id.
 - **Deeds:** players pick their displayed title; each unit swears one Oath, chosen by the player. The Compendium hides anything not yet encountered.
 - **Supports:** backlog; bonds without conversations are acceptable.
+
+## Wave 1 status (branch `claude/playtest-notes-triage-z12dht`)
+
+Done, each with tests that fail without the change:
+
+- #1 Deploy: a re-entered battle caps deployment at its locked map's spawns; an unplaced unit is benched, never lost.
+- #4 Recruits that join promoted promote from base level 10 (Rowan beside Great Lord 8: 16 level-ups, not 24).
+- #5 Battle music plays on through a turn of the phone (rotation e2e checks the same voice).
+- #6 No ballistas in Act 1 (Hard/Lunatic). Hard's Act 1 enemy counts are left for the Dusk tier.
+- #7 Vampiric heals at most 2 HP a strike (`drainMaxPerHit`).
+- #8 Church: fallen allies' details; revived units come back with an Iron weapon (Heal for staff-only).
+- #9 Level-up card names a class skill that found all five slots full; Skills help corrected.
+- #10 Lava: one banner names the burns; tile text says "end of its side's phase".
+- #11 Story: Lunatic's descent lines play after the Emperor; Act IV and the Emperor no longer mention the Lieutenant's death.
+- #12 Pause note (autosave), Outfitted Recruits and Honed Blades copy; Honed Blades rolls from the run seed.
+- Starting skills: one lord per skill (moving it from the pickers; old saves keep the first lord's).
+
+Waiting: #2/#3 (help pop-ups, Formation menu) on `claude/placement-unit-interaction-2nqaeq`.
+Deferred: team-XP rewards still learn class skills without a card (nothing is lost); Oaths dropped at the skill cap (Deeds work in Wave 2).
