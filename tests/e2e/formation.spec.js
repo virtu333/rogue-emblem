@@ -282,7 +282,8 @@ test('desktop: click a placed unit to pick it up; Esc closes its menu, then sets
   await expect(menu).toHaveCount(0);
   expect(await battle(page, 'return s._formation.heldUnit?.name ?? null;')).toBe('Sera');
   await page.keyboard.press('Escape');
-  expect(await battle(page, 'return s._formation.heldUnit?.name ?? null;')).toBeNull();
+  // Phaser reads the key on its next frame: wait on the state, not the press.
+  await expect.poll(() => battle(page, 'return s._formation.heldUnit?.name ?? null;')).toBeNull();
   // Nothing held: Esc opens the formation menu, as before.
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Formation', exact: true })).toBeVisible();

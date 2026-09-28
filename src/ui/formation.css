@@ -62,9 +62,10 @@
   gap: 6px;
   margin-top: 8px;
 }
-/* A narrow dock wraps the buttons rather than breaking a word across lines. */
+/* Buttons share a row (zero basis: the rail's full-width buttons don't each take a
+   line); a narrow dock wraps them rather than breaking a word across lines. */
 .fm-tools > * {
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   white-space: nowrap;
 }
 .fm-start {

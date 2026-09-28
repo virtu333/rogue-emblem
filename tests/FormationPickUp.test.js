@@ -252,6 +252,33 @@ describe('Formation: the held unit’s menu', () => {
     expect(c.heldUnit).toBeNull();
   });
 
+  it('a menu swap that sends the held unit to wait says so', () => {
+    const { c } = setup();
+    c.assign(0, CAVALRY_BANNED); // Edric
+    c.assign(2, 1); // Rowan (Cavalry)
+    tap(c, 1);
+    tap(c, 1); // Rowan's menu
+    pickers[0].opts.onPick(0); // Edric takes Rowan's tile; Rowan can't take the banned tile
+    expect(c.formation.at[0]).toBe(1);
+    expect(c.formation.at[2]).toBeNull();
+    expect(c.notice).toBe("Rowan waits: Cavalry units can't stand on Mountain.");
+  });
+
+  it('Details pages through the units on the field only', () => {
+    const { c, scene } = setup();
+    scene.unitDetailOverlay = { show: vi.fn(), visible: false };
+    c.assign(0, 1);
+    c.assign(3, 2);
+    tap(c, 2);
+    tap(c, 2);
+    pickers[0].opts.onDetails();
+    const [unit, terrain, , roster] = scene.unitDetailOverlay.show.mock.calls[0];
+    expect(unit.name).toBe('Kira');
+    expect(terrain?.name).toBe('Plain');
+    expect(roster.rosterUnits.map((u) => u.name)).toEqual(['Edric', 'Kira']);
+    expect(roster.rosterIndex).toBe(1);
+  });
+
   it('the menu (or the rail’s Remove) sends the held unit back to wait', () => {
     const { c } = setup();
     c.assign(0, 1);
@@ -310,17 +337,41 @@ describe('Formation: waiting units and the unit in hand', () => {
   });
 });
 
+describe('Formation: nothing stays in hand once placement changes wholesale', () => {
+  it('Auto-place, Clear and Start each set the unit down and drop its tint', () => {
+    const { c, scene } = setup();
+    c.assign(0, 1);
+    tap(c, 1);
+    c.autoPlace = FormationController.prototype.autoPlace;
+    c.defaultTiles = tiles.slice(0, 4);
+    c.autoPlace();
+    expect(c.heldUnit).toBeNull();
+    expect(c.units[0].graphic.tint).toBeNull();
+
+    tap(c, c.formation.at[0]);
+    c.clearAll();
+    expect(c.heldUnit).toBeNull();
+
+    c.autoPlace();
+    tap(c, c.formation.at[0]);
+    scene.unitDetailOverlay = { visible: true, hide: vi.fn() };
+    scene.inspectionPanel = null;
+    expect(c.start()).toBe(true);
+    expect(c.heldUnit).toBeNull();
+    expect(c.units[0].graphic.tint).toBeNull();
+    expect(scene.unitDetailOverlay.hide).toHaveBeenCalled();
+    expect(scene.playerUnits.map((u) => u.name)).toEqual(['Edric', 'Sera', 'Rowan', 'Kira']);
+  });
+});
+
 describe('Formation: the held unit shows its turn-1 reach', () => {
   const keys = (tilesList) => tilesList.map((t) => `${t.col},${t.row}`).sort();
 
   function held(options) {
     const env = setup(options);
-    env.c.assign(0, 2); // Edric at (0,2), MOV 2, sword range 1
-    env.c.syncField = FormationController.prototype.syncField;
-    env.scene.playerUnits.push(env.c.units[0]);
-    env.c.units[0].col = 0;
-    env.c.units[0].row = 2;
-    env.c.heldUnit = env.c.units[0];
+    env.c.assign(0, 2); // Edric at (0,2), MOV 2, sword range 1 (syncField puts him on the field)
+    tap(env.c, 2);
+    expect(env.c.heldUnit?.name).toBe('Edric');
     return env;
   }
 
@@ -366,6 +417,7 @@ describe('Formation: the held unit shows its turn-1 reach', () => {
 
   it('draws the reach while held and clears it when set down', () => {
     const { c, drawn } = held();
+    drawn.length = 0;
     c.drawMarkers();
     const moveFill = drawn.filter((r) => r.color === 0x3366cc);
     expect(moveFill).toHaveLength(8);

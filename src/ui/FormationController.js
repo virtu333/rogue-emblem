@@ -123,6 +123,8 @@ export class FormationController {
     }
     this.active = false;
     this.ready = false;
+    this.heldUnit = null;
+    this.selectedTile = null;
     if (s.battleState === FORMATION_STATE) s.battleState = 'PLAYER_IDLE';
     if (s.grid?.fogEnabled) {
       s.grid.updateFogOfWar(s.playerUnits);
@@ -305,12 +307,8 @@ export class FormationController {
         this.flash(reason);
         return;
       }
-      const occupant = unitOnTile(this.formation, t);
-      // Moving a placed unit onto another: say so when that one can't take the old tile.
-      const benched = from !== null && occupant !== -1 && this.displaces(u, t);
       this.heldUnit = null;
-      this.assign(u, t);
-      if (benched) this.flash(`${this.units[occupant].name} waits: ${this.issue(occupant, from)}`);
+      this.moveTo(u, t);
       return;
     }
     const occupant = unitOnTile(this.formation, t);
@@ -353,6 +351,20 @@ export class FormationController {
     this.touch();
   }
 
+  /**
+   * Place u on t, setting down whatever is in hand. When a placed unit moves onto
+   * another that can't take its old tile, that one waits, and the rail says why.
+   */
+  moveTo(u, t) {
+    const from = this.formation.at[u];
+    const occupant = unitOnTile(this.formation, t);
+    const benched = from !== null && occupant !== -1 && occupant !== u && this.displaces(u, t);
+    this.heldUnit = null;
+    if (!this.assign(u, t)) return false;
+    if (benched) this.flash(`${this.units[occupant].name} waits: ${this.issue(occupant, from)}`);
+    return true;
+  }
+
   /** Set the unit in hand down where it is. */
   release() {
     if (!this.heldUnit) return;
@@ -381,10 +393,7 @@ export class FormationController {
     this.picker?.destroy();
     this.picker = new FormationPicker(this.scene, this, t, {
       subject: u,
-      onPick: (v) => {
-        this.heldUnit = null;
-        this.assign(v, t);
-      },
+      onPick: (v) => this.moveTo(v, t),
       onClear: () => {
         this.heldUnit = null;
         this.clear(t);
@@ -399,16 +408,20 @@ export class FormationController {
     });
   }
 
-  /** The unit's detail sheet, paging through the whole army. */
+  /**
+   * The unit's detail sheet, paging through the units on the field (the sheet reads
+   * terrain from where a unit stands; a waiting unit stands nowhere).
+   */
   showDetails(u) {
     const s = this.scene;
     const unit = this.units[u];
-    if (!unit || !s.unitDetailOverlay) return;
-    const tile = this.tiles[this.formation.at[u]];
-    const terrain = tile ? s.grid?.getTerrainAt?.(tile.col, tile.row) : null;
-    s.unitDetailOverlay.show(unit, terrain, s.gameData, {
-      rosterUnits: this.units,
-      rosterIndex: u,
+    const t = this.formation.at[u];
+    if (!unit || t === null || !s.unitDetailOverlay) return;
+    const placed = this.units.filter((_, v) => this.formation.at[v] !== null);
+    const tile = this.tiles[t];
+    s.unitDetailOverlay.show(unit, s.grid?.getTerrainAt?.(tile.col, tile.row), s.gameData, {
+      rosterUnits: placed,
+      rosterIndex: placed.indexOf(unit),
     });
     s.refreshEndTurnControl?.();
   }
@@ -470,6 +483,9 @@ export class FormationController {
     this.menu?.destroy();
     this.menu = null;
     this.ready = false;
+    this.heldUnit = null;
+    this.selectedTile = null;
+    if (s.unitDetailOverlay?.visible) s.unitDetailOverlay.hide();
     for (const [u, unit] of this.units.entries()) {
       const tile = this.tiles[this.formation.at[u]];
       unit.col = tile.col;
@@ -735,6 +751,8 @@ export class FormationController {
     }
     this.active = false;
     this.ready = false;
+    this.heldUnit = null;
+    this.selectedTile = null;
     this.resolve = null;
   }
 }

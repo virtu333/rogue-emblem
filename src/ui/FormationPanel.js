@@ -30,14 +30,12 @@ export function renderFormationPanel(container, formation, makeButton, { withSta
       'p',
       'fm-lead',
       moving
-        ? bench.length
-          ? `Move ${held.name}: tap a tile, a unit to swap, or a waiting unit to send in instead.`
-          : `Move ${held.name}: tap a tile, or a unit to swap.`
+        ? `Move ${held.name}: tap a tile, or a unit to swap.`
         : held
           ? `Tap a blue tile for ${held.name}.`
           : placed < n
-            ? 'Tap a blue tile to choose who stands there, or a unit to move it.'
-            : 'Everyone is in place. Tap a unit to move or swap it.',
+            ? 'Tap a tile to fill it, or a unit to move it.'
+            : 'Everyone is in place. Tap a unit to move it.',
     ),
   );
   const count = el('p', 'fm-count', `${placed} / ${n} placed`);
@@ -160,7 +158,8 @@ export class FormationDock {
       const b = el('button', `re-btn ${cls}`, label);
       b.type = 'button';
       b.addEventListener('click', () => {
-        if (!f.ready) return;
+        // The desktop detail sheet is drawn on the canvas, under this dock.
+        if (!f.ready || f.scene.unitDetailOverlay?.visible) return;
         action();
       });
       return b;
