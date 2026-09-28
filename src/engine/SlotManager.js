@@ -97,7 +97,7 @@ export function getNextAvailableSlot() {
 /**
  * Summary info for a slot. Returns null if slot is empty (no meta).
  * If meta is valid but run JSON is corrupt, returns summary with runCorrupt: true.
- * @returns {{ slot, valor, supply, runsCompleted, runsStarted, hasActiveRun, actReached, runCorrupt } | null}
+ * @returns {{ slot, valor, supply, runsCompleted, runsStarted, upgradesOwned, metaSavedAt, hasActiveRun, actReached, runCorrupt } | null}
  */
 export function getSlotSummary(slot) {
   let metaRaw;
@@ -122,6 +122,14 @@ export function getSlotSummary(slot) {
     runsCompleted: meta.runsCompleted || 0,
     // Pre-tracking saves: finished runs are a floor on started runs.
     runsStarted: Math.max(meta.runsStarted || 0, meta.runsCompleted || 0),
+    // Home base upgrade levels bought (metaUpgrades), summed across upgrades.
+    upgradesOwned: Object.values(
+      meta.purchasedUpgrades && typeof meta.purchasedUpgrades === 'object'
+        ? meta.purchasedUpgrades
+        : {},
+    ).reduce((sum, level) => sum + Math.max(0, Math.trunc(Number(level) || 0)), 0),
+    // When this slot's progression last saved (MetaProgressionManager `savedAt`).
+    metaSavedAt: Number.isFinite(meta.savedAt) ? meta.savedAt : null,
     hasActiveRun: false,
     actReached: null,
     runCorrupt: false,
