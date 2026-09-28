@@ -2795,13 +2795,17 @@ export class RunManager {
     const forgeLevels = me?.startingWeaponForge || 0;
     if (forgeLevels > 0) {
       const FORGE_STATS = ['might', 'crit', 'hit', 'weight'];
+      // Honed Blades rolls from the run seed: the same run always gets the same forges.
+      const forgeRng = Number.isFinite(this.runSeed)
+        ? createSeededRng(hashStringToUint32(`honed-blades:${this.runSeed >>> 0}`))
+        : Math.random;
       for (const unit of startingLordUnits) {
         for (const w of unit.inventory) {
           if (w.type === 'Staff') continue;
           // Fisher-Yates shuffle to pick unique stats (max forgeLevels is 3, FORGE_STATS has 4)
           const shuffled = [...FORGE_STATS];
           for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
+            const j = Math.floor(forgeRng() * (i + 1));
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
           }
           const forgeCount = Math.min(forgeLevels, shuffled.length);

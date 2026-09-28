@@ -2262,6 +2262,26 @@ describe('RunManager', () => {
       expect(new Set(stats).size).toBe(3);
     });
 
+    it('weapon_forge rolls its stats from the run seed', () => {
+      const forges = (runSeed) => {
+        const rm = new RunManager(gameData, { startingWeaponForge: 2 });
+        rm.startRun({ runSeed });
+        // Scramble Math.random between runs: the forge must not read it.
+        return rm.roster.flatMap((u) =>
+          u.inventory.map((w) => (w._forgeHistory || []).map((h) => h.stat).join('+')),
+        );
+      };
+      const seen = new Set();
+      for (let seed = 1; seed <= 6; seed++) {
+        const first = forges(seed);
+        vi.spyOn(Math, 'random').mockReturnValue(0.999);
+        expect(forges(seed)).toEqual(first);
+        vi.restoreAllMocks();
+        seen.add(first.join('|'));
+      }
+      expect(seen.size).toBeGreaterThan(1);
+    });
+
     it('weapon_forge at level 1 still works (single stat)', () => {
       const metaEffects = { startingWeaponForge: 1 };
       const rmMeta = new RunManager(gameData, metaEffects);

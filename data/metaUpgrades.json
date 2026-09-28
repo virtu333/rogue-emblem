@@ -1695,7 +1695,7 @@
   {
     "id": "recruit_accessory",
     "name": "Outfitted Recruits",
-    "description": "Recruits who join your army wear a random stat accessory",
+    "description": "Recruits who join your army wear a basic stat ring or charm (Power, Magic, Speed, Shield, Barrier or Skill Ring, Goddess Icon, Seraph Robe)",
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
@@ -1745,7 +1745,7 @@
   {
     "id": "weapon_forge",
     "name": "Honed Blades",
-    "description": "Starting lords\u2019 combat weapons gain 1 random forge improvement per tier",
+    "description": "Every combat weapon both starting lords carry gains 1 random forge improvement per tier",
     "category": "starting_equipment",
     "maxLevel": 3,
     "costs": [
