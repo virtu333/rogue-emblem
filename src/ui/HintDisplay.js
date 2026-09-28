@@ -349,6 +349,28 @@ function waitForHintIdle(scene) {
 
 // At most one optional helper per battle. Unshown hints remain unseen so later
 // encounters can teach them. Scripted tutorial notes use their own strict flow.
+/**
+ * The phone battle's one camera lesson for this battle, if any: pinch and pan first;
+ * then, on a later battle played upright, that the phone can be turned sideways for the
+ * wide layout (portrait mode follows the phone; playtest, build 24). Pure.
+ */
+export function mobileBattleHint({ hasSeen = () => false, upright = false } = {}) {
+  if (!hasSeen('battle_mobile_camera'))
+    return {
+      id: 'battle_mobile_camera',
+      message: upright
+        ? 'Use two fingers to pan and pinch to zoom. Pinch out or tap Overview to see the whole board.'
+        : 'Use two fingers to pan and pinch to zoom. Pinch out or tap Recenter to restore view.',
+    };
+  if (upright && !hasSeen('battle_turn_sideways'))
+    return {
+      id: 'battle_turn_sideways',
+      message:
+        'Tip: turn your phone sideways at any time for the wide layout. The board turns with it.',
+    };
+  return null;
+}
+
 export function showContextualHint(scene, id, message) {
   if (scene.battleParams?.tutorialMode) return false;
   const hints = scene.registry.get('hints');

@@ -132,12 +132,15 @@ function bodyControls(page) {
   });
 }
 
-// The bottom edge: the dock (End turn / Wait / Start, Danger) beside the four tools. Each
+// The bottom edge: the dock (End turn / Wait / Start, Danger) beside the tools shown. Each
 // control's box, whether anything covers its centre, and any word broken across lines.
 function bottomRow(page) {
   return page.evaluate(() => {
     const hud = document.querySelector('.mobile-battle-hud');
-    return [...hud.querySelectorAll('.mb-dock > button, .bl-tools > button')].map((button) => {
+    const shown = [...hud.querySelectorAll('.mb-dock > button, .bl-tools > button')].filter(
+      (b) => b.getClientRects().length,
+    );
+    return shown.map((button) => {
       const r = button.getBoundingClientRect();
       const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
       const broken = [];
@@ -293,6 +296,33 @@ for (const viewport of PORTRAIT_PHONES) {
       for (const c of commands) expect(c.whole, `${c.name} needs no scroll`).toBe(true);
       const firstRow = commands.filter((c) => Math.abs(c.top - commands[0].top) < 1);
       expect(firstRow.length).toBe(3);
+      // Every row is filled edge to edge: Sera's last two share their row in halves, never
+      // beside an empty cell (playtest, build 24).
+      const grid = await hud
+        .locator('.mb-actions')
+        .first()
+        .evaluate((n) => {
+          const r = n.getBoundingClientRect();
+          return { left: r.left, right: r.right };
+        });
+      const rows = [...new Set(commands.map((c) => Math.round(c.top)))];
+      expect(rows.length).toBe(2);
+      for (const top of rows) {
+        const row = commands.filter((c) => Math.round(c.top) === top);
+        expect(Math.min(...row.map((c) => c.left)), `row at ${top} starts at the edge`).toBeCloseTo(
+          grid.left,
+          0,
+        );
+        expect(
+          Math.max(...row.map((c) => c.left + c.width)),
+          `row at ${top} reaches the edge`,
+        ).toBeCloseTo(grid.right, 0);
+      }
+      // Recenter steps aside upright; Back takes the wider cell.
+      await expect(hud.locator('[data-tool="recenter"]')).toBeHidden();
+      const toolWidth = (tool) =>
+        hud.locator(`[data-tool="${tool}"]`).evaluate((n) => n.getBoundingClientRect().width);
+      expect(await toolWidth('back')).toBeGreaterThan((await toolWidth('overview')) + 8);
       // The header gave the unit its row: the turn and objective step aside.
       await expect(hud.locator('.mb-phase')).toBeHidden();
       await expect(hud.locator('.mb-summary h2')).toHaveText('Sera');
@@ -589,9 +619,9 @@ for (const viewport of PORTRAIT_PHONES) {
         s._inputController.refreshTileInfo(u.col, u.row);
       });
       const hud = rail(page);
-      const tools = ['Overview', 'Recenter', 'Back', 'Menu'];
+      const tools = ['Overview', 'Back', 'Menu'];
       await expect(hud.locator('.mb-terrain')).toBeVisible();
-      await expect.poll(async () => (await bottomRow(page)).length).toBe(6);
+      await expect.poll(async () => (await bottomRow(page)).length).toBe(5);
       expectWholeRow(await bottomRow(page), ['End turn…', 'Danger', ...tools]);
       // The idle commands and Battle details are whole with the terrain card showing.
       const idle = await bodyControls(page);
@@ -705,9 +735,19 @@ test.describe('Formation upright', () => {
       { unit: LONG_UNIT, cls: LONG_CLASS },
     );
     const hud = rail(page);
-    const tools = ['Overview', 'Recenter', 'Back', 'Menu'];
+    const tools = ['Overview', 'Back', 'Menu'];
     const start = 'Start battle (place everyone first: 0 of 5)';
     expectWholeRow(await bottomRow(page), [start, 'Danger', ...tools]);
+    // At 375x667 the first row of the bench shows whole before any scroll: the turn's
+    // counters (par, Visions) stand aside until the battle begins (review, build 24).
+    await expect(hud.locator('.mb-counters')).toBeHidden();
+    expect((await hud.locator('.mb-phase').innerText()).trim()).toBe('FORMATION');
+    const firstRow = await page.evaluate(() => {
+      const body = document.querySelector('.mobile-battle-hud .mb-body').getBoundingClientRect();
+      const chip = document.querySelector('.mobile-battle-hud .fm-chip').getBoundingClientRect();
+      return { top: chip.top >= body.top - 0.5, bottom: chip.bottom <= body.bottom + 0.5 };
+    });
+    expect(firstRow).toEqual({ top: true, bottom: true });
     // The bench carries each unit's class, and marks the one that cannot fight.
     const patient = hud.getByRole('button', { name: /^Patient,/ });
     await expectTappable(patient);
@@ -764,7 +804,7 @@ test.describe('Formation upright', () => {
 
     // Sideways mid-placement: the layout follows the phone at once, the board waits.
     await page.setViewportSize({ width: 844, height: 390 });
-    await expect(page.locator('.portrait-battle-notice')).toContainText('when your turn is ready');
+    await expect(page.locator('.portrait-battle-notice')).toContainText('when the battle begins');
     expect(await battle(page, 'return [s.grid.board.rotation, s.battleState]')).toEqual([
       'ccw',
       'DEPLOY_POSITIONING',
@@ -1105,6 +1145,48 @@ test.describe('input lifecycle', () => {
 
     // A real tap selects (the next press is not eaten).
     await page.touchscreen.tap(at.x, at.y);
+    await expect.poll(selected).toEqual(['UNIT_ACTION_MENU', 'Sera']);
+  });
+
+  test('a finger held while the phone turns never holds the board back, even with no release', async ({
+    page,
+    browserName,
+  }) => {
+    // iOS can drop the release of a touch held through a turn: Phaser's pointer stayed
+    // "down" and the board waited for another tap (playtest, build 24).
+    test.skip(browserName !== 'chromium', 'raw touch events need CDP (Chromium only)');
+    test.setTimeout(120_000);
+    await boot(page);
+    await attachSlot(page);
+    const cdp = await page.context().newCDPSession(page);
+    const at = await unitCss(page, 'Sera');
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: at.x, y: at.y, id: 1 }],
+    });
+    expect(await battle(page, 'return s.input.activePointer.isDown')).toBe(true);
+    // Sideways with the finger still down and no release ever sent: the board follows.
+    const { width, height } = page.viewportSize();
+    await page.setViewportSize({ width: height, height: width });
+    await page.waitForFunction(
+      () => {
+        const b = window.__emblemRogueGame.scene.getScene('Battle');
+        return (
+          window.__sceneState?.battle?.state === 'PLAYER_IDLE' &&
+          b?._presentationSwitch &&
+          b.grid.board.rotation === 'none'
+        );
+      },
+      null,
+      { timeout: 30_000 },
+    );
+    await expect(page.locator('.portrait-battle-notice')).toHaveCount(0);
+    // The late release acts on nothing; the next real tap selects.
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    const selected = () => battle(page, 'return [s.battleState, s.selectedUnit?.name ?? null]');
+    await expect.poll(selected).toEqual(['PLAYER_IDLE', null]);
+    const now = await unitCss(page, 'Sera');
+    await page.touchscreen.tap(now.x, now.y);
     await expect.poll(selected).toEqual(['UNIT_ACTION_MENU', 'Sera']);
   });
 });

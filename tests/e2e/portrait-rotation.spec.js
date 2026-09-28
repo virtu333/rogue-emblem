@@ -142,7 +142,7 @@ test('turning the phone both ways, once in the enemy phase, plays out like never
             // The switch waits for the player's turn; the note says so meanwhile.
             during = await (await page.waitForFunction(() => window.__turnedDuring)).jsonValue();
             await expect(page.locator('.portrait-battle-notice')).toHaveText(
-              'The board turns upright when your turn is ready.',
+              'The board turns upright when your turn begins.',
             );
           }
         : null,
@@ -213,7 +213,7 @@ test('turned during Formation, the board waits for Start battle and keeps the pl
   // Sideways mid-Formation: nothing re-opens yet; the note says when it will.
   await page.setViewportSize(SIDEWAYS);
   await expect(page.locator('.portrait-battle-notice')).toHaveText(
-    'The board turns back when your turn is ready.',
+    'The board turns back when the battle begins.',
   );
   expect(await battleSnapshot(page)).toMatchObject({
     rotation: 'ccw',
@@ -294,7 +294,7 @@ test('turned with the forecast open, the switch waits and the attack resolves as
     if (turned) {
       await page.setViewportSize(SIDEWAYS);
       await expect(page.locator('.portrait-battle-notice')).toHaveText(
-        'The board turns back when your turn is ready.',
+        'The board turns back when this action is done.',
       );
       // A modal holds the board: still turned, still the same forecast.
       expect(await battleSnapshot(page)).toMatchObject({
@@ -963,9 +963,8 @@ test('UI-only actions never advance the gameplay RNG', async ({ page }) => {
       await danger.tap();
       await expect(danger).toHaveAttribute('aria-pressed', 'false');
     },
-    'Overview and Recenter': async () => {
+    Overview: async () => {
       await rail.getByRole('button', { name: 'Overview', exact: true }).tap();
-      await rail.getByRole('button', { name: 'Recenter', exact: true }).tap();
     },
     'the Rewind history, previewed and closed': async () => {
       await rail.getByRole('button', { name: 'Rewind', exact: true }).tap();
@@ -1028,7 +1027,7 @@ test('UI-only actions never advance the gameplay RNG', async ({ page }) => {
         .toBe('Sera');
       await page.setViewportSize(SIDEWAYS);
       await expect(page.locator('.portrait-battle-notice')).toHaveText(
-        'The board turns back when your turn is ready.',
+        'The board turns back when this action is done.',
       );
       await page.setViewportSize(UPRIGHT);
       // Back out: the action menu, then the selection.

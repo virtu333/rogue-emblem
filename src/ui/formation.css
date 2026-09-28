@@ -71,6 +71,15 @@
 .fm-start:disabled {
   opacity: 0.6;
 }
+/* On the rail a greyed Start kept the ember fill under the rail's muted disabled text:
+   brown on gold, unreadable (review, build 24). Greyed, it reads as a plain button. */
+.mobile-battle-hud .mb-dock .fm-start:disabled {
+  opacity: 1;
+  background: var(--re-panel);
+  border-color: var(--re-line);
+  color: var(--re-muted);
+  text-shadow: none;
+}
 
 /* Tile picker */
 .fm-picker-tile {

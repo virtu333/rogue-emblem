@@ -219,6 +219,15 @@ export class InputController {
     if (hadTouches) scene._syncMobileResetViewButton?.();
   }
 
+  /**
+   * The press still down (if any) began before a geometry change: its release is ignored,
+   * so it cannot act on the board. iOS can drop that release altogether when the phone
+   * turns, leaving Phaser's pointer "down" until the next tap.
+   */
+  hasStalePress() {
+    return this._staleRelease === true;
+  }
+
   onPointerDown(pointer) {
     const scene = this.scene;
     // A fresh press: whatever geometry change came before, this one is current.

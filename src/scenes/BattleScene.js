@@ -229,7 +229,12 @@ import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import BattleMusicController from '../ui/BattleMusicController.js';
 import { battleMusicContext } from '../engine/BattleMusicSelection.js';
 import { LEVEL_UP_CUE_WAIT_MS, levelUpCue, playCue, stopCues } from '../ui/ceremonyMusic.js';
-import { showImportantHint, showMinorHint, showContextualHint } from '../ui/HintDisplay.js';
+import {
+  showImportantHint,
+  showMinorHint,
+  showContextualHint,
+  mobileBattleHint,
+} from '../ui/HintDisplay.js';
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
 import { buildRecruitNodeUnit, spawnTilesForDeployment } from '../engine/RecruitNodeSystem.js';
@@ -1951,13 +1956,17 @@ export class BattleScene extends Phaser.Scene {
       // Not in a recruit battle: it would open as a dialog there (see battle_first_turn_hints).
       if (this.mobileCameraEnabled && !hasRecruitNpc(this.npcUnits)) {
         const hints = this.registry.get('hints');
-        if (hints && !hints.hasSeen('battle_mobile_camera')) {
-          showContextualHint(
-            this,
-            'battle_mobile_camera',
-            'Use two fingers to pan and pinch to zoom. Pinch out or tap Recenter to restore view.',
-          );
-        }
+        // Upright, Recenter is not on the rail (portraitBattle.css): the lesson names
+        // Overview, and a later upright battle says the phone can turn sideways.
+        const hint =
+          hints &&
+          mobileBattleHint({
+            hasSeen: (id) => hints.hasSeen(id),
+            upright:
+              typeof document !== 'undefined' &&
+              document.documentElement.classList.contains('portrait-battle'),
+          });
+        if (hint) showContextualHint(this, hint.id, hint.message);
       }
 
       // Debug overlay (dev-only)
