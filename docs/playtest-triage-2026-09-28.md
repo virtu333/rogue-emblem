@@ -107,13 +107,14 @@ Deferred: team-XP rewards still learn class skills without a card (nothing is lo
 - **Hidden enemies and movement:** new design. The blue range and paths ignore hidden enemies (no gaps). A move that runs into a hidden enemy stops on the last free tile before it, the enemy is revealed, and the unit can then act normally (attack, Wait, items). Replaces `buildUnitPositionMap` blocking hidden units; needs the ambush stop in the move/path code, Canto, the AI (AI sees everything, unchanged) and the headless harness.
 - **Help pop-ups on iPhone:** fixed by #151 (Dave checked on the merged build; the earlier report predated it).
 
-## Next round, in order (updated: Dave picked Wave 2 first)
+## Next round, in order (updated after the TestFlight review)
 
-1. ~~Wave 2 — readability~~ done (see Wave 2 status).
-2. Formation Menu → pause menu (Save & Exit, Settings, Help) and "Back to map" (triage #3).
-3. Shove/Pull fog fix.
-4. Hidden-enemy ambush stop (movement design above).
-5. Difficulty ladder (Dusk / Nightfall / Black Sun).
+1. Legacy caravan migration keeps carried gear (P2, save loss; below).
+2. HP accessories cannot heal at 1 HP (P2, below).
+3. Formation Menu → pause menu (Save & Exit, Settings, Help) and "Back to map" (triage #3).
+4. Fog batch: relocation staves reveal only on commit (P2, below) and the sibling eager update in `_refreshPostCombatMovementState`; Shove/Pull landing tiles through `seenTileOccupant`; the hidden-enemy ambush stop; the fog help text explains reveal-on-commit.
+5. Edric's run-start rotation (P3, below).
+6. Difficulty ladder (Dusk / Nightfall / Black Sun).
 
 ## Wave 2 status (branch `claude/playtest-notes-triage-z12dht`)
 
@@ -127,3 +128,23 @@ Done, with unit and browser tests:
 - Deeds: the player picks the title (or none) and the one Oath (roster or promotion chooser); Compendium Deeds tab lists earned deeds and a count of the rest.
 
 Still open from Wave 2: an Oath is lost if the unit already has five skills at promotion (help now warns; a skill loadout, Wave 4, would fix it).
+
+## TestFlight review findings (2026-09-28, main @ 9f330c55)
+
+External review of the last 13 merges (#135–#151). Verdict: fine for an owner-only TestFlight build; hold wider distribution until finding 1 is fixed and a device smoke test passes. Each finding below was re-checked against the code on this branch.
+
+1. **P2 — Legacy caravan migration discards gear when the convoy is full.** `RunManager._dropCaravanUnits` (~3287) ignores `addToConvoy` returning false and still removes the caravan, and it drops fallen caravans with any gear they kept. It runs on load, so the loss is saved. Fix: never destroy items. Put overflow somewhere recoverable, as the fallen-unit transfer does, and also recover fallen caravans' gear. Tests: full weapon and consumable convoys, a fallen caravan, forged and imbued gear, loading twice.
+2. **P2 — Relocation staves reveal fog before the action checkpoint.** `HealController.executeRelocate` (~359) calls `updateFogOfWar` before spending the use, the XP and `finishUnitAction`. A Canto caster then enters Canto with enemies revealed and no suspend save, so a reload undoes a move whose information was already seen. Fix: let `finishUnitAction` do the reveal, as other actions do, and audit `_refreshPostCombatMovementState` (~8712). Tests: Warp and Rescue with Canto, then reload.
+3. **P2 — Cycling an HP accessory heals at critical HP.** `applyAccessoryStats` (UnitManager ~1710) floors current HP at 1 when unequipping, then adds the full bonus when re-equipping. A Seraph Robe unit goes 1/25 → 1/20 → 6/25 and can re-enter the arena. Fix: carry the unpaid deficit, so a re-equip adds only what was actually removed. Tests: critical HP, trade or swap, death and revival, plus the ordinary 10/20 → 15/25 → 10/20 case.
+4. **P3 — Edric's run-start rotation can repeat early.** `NarrativeDirector` (~199) indexes the filtered pool by run count, so a change of partner, result or difficulty reshuffles which line an index means. Fix: a stable master order with context-aware skipping, or remember the lines already played.
+
+Observations:
+- Fog now reveals only on commit (#151). Explain this in the fog help text and the TestFlight "What to Test" notes.
+- Hidden enemies still block the movement range, a known information leak. The ambush stop is in the next round.
+- Build 25 predates #151. Build the candidate SHA for device checks (`testers: none`).
+
+Device checklist before wider distribution (Dave, on iPhone):
+- Install over the current build. Check that all three slot summaries, progression, suspended-battle resume and an app kill/relaunch work.
+- Check help pop-ups upright and sideways. Rotate on the title, with a finger down, and during an action and the enemy phase.
+- Formation: pick up and legal/illegal swaps, replacing a waiting unit, Details, Back, Start.
+- Fog: move then Back, Wait, Canto, a relocation staff, reload. Also a trade, a Ruins path, unarmed defence and a music transition.
