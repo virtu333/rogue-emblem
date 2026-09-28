@@ -107,11 +107,11 @@ const STATIC_HELP_TABS = [
       {
         title: 'Status Conditions',
         lines: [
-          { text: 'Sleep (Hard/Lunatic only):', color: GOLD },
+          { text: 'Sleep (Nightfall/Black Sun only):', color: GOLD },
           { text: '  Unit cannot act. Wakes on damage', color: GRAY },
           { text: '  or 50% chance each turn (3 turns max).', color: GRAY },
           { text: '' },
-          { text: 'Silence (Hard/Lunatic only):', color: GOLD },
+          { text: 'Silence (Nightfall/Black Sun only):', color: GOLD },
           { text: '  Blocks magic, staves, weapon arts,', color: GRAY },
           { text: '  and all skills. Physical attacks OK.', color: GRAY },
           { text: '' },

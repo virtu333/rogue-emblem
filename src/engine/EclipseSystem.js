@@ -14,6 +14,7 @@
 // conversions run under their own seeded stream and restore the caller's generator.
 // All numbers live in data/eclipse.json. With no config the Eclipse is inert.
 
+import { isDifficultyAtLeast } from './DifficultyEngine.js';
 import { createSeededRng } from './BlessingEngine.js';
 import { convertNodeToRoutBattle } from './NodeMapGenerator.js';
 
@@ -417,7 +418,9 @@ export function eclipseBattleMods({ state, config, difficultyId = 'normal', isEc
   const extraFrom = phaseIndexOf(rules.extraMaxAffixFromPhase, config);
   const affix = {
     gatingDifficultyId:
-      difficultyId === 'normal' && hardFrom >= 0 && phase.index >= hardFrom ? 'hard' : null,
+      !isDifficultyAtLeast(difficultyId, 'hard') && hardFrom >= 0 && phase.index >= hardFrom
+        ? 'hard'
+        : null,
     extraMaxAffixes:
       extraFrom >= 0 && phase.index >= extraFrom ? Math.max(0, int(rules.extraMaxAffixes, 0)) : 0,
     guaranteedCount: isEclipsed ? Math.max(0, int(config.eclipsedAffixCount, 0)) : 0,

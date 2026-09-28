@@ -178,7 +178,7 @@ test('controller reaches difficulty secondary actions and detail scrolling on ph
   await padFocus(page, 'Army upgrades: Off');
   await pad(page, 'CONFIRM');
   await expect(menu.getByRole('button', { name: 'Army upgrades: On', exact: true })).toBeFocused();
-  await padFocus(page, 'Hard');
+  await padFocus(page, 'Nightfall');
   await pad(page, 'CONFIRM');
   await padFocus(page, 'Scroll details down');
   await pad(page, 'CONFIRM');

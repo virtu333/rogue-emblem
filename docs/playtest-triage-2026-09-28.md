@@ -120,7 +120,8 @@ Deferred: team-XP rewards still learn class skills without a card (nothing is lo
 
 - Done: 1 caravan migration keeps gear (9a9d9c36); 2 HP accessory debt (78ca81ae); 3 Formation Menu opens the pause menu, with Back to Map before turn 1 (desktop: Esc → Formation menu → Pause menu).
 - Done: 4 fog batch. Rescue/Warp and Blink lift the fog only when the action commits (the combat shove/pull reveal stays: combat is saved as committed first); Shove/Pull never offer a fogged landing tile; hidden enemies no longer shape the blue range, and a move (or Canto) that runs into one stops before it: "Ambush!", the enemy shows, the move is locked in and saved, and the unit can still act (`engine/FogAmbush.js`); Terrain › Fog of War help page and the first-fog hint explain reveal-on-commit and ambushes.
-- Next: 5 Edric's rotation, 6 difficulty ladder.
+- Done: 5 Edric's rotation: each save remembers the pool lines it has played (`storyFlags.linesPlayed`), and a pick takes the least recently played line of the set that applies.
+- Done: 6 difficulty ladder. First Light (`normal`, to the Lieutenant) → Dusk (new `dusk`, to the Emperor) → Nightfall (`hard`, now to the Entity) → Black Sun (`lunatic`). Dusk is halfway on every tuned number (+1 enemy count/level, no stat bonus, army-scaled counts with the Act 1 cap, 10% enemy skills, 4% poison, 8% affixes, par ×0.92, 95% gold/XP, +10% meta currency, 4 church promotions, growth ×0.9), with no status staves, ballistas or secondary weapons (those stay Nightfall+); it sees the Act IV enemy classes. Nightfall gains extended leveling for its fifth act. Unlocks: Dusk ← a First Light win (this slot); Nightfall ← a Dusk win or an old Hard win (any slot); Black Sun ← a Nightfall win (any slot). Runs in progress keep the road they started on.
 
 ## Wave 2 status (branch `claude/playtest-notes-triage-z12dht`)
 

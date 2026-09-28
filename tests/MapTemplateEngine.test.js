@@ -426,6 +426,7 @@ describe('MapTemplateEngine', () => {
       const template = good.rout.find((entry) => entry.id === 'open_field');
       template.reinforcements.minActByDifficulty = {
         normal: 'never',
+        dusk: supportedAct,
         hard: supportedAct,
         lunatic: supportedAct,
       };
@@ -434,7 +435,7 @@ describe('MapTemplateEngine', () => {
     }
   });
 
-  it('requires all three difficulty keys in minActByDifficulty', () => {
+  it('requires every difficulty key in minActByDifficulty', () => {
     const bad = JSON.parse(JSON.stringify(mapTemplates));
     const template = bad.rout.find((entry) => entry.id === 'open_field');
     // Missing the "normal" key — the silent-gate footgun this rule guards against.

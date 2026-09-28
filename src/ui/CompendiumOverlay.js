@@ -1106,8 +1106,9 @@ export class CompendiumOverlay {
     let meta;
     if (isBoss) {
       // finalBoss entries are difficulty-gated variants — tag which mode meets them.
+      const modeName = (id) => this.gameData?.difficulty?.modes?.[id]?.label || id;
       const modeTag = Array.isArray(item.difficultyFilter)
-        ? `  [${item.difficultyFilter.join('/')}]`
+        ? `  [${item.difficultyFilter.map(modeName).join('/')}]`
         : '';
       meta = `${item._actLabel || ''}  ${item.className || ''}  Lv${item.level ?? '?'}${modeTag}`;
     } else {

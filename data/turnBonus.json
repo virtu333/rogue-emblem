@@ -55,7 +55,7 @@
     "act4": 700,
     "finalBoss": 900
   },
-  "difficultyParMultiplier": { "normal": 1, "hard": 0.85, "lunatic": 0.8 },
+  "difficultyParMultiplier": { "normal": 1, "dusk": 0.92, "hard": 0.85, "lunatic": 0.8 },
   "latePressure": {
     "startOverPar": 2,
     "stepTurns": 2,

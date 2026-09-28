@@ -343,7 +343,7 @@ for (const vp of PORTRAIT_PHONES) {
       const menu = await openSlots(page, ['battle', 'home', 'empty']);
       await expect(menu).toContainText('An unlit candle');
       // The run's difficulty sits beside its act, on the act's line.
-      await expect(menu.locator('.sp-act .sp-difficulty')).toHaveText('Lunatic');
+      await expect(menu.locator('.sp-act .sp-difficulty')).toHaveText('Black Sun');
       const act = menu.locator('.sp-act').first();
       expect(await act.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
       const body = menu.locator('.re-menu-body');

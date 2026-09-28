@@ -1,3 +1,4 @@
+import { isDifficultyId } from './DifficultyEngine.js';
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
 import { mergeRunRecords } from './RunRecords.js';
 import { setItemFreeingSpace } from './SaveSpace.js';
@@ -211,9 +212,7 @@ export class MetaProgressionManager {
       const raw = localStorage.getItem(this.storageKey);
       if (raw) {
         const saved = JSON.parse(raw);
-        this.lastDifficulty = ['normal', 'hard', 'lunatic'].includes(saved.lastDifficulty)
-          ? saved.lastDifficulty
-          : null;
+        this.lastDifficulty = isDifficultyId(saved.lastDifficulty) ? saved.lastDifficulty : null;
 
         // Migration: old single-currency saves have totalRenown but no totalValor
         if (typeof saved.totalRenown === 'number' && saved.totalValor === undefined) {
@@ -557,8 +556,9 @@ export class MetaProgressionManager {
         beatAct2: 'Beat Act 2',
         beatAct3: 'Beat Act 3',
         beatGame: 'Beat the Game',
-        beatHard: 'Beat the Game on Hard',
-        beatLunatic: 'Beat the Game on Lunatic',
+        beatDusk: 'Beat the Game on Dusk',
+        beatHard: 'Beat the Game on Nightfall',
+        beatLunatic: 'Beat the Game on Black Sun',
       };
       for (const m of reqs.milestones) {
         if (!this.milestones.has(m)) {
@@ -1183,13 +1183,12 @@ export class MetaProgressionManager {
         this.storyFlags.lastRun = diskFlags.lastRun;
       }
     }
-    if (['normal', 'hard', 'lunatic'].includes(disk.lastDifficulty))
-      this.lastDifficulty = disk.lastDifficulty;
+    if (isDifficultyId(disk.lastDifficulty)) this.lastDifficulty = disk.lastDifficulty;
     this.savedAt = diskSavedAt;
   }
 
   rememberDifficulty(id) {
-    if (!['normal', 'hard', 'lunatic'].includes(id)) return { ok: false };
+    if (!isDifficultyId(id)) return { ok: false };
     return this._save({ lastDifficulty: id });
   }
 
@@ -1248,8 +1247,7 @@ export class MetaProgressionManager {
     // Inside applyRunPayout: the payout's one write happens when it finishes.
     if (this._deferSaves > 0) return { ok: true, deferred: true };
     this._adoptForeignDiskStateIfNewer();
-    if (['normal', 'hard', 'lunatic'].includes(lastDifficulty))
-      this.lastDifficulty = lastDifficulty;
+    if (isDifficultyId(lastDifficulty)) this.lastDifficulty = lastDifficulty;
     const floor = this._readClockFloorSavedAt();
     this.savedAt = Math.max(Date.now(), this.savedAt + 1, Number.isFinite(floor) ? floor + 1 : 0);
     const payload = {

@@ -68,7 +68,11 @@ import {
   rollCostForBlessing,
   selectBlessingOptionsWithTelemetry,
 } from './BlessingEngine.js';
-import { resolveDifficultyMode, DIFFICULTY_DEFAULTS } from './DifficultyEngine.js';
+import {
+  resolveDifficultyMode,
+  DIFFICULTY_DEFAULTS,
+  difficultyVictoryMilestone,
+} from './DifficultyEngine.js';
 import { assignPortraitVariants, backfillPortraitVariants } from './PortraitVariants.js';
 import {
   normalizeWeaponArtBinding,
@@ -4140,10 +4144,8 @@ export class RunManager {
       if (this.actIndex >= 2) m.recordMilestone('beatAct2');
       if (this.actIndex >= 3) m.recordMilestone('beatAct3');
       if (summary.result === 'victory' && this.actIndex >= 3) m.recordMilestone('beatGame');
-      if (summary.result === 'victory' && this.difficultyId === 'hard')
-        m.recordMilestone('beatHard');
-      if (summary.result === 'victory' && this.difficultyId === 'lunatic')
-        m.recordMilestone('beatLunatic');
+      const ladderMilestone = difficultyVictoryMilestone(this.difficultyId);
+      if (summary.result === 'victory' && ladderMilestone) m.recordMilestone(ladderMilestone);
       // Narrative memory flush — exactly-once under this guard, like currencies.
       m.recordRunEnd?.({
         result: summary.result,

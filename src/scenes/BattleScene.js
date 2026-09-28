@@ -29,6 +29,7 @@ import {
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
+import { isDifficultyAtLeast } from '../engine/DifficultyEngine.js';
 import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.js';
 import { earlyEnemyAllowed } from '../engine/EarlyEnemyRules.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -2600,10 +2601,10 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    // Grant secondary weapons for multi-proficiency enemies on Hard/Lunatic
+    // Grant secondary weapons for multi-proficiency enemies on Nightfall/Black Sun
     if (!spawn.sunderWeapon && !spawn.poisonWeapon && !spawn.siegeWeapon && !spawn.isEntity) {
       const diffId = this.battleParams?.difficultyId;
-      if (diffId === 'hard' || diffId === 'lunatic') {
+      if (isDifficultyAtLeast(diffId, 'hard')) {
         grantSecondaryWeapons(enemy, this.gameData.weapons, enemy.weapon?.tier || 'Iron');
       }
     }
@@ -9738,7 +9739,7 @@ export class BattleScene extends Phaser.Scene {
                   showContextualHint(
                     this,
                     'battle_vision_scope_v2',
-                    'Rewind lists every moment you can return to: before each unit acted this turn, and earlier turns. Tap one to preview it for free; Rewind here spends 1 charge. Lunatic returns to turn starts only. Repeating the same actions keeps the same outcomes. Charges last the run, with +1 after each act boss.',
+                    'Rewind lists every moment you can return to: before each unit acted this turn, and earlier turns. Tap one to preview it for free; Rewind here spends 1 charge. Black Sun returns to turn starts only. Repeating the same actions keeps the same outcomes. Charges last the run, with +1 after each act boss.',
                   );
               },
               { phase: 'player', turn },

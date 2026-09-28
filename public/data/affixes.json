@@ -189,6 +189,16 @@
           "teleporter"
         ]
       },
+      "dusk": {
+        "affixChance": 0.08,
+        "maxAffixesPerUnit": 1,
+        "tierPool": [
+          1
+        ],
+        "excludedActs": [
+          "act1"
+        ]
+      },
       "hard": {
         "affixChance": 0.12,
         "maxAffixesPerUnit": 1,

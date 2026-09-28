@@ -4,7 +4,7 @@
   "graceUnderPar": 3,
   "maxGainPerBattle": 6,
   "noParGain": 1,
-  "difficultyGain": { "normal": 1, "hard": 1, "lunatic": 1 },
+  "difficultyGain": { "normal": 1, "dusk": 1, "hard": 1, "lunatic": 1 },
   "bossRelief": 3,
   "kindleAmount": 8,
   "kindlePrice": { "act1": 400, "act2": 700, "act3": 1000, "act4": 1300, "finalBoss": 1500 },

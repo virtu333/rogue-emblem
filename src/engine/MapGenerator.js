@@ -1,3 +1,4 @@
+import { isDifficultyAtLeast } from './DifficultyEngine.js';
 import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
 // MapGenerator.js — Procedural map generation from zone-based templates
 // Pure functions, no Phaser dependency.
@@ -92,14 +93,14 @@ export function generateBattle(params, deps) {
   const resolvedHybridAnchors = resolveHybridAnchors(template.hybridArena, cols, rows);
   applyHybridArenaOverlay(mapLayout, template.hybridArena, cols, rows, terrain);
 
-  // 4. Place features (Throne for Seize, Ballista for Hard/Lunatic from Act 2)
+  // 4. Place features (Throne for Seize, Ballista for Nightfall/Black Sun from Act 2)
   let thronePos = null;
   const ballistas = [];
   const diffMode = params.difficultyId || 'normal';
-  // Ballistas are Hard/Lunatic only, and never in Act 1: a range-5 bolt every enemy
-  // phase against two level-1 lords was the opening map's hardest threat.
+  // Ballistas are Nightfall/Black Sun only, and never in Act 1: a range-5 bolt every
+  // enemy phase against two level-1 lords was the opening map's hardest threat.
   const ballistasAllowed =
-    (diffMode === 'hard' || diffMode === 'lunatic') && (params.act || 'act1') !== 'act1';
+    isDifficultyAtLeast(diffMode, 'hard') && (params.act || 'act1') !== 'act1';
   if (template.features) {
     for (const feat of template.features) {
       if (feat.type === 'Ballista' && !ballistasAllowed) continue;

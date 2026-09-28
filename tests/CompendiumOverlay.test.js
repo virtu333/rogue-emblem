@@ -344,14 +344,15 @@ describe('CompendiumOverlay', () => {
         name: 'The Entity',
         className: 'Entity',
         level: 20,
-        difficultyFilter: ['lunatic'],
+        difficultyFilter: ['hard', 'lunatic'],
         _kind: 'boss',
         _actLabel: 'Final',
         lore: 'It was here before the ritual. The ritual only taught it our names.',
       };
       overlay._renderFoe(entity, 100, 20, 500);
       const metaObj = overlay.objects.find(
-        (o) => typeof o.text === 'string' && o.text.includes('[lunatic]'),
+        // Modes by their names, not their ids.
+        (o) => typeof o.text === 'string' && o.text.includes('[Nightfall/Black Sun]'),
       );
       expect(metaObj).toBeTruthy();
 

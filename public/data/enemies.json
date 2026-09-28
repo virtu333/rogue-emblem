@@ -248,7 +248,7 @@
         "epithet": "From the Far Side of the Glass",
         "difficultyFilter": [
           "normal",
-          "hard"
+          "dusk"
         ],
         "lore": "The ritual's first success, or its first casualty; the court circle's records use both. He has watched every future the seers walk, from the far side of the glass."
       },
@@ -258,6 +258,7 @@
         "name": "The Entity",
         "isEntity": true,
         "difficultyFilter": [
+          "hard",
           "lunatic"
         ],
         "lore": "Older than the ground consecrated to keep it asleep. The ritual overfed it, and the war is the sound of it turning over. It does not hate. It does not need to."

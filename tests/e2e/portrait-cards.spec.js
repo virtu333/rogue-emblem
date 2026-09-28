@@ -747,13 +747,13 @@ for (const viewport of PORTRAIT_PHONES)
       const roomy = viewport.height - insets.top - insets.bottom >= 800;
       const setup = await openDifficulty(page, false);
       await expectPortraitUi(page);
-      // Lunatic's terms are the longest: they scroll in their panel and fade there.
+      // Black Sun's terms are the longest: they scroll in their panel and fade there.
       await setup.locator('.ch-banner[data-mode="lunatic"]').tap();
       const terms = setup.locator('.ch-banner-detail');
-      await expect(terms).toContainText('Lunatic');
-      const scrolls = await expectSoftEdges(terms, 'Lunatic terms');
+      await expect(terms).toContainText('Black Sun');
+      const scrolls = await expectSoftEdges(terms, 'Black Sun terms');
       if (viewport.height <= 700)
-        expect(scrolls, 'Lunatic terms scroll on a short phone').toBe(true);
+        expect(scrolls, 'Black Sun terms scroll on a short phone').toBe(true);
       await expectFrameInSafeArea(
         page,
         '[aria-label="Choose difficulty"]',

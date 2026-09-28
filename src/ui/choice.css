@@ -1117,6 +1117,9 @@
 .ch-banner[data-mode='normal'] {
   --ch-mode: var(--re-good);
 }
+.ch-banner[data-mode='dusk'] {
+  --ch-mode: var(--re-accent);
+}
 .ch-banner[data-mode='hard'] {
   --ch-mode: var(--re-warn);
 }

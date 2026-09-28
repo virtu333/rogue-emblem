@@ -1,4 +1,5 @@
 // Core game constants — derived from GDD
+import { isDifficultyAtLeast } from '../engine/DifficultyEngine.js';
 
 export const TILE_SIZE = 32;
 export const PORTRAIT_SIZE = 128;
@@ -328,7 +329,8 @@ export const DARK_CLASSES = new Set([
 ]);
 
 export function filterClassPoolByDifficulty(classPool, difficultyMode) {
-  if (difficultyMode === 'hard' || difficultyMode === 'lunatic') return classPool;
+  // Dusk and harder reach Act IV, whose pools are built on these classes.
+  if (isDifficultyAtLeast(difficultyMode, 'dusk')) return classPool;
   return classPool.filter((name) => !DIFFICULTY_GATED_CLASSES.has(name));
 }
 

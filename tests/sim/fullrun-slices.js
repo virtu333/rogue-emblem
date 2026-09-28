@@ -96,7 +96,7 @@ export const FULLRUN_SLICES = {
   },
   ambush_hard_invincible: {
     description:
-      'Hard ambush shop flow under invincibility for deterministic village ambush coverage.',
+      'Nightfall (hard) ambush shop flow under invincibility for deterministic village ambush coverage; the run goes on to the Entity.',
     args: [
       '--seed-start',
       '301',
@@ -118,7 +118,7 @@ export const FULLRUN_SLICES = {
       '--min-avg-gold',
       '9000.00',
       '--max-avg-gold',
-      '52200.00',
+      '54400.00',
       '--min-avg-shop-spent',
       '6770.00',
       '--max-avg-shop-spent',

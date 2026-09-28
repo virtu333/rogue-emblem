@@ -45,13 +45,13 @@ test('setup owns keyboard/gamepad actions and initially confirms forward', async
   // the canvas scene never receives them as difficulty changes.
   await page.keyboard.press('ArrowRight');
   await expect(difficulty.getByRole('button', { name: 'Back', exact: true })).toBeFocused();
-  await expect(difficulty.locator('article')).not.toContainText('Beat the game');
+  await expect(difficulty.locator('article')).not.toContainText('Win on First Light');
   await action(page, 'navigate', { dx: -1, dy: 0 });
   await expect(difficulty.getByRole('button', { name: 'Confirm', exact: true })).toBeFocused();
-  await difficulty.getByRole('button', { name: /^Hard/ }).tap();
-  await expect(difficulty.locator('article')).toContainText('Beat the game');
+  await difficulty.getByRole('button', { name: /^Dusk/ }).tap();
+  await expect(difficulty.locator('article')).toContainText('Win on First Light to unlock');
   await expect(difficulty.getByRole('button', { name: 'Confirm', exact: true })).toBeDisabled();
-  await difficulty.getByRole('button', { name: /^Normal/ }).tap();
+  await difficulty.getByRole('button', { name: /^First Light/ }).tap();
   await expect(difficulty.getByRole('button', { name: 'Confirm', exact: true })).toBeEnabled();
   await difficulty.getByRole('button', { name: 'Confirm', exact: true }).focus();
   await action(page, 'confirm');

@@ -40,7 +40,7 @@ emblem-rogue/
 │   ├── colosseum.json     # Mercenary arena config: merc pools, ladder, promotion scaling
 │   ├── consumables.json   # 15 consumable items: 3 core + 8 stat boosters + 2 reclass seals + 2 misc
 │   ├── dialogue.json      # Recruit lines, story sequences, map/shop flavor, unitVoice (level-up / promotion / last words: class × trait × temperament, 7 lord voices)
-│   ├── difficulty.json    # Difficulty modes (Normal/Hard/Lunatic): stat/economy/fog modifiers
+│   ├── difficulty.json    # The ladder: normal/dusk/hard/lunatic, shown as First Light/Dusk/Nightfall/Black Sun
 │   ├── eclipse.json       # The Eclipse (visible run clock): shadow gain/relief, fall thresholds, phases
 │   ├── enemies.json       # Enemy pools by act (act1-act4, postAct, finalBoss), boss defs, count scaling
 │   ├── imbues.json        # 6 weapon imbues (rare blessings) + Imbuing Stone / Prismatic Stone defs
@@ -92,7 +92,8 @@ Read the JSON files directly for full schemas. Non-obvious behaviors:
 - **recruits.json** — `levelRange` overridden at spawn. Recruit scaling is Edric-anchored (see `RecruitScaling.js`), not simple lord-level mirroring.
 - **colosseum.json** — `crossActPoolAccess: true` pulls next-act recruit classes into merc generation. This means act2 can draw promoted act3 classes and must use promote-path handling.
 - **mapTemplates.json** — Castle templates (corridor_siege, castle_ruins, great_hall) gated to act2+ via `"acts"` field. Escape templates require an `escapeZone` and use endless `repeatingWaves` pursuit reinforcements (active on Normal too — they ARE the objective pressure).
-- **affixes.json** — `difficultyGating`: Normal=0%, Hard=12% chance/1 max, Lunatic=30%/2 max. Mutual exclusion + class exclusion rules enforced by AffixEngine.
+- **affixes.json** — `difficultyGating`: First Light 5%, Dusk 8% (1 max, none in Act 1), Nightfall 12%/1 max, Black Sun 30%/2 max. Mutual exclusion + class exclusion rules enforced by AffixEngine.
+- **difficulty.json** — Four rungs, easiest first (`DifficultyEngine.DIFFICULTY_IDS`); ids are save data and never change, names are `label`s. First Light (`normal`) ends at the Lieutenant, Dusk (`dusk`) at the Emperor (Act IV), Nightfall (`hard`) and Black Sun (`lunatic`) at the Entity. Compare rungs with `isDifficultyAtLeast`, never with id lists; unlocks are `DIFFICULTY_UNLOCKS`. Every table keyed by difficulty (affix gating, par multiplier, Eclipse gain, template turn offsets and reinforcement gates) needs a `dusk` entry. A run keeps the act list it started with, so a Hard run saved before the ladder still ends at the Emperor.
 - **turnBonus.json** — Par formula uses sqrt enemy scaling (capped at linear), area/terrain penalties, then `*0.8` and optional difficulty multiplier. See `TurnBonusCalculator.js:calculatePar()` for current logic. Late pressure: XP/gold decay at 5+ turns over par; boss enrage at turn 12 or 5 over par.
 - **whetstones.json** — Applied immediately on loot pickup, never enter inventory.
 - **imbues.json** — One imbue per weapon, instance-only state (`weapon._imbueId`; canonical weapons.json never gains imbue fields). Effects resolve catalog-side at combat time via `ImbueSystem.js`; combat mods merge like weapon-art mods in `Combat.js`. Imbuing Stones are whetstone-like `forge`-category loot (act2+), stone names listed in lootTables forge pools (whetstones doubled so stones drop ~half as often as Silver Whetstone).

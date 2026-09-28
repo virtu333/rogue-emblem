@@ -94,11 +94,13 @@ describe('MapGenerator', () => {
           ),
         );
 
-      it('hard always faces The Lieutenant, never The Entity', () => {
+      it('Nightfall (hard) now continues to The Entity, never The Lieutenant', () => {
         for (let seed = 1; seed <= 15; seed++) {
-          const boss = finalBossFor('hard', seed).enemySpawns.find((e) => e.isBoss);
-          expect(boss.name, `seed ${seed}`).toBe('The Lieutenant');
-          expect(boss.isEntity, `seed ${seed}`).toBeFalsy();
+          const config = finalBossFor('hard', seed);
+          const boss = config.enemySpawns.find((e) => e.isBoss);
+          expect(boss.name, `seed ${seed}`).toBe('The Entity');
+          expect(boss.isEntity, `seed ${seed}`).toBe(true);
+          expect(config.templateId, `seed ${seed}`).toBe('eldritch_sanctum');
         }
       });
 

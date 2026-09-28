@@ -190,9 +190,10 @@ export class RunSetupMenu {
       row.append(card);
     });
     const chosen = difficultyBannerContent(s.modes[s.selectedIndex], s.selectedIndex);
-    // The terms scroll when long (Lunatic upright); their edges fade while there is more.
+    // The terms scroll when long (Black Sun upright); their edges fade while there is more.
     const detail = softList(element('article', null, 're-card re-scroll ch-banner-detail'));
     detail.append(element('h3', `${chosen.name || 'Choose an option'} · the terms`));
+    if (chosen.road) detail.append(element('p', chosen.road, 'ch-road'));
     const list = (lines, className = '') => {
       const ul = element('ul', null, className);
       for (const line of lines) ul.append(element('li', line));

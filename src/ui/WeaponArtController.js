@@ -459,6 +459,7 @@ export class WeaponArtController {
     if (!rawDifficulty) return { minScore: 0.75, useChance: 1.0 };
     const difficultyId = String(rawDifficulty).toLowerCase();
     if (difficultyId === 'normal') return { minScore: 2.25, useChance: 0.6 };
+    if (difficultyId === 'dusk') return { minScore: 1.5, useChance: 0.75 };
     if (difficultyId === 'lunatic') return { minScore: 0.25, useChance: 1.0 };
     return { minScore: 0.75, useChance: 0.9 };
   }

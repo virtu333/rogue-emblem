@@ -161,11 +161,12 @@ describe('slotCardModel', () => {
 
   it("shows the run's difficulty beside its act, named from difficulty.json", () => {
     // Labels come from the data, not the id: planting a hard-coded 'Normal' fails here.
-    expect(gameData.difficulty.modes.lunatic.label).toBe('Lunatic');
+    expect(gameData.difficulty.modes.lunatic.label).toBe('Black Sun');
     const cases = [
-      ['normal', 'Normal'],
-      ['hard', 'Hard'],
-      ['lunatic', 'Lunatic'],
+      ['normal', 'First Light'],
+      ['dusk', 'Dusk'],
+      ['hard', 'Nightfall'],
+      ['lunatic', 'Black Sun'],
     ];
     for (const [id, label] of cases) {
       const model = slotCardModel(1, activeSummary({ difficultyId: id }), { gameData, now: NOW });

@@ -75,7 +75,7 @@ export function eclipseExplainer(view, config, { kindlePrice = null } = {}) {
   const hardFrom = phases.indexOf(affix.hardGatingFromPhase);
   const extraFrom = phases.indexOf(affix.extraMaxAffixFromPhase);
   if (hardFrom >= 0 && phase.index >= hardFrom)
-    effects.push('Enemy affixes appear as often as on Hard (Normal runs).');
+    effects.push('Enemy affixes appear as often as on Nightfall (First Light and Dusk runs).');
   if (extraFrom >= 0 && phase.index >= extraFrom)
     effects.push(
       `Affixed enemies can carry ${Math.max(1, affix.extraMaxAffixes || 1)} more affix.`,
