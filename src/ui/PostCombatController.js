@@ -11,6 +11,7 @@ import { TutorialController } from './TutorialController.js';
 import {
   serializeUnit,
   getActTransitionKey,
+  getActTransitionFollowUps,
   settleAndPersistEndRun,
 } from '../engine/RunManager.js';
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
@@ -365,12 +366,14 @@ export class PostCombatController {
           scene.runManager.advanceAct();
           const toAct = scene.runManager.currentAct;
           const transKey = getActTransitionKey(fromAct, toAct);
-          const entries = selectDialogueEntries(
-            scene.gameData?.dialogue?.actTransitions?.[transKey],
-            buildNarrativeContext({
-              meta: scene.registry.get('meta'),
-              runManager: scene.runManager,
-            }),
+          const narrative = buildNarrativeContext({
+            meta: scene.registry.get('meta'),
+            runManager: scene.runManager,
+          });
+          const entries = [transKey, ...getActTransitionFollowUps(transKey)].flatMap(
+            (key) =>
+              selectDialogueEntries(scene.gameData?.dialogue?.actTransitions?.[key], narrative) ||
+              [],
           );
           // ACT n · region · grade, once per act (it shares the dialogue's
           // once-gate), with the story lines playing over it.

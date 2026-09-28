@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'node:fs';
-import { RunManager, getActTransitionKey } from '../src/engine/RunManager.js';
+import {
+  RunManager,
+  getActTransitionKey,
+  getActTransitionFollowUps,
+} from '../src/engine/RunManager.js';
 import {
   KNOWN_WHEN_KEYS,
   buildNarrativeContext,
@@ -22,6 +26,7 @@ const { NodeMapScene } = await import('../src/scenes/NodeMapScene.js');
 const { RunCompleteScene } = await import('../src/scenes/RunCompleteScene.js');
 const { DialogueOverlay } = await import('../src/ui/DialogueOverlay.js');
 const gameData = loadGameData();
+const dialogueData = JSON.parse(fs.readFileSync('data/dialogue.json', 'utf8'));
 
 afterEach(() => {
   vi.useRealTimers();
@@ -33,7 +38,33 @@ describe('Narrative scaffold helpers', () => {
     expect(getActTransitionKey('act2', 'act3')).toBe('act2_to_act3');
     expect(getActTransitionKey('act3', 'finalBoss')).toBe('act3_to_finalBoss_normal');
     expect(getActTransitionKey('act3', 'act4')).toBe('act3_to_act4');
-    expect(getActTransitionKey('act4', 'finalBoss')).toBe('act4_to_finalBoss');
+    // After the Emperor: the ground wakes and the army descends to the Entity.
+    expect(getActTransitionKey('act4', 'finalBoss')).toBe('finalBoss_to_secretAct');
+    expect(getActTransitionFollowUps('finalBoss_to_secretAct')).toEqual(['secretAct_start']);
+    expect(getActTransitionFollowUps('act3_to_act4')).toEqual([]);
+  });
+
+  it('every act transition the game can reach has lines', () => {
+    const pairs = [
+      ['act1', 'act2'],
+      ['act2', 'act3'],
+      ['act3', 'finalBoss'],
+      ['act3', 'act4'],
+      ['act4', 'finalBoss'],
+    ];
+    for (const [from, to] of pairs) {
+      const key = getActTransitionKey(from, to);
+      for (const k of [key, ...getActTransitionFollowUps(key)])
+        expect(dialogueData.actTransitions[k], k).toBeTruthy();
+    }
+  });
+
+  it('Hard and Lunatic never fight the Lieutenant, so Act IV never says he fell', () => {
+    const text = JSON.stringify([
+      dialogueData.actTransitions.act3_to_act4,
+      dialogueData.bossEncounters['The Emperor'].preBattle,
+    ]).toLowerCase();
+    expect(text).not.toMatch(/lieutenant is gone|killing my seer/);
   });
 
   it('tracks shownDialogueKeys with round-trip persistence', () => {

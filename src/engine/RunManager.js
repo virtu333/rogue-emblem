@@ -133,7 +133,14 @@ function sanitizeActSequence(sequence, fallback = ACT_SEQUENCE) {
 
 export function getActTransitionKey(fromAct, toAct) {
   if (fromAct === 'act3' && toAct === 'finalBoss') return 'act3_to_finalBoss_normal';
+  // After the Emperor falls, the ground wakes: the descent to the Entity.
+  if (fromAct === 'act4' && toAct === 'finalBoss') return 'finalBoss_to_secretAct';
   return `${fromAct}_to_${toAct}`;
+}
+
+/** Transition scenes that play straight after another, in order (under its once-gate). */
+export function getActTransitionFollowUps(transKey) {
+  return transKey === 'finalBoss_to_secretAct' ? ['secretAct_start'] : [];
 }
 
 function getConvoyBucket(item) {

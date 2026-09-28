@@ -78,7 +78,7 @@ describe('story slice selection contracts', () => {
     expect(JSON.stringify([...early, ...late])).not.toContain('{lastFoe}');
     expect(selectDialogueEntries(data.runComplete.defeat, ctx(name))).toBeTruthy();
   });
-  it.each(['act3_to_act4', 'act4_to_finalBoss', 'finalBoss_to_secretAct', 'secretAct_start'])(
+  it.each(['act3_to_act4', 'finalBoss_to_secretAct', 'secretAct_start'])(
     '%s renders all seven commander replies through the cast adapter',
     (key) => {
       for (const name of commanders) {
