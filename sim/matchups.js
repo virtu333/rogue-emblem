@@ -1,5 +1,17 @@
 // Combat Matchup Simulator — Full class matrix, focus mode, scenario tests
 // Usage: node sim/matchups.js [--trials N] [--level L] [--csv] [--focus CLASS] [--seed S]
+//
+// Each trial is one exchange at range 1 (attack, counter, follow-ups). winRate counts
+// exchanges the attacker ends with the defender dead (a double KO counts half).
+// The doubling columns count eligibility, not follow-ups that landed: `doubles` is the
+// share of trials where the attacker may make a follow-up attack, `doubled` where the
+// defender may make a follow-up counter. Both are read from the engine's combat
+// forecast of the same exchange, taken before it resolves: attack speed (SPD less
+// weapon weight beyond STR/5, plus weapon, skill and accessory bonuses) at least 5
+// over the foe's, with the forecast's own exceptions (Pursuit Ring, Quick Riposte,
+// weapon arts, preventEnemyDouble, a defender that cannot counter). A fight that ends
+// before the follow-up still counts. The forecast draws no randomness, so these
+// columns never shift the seeded win rates or damage.
 
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
 import { getData, createEnemy, getWeapon } from './lib/SimUnitFactory.js';
@@ -25,6 +37,12 @@ if (opts.help) {
 
 const data = getData();
 const issues = [];
+
+const DOUBLES_NOTE =
+  'doubles / doubled = share of fights where the attacker / defender is eligible to ' +
+  "double (attack speed at least 5 over the foe's, per the engine forecast taken " +
+  'before the fight); a fight that ends first still counts.';
+const printDoublesNote = () => console.log(`${opts.csv ? '# ' : ''}${DOUBLES_NOTE}`);
 
 const BASE_CLASSES = data.classes.filter(
   (c) =>
@@ -101,8 +119,9 @@ function runMatchup(
     };
 
     // Doubling uses attack speed (SPD less weapon weight beyond STR/5, plus skill and
-    // accessory bonuses), exactly as the fight resolves it: read it from the forecast of
-    // this same exchange, taken before the fight changes anyone's HP.
+    // accessory bonuses), exactly as the fight resolves it: read eligibility from the
+    // forecast of this same exchange, taken before the fight changes anyone's HP (never
+    // raw SPD). The forecast draws no randomness, so the seeded fight is unchanged.
     const forecast = getCombatForecast(
       atk,
       atk.weapon,
@@ -149,6 +168,7 @@ function runMatchup(
 if (opts.focus) {
   installSeed(opts.seed);
   printHeader(`FOCUS: ${opts.focus} vs All Classes`);
+  printDoublesNote();
 
   const levels = [1, 4, 7, 10, 13];
   for (const lvl of levels) {
@@ -215,6 +235,7 @@ if (opts.focus) {
 // ─── Scenario Tests ───
 
 printHeader('SCENARIO TESTS');
+printDoublesNote();
 
 installSeed(opts.seed);
 

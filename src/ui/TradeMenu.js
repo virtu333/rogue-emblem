@@ -41,6 +41,9 @@ export function tradeItemBrief(item, unit) {
       .join(' · ');
   if (item.type === 'Consumable')
     return [formatUses(item), getConsumableDescription(item)].filter(Boolean).join(' · ');
+  // A staff's range and uses grow with its wielder's MAG: in the convoy (no wielder)
+  // it shows its base range only (battleItemBrief needs a unit for a staff).
+  if (item.type === 'Staff' && !unit?.stats) return `Staff · Rng ${item.range ?? 1}`;
   if (item.type === 'Staff' || item.type === 'Scroll') return battleItemBrief(item, unit);
   return [
     `${item.type} · Mt ${item.might ?? 0} · Hit ${item.hit ?? 0} · Wt ${item.weight ?? 0}`,

@@ -267,6 +267,26 @@ describe('rewardForWhom', () => {
       tone: 'bad',
     });
   });
+  it('a stat booster says the stat and amount, never who should take it', () => {
+    // The playtest's steer: "SPD +2 · Anouk grows it best". A fast grower is no
+    // reason to take a flat bonus now; the recipient step shows before → after.
+    const anouk = recruit('Myrmidon', 'Anouk');
+    const brom = recruit('Fighter', 'Brom');
+    anouk.growths.SPD = 95;
+    brom.growths.SPD = 5;
+    const boosters = data.consumables.filter((c) => c.effect === 'statBoost');
+    expect(boosters.length).toBeGreaterThan(5);
+    for (const item of boosters) {
+      const result = rewardForWhom({ type: 'consumable', item }, run([brom, anouk]));
+      expect(result, item.name).toEqual({
+        who: 'Any unit · permanent',
+        detail: `${item.stat} +${item.value}`,
+        tone: 'good',
+      });
+    }
+    const speedwing = boosters.find((c) => c.name === 'Speedwing');
+    expect(rewardForWhom({ type: 'consumable', item: speedwing }, run([brom, anouk])).detail).toBe('SPD +2'); // prettier-ignore
+  });
   it('covers staves, forge stones, supplies, boosters, gold and skipping', () => {
     const cleric = recruit('Cleric', 'Mira');
     const heal = structuredClone(data.weapons.find((w) => w.type === 'Staff' && w.name === 'Heal'));

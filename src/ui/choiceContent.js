@@ -235,7 +235,8 @@ function attackOf(unit, weapon) {
  * "For whom" for a reward: { who, detail, tone } lines a card can show.
  * Weapons name the wielder who gains the most attack (and how many can
  * wield it); staves name the healer with the most uses; forge stones count
- * the weapons that can take them. Reads only.
+ * the weapons that can take them; stat boosters give the stat and amount
+ * only (never a recipient). Reads only.
  */
 export function rewardForWhom(choice, run) {
   const roster = Array.isArray(run?.roster) ? run.roster : [];
@@ -278,15 +279,12 @@ export function rewardForWhom(choice, run) {
   }
   if (item.type === 'Consumable') {
     if (item.effect === 'statBoost') {
+      // No recipient advice: a high growth rate is no reason to take a flat bonus
+      // now. The recipient step shows each unit's stat before → after instead.
       const stat = item.stat || '';
-      const grower = roster
-        .filter((u) => u?.growths)
-        .sort((a, b) => num(b.growths?.[stat]) - num(a.growths?.[stat]))[0];
       return {
         who: 'Any unit · permanent',
-        detail: stat
-          ? `${stat} +${num(item.value) || 1}${grower ? ` · ${grower.name} grows it best` : ''}`
-          : '',
+        detail: stat ? `${stat} +${num(item.value) || 1}` : '',
         tone: 'good',
       };
     }

@@ -213,7 +213,8 @@
     },
     "avoidBonus": "-10",
     "defBonus": "0",
-    "special": "Hazard: Applies Acid (2T). Infantry and Flying only."
+    "special": "Infantry and Flying only.",
+    "hazardStatus": "acid"
   },
   {
     "name": "Acidic Bog",
@@ -225,6 +226,7 @@
     },
     "avoidBonus": "-5",
     "defBonus": "0",
-    "special": "Hazard: Applies Acid (2T). Slow for all."
+    "special": "Slow for all.",
+    "hazardStatus": "acid"
   }
 ]

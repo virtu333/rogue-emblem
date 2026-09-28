@@ -496,6 +496,20 @@ describe('tile info + path preview (shared by mouse hover and the gamepad cursor
     expect(scene.turnCounterText.setY).toHaveBeenCalled(); // updateTopLeftHudLayout ran
   });
 
+  it('refreshTileInfo spells out acid ground on its own lines (it read "Acid (2T)")', () => {
+    const bog = loadGameData().terrain.find((t) => t.name === 'Acidic Bog');
+    const scene = makeInfoScene();
+    scene.grid.getTerrainAt = vi.fn(() => bog);
+    const controller = new InputController(scene);
+    controller.refreshTileInfo(2, 3);
+    expect(scene.infoText.text.split('\n')).toEqual([
+      'Acidic Bog | Move: 2 | Avo -5',
+      'Ending a turn here causes Acid. Flying units are immune.',
+      'Acid: loses 5% of max HP at turn start, for 2 turns. Never below 1 HP.',
+      'Slow for all.',
+    ]);
+  });
+
   it('refreshTileInfo appends the unit line (weapon + XP) for a visible unit', () => {
     const unit = {
       name: 'Edric',

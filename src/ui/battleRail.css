@@ -271,6 +271,12 @@
 .battlefield-lab .mobile-battle-hud.has-unit .mb-terrain > span {
   white-space: nowrap;
 }
+/* The threat line ("2 foes can reach · 1 staff · fog may hide more") can outgrow the
+   card: it wraps between its clauses, each kept whole, instead of running past it. */
+.battlefield-lab .mobile-battle-hud.has-unit .mb-terrain > .mb-threat-line {
+  white-space: normal;
+  min-width: 0;
+}
 .battlefield-lab .mobile-battle-hud.has-unit .mb-terrain-help.mb-button {
   min-height: 20px;
   width: auto;

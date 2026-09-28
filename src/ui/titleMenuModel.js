@@ -65,3 +65,34 @@ export function pickResumeSlot(slotSummaries = []) {
   const active = slotSummaries.filter((slot) => slot?.hasActiveRun && !slot.runCorrupt);
   return active.length === 1 ? active[0] : null;
 }
+
+/**
+ * A slot holds meta progression when its save has anything a new run there
+ * would keep: bought upgrades, unspent Valor or Supply, a finished run or a
+ * milestone. Only a slot with no run in progress (and no unreadable run) can
+ * take a new run without overwriting one. `summary` is getSlotSummary's.
+ */
+export function hasMetaProgression(summary) {
+  if (!summary || summary.hasActiveRun || summary.runCorrupt) return false;
+  return (
+    (summary.upgradesOwned || 0) > 0 ||
+    (summary.valor || 0) > 0 ||
+    (summary.supply || 0) > 0 ||
+    (summary.runsCompleted || 0) > 0 ||
+    (Array.isArray(summary.milestones) && summary.milestones.length > 0)
+  );
+}
+
+/**
+ * The slot New Game offers to keep its upgrades: among slots with meta
+ * progression and no run in progress (a slot waiting on a cloud-save choice
+ * is skipped), the most recently saved; ties go to the lower slot. Null when
+ * none qualifies.
+ */
+export function pickUpgradeSlot(slotSummaries = []) {
+  return (
+    (Array.isArray(slotSummaries) ? slotSummaries : [])
+      .filter((summary) => hasMetaProgression(summary) && !summary.cloudConflict)
+      .sort((a, b) => (b.metaSavedAt || 0) - (a.metaSavedAt || 0) || a.slot - b.slot)[0] || null
+  );
+}
