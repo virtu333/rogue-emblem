@@ -123,6 +123,12 @@ Deferred: team-XP rewards still learn class skills without a card (nothing is lo
 - Done: 5 Edric's rotation: each save remembers the pool lines it has played (`storyFlags.linesPlayed`), and a pick takes the least recently played line of the set that applies.
 - Done: 6 difficulty ladder. First Light (`normal`, to the Lieutenant) → Dusk (new `dusk`, to the Emperor) → Nightfall (`hard`, now to the Entity) → Black Sun (`lunatic`). Dusk is halfway on every tuned number (+1 enemy count/level, no stat bonus, army-scaled counts with the Act 1 cap, 10% enemy skills, 4% poison, 8% affixes, par ×0.92, 95% gold/XP, +10% meta currency, 4 church promotions, growth ×0.9), with no status staves, ballistas or secondary weapons (those stay Nightfall+); it sees the Act IV enemy classes. Nightfall gains extended leveling for its fifth act. Unlocks: Dusk ← a First Light win (this slot); Nightfall ← a Dusk win or an old Hard win (any slot); Black Sun ← a Nightfall win (any slot). Runs in progress keep the road they started on.
 
+PR notes for the strict-slice threshold change (CI's check:threshold-pr-notes reads these from the PR body):
+- Attribution command: `npm run sim:fullrun:triage` (baseline measured with `node tests/sim/fullrun-slice-runner.js --slice ambush_hard_invincible` on each commit).
+- first_bad_sha: 6a3778b8 (difficulty ladder: Nightfall now runs on to the Entity). parent_sha: 3539f856.
+- Failing metrics / threshold breaches: ambush_hard_invincible avg_gold 52607 > 52200 (was 50460 on the parent; +1 act, 35 → 37 nodes, 29 → 30 battles). Change: `--max-avg-gold` 52200 → 54400, the same ~3.4% headroom. Every other metric is unchanged.
+
+
 ## Wave 2 status (branch `claude/playtest-notes-triage-z12dht`)
 
 Done, with unit and browser tests:

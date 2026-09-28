@@ -183,9 +183,11 @@ export class RunSetupMenu {
       for (let n = 0; n < content.rank; n++) threads.append(element('i'));
       plate.append(threads, element('strong', content.name, 'ch-banner-name'));
       if (content.tagline) plate.append(element('span', content.tagline, 'ch-banner-tag'));
-      if (content.rewards.length)
-        plate.append(element('span', content.rewards[0], 'ch-banner-reward'));
+      // A locked rung says how to open it instead (its reward is in the terms below):
+      // four banners leave no room for both.
       if (content.locked) plate.append(element('span', content.lockReason, 'ch-lock'));
+      else if (content.rewards.length)
+        plate.append(element('span', content.rewards[0], 'ch-banner-reward'));
       card.append(plate);
       row.append(card);
     });

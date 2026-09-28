@@ -356,14 +356,18 @@ test('difficulty banners: locked modes say why, the terms read beneath', async (
   await waitForScene(page, 'DifficultySelect');
   const dialog = page.getByRole('dialog', { name: 'Choose difficulty', exact: true });
   await expect(dialog).toBeVisible();
-  expect(await expectDraftInView(page, dialog, '.ch-banner')).toBe(3);
+  expect(await expectDraftInView(page, dialog, '.ch-banner')).toBe(4);
   await expect(dialog.locator('article')).toContainText('the terms');
-  await dialog.getByRole('button', { name: /^Hard/ }).tap();
+  await dialog.getByRole('button', { name: /^Nightfall/ }).tap();
   await expect(dialog.locator('.ch-banner[data-mode="hard"]')).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await expect(dialog.locator('article')).toContainText('Beat the game');
+  await expect(dialog.locator('article')).toContainText('Win on Dusk to unlock');
+  // Each rung says where its road ends.
+  await expect(dialog.locator('article .ch-road')).toHaveText(
+    'The road: Acts I–IV, then the Entity.',
+  );
   await expect(dialog.locator('.ch-banner[data-mode="hard"] .ch-lock')).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Confirm', exact: true })).toBeDisabled();
   await snap(page, info, 'difficulty-hard');

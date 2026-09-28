@@ -97,7 +97,7 @@ async function openDifficulty(page, preview) {
   await page.goto(`/?devScene=difficulty${preview ? '&mobilePreview=1' : ''}`);
   await waitForScene(page, 'DifficultySelect');
   const dialog = page.getByRole('dialog', { name: 'Choose difficulty', exact: true });
-  await expect(dialog.locator('.ch-banner')).toHaveCount(3);
+  await expect(dialog.locator('.ch-banner')).toHaveCount(4);
   return dialog;
 }
 
@@ -1092,10 +1092,12 @@ for (const viewport of PORTRAIT_PHONES)
 // follow the footer's text (a system font), so they are only held to one row.
 const MAIN = {
   '844x390': {
+    // Four rungs: the same row as four blessings.
     difficulty: [
-      [17, 76, 264.7],
-      [289.7, 80, 264.7],
-      [562.3, 80, 264.7],
+      [17, 76, 196.5],
+      [221.5, 80, 196.5],
+      [426, 80, 196.5],
+      [630.5, 80, 196.5],
     ],
     blessing: [
       [17, 76, 196.5],
@@ -1128,9 +1130,10 @@ const MAIN = {
   },
   '640x480': {
     difficulty: [
-      [17, 76, 198],
-      [221, 80, 198],
-      [425, 80, 198],
+      [17, 76, 147],
+      [170, 80, 147],
+      [323, 80, 147],
+      [476, 80, 147],
     ],
     blessing: [
       [17, 76, 147],

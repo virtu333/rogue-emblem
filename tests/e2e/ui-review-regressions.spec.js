@@ -155,7 +155,7 @@ test('last difficulty preselects only while unlocked', async ({ page }) => {
   await waitForScene(page, 'HomeBase');
   await page.evaluate(() => {
     const m = window.__emblemRogueGame.registry.get('meta');
-    m.lastDifficulty = 'hard';
+    m.lastDifficulty = 'dusk'; // Dusk opens with a First Light win (beatGame)
     m.milestones.add('beatGame');
   });
   await page.getByRole('button', { name: 'Begin Run', exact: true }).tap();
