@@ -190,9 +190,10 @@ export function promotionPathContent(unit, cls, gameData = {}) {
         skillName: sworn.skillName,
         description: sworn.skillDescription,
         learned: sworn.learned,
+        // Skill slots full: sworn later from Deeds by giving up a skill.
+        waiting: sworn.waiting === true,
       }
     : null;
-  if (sworn?.dropped) dropped.push(`${sworn.skillName} (${sworn.name})`);
   let grants;
   try {
     const oldTypes = new Set((unit.proficiencies || []).map((p) => p.type));

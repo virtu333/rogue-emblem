@@ -7,7 +7,7 @@ import {
   withIndefiniteArticle,
 } from './UnitManager.js';
 import { getReviveCost } from './RunManager.js';
-import { applyPromotionOath } from './DeedSystem.js';
+import { applyPromotionOath, oathWaitingNote } from './DeedSystem.js';
 import { CHURCH_PROMOTE_COST } from '../utils/constants.js';
 import { kindleBlock } from './EclipseSystem.js';
 export function churchPromotionBlock(run, unit, nodeId, gameData) {
@@ -34,14 +34,12 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
   // A deed's Oath is sworn at the altar too.
   const oath = applyPromotionOath(unit, gameData);
   run.setChurchPromotionCount(nodeId, run.getChurchPromotionCount(nodeId) + 1);
-  const dropped = getSkillDisplayNames(
-    [...(result?.droppedSkills || []), ...(oath?.dropped ? [oath.skillId] : [])],
-    gameData.skills,
-  );
+  const dropped = getSkillDisplayNames(result?.droppedSkills || [], gameData.skills);
+  const waits = oath?.waiting ? ` ${oathWaitingNote(unit, oath)}` : '';
   return {
     ok: true,
     oath,
-    message: `${unit.name} promoted to ${canonical.name}.${oath?.learned ? ` ${oath.name}: learned ${oath.skillName}.` : ''}${dropped.length ? ` Skill limit: could not learn ${dropped.join(', ')}.` : ''}`,
+    message: `${unit.name} promoted to ${canonical.name}.${oath?.learned ? ` ${oath.name}: learned ${oath.skillName}.` : ''}${dropped.length ? ` Skill limit: could not learn ${dropped.join(', ')}.` : ''}${waits}`,
   };
 }
 export function churchReviveBlock(run, unit) {

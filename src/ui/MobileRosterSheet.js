@@ -85,9 +85,13 @@ import {
   deedTallyText,
   epithetText,
   oathOptionsInOrder,
+  oathTradeableSkills,
   pledgeOath,
   promotionOathCandidates,
+  releaseWaitingOath,
+  swearWaitingOath,
   TITLE_NONE,
+  waitingOath,
   unitDisplayName,
 } from '../engine/DeedSystem.js';
 import { actLabel } from './ceremonyContent.js';
@@ -539,7 +543,9 @@ export class MobileRosterSheet {
       this.render(`${done}${this.persistNow()}`);
     };
     const sworn = unit.deeds?.oath;
+    const waiting = waitingOath(unit);
     if (sworn?.skillId) this.card(`${sworn.name || 'Oath'} · sworn`, skillText(sworn.skillId));
+    else if (waiting) this.waitingOathCard(unit, waiting, manage, skillText, choose);
     else if (unit.tier !== 'promoted') {
       const options = promotionOathCandidates(unit, this.gameData.deeds, this.gameData.skills);
       if (options.length === 1)
@@ -623,8 +629,69 @@ export class MobileRosterSheet {
       this.body.append(card);
     }
   }
+  /**
+   * An Oath earned at promotion while every skill slot was full: it waits here until
+   * the player gives up a skill for it, or lets it go (asked twice: it is final).
+   */
+  waitingOathCard(unit, waiting, manage, skillText, choose) {
+    const card = this.card(`${waiting.name || 'Oath'} · waiting`, skillText(waiting.skillId));
+    card.classList.add('mr-oath-waiting');
+    const full = (unit.skills?.length || 0) >= MAX_SKILLS;
+    card.append(
+      el(
+        'p',
+        full
+          ? `Skill slots full (${MAX_SKILLS}/${MAX_SKILLS}). Give up one skill to swear this Oath, or keep your skills and let it go.`
+          : 'A skill slot is free: swear this Oath now.',
+        'mr-deed-meta',
+      ),
+    );
+    if (!manage) return;
+    const name = (id) => this.gameData.skills?.find((sk) => sk.id === id)?.name || id;
+    const oathSkill = name(waiting.skillId);
+    const swear = (giveUp) =>
+      choose(
+        () => swearWaitingOath(unit, giveUp, this.gameData).ok,
+        giveUp
+          ? `${unit.name} swore ${waiting.name}: ${oathSkill} in place of ${name(giveUp)}.`
+          : `${unit.name} swore ${waiting.name}: learned ${oathSkill}.`,
+      );
+    if (!full) {
+      const b = this.button(`Swear · learn ${oathSkill}`, () => swear(null));
+      b.classList.add('mr-oath-option');
+      card.append(b);
+    } else {
+      const tradeable = oathTradeableSkills(unit, this.gameData);
+      for (const id of tradeable) {
+        const b = this.button(`Give up ${name(id)}`, () => swear(id));
+        b.classList.add('mr-oath-option');
+        card.append(b);
+      }
+      if (!tradeable.length)
+        card.append(
+          el('p', 'Every skill here is personal or innate to the class.', 'mr-deed-meta'),
+        );
+    }
+    const release = this.button(
+      this._releasingOath === unit ? `Let ${waiting.name} go for good?` : 'Keep my skills',
+      () => {
+        if (this._releasingOath !== unit) {
+          this._releasingOath = unit;
+          this.render();
+          return;
+        }
+        this._releasingOath = null;
+        choose(() => releaseWaitingOath(unit), `${unit.name} let ${waiting.name} go.`);
+      },
+    );
+    release.classList.add('mr-oath-release');
+    card.append(release);
+  }
   skills(unit) {
     this.body.append(el('h3', `Skills · ${unit.skills?.length || 0}/${MAX_SKILLS}`));
+    const waiting = waitingOath(unit);
+    if (waiting)
+      this.card(`${waiting.name || 'Oath'} · waiting`, 'Swear it from Deeds by giving up a skill.');
     for (const id of unit.skills || []) {
       const skill = this.gameData.skills?.find((s) => s.id === id);
       this.card(

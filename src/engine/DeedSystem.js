@@ -25,7 +25,9 @@
 // `unit.name` is identity: epithets never go into it. Render titles through
 // `unitDisplayName` / `titledName` / `sentenceName`.
 
-import { getXpEffectiveLevel, learnSkill } from './UnitManager.js';
+import { getClassInnateSkills, getXpEffectiveLevel, learnSkill } from './UnitManager.js';
+import { unitBaseClassName } from './ClassLineage.js';
+import { MAX_SKILLS } from '../utils/constants.js';
 import { DEED_FORMS, titledName, unitEpithet } from './DeedTitles.js';
 
 // Display helpers live in DeedTitles (dependency-free); re-exported here.
@@ -345,6 +347,20 @@ export function sanitizeUnitDeeds(raw) {
   if (typeof raw.pledge === 'string' && seen.has(raw.pledge)) out.pledge = raw.pledge;
   if (typeof raw.lastBattle === 'string' && raw.lastBattle)
     out.lastBattle = raw.lastBattle.slice(0, 160);
+  if (raw.oathReleased === true && !isObject(raw.oath)) out.oathReleased = true;
+  const waiting = raw.waitingOath;
+  if (
+    !isObject(raw.oath) &&
+    isObject(waiting) &&
+    typeof waiting.skillId === 'string' &&
+    typeof waiting.deedId === 'string'
+  )
+    out.waitingOath = {
+      deedId: waiting.deedId.slice(0, 64),
+      skillId: waiting.skillId.slice(0, 64),
+      name: typeof waiting.name === 'string' ? waiting.name.slice(0, 80) : '',
+      className: typeof waiting.className === 'string' ? waiting.className.slice(0, 80) : '',
+    };
   const oath = raw.oath;
   if (isObject(oath) && typeof oath.skillId === 'string' && typeof oath.deedId === 'string') {
     out.oath = {
@@ -664,7 +680,8 @@ export function commitBattleDeeds(units, deedsData, ctx = {}) {
  *   seq}[]}
  */
 export function promotionOathCandidates(unit, deedsData, skillsData = []) {
-  if (!isDeedUnit(unit) || unit.deeds?.oath) return [];
+  const deeds = unit?.deeds;
+  if (!isDeedUnit(unit) || deeds?.oath || deeds?.waitingOath || deeds?.oathReleased) return [];
   const defs = new Map((deedsData?.deeds || []).map((d) => [d?.id, d]));
   const pledge = unit.deeds?.pledge;
   const earned = [...earnedDeeds(unit)].sort(
@@ -758,16 +775,107 @@ export function applyPromotionOath(unit, gameData = {}) {
   if (!oath) return null;
   if (!Array.isArray(unit.skills)) unit.skills = [];
   const result = learnSkill(unit, oath.skillId);
+  const record = {
+    deedId: oath.deedId,
+    skillId: oath.skillId,
+    name: oath.name,
+    className: typeof unit.className === 'string' ? unit.className : '',
+  };
+  const state = sanitizeUnitDeeds(unit.deeds) || freshDeeds(unit);
+  delete state.pledge;
   if (result.learned) {
-    const state = sanitizeUnitDeeds(unit.deeds) || freshDeeds(unit);
-    delete state.pledge;
-    state.oath = {
-      deedId: oath.deedId,
-      skillId: oath.skillId,
-      name: oath.name,
-      className: typeof unit.className === 'string' ? unit.className : '',
-    };
+    delete state.waitingOath;
+    state.oath = record;
     unit.deeds = state;
+    return { ...oath, learned: true, waiting: false };
   }
-  return { ...oath, learned: result.learned === true, dropped: result.reason === 'at_cap' };
+  // Skill slots full: the Oath is not lost. It waits on the unit until the player
+  // gives up a skill for it (swearWaitingOath) or lets it go (releaseWaitingOath).
+  if (result.reason === 'at_cap') {
+    state.waitingOath = record;
+    unit.deeds = state;
+    return { ...oath, learned: false, waiting: true };
+  }
+  unit.deeds = state;
+  return { ...oath, learned: false, waiting: false };
+}
+
+/** Parse "Charisma: Allies..." to its skill id ("charisma"), as RunManager does. */
+function personalSkillId(text) {
+  if (typeof text !== 'string' || !text) return null;
+  const colon = text.indexOf(':');
+  const name = (colon > 0 ? text.slice(0, colon) : text).trim();
+  return name ? name.toLowerCase().replace(/\s+/g, '_') : null;
+}
+
+/**
+ * Skills a unit can give up for its waiting Oath: never a lord's personal skills,
+ * nor a skill its class line grants innately (the act-transition restore protects
+ * the same ones).
+ */
+export function oathTradeableSkills(unit, gameData = {}) {
+  const skills = Array.isArray(unit?.skills) ? unit.skills : [];
+  const protectedIds = new Set();
+  const lord = unit?.isLord ? (gameData.lords || []).find((l) => l?.name === unit.name) : null;
+  const personal = personalSkillId(lord?.personalSkill);
+  if (personal) protectedIds.add(personal);
+  if (lord?.personalSkillL20?.skillId) protectedIds.add(lord.personalSkillL20.skillId);
+  if (unit?._personalSkillL20?.skillId) protectedIds.add(unit._personalSkillL20.skillId);
+  const skillsData = gameData.skills || [];
+  for (const id of getClassInnateSkills(unit?.className, skillsData)) protectedIds.add(id);
+  const base = unit?.tier === 'promoted' ? unitBaseClassName(unit, gameData.classes) : null;
+  if (base) for (const id of getClassInnateSkills(base, skillsData)) protectedIds.add(id);
+  return skills.filter((id) => !protectedIds.has(id));
+}
+
+/** The Oath waiting on a unit for a free skill slot, or null. */
+export function waitingOath(unit) {
+  const w = unit?.deeds?.waitingOath;
+  return isObject(w) && typeof w.skillId === 'string' ? w : null;
+}
+
+/**
+ * Swear the waiting Oath: give up `giveUpSkillId` (one of oathTradeableSkills) for
+ * it, or pass null when a slot is already free. The new skill takes the old one's
+ * place in the list. Returns { ok, reason?, givenUp? }.
+ */
+export function swearWaitingOath(unit, giveUpSkillId, gameData = {}) {
+  const waiting = waitingOath(unit);
+  if (!waiting) return { ok: false, reason: 'No Oath is waiting.' };
+  if (!Array.isArray(unit.skills)) unit.skills = [];
+  const state = sanitizeUnitDeeds(unit.deeds) || freshDeeds(unit);
+  const known = unit.skills.includes(waiting.skillId);
+  let givenUp = null;
+  if (!known) {
+    if (giveUpSkillId == null) {
+      if (unit.skills.length >= MAX_SKILLS)
+        return { ok: false, reason: 'Choose a skill to give up.' };
+      unit.skills.push(waiting.skillId);
+    } else {
+      if (!oathTradeableSkills(unit, gameData).includes(giveUpSkillId))
+        return { ok: false, reason: 'That skill cannot be given up.' };
+      unit.skills[unit.skills.indexOf(giveUpSkillId)] = waiting.skillId;
+      givenUp = giveUpSkillId;
+    }
+  }
+  delete state.waitingOath;
+  state.oath = { ...waiting };
+  unit.deeds = state;
+  return { ok: true, givenUp };
+}
+
+/** Let the waiting Oath go: the unit keeps its skills and never swears it. */
+export function releaseWaitingOath(unit) {
+  if (!waitingOath(unit)) return false;
+  const state = sanitizeUnitDeeds(unit.deeds) || freshDeeds(unit);
+  delete state.waitingOath;
+  state.oathReleased = true; // one Oath per unit: a released one is never offered again
+  unit.deeds = state;
+  return true;
+}
+
+/** The line a promotion shows when its Oath has to wait for a free skill slot. */
+export function oathWaitingNote(unit, oath) {
+  const who = typeof unit?.name === 'string' && unit.name ? unit.name : 'this unit';
+  return `Skill slots full: ${oath?.name || 'the Oath'} waits in Deeds until ${who} gives up a skill for it.`;
 }

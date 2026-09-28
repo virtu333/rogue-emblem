@@ -850,6 +850,8 @@ export function buildRite(scene, { unit, before, content, quote = null }) {
     notes.push(`Growth ${content.growths.map((g) => `${g.stat} +${g.bonus}%`).join(', ')}`);
   if (content.moveType) notes.push(`${content.moveType.from} → ${content.moveType.to}`);
   if (content.dropped.length) notes.push(skillLimitNote(content.dropped));
+  if (content.oath?.waiting)
+    notes.push(`Skill slots full: ${content.oath.name} waits in Deeds for a skill to give up`);
   if (notes.length) text.append(el('p', 'gr-rite-note', notes.join(' · ')));
   if (quote) text.append(el('p', 'gr-rite-quote', `“${quote}”`));
   card.append(text);

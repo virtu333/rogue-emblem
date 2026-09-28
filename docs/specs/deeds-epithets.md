@@ -142,7 +142,10 @@ that skill, once per run. The chooser lists the Oaths open on the selected path
 one and says so. The
 path chooser card and the rite project it through the same function
 (`promotionPathContent` → `content.oath`, a sealed `oath` beat in ember). At the skill cap
-the Oath is shown as dropped, never silent. Silent engine promotions (recruit spawns,
+the Oath waits (`deeds.waitingOath`): the promotion says so, and the roster's Deeds panel
+lets the player give up a skill for it (`swearWaitingOath`; a lord's personal skills and
+class-innate skills cannot be given up, `oathTradeableSkills`) or let it go
+(`releaseWaitingOath`, asked twice). It is never lost silently. Silent engine promotions (recruit spawns,
 colosseum mercs, boss recruits, promoted enemies) call only `promoteUnit` and never swear.
 
 Oath skills are the ones no scroll or level-up curriculum teaches (each is otherwise only

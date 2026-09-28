@@ -163,8 +163,8 @@ export class PromotionController {
     markPromotionApplied();
     // A deed's Oath, sworn with the promotion (the rite's content projected it).
     const oath = applyPromotionOath(unit, scene.gameData);
-    if (oath?.dropped)
-      promotionResult.droppedSkills = [...(promotionResult.droppedSkills || []), oath.skillId];
+    // Skill slots full: the Oath waits in Deeds (the rite's card says so).
+    if (oath?.waiting) promotionResult.oathWaiting = oath;
     observeHistoryAction(scene, 'promoted', unit, null, promotedClassData.name);
     // Commit the seal with the promotion, before any dismissible/awaited UI.
     seal.uses = (seal.uses ?? 1) - 1;

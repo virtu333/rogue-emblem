@@ -472,6 +472,58 @@ test.describe('player choices (phone 390×844)', () => {
     expect(errors).toEqual([]);
   });
 
+  test('an Oath waiting at the skill cap is sworn from the roster by giving up a skill', async ({
+    page,
+  }, info) => {
+    const errors = collect(page);
+    await quiet(page);
+    await page.goto('/?devScene=battle&preset=combat_actions&seed=42&mobilePreview=1');
+    await waitForBattle(page);
+    await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const deeds = await import('/src/engine/DeedSystem.js');
+      const { RunManager } = await import('/src/engine/RunManager.js');
+      const um = await import('/src/engine/UnitManager.js');
+      const { promoteAtChurch } = await import('/src/engine/ChurchCommands.js');
+      const { MobileRosterSheet } = await import('/src/ui/MobileRosterSheet.js');
+      const gd = s.gameData;
+      const run = new RunManager(gd);
+      run.startRun();
+      run.gold = 99999;
+      const fighter = gd.classes.find((c) => c.name === 'Fighter');
+      const u = um.createUnit(fighter, 10, gd.weapons, { name: 'Bramwell' });
+      u._battleDeeds = { v: 1, heldPhases: 3, heldPlaces: ['Bridge', 'Bridge', 'Bridge'] };
+      deeds.commitBattleDeeds([u], gd.deeds, { battleKey: 'earlier' });
+      u.skills = ['sol', 'luna', 'astra', 'vantage', 'wrath'];
+      run.roster.push(u);
+      const target = um.resolvePromotionTargets(u, gd.classes, gd.lords)[0];
+      window.__church = promoteAtChurch(run, u, 'c1', target, gd).message;
+      const sheet = new MobileRosterSheet({ scene: s, units: run.roster, run, gameData: gd, onClose: () => {} }); // prettier-ignore
+      sheet.index = run.roster.indexOf(u);
+      sheet.render();
+      window.__oathUnit = u;
+    });
+    expect(await page.evaluate(() => window.__church)).toContain(
+      'Oath of the Bridge waits in Deeds until Bramwell gives up a skill for it.',
+    );
+    const card = page.locator('.mr-oath-waiting');
+    await card.scrollIntoViewIfNeeded();
+    await expect(card).toContainText('Oath of the Bridge · waiting');
+    await expect(card).toContainText('Skill slots full (5/5)');
+    // Every button fits the phone: nothing spills past the card.
+    for (const b of await card.locator('button').all()) {
+      const box = await b.boundingBox();
+      expect(box.x + box.width).toBeLessThanOrEqual(390);
+    }
+    await page.screenshot({ path: info.outputPath('oath-waiting-phone.png') });
+    await card.getByRole('button', { name: 'Give up Luna', exact: true }).click();
+    await expect(page.locator('.mr-sheet')).toContainText('Oath of the Bridge · sworn');
+    const skills = await page.evaluate(() => window.__oathUnit.skills);
+    expect(skills).toContain('pavise');
+    expect(skills).not.toContain('luna');
+    expect(errors).toEqual([]);
+  });
+
   test('the Compendium lists the deeds this player earned and hides the rest', async ({
     page,
   }, info) => {
