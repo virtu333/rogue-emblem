@@ -564,7 +564,7 @@ describe('HeadlessBattle', () => {
     expect(actions.some((a) => a.label === 'Promote')).toBe(true);
   });
 
-  it('undoMove on fog maps reverts revealed tiles to pre-move visibility', () => {
+  it('fog maps: a move reveals nothing until the unit acts, and undo leaves no trace', () => {
     const battle = new HeadlessBattle(gameData, {
       act: 'act1',
       objective: 'rout',
@@ -598,11 +598,18 @@ describe('HeadlessBattle', () => {
     battle.grid.updateFogOfWar(battle.playerUnits);
     expect(moveTarget).toBeTruthy();
 
+    // The move alone reveals nothing (it can still be undone)...
     battle.moveTo(moveTarget.col, moveTarget.row);
+    expect(setsEqual(captureVisibleTiles(battle.grid), before)).toBe(true);
     battle.undoMove();
 
     const afterUndo = captureVisibleTiles(battle.grid);
     expect(setsEqual(afterUndo, before)).toBe(true);
+
+    // ...the fog lifts once the unit commits its action on the new tile.
+    battle.moveTo(moveTarget.col, moveTarget.row);
+    battle.chooseAction('Wait');
+    expect(setsEqual(captureVisibleTiles(battle.grid), before)).toBe(false);
   });
 
   it('cancel from UNIT_SELECTED returns to PLAYER_IDLE', () => {

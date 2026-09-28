@@ -718,7 +718,7 @@ test.describe('Formation upright', () => {
       `const f = s._formation; return f.units.map((u, i) => [u.name, f.formation.at[i] === null ? null : { ...f.tiles[f.formation.at[i]] }]);`,
     );
 
-  test('dock, bench and picker read whole; a tap on the turned board places the unit', async ({
+  test('dock, bench, picker and unit menu read whole; a tap on the turned board places the unit', async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -768,17 +768,54 @@ test.describe('Formation upright', () => {
     );
     expect((await placements(page))[0]).toEqual([LONG_UNIT, tile2]);
 
-    // Benedetta for that tile: the swap names who waits; emptying it names them too.
+    // A tap on the placed lord picks them up; the rail's held-unit row reads whole.
     await page.touchscreen.tap(at.x, at.y);
-    await expect(picker).toBeVisible();
-    const swap = picker.getByRole('button', { name: /^Benedetta/ });
+    expect(await battle(page, 'return s._formation.heldUnit?.name ?? null;')).toBe(LONG_UNIT);
+    // From the top of the rail (the lead says what to do), the row reads whole.
+    await page.evaluate(() => {
+      document.querySelector('.mobile-battle-hud .mb-body').scrollTop = 0;
+    });
+    await expect(hud.locator('.fm-lead')).toBeInViewport({ ratio: 1 });
+    // Compact 38px like Auto-place / Clear (portraitBattle.css, `.fm-tools`), whole
+    // inside the rail's scroll box (within layout rounding: rows sit at fractional
+    // offsets under the tile card), and not covered.
+    for (const name of ['Options', 'Remove', 'Cancel']) {
+      const control = hud.getByRole('button', { name, exact: true });
+      await expect(control).toBeVisible();
+      const fit = await control.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const box = el.closest('.mb-body').getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return {
+          height: r.height,
+          inside:
+            r.top >= box.top - 0.5 &&
+            r.bottom <= box.bottom + 0.5 &&
+            r.left >= box.left - 0.5 &&
+            r.right <= box.right + 0.5,
+          onTop: el === hit || el.contains(hit),
+        };
+      });
+      expect(fit.height, name).toBeGreaterThanOrEqual(37.5);
+      expect(fit.inside, `${name} inside the rail`).toBe(true);
+      expect(fit.onTop, `nothing covers ${name}`).toBe(true);
+    }
+    // A second tap opens their menu: swapping in Benedetta names who waits, and so
+    // does sending the lord back.
+    await page.touchscreen.tap(at.x, at.y);
+    const menu = page.getByRole('dialog', { name: LONG_UNIT, exact: true });
+    await expect(menu).toBeVisible();
+    const swap = menu.getByRole('button', { name: /^Benedetta/ });
     await expect(swap).toContainText(LONG_CLASS);
-    const clear = picker.getByRole('button', { name: `Empty this tile (${LONG_UNIT} waits)` });
+    await expect(swap).toContainText(`${LONG_UNIT} waits`);
+    const clear = menu.getByRole('button', { name: `Send ${LONG_UNIT} back to wait` });
     await expectTappable(clear);
     expect(await clippedText(page, '.fm-picker')).toEqual([]);
     await expectNoSidewaysScroll(page);
-    await picker.getByRole('button', { name: 'Close', exact: true }).tap();
-    await expect(picker).toHaveCount(0);
+    await menu.getByRole('button', { name: 'Close', exact: true }).tap();
+    await expect(menu).toHaveCount(0);
+    await hud.getByRole('button', { name: 'Cancel', exact: true }).tap();
+    expect(await battle(page, 'return s._formation.heldUnit?.name ?? null;')).toBeNull();
 
     // Auto-place fills the rest; Start is whole and begins turn 1 with that formation.
     await hud.getByRole('button', { name: 'Auto-place', exact: true }).tap();

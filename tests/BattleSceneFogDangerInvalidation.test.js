@@ -7,9 +7,10 @@ vi.mock('phaser', () => ({
 }));
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { completeBattleAction } from '../src/ui/BattleActionCompletion.js';
 
 describe('BattleScene fog danger invalidation', () => {
-  it('recomputes danger after movement reveals an enemy in fog across action-menu flow', async () => {
+  it('recomputes danger once a committed action reveals an enemy in fog, not on the move', async () => {
     const scene = new BattleScene();
     let enemyVisible = false;
 
@@ -50,13 +51,19 @@ describe('BattleScene fog danger invalidation', () => {
 
     await BattleScene.prototype.afterMove.call(scene, unit);
 
-    expect(scene.grid.updateFogOfWar).toHaveBeenCalledWith(scene.playerUnits);
-    expect(scene.dangerZoneStale).toBe(true);
+    // The move alone can still be undone: fog and danger stay as they were.
+    expect(scene.grid.updateFogOfWar).not.toHaveBeenCalled();
+    expect(scene.dangerZoneStale).toBe(false);
     expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
     expect(scene.battleState).toBe('UNIT_ACTION_MENU');
 
-    // Match normal interaction: close action menu before toggling danger overlay.
-    scene.battleState = 'PLAYER_IDLE';
+    // Wait on the new tile: the fog lifts and the cached danger is dropped.
+    scene.dimUnit = vi.fn();
+    scene.turnManager = { unitActed: vi.fn() };
+    completeBattleAction(scene, unit);
+    expect(scene.grid.updateFogOfWar).toHaveBeenCalledWith(scene.playerUnits);
+    expect(scene.dangerZoneStale).toBe(true);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
 
     BattleScene.prototype._onDangerClick.call(scene);
 

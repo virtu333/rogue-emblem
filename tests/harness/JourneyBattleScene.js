@@ -17,6 +17,8 @@ export function journeyBattleScene(run, data) {
     isVisible(col, row) {
       return this.visibleSet.has(`${col},${row}`);
     },
+    // The fixture's fog is fixed (visibleSet above); settling an action keeps it.
+    updateFogOfWar: noop,
     setTerrainAt(col, row, value) {
       this.mapLayout[row][col] = value;
     },
