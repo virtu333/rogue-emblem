@@ -188,6 +188,7 @@ import {
   computeLavaCrackHp,
   isAcidTerrainIndex,
   isLavaCrackTerrainIndex,
+  lavaBurnBanner,
 } from '../engine/TerrainHazards.js';
 import {
   applyCondition,
@@ -10114,6 +10115,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async processTerrainDamage(units) {
+    // Lava burns are named together once the pass is done: the floating number alone
+    // was easy to miss, most of all on a phone's shrunken board.
+    const burned = [];
     for (const unit of [...units]) {
       if (!unit || unit._removing || unit.currentHP <= 0) continue;
       if (isEntity(unit)) continue; // Entity immune to terrain hazards
@@ -10124,7 +10128,10 @@ export class BattleScene extends Phaser.Scene {
         unit.currentHP = nextHP;
         this.updateHPBar(unit);
         const shown = this._showsTurnEffectOn(unit);
-        if (shown) await this.showTerrainDamage(unit, appliedDamage);
+        if (shown) {
+          burned.push(`${unit.name} -${appliedDamage}`);
+          await this.showTerrainDamage(unit, appliedDamage);
+        }
         // Lava damage wakes sleeping units
         if (isSleeping(unit)) {
           removeCondition(unit, 'sleep');
@@ -10162,6 +10169,7 @@ export class BattleScene extends Phaser.Scene {
       }
       await this.showBriefBanner(`${unit.name} is corroded by acid!`, UI_PALETTE.good);
     }
+    if (burned.length) await this.showBriefBanner(lavaBurnBanner(burned), UI_PALETTE.warn);
   }
 
   async showTerrainDamage(unit, damage) {

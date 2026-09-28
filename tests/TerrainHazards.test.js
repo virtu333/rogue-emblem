@@ -45,7 +45,7 @@ const TEST_TERRAIN = [
     moveCost: { Infantry: '1', Armored: '2', Cavalry: '1', Flying: '1' },
     avoidBonus: '0',
     defBonus: '0',
-    special: '5 damage at end of phase (min 1 HP)',
+    special: "Burns 5 HP at the end of its side's phase (never below 1 HP)",
   },
   {
     name: 'Forest',
@@ -349,7 +349,7 @@ describe('Terrain hazards', () => {
       expect(lava).toBeTruthy();
       expect(lava.moveCost.Infantry).toBe('1');
       expect(lava.moveCost.Armored).toBe('2');
-      expect(lava.special).toContain('5 damage');
+      expect(lava.special).toContain('Burns 5 HP');
     });
 
     it('computeLavaCrackHp applies 5 damage and never kills', () => {
