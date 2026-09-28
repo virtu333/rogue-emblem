@@ -4949,8 +4949,8 @@ export class BattleScene extends Phaser.Scene {
         this.selectedUnit = unit;
         this.preMoveLoc = null;
         this._preFogSnapshot = null;
-        // The action is committed: the acting tile's vision shapes the Canto range.
-        revealSettledVision(this);
+        // The turn isn't over: the fog lifts where Canto ends (completeBattleAction),
+        // with the suspend save that records it.
         this.startCantoMove(unit, remaining);
         return;
       }
@@ -5735,12 +5735,9 @@ export class BattleScene extends Phaser.Scene {
       unit.row = destRow;
       try {
         this.updateUnitPosition(unit);
-        if (this.grid.fogEnabled) {
-          this.grid.updateFogOfWar(this.playerUnits);
-          this.updateEnemyVisibility();
-        }
         this.cantoRange = null;
         this._resetCantoPreInitFaultTracking();
+        // Canto's end is the turn's end: completeBattleAction lifts the fog here.
         completeBattleAction(this, unit);
       } catch (err) {
         failCantoMove('Error while finalizing canto move', err);

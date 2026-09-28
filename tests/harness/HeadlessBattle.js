@@ -2220,6 +2220,7 @@ export class HeadlessBattle {
       this.attackTargets = [];
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
       this._clearCombatRollSession();
+      this._refreshFogVisibility();
       return;
     }
 
@@ -2246,6 +2247,7 @@ export class HeadlessBattle {
         this.attackTargets = [];
         this.battleState = HEADLESS_STATES.PLAYER_IDLE;
         this._clearCombatRollSession();
+        this._refreshFogVisibility();
         return;
       }
     }
@@ -2388,6 +2390,7 @@ export class HeadlessBattle {
     this.battleState = HEADLESS_STATES.PLAYER_IDLE;
 
     if (this._checkBattleEnd()) return;
+    this._refreshFogVisibility();
     this.turnManager.unitActed(unit);
   }
 

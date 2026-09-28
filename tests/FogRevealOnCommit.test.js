@@ -9,6 +9,9 @@ import { Grid } from '../src/engine/Grid.js';
 import { completeBattleAction } from '../src/ui/BattleActionCompletion.js';
 import { completeResolvedAction } from '../src/ui/BattlePresentationCheckpoint.js';
 import { EscapeObjectiveController } from '../src/ui/EscapeObjectiveController.js';
+import { AbilityController } from '../src/ui/AbilityController.js';
+import { seenTileOccupant } from '../src/engine/BattleInformation.js';
+import { getRelocationTiles } from '../src/engine/StaffRelocation.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -167,7 +170,7 @@ describe('fog lifts only once an action is committed', () => {
     expect(scene.saved).toEqual([true]);
   });
 
-  it('Canto: the acting tile is revealed before the Canto range is drawn', async () => {
+  it('Canto: the fog stays until Canto ends, then lifts with the save', async () => {
     const { scene, grid, edric } = setup();
     edric.skills = ['canto'];
     edric._movementSpent = 4;
@@ -178,7 +181,13 @@ describe('fog lifts only once an action is committed', () => {
     await moveNextToBrigand(scene, edric);
     scene.finishUnitAction(edric);
     expect(scene.startCantoMove).toHaveBeenCalledWith(edric, 1);
-    expect(litAtCanto).toBe(true);
+    // The turn isn't over: no fog lifted, and no save that would record it.
+    expect(litAtCanto).toBe(false);
+    expect(scene.saved).toEqual([]);
+    // Canto ends (a step, or staying put): its completion lifts the fog before the save.
+    completeBattleAction(scene, edric);
+    expect(grid.isVisible(5, 1)).toBe(true);
+    expect(scene.saved).toEqual([true]);
   });
 
   it('End Turn with a moved unit that never acted reveals before the enemy phase', async () => {
@@ -213,10 +222,53 @@ describe('fog lifts only once an action is committed', () => {
     escape._showEscapeFloat = () => {};
     escape.executeEscape(edric);
     expect(scene.playerUnits).toEqual([sera]);
-    // Edric left from (4,1): his path never lit the brigand's tile.
+    // Edric left from (4,1): his path never lit the brigand's tile...
     expect(grid.isVisible(5, 1)).toBe(false);
+    // ...and what only his starting tile saw is fog again (Sera at (0,0) sees 3 steps).
+    expect(grid.isVisible(3, 1)).toBe(false);
+    expect(grid.isVisible(2, 1)).toBe(true);
     expect(grid.everSeenSet.has('5,1')).toBe(false);
     expect(scene.saved).toEqual([false]);
     expect(scene.turnManager.unitActed).toHaveBeenCalledWith(edric);
+  });
+});
+
+describe('previews after an uncommitted move name only what the player sees', () => {
+  it('Ensnare is not offered for a foe hidden in the fog; once seen, it is', async () => {
+    const { scene, edric } = setup();
+    edric.skills = ['ensnare'];
+    await moveNextToBrigand(scene, edric);
+    const abilities = new AbilityController(scene);
+    const ensnare = () => abilities._getAbilityEntries(edric).find((e) => e.skill.id === 'ensnare');
+    expect(ensnare().hasTargets).toBe(false);
+    completeBattleAction(scene, edric);
+    expect(ensnare().hasTargets).toBe(true);
+  });
+
+  it('Blink never offers a fogged tile, so a hidden foe cannot show by its absence', async () => {
+    const { scene, grid, edric } = setup();
+    edric.skills = ['blink'];
+    await moveNextToBrigand(scene, edric);
+    const abilities = new AbilityController(scene);
+    const blink = scene.gameData.skills.find((sk) => sk.id === 'blink');
+    abilities.startBlinkTileSelection(edric, blink);
+    expect(scene.abilityTiles.length).toBeGreaterThan(0);
+    expect(scene.abilityTiles.every((t) => grid.isVisible(t.col, t.row))).toBe(true);
+    expect(scene.abilityTiles).not.toContainEqual({ col: 5, row: 1 });
+    expect(scene.abilityTiles).not.toContainEqual({ col: 6, row: 1 });
+  });
+
+  it('Rescue/Warp destinations: fogged tiles count as taken; seen free tiles are offered', () => {
+    const { scene, grid, brigand } = setup();
+    const at = (col, row) => scene.getUnitAt(col, row);
+    // Around (4,1): (3,1) is seen from (0,1); (5,1) holds the hidden brigand.
+    const tiles = getRelocationTiles(grid, seenTileOccupant(grid, at), 4, 1, 1, 'Infantry');
+    expect(tiles).toContainEqual({ col: 3, row: 1 });
+    expect(tiles.some((t) => !grid.isVisible(t.col, t.row))).toBe(false);
+    // Without fog the rule is only "free": the brigand's tile stays out, the rest is in.
+    grid.fogEnabled = false;
+    const open = getRelocationTiles(grid, seenTileOccupant(grid, at), 4, 1, 1, 'Infantry');
+    expect(open).not.toContainEqual({ col: brigand.col, row: brigand.row });
+    expect(open).toContainEqual({ col: 4, row: 0 });
   });
 });
