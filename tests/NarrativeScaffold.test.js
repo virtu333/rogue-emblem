@@ -92,6 +92,24 @@ describe('Narrative data', () => {
             `${vLabel} references unknown commander "${variant.when.commander}"`,
           ).toBe(true);
         }
+        if (variant.pool !== undefined) {
+          // A pool plays one line per run; each line may carry its own condition.
+          expect(
+            Array.isArray(variant.pool) && variant.pool.length > 0,
+            `${vLabel}.pool must be a non-empty array`,
+          ).toBe(true);
+          expect(variant.entries, `${vLabel} has both pool and entries`).toBeUndefined();
+          for (const entry of variant.pool) {
+            for (const key of Object.keys(entry?.when || {})) {
+              expect(
+                KNOWN_WHEN_KEYS.has(key),
+                `${vLabel} pool uses unknown when key "${key}"`,
+              ).toBe(true);
+            }
+          }
+          pools.push({ entries: variant.pool, label: `${vLabel}.pool` });
+          return;
+        }
         expect(
           Array.isArray(variant.entries) && variant.entries.length > 0,
           `${vLabel}.entries must be a non-empty array`,

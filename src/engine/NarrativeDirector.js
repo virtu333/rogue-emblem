@@ -8,6 +8,12 @@
 // keys, bad shapes, missing meta — fails toward base/skip, never throws:
 // story delivery must never block a scene transition.
 //
+// A variant may carry a `pool` of single-line entries instead of `entries`:
+// one line plays, picked by the save's run count (pickPoolEntry) so a pool is
+// walked without repeats. A pool entry may have its own `when`; it plays only
+// when that holds, and such contextual lines take every other run while any
+// apply. The variant is skipped when no entry in its pool applies.
+//
 // Line text may use the {lastFoe} token, which resolves to the boss that
 // ended the previous run. It is substituted here, before adaptDialogueEntries
 // (DialogueCast), which only handles {commander} and passes other text through.
@@ -35,6 +41,7 @@ export const KNOWN_WHEN_KEYS = new Set([
   'bossKilledYouBefore',
   'firstClear',
   'commanderHasEpithet',
+  'partner',
 ]);
 
 /**
@@ -65,12 +72,20 @@ export function buildNarrativeContext({ meta = null, runManager = null, bossName
   }
   const flags = typeof meta?.getStoryFlags === 'function' ? meta.getStoryFlags() : null;
   const lastRun = flags?.lastRun && typeof flags.lastRun === 'object' ? flags.lastRun : null;
+  let runsStarted = 0;
+  try {
+    const started = meta?.getRunsStarted?.() ?? meta?.runsStarted;
+    if (typeof started === 'number' && Number.isFinite(started)) runsStarted = started;
+  } catch (_) {
+    /* first run */
+  }
   const resolvedBossName = typeof bossName === 'string' && bossName.trim() ? bossName.trim() : null;
   return {
     commander,
     commanderTitled,
     partner,
     difficulty: runManager?.difficultyId || 'normal',
+    runsStarted,
     runsCompleted:
       typeof meta?.runsCompleted === 'number' && Number.isFinite(meta.runsCompleted)
         ? meta.runsCompleted
@@ -131,6 +146,9 @@ export function evaluateWhen(when, ctx) {
         case 'commanderHasEpithet':
           if (Boolean(ctx.commanderTitled) !== value) return false;
           break;
+        case 'partner':
+          if (ctx.partner !== value) return false;
+          break;
         default:
           return false; // unknown condition key: variant never matches
       }
@@ -155,6 +173,47 @@ function applyNarrativeTokens(entries, ctx) {
   });
 }
 
+/** A stable 32-bit hash (FNV-1a) for ordering pool lines. */
+function lineHash(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619) >>> 0;
+  return h;
+}
+
+/** Walk `lines` in a fixed shuffled order, one step per `turn`. */
+function rotate(lines, turn) {
+  const order = [...lines].sort(
+    (a, b) => lineHash(String(a.line)) - lineHash(String(b.line)) || (a.line < b.line ? -1 : 1),
+  );
+  return order[((turn % order.length) + order.length) % order.length];
+}
+
+/**
+ * Pick one line from a variant's pool for this run. Pure: the pick depends
+ * only on the pool and ctx.runsStarted, never on RNG, so a save walks the pool
+ * in a fixed shuffled order: a set repeats only once all of it has played.
+ * Lines with a `when` that holds (a loss, Lunatic, a partner) take the even
+ * runs while any apply, the general lines the odd ones.
+ * @returns {object|null} the entry, without its `when`; null when none applies
+ */
+export function pickPoolEntry(pool, ctx) {
+  if (!Array.isArray(pool)) return null;
+  const valid = pool.filter((e) => e && typeof e === 'object' && typeof e.line === 'string');
+  const contextual = valid.filter((e) => e.when && evaluateWhen(e.when, ctx));
+  const general = valid.filter((e) => !e.when);
+  const run = Number.isFinite(ctx?.runsStarted) ? Math.max(0, Math.floor(ctx.runsStarted)) : 0;
+  let picked = null;
+  // While contextual lines apply, runs alternate between the two sets and each
+  // set steps once per pair of runs; otherwise every run steps the general set.
+  const shared = contextual.length && general.length;
+  const turn = shared ? Math.floor(run / 2) : run;
+  if (contextual.length && (run % 2 === 0 || !general.length)) picked = rotate(contextual, turn);
+  else if (general.length) picked = rotate(general, turn);
+  if (!picked) return null;
+  const { when: _when, ...entry } = picked;
+  return entry;
+}
+
 /**
  * Resolve a dialogue.json section value to a concrete entry array.
  * @param {Array|{base?: Array, variants?: Array<{when: object, entries: Array}>}} sectionValue
@@ -168,6 +227,12 @@ export function selectDialogueEntries(sectionValue, ctx) {
     const variants = Array.isArray(sectionValue.variants) ? sectionValue.variants : [];
     for (const variant of variants) {
       if (!variant || typeof variant !== 'object') continue;
+      if (Array.isArray(variant.pool)) {
+        if (!evaluateWhen(variant.when, ctx)) continue;
+        const entry = pickPoolEntry(variant.pool, ctx);
+        if (entry) return applyNarrativeTokens([entry], ctx);
+        continue;
+      }
       if (!Array.isArray(variant.entries) || variant.entries.length === 0) continue;
       if (evaluateWhen(variant.when, ctx)) return applyNarrativeTokens(variant.entries, ctx);
     }
