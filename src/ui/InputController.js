@@ -184,7 +184,9 @@ export class InputController {
         scene._getCostModifier(unit),
       );
     if (!path) return;
-    const occupied = scene.buildOccupiedSet(unit);
+    // What the player knows (PlayerKnowledge.js): a hidden unit on the lane must not
+    // cut the drawn slide short; the committed move stops at it (FogAmbush.js).
+    const occupied = scene.buildOccupiedSet(unit, { seenOnly: true });
     const effective = computeEffectivePath(
       path,
       scene.grid.mapLayout,
@@ -641,10 +643,10 @@ export class InputController {
       return null;
     const tile = chooseAttackTile(unit, target, s.movementRange, {
       distanceFrom: (col, row) => combatDistance({ col, row }, target),
-      // A tile only the fog hides an enemy on looks free (the move is then ambushed).
+      // A tile only the fog hides a unit on looks free (the move is then ambushed).
       isFree: (col, row) => {
         const there = s.getUnitAt(col, row);
-        return !there || Boolean(s._isHiddenEnemy?.(there));
+        return !there || Boolean(s._isHiddenUnit?.(there));
       },
       terrainScore: (col, row) => {
         const terrain = s.grid.getTerrainAt(col, row);
@@ -989,7 +991,7 @@ export class InputController {
       const isPlayer = unit.faction === 'player';
       const moveColor = isPlayer ? 0x3366cc : UI_HEX.dangerLine;
       const moveAlpha = isPlayer ? 0.4 : 0.35;
-      const positions = scene.buildUnitPositionMap(unit.faction);
+      const positions = scene.buildUnitPositionMap();
       // Player units already ticked recovery this phase (isRooted is current);
       // other factions act next phase, so preview their post-recovery state.
       const rootedForPreview =
