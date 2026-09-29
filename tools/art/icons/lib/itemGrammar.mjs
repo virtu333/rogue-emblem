@@ -681,8 +681,6 @@ export function upgradeSpec(u, ctx = grammarContext()) {
   if (u.category === 'capacity') {
     const c = {
       deploy_limit: () => withBadge(D.banner({ cloth: 'steel', emblem: 'star' }), 'plus'),
-      roster_cap: () =>
-        withBadge(D.banner({ cloth: 'blood', emblem: 'cross', emblemMat: 'gilt' }), 'plus'),
       recruit_skill: () =>
         withBadge(
           X.skillMedal({ glyphKind: 'star', glyphMat: 'pearl', rim: 'steel' }),
