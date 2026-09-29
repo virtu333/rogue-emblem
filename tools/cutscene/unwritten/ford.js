@@ -127,6 +127,7 @@ const SRC = {
 // generated clips (skipped when absent): the run, and the batch-7 clips when they land
 const MOTIONS = [
   'edric_run',
+  'march',
   'edric_tumble',
   'warden_thrust',
   'warden_yield_cut',
@@ -317,6 +318,12 @@ export class FordPiece extends Piece {
     this.img = Object.fromEntries(imgs.filter(([, v]) => v));
     this.paper = makePaper(W, H);
     await this.loadMotions(`${DIR}/motion`, MOTIONS);
+    // the cut-out rigs (engine/skin.js): paintings bent onto the blocking's skeletons
+    try {
+      this.rigs = (await (await fetch(`${K}/rigs.json`)).json()).rigs;
+    } catch {
+      this.rigs = {};
+    }
     this.build(this.params);
     // the ford's stones where the blocking has them (the slick one under Edric's foot)
     this.world = new World({ paper: this.paper, W, H });
@@ -542,12 +549,15 @@ export class FordPiece extends Piece {
     const tt = onN(t, 2);
     return names.map((n, i) => {
       const sk = shorten(skeletonAt(n, tt), o.spear ?? 2.3);
-      const X = sk.X;
-      const Z = Zw(sk.Z ?? 0);
+      // the blocking files them in a column along the crossing; staged, they stand as a
+      // rank abreast on the bank, facing the ford (same steps, in unison)
+      const r = o.rank === false ? -1 : LINE.indexOf(n);
+      const X = r < 0 ? sk.X : sk.X - 0.43 * r + 0.18 * (r % 2);
+      const Z = r < 0 ? Zw(sk.Z ?? 0) : 0.6 + r * 0.95; // receding upstream from the ford
       const skW = { ...sk, Z: 0 };
       const look = soldierLook(o.seedBase ?? 101 + i * 7);
       // the skeleton stands on the blocking's ground; lift it onto the world's
-      const lift = this.world.groundY(X, Z) - blockGround(X, sk.Z ?? 0);
+      const lift = this.world.groundY(X, Z) - blockGround(sk.X, sk.Z ?? 0);
       return {
         X,
         Z,
@@ -560,7 +570,7 @@ export class FordPiece extends Piece {
         draw: (buf) => {
           const p = project(cam, X, Math.max(0, lift), Z, W, H);
           if (p.depth < 0.5) return;
-          const xf = { x: p.sx, y: p.sy, s: p.scale, ax: X, ay: 0, flip: !!o.flip, yaw: 0 };
+          const xf = { x: p.sx, y: p.sy, s: p.scale, ax: sk.X, ay: 0, flip: !!o.flip, yaw: 0 };
           const hist = history(
             (q) => ({ ...shorten(skeletonAt(n, q), o.spear ?? 2.3), Z: 0 }),
             tt,
@@ -735,36 +745,42 @@ export class FordPiece extends Piece {
   }
 
   /**
-   * The Warden wading into the shallows (shot 3): one drawing, carried a stride at a
-   * time. Each stride lifts him (the passing position, a squash and a rise) and sets him
-   * down a stride on, knee deep, a splash where the foot goes in; between strides he is
-   * still. Everything below the knee is under the water, so nothing is seen to slide.
+   * The Warden wading into the shallows (shot 3): the generated march (the Empire's
+   * spearman, in his livery) turned to face left and locked to the riverbed by its
+   * measured contacts (Stride), so each planted boot stays where it went in; slowed to a
+   * heavy wading pace. Returns the actor and the footfalls (world X, time).
    */
   wardenWalk(a) {
-    const T0 = TIME.water - 0.02;
-    const every = 0.4; // a stride on each beat, with the line
-    const stride = 0.4;
-    const X0 = 6.9;
-    const k = Math.max(0, Math.floor((a - T0) / every));
-    const u = clamp((a - T0 - k * every) / 0.16); // the stride itself takes 0.16 s
-    const halted = a > TIME.level - 0.05;
-    const kk = halted ? Math.min(k, 2) : k;
-    const uu = halted ? 1 : u;
-    const X = X0 - stride * (kk - 1 + smooth(0, 1, uu));
-    const lift = Math.sin(Math.PI * uu) * 0.05; // the rise of the passing position
-    const falls = [];
-    for (let j = 0; j <= kk; j++)
-      falls.push({
-        X: X0 - stride * j - 0.12,
-        Z: 0.05 + (j % 2 ? 0.12 : -0.08),
-        t: T0 + j * every + 0.16,
-      });
-    const actor = this.actor('wDecide', X, 0.1, -1, {
+    const T0 = TIME.water - 0.3;
+    const X0 = 7.35;
+    const M0 = this.motion('march', 360, { flip: true });
+    if (!M0) {
+      return { actor: this.actor('wDecide', X0, 0.1, -1, { rings: 0.9 }), falls: [] };
+    }
+    const MH = 2.02; // the march cell's height in metres (the soldier is ~1.9 m in it)
+    const mPerPx = MH / 360;
+    const S0 = this.memo('stride:march', () => new Stride(M0, { rate: 1.35 }));
+    const u = Math.max(0, a - T0);
+    const X = X0 + S0.travel(u) * mPerPx; // travel is signed: flipped, he walks left
+    const i = S0.index(u);
+    let M = null;
+    const actor = {
+      X,
+      Z: 0.1,
+      height: MH,
+      layerFor: (px) => {
+        M = this.motion('march', bucket(px), { flip: true });
+        return M.layer(i);
+      },
+      place: (x, y, sc) => M.place(x, y, sc),
       rings: 0.9,
-      Y: this.world.groundY(X, 0.1) + lift,
-    });
-    // the squash as the weight comes down
-    actor.xf = { sy: 1 + 0.03 * Math.sin(Math.PI * uu) - (uu > 0.95 && uu < 1 ? 0.03 : 0) };
+      seed: 1,
+    };
+    const falls = S0.footfallsIn(0, u + 1e-6).map((q) => ({
+      X: X0 + q.world * mPerPx,
+      Z: 0.1,
+      t: T0 + q.u,
+    }));
     return { actor, falls };
   }
 
