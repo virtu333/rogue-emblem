@@ -262,5 +262,33 @@
     },
     "duration": 5,
     "prompt": "Side view. The young swordsman with shaggy brown hair and a teal cloak, facing RIGHT, is overbalanced, pitched forward mid-stride with his free hand reaching out and the sword in his other hand. He slips: his foot goes from under him, then a heavy unseen blow hits him from the front, snapping his head back, his mouth open in shock, his body arching backward, the sword flying loose from his hand and tumbling away, the teal cloak billowing up. He falls backwards, arms flung out, body turning until he is lying almost horizontal on his back in the air, legs kicked up, head to the left, the cloak spread beneath him. Fast slip, sharp impact, then a slow floating fall. The figure stays whole in frame. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation, camera locked off. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera movement, no zoom, no camera cuts, no new objects, no text."
+  },
+  "warden_wade": {
+    "cutout": "f_warden_poses_4_decide.webp",
+    "place": {
+      "h": 0.74,
+      "x": 0.74,
+      "y": 0.95
+    },
+    "duration": 5,
+    "prompt": "Side view. The armoured imperial spearman in black iron helm and crimson tabard, facing LEFT, walks steadily toward the left across the frame with heavy, measured, deliberate steps: two or three full strides, each foot lifting, swinging through and planting down flat with weight, the body rising and settling a little with every step. He holds the spear upright in his right hand the whole time, shaft vertical, point up, moving with him. The crimson tabard skirts and cloth swing with each step, the armour plates shift. He keeps facing left and keeps walking at the same slow pace; the camera does not follow him and he stays whole inside the frame, head, spear point and feet always visible. Keep exactly the art style of the first frame: dense flat iron-gall black plate and crimson lacquer cloth, fully coloured, thick outer contour, fine ink lines, the same closed black helm with its eye slit, the same pauldrons, crimson tabard and cross clasps, and one single spear. 2D hand-drawn anime animation, camera locked off. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera movement, no zoom, no camera cuts, no new objects, no text."
+  },
+  "warden_level": {
+    "cutout": "f_warden_poses_4_decide.webp",
+    "place": {
+      "h": 0.8,
+      "x": 0.6,
+      "y": 0.95
+    },
+    "last": {
+      "cutout": "f_warden_guard_held.webp",
+      "place": {
+        "h": 0.5654,
+        "x": 0.5947,
+        "y": 0.9396
+      }
+    },
+    "duration": 5,
+    "prompt": "Side view. The armoured imperial spearman in black iron helm and crimson tabard, facing LEFT, stands holding the spear upright in his right hand. After half a second, a small settle of weight: his knees give slightly and his shoulders sink (anticipation). Then in one decisive motion the spear tips FORWARD like a drawbridge lowering: the point falls forward and down toward the left in a single arc, never going back over his shoulder and never rising above his head, while his left hand comes across to grip the shaft so both hands hold it, the point levelled forward to the left and slightly down; at the same time his front foot slides forward to the left and his knees bend into a wide low stance, rear leg braced. Then he holds the low guard perfectly still until the end, only the crimson skirts settling. He stays on the same spot, whole in frame; the spear stays one straight shaft, pointing left the whole time it moves. Keep exactly the art style of the first frame: dense flat iron-gall black plate and crimson lacquer cloth, fully coloured, thick outer contour, fine ink lines, the same closed black helm with its eye slit, the same pauldrons, crimson tabard and cross clasps, and one single spear. 2D hand-drawn anime animation, camera locked off. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no dust, no scenery, no camera movement, no zoom, no camera cuts, no new objects, no text."
   }
 }
