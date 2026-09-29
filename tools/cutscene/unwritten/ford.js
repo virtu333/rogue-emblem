@@ -1383,6 +1383,18 @@ export class FordPiece extends Piece {
     void lt;
   }
 
+  /**
+   * Edric losing his footing (10.6 on the slick stone, to the cut): the body pitches
+   * forward toward the Warden and drops as the leg goes out from under it, with a
+   * wobble on the way. On the crossed side he faces screen left, so forward is a
+   * negative (counter-clockwise) tip. Returns { rot, dY } for his actor.
+   */
+  edricSlip(aa) {
+    const u = smooth(TIME.stone, TIME.cut - 0.05, aa);
+    const wob = 0.03 * Math.sin((aa - TIME.stone) * 17) * (1 - u) * (aa > TIME.stone ? 1 : 0);
+    return { rot: -(0.24 * u + wob), dY: -0.1 * u };
+  }
+
   // --- 13 · 35.1: the yield. The camera whips round and crosses the line --------------
   whipCam(t) {
     const w0 = 10.62;
@@ -1403,6 +1415,11 @@ export class FordPiece extends Piece {
     const cam = this.whipCam(t);
     const crossed = t >= 10.7;
     const ed = this.edricAt(a, aa, { crossed });
+    if (crossed) {
+      const sl = this.edricSlip(aa);
+      ed.actor.xf = { rot: sl.rot };
+      ed.actor.Y = this.world.groundY(ed.actor.X, ed.actor.Z) + sl.dY;
+    }
     const wd = this.wardenAt(a, aa);
     this.world.render(f, a, cam, {
       rain: 0.8,
@@ -1443,6 +1460,12 @@ export class FordPiece extends Piece {
     const [sx, sy, sr] = shake(t, [[TIME.cut + 4 / 24, 1.2]], 8, 0.14, 0.02);
     const cam = nudge(cam0, sx, sy, sr);
     const ed = this.edricAt(a, aa, { crossed: true });
+    // he is still falling forward from the slip when the blade comes down; the blow
+    // straightens him up and back (the struck drawings take over from there)
+    const sl = this.edricSlip(Math.min(aa, TIME.cut));
+    const rec = smooth(TIME.cut, TIME.cut + 0.25, aa);
+    ed.actor.xf = { rot: sl.rot * (1 - rec) };
+    ed.actor.Y = this.world.groundY(ed.actor.X, ed.actor.Z) + sl.dY * (1 - rec);
     const wd = this.wardenAt(a, aa);
     this.world.render(f, a, cam, {
       rain: 0.85,
