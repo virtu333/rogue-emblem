@@ -3500,7 +3500,7 @@ export class World {
             (it.arch ?? 0.25 + 0.55 * hash(seed, b, 59)) *
             (it.arch ? 0.7 + 0.6 * hash(seed, b, 59) : 1) +
           (0.2 + 0.55 * g) * Math.cos(this.wind.dir);
-        const wB = 0.02 * (0.7 + 0.6 * hash(seed, b, 60));
+        const wB = 0.011 * (0.7 + 0.6 * hash(seed, b, 60));
         let prev = null;
         const NS = 22;
         for (let k = 0; k <= NS; k++) {
