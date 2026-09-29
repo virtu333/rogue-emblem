@@ -45,12 +45,14 @@ describe('cancelable long press', () => {
     const { send, tap } = setup();
     send('click');
     expect(tap).not.toHaveBeenCalled();
+    send('click', { detail: 0 }); // keyboard and accessibility activation still works
+    expect(tap).toHaveBeenCalledTimes(1);
     send('pointerdown');
     send('pointerup');
     send('click');
-    expect(tap).toHaveBeenCalledTimes(1);
+    expect(tap).toHaveBeenCalledTimes(2);
     send('click');
-    expect(tap).toHaveBeenCalledTimes(1);
+    expect(tap).toHaveBeenCalledTimes(2);
   });
   it.each(['pointercancel', 'pointerleave', 'pointermove'])('cancels hold after %s', (event) => {
     const { send, hold, tap } = setup();
