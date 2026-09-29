@@ -332,8 +332,10 @@ export class RunDriver {
         // These lead to other surfaces outside this service-only fixture.
         if (
           button.disabled ||
-          ['View map', 'Roster'].includes(label) ||
-          / details$/.test(label) || // a fallen ally's unit sheet (church revive list)
+          ['View map', 'Roster', 'Details'].includes(label) ||
+          // Unit sheets: a fallen ally's (church revive list), the arena fighter's, and a
+          // mercenary's contract Details.
+          / details$/.test(label) ||
           button.attributes['aria-pressed'] === 'true'
         )
           return [];
