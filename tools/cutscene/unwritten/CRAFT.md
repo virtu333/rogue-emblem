@@ -67,6 +67,32 @@ to make it look right.
 - **Nothing reveals the page by accident.** A plate that rotates or shakes is overscanned
   over a dark underlay.
 
+## Grounding (the owner's test: "is it real?")
+
+Every figure and object must be physically held up by something you can see, and touch
+the world where it rests. Check each one, every shot:
+
+- **What carries the weight?** A seated or crouching figure sits on a visible log, crate,
+  rock or the ground, with the seat drawn and occluding correctly. A squatting figure's
+  heels and toes are on the ground. Nothing hovers.
+- **Contact points** (feet, knees, hands, a seat, a spear butt) sit exactly on the
+  surface: no gap, no overlap into it. Measure the lowest opaque pixels of the drawing
+  against the ground at that depth.
+- **Contact shadows** under every contact: a small dark, tight shadow right at the
+  contact (ambient occlusion), and, where there is a light source, a cast shadow in the
+  direction away from it (the fire), longer and softer farther from the contact.
+- **Light matches the place.** A figure by a fire is lit from the fire's side, rim-lit on
+  that side, dark on the far side; the ground under it takes the same light pool.
+- **Weight shows in motion.** A foot sinks a little on landing, cloth settles after a
+  move, a figure that sits shifts its weight onto the seat.
+- **Scale and depth agree.** A figure's size, its foot height on screen and its shadow
+  must all agree with the camera and its distance. Background figures stand on the
+  ground at their depth, overlap and are overlapped by what is in front of them, and
+  take the same haze as the ground around them.
+- **Background figures are grounded too.** A rank of soldiers stands on the bank with
+  feet on it, shadows under them, reflections in water when near it, the bank edge in
+  front of their boots where the terrain would hide them. No floating clump.
+
 ## Effects
 
 - **Focus and speed lines are seasoning.** Thin, few, kept off faces and helms. If the
