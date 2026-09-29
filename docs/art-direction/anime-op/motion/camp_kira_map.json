@@ -1,6 +1,6 @@
 {
   "name": "camp_kira_map",
-  "frames": 62,
+  "frames": 51,
   "cols": 13,
   "cell": [309, 400],
   "fps": 12.0,
@@ -9,5 +9,6 @@
   "range": [0, null],
   "cycle": null,
   "plate": false,
-  "anchor": [186.2, 393.0]
+  "anchor": [186.2, 393.0],
+  "trimmed": [0, 50]
 }

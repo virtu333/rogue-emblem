@@ -267,8 +267,8 @@ export class CampPiece extends Piece {
       seed: 1,
       breath: 0.011,
       sway: [
-        { u0: 0.0, u1: 0.42, v0: 0.5, v1: 0.98, amp: 0.012, rate: 2.2 },
-        { u0: 0.2, u1: 0.8, v0: 0.0, v1: 0.16, amp: 0.006, rate: 3 },
+        { u0: 1.0, u1: 0.55, v0: 0.4, v1: 0.98, amp: 0.012, rate: 2.2 },
+        { u0: 0.45, u1: 0.1, v0: 0.0, v1: 0.16, amp: 0.006, rate: 3 },
       ],
     };
     const IDLE_S = {
@@ -463,11 +463,10 @@ export class CampPiece extends Piece {
     const lt = t - S.rise[0];
     const i = frameAt(
       [
-        [0, 24],
-        [0.25, 30],
-        [0.85, 46],
-        [1.2, 50],
-        [2, 60],
+        [0, 2],
+        [1.0, 22],
+        [1.3, 26],
+        [2, 36],
       ],
       onN(lt, 2),
     );

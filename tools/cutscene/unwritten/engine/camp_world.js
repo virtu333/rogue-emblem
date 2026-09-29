@@ -523,6 +523,24 @@ export class CampWorld {
     this.passInk(frame);
     this.paperGrain(frame);
     this.drawBillboards(frame, cam, B, t, o);
+    this.vignette(frame);
+  }
+
+  /** The page darkens toward its edges (a few percent, so the eye stays on the middle). */
+  vignette(frame) {
+    const { W, H } = this;
+    for (let y = 0; y < H; y++) {
+      const dy = (y + 0.5 - H / 2) / (H / 2);
+      for (let x = 0; x < W; x++) {
+        const dx = (x + 0.5 - W / 2) / (W / 2);
+        const r = Math.sqrt(dx * dx * 0.6 + dy * dy);
+        const k = 1 - 0.2 * smooth(0.62, 1.25, r);
+        const o = (y * W + x) * 4;
+        frame[o] *= k;
+        frame[o + 1] *= k;
+        frame[o + 2] *= k * 1.01;
+      }
+    }
   }
 
   buildCasters(actors) {
@@ -935,6 +953,17 @@ export class CampWorld {
           frame[j] += (222 - frame[j]) * k;
           frame[j + 1] += (170 - frame[j + 1]) * k;
           frame[j + 2] += (78 - frame[j + 2]) * k;
+        }
+      }
+      if (a > 0.9 && bayer(xi + 1, yi + 3) < (a - 0.7) * 1.4) {
+        // a flare: the halo opens to two pixels
+        for (const dy of [-2, 2]) {
+          const yy = yi + dy;
+          if (yy < 0 || yy >= H || !this.sky[yy * W + xi]) continue;
+          const j = (yy * W + xi) * 4;
+          frame[j] += (226 - frame[j]) * 0.32;
+          frame[j + 1] += (176 - frame[j + 1]) * 0.32;
+          frame[j + 2] += (84 - frame[j + 2]) * 0.32;
         }
       }
       if (glow > 0.75 && bayer(xi + 2, yi) < glow - 0.5) {

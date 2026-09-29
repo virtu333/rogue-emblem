@@ -254,7 +254,11 @@ export const CAMERA = {
   // Sera close: from the south-east, so the fire is at the left edge and lights her face
   sera: (lt) => {
     const k = lt / 1.6;
-    return lookAt({ x: mix(1.35, 1.42, k), y: 0.85, z: mix(-1.5, -1.38, k) }, { x: 1.08, y: 0.95, z: 0 }, { focal: 540 });
+    return lookAt(
+      { x: mix(1.35, 1.42, k), y: 0.85, z: mix(-1.5, -1.38, k) },
+      { x: 1.08, y: 0.95, z: 0 },
+      { focal: 540 },
+    );
   },
   // what she sees: the sky, wide and canted, a slow drift along the Thread
   sky: (lt) => {
@@ -268,12 +272,20 @@ export const CAMERA = {
   // Edric from the south-west, close: the fire is at the right edge and lights his face
   edric: (lt) => {
     const k = lt / 1.6;
-    return lookAt({ x: mix(-2.35, -2.15, k), y: 0.9, z: mix(-1.45, -1.3, k) }, { x: -1.65, y: 0.92, z: 0.15 }, { focal: 520 });
+    return lookAt(
+      { x: mix(-2.35, -2.15, k), y: 0.9, z: mix(-1.45, -1.3, k) },
+      { x: -1.65, y: 0.92, z: 0.15 },
+      { focal: 520 },
+    );
   },
   // Kira from the south-east: she faces the fire, so it lights her; a slow push
   kira: (lt) => {
     const k = lt / 1.2;
-    return lookAt({ x: mix(2.45, 2.3, k), y: 1.25, z: mix(0.4, 0.55, k) }, { x: 1.0, y: 1.32, z: 1.75 }, { focal: 560 });
+    return lookAt(
+      { x: mix(2.45, 2.3, k), y: 1.25, z: mix(0.4, 0.55, k) },
+      { x: 1.0, y: 1.32, z: 1.75 },
+      { focal: 560 },
+    );
   },
   // he rises: a low camera close to him that tilts up as he stands, then, on the fill, a fast
   // pull back and up that lands on the big hit: he is small under the Thread
@@ -284,9 +296,19 @@ export const CAMERA = {
       { focal: 350 },
     );
     const far = { x: -0.3, y: 0.95, z: -6.2, yaw: 0.1, pitch: 0.35, roll: 0, focal: 255 };
-    const nearEnd = lookAt({ x: -1.95, y: 0.5, z: -1.85 }, { x: -1.45, y: 1.55, z: 0.15 }, { focal: 350 });
+    const nearEnd = lookAt(
+      { x: -1.95, y: 0.5, z: -1.85 },
+      { x: -1.45, y: 1.55, z: 0.15 },
+      { focal: 350 },
+    );
     if (lt < 1.0) return near;
-    return lerpCam(nearEnd, far, sm(0, 1, (lt - 1.0) / 0.4) ** 0.8);
+    const c = lerpCam(nearEnd, far, sm(0, 1, (lt - 1.0) / 0.4) ** 0.8);
+    // after the hit the camera keeps drifting back, very slowly: the last frame is never frozen
+    return {
+      ...c,
+      z: c.z - 0.12 * Math.max(0, lt - 1.4),
+      pitch: c.pitch + 0.006 * Math.max(0, lt - 1.4),
+    };
   },
 };
 
