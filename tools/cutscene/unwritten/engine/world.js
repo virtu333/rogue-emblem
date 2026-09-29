@@ -694,6 +694,7 @@ export class World {
     this.cloudWX = 22.5;
     this.cloudWZ = -9.5;
     this.impulses = [];
+    this.reedGaps = [];
     this.prof = {};
     this.sunBox = null;
     this.reflSunBox = null;
@@ -1408,6 +1409,7 @@ export class World {
     this.windV = this.cloudWZ / wl;
     this.rain = o.rain ?? 0.6;
     this.impulses = o.impulses || [];
+    this.reedGaps = o.reedGaps || [];
     // drifting mist heights around each ridge circle
     this.mistTab = this.ridges.map((L, li) => {
       const a = new Float32Array(512);
@@ -2581,7 +2583,16 @@ export class World {
       const wide = iz > 110 && !mirror;
       const first = C_[c + 3];
       const nb = C_[c + 4];
-      const nDraw = hpx < 16 ? 1 : hpx < 30 ? Math.min(nb, 3) : hpx < 60 ? Math.ceil(nb * 0.6) : nb;
+      let nDraw = hpx < 16 ? 1 : hpx < 30 ? Math.min(nb, 3) : hpx < 60 ? Math.ceil(nb * 0.6) : nb;
+      // a lane through the reeds (render option reedGaps): a runner's path and the line of
+      // sight to him, thinned toward its axis so the blades part around him, not in a ruled band
+      for (const g of this.reedGaps) {
+        const sx2 = g.x1 - g.x0;
+        const sz2 = g.z1 - g.z0;
+        const q = clamp(((X - g.x0) * sx2 + (Z - g.z0) * sz2) / (sx2 * sx2 + sz2 * sz2 || 1));
+        const d = Math.hypot(X - (g.x0 + sx2 * q), Z - (g.z0 + sz2 * q));
+        nDraw = Math.floor(nDraw * (g.keep + (1 - g.keep) * smooth(g.r * 0.4, g.r, d)) + 0.5);
+      }
       for (let bI = 0; bI < nDraw; bI++) {
         const q = (first + bI) * 9;
         const bx = BL[q];
@@ -3259,7 +3270,11 @@ export class World {
             }
             // thinner toward the rim; streaks of falling water down it; gaps in the wall
             if (fins[j] < 0.55 && h > 0.35) continue;
-            const dens = (0.72 - 0.5 * h * h - 0.35 * k) * Math.min(1, 0.55 + 0.45 * s);
+            // anime water is flat white: solid through the body of the wall, dithered only
+            // where it thins toward the rim and the end of its life
+            const dens = clamp(
+              (0.72 - 0.5 * h * h - 0.35 * k) * Math.min(1, 0.55 + 0.45 * s) * 2.6 - 0.2,
+            );
             const o = ((y | 0) * W + (x | 0)) * 4;
             const streak = hash(Math.round(x * 0.5), seed, 8) > 0.8;
             this.fxPut(frame, x, y, z, streak ? foamC(Math.max(0, o)) : white, dens);
@@ -3688,7 +3703,7 @@ export class World {
             (it.arch ?? 0.25 + 0.55 * hash(seed, b, 59)) *
             (it.arch ? 0.7 + 0.6 * hash(seed, b, 59) : 1) +
           (0.2 + 0.55 * g) * Math.cos(this.wind.dir);
-        const wB = 0.011 * (0.7 + 0.6 * hash(seed, b, 60));
+        const wB = 0.0085 * (0.7 + 0.6 * hash(seed, b, 60));
         let prev = null;
         const NS = 22;
         for (let k = 0; k <= NS; k++) {

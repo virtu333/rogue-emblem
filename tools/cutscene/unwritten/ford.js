@@ -780,7 +780,10 @@ export class FordPiece extends Piece {
     const uc = w.u0 + clamp(el, 0, w.uh - 1e-4);
     const X = m.xE + (S.travel(uc) - w.tEnd) * w.mk;
     const STAND = 1;
-    const i = halted || el < 0 ? STAND : S.index(uc);
+    const BRIDGE = 3;
+    // the closing step is one drawing (the clip's passing pose: the rear boot up beside
+    // the front one) before he stands: the rear leg does not jump the whole stride
+    const i = el < 0 ? STAND : !halted ? S.index(uc) : el - w.uh < 1 / 12 ? BRIDGE : STAND;
     // he faces -X: on the page, the way the ray to him says
     const rz = Z - cam.z;
     const rx = X - cam.x;
@@ -1077,13 +1080,45 @@ export class FordPiece extends Piece {
     const run = this.runner(a, TIME.run, -14, 3.44);
     const line = this.soldiers(a, cam, ['warden']);
     const actors = [run.actor, ...line.actors];
+    // his footfalls: a kick of wet earth on the bank, a splash once the ground is under water
+    const splashes = [...line.splashes];
+    const puffs = [...line.puffs];
+    for (const s of run.falls) {
+      const g = this.world.groundY(s.X, run.actor.Z);
+      const fx = {
+        X: s.X,
+        Z: run.actor.Z,
+        t0: s.t,
+        strength: 0.9,
+        seed: 50 + Math.round(s.t * 10),
+      };
+      if (g < -0.015) splashes.push(fx);
+      else puffs.push({ ...fx, Y: g });
+    }
+    // the reeds thin where he runs and along the line of sight to him (the blades part
+    // round a man; a lane, not a hole), so the small figure reads against the bank
+    const dx = cam.x - run.X;
+    const dz = cam.z - run.actor.Z;
+    const dl = Math.hypot(dx, dz);
+    const reedGaps = [
+      { x0: run.X - 4, z0: run.actor.Z, x1: run.X + 1.5, z1: run.actor.Z, r: 1.7, keep: 0.1 },
+      {
+        x0: run.X,
+        z0: run.actor.Z,
+        x1: run.X + (dx / dl) * 10,
+        z1: run.actor.Z + (dz / dl) * 10,
+        r: 1.9,
+        keep: 0.1,
+      },
+    ];
     this.world.render(f, a, cam, {
       stage,
       rain: 0.5,
       clouds: 0.55,
       actors,
-      splashes: line.splashes,
-      puffs: line.puffs,
+      splashes,
+      puffs,
+      reedGaps,
       wind: 1.2,
     });
     if (lt < 2 / 24) flash(f, W, H, 1 - lt * 12);
@@ -1277,7 +1312,7 @@ export class FordPiece extends Piece {
         kind: 'mixed',
         h: 1.2,
         stoneH: 0.16,
-        gaps: 0.42,
+        gaps: 0.58,
         seed: 5,
         Y: 0,
       }),
