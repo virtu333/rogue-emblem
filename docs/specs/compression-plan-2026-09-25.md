@@ -1,6 +1,6 @@
 # Compression plan and verification audit (2026-09-25)
 
-**Status:** plan. Steps 0–2, 6 and 7 are done and step 5 is under way; nothing else is implemented yet except where marked. Steps 6–9 were added on 2026-09-29 from a second external review, after #152.
+**Status:** plan. Steps 0–2 and 6–8 are done and step 5 is under way; nothing else is implemented yet except where marked. Steps 6–9 were added on 2026-09-29 from a second external review, after #152.
 **Source:** an external architecture review, three read-only investigations and a fault-injection pilot, run against `main` at 74cc967 / dfb551f.
 **Line references** are as of those commits. Re-verify them before starting. Since then, #93 routed the attack forecast through `BattleScene._computePlayerForecast`.
 
@@ -18,7 +18,7 @@ The goal is **fewer ways for code to share and repair mutable state**, not fewer
 | 5 | The headless harness calls production operations as they become isolated (under way: post-combat effects, timed weapon-art buffs, battle stat deltas and battle XP are shared, see below) | Mirrored orchestration in `tests/harness/HeadlessBattle.js` | alongside 2–4 |
 | 6 | Previews read what the player knows (**done**, #153: `engine/PlayerKnowledge.js`) | Omniscient occupancy in player-facing previews; per-caller `seenOnly` choices | none |
 | 7 | One owner for HP changes (**done**, #154: `engine/UnitHealth.js`) | Gameplay bookkeeping in `updateHPBar`; direct `currentHP` writes in scenes/UI (`tests/HpWriteBoundary.test.js`) | none |
-| 8 | A shared battle action model: rows with stable ids that both the canvas and the phone rail render | The hidden canvas rows behind the phone menu; label-matched dispatch | none (start with the Ability picker) |
+| 8 | A shared battle action model: rows with stable ids that both the canvas and the phone rail render (**done**, #157, #158, #160 and the picker PR: `src/ui/battleMenuModel.js`, see below) | The hidden canvas rows behind the phone menu; label-matched dispatch | none (start with the Ability picker) |
 | 9 | `Grid` split into pure rules and a view, `Grid` kept as a compatibility facade | `tests/harness/HeadlessGrid.js` (a drifted copy of the rules); the engine→ui import | none |
 
 **Serialize changes to the battle lifecycle.** Use one implementation owner at a time for `BattleScene`, checkpoints, RNG and persistence. Other agents can investigate, write independent fixtures, or review. Hold new mechanics that add persistent battle state until steps 2–4 settle.
@@ -173,6 +173,12 @@ Battle execution installs the battle RNG as global `Math.random`. `src/utils/pre
 - Lint-ban ambient randomness in each path once it is migrated.
 
 **Acceptance test pattern:** identical saved state plus identical commands must give an identical domain state and RNG cursor, across animation speed, reduced motion, history viewing, forecast opening and presentation switches. `tests/e2e/portrait-battle.spec.js` ("does not change how the battle plays out"; PR #99, merged as 38e069c) is a working example of this differential test through the real resume path.
+
+## 8. Shared battle action model — done 2026-09-29
+
+Every battle menu is a list of rows (`src/ui/battleMenuModel.js`: `menuRow({ id, label, status, description, note, item, disabled, color, invoke })`) published once with `BattleScene._registerActionMenu(rows)`, which no longer accepts anything else. The desktop canvas draws the rows (each canvas row carries its `_rowId`); the phone rail renders them itself, so no canvas menu is built behind it. Code that needs a command asks the open menu for it by id (`openMenuCommand(scene, id)`), never by its text: the post-move direct attack, the rail's Wait dock and its Attack highlight.
+
+Menus on rows: the unit's action menu (`attack`, `weaponArt`, `staff`, `equip`, `promote`, `reclass`, `item`, `shove`, `pull`, `trade`, `swap`, `dance`, `ability`, `break`, `talk`, `seize`, `escape`, `capture`, `wait`), Equip (`weapon:<n>`), Item (`item:<n>`), the Ability picker (`ability:<skillId>`), the self-centred ability confirm (`confirm`, `cancel`), the Staff picker (`staff:<n>`), the Weapon Art picker (`normal`, `art:<artId>:<n>`) and the Reclass picker (`class:<name>`); submenus end with `back`. Tests: `tests/BattleActionMenuRows.test.js`, `tests/BattleAbilities.test.js` ("Ability picker as rows", the confirm prompt).
 
 ## Verification audit
 

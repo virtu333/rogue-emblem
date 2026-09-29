@@ -6396,42 +6396,28 @@ export class BattleScene extends Phaser.Scene {
     this.finishUnitAction(unit);
   }
 
-  // Publish each completed menu once. Canvas and DOM share the same guarded
-  // actions; disabled rows remain visible without becoming focus targets.
-  // A menu built from rows (battleMenuModel) passes them: the rail renders the rows
-  // themselves and needs no canvas object; a canvas row, when there is one, is found
-  // by its row id. Older menus are read from their canvas rows.
-  _registerActionMenu(rows = null) {
+  // Publish each completed menu once, from its rows (battleMenuModel). The canvas
+  // (desktop) and the phone rail render the same rows and share these guarded
+  // actions; the rail needs no canvas object, and a canvas row, when there is one, is
+  // found by its row id. Disabled rows stay visible without becoming focus targets.
+  _registerActionMenu(rows) {
+    if (!Array.isArray(rows)) throw new Error('_registerActionMenu: a menu is published as rows');
     const objects = this.actionMenu;
     const unit = this.selectedUnit;
-    const entries = rows
-      ? rows.map((row) => {
-          const button = (objects || []).find((object) => object?._rowId === row.id) || null;
-          return {
-            id: row.id,
-            label: rowText(row),
-            item: row.item,
-            description: row.description,
-            note: row.note,
-            button,
-            disabled: row.disabled,
-            color: row.color || UI_PALETTE.text,
-            run: () => row.invoke(),
-          };
-        })
-      : (objects || [])
-          .filter((button) => typeof button?._action === 'function')
-          .map((button) => ({
-            id: null,
-            label: button.text,
-            item: button._menuItem,
-            description: button._menuDescription,
-            note: button._menuNote || null,
-            button,
-            disabled: Boolean(button._menuDisabled),
-            color: button._menuColor || UI_PALETTE.text,
-            run: () => button._action(),
-          }));
+    const entries = rows.map((row) => {
+      const button = (objects || []).find((object) => object?._rowId === row.id) || null;
+      return {
+        id: row.id,
+        label: rowText(row),
+        item: row.item,
+        description: row.description,
+        note: row.note,
+        button,
+        disabled: row.disabled,
+        color: row.color || UI_PALETTE.text,
+        run: () => row.invoke(),
+      };
+    });
     const items = entries.map(({ run, ...entry }) => {
       const item = {
         ...entry,
@@ -7327,17 +7313,48 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMenu();
     this.battleState = 'UNIT_ACTION_MENU';
     this.inEquipMenu = true;
+    this.actionMenu = [];
 
+    // The menu as rows (battleMenuModel): the canvas and the phone rail render them.
+    const rows = [
+      ...targets.map((cls) =>
+        menuRow({
+          id: `class:${cls.name}`,
+          label: cls.name,
+          color: UI_PALETTE.good,
+          invoke: () => {
+            const audio = this.registry.get('audio');
+            if (audio) audio.playSFX('sfx_confirm');
+            this.executeReclass(unit, sealItem, cls);
+          },
+        }),
+      ),
+      menuRow({
+        id: 'back',
+        label: 'Back',
+        color: UI_PALETTE.muted,
+        invoke: () => {
+          this.hideActionMenu();
+          this.battleState = 'UNIT_ACTION_MENU';
+          this.showActionMenu(unit);
+        },
+      }),
+    ];
+    if (!railOwnsMenus(this)) this._drawReclassPickerRows(rows);
+    this._registerActionMenu(rows);
+  }
+
+  /** The desktop canvas reclass picker, centred (the phone rail renders its own). */
+  _drawReclassPickerRows(rows) {
     const menuWidth = 200;
-    const totalRows = targets.length + 1; // +1 for Back row
     let itemHeight = this.isMobileInput ? 38 : 24;
-    let menuHeight = totalRows * itemHeight + 8;
+    let menuHeight = rows.length * itemHeight + 8;
     // Overflow guard: shrink rows if menu exceeds viewport
     if (this.isMobileInput) {
       const maxMenuH = this.cameras.main.height - 16;
       if (menuHeight > maxMenuH) {
-        itemHeight = Math.max(24, Math.floor((maxMenuH - 8) / totalRows));
-        menuHeight = totalRows * itemHeight + 8;
+        itemHeight = Math.max(24, Math.floor((maxMenuH - 8) / rows.length));
+        menuHeight = rows.length * itemHeight + 8;
       }
     }
     const cx = this.cameras.main.centerX;
@@ -7348,8 +7365,6 @@ export class BattleScene extends Phaser.Scene {
       menuWidth,
       menuHeight,
     );
-
-    this.actionMenu = [];
 
     const bg = this.add
       .rectangle(
@@ -7364,51 +7379,20 @@ export class BattleScene extends Phaser.Scene {
       .setStrokeStyle(1, UI_HEX.line);
     this.actionMenu.push(bg);
 
-    targets.forEach((cls, i) => {
-      const iy = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
-      const ix = menuPos.x + menuWidth / 2;
+    rows.forEach((row, i) => {
       const text = this._makeMenuTextButton(
-        ix,
-        iy,
-        cls.name,
-        {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: UI_PALETTE.good,
-        },
-        UI_PALETTE.good,
-        () => {
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_confirm');
-          this.executeReclass(unit, sealItem, cls);
-        },
+        menuPos.x + menuWidth / 2,
+        menuPos.y + 4 + i * itemHeight + itemHeight / 2,
+        row.label,
+        { fontFamily: 'monospace', fontSize: '11px', color: row.color },
+        row.color,
+        () => row.invoke(),
         { hitWidth: menuWidth - 10, hitHeight: itemHeight },
       );
+      text._rowId = row.id;
       this.actionMenu.push(text);
     });
-
-    // Back button
-    const backY = menuPos.y + 4 + targets.length * itemHeight + itemHeight / 2;
-    const backText = this._makeMenuTextButton(
-      menuPos.x + menuWidth / 2,
-      backY,
-      'Back',
-      {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: UI_PALETTE.muted,
-      },
-      UI_PALETTE.muted,
-      () => {
-        this.hideActionMenu();
-        this.battleState = 'UNIT_ACTION_MENU';
-        this.showActionMenu(unit);
-      },
-      { hitWidth: menuWidth - 10, hitHeight: itemHeight },
-    );
-    this.actionMenu.push(backText);
     this._pinToScreen(this.actionMenu);
-    this._registerActionMenu();
   }
 
   async executeReclass(unit, sealItem, newClassData) {

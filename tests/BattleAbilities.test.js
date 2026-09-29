@@ -554,6 +554,30 @@ describe('confirm prompt (self-centered AOE)', () => {
     expect(scene._actionMenuCleanup).toBeNull();
     expect(scene.grid.clearAttackHighlights).toHaveBeenCalled();
   });
+  it('on the phone rail: Confirm and Cancel rows by id, and no canvas rows', () => {
+    const unit = makeUnit({ skills: ['ensnare'] });
+    const near = makeUnit({ name: 'Near', faction: 'enemy', col: 5, row: 7 });
+    const scene = makeAbilityScene({ unit, enemies: [near] });
+    setupActionMenuHarness(scene);
+    scene.selectedUnit = unit;
+    const shown = [];
+    scene._mobileBattleHud = { showMenu: (items, objects) => shown.push({ items, objects }) };
+    const controller = scene._abilityController;
+    const execute = vi.spyOn(controller, 'executeSelfCentered').mockResolvedValue();
+    const picker = vi.spyOn(controller, 'showAbilityPicker').mockImplementation(() => {});
+    controller._showConfirmPrompt(unit, skillById.get('ensnare'));
+    expect(scene._makeMenuTextButton).not.toHaveBeenCalled();
+    const { items } = shown.at(-1);
+    expect(items.map((i) => [i.id, i.label])).toEqual([
+      ['confirm', 'Use Ensnare (1 enemy)'],
+      ['cancel', 'Cancel'],
+    ]);
+    items[1].onActivate();
+    expect(picker).toHaveBeenCalledWith(unit);
+    controller._showConfirmPrompt(unit, skillById.get('ensnare'));
+    shown.at(-1).items[0].onActivate();
+    expect(execute).toHaveBeenCalledWith(unit, skillById.get('ensnare'));
+  });
 });
 
 describe('Rally Cry effect', () => {

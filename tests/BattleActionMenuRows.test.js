@@ -13,6 +13,7 @@ vi.mock('phaser', () => ({
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { InputController } from '../src/ui/InputController.js';
+import { WeaponArtController } from '../src/ui/WeaponArtController.js';
 import { openMenuCommand } from '../src/ui/battleMenuModel.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
 import { loadGameData } from './testData.js';
@@ -289,5 +290,102 @@ describe('the Equip and Item submenus as rows', () => {
       expect(canvasRows(scene).map((row) => row._rowId)).toEqual(items.map((item) => item.id));
       for (const item of items) expect(item.button._rowId).toBe(item.id);
     }
+  });
+});
+
+// The last pickers: Staff, Weapon Art and Reclass (the AOE confirm is covered in
+// BattleAbilities.test.js). Every menu is now published from rows.
+describe('the Staff, Weapon Art and Reclass pickers as rows', () => {
+  it('Staff picker on the rail: a row per staff, no canvas; choosing one starts its targeting', () => {
+    const { scene, unit } = menuScene({ rail: true });
+    const heal = weapon('Heal');
+    const mend = weapon('Mend');
+    Object.assign(unit, {
+      inventory: [unit.weapon, heal, mend],
+      proficiencies: [...unit.proficiencies, { type: 'Staff', rank: 'Mast' }],
+    });
+    unit.stats.MAG = 5;
+    const ally = { name: 'Hurt', faction: 'player', col: 1, row: 2, currentHP: 3 };
+    scene.findHealTargets = () => [ally];
+    scene.startHealTargetSelection = vi.fn();
+    scene.showStaffPicker(unit, [heal, mend]);
+    expect(scene._makeMenuTextButton).not.toHaveBeenCalled();
+    const items = published(scene);
+    expect(items.map((item) => [item.id, item.item])).toEqual([
+      ['staff:0', heal],
+      ['staff:1', mend],
+    ]);
+    // Name, then uses and range on the second line, as the canvas row read.
+    expect(items[1].label).toMatch(/^ {2}Mend\n {3}\d+\/\d+ uses {2}Rng \d+-\d+$/);
+    expect(items[1].description).toContain('Uses refill each battle');
+    openMenuCommand(scene, 'staff:1').onActivate();
+    expect(scene.startHealTargetSelection).toHaveBeenCalledWith(unit, [ally], mend);
+  });
+
+  it('Weapon Art picker on the rail: Normal Attack and each art; a greyed art does nothing', () => {
+    const { scene, unit } = menuScene({ rail: true });
+    const sword = unit.weapon;
+    const ready = { id: 'art_ready', name: 'Ready Art', weaponType: 'Sword' };
+    const spent = { id: 'art_spent', name: 'Spent Art', weaponType: 'Sword' };
+    const controller = (scene._weaponArtController = new WeaponArtController(scene));
+    vi.spyOn(controller, '_getWeaponArtChoices').mockReturnValue([
+      { weapon: sword, art: ready, canUse: true, reason: null },
+      { weapon: sword, art: spent, canUse: false, reason: 'turn_limit' },
+    ]);
+    vi.spyOn(controller, '_getWeaponArtStatusLine').mockReturnValue('Ready');
+    scene._beginAttackSelection = vi.fn();
+    scene.showWeaponArtPicker(unit);
+    expect(scene._makeMenuTextButton).not.toHaveBeenCalled();
+    expect(published(scene).map((item) => [item.id, item.label, item.disabled])).toEqual([
+      ['normal', '> Normal Attack', false],
+      ['art:art_ready:0', '  Ready Art (Iron Sword)\n   Ready', false],
+      ['art:art_spent:1', '  Spent Art (Iron Sword)\n   Ready', true],
+    ]);
+    openMenuCommand(scene, 'art:art_spent:1').onActivate();
+    expect(scene._beginAttackSelection).not.toHaveBeenCalled();
+    openMenuCommand(scene, 'normal').onActivate();
+    expect(scene._beginAttackSelection).toHaveBeenCalledWith(unit);
+  });
+
+  it('Reclass picker on the rail: a row per class and Back; choosing one reclasses', () => {
+    const { scene, unit } = menuScene({ rail: true });
+    Object.assign(unit, { className: 'Fighter', tier: 'base' });
+    scene.gameData = { ...scene.gameData, classes: data.classes };
+    const seal = { name: 'Infantry Seal', effect: 'reclass', subEffect: 'infantry', uses: 1 };
+    scene.executeReclass = vi.fn();
+    scene.showReclassClassPicker(unit, seal);
+    expect(scene._makeMenuTextButton).not.toHaveBeenCalled();
+    const items = published(scene);
+    const classes = items.filter((item) => item.id !== 'back');
+    expect(classes.length).toBeGreaterThan(0);
+    for (const item of classes) expect(item.id).toBe(`class:${item.label}`);
+    expect(classes.map((item) => item.label)).not.toContain('Fighter');
+    expect(items.at(-1).id).toBe('back');
+    classes[0].onActivate();
+    const chosen = data.classes.find((cls) => cls.name === classes[0].label);
+    expect(scene.executeReclass).toHaveBeenCalledWith(unit, seal, chosen);
+  });
+
+  it('on desktop each picker tags its canvas rows with their ids', () => {
+    const { scene, unit } = menuScene({ rail: false });
+    scene.time = { delayedCall: vi.fn() };
+    const heal = weapon('Heal');
+    unit.inventory.push(heal);
+    unit.proficiencies.push({ type: 'Staff', rank: 'Mast' });
+    scene.showStaffPicker(unit, [heal]);
+    expect(canvasRows(scene).map((row) => row._rowId)).toEqual(['staff:0']);
+
+    Object.assign(unit, { className: 'Fighter', tier: 'base' });
+    scene.gameData = { ...scene.gameData, classes: data.classes };
+    scene.showReclassClassPicker(unit, { name: 'Infantry Seal', subEffect: 'infantry' });
+    const ids = published(scene).map((item) => item.id);
+    expect(canvasRows(scene).map((row) => row._rowId)).toEqual(ids);
+    for (const item of published(scene)) expect(item.button._rowId).toBe(item.id);
+  });
+
+  it('a menu can only be published as rows', () => {
+    const { scene } = menuScene({ rail: true });
+    scene.actionMenu = [];
+    expect(() => scene._registerActionMenu()).toThrow(/rows/);
   });
 });

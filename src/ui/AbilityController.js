@@ -333,20 +333,60 @@ export class AbilityController {
     const tiles = affected.map((target) => ({ col: target.col, row: target.row }));
     scene.grid.showAttackRange(tiles, hostile ? ENEMY_AOE_COLOR : ALLY_AOE_COLOR, 0.4);
 
+    scene.actionMenu = [];
+    // Owned by menu teardown, including cancel, replacement and shutdown.
+    scene._actionMenuCleanup = () => scene.grid?.clearAttackHighlights?.();
+
+    const targetNoun = hostile
+      ? affected.length === 1
+        ? 'enemy'
+        : 'enemies'
+      : affected.length === 1
+        ? 'ally'
+        : 'allies';
+    // The menu as rows (battleMenuModel): the canvas and the phone rail render them.
+    const rows = [
+      menuRow({
+        id: 'confirm',
+        label: `Use ${skill.name} (${affected.length} ${targetNoun})`,
+        color: UI_PALETTE.good,
+        invoke: () => {
+          const latest = canUseAbility(unit, skill);
+          if (!latest.ok) {
+            this.showAbilityPicker(unit);
+            return;
+          }
+          const audio = scene.registry.get('audio');
+          if (audio) audio.playSFX('sfx_confirm');
+          void this.executeSelfCentered(unit, skill);
+        },
+      }),
+      menuRow({
+        id: 'cancel',
+        label: 'Cancel',
+        color: UI_PALETTE.text,
+        invoke: () => {
+          const audio = scene.registry.get('audio');
+          if (audio) audio.playSFX('sfx_cancel');
+          this.showAbilityPicker(unit);
+        },
+      }),
+    ];
+    if (!railOwnsMenus(scene)) this._drawAoeConfirmRows(unit, rows);
+    scene._registerActionMenu(rows);
+  }
+
+  /** The desktop canvas confirm for a self-centred ability (the phone rail renders its own). */
+  _drawAoeConfirmRows(unit, rows) {
+    const scene = this.scene;
     const pos = scene.grid.gridToPixel(unit.col, unit.row);
     const menuWidth = 240;
     const menuX = hasRoomRightOf(scene.grid, unit.col, unit.row)
       ? pos.x + TILE_SIZE
       : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
-
-    scene.actionMenu = [];
-    // Owned by menu teardown, including cancel, replacement and shutdown.
-    scene._actionMenuCleanup = () => scene.grid?.clearAttackHighlights?.();
-
     const itemHeight = scene.isMobileInput ? 40 : 32;
-    const rows = 2;
-    const menuHeight = rows * itemHeight + 12;
+    const menuHeight = rows.length * itemHeight + 12;
     const menuPos = scene._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = scene.add
@@ -362,49 +402,20 @@ export class AbilityController {
       .setStrokeStyle(1, UI_HEX.line);
     scene.actionMenu.push(bg);
 
-    const targetNoun = hostile
-      ? affected.length === 1
-        ? 'enemy'
-        : 'enemies'
-      : affected.length === 1
-        ? 'ally'
-        : 'allies';
-    const confirmLabel = `Use ${skill.name} (${affected.length} ${targetNoun})`;
-    const makeRow = (rowIndex, label, color, onClick) => {
-      const rowY = menuPos.y + 6 + rowIndex * itemHeight + itemHeight / 2;
+    rows.forEach((row, i) => {
       const text = scene._makeMenuTextButton(
         menuPos.x + 8,
-        rowY,
-        label,
-        {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color,
-        },
-        color,
-        onClick,
+        menuPos.y + 6 + i * itemHeight + itemHeight / 2,
+        row.label,
+        { fontFamily: 'monospace', fontSize: '11px', color: row.color },
+        row.color,
+        () => row.invoke(),
         { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
       );
+      text._rowId = row.id;
       scene.actionMenu.push(text);
-    };
-
-    makeRow(0, confirmLabel, UI_PALETTE.good, () => {
-      const latest = canUseAbility(unit, skill);
-      if (!latest.ok) {
-        this.showAbilityPicker(unit);
-        return;
-      }
-      const audio = scene.registry.get('audio');
-      if (audio) audio.playSFX('sfx_confirm');
-      void this.executeSelfCentered(unit, skill);
-    });
-    makeRow(1, 'Cancel', UI_PALETTE.text, () => {
-      const audio = scene.registry.get('audio');
-      if (audio) audio.playSFX('sfx_cancel');
-      this.showAbilityPicker(unit);
     });
     scene._pinToScreen(scene.actionMenu);
-    scene._registerActionMenu();
   }
 
   async executeSelfCentered(unit, skill) {

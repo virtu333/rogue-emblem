@@ -1,4 +1,5 @@
 import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
+import { menuRow, railOwnsMenus, rowText } from './battleMenuModel.js';
 import { TILE_SIZE } from '../utils/constants.js';
 import { hasRoomRightOf } from '../utils/boardOrientation.js';
 import { TOOLTIP_HOVER_DELAY_MS, TOOLTIP_LONG_PRESS_MS } from '../utils/tooltipTiming.js';
@@ -45,16 +46,76 @@ export class WeaponArtController {
       return;
     }
 
+    scene.actionMenu = [];
+    const current =
+      scene._selectedWeaponArt?.unitName === unit.name ? scene._selectedWeaponArt : null;
+
+    // The menu as rows (battleMenuModel): the canvas and the phone rail render them.
+    const rows = [
+      menuRow({
+        id: 'normal',
+        label: `${current ? '  ' : '> '}Normal Attack`,
+        color: current ? UI_PALETTE.text : UI_PALETTE.accentText,
+        invoke: () => {
+          const audio = scene.registry.get('audio');
+          if (audio) audio.playSFX('sfx_confirm');
+          this._setSelectedWeaponArt(unit, null);
+          scene.inEquipMenu = false;
+          scene._beginAttackSelection(unit);
+        },
+      }),
+      ...choices.map(({ weapon, art, canUse, reason }, i) => {
+        const weaponIndex = Array.isArray(unit.inventory) ? unit.inventory.indexOf(weapon) : -1;
+        const isActive = Boolean(
+          current &&
+          current.artId === art.id &&
+          Number.isInteger(current.weaponIndex) &&
+          current.weaponIndex === weaponIndex,
+        );
+        const marker = isActive ? '> ' : '  ';
+        const weaponName = weapon?.name || weapon?.id || art.weaponType;
+        return menuRow({
+          id: `art:${art.id}:${i}`,
+          label: `${marker}${art.name} (${weaponName})`,
+          status: this._getWeaponArtStatusLine(unit, art, { canUse, reason }),
+          description: formatWeaponArtEffects(art),
+          disabled: !canUse,
+          color: canUse ? (isActive ? UI_PALETTE.accentText : UI_PALETTE.text) : UI_PALETTE.muted,
+          invoke: () => {
+            const latest = canUseWeaponArt(unit, weapon, art, {
+              turnNumber: scene.turnManager?.turnNumber,
+              isInitiating: true,
+              weaponArtHpCostDelta:
+                scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+            });
+            if (!latest.ok) {
+              this.showWeaponArtPicker(unit);
+              return;
+            }
+            const audio = scene.registry.get('audio');
+            if (audio) audio.playSFX('sfx_confirm');
+            this._setSelectedWeaponArt(unit, art.id, weapon);
+            scene.inEquipMenu = false;
+            scene._beginAttackSelection(unit);
+          },
+        });
+      }),
+    ];
+    if (!railOwnsMenus(scene)) this._drawWeaponArtPickerRows(unit, rows, choices);
+    scene._registerActionMenu(rows);
+  }
+
+  /** The desktop canvas weapon art picker (the phone rail renders its own). */
+  _drawWeaponArtPickerRows(unit, rows, choices) {
+    const scene = this.scene;
     const pos = scene.grid.gridToPixel(unit.col, unit.row);
     const menuX = hasRoomRightOf(scene.grid, unit.col, unit.row)
       ? pos.x + TILE_SIZE
       : pos.x - TILE_SIZE - 280;
     const menuY = pos.y - 10;
-
-    scene.actionMenu = [];
     const menuWidth = 280;
     const itemHeight = scene.isMobileInput ? 46 : 42;
-    const menuHeight = (choices.length + 1) * itemHeight + 12;
+    const menuHeight = rows.length * itemHeight + 12;
     const menuPos = scene._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = scene.add
@@ -70,96 +131,34 @@ export class WeaponArtController {
       .setStrokeStyle(1, UI_HEX.line);
     scene.actionMenu.push(bg);
 
-    const current =
-      scene._selectedWeaponArt?.unitName === unit.name ? scene._selectedWeaponArt : null;
-
-    const noneY = menuPos.y + 6 + itemHeight / 2;
-    const noneColor = current ? UI_PALETTE.text : UI_PALETTE.accentText;
-    const noneText = scene._makeMenuTextButton(
-      menuPos.x + 8,
-      noneY,
-      `${current ? '  ' : '> '}Normal Attack`,
-      {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: noneColor,
-      },
-      noneColor,
-      () => {
-        const audio = scene.registry.get('audio');
-        if (audio) audio.playSFX('sfx_confirm');
-        this._setSelectedWeaponArt(unit, null);
-        scene.inEquipMenu = false;
-        scene._beginAttackSelection(unit);
-      },
-      { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
-    );
-    scene.actionMenu.push(noneText);
-
-    choices.forEach(({ weapon, art, canUse, reason }, i) => {
-      const rowY = menuPos.y + 6 + (i + 1) * itemHeight + itemHeight / 2;
-      const weaponIndex = Array.isArray(unit.inventory) ? unit.inventory.indexOf(weapon) : -1;
-      const isActive = Boolean(
-        current &&
-        current.artId === art.id &&
-        Number.isInteger(current.weaponIndex) &&
-        current.weaponIndex === weaponIndex,
-      );
-      const marker = isActive ? '> ' : '  ';
-      const status = this._getWeaponArtStatusLine(unit, art, { canUse, reason });
-      const color = canUse
-        ? isActive
-          ? UI_PALETTE.accentText
-          : UI_PALETTE.text
-        : UI_PALETTE.muted;
-      const weaponName = weapon?.name || weapon?.id || art.weaponType;
-      const label = `${marker}${art.name} (${weaponName})
-   ${status}`;
-
+    rows.forEach((row, i) => {
+      // Row 0 is Normal Attack; the rest follow the art choices in order.
+      const art = i > 0 ? choices[i - 1].art : null;
       const text = scene._makeMenuTextButton(
         menuPos.x + 8,
-        rowY,
-        label,
-        {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color,
-          lineSpacing: 1,
-        },
-        color,
-        () => {
-          const latest = canUseWeaponArt(unit, weapon, art, {
-            turnNumber: scene.turnManager?.turnNumber,
-            isInitiating: true,
-            weaponArtHpCostDelta:
-              scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-          });
-          if (!latest.ok) {
-            this.showWeaponArtPicker(unit);
-            return;
-          }
-          const audio = scene.registry.get('audio');
-          if (audio) audio.playSFX('sfx_confirm');
-          this._setSelectedWeaponArt(unit, art.id, weapon);
-          scene.inEquipMenu = false;
-          scene._beginAttackSelection(unit);
-        },
-        {
-          originX: 0,
-          originY: 0.5,
-          hitWidth: menuWidth - 12,
-          hitHeight: itemHeight,
-          clickOnPointerUp: true,
-          disabled: !canUse,
-        },
+        menuPos.y + 6 + i * itemHeight + itemHeight / 2,
+        rowText(row),
+        art
+          ? { fontFamily: 'monospace', fontSize: '10px', color: row.color, lineSpacing: 1 }
+          : { fontFamily: 'monospace', fontSize: '12px', color: row.color },
+        row.color,
+        () => row.invoke(),
+        art
+          ? {
+              originX: 0,
+              originY: 0.5,
+              hitWidth: menuWidth - 12,
+              hitHeight: itemHeight,
+              clickOnPointerUp: true,
+              disabled: row.disabled,
+            }
+          : { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
       );
-      text._menuDescription = formatWeaponArtEffects(art);
-      this._wireWeaponArtTooltip(text, art);
-
+      text._rowId = row.id;
+      if (art) this._wireWeaponArtTooltip(text, art);
       scene.actionMenu.push(text);
     });
     scene._pinToScreen(scene.actionMenu);
-    scene._registerActionMenu();
   }
 
   _showWeaponArtTooltip(anchorText, art) {

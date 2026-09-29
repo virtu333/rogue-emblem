@@ -2,6 +2,7 @@ import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { TutorialController } from './TutorialController.js';
 import { applyLegendaryStaffHeal } from '../engine/TraitSystem.js';
 import { deedsFor } from './DeedController.js';
+import { menuRow, railOwnsMenus, rowText } from './battleMenuModel.js';
 // HealController -- staff heal flow extracted from BattleScene.
 // Owns staff selection, heal target selection, and heal resolution/animation.
 // Cross-cutting seams (finishUnitAction, awardScaledXP, showActionMenu,
@@ -216,54 +217,22 @@ export class HealController {
     scene.hideActionMenu();
     scene.inEquipMenu = true;
     scene.battleState = 'UNIT_ACTION_MENU';
-
-    const pos = scene.grid.gridToPixel(unit.col, unit.row);
-    const menuX = hasRoomRightOf(scene.grid, unit.col, unit.row)
-      ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - 210;
-    const menuY = pos.y - 10;
-
     scene.actionMenu = [];
-    const menuWidth = 210;
-    const itemHeight = scene.isMobileInput ? 42 : 36;
-    const menuHeight = usableStaves.length * itemHeight + 12;
-    const menuPos = scene._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
-    const bg = scene.add
-      .rectangle(
-        menuPos.x + menuWidth / 2,
-        menuPos.y + menuHeight / 2,
-        menuWidth,
-        menuHeight,
-        0x000000,
-        0.85,
-      )
-      .setDepth(400)
-      .setStrokeStyle(1, UI_HEX.line);
-    scene.actionMenu.push(bg);
-
-    usableStaves.forEach((staff, i) => {
-      const itemY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
-      const itemX = menuPos.x + 8;
+    // The menu as rows (battleMenuModel): the canvas and the phone rail render them.
+    const rows = usableStaves.map((staff, i) => {
       const marker = staff === unit.weapon ? EQUIPPED_MARKER : '  ';
       const rem = getStaffRemainingUses(staff, unit);
       const max = getStaffMaxUses(staff, unit);
       const rng = getEffectiveStaffRange(staff, unit);
-      const label = `${marker}${staff.name}\n   ${rem}/${max} uses  Rng ${rng.min}-${rng.max}`;
-      const defaultColor = staff === unit.weapon ? UI_PALETTE.accentText : UI_PALETTE.text;
-
-      const text = scene._makeMenuTextButton(
-        itemX,
-        itemY,
-        label,
-        {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: defaultColor,
-          lineSpacing: 1,
-        },
-        defaultColor,
-        async () => {
+      return menuRow({
+        id: `staff:${i}`,
+        label: `${marker}${staff.name}`,
+        status: `${rem}/${max} uses  Rng ${rng.min}-${rng.max}`,
+        item: staff,
+        description: `${staff.special || staff.description || 'Healing staff'} · Uses refill each battle`,
+        color: staff === unit.weapon ? UI_PALETTE.accentText : UI_PALETTE.text,
+        invoke: async () => {
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
           this.holdStaff(unit, staff);
@@ -281,15 +250,57 @@ export class HealController {
           scene.hideActionMenu();
           scene.startHealTargetSelection(unit, healTargets, staff);
         },
+      });
+    });
+    if (!railOwnsMenus(scene)) this._drawStaffPickerRows(unit, rows);
+    scene._registerActionMenu(rows);
+  }
+
+  /** The desktop canvas staff picker (the phone rail renders its own). */
+  _drawStaffPickerRows(unit, rows) {
+    const scene = this.scene;
+    const pos = scene.grid.gridToPixel(unit.col, unit.row);
+    const menuX = hasRoomRightOf(scene.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - 210;
+    const menuY = pos.y - 10;
+    const menuWidth = 210;
+    const itemHeight = scene.isMobileInput ? 42 : 36;
+    const menuHeight = rows.length * itemHeight + 12;
+    const menuPos = scene._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
+
+    const bg = scene.add
+      .rectangle(
+        menuPos.x + menuWidth / 2,
+        menuPos.y + menuHeight / 2,
+        menuWidth,
+        menuHeight,
+        0x000000,
+        0.85,
+      )
+      .setDepth(400)
+      .setStrokeStyle(1, UI_HEX.line);
+    scene.actionMenu.push(bg);
+
+    rows.forEach((row, i) => {
+      const text = scene._makeMenuTextButton(
+        menuPos.x + 8,
+        menuPos.y + 6 + i * itemHeight + itemHeight / 2,
+        rowText(row),
+        {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: row.color,
+          lineSpacing: 1,
+        },
+        row.color,
+        () => row.invoke(),
         { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
       );
-
-      text._menuItem = staff;
-      text._menuDescription = `${staff.special || staff.description || 'Healing staff'} · Uses refill each battle`;
+      text._rowId = row.id;
       scene.actionMenu.push(text);
     });
     scene._pinToScreen(scene.actionMenu);
-    scene._registerActionMenu();
   }
 
   handleHealTargetClick(gp) {
