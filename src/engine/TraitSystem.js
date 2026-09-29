@@ -31,6 +31,7 @@
 // the class-aware pool never shifts the stream for anything rolled after it.
 
 import { XP_STAT_NAMES } from '../utils/constants.js';
+import { healUnit } from './UnitHealth.js';
 
 export const TRAIT_RULES_VERSION = 2;
 
@@ -533,7 +534,7 @@ export function applyLegendaryStaffHeal(healer, target, healed, traitsData, turn
   );
   const actual = Math.max(0, Math.min(amount, healer.stats.HP - healer.currentHP));
   if (!actual) return 0;
-  healer.currentHP += actual;
+  healUnit(healer, actual);
   healer._legendaryGraceTurn = turn;
   return actual;
 }

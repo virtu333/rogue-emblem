@@ -7,6 +7,7 @@ import { getAffixCombatMods } from './AffixSystem.js';
 import { isSilenced } from './StatusConditionSystem.js';
 import { getMasteryCombatMods } from './MasterySystem.js';
 import { getTraitCombatMods } from './TraitSystem.js';
+import { setUnitHP } from './UnitHealth.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -798,7 +799,7 @@ export function checkPhoenixBrooch(unit) {
   const amount = nextHp - unit.currentHP;
   if (amount <= 0) return { triggered: false, amount: 0 };
 
-  unit.currentHP = nextHp;
+  setUnitHP(unit, nextHp);
   unit._phoenixBroochUsed = true;
   return {
     triggered: true,

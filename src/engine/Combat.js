@@ -1337,6 +1337,18 @@ function rollStrike(
 }
 
 /**
+ * Thorns: reflected melee damage hurts the striker but never kills it. Returns the
+ * striker's HP after the reflection and records it on the event (`strikerHPAfter`),
+ * so the result's final HP and every strike's presentation agree.
+ */
+function applyReflect(evt, strikerHP) {
+  if (!(evt.reflectDamage > 0) || !(strikerHP > 0)) return strikerHP;
+  const after = Math.max(1, strikerHP - evt.reflectDamage);
+  evt.strikerHPAfter = after;
+  return after;
+}
+
+/**
  * Resolve full combat exchange. Returns { events[], attackerHP, defenderHP }.
  *
  * Attack order (GBA Fire Emblem style):
@@ -1675,12 +1687,14 @@ export function resolveCombat(
           atkHP = Math.min(attacker.stats.HP, atkHP + evt.heal);
           evt.strikerHealTo = atkHP;
         }
+        atkHP = applyReflect(evt, atkHP);
       } else {
         atkHP = evt.targetHPAfter;
         if (evt.heal > 0) {
           defHP = Math.min(defender.stats.HP, defHP + evt.heal);
           evt.strikerHealTo = defHP;
         }
+        defHP = applyReflect(evt, defHP);
       }
       // Sleep: wake on damage
       if (!evt.miss && evt.damage > 0) {
@@ -1741,12 +1755,14 @@ export function resolveCombat(
             atkHP = Math.min(attacker.stats.HP, atkHP + bonusEvt.heal);
             bonusEvt.strikerHealTo = atkHP;
           }
+          atkHP = applyReflect(bonusEvt, atkHP);
         } else {
           atkHP = bonusEvt.targetHPAfter;
           if (bonusEvt.heal > 0) {
             defHP = Math.min(defender.stats.HP, defHP + bonusEvt.heal);
             bonusEvt.strikerHealTo = defHP;
           }
+          defHP = applyReflect(bonusEvt, defHP);
         }
         // Propagate side effects recorded on the copied context back to the original
         if (bonusStrikeSkills?._debuffAttackerData && !strikeSkills._debuffAttackerData) {
