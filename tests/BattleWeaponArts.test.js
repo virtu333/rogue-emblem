@@ -759,7 +759,6 @@ describe('BattleScene weapon art helpers', () => {
     scene.animateSkillActivation = vi.fn(async () => {});
     scene.animateStrike = vi.fn(async () => {});
     scene.updateHPBar = vi.fn();
-    scene.applyOnAttackAffixes = vi.fn(async () => {});
     scene.showPoisonDamage = vi.fn(async () => {});
     scene.awardXP = vi.fn(async () => {});
     scene.removeUnit = vi.fn(async () => {});
@@ -852,7 +851,6 @@ describe('BattleScene weapon art helpers', () => {
     scene.animateSkillActivation = vi.fn(async () => {});
     scene.animateStrike = vi.fn(async () => {});
     scene.updateHPBar = vi.fn();
-    scene.applyOnAttackAffixes = vi.fn(async () => {});
     scene.showPoisonDamage = vi.fn(async () => {});
     scene.awardXP = vi.fn(async () => {});
     scene.removeUnit = vi.fn(async () => {});
@@ -925,7 +923,6 @@ describe('BattleScene weapon art helpers', () => {
     scene.animateSkillActivation = vi.fn(async () => {});
     scene.animateStrike = vi.fn(async () => {});
     scene.updateHPBar = vi.fn();
-    scene.applyOnAttackAffixes = vi.fn(async () => {});
     scene.showPoisonDamage = vi.fn(async () => {});
     scene.awardXP = vi.fn(async () => {});
     scene.removeUnit = vi.fn(async () => {});
@@ -1295,7 +1292,6 @@ describe('BattleScene weapon art helpers', () => {
     scene.animateSkillActivation = vi.fn(async () => {});
     scene.animateStrike = vi.fn(async () => {});
     scene.updateHPBar = vi.fn();
-    scene.applyOnAttackAffixes = vi.fn(async () => {});
     scene.showPoisonDamage = vi.fn(async () => {});
     scene.awardXP = vi.fn(async () => {});
     scene.removeUnit = vi.fn(async () => {});
