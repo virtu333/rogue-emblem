@@ -155,7 +155,7 @@ function forecastWeapon(config) {
  */
 export function pinnedRailCommand(menu, { state, submenu = false, endTurnPending = false } = {}) {
   if (state !== 'UNIT_ACTION_MENU' || submenu || endTurnPending || !menu?.items) return null;
-  return menu.items.find((item) => item?.label === 'Wait') || null;
+  return menu.items.find((item) => item?.id === 'wait') || null;
 }
 
 /**
@@ -1456,7 +1456,7 @@ export class MobileBattleHUD {
         item.onActivate();
       },
       [
-        item.label === 'Attack' && !item.disabled ? 'mb-primary' : '',
+        item.id === 'attack' && !item.disabled ? 'mb-primary' : '',
         expanded ? 'is-expanded' : '',
         className,
       ]

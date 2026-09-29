@@ -30,7 +30,7 @@ import {
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
 import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
-import { rowText } from '../ui/battleMenuModel.js';
+import { menuRow, railOwnsMenus, rowText } from '../ui/battleMenuModel.js';
 import { applyXpGain, combatXpAwards, scaledXp } from '../engine/BattleXp.js';
 import { postCombatEffects, allyBuff } from '../engine/PostCombatEffects.js';
 import {
@@ -1639,6 +1639,7 @@ export class BattleScene extends Phaser.Scene {
       this._forecastWeaponArt = null;
       this._forecastGamblerLine = null;
       this.actionMenu = null;
+      this._actionMenuPublished = null;
       this.inEquipMenu = false;
       this.tradeMutatedThisSession = false;
       this._selectedWeaponArt = null;
@@ -6125,17 +6126,35 @@ export class BattleScene extends Phaser.Scene {
     const preferredHealOption =
       healOptions.find((option) => option.staff === unit.weapon) || healOptions[0] || null;
 
-    const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
-      ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - 60;
-    const menuY = pos.y - 10;
-
     this.actionMenu = [];
 
-    // Build dynamic item list
-    const items = [];
-    const blockedActions = new Map();
+    // The menu as rows (battleMenuModel): each command has a stable id, and the
+    // desktop canvas and the phone rail render the same rows.
+    const commands = [];
+    const blockedActions = new Map(); // command id → why it is greyed
+    const command = (id, label, run) => commands.push({ id, label, run });
+    const offered = (id) => commands.some((entry) => entry.id === id);
+    const attack = () => {
+      // Target first: the weapon is chosen in the forecast.
+      this._attackFlow().begin(unit);
+    };
+    // Nothing is equipped here, not even over a staff: an art attack equips its
+    // weapon on confirm, like any forecast weapon.
+    const weaponArt = () => this.showWeaponArtPicker(unit);
+    const staff = () => {
+      this.hideActionMenu();
+      if (healOptions.length >= 2) {
+        this.showStaffPicker(
+          unit,
+          healOptions.map((option) => option.staff),
+        );
+      } else if (healOptions.length === 1) {
+        const option = healOptions[0];
+        this.startHealTargetSelection(unit, option.targets, option.staff);
+      } else {
+        this.showActionMenu(unit);
+      }
+    };
     const silenced = isSilenced(unit);
     // Silence blocks Attack if unit only has magic weapons (Tome/Light)
     if (normalAttackTargets.length > 0) {
@@ -6143,7 +6162,7 @@ export class BattleScene extends Phaser.Scene {
       const hasPhysical = combatWeapons.some(
         (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff' && w.type !== 'Breath',
       );
-      if (!silenced || hasPhysical) items.push('Attack');
+      if (!silenced || hasPhysical) command('attack', 'Attack', attack);
     }
     // Guidance (Full): a greyed Attack row says why it is missing instead of hiding it.
     // An unarmed fighter gets its own reason (Full Guidance): nothing to attack with.
@@ -6152,42 +6171,42 @@ export class BattleScene extends Phaser.Scene {
       : this._guidance?.noTargetAttackReason?.(unit, normalAttackTargets) ||
         this._guidance?.unarmedAttackReason?.(unit) ||
         null;
-    if (noReachReason && !items.includes('Attack')) {
-      items.push('Attack');
-      blockedActions.set('Attack', noReachReason);
+    if (noReachReason && !offered('attack')) {
+      command('attack', 'Attack', attack);
+      blockedActions.set('attack', noReachReason);
     }
     const artWeapon =
       unit.weapon && !isStaff(unit.weapon) ? unit.weapon : getCombatWeapons(unit)[0];
     // Silence blocks weapon arts
     if (!silenced && this._hasUsableWeaponArtTargets(unit, artWeapon, { isInitiating: true })) {
       const activeArt = this._getSelectedWeaponArtForUnit(unit, { isInitiating: true });
-      items.push(activeArt ? `Weapon Art: ${activeArt.name}` : 'Weapon Art');
+      command('weaponArt', activeArt ? `Weapon Art: ${activeArt.name}` : 'Weapon Art', weaponArt);
     }
     // Silence blocks staff healing
     if (!silenced && preferredHealOption) {
-      const staff = preferredHealOption.staff;
-      const rem = getStaffRemainingUses(staff, unit);
-      const max = getStaffMaxUses(staff, unit);
+      const preferred = preferredHealOption.staff;
+      const rem = getStaffRemainingUses(preferred, unit);
+      const max = getStaffMaxUses(preferred, unit);
       // Warp/Rescue staves relocate instead of healing — label generically.
-      const verb = staff.relocate ? 'Staff' : 'Heal';
-      items.push(`${verb} (${rem}/${max})`);
+      const verb = preferred.relocate ? 'Staff' : 'Heal';
+      command('staff', `${verb} (${rem}/${max})`, staff);
     }
     if (silenced) {
       if (
-        !items.includes('Attack') &&
+        !offered('attack') &&
         getCombatWeapons(unit).length &&
         getCombatWeapons(unit).every((w) => ['Tome', 'Light', 'Breath'].includes(w.type))
       ) {
-        items.push('Attack');
-        blockedActions.set('Attack', 'Silenced: cannot use magic attacks.');
+        command('attack', 'Attack', attack);
+        blockedActions.set('attack', 'Silenced: cannot use magic attacks.');
       }
       if (artWeapon && getWeaponArtIds(artWeapon).length) {
-        items.push('Weapon Art');
-        blockedActions.set('Weapon Art', 'Silenced: cannot use weapon arts.');
+        command('weaponArt', 'Weapon Art', weaponArt);
+        blockedActions.set('weaponArt', 'Silenced: cannot use weapon arts.');
       }
       if (usableStaves.length) {
-        items.push('Staff');
-        blockedActions.set('Staff', 'Silenced: cannot use healing or utility staves.');
+        command('staff', 'Staff', staff);
+        blockedActions.set('staff', 'Silenced: cannot use healing or utility staves.');
       }
     }
     const equipMenuItems = unit.inventory.filter(
@@ -6196,35 +6215,48 @@ export class BattleScene extends Phaser.Scene {
         item.type !== 'Scroll' &&
         (canEquip(unit, item) || !hasProficiency(unit, item)),
     );
-    if (equipMenuItems.length >= 2) items.push('Equip');
+    if (equipMenuItems.length >= 2) command('equip', 'Equip', () => this.showEquipMenu(unit));
     if (
       canPromote(unit) &&
       resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords) &&
       this.getPromotionConsumable(unit)
     )
-      items.push('Promote');
+      command('promote', 'Promote', () => {
+        this.hideActionMenu();
+        this.executePromotion(unit, this.getPromotionConsumable(unit));
+      });
     const usableReclassSeals = this.getUsableReclassConsumables(unit);
-    if (usableReclassSeals.length === 1) items.push('Reclass');
+    if (usableReclassSeals.length === 1)
+      command('reclass', 'Reclass', () => {
+        this.hideActionMenu();
+        const [soleSeal] = this.getUsableReclassConsumables(unit);
+        if (soleSeal) this.showReclassClassPicker(unit, soleSeal);
+        else this.showActionMenu(unit);
+      });
     // Item: show if unit has consumables
     const consumables = unit.consumables || [];
-    if (consumables.length > 0) items.push('Item');
+    if (consumables.length > 0) command('item', 'Item', () => this.showItemMenu(unit));
     // Shove/Pull: show if unit has skill and valid targets exist
     if (unit.skills?.includes('shove') && this.findShoveTargets(unit).length > 0)
-      items.push('Shove');
-    if (unit.skills?.includes('pull') && this.findPullTargets(unit).length > 0) items.push('Pull');
+      command('shove', 'Shove', () => this.startShoveTargetSelection(unit));
+    if (unit.skills?.includes('pull') && this.findPullTargets(unit).length > 0)
+      command('pull', 'Pull', () => this.startPullTargetSelection(unit));
     // Trade: show if adjacent ally with items/space exists
-    if (this.findTradeTargets(unit).length > 0) items.push('Trade');
+    if (this.findTradeTargets(unit).length > 0)
+      command('trade', 'Trade', () => this.startTradeTargetSelection(unit));
     // Swap: show if adjacent ally on walkable terrain exists
-    if (this.findSwapTargets(unit).length > 0) items.push('Swap');
+    if (this.findSwapTargets(unit).length > 0)
+      command('swap', 'Swap', () => this.startSwapTargetSelection(unit));
     // Dance: show if unit has skill and valid targets exist
     if (unit.skills?.includes('dance') && this.findDanceTargets(unit).length > 0)
-      items.push('Dance');
+      command('dance', 'Dance', () => this.startDanceTargetSelection(unit));
     // Ability: action-trigger skills with structured actionAbility data
     // (Blink/Rally Cry/Healing Circle/Ensnare). Keep the picker discoverable;
     // individual rows explain exhausted uses, silence, and missing targets.
-    if (this._hasAbilities(unit)) items.push('Ability');
+    if (this._hasAbilities(unit)) command('ability', 'Ability', () => this.showAbilityPicker(unit));
     // Break: adjacent temporary wall terrain (Waller)
-    if (this.findBreakTargets(unit).length > 0) items.push('Break');
+    if (this.findBreakTargets(unit).length > 0)
+      command('break', 'Break', () => this.startBreakTargetSelection(unit));
     // Talk: Lord adjacent to NPC, roster not full
     if (unit.isLord && this.npcUnits.length > 0) {
       const talkTarget = this.findTalkTarget(unit);
@@ -6235,7 +6267,10 @@ export class BattleScene extends Phaser.Scene {
         (this.runManager?.roster?.length ?? this.playerUnits.length) -
         (this._playerDeathsThisBattle || 0);
       if (talkTarget && fullRosterCount < rosterCap) {
-        items.push('Talk');
+        command('talk', 'Talk', () => {
+          this.hideActionMenu();
+          this.executeTalk(unit);
+        });
       }
     }
     // Seize: Lord on throne, boss dead
@@ -6243,32 +6278,70 @@ export class BattleScene extends Phaser.Scene {
       const throne = this.battleConfig.thronePos;
       const bossAlive = this.enemyUnits.some((u) => u.isBoss && u.currentHP > 0);
       if (throne && unit.col === throne.col && unit.row === throne.row && !bossAlive) {
-        items.push('Seize');
+        command('seize', 'Seize', () => {
+          this.hideActionMenu();
+          this.commitVisionSnapshotIfPending();
+          this.onVictory();
+        });
       }
     }
     // Escape: any unit standing on an escape square
     if (this.battleConfig.objective === 'escape' && this._escapeController?.isOnEscapeTile(unit)) {
-      items.push('Escape');
+      command('escape', 'Escape', () => {
+        this.hideActionMenu();
+        this._escapeController?.executeEscape(unit);
+      });
     }
     // Capture: unit on enemy ballista tile
     if (this.ballistas?.length > 0) {
       const ballista = this.ballistas.find(
         (b) => b.col === unit.col && b.row === unit.row && b.owner === 'enemy',
       );
-      if (ballista) items.push('Capture');
+      if (ballista) command('capture', 'Capture', () => this._captureBallista(unit));
     }
-    items.push('Wait');
+    command('wait', 'Wait', () => this.finishUnitAction(unit, { skipCanto: true }));
 
-    const longestLabel = Math.max(...items.map((l) => l.length));
+    const rows = commands.map(({ id, label, run }) => {
+      const blocked = blockedActions.has(id);
+      return menuRow({
+        id,
+        label,
+        description: blockedActions.get(id) || null,
+        // No Visit command exists: Wait says when ending here visits the village.
+        note: id === 'wait' ? this._villageController?.getWaitNote(unit) || null : null,
+        disabled: blocked,
+        color: blocked ? UI_PALETTE.muted : UI_PALETTE.text,
+        invoke: () => {
+          if (blocked || isSleeping(unit)) return;
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_confirm');
+          run();
+        },
+      });
+    });
+
+    if (!railOwnsMenus(this)) this._drawActionMenuRows(unit, rows);
+    this._registerActionMenu(rows);
+    this._inputController?.registerSelectionMenu(unit);
+  }
+
+  /** The desktop canvas menu for a unit's commands (the phone rail renders its own). */
+  _drawActionMenuRows(unit, rows) {
+    const pos = this.grid.gridToPixel(unit.col, unit.row);
+    const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - 60;
+    const menuY = pos.y - 10;
+    const longestLabel = Math.max(...rows.map((row) => row.label.length));
     const menuWidth = Math.max(70, longestLabel * 8 + 16);
     let itemHeight = this.isMobileInput ? 38 : 28;
-    let menuHeight = items.length * itemHeight + 8;
+    let menuHeight = rows.length * itemHeight + 8;
     // Overflow guard: shrink rows if menu exceeds viewport
     if (this.isMobileInput) {
       const maxMenuH = this.cameras.main.height - 16;
       if (menuHeight > maxMenuH) {
-        itemHeight = Math.max(24, Math.floor((maxMenuH - 8) / items.length));
-        menuHeight = items.length * itemHeight + 8;
+        itemHeight = Math.max(24, Math.floor((maxMenuH - 8) / rows.length));
+        menuHeight = rows.length * itemHeight + 8;
       }
     }
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
@@ -6286,112 +6359,41 @@ export class BattleScene extends Phaser.Scene {
       .setStrokeStyle(1, UI_HEX.line);
     this.actionMenu.push(bg);
 
-    items.forEach((label, i) => {
-      const itemY = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
-      const itemX = menuPos.x + menuWidth / 2;
+    rows.forEach((row, i) => {
       const text = this._makeMenuTextButton(
-        itemX,
-        itemY,
-        label,
-        {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color: blockedActions.has(label) ? UI_PALETTE.muted : UI_PALETTE.text,
-        },
-        blockedActions.has(label) ? UI_PALETTE.muted : UI_PALETTE.text,
-        () => {
-          if (blockedActions.has(label) || isSleeping(unit)) return;
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_confirm');
-          if (label === 'Attack') {
-            // Target first: the weapon is chosen in the forecast.
-            this._attackFlow().begin(unit);
-          } else if (label.startsWith('Weapon Art')) {
-            // Nothing is equipped here, not even over a staff: an art attack
-            // equips its weapon on confirm, like any forecast weapon.
-            this.showWeaponArtPicker(unit);
-          } else if (label.startsWith('Heal (') || label.startsWith('Staff (')) {
-            this.hideActionMenu();
-            if (healOptions.length >= 2) {
-              this.showStaffPicker(
-                unit,
-                healOptions.map((option) => option.staff),
-              );
-            } else if (healOptions.length === 1) {
-              const option = healOptions[0];
-              this.startHealTargetSelection(unit, option.targets, option.staff);
-            } else {
-              this.showActionMenu(unit);
-            }
-          } else if (label === 'Equip') {
-            this.showEquipMenu(unit);
-          } else if (label === 'Promote') {
-            this.hideActionMenu();
-            this.executePromotion(unit, this.getPromotionConsumable(unit));
-          } else if (label === 'Reclass') {
-            this.hideActionMenu();
-            const [soleSeal] = this.getUsableReclassConsumables(unit);
-            if (soleSeal) this.showReclassClassPicker(unit, soleSeal);
-            else this.showActionMenu(unit);
-          } else if (label === 'Item') {
-            this.showItemMenu(unit);
-          } else if (label === 'Talk') {
-            this.hideActionMenu();
-            this.executeTalk(unit);
-          } else if (label === 'Seize') {
-            this.hideActionMenu();
-            this.commitVisionSnapshotIfPending();
-            this.onVictory();
-          } else if (label === 'Escape') {
-            this.hideActionMenu();
-            this._escapeController?.executeEscape(unit);
-          } else if (label === 'Capture') {
-            this.hideActionMenu();
-            this.commitVisionSnapshotIfPending();
-            const ballista = this.ballistas?.find((b) => b.col === unit.col && b.row === unit.row);
-            if (ballista) {
-              ballista.owner = 'player';
-              ballista.captured = true;
-              observeHistoryAction(this, 'captured a ballista', unit);
-              this.dangerZoneStale = true;
-              this._pinnedThreats?.invalidate();
-              if (this.dangerZone?.visible) {
-                this.dangerZoneCache = this.calculateDangerZone();
-                this.dangerZoneStale = false;
-                this.dangerZone.show(this.dangerZoneCache);
-              }
-            }
-            unit.hasActed = true;
-            this.finishUnitAction(unit);
-          } else if (label === 'Shove') {
-            this.startShoveTargetSelection(unit);
-          } else if (label === 'Pull') {
-            this.startPullTargetSelection(unit);
-          } else if (label === 'Trade') {
-            this.startTradeTargetSelection(unit);
-          } else if (label === 'Swap') {
-            this.startSwapTargetSelection(unit);
-          } else if (label === 'Dance') {
-            this.startDanceTargetSelection(unit);
-          } else if (label === 'Ability') {
-            this.showAbilityPicker(unit);
-          } else if (label === 'Break') {
-            this.startBreakTargetSelection(unit);
-          } else if (label === 'Wait') {
-            this.finishUnitAction(unit, { skipCanto: true });
-          }
-        },
-        { hitWidth: menuWidth - 10, hitHeight: itemHeight, disabled: blockedActions.has(label) },
+        menuPos.x + menuWidth / 2,
+        menuPos.y + 4 + i * itemHeight + itemHeight / 2,
+        row.label,
+        { fontFamily: 'monospace', fontSize: '13px', color: row.color },
+        row.color,
+        () => row.invoke(),
+        { hitWidth: menuWidth - 10, hitHeight: itemHeight, disabled: row.disabled },
       );
-
-      if (blockedActions.has(label)) text._menuDescription = blockedActions.get(label);
-      // No Visit command exists: Wait says when ending here visits the village.
-      if (label === 'Wait') text._menuNote = this._villageController?.getWaitNote(unit) || null;
+      text._rowId = row.id;
       this.actionMenu.push(text);
     });
     this._pinToScreen(this.actionMenu);
-    this._registerActionMenu();
-    this._inputController?.registerSelectionMenu(unit);
+  }
+
+  /** Capture: the unit takes the enemy ballista it stands on, and its action ends. */
+  _captureBallista(unit) {
+    this.hideActionMenu();
+    this.commitVisionSnapshotIfPending();
+    const ballista = this.ballistas?.find((b) => b.col === unit.col && b.row === unit.row);
+    if (ballista) {
+      ballista.owner = 'player';
+      ballista.captured = true;
+      observeHistoryAction(this, 'captured a ballista', unit);
+      this.dangerZoneStale = true;
+      this._pinnedThreats?.invalidate();
+      if (this.dangerZone?.visible) {
+        this.dangerZoneCache = this.calculateDangerZone();
+        this.dangerZoneStale = false;
+        this.dangerZone.show(this.dangerZoneCache);
+      }
+    }
+    unit.hasActed = true;
+    this.finishUnitAction(unit);
   }
 
   // Publish each completed menu once. Canvas and DOM share the same guarded
@@ -6456,11 +6458,14 @@ export class BattleScene extends Phaser.Scene {
       };
       return item;
     });
+    // The open menu's commands, whichever renderer shows them (openMenuCommand).
+    this._actionMenuPublished = { objects, items };
     this._mobileBattleHud?.showMenu(items, objects);
     this._menuFocus?.setItems(items.filter((item) => !item.disabled));
   }
 
   hideActionMenu() {
+    this._actionMenuPublished = null;
     this._mobileBattleHud?.hideMenu();
     this._menuFocus?.clear();
     const cleanup = this._actionMenuCleanup;
