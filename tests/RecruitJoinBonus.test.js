@@ -4,8 +4,11 @@
 //   - the wrong stats or amounts by act (Act 1 closes the lords' base-stat head start;
 //     Acts 2-4 give the Act 3 readiness package);
 //   - the attack or guard stat picked wrongly (MAG for casters, lower of DEF/RES);
-//   - a promoted recruit, or a lord outside Act 3, gets it;
-//   - a recruit source skips it (boss recruits, mercenaries, the Vanguard Cadre);
+//   - a lord outside Act 3 gets it, or a promoted lord ever does;
+//   - a recruit that joins promoted misses it in Acts 3-4 (the +8 package closes the
+//     gap to the lords of its tier), or gets it earlier, or an enemy gets it;
+//   - a recruit source skips it (recruit nodes, boss recruits, mercenaries, the
+//     Vanguard Cadre);
 //   - it is lost on promotion or save.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { applyRecruitJoinBonus } from '../src/engine/RecruitScaling.js';
@@ -24,6 +27,7 @@ import {
   createBossLordUnit,
   generateBossRecruitCandidates,
 } from '../src/engine/BossRecruitSystem.js';
+import { buildRecruitNodeUnit } from '../src/engine/RecruitNodeSystem.js';
 import { generateMercenaryCandidates } from '../src/engine/ColosseumEngine.js';
 import { createLordUnit, promoteUnit } from '../src/engine/UnitManager.js';
 import { RunManager, serializeUnit } from '../src/engine/RunManager.js';
@@ -115,11 +119,46 @@ describe('recruit join bonus', () => {
     expect(unit.stats.MAG).toBe(15);
   });
 
-  it('never touches promoted recruits, other acts, or lords outside Act 3', () => {
+  it.each(['act3', 'act4'])(
+    '%s: a recruit joining promoted gets +8 (HP 2, attack 2, SPD, DEF 2, RES)',
+    (act) => {
+      // RES above DEF: the promoted package is fixed stats, not "the weaker guard".
+      const unit = sample('Sword', { tier: 'promoted' });
+      unit.stats.RES = 9;
+      const before = { ...unit.stats };
+      applyRecruitJoinBonus(unit, act);
+      expect(diff(unit.stats, before)).toEqual({
+        HP: 2,
+        STR: 2,
+        MAG: 0,
+        SKL: 0,
+        SPD: 1,
+        DEF: 2,
+        RES: 1,
+        LCK: 0,
+      });
+      expect(total(unit.stats) - total(before)).toBe(8);
+      expect(unit.currentHP).toBe(24);
+      expect(serializeUnit({ ...unit, name: 'X', inventory: [] }).stats).toEqual(unit.stats);
+    },
+  );
+
+  it('a promoted caster gets MAG, not STR', () => {
+    const unit = sample('Tome', { tier: 'promoted' });
+    applyRecruitJoinBonus(unit, 'act4');
+    expect([unit.stats.STR, unit.stats.MAG]).toEqual([8, 15]);
+  });
+
+  it('never touches a promoted recruit before Act 3, promoted lords, or non-recruit acts', () => {
     const cases = [
       ['act1', { tier: 'promoted' }],
-      ['act3', { tier: 'promoted' }],
-      ['act4', { tier: 'promoted' }],
+      ['act2', { tier: 'promoted' }],
+      ['finalBoss', { tier: 'promoted' }],
+      ['postAct', { tier: 'promoted' }],
+      ['act3', { tier: 'promoted', isLord: true }],
+      ['act4', { tier: 'promoted', isLord: true }],
+      ['act2', { tier: 'promoted', isLord: true }],
+      ['act3', { tier: 'boss' }],
       ['finalBoss', {}],
       ['postAct', {}],
       ['act1', { isLord: true }],
@@ -176,11 +215,11 @@ describe('recruit join bonus', () => {
       return x / 2147483647;
     };
   }
-  function twice(build) {
+  function twice(build, seed = 7) {
     const out = [];
     for (const off of [false, true]) {
       joinBonus.off = off;
-      vi.spyOn(Math, 'random').mockImplementation(seeded(7));
+      vi.spyOn(Math, 'random').mockImplementation(seeded(seed));
       out.push(build());
       vi.restoreAllMocks();
     }
@@ -191,36 +230,63 @@ describe('recruit join bonus', () => {
     expect(unit.className).toBe(plain.className);
     expect(unit.stats.HP - plain.stats.HP).toBe(2);
     expect(unit.stats.SPD - plain.stats.SPD).toBe(1);
+    if (unit.tier === 'promoted') {
+      // The promoted package: DEF 2, RES 1, and 2 to whichever attack stat it uses.
+      expect(unit.stats.DEF - plain.stats.DEF).toBe(2);
+      expect(unit.stats.RES - plain.stats.RES).toBe(1);
+      expect(unit.stats.STR + unit.stats.MAG - plain.stats.STR - plain.stats.MAG).toBe(2);
+    }
     expect(total(unit.stats) - total(plain.stats)).toBe(points);
   };
 
   it.each([
-    ['act1', 'act2', 6],
-    ['act2', 'act3', 6],
-    ['act3', 'act4', 6],
-  ])('boss recruits after the %s boss (%s pool) get +%i when base', (act, pool, points) => {
+    ['act1', 'act2'],
+    ['act2', 'act3'],
+    ['act3', 'act4'],
+  ])('boss recruits after the %s boss (%s pool): base +6, promoted +8 from Act 3', (act, pool) => {
     const roster = [{ name: 'Edric', isCommander: true, tier: 'promoted', level: 6 }];
-    const [boosted, plain] = twice(() => generateBossRecruitCandidates(act, roster, data, null));
-    let base = 0;
-    for (let i = 0; i < boosted.length; i++) {
-      const [a, b] = [boosted[i].unit, plain[i].unit];
-      // A base lord gets the package only from the Act 3 pool.
-      if (a.tier !== 'base' || (boosted[i].isLord && pool !== 'act3')) {
-        expect(a.stats).toEqual(b.stats);
-        continue;
+    const promotedPool = pool === 'act3' || pool === 'act4';
+    const seen = { base: 0, promoted: 0, promotedLords: 0 };
+    // A few seeds: some boards recruit base classes, some roll the promotion.
+    for (const seed of [7, 8, 9, 10, 11]) {
+      const [boosted, plain] = twice(
+        () => generateBossRecruitCandidates(act, roster, data, null),
+        seed,
+      );
+      expect(boosted.length).toBe(plain.length);
+      for (let i = 0; i < boosted.length; i++) {
+        const [a, b] = [boosted[i].unit, plain[i].unit];
+        if (boosted[i].isLord) {
+          // A base lord gets the package only from the Act 3 pool; a promoted one never.
+          if (a.tier === 'promoted') seen.promotedLords++;
+          if (a.tier === 'base' && pool === 'act3') expectPackage(a, b, 6);
+          else expect(a.stats).toEqual(b.stats);
+        } else if (a.tier === 'base') {
+          seen.base++;
+          expectPackage(a, b, 6);
+        } else {
+          seen.promoted++;
+          if (promotedPool) expectPackage(a, b, 8);
+          else expect(a.stats).toEqual(b.stats);
+        }
       }
-      base++;
-      expectPackage(a, b, points);
     }
-    expect(base).toBeGreaterThan(0);
+    // The Act 3 and 4 pools recruit promoted classes; the checks above must have run.
+    if (promotedPool) {
+      expect(seen.promoted).toBeGreaterThan(0);
+      expect(seen.promotedLords).toBeGreaterThan(0);
+    }
+    expect(seen.base + seen.promoted).toBeGreaterThan(0);
   });
 
-  // Act 3 boards draw only promoted classes (the Act 3 and Act 4 pools): no bonus.
+  // Act 3 boards draw only promoted classes; Act 2 boards reach them through
+  // crossActPoolAccess and must not get the Act 3+ promoted package.
   it.each([
-    ['act1', 8, true],
-    ['act2', 6, true],
-    ['act3', 6, false],
-  ])('Colosseum mercenaries in %s get +%i when base, promoted ones none', (act, points, any) => {
+    ['act1', 8, 8],
+    ['act2', 6, 0],
+    ['act3', 6, 8],
+    ['act4', 6, 8],
+  ])('Colosseum mercenaries in %s: base +%i, promoted +%i', (act, basePoints, promotedPoints) => {
     const board = () =>
       generateMercenaryCandidates(
         act,
@@ -237,17 +303,99 @@ describe('recruit join bonus', () => {
       );
     const [boosted, plain] = twice(board);
     expect(boosted.length).toBe(plain.length);
-    let base = 0;
+    const seen = { base: 0, promoted: 0 };
     for (let i = 0; i < boosted.length; i++) {
       const [a, b] = [boosted[i].unit, plain[i].unit];
-      if (a.tier !== 'base') {
-        expect(a.stats).toEqual(b.stats);
-        continue;
-      }
-      base++;
-      expectPackage(a, b, points);
+      seen[a.tier]++;
+      const points = a.tier === 'base' ? basePoints : promotedPoints;
+      if (points === 0) expect(a.stats).toEqual(b.stats);
+      else expectPackage(a, b, points);
     }
-    expect(base > 0).toBe(any);
+    if (act === 'act3' || act === 'act4') expect(seen.promoted).toBeGreaterThan(0);
+    else expect(seen.base).toBeGreaterThan(0);
+  });
+
+  // Recruit nodes: a promoted preview class that keeps its promotion (a low roll),
+  // built with and without the bonus on the same scripted draws.
+  const nodeRoster = [
+    {
+      name: 'Edric',
+      className: 'Lord',
+      isLord: true,
+      isCommander: true,
+      level: 5,
+      tier: 'promoted',
+    },
+  ];
+  const scripted = (seq, rest) => {
+    let i = 0;
+    return () => (i < seq.length ? seq[i++] : rest);
+  };
+  const buildNode = (act, seq, rest) =>
+    twice(() =>
+      buildRecruitNodeUnit({
+        preview: { className: 'Hero', name: 'Test Recruit' },
+        nodeId: `${act}_3_2`,
+        runSeed: 12345,
+        act,
+        roster: nodeRoster,
+        gameData: data,
+        rng: scripted(seq, rest),
+      }),
+    );
+
+  it.each([
+    ['act2', 0],
+    ['act3', 8],
+    ['act4', 8],
+  ])('a recruit-node recruit joining promoted in %s gets +%i', (act, points) => {
+    const [boosted, plain] = buildNode(act, [0.99, 0.99, 0.99, 0.1], 0.1);
+    expect(boosted.isLord).toBe(false);
+    expect(boosted.unit.tier).toBe('promoted');
+    expect(boosted.unit.className).toBe('Hero');
+    if (points === 0) expect(boosted.unit.stats).toEqual(plain.unit.stats);
+    else expectPackage(boosted.unit, plain.unit, points);
+  });
+
+  it('a recruit-node recruit that fails its promotion roll still gets the base package', () => {
+    const [boosted, plain] = buildNode('act3', [0.99, 0.99, 0.99, 0.99], 0.99);
+    expect(boosted.unit.tier).toBe('base');
+    expectPackage(boosted.unit, plain.unit, 6);
+  });
+
+  it('a recruit-node lord promoted in Acts 3-4 gets nothing', () => {
+    for (const act of ['act3', 'act4']) {
+      const [boosted, plain] = buildNode(act, [0, 0, 0], 0);
+      expect(boosted.isLord).toBe(true);
+      expect(boosted.unit.tier).toBe('promoted');
+      expect(boosted.unit.stats).toEqual(plain.unit.stats);
+    }
+  });
+
+  it('never gives an enemy the bonus, promoted or not', () => {
+    for (const tier of ['base', 'promoted']) {
+      const unit = sample('Sword', { tier, faction: 'enemy' });
+      const before = structuredClone(unit);
+      applyRecruitJoinBonus(unit, 'act3');
+      expect(unit).toEqual(before);
+    }
+  });
+
+  it('gives a promoted Vanguard Cadre recruit +8 from Act 3 and nothing before', () => {
+    const paladin = (act) =>
+      twice(() => {
+        const run = new RunManager(data, { extraStartingUnitTier: 4 });
+        run.actIndex = ['act1', 'act2', 'act3', 'act4'].indexOf(act);
+        return run._createExtraStartingUnit('Paladin');
+      });
+    for (const act of ['act3', 'act4']) {
+      const [a, b] = paladin(act);
+      expect(a.tier).toBe('promoted');
+      expectPackage(a, b, 8);
+    }
+    const [a, b] = paladin('act2');
+    expect(a.tier).toBe('promoted');
+    expect(a.stats).toEqual(b.stats);
   });
 
   it('gives the Vanguard Cadre the Act 1 package', () => {
