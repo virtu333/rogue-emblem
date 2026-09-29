@@ -121,10 +121,6 @@ function makeScene(textCalls) {
     roster: [],
     getEffectiveMetaEffects: () => ({}),
     shouldTriggerThirdLord: () => false,
-    addBossRecruit(unit) {
-      this.roster.push(unit);
-      return true;
-    },
   };
   scene.gameData = {
     classes: [

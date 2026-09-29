@@ -117,6 +117,7 @@ export function summarizeWeaponArtEffect(art) {
     chunks.push(
       `Heals ${Math.round(mods.drainPercent * 100)}% of damage dealt${mods.drainMaxPerHit ? ` (at most ${mods.drainMaxPerHit} HP a hit)` : ''}`,
     );
+  if (mods.drainPerHit) chunks.push(`Heals ${mods.drainPerHit} HP on each hit that deals damage`);
   if (mods.targetsRES) chunks.push('Targets RES');
   if (mods.preventCounter) chunks.push('No counter');
   if (mods.vengeance) chunks.push('Adds missing HP to damage');

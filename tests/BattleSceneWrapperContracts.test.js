@@ -174,10 +174,6 @@ function makeScene() {
     addToConvoy: vi.fn(() => true),
     getWeaponArtSpawnConfig: vi.fn(() => null),
     shouldTriggerThirdLord: vi.fn(() => false),
-    addBossRecruit(unit) {
-      this.roster.push(unit);
-      return true;
-    },
   };
   scene.gameData = { weapons: [], accessories: [], consumables: [], skills: [], classes: [] };
   scene.isElite = false;

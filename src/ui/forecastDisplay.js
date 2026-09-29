@@ -36,10 +36,15 @@ export function forecastProjection(forecast) {
     const info = side === 'a' ? a : d;
     for (let i = 0; i < perRound(info); i++) {
       if (attackerHP <= 0 || defenderHP <= 0) return;
-      if (side === 'a' && a.attackCount > 0 && a.hit > 0)
+      // Thorns sends part of each landed hit back, but never takes the last HP.
+      if (side === 'a' && a.attackCount > 0 && a.hit > 0) {
         defenderHP = Math.max(0, defenderHP - a.damage);
-      if (side === 'd' && d.canCounter && d.hit > 0)
+        if (a.thornsReflect > 0) attackerHP = Math.max(1, attackerHP - a.thornsReflect);
+      }
+      if (side === 'd' && d.canCounter && d.hit > 0) {
         attackerHP = Math.max(0, attackerHP - d.damage);
+        if (d.thornsReflect > 0) defenderHP = Math.max(1, defenderHP - d.thornsReflect);
+      }
     }
   };
   round('a');
@@ -84,6 +89,9 @@ export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
     const hp = attacking ? projection.attackerHP : projection.defenderHP;
     notes.push(`If all hits land: ${hp === 0 ? 'KO' : `${hp} HP`} (no crits/procs)`);
   }
+  const striker = attacking ? forecast.attacker : forecast.defender;
+  if (striker?.thornsReflect > 0)
+    notes.push(`Thorns: −${striker.thornsReflect} HP per hit landed (leaves at least 1)`);
   if (attacking) notes.push(triangleText(forecast), counterRisk(forecast, attackerHP));
   else if (!forecast.defender.canCounter)
     notes.push(

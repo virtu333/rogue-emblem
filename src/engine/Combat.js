@@ -89,8 +89,14 @@ function normalizeCombatDrainPercent(value) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/** Most HP a percent drain may heal on one strike (Vampiric: 2), or null for no cap. */
+/** Most HP a percent drain may heal on one strike, or null for no cap. */
 function normalizeCombatDrainMaxPerHit(value) {
+  const n = Math.trunc(Number(value));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** A flat drain: exactly this many HP on each hit that deals damage (Vampiric: 1), or null. */
+function normalizeCombatDrainPerHit(value) {
   const n = Math.trunc(Number(value));
   return Number.isFinite(n) && n > 0 ? n : null;
 }
@@ -215,6 +221,7 @@ function normalizeCombatMods(mods) {
     drainMaxPerHit: normalizeCombatDrainPercent(mods.drainPercent)
       ? normalizeCombatDrainMaxPerHit(mods.drainMaxPerHit)
       : null,
+    drainPerHit: normalizeCombatDrainPerHit(mods.drainPerHit),
     damageMultiplier: normalizeCombatDamageMultiplier(mods.damageMultiplier),
     ignoreWeaponTriangle: Boolean(mods.ignoreWeaponTriangle),
     ignoreRES: Boolean(mods.ignoreRES),
@@ -256,6 +263,7 @@ export function mergeCombatMods(baseMods, extraMods) {
     preventEnemyDouble: base.preventEnemyDouble || extra.preventEnemyDouble,
     multiHit: extra.multiHit || base.multiHit,
     ...mergeCombatDrain(base, extra),
+    drainPerHit: Math.max(base.drainPerHit || 0, extra.drainPerHit || 0) || null,
     damageMultiplier:
       Math.max(base.damageMultiplier || 0, extra.damageMultiplier || 0) > 1
         ? Math.max(base.damageMultiplier || 0, extra.damageMultiplier || 0)
@@ -359,6 +367,22 @@ export function getConditionalWeaponBonuses(weapon, unit, allAllies) {
 /** True if weapon uses MAG stat for damage (tomes, light magic, or magic swords). */
 export function usesMagic(weapon) {
   return weapon ? isMagical(weapon) || (weapon.special?.includes('Magic sword') ?? false) : false;
+}
+
+/**
+ * True when a strike is computed against RES (a magic weapon or magic sword, or an art
+ * that targets RES), false when against DEF. Defensive bonuses follow the same stat.
+ */
+export function strikeHitsRes(weapon, mods = null) {
+  return Boolean(mods?.targetsRES) || usesMagic(weapon);
+}
+
+/**
+ * The defender's combat-mod bonus against one strike: +DEF mods against a strike on
+ * DEF, +RES mods against a strike on RES, never both (a +DEF buff does not cut magic).
+ */
+function combatModDefense(defenderMods, hitsRes) {
+  return hitsRes ? Number(defenderMods?.resBonus) || 0 : Number(defenderMods?.defBonus) || 0;
 }
 
 /** Sum a specific stat bonus from weapon bonus array. */
@@ -761,6 +785,21 @@ export function canCounter(defender, defenderWeapon, distance) {
 // --- Combat Forecast (deterministic preview for UI) ---
 
 /**
+ * Thorns: the share of an adjacent hit a Thorns unit sends back to the striker
+ * (0 when the unit has no Thorns or the affix data is missing).
+ */
+export function getThornsReflectPct(unit, affixData) {
+  if (!Array.isArray(unit?.affixes) || !unit.affixes.includes('thorns')) return 0;
+  const affix = affixData?.affixes?.find((a) => a.id === 'thorns');
+  return Number(affix?.effects?.reflectMeleePct) || 0;
+}
+
+/** The damage Thorns reflects for a hit of `damage`: rounded down, so small hits reflect 0. */
+export function thornsReflectDamage(damage, pct) {
+  return Math.max(0, Math.floor((Number(damage) || 0) * (Number(pct) || 0)));
+}
+
+/**
  * True when a weapon's special text changes HP during or right after the
  * exchange in a way the forecast numbers do not show (drain, post-combat
  * poison). Descriptive specials ("Lightest magic", "Throwable, lower stats") and
@@ -903,10 +942,10 @@ export function getCombatForecast(
   // Pick the relevant defensive bonus based on incoming weapon type
   const fDefWpnBonuses = defWeapon ? getWeaponStatBonuses(defWeapon) : [];
   const fAtkWpnBonuses = getWeaponStatBonuses(atkWeapon);
-  const fDefWpnDef = sumWeaponBonus(fDefWpnBonuses, usesMagic(atkWeapon) ? 'RES' : 'DEF');
-  const fAtkWpnDef = defWeapon
-    ? sumWeaponBonus(fAtkWpnBonuses, usesMagic(defWeapon) ? 'RES' : 'DEF')
-    : 0;
+  const fAtkHitsRes = strikeHitsRes(atkWeapon, atkMods);
+  const fDefHitsRes = defWeapon ? strikeHitsRes(defWeapon, defMods) : false;
+  const fDefWpnDef = sumWeaponBonus(fDefWpnBonuses, fAtkHitsRes ? 'RES' : 'DEF');
+  const fAtkWpnDef = defWeapon ? sumWeaponBonus(fAtkWpnBonuses, fDefHitsRes ? 'RES' : 'DEF') : 0;
 
   // Attacker stats (skill mods applied as flat adjustments)
   const defTerrainForAtkHit = atkMods?.ignoreTerrainAvoid ? null : defTerrain;
@@ -920,8 +959,7 @@ export function getCombatForecast(
       ignoreRES: atkMods?.ignoreRES,
     }) +
       (atkMods?.atkBonus || 0) -
-      (defMods?.defBonus || 0) -
-      (usesMagic(atkWeapon) ? defMods?.resBonus || 0 : 0) -
+      combatModDefense(defMods, fAtkHitsRes) -
       fDefWpnDef,
   );
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
@@ -1001,8 +1039,7 @@ export function getCombatForecast(
         ignoreRES: defMods?.ignoreRES,
       }) +
         (defMods?.atkBonus || 0) -
-        (atkMods?.defBonus || 0) -
-        (usesMagic(defWeapon) ? atkMods?.resBonus || 0 : 0) -
+        combatModDefense(atkMods, fDefHitsRes) -
         fAtkWpnDef,
     );
     defDmg += getCombatStatScalingBonus(defender, defMods);
@@ -1052,6 +1089,21 @@ export function getCombatForecast(
     if (attacker.affixes.includes('teleporter') && defDmg > 0) defWarnings.push('Teleporter');
   }
 
+  // Thorns: the damage each landed, non-critical hit sends back to its striker. The
+  // HP projection includes it when this context resolves on-defend affixes (as
+  // battles do); otherwise, or without the affix data, the projection stays hidden.
+  const affixesResolve = Boolean(skillCtx?.rollStrikeSkills && skillCtx?.rollDefenseAffixes);
+  const atkThornsPct =
+    affixesResolve && atkWarnings.includes('Thorns')
+      ? getThornsReflectPct(defender, skillCtx?.affixData)
+      : 0;
+  const defThornsPct =
+    affixesResolve && defWarnings.includes('Thorns')
+      ? getThornsReflectPct(attacker, skillCtx?.affixData)
+      : 0;
+  const warningsHideProjection = (warnings, thornsPct) =>
+    warnings.some((w) => w !== 'Thorns' || !(thornsPct > 0));
+
   // Read-only display metadata. Resolution order and RNG are untouched.
   const forecast = {
     display: {
@@ -1078,6 +1130,7 @@ export function getCombatForecast(
             m?.vantage ||
             m?.desperation ||
             m?.drainPercent ||
+            m?.drainPerHit ||
             m?.vengeance ||
             (hasWeaponArtActivation(m) && !m.weaponArtProjectionSafe),
         ) &&
@@ -1085,8 +1138,8 @@ export function getCombatForecast(
         !(defCanCounter && getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)) &&
         !weaponSpecialChangesExchangeHp(atkWeapon) &&
         !(defCanCounter && weaponSpecialChangesExchangeHp(defWeapon)) &&
-        !atkWarnings.length &&
-        !defWarnings.length &&
+        !warningsHideProjection(atkWarnings, atkThornsPct) &&
+        !warningsHideProjection(defWarnings, defThornsPct) &&
         ![
           [attacker, atkWeapon],
           [defender, defWeapon],
@@ -1129,8 +1182,10 @@ export function getCombatForecast(
       // Wounded: no drain heals (resolveCombat zeroes them); the forecast agrees.
       drainPercent: isWounded(attacker) ? 0 : atkMods?.drainPercent || 0,
       drainMaxPerHit: isWounded(attacker) ? null : atkMods?.drainMaxPerHit || null,
+      drainPerHit: isWounded(attacker) ? 0 : atkMods?.drainPerHit || 0,
       skills: atkActivated,
       warnings: atkWarnings,
+      thornsReflect: thornsReflectDamage(atkDmg, atkThornsPct),
     },
     defender: {
       name: defender.name,
@@ -1146,8 +1201,10 @@ export function getCombatForecast(
       multiHit: defMultiHit,
       drainPercent: isWounded(defender) ? 0 : defMods?.drainPercent || 0,
       drainMaxPerHit: isWounded(defender) ? null : defMods?.drainMaxPerHit || null,
+      drainPerHit: isWounded(defender) ? 0 : defMods?.drainPerHit || 0,
       skills: defActivated,
       warnings: defWarnings,
+      thornsReflect: thornsReflectDamage(defDmg, defThornsPct),
     },
   };
 
@@ -1185,6 +1242,7 @@ function rollStrike(
   perHitHeal = 0,
   critMultiplier = CRIT_MULTIPLIER,
   drainMaxPerHit = null,
+  drainPerHit = 0,
 ) {
   const attackerSide = strikeSides?.attackerSide || null;
   const targetSide = strikeSides?.targetSide || null;
@@ -1309,6 +1367,8 @@ function rollStrike(
       const capped = drainMaxPerHit > 0 ? Math.min(drained, drainMaxPerHit) : drained;
       heal = Math.max(heal, Math.min(capped, targetHP));
     }
+    // Flat drain (Vampiric): exactly N HP on each hit that deals damage.
+    if (drainPerHit > 0) heal = Math.max(heal, Math.min(drainPerHit, targetHP));
     heal = Math.min(heal, targetHP);
     if (perHitHeal > 0) {
       heal += Math.max(0, Math.trunc(perHitHeal));
@@ -1346,6 +1406,23 @@ function applyReflect(evt, strikerHP) {
   if (!(evt.reflectDamage > 0) || !(strikerHP > 0)) return strikerHP;
   const after = Math.max(1, strikerHP - evt.reflectDamage);
   evt.strikerHPAfter = after;
+  // What the striker actually lost (Thorns never takes the last HP).
+  evt.reflectTaken = strikerHP - after;
+  if (evt.reflectTaken === 0 && Array.isArray(evt.skillActivations))
+    evt.skillActivations = evt.skillActivations.filter((a) => a.id !== 'thorns');
+  return after;
+}
+
+/**
+ * A strike's drain/Sol heal on the striker: none while Wounded, never past max HP.
+ * Records the HP it heals to (`strikerHealTo`) and what it actually healed (`healed`).
+ */
+function applyStrikeHeal(evt, striker, strikerHP) {
+  if (evt.heal > 0 && isWounded(striker)) evt.heal = 0; // Wounded: no drain
+  if (!(evt.heal > 0)) return strikerHP;
+  const after = Math.min(striker.stats.HP, strikerHP + evt.heal);
+  evt.strikerHealTo = after;
+  evt.healed = Math.max(0, after - strikerHP);
   return after;
 }
 
@@ -1419,9 +1496,11 @@ export function resolveCombat(
   // Pick the relevant defensive bonus based on incoming weapon type
   const atkWeaponBonuses = getWeaponStatBonuses(atkWeapon);
   const defWeaponBonuses = defWeapon ? getWeaponStatBonuses(defWeapon) : [];
-  const defWeaponDefBonus = sumWeaponBonus(defWeaponBonuses, usesMagic(atkWeapon) ? 'RES' : 'DEF');
+  const atkHitsRes = strikeHitsRes(atkWeapon, atkMods);
+  const defHitsRes = defWeapon ? strikeHitsRes(defWeapon, defMods) : false;
+  const defWeaponDefBonus = sumWeaponBonus(defWeaponBonuses, atkHitsRes ? 'RES' : 'DEF');
   const atkWeaponDefBonus = defWeapon
-    ? sumWeaponBonus(atkWeaponBonuses, usesMagic(defWeapon) ? 'RES' : 'DEF')
+    ? sumWeaponBonus(atkWeaponBonuses, defHitsRes ? 'RES' : 'DEF')
     : 0;
 
   // Pre-compute all the static combat values (with skill mods applied)
@@ -1447,8 +1526,7 @@ export function resolveCombat(
       ignoreRES: atkMods?.ignoreRES,
     }) +
       (atkMods?.atkBonus || 0) -
-      (defMods?.defBonus || 0) -
-      (usesMagic(atkWeapon) ? defMods?.resBonus || 0 : 0) -
+      combatModDefense(defMods, atkHitsRes) -
       defWeaponDefBonus,
   );
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
@@ -1466,8 +1544,7 @@ export function resolveCombat(
       ignoreRES: atkMods?.ignoreRES,
     }) +
       (atkMods?.atkBonus || 0) -
-      (defMods?.defBonus || 0) -
-      (usesMagic(atkWeapon) ? defMods?.resBonus || 0 : 0) -
+      combatModDefense(defMods, atkHitsRes) -
       defWeaponDefBonus,
   );
   atkLunaDmg += getCombatStatScalingBonus(attacker, atkMods);
@@ -1554,8 +1631,7 @@ export function resolveCombat(
         ignoreRES: defMods?.ignoreRES,
       }) +
         (defMods?.atkBonus || 0) -
-        (atkMods?.defBonus || 0) -
-        (usesMagic(defWeapon) ? atkMods?.resBonus || 0 : 0) -
+        combatModDefense(atkMods, defHitsRes) -
         atkWeaponDefBonus,
     );
     defDmg += getCombatStatScalingBonus(defender, defMods);
@@ -1573,8 +1649,7 @@ export function resolveCombat(
         ignoreRES: defMods?.ignoreRES,
       }) +
         (defMods?.atkBonus || 0) -
-        (atkMods?.defBonus || 0) -
-        (usesMagic(defWeapon) ? atkMods?.resBonus || 0 : 0) -
+        combatModDefense(atkMods, defHitsRes) -
         atkWeaponDefBonus,
     );
     defLunaDmg += getCombatStatScalingBonus(defender, defMods);
@@ -1662,6 +1737,7 @@ export function resolveCombat(
     const targetSide = isAttackingDefender ? 'defender' : 'attacker';
     const drainPct = (isAttackingDefender ? atkMods : defMods)?.drainPercent || 0;
     const drainCap = (isAttackingDefender ? atkMods : defMods)?.drainMaxPerHit || null;
+    const drainFlat = (isAttackingDefender ? atkMods : defMods)?.drainPerHit || 0;
     const strikePerHitHeal = isAttackingDefender ? atkPerHitHeal : defPerHitHeal;
     const strikeCritMult = isAttackingDefender ? atkCritMult : defCritMult;
     for (let i = 0; i < count && atkHP > 0 && defHP > 0; i++) {
@@ -1680,23 +1756,16 @@ export function resolveCombat(
         strikePerHitHeal,
         strikeCritMult,
         drainCap,
+        drainFlat,
       );
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
         // Sol/Drain heal: striker heals HP
-        if (evt.heal > 0 && isWounded(attacker)) evt.heal = 0; // Wounded: no drain
-        if (evt.heal > 0) {
-          atkHP = Math.min(attacker.stats.HP, atkHP + evt.heal);
-          evt.strikerHealTo = atkHP;
-        }
+        atkHP = applyStrikeHeal(evt, attacker, atkHP);
         atkHP = applyReflect(evt, atkHP);
       } else {
         atkHP = evt.targetHPAfter;
-        if (evt.heal > 0 && isWounded(defender)) evt.heal = 0; // Wounded: no drain
-        if (evt.heal > 0) {
-          defHP = Math.min(defender.stats.HP, defHP + evt.heal);
-          evt.strikerHealTo = defHP;
-        }
+        defHP = applyStrikeHeal(evt, defender, defHP);
         defHP = applyReflect(evt, defHP);
       }
       // Sleep: wake on damage
@@ -1750,23 +1819,16 @@ export function resolveCombat(
           strikePerHitHeal,
           strikeCritMult,
           drainCap,
+          drainFlat,
         );
         bonusEvt.adeptStrike = true;
         if (isAttackingDefender) {
           defHP = bonusEvt.targetHPAfter;
-          if (bonusEvt.heal > 0 && isWounded(attacker)) bonusEvt.heal = 0; // Wounded: no drain
-          if (bonusEvt.heal > 0) {
-            atkHP = Math.min(attacker.stats.HP, atkHP + bonusEvt.heal);
-            bonusEvt.strikerHealTo = atkHP;
-          }
+          atkHP = applyStrikeHeal(bonusEvt, attacker, atkHP);
           atkHP = applyReflect(bonusEvt, atkHP);
         } else {
           atkHP = bonusEvt.targetHPAfter;
-          if (bonusEvt.heal > 0 && isWounded(defender)) bonusEvt.heal = 0; // Wounded: no drain
-          if (bonusEvt.heal > 0) {
-            defHP = Math.min(defender.stats.HP, defHP + bonusEvt.heal);
-            bonusEvt.strikerHealTo = defHP;
-          }
+          defHP = applyStrikeHeal(bonusEvt, defender, defHP);
           defHP = applyReflect(bonusEvt, defHP);
         }
         // Propagate side effects recorded on the copied context back to the original

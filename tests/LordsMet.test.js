@@ -15,6 +15,7 @@ vi.mock('../src/ui/BossRecruitOverlay.js', () => ({
     }
   },
 }));
+vi.mock('../src/ui/serviceSave.js', () => ({ saveServiceRun: vi.fn(() => '') }));
 vi.mock('../src/ui/LordArrivalOverlay.js', () => ({
   LordArrivalOverlay: class {
     constructor() {
@@ -41,6 +42,8 @@ import { getMetaKey, getRunKey, metLordNamesAcrossSlots } from '../src/engine/Sl
 import { createLordUnit } from '../src/engine/UnitManager.js';
 import { recordBattleRecruit, fallenBattleRecruits } from '../src/engine/BattleRecruits.js';
 import { PostCombatController } from '../src/ui/PostCombatController.js';
+import { resumeBossRecruit } from '../src/ui/BossRecruitResume.js';
+import { resolveBossRecruit } from '../src/engine/PendingBossRecruit.js';
 import { loadGameData } from './testData.js';
 
 const store = {};
@@ -288,11 +291,11 @@ describe('every lord join path records the lord at the join', () => {
     expect(new MetaProgressionManager(upgradesData, META_1).hasMetLord('Kira')).toBe(true);
   });
 
-  it('a boss recruit (RunManager.addBossRecruit)', () => {
+  it('a boss recruit (resolveBossRecruit)', () => {
     const meta = new MetaProgressionManager(upgradesData, META_1);
     const rm = startedRun();
     const cael = lordUnit('Cael');
-    expect(rm.addBossRecruit(cael)).toBe(true);
+    resolveBossRecruit(rm, cael);
     expect(rm.roster).toContain(cael);
     expect(typeof cael.unitUid).toBe('string');
     recordRunLordsMet(meta, rm);
@@ -364,6 +367,17 @@ describe('every lord join path records the lord at the join', () => {
       globalThis.__joiningUnit = recruit;
       new PostCombatController(sceneFor(rm, meta)).showBossRecruitScreen();
       expect(meta.getLordsMet()).toEqual(['Edric', 'Sera']);
+    });
+
+    it('a boss recruit offer resumed after a reload: the picked lord is met', () => {
+      const meta = new MetaProgressionManager(upgradesData, META_1);
+      const rm = startedRun();
+      globalThis.__joiningUnit = lordUnit('Voss');
+      const onDone = vi.fn();
+      resumeBossRecruit(sceneFor(rm, meta), onDone);
+      expect(rm.roster.map((u) => u.name)).toContain('Voss');
+      expect(new MetaProgressionManager(upgradesData, META_1).hasMetLord('Voss')).toBe(true);
+      expect(onDone).toHaveBeenCalledTimes(1);
     });
 
     it('third lord arrival: the lord is met as it joins', () => {

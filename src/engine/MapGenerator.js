@@ -156,13 +156,14 @@ export function generateBattle(params, deps) {
 
   // 6. Enemy composition
   const basePool = enemies.pools[act];
+  const classGate = { act, difficulty: deps.difficulty };
   const filteredPool = {
     ...basePool,
-    base: filterClassPoolByDifficulty(basePool.base || [], diffMode).filter((name) =>
+    base: filterClassPoolByDifficulty(basePool.base || [], diffMode, classGate).filter((name) =>
       earlyEnemyAllowed(name, params),
     ),
-    promoted: filterClassPoolByDifficulty(basePool.promoted || [], diffMode).filter((name) =>
-      earlyEnemyAllowed(name, params),
+    promoted: filterClassPoolByDifficulty(basePool.promoted || [], diffMode, classGate).filter(
+      (name) => earlyEnemyAllowed(name, params),
     ),
   };
   const pool = firstBattleFightersOnly

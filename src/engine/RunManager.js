@@ -1,5 +1,6 @@
 import { validateBattleState } from './BattleStateSnapshot.js';
 import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
+import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
 import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
@@ -85,6 +86,7 @@ import {
   getWeaponArtAllowedTypes,
 } from './WeaponArtSystem.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { restorePendingBossRecruit } from './PendingBossRecruit.js';
 import { UNIT_PRESENTATION_FIELDS } from './BattleUnitState.js';
 import {
   RECRUIT_PREVIEW_VERSION,
@@ -478,6 +480,7 @@ export class RunManager {
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
     this.pendingBattleReward = null;
+    this.pendingBossRecruit = null;
     this.reachedFirstActBoss = false;
     this.activeCaravanShop = null;
     this.lastBattleCasualtyNotices = [];
@@ -618,6 +621,7 @@ export class RunManager {
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
     this.pendingBattleReward = null;
+    this.pendingBossRecruit = null;
     this.reachedFirstActBoss = false;
     this.activeCaravanShop = null;
     this.lastBattleCasualtyNotices = [];
@@ -2252,18 +2256,6 @@ export class RunManager {
       this.assignUnitUid(unit);
       this.roster.push(unit);
     }
-  }
-
-  /**
-   * The unit picked on a boss's reward screen joins the army (a recruit or a lord):
-   * recruit blessing consumables, an identity, and a roster place.
-   */
-  addBossRecruit(unit) {
-    if (!unit || typeof unit !== 'object') return false;
-    this.grantRecruitBlessingConsumables(unit);
-    this.assignUnitUid(unit);
-    this.roster.push(unit);
-    return true;
   }
 
   /** Names of the lords who have joined this run (roster and fallen). */
@@ -4366,6 +4358,7 @@ export class RunManager {
       pendingAmbushNodeId: this.pendingAmbushNodeId || null,
       pendingCaravanShop: this.pendingCaravanShop || null,
       pendingBattleReward: this.pendingBattleReward || null,
+      pendingBossRecruit: this.pendingBossRecruit || null,
       reachedFirstActBoss: this.reachedFirstActBoss === true,
       activeCaravanShop: this.activeCaravanShop || null,
       endRunRewards: this.endRunRewards || null,
@@ -4628,6 +4621,8 @@ export class RunManager {
     // Items renamed since this save was written get their new names everywhere in
     // it (units, convoy, shops, rewards, battle checkpoint and rewind timeline).
     migrateSavedItemNames(saved, gameData);
+    // Gambler's Coins saved with the legacy flag take the catalog's odds (same places).
+    migrateSavedGamblerCoins(saved, gameData);
     const rm = new RunManager(gameData, saved.metaEffects || null);
     rm.legendaryLordChance = Math.min(0.15, Math.max(0, Number(saved.legendaryLordChance) || 0));
     rm.lastDeployment = normalizeDeploymentNames(saved.lastDeployment);
@@ -4945,6 +4940,10 @@ export class RunManager {
             skipGold: Math.max(0, Math.trunc(Number(saved.pendingBattleReward.skipGold) || 0)),
           }
         : null;
+    rm.pendingBossRecruit = restorePendingBossRecruit(saved.pendingBossRecruit, {
+      actId: rm.currentAct,
+      hasPendingReward: Boolean(rm.pendingBattleReward),
+    });
     rm.pendingCaravanShop =
       saved.pendingCaravanShop && typeof saved.pendingCaravanShop === 'object'
         ? { actId: saved.pendingCaravanShop.actId || rm.currentAct }

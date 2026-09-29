@@ -1,7 +1,7 @@
 // AffixSystem.js — Pure affix logic evaluation (no Phaser dependencies)
 // Similar to SkillSystem.js but for randomized enemy modifiers.
 
-import { gridDistance } from './Combat.js';
+import { gridDistance, thornsReflectDamage } from './Combat.js';
 import { applyCondition } from './StatusConditionSystem.js';
 
 function getAffix(affixId, affixData) {
@@ -68,6 +68,8 @@ export function getAffixCombatMods(unit, opponent, allAllies, affixData, terrain
 
 /**
  * Roll on-defend affix effects (Shielded, Teleporter, Thorns).
+ * Damage-changing affixes (Shielded) settle first, whatever order the affixes were
+ * rolled in, so the reactions (Thorns, Teleporter) read the damage actually taken.
  * @param {object} defender
  * @param {number} damage
  * @param {boolean} isMelee
@@ -85,21 +87,30 @@ export function rollDefenseAffixes(defender, damage, isMelee, isFirstHitPerPhase
 
   if (!affixData || !defender || !Array.isArray(defender.affixes)) return result;
 
-  for (const aid of defender.affixes) {
-    const affix = getAffix(aid, affixData);
-    if (!affix || affix.trigger !== 'on-defend') continue;
+  const onDefend = defender.affixes
+    .map((aid) => [aid, getAffix(aid, affixData)])
+    .filter(([, affix]) => affix?.trigger === 'on-defend');
 
-    // Shielded: negate first hit per phase
+  // 1. Damage changes. Shielded: negate first hit per phase.
+  for (const [aid, affix] of onDefend) {
     if (aid === 'shielded' && isFirstHitPerPhase) {
       result.modifiedDamage = 0;
       result.activated.push({ id: aid, name: affix.name });
     }
+  }
 
-    // Thorns: reflect melee damage taken (only if Shielded didn't negate it)
+  // 2. Reactions to the damage taken.
+  for (const [aid, affix] of onDefend) {
+    // Thorns: reflect a share of an adjacent hit, rounded down (a 0 reflect is no proc).
     if (aid === 'thorns' && isMelee && result.modifiedDamage > 0) {
-      const reflectPct = affix.effects?.reflectMeleePct || 0;
-      result.reflectDamage = Math.floor(result.modifiedDamage * reflectPct);
-      result.activated.push({ id: aid, name: affix.name });
+      const reflect = thornsReflectDamage(
+        result.modifiedDamage,
+        Number(affix.effects?.reflectMeleePct) || 0,
+      );
+      if (reflect > 0) {
+        result.reflectDamage = reflect;
+        result.activated.push({ id: aid, name: affix.name });
+      }
     }
 
     // Teleporter: warp after taking damage (once per combat, cancels remaining strikes)
