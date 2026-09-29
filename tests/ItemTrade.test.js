@@ -1096,7 +1096,7 @@ describe('reorder within a unit', () => {
     const [javelin, mend] = kai.inventory;
     expect(
       planReorder(battle, slot(kai, 'inventory', mend), slot(kai, 'inventory', javelin)),
-    ).toEqual({ ok: false, reason: "Kai can't wield Mend." });
+    ).toEqual({ ok: false, reason: "Kai can't wield Solace." });
   });
 
   it('items keep their instance: uid, spent uses, imbue and forge fields survive', () => {

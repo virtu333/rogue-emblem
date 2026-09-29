@@ -866,7 +866,7 @@ describe('Loot card hover tooltip lifecycle', () => {
     scene.gameData.skills = [
       {
         id: 'vantage',
-        name: 'Vantage',
+        name: 'Forestall',
         description: 'Strike first when below 50% HP.',
         trigger: 'on-combat-start',
       },
@@ -874,8 +874,8 @@ describe('Loot card hover tooltip lifecycle', () => {
     const item = {
       type: 'Scroll',
       skillId: 'vantage',
-      name: 'Vantage Scroll',
-      special: 'Teaches Vantage',
+      name: 'Forestall Scroll',
+      special: 'Teaches Forestall',
     };
     const result = BattleScene.prototype._getLootTooltipText.call(
       scene,

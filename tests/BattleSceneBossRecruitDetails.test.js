@@ -158,7 +158,7 @@ describe('BattleScene boss recruit card details', () => {
           },
           proficiencies: [
             { type: 'Lance', rank: 'Prof' },
-            { type: 'Axe', rank: 'Flurry' },
+            { type: 'Axe', rank: 'Adept' },
           ],
           skills: ['Flurry'],
         },

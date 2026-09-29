@@ -132,7 +132,12 @@ describe('Shop item detail formatting', () => {
       { gameData: { skills } },
       {
         type: 'scroll',
-        item: { name: 'Flurry Scroll', type: 'Scroll', skillId: 'adept', special: 'Teaches Flurry' },
+        item: {
+          name: 'Flurry Scroll',
+          type: 'Scroll',
+          skillId: 'adept',
+          special: 'Teaches Flurry',
+        },
       },
     );
     expect(text.split('\n')).toEqual([

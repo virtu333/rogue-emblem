@@ -350,7 +350,9 @@ function addRosterChecks(runManager, gameData) {
   runManager.roster.push(bramwell, corwin);
 
   const edric = runManager.roster.find((u) => u.name === 'Edric');
-  const robe = structuredClone(gameData.accessories.find((a) => a.name === "Sisters' Mantle") || null);
+  const robe = structuredClone(
+    gameData.accessories.find((a) => a.name === "Sisters' Mantle") || null,
+  );
   if (edric && robe) {
     equipAccessory(edric, robe);
     edric.currentHP = 1;

@@ -369,7 +369,11 @@ describe('sealed beat', () => {
   it('stamps one gain without taking input, then leaves', async () => {
     const scene = makeScene();
     const growth = new GrowthCeremonyController(scene);
-    growth.showSealed({ title: 'Rowan learned Forestall', detail: 'New skill', skillId: 'vantage' });
+    growth.showSealed({
+      title: 'Rowan learned Forestall',
+      detail: 'New skill',
+      skillId: 'vantage',
+    });
     const band = layers()[0];
     expect(band.classList.contains('is-blocking')).toBe(false);
     expect(band.getAttribute('role')).toBe('status');
