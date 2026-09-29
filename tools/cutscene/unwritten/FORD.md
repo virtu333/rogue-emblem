@@ -81,9 +81,18 @@ Water depth by X: 0 at |X| = 8 (the banks), knee-deep (0.5 m) by |X| = 5, and 0.
 midstream, except for a shoal (`world.groundY`) from X ≈ 2 to 5.6 where the bed rises to
 about 0.3 m: the Warden holds the shallows, and Edric can step up onto the slick stone from
 it. Stones break the surface at X ≈ −6, −1.5 (a metre and a half toward the lens), +2, and
-+3.7 (the slick one, half a metre toward the lens, where Edric's lead foot lands and slips)
++3.7 (the slick one, 1.04 x 0.76 m, 0.6 m toward the lens, where Edric's lead foot lands and slips; the clash and bind cameras sit at 1.35-1.4 m so it lies below the fighters' feet, not across them)
 and upstream. The Empire's rank (`ford.js rankStaging`) is staged from the shore, not from the
 blocking's column: it steps down the far bank and halts ankle-deep at the water's edge.
+Men more than ~34 px tall on the page (shots 3 and 16) are painted, not drawn in code: each plays
+the Warden's own `warden_wade` clip (`ford.js clipWalk/clipMan`), from its own drawing, start and
+rate, carried by the clip's measured contacts (Stride) so boots plant, halting on the clip's
+standing drawing with a stamp (the hips sink and return, a splash at the spear butt), a shade
+darker and cooler than the Warden and veiled by distance (`world` actor `veil`). The far men
+(shot 2) stay `figure.js` skeletons on the same strides and timing (the code plan's walk length
+comes from the clip), so a man is where he should be whichever way he is drawn. In shot 2 the
+reeds thin to a lane where Edric runs and along the sight line to him (`world.render` option
+`reedGaps`), and his footfalls throw earth on the bank and splashes in the water.
 
 ## Blocking (the flat camera)
 

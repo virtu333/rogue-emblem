@@ -3748,7 +3748,7 @@ export class World {
     // a fast pass: what is near the lens is dragged into streaks along its motion (the
     // drawing of a blur: a dithered tail behind each leaf), so it never strobes
     if (smear && Math.abs(smear) >= 4) {
-      const L = Math.min(56, Math.abs(smear) * 0.7);
+      const L = Math.min(22, Math.abs(smear) * 0.4);
       const orig = mask.slice();
       const dir = smear < 0 ? 1 : -1; // the trail lies behind the motion
       for (let y = 0; y < H; y++) {
