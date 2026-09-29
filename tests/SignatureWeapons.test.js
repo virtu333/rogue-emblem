@@ -8,7 +8,12 @@
 //    "first weapon of this type and tier" picker that hands out default gear.
 import { describe, it, expect } from 'vitest';
 import { loadGameData } from './testData.js';
-import { getCombatForecast, getEffectivenessMultiplier, canCounter } from '../src/engine/Combat.js';
+import {
+  getCombatForecast,
+  getEffectivenessMultiplier,
+  canCounter,
+  resolveCombat,
+} from '../src/engine/Combat.js';
 import { getSkillCombatMods } from '../src/engine/SkillSystem.js';
 import { getAttackRange } from '../src/engine/AttackOptions.js';
 import { itemKeywords, itemBaseLine } from '../src/engine/ItemKeywords.js';
@@ -40,6 +45,7 @@ const TABLE = {
     crit: 10,
     weight: 1,
     range: '1-2',
+    special: '+1 SPD when equipped',
   },
   Voss: { name: 'Last Watch', type: 'Bow', might: 5, hit: 90, crit: 20, weight: 4, range: '1-2' },
 };
@@ -182,14 +188,55 @@ describe('each rule resolves in combat', () => {
     );
   });
 
-  it('Threadlight is a plain light tome at 1-2', () => {
+  it('Threadlight is a 1-2 light tome that adds +1 SPD while equipped', () => {
     const threadlight = weapon('Threadlight');
-    expect(threadlight.special).toBe('');
+    expect(threadlight.special).toBe('+1 SPD when equipped');
     const sera = unit({ proficiencies: [{ type: 'Light', rank: 'Prof' }] });
     // MAG 10 + 6 - RES 4 = 12; hit 100 + SKL 5 x 2 + LCK 0 - foe avoid (SPD 5 x 2 + 0) = 100.
     const f = forecast(sera, threadlight, unit(), null, 2);
     expect(f.attacker.damage).toBe(12);
     expect(f.attacker.hit).toBe(100);
+  });
+
+  it('Threadlight: the +1 SPD lifts attack speed and tips a double, attacking and defending', () => {
+    const threadlight = weapon('Threadlight');
+    // The same tome without the bonus, so only the +1 SPD differs.
+    const bare = { ...threadlight, special: '' };
+    const sera = unit({ proficiencies: [{ type: 'Light', rank: 'Prof' }] });
+    // Weight 1 - floor(STR 10 / 5) = 0 penalty. Attack speed = SPD 5 (+1) = 6 with, 5 without.
+    // A foe of SPD 1 (no weapon, AS 1): needs AS >= 1 + 5 = 6.
+    const slow = () => unit({ name: 'Slow', col: 6, row: 5, stats: { ...unit().stats, SPD: 1 } });
+    const withBonus = forecast(sera, threadlight, slow(), null);
+    expect(withBonus.attacker.as).toBe(6);
+    expect(withBonus.attacker.doubles).toBe(true);
+    const without = forecast(sera, bare, slow(), null);
+    expect(without.attacker.as).toBe(5);
+    expect(without.attacker.doubles).toBe(false);
+    // The fight itself agrees with the forecast: two strikes with the bonus, one without.
+    const strikes = (weaponUsed) => {
+      const foe = slow();
+      foe.stats.HP = 100;
+      foe.currentHP = 100;
+      const result = resolveCombat(sera, weaponUsed, foe, null, 1, plain, plain, {
+        atkMods: {},
+        defMods: {},
+      });
+      return result.events.filter((e) => e.type === 'strike' && e.attackerSide === 'attacker')
+        .length;
+    };
+    expect(strikes(threadlight)).toBe(2);
+    expect(strikes(bare)).toBe(1);
+    // Defending: an Axeman of SPD 5 swinging an Iron Axe (weight 6 - floor(10/5) = 4 penalty)
+    // has AS 1. Sera's counter needs AS >= 6: with the bonus 6 doubles, without 5 does not.
+    const ironAxe = weapon('Iron Axe');
+    const axeman = () => unit({ name: 'Axeman', col: 6, row: 5 });
+    const counterWith = forecast(axeman(), ironAxe, sera, threadlight);
+    expect(counterWith.attacker.as).toBe(1);
+    expect(counterWith.defender.as).toBe(6);
+    expect(counterWith.defender.doubles).toBe(true);
+    const counterWithout = forecast(axeman(), ironAxe, sera, bare);
+    expect(counterWithout.defender.as).toBe(5);
+    expect(counterWithout.defender.doubles).toBe(false);
   });
 
   it('Last Watch shoots at 1 and 2 and adds +2 RES against magic only', () => {
@@ -220,7 +267,7 @@ describe('tags say what combat does', () => {
     ['Windward', ['Alone: +2 STR, +2 SPD'], 'Steel Lance'],
     ['Holdfast', ['+3 DEF'], 'Steel Axe'],
     ['Endgame', ['x2 vs Cavalry, Flying'], 'Tome'],
-    ['Threadlight', [], 'Light Tome'],
+    ['Threadlight', ['+1 SPD'], 'Light Tome'],
     ['Last Watch', ['Close range', '+2 RES'], 'Steel Bow'],
   ])('%s', (name, tags, base) => {
     expect(itemKeywords(weapon(name)).map((t) => t.text)).toEqual(tags);
