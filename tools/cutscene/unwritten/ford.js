@@ -126,6 +126,8 @@ const SRC = {
 const MOTIONS = [
   'edric_run',
   'march',
+  'warden_wade',
+  'warden_level',
   'edric_tumble',
   'warden_thrust',
   'warden_yield_cut',
@@ -194,6 +196,9 @@ const FALLBACK = {
  */
 const CLIP = {
   warden_thrust: { mpp: 0.00595, cell: [582, 300], anchor: [402.7, 295], face: -1 },
+  // his own walk and his move into the guard (helm-to-sole 1.9 m standing)
+  warden_wade: { mpp: 0.00679, cell: [173, 360], anchor: [103.3, 356], face: -1 },
+  warden_level: { mpp: 0.0077, cell: [424, 360], anchor: [337.6, 355], face: -1 },
   warden_yield_cut: { mpp: 0.00809, cell: [332, 300], anchor: [151.6, 278], face: -1 },
   edric_slide_burst: { mpp: 0.00627, cell: [458, 300], anchor: [209.6, 295], face: 1 },
   edric_slip_fall: { mpp: 0.0063, cell: [433, 300], anchor: [343.7, 292], face: 1 },
@@ -218,6 +223,14 @@ const frameAt = (keys, t) => {
     }
   return keys[keys.length - 1][1];
 };
+// the Warden into his guard (shot 4, piece-local shot time): upright, the drop, the settle
+const LEVEL = [
+  [0, 0],
+  [0.12, 0],
+  [0.22, 3],
+  [0.3, 4],
+  [0.72, 14],
+];
 // Edric: the slide held, the burst on the clash, the rising cut held through the bind
 const SLIDE_BURST = [
   [5.97, 0],
@@ -753,15 +766,20 @@ export class FordPiece extends Piece {
   wardenWalk(a) {
     const T0 = TIME.water - 0.3;
     const X0 = 7.35;
-    const M0 = this.motion('march', 360, { flip: true });
+    // his own walk (warden_wade, made from his standing drawing) when it exists; else
+    // the generic march, turned to face left
+    const own = !!this.motionSrc?.warden_wade;
+    const name = own ? 'warden_wade' : 'march';
+    const flip = !own;
+    const M0 = this.motion(name, 360, { flip });
     if (!M0) {
       return { actor: this.actor('wDecide', X0, 0.1, -1, { rings: 0.9 }), falls: [] };
     }
-    const MH = 2.02; // the march cell's height in metres (the soldier is ~1.9 m in it)
+    const MH = own ? 360 * CLIP.warden_wade.mpp : 2.02; // the cell's height in metres
     const mPerPx = MH / 360;
-    const S0 = this.memo('stride:march', () => new Stride(M0, { rate: 1.35 }));
+    const S0 = this.memo(`stride:${name}`, () => new Stride(M0, { rate: own ? 1.5 : 1.35 }));
     const u = Math.max(0, a - T0);
-    const X = X0 + S0.travel(u) * mPerPx; // travel is signed: flipped, he walks left
+    const X = X0 + S0.travel(u) * mPerPx; // travel is signed: he walks left
     const i = S0.index(u);
     let M = null;
     const actor = {
@@ -769,7 +787,7 @@ export class FordPiece extends Piece {
       Z: 0.1,
       height: MH,
       layerFor: (px) => {
-        M = this.motion('march', bucket(px), { flip: true });
+        M = this.motion(name, bucket(px), { flip });
         return M.layer(i);
       },
       place: (x, y, sc) => M.place(x, y, sc),
@@ -793,8 +811,9 @@ export class FordPiece extends Piece {
     const lt = onN(t, 2) - t0; // the figure's time, on twos
     const lc = t - t0; // the camera's, on ones
     const wx = actorAt('warden', TIME.plant).X;
-    const SNAP = 0.125; // the swish frame
-    const SET = SNAP + 1 / 24;
+    const own = !!this.motionSrc?.warden_level; // his own move into the guard
+    const SNAP = 0.125; // the swish frame (the still drawings' fallback)
+    const SET = own ? 0.24 : SNAP + 1 / 24; // the moment the spear is level
     // the camera: low, ahead of him on Edric's side, looking up at the guard
     const punch = lc >= SET ? 0.07 * Math.exp(-(lc - SET) / 0.12) : 0;
     const creep = smooth(SET + 0.12, 0.8, lc);
@@ -805,7 +824,12 @@ export class FordPiece extends Piece {
       { focal: (330 + 34 * creep) * (1 + punch), roll: 0.03 - 0.02 * creep },
     );
     let wd;
-    if (lt < SNAP) {
+    // his own move into the guard (warden_level): held upright a beat (the anticipation),
+    // the spear drops forward into both hands on twos, then the cloth settles
+    if (own) {
+      const i = frameAt(LEVEL, lt);
+      wd = this.clipActor('warden_level', i, wx, 0, -1, { fb: 'wGuard', rings: 0.4 });
+    } else if (lt < SNAP) {
       // the carried spear, point up; he settles his weight (a slight sink: anticipation)
       wd = this.actor('wDecide', wx, 0, -1, {
         rings: 0.4,
@@ -823,8 +847,12 @@ export class FordPiece extends Piece {
     }
     this.world.render(f, t, cam, { rain: 0.7, actors: [wd], wind: 1 });
     const hasClip = !!this.motionSrc?.warden_thrust;
+    // the point and the blade's socket on the drawing in use (cell px)
+    const P = own
+      ? { tip: [93, 270.5], sock: [133, 259] }
+      : { tip: [150, 180.7], sock: [203, 170.8] };
     // the swish: the spear's arc from up to level, drawn as ink ghosts around his hands
-    if (lt >= SNAP && lt < SET + 1 / 24 && hasClip) {
+    if (!own && lt >= SNAP && lt < SET + 1 / 24 && hasClip) {
       const piv = this.cardPoint(wd, cam, 420, 128);
       const tip = this.cardPoint(wd, cam, 150, 180.7);
       const R = Math.hypot(tip.x - piv.x, tip.y - piv.y);
@@ -850,19 +878,19 @@ export class FordPiece extends Piece {
         }
       }
     }
-    if (lt >= SET && hasClip) {
-      const sock = this.cardPoint(wd, cam, 203, 170.8);
-      const tip = this.cardPoint(wd, cam, 150, 180.7);
+    if (lt >= SET && (own || hasClip)) {
+      const sock = this.cardPoint(wd, cam, ...P.sock);
+      const tip = this.cardPoint(wd, cam, ...P.tip);
       // a glint runs out along the blade once he is still, then the point holds a star
       const g = (lc - 0.42) / 0.22;
       if (g > 0 && g < 1.3) glint(f, W, H, sock.x, sock.y, tip.x, tip.y, g, 5, 0.18);
       if (lc > 0.62) star(f, W, H, tip.x, tip.y, 2 + (twos(t) % 2), RGB.paperHi);
       const fk = smooth(SET, SET + 0.2, lc);
       focusLines(f, W, H, tip.x, tip.y, twos(t), {
-        inner: 70 - 10 * creep,
-        amount: 0.3 * fk,
+        inner: 150,
+        amount: 0.16 * fk,
         aspect: 1.6,
-        width: 3,
+        width: 2,
         color: RGB.sepia,
       });
     }
