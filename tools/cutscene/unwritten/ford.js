@@ -47,6 +47,7 @@ import {
   easeOut,
   flash,
   focusLines,
+  glint,
   glow,
   impact,
   put,
@@ -55,6 +56,7 @@ import {
   sparks,
   speedLines,
   star,
+  stroke,
   threadTunnel,
   twos,
 } from './engine/anime.js';
@@ -185,15 +187,6 @@ const FALLBACK = {
   eFall: 'standing',
 };
 
-// points on the drawings (source px): hands, blade and shaft ends, for the code to use
-const PTS = {
-  wGuard: { lead: [150, 286], rear: [266, 254] },
-  wThrustBody: { lead: [14, 150], rear: [95, 150] },
-  wRecover: { point: [20, 65], butt: [465, 285] },
-  eCut: { hilt: [452, 250], tip: [556, 24] },
-  eRise: { hilt: [905 - 456, 408 - 185], tip: [600 - 456, 203 - 185] },
-};
-
 /**
  * The batch-7 clips (MiniMax, 12 fps, not stabilised: each figure moves inside a fixed
  * cell, so a cell held at one world point keeps the planted feet planted). mpp: metres
@@ -259,6 +252,7 @@ const SLIP_FALL = [
   [12.3, 22],
 ];
 
+const FALL_TIP = 1; // which way the flipped slip clip rotates to lie back (by eye)
 const RUN_H = 1.76; // edric_run's cell height in metres (the runner is ~1.68 m in it)
 
 /** Build figures near the size they are seen at (in steps of about a tenth). */
@@ -597,27 +591,6 @@ export class FordPiece extends Piece {
     });
   }
 
-  /** A spear from world point A (butt) to B (point), drawn in code with perspective. */
-  spear3d(f, cam, A, B, o = {}) {
-    const pa = project(cam, A[0], A[1], A[2], W, H);
-    const pb = project(cam, B[0], B[1], B[2], W, H);
-    if (pa.depth < 0.06 || pb.depth < 0.06) {
-      // clip to just in front of the lens
-      const near = 0.08;
-      const k = (near - pa.depth) / (pb.depth - pa.depth);
-      if (pa.depth < near && pb.depth < near) return;
-      const C = [lerp(A[0], B[0], k), lerp(A[1], B[1], k), lerp(A[2], B[2], k)];
-      return this.spear3d(f, cam, pa.depth < near ? C : A, pb.depth < near ? C : B, o);
-    }
-    const wb = 0.05; // the shaft's thickness (m), the blade's width scales from it
-    drawSpear(f, W, H, [pa.sx, pa.sy, wb * pa.scale * 2.2], [pb.sx, pb.sy, wb * pb.scale * 2.2], {
-      blade: o.blade ?? 0.13,
-      glint: o.glint ?? null,
-      light: o.light ?? 1,
-    });
-    return { pa, pb };
-  }
-
   // ------------------------------------------------------------------ plates
 
   plateOf(key, o = {}) {
@@ -795,91 +768,88 @@ export class FordPiece extends Piece {
     return { actor, falls };
   }
 
-  // --- 4 · 30.3: medium, frontal. The spear levels straight at the lens ----------------
+  // --- 4 · 30.3: low medium. He levels the spear, and it holds ---------------------
+  // Hand-timed on twos: the carried spear held (the anticipation), one swish frame, the
+  // painted guard (warden_thrust's first drawing) snapping in with a lean that overshoots
+  // and settles, then stillness while the camera creeps down the shaft to the point.
   shotLevel(f, t) {
-    const [t0, t1] = S.level;
-    const lt = t - t0;
-    const a = act(t);
-    // the Warden still advancing to his mark; the camera backs away with him
-    const wx = actorAt('warden', onN(a, 2)).X;
+    const [t0] = S.level;
+    const lt = onN(t, 2) - t0; // the figure's time, on twos
+    const lc = t - t0; // the camera's, on ones
+    const wx = actorAt('warden', TIME.plant).X;
+    const SNAP = 0.125; // the swish frame
+    const SET = SNAP + 1 / 24;
+    // the camera: low, ahead of him on Edric's side, looking up at the guard
+    const punch = lc >= SET ? 0.07 * Math.exp(-(lc - SET) / 0.12) : 0;
+    const creep = smooth(SET + 0.12, 0.8, lc);
+    // a push in on the guard that ends with the point on the left third, the helm in frame
     const cam = lookAt(
-      { x: wx - 1.95, y: 1.24, z: -0.78 },
-      { x: wx - 0.1, y: 1.2, z: 0.05 },
-      { focal: 330, roll: 0.035 },
+      { x: lerp(wx - 1.75, wx - 1.65, creep), y: 0.6, z: lerp(-2.75, -2.6, creep) },
+      { x: lerp(wx - 0.3, wx - 0.36, creep), y: lerp(0.98, 1.04, creep), z: 0 },
+      { focal: (330 + 34 * creep) * (1 + punch), roll: 0.03 - 0.02 * creep },
     );
-    const wd = this.actor('wGuard', wx, 0, -1, { rings: 0.4 });
-    this.world.render(f, a, cam, { rain: 0.7, actors: [wd], wind: 1 });
-    // the spear: pivots at the lead hand, from carried (point up) to level at the lens
-    const lead = this.cardPoint(wd, cam, ...PTS.wGuard.lead);
-    const rear = this.cardPoint(wd, cam, ...PTS.wGuard.rear);
-    const u = keyMove(a, t0 + 0.02, 0.42, { ant: 0.3, back: 0.1, over: 0.05, n: 2 });
-    // the level direction: from the hands to just beside the lens
-    // aimed just past the lens (to its left), so the spear shows foreshortened, not end-on
-    const cy_ = Math.cos(cam.yaw);
-    const sy_ = Math.sin(cam.yaw);
-    const aim = [cam.x - cy_ * 0.2, cam.y + 0.3, cam.z + sy_ * 0.2];
-    const dL = norm3([aim[0] - lead.X, aim[1] - lead.Y, aim[2] - lead.Z]);
-    const up = [0, 1, 0];
-    const dir = norm3(lerp3(up, dL, clamp(u, -0.2, 1.1)));
-    const reach = 1.62;
-    const tip = [lead.X + dir[0] * reach, lead.Y + dir[1] * reach, lead.Z + dir[2] * reach];
-    const butt = [lead.X - dir[0] * 0.8, lead.Y - dir[1] * 0.8, lead.Z - dir[2] * 0.8];
-    // the snap: ghosts of the spear along its arc (drawn behind, ink only)
-    if (u > 0.05 && u < 0.97) {
-      for (const g of [0.55, 0.3]) {
-        const d2 = norm3(lerp3(up, dL, clamp(u * g, -0.2, 1.1)));
-        const gt = [lead.X + d2[0] * reach, lead.Y + d2[1] * reach, lead.Z + d2[2] * reach];
-        const pa = project(cam, lead.X, lead.Y, lead.Z, W, H);
-        const pb = project(cam, gt[0], gt[1], gt[2], W, H);
-        if (pa.depth > 0.1 && pb.depth > 0.1) ghostLine(f, pa.sx, pa.sy, pb.sx, pb.sy, g);
+    let wd;
+    if (lt < SNAP) {
+      // the carried spear, point up; he settles his weight (a slight sink: anticipation)
+      wd = this.actor('wDecide', wx, 0, -1, {
+        rings: 0.4,
+        Y: this.world.groundY(wx, 0) - 0.02 * smooth(0, SNAP, lt),
+      });
+    } else {
+      // the guard; a lean past the pose and back (overshoot on twos)
+      const u = lt - SET;
+      const lean = u < 0 ? 0.06 : 0.06 * Math.exp(-u / 0.07) * Math.cos(u * 26);
+      wd = this.clipActor('warden_thrust', 0, wx, 0, -1, {
+        fb: 'wGuard',
+        rings: 0.4,
+        rot: lean,
+      });
+    }
+    this.world.render(f, t, cam, { rain: 0.7, actors: [wd], wind: 1 });
+    const hasClip = !!this.motionSrc?.warden_thrust;
+    // the swish: the spear's arc from up to level, drawn as ink ghosts around his hands
+    if (lt >= SNAP && lt < SET + 1 / 24 && hasClip) {
+      const piv = this.cardPoint(wd, cam, 425, 93);
+      const tip = this.cardPoint(wd, cam, 305, 94);
+      const R = Math.hypot(tip.x - piv.x, tip.y - piv.y);
+      const a1 = Math.atan2(tip.y - piv.y, tip.x - piv.x);
+      const a0 = a1 + Math.PI / 2; // from straight up (the level point is to his left)
+      // three strokes, thick toward the level end (where the spear is fastest)
+      const k = lt < SET ? 1 : 0.5;
+      for (const [r, w] of [
+        [0.7, 1.2],
+        [0.88, 2],
+        [1.0, 3],
+      ]) {
+        const n = 14;
+        for (let q = 0; q < n; q++) {
+          const qa = q / n;
+          const qb = (q + 1) / n;
+          if (hash(q, r * 10, 23) > k * (0.4 + qa)) continue;
+          const xa = piv.x + Math.cos(lerp(a0, a1, qa)) * R * r;
+          const ya = piv.y + Math.sin(lerp(a0, a1, qa)) * R * r;
+          const xb = piv.x + Math.cos(lerp(a0, a1, qb)) * R * r;
+          const yb = piv.y + Math.sin(lerp(a0, a1, qb)) * R * r;
+          stroke(f, W, H, xa, ya, xb, yb, w * qa, w * qb, RGB.sepia, 1, 0.3, q);
+        }
       }
     }
-    const sp = this.spear3d(f, cam, butt, tip, {
-      glint: u > 0.95 ? ((lt - 0.45) / 0.3) % 1.4 : null,
-    });
-    // his hands over the shaft (the fists are painted; redraw the lead fist on top)
-    this.redrawPatch(f, wd, cam, lead, 11);
-    this.redrawPatch(f, wd, cam, rear, 9);
-    if (sp && u > 0.9)
-      focusLines(f, W, H, sp.pb.sx, sp.pb.sy, twos(t), {
-        inner: 70,
-        amount: 0.55 * smooth(0.9, 1, u),
-        aspect: 1.5,
-        width: 5,
+    if (lt >= SET && hasClip) {
+      const sock = this.cardPoint(wd, cam, 352, 93);
+      const tip = this.cardPoint(wd, cam, 305, 94);
+      // a glint runs out along the blade once he is still, then the point holds a star
+      const g = (lc - 0.42) / 0.22;
+      if (g > 0 && g < 1.3) glint(f, W, H, sock.x, sock.y, tip.x, tip.y, g, 5, 0.18);
+      if (lc > 0.62) star(f, W, H, tip.x, tip.y, 2 + (twos(t) % 2), RGB.paperHi);
+      const fk = smooth(SET, SET + 0.2, lc);
+      focusLines(f, W, H, tip.x, tip.y, twos(t), {
+        inner: 64 - 10 * creep,
+        amount: 0.42 * fk,
+        aspect: 1.6,
+        width: 4,
         color: RGB.sepia,
       });
-    void t1;
-    void rear;
-  }
-
-  /** Redraw the actor's own pixels in a small disc around a card point (a fist over a code-drawn shaft). */
-  redrawPatch(f, a, cam, p, r) {
-    const buf = this.scratch('patch');
-    buf.set(f);
-    // draw the actor alone into buf, then copy back its pixels within r of p
-    const w = this.world;
-    const keep = { zbuf: w.zbuf.slice(), ids: w.ids.slice(), stg: w.stg.slice() };
-    w.zbuf.fill(Infinity);
-    w.stg.fill(0);
-    w.ids.fill(0);
-    const sc = w.scratch;
-    // reuse drawActor's own placement by drawing into buf over a cleared depth
-    w.drawActor(buf, cam, w.B, w.t, { ...a, wade: false, reflect: false, shadow: false }, 0);
-    for (let y = Math.max(0, Math.floor(p.y - r)); y < Math.min(H, p.y + r); y++)
-      for (let x = Math.max(0, Math.floor(p.x - r)); x < Math.min(W, p.x + r); x++) {
-        if ((x - p.x) ** 2 + (y - p.y) ** 2 > r * r) continue;
-        const i = y * W + x;
-        if (w.ids[i] !== 210) continue;
-        const o = i * 4;
-        f[o] = buf[o];
-        f[o + 1] = buf[o + 1];
-        f[o + 2] = buf[o + 2];
-        f[o + 3] = buf[o + 3];
-      }
-    w.zbuf.set(keep.zbuf);
-    w.ids.set(keep.ids);
-    w.stg.set(keep.stg);
-    void sc;
+    }
   }
 
   // --- 5 · 31.1: tracking profile. Edric runs through the ford --------------------------
@@ -1474,16 +1444,17 @@ export class FordPiece extends Piece {
     const lt = t - t0;
     const a = act(t);
     const aa = onN(a, 2);
-    // the crossed side, low, looking downstream; the Hollow Sun in the water beyond him
+    // the crossed side, low at the water and close: he falls through the frame
     const cam = lookAt(
-      { x: 3.72 - 0.06 * lt, y: 0.44 - 0.05 * lt, z: 3.35 - 0.22 * lt },
-      { x: 4.0, y: 0.22, z: -0.25 },
+      { x: 3.98 - 0.05 * lt, y: 0.36 - 0.04 * lt, z: 2.25 - 0.18 * lt },
+      // the camera follows him down (on ones): from his chest to the water he lands in
+      { x: 3.72, y: lerp(0.62, 0.28, smooth(0.05, 0.45, lt)), z: -0.4 },
       { focal: 300, roll: 0.015 },
     );
     const [sx, sy] = shake(
       t,
       [
-        [TIME.fall, 0.6],
+        [TIME.fall, 0.4],
         [TIME.landed, 1],
       ],
       4,
@@ -1500,18 +1471,30 @@ export class FordPiece extends Piece {
     // where he comes down: a body's length in front of the Warden's station
     const LX = 3.42;
     const LZ = -0.45;
+    const HIT = TIME.landed; // his back meets the water on the snare
     let ed;
-    if (aa < 12.3) {
-      // the slip clip tipping back into the water, sinking as it goes
-      const sink = -0.12 - 0.5 * smooth(t0 - 0.1, 12.3, aa);
-      ed = this.edricAt(a, aa, { crossed: true, Y: sink }).actor;
-      ed.X = LX + 0.2;
-      ed.Z = LZ;
+    if (aa < HIT) {
+      // airborne: the clip's backward tip (drawings 12-20, before it starts to float),
+      // with gravity doing the falling and the body rotating about the feet toward flat
+      const u = clamp((aa - t0) / (HIT - t0));
+      const i = 12 + Math.floor(u * 8.99);
+      ed = this.clipActor('edric_slip_fall', i, LX + 0.2, LZ, 1, {
+        flip: true,
+        rings: 1,
+        fb: 'eOver',
+        Y: -0.12 - 0.1 * u * u,
+        rot: FALL_TIP * 0.66 * u ** 1.6,
+      });
     } else {
+      // in the water: he sinks in, bobs back up once or twice, and settles, rocking
+      const v = aa - HIT;
+      const bob = 0.08 * Math.exp(-v / 0.26) * Math.cos(v * 11);
+      const rock = 0.06 * Math.exp(-v / 0.4) * Math.sin(v * 8.5);
       ed = this.actor('eFall', LX + 0.1, LZ, 1, {
         flip: true,
         rings: 1,
-        Y: -0.44 - 0.08 * smooth(TIME.landed, TIME.landed + 0.8, aa),
+        Y: -0.26 - 0.05 * smooth(0, 1.0, v) - bob,
+        rot: rock,
       });
     }
     ed.stage = stage;
@@ -1524,12 +1507,13 @@ export class FordPiece extends Piece {
       stage,
       rain: 0.75,
       actors: [ed, wd, ...this.soldiers(a, camS, LINE, { flip: true, stage })],
-      splashes: [
-        { X: LX + 0.2, Z: LZ, t0: TIME.fall, strength: 1.1, seed: 12 },
-        { X: LX - 0.2, Z: LZ, t0: TIME.landed, strength: 1.5, seed: 13 },
-      ],
+      // droplets and the ring only (a flat body throws sheets, not a crown: below)
+      splashes: [{ X: LX + 0.1, Z: LZ, t0: HIT, strength: 0.85, seed: 13 }],
       wind: 0.9,
     });
+    // the water he lands in: a white mass thrown up along his length that breaks into
+    // blobs and drops (anime water: flat white, an ink rim, no gradients)
+    if (stage < 3) bodySplash(f, camS, LX + 0.1, LZ, 1.7, a - HIT, 1, 7);
     this.world.sun = sun0;
   }
 }
@@ -1548,11 +1532,6 @@ function shorten(sk, len) {
   return { ...sk, weapon: { ...w, tip, butt } };
 }
 
-const norm3 = (v) => {
-  const l = Math.hypot(v[0], v[1], v[2]) || 1;
-  return [v[0] / l, v[1] / l, v[2] / l];
-};
-const lerp3 = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
 const hashDither = (x, y) => hash(x & 63, y & 63, 5);
 
 /** Page point (x, y) through a page camera -> screen. */
@@ -1577,20 +1556,48 @@ function segX(a, b, c, d) {
 }
 
 /** A smear ghost: a thick dithered graphite stroke (the multiple of a fast arc). */
-function ghostLine(f, x0, y0, x1, y1, k) {
-  const L = Math.ceil(Math.hypot(x1 - x0, y1 - y0));
-  for (let i = 0; i <= L; i++) {
-    const u = i / L;
-    const w = 1 + 3 * u;
-    for (let d = -w; d <= w; d++) {
-      const x = x0 + (x1 - x0) * u + d * 0.7;
-      const y = y0 + (y1 - y0) * u - d * 0.7;
-      if (hashDither(x | 0, y | 0) < k * 0.7) put(f, W, H, x, y, RGB.graphite);
-    }
+/**
+ * A body landing flat in the water, seen through cam: blobs of white water thrown up
+ * along a line (len m along X at Z), big and many at first, breaking up as they rise and
+ * fall; each blob flat paper-white with an ink rim on its lower side. u: seconds since
+ * the landing. Deterministic per seed.
+ */
+function bodySplash(f, cam, X, Z, len, u, strength = 1, seed = 1) {
+  if (u < 0 || u > 1.1) return;
+  const WHITE = [238, 233, 222];
+  const n = Math.round(190 * strength);
+  const uu = Math.floor(u * 24) / 24; // on ones: water moves fast
+  const blobs = [];
+  for (let j = 0; j < n; j++) {
+    const along = (hash(j, seed, 1) - 0.5) * len;
+    const side = hash(j, seed, 2) < 0.5 ? -1 : 1;
+    // thrown up and out to the sides; the middle of the body throws highest
+    const mid = 1 - Math.abs(along / (len / 2)) ** 2;
+    const vy = (0.9 + 3.2 * hash(j, seed, 3) ** 1.4) * (0.5 + 0.5 * mid) * strength;
+    const vz = side * (0.3 + 1.4 * hash(j, seed, 4));
+    const vx = (hash(j, seed, 5) - 0.5) * 1.1;
+    const q = uu + 1.5 / 24 - hash(j, seed, 6) * 0.03; // already thrown on the landing frame
+    if (q < 0) continue;
+    const Y = 0.05 + vy * q - 4.9 * q * q;
+    if (Y < 0) continue;
+    const p = project(cam, X + along + vx * q, Y, Z + vz * q, W, H);
+    if (p.depth < 0.3) continue;
+    // the sheet (big blobs merging) at first, breaking into drops of every size
+    const big = hash(j, seed, 7);
+    const size = (0.03 + 0.17 * big * big) * Math.max(0.22, 1 - q * 2.4);
+    blobs.push([p.sx, p.sy, Math.max(0.6, size * p.scale * 0.5)]);
   }
+  // two passes: ink discs one pixel larger, then white discs: the union gets one contour
+  for (const pass of [0, 1])
+    for (const [cx, cy, r0] of blobs) {
+      const r = pass ? r0 : r0 + 1;
+      const c = pass ? WHITE : RGB.sepia;
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++)
+          if (dx * dx + dy * dy <= r * r) put(f, W, H, cx + dx, cy + dy, c);
+    }
 }
 
-/** Speed lines along a segment (the spear's snap): short ink strokes parallel to it. */
 function speedLinesAlong(f, pa, pb, t) {
   const dx = pb.sx - pa.sx;
   const dy = pb.sy - pa.sy;
