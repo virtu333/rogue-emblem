@@ -692,9 +692,10 @@ export class FordPiece extends Piece {
     // tame, then tsume: a breath on the sun, the drop through cloud and ridge, the settle
     const k = smooth(0.08, 1.25, lt) ** 0.85;
     const cam0 = crane(
-      { x: -2.2, z: -27, yaw: 0.035, focal: 300, roll: 0 },
-      { y: 34, pitch: 0.5, z: -34 },
-      { y: 2.3, pitch: -0.012 },
+      // settles low on our side of the ford, close enough that Edric reads as a man
+      { x: -5.2, z: -19, yaw: 0.1, focal: 300, roll: 0 },
+      { y: 30, pitch: 0.5, z: -28 },
+      { y: 1.9, pitch: -0.02 },
       k,
     );
     const [sx, sy] = shake(t, [t0], 3, 0.12);

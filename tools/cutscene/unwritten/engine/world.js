@@ -1526,9 +1526,10 @@ export class World {
         : 0.3 * clamp(-ddy / Math.max(12, ms.py - this.horizonY));
     // the facets: a brick grid in (across, along) scaled to the pixel footprint, so they
     // are a few pixels tall at any distance and drift down the frame with the current
-    const v = zf / (fpL * (2.6 - 1.2 * q)) + 0.3;
+    // slivers: one or two pixels tall, long across (the current draws them out sideways)
+    const v = zf / (fpL * (1.25 - 0.35 * q)) + 0.3;
     const jv = Math.floor(v);
-    const u = X / (fpA * (9 + 12 * hash(jv, 3, 71))) + hash(jv, 1, 71) * 7;
+    const u = X / (fpA * (14 + 22 * hash(jv, 3, 71))) + hash(jv, 1, 71) * 7;
     const iu = Math.floor(u);
     const h1 = hash(iu, jv, 72);
     const h2 = hash(iu, jv, 73);
@@ -1548,7 +1549,7 @@ export class World {
     if (hash(iu, jv, 75) < 0.15 + 0.5 * q + 0.35 * (1 - nearK)) return 0;
     if (d > 1 - 0.08) {
       // the ring: broken gold glints
-      if (hash(iu, jv, 76) < 0.2 + 0.4 * q) return 0;
+      if (hash(iu, jv, 76) < 0.45 + 0.4 * q) return 0;
       const hot = d < 1 + ring * 0.5;
       c[0] = hot ? 246 : 226;
       c[1] = hot ? 208 : 182;
@@ -1556,7 +1557,7 @@ export class World {
       return 2;
     }
     // the disc: ink, paler as the slivers get thin toward the camera
-    const k = (0.92 - 0.62 * q) * (0.4 + 0.6 * nearK);
+    const k = (0.8 - 0.55 * q) * (0.4 + 0.6 * nearK);
     c[0] += (14 - c[0]) * k;
     c[1] += (12 - c[1]) * k;
     c[2] += (22 - c[2]) * k;
@@ -3211,7 +3212,6 @@ export class World {
    */
   spraySheet(frame, cam, o) {
     const { W, H } = this;
-    const paper = this.paper;
     const age = o.age ?? 0;
     if (age < 0 || age > 2.4) return;
     const w = o.width ?? 2.6;
@@ -3223,114 +3223,64 @@ export class World {
     const lx = Math.cos(ang);
     const lz = Math.sin(ang);
     const up = Math.sqrt(2 * 9.8 * hgt);
-    const apex = up / 9.8;
-    const fall = smooth(apex * 0.85, apex * 2, age);
-    const n = Math.max(30, Math.round(w * 34));
-    const cols = [];
-    for (let j = 0; j <= n; j++) {
-      const v = j / n - 0.5;
-      const finger = 0.7 + 0.6 * valueNoise(j * 0.55, seed * 7.1, 3);
-      const vy = up * Math.cos(v * Math.PI) ** 0.7 * finger;
-      const crest = Math.max(0, vy * age - 4.9 * age * age);
-      const X = o.X + lx * v * w + dir * (0.4 + 0.5 * hash(j, seed, 2)) * age;
-      const Z = o.Z + lz * v * w;
-      cols.push({
-        b: project(cam, X, 0, Z, W, H),
-        // the sheet leans the way it was thrown: its crest runs ahead of its foot
-        c: project(cam, X + dir * 0.2 * crest, crest, Z, W, H),
-        tip: finger > 1.05,
-      });
-    }
-    const white = [241, 236, 224];
+    // anime water: blobs of flat white under one ink contour. Thrown together they make
+    // a solid sheet (it hides what is behind it); as they fly they break into drops
+    const n = Math.round(900 * str * Math.min(1.6, Math.max(0.5, w / 2.6)));
+    const blobs = [];
     for (let j = 0; j < n; j++) {
-      const A = cols[j];
-      const Bc = cols[j + 1];
-      if (A.b.depth < 0.3 || Bc.b.depth < 0.3) continue;
-      const xa = A.b.sx;
-      const xb = Bc.b.sx;
-      for (let x = Math.floor(Math.min(xa, xb)); x <= Math.ceil(Math.max(xa, xb)); x++) {
-        const v = xb !== xa ? clamp((x - xa) / (xb - xa)) : 0;
-        const yb = A.b.sy + (Bc.b.sy - A.b.sy) * v;
-        const top = A.c.sy + (Bc.c.sy - A.c.sy) * v;
-        const z = A.b.depth + (Bc.b.depth - A.b.depth) * v - 0.02;
-        if (yb - top < 1) continue;
-        // falling streams: vertical streaks, steady across the sheet
-        const streak = 0.55 + 0.45 * valueNoise(x * 0.45, 3.3, seed);
-        const rib = valueNoise(x * 0.5, 7.7, seed + 2) > 0.74;
-        const y0 = Math.floor(top);
-        for (let y = y0; y <= Math.ceil(yb); y++) {
-          if (x < 0 || y < 0 || x >= W || y >= H) continue;
-          const hk = (yb - y) / (yb - top); // 0 at the water, 1 at the crest
-          // the crest's edge is inked (broken here and there), its fingers too
-          if (y <= y0 + 1 && valueNoise(x * 0.35, seed, 9) > 0.25) {
-            this.fxPut(frame, x, y, z, SEPIA, 1 - fall * 0.8, true);
-            continue;
-          }
-          if (valueNoise(x * 0.3, y * 0.3 + age * 9, seed + 5) > 0.86 - 0.3 * hk) continue;
-          const dens = str * (1 - fall * 0.85) * streak * (1.05 - 0.5 * hk * hk);
-          const i = y * W + x;
-          const oo = i * 4;
-          if (hk > 0.93 && (A.tip || Bc.tip)) {
-            this.fxPut(frame, x, y, z, SEPIA, 1 - fall, true);
-            continue;
-          }
-          const foam = [
-            paper[oo] * FOAM[0] * KR,
-            paper[oo + 1] * FOAM[1] * KG,
-            paper[oo + 2] * FOAM[2] * KB,
-          ];
-          // white where the water is thick (the churning foot, the streams), a paler
-          // veil between the streams that the world shows through, grey ribs of falling
-          // water; ragged holes open toward the crest
-          // a veil the world shows through, drawn in streams: the churning foot and the
-          // crest band solid white, thin white streams running up it, a pale dithered
-          // wash between them, a few grey ribs
-          const px = yb - top > 40 ? 0.9 : 0.45; // streams thin out when the sheet is small
-          const stream = valueNoise(x * px, 1.7, seed + 3) > 0.6;
-          const solid = hk > 0.8 || hk < 0.18 + 0.1 * streak || stream;
-          if (!solid) {
-            if (rib && hk < 0.8) this.fxPut(frame, x, y, z, [188, 186, 186], dens);
-            else this.fxPut(frame, x, y, z, foam, dens * 0.42);
-            continue;
-          }
-          this.fxPut(frame, x, y, z, dens > 0.42 ? white : foam, dens > 0.42 ? 1 : dens * 1.6);
-          if (dens > 0.42 && this.stg[i] === 0 && z < this.zbuf[i]) this.ids[i] = ID_FX;
-        }
-      }
-    }
-    // droplets flung above the crest
-    const nd = Math.round(240 * str);
-    for (let j = 0; j < nd; j++) {
-      const v = hash(j, seed, 21) - 0.5;
-      const vy = up * (0.45 + 0.85 * hash(j, seed, 22));
-      const vf = (0.4 + 2.4 * hash(j, seed, 23)) * dir;
-      const vz = (hash(j, seed, 24) - 0.5) * 2.2;
-      const uu = age - hash(j, seed, 25) * 0.2;
-      if (uu < 0) continue;
-      const Y = vy * uu - 4.9 * uu * uu;
+      const v = hash(j, seed, 31) - 0.5;
+      const mid = Math.cos(v * Math.PI) ** 0.6;
+      // fingers: neighbouring blobs share a throw, so the crest breaks into tongues
+      const finger = 0.55 + 0.6 * valueNoise((v + 0.5) * 11, seed * 3.7, 5);
+      const vy = up * (0.3 + 0.75 * hash(j, seed, 32)) * mid * finger;
+      const vf = dir * (0.3 + 1.5 * hash(j, seed, 33));
+      const vz = (hash(j, seed, 34) - 0.5) * 1.3;
+      const q = age - hash(j, seed, 35) * 0.07;
+      if (q < 0) continue;
+      const Y = vy * q - 4.9 * q * q;
       if (Y < 0) continue;
-      const X = o.X + lx * v * w + vf * uu;
-      const Z = o.Z + lz * v * w + vz * uu;
+      const X = o.X + lx * v * w + vf * q;
+      const Z = o.Z + lz * v * w + vz * q;
       const p = project(cam, X, Y, Z, W, H);
       if (p.depth < 0.3) continue;
-      const q = project(cam, X - vf * 0.025, Y - (vy - 9.8 * uu) * 0.025, Z - vz * 0.025, W, H);
-      const L = Math.min(8, Math.ceil(Math.hypot(p.sx - q.sx, p.sy - q.sy)));
-      for (let k = 0; k <= L; k++) {
-        const s = L ? k / L : 0;
-        this.fxPut(
-          frame,
-          p.sx + (q.sx - p.sx) * s,
-          p.sy + (q.sy - p.sy) * s,
-          p.depth,
-          white,
-          1 - s * 0.6,
-        );
-      }
-      if (p.scale > 110) {
-        this.fxPut(frame, p.sx + 1, p.sy, p.depth, white);
-        this.fxPut(frame, p.sx, p.sy + 1, p.depth, SEPIA, 1, true);
-      }
+      // the sheet holds together while it rises, then breaks into drops as it falls
+      const big = hash(j, seed, 36);
+      const apex = vy / 9.8;
+      const brk = q < apex ? 1 : Math.max(0.25, 1 - (q - apex) * 2.2);
+      const size = (0.04 + 0.13 * big * big) * brk;
+      // capped on screen: up close a blob is a clump, never a polka dot
+      const r = Math.min(4.5 + 3 * big, Math.max(0.6, size * p.scale * 0.5));
+      // stretched along its motion on screen: fast water reads as streaks and tongues
+      const q2 = q + 0.02;
+      const p2 = project(cam, X + vf * 0.02, vy * q2 - 4.9 * q2 * q2, Z + vz * 0.02, W, H);
+      const ex = p2.sx - p.sx;
+      const ey = p2.sy - p.sy;
+      const sp = Math.hypot(ex, ey) || 1;
+      const el = Math.min(3.2, 1 + sp * 0.35);
+      blobs.push([p.sx, p.sy, r, p.depth - 0.02, ex / sp, ey / sp, el]);
     }
+    const white = [241, 236, 224];
+    for (const pass of [0, 1])
+      for (const [cx, cy, r0, z, ux, uy, el] of blobs) {
+        const r = pass ? r0 : r0 + 1;
+        const ra = r * el; // the long axis, along the motion
+        const lim = Math.ceil(ra);
+        for (let dy = -lim; dy <= lim; dy++)
+          for (let dx = -lim; dx <= lim; dx++) {
+            const a = (dx * ux + dy * uy) / ra;
+            const c = (-dx * uy + dy * ux) / r;
+            if (a * a + c * c > 1) continue;
+            const x = (cx + dx) | 0;
+            const y = (cy + dy) | 0;
+            if (pass) {
+              this.fxPut(frame, x, y, z, white);
+              if (x >= 0 && y >= 0 && x < W && y < H) {
+                const i = y * W + x;
+                if (this.stg[i] === 0 && z < this.zbuf[i]) this.ids[i] = ID_FX;
+              }
+            } else this.fxPut(frame, x, y, z, SEPIA, 1, true);
+          }
+      }
     // the base churns
     this.ringOnWater(frame, cam, o.X, o.Z, w * 0.55 + age * 1.2, (1 - age / 2.4) * 0.9, 0.5);
   }

@@ -288,6 +288,9 @@ function ribbon(Ls, Rs, cut = null) {
   }
 }
 
+/** What paint() marks in the occupancy: 1 takes the silhouette contour, 2 doesn't. */
+let OCC_MARK = 1;
+
 /** Blit the mask with `shade(u, v, x, y)`; edge pixels take the `edge` colour (a contour). */
 function paint(shade, edge, rim = null) {
   const { w, h, x0, y0 } = M;
@@ -322,7 +325,8 @@ function paint(shade, edge, rim = null) {
         if (rim && (isEdge(x - 1, y) || isEdge(x, y - 1))) c = rim;
       }
       put(frame, fw, fh, X, Y, c);
-      if (X >= ox && Y >= oy && X < ox + ow && Y < oy + oh) occ[(Y - oy) * ow + (X - ox)] = 1;
+      if (X >= ox && Y >= oy && X < ox + ow && Y < oy + oh)
+        occ[(Y - oy) * ow + (X - ox)] = OCC_MARK;
     }
   }
 }
@@ -1468,8 +1472,10 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
     const dirS = V2.norm(V2.sub(tip, butt));
     const headLen = Math.min(0.34 * bs * s, V2.len(V2.sub(tip, butt)) * 0.3);
     const socket = V2.sub(tip, V2.mul(dirS, headLen));
-    const shaftR = Math.max(0.9, R(0.02));
+    const shaftR = Math.max(0.5, R(0.02)); // far off, a one-pixel shaft (not a black pillar)
     add(0.32, () => {
+      // a small figure's spear stays out of the silhouette contour: a thin line, not a pillar
+      OCC_MARK = H < 100 ? 2 : 1;
       capsule(butt[0], butt[1], socket[0], socket[1], shaftR, shaftR);
       const Tw = T.wood;
       paint(
@@ -1482,7 +1488,7 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
       paint(() => T.iron.shade, null);
       // the leaf head
       const nrm = [-dirS[1], dirS[0]];
-      const wmax = Math.max(1.2, R(0.055));
+      const wmax = Math.max(0.8, R(0.055));
       const shoulderP = V2.add(socket, V2.mul(dirS, headLen * 0.34));
       const poly = [
         V2.add(socket, V2.mul(nrm, shaftR * 1.3)),
@@ -1504,6 +1510,7 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
         if (Math.abs(v) < 0.12 && detail >= 1) return Ts.shade;
         return lit ? (u > 0.35 && u < 0.85 && detail >= 1 ? Ts.hi : Ts.lit) : Ts.shade;
       }, Ts.edge);
+      OCC_MARK = 1;
     });
   }
 
