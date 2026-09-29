@@ -12,6 +12,7 @@ const gameData = loadGameData();
 const PLAIN = gameData.terrain.findIndex((t) => t.name === 'Plain');
 const RESCUE = gameData.weapons.find((w) => w.name === 'Rescue Staff');
 const WARP = gameData.weapons.find((w) => w.name === 'Warp Staff');
+const GOLD = { fill: UI_HEX.accent, edge: UI_HEX.accentText };
 
 function fakeScene() {
   const created = [];
@@ -77,7 +78,7 @@ describe('Grid.showRelocateGuide', () => {
   it('draws a gold square on each landing tile and a pulsing gold outline on the ally', () => {
     const scene = fakeScene();
     const grid = makeGrid(scene);
-    grid.showRelocateGuide(ally, tiles);
+    grid.showRelocateGuide(ally, tiles, GOLD);
 
     const squares = scene.created.filter((r) => r.fill === UI_HEX.accent);
     expect(squares.map((r) => [r.x, r.y])).toEqual(
@@ -101,7 +102,7 @@ describe('Grid.showRelocateGuide', () => {
   it('holds the outline still under reduced motion', () => {
     const scene = fakeScene();
     const grid = makeGrid(scene);
-    grid.showRelocateGuide(ally, tiles, { reduceMotion: true });
+    grid.showRelocateGuide(ally, tiles, { ...GOLD, reduceMotion: true });
     expect(scene.created.find((r) => r.fill === undefined)).toBeTruthy();
     expect(scene.tweenLog).toHaveLength(0);
   });
@@ -109,7 +110,7 @@ describe('Grid.showRelocateGuide', () => {
   it('is removed, pulse and all, by clearing the attack highlights (cancel, commit, turn end)', () => {
     const scene = fakeScene();
     const grid = makeGrid(scene);
-    grid.showRelocateGuide(ally, tiles);
+    grid.showRelocateGuide(ally, tiles, GOLD);
     grid.clearAttackHighlights();
     expect(scene.created.every((r) => r.destroyed)).toBe(true);
     expect(scene.tweenLog.every((t) => t.killed)).toBe(true);
@@ -119,7 +120,7 @@ describe('Grid.showRelocateGuide', () => {
   it('is replaced when Back re-shows the ally choices', () => {
     const scene = fakeScene();
     const grid = makeGrid(scene);
-    grid.showRelocateGuide(ally, tiles);
+    grid.showRelocateGuide(ally, tiles, GOLD);
     const guide = [...scene.created];
     grid.showHealRange([{ col: ally.col, row: ally.row }]);
     expect(guide.every((r) => r.destroyed)).toBe(true);

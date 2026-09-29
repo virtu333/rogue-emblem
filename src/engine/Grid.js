@@ -9,7 +9,6 @@ import {
 } from '../utils/constants.js';
 import { parseRange } from './Combat.js';
 import { createBoardTransform } from '../utils/boardOrientation.js';
-import { UI_HEX } from '../utils/uiStyles.js';
 
 const DIRECTIONS = [
   { dc: 0, dr: -1 },
@@ -728,13 +727,18 @@ export class Grid {
    * landing tiles show as gold squares. Shares attackHighlightTiles, so every
    * clearAttackHighlights (cancel, commit, turn end) removes it.
    */
-  showRelocateGuide(ally, tiles, { reduceMotion = false } = {}) {
+  // Colours come from the caller (the UI palette): the engine runs headless in Node too.
+  showRelocateGuide(
+    ally,
+    tiles,
+    { reduceMotion = false, fill = ATTACK_RANGE_COLOR, edge = ATTACK_RANGE_COLOR } = {},
+  ) {
     this.clearAttackHighlights();
     for (const { col, row } of tiles) {
       const { x, y } = this.gridToPixel(col, row);
       const square = this.scene.add
-        .rectangle(x, y, TILE_SIZE - 3, TILE_SIZE - 3, UI_HEX.accent, 0.35)
-        .setStrokeStyle(2, UI_HEX.accentText, 0.95)
+        .rectangle(x, y, TILE_SIZE - 3, TILE_SIZE - 3, fill, 0.35)
+        .setStrokeStyle(2, edge, 0.95)
         .setDepth(5);
       this.attackHighlightTiles.push(square);
     }
@@ -743,7 +747,7 @@ export class Grid {
     // Above the unit graphic (depth 10), so the outline reads over the sprite.
     const outline = this.scene.add
       .rectangle(x, y, TILE_SIZE - 2, TILE_SIZE - 2)
-      .setStrokeStyle(3, UI_HEX.accentText, 1)
+      .setStrokeStyle(3, edge, 1)
       .setDepth(11);
     outline._relocateAlly = true;
     this.attackHighlightTiles.push(outline);

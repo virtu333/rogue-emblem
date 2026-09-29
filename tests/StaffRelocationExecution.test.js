@@ -12,6 +12,7 @@ vi.mock('phaser', () => ({
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { XP_BASE_HEAL } from '../src/utils/constants.js';
+import { UI_HEX } from '../src/utils/uiStyles.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -271,6 +272,8 @@ describe('two-phase targeting handlers', () => {
     // The chosen ally shimmers and its landing squares show in gold.
     expect(ctx.grid.showRelocateGuide).toHaveBeenCalledWith(ally, ctx.staffRelocateTiles, {
       reduceMotion: false,
+      fill: UI_HEX.accent,
+      edge: UI_HEX.accentText,
     });
   });
 
