@@ -23,8 +23,8 @@ import { pulse } from './engine/score.js';
 import { clamp, smooth } from './engine/raster.js';
 import { flash } from './engine/anime.js';
 import { onN } from './engine/timing.js';
-import { nudge } from './engine/world.js';
-import { dustPuff } from './camp_fx.js';
+import { nudge, unproject } from './engine/world.js';
+import { puff } from './camp_fx.js';
 import { CampWorld } from './engine/camp_world.js';
 import { quantiseCamp } from './camp_palette.js';
 import {
@@ -201,6 +201,24 @@ const EDRIC_FIRE_KEYS = [
   [4.8, 58],
 ];
 const edricFireFrame = (t) => frameAt(EDRIC_FIRE_KEYS, onN(t, 2));
+
+/**
+ * The rise (shot 7): the clip's drawings by shot-local time, where he is placed (the seat's x plus
+ * a little, so his crouch, his boots and the standing figure all land on the rock's crown), the moment
+ * the hand leaves the rock, and the hand's point in the clip's cell (px; 246, 324 is its fingertips).
+ */
+const RISE = {
+  frames: [
+    [0, 2],
+    [1.0, 22],
+    [1.3, 26],
+    [2, 36],
+  ],
+  x: PEOPLE.edric.seat[0] + 0.1,
+  standX: PEOPLE.edric.seat[0] - 0.122,
+  pushLt: 0.7,
+  handCell: [246, 326],
+};
 
 // the Thread's pulses: a bead runs along it on every note of the tune, and a swell on the hits
 const PULSES = [
@@ -428,7 +446,7 @@ export class CampPiece extends Piece {
     // on a beat and drawn back); the still cut-out with breath and sway is the fallback
     const e =
       o.edric ??
-      this.clipActor('camp_edric_fire', edricFireFrame(t), ex + 0.36, ez, 1, {
+      this.clipActor('camp_edric_fire', edricFireFrame(t), ex + 0.26, ez, 1, {
         who: 'edric',
         t: tt,
         hold: 0.85,
@@ -469,6 +487,7 @@ export class CampPiece extends Piece {
 
   /** Render the world with the scene's standing options. */
   renderWorld(f, t, cam, o = {}) {
+    if (globalThis.__campDbg?.cam) cam = globalThis.__campDbg.cam; // DEBUG (removed before commit)
     const thread = {
       cfg: THREAD,
       energy: tuneEnergy(t),
@@ -626,21 +645,42 @@ export class CampPiece extends Piece {
   }
 
   // --- 7 · he rises -------------------------------------------------------------------------
+
+  /**
+   * Where his hand presses the rock (a world point on its crown): the drawing's hand on the ground
+   * is behind his rear knee (the cell point below, flipped), a point at eye level for this low
+   * camera, so it is found where that pixel's ray meets the crown's plane. Computed once from the
+   * camera at the moment the hand is still down.
+   */
+  handSpot() {
+    if (this._hand) return this._hand;
+    const lt0 = RISE.pushLt - 0.05;
+    const top = this.world.seats.edric.top;
+    const a = this.clipActor(
+      'camp_edric_rise',
+      frameAt(RISE.frames, onN(lt0, 2)),
+      RISE.x,
+      PEOPLE.edric.seat[1],
+      1,
+      { who: 'edric', ground: true },
+    );
+    const cam = CAMERA.rise(lt0);
+    const q = this.clipPoint(a, cam, ...RISE.handCell);
+    const d = unproject(cam, q[0], q[1], W, H);
+    const tt = d[1] < -1e-4 ? (top - cam.y) / d[1] : 3;
+    this._hand = { X: cam.x + d[0] * tt, Y: top, Z: cam.z + d[2] * tt };
+    return this._hand;
+  }
+
   shotRise(f, t) {
     const lt = t - S.rise[0];
     const hitLt = TIME.hit - S.rise[0];
-    const [ex, ez] = PEOPLE.edric.seat;
+    const ez = PEOPLE.edric.seat[1];
     const top = this.world.seats.edric.top;
-    const frames = [
-      [0, 2],
-      [1.0, 22],
-      [1.3, 26],
-      [2, 36],
-    ];
     let e;
     if (lt < hitLt) {
-      const i = frameAt(frames, onN(lt, 2));
-      e = this.clipActor('camp_edric_rise', i, ex, ez, 1, {
+      const i = frameAt(RISE.frames, onN(lt, 2));
+      e = this.clipActor('camp_edric_rise', i, RISE.x, ez, 1, {
         who: 'edric',
         ground: true,
         t,
@@ -651,13 +691,13 @@ export class CampPiece extends Piece {
       // the big hit: a paper-white flash covers the change of drawing, and he stands as drawn,
       // his face lifted to the Thread (the standing cut-out; its head rises a little more and
       // holds), breathing, the cloak in the wind. Placed so his head is where the clip's was.
-      // His weight comes down on the slab: the body squashes a few per cent and rebounds (twos),
+      // His weight comes down on the rock: the body squashes a few per cent and rebounds (twos),
       // the cloak, thrown up by the rise, settles.
       const tt = onN(t, 3);
       const u = Math.max(0, onN(lt, 2) - hitLt);
       const rise = ease((lt - hitLt) / 0.5);
       const land = Math.exp(-u / 0.07) * Math.cos(u * 26);
-      e = this.cutActor('standing', ex - 0.222, ez, 1, {
+      e = this.cutActor('standing', RISE.standX, ez, 1, {
         who: 'edric',
         hold: 0.85,
         t: tt,
@@ -679,53 +719,52 @@ export class CampPiece extends Piece {
         },
       });
     }
-    // where his hand presses: the drawing's hand rests behind his back (the cell point 208, 308, 0.55 m
-    // behind the anchor, flipped), so the mark is on the slab's flat top at its rear-left edge, the
-    // nearest place the hand can push the stone (the hand's own ray never meets the slab: it is at eye level)
-    if (!this._handSpot) {
-      const sl = this.world.seats.edric;
-      this._handSpot = { x: sl.x - sl.a * 0.55, z: sl.z + sl.c * 0.12 };
-    }
-    const H0 = this._handSpot;
+    // where his hand presses: a dent while it is down, a scuff of ash on the rock when it lifts
+    const H0 = this.handSpot();
     const decals = [];
-    if (H0) {
-      // pressed while the hand is down (the first third of a second), a scuff of ash left when it lifts
-      if (lt < 0.34) decals.push({ x: H0.x, y: top, z: H0.z, r: 0.085, k: 0.55, ash: 0, seed: 3 });
-      else decals.push({ x: H0.x, y: top, z: H0.z, r: 0.11, k: 0.24, ash: 0.55, seed: 5 });
-    }
+    if (lt < RISE.pushLt) decals.push({ x: H0.X, y: top, z: H0.Z, r: 0.1, k: 0.6, ash: 0, seed: 3 });
+    else decals.push({ x: H0.X, y: top, z: H0.Z, r: 0.17, k: 0.3, ash: 0.7, seed: 5 });
     const cam = this.shake(CAMERA.rise(lt), t);
     this.renderWorld(f, t, cam, { actors: this.people(t, { edric: e }), decals });
-    // the ash the hand kicks up as it pushes off, and the dust each boot puts up when he lands
-    if (H0)
-      dustPuff(f, W, H, cam, t, {
-        X: H0.x,
-        Y: top + 0.03,
-        Z: H0.z,
-        t0: S.rise[0] + 0.3,
-        life: 0.8,
-        n: 18,
-        seed: 11,
-        spread: 0.22,
-        up: 0.32,
-        drift: [0.05, 0.02],
-        warm: 0.6,
-      });
+    // the ash the hand kicks up as it pushes off, and the dust each boot puts up when he lands: a
+    // few clouds that pop open, rise and settle over about half a second, and grit on arcs
+    const fire = this.world.fire;
+    puff(this.world, f, cam, t, {
+      X: H0.X,
+      Y: top + 0.02,
+      Z: H0.Z,
+      t0: S.rise[0] + RISE.pushLt,
+      life: 0.55,
+      n: 11,
+      grit: 12,
+      size: 0.075,
+      spread: 0.36,
+      up: 0.42,
+      drift: [-0.06, 0.03],
+      seed: 11,
+      warm: 0.55,
+      fire,
+    });
     for (const [k, dxb] of [
-      [0, -0.16],
-      [1, 0.14],
+      [0, -0.17],
+      [1, 0.15],
     ])
-      dustPuff(f, W, H, cam, t, {
-        X: ex - 0.222 + dxb,
+      puff(this.world, f, cam, t, {
+        X: RISE.standX + dxb,
         Y: top + 0.01,
         Z: ez - 0.02,
-        t0: TIME.hit + 0.02,
-        life: 0.7,
-        n: 16,
+        t0: TIME.hit,
+        life: 0.6,
+        n: 9,
+        grit: 9,
+        size: 0.07,
+        spread: 0.5,
+        up: 0.26,
+        ring: true,
+        drift: [-0.05, 0],
         seed: 21 + k,
-        spread: 0.3,
-        up: 0.16,
-        drift: [-0.08, 0],
         warm: 0.5,
+        fire,
       });
     // the hit: two frames of paper-white over the whole picture (high, so it stays flat: a middle
     // value over a dark frame breaks into a halftone screen)

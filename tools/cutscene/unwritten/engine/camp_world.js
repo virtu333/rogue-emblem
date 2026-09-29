@@ -303,6 +303,10 @@ export class CampWorld {
     this.buildAO();
     this.initShadows();
     this.buildTufts();
+    this.seatTufts();
+    this._seatLum = new Float32Array(n);
+    this._seatPart = new Uint8Array(n);
+    this._seatH = new Float32Array(n);
     this.actorsLast = [];
   }
 
@@ -575,6 +579,7 @@ export class CampWorld {
     if (o.thread) this.drawThread(frame, B, t, o.thread);
     this.drawProps(frame, B);
     this.passInk(frame);
+    this.passSeatInk(frame);
     this.paperGrain(frame);
     if (o.decals?.length) this.drawDecals(frame, o.decals);
     this.drawBillboards(frame, cam, B, t, o);
@@ -654,6 +659,8 @@ export class CampWorld {
           // the ground
           const X = ox + tg * dx;
           const Z = oz + tg * dz;
+          this._px = x;
+          this._py = y;
           this.shadeGround(X, Z, tg, t, c);
           r = c[0];
           g = c[1];
@@ -888,13 +895,18 @@ export class CampWorld {
         b += 12 * k;
       }
     }
-    // a shadow also takes some of the sky's and the bounce's light, so it reads as a shape even
-    // where the fire's pool is thin (the shadows fall away from the fire, into the dim)
+    // a cast shadow is drawn, not blended: a dark core near the contact, a mid tone as it thins with
+    // its length, the penumbra broken by an ordered dither (the page's own screen). It also takes the
+    // sky's and the bounce's light, so it reads as a shape even where the fire's pool is thin.
     if (sh < 0.995) {
-      const k = 1 - 0.34 * (1 - sh);
-      r *= k;
-      g *= k;
-      b *= k * 1.02;
+      const occ = 1 - sh;
+      const q = clamp(occ + (bayer(this._px, this._py) - 0.5) * 0.34);
+      const k = smooth(0.08, 0.7, q);
+      const kd = smooth(0.6, 0.92, q);
+      const dark = 1 - 0.46 * k - 0.24 * kd;
+      r *= dark * (1 + 0.04 * k);
+      g *= dark * (1 + 0.02 * k);
+      b *= dark * (1 + 0.14 * k);
     }
     // contact occlusion: a tight dark line where things meet the ground
     const ao = this.aoAt(X, Z);
@@ -1215,6 +1227,7 @@ export class CampWorld {
     this.drawLogs(frame, B);
     this.drawCylinders(frame, B);
     this.drawStones(frame, B);
+    this.drawSeats(frame, B);
     for (const T of this.tents) this.tentLines(frame, T);
   }
 

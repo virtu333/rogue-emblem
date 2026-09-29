@@ -198,23 +198,41 @@ export const SET = {
   ],
   // What carries each person's weight (CRAFT.md, Grounding). A seat is part of the world: drawn,
   // lit by the fire, with its own contact shadow, and the figure's contact plane is its top.
-  //   slab:    a flat faceted rock (a, c half lengths along its yaw, b thickness scale, crown 0..1)
-  //   blanket: a folded striped blanket (sx, sz half sizes, h thick)
+  //   slab:    a rough block of sandstone (a, c half lengths along its yaw, top = the crown's height,
+  //            `chip` a block broken off at its foot); drawn by engine/camp_seats.js
+  //   blanket: a folded striped wool blanket (sx, sz half sizes, the fold along its front edge, `sag`
+  //            where she sits, the front-left corner turned over)
   //   Kira sits on the crate her drawing already paints, so her seat is only a footprint (`ghost`)
   //   that gives the ground a contact shadow and the fire something to throw one from.
   seats: [
     {
       id: 'edric',
       kind: 'slab',
-      x: -1.47,
-      z: 0.38,
-      a: 0.7,
-      c: 0.5,
-      b: 0.12,
-      crown: 0.72,
+      x: -1.5,
+      z: 0.27,
+      a: 0.55,
+      c: 0.35,
+      top: 0.25,
       yaw: 0.1,
+      seed: 5,
+      // a lower step fused behind its left end, a block broken off at its foot (u, v along the rock's own axes)
+      lobes: [{ u: -0.36, v: 0.16, a: 0.22, c: 0.2, top: 0.15, yaw: 0.6 }],
+      chip: { u: -0.5, v: -0.33, a: 0.14, c: 0.11, top: 0.09, yaw: 0.5 },
     },
-    { id: 'sera', kind: 'blanket', x: 1.45, z: 0.24, sx: 0.5, sz: 0.4, h: 0.06, yaw: -0.14 },
+    {
+      id: 'sera',
+      kind: 'blanket',
+      x: 1.45,
+      z: 0.14,
+      sx: 0.62,
+      sz: 0.46,
+      yaw: -0.14,
+      seed: 3,
+      foldTo: 0.06,
+      corner: 0.25,
+      sag: { x: 1.42, z: -0.02 },
+      top: 0.06,
+    },
     { id: 'kira', kind: 'ghost', x: 1.05, z: 1.75, sx: 0.42, sz: 0.34, h: 0.5, yaw: 0.1 },
   ],
   // three spears leaning together (bases around a point, tips meeting 2.4 m up)

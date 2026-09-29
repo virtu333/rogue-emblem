@@ -14,6 +14,7 @@
 
 import { project } from './world.js';
 import { clamp, hash, smooth } from './raster.js';
+import { rockBaseDist, seatMethods } from './camp_seats.js';
 
 const TWO_PI = Math.PI * 2;
 
@@ -22,7 +23,7 @@ const AO_GRID = { x0: -24, z0: -7, cell: 0.08, nx: 600, nz: 380 };
 const SH_GRID = { x0: -9, z0: -7, cell: 0.05, nx: 360, nz: 300 };
 
 /** How far a shadow is thrown per metre of height (a low fire throws long shadows). */
-const STRETCH = 1.5;
+const STRETCH = 2.0;
 
 /** Bilinear sample of a grid { x0, z0, cell, nx, nz, d }. */
 function sampleGrid(g, X, Z) {
@@ -44,62 +45,18 @@ function sampleGrid(g, X, Z) {
 }
 
 export const groundMethods = {
+  ...seatMethods,
   // ---------------------------------------------------------------- seats
 
   /**
-   * The seats named in the set (set.seats). A slab is a stone (faceted, flat crown) added to the
-   * ray-tested stones; a blanket is a low box; a ghost draws nothing (Kira's crate is in her
-   * drawing) but still has a footprint for the ground's contact shadow. `this.seats[id]` says
-   * where the top is (`top`, metres), so a figure can be stood on it (actor Y).
+   * The seats named in the set (set.seats), built by camp_seats.js: a slab is a rock (flat crown,
+   * chamfers, cracks, a chipped block and pebbles at its foot); a blanket is a folded wool height
+   * field; a ghost draws nothing (Kira's crate is in her drawing) but still has a footprint for the
+   * ground's contact shadow. `this.seats[id]` says where the top is (`top`, metres), so a figure
+   * can be stood on it (actor Y).
    */
   buildSeats() {
-    this.seats = {};
-    (this.set.seats || []).forEach((s, k) => {
-      if (s.kind === 'slab') {
-        const F = [0, 1, 0, s.crown ?? 0.72];
-        const n = 7;
-        for (let f = 0; f < n; f++) {
-          const th = (f / n) * TWO_PI + (hash(k, f, 83) - 0.5) * 0.5 + 0.4;
-          const el = 0.1 + 0.2 * hash(k, f + 10, 83);
-          F.push(Math.cos(th) * Math.cos(el), Math.sin(el), Math.sin(th) * Math.cos(el));
-          F.push(0.8 + 0.1 * hash(k, f + 20, 83));
-        }
-        const si = this.stones.length;
-        this.stones.push({
-          x: s.x,
-          z: s.z,
-          a: s.a,
-          b: s.b,
-          c: s.c,
-          yaw: s.yaw,
-          seat: true,
-          fac: F,
-        });
-        this.seats[s.id] = {
-          ...s,
-          ids: [ID_SEAT_OF_STONE(si)],
-          top: s.b * (0.6 + (s.crown ?? 0.72)),
-        };
-      } else if (s.kind === 'blanket') {
-        const b = this.mkBox(s.x, s.z, s.sx, s.sz, s.h, s.yaw, 'blanket');
-        b.id = 100 + k;
-        // the fold: a second, smaller layer on top (a folded blanket is never flat)
-        const f = this.mkBox(
-          s.x + s.sx * 0.12,
-          s.z - s.sz * 0.1,
-          s.sx * 0.78,
-          s.sz * 0.7,
-          s.h * 1.9,
-          s.yaw + 0.1,
-          'blanket',
-        );
-        f.id = 105 + k;
-        this.boxes.push(b, f);
-        this.seats[s.id] = { ...s, ids: [100 + k, 105 + k], top: s.h * 1.9 };
-      } else {
-        this.seats[s.id] = { ...s, ids: [], top: 0 };
-      }
-    });
+    this.buildSeatObjects();
   },
 
   // ---------------------------------------------------------------- contact occlusion
@@ -127,6 +84,7 @@ export const groundMethods = {
     for (const t of this.tents) rect(t.x, t.z, t.a, t.b, t.yaw, 0.3, 0.6);
     for (const s of Object.values(this.seats))
       if (s.kind === 'ghost') rect(s.x, s.z, s.sx, s.sz, s.yaw, 0.2, 0.75);
+    this.seatFootprints(list);
     const P = this.set.palisade;
     if (P) {
       const mid = (P.x0 + P.x1) / 2;
@@ -170,6 +128,12 @@ export const groundMethods = {
     const g = { ...AO_GRID, d: new Float32Array(AO_GRID.nx * AO_GRID.nz) };
     this.ao = g;
     for (const f of this.footprints()) {
+      if (f.t === 'p') {
+        f.x = f.R.x;
+        f.z = f.R.z;
+        f.a = f.R.a;
+        f.c = f.R.c;
+      }
       const ext = Math.max(f.a, f.c) + f.margin + 0.05;
       const i0 = Math.max(0, Math.floor((f.x - ext - g.x0) / g.cell));
       const i1 = Math.min(g.nx - 1, Math.ceil((f.x + ext - g.x0) / g.cell));
@@ -182,7 +146,8 @@ export const groundMethods = {
           const u = X * f.cs + Z * f.sn;
           const v = -X * f.sn + Z * f.cs;
           let d;
-          if (f.t === 'e') d = (Math.hypot(u / f.a, v / f.c) - 1) * Math.min(f.a, f.c);
+          if (f.t === 'p') d = rockBaseDist(f.R, f.x + X, f.z + Z);
+          else if (f.t === 'e') d = (Math.hypot(u / f.a, v / f.c) - 1) * Math.min(f.a, f.c);
           else {
             const qx = Math.abs(u) - f.a;
             const qz = Math.abs(v) - f.c;
@@ -267,6 +232,7 @@ export const groundMethods = {
       for (const q of [-0.7, -0.35, 0, 0.35, 0.7])
         column(b.x + Math.cos(b.yaw) * b.sx * q, b.z + Math.sin(b.yaw) * b.sx * q, b.sz * 1.1, b.h);
     }
+    this.seatShadows((X, Z, r, k) => this.stampShadow(X, Z, r, k), flick, STRETCH);
     // figures: every few pixels of the drawing throw a soft disc along the shadow direction
     for (const P of preps) if (P && P.a.shadow !== false) this.stampActorShadow(P, flick);
     // one soft pass so the edges are not stairs (a shadow's edge is a little wider the farther it goes)
@@ -312,8 +278,8 @@ export const groundMethods = {
     const fx = -rz;
     const fz = rx;
     const { alpha, w, h, ax, ay, mpp } = mask;
-    const depth = a.shadowDepth ?? 0.16;
-    const K = a.shadowK ?? 0.72;
+    const depth = a.shadowDepth ?? 0.3;
+    const K = a.shadowK ?? 0.85;
     // a stride that keeps the work bounded and the stamps overlapping
     let stride = 1;
     let count = 0;
@@ -336,9 +302,11 @@ export const groundMethods = {
         const gz = Z0 + x * rz + dz * reach;
         const r = Math.max(0.045 + 0.06 * yy, sp * 0.8);
         // fainter with height and with how far the shadow has run
-        const k = K * (1 - 0.5 * smooth(0, height * 1.05, yy));
-        for (const z of [-depth, depth * 0.1, depth])
-          this.stampShadow(gx + fx * z, gz + fz * z, r, k);
+        const k = K * (1 - 0.68 * smooth(0, height * 1.05, yy));
+        // the shadow of a point of light fans out with its length (the person is not a card)
+        const fan = 1 + (reach / rf) * 0.55;
+        for (const z of [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1].map((q) => q * depth))
+          this.stampShadow(gx + fx * z * fan, gz + fz * z * fan, r * (0.9 + 0.3 * (fan - 1)), k);
       }
     void ground;
     void Y0;
@@ -406,8 +374,3 @@ export const groundMethods = {
     return 1 - clamp(sampleGrid(this.shd, X, Z), 0, 1);
   },
 };
-
-// a stone's id in the ray-tested pass (see drawStones)
-function ID_SEAT_OF_STONE(si) {
-  return 120 + (si & 63);
-}
