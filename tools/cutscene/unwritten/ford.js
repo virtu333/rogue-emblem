@@ -52,7 +52,6 @@ import {
   impact,
   put,
   shake,
-  slash,
   sparks,
   speedLines,
   star,
@@ -1437,17 +1436,12 @@ export class FordPiece extends Piece {
       impulses: [impulse(ed.actor.X, 0, TIME.cut, 0.8)],
       wind: 1.2,
     });
-    // the crimson stroke across his back: drawn over two drawings on the score's clock
-    // (so it is there inside the stop's negative frames), then it holds and breaks up
+    // the crimson stroke across his back: a crescent that sweeps through in one drawing
+    // (inside the stop's negative frames), then thins and breaks over three, flinging
+    // crimson along its path
     const back = this.cardPoint(ed.actor, cam, 238, 128);
     const v = t - TIME.cut;
-    if (v >= 0 && v < 0.34) {
-      // (slash() draws the stroke in over p 0..0.6 and wipes it from its root after)
-      const gone = step((v - 0.2) / 0.14, 3);
-      const p = clamp(v / (2 / 24)) * 0.6 + 0.4 * gone;
-      if (p > 0 && p < 1)
-        slash(f, W, H, back.x - 95, back.y - 85, back.x + 85, back.y + 80, p, 24, 7);
-    }
+    if (v >= 0 && v < 10 / 24) crescent(f, back.x, back.y, v / (10 / 24), 7);
     // negative crimson impact frames, on the crash
     if (lt < 3 / 24) impact(f, W, H, { mode: 'neg', light: RGB.crimson });
     else if (lt < 4 / 24) flash(f, W, H, 0.35, RGB.crimson);
@@ -1647,6 +1641,60 @@ function panBlur(f, L) {
       f[o + 2] = b / n;
     }
   }
+}
+
+/**
+ * The Empire's cut as an anime crescent through (cx, cy): swept in during the first
+ * tenth of p, then thinning and breaking up, crimson flung off along its path.
+ */
+function crescent(f, cx, cy, p, seed = 1) {
+  const R = 150; // the arc's radius (px): a long, flat crescent
+  const ox = cx + R * 0.45; // its centre sits below and right: the arc runs down-left to up-right
+  const oy = cy + R * 0.78;
+  const a0 = -Math.PI * 0.86;
+  const a1 = -Math.PI * 0.33;
+  const sweep = clamp(p / 0.08);
+  const thin = 1 - smooth(0.45, 1, p); // it holds its width past the negative frames
+  const wmax = 8 * thin + 1;
+  const n = 140;
+  for (let i = 0; i <= n * sweep; i++) {
+    const u = i / n;
+    // broken as it fades: gaps open along it
+    if (p > 0.55 && hash(Math.floor(u * 22), seed, 3) < (p - 0.55) * 2) continue;
+    const ang = lerp(a0, a1, u);
+    const w = wmax * Math.sin(Math.PI * u) ** 0.8;
+    const nx = Math.cos(ang);
+    const ny = Math.sin(ang);
+    const x = ox + nx * R;
+    const y = oy + ny * R;
+    for (let d = -w / 2; d <= w / 2; d += 0.5) {
+      const e = Math.abs(d) / (w / 2 + 1e-6);
+      put(
+        f,
+        W,
+        H,
+        x + nx * d,
+        y + ny * d,
+        e > 0.7 ? RGB.blood : d < 0 && e > 0.25 ? RGB.crimsonHi : RGB.crimson,
+      );
+    }
+  }
+  // crimson flung off the stroke, along its tangent and outward
+  if (p > 0.1)
+    for (let j = 0; j < 36; j++) {
+      const u = 0.15 + 0.7 * hash(j, seed, 5);
+      const ang = lerp(a0, a1, u);
+      const tx = -Math.sin(ang);
+      const ty = Math.cos(ang);
+      const q = (p - 0.1) * (0.6 + hash(j, seed, 6));
+      const sp = 60 + 120 * hash(j, seed, 7);
+      const x = ox + Math.cos(ang) * R + (tx * 0.7 + Math.cos(ang) * 0.5) * sp * q;
+      const y = oy + Math.sin(ang) * R + (ty * 0.7 + Math.sin(ang) * 0.5) * sp * q + 80 * q * q;
+      const r = hash(j, seed, 8) < 0.3 ? 1.5 : 0.8;
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++)
+          if (dx * dx + dy * dy <= r * r) put(f, W, H, x + dx, y + dy, RGB.crimson);
+    }
 }
 
 function bodySplash(f, cam, X, Z, len, u, strength = 1, seed = 1) {
