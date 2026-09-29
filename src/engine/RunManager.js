@@ -1,5 +1,6 @@
 import { validateBattleState } from './BattleStateSnapshot.js';
 import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
+import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
 import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
@@ -35,6 +36,7 @@ import {
 import { calculateBattleGold } from './LootSystem.js';
 import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapGenerator.js';
 import { calculateCurrencies } from './MetaProgressionManager.js';
+import { lordNamesInRun } from './LordsMet.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
 import {
   createLordUnit,
@@ -2254,6 +2256,11 @@ export class RunManager {
       this.assignUnitUid(unit);
       this.roster.push(unit);
     }
+  }
+
+  /** Names of the lords who have joined this run (roster and fallen). */
+  lordNamesInRun() {
+    return lordNamesInRun(this);
   }
 
   consumeSkipFirstShop() {
@@ -4614,6 +4621,8 @@ export class RunManager {
     // Items renamed since this save was written get their new names everywhere in
     // it (units, convoy, shops, rewards, battle checkpoint and rewind timeline).
     migrateSavedItemNames(saved, gameData);
+    // Gambler's Coins saved with the legacy flag take the catalog's odds (same places).
+    migrateSavedGamblerCoins(saved, gameData);
     const rm = new RunManager(gameData, saved.metaEffects || null);
     rm.legendaryLordChance = Math.min(0.15, Math.max(0, Number(saved.legendaryLordChance) || 0));
     rm.lastDeployment = normalizeDeploymentNames(saved.lastDeployment);

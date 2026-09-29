@@ -132,6 +132,26 @@ describe('CloudSync run merge guard', () => {
     meta._save();
     expect(JSON.parse(store[key]).runRecords.map((r) => r.id)).toEqual(['cloud-win']);
   });
+  it('keeps lords met on either copy when one copy wins (union)', async () => {
+    const key = getMetaKey(1);
+    // Local is newer and kept; the cloud copy met a lord local has not.
+    store[key] = JSON.stringify({ savedAt: 200, lordsMet: ['Cael', 'Edric', 'Sera'] });
+    mockCloudBootstrap({ metaData: { 1: { savedAt: 100, lordsMet: ['Kira'] } } });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    expect(JSON.parse(store[key]).lordsMet).toEqual(['Cael', 'Edric', 'Kira', 'Sera']);
+
+    // The cloud copy is newer and wins; local's lords (backfilled from its picks) stay.
+    store[key] = JSON.stringify({
+      savedAt: 100,
+      lordSelection: { commander: 'Voss', partner: 'Sera' },
+    });
+    mockCloudBootstrap({ metaData: { 1: { savedAt: 300, lordsMet: ['Rowan'] } } });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    const adopted = JSON.parse(store[key]);
+    expect(adopted.savedAt).toBe(300);
+    expect(adopted.lordsMet).toEqual(['Edric', 'Rowan', 'Sera', 'Voss']);
+  });
+
   it('reconciles a live hint manager with newer cloud lessons and resets', async () => {
     const key = getMetaKey(1);
     store[key] = JSON.stringify({ savedAt: 100, hintState: { updatedAt: 100, seen: ['local'] } });

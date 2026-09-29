@@ -45,6 +45,7 @@ import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { ChurchController } from '../ui/ChurchController.js';
 import { ShopController } from '../ui/ShopController.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
+import { recordRunLordsMet } from '../engine/LordsMet.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { NodeMapCursorController } from '../ui/NodeMapCursorController.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -212,6 +213,8 @@ export class NodeMapScene extends Phaser.Scene {
 
     // Auto-save on every node map entry
     this.persistRunSave();
+    // Every lord in this run has joined the army: a new run's pair, a loaded save's.
+    recordRunLordsMet(this.registry.get('meta'), this.runManager);
     // Page hidden / app backgrounded: save the route state as it stands.
     this._unregisterSaveFlusher?.();
     this._unregisterSaveFlusher = registerSaveFlusher('NodeMap', () =>

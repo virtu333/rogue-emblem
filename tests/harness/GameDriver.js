@@ -70,6 +70,13 @@ export class GameDriver {
         actions.push({ type: 'cancel', payload: {} });
         break;
       }
+      case HEADLESS_STATES.SELECTING_REMAINS_TARGET: {
+        for (const t of this.battle.remainsTargets) {
+          actions.push({ type: 'choose_remains', payload: { col: t.col, row: t.row } });
+        }
+        actions.push({ type: 'cancel', payload: {} });
+        break;
+      }
       case HEADLESS_STATES.BATTLE_END:
         return [];
       default:
@@ -101,6 +108,9 @@ export class GameDriver {
         } else {
           throw new Error(`choose_target called in invalid state: ${this.battle.battleState}`);
         }
+        break;
+      case 'choose_remains':
+        this.battle.chooseRemainsTarget(action.payload.col, action.payload.row);
         break;
       case 'cancel':
         this.battle.cancel();

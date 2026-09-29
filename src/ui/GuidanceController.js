@@ -13,6 +13,8 @@
 //   guide_commander_low_hp  the commander starts a player phase at half HP or less
 //   guide_recruit_on_map    a recruitable (green) unit is on the map: names the recruit
 //                           and how to win them (the recruit battle's only intro note)
+//   guide_zombie_remains    the first Zombie remains the player sees: the countdown,
+//                           Smash, and Light (points at the bone pile)
 //
 // A note about one unit's moment (fragile / no attack / healer: Guidance.noteScope)
 // steps aside when that moment ends — Wait, another unit, Back to another tile, the
@@ -150,6 +152,7 @@ export class GuidanceController {
       unit?.row,
       s._threatSight?.current?.result?.count ?? '',
       (s.npcUnits || []).length,
+      s._remainsCtrl?.markers?.shown?.length || 0,
     ].join('|');
     const now = globalThis.performance?.now?.() ?? Date.now();
     if (key === this._key && (!this._blocked || now < this._retryAt)) return;
@@ -256,6 +259,10 @@ export class GuidanceController {
     );
     if (npc && this.allows('guide_recruit_on_map'))
       return { id: 'guide_recruit_on_map', context: { npc, touch }, anchor: npc };
+    // Remains the player has seen (drawn by RemainsMarkerController): point at a pile.
+    const remains = s._remainsCtrl?.knownTiles?.()[0] || null;
+    if (remains && this.allows('guide_zombie_remains'))
+      return { id: 'guide_zombie_remains', context: { touch }, anchor: remains };
     if ((s.turnManager?.turnNumber ?? 1) <= 1 && coach('guide_first_turn'))
       return { id: 'guide_first_turn', context: { touch }, anchor: commander };
     return null;

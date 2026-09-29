@@ -457,6 +457,27 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        title: 'Undead Remains',
+        tags: ['zombie', 'revenant', 'undead', 'bones', 'remains', 'smash', 'revive'],
+        lines: [
+          { text: 'Zombies and Revenants rise again:', color: GOLD },
+          { text: '  a fallen one leaves bones on its tile.' },
+          { text: '  The number on the bones counts the' },
+          { text: '  enemy phases until it rises at half HP.' },
+          { text: '  At 1 (red) it rises next enemy phase.', color: RED },
+          { text: '' },
+          { text: 'Smash:', color: CYAN },
+          { text: '  With bones in weapon reach, choose' },
+          { text: '  Smash and pick the pile. It always' },
+          { text: '  works (no roll, no counter, no EXP)' },
+          { text: "  and ends the unit's action." },
+          { text: '' },
+          { text: 'Rout waits until every pile is gone.', color: GRAY },
+          { text: 'Light magic leaves no bones; a risen', color: GRAY },
+          { text: 'foe stays down when it falls again.', color: GRAY },
+        ],
+      },
+      {
         title: 'The Eclipse',
         lines: [
           { text: 'Battle time darkens the Hollow Sun.', color: GOLD },

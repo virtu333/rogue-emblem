@@ -27,9 +27,15 @@ function clearStore() {
   for (const key of Object.keys(store)) delete store[key];
 }
 
-/** Manager with milestones + prerequisite chain purchased up to the given tier. */
-function makeMeta(tier = 0) {
+const ALL_LORD_NAMES = gameData.lords.map((l) => l.name);
+
+/**
+ * Manager with milestones + prerequisite chain purchased up to the given tier. Every
+ * lord has been met unless `met` says otherwise (a new save knows only Edric and Sera).
+ */
+function makeMeta(tier = 0, { met = ALL_LORD_NAMES } = {}) {
   const meta = new MetaProgressionManager(upgradesData);
+  meta.recordLordsMet(met);
   if (tier >= 1) {
     meta.milestones.add('beatHard');
     meta.purchasedUpgrades.legendary_heir = 1;
@@ -157,6 +163,35 @@ describe('MetaProgressionManager lord selection', () => {
     meta.setCommander('Voss');
     meta.reset();
     expect(meta.lordSelection).toEqual({ commander: 'Edric', partner: 'Sera' });
+  });
+
+  it('refuses a commander or partner this save has not met', () => {
+    const meta = makeMeta(2, { met: ['Cael'] });
+    expect(meta.setCommander('Kira')).toBe(false);
+    expect(meta.setPartner('Kira')).toBe(false);
+    expect(meta.lordSelection).toEqual({ commander: 'Edric', partner: 'Sera' });
+    expect(meta.setCommander('Cael')).toBe(true);
+    expect(meta.setPartner('Voss')).toBe(false);
+    expect(meta.setPartner('Edric')).toBe(true);
+    expect(meta.getLordSelection()).toEqual({ commander: 'Cael', partner: 'Edric' });
+    // The default pair is always met.
+    expect(meta.setCommander('Sera')).toBe(true);
+    expect(meta.getLordSelection()).toEqual({ commander: 'Sera', partner: 'Edric' });
+  });
+
+  it('getLordSelection falls back when a stored pick is unmet', () => {
+    const meta = makeMeta(2, { met: [] });
+    meta.lordSelection = { commander: 'Kira', partner: 'Cael' };
+    expect(meta.getLordSelection()).toEqual({ commander: 'Edric', partner: 'Sera' });
+    expect(meta.getActiveEffects().startingLords).toEqual({ commander: 'Edric', partner: 'Sera' });
+    // A met commander keeps the lead; an unmet partner gives way to the default one.
+    meta.lordSelection = { commander: 'Sera', partner: 'Cael' };
+    expect(meta.getLordSelection()).toEqual({ commander: 'Sera', partner: 'Edric' });
+    meta.recordLordsMet(['Kira']);
+    meta.lordSelection = { commander: 'Kira', partner: 'Cael' };
+    expect(meta.getLordSelection()).toEqual({ commander: 'Kira', partner: 'Sera' });
+    meta.recordLordsMet(['Cael']);
+    expect(meta.getLordSelection()).toEqual({ commander: 'Kira', partner: 'Cael' });
   });
 });
 

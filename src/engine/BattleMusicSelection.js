@@ -101,7 +101,8 @@ export function battleMusicContext({ battleParams, battleConfig, runSeed, isElit
     isElite: Boolean(isElite || params.isElite),
     isAmbush: params.isAmbush === true,
     hasVillage: params.hasVillage === true,
-    hasCaravan: params.hasCaravan === true,
+    // A caravan roll whose map had no safe tile for it (CaravanSystem) has no caravan.
+    hasCaravan: params.hasCaravan === true && (!battleConfig || Boolean(battleConfig.caravanSpawn)),
     isFog: params.fogEnabled === true,
     isRecruitBattle: params.isRecruitBattle === true,
     isEclipsed: params.isEclipsed === true,

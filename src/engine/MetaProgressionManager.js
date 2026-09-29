@@ -17,6 +17,12 @@ import {
   MAX_STARTING_SKILLS,
 } from '../utils/constants.js';
 import { DEFAULT_STARTING_LORD_NAMES, defaultPartnerFor } from './Commander.js';
+import {
+  ALWAYS_MET_LORD_NAMES,
+  lordNamesInRun,
+  lordsMetOfMetaSave,
+  mergeLordNames,
+} from './LordsMet.js';
 
 const DEFAULT_LORD_SELECTION = Object.freeze({
   commander: DEFAULT_STARTING_LORD_NAMES[0],
@@ -279,16 +285,21 @@ export class MetaProgressionManager {
     this.settledRunIds = []; // recent runs whose end rewards were paid (idempotency)
     this.seenDialogueKeys = [];
     this.deedsEarned = []; // deed ids any unit of this save has earned (the Compendium's)
+    // Lords who have joined an army on this save; the home base and Compendium show only
+    // these (Edric and Sera always).
+    this.lordsMet = [...ALWAYS_MET_LORD_NAMES];
     this.hintState = null;
     this.skillAssignments = {}; // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
     this.lordSelection = { ...DEFAULT_LORD_SELECTION }; // commander-choice picks, persisted
     this.milestones = new Set(); // e.g. "beatAct1", "beatAct2", "beatAct3"
     this.storyFlags = defaultStoryFlags(); // run-aware narrative memory
 
+    let savedMeta = null;
     try {
       const raw = localStorage.getItem(this.storageKey);
       if (raw) {
         const saved = JSON.parse(raw);
+        savedMeta = saved;
         this.lastDifficulty = isDifficultyId(saved.lastDifficulty) ? saved.lastDifficulty : null;
 
         // Migration: old single-currency saves have totalRenown but no totalValor
@@ -340,6 +351,25 @@ export class MetaProgressionManager {
       }
     } catch (_) {
       /* incognito / quota exceeded */
+    }
+    // Saves from before the list backfill it from their records; lords in the slot's
+    // in-progress run have joined, so they always count.
+    this.lordsMet = mergeLordNames(lordsMetOfMetaSave(savedMeta), this._lordsInSavedRun());
+  }
+
+  /** Lords in the run saved beside this meta (its slot's run save), if any. */
+  _lordsInSavedRun() {
+    const slot = /^emblem_rogue_slot_(\d+)_meta$/.exec(this.storageKey)?.[1];
+    const runKey = slot
+      ? `emblem_rogue_slot_${slot}_run`
+      : this.storageKey === DEFAULT_STORAGE_KEY
+        ? 'emblem_rogue_run_save'
+        : null;
+    if (!runKey) return [];
+    try {
+      return lordNamesInRun(JSON.parse(localStorage.getItem(runKey) || 'null'));
+    } catch (_) {
+      return [];
     }
   }
 
@@ -564,6 +594,28 @@ export class MetaProgressionManager {
     if (merged.length === this.deedsEarned.length) return;
     this.deedsEarned = merged;
     this._save();
+  }
+
+  /** Has this lord joined an army on this save? Edric and Sera always have. */
+  hasMetLord(name) {
+    return ALWAYS_MET_LORD_NAMES.includes(name) || this.lordsMet.includes(name);
+  }
+
+  /** The lords this save has met, sorted. */
+  getLordsMet() {
+    return [...this.lordsMet];
+  }
+
+  /**
+   * Remember lords who joined (idempotent; saves only when one is new).
+   * @returns {boolean} whether any name was new
+   */
+  recordLordsMet(names) {
+    const merged = mergeLordNames(this.lordsMet, names);
+    if (merged.length === this.lordsMet.length) return false;
+    this.lordsMet = merged;
+    this._save();
+    return true;
   }
 
   markDialogueSeen(key) {
@@ -833,25 +885,31 @@ export class MetaProgressionManager {
   /**
    * The starting pair after tier gating: tier 0 forces the default pair,
    * tier 1 honors the commander and forces the default partner, tier 2
-   * honors both. Lord-name existence is enforced by the consumer
+   * honors both. A lord this save has not met falls back like tier gating
+   * (unmet commander -> default pair; unmet partner -> default partner).
+   * Lord-name existence is enforced by the consumer
    * (RunManager falls back to the default pair for unknown names).
    */
   getLordSelection() {
     const tier = this.getCommanderChoiceTier();
     if (tier <= 0) return { ...DEFAULT_LORD_SELECTION };
     const stored = normalizeLordSelection(this.lordSelection);
-    if (tier === 1)
+    // A pick of a lord this save has not met never leads a run.
+    if (!this.hasMetLord(stored.commander)) return { ...DEFAULT_LORD_SELECTION };
+    if (tier === 1 || !this.hasMetLord(stored.partner))
       return { commander: stored.commander, partner: defaultPartnerFor(stored.commander) };
     return stored;
   }
 
   /**
-   * Pick the commander (requires tier >= 1). If the pick collides with the
-   * stored partner, the partner resets to the default for that commander.
+   * Pick the commander (requires tier >= 1 and a lord this save has met). If the
+   * pick collides with the stored partner, the partner resets to the default for
+   * that commander.
    */
   setCommander(name) {
     if (typeof name !== 'string' || name.length === 0) return false;
     if (this.getCommanderChoiceTier() < 1) return false;
+    if (!this.hasMetLord(name)) return false;
     const partner =
       this.lordSelection?.partner === name ? defaultPartnerFor(name) : this.lordSelection?.partner;
     this.lordSelection = normalizeLordSelection({ commander: name, partner });
@@ -859,10 +917,11 @@ export class MetaProgressionManager {
     return true;
   }
 
-  /** Pick the partner (requires tier >= 2; must differ from the commander). */
+  /** Pick the partner (requires tier >= 2 and a met lord; must differ from the commander). */
   setPartner(name) {
     if (typeof name !== 'string' || name.length === 0) return false;
     if (this.getCommanderChoiceTier() < 2) return false;
+    if (!this.hasMetLord(name)) return false;
     if (this.lordSelection?.commander === name) return false;
     this.lordSelection = normalizeLordSelection({
       commander: this.lordSelection?.commander,
@@ -1183,6 +1242,7 @@ export class MetaProgressionManager {
     this.runsStarted = 0;
     this.skillAssignments = {};
     this.lordSelection = { ...DEFAULT_LORD_SELECTION };
+    this.lordsMet = [...ALWAYS_MET_LORD_NAMES];
     this.milestones = new Set();
     this.storyFlags = defaultStoryFlags();
     this.runRecords = [];
@@ -1272,6 +1332,7 @@ export class MetaProgressionManager {
       disk.seenDialogueKeys || [],
     );
     this.deedsEarned = mergeDeedIds(this.deedsEarned, disk.deedsEarned);
+    this.lordsMet = mergeLordNames(this.lordsMet, lordsMetOfMetaSave(disk));
     if (disk.storyFlags && typeof disk.storyFlags === 'object') {
       const diskFlags = normalizeStoryFlags(disk.storyFlags);
       // Counters are monotonic, so per-name max can only over-remember —
@@ -1345,6 +1406,7 @@ export class MetaProgressionManager {
       settledRunIds: this.settledRunIds,
       seenDialogueKeys: this.seenDialogueKeys,
       deedsEarned: this.deedsEarned,
+      lordsMet: this.lordsMet,
       hintState: this.hintState,
       savedAt: this.savedAt,
     });
@@ -1379,6 +1441,7 @@ export class MetaProgressionManager {
       settledRunIds: this.settledRunIds,
       seenDialogueKeys: this.seenDialogueKeys,
       deedsEarned: this.deedsEarned,
+      lordsMet: this.lordsMet,
       hintState: this.hintState,
       savedAt: this.savedAt,
     };

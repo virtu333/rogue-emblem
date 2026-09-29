@@ -40,6 +40,7 @@ import { LootScreenController } from './LootScreenController.js';
 import { projectedMeterShadow, projectedRelief, projectedShadow } from './EclipseHudController.js';
 import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
+import { recordRunLordsMet } from '../engine/LordsMet.js';
 
 // Watchdog: a single RunComplete transition attempt that hangs past this is
 // treated as failed so the retry loop (and ultimately the recovery UI) still runs.
@@ -203,6 +204,8 @@ export class PostCombatController {
           ),
         },
       );
+      // A lord recruited in this battle (a recruit node's Talk) has now joined.
+      if (completionApplied) recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
       const vaultGoldAfterCompletion = Math.max(0, Math.trunc(scene.runManager.gold || 0));
       scene._battleCompletionAwardedGold = completionApplied
         ? Math.max(0, vaultGoldAfterCompletion - vaultGoldBeforeCompletion)
@@ -560,6 +563,8 @@ export class PostCombatController {
     scene.lootGroup = overlay.displayObjects;
     overlay.show((selectedUnit) => {
       resolveBossRecruit(scene.runManager, selectedUnit);
+      // A lord picked here has joined: this save has met them.
+      if (selectedUnit) recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
       // The choice is durable before anything else happens: a pick is on the
       // roster and a skip is final, so a reload can neither re-offer nor lose
       // it. (The join card saves first itself.)
@@ -586,6 +591,7 @@ export class PostCombatController {
     scene.lootGroup = overlay.displayObjects;
     overlay.show((selectedUnit) => {
       scene.runManager.resolveThirdLord(selectedUnit);
+      recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
       scene.lootGroup = null;
       scene._lordArrivalOverlay = null;
       const joined = selectedUnit && scene.runManager.roster?.includes?.(selectedUnit);

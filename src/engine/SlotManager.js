@@ -2,6 +2,7 @@
 // No Phaser deps.
 
 import { HintManager } from './HintManager.js';
+import { ALWAYS_MET_LORD_NAMES, lordNamesInRun, lordsMetOfMetaSave } from './LordsMet.js';
 
 export const MAX_SLOTS = 3;
 const META_KEY_PREFIX = 'emblem_rogue_slot_';
@@ -294,6 +295,28 @@ export function earnedDeedIdsAcrossSlots() {
     }
   }
   return ids;
+}
+
+/**
+ * Lords met in any slot (1-3): each save's record (or its backfill for saves from
+ * before it) plus the lords of its run, living and fallen. Read cross-slot like
+ * earnedDeedIdsAcrossSlots, so the Title-screen Compendium matches in-run. Edric and
+ * Sera are always met.
+ * @returns {Set<string>}
+ */
+export function metLordNamesAcrossSlots() {
+  const names = new Set(ALWAYS_MET_LORD_NAMES);
+  for (let i = 1; i <= MAX_SLOTS; i++) {
+    try {
+      const meta = JSON.parse(localStorage.getItem(getMetaKey(i)) || 'null');
+      if (meta) for (const name of lordsMetOfMetaSave(meta)) names.add(name);
+      const run = JSON.parse(localStorage.getItem(getRunKey(i)) || 'null');
+      for (const name of lordNamesInRun(run)) names.add(name);
+    } catch (_) {
+      /* an unreadable slot adds nothing */
+    }
+  }
+  return names;
 }
 
 /** Clear all slot data + active slot key. Used by logout. */

@@ -8,7 +8,12 @@ import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { LORE_TEXT_COLOR } from '../utils/constants.js';
-import { earnedDeedIdsAcrossSlots, hasAnySlotMilestone } from '../engine/SlotManager.js';
+import {
+  earnedDeedIdsAcrossSlots,
+  hasAnySlotMilestone,
+  metLordNamesAcrossSlots,
+} from '../engine/SlotManager.js';
+import { metLords } from '../engine/LordsMet.js';
 import { deedReferenceEntries } from './deedReference.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
@@ -123,6 +128,7 @@ export class CompendiumOverlay {
     // classes). Reset on each show() so milestone unlocks appear in real time.
     this._foesItems = null;
     this._deedsItems = null;
+    this._lordsItems = null;
 
     // Gamepad/keyboard focus: a ring on the active tab. The overlay pushes one
     // input-focus scope (LIFO) on show and pops it on hide, so the pad drives it on
@@ -139,6 +145,7 @@ export class CompendiumOverlay {
     if (hasDOMHost()) {
       this._foesItems = null;
       this._deedsItems = null;
+      this._lordsItems = null;
       this.domMenu = new ReferenceMenu(
         this.scene,
         'Compendium',
@@ -156,6 +163,7 @@ export class CompendiumOverlay {
     // (incl. mid-run pause → Compendium) and drop out of the search index too.
     this._foesItems = null;
     this._deedsItems = null;
+    this._lordsItems = null;
     this._buildSearchIndex();
     this._draw();
     this._setupFocus();
@@ -283,7 +291,8 @@ export class CompendiumOverlay {
           ...getImbueStoneItems(gd.imbues),
         ];
       case 'lords':
-        return gd.lords || [];
+        // Only lords met in some slot (Edric and Sera always); memoized per show().
+        return (this._lordsItems ||= metLords(gd.lords, metLordNamesAcrossSlots()));
       case 'blessings':
         return gd.blessings?.blessings || [];
       case 'terrain':

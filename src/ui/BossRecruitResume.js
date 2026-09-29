@@ -2,6 +2,7 @@ import { BossRecruitOverlay } from './BossRecruitOverlay.js';
 import { GrowthCeremonyController, growthCeremonies } from './GrowthCeremonyController.js';
 import { saveServiceRun } from './serviceSave.js';
 import { resolveBossRecruit } from '../engine/PendingBossRecruit.js';
+import { recordRunLordsMet } from '../engine/LordsMet.js';
 import { hasDOMHost } from '../utils/domUI.js';
 
 /**
@@ -14,6 +15,8 @@ export function resumeBossRecruit(scene, onDone) {
   const overlay = new BossRecruitOverlay(scene, scene.runManager, scene.gameData);
   overlay.show((unit) => {
     resolveBossRecruit(scene.runManager, unit);
+    // A lord picked here has joined: this save has met them.
+    if (unit) recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
     saveServiceRun(scene);
     const growth =
       unit && hasDOMHost() && GrowthCeremonyController.available() ? growthCeremonies(scene) : null;

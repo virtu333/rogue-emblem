@@ -1,7 +1,7 @@
 import { observeHistoryAction, rememberHistoryPath } from './BattleHistoryRecorder.js';
 // CaravanController -- Merchant Caravan battle-scene wiring, extracted per the
 // BattleScene decomposition rule (never inline multi-step flows). Owns spawn,
-// the 1-tile-per-turn greedy movement toward the nearest map edge, exit
+// the 1-tile-per-turn greedy movement toward its exit edge, exit
 // removal, and the escaped/destroyed toast. Pure movement/creation logic
 // lives in engine/CaravanSystem.js; this controller is the Phaser-facing shim.
 
@@ -57,7 +57,8 @@ export class CaravanController {
   }
 
   /**
-   * Step the caravan 1 tile toward the nearest column edge. Called at the very
+   * Step the caravan 1 tile along its exit direction (away from the enemy, chosen at
+   * spawn; the nearest column edge for an older caravan). Called at the very
    * start of startEnemyPhase, before AI acts, so enemies can react to the new
    * position (per spec). No-op if no live caravan or already exited.
    */
@@ -111,7 +112,7 @@ export class CaravanController {
       }
     }
 
-    if (isCaravanAtEdge(unit, scene.grid.cols)) {
+    if (isCaravanAtEdge(unit, scene.grid.cols, scene.grid.rows)) {
       this._handleExit(unit);
     }
   }

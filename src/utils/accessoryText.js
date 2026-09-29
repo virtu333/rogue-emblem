@@ -1,3 +1,5 @@
+import { resolveGamblerConfig } from '../engine/SkillSystem.js';
+
 const ACCESSORY_STAT_ORDER = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'LCK', 'DEF', 'RES', 'MOV'];
 
 export const HANDLED_ACCESSORY_COMBAT_EFFECT_KEYS = Object.freeze([
@@ -183,8 +185,14 @@ export function formatAccessoryCombatEffect(accessory) {
   if (bountyGold !== null) parts.push(`Gain +${bountyGold} gold per kill`);
 
   if (combatEffects?.moontide) parts.push('Odd turns: +2 Atk; even turns: +2 Def');
-  if (combatEffects?.gamblerCoin || combatEffects?.gambler)
-    parts.push('Gambler: each combat, 50% chance of +5 Attack; otherwise -3 Attack.');
+  const gambler = resolveGamblerConfig(combatEffects);
+  if (gambler) {
+    const chance = Math.round(gambler.winChance * 100);
+    const loss = Math.abs(gambler.lossAtkPenalty);
+    parts.push(
+      `Gambler: ${chance}%: +${gambler.winAtkBonus} Attack, else −${loss}. One flip per phase for all its combats.`,
+    );
+  }
 
   const recoilBuffDef = firstNumericValue(combatEffects?.buffDEF);
   const recoilBuffRes = firstNumericValue(combatEffects?.buffRES);

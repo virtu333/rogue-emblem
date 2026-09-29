@@ -46,7 +46,8 @@
         "enemy-healing.spec.js",
         "enemy-planning.spec.js",
         "threat-pins.spec.js",
-        "ceremonies.spec.js"
+        "ceremonies.spec.js",
+        "zombie-remains.spec.js"
       ]
     },
     {
@@ -76,7 +77,8 @@
         "portrait-rail.spec.js",
         "portrait-screens.spec.js",
         "portrait-journey.spec.js",
-        "portrait-rotation.spec.js"
+        "portrait-rotation.spec.js",
+        "portrait-remains.spec.js"
       ],
       "shards": 6
     },
