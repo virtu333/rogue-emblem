@@ -1,6 +1,6 @@
 // Closure suite for the final deferred weapon-art mechanics:
 // Tier 3 on-hit status (Pinning Shot/Gag Arrow/Silence Strike) and the bespoke
-// trio (All or Nothing, Annihilate, Divine Immolation). See
+// trio (All or Nothing, Annihilate, Divine Flare). See
 // docs/reports/weapon_arts_deferred_closure_spec_2026-06-11.md
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -140,7 +140,7 @@ describe('deferred closure: catalog state', () => {
     });
   });
 
-  it('Divine Immolation ignores RES and is effective vs dark classes', () => {
+  it('Divine Flare ignores RES and is effective vs dark classes', () => {
     const mods = getWeaponArtCombatMods(artById.get('legend_divine_flare'));
     expect(mods.ignoreRES).toBe(true);
     expect(mods.effectiveness?.multiplier).toBe(3);
@@ -565,7 +565,7 @@ describe('deferred closure: combat math', () => {
     expect(pierced.attacker.damage).toBe(plain.attacker.damage + 8);
   });
 
-  it('Divine Immolation art + Endword weapon effectiveness stack to the 5x cap vs dark classes', () => {
+  it('Divine Flare art + Endword weapon effectiveness stack to the 5x cap vs dark classes', () => {
     const luce = gameData.weapons.find((w) => w.name === 'Endword');
     const artMods = getWeaponArtCombatMods(artById.get('legend_divine_flare'));
     const vsKnight = forecastWith(luce, null, artMods, { className: 'General' });
