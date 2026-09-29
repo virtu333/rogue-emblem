@@ -1,5 +1,5 @@
 import { TradeMenu } from './TradeMenu.js';
-import { planTrade, bagItems, bagCapacity, unitHolder } from '../engine/ItemTrade.js';
+import { planReorder, planTrade, bagItems, bagCapacity, unitHolder } from '../engine/ItemTrade.js';
 import {
   BATTLE_TRADE_BAGS,
   BATTLE_TRADE_CTX,
@@ -7,11 +7,12 @@ import {
   battleTradeController,
 } from './BattleTradeController.js';
 
-const ENGINE = Object.freeze({ planTrade, bagItems, bagCapacity, unitHolder });
+const ENGINE = Object.freeze({ planTrade, planReorder, bagItems, bagCapacity, unitHolder });
 
-// Battle trading: the shared TradeMenu (Weapons and Supplies, give or swap)
-// over the battle context. Every write goes through BattleTradeController,
-// which owns the guards, movement commitment, history and checkpoint.
+// Battle trading: the shared TradeMenu (Weapons and Supplies, give or swap, and
+// reordering either unit's own bag, which can change what it has equipped) over
+// the battle context. Every write goes through BattleTradeController, which owns
+// the guards, movement commitment, history and checkpoint.
 export class BattleTradeMenu {
   constructor(scene, left, right, controller = battleTradeController(scene)) {
     Object.assign(this, { scene, left, right, controller });
@@ -23,6 +24,7 @@ export class BattleTradeMenu {
       bags: BATTLE_TRADE_BAGS,
       engine: ENGINE,
       commit: (from, to) => this.commit(from, to),
+      reorder: (from, to) => this.reorder(from, to),
       onClose: () => this.close(),
     });
   }
@@ -30,6 +32,11 @@ export class BattleTradeMenu {
   commit(from, to) {
     if (this.closed) return { ok: false, reason: TRADE_UNAVAILABLE };
     return this.controller.commit(this.left, this.right, from, to);
+  }
+
+  reorder(from, to) {
+    if (this.closed) return { ok: false, reason: TRADE_UNAVAILABLE };
+    return this.controller.reorder(this.left, this.right, from, to);
   }
 
   /** Done / cancel with nothing held: back to the acting unit's commands. */

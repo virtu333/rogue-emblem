@@ -539,8 +539,16 @@ test('the trade menu keeps the held item and the focus through a turn and back',
   const menu = page.getByRole('dialog', { name: 'Trade items', exact: true });
   await expect(menu).toBeVisible();
   const status = menu.getByRole('status');
+  // Nothing is held on open. Keyboard/controller: the first Down shows the cursor on the
+  // card's Iron Sword, Enter holds it, then the focus moves to Sera's Heal; turn the phone.
+  await expect(status).toHaveText('Choose an item to trade.');
+  await page.keyboard.press('ArrowDown');
+  await expect(
+    menu.getByRole('button', { name: 'Iron Sword, equipped', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Enter');
   await expect(status).toContainText('Holding Iron Sword.');
-  // Move the focus off its opening place (keyboard/controller), then turn the phone.
+  await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowDown');
   const target = menu.getByRole('button', { name: 'Trade Iron Sword for Heal', exact: true });
   await expect(target).toBeFocused();
