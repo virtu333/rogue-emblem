@@ -5,27 +5,29 @@
 // long shadows). Installed on CampWorld's prototype (engine/camp_world.js).
 
 import { project } from './world.js';
-import { bayer, clamp, hash, lerp, smooth, valueNoise } from './raster.js';
+import { bayer, clamp, hash, lerp, smooth } from './raster.js';
 import { drawSprite, layerMatrix } from './view.js';
 
 const AMB = [0.2, 0.225, 0.36];
 // figures' shadow side: a violet with no green in it (green dark tones snap to the olive ramp)
 const AMB_A = [0.26, 0.2, 0.34];
-const FIRE_C = [1.25, 0.8, 0.34];
+const FIRE_C = [1.2, 0.6, 0.22];
 const HAZE = [70, 64, 92];
-const INKC = [17, 15, 26];
 const ID_FENCE = 200;
 const ID_GRASS = 205;
 const ID_ACTOR = 210;
 const ID_FX = 230;
 
-/** The flame's palette (orange and red; the core is the only pale part, and it is not gold). */
+/**
+ * The flame's palette: flat washes, deep orange-red outside, orange inside, and one small pale
+ * core (the brightest value in the picture, and not gold).
+ */
 const FL = {
-  edge: [176, 56, 34],
-  outer: [222, 104, 40],
-  mid: [240, 150, 58],
-  inner: [246, 170, 78],
-  core: [255, 214, 132],
+  edge: [120, 34, 30], // the ink at the tips
+  outer: [196, 70, 36],
+  mid: [232, 118, 44],
+  inner: [246, 168, 76],
+  core: [255, 226, 150],
 };
 
 export const billboardMethods = {
@@ -55,7 +57,7 @@ export const billboardMethods = {
   },
 
   /** A tapered stroke with depth. */
-  strokeZ(frame, x0, y0, x1, y1, w0, w1, col, z0, z1, id = ID_GRASS, a = 1) {
+  strokeZ(frame, x0, y0, x1, y1, w0, w1, col, z0, z1, id = ID_GRASS, a = 1, write = true) {
     const len = Math.max(1, Math.hypot(x1 - x0, y1 - y0));
     const n = Math.ceil(len * 1.4);
     for (let s = 0; s <= n; s++) {
@@ -77,7 +79,7 @@ export const billboardMethods = {
             col[1],
             col[2],
             id,
-            true,
+            write,
             a,
           );
         }
@@ -162,8 +164,8 @@ export const billboardMethods = {
       }
       const emb = o.embers ?? 1;
       if (emb > 0) {
-        const period = 0.07 / emb;
-        for (let i = Math.floor((tt - 4) / period); i <= Math.floor(tt / period); i++) {
+        const period = 0.13 / emb;
+        for (let i = Math.floor((tt - 2.6) / period); i <= Math.floor(tt / period); i++) {
           const age = tt - i * period;
           if (age < 0) continue;
           const q = this.emberAt(i, age);
@@ -185,7 +187,7 @@ export const billboardMethods = {
           this.drawPost(frame, cam, it);
           break;
         case 1:
-          this.drawTuft(frame, cam, it.q, it.z);
+          this.drawTuft(frame, cam, it.q);
           break;
         case 2:
           this.drawTripod(frame, cam);
@@ -200,6 +202,7 @@ export const billboardMethods = {
           this.drawSentry(frame, cam, it.S);
           break;
         case 6:
+          this.heatShimmer(frame, cam);
           this.drawFlame(frame, cam, o);
           break;
         case 7:
@@ -230,9 +233,9 @@ export const billboardMethods = {
     const c = this.litColour(A, X, 1, Z);
     const hz = smooth(12, 60, base.depth) * 0.55;
     const col = [
-      c[0] + (HAZE[0] - c[0]) * hz + torch * 120,
-      c[1] + (HAZE[1] - c[1]) * hz + torch * 50,
-      c[2] + (HAZE[2] - c[2]) * hz + torch * 10,
+      c[0] + (HAZE[0] - c[0]) * hz + torch * 62,
+      c[1] + (HAZE[1] - c[1]) * hz + torch * 26,
+      c[2] + (HAZE[2] - c[2]) * hz + torch * 6,
     ];
     const x0 = Math.round(base.sx - w / 2);
     const x1 = Math.max(x0 + 1, Math.round(base.sx + w / 2));
@@ -261,7 +264,7 @@ export const billboardMethods = {
     return this.wind * (0.12 + 0.5 * g * h);
   },
 
-  drawTuft(frame, cam, q, depth) {
+  drawTuft(frame, cam, q) {
     const { W, H } = this;
     const g = this.gust(q.X, q.Z);
     const near = !!q.near;
@@ -603,82 +606,199 @@ export const billboardMethods = {
 
   // ---------------------------------------------------------------- the fire
 
-  /** The flame: tongues of orange, drawn on twos (a new drawing every other frame). */
+  /**
+   * The fire: a small real campfire. Tongues of flame drawn the anime way, on twos, from a loop of
+   * eight drawings played out of order: flat shapes, a darker outer tongue with a paler one inside
+   * and a small hot core, a thin ink line on the outer edge at the tips only, a lick or two
+   * torn off the top. The logs stand in it (drawLogs); the stones round it; a little heat above.
+   */
   drawFlame(frame, cam, o) {
     const { W, H } = this;
     const F = this.fire;
-    const base = project(cam, F.x, 0.1, F.z, W, H);
+    const base = project(cam, F.x, 0.06, F.z, W, H);
     const sc = base.scale;
+    // a card that faces the camera
+    let rx = cam.x - F.x;
+    let rz = cam.z - F.z;
+    const rl = Math.hypot(rx, rz) || 1;
+    rx /= rl;
+    rz /= rl;
+    const RX = -rz;
+    const RZ = rx;
     const d = Math.floor(this.t * 12);
-    const size = (o.flame ?? 1) * (0.85 + 0.3 * this.k);
-    const tongues = 7;
+    // eight drawings, never the same twice running (a step of five through the eight)
+    const cel = (d * 5 + Math.floor(d / 8) * 3) & 7;
+    const size = (o.flame ?? 1) * (0.9 + 0.2 * this.k);
+    const lean = this.wind * 0.05;
+    const px = (x, y) => project(cam, F.x + RX * x, 0.06 + y, F.z + RZ * x, W, H);
+    // tongues: [x centre, base width, height, lean, phase] from the cel
+    const tongues = [];
+    const NT = 5;
+    for (let k = 0; k < NT; k++) {
+      const mid = 1 - Math.abs(k - 2) * 0.28;
+      const hs = hash(k, cel, 44);
+      tongues.push({
+        x: (k - 2) * 0.08 * size + (hash(k, cel, 43) - 0.5) * 0.03,
+        w: (0.2 + 0.06 * hash(k, cel, 41)) * mid * size,
+        h: (0.3 + 0.24 * hs) * (0.6 + 0.6 * mid) * size * (k === 2 ? 1.12 : 1),
+        lean: (hash(k, cel, 47) - 0.5) * 0.16 * size + lean + (k - 2) * 0.03,
+        ph: hash(k, cel, 42) * 6,
+      });
+    }
+    // a lick torn off above the tallest, on some drawings
+    const lick =
+      hash(cel, 5, 46) > 0.4
+        ? { x: tongues[2].x + (hash(cel, 6, 46) - 0.5) * 0.06, y: tongues[2].h + 0.05 }
+        : null;
+    const z0 = base.depth;
     const layers = [
-      { s: 1, c: FL.edge },
-      { s: 0.86, c: FL.outer },
-      { s: 0.64, c: FL.mid },
-      { s: 0.4, c: FL.inner },
-      { s: 0.2, c: FL.core },
+      { s: 1.0, hs: 1.0, c: FL.outer },
+      { s: 0.66, hs: 0.8, c: FL.mid },
+      { s: 0.38, hs: 0.58, c: FL.inner },
     ];
-    const lean = this.wind * 0.06;
-    for (const L of layers) {
-      for (let k = 0; k < tongues; k++) {
-        const hs = valueNoise(d * 0.42 + k * 3.1, k * 1.7, 44);
-        const hh = (0.34 + 0.5 * hs) * (k === 3 ? 1.15 : 1 - Math.abs(k - 3) * 0.15) * size;
-        const wd = (0.2 + 0.07 * hash(k, 3, 41)) * (1 - Math.abs(k - 3) * 0.06);
-        const x0 = (k - 3) * 0.075 + (hash(k, d + 1, 43) - 0.5) * 0.05;
-        const tipLean = (valueNoise(d * 0.4 + k * 5, 7.7, 47) - 0.5) * 0.42 + lean + (k - 3) * 0.04;
-        const hL = hh * (0.55 + 0.45 * L.s);
-        const wL = wd * L.s;
-        const ph = hash(k, 2, 41) * 6;
-        const rows = Math.ceil(hL * sc);
+    for (let li = 0; li < layers.length; li++) {
+      const L = layers[li];
+      for (const T of tongues) {
+        const hL = T.h * L.hs;
+        const wL = T.w * L.s;
+        const rows = Math.max(2, Math.ceil(hL * sc * 1.6));
         for (let r = 0; r <= rows; r++) {
-          const u = r / Math.max(1, rows);
-          const y = 0.06 + u * hL;
+          const u = r / rows;
+          const y = u * hL;
           const half =
-            wL * Math.max(0, 1 - u ** 1.7) ** 0.75 * (1 + 0.14 * Math.sin(u * 8 + ph + d * 0.9));
-          const cxm = x0 + tipLean * u ** 1.5 + 0.03 * Math.sin(u * 6 + d * 0.7 + k);
-          const pl = project(cam, F.x + cxm - half, 0.1 + y, F.z, W, H);
-          const pr = project(cam, F.x + cxm + half, 0.1 + y, F.z, W, H);
+            (wL / 2) * Math.max(0, 1 - u ** 1.5) ** 0.7 * (1 + 0.12 * Math.sin(u * 7 + T.ph));
+          if (half <= 0.001) continue;
+          const cx = T.x + T.lean * u ** 1.5 * T.h + 0.012 * Math.sin(u * 6 + T.ph);
+          const pl = px(cx - half, y);
+          const pr = px(cx + half, y);
           const xa = Math.round(pl.sx);
           const xb = Math.round(pr.sx);
+          const yy = Math.round(pl.sy);
           for (let x = xa; x <= xb; x++) {
-            // the tip breaks into a dither
-            if (u > 0.82 && (u - 0.82) * 5.5 > bayer(x, Math.round(pl.sy)) + 0.1) continue;
-            this.bpx(
-              frame,
-              x,
-              Math.round(pl.sy),
-              base.depth - 0.03,
-              L.c[0],
-              L.c[1],
-              L.c[2],
-              ID_FX,
-              true,
-            );
+            // the ink line on the outer tongue, at the tips only: its edge pixels, its top rows
+            const tip = li === 0 && u > 0.55 && (x === xa || x === xb || u > 0.94);
+            const c = tip ? FL.edge : L.c;
+            this.bpx(frame, x, yy, z0 + 0.02, c[0], c[1], c[2], ID_FX, true);
           }
         }
       }
     }
-    // the soft heat around the flames: dithered warm light in the air
-    const gx = base.sx;
-    const gy = base.sy - 0.5 * sc;
-    const R = Math.min(48, 0.95 * sc);
-    for (let dy = -R; dy <= R * 0.6; dy++)
-      for (let dx = -R; dx <= R; dx++) {
-        const dd = Math.hypot(dx, dy * 1.3) / R;
-        if (dd > 1) continue;
-        const a = (1 - dd) ** 2.6 * 0.26 * this.k;
-        const x = Math.round(gx) + dx;
-        const y = Math.round(gy) + dy;
-        if (a < bayer(x, y)) continue;
-        if (x < 0 || y < 0 || x >= W || y >= H) continue;
-        const i = y * W + x;
-        if (this.ids[i] === ID_FX) continue;
-        const oo = i * 4;
-        frame[oo] += (232 - frame[oo]) * 0.32;
-        frame[oo + 1] += (128 - frame[oo + 1]) * 0.28;
-        frame[oo + 2] += (56 - frame[oo + 2]) * 0.2;
+    // the hot core: small, low, in the middle
+    {
+      const T = tongues[2];
+      const hL = T.h * 0.32;
+      const rows = Math.max(2, Math.ceil(hL * sc * 1.6));
+      for (let r = 0; r <= rows; r++) {
+        const u = r / rows;
+        const half = T.w * 0.2 * Math.max(0, 1 - u ** 1.4) ** 0.7;
+        const cx = T.x + T.lean * 0.3 * u;
+        const pl = px(cx - half, u * hL + 0.01);
+        const pr = px(cx + half, u * hL + 0.01);
+        for (let x = Math.round(pl.sx); x <= Math.round(pr.sx); x++)
+          this.bpx(
+            frame,
+            x,
+            Math.round(pl.sy),
+            z0 + 0.01,
+            FL.core[0],
+            FL.core[1],
+            FL.core[2],
+            ID_FX,
+            true,
+          );
       }
+    }
+    if (lick) {
+      const p = px(lick.x, lick.y);
+      const r = Math.max(1, Math.round(0.03 * sc));
+      for (let dy = 0; dy < r * 2; dy++)
+        for (let dx = -Math.max(0, r - (dy >> 1)); dx <= Math.max(0, r - (dy >> 1)); dx++)
+          this.bpx(
+            frame,
+            p.sx + dx,
+            p.sy - dy,
+            z0 + 0.02,
+            FL.mid[0],
+            FL.mid[1],
+            FL.mid[2],
+            ID_FX,
+            true,
+          );
+    }
+    // the warmth in the air: two small dithered bands round the flames, not a haze over the camp
+    const gx = base.sx;
+    const gy = base.sy - 0.22 * sc;
+    for (const [rad, aa] of [
+      [0.46, 0.2],
+      [0.78, 0.09],
+    ]) {
+      const R = Math.min(60, rad * sc);
+      for (let dy = -R; dy <= R * 0.5; dy++)
+        for (let dx = -R; dx <= R; dx++) {
+          const dd = Math.hypot(dx, dy * 1.2) / R;
+          if (dd > 1) continue;
+          const a = aa * this.k * (1 - dd * 0.4);
+          const x = Math.round(gx) + dx;
+          const y = Math.round(gy) + dy;
+          if (a < bayer(x, y)) continue;
+          if (x < 0 || y < 0 || x >= W || y >= H) continue;
+          const i = y * W + x;
+          if (this.ids[i] === ID_FX) continue;
+          const oo = i * 4;
+          frame[oo] += (214 - frame[oo]) * 0.3;
+          frame[oo + 1] += (100 - frame[oo + 1]) * 0.26;
+          frame[oo + 2] += (48 - frame[oo + 2]) * 0.18;
+        }
+    }
+  },
+
+  /**
+   * Heat shimmer: the air over the flames wobbles what is behind it, a pixel or two, sideways,
+   * row by row, on twos (a drawn effect, not a blur). Only the background: figures and the fire's
+   * own drawing are left alone. Called before the flames are drawn, over everything farther.
+   */
+  heatShimmer(frame, cam) {
+    const { W, H } = this;
+    const F = this.fire;
+    const base = project(cam, F.x, 0.3, F.z, W, H);
+    const sc = base.scale;
+    const halfW = Math.round(0.32 * sc);
+    const hgt = Math.round(1.0 * sc);
+    if (halfW < 3 || hgt < 6) return;
+    const phase = Math.floor(this.t * 12);
+    const y1 = Math.round(base.sy) - Math.round(0.28 * sc);
+    const y0 = y1 - hgt;
+    const cx = Math.round(base.sx);
+    const row = new Float32Array((halfW * 2 + 1) * 3);
+    for (let y = Math.max(0, y0); y < Math.min(H, y1); y++) {
+      const v = (y1 - y) / hgt; // 0 at the flames, 1 at the top of the column
+      const amp = 1.0 * Math.sin(Math.PI * Math.min(1, v * 1.15)) ** 0.8;
+      const sw = Math.sin(y * 0.85 + phase * 2.3) * amp;
+      const sh = sw > 0.6 ? 1 : sw < -0.6 ? -1 : 0;
+      if (!sh) continue;
+      const xs = Math.max(0, cx - halfW);
+      const xe = Math.min(W - 1, cx + halfW);
+      for (let x = xs; x <= xe; x++) {
+        const k = (x - xs) * 3;
+        const o = (y * W + x) * 4;
+        row[k] = frame[o];
+        row[k + 1] = frame[o + 1];
+        row[k + 2] = frame[o + 2];
+      }
+      for (let x = xs; x <= xe; x++) {
+        // the column is soft at its sides: fewer pixels move toward the edge
+        const edge = Math.abs(x - cx) / halfW;
+        if (edge > 0.7 && hash(x, y, 63) < (edge - 0.7) * 3) continue;
+        const sx = Math.max(xs, Math.min(xe, x - sh));
+        const id = this.ids[y * W + sx];
+        if (id >= ID_ACTOR || this.ids[y * W + x] >= ID_ACTOR) continue;
+        const o = (y * W + x) * 4;
+        const k = (sx - xs) * 3;
+        frame[o] = row[k];
+        frame[o + 1] = row[k + 1];
+        frame[o + 2] = row[k + 2];
+      }
+    }
   },
 
   /** Smoke puff i at age (s): a pale, lumpy column rising and leaning with the wind. */
@@ -738,17 +858,24 @@ export const billboardMethods = {
       }
   },
 
-  /** Ember i at age (s), or null (most fade out early, some make it high). */
+  /**
+   * A spark i at age (s), or null: it leaves the flames quickly and slows as it climbs, sways
+   * on the draught and goes out (most within two seconds and a metre and a half; a rare one goes
+   * higher).
+   */
   emberAt(i, age) {
-    const life = 1.4 + 2.4 * hash(i, 1, 53);
+    const life = 0.8 + 1.7 * hash(i, 1, 53);
     if (age > life) return null;
     const F = this.fire;
-    const rise = 0.55 + 0.9 * hash(i, 2, 53);
-    const sw = Math.sin(age * (2 + 2 * hash(i, 3, 53)) + hash(i, 4, 53) * 6) * (0.05 + 0.13 * age);
+    const fast = hash(i, 8, 53) > 0.92 ? 1.7 : 1;
+    const vy = (0.55 + 0.9 * hash(i, 2, 53)) * fast;
+    const rise = (vy * (1 - Math.exp(-age * 1.3))) / 1.3;
+    const sw =
+      Math.sin(age * (2.4 + 2 * hash(i, 3, 53)) + hash(i, 4, 53) * 6) * (0.03 + 0.09 * age);
     return {
-      X: F.x + (hash(i, 5, 53) - 0.5) * 0.4 + sw + this.wind * 0.22 * age * age * 0.35,
-      Y: 0.55 + age * rise,
-      Z: F.z + (hash(i, 6, 53) - 0.5) * 0.3 + Math.cos(age * 2.3 + hash(i, 7, 53) * 6) * 0.07 * age,
+      X: F.x + (hash(i, 5, 53) - 0.5) * 0.26 + sw + this.wind * 0.16 * age * age * 0.35,
+      Y: 0.34 + rise,
+      Z: F.z + (hash(i, 6, 53) - 0.5) * 0.2 + Math.cos(age * 2.3 + hash(i, 7, 53) * 6) * 0.05 * age,
       u: age / life,
       i,
     };
@@ -756,18 +883,15 @@ export const billboardMethods = {
 
   drawEmber(frame, q, p) {
     if (p.sx < 0 || p.sy < 0 || p.sx >= this.W || p.sy >= this.H) return;
-    // dying embers flicker off on twos
-    if (q.u > 0.55 && hash(q.i, Math.floor(this.t * 12), 55) < (q.u - 0.55) * 1.6) return;
-    const c = q.u < 0.25 ? [255, 214, 140] : q.u < 0.6 ? [238, 132, 52] : [172, 60, 34];
-    const big = p.scale > 90 && q.u < 0.5 ? 1 : 0;
-    for (let dy = 0; dy <= big; dy++)
-      for (let dx = 0; dx <= big; dx++)
-        this.bpx(frame, p.sx + dx, p.sy + dy, p.depth, c[0], c[1], c[2], ID_FX, false);
-    if (q.u < 0.3 && p.scale > 40) {
-      // a soft spark of light around the fresh ones
-      this.bpx(frame, p.sx + 1, p.sy, p.depth, c[0], c[1] * 0.8, c[2] * 0.6, ID_FX, false, 0.4);
-      this.bpx(frame, p.sx - 1, p.sy, p.depth, c[0], c[1] * 0.8, c[2] * 0.6, ID_FX, false, 0.4);
-    }
+    // dying sparks flicker off on twos
+    if (q.u > 0.6 && hash(q.i, Math.floor(this.t * 12), 55) < (q.u - 0.6) * 1.9) return;
+    const c = q.u < 0.22 ? [255, 222, 146] : q.u < 0.6 ? [238, 128, 50] : [168, 56, 34];
+    this.bpx(frame, p.sx, p.sy, p.depth, c[0], c[1], c[2], ID_FX, false);
+    // a young spark leaves a short streak behind it (below: it is rising)
+    if (q.u < 0.4 && p.scale > 50)
+      this.bpx(frame, p.sx, p.sy + 1, p.depth, c[0], c[1] * 0.8, c[2] * 0.6, ID_FX, false, 0.6);
+    if (p.scale > 110 && q.u < 0.35)
+      this.bpx(frame, p.sx + 1, p.sy, p.depth, c[0], c[1] * 0.8, c[2] * 0.6, ID_FX, false, 0.5);
   },
 
   // ---------------------------------------------------------------- figures
@@ -890,6 +1014,23 @@ export const billboardMethods = {
         let r = sc[o] * (AMB_A[0] + FIRE_C[0] * L);
         let g = sc[o + 1] * (AMB_A[1] + FIRE_C[1] * L);
         let b = sc[o + 2] * (AMB_A[2] + FIRE_C[2] * L);
+        if (a.hueHold) {
+          // brown that firelight would push to red (Edric's chestnut hair, his leather) keeps its
+          // own hue: only its brightness follows the light
+          const r0 = sc[o];
+          const g0 = sc[o + 1];
+          const b0 = sc[o + 2];
+          const m0 = Math.max(r0, g0, b0);
+          const sat = (m0 - Math.min(r0, g0, b0)) / (m0 + 1e-6);
+          if (r0 >= g0 && g0 >= b0 && sat > 0.25 && sat < 0.8 && m0 < 165) {
+            const k =
+              (0.299 * r + 0.587 * g + 0.114 * b) / (0.299 * r0 + 0.587 * g0 + 0.114 * b0 + 1e-6);
+            const w = a.hueHold * smooth(0.25, 0.4, sat) * smooth(165, 130, m0);
+            r += (r0 * k - r) * w;
+            g += (g0 * k - g) * w;
+            b += (b0 * k - b) * w;
+          }
+        }
         // the drawing's own fringe (a pale line where the cut-out met its green) becomes the
         // ink of the contour: the edge pixels are darkened, deeper for a bigger figure
         let edge = false;
@@ -908,9 +1049,19 @@ export const billboardMethods = {
             }
           }
         if (edge) {
-          r *= 0.4;
-          g *= 0.38;
-          b *= 0.48;
+          // a thin strand (a blade, a hair) is nearly all edge: it keeps its own colour rather
+          // than turning into a saw of ink
+          let cnt = 0;
+          for (let q = -1; q <= 1; q++)
+            for (let w = -1; w <= 1; w++) {
+              const xx = x + w;
+              const yy = y + q;
+              if (xx >= 0 && yy >= 0 && xx < W && yy < H && drawn((yy * W + xx) * 4)) cnt++;
+            }
+          const k = clamp((cnt - 3) / 3);
+          r *= 1 - 0.6 * k;
+          g *= 1 - 0.62 * k;
+          b *= 1 - 0.52 * k;
         }
         // the rim: the edge that faces the flames takes an orange line
         const nx = Math.round(x + tfx * 2);
