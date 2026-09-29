@@ -826,16 +826,16 @@ export class FordPiece extends Piece {
     // the swish: the spear's arc from up to level, drawn as ink ghosts around his hands
     if (lt >= SNAP && lt < SET + 1 / 24 && hasClip) {
       const piv = this.cardPoint(wd, cam, 420, 128);
-      const tip = this.cardPoint(wd, cam, 302, 152.5);
+      const tip = this.cardPoint(wd, cam, 150, 180.7);
       const R = Math.hypot(tip.x - piv.x, tip.y - piv.y);
       const a1 = Math.atan2(tip.y - piv.y, tip.x - piv.x);
       const a0 = a1 + Math.PI / 2; // from straight up (the level point is to his left)
       // three strokes, thick toward the level end (where the spear is fastest)
       const k = lt < SET ? 1 : 0.5;
       for (const [r, w] of [
-        [0.7, 1.2],
-        [0.88, 2],
-        [1.0, 3],
+        [0.42, 1.2],
+        [0.54, 2],
+        [0.64, 3],
       ]) {
         const n = 14;
         for (let q = 0; q < n; q++) {
@@ -851,8 +851,8 @@ export class FordPiece extends Piece {
       }
     }
     if (lt >= SET && hasClip) {
-      const sock = this.cardPoint(wd, cam, 355, 142.6);
-      const tip = this.cardPoint(wd, cam, 302, 152.5);
+      const sock = this.cardPoint(wd, cam, 203, 170.8);
+      const tip = this.cardPoint(wd, cam, 150, 180.7);
       // a glint runs out along the blade once he is still, then the point holds a star
       const g = (lc - 0.42) / 0.22;
       if (g > 0 && g < 1.3) glint(f, W, H, sock.x, sock.y, tip.x, tip.y, g, 5, 0.18);
@@ -997,7 +997,7 @@ export class FordPiece extends Piece {
       i =
         aa < 5.833
           ? Math.floor(clamp((aa - 5.2) / 0.633) * 7)
-          : clamp(Math.floor(10 + (aa - TIME.thrust) * 12), 8, 18);
+          : clamp(Math.floor(10 + (aa - TIME.thrust) * 12), 9, 18); // 8 (a stub in the hand) skipped: 7 snaps to 9
     } else if (aa < 6.62 && !o.noRecover) {
       // the recovery: the painted in-between (the spear drawn back across the body)
       return this.actor('wRecover', st.w + 0.12, 0, -1, { flip: o.flip, rings: 0.6 });

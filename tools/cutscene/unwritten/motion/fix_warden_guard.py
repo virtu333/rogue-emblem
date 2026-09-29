@@ -34,7 +34,9 @@ LVL_Y, LVL_HALF, LVL_X0, LVL_X1 = 91.5, 4.6, 294, 526
 # the stub he grips runs through these two points; the rebuilt spear follows its line
 STUB_A = (369.0, 140.0)  # its forward (left) end, just ahead of the lead gauntlet
 STUB_B = (455.0, 124.0)  # just behind the rear gauntlet
-TIP_X, BUTT_X = 302.0, 521.0
+# a spear of his full length (about 2.4 m, as he carries it upright and in the thrust):
+# the point well ahead of his lead foot, the butt behind his hip
+TIP_X, BUTT_X = 150.0, 548.0
 # the painted head of the floating spear (point at the left, socket at the right)
 HEAD_BOX = (297, 82, 354, 101)  # x0, y0, x1, y1
 HEAD_SOCKET = (353.0, 91.0)
