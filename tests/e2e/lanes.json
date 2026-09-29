@@ -72,6 +72,7 @@
         "portrait-trade.spec.js",
         "portrait-services.spec.js",
         "portrait-ceremonies.spec.js",
+        "ceremony-ghost-click.spec.js",
         "portrait-rail.spec.js",
         "portrait-screens.spec.js",
         "portrait-journey.spec.js",

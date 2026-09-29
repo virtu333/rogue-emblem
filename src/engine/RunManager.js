@@ -84,6 +84,7 @@ import {
   getWeaponArtAllowedTypes,
 } from './WeaponArtSystem.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { restorePendingBossRecruit } from './PendingBossRecruit.js';
 import { UNIT_PRESENTATION_FIELDS } from './BattleUnitState.js';
 import {
   RECRUIT_PREVIEW_VERSION,
@@ -476,6 +477,7 @@ export class RunManager {
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
     this.pendingBattleReward = null;
+    this.pendingBossRecruit = null;
     this.reachedFirstActBoss = false;
     this.activeCaravanShop = null;
     this.lastBattleCasualtyNotices = [];
@@ -616,6 +618,7 @@ export class RunManager {
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
     this.pendingBattleReward = null;
+    this.pendingBossRecruit = null;
     this.reachedFirstActBoss = false;
     this.activeCaravanShop = null;
     this.lastBattleCasualtyNotices = [];
@@ -4343,6 +4346,7 @@ export class RunManager {
       pendingAmbushNodeId: this.pendingAmbushNodeId || null,
       pendingCaravanShop: this.pendingCaravanShop || null,
       pendingBattleReward: this.pendingBattleReward || null,
+      pendingBossRecruit: this.pendingBossRecruit || null,
       reachedFirstActBoss: this.reachedFirstActBoss === true,
       activeCaravanShop: this.activeCaravanShop || null,
       endRunRewards: this.endRunRewards || null,
@@ -4922,6 +4926,10 @@ export class RunManager {
             skipGold: Math.max(0, Math.trunc(Number(saved.pendingBattleReward.skipGold) || 0)),
           }
         : null;
+    rm.pendingBossRecruit = restorePendingBossRecruit(saved.pendingBossRecruit, {
+      actId: rm.currentAct,
+      hasPendingReward: Boolean(rm.pendingBattleReward),
+    });
     rm.pendingCaravanShop =
       saved.pendingCaravanShop && typeof saved.pendingCaravanShop === 'object'
         ? { actId: saved.pendingCaravanShop.actId || rm.currentAct }

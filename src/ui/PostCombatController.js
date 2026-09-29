@@ -33,6 +33,7 @@ import { resetTransitionLocks } from '../utils/sceneLoader.js';
 import { showImportantHint } from './HintDisplay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { BossRecruitOverlay } from './BossRecruitOverlay.js';
+import { prepareBossRecruit, resolveBossRecruit } from '../engine/PendingBossRecruit.js';
 import { pushRunSave } from '../cloud/CloudSync.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
@@ -209,6 +210,9 @@ export class PostCombatController {
       // Preserve both the win and its unclaimed choices before presentation.
       if (completionApplied && !scene.runManager.isRunComplete() && hasDOMHost()) {
         prepareBattleRewards(scene.runManager, scene.gameData, this.rewardContext());
+        // The boss recruit draft is rolled and saved with the reward, so a
+        // reload before the choice offers the same candidates.
+        if (scene.isBoss) prepareBossRecruit(scene.runManager, scene.gameData);
       }
       scene._persistBattleRunState?.();
       afterVictoryBand(async () => {
@@ -368,6 +372,10 @@ export class PostCombatController {
         } else {
           const fromAct = scene.runManager.currentAct;
           scene.runManager.advanceAct();
+          // Save the new act now: the act card and story below can take a
+          // while, and a reload during them must resume on the next act's
+          // map, not on the finished one.
+          scene._persistBattleRunState?.();
           const toAct = scene.runManager.currentAct;
           const transKey = getActTransitionKey(fromAct, toAct);
           const narrative = buildNarrativeContext({
@@ -551,11 +559,12 @@ export class PostCombatController {
     scene._bossRecruitOverlay = overlay;
     scene.lootGroup = overlay.displayObjects;
     overlay.show((selectedUnit) => {
-      if (selectedUnit) {
-        scene.runManager.grantRecruitBlessingConsumables?.(selectedUnit);
-        scene.runManager.assignUnitUid?.(selectedUnit);
-        scene.runManager.roster.push(selectedUnit);
-      }
+      resolveBossRecruit(scene.runManager, selectedUnit);
+      // The choice is durable before anything else happens: a pick is on the
+      // roster and a skip is final, so a reload can neither re-offer nor lose
+      // it. (The join card saves first itself.)
+      const joins = selectedUnit && this._canPresentJoin();
+      if (!joins) scene._persistBattleRunState?.();
       scene.lootGroup = null;
       scene._bossRecruitOverlay = null;
       const next = () => {
@@ -565,7 +574,7 @@ export class PostCombatController {
           scene.showLootScreen();
         }
       };
-      if (selectedUnit && this._canPresentJoin()) this._presentJoin(selectedUnit, 'boss', next);
+      if (joins) this._presentJoin(selectedUnit, 'boss', next);
       else next();
     });
   }

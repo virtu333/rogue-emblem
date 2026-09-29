@@ -1,4 +1,5 @@
 import { PendingRewardController } from '../ui/PendingRewardController.js';
+import { resumeBossRecruit } from '../ui/BossRecruitResume.js';
 import { CampaignMapOverlay } from '../ui/CampaignMapOverlay.js';
 import { NodeMapMenu } from '../ui/NodeMapMenu.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -191,6 +192,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   create() {
     this._pendingRewards = null;
+    this._bossRecruitResume = null;
     const lifecycleGeneration = beginSceneLifecycle(this);
     this._promotionChoicePanelOpen = 0;
 
@@ -346,6 +348,8 @@ export class NodeMapScene extends Phaser.Scene {
     this._unregisterSaveFlusher = null;
     this._pendingRewards?.destroy();
     this._pendingRewards = null;
+    this._bossRecruitResume?._cleanup?.();
+    this._bossRecruitResume = null;
 
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
@@ -1663,9 +1667,18 @@ export class NodeMapScene extends Phaser.Scene {
       !this.isSceneReady ||
       this.isStoryInputLocked?.() ||
       !this.runManager.pendingBattleReward ||
-      this._pendingRewards
+      this._pendingRewards ||
+      this._bossRecruitResume
     )
       return;
+    // A boss recruit left undecided by a reload comes first, then the rewards.
+    if (this.runManager.pendingBossRecruit) {
+      this._bossRecruitResume = resumeBossRecruit(this, () => {
+        this._bossRecruitResume = null;
+        this.openPendingRewards();
+      });
+      return;
+    }
     this._pendingRewards = new PendingRewardController(this, {
       onLeave: () => {
         this._pendingRewards = null;

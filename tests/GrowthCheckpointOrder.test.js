@@ -242,6 +242,52 @@ describe('boss recruit', () => {
   });
 });
 
+describe('boss recruit choice is durable', () => {
+  const runWithOffer = () => ({
+    roster: [],
+    pendingBossRecruit: { version: 1, candidates: [{ unit: { name: 'Astrid' } }] },
+    grantRecruitBlessingConsumables: vi.fn(),
+    shouldTriggerThirdLord: () => false,
+  });
+  const sceneFor = (run, order) => ({
+    gameData,
+    runManager: run,
+    events: eventsFor(),
+    registry: { get: () => null },
+    scene: { isActive: () => true },
+    sys: { isActive: () => true },
+    _persistBattleRunState: vi.fn(() =>
+      order.push({ saved: run.roster.map((u) => u.name), offer: run.pendingBossRecruit }),
+    ),
+    showLootScreen: vi.fn(() => order.push('loot')),
+  });
+
+  it('a skip clears the offer and is saved before the loot screen', async () => {
+    globalThis.__growthRecruit = null;
+    const order = [];
+    const run = runWithOffer();
+    new PostCombatController(sceneFor(run, order)).showBossRecruitScreen();
+    await vi.advanceTimersByTimeAsync(0);
+    delete globalThis.__growthRecruit;
+    expect(order).toEqual([{ saved: [], offer: null }, 'loot']);
+  });
+
+  it('a pick clears the offer in the save that holds the new recruit', async () => {
+    const recruit = createRecruitUnit({ name: 'Astrid', level: 1 }, cls('Sky Lancer'), gameData.weapons); // prettier-ignore
+    globalThis.__growthRecruit = recruit;
+    const order = [];
+    const run = runWithOffer();
+    const recruitSpy = vi
+      .spyOn(GrowthCeremonyController.prototype, 'showRecruit')
+      .mockResolvedValue(true);
+    new PostCombatController(sceneFor(run, order)).showBossRecruitScreen();
+    await vi.advanceTimersByTimeAsync(0);
+    recruitSpy.mockRestore();
+    delete globalThis.__growthRecruit;
+    expect(order).toEqual([{ saved: ['Astrid'], offer: null }, 'loot']);
+  });
+});
+
 describe('colosseum', () => {
   it('arena levels play the level-up card once, after the fight is settled and saved', async () => {
     const order = [];
