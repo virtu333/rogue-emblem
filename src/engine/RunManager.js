@@ -30,6 +30,7 @@ import {
   REVIVE_COST_PER_LEVEL,
   REVIVE_PROMOTION_MULTIPLIER,
   RUINS_PATHS,
+  CHURCH_VOWS,
   INVENTORY_MAX,
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
@@ -184,6 +185,14 @@ function sanitizeRuinsChoices(raw) {
   if (!isPlainObject(raw)) return out;
   for (const [nodeId, path] of Object.entries(raw))
     if (nodeId && RUINS_PATHS.includes(path)) out[nodeId] = path;
+  return out;
+}
+
+function sanitizeChurchVows(raw) {
+  const out = {};
+  if (!isPlainObject(raw)) return out;
+  for (const [nodeId, vow] of Object.entries(raw))
+    if (nodeId && CHURCH_VOWS.includes(vow)) out[nodeId] = vow;
   return out;
 }
 
@@ -455,6 +464,8 @@ export class RunManager {
     this.shopStateByNodeId = {};
     // The Ruins' one path per node ('rest' | 'scavenge'); see RuinsCommands.js.
     this.ruinsChoiceByNodeId = {};
+    // Each church's one vow ('promote' | 'blessing'); see ChurchVow.js.
+    this.churchVowByNodeId = {};
     this.difficultyId = 'normal';
     this.difficultyModifiers = {
       ...DIFFICULTY_DEFAULTS,
@@ -613,6 +624,7 @@ export class RunManager {
     this.ensureRecruitPreviews();
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
+    this.churchVowByNodeId = {};
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
     this.unlockedWeaponArts = [];
@@ -783,6 +795,20 @@ export class RunManager {
       }
     }
     this._runStartBlessingsApplied = true;
+  }
+
+  /**
+   * Take a blessing mid-run (a church's vow): it joins the active list and its boons
+   * apply now, as they would have at the run's start. Tier-1 blessings only carry
+   * boons. Returns false for an unknown or already active blessing.
+   */
+  addBlessingMidRun(blessingId) {
+    const blessing = buildBlessingIndex(this.gameData?.blessings || {}).get(blessingId);
+    if (!blessing || this.getActiveBlessingIds().includes(blessingId)) return false;
+    this.activeBlessings = [...(this.activeBlessings || []), { id: blessingId }];
+    for (const effect of blessing.boons || [])
+      this._applySingleRunStartBlessingEffect(blessingId, effect);
+    return true;
   }
 
   getActiveBlessingIds() {
@@ -3921,6 +3947,7 @@ export class RunManager {
     );
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
+    this.churchVowByNodeId = {};
     this.ensureRecruitPreviews();
     // Every act opens on a fresh land: act pressure restarts at 0 (the global meter,
     // after any boss relief, carries on).
@@ -4307,6 +4334,7 @@ export class RunManager {
       battleConfigsByNodeId: this.battleConfigsByNodeId || {},
       shopStateByNodeId: this.shopStateByNodeId || {},
       ruinsChoiceByNodeId: this.ruinsChoiceByNodeId || {},
+      churchVowByNodeId: this.churchVowByNodeId || {},
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || {
         ...DIFFICULTY_DEFAULTS,
@@ -4829,6 +4857,7 @@ export class RunManager {
     rm.shopStateByNodeId = saved.shopStateByNodeId || {};
     // Saves from before the Ruins' choice carry none: no path chosen yet.
     rm.ruinsChoiceByNodeId = sanitizeRuinsChoices(saved.ruinsChoiceByNodeId);
+    rm.churchVowByNodeId = sanitizeChurchVows(saved.churchVowByNodeId);
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
     if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {
       rm.difficultyModifiers = {

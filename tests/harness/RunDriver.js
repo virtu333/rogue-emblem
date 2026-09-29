@@ -336,6 +336,9 @@ export class RunDriver {
           // Unit sheets: a fallen ally's (church revive list), the arena fighter's, and a
           // mercenary's contract Details.
           / details$/.test(label) ||
+          // A church's blessing is its one vow: taking it would close the promotion
+          // this fixture's single church must cover (ChurchVow.test.js covers it).
+          String(button.className || '').includes('church-blessing') ||
           button.attributes['aria-pressed'] === 'true'
         )
           return [];

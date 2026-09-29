@@ -182,3 +182,40 @@ test('Colosseum: View map, Roster and unit details, as at the shop and church', 
   expect(await page.evaluate(() => window.arena.runManager.gold)).toBe(10000);
   expect(errors).toEqual([]);
 });
+
+test('Church vow: taking a blessing is this church’s vow, and closes its promotions', async ({
+  page,
+}) => {
+  test.setTimeout(60000);
+  const errors = collectErrors(page);
+  await page.goto('/?devScene=nodemap&mobilePreview=1');
+  await waitForScene(page, 'NodeMap');
+  await page.getByRole('button', { name: 'Skip conversation', exact: true }).tap();
+  const gold = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    s.registry.set('activeSlot', 1);
+    s.runManager.gold = 10000;
+    s.runManager.activeBlessings = [];
+    s.runManager.roster[0].level = 10;
+    s.handleChurch(s.runManager.getAvailableNodes()[0]);
+    return s.runManager.gold;
+  });
+  const church = page.getByRole('dialog', { name: 'Church', exact: true });
+  await expect(church).toContainText('one vow per church');
+  const blessing = church.locator('.church-blessing').first();
+  const label = await blessing.textContent();
+  const name = label.split(' · ')[0];
+  await blessing.tap();
+  const confirm = page.getByRole('dialog', { name: `Take ${name}?`, exact: true });
+  await confirm.getByRole('button', { name: 'Take the blessing', exact: true }).tap();
+  await expect(church).toContainText('Your vow here was a Blessing');
+  await expect(church.locator('.church-blessing')).toHaveCount(0);
+  await expect(church.getByRole('button', { name: /Edric.*Lord/ })).toBeDisabled();
+  const after = await page.evaluate(() => {
+    const run = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
+    return { ids: run.getActiveBlessingIds(), gold: run.gold };
+  });
+  expect(after.ids).toHaveLength(1);
+  if (name === 'Coin of Fate') expect(after.gold).toBe(gold + 750);
+  expect(errors).toEqual([]);
+});

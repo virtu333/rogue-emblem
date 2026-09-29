@@ -34,6 +34,13 @@ import {
   reviveAtRuins,
 } from '../engine/RuinsCommands.js';
 import { eclipsePhase, kindlePrice } from '../engine/EclipseSystem.js';
+import {
+  churchBlessingBlock,
+  churchBlessingOffers,
+  churchVow,
+  churchVowLine,
+  takeChurchBlessing,
+} from '../engine/ChurchVow.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import { CHURCH_PROMOTE_COST, RUINS_SHOP_MARKUP, INVENTORY_MAX } from '../utils/constants.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
@@ -156,6 +163,18 @@ export class ChurchMenu {
       if (reason) body.append(el('p', reason));
     }
     if (!ruins) {
+      // One vow per church: Promotion or a Blessing (ChurchVow).
+      const vow = churchVow(run, nodeId);
+      body.append(el('h3', 'Your vow here'));
+      body.append(
+        el(
+          'p',
+          vow
+            ? churchVowLine(vow)
+            : 'Promote your units, or take a blessing: one vow per church. The first promotion or the blessing makes it.',
+          'church-vow-line',
+        ),
+      );
       body.append(el('h3', `Promote · ${CHURCH_PROMOTE_COST} G`));
       const eligible = run.roster.filter(canPromote);
       if (!eligible.length)
@@ -169,9 +188,41 @@ export class ChurchMenu {
         body.append(withUnitFace(b, this.scene, this.scene.gameData, unit));
         if (reason) body.append(el('p', reason));
       }
+      this.renderBlessings(body, run, nodeId);
     }
     this.renderTools(body);
     body.scrollTop = scroll;
+  }
+  /** The altar's minor blessings: taking one is this church's vow. */
+  renderBlessings(body, run, nodeId) {
+    const gameData = this.scene.gameData;
+    const vow = churchVow(run, nodeId);
+    if (vow === 'blessing') return;
+    body.append(el('h3', 'Blessing · Free'));
+    const offers = churchBlessingOffers(run, nodeId, gameData);
+    if (!offers.length) body.append(el('p', 'You already hold every blessing this altar gives.'));
+    for (const blessing of offers) {
+      const reason = churchBlessingBlock(run, nodeId, blessing.id, gameData);
+      const b = button(
+        `${blessing.name} · ${blessing.description}`,
+        () =>
+          this.choose({
+            title: `Take ${blessing.name}?`,
+            choices: [blessing],
+            confirmation: true,
+            confirmLabel: 'Take the blessing',
+            label: (x) => x.name,
+            describe: (x) =>
+              `${x.description} This is your vow here: this church will promote no one.`,
+            blocked: (x) => churchBlessingBlock(run, nodeId, x.id, gameData),
+            apply: (x) => this.finish(takeChurchBlessing(run, nodeId, x.id, gameData)),
+          }),
+        're-btn church-blessing',
+      );
+      b.disabled = !!reason;
+      body.append(b);
+      if (reason) body.append(el('p', reason));
+    }
   }
   renderTools(body) {
     const tools = el('div', null, 'shop-tools');

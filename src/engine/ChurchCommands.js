@@ -11,10 +11,14 @@ import { getReviveCost } from './RunManager.js';
 import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
 import { CHURCH_PROMOTE_COST } from '../utils/constants.js';
 import { kindleBlock } from './EclipseSystem.js';
+import { churchVowBlock, commitChurchVow } from './ChurchVow.js';
 export function churchPromotionBlock(run, unit, nodeId, gameData) {
   if (!run.roster.includes(unit) || !canPromote(unit)) return 'Unit is not eligible for promotion.';
   if (!resolvePromotionTargets(unit, gameData.classes, gameData.lords)?.length)
     return 'No available promotion class.';
+  // One vow per church: an altar that gave a blessing promotes no one.
+  const vowed = churchVowBlock(run, nodeId, 'promote');
+  if (vowed) return vowed;
   const limit = run.getDifficultyModifier('churchPromotionLimit', -1);
   if (limit >= 0 && run.getChurchPromotionCount(nodeId) >= limit) return 'Promotion limit reached.';
   if (run.gold < CHURCH_PROMOTE_COST) return 'Not enough gold.';
@@ -35,6 +39,7 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
   // A deed's Oath is sworn at the altar too.
   const oath = applyPromotionOath(unit, gameData);
   run.setChurchPromotionCount(nodeId, run.getChurchPromotionCount(nodeId) + 1);
+  commitChurchVow(run, nodeId, 'promote');
   const dropped = getSkillDisplayNames(result?.droppedSkills || [], gameData.skills);
   const waits = oath?.benched ? ` ${oathBenchedNote(unit, oath)}` : '';
   return {
