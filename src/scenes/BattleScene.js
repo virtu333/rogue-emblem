@@ -30,6 +30,7 @@ import {
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
 import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
+import { applyXpGain, combatXpAwards, scaledXp } from '../engine/BattleXp.js';
 import { postCombatEffects, allyBuff } from '../engine/PostCombatEffects.js';
 import {
   applyTimedBuffEntry,
@@ -100,8 +101,6 @@ import {
   createLordUnit,
   createEnemyUnit as createEnemyUnitFromClass,
   createPromotedEnemyUnit,
-  calculateCombatXP,
-  gainExperience,
   addToInventory,
   addToConsumables,
   removeFromConsumables,
@@ -113,8 +112,6 @@ import {
   canPromote,
   resolvePromotionTargetClass,
   grantSecondaryWeapons,
-  checkLevelUpSkills,
-  skillGateLevels,
   hasProficiency,
   canEquip,
   applyStatBoost,
@@ -124,7 +121,6 @@ import {
   inventoryDisplayOrder,
 } from '../engine/UnitManager.js';
 import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
-import { getXpShareRatio, getXpShareRecipients, calculateSharedXp } from '../engine/XpShare.js';
 import {
   getSkillCombatMods,
   rollStrikeSkills,
@@ -181,7 +177,6 @@ import {
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
   XP_BASE_DANCE,
-  XP_DEFEND_SURVIVE,
   XP_SPECIAL_ENEMY_MULTIPLIER,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
@@ -8636,56 +8631,26 @@ export class BattleScene extends Phaser.Scene {
     defenderHpAtStart = null,
     { survivedAttack = false } = {},
   ) {
-    if (opponent?._noXP) return;
-    const survivalXp = survivedAttack && playerUnit?.currentHP > 0 ? XP_DEFEND_SURVIVE : 0;
-    let baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
-    let damageRatio = 1;
-    if (!opponentDied && Number.isFinite(damageDealt) && Number.isFinite(defenderHpAtStart)) {
-      const safeDamage = Math.max(0, Math.trunc(damageDealt));
-      const safeStartHp = Math.max(1, Math.trunc(defenderHpAtStart));
-      if (safeDamage <= 0) {
-        if (survivalXp > 0) await this.awardScaledXP(playerUnit, survivalXp);
-        return;
-      }
-      damageRatio = Math.min(1, safeDamage / safeStartHp);
-      baseXp = Math.floor(baseXp * damageRatio);
-    }
-    const rewardMultiplier = this.getEnemyXpMultiplier(opponent);
-    const pressureXpMultiplier = this.getTurnPressureState().xpMultiplier;
-    // Training Doctrine meta upgrade: non-lord units earn bonus combat XP.
-    const recruitXpBonus = playerUnit?.isLord
-      ? 0
-      : Number(this.runManager?.metaEffects?.recruitXpBonus) || 0;
-    const adjustedBaseXp = Math.max(
-      survivalXp,
-      Math.floor(baseXp * rewardMultiplier * pressureXpMultiplier * (1 + recruitXpBonus)),
-    );
-    // Mentor's Band (EXP Share): capture recipients before the holder's award
-    // so a mid-award level-up can't change eligibility. Mirrored by the
-    // headless harness (HeadlessBattle._awardSharedCombatXP) — keep in sync.
-    // Shares use the recipient's own XP formula, so they must be computed even
-    // when the holder's rounded award is 0 (overleveled holder, <1 multipliers).
-    const xpShareRatio = getXpShareRatio(playerUnit);
-    const xpShareRecipients =
-      xpShareRatio > 0 ? getXpShareRecipients(playerUnit, this.playerUnits || []) : [];
-    if (adjustedBaseXp > 0) {
-      await this.awardScaledXP(playerUnit, adjustedBaseXp);
-    }
-    for (const ally of xpShareRecipients) {
+    // Who earns what (BattleXp.combatXpAwards): the unit, then Mentor's Band shares.
+    const awards = combatXpAwards({
+      unit: playerUnit,
+      opponent,
+      opponentDied,
+      damageDealt,
+      opponentHpAtStart: defenderHpAtStart,
+      survivedAttack,
+      rewardMultiplier: this.getEnemyXpMultiplier(opponent),
+      pressureXpMultiplier: this.getTurnPressureState().xpMultiplier,
+      // Training Doctrine meta upgrade: non-lord units earn bonus combat XP.
+      recruitXpBonus: Number(this.runManager?.metaEffects?.recruitXpBonus) || 0,
+      allies: this.playerUnits || [],
+    });
+    for (const award of awards) {
       // The scene may have shut down while a level-up popup was showing.
-      if (this.sys?.isActive?.() === false) break;
-      if (ally.currentHP <= 0) continue; // safety: state changed mid-sequence
-      const sharedXp = calculateSharedXp(
-        ally,
-        opponent,
-        opponentDied,
-        xpShareRatio,
-        damageRatio * rewardMultiplier * pressureXpMultiplier,
-      );
-      if (sharedXp <= 0) continue;
-      // Direct awardScaledXP: shares never re-enter awardXP, so bands cannot
-      // chain (allies of allies) and heal/dance XP is never shared.
-      await this.awardScaledXP(ally, sharedXp);
+      if (award.share && this.sys?.isActive?.() === false) break;
+      // Shares go straight to awardScaledXP: they never re-enter awardXP, so bands
+      // cannot chain (allies of allies) and heal/dance XP is never shared.
+      await this.awardScaledXP(award.unit, award.baseXp);
     }
   }
 
@@ -8713,18 +8678,16 @@ export class BattleScene extends Phaser.Scene {
   async awardScaledXP(playerUnit, baseXp) {
     const hasTurnInfo = typeof this.getCurrentTurnNumber === 'function';
     const turnsTaken = hasTurnInfo ? this.getCurrentTurnNumber() : 0;
-    const parXpMult = hasTurnInfo
-      ? getParXpMultiplier(turnsTaken, this.turnPar, this.turnBonusConfig)
-      : 1;
-    const xpMultiplier = Number.isFinite(this.battleParams?.xpMultiplier)
-      ? this.battleParams.xpMultiplier
-      : 1;
-    const blessingXpDelta = this.runManager?.getXpMultiplierDelta?.() || 0;
-    const traitXpMult = getTraitXpMultiplier(playerUnit, this.gameData?.traits || null);
-    const xp = Math.max(
-      1,
-      Math.floor(baseXp * parXpMult * (xpMultiplier + blessingXpDelta) * traitXpMult),
-    );
+    const xp = scaledXp(baseXp, {
+      parXpMultiplier: hasTurnInfo
+        ? getParXpMultiplier(turnsTaken, this.turnPar, this.turnBonusConfig)
+        : 1,
+      xpMultiplier: Number.isFinite(this.battleParams?.xpMultiplier)
+        ? this.battleParams.xpMultiplier
+        : 1,
+      blessingXpDelta: this.runManager?.getXpMultiplierDelta?.() || 0,
+      traitXpMultiplier: getTraitXpMultiplier(playerUnit, this.gameData?.traits || null),
+    });
 
     // Show floating XP text
     const pos = this.grid.gridToPixel(playerUnit.col, playerUnit.row);
@@ -8745,38 +8708,35 @@ export class BattleScene extends Phaser.Scene {
       onComplete: () => xpText.destroy(),
     });
 
-    // Apply XP and check for level-ups
+    // Apply XP, levels and every skill grant before any presentation (BattleXp).
+    // Informational popups wait for a resolved action/turn checkpoint, never suspend
+    // halfway through combat. A skill that comes due at a level reached now but finds
+    // all five slots full is named on the card (once: later level-ups retry it silently).
     const extendedLevelingEnabled =
       this.runManager?.getDifficultyModifier('extendedLevelingEnabled', false) || false;
-    const result = gainExperience(playerUnit, xp, { extendedLevelingEnabled });
-
-    // Apply every skill grant before any presentation. Informational popups
-    // wait for a resolved action/turn checkpoint, never suspend halfway through combat.
-    // A skill that comes due at a level reached now but finds all five slots full is
-    // named on the card (once: later level-ups retry it silently).
-    const reachedLevels = new Set((result.levelUps || []).map((lv) => lv.newLevel));
-    const gateLevels = skillGateLevels(playerUnit, this.gameData.classes);
-    for (const lvUp of levelUpDisplayResults(playerUnit.stats, result.levelUps)) {
+    const { statsAfterGain, levelUps } = applyXpGain(playerUnit, xp, {
+      classes: this.gameData.classes,
+      extendedLevelingEnabled,
+    });
+    const cards = levelUpDisplayResults(
+      statsAfterGain,
+      levelUps.map((entry) => entry.levelUp),
+    );
+    const skillName = (id) => this.gameData.skills.find((s) => s.id === id)?.name || id;
+    for (let i = 0; i < cards.length; i++) {
       // The scene may have shut down while a previous popup was showing (its
       // shutdown hook resolves the await) -- don't build popups on a dead scene.
       if (this.sys?.isActive?.() === false) break;
       // Update HP bar after level-up (maxHP may have increased)
       this.updateHPBar(playerUnit);
-      // Check for new skills learned at this level
-      const droppedIds = [];
-      const learnedIds = checkLevelUpSkills(playerUnit, this.gameData.classes, droppedIds);
-      const skillName = (id) => this.gameData.skills.find((s) => s.id === id)?.name || id;
-      const learnedNames = learnedIds.map(skillName);
-      const blockedNames = droppedIds
-        .filter((id) => reachedLevels.has(gateLevels.get(id)))
-        .map(skillName);
+      const lvUp = cards[i];
+      const blockedNames = levelUps[i].blockedIds.map(skillName);
       if (blockedNames.length) lvUp.blockedSkills = blockedNames;
-      reachedLevels.clear();
       (this._pendingLevelUpPopups ||= []).push({
         unitName: playerUnit.name,
         ...(playerUnit.battleEntityId ? { unitId: playerUnit.battleEntityId } : {}),
         levelUp: lvUp,
-        learnedNames,
+        learnedNames: levelUps[i].learnedIds.map(skillName),
       });
     }
   }

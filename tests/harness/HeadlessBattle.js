@@ -35,8 +35,6 @@ import {
   createLordUnit,
   createEnemyUnit,
   createPromotedEnemyUnit,
-  calculateCombatXP,
-  gainExperience,
   equipWeapon,
   hasStaff,
   getCombatWeapons,
@@ -45,13 +43,7 @@ import {
   addToInventory,
   addToConsumables,
   grantSecondaryWeapons,
-  checkLevelUpSkills,
 } from '../../src/engine/UnitManager.js';
-import {
-  getXpShareRatio,
-  getXpShareRecipients,
-  calculateSharedXp,
-} from '../../src/engine/XpShare.js';
 import {
   getSkillCombatMods,
   rollStrikeSkills,
@@ -79,7 +71,12 @@ import {
 } from '../../src/engine/WeaponArtSystem.js';
 import { processConditionRecovery } from '../../src/engine/StatusConditionSystem.js';
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
-import { calculatePar } from '../../src/engine/TurnBonusCalculator.js';
+import {
+  calculatePar,
+  getLatePressureState,
+  getParXpMultiplier,
+} from '../../src/engine/TurnBonusCalculator.js';
+import { getTraitXpMultiplier } from '../../src/engine/MasterySystem.js';
 import {
   createVillageState,
   visitVillage,
@@ -101,11 +98,11 @@ import {
   POISON_WEAPON_BY_TYPE,
   ROSTER_CAP,
   TERRAIN,
-  XP_DEFEND_SURVIVE,
+  XP_BASE_HEAL,
   XP_SPECIAL_ENEMY_MULTIPLIER,
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
-import { applyCombatHP } from '../../src/engine/UnitHealth.js';
+import { applyCombatHP, setUnitHP } from '../../src/engine/UnitHealth.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
 import {
   applyTimedBuffEntry,
@@ -114,6 +111,7 @@ import {
   timedBuffCombatMods,
 } from '../../src/engine/TimedWeaponArtBuffs.js';
 import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
+import { applyXpGain, combatXpAwards, scaledXp } from '../../src/engine/BattleXp.js';
 
 export const HEADLESS_STATES = {
   PLAYER_IDLE: 'PLAYER_IDLE',
@@ -722,32 +720,49 @@ export class HeadlessBattle {
     return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
   }
 
-  /** Training Doctrine meta upgrade: non-lord units earn bonus combat XP (mirrors BattleScene.awardXP). */
-  _getRecruitXpMultiplier(unit) {
-    if (!unit || unit.isLord) return 1;
-    const bonus = Number(this.battleParams?.metaEffects?.recruitXpBonus) || 0;
-    return bonus > 0 ? 1 + bonus : 1;
+  /** XP as BattleScene.awardXP grants it (BattleXp): the unit, then Mentor's Band shares. */
+  _awardCombatXP(unit, opponent, opponentDied, damageDealt, opponentHpAtStart, extra = {}) {
+    const awards = combatXpAwards({
+      unit,
+      opponent,
+      opponentDied,
+      damageDealt,
+      opponentHpAtStart,
+      rewardMultiplier: this._getEnemyXpMultiplier(opponent),
+      pressureXpMultiplier: getLatePressureState(
+        this._turnNumber(),
+        this.turnPar,
+        this.gameData.turnBonus,
+      ).xpMultiplier,
+      recruitXpBonus: Number(this.battleParams?.metaEffects?.recruitXpBonus) || 0,
+      allies: this.playerUnits,
+      ...extra,
+    });
+    for (const award of awards) this._grantScaledXP(award.unit, award.baseXp);
   }
 
-  /**
-   * Mentor's Band (EXP Share) — mirror of BattleScene.awardXP's share pass.
-   * When the holder earns combat XP, each adjacent lower-level ally receives
-   * that ally's own combat XP formula against the same opponent, scaled by the
-   * accessory ratio and the enemy reward multiplier. Combat XP only; shares
-   * never re-enter the share hook (no chaining, no double-grant).
-   */
-  _awardSharedCombatXP(holder, opponent, opponentDied) {
-    const ratio = getXpShareRatio(holder);
-    if (ratio <= 0) return;
-    const recipients = getXpShareRecipients(holder, this.playerUnits);
-    if (recipients.length <= 0) return;
-    const multiplier = this._getEnemyXpMultiplier(opponent);
-    for (const ally of recipients) {
-      const sharedXp = calculateSharedXp(ally, opponent, opponentDied, ratio, multiplier);
-      if (sharedXp <= 0) continue;
-      gainExperience(ally, sharedXp);
-      checkLevelUpSkills(ally, this.gameData.classes);
-    }
+  /** XP as BattleScene.awardScaledXP grants it: the battle's multipliers, then the gain. */
+  _grantScaledXP(unit, baseXp) {
+    const xp = scaledXp(baseXp, {
+      parXpMultiplier: getParXpMultiplier(
+        this._turnNumber(),
+        this.turnPar,
+        this.gameData.turnBonus,
+      ),
+      xpMultiplier: Number.isFinite(this.battleParams?.xpMultiplier)
+        ? this.battleParams.xpMultiplier
+        : 1,
+      blessingXpDelta: Number(this.battleParams?.blessingXpDelta) || 0,
+      traitXpMultiplier: getTraitXpMultiplier(unit, this.gameData?.traits || null),
+    });
+    applyXpGain(unit, xp, {
+      classes: this.gameData.classes,
+      extendedLevelingEnabled: this.battleParams?.extendedLevelingEnabled === true,
+    });
+  }
+
+  _turnNumber() {
+    return Math.max(0, Math.trunc(Number(this.turnManager?.turnNumber) || 0));
   }
 
   _hashReinforcementTemplateChoice(spawn, spawnOrdinal = 0) {
@@ -1700,6 +1715,8 @@ export class HeadlessBattle {
   }
 
   _executeCombat(attacker, defender) {
+    // As BattleScene.executeCombat: measured before the art's HP cost or any strike.
+    const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
     const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
@@ -1747,17 +1764,17 @@ export class HeadlessBattle {
     this._checkPhoenixBrooch(defender);
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
-      const baseXp = calculateCombatXP(attacker, defender, defender.currentHP <= 0);
-      const xp = Math.floor(
-        baseXp * this._getEnemyXpMultiplier(defender) * this._getRecruitXpMultiplier(attacker),
+      const damageDealt = Math.max(
+        0,
+        defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
       );
-      // Shares are computed from the recipient's own formula, so award them
-      // even when the holder's rounded XP is 0 (mirrors BattleScene.awardXP).
-      this._awardSharedCombatXP(attacker, defender, defender.currentHP <= 0);
-      if (xp > 0) {
-        gainExperience(attacker, xp);
-        checkLevelUpSkills(attacker, this.gameData.classes);
-      }
+      this._awardCombatXP(
+        attacker,
+        defender,
+        defender.currentHP <= 0,
+        damageDealt,
+        defenderHpAtStart,
+      );
     }
 
     if (defender.currentHP <= 0) this._removeUnit(defender, { killer: attacker });
@@ -1821,16 +1838,12 @@ export class HeadlessBattle {
     if (!staff) return;
     const result = resolveHeal(staff, healer, target, this._healOptions());
     const hpBefore = target.currentHP;
-    target.currentHP = result.targetHPAfter;
+    setUnitHP(target, result.targetHPAfter);
     if (this.gameData?.deeds && healer !== target) recordHeal(healer, target.currentHP - hpBefore);
     spendStaffUse(staff);
 
-    // Award XP for healing
-    if (healer.faction === 'player') {
-      const xp = Math.max(1, Math.floor(result.healAmount / 2));
-      gainExperience(healer, xp);
-      checkLevelUpSkills(healer, this.gameData.classes);
-    }
+    // Heal XP as HealController grants it: XP_BASE_HEAL through the battle's multipliers.
+    if (healer.faction === 'player') this._grantScaledXP(healer, XP_BASE_HEAL);
 
     // Check staff depletion
     if (getStaffRemainingUses(staff, healer) <= 0) {
@@ -2081,6 +2094,8 @@ export class HeadlessBattle {
   }
 
   _executeEnemyCombat(attacker, defender) {
+    // As BattleScene.executeEnemyCombat: measured before the art's HP cost or any strike.
+    const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
     const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
@@ -2121,24 +2136,21 @@ export class HeadlessBattle {
     this._checkPhoenixBrooch(attacker);
     this._checkPhoenixBrooch(defender);
 
-    // Award XP to player defender: at least the survival minimum
-    // (XP_DEFEND_SURVIVE), as BattleScene.awardXP grants a unit that lived through
-    // an attack. (The harness does not model the scene's damage-dealt scaling.)
+    // Award XP to a player defender that lived: at least the survival minimum, even
+    // with no counter or no damage dealt (BattleScene.executeEnemyCombat).
     if (defender.faction === 'player' && defender.currentHP > 0) {
-      const baseXp = calculateCombatXP(defender, attacker, attacker.currentHP <= 0);
-      const xp = Math.max(
-        attacker._noXP ? 0 : XP_DEFEND_SURVIVE,
-        Math.floor(
-          baseXp * this._getEnemyXpMultiplier(attacker) * this._getRecruitXpMultiplier(defender),
-        ),
+      const counterDamage = Math.max(
+        0,
+        attackerHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)),
       );
-      // Shares are computed from the recipient's own formula, so award them
-      // even when the holder's rounded XP is 0 (mirrors BattleScene.awardXP).
-      this._awardSharedCombatXP(defender, attacker, attacker.currentHP <= 0);
-      if (xp > 0) {
-        gainExperience(defender, xp);
-        checkLevelUpSkills(defender, this.gameData.classes);
-      }
+      this._awardCombatXP(
+        defender,
+        attacker,
+        attacker.currentHP <= 0,
+        counterDamage,
+        attackerHpAtStart,
+        { survivedAttack: true },
+      );
     }
 
     if (defender.currentHP <= 0) this._removeUnit(defender, { killer: attacker });
