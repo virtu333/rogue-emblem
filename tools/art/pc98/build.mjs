@@ -364,4 +364,3 @@ spawnSync(
 if (!args.includes('--no-sync'))
   spawnSync(process.execPath, [join(ROOT, 'tools/syncAssets.js')], { stdio: 'inherit' });
 console.log(`PC-98 pass: ${todo.length} portraits, ${SIZES.length} sizes.`);
-

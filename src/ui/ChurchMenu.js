@@ -159,7 +159,11 @@ export class ChurchMenu {
           apply: (u) => {
             const result = ruins ? reviveAtRuins(run, nodeId, u) : reviveAtChurch(run, u);
             const line = specialCharacterEntries(this.scene.gameData, u, 'revival')[0]?.line;
-            return this.finish(result.ok && line ? { ...result, message: `${result.message} ${u.name}: ${line}` } : result);
+            return this.finish(
+              result.ok && line
+                ? { ...result, message: `${result.message} ${u.name}: ${line}` }
+                : result,
+            );
           },
         }),
       );
@@ -511,4 +515,3 @@ export class ChurchMenu {
     this.setVisible(false);
   }
 }
-

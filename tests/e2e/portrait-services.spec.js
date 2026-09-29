@@ -278,7 +278,7 @@ for (const viewport of [SE, IPHONE_13]) {
 
       // Forge Edric's Iron Sword +1 Might: the picker previews "Attack 11 → 12".
       await shop.getByRole('button', { name: 'Forge', exact: true }).tap();
-      await press(shop.locator('.shop-row').filter({ hasText: 'Iron Sword' }));
+      await press(shop.locator('.shop-row').filter({ hasText: 'Iron Sword' }).filter({ hasText: 'Edric' }));
       await expectShopLayout(page, shop, insets);
       await shop.getByRole('button', { name: 'Choose forge', exact: true }).tap();
       const forge = page.getByRole('dialog', { name: 'Forge Iron Sword', exact: true });

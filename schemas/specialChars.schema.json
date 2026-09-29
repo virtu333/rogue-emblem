@@ -69,17 +69,7 @@
             "minimum": 0
           }
         },
-        "required": [
-          "HP",
-          "STR",
-          "MAG",
-          "SKL",
-          "SPD",
-          "DEF",
-          "RES",
-          "LCK",
-          "MOV"
-        ],
+        "required": ["HP", "STR", "MAG", "SKL", "SPD", "DEF", "RES", "LCK", "MOV"],
         "additionalProperties": false
       },
       "growths": {
@@ -118,16 +108,7 @@
             "minimum": 0
           }
         },
-        "required": [
-          "HP",
-          "STR",
-          "MAG",
-          "SKL",
-          "SPD",
-          "DEF",
-          "RES",
-          "LCK"
-        ],
+        "required": ["HP", "STR", "MAG", "SKL", "SPD", "DEF", "RES", "LCK"],
         "additionalProperties": false
       },
       "difficultyBases": {
@@ -145,10 +126,7 @@
                 "minimum": 0
               }
             },
-            "required": [
-              "HP",
-              "DEF"
-            ],
+            "required": ["HP", "DEF"],
             "additionalProperties": false
           },
           "dusk": {
@@ -163,10 +141,7 @@
                 "minimum": 0
               }
             },
-            "required": [
-              "HP",
-              "DEF"
-            ],
+            "required": ["HP", "DEF"],
             "additionalProperties": false
           },
           "hard": {
@@ -181,10 +156,7 @@
                 "minimum": 0
               }
             },
-            "required": [
-              "HP",
-              "DEF"
-            ],
+            "required": ["HP", "DEF"],
             "additionalProperties": false
           },
           "lunatic": {
@@ -199,19 +171,11 @@
                 "minimum": 0
               }
             },
-            "required": [
-              "HP",
-              "DEF"
-            ],
+            "required": ["HP", "DEF"],
             "additionalProperties": false
           }
         },
-        "required": [
-          "normal",
-          "dusk",
-          "hard",
-          "lunatic"
-        ],
+        "required": ["normal", "dusk", "hard", "lunatic"],
         "additionalProperties": false
       },
       "skills": {

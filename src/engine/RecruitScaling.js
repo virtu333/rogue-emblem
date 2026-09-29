@@ -113,4 +113,3 @@ export function applyRecruitJoinBonus(unit, act) {
   }
   if (bonus.HP) unit.currentHP = (Number(unit.currentHP) || 0) + bonus.HP;
 }
-

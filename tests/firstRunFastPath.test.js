@@ -108,7 +108,7 @@ describe('startFirstRunFastPath', () => {
     expect(rm.difficultyId).toBe('normal');
     expect(rm.activeBlessings).toEqual([]);
     expect(rm._blessingChosen).toBe(true);
-    expect(rm.roster.length).toBe(2); // Edric + partner lord
+    expect(rm.roster.length).toBe(3); // Edric + partner lord + Gaspar
     expect(rm.nodeMap?.nodes?.length).toBeGreaterThan(0);
   });
 

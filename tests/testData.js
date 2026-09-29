@@ -39,4 +39,3 @@ export function loadGameData() {
     eclipse: loadJSON('eclipse.json'),
   };
 }
-

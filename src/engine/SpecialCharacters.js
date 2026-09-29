@@ -3,7 +3,10 @@ import { parseWeaponProficiencies, normalizeUnitClassState } from './UnitManager
 import { ensureItemUid } from '../utils/itemUid.js';
 
 // Fixed bases and growths; deliberately bypass recruit rolls, join perks and loadouts.
-export function createVeteranKnight(gameData, { difficultyId = 'normal', metaGrowthBonuses = null, growthMultiplier = 1 } = {}) {
+export function createVeteranKnight(
+  gameData,
+  { difficultyId = 'normal', metaGrowthBonuses = null, growthMultiplier = 1 } = {},
+) {
   const def = (gameData.specialChars || defaults).find((entry) => entry.id === 'old_knight');
   const cls = gameData.classes?.find((entry) => entry.name === def?.class);
   if (!def || !cls) return null;

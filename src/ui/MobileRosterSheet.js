@@ -442,7 +442,10 @@ export class MobileRosterSheet {
   stats(unit) {
     if (unit.specialCharId) {
       const def = this.gameData.specialChars?.find((entry) => entry.id === unit.specialCharId);
-      this.card('Veteran knight', `${def?.bio || ''} Canto after noncombat actions only. Cannot reclass or gain class skills or mastery.`);
+      this.card(
+        'Veteran knight',
+        `${def?.bio || ''} Canto after noncombat actions only. Cannot reclass or gain class skills or mastery.`,
+      );
     }
     const conditions = statusDescriptions(unit);
     if (conditions.length)
@@ -1593,4 +1596,3 @@ export class MobileRosterSheet {
     if (this.previousFocus?.isConnected) this.previousFocus.focus({ preventScroll: true });
   }
 }
-

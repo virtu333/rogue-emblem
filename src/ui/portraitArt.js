@@ -226,13 +226,19 @@ export function pc98AtlasData(size) {
 /** Texture URL for a legacy `portrait_<name>` key in the current mode. */
 export function legacyPortraitUrl(name, mode = portraitArtMode()) {
   // Relative, like every other BootScene asset path.
-  if (mode === 'pc98' && hasPc98(name)) return `assets/portraits/pc98/baked/${name}.png`;
+  if (mode === 'pc98' && hasPc98(name)) {
+    return isVariantPortrait(name)
+      ? `assets/portraits/pc98/192/${name}.png`
+      : `assets/portraits/pc98/baked/${name}.png`;
+  }
   return `assets/portraits/${name}.png`;
 }
 
 /** Texture URL for a rebuilt `rebuilt-portrait-<id>` key in the current mode. */
 export function rebuiltPortraitUrl(id, mode = portraitArtMode()) {
-  if (mode === 'pc98' && hasPc98(id)) return pc98BakedUrl(id);
+  if (mode === 'pc98' && hasPc98(id)) {
+    return isVariantPortrait(id) ? pc98FigureUrl(id) : pc98BakedUrl(id);
+  }
   const file = rebuiltManifest[id]?.file;
   return file ? `${base()}assets/portraits/rebuilt/${file}` : null;
 }
@@ -316,4 +322,3 @@ export function pc98PortraitElement({
   picture.append(img);
   return picture;
 }
-

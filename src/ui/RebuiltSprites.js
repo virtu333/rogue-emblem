@@ -79,4 +79,3 @@ export function rebuiltSpriteKey(scene, unit) {
   const texture = `rebuilt-${key}`;
   return key && scene.textures.exists(texture) ? texture : null;
 }
-

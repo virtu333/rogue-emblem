@@ -133,4 +133,3 @@ export function slotDialog(scene, title, message, actions) {
   menu.focusContent();
   return menu;
 }
-

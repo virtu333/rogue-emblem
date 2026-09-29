@@ -1234,4 +1234,3 @@ export class UnitDetailOverlay {
     }
   }
 }
-

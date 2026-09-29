@@ -5,6 +5,15 @@ import { generateBattle } from '../src/engine/MapGenerator.js';
 import { loadGameData } from './testData.js';
 const data = loadGameData();
 describe('Normal opening cavalry protection', () => {
+  it('allows Cavaliers after the first battle with the default three starters', () => {
+    const rm = new RunManager(data);
+    rm.startRun({ difficultyId: 'normal' });
+    expect(rm.roster.map((unit) => unit.name)).toEqual(['Edric', 'Sera', 'Gaspar']);
+    expect(restrictOpeningCavaliers(rm)).toBe(false);
+    rm.completedBattles = 1;
+    const node = rm.nodeMap.nodes.find((n) => n.battleParams);
+    expect(rm.getBattleParams(node).excludeOpeningCavaliers).toBe(false);
+  });
   it('counts joined and fallen units rather than deployed units', () => {
     const run = { currentAct: 'act1', difficultyId: 'normal', roster: [{}, {}], fallenUnits: [] };
     expect(restrictOpeningCavaliers(run)).toBe(true);
@@ -21,6 +30,7 @@ describe('Normal opening cavalry protection', () => {
   it('persists party history and leaves canonical encounter params unchanged', () => {
     const rm = new RunManager(data);
     rm.startRun({ difficultyId: 'normal' });
+    rm.roster = rm.roster.filter((u) => !u.specialCharId);
     rm.completedBattles = 1;
     const node = rm.nodeMap.nodes.find((n) => n.battleParams);
     expect(rm.getBattleParams(node).excludeOpeningCavaliers).toBe(true);

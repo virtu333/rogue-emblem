@@ -44,4 +44,3 @@ export function applyRevivalCatchUp(unit, roster, classes = [], rng = Math.rando
   const learnedSkills = plan.levels ? checkLevelUpSkills(unit, classes, droppedSkills) : [];
   return { ...plan, learnedSkills, droppedSkills };
 }
-

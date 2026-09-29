@@ -2554,7 +2554,7 @@ describe('Fallen unit tracking and revival', () => {
     rm.roster.push(recruit);
 
     // Simulate battle: 2 units survive, 1 falls
-    const survivors = [rm.roster[0], rm.roster[1]];
+    const survivors = rm.roster.slice(0, 3);
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.fallenUnits.length).toBe(1);
@@ -2586,7 +2586,7 @@ describe('Fallen unit tracking and revival', () => {
     fallen.accessory = structuredClone(accessory);
     rm.roster.push(fallen);
 
-    const survivors = [rm.roster[0], rm.roster[1]];
+    const survivors = rm.roster.slice(0, 3);
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: 2, consumables: 1 });
@@ -2621,7 +2621,7 @@ describe('Fallen unit tracking and revival', () => {
     fallen.accessory = structuredClone(accessory);
     rm.roster.push(fallen);
 
-    const survivors = [rm.roster[0], rm.roster[1]];
+    const survivors = rm.roster.slice(0, 3);
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual(caps);
@@ -2656,7 +2656,7 @@ describe('Fallen unit tracking and revival', () => {
     fallen.accessory = structuredClone(accessory);
     rm.roster.push(fallen);
 
-    const survivors = [rm.roster[0], rm.roster[1]];
+    const survivors = rm.roster.slice(0, 3);
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: caps.weapons, consumables: 1 });
@@ -2689,7 +2689,7 @@ describe('Fallen unit tracking and revival', () => {
     fallen.accessory = null;
     rm.roster.push(fallen);
 
-    const survivors = [rm.roster[0], rm.roster[1]];
+    const survivors = rm.roster.slice(0, 3);
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: 1, consumables: 0 });
@@ -2720,7 +2720,7 @@ describe('Fallen unit tracking and revival', () => {
     fallen.accessory = null;
     rm.roster.push(fallen);
 
-    const survivors = [rm.roster[0], rm.roster[1]];
+    const survivors = rm.roster.slice(0, 3);
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: caps.weapons, consumables: 0 });
@@ -3998,9 +3998,10 @@ describe('blessing run-start effect application', () => {
     rm.applyRunStartBlessingEffects();
 
     rm.roster.forEach((unit, idx) => {
-      expect(unit.isLord).toBe(true);
       for (const stat of ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']) {
-        expect(unit.growths[stat]).toBe((baseGrowths[idx][stat] || 0) + 12);
+        expect(unit.growths[stat]).toBe(
+          Math.max(0, (baseGrowths[idx][stat] || 0) + (unit.isLord ? 12 : -10)),
+        );
       }
     });
     const lordBonuses = rm.getEffectiveLordGrowthBonuses();
@@ -4902,4 +4903,3 @@ describe('seeded node map (Phase 6.6)', () => {
     expect(nodeSignature(a.nodeMap)).toEqual(nodeSignature(b.nodeMap));
   });
 });
-

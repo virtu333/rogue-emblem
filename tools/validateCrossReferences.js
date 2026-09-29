@@ -87,13 +87,16 @@ export function validateCrossReferences(datasets = null) {
     if (specialIds.has(unit.id)) errors.push(`specialChars.json: duplicate id "${unit.id}"`);
     specialIds.add(unit.id);
     for (const name of [unit.class, unit.baseClass]) {
-      if (!classNames.has(name)) errors.push(`specialChars.json:${unit.id} references unknown class "${name}"`);
+      if (!classNames.has(name))
+        errors.push(`specialChars.json:${unit.id} references unknown class "${name}"`);
     }
     for (const id of unit.skills) {
-      if (!skillIds.has(id)) errors.push(`specialChars.json:${unit.id} references unknown skill "${id}"`);
+      if (!skillIds.has(id))
+        errors.push(`specialChars.json:${unit.id} references unknown skill "${id}"`);
     }
     for (const name of unit.weapons) {
-      if (!weaponNames.has(name)) errors.push(`specialChars.json:${unit.id} references unknown weapon "${name}"`);
+      if (!weaponNames.has(name))
+        errors.push(`specialChars.json:${unit.id} references unknown weapon "${name}"`);
     }
   }
 
@@ -239,4 +242,3 @@ export function validateCrossReferences(datasets = null) {
 
   return { valid: errors.length === 0, errors };
 }
-

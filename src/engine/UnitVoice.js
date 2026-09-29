@@ -316,7 +316,8 @@ export function fallenLine(unit, ctx = {}) {
     if (!voice || !unit?.name || unit.isLord) return null;
     const tokens = voiceTokens(unit, voice, ctx);
     const personal = usable(voice.specialChars?.[unit.specialCharId]?.fallen, tokens);
-    if (personal.length) return fillVoiceTokens(strideLine(personal, `${seed >>> 0}|${unit.name}|fallen`, 0), tokens);
+    if (personal.length)
+      return fillVoiceTokens(strideLine(personal, `${seed >>> 0}|${unit.name}|fallen`, 0), tokens);
     const temperament = temperamentFor(unit, { voice, seed });
     const chosen = pickCategory(
       [
@@ -361,4 +362,3 @@ export function voiceContext({ gameData = null, runManager = null, units = null 
     present: present.size ? present : null,
   };
 }
-

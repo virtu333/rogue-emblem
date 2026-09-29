@@ -114,7 +114,11 @@ export function completeResolvedAction(scene, continuation) {
       ally.graphic?.clearTint?.();
     }
   } else if (unit) {
-    scene.finishUnitAction(unit, { skipCanto: continuation.skipCanto === true || (continuation.kind === 'combat' && combatBlocksCanto(unit)) });
+    scene.finishUnitAction(unit, {
+      skipCanto:
+        continuation.skipCanto === true ||
+        (continuation.kind === 'combat' && combatBlocksCanto(unit)),
+    });
     return;
   }
   scene.selectedUnit = null;
@@ -131,4 +135,3 @@ export function completeResolvedAction(scene, continuation) {
   revealSettledVision(scene);
   scene._captureSuspendCheckpoint?.();
 }
-

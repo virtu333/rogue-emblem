@@ -207,4 +207,3 @@ export function variantPortraitId(unit) {
   const person = displayedPerson(unit);
   return person ? table.identities[person].renders[unit.className] : null;
 }
-

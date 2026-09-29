@@ -79,4 +79,3 @@ if (crossRef.valid) {
 if (failed) {
   process.exit(1);
 }
-

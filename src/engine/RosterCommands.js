@@ -138,4 +138,3 @@ function reclass(run, unit, sealItem, newClassData, gameData) {
 
   return { ok: true, notices, droppedSkills: result?.droppedSkills || [] };
 }
-

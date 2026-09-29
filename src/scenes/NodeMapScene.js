@@ -456,8 +456,14 @@ export class NodeMapScene extends Phaser.Scene {
               this.gameData?.dialogue?.actTransitions?.runStartCommander,
               ctx,
             ) || [];
-          const veteran = this.runManager.roster.find((unit) => unit.specialCharId === 'old_knight');
-          const entries = [...visionEntries, ...voiceEntries, ...specialCharacterEntries(this.gameData, veteran, 'intro')];
+          const veteran = this.runManager.roster?.find(
+            (unit) => unit.specialCharId === 'old_knight',
+          );
+          const entries = [
+            ...visionEntries,
+            ...voiceEntries,
+            ...specialCharacterEntries(this.gameData, veteran, 'intro'),
+          ];
           if (
             Array.isArray(entries) &&
             entries.length > 0 &&
@@ -2124,4 +2130,3 @@ export class NodeMapScene extends Phaser.Scene {
     });
   }
 }
-

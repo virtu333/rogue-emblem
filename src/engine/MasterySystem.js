@@ -137,7 +137,10 @@ export function getMasteryThreshold(unit, traitsData) {
 
 /** True when the unit's current-family progress meets its effective threshold. */
 export function isMastered(unit, classesData, traitsData = null) {
-  return !skipsClassProgression(unit) && getMasteryProgress(unit, classesData) >= getMasteryThreshold(unit, traitsData);
+  return (
+    !skipsClassProgression(unit) &&
+    getMasteryProgress(unit, classesData) >= getMasteryThreshold(unit, traitsData)
+  );
 }
 
 /** Sanitize a perk-like object down to the seven whitelisted flat mod keys. */
@@ -213,4 +216,3 @@ export function getTraitXpMultiplier(unit, traitsData) {
 }
 
 export { PERK_MOD_KEYS };
-

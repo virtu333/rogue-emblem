@@ -50,4 +50,3 @@ export function mergeRunRecords(...sources) {
     .sort((a, b) => b.endedAt - a.endedAt || a.id.localeCompare(b.id))
     .slice(0, 50);
 }
-

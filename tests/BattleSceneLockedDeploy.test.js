@@ -157,7 +157,7 @@ describe('BattleScene · re-entering a locked battle', () => {
     const rm = realRun();
     // Seven units fit act 3's cap of 7, so they would auto-deploy — into 5 spawns.
     const roster = [...rm.roster, ...['A', 'B', 'C', 'D', 'E'].map(recruit)];
-    expect(roster).toHaveLength(7);
+    expect(roster).toHaveLength(8);
     const scene = makeScene({ runManager: rm, roster, lockedSpawns: 5 });
     scene.showDeployScreen = vi.fn();
     scene.beginBattle = vi.fn();
@@ -181,7 +181,7 @@ describe('BattleScene · re-entering a locked battle', () => {
     const rm = realRun();
     rm.getDeployBonus = () => 2; // Tactical Advantage + Scout Blessing
     const roster = [...rm.roster, ...['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].map(recruit)];
-    expect(roster).toHaveLength(11);
+    expect(roster).toHaveLength(12);
     const scene = makeScene({ runManager: rm, roster, lockedSpawns: 5, act: 'act4' });
     rm.battleConfigsByNodeId = {};
     scene.showDeployScreen = vi.fn();

@@ -43,6 +43,10 @@ meta rounding and exemptions, in-run investments, class mutation guards, save pr
 recruit/revival averages, promoted XP and Mentor sharing, saved combat continuations,
 personal art/voice routing, record merging and idempotent no-meta settlement.
 
+The implementation re-run reproduces the analytical report exactly (6,000 trials per scenario).
+The comparison source explicitly sets both Rapier might values so the historical might-7
+column stays reproducible after the canonical weapon changes to 6.
+
 The analytical report remains in `veteran-knight-calculations-results.md`. Its limitations
 still apply: local exchange calculations and automated play are balance evidence, and
 human run testing remains necessary for positioning and deliberate kill feeding.

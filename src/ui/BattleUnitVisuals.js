@@ -35,4 +35,3 @@ export function battleUnitSpriteKey(scene, unit) {
   // NPCs use player sprites (same as non-lord player units)
   return classKey;
 }
-

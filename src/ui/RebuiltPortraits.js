@@ -106,4 +106,3 @@ export function dialoguePortraitKey(scene, name, legacyKey) {
   }
   return legacyKey;
 }
-

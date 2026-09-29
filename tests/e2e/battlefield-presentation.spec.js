@@ -65,9 +65,10 @@ test('desktop presents the shared battlefield art without the phone layout', asy
   expect(result.mobileHud).toBe(false);
   expect(result.unpaintedNames).toEqual([]);
   expect(result.painted).toBe(result.total);
-  // The traced sprites (the default, as on phones) cover every unit; they carry their own
-  // outline, so the contrast pass (classic / rebuilt art only) leaves them alone.
-  for (const key of result.sprites) expect(key).toMatch(/^traced-/);
+  // Ordinary units retain traced art and its outline; Gaspar has his own mounted sprite.
+  expect(result.sprites).toContain('contrast-rebuilt-special_old_knight');
+  for (const key of result.sprites)
+    expect(key).toMatch(/^(traced-|contrast-rebuilt-special_old_knight$)/);
   expect(result.rings).toContain('player');
   expect(result.rings).toContain('enemy');
   expect(errors).toEqual([]);

@@ -246,7 +246,12 @@ export class BattleBeatsController {
   }
 
   onLowHealth(unit) {
-    if (unit?.specialCharId && unit.faction === 'player' && unit.currentHP > 0 && unit.currentHP * 2 <= unit.stats.HP) {
+    if (
+      unit?.specialCharId &&
+      unit.faction === 'player' &&
+      unit.currentHP > 0 &&
+      unit.currentHP * 2 <= unit.stats.HP
+    ) {
       this._maybeQuip(unit, 'lowHP');
     }
   }
@@ -368,4 +373,3 @@ export class BattleBeatsController {
     }
   }
 }
-

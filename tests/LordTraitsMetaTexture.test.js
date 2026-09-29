@@ -45,7 +45,7 @@ describe('lord trait creation', () => {
     const bare = new RunManager({ ...gameData, traits: [] });
     bare.metaEffects = { lordStatBonuses: { SPD: 2 }, lordGrowthBonuses: { HP: 5 } };
     bare.startRun({ runSeed: 77, applyBlessingsAtStart: false });
-    for (const unit of run.roster) {
+    for (const unit of run.roster.filter((u) => u.isLord)) {
       expect(unit.traits).toEqual(['nimble']);
       const plain = bare.roster.find((u) => u.name === unit.name);
       // Meta +2 is in both; the trait adds exactly +1 Spd on top.
