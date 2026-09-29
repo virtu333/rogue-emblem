@@ -40,7 +40,7 @@
 import { Piece, loadImage } from './engine/piece.js';
 import { makePaper } from './engine/compositor.js';
 import { KIT, pulse } from './engine/score.js';
-import { clamp, hash, lerp, smooth } from './engine/raster.js';
+import { bayer, clamp, hash, lerp, smooth } from './engine/raster.js';
 import { layerMatrix, cam as pageCam } from './engine/view.js';
 import {
   RGB,
@@ -295,6 +295,13 @@ const BIND_SHIFT = 0.07;
 // the hips of the drawings held in the bind, cell px (annotated by eye on the atlases)
 const HIPS = { edric_slide_burst: [233, 172], warden_yield_cut: [153, 167] };
 
+// every drawing of Edric (their warm tan is retoned at load: see retoneWarm)
+const EDRIC_MOTIONS = ['edric_run', 'edric_tumble', 'edric_slide_burst', 'edric_slip_fall'];
+const EDRIC_IMAGES = ['standing', 'charge', 'falls', 'eSlide', 'eRise', 'eCut', 'eOver', 'eStruck', 'eFall'];
+
+// the eye in the uncropped helm plate (page px), for the one-sixteenth cut on the slit
+const SLIT_EYE = [336, 58];
+
 const FALL_TIP = 1;
 const BIND_LEAN = 1; // which way a positive lean tips a figure toward +X (by eye) // which way the flipped slip clip rotates to lie back (by eye)
 const RUN_H = 1.76; // edric_run's cell height in metres (the runner is ~1.68 m in it)
@@ -361,6 +368,11 @@ export class FordPiece extends Piece {
     this.img = Object.fromEntries(imgs.filter(([, v]) => v));
     this.paper = makePaper(W, H);
     await this.loadMotions(`${DIR}/motion`, MOTIONS);
+    // Edric's tan skin and brass snap to the ember ramp's gold: turn them toward skin and
+    // steel in every drawing of him, so he is one design (and not gold) across the cuts
+    for (const n of EDRIC_MOTIONS)
+      if (this.motionSrc[n]) this.motionSrc[n].img = retoneWarm(this.motionSrc[n].img);
+    for (const k of EDRIC_IMAGES) if (this.img[k]) this.img[k] = retoneWarm(this.img[k]);
     // the cut-out rigs (engine/skin.js): paintings bent onto the blocking's skeletons
     try {
       this.rigs = (await (await fetch(`${K}/rigs.json`)).json()).rigs;
@@ -817,7 +829,7 @@ export class FordPiece extends Piece {
     const k = smooth(0.08, 1.25, lt) ** 0.85;
     const cam0 = crane(
       // settles low on our side of the ford, close enough that Edric reads as a man
-      { x: -5.2, z: -19, yaw: 0.1, focal: 300, roll: 0 },
+      { x: -5.6, z: -16, yaw: 0.11, focal: 315, roll: 0 },
       { y: 30, pitch: 0.5, z: -28 },
       { y: 1.9, pitch: -0.02 },
       k,
@@ -1026,10 +1038,10 @@ export class FordPiece extends Piece {
         z: -2.75,
         x0: -8,
         x1: 6,
-        arch: 1.15, // blades bend over in an arch: the tips sweep through the frame
+        arch: 0.95, // blades bend over in an arch: the tips sweep through the frame
         step: 1.7,
         kind: 'mixed',
-        h: 1.35,
+        h: 1.2,
         stoneH: 0.16,
         gaps: 0.42,
         seed: 5,
@@ -1063,9 +1075,23 @@ export class FordPiece extends Piece {
     const k = easeOut(lt / 0.45);
     const c = pageCam(lerp(236, 226, k), lerp(128, 114, k), 1 + 0.22 * k, 0);
     const l = this.plateOf('edricEye', { zoom: 1.35, skin: true });
-    if (l) this.draw(f, l, 0, null, c);
-    // the iris (plate px 1536x1024 -> page): the point, foreshortened, catching the light
-    const [ix, iy] = scrPage(c, 223 * 1.0, 113 * 1.0);
+    // the eye acts: as the point comes it narrows (the upper lid comes down over the iris,
+    // on twos) and sets. The drawing is pushed down in a band about the lash line.
+    const sq = smooth(0.06, 0.34, onN(t, 2) - t0);
+    const SQ = 7; // layer px at the lash line
+    const bump = (u, v) => {
+      const dx = (u - 312) / 95;
+      const dy = (v - 138) / 30;
+      return Math.exp(-(dx * dx + dy * dy) * 1.3);
+    };
+    const warp = (u, v, out) => {
+      out[0] = 0;
+      out[1] = -SQ * sq * bump(u, v);
+    };
+    if (l) this.draw(f, l, 0, null, c, { warp });
+    // the iris (plate px 1536x1024 -> page): the point, foreshortened, catching the light;
+    // it goes down with the iris as the lid closes
+    const [ix, iy] = scrPage(c, 223 * 1.0, 113 + (SQ * sq * bump(301, 152)) / 1.35);
     const s = 0.8 + 0.5 * k;
     // the reflected point fills half the iris: the shaft from outside the eye, the leaf
     // of the blade at its centre, catching the light
@@ -1083,7 +1109,14 @@ export class FordPiece extends Piece {
       color: RGB.paperHi,
       seed: 21,
     });
-    focusLines(f, W, H, ix, iy, twos(t), { inner: 170, amount: 0.5, aspect: 1.7, width: 6 });
+    focusLines(f, W, H, ix, iy, twos(t), {
+      inner: 150,
+      outer: 330,
+      amount: 0.5,
+      aspect: 1.7,
+      width: 4,
+      color: RGB.graphite,
+    });
   }
 
   // --- 7 · 32.1: over the Warden's shoulder. The thrust, on the snare -----------------
@@ -1091,7 +1124,8 @@ export class FordPiece extends Piece {
     const [t0] = S.ots;
     const a = act(t);
     const aa = onN(a, 2);
-    const cam0 = lookAt({ x: 6.9, y: 1.5, z: -1.75 }, { x: 1.3, y: 0.7, z: 0.05 }, { focal: 400 });
+    // over the Warden's shoulder, low: near enough that Edric's slide reads as a body
+    const cam0 = lookAt({ x: 6.6, y: 1.3, z: -1.6 }, { x: 1.35, y: 0.55, z: 0.05 }, { focal: 540 });
     const [sx, sy, sr] = shake(t, [[TIME.thrust, 1]], 5, 0.12, 0.01);
     const push = 1 + 0.07 * pulse(t, [TIME.thrust], 0.15);
     const cam = nudge({ ...cam0, focal: cam0.focal * push }, sx, sy, sr);
@@ -1111,10 +1145,13 @@ export class FordPiece extends Piece {
       const hand = this.cardPoint(wd, cam, 262, 78);
       if (wd.frame >= 9)
         focusLines(f, W, H, tip.x, tip.y, twos(t), {
-          inner: 55,
-          amount: 0.7,
+          inner: 60,
+          outer: 250,
+          count: 120,
+          amount: 0.4,
           aspect: 1.4,
-          width: 5,
+          width: 3,
+          color: RGB.graphite,
         });
       if (aa < TIME.thrust + 0.05)
         speedLinesAlong(f, { sx: hand.x, sy: hand.y }, { sx: tip.x, sy: tip.y }, t);
@@ -1127,7 +1164,7 @@ export class FordPiece extends Piece {
   slideSpray(a) {
     const t0 = TIME.drop + 0.12;
     if (a < t0) return [];
-    return [{ X: 1.05, Z: -0.12, age: a - t0, width: 2.6, dir: 1, height: 2.2, seed: 4 }];
+    return [{ X: 0.8, Z: 0.12, age: a - t0, width: 2.6, dir: 1, height: 2.2, seed: 4 }];
   }
 
   /**
@@ -1324,11 +1361,10 @@ export class FordPiece extends Piece {
 
   shotSlit(f, t) {
     const lt = t - S.slit[0];
-    const l = this.helmPlate();
-    const slit = this.plateOf('helm', { zoom: 2.3, skin: false }) || l.layer;
+    const slit = this.plateOf('helm', { zoom: 2.3, skin: false }) || this.helmPlate().layer;
     const c = pageCam(262, 110, 2.1 + 0.2 * lt, 0);
     this.draw(f, slit, 0, null, c);
-    const [ex, ey] = scrPage(c, ...l.eye);
+    const [ex, ey] = scrPage(c, ...SLIT_EYE);
     star(f, W, H, ex, ey, 3, RGB.paperHi);
   }
 
@@ -1497,7 +1533,17 @@ export class FordPiece extends Piece {
   // --- 12 · 34.3: close-up. The helm's eye slit; a tilt; he decides ------------------
   helmPlate() {
     if (this.img.helm) {
-      return { layer: this.plateOf('helm', { zoom: 1.6, skin: false }), eye: [336, 58] };
+      // cropped from the top of the painting (the crown of the helm in, the slit a third of
+      // the way down); the eye is at (525, 169) of the 768 x 432 plate
+      return {
+        layer: this.plateOf('helm', {
+          zoom: 1.6,
+          skin: false,
+          crop: { x: 0, y: 0, w: 1536, h: 864 },
+          tag: ':top',
+        }),
+        eyeL: [525, 169],
+      };
     }
     // fallback: the helm of the old stand-in, cropped close
     const im = this.img.soldier;
@@ -1505,7 +1551,7 @@ export class FordPiece extends Piece {
       crop: { x: 150, y: 60, w: 180, h: 101 },
       zoom: 1.2,
     });
-    return { layer: l, eye: [270, 115] };
+    return { layer: l, eyeL: [270 * 1.2, 115 * 1.2] };
   }
 
   shotHelm(f, t) {
@@ -1521,12 +1567,19 @@ export class FordPiece extends Piece {
     const breath = Math.sin(onN(a, 3) * 5.2) * 1.2 * (1 - clamp(tilt));
     const w = L.st.w;
     const h = L.st.h;
+    const sc = 0.7625; // layer px -> art px, overscanned so the tilt never shows the edge
+    const [eu, ev] = hp.eyeL;
+    const anchor = [w / 2, h * 1.05]; // the neck, below the frame
+    const sk = sc * (1 + 0.02 * tilt);
+    // the slit a third of the way down and a little right of centre at rest
+    const tx = 292 - 10 * tilt;
+    const ty = 92 + breath + 6 * tilt;
     const xf = {
-      x: W / 2 - 10 * tilt,
-      y: H / 2 + h * 0.55 * L.xf.scale + breath + 6 * tilt,
-      ax: w / 2,
-      ay: h * 1.05, // the neck, below the frame
-      scale: L.xf.scale * (1.22 + 0.025 * tilt), // overscanned: the tilt never shows its edge
+      x: tx - (eu - anchor[0]) * sk,
+      y: ty - (ev - anchor[1]) * sk,
+      ax: anchor[0],
+      ay: anchor[1],
+      scale: sk,
       rot: -0.11 * tilt,
     };
     const c = pageCam(240, 135, 1.02 + 0.02 * lt, 0);
@@ -1539,16 +1592,19 @@ export class FordPiece extends Piece {
     this.draw(f, L, 0, xf, c);
     // the eye: dark, then it catches the light on the snap, flares and holds
     const m = layerMatrix(xf, c, W, H);
-    // the eye is given in page px of the plate at rest: back to layer px
-    const u = (hp.eye[0] - W / 2) / L.xf.scale + w / 2;
-    const v = (hp.eye[1] - H / 2) / L.xf.scale + h / 2;
-    const ex = m[0] * u + m[1] * v + m[2];
-    const ey = m[3] * u + m[4] * v + m[5];
+    const ex = m[0] * eu + m[1] * ev + m[2];
+    const ey = m[3] * eu + m[4] * ev + m[5];
     const on = a - (D + 0.12);
     if (on > 0) {
-      const flare = on < 0.1 ? 5 : on < 0.2 ? 3 : 2 + ((twos(t) >> 1) % 2);
+      // the flare: a star and a streak of light along the slit on the snap, then it holds
+      // as a small cold point that flickers on twos
+      const flare = on < 0.1 ? 10 : on < 0.2 ? 6 : 3 + ((twos(t) >> 1) % 2);
       star(f, W, H, ex, ey, flare, RGB.paperHi);
-      if (on < 0.25) glow(f, W, H, ex, ey, 14, 0.5 * (1 - on / 0.25), PALE);
+      const streak = on < 0.1 ? 34 : on < 0.2 ? 22 : 12;
+      for (let q = -streak; q <= streak; q++)
+        if (1 - Math.abs(q) / streak > bayer(q + 40, 3) * 0.9)
+          put(f, W, H, ex + q, ey + q * -0.03, RGB.steel);
+      if (on < 0.25) glow(f, W, H, ex, ey, 16, 0.6 * (1 - on / 0.25), PALE);
     }
     // rain in front of him (drawings on twos)
     speedLines(f, W, H, t, {
@@ -1740,10 +1796,11 @@ export class FordPiece extends Piece {
     const a = act(t);
     const aa = onN(a, 2);
     // the crossed side, low at the water and close: he falls through the frame
+    // (framed to hold the Warden standing over him: the camera is turned toward his side)
     const cam = lookAt(
-      { x: 3.98 - 0.05 * lt, y: 0.36 - 0.04 * lt, z: 2.25 - 0.18 * lt },
+      { x: 4.3 - 0.05 * lt, y: 0.36 - 0.04 * lt, z: 2.25 - 0.18 * lt },
       // the camera follows him down (on ones): from his chest to the water he lands in
-      { x: 3.72, y: lerp(0.62, 0.28, smooth(0.05, 0.45, lt)), z: -0.4 },
+      { x: 3.98, y: lerp(0.62, 0.28, smooth(0.05, 0.45, lt)), z: -0.4 },
       { focal: 300, roll: 0.015 },
     );
     const [sx, sy] = shake(
@@ -1795,6 +1852,15 @@ export class FordPiece extends Piece {
     ed.stage = stage;
     const wd = this.wardenAt(a, aa);
     wd.stage = stage;
+    // he stands over him and breathes: a slow chest rise (the trunk bends a hair about the
+    // hips and stretches a little), a weight shift, on threes; the cloak moves by itself
+    const br = Math.sin((onN(a, 3) - t0) * 3.3);
+    bendActor(wd, {
+      pivot: HIPS.warden_yield_cut,
+      ramp: 75,
+      lean: 0.014 * br + 0.006 * Math.sin((onN(a, 3) - t0) * 1.1),
+    });
+    wd.xf = { sy: 1 + 0.006 * br };
     // the sun is cheated round to the downstream sky (the camera has turned): only here
     const sun0 = this.world.sun;
     this.world.sun = { ...sun0, az: 3.2, el: 0.16 };
@@ -2005,13 +2071,13 @@ function retoneWarm(img, hk = 0.6, sk = 0.65) {
     const dd = mx - Math.min(r, g, b);
     if (mx < 0.5 || dd < 1e-6) continue;
     const s = dd / mx;
-    if (s <= 0.25 || s >= 0.85) continue;
+    if (s <= 0.16 || s >= 0.85) continue;
     let h;
     if (mx === r) h = (((g - b) / dd) % 6) * 60;
     else if (mx === g) h = ((b - r) / dd + 2) * 60;
     else h = ((r - g) / dd + 4) * 60;
     if (h < 0) h += 360;
-    if (h <= 26 || h >= 56) continue;
+    if (h <= 26 || h >= 64) continue;
     const h2 = h * hk;
     const s2 = s * sk;
     const cc = mx * s2;
@@ -2055,10 +2121,10 @@ function speedLinesAlong(f, pa, pb, t) {
   const nx = -dy / L;
   const ny = dx / L;
   const d = twos(t);
-  for (let i = 0; i < 14; i++) {
-    const off = (hash(i, d, 3) - 0.5) * 40;
+  for (let i = 0; i < 7; i++) {
+    const off = (hash(i, d, 3) - 0.5) * 34;
     const u0 = hash(i, d, 4) * 0.7;
-    const len = 0.15 + 0.3 * hash(i, d, 5);
+    const len = 0.12 + 0.22 * hash(i, d, 5);
     for (let k = 0; k < L * len; k++) {
       const u = u0 + k / L;
       put(f, W, H, pa.sx + dx * u + nx * off, pa.sy + dy * u + ny * off, RGB.sepia);
