@@ -47,7 +47,7 @@ test('traced sprites use tile anchors, animate and stay aligned after rewind', a
     }));
   });
   for (const u of units) {
-    expect(u.key, JSON.stringify(u)).toMatch(/^traced-/);
+    expect(u.key, JSON.stringify(u)).toMatch(/^(traced-|contrast-rebuilt-special_old_knight$)/);
     expect(u.width).toBe(64);
     expect(u.height).toBe(64);
     expect(u.x).toBe(u.pos.x);

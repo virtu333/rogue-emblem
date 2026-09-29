@@ -20,7 +20,11 @@ export default [
   },
   {
     // Native Node simulation and Vite share this JSON import.
-    files: ['src/engine/ShopEconomy.js', 'src/engine/PortraitVariants.js'],
+    files: [
+      'src/engine/ShopEconomy.js',
+      'src/engine/PortraitVariants.js',
+      'src/engine/SpecialCharacters.js',
+    ],
     languageOptions: { ecmaVersion: 2025 },
   },
   {

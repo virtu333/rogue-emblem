@@ -27,19 +27,21 @@ test('every unit on a battle map has its face; canvas faces load lazily', async 
     const b = window.__emblemRogueGame.scene.getScene('Battle');
     const { portraitIdForUnit, isVariantPortrait } = await import('/src/ui/portraitArt.js');
     const units = [...b.playerUnits, ...b.enemyUnits, ...(b.npcUnits || [])];
-    const generic = units.filter((u) => !u.isLord && !u.isBoss);
-    const ids = generic.map((u) => portraitIdForUnit(u, b.gameData));
+    const generic = units.filter((u) => !u.isLord && !u.isBoss && !u.specialCharId);
+    const ids = units.map((u) => portraitIdForUnit(u, b.gameData));
     const variants = ids.filter((id) => isVariantPortrait(id));
     // Warmed forecast faces (40 px) for every variant on the field.
     await new Promise((r) => setTimeout(r, 500));
     const keys = b.textures.getTextureKeys().filter((k) => k.startsWith('pc98v-'));
     return {
       missing: generic.filter((u) => !u.portraitVariant).map((u) => u.name),
+      personal: units.filter((u) => u.specialCharId).map((u) => portraitIdForUnit(u, b.gameData)),
       variants: [...new Set(variants)],
       warmed: keys,
     };
   });
   expect(state.missing).toEqual([]);
+  expect(state.personal).toEqual(['special_old_knight']);
   for (const id of state.variants) expect(state.warmed).toContain(`pc98v-40-${id}`);
 });
 

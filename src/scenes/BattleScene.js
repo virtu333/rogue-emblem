@@ -10305,6 +10305,7 @@ export class BattleScene extends Phaser.Scene {
         return;
       await (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth();
 
+      (this._battleBeats ||= new BattleBeatsController(this)).onLowHealth(target);
       this.checkBattleEnd();
     } catch (err) {
       console.error('[BattleScene] enemy combat error:', err);

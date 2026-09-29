@@ -79,7 +79,7 @@ test('rebuilt sprites load with tile anchors and remain aligned after rewind', a
     expect(u.y).toBe(u.pos.y);
   }
 });
-test('classic comparison loads neither rebuilt nor traced textures', async ({ page }) => {
+test('classic comparison loads only the personal sprite outside classic art', async ({ page }) => {
   await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1&spriteArt=classic');
   await waitForScene(page, 'Battle');
   expect(
@@ -90,7 +90,7 @@ test('classic comparison loads neither rebuilt nor traced textures', async ({ pa
           k.startsWith('traced-'),
       ),
     ),
-  ).toEqual([]);
+  ).toEqual(['rebuilt-special_old_knight']);
 });
 
 test('flyers and mages share visible size and foot anchors across factions', async ({ page }) => {

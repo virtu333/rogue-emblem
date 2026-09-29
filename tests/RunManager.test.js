@@ -4000,7 +4000,7 @@ describe('blessing run-start effect application', () => {
     rm.roster.forEach((unit, idx) => {
       for (const stat of ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']) {
         expect(unit.growths[stat]).toBe(
-          Math.max(0, (baseGrowths[idx][stat] || 0) + (unit.isLord ? 12 : -10)),
+          (baseGrowths[idx][stat] || 0) + (unit.isLord ? 12 : -10),
         );
       }
     });

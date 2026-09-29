@@ -156,8 +156,8 @@ describe('BattleScene · re-entering a locked battle', () => {
   it('asks for a pick instead of auto-deploying a roster that no longer fits', () => {
     const rm = realRun();
     // Seven units fit act 3's cap of 7, so they would auto-deploy — into 5 spawns.
-    const roster = [...rm.roster, ...['A', 'B', 'C', 'D', 'E'].map(recruit)];
-    expect(roster).toHaveLength(8);
+    const roster = [...rm.roster, ...['A', 'B', 'C', 'D'].map(recruit)];
+    expect(roster).toHaveLength(7);
     const scene = makeScene({ runManager: rm, roster, lockedSpawns: 5 });
     scene.showDeployScreen = vi.fn();
     scene.beginBattle = vi.fn();
