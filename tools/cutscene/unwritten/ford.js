@@ -73,7 +73,6 @@ import {
   nudge,
   orbit,
   project,
-  smearFrame,
 } from './engine/world.js';
 import { drawSoldier, history, soldierLook } from './engine/figure.js';
 import {
@@ -253,7 +252,8 @@ const SLIP_FALL = [
   [12.3, 22],
 ];
 
-const FALL_TIP = 1; // which way the flipped slip clip rotates to lie back (by eye)
+const FALL_TIP = 1;
+const BIND_LEAN = 1; // which way a positive lean tips a figure toward +X (by eye) // which way the flipped slip clip rotates to lie back (by eye)
 const RUN_H = 1.76; // edric_run's cell height in metres (the runner is ~1.68 m in it)
 
 /** Build figures near the size they are seen at (in steps of about a tenth). */
@@ -1253,6 +1253,13 @@ export class FordPiece extends Piece {
     });
     const ed = this.edricAt(a3, a3);
     const wd = this.wardenAt(a3, a3);
+    // the bodies strain: each leans into the lock as it presses and is bent back as the
+    // other does (counter-phased, on threes), with a tremor that grows toward the decision
+    const push = Math.sin((a3 - TIME.bind) * 4.1);
+    const strain = smooth(TIME.bind, TIME.decide, a);
+    const trem = (k) => strain * 0.012 * Math.sin(twos(a) * 2.7 + k);
+    ed.actor.xf = { rot: BIND_LEAN * (0.03 + 0.03 * push) + trem(0) };
+    wd.xf = { rot: -BIND_LEAN * (0.02 - 0.03 * push) + trem(1.9) };
     this.world.render(f, a, cam, {
       rain: 0.9,
       rainWind: [2.2, 0.4],
@@ -1298,7 +1305,7 @@ export class FordPiece extends Piece {
   // --- 12 · 34.3: close-up. The helm's eye slit; a tilt; he decides ------------------
   helmPlate() {
     if (this.img.helm) {
-      return { layer: this.plateOf('helm', { zoom: 1.6, skin: false }), eye: [262, 119] };
+      return { layer: this.plateOf('helm', { zoom: 1.6, skin: false }), eye: [336, 58] };
     }
     // fallback: the helm of the old stand-in, cropped close
     const im = this.img.soldier;
@@ -1314,19 +1321,44 @@ export class FordPiece extends Piece {
     const lt = t - t0;
     const a = act(t);
     const hp = this.helmPlate();
-    // the tilt: a small snap down toward the blade at the blocking's decide, on twos
-    const tilt = keyMove(a, TIME.decide + 0.12, 0.3, { ant: 0.35, back: 0.15, over: 0.08, n: 2 });
-    const c = pageCam(
-      240 + 6 * tilt,
-      130 - 12 * tilt + lt * 1.5,
-      1.2 + 0.03 * lt + 0.03 * tilt,
-      0.085 * tilt,
-    );
-    this.draw(f, hp.layer, 0, null, c);
-    const [ex, ey] = scrPage(c, ...hp.eye);
-    // the eye: a glint that comes on as he decides, and stays
-    if (a > TIME.decide + 0.3) star(f, W, H, ex, ey, 2 + ((twos(t) >> 1) % 2), RGB.paperHi);
-    // rain in front of him, and runnels down the iron (drawings on twos)
+    const L = hp.layer;
+    // he breathes (a pixel or two, slow), then decides: a lift, and the helm snaps down
+    // and toward the blade with an overshoot (the head moves, not the camera), on twos
+    const D = TIME.decide + 0.26;
+    const tilt = keyMove(a, D, 0.34, { ant: 0.4, back: 0.25, over: 0.12, n: 2 });
+    const breath = Math.sin(onN(a, 3) * 5.2) * 1.2 * (1 - clamp(tilt));
+    const w = L.st.w;
+    const h = L.st.h;
+    const xf = {
+      x: W / 2 - 10 * tilt,
+      y: H / 2 + h * 0.55 * L.xf.scale + breath + 6 * tilt,
+      ax: w / 2,
+      ay: h * 1.05, // the neck, below the frame
+      scale: L.xf.scale * (1.22 + 0.025 * tilt), // overscanned: the tilt never shows its edge
+      rot: -0.11 * tilt,
+    };
+    const c = pageCam(240, 135, 1.02 + 0.02 * lt, 0);
+    // whatever the tilt uncovers is the shadow under his collar, not the page
+    for (let i = 0; i < W * H * 4; i += 4) {
+      f[i] = 34;
+      f[i + 1] = 28;
+      f[i + 2] = 40;
+    }
+    this.draw(f, L, 0, xf, c);
+    // the eye: dark, then it catches the light on the snap, flares and holds
+    const m = layerMatrix(xf, c, W, H);
+    // the eye is given in page px of the plate at rest: back to layer px
+    const u = (hp.eye[0] - W / 2) / L.xf.scale + w / 2;
+    const v = (hp.eye[1] - H / 2) / L.xf.scale + h / 2;
+    const ex = m[0] * u + m[1] * v + m[2];
+    const ey = m[3] * u + m[4] * v + m[5];
+    const on = a - (D + 0.12);
+    if (on > 0) {
+      const flare = on < 0.1 ? 5 : on < 0.2 ? 3 : 2 + ((twos(t) >> 1) % 2);
+      star(f, W, H, ex, ey, flare, RGB.paperHi);
+      if (on < 0.25) glow(f, W, H, ex, ey, 14, 0.5 * (1 - on / 0.25));
+    }
+    // rain in front of him (drawings on twos)
     speedLines(f, W, H, t, {
       vertical: true,
       density: 0.09,
@@ -1335,12 +1367,13 @@ export class FordPiece extends Piece {
       color: RGB.paperHi,
       seed: 31,
     });
+    void lt;
   }
 
   // --- 13 · 35.1: the yield. The camera whips round and crosses the line --------------
   whipCam(t) {
-    const w0 = 10.6;
-    const w1 = 10.8;
+    const w0 = 10.62;
+    const w1 = 10.75; // three frames: the eye can't follow
     const w = smooth(w0, w1, t);
     const settle = t > w1 ? Math.exp(-(t - w1) * 9) * Math.sin((t - w1) * 18) * 0.05 : 0;
     const ang = lerp(-0.3, Math.PI + 0.35, w) + settle + 0.06 * (t - TIME.yield);
@@ -1373,7 +1406,15 @@ export class FordPiece extends Piece {
     let dyaw = cam.yaw - prev.yaw;
     dyaw -= Math.round(dyaw / (Math.PI * 2)) * Math.PI * 2;
     const drag = -dyaw * cam.focal * 0.9;
-    if (Math.abs(drag) > 3) smearFrame(f, W, H, drag, 0, { t, seed: 13 });
+    if (Math.abs(drag) > 3) {
+      panBlur(f, Math.min(90, Math.abs(drag)));
+      speedLines(f, W, H, t, {
+        density: 0.3,
+        speed: drag > 0 ? 3000 : -3000,
+        len: 160,
+        color: RGB.graphite,
+      });
+    }
   }
 
   // --- 14 · 35.3: the crimson cut -------------------------------------------------------
@@ -1579,6 +1620,35 @@ function segX(a, b, c, d) {
  * fall; each blob flat paper-white with an ink rim on its lower side. u: seconds since
  * the landing. Deterministic per seed.
  */
+/** A camera whip in one frame: every row dragged sideways over L px (a box average). */
+function panBlur(f, L) {
+  const n = Math.max(2, Math.round(L));
+  const row = new Float32Array(W * 3);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const o = (y * W + x) * 4;
+      row[x * 3] = f[o];
+      row[x * 3 + 1] = f[o + 1];
+      row[x * 3 + 2] = f[o + 2];
+    }
+    for (let x = 0; x < W; x++) {
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      for (let k = 0; k < n; k++) {
+        const xx = Math.min(W - 1, Math.max(0, x - (n >> 1) + k));
+        r += row[xx * 3];
+        g += row[xx * 3 + 1];
+        b += row[xx * 3 + 2];
+      }
+      const o = (y * W + x) * 4;
+      f[o] = r / n;
+      f[o + 1] = g / n;
+      f[o + 2] = b / n;
+    }
+  }
+}
+
 function bodySplash(f, cam, X, Z, len, u, strength = 1, seed = 1) {
   if (u < 0 || u > 1.1) return;
   const WHITE = [238, 233, 222];
