@@ -57,14 +57,27 @@ export const resolveRecruitPromotionTargets = resolveRecruitScalingTargets;
 // The join bonus: flat stats a non-lord recruit gets once, when it is created, so it
 // can stand beside the lords (playtest 2026-09-29). Act 1 closes the lords' base-stat
 // head start (lords average 54.7 base points, the Act 1 recruit classes 46.5) with
-// one point where that gap sits; later acts give the Act 3 readiness package. Only
-// base-class recruits get it: a recruit that joins promoted has its promotion bonuses.
+// one point where that gap sits; later acts give the Act 3 readiness package.
 // `attack` is STR or MAG by the recruit's weapons; `guard` is the lower of DEF/RES.
 export const RECRUIT_JOIN_BONUS = Object.freeze({
   act1: Object.freeze({ HP: 2, attack: 2, SKL: 1, SPD: 1, DEF: 1, RES: 1 }),
   act2: Object.freeze({ HP: 2, attack: 2, SPD: 1, guard: 1 }),
   act3: Object.freeze({ HP: 2, attack: 2, SPD: 1, guard: 1 }),
   act4: Object.freeze({ HP: 2, attack: 2, SPD: 1, guard: 1 }),
+});
+// A recruit that joins already promoted (recruit nodes, boss recruits, Colosseum
+// mercenaries, the Vanguard Cadre) gets +8 in Acts 3-4 and nothing earlier (an Act 2
+// board can draw promoted classes through crossActPoolAccess: it gets none). Measured
+// with no meta, promoted recruits at the same promoted level as the promoted lords
+// (created the way a recruited lord is: Lv 10 base, promoted, levelled) trail them by
+// 8.6 stat points in Act 3 and 9.8 in Act 4 (by source, 8.1-10.7). +8 is the largest
+// package no source overshoots: the Colosseum's mercenaries, who already roll two +1
+// stats, trail by only 8.1 in Act 3. It goes where the gap sits: DEF trails by 3.1-3.6,
+// the attack stat by 2-4, RES by 1-2. Lords never get it; recruited lords keep the
+// package they have.
+export const RECRUIT_PROMOTED_JOIN_BONUS = Object.freeze({
+  act3: Object.freeze({ HP: 2, attack: 2, SPD: 1, DEF: 2, RES: 1 }),
+  act4: Object.freeze({ HP: 2, attack: 2, SPD: 1, DEF: 2, RES: 1 }),
 });
 // Recruited lords keep only the Act 3 package they had before: in the early acts
 // the bonus exists to close the gap to the lords, so a lord never gets it there.
@@ -74,11 +87,21 @@ const LORD_JOIN_BONUS_ACTS = new Set(['act3']);
  * Creation-time bonus only; ordinary saved stats preserve it through promotion and
  * resume. Every recruit source calls it once with the act whose pool it came from:
  * recruit nodes, boss recruits, Colosseum mercenaries and the Vanguard Cadre.
+ * Base-class recruits take RECRUIT_JOIN_BONUS; a recruit that joins already promoted
+ * takes RECRUIT_PROMOTED_JOIN_BONUS (Acts 3-4 only). Lords never get the promoted
+ * package (they are what it measures against) and enemies get neither.
  */
 export function applyRecruitJoinBonus(unit, act) {
-  const bonus = RECRUIT_JOIN_BONUS[act];
-  if (!bonus || unit?.tier !== 'base' || !unit.stats) return;
-  if (unit.isLord && !LORD_JOIN_BONUS_ACTS.has(act)) return;
+  if (!unit?.stats || unit.faction === 'enemy') return;
+  let bonus;
+  if (unit.tier === 'base') {
+    if (unit.isLord && !LORD_JOIN_BONUS_ACTS.has(act)) return;
+    bonus = RECRUIT_JOIN_BONUS[act];
+  } else if (unit.tier === 'promoted') {
+    if (unit.isLord) return;
+    bonus = RECRUIT_PROMOTED_JOIN_BONUS[act];
+  }
+  if (!bonus) return;
   const type =
     unit.proficiencies?.find((p) => p.type !== 'Staff')?.type || unit.proficiencies?.[0]?.type;
   const attack = ['Tome', 'Light', 'Staff'].includes(type) ? 'MAG' : 'STR';
