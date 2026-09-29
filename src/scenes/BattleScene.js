@@ -2402,6 +2402,7 @@ export class BattleScene extends Phaser.Scene {
       const filteredNames = filterClassPoolByDifficulty(
         classNames,
         this.battleParams?.difficultyId,
+        { act, difficulty: this.gameData?.difficulty },
       );
       for (const className of filteredNames) {
         if (!earlyEnemyAllowed(className, this.battleParams)) continue;
@@ -7496,24 +7497,30 @@ export class BattleScene extends Phaser.Scene {
     this._forecastGamblerLine = null;
   }
 
-  _gamblerRandom(unit, session) {
+  // Gambler's Coin: one flip per unit per turn phase, keyed on the battle seed, so
+  // every combat the unit fights that phase shares it and scouting other tiles or
+  // targets in the forecast cannot fish for a better roll. It draws nothing from the
+  // battle stream, and resume and Vision rewind (same seed, phase and turn) replay it.
+  _gamblerRandom(unit) {
     if (this._battleRewindPolicy !== 'fixed-v1') return Math.random;
+    const phase = this.turnManager?.currentPhase || 'player';
+    const turn = Math.max(1, Math.trunc(Number(this.turnManager?.turnNumber) || 1));
     return keyedBattleRandom(
       this.visionBaseSeed,
-      `gambler:${session?.key || ''}:${unit?.battleEntityId || unit?.name || ''}`,
+      `gambler:${phase}:${turn}:${unit?.battleEntityId || unit?.name || ''}`,
     );
   }
 
   _getGamblerAtkDelta(unit, session = null) {
     const rolls = session || this._combatRollSession;
-    return resolveGamblerDelta(unit, rolls, this._gamblerRandom(unit, rolls));
+    return resolveGamblerDelta(unit, rolls, this._gamblerRandom(unit));
   }
 
   _applyAccessoryPhaseCombatMods(unit, mods, session = null) {
     applyAccessoryPhaseCombatMods(unit, mods, {
       turnNumber: this.turnManager?.turnNumber,
       rollSession: session || this._combatRollSession,
-      rng: this._gamblerRandom(unit, session || this._combatRollSession),
+      rng: this._gamblerRandom(unit),
     });
   }
 
@@ -8588,8 +8595,11 @@ export class BattleScene extends Phaser.Scene {
     if (event.heal > 0 && event.strikerHealTo !== undefined) {
       setUnitHP(striker, event.strikerHealTo);
       this.updateHPBar(striker);
+    }
+    // Show what the drain actually healed (nothing at full HP).
+    if (event.healed > 0) {
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const healText = presentationText(this, sPos.x + 12, sPos.y - 8, `+${event.heal}`, {
+      const healText = presentationText(this, sPos.x + 12, sPos.y - 8, `+${event.healed}`, {
         fontFamily: 'monospace',
         fontSize: '11px',
         color: UI_PALETTE.good,
@@ -8610,8 +8620,11 @@ export class BattleScene extends Phaser.Scene {
     if (event.reflectDamage > 0 && event.strikerHPAfter !== undefined) {
       setUnitHP(striker, event.strikerHPAfter);
       this.updateHPBar(striker);
+    }
+    // Labelled, and only what the striker actually lost (Thorns leaves 1 HP).
+    if (event.reflectTaken > 0) {
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const refText = presentationText(this, sPos.x, sPos.y - 16, `${event.reflectDamage}`, {
+      const refText = presentationText(this, sPos.x, sPos.y - 16, `−${event.reflectTaken} Thorns`, {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: UI_PALETTE.bad,

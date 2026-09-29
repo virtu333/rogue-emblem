@@ -153,7 +153,7 @@ describe('ImbueSystem — effect accessors', () => {
     const weapon = makeWeapon();
     applyImbue(weapon, getImbue('vampiric'));
     const mods = getImbueCombatMods(weapon, imbuesData);
-    expect(mods.drainPercent).toBeCloseTo(0.15);
+    expect(mods.drainPerHit).toBe(1);
     expect(mods.activated).toEqual([{ id: 'imbue_vampiric', name: 'Vampiric' }]);
   });
 
@@ -164,7 +164,7 @@ describe('ImbueSystem — effect accessors', () => {
 
     const warded = makeWeapon();
     applyImbue(warded, getImbue('warded'));
-    expect(getImbueCombatMods(warded, imbuesData)).toMatchObject({ defBonus: 2, resBonus: 2 });
+    expect(getImbueCombatMods(warded, imbuesData)).toMatchObject({ defBonus: 1, resBonus: 2 });
 
     const bane = makeWeapon();
     applyImbue(bane, getImbue('armorbane'));
@@ -185,7 +185,7 @@ describe('ImbueSystem — effect accessors', () => {
   it('getImbuePostCombatPoison returns venom damage and 0 otherwise', () => {
     const venom = makeWeapon();
     applyImbue(venom, getImbue('venom'));
-    expect(getImbuePostCombatPoison(venom, imbuesData)).toBe(5);
+    expect(getImbuePostCombatPoison(venom, imbuesData)).toBe(7);
     const keen = makeWeapon();
     applyImbue(keen, getImbue('keen'));
     expect(getImbuePostCombatPoison(keen, imbuesData)).toBe(0);
@@ -197,7 +197,7 @@ describe('ImbueSystem — effect accessors', () => {
     applyImbue(binding, getImbue('binding'));
     expect(getImbuePostCombatStatus(binding, imbuesData)).toEqual({
       status: 'root',
-      chance: 30,
+      chance: 50,
       durationPhases: 1,
     });
     expect(getImbuePostCombatStatus(makeWeapon(), imbuesData)).toBeNull();
@@ -221,7 +221,7 @@ describe('ImbueSystem — display info', () => {
       id: 'warded',
       name: 'Warded',
       adjective: 'Warded',
-      description: '+2 DEF, +2 RES while wielding',
+      description: '+1 DEF, +2 RES while wielding',
       lore: getImbue('warded').lore,
     });
   });

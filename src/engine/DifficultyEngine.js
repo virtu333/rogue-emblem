@@ -9,6 +9,16 @@ export const DIFFICULTY_CONTRACT_VERSION = 1;
  */
 export const DIFFICULTY_IDS = ['normal', 'dusk', 'hard', 'lunatic'];
 
+/** Act order for "from this act on" gates (postAct sits between Act IV and the finale). */
+export const ENEMY_ACT_GATE_ORDER = Object.freeze([
+  'act1',
+  'act2',
+  'act3',
+  'act4',
+  'postAct',
+  'finalBoss',
+]);
+
 /** Position on the ladder (0 = First Light), or -1 for an unknown id. */
 export function difficultyRank(difficultyId) {
   return DIFFICULTY_IDS.indexOf(String(difficultyId || '').toLowerCase());
@@ -97,6 +107,8 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   color: '#95c487',
   enemyStatBonus: 0,
   classStatBonuses: Object.freeze({}),
+  // Enemy class -> the first act it may appear in on this rung (Dusk: Dragons from Act IV).
+  enemyClassEarliestAct: Object.freeze({}),
   enemyCountBonus: 0,
   enemyLevelBonus: 0,
   enemyCountBase: 0,
@@ -241,6 +253,16 @@ export function validateDifficultyConfig(config) {
       errors.push(
         `modes.${difficultyId}.classStatBonuses must map classes to non-negative integers`,
       );
+    }
+
+    if (
+      mode.enemyClassEarliestAct !== undefined &&
+      (!isObject(mode.enemyClassEarliestAct) ||
+        Object.values(mode.enemyClassEarliestAct).some(
+          (act) => !ENEMY_ACT_GATE_ORDER.includes(act),
+        ))
+    ) {
+      errors.push(`modes.${difficultyId}.enemyClassEarliestAct must map classes to act ids`);
     }
 
     for (const key of DIFFICULTY_REQUIRED_KEYS) {
