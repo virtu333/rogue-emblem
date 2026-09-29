@@ -761,6 +761,21 @@ export function canCounter(defender, defenderWeapon, distance) {
 // --- Combat Forecast (deterministic preview for UI) ---
 
 /**
+ * Thorns: the share of an adjacent hit a Thorns unit sends back to the striker
+ * (0 when the unit has no Thorns or the affix data is missing).
+ */
+export function getThornsReflectPct(unit, affixData) {
+  if (!Array.isArray(unit?.affixes) || !unit.affixes.includes('thorns')) return 0;
+  const affix = affixData?.affixes?.find((a) => a.id === 'thorns');
+  return Number(affix?.effects?.reflectMeleePct) || 0;
+}
+
+/** The damage Thorns reflects for a hit of `damage`: rounded down, so small hits reflect 0. */
+export function thornsReflectDamage(damage, pct) {
+  return Math.max(0, Math.floor((Number(damage) || 0) * (Number(pct) || 0)));
+}
+
+/**
  * True when a weapon's special text changes HP during or right after the
  * exchange in a way the forecast numbers do not show (drain, post-combat
  * poison). Descriptive specials ("Lightest magic", "Throwable, lower stats") and
@@ -1052,6 +1067,21 @@ export function getCombatForecast(
     if (attacker.affixes.includes('teleporter') && defDmg > 0) defWarnings.push('Teleporter');
   }
 
+  // Thorns: the damage each landed, non-critical hit sends back to its striker. The
+  // HP projection includes it when this context resolves on-defend affixes (as
+  // battles do); otherwise, or without the affix data, the projection stays hidden.
+  const affixesResolve = Boolean(skillCtx?.rollStrikeSkills && skillCtx?.rollDefenseAffixes);
+  const atkThornsPct =
+    affixesResolve && atkWarnings.includes('Thorns')
+      ? getThornsReflectPct(defender, skillCtx?.affixData)
+      : 0;
+  const defThornsPct =
+    affixesResolve && defWarnings.includes('Thorns')
+      ? getThornsReflectPct(attacker, skillCtx?.affixData)
+      : 0;
+  const warningsHideProjection = (warnings, thornsPct) =>
+    warnings.some((w) => w !== 'Thorns' || !(thornsPct > 0));
+
   // Read-only display metadata. Resolution order and RNG are untouched.
   const forecast = {
     display: {
@@ -1085,8 +1115,8 @@ export function getCombatForecast(
         !(defCanCounter && getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)) &&
         !weaponSpecialChangesExchangeHp(atkWeapon) &&
         !(defCanCounter && weaponSpecialChangesExchangeHp(defWeapon)) &&
-        !atkWarnings.length &&
-        !defWarnings.length &&
+        !warningsHideProjection(atkWarnings, atkThornsPct) &&
+        !warningsHideProjection(defWarnings, defThornsPct) &&
         ![
           [attacker, atkWeapon],
           [defender, defWeapon],
@@ -1131,6 +1161,7 @@ export function getCombatForecast(
       drainMaxPerHit: isWounded(attacker) ? null : atkMods?.drainMaxPerHit || null,
       skills: atkActivated,
       warnings: atkWarnings,
+      thornsReflect: thornsReflectDamage(atkDmg, atkThornsPct),
     },
     defender: {
       name: defender.name,
@@ -1148,6 +1179,7 @@ export function getCombatForecast(
       drainMaxPerHit: isWounded(defender) ? null : defMods?.drainMaxPerHit || null,
       skills: defActivated,
       warnings: defWarnings,
+      thornsReflect: thornsReflectDamage(defDmg, defThornsPct),
     },
   };
 
@@ -1346,6 +1378,23 @@ function applyReflect(evt, strikerHP) {
   if (!(evt.reflectDamage > 0) || !(strikerHP > 0)) return strikerHP;
   const after = Math.max(1, strikerHP - evt.reflectDamage);
   evt.strikerHPAfter = after;
+  // What the striker actually lost (Thorns never takes the last HP).
+  evt.reflectTaken = strikerHP - after;
+  if (evt.reflectTaken === 0 && Array.isArray(evt.skillActivations))
+    evt.skillActivations = evt.skillActivations.filter((a) => a.id !== 'thorns');
+  return after;
+}
+
+/**
+ * A strike's drain/Sol heal on the striker: none while Wounded, never past max HP.
+ * Records the HP it heals to (`strikerHealTo`) and what it actually healed (`healed`).
+ */
+function applyStrikeHeal(evt, striker, strikerHP) {
+  if (evt.heal > 0 && isWounded(striker)) evt.heal = 0; // Wounded: no drain
+  if (!(evt.heal > 0)) return strikerHP;
+  const after = Math.min(striker.stats.HP, strikerHP + evt.heal);
+  evt.strikerHealTo = after;
+  evt.healed = Math.max(0, after - strikerHP);
   return after;
 }
 
@@ -1684,19 +1733,11 @@ export function resolveCombat(
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
         // Sol/Drain heal: striker heals HP
-        if (evt.heal > 0 && isWounded(attacker)) evt.heal = 0; // Wounded: no drain
-        if (evt.heal > 0) {
-          atkHP = Math.min(attacker.stats.HP, atkHP + evt.heal);
-          evt.strikerHealTo = atkHP;
-        }
+        atkHP = applyStrikeHeal(evt, attacker, atkHP);
         atkHP = applyReflect(evt, atkHP);
       } else {
         atkHP = evt.targetHPAfter;
-        if (evt.heal > 0 && isWounded(defender)) evt.heal = 0; // Wounded: no drain
-        if (evt.heal > 0) {
-          defHP = Math.min(defender.stats.HP, defHP + evt.heal);
-          evt.strikerHealTo = defHP;
-        }
+        defHP = applyStrikeHeal(evt, defender, defHP);
         defHP = applyReflect(evt, defHP);
       }
       // Sleep: wake on damage
@@ -1754,19 +1795,11 @@ export function resolveCombat(
         bonusEvt.adeptStrike = true;
         if (isAttackingDefender) {
           defHP = bonusEvt.targetHPAfter;
-          if (bonusEvt.heal > 0 && isWounded(attacker)) bonusEvt.heal = 0; // Wounded: no drain
-          if (bonusEvt.heal > 0) {
-            atkHP = Math.min(attacker.stats.HP, atkHP + bonusEvt.heal);
-            bonusEvt.strikerHealTo = atkHP;
-          }
+          atkHP = applyStrikeHeal(bonusEvt, attacker, atkHP);
           atkHP = applyReflect(bonusEvt, atkHP);
         } else {
           atkHP = bonusEvt.targetHPAfter;
-          if (bonusEvt.heal > 0 && isWounded(defender)) bonusEvt.heal = 0; // Wounded: no drain
-          if (bonusEvt.heal > 0) {
-            defHP = Math.min(defender.stats.HP, defHP + bonusEvt.heal);
-            bonusEvt.strikerHealTo = defHP;
-          }
+          defHP = applyStrikeHeal(bonusEvt, defender, defHP);
           defHP = applyReflect(bonusEvt, defHP);
         }
         // Propagate side effects recorded on the copied context back to the original

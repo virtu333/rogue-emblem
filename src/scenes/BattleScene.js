@@ -8540,8 +8540,11 @@ export class BattleScene extends Phaser.Scene {
     if (event.heal > 0 && event.strikerHealTo !== undefined) {
       setUnitHP(striker, event.strikerHealTo);
       this.updateHPBar(striker);
+    }
+    // Show what the drain actually healed (nothing at full HP).
+    if (event.healed > 0) {
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const healText = presentationText(this, sPos.x + 12, sPos.y - 8, `+${event.heal}`, {
+      const healText = presentationText(this, sPos.x + 12, sPos.y - 8, `+${event.healed}`, {
         fontFamily: 'monospace',
         fontSize: '11px',
         color: UI_PALETTE.good,
@@ -8562,8 +8565,11 @@ export class BattleScene extends Phaser.Scene {
     if (event.reflectDamage > 0 && event.strikerHPAfter !== undefined) {
       setUnitHP(striker, event.strikerHPAfter);
       this.updateHPBar(striker);
+    }
+    // Labelled, and only what the striker actually lost (Thorns leaves 1 HP).
+    if (event.reflectTaken > 0) {
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const refText = presentationText(this, sPos.x, sPos.y - 16, `${event.reflectDamage}`, {
+      const refText = presentationText(this, sPos.x, sPos.y - 16, `−${event.reflectTaken} Thorns`, {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: UI_PALETTE.bad,
