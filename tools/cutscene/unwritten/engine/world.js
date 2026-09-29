@@ -690,6 +690,7 @@ export class World {
     this.sunBox = null;
     this.reflSunBox = null;
     this.msun = null;
+    this.horizonY = 0.5;
     this.frameNo = 0;
     this.last = null;
     this.paper = o.paper;
@@ -1461,6 +1462,14 @@ export class World {
     const z = s[0] * B.fx - s[1] * B.fy + s[2] * B.fz;
     this.reflSunBox = null;
     this.msun = null;
+    // the horizon's height on screen at the frame's centre (where the column points)
+    {
+      const hx = B.fx;
+      const hz = B.fz;
+      const hl = Math.hypot(hx, hz) || 1;
+      const zz = (hx * B.fx + hz * B.fz) / hl;
+      this.horizonY = B.cy - (((hx * B.ux + hz * B.uz) / hl) * B.F) / Math.max(1e-3, zz);
+    }
     if (z > 0.05) {
       const px = B.cx + ((s[0] * B.rx - s[1] * B.ry + s[2] * B.rz) * B.F) / z;
       const py = B.cy - ((s[0] * B.ux - s[1] * B.uy + s[2] * B.uz) * B.F) / z;
@@ -1483,9 +1492,12 @@ export class World {
     const rs = ms.r;
     const ddx = x - ms.px;
     const ddy = y - ms.py;
-    if (ddy < -rs * 1.3 || Math.abs(ddx) > rs * 2.2) return 0;
-    // 0 at the mirror image, 1 at the frame's foot
-    const q = clamp(ddy / Math.max(24, this.H - ms.py));
+    if (Math.abs(ddx) > rs * 2.4) return 0;
+    // 0 at the mirror image, 1 at the frame's foot (below) or the horizon (above)
+    const q =
+      ddy >= 0
+        ? clamp(ddy / Math.max(24, this.H - ms.py))
+        : clamp(-ddy / Math.max(12, ms.py - this.horizonY));
     // the facets: a brick grid in (across, along) scaled to the pixel footprint, so they
     // are a few pixels tall at any distance and drift down the frame with the current
     const v = zf / (fpL * (2.6 - 1.2 * q)) + 0.3;
@@ -1496,7 +1508,7 @@ export class World {
     const h2 = hash(iu, jv, 73);
     const h3 = hash(iu, jv, 74);
     // each facet rocks with the swell: its tilt sends it up and down the column
-    const amp = rs * 0.5 + Math.max(0, ddy) * 1.12;
+    const amp = rs * 1.15 + Math.abs(ddy) * 1.1;
     const G = (Math.sin(h1 * 40 + t * (2.2 + 2.6 * h2)) * 0.5 + (h3 - 0.5)) * amp;
     const rr = rs * (1 - 0.5 * q);
     const ex = (ddx + (h2 - 0.5) * rs * (0.5 + 0.9 * q)) / rr;
@@ -3457,35 +3469,83 @@ export function foregroundRow(o) {
 }
 
 /**
- * A whip pan's smear: the frame dragged along (vx, vy) screen px (averaged over the
- * path), as the eye sees a camera turned faster than the shutter.
+ * A whip pan's smear, drawn the way anime draws it rather than as a camera blur: the
+ * frame strobed into a few multiples along the drag (dithered, never blended), rows of
+ * the picture dragged out into streaks (each takes the colour at its leading end), and
+ * ink speed lines running through. (vx, vy): the drag in screen px this frame (the
+ * dominant axis sets the streak direction). o: { t (the drawing: streaks boil on twos),
+ * seed, lines (0..1 how many ink lines), streaks (0..1 how many rows streak) }.
  */
-export function smearFrame(frame, W, H, vx, vy) {
+export function smearFrame(frame, W, H, vx, vy, o = {}) {
   const L = Math.hypot(vx, vy);
   if (L < 2) return;
-  const n = Math.min(24, Math.ceil(L));
+  const drawing = Math.floor((o.t ?? 0) * 12);
+  const seed = o.seed ?? 7;
   const src = frame.slice();
-  const ux = vx / n;
-  const uy = vy / n;
+  const k = Math.min(1, L / 60); // how hard the whip is
+  // 1. multiples: the image at three offsets along the drag, interleaved by dither
+  const offs = [0, 0.33, 0.66].map((f) => [vx * f, vy * f]);
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
-      let r = 0;
-      let g = 0;
-      let b = 0;
-      let c = 0;
-      for (let k = 0; k < n; k++) {
-        const xx = Math.round(x - ux * k);
-        const yy = Math.round(y - uy * k);
-        if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
-        const o = (yy * W + xx) * 4;
-        r += src[o];
-        g += src[o + 1];
-        b += src[o + 2];
-        c++;
-      }
-      const o = (y * W + x) * 4;
-      frame[o] = r / c;
-      frame[o + 1] = g / c;
-      frame[o + 2] = b / c;
+      const b = bayer(x, y);
+      const m = b < 0.5 ? 0 : b < 0.5 + 0.3 * k ? 1 : b < 0.5 + 0.5 * k ? 2 : 0;
+      if (!m) continue;
+      const xx = Math.round(x - offs[m][0]);
+      const yy = Math.round(y - offs[m][1]);
+      if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+      const s = (yy * W + xx) * 4;
+      const d = (y * W + x) * 4;
+      frame[d] = src[s];
+      frame[d + 1] = src[s + 1];
+      frame[d + 2] = src[s + 2];
     }
+  // 2. streaks: rows (or columns) dragged out, each run the colour at its leading end
+  const horiz = Math.abs(vx) >= Math.abs(vy);
+  const dir = horiz ? Math.sign(vx) || 1 : Math.sign(vy) || 1;
+  const along = horiz ? W : H;
+  const across = horiz ? H : W;
+  const dens = (o.streaks ?? 0.55) * (0.4 + 0.6 * k);
+  const idx = (a, c) => (horiz ? (c * W + a) * 4 : (a * W + c) * 4);
+  for (let c = 0; c < across; c++) {
+    // rows come in bands (a wash dragged by a broad brush), and boil per drawing
+    const band = hash(Math.floor(c / 3), drawing >> 1, seed);
+    if (band > dens || hash(c, drawing, seed + 1) > 0.8) continue;
+    let a = Math.floor(hash(c, 2, seed + drawing) * L);
+    while (a < along) {
+      const len = Math.max(4, Math.round(L * (0.5 + 1.3 * hash(c, a, seed + 3))));
+      // the leading end: where the run came from
+      const head = dir > 0 ? a : Math.min(along - 1, a + len);
+      const hs = idx(head, c);
+      const gap = Math.round(len * (0.2 + 0.6 * hash(a, c, seed + 4)));
+      for (let q = 0; q < len; q++) {
+        const pos = a + q;
+        if (pos >= along) break;
+        // the far end frays into the dither
+        const tail = dir > 0 ? q / len : 1 - q / len;
+        if (tail > 0.55 && tail - 0.55 > bayer(horiz ? pos : c, horiz ? c : pos) * 0.45) continue;
+        const d = idx(pos, c);
+        frame[d] = src[hs];
+        frame[d + 1] = src[hs + 1];
+        frame[d + 2] = src[hs + 2];
+      }
+      a += len + gap;
+    }
+  }
+  // 3. ink speed lines
+  const nl = Math.round(across * 0.07 * (o.lines ?? 1) * k);
+  for (let j = 0; j < nl; j++) {
+    const c = Math.floor(hash(j, drawing, seed + 5) * across);
+    const len = L * (1.5 + 2.5 * hash(j, drawing, seed + 6));
+    const a0 = hash(j, drawing, seed + 7) * (along + len) - len;
+    for (let q = 0; q < len; q++) {
+      const pos = Math.round(a0 + q);
+      if (pos < 0 || pos >= along) continue;
+      const taper = Math.min(q / (len * 0.3), (len - q) / (len * 0.3), 1);
+      if (taper <= bayer(horiz ? pos : c, horiz ? c : pos)) continue;
+      const d = idx(pos, c);
+      frame[d] = SEPIA[0];
+      frame[d + 1] = SEPIA[1];
+      frame[d + 2] = SEPIA[2];
+    }
+  }
 }

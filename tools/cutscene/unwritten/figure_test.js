@@ -21,7 +21,6 @@ import {
   drawParade,
   fordLine,
   marchSkeleton,
-  soldierLook,
 } from './engine/figure.js';
 import { LINE, TIME, bedY, skeletonAt } from './ford_blocking.js';
 

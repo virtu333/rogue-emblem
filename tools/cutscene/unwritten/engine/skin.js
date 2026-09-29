@@ -467,6 +467,7 @@ export class Skin {
       const R = { arm: 0.11, fore: 0.09, thigh: 0.15, shin: 0.12, foot: 0.08, hand: 0.075, ...r.auto.r };
       const Z = { armN: 6, armF: 2, legN: 4, legF: 2, fistN: 9, fistF: 8, ...r.auto.z };
       const cap = (a, b, k, k2 = k) => [...nz(J[a]), ...nz(J[b]), (k * T) / this.w, (k2 * T) / this.w];
+      const skip = r.auto.skip || [];
       for (const s of ['F', 'N']) {
         const grip = this.grips[s];
         out.push({
@@ -480,6 +481,7 @@ export class Skin {
           ],
           pad: r.auto.pad ?? 4,
         });
+        if (skip.includes(`arm${s}`)) continue;
         out.push({
           name: `arm${s}`,
           z: Z[`arm${s}`],

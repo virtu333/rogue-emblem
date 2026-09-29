@@ -71,7 +71,7 @@ export function makeTones(o = {}) {
     crimson: set(BLOOD, kb, 0, 1, 2, 3, 4, 5),
     cloak: set(BLOOD, kb, 0, 1, 2, 3, 4, 5),
     leather: brown ? set(EMBER, ke, 0, 0, 0, 0, 1, 2) : set(INK, ki, 0, 1, 2, 3, 5, 7),
-    wood: set(EMBER, ke, 0, 0, 0, 1, 2, 2),
+    wood: set(INK, ki, 0, 0, 1, 2, 3, 5),
     strap: set(EMBER, ke, 0, 0, 1, 1, 2, 3),
     steel: set(STONE, Math.round(hz * 1.5), 0, 1, 2, 3, 4, 5),
     ink: up(INK, 0, Math.round(hz * 3.0)),
@@ -1343,7 +1343,6 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
     );
     // swings with the near thigh a little: the scabbard tip trails the stride
     const sw = (sk.legs.N.knee[0] - sk.hips[0]) * fac;
-    const ang = -0.95 - clamp(sw * 0.8, -0.3, 0.3);
     const dw = V2.norm([
       -fac * Math.cos(0.75 + clamp(sw * 0.9, -0.35, 0.35)),
       -Math.sin(0.75 + clamp(sw * 0.9, -0.35, 0.35)),
