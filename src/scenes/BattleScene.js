@@ -2036,6 +2036,10 @@ export class BattleScene extends Phaser.Scene {
         )).getBossPreBattleEntries(bossName);
         try {
           await this._showStoryDialogueOnce(dialogueKey, entries);
+          await this._showStoryDialogueOnce(
+            'lieutenant_vision',
+            this._battleBeats.getLieutenantVisionEntries(),
+          );
         } catch (err) {
           console.warn('[BattleScene] boss pre-battle dialogue failed:', err);
         }
@@ -9399,6 +9403,20 @@ export class BattleScene extends Phaser.Scene {
             this.updateVisionHud();
           }
         }
+        // The commander's last words: the run ends with this fall (playtest
+        // 2026-09-28: it used to end in silence).
+        if (unit.isLord && unit.isCommander && !this.battleParams?.tutorialMode) {
+          const pool = this.gameData?.dialogue?.commanderFall?.[unit.name];
+          if (Array.isArray(pool) && pool.length > 0) {
+            const line =
+              this.runManager?.pickNarrativeLine?.(pool, `commanderFall:${unit.name}`) || pool[0];
+            try {
+              await this.dialogueOverlay?.show(unit.name, line, this._getPortraitKey(unit));
+            } catch (_) {}
+          }
+        }
+        // Someone on the field answers the loss (a quip over a living lord).
+        (this._battleBeats ||= new BattleBeatsController(this)).onAllyFall(unit);
       }
     } else if (unit.faction === 'npc') {
       const idx = this.npcUnits.indexOf(unit);

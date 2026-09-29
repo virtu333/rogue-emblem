@@ -212,6 +212,7 @@ describe('KNOWN_WHEN_KEYS', () => {
       'lastRunAct',
       'lastRunDefeatedByKnown',
       'lastRunResult',
+      'maxRunsStarted',
       'minRunsCompleted',
       'partner',
     ]);
