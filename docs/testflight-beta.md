@@ -1,5 +1,13 @@
 # Mobile beta release
 
+## Playtest fixes, fog ambush and the difficulty ladder — next build (pending)
+
+Source: PR #152 (branch `claude/playtest-notes-triage-z12dht`), once merged to `main` and CI is green there. Upload with the TestFlight workflow on `main` (mode `upload`, build number blank, group Public Playtest), pasting this into **whats_new** (one line; the input takes no line breaks):
+
+> New difficulty ladder: First Light, Dusk (new, ends at the Emperor), Nightfall (now on to the Entity), Black Sun; please check your existing saves still load and old wins unlock the right rungs. Fog: hidden enemies no longer shape your blue range; walking into one stops you short ("Ambush!"). Rescue/Warp: the chosen ally glows gold and gold squares show where they can land. Oaths: if all 5 skill slots are full, the Oath now waits in the roster (gold mark on Roster) until you give up a skill or let it go. Placement: Menu now offers Back to Map before turn 1. Also: HP accessories can't be swapped to heal, weapon arts and scrolls read as short cards, battles no longer start in silence, many smaller playtest fixes. Tell us anything that feels off, especially fog, placement and loading an old save.
+
+Device checks still owed (from the phone review): fog/ambush, placement Back to Map, the difficulty screen, the waiting Oath, and an old save loading.
+
 ## Rename to Rogue Dawn — next build (September 25)
 
 The game is now **Rogue Dawn** (was "Rogue Emblem" on the title / "Emblem Rogue" on the home

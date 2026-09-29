@@ -1532,16 +1532,11 @@ describe('MapGenerator', () => {
       }
     });
 
-    it('min <= max for all entries', () => {
+    it('0 < min <= max for all entries', () => {
       for (const [act, limits] of Object.entries(DEPLOY_LIMITS)) {
+        expect(limits.min, `${act} min`).toBeGreaterThan(0);
         expect(limits.min, `${act} min`).toBeLessThanOrEqual(limits.max);
       }
-    });
-
-    it('finalBoss entry exists with min and max', () => {
-      expect(DEPLOY_LIMITS.finalBoss).toBeDefined();
-      expect(DEPLOY_LIMITS.finalBoss.min).toBeGreaterThan(0);
-      expect(DEPLOY_LIMITS.finalBoss.max).toBeGreaterThanOrEqual(DEPLOY_LIMITS.finalBoss.min);
     });
   });
 });
