@@ -100,9 +100,29 @@ east.
 
 - A drawing of Edric facing right (no flip) and a blink patch for the close-ups: Edric's blinks in the
   wides come from his clip (a lowered lid mid-clip), not a patch on the cut-out.
-- The poked sword shows a saw of dark pixels along its edge at game size (a 1 px diagonal).
 - Sera's eye close-up with the Thread in it, and a hand insert (batch 8 prompts).
 - A painted camp prop sheet (tent fronts, tripod, barrels) to replace the ray-tested props.
+
+## Grounding (what carries whom)
+
+The owner's test is "is it real?": every figure and object rests on something you can see. Measured, not
+guessed:
+
+| Who | What carries them | How it was measured |
+|---|---|---|
+| Edric | A flat faceted sandstone slab (`SET.seats`, 0.16 m high), drawn in the world, lit by the fire. His seated cut-out really sits on the ground with one boot planted, so the slab is his seat and his plane. | The fire clip's lowest row is 395 in every drawing (boot planted); the folded shin ends 50 cell px higher (depth), which lands on the slab's back. The rise clip's crouch ends on row 371-375, the standing drawings on 396: `ground: true` puts each drawing's own lowest row on the slab. |
+| Sera | A folded striped blanket (`SET.seats`, two layers) under her hem. | Her clip ends on row 396 in every drawing; the blanket's front edge is 0.06 m in front of the anchor. |
+| Kira | Her painted crate (it is in her drawing; a second one would double). | The crate base is row 345-350, her near boot row 393 (0.2 m nearer). The contact line follows each column's lowest pixel, so both get their shadow. |
+| The torchbearer | The ground at his depth; a contact under each foot and a torch pool round him; tents in front hide him through the depth buffer. | |
+| Props | Every stone, barrel, crate, tent, post, tripod leg and seat has a contact-occlusion footprint (`camp_ground.js` footprints, a grid built once) and the stumps, barrels, crates and bench throw a shadow. | |
+
+Shadows (`engine/camp_ground.js`): a contact shadow under every touching column of a drawing (tight, 3 px),
+a cast shadow thrown away from the fire from the figure's own drawing (each pixel at height y is thrown
+1.5 y along the ground and given some depth), softer and fainter with height, lengthened and shortened by the
+fire's flicker (`this.k`) and moved by its wobble; the shadow also takes a third of the sky's light so it
+reads where the fire's pool is thin. Weight in shot 7: his hand presses a mark into the slab that becomes a
+scuff of ash and kicks ash up; on the hit the body squashes 3.5 % and rebounds, the cloak settles, each boot
+puts up dust (`camp_fx.js`). The last camera is lower so his boots, the slab and his shadow are in frame.
 
 ## Systems
 
@@ -111,6 +131,9 @@ east.
 | `camp_blocking.js` | The plan as data (tents included: size, yaw, sag, open flap): fire, seats, characters' facing and eyelines, the gestures and their times, the sky's Thread, the score's notes for the pulses, the seven cameras. `validate()` checks the eyelines meet and the cuts sit on notes. |
 | `camp_previs.js` | A flat plan-view animatic (`?piece=camp_previs`): the layout from above, eyelines as dashed rays, each shot's lens as a wedge, the shot boundaries, the tune's notes and the crashes on a score bar. |
 | `engine/camp_world.js` | A procedural night camp seen through a real perspective camera: sky, stars, the Thread, ridges, ground, tents, props, grass tufts in wind, the fire (flame, light, flicker, shadows), smoke, embers, figures composited with firelight, rim light and shadows. |
+| `engine/camp_ground.js` | The seats, contact occlusion, cast shadows (from the fire, from each figure's drawing) and marks on the ground (decals). |
+| `camp_fx.js` | Ash and dust kicked up by a hand or a boot. |
+| `motion/camp_blade.py` | Finds each drawing's sword blade (a line in cell px, in the clip's JSON) so camp.js repaints it as a clean two-pixel steel blade with a highlight line; the fast smear drawings keep their paint. |
 | `camp_palette.js` | The camp's palette snap: the master ramps without the olive earth ramp. |
 | `camp.js` | The seven shots (`?piece=camp`; `node tools/cutscene/render.mjs --piece camp --video out.mp4`). |
 
@@ -123,5 +146,9 @@ east.
   pixel as their standing cut-outs.
 - Gold is the Thread's alone. Firelight is orange and red, never the Thread's pale gold, and
   never sparkles.
+- The Thread is written in the palette's own colours (halo goldHi, stitches paper, core goldWhite), never
+  a blend of gold over the dark sky: a blend lands on the ember browns (the fire's) or the verdigris greens.
+- The heat over the flames is a one-pixel ripple mixed half with its neighbour, over the background only:
+  it has no colour of its own (a full row copy turned the torch-lit stakes into orange ribbons).
 - The last frame of the whole opening (Edric at the fire looking into the camera, in full
   colour) is not used here. This scene ends with him standing, looking at the sky.
