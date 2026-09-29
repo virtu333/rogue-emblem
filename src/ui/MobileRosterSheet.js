@@ -38,14 +38,16 @@ import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_PER_LEVEL } from '../util
 import { teachScrollBlock, teachRosterScroll } from '../engine/RosterTransfers.js';
 import {
   CONVOY_HOLDER,
+  applyReorder,
   applyTrade,
   bagCapacity,
   bagItems,
+  planReorder,
   planTrade,
   unitHolder,
 } from '../engine/ItemTrade.js';
 import { TradeMenu } from './TradeMenu.js';
-import { commitMessage, tradeWarningText } from './tradeMenuModel.js';
+import { commitMessage, reorderMessage, tradeWarningText } from './tradeMenuModel.js';
 import {
   partnerHolder,
   partnerLabel,
@@ -1044,7 +1046,10 @@ export class MobileRosterSheet {
       },
     });
   }
-  /** Trade… on an item card: pick a partner, then trade with this item held. */
+  /**
+   * Trade… on an item card: pick a partner, then trade. Nothing is held on open (a
+   * first tap picks the item); the hidden cursor starts on this item's row.
+   */
   tradeItem(source, item) {
     const bag = tradeBagFor(item);
     const ctx = this.tradeCtx();
@@ -1054,7 +1059,7 @@ export class MobileRosterSheet {
       (partner) => tradePartnerItemText(ctx, partner, item),
       (partner) =>
         this.openTrade(source, partnerHolder(partner), {
-          held: { holder: unitHolder(source), bag, item },
+          cursor: { holder: unitHolder(source), bag, item },
           bag,
         }),
     );
@@ -1071,10 +1076,10 @@ export class MobileRosterSheet {
   }
   /**
    * The trade menu over this sheet. It lives in `picker`, so the sheet's guards and
-   * destroy() cover it. Each commit applies at once and saves the run the moment it
-   * lands (the context's persist when given); the sheet re-renders on close.
+   * destroy() cover it. Each commit or reorder applies at once and saves the run the
+   * moment it lands (the context's persist when given); the sheet re-renders on close.
    */
-  openTrade(left, right, { held = null, bag = null } = {}) {
+  openTrade(left, right, { cursor = null, bag = null } = {}) {
     if (this.picker || this.destroyed || !this.run) return;
     const ctx = this.tradeCtx();
     let message = '';
@@ -1083,9 +1088,9 @@ export class MobileRosterSheet {
       ctx,
       left,
       right,
-      held,
+      cursor,
       bag,
-      engine: { planTrade, bagItems, bagCapacity, unitHolder },
+      engine: { planTrade, planReorder, bagItems, bagCapacity, unitHolder },
       commit: (from, to) => {
         const result = applyTrade(ctx, from, to);
         if (!result.ok) return result;
@@ -1095,6 +1100,13 @@ export class MobileRosterSheet {
           .map((text) => ` ${text}.`)
           .join('');
         message = `${commitMessage(from, to, result.kind)}${warnings}${this.persistNow()}`;
+        return { ok: true, message };
+      },
+      // Two items in one unit's bag swap places; a new first weapon is equipped.
+      reorder: (from, to) => {
+        const result = applyReorder(ctx, from, to);
+        if (!result.ok) return result;
+        message = `${reorderMessage(from, to, result.equips)}${this.persistNow()}`;
         return { ok: true, message };
       },
       onClose: () => {
@@ -1520,7 +1532,7 @@ export class MobileRosterSheet {
       c.append(
         this.button('Trade…', () =>
           this.openTrade(unit, CONVOY_HOLDER, {
-            held: { holder: CONVOY_HOLDER, bag, item: live[index] },
+            cursor: { holder: CONVOY_HOLDER, bag, item: live[index] },
             bag,
           }),
         ),

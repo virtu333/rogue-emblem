@@ -36,6 +36,7 @@ export function fakeEngine({
   convoyCaps = { weapons: 6, consumables: 4 },
 } = {}) {
   const calls = [];
+  const reorderCalls = [];
   const convoyBag = (bag) => (bag === 'inventory' ? convoy.weapons : convoy.consumables);
   const items = (holder, bag) => {
     if (holder.kind === 'convoy') return bag === 'accessory' ? [] : convoyBag(bag);
@@ -76,5 +77,53 @@ export function fakeEngine({
         warnings.push({ code: 'leaves_unarmed', unit: giver });
       return { ok: true, kind: to.item ? 'swap' : 'give', warnings, detail: from.item.name };
     },
+    /**
+     * Reorder (a subset of ItemTrade.planReorder): two items of one unit's own bag;
+     * an item moving into weapon slot 0 is equipped, refused when the unit is marked
+     * `cannotEquip` for it. Bag order is the unit's array order (equipped first).
+     */
+    planReorder(ctx, from, to) {
+      reorderCalls.push({ ctx, from, to });
+      if (from.holder.kind !== 'unit' || to.holder.kind !== 'unit')
+        return { ok: false, reason: "Only a unit's own items can be reordered." };
+      const owner = from.holder.unit;
+      if (owner !== to.holder.unit)
+        return { ok: false, reason: "Reorder items within one unit's bag." };
+      if (!to.item) return { ok: false, reason: 'Choose another item to swap with.' };
+      const list = owner[from.bag];
+      const i = list.indexOf(from.item);
+      const j = list.indexOf(to.item);
+      if (from.bag === 'inventory' && (i === 0 || j === 0)) {
+        const first = i === 0 ? to.item : from.item;
+        if (owner.cannotEquip.includes(first.name))
+          return { ok: false, reason: `${owner.name} can't wield ${first.name}.` };
+        return {
+          ok: true,
+          kind: 'reorder',
+          equips: first,
+          warnings: [],
+          detail: `Equipped ${first.name}`,
+        };
+      }
+      return {
+        ok: true,
+        kind: 'reorder',
+        equips: null,
+        warnings: [],
+        detail: `Swapped ${from.item.name} and ${to.item.name}`,
+      };
+    },
+    reorderCalls,
   };
+}
+
+/** Swaps two items of one unit's bag the way ItemTrade.applyReorder does (fake units). */
+export function applyFakeReorder(from, to) {
+  const owner = from.holder.unit;
+  const list = owner[from.bag];
+  const i = list.indexOf(from.item);
+  const j = list.indexOf(to.item);
+  list[i] = to.item;
+  list[j] = from.item;
+  if (from.bag === 'inventory' && (i === 0 || j === 0)) owner.weapon = list[0];
 }

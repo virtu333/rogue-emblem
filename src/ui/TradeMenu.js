@@ -20,8 +20,10 @@ import {
   holderUnit,
   initialFocus,
   navigate,
+  reorderMessage,
   rowAt,
   sameHolder,
+  sameItem,
 } from './tradeMenuModel.js';
 
 const ARROWS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
@@ -56,19 +58,30 @@ export function tradeItemBrief(item, unit) {
 
 /**
  * FE-style trading between two holders (docs/specs/item-trade.md, "UI"): tap an
- * item to hold it, tap a slot on the other side to give or swap. The rules and the
- * write belong to the caller: `engine` plans every target, `commit` applies one.
+ * item to hold it, tap a slot on the other side to give or swap, or another item in
+ * a unit's own column to swap their places (the first weapon slot is the equipped
+ * one). The rules and the write belong to the caller: `engine` plans every target,
+ * `commit` / `reorder` apply one.
+ *
+ * The menu opens with nothing highlighted: the cursor is logical (`focus`) and the
+ * dialog itself holds DOM focus, so keys still arrive. The first arrow, D-pad, Tab,
+ * Enter or A press shows the cursor where it is, without moving or activating; a
+ * pointer tap never leaves a row focused (the dialog keeps focus instead).
  *
  * Props:
  *   scene      Phaser scene (overlay stack, shutdown)
  *   ctx        { context: 'battle' | 'roster', run? }
  *   left/right a unit or a holder ({ kind: 'unit', unit } | { kind: 'convoy' })
  *   bags?      bag ids to offer (default: all the context allows)
- *   bag?       the tab to open on (default: the held item's bag, else the first)
+ *   bag?       the tab to open on (default: the held item's bag, else the cursor's,
+ *              else the first)
  *   held?      { holder, bag, item } to open with an item already held
+ *   cursor?    { holder, bag, item } to start the (hidden) cursor on; nothing is held
  *   commit(from, to) -> { ok, reason?, message? } (or a promise of it)
+ *   reorder?(from, to) -> the same; swaps two items in one unit's bag. Without it,
+ *              another item in the held item's column switches what is held.
  *   onClose()  after the menu is gone
- *   engine     { planTrade, bagItems, bagCapacity, unitHolder? }
+ *   engine     { planTrade, planReorder?, bagItems, bagCapacity, unitHolder? }
  */
 export class TradeMenu {
   constructor({
@@ -79,19 +92,25 @@ export class TradeMenu {
     bags = null,
     bag = null,
     held = null,
+    cursor = null,
     commit,
+    reorder = null,
     onClose,
     engine,
     title = 'Trade items',
   }) {
     this.id = `tm-${++menuSerial}`;
     Object.assign(this, { scene, ctx, bags, engine, onClose, commitTrade: commit });
+    this.reorderItems = typeof reorder === 'function' ? reorder : null;
     this.left = toHolder(left, engine);
     this.right = toHolder(right, engine);
     this.held = this.ownSlot(held);
-    this.bag = bag || held?.bag || null;
+    this.bag = bag || held?.bag || cursor?.bag || null;
     this.message = '';
     this.focus = null;
+    // How the last row was activated: a pointer tap leaves the dialog focused (no
+    // ring); a key or pad press keeps the focused row as the visible cursor.
+    this.pointer = false;
     this.serial = 0;
     this.releases = [];
     this.rowEls = new Map();
@@ -132,9 +151,43 @@ export class TradeMenu {
       ? new Observer((entries) => entries.forEach((entry) => this.markMore(entry.target)))
       : null;
     this.render();
-    this.focusRow(initialFocus(this.view));
-    // Opened holding an item deep in a long list (a convoy card's Trade…): show it.
+    // Nothing is highlighted on open: the cursor starts where it would be (an item
+    // card's own row, else the first item), shown by the first key or pad press.
+    this.focus = this.cursorAt(cursor) || initialFocus(this.view);
+    if (this.view.empty) this.done.focus();
+    else this.rest();
+    // Opened from an item deep in a long list (a convoy card's Trade…): show it.
     this.keepInView();
+  }
+
+  /** The row of a caller's slot in the visible tab, as a logical cursor (or null). */
+  cursorAt(slot) {
+    const own = this.ownSlot(slot);
+    if (!own || own.bag !== this.view.bag || !this.view.columns) return null;
+    const side = own.holder === this.left ? 'left' : 'right';
+    const row = this.view.columns[side].rows.find((r) => sameItem(own.holder, r.item, own.item));
+    return row ? { side, index: row.index } : null;
+  }
+
+  /** DOM focus on the dialog itself: keys arrive, and no row shows a focus ring. */
+  rest() {
+    this.surface.root.focus({ preventScroll: true });
+  }
+
+  /** The cursor after an activation: a visible focused row, or kept logical after a tap. */
+  placeCursor(focus) {
+    if (!this.pointer) {
+      this.focusRow(focus);
+      return;
+    }
+    this.focus = clampFocus(this.view, focus);
+    this.rest();
+  }
+
+  /** The first key or pad press shows the cursor where it is, without moving it. */
+  reveal() {
+    this.pointer = false;
+    this.focusRow(this.focus || initialFocus(this.view));
   }
 
   /** A caller's slot re-pointed at this menu's own holder objects. */
@@ -166,6 +219,7 @@ export class TradeMenu {
       bags: this.bags,
       bag: this.bag,
       held: this.held,
+      reorder: Boolean(this.reorderItems),
       engine: this.engine,
     });
     const view = this.view;
@@ -189,7 +243,7 @@ export class TradeMenu {
     this.setStatus(this.message || baseStatus(view));
 
     if (was === 'tab') this.tabButtons.find((t) => t.bag === view.bag)?.el.focus();
-    else if (was === 'row') this.focusRow(this.focus);
+    else if (was === 'row') this.placeCursor(this.focus);
   }
 
   renderTabs() {
@@ -257,7 +311,7 @@ export class TradeMenu {
     if (described.length) el.setAttribute('aria-describedby', described.join(' '));
     el.addEventListener('focus', () => this.onRowFocus(row));
     this.releases.push(
-      bindCancelablePress(el, () => this.activate(row.side, row.index), {
+      bindCancelablePress(el, (event) => this.activate(row.side, row.index, event), {
         context: () => this.serial,
       }),
     );
@@ -304,13 +358,17 @@ export class TradeMenu {
     else list.removeAttribute('data-more');
   }
 
-  /** The held row, then the focused row, whole in their own lists (after a layout change). */
+  /**
+   * The held row, then the cursor's row (focused, or still logical), whole in their
+   * own lists (on open and after a layout change).
+   */
   keepInView() {
     if (this.closed) return;
     const held = this.view?.heldRow ? this.rowEl(this.view.heldRow) : null;
     const active = globalThis.document?.activeElement;
     const focused = [...this.rowEls.values()].includes(active) ? active : null;
-    for (const el of [held, focused]) el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    const cursor = focused || (this.focusKind() ? null : this.rowEl(this.focus));
+    for (const el of [held, cursor]) el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   }
 
   focusRow(focus) {
@@ -334,8 +392,13 @@ export class TradeMenu {
     if (this.status.textContent !== text) this.status.textContent = text;
   }
 
-  activate(side, index) {
+  /**
+   * A row was activated. `event` is the click: a pointer tap has a click count
+   * (`detail` > 0); Enter, Space and the pad's A click with none.
+   */
+  activate(side, index, event = null) {
     if (this.applying || this.closed) return;
+    this.pointer = Number(event?.detail) > 0;
     const row = rowAt(this.view, { side, index });
     const action = activateRow(this.view, row);
     this.focus = { side, index };
@@ -343,21 +406,25 @@ export class TradeMenu {
       this.held = action.held;
       this.message = '';
       this.render();
-      this.focusRow({ side, index });
+      this.placeCursor({ side, index });
     } else if (action.type === 'release') {
       this.held = null;
       this.message = '';
       this.render();
-      this.focusRow({ side, index });
-    } else if (action.type === 'blocked') {
-      this.setStatus(action.reason);
-    } else if (action.type === 'commit') {
+      this.placeCursor({ side, index });
+    } else if (action.type === 'commit' || action.type === 'reorder') {
       this.apply(action, { side, index });
+    } else {
+      // Blocked (the status says why) or inert: nothing changes. A tap still leaves
+      // no row focused (the browser focused it on press).
+      if (action.type === 'blocked') this.setStatus(action.reason);
+      if (this.pointer) this.rest();
     }
   }
 
   apply(action, target) {
     const origin = this.view.heldRow;
+    const reorder = action.type === 'reorder';
     this.applying = true;
     this.surface.root.setAttribute('aria-busy', 'true');
     const finish = (result) => {
@@ -366,14 +433,19 @@ export class TradeMenu {
       if (this.closed) return;
       if (result?.ok === true) {
         this.held = null;
-        this.message = result.message || commitMessage(action.from, action.to, action.kind);
+        this.message =
+          result.message ||
+          (reorder
+            ? reorderMessage(action.from, action.to, action.equips)
+            : commitMessage(action.from, action.to, action.kind));
         this.render();
-        this.focusRow(focusAfterCommit(this.view, origin));
+        // A reorder keeps the cursor on the slot the held item moved into.
+        this.placeCursor(reorder ? target : focusAfterCommit(this.view, origin));
       } else {
         // Keep the item held if it is still there; the plan is redone on render.
         this.message = result?.reason || 'Could not trade. Please try again.';
         this.render();
-        this.focusRow(target);
+        this.placeCursor(target);
       }
     };
     const fail = (error) => {
@@ -382,7 +454,9 @@ export class TradeMenu {
     };
     let result;
     try {
-      result = this.commitTrade(action.from, action.to);
+      result = reorder
+        ? this.reorderItems(action.from, action.to)
+        : this.commitTrade(action.from, action.to);
     } catch (error) {
       fail(error);
       return;
@@ -400,7 +474,8 @@ export class TradeMenu {
     this.focus = focus;
     this.render();
     if (was === 'row') this.focusRow(focus);
-    else if (was !== 'done') this.tabButtons.find((t) => t.bag === this.view.bag)?.el.focus();
+    else if (was === 'tab') this.tabButtons.find((t) => t.bag === this.view.bag)?.el.focus();
+    else if (was !== 'done') this.rest(); // a hidden cursor stays hidden
   }
 
   switchTab(delta) {
@@ -435,6 +510,13 @@ export class TradeMenu {
   onKey(event) {
     if (event.ctrlKey || event.metaKey || event.altKey) return false;
     const { key } = event;
+    this.pointer = false;
+    // The dialog holds focus (on open, after a tap): Tab, Enter or Space shows the
+    // cursor where it is instead of walking or clicking. Arrows do the same in move().
+    if (!this.focusKind() && ['Tab', 'Enter', ' ', 'Spacebar'].includes(key)) {
+      this.reveal();
+      return true;
+    }
     if (key === 'Escape') {
       this.cancel();
       return true;
@@ -457,6 +539,12 @@ export class TradeMenu {
   }
 
   onAction(action, payload) {
+    this.pointer = false;
+    // A with the cursor still hidden shows it; it never activates a row unseen.
+    if (action === InputAction.CONFIRM && !this.focusKind()) {
+      this.reveal();
+      return true;
+    }
     if (action === InputAction.NAVIGATE) {
       const dy = Math.sign(Number(payload?.dy) || 0);
       const dx = Math.sign(Number(payload?.dx) || 0);
@@ -483,7 +571,9 @@ export class TradeMenu {
       this.held = null;
       this.message = '';
       this.render();
-      this.focusRow(at);
+      // A visible cursor lands on the released row; a hidden one stays hidden there.
+      if (this.focusKind()) this.focusRow(at);
+      else this.focus = clampFocus(this.view, at);
       return;
     }
     this.close();

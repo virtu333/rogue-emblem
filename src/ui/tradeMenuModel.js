@@ -1,7 +1,8 @@
 // The item trade menu as data (docs/specs/item-trade.md, "UI"). Pure: no DOM, no
 // engine import. The trade rules come in through `engine`
-// ({ planTrade, bagItems, bagCapacity }, the shape of engine/ItemTrade.js), so a
-// row's blocked reason and warnings are exactly what applying it would say.
+// ({ planTrade, planReorder?, bagItems, bagCapacity }, the shape of
+// engine/ItemTrade.js), so a row's blocked reason and warnings are exactly what
+// applying it would say.
 //
 // holder: { kind: 'unit', unit } | { kind: 'convoy' }
 // slot:   { holder, bag: 'inventory' | 'consumables' | 'accessory', item | null }
@@ -114,6 +115,8 @@ function emptySlotSuffix(row) {
 }
 
 function rowName(row, held) {
+  if (row.state === 'reorder')
+    return row.equips ? `Equip ${row.equips.name}` : `Swap ${held.item.name} with ${row.item.name}`;
   if (row.state === 'commit') {
     return row.empty
       ? `Give ${held.item.name} to ${holderName(row.slot.holder)}${emptySlotSuffix(row)}`
@@ -123,9 +126,9 @@ function rowName(row, held) {
   return row.equipped ? `${row.item.name}, equipped` : row.item.name;
 }
 
-function plan(engine, ctx, from, to) {
+function plan(engine, ctx, from, to, method = 'planTrade') {
   try {
-    return engine.planTrade(ctx, from, to) || { ok: false, reason: 'Cannot trade here.' };
+    return engine[method](ctx, from, to) || { ok: false, reason: 'Cannot trade here.' };
   } catch (error) {
     console.error('Trade plan failed', error);
     return { ok: false, reason: 'Cannot trade here.' };
@@ -133,17 +136,42 @@ function plan(engine, ctx, from, to) {
 }
 
 /**
+ * With an item held in a unit's column, another item in that column is a reorder: the
+ * two swap places. The first weapon slot is the equipped one, so a swap that touches it
+ * equips whichever item lands there (row.equips; the engine refuses one the unit can't
+ * wield). Read from the rows, so a refused reorder is still named for what it would do.
+ */
+function reorderEquips(bag, heldRow, row, heldSlot) {
+  if (bag !== 'inventory') return null;
+  if (row.index === 0) return heldSlot.item;
+  if (heldRow.index === 0) return row.item;
+  return null;
+}
+
+/**
  * Everything the renderer draws.
  * @param {{ ctx, left, right, bags?: string[]|null, bag?: string|null, held?: object|null,
- *   engine: { planTrade, bagItems, bagCapacity } }} options
- *   `left`/`right` are holders; `held` is a slot of one of them (or null).
+ *   reorder?: boolean, engine: { planTrade, planReorder?, bagItems, bagCapacity } }} options
+ *   `left`/`right` are holders; `held` is a slot of one of them (or null). With
+ *   `reorder` (and engine.planReorder), the other items in a held unit's column are
+ *   'reorder' rows; otherwise (and always in the convoy's column) they switch.
  * @returns {{ ctx, left, right, bag: string|null, tabs: object[], columns: object|null,
  *   held: object|null, heldRow: {side, index}|null, heldNotes: string[], notice: string,
  *   empty: boolean }}
  *   `held` is re-resolved against the bags: the current instance, or null when the
  *   item left (or its bag is not the visible tab).
  */
-export function buildTradeView({ ctx, left, right, bags = null, bag = null, held = null, engine }) {
+export function buildTradeView({
+  ctx,
+  left,
+  right,
+  bags = null,
+  bag = null,
+  held = null,
+  reorder = false,
+  engine,
+}) {
+  const canReorder = reorder === true && typeof engine?.planReorder === 'function';
   const holders = { left, right };
   const tabs = [];
   const contents = new Map();
@@ -221,17 +249,32 @@ export function buildTradeView({ ctx, left, right, bags = null, bag = null, held
   const heldSlot = heldRow ? columns[heldRow.side].rows[heldRow.index].slot : null;
   const heldNotes = new Set();
 
+  const heldReorders = canReorder && heldRow && !isConvoyHolder(columns[heldRow.side].holder);
   for (const side of SIDES) {
     for (const row of columns[side].rows) {
       let state;
       if (!heldRow) state = row.empty ? 'inert' : 'hold';
       else if (side === heldRow.side)
-        state = row.index === heldRow.index ? 'release' : row.empty ? 'inert' : 'switch';
+        state =
+          row.index === heldRow.index
+            ? 'release'
+            : row.empty
+              ? 'inert'
+              : heldReorders
+                ? 'reorder'
+                : 'switch';
       else state = 'commit';
       row.state = state;
       row.blocked = null;
       row.warnings = [];
       row.kind = null;
+      row.equips = null;
+      if (state === 'reorder') {
+        const result = plan(engine, ctx, heldSlot, row.slot, 'planReorder');
+        row.equips = reorderEquips(current, heldRow, row, heldSlot);
+        if (result.ok) row.kind = 'reorder';
+        else row.blocked = result.reason || 'Cannot reorder here.';
+      }
       if (state === 'commit') {
         const result = plan(engine, ctx, heldSlot, row.slot);
         if (result.ok) {
@@ -250,7 +293,7 @@ export function buildTradeView({ ctx, left, right, bags = null, bag = null, held
         } else row.blocked = result.reason || 'Cannot trade here.';
       }
       row.disabled = state === 'inert' || row.blocked != null;
-      // Toggle semantics for rows that hold; commit and empty rows are plain actions.
+      // Toggle semantics for rows that hold; commit, reorder and empty rows are plain actions.
       row.pressed = ['hold', 'switch', 'release'].includes(state) ? state === 'release' : null;
       row.name = rowName(row, heldSlot);
     }
@@ -365,7 +408,7 @@ export function focusAfterCommit(view, origin) {
 /**
  * What activating a row means.
  * @returns {{ type: 'hold', held } | { type: 'release' } | { type: 'commit', from, to, kind }
- *   | { type: 'blocked', reason } | { type: 'none' }}
+ *   | { type: 'reorder', from, to, equips } | { type: 'blocked', reason } | { type: 'none' }}
  */
 export function activateRow(view, row) {
   if (!row) return { type: 'none' };
@@ -379,6 +422,10 @@ export function activateRow(view, row) {
       return row.blocked
         ? { type: 'blocked', reason: row.blocked }
         : { type: 'commit', from: view.held, to: row.slot, kind: row.kind };
+    case 'reorder':
+      return row.blocked
+        ? { type: 'blocked', reason: row.blocked }
+        : { type: 'reorder', from: view.held, to: row.slot, equips: row.equips };
     default:
       return { type: 'none' };
   }
@@ -403,4 +450,10 @@ export function baseStatus(view) {
 export function commitMessage(from, to, kind) {
   if (to?.item && kind !== 'give') return `Traded ${from.item.name} for ${to.item.name}.`;
   return `Gave ${from.item.name} to ${holderName(to?.holder)}.`;
+}
+
+/** The status line after a reorder (when the caller gives no message). */
+export function reorderMessage(from, to, equips) {
+  if (equips) return `${equips.name} is now equipped.`;
+  return `Swapped ${from.item.name} and ${to.item.name}.`;
 }

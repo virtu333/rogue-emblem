@@ -3,8 +3,9 @@
 // A trade moves one held item from a slot on one holder to a slot on another:
 // into an empty slot it is a **give** (append), onto an item it is a **swap**
 // (each item takes the slot the other left, so it works with both bags full).
-// Holders are player units or, between battles, the convoy. Spec:
-// docs/specs/item-trade.md ("Engine").
+// Holders are player units or, between battles, the convoy. A **reorder** swaps
+// two items within one unit's bag; the first weapon slot is the equipped one.
+// Spec: docs/specs/item-trade.md ("Engine").
 //
 //   ctx:    { context: 'battle' | 'roster', run?: RunManager }
 //   holder: unitHolder(unit) | CONVOY_HOLDER
@@ -18,6 +19,7 @@
 import {
   canEquip,
   getCombatWeapons,
+  inventoryDisplayOrder,
   normalizeEquippedFirst,
   equipAccessory,
   unequipAccessory,
@@ -37,7 +39,16 @@ export const TRADE_REASONS = Object.freeze({
   convoyCannotStore: 'The convoy cannot store this item.',
   bagFull: 'Bag full.',
   convoyFull: 'Convoy is full.',
+  reorderUnitsOnly: "Only a unit's own items can be reordered.",
+  reorderBag: 'Only weapons and supplies can be reordered.',
+  reorderSameUnit: "Reorder items within one unit's bag.",
+  reorderTarget: 'Choose another item to swap with.',
 });
+
+/** A reorder that would equip what its unit can't wield: "Sera can't wield Iron Axe." */
+export function cannotWieldReason(unit, item) {
+  return `${unit?.name || 'This unit'} can't wield ${item?.name || 'this'}.`;
+}
 
 export const TRADE_WARNINGS = Object.freeze({
   cannotEquip: 'cannot_equip',
@@ -355,4 +366,85 @@ export function settleEquipped(unit, preferred = null) {
   unit.weapon = next;
   normalizeEquippedFirst(unit);
   return next;
+}
+
+function resolveReorder(ctx, from, to) {
+  const fail = (reason) => ({ ok: false, reason });
+  if (!ctx || (ctx.context !== 'battle' && ctx.context !== 'roster'))
+    return fail(TRADE_REASONS.invalid);
+  if (!isSlot(from) || !isSlot(to)) return fail(TRADE_REASONS.invalid);
+  // 1. A unit's own weapons or supplies: never an accessory, never the convoy.
+  if (from.bag === 'accessory' || to.bag === 'accessory') return fail(TRADE_REASONS.reorderBag);
+  if (!isUnitHolder(from.holder) || !isUnitHolder(to.holder))
+    return fail(TRADE_REASONS.reorderUnitsOnly);
+  if (from.holder.unit !== to.holder.unit) return fail(TRADE_REASONS.reorderSameUnit);
+  const unit = from.holder.unit;
+  // 2. Context: a player unit in battle; a unit still on the roster between battles.
+  if (ctx.context === 'battle' && !isPlayerUnit(unit)) return fail(TRADE_REASONS.invalid);
+  if (ctx.context === 'roster') {
+    const roster = ctx.run?.roster;
+    if (!(Array.isArray(roster) && roster.includes(unit))) return fail(TRADE_REASONS.notInRoster);
+  }
+  // 3. One bag, two different items.
+  if (from.bag !== to.bag) return fail(TRADE_REASONS.differentBags);
+  const bag = from.bag;
+  if (!from.item || !to.item || from.item === to.item) return fail(TRADE_REASONS.reorderTarget);
+  // 4. Stale items (a unit's bag matches by identity).
+  const list = liveList(ctx, from.holder, bag);
+  if (!list || !list.includes(from.item) || !list.includes(to.item))
+    return fail(TRADE_REASONS.stale);
+  // 5. Swap in display order (the equipped weapon first, as every view draws it).
+  const order = bag === 'inventory' ? inventoryDisplayOrder(unit, list) : [...list];
+  const next = [...order];
+  next[order.indexOf(from.item)] = to.item;
+  next[order.indexOf(to.item)] = from.item;
+  // 6. The first weapon slot is the equipped one: an item moving into it is equipped,
+  // so it must be one the unit can wield (a staff too, as the battle Equip menu allows).
+  let equips = null;
+  if (bag === 'inventory' && next[0] !== order[0]) {
+    if (!canUnitEquip(unit, next[0])) return fail(cannotWieldReason(unit, next[0]));
+    equips = next[0];
+  }
+  return {
+    ok: true,
+    kind: 'reorder',
+    equips,
+    warnings: [],
+    detail: equips ? `Equipped ${equips.name}` : `Swapped ${from.item.name} and ${to.item.name}`,
+    resolved: { unit, list, next, equips },
+  };
+}
+
+function publicReorder(result) {
+  if (!result.ok) return { ok: false, reason: result.reason };
+  const { ok, kind, equips, warnings, detail } = result;
+  return { ok, kind, equips, warnings, detail };
+}
+
+/**
+ * Validate swapping two items within one unit's own bag (weapons or supplies), without
+ * mutating anything. The two items trade places in display order (the equipped weapon
+ * first). When the first weapon slot changes, the item that lands there becomes the
+ * equipped weapon, so it must be one the unit can wield (a staff included); otherwise
+ * the reorder is refused with "⟨unit⟩ can't wield ⟨item⟩.". The convoy and the
+ * accessory slot are never reordered, and a move between two holders stays planTrade.
+ * @returns {{ok: true, kind: 'reorder', equips: object|null, warnings: [], detail: string}
+ *          | {ok: false, reason: string}}
+ */
+export function planReorder(ctx, from, to) {
+  return publicReorder(resolveReorder(ctx, from, to));
+}
+
+/**
+ * Plan, then write the new order into the unit's own bag array in place (the same
+ * array, the same item instances), and equip the new first weapon when it changed.
+ * Same result shape as planReorder.
+ */
+export function applyReorder(ctx, from, to) {
+  const plan = resolveReorder(ctx, from, to);
+  if (!plan.ok) return publicReorder(plan);
+  const { unit, list, next, equips } = plan.resolved;
+  list.splice(0, list.length, ...next);
+  if (equips) unit.weapon = equips;
+  return publicReorder(plan);
 }
