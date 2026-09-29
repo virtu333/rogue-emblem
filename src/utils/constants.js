@@ -248,6 +248,10 @@ export const FORGE_COSTS = {
   hit: [250, 500, 900, 1500, 2400],
   weight: [250, 500, 900, 1500, 2400],
 };
+// Forging a better weapon costs more (playtest 2026-09-28: legends cost nothing to
+// buy, so at one flat price they were the best forge value). Rare and unlisted tiers
+// pay the base price. getForgeCost rounds to the nearest 10 gold.
+export const FORGE_TIER_COST_MULTIPLIER = { Iron: 0.6, Steel: 1, Silver: 1.5, Legend: 2 };
 export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, act4: 5, finalBoss: 0 };
 
 // Dual currency economy (Valor = lord-focused, Supply = army-focused)

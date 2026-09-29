@@ -478,6 +478,8 @@ const STATIC_HELP_TABS = [
           { text: '  Talk to them with your lord!' },
           { text: 'Village:', color: CYAN },
           { text: '  Buy, sell, and forge weapons.' },
+          { text: '  Forging costs more on better weapons:' },
+          { text: '  Iron ×0.6, Steel ×1, Silver ×1.5, Legend ×2.' },
           { text: 'Ruins:', color: GOLD },
           { text: '  Pre-boss camp: rest (heal, revive)' },
           { text: '  or scavenge marked-up wares. One only.' },
