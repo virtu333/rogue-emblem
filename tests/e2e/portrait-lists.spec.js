@@ -208,6 +208,40 @@ async function expectStatGridReadable(page) {
   // Two label/value pairs per row: the first and third labels share a left edge.
   expect(Math.abs(grid.dts[0].left - grid.dts[2].left)).toBeLessThanOrEqual(1);
   expect(grid.dts[2].top).toBeGreaterThan(grid.dts[0].top);
+  // Upright the left column reads HP, Strength, Speed, Resistance, Move and the right
+  // Magic, Skill, Defense, Luck (the owner's playtest: Strength under HP, not Magic).
+  expect(grid.dts.map((dt) => dt.label)).toEqual([
+    'HP',
+    'Magic',
+    'Strength',
+    'Skill',
+    'Speed',
+    'Defense',
+    'Resistance',
+    'Luck',
+    'Move',
+  ]);
+  const at = (label) => grid.dts.find((dt) => dt.label === label);
+  expect(
+    Math.abs(at('Strength').left - at('HP').left),
+    'Strength sits under HP',
+  ).toBeLessThanOrEqual(1);
+  expect(at('Strength').top).toBeGreaterThan(at('HP').top);
+  expect(Math.abs(at('Magic').top - at('HP').top), 'Magic shares the HP row').toBeLessThanOrEqual(
+    1,
+  );
+  expect(at('Magic').left).toBeGreaterThan(grid.dds[0].right);
+  for (const [upper, lower] of [
+    ['Strength', 'Speed'],
+    ['Speed', 'Resistance'],
+    ['Resistance', 'Move'],
+  ]) {
+    expect(
+      Math.abs(at(upper).left - at(lower).left),
+      `${lower} under ${upper}`,
+    ).toBeLessThanOrEqual(1);
+    expect(at(lower).top).toBeGreaterThan(at(upper).top);
+  }
 }
 
 async function openHome(page) {
@@ -682,6 +716,18 @@ for (const [width, height] of [
       await openRoster(page);
       await expectPins(page, size, 'roster');
       await expectClassInert(page, 'roster');
+      // Three pairs per row keep Fire Emblem order (only the upright grid swaps).
+      await expect(page.locator('.mr-stats dt')).toHaveText([
+        'HP',
+        'Strength',
+        'Magic',
+        'Skill',
+        'Speed',
+        'Defense',
+        'Resistance',
+        'Luck',
+        'Move',
+      ]);
     });
 
     test('compendium keeps list and detail side by side', async ({ page, browserName }) => {

@@ -122,7 +122,8 @@ import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { unitTemperament } from './unitVoiceDisplay.js';
 import { itemIcon, itemHero } from './itemIcons.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
-import { portraitListLayout } from './portraitListLayout.js';
+import { portraitListLayout, watchPortraitListLayout } from './portraitListLayout.js';
+import { orderedStatKeys } from './statOrder.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
 // and pen. Mice hold a line far tighter, so they keep the original 10px.
@@ -426,6 +427,14 @@ export class MobileRosterSheet {
     this.body.append(c);
     return c;
   }
+  /** Re-render the stats tab if the phone turns while it is open (its order follows the columns). */
+  watchStatOrder(twoColumn) {
+    this.statOrderTwoColumn = twoColumn;
+    this.stopStatOrderWatch ||= watchPortraitListLayout((now) => {
+      if (this.destroyed || this.tab !== 'stats' || now === this.statOrderTwoColumn) return;
+      this.render();
+    });
+  }
   stats(unit) {
     const conditions = statusDescriptions(unit);
     if (conditions.length)
@@ -437,7 +446,12 @@ export class MobileRosterSheet {
     if (statusStaff) this.card('Status staff', statusStaff.text);
     const terrain = this.terrainForUnit?.(unit);
     const grid = el('dl', null, 'mr-stats');
-    for (const [key, value] of Object.entries(unit.stats || {})) {
+    // Two pairs per row upright (the portrait .mr-stats rule), three in landscape.
+    const twoColumn = portraitListLayout();
+    grid.dataset.statOrder = twoColumn ? 'two-column' : 'fe';
+    this.watchStatOrder(twoColumn);
+    for (const key of orderedStatKeys(unit.stats, { twoColumn })) {
+      const value = unit.stats[key];
       const valueText = el('dd', String(value));
       valueText.style.color = STAT_COLORS[key] || UI_PALETTE.text;
       grid.append(
@@ -1546,6 +1560,8 @@ export class MobileRosterSheet {
     });
   }
   destroy() {
+    this.stopStatOrderWatch?.();
+    this.stopStatOrderWatch = null;
     this.help?.destroy();
     this.help = null;
     this.picker?.destroy();
