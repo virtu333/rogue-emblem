@@ -193,9 +193,14 @@ describe('CompendiumOverlay', () => {
     expect(overlay._getItemsForTab(4).length).toBe(expected);
   });
 
-  it('Lords tab returns all lords from gameData', () => {
+  it('Lords tab lists Edric and Sera until other lords are met, then every met lord', () => {
     const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
-    expect(overlay._getItemsForTab(5).length).toBe(gameData.lords.length);
+    expect(overlay._getItemsForTab(5).map((l) => l.name)).toEqual(['Edric', 'Sera']);
+    lsStore.emblem_rogue_slot_2_meta = JSON.stringify({
+      lordsMet: gameData.lords.map((l) => l.name),
+    });
+    const later = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+    expect(later._getItemsForTab(5).length).toBe(gameData.lords.length);
   });
 
   it('Blessings tab returns all blessings from gameData', () => {

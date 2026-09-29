@@ -183,6 +183,33 @@ describe('PostCombatController', () => {
     expect(options.fallenRecruits.map((u) => u.name)).toEqual(['Daska']);
   });
 
+  it('a lord who joined this battle (recruit-node Talk) is met once the win is committed', () => {
+    const scene = makeScene();
+    const met = [];
+    const meta = { recordLordsMet: vi.fn((names) => met.push(...names)) };
+    scene.registry.get = vi.fn((key) => (key === 'meta' ? meta : null));
+    scene.runManager.roster = [{ name: 'Edric', isLord: true }];
+    scene.runManager.completeBattle = vi.fn(() => {
+      scene.runManager.roster = [
+        { name: 'Edric', isLord: true },
+        { name: 'Voss', isLord: true },
+        { name: 'Daska', isLord: false },
+      ];
+      return true;
+    });
+    new PostCombatController(scene).onVictory();
+    expect(met).toContain('Voss');
+    expect(met).not.toContain('Daska');
+
+    // A no-op completion (battle already settled) records nothing.
+    const again = makeScene();
+    const idle = { recordLordsMet: vi.fn() };
+    again.registry.get = vi.fn((key) => (key === 'meta' ? idle : null));
+    again.runManager.completeBattle = vi.fn(() => false);
+    new PostCombatController(again).onVictory();
+    expect(idle.recordLordsMet).not.toHaveBeenCalled();
+  });
+
   it('passes no fallen recruits when nobody joined mid-battle', () => {
     const scene = makeScene();
     new PostCombatController(scene).onVictory();

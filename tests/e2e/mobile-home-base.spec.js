@@ -8,8 +8,13 @@ async function boot(page) {
 }
 test('lord unlocks, distinct pair, skill limits and persisted loadout', async ({ page }) => {
   await boot(page);
-  await expect(page.locator('[data-focus="lord-Kira"]')).toBeDisabled();
+  // A new save has met Edric and Sera only; the other lords appear once they join.
+  const lordCards = page.locator('.mh-lord');
+  await expect(lordCards.locator('strong')).toHaveText(['Edric', 'Sera']);
+  await expect(page.locator('.mh-more-lords')).toHaveText('More lords join as you meet them.');
+  await expect(page.locator('[data-focus="lord-Edric"]')).toBeDisabled();
   await expect(page.locator('.mu-requirements')).toContainText('Banner of Command');
+  // Banner of Command alone does not reveal anyone.
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('HomeBase');
     for (const u of s.meta.upgradesData)
@@ -18,6 +23,20 @@ test('lord unlocks, distinct pair, skill limits and persisted loadout', async ({
     s.meta._save();
     s.mobileHome.render();
   });
+  await expect(lordCards.locator('strong')).toHaveText(['Edric', 'Sera']);
+  const unmetPortraits = await page
+    .locator('.mh-screen img')
+    .evaluateAll(
+      (imgs) =>
+        imgs.filter((img) => /kira|voss|rowan|astrid|cael/i.test(`${img.src} ${img.alt}`)).length,
+    );
+  expect(unmetPortraits).toBe(0);
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('HomeBase');
+    s.meta.recordLordsMet(['Kira', 'Voss']);
+    s.mobileHome.render();
+  });
+  await expect(lordCards.locator('strong')).toHaveText(['Edric', 'Kira', 'Voss', 'Sera']);
   await page.locator('[data-focus="lord-Kira"]').tap();
   await expect(page.locator('[data-focus="commander"]')).toContainText('Kira');
   await page.locator('[data-focus="partner"]').tap();
@@ -29,6 +48,7 @@ test('lord unlocks, distinct pair, skill limits and persisted loadout', async ({
   await expect(page.locator('.mh-skill').nth(1)).toBeDisabled();
   await page.reload();
   await waitForScene(page, 'HomeBase');
+  await expect(lordCards.locator('strong')).toHaveText(['Edric', 'Kira', 'Voss', 'Sera']);
   await expect(page.locator('[data-focus="commander"]')).toContainText('Kira');
   await expect(page.locator('[data-focus="partner"]')).toContainText('Voss');
   await page.locator('[data-focus="partner"]').tap();

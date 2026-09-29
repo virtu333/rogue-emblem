@@ -36,6 +36,7 @@ import {
 import { calculateBattleGold } from './LootSystem.js';
 import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapGenerator.js';
 import { calculateCurrencies } from './MetaProgressionManager.js';
+import { lordNamesInRun } from './LordsMet.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
 import {
   createLordUnit,
@@ -2250,6 +2251,23 @@ export class RunManager {
       this.assignUnitUid(unit);
       this.roster.push(unit);
     }
+  }
+
+  /**
+   * The unit picked on a boss's reward screen joins the army (a recruit or a lord):
+   * recruit blessing consumables, an identity, and a roster place.
+   */
+  addBossRecruit(unit) {
+    if (!unit || typeof unit !== 'object') return false;
+    this.grantRecruitBlessingConsumables(unit);
+    this.assignUnitUid(unit);
+    this.roster.push(unit);
+    return true;
+  }
+
+  /** Names of the lords who have joined this run (roster and fallen). */
+  lordNamesInRun() {
+    return lordNamesInRun(this);
   }
 
   consumeSkipFirstShop() {

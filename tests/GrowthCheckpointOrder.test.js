@@ -211,7 +211,10 @@ describe('boss recruit', () => {
     const order = [];
     const run = {
       roster: [],
-      grantRecruitBlessingConsumables: vi.fn(),
+      addBossRecruit(unit) {
+        this.roster.push(unit);
+        return true;
+      },
       shouldTriggerThirdLord: () => false,
     };
     const recruitSpy = vi

@@ -290,10 +290,19 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
       await expectNoSidewaysScroll(page, '.mh-screen');
       await expectTabsOnOneLineAndVisible(page, '.mh-screen .mu-tabs button', 4);
       await expectStacked(page, '.mh-screen .mu-list', '.mh-screen .mu-detail');
-      // The court (7 lords) sits two to a row; any card the list scrolls to is whole,
-      // and scrolling the list never pushes Begin Run off screen.
+      // A new save shows Edric and Sera, and a line saying more lords come.
       const lords = page.locator('.mh-lord');
+      await expect(lords).toHaveCount(2);
+      await expect(page.locator('.mh-more-lords')).toBeVisible();
+      // The whole court (7 lords, all met) sits two to a row; any card the list
+      // scrolls to is whole, and scrolling the list never pushes Begin Run off screen.
+      await page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('HomeBase');
+        s.meta.recordLordsMet(s.gameData.lords.map((l) => l.name));
+        s.mobileHome.render();
+      });
       await expect(lords).toHaveCount(7);
+      await expect(page.locator('.mh-more-lords')).toHaveCount(0);
       expect(await lords.evaluateAll((cards) => new Set(cards.map((c) => c.offsetTop)).size)).toBe(
         4,
       );
