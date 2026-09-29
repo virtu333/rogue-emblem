@@ -161,6 +161,7 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 - **Don't assume a single campaign.** Current `ACT_CONFIG` in constants.js is a step toward campaign-level config.
 - **Difficulty is data-driven.** `difficulty.json` + `DifficultyEngine` provide modifier layers. Wire new systems through this.
 - **Decouple combat resolution from animation.** Calculate results first, then play visuals.
+- **Previews read what the player knows.** Anything shown before a commit (blue range, path/slide preview, Danger, pinned/inspected reach, Threat Sight) reads `engine/PlayerKnowledge.js` (via `BattleScene.buildUnitPositionMap()` / `buildOccupiedSet(u, { seenOnly: true })`); only execution and the enemy AI see every unit. A staff never counts as damage reach (`ThreatForecast`). `tests/PlayerKnowledgePreviews.test.js` pairs worlds that differ only by a hidden unit.
 
 ## Testing
 - **Framework:** Vitest (works natively with Vite config and ES modules)

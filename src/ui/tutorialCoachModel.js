@@ -24,7 +24,7 @@ const CHAPTER_INDEX = Object.fromEntries(COACH_CHAPTERS.map((c, i) => [c.id, i])
  * @param {string} s.commanderName   the lord whose fall loses the battle
  * @param {Array<{name:string, acted:boolean, hp:number, maxHp:number, healer:boolean}>} s.units
  * @param {number} s.enemies         enemies still standing
- * @param {string[]} [s.menu]        labels in the open action menu
+ * @param {string[]} [s.menu]        choosable labels in the open action menu
  * @param {string} [s.selected]      selected unit's name
  * @param {boolean} [s.selectionMenu] the tap-selected menu (unit can still move)
  * @returns {null | {id:string, chapter:string, goal:string, detail:string,
@@ -157,6 +157,22 @@ export function tutorialCoachState(s) {
     anchor: null,
     canSkip: false,
   };
+}
+
+/**
+ * Labels of the action-menu rows the player can choose right now: the phone rail's
+ * items when it shows the menu, else the canvas rows (Phaser Text: the label is
+ * `.text`). Greyed rows (Silenced, a guidance hold) are not offered.
+ */
+export function availableMenuLabels(scene) {
+  const hudItems = scene?._mobileBattleHud?.menu?.items;
+  if (Array.isArray(hudItems))
+    return hudItems
+      .filter((item) => item && !item.disabled && item.label)
+      .map((item) => item.label);
+  return (scene?.actionMenu || [])
+    .filter((row) => typeof row?._action === 'function' && !row._menuDisabled && row.text)
+    .map((row) => row.text);
 }
 
 export function coachChapterIndex(chapter) {
