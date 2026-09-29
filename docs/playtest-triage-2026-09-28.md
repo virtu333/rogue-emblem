@@ -174,3 +174,12 @@ Dev routes run on Netlify deploy previews (`VITE_DEV_ROUTES`); append these to t
   - Corwin (five skills, Master Seal) promotes into the waiting note.
   - Edric wears a Seraph Robe at 1 HP with an Elixir and a Vulnerary: take the robe off, heal, put it back.
 - **Endings:** `/?devScene=victory&route=lieutenant` (First Light), `route=emperor` (Dusk), `route=entity` (Nightfall).
+
+## Phone review round (Dave, 2026-09-28)
+
+Results on the preview links: fog ambush and Rescue with Canto, placement Back to Map, the difficulty ladder, the roster checks and the endings all work. Follow-ups, done:
+- **Rescue/Warp feedback:** once an ally is picked it wears a pulsing gold outline and its landing tiles are gold squares; the phone rail says what to tap at each step (`Grid.showRelocateGuide`, `relocatePrompt`).
+- **Pause menu:** Campaign Map reads **View Campaign Map**.
+- **Waiting Oath notice:** a callout heads the unit's roster pane on every tab (with a button to the choice), the unit list says "Oath waiting", the route map's Roster wears a gold pip, and the first one a save meets explains what a waiting Oath is (hint `roster_oath_waiting`).
+- **"Castle theme silent at the start":** not the score (it sounds from 0 s at the other Act II themes' level). The route map stopped its track on Travel and the battle's track loaded only after the deploy screen; on a 6× slowed CPU that was ~7 s of silence. The route's track now bridges into the battle's and crossfades.
+
