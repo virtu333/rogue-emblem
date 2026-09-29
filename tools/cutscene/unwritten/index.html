@@ -135,6 +135,8 @@
         ford_previs: () => import('./ford_previs.js'),
         world_test: () => import('./world_test.js'),
         loco_test: () => import('./loco_test.js'),
+        figure_test: () => import('./figure_test.js'),
+        skin_test: () => import('./skin_test.js'),
       };
       const which = params.get('piece') || 'again';
       const mod = await (PIECES[which] || PIECES.again)();

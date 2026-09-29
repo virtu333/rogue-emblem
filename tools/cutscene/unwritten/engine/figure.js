@@ -29,9 +29,7 @@ const INK = ramp('ink');
 const BLOOD = ramp('blood');
 const EMBER = ramp('ember');
 const STONE = ramp('stone');
-const PAPER_HAZE = INK[9];
 
-const mix = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
 const V2 = {
   add: (a, b) => [a[0] + b[0], a[1] + b[1]],
   sub: (a, b) => [a[0] - b[0], a[1] - b[1]],
@@ -46,33 +44,40 @@ const V2 = {
 
 // ---------------------------------------------------------------------------- tones
 
-/** The palettes: every colour is a ramp colour, optionally pushed toward the paper (haze). */
+/**
+ * The palettes. Every colour is a ramp colour. Distance (haze, 0..1) is aerial perspective toward
+ * the paper done on the ramps themselves: each tone steps up its own ramp (black iron goes
+ * violet-grey, crimson goes salmon, the contour lightens) instead of being mixed with grey,
+ * which the palette snap would turn to olive.
+ */
 export function makeTones(o = {}) {
   const hz = clamp(o.haze ?? 0);
-  const H = (c) => (hz > 0 ? mix(c, PAPER_HAZE, hz * 0.78) : c);
-  const set = (edge, deep, shade, base, lit, hi) => ({
-    edge: H(edge),
-    deep: H(deep),
-    shade: H(shade),
-    base: H(base),
-    lit: H(lit),
-    hi: H(hi),
+  const up = (arr, i, k) => arr[Math.min(arr.length - 1, Math.max(0, i + k))];
+  const ki = Math.round(hz * 3.4); // steps up the ink ramp
+  const kb = Math.round(hz * 2.3); // steps up the blood ramp
+  const ke = Math.round(hz * 2.2); // steps up the ember ramp
+  const set = (arr, k, i0, i1, i2, i3, i4, i5) => ({
+    edge: up(arr, i0, k),
+    deep: up(arr, i1, k),
+    shade: up(arr, i2, k),
+    base: up(arr, i3, k),
+    lit: up(arr, i4, k),
+    hi: up(arr, i5, k),
   });
   const brown = (o.boots ?? 'brown') === 'brown';
   const T = {
-    iron: set(INK[0], INK[1], INK[2], INK[3], INK[5], INK[7]),
-    helm: set(INK[0], INK[2], INK[3], INK[4], INK[5], INK[7]),
-    crimson: set(BLOOD[0], BLOOD[1], BLOOD[2], BLOOD[3], BLOOD[4], BLOOD[5]),
-    cloak: set(BLOOD[0], BLOOD[1], BLOOD[2], BLOOD[3], BLOOD[4], BLOOD[5]),
-    leather: brown
-      ? set(EMBER[0], EMBER[0], EMBER[1], EMBER[2], EMBER[3], EMBER[3])
-      : set(INK[0], INK[1], INK[2], INK[3], INK[4], INK[6]),
-    wood: set(EMBER[0], EMBER[0], EMBER[1], EMBER[1], EMBER[2], EMBER[3]),
-    steel: set(INK[0], STONE[1], STONE[2], STONE[3], STONE[4], STONE[5]),
-    ink: H(INK[0]),
-    slit: H(INK[0]),
-    trim: H(EMBER[2]),
+    iron: set(INK, ki, 0, 1, 2, 3, 5, 7),
+    helm: set(INK, ki, 0, 2, 3, 4, 5, 7),
+    crimson: set(BLOOD, kb, 0, 1, 2, 3, 4, 5),
+    cloak: set(BLOOD, kb, 0, 1, 2, 3, 4, 5),
+    leather: brown ? set(EMBER, ke, 0, 0, 0, 1, 2, 2) : set(INK, ki, 0, 1, 2, 3, 4, 6),
+    wood: set(EMBER, ke, 0, 0, 1, 1, 2, 3),
+    steel: set(STONE, Math.round(hz * 1.5), 0, 1, 2, 3, 4, 5),
+    ink: up(INK, 0, Math.round(hz * 3.0)),
+    slit: up(INK, 0, Math.round(hz * 2.5)),
+    trim: up(EMBER, 2, ke),
   };
+  T.steel.edge = up(INK, 0, ki);
   return T;
 }
 
@@ -276,9 +281,14 @@ function ribbon(Ls, Rs, cut = null) {
 }
 
 /** Blit the mask with `shade(u, v, x, y)`; edge pixels take the `edge` colour (a contour). */
-function paint(shade, edge) {
+function paint(shade, edge, rim = null) {
   const { w, h, x0, y0 } = M;
   const { frame, fw, fh, occ, ox, oy, ow, oh } = S;
+  const isEdge = (x, y) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return false;
+    const j = y * w + x;
+    return !!cov[j] && (x === 0 || !cov[j - 1] || x === w - 1 || !cov[j + 1] || y === 0 || !cov[j - w] || y === h - 1 || !cov[j + w]);
+  };
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
@@ -287,12 +297,12 @@ function paint(shade, edge) {
       const Y = y0 + y;
       if (X < 0 || Y < 0 || X >= fw || Y >= fh) continue;
       let c = null;
-      if (
-        edge &&
-        (x === 0 || !cov[i - 1] || x === w - 1 || !cov[i + 1] || y === 0 || !cov[i - w] || y === h - 1 || !cov[i + w])
-      )
-        c = edge;
-      if (!c) c = shade(UU[i], VV[i], X, Y);
+      if (edge && isEdge(x, y)) c = edge;
+      if (!c) {
+        c = shade(UU[i], VV[i], X, Y);
+        // a lit rim just inside the contour on the side facing the light: the plate's edge catches it
+        if (rim && (isEdge(x - 1, y) || isEdge(x, y - 1))) c = rim;
+      }
       put(frame, fw, fh, X, Y, c);
       if (X >= ox && Y >= oy && X < ox + ow && Y < oy + oh) occ[(Y - oy) * ow + (X - ox)] = 1;
     }
@@ -394,7 +404,7 @@ const sstep = (u) => {
  *      seed, spearLen, name }
  */
 export function marchSkeleton(t, o = {}) {
-  const { x0 = 0, z = 0, facing = -1, speed = 1.25, cadence = 2.5, scale = 1, seed = 0 } = o;
+  const { x0 = 0, z = 0, facing = -1, speed = 1.45, cadence = 2.5, scale = 1, seed = 0 } = o;
   const look = soldierLook(seed);
   const spearLen = o.spearLen ?? 2.35;
   const f = facing;
@@ -407,7 +417,7 @@ export function marchSkeleton(t, o = {}) {
   const toeVec = [0.19 * scale, -0.05 * scale];
   const L = Math.hypot(toeVec[0], toeVec[1]);
   const flat = Math.atan2(toeVec[1], toeVec[0]);
-  const hipY = (0.877 + 0.02 * Math.cos(2 * Math.PI * 2 * (ph - 0.3))) * scale;
+  const hipY = (0.865 + 0.024 * Math.cos(2 * Math.PI * 2 * (ph - 0.3))) * scale;
   const hips = [x0 + f * u, hipY];
 
   // one foot: returns { ankle: [fwd, y], toe: [fwd, y], rel } in forward coordinates
@@ -445,14 +455,14 @@ export function marchSkeleton(t, o = {}) {
     const s2 = sstep(e);
     const ankle = [
       lerp(A0[0], A1[0], s2 ** 0.85),
-      lerp(A0[1], A1[1], s2) + 0.16 * scale * Math.sin(Math.PI * e ** 0.8) ** 1.1,
+      lerp(A0[1], A1[1], s2) + 0.19 * scale * Math.sin(Math.PI * e ** 0.8) ** 1.1,
     ];
     const p = lerp(-riseEnd, 0.3, sstep(e * 1.15));
     const th = flat + p;
     return { ankle, toe: [ankle[0] + L * Math.cos(th), ankle[1] + L * Math.sin(th)] };
   };
 
-  const lean = 0.07 + 0.02 * (look.helmShade - 0.5) + 0.012 * Math.cos(2 * Math.PI * 2 * (ph - 0.3));
+  const lean = 0.115 + 0.025 * (look.helmShade - 0.5) + 0.012 * Math.cos(2 * Math.PI * 2 * (ph - 0.3));
   const tv = [Math.sin(lean) * f, Math.cos(lean)];
   const nv = [Math.cos(lean) * f, -Math.sin(lean)];
   const neck = [hips[0] + tv[0] * D.trunk, hips[1] + tv[1] * D.trunk];
@@ -460,7 +470,7 @@ export function marchSkeleton(t, o = {}) {
     hips[0] + tv[0] * D.trunk * 0.5 + nv[0] * 0.025 * scale,
     hips[1] + tv[1] * D.trunk * 0.5 + nv[1] * 0.025 * scale,
   ];
-  const ha = lean - 0.07 + 0.02 * Math.sin(2 * Math.PI * 2 * ph);
+  const ha = lean - 0.11 + 0.02 * Math.sin(2 * Math.PI * 2 * ph);
   const head = [neck[0] + Math.sin(ha) * f * D.neck, neck[1] + Math.cos(ha) * D.neck];
   const sh = [neck[0] - tv[0] * 0.05 * scale, neck[1] - tv[1] * 0.05 * scale];
 
@@ -568,24 +578,25 @@ function chain(hist, get, o) {
 
 // the helm in head coordinates: f forward, u up, metres for a head of radius 0.115
 const HELM = [
-  [0.135, 0.03],
-  [0.118, 0.105],
-  [0.06, 0.16],
-  [-0.03, 0.178],
-  [-0.1, 0.145],
-  [-0.145, 0.05],
-  [-0.15, -0.06],
-  [-0.118, -0.138],
-  [0.0, -0.152],
-  [0.1, -0.142],
-  [0.142, -0.09],
-  [0.152, -0.02],
+  [0.112, 0.055],
+  [0.1, 0.105],
+  [0.05, 0.145],
+  [-0.03, 0.157],
+  [-0.09, 0.127],
+  [-0.127, 0.05],
+  [-0.13, -0.05],
+  [-0.1, -0.116],
+  [0.0, -0.13],
+  [0.09, -0.125],
+  [0.135, -0.09],
+  [0.142, -0.03],
 ];
+const helmLat = (a) => Math.min(0.1, a * 0.84);
 const HELM_ROWS = (() => {
   const rows = [];
   const N = 22;
-  const u0 = -0.15;
-  const u1 = 0.176;
+  const u0 = -0.129;
+  const u1 = 0.155;
   for (let j = 0; j <= N; j++) {
     const u = u0 + ((u1 - u0) * j) / N;
     let F = -Infinity;
@@ -714,6 +725,7 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
   const add = (d, fn) => parts.push([d, parts.length, fn]);
   const depthOf = (p, z) => P(p, z)[2];
   const inner = detail >= 1;
+  const rimOf = (t2) => (detail >= 2 ? t2.lit : null);
 
   // -------------------------------------------------------------------- the legs
   const legPart = (nm) => {
@@ -727,28 +739,30 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
     const ank = Pt(leg.foot, z * 1.1);
     const toe = Pt(leg.toe, z * 1.1);
     const dep = (near ? 0.9 : -0.9) + (depthOf(leg.knee, z) - z * cy) * 0.5;
-    add(dep, () => {
-      const outline = inner ? Tn('iron').edge : null;
-      // thigh
-      capsule(hip[0], hip[1], knee[0], knee[1], R(0.088), R(0.068));
-      paint(cylShade(Tn('iron'), { seed: seed + 1, hi: detail >= 1, mottle: 0.6 }), outline);
+    const outline = inner ? Tn('iron').edge : null;
+    // the thigh sits under the tabard's front flap, the rest of the leg in front of it
+    add(near ? dep - 0.06 : dep - 0.02, () => {
+      capsule(hip[0], hip[1], knee[0], knee[1], R(0.0986), R(0.0762));
+      paint(cylShade(Tn('iron'), { seed: seed + 1, hi: detail >= 1, mottle: 0.6 }), outline, rimOf(Tn('iron')));
+    });
+    add(dep + 0.04, () => {
       // boot shaft (tall, up the shin), greave over the shin, then the cuff
       const shin = V2.sub(knee, ank);
       const bootTop = V2.add(ank, V2.mul(shin, 0.5));
-      capsule(knee[0], knee[1], ank[0], ank[1], R(0.066), R(0.052));
-      paint(cylShade(Tn('iron'), { seed: seed + 2, hi: detail >= 1, mottle: 0.6 }), outline);
-      capsule(ank[0], ank[1], bootTop[0], bootTop[1], R(0.056), R(0.063));
+      capsule(knee[0], knee[1], ank[0], ank[1], R(0.0739), R(0.0582));
+      paint(cylShade(Tn('iron'), { seed: seed + 2, hi: detail >= 1, mottle: 0.6 }), outline, rimOf(Tn('iron')));
+      capsule(ank[0], ank[1], bootTop[0], bootTop[1], R(0.0627), R(0.0706));
       paint(cylShade(Tn('leather'), { seed: seed + 3, hi: detail >= 2, mottle: 0.9 }), inner ? Tn('leather').edge : null);
       if (detail >= 1) {
         // the boot cuff: a darker band across the top of the boot
         const c0 = V2.lerp(ank, bootTop, 0.88);
-        capsule(c0[0], c0[1], bootTop[0], bootTop[1], R(0.064), R(0.067));
+        capsule(c0[0], c0[1], bootTop[0], bootTop[1], R(0.0717), R(0.075));
         paint(cylShade(Tn('leather'), { seed: seed + 4, hi: false, mottle: 0 }), Tn('leather').edge);
       }
       // the foot: heel to toe, sole in the darkest brown
       const fd = V2.norm(V2.sub(toe, ank));
-      const heel = [ank[0] - fd[0] * R(0.055), ank[1] - fd[1] * R(0.055) + R(0.02)];
-      capsule(heel[0], heel[1], toe[0], toe[1], R(0.052), R(0.03));
+      const heel = [ank[0] - fd[0] * R(0.0616), ank[1] - fd[1] * R(0.0616) + R(0.0224)];
+      capsule(heel[0], heel[1], toe[0], toe[1], R(0.0582), R(0.0336));
       // sole = the low side of the capsule
       const dn = M.ny >= 0 ? 1 : -1;
       const lt = Tn('leather');
@@ -764,7 +778,7 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
       // knee cop (front of the knee)
       const kd = V2.norm(V2.sub(knee, hip));
       const kfront = Pt(V2.add(leg.knee, V2.mul(nvw, 0.03 * bs)), z * 1.1);
-      const kr = R(0.066);
+      const kr = R(0.0739);
       ellipse(kfront[0], kfront[1], kr, kr * 0.95, Math.atan2(kd[1], kd[0]));
       paint(domeShade(Tn('iron'), kfront[0], kfront[1], kr, { seed: seed + 5, hi: detail >= 1 }), inner ? Tn('iron').edge : null);
     });
@@ -788,35 +802,35 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
     const dep = (near ? 1.0 : -1.0) + (depthOf(arm.hand, zh) - zh * cy) * 0.6;
     const outline = inner ? Tn('iron').edge : null;
     add(dep, () => {
-      capsule(shp[0], shp[1], el[0], el[1], R(0.062), R(0.054));
-      paint(cylShade(Tn('iron'), { seed: seed + 6, hi: detail >= 1, mottle: 0.6 }), outline);
-      capsule(el[0], el[1], hd[0], hd[1], R(0.056), R(0.047));
-      paint(cylShade(Tn('helm'), { seed: seed + 7, hi: detail >= 1, mottle: 0.5 }), outline);
+      capsule(shp[0], shp[1], el[0], el[1], R(0.0694), R(0.0605));
+      paint(cylShade(Tn('iron'), { seed: seed + 6, hi: detail >= 1, mottle: 0.6 }), outline, rimOf(Tn('iron')));
+      capsule(el[0], el[1], hd[0], hd[1], R(0.0627), R(0.0526));
+      paint(cylShade(Tn('helm'), { seed: seed + 7, hi: detail >= 1, mottle: 0.5 }), outline, rimOf(Tn('helm')));
       if (detail >= 2) {
         // vambrace bands
         for (const q of [0.45, 0.78]) {
           const c = V2.lerp(el, hd, q);
           const dd = V2.norm(V2.sub(hd, el));
-          capsule(c[0] - dd[0] * R(0.008), c[1] - dd[1] * R(0.008), c[0] + dd[0] * R(0.008), c[1] + dd[1] * R(0.008), R(0.058 - 0.01 * q), R(0.058 - 0.01 * q));
+          capsule(c[0] - dd[0] * R(0.009), c[1] - dd[1] * R(0.009), c[0] + dd[0] * R(0.009), c[1] + dd[1] * R(0.009), R(0.058 - 0.01 * q), R(0.058 - 0.01 * q));
           paint(() => Tn('iron').edge, null);
         }
       }
       // couter (elbow cop)
-      ellipse(el[0], el[1], R(0.062), R(0.058), 0);
-      paint(domeShade(Tn('iron'), el[0], el[1], R(0.062), { seed: seed + 8, hi: detail >= 1 }), outline);
+      ellipse(el[0], el[1], R(0.0694), R(0.065), 0);
+      paint(domeShade(Tn('iron'), el[0], el[1], R(0.0694), { seed: seed + 8, hi: detail >= 1 }), outline);
       // gauntlet fist, a little past the wrist
       const dd = V2.norm(V2.sub(hd, el));
-      const fc = [hd[0] + dd[0] * R(0.03), hd[1] + dd[1] * R(0.03)];
-      ellipse(fc[0], fc[1], R(0.062), R(0.056), Math.atan2(dd[1], dd[0]));
-      paint(domeShade(Tn('iron'), fc[0], fc[1], R(0.06), { seed: seed + 9, hi: detail >= 1 }), Tn('iron').edge);
+      const fc = [hd[0] + dd[0] * R(0.0336), hd[1] + dd[1] * R(0.0336)];
+      ellipse(fc[0], fc[1], R(0.0694), R(0.0627), Math.atan2(dd[1], dd[0]));
+      paint(domeShade(Tn('iron'), fc[0], fc[1], R(0.0672), { seed: seed + 9, hi: detail >= 1 }), Tn('iron').edge);
     });
     // the pauldron over the shoulder, on the arm's side
     if (near || Math.abs(sy) > 0.2) {
       const ad = V2.norm(V2.sub(el, shp));
-      const pc = [shp[0] + ad[0] * R(0.06), shp[1] + ad[1] * R(0.06) - R(0.03)];
+      const pc = [shp[0] + ad[0] * R(0.085), shp[1] + ad[1] * R(0.085) - R(0.03)];
       add(dep + 0.05, () => {
-        const rx = R(0.135);
-        const ry = R(0.105);
+        const rx = R(0.168);
+        const ry = R(0.099);
         const rot = Math.atan2(ad[1], ad[0]);
         ellipse(pc[0], pc[1], rx, ry, rot);
         const T2 = Tn('iron');
@@ -846,11 +860,11 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
   };
   // trunk sections: t along, depth front / back, lateral half-width
   const SEC = [
-    [0.0, 0.135, 0.115, 0.165],
-    [0.3, 0.125, 0.105, 0.15],
-    [0.68, 0.16, 0.13, 0.2],
-    [0.92, 0.14, 0.12, 0.19],
-    [1.0, 0.1, 0.09, 0.09],
+    [0.0, 0.145, 0.125, 0.175],
+    [0.3, 0.135, 0.115, 0.16],
+    [0.68, 0.175, 0.145, 0.21],
+    [0.92, 0.155, 0.13, 0.2],
+    [1.0, 0.105, 0.095, 0.095],
   ];
   const trunkEdges = () => {
     const Ls = [];
@@ -987,7 +1001,7 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
     const F0 = lerp(A.F, B.F, w);
     const B0 = lerp(A.B, B.B, w);
     const a = (F0 - B0) / 2;
-    return { a, fc: (F0 + B0) / 2, lat: Math.min(0.112, a * 0.86) };
+    return { a, fc: (F0 + B0) / 2, lat: helmLat(a) };
   };
   const drawHelm = () => {
     const rs = [];
@@ -995,7 +1009,7 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
     for (const r of HELM_ROWS) {
       const a = (r.F - r.B) / 2;
       const fc = (r.F + r.B) / 2;
-      const lat = Math.min(0.112, a * 0.86);
+      const lat = helmLat(a);
       const wdt = Math.hypot(a * cy, lat * sy);
       rs.push(hs(fc * cy + wdt, r.u));
       ls.push(hs(fc * cy - wdt, r.u));
@@ -1015,7 +1029,7 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
           const ry = (y + 0.5 - headC[1]) / (s * bs);
           const hgt = rx * upS[0] + ry * upS[1];
           const fwd = rx * fsS[0] + ry * fsS[1];
-          if (hgt < -0.055 && fwd > -0.03 * cy) c = c === Th.hi || c === Th.lit ? Th.base : Th.shade;
+          if (hgt < -0.05 && fwd > -0.03 * cy) c = c === Th.hi || c === Th.lit ? Th.base : Th.shade;
         }
         return c;
       },
@@ -1041,21 +1055,21 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
         prev = q;
       }
     };
-    run(0.028, slitW, T.slit);
+    run(0.022, slitW, T.slit);
     if (detail >= 2) {
       for (const al of [0.4, 0.62, 0.84]) {
-        const a = surfPt(al, -0.045);
-        const b = surfPt(al, -0.105);
+        const a = surfPt(al, -0.04);
+        const b = surfPt(al, -0.095);
         if (a.vis > 0.02) {
           capsule(a.p[0], a.p[1], b.p[0], b.p[1], Math.max(0.6, R(0.009)), Math.max(0.6, R(0.009)));
           paint(() => T.slit, null);
         }
       }
-      run(0.06, 0.6, T.trim);
+      run(0.05, 0.6, T.trim);
     }
     if (Math.abs(sy) > 0.15) {
       const a = surfPt(0, 0.03);
-      const b = surfPt(0, -0.11);
+      const b = surfPt(0, -0.1);
       capsule(a.p[0], a.p[1], b.p[0], b.p[1], Math.max(0.7, R(0.014)), Math.max(0.7, R(0.014)));
       paint(() => T.helm.lit, null);
     }
@@ -1066,11 +1080,18 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
     const c = look.crest;
     let poly = null;
     if (c === 'fin') {
-      poly = [at(0.08, 0.15), at(0.0, 0.176), at(-0.09, 0.15), at(-0.06 - look.finLen, 0.15 + look.finLift + 0.04), at(0.0, 0.176 + look.finLift + 0.02)];
+      poly = [
+        at(0.075, 0.122),
+        at(0.035, 0.158 + look.finLift * 0.9),
+        at(-0.03 - look.finLen * 0.5, 0.166 + look.finLift * 1.3),
+        at(-0.058, 0.146),
+        at(-0.092, 0.122),
+        at(0.0, 0.14),
+      ];
     } else if (c === 'comb') {
-      poly = [at(0.09, 0.14), at(0.05, 0.19), at(-0.02, 0.215), at(-0.09, 0.19), at(-0.11, 0.135), at(-0.02, 0.17)];
+      poly = [at(0.085, 0.112), at(0.04, 0.158), at(-0.03, 0.184), at(-0.09, 0.152), at(-0.11, 0.105), at(-0.03, 0.14)];
     } else if (c === 'horn') {
-      poly = [at(0.06, 0.16), at(0.11, 0.245), at(0.14, 0.17), at(0.09, 0.13)];
+      poly = [at(0.045, 0.138), at(0.092, 0.222), at(0.118, 0.148), at(0.09, 0.112)];
     }
     if (!poly) return;
     polygon(poly, (px, py) => [0.5, 0]);
@@ -1169,7 +1190,7 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
       );
     });
     const ff = flap(true);
-    add(0.12, () => {
+    add(0.86, () => {
       ribbon(ff.Ls, ff.Rs, ff.cut);
       const Tc = T.crimson;
       const mot = look.mottle;
@@ -1187,6 +1208,30 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
         },
         inner ? Tc.edge : null,
       );
+    });
+  }
+
+  // ------------------------------------------------------------- the sword at the near hip
+  if (detail >= 1) {
+    const belt = V2.add(V2.add(sk.hips, V2.mul(V2.sub(sk.neck, sk.hips), 0.3)), V2.mul(nvw, -0.02 * bs));
+    // swings with the near thigh a little: the scabbard tip trails the stride
+    const sw = (sk.legs.N.knee[0] - sk.hips[0]) * fac;
+    const ang = -0.95 - clamp(sw * 0.8, -0.3, 0.3);
+    const dirw = [Math.cos(ang) * -fac * -1 * -1, Math.sin(ang)];
+    void dirw;
+    const dw = V2.norm([-fac * Math.cos(0.75 + clamp(sw * 0.9, -0.35, 0.35)), -Math.sin(0.75 + clamp(sw * 0.9, -0.35, 0.35))]);
+    const a0 = Pt(belt, 0.16);
+    const a1 = Pt(V2.add(belt, V2.mul(dw, 0.6 * bs)), 0.16);
+    const h1 = Pt(V2.add(belt, V2.mul([fac * 0.5, 0.86], 0.15 * bs)), 0.16);
+    add(0.88, () => {
+      capsule(a0[0], a0[1], a1[0], a1[1], R(0.033), R(0.026));
+      paint(cylShade(T.iron, { seed: seed + 80, hi: detail >= 1, mottle: 0.3 }), T.iron.edge, rimOf(T.iron));
+      capsule(a0[0], a0[1], h1[0], h1[1], R(0.02), R(0.018));
+      paint(() => T.leather.base, T.leather.edge);
+      // crossguard
+      const gp = V2.lerp(a0, a1, 0.03);
+      capsule(gp[0] - R(0.05) * 0.5, gp[1] - R(0.05) * 0.86, gp[0] + R(0.05) * 0.5, gp[1] + R(0.05) * 0.86, R(0.014), R(0.014));
+      paint(() => T.iron.lit, T.iron.edge);
     });
   }
 
@@ -1216,7 +1261,7 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
       dir: dirO,
       tau0: 0.035,
       gain: 1.7,
-      flutter: 0.03,
+      flutter: 0.055,
       phase: seed * 2.3,
       t: t0,
       floor: floorY,
@@ -1227,7 +1272,7 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
       dir: dirI,
       tau0: 0.03,
       gain: 1.3,
-      flutter: 0.02,
+      flutter: 0.035,
       phase: seed * 2.3 + 1.1,
       t: t0,
       floor: floorY,
@@ -1247,21 +1292,24 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
       const i0 = Math.floor(k);
       const tri = Math.abs(k - i0 - 0.5) * 2;
       const hgt = look.rag[(i0 + 3) % 12];
-      return u > 1 - look.ragDepth * (0.35 + hgt * 0.65) * (0.35 + tri * 0.65) * 1.6;
+      return u > 1 - look.ragDepth * (0.25 + hgt * 0.75) * (0.15 + tri ** 0.9 * 0.85) * 2.1;
     };
     add(-0.6, () => {
       ribbon(Ls, Rs, cut);
       const Tc = T.cloak;
+      const kf = 2.3 + look.mottle * 1.5;
       paint(
         (u, v) => {
           const n = nz(u, v, 10, seed + 70);
-          // folds run down the length of the cloak
-          const fold = Math.sin((v + 1) * (2.6 + look.mottle * 1.6) * Math.PI + Math.sin(u * 5 + seed) * 0.8);
-          if (u < 0.05) return Tc.shade;
-          if (detail >= 1 && fold > 0.86) return Tc.lit;
-          if (detail >= 1 && fold < -0.8) return Tc.deep;
-          if (fold < -0.35) return Tc.shade;
-          if (n > 0.86) return Tc.lit;
+          // folds radiate from the tie at the neck and spread as the cloth falls away
+          const wob = Math.sin(u * 4.2 + seed) * 0.7 * u + Math.sin(u * 9 + seed * 1.7) * 0.25 * u;
+          const fold = Math.sin((v + 1) * kf * Math.PI + wob * 3);
+          if (u < 0.045) return Tc.deep;
+          if (detail >= 1 && fold > 0.9) return Tc.lit;
+          if (detail >= 1 && fold < -0.86) return Tc.deep;
+          if (fold < -0.4) return Tc.shade;
+          if (u > 0.55 && n > 0.8) return Tc.lit;
+          if (n < 0.1) return Tc.shade;
           return Tc.base;
         },
         inner ? Tc.edge : null,
@@ -1352,6 +1400,18 @@ export function drawSoldier(frame, fw, fh, sk, xf, o = {}) {
   }
 }
 
+/**
+ * One soldier from a skeleton function: samples it on twos (a hand-drawn 12 a second), gathers
+ * the recent history for the cloth and paints. skelFn: (t) => skeleton.
+ */
+export function drawActor(frame, fw, fh, skelFn, t, xf, o = {}) {
+  const tt = onTwos(t);
+  const sk = skelFn(tt);
+  const hist = history(skelFn, tt, o.histN ?? 8);
+  drawSoldier(frame, fw, fh, sk, xf, { ...o, hist, t: tt });
+  return sk;
+}
+
 // ------------------------------------------------------------------------ crowds
 
 /**
@@ -1384,13 +1444,13 @@ export function fordLine(skeletonAt, names) {
  * o.rows overrides the three-row default: [{ s, y, haze, spacing, jitter, seedBase, x0 }]
  */
 export const PARADE_ROWS = [
-  { s: 54, y: 262, haze: 0, spacing: 1.55, seedBase: 100, x0: 0.0, z: 0 },
-  { s: 38, y: 222, haze: 0.2, spacing: 1.3, seedBase: 200, x0: 0.5, z: -3 },
-  { s: 27, y: 194, haze: 0.42, spacing: 1.15, seedBase: 300, x0: 0.2, z: -6 },
+  { s: 50, y: 258, haze: 0, spacing: 2.5, seedBase: 100, x0: 0.0, z: 0 },
+  { s: 36, y: 214, haze: 0.42, spacing: 2.0, seedBase: 200, x0: 0.9, z: -3 },
+  { s: 25, y: 183, haze: 0.8, spacing: 1.7, seedBase: 300, x0: 0.4, z: -6 },
 ];
 export function drawParade(frame, fw, fh, t, o = {}) {
-  const rows = o.rows ?? PARADE_ROWS;
-  const speed = o.speed ?? 1.25;
+  const rows = [...(o.rows ?? PARADE_ROWS)].sort((a, b) => a.s - b.s); // far rows first
+  const speed = o.speed ?? 1.45;
   const tt = onTwos(t);
   let count = 0;
   for (const row of rows) {
@@ -1416,7 +1476,8 @@ export function drawParade(frame, fw, fh, t, o = {}) {
       const hist = history(it.skel, tt, 8);
       const xf = { x: 0, y: row.y, s: row.s, ax: -it.shift, ay: 0 };
       drawSoldier(frame, fw, fh, sk, xf, { look: it.look, haze: row.haze, hist, t: tt, ...(o.soldier || {}) });
-      count++;
+      const sx = row.s * it.x;
+      if (sx > -40 && sx < fw + 40) count++;
     }
   }
   return count;

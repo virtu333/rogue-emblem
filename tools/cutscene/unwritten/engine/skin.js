@@ -197,7 +197,7 @@ function boneMatrix(ra, rb, ta, tb, out) {
 }
 
 /** Two-bone IK from S toward T; the joint bends to `side` (+1: rotate the reach clockwise on screen). */
-function ik2(S, T, a, b, side, kmax = STRETCH.max) {
+export function ik2(S, T, a, b, side, kmax = STRETCH.max) {
   let d = dist(S, T);
   let k = 1;
   if (d > a + b) k = Math.min(kmax, d / (a + b));
@@ -215,6 +215,26 @@ function ik2(S, T, a, b, side, kmax = STRETCH.max) {
     end: [S[0] + ux * dc, S[1] + uy * dc],
     stretch: k,
   };
+}
+
+/** px per metre from joints J (px) against a blocking skeleton: the median bone-length ratio. */
+function ppmFrom(J, sk) {
+  const r = [dist(J.hips, J.neck) / dist(sk.hips, sk.neck)];
+  for (const s of ['N', 'F']) {
+    const leg = sk.legs[s];
+    r.push(dist(J.hips, J[`kn${s}`]) / dist(sk.hips, leg.knee));
+    r.push(dist(J[`kn${s}`], J[`an${s}`]) / dist(leg.knee, leg.foot));
+  }
+  r.sort((a, b) => a - b);
+  return r[Math.floor(r.length / 2)];
+}
+
+/** The rig's px per metre at the image's own size (before a layer is built from it). */
+export function specPpm(spec, sk) {
+  const [w, h] = spec.size;
+  const J = {};
+  for (const [k, p] of Object.entries(spec.joints)) J[k] = [p[0] * w, p[1] * h];
+  return ppmFrom(J, sk);
 }
 
 // ---------------------------------------------------------------------------- the rig
@@ -510,17 +530,7 @@ export class Skin {
    * and shin ratios), so the retargeted skeleton has the art's proportions at the art's size.
    */
   calibrate(sk) {
-    const r = [];
-    const J = this.J;
-    const lenB = (a, b) => dist(a, b);
-    r.push(dist(J.hips, J.neck) / lenB(sk.hips, sk.neck));
-    for (const s of ['N', 'F']) {
-      const leg = sk.legs[s];
-      r.push(dist(J.hips, J[`kn${s}`]) / lenB(sk.hips, leg.knee));
-      r.push(dist(J[`kn${s}`], J[`an${s}`]) / lenB(leg.knee, leg.foot));
-    }
-    r.sort((a, b) => a - b);
-    this.ppm = r[Math.floor(r.length / 2)];
+    this.ppm = ppmFrom(this.J, sk);
     return this.ppm;
   }
 
@@ -558,10 +568,18 @@ export class Skin {
     };
   }
 
-  /** Torso and head follow the blocking as changes from `ref` (the skeleton this art depicts). */
-  setRef(sk) {
+  /**
+   * Optional: make torso and head follow the blocking as changes from the skeleton `sk` this
+   * art depicts (delta mode), instead of by its absolute angles. Off by default: a bad
+   * reference bends the whole trunk (the fit picks whichever time suits the legs).
+   */
+  setRef(sk, delta = false) {
     if (!this.ppm) this.calibrate(sk);
     this.ref = sk;
+    if (!delta) {
+      this.bias = { torsoLow: 0, torsoUp: 0, head: 0 };
+      return;
+    }
     const B = this.bpts(sk);
     const J = this.J;
     this.bias = {
@@ -660,7 +678,12 @@ export class Skin {
 
     // the weapon first: the hands that hold it follow its grips
     const wt = this.layoutWeapon(B);
-    const hand = { N: B.hdN, F: B.hdF };
+    // a free hand goes where the blocking puts it relative to the shoulder (the blocking has one
+    // shoulder point; the art, seen three-quarters, has two)
+    const hand = {
+      N: [sh.N[0] + B.hdN[0] - B.sh[0], sh.N[1] + B.hdN[1] - B.sh[1]],
+      F: [sh.F[0] + B.hdF[0] - B.sh[0], sh.F[1] + B.hdF[1] - B.sh[1]],
+    };
     const wAng = { N: null, F: null };
     if (wt) {
       for (const s of ['N', 'F']) {
@@ -703,7 +726,6 @@ export class Skin {
       T[this.boneIx[`farm${s}`]] = [el, wrist];
       // the hand keeps its length; it is drawn where the wrist ended up
       T[this.boneIx[`hand${s}`]] = [wrist, polar(wrist, ha, h.len)];
-      void stretch;
     }
     // legs: hips -> knee -> ankle by IK; the sole goes where the blocking's toe is
     for (const s of ['N', 'F']) {
@@ -803,6 +825,14 @@ export class Skin {
     return { pos, dir, knots };
   }
 
+  /** The rest pose as a pose: every bone where it is painted (baking it must reproduce the painting). */
+  restPose() {
+    const T = this.bones.map((b) => [b.ra, b.rb]);
+    const lags = {};
+    for (const name of Object.keys(this.lags)) lags[name] = { T, off: [0, 0] };
+    return { T, lags, joints: this.J };
+  }
+
   /**
    * The pose for time t: the target skeleton, plus (for cloth and hair) the target a moment
    * earlier, each lag set with its own delay and its drag (a share of the body's own travel).
@@ -859,8 +889,6 @@ export class Skin {
   bake(pose) {
     const nb = this.bones.length;
     const M = this.mats;
-    const rest = new Float32Array(6);
-    void rest;
     for (let i = 0; i < nb; i++) {
       const b = this.bones[i];
       let tgt;
