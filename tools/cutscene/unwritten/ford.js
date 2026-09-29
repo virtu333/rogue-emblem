@@ -629,7 +629,10 @@ export class FordPiece extends Piece {
     const splashes = [];
     const puffs = [];
     const world = this.world;
+    const out = { actors, splashes, puffs };
     for (const m of men) {
+      // the men near the lens are painted (the Warden's wade clip), the far ones are code
+      if (m.cw && this.clipMan(m, t, cam, o, out)) continue;
       const skel = (q) => m.skel(q);
       const sk = skel(tt);
       const X = sk.X;
@@ -726,6 +729,94 @@ export class FordPiece extends Piece {
     return { actors, splashes, puffs };
   }
 
+  /** The wade clip's stride, at a playback rate (memoised per rate). */
+  wadeStride(rate) {
+    return this.memo(
+      `stride:wade:${rate.toFixed(4)}`,
+      () => new Stride(this.motion('warden_wade', 360, { flip: false }), { rate }),
+    );
+  }
+
+  /**
+   * How a man of the rank walks when he is drawn from the Warden's own wade (warden_wade:
+   * the same painted Empire livery, one step from the standing drawing to the toe-off).
+   * Every man has his own start, rate and first drawing, so the rank is not one figure
+   * copied. He plays drawings k0..15 once, the body carried by the clip's measured contacts
+   * (Stride) so each planted boot stays where it went down, and on the last one he halts:
+   * the standing drawing, a stamp (the hips sink and come back), the spear's butt on the
+   * bed. Returns { rate, k0, ts (start), u0, uh (run), D (metres walked), mk (metres per art
+   * px), rel (height relative to the Warden), tEnd (the travel at the halt) } or null.
+   */
+  clipWalk(i, scale) {
+    if (!this.motionSrc?.warden_wade) return null;
+    const rnd = (k) => hash(i, k, 73);
+    const rate = 1.4 + 0.26 * rnd(1);
+    const k0 = [1, 1, 2][Math.floor(rnd(2) * 3)];
+    const ts = 2.02 + 0.2 * rnd(3);
+    const S = this.wadeStride(rate);
+    const u0 = (k0 + 0.02) / (12 * rate);
+    const uh = (16 - k0 - 0.02) / (12 * rate);
+    const rel = (scale / 1.03) * 0.98; // shorter than the Warden, not by much
+    const mk = CLIP.warden_wade.mpp * rel;
+    const tEnd = S.travel(u0 + uh - 1e-6);
+    const D = Math.abs(tEnd - S.travel(u0)) * mk;
+    return { rate, k0, ts, u0, uh, D, mk, rel, tEnd };
+  }
+
+  /**
+   * One man of the rank as a painted figure (the wade clip): pushes his actor and his
+   * footfalls onto `out` and returns true; false when he is too small on the page for it
+   * (o.clipMin px, default 34: the code-drawn soldier reads fine there and costs less).
+   */
+  clipMan(m, t, cam, o, out) {
+    const w = m.cw;
+    const world = this.world;
+    const Z = m.Z;
+    const p0 = project(cam, m.xE, 0, Z, W, H);
+    if (p0.depth < 0.3 || 1.9 * w.rel * p0.scale < (o.clipMin ?? 34)) return false;
+    const S = this.wadeStride(w.rate);
+    const el = t - w.ts;
+    const halted = el >= w.uh;
+    const uc = w.u0 + clamp(el, 0, w.uh - 1e-4);
+    const X = m.xE + (S.travel(uc) - w.tEnd) * w.mk;
+    const STAND = 1;
+    const i = halted || el < 0 ? STAND : S.index(uc);
+    // he faces -X: on the page, the way the ray to him says
+    const rz = Z - cam.z;
+    const rx = X - cam.x;
+    const side = -rz / (Math.hypot(rx, rz) || 1);
+    // the stamp: the hips drop with the boot and the spear's butt, and come back
+    const v = el - w.uh;
+    const dip = v >= 0 ? 0.04 * Math.exp(-v / 0.1) : 0;
+    const g = world.groundY(X, Z);
+    const fog = world.fogAt(Math.max(1, p0.depth));
+    const tone = 0.8 + 0.1 * hash(m.i, 5, 73);
+    const a = this.clipActor('warden_wade', i, X, Z, side > 0 ? 1 : -1, {
+      rings: 0.4,
+      seed: 20 + m.i,
+      stage: o.stage,
+      Y: g - dip,
+      // a shade darker and cooler than the Warden, each man's own (the same livery)
+      opts: { tint: [tone, tone * 1.01, tone * 1.08] },
+    });
+    a.height *= w.rel;
+    a.veil = clamp(0.05 + fog * 2, 0, 0.45) * (o.mist ?? 1);
+    // a standing man breathes a little, each on his own beat
+    if (halted || el < 0) a.xf = { sy: 1 + 0.004 * Math.sin(onN(t, 3) * 3.1 + m.i * 1.7) };
+    out.actors.push(a);
+    const fall = (X0, t0, strength, seed) => {
+      const gg = world.groundY(X0, Z);
+      const fx = { X: X0, Z, t0, strength, seed };
+      if (gg < -0.015) out.splashes.push(fx);
+      else out.puffs.push({ ...fx, Y: gg });
+    };
+    for (const f of S.footfallsIn(w.u0, w.u0 + w.uh))
+      fall(m.xE + (f.world - w.tEnd) * w.mk, w.ts + f.u - w.u0, 0.34, 40 + m.i * 3 + f.i);
+    // the halt's stamp: the spear's butt (cell x 35 of the standing drawing) comes down
+    fall(m.xE + (35 - 103.3) * w.mk, w.ts + w.uh, 0.3, 40 + m.i * 3 + 7);
+    return true;
+  }
+
   /**
    * Where each man of the rank stands, and how he gets there (memoised: it reads the
    * world's shore). The Warden first (index 0) when the wide wants him.
@@ -749,14 +840,26 @@ export class FordPiece extends Piece {
         const er = shore(Z);
         // at rest: ankle-deep at the edge (the ground there is a hand under the surface)
         const xE = warden ? 7.05 : er - 0.2 + 0.36 * j(2);
-        const D = warden ? 0 : 0.9 + 0.09 * j(3); // the strides down the bank
         const scale = warden ? 1.03 : 0.95 + 0.06 * hash(i, 4, 41);
-        const t0 = warden ? 1.2 : 2.0 + 0.035 * j(5); // in step, a hair apart
+        // the men near the lens are drawn from the Warden's own wade (clipWalk): the steps
+        // down the bank are then the clip's, so the far ones (drawn in code) take the same
+        // strides at the same time and a man is where he should be whichever way he is drawn
+        const cw = warden ? null : this.clipWalk(i, scale);
+        const D = warden ? 0 : cw ? cw.D : 0.9 + 0.09 * j(3); // the strides down the bank
+        const t0 = warden ? 1.2 : cw ? cw.ts : 2.0 + 0.035 * j(5); // in step, a hair apart
         const ground = (X) => w.groundY(X, Z);
         // the Warden marches on into the water; the men close up at its edge
         const plan = warden
           ? marchPlan({ xh0: 8.95, xhE: 7.05, f: -1, n: 4, t0, dt: 0.4, close: false })
-          : marchPlan({ xh0: xE + D, xhE: xE, f: -1, n: 3, t0, dt: 0.4, close: true });
+          : marchPlan({
+              xh0: xE + D,
+              xhE: xE,
+              f: -1,
+              n: 3,
+              t0,
+              dt: cw ? cw.uh / 2 : 0.4,
+              close: true,
+            });
         const seed = 101 + i * 7;
         const opts = {
           ...plan,
@@ -784,6 +887,8 @@ export class FordPiece extends Piece {
           warden,
           Z,
           scale,
+          xE,
+          cw,
           look: soldierLook(seed),
           ground,
           events,

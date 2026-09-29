@@ -2842,6 +2842,17 @@ export class World {
     const sA = a.stage ?? stage;
     if (a.draw) a.draw(sc, { W, H, xf, feet, head, scale: feet.scale, stage: sA, paper, t });
     else drawSprite(sc, W, H, paper, layer, sA, xf, cam2, a.opts || {});
+    // the veil: distance and rain between the lens and the figure, a haze of the page's own
+    // paper mixed over what was drawn (a rank across the river is paler than the man beside us)
+    if (a.veil > 0)
+      for (let y = Y0s; y < Y1; y++)
+        for (let x = X0; x < X1; x++) {
+          const o = (y * W + x) * 4;
+          if (sc[o + 3] === 0 || (sc[o] === 1 && sc[o + 1] === 0 && sc[o + 2] === 1)) continue;
+          sc[o] += (paper[o] * 0.93 - sc[o]) * a.veil;
+          sc[o + 1] += (paper[o + 1] * 0.94 - sc[o + 1]) * a.veil;
+          sc[o + 2] += (paper[o + 2] * 0.97 - sc[o + 2]) * a.veil;
+        }
     const drawn = (o) => sc[o + 3] !== 0 && !(sc[o] === 1 && sc[o + 1] === 0 && sc[o + 2] === 1);
     // the waterline: world Y = 0 on the figure's card
     const wade = a.wade !== false && depth > 0.02 && Y0 < 0;
