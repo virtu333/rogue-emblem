@@ -3999,9 +3999,7 @@ describe('blessing run-start effect application', () => {
 
     rm.roster.forEach((unit, idx) => {
       for (const stat of ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']) {
-        expect(unit.growths[stat]).toBe(
-          (baseGrowths[idx][stat] || 0) + (unit.isLord ? 12 : -10),
-        );
+        expect(unit.growths[stat]).toBe((baseGrowths[idx][stat] || 0) + (unit.isLord ? 12 : -10));
       }
     });
     const lordBonuses = rm.getEffectiveLordGrowthBonuses();
