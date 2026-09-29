@@ -31,6 +31,7 @@ import { isEntity, combatDistance, pickBestWeapon } from './EntitySystem.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
 import { isAcidTerrainIndex } from './TerrainHazards.js';
 import { createScopedLogger } from '../utils/logger.js';
+import { setUnitHP } from './UnitHealth.js';
 
 const DEBUG_AI = false;
 const aiLog = createScopedLogger('AI', { debug: DEBUG_AI });
@@ -1156,7 +1157,7 @@ export class AIController {
     if (distance < range.min || distance > range.max || target.currentHP >= target.stats.HP)
       return null;
     const result = resolveHeal(staff, healer, target);
-    target.currentHP = result.targetHPAfter;
+    setUnitHP(target, result.targetHPAfter);
     spendStaffUse(staff);
     return result;
   }

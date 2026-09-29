@@ -39,6 +39,7 @@ import { showContextualHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import { EQUIPPED_MARKER } from './equippedBadge.js';
+import { setUnitHP } from '../engine/UnitHealth.js';
 
 /** Heal motes cross from a visible healer to the target (presentation only). */
 function healSource(source, target, scene) {
@@ -444,7 +445,7 @@ export class HealController {
 
       // Apply heal
       const hpBefore = target.currentHP;
-      target.currentHP = result.targetHPAfter;
+      setUnitHP(target, result.targetHPAfter);
       deedsFor(scene).onHeal(healer, target, hpBefore);
       observeHistoryAction(scene, 'healed', healer, target, `${result.healAmount} HP`, {
         amount: result.healAmount,
@@ -490,7 +491,7 @@ export class HealController {
       for (const target of targets) {
         const result = resolveHeal(staff, healer, target, healOpts);
         const hpBefore = target.currentHP;
-        target.currentHP = result.targetHPAfter;
+        setUnitHP(target, result.targetHPAfter);
         deedsFor(scene).onHeal(healer, target, hpBefore);
         observeHistoryAction(scene, 'healed', healer, target, `${result.healAmount} HP`, {
           amount: result.healAmount,

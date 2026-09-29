@@ -113,6 +113,7 @@ import {
   XP_SPECIAL_ENEMY_MULTIPLIER,
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
+import { applyCombatHP } from '../../src/engine/UnitHealth.js';
 
 export const HEADLESS_STATES = {
   PLAYER_IDLE: 'PLAYER_IDLE',
@@ -2178,8 +2179,7 @@ export class HeadlessBattle {
       skillCtx,
     );
 
-    attacker.currentHP = result.attackerHP;
-    defender.currentHP = result.defenderHP;
+    applyCombatHP(attacker, defender, result); // UnitHealth, as BattleScene applies it
     this._recordDeedCombat(attacker, defender, result);
 
     this._applyResolvedCombatPostEffects({
@@ -2554,8 +2554,7 @@ export class HeadlessBattle {
       skillCtx,
     );
 
-    attacker.currentHP = result.attackerHP;
-    defender.currentHP = result.defenderHP;
+    applyCombatHP(attacker, defender, result); // UnitHealth, as BattleScene applies it
     this._recordDeedCombat(attacker, defender, result);
 
     this._applyResolvedCombatPostEffects({

@@ -30,6 +30,7 @@ import {
 import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
 import { findCommander } from '../engine/Commander.js';
+import { applyCombatSideHP } from '../engine/UnitHealth.js';
 
 export class ColosseumOverlay {
   constructor(scene, runManager, gameData) {
@@ -285,8 +286,9 @@ export class ColosseumOverlay {
       outcome = 'draw';
     }
 
-    // Apply HP (arena clamp: min 1)
-    unit.currentHP = Math.max(1, result.attackerHP);
+    // Apply HP (arena clamp: min 1). UnitHealth reads every strike, so a drain that
+    // topped the fighter up mid-bout settles its HP accessory debt as a battle would.
+    applyCombatSideHP(unit, 'attacker', result, { floor: 1 });
 
     // Track fights
     this._fightsPerUnit[unit.name] = (this._fightsPerUnit[unit.name] || 0) + 1;
