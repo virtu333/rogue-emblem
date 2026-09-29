@@ -7504,24 +7504,30 @@ export class BattleScene extends Phaser.Scene {
     this._forecastGamblerLine = null;
   }
 
-  _gamblerRandom(unit, session) {
+  // Gambler's Coin: one flip per unit per turn phase, keyed on the battle seed, so
+  // every combat the unit fights that phase shares it and scouting other tiles or
+  // targets in the forecast cannot fish for a better roll. It draws nothing from the
+  // battle stream, and resume and Vision rewind (same seed, phase and turn) replay it.
+  _gamblerRandom(unit) {
     if (this._battleRewindPolicy !== 'fixed-v1') return Math.random;
+    const phase = this.turnManager?.currentPhase || 'player';
+    const turn = Math.max(1, Math.trunc(Number(this.turnManager?.turnNumber) || 1));
     return keyedBattleRandom(
       this.visionBaseSeed,
-      `gambler:${session?.key || ''}:${unit?.battleEntityId || unit?.name || ''}`,
+      `gambler:${phase}:${turn}:${unit?.battleEntityId || unit?.name || ''}`,
     );
   }
 
   _getGamblerAtkDelta(unit, session = null) {
     const rolls = session || this._combatRollSession;
-    return resolveGamblerDelta(unit, rolls, this._gamblerRandom(unit, rolls));
+    return resolveGamblerDelta(unit, rolls, this._gamblerRandom(unit));
   }
 
   _applyAccessoryPhaseCombatMods(unit, mods, session = null) {
     applyAccessoryPhaseCombatMods(unit, mods, {
       turnNumber: this.turnManager?.turnNumber,
       rollSession: session || this._combatRollSession,
-      rng: this._gamblerRandom(unit, session || this._combatRollSession),
+      rng: this._gamblerRandom(unit),
     });
   }
 

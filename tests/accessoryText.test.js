@@ -26,6 +26,18 @@ describe('accessory text helpers', () => {
     expect(formatAccessoryCombatEffect(accessory)).toBe('+15 Crit when below 50% HP');
   });
 
+  it("Gambler's Coin text reads its numbers from the data", () => {
+    expect(
+      formatAccessoryCombatEffect({
+        combatEffects: { gambler: { winChance: 0.6, winAtkBonus: 4, lossAtkPenalty: -1 } },
+      }),
+    ).toBe('Gambler: 60%: +4 Attack, else −1. One flip per phase for all its combats.');
+    // A coin saved before the data config keeps (and says) its old 50%, +5 / −3.
+    expect(formatAccessoryCombatEffect({ combatEffects: { gamblerCoin: true } })).toBe(
+      'Gambler: 50%: +5 Attack, else −3. One flip per phase for all its combats.',
+    );
+  });
+
   it('formats non-crit combat effects', () => {
     expect(formatAccessoryCombatEffect({ combatEffects: { preventEnemyDouble: true } })).toBe(
       'Foes cannot make follow-up attacks',
