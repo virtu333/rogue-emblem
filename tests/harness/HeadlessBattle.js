@@ -65,6 +65,7 @@ import {
 } from '../../src/engine/SkillSystem.js';
 import {
   getAttackAffixes,
+  applyGrievousStatus,
   getTurnStartAffixes,
   rollDefenseAffixes,
 } from '../../src/engine/AffixSystem.js';
@@ -1182,6 +1183,9 @@ export class HeadlessBattle {
     if (affixResult.debuffStat && defender.currentHP > 0) {
       this.applyBattleDebuff(defender, affixResult.debuffStat, affixResult.debuffValue);
     }
+
+    if (affixResult.inflictStatus && defender.currentHP > 0)
+      applyGrievousStatus(defender, affixResult);
   }
 
   _refreshFogVisibility() {

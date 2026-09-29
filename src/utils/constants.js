@@ -288,6 +288,8 @@ export const STATUS_CONDITIONS = {
   acid: { maxTurns: 3, recoveryChance: 0, wakesOnDamage: false },
   // Root: unit may act but not move (weapon-art inflicted; no staff applies it)
   root: { maxTurns: 2, recoveryChance: 0, wakesOnDamage: false },
+  // Wounded: recovers no HP except from a staff (enemy Grievous hits inflict it)
+  wounded: { maxTurns: 2, recoveryChance: 0, wakesOnDamage: false },
 };
 export const STATUS_HIT_MIN = 15;
 export const STATUS_HIT_MAX = 90;

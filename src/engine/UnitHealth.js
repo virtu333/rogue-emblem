@@ -38,6 +38,8 @@ export function settleAccessoryHpOwed(unit) {
   if (!accessoryHpOwed(unit) || !(current > 0) || current >= max) delete unit._accessoryHpOwed;
 }
 
+import { isWounded } from './StatusConditionSystem.js';
+
 const maxHpOf = (unit) => Number(unit?.stats?.HP);
 
 /**
@@ -53,9 +55,12 @@ export function setUnitHP(unit, hp) {
 
 /**
  * Heal up to max HP. @returns the HP actually restored (0 when already full).
+ * A Wounded unit recovers nothing (drain, items, Renewal, forts): only a staff heals
+ * it, and staff heals set HP through setUnitHP.
  */
 export function healUnit(unit, amount) {
   const prev = Number(unit.currentHP) || 0;
+  if (isWounded(unit)) return 0;
   const max = maxHpOf(unit);
   const raised = prev + Math.max(0, Number(amount) || 0);
   const next = Number.isFinite(max) ? Math.max(prev, Math.min(max, raised)) : raised;
@@ -63,9 +68,10 @@ export function healUnit(unit, amount) {
   return next - prev;
 }
 
-/** Restore a unit to its max HP. @returns the HP restored. */
+/** Restore a unit to its max HP (never while Wounded). @returns the HP restored. */
 export function healUnitFully(unit) {
   const prev = Number(unit.currentHP) || 0;
+  if (isWounded(unit)) return 0;
   setUnitHP(unit, Math.max(prev, maxHpOf(unit)));
   return unit.currentHP - prev;
 }

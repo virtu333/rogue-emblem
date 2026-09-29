@@ -3620,6 +3620,9 @@ export class RunManager {
 
     this.roster = survivingUnits.map((u) => {
       const data = serializeUnit(u);
+      // Statuses (sleep, acid, Wounded…) are the battle's: they end with it, so a
+      // Wounded unit can still be healed on the route map.
+      delete data._conditions;
       // Legacy battle units (a checkpoint from before unit identity) inherit the
       // identity of the roster unit they account for; new recruits get one below.
       const entrantUid = unitUidOf(entrantOf.get(u));

@@ -159,6 +159,20 @@
       "narrativeHint": "Acid drips from this enemy weapon."
     },
     {
+      "id": "grievous",
+      "name": "Grievous",
+      "description": "Hits leave the target Wounded for 2 turns: it recovers no HP except from a staff",
+      "tier": 1,
+      "trigger": "on-attack",
+      "effects": {
+        "inflictStatus": "wounded",
+        "statusTurns": 2
+      },
+      "weight": 0.7,
+      "icon": "grievous",
+      "narrativeHint": "Barbed edges on this enemy weapon leave wounds that will not close."
+    },
+    {
       "id": "haste",
       "name": "Haste",
       "description": "+2 MOV",

@@ -56,6 +56,11 @@ export function isSilenced(unit) {
   return hasCondition(unit, 'silence');
 }
 
+/** Wounded: the unit recovers no HP except from a staff (UnitHealth, Combat drain). */
+export function isWounded(unit) {
+  return hasCondition(unit, 'wounded');
+}
+
 export function isAcidPoisoned(unit) {
   return hasCondition(unit, 'acid');
 }

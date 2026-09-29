@@ -2,6 +2,7 @@
 // Similar to SkillSystem.js but for randomized enemy modifiers.
 
 import { gridDistance } from './Combat.js';
+import { applyCondition } from './StatusConditionSystem.js';
 
 function getAffix(affixId, affixData) {
   return affixData?.affixes?.find((a) => a.id === affixId) || null;
@@ -113,16 +114,19 @@ export function rollDefenseAffixes(defender, damage, isMelee, isFirstHitPerPhase
 }
 
 /**
- * Gather on-attack affix effects (Venomous, Corrosive).
+ * Gather on-attack affix effects (Venomous, Corrosive, Grievous).
  * @param {object} attacker
  * @param {object} affixData
- * @returns {object} { poisonDamage, debuffStat, debuffValue, activated: [] }
+ * @returns {object} { poisonDamage, debuffStat, debuffValue, inflictStatus, statusTurns,
+ *   activated: [] }
  */
 export function getAttackAffixes(attacker, affixData) {
   const result = {
     poisonDamage: 0,
     debuffStat: null,
     debuffValue: 0,
+    inflictStatus: null,
+    statusTurns: 0,
     activated: [],
   };
 
@@ -142,9 +146,27 @@ export function getAttackAffixes(attacker, affixData) {
       result.debuffValue = affix.effects.debuffValue;
       result.activated.push({ id: aid, name: affix.name });
     }
+
+    if (affix.effects?.inflictStatus) {
+      result.inflictStatus = affix.effects.inflictStatus;
+      result.statusTurns = Math.max(1, Math.trunc(Number(affix.effects.statusTurns) || 1));
+      result.activated.push({ id: aid, name: affix.name });
+    }
   }
 
   return result;
+}
+
+/**
+ * Apply an on-attack status (Grievous: Wounded) to the unit that was hit. It lasts
+ * `statusTurns` of the target's own turns (+1: the phase in progress does not count).
+ * Returns whether it took (a status-immune unit shrugs it off).
+ */
+export function applyGrievousStatus(target, affixResult) {
+  if (!target || !affixResult?.inflictStatus) return false;
+  return applyCondition(target, affixResult.inflictStatus, affixResult.statusTurns + 1, {
+    recoveryChance: 0,
+  });
 }
 
 /**

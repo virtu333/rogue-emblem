@@ -20,6 +20,8 @@ const GLYPHS = {
   acid: ['...#...', '...#...', '..###..', '.#####.', '.##.##.', '.#####.', '..###..'],
   // root: a knot of vine
   root: ['.#...#.', '..#.#..', '...#...', '..###..', '.#.#.#.', '#..#..#', '...#...'],
+  // wounded: a torn cross (no mending)
+  wounded: ['..#.#..', '..#.#..', '##...##', '.......', '##...##', '..#.#..', '..#.#..'],
 };
 const FALLBACK = ['..###..', '.#...#.', '....#..', '...#...', '...#...', '.......', '...#...'];
 
@@ -28,6 +30,7 @@ const TONES = {
   silence: { rim: UNLIGHT[4], seal: UNLIGHT[1], glyph: INK[11], shade: UNLIGHT[5] },
   acid: { rim: VERD[4], seal: VERD[1], glyph: VERD[5], shade: EMBER[6] },
   root: { rim: EARTH[4], seal: EARTH[1], glyph: EARTH[5], shade: EMBER[5] },
+  wounded: { rim: BLOOD[4], seal: BLOOD[1], glyph: INK[11], shade: EMBER[6] },
 };
 const DEFAULT_TONE = { rim: BLOOD[4], seal: BLOOD[1], glyph: INK[11], shade: INK[10] };
 

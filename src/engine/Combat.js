@@ -13,7 +13,7 @@ import {
 } from '../utils/constants.js';
 import { rollHit } from './HitRoll.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
-import { isSleeping, isSilenced, removeCondition } from './StatusConditionSystem.js';
+import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
 import {
   getImbueCombatMods,
@@ -1126,8 +1126,9 @@ export function getCombatForecast(
       brave: atkBrave,
       attackCount: atkCount,
       multiHit: atkMultiHit,
-      drainPercent: atkMods?.drainPercent || 0,
-      drainMaxPerHit: atkMods?.drainMaxPerHit || null,
+      // Wounded: no drain heals (resolveCombat zeroes them); the forecast agrees.
+      drainPercent: isWounded(attacker) ? 0 : atkMods?.drainPercent || 0,
+      drainMaxPerHit: isWounded(attacker) ? null : atkMods?.drainMaxPerHit || null,
       skills: atkActivated,
       warnings: atkWarnings,
     },
@@ -1143,8 +1144,8 @@ export function getCombatForecast(
       brave: defBrave,
       attackCount: defCount,
       multiHit: defMultiHit,
-      drainPercent: defMods?.drainPercent || 0,
-      drainMaxPerHit: defMods?.drainMaxPerHit || null,
+      drainPercent: isWounded(defender) ? 0 : defMods?.drainPercent || 0,
+      drainMaxPerHit: isWounded(defender) ? null : defMods?.drainMaxPerHit || null,
       skills: defActivated,
       warnings: defWarnings,
     },
@@ -1683,6 +1684,7 @@ export function resolveCombat(
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
         // Sol/Drain heal: striker heals HP
+        if (evt.heal > 0 && isWounded(attacker)) evt.heal = 0; // Wounded: no drain
         if (evt.heal > 0) {
           atkHP = Math.min(attacker.stats.HP, atkHP + evt.heal);
           evt.strikerHealTo = atkHP;
@@ -1690,6 +1692,7 @@ export function resolveCombat(
         atkHP = applyReflect(evt, atkHP);
       } else {
         atkHP = evt.targetHPAfter;
+        if (evt.heal > 0 && isWounded(defender)) evt.heal = 0; // Wounded: no drain
         if (evt.heal > 0) {
           defHP = Math.min(defender.stats.HP, defHP + evt.heal);
           evt.strikerHealTo = defHP;
@@ -1751,6 +1754,7 @@ export function resolveCombat(
         bonusEvt.adeptStrike = true;
         if (isAttackingDefender) {
           defHP = bonusEvt.targetHPAfter;
+          if (bonusEvt.heal > 0 && isWounded(attacker)) bonusEvt.heal = 0; // Wounded: no drain
           if (bonusEvt.heal > 0) {
             atkHP = Math.min(attacker.stats.HP, atkHP + bonusEvt.heal);
             bonusEvt.strikerHealTo = atkHP;
@@ -1758,6 +1762,7 @@ export function resolveCombat(
           atkHP = applyReflect(bonusEvt, atkHP);
         } else {
           atkHP = bonusEvt.targetHPAfter;
+          if (bonusEvt.heal > 0 && isWounded(defender)) bonusEvt.heal = 0; // Wounded: no drain
           if (bonusEvt.heal > 0) {
             defHP = Math.min(defender.stats.HP, defHP + bonusEvt.heal);
             bonusEvt.strikerHealTo = defHP;

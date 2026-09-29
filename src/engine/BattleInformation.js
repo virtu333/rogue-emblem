@@ -29,6 +29,7 @@ const STATUS_TEXT = {
   sleep: ['Asleep', 'Cannot act. Wakes when damaged.'],
   silence: ['Silenced', 'Cannot use magic, weapon arts or staves.'],
   root: ['Rooted', 'Cannot move; can still act.'],
+  wounded: ['Wounded', 'Recovers no HP except from a staff.'],
   acid: ['Acid', `${ACID_TICK[0].toUpperCase()}${ACID_TICK.slice(1)}. ${ACID_FLOOR}`],
 };
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;

@@ -132,6 +132,7 @@ import {
   getTurnStartAffixes,
   getOnDeathAffixes,
   getAttackAffixes,
+  applyGrievousStatus,
   rollDefenseAffixes,
   getWarpCandidates,
   getAffixMovBonus,
@@ -209,6 +210,7 @@ import {
   applyCondition,
   isSleeping,
   isSilenced,
+  isWounded,
   isAcidPoisoned,
   isRooted,
   willRemainRootedNextPhase,
@@ -6986,13 +6988,15 @@ export class BattleScene extends Phaser.Scene {
           ? 'No uses remaining'
           : isHeal && unit.currentHP >= unit.stats.HP
             ? 'HP already full'
-            : isCure && !canUseCure
-              ? 'No conditions to cure'
-              : isPromote && !canUsePromote
-                ? 'Promotion unavailable'
-                : isReclass && !canUseReclass
-                  ? 'No available reclass'
-                  : '';
+            : isHeal && isWounded(unit)
+              ? 'Wounded: only a staff heals'
+              : isCure && !canUseCure
+                ? 'No conditions to cure'
+                : isPromote && !canUsePromote
+                  ? 'Promotion unavailable'
+                  : isReclass && !canUseReclass
+                    ? 'No available reclass'
+                    : '';
       const usable = !reason;
       let label = item.name;
       if (item.uses !== undefined) label += ` (${item.uses})`;
@@ -8301,6 +8305,16 @@ export class BattleScene extends Phaser.Scene {
         `-${Math.abs(affixResult.debuffValue)} ${affixResult.debuffStat}`,
         UI_PALETTE.bad,
       );
+    }
+
+    // Grievous: the target is Wounded (no healing but a staff) for its next turns.
+    if (affixResult.inflictStatus && defender.currentHP > 0) {
+      const applied = applyGrievousStatus(defender, affixResult);
+      if (applied) {
+        this._addConditionIcon(defender, affixResult.inflictStatus);
+        const pos = this.grid.gridToPixel(defender.col, defender.row);
+        this.showMinorHintAt(pos.x, pos.y, 'Wounded', UI_PALETTE.bad);
+      }
     }
   }
 
@@ -10721,6 +10735,7 @@ export class BattleScene extends Phaser.Scene {
       silence: { label: 'X', color: UI_PALETTE.rarityEpic },
       acid: { label: 'Ac', color: UI_PALETTE.good },
       root: { label: 'Rt', color: '#cc9944' },
+      wounded: { label: 'Wd', color: UI_PALETTE.bad },
     };
     const iconStyle = iconMap[conditionId] || { label: '?', color: UI_PALETTE.text };
     // Pixel seal badges (StatusBadges); the lettered text is the fallback.

@@ -355,6 +355,33 @@ describe('Imbue combat — vampiric cap (at most 2 HP a strike)', () => {
   });
 });
 
+describe('Wounded: no drain heals', () => {
+  it('a Wounded striker drains nothing (its strikes still land in full)', () => {
+    forceHitsNoCrits();
+    const { attacker, defender } = setupCombat({
+      atkImbue: 'vampiric',
+      atkOverrides: { currentHP: 5, stats: { ...makeUnit().stats, HP: 60, STR: 40 } },
+      defOverrides: { currentHP: 200, stats: { ...makeUnit().stats, HP: 200, DEF: 0 } },
+    });
+    const ctx = { ...baseSkillCtx, atkWeaponArtMods: { drainPercent: 0.5 } };
+    const args = [attacker, attacker.weapon, defender, defender.weapon, 1, plain, plain, ctx];
+    const healthy = resolveCombat(...args);
+    attacker._conditions = [{ id: 'wounded', turnsRemaining: 2 }];
+    expect(getCombatForecast(...args).attacker.drainPercent).toBe(0);
+    const wounded = resolveCombat(...args);
+    const strikes = (r) =>
+      r.events.filter((e) => e.type === 'strike' && e.attackerSide === 'attacker' && !e.miss);
+    expect(strikes(healthy).some((e) => e.heal > 0)).toBe(true);
+    expect(strikes(wounded).length).toBe(strikes(healthy).length);
+    for (const strike of strikes(wounded)) {
+      expect(strike.heal).toBe(0);
+      expect(strike.strikerHealTo).toBeUndefined();
+    }
+    expect(strikes(wounded).map((e) => e.damage)).toEqual(strikes(healthy).map((e) => e.damage));
+    expect(wounded.attackerHP).toBeLessThanOrEqual(5);
+  });
+});
+
 describe('Imbue combat — venom post-combat poison', () => {
   it('emits 5 poison via the poisonEffects path and floors HP at 1', () => {
     forceHitsNoCrits();
