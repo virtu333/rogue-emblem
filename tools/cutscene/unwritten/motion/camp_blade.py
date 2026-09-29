@@ -78,18 +78,18 @@ def bil(L, x, y):
     return (L[y0, x0] * (1 - fx) * (1 - fy) + L[y0, x0 + 1] * fx * (1 - fy) + L[y0 + 1, x0] * (1 - fx) * fy + L[y0 + 1, x0 + 1] * fx * fy)
 
 
-def resting_blade(cell, guess):
+def resting_blade(cell, guess, ang=7, shift=14, along=(-8, 0, 8)):
     """Search a line near `guess` ([x0, y0, x1, y1]) for the blade lying over the body."""
     L = lum_of(cell)
     gx0, gy0, gx1, gy1 = guess
     best = None
     ang0 = np.arctan2(gy1 - gy0, gx1 - gx0)
-    for dth in np.radians(np.arange(-7, 7.1, 0.75)):
+    for dth in np.radians(np.arange(-ang, ang + 0.01, 0.75 if ang > 5 else 0.5)):
         th = ang0 + dth
         d = np.array([np.cos(th), np.sin(th)])
         n = np.array([-d[1], d[0]])
-        for sh in np.arange(-14, 14.1, 1.0):
-            for lshift in (-8, 0, 8):
+        for sh in np.arange(-shift, shift + 0.1, 1.0):
+            for lshift in along:
                 # a segment through the guessed centre, shifted sideways and along
                 cx = (gx0 + gx1) / 2 + n[0] * sh + d[0] * lshift
                 cy = (gy0 + gy1) / 2 + n[1] * sh + d[1] * lshift
@@ -127,6 +127,41 @@ def resting_blade(cell, guess):
     p1 = np.array([cx, cy]) + d * t1
     return [float(p0[0]), float(p0[1]), float(p1[0]), float(p1[1]), 12.0], best[0]
 
+
+KEYS = json.loads(sys.argv[sys.argv.index('--keys') + 1]) if '--keys' in sys.argv else None
+if KEYS:
+    # a clip whose sword is clear of the body all through: rough keyframes by eye
+    # ([frame, x0, y0, x1, y1] in cell px), interpolated, then each drawing searched near its guess
+    KEYS.sort()
+    blades = [None] * meta['frames']
+    for f in range(meta['frames']):
+        lo = max((k for k in KEYS if k[0] <= f), default=KEYS[0], key=lambda k: k[0])
+        hi = min((k for k in KEYS if k[0] >= f), default=KEYS[-1], key=lambda k: k[0])
+        u = 0 if hi[0] == lo[0] else (f - lo[0]) / (hi[0] - lo[0])
+        g = [lo[i] + (hi[i] - lo[i]) * u for i in range(1, 5)]
+        r = resting_blade(cell_of(f), g, ang=6, shift=9, along=(-6, 0, 6))[0]
+        blades[f] = r
+    meta['blade'] = [[round(v, 1) for v in b] for b in blades]
+    json.dump(meta, open(f'{OUT}/{name}.json', 'w'), indent=1)
+    print(f'{name}: {len(blades)} blades from {len(KEYS)} keys')
+    if debug:
+        pick = [int(x) for x in np.linspace(0, meta['frames'] - 1, 10)]
+        tiles = []
+        for f in pick:
+            c = full.crop(((f % cols) * cw, (f // cols) * ch, (f % cols + 1) * cw, (f // cols + 1) * ch))
+            bg = Image.new('RGBA', c.size, (70, 70, 90, 255))
+            bg.alpha_composite(c)
+            d = ImageDraw.Draw(bg)
+            b = meta['blade'][f]
+            d.line([(b[0], b[1]), (b[2], b[3])], fill=(0, 255, 0, 255), width=1)
+            d.text((4, 4), str(f), fill=(255, 255, 255, 255))
+            tiles.append(bg.crop((0, 150, cw, ch)).convert('RGB'))
+        per = 5
+        sheet = Image.new('RGB', (cw * per, (ch - 150) * 2))
+        for k, t in enumerate(tiles):
+            sheet.paste(t, ((k % per) * cw, (k // per) * (ch - 150)))
+        sheet.save(debug)
+    sys.exit(0)
 
 blades = [None] * meta['frames']
 clear = [clear_blade(cell_of(f)) for f in range(meta['frames'])]
