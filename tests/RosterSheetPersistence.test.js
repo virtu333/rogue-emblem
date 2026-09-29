@@ -64,12 +64,15 @@ async function confirm(sheet, choice) {
   await vi.advanceTimersByTimeAsync(0);
 }
 
-// The trade menu opens holding the item; its first slot on the other side takes it.
+// The trade menu opens with nothing held: the first tap holds the card's item (the
+// first on the unit's side), the next gives it to the first slot on the other side.
 function commitToFirstRow(sheet) {
-  const row = sheet.picker.surface.root
-    .querySelectorAll('.tm-row')
-    .find((el) => el.dataset.side === 'right' && el.dataset.index === '0');
-  row.click();
+  const row = (side) =>
+    sheet.picker.surface.root
+      .querySelectorAll('.tm-row')
+      .find((el) => el.dataset.side === side && el.dataset.index === '0');
+  row('left').click();
+  row('right').click();
 }
 
 beforeEach(() => {

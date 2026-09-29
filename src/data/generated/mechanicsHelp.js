@@ -48,7 +48,7 @@ export const GENERATED_HELP_TABS = [
             "color": "#ffdd44"
           },
           {
-            "text": "Prof: 109 weapons (0 legendary)",
+            "text": "Prof: 115 weapons (0 legendary)",
             "color": "#66ddff"
           },
           {
@@ -137,7 +137,7 @@ export const GENERATED_MECHANICS_REFERENCE = {
     "rankRequirements": [
       {
         "rank": "Prof",
-        "totalWeapons": 109,
+        "totalWeapons": 115,
         "legendaryWeapons": 0
       },
       {
@@ -303,7 +303,7 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "id": "thorns",
       "name": "Thorns",
       "trigger": "on-defend",
-      "description": "Reflects 25% of melee damage taken back to attacker",
+      "description": "Adjacent hits on it (tomes too, and your counters) send 25% of the damage back, rounded down: hits of 3 or less send nothing; crits and overkill count. Never kills: leaves you at 1 HP.",
       "effects": "reflectMeleePct:0.25"
     },
     {

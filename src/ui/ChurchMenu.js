@@ -16,6 +16,7 @@ import {
 } from '../engine/UnitManager.js';
 import { getReviveCost } from '../engine/RunManager.js';
 import {
+  churchPromoteCost,
   churchPromotionBlock,
   promoteAtChurch,
   churchReviveBlock,
@@ -33,8 +34,20 @@ import {
   reviveAtRuins,
 } from '../engine/RuinsCommands.js';
 import { eclipsePhase, kindlePrice } from '../engine/EclipseSystem.js';
+import {
+  churchBlessingBlock,
+  churchBlessingOffers,
+  churchVow,
+  churchVowLine,
+  takeChurchBlessing,
+} from '../engine/ChurchVow.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
-import { CHURCH_PROMOTE_COST, RUINS_SHOP_MARKUP, INVENTORY_MAX } from '../utils/constants.js';
+import {
+  CHURCH_PROMOTE_COST_LORD,
+  CHURCH_PROMOTE_COST_RECRUIT,
+  RUINS_SHOP_MARKUP,
+  INVENTORY_MAX,
+} from '../utils/constants.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 import { healUnitFully } from '../engine/UnitHealth.js';
@@ -153,7 +166,24 @@ export class ChurchMenu {
       if (reason) body.append(el('p', reason));
     }
     if (!ruins) {
-      body.append(el('h3', `Promote · ${CHURCH_PROMOTE_COST} G`));
+      // One vow per church: Promotion or a Blessing (ChurchVow).
+      const vow = churchVow(run, nodeId);
+      body.append(el('h3', 'Your vow here'));
+      body.append(
+        el(
+          'p',
+          vow
+            ? churchVowLine(vow)
+            : 'Promote your units, or take a blessing: one vow per church. The first promotion or the blessing makes it.',
+          'church-vow-line',
+        ),
+      );
+      body.append(
+        el(
+          'h3',
+          `Promote · ${CHURCH_PROMOTE_COST_RECRUIT} G · lords ${CHURCH_PROMOTE_COST_LORD} G`,
+        ),
+      );
       const eligible = run.roster.filter(canPromote);
       if (!eligible.length)
         body.append(el('p', 'No units eligible yet. Base classes can promote from level 10.'));
@@ -166,9 +196,41 @@ export class ChurchMenu {
         body.append(withUnitFace(b, this.scene, this.scene.gameData, unit));
         if (reason) body.append(el('p', reason));
       }
+      this.renderBlessings(body, run, nodeId);
     }
     this.renderTools(body);
     body.scrollTop = scroll;
+  }
+  /** The altar's minor blessings: taking one is this church's vow. */
+  renderBlessings(body, run, nodeId) {
+    const gameData = this.scene.gameData;
+    const vow = churchVow(run, nodeId);
+    if (vow === 'blessing') return;
+    body.append(el('h3', 'Blessing · Free'));
+    const offers = churchBlessingOffers(run, nodeId, gameData);
+    if (!offers.length) body.append(el('p', 'You already hold every blessing this altar gives.'));
+    for (const blessing of offers) {
+      const reason = churchBlessingBlock(run, nodeId, blessing.id, gameData);
+      const b = button(
+        `${blessing.name} · ${blessing.description}`,
+        () =>
+          this.choose({
+            title: `Take ${blessing.name}?`,
+            choices: [blessing],
+            confirmation: true,
+            confirmLabel: 'Take the blessing',
+            label: (x) => x.name,
+            describe: (x) =>
+              `${x.description} This is your vow here: this church will promote no one.`,
+            blocked: (x) => churchBlessingBlock(run, nodeId, x.id, gameData),
+            apply: (x) => this.finish(takeChurchBlessing(run, nodeId, x.id, gameData)),
+          }),
+        're-btn church-blessing',
+      );
+      b.disabled = !!reason;
+      body.append(b);
+      if (reason) body.append(el('p', reason));
+    }
   }
   renderTools(body) {
     const tools = el('div', null, 'shop-tools');
@@ -327,8 +389,8 @@ export class ChurchMenu {
       gameData,
       title: `Promote ${unit.name}`,
       closeLabel: 'Close',
-      note: `${CHURCH_PROMOTE_COST} G · you have ${run.gold} G`,
-      confirmLabel: (cls) => `Promote to ${cls.name} · ${CHURCH_PROMOTE_COST} G`,
+      note: `${churchPromoteCost(unit)} G · you have ${run.gold} G`,
+      confirmLabel: (cls) => `Promote to ${cls.name} · ${churchPromoteCost(unit)} G`,
       blocked: () => churchPromotionBlock(run, unit, nodeId, gameData),
       apply: (target) => {
         const content = promotionPathContent(unit, target, gameData);

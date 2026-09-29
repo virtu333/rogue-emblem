@@ -33,12 +33,15 @@ import { resetTransitionLocks } from '../utils/sceneLoader.js';
 import { showImportantHint } from './HintDisplay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { BossRecruitOverlay } from './BossRecruitOverlay.js';
+import { prepareBossRecruit, resolveBossRecruit } from '../engine/PendingBossRecruit.js';
+import { prepareThirdLord, resolveThirdLordArrival } from '../engine/PendingThirdLord.js';
 import { pushRunSave } from '../cloud/CloudSync.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
 import { projectedMeterShadow, projectedRelief, projectedShadow } from './EclipseHudController.js';
 import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
+import { recordRunLordsMet } from '../engine/LordsMet.js';
 
 // Watchdog: a single RunComplete transition attempt that hangs past this is
 // treated as failed so the retry loop (and ultimately the recovery UI) still runs.
@@ -202,6 +205,8 @@ export class PostCombatController {
           ),
         },
       );
+      // A lord recruited in this battle (a recruit node's Talk) has now joined.
+      if (completionApplied) recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
       const vaultGoldAfterCompletion = Math.max(0, Math.trunc(scene.runManager.gold || 0));
       scene._battleCompletionAwardedGold = completionApplied
         ? Math.max(0, vaultGoldAfterCompletion - vaultGoldBeforeCompletion)
@@ -209,6 +214,14 @@ export class PostCombatController {
       // Preserve both the win and its unclaimed choices before presentation.
       if (completionApplied && !scene.runManager.isRunComplete() && hasDOMHost()) {
         prepareBattleRewards(scene.runManager, scene.gameData, this.rewardContext());
+        // The boss recruit draft is rolled and saved with the reward, so a
+        // reload before the choice offers the same candidates.
+        if (scene.isBoss) prepareBossRecruit(scene.runManager, scene.gameData);
+        // So is the third lord's arrival when this victory brings it due. After a
+        // boss recruit it is rolled once that choice is made (the pick changes who
+        // is left to arrive); a boss with no recruit to offer has no choice to wait for.
+        if (!scene.runManager.pendingBossRecruit && scene.runManager.shouldTriggerThirdLord())
+          prepareThirdLord(scene.runManager, scene.gameData);
       }
       scene._persistBattleRunState?.();
       afterVictoryBand(async () => {
@@ -304,7 +317,11 @@ export class PostCombatController {
                 scene.gameData?.dialogue?.eliteVictory?.[act] ||
                 scene.gameData?.dialogue?.eliteVictory?.act3;
               if (Array.isArray(elitePool) && elitePool.length > 0) {
-                const line = elitePool[Math.floor(Math.random() * elitePool.length)];
+                // Picked like every narrative pool (rotation, never the battle RNG: a
+                // draw here, just before loot, let the pool's size shift elite loot).
+                const line =
+                  scene.runManager?.pickNarrativeLine?.(elitePool, `eliteVictory:${act}`) ||
+                  elitePool[0];
                 await scene.dialogueOverlay?.show(null, line, null);
               }
             } catch (_) {}
@@ -364,6 +381,10 @@ export class PostCombatController {
         } else {
           const fromAct = scene.runManager.currentAct;
           scene.runManager.advanceAct();
+          // Save the new act now: the act card and story below can take a
+          // while, and a reload during them must resume on the next act's
+          // map, not on the finished one.
+          scene._persistBattleRunState?.();
           const toAct = scene.runManager.currentAct;
           const transKey = getActTransitionKey(fromAct, toAct);
           const narrative = buildNarrativeContext({
@@ -547,11 +568,17 @@ export class PostCombatController {
     scene._bossRecruitOverlay = overlay;
     scene.lootGroup = overlay.displayObjects;
     overlay.show((selectedUnit) => {
-      if (selectedUnit) {
-        scene.runManager.grantRecruitBlessingConsumables?.(selectedUnit);
-        scene.runManager.assignUnitUid?.(selectedUnit);
-        scene.runManager.roster.push(selectedUnit);
-      }
+      resolveBossRecruit(scene.runManager, selectedUnit);
+      // A lord picked here has joined: this save has met them.
+      if (selectedUnit) recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
+      // The arrival that follows is rolled in this same save.
+      if (scene.runManager.shouldTriggerThirdLord() && hasDOMHost())
+        prepareThirdLord(scene.runManager, scene.gameData);
+      // The choice is durable before anything else happens: a pick is on the
+      // roster and a skip is final, so a reload can neither re-offer nor lose
+      // it. (The join card saves first itself.)
+      const joins = selectedUnit && this._canPresentJoin();
+      if (!joins) scene._persistBattleRunState?.();
       scene.lootGroup = null;
       scene._bossRecruitOverlay = null;
       const next = () => {
@@ -561,7 +588,7 @@ export class PostCombatController {
           scene.showLootScreen();
         }
       };
-      if (selectedUnit && this._canPresentJoin()) this._presentJoin(selectedUnit, 'boss', next);
+      if (joins) this._presentJoin(selectedUnit, 'boss', next);
       else next();
     });
   }
@@ -572,13 +599,18 @@ export class PostCombatController {
     scene._lordArrivalOverlay = overlay;
     scene.lootGroup = overlay.displayObjects;
     overlay.show((selectedUnit) => {
-      scene.runManager.resolveThirdLord(selectedUnit);
+      resolveThirdLordArrival(scene.runManager, selectedUnit);
+      recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
       scene.lootGroup = null;
       scene._lordArrivalOverlay = null;
       const joined = selectedUnit && scene.runManager.roster?.includes?.(selectedUnit);
       const next = () => scene.showLootScreen();
       if (joined && this._canPresentJoin()) this._presentJoin(selectedUnit, 'lord', next);
-      else next();
+      else {
+        // The choice is durable before anything follows it (a join card saves first).
+        scene._persistBattleRunState?.();
+        next();
+      }
     });
   }
 

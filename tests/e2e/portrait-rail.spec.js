@@ -1197,14 +1197,30 @@ test.describe('input lifecycle', () => {
     await attachSlot(page);
     const cdp = await page.context().newCDPSession(page);
     const at = await unitCss(page, 'Sera');
+    // The finger must be down for less than a long press when the phone turns. The
+    // long-press timer runs on the scene clock, which real time outruns whenever the
+    // machine is busy: 420 ms between the press and the turn opens Unit Details, a
+    // legitimate modal that holds the board until it is closed (the next test). So the
+    // clock waits, and the test steps it past the turn itself: the press is then
+    // provably shorter than a long press, on any machine.
+    await battle(page, 's.time.paused = true;');
     await cdp.send('Input.dispatchTouchEvent', {
       type: 'touchStart',
       touchPoints: [{ x: at.x, y: at.y, id: 1 }],
     });
     expect(await battle(page, 'return s.input.activePointer.isDown')).toBe(true);
+    expect(await battle(page, 'return Boolean(s._touchHoldTimer)')).toBe(true);
     // Sideways with the finger still down and no release ever sent: the board follows.
     const { width, height } = page.viewportSize();
     await page.setViewportSize({ width: height, height: width });
+    // The turn drops the press and re-opens the battle upright-to-sideways; the scene
+    // clock (still held, and carried into the new scene) runs again once the new board
+    // is up, and the new board must come up on its own with the finger still down.
+    await page.waitForFunction(() => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      return Boolean(b?._presentationSwitch) && b.grid?.board.rotation === 'none';
+    });
+    await battle(page, 's.time.paused = false;');
     await page.waitForFunction(
       () => {
         const b = window.__emblemRogueGame.scene.getScene('Battle');
@@ -1225,6 +1241,45 @@ test.describe('input lifecycle', () => {
     const now = await unitCss(page, 'Sera');
     await page.touchscreen.tap(now.x, now.y);
     await expect.poll(selected).toEqual(['UNIT_ACTION_MENU', 'Sera']);
+  });
+
+  test('a long press that opened Unit Details holds the turn until the sheet closes', async ({
+    page,
+    browserName,
+  }) => {
+    // The other way the same gesture can play out: the finger stayed down for a long
+    // press before the phone turned. Unit Details is then a real modal, so the board
+    // keeps its orientation, says why, and follows the phone the moment it closes.
+    test.skip(browserName !== 'chromium', 'raw touch events need CDP (Chromium only)');
+    test.setTimeout(120_000);
+    await boot(page);
+    await attachSlot(page);
+    const cdp = await page.context().newCDPSession(page);
+    const at = await unitCss(page, 'Sera');
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: at.x, y: at.y, id: 1 }],
+    });
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').unitDetailOverlay?.visible === true,
+    );
+    const { width, height } = page.viewportSize();
+    await page.setViewportSize({ width: height, height: width });
+    await expect(page.locator('.portrait-battle-notice')).toHaveText(
+      /turns (upright|back) when this action is done/,
+    );
+    expect(await battle(page, 'return s._portraitBattle.switching')).toBe(false);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await battle(page, 's.unitDetailOverlay.hide();');
+    await page.waitForFunction(() => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      return (
+        window.__sceneState?.battle?.state === 'PLAYER_IDLE' &&
+        b?._presentationSwitch &&
+        b.grid.board.rotation === 'none'
+      );
+    });
+    await expect(page.locator('.portrait-battle-notice')).toHaveCount(0);
   });
 });
 

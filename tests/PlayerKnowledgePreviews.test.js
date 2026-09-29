@@ -58,6 +58,8 @@ const hero = (col, row, extra = {}) => ({
   ...extra,
 });
 const villager = (col, row) => ({ name: 'Villager', faction: 'npc', col, row, currentHP: 10 });
+// The one NPC the fog can hide: a waiting recruit is always in view (canInspectUnit).
+const caravan = (col, row) => ({ ...villager(col, row), name: 'Merchant', isCaravan: true });
 
 function battle(grid, { enemies = [], players = [], npcs = [] }) {
   const scene = new BattleScene();
@@ -120,13 +122,12 @@ describe('PlayerKnowledge', () => {
     expect([...k.positions().keys()]).toEqual(['1,0']);
   });
 
-  it("the scene treats the recruit's beacon as knowledge: it shows through the fog", () => {
-    const grid = makeGrid(['..........'], new Set(['5,0']));
+  it('a waiting recruit is known through the fog; a fogged caravan is not', () => {
+    const grid = makeGrid(['..........'], new Set(['5,0', '7,0']));
     const recruit = villager(5, 0);
-    const scene = battle(grid, { players: [hero(0, 0)], npcs: [recruit] });
-    expect(scene.buildUnitPositionMap().has('5,0')).toBe(false);
-    scene._recruitBeacon = { npc: recruit };
+    const scene = battle(grid, { players: [hero(0, 0)], npcs: [recruit, caravan(7, 0)] });
     expect(scene.buildUnitPositionMap().get('5,0')).toEqual({ faction: 'npc' });
+    expect(scene.buildUnitPositionMap().has('7,0')).toBe(false);
   });
 });
 
@@ -204,7 +205,7 @@ describe('Player planning ignores hidden units (blue range, path preview)', () =
   it('a fog-hidden NPC does not shape the blue range', () => {
     const range = (withNpc) => {
       const grid = makeGrid(['..........'], new Set(['5,0']));
-      const scene = battle(grid, { players: [hero(0, 0)], npcs: withNpc ? [villager(5, 0)] : [] });
+      const scene = battle(grid, { players: [hero(0, 0)], npcs: withNpc ? [caravan(5, 0)] : [] });
       return [
         ...grid
           .getMovementRange(0, 0, 8, 'Infantry', scene.buildUnitPositionMap(), 'player')
@@ -282,7 +283,7 @@ describe('Player planning ignores hidden units (blue range, path preview)', () =
   it('a move into a fog-hidden NPC stops before it, as a block rather than an ambush', () => {
     const grid = makeGrid(['......'], new Set(['3,0']));
     const unit = hero(0, 0);
-    const npc = villager(3, 0);
+    const npc = caravan(3, 0);
     const scene = battle(grid, { players: [unit], npcs: [npc] });
     const path = [0, 1, 2, 3, 4].map((col) => ({ col, row: 0 }));
     const cut = scene._ambushCut(unit, { effectivePath: path, movementCost: 4, slideSegments: [] });

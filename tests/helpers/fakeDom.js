@@ -197,6 +197,15 @@ export class FakeElement extends FakeEventTarget {
     else this.children.splice(i, 0, child);
     return node;
   }
+  after(...nodes) {
+    const parent = this.parentNode;
+    if (!parent) return;
+    let at = parent.children.indexOf(this) + 1;
+    for (const node of nodes) {
+      const child = parent._adopt(node);
+      parent.children.splice(at++, 0, child);
+    }
+  }
   get lastChild() {
     return this.children.at(-1) || null;
   }

@@ -1,4 +1,5 @@
 import { mergeRunRecords } from '../engine/RunRecords.js';
+import { lordsMetOfMetaSave, mergeLordNames } from '../engine/LordsMet.js';
 import { normalizeSettings } from '../utils/SettingsManager.js';
 import { preserveCloudConflict } from '../engine/CloudSaveConflict.js';
 // CloudSync.js — Fire-and-forget cloud save/load via Supabase
@@ -166,18 +167,20 @@ function applyMetaSlots(metaData, skipped = new Set()) {
     const localSlot = readLocalJSON(key);
     const shouldKeepLocal = shouldPreferLocalMeta(localSlot, cloudSlot);
     const records = mergeRunRecords(localSlot?.runRecords || [], cloudSlot?.runRecords || []);
+    // Lords met on either copy stay met (a union, like the run records).
+    const localLords = lordsMetOfMetaSave(localSlot);
+    const lordsMet = mergeLordNames(localLords, lordsMetOfMetaSave(cloudSlot));
     if (
       !shouldKeepLocal ||
-      JSON.stringify(records) !== JSON.stringify(localSlot?.runRecords || [])
+      JSON.stringify(records) !== JSON.stringify(localSlot?.runRecords || []) ||
+      lordsMet.length > localLords.length
     ) {
       try {
         const selected = shouldKeepLocal
           ? { ...localSlot, savedAt: Math.max(Date.now(), Number(localSlot.savedAt || 0) + 1) }
           : cloudSlot;
-        localStorage.setItem(
-          key,
-          JSON.stringify(records.length ? { ...selected, runRecords: records } : selected),
-        );
+        const merged = records.length ? { ...selected, runRecords: records } : selected;
+        localStorage.setItem(key, JSON.stringify({ ...merged, lordsMet }));
       } catch (e) {
         console.warn('[CloudSync] localStorage write failed:', key, e);
       }

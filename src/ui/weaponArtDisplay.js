@@ -137,6 +137,7 @@ export function weaponArtModsText(art) {
     parts.push(
       `Heals ${Math.round(mods.drainPercent * 100)}% of damage dealt${mods.drainMaxPerHit ? ` (at most ${mods.drainMaxPerHit} HP a hit)` : ''}`,
     );
+  if (mods.drainPerHit) parts.push(`Heals ${mods.drainPerHit} HP on each hit that deals damage`);
   for (const [key, label] of Object.entries({
     preventCounter: 'No counterattack',
     ignoreRES: 'Ignores Resistance',

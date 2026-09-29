@@ -130,7 +130,7 @@ export const DEEDS_HELP = [
     points: [
       'Some deeds carry an Oath: a skill the class never teaches.',
       'A unit swears one Oath, ever, when it promotes. You choose which.',
-      'With five skills already, the Oath waits here: give up a skill for it, or let it go.',
+      'With five skills equipped, the Oath goes on the bench: swap it in from Skills.',
     ],
   },
   { tip: 'The Compendium lists every deed you have earned.' },
@@ -152,7 +152,7 @@ export const SCROLLS_HELP = [
     title: 'Rules',
     points: [
       'A scroll is used up only once it is taught or bound.',
-      'A unit holds at most five skills.',
+      'Five skills go into battle; a skill taught with all five slots full waits on the bench.',
       'A bound art stays on that weapon for this run.',
       'Some skills are commands, like Blink: they add an action, not an attack.',
     ],

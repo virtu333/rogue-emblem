@@ -183,3 +183,26 @@ Results on the preview links: fog ambush and Rescue with Canto, placement Back t
 - **Waiting Oath notice:** a callout heads the unit's roster pane on every tab (with a button to the choice), the unit list says "Oath waiting", the route map's Roster wears a gold pip, and the first one a save meets explains what a waiting Oath is (hint `roster_oath_waiting`).
 - **"Castle theme silent at the start":** not the score (it sounds from 0 s at the other Act II themes' level). The route map stopped its track on Travel and the battle's track loaded only after the deploy screen; on a 6× slowed CPU that was ~7 s of silence. The route's track now bridges into the battle's and crossfades.
 
+
+## Waves 3–4 status (branch `claude/playtest-notes-triage-z12dht`, after #152)
+
+Done, each with unit tests (and browser tests where there is UI):
+
+- Loose ends: a refused Formation pick keeps the unit in hand; team XP from a gold reward names who levelled and which class skill came (`engine/TeamXp.js`); a waiting recruit is always in view through fog (the caravan still hides).
+- Arena: View map, Roster, the fighter's details, a mercenary's read-only card.
+- Convoy: heals, boosters and seals are used straight from the convoy on a unit.
+- Forge price by tier: Iron ×0.6, Steel ×1, Silver ×1.5, Legend ×2 (shop shows and charges one price, `forgePrice`).
+- Ballista range by act: 3 / 4 / 5 (Act II / III / IV on), stored per ballista.
+- Elite seize battles hold a captain from `enemies.elites.<act>` scaled to the node, never the act's boss.
+- Blessing pass: Scholar's Vow, Scout Blessing, Focused Curriculum → tier 3; Terrain Mastery → tier 2, +10 avoid; Nomad's Pact +2 levels; Rally Cry +3 STR/+3 MAG in Act 1; Arsenal Pact weight 0.2. Bug fixed: an act-scoped stat blessing or cost reverts only from the units that had it (a mid-act recruit used to lose it permanently).
+- Skill loadout: five equipped, the rest on the bench, swapped between battles; the waiting Oath is retired (an Oath at the cap goes to the bench; old saves swear it on load).
+- Church vow: each church gives promotions or one minor blessing, not both.
+- Story and lines: first-run cold open, Act I/II dispatches, the Lieutenant's vision (Dusk and up), fall reactions and commander last words, Act IV flavour, the First Light tease, fuller thin pools.
+
+- Wounded (after #154): Grievous enemies leave a unit unable to recover HP except from a staff for 2 turns; statuses now end with the battle.
+- Elite victory line no longer draws from the battle RNG; phone battles open on the whole board.
+
+PR notes for the strict-slice threshold change (Waves 3–4; CI's check:threshold-pr-notes reads these from the PR body):
+- Attribution command: `node tests/sim/fullrun-slice-runner.js --slice ambush_hard_invincible` on each commit.
+- first_bad_sha: e6e7f191 (Wounded: the Grievous affix joins the tier-1 affix pool Hard rolls from). parent_sha: 887c03c2.
+- Failing metrics / threshold breaches: ambush_hard_invincible avg_gold 54901 > 54400 (53483 on the parent; 52496 on main before Waves 3–4). Change: `--max-avg-gold` 54400 → 56800, the same ~3.4% headroom. Every other metric is unchanged.

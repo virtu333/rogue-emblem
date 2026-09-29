@@ -364,6 +364,12 @@ export class FormationController {
     const from = this.formation.at[u];
     const occupant = unitOnTile(this.formation, t);
     const benched = from !== null && occupant !== -1 && occupant !== u && this.displaces(u, t);
+    // A refused move changes nothing: whatever is in hand stays there, tint and all.
+    const reason = this.issue(u, t);
+    if (reason) {
+      this.flash(reason);
+      return false;
+    }
     this.heldUnit = null;
     if (!this.assign(u, t)) return false;
     if (benched) this.flash(`${this.units[occupant].name} waits: ${this.issue(occupant, from)}`);

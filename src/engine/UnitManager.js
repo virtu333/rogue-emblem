@@ -101,6 +101,25 @@ export function rollGrowthRates(growthRanges) {
   return growths;
 }
 
+/**
+ * "Seasoned" recruit growths: the upper half of every growth range ("40-70" ->
+ * "55-70"). Every recruit source rolls from these (recruit nodes, boss recruits,
+ * Colosseum mercenaries, the Vanguard Cadre): createRecruitUnit's `seasoned` option.
+ */
+export function seasonedGrowthRanges(growthRanges) {
+  if (!growthRanges || typeof growthRanges !== 'object') return growthRanges;
+  const out = {};
+  for (const [stat, range] of Object.entries(growthRanges)) {
+    const [lo, hi] = String(range).split('-').map(Number);
+    if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
+      out[stat] = range;
+      continue;
+    }
+    out[stat] = `${Math.ceil((lo + hi) / 2)}-${hi}`;
+  }
+  return out;
+}
+
 // --- Skill assignment helpers ---
 
 /**
@@ -130,10 +149,40 @@ export function getClassInnateSkills(className, skillsData) {
 
 // --- Skill learning ---
 
-/** Attempt to teach a unit a skill. Returns { learned, skillId?, reason? }. */
-export function learnSkill(unit, skillId) {
-  if (unit.skills.includes(skillId)) return { learned: false, reason: 'already_known' };
-  if (unit.skills.length >= MAX_SKILLS) return { learned: false, reason: 'at_cap' };
+// --- Skill loadout ---
+// `unit.skills` holds the equipped skills (at most MAX_SKILLS): combat and every
+// battle system read only these. `unit.benchedSkills` holds skills the unit knows but
+// has not equipped. A player unit that learns a skill with every slot full keeps it on
+// the bench (playtest 2026-09-28: skills used to be lost at the cap); between battles
+// the roster swaps skills between the two (engine/SkillLoadout.js). Enemies never
+// bench: at the cap they simply do not learn.
+
+/** Skills the unit knows but has not equipped. */
+export function benchedSkillsOf(unit) {
+  return Array.isArray(unit?.benchedSkills) ? unit.benchedSkills : [];
+}
+
+/** Whether the unit knows a skill, equipped or benched. */
+export function knowsSkill(unit, skillId) {
+  return Boolean(unit?.skills?.includes(skillId) || benchedSkillsOf(unit).includes(skillId));
+}
+
+/**
+ * Attempt to teach a unit a skill. Returns { learned, skillId?, reason?, benched? }.
+ * At the cap a player unit keeps the skill on its bench: { learned: false, benched:
+ * true, reason: 'at_cap' } (callers that report "slots full" still see at_cap), and
+ * the skill is marked new (`benchedUnseen`) until the roster shows it. `bench: false`
+ * refuses at the cap instead (a caller that makes room itself).
+ */
+export function learnSkill(unit, skillId, { bench = true } = {}) {
+  if (!Array.isArray(unit.skills)) unit.skills = [];
+  if (knowsSkill(unit, skillId)) return { learned: false, reason: 'already_known' };
+  if (unit.skills.length >= MAX_SKILLS) {
+    if (!bench || unit.faction === 'enemy') return { learned: false, reason: 'at_cap' };
+    unit.benchedSkills = [...benchedSkillsOf(unit), skillId];
+    unit.benchedUnseen = [...(unit.benchedUnseen || []).filter((id) => id !== skillId), skillId];
+    return { learned: false, benched: true, skillId, reason: 'at_cap' };
+  }
   unit.skills.push(skillId);
   return { learned: true, skillId };
 }
@@ -597,7 +646,10 @@ export function createRecruitUnit(
   if (!classData.growthRanges && classData.promotesFrom) {
     growthSource = classesData?.find((c) => c.name === classData.promotesFrom) || classData;
   }
-  const growths = growthSource.growthRanges ? rollGrowthRates(growthSource.growthRanges) : {};
+  const growthRanges = options.seasoned
+    ? seasonedGrowthRanges(growthSource.growthRanges)
+    : growthSource.growthRanges;
+  const growths = growthRanges ? rollGrowthRates(growthRanges) : {};
   if (classData.growthBonuses) {
     for (const [stat, bonus] of Object.entries(classData.growthBonuses)) {
       growths[stat] = (growths[stat] || 0) + bonus;
@@ -679,10 +731,16 @@ export function createRecruitUnit(
     learnSkill(unit, skill);
   }
 
-  // Give Archer/Sniper recruits a Longbow for tactical range advantage.
-  // Keep this scoped to dedicated bow classes (not all classes with Bow proficiency).
-  const isArcherTypeRecruit = classData.name === 'Archer' || classData.name === 'Sniper';
-  if (isArcherTypeRecruit) {
+  // Dedicated bow recruits arrive with a second bow (not every class with Bow
+  // proficiency). Archers get a Longbow for reach. A recruit that joins as a Sniper
+  // (built as an Archer, then promoted: options.traitClassData is the class it will
+  // play) gets a Recurve Bow instead, equipped, so it can answer at one tile too. Only
+  // recruits come through here; enemy Snipers keep their own weapons.
+  const joinsAs = options.traitClassData?.name || classData.name;
+  if (joinsAs === 'Sniper') {
+    const recurve = allWeapons.find((w) => w.name === 'Recurve Bow');
+    if (recurve && addToInventory(unit, recurve)) equipWeapon(unit, unit.inventory.at(-1));
+  } else if (classData.name === 'Archer') {
     const longbow = allWeapons.find((w) => w.name === 'Longbow');
     if (longbow) addToInventory(unit, longbow);
   }
@@ -1253,7 +1311,16 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
   const learnedSkills = [];
   const droppedSkills = [];
   const innateSkills = getClassInnateSkills(promotedClassData.name, skillsData);
-  for (const sid of innateSkills) {
+  // The new class's curriculum from its first level (the Sniper's Death Blow) is
+  // learned with the promotion, as checkLevelUpSkills would at the next level-up.
+  // Class curricula are player progression: enemies never learn them (as there).
+  const firstLevelSkills =
+    unit.faction === 'enemy'
+      ? []
+      : (promotedClassData.learnableSkills || [])
+          .filter((entry) => entry?.skillId && entry.level <= unit.level)
+          .map((entry) => entry.skillId);
+  for (const sid of [...innateSkills, ...firstLevelSkills]) {
     const result = learnSkill(unit, sid);
     if (result.learned) learnedSkills.push(sid);
     else if (result.reason === 'at_cap') droppedSkills.push(sid);
@@ -1266,14 +1333,21 @@ export function getSkillDisplayNames(skillIds, skillsData) {
   return (skillIds || []).map((sid) => skillsData?.find((s) => s.id === sid)?.name || sid);
 }
 
+/** One line for skills that arrived with every slot full: they wait on the bench. */
+export function benchedSkillsNote(names) {
+  const list = (names || []).filter(Boolean);
+  if (!list.length) return '';
+  return `All ${MAX_SKILLS} skill slots full: ${list.join(', ')} kept on the bench (swap in from Skills).`;
+}
+
 /**
- * Player-facing notice for class innates lost to the MAX_SKILLS cap during
- * promotion. Returns null when nothing was dropped.
+ * Player-facing notice for class innates benched by the MAX_SKILLS cap during
+ * promotion. Returns null when nothing was benched.
  */
 export function formatDroppedSkillsNotice(unitName, droppedSkills, skillsData) {
   if (!droppedSkills?.length) return null;
   const names = getSkillDisplayNames(droppedSkills, skillsData);
-  return `${unitName} couldn't learn ${names.join(', ')} (skill limit reached)`;
+  return `${unitName}: ${benchedSkillsNote(names)}`;
 }
 
 // --- Reclass ---

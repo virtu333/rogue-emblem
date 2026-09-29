@@ -21,7 +21,7 @@ import { throttledRead } from '../utils/throttledRead.js';
 import { createEclipseMedallion, openEclipseCard } from './EclipsePanels.js';
 import { fallToastText, kindlePrice } from '../engine/EclipseSystem.js';
 import { showMinorHint } from './HintDisplay.js';
-import { rosterOathsWaiting } from '../engine/DeedSystem.js';
+import { rosterBenchedUnseen } from '../engine/SkillLoadout.js';
 import { playCue } from './ceremonyMusic.js';
 
 const ECLIPSE_TOAST_MS = 4200;
@@ -425,14 +425,15 @@ export class NodeMapMenu {
     }, ECLIPSE_TOAST_MS);
   }
 
-  /** Roster wears a gold mark while a unit's Oath waits for a skill slot. */
+  /** Roster wears a gold mark while a unit has a new skill on its bench. */
   _syncRosterFlag() {
     const b = this.rosterButton;
     if (!b) return;
-    const waiting = rosterOathsWaiting(this.scene?.runManager?.roster);
+    const waiting = rosterBenchedUnseen(this.scene?.runManager?.roster);
     b.classList.toggle('re-attention', waiting > 0);
     // Described, not renamed: the button is still "Roster" to anything looking for it.
-    const note = waiting === 1 ? 'An Oath is waiting' : `${waiting} Oaths are waiting`;
+    const note =
+      waiting === 1 ? 'A new skill is on the bench' : `${waiting} units have new skills benched`;
     if (waiting > 0) {
       b.setAttribute('aria-description', note);
       b.title = note;

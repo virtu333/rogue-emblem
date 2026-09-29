@@ -110,3 +110,33 @@ for (const kind of ['weapon', 'forge', 'imbue', 'booster', 'consumable', 'convoy
     if (kind === 'convoy') expect(result.convoy).toBe(1);
   });
 }
+
+test('a team XP reward names who levelled before the rewards move on', async ({ page }) => {
+  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&battleLab=1');
+  await waitForScene(page, 'Battle');
+  await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
+  const dialog = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
+  await expect(dialog).toBeVisible();
+  const name = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const c = s._lootController;
+    s.runManager.pendingBattleReward.choices[0] = { type: 'gold', goldAmount: 10, xpAmount: 25 };
+    c.choices = s.runManager.pendingBattleReward.choices;
+    c.mobileRewards.choices = c.choices;
+    const unit = s.runManager.roster[0];
+    unit.xp = 90;
+    window.levelBefore = unit.level;
+    c.mobileRewards.selected = 0;
+    c.mobileRewards.render();
+    return unit.name;
+  });
+  await dialog.getByRole('button', { name: 'Choose reward', exact: true }).tap();
+  await expect(dialog.getByRole('heading', { name: 'Team XP', exact: true })).toBeVisible();
+  const level = await page.evaluate(() => window.levelBefore);
+  await expect(dialog.locator('.reward-notice li').first()).toContainText(
+    `${name}: Lv ${level} → ${level + 1}`,
+  );
+  await expect(dialog.getByRole('button', { name: 'Continue', exact: true })).toBeFocused();
+  await dialog.getByRole('button', { name: 'Continue', exact: true }).tap();
+  await expect(dialog.getByRole('heading', { name: 'Team XP', exact: true })).toHaveCount(0);
+});

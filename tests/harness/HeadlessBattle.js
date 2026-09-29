@@ -96,7 +96,6 @@ import {
   BOSS_STAT_BONUS,
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
-  ROSTER_CAP,
   TERRAIN,
   XP_BASE_HEAL,
   XP_SPECIAL_ENEMY_MULTIPLIER,
@@ -112,6 +111,15 @@ import {
 } from '../../src/engine/TimedWeaponArtBuffs.js';
 import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
 import { applyXpGain, combatXpAwards, scaledXp } from '../../src/engine/BattleXp.js';
+import {
+  buildRisenUnit,
+  createRemains,
+  leavesRemains,
+  remainsInReach,
+  riseTile,
+  smashRemains,
+  tickRemains,
+} from '../../src/engine/ZombieRemains.js';
 
 export const HEADLESS_STATES = {
   PLAYER_IDLE: 'PLAYER_IDLE',
@@ -119,6 +127,7 @@ export const HEADLESS_STATES = {
   UNIT_ACTION_MENU: 'UNIT_ACTION_MENU',
   SELECTING_TARGET: 'SELECTING_TARGET',
   SELECTING_HEAL_TARGET: 'SELECTING_HEAL_TARGET',
+  SELECTING_REMAINS_TARGET: 'SELECTING_REMAINS_TARGET',
   ENEMY_PHASE: 'ENEMY_PHASE',
   BATTLE_END: 'BATTLE_END',
 };
@@ -176,6 +185,9 @@ export class HeadlessBattle {
     this._reinforcementsPendingThisTurn = false;
     this._villageState = null;
     this.villageRewardItems = [];
+    // Zombie remains (engine/ZombieRemains.js), the records BattleScene keeps.
+    this._zombieTombstones = [];
+    this.remainsTargets = [];
   }
 
   // Initialize battle — mirrors BattleScene.beginBattle
@@ -219,6 +231,8 @@ export class HeadlessBattle {
     this._reinforcementsPendingThisTurn = false;
     this._villageState = bc.villageTile ? createVillageState(bc.villageTile) : null;
     this.villageRewardItems = [];
+    this._zombieTombstones = [];
+    this.remainsTargets = [];
 
     // Create player units
     if (this.roster && this.roster.length > 0) {
@@ -419,10 +433,14 @@ export class HeadlessBattle {
       actions.push({ label: 'Escape', supported: true });
     }
 
-    // Talk
+    // Smash: known remains in weapon reach (mirrors BattleScene / ZombieRemainsController)
+    if (this._findRemainsTargets(unit).length > 0)
+      actions.push({ label: 'Smash', supported: true });
+
+    // Talk (the roster has no cap)
     if (unit.isLord && this.npcUnits.length > 0) {
       const talkTarget = this._findTalkTarget(unit);
-      if (talkTarget && this.playerUnits.length < ROSTER_CAP) {
+      if (talkTarget) {
         actions.push({ label: 'Talk', supported: true });
       }
     }
@@ -470,6 +488,12 @@ export class HeadlessBattle {
           equipWeapon(this.selectedUnit, staff);
         }
         this.battleState = HEADLESS_STATES.SELECTING_HEAL_TARGET;
+        break;
+      }
+      case 'Smash': {
+        this.remainsTargets = this._findRemainsTargets(this.selectedUnit);
+        if (this.remainsTargets.length === 0) throw new Error('No remains in reach');
+        this.battleState = HEADLESS_STATES.SELECTING_REMAINS_TARGET;
         break;
       }
       case 'Wait':
@@ -520,6 +544,21 @@ export class HeadlessBattle {
     this._executeHeal(this.selectedUnit, target);
   }
 
+  /** Smash the remains on (col, row): no roll, no RNG, no XP; ends the action. */
+  chooseRemainsTarget(col, row) {
+    if (this.battleState !== HEADLESS_STATES.SELECTING_REMAINS_TARGET) {
+      throw new Error(`Cannot choose remains in state: ${this.battleState}`);
+    }
+    const target = this.remainsTargets.find((t) => t.col === col && t.row === row);
+    if (!target) throw new Error(`No remains in reach at (${col},${row})`);
+    const unit = this.selectedUnit;
+    this._zombieTombstones = smashRemains(this._zombieTombstones, target).list;
+    this.remainsTargets = [];
+    // The last remains of a Rout win it, as a killing blow does.
+    if (this._checkBattleEnd()) return;
+    this._finishUnitAction(unit);
+  }
+
   undoMove() {
     if (this.battleState !== HEADLESS_STATES.UNIT_ACTION_MENU) {
       throw new Error(`Cannot undo move in state: ${this.battleState}`);
@@ -548,8 +587,10 @@ export class HeadlessBattle {
         break;
       case HEADLESS_STATES.SELECTING_TARGET:
       case HEADLESS_STATES.SELECTING_HEAL_TARGET:
+      case HEADLESS_STATES.SELECTING_REMAINS_TARGET:
         this.attackTargets = [];
         this.healTargets = [];
+        this.remainsTargets = [];
         this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
         break;
       default:
@@ -1974,7 +2015,40 @@ export class HeadlessBattle {
       const idx = this.enemyUnits.indexOf(unit);
       if (idx !== -1) this.enemyUnits.splice(idx, 1);
       this._applyKillRewards(unit, killer);
+      if (leavesRemains(unit, killer)) {
+        const tile = { col: unit.col, row: unit.row };
+        const seen = this.grid?.isVisible ? this.grid.isVisible(tile.col, tile.row) : true;
+        this._zombieTombstones = [...this._zombieTombstones, createRemains(unit, tile, { seen })];
+      }
     }
+  }
+
+  /** Remains `unit` can Smash (the scene's rule: known, visible, open, in weapon reach). */
+  _findRemainsTargets(unit) {
+    if (!unit || unit.faction !== 'player') return [];
+    return remainsInReach(unit, this._zombieTombstones, {
+      skillsData: this.gameData?.skills || null,
+      isVisible: (c, r) => (this.grid?.isVisible ? this.grid.isVisible(c, r) : true),
+      isOccupied: (c, r) => Boolean(this.getUnitAt(c, r)),
+    });
+  }
+
+  /** Mirrors ZombieRemainsController.processRevival (no banner, no graphics). */
+  _processZombieRevival() {
+    if (!this._zombieTombstones?.length) return;
+    const { kept, rising } = tickRemains(this._zombieTombstones);
+    this._zombieTombstones = kept;
+    for (const record of rising) {
+      const tile = riseTile(record, {
+        cols: this.battleConfig.cols,
+        rows: this.battleConfig.rows,
+        isOccupied: (c, r) => Boolean(this.getUnitAt(c, r)),
+        moveCostAt: (c, r, moveType) => this.grid.getTerrainAt(c, r)?.moveCost?.[moveType],
+      });
+      if (!tile) continue;
+      this.enemyUnits.push(buildRisenUnit(record, tile));
+    }
+    if (rising.length > 0) this._checkBattleEnd();
   }
 
   /** Faction-aware ally pool for Divine Charge heals (enemy→enemy, player→player, npc→player+npc) */
@@ -1993,7 +2067,11 @@ export class HeadlessBattle {
       this._onDefeat();
       return true;
     }
-    if (this.battleConfig.objective === 'rout' && this.enemyUnits.length === 0) {
+    if (
+      this.battleConfig.objective === 'rout' &&
+      this.enemyUnits.length === 0 &&
+      !(this._zombieTombstones?.length > 0)
+    ) {
       if (this._reinforcementsPendingThisTurn) return false;
       this._onVictory();
       return true;
@@ -2013,6 +2091,8 @@ export class HeadlessBattle {
     try {
       this._processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
       this._processTurnStartEffects(this.enemyUnits);
+      this._processZombieRevival();
+      if (this.battleState === HEADLESS_STATES.BATTLE_END) return;
       this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
       this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();
       try {

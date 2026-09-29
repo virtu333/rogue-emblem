@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { RunManager, getReviveCost } from '../src/engine/RunManager.js';
 import { createUnit, createLordUnit, resolvePromotionTargets } from '../src/engine/UnitManager.js';
 import {
+  churchPromoteCost,
   churchPromotionBlock,
   promoteAtChurch,
   churchReviveBlock,
   reviveAtChurch,
 } from '../src/engine/ChurchCommands.js';
-import { CHURCH_PROMOTE_COST, MAX_SKILLS } from '../src/utils/constants.js';
+import { MAX_SKILLS } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -47,11 +48,34 @@ describe('church promotion transactions', () => {
     expect(unit.tier).toBe('promoted');
     expect(unit.level).toBe(1);
     expect(unit.consumables).toEqual(supplies);
-    expect(run.gold).toBe(10000 - CHURCH_PROMOTE_COST);
+    // A recruit pays 2,000 (playtest 2026-09-29); lords pay 3,500 (below).
+    expect(run.gold).toBe(10000 - 2000);
     expect(run.getChurchPromotionCount(nodeId)).toBe(1);
     const after = snapshot();
     expect(promoteAtChurch(run, unit, nodeId, target, data).ok).toBe(false);
     expect(snapshot()).toBe(after);
+  });
+
+  it('charges lords 3,500 and every other unit 2,000', () => {
+    const lordDef = data.lords.find((l) => l.name === 'Edric');
+    const lord = createLordUnit(
+      lordDef,
+      data.classes.find((c) => c.name === lordDef.class),
+      data.weapons,
+    );
+    lord.level = 10;
+    run.roster = [lord, unit];
+    expect(churchPromoteCost(lord)).toBe(3500);
+    expect(churchPromoteCost(unit)).toBe(2000);
+    // 3,499 G: the recruit can promote, the lord cannot.
+    run.gold = 3499;
+    expect(churchPromotionBlock(run, lord, nodeId, data)).toBe('Not enough gold.');
+    expect(churchPromotionBlock(run, unit, nodeId, data)).toBe('');
+    run.gold = 3500;
+    expect(promoteAtChurch(run, lord, nodeId, targetFor(lord), data).ok).toBe(true);
+    expect(run.gold).toBe(0);
+    // A lord recruited mid-run is still a lord.
+    expect(churchPromoteCost({ ...structuredClone(unit), isLord: true })).toBe(3500);
   });
 
   it('rejects a stale roster identity and invalid class before spending', () => {
@@ -96,11 +120,11 @@ describe('church promotion transactions', () => {
 
   it('rechecks gold and difficulty limit immediately before applying', () => {
     const target = targetFor();
-    run.gold = CHURCH_PROMOTE_COST - 1;
+    run.gold = 1999;
     let before = snapshot();
     expect(promoteAtChurch(run, unit, nodeId, target, data).reason).toBe('Not enough gold.');
     expect(snapshot()).toBe(before);
-    run.gold = CHURCH_PROMOTE_COST;
+    run.gold = 2000;
     run.difficultyModifiers = { churchPromotionLimit: 2 };
     run.setChurchPromotionCount(nodeId, 2);
     before = snapshot();
@@ -159,15 +183,15 @@ describe('church revival transactions', () => {
     expect(snapshot()).toBe(before);
   });
 
-  it('does not charge or remove the fallen unit when roster fills after selection', () => {
-    run.roster = Array.from({ length: run.getRosterCap() }, (_, i) => ({
+  it('revives into a roster of any size (the roster has no cap)', () => {
+    run.roster = Array.from({ length: 20 }, (_, i) => ({
       ...recruit(),
       name: `Recruit ${i}`,
     }));
-    const before = snapshot();
-    expect(churchReviveBlock(run, unit)).toBe('Roster full.');
-    expect(reviveAtChurch(run, unit).ok).toBe(false);
-    expect(snapshot()).toBe(before);
+    expect(churchReviveBlock(run, unit)).toBe('');
+    expect(reviveAtChurch(run, unit).ok).toBe(true);
+    expect(run.roster).toHaveLength(21);
+    expect(run.roster).toContain(unit);
   });
 
   it('rechecks the promoted cost and latest gold at application time', () => {

@@ -22,10 +22,35 @@ function convoyIndex(list, item) {
   );
 }
 
+/**
+ * Where a consumable is used from between battles: the unit's own bag, or the shared
+ * convoy (heals, boosters and seals work straight from storage, no withdraw needed).
+ */
+export function consumableSource(run, unit, item) {
+  if (!item) return null;
+  if (unit?.consumables?.includes(item)) return 'unit';
+  if (run?.convoy?.consumables?.includes(item)) return 'convoy';
+  return null;
+}
+
+/** Spend one use of a consumable; an emptied one leaves the bag or the convoy it came from. */
+export function spendConsumableUse(run, unit, item) {
+  const source = consumableSource(run, unit, item);
+  item.uses = (item.uses ?? 1) - 1;
+  if (item.uses > 0) return;
+  if (source === 'unit') removeFromConsumables(unit, item);
+  else if (source === 'convoy')
+    run.convoy.consumables.splice(run.convoy.consumables.indexOf(item), 1);
+}
+
 export function rosterItemBlock(run, unit, item, action) {
   if (!run?.roster?.includes(unit)) return 'Unit is no longer in the roster.';
   const consumable = item?.type === 'Consumable';
-  const owned = (consumable ? unit.consumables : unit.inventory)?.includes(item);
+  const owned =
+    (consumable ? unit.consumables : unit.inventory)?.includes(item) ||
+    (consumable &&
+      ['heal', 'use'].includes(action) &&
+      consumableSource(run, unit, item) === 'convoy');
   if (action === 'withdraw') {
     const items = run.getConvoyItems();
     if (convoyIndex(consumable ? items.consumables : items.weapons, item) < 0)
@@ -103,7 +128,7 @@ export function rosterItemAction(run, unit, item, action) {
     if (item.effect === 'healFull') healUnitFully(unit);
     else if (['heal', 'cureHeal'].includes(item.effect)) healUnit(unit, item.value);
     if (['cure', 'cureHeal'].includes(item.effect)) clearAllConditions(unit);
-    if (--item.uses <= 0) removeFromConsumables(unit, item);
+    spendConsumableUse(run, unit, item);
   }
   return '';
 }

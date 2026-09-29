@@ -23,7 +23,7 @@ import {
 } from '../engine/ShopCommands.js';
 import {
   canForge,
-  getForgeCost,
+  forgePrice,
   getForgeDisplayInfo,
   getStatForgeCount,
 } from '../engine/ForgeSystem.js';
@@ -509,7 +509,7 @@ export class ShopMenu {
       choices: stats,
       label: (stat) => stat.label,
       describe: (stat) =>
-        `${Math.max(1, Math.floor(getForgeCost(weapon, stat.key) * (1 - this.forgeOptions().discount)))} gold · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`,
+        `${forgePrice(weapon, stat.key, this.forgeOptions().discount)} gold · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`,
       blocked: (stat) =>
         shopForgeBlock(this.run, weapon, stat.key, { ...this.forgeOptions(), expectedLevel }),
       apply: (stat) => {

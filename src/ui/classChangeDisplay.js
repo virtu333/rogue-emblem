@@ -99,7 +99,7 @@ export function classChangePreview(unit, item, target, gameData) {
     lines.push(`Learn: ${skill?.name || id}${skill?.description ? ` — ${skill.description}` : ''}`);
   }
   const omitted = getSkillDisplayNames(result.droppedSkills, gameData.skills);
-  if (omitted.length) lines.push(`Skill limit: cannot learn ${omitted.join(', ')}.`);
+  if (omitted.length) lines.push(`To the bench (slots full): ${omitted.join(', ')}.`);
   if (!result.learnedSkills?.length && !omitted.length) lines.push('No new skills to learn.');
   return lines.join('\n');
 }

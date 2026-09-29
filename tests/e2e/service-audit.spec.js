@@ -124,3 +124,98 @@ test('Church heal, roster, map, promotion cancellation and arena forecast/reward
   await expect(page.locator('.service-menu')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test('Colosseum: View map, Roster and unit details, as at the shop and church', async ({
+  page,
+}) => {
+  test.setTimeout(60000);
+  const errors = collectErrors(page);
+  await page.goto('/?devScene=nodemap&mobilePreview=1');
+  await waitForScene(page, 'NodeMap');
+  await page.getByRole('button', { name: 'Skip conversation', exact: true }).tap();
+  await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    s.registry.set('activeSlot', 1);
+    s.runManager.gold = 10000;
+    const { ColosseumOverlay } = await import('/src/ui/ColosseumOverlay.js');
+    window.arena = new ColosseumOverlay(s, s.runManager, s.gameData);
+    window.arena.show(s.runManager.getAvailableNodes()[0], () => {});
+  });
+  const menu = page.getByRole('dialog', { name: 'Colosseum', exact: true });
+  // View map returns to the colosseum.
+  await menu.getByRole('button', { name: 'View map', exact: true }).tap();
+  const map = page.getByRole('dialog', { name: 'Campaign map', exact: true });
+  await map.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(map).toHaveCount(0);
+  await expect(menu.getByRole('button', { name: 'Arena', exact: true })).toBeVisible();
+  // Roster: the managed roster, then back to the same screen.
+  await menu.getByRole('button', { name: 'Roster', exact: true }).tap();
+  const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+  await expect(roster).toBeVisible();
+  await roster.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(roster).toHaveCount(0);
+  // The fighter list has the same tools; the chosen fighter has its details.
+  await menu.getByRole('button', { name: 'Arena', exact: true }).tap();
+  const fighters = page.getByRole('dialog', { name: 'Arena · Choose fighter', exact: true });
+  await expect(fighters.getByRole('button', { name: 'Roster', exact: true })).toBeVisible();
+  await fighters.getByRole('button', { name: /Edric.*Fights/ }).tap();
+  const tiers = page.getByRole('dialog', { name: 'Arena · Choose tier', exact: true });
+  await tiers.getByRole('button', { name: "Edric's details", exact: true }).tap();
+  await expect(roster.locator('h2').first()).toBeVisible();
+  await expect(roster).toContainText('Edric');
+  await roster.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(tiers.getByRole('button', { name: /^Bronze/ })).toBeVisible();
+  await tiers.getByRole('button', { name: 'Back', exact: true }).tap();
+  await fighters.getByRole('button', { name: 'Back', exact: true }).tap();
+  // A mercenary's contract opens its read-only sheet.
+  await menu.getByRole('button', { name: 'Mercenary board', exact: true }).tap();
+  const merc = page.getByRole('dialog', { name: 'Mercenary board', exact: true });
+  await merc.locator('.re-menu-body button').first().tap();
+  const hire = page.getByRole('dialog', { name: /^Hire / });
+  const name = (await hire.getAttribute('aria-label')).replace(/^Hire /, '');
+  await hire.getByRole('button', { name: 'Details', exact: true }).tap();
+  const inspect = page.getByRole('dialog', { name: 'Inspect roster', exact: true });
+  await expect(inspect).toContainText(name);
+  await expect(inspect.getByRole('tab', { name: 'Convoy' })).toHaveCount(0);
+  await inspect.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(hire.getByRole('button', { name: 'Confirm hire', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => window.arena.runManager.gold)).toBe(10000);
+  expect(errors).toEqual([]);
+});
+
+test('Church vow: taking a blessing is this church’s vow, and closes its promotions', async ({
+  page,
+}) => {
+  test.setTimeout(60000);
+  const errors = collectErrors(page);
+  await page.goto('/?devScene=nodemap&mobilePreview=1');
+  await waitForScene(page, 'NodeMap');
+  await page.getByRole('button', { name: 'Skip conversation', exact: true }).tap();
+  const gold = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    s.registry.set('activeSlot', 1);
+    s.runManager.gold = 10000;
+    s.runManager.activeBlessings = [];
+    s.runManager.roster[0].level = 10;
+    s.handleChurch(s.runManager.getAvailableNodes()[0]);
+    return s.runManager.gold;
+  });
+  const church = page.getByRole('dialog', { name: 'Church', exact: true });
+  await expect(church).toContainText('one vow per church');
+  const blessing = church.locator('.church-blessing').first();
+  const label = await blessing.textContent();
+  const name = label.split(' · ')[0];
+  await blessing.tap();
+  const confirm = page.getByRole('dialog', { name: `Take ${name}?`, exact: true });
+  await confirm.getByRole('button', { name: 'Take the blessing', exact: true }).tap();
+  await expect(church).toContainText('Your vow here was a Blessing');
+  await expect(church.locator('.church-blessing')).toHaveCount(0);
+  await expect(church.getByRole('button', { name: /Edric.*Lord/ })).toBeDisabled();
+  const after = await page.evaluate(() => {
+    const run = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
+    return { ids: run.getActiveBlessingIds(), gold: run.gold };
+  });
+  expect(after.ids).toHaveLength(1);
+  if (name === 'Coin of Fate') expect(after.gold).toBe(gold + 750);
+  expect(errors).toEqual([]);
+});

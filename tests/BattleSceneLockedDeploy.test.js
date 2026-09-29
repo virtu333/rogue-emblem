@@ -141,8 +141,8 @@ function makeScene({ runManager, roster, lockedSpawns, act = 'act3' }) {
 describe('BattleScene · re-entering a locked battle', () => {
   it('caps the deploy screen at the locked map’s spawn count', () => {
     const rm = realRun();
-    // Act 3 allows 6; the lock was made with 5.
-    const roster = [...rm.roster, ...['A', 'B', 'C', 'D', 'E'].map(recruit)];
+    // Act 3 allows 7; the lock was made with 5.
+    const roster = [...rm.roster, ...['A', 'B', 'C', 'D', 'E', 'F'].map(recruit)];
     const scene = makeScene({ runManager: rm, roster, lockedSpawns: 5 });
     scene.showDeployScreen = vi.fn();
     scene.beginBattle = vi.fn();
@@ -155,9 +155,9 @@ describe('BattleScene · re-entering a locked battle', () => {
 
   it('asks for a pick instead of auto-deploying a roster that no longer fits', () => {
     const rm = realRun();
-    // Six units fit act 3's cap of 6, so they would auto-deploy — into 5 spawns.
-    const roster = [...rm.roster, ...['A', 'B', 'C', 'D'].map(recruit)];
-    expect(roster).toHaveLength(6);
+    // Seven units fit act 3's cap of 7, so they would auto-deploy — into 5 spawns.
+    const roster = [...rm.roster, ...['A', 'B', 'C', 'D', 'E'].map(recruit)];
+    expect(roster).toHaveLength(7);
     const scene = makeScene({ runManager: rm, roster, lockedSpawns: 5 });
     scene.showDeployScreen = vi.fn();
     scene.beginBattle = vi.fn();
@@ -168,13 +168,27 @@ describe('BattleScene · re-entering a locked battle', () => {
 
   it('a first entry keeps the act’s full cap', () => {
     const rm = realRun();
-    const roster = [...rm.roster, ...['A', 'B', 'C', 'D', 'E'].map(recruit)];
+    const roster = [...rm.roster, ...['A', 'B', 'C', 'D', 'E', 'F'].map(recruit)];
     const scene = makeScene({ runManager: rm, roster, lockedSpawns: 5 });
     rm.battleConfigsByNodeId = {};
     scene.showDeployScreen = vi.fn();
     scene.beginBattle = vi.fn();
     scene.create();
-    expect(scene.showDeployScreen.mock.calls[0][1]).toMatchObject({ max: 6, lockedTo: null });
+    expect(scene.showDeployScreen.mock.calls[0][1]).toMatchObject({ max: 7, lockedTo: null });
+  });
+
+  it('a deploy bonus opens Act IV to 10 slots but still requires only 5', () => {
+    const rm = realRun();
+    rm.getDeployBonus = () => 2; // Tactical Advantage + Scout Blessing
+    const roster = [...rm.roster, ...['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].map(recruit)];
+    expect(roster).toHaveLength(11);
+    const scene = makeScene({ runManager: rm, roster, lockedSpawns: 5, act: 'act4' });
+    rm.battleConfigsByNodeId = {};
+    scene.showDeployScreen = vi.fn();
+    scene.beginBattle = vi.fn();
+    scene.create();
+    expect(scene.beginBattle).not.toHaveBeenCalled();
+    expect(scene.showDeployScreen.mock.calls[0][1]).toEqual({ min: 5, max: 10, lockedTo: null });
   });
 
   it('benches a deployed unit that has no spawn instead of dropping it', () => {

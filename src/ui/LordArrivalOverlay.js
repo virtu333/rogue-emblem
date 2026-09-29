@@ -6,7 +6,8 @@ import { inputHint } from '../utils/inputHint.js';
  * Renders lord selection cards when a third lord joins mid-run.
  * Adapted from BossRecruitOverlay with lord-specific theming.
  */
-import { generateThirdLordCandidates } from '../engine/BossRecruitSystem.js';
+import { prepareThirdLord, rerollThirdLord } from '../engine/PendingThirdLord.js';
+import { saveServiceRun } from './serviceSave.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { applyTextResolution, UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import {
@@ -35,15 +36,13 @@ export class LordArrivalOverlay {
    */
   show(onComplete) {
     const scene = this.scene;
-    const mode = this.runManager.metaEffects?.thirdLordMode || 'random';
-    const metaEffects = this.runManager.getEffectiveMetaEffects();
-    const result = generateThirdLordCandidates(
-      this.runManager.roster,
-      this.gameData,
-      metaEffects,
-      this.runManager?.fallenUnits || [],
-      mode,
-    );
+    // The arrival rolled when it fell due (PendingThirdLord) is the one shown, on
+    // every resume; one that is not on the run yet is rolled here and saved
+    // before it is drawn.
+    const hadOffer = Boolean(this.runManager.pendingThirdLord);
+    const result = prepareThirdLord(this.runManager, this.gameData);
+    if (!hadOffer && result) this._save();
+    const mode = result?.mode || 'random';
 
     // No candidates available — resolve immediately
     if (!result) {
@@ -493,8 +492,15 @@ export class LordArrivalOverlay {
   _handleReroll(onComplete) {
     this._cleanup();
     this.displayObjects = [];
-    this.runManager.consumeThirdLordReroll();
+    // The reroll is spent and the new cards are saved before they are drawn.
+    rerollThirdLord(this.runManager);
     this.show(onComplete);
+  }
+
+  _save() {
+    const scene = this.scene;
+    if (typeof scene?._persistBattleRunState === 'function') scene._persistBattleRunState();
+    else if (scene?.registry?.get) saveServiceRun(scene);
   }
 
   // ── Tooltip helpers (same pattern as BossRecruitOverlay) ──────────

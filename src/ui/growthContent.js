@@ -10,6 +10,7 @@ import {
   promoteUnit,
   getClassInnateSkills,
   parseWeaponProficiencies,
+  benchedSkillsNote,
 } from '../engine/UnitManager.js';
 import { getClassChangeWeaponGrants } from '../engine/RosterCommands.js';
 import { applyPromotionOath, promotionOathCandidates } from '../engine/DeedSystem.js';
@@ -190,8 +191,8 @@ export function promotionPathContent(unit, cls, gameData = {}) {
         skillName: sworn.skillName,
         description: sworn.skillDescription,
         learned: sworn.learned,
-        // Skill slots full: sworn later from Deeds by giving up a skill.
-        waiting: sworn.waiting === true,
+        // Skill slots full: sworn onto the bench (swapped in from Skills).
+        benched: sworn.benched === true,
       }
     : null;
   let grants;
@@ -303,9 +304,9 @@ export function levelUpKind(result) {
   return 'normal';
 }
 
-/** The card note for skills that could not be learned because every slot is full. */
+/** The card note for skills that arrived with every slot full (kept on the bench). */
 export function skillLimitNote(names) {
-  return `Skill limit (${MAX_SKILLS} skills): could not learn ${names.join(', ')}`;
+  return benchedSkillsNote(names);
 }
 
 /**

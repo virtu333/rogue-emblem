@@ -1122,6 +1122,18 @@ describe('Elite victory flavor (Surface 6)', () => {
     return { scene, pending, order, sceneState };
   }
 
+  it('picks the elite line without touching the battle RNG (it would shift elite loot)', async () => {
+    const { scene, pending } = makeEliteVictoryScene();
+    scene.gameData.dialogue.eliteVictory.act1 = ['One.', 'Two.', 'Three.'];
+    scene.runManager.pickNarrativeLine = (pool) => pool[1];
+    const random = vi.spyOn(Math, 'random');
+    BattleScene.prototype.onVictory.call(scene);
+    await Promise.all(pending);
+    expect(scene.dialogueOverlay.show).toHaveBeenCalledWith(null, 'Two.', null);
+    expect(random).not.toHaveBeenCalled();
+    random.mockRestore();
+  });
+
   it('shows dialogue before loot for elite battles', async () => {
     const { scene, pending, order } = makeEliteVictoryScene();
 

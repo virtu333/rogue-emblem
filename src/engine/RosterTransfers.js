@@ -1,5 +1,4 @@
-import { MAX_SKILLS } from '../utils/constants.js';
-import { learnSkill } from './UnitManager.js';
+import { knowsSkill, learnSkill } from './UnitManager.js';
 import { planTrade, applyTrade, unitHolder, TRADE_REASONS } from './ItemTrade.js';
 
 export function teachScrollBlock(run, unit, scroll, skills) {
@@ -7,21 +6,21 @@ export function teachScrollBlock(run, unit, scroll, skills) {
   if (!run.scrolls?.includes(scroll)) return 'Scroll is no longer available.';
   if (scroll.teachesWeaponArtId || !skills.some((s) => s.id === scroll.skillId))
     return 'Choose a skill scroll.';
-  if (unit.skills.includes(scroll.skillId)) return 'Already known.';
-  if (unit.skills.length >= MAX_SKILLS) return `Skill slots full (${MAX_SKILLS}/${MAX_SKILLS}).`;
+  if (knowsSkill(unit, scroll.skillId)) return 'Already known.';
+  // Every slot full: the skill is learned onto the bench (SkillLoadout).
   return '';
 }
 export function teachRosterScroll(run, unit, scroll, skills) {
   const reason = teachScrollBlock(run, unit, scroll, skills);
   if (reason) return { ok: false, reason };
   const result = learnSkill(unit, scroll.skillId);
-  if (!result.learned)
+  if (!result.learned && !result.benched)
     return {
       ok: false,
       reason: result.reason === 'already_known' ? 'Already known.' : 'Skill slots full.',
     };
   run.scrolls.splice(run.scrolls.indexOf(scroll), 1);
-  return { ok: true };
+  return { ok: true, benched: result.benched === true };
 }
 /** Unit-to-unit give between battles (the Give… picker); a thin wrapper over ItemTrade. */
 function giveSlots(source, target, item) {

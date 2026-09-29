@@ -2,11 +2,15 @@ import { getFootprint, isEntity } from './EntitySystem.js';
 import { getConditions, parseStaffRange } from './StatusConditionSystem.js';
 import { ACID_DAMAGE_PERCENT, STATUS_CONDITIONS } from '../utils/constants.js';
 import { ACID_DAMAGE_TURNS } from './TerrainHazards.js';
+import { isRecruitNpc } from './RecruitNpc.js';
 
 // All inspection entry points use the same information boundary as map graphics.
+// A recruit waiting on the map is always in view: the army knows who it came for
+// (its banner already stood above the fog; now the recruit does too).
 export function canInspectUnit(grid, unit) {
   if (!unit) return false;
   if (unit.faction === 'player' || !grid?.fogEnabled) return true;
+  if (unit.faction === 'npc' && isRecruitNpc(unit)) return true;
   return (isEntity(unit) ? getFootprint(unit) : [unit]).some((t) => grid.isVisible(t.col, t.row));
 }
 /**
@@ -25,6 +29,7 @@ const STATUS_TEXT = {
   sleep: ['Asleep', 'Cannot act. Wakes when damaged.'],
   silence: ['Silenced', 'Cannot use magic, weapon arts or staves.'],
   root: ['Rooted', 'Cannot move; can still act.'],
+  wounded: ['Wounded', 'Recovers no HP except from a staff.'],
   acid: ['Acid', `${ACID_TICK[0].toUpperCase()}${ACID_TICK.slice(1)}. ${ACID_FLOOR}`],
 };
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;

@@ -45,7 +45,11 @@ function validRestoreFields(state, width, height) {
     !optional(state, 'ballistas', (value) =>
       list(
         value,
-        (b) => tile(b) && ['player', 'enemy'].includes(b.owner) && typeof b.captured === 'boolean',
+        (b) =>
+          tile(b) &&
+          ['player', 'enemy'].includes(b.owner) &&
+          typeof b.captured === 'boolean' &&
+          (b.range === undefined || (Number.isInteger(b.range) && b.range >= 1)),
       ),
     )
   )
@@ -86,6 +90,8 @@ function validRestoreFields(state, width, height) {
         return (
           tile(tomb) &&
           integer(tomb.turnsRemaining, 1) &&
+          // Optional: records saved before the flag existed read as seen (ZombieRemains).
+          optional(tomb, 'seen', (v) => typeof v === 'boolean') &&
           record(saved) &&
           text(saved.className) &&
           integer(saved.level, 1) &&

@@ -144,6 +144,14 @@ function itemCard(sheet, name) {
   });
 }
 
+/** No trade row is DOM-focused (a tap or click never leaves a focus ring on one). */
+async function noRowFocused(page) {
+  expect(
+    await page.evaluate(() => Boolean(document.activeElement?.closest?.('.tm-row'))),
+    'no row focused',
+  ).toBe(false);
+}
+
 /** Trade… on an item card, pick the partner, confirm: the trade menu opens. */
 async function tradeFromCard(page, vp, sheet, itemName, partner) {
   const card = itemCard(sheet, itemName);
@@ -236,10 +244,21 @@ for (const vp of VIEWPORTS) {
       await press(vp, picker.getByRole('button', { name: 'Trade', exact: true }));
       const menu = page.getByRole('dialog', { name: 'Trade items', exact: true });
       await expect(menu).toBeVisible();
+      // Nothing is held or highlighted on open, so the first tap picks the item.
+      await expect(menu.getByRole('status')).toHaveText('Choose an item to trade.');
+      await expect(menu.locator('.tm-row[aria-pressed="true"]')).toHaveCount(0);
+      await noRowFocused(page);
+      await press(vp, menu.getByRole('button', { name: 'Edric Blade 3', exact: true }));
       // Sera can't wield the held blade: the status line says it once for every target.
       await expect(menu.getByRole('status')).toHaveText(
         "Holding Edric Blade 3. Sera can't wield Edric Blade 3. Choose where it goes.",
       );
+      await expect(menu.locator('.tm-row[aria-pressed="true"]')).toHaveCount(1);
+      await noRowFocused(page);
+      // The first tap only holds: nothing has moved.
+      const held = (await bags(page, 'NodeMap')).live;
+      expect(held.edric.inventory).toEqual(withUid(EDRIC, 'e', [1, 2, 3, 4, 5]));
+      expect(held.sera.inventory).toEqual(withUid(SERA, 's', [1, 2, 3, 4, 5]));
       await checkLayout(page, vp, menu);
       await page.screenshot({ path: info.outputPath(`${vp.name}-unit-trade.png`) });
 
@@ -281,13 +300,36 @@ for (const vp of VIEWPORTS) {
         'edric.weapon': 'Edric Blade 2#e2',
         'sera.weapon': 'Sera Tome 3#s3',
       });
+      await noRowFocused(page);
+
+      // Reorder: Edric's Blade 4 into his first slot equips it (the first item is the
+      // equipped one); a tome he can't wield is refused there.
+      await press(vp, menu.getByRole('button', { name: 'Sera Tome 1', exact: true }));
+      const tomeFirst = menu.getByRole('button', { name: 'Equip Sera Tome 1', exact: true });
+      await expect(tomeFirst).toHaveAttribute('aria-disabled', 'true');
+      // aria-disabled, not disabled: it can still be pressed (force skips Playwright's
+      // "enabled" wait, which reads aria-disabled).
+      await (vp.phone ? tomeFirst.tap({ force: true }) : tomeFirst.click({ force: true }));
+      await expect(menu.getByRole('status')).toHaveText("Edric can't wield Sera Tome 1.");
+      await press(vp, menu.getByRole('button', { name: 'Sera Tome 1', exact: true })); // release
+      await press(vp, menu.getByRole('button', { name: 'Edric Blade 4', exact: true }));
+      await press(vp, menu.getByRole('button', { name: 'Equip Edric Blade 4', exact: true }));
+      await expect(menu.getByRole('status')).toHaveText('Edric Blade 4 is now equipped.');
+      await expectSaved(page, 'NodeMap', {
+        'edric.inventory': [
+          'Edric Blade 4#e4',
+          'Sera Tome 1#s1',
+          'Sera Tome 2#s2',
+          'Edric Blade 2#e2',
+          'Edric Blade 5#e5',
+        ],
+        'edric.weapon': 'Edric Blade 4#e4',
+      });
 
       // Done: the menu goes, the sheet re-renders with the trade in its cards.
       await press(vp, menu.getByRole('button', { name: 'Done', exact: true }));
       await expect(menu).toHaveCount(0);
-      await expect(sheet.getByRole('status')).toContainText(
-        'Traded Edric Blade 1 for Sera Tome 1.',
-      );
+      await expect(sheet.getByRole('status')).toContainText('Edric Blade 4 is now equipped.');
       await expect(itemCard(sheet, 'Sera Tome 2')).toHaveCount(1);
       await expect(itemCard(sheet, 'Edric Blade 3')).toHaveCount(0);
     });
@@ -316,6 +358,8 @@ for (const vp of VIEWPORTS) {
       const menu = page.getByRole('dialog', { name: 'Trade items', exact: true });
       await expect(menu).toBeVisible();
       await expect(menu.locator('.tm-col-right .tm-col-name')).toHaveText('Convoy');
+      await expect(menu.getByRole('status')).toHaveText('Choose an item to trade.');
+      await press(vp, menu.getByRole('button', { name: 'Convoy Blade 2', exact: true }));
       await expect(menu.getByRole('status')).toHaveText(
         'Holding Convoy Blade 2. Choose where it goes.',
       );
@@ -364,6 +408,7 @@ for (const vp of VIEWPORTS) {
         'true',
       );
       await page.screenshot({ path: info.outputPath(`${vp.name}-accessory-trade.png`) });
+      await press(vp, menu.getByRole('button', { name: 'Seraph Robe', exact: true }));
       await press(vp, menu.getByRole('button', { name: 'Trade Seraph Robe for Power Ring' }));
       // By hand: Edric wore the Robe at (HP+5, cur+5) and Sera the Ring (STR+2).
       // Robe off keeps Edric 7 HP down at his base max; the Ring adds 2 STR.
@@ -410,6 +455,7 @@ for (const vp of VIEWPORTS) {
       const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
       await equipmentTab(page, vp, sheet);
       const { menu } = await tradeFromCard(page, vp, sheet, 'Edric Blade 5', 'Sera');
+      await press(vp, menu.getByRole('button', { name: 'Edric Blade 5', exact: true }));
       await press(vp, menu.getByRole('button', { name: 'Trade Edric Blade 5 for Sera Tome 5' }));
       await expect(menu.getByRole('status')).toContainText('Traded Edric Blade 5 for Sera Tome 5.');
       // Saved before the sheet or the shop closes.
@@ -463,6 +509,7 @@ for (const vp of VIEWPORTS) {
       await equipmentTab(page, vp, sheet);
       const persistsBefore = await page.evaluate(() => window.__rewardPersists);
       const { menu } = await tradeFromCard(page, vp, sheet, 'Edric Blade 2', 'Sera');
+      await press(vp, menu.getByRole('button', { name: 'Edric Blade 2', exact: true }));
       await press(vp, menu.getByRole('button', { name: 'Trade Edric Blade 2 for Sera Tome 4' }));
       await expect(menu.getByRole('status')).toHaveText(
         "Traded Edric Blade 2 for Sera Tome 4. Sera can't wield Edric Blade 2. Edric can't wield Sera Tome 4.",
@@ -535,6 +582,7 @@ for (const vp of VIEWPORTS) {
       );
       await expect(sheet.getByRole('heading', { name: /^Equipment · 1\/5/ })).toBeVisible();
       const { menu } = await tradeFromCard(page, vp, sheet, 'Sera Tome 1', 'Convoy');
+      await press(vp, menu.getByRole('button', { name: 'Sera Tome 1, equipped', exact: true }));
       const give = menu.getByRole('button', { name: 'Give Sera Tome 1 to Convoy' });
       await expect(give).not.toHaveAttribute('aria-disabled', 'true');
       await expect(give.locator('.tm-warn')).toContainText('Leaves Sera unarmed');
@@ -601,10 +649,14 @@ for (const vp of VIEWPORTS) {
       await expect(supplies).toHaveAttribute('aria-selected', 'true');
       await padTap(page, BTN.L1);
       await expect(weapons).toHaveAttribute('aria-selected', 'true');
-      // Focus starts on Edric's first item; A holds it, right crosses to Sera's
-      // same slot, A swaps (both bags are full).
+      // Nothing is highlighted on open: the first A shows the cursor on Edric's first
+      // item without holding it; the next A holds it, right crosses to Sera's same
+      // slot, A swaps (both bags are full).
       const first = menu.getByRole('button', { name: 'Edric Blade 1, equipped' });
+      await expect(menu).toBeFocused();
+      await padTap(page, BTN.A);
       await expect(first).toBeFocused();
+      await expect(menu.locator('.tm-row[aria-pressed="true"]')).toHaveCount(0);
       await padTap(page, BTN.A);
       await expect(menu.getByRole('button', { name: 'Edric Blade 1, equipped' })).toHaveAttribute(
         'aria-pressed',

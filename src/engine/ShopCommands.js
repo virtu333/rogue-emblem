@@ -10,7 +10,7 @@ import {
   inventoryDisplayOrder,
 } from './UnitManager.js';
 import { getSellPrice } from './LootSystem.js';
-import { forgeStatBlock, applyForge, getForgeCost } from './ForgeSystem.js';
+import { forgeStatBlock, applyForge, forgePrice } from './ForgeSystem.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 
 export function shopOwnedItems(run) {
@@ -169,7 +169,7 @@ export function shopForgeBlock(
   if (forgesUsed >= forgeLimit) return 'No forges remain at this shop.';
   const statBlock = forgeStatBlock(weapon, stat);
   if (statBlock) return statBlock;
-  const cost = Math.max(1, Math.floor(getForgeCost(weapon, stat) * (1 - discount)));
+  const cost = forgePrice(weapon, stat, discount);
   return run.gold < cost ? 'Not enough gold.' : '';
 }
 export function forgeShopWeapon(run, weapon, stat, options) {

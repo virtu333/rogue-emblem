@@ -46,6 +46,14 @@ export class ScriptedAgent {
     );
     if (attackAction) return attackAction;
 
+    // Priority 4b: Smash Zombie remains in reach (they rise again otherwise)
+    const smashTarget = legalActions.find((a) => a.type === 'choose_remains');
+    if (smashTarget) return smashTarget;
+    const smashAction = legalActions.find(
+      (a) => a.type === 'choose_action' && a.payload.label === 'Smash',
+    );
+    if (smashAction) return smashAction;
+
     // Priority 5: Heal ally below 50% HP
     const healAction = legalActions.find(
       (a) => a.type === 'choose_action' && a.payload.label === 'Heal',
@@ -224,7 +232,9 @@ export class ScriptedAgent {
     const b = this.driver.battle;
     let nearest = null;
     let minDist = Infinity;
-    for (const e of b.enemyUnits) {
+    // With no foe left standing, a Rout waits on Zombie remains: head for them.
+    const targets = b.enemyUnits.length ? b.enemyUnits : b._zombieTombstones || [];
+    for (const e of targets) {
       const d = gridDistance(unit.col, unit.row, e.col, e.row);
       if (d < minDist) {
         minDist = d;

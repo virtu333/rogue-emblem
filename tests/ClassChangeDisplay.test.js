@@ -48,7 +48,7 @@ it('previews capped skill omissions and a full-bag unarmed reclass', () => {
   unit.skills = ['adept', 'vantage', 'wrath', 'miracle', 'renewal'];
   const target = getReclassTargets(unit, data.classes, 'infantry').find((c) => c.name === 'Hero');
   const text = classChangePreview(unit, { name: 'Second Seal', effect: 'reclass' }, target, data);
-  expect(text).toContain('cannot learn Vigilance');
+  expect(text).toContain('To the bench (slots full): Vigilance');
   const base = fighter();
   while (base.inventory.length < 5) base.inventory.push({ ...base.inventory[0] });
   const full = classChangePreview(

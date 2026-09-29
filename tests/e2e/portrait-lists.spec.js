@@ -208,6 +208,40 @@ async function expectStatGridReadable(page) {
   // Two label/value pairs per row: the first and third labels share a left edge.
   expect(Math.abs(grid.dts[0].left - grid.dts[2].left)).toBeLessThanOrEqual(1);
   expect(grid.dts[2].top).toBeGreaterThan(grid.dts[0].top);
+  // Upright the left column reads HP, Strength, Speed, Resistance, Move and the right
+  // Magic, Skill, Defense, Luck (the owner's playtest: Strength under HP, not Magic).
+  expect(grid.dts.map((dt) => dt.label)).toEqual([
+    'HP',
+    'Magic',
+    'Strength',
+    'Skill',
+    'Speed',
+    'Defense',
+    'Resistance',
+    'Luck',
+    'Move',
+  ]);
+  const at = (label) => grid.dts.find((dt) => dt.label === label);
+  expect(
+    Math.abs(at('Strength').left - at('HP').left),
+    'Strength sits under HP',
+  ).toBeLessThanOrEqual(1);
+  expect(at('Strength').top).toBeGreaterThan(at('HP').top);
+  expect(Math.abs(at('Magic').top - at('HP').top), 'Magic shares the HP row').toBeLessThanOrEqual(
+    1,
+  );
+  expect(at('Magic').left).toBeGreaterThan(grid.dds[0].right);
+  for (const [upper, lower] of [
+    ['Strength', 'Speed'],
+    ['Speed', 'Resistance'],
+    ['Resistance', 'Move'],
+  ]) {
+    expect(
+      Math.abs(at(upper).left - at(lower).left),
+      `${lower} under ${upper}`,
+    ).toBeLessThanOrEqual(1);
+    expect(at(lower).top).toBeGreaterThan(at(upper).top);
+  }
 }
 
 async function openHome(page) {
@@ -256,10 +290,19 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
       await expectNoSidewaysScroll(page, '.mh-screen');
       await expectTabsOnOneLineAndVisible(page, '.mh-screen .mu-tabs button', 4);
       await expectStacked(page, '.mh-screen .mu-list', '.mh-screen .mu-detail');
-      // The court (7 lords) sits two to a row; any card the list scrolls to is whole,
-      // and scrolling the list never pushes Begin Run off screen.
+      // A new save shows Edric and Sera, and a line saying more lords come.
       const lords = page.locator('.mh-lord');
+      await expect(lords).toHaveCount(2);
+      await expect(page.locator('.mh-more-lords')).toBeVisible();
+      // The whole court (7 lords, all met) sits two to a row; any card the list
+      // scrolls to is whole, and scrolling the list never pushes Begin Run off screen.
+      await page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('HomeBase');
+        s.meta.recordLordsMet(s.gameData.lords.map((l) => l.name));
+        s.mobileHome.render();
+      });
       await expect(lords).toHaveCount(7);
+      await expect(page.locator('.mh-more-lords')).toHaveCount(0);
       expect(await lords.evaluateAll((cards) => new Set(cards.map((c) => c.offsetTop)).size)).toBe(
         4,
       );
@@ -682,6 +725,18 @@ for (const [width, height] of [
       await openRoster(page);
       await expectPins(page, size, 'roster');
       await expectClassInert(page, 'roster');
+      // Three pairs per row keep Fire Emblem order (only the upright grid swaps).
+      await expect(page.locator('.mr-stats dt')).toHaveText([
+        'HP',
+        'Strength',
+        'Magic',
+        'Skill',
+        'Speed',
+        'Defense',
+        'Resistance',
+        'Luck',
+        'Move',
+      ]);
     });
 
     test('compendium keeps list and detail side by side', async ({ page, browserName }) => {

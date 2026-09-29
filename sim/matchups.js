@@ -107,9 +107,10 @@ function runMatchup(
     const atkTerrain = null;
     const defTerrain = null;
 
-    // Build skill context
-    const atkMods = getSkillCombatMods(atk, def, [atk], [def], data.skills);
-    const defMods = getSkillCombatMods(def, atk, [def], [atk], data.skills);
+    // Build skill context. The attacker initiates: without isInitiating, Death Blow,
+    // Darting Blow and the other initiating skills never fired in this sim.
+    const atkMods = getSkillCombatMods(atk, def, [atk], [def], data.skills, atkTerrain, true);
+    const defMods = getSkillCombatMods(def, atk, [def], [atk], data.skills, defTerrain);
     const skillCtx = {
       atkMods,
       defMods,
