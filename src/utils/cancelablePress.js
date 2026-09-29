@@ -15,7 +15,6 @@ export function bindCancelablePress(
 ) {
   let press = null;
   let canceled = false;
-  let released = false;
   let timer = null;
   const clearHold = () => {
     clearTimeout(timer);
@@ -39,7 +38,6 @@ export function bindCancelablePress(
   };
   const down = (event) => {
     clearHold();
-    released = false;
     canceled =
       !available() || event.isPrimary === false || (event.button != null && event.button !== 0);
     press = {
@@ -72,23 +70,17 @@ export function bindCancelablePress(
     clearHold();
     move(event);
     if (!available() || context() !== press.context) canceled = true;
-    released = !canceled;
     press = null;
   };
   const cancel = () => {
     clearHold();
     canceled = true;
-    released = false;
     press = null;
   };
   const click = (event) => {
     event.preventDefault();
     event.stopPropagation();
-    // A pointer click must complete on this control. Layout changes can put a new
-    // button under a finger held on the board; its trailing click has no matching
-    // press here and must not activate the new button.
-    if (!available() || (event.detail !== 0 && (!released || canceled || press))) return;
-    released = false;
+    if (!available() || (event.detail !== 0 && (canceled || press))) return;
     activate(event);
   };
   const listeners = {
