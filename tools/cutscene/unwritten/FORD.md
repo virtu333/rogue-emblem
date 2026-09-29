@@ -78,8 +78,12 @@ wide shot looks up the river to the ridges, with the Hollow Sun above and reflec
 the water.
 
 Water depth by X: 0 at |X| = 8 (the banks), knee-deep (0.5 m) by |X| = 5, and 0.6 m
-midstream. Stones break the surface at X ≈ −6, −1.5, +2, +3.8 (the slick one, where Edric
-slips) and upstream.
+midstream, except for a shoal (`world.groundY`) from X ≈ 2 to 5.6 where the bed rises to
+about 0.3 m: the Warden holds the shallows, and Edric can step up onto the slick stone from
+it. Stones break the surface at X ≈ −6, −1.5 (a metre and a half toward the lens), +2, and
++3.7 (the slick one, half a metre toward the lens, where Edric's lead foot lands and slips)
+and upstream. The Empire's rank (`ford.js rankStaging`) is staged from the shore, not from the
+blocking's column: it steps down the far bank and halts ankle-deep at the water's edge.
 
 ## Blocking (the flat camera)
 
