@@ -196,6 +196,27 @@ export const SET = {
     { x: -0.6, z: 6.2, sx: 0.42, sy: 0.3, sz: 0.34, yaw: -0.2 },
     { x: 1.05, z: 1.75, sx: 0.4, sy: 0.24, sz: 0.34, yaw: 0.1, hidden: true }, // Kira's crate is drawn
   ],
+  // What carries each person's weight (CRAFT.md, Grounding). A seat is part of the world: drawn,
+  // lit by the fire, with its own contact shadow, and the figure's contact plane is its top.
+  //   slab:    a flat faceted rock (a, c half lengths along its yaw, b thickness scale, crown 0..1)
+  //   blanket: a folded striped blanket (sx, sz half sizes, h thick)
+  //   Kira sits on the crate her drawing already paints, so her seat is only a footprint (`ghost`)
+  //   that gives the ground a contact shadow and the fire something to throw one from.
+  seats: [
+    {
+      id: 'edric',
+      kind: 'slab',
+      x: -1.47,
+      z: 0.38,
+      a: 0.7,
+      c: 0.5,
+      b: 0.12,
+      crown: 0.72,
+      yaw: 0.1,
+    },
+    { id: 'sera', kind: 'blanket', x: 1.45, z: 0.24, sx: 0.5, sz: 0.4, h: 0.06, yaw: -0.14 },
+    { id: 'kira', kind: 'ghost', x: 1.05, z: 1.75, sx: 0.42, sz: 0.34, h: 0.5, yaw: 0.1 },
+  ],
   // three spears leaning together (bases around a point, tips meeting 2.4 m up)
   tripod: { x: -5.0, z: 3.4 },
   banner: { x: 7.6, z: 5.2, h: 3.3 },
@@ -318,7 +339,7 @@ export const CAMERA = {
     if (lt < T0) return cam(lt);
     const dolly = 0.16 * sm(T0, T1, lt);
     if (lt < T1) return cam(lt, dolly);
-    const far = { x: -0.75, y: 0.62, z: -3.55, yaw: 0.05, pitch: 0.26, roll: 0, focal: 315 };
+    const far = { x: -0.75, y: 0.42, z: -3.55, yaw: 0.05, pitch: 0.26, roll: 0, focal: 315 };
     // smootherstep: slow out of the anticipation, fast in the middle, a long settle
     const u = Math.min(1, (lt - T1) / (T2 - T1));
     const k = u * u * u * (u * (6 * u - 15) + 10);

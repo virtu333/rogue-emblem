@@ -23,6 +23,7 @@
 import { basis, project } from './world.js';
 import { bayer, clamp, hash, smooth, valueNoise } from './raster.js';
 import { billboardMethods } from './camp_billboards.js';
+import { groundMethods } from './camp_ground.js';
 
 const TWO_PI = Math.PI * 2;
 
@@ -51,6 +52,12 @@ const CANVAS = [204, 188, 158];
 const WOOD = [122, 92, 72];
 const STONE = [132, 126, 138];
 const BARREL = [118, 90, 72];
+const SLAB = [156, 134, 116]; // a flat sandstone slab: warmer than the fire ring's grey stones
+const THREAD_HI = [255, 240, 189]; // goldWhite
+const THREAD_PALE = [221, 208, 189]; // paper
+const BLANKET_A = [156, 74, 70]; // Sera's blanket: the red of her poncho
+const BLANKET_B = [176, 158, 132];
+const BLANKET_C = [120, 112, 140];
 
 // ids: what each pixel shows (edges come from changes between them)
 const ID_SKY = 1;
@@ -58,6 +65,7 @@ const ID_RIDGE = 10; // + layer
 const ID_GROUND = 20;
 const ID_TENT = 40; // + tent index
 const ID_PROP = 80;
+const ID_SEAT = 100; // + seat index: what carries a person's weight
 const ID_STONE = 120;
 const ID_GRASS = 205;
 const ID_FX = 230;
@@ -292,6 +300,9 @@ export class CampWorld {
     this.buildGrain();
     this.buildStars();
     this.buildProps();
+    this.buildSeats();
+    this.buildAO();
+    this.initShadows();
     this.buildTufts();
     this.actorsLast = [];
   }
@@ -530,30 +541,6 @@ export class CampWorld {
     return (this.k * 1.2) / (1 + d2 / 2.0);
   }
 
-  /** Shadow multiplier on the ground light at (X, Z): the figures and props block the fire. */
-  shadowAt(X, Z) {
-    const f = this.fire;
-    const qx = X - f.x;
-    const qz = Z - f.z;
-    if (qx * qx + qz * qz > 190) return 1;
-    let m = 1;
-    const cs = this.casters;
-    for (let k = 0; k < cs.length; k++) {
-      const c = cs[k];
-      const u = qx * c.ux + qz * c.uz;
-      if (u < c.r * 0.8 || u > c.r + c.len) continue;
-      const v = qx * c.vx + qz * c.vz;
-      const wd = c.w * Math.min(u / c.r, 2.4);
-      const av = Math.abs(v);
-      if (av > wd * 1.25) continue;
-      const edge = 1 - smooth(wd * 0.65, wd * 1.25, av);
-      const fade = 1 - smooth(c.r, c.r + c.len, u) * 0.8;
-      const inb = smooth(c.r * 0.8, c.r * 1.05, u);
-      m *= 1 - c.k * edge * fade * inb;
-    }
-    return m;
-  }
-
   // ---------------------------------------------------------------- rendering
 
   /**
@@ -576,7 +563,9 @@ export class CampWorld {
       y: 0.55,
       z: 0.05 * Math.sin(this.t2 * 6.1 + 1),
     };
-    this.buildCasters(o.actors || []);
+    // the figures first (their drawings decide where the fire's light is blocked), then the world
+    this.preps = (o.actors || []).map((a) => this.prepActor(a, cam));
+    this.buildShadows(this.preps);
     this.zbuf.fill(1e9);
     this.ids.fill(0);
     this.ink.fill(0);
@@ -606,25 +595,6 @@ export class CampWorld {
         frame[o + 2] *= k * 1.01;
       }
     }
-  }
-
-  buildCasters(actors) {
-    const f = { x: 0, z: 0 };
-    const list = [];
-    const push = (x, z, w, h, k = 0.6) => {
-      const dx = x - f.x;
-      const dz = z - f.z;
-      const r = Math.hypot(dx, dz);
-      if (r < 0.4) return;
-      const ux = dx / r;
-      const uz = dz / r;
-      list.push({ r, ux, uz, vx: -uz, vz: ux, w, len: Math.min(4.5, 1.2 + h * 3), k });
-    };
-    for (const a of actors)
-      if (a.shadow !== false) push(a.X, a.Z, a.shadowW ?? 0.4, a.height ?? 1, a.shadowK ?? 0.72);
-    for (const s of this.set.stumps || []) push(s.x, s.z, s.r * 0.9, s.h, 0.6);
-    for (const b of this.set.benches || []) push(b.x, b.z, b.sx * 0.9, b.h, 0.6);
-    this.casters = list;
   }
 
   /** Rays for every pixel; the sky, ridges and ground shaded straight away. */
@@ -882,7 +852,7 @@ export class CampWorld {
     // the pool's edge wanders like a brush's: a slow noise on top of the trodden-earth one
     const wob = valueNoise(X * 0.9 + 5, Z * 0.9 + 9, 27) - 0.5;
     const Ip =
-      ((this.k * 1.2) / (1 + (dx * dx + dz * dz + 0.3) / 1.5)) *
+      ((this.k * 1.2) / (1 + (dx * dx + dz * dz + 0.3) / 1.9)) *
       sh *
       (1 + 0.32 * (n2 - 0.5) + 0.6 * wob);
     const Lb =
@@ -903,6 +873,26 @@ export class CampWorld {
         g += 42 * k;
         b += 12 * k;
       }
+    }
+    // a shadow also takes some of the sky's and the bounce's light, so it reads as a shape even
+    // where the fire's pool is thin (the shadows fall away from the fire, into the dim)
+    if (sh < 0.995) {
+      const k = 1 - 0.34 * (1 - sh);
+      r *= k;
+      g *= k;
+      b *= k * 1.02;
+    }
+    if (globalThis.__campDbg === 'shadow') {
+      r += 220 * (1 - sh);
+      b += 220 * this.aoAt(X, Z);
+    }
+    // contact occlusion: a tight dark line where things meet the ground
+    const ao = this.aoAt(X, Z);
+    if (ao > 0.01) {
+      const k = 1 - 0.7 * ao;
+      r *= k;
+      g *= k;
+      b *= k * 1.03;
     }
     // aerial perspective toward the glow at the far end of the ground
     const hz = smooth(30, 400, d) * 0.85;
@@ -1037,9 +1027,11 @@ export class CampWorld {
           if (xx < 0 || yy < 0 || xx >= W || yy >= H || !this.sky[yy * W + xx]) continue;
           const j = (yy * W + xx) * 4;
           const w = (1 - Math.abs(d) / (r + 1)) * Math.min(1, k * 1.3);
-          frame[j] += (255 - frame[j]) * w;
-          frame[j + 1] += (240 - frame[j + 1]) * w;
-          frame[j + 2] += (190 - frame[j + 2]) * w;
+          if (w < 0.34) continue;
+          const c = w > 0.6 ? THREAD_HI : THREAD_PALE;
+          frame[j] = c[0];
+          frame[j + 1] = c[1];
+          frame[j + 2] = c[2];
         }
       }
     }
@@ -1059,32 +1051,44 @@ export class CampWorld {
       if (!this.sky[yi * W + xi]) continue;
       // running stitches: the far parts of a thread are a dashed line
       const o = (yi * W + xi) * 4;
-      // the core: pale gold, 1 px
+      // the core, 1 px: the Thread's pale gold written in the palette's own colours (a blend of it
+      // over the dark sky lands on the verdigris greens and the ember browns, neither of which is
+      // the Thread's). Fainter stitches are paper white on a dither, the brightest are goldWhite.
       const core = 0.35 + 0.65 * a;
-      frame[o] += (255 - frame[o]) * core;
-      frame[o + 1] += (236 - frame[o + 1]) * core;
-      frame[o + 2] += (176 - frame[o + 2]) * core * 0.9;
-      // a halo of gold pixels above and below, dithered
-      if (a > 0.15 && bayer(xi, yi) < a * 1.0) {
+      const pc =
+        core > 0.78
+          ? THREAD_HI
+          : core > 0.5
+            ? bayer(xi + 1, yi) < 0.5
+              ? THREAD_HI
+              : THREAD_PALE
+            : THREAD_PALE;
+      if (core > 0.42 || bayer(xi, yi + 1) < core * 1.9) {
+        frame[o] = pc[0];
+        frame[o + 1] = pc[1];
+        frame[o + 2] = pc[2];
+      }
+      // a halo above and below, dithered: the Thread's own pale gold, written opaque (a blend of
+      // gold over the dark sky would land on the ember browns, which are the fire's colour)
+      if (a > 0.15 && bayer(xi, yi) < a * 0.9) {
         for (const dy of [-1, 1]) {
           const yy = yi + dy;
           if (yy < 0 || yy >= H || !this.sky[yy * W + xi]) continue;
           const j = (yy * W + xi) * 4;
-          const k = 0.5 * a;
-          frame[j] += (222 - frame[j]) * k;
-          frame[j + 1] += (170 - frame[j + 1]) * k;
-          frame[j + 2] += (78 - frame[j + 2]) * k;
+          frame[j] = 243; // the ember ramp's pale gold (goldHi), which is the Thread's alone
+          frame[j + 1] = 203;
+          frame[j + 2] = 108;
         }
       }
       if (a > 0.9 && bayer(xi + 1, yi + 3) < (a - 0.7) * 1.4) {
-        // a flare: the halo opens to two pixels
+        // a flare: the halo opens to two pixels, paler and sparser
         for (const dy of [-2, 2]) {
           const yy = yi + dy;
           if (yy < 0 || yy >= H || !this.sky[yy * W + xi]) continue;
           const j = (yy * W + xi) * 4;
-          frame[j] += (226 - frame[j]) * 0.32;
-          frame[j + 1] += (176 - frame[j + 1]) * 0.32;
-          frame[j + 2] += (84 - frame[j + 2]) * 0.32;
+          frame[j] = 221; // paper white
+          frame[j + 1] = 208;
+          frame[j + 2] = 189;
         }
       }
       if (glow > 0.75 && bayer(xi + 2, yi) < glow - 0.5) {
@@ -1099,9 +1103,10 @@ export class CampWorld {
           const yy = yi + dy;
           if (xx < 0 || yy < 0 || xx >= W || yy >= H || !this.sky[yy * W + xx]) continue;
           const j = (yy * W + xx) * 4;
-          frame[j] += (255 - frame[j]) * k;
-          frame[j + 1] += (232 - frame[j + 1]) * k;
-          frame[j + 2] += (160 - frame[j + 2]) * k;
+          if (k < 0.42) continue;
+          frame[j] = THREAD_HI[0];
+          frame[j + 1] = THREAD_HI[1];
+          frame[j + 2] = THREAD_HI[2];
         }
       }
     }
@@ -1149,6 +1154,8 @@ export class CampWorld {
     const lam = Math.max(0, nx * lx + ny * ly + nz * lz);
     const I = (this.k * 1.2) / (1 + d2 / 2.0);
     let fl = I * (0.18 + 0.82 * lam);
+    // what stands between the surface and the fire (the people, the props) shades it too
+    if (Y < 0.7) fl *= this.shadowAt(X, Z);
     if (cel)
       fl =
         0.9 *
@@ -1562,12 +1569,19 @@ export class CampWorld {
           const grain =
             0.86 +
             0.24 * valueNoise(lo[0] * 9 + ld[0] * t0 * 9 + Bx.x * 7, (lo[2] + ld[2] * t0) * 21, 5);
-          const A = [WOOD[0] * grain, WOOD[1] * grain, WOOD[2] * grain];
+          let base = WOOD;
+          if (Bx.kind === 'blanket') {
+            // a woven blanket: broad stripes across its length (red, cream, blue-grey), a rough weave
+            const su = lo[0] + ld[0] * t0;
+            const band = Math.floor((su + 2) * 4.2) % 5;
+            base = band === 1 ? BLANKET_A : band === 3 ? BLANKET_B : BLANKET_C;
+          }
+          const A = [base[0] * grain, base[1] * grain, base[2] * grain];
           this.lightSurf(X, Y, Z, nx, ny, nz, A, c, 0);
           frame[i * 4] = c[0];
           frame[i * 4 + 1] = c[1];
           frame[i * 4 + 2] = c[2];
-          this.ids[i] = ID_PROP;
+          this.ids[i] = Bx.id ?? ID_PROP;
           this.zbuf[i] = depth;
           this.ink[i] = 1;
           this.sky[i] = 0;
@@ -1871,7 +1885,7 @@ export class CampWorld {
           const Z = oz + dz * t0;
           const crack =
             this._flat === 1 && this._edge * Math.min(St.a, St.b, St.c) < (1.1 * depth) / this.B.F;
-          const base = St.bed ? [92, 80, 78] : STONE;
+          const base = St.bed ? [92, 80, 78] : St.seat ? SLAB : STONE;
           const tone = 0.82 + 0.34 * valueNoise(X * 3 + 11, Z * 3 + Y * 3, 6);
           let A0 = [base[0] * tone, base[1] * tone, base[2] * tone];
           let warm = 0;
@@ -1965,4 +1979,4 @@ export class CampWorld {
   }
 }
 
-Object.assign(CampWorld.prototype, billboardMethods);
+Object.assign(CampWorld.prototype, billboardMethods, groundMethods);

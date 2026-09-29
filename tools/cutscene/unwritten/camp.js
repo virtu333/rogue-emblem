@@ -23,7 +23,7 @@ import { pulse } from './engine/score.js';
 import { clamp, smooth } from './engine/raster.js';
 import { flash } from './engine/anime.js';
 import { onN } from './engine/timing.js';
-import { nudge } from './engine/world.js';
+import { nudge, lookAt } from './engine/world.js';
 import { CampWorld } from './engine/camp_world.js';
 import { quantiseCamp } from './camp_palette.js';
 import {
@@ -226,6 +226,8 @@ export class CampPiece extends Piece {
 
   /** The frame, snapped to the camp's ramps (no olive earth ramp: see camp_palette.js). */
   render(out, t, { pixel = true, dither = 0.45 } = {}) {
+    if (typeof location !== 'undefined')
+      globalThis.__campDbg = new URLSearchParams(location.search).get('dbg');
     this.drawShot(out, this.shotAt(t), t);
     if (pixel) quantiseCamp(out, this.W, this.H, dither);
   }
@@ -316,7 +318,7 @@ export class CampPiece extends Piece {
     const a = {
       X,
       Z,
-      Y: o.Y,
+      ...this.onSeat(o.who),
       height: H_m,
       flip,
       key,
@@ -348,7 +350,7 @@ export class CampPiece extends Piece {
     const a = {
       X,
       Z,
-      Y: o.Y,
+      ...this.onSeat(o.who),
       height: C.cell[1] * C.mpp,
       cell: C.cell,
       flip,
@@ -356,6 +358,11 @@ export class CampPiece extends Piece {
       gain: o.gain,
       hueHold: o.hold,
       rim: o.rim,
+      // a clip that carries its blade's line (motion/camp_blade.py) has it repainted clean
+      blade:
+        this.motionSrc[name].meta.blade && globalThis.__campDbg !== 'noblade'
+          ? () => this.motionSrc[name].meta.blade[i]
+          : undefined,
       layerFor: (px) => {
         M = this.motion(name, bucket(px), { flip });
         return M.layer(i);
@@ -367,6 +374,12 @@ export class CampPiece extends Piece {
       get: () => (o.idle && M ? { warp: this.idle(o.t ?? 0, o.idle, flip)(M.w, M.h) } : undefined),
     });
     return a;
+  }
+
+  /** What stands on a seat: its height and name, for an actor's options (Y, seat). */
+  onSeat(who) {
+    const S = this.world?.seats?.[who];
+    return who ? { Y: S?.top ?? 0, seat: who } : {};
   }
 
   // ------------------------------------------------------------------ the three at the fire
@@ -410,29 +423,38 @@ export class CampPiece extends Piece {
     const e =
       o.edric ??
       this.clipActor('camp_edric_fire', edricFireFrame(t), ex + 0.36, ez, 1, {
+        who: 'edric',
         t: tt,
         hold: 0.85,
         gain: 1.4,
         shadowW: 0.6,
       }) ??
-      this.cutActor('edricFire', ex, ez, 1, { idle: IDLE_E, t: tt, shadowW: 0.6, hold: 0.85 });
+      this.cutActor('edricFire', ex, ez, 1, {
+        who: 'edric',
+        idle: IDLE_E,
+        t: tt,
+        shadowW: 0.6,
+        hold: 0.85,
+      });
     // Sera and Kira hold on their clips' first drawings (their own hair, breath and hands, slowly
     // back and forth); the still cut-outs are the fallback
     const s =
       o.sera ??
       this.clipActor('camp_sera_look', pingpong(tt, 0, 6, 0.5), sx, sz, -1, {
+        who: 'sera',
         idle: { seed: 2, breath: 0.004 },
         t: tt,
       }) ??
-      this.cutActor('seraCamp', sx, sz, -1, { idle: IDLE_S, t: tt, shadowW: 0.55 });
+      this.cutActor('seraCamp', sx, sz, -1, { who: 'sera', idle: IDLE_S, t: tt, shadowW: 0.55 });
     const k =
       o.kira ??
       this.clipActor('camp_kira_map', pingpong(tt, 0, 22, 0.55), kx, kz, -1, {
+        who: 'kira',
         idle: { seed: 3, breath: 0.004 },
         t: tt,
         gain: 1.2,
       }) ??
-      this.cutActor('kiraCamp', kx, kz, -1, { idle: IDLE_K, t: tt, shadowW: 0.55 });
+      this.cutActor('kiraCamp', kx, kz, -1, { who: 'kira', idle: IDLE_K, t: tt, shadowW: 0.55 });
     for (const a of [e, s, k]) if (a) list.push(a);
     return list;
   }
@@ -486,7 +508,15 @@ export class CampPiece extends Piece {
   // --- 2 · the three-shot ---------------------------------------------------------------
   shotThree(f, t) {
     const lt = t - S.three[0];
-    this.renderWorld(f, t, CAMERA.three(lt), { actors: this.people(t) });
+    let cam = CAMERA.three(lt);
+    const dbg =
+      typeof location !== 'undefined' ? new URLSearchParams(location.search).get('dbg') : null;
+    globalThis.__campDbg = dbg;
+    if (dbg === 'top')
+      cam = lookAt({ x: 0, y: 7, z: -3.2 }, { x: 0, y: 0, z: 0.6 }, { focal: 300 });
+    if (dbg === 'oblique')
+      cam = lookAt({ x: -3.2, y: 2.6, z: -4.5 }, { x: 0, y: 0.3, z: 0.6 }, { focal: 330 });
+    this.renderWorld(f, t, cam, { actors: this.people(t) });
   }
 
   // --- 3 · Sera ---------------------------------------------------------------------------
@@ -504,6 +534,7 @@ export class CampPiece extends Piece {
       onN(lt, lt < 0.8 ? 3 : 2),
     );
     const s = this.clipActor('camp_sera_look', i, ...PEOPLE.sera.seat, -1, {
+      who: 'sera',
       rim: 1.4,
       gain: 1.5,
       t,
@@ -565,6 +596,7 @@ export class CampPiece extends Piece {
       onN(lt, lt < 0.4 ? 3 : 2),
     );
     const e = this.clipActor('camp_edric_look', i, ...PEOPLE.edric.seat, 1, {
+      who: 'edric',
       t,
       hold: 0.85,
       gain: 1.9,
@@ -585,7 +617,11 @@ export class CampPiece extends Piece {
       ],
       onN(lt, 2),
     );
-    const kk = this.clipActor('camp_kira_map', i, ...PEOPLE.kira.seat, -1, { t, gain: 1.3 });
+    const kk = this.clipActor('camp_kira_map', i, ...PEOPLE.kira.seat, -1, {
+      who: 'kira',
+      t,
+      gain: 1.3,
+    });
     this.renderWorld(f, t, CAMERA.kira(lt), { actors: this.people(t, { kira: kk }) });
   }
 
@@ -605,6 +641,7 @@ export class CampPiece extends Piece {
         onN(lt, 2),
       );
       e = this.clipActor('camp_edric_rise', i, ...PEOPLE.edric.seat, 1, {
+        who: 'edric',
         t,
         hold: 0.85,
         gain: 1.5,
@@ -617,6 +654,7 @@ export class CampPiece extends Piece {
       const rise = ease((lt - hitLt) / 0.5);
       const [ex, ez] = PEOPLE.edric.seat;
       e = this.cutActor('standing', ex - 0.222, ez, 1, {
+        who: 'edric',
         hold: 0.85,
         t: tt,
         idle: {

@@ -176,10 +176,7 @@ export const billboardMethods = {
       }
     }
     // ---- the figures
-    for (const a of o.actors || []) {
-      const p = project(cam, a.X, a.Y ?? 0, a.Z, W, H);
-      if (p.depth > 0.3) items.push({ z: p.depth, kind: 9, a });
-    }
+    for (const P of this.preps || []) if (P) items.push({ z: P.feet.depth, kind: 9, P });
     items.sort((p, q) => q.z - p.z);
     for (const it of items) {
       switch (it.kind) {
@@ -212,7 +209,7 @@ export const billboardMethods = {
           this.drawEmber(frame, it.q, it.p);
           break;
         case 9:
-          this.drawActor(frame, cam, it.a);
+          this.drawActor(frame, cam, it.P);
           break;
       }
     }
@@ -762,19 +759,22 @@ export const billboardMethods = {
     const F = this.fire;
     const base = project(cam, F.x, 0.3, F.z, W, H);
     const sc = base.scale;
-    const halfW = Math.round(0.32 * sc);
-    const hgt = Math.round(1.0 * sc);
+    const halfW = Math.round(0.2 * sc);
+    const hgt = Math.round(0.85 * sc);
     if (halfW < 3 || hgt < 6) return;
     const phase = Math.floor(this.t * 12);
-    const y1 = Math.round(base.sy) - Math.round(0.28 * sc);
+    const y1 = Math.round(base.sy) - Math.round(0.3 * sc);
     const y0 = y1 - hgt;
     const cx = Math.round(base.sx);
     const row = new Float32Array((halfW * 2 + 1) * 3);
     for (let y = Math.max(0, y0); y < Math.min(H, y1); y++) {
       const v = (y1 - y) / hgt; // 0 at the flames, 1 at the top of the column
-      const amp = 1.0 * Math.sin(Math.PI * Math.min(1, v * 1.15)) ** 0.8;
-      const sw = Math.sin(y * 0.85 + phase * 2.3) * amp;
-      const sh = sw > 0.6 ? 1 : sw < -0.6 ? -1 : 0;
+      // the air rises: a slow ripple climbing the column, strongest just above the flames
+      const env = Math.sin(Math.PI * Math.min(1, v * 1.1)) ** 1.2 * (1 - 0.55 * v);
+      const wave = Math.sin(y * 0.42 - phase * 1.3 + 1.7 * Math.sin(y * 0.11 + phase * 0.35));
+      const sw = wave * env;
+      // one pixel, on the crests of the ripple only: a wobble of what is behind, no colour of its own
+      const sh = sw > 0.48 ? 1 : sw < -0.48 ? -1 : 0;
       if (!sh) continue;
       const xs = Math.max(0, cx - halfW);
       const xe = Math.min(W - 1, cx + halfW);
@@ -788,15 +788,16 @@ export const billboardMethods = {
       for (let x = xs; x <= xe; x++) {
         // the column is soft at its sides: fewer pixels move toward the edge
         const edge = Math.abs(x - cx) / halfW;
-        if (edge > 0.7 && hash(x, y, 63) < (edge - 0.7) * 3) continue;
+        if (edge > 0.55 && hash(x, y, 63) < (edge - 0.55) * 2.2) continue;
         const sx = Math.max(xs, Math.min(xe, x - sh));
         const id = this.ids[y * W + sx];
         if (id >= ID_ACTOR || this.ids[y * W + x] >= ID_ACTOR) continue;
         const o = (y * W + x) * 4;
         const k = (sx - xs) * 3;
-        frame[o] = row[k];
-        frame[o + 1] = row[k + 1];
-        frame[o + 2] = row[k + 2];
+        // half of the neighbour's colour: refraction bends the view, it does not replace it
+        frame[o] = frame[o] * 0.5 + row[k] * 0.5;
+        frame[o + 1] = frame[o + 1] * 0.5 + row[k + 1] * 0.5;
+        frame[o + 2] = frame[o + 2] * 0.5 + row[k + 2] * 0.5;
       }
     }
   },
@@ -898,21 +899,26 @@ export const billboardMethods = {
 
   /**
    * A figure standing (or sitting) in the world, lit by the fire. a: { X, Z, Y?, height,
-   * layerFor(px), place(x, y, s), xf?, opts?, shadowW?, gain? }: same contract as world.js's
-   * actors. The drawing is painted in daylight; here it takes the night's cool on the side
-   * away from the fire, the fire's warmth on the side toward it, an orange rim on the edge
-   * facing the flames, and a contact shadow.
+   * layerFor(px), place(x, y, s), xf?, opts?, shadowW?, gain?, seat? }: same contract as world.js's
+   * actors (`Y` is the height of what it stands on; `seat` names the world's seat that carries it,
+   * which it is drawn over rather than behind). The drawing is painted in daylight; here it takes
+   * the night's cool on the side away from the fire, the fire's warmth on the side toward it, an
+   * orange rim on the edge facing the flames, a contact shadow under everything that touches, and
+   * the world throws its cast shadow from the drawing itself (camp_ground.js).
+   *
+   * prepActor draws the sprite into a private buffer (before the world is shaded, so the shadow
+   * can be cast from it); drawActor lights it and composites it.
    */
-  drawActor(frame, cam, a) {
+  prepActor(a, cam) {
     const { W, H } = this;
     const Y0 = a.Y ?? 0;
     const feet = project(cam, a.X, Y0, a.Z, W, H);
     const head = project(cam, a.X, Y0 + a.height, a.Z, W, H);
-    if (feet.depth < 0.3) return;
+    if (feet.depth < 0.3) return null;
     const vx = head.sx - feet.sx;
     const vy = head.sy - feet.sy;
     const pxH = Math.hypot(vx, vy);
-    if (pxH < 2) return;
+    if (pxH < 2) return null;
     const layer = a.layerFor(pxH);
     const st = layer.st;
     const s = (feet.scale * a.height) / st.h;
@@ -949,7 +955,7 @@ export const billboardMethods = {
     const Y0s = Math.max(0, Math.floor(y0 - pad));
     const X1 = Math.min(W, Math.ceil(x1 + pad));
     const Y1 = Math.min(H, Math.ceil(y1 + pad));
-    if (X0 >= X1 || Y0s >= Y1) return;
+    if (X0 >= X1 || Y0s >= Y1) return null;
     const sc = this.scratch;
     for (let y = Y0s; y < Y1; y++)
       for (let x = X0; x < X1; x++) {
@@ -960,30 +966,180 @@ export const billboardMethods = {
         sc[o + 3] = 0;
       }
     drawSprite(sc, W, H, this.paper, layer, a.stage ?? 0, xf, cam2, a.opts || {});
-    const drawn = (o) => sc[o + 3] !== 0 && !(sc[o] === 1 && sc[o + 1] === 0 && sc[o + 2] === 1);
-    // ---- the contact shadow, on the ground pixels around the feet (perspective-true)
-    if (a.shadow !== false) {
-      const rad = (a.shadowW ?? 0.5) * 1.15;
-      const R = rad * feet.scale * 1.4 + 3;
-      for (
-        let y = Math.max(0, Math.floor(feet.sy - R * 0.5));
-        y <= Math.min(H - 1, feet.sy + R * 0.5 + 2);
-        y++
-      )
-        for (let x = Math.max(0, Math.floor(feet.sx - R)); x <= Math.min(W - 1, feet.sx + R); x++) {
-          const i = y * W + x;
-          if (this.ids[i] !== 20 || !isFinite(this.gT[i])) continue;
-          const gx = this.B.ox + this.gT[i] * this.rdx[i];
-          const gz = this.B.oz + this.gT[i] * this.rdz[i];
-          const d = Math.hypot(gx - a.X, (gz - a.Z) * 1.25) / rad;
-          if (d > 1) continue;
-          const k = 1 - 0.62 * (1 - d) ** 0.8;
-          const o = i * 4;
-          frame[o] *= k;
-          frame[o + 1] *= k;
-          frame[o + 2] *= k * 1.02;
-        }
+    // keep the drawing: RGB, and alpha 0 where nothing was drawn
+    const bw = X1 - X0;
+    const bh = Y1 - Y0s;
+    const buf = new Uint8ClampedArray(bw * bh * 4);
+    for (let y = Y0s; y < Y1; y++)
+      for (let x = X0; x < X1; x++) {
+        const o = (y * W + x) * 4;
+        if (sc[o + 3] === 0 || (sc[o] === 1 && sc[o + 1] === 0 && sc[o + 2] === 1)) continue;
+        const q = ((y - Y0s) * bw + (x - X0)) * 4;
+        buf[q] = sc[o];
+        buf[q + 1] = sc[o + 1];
+        buf[q + 2] = sc[o + 2];
+        buf[q + 3] = sc[o + 3];
+      }
+    const bladeMask = a.blade ? this.repaintBlade(a, m, st, X0, Y0s, X1, Y1, bw, buf) : null;
+    return {
+      a,
+      feet,
+      head,
+      pxH,
+      X0,
+      Y0s,
+      X1,
+      Y1,
+      bw,
+      bh,
+      buf,
+      bladeMask,
+      x0,
+      y0,
+      x1,
+      y1,
+      mask: {
+        alpha: st.alpha,
+        w: st.w,
+        h: st.h,
+        ax: base.ax,
+        ay: base.ay,
+        mpp: a.height / st.h,
+      },
+    };
+  },
+
+  /**
+   * A painted sword turns to a saw of pixels at game size (a 2-3 px diagonal, lit orange and inked
+   * along both edges). Given the blade's line in the drawing (a.blade() -> [x0, y0, x1, y1, w] in
+   * cell px, from motion/camp_blade.py) this takes the painted blade out of the buffer (bright
+   * pixels near the line, past the guard) and draws a clean one: two pixels wide, a highlight line on
+   * its upper edge, a shadow edge below, a tapered tip. Its colours are final (steel, warm on the
+   * side toward the fire), so drawActor skips the lighting for them. Returns a Uint8Array mask of
+   * the blade's pixels in the buffer, or null.
+   */
+  repaintBlade(a, m, st, X0, Y0s, X1, Y1, bw, buf) {
+    const bl = a.blade();
+    if (!bl) return null;
+    const k = st.h / a.cell[1];
+    const pt = (u, v) => {
+      const lu = a.flip ? st.w - u * k : u * k;
+      const lv = v * k;
+      return [m[0] * lu + m[1] * lv + m[2], m[3] * lu + m[4] * lv + m[5]];
+    };
+    const [ax, ay] = pt(bl[0], bl[1]);
+    const [bx, by] = pt(bl[2], bl[3]);
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len = Math.hypot(dx, dy);
+    if (len < 5) return null;
+    const ux = dx / len;
+    const uy = dy / len;
+    const sc = k * Math.hypot(m[0], m[3]);
+    const hwPainted = Math.max(1.6, (bl[4] * sc) / 2);
+    const mask = new Uint8Array(buf.length / 4);
+    const HI = [232, 218, 200];
+    const MID = [150, 140, 146];
+    const LO = [92, 84, 100];
+    // steel takes the fire's light like everything else: brighter and warmer toward the flames
+    const F0 = project(this.cam, this.fire.x, this.fire.y, this.fire.z, this.W, this.H);
+    const feetScale = project(this.cam, a.X, a.Y ?? 0, a.Z, this.W, this.H).scale;
+    // which side is "up" on screen for the highlight (the normal with a negative y)
+    let nx = -uy;
+    let ny = ux;
+    if (ny > 0) {
+      nx = -nx;
+      ny = -ny;
     }
+    const F = this.fire;
+    // a warmer highlight on the side toward the fire
+    const fx = F.x - a.X;
+    const wx = Math.sign(fx) === Math.sign(nx) || Math.abs(fx) < 0.2 ? 1 : 0.55;
+    for (let y = Y0s; y < Y1; y++)
+      for (let x = X0; x < X1; x++) {
+        const px = x + 0.5 - ax;
+        const py = y + 0.5 - ay;
+        let t = px * ux + py * uy;
+        const o = px * nx + py * ny; // + toward the up side
+        const q = ((y - Y0s) * bw + (x - X0)) * 4;
+        const dEnd = t < 0 ? -t : t > len ? t - len : 0;
+        const d = Math.hypot(o, dEnd);
+        // 1. take the painted blade out: bright pixels near the line, from just past the guard
+        if (buf[q + 3] !== 0 && t > 3 && t < len + 2 && Math.abs(o) < hwPainted + 1.4) {
+          const lum = 0.3 * buf[q] + 0.59 * buf[q + 1] + 0.11 * buf[q + 2];
+          if (lum > 118) {
+            // fill from a neighbour that is not blade: the body under it, or nothing
+            let r = 0;
+            let g = 0;
+            let b = 0;
+            let n = 0;
+            for (let yy = -3; yy <= 3; yy++)
+              for (let xx = -3; xx <= 3; xx++) {
+                const x2 = x + xx;
+                const y2 = y + yy;
+                if (x2 < X0 || y2 < Y0s || x2 >= X1 || y2 >= Y1) continue;
+                const q2 = ((y2 - Y0s) * bw + (x2 - X0)) * 4;
+                if (buf[q2 + 3] === 0) continue;
+                const l2 = 0.3 * buf[q2] + 0.59 * buf[q2 + 1] + 0.11 * buf[q2 + 2];
+                const p2 = x2 + 0.5 - ax;
+                const p3 = y2 + 0.5 - ay;
+                if (l2 > 118 && Math.abs(p2 * nx + p3 * ny) < hwPainted + 1.4) continue;
+                r += buf[q2];
+                g += buf[q2 + 1];
+                b += buf[q2 + 2];
+                n++;
+              }
+            if (n >= 3) {
+              buf[q] = r / n;
+              buf[q + 1] = g / n;
+              buf[q + 2] = b / n;
+            } else buf[q + 3] = 0;
+          }
+        }
+        // 2. the clean blade: 2 px wide (a hair over, so the diagonal has no gaps), tapering to a point
+        const taper = t > len - 5 ? 0.35 + 0.65 * Math.max(0, (len - t) / 5) : 1;
+        if (t >= 0 && t <= len && Math.abs(o) <= 1.0 * taper + 0.05) {
+          const c = o > 0.25 ? HI : o < -0.45 ? LO : MID;
+          const dm = Math.hypot(x - F0.sx, y - F0.sy) / feetScale;
+          const bk = 0.5 + 0.8 * clamp(1.3 / (1 + (dm * dm) / 1.6));
+          const warm = 0.06 * (bk - 0.8);
+          buf[q] = Math.min(255, c[0] * bk * (1 + warm) * (c === HI ? 0.88 + 0.12 * wx : 1));
+          buf[q + 1] = Math.min(255, c[1] * bk);
+          buf[q + 2] = Math.min(255, c[2] * bk * (1 - warm) * (c === HI ? 0.85 + 0.15 * wx : 1));
+          buf[q + 3] = 255;
+          mask[q >> 2] = 1;
+        }
+        void d;
+      }
+    return mask;
+  },
+
+  drawActor(frame, cam, P) {
+    if (!P) return;
+    const { W, H } = this;
+    const { a, feet, pxH, X0, Y0s, X1, Y1, bw, buf, x0, y0, x1, y1 } = P;
+    const Y0 = a.Y ?? 0;
+    /** offset of the drawing's pixel (x, y) in buf, or -1 */
+    const at = (x, y) => {
+      if (x < X0 || y < Y0s || x >= X1 || y >= Y1) return -1;
+      const o = ((y - Y0s) * bw + (x - X0)) * 4;
+      return buf[o + 3] !== 0 ? o : -1;
+    };
+    const seatIds = (a.seat && this.seats?.[a.seat]?.ids) || [];
+    // ---- where the drawing meets the ground: its lowest pixel in each column
+    const yb = new Int16Array(X1 - X0).fill(-1);
+    for (let x = X0; x < X1; x++)
+      for (let y = Y1 - 1; y >= Y0s; y--)
+        if (buf[((y - Y0s) * bw + (x - X0)) * 4 + 3] !== 0) {
+          yb[x - X0] = y;
+          break;
+        }
+    // a column touches when its lowest pixel is within a third of a metre of the contact line
+    const band = 0.34 * feet.scale;
+    const touch = (x) => {
+      const y = yb[x - X0];
+      return y >= 0 && y >= feet.sy - band;
+    };
     // ---- light the drawing and composite it
     const F = this.fire;
     const fp = project(cam, F.x, F.y, F.z, W, H);
@@ -1001,25 +1157,39 @@ export const billboardMethods = {
     const zA = feet.depth;
     const rimStr = clamp(I * 1.5) * (a.rim ?? 1);
     const ew = pxH < 150 ? 1 : pxH < 300 ? 2 : 3;
+    // the cloth that touches the ground goes dark in the last pixels above it (it is in its own
+    // shadow there): a thin band, deeper for a bigger figure
+    const eAO = Math.max(1, Math.min(6, Math.round(0.05 * feet.scale)));
     for (let y = Y0s; y < Y1; y++)
       for (let x = X0; x < X1; x++) {
-        const o = (y * W + x) * 4;
-        if (!drawn(o)) continue;
+        const bo = at(x, y);
+        if (bo < 0) continue;
         const i = y * W + x;
-        if (zA >= this.zbuf[i] + 0.02) continue;
+        if (zA >= this.zbuf[i] + 0.02 && !seatIds.includes(this.ids[i])) continue;
+        const o = i * 4;
+        if (P.bladeMask && P.bladeMask[bo >> 2]) {
+          // the repainted blade: final colours, no light, no ink, no rim
+          frame[o] = buf[bo];
+          frame[o + 1] = buf[bo + 1];
+          frame[o + 2] = buf[bo + 2];
+          frame[o + 3] = 255;
+          this.zbuf[i] = zA;
+          this.ids[i] = ID_ACTOR;
+          continue;
+        }
         const sxr = ((x - cxA) * tfx + (y - cyA) * tfy) / half;
         const lf = 0.5 + 0.5 * clamp(sxr, -1, 1);
         const low = clamp((y - y0) / Math.max(1, y1 - y0));
         const L = I * (0.28 + 0.85 * lf) * (0.7 + 0.55 * low) * faceK;
-        let r = sc[o] * (AMB_A[0] + FIRE_C[0] * L);
-        let g = sc[o + 1] * (AMB_A[1] + FIRE_C[1] * L);
-        let b = sc[o + 2] * (AMB_A[2] + FIRE_C[2] * L);
+        let r = buf[bo] * (AMB_A[0] + FIRE_C[0] * L);
+        let g = buf[bo + 1] * (AMB_A[1] + FIRE_C[1] * L);
+        let b = buf[bo + 2] * (AMB_A[2] + FIRE_C[2] * L);
         if (a.hueHold) {
           // brown that firelight would push to red (Edric's chestnut hair, his leather) keeps its
           // own hue: only its brightness follows the light
-          const r0 = sc[o];
-          const g0 = sc[o + 1];
-          const b0 = sc[o + 2];
+          const r0 = buf[bo];
+          const g0 = buf[bo + 1];
+          const b0 = buf[bo + 2];
           const m0 = Math.max(r0, g0, b0);
           const sat = (m0 - Math.min(r0, g0, b0)) / (m0 + 1e-6);
           if (r0 >= g0 && g0 >= b0 && sat > 0.25 && sat < 0.8 && m0 < 165) {
@@ -1041,9 +1211,7 @@ export const billboardMethods = {
             [0, e],
             [0, -e],
           ]) {
-            const xx = x + ox;
-            const yy = y + oy;
-            if (xx < 0 || yy < 0 || xx >= W || yy >= H || !drawn((yy * W + xx) * 4)) {
+            if (at(x + ox, y + oy) < 0) {
               edge = true;
               break;
             }
@@ -1053,11 +1221,7 @@ export const billboardMethods = {
           // than turning into a saw of ink
           let cnt = 0;
           for (let q = -1; q <= 1; q++)
-            for (let w = -1; w <= 1; w++) {
-              const xx = x + w;
-              const yy = y + q;
-              if (xx >= 0 && yy >= 0 && xx < W && yy < H && drawn((yy * W + xx) * 4)) cnt++;
-            }
+            for (let w = -1; w <= 1; w++) if (at(x + w, y + q) >= 0) cnt++;
           const k = clamp((cnt - 3) / 3);
           r *= 1 - 0.6 * k;
           g *= 1 - 0.62 * k;
@@ -1066,19 +1230,67 @@ export const billboardMethods = {
         // the rim: the edge that faces the flames takes an orange line
         const nx = Math.round(x + tfx * 2);
         const ny = Math.round(y + tfy * 2);
-        if (nx < 0 || ny < 0 || nx >= W || ny >= H || !drawn((ny * W + nx) * 4)) {
+        if (at(nx, ny) < 0) {
           const rk = rimStr * (0.55 + 0.45 * (1 - faceK) + 0.25 * lf);
           r += 255 * 0.5 * rk;
           g += 138 * 0.5 * rk;
           b += 58 * 0.4 * rk;
         }
+        // the cloth touching the ground is in its own shadow
+        const yc = yb[x - X0];
+        if (yc >= 0 && touch(x) && yc - y < eAO) {
+          const k = 1 - 0.34 * (1 - (yc - y) / eAO);
+          r *= k;
+          g *= k;
+          b *= k * 1.02;
+        }
         frame[o] = Math.min(255, r);
         frame[o + 1] = Math.min(255, g);
         frame[o + 2] = Math.min(255, b);
-        frame[o + 3] = sc[o + 3];
+        frame[o + 3] = buf[bo + 3];
         this.zbuf[i] = zA;
         this.ids[i] = ID_ACTOR;
       }
+    // ---- contact shadow: a tight dark line on whatever the drawing rests on (ground or seat),
+    // right under its lowest pixels, following the silhouette (boot, hem, crate base) and spread a
+    // couple of pixels to each side; strongest at the contact, gone within a few pixels
+    const depthPx = clamp(Math.round(0.06 * feet.scale), 2, 12);
+    const side = clamp(Math.round(0.025 * feet.scale), 1, 4);
+    const amp = a.contactK ?? 0.82;
+    const occ = this.aoBuf || (this.aoBuf = new Float32Array(W * H));
+    const yTop = Math.max(0, Y0s);
+    const yBot = Math.min(H - 1, Y1 + depthPx + 2);
+    for (let y = yTop; y <= yBot; y++)
+      for (let x = Math.max(0, X0 - side); x < Math.min(W, X1 + side); x++) occ[y * W + x] = 0;
+    for (let x = X0; x < X1; x++) {
+      if (!touch(x)) continue;
+      const yc = yb[x - X0];
+      for (let dx = -side; dx <= side; dx++) {
+        const cx = x + dx;
+        if (cx < 0 || cx >= W) continue;
+        const wgt = 1 - Math.abs(dx) / (side + 1);
+        for (let d = 1; d <= depthPx; d++) {
+          const yy = yc + d;
+          if (yy >= H) break;
+          const k = amp * wgt * (1 - (d - 1) / depthPx) ** 1.4;
+          const q = yy * W + cx;
+          if (k > occ[q]) occ[q] = k;
+        }
+      }
+    }
+    for (let y = yTop; y <= yBot; y++)
+      for (let x = Math.max(0, X0 - side); x < Math.min(W, X1 + side); x++) {
+        const q = y * W + x;
+        const k = occ[q];
+        if (k <= 0.01) continue;
+        const id = this.ids[q];
+        if (id !== 20 && !seatIds.includes(id)) continue;
+        const o = q * 4;
+        frame[o] *= 1 - k;
+        frame[o + 1] *= 1 - k;
+        frame[o + 2] *= 1 - k * 0.94;
+      }
+    void Y0;
   },
 
   /** The screen box of an actor (after render), for glints and effects that must sit on it. */
