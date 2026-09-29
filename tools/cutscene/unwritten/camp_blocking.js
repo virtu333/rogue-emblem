@@ -210,7 +210,7 @@ export const SET = {
 export const THREAD = {
   az0: -1.95,
   az1: 1.75,
-  peak: 0.74, // elevation at the top of the arc
+  peak: 0.62, // elevation at the top of the arc
   skew: 0.28, // the arc leans (peak nearer az 0.28)
   wave: 0.012,
 };
@@ -246,9 +246,9 @@ export const CAMERA = {
   three: (lt) => {
     const k = lt / 1.6;
     return lookAt(
-      { x: mix(-0.4, 0.05, k), y: 0.95, z: mix(-4.3, -3.95, k) },
-      { x: 0, y: 0.72, z: 0.5 },
-      { focal: 335 },
+      { x: mix(-0.35, 0.05, k), y: 0.72, z: mix(-3.5, -3.15, k) },
+      { x: 0.05, y: 1.02, z: 0.6 },
+      { focal: 340 },
     );
   },
   // Sera close: from the south-east, so the fire is at the left edge and lights her face
@@ -295,7 +295,7 @@ export const CAMERA = {
       { x: -1.45, y: mix(0.85, 1.55, sm(0.1, 1.0, lt)), z: 0.15 },
       { focal: 350 },
     );
-    const far = { x: -0.3, y: 0.95, z: -6.2, yaw: 0.1, pitch: 0.35, roll: 0, focal: 255 };
+    const far = { x: -0.7, y: 0.6, z: -3.7, yaw: 0.05, pitch: 0.27, roll: 0, focal: 290 };
     const nearEnd = lookAt(
       { x: -1.95, y: 0.5, z: -1.85 },
       { x: -1.45, y: 1.55, z: 0.15 },

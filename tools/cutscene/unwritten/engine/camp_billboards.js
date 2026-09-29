@@ -708,7 +708,7 @@ export const billboardMethods = {
     const y0 = Math.floor(p.sy - R * 1.3);
     const y1 = Math.ceil(p.sy + R * 1.3);
     // warm from below near the flames, cool grey-violet up in the dark
-    const warm = clamp(1 - q.age / 1.3) * this.k;
+    const warm = clamp(1 - q.age / 0.8) * this.k;
     for (let y = y0; y <= y1; y++)
       for (let x = x0; x <= x1; x++) {
         if (x < 0 || y < 0 || x >= W || y >= H) continue;

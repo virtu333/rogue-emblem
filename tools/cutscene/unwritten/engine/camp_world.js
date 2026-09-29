@@ -870,7 +870,7 @@ export class CampWorld {
     let prev = null;
     const t3 = this.t3;
     // the Thread sings with the tune: its waves swell on each note and settle in the rests
-    const amp = 1 + 4 * (th.energy ?? 0);
+    const amp = 1 + 2.6 * (th.energy ?? 0);
     for (let s = 0; s <= n; s++) {
       const u = s / n;
       const p = this.dirToScreen(B, this.threadDir(u, t, TH, amp));
