@@ -641,7 +641,11 @@ export class InputController {
       return null;
     const tile = chooseAttackTile(unit, target, s.movementRange, {
       distanceFrom: (col, row) => combatDistance({ col, row }, target),
-      isFree: (col, row) => !s.getUnitAt(col, row),
+      // A tile only the fog hides an enemy on looks free (the move is then ambushed).
+      isFree: (col, row) => {
+        const there = s.getUnitAt(col, row);
+        return !there || Boolean(s._isHiddenEnemy?.(there));
+      },
       terrainScore: (col, row) => {
         const terrain = s.grid.getTerrainAt(col, row);
         return (parseInt(terrain?.defBonus, 10) || 0) + (parseInt(terrain?.avoidBonus, 10) || 0);

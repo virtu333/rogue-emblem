@@ -305,7 +305,14 @@ export class MobileRewards {
     notes.setAttribute('aria-label', 'Notes');
     // The chosen item's story, as the shop and roster tell it.
     if (c?.item?.lore) notes.append(node('p', c.item.lore, 'ch-reward-lore'));
-    appendItemArtDetails(notes, c?.item, scene.gameData.weaponArts?.arts || []);
+    appendItemArtDetails(notes, c?.item, scene.gameData.weaponArts?.arts || [], {
+      openHelp: (title, blocks) => {
+        if (this.child || this.busy) return;
+        this.child = new ContextHelp(this.overlayScene, this.root, title, blocks, () => {
+          this.child = null;
+        });
+      },
+    });
     for (const notice of scene.runManager.lastBattleCasualtyNotices || []) {
       notes.append(node('p', notice, 'mu-help'));
     }

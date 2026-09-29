@@ -166,8 +166,7 @@ it('Phantom Rush summary exposes reduced strike damage without a post-combat HP 
   const art = loadGameData().weaponArts.arts.find((a) => a.id === 'legend_phantom_rush');
   const summary = summarizeWeaponArtEffect(art);
   expect(summary).toContain('3 strikes at 60% damage each');
-  expect(summary).toContain('retreat 1');
-  expect(summary).not.toContain('HP set');
+  expect(summary).toContain('On hit: step back 1 tile');
+  expect(summary).not.toContain('HP becomes');
   expect(art.hpCost).toBe(8);
-  expect(art.description).toContain('enemies can still counterattack');
 });

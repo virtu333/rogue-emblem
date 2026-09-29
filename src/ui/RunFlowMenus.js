@@ -6,6 +6,7 @@ import { TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { deedsOfTheMarchSection } from './deedDisplay.js';
 import { runEclipseSummary } from './eclipseContent.js';
 import { slotCardModel } from './slotCardModel.js';
+import { latestSlot } from './titleMenuModel.js';
 import { buildSlotCard, mountSlotPickerArt, slotPickerReducedMotion } from './SlotPickerView.js';
 
 /** Shown when a finished run's rewards could not be written (they retry on Continue). */
@@ -97,13 +98,17 @@ export function slotMenu(scene) {
     art.refresh();
     const cards = element('div', null, 'sp-cards');
     const now = Date.now();
+    const summaries = Array.from({ length: MAX_SLOTS }, (_, i) => getSlotSummary(i + 1));
+    // The save played last wears a gold rim, so a returning player finds it at once.
+    const latest = latestSlot(summaries);
     for (let slot = 1; slot <= MAX_SLOTS; slot++) {
-      const summary = getSlotSummary(slot);
+      const summary = summaries[slot - 1];
       const model = slotCardModel(slot, summary, {
         gameData: scene.gameData,
         now,
         conflict: Boolean(summary && getCloudSaveConflict(slot)),
       });
+      if (slot === latest) model.latest = true;
       cards.append(
         buildSlotCard(model, {
           onPrimary: (card) => kindle(card, slot, summary),

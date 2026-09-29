@@ -13,6 +13,7 @@ import { promotionPathContent, rankChipText, statChipText } from './growthConten
 import { projectedSpriteUnit, spriteElement, unitSpriteImage } from './growthSprites.js';
 import { ceremonyPortrait } from './ceremonyDom.js';
 import { skillGlyph } from './growthGlyphs.js';
+import { oathOptionsInOrder, pledgeOath, promotionOathCandidates } from '../engine/DeedSystem.js';
 
 function portraitImg(scene, unit, className) {
   const shown = className
@@ -112,6 +113,8 @@ export function buildPathCard({ scene, unit, cls, content, selected, onSelect })
   if (content.moveType) notes.push(`${content.moveType.from} → ${content.moveType.to}`);
   if (content.grants.length) notes.push(`Receives ${content.grants.join(', ')}`);
   if (content.dropped.length) notes.push(`Skill limit: cannot learn ${content.dropped.join(', ')}`);
+  if (content.oath?.waiting)
+    notes.push(`Skill slots full: ${content.oath.name} waits in Deeds for a skill to give up`);
   if (notes.length) card.append(element('span', notes.join(' · '), 'gr-path-note'));
   return card;
 }
@@ -147,17 +150,7 @@ export class PromotionPathChooser {
     });
     this.targets = Array.isArray(targets) ? targets.filter(Boolean) : [];
     this.selected = this.targets[0] || null;
-    this.contents = new Map(
-      this.targets.map((cls) => {
-        let content = null;
-        try {
-          content = promotionPathContent(unit, cls, gameData);
-        } catch (error) {
-          console.warn('[PromotionPathChooser] preview failed:', error);
-        }
-        return [cls, content];
-      }),
-    );
+    this.preview();
     this.surface = new MenuSurface(scene, title, () => this.close(null));
     this._onShutdown = () => this.destroy();
     scene?.events?.once?.('shutdown', this._onShutdown);
@@ -167,6 +160,72 @@ export class PromotionPathChooser {
     this.surface.body
       .querySelector('.gr-path[aria-pressed="true"]')
       ?.focus({ preventScroll: true });
+  }
+
+  /** Every path's content (the Oath it swears follows the unit's pledge). */
+  preview() {
+    this.contents = new Map(
+      this.targets.map((cls) => {
+        let content = null;
+        try {
+          content = promotionPathContent(this.unit, cls, this.gameData);
+        } catch (error) {
+          console.warn('[PromotionPathChooser] preview failed:', error);
+        }
+        return [cls, content];
+      }),
+    );
+  }
+
+  /**
+   * With more than one Oath open on the selected path, the player picks which deed the
+   * unit swears on (one Oath, ever): the choice is the unit's pledge, so every path
+   * card shows it. A path whose class already teaches the pledged Oath's skill swears
+   * the next one instead, and says so.
+   */
+  oathChoice() {
+    const content = this.selected ? this.contents.get(this.selected) : null;
+    const options = oathOptionsInOrder(content?.oathOptions);
+    const swears = content?.oath?.deedId;
+    const pledge = this.unit?.deeds?.pledge;
+    if (options.length < 2) {
+      if (!pledge || !swears || pledge === swears) return null;
+      const pledged = promotionOathCandidates(
+        this.unit,
+        this.gameData?.deeds,
+        this.gameData?.skills,
+      ).find((o) => o.deedId === pledge);
+      if (!pledged) return null;
+      return element(
+        'p',
+        `A ${this.selected.name} already has ${pledged.skillName}, so this path swears ${content.oath.name}.`,
+        'gr-oath-note',
+      );
+    }
+    const group = element('div', null, 'gr-oath-choice');
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', 'Oath to swear');
+    group.append(element('span', 'Swear an Oath · one, ever', 'gr-oath-kicker'));
+    for (const option of options) {
+      const chosen = option.deedId === swears;
+      const pick = button(
+        `${option.name} · ${option.skillName}`,
+        () => {
+          if (this.busy || chosen) return;
+          pledgeOath(this.unit, option.deedId);
+          this.preview();
+          this.render();
+          this.surface.body.querySelector('.gr-oath-choice [aria-pressed="true"]')?.focus({
+            preventScroll: true,
+          });
+        },
+        're-btn gr-oath-option',
+      );
+      pick.setAttribute('aria-pressed', String(chosen));
+      if (option.skillDescription) pick.title = option.skillDescription;
+      group.append(pick);
+    }
+    return group;
   }
 
   /** Resolves with the confirmed class (after `apply` succeeded) or null. */
@@ -211,6 +270,8 @@ export class PromotionPathChooser {
     }
     if (!this.targets.length) paths.append(element('p', 'No available promotion classes.'));
     body.append(paths);
+    const oath = this.oathChoice();
+    if (oath) body.append(oath);
     const status = element('p', message, 'gr-chooser-status');
     status.setAttribute('role', 'status');
     const reason = this.selected ? this.blocked(this.selected) : '';

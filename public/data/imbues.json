@@ -4,12 +4,12 @@
       "id": "vampiric",
       "name": "Vampiric",
       "adjective": "Vampiric",
-      "description": "Heal 15% of damage dealt on each strike, rounded down",
+      "description": "Heal 15% of damage dealt on each strike, rounded down, at most 2 HP a strike",
       "lore": "Soldiers who carried one stopped eating their rations. Nobody asked why.",
       "weight": 10,
       "effect": {
         "type": "combatMods",
-        "combatMods": { "drainPercent": 0.15 }
+        "combatMods": { "drainPercent": 0.15, "drainMaxPerHit": 2 }
       },
       "stone": {
         "name": "Vampiric Imbuing Stone",

@@ -22,7 +22,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Two HP buys a surer edge: +20 Hit, +5 Crit.",
+      "description": "A patient cut that finds the gap in any guard.",
       "combatMods": {
         "hitBonus": 20,
         "critBonus": 5,
@@ -87,7 +87,7 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Low sweep meant for wings; triples weapon might against fliers.",
+      "description": "A low sweep meant to cut fliers out of the sky.",
       "combatMods": {
         "effectiveness": {
           "moveTypes": [
@@ -243,7 +243,7 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Its cut leaves the target 4 Speed slower.",
+      "description": "A cut to the tendons that slows the target's feet.",
       "effects": {
         "afterCombat": [
           {
@@ -275,7 +275,7 @@
       "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Venom on the edge eats 5 more HP once blades part.",
+      "description": "Venom on the edge keeps working once blades part.",
       "effects": {
         "afterCombat": [
           {
@@ -389,7 +389,7 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Three blurred cuts, each landing at sixty percent.",
+      "description": "A flurry of quick, light cuts too fast to follow.",
       "allowedFactions": [
         "player"
       ],
@@ -483,7 +483,7 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Strike, then retreat 1 tile after combat if a hit lands and space permits. The enemy can still counterattack before you retreat.",
+      "description": "Strike, then fall back before the line closes.",
       "effects": {
         "afterCombat": [
           {
@@ -646,7 +646,7 @@
       "hpCost": 5,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Held long, the lance threatens tiles one and two out.",
+      "description": "Held long, the lance keeps foes at a distance.",
       "allowedFactions": [
         "player"
       ],
@@ -733,7 +733,7 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Reckless overhead swing with +20 Hit and +20 Crit.",
+      "description": "A reckless overhead swing that rarely misses its mark.",
       "combatMods": {
         "hitBonus": 20,
         "critBonus": 20,
@@ -777,7 +777,7 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Overhead blow that splits plate; triples weapon might against armored foes.",
+      "description": "An overhead blow that splits plate like kindling.",
       "combatMods": {
         "effectiveness": {
           "moveTypes": [
@@ -828,7 +828,7 @@
       "hpCost": 8,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Enormous force, clumsy aim: +14 might, -10 Hit.",
+      "description": "Enormous force, clumsy aim.",
       "combatMods": {
         "atkBonus": 14,
         "hitBonus": -10,
@@ -850,7 +850,7 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Nothing held back, wild power and +30 Crit.",
+      "description": "Nothing held back: wild power and wilder luck.",
       "combatMods": {
         "atkBonus": 10,
         "hitBonus": -15,
@@ -904,7 +904,7 @@
       "hpCost": 7,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A roar that lends nearby allies +3 Strength.",
+      "description": "A roar that fires up every ally within earshot.",
       "effects": {
         "allyBuff": {
           "range": 2,
@@ -990,7 +990,7 @@
       "hpCost": 6,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Nearby allies rally for +3 Strength and +10 Crit.",
+      "description": "One great blow, and the whole line takes heart.",
       "allowedFactions": [
         "player"
       ],
@@ -1118,7 +1118,7 @@
       "hpCost": 4,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Pins the target where it stands for one turn.",
+      "description": "Pins the target where it stands.",
       "effects": {
         "afterCombat": [
           {
@@ -1149,7 +1149,7 @@
       "hpCost": 4,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Fletched against magic, it gags a caster for a turn.",
+      "description": "Fletched against magic, it gags a caster.",
       "effects": {
         "afterCombat": [
           {
@@ -1276,7 +1276,7 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Reaches three tiles farther, though the aim strains.",
+      "description": "Reaches far beyond the line, though the aim strains.",
       "allowedFactions": [
         "player"
       ],
@@ -1472,7 +1472,7 @@
       "hpCost": 7,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Wounds the enemy and mends you for a third of it.",
+      "description": "Wounds the enemy and mends you from the wound.",
       "combatMods": {
         "drainPercent": 0.3,
         "hitBonus": 10,
@@ -1498,7 +1498,7 @@
       "hpCost": 5,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Casts two tiles out, at some cost to accuracy.",
+      "description": "Casts farther out, at some cost to accuracy.",
       "allowedFactions": [
         "player"
       ],
@@ -1601,7 +1601,7 @@
       "hpCost": 8,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Chokes off the target's magic for two full turns.",
+      "description": "Chokes off the target's magic.",
       "allowedFactions": [
         "player"
       ],
@@ -1727,7 +1727,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Replaces the normal Oathblade attack with 3 strikes at 60% damage each, with +8 Attack, +10 Hit and +10 Crit. No Speed follow-up; enemies can still counterattack. After landing a hit, retreat 1 tile if space permits. Costs 8 HP upfront (before cost reductions); no additional HP penalty after combat.",
+      "description": "Oathblade's phantom cuts, then a step back into shadow.",
       "allowedFactions": [
         "player"
       ],
@@ -1812,7 +1812,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Oathaxe's triple storm buffs allies and drops you to 5 HP.",
+      "description": "Oathaxe's triple storm spends everything you have.",
       "allowedFactions": [
         "player"
       ],
@@ -1954,7 +1954,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Namethief feeds; 150% of the wound comes back as HP.",
+      "description": "Namethief feeds, and the wound comes back as your own.",
       "allowedFactions": [
         "player"
       ],
@@ -2112,7 +2112,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Ruin ignores the triangle; a kill leaves you +4 Str/+4 Spd.",
+      "description": "Ruin cares nothing for the triangle, and a kill spurs you on.",
       "allowedFactions": [
         "player"
       ],
@@ -2201,7 +2201,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Breachbolt calls thunder down across two tiles.",
+      "description": "Breachbolt calls thunder down across a wide circle.",
       "allowedFactions": [
         "player"
       ],

@@ -182,6 +182,30 @@ export function checkLevelUpSkills(unit, classesData, droppedSkills = []) {
   return learned;
 }
 
+/**
+ * The level at which each skill checkLevelUpSkills can grant becomes available to the
+ * unit in its current class: class curriculum levels, promoted level 10 for the base
+ * line's missed skills, and the lord's personal skill (base 20 / promoted 10).
+ * Map of skillId → gate level (the lowest when several sources grant it).
+ */
+export function skillGateLevels(unit, classesData = []) {
+  const gates = new Map();
+  const add = (skillId, level) => {
+    if (!skillId) return;
+    if (!gates.has(skillId) || level < gates.get(skillId)) gates.set(skillId, level);
+  };
+  const cls = classesData.find((c) => c.name === unit?.className);
+  for (const entry of cls?.learnableSkills || []) add(entry.skillId, entry.level);
+  if (unit?.tier === 'promoted') {
+    const lineBase = unitBaseClassName(unit, classesData);
+    const baseClass = lineBase ? classesData.find((c) => c.name === lineBase) : null;
+    for (const entry of baseClass?.learnableSkills || []) add(entry.skillId, 10);
+  }
+  if (unit?._personalSkillL20)
+    add(unit._personalSkillL20.skillId, unit.tier === 'promoted' ? 10 : 20);
+  return gates;
+}
+
 // --- Unit creation ---
 
 /**
@@ -1606,6 +1630,37 @@ export function isUnarmed(unit) {
   return fighter && getCombatWeapons({ ...unit, inventory: unit.inventory || [] }).length === 0;
 }
 
+/**
+ * The weapon a revived unit is handed when it has nothing to fight (or heal) with:
+ * death sends its gear to the convoy. The Iron weapon of its first combat
+ * proficiency, or a Heal staff for a staff-only unit without one. Null when it is
+ * already armed or its bag is full. Pure: returns the catalog weapon.
+ */
+export function reviveStarterWeapon(unit, allWeapons, max = 5) {
+  if (!unit || !Array.isArray(unit.proficiencies) || !unit.proficiencies.length) return null;
+  const inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
+  if (inventory.length >= max) return null;
+  const fighter = unit.proficiencies.some((p) => p?.type && p.type !== 'Staff');
+  const needs = fighter ? isUnarmed({ ...unit, inventory }) : !hasStaff({ ...unit, inventory });
+  if (!needs) return null;
+  return getDefaultWeapon(unit.proficiencies, allWeapons || []) || null;
+}
+
+/** "an Iron Axe", "a Heal": an item name with its indefinite article. */
+export function withIndefiniteArticle(name) {
+  const text = String(name || '');
+  return `${/^[aeiou]/i.test(text) ? 'an' : 'a'} ${text}`;
+}
+
+/** Give a revived unit its reviveStarterWeapon, equipped. Returns the carried copy or null. */
+export function grantReviveStarterWeapon(unit, allWeapons, max = 5) {
+  const weapon = reviveStarterWeapon(unit, allWeapons, max);
+  if (!weapon || !addToInventory(unit, weapon, max)) return null;
+  const carried = unit.inventory[unit.inventory.length - 1];
+  if (carried.type !== 'Staff') equipWeapon(unit, carried);
+  return carried;
+}
+
 /** True if removing this weapon would leave the unit with no combat weapons. */
 export function isLastCombatWeapon(unit, weapon) {
   const combatWeapons = getCombatWeapons(unit);
@@ -1641,6 +1696,7 @@ export function getCombatWeapons(unit) {
 /** Apply accessory stat bonuses (sign=1 to add, sign=-1 to remove). */
 function applyAccessoryStats(unit, accessory, sign) {
   if (!accessory?.effects) return;
+  if (sign > 0) settleAccessoryHpOwed(unit); // judged against the max HP before this bonus
   for (const [stat, value] of Object.entries(accessory.effects)) {
     if (stat === 'MOV') {
       unit.mov = (unit.mov || unit.stats.MOV) + value * sign;
@@ -1649,18 +1705,46 @@ function applyAccessoryStats(unit, accessory, sign) {
       unit.stats[stat] = (unit.stats[stat] || 0) + value * sign;
     }
   }
-  // Sync currentHP with max HP changes. Equipping raises current HP with max HP;
-  // unequipping keeps missing HP constant, floored at 1 and never raising HP (a
-  // unit at 0 stays at 0), so an equip/unequip loop cannot heal: 10/20 → 15/25 → 10/20.
+  // Sync currentHP with max HP changes. Unequipping keeps missing HP constant but
+  // never kills: the floor at 1 is HP the unit did not pay for, so it is owed
+  // (`_accessoryHpOwed`) and the next HP bonus pays it back before raising HP. So no
+  // equip/unequip loop heals: 10/20 → 15/25 → 10/20, and 1/25 → 1/20 → 1/25.
   const hp = accessory.effects.HP;
   if (hp) {
     if (sign > 0) {
-      unit.currentHP += hp;
+      const owed = hp > 0 ? Math.min(hp, accessoryHpOwed(unit)) : 0;
+      unit.currentHP += hp - owed;
+      setAccessoryHpOwed(unit, accessoryHpOwed(unit) - owed);
     } else {
       const current = unit.currentHP;
-      unit.currentHP = Math.min(unit.stats.HP, Math.max(Math.min(current, 1), current - hp));
+      const target = current - hp;
+      unit.currentHP = Math.min(unit.stats.HP, Math.max(Math.min(current, 1), target));
+      if (current > 0 && target < unit.currentHP)
+        setAccessoryHpOwed(unit, accessoryHpOwed(unit) + (unit.currentHP - target));
     }
   }
+}
+
+function accessoryHpOwed(unit) {
+  const owed = Math.trunc(Number(unit?._accessoryHpOwed) || 0);
+  return owed > 0 ? owed : 0;
+}
+
+function setAccessoryHpOwed(unit, amount) {
+  if (amount > 0) unit._accessoryHpOwed = amount;
+  else delete unit._accessoryHpOwed;
+}
+
+/**
+ * Forget HP a unit owes from taking off an HP accessory at critical HP once it no
+ * longer matters: the unit is back at full HP (it rested or was healed past the
+ * debt) or is down. Revival starts a unit afresh, so it clears the debt outright.
+ */
+export function settleAccessoryHpOwed(unit) {
+  if (!unit || typeof unit !== 'object' || unit._accessoryHpOwed === undefined) return;
+  const current = Number(unit.currentHP);
+  const max = Number(unit.stats?.HP);
+  if (!accessoryHpOwed(unit) || !(current > 0) || current >= max) delete unit._accessoryHpOwed;
 }
 
 /**

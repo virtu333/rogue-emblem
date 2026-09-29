@@ -621,6 +621,23 @@
   }
 }
 
+/* ───────── Latest: the save played last wears a gold rim ───────── */
+.sp-card.is-latest {
+  border-color: var(--re-gold);
+  box-shadow:
+    inset 0 2px 0 var(--sp-mood),
+    inset 0 0 0 1px var(--re-gold);
+}
+.sp-latest {
+  flex-shrink: 0;
+  font: var(--re-pf-8, 8px)/1.4 var(--re-pixel);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--re-gold-hi);
+  padding: 2px 5px;
+  border: 1px solid var(--re-gold);
+}
+
 /* ───────── Kindle: the chosen candle flares ───────── */
 .sp-card.is-kindling {
   border-color: var(--re-accent);

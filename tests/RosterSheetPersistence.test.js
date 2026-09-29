@@ -15,6 +15,7 @@ import { saveServiceRun } from '../src/ui/serviceSave.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { createRecruitUnit } from '../src/engine/UnitManager.js';
 import { _resetInputFocus } from '../src/utils/inputFocus.js';
+import { commitBattleDeeds, emptyBattleDeeds, unitEpithet } from '../src/engine/DeedSystem.js';
 
 const gameData = loadGameData();
 const cls = (name) => gameData.classes.find((c) => c.name === name);
@@ -110,6 +111,36 @@ describe('roster sheet saves each change as it applies', () => {
     expect(rows).toContain(
       `${fighter.name}Items ${fighter.inventory.length}/5 · Needs Lance proficiency`,
     );
+    sheet.destroy();
+  });
+
+  it('choosing a title and an Oath (playtest 2026-09-28)', () => {
+    const { sheet, fighter } = setup();
+    fighter.faction = 'player'; // as a recruit is once it joins
+    fighter._battleDeeds = {
+      ...emptyBattleDeeds(),
+      heldPhases: 3,
+      heldPlaces: ['Bridge', 'Bridge', 'Bridge'],
+      crits: 3,
+    };
+    commitBattleDeeds([fighter], gameData.deeds, { battleKey: 'roster-choice' });
+    sheet.index = sheet.units.indexOf(fighter);
+    sheet.render();
+    const press = (label) => {
+      const b = sheet.root.querySelectorAll('button').find((x) => x.textContent === label);
+      expect(b, label).toBeTruthy();
+      b.click();
+    };
+    press('Use as title');
+    expect(unitEpithet(fighter).text).toBe('the Keen Edge');
+    expect(saveServiceRun).toHaveBeenCalledTimes(1);
+    press('No title');
+    expect(unitEpithet(fighter)).toBeNull();
+    press('Greatest deed');
+    expect(unitEpithet(fighter).text).toBe('Who Held the Bridge');
+    press('Oath of the Edge · Critical +15');
+    expect(fighter.deeds.pledge).toBe('keen_edge');
+    expect(saveServiceRun).toHaveBeenCalledTimes(4);
     sheet.destroy();
   });
 

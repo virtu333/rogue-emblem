@@ -74,7 +74,7 @@ Story is delivered through brief text boxes with speaker portraits at key moment
 | Act 2 → Act 3 | Edric | "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant." |
 | Act 3 → Final Boss (Normal) | Sera | "The lieutenant is near. I can feel their visions pressing against mine. This ends now." |
 | Victory (Normal) | Sera | "The lieutenant has fallen. The visions are clearing... but something deeper still stirs. I can feel it." |
-| Act 3 → Act 4 (Hard/Lunatic) | Sera | "The lieutenant is gone, but the corruption hasn't stopped. It's stronger. The ritual — the emperor must have completed it before we—" / Edric: "Then we go to him." |
+| Act 3 → Act 4 (Hard/Lunatic) | Sera | "Their captains are broken, but the corruption hasn't stopped. It's stronger. The ritual — the emperor must have completed it before we—" / Edric: "Then we go to him." |
 | Act 4 → Final Boss (Hard/Lunatic) | Edric | "The emperor's stronghold. He thinks he can control what he's awakened. He's wrong." |
 | Victory (Hard) | Sera | "The emperor is defeated. The ritual is broken... mostly. I still see something beneath it all. Sleeping, but not for long." |
 | Final Boss defeated (Lunatic) | Sera | "Wait — the ground is shaking. The ritual fed it too much. It's waking up. We have to go down there. Now." |
@@ -91,7 +91,7 @@ Story is delivered through brief text boxes with speaker portraits at key moment
 | Blade Lord (Act 3) | "The lieutenant sees all paths. You walk the one that ends in your grave." |
 | Iron Wall (Act 3) | "None have breached these walls. None ever will." |
 | The Lieutenant (Act 3 Final / Normal endpoint) | "I've seen every future you could reach. In all of them, you fall." |
-| The Emperor (Act 4 Final / Hard endpoint) | "You think you've won something by killing my seer? I don't need visions. I have power." |
+| The Emperor (Act 4 Final / Hard endpoint) | "You think you've won something by breaking my captains? I don't need them. I have power." |
 | The Entity (Secret Boss / Lunatic) | *(No dialogue. Screen distortion. A low, resonant hum that grows louder. The text box shows: "...".)* |
 
 **Boss defeat lines:**
@@ -140,7 +140,7 @@ When Sera IS selected as the second lord and falls in battle, she is simply **un
     "act2_to_act3": { "speaker": "Edric", "portrait": "edric", "line": "The sacred ground ahead is corrupted..." },
     "act3_to_finalBoss_normal": { "speaker": "Sera", "portrait": "sera", "line": "The lieutenant is near..." },
     "act3_to_act4": [
-      { "speaker": "Sera", "portrait": "sera", "line": "The lieutenant is gone, but the corruption hasn't stopped..." },
+      { "speaker": "Sera", "portrait": "sera", "line": "Their captains are broken, but the corruption hasn't stopped..." },
       { "speaker": "Edric", "portrait": "edric", "line": "Then we go to him." }
     ],
     "act4_to_finalBoss": { "speaker": "Edric", "portrait": "edric", "line": "The emperor's stronghold..." },

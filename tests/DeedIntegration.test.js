@@ -150,7 +150,7 @@ describe('Oaths', () => {
     expect(result.notices).toContain('Oath of the Bridge: learned Pavise.');
   });
 
-  it('church promotion swears the Oath; the skill cap drops it visibly', () => {
+  it('church promotion swears the Oath; at the skill cap it waits, and says so', () => {
     const run = new RunManager(data);
     run.gold = 99999;
     const unit = withDeed(fighter(), bridge);
@@ -162,9 +162,11 @@ describe('Oaths', () => {
     full.skills = ['sol', 'luna', 'astra', 'vantage', 'wrath'];
     run.roster = [full];
     const capped = promoteAtChurch(run, full, 'c2', target, data);
-    expect(capped.message).toContain('could not learn');
-    expect(capped.message).toContain('Pavise');
+    expect(capped.message).toContain(
+      'Skill slots full: Oath of the Bridge waits in Deeds until Bram gives up a skill for it.',
+    );
     expect(full.deeds.oath).toBeUndefined();
+    expect(full.deeds.waitingOath).toMatchObject({ skillId: 'pavise' });
   });
 
   it('the path chooser and the rite preview the Oath exactly as applied', () => {
@@ -323,6 +325,15 @@ describe('DeedController', () => {
     expect(hero.deeds.stats).toMatchObject({ kills: 1, battles: 1 });
     expect(deeds.commitVictory([hero])).toEqual([]); // same battle: no-op
     expect(hero.deeds.stats.battles).toBe(1);
+  });
+
+  it('a victory tells the save which deeds its army earned (the Compendium lists them)', () => {
+    const hero = fighter();
+    hero._battleDeeds = { ...emptyBattleDeeds(), ...bridge };
+    const recordDeedsEarned = vi.fn();
+    const s = scene({ registry: { get: (k) => (k === 'meta' ? { recordDeedsEarned } : null) } });
+    new DeedController(s).commitVictory([hero]);
+    expect(recordDeedsEarned).toHaveBeenCalledWith(['held_the_line']);
   });
 
   it('heals count only HP actually restored to someone else', () => {

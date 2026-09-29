@@ -12,7 +12,7 @@ import {
   getCombatWeapons,
   normalizeEquippedFirst,
 } from './UnitManager.js';
-import { applyPromotionOath } from './DeedSystem.js';
+import { applyPromotionOath, oathWaitingNote } from './DeedSystem.js';
 
 export function rosterClassChangeBlock(run, unit, item, gameData) {
   if (!run?.roster?.includes(unit)) return 'Unit is no longer in the roster.';
@@ -91,7 +91,7 @@ function promote(unit, item, promotedClassData, gameData) {
   const oath = applyPromotionOath(unit, gameData);
   const droppedSkills = [...(promotionResult?.droppedSkills || [])];
   if (oath?.learned) notices.push(`${oath.name}: learned ${oath.skillName}.`);
-  if (oath?.dropped) droppedSkills.push(oath.skillId);
+  if (oath?.waiting) notices.push(oathWaitingNote(unit, oath));
 
   for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData, true)) {
     if (!addToInventory(unit, newWeapon))

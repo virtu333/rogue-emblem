@@ -314,6 +314,15 @@
   cursor: pointer;
 }
 
+/* Its points: a plain list, one idea a line. */
+.mobile-battle-hud .mb-reading {
+  margin: 0;
+  padding-left: 1.2em;
+}
+.mobile-battle-hud .mb-reading li + li {
+  margin-top: 4px;
+}
+
 /* The forecast's scrolling rows fade out at the edge instead of slicing a line in
    half; the padding lets the last row clear the fade once scrolled to the end. */
 .mobile-battle-hud .mb-forecast-sides {

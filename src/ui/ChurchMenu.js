@@ -1,3 +1,4 @@
+import { settleAccessoryHpOwed } from '../engine/UnitManager.js';
 import { revivalCatchUpPlan } from '../engine/RevivalCatchUp.js';
 import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
@@ -7,7 +8,13 @@ import { ChoicePicker } from './ChoicePicker.js';
 import { withUnitFace } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { saveServiceRun } from './serviceSave.js';
-import { canPromote, resolvePromotionTargets, getDisplayLevel } from '../engine/UnitManager.js';
+import {
+  canPromote,
+  resolvePromotionTargets,
+  getDisplayLevel,
+  reviveStarterWeapon,
+  withIndefiniteArticle,
+} from '../engine/UnitManager.js';
 import { getReviveCost } from '../engine/RunManager.js';
 import {
   churchPromotionBlock,
@@ -28,7 +35,7 @@ import {
 } from '../engine/RuinsCommands.js';
 import { eclipsePhase, kindlePrice } from '../engine/EclipseSystem.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
-import { CHURCH_PROMOTE_COST, RUINS_SHOP_MARKUP } from '../utils/constants.js';
+import { CHURCH_PROMOTE_COST, RUINS_SHOP_MARKUP, INVENTORY_MAX } from '../utils/constants.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 // The sanctuary's band kicker: both paths before the choice, the chosen one after.
@@ -38,6 +45,11 @@ const RUINS_KICKER = Object.freeze({
   scavenge: 'Scavenge · Wares',
 });
 const ruinsMarkupPct = () => Math.round((RUINS_SHOP_MARKUP - 1) * 100);
+// Revive preview: the weapon an unarmed fallen unit is handed back (reviveStarterWeapon).
+const starterLine = (unit, gameData) => {
+  const weapon = reviveStarterWeapon(unit, gameData?.weapons || [], INVENTORY_MAX);
+  return weapon ? ` Comes back carrying ${withIndefiniteArticle(weapon.name)}.` : '';
+};
 export function ruinsPathLabel(path) {
   return path === 'rest'
     ? 'Rest — heal everyone, revive the fallen'
@@ -109,7 +121,10 @@ export class ChurchMenu {
           this.finish(healAtRuins(run, nodeId));
           return;
         }
-        for (const u of run.roster) u.currentHP = u.stats.HP;
+        for (const u of run.roster) {
+          u.currentHP = u.stats.HP;
+          settleAccessoryHpOwed(u);
+        }
         this.finish({ ok: true, message: 'All units healed.' });
       }),
     );
@@ -128,13 +143,16 @@ export class ChurchMenu {
           confirmation: true,
           label: (u) => u.name,
           describe: () =>
-            `${getReviveCost(unit)} gold. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels toward the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
+            `${getReviveCost(unit)} gold. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels toward the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'}${starterLine(unit, this.scene.gameData)} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
           blocked: (u) => reviveBlock(u),
           apply: (u) => this.finish(ruins ? reviveAtRuins(run, nodeId, u) : reviveAtChurch(run, u)),
         }),
       );
       b.disabled = !!reason;
       body.append(withUnitFace(b, this.scene, this.scene.gameData, unit));
+      const info = button(`${unit.name}'s details`, () => this.fallenDetails(unit));
+      info.classList.add('church-fallen-details');
+      body.append(info);
       if (reason) body.append(el('p', reason));
     }
     if (!ruins) {
@@ -373,6 +391,26 @@ export class ChurchMenu {
         this.surface.root.inert = false;
         if (next) return next();
         this.render();
+        this.surface.focusContent();
+      },
+    });
+  }
+  /** Read-only unit sheet for a fallen ally, opened from the revive list. */
+  fallenDetails(unit) {
+    if (this.child) return;
+    const fallen = this.scene.runManager.fallenUnits || [];
+    this.surface.root.inert = true;
+    this.child = new MobileRosterSheet({
+      scene: this.scene,
+      run: null,
+      units: fallen,
+      index: Math.max(0, fallen.indexOf(unit)),
+      gameData: this.scene.gameData,
+      onClose: () => {
+        this.child.destroy();
+        this.child = null;
+        if (!this.surface || this.destroyed) return;
+        this.surface.root.inert = false;
         this.surface.focusContent();
       },
     });

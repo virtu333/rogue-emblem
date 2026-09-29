@@ -1,12 +1,12 @@
 // MapTemplateEngine.js - Map template contract helpers (including reinforcements).
 
+import { DIFFICULTY_IDS } from './DifficultyEngine.js';
 import { ENTITY_FOOTPRINT } from '../utils/constants.js';
 
 export const REINFORCEMENT_CONTRACT_VERSION = 1;
 
 const TEMPLATE_OBJECTIVES = ['rout', 'seize', 'escape'];
 const VALID_EDGES = new Set(['left', 'right', 'top', 'bottom']);
-const DIFFICULTY_IDS = ['normal', 'hard', 'lunatic'];
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);

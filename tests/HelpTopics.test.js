@@ -5,6 +5,7 @@ import {
   convoyHelp,
   objectiveHelp,
   terrainHelp,
+  SCROLLS_HELP,
   WEAPON_ARTS_HELP,
 } from '../src/ui/helpTopics.js';
 import { helpBlockText, helpPreview } from '../src/ui/ContextHelp.js';
@@ -127,6 +128,7 @@ describe('help topics', () => {
       ...combatBaselineHelp(unit(axe), { avoid: 41 }),
       ...attributesHelp(),
       ...WEAPON_ARTS_HELP,
+      ...SCROLLS_HELP,
       ...convoyHelp({ weapons: 5, consumables: 3 }),
       ...MASTERY_HELP,
     ];

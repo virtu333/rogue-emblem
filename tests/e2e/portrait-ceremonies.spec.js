@@ -767,7 +767,7 @@ for (const viewport of PORTRAIT_PHONES) {
         window.__linesDone = false;
         void window.__lines.showSequence(entries).then(() => (window.__linesDone = true));
       });
-      await expect(dialogue.locator('p')).toContainText('The lieutenant is gone');
+      await expect(dialogue.locator('p')).toContainText('Their captains are broken');
       const wrap = await dialogue.evaluate((el) => {
         const face = el.querySelector('.re-dialogue-copy > img').getBoundingClientRect();
         const copy = el.querySelector('.re-dialogue-copy');

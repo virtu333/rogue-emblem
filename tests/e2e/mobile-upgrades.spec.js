@@ -22,7 +22,7 @@ test('real purchase, refund fee, selection, scroll and saved reload', async ({ p
   const row = page.locator('[data-upgrade="recruit_hp_growth"]');
   await row.tap();
   await expect(page.locator('.mu-effects')).toContainText('Next: +5%');
-  await page.getByRole('button', { name: `Buy · ${cost} supply`, exact: true }).tap();
+  await page.getByRole('button', { name: `Buy · ${cost} Supply`, exact: true }).tap();
   await expect(row).toHaveAttribute('aria-pressed', 'true');
   await expect(row).toContainText('Tier 1 / 5');
   await expect(page.locator('.mu-currency.active')).toContainText(String(1000 - cost));
@@ -99,7 +99,7 @@ test('unaffordable, maxed and milestone-locked upgrades explain their state', as
     s.mobileUpgrades.render();
   });
   await expect(page.locator('.mu-buy')).toBeDisabled();
-  await expect(page.locator('.mu-requirements')).toContainText('Not enough supply');
+  await expect(page.locator('.mu-requirements')).toContainText('Not enough Supply');
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('HomeBase');
     s.meta.purchasedUpgrades.recruit_hp_growth = 5;

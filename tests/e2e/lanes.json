@@ -138,6 +138,7 @@
       "description": "The run around the battles: route, recruits, rewards, growth, guidance, saves, recovery and full journeys",
       "shards": 3,
       "specs": [
+        "battle-entry-music.spec.js",
         "choice-screens.spec.js",
         "deeds.spec.js",
         "eclipse.spec.js",

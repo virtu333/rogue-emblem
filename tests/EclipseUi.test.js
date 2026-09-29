@@ -126,7 +126,7 @@ describe('Eclipse copy', () => {
     expect(text).toMatch(new RegExp(`lifts ${config.bossRelief}`));
     expect(text).toMatch(/−8, 1000 G here/);
     expect(text).toMatch(/1 level higher/);
-    expect(text).toMatch(/as often as on Hard/);
+    expect(text).toMatch(/as often as on Nightfall/);
     expect(text).toMatch(/1 more affix/);
     expect(text).toMatch(/falls in 2 more shadow/);
     const pale = eclipseExplainer(

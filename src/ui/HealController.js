@@ -321,7 +321,11 @@ export class HealController {
     if (tiles.length === 0) return; // phase-1 filter should prevent this
     scene.staffRelocateAlly = ally;
     scene.staffRelocateTiles = tiles;
-    scene.grid.showAttackRange(tiles, UI_HEX.lineStrong, 0.4);
+    scene.grid.showRelocateGuide(ally, tiles, {
+      reduceMotion: Boolean(scene._reduceMotion?.()),
+      fill: UI_HEX.accent,
+      edge: UI_HEX.accentText,
+    });
     scene.battleState = 'SELECTING_STAFF_TILE';
   }
 
@@ -355,11 +359,9 @@ export class HealController {
       await this.animateRelocate(ally, dest);
       observeHistoryAction(scene, 'relocated', healer, ally, healer.weapon?.name);
 
-      // A long-range landing can change fog visibility.
-      if (scene.grid.fogEnabled) {
-        scene.grid.updateFogOfWar(scene.playerUnits);
-        scene.updateEnemyVisibility();
-      }
+      // The landing's vision lifts the fog only when the caster's action is
+      // committed (finishUnitAction, or where Canto ends), with the suspend save.
+      scene.refreshVisibleDangerZone?.();
 
       // Spend a use and check depletion (same pattern as executeHeal)
       spendStaffUse(staff);

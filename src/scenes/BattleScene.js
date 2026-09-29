@@ -23,7 +23,14 @@ import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
 import { presentationText, isolateBattleTextFactory } from '../utils/presentationText.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
-import { canInspectUnit, statusStaffThreat } from '../engine/BattleInformation.js';
+import {
+  canInspectUnit,
+  seenTileOccupant,
+  statusStaffThreat,
+} from '../engine/BattleInformation.js';
+import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
+import { isDifficultyAtLeast } from '../engine/DifficultyEngine.js';
+import { applyDevScenario } from '../utils/devScenarios.js';
 import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.js';
 import { earlyEnemyAllowed } from '../engine/EarlyEnemyRules.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -91,6 +98,7 @@ import {
   resolvePromotionTargetClass,
   grantSecondaryWeapons,
   checkLevelUpSkills,
+  skillGateLevels,
   hasProficiency,
   canEquip,
   applyStatBoost,
@@ -98,6 +106,7 @@ import {
   getReclassTargets,
   reclassUnit,
   inventoryDisplayOrder,
+  settleAccessoryHpOwed,
 } from '../engine/UnitManager.js';
 import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
 import { getXpShareRatio, getXpShareRecipients, calculateSharedXp } from '../engine/XpShare.js';
@@ -187,6 +196,7 @@ import {
   computeLavaCrackHp,
   isAcidTerrainIndex,
   isLavaCrackTerrainIndex,
+  lavaBurnBanner,
 } from '../engine/TerrainHazards.js';
 import {
   applyCondition,
@@ -238,7 +248,7 @@ import {
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
 import { buildRecruitNodeUnit, spawnTilesForDeployment } from '../engine/RecruitNodeSystem.js';
-import { battleDeployCount } from '../engine/BattleDeployCount.js';
+import { battleDeployCount, resolveDeployLimits } from '../engine/BattleDeployCount.js';
 import {
   adaptDialogueEntries,
   adaptDialogueLine,
@@ -354,6 +364,13 @@ const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 
 /** Reset per-battle state on a unit at deploy time. */
+/** An enemy the fog hides from the player (as updateEnemyVisibility draws it). */
+function isHiddenEnemy(grid, unit) {
+  if (!grid?.fogEnabled || unit?.faction !== 'enemy') return false;
+  if (isEntity(unit)) return !getFootprint(unit).some((t) => grid.isVisible(t.col, t.row));
+  return !grid.isVisible(unit.col, unit.row);
+}
+
 export function resetUnitForBattle(unit) {
   delete unit._legendaryGraceTurn;
   unit.hasMoved = false;
@@ -490,9 +507,15 @@ export class BattleScene extends Phaser.Scene {
 
     // Determine deploy limits for this act (+ meta upgrade bonus)
     const act = this.battleParams.act || 'act1';
-    const baseLimits = DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1;
-    const deployBonus = this.runManager?.getDeployBonus?.() || 0;
-    const limits = { min: baseLimits.min + deployBonus, max: baseLimits.max + deployBonus };
+    // A re-entered battle keeps its locked map, so it deploys no more units than that
+    // map has spawns (resolveDeployLimits).
+    const limits = resolveDeployLimits({
+      base: DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1,
+      deployBonus: this.runManager?.getDeployBonus?.() || 0,
+      lockedSpawnCount: this.battleParams?.tutorialMode
+        ? null
+        : this.runManager?.getLockedSpawnCount?.(this.nodeId),
+    });
 
     if (this._resumeCheckpoint) {
       // Resuming a suspended battle -- units come from the checkpoint
@@ -526,7 +549,9 @@ export class BattleScene extends Phaser.Scene {
     this._sceneShutdownCleanedUp = true;
 
     const audio = this.registry.get('audio');
-    if (audio) audio.releaseMusic(this, 0);
+    // Turning the phone re-opens the battle from its checkpoint; the re-opened scene
+    // asks for the same track, which then plays on from where it was.
+    if (audio && !this._portraitBattle?.switching) audio.releaseMusic(this, 0);
     this._musicCtrl?.destroy();
     this._musicCtrl = null;
     this._formation?.destroy();
@@ -1409,8 +1434,15 @@ export class BattleScene extends Phaser.Scene {
           lordsFirst: Boolean(bc.npcSpawn),
         });
         for (let i = 0; i < deployedRoster.length; i++) {
-          if (!tiles[i]) continue;
           const unit = deployedRoster[i];
+          if (!tiles[i]) {
+            // No spawn left for this unit: bench it rather than lose it. A unit on
+            // neither the field nor the bench is counted as fallen at victory.
+            console.warn(`[BattleScene] No spawn tile for ${unit?.name}; benched.`);
+            this.nonDeployedUnits.push(unit);
+            registerBattleEntity(this, unit);
+            continue;
+          }
           unit.col = tiles[i].col;
           unit.row = tiles[i].row;
           resetUnitForBattle(unit);
@@ -1896,6 +1928,8 @@ export class BattleScene extends Phaser.Scene {
           isElite: this.isElite,
         }),
         releaseFirst: Boolean(this.battleParams?.tutorialMode),
+        // After a turn of the phone the track plays on: ease its calm/full level.
+        intensityFadeMs: this._presentationSwitch ? 600 : 0,
       });
 
       // Initial fog of war update
@@ -1926,7 +1960,7 @@ export class BattleScene extends Phaser.Scene {
           showContextualHint(
             this,
             'battle_fog',
-            'Fog of War \u2014 enemies beyond vision range are hidden.',
+            'Fog of War \u2014 enemies beyond sight are hidden. The fog lifts when an action ends.',
           );
         }
       }
@@ -2019,6 +2053,8 @@ export class BattleScene extends Phaser.Scene {
           await this._formation.run();
           if (!this._isSceneActiveForAsync()) return;
         }
+        // Dev/preview review setups only (devStartup sets battleParams.devScenario).
+        if (this.battleParams?.devScenario) applyDevScenario(this);
         this._bossPresence?.sync();
         this.turnManager.startBattle();
       }
@@ -2569,10 +2605,10 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    // Grant secondary weapons for multi-proficiency enemies on Hard/Lunatic
+    // Grant secondary weapons for multi-proficiency enemies on Nightfall/Black Sun
     if (!spawn.sunderWeapon && !spawn.poisonWeapon && !spawn.siegeWeapon && !spawn.isEntity) {
       const diffId = this.battleParams?.difficultyId;
-      if (diffId === 'hard' || diffId === 'lunatic') {
+      if (isDifficultyAtLeast(diffId, 'hard')) {
         grantSecondaryWeapons(enemy, this.gameData.weapons, enemy.weapon?.tier || 'Iron');
       }
     }
@@ -3295,6 +3331,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   updateHPBar(unit) {
+    // Every heal in battle redraws the bar: a unit healed to full owes nothing from
+    // an HP accessory it took off, so later damage cannot make the debt stale.
+    settleAccessoryHpOwed(unit);
     let pos, barWidth, barHeight;
     if (isEntity(unit)) {
       const center = getEntityCenter(unit);
@@ -3383,8 +3422,11 @@ export class BattleScene extends Phaser.Scene {
 
   buildUnitPositionMap(moverFaction) {
     const map = new Map();
+    // In fog the player plans around the enemies they can see (FogAmbush.js).
+    const seenOnly = moverFaction === 'player';
     for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       if (!u || u._removing || u.currentHP <= 0) continue;
+      if (seenOnly && isHiddenEnemy(this.grid, u)) continue;
       if (isEntity(u)) {
         for (const tile of getFootprint(u)) {
           map.set(`${tile.col},${tile.row}`, { faction: u.faction });
@@ -3396,10 +3438,11 @@ export class BattleScene extends Phaser.Scene {
     return map;
   }
 
-  buildOccupiedSet(excludeUnit = null) {
+  buildOccupiedSet(excludeUnit = null, { seenOnly = false } = {}) {
     const occupied = new Set();
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       if (!unit || unit === excludeUnit || unit._removing || unit.currentHP <= 0) continue;
+      if (seenOnly && isHiddenEnemy(this.grid, unit)) continue;
       if (isEntity(unit)) {
         for (const tile of getFootprint(unit)) {
           occupied.add(`${tile.col},${tile.row}`);
@@ -3409,6 +3452,64 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     return occupied;
+  }
+
+  /** An enemy the fog hides from the player (as updateEnemyVisibility draws it). */
+  _isHiddenEnemy(unit) {
+    return isHiddenEnemy(this.grid, unit);
+  }
+
+  /**
+   * Cut a player's planned path where it runs into an enemy hidden in the fog
+   * (FogAmbush.js). Returns the path to walk, its movement cost and the ambusher.
+   */
+  _ambushCut(unit, effective) {
+    const path = effective.effectivePath;
+    if (unit?.faction !== 'player' || !this.grid?.fogEnabled)
+      return { path, cost: effective.movementCost, ambusher: null };
+    const occupant = (col, row) =>
+      [...this.enemyUnits, ...this.playerUnits, ...this.npcUnits].find(
+        (u) =>
+          u &&
+          u !== unit &&
+          !u._removing &&
+          u.currentHP > 0 &&
+          (isEntity(u)
+            ? getFootprint(u).some((t) => t.col === col && t.row === row)
+            : u.col === col && u.row === row),
+      ) || null;
+    const cut = ambushStop(path, {
+      hiddenAt: (col, row) => {
+        const found = occupant(col, row);
+        return found && this._isHiddenEnemy(found) ? found : null;
+      },
+      blockedAt: (col, row) => Boolean(occupant(col, row)),
+    });
+    if (!cut.ambusher) return { path, cost: effective.movementCost, ambusher: null };
+    const costMod = this._getCostModifier(unit);
+    const cost = pathCostTo(path, effective.slideSegments, cut.stopIndex, (col, row) =>
+      this.grid.getMoveCost(col, row, unit.moveType, costMod),
+    );
+    return { path: cut.path, cost, ambusher: cut.ambusher };
+  }
+
+  /**
+   * A move stopped by a hidden enemy: the move is locked in (no undo: it has shown
+   * something), the fog lifts from where the unit stands, and the save records it.
+   * The unit may still act.
+   */
+  _resolveAmbush(unit, ambusher, { canto = false } = {}) {
+    observeHistoryAction(this, 'was ambushed by', unit, ambusher);
+    if (this._inputController) this._inputController._pendingMoveAttack = null;
+    const pos = this.grid.gridToPixel(ambusher.col, ambusher.row);
+    this.showMinorHintAt?.(pos.x, pos.y, 'Ambush!', UI_PALETTE.bad);
+    if (canto) return; // Canto's end completes the action, which lifts the fog and saves.
+    unit._movementCommitted = true;
+    this.preMoveLoc = null;
+    this._preFogSnapshot = null;
+    this.commitVisionSnapshotIfPending?.();
+    revealSettledVision(this);
+    this._captureSuspendCheckpoint?.();
   }
 
   /** Get terrain cost reduction for a unit from passive skills (e.g. Pathfinder). */
@@ -3807,8 +3908,14 @@ export class BattleScene extends Phaser.Scene {
 
   /** The rail's Menu opens the pause menu whenever a turn is being planned; Back cancels. */
   canOpenPauseFromMenu() {
+    // Placement too, once nothing of its own (its menu, a unit's options) is open.
+    const placing =
+      this.battleState === FORMATION_STATE &&
+      Boolean(this._formation?.ready) &&
+      !this._formation.menu &&
+      !this._formation.picker;
     return Boolean(
-      ['UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(this.battleState) &&
+      (placing || ['UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(this.battleState)) &&
       this.turnManager?.currentPhase !== 'enemy' &&
       !this.pauseOverlay?.visible &&
       !this.visionDialog &&
@@ -4411,6 +4518,10 @@ export class BattleScene extends Phaser.Scene {
           activeNodeId: this.nodeId,
         }
       : null;
+    // Before turn 1 nothing is saved but the entry: leaving goes back to the map.
+    const placing = this.prePauseState === FORMATION_STATE;
+    const backToMap =
+      placing && this._formation?.canReturnToMap() ? () => this._formation.returnToMap() : null;
     this.pauseOverlay = new PauseOverlay(this, {
       onAbandonWarning: abandonPayout
         ? `Abandon this run?\nKeep ${abandonPayout.valor} Valor and ${abandonPayout.supply} Supply. This run and its gold, items and route progress will end.`
@@ -4424,7 +4535,10 @@ export class BattleScene extends Phaser.Scene {
       onSaveAndExit: saveExitCb,
       onSaveAndExitWarning: fromRewards
         ? 'Your battle and remaining rewards are saved. Resume returns to the map, where you can reopen rewards.'
-        : 'Battle suspended. Choose Resume on the Title screen to pick up where you left off.',
+        : backToMap
+          ? 'The battle has not started. Resume on the Title screen returns to the map; this battle waits there.'
+          : 'Battle suspended. Choose Resume on the Title screen to pick up where you left off.',
+      onBackToMap: backToMap,
       onAbandon: abandonCb,
       campaignMapData,
       gameData: this.gameData,
@@ -4716,7 +4830,7 @@ export class BattleScene extends Phaser.Scene {
 
     let effective;
     try {
-      const occupied = this.buildOccupiedSet(unit);
+      const occupied = this.buildOccupiedSet(unit, { seenOnly: unit.faction === 'player' });
       effective = computeEffectivePath(
         path,
         this.grid.mapLayout,
@@ -4738,8 +4852,7 @@ export class BattleScene extends Phaser.Scene {
       this.deselectUnit();
       return;
     }
-    const finalPath = effective.effectivePath;
-    if (!finalPath || finalPath.length < 2) {
+    if (!effective.effectivePath || effective.effectivePath.length < 2) {
       console.warn('[moveUnit] effectivePath returned null/short path', {
         from,
         to,
@@ -4747,6 +4860,9 @@ export class BattleScene extends Phaser.Scene {
       this.deselectUnit();
       return;
     }
+    // A hidden enemy on the way stops the move short (it may not move at all).
+    const ambush = this._ambushCut(unit, effective);
+    const finalPath = ambush.path;
     const finalDest = finalPath[finalPath.length - 1];
     const rollbackLoc = { col: unit.col, row: unit.row };
     const rollbackMovementSpent = unit._movementSpent;
@@ -4771,12 +4887,13 @@ export class BattleScene extends Phaser.Scene {
     const finalizeMove = () => {
       if (finalizeTriggered || recoveryTriggered) return;
       finalizeTriggered = true;
-      rememberHistoryPath(this, unit, finalPath);
+      if (finalPath.length > 1) rememberHistoryPath(this, unit, finalPath);
       unit.col = finalDest.col;
       unit.row = finalDest.row;
       unit.hasMoved = true;
       try {
         this.updateUnitPosition(unit);
+        if (ambush.ambusher) this._resolveAmbush(unit, ambush.ambusher);
       } catch (err) {
         failMove('Error while finalizing move position update', err);
         return;
@@ -4822,7 +4939,7 @@ export class BattleScene extends Phaser.Scene {
       this.preMoveLoc = { ...rollbackLoc };
       this._preFogSnapshot = null;
       this._preFogSnapshot = this.grid.snapshotFogState();
-      unit._movementSpent = effective.movementCost;
+      unit._movementSpent = ambush.cost;
 
       this.grid.clearHighlights();
       if (unit.graphic.clearTint) unit.graphic.clearTint();
@@ -5017,7 +5134,8 @@ export class BattleScene extends Phaser.Scene {
       if (destC < 0 || destC >= this.grid.cols || destR < 0 || destR >= this.grid.rows) continue;
       const moveCost = this.grid.getMoveCost(destC, destR, ally.moveType);
       if (moveCost === Infinity) continue;
-      if (this.getUnitAt(destC, destR)) continue;
+      // A fogged tile counts as taken: a hidden foe must not show by the option's absence.
+      if (this._seenTileOccupant(destC, destR)) continue;
       targets.push({ ally, destCol: destC, destRow: destR, dc, dr });
     }
     return targets;
@@ -5046,10 +5164,15 @@ export class BattleScene extends Phaser.Scene {
       // Ally moves to unit's old position -- passable for ally?
       const allyDestCost = this.grid.getMoveCost(unit.col, unit.row, ally.moveType);
       if (allyDestCost === Infinity) continue;
-      if (this.getUnitAt(retreatC, retreatR)) continue;
+      if (this._seenTileOccupant(retreatC, retreatR)) continue;
       targets.push({ ally, retreatCol: retreatC, retreatRow: retreatR, dc, dr });
     }
     return targets;
+  }
+
+  /** Taken as far as the player knows: a unit stands there, or fog hides the tile. */
+  _seenTileOccupant(col, row) {
+    return seenTileOccupant(this.grid, (c, r) => this.getUnitAt(c, r))(col, row);
   }
 
   findTradeTargets(unit) {
@@ -5695,7 +5818,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     // Apply computeEffectivePath for ice slides
-    const cantoOccupied = this.buildOccupiedSet(unit);
+    const cantoOccupied = this.buildOccupiedSet(unit, { seenOnly: unit.faction === 'player' });
     const cantoEffective = computeEffectivePath(
       path,
       this.grid.mapLayout,
@@ -5706,11 +5829,12 @@ export class BattleScene extends Phaser.Scene {
       cantoOccupied,
       this._getCostModifier(unit),
     );
-    const cantoFinalPath = cantoEffective.effectivePath;
-    if (!cantoFinalPath || cantoFinalPath.length < 2) {
+    if (!cantoEffective.effectivePath || cantoEffective.effectivePath.length < 2) {
       console.warn('[handleCantoClick] effectivePath returned null/short path', { from, to });
       return;
     }
+    const cantoAmbush = this._ambushCut(unit, cantoEffective);
+    const cantoFinalPath = cantoAmbush.path;
     this.battleState = 'UNIT_MOVING';
     const targets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
     const cantoDest = cantoFinalPath[cantoFinalPath.length - 1];
@@ -5730,11 +5854,12 @@ export class BattleScene extends Phaser.Scene {
     const finalizeCantoMove = () => {
       if (finalizeTriggered || recoveryTriggered) return;
       finalizeTriggered = true;
-      rememberHistoryPath(this, unit, cantoFinalPath, false);
+      if (cantoFinalPath.length > 1) rememberHistoryPath(this, unit, cantoFinalPath, false);
       unit.col = destCol;
       unit.row = destRow;
       try {
         this.updateUnitPosition(unit);
+        if (cantoAmbush.ambusher) this._resolveAmbush(unit, cantoAmbush.ambusher, { canto: true });
         this.cantoRange = null;
         this._resetCantoPreInitFaultTracking();
         // Canto's end is the turn's end: completeBattleAction lifts the fog here.
@@ -8690,10 +8815,15 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
-  _refreshPostCombatMovementState(movedUnits) {
+  /**
+   * Units moved mid-action. Combat shoves/pulls reveal at once: the attack was saved
+   * as committed before it resolved. A move that is not yet saved (Blink) passes
+   * revealFog: false and lifts the fog when its action completes.
+   */
+  _refreshPostCombatMovementState(movedUnits, { revealFog = true } = {}) {
     if (!Array.isArray(movedUnits) || movedUnits.length <= 0) return;
     this.refreshVisibleDangerZone?.();
-    if (this.grid.fogEnabled) {
+    if (revealFog && this.grid.fogEnabled) {
       this.grid.updateFogOfWar(this.playerUnits);
       this.updateEnemyVisibility();
     }
@@ -9075,6 +9205,10 @@ export class BattleScene extends Phaser.Scene {
 
     // Apply every skill grant before any presentation. Informational popups
     // wait for a resolved action/turn checkpoint, never suspend halfway through combat.
+    // A skill that comes due at a level reached now but finds all five slots full is
+    // named on the card (once: later level-ups retry it silently).
+    const reachedLevels = new Set((result.levelUps || []).map((lv) => lv.newLevel));
+    const gateLevels = skillGateLevels(playerUnit, this.gameData.classes);
     for (const lvUp of levelUpDisplayResults(playerUnit.stats, result.levelUps)) {
       // The scene may have shut down while a previous popup was showing (its
       // shutdown hook resolves the await) -- don't build popups on a dead scene.
@@ -9082,11 +9216,15 @@ export class BattleScene extends Phaser.Scene {
       // Update HP bar after level-up (maxHP may have increased)
       this.updateHPBar(playerUnit);
       // Check for new skills learned at this level
-      const learnedIds = checkLevelUpSkills(playerUnit, this.gameData.classes);
-      const learnedNames = learnedIds.map((id) => {
-        const skill = this.gameData.skills.find((s) => s.id === id);
-        return skill ? skill.name : id;
-      });
+      const droppedIds = [];
+      const learnedIds = checkLevelUpSkills(playerUnit, this.gameData.classes, droppedIds);
+      const skillName = (id) => this.gameData.skills.find((s) => s.id === id)?.name || id;
+      const learnedNames = learnedIds.map(skillName);
+      const blockedNames = droppedIds
+        .filter((id) => reachedLevels.has(gateLevels.get(id)))
+        .map(skillName);
+      if (blockedNames.length) lvUp.blockedSkills = blockedNames;
+      reachedLevels.clear();
       (this._pendingLevelUpPopups ||= []).push({
         unitName: playerUnit.name,
         ...(playerUnit.battleEntityId ? { unitId: playerUnit.battleEntityId } : {}),
@@ -9608,7 +9746,7 @@ export class BattleScene extends Phaser.Scene {
                   showContextualHint(
                     this,
                     'battle_vision_scope_v2',
-                    'Rewind lists every moment you can return to: before each unit acted this turn, and earlier turns. Tap one to preview it for free; Rewind here spends 1 charge. Lunatic returns to turn starts only. Repeating the same actions keeps the same outcomes. Charges last the run, with +1 after each act boss.',
+                    'Rewind lists every moment you can return to: before each unit acted this turn, and earlier turns. Tap one to preview it for free; Rewind here spends 1 charge. Black Sun returns to turn starts only. Repeating the same actions keeps the same outcomes. Charges last the run, with +1 after each act boss.',
                   );
               },
               { phase: 'player', turn },
@@ -10086,6 +10224,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async processTerrainDamage(units) {
+    // Lava burns are named together once the pass is done: the floating number alone
+    // was easy to miss, most of all on a phone's shrunken board.
+    const burned = [];
     for (const unit of [...units]) {
       if (!unit || unit._removing || unit.currentHP <= 0) continue;
       if (isEntity(unit)) continue; // Entity immune to terrain hazards
@@ -10096,7 +10237,10 @@ export class BattleScene extends Phaser.Scene {
         unit.currentHP = nextHP;
         this.updateHPBar(unit);
         const shown = this._showsTurnEffectOn(unit);
-        if (shown) await this.showTerrainDamage(unit, appliedDamage);
+        if (shown) {
+          burned.push(`${unit.name} -${appliedDamage}`);
+          await this.showTerrainDamage(unit, appliedDamage);
+        }
         // Lava damage wakes sleeping units
         if (isSleeping(unit)) {
           removeCondition(unit, 'sleep');
@@ -10134,6 +10278,7 @@ export class BattleScene extends Phaser.Scene {
       }
       await this.showBriefBanner(`${unit.name} is corroded by acid!`, UI_PALETTE.good);
     }
+    if (burned.length) await this.showBriefBanner(lavaBurnBanner(burned), UI_PALETTE.warn);
   }
 
   async showTerrainDamage(unit, damage) {

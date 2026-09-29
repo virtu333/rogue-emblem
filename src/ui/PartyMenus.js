@@ -260,7 +260,7 @@ export function showDeploymentMenu(owner, roster, limits, onConfirm, initialName
   );
   const render = () => {
     list.replaceChildren();
-    status.textContent = `${selected.size} / ${limits.max} selected · Minimum ${limits.min} · ${{ rout: 'Rout: defeat all enemies', seize: 'Seize: defeat the boss, then capture the throne with a Lord', escape: 'Escape: only Lords must exit; others retreat safely' }[scene.battleParams?.objective] || 'Rout: defeat all enemies'}`;
+    status.textContent = `${selected.size} / ${limits.max} selected · Minimum ${limits.min} · ${{ rout: 'Rout: defeat all enemies', seize: 'Seize: defeat the boss, then capture the throne with a Lord', escape: 'Escape: only Lords must exit; others retreat safely' }[scene.battleParams?.objective] || 'Rout: defeat all enemies'}${limits.lockedTo ? ` · This battle's field was set for ${limits.lockedTo} units when you first entered it` : ''}`;
     confirm.disabled = selected.size < limits.min || selected.size > limits.max;
     for (const unit of roster) {
       const row = unitRow(

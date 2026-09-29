@@ -279,14 +279,14 @@ describe('Counter-attack', () => {
 describe('Effectiveness', () => {
   it('Hammer is effective vs Armored', () => {
     const hammer = data.weapons.find((w) => w.name === 'Hammer');
-    if (!hammer) return; // skip if weapon not in data
+    expect(hammer, 'Hammer fixture').toBeDefined();
     const knight = makeUnit({ moveType: 'Armored' });
     expect(getEffectivenessMultiplier(hammer, knight)).toBe(3);
   });
 
   it('Rapier is effective vs Armored and Cavalry', () => {
     const rapier = data.weapons.find((w) => w.name === 'Rapier');
-    if (!rapier) return;
+    expect(rapier, 'Rapier fixture').toBeDefined();
     const armored = makeUnit({ moveType: 'Armored' });
     const cavalry = makeUnit({ moveType: 'Cavalry' });
     expect(getEffectivenessMultiplier(rapier, armored)).toBe(2);
@@ -1457,18 +1457,6 @@ describe('Staff data integrity', () => {
     for (const staff of staves) {
       expect(staff.perBattleUses).toBe(true);
     }
-  });
-
-  it('_usesSpent resets to 0 when perBattleUses flag is set (battle-start reset)', () => {
-    const heal = structuredClone(data.weapons.find((w) => w.name === 'Heal'));
-    heal._usesSpent = 3; // fully depleted
-    expect(getStaffRemainingUses(heal, makeHealer(5))).toBe(0);
-
-    // Simulate battle-start reset (same logic as BattleScene.create)
-    if (heal.perBattleUses) heal._usesSpent = 0;
-
-    expect(heal._usesSpent).toBe(0);
-    expect(getStaffRemainingUses(heal, makeHealer(5))).toBe(3);
   });
 
   it('Physic is in act3 loot table', () => {

@@ -1,3 +1,4 @@
+import { isDifficultyAtLeast } from './DifficultyEngine.js';
 import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
 // MapGenerator.js — Procedural map generation from zone-based templates
 // Pure functions, no Phaser dependency.
@@ -92,14 +93,17 @@ export function generateBattle(params, deps) {
   const resolvedHybridAnchors = resolveHybridAnchors(template.hybridArena, cols, rows);
   applyHybridArenaOverlay(mapLayout, template.hybridArena, cols, rows, terrain);
 
-  // 4. Place features (Throne for Seize, Ballista for Hard/Lunatic)
+  // 4. Place features (Throne for Seize, Ballista for Nightfall/Black Sun from Act 2)
   let thronePos = null;
   const ballistas = [];
   const diffMode = params.difficultyId || 'normal';
+  // Ballistas are Nightfall/Black Sun only, and never in Act 1: a range-5 bolt every
+  // enemy phase against two level-1 lords was the opening map's hardest threat.
+  const ballistasAllowed =
+    isDifficultyAtLeast(diffMode, 'hard') && (params.act || 'act1') !== 'act1';
   if (template.features) {
     for (const feat of template.features) {
-      // Ballistas are Hard/Lunatic only — skip on Normal
-      if (feat.type === 'Ballista' && diffMode !== 'hard' && diffMode !== 'lunatic') continue;
+      if (feat.type === 'Ballista' && !ballistasAllowed) continue;
       const pos = resolveFeaturePosition(feat.position, cols, rows, template);
       const idx = terrainNameToIndex(feat.type || feat.terrain, terrain);
       if (idx !== -1) {
@@ -2129,7 +2133,9 @@ export function rollEnemyCount({
   const [minOff, maxOff] = offset;
   const scaledDeployment =
     act === 'act1' && deployCountCap > 0 ? Math.min(deployCount, deployCountCap) : deployCount;
-  const base = enemyCountBase > 0 ? enemyCountBase : scaledDeployment;
+  // A difficulty's base is a floor, never a replacement: a bigger army still meets
+  // more enemies, so a harder rung never fields fewer than an easier one.
+  const base = Math.max(Math.trunc(enemyCountBase) || 0, scaledDeployment);
   const count =
     base + minOff + Math.floor(Math.random() * (maxOff - minOff + 1)) + Math.trunc(enemyCountBonus);
 

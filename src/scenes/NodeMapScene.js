@@ -456,6 +456,10 @@ export class NodeMapScene extends Phaser.Scene {
           ) {
             this._storyDialogueActive = true;
             this.runManager.markDialogueShown('runStart');
+            // The commander's pool rotates by what this save has heard (NarrativeDirector).
+            this.registry
+              .get('meta')
+              ?.recordLinesPlayed?.(entries.map((e) => e?.lineKey).filter(Boolean));
             this.persistRunSave();
             // The run opens on its act title (once: after the run-start mark).
             const actCard = hasDOMHost()
@@ -1763,7 +1767,13 @@ export class NodeMapScene extends Phaser.Scene {
       await ensureAudioUnlocked(this);
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       const audio = this.registry.get('audio');
-      if (audio) audio.releaseMusic(this, 0);
+      // The route's track plays on through the deploy screen and while the battle's
+      // own track loads, then crossfades into it (a phone can take seconds to fetch
+      // and decode a battle theme; releasing here left the battle's start silent).
+      if (audio) {
+        if (typeof audio.handOffMusic !== 'function' || !audio.handOffMusic(this, 'Battle'))
+          audio.releaseMusic(this, 0);
+      }
 
       const rm = this.runManager;
       const battleParams = rm.getBattleParams(node);

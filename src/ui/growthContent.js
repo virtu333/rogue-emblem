@@ -5,14 +5,14 @@
 // no randomness (the battle RNG is Math.random during combat — nothing here
 // may touch it). Previews project a *copy* of the unit through the real
 // promoteUnit, so the rite shows exactly what the engine applies.
-import { XP_STAT_NAMES } from '../utils/constants.js';
+import { XP_STAT_NAMES, MAX_SKILLS } from '../utils/constants.js';
 import {
   promoteUnit,
   getClassInnateSkills,
   parseWeaponProficiencies,
 } from '../engine/UnitManager.js';
 import { getClassChangeWeaponGrants } from '../engine/RosterCommands.js';
-import { applyPromotionOath, promotionOath } from '../engine/DeedSystem.js';
+import { applyPromotionOath, promotionOathCandidates } from '../engine/DeedSystem.js';
 import { crestSpecForClass } from './classCrests.js';
 import { levelBeatLine, levelUpLine, promotionLine } from '../engine/UnitVoice.js';
 import { promotedFromName } from '../engine/ClassLineage.js';
@@ -153,6 +153,8 @@ export function promotionPathContent(unit, cls, gameData = {}) {
   if (!bonuses) return null;
   const projected = projectUnit(unit);
   const result = promoteUnit(projected, cls, bonuses, gameData.skills || []);
+  // The Oaths open on this path: one the new class already teaches is not among them.
+  const oathOptions = promotionOathCandidates(projected, gameData.deeds, gameData.skills);
   // The Oath a deed swears on this promotion (same rule the command applies).
   const sworn = applyPromotionOath(projected, gameData);
   const stats = [];
@@ -181,15 +183,17 @@ export function promotionPathContent(unit, cls, gameData = {}) {
   const dropped = (result?.droppedSkills || []).map((id) => skillName(id)?.name || id);
   const oath = sworn
     ? {
+        deedId: sworn.deedId,
         name: sworn.name,
         deedName: sworn.deedName,
         skillId: sworn.skillId,
         skillName: sworn.skillName,
         description: sworn.skillDescription,
         learned: sworn.learned,
+        // Skill slots full: sworn later from Deeds by giving up a skill.
+        waiting: sworn.waiting === true,
       }
     : null;
-  if (sworn?.dropped) dropped.push(`${sworn.skillName} (${sworn.name})`);
   let grants;
   try {
     const oldTypes = new Set((unit.proficiencies || []).map((p) => p.type));
@@ -221,6 +225,7 @@ export function promotionPathContent(unit, cls, gameData = {}) {
     dropped,
     grants,
     oath,
+    oathOptions,
     role: promotionRoleLine(unit, cls, ranks, gameData.classes) || cls.description || '',
   };
 }
@@ -298,6 +303,11 @@ export function levelUpKind(result) {
   return 'normal';
 }
 
+/** The card note for skills that could not be learned because every slot is full. */
+export function skillLimitNote(names) {
+  return `Skill limit (${MAX_SKILLS} skills): could not learn ${names.join(', ')}`;
+}
+
 /**
  * Rows and the beat for one level-up result (XP already applied; the
  * display stats reconstruct the intermediate values). kind: see levelUpKind.
@@ -328,6 +338,8 @@ export function levelUpContent(unit, result, learnedNames = [], voice = null) {
     kind,
     beat: LEVEL_BEATS[kind],
     skills: [...(learnedNames || [])].filter(Boolean),
+    // Skills that came due at this level but found every skill slot full.
+    blocked: [...(result?.blockedSkills || [])].filter(Boolean),
     quote: null,
   };
   // The unit's own reaction, and a varied caption for the banner
@@ -471,11 +483,14 @@ export function deedCardContent(entry, { skills = [], deeds = null, index = 0, t
   const epithet = String(entry.epithet || '');
   const prestige = Math.max(1, Math.min(5, Math.trunc(Number(entry.prestige) || 1)));
   const unit = entry.unit || null;
-  // Only the deed that would swear at promotion teases its Oath (same rule
-  // as the promotion itself; a greater deed swears first).
-  const oath = unit && unit.tier !== 'promoted' ? promotionOath(unit, deeds, skills) : null;
-  const skill = oath?.deedId === entry.deedId ? { name: oath.skillName } : null;
+  // A deed whose Oath the unit could still swear teases it: the one a promotion would
+  // swear now (pledged, else the greatest), or an option the player can pick instead.
+  const options =
+    unit && unit.tier !== 'promoted' ? promotionOathCandidates(unit, deeds, skills) : [];
+  const at = options.findIndex((o) => o.deedId === entry.deedId);
+  const skill = at >= 0 ? { name: options[at].skillName } : null;
   const canSwear = Boolean(skill);
+  const chosenTitle = unit?.deeds?.chosenTitle;
   return {
     deedId: String(entry.deedId || ''),
     kicker: `Deed · ${entry.name || ''}`,
@@ -489,8 +504,13 @@ export function deedCardContent(entry, { skills = [], deeds = null, index = 0, t
     // The seal carries the deed's initial, like a signet.
     seal: (String(entry.name || epithet).match(/[A-Za-z]/)?.[0] || '·').toUpperCase(),
     // Not the unit's shown title (a higher one outranks it): say so, once.
-    note: entry.isTitle === false ? 'Earned, and held beneath a greater title.' : '',
-    oath: canSwear ? `Oath at promotion · ${skill.name}` : '',
+    note:
+      entry.isTitle === false
+        ? chosenTitle
+          ? 'Earned. Your chosen title stays; change it in the roster.'
+          : 'Earned, and held beneath a greater title.'
+        : '',
+    oath: canSwear ? `${at === 0 ? 'Oath at promotion' : 'Oath option'} · ${skill.name}` : '',
     count: total > 1 ? `${index + 1} / ${total}` : '',
     label: `Deed. ${entry.titled || name}. ${entry.name || ''}`,
   };

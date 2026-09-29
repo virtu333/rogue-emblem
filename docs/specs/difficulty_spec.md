@@ -399,7 +399,7 @@ The Emperor is a General-class boss — an armored conqueror who rules through m
 
 **Design rationale:** The Emperor has Pavise (chance to halve physical damage) and Renewal (sustain). He is pragmatic, not magical — he conquered through military might, and the ritual to revive the entity is simply another tool of empire. He doesn't understand what he's awakening.
 
-**Narrative beat:** "You think you've won something by killing my seer? I don't need visions. I have power."
+**Narrative beat:** "You think you've won something by breaking my captains? I don't need them. I have power."
 
 **Fixed boss map:** The Emperor's encounter uses a hand-designed throne room map. This is a controlled exception to procedural generation — see `docs/act4-hardmode-rollout-plan.md` Phase 3 for progression details and fixed-map integration notes.
 

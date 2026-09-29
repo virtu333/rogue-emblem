@@ -10,6 +10,7 @@ import { completeBattleAction } from '../src/ui/BattleActionCompletion.js';
 import { completeResolvedAction } from '../src/ui/BattlePresentationCheckpoint.js';
 import { EscapeObjectiveController } from '../src/ui/EscapeObjectiveController.js';
 import { AbilityController } from '../src/ui/AbilityController.js';
+import { HealController } from '../src/ui/HealController.js';
 import { seenTileOccupant } from '../src/engine/BattleInformation.js';
 import { getRelocationTiles } from '../src/engine/StaffRelocation.js';
 import { loadGameData } from './testData.js';
@@ -229,6 +230,212 @@ describe('fog lifts only once an action is committed', () => {
     expect(grid.isVisible(2, 1)).toBe(true);
     expect(grid.everSeenSet.has('5,1')).toBe(false);
     expect(scene.saved).toEqual([false]);
+    expect(scene.turnManager.unitActed).toHaveBeenCalledWith(edric);
+  });
+});
+
+describe('moves inside an action (Rescue/Warp, Blink) lift the fog only on commit', () => {
+  const RESCUE = gameData.weapons.find((w) => w.name === 'Rescue Staff');
+
+  /** Edric (a Canto caster when asked) moves to (4,1), then relocates Sera to (3,1). */
+  async function rescue({ canto }) {
+    const { scene, grid, edric } = setup();
+    edric.weapon = { ...RESCUE };
+    edric.inventory = [edric.weapon];
+    edric.proficiencies = [{ type: 'Staff', rank: 'Prof' }];
+    if (canto) {
+      edric.skills = ['canto'];
+      edric._movementSpent = 4;
+    }
+    const sera = { ...edric, name: 'Sera', col: 0, row: 0, skills: [], graphic: edric.graphic };
+    scene.playerUnits.push(sera);
+    grid.updateFogOfWar(scene.playerUnits);
+    scene.updateEnemyVisibility();
+    await moveNextToBrigand(scene, edric);
+    let litAtCanto = null;
+    scene.startCantoMove = vi.fn(() => {
+      litAtCanto = grid.isVisible(5, 1);
+    });
+    scene.awardScaledXP = vi.fn(async () => {});
+    const heal = new HealController(scene);
+    heal.animateRelocate = vi.fn(async (ally, dest) => {
+      ally.col = dest.col;
+      ally.row = dest.row;
+    });
+    heal.restoreCombatWeapon = vi.fn();
+    scene.selectedUnit = edric;
+    await heal.executeRelocate(edric, sera, { col: 3, row: 1 });
+    return { scene, grid, edric, sera, litAtCanto: () => litAtCanto };
+  }
+
+  it('Rescue with Canto: the landing reveals nothing until Canto ends, then with the save', async () => {
+    const { scene, grid, edric, sera, litAtCanto } = await rescue({ canto: true });
+    expect([sera.col, sera.row]).toEqual([3, 1]);
+    expect(scene.startCantoMove).toHaveBeenCalledWith(edric, 1);
+    expect(litAtCanto()).toBe(false);
+    expect(grid.everSeenSet.has('5,1')).toBe(false);
+    expect(scene.saved).toEqual([]);
+    completeBattleAction(scene, edric);
+    expect(grid.isVisible(5, 1)).toBe(true);
+    expect(scene.saved).toEqual([true]);
+  });
+
+  it("Rescue without Canto: the fog lifts with the action's suspend save", async () => {
+    const { scene, grid } = await rescue({ canto: false });
+    expect(grid.isVisible(5, 1)).toBe(true);
+    expect(scene.saved).toEqual([true]);
+  });
+
+  it('Blink with Canto: the new tile reveals nothing until Canto ends', async () => {
+    const { scene, grid, edric } = setup();
+    edric.skills = ['blink', 'canto'];
+    edric._movementSpent = 1;
+    let litAtCanto = null;
+    scene.startCantoMove = vi.fn(() => {
+      litAtCanto = grid.isVisible(5, 1);
+    });
+    scene.updateUnitPosition = vi.fn();
+    scene._awaitSceneTween = vi.fn(async () => {});
+    scene._refreshPostCombatMovementState =
+      BattleScene.prototype._refreshPostCombatMovementState.bind(scene);
+    const blink = scene.gameData.skills.find((sk) => sk.id === 'blink');
+    await new AbilityController(scene).executeBlink(edric, blink, { col: 4, row: 1 });
+    expect([edric.col, edric.row]).toEqual([4, 1]);
+    expect(scene.startCantoMove).toHaveBeenCalled();
+    expect(litAtCanto).toBe(false);
+    expect(scene.saved).toEqual([]);
+    completeBattleAction(scene, edric);
+    expect(grid.isVisible(5, 1)).toBe(true);
+    expect(scene.saved).toEqual([true]);
+  });
+});
+
+describe('Shove and Pull never land in the fog', () => {
+  // Edric at (3,1) beside Sera at (4,1); the brigand at (5,1) is in the fog.
+  function beside() {
+    const { scene, grid, edric, brigand } = setup();
+    edric.col = 3;
+    edric.skills = ['shove', 'pull'];
+    const sera = { ...edric, name: 'Sera', col: 4, row: 1, skills: [] };
+    scene.playerUnits.push(sera);
+    scene.getUnitAt = (c, r) =>
+      [...scene.playerUnits, ...scene.enemyUnits].find((u) => u.col === c && u.row === r) || null;
+    return { scene, grid, edric, sera, brigand };
+  }
+
+  it('a fogged tile past the ally is not offered for Shove, occupied or not', () => {
+    const { scene, grid, edric, brigand } = beside();
+    expect(grid.isVisible(5, 1)).toBe(false);
+    const hidden = scene.findShoveTargets(edric).map((t) => [t.destCol, t.destRow]);
+    brigand.col = 9; // the same fogged tile, now empty: the offer must not change
+    const empty = scene.findShoveTargets(edric).map((t) => [t.destCol, t.destRow]);
+    expect(hidden).not.toContainEqual([5, 1]);
+    expect(empty).toEqual(hidden);
+  });
+
+  it('a seen free tile past the ally is offered', () => {
+    const { scene, grid, edric, brigand } = beside();
+    brigand.col = 9;
+    grid.fogEnabled = false;
+    expect(scene.findShoveTargets(edric).map((t) => [t.destCol, t.destRow])).toContainEqual([5, 1]);
+  });
+
+  it('Pull: the retreat tile must be seen, so a hidden foe behind never shows', () => {
+    const { scene, grid, edric, sera, brigand } = beside();
+    // Sera at (3,1) beside Edric at (4,1); Pull sends Edric back to (5,1), in the fog.
+    sera.col = 3;
+    edric.col = 4;
+    brigand.col = 5;
+    grid.updateFogOfWar([{ ...sera, col: 0 }]); // settled vision: (0,1) sees 3 tiles
+    expect(grid.isVisible(5, 1)).toBe(false);
+    expect(scene.findPullTargets(edric)).toEqual([]);
+    brigand.col = 9;
+    expect(scene.findPullTargets(edric)).toEqual([]);
+    grid.fogEnabled = false;
+    expect(scene.findPullTargets(edric).map((t) => [t.retreatCol, t.retreatRow])).toEqual([[5, 1]]);
+  });
+});
+
+describe('a hidden enemy never shapes the blue range; running into it is an ambush', () => {
+  // The brigand hides at (4,1), one step past Edric's sight from (0,1).
+  function ambushSetup() {
+    const env = setup();
+    const { scene, grid, brigand } = env;
+    brigand.col = 4;
+    grid.updateFogOfWar(scene.playerUnits);
+    scene.updateEnemyVisibility();
+    expect(grid.isVisible(4, 1)).toBe(false);
+    scene.getUnitAt = (c, r) =>
+      [...scene.playerUnits, ...scene.enemyUnits].find((u) => u.col === c && u.row === r) || null;
+    scene.updateUnitPosition = vi.fn();
+    scene.tweens = { add: ({ onComplete }) => onComplete?.() };
+    scene.time = { delayedCall: vi.fn() };
+    scene.showMinorHintAt = vi.fn();
+    scene.inspectionPanel = { hide: vi.fn() };
+    scene.dangerZone = { hide: vi.fn() };
+    grid.showMovementRange = vi.fn();
+    grid.clearHighlights = vi.fn();
+    return env;
+  }
+
+  it('the range is the same whether or not the fogged tile holds an enemy', () => {
+    const { scene, edric, brigand } = ambushSetup();
+    scene.selectUnit(edric);
+    const withFoe = [...scene.movementRange.keys()].sort();
+    brigand.col = 11;
+    scene.selectUnit(edric);
+    expect([...scene.movementRange.keys()].sort()).toEqual(withFoe);
+    expect(withFoe).toContain('4,1');
+    expect(withFoe).toContain('5,1');
+  });
+
+  it('a move through it stops before it, reveals it, locks the move in and saves', async () => {
+    const { scene, grid, edric, brigand } = ambushSetup();
+    scene.selectUnit(edric);
+    scene.moveUnit(edric, 5, 1);
+    await Promise.resolve();
+    expect([edric.col, edric.row]).toEqual([3, 1]);
+    expect(edric._movementSpent).toBe(3);
+    expect(grid.isVisible(4, 1)).toBe(true);
+    expect(brigand.graphic.visible).toBe(true);
+    expect(edric._movementCommitted).toBe(true);
+    expect(scene.preMoveLoc).toBeNull();
+    // The save that records the ambush sees the brigand's tile lit.
+    expect(scene.saved.at(-1)).toBe(true);
+    // The unit can still act, and Back cannot take the move back.
+    expect(scene.showActionMenu).toHaveBeenCalledWith(edric);
+    scene.selectUnit = vi.fn();
+    scene.undoMove(edric);
+    expect([edric.col, edric.row]).toEqual([3, 1]);
+    expect(scene.showMinorHintAt).toHaveBeenCalledWith(
+      expect.any(Number),
+      expect.any(Number),
+      'Ambush!',
+      expect.anything(),
+    );
+  });
+
+  it('a move that stays clear of it reveals nothing, as before', async () => {
+    const { scene, grid, edric } = ambushSetup();
+    scene.selectUnit(edric);
+    scene.moveUnit(edric, 3, 1);
+    await Promise.resolve();
+    expect([edric.col, edric.row]).toEqual([3, 1]);
+    expect(grid.isVisible(4, 1)).toBe(false);
+    expect(edric._movementCommitted).toBeFalsy();
+    expect(scene.saved).toEqual([]);
+  });
+
+  it('Canto into it stops short too; the action then completes and saves', () => {
+    const { scene, grid, edric, brigand } = ambushSetup();
+    scene.selectedUnit = edric;
+    edric.hasActed = true;
+    scene.startCantoMove(edric, 5);
+    expect(scene.cantoRange.has('5,1')).toBe(true);
+    scene.handleCantoClick({ col: 5, row: 1 });
+    expect([edric.col, edric.row]).toEqual([3, 1]);
+    expect(grid.isVisible(brigand.col, brigand.row)).toBe(true);
+    expect(scene.saved).toEqual([true]);
     expect(scene.turnManager.unitActed).toHaveBeenCalledWith(edric);
   });
 });

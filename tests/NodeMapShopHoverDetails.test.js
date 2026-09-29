@@ -124,6 +124,7 @@ describe('Shop item detail formatting', () => {
     const skills = [
       {
         id: 'adept',
+        name: 'Adept',
         description: 'SPD% chance for an extra follow-up strike at full damage (once per combat)',
       },
     ];
@@ -134,9 +135,12 @@ describe('Shop item detail formatting', () => {
         item: { name: 'Adept Scroll', type: 'Scroll', skillId: 'adept', special: 'Teaches Adept' },
       },
     );
-    expect(text).toContain('Teaches Adept');
-    expect(text).toContain('SPD% chance');
-    expect(text.split('\n')).toHaveLength(2);
+    expect(text.split('\n')).toEqual([
+      'Skill scroll: teaches Adept to one unit.',
+      'Use: Roster → Skills → Teach. Kept until taught.',
+      '',
+      skills[0].description,
+    ]);
   });
   it('formats detail text for cure consumable (Herb)', () => {
     const text = NodeMapScene.prototype._getShopItemDetailText.call(

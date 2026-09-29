@@ -253,7 +253,7 @@ describe('ESC priority model', () => {
     pause.show();
     scene.pauseOverlay = pause;
 
-    const mapBtn = pause.objects.find((obj) => obj.text === 'Campaign Map');
+    const mapBtn = pause.objects.find((obj) => obj.text === 'View Campaign Map');
     mapBtn.handlers.pointerdown();
     expect(pause.campaignMapOverlay?.visible).toBe(true);
 
@@ -291,7 +291,7 @@ describe('ESC priority model', () => {
     pause.show();
     scene.pauseOverlay = pause;
 
-    const mapBtn = pause.objects.find((obj) => obj.text === 'Campaign Map');
+    const mapBtn = pause.objects.find((obj) => obj.text === 'View Campaign Map');
     mapBtn.handlers.pointerdown();
     expect(pause.campaignMapOverlay?.visible).toBe(true);
 

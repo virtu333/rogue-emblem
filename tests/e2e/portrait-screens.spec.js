@@ -343,7 +343,7 @@ for (const vp of PORTRAIT_PHONES) {
       const menu = await openSlots(page, ['battle', 'home', 'empty']);
       await expect(menu).toContainText('An unlit candle');
       // The run's difficulty sits beside its act, on the act's line.
-      await expect(menu.locator('.sp-act .sp-difficulty')).toHaveText('Lunatic');
+      await expect(menu.locator('.sp-act .sp-difficulty')).toHaveText('Black Sun');
       const act = menu.locator('.sp-act').first();
       expect(await act.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
       const body = menu.locator('.re-menu-body');
@@ -706,7 +706,7 @@ for (const vp of PORTRAIT_PHONES.slice(0, 2)) {
       );
       // The last category, past the edge: a swipe away, then chosen and kept in view.
       const last = categories.locator('.re-btn').last();
-      await expect(last).toHaveText('Run');
+      await expect(last).toHaveText('Deeds');
       await last.tap();
       await expect(categories.locator('.re-btn').last()).toHaveAttribute('aria-pressed', 'true');
       await expect(dialog.locator('nav[aria-label="Categories"] .re-btn').last()).toBeInViewport({
@@ -785,10 +785,8 @@ test.describe('help and how to play upright', () => {
     const tab = (label) => help.locator('nav[aria-label="Categories"] .re-btn', { hasText: label });
     await tab('Combat').tap();
     await expect(help.locator('[aria-label="Entries"] .re-row')).toHaveCount(4);
-    await tab('Terrain').tap();
-    await expect(
-      detail.getByRole('heading', { name: 'Terrain Effects', exact: true }),
-    ).toBeVisible();
+    await tab('Promo').tap();
+    await expect(detail.getByRole('heading', { name: 'Promotion', exact: true })).toBeVisible();
     await expect(help.locator('[aria-label="Entries"]')).toHaveCount(0);
     // A search still lists its results, even a single one.
     await help.getByRole('searchbox').fill('Promotion');

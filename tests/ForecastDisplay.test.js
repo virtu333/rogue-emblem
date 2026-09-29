@@ -8,6 +8,7 @@ import {
   formatStrikes,
   hitChancePercent,
   counterRisk,
+  forecastReadingPoints,
   forecastTeachingHints,
   triangleText,
 } from '../src/ui/forecastDisplay.js';
@@ -127,8 +128,18 @@ describe('conservative forecast estimates', () => {
     a.stats.SPD = 20;
     const f = forecast(a, d);
     const before = JSON.stringify(f);
-    expect(forecastTeachingHints(f).some((h) => h.id === 'battle_doubling')).toBe(true);
+    // Doubling is explained inside "How to read", never as a hint under the forecast.
+    expect(forecastTeachingHints(f).some((h) => h.id === 'battle_doubling')).toBe(false);
+    expect(forecastReadingPoints(f).some((p) => p.startsWith('Speed:'))).toBe(true);
     expect(JSON.stringify(f)).toBe(before);
+  });
+  it('reads the speed point only when someone doubles', () => {
+    const f = forecast(unit('A'), unit('D'));
+    expect(f.attacker.doubles || f.defender.doubles).toBe(false);
+    expect(forecastReadingPoints(f).some((p) => p.startsWith('Speed:'))).toBe(false);
+    expect(forecastReadingPoints(f)).toContain(
+      'A defeated unit cannot finish its remaining strikes.',
+    );
   });
 });
 

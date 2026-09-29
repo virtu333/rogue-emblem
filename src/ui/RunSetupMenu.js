@@ -183,16 +183,19 @@ export class RunSetupMenu {
       for (let n = 0; n < content.rank; n++) threads.append(element('i'));
       plate.append(threads, element('strong', content.name, 'ch-banner-name'));
       if (content.tagline) plate.append(element('span', content.tagline, 'ch-banner-tag'));
-      if (content.rewards.length)
-        plate.append(element('span', content.rewards[0], 'ch-banner-reward'));
+      // A locked rung says how to open it instead (its reward is in the terms below):
+      // four banners leave no room for both.
       if (content.locked) plate.append(element('span', content.lockReason, 'ch-lock'));
+      else if (content.rewards.length)
+        plate.append(element('span', content.rewards[0], 'ch-banner-reward'));
       card.append(plate);
       row.append(card);
     });
     const chosen = difficultyBannerContent(s.modes[s.selectedIndex], s.selectedIndex);
-    // The terms scroll when long (Lunatic upright); their edges fade while there is more.
+    // The terms scroll when long (Black Sun upright); their edges fade while there is more.
     const detail = softList(element('article', null, 're-card re-scroll ch-banner-detail'));
     detail.append(element('h3', `${chosen.name || 'Choose an option'} · the terms`));
+    if (chosen.road) detail.append(element('p', chosen.road, 'ch-road'));
     const list = (lines, className = '') => {
       const ul = element('ul', null, className);
       for (const line of lines) ul.append(element('li', line));

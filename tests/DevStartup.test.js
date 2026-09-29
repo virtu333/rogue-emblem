@@ -185,3 +185,86 @@ it('combat review ignores alternate saved lords without rewriting their selectio
   expect(route.data.roster.slice(0, 2).map((u) => u.name)).toEqual(['Edric', 'Sera']);
   expect(effects.startingLords).toEqual({ commander: 'Sera', partner: 'Kira' });
 });
+
+describe('phone review routes (deploy previews)', () => {
+  const route = (query, registry = createRegistry()) =>
+    buildDevStartupRoute(loadGameData(), registry, parseDevStartupConfig(query, { devMode: true }));
+
+  it('fog_ambush: a foggy battle, Sera with Canto and staves, no save slot', () => {
+    const registry = createRegistry();
+    registry.set('activeSlot', 2);
+    const r = route('?devScene=battle&preset=fog_ambush&seed=42', registry);
+    expect(r.key).toBe('Battle');
+    expect(r.data.battleParams).toMatchObject({ fogEnabled: true, devScenario: 'fog_ambush' });
+    const sera = r.data.roster.find((u) => u.name === 'Sera');
+    expect(sera.skills).toContain('canto');
+    expect(sera.inventory.map((w) => w.name)).toContain('Rescue Staff');
+    expect(registry.get('activeSlot')).toBeNull();
+  });
+
+  it('roster_checks: an Oath waiting, one to meet the cap, Edric in a robe at 1 HP', () => {
+    const registry = createRegistry();
+    const r = route('?devScene=nodemap&preset=roster_checks&seed=1', registry);
+    expect(r.key).toBe('NodeMap');
+    const roster = r.data.runManager.roster;
+    const bramwell = roster.find((u) => u.name === 'Bramwell');
+    expect(bramwell.tier).toBe('promoted');
+    expect(bramwell.deeds.waitingOath).toMatchObject({ skillId: 'pavise' });
+    const corwin = roster.find((u) => u.name === 'Corwin');
+    expect(corwin.skills).toHaveLength(5);
+    expect(corwin.consumables.map((c) => c.name)).toEqual(['Master Seal']);
+    const edric = roster.find((u) => u.name === 'Edric');
+    expect(edric.accessory?.name).toBe('Seraph Robe');
+    expect(edric.currentHP).toBe(1);
+    expect(edric.consumables.map((c) => c.name)).toEqual(['Elixir', 'Vulnerary']);
+    expect(registry.get('activeSlot')).toBeNull();
+    // First-time lessons teach once, in memory (no slot): the waiting Oath's included.
+    const hints = registry.get('hints');
+    expect(hints.shouldShow('roster_oath_waiting')).toBe(true);
+    expect(hints.shouldShow('roster_oath_waiting')).toBe(false);
+    expect(hints.hasSeen('roster_oath_waiting')).toBe(true);
+    // Nothing else interrupts the review (the route map's own first-visit notes).
+    expect(hints.shouldShow('nodemap_intro')).toBe(false);
+    expect(hints.hasSeen('nodemap_hp_persist')).toBe(true);
+  });
+
+  it('roster_checks keeps a real save slot’s hints, and hints off stays off', () => {
+    const kept = { shouldShow: () => false };
+    const registry = createRegistry();
+    registry.set('hints', kept);
+    route('?devScene=nodemap&preset=roster_checks&seed=1', registry);
+    expect(registry.get('hints')).toBe(kept);
+
+    const off = createRegistry();
+    off.set('settings', { getHints: () => false });
+    route('?devScene=nodemap&preset=roster_checks&seed=1', off);
+    expect(off.get('hints').shouldShow('roster_oath_waiting')).toBe(false);
+  });
+
+  it('ladder: Dusk and Nightfall open on the difficulty screen', () => {
+    const registry = createRegistry();
+    const r = route('?devScene=difficulty&preset=ladder', registry);
+    expect(r.key).toBe('DifficultySelect');
+    const milestones = registry.get('meta').milestones;
+    expect(milestones.has('beatGame')).toBe(true);
+    expect(milestones.has('beatDusk')).toBe(true);
+    expect(milestones.has('beatHard')).toBe(false);
+  });
+
+  it.each([
+    ['lieutenant', 'normal', 'finalBoss'],
+    ['emperor', 'dusk', 'act4'],
+    ['entity', 'hard', 'finalBoss'],
+  ])('victory&route=%s: a won %s run at its last act', (routeName, difficultyId, lastAct) => {
+    const registry = createRegistry();
+    registry.set('activeSlot', 1);
+    const r = route(`?devScene=victory&route=${routeName}`, registry);
+    expect(r.key).toBe('RunComplete');
+    expect(r.data.result).toBe('victory');
+    const rm = r.data.runManager;
+    expect(rm.difficultyId).toBe(difficultyId);
+    expect(rm.actSequence.at(-1)).toBe(lastAct);
+    expect(rm.actIndex).toBe(rm.actSequence.length - 1);
+    expect(registry.get('activeSlot')).toBeNull();
+  });
+});

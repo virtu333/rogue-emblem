@@ -90,7 +90,8 @@ test('art replacement Back preserves weapon and slot, shows effects, and consume
   page,
 }, testInfo) => {
   await nodeMap(page);
-  const names = await page.evaluate(() => {
+  const names = await page.evaluate(async () => {
+    const { formatWeaponArtEffects } = await import('/src/ui/weaponArtDisplay.js');
     const scene = window.__emblemRogueGame.scene.getScene('NodeMap');
     const unit = scene.runManager.roster[0];
     const arts = scene.gameData.weaponArts.arts
@@ -105,7 +106,8 @@ test('art replacement Back preserves weapon and slot, shows effects, and consume
       weapon: weapon.name,
       old: arts[1].name,
       next: arts[3].id,
-      description: arts[1].description,
+      // The preview reads as effects (Wave 2): numbers and effects, no flavour line.
+      effects: formatWeaponArtEffects(arts[1]),
     };
   });
   await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).click();
@@ -118,7 +120,9 @@ test('art replacement Back preserves weapon and slot, shows effects, and consume
   await weapons.getByRole('button', { name: 'Confirm', exact: true }).click();
   const slots = page.getByRole('dialog', { name: 'Choose art to replace', exact: true });
   await slots.getByRole('button', { name: new RegExp(`^${names.old}`) }).click();
-  await expect(slots.locator('.re-choice-preview')).toContainText(names.description);
+  const preview = slots.locator('.re-choice-preview');
+  await expect(preview).toContainText(`REMOVE\n${names.old}`);
+  await expect(preview).toContainText(names.effects);
   await page.addStyleTag({ content: '.re-choice-list, .re-choice-preview { max-height: 90px; }' });
   const listOffset = await slots.locator('.re-choice-list').evaluate((el) => {
     el.scrollTop = 10;

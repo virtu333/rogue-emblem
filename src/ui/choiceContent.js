@@ -374,6 +374,7 @@ export function blessingCardContent(blessing) {
 // Presentation copy for the banners (unknown modes simply show none).
 export const DIFFICULTY_TAGLINES = Object.freeze({
   normal: 'The road as it was walked',
+  dusk: 'The road runs on to the throne',
   hard: 'The empire answers in kind',
   lunatic: 'Every thread drawn taut',
 });
@@ -389,6 +390,8 @@ export function difficultyBannerContent(mode, index = 0) {
     name: String(mode?.label || mode?.name || ''),
     rank: index + 1,
     tagline: DIFFICULTY_TAGLINES[mode?.id] || '',
+    // Where the run ends (difficulty.json `road`): the rungs differ most in this.
+    road: String(mode?.road || ''),
     harder: summary.filter((line) => !REWARD_LINE.test(line)),
     rewards: summary.filter((line) => REWARD_LINE.test(line)),
     locked: Boolean(mode?.locked),

@@ -29,6 +29,7 @@ import {
   REVIVE_COST_PER_LEVEL,
   REVIVE_PROMOTION_MULTIPLIER,
   RUINS_PATHS,
+  INVENTORY_MAX,
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
 import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapGenerator.js';
@@ -42,6 +43,7 @@ import {
   addToConsumables,
   equipAccessory,
   unequipAccessory,
+  settleAccessoryHpOwed,
   canEquip,
   getClassInnateSkills,
   normalizeUnitClassState,
@@ -53,6 +55,7 @@ import {
   LETHAL_ARMORY_WEAPONS,
   equipWeapon,
   normalizeEquippedFirst,
+  grantReviveStarterWeapon,
 } from './UnitManager.js';
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
@@ -65,7 +68,11 @@ import {
   rollCostForBlessing,
   selectBlessingOptionsWithTelemetry,
 } from './BlessingEngine.js';
-import { resolveDifficultyMode, DIFFICULTY_DEFAULTS } from './DifficultyEngine.js';
+import {
+  resolveDifficultyMode,
+  DIFFICULTY_DEFAULTS,
+  difficultyVictoryMilestone,
+} from './DifficultyEngine.js';
 import { assignPortraitVariants, backfillPortraitVariants } from './PortraitVariants.js';
 import {
   normalizeWeaponArtBinding,
@@ -131,7 +138,14 @@ function sanitizeActSequence(sequence, fallback = ACT_SEQUENCE) {
 
 export function getActTransitionKey(fromAct, toAct) {
   if (fromAct === 'act3' && toAct === 'finalBoss') return 'act3_to_finalBoss_normal';
+  // After the Emperor falls, the ground wakes: the descent to the Entity.
+  if (fromAct === 'act4' && toAct === 'finalBoss') return 'finalBoss_to_secretAct';
   return `${fromAct}_to_${toAct}`;
+}
+
+/** Transition scenes that play straight after another, in order (under its once-gate). */
+export function getActTransitionFollowUps(transKey) {
+  return transKey === 'finalBoss_to_secretAct' ? ['secretAct_start'] : [];
 }
 
 function getConvoyBucket(item) {
@@ -139,6 +153,22 @@ function getConvoyBucket(item) {
   if (item.type === 'Consumable') return 'consumables';
   if (CONVOY_WEAPON_TYPES.has(item.type)) return 'weapons';
   return null;
+}
+
+/**
+ * Every item a unit holds in its bags, plus an equipped weapon a corrupt legacy save
+ * left outside its inventory (matched by identity, then uid), each once.
+ */
+function caravanCarriedItems(unit) {
+  const inventory = Array.isArray(unit?.inventory) ? unit.inventory.filter(Boolean) : [];
+  const consumables = Array.isArray(unit?.consumables) ? unit.consumables.filter(Boolean) : [];
+  const items = [...inventory, ...consumables];
+  const equipped = unit?.weapon;
+  if (equipped && typeof equipped === 'object' && !items.includes(equipped)) {
+    const uid = typeof equipped.uid === 'string' ? equipped.uid : '';
+    if (!uid || !items.some((item) => item?.uid === uid)) items.push(equipped);
+  }
+  return items;
 }
 
 function isPlainObject(value) {
@@ -2786,13 +2816,17 @@ export class RunManager {
     const forgeLevels = me?.startingWeaponForge || 0;
     if (forgeLevels > 0) {
       const FORGE_STATS = ['might', 'crit', 'hit', 'weight'];
+      // Honed Blades rolls from the run seed: the same run always gets the same forges.
+      const forgeRng = Number.isFinite(this.runSeed)
+        ? createSeededRng(hashStringToUint32(`honed-blades:${this.runSeed >>> 0}`))
+        : Math.random;
       for (const unit of startingLordUnits) {
         for (const w of unit.inventory) {
           if (w.type === 'Staff') continue;
           // Fisher-Yates shuffle to pick unique stats (max forgeLevels is 3, FORGE_STATS has 4)
           const shuffled = [...FORGE_STATS];
           for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
+            const j = Math.floor(forgeRng() * (i + 1));
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
           }
           const forgeCount = Math.min(forgeLevels, shuffled.length);
@@ -3125,6 +3159,12 @@ export class RunManager {
     });
   }
 
+  /** Player spawns on the node's locked map (the deploy cap on re-entry), or null. */
+  getLockedSpawnCount(nodeId) {
+    const spawns = this.battleConfigsByNodeId?.[nodeId]?.playerSpawns;
+    return Array.isArray(spawns) ? spawns.length : null;
+  }
+
   lockBattleConfig(nodeId, battleConfig) {
     if (!nodeId || !battleConfig) return;
     if (!this.battleConfigsByNodeId) this.battleConfigsByNodeId = {};
@@ -3262,24 +3302,42 @@ export class RunManager {
   /**
    * The caravan Merchant (CaravanSystem, `isCaravan`) is an escort NPC, never an army
    * unit. Before Talk learned to ignore it (#139), a lord could recruit it; old saves
-   * can hold it on the roster or awaiting revival. Drop it from both; a roster copy's
-   * carried items go to the convoy and its accessory to the pool.
+   * can hold it on the roster or awaiting revival. Drop it from both, keeping every
+   * item it carried: weapons and consumables go to the convoy (past its capacity if
+   * need be, so a full convoy never destroys gear; the player can take them out),
+   * scrolls to the scroll pool and its accessory to the accessory pool.
    */
   _dropCaravanUnits() {
     if (!Array.isArray(this.roster) || !Array.isArray(this.fallenUnits)) return;
+    const caravans = [...this.roster, ...this.fallenUnits].filter((u) => u?.isCaravan);
+    if (!caravans.length) return;
     if (!this.convoy || typeof this.convoy !== 'object')
       this.convoy = { weapons: [], consumables: [] };
     if (!Array.isArray(this.convoy.weapons)) this.convoy.weapons = [];
     if (!Array.isArray(this.convoy.consumables)) this.convoy.consumables = [];
     if (!Array.isArray(this.accessories)) this.accessories = [];
-    for (const unit of this.roster.filter((u) => u?.isCaravan)) {
-      for (const item of [...(unit.inventory || []), ...(unit.consumables || [])])
-        this.addToConvoy(item);
+    if (!Array.isArray(this.scrolls)) this.scrolls = [];
+    for (const unit of caravans) {
+      for (const item of caravanCarriedItems(unit)) this._keepMigratedItem(item);
       const accessory = unit.accessory ? unequipAccessory(unit) : null;
-      if (accessory) this.accessories.push(accessory);
+      if (accessory) this.accessories.push(ensureItemUid(accessory));
+      unit.inventory = [];
+      unit.consumables = [];
+      unit.weapon = null;
     }
     this.roster = this.roster.filter((u) => !u?.isCaravan);
     this.fallenUnits = this.fallenUnits.filter((u) => !u?.isCaravan);
+  }
+
+  /** Store an item taken off a unit that is leaving the run; never refuses it. */
+  _keepMigratedItem(item) {
+    if (!item || typeof item !== 'object') return;
+    if (this.addToConvoy(item)) return;
+    const kept = ensureItemUid(item);
+    if (kept.type === 'Accessory') this.accessories.push(kept);
+    else if (kept.type === 'Scroll') this.scrolls.push(kept);
+    else if (kept.type === 'Consumable') this.convoy.consumables.push(kept);
+    else this.convoy.weapons.push(kept);
   }
 
   _transferFallenUnitItems(fallenUnit) {
@@ -3382,6 +3440,8 @@ export class RunManager {
    * battle progresses.
    */
   beginBattleInProgress(nodeId, entryInfo = {}) {
+    // Healed to full since taking off an HP accessory: the debt is gone before battle.
+    for (const unit of this.roster || []) settleAccessoryHpOwed(unit);
     if (this.currentAct === 'act1' && entryInfo.isBoss === true) this.reachedFirstActBoss = true;
     this.battleInProgress = {
       rewindPolicy: 'fixed-v1',
@@ -3743,6 +3803,13 @@ export class RunManager {
       createSeededRng(seed),
     );
     unit.currentHP = 1; // Catch-up HP gains do not turn revival into a full heal.
+    delete unit._accessoryHpOwed; // A revived unit owes nothing from its last life.
+    // Death sent its gear to the convoy: an unarmed unit comes back with an Iron weapon.
+    const starter = grantReviveStarterWeapon(unit, this.gameData?.weapons || [], INVENTORY_MAX);
+    this.lastRevivalResult = {
+      ...(this.lastRevivalResult || {}),
+      starterWeapon: starter?.name || null,
+    };
 
     this.roster.push(unit);
     return true;
@@ -3764,6 +3831,8 @@ export class RunManager {
 
   /** Mark a node as completed and update currentNodeId. */
   markNodeComplete(nodeId) {
+    // A unit that rested or healed to full since taking off an HP accessory owes nothing.
+    for (const unit of this.roster || []) settleAccessoryHpOwed(unit);
     const node = this.nodeMap.nodes.find((n) => n.id === nodeId);
     if (node) node.completed = true;
     this.currentNodeId = nodeId;
@@ -3810,6 +3879,7 @@ export class RunManager {
     // The act boss has fallen: the army rests before the next act and starts it whole.
     for (const unit of this.roster) {
       if (unit?.stats) unit.currentHP = unit.stats.HP;
+      settleAccessoryHpOwed(unit);
     }
     this.nodeMap = this._withNodeMapSeed(() =>
       generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
@@ -4074,10 +4144,8 @@ export class RunManager {
       if (this.actIndex >= 2) m.recordMilestone('beatAct2');
       if (this.actIndex >= 3) m.recordMilestone('beatAct3');
       if (summary.result === 'victory' && this.actIndex >= 3) m.recordMilestone('beatGame');
-      if (summary.result === 'victory' && this.difficultyId === 'hard')
-        m.recordMilestone('beatHard');
-      if (summary.result === 'victory' && this.difficultyId === 'lunatic')
-        m.recordMilestone('beatLunatic');
+      const ladderMilestone = difficultyVictoryMilestone(this.difficultyId);
+      if (summary.result === 'victory' && ladderMilestone) m.recordMilestone(ladderMilestone);
       // Narrative memory flush — exactly-once under this guard, like currencies.
       m.recordRunEnd?.({
         result: summary.result,

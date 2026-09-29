@@ -1,5 +1,5 @@
 import { saveServiceRun } from './serviceSave.js';
-import { weaponArtScrollText } from './weaponArtDisplay.js';
+import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { statusDescriptions, statusStaffInfo } from '../engine/BattleInformation.js';
 import { classChangePreview } from './classChangeDisplay.js';
@@ -13,7 +13,14 @@ import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { formatPerkMods, MASTERY_HELP, proficiencyLabel } from './rosterDisplay.js';
 import { ContextHelp, helpPreview } from './ContextHelp.js';
-import { attributesHelp, combatBaselineHelp, convoyHelp, WEAPON_ARTS_HELP } from './helpTopics.js';
+import {
+  attributesHelp,
+  combatBaselineHelp,
+  convoyHelp,
+  DEEDS_HELP,
+  SCROLLS_HELP,
+  WEAPON_ARTS_HELP,
+} from './helpTopics.js';
 import { attachInfo, holdTip } from './infoAffordance.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
@@ -73,10 +80,18 @@ import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import {
+  chooseTitle,
   deedsForDisplay,
   deedTallyText,
   epithetText,
-  promotionOath,
+  oathOptionsInOrder,
+  oathTradeableSkills,
+  pledgeOath,
+  promotionOathCandidates,
+  releaseWaitingOath,
+  swearWaitingOath,
+  TITLE_NONE,
+  waitingOath,
   unitDisplayName,
 } from '../engine/DeedSystem.js';
 import { actLabel } from './ceremonyContent.js';
@@ -296,9 +311,12 @@ export class MobileRosterSheet {
       const hpRow = el('span', null, 'mr-unit-hp');
       hpRow.append(createHealthBar(unit), el('small', `${unit.currentHP}/${unit.stats.HP}`));
       info.append(classLine, hpRow);
+      // A waiting Oath is a choice left to make: the unit says so in the list.
+      const oathWaits = Boolean(this.run && waitingOath(unit));
+      if (oathWaits) info.append(el('span', 'Oath waiting', 'mr-unit-flag'));
       b.setAttribute(
         'aria-label',
-        `${unit.name}, Level ${getDisplayLevel(unit)} ${unit.className}, HP ${unit.currentHP} of ${unit.stats.HP}`,
+        `${unit.name}, Level ${getDisplayLevel(unit)} ${unit.className}, HP ${unit.currentHP} of ${unit.stats.HP}${oathWaits ? ', Oath waiting' : ''}`,
       );
       b.append(info);
       b.setAttribute('aria-pressed', String(index === this.index));
@@ -349,6 +367,7 @@ export class MobileRosterSheet {
       );
       summary.append(createHealthBar(unit));
       body.append(summary);
+      this.waitingOathCallout(unit);
       if (this.tab === 'stats') this.stats(unit);
       if (this.tab === 'skills') this.skills(unit);
       if (this.tab === 'gear') this.gear(unit);
@@ -508,25 +527,91 @@ export class MobileRosterSheet {
     if (unit.growths && unit.faction !== 'enemy') this.body.append(growthsCard(unit.growths));
   }
   // Deeds & Epithets: the titles this unit earned, the title first, then newest, with the
-  // run's tallies and its Oath (sworn, or the one a promotion would swear).
+  // run's tallies and its Oath. Between battles the player picks the title the unit goes
+  // by and, before promotion, which deed's Oath it will swear (saved at once).
   deeds(unit) {
     const list = deedsForDisplay(unit, this.gameData.deeds);
-    this.body.append(el('h3', list.length ? `Deeds · ${list.length}` : 'Deeds'));
+    const heading = el('h3', list.length ? `Deeds · ${list.length}` : 'Deeds');
+    this.body.append(heading);
+    if (list.length) this.explain(heading, 'deeds', 'Deeds', DEEDS_HELP);
     const tally = deedTallyText(unit);
     if (tally) this.body.append(el('p', `This march: ${tally}`, 'mr-deed-tally'));
     const skillText = (id) => {
       const skill = this.gameData.skills?.find((s) => s.id === id);
       return `${skill?.name || id}${skill?.description ? ` — ${skill.description}` : ''}`;
     };
+    // Choices are run state: only the manage view (between battles) makes them.
+    const manage = Boolean(this.run?.roster?.includes(unit));
+    const choose = (change, done) => {
+      if (!change()) return;
+      this.render(`${done}${this.persistNow()}`);
+    };
     const sworn = unit.deeds?.oath;
+    const waiting = waitingOath(unit);
     if (sworn?.skillId) this.card(`${sworn.name || 'Oath'} · sworn`, skillText(sworn.skillId));
+    else if (waiting) this.waitingOathCard(unit, waiting, manage, skillText, choose);
     else if (unit.tier !== 'promoted') {
-      const next = promotionOath(unit, this.gameData.deeds, this.gameData.skills);
-      if (next) this.card(`${next.name} · sworn at promotion`, skillText(next.skillId));
+      const options = promotionOathCandidates(unit, this.gameData.deeds, this.gameData.skills);
+      if (options.length === 1)
+        this.card(`${options[0].name} · sworn at promotion`, skillText(options[0].skillId));
+      else if (options.length > 1) {
+        // One Oath per unit: the player picks which deed it swears on.
+        const card = this.card(
+          'Oath at promotion',
+          'Choose the deed this unit swears on. Only one Oath, ever.',
+        );
+        card.classList.add('mr-oath-choice');
+        // A stable order (greatest first); the one it will swear is marked.
+        for (const option of oathOptionsInOrder(options)) {
+          const chosen = option.deedId === options[0].deedId;
+          const b = manage
+            ? this.button(`${option.name} · ${option.skillName}`, () =>
+                choose(
+                  () => pledgeOath(unit, option.deedId),
+                  `${unit.name} will swear ${option.name}.`,
+                ),
+              )
+            : el('p', `${option.name} · ${option.skillName}`);
+          b.classList.add('mr-oath-option');
+          if (manage) b.setAttribute('aria-pressed', String(chosen));
+          else if (chosen) b.classList.add('is-chosen');
+          if (option.skillDescription) b.title = option.skillDescription;
+          card.append(b);
+        }
+        card.append(el('p', skillText(options[0].skillId), 'mr-deed-meta'));
+      }
     }
     if (!list.length) {
       this.card('No deeds yet', 'Titles come from what a unit does in battle, not from a list.');
       return;
+    }
+    const chosenTitle = unit.deeds?.chosenTitle ?? null;
+    if (manage) {
+      const mode = el(
+        'p',
+        chosenTitle === TITLE_NONE
+          ? 'Title: none. Goes by name alone.'
+          : chosenTitle
+            ? 'Title: chosen by you.'
+            : 'Title: the greatest deed (automatic).',
+        'mr-deed-mode',
+      );
+      if (chosenTitle)
+        mode.append(
+          this.button('Greatest deed', () =>
+            choose(
+              () => chooseTitle(unit, null),
+              `${unit.name}'s title follows the greatest deed.`,
+            ),
+          ),
+        );
+      if (chosenTitle !== TITLE_NONE)
+        mode.append(
+          this.button('No title', () =>
+            choose(() => chooseTitle(unit, TITLE_NONE), `${unit.name} goes by name alone.`),
+          ),
+        );
+      this.body.append(mode);
     }
     for (const deed of list) {
       const card = el('article', null, `mr-card mr-deed${deed.isTitle ? ' is-title' : ''}`);
@@ -539,11 +624,124 @@ export class MobileRosterSheet {
         .filter(Boolean)
         .join(' · ');
       if (meta) card.append(el('p', meta, 'mr-deed-meta'));
+      if (manage && !deed.isTitle)
+        card.append(
+          this.button('Use as title', () =>
+            choose(() => chooseTitle(unit, deed.id), `${unit.name} now goes by ${deed.epithet}.`),
+          ),
+        );
       this.body.append(card);
     }
   }
+  /**
+   * A waiting Oath, at the top of the unit's pane on every tab: the choice lives at the
+   * foot of Stats (Deeds), so the pane says so and takes the player there. The first
+   * time a save meets one, it also says what a waiting Oath is (playtest 2026-09-28).
+   */
+  waitingOathCallout(unit) {
+    const waiting = this.run ? waitingOath(unit) : null;
+    if (!waiting) return;
+    const box = el('aside', null, 'mr-callout mr-oath-callout');
+    box.setAttribute('aria-label', `${waiting.name || 'Oath'} is waiting`);
+    box.append(el('h4', `${waiting.name || 'An Oath'} is waiting`));
+    const full = (unit.skills?.length || 0) >= MAX_SKILLS;
+    box.append(
+      el(
+        'p',
+        full
+          ? `All ${MAX_SKILLS} skill slots are full. Give up a skill to swear it, or keep your skills and let it go.`
+          : 'A skill slot is free: swear it now.',
+      ),
+    );
+    // Told once per save; it stays up for as long as this sheet is open.
+    const hints = this.scene?.registry?.get?.('hints');
+    if (this._oathLesson === undefined)
+      this._oathLesson = Boolean(hints?.shouldShow?.('roster_oath_waiting'));
+    if (this._oathLesson)
+      box.append(
+        el(
+          'p',
+          'New: a unit swears one Oath when it promotes. If every skill slot is full, the Oath waits here instead of being lost. Lord and class skills can’t be given up.',
+          'mr-callout-lesson',
+        ),
+      );
+    const onStats = this.tab === 'stats';
+    box.append(
+      this.button(onStats ? 'Go to the Oath' : 'Choose in Deeds', () => {
+        if (this.tab !== 'stats') {
+          this.tab = 'stats';
+          this.render();
+        }
+        const card = this.root.querySelector('.mr-oath-waiting');
+        card?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+        card?.querySelector('button')?.focus({ preventScroll: true });
+      }),
+    );
+    this.body.append(box);
+  }
+  /**
+   * An Oath earned at promotion while every skill slot was full: it waits here until
+   * the player gives up a skill for it, or lets it go (asked twice: it is final).
+   */
+  waitingOathCard(unit, waiting, manage, skillText, choose) {
+    const card = this.card(`${waiting.name || 'Oath'} · waiting`, skillText(waiting.skillId));
+    card.classList.add('mr-oath-waiting');
+    const full = (unit.skills?.length || 0) >= MAX_SKILLS;
+    card.append(
+      el(
+        'p',
+        full
+          ? `Skill slots full (${MAX_SKILLS}/${MAX_SKILLS}). Give up one skill to swear this Oath, or keep your skills and let it go.`
+          : 'A skill slot is free: swear this Oath now.',
+        'mr-deed-meta',
+      ),
+    );
+    if (!manage) return;
+    const name = (id) => this.gameData.skills?.find((sk) => sk.id === id)?.name || id;
+    const oathSkill = name(waiting.skillId);
+    const swear = (giveUp) =>
+      choose(
+        () => swearWaitingOath(unit, giveUp, this.gameData).ok,
+        giveUp
+          ? `${unit.name} swore ${waiting.name}: ${oathSkill} in place of ${name(giveUp)}.`
+          : `${unit.name} swore ${waiting.name}: learned ${oathSkill}.`,
+      );
+    if (!full) {
+      const b = this.button(`Swear · learn ${oathSkill}`, () => swear(null));
+      b.classList.add('mr-oath-option');
+      card.append(b);
+    } else {
+      const tradeable = oathTradeableSkills(unit, this.gameData);
+      for (const id of tradeable) {
+        const b = this.button(`Give up ${name(id)}`, () => swear(id));
+        b.classList.add('mr-oath-option');
+        card.append(b);
+      }
+      if (!tradeable.length)
+        card.append(
+          el('p', 'Every skill here is personal or innate to the class.', 'mr-deed-meta'),
+        );
+    }
+    const release = this.button(
+      this._releasingOath === unit ? `Let ${waiting.name} go for good?` : 'Keep my skills',
+      () => {
+        if (this._releasingOath !== unit) {
+          this._releasingOath = unit;
+          this.render();
+          return;
+        }
+        this._releasingOath = null;
+        choose(() => releaseWaitingOath(unit), `${unit.name} let ${waiting.name} go.`);
+      },
+    );
+    release.classList.add('mr-oath-release');
+    card.append(release);
+  }
   skills(unit) {
     this.body.append(el('h3', `Skills · ${unit.skills?.length || 0}/${MAX_SKILLS}`));
+    const waiting = waitingOath(unit);
+    if (waiting)
+      this.card(`${waiting.name || 'Oath'} · waiting`, 'Swear it from Deeds by giving up a skill.');
     for (const id of unit.skills || []) {
       const skill = this.gameData.skills?.find((s) => s.id === id);
       this.card(
@@ -598,21 +796,32 @@ export class MobileRosterSheet {
     if (count) this.explain(artsHeading, 'weapon arts', 'Weapon arts', WEAPON_ARTS_HELP);
     if (!count) this.card('No weapon arts', 'No arts bound to carried weapons.');
     if (this.run) {
-      this.body.append(el('h3', `Team scrolls · ${this.run.scrolls?.length || 0}`));
-      for (const scroll of this.run.scrolls || []) {
-        const skill = this.gameData.skills.find((s) => s.id === scroll.skillId);
-        const card = this.card(
-          scroll.name,
-          scroll.teachesWeaponArtId
-            ? weaponArtScrollText(scroll, this.gameData.weaponArts?.arts || [])
-            : skill?.description || scroll.description || '',
-          scroll,
-        );
-        card.classList.add('mr-scroll-description');
-        this.aboutItem(card, scroll);
-        if (!scroll.teachesWeaponArtId)
-          card.append(this.button('Teach…', () => this.teachScroll(scroll)));
-        else card.append(this.button('Bind to weapon…', () => this.bindArt(scroll)));
+      const scrolls = this.run.scrolls || [];
+      const heading = el('h3', `Team scrolls · ${scrolls.length}`);
+      this.body.append(heading);
+      if (scrolls.length) this.explain(heading, 'scrolls', 'Scrolls', SCROLLS_HELP);
+      // Skill scrolls, then art scrolls, each under its own name: Blink is a skill.
+      const groups = [
+        ['Skill scrolls', scrolls.filter((s) => !s.teachesWeaponArtId)],
+        ['Weapon art scrolls', scrolls.filter((s) => s.teachesWeaponArtId)],
+      ];
+      for (const [title, list] of groups) {
+        if (!list.length) continue;
+        this.body.append(el('h4', `${title} · ${list.length}`, 'mr-scroll-group'));
+        for (const scroll of list) {
+          const card = this.card(
+            scroll.name,
+            scroll.teachesWeaponArtId
+              ? weaponArtScrollText(scroll, this.gameData.weaponArts?.arts || [])
+              : skillScrollText(scroll, this.gameData.skills),
+            scroll,
+          );
+          card.classList.add('mr-scroll-description');
+          this.aboutItem(card, scroll);
+          if (!scroll.teachesWeaponArtId)
+            card.append(this.button('Teach…', () => this.teachScroll(scroll)));
+          else card.append(this.button('Bind to weapon…', () => this.bindArt(scroll)));
+        }
       }
     }
   }
@@ -1021,7 +1230,9 @@ export class MobileRosterSheet {
     // A special the tags already state isn't repeated; staves and flavour keep theirs.
     if (item.special && !itemKeywords(item).length) c.append(el('p', item.special));
     if (item.description) c.append(el('p', item.description));
-    appendItemArtDetails(c, item, this.gameData.weaponArts?.arts || []);
+    appendItemArtDetails(c, item, this.gameData.weaponArts?.arts || [], {
+      openHelp: (title, blocks) => this.showHelp(title, blocks),
+    });
     this.aboutItem(c, item);
     return c;
   }

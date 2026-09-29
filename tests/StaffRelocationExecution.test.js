@@ -12,6 +12,7 @@ vi.mock('phaser', () => ({
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { XP_BASE_HEAL } from '../src/utils/constants.js';
+import { UI_HEX } from '../src/utils/uiStyles.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -30,6 +31,7 @@ function makeSceneCtx() {
       clearAttackHighlights: vi.fn(),
       showAttackRange: vi.fn(),
       showHealRange: vi.fn(),
+      showRelocateGuide: vi.fn(),
       gridToPixel: () => ({ x: 0, y: 0 }),
     },
     _awaitSceneTween: vi.fn(async () => {}),
@@ -210,7 +212,7 @@ describe('executeRelocate', () => {
     );
   });
 
-  it('refreshes fog of war when fog is enabled', async () => {
+  it('leaves the fog to the action completion (finishUnitAction), never before it', async () => {
     const ctx = makeSceneCtx();
     ctx.grid.fogEnabled = true;
     ctx.grid.updateFogOfWar = vi.fn();
@@ -220,10 +222,18 @@ describe('executeRelocate', () => {
     const healer = makeHealer(staff);
     const ally = makeAlly();
 
+    let fogBeforeFinish = null;
+    const finish = ctx.finishUnitAction;
+    ctx.finishUnitAction = vi.fn((...args) => {
+      fogBeforeFinish = ctx.grid.updateFogOfWar.mock.calls.length;
+      return finish?.(...args);
+    });
+
     await BattleScene.prototype.executeRelocate.call(ctx, healer, ally, { col: 8, row: 4 });
 
-    expect(ctx.grid.updateFogOfWar).toHaveBeenCalled();
-    expect(ctx.updateEnemyVisibility).toHaveBeenCalled();
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer);
+    expect(fogBeforeFinish).toBe(0);
+    expect(ctx.updateEnemyVisibility).not.toHaveBeenCalled();
   });
 });
 
@@ -259,7 +269,12 @@ describe('two-phase targeting handlers', () => {
     expect(ctx.battleState).toBe('SELECTING_STAFF_TILE');
     expect(ctx.staffRelocateAlly).toBe(ally);
     expect(ctx.staffRelocateTiles).toHaveLength(4); // all four caster-adjacent tiles free
-    expect(ctx.grid.showAttackRange).toHaveBeenCalledWith(ctx.staffRelocateTiles, 0x8a7f86, 0.4);
+    // The chosen ally shimmers and its landing squares show in gold.
+    expect(ctx.grid.showRelocateGuide).toHaveBeenCalledWith(ally, ctx.staffRelocateTiles, {
+      reduceMotion: false,
+      fill: UI_HEX.accent,
+      edge: UI_HEX.accentText,
+    });
   });
 
   it('handleStaffAllyClick ignores clicks on non-target tiles', () => {

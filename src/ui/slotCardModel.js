@@ -9,14 +9,15 @@
 import { actCardContent, actRegion, ACT_GRADE_KEYS, romanNumeral } from './ceremonyContent.js';
 import { portraitIdForUnit } from './portraitArt.js';
 
-/** Milestone seals in the order they are earned; the last two show only once lit. */
+/** Milestone seals in the order they are earned; the ladder's three show only once lit. */
 export const SLOT_SEALS = Object.freeze([
   { id: 'beatAct1', label: 'Act I cleared' },
   { id: 'beatAct2', label: 'Act II cleared' },
   { id: 'beatAct3', label: 'Act III cleared' },
   { id: 'beatGame', label: 'The Emperor fell', crown: true },
-  { id: 'beatHard', label: 'Won on Hard', crown: true, optional: true },
-  { id: 'beatLunatic', label: 'Won on Lunatic', crown: true, optional: true },
+  { id: 'beatDusk', label: 'Won on Dusk', crown: true, optional: true },
+  { id: 'beatHard', label: 'Won on Nightfall', crown: true, optional: true },
+  { id: 'beatLunatic', label: 'Won on Black Sun', crown: true, optional: true },
 ]);
 
 const NODE_WORDS = Object.freeze({

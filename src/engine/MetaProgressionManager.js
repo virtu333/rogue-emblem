@@ -1,3 +1,4 @@
+import { isDifficultyId } from './DifficultyEngine.js';
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
 import { mergeRunRecords } from './RunRecords.js';
 import { setItemFreeingSpace } from './SaveSpace.js';
@@ -36,7 +37,27 @@ function normalizeLordSelection(raw) {
 }
 
 function defaultStoryFlags() {
-  return { bossSlain: {}, defeatedBy: {}, lordFalls: {}, lastRun: null };
+  return { bossSlain: {}, defeatedBy: {}, lordFalls: {}, lastRun: null, linesPlayed: [] };
+}
+
+const MAX_LINES_PLAYED = 64;
+
+/**
+ * Pool lines already played on this save (NarrativeDirector line keys), least
+ * recent first; later lists are more recent. Bounded, one entry per key.
+ */
+function mergeLinesPlayed(...lists) {
+  const keys = [];
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const key of list) {
+      if (typeof key !== 'string' || !key) continue;
+      const existing = keys.indexOf(key);
+      if (existing !== -1) keys.splice(existing, 1);
+      keys.push(key);
+    }
+  }
+  return keys.slice(-MAX_LINES_PLAYED);
 }
 
 function normalizeStoryCountMap(raw) {
@@ -69,6 +90,7 @@ function normalizeStoryFlags(raw) {
     defeatedBy: normalizeStoryCountMap(raw.defeatedBy),
     lordFalls: normalizeStoryCountMap(raw.lordFalls),
     lastRun: normalizeLastRun(raw.lastRun),
+    linesPlayed: mergeLinesPlayed(raw.linesPlayed),
   };
 }
 
@@ -132,6 +154,32 @@ function normalizeLootCategoryWeightBonuses(rawMap) {
   return added ? out : null;
 }
 
+/**
+ * Starting-skill assignments with each skill on one lord only: a skill listed for
+ * several lords (saves from before the rule) stays with the first, in save order.
+ */
+export function exclusiveSkillAssignments(assignments) {
+  const out = {};
+  const taken = new Set();
+  if (!assignments || typeof assignments !== 'object') return out;
+  for (const [lord, slots] of Object.entries(assignments)) {
+    if (!Array.isArray(slots)) continue;
+    const kept = slots.filter((id) => typeof id === 'string' && !taken.has(id));
+    for (const id of kept) taken.add(id);
+    if (kept.length) out[lord] = kept;
+  }
+  return out;
+}
+
+/** Deed ids as a sorted, de-duplicated list (unions any number of lists). */
+export function mergeDeedIds(...lists) {
+  const ids = new Set();
+  for (const list of lists)
+    for (const id of Array.isArray(list) ? list : [])
+      if (typeof id === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(id)) ids.add(id);
+  return [...ids].sort();
+}
+
 export class MetaProgressionManager {
   /**
    * @param {Array} upgradesData - metaUpgrades.json array
@@ -153,6 +201,7 @@ export class MetaProgressionManager {
     this.runRecords = [];
     this.settledRunIds = []; // recent runs whose end rewards were paid (idempotency)
     this.seenDialogueKeys = [];
+    this.deedsEarned = []; // deed ids any unit of this save has earned (the Compendium's)
     this.hintState = null;
     this.skillAssignments = {}; // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
     this.lordSelection = { ...DEFAULT_LORD_SELECTION }; // commander-choice picks, persisted
@@ -163,9 +212,7 @@ export class MetaProgressionManager {
       const raw = localStorage.getItem(this.storageKey);
       if (raw) {
         const saved = JSON.parse(raw);
-        this.lastDifficulty = ['normal', 'hard', 'lunatic'].includes(saved.lastDifficulty)
-          ? saved.lastDifficulty
-          : null;
+        this.lastDifficulty = isDifficultyId(saved.lastDifficulty) ? saved.lastDifficulty : null;
 
         // Migration: old single-currency saves have totalRenown but no totalValor
         if (typeof saved.totalRenown === 'number' && saved.totalValor === undefined) {
@@ -192,7 +239,8 @@ export class MetaProgressionManager {
         // Migration: saves predating the started counter — every finished run
         // was started, so the completed count is a floor.
         if (this.runsStarted < this.runsCompleted) this.runsStarted = this.runsCompleted;
-        if (saved.skillAssignments) this.skillAssignments = saved.skillAssignments;
+        if (saved.skillAssignments)
+          this.skillAssignments = exclusiveSkillAssignments(saved.skillAssignments);
         if (saved.lordSelection) this.lordSelection = normalizeLordSelection(saved.lordSelection);
         if (Number.isFinite(saved.savedAt)) this.savedAt = saved.savedAt;
         // Migration: old saves without milestones default to empty
@@ -202,6 +250,7 @@ export class MetaProgressionManager {
         this.runRecords = mergeRunRecords(saved.runRecords || []);
         this.settledRunIds = mergeSettledRunIds(saved.settledRunIds);
         this.seenDialogueKeys = mergeSeenDialogueKeys(saved.seenDialogueKeys || []);
+        this.deedsEarned = mergeDeedIds(saved.deedsEarned);
         if (saved.storyFlags) this.storyFlags = normalizeStoryFlags(saved.storyFlags);
         this.solRefundBasis = Number(saved.solRefundBasis) === 400 ? 400 : 600;
         if (!saved.balanceRevision) {
@@ -375,6 +424,14 @@ export class MetaProgressionManager {
     return Math.max(0, Math.floor(Number(this.storyFlags?.defeatedBy?.[name]) || 0));
   }
 
+  /** Remember pool lines just played (NarrativeDirector keys) so a set rotates fully. */
+  recordLinesPlayed(keys) {
+    const fresh = (Array.isArray(keys) ? keys : []).filter((k) => typeof k === 'string' && k);
+    if (!fresh.length) return;
+    this.storyFlags.linesPlayed = mergeLinesPlayed(this.storyFlags.linesPlayed, fresh);
+    this._save();
+  }
+
   recordBossSlain(name) {
     if (typeof name !== 'string' || !name.trim()) return;
     const key = name.trim();
@@ -389,6 +446,18 @@ export class MetaProgressionManager {
    */
   hasSeenDialogue(key) {
     return this.seenDialogueKeys.includes(key);
+  }
+
+  /** Deeds any unit of this save has earned: the Compendium lists these, hides the rest. */
+  hasEarnedDeed(id) {
+    return this.deedsEarned.includes(id);
+  }
+
+  recordDeedsEarned(ids) {
+    const merged = mergeDeedIds(this.deedsEarned, ids);
+    if (merged.length === this.deedsEarned.length) return;
+    this.deedsEarned = merged;
+    this._save();
   }
 
   markDialogueSeen(key) {
@@ -487,8 +556,9 @@ export class MetaProgressionManager {
         beatAct2: 'Beat Act 2',
         beatAct3: 'Beat Act 3',
         beatGame: 'Beat the Game',
-        beatHard: 'Beat the Game on Hard',
-        beatLunatic: 'Beat the Game on Lunatic',
+        beatDusk: 'Beat the Game on Dusk',
+        beatHard: 'Beat the Game on Nightfall',
+        beatLunatic: 'Beat the Game on Black Sun',
       };
       for (const m of reqs.milestones) {
         if (!this.milestones.has(m)) {
@@ -598,15 +668,32 @@ export class MetaProgressionManager {
     return Math.min(1 + this.getUpgradeLevel('extra_skill_slot'), MAX_STARTING_SKILLS);
   }
 
-  /** Assign a skill to a lord (max getStartingSkillSlots() per lord). Returns true on success. */
-  assignSkill(lordName, skillId) {
-    if (!this.skillAssignments[lordName]) this.skillAssignments[lordName] = [];
-    const slots = this.skillAssignments[lordName];
+  /** The lord a starting skill is assigned to, or null. Each skill sits on one lord. */
+  getSkillHolder(skillId) {
+    for (const [lord, slots] of Object.entries(this.skillAssignments))
+      if (Array.isArray(slots) && slots.includes(skillId)) return lord;
+    return null;
+  }
+
+  /**
+   * Assign a skill to a lord (max getStartingSkillSlots() per lord). An unlocked
+   * skill sits on one lord at a time: held by another lord, it is refused, or with
+   * `{ move: true }` taken from that lord. Returns true on success.
+   */
+  assignSkill(lordName, skillId, { move = false } = {}) {
+    const holder = this.getSkillHolder(skillId);
+    if (holder === lordName) return false;
+    if (holder && !move) return false;
+    const slots = this.skillAssignments[lordName] || [];
     if (slots.length >= this.getStartingSkillSlots()) return false;
-    if (slots.includes(skillId)) return false;
     // Must be an unlocked skill
     if (!this.getUnlockedSkills().includes(skillId)) return false;
-    slots.push(skillId);
+    if (holder) {
+      const held = this.skillAssignments[holder];
+      held.splice(held.indexOf(skillId), 1);
+      if (held.length === 0) delete this.skillAssignments[holder];
+    }
+    this.skillAssignments[lordName] = [...slots, skillId];
     this._save();
     return true;
   }
@@ -868,9 +955,9 @@ export class MetaProgressionManager {
       effects.startingLords = this.getLordSelection();
     }
 
-    // Trim startingSkills per lord to available slot count
+    // Trim startingSkills per lord to available slot count (each skill on one lord)
     const maxSlots = this.getStartingSkillSlots();
-    const rawAssignments = this.getSkillAssignments();
+    const rawAssignments = exclusiveSkillAssignments(this.getSkillAssignments());
     for (const [lord, skills] of Object.entries(rawAssignments)) {
       if (Array.isArray(skills) && skills.length > 0) {
         effects.startingSkills[lord] = skills.slice(0, maxSlots);
@@ -1056,6 +1143,7 @@ export class MetaProgressionManager {
       for (const [lord, slots] of Object.entries(disk.skillAssignments)) {
         if (this.skillAssignments[lord] === undefined) this.skillAssignments[lord] = slots;
       }
+      this.skillAssignments = exclusiveSkillAssignments(this.skillAssignments);
     }
     // Adopt-if-default: a still-default local selection takes the disk's picks.
     if (
@@ -1073,6 +1161,7 @@ export class MetaProgressionManager {
       this.seenDialogueKeys,
       disk.seenDialogueKeys || [],
     );
+    this.deedsEarned = mergeDeedIds(this.deedsEarned, disk.deedsEarned);
     if (disk.storyFlags && typeof disk.storyFlags === 'object') {
       const diskFlags = normalizeStoryFlags(disk.storyFlags);
       // Counters are monotonic, so per-name max can only over-remember —
@@ -1083,19 +1172,23 @@ export class MetaProgressionManager {
           this.storyFlags[mapKey][name] = Math.max(local, count);
         }
       }
+      // Either copy may hold lines the other has not played yet; local is the newer.
+      this.storyFlags.linesPlayed = mergeLinesPlayed(
+        diskFlags.linesPlayed,
+        this.storyFlags.linesPlayed,
+      );
       const diskEndedAt = Number(diskFlags.lastRun?.endedAt) || 0;
       const localEndedAt = Number(this.storyFlags.lastRun?.endedAt) || 0;
       if (diskFlags.lastRun && diskEndedAt > localEndedAt) {
         this.storyFlags.lastRun = diskFlags.lastRun;
       }
     }
-    if (['normal', 'hard', 'lunatic'].includes(disk.lastDifficulty))
-      this.lastDifficulty = disk.lastDifficulty;
+    if (isDifficultyId(disk.lastDifficulty)) this.lastDifficulty = disk.lastDifficulty;
     this.savedAt = diskSavedAt;
   }
 
   rememberDifficulty(id) {
-    if (!['normal', 'hard', 'lunatic'].includes(id)) return { ok: false };
+    if (!isDifficultyId(id)) return { ok: false };
     return this._save({ lastDifficulty: id });
   }
 
@@ -1140,6 +1233,7 @@ export class MetaProgressionManager {
       runRecords: this.runRecords,
       settledRunIds: this.settledRunIds,
       seenDialogueKeys: this.seenDialogueKeys,
+      deedsEarned: this.deedsEarned,
       hintState: this.hintState,
       savedAt: this.savedAt,
     });
@@ -1153,8 +1247,7 @@ export class MetaProgressionManager {
     // Inside applyRunPayout: the payout's one write happens when it finishes.
     if (this._deferSaves > 0) return { ok: true, deferred: true };
     this._adoptForeignDiskStateIfNewer();
-    if (['normal', 'hard', 'lunatic'].includes(lastDifficulty))
-      this.lastDifficulty = lastDifficulty;
+    if (isDifficultyId(lastDifficulty)) this.lastDifficulty = lastDifficulty;
     const floor = this._readClockFloorSavedAt();
     this.savedAt = Math.max(Date.now(), this.savedAt + 1, Number.isFinite(floor) ? floor + 1 : 0);
     const payload = {
@@ -1173,6 +1266,7 @@ export class MetaProgressionManager {
       runRecords: this.runRecords,
       settledRunIds: this.settledRunIds,
       seenDialogueKeys: this.seenDialogueKeys,
+      deedsEarned: this.deedsEarned,
       hintState: this.hintState,
       savedAt: this.savedAt,
     };

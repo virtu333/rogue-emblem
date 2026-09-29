@@ -6,7 +6,7 @@ import {
 } from '../src/art/keyart/titleVariant.js';
 import { computeBackdropFrame, plateToView } from '../src/art/keyart/keyArtBackdrop.js';
 import { PLATE_W, PLATE_H, HOLLOW_SUN_VARIANTS } from '../src/art/keyart/hollowSun.js';
-import { buildTitleMenu, pickResumeSlot } from '../src/ui/titleMenuModel.js';
+import { buildTitleMenu, latestSlot, pickResumeSlot } from '../src/ui/titleMenuModel.js';
 
 describe('title key art variant', () => {
   it('is dusk by default, rising after a Normal victory, ashfall after a Hard victory', () => {
@@ -185,6 +185,63 @@ describe('title menu model', () => {
       'tutorial',
     ]);
     expect(items.filter((i) => i.group === 'reference')).toHaveLength(4);
+  });
+
+  it('with several runs, Resume opens the newest save and names its slot', () => {
+    const resumeSlot = pickResumeSlot([
+      { slot: 1, hasActiveRun: true, actReached: 2, savedAt: 1000 },
+      { slot: 2, hasActiveRun: true, actReached: 4, savedAt: 5000 },
+      { slot: 3, hasActiveRun: true, runCorrupt: true, savedAt: 9000 },
+    ]);
+    expect(resumeSlot).toMatchObject({ slot: 2, latestOf: 2 });
+    const items = buildTitleMenu({ hasSlots: true, tutorialDone: true, resumeSlot });
+    expect(items[0]).toMatchObject({
+      id: 'resume',
+      label: 'Resume · Act 4',
+      sub: 'Latest save · Slot 2',
+      primary: true,
+    });
+    // Unknown or tied times name no run: the player picks in Save Slots.
+    expect(
+      pickResumeSlot([
+        { slot: 1, hasActiveRun: true, savedAt: 5000 },
+        { slot: 2, hasActiveRun: true, savedAt: 5000 },
+      ]),
+    ).toBeNull();
+    expect(
+      pickResumeSlot([
+        { slot: 1, hasActiveRun: true, savedAt: 5000 },
+        { slot: 2, hasActiveRun: true, savedAt: 4000 },
+        { slot: 3, hasActiveRun: true, savedAt: 5000 },
+      ]),
+    ).toBeNull();
+    // A single run keeps the plain label.
+    const single = buildTitleMenu({
+      hasSlots: true,
+      resumeSlot: pickResumeSlot([{ slot: 3, hasActiveRun: true, actReached: 1, savedAt: 7 }]),
+    });
+    expect(single[0].sub).toBeUndefined();
+  });
+
+  it('the latest slot is the one played last, run or home base', () => {
+    expect(latestSlot([null, { slot: 2, savedAt: 10 }, null])).toBeNull();
+    expect(
+      latestSlot([{ slot: 1, savedAt: 100, metaSavedAt: 50 }, { slot: 2, metaSavedAt: 300 }, null]),
+    ).toBe(2);
+    expect(
+      latestSlot([
+        { slot: 1, savedAt: 100, metaSavedAt: 400 },
+        { slot: 2, metaSavedAt: 300 },
+        { slot: 3, savedAt: 350 },
+      ]),
+    ).toBe(1);
+    expect(latestSlot([{ slot: 1 }, { slot: 2 }])).toBeNull();
+    expect(
+      latestSlot([
+        { slot: 1, metaSavedAt: 5 },
+        { slot: 2, savedAt: 5 },
+      ]),
+    ).toBeNull();
   });
 
   it('only a single uncorrupted active run earns the Resume shortcut', () => {

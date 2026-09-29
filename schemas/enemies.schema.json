@@ -39,7 +39,7 @@
               "name": { "type": "string" },
               "difficultyFilter": {
                 "type": "array",
-                "items": { "type": "string", "enum": ["normal", "hard", "lunatic"] }
+                "items": { "type": "string", "enum": ["normal", "dusk", "hard", "lunatic"] }
               },
               "isEntity": { "type": "boolean" },
               "epithet": { "type": "string", "minLength": 1, "maxLength": 36 },

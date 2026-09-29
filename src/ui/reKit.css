@@ -594,4 +594,23 @@
 }
 .item-art-details p {
   white-space: pre-line;
+  margin: 4px 0;
+}
+.item-art-details strong {
+  color: var(--re-accent-text);
+}
+.item-art-details .item-art-flavour {
+  font-style: italic;
+  color: var(--re-muted);
+}
+/* "How weapon arts work": the shared rules, one tap away. */
+.item-art-help {
+  min-height: var(--re-tap);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--re-accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
 }

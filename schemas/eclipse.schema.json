@@ -12,10 +12,11 @@
       "type": "object",
       "properties": {
         "normal": { "type": "number", "minimum": 0 },
+        "dusk": { "type": "number", "minimum": 0 },
         "hard": { "type": "number", "minimum": 0 },
         "lunatic": { "type": "number", "minimum": 0 }
       },
-      "required": ["normal", "hard", "lunatic"],
+      "required": ["normal", "dusk", "hard", "lunatic"],
       "additionalProperties": false
     },
     "bossRelief": { "type": "integer", "minimum": 0 },

@@ -295,6 +295,66 @@ describe('Imbue combat — vampiric lifesteal', () => {
   });
 });
 
+describe('Imbue combat — vampiric cap (at most 2 HP a strike)', () => {
+  function strikeAgainstWeakDefender(atkOverrides) {
+    forceHitsNoCrits();
+    // Big hits: STR 40 + Iron Sword vs DEF 0 → 15% is well above 2 per strike.
+    const { attacker, defender } = setupCombat({
+      atkImbue: 'vampiric',
+      atkOverrides: {
+        currentHP: 5,
+        stats: { ...makeUnit().stats, HP: 60, STR: 40 },
+        ...atkOverrides,
+      },
+      defOverrides: {
+        currentHP: 200,
+        stats: { ...makeUnit().stats, HP: 200, DEF: 0 },
+      },
+    });
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      plain,
+      plain,
+      baseSkillCtx,
+    );
+    return result.events.filter(
+      (e) => e.type === 'strike' && e.attackerSide === 'attacker' && !e.miss,
+    );
+  }
+
+  it('heals 2, not 15% of damage, on a big hit', () => {
+    const strikes = strikeAgainstWeakDefender({});
+    expect(strikes.length).toBeGreaterThan(0);
+    for (const strike of strikes) {
+      expect(Math.floor(strike.damage * 0.15)).toBeGreaterThan(2);
+      expect(strike.heal).toBe(2);
+    }
+  });
+
+  it('a stronger uncapped drain on the same unit still heals in full', () => {
+    forceHitsNoCrits();
+    const { attacker, defender } = setupCombat({
+      atkImbue: 'vampiric',
+      atkOverrides: { currentHP: 5, stats: { ...makeUnit().stats, HP: 60, STR: 40 } },
+      defOverrides: { currentHP: 200, stats: { ...makeUnit().stats, HP: 200, DEF: 0 } },
+    });
+    const ctx = { ...baseSkillCtx, atkWeaponArtMods: { drainPercent: 0.5 } };
+    const args = [attacker, attacker.weapon, defender, defender.weapon, 1, plain, plain, ctx];
+    const forecast = getCombatForecast(...args);
+    expect(forecast.attacker.drainPercent).toBeCloseTo(0.5);
+    expect(forecast.attacker.drainMaxPerHit).toBeNull();
+    const strikes = resolveCombat(...args).events.filter(
+      (e) => e.type === 'strike' && e.attackerSide === 'attacker' && !e.miss,
+    );
+    expect(strikes.length).toBeGreaterThan(0);
+    for (const strike of strikes) expect(strike.heal).toBe(Math.floor(strike.damage * 0.5));
+  });
+});
+
 describe('Imbue combat — venom post-combat poison', () => {
   it('emits 5 poison via the poisonEffects path and floors HP at 1', () => {
     forceHitsNoCrits();

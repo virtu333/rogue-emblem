@@ -1,6 +1,7 @@
 import { shopRequirementLabel, forgeImpactSuffix } from './itemDecisionText.js';
 import { equipmentComparison } from './equipmentComparison.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
+import { ContextHelp } from './ContextHelp.js';
 import { equippedBadgeElement } from './equippedBadge.js';
 import { itemKeywordRow, itemKeywordText } from './itemKeywordChips.js';
 import { itemBaseLine } from '../engine/ItemKeywords.js';
@@ -294,7 +295,9 @@ export class ShopMenu {
       ),
     );
     if (item.lore) copy.append(el('p', item.lore, 'shop-lore'));
-    appendItemArtDetails(copy, item, this.scene.gameData.weaponArts?.arts || []);
+    appendItemArtDetails(copy, item, this.scene.gameData.weaponArts?.arts || [], {
+      openHelp: (title, blocks) => this.openHelp(title, blocks),
+    });
     if (item.might != null || item.type === 'Staff') {
       const comparisons = el('details');
       comparisons.append(el('summary', 'Compare with your roster'));
@@ -540,6 +543,15 @@ export class ShopMenu {
   }
   leave() {
     if (!this.child) this.controller.leaveShopNode();
+  }
+  /** Shared rules (weapon arts, scrolls) over the shop, which keeps its place. */
+  openHelp(title, blocks) {
+    if (this.child || !this.surface) return;
+    const focus = document.activeElement;
+    this.child = new ContextHelp(this.scene, this.surface.root, title, blocks, () => {
+      this.child = null;
+      focus?.focus?.();
+    });
   }
   setVisible(visible) {
     if (visible) this.open();

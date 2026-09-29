@@ -11,7 +11,11 @@ import { recordBlessingRunOutcome } from '../utils/blessingAnalytics.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
-import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
+import {
+  buildNarrativeContext,
+  selectDialogueEntries,
+  victoryEndingKey,
+} from '../engine/NarrativeDirector.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -158,8 +162,10 @@ export class RunCompleteScene extends Phaser.Scene {
     ).setOrigin(0.5);
 
     // Difficulty line (colored separately)
-    const diffLabel = rm.difficultyModifiers?.label || rm.difficultyId || 'normal';
-    const diffColor = rm.difficultyModifiers?.color || '#44cc44';
+    // Today's name for the rung (a run saved before the ladder stored 'Hard').
+    const mode = this.gameData?.difficulty?.modes?.[rm.difficultyId];
+    const diffLabel = mode?.label || rm.difficultyModifiers?.label || rm.difficultyId || 'normal';
+    const diffColor = mode?.color || rm.difficultyModifiers?.color || '#44cc44';
     applyTextResolution(
       this.add.text(cx, cy + 4, `${diffLabel} Mode  (x${currencyMultiplier.toFixed(2)} currency)`, {
         fontFamily: 'Arial',
@@ -371,7 +377,7 @@ export class RunCompleteScene extends Phaser.Scene {
     const dialogue = this.gameData?.dialogue?.runComplete;
     if (!dialogue) return null;
     const key =
-      this.result === 'victory' ? `victory_${this.runManager?.difficultyId || 'normal'}` : 'defeat';
+      this.result === 'victory' ? victoryEndingKey(this.runManager, this.gameData) : 'defeat';
     // Settle has already run on both paths, so ctx.lastRunResult refers to
     // THIS run — runComplete variants should gate on firstClear / commander /
     // minRunsCompleted, never lastRunResult.

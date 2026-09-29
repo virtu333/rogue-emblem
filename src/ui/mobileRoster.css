@@ -124,6 +124,33 @@
 .mr-card p {
   color: var(--re-muted);
 }
+/* A choice left to make (a waiting Oath): gold-edged, at the top of the unit's pane. */
+.mr-callout {
+  border: 1px solid var(--re-gold);
+  border-left-width: 4px;
+  border-radius: 2px;
+  padding: var(--re-s3);
+  margin: 0 0 10px;
+  background: var(--re-panel-raised);
+  clear: both;
+}
+.mr-callout h4 {
+  color: var(--re-accent-text);
+}
+.mr-callout p {
+  color: var(--re-text);
+  margin: 4px 0;
+}
+.mr-callout .mr-callout-lesson {
+  color: var(--re-muted);
+}
+.mr-callout button {
+  margin-top: 4px;
+}
+.mr-unit-info > .mr-unit-flag {
+  color: var(--re-accent-text);
+  font-size: 11px;
+}
 .mr-card button {
   margin: 4px 8px 0 0;
 }

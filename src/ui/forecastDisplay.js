@@ -92,6 +92,23 @@ export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
   return notes.filter(Boolean);
 }
 
+/**
+ * "How to read this forecast": short points, folded away until opened. Doubling is
+ * explained here (not as a hint under the forecast) and only when someone doubles.
+ */
+export function forecastReadingPoints(forecast) {
+  const points = [
+    'Hit is the real chance a strike lands: two rolls averaged, so 75 Hit lands about 88% and 25 about 13%.',
+    'Crit uses one roll. Crits and special effects can change damage.',
+  ];
+  if (forecast?.attacker?.doubles || forecast?.defender?.doubles)
+    points.push(
+      'Speed: an Attack Speed lead of 5 grants a second attack. Weapon weight lowers Attack Speed. Planned hits already counts it.',
+    );
+  points.push('A defeated unit cannot finish its remaining strikes.');
+  return points;
+}
+
 export function forecastTeachingHints(forecast, attackerHP) {
   const hints = [];
   if (counterRisk(forecast, attackerHP))
@@ -103,11 +120,6 @@ export function forecastTeachingHints(forecast, attackerHP) {
     hints.push({
       id: 'battle_no_counter',
       text: 'A counterattack needs a usable combat weapon that reaches the attacker. Status effects or an attack effect can also prevent it; the reason is shown above.',
-    });
-  if (forecast.attacker.doubles || forecast.defender.doubles)
-    hints.push({
-      id: 'battle_doubling',
-      text: 'A 5-point Attack Speed lead normally grants a second attack. Weapon weight can reduce Attack Speed. Planned hits includes doubling, but a defeated unit cannot finish its strikes.',
     });
   if (triangleText(forecast))
     hints.push({

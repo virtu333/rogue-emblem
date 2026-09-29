@@ -20,6 +20,11 @@ export function computeLavaCrackHp(currentHP, damage = LAVA_CRACK_DAMAGE) {
   };
 }
 
+/** One banner for a phase's lava burns: "Lava burns Edric -5, Sera -5". */
+export function lavaBurnBanner(burns) {
+  return `Lava burns ${burns.join(', ')}`;
+}
+
 export function isAcidTerrainIndex(terrainIndex) {
   return ACID_TERRAIN_TYPES.has(terrainIndex);
 }
