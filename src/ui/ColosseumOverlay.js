@@ -1,4 +1,5 @@
 import { ArenaMenu } from './ArenaMenu.js';
+import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import { levelUpDisplayResults } from './progressionDisplay.js';
 import { saveServiceRun } from './serviceSave.js';
@@ -85,6 +86,8 @@ export class ColosseumOverlay {
   hide() {
     if (!this.visible) return;
     this.visible = false;
+    this._sheet?.destroy();
+    this._sheet = null;
     this._clearScreen();
     this.scene.events?.off?.('shutdown', this._shutdown);
   }
@@ -102,6 +105,41 @@ export class ColosseumOverlay {
   _clearScreen() {
     this.nativeMenu?.destroy();
     this.nativeMenu = null;
+  }
+
+  /** The route map, over the colosseum (the service map the shop and church use). */
+  _viewMap(back) {
+    if (!this.visible || this._viewingMap || typeof this.scene._showServiceMap !== 'function')
+      return;
+    this._viewingMap = true;
+    this._clearScreen();
+    this.scene._showServiceMap(() => {
+      this._viewingMap = false;
+      if (this.visible) back();
+    });
+  }
+
+  /**
+   * A unit sheet over the arena: the roster (run given: equip, trade, and the edits
+   * save on close) or a mercenary's read-only card (run null). `back` redraws the
+   * screen it came from, so HP, gear and level changes show.
+   */
+  _openSheet({ run, units = this.runManager.roster, unit = null }, back) {
+    if (!this.visible || this._sheet) return;
+    if (this.nativeMenu) this.nativeMenu.surface.root.inert = true;
+    this._sheet = new MobileRosterSheet({
+      scene: this.scene,
+      run,
+      units,
+      index: Math.max(0, units.indexOf(unit)),
+      gameData: this.gameData,
+      onClose: () => {
+        this._sheet?.destroy();
+        this._sheet = null;
+        if (run) this._persistVisit();
+        if (this.visible) back();
+      },
+    });
   }
 
   _showMenu() {

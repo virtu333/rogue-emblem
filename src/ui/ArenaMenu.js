@@ -82,6 +82,19 @@ export class ArenaMenu {
   unit(unit) {
     this.surface.body.append(describeUnit(this.c.gameData, unit, this.c.scene));
   }
+  /** View map / Roster, as the shop and church offer; `back` redraws this screen. */
+  tools(back) {
+    const tools = el('div', null, 'shop-tools');
+    tools.append(
+      button('View map', () => {
+        if (!this.surface.destroyed) this.c._viewMap(back);
+      }),
+      button('Roster', () => {
+        if (!this.surface.destroyed) this.c._openSheet({ run: this.c.runManager }, back);
+      }),
+    );
+    this.surface.body.append(tools);
+  }
   static menu(c) {
     const m = new ArenaMenu(c, 'Colosseum', () => c.leave());
     m.surface.header.querySelector('button').textContent = 'Leave';
@@ -91,6 +104,7 @@ export class ArenaMenu {
     );
     m.action('Arena', () => c._showUnitSelect());
     m.action('Mercenary board', () => c._showMercBrowse());
+    m.tools(() => c._showMenu());
     return m.focus();
   }
   static units(c) {
@@ -108,11 +122,15 @@ export class ArenaMenu {
       );
     }
     if (!c.runManager.roster.length) m.text('No fighters available.');
+    m.tools(() => c._showUnitSelect());
     return m.focus();
   }
   static tiers(c, message) {
     const m = new ArenaMenu(c, 'Arena · Choose tier', () => c._showUnitSelect());
     m.text(`${c._selectedUnit.name} · HP ${c._selectedUnit.currentHP}/${c._selectedUnit.stats.HP}`);
+    m.action(`${c._selectedUnit.name}'s details`, () =>
+      c._openSheet({ run: c.runManager, unit: c._selectedUnit }, () => c._showTierSelect(message)),
+    );
     if (message) m.text(message);
     for (const [name, tier] of getAvailableTiers(c._actId, c._colosseumData)) {
       m.action(
@@ -279,6 +297,15 @@ export class ArenaMenu {
     contract.append(row, terms);
     m.surface.body.append(contract);
     fitDraft(m.surface.body);
+    // The mercenary's full sheet (read-only: not yours until hired).
+    terms.append(
+      button('Details', () => {
+        if (!m.surface.destroyed)
+          c._openSheet({ run: null, units: c._mercCandidates.map((m) => m.unit), unit: u }, () =>
+            c._showMercConfirm(index),
+          );
+      }),
+    );
     const confirm = button('Confirm hire', () => {
       if (!m.surface.destroyed) c._hireMercenary(index);
     });
