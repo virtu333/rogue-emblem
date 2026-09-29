@@ -10,25 +10,25 @@
       "file": "atlas-16.png",
       "w": 256,
       "h": 320,
-      "bytes": 14628,
-      "hash": "3ae69733",
-      "rgba": "89f2c67c32b7bf43"
+      "bytes": 14622,
+      "hash": "88d35402",
+      "rgba": "7194e86747fe80be"
     },
     "32": {
       "file": "atlas-32.png",
       "w": 512,
       "h": 640,
-      "bytes": 35201,
-      "hash": "d35b4a6c",
-      "rgba": "ad6c634589232bdb"
+      "bytes": 35210,
+      "hash": "cd878877",
+      "rgba": "16f16f2af529b60a"
     },
     "48": {
       "file": "atlas-48.png",
       "w": 768,
       "h": 960,
-      "bytes": 62230,
-      "hash": "c3eab850",
-      "rgba": "58e50950f3b58d62"
+      "bytes": 62263,
+      "hash": "890e7720",
+      "rgba": "85983537e0d0ac14"
     }
   },
   "heroSize": 96,
@@ -371,8 +371,8 @@
     "blessing-swift_instinct": [194, 5, 8],
     "blessing-field_medic": [195, 5, 7],
     "blessing-iron_oath": [196, 5, 8],
-    "blessing-scout_blessing": [197, 5, 8],
-    "blessing-scholar_vow": [198, 5, 8],
+    "blessing-scout_blessing": [197, 5, 9],
+    "blessing-scholar_vow": [198, 5, 9],
     "blessing-rally_cry": [199, 5, 8],
     "blessing-war_veteran": [200, 5, 8],
     "blessing-frugal_smith": [201, 5, 8],
@@ -380,14 +380,14 @@
     "blessing-pilgrim_coin": [203, 5, 9],
     "blessing-merchant_bane": [204, 5, 9],
     "blessing-nomad_pact": [205, 5, 9],
-    "blessing-terrain_mastery": [206, 5, 9],
+    "blessing-terrain_mastery": [206, 5, 8],
     "blessing-quartermaster_cache": [207, 5, 8],
     "blessing-forbidden_tome": [208, 5, 10],
     "blessing-blood_forge": [209, 5, 10],
     "blessing-war_tutelage": [210, 5, 10],
     "blessing-armory_stash": [211, 5, 10],
     "blessing-scroll_archive": [212, 5, 10],
-    "blessing-focused_curriculum": [213, 5, 8],
+    "blessing-focused_curriculum": [213, 5, 9],
     "upgrade-recruit_hp_growth": [214, 6, 5],
     "upgrade-recruit_str_growth": [215, 6, 5],
     "upgrade-recruit_mag_growth": [216, 6, 5],

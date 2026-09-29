@@ -1249,6 +1249,8 @@ export class RunManager {
       if (!Array.isArray(this.blessingRuntimeModifiers.actStatDeltaAllUnits)) {
         this.blessingRuntimeModifiers.actStatDeltaAllUnits = [];
       }
+      // unitUids: who holds the delta, so the act's end takes it back from them only
+      // (a recruit who joined later gets it on joining: grantRecruitBlessingConsumables).
       const tracker = {
         blessingId,
         act: targetAct,
@@ -1256,9 +1258,11 @@ export class RunManager {
         value,
         applied: false,
         reverted: false,
+        unitUids: [],
       };
       if (targetAct === this.currentAct) {
         this._applyStatDeltaToUnits(this.roster, stat, value);
+        tracker.unitUids = this.roster.map((unit) => this.assignUnitUid(unit));
         tracker.applied = true;
       }
       this.blessingRuntimeModifiers.actStatDeltaAllUnits.push(tracker);
@@ -2154,7 +2158,9 @@ export class RunManager {
   }
 
   grantRecruitBlessingConsumables(unit) {
-    if (!unit || !this.activeBlessings?.length || !this.gameData?.blessings?.blessings) return;
+    if (!unit) return;
+    this._applyActStatDeltasToRecruit(unit);
+    if (!this.activeBlessings?.length || !this.gameData?.blessings?.blessings) return;
     const catalog = buildBlessingIndex(this.gameData.blessings);
     for (const active of this.activeBlessings || []) {
       const id = getBlessingEntryId(active);
@@ -2169,6 +2175,21 @@ export class RunManager {
         const granted = addToConsumables(unit, template) || this.addToConvoy(template);
         if (granted) unit.recruitBlessingGrants = [...(unit.recruitBlessingGrants || []), key];
       }
+    }
+  }
+
+  /**
+   * A unit joining mid-act takes the act's running stat blessings and costs ("+2 STR
+   * to all units in Act 1"), and is recorded so the act's end takes them back.
+   */
+  _applyActStatDeltasToRecruit(unit) {
+    for (const tracker of this.blessingRuntimeModifiers?.actStatDeltaAllUnits || []) {
+      if (!tracker?.applied || tracker.reverted || tracker.act !== this.currentAct) continue;
+      if (!Array.isArray(tracker.unitUids)) continue; // legacy tracker: reverts the roster
+      const uid = this.assignUnitUid(unit);
+      if (!uid || tracker.unitUids.includes(uid)) continue;
+      this._applyStatDeltaToUnits([unit], tracker.stat, tracker.value);
+      tracker.unitUids.push(uid);
     }
   }
 
@@ -3912,7 +3933,14 @@ export class RunManager {
     if (!Array.isArray(trackers) || !expiredAct) return;
     for (const tracker of trackers) {
       if (!tracker || tracker.reverted || !tracker.applied || tracker.act !== expiredAct) continue;
-      for (const unit of this.roster) {
+      // Only the units that received it (a save from before holders were tracked
+      // reverts the whole roster, as it always did).
+      const holders = Array.isArray(tracker.unitUids)
+        ? [...this.roster, ...(this.fallenUnits || [])].filter((unit) =>
+            tracker.unitUids.includes(unitUidOf(unit)),
+          )
+        : this.roster;
+      for (const unit of holders) {
         unit.stats[tracker.stat] = (unit.stats[tracker.stat] || 0) - tracker.value;
         if (tracker.stat === 'HP') {
           unit.currentHP = Math.min(unit.currentHP || 0, unit.stats.HP || 0);
