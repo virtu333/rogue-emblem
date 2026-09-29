@@ -8,15 +8,16 @@ import {
   promoteUnit,
   reclassUnit,
   addToInventory,
-  removeFromConsumables,
   getCombatWeapons,
   normalizeEquippedFirst,
 } from './UnitManager.js';
-import { applyPromotionOath } from './DeedSystem.js';
+import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
+import { consumableSource, spendConsumableUse } from './RosterInventory.js';
 
 export function rosterClassChangeBlock(run, unit, item, gameData) {
   if (!run?.roster?.includes(unit)) return 'Unit is no longer in the roster.';
-  if (!unit.consumables?.includes(item) || !((item.uses ?? 1) > 0))
+  // A seal works from the unit's bag or straight from the convoy.
+  if (!consumableSource(run, unit, item) || !((item.uses ?? 1) > 0))
     return 'Seal is no longer available.';
   if (item.effect === 'promote') {
     if (!canPromote(unit)) return 'Requires a base class at level 10 or higher.';
@@ -40,8 +41,8 @@ export function applyRosterClassChange(run, unit, item, target, gameData) {
   const canonical = targets.find((c) => c.name === target?.name);
   if (!canonical) return { ok: false, reason: 'Class is no longer available.' };
   return item.effect === 'promote'
-    ? promote(unit, item, canonical, gameData)
-    : reclass(unit, item, canonical, gameData);
+    ? promote(run, unit, item, canonical, gameData)
+    : reclass(run, unit, item, canonical, gameData);
 }
 // Shared with previews: return catalog entries only, without creating UIDs or
 // consuming RNG. Preserve the existing lord-specific starter-weapon rule.
@@ -71,7 +72,7 @@ export function getClassChangeWeaponGrants(unit, oldTypes, gameData, promotion =
       return true;
     });
 }
-function promote(unit, item, promotedClassData, gameData) {
+function promote(run, unit, item, promotedClassData, gameData) {
   const notices = [];
   const lordData = gameData.lords.find((l) => l.name === unit.name);
   let promotionBonuses;
@@ -91,7 +92,7 @@ function promote(unit, item, promotedClassData, gameData) {
   const oath = applyPromotionOath(unit, gameData);
   const droppedSkills = [...(promotionResult?.droppedSkills || [])];
   if (oath?.learned) notices.push(`${oath.name}: learned ${oath.skillName}.`);
-  if (oath?.dropped) droppedSkills.push(oath.skillId);
+  if (oath?.benched) notices.push(oathBenchedNote(unit, oath));
 
   for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData, true)) {
     if (!addToInventory(unit, newWeapon))
@@ -99,14 +100,11 @@ function promote(unit, item, promotedClassData, gameData) {
   }
 
   // Consume the Sovereign Seal
-  item.uses = (item.uses ?? 1) - 1;
-  if (item.uses <= 0) {
-    removeFromConsumables(unit, item);
-  }
+  spendConsumableUse(run, unit, item);
 
   return { ok: true, notices, droppedSkills, oath };
 }
-function reclass(unit, sealItem, newClassData, gameData) {
+function reclass(run, unit, sealItem, newClassData, gameData) {
   const notices = [];
   const oldClassData = gameData.classes.find((c) => c.name === unit.className);
   if (!oldClassData) return { ok: false, reason: 'Reclass data missing.' };
@@ -135,8 +133,7 @@ function reclass(unit, sealItem, newClassData, gameData) {
     notices.push('No combat weapon equipped. Equip a compatible weapon before battle.');
 
   // Consume seal
-  sealItem.uses = (sealItem.uses ?? 1) - 1;
-  if (sealItem.uses <= 0) removeFromConsumables(unit, sealItem);
+  spendConsumableUse(run, unit, sealItem);
 
   return { ok: true, notices, droppedSkills: result?.droppedSkills || [] };
 }

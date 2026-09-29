@@ -110,7 +110,7 @@ describe('Imbue combat mods — forecast/resolution parity', () => {
     expect(forecast.defender.skills).toContainEqual({ id: 'imbue_keen', name: 'Cruel' });
   });
 
-  it('warded: +2 DEF/RES reduces damage taken both attacking and defending', () => {
+  it('warded: +1 DEF cuts physical damage taken by 1, attacking and defending', () => {
     const base = setupCombat({});
     const baseForecast = getCombatForecast(
       base.attacker,
@@ -122,7 +122,7 @@ describe('Imbue combat mods — forecast/resolution parity', () => {
       plain,
       baseSkillCtx,
     );
-    // Warded on the DEFENDER's weapon reduces attacker damage by 2
+    // Warded on the DEFENDER's weapon reduces the attacker's sword damage by 1 (DEF +1)
     const defWarded = setupCombat({ defImbue: 'warded' });
     const defForecast = getCombatForecast(
       defWarded.attacker,
@@ -134,8 +134,8 @@ describe('Imbue combat mods — forecast/resolution parity', () => {
       plain,
       baseSkillCtx,
     );
-    expect(defForecast.attacker.damage).toBe(Math.max(0, baseForecast.attacker.damage - 2));
-    // Warded on the ATTACKER's weapon reduces counter damage by 2
+    expect(defForecast.attacker.damage).toBe(Math.max(0, baseForecast.attacker.damage - 1));
+    // Warded on the ATTACKER's weapon reduces the sword counter by 1
     const atkWarded = setupCombat({ atkImbue: 'warded' });
     const atkForecast = getCombatForecast(
       atkWarded.attacker,
@@ -147,7 +147,7 @@ describe('Imbue combat mods — forecast/resolution parity', () => {
       plain,
       baseSkillCtx,
     );
-    expect(atkForecast.defender.damage).toBe(Math.max(0, baseForecast.defender.damage - 2));
+    expect(atkForecast.defender.damage).toBe(Math.max(0, baseForecast.defender.damage - 1));
   });
 
   it('armorbane: 2x effectiveness vs Armored, neutral vs Infantry', () => {
@@ -259,24 +259,65 @@ describe('Imbue combat mods — forecast/resolution parity', () => {
   });
 });
 
-describe('Imbue combat — vampiric lifesteal', () => {
-  it('heals 15%, rounded down, of damage dealt per strike via drainPercent', () => {
+describe('Imbue combat — vampiric: 1 HP on each hit that deals damage', () => {
+  const attackerStrikes = (result) =>
+    result.events.filter((e) => e.type === 'strike' && e.attackerSide === 'attacker' && !e.miss);
+
+  function vampFight({ atkOverrides = {}, defOverrides = {}, ctx = baseSkillCtx } = {}) {
     forceHitsNoCrits();
     const { attacker, defender } = setupCombat({
       atkImbue: 'vampiric',
-      atkOverrides: { currentHP: 10 },
+      atkOverrides: { currentHP: 10, ...atkOverrides },
+      defOverrides,
     });
-    const forecast = getCombatForecast(
-      attacker,
-      attacker.weapon,
-      defender,
-      defender.weapon,
-      1,
-      plain,
-      plain,
-      baseSkillCtx,
-    );
-    expect(forecast.attacker.drainPercent).toBeCloseTo(0.15);
+    const args = [attacker, attacker.weapon, defender, defender.weapon, 1, plain, plain, ctx];
+    return { forecast: getCombatForecast(...args), result: resolveCombat(...args) };
+  }
+
+  it('heals exactly 1 per damaging hit, and the forecast says so', () => {
+    const { forecast, result } = vampFight();
+    expect(forecast.attacker.drainPerHit).toBe(1);
+    expect(forecast.attacker.drainPercent).toBe(0);
+    const strikes = attackerStrikes(result);
+    expect(strikes.length).toBeGreaterThan(0);
+    for (const strike of strikes) {
+      expect(strike.damage).toBeGreaterThan(0);
+      expect([strike.heal, strike.healed]).toEqual([1, 1]);
+    }
+  });
+
+  it('heals 1, not more, on a big hit', () => {
+    // STR 40 + Iron Sword vs DEF 0: 45 damage a hit, still 1 HP back.
+    const { result } = vampFight({
+      atkOverrides: { currentHP: 5, stats: { ...makeUnit().stats, HP: 60, STR: 40 } },
+      defOverrides: { currentHP: 200, stats: { ...makeUnit().stats, HP: 200, DEF: 0 } },
+    });
+    const strikes = attackerStrikes(result);
+    expect(strikes.length).toBeGreaterThan(0);
+    for (const strike of strikes) {
+      expect(strike.damage).toBeGreaterThan(20);
+      expect(strike.heal).toBe(1);
+    }
+  });
+
+  it('a hit that deals no damage heals nothing', () => {
+    // STR 0 + Iron Sword (5) vs DEF 20: 0 damage.
+    const { result } = vampFight({
+      atkOverrides: { stats: { ...makeUnit().stats, STR: 0 } },
+      defOverrides: { stats: { ...makeUnit().stats, DEF: 20 } },
+    });
+    const strikes = attackerStrikes(result);
+    expect(strikes.length).toBeGreaterThan(0);
+    for (const strike of strikes) expect([strike.damage, strike.heal]).toEqual([0, 0]);
+    expect(result.attackerHP).toBeLessThanOrEqual(10);
+  });
+
+  it('heals on the counter too (imbue on the defending weapon)', () => {
+    forceHitsNoCrits();
+    const { attacker, defender } = setupCombat({
+      defImbue: 'vampiric',
+      defOverrides: { currentHP: 10 },
+    });
     const result = resolveCombat(
       attacker,
       attacker.weapon,
@@ -287,16 +328,68 @@ describe('Imbue combat — vampiric lifesteal', () => {
       plain,
       baseSkillCtx,
     );
-    const firstStrike = result.events.find(
-      (e) => e.type === 'strike' && e.attackerSide === 'attacker' && !e.miss,
+    const counters = result.events.filter(
+      (e) => e.type === 'strike' && e.attackerSide === 'defender' && !e.miss,
     );
-    expect(firstStrike.damage).toBeGreaterThan(0);
-    expect(firstStrike.heal).toBe(Math.floor(firstStrike.damage * 0.15));
+    expect(counters.length).toBeGreaterThan(0);
+    for (const strike of counters) expect(strike.heal).toBe(1);
+  });
+
+  it('a stronger drain wins (max), it does not add', () => {
+    const ctx = { ...baseSkillCtx, atkWeaponArtMods: { drainPercent: 0.5 } };
+    const { forecast, result } = vampFight({
+      atkOverrides: { currentHP: 5, stats: { ...makeUnit().stats, HP: 60, STR: 40 } },
+      defOverrides: { currentHP: 200, stats: { ...makeUnit().stats, HP: 200, DEF: 0 } },
+      ctx,
+    });
+    expect(forecast.attacker.drainPercent).toBeCloseTo(0.5);
+    const strikes = attackerStrikes(result);
+    expect(strikes.length).toBeGreaterThan(0);
+    for (const strike of strikes) expect(strike.heal).toBe(Math.floor(strike.damage * 0.5));
+  });
+
+  it("Vampire's Bloodshard stacks on top: 1 + 2 a hit", () => {
+    const bloodshard = structuredClone(
+      data.accessories.find((a) => a.name === "Vampire's Bloodshard"),
+    );
+    expect(bloodshard.combatEffects.perHitHeal).toBe(2);
+    const { result } = vampFight({ atkOverrides: { accessory: bloodshard } });
+    const strikes = attackerStrikes(result);
+    expect(strikes.length).toBeGreaterThan(0);
+    for (const strike of strikes) expect(strike.heal).toBe(3);
+  });
+});
+
+describe('Wounded: no drain heals', () => {
+  it('a Wounded striker drains nothing (its strikes still land in full)', () => {
+    forceHitsNoCrits();
+    const { attacker, defender } = setupCombat({
+      atkImbue: 'vampiric',
+      atkOverrides: { currentHP: 5, stats: { ...makeUnit().stats, HP: 60, STR: 40 } },
+      defOverrides: { currentHP: 200, stats: { ...makeUnit().stats, HP: 200, DEF: 0 } },
+    });
+    const ctx = { ...baseSkillCtx, atkWeaponArtMods: { drainPercent: 0.5 } };
+    const args = [attacker, attacker.weapon, defender, defender.weapon, 1, plain, plain, ctx];
+    const healthy = resolveCombat(...args);
+    attacker._conditions = [{ id: 'wounded', turnsRemaining: 2 }];
+    expect(getCombatForecast(...args).attacker.drainPercent).toBe(0);
+    expect(getCombatForecast(...args).attacker.drainPerHit).toBe(0);
+    const wounded = resolveCombat(...args);
+    const strikes = (r) =>
+      r.events.filter((e) => e.type === 'strike' && e.attackerSide === 'attacker' && !e.miss);
+    expect(strikes(healthy).some((e) => e.heal > 0)).toBe(true);
+    expect(strikes(wounded).length).toBe(strikes(healthy).length);
+    for (const strike of strikes(wounded)) {
+      expect(strike.heal).toBe(0);
+      expect(strike.strikerHealTo).toBeUndefined();
+    }
+    expect(strikes(wounded).map((e) => e.damage)).toEqual(strikes(healthy).map((e) => e.damage));
+    expect(wounded.attackerHP).toBeLessThanOrEqual(5);
   });
 });
 
 describe('Imbue combat — venom post-combat poison', () => {
-  it('emits 5 poison via the poisonEffects path and floors HP at 1', () => {
+  it('emits 7 poison via the poisonEffects path and floors HP at 1', () => {
     forceHitsNoCrits();
     const { attacker, defender } = setupCombat({ atkImbue: 'venom' });
     const result = resolveCombat(
@@ -309,11 +402,11 @@ describe('Imbue combat — venom post-combat poison', () => {
       plain,
       baseSkillCtx,
     );
-    expect(result.poisonEffects).toContainEqual({ target: 'defender', damage: 5 });
+    expect(result.poisonEffects).toContainEqual({ target: 'defender', damage: 7 });
     expect(result.defenderHP).toBeGreaterThanOrEqual(1);
     // Pipeline turns it into a poison step
     const steps = getPostCombatPipelineSteps({ attacker, defender, result });
-    expect(steps).toContainEqual({ type: 'poison', targetSide: 'defender', damage: 5 });
+    expect(steps).toContainEqual({ type: 'poison', targetSide: 'defender', damage: 7 });
   });
 
   it('venom on the defender weapon poisons the attacker on counter', () => {
@@ -329,7 +422,7 @@ describe('Imbue combat — venom post-combat poison', () => {
       plain,
       baseSkillCtx,
     );
-    expect(result.poisonEffects).toContainEqual({ target: 'attacker', damage: 5 });
+    expect(result.poisonEffects).toContainEqual({ target: 'attacker', damage: 7 });
   });
 
   it('venom does not fire without the imbue catalog or when a side died', () => {
@@ -364,12 +457,10 @@ describe('Imbue combat — venom post-combat poison', () => {
 });
 
 describe('Imbue combat — binding post-combat root', () => {
-  it('procs at 30%: emits imbueStatusEffects on a low roll', () => {
-    // Roll order per strike: hitRoll, critRoll (both 0.2*100=20 → hit, crit vs
-    // clamped crit)… final call is the binding proc roll. Use a low constant so
-    // the proc roll (0.2*100=20 < 30) succeeds. Crit rolls also land (20 < crit
-    // only if crit > 20 — crit here is 0 after LCK, so no crit).
-    vi.spyOn(Math, 'random').mockReturnValue(0.2);
+  it('procs at 50%: emits imbueStatusEffects on a roll just under 50', () => {
+    // Roll order per strike: hitRoll, critRoll (both 0.49*100=49 → hit, no crit at
+    // crit 0)… final call is the binding proc roll: 49 < 50 succeeds.
+    vi.spyOn(Math, 'random').mockReturnValue(0.49);
     const { attacker, defender } = setupCombat({ atkImbue: 'binding' });
     const result = resolveCombat(
       attacker,
@@ -386,8 +477,8 @@ describe('Imbue combat — binding post-combat root', () => {
     ]);
   });
 
-  it('does not proc on a high roll', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.5); // proc roll 50 >= 30
+  it('does not proc on a roll of 50 or more', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // proc roll 50 >= 50
     const { attacker, defender } = setupCombat({ atkImbue: 'binding' });
     const result = resolveCombat(
       attacker,

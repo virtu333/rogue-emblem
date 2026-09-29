@@ -25,6 +25,7 @@ clone sgossner/VSCO-2-CE VSCO-2-CE SFZ
 clone mrbumpy409/GeneralUser-GS GeneralUser-GS
 clone sfzinstruments/virtuosity_drums virtuosity_drums
 clone sfzinstruments/karoryfer.growlybass karoryfer.growlybass
+clone sfzinstruments/karoryfer.emilyguitar karoryfer.emilyguitar
 clone sfzinstruments/SplendidGrandPiano SplendidGrandPiano
 # the house palette (engine/palette.py; credits in docs/music-credits.md)
 clone peastman/sso SSO4

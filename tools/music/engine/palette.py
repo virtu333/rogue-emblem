@@ -377,6 +377,23 @@ CANDIDATES['kit'] = {
                                  95: _TEK, 96: _TEK, 93: _TEK, 42: _KA, 44: _KA},
                         **SHORT)})),
 }
+# the same darbuka as one hand drum part (a score's own `taiko`, so a rock kit can play
+# beside it): written key -> stroke, 36 doum, 38 tek, 42 ka, 48 slap, 40 a soft stroke.
+# The drum rings: its body at 144 Hz (35 cents under D3) and the tek at 728 Hz (28
+# under F#5), a quarter-tone off any key. Each stroke is retuned on its own, by as
+# little as puts it on a pitch: the body (doum, slap, soft stroke) up 235 cents to E3,
+# the tek and ka up 128 cents to G5 (E minor's root and third)
+_DARB_FIX = tuple((f'Darbuka/Darbuka_{k}_hit_vl{v}_rr{r}.wav', c)
+                  for k, c in ((1, 235), (2, 128), (3, 128), (4, 235), (5, 235))
+                  for v in (1, 2) for r in (1, 2))
+CANDIDATES['taiko']['vcsl_darbuka'] = dict(
+    label='VCSL darbuka as a hand drum, tuned to E and G',
+    what="VCSL 'Darbuka' (2 round robins per stroke), each stroke retuned: the body rings "
+         'E3 (doum, slap and soft stroke up 235 cents), the tek and ka G5 (up 128); written '
+         'keys 36 doum, 38 tek, 42 ka, 48 slap, 40 a soft stroke; other keys left out',
+    lab=dict(perform='plain', streams={'main': _strm(
+        ('retuned', _p('vcsl', *_MEMB, 'Darbuka.sfz'), _DARB_FIX),
+        key_map={36: _DOUM, 38: _TEK, 42: _KA, 48: _SLAP, 40: 64}, **SHORT)}))
 CANDIDATES['accordion'] = {
     'psaltery': dict(label='VCSL bowed psaltery',
                      what="VCSL 'Psaltery, Bowed and Plucked - LongBow' (range G4-G6: lower notes "
@@ -387,6 +404,21 @@ CANDIDATES['accordion'] = {
                       what="VCSL 'Dan Tranh - Vibrato' (plucked, with a bent vibrato), written "
                            'dynamic as velocity',
                       lab=_plain_one(_p('vcsl', *_ZITH, 'Dan Tranh - Vibrato.sfz'), **SHORT)),
+    # the plain plucks, in tune: the vibrato samples bend 20-90 cents off, and some
+    # plain ones sit sharp (tuning.measure, the energy-weighted median over each
+    # sample; readings the meter could not trust left alone; B4 f and ff from the
+    # notes as rendered, which ran 8-13 cents flat at the top of the range)
+    'dan_tranh_plain': dict(
+        label='VCSL dan tranh, plain plucks, retuned',
+        what="VCSL 'Dan Tranh - Normal' (plucked, no vibrato; mf / f / ff layers), 16 "
+             'samples retuned (up to 64 cents), written dynamic as velocity',
+        lab=dict(perform='plain', streams={'main': _strm(
+            ('retuned', _p('vcsl', *_ZITH, 'Dan Tranh - Normal.sfz'), tuple(
+                (f'Dan Tranh/Normal/{s}_1.wav', c) for s, c in (
+                    ('C#2_f', -30), ('C#2_ff', -39), ('D#2_f', -40), ('F#2_f', -27),
+                    ('G#2_f', -29), ('B2_f', -29), ('B2_ff', -39), ('C#3_mf', -39),
+                    ('C#3_f', -64), ('C#3_ff', -63), ('D#3_f', -24), ('D#3_ff', -22),
+                    ('F#3_f', -14), ('B3_ff', 21), ('B4_f', 8), ('B4_ff', 12)))), **SHORT)})),
 }
 
 # ------------------------------------------------------------------ the house palette

@@ -19,6 +19,16 @@ def V(name):
     return os.path.join(VSCO, name)
 
 
+def _emily(program, take):
+    """An Emilyguitar program, round robins rotated for take > 0 (engine/guitar.py).
+    Without the library the plain path stands in (fetch_libraries.sh fetches it)."""
+    path = os.path.join(LIBS, 'karoryfer.emilyguitar', program)
+    if not take or not os.path.exists(path):
+        return path
+    from .guitar import take_program
+    return take_program(program, take)
+
+
 STR_SUS = dict(mode='sustain', release=0.45, legato=True, veltrack_db=11, attack_ms=90,
                swell=0.22, glide_ms=40, glide_frac=0.15, detune_jitter=3, tone_oct=2.0,
                soft_attack=0.09)
@@ -209,9 +219,47 @@ INSTRUMENTS = {
                   humanize_ms=5, hpf=35,
                   comp=dict(thresh_db=-26, ratio=4, attack_ms=6, release_ms=110, makeup_db=6),
                   eq=[('lowshelf', 90, 0.7, 2.0), ('peak', 250, 1.0, -2.0), ('peak', 1400, 1.0, 2.5)]),
+    # the same bass, clean (a calm layer with no distortion anywhere)
+    'rbass_clean': dict(kind='sfizz', room=True, duck='kit_kick',
+                        sfz=os.path.join(LIBS, 'karoryfer.growlybass', 'growlybass_clean.sfz'),
+                        transpose=12, range=(28, 67), pan=0.0, width=0.0, depth=0.05, ref_key=40,
+                        bus='rhythm', humanize_ms=5, hpf=35,
+                        comp=dict(thresh_db=-26, ratio=3, attack_ms=8, release_ms=120, makeup_db=5),
+                        eq=[('lowshelf', 90, 0.7, 1.5), ('peak', 250, 1.0, -2.0)]),
     'grand': dict(kind='sfizz', sfz=os.path.join(LIBS, 'SplendidGrandPiano', 'Splendid Grand Piano.sfz'),
                   range=(21, 108), pan=-0.1, width=0.9, depth=0.3, ref_key=64, bus='keys',
                   humanize_ms=4, cc={64: 0, 99: 40}),
+
+    # Karoryfer Emilyguitar (CC0): clean DI samples, sounding pitch, A1-F6. The amp is
+    # the part's `amp=dict(rig=True, ...)` (engine/guitar.py). Takes 2 and 3 play the
+    # same program with its round robins rotated (double tracking); `_pm` programs keep
+    # the library's string-mute release noises (palm-muted chugs)
+    **{f'egtr{sfx}': dict(kind='sfizz', sfz=_emily(prog, take), range=(33, 89), pan=0.0,
+                          width=0.0, depth=0.1, ref_key=52, bus='guitars', humanize_ms=4,
+                          hpf=0)
+       for sfx, prog, take in (('', 'emily_clean.sfz', 0), ('2', 'emily_clean.sfz', 1),
+                               ('3', 'emily_clean.sfz', 2), ('_pm', 'emily_basic.sfz', 0),
+                               ('_pm2', 'emily_basic.sfz', 1))},
+
+    # electronic voices (engine/edm.py); a score shapes them with its own `params`
+    **{name: dict(kind='synth', voice=voice, params=params, range=rng, pan=0.0, width=1.0,
+                  depth=depth, ref_key=ref, bus=bus, humanize_ms=0, **extra)
+       for name, voice, params, rng, depth, ref, bus, extra in (
+           ('saw_stack', 'supersaw', {}, (36, 96), 0.35, 60, 'synth', {}),
+           ('saw_pluck', 'supersaw', dict(voices=3, detune=0.12, decay=0.14, sustain=0.0,
+                                          release=0.12, cutoff=900, env_hz=5000,
+                                          env_decay=0.09, res=0.3), (48, 100), 0.3, 72,
+            'synth', {}),
+           ('saw_pad', 'supersaw', dict(attack=0.35, decay=1.0, sustain=0.9, release=0.9,
+                                        cutoff=1400, env_hz=0, res=0.1, drive=1.0),
+            (36, 96), 0.55, 60, 'synth', {}),
+           ('sub808', 'sub808', {}, (20, 55), 0.0, 33, 'rhythm', {'duck': 'kit_kick'}),
+           ('kick_synth', 'kick_synth', {}, (0, 127), 0.0, 36, 'drums',
+            {'fixed_pitch': True}),
+           ('noise_riser', 'noise_riser', {}, (24, 96), 0.4, 48, 'synth', {}),
+           ('downlifter', 'downlifter', {}, (24, 96), 0.4, 60, 'synth', {}),
+           ('impact', 'impact', {}, (0, 127), 0.3, 36, 'perc', {'fixed_pitch': True}),
+       )},
 
     # ------------------------------------------------------------ plucked & drums (GeneralUser)
     'nylon': dict(kind='sf2', font=GU, bank=0, program=24, range=(40, 88), pan=0.3,

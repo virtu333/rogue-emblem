@@ -43,6 +43,14 @@ describe('battle information contracts', () => {
     expect(canInspectUnit(grid, { ...enemy(), isEntity: true })).toBe(true);
     expect(canInspectUnit(grid, { ...enemy(), faction: 'player' })).toBe(true);
   });
+  it('a waiting recruit is always in view through fog; the caravan and a departed recruit are not', () => {
+    const grid = { fogEnabled: true, isVisible: () => false };
+    const npc = { faction: 'npc', col: 2, row: 2, currentHP: 18 };
+    expect(canInspectUnit(grid, npc)).toBe(true);
+    expect(canInspectUnit(grid, { ...npc, isCaravan: true })).toBe(false);
+    expect(canInspectUnit(grid, { ...npc, _removing: true })).toBe(false);
+    expect(canInspectUnit(grid, { ...npc, currentHP: 0 })).toBe(false);
+  });
   it('refuses quick inspection and filters detail cycling through the same fog boundary', () => {
     const hidden = enemy(),
       visible = { ...enemy(), col: 3 };

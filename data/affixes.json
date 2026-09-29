@@ -4,7 +4,7 @@
     {
       "id": "thorns",
       "name": "Thorns",
-      "description": "Reflects 25% of melee damage taken back to attacker",
+      "description": "Adjacent hits on it (tomes too, and your counters) send 25% of the damage back, rounded down: hits of 3 or less send nothing; crits and overkill count. Never kills: leaves you at 1 HP.",
       "tier": 1,
       "trigger": "on-defend",
       "effects": {
@@ -159,6 +159,20 @@
       "narrativeHint": "Acid drips from this enemy weapon."
     },
     {
+      "id": "grievous",
+      "name": "Grievous",
+      "description": "Hits leave the target Wounded for 2 turns: it recovers no HP except from a staff",
+      "tier": 1,
+      "trigger": "on-attack",
+      "effects": {
+        "inflictStatus": "wounded",
+        "statusTurns": 2
+      },
+      "weight": 0.7,
+      "icon": "grievous",
+      "narrativeHint": "Barbed edges on this enemy weapon leave wounds that will not close."
+    },
+    {
       "id": "haste",
       "name": "Haste",
       "description": "+2 MOV",
@@ -187,6 +201,16 @@
           "deathburst",
           "haste",
           "teleporter"
+        ]
+      },
+      "dusk": {
+        "affixChance": 0.08,
+        "maxAffixesPerUnit": 1,
+        "tierPool": [
+          1
+        ],
+        "excludedActs": [
+          "act1"
         ]
       },
       "hard": {

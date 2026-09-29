@@ -2,7 +2,79 @@
 
 export const DIFFICULTY_CONTRACT_VERSION = 1;
 
-export const DIFFICULTY_IDS = ['normal', 'hard', 'lunatic'];
+/**
+ * The ladder, easiest first. Player-facing names come from difficulty.json labels:
+ * First Light (normal), Dusk (dusk), Nightfall (hard), Black Sun (lunatic). The ids
+ * are save data and never change.
+ */
+export const DIFFICULTY_IDS = ['normal', 'dusk', 'hard', 'lunatic'];
+
+/** Act order for "from this act on" gates (postAct sits between Act IV and the finale). */
+export const ENEMY_ACT_GATE_ORDER = Object.freeze([
+  'act1',
+  'act2',
+  'act3',
+  'act4',
+  'postAct',
+  'finalBoss',
+]);
+
+/** Position on the ladder (0 = First Light), or -1 for an unknown id. */
+export function difficultyRank(difficultyId) {
+  return DIFFICULTY_IDS.indexOf(String(difficultyId || '').toLowerCase());
+}
+
+/** True when `difficultyId` is `floor` or harder (unknown ids are never). */
+export function isDifficultyAtLeast(difficultyId, floor) {
+  const rank = difficultyRank(difficultyId);
+  return rank >= 0 && rank >= difficultyRank(floor);
+}
+
+/**
+ * What opens each rung: any one of its milestones. `anySlot` also counts a
+ * milestone earned on another save slot. Winning on the old Hard (which ended at the
+ * Emperor, as Dusk does now) recorded beatHard, so it still opens Nightfall.
+ */
+export const DIFFICULTY_UNLOCKS = Object.freeze({
+  dusk: Object.freeze({
+    milestones: Object.freeze(['beatGame']),
+    anySlot: false,
+    reason: 'Win on First Light to unlock',
+  }),
+  hard: Object.freeze({
+    milestones: Object.freeze(['beatDusk', 'beatHard']),
+    anySlot: true,
+    reason: 'Win on Dusk to unlock',
+  }),
+  lunatic: Object.freeze({
+    milestones: Object.freeze(['beatHard', 'beatLunatic']),
+    anySlot: true,
+    reason: 'Win on Nightfall to unlock',
+  }),
+});
+
+/**
+ * Why a difficulty is locked, or null when it is open.
+ * @param {string} difficultyId
+ * @param {{ slot: (id: string) => boolean, anySlot?: (id: string) => boolean }} has
+ *   milestone checks for this slot and for any slot
+ */
+export function difficultyLockReason(difficultyId, has) {
+  const rule = DIFFICULTY_UNLOCKS[difficultyId];
+  if (!rule) return null;
+  const earned = (id) => Boolean(has?.slot?.(id) || (rule.anySlot && has?.anySlot?.(id)));
+  return rule.milestones.some(earned) ? null : rule.reason;
+}
+
+/** Milestone a victory on this difficulty records, if any. */
+export function difficultyVictoryMilestone(difficultyId) {
+  return { dusk: 'beatDusk', hard: 'beatHard', lunatic: 'beatLunatic' }[difficultyId] || null;
+}
+
+/** True for a known difficulty id. */
+export function isDifficultyId(difficultyId) {
+  return DIFFICULTY_IDS.includes(difficultyId);
+}
 
 export const DIFFICULTY_REQUIRED_KEYS = [
   'enemyStatBonus',
@@ -31,10 +103,12 @@ export const DIFFICULTY_REQUIRED_KEYS = [
 ];
 
 export const DIFFICULTY_DEFAULTS = Object.freeze({
-  label: 'Normal',
+  label: 'First Light',
   color: '#95c487',
   enemyStatBonus: 0,
   classStatBonuses: Object.freeze({}),
+  // Enemy class -> the first act it may appear in on this rung (Dusk: Dragons from Act IV).
+  enemyClassEarliestAct: Object.freeze({}),
   enemyCountBonus: 0,
   enemyLevelBonus: 0,
   enemyCountBase: 0,
@@ -86,7 +160,7 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
     lines.push(`Enemy levels +${mode.enemyLevelBonus}`);
   }
   if (mode.enemyCountBase > (defaults.enemyCountBase || 0)) {
-    lines.push(`Base enemy count: ${mode.enemyCountBase}`);
+    lines.push(`Enemies scale as if you field at least ${mode.enemyCountBase} units`);
   }
   if (mode.enemySkillChance > (defaults.enemySkillChance || 0)) {
     lines.push(`+${Math.round(mode.enemySkillChance * 100)}% enemy skill chance`);
@@ -179,6 +253,16 @@ export function validateDifficultyConfig(config) {
       errors.push(
         `modes.${difficultyId}.classStatBonuses must map classes to non-negative integers`,
       );
+    }
+
+    if (
+      mode.enemyClassEarliestAct !== undefined &&
+      (!isObject(mode.enemyClassEarliestAct) ||
+        Object.values(mode.enemyClassEarliestAct).some(
+          (act) => !ENEMY_ACT_GATE_ORDER.includes(act),
+        ))
+    ) {
+      errors.push(`modes.${difficultyId}.enemyClassEarliestAct must map classes to act ids`);
     }
 
     for (const key of DIFFICULTY_REQUIRED_KEYS) {

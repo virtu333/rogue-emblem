@@ -124,6 +124,46 @@
 .mr-card p {
   color: var(--re-muted);
 }
+/* News the player should act on (a new skill on the bench): gold-edged, atop the pane. */
+.mr-callout {
+  border: 1px solid var(--re-gold);
+  border-left-width: 4px;
+  border-radius: 2px;
+  padding: var(--re-s3);
+  margin: 0 0 10px;
+  background: var(--re-panel-raised);
+  clear: both;
+}
+.mr-callout h4 {
+  color: var(--re-accent-text);
+}
+.mr-callout p {
+  color: var(--re-text);
+  margin: 4px 0;
+}
+.mr-callout .mr-callout-lesson {
+  color: var(--re-muted);
+}
+.mr-callout button {
+  margin-top: 4px;
+}
+/* A benched skill the player has not seen yet; a skill that never leaves the loadout. */
+.mr-card.mr-bench-new {
+  border-color: var(--re-gold);
+}
+.mr-card h4 .mr-new-tag {
+  display: inline;
+  margin: 0 0 0 8px;
+  color: var(--re-accent-text);
+  font-size: 11px;
+}
+.mr-card small.mr-skill-locked {
+  color: var(--re-muted);
+}
+.mr-unit-info > .mr-unit-flag {
+  color: var(--re-accent-text);
+  font-size: 11px;
+}
 .mr-card button {
   margin: 4px 8px 0 0;
 }

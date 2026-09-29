@@ -8,7 +8,7 @@ import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
  *
  * Categories:
  *   art     -- weapon arts (deliberate technique)        -> amber
- *   offense -- on-attack procs (Luna, Sol, Astra...)     -> red
+ *   offense -- on-attack procs (Umbra, Reclaim, Constellation...)     -> red
  *   defense -- on-defend procs + defensive enemy affixes -> blue
  *   neutral -- everything else (combat-start stances...) -> cyan
  */
@@ -80,7 +80,7 @@ export function themeFor(category) {
   return PROC_THEME[category] || PROC_THEME.neutral;
 }
 
-/** Classify a pre-combat 'skill' event (Astra, Vantage, Desperation) by display name. */
+/** Classify a pre-combat 'skill' event (Constellation, Forestall, Death's Door) by display name. */
 export function classifySkillEventName(name, skillsData) {
   const skill = (skillsData || []).find((s) => s.name === name);
   if (!skill) return PROC_CATEGORY.NEUTRAL;

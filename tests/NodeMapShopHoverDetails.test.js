@@ -97,7 +97,7 @@ describe('Shop item detail formatting', () => {
             arts: [
               {
                 id: 'bow_curved_shot',
-                name: 'Curved Shot',
+                name: 'Arcing Shot',
                 combatMods: { rangeBonus: 1, hitBonus: 15 },
               },
             ],
@@ -118,12 +118,13 @@ describe('Shop item detail formatting', () => {
         },
       },
     );
-    expect(text).toContain('Art: Curved Shot - Hit +15, Range +1');
+    expect(text).toContain('Art: Arcing Shot - Hit +15, Range +1');
   });
   it('formats detail text for scroll entries with skill descriptions', () => {
     const skills = [
       {
         id: 'adept',
+        name: 'Flurry',
         description: 'SPD% chance for an extra follow-up strike at full damage (once per combat)',
       },
     ];
@@ -131,12 +132,15 @@ describe('Shop item detail formatting', () => {
       { gameData: { skills } },
       {
         type: 'scroll',
-        item: { name: 'Adept Scroll', type: 'Scroll', skillId: 'adept', special: 'Teaches Adept' },
+        item: { name: 'Flurry Scroll', type: 'Scroll', skillId: 'adept', special: 'Teaches Flurry' },
       },
     );
-    expect(text).toContain('Teaches Adept');
-    expect(text).toContain('SPD% chance');
-    expect(text.split('\n')).toHaveLength(2);
+    expect(text.split('\n')).toEqual([
+      'Skill scroll: teaches Flurry to one unit.',
+      'Use: Roster → Skills → Teach. Kept until taught.',
+      '',
+      skills[0].description,
+    ]);
   });
   it('formats detail text for cure consumable (Herb)', () => {
     const text = NodeMapScene.prototype._getShopItemDetailText.call(

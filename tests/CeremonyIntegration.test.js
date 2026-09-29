@@ -139,7 +139,7 @@ describe('DOM critical / weapon-art cut-in', () => {
     const banner = new ProcBannerController(scene);
     await banner.showCutIn({
       unit: edric,
-      label: 'Galeforce Assault',
+      label: 'Oathstorm',
       category: 'art',
       side: 'left',
     });

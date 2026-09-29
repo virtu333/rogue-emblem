@@ -1,4 +1,5 @@
 import { ArenaMenu } from './ArenaMenu.js';
+import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import { levelUpDisplayResults } from './progressionDisplay.js';
 import { saveServiceRun } from './serviceSave.js';
@@ -25,10 +26,12 @@ import {
   grantMasterOfArmsWeapons,
   checkLevelUpSkills,
   equipWeapon,
+  settleAccessoryHpOwed,
 } from '../engine/UnitManager.js';
-import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
+import { RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
 import { findCommander } from '../engine/Commander.js';
+import { applyCombatSideHP } from '../engine/UnitHealth.js';
 
 export class ColosseumOverlay {
   constructor(scene, runManager, gameData) {
@@ -84,6 +87,8 @@ export class ColosseumOverlay {
   hide() {
     if (!this.visible) return;
     this.visible = false;
+    this._sheet?.destroy();
+    this._sheet = null;
     this._clearScreen();
     this.scene.events?.off?.('shutdown', this._shutdown);
   }
@@ -101,6 +106,41 @@ export class ColosseumOverlay {
   _clearScreen() {
     this.nativeMenu?.destroy();
     this.nativeMenu = null;
+  }
+
+  /** The route map, over the colosseum (the service map the shop and church use). */
+  _viewMap(back) {
+    if (!this.visible || this._viewingMap || typeof this.scene._showServiceMap !== 'function')
+      return;
+    this._viewingMap = true;
+    this._clearScreen();
+    this.scene._showServiceMap(() => {
+      this._viewingMap = false;
+      if (this.visible) back();
+    });
+  }
+
+  /**
+   * A unit sheet over the arena: the roster (run given: equip, trade, and the edits
+   * save on close) or a mercenary's read-only card (run null). `back` redraws the
+   * screen it came from, so HP, gear and level changes show.
+   */
+  _openSheet({ run, units = this.runManager.roster, unit = null }, back) {
+    if (!this.visible || this._sheet) return;
+    if (this.nativeMenu) this.nativeMenu.surface.root.inert = true;
+    this._sheet = new MobileRosterSheet({
+      scene: this.scene,
+      run,
+      units,
+      index: Math.max(0, units.indexOf(unit)),
+      gameData: this.gameData,
+      onClose: () => {
+        this._sheet?.destroy();
+        this._sheet = null;
+        if (run) this._persistVisit();
+        if (this.visible) back();
+      },
+    });
   }
 
   _showMenu() {
@@ -143,6 +183,7 @@ export class ColosseumOverlay {
       difficultyId,
       colosseumData,
       Math.random,
+      this.gameData.difficulty,
     );
 
     this._showForecast();
@@ -215,6 +256,8 @@ export class ColosseumOverlay {
       return;
     }
     if (!canFight(unit, this._fightsPerUnit[unit.name] || 0, this._maxFights)) return;
+    // No battle start runs before an arena bout: settle a stale accessory debt here.
+    settleAccessoryHpOwed(unit);
     this._fightResolved = true;
     // Fight with the planned weapon: equip it (a healer holding a staff draws its tome).
     const weapon = getArenaWeapon(unit);
@@ -282,8 +325,9 @@ export class ColosseumOverlay {
       outcome = 'draw';
     }
 
-    // Apply HP (arena clamp: min 1)
-    unit.currentHP = Math.max(1, result.attackerHP);
+    // Apply HP (arena clamp: min 1). UnitHealth reads every strike, so a drain that
+    // topped the fighter up mid-bout settles its HP accessory debt as a battle would.
+    applyCombatSideHP(unit, 'attacker', result, { floor: 1 });
 
     // Track fights
     this._fightsPerUnit[unit.name] = (this._fightsPerUnit[unit.name] || 0) + 1;
@@ -477,6 +521,8 @@ export class ColosseumOverlay {
             ...(this.runManager.getTakenUnitNames?.() ||
               this.runManager.roster.map((unit) => unit.name)),
           ],
+          // Mercenaries get the recruit meta upgrades (stat/growth, Skilled Recruits).
+          this.runManager.getEffectiveMetaEffects?.() ?? this.runManager.metaEffects ?? null,
         );
       } catch (err) {
         console.error('[ColosseumOverlay] Failed to generate mercenary candidates:', err);
@@ -530,10 +576,8 @@ export class ColosseumOverlay {
       return false;
     }
     const { unit, hireCost } = candidate;
-    const rosterCount = (this.runManager.roster || []).length;
-    const rosterFull = rosterCount >= this._getRosterCap();
 
-    if (unit?._hired || this._mercHired || rosterFull) {
+    if (unit?._hired || this._mercHired) {
       this._showMercBrowse();
       return false;
     }
@@ -579,13 +623,6 @@ export class ColosseumOverlay {
 
   _getDifficultyId() {
     return this.runManager?.difficultyId ?? this.runManager?.difficultyMode ?? 'normal';
-  }
-
-  _getRosterCap() {
-    if (typeof this.runManager?.getRosterCap === 'function') {
-      return this.runManager.getRosterCap();
-    }
-    return ROSTER_CAP + (this.runManager?.metaEffects?.rosterCapBonus || 0);
   }
 
   _persistVisit() {

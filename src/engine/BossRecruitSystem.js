@@ -7,15 +7,17 @@ import {
   BOSS_RECRUIT_LORD_CHANCE,
   BOSS_RECRUIT_COUNT,
   BASE_CLASS_LEVEL_CAP,
+  RECRUIT_SKILL_POOL,
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
-import { resolveRecruitScalingTargets, applyAct3RecruitBonus } from './RecruitScaling.js';
+import { resolveRecruitScalingTargets, applyRecruitJoinBonus } from './RecruitScaling.js';
 import { DEFAULT_STARTING_LORD_NAMES, resolveStartingLordNames } from './Commander.js';
 import {
   RECRUIT_PROMOTION_CONTEXT,
   isPromotedRecruitSource,
   rollRecruitPromotion,
   getFailBaseLevel,
+  getPromotionBaseLevel,
 } from './RecruitPromotion.js';
 import {
   createRecruitUnit,
@@ -202,9 +204,23 @@ export function createBossLordUnit(
     ? Math.max(1, Math.min(BASE_CLASS_LEVEL_CAP, Math.trunc(recruitContext.baseLevelOverride)))
     : null;
 
-  // Auto-level to target (createLordUnit starts at level 1), capped to current promotion target.
+  // Optional promotion path for boss/recruit-node lord generation.
+  const shouldPromote = Boolean(recruitContext?.promoteLord);
+  const promotedClassData =
+    shouldPromote && Array.isArray(recruitContext?.classes)
+      ? recruitContext.classes.find((c) => c.name === lordDef?.promotedClass)
+      : null;
+  const promotionBonuses = lordDef?.promotionBonuses || promotedClassData?.promotionBonuses;
+  // Missing promotion metadata should gracefully fall back to base-tier.
+  const willPromote = Boolean(promotedClassData && promotionBonuses);
+
+  // Auto-level to target (createLordUnit starts at level 1), capped to current promotion
+  // target; a lord who promotes stops at the commander's promotion level first.
   const cappedLevel =
-    baseLevelOverride ?? Math.min(targetLevel, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP);
+    baseLevelOverride ??
+    (willPromote
+      ? getPromotionBaseLevel(targetLevel)
+      : Math.min(targetLevel, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP));
   for (let i = 1; i < cappedLevel; i++) {
     const result = levelUp(unit);
     if (result) {
@@ -216,39 +232,29 @@ export function createBossLordUnit(
     }
   }
 
-  // Optional promotion path for boss/recruit-node lord generation.
-  const shouldPromote = Boolean(recruitContext?.promoteLord);
-  if (shouldPromote) {
-    const promotedClassData = Array.isArray(recruitContext?.classes)
-      ? recruitContext.classes.find((c) => c.name === lordDef?.promotedClass)
-      : null;
-    const promotionBonuses = lordDef?.promotionBonuses || promotedClassData?.promotionBonuses;
+  if (willPromote) {
+    promoteUnit(
+      unit,
+      promotedClassData,
+      promotionBonuses,
+      Array.isArray(recruitContext?.skills) ? recruitContext.skills : [],
+    );
 
-    // Missing promotion metadata should gracefully fall back to base-tier.
-    if (promotedClassData && promotionBonuses) {
-      promoteUnit(
-        unit,
-        promotedClassData,
-        promotionBonuses,
-        Array.isArray(recruitContext?.skills) ? recruitContext.skills : [],
-      );
-
-      // Match regular recruit promoted leveling.
-      const promotedLevels = Math.max(0, promotedLevelTarget - 1);
-      for (let i = 0; i < promotedLevels; i++) {
-        const result = levelUp(unit);
-        if (result) {
-          unit.level = result.newLevel;
-          for (const stat of XP_STAT_NAMES) {
-            unit.stats[stat] += result.gains[stat];
-          }
-          unit.currentHP += result.gains.HP;
+    // Match regular recruit promoted leveling.
+    const promotedLevels = Math.max(0, promotedLevelTarget - 1);
+    for (let i = 0; i < promotedLevels; i++) {
+      const result = levelUp(unit);
+      if (result) {
+        unit.level = result.newLevel;
+        for (const stat of XP_STAT_NAMES) {
+          unit.stats[stat] += result.gains[stat];
         }
+        unit.currentHP += result.gains.HP;
       }
+    }
 
-      if (Array.isArray(recruitContext?.classes) && recruitContext.classes.length > 0) {
-        checkLevelUpSkills(unit, recruitContext.classes);
-      }
+    if (Array.isArray(recruitContext?.classes) && recruitContext.classes.length > 0) {
+      checkLevelUpSkills(unit, recruitContext.classes);
     }
   }
 
@@ -322,7 +328,7 @@ export function generateBossRecruitCandidates(
   const rosterClassNames = new Set(roster.map((u) => u.className));
 
   // Recruit scaling anchor is the commander to keep behavior aligned across systems.
-  const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget } =
+  const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget, failBaseLevelCap } =
     resolveRecruitScalingTargets(roster);
 
   const poolKey = resolveRecruitPoolKey(actId, recruits);
@@ -407,7 +413,7 @@ export function generateBossRecruitCandidates(
 
       const promotedClassName = sourceClassData.name;
       const fallbackClassName = roll.baseClassName;
-      const fallbackLevel = getFailBaseLevel(recruitTargetLevel, dynamicPromotionLevel);
+      const fallbackLevel = getFailBaseLevel(recruitTargetLevel, failBaseLevelCap);
 
       if (roll.promote) {
         if (!isClassAvailable(promotedClassName)) continue;
@@ -448,7 +454,7 @@ export function generateBossRecruitCandidates(
     );
     if (unit) {
       if (!isClassAvailable(unit.className)) continue;
-      applyAct3RecruitBonus(unit, poolKey);
+      applyRecruitJoinBonus(unit, poolKey);
       unit.name = makeUniqueRecruitName(unit.name, takenNames);
       takenNames.add(unit.name);
       takenClassNames.add(unit.className);
@@ -500,7 +506,7 @@ export function generateBossRecruitCandidates(
           baseLevelOverride: null,
         },
       );
-      applyAct3RecruitBonus(unit, poolKey);
+      applyRecruitJoinBonus(unit, poolKey);
       unit.name = chosenLord.name || unit.name;
       takenNames.add(unit.name);
       const lordCandidate = {
@@ -538,6 +544,9 @@ function createRecruitFromPool(
 ) {
   const statBonuses = metaEffects?.statBonuses || null;
   const growthBonuses = metaEffects?.growthBonuses || null;
+  // Boss recruits get what recruit-node recruits get: seasoned growths and the
+  // Skilled Recruits skill (RecruitNodeSystem.buildRecruitNodeUnit).
+  const skillPool = metaEffects?.recruitRandomSkill ? RECRUIT_SKILL_POOL : null;
   const maybeAddStartingVulnerary = (unit) => {
     if (!metaEffects?.recruitStartingVulnerary) return;
     const vulnerary = (consumables || []).find((c) => c.name === 'Poultice');
@@ -564,8 +573,8 @@ function createRecruitFromPool(
     const baseClassData = classes.find((c) => c.name === promotedClassData.promotesFrom);
     if (!baseClassData) return null;
 
-    // Cap base class leveling at the dynamic promotion target.
-    const baseLevel = Math.min(targetLevel, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP);
+    // Base class to the commander's promotion level, then promoted levels below.
+    const baseLevel = getPromotionBaseLevel(targetLevel);
     const recruitDef = { className: baseClassData.name, name: recruitEntry.name, level: baseLevel };
     const unit = createRecruitUnit(
       recruitDef,
@@ -573,9 +582,15 @@ function createRecruitFromPool(
       weapons,
       statBonuses,
       growthBonuses,
-      null,
+      skillPool,
       classes,
-      { traitsData, skillsData: skills, rng: Math.random, traitClassData: promotedClassData },
+      {
+        traitsData,
+        skillsData: skills,
+        rng: Math.random,
+        traitClassData: promotedClassData,
+        seasoned: true,
+      },
     );
     addClassInnates(unit, baseClassData.name);
     promoteUnit(unit, promotedClassData, promotedClassData.promotionBonuses, skills);
@@ -618,9 +633,9 @@ function createRecruitFromPool(
       weapons,
       statBonuses,
       growthBonuses,
-      null,
+      skillPool,
       classes,
-      { traitsData, skillsData: skills, rng: Math.random },
+      { traitsData, skillsData: skills, rng: Math.random, seasoned: true },
     );
     addClassInnates(unit, classData.name);
     if (metaEffects?.lethalArmoryTier) {
@@ -641,9 +656,17 @@ function createRecruitFromPool(
  * @param {Object} metaEffects - effective meta effects (use getEffectiveMetaEffects())
  * @param {Array} fallenUnits - units that died this run
  * @param {string} mode - 'random'|'pick3'|'pick3_reroll'|'pick_all'
+ * @param {() => number} [rng] - draft stream (default Math.random)
  * @returns {{ candidates: Array, mode: string }|null} null if no lords available
  */
-export function generateThirdLordCandidates(roster, gameData, metaEffects, fallenUnits, mode) {
+export function generateThirdLordCandidates(
+  roster,
+  gameData,
+  metaEffects,
+  fallenUnits,
+  mode,
+  rng = Math.random,
+) {
   const availLords = getAvailableLords(
     roster,
     gameData.lords,
@@ -682,13 +705,13 @@ export function generateThirdLordCandidates(roster, gameData, metaEffects, falle
   } else if (mode === 'pick3' || mode === 'pick3_reroll') {
     const shuffled = [...availLords];
     for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(rng() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     selected = shuffled.slice(0, 3);
   } else {
     // 'random' — single lord
-    selected = [availLords[Math.floor(Math.random() * availLords.length)]];
+    selected = [availLords[Math.floor(rng() * availLords.length)]];
   }
 
   const candidates = selected

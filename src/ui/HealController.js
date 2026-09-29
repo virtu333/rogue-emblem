@@ -34,11 +34,12 @@ import {
   getRelocationDestinations,
 } from '../engine/StaffRelocation.js';
 import { staffAllyCandidates } from '../engine/RecruitNpc.js';
-import { canInspectUnit } from '../engine/BattleInformation.js';
+import { canInspectUnit, seenTileOccupant } from '../engine/BattleInformation.js';
 import { showContextualHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import { EQUIPPED_MARKER } from './equippedBadge.js';
+import { setUnitHP } from '../engine/UnitHealth.js';
 
 /** Heal motes cross from a visible healer to the target (presentation only). */
 function healSource(source, target, scene) {
@@ -121,8 +122,12 @@ export class HealController {
       // Warp/Rescue: phase-1 ally targets (destination legality by the
       // ALLY's moveType is checked inside findRelocateTargets). Army only: a
       // warped caravan could skip its escort walk, a warped recruit its rescue.
-      return findRelocateTargets(staff, unit, scene.playerUnits, scene.grid, (c, r) =>
-        scene.getUnitAt(c, r),
+      return findRelocateTargets(
+        staff,
+        unit,
+        scene.playerUnits,
+        scene.grid,
+        seenTileOccupant(scene.grid, (c, r) => scene.getUnitAt(c, r)),
       );
     }
     const range = getEffectiveStaffRange(staff, unit);
@@ -307,13 +312,21 @@ export class HealController {
     const caster = scene.selectedUnit;
     const staff = caster?.weapon; // equipped by startHealTargetSelection
     if (!caster || !isRelocateStaff(staff)) return;
-    const tiles = getRelocationDestinations(staff, caster, ally, scene.grid, (c, r) =>
-      scene.getUnitAt(c, r),
+    const tiles = getRelocationDestinations(
+      staff,
+      caster,
+      ally,
+      scene.grid,
+      seenTileOccupant(scene.grid, (c, r) => scene.getUnitAt(c, r)),
     );
     if (tiles.length === 0) return; // phase-1 filter should prevent this
     scene.staffRelocateAlly = ally;
     scene.staffRelocateTiles = tiles;
-    scene.grid.showAttackRange(tiles, UI_HEX.lineStrong, 0.4);
+    scene.grid.showRelocateGuide(ally, tiles, {
+      reduceMotion: Boolean(scene._reduceMotion?.()),
+      fill: UI_HEX.accent,
+      edge: UI_HEX.accentText,
+    });
     scene.battleState = 'SELECTING_STAFF_TILE';
   }
 
@@ -347,11 +360,9 @@ export class HealController {
       await this.animateRelocate(ally, dest);
       observeHistoryAction(scene, 'relocated', healer, ally, healer.weapon?.name);
 
-      // A long-range landing can change fog visibility.
-      if (scene.grid.fogEnabled) {
-        scene.grid.updateFogOfWar(scene.playerUnits);
-        scene.updateEnemyVisibility();
-      }
+      // The landing's vision lifts the fog only when the caster's action is
+      // committed (finishUnitAction, or where Canto ends), with the suspend save.
+      scene.refreshVisibleDangerZone?.();
 
       // Spend a use and check depletion (same pattern as executeHeal)
       spendStaffUse(staff);
@@ -434,7 +445,7 @@ export class HealController {
 
       // Apply heal
       const hpBefore = target.currentHP;
-      target.currentHP = result.targetHPAfter;
+      setUnitHP(target, result.targetHPAfter);
       deedsFor(scene).onHeal(healer, target, hpBefore);
       observeHistoryAction(scene, 'healed', healer, target, `${result.healAmount} HP`, {
         amount: result.healAmount,
@@ -480,7 +491,7 @@ export class HealController {
       for (const target of targets) {
         const result = resolveHeal(staff, healer, target, healOpts);
         const hpBefore = target.currentHP;
-        target.currentHP = result.targetHPAfter;
+        setUnitHP(target, result.targetHPAfter);
         deedsFor(scene).onHeal(healer, target, hpBefore);
         observeHistoryAction(scene, 'healed', healer, target, `${result.healAmount} HP`, {
           amount: result.healAmount,

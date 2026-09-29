@@ -105,3 +105,21 @@ export function findRelocateTargets(staff, caster, playerUnits, grid, getUnitAt)
   }
   return targets;
 }
+
+/**
+ * The line that says what to tap while a Warp/Rescue staff is aimed.
+ * Step 1 (no ally yet): which ally to pick. Step 2: where the chosen ally lands.
+ */
+export function relocatePrompt(staff, caster, ally = null) {
+  const kind = getRelocateKind(staff);
+  if (!kind) return null;
+  if (!ally) {
+    return kind === 'rescue'
+      ? 'Rescue: tap a green ally to bring them to your side. Back cancels.'
+      : 'Warp: tap a green ally beside you to send away. Back cancels.';
+  }
+  const beside = caster?.name ? `beside ${caster.name}` : 'beside the caster';
+  return kind === 'rescue'
+    ? `${ally.name} chosen. Tap a gold square ${beside} to set them down. Back picks another ally.`
+    : `${ally.name} chosen. Tap a gold square to send them there. Back picks another ally.`;
+}

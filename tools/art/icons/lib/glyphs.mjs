@@ -33,7 +33,7 @@ export function glyph(kind, cx, cy, s = 1) {
     );
   switch (kind) {
     // ── Skills ──────────────────────────────────────────────────────────
-    case 'sun': // Sol
+    case 'sun': // Reclaim
       return [
         { shape: C(0, 0, 3.2) },
         ...Array.from({ length: 8 }, (_, i) => {
@@ -48,14 +48,14 @@ export function glyph(kind, cx, cy, s = 1) {
           };
         }),
       ];
-    case 'moon': // Luna
+    case 'moon': // Umbra
       return [{ shape: C(-0.4, 0, 5.8), holes: [C(2.4, -1.6, 4.9)] }];
-    case 'star': // Astra
+    case 'star': // Constellation
       return [
         { shape: star(4, 6.4, 1.7) },
         { shape: star(4, 2.6, 0.8, -PI / 2, 4.2, -4.2), accent: true },
       ];
-    case 'chevron': // Vantage: strike first
+    case 'chevron': // Forestall: strike first
       return [
         {
           shape: P([
@@ -79,7 +79,7 @@ export function glyph(kind, cx, cy, s = 1) {
           accent: true,
         },
       ];
-    case 'flame': // Wrath
+    case 'flame': // Seethe
       return [
         {
           shape: P([
@@ -105,7 +105,7 @@ export function glyph(kind, cx, cy, s = 1) {
           accent: true,
         },
       ];
-    case 'twin': // Adept: strike again
+    case 'twin': // Flurry: strike again
       return [
         {
           shape: P([
@@ -129,7 +129,7 @@ export function glyph(kind, cx, cy, s = 1) {
           accent: true,
         },
       ];
-    case 'halo': // Miracle: a halo over a heart
+    case 'halo': // Reprieve: a halo over a heart
       return [
         { shape: E(0, -4.4, 4.4, 1.7), holes: [E(0, -4.4, 2.8, 0.7)], accent: true },
         {
@@ -167,7 +167,7 @@ export function glyph(kind, cx, cy, s = 1) {
           accent: true,
         },
       ];
-    case 'pavise': // Pavise: a tower shield
+    case 'pavise': // Shieldwall: a tower shield
       return [
         {
           shape: P([
@@ -184,7 +184,7 @@ export function glyph(kind, cx, cy, s = 1) {
         { shape: K([-3, 0], [3, 0], 0.7), accent: true },
         { shape: K([-3, 3.4], [3, 3.4], 0.7), accent: true },
       ];
-    case 'aegis': // Aegis: a round ward with a star
+    case 'aegis': // Spellward: a round ward with a star
       return [
         { shape: C(0, 0, 6.2), holes: [star(4, 3.8, 1.2)] },
         { shape: star(4, 3.2, 1), accent: true },
@@ -194,7 +194,7 @@ export function glyph(kind, cx, cy, s = 1) {
         { shape: K([-4.6, -4.6], [4.6, 4.6], 1.5) },
         { shape: K([4.6, -4.6], [-4.6, 4.6], 1.5) },
       ];
-    case 'heartCrack': // Desperation
+    case 'heartCrack': // Death's Door
       return [
         {
           shape: P([
@@ -221,7 +221,7 @@ export function glyph(kind, cx, cy, s = 1) {
           ],
         },
       ];
-    case 'riposte': // Quick Riposte: a returning arrow
+    case 'riposte': // Riposte: a returning arrow
       return [
         { shape: A(0.6, 0.6, 4.6, PI * 0.95, PI * 2.25, 1.9) },
         {
@@ -233,7 +233,7 @@ export function glyph(kind, cx, cy, s = 1) {
           accent: true,
         },
       ];
-    case 'fang': // Death Blow: a blade point driven down
+    case 'fang': // Onslaught: a blade point driven down
       return [
         {
           shape: P([
@@ -246,7 +246,7 @@ export function glyph(kind, cx, cy, s = 1) {
         },
         { shape: K([-5, -2.6], [5, -2.6], 1.1), accent: true },
       ];
-    case 'bolt': // Darting Blow
+    case 'bolt': // Quickstep
       return [
         {
           shape: P([

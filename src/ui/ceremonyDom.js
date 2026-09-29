@@ -400,8 +400,54 @@ export function fitSteps(root, steps, overflow) {
 }
 
 /**
+ * A press that skipped or closed a ceremony still has its finger down: what the
+ * skip reveals (the church's list, the rewards screen, the boss recruit menu)
+ * is built under it before the lift, and the click that follows the lift lands
+ * on whatever is there by then (Church "Leave", "View map", "Recruit"). Swallow
+ * that one click wherever it lands: at document capture, because the layer
+ * that took the press may already be gone. A new press cancels it (a genuine
+ * next tap always counts); it expires `afterLiftMs` after the lift, or `maxMs`
+ * after the press if no lift is seen. Returns a cancel function.
+ */
+export function swallowTrailingClick(press, { afterLiftMs = 600, maxMs = 5000 } = {}) {
+  const doc = globalThis.document;
+  if (!doc?.addEventListener) return () => {};
+  let timer = null;
+  const expireIn = (ms) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => done(), ms);
+  };
+  const swallow = (event) => {
+    event.preventDefault?.();
+    event.stopPropagation?.();
+    done();
+  };
+  const newPress = (event) => {
+    if (event !== press) done();
+  };
+  const lifted = (event) => {
+    if (press?.pointerId === undefined || event.pointerId === press.pointerId)
+      expireIn(afterLiftMs);
+  };
+  const LIFT = ['pointerup', 'pointercancel'];
+  const done = () => {
+    clearTimeout(timer);
+    doc.removeEventListener('click', swallow, true);
+    doc.removeEventListener('pointerdown', newPress, true);
+    for (const type of LIFT) doc.removeEventListener(type, lifted, true);
+  };
+  doc.addEventListener('click', swallow, true);
+  doc.addEventListener('pointerdown', newPress, true);
+  for (const type of LIFT) doc.addEventListener(type, lifted, true);
+  expireIn(maxMs);
+  return done;
+}
+
+/**
  * Tap / Enter / Space / Esc / gamepad confirm or back skips a blocking
- * ceremony. The ceremony owns the overlay and input-focus stacks while it
+ * ceremony. A tap that skips also swallows its trailing click
+ * (swallowTrailingClick); keys and the pad make no click, so they do not.
+ * The ceremony owns the overlay and input-focus stacks while it
  * shows, so the rail's Back and the pad's B route here and nothing reaches
  * the scene underneath. Returns an unbind function (idempotent).
  */
@@ -411,14 +457,15 @@ export function bindCeremonySkip(scene, root, onSkip, { name = 'Ceremony', guard
   const openedAt = now();
   let bound = true;
   const trigger = () => {
-    if (!bound || now() - openedAt < guardMs) return;
+    if (!bound || now() - openedAt < guardMs) return false;
     onSkip();
+    return true;
   };
   const stop = (event) => event.stopPropagation();
   const press = (event) => {
     event.stopPropagation();
     if (event.button !== undefined && event.button !== 0) return;
-    trigger();
+    if (trigger()) swallowTrailingClick(event);
   };
   for (const type of DOM_INPUT_EVENTS) root.addEventListener(type, stop);
   root.addEventListener('pointerdown', press);

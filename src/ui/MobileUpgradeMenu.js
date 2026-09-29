@@ -5,6 +5,7 @@ import { InputAction } from '../utils/InputActions.js';
 import { itemIcon } from './itemIcons.js';
 import { prefersStill } from './itemMoments.js';
 import { portraitListLayout, watchPortraitListLayout } from './portraitListLayout.js';
+import { CATEGORY_CURRENCY } from '../utils/constants.js';
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 const roman = (n) => ROMAN[n] || String(n);
 const categories = [
@@ -15,6 +16,12 @@ const categories = [
   ['starting_equipment', 'Equipment'],
   ['starting_skills', 'Skills'],
 ];
+/** The tabs sit under the currency they spend: Valor buys for lords, Supply for the army. */
+export const CURRENCY_TAB_GROUPS = ['valor', 'supply'].map((currency) => ({
+  currency,
+  categories: categories.filter(([id]) => CATEGORY_CURRENCY[id] === currency),
+}));
+export const currencyName = (currency) => (currency === 'valor' ? 'Valor' : 'Supply');
 const node = (tag, cls, text) => {
   const n = document.createElement(tag);
   n.className = cls;
@@ -135,25 +142,38 @@ export class MobileUpgradeMenu {
       items = m.upgradesData.filter((u) => u.category === this.category);
     if (!items.some((u) => u.id === this.selected)) this.selected = items[0]?.id;
     const u = items.find((u) => u.id === this.selected);
-    const currency = u ? m.getCurrencyForUpgrade(u.id) : 'supply';
+    // The tab's currency lights its balance, before any upgrade is picked.
+    const currencyId = u
+      ? m.getCurrencyForUpgrade(u.id)
+      : CATEGORY_CURRENCY[this.category] || 'supply';
+    const currency = currencyName(currencyId);
     this.header.replaceChildren(node('h1', '', 'Army upgrades'));
     for (const cur of ['valor', 'supply']) {
       const balance = node(
         'span',
-        'mu-currency' + (cur === currency ? ' active' : ''),
-        `${cur === 'valor' ? 'Valor' : 'Supply'} ${cur === 'valor' ? m.totalValor : m.totalSupply}`,
+        'mu-currency' + (cur === currencyId ? ' active' : ''),
+        `${currencyName(cur)} ${cur === 'valor' ? m.totalValor : m.totalSupply}`,
       );
+      balance.dataset.currency = cur;
       this.header.append(balance);
     }
     const close = this.button('Home base', () => this.close());
     close.dataset.focus = 'close';
     this.header.append(close);
     this.tabs.replaceChildren();
-    for (const [id, label] of categories) {
-      const b = this.button(label, () => this.selectCategory(id));
-      b.setAttribute('aria-pressed', String(id === this.category));
-      b.dataset.focus = 'cat-' + id;
-      this.tabs.append(b);
+    for (const group of CURRENCY_TAB_GROUPS) {
+      const box = node('div', 'mu-tab-group');
+      box.dataset.currency = group.currency;
+      box.setAttribute('role', 'group');
+      box.setAttribute('aria-label', `Spend ${currencyName(group.currency)}`);
+      box.append(node('span', 'mu-tab-currency', currencyName(group.currency)));
+      for (const [id, label] of group.categories) {
+        const b = this.button(label, () => this.selectCategory(id));
+        b.setAttribute('aria-pressed', String(id === this.category));
+        b.dataset.focus = 'cat-' + id;
+        box.append(b);
+      }
+      this.tabs.append(box);
     }
     this.list.replaceChildren();
     let group = '';
@@ -193,7 +213,7 @@ export class MobileUpgradeMenu {
             ? 'Locked'
             : maxed
               ? 'MAX'
-              : `${m.getNextCost(item.id)} ${m.getCurrencyForUpgrade(item.id)}`,
+              : `${m.getNextCost(item.id)} ${currencyName(m.getCurrencyForUpgrade(item.id))}`,
         ),
       );
       const pips = node('span', 'mu-pips' + (maxed ? ' maxed' : ''));

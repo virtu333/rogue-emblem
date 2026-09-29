@@ -203,7 +203,7 @@ describe('battle outcomes', () => {
     expect(
       cutInContent({ label: 'CRITICAL HIT', unitName: 'Edric', weaponName: 'Rapier' }),
     ).toEqual({ word: 'CRITICAL', small: 'EDRIC · RAPIER' });
-    expect(cutInContent({ label: 'Galeforce Assault', unitName: 'Voss', isArt: true }).word).toBe(
+    expect(cutInContent({ label: 'Oathstorm', unitName: 'Voss', isArt: true }).word).toBe(
       'GALEFORCE ASSAULT',
     );
   });

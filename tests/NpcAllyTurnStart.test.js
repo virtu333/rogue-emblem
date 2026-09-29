@@ -239,23 +239,28 @@ describe('player turn start', () => {
     expect(foe.currentHP).toBe(5);
   });
 
-  it('an NPC ally the fog hides is mended unseen: no heal effect reveals it', async () => {
+  it('an NPC ally the fog hides is mended unseen; the recruit, always in view, is shown', async () => {
     const layout = Array.from({ length: 8 }, () => Array(8).fill(P));
     layout[6][6] = TERRAIN.Fort;
-    const hidden = recruit('Garrick', 6, 6, 4, 24);
+    layout[1][6] = TERRAIN.Fort;
+    const hidden = caravanAt(6, 6, 10); // 26 HP: floor(2.6) = 2, then floor(2 × 0.67) = 1
+    const garrick = recruit('Garrick', 6, 1, 4, 24); // fort: floor(2.4) = 2
     const visible = new Set(['0,0', '0,1']);
     const scene = phaseScene({
       playerUnits: [sera(0, 0)],
-      npcUnits: [hidden],
+      npcUnits: [hidden, garrick],
       layout,
       visible,
     });
     await scene.startPlayerTurn();
-    expect(hidden.currentHP).toBe(6);
-    expect(scene.animateHeal).not.toHaveBeenCalled();
+    expect(hidden.currentHP).toBe(12);
+    expect(garrick.currentHP).toBe(6);
+    // The caravan's tile is fogged: no effect gives it away. The recruit is always
+    // in view (its banner and sprite stand above the fog), so its heal shows.
+    expect(scene.animateHeal.mock.calls).toEqual([[garrick, 2]]);
     visible.add('6,6');
     await scene.startPlayerTurn(4);
-    expect(hidden.currentHP).toBe(7); // floor(2 × 0.67) = 1, now seen
+    expect(hidden.currentHP).toBe(13);
     expect(scene.animateHeal).toHaveBeenCalledWith(hidden, 1);
   });
 });

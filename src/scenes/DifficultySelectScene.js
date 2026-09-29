@@ -7,7 +7,11 @@ import { inputHint } from '../utils/inputHint.js';
 import Phaser from 'phaser';
 import { MUSIC } from '../utils/musicConfig.js';
 import { resolveStartingLordDefs } from '../engine/Commander.js';
-import { DIFFICULTY_IDS, generateModifierSummary } from '../engine/DifficultyEngine.js';
+import {
+  DIFFICULTY_IDS,
+  difficultyLockReason,
+  generateModifierSummary,
+} from '../engine/DifficultyEngine.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { hasAnySlotMilestone } from '../engine/SlotManager.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -118,29 +122,19 @@ export class DifficultySelectScene extends Phaser.Scene {
 
   _buildModes() {
     const config = this.gameData?.difficulty?.modes || {};
-    const hardUnlocked = Boolean(this.meta?.hasMilestone?.('beatGame'));
+    const has = {
+      slot: (m) => Boolean(this.meta?.hasMilestone?.(m)),
+      anySlot: (m) => hasAnySlotMilestone(m),
+    };
     return DIFFICULTY_IDS.map((id) => {
       const mode = config[id] || {};
       const label = mode.label || id.charAt(0).toUpperCase() + id.slice(1);
       const color = mode.color || UI_PALETTE.muted;
       const summary = generateModifierSummary(mode);
-      let locked = false;
-      let lockReason = null;
-      if (id === 'hard' && !hardUnlocked) {
-        locked = true;
-        lockReason = 'Beat the game to unlock';
-      }
-      const lunaticUnlocked = Boolean(
-        this.meta?.hasMilestone?.('beatHard') ||
-        this.meta?.hasMilestone?.('beatLunatic') ||
-        hasAnySlotMilestone('beatHard') ||
-        hasAnySlotMilestone('beatLunatic'),
-      );
-      if (id === 'lunatic' && !lunaticUnlocked) {
-        locked = true;
-        lockReason = 'Beat the game on Hard to unlock';
-      }
-      return { id, label, color, summary, locked, lockReason };
+      const lockReason = difficultyLockReason(id, has);
+      const locked = Boolean(lockReason);
+      const road = typeof mode.road === 'string' ? mode.road : '';
+      return { id, label, color, road, summary, locked, lockReason };
     });
   }
 
@@ -250,8 +244,12 @@ export class DifficultySelectScene extends Phaser.Scene {
     ).setOrigin(0.5);
 
     // Cards
-    const cardW = 180;
+    // Four rungs fit the 640px frame: cards narrow to share it.
     const cardGap = 16;
+    const cardW = Math.min(
+      180,
+      Math.floor((w - 32 - (this.modes.length - 1) * cardGap) / this.modes.length),
+    );
     const totalW = this.modes.length * cardW + (this.modes.length - 1) * cardGap;
     const startX = cx - totalW / 2 + cardW / 2;
     const cardTopY = 100;

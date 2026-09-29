@@ -150,11 +150,13 @@ test('Skills teaching, trading and convoy recipient work without leaving DOM ros
     .filter({ has: page.getByRole('heading', { name: 'Test blade', exact: true }) })
     .getByRole('button', { name: 'Trade…', exact: true })
     .tap();
-  // Trade…: pick a partner, then place the held blade in one of Sera's free slots.
+  // Trade…: pick a partner, tap the blade (nothing is held on open), then place it in
+  // one of Sera's free slots.
   const partner = page.getByRole('dialog', { name: 'Trade Test blade with…' });
   await partner.getByRole('button', { name: /^Sera/ }).tap();
   await partner.getByRole('button', { name: 'Trade', exact: true }).tap();
   const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
+  await trade.getByRole('button', { name: /^Test blade(, equipped)?$/ }).tap();
   await trade
     .getByRole('button', { name: /^Give Test blade to Sera, slot \d$/ })
     .first()

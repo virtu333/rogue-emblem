@@ -1283,6 +1283,28 @@ describe('BattleScene shim delegation contracts', () => {
     });
   });
 
+  describe('shutdown cleanup and battle music', () => {
+    const shutdownWith = (portraitBattle) => {
+      const scene = makeScene();
+      const audio = { releaseMusic: vi.fn() };
+      scene.registry = { get: (key) => (key === 'audio' ? audio : null) };
+      scene._portraitBattle = portraitBattle;
+      BattleScene.prototype._runSceneShutdownCleanup.call(scene);
+      return audio;
+    };
+
+    it('leaving a battle stops its music', () => {
+      expect(shutdownWith(null).releaseMusic).toHaveBeenCalledTimes(1);
+      expect(shutdownWith({ switching: false, destroy: vi.fn() }).releaseMusic).toHaveBeenCalled();
+    });
+
+    it('turning the phone keeps the track playing for the re-opened battle', () => {
+      expect(
+        shutdownWith({ switching: true, destroy: vi.fn() }).releaseMusic,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
   describe('shutdown cleanup controller hygiene', () => {
     it('destroys WeaponArtController and nulls reference', () => {
       const scene = makeScene();

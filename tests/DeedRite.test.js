@@ -98,7 +98,8 @@ describe('deed rite', () => {
     expect(rite.querySelector('.gr-deed-epithet-text').textContent).toBe('Who Held the Bridge');
     expect(rite.querySelector('.gr-deed-seal-mark').textContent).toBe('H');
     expect(rite.querySelector('.gr-deed-count').textContent).toBe('1 / 3');
-    expect(rite.querySelector('.gr-deed-oath')).toBeNull(); // a higher deed swears first
+    // A higher deed swears by default; this one is an Oath the player may pick instead.
+    expect(rite.querySelector('.gr-deed-oath').textContent).toBe('Oath option · Shieldwall');
     expect(rite.querySelector('.gr-deed-skip')).not.toBeNull();
     expect(hasOpenOverlay(scene)).toBe(true);
     const button = () => rite.querySelector('.gr-deed-next');
@@ -202,7 +203,16 @@ describe('roster Deeds section', () => {
     expect(deeds[0].classList.contains('is-title')).toBe(true);
     const text = root.textContent;
     expect(text).toContain('This march: 3 critical hits · 1 battle');
-    expect(text).toContain('Oath of the Bane · sworn at promotion');
+    // Three deeds carry Oaths: the greatest swears by default; the others are options.
+    expect(text).toContain('Oath at promotion');
+    const oaths = root.querySelectorAll('.mr-oath-option');
+    expect(oaths.map((p) => p.textContent)).toEqual([
+      'Oath of the Bane · Hellfire Charge',
+      'Oath of the Bridge · Shieldwall',
+      'Oath of the Edge · Keen Eye',
+    ]);
+    // Inspecting (no run): nothing to pick, so no choice buttons.
+    expect(text).not.toContain('Use as title');
     sheet.destroy();
   });
 

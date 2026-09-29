@@ -44,8 +44,10 @@ describe('effectiveness tags match the combat multiplier', () => {
 
   it('covers every weapon combat treats as effective', () => {
     expect(effective.map((w) => w.name).sort()).toEqual([
+      'Endgame',
       'Endword',
       'Firstwind',
+      'Godsend',
       'Hammer',
       'Horsebane',
       'Mailbane',

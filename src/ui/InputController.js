@@ -2,6 +2,7 @@ import { sceneHealPreview } from './healTargetPreview.js';
 import { DangerZoneOverlay } from './DangerZoneOverlay.js';
 import { canInspectUnit, terrainRuleLines } from '../engine/BattleInformation.js';
 import { computeEffectivePath } from '../engine/Grid.js';
+import { unitReach } from '../engine/ThreatForecast.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
 import {
   isSleeping,
@@ -16,6 +17,7 @@ import {
 import { UI_HEX } from '../utils/uiStyles.js';
 import { combatDistance, getFootprintKeys } from '../engine/EntitySystem.js';
 import { chooseAttackTile } from '../engine/AttackOptions.js';
+import { openMenuCommand } from './battleMenuModel.js';
 
 /** Battle states where a long press on a unit opens its detail sheet (planning only). */
 const HOLD_DETAIL_STATES = new Set([
@@ -90,6 +92,11 @@ export class InputController {
     if (avoidBonus) info += ` | Avo ${avoidBonus > 0 ? '+' : ''}${avoidBonus}`;
     if (parseInt(terrain.defBonus)) info += ` | Def +${terrain.defBonus}`;
     for (const line of terrainRuleLines(terrain)) info += `\n${line}`;
+    // Zombie remains the player knows of: "Zombie remains · rises in 2 enemy phases".
+    const remains = scene._zombieTombstones?.length
+      ? scene._zombieRemains?.().infoLine(col, row)
+      : null;
+    if (remains) info += `\n${remains}`;
 
     const threat = scene._threatSight?.describe(col, row);
     if (threat) info += `\nThreat: ${threat}`;
@@ -183,7 +190,9 @@ export class InputController {
         scene._getCostModifier(unit),
       );
     if (!path) return;
-    const occupied = scene.buildOccupiedSet(unit);
+    // What the player knows (PlayerKnowledge.js): a hidden unit on the lane must not
+    // cut the drawn slide short; the committed move stops at it (FogAmbush.js).
+    const occupied = scene.buildOccupiedSet(unit, { seenOnly: true });
     const effective = computeEffectivePath(
       path,
       scene.grid.mapLayout,
@@ -217,6 +226,15 @@ export class InputController {
     scene._cameraGestureTapSuppressed = true;
     this._staleRelease = true;
     if (hadTouches) scene._syncMobileResetViewButton?.();
+  }
+
+  /**
+   * The press still down (if any) began before a geometry change: its release is ignored,
+   * so it cannot act on the board. iOS can drop that release altogether when the phone
+   * turns, leaving Phaser's pointer "down" until the next tap.
+   */
+  hasStalePress() {
+    return this._staleRelease === true;
   }
 
   onPointerDown(pointer) {
@@ -445,6 +463,9 @@ export class InputController {
       case 'SELECTING_BREAK_TARGET':
         scene.handleBreakTargetClick(gp);
         break;
+      case 'SELECTING_REMAINS_TARGET':
+        scene.handleRemainsTargetClick(gp);
+        break;
       case 'SELECTING_ABILITY_TILE':
         scene.handleAbilityTileClick(gp);
         break;
@@ -631,7 +652,11 @@ export class InputController {
       return null;
     const tile = chooseAttackTile(unit, target, s.movementRange, {
       distanceFrom: (col, row) => combatDistance({ col, row }, target),
-      isFree: (col, row) => !s.getUnitAt(col, row),
+      // A tile only the fog hides a unit on looks free (the move is then ambushed).
+      isFree: (col, row) => {
+        const there = s.getUnitAt(col, row);
+        return !there || Boolean(s._isHiddenUnit?.(there));
+      },
       terrainScore: (col, row) => {
         const terrain = s.grid.getTerrainAt(col, row);
         return (parseInt(terrain?.defBonus, 10) || 0) + (parseInt(terrain?.avoidBonus, 10) || 0);
@@ -767,10 +792,8 @@ export class InputController {
     const s = this.scene;
     if (s.battleState !== 'UNIT_ACTION_MENU' || s.inEquipMenu || !s.selectedUnit) return false;
     if (this.isSelectionMenu() || s._isTutorialStrictGateActive?.()) return false;
-    const attack = (s.actionMenu || []).find(
-      (o) => o?.text === 'Attack' && typeof o._action === 'function' && !o._menuDisabled,
-    );
-    if (!attack) return false;
+    const attack = openMenuCommand(s, 'attack');
+    if (!attack || attack.disabled) return false;
     const target = s.getUnitAt(gp.col, gp.row);
     if (!target || target.faction === 'player' || !canInspectUnit(s.grid, target)) return false;
     const unit = s.selectedUnit;
@@ -975,40 +998,20 @@ export class InputController {
       const isPlayer = unit.faction === 'player';
       const moveColor = isPlayer ? 0x3366cc : UI_HEX.dangerLine;
       const moveAlpha = isPlayer ? 0.4 : 0.35;
-      const positions = scene.buildUnitPositionMap(unit.faction);
+      const positions = scene.buildUnitPositionMap();
       // Player units already ticked recovery this phase (isRooted is current);
       // other factions act next phase, so preview their post-recovery state.
       const rootedForPreview =
         unit.faction === 'player' ? isRooted(unit) : willRemainRootedNextPhase(unit);
       const asleepPlayer = unit.faction === 'player' && isSleeping(unit);
       const mov = rootedForPreview || asleepPlayer ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0);
-      const moveRange = scene.grid.getMovementRange(
-        unit.col,
-        unit.row,
+      const { moveRange, attackTiles } = unitReach(scene.grid, unit, {
         mov,
-        unit.moveType,
         positions,
-        unit.faction,
-        scene._getCostModifier(unit),
-      );
+        costModifier: scene._getCostModifier(unit),
+      });
       scene.grid.showMovementRange(moveRange, unit.col, unit.row, moveColor, moveAlpha);
-
-      if (unit.weapon && !asleepPlayer) {
-        const attackTiles = new Set();
-        for (const [key, entry] of moveRange) {
-          if (entry.stoppable === false) continue;
-          const [mc, mr] = key.split(',').map(Number);
-          for (const t of scene.grid.getAttackRange(mc, mr, unit.weapon)) {
-            const tk = `${t.col},${t.row}`;
-            if (!moveRange.has(tk)) attackTiles.add(tk);
-          }
-        }
-        const tiles = Array.from(attackTiles).map((k) => {
-          const [col, row] = k.split(',').map(Number);
-          return { col, row };
-        });
-        scene.grid.showAttackRange(tiles);
-      }
+      if (unit.weapon && !asleepPlayer) scene.grid.showAttackRange(attackTiles);
       if (unit.faction === 'enemy') this._showInspectedThreat(unit);
     }
 

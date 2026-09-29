@@ -31,22 +31,28 @@ test('Mire details are tappable in shop and roster; revival previews and saves c
     ]);
   });
   const shop = page.locator('.shop-menu');
-  await shop.getByText('Weapon art: Mire · Details', { exact: true }).tap();
+  await shop.getByText('Weapon art: Mire', { exact: true }).tap();
   const details = shop.locator('.item-art-details');
   await expect(details).toHaveAttribute('open', '');
-  await expect(details).toContainText('Base HP cost:');
-  await expect(details).toContainText('uses per battle');
-  await expect(details).toContainText('Active attack');
+  // A short sheet: cost, what it does, what it needs; the shared rules sit behind a tap.
+  await expect(details).toContainText('Cost 5 HP · 3 per battle');
+  await expect(details).toContainText('Needs Tome / Light · Proficient');
   expect(await details.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
   await page.screenshot({ path: info.outputPath('mire-details.png') });
+  await details.getByRole('button', { name: 'How weapon arts work', exact: true }).tap();
+  const help = page.getByRole('dialog', { name: 'Weapon arts', exact: true });
+  await expect(help).toContainText('never adds a Speed follow-up');
+  await help.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(help).toHaveCount(0);
+  await expect(details).toBeVisible();
   await shop.getByRole('button', { name: /Vanguard Crest/ }).tap();
   await expect(shop).toContainText('+4 Atk when no ally is within 2 tiles');
   await page.screenshot({ path: info.outputPath('vanguard-description.png') });
   await shop.getByRole('button', { name: 'Roster', exact: true }).tap();
   const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
   await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
-  await roster.getByText('Weapon art: Mire · Details', { exact: true }).tap();
-  await expect(roster.locator('.item-art-details')).toContainText('Active attack');
+  await roster.getByText('Weapon art: Mire', { exact: true }).tap();
+  await expect(roster.locator('.item-art-details')).toContainText('Cost 5 HP');
   await roster.getByRole('button', { name: 'Close', exact: true }).tap();
   await shop.getByRole('button', { name: 'Leave', exact: true }).tap();
   await page.evaluate(async () => {
@@ -110,8 +116,7 @@ test('Seraphim reward explains the scroll before claiming', async ({ page }, inf
   });
   await expect(rewards).toContainText('Rare · Weapon Art Scroll');
   await expect(rewards).toContainText('Roster → Skills → Bind to weapon');
-  await expect(rewards).toContainText('Base HP cost: 6');
-  await expect(rewards).toContainText('2 uses per battle');
+  await expect(rewards).toContainText('Cost: 6 HP · 2 per battle');
   expect(await rewards.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
   await expect(
     rewards.getByRole('button', { name: 'Choose reward', exact: true }),

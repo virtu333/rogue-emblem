@@ -4,6 +4,7 @@ import {
   canForgeStat,
   isForged,
   getForgeCost,
+  forgePrice,
   applyForge,
   deforgeWeapon,
   getForgeDisplayInfo,
@@ -16,11 +17,12 @@ import {
   FORGE_STAT_CAP,
 } from '../src/utils/constants.js';
 
+// Steel pays the base forge price (FORGE_COSTS); tier pricing has its own tests below.
 function makeWeapon(overrides = {}) {
   return {
     name: 'Iron Sword',
     type: 'Sword',
-    tier: 'Iron',
+    tier: 'Steel',
     might: 5,
     hit: 90,
     crit: 0,
@@ -140,6 +142,37 @@ describe('ForgeSystem', () => {
 
     it('returns false for excluded types', () => {
       expect(canForgeStat(makeWeapon({ type: 'Staff' }), 'might')).toBe(false);
+    });
+  });
+
+  describe('forge price by weapon tier', () => {
+    // Iron ×0.6, Steel ×1, Silver ×1.5, Legend ×2 (to the nearest 10 gold); rare and
+    // unknown tiers pay the base price. Base first-might price is 400, crit 300.
+    it('scales every stat and level by the weapon’s tier', () => {
+      expect(getForgeCost(makeWeapon({ tier: 'Iron' }), 'might')).toBe(240);
+      expect(getForgeCost(makeWeapon({ tier: 'Steel' }), 'might')).toBe(400);
+      expect(getForgeCost(makeWeapon({ tier: 'Silver' }), 'might')).toBe(600);
+      expect(getForgeCost(makeWeapon({ tier: 'Legend' }), 'might')).toBe(800);
+      expect(getForgeCost(makeWeapon({ tier: 'Rare' }), 'crit')).toBe(300);
+      expect(getForgeCost(makeWeapon({ tier: undefined }), 'crit')).toBe(300);
+      // Third crit on iron: 1100 × 0.6 = 660; fifth might on a legend: 3500 × 2 = 7000.
+      const iron = makeWeapon({ tier: 'Iron' });
+      applyForge(iron, 'crit');
+      applyForge(iron, 'crit');
+      expect(getForgeCost(iron, 'crit')).toBe(660);
+      const legend = makeWeapon({ tier: 'Legend' });
+      for (let i = 0; i < 4; i++) applyForge(legend, 'might');
+      expect(getForgeCost(legend, 'might')).toBe(7000);
+    });
+
+    it('the shop charges what it shows, discount included', () => {
+      const silver = makeWeapon({ tier: 'Silver', price: 2000 });
+      const shown = forgePrice(silver, 'hit', 0.25); // 250 × 1.5 = 380 (nearest 10), less 25%
+      expect(shown).toBe(285);
+      const result = applyForge(silver, 'hit', 0.25);
+      expect(result.cost).toBe(shown);
+      expect(silver.price).toBe(2285);
+      expect(forgePrice(makeWeapon({ tier: 'Iron' }), 'might', 0.99)).toBe(2); // floor(240 × 0.01)
     });
   });
 

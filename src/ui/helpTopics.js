@@ -104,7 +104,59 @@ export const WEAPON_ARTS_HELP = [
       'Proficiency, rank, the weapon and Silence can lock an art.',
     ],
   },
+  {
+    title: 'In combat',
+    points: [
+      'An art never adds a Speed follow-up. Multi-strike arts use their own count.',
+      { term: 'On hit', text: 'happens after combat, if any strike landed.' },
+      'The foe still counters before you step, push or swap.',
+      'Moves need an adjacent target and a free tile; Root stops them.',
+    ],
+  },
   { tip: 'Outside battle this sheet shows eligibility and cost only.' },
+];
+
+export const DEEDS_HELP = [
+  { lead: 'Deeds come from what a unit does in battle. Each one is a title.' },
+  {
+    title: 'Title',
+    points: [
+      'A unit goes by one title: its greatest deed, unless you pick another.',
+      'Between battles, pick any earned title here, or none.',
+    ],
+  },
+  {
+    title: 'Oath',
+    points: [
+      'Some deeds carry an Oath: a skill the class never teaches.',
+      'A unit swears one Oath, ever, when it promotes. You choose which.',
+      'With five skills equipped, the Oath goes on the bench: swap it in from Skills.',
+    ],
+  },
+  { tip: 'The Compendium lists every deed you have earned.' },
+];
+
+export const SCROLLS_HELP = [
+  { lead: 'Scrolls wait in Team scrolls until you use them.' },
+  {
+    title: 'Two kinds',
+    points: [
+      { term: 'Skill scroll', text: 'teaches a skill to one unit (Roster → Skills → Teach).' },
+      {
+        term: 'Weapon art scroll',
+        text: 'binds a weapon art to one weapon (Roster → Skills → Bind to weapon).',
+      },
+    ],
+  },
+  {
+    title: 'Rules',
+    points: [
+      'A scroll is used up only once it is taught or bound.',
+      'Five skills go into battle; a skill taught with all five slots full waits on the bench.',
+      'A bound art stays on that weapon for this run.',
+      'Some skills are commands, like Blink: they add an action, not an attack.',
+    ],
+  },
 ];
 
 export function convoyHelp({ weapons, consumables }) {

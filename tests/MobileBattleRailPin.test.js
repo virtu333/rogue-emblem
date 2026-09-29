@@ -42,6 +42,10 @@ function fakeElement(tag) {
 
 function items(labels) {
   return labels.map((label) => ({
+    // Root commands carry their row id (BattleScene.showActionMenu); pickers do not.
+    id: ['Attack', 'Shove', 'Pull', 'Trade', 'Swap', 'Item', 'Wait'].includes(label)
+      ? label.toLowerCase()
+      : null,
     label,
     disabled: label === 'Attack',
     description: label === 'Attack' ? 'No target in range 1' : undefined,

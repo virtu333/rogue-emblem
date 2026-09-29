@@ -24,6 +24,7 @@ import {
   getClassInnateSkills,
   getCombatWeapons,
 } from './UnitManager.js';
+import { applyRecruitJoinBonus } from './RecruitScaling.js';
 
 /** Apply class abilities to new mercenaries and older persisted boards. */
 export function grantMercenaryClassSkills(unit, classesData, skillsData) {
@@ -63,6 +64,7 @@ export function getAvailableTiers(actId, colosseumData) {
  * @param {string|null} difficultyMode - 'normal'|'hard'|'lunatic'
  * @param {Object} colosseumData - colosseum.json
  * @param {Function} rng - () => [0,1) random number
+ * @param {Object} [difficultyData] - difficulty.json (per-rung class act gates)
  * @returns {{ unit: Object, weapon: Object, level: number }}
  */
 export function generateChallenger(
@@ -75,6 +77,7 @@ export function generateChallenger(
   difficultyMode,
   colosseumData,
   rng,
+  difficultyData = null,
 ) {
   const pool = enemyPools?.pools?.[actId];
   if (!pool) throw new Error(`No enemy pool for act: ${actId}`);
@@ -84,7 +87,10 @@ export function generateChallenger(
   const usePromoted = actIdx >= 2; // act3 = index 2
   let classPool = [...(pool.base || [])];
   if (usePromoted && pool.promoted) classPool.push(...pool.promoted);
-  classPool = filterClassPoolByDifficulty(classPool, difficultyMode);
+  classPool = filterClassPoolByDifficulty(classPool, difficultyMode, {
+    act: actId,
+    difficulty: difficultyData,
+  });
   if (classPool.length === 0) throw new Error(`Empty class pool for act: ${actId}`);
 
   const className = classPool[Math.floor(rng() * classPool.length)];
@@ -281,6 +287,10 @@ function parseMinRange(weapon) {
  * @param {string|null} difficultyMode
  * @param {Object} colosseumData
  * @param {Function} rng
+ * @param {Array|null} [traitsData]
+ * @param {Array<string>} [existingNames]
+ * @param {Object|null} [metaEffects] effective meta effects (RunManager.getEffectiveMetaEffects):
+ *   mercenaries get the recruit stat/growth upgrades and Skilled Recruits like every recruit
  * @returns {Array<{ unit: Object, hireCost: number }>}
  */
 export function generateMercenaryCandidates(
@@ -295,8 +305,13 @@ export function generateMercenaryCandidates(
   rng,
   traitsData = null,
   existingNames = [],
+  metaEffects = null,
 ) {
   const mercConfig = colosseumData?.mercenaries;
+  // What every recruit source gets (RecruitNodeSystem.buildRecruitNodeUnit): seasoned
+  // growths, the recruit stat/growth meta upgrades, and the Skilled Recruits skill.
+  const statBonuses = metaEffects?.statBonuses || null;
+  const growthBonuses = metaEffects?.growthBonuses || null;
   if (!mercConfig) {
     throw new Error('[ColosseumEngine] Missing mercenary config');
   }
@@ -375,11 +390,11 @@ export function generateMercenaryCandidates(
           { name, className: baseClassData.name, level: baseLevel },
           baseClassData,
           weaponsData,
-          null,
-          null,
+          statBonuses,
+          growthBonuses,
           null,
           classesData,
-          { traitsData, skillsData, rng, traitClassData: classData },
+          { traitsData, skillsData, rng, traitClassData: classData, seasoned: true },
         );
         promoteUnit(unit, classData, classData.promotionBonuses || {}, skillsData);
 
@@ -395,11 +410,11 @@ export function generateMercenaryCandidates(
           { name, className, level },
           classData,
           weaponsData,
-          null,
-          null,
+          statBonuses,
+          growthBonuses,
           null,
           classesData,
-          { traitsData, skillsData, rng },
+          { traitsData, skillsData, rng, seasoned: true },
         );
       }
       unit.faction = 'player'; // Mercenaries join the player's team
@@ -422,6 +437,15 @@ export function generateMercenaryCandidates(
       }
       // If HP was boosted, update currentHP
       if (unit.stats.HP > unit.currentHP) unit.currentHP = unit.stats.HP;
+      // The act's recruit join bonus (base-class mercenaries only).
+      applyRecruitJoinBonus(unit, actId);
+
+      // Skilled Recruits: every recruit joins with a random combat skill (drawn on the
+      // board's rng, not Math.random, so a seeded board stays reproducible).
+      if (metaEffects?.recruitRandomSkill) {
+        const pick = RECRUIT_SKILL_POOL[Math.floor(rng() * RECRUIT_SKILL_POOL.length)];
+        learnSkill(unit, pick);
+      }
 
       // 50% chance: assign random combat skill
       if (rng() < (mercConfig.skillChance ?? 0.5)) {

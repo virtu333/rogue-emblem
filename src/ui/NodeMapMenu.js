@@ -21,6 +21,7 @@ import { throttledRead } from '../utils/throttledRead.js';
 import { createEclipseMedallion, openEclipseCard } from './EclipsePanels.js';
 import { fallToastText, kindlePrice } from '../engine/EclipseSystem.js';
 import { showMinorHint } from './HintDisplay.js';
+import { rosterBenchedUnseen } from '../engine/SkillLoadout.js';
 import { playCue } from './ceremonyMusic.js';
 
 const ECLIPSE_TOAST_MS = 4200;
@@ -92,6 +93,7 @@ export class NodeMapMenu {
               document.activeElement.click();
           });
         this.ownsInput = !hidden;
+        if (!hidden) this._syncRosterFlag();
         // Glints and vision dashes only run while the route can be seen.
         this.routeGraph?.setActive(!hidden);
         if (!hidden)
@@ -210,10 +212,12 @@ export class NodeMapMenu {
     const side = element('aside', null, 're-node-side');
     side.setAttribute('aria-label', 'Route actions');
     const actions = element('div', null, 're-node-actions');
+    this.rosterButton = button('Roster', () => s._openRoster());
     actions.append(
       button('Menu', () => s.requestCancel()),
-      button('Roster', () => s._openRoster()),
+      this.rosterButton,
     );
+    this._syncRosterFlag();
     this.detail = element('section', null, 're-scroll re-node-detail re-loom-card');
     this.detail.setAttribute('aria-live', 'polite');
     this._cardOverflow?.destroy();
@@ -421,6 +425,23 @@ export class NodeMapMenu {
     }, ECLIPSE_TOAST_MS);
   }
 
+  /** Roster wears a gold mark while a unit has a new skill on its bench. */
+  _syncRosterFlag() {
+    const b = this.rosterButton;
+    if (!b) return;
+    const waiting = rosterBenchedUnseen(this.scene?.runManager?.roster);
+    b.classList.toggle('re-attention', waiting > 0);
+    // Described, not renamed: the button is still "Roster" to anything looking for it.
+    const note =
+      waiting === 1 ? 'A new skill is on the bench' : `${waiting} units have new skills benched`;
+    if (waiting > 0) {
+      b.setAttribute('aria-description', note);
+      b.title = note;
+    } else {
+      b.removeAttribute('aria-description');
+      b.removeAttribute('title');
+    }
+  }
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;

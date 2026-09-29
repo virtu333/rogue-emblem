@@ -354,14 +354,14 @@ describe('characterisation: forecast parity with truly equipping', () => {
     expect(cycled).toEqual(equipped);
   });
 
-  it("a weapon's granted skill (Death Blow: +6 ATK when initiating) counts when cycled to", async () => {
+  it("a weapon's granted skill (Onslaught: +6 ATK when initiating) counts when cycled to", async () => {
     const bag = () => [
       item('Iron Sword', 'iron'),
       item('Steel Sword', 'steel', { _grantedSkill: 'death_blow' }),
     ];
     const cycled = await cycledForecast(bag(), 'Steel Sword', 'fighter');
     const equipped = await equippedForecast(bag(), 'Steel Sword', 'fighter');
-    // 7 STR + 8 Mt + 6 (Death Blow) + 1 (sword beats axe) - 5 DEF = 17.
+    // 7 STR + 8 Mt + 6 (Onslaught) + 1 (sword beats axe) - 5 DEF = 17.
     expect(cycled.attacker.damage).toBe(17);
     expect(cycled.attacker.skills.map((s) => s.id)).toContain('death_blow');
     expect(cycled).toEqual(equipped);
@@ -408,7 +408,7 @@ describe('characterisation: weapon art on a non-equipped duplicate without uids'
     expect(commit.hero.equippedInventoryIndex).toBe(0);
     expect(resolutions).toHaveLength(1);
     expect(resolutions[0].weapon).toBe(second);
-    // Iron Sword 7 + 5 Mt + 5 (Wrath Strike) + 1 (sword beats axe) - 5 DEF = 13.
+    // Iron Sword 7 + 5 Mt + 5 (Grim Stroke) + 1 (sword beats axe) - 5 DEF = 13.
     const strike = resolutions[0].result.events.find(
       (e) => e.type === 'strike' && (e.attackerSide ?? 'attacker') === 'attacker',
     );
@@ -544,7 +544,7 @@ describe('characterisation: confirm and resume', () => {
     expect(hero.weapon).toBe(steel);
     expect(hero.inventory).toEqual([steel, iron]);
     expect(resolutions[0].weapon).toBe(steel);
-    // Steel 11 + 5 (Wrath Strike) = 16.
+    // Steel 11 + 5 (Grim Stroke) = 16.
     const strike = resolutions[0].result.events.find(
       (e) => e.type === 'strike' && (e.attackerSide ?? 'attacker') === 'attacker',
     );
@@ -659,7 +659,7 @@ describe('contract: planning an attack never changes equipment', () => {
     await step('open the art forecast', () => flow.openForecast(hero, fighter));
     expect(scene._forecastWeapon).toBe(sword);
     expect(renders.at(-1).weaponArt?.id).toBe(art.id);
-    // Iron 7 + 5 + 5 (Wrath Strike) + 1 - 5 = 13, planned with the staff still equipped.
+    // Iron 7 + 5 + 5 (Grim Stroke) + 1 - 5 = 13, planned with the staff still equipped.
     expect(renders.at(-1).forecast.attacker.damage).toBe(13);
     await step('Cancel', () => scene.handleCancel());
     await step('Back to the menu', () => scene.handleCancel());

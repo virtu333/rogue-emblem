@@ -248,7 +248,7 @@
         "epithet": "From the Far Side of the Glass",
         "difficultyFilter": [
           "normal",
-          "hard"
+          "dusk"
         ],
         "lore": "The ritual's first success, or its first casualty; the court circle's records use both. He has watched every future the seers walk, from the far side of the glass."
       },
@@ -258,10 +258,42 @@
         "name": "The Entity",
         "isEntity": true,
         "difficultyFilter": [
+          "hard",
           "lunatic"
         ],
         "lore": "Older than the ground consecrated to keep it asleep. The ritual overfed it, and the war is the sound of it turning over. It does not hate. It does not need to."
       }
+    ]
+  },
+  "elites": {
+    "act1": [
+      { "className": "Fighter", "name": "Raider Captain" },
+      { "className": "Soldier", "name": "Border Sergeant" },
+      { "className": "Archer", "name": "Watch Captain" }
+    ],
+    "act2": [
+      { "className": "Knight", "name": "Garrison Captain" },
+      { "className": "Mage", "name": "Hedge Magus" },
+      { "className": "Pegasus Knight", "name": "Wing Captain" },
+      { "className": "Myrmidon", "name": "Sellsword Captain" }
+    ],
+    "act3": [
+      { "className": "Swordmaster", "name": "Blade Captain" },
+      { "className": "Wyvern Lord", "name": "Wyvern Captain" },
+      { "className": "Sage", "name": "Court Magus" },
+      { "className": "Great Knight", "name": "Lance Captain" }
+    ],
+    "act4": [
+      { "className": "General", "name": "Imperial Guard" },
+      { "className": "Falcon Knight", "name": "Sky Marshal" },
+      { "className": "Warrior", "name": "War Captain" },
+      { "className": "Sniper", "name": "Tower Marksman" }
+    ],
+    "postAct": [
+      { "className": "Dark Knight", "name": "Warden of the Rite" },
+      { "className": "Hero", "name": "Oathbreaker" },
+      { "className": "Sage", "name": "Ash Magus" },
+      { "className": "Assassin", "name": "Ritual Blade" }
     ]
   },
   "enemyCountByTiles": {
@@ -283,19 +315,19 @@
     ],
     "192": [
       7,
-      13
+      14
     ],
     "216": [
       8,
-      13
+      15
     ],
     "252": [
       9,
-      14
+      16
     ],
     "280": [
       10,
-      14
+      16
     ]
   }
 }

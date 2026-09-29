@@ -147,6 +147,9 @@ export class DeedController {
         fallenCount: s._playerDeathsThisBattle,
       });
       s._newDeeds = announcements.length ? announcements : null;
+      // The save remembers every deed its army has earned (the Compendium lists them).
+      if (announcements.length)
+        s.registry?.get?.('meta')?.recordDeedsEarned?.(announcements.map((a) => a.deedId));
       return announcements;
     } catch (error) {
       warn('commit', error);

@@ -38,13 +38,16 @@ describe('DifficultyEngine', () => {
 
   it('preserves optional label and color fields from config', () => {
     const hard = resolveDifficultyMode(difficulty, 'hard');
-    expect(hard.modifiers.label).toBe('Hard');
+    expect(hard.modifiers.label).toBe('Nightfall');
     expect(hard.modifiers.color).toBe('#e8a44a');
     const normal = resolveDifficultyMode(difficulty, 'normal');
-    expect(normal.modifiers.label).toBe('Normal');
+    expect(normal.modifiers.label).toBe('First Light');
     expect(normal.modifiers.color).toBe('#95c487');
+    const dusk = resolveDifficultyMode(difficulty, 'dusk');
+    expect(dusk.id).toBe('dusk');
+    expect(dusk.modifiers.label).toBe('Dusk');
     const lunatic = resolveDifficultyMode(difficulty, 'lunatic');
-    expect(lunatic.modifiers.label).toBe('Lunatic');
+    expect(lunatic.modifiers.label).toBe('Black Sun');
     expect(lunatic.modifiers.color).toBe('#ec7a5c');
   });
 
@@ -53,7 +56,7 @@ describe('DifficultyEngine', () => {
     delete stripped.modes.normal.label;
     delete stripped.modes.normal.color;
     const result = resolveDifficultyMode(stripped, 'normal');
-    expect(result.modifiers.label).toBe('Normal');
+    expect(result.modifiers.label).toBe('First Light');
     expect(result.modifiers.color).toBe('#95c487');
   });
 
@@ -109,6 +112,6 @@ describe('DifficultyEngine', () => {
     const lunatic = resolveDifficultyMode(difficulty, 'lunatic');
     const lines = generateModifierSummary(lunatic.modifiers);
     expect(lines.some((l) => l.includes('Enemy levels'))).toBe(true);
-    expect(lines.some((l) => l.includes('Base enemy count'))).toBe(true);
+    expect(lines.some((l) => l.includes('as if you field at least'))).toBe(true);
   });
 });

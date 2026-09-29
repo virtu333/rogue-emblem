@@ -34,6 +34,8 @@
         "avoidBonus": { "type": "number" },
         "spdBonus": { "type": "number" },
         "drainPercent": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "drainMaxPerHit": { "type": "integer", "minimum": 1 },
+        "drainPerHit": { "type": "integer", "minimum": 1 },
         "effectiveness": {
           "type": "object",
           "properties": {

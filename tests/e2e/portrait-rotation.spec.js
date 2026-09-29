@@ -9,6 +9,7 @@
 //   - mid-battle, both ways and once during the enemy phase: the same battle as a run
 //     that never turned (RNG, units, fog, NPCs, temporary terrain, convoy, gold,
 //     Vision, deployment), before and after identical actions;
+//   - the battle music plays on (the same voice, never restarted from its intro);
 //   - Formation: the switch waits for Start battle and keeps the placement;
 //   - with the forecast open: the switch waits, the sheet stays usable, the attack
 //     resolves exactly as without the turn;
@@ -142,7 +143,7 @@ test('turning the phone both ways, once in the enemy phase, plays out like never
             // The switch waits for the player's turn; the note says so meanwhile.
             during = await (await page.waitForFunction(() => window.__turnedDuring)).jsonValue();
             await expect(page.locator('.portrait-battle-notice')).toHaveText(
-              'The board turns upright when your turn is ready.',
+              'The board turns upright when your turn begins.',
             );
           }
         : null,
@@ -184,6 +185,39 @@ test('turning the phone both ways, once in the enemy phase, plays out like never
   expect(errors).toEqual([]);
 });
 
+test('the battle music plays on through a turn of the phone, both ways', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors = pageErrors(page);
+  await quietSettings(page, { musicVolume: 0.05 });
+  await openDevBattle(page);
+  const music = () =>
+    page.evaluate(() => {
+      const audio = window.__emblemRogueGame.registry.get('audio');
+      return {
+        key: audio.currentMusicKey,
+        playing: Boolean(audio.currentMusic?.isPlaying),
+        same: audio.currentMusic?.__turnMarker === true,
+      };
+    });
+  // Browsers start audio only after a user gesture.
+  await page.keyboard.press('Shift');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.registry.get('audio').currentMusic?.isPlaying,
+    null,
+    { timeout: 30_000 },
+  );
+  const before = await music();
+  // Mark the playing voice: a restarted track would be a new sound object.
+  await page.evaluate(() => {
+    window.__emblemRogueGame.registry.get('audio').currentMusic.__turnMarker = true;
+  });
+  await turnPhone(page, SIDEWAYS, 'none');
+  expect(await music()).toEqual({ key: before.key, playing: true, same: true });
+  await turnPhone(page, UPRIGHT, 'ccw');
+  expect(await music()).toEqual({ key: before.key, playing: true, same: true });
+  expect(errors).toEqual([]);
+});
+
 test('turned during Formation, the board waits for Start battle and keeps the placement', async ({
   page,
 }) => {
@@ -213,7 +247,7 @@ test('turned during Formation, the board waits for Start battle and keeps the pl
   // Sideways mid-Formation: nothing re-opens yet; the note says when it will.
   await page.setViewportSize(SIDEWAYS);
   await expect(page.locator('.portrait-battle-notice')).toHaveText(
-    'The board turns back when your turn is ready.',
+    'The board turns back when the battle begins.',
   );
   expect(await battleSnapshot(page)).toMatchObject({
     rotation: 'ccw',
@@ -294,7 +328,7 @@ test('turned with the forecast open, the switch waits and the attack resolves as
     if (turned) {
       await page.setViewportSize(SIDEWAYS);
       await expect(page.locator('.portrait-battle-notice')).toHaveText(
-        'The board turns back when your turn is ready.',
+        'The board turns back when this action is done.',
       );
       // A modal holds the board: still turned, still the same forecast.
       expect(await battleSnapshot(page)).toMatchObject({
@@ -505,8 +539,16 @@ test('the trade menu keeps the held item and the focus through a turn and back',
   const menu = page.getByRole('dialog', { name: 'Trade items', exact: true });
   await expect(menu).toBeVisible();
   const status = menu.getByRole('status');
+  // Nothing is held on open. Keyboard/controller: the first Down shows the cursor on the
+  // card's Iron Sword, Enter holds it, then the focus moves to Sera's Heal; turn the phone.
+  await expect(status).toHaveText('Choose an item to trade.');
+  await page.keyboard.press('ArrowDown');
+  await expect(
+    menu.getByRole('button', { name: 'Iron Sword, equipped', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Enter');
   await expect(status).toContainText('Holding Iron Sword.');
-  // Move the focus off its opening place (keyboard/controller), then turn the phone.
+  await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowDown');
   const target = menu.getByRole('button', { name: 'Trade Iron Sword for Heal', exact: true });
   await expect(target).toBeFocused();
@@ -963,9 +1005,8 @@ test('UI-only actions never advance the gameplay RNG', async ({ page }) => {
       await danger.tap();
       await expect(danger).toHaveAttribute('aria-pressed', 'false');
     },
-    'Overview and Recenter': async () => {
+    Overview: async () => {
       await rail.getByRole('button', { name: 'Overview', exact: true }).tap();
-      await rail.getByRole('button', { name: 'Recenter', exact: true }).tap();
     },
     'the Rewind history, previewed and closed': async () => {
       await rail.getByRole('button', { name: 'Rewind', exact: true }).tap();
@@ -1003,7 +1044,7 @@ test('UI-only actions never advance the gameplay RNG', async ({ page }) => {
         await expect(control).not.toHaveText(label);
       }
       await settings.getByRole('button', { name: 'Close', exact: true }).tap();
-      await pause.getByRole('button', { name: 'Campaign Map', exact: true }).tap();
+      await pause.getByRole('button', { name: 'View Campaign Map', exact: true }).tap();
       const map = page.getByRole('dialog', { name: 'Campaign map', exact: true });
       await expect(map.locator('.re-node').first()).toBeVisible();
       await map.getByRole('button', { name: 'Close', exact: true }).tap();
@@ -1028,7 +1069,7 @@ test('UI-only actions never advance the gameplay RNG', async ({ page }) => {
         .toBe('Sera');
       await page.setViewportSize(SIDEWAYS);
       await expect(page.locator('.portrait-battle-notice')).toHaveText(
-        'The board turns back when your turn is ready.',
+        'The board turns back when this action is done.',
       );
       await page.setViewportSize(UPRIGHT);
       // Back out: the action menu, then the selection.

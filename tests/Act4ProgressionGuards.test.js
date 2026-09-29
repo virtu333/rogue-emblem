@@ -57,14 +57,21 @@ describe('Act4 progression guards', () => {
     expect(data.enemies.bosses.finalBoss).toBeDefined();
   });
 
-  it('difficulty mode act sequences include act4 for hard and lunatic', () => {
+  it('the ladder: First Light ends at the Lieutenant, Dusk at the Emperor, the top two at the Entity', () => {
     expect(data.difficulty.modes.normal.actsIncluded).toEqual([
       'act1',
       'act2',
       'act3',
       'finalBoss',
     ]);
-    expect(data.difficulty.modes.hard.actsIncluded).toEqual(['act1', 'act2', 'act3', 'act4']);
+    expect(data.difficulty.modes.dusk.actsIncluded).toEqual(['act1', 'act2', 'act3', 'act4']);
+    expect(data.difficulty.modes.hard.actsIncluded).toEqual([
+      'act1',
+      'act2',
+      'act3',
+      'act4',
+      'finalBoss',
+    ]);
     expect(data.difficulty.modes.lunatic.actsIncluded).toEqual([
       'act1',
       'act2',

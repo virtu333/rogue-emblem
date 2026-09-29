@@ -167,15 +167,16 @@ describe('heal staff targets', () => {
     expect(scene.findHealTargets(healer)).toEqual([hurtAlly, caravan, recruit]);
   });
 
-  it('never reveal an NPC the fog hides', () => {
+  it('never reveal the caravan the fog hides; the waiting recruit is always in view', () => {
     const { healer, hurtAlly, caravan, recruit, npcUnits } = board();
-    // Everything visible except Garrick's tile.
+    // Everything visible except the caravan's and Garrick's tiles.
     const visible = new Set();
     for (let c = 0; c < 10; c++) for (let r = 0; r < 10; r++) visible.add(`${c},${r}`);
+    visible.delete('4,6');
     visible.delete('6,4');
     const scene = makeScene({ playerUnits: [healer, hurtAlly], npcUnits, visible });
-    expect(scene.findHealTargets(healer)).toEqual([hurtAlly, caravan]);
-    visible.add('6,4');
+    expect(scene.findHealTargets(healer)).toEqual([hurtAlly, recruit]);
+    visible.add('4,6');
     expect(scene.findHealTargets(healer)).toEqual([hurtAlly, caravan, recruit]);
   });
 

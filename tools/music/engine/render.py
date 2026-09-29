@@ -368,6 +368,9 @@ class Renderer:
     def render_part(self, part):
         s = self.s
         inst = INSTRUMENTS[part.inst]
+        if inst['kind'] == 'synth' and part.opts.get('synth'):
+            # a synth part's own voice settings (engine/edm.py), over the registry's
+            inst = {**inst, 'params': {**inst.get('params', {}), **part.opts['synth']}}
         if inst.get('keep_arts'):
             kept, rest = self._split_kept(part, inst)
             if kept is not None:
@@ -487,7 +490,11 @@ class Renderer:
             x = dsp.compress(x, **comp)
         amp = part.opts.get('amp', inst.get('amp'))
         if amp:
-            x = amp_sim(x, **amp)
+            if amp.get('rig'):
+                from . import guitar
+                x = guitar.rig(x, **amp)
+            else:
+                x = amp_sim(x, **amp)
         eq = list(inst.get('eq', [])) + list(part.opts.get('eq', []))
         if hpf:
             eq = [('highpass', hpf, 0.7, 0)] + eq
@@ -507,6 +514,27 @@ class Renderer:
             act = active_rms_db(x[: self.loop_end_f])
             if act is not None:
                 x = x * dsp.undb(ROLE_TARGETS[role] - act)
+        # a fader move after the part's processing, [(bar, dB), ...]: level changes a
+        # velocity or an expression lane cannot make (a distorted guitar, a compressed bass).
+        # Interpolated like an expression lane: loop points wrap around the loop (the
+        # last one glides into the first a loop later), so the seam stays sample-exact
+        fader = part.opts.get('fader')
+        if fader:
+            g = self._lane([(s.bar(b), d) for b, d in fader], len(x))
+            x = x * (10 ** (g / 20)).astype(np.float32)[:, None]
+        # EDM production (engine/edm.py): a moving low-pass, and sidechain pumping
+        # keyed to given beats (usually the kick's)
+        sweep = part.opts.get('sweep')
+        if sweep:
+            from . import edm
+            x = edm.lowpass_sweep(x, [(s.seconds(s.bar(b)), f) for b, f in sweep])
+        pump = part.opts.get('pump')
+        if pump:
+            from . import edm
+            g = edm.pump_gain(len(x), [s.seconds(b) for b in pump['beats']],
+                              depth_db=pump.get('depth_db', 8.0),
+                              release=pump.get('release', 0.25), shape=pump.get('shape', 1.6))
+            x = x * g[:, None]
         width = part.opts.get('width', inst.get('width', 0.6))
         pan = part.opts.get('pan', inst.get('pan', 0.0))
         x = dsp.pan_stereo(x, pan, width)

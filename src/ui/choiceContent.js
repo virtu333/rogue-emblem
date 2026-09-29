@@ -48,8 +48,9 @@ export function growthHints(unit, { count = 2, min = 40 } = {}) {
  * leader of a stat across the draft (never when there is one candidate or
  * the top value is shared by all); `ratio` is the bar length against the
  * draft's highest value (at least 10, so small numbers stay small bars).
+ * `marks: false` leaves out the best and grows marks (the bars stay).
  */
-export function candidateStatBoard(units) {
+export function candidateStatBoard(units, { marks = true } = {}) {
   const list = Array.isArray(units) ? units : [];
   const scale = {};
   const top = {};
@@ -70,8 +71,9 @@ export function candidateStatBoard(units) {
         stat,
         value,
         ratio: Math.max(0, Math.min(1, value / scale[stat])),
-        best: comparable && value === top[stat] && topCount[stat] < list.length && value > 0,
-        grows: grows.has(stat),
+        best:
+          marks && comparable && value === top[stat] && topCount[stat] < list.length && value > 0,
+        grows: marks && grows.has(stat),
       };
     };
     const maxHp = num(unit?.stats?.HP);
@@ -184,10 +186,17 @@ export function candidateCue(unit, roster) {
   return role ? { role: role.id, text: `Your army lacks ${role.lacks}` } : null;
 }
 
-/** Everything a candidate card shows, for a set of candidates side by side. */
-export function candidateCards(units, { roster = [], gameData = {}, temperamentOf = null } = {}) {
+/**
+ * Everything a candidate card shows, for a set of candidates side by side.
+ * `hints: false` (the boss reward) leaves out the advice: no roster cue, no
+ * best-in-draft or grows-fast marks.
+ */
+export function candidateCards(
+  units,
+  { roster = [], gameData = {}, temperamentOf = null, hints = true } = {},
+) {
   const list = Array.isArray(units) ? units : [];
-  const board = candidateStatBoard(list);
+  const board = candidateStatBoard(list, { marks: hints });
   const classes = gameData.classes || [];
   return list.map((unit, i) => {
     const cls = classes.find?.((c) => c?.name === unit?.className);
@@ -216,7 +225,7 @@ export function candidateCards(units, { roster = [], gameData = {}, temperamentO
       board: board[i],
       weapons: weaponMarks(unit),
       lines: unitLines(unit, gameData),
-      cue: candidateCue(unit, roster),
+      cue: hints ? candidateCue(unit, roster) : null,
     };
   });
 }
@@ -374,6 +383,7 @@ export function blessingCardContent(blessing) {
 // Presentation copy for the banners (unknown modes simply show none).
 export const DIFFICULTY_TAGLINES = Object.freeze({
   normal: 'The road as it was walked',
+  dusk: 'The road runs on to the throne',
   hard: 'The empire answers in kind',
   lunatic: 'Every thread drawn taut',
 });
@@ -389,6 +399,8 @@ export function difficultyBannerContent(mode, index = 0) {
     name: String(mode?.label || mode?.name || ''),
     rank: index + 1,
     tagline: DIFFICULTY_TAGLINES[mode?.id] || '',
+    // Where the run ends (difficulty.json `road`): the rungs differ most in this.
+    road: String(mode?.road || ''),
     harder: summary.filter((line) => !REWARD_LINE.test(line)),
     rewards: summary.filter((line) => REWARD_LINE.test(line)),
     locked: Boolean(mode?.locked),

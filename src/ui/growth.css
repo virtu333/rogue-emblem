@@ -1301,6 +1301,36 @@
   line-height: 1.35;
   color: var(--re-info);
 }
+/* The Oath to swear, when a unit has more than one: a row of choices over Confirm. */
+.gr-oath-choice {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.gr-oath-note {
+  flex: none;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--re-info);
+}
+.gr-oath-kicker {
+  flex: 1 0 100%;
+  font: var(--re-pf-8, 8px) / 1.4 var(--re-pixel);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--re-accent-text);
+}
+.re-btn.gr-oath-option {
+  flex: 1 1 auto;
+  min-height: var(--re-tap, 44px);
+}
+.re-btn.gr-oath-option[aria-pressed='true'] {
+  border-color: var(--re-focus);
+  background: var(--re-selected);
+}
 .gr-chooser-footer {
   flex: none;
   display: flex;

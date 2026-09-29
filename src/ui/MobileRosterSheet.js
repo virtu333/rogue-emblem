@@ -1,5 +1,5 @@
 import { saveServiceRun } from './serviceSave.js';
-import { weaponArtScrollText } from './weaponArtDisplay.js';
+import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { statusDescriptions, statusStaffInfo } from '../engine/BattleInformation.js';
 import { classChangePreview } from './classChangeDisplay.js';
@@ -13,7 +13,14 @@ import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { formatPerkMods, MASTERY_HELP, proficiencyLabel } from './rosterDisplay.js';
 import { ContextHelp, helpPreview } from './ContextHelp.js';
-import { attributesHelp, combatBaselineHelp, convoyHelp, WEAPON_ARTS_HELP } from './helpTopics.js';
+import {
+  attributesHelp,
+  combatBaselineHelp,
+  convoyHelp,
+  DEEDS_HELP,
+  SCROLLS_HELP,
+  WEAPON_ARTS_HELP,
+} from './helpTopics.js';
 import { attachInfo, holdTip } from './infoAffordance.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
@@ -31,14 +38,16 @@ import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_PER_LEVEL } from '../util
 import { teachScrollBlock, teachRosterScroll } from '../engine/RosterTransfers.js';
 import {
   CONVOY_HOLDER,
+  applyReorder,
   applyTrade,
   bagCapacity,
   bagItems,
+  planReorder,
   planTrade,
   unitHolder,
 } from '../engine/ItemTrade.js';
 import { TradeMenu } from './TradeMenu.js';
-import { commitMessage, tradeWarningText } from './tradeMenuModel.js';
+import { commitMessage, reorderMessage, tradeWarningText } from './tradeMenuModel.js';
 import {
   partnerHolder,
   partnerLabel,
@@ -47,7 +56,11 @@ import {
   tradePartnerItemText,
   tradePartnerText,
 } from './rosterTradeChoices.js';
-import { inventoryDisplayOrder } from '../engine/UnitManager.js';
+import {
+  benchedSkillsNote,
+  benchedSkillsOf,
+  inventoryDisplayOrder,
+} from '../engine/UnitManager.js';
 import { equippedBadgeElement } from './equippedBadge.js';
 import { weaponComparisonParts } from './equipmentComparison.js';
 import { itemKeywordRow } from './itemKeywordChips.js';
@@ -73,12 +86,24 @@ import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import {
+  chooseTitle,
   deedsForDisplay,
   deedTallyText,
   epithetText,
-  promotionOath,
+  oathOptionsInOrder,
+  pledgeOath,
+  promotionOathCandidates,
+  TITLE_NONE,
   unitDisplayName,
 } from '../engine/DeedSystem.js';
+import {
+  benchSkill,
+  benchSkillBlock,
+  equipSkill,
+  lockedSkillIds,
+  markBenchSeen,
+  unseenBenchedSkills,
+} from '../engine/SkillLoadout.js';
 import { actLabel } from './ceremonyContent.js';
 import { fitText } from './ceremonyDom.js';
 import { createHealthBar } from './healthBar.js';
@@ -99,7 +124,8 @@ import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { unitTemperament } from './unitVoiceDisplay.js';
 import { itemIcon, itemHero } from './itemIcons.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
-import { portraitListLayout } from './portraitListLayout.js';
+import { portraitListLayout, watchPortraitListLayout } from './portraitListLayout.js';
+import { orderedStatKeys } from './statOrder.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
 // and pen. Mice hold a line far tighter, so they keep the original 10px.
@@ -139,8 +165,10 @@ export class MobileRosterSheet {
     portraitKey = null,
     terrainForUnit = null,
     persist = null,
+    tips = true,
   }) {
     Object.assign(this, {
+      tips,
       persist,
       scene,
       units,
@@ -256,6 +284,14 @@ export class MobileRosterSheet {
   }
   render(message = '') {
     if (this.destroyed) return;
+    // Opening a unit's Skills (between battles) is seeing its bench: the news clears
+    // before the list and pip are drawn, and saves. The tab still marks what was new.
+    const shown = this.units?.[this.index];
+    if (this.tab === 'skills' && this.run && shown) {
+      const fresh = unseenBenchedSkills(shown);
+      if (fresh.length) this._freshBench = { unit: shown, ids: new Set(fresh) };
+      if (markBenchSeen(shown)) this.persistNow();
+    }
     const oldScroll = this.root.querySelector('.mr-content')?.scrollTop || 0;
     // Upright, the unit list is a sideways strip; keep its position across renders.
     const oldStrip = this.root.querySelector('.mr-units')?.scrollLeft || 0;
@@ -296,9 +332,13 @@ export class MobileRosterSheet {
       const hpRow = el('span', null, 'mr-unit-hp');
       hpRow.append(createHealthBar(unit), el('small', `${unit.currentHP}/${unit.stats.HP}`));
       info.append(classLine, hpRow);
+      // A skill that arrived with every slot full waits on the bench: the list says so
+      // until the player has seen it on Skills.
+      const benchNews = Boolean(this.run && unseenBenchedSkills(unit).length);
+      if (benchNews) info.append(el('span', 'New skill benched', 'mr-unit-flag'));
       b.setAttribute(
         'aria-label',
-        `${unit.name}, Level ${getDisplayLevel(unit)} ${unit.className}, HP ${unit.currentHP} of ${unit.stats.HP}`,
+        `${unit.name}, Level ${getDisplayLevel(unit)} ${unit.className}, HP ${unit.currentHP} of ${unit.stats.HP}${benchNews ? ', new skill benched' : ''}`,
       );
       b.append(info);
       b.setAttribute('aria-pressed', String(index === this.index));
@@ -349,6 +389,7 @@ export class MobileRosterSheet {
       );
       summary.append(createHealthBar(unit));
       body.append(summary);
+      this.benchCallout(unit);
       if (this.tab === 'stats') this.stats(unit);
       if (this.tab === 'skills') this.skills(unit);
       if (this.tab === 'gear') this.gear(unit);
@@ -390,6 +431,14 @@ export class MobileRosterSheet {
     this.body.append(c);
     return c;
   }
+  /** Re-render the stats tab if the phone turns while it is open (its order follows the columns). */
+  watchStatOrder(twoColumn) {
+    this.statOrderTwoColumn = twoColumn;
+    this.stopStatOrderWatch ||= watchPortraitListLayout((now) => {
+      if (this.destroyed || this.tab !== 'stats' || now === this.statOrderTwoColumn) return;
+      this.render();
+    });
+  }
   stats(unit) {
     const conditions = statusDescriptions(unit);
     if (conditions.length)
@@ -401,7 +450,12 @@ export class MobileRosterSheet {
     if (statusStaff) this.card('Status staff', statusStaff.text);
     const terrain = this.terrainForUnit?.(unit);
     const grid = el('dl', null, 'mr-stats');
-    for (const [key, value] of Object.entries(unit.stats || {})) {
+    // Two pairs per row upright (the portrait .mr-stats rule), three in landscape.
+    const twoColumn = portraitListLayout();
+    grid.dataset.statOrder = twoColumn ? 'two-column' : 'fe';
+    this.watchStatOrder(twoColumn);
+    for (const key of orderedStatKeys(unit.stats, { twoColumn })) {
+      const value = unit.stats[key];
       const valueText = el('dd', String(value));
       valueText.style.color = STAT_COLORS[key] || UI_PALETTE.text;
       grid.append(
@@ -508,25 +562,93 @@ export class MobileRosterSheet {
     if (unit.growths && unit.faction !== 'enemy') this.body.append(growthsCard(unit.growths));
   }
   // Deeds & Epithets: the titles this unit earned, the title first, then newest, with the
-  // run's tallies and its Oath (sworn, or the one a promotion would swear).
+  // run's tallies and its Oath. Between battles the player picks the title the unit goes
+  // by and, before promotion, which deed's Oath it will swear (saved at once).
   deeds(unit) {
     const list = deedsForDisplay(unit, this.gameData.deeds);
-    this.body.append(el('h3', list.length ? `Deeds · ${list.length}` : 'Deeds'));
+    const heading = el('h3', list.length ? `Deeds · ${list.length}` : 'Deeds');
+    this.body.append(heading);
+    if (list.length) this.explain(heading, 'deeds', 'Deeds', DEEDS_HELP);
     const tally = deedTallyText(unit);
     if (tally) this.body.append(el('p', `This march: ${tally}`, 'mr-deed-tally'));
     const skillText = (id) => {
       const skill = this.gameData.skills?.find((s) => s.id === id);
       return `${skill?.name || id}${skill?.description ? ` — ${skill.description}` : ''}`;
     };
+    // Choices are run state: only the manage view (between battles) makes them.
+    const manage = Boolean(this.run?.roster?.includes(unit));
+    const choose = (change, done) => {
+      if (!change()) return;
+      this.render(`${done}${this.persistNow()}`);
+    };
     const sworn = unit.deeds?.oath;
-    if (sworn?.skillId) this.card(`${sworn.name || 'Oath'} · sworn`, skillText(sworn.skillId));
+    if (sworn?.skillId)
+      this.card(
+        `${sworn.name || 'Oath'} · sworn${benchedSkillsOf(unit).includes(sworn.skillId) ? ' · on the bench' : ''}`,
+        skillText(sworn.skillId),
+      );
     else if (unit.tier !== 'promoted') {
-      const next = promotionOath(unit, this.gameData.deeds, this.gameData.skills);
-      if (next) this.card(`${next.name} · sworn at promotion`, skillText(next.skillId));
+      const options = promotionOathCandidates(unit, this.gameData.deeds, this.gameData.skills);
+      if (options.length === 1)
+        this.card(`${options[0].name} · sworn at promotion`, skillText(options[0].skillId));
+      else if (options.length > 1) {
+        // One Oath per unit: the player picks which deed it swears on.
+        const card = this.card(
+          'Oath at promotion',
+          'Choose the deed this unit swears on. Only one Oath, ever.',
+        );
+        card.classList.add('mr-oath-choice');
+        // A stable order (greatest first); the one it will swear is marked.
+        for (const option of oathOptionsInOrder(options)) {
+          const chosen = option.deedId === options[0].deedId;
+          const b = manage
+            ? this.button(`${option.name} · ${option.skillName}`, () =>
+                choose(
+                  () => pledgeOath(unit, option.deedId),
+                  `${unit.name} will swear ${option.name}.`,
+                ),
+              )
+            : el('p', `${option.name} · ${option.skillName}`);
+          b.classList.add('mr-oath-option');
+          if (manage) b.setAttribute('aria-pressed', String(chosen));
+          else if (chosen) b.classList.add('is-chosen');
+          if (option.skillDescription) b.title = option.skillDescription;
+          card.append(b);
+        }
+        card.append(el('p', skillText(options[0].skillId), 'mr-deed-meta'));
+      }
     }
     if (!list.length) {
       this.card('No deeds yet', 'Titles come from what a unit does in battle, not from a list.');
       return;
+    }
+    const chosenTitle = unit.deeds?.chosenTitle ?? null;
+    if (manage) {
+      const mode = el(
+        'p',
+        chosenTitle === TITLE_NONE
+          ? 'Title: none. Goes by name alone.'
+          : chosenTitle
+            ? 'Title: chosen by you.'
+            : 'Title: the greatest deed (automatic).',
+        'mr-deed-mode',
+      );
+      if (chosenTitle)
+        mode.append(
+          this.button('Greatest deed', () =>
+            choose(
+              () => chooseTitle(unit, null),
+              `${unit.name}'s title follows the greatest deed.`,
+            ),
+          ),
+        );
+      if (chosenTitle !== TITLE_NONE)
+        mode.append(
+          this.button('No title', () =>
+            choose(() => chooseTitle(unit, TITLE_NONE), `${unit.name} goes by name alone.`),
+          ),
+        );
+      this.body.append(mode);
     }
     for (const deed of list) {
       const card = el('article', null, `mr-card mr-deed${deed.isTitle ? ' is-title' : ''}`);
@@ -539,19 +661,138 @@ export class MobileRosterSheet {
         .filter(Boolean)
         .join(' · ');
       if (meta) card.append(el('p', meta, 'mr-deed-meta'));
+      if (manage && !deed.isTitle)
+        card.append(
+          this.button('Use as title', () =>
+            choose(() => chooseTitle(unit, deed.id), `${unit.name} now goes by ${deed.epithet}.`),
+          ),
+        );
       this.body.append(card);
     }
   }
-  skills(unit) {
-    this.body.append(el('h3', `Skills · ${unit.skills?.length || 0}/${MAX_SKILLS}`));
-    for (const id of unit.skills || []) {
-      const skill = this.gameData.skills?.find((s) => s.id === id);
-      this.card(
-        skill?.name || id,
-        `${skill?.trigger === 'passive-aura' ? 'Passive aura · ' : skill?.trigger === 'passive' ? 'Passive · ' : ''}${skill?.description || ''}`,
+  /**
+   * A skill that arrived with every slot full is on the unit's bench: until the
+   * player has looked at Skills, the top of the pane says so on every other tab and
+   * takes them there. The first time a save meets one, it also says what the bench
+   * is (playtest 2026-09-28: skills used to be lost at the cap).
+   */
+  benchCallout(unit) {
+    if (!this.run || this.tab === 'skills') return;
+    const fresh = unseenBenchedSkills(unit);
+    if (!fresh.length) return;
+    const names = fresh.map((id) => this.gameData.skills?.find((sk) => sk.id === id)?.name || id);
+    const box = el('aside', null, 'mr-callout mr-bench-callout');
+    box.setAttribute('aria-label', `${unit.name} has a new skill on the bench`);
+    box.append(
+      el('h4', `New on ${unit.name}'s bench: ${names.join(', ')}`),
+      el(
+        'p',
+        `It arrived with all ${MAX_SKILLS} skill slots full, so it waits on the bench. Swap it in on Skills.`,
+      ),
+    );
+    // Told once per save; it stays up for as long as this sheet is open.
+    const hints = this.scene?.registry?.get?.('hints');
+    if (this._benchLesson === undefined)
+      this._benchLesson = Boolean(hints?.shouldShow?.('roster_skill_benched'));
+    if (this._benchLesson)
+      box.append(
+        el(
+          'p',
+          'New: a unit keeps every skill it learns. Only five go into battle; the rest wait on its bench, and you can swap them between battles. Lord and class skills can’t be benched.',
+          'mr-callout-lesson',
+        ),
       );
+    box.append(
+      this.button('Go to Skills', () => {
+        this.tab = 'skills';
+        this.render();
+        this.root.querySelector('.mr-bench-new button')?.focus({ preventScroll: true });
+      }),
+    );
+    this.body.append(box);
+  }
+  /** One skill's card text: its kind and what it does. */
+  skillLine(id) {
+    const skill = this.gameData.skills?.find((s) => s.id === id);
+    return `${skill?.trigger === 'passive-aura' ? 'Passive aura · ' : skill?.trigger === 'passive' ? 'Passive · ' : ''}${skill?.description || ''}`;
+  }
+  skillName(id) {
+    return this.gameData.skills?.find((s) => s.id === id)?.name || id;
+  }
+  /**
+   * Equip a benched skill; with every slot full the player picks the skill it
+   * replaces (that one goes to the bench).
+   */
+  swapInSkill(unit, id) {
+    if (this.picker || this.destroyed) return;
+    if ((unit.skills?.length || 0) < MAX_SKILLS) {
+      const reason = equipSkill(unit, id, null, this.gameData);
+      this.render(reason || `${this.skillName(id)} equipped.${this.persistNow()}`);
+      return;
+    }
+    const locked = lockedSkillIds(unit, this.gameData);
+    let message = '';
+    this.picker = new ChoicePicker({
+      scene: this.scene,
+      title: `Equip ${this.skillName(id)} in place of`,
+      choices: [...unit.skills],
+      closeLabel: 'Cancel',
+      label: (out) => this.skillName(out),
+      describe: (out) => this.skillLine(out),
+      blocked: (out) => (locked.has(out) ? benchSkillBlock(unit, out, this.gameData) : ''),
+      apply: (out) => {
+        const reason = equipSkill(unit, id, out, this.gameData);
+        if (reason) return { ok: false, reason };
+        message = `${this.skillName(id)} in, ${this.skillName(out)} to the bench.${this.persistNow()}`;
+        return { ok: true };
+      },
+      onClose: () => {
+        this.picker = null;
+        if (!this.destroyed) this.render(message);
+      },
+    });
+  }
+  skills(unit) {
+    // Marked new until the player leaves this unit's Skills (render clears the news).
+    const fresh = this._freshBench?.unit === unit ? this._freshBench.ids : new Set();
+    // Loadout choices are run state: only the manage view (between battles) makes them.
+    const manage = Boolean(this.run?.roster?.includes(unit));
+    const locked = lockedSkillIds(unit, this.gameData);
+    this.body.append(el('h3', `Equipped · ${unit.skills?.length || 0}/${MAX_SKILLS}`));
+    for (const id of unit.skills || []) {
+      const c = this.card(this.skillName(id), this.skillLine(id));
+      if (!manage) continue;
+      if (locked.has(id)) c.append(el('small', 'Can’t be benched', 'mr-skill-locked'));
+      else
+        c.append(
+          this.button('Bench', () =>
+            this.render(
+              benchSkill(unit, id, this.gameData) ||
+                `${this.skillName(id)} to the bench.${this.persistNow()}`,
+            ),
+          ),
+        );
     }
     if (!(unit.skills || []).length) this.card('Skills', 'No skills learned yet.');
+    const bench = benchedSkillsOf(unit);
+    if (bench.length || manage) {
+      this.body.append(el('h3', `Bench · ${bench.length}`, 'mr-section'));
+      if (!bench.length)
+        this.card(
+          'Bench is empty',
+          `Skills learned with all ${MAX_SKILLS} slots full wait here, never lost. Bench a skill to make room for another.`,
+        );
+    }
+    for (const id of bench) {
+      const c = this.card(this.skillName(id), this.skillLine(id));
+      if (fresh.has(id)) {
+        c.classList.add('mr-bench-new');
+        c.querySelector('h4')?.append(el('small', 'New', 'mr-new-tag'));
+      }
+      if (!manage) continue;
+      const full = (unit.skills?.length || 0) >= MAX_SKILLS;
+      c.append(this.button(full ? 'Swap in…' : 'Equip', () => this.swapInSkill(unit, id)));
+    }
     const artsHeading = el('h3', 'Weapon arts', 'mr-section');
     this.body.append(artsHeading);
     let count = 0;
@@ -598,21 +839,32 @@ export class MobileRosterSheet {
     if (count) this.explain(artsHeading, 'weapon arts', 'Weapon arts', WEAPON_ARTS_HELP);
     if (!count) this.card('No weapon arts', 'No arts bound to carried weapons.');
     if (this.run) {
-      this.body.append(el('h3', `Team scrolls · ${this.run.scrolls?.length || 0}`));
-      for (const scroll of this.run.scrolls || []) {
-        const skill = this.gameData.skills.find((s) => s.id === scroll.skillId);
-        const card = this.card(
-          scroll.name,
-          scroll.teachesWeaponArtId
-            ? weaponArtScrollText(scroll, this.gameData.weaponArts?.arts || [])
-            : skill?.description || scroll.description || '',
-          scroll,
-        );
-        card.classList.add('mr-scroll-description');
-        this.aboutItem(card, scroll);
-        if (!scroll.teachesWeaponArtId)
-          card.append(this.button('Teach…', () => this.teachScroll(scroll)));
-        else card.append(this.button('Bind to weapon…', () => this.bindArt(scroll)));
+      const scrolls = this.run.scrolls || [];
+      const heading = el('h3', `Team scrolls · ${scrolls.length}`);
+      this.body.append(heading);
+      if (scrolls.length) this.explain(heading, 'scrolls', 'Scrolls', SCROLLS_HELP);
+      // Skill scrolls, then art scrolls, each under its own name: Blink is a skill.
+      const groups = [
+        ['Skill scrolls', scrolls.filter((s) => !s.teachesWeaponArtId)],
+        ['Weapon art scrolls', scrolls.filter((s) => s.teachesWeaponArtId)],
+      ];
+      for (const [title, list] of groups) {
+        if (!list.length) continue;
+        this.body.append(el('h4', `${title} · ${list.length}`, 'mr-scroll-group'));
+        for (const scroll of list) {
+          const card = this.card(
+            scroll.name,
+            scroll.teachesWeaponArtId
+              ? weaponArtScrollText(scroll, this.gameData.weaponArts?.arts || [])
+              : skillScrollText(scroll, this.gameData.skills),
+            scroll,
+          );
+          card.classList.add('mr-scroll-description');
+          this.aboutItem(card, scroll);
+          if (!scroll.teachesWeaponArtId)
+            card.append(this.button('Teach…', () => this.teachScroll(scroll)));
+          else card.append(this.button('Bind to weapon…', () => this.bindArt(scroll)));
+        }
       }
     }
   }
@@ -794,7 +1046,10 @@ export class MobileRosterSheet {
       },
     });
   }
-  /** Trade… on an item card: pick a partner, then trade with this item held. */
+  /**
+   * Trade… on an item card: pick a partner, then trade. Nothing is held on open (a
+   * first tap picks the item); the hidden cursor starts on this item's row.
+   */
   tradeItem(source, item) {
     const bag = tradeBagFor(item);
     const ctx = this.tradeCtx();
@@ -804,7 +1059,7 @@ export class MobileRosterSheet {
       (partner) => tradePartnerItemText(ctx, partner, item),
       (partner) =>
         this.openTrade(source, partnerHolder(partner), {
-          held: { holder: unitHolder(source), bag, item },
+          cursor: { holder: unitHolder(source), bag, item },
           bag,
         }),
     );
@@ -821,10 +1076,10 @@ export class MobileRosterSheet {
   }
   /**
    * The trade menu over this sheet. It lives in `picker`, so the sheet's guards and
-   * destroy() cover it. Each commit applies at once and saves the run the moment it
-   * lands (the context's persist when given); the sheet re-renders on close.
+   * destroy() cover it. Each commit or reorder applies at once and saves the run the
+   * moment it lands (the context's persist when given); the sheet re-renders on close.
    */
-  openTrade(left, right, { held = null, bag = null } = {}) {
+  openTrade(left, right, { cursor = null, bag = null } = {}) {
     if (this.picker || this.destroyed || !this.run) return;
     const ctx = this.tradeCtx();
     let message = '';
@@ -833,9 +1088,9 @@ export class MobileRosterSheet {
       ctx,
       left,
       right,
-      held,
+      cursor,
       bag,
-      engine: { planTrade, bagItems, bagCapacity, unitHolder },
+      engine: { planTrade, planReorder, bagItems, bagCapacity, unitHolder },
       commit: (from, to) => {
         const result = applyTrade(ctx, from, to);
         if (!result.ok) return result;
@@ -845,6 +1100,13 @@ export class MobileRosterSheet {
           .map((text) => ` ${text}.`)
           .join('');
         message = `${commitMessage(from, to, result.kind)}${warnings}${this.persistNow()}`;
+        return { ok: true, message };
+      },
+      // Two items in one unit's bag swap places; a new first weapon is equipped.
+      reorder: (from, to) => {
+        const result = applyReorder(ctx, from, to);
+        if (!result.ok) return result;
+        message = `${reorderMessage(from, to, result.equips)}${this.persistNow()}`;
         return { ok: true, message };
       },
       onClose: () => {
@@ -862,7 +1124,9 @@ export class MobileRosterSheet {
         if (result.ok) {
           const skillName =
             this.gameData.skills.find((s) => s.id === scroll.skillId)?.name || scroll.skillId;
-          this.render(`${unit.name} learned ${skillName}.${this.persistNow()}`);
+          this.render(
+            `${unit.name} learned ${skillName}${result.benched ? ` (on the bench: all ${MAX_SKILLS} slots are full)` : ''}.${this.persistNow()}`,
+          );
           growthCeremonies(this.scene)?.showSealed({
             title: `${unit.name} learned ${skillName}`,
             detail: 'New skill',
@@ -913,7 +1177,7 @@ export class MobileRosterSheet {
         const result = applyRosterClassChange(this.run, unit, item, choice, this.gameData);
         if (!result.ok) return result;
         const dropped = getSkillDisplayNames(result.droppedSkills, this.gameData.skills);
-        message = `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}${this.persistNow()}`;
+        message = `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}${this.persistNow()}`;
         rite = { content, before };
         return result;
       },
@@ -971,7 +1235,7 @@ export class MobileRosterSheet {
             });
           else this.scene.registry.get('audio')?.playSFX('sfx_confirm');
           this.render(
-            `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}${this.persistNow()}`,
+            `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}${this.persistNow()}`,
           );
         }
         return result;
@@ -1024,7 +1288,9 @@ export class MobileRosterSheet {
     // A special the tags already state isn't repeated; staves and flavour keep theirs.
     if (item.special && !itemKeywords(item).length) c.append(el('p', item.special));
     if (item.description) c.append(el('p', item.description));
-    appendItemArtDetails(c, item, this.gameData.weaponArts?.arts || []);
+    appendItemArtDetails(c, item, this.gameData.weaponArts?.arts || [], {
+      openHelp: (title, blocks) => this.showHelp(title, blocks),
+    });
     this.aboutItem(c, item);
     return c;
   }
@@ -1195,6 +1461,22 @@ export class MobileRosterSheet {
       }
     }
   }
+  /** A convoy consumable's Use (or Promote / Reclass) on `unit`, without withdrawing it. */
+  convoyUse(card, unit, item) {
+    if (['heal', 'healFull', 'cure', 'cureHeal', 'statBoost'].includes(item.effect))
+      this.action(card, `Use on ${unit.name}`, unit, item, 'use');
+    if (['promote', 'reclass'].includes(item.effect)) {
+      const reason = rosterClassChangeBlock(this.run, unit, item, this.gameData);
+      card.append(
+        this.button(
+          `${item.effect === 'promote' ? 'Promote' : 'Reclass'} ${unit.name}`,
+          () => this.changeClass(unit, item),
+          reason,
+        ),
+      );
+      if (reason) card.append(el('small', reason));
+    }
+  }
   convoy(unit) {
     const items = this.run.getConvoyItems();
     const counts = this.run.getConvoyCounts();
@@ -1208,7 +1490,7 @@ export class MobileRosterSheet {
     shared.append(
       el(
         'p',
-        'Storage shared by the whole army between battles. Store puts a carried item here; Withdraw gives it to the unit below, or Trade… swaps it when their bag is full.',
+        'Storage shared by the whole army between battles. Store puts a carried item here; Withdraw gives it to the unit below, or Trade… swaps it when their bag is full. Heals, boosters and seals can be used from here on that unit.',
         'mr-convoy-explain',
       ),
     );
@@ -1239,6 +1521,8 @@ export class MobileRosterSheet {
     const live = [...this.run.convoy.weapons, ...this.run.convoy.consumables];
     [...items.weapons, ...items.consumables].forEach((item, index) => {
       const c = this.itemCard(item, unit);
+      // Heals, boosters and seals work straight from the convoy on the unit below.
+      if (item.type === 'Consumable') this.convoyUse(c, unit, live[index]);
       const bag = tradeBagFor(item);
       const holder = unitHolder(unit);
       if (
@@ -1251,7 +1535,7 @@ export class MobileRosterSheet {
       c.append(
         this.button('Trade…', () =>
           this.openTrade(unit, CONVOY_HOLDER, {
-            held: { holder: CONVOY_HOLDER, bag, item: live[index] },
+            cursor: { holder: CONVOY_HOLDER, bag, item: live[index] },
             bag,
           }),
         ),
@@ -1282,7 +1566,8 @@ export class MobileRosterSheet {
         }),
     });
     // The one-time hold tip stays for this sheet's lifetime (renders rebuild the body).
-    if (this.holdTipEl === undefined) this.holdTipEl = holdTip();
+    // `tips: false` (the boss reward's details) never shows or spends it.
+    if (this.holdTipEl === undefined) this.holdTipEl = this.tips ? holdTip() : null;
     if (this.holdTipEl && !this.holdTipEl.isConnected)
       this.body.querySelector('.mr-summary')?.after(this.holdTipEl);
   }
@@ -1293,6 +1578,8 @@ export class MobileRosterSheet {
     });
   }
   destroy() {
+    this.stopStatOrderWatch?.();
+    this.stopStatOrderWatch = null;
     this.help?.destroy();
     this.help = null;
     this.picker?.destroy();

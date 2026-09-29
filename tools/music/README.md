@@ -19,7 +19,7 @@ with `-DSFIZZ_RENDER=ON`) for the drum kit, bass guitar and grand piano.
 
 ```bash
 python3 tools/music/build.py battle_act1 --preview   # one score, + jump previews
-python3 tools/music/build.py --all                   # every score
+python3 tools/music/build.py --all                   # every score (drafts: `DRAFT = True`, left out)
 python3 tools/music/build.py --stingers levelup      # one ceremony cue, in every key
 python3 tools/music/build.py --stingers              # every ceremony cue
 ```
@@ -101,6 +101,23 @@ its own parts and never deletes another score's. Nothing else is evicted unless 
   sfizz notes pulled before 0 are rendered after a lead-in that is then cut, the way the
   sampler crops them.
 - `synth.py`: sub, the thread shimmer, the Entity's drone, risers, booms.
+- `guitar.py`: the electric guitar (Karoryfer Emilyguitar, clean DI samples) and its amp,
+  written here: a noise gate, a tight/mid-push pre-EQ, two 4x-oversampled asymmetric
+  clipping stages, a tone stack and a 4x12-style cabinet EQ, with an optional stereo
+  chorus and echo. A part runs it with `amp=dict(rig=True, gain_db=..., palm=..., ...)`
+  (`gain_db` 0 is about clean, 20 crunch, 30 high gain; `palm=True` damps the strings
+  for palm mutes). Double tracking: `egtr2`/`egtr3` (and `egtr_pm2`) play the same
+  program with its round robins rotated, so a second take never repeats the first
+  take's samples (sfizz's round-robin draw is the same on every render). In a loop, give
+  the chorus a `chorus_rate` with a whole number of cycles per loop.
+- `edm.py`: electronic voices (`supersaw` stacks, plucks and pads with a resonant filter
+  envelope and a tempo LFO for future-bass wobble, `sub808`, a `kick_synth` layer,
+  `noise_riser`, `downlifter`, `impact`) and two part options: `sweep=[(bar, hz), ...]`
+  (a moving 24 dB/oct low-pass) and `pump=dict(beats=[...], depth_db, release)`
+  (sidechain pumping keyed to given beats). A synth part may carry its own voice
+  settings (`synth=dict(...)`).
+- Other part options: `fader=[(bar, dB), ...]` moves a part's level after its processing
+  (for level changes a velocity cannot make, such as a distorted guitar's).
 - `render.py`: per-part rendering with auto-calibrated levels and onset pre-roll, role
   leveling, expression lanes, loop-periodic performance drift, sends to a synthetic
   hall and a drum room, kick sidechain, lead ducking, master glue, loudness and a
@@ -163,5 +180,6 @@ MUSIC_PALETTE=lab:choir=sso_mixed python3 tools/music/build.py battle_act3   # a
 | VSCO-2 Community Edition (Versilian Studios) | CC0 | the rest of the orchestra |
 | Virtuosity Drums | CC0 | drum kit |
 | Karoryfer Growlybass | CC0 | bass guitar |
+| Karoryfer Emilyguitar | CC0 | electric guitar (drafts only so far) |
 | Splendid Grand Piano (AKAI) | Public domain | piano |
 | GeneralUser GS (S. Christian Collins) | Free for commercial music | taiko, nylon guitar, accordion; the Emperor's choir |

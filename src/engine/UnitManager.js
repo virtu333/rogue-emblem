@@ -16,6 +16,7 @@ import {
   ENEMY_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { accessoryHpOwed, setAccessoryHpOwed, settleAccessoryHpOwed } from './UnitHealth.js';
 import { unitBaseClassName } from './ClassLineage.js';
 import { applyForge } from './ForgeSystem.js';
 import {
@@ -100,6 +101,25 @@ export function rollGrowthRates(growthRanges) {
   return growths;
 }
 
+/**
+ * "Seasoned" recruit growths: the upper half of every growth range ("40-70" ->
+ * "55-70"). Every recruit source rolls from these (recruit nodes, boss recruits,
+ * Colosseum mercenaries, the Vanguard Cadre): createRecruitUnit's `seasoned` option.
+ */
+export function seasonedGrowthRanges(growthRanges) {
+  if (!growthRanges || typeof growthRanges !== 'object') return growthRanges;
+  const out = {};
+  for (const [stat, range] of Object.entries(growthRanges)) {
+    const [lo, hi] = String(range).split('-').map(Number);
+    if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
+      out[stat] = range;
+      continue;
+    }
+    out[stat] = `${Math.ceil((lo + hi) / 2)}-${hi}`;
+  }
+  return out;
+}
+
 // --- Skill assignment helpers ---
 
 /**
@@ -129,10 +149,40 @@ export function getClassInnateSkills(className, skillsData) {
 
 // --- Skill learning ---
 
-/** Attempt to teach a unit a skill. Returns { learned, skillId?, reason? }. */
-export function learnSkill(unit, skillId) {
-  if (unit.skills.includes(skillId)) return { learned: false, reason: 'already_known' };
-  if (unit.skills.length >= MAX_SKILLS) return { learned: false, reason: 'at_cap' };
+// --- Skill loadout ---
+// `unit.skills` holds the equipped skills (at most MAX_SKILLS): combat and every
+// battle system read only these. `unit.benchedSkills` holds skills the unit knows but
+// has not equipped. A player unit that learns a skill with every slot full keeps it on
+// the bench (playtest 2026-09-28: skills used to be lost at the cap); between battles
+// the roster swaps skills between the two (engine/SkillLoadout.js). Enemies never
+// bench: at the cap they simply do not learn.
+
+/** Skills the unit knows but has not equipped. */
+export function benchedSkillsOf(unit) {
+  return Array.isArray(unit?.benchedSkills) ? unit.benchedSkills : [];
+}
+
+/** Whether the unit knows a skill, equipped or benched. */
+export function knowsSkill(unit, skillId) {
+  return Boolean(unit?.skills?.includes(skillId) || benchedSkillsOf(unit).includes(skillId));
+}
+
+/**
+ * Attempt to teach a unit a skill. Returns { learned, skillId?, reason?, benched? }.
+ * At the cap a player unit keeps the skill on its bench: { learned: false, benched:
+ * true, reason: 'at_cap' } (callers that report "slots full" still see at_cap), and
+ * the skill is marked new (`benchedUnseen`) until the roster shows it. `bench: false`
+ * refuses at the cap instead (a caller that makes room itself).
+ */
+export function learnSkill(unit, skillId, { bench = true } = {}) {
+  if (!Array.isArray(unit.skills)) unit.skills = [];
+  if (knowsSkill(unit, skillId)) return { learned: false, reason: 'already_known' };
+  if (unit.skills.length >= MAX_SKILLS) {
+    if (!bench || unit.faction === 'enemy') return { learned: false, reason: 'at_cap' };
+    unit.benchedSkills = [...benchedSkillsOf(unit), skillId];
+    unit.benchedUnseen = [...(unit.benchedUnseen || []).filter((id) => id !== skillId), skillId];
+    return { learned: false, benched: true, skillId, reason: 'at_cap' };
+  }
   unit.skills.push(skillId);
   return { learned: true, skillId };
 }
@@ -180,6 +230,30 @@ export function checkLevelUpSkills(unit, classesData, droppedSkills = []) {
   }
 
   return learned;
+}
+
+/**
+ * The level at which each skill checkLevelUpSkills can grant becomes available to the
+ * unit in its current class: class curriculum levels, promoted level 10 for the base
+ * line's missed skills, and the lord's personal skill (base 20 / promoted 10).
+ * Map of skillId → gate level (the lowest when several sources grant it).
+ */
+export function skillGateLevels(unit, classesData = []) {
+  const gates = new Map();
+  const add = (skillId, level) => {
+    if (!skillId) return;
+    if (!gates.has(skillId) || level < gates.get(skillId)) gates.set(skillId, level);
+  };
+  const cls = classesData.find((c) => c.name === unit?.className);
+  for (const entry of cls?.learnableSkills || []) add(entry.skillId, entry.level);
+  if (unit?.tier === 'promoted') {
+    const lineBase = unitBaseClassName(unit, classesData);
+    const baseClass = lineBase ? classesData.find((c) => c.name === lineBase) : null;
+    for (const entry of baseClass?.learnableSkills || []) add(entry.skillId, 10);
+  }
+  if (unit?._personalSkillL20)
+    add(unit._personalSkillL20.skillId, unit.tier === 'promoted' ? 10 : 20);
+  return gates;
 }
 
 // --- Unit creation ---
@@ -572,7 +646,10 @@ export function createRecruitUnit(
   if (!classData.growthRanges && classData.promotesFrom) {
     growthSource = classesData?.find((c) => c.name === classData.promotesFrom) || classData;
   }
-  const growths = growthSource.growthRanges ? rollGrowthRates(growthSource.growthRanges) : {};
+  const growthRanges = options.seasoned
+    ? seasonedGrowthRanges(growthSource.growthRanges)
+    : growthSource.growthRanges;
+  const growths = growthRanges ? rollGrowthRates(growthRanges) : {};
   if (classData.growthBonuses) {
     for (const [stat, bonus] of Object.entries(classData.growthBonuses)) {
       growths[stat] = (growths[stat] || 0) + bonus;
@@ -654,10 +731,16 @@ export function createRecruitUnit(
     learnSkill(unit, skill);
   }
 
-  // Give Archer/Sniper recruits a Longbow for tactical range advantage.
-  // Keep this scoped to dedicated bow classes (not all classes with Bow proficiency).
-  const isArcherTypeRecruit = classData.name === 'Archer' || classData.name === 'Sniper';
-  if (isArcherTypeRecruit) {
+  // Dedicated bow recruits arrive with a second bow (not every class with Bow
+  // proficiency). Archers get a Longbow for reach. A recruit that joins as a Sniper
+  // (built as an Archer, then promoted: options.traitClassData is the class it will
+  // play) gets a Recurve Bow instead, equipped, so it can answer at one tile too. Only
+  // recruits come through here; enemy Snipers keep their own weapons.
+  const joinsAs = options.traitClassData?.name || classData.name;
+  if (joinsAs === 'Sniper') {
+    const recurve = allWeapons.find((w) => w.name === 'Recurve Bow');
+    if (recurve && addToInventory(unit, recurve)) equipWeapon(unit, unit.inventory.at(-1));
+  } else if (classData.name === 'Archer') {
     const longbow = allWeapons.find((w) => w.name === 'Longbow');
     if (longbow) addToInventory(unit, longbow);
   }
@@ -1228,7 +1311,16 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
   const learnedSkills = [];
   const droppedSkills = [];
   const innateSkills = getClassInnateSkills(promotedClassData.name, skillsData);
-  for (const sid of innateSkills) {
+  // The new class's curriculum from its first level (the Sniper's Onslaught) is
+  // learned with the promotion, as checkLevelUpSkills would at the next level-up.
+  // Class curricula are player progression: enemies never learn them (as there).
+  const firstLevelSkills =
+    unit.faction === 'enemy'
+      ? []
+      : (promotedClassData.learnableSkills || [])
+          .filter((entry) => entry?.skillId && entry.level <= unit.level)
+          .map((entry) => entry.skillId);
+  for (const sid of [...innateSkills, ...firstLevelSkills]) {
     const result = learnSkill(unit, sid);
     if (result.learned) learnedSkills.push(sid);
     else if (result.reason === 'at_cap') droppedSkills.push(sid);
@@ -1241,14 +1333,21 @@ export function getSkillDisplayNames(skillIds, skillsData) {
   return (skillIds || []).map((sid) => skillsData?.find((s) => s.id === sid)?.name || sid);
 }
 
+/** One line for skills that arrived with every slot full: they wait on the bench. */
+export function benchedSkillsNote(names) {
+  const list = (names || []).filter(Boolean);
+  if (!list.length) return '';
+  return `All ${MAX_SKILLS} skill slots full: ${list.join(', ')} kept on the bench (swap in from Skills).`;
+}
+
 /**
- * Player-facing notice for class innates lost to the MAX_SKILLS cap during
- * promotion. Returns null when nothing was dropped.
+ * Player-facing notice for class innates benched by the MAX_SKILLS cap during
+ * promotion. Returns null when nothing was benched.
  */
 export function formatDroppedSkillsNotice(unitName, droppedSkills, skillsData) {
   if (!droppedSkills?.length) return null;
   const names = getSkillDisplayNames(droppedSkills, skillsData);
-  return `${unitName} couldn't learn ${names.join(', ')} (skill limit reached)`;
+  return `${unitName}: ${benchedSkillsNote(names)}`;
 }
 
 // --- Reclass ---
@@ -1606,6 +1705,37 @@ export function isUnarmed(unit) {
   return fighter && getCombatWeapons({ ...unit, inventory: unit.inventory || [] }).length === 0;
 }
 
+/**
+ * The weapon a revived unit is handed when it has nothing to fight (or heal) with:
+ * death sends its gear to the convoy. The Iron weapon of its first combat
+ * proficiency, or a Heal staff for a staff-only unit without one. Null when it is
+ * already armed or its bag is full. Pure: returns the catalog weapon.
+ */
+export function reviveStarterWeapon(unit, allWeapons, max = 5) {
+  if (!unit || !Array.isArray(unit.proficiencies) || !unit.proficiencies.length) return null;
+  const inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
+  if (inventory.length >= max) return null;
+  const fighter = unit.proficiencies.some((p) => p?.type && p.type !== 'Staff');
+  const needs = fighter ? isUnarmed({ ...unit, inventory }) : !hasStaff({ ...unit, inventory });
+  if (!needs) return null;
+  return getDefaultWeapon(unit.proficiencies, allWeapons || []) || null;
+}
+
+/** "an Iron Axe", "a Heal": an item name with its indefinite article. */
+export function withIndefiniteArticle(name) {
+  const text = String(name || '');
+  return `${/^[aeiou]/i.test(text) ? 'an' : 'a'} ${text}`;
+}
+
+/** Give a revived unit its reviveStarterWeapon, equipped. Returns the carried copy or null. */
+export function grantReviveStarterWeapon(unit, allWeapons, max = 5) {
+  const weapon = reviveStarterWeapon(unit, allWeapons, max);
+  if (!weapon || !addToInventory(unit, weapon, max)) return null;
+  const carried = unit.inventory[unit.inventory.length - 1];
+  if (carried.type !== 'Staff') equipWeapon(unit, carried);
+  return carried;
+}
+
 /** True if removing this weapon would leave the unit with no combat weapons. */
 export function isLastCombatWeapon(unit, weapon) {
   const combatWeapons = getCombatWeapons(unit);
@@ -1641,6 +1771,7 @@ export function getCombatWeapons(unit) {
 /** Apply accessory stat bonuses (sign=1 to add, sign=-1 to remove). */
 function applyAccessoryStats(unit, accessory, sign) {
   if (!accessory?.effects) return;
+  if (sign > 0) settleAccessoryHpOwed(unit); // judged against the max HP before this bonus
   for (const [stat, value] of Object.entries(accessory.effects)) {
     if (stat === 'MOV') {
       unit.mov = (unit.mov || unit.stats.MOV) + value * sign;
@@ -1649,19 +1780,28 @@ function applyAccessoryStats(unit, accessory, sign) {
       unit.stats[stat] = (unit.stats[stat] || 0) + value * sign;
     }
   }
-  // Sync currentHP with max HP changes. Equipping raises current HP with max HP;
-  // unequipping keeps missing HP constant, floored at 1 and never raising HP (a
-  // unit at 0 stays at 0), so an equip/unequip loop cannot heal: 10/20 → 15/25 → 10/20.
+  // Sync currentHP with max HP changes. Unequipping keeps missing HP constant but
+  // never kills: the floor at 1 is HP the unit did not pay for, so it is owed
+  // (`_accessoryHpOwed`) and the next HP bonus pays it back before raising HP. So no
+  // equip/unequip loop heals: 10/20 → 15/25 → 10/20, and 1/25 → 1/20 → 1/25.
   const hp = accessory.effects.HP;
   if (hp) {
     if (sign > 0) {
-      unit.currentHP += hp;
+      const owed = hp > 0 ? Math.min(hp, accessoryHpOwed(unit)) : 0;
+      unit.currentHP += hp - owed;
+      setAccessoryHpOwed(unit, accessoryHpOwed(unit) - owed);
     } else {
       const current = unit.currentHP;
-      unit.currentHP = Math.min(unit.stats.HP, Math.max(Math.min(current, 1), current - hp));
+      const target = current - hp;
+      unit.currentHP = Math.min(unit.stats.HP, Math.max(Math.min(current, 1), target));
+      if (current > 0 && target < unit.currentHP)
+        setAccessoryHpOwed(unit, accessoryHpOwed(unit) + (unit.currentHP - target));
     }
   }
 }
+
+// The debt itself (owed, settled) lives with the rest of HP in UnitHealth.js.
+export { settleAccessoryHpOwed };
 
 /**
  * Apply an equipped accessory's move-type override (e.g. Mercury Sandals'

@@ -1,4 +1,11 @@
-import { createUnit, normalizeEquippedFirst } from '../engine/UnitManager.js';
+import {
+  createUnit,
+  equipAccessory,
+  normalizeEquippedFirst,
+  promoteUnit,
+  resolvePromotionTargets,
+} from '../engine/UnitManager.js';
+import { applyPromotionOath, commitBattleDeeds, emptyBattleDeeds } from '../engine/DeedSystem.js';
 import { findCommander } from '../engine/Commander.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { RunManager } from '../engine/RunManager.js';
@@ -17,6 +24,14 @@ const DEV_SCENE_ALIASES = {
   equipui: 'Battle',
   attackui: 'Battle',
   lootui: 'Battle',
+  // Review route: the run-complete screen for a won run (`&route=` picks the ending).
+  victory: 'RunComplete',
+};
+// `&route=` for devScene=victory: where the won run ended, and on which rung.
+const DEV_VICTORY_ROUTES = {
+  lieutenant: 'normal',
+  emperor: 'dusk',
+  entity: 'hard',
 };
 const DEV_PRESETS = new Set([
   'fresh',
@@ -26,7 +41,15 @@ const DEV_PRESETS = new Set([
   'combat_actions',
   'soulreaver_mast',
   'eclipse',
+  // Phone review setups (playtest 2026-09-28): see docs/playtest-triage-2026-09-28.md.
+  'fog_ambush',
+  'roster_checks',
+  // Playtest 2026-09-29 #11: Zombie remains, the countdown and Smash (devScenarios.js).
+  'zombie_remains',
+  'ladder',
 ]);
+// Presets built on the combat_actions loadout (Edric, Sera and three utility units).
+const COMBAT_LOADOUT_PRESETS = new Set(['combat_actions', 'fog_ambush', 'zombie_remains']);
 const DEV_QA_SEQUENCE = [
   {
     step: 1,
@@ -148,6 +171,8 @@ function applyMetaPreset(meta, preset) {
   meta.totalValor = 20000;
   meta.totalSupply = 20000;
   meta.milestones = new Set(['beatAct1', 'beatAct2', 'beatAct3', 'beatGame']);
+  // The ladder with Dusk won: Dusk and Nightfall open, Black Sun still says why not.
+  if (preset === 'ladder') meta.milestones.add('beatDusk');
 
   if (
     preset === 'weapon_arts' ||
@@ -167,10 +192,9 @@ function createRunPreset(gameData, meta, config) {
       weaponArtCatalog: gameData?.weaponArts?.arts || [],
     }) || null;
   // The synthetic loadout must not depend on a player's saved lord selection.
-  const runEffects =
-    config.preset === 'combat_actions'
-      ? { ...metaEffects, startingLords: { commander: 'Edric', partner: 'Sera' } }
-      : metaEffects;
+  const runEffects = COMBAT_LOADOUT_PRESETS.has(config.preset)
+    ? { ...metaEffects, startingLords: { commander: 'Edric', partner: 'Sera' } }
+    : metaEffects;
   const runManager = new RunManager(gameData, runEffects);
   runManager.startRun({
     runSeed: Number.isFinite(config.seed) ? config.seed : Date.now(),
@@ -250,7 +274,7 @@ function createRunPreset(gameData, meta, config) {
     }
   }
 
-  if (config.preset === 'combat_actions') {
+  if (COMBAT_LOADOUT_PRESETS.has(config.preset)) {
     runManager.advanceAct();
     // Deliberately synthetic loadouts; real combat rules and costs still apply.
     const item = (name) => structuredClone(gameData.weapons.find((w) => w.name === name));
@@ -281,9 +305,72 @@ function createRunPreset(gameData, meta, config) {
       if (name === 'Patient') unit.currentHP = Math.max(1, unit.stats.HP - 12);
       runManager.roster.push(unit);
     }
+    // The fog review: Sera has Canto, to Rescue and move on before the fog lifts.
+    if (config.preset === 'fog_ambush' && !sera.skills.includes('canto')) sera.skills.push('canto');
     runManager.ensurePortraitVariants();
   }
 
+  if (config.preset === 'roster_checks') addRosterChecks(runManager, gameData);
+
+  return runManager;
+}
+
+/**
+ * Roster review units: an Oath already sworn onto a full unit's bench (Bramwell), one
+ * who will meet the cap when promoted with his Sovereign Seal (Corwin), and Edric in a
+ * Sisters' Mantle at 1 HP with an Elixir and a Poultice (the robe's HP debt).
+ */
+function addRosterChecks(runManager, gameData) {
+  const cls = (name) => gameData.classes.find((c) => c.name === name);
+  const consumable = (name) =>
+    structuredClone(gameData.consumables.find((c) => c.name === name) || null);
+  const heldTheBridge = (unit) => {
+    unit._battleDeeds = {
+      ...emptyBattleDeeds(),
+      heldPhases: 3,
+      heldPlaces: ['Bridge', 'Bridge', 'Bridge'],
+    };
+    commitBattleDeeds([unit], gameData.deeds, { battleKey: `review:${unit.name}` });
+    unit.skills = ['sol', 'luna', 'astra', 'vantage', 'wrath'];
+    return unit;
+  };
+  const bramwell = heldTheBridge(
+    createUnit(cls('Fighter'), 10, gameData.weapons, { name: 'Bramwell' }),
+  );
+  const target = resolvePromotionTargets(bramwell, gameData.classes, gameData.lords)[0];
+  if (target) {
+    promoteUnit(bramwell, target, target.promotionBonuses, gameData.skills);
+    applyPromotionOath(bramwell, gameData);
+  }
+  const corwin = heldTheBridge(
+    createUnit(cls('Fighter'), 10, gameData.weapons, { name: 'Corwin' }),
+  );
+  const seal = consumable('Sovereign Seal');
+  if (seal) corwin.consumables = [seal];
+  runManager.roster.push(bramwell, corwin);
+
+  const edric = runManager.roster.find((u) => u.name === 'Edric');
+  const robe = structuredClone(gameData.accessories.find((a) => a.name === "Sisters' Mantle") || null);
+  if (edric && robe) {
+    equipAccessory(edric, robe);
+    edric.currentHP = 1;
+    edric.consumables = [consumable('Elixir'), consumable('Poultice')].filter(Boolean);
+  }
+  runManager.ensureUnitUids();
+  runManager.ensurePortraitVariants();
+}
+
+/** A won run for the run-complete review: the ending follows `route`'s road. */
+function createVictoryRun(gameData, meta, config) {
+  const difficultyId = DEV_VICTORY_ROUTES[config.route] || 'normal';
+  const runManager = new RunManager(gameData, meta?.getActiveEffects?.() || null);
+  runManager.startRun({
+    runSeed: Number.isFinite(config.seed) ? config.seed : 1,
+    difficultyId,
+  });
+  runManager.actIndex = runManager.actSequence.length - 1;
+  runManager.completedBattles = 20;
+  runManager.status = 'victory';
   return runManager;
 }
 
@@ -308,6 +395,29 @@ function pickBattleNode(runManager, nodeType = null) {
       node?.type === NODE_TYPES.RECRUIT,
   );
   return preferred || available[0] || runManager.nodeMap?.nodes?.[0] || null;
+}
+
+/**
+ * HintManager's interface, kept in memory: the review routes own no save slot. Only
+ * the lessons named in `teach` are taught (once); every other one reads as already
+ * seen, so a review opens on what it is there to show.
+ */
+export function sessionHints(registry, teach = []) {
+  const lessons = new Set(teach);
+  const told = new Set();
+  const enabled = () => registry?.get?.('settings')?.getHints?.() !== false;
+  const hasSeen = (id) => !lessons.has(id) || told.has(id);
+  return {
+    isNew: false,
+    shouldShow(id) {
+      if (!enabled() || hasSeen(id)) return false;
+      told.add(id);
+      return true;
+    },
+    hasSeen,
+    markSeen: (id) => void told.add(id),
+    reset: () => told.clear(),
+  };
 }
 
 function ensureMetaRegistry(registry, gameData, preset) {
@@ -351,6 +461,7 @@ export function parseDevStartupConfig(search, options = {}) {
     seed: parseSeed(params.get('seed')),
     difficultyId: params.get('difficulty') || 'normal',
     devTools: parseBool(params.get('devTools')),
+    ...(params.get('route') ? { route: params.get('route') } : {}),
     qaStep: qaConfig?.step || null,
     qaDescription: qaConfig?.description || null,
     nodeType:
@@ -377,8 +488,17 @@ export function buildDevStartupRoute(gameData, registry, config) {
     return { key: 'Title', data: baseData };
   }
 
-  // QA encounters never belong to a real save slot.
-  if (config.preset === 'combat_actions') registry.set('activeSlot', null);
+  // QA encounters and review routes never belong to a real save slot.
+  if (
+    COMBAT_LOADOUT_PRESETS.has(config.preset) ||
+    config.preset === 'roster_checks' ||
+    config.sceneKey === 'RunComplete'
+  )
+    registry.set('activeSlot', null);
+  // Roster review: first-time lessons (the skill bench's) teach as in a fresh save,
+  // remembered for this page only, never in a slot.
+  if (config.preset === 'roster_checks' && !registry.get('hints'))
+    registry.set('hints', sessionHints(registry, ['roster_skill_benched']));
 
   const meta = ensureMetaRegistry(registry, gameData, config.preset);
 
@@ -388,6 +508,17 @@ export function buildDevStartupRoute(gameData, registry, config) {
     config.sceneKey === 'BlessingSelect'
   ) {
     return { key: config.sceneKey, data: baseData };
+  }
+
+  if (config.sceneKey === 'RunComplete') {
+    return {
+      key: 'RunComplete',
+      data: {
+        ...baseData,
+        runManager: createVictoryRun(gameData, meta, config),
+        result: 'victory',
+      },
+    };
   }
 
   const runManager = createRunPreset(gameData, meta, config);
@@ -409,6 +540,16 @@ export function buildDevStartupRoute(gameData, registry, config) {
         act: runManager.currentAct || 'act1',
         objective: 'rout',
       };
+  // The fog review: a foggy battle with an enemy hidden on Edric's road (devScenarios.js).
+  if (config.preset === 'fog_ambush') {
+    battleParams.fogEnabled = true;
+    battleParams.devScenario = 'fog_ambush';
+  }
+  // The remains review: a Rout down to one weak Zombie beside Edric (devScenarios.js).
+  if (config.preset === 'zombie_remains') {
+    battleParams.objective = 'rout';
+    battleParams.devScenario = 'zombie_remains';
+  }
   return {
     key: 'Battle',
     data: {

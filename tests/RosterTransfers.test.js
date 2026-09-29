@@ -8,7 +8,7 @@ function fixture() {
   const sword = { name: 'Sword', type: 'Sword' };
   const a = { skills: [], inventory: [sword], consumables: [], weapon: sword, proficiencies: [] };
   const b = { skills: [], inventory: [], consumables: [], proficiencies: [] };
-  const scroll = { name: 'Wrath scroll', skillId: 'wrath' };
+  const scroll = { name: 'Seethe scroll', skillId: 'wrath' };
   return {
     a,
     b,
@@ -27,13 +27,18 @@ describe('roster teaching and transfers', () => {
     expect(teachRosterScroll(run, b, scroll, skills).ok).toBe(false);
     expect(b.skills).toEqual([]);
   });
-  it('preserves scrolls for duplicate skills and full slots', () => {
+  it('keeps the scroll for a skill already known (equipped or benched); full slots bench it', () => {
     const { a, scroll, run, skills } = fixture();
     a.skills = ['wrath'];
     expect(teachRosterScroll(run, a, scroll, skills).ok).toBe(false);
     a.skills = ['a', 'b', 'c', 'd', 'e'];
+    a.benchedSkills = ['wrath'];
     expect(teachRosterScroll(run, a, scroll, skills).ok).toBe(false);
     expect(run.scrolls).toEqual([scroll]);
+    a.benchedSkills = [];
+    expect(teachRosterScroll(run, a, scroll, skills)).toEqual({ ok: true, benched: true });
+    expect(a.benchedSkills).toEqual(['wrath']);
+    expect(run.scrolls).toEqual([]);
   });
   it('allows carrying unusable equipment and rejects repeated transfer', () => {
     const { a, b, sword, run } = fixture();

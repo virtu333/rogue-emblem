@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { installFakeDom } from './helpers/fakeDom.js';
+import { buildSlotCard } from '../src/ui/SlotPickerView.js';
 import { loadGameData } from './testData.js';
 import { friendlySavedTime, slotCardModel, templateName } from '../src/ui/slotCardModel.js';
 
@@ -155,5 +157,52 @@ describe('slotCardModel', () => {
     expect(legacy.commander.portraitId).toMatch(/edric/);
     expect(legacy.saved.text).toBe('Save time unknown');
     expect(legacy.seals.every((s) => !s.lit)).toBe(true);
+  });
+
+  it("shows the run's difficulty beside its act, named from difficulty.json", () => {
+    // Labels come from the data, not the id: planting a hard-coded 'Normal' fails here.
+    expect(gameData.difficulty.modes.lunatic.label).toBe('Black Sun');
+    const cases = [
+      ['normal', 'First Light'],
+      ['dusk', 'Dusk'],
+      ['hard', 'Nightfall'],
+      ['lunatic', 'Black Sun'],
+    ];
+    for (const [id, label] of cases) {
+      const model = slotCardModel(1, activeSummary({ difficultyId: id }), { gameData, now: NOW });
+      expect(model.difficulty).toEqual({ id, label });
+      const onRoad = slotCardModel(1, activeSummary({ difficultyId: id, battleSuspended: false }), {
+        gameData,
+        now: NOW,
+      });
+      expect(onRoad.difficulty).toEqual({ id, label });
+    }
+    // A save from before difficulty was recorded shows none rather than guessing.
+    expect(
+      slotCardModel(1, activeSummary({ difficultyId: null }), { gameData, now: NOW }).difficulty,
+    ).toBeNull();
+    // Between runs there is no run, so no difficulty.
+    const home = slotCardModel(1, activeSummary({ hasActiveRun: false, difficultyId: 'hard' }), {
+      gameData,
+      now: NOW,
+    });
+    expect(home.difficulty).toBeUndefined();
+  });
+});
+
+describe('the latest save card', () => {
+  it('wears the gold rim and a Latest tag only when marked latest', () => {
+    installFakeDom(vi);
+    try {
+      const model = slotCardModel(1, activeSummary(), { gameData, now: NOW });
+      const plain = buildSlotCard(model, { onPrimary() {}, onDelete() {} });
+      expect(plain.classList.contains('is-latest')).toBe(false);
+      expect(plain.querySelector('.sp-latest')).toBeNull();
+      const latest = buildSlotCard({ ...model, latest: true }, { onPrimary() {}, onDelete() {} });
+      expect(latest.classList.contains('is-latest')).toBe(true);
+      expect(latest.querySelector('.sp-latest')?.textContent).toBe('Latest');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

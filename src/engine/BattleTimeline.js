@@ -1,3 +1,4 @@
+import { isDifficultyId } from './DifficultyEngine.js';
 import {
   retainHistoryPresentation,
   hydrateHistoryPresentation,
@@ -444,7 +445,7 @@ export function canRewindToEntry(
   const entry = history.entries.find((e) => e.id === entryId);
   if (!entry?.destination || !validDestination(entry, settledSnapshot(history, entry)))
     return false;
-  if (!['normal', 'hard', 'lunatic'].includes(String(difficulty).toLowerCase())) return false;
+  if (!isDifficultyId(String(difficulty).toLowerCase())) return false;
   return (
     entry.kind === 'turn_start' ||
     (allowPlayerActions && resolveRewindGranularity(difficulty, granularity) === 'action')

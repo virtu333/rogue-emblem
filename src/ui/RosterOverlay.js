@@ -39,6 +39,7 @@ import {
   getDisplayLevel,
   equipIfUnarmed,
   inventoryDisplayOrder,
+  benchedSkillsNote,
 } from '../engine/UnitManager.js';
 import { equippedMarker } from './equippedBadge.js';
 import { isForged } from '../engine/ForgeSystem.js';
@@ -77,6 +78,7 @@ import { portraitCanvasFrame } from './portraitArt.js';
 import { epithetText } from '../engine/DeedTitles.js';
 import { fitCanvasText } from './deedDisplay.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
+import { healUnit } from '../engine/UnitHealth.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -1755,7 +1757,7 @@ export class RosterOverlay {
 
   _useHealItem(unit, item) {
     const healAmt = item.effect === 'healFull' ? unit.stats.HP : item.value;
-    unit.currentHP = Math.min(unit.stats.HP, unit.currentHP + healAmt);
+    healUnit(unit, healAmt);
     item.uses--;
     if (item.uses <= 0) {
       removeFromConsumables(unit, item);
@@ -1814,7 +1816,7 @@ export class RosterOverlay {
       this._showBanner(
         droppedNames.length > 0
           ? `${unit.name} promoted to ${promotedClassData.name}! ` +
-              `Skill limit: couldn't learn ${droppedNames.join(', ')}. ${(promotionResult.notices || []).join(' ')}`
+              `${benchedSkillsNote(droppedNames)} ${(promotionResult.notices || []).join(' ')}`
           : `${unit.name} promoted to ${promotedClassData.name}! ${(promotionResult.notices || []).join(' ')}`,
         droppedNames.length > 0 ? UI_PALETTE.warn : UI_PALETTE.accent,
       );

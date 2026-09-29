@@ -4,7 +4,9 @@
 //   - it compares raw SPD again (a Myrmidon "never" doubles a Fighter at L1);
 //   - its numbers drift from what the engine's forecast would say for the same units;
 //   - reading the forecast draws randomness and shifts every seeded result after it;
-//   - the output stops saying what the columns count.
+//   - the output stops saying what the columns count;
+//   - the attacker is not treated as initiating, so Quickstep, Onslaught and the other
+//     initiating skills never fire.
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -101,7 +103,7 @@ describe('sim/matchups doubling columns', () => {
       const atk = createEnemy('Myrmidon', 1);
       const def = createEnemy(row.Defender, 1);
       const skillCtx = {
-        atkMods: getSkillCombatMods(atk, def, [atk], [def], data.skills),
+        atkMods: getSkillCombatMods(atk, def, [atk], [def], data.skills, null, true),
         defMods: getSkillCombatMods(def, atk, [def], [atk], data.skills),
         rollStrikeSkills,
         checkAstra,
@@ -135,7 +137,7 @@ describe('sim/matchups doubling columns', () => {
       if (weapon) atk.weapon = getWeapon(weapon);
       if (skills.length) atk.skills = [...skills];
       const skillCtx = {
-        atkMods: getSkillCombatMods(atk, def, [atk], [def], data.skills),
+        atkMods: getSkillCombatMods(atk, def, [atk], [def], data.skills, null, true),
         defMods: getSkillCombatMods(def, atk, [def], [atk], data.skills),
         rollStrikeSkills,
         checkAstra,
@@ -146,5 +148,33 @@ describe('sim/matchups doubling columns', () => {
       expect(random, `${a} vs ${d}`).not.toHaveBeenCalled();
       random.mockRestore();
     }
+  });
+});
+
+describe('sim/matchups initiating skills', () => {
+  it('the attacker initiates: a Trickster fights with Quickstep (+6 SPD)', () => {
+    // Trickster at L1 = Thief base stats + Trickster promotion bonuses, Iron Sword.
+    const thief = classes.find((c) => c.name === 'Thief');
+    const trickster = classes.find((c) => c.name === 'Trickster');
+    expect(trickster.promotesFrom).toBe('Thief');
+    const ironSword = weapons.find((w) => w.name === 'Iron Sword');
+    const str = thief.baseStats.STR + trickster.promotionBonuses.STR;
+    const spd = thief.baseStats.SPD + trickster.promotionBonuses.SPD;
+    const mine = spd - Math.max(0, ironSword.weight - Math.floor(str / 5));
+    const dartingBlow = 6;
+    const rows = tableAfter(
+      runSim(['--trials', '2', '--seed', '11', '--focus', 'Trickster']),
+      'Trickster (L1) vs All',
+    );
+    expect(rows.length).toBeGreaterThan(10);
+    let onlyWithDartingBlow = 0;
+    for (const row of rows) {
+      const theirs = attackSpeedAtL1(row.Defender);
+      expect(row.doubles, row.Defender).toBe(pct(mine + dartingBlow >= theirs + 5));
+      expect(row.doubled, row.Defender).toBe(pct(theirs >= mine + 5));
+      if (mine + dartingBlow >= theirs + 5 && mine < theirs + 5) onlyWithDartingBlow++;
+    }
+    // Not vacuous: some foes are doubled only because Quickstep fired.
+    expect(onlyWithDartingBlow).toBeGreaterThan(0);
   });
 });

@@ -72,6 +72,25 @@
   flex-shrink: 0;
   min-width: 80px;
 }
+/* Army upgrades: the tabs sit under the currency they spend. */
+.mu-tab-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.mu-tab-group + .mu-tab-group {
+  border-left: 1px solid var(--re-line-soft);
+  padding-left: 6px;
+}
+.mu-tab-currency {
+  font-size: 11px;
+  color: var(--re-muted);
+  white-space: nowrap;
+}
+.mu-tab-group:has(button[aria-pressed='true']) .mu-tab-currency {
+  color: var(--re-accent-text);
+}
 .mu-screen button[aria-pressed='true'] {
   border-color: var(--re-focus);
   background: var(--re-selected);
@@ -385,6 +404,11 @@ html.mobile-preview .mu-screen {
 .mh-lord .mh-portrait {
   grid-row: span 2;
 }
+/* "More lords join as you meet them": spans the upright two-card grid. */
+.mh-more-lords {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+}
 .mh-lord span {
   font-size: 12px;
   color: var(--re-muted);
@@ -451,6 +475,17 @@ html.mobile-preview .mu-screen {
 .re-promotion-options p {
   white-space: pre-wrap;
   margin: 6px 0;
+}
+
+/* A claimed reward's news (team XP level-ups, class skills), before the flow moves on. */
+.mu-screen .reward-notice {
+  margin: 0;
+  padding: 0 0 0 18px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+.mu-screen .reward-notice li + li {
+  margin-top: 6px;
 }
 
 .reward-tools {
@@ -618,8 +653,19 @@ html.mobile-preview .mu-screen {
   html.portrait-ui .mu-upgrades .mu-header .mu-currency {
     grid-row: 2;
   }
+  /* One row per currency: its name, then the three tabs it pays for. */
   html.portrait-ui .mu-upgrades .mu-tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  html.portrait-ui .mu-upgrades .mu-tab-group {
+    display: grid;
+    grid-template-columns: 7ch repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  html.portrait-ui .mu-upgrades .mu-tab-group + .mu-tab-group {
+    border-left: 0;
+    padding-left: 0;
   }
   /* The upgrade list is the thing being browsed: leave it the larger share. The detail
      is a compact sheet: a small icon beside the name, the effect lines, then help and

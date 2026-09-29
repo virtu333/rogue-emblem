@@ -304,7 +304,7 @@ describe('RosterOverlay gamepad focus — modal mode', () => {
 
   it('while a picker is open, L1 does NOT cycle units (modal mode owns input)', () => {
     const { overlay, rm } = makeOverlay({ rosterCount: 3 });
-    rm.scrolls = [{ name: 'Sol Scroll', type: 'Scroll', skillId: 'sol' }];
+    rm.scrolls = [{ name: 'Reclaim Scroll', type: 'Scroll', skillId: 'sol' }];
     overlay.show();
     overlay._showScrollPicker(rm.roster[0]); // open a modal directly
     expect(overlay.tradeObjects.length).toBeGreaterThan(0);
@@ -316,8 +316,8 @@ describe('RosterOverlay gamepad focus — modal mode', () => {
   it('modal ring walks the picker buttons and CONFIRM fires the focused one', () => {
     const { overlay, rm } = makeOverlay({ rosterCount: 3 });
     rm.scrolls = [
-      { name: 'Sol Scroll', type: 'Scroll', skillId: 'sol' },
-      { name: 'Luna Scroll', type: 'Scroll', skillId: 'luna' },
+      { name: 'Reclaim Scroll', type: 'Scroll', skillId: 'sol' },
+      { name: 'Umbra Scroll', type: 'Scroll', skillId: 'luna' },
     ];
     overlay.show();
     overlay._showScrollPicker(rm.roster[0]);
@@ -336,7 +336,7 @@ describe('RosterOverlay gamepad focus — modal mode', () => {
 
   it('CANCEL in modal mode closes the picker without closing the overlay', () => {
     const { overlay, rm } = makeOverlay({ rosterCount: 3 });
-    rm.scrolls = [{ name: 'Sol Scroll', type: 'Scroll', skillId: 'sol' }];
+    rm.scrolls = [{ name: 'Reclaim Scroll', type: 'Scroll', skillId: 'sol' }];
     overlay.show();
     overlay._showScrollPicker(rm.roster[0]);
     dispatchInputAction(InputAction.NAVIGATE, { dy: 0 }); // enter modal mode

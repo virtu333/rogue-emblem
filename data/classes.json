@@ -699,7 +699,13 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Bows (M)",
     "roleChange": "True Aim: ignores terrain avoid",
-    "description": "No cover saves the target; this shot ignores terrain dodge entirely."
+    "description": "No cover saves the target; this shot ignores terrain dodge entirely.",
+    "learnableSkills": [
+      {
+        "skillId": "death_blow",
+        "level": 1
+      }
+    ]
   },
   {
     "name": "Sage",

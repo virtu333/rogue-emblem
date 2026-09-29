@@ -400,7 +400,7 @@ for (const viewport of PORTRAIT_PHONES) {
       await bootRoute(page);
       // Eighteen convoy weapons, staves among them (a convoy staff has no wielder).
       await seedBags(page, { convoy: 18 });
-      const deep = 'Conflagration'; // c4, c9, c14: Trade… on the last card holds c14
+      const deep = 'Conflagration'; // c4, c9, c14: Trade… on the last card starts at c14
       const sheet = await openSheet(page);
       await sheet.getByRole('button', { name: 'Convoy', exact: true }).tap();
       const cards = sheet
@@ -420,11 +420,22 @@ for (const viewport of PORTRAIT_PHONES) {
       expect(l.listLeft.fits, "Edric's five slots show whole").toBe(true);
       expect(l.listRight.scrolls, 'the convoy scrolls on its own').toBe(true);
       expect(l.right.height).toBeGreaterThanOrEqual(l.left.height - 1);
-      // The held item, fourteenth in the convoy, is scrolled into view.
+      // Nothing is held on open; the card's item, fourteenth in the convoy, is scrolled
+      // into view, so the first tap picks it.
+      await expect(menu.locator('.tm-row[aria-pressed="true"]')).toHaveCount(0);
+      const source = menu.locator('.tm-row[data-side="right"][data-index="13"]');
+      await expect(source).toHaveAttribute('aria-label', deep);
+      expect(await rowInList(source)).toBe(true);
+      await source.tap();
       const held = menu.locator('.tm-row[aria-pressed="true"]');
       await expect(held).toHaveCount(1);
       await expect(held).toHaveAttribute('data-index', '13');
       expect(await rowInList(held)).toBe(true);
+      // A tap leaves no row focused (no focus ring), and nothing has moved yet.
+      expect(await page.evaluate(() => Boolean(document.activeElement?.closest('.tm-row')))).toBe(
+        false,
+      );
+      expect((await bags(page)).live.convoy[13]).toBe(`${deep}#c14`);
       await expectHeaderAndBody(page, menu, insets);
       await page.screenshot({ path: info.outputPath(`trade-convoy-${size}.png`) });
 
@@ -458,6 +469,9 @@ for (const viewport of PORTRAIT_PHONES) {
       await seedBags(page);
       const { menu } = await tradeWith(page, 'Sera');
       await expectStacked(page);
+      // Nothing is highlighted on open; the first key shows the cursor on the first item.
+      await expect.poll(() => focusedLabel(page)).toBe('Trade items');
+      await page.keyboard.press('ArrowDown');
       await expect.poll(() => focusedLabel(page)).toBe('Iron Sword, equipped');
       // Keyboard: down through Edric's five, then on into Sera's first row.
       for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
@@ -574,13 +588,21 @@ for (const viewport of PORTRAIT_PHONES) {
     test('turning the phone keeps the held item and focus, and each in view', async ({ page }) => {
       await bootRoute(page);
       await seedBags(page, { convoy: 18 });
-      // Hold the thirteenth convoy item (c13, an Iron Bow): the menu opens with it
-      // scrolled up to the convoy list's lower edge.
+      // Trade… on the thirteenth convoy item (c13, an Iron Bow): the menu opens with it
+      // scrolled up to the convoy list's lower edge, nothing held yet.
       const { menu } = await tradeFromConvoyCardAt(page, 12);
       await expectStacked(page);
+      const source = menu.locator('.tm-row[data-side="right"][data-index="12"]');
+      expect(await rowInList(source)).toBe(true);
+      await expect(menu.locator('.tm-row[aria-pressed="true"]')).toHaveCount(0);
+      // Keys: Enter shows the cursor on it, Enter holds it, Left crosses to Edric's bag.
+      await page.keyboard.press('Enter');
+      await expect(source).toBeFocused();
+      await page.keyboard.press('Enter');
       const held = menu.locator('.tm-row[aria-pressed="true"]');
       await expect(held).toHaveAttribute('data-index', '12');
       expect(await rowInList(held)).toBe(true);
+      await page.keyboard.press('ArrowLeft');
       const focus = await focusedLabel(page);
       expect(focus).toMatch(/^Trade /);
       const status = await menu.getByRole('status').textContent();
@@ -713,7 +735,13 @@ test.describe('upright battle trade', () => {
     await expect(menu.locator('.tm-notice')).toHaveText("Trading locks in Edric's move.");
     await expectStacked(page);
     await expectHeaderAndBody(page, menu, NOTCH_PORTRAIT);
+    await expect(menu.locator('.tm-row[aria-pressed="true"]')).toHaveCount(0);
     await menu.getByRole('button', { name: 'Iron Sword, equipped', exact: true }).tap();
+    // The tap holds the sword and leaves no row focused (no focus ring on a touch screen).
+    await expect(menu.locator('.tm-row[aria-pressed="true"]')).toHaveCount(1);
+    expect(await page.evaluate(() => Boolean(document.activeElement?.closest('.tm-row')))).toBe(
+      false,
+    );
     await page.screenshot({ path: info.outputPath('battle-trade-390x844.png') });
     await expectHeaderAndBody(page, menu, NOTCH_PORTRAIT);
     const swap = menu.getByRole('button', { name: 'Trade Iron Sword for Glimmer', exact: true });
@@ -793,7 +821,10 @@ for (const viewport of [
             `${key}.${edge}`,
           ).toBeLessThanOrEqual(1);
       await page.evaluate(() => document.documentElement.classList.remove('portrait-ui'));
-      // Side by side, Down at the bottom of the left column stays there.
+      // Side by side, Down at the bottom of the left column stays there (the first
+      // Down only shows the cursor on the first item).
+      await expect.poll(() => focusedLabel(page)).toBe('Trade items');
+      await page.keyboard.press('ArrowDown');
       await expect.poll(() => focusedLabel(page)).toBe('Iron Sword, equipped');
       for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown');
       await expect.poll(() => focusedLabel(page)).toBe('Steel Sword');

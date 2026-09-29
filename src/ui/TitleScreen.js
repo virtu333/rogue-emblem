@@ -228,6 +228,13 @@ export class TitleScreen {
       this._onUprightResize = () => this._syncUpright();
       window.addEventListener('resize', this._onUprightResize);
       this._unwatchUpright = watchPortraitListLayout(() => this._syncUpright());
+      // iOS can announce a turn before its layout settles, and send nothing once it has:
+      // the band kept the sideways size, so the art stayed zoomed after turning back
+      // (playtest, build 24). The screen's own size is the settled answer.
+      if (typeof ResizeObserver !== 'undefined') {
+        this._uprightObserver = new ResizeObserver(() => this._syncUpright());
+        this._uprightObserver.observe(this.root);
+      }
       document.fonts?.ready?.then(() => this._syncUpright(true));
     }
 
@@ -408,6 +415,7 @@ export class TitleScreen {
     this._coverObserver?.disconnect();
     this._stageObserver?.disconnect();
     this._unwatchUpright?.();
+    this._uprightObserver?.disconnect();
     if (this._onUprightResize) window.removeEventListener('resize', this._onUprightResize);
     window.removeEventListener('resize', this._syncStage);
     this.scene.scale?.off?.('resize', this._syncStage);

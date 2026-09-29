@@ -8,7 +8,13 @@ import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { LORE_TEXT_COLOR } from '../utils/constants.js';
-import { hasAnySlotMilestone } from '../engine/SlotManager.js';
+import {
+  earnedDeedIdsAcrossSlots,
+  hasAnySlotMilestone,
+  metLordNamesAcrossSlots,
+} from '../engine/SlotManager.js';
+import { metLords } from '../engine/LordsMet.js';
+import { deedReferenceEntries } from './deedReference.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { getImbueStoneItems } from '../engine/ImbueSystem.js';
@@ -44,6 +50,7 @@ export const TAB_DEFS = [
   { label: 'Foes', key: 'foes', filters: ['All', 'Bosses', 'Classes'] },
   { label: 'Stats', key: 'stats', filters: ['All', 'Core', 'Derived', 'Growth'] },
   { label: 'Run', key: 'run', filters: ['All', 'Resources', 'Route', 'Rewards'] },
+  { label: 'Deeds', key: 'deeds', filters: null },
 ];
 
 const SKILL_FILTER_MAP = {
@@ -66,6 +73,7 @@ const ITEM_GAP = 2;
 // Content rows must end at least 10px above the page-navigation baseline.
 export const PER_PAGE_BY_KEY = {
   run: 5,
+  deeds: 5,
   stats: 5,
   lords: LORD_ITEMS_PER_PAGE,
   weapons: 6,
@@ -80,6 +88,7 @@ export const PER_PAGE_BY_KEY = {
 };
 export const LINES_BY_KEY = {
   run: 4,
+  deeds: 4,
   stats: 4,
   lords: 3,
   weapons: 3,
@@ -88,7 +97,7 @@ export const LINES_BY_KEY = {
   classes: 4,
   foes: 4,
 };
-export const ROW_HEIGHT_BY_KEY = { classes: 54, foes: 54, stats: 54, run: 54 };
+export const ROW_HEIGHT_BY_KEY = { classes: 54, foes: 54, stats: 54, run: 54, deeds: 54 };
 
 export function getCompendiumRowHeight(key) {
   return (
@@ -118,6 +127,8 @@ export class CompendiumOverlay {
     // Memoized bestiary list (bosses gated by act-reached milestones + all
     // classes). Reset on each show() so milestone unlocks appear in real time.
     this._foesItems = null;
+    this._deedsItems = null;
+    this._lordsItems = null;
 
     // Gamepad/keyboard focus: a ring on the active tab. The overlay pushes one
     // input-focus scope (LIFO) on show and pops it on hide, so the pad drives it on
@@ -133,6 +144,8 @@ export class CompendiumOverlay {
     this.visible = true;
     if (hasDOMHost()) {
       this._foesItems = null;
+      this._deedsItems = null;
+      this._lordsItems = null;
       this.domMenu = new ReferenceMenu(
         this.scene,
         'Compendium',
@@ -149,6 +162,8 @@ export class CompendiumOverlay {
     // Re-read act-reached milestones every open so newly reached bosses appear
     // (incl. mid-run pause → Compendium) and drop out of the search index too.
     this._foesItems = null;
+    this._deedsItems = null;
+    this._lordsItems = null;
     this._buildSearchIndex();
     this._draw();
     this._setupFocus();
@@ -276,7 +291,8 @@ export class CompendiumOverlay {
           ...getImbueStoneItems(gd.imbues),
         ];
       case 'lords':
-        return gd.lords || [];
+        // Only lords met in some slot (Edric and Sera always); memoized per show().
+        return (this._lordsItems ||= metLords(gd.lords, metLordNamesAcrossSlots()));
       case 'blessings':
         return gd.blessings?.blessings || [];
       case 'terrain':
@@ -285,6 +301,9 @@ export class CompendiumOverlay {
         return gd.affixes?.affixes || [];
       case 'foes':
         return this._getFoesItems();
+      case 'deeds':
+        // Earned in any slot; memoized per show() like the bestiary.
+        return (this._deedsItems ||= deedReferenceEntries(gd, earnedDeedIdsAcrossSlots()));
       default:
         return [];
     }
@@ -827,6 +846,7 @@ export class CompendiumOverlay {
       switch (def.key) {
         case 'run':
         case 'stats':
+        case 'deeds':
           [item.name, ...item.referenceLines].forEach((line, n) =>
             this._text(
               left + 25,
@@ -1095,8 +1115,9 @@ export class CompendiumOverlay {
     let meta;
     if (isBoss) {
       // finalBoss entries are difficulty-gated variants — tag which mode meets them.
+      const modeName = (id) => this.gameData?.difficulty?.modes?.[id]?.label || id;
       const modeTag = Array.isArray(item.difficultyFilter)
-        ? `  [${item.difficultyFilter.join('/')}]`
+        ? `  [${item.difficultyFilter.map(modeName).join('/')}]`
         : '';
       meta = `${item._actLabel || ''}  ${item.className || ''}  Lv${item.level ?? '?'}${modeTag}`;
     } else {

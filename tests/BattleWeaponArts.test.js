@@ -164,11 +164,11 @@ describe('BattleScene weapon art helpers', () => {
     const scene = new BattleScene();
     const art = makeArt({
       id: 'bow_curved_shot',
-      name: 'Curved Shot',
+      name: 'Arcing Shot',
       weaponType: 'Bow',
       combatMods: {
         rangeBonus: 1,
-        activated: [{ id: 'weapon_art', name: 'Curved Shot' }],
+        activated: [{ id: 'weapon_art', name: 'Arcing Shot' }],
       },
     });
     const bow = {
@@ -256,16 +256,16 @@ describe('BattleScene weapon art helpers', () => {
     expect(artTargets.map((t) => t.name)).toEqual(['AtTwo']);
   });
 
-  it('Longearche supports 1-2 range targeting when selected', () => {
+  it("Serpent's Reach supports 1-2 range targeting when selected", () => {
     const scene = new BattleScene();
     const art = makeArt({
       id: 'lance_longearche',
-      name: 'Longearche',
+      name: "Serpent's Reach",
       weaponType: 'Lance',
       requiredRank: 'Mast',
       combatMods: {
         rangeOverride: { min: 1, max: 2 },
-        activated: [{ id: 'weapon_art', name: 'Longearche' }],
+        activated: [{ id: 'weapon_art', name: "Serpent's Reach" }],
       },
     });
     const lance = {
@@ -307,11 +307,11 @@ describe('BattleScene weapon art helpers', () => {
     const scene = new BattleScene();
     const art = makeArt({
       id: 'bow_curved_shot',
-      name: 'Curved Shot',
+      name: 'Arcing Shot',
       weaponType: 'Bow',
       combatMods: {
         rangeBonus: 1,
-        activated: [{ id: 'weapon_art', name: 'Curved Shot' }],
+        activated: [{ id: 'weapon_art', name: 'Arcing Shot' }],
       },
     });
     const bow = {
@@ -359,11 +359,11 @@ describe('BattleScene weapon art helpers', () => {
     const scene = new BattleScene();
     const art = makeArt({
       id: 'bow_curved_shot',
-      name: 'Curved Shot',
+      name: 'Arcing Shot',
       weaponType: 'Bow',
       combatMods: {
         rangeBonus: 1,
-        activated: [{ id: 'weapon_art', name: 'Curved Shot' }],
+        activated: [{ id: 'weapon_art', name: 'Arcing Shot' }],
       },
     });
     const bow = {
@@ -759,7 +759,6 @@ describe('BattleScene weapon art helpers', () => {
     scene.animateSkillActivation = vi.fn(async () => {});
     scene.animateStrike = vi.fn(async () => {});
     scene.updateHPBar = vi.fn();
-    scene.applyOnAttackAffixes = vi.fn(async () => {});
     scene.showPoisonDamage = vi.fn(async () => {});
     scene.awardXP = vi.fn(async () => {});
     scene.removeUnit = vi.fn(async () => {});
@@ -852,7 +851,6 @@ describe('BattleScene weapon art helpers', () => {
     scene.animateSkillActivation = vi.fn(async () => {});
     scene.animateStrike = vi.fn(async () => {});
     scene.updateHPBar = vi.fn();
-    scene.applyOnAttackAffixes = vi.fn(async () => {});
     scene.showPoisonDamage = vi.fn(async () => {});
     scene.awardXP = vi.fn(async () => {});
     scene.removeUnit = vi.fn(async () => {});
@@ -925,7 +923,6 @@ describe('BattleScene weapon art helpers', () => {
     scene.animateSkillActivation = vi.fn(async () => {});
     scene.animateStrike = vi.fn(async () => {});
     scene.updateHPBar = vi.fn();
-    scene.applyOnAttackAffixes = vi.fn(async () => {});
     scene.showPoisonDamage = vi.fn(async () => {});
     scene.awardXP = vi.fn(async () => {});
     scene.removeUnit = vi.fn(async () => {});
@@ -1295,7 +1292,6 @@ describe('BattleScene weapon art helpers', () => {
     scene.animateSkillActivation = vi.fn(async () => {});
     scene.animateStrike = vi.fn(async () => {});
     scene.updateHPBar = vi.fn();
-    scene.applyOnAttackAffixes = vi.fn(async () => {});
     scene.showPoisonDamage = vi.fn(async () => {});
     scene.awardXP = vi.fn(async () => {});
     scene.removeUnit = vi.fn(async () => {});
@@ -2012,7 +2008,7 @@ describe('BattleScene weapon art helpers', () => {
     expect(sceneAttacker.currentHP).toBe(headlessAttacker.currentHP);
   });
 
-  it('applies Galeforce Assault advance + set-to-5 while preserving ally buff parity', async () => {
+  it('applies Oathstorm advance + set-to-5 while preserving ally buff parity', async () => {
     const gameData = loadGameData();
     const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_galeforce_assault');
     const sceneAttacker = {

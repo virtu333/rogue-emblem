@@ -170,7 +170,7 @@ for (const vp of [...VIEWPORTS, { width: 1000, height: 460, phone: true }]) {
             void g.showLevelUp({
               unit,
               result: { gains, displayStats: unit.stats },
-              learnedNames: ['Sol'],
+              learnedNames: ['Reclaim'],
             });
           } else {
             const cls = s.gameData.classes.find((c) => c.name === 'Great Lord');
@@ -304,7 +304,7 @@ function auditFullestCards() {
       skillId: 'duelist_stance',
       learned: true,
     };
-    content.dropped = ['Quick Riposte'];
+    content.dropped = ['Riposte'];
     void g.showPromotionRite({ unit: knight, content });
     await wait(300);
     root = document.querySelector('.gr-rite-layer');

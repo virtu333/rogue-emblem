@@ -33,14 +33,31 @@ describe('Blessing Expansion v2 � data validation', () => {
     expect(gameData.blessings.blessings).toHaveLength(23);
   });
 
-  it('tier distribution is 4/9/4/6', () => {
+  it('tier distribution is 4/7/6/6', () => {
     const gameData = loadGameData();
     const tiers = { 1: 0, 2: 0, 3: 0, 4: 0 };
     for (const blessing of gameData.blessings.blessings) tiers[blessing.tier]++;
     expect(tiers[1]).toBe(4);
-    expect(tiers[2]).toBe(9);
-    expect(tiers[3]).toBe(4);
+    expect(tiers[2]).toBe(7);
+    expect(tiers[3]).toBe(6);
     expect(tiers[4]).toBe(6);
+  });
+
+  // Playtest 2026-09-28 blessing pass: the strong tier-2s move up a tier (heavier
+  // rolled costs), the weak ones get more, and Arsenal Pact is as rare as its tier.
+  it('the 2026-09-28 blessing pass', () => {
+    const index = new Map(loadGameData().blessings.blessings.map((b) => [b.id, b]));
+    for (const id of ['scholar_vow', 'scout_blessing', 'focused_curriculum'])
+      expect(index.get(id).tier, id).toBe(3);
+    expect(index.get('terrain_mastery')).toMatchObject({ tier: 2 });
+    expect(index.get('terrain_mastery').boons[0].params.avoidBonus).toBe(10);
+    expect(index.get('nomad_pact').boons[0].params.value).toBe(2);
+    expect(index.get('rally_cry').boons.map((b) => [b.params.stat, b.params.value])).toEqual([
+      ['STR', 3],
+      ['MAG', 3],
+    ]);
+    const tier4 = [...index.values()].filter((b) => b.tier === 4);
+    expect(new Set(tier4.map((b) => b.weight))).toEqual(new Set([0.2]));
   });
 
   it('tier2+ blessings use runtime rolled costs only', () => {

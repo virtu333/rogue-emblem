@@ -10,6 +10,7 @@ import {
 } from '../utils/SceneRouter.js';
 import portraitManifest from './RebuiltPortraitManifest.json';
 import { hasPc98, pc98PortraitElement, usePc98 } from './portraitArt.js';
+import { metLords } from '../engine/LordsMet.js';
 const node = (tag, cls, text) => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -226,7 +227,9 @@ export class MobileHomeBase {
               : 'Unlock Chosen Companions in Upgrades → Lords to change partner.',
           ),
         );
-      for (const candidate of lords) {
+      // Only lords this save has met (Edric and Sera from the start).
+      const met = metLords(lords, (name) => this.meta.hasMetLord?.(name) === true);
+      for (const candidate of met) {
         const current = candidate.name === selection[this.role];
         const blocked = this.role === 'partner' && candidate.name === selection.commander;
         const b = this.button(
@@ -253,6 +256,8 @@ export class MobileHomeBase {
         );
         list.append(b);
       }
+      if (met.length < lords.length)
+        list.append(node('p', 'mu-help mh-more-lords', 'More lords join as you meet them.'));
     } else {
       const name = lord?.name;
       const assigned = this.meta.getSkillAssignments()[name] || [];
@@ -279,15 +284,21 @@ export class MobileHomeBase {
         list.append(
           node('p', '', 'No starting skills unlocked yet. Visit Upgrades → Skills to unlock them.'),
         );
+      if (unlocked.length)
+        copy.append(
+          node('p', 'mu-help', 'Each skill goes to one lord. Choosing a held skill moves it.'),
+        );
       for (const id of unlocked) {
         const skill = skills.find((s) => s.id === id);
         const active = assigned.includes(id);
+        // A skill sits on one lord at a time: choosing another lord's moves it here.
+        const holder = active ? null : this.meta.getSkillHolder(id);
         const b = this.button(
           '',
           () => {
-            const ok = this.meta.assignSkill(name, id);
+            const ok = this.meta.assignSkill(name, id, { move: true });
             this.message = ok
-              ? `${skill?.name || id} assigned to ${name}.`
+              ? `${skill?.name || id} ${holder ? `moved from ${holder} to` : 'assigned to'} ${name}.`
               : 'Unable to assign this skill.';
             this.render(ok ? `remove-${id}` : `skill-${id}`);
           },
@@ -297,7 +308,11 @@ export class MobileHomeBase {
         b.dataset.focus = `skill-${id}`;
         b.disabled = active || assigned.length >= limit;
         b.append(
-          node('strong', '', `${skill?.name || id}${active ? ' · Assigned' : ''}`),
+          node(
+            'strong',
+            '',
+            `${skill?.name || id}${active ? ' · Assigned' : holder ? ` · With ${holder}` : ''}`,
+          ),
           node('span', '', skill?.description || ''),
         );
         list.append(b);

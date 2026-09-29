@@ -198,9 +198,14 @@ test.describe('desktop full–full trade', () => {
       'true',
     );
     await expect(trade.locator('.tm-notice')).toHaveText("Trading locks in Edric's move.");
-    // Keyboard only from here: focus starts on Edric's first item.
+    // Keyboard only from here. Nothing is highlighted on open (the dialog holds focus);
+    // the first key shows the cursor on Edric's first item without holding it.
     const focused = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label'));
+    await expect.poll(focused).toBe('Trade items');
+    await expect(trade.locator('.tm-row[aria-pressed="true"]')).toHaveCount(0);
+    await page.keyboard.press('Enter');
     await expect.poll(focused).toBe('Iron Sword, equipped');
+    await expect(trade.locator('.tm-row[aria-pressed="true"]')).toHaveCount(0);
     await page.keyboard.press('Enter');
     await page.keyboard.press('ArrowRight');
     await expect.poll(focused).toBe('Trade Iron Sword for Glimmer');
@@ -277,6 +282,109 @@ test.describe('desktop full–full trade', () => {
     });
     expect(waited.saved).toEqual(waited.live);
     await page.screenshot({ path: testInfo.outputPath('trade-full-full-waited.png') });
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('desktop trade reorder', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+  test('keyboard reorder equips Rapier; the move locks, the checkpoint has it, Attack stays', async ({
+    page,
+  }) => {
+    test.slow(); // boot, a reorder and a checkpoint
+    const errors = await boot(page, false);
+    const before = await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const { ensureItemUid } = await import('/src/utils/itemUid.js');
+      const weapon = (name) => structuredClone(s.gameData.weapons.find((w) => w.name === name));
+      const edric = s.playerUnits.find((u) => u.name === 'Edric');
+      edric.inventory.push(...['Steel Sword', 'Rapier', 'Iron Axe'].map(weapon));
+      for (const u of s.playerUnits) u.inventory.forEach(ensureItemUid);
+      s._timelineBoundary = 'turn_start';
+      s._captureSuspendCheckpoint();
+      return {
+        uids: edric.inventory.map((w) => w.uid),
+        index: s.runManager.battleInProgress.checkpoint.checkpointIndex,
+      };
+    });
+    const [ironSword, steel, rapier, axe] = before.uids;
+    await tile(page, 3, 3, false);
+    await tile(page, 3, 3, false);
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'UNIT_ACTION_MENU',
+    );
+    await action(page, 'Trade', false);
+    await tile(page, 2, 3, false);
+    const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
+    await expect(trade).toBeVisible();
+    const focused = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label'));
+    // Show the cursor, down to Rapier (slot 3), hold it, up to slot 1: "Equip Rapier".
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(focused).toBe('Iron Sword, equipped');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(focused).toBe('Rapier');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(focused).toBe('Swap Rapier with Steel Sword');
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(focused).toBe('Equip Rapier');
+    await page.keyboard.press('Enter');
+    await expect(trade.locator('.tm-status')).toHaveText('Rapier is now equipped.');
+    await expect.poll(focused).toBe('Rapier, equipped');
+    await expect(trade.locator('.tm-notice')).toBeHidden();
+    const state = () =>
+      page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        const cp = s.runManager.battleInProgress.checkpoint;
+        const live = s.playerUnits.find((u) => u.name === 'Edric');
+        const saved = cp.playerUnits.find((u) => u.name === 'Edric');
+        return {
+          live: {
+            uids: live.inventory.map((w) => w.uid),
+            weapon: live.weapon?.uid,
+            acted: live.hasActed,
+            committed: live._movementCommitted === true,
+          },
+          saved: {
+            uids: saved.inventory.map((w) => w.uid),
+            weapon: saved.inventory[saved.equippedInventoryIndex]?.uid,
+            acted: saved.hasActed,
+            committed: saved._movementCommitted,
+          },
+          index: cp.checkpointIndex,
+        };
+      });
+    // By hand: Rapier and the Iron Sword trade places; Rapier (slot 1) is equipped.
+    const after = await state();
+    expect(after.live).toEqual({
+      uids: [rapier, steel, ironSword, axe],
+      weapon: rapier,
+      acted: false,
+      committed: true,
+    });
+    expect(after.saved).toEqual(after.live);
+    expect(after.index).toBeGreaterThan(before.index);
+    // The Iron Axe (he has no axe rank) can't go to slot 1: refused, nothing moves.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(focused).toBe('Iron Axe');
+    await page.keyboard.press('Enter');
+    for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowUp');
+    await expect.poll(focused).toBe('Equip Iron Axe');
+    await page.keyboard.press('Enter');
+    await expect(trade.locator('.tm-status')).toHaveText("Edric can't wield Iron Axe.");
+    expect((await state()).live.uids).toEqual([rapier, steel, ironSword, axe]);
+    await page.keyboard.press('Escape'); // release
+    await page.keyboard.press('Escape'); // close
+    await expect(trade).toHaveCount(0);
+    const menu = await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      return { state: s.battleState, items: s._menuFocus.items.map((item) => item.label) };
+    });
+    expect(menu.state).toBe('UNIT_ACTION_MENU');
+    expect(menu.items).toEqual(expect.arrayContaining(['Attack', 'Wait']));
     expect(errors).toEqual([]);
   });
 });

@@ -1,7 +1,7 @@
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { battleSpeed, combatDuration } from '../utils/combatTiming.js';
 import { progressionRows } from './progressionDisplay.js';
-import { levelUpContent } from './growthContent.js';
+import { levelUpContent, skillLimitNote } from './growthContent.js';
 import { voiceContext } from '../engine/UnitVoice.js';
 
 // Display only: gains are already applied by the caller. Never award XP here.
@@ -67,6 +67,8 @@ export function progressionResult(scene, unit, result, promotion, skills, growth
     surface.body.append(element('h3', 'Learned skills'));
     for (const name of skills) surface.body.append(element('p', name));
   }
+  if (result.blockedSkills?.length)
+    surface.body.append(element('p', skillLimitNote(result.blockedSkills)));
   continueButton = button(
     revealed ? 'Continue' : 'Reveal gains',
     advance,

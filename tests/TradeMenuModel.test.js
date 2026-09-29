@@ -12,6 +12,7 @@ import {
   focusAfterCommit,
   initialFocus,
   navigate,
+  reorderMessage,
   rowAt,
   tradeWarningText,
 } from '../src/ui/tradeMenuModel.js';
@@ -385,6 +386,129 @@ describe('rows', () => {
       kind: 'give',
     });
     expect(activateRow(held, null)).toEqual({ type: 'none' });
+  });
+});
+
+describe('reorder rows (reorder: true)', () => {
+  // Edric: Iron Sword (equipped, slot 1), Rapier, Axe (he can't wield it), Steel Sword.
+  const bag = () => {
+    const iron = weapon('Iron Sword');
+    const rapier = weapon('Rapier');
+    const axe = weapon('Iron Axe');
+    const steel = weapon('Steel Sword');
+    const edric = unit('Edric', {
+      inventory: [iron, rapier, axe, steel],
+      consumables: [supply('Poultice'), supply('Elixir')],
+      cannotEquip: ['Iron Axe'],
+    });
+    const sera = unit('Sera', { inventory: [weapon('Iron Lance')] });
+    return { iron, rapier, axe, steel, edric, sera, ...setup({ left: edric, right: sera }) };
+  };
+
+  it('holding a unit item: the other items of its column reorder, empty slots stay inert', () => {
+    const { L, R, rapier, view, engine } = bag();
+    const v = view({ reorder: true, held: { holder: L, bag: 'inventory', item: rapier } });
+    expect(states(v.columns.left)).toEqual(['reorder', 'release', 'reorder', 'reorder', 'inert']);
+    expect(states(v.columns.right)).toEqual(['commit', 'commit', 'commit', 'commit', 'commit']);
+    // Plain actions, not toggles.
+    expect(v.columns.left.rows.map((r) => r.pressed)).toEqual([null, true, null, null, null]);
+    // Slot 1 is the equipped one: a swap there is named for what it equips.
+    expect(v.columns.left.rows.map((r) => r.name)).toEqual([
+      'Equip Rapier',
+      'Rapier',
+      'Swap Rapier with Iron Axe',
+      'Swap Rapier with Steel Sword',
+      'Empty slot 5',
+    ]);
+    expect(v.columns.left.rows.map((r) => r.kind)).toEqual([
+      'reorder',
+      null,
+      'reorder',
+      'reorder',
+      null,
+    ]);
+    // Each reorder row was planned from the held slot to that row's slot, through planReorder.
+    expect(engine.reorderCalls.map((c) => c.to.item?.name)).toEqual([
+      'Iron Sword',
+      'Iron Axe',
+      'Steel Sword',
+    ]);
+    expect(engine.reorderCalls.every((c) => c.from.item === rapier)).toBe(true);
+    expect(engine.reorderCalls[0].to.holder).toBe(L);
+    expect(v.columns.right.rows[0].slot.holder).toBe(R);
+  });
+
+  it('holding the equipped item: every swap equips the other item; one it cannot wield is blocked', () => {
+    const { L, iron, axe, view } = bag();
+    const v = view({ reorder: true, held: { holder: L, bag: 'inventory', item: iron } });
+    const rows = v.columns.left.rows;
+    expect(rows.map((r) => r.name).slice(1, 4)).toEqual([
+      'Equip Rapier',
+      'Equip Iron Axe',
+      'Equip Steel Sword',
+    ]);
+    expect(rows[2].equips).toBe(axe);
+    expect(rows[2].blocked).toBe("Edric can't wield Iron Axe.");
+    expect(rows[2].disabled).toBe(true);
+    expect(activateRow(v, rows[2])).toEqual({
+      type: 'blocked',
+      reason: "Edric can't wield Iron Axe.",
+    });
+    expect(rows[3].blocked).toBeNull();
+    expect(activateRow(v, rows[3])).toEqual({
+      type: 'reorder',
+      from: { holder: L, bag: 'inventory', item: iron },
+      to: { holder: L, bag: 'inventory', item: rows[3].item },
+      equips: rows[3].item,
+    });
+  });
+
+  it('supplies reorder without equipping anything', () => {
+    const { L, edric, view } = bag();
+    const [vulnerary, elixir] = edric.consumables;
+    const v = view({ reorder: true, held: { holder: L, bag: 'consumables', item: elixir } });
+    const first = v.columns.left.rows[0];
+    expect(first.state).toBe('reorder');
+    expect(first.name).toBe('Swap Elixir with Poultice');
+    expect(first.equips).toBeNull();
+    expect(activateRow(v, first)).toMatchObject({ type: 'reorder', equips: null });
+    expect(first.item).toBe(vulnerary);
+  });
+
+  it('the convoy column keeps switching; without reorder (or planReorder) a unit column switches', () => {
+    const { L, rapier, edric, view } = bag();
+    const convoyEngine = fakeEngine({
+      convoy: { weapons: [weapon('Axe A'), weapon('Axe B')], consumables: [] },
+    });
+    const withConvoy = setup({ left: edric, right: CONVOY, engine: convoyEngine });
+    const [axeA] = convoyEngine.bagItems(null, CONVOY, 'inventory');
+    const convoyHeld = withConvoy.view({
+      reorder: true,
+      held: { holder: CONVOY, bag: 'inventory', item: axeA },
+    });
+    expect(states(convoyHeld.columns.right)).toEqual(['release', 'switch', 'inert']);
+    expect(convoyEngine.reorderCalls).toEqual([]);
+
+    const heldRapier = { holder: L, bag: 'inventory', item: rapier };
+    const unitSwitches = ['switch', 'release', 'switch', 'switch', 'inert'];
+    // reorder off (the default).
+    expect(states(view({ held: heldRapier }).columns.left)).toEqual(unitSwitches);
+    // reorder on, but the engine has no planReorder.
+    const { planReorder: _none, ...noReorder } = fakeEngine();
+    const bare = setup({ left: edric, right: CONVOY, engine: noReorder });
+    expect(states(bare.view({ reorder: true, held: heldRapier }).columns.left)).toEqual(
+      unitSwitches,
+    );
+  });
+
+  it('reorder messages: the equipped item, else the two that swapped', () => {
+    const L = unitHolder(unit('Edric'));
+    const sword = weapon('Iron Sword');
+    const lance = weapon('Steel Sword');
+    const from = { holder: L, bag: 'inventory', item: sword };
+    const to = { holder: L, bag: 'inventory', item: lance };
+    expect(reorderMessage(from, to, lance)).toBe('Steel Sword is now equipped.');
+    expect(reorderMessage(from, to, null)).toBe('Swapped Iron Sword and Steel Sword.');
   });
 });
 

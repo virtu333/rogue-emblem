@@ -150,7 +150,8 @@ describe('promoteUnit skill-cap reporting', () => {
     const notice = formatDroppedSkillsNotice(unit.name, result.droppedSkills, gameData.skills);
     expect(notice).toContain(unit.name);
     expect(notice).toContain('Shieldwall');
-    expect(notice).toContain('skill limit');
+    expect(notice).toContain('kept on the bench');
+    expect(unit.benchedSkills).toContain('pavise');
   });
 
   it('formatDroppedSkillsNotice returns null when nothing was dropped', () => {

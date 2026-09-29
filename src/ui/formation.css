@@ -58,11 +58,15 @@
 }
 .fm-tools {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
 }
+/* Buttons share a row (zero basis: the rail's full-width buttons don't each take a
+   line); a narrow dock wraps them rather than breaking a word across lines. */
 .fm-tools > * {
-  flex: 1;
+  flex: 1 1 0%;
+  white-space: nowrap;
 }
 .fm-start {
   width: 100%;
@@ -70,6 +74,15 @@
 }
 .fm-start:disabled {
   opacity: 0.6;
+}
+/* On the rail a greyed Start kept the ember fill under the rail's muted disabled text:
+   brown on gold, unreadable (review, build 24). Greyed, it reads as a plain button. */
+.mobile-battle-hud .mb-dock .fm-start:disabled {
+  opacity: 1;
+  background: var(--re-panel);
+  border-color: var(--re-line);
+  color: var(--re-muted);
+  text-shadow: none;
 }
 
 /* Tile picker */
@@ -91,6 +104,20 @@
 .fm-clear {
   margin-top: 8px;
   width: 100%;
+}
+.fm-picker-unit {
+  margin: 0 0 4px;
+  font: 600 14px/1.4 var(--re-body);
+  color: var(--re-text);
+}
+.fm-details {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.fm-picker-head {
+  margin: 0 0 6px;
+  font: 13px/1.4 var(--re-body);
+  color: var(--re-muted);
 }
 
 /* Desktop dock */

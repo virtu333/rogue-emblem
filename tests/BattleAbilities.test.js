@@ -249,6 +249,74 @@ describe('ability submenu (picker)', () => {
   });
 });
 
+// The picker is built from rows (battleMenuModel). The phone rail renders the rows
+// itself, so no canvas row exists there; the desktop canvas draws the same rows.
+describe('Ability picker as rows', () => {
+  function pickerScene({ rail }) {
+    const unit = makeUnit({ skills: ['blink', 'ensnare'] });
+    unit._battleAbilityUsage = { map: { ensnare: 1 } };
+    const enemy = makeUnit({ name: 'Enemy', faction: 'enemy', col: 5, row: 7 });
+    const scene = makeAbilityScene({ unit, enemies: [enemy] });
+    setupActionMenuHarness(scene);
+    scene.selectedUnit = unit;
+    const shown = [];
+    if (rail)
+      scene._mobileBattleHud = { showMenu: (items, objects) => shown.push({ items, objects }) };
+    scene._menuFocus = { setItems: vi.fn() };
+    return { scene, unit, shown };
+  }
+
+  it('on the phone rail: no canvas rows, and the rail gets every row by id', () => {
+    const { scene, unit, shown } = pickerScene({ rail: true });
+    scene.showAbilityPicker(unit);
+    expect(scene._makeMenuTextButton).not.toHaveBeenCalled();
+    expect(scene.add.rectangle).not.toHaveBeenCalled();
+    expect(scene.actionMenu).toEqual([]);
+    const { items } = shown[0];
+    expect(items.map((i) => [i.id, i.disabled])).toEqual([
+      ['ability:blink', false],
+      ['ability:ensnare', true],
+      ['back', false],
+    ]);
+    // The rail's rows read as they did when copied from canvas text.
+    expect(items[0].label).toMatch(/^Blink\n {3}1\/1 uses left · Ends unit action$/);
+    expect(items[0].description).toBe(skillById.get('blink').description);
+    expect(items.every((i) => i.button === null)).toBe(true);
+    // Focus is offered only on usable rows.
+    expect(scene._menuFocus.setItems.mock.calls[0][0].map((i) => i.id)).toEqual([
+      'ability:blink',
+      'back',
+    ]);
+  });
+
+  it('choosing a rail row runs the row; a greyed row does nothing', () => {
+    const { scene, unit, shown } = pickerScene({ rail: true });
+    scene.showAbilityPicker(unit);
+    const select = vi
+      .spyOn(scene._abilityController, '_selectAbility')
+      .mockImplementation(() => {});
+    const [blink, ensnare] = shown[0].items;
+    ensnare.onActivate();
+    expect(select).not.toHaveBeenCalled();
+    blink.onActivate();
+    expect(select).toHaveBeenCalledWith(unit, skillById.get('blink'));
+  });
+
+  it('on desktop: the canvas draws the same rows and each item finds its canvas row', () => {
+    const { scene, unit } = pickerScene({ rail: false });
+    const registered = vi.spyOn(scene, '_registerActionMenu');
+    scene.showAbilityPicker(unit);
+    const rows = registered.mock.calls[0][0];
+    const canvasRows = scene.actionMenu.filter((o) => o._rowId);
+    expect(canvasRows.map((o) => o._rowId)).toEqual(rows.map((r) => r.id));
+    expect(canvasRows.map((o) => o.label)).toEqual(
+      rows.map((r) => (r.status ? `${r.label}\n   ${r.status}` : r.label)),
+    );
+    const items = scene._menuFocus.setItems.mock.calls[0][0];
+    for (const item of items) expect(item.button?._rowId).toBe(item.id);
+  });
+});
+
 describe('Blink (SELECTING_ABILITY_TILE)', () => {
   it('startBlinkTileSelection highlights the legal tile diamond', () => {
     const unit = makeUnit({ skills: ['blink'] });
@@ -280,7 +348,7 @@ describe('Blink (SELECTING_ABILITY_TILE)', () => {
     expect(scene.grid.clearAttackHighlights).toHaveBeenCalled();
   });
 
-  it('executeBlink relocates the unit, marks usage, refreshes fog, and ends the action', async () => {
+  it('executeBlink relocates the unit, marks usage, leaves fog to the commit, and ends the action', async () => {
     const unit = makeUnit({ skills: ['blink'] });
     const scene = makeAbilityScene({ unit });
     scene.hideActionMenu = vi.fn();
@@ -292,7 +360,9 @@ describe('Blink (SELECTING_ABILITY_TILE)', () => {
     expect(unit.row).toBe(4);
     expect(unit._battleAbilityUsage.map.blink).toBe(1);
     expect(scene.updateUnitPosition).toHaveBeenCalledWith(unit);
-    expect(scene._refreshPostCombatMovementState).toHaveBeenCalledWith([unit]);
+    expect(scene._refreshPostCombatMovementState).toHaveBeenCalledWith([unit], {
+      revealFog: false,
+    });
     expect(scene.commitVisionSnapshotIfPending).toHaveBeenCalled();
     // finishUnitAction without skipCanto — Canto applies like other actions
     expect(scene.finishUnitAction).toHaveBeenCalledWith(unit);

@@ -727,8 +727,7 @@ for (const viewport of PORTRAIT_PHONES) {
         expect(row.sameRow).toBe(true);
         expect(row.rightGap).toBeLessThan(1.5);
       }
-      for (const label of ['Title', 'Battle report'])
-        await expectTappable(result.getByRole('button', { name: label, exact: true }));
+      await expectTappable(result.getByRole('button', { name: 'Title', exact: true }));
       await expectInsideSafeArea(page, '.re-run-flow .re-flow-actions .re-btn', NOTCH_PORTRAIT);
       await page.screenshot({ path: test.info().outputPath(`result-${size}.png`) });
       await result.getByRole('button', { name: 'Home Base', exact: true }).last().tap();
@@ -767,7 +766,7 @@ for (const viewport of PORTRAIT_PHONES) {
         window.__linesDone = false;
         void window.__lines.showSequence(entries).then(() => (window.__linesDone = true));
       });
-      await expect(dialogue.locator('p')).toContainText('The lieutenant is gone');
+      await expect(dialogue.locator('p')).toContainText('Their captains are broken');
       const wrap = await dialogue.evaluate((el) => {
         const face = el.querySelector('.re-dialogue-copy > img').getBoundingClientRect();
         const copy = el.querySelector('.re-dialogue-copy');
@@ -1223,18 +1222,20 @@ const MAIN = {
     dialogue: ['.re-dialogue .re-panel l47 w573', '.re-dialogue-copy > img l58 w96 h96'],
     eclipse: ['.re-eclipse-card l104 t12 w460 h351'],
   },
+  // 844x390's boss and join cards frame the board as drawn: battles open on the whole
+  // board (overview), so their bands keep 520 px here, as at 640x480.
   '844x390': {
     boss: [
       '.ce-boss-layer l47 t0 w528 h369',
-      '.ce-boss-band l47 t121 w528 h128',
-      '.ce-boss-bust l53 t57 w190 h190',
-      '.ce-boss-text l253 w304',
+      '.ce-boss-band l51 t121 w520 h128',
+      '.ce-boss-bust l57 t60 w187 h187',
+      '.ce-boss-text l254 w299',
     ],
     join: [
       '.gr-join-layer l47 t0 w528 h369',
-      '.gr-join-band l47 w528',
-      '.gr-join-bust l53 w190 h190',
-      '.gr-join-text l253 w304',
+      '.gr-join-band l51 w520',
+      '.gr-join-bust l57 w187 h187',
+      '.gr-join-text l254 w299',
     ],
     deed: [
       '.gr-deed-layer l47 t0 w528 h369',

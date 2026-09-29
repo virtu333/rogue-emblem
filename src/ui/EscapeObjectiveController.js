@@ -1,4 +1,5 @@
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
+import { revealSettledVision } from './BattleActionCompletion.js';
 // EscapeObjectiveController — Escape battle objective (markers + escape flow).
 //
 // Victory rule (hybrid): every living lord must exit via an escape square —
@@ -126,6 +127,8 @@ export class EscapeObjectiveController {
     scene._historyActor = unit.battleEntityId;
     scene._timelineBoundary = 'player_action';
     scene._timelineFacts = [...(scene._timelineFacts || []), `${unit.name} escaped.`];
+    // Vision from those still on the field (the escaped unit's path never revealed).
+    revealSettledVision(scene);
     scene._captureSuspendCheckpoint?.();
     scene.turnManager.unitActed(unit);
   }

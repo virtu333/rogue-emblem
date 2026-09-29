@@ -141,7 +141,7 @@ it('keeps subsequent enemy hit/crit draws identical across a popup/resume bounda
       return makeDisplayObject();
     };
     Math.random = createSeededRng(941);
-    const popup = new LevelUpPopup(scene, unit, gains, true, ['Adept'], { STR: 5 });
+    const popup = new LevelUpPopup(scene, unit, gains, true, ['Flurry'], { STR: 5 });
     const shown = popup.show();
     popup.destroy();
     await shown;

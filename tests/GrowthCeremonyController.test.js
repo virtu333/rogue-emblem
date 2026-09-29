@@ -271,7 +271,7 @@ describe('level-up card', () => {
       .showLevelUp({
         unit,
         result: { newLevel: 5, gains: { HP: 1, STR: 1, SPD: 1 } },
-        learnedNames: ['Vantage'],
+        learnedNames: ['Forestall'],
       }) // prettier-ignore
       .then(() => (settled = true));
     const card = layers()[0];
@@ -369,7 +369,7 @@ describe('sealed beat', () => {
   it('stamps one gain without taking input, then leaves', async () => {
     const scene = makeScene();
     const growth = new GrowthCeremonyController(scene);
-    growth.showSealed({ title: 'Rowan learned Vantage', detail: 'New skill', skillId: 'vantage' });
+    growth.showSealed({ title: 'Rowan learned Forestall', detail: 'New skill', skillId: 'vantage' });
     const band = layers()[0];
     expect(band.classList.contains('is-blocking')).toBe(false);
     expect(band.getAttribute('role')).toBe('status');

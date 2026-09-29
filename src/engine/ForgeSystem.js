@@ -1,7 +1,13 @@
 // ForgeSystem.js — Pure functions for weapon forging.
 // No Phaser deps.
 
-import { FORGE_MAX_LEVEL, FORGE_BONUSES, FORGE_COSTS, FORGE_STAT_CAP } from '../utils/constants.js';
+import {
+  FORGE_MAX_LEVEL,
+  FORGE_BONUSES,
+  FORGE_COSTS,
+  FORGE_STAT_CAP,
+  FORGE_TIER_COST_MULTIPLIER,
+} from '../utils/constants.js';
 
 // Item types that cannot be forged
 const EXCLUDED_TYPES = new Set(['Staff', 'Scroll', 'Consumable', 'Accessory', 'Whetstone']);
@@ -108,7 +114,15 @@ export function getForgeCost(weapon, stat) {
   if (!costs) return -1;
   const statCount = getStatForgeCount(weapon, stat);
   if (statCount >= FORGE_STAT_CAP) return -1;
-  return costs[statCount];
+  const tier = FORGE_TIER_COST_MULTIPLIER[weapon.tier] ?? 1;
+  return Math.round((costs[statCount] * tier) / 10) * 10;
+}
+
+/** What a shop charges for one forge: the tier's price less the discount, at least 1 gold. */
+export function forgePrice(weapon, stat, discountRatio = 0) {
+  const base = getForgeCost(weapon, stat);
+  if (base < 0) return -1;
+  return discountRatio !== 0 ? Math.max(1, Math.floor(base * (1 - discountRatio))) : base;
 }
 
 /**
@@ -120,10 +134,8 @@ export function getForgeCost(weapon, stat) {
  */
 export function applyForge(weapon, stat, discountRatio = 0) {
   if (!canForgeStat(weapon, stat)) return { success: false };
-  const baseCost = getForgeCost(weapon, stat);
-  if (baseCost < 0) return { success: false };
-  const cost =
-    discountRatio !== 0 ? Math.max(1, Math.floor(baseCost * (1 - discountRatio))) : baseCost;
+  const cost = forgePrice(weapon, stat, discountRatio);
+  if (cost < 0) return { success: false };
 
   const level = weapon._forgeLevel || 0;
 

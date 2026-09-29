@@ -1,36 +1,53 @@
 import { expect, it } from 'vitest';
 import { loadGameData } from './testData.js';
-import { weaponArtDetailLines } from '../src/ui/weaponArtDisplay.js';
+import { weaponArtDetailLines, weaponArtSheet } from '../src/ui/weaponArtDisplay.js';
+import { WEAPON_ARTS_HELP } from '../src/ui/helpTopics.js';
+import { helpBlockText } from '../src/ui/ContextHelp.js';
 import { applyWeaponArtCost } from '../src/engine/WeaponArtSystem.js';
 import { getPostCombatPipelineSteps } from '../src/engine/WeaponArtPostCombat.js';
 const arts = loadGameData().weaponArts.arts;
 const find = (name) => arts.find((a) => a.name === name);
 const details = (name) => weaponArtDetailLines(find(name)).join('\n');
 it('explains splash amounts, radius and target caps', () => {
-  expect(details('Radiant Burst')).toContain("75% of the first landed strike's damage");
-  expect(details('Radiant Burst')).toContain('up to 1 other enemies within 1 tile');
-  expect(details('Cataclysm')).toContain('5 damage');
-  expect(details('Cataclysm')).toContain('within 2 tile');
+  expect(details('Radiant Burst')).toContain(
+    'On hit: 75% of the first hit to up to 1 other enemy within 1 tile of the target',
+  );
+  expect(details('Cataclysm')).toContain('On hit: 5 damage to other enemies within 2 tiles');
 });
 it('explains ally buffs, exclusions and duration', () => {
-  expect(details('Rallying Blow')).toContain('+3 STR, +10 CRIT');
-  expect(details('Rallying Blow')).toContain('excludes the user');
-  expect(details('Rallying Blow')).toContain('1 phase');
+  // The user is left out unless the data says includeSelf.
+  expect(details('Rallying Blow')).toContain(
+    'On hit: allies within 2 tiles get +3 STR, +10 CRIT for 1 phase\n',
+  );
 });
-it('exposes drawbacks, debuffs and movement timing', () => {
-  expect(details('All or Nothing')).toContain('Each missed strike costs the user 5 HP');
-  expect(details('Oathstorm')).toContain('HP is set to 5, even if every strike misses');
-  expect(details('Hamstring')).toContain('rest of this battle');
-  expect(details('Strike and Fade')).toContain('counterattack before you retreat');
+it('exposes drawbacks, debuffs and movement', () => {
+  expect(details('All or Nothing')).toContain('On miss: you lose 5 HP per missed strike');
+  expect(details('Oathstorm')).toContain('After combat: your HP becomes 5, hit or miss');
+  expect(details('Hamstring')).toContain('On hit: target SPD -4 for the battle');
+  expect(details('Strike and Fade')).toContain('On hit: step back 1 tile');
+  expect(details('Annihilate')).toContain('On kill: you get +4 STR, +4 SPD for 1 phase');
+  expect(details('Silence Strike')).toContain('silence the target for 2 phases');
 });
-it('every art has cost, requirements, limits, and follow-up rules in its details', () => {
+it('every art reads as a sheet: Cost, Needs and one flavour line with no numbers', () => {
   for (const art of arts) {
-    const text = weaponArtDetailLines(art).join('\n');
-    expect(text, art.name).toContain('Requires');
-    expect(text, art.name).toContain('Base HP cost:');
-    expect(text, art.name).toContain('do not gain a follow-up');
-    expect(text, art.name).not.toMatch(/undefined|NaN/);
+    const sheet = weaponArtSheet(art);
+    const labels = sheet.map((row) => row.label);
+    expect(labels[0], art.name).toBe('Cost');
+    expect(sheet[0].text, art.name).toMatch(new RegExp(`^${art.hpCost} HP`));
+    expect(labels, art.name).toContain('Needs');
+    expect(sheet.at(-1), art.name).toEqual({ label: '', text: art.description });
+    // Numbers live in the rows the data generates; flavour never restates (or contradicts) them.
+    expect(art.description, art.name).not.toMatch(/\d|%/);
+    expect(art.description.length, art.name).toBeLessThanOrEqual(70);
+    expect(weaponArtDetailLines(art).join('\n'), art.name).not.toMatch(/undefined|NaN/);
   }
+});
+it('rules every art shares sit behind the weapon arts help, not on each art', () => {
+  const help = WEAPON_ARTS_HELP.map((block) => helpBlockText(block)).join('\n');
+  expect(help).toContain('never adds a Speed follow-up');
+  expect(help).toContain('The foe still counters before you step, push or swap');
+  for (const art of arts)
+    expect(weaponArtDetailLines(art).join('\n'), art.name).not.toContain('follow-up');
 });
 it('Phantom Rush spends 8 HP upfront and cannot reset HP after either hits or misses', () => {
   const art = find('Phantom Rush');

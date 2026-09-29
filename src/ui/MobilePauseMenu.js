@@ -82,10 +82,12 @@ export class MobilePauseMenu {
     const title = document.createElement('h2');
     title.textContent = confirming ? 'Confirm action' : 'Paused';
     panel.append(title);
-    if (o.tutorial && !confirming) {
+    if (!confirming) {
       const note = document.createElement('p');
       note.className = 'mp-note';
-      note.textContent = 'Tutorial · practice battle — nothing here is saved.';
+      note.textContent = o.tutorial
+        ? 'Tutorial · practice battle — nothing here is saved.'
+        : 'Progress saves automatically after every action.';
       panel.append(note);
     }
     if (confirming) {

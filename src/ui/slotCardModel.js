@@ -9,14 +9,15 @@
 import { actCardContent, actRegion, ACT_GRADE_KEYS, romanNumeral } from './ceremonyContent.js';
 import { portraitIdForUnit } from './portraitArt.js';
 
-/** Milestone seals in the order they are earned; the last two show only once lit. */
+/** Milestone seals in the order they are earned; the ladder's three show only once lit. */
 export const SLOT_SEALS = Object.freeze([
   { id: 'beatAct1', label: 'Act I cleared' },
   { id: 'beatAct2', label: 'Act II cleared' },
   { id: 'beatAct3', label: 'Act III cleared' },
   { id: 'beatGame', label: 'The Emperor fell', crown: true },
-  { id: 'beatHard', label: 'Won on Hard', crown: true, optional: true },
-  { id: 'beatLunatic', label: 'Won on Lunatic', crown: true, optional: true },
+  { id: 'beatDusk', label: 'Won on Dusk', crown: true, optional: true },
+  { id: 'beatHard', label: 'Won on Nightfall', crown: true, optional: true },
+  { id: 'beatLunatic', label: 'Won on Black Sun', crown: true, optional: true },
 ]);
 
 const NODE_WORDS = Object.freeze({
@@ -109,6 +110,15 @@ function sealsFor(milestones) {
     crown: Boolean(seal.crown),
     lit: earned.has(seal.id),
   }));
+}
+
+/** The run's difficulty ({ id, label }) from difficulty.json's modes, or null. */
+export function slotDifficulty(gameData, difficultyId) {
+  if (typeof difficultyId !== 'string' || !difficultyId) return null;
+  const id = difficultyId.toLowerCase();
+  const label =
+    gameData?.difficulty?.modes?.[id]?.label || id.charAt(0).toUpperCase() + id.slice(1);
+  return { id, label: String(label) };
 }
 
 function tallyLine(summary) {
@@ -223,6 +233,7 @@ export function slotCardModel(slot, summary, { gameData = {}, now = Date.now(), 
     tone,
     grade: ACT_GRADE_KEYS[actId] || 'act1',
     actKicker: act.kicker || `Act ${summary.actReached || 1}`,
+    difficulty: slotDifficulty(gameData, summary.difficultyId),
     title: act.title || 'The road',
     gradeName: act.grade,
     status,

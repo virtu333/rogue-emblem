@@ -1,3 +1,4 @@
+import { isDifficultyAtLeast } from './DifficultyEngine.js';
 import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
 // MapGenerator.js — Procedural map generation from zone-based templates
 // Pure functions, no Phaser dependency.
@@ -14,9 +15,11 @@ import {
   TOXIC_COVERAGE_BY_ACT,
   ENTITY_FOOTPRINT,
   filterClassPoolByDifficulty,
+  RECRUIT_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
 import { pickCaravanSpawnTile } from './CaravanSystem.js';
+import { ballistaRangeForAct, createBallistaState } from './BallistaEngine.js';
 import {
   pickVillageTile,
   calibrateBanditSpawn,
@@ -28,13 +31,32 @@ import { createScopedLogger } from '../utils/logger.js';
 const DEBUG_MAP_GEN = false;
 const mapGenLog = createScopedLogger('MapGen', { debug: DEBUG_MAP_GEN });
 
+/** Extra layouts a caravan node may draw when the merchant finds no tile on the first. */
+export const CARAVAN_PLACEMENT_ATTEMPTS = 8;
+
 /**
  * Generate a full battle configuration from params + game data.
+ *
+ * A node that rolled a caravan (`params.hasCaravan`) promised one on the route map, so a
+ * layout with no room for it is drawn again from the same RNG stream, up to
+ * CARAVAN_PLACEMENT_ATTEMPTS layouts in all (same seed, same result; a first layout that
+ * fits is returned untouched). Only a map that never fits comes back without a caravan.
  * @param {Object} params - { act, objective, sizeKey? (optional override), difficultyMod?, enemyCountBonus? }
  * @param {Object} deps - { terrain, classes, weapons, skills, mapSizes, mapTemplates, enemies }
  * @returns {Object} battleConfig
  */
 export function generateBattle(params, deps) {
+  const first = generateBattleLayout(params, deps);
+  if (!params?.hasCaravan || first.caravanSpawn) return first;
+  for (let attempt = 1; attempt < CARAVAN_PLACEMENT_ATTEMPTS; attempt++) {
+    const retry = generateBattleLayout(params, deps);
+    if (retry.caravanSpawn) return retry;
+  }
+  return first;
+}
+
+/** One layout, no caravan retry (generateBattle wraps it). */
+export function generateBattleLayout(params, deps) {
   const {
     act = 'act1',
     objective = 'rout',
@@ -92,21 +114,25 @@ export function generateBattle(params, deps) {
   const resolvedHybridAnchors = resolveHybridAnchors(template.hybridArena, cols, rows);
   applyHybridArenaOverlay(mapLayout, template.hybridArena, cols, rows, terrain);
 
-  // 4. Place features (Throne for Seize, Ballista for Hard/Lunatic)
+  // 4. Place features (Throne for Seize, Ballista for Nightfall/Black Sun from Act 2)
   let thronePos = null;
   const ballistas = [];
   const diffMode = params.difficultyId || 'normal';
+  // Ballistas are Nightfall/Black Sun only, and never in Act 1: a range-5 bolt every
+  // enemy phase against two level-1 lords was the opening map's hardest threat.
+  // Their reach grows by act (BallistaEngine.ballistaRangeForAct).
+  const ballistasAllowed =
+    isDifficultyAtLeast(diffMode, 'hard') && (params.act || 'act1') !== 'act1';
   if (template.features) {
     for (const feat of template.features) {
-      // Ballistas are Hard/Lunatic only — skip on Normal
-      if (feat.type === 'Ballista' && diffMode !== 'hard' && diffMode !== 'lunatic') continue;
+      if (feat.type === 'Ballista' && !ballistasAllowed) continue;
       const pos = resolveFeaturePosition(feat.position, cols, rows, template);
       const idx = terrainNameToIndex(feat.type || feat.terrain, terrain);
       if (idx !== -1) {
         mapLayout[pos.row][pos.col] = idx;
         if (feat.type === 'Throne') thronePos = pos;
         if (feat.type === 'Ballista') {
-          ballistas.push({ col: pos.col, row: pos.row, owner: 'enemy', captured: false });
+          ballistas.push(createBallistaState(pos.col, pos.row, ballistaRangeForAct(act)));
         }
       }
     }
@@ -149,13 +175,14 @@ export function generateBattle(params, deps) {
 
   // 6. Enemy composition
   const basePool = enemies.pools[act];
+  const classGate = { act, difficulty: deps.difficulty };
   const filteredPool = {
     ...basePool,
-    base: filterClassPoolByDifficulty(basePool.base || [], diffMode).filter((name) =>
+    base: filterClassPoolByDifficulty(basePool.base || [], diffMode, classGate).filter((name) =>
       earlyEnemyAllowed(name, params),
     ),
-    promoted: filterClassPoolByDifficulty(basePool.promoted || [], diffMode).filter((name) =>
-      earlyEnemyAllowed(name, params),
+    promoted: filterClassPoolByDifficulty(basePool.promoted || [], diffMode, classGate).filter(
+      (name) => earlyEnemyAllowed(name, params),
     ),
   };
   const pool = firstBattleFightersOnly
@@ -199,9 +226,10 @@ export function generateBattle(params, deps) {
     act,
     {
       ...enemies.bosses,
-      [act]: (enemies.bosses[act] || []).filter((boss) =>
-        earlyEnemyAllowed(boss.className, params),
-      ),
+      [act]: (params.isElite === true && !isBoss && objective === 'seize'
+        ? eliteCaptains(enemies, act, adjustedLevelRange, classes)
+        : enemies.bosses[act] || []
+      ).filter((boss) => earlyEnemyAllowed(boss.className, params)),
     },
     thronePos,
     adjustedLevelRange,
@@ -504,6 +532,27 @@ function filterByBiome(pool, biome) {
   if (!biome) return pool;
   const biomeMatches = pool.filter((t) => getTemplateBiome(t) === biome);
   return biomeMatches.length > 0 ? biomeMatches : pool;
+}
+
+// Elite seize battles hold a captain, not the act's boss (playtest 2026-09-28: a
+// mid-act elite fielded Act III's Blade Lord at L17, and the same boss could wait at
+// the act's end). Captains come from enemies.elites.<act> and are scaled to the node:
+// the top of its enemy level range plus two (Act I: plus none), a promoted class
+// that many levels past promotion. They still hold the throne as the map's boss
+// (isBoss: boss bonus, bar, AI), with no boss card or lines (those need scene.isBoss).
+const ELITE_CAPTAIN_LEVEL_OFFSET = { act1: 0 };
+const ELITE_CAPTAIN_DEFAULT_OFFSET = 2;
+
+export function eliteCaptains(enemies, act, levelRange, classes = []) {
+  const list = enemies?.elites?.[act];
+  if (!Array.isArray(list) || !list.length) return enemies?.bosses?.[act] || [];
+  const top = Math.max(1, Math.trunc(Number(levelRange?.[1]) || 1));
+  const offset = ELITE_CAPTAIN_LEVEL_OFFSET[act] ?? ELITE_CAPTAIN_DEFAULT_OFFSET;
+  return list.map((entry) => {
+    const promoted = classes.find((c) => c.name === entry.className)?.tier === 'promoted';
+    const level = Math.max(1, top + offset - (promoted ? RECRUIT_PROMOTION_BASE_LEVEL : 0));
+    return { className: entry.className, name: entry.name, level };
+  });
 }
 
 export function pickTemplate(objective, mapTemplates, act = null, options = {}) {
@@ -2129,7 +2178,9 @@ export function rollEnemyCount({
   const [minOff, maxOff] = offset;
   const scaledDeployment =
     act === 'act1' && deployCountCap > 0 ? Math.min(deployCount, deployCountCap) : deployCount;
-  const base = enemyCountBase > 0 ? enemyCountBase : scaledDeployment;
+  // A difficulty's base is a floor, never a replacement: a bigger army still meets
+  // more enemies, so a harder rung never fields fewer than an easier one.
+  const base = Math.max(Math.trunc(enemyCountBase) || 0, scaledDeployment);
   const count =
     base + minOff + Math.floor(Math.random() * (maxOff - minOff + 1)) + Math.trunc(enemyCountBonus);
 

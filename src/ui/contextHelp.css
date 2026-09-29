@@ -8,7 +8,12 @@ html .re-help.re-compact-menu.re-screen {
   height: fit-content;
   max-height: min(410px, 100%);
 }
+/* The body's height is its text (flex-basis auto), shrinking to scroll once the
+   dialog reaches its cap. The kit's `flex: 1` (basis 0%) let WebKit size the
+   fit-content dialog as if the body were empty: on iPhone the pop-up showed only
+   its header and scroll arrows. */
 .re-help .re-menu-body {
+  flex: 0 1 auto;
   gap: 12px;
   padding: 2px 2px 4px;
   font: 14px/1.45 var(--re-body);
@@ -149,6 +154,17 @@ html .re-help.re-compact-menu.re-screen {
   min-width: var(--re-tap);
   padding-inline: var(--re-s2);
   color: var(--re-accent-text);
+}
+/* Upright, a phone has room for the longer answers: the dialog still hugs short
+   text but may grow to the screen inside the notch and home bar, rather than
+   scrolling in a landscape-sized 410px box. */
+@media (orientation: portrait) {
+  html.portrait-ui .re-help.re-compact-menu.re-screen {
+    max-height: calc(
+      100dvh - max(var(--re-s3, 12px), env(safe-area-inset-top)) -
+        max(var(--re-s3, 12px), env(safe-area-inset-bottom))
+    );
+  }
 }
 @media (max-height: 420px) {
   .re-help .re-menu-body {

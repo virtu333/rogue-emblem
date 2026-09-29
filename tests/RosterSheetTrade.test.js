@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 vi.mock('../src/ui/serviceSave.js', () => ({ saveServiceRun: vi.fn(() => '') }));
 
-import { installFakeDom } from './helpers/fakeDom.js';
+import { FakeEvent, installFakeDom } from './helpers/fakeDom.js';
 import { loadGameData } from './testData.js';
 import { MobileRosterSheet } from '../src/ui/MobileRosterSheet.js';
 import { TradeMenu } from '../src/ui/TradeMenu.js';
@@ -112,6 +112,18 @@ const row = (root, side, index) =>
     .querySelectorAll('.tm-row')
     .find((el) => el.dataset.side === side && el.dataset.index === String(index));
 const tmStatus = (root) => root.querySelector('.tm-status').textContent;
+/** Where DOM focus is, as a string (a failed toBe on DOM nodes would print the whole tree). */
+const focusedAt = (root) => {
+  const el = document.activeElement;
+  if (el === root) return 'dialog';
+  return el?.dataset?.side ? `${el.dataset.side}:${el.dataset.index}` : String(el?.tagName);
+};
+const pressed = (root) =>
+  root
+    .querySelectorAll('.tm-row')
+    .filter((el) => el.getAttribute('aria-pressed') === 'true')
+    .map((el) => `${el.dataset.side}:${el.dataset.index}`);
+const key = (name) => document.activeElement.dispatchEvent(new FakeEvent('keydown', { key: name }));
 
 beforeEach(() => {
   installFakeDom(vi);
@@ -182,6 +194,22 @@ describe('roster sheet: Trade… on an item card', () => {
     sheet.destroy();
   });
 
+  it("opens with nothing held; the hidden cursor starts on the card's item", async () => {
+    const { sheet } = setup();
+    press(card(sheet, 'B3'), 'Trade…');
+    await pickPartner(sheet, 'Brom');
+    const root = tm(sheet);
+    expect(pressed(root)).toEqual([]);
+    expect(tmStatus(root)).toBe('Choose an item to trade.');
+    expect(focusedAt(root)).toBe('dialog');
+    // The first key shows the cursor on B3 (slot 3) without holding it.
+    key('ArrowDown');
+    expect(focusedAt(root)).toBe('left:2');
+    expect(pressed(root)).toEqual([]);
+    expect(saveServiceRun).not.toHaveBeenCalled();
+    sheet.destroy();
+  });
+
   it('full–full: each swap lands in both bags and is saved once', async () => {
     const { sheet, archer, fighter } = setup();
     const [b1, b2, b3, b4, b5] = archer.inventory;
@@ -189,7 +217,8 @@ describe('roster sheet: Trade… on an item card', () => {
     press(card(sheet, 'B3'), 'Trade…');
     await pickPartner(sheet, 'Brom');
     let root = tm(sheet);
-    expect(row(root, 'left', 2).getAttribute('aria-pressed')).toBe('true');
+    row(root, 'left', 2).click();
+    expect(pressed(root)).toEqual(['left:2']);
     expect(tmStatus(root)).toBe("Holding B3. Brom can't wield B3. Choose where it goes.");
     expect(saveServiceRun).not.toHaveBeenCalled();
 
@@ -238,6 +267,8 @@ describe('roster sheet: Trade… on an item card', () => {
       .querySelectorAll('.tm-tab')
       .find((t) => t.getAttribute('aria-selected') === 'true');
     expect(selected.textContent).toBe('Supplies 1/3 · 0/3');
+    expect(pressed(root)).toEqual([]);
+    row(root, 'left', 0).click();
     row(root, 'right', 0).click();
     expect(archer.consumables).toEqual([]);
     expect(fighter.consumables).toEqual([potion]);
@@ -271,6 +302,7 @@ describe('roster sheet: Trade… on an item card', () => {
     press(card(sheet, 'B3'), 'Trade…');
     await pickPartner(sheet, 'Brom');
     const root = tm(sheet);
+    row(root, 'left', 2).click();
     row(root, 'right', 0).click();
     expect(persist).toHaveBeenCalledTimes(1);
     expect(saveServiceRun).not.toHaveBeenCalled();
@@ -348,8 +380,13 @@ describe('roster sheet: convoy tab', () => {
     const c2 = fill[1];
     press(card(sheet, 'C2'), 'Trade…');
     const root = tm(sheet);
-    // Held on the convoy side: C2 is the live convoy item (the card shows a clone).
-    expect(row(root, 'right', 1).getAttribute('aria-pressed')).toBe('true');
+    // Nothing held on open; the hidden cursor is on C2 (the card shows a clone).
+    expect(pressed(root)).toEqual([]);
+    key('Enter');
+    expect(focusedAt(root)).toBe('right:1');
+    expect(pressed(root)).toEqual([]);
+    row(root, 'right', 1).click();
+    expect(pressed(root)).toEqual(['right:1']);
     // Both sides full: only a swap can land. Swap C2 for B4.
     row(root, 'left', 3).click();
     expect(archer.inventory).toEqual([b1, b2, b3, c2, b5]);
@@ -373,7 +410,9 @@ describe('roster sheet: convoy tab (an item without a uid)', () => {
     const b2 = archer.inventory[1];
     press(card(sheet, 'Old Bow'), 'Trade…');
     const root = tm(sheet);
-    expect(row(root, 'right', 0).getAttribute('aria-pressed')).toBe('true');
+    expect(pressed(root)).toEqual([]);
+    row(root, 'right', 0).click();
+    expect(pressed(root)).toEqual(['right:0']);
     row(root, 'left', 1).click();
     expect(archer.inventory[1]).toBe(plain);
     expect(run.convoy.weapons).toEqual([b2]);
@@ -415,6 +454,8 @@ describe('roster sheet: accessory Trade…', () => {
       .querySelectorAll('.tm-tab')
       .find((t) => t.getAttribute('aria-selected') === 'true');
     expect(selected.textContent).toBe('Accessory');
+    expect(pressed(root)).toEqual([]);
+    row(root, 'left', 0).click();
     row(root, 'right', 0).click();
     expect(archer.accessory).toBe(ringItem);
     expect(fighter.accessory).toBe(robe);
@@ -423,6 +464,63 @@ describe('roster sheet: accessory Trade…', () => {
     // Brom: ring off, robe on: 35 max, current +5.
     expect([fighter.stats.HP, fighter.currentHP, fighter.stats.STR]).toEqual([35, 35, fighterSTR]);
     expect(saveServiceRun).toHaveBeenCalledTimes(1);
+    sheet.destroy();
+  });
+});
+
+describe('roster sheet: reorder in the trade menu', () => {
+  it('two taps in a unit column swap places; slot 1 is equipped; each change is saved once', async () => {
+    const { sheet, archer, fighter } = setup();
+    const [b1, b2, b3, b4, b5] = archer.inventory;
+    press(sheet.root, 'Trade with…');
+    await pickPartner(sheet, 'Brom');
+    const root = tm(sheet);
+    row(root, 'left', 2).click();
+    expect(row(root, 'left', 0).getAttribute('aria-label')).toBe('Equip B3');
+    row(root, 'left', 0).click();
+    expect(archer.inventory).toEqual([b3, b2, b1, b4, b5]);
+    expect(archer.weapon).toBe(b3);
+    expect(tmStatus(root)).toBe('B3 is now equipped.');
+    expect(saveServiceRun).toHaveBeenCalledTimes(1);
+    // Order only, further down the bag.
+    row(root, 'left', 1).click();
+    row(root, 'left', 4).click();
+    expect(archer.inventory).toEqual([b3, b5, b1, b4, b2]);
+    expect(archer.weapon).toBe(b3);
+    expect(tmStatus(root)).toBe('Swapped B2 and B5.');
+    expect(saveServiceRun).toHaveBeenCalledTimes(2);
+    // An axe (after a trade) can't be moved into Daska's slot 1: refused, not saved.
+    const a2 = fighter.inventory[1];
+    row(root, 'left', 3).click();
+    row(root, 'right', 1).click();
+    expect(archer.inventory[3]).toBe(a2);
+    expect(saveServiceRun).toHaveBeenCalledTimes(3);
+    row(root, 'left', 3).click();
+    expect(row(root, 'left', 0).getAttribute('aria-disabled')).toBe('true');
+    row(root, 'left', 0).click();
+    expect(tmStatus(root)).toBe("Daska can't wield A2.");
+    expect(archer.inventory[0]).toBe(b3);
+    expect(saveServiceRun).toHaveBeenCalledTimes(3);
+    press(root, 'Done');
+    await Promise.resolve();
+    expect(sheet.root.querySelector('.mr-status').textContent).toBe(
+      "Traded B4 for A2. Brom can't wield B4. Daska can't wield A2.",
+    );
+    sheet.destroy();
+  });
+
+  it('the convoy column never reorders the convoy', () => {
+    const { sheet, run } = setup();
+    run.convoy.weapons = bows('C1', 'C2');
+    sheet.tab = 'convoy';
+    sheet.render();
+    press(card(sheet, 'C1'), 'Trade…');
+    const root = tm(sheet);
+    row(root, 'right', 0).click();
+    row(root, 'right', 1).click();
+    expect(pressed(root)).toEqual(['right:1']);
+    expect(names(run.convoy.weapons)).toEqual(['C1', 'C2']);
+    expect(saveServiceRun).not.toHaveBeenCalled();
     sheet.destroy();
   });
 });

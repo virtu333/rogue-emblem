@@ -1,4 +1,5 @@
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
+import { revealSettledVision } from './BattleActionCompletion.js';
 import { findBattleEntity, isBattleEntityId } from '../engine/BattleEntityIdentity.js';
 import { readActionContinuation } from '../engine/ActionContinuation.js';
 import { LevelUpPopup } from './LevelUpPopup.js';
@@ -126,5 +127,6 @@ export function completeResolvedAction(scene, continuation) {
       ...(scene._timelineFacts || []),
       "Commander's Gambit refreshed nearby allies.",
     ];
+  revealSettledVision(scene);
   scene._captureSuspendCheckpoint?.();
 }

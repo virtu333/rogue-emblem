@@ -1,4 +1,5 @@
 // Core game constants — derived from GDD
+import { ENEMY_ACT_GATE_ORDER, isDifficultyAtLeast } from '../engine/DifficultyEngine.js';
 
 export const TILE_SIZE = 32;
 export const PORTRAIT_SIZE = 128;
@@ -62,14 +63,15 @@ export const XP_MIN = 1;
 export const XP_DEFEND_SURVIVE = XP_MIN;
 export const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 
-// Deploy limits by act
+// Deploy limits by act. Deploy bonuses (Tactical Advantage, Scout Blessing) raise the
+// max only (resolveDeployLimits), so a battle deploys at most max + 2 units.
 export const DEPLOY_LIMITS = {
   act1: { min: 3, max: 4 },
   act2: { min: 4, max: 5 },
-  act3: { min: 5, max: 6 },
-  act4: { min: 6, max: 6 },
-  postAct: { min: 4, max: 6 },
-  finalBoss: { min: 4, max: 6 },
+  act3: { min: 5, max: 7 },
+  act4: { min: 5, max: 8 },
+  postAct: { min: 5, max: 8 },
+  finalBoss: { min: 5, max: 8 },
 };
 
 // Enemy count = deployCount + roll(min, max)
@@ -141,7 +143,7 @@ export const BOSS_RECRUIT_LORD_CHANCE = 0.25; // 25% chance one slot is a lord
 export const BOSS_RECRUIT_COUNT = 3;
 export const RECRUIT_NODE_LORD_CHANCE = 0.15; // 15% chance recruit node NPC is a lord
 export const BOSS_RECRUIT_PROMOTION_CHANCE_BASE = 0.7;
-export const NODE_RECRUIT_PROMOTION_CHANCE_BASE = 0.4;
+export const NODE_RECRUIT_PROMOTION_CHANCE_BASE = 0.65;
 export const RECRUIT_PROMOTION_CHANCE_CAP = 0.95;
 
 // Act sequence and config for node map
@@ -175,7 +177,6 @@ export const NODE_GOLD_MULTIPLIER = {
   ruins: 0, // No combat
   colosseum: 0, // No standard combat
 };
-export const ROSTER_CAP = 12;
 
 // Gold economy
 export const STARTING_GOLD = 200;
@@ -194,7 +195,10 @@ export const GOLD_LOOT_REWARD_MULTIPLIER = 1.2;
 export const GOLD_PAR_BONUS_MULTIPLIER = 2.5;
 export const GOLD_SKIP_LOOT_MULTIPLIER = 1.5;
 export const SHOP_SELL_RATIO = 0.5;
-export const CHURCH_PROMOTE_COST = 3500;
+// Church promotion: lords pay the old price, every other unit less (playtest
+// 2026-09-29: recruits were too weak next to lords). ChurchCommands.churchPromoteCost.
+export const CHURCH_PROMOTE_COST_LORD = 3500;
+export const CHURCH_PROMOTE_COST_RECRUIT = 2000;
 export const REVIVE_BASE_COST = 500;
 export const REVIVE_COST_PER_LEVEL = 300;
 export const REVIVE_PROMOTION_MULTIPLIER = 2.5;
@@ -218,6 +222,8 @@ export const RUINS_SHOP_ITEM_COUNT_FINAL = { min: 8, max: 10 };
 export const RUINS_SHOP_MARKUP = 1.25;
 // The Ruins offer one of two paths per visit: rest (heal, revive) or scavenge (wares).
 export const RUINS_PATHS = Object.freeze(['rest', 'scavenge']);
+// A church's one vow per visit: a promotion, or a minor blessing (ChurchVow.js).
+export const CHURCH_VOWS = Object.freeze(['promote', 'blessing']);
 export const INVENTORY_MAX = 5; // Combat weapons + staves only
 export const CONSUMABLE_MAX = 3; // Separate consumables array
 export const CONVOY_WEAPON_CAPACITY = 20;
@@ -247,6 +253,10 @@ export const FORGE_COSTS = {
   hit: [250, 500, 900, 1500, 2400],
   weight: [250, 500, 900, 1500, 2400],
 };
+// Forging a better weapon costs more (playtest 2026-09-28: legends cost nothing to
+// buy, so at one flat price they were the best forge value). Rare and unlisted tiers
+// pay the base price. getForgeCost rounds to the nearest 10 gold.
+export const FORGE_TIER_COST_MULTIPLIER = { Iron: 0.6, Steel: 1, Silver: 1.5, Legend: 2 };
 export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, act4: 5, finalBoss: 0 };
 
 // Dual currency economy (Valor = lord-focused, Supply = army-focused)
@@ -281,6 +291,8 @@ export const STATUS_CONDITIONS = {
   acid: { maxTurns: 3, recoveryChance: 0, wakesOnDamage: false },
   // Root: unit may act but not move (weapon-art inflicted; no staff applies it)
   root: { maxTurns: 2, recoveryChance: 0, wakesOnDamage: false },
+  // Wounded: recovers no HP except from a staff (enemy Grievous hits inflict it)
+  wounded: { maxTurns: 2, recoveryChance: 0, wakesOnDamage: false },
 };
 export const STATUS_HIT_MIN = 15;
 export const STATUS_HIT_MAX = 90;
@@ -327,13 +339,38 @@ export const DARK_CLASSES = new Set([
   'Entity',
 ]);
 
-export function filterClassPoolByDifficulty(classPool, difficultyMode) {
-  if (difficultyMode === 'hard' || difficultyMode === 'lunatic') return classPool;
-  return classPool.filter((name) => !DIFFICULTY_GATED_CLASSES.has(name));
+/** True when `act` is `earliestAct` or later; an unknown act never qualifies. */
+export function isActAtOrAfter(act, earliestAct) {
+  const current = ENEMY_ACT_GATE_ORDER.indexOf(act);
+  const required = ENEMY_ACT_GATE_ORDER.indexOf(earliestAct);
+  return current !== -1 && required !== -1 && current >= required;
 }
 
-// Deadly Arsenal tier 1: the commander's Steel-slot weapon is replaced by the
-// signature weapon of their primary proficiency (tier 2 adds the silver weapon).
+/**
+ * The enemy classes a battle, reinforcement or arena challenger may draw on this
+ * rung. First Light never sees DIFFICULTY_GATED_CLASSES. Dusk and harder do (Act IV's
+ * pools are built on them), except that a mode's `enemyClassEarliestAct`
+ * (difficulty.json) holds a class back until an act: Dusk meets Dragons in Act IV.
+ * A gated class is dropped when the act is unknown.
+ * @param {string[]} classPool
+ * @param {string} difficultyMode
+ * @param {{ act?: string, difficulty?: object }} [options] the battle's act and the
+ *   difficulty.json root (`gameData.difficulty`)
+ */
+export function filterClassPoolByDifficulty(classPool, difficultyMode, options = {}) {
+  if (!isDifficultyAtLeast(difficultyMode, 'dusk')) {
+    return classPool.filter((name) => !DIFFICULTY_GATED_CLASSES.has(name));
+  }
+  const modeId = String(difficultyMode).toLowerCase();
+  const earliest = options?.difficulty?.modes?.[modeId]?.enemyClassEarliestAct;
+  if (!earliest || typeof earliest !== 'object') return classPool;
+  return classPool.filter((name) => !earliest[name] || isActAtOrAfter(options.act, earliest[name]));
+}
+
+// Deadly Arsenal tier 1: the commander's Steel-slot weapon is replaced by their
+// personal weapon (weapons.json `signatureOf`, engine/SignatureWeapons.js); a lord
+// without one gets the signature weapon of their primary proficiency from this
+// table (tier 2 adds the silver weapon).
 export const DEADLY_ARSENAL_SIGNATURE_WEAPONS = {
   Sword: 'Rapier',
   Lance: 'Horsebane',

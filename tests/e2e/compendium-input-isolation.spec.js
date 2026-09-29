@@ -11,7 +11,15 @@ for (const width of [667, 844]) {
       await page.setViewportSize({ width, height: 375 });
       const errors = [];
       page.on('pageerror', (e) => errors.push(e.message));
-      await page.addInitScript(() => localStorage.setItem('emblem_rogue_slot_1_meta', '{}'));
+      // A save that has met every lord (a new one lists Edric and Sera only).
+      await page.addInitScript(() =>
+        localStorage.setItem(
+          'emblem_rogue_slot_1_meta',
+          JSON.stringify({
+            lordsMet: ['Edric', 'Kira', 'Voss', 'Sera', 'Rowan', 'Astrid', 'Cael'],
+          }),
+        ),
+      );
       await page.goto('/?devScene=title&mobilePreview=1');
       await waitForScene(page, 'Title');
       const press = async (target, options) =>

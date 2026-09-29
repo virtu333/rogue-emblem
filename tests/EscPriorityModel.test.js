@@ -253,7 +253,7 @@ describe('ESC priority model', () => {
     pause.show();
     scene.pauseOverlay = pause;
 
-    const mapBtn = pause.objects.find((obj) => obj.text === 'Campaign Map');
+    const mapBtn = pause.objects.find((obj) => obj.text === 'View Campaign Map');
     mapBtn.handlers.pointerdown();
     expect(pause.campaignMapOverlay?.visible).toBe(true);
 
@@ -291,7 +291,7 @@ describe('ESC priority model', () => {
     pause.show();
     scene.pauseOverlay = pause;
 
-    const mapBtn = pause.objects.find((obj) => obj.text === 'Campaign Map');
+    const mapBtn = pause.objects.find((obj) => obj.text === 'View Campaign Map');
     mapBtn.handlers.pointerdown();
     expect(pause.campaignMapOverlay?.visible).toBe(true);
 
@@ -482,13 +482,13 @@ describe('ESC priority model', () => {
     const skills = [
       {
         id: 'pavise',
-        name: 'Pavise',
+        name: 'Shieldwall',
         description: 'Halve physical damage sometimes.',
         classInnate: 'General',
       },
       {
         id: 'armored_blow',
-        name: 'Armored Blow',
+        name: 'Iron Advance',
         description: 'Initiating grants +4 DEF.',
         classInnate: 'Great Knight',
       },

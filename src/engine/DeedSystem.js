@@ -13,9 +13,12 @@
 //  - `unit._battleDeeds` — battle scratch (plain JSON on the unit). Vision
 //    rewind and suspend restore it with the unit; `serializeUnit` strips it,
 //    so an abandoned battle ("Continue from Map") leaves nothing behind.
-//  - `unit.deeds` — `{ stats, earned, epithet, oath?, lastBattle? }`, run
-//    state, written only by `commitBattleDeeds` at victory (before the save)
-//    and by `applyPromotionOath`. Legacy units without it read as empty.
+//  - `unit.deeds` — `{ stats, earned, epithet, oath?, lastBattle?, chosenTitle?,
+//    pledge? }`, run state, written by `commitBattleDeeds` at victory (before
+//    the save), `applyPromotionOath`, and the player's choices: `chooseTitle`
+//    (the displayed title: a deed id, 'none', or unset for the greatest deed) and
+//    `pledgeOath` (the deed whose Oath the next promotion swears). Legacy units
+//    without it read as empty.
 //  - `enemy._slewAllies` — names of player units an enemy killed this battle
 //    (for the Avenger deed); it lives and rolls back with the enemy.
 //
@@ -23,6 +26,7 @@
 // `unitDisplayName` / `titledName` / `sentenceName`.
 
 import { getXpEffectiveLevel, learnSkill } from './UnitManager.js';
+import { MAX_SKILLS } from '../utils/constants.js';
 import { DEED_FORMS, titledName, unitEpithet } from './DeedTitles.js';
 
 // Display helpers live in DeedTitles (dependency-free); re-exported here.
@@ -183,7 +187,7 @@ export function recordCombat(result, attacker, defender, ctx = {}) {
       miracle.add(target);
   }
   // Brink: a wounded unit that ends the exchange on its last hit point (or
-  // was held up by Miracle). Starting at 1 HP and not being hit does not count.
+  // was held up by Reprieve). Starting at 1 HP and not being hit does not count.
   for (const unit of [attacker, defender]) {
     if (!isDeedUnit(unit) || !(Number(unit.currentHP) > 0)) continue;
     if (miracle.has(unit) || (woundedNow.has(unit) && Number(unit.currentHP) === 1))
@@ -334,9 +338,28 @@ export function sanitizeUnitDeeds(raw) {
     seen.add(clean.id);
     earned.push(clean);
   }
-  const out = { stats, earned, epithet: pickEpithet(earned) };
+  const out = { stats, earned };
+  // The player's title choice survives only while it still names an earned deed.
+  if (raw.chosenTitle === TITLE_NONE || seen.has(raw.chosenTitle))
+    out.chosenTitle = raw.chosenTitle;
+  out.epithet = pickEpithet(earned, out.chosenTitle);
+  if (typeof raw.pledge === 'string' && seen.has(raw.pledge)) out.pledge = raw.pledge;
   if (typeof raw.lastBattle === 'string' && raw.lastBattle)
     out.lastBattle = raw.lastBattle.slice(0, 160);
+  if (raw.oathReleased === true && !isObject(raw.oath)) out.oathReleased = true;
+  const waiting = raw.waitingOath;
+  if (
+    !isObject(raw.oath) &&
+    isObject(waiting) &&
+    typeof waiting.skillId === 'string' &&
+    typeof waiting.deedId === 'string'
+  )
+    out.waitingOath = {
+      deedId: waiting.deedId.slice(0, 64),
+      skillId: waiting.skillId.slice(0, 64),
+      name: typeof waiting.name === 'string' ? waiting.name.slice(0, 80) : '',
+      className: typeof waiting.className === 'string' ? waiting.className.slice(0, 80) : '',
+    };
   const oath = raw.oath;
   if (isObject(oath) && typeof oath.skillId === 'string' && typeof oath.deedId === 'string') {
     out.oath = {
@@ -415,11 +438,18 @@ export function deedsForDisplay(unit, deedsData) {
     });
 }
 
+/** `chosenTitle` value for a unit who goes by name alone. */
+export const TITLE_NONE = 'none';
+
 /**
- * The displayed title: highest prestige; ties go to the most recent deed.
+ * The displayed title: the player's choice (`chosen`: an earned deed's id, or
+ * TITLE_NONE for none), else the highest prestige, ties to the most recent deed.
  * @returns {{id, text, form} | null}
  */
-export function pickEpithet(earned) {
+export function pickEpithet(earned, chosen = null) {
+  if (chosen === TITLE_NONE) return null;
+  const pick = chosen && (Array.isArray(earned) ? earned : []).find((e) => e?.id === chosen);
+  if (pick?.epithet) return { id: pick.id, text: pick.epithet, form: pick.form };
   let best = null;
   for (const entry of Array.isArray(earned) ? earned : []) {
     if (!entry?.epithet) continue;
@@ -537,6 +567,11 @@ function resolveTokens(text, tokens) {
     .trim();
 }
 
+/** A deed's title as the Compendium shows it, tokens in their plain form ("Who Held the Line"). */
+export function deedTitleExample(deed) {
+  return resolveTokens(deed?.epithet?.text, {});
+}
+
 function mergeRunStats(stats, battle) {
   for (const key of RUN_SUM_KEYS) {
     const n = count(stats[key]) + count(battle[key]);
@@ -611,7 +646,7 @@ export function commitBattleDeeds(units, deedsData, ctx = {}) {
       fresh.push({ entry, deed });
     }
     if (ctx.battleKey) state.lastBattle = String(ctx.battleKey).slice(0, 160);
-    state.epithet = pickEpithet(state.earned);
+    state.epithet = pickEpithet(state.earned, state.chosenTitle);
     unit.deeds = state;
     delete unit._battleDeeds;
     for (const { entry, deed } of fresh) {
@@ -637,54 +672,129 @@ export function commitBattleDeeds(units, deedsData, ctx = {}) {
 // ── Oaths ────────────────────────────────────────────────────────────────
 
 /**
- * The Oath a promotion would swear: the highest-prestige earned deed (ties:
- * most recent) whose oath skill exists and the unit does not already know.
- * Units swear one Oath per run.
- * @returns {null | {deedId, deedName, skillId, skillName, skillDescription, name}}
+ * Every Oath the unit could swear on its promotion, the pledged one first, then by
+ * prestige (ties: most recent): earned deeds whose oath skill exists and the unit
+ * does not already know, one per skill. Empty once an Oath is sworn (one per run).
+ * @returns {{deedId, deedName, skillId, skillName, skillDescription, name, pledged, prestige,
+ *   seq}[]}
  */
-export function promotionOath(unit, deedsData, skillsData = []) {
-  if (!isDeedUnit(unit) || unit.deeds?.oath) return null;
+export function promotionOathCandidates(unit, deedsData, skillsData = []) {
+  const deeds = unit?.deeds;
+  if (!isDeedUnit(unit) || deeds?.oath || deeds?.waitingOath || deeds?.oathReleased) return [];
   const defs = new Map((deedsData?.deeds || []).map((d) => [d?.id, d]));
-  const earned = [...earnedDeeds(unit)].sort((a, b) => b.prestige - a.prestige || b.seq - a.seq);
+  const pledge = unit.deeds?.pledge;
+  const earned = [...earnedDeeds(unit)].sort(
+    (a, b) => (b.id === pledge) - (a.id === pledge) || b.prestige - a.prestige || b.seq - a.seq,
+  );
   const known = new Set(Array.isArray(unit.skills) ? unit.skills : []);
+  const out = [];
   for (const entry of earned) {
     const def = defs.get(entry.id);
     const skillId = def?.oathSkill;
     if (typeof skillId !== 'string' || known.has(skillId)) continue;
     const skill = (skillsData || []).find((s) => s?.id === skillId);
     if (!skill) continue;
-    return {
+    known.add(skillId);
+    out.push({
       deedId: entry.id,
       deedName: typeof def.name === 'string' ? def.name : entry.id,
       skillId,
       skillName: skill.name || skillId,
       skillDescription: skill.description || '',
       name: entry.oath || (def.oathName ? resolveTokens(def.oathName, {}) : `Oath of ${def.name}`),
-    };
+      pledged: entry.id === pledge,
+      prestige: entry.prestige,
+      seq: entry.seq,
+    });
   }
-  return null;
+  return out;
+}
+
+/** Oath options in a stable order for a picker (greatest first), whatever is pledged. */
+export function oathOptionsInOrder(candidates) {
+  return [...(candidates || [])].sort((a, b) => b.prestige - a.prestige || b.seq - a.seq);
+}
+
+/**
+ * The Oath a promotion would swear: the pledged deed's (see `pledgeOath`), else
+ * the highest-prestige candidate. Units swear one Oath per run.
+ * @returns {null | {deedId, deedName, skillId, skillName, skillDescription, name, pledged}}
+ */
+export function promotionOath(unit, deedsData, skillsData = []) {
+  return promotionOathCandidates(unit, deedsData, skillsData)[0] || null;
+}
+
+/**
+ * The player picks which earned deed's Oath the next promotion swears (null clears
+ * the pledge, back to the greatest deed). Refused once an Oath is sworn or for a
+ * deed the unit has not earned. Returns whether the pledge changed.
+ */
+export function pledgeOath(unit, deedId) {
+  if (!isDeedUnit(unit) || unit.deeds?.oath) return false;
+  const state = sanitizeUnitDeeds(unit.deeds);
+  if (!state) return false;
+  if (deedId == null) {
+    if (!state.pledge) return false;
+    delete state.pledge;
+  } else {
+    if (!state.earned.some((e) => e.id === deedId) || state.pledge === deedId) return false;
+    state.pledge = deedId;
+  }
+  unit.deeds = state;
+  return true;
+}
+
+/**
+ * The player picks the title a unit goes by: an earned deed's id, TITLE_NONE, or
+ * null for the greatest deed (the default). Returns whether the title changed.
+ */
+export function chooseTitle(unit, deedId) {
+  if (!isDeedUnit(unit)) return false;
+  const state = sanitizeUnitDeeds(unit.deeds);
+  if (!state) return false;
+  if (deedId != null && deedId !== TITLE_NONE && !state.earned.some((e) => e.id === deedId))
+    return false;
+  const before = state.chosenTitle ?? null;
+  if (before === (deedId ?? null)) return false;
+  if (deedId == null) delete state.chosenTitle;
+  else state.chosenTitle = deedId;
+  state.epithet = pickEpithet(state.earned, state.chosenTitle);
+  unit.deeds = state;
+  return true;
 }
 
 /**
  * Swear the Oath on a player promotion (battle seal, church, roster seal).
  * Call right after promoteUnit so class innates count as known. Silent
  * engine promotions (recruit spawns, colosseum, boss recruits) never call it.
- * @returns {null | {..., learned: boolean, dropped: boolean}}
+ * @returns {null | {..., learned: boolean, benched: boolean}}
  */
 export function applyPromotionOath(unit, gameData = {}) {
   const oath = promotionOath(unit, gameData.deeds, gameData.skills);
   if (!oath) return null;
   if (!Array.isArray(unit.skills)) unit.skills = [];
   const result = learnSkill(unit, oath.skillId);
-  if (result.learned) {
-    const state = sanitizeUnitDeeds(unit.deeds) || freshDeeds(unit);
-    state.oath = {
-      deedId: oath.deedId,
-      skillId: oath.skillId,
-      name: oath.name,
-      className: typeof unit.className === 'string' ? unit.className : '',
-    };
+  const record = {
+    deedId: oath.deedId,
+    skillId: oath.skillId,
+    name: oath.name,
+    className: typeof unit.className === 'string' ? unit.className : '',
+  };
+  const state = sanitizeUnitDeeds(unit.deeds) || freshDeeds(unit);
+  delete state.pledge;
+  if (result.learned || result.benched) {
+    delete state.waitingOath;
+    state.oath = record;
     unit.deeds = state;
+    // Every slot full: sworn all the same, and kept on the bench (SkillLoadout).
+    return { ...oath, learned: result.learned === true, benched: result.benched === true };
   }
-  return { ...oath, learned: result.learned === true, dropped: result.reason === 'at_cap' };
+  unit.deeds = state;
+  return { ...oath, learned: false, benched: false };
+}
+
+/** The line a promotion shows when its Oath is sworn onto the bench (slots full). */
+export function oathBenchedNote(unit, oath) {
+  const who = typeof unit?.name === 'string' && unit.name ? unit.name : 'this unit';
+  return `${oath?.name || 'The Oath'}: ${oath?.skillName || 'its skill'} is on ${who}'s bench (all ${MAX_SKILLS} skill slots are full). Swap it in from Skills.`;
 }

@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import dialogue from '../data/dialogue.json';
 import {
   KNOWN_WHEN_KEYS,
   buildNarrativeContext,
   evaluateWhen,
+  pickPoolEntry,
+  narrativeLineKey,
   selectDialogueEntries,
 } from '../src/engine/NarrativeDirector.js';
 
@@ -129,6 +132,7 @@ describe('buildNarrativeContext', () => {
       commanderTitled: null,
       partner: null,
       difficulty: 'normal',
+      runsStarted: 0,
       runsCompleted: 0,
       lastRunResult: 'none',
       lastRunAct: null,
@@ -138,6 +142,7 @@ describe('buildNarrativeContext', () => {
       bossSlainCount: 0,
       bossKilledYouCount: 0,
       firstClear: false,
+      linesPlayed: [],
     });
   });
 
@@ -169,6 +174,7 @@ describe('buildNarrativeContext', () => {
       commanderTitled: null,
       partner: 'Cael',
       difficulty: 'lunatic',
+      runsStarted: 0,
       runsCompleted: 7,
       lastRunResult: 'defeat',
       lastRunAct: null,
@@ -178,6 +184,7 @@ describe('buildNarrativeContext', () => {
       bossSlainCount: 3,
       bossKilledYouCount: 2,
       firstClear: true,
+      linesPlayed: [],
     });
   });
 
@@ -205,7 +212,133 @@ describe('KNOWN_WHEN_KEYS', () => {
       'lastRunAct',
       'lastRunDefeatedByKnown',
       'lastRunResult',
+      'maxRunsStarted',
       'minRunsCompleted',
+      'partner',
     ]);
+  });
+});
+
+describe('pools: one line per run, walked without repeats', () => {
+  const line = (text, when) => ({ speaker: 'Edric', line: text, ...(when ? { when } : {}) });
+  const general = Array.from({ length: 7 }, (_, i) => line(`general ${i}`));
+  const lost = [
+    line('lost a', { lastRunResult: 'defeat' }),
+    line('lost b', { lastRunResult: 'defeat' }),
+  ];
+  const run = (runsStarted, extra = {}) => ({
+    ...CTX,
+    lastRunResult: 'none',
+    runsStarted,
+    ...extra,
+  });
+
+  /** Play `count` runs in order, recording each line as NodeMapScene does. */
+  function playRuns(pool, count, ctxFor = (i) => run(i)) {
+    const played = [];
+    const picks = [];
+    for (let i = 0; i < count; i++) {
+      const picked = pickPoolEntry(pool, { ...ctxFor(i), linesPlayed: [...played] });
+      picks.push(picked.line);
+      played.push(picked.lineKey);
+    }
+    return { picks, played };
+  }
+
+  it('plays every general line once before any repeats, then laps in the same order', () => {
+    const { picks } = playRuns(general, 14);
+    expect(new Set(picks.slice(0, 7)).size).toBe(7);
+    expect(picks.slice(7)).toEqual(picks.slice(0, 7));
+  });
+
+  it('the same save state gives the same line (a reload replays it)', () => {
+    const { played } = playRuns(general, 3);
+    const ctx = { ...run(3), linesPlayed: played };
+    expect(pickPoolEntry(general, ctx)).toEqual(pickPoolEntry(general, ctx));
+  });
+
+  it('alternates contextual and general lines while the context holds', () => {
+    const pool = [...general, ...lost];
+    const { picks } = playRuns(pool, 14, (i) => run(i, { lastRunResult: 'defeat' }));
+    picks.forEach((text, i) =>
+      expect(text.startsWith(i % 2 === 0 ? 'lost' : 'general')).toBe(true),
+    );
+    // Both lost lines, all seven general lines.
+    expect(new Set(picks.filter((t) => t.startsWith('lost'))).size).toBe(2);
+    expect(new Set(picks.filter((t) => t.startsWith('general'))).size).toBe(7);
+    // Out of that context the lost lines never play.
+    expect(playRuns(pool, 14).picks.every((t) => t.startsWith('general'))).toBe(true);
+  });
+
+  it('a changing context never repeats a line before its set has all played', () => {
+    // Partner lines join and leave the set as the partner changes run to run.
+    const withSera = [line('sera a', { partner: 'Sera' }), line('sera b', { partner: 'Sera' })];
+    const pool = [...general, ...lost, ...withSera];
+    const contexts = [
+      { lastRunResult: 'defeat', partner: 'Sera' },
+      { lastRunResult: 'victory', partner: 'Voss' },
+      { lastRunResult: 'defeat', partner: 'Voss' },
+      { lastRunResult: 'victory', partner: 'Sera' },
+      { lastRunResult: 'defeat', partner: 'Sera' },
+      { lastRunResult: 'defeat', partner: 'Sera' },
+    ];
+    const { picks } = playRuns(pool, 12, (i) => run(i, contexts[i % contexts.length]));
+    // The 4 contextual lines (2 lost, 2 Sera) play before any of them repeats.
+    const contextual = picks.filter((t) => !t.startsWith('general'));
+    const firstRepeat = contextual.findIndex((t, k) => contextual.indexOf(t) !== k);
+    expect(firstRepeat === -1 || firstRepeat >= 4).toBe(true);
+    const generalPicks = picks.filter((t) => t.startsWith('general'));
+    expect(new Set(generalPicks).size).toBe(generalPicks.length);
+  });
+
+  it("the review case: a new result does not bring last run's commander line back", () => {
+    const section = dialogue.actTransitions.runStartCommander;
+    const ctx = {
+      commander: 'Edric',
+      partner: 'Sera',
+      runsCompleted: 1,
+      difficulty: 'normal',
+      lastRunResult: 'defeat',
+      runsStarted: 2,
+      linesPlayed: [],
+    };
+    const [a] = selectDialogueEntries(section, ctx);
+    const [b] = selectDialogueEntries(section, {
+      ...ctx,
+      runsStarted: 4,
+      runsCompleted: 3,
+      lastRunResult: 'victory',
+      linesPlayed: [a.lineKey],
+    });
+    expect(b.line).not.toBe(a.line);
+  });
+
+  it('strips the entry condition, names its key and leaves the source untouched', () => {
+    const picked = pickPoolEntry(lost, run(0, { lastRunResult: 'defeat' }));
+    expect(picked).toEqual({
+      speaker: 'Edric',
+      line: expect.stringMatching(/^lost/),
+      lineKey: narrativeLineKey(picked.line),
+    });
+    expect(lost[0].when).toEqual({ lastRunResult: 'defeat' });
+  });
+
+  it('a variant whose pool has no line for this context falls through', () => {
+    const section = {
+      base: [line('base')],
+      variants: [{ when: { commander: 'Kira' }, pool: lost }],
+    };
+    expect(selectDialogueEntries(section, run(0))).toEqual([line('base')]);
+    expect(selectDialogueEntries(section, run(0, { lastRunResult: 'defeat' }))[0].line).toMatch(
+      /^lost/,
+    );
+  });
+
+  it('matches the partner and counts runs from the save', () => {
+    expect(evaluateWhen({ partner: 'Voss' }, CTX)).toBe(true);
+    expect(evaluateWhen({ partner: 'Sera' }, CTX)).toBe(false);
+    expect(buildNarrativeContext({ meta: { getRunsStarted: () => 12 } }).runsStarted).toBe(12);
+    expect(buildNarrativeContext({ meta: { runsStarted: 3 } }).runsStarted).toBe(3);
+    expect(buildNarrativeContext().runsStarted).toBe(0);
   });
 });

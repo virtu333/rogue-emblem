@@ -1,9 +1,9 @@
 // Regression tests for the follow-up-wave combat fixes:
 // 1. Entity crit damage (1.5x multiplier) must be floored — fractional damage
 //    was leaving units at HP values like "33.5".
-// 2. Adept/Aether bonus strikes must still run on-defend skills and affixes
-//    (Pavise, Aegis, Miracle, Shielded, Thorns) — the old code passed a null
-//    strike context, so bonus strikes killed straight through Miracle.
+// 2. Flurry/Swallow bonus strikes must still run on-defend skills and affixes
+//    (Shieldwall, Spellward, Reprieve, Shielded, Thorns) — the old code passed a null
+//    strike context, so bonus strikes killed straight through Reprieve.
 // 3. getCombatForecast must clamp damage at zero BEFORE adding statScaling /
 //    vengeance bonuses, exactly like resolveCombat does — otherwise the
 //    forecast shows 0 where resolution actually deals damage.
@@ -71,24 +71,24 @@ describe('Entity crit damage flooring', () => {
   });
 });
 
-describe('Adept bonus strikes vs on-defend skills', () => {
+describe('Flurry bonus strikes vs on-defend skills', () => {
   function makeAdeptAttacker() {
     return makeUnit({
-      name: 'Adept Attacker',
+      name: 'Flurry Attacker',
       skills: ['adept'],
       faction: 'enemy',
-      // SPD 10 procs Adept (SPD% with mocked roll 0) without doubling vs SPD 6.
+      // SPD 10 procs Flurry (SPD% with mocked roll 0) without doubling vs SPD 6.
       stats: { HP: 30, STR: 10, MAG: 0, SKL: 0, SPD: 10, DEF: 5, RES: 5, LCK: 0, MOV: 4 },
       weapon: { ...ironSword, crit: 0 },
     });
   }
 
-  it('applies Pavise to the Adept bonus strike', () => {
+  it('applies Shieldwall to the Flurry bonus strike', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0); // hits land, all procs fire, crit 0
 
     const attacker = makeAdeptAttacker();
     const defender = makeUnit({
-      name: 'Pavise Defender',
+      name: 'Shieldwall Defender',
       skills: ['pavise'],
       weapon: null,
       col: 1,
@@ -106,12 +106,12 @@ describe('Adept bonus strikes vs on-defend skills', () => {
     const bonus = result.events.find((e) => e.adeptStrike);
     expect(bonus).toBeTruthy();
     expect(bonus.miss).toBe(false);
-    // Pavise halves physical damage on the bonus strike too.
+    // Shieldwall halves physical damage on the bonus strike too.
     expect(bonus.damage).toBe(Math.floor(fullDmg / 2));
     expect(bonus.skillActivations.some((a) => a.id === 'pavise')).toBe(true);
   });
 
-  it('lets Miracle save the defender from a lethal Adept bonus strike', () => {
+  it('lets Reprieve save the defender from a lethal Flurry bonus strike', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
 
     const attacker = makeAdeptAttacker();
@@ -120,7 +120,7 @@ describe('Adept bonus strikes vs on-defend skills', () => {
     const startHP = fullDmg + 3;
     expect(fullDmg).toBeGreaterThan(3);
     const defender = makeUnit({
-      name: 'Miracle Defender',
+      name: 'Reprieve Defender',
       skills: ['miracle'],
       weapon: null,
       col: 1,

@@ -7,6 +7,12 @@
 .tm-trade {
   --tm-tap: var(--re-tap);
 }
+/* The dialog holds focus while the cursor is hidden (on open, after a tap): it
+   takes keys but draws no ring. The first key or pad press focuses a row. */
+.tm-trade:focus,
+.tm-trade:focus-visible {
+  outline: none;
+}
 @media (pointer: fine) {
   .tm-trade {
     --tm-tap: 32px;
@@ -165,8 +171,10 @@ html .tm-trade.re-compact-menu.re-screen {
   font-style: italic;
   color: var(--re-muted);
 }
-/* Where the held item can go: a gilt edge on every open target. */
-.tm-trade .tm-row[data-state='commit']:not(.is-blocked) {
+/* Where the held item can go: a gilt edge on every open target (the other holder's
+   slots, and the other items of a unit's own bag it can swap places with). */
+.tm-trade .tm-row[data-state='commit']:not(.is-blocked),
+.tm-trade .tm-row[data-state='reorder']:not(.is-blocked) {
   border-color: var(--re-accent);
 }
 

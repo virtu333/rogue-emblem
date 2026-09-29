@@ -344,7 +344,6 @@ describe('MetaProgressionManager', () => {
   it('getActiveEffects returns capacity effects', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.deploy_limit = 1;
-    meta.purchasedUpgrades.roster_cap = 1;
     meta.purchasedUpgrades.vision_charges_2 = 1;
     meta.purchasedUpgrades.recruit_field_supplies = 1;
     meta.purchasedUpgrades.veteran_recruits = 3;
@@ -357,7 +356,7 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.recruit_xp = 1;
     const effects = meta.getActiveEffects();
     expect(effects.deployBonus).toBe(1);
-    expect(effects.rosterCapBonus).toBe(3);
+    expect(effects).not.toHaveProperty('rosterCapBonus');
     expect(effects.visionChargesBonus).toBe(1);
     expect(effects.recruitStartingVulnerary).toBe(1);
     expect(effects.recruitPromotionChanceBonus).toBe(0.24);
@@ -395,7 +394,7 @@ describe('MetaProgressionManager', () => {
     expect(effects.goldBonus).toBe(0);
     expect(effects.battleGoldMultiplier).toBe(0);
     expect(effects.deployBonus).toBe(0);
-    expect(effects.rosterCapBonus).toBe(0);
+    expect(effects).not.toHaveProperty('rosterCapBonus');
     expect(effects.visionChargesBonus).toBe(0);
     expect(effects.recruitStartingVulnerary).toBe(0);
     expect(effects.recruitPromotionChanceBonus).toBe(0);
@@ -755,13 +754,45 @@ describe('MetaProgressionManager', () => {
     expect(result).toBe(false);
   });
 
-  it('same skill can be assigned to multiple lords', () => {
+  // Playtest (Sep 2026): each unlocked starting skill sits on one lord at a time.
+  it('a skill already on one lord is refused for another', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.unlock_sol = 1;
     expect(meta.assignSkill('Edric', 'sol')).toBe(true);
-    expect(meta.assignSkill('Sera', 'sol')).toBe(true);
-    expect(meta.getSkillAssignments().Edric).toEqual(['sol']);
-    expect(meta.getSkillAssignments().Sera).toEqual(['sol']);
+    expect(meta.assignSkill('Sera', 'sol')).toBe(false);
+    expect(meta.getSkillHolder('sol')).toBe('Edric');
+    expect(meta.getSkillAssignments()).toEqual({ Edric: ['sol'] });
+  });
+
+  it('moving a skill takes it from the lord who held it', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.purchasedUpgrades.unlock_sol = 1;
+    meta.assignSkill('Edric', 'sol');
+    expect(meta.assignSkill('Sera', 'sol', { move: true })).toBe(true);
+    expect(meta.getSkillAssignments()).toEqual({ Sera: ['sol'] });
+    expect(meta.getActiveEffects().startingSkills).toEqual({ Sera: ['sol'] });
+  });
+
+  it('a move into a full lord changes nothing', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.purchasedUpgrades.unlock_sol = 1;
+    meta.purchasedUpgrades.unlock_luna = 1;
+    meta.assignSkill('Edric', 'sol');
+    meta.assignSkill('Sera', 'luna');
+    expect(meta.assignSkill('Sera', 'sol', { move: true })).toBe(false);
+    expect(meta.getSkillAssignments()).toEqual({ Edric: ['sol'], Sera: ['luna'] });
+  });
+
+  it('a save from before the rule keeps a shared skill on its first lord only', () => {
+    clearStore();
+    const key = 'meta_exclusive_skills';
+    store[key] = JSON.stringify({
+      purchasedUpgrades: { unlock_sol: 1, unlock_luna: 1, extra_skill_slot: 1 },
+      skillAssignments: { Edric: ['sol', 'luna'], Sera: ['sol'], Kira: ['luna', 'sol'] },
+    });
+    const meta = new MetaProgressionManager(upgradesData, key);
+    expect(meta.getSkillAssignments()).toEqual({ Edric: ['sol', 'luna'] });
+    expect(meta.getActiveEffects().startingSkills).toEqual({ Edric: ['sol', 'luna'] });
   });
 
   it('unassignSkill removes skill from lord', () => {
@@ -1065,7 +1096,7 @@ describe('MetaProgressionManager', () => {
   it('purchaseUpgrade blocked by unmet milestone', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.totalSupply = 9999;
-    // deploy_limit requires beatAct2
+    // deploy_limit requires beatAct1
     const result = meta.purchaseUpgrade('deploy_limit');
     expect(result).toBe(false);
     expect(meta.getUpgradeLevel('deploy_limit')).toBe(0);
@@ -1074,7 +1105,7 @@ describe('MetaProgressionManager', () => {
   it('purchaseUpgrade succeeds when milestone is met', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.totalSupply = 9999;
-    meta.recordMilestone('beatAct2');
+    meta.recordMilestone('beatAct1');
     const result = meta.purchaseUpgrade('deploy_limit');
     expect(result).toBe(true);
     expect(meta.getUpgradeLevel('deploy_limit')).toBe(1);
@@ -1230,12 +1261,10 @@ describe('MetaProgressionManager', () => {
     expect(meta.meetsPrerequisites('lord_skl_flat')).toBe(true);
   });
 
-  it('deploy_limit requires beatAct2 milestone', () => {
+  it('deploy_limit requires the beatAct1 milestone (was beatAct2)', () => {
     const meta = new MetaProgressionManager(upgradesData);
     expect(meta.meetsPrerequisites('deploy_limit')).toBe(false);
     meta.recordMilestone('beatAct1');
-    expect(meta.meetsPrerequisites('deploy_limit')).toBe(false); // needs beatAct2
-    meta.recordMilestone('beatAct2');
     expect(meta.meetsPrerequisites('deploy_limit')).toBe(true);
   });
 
@@ -1551,6 +1580,7 @@ describe('storyFlags (run-aware narrative memory)', () => {
       defeatedBy: {},
       lordFalls: {},
       lastRun: null,
+      linesPlayed: [],
     });
     expect(meta.getBossSlainCount('Iron Captain')).toBe(0);
     expect(meta.getDefeatedByCount('Iron Captain')).toBe(0);
@@ -1569,6 +1599,7 @@ describe('storyFlags (run-aware narrative memory)', () => {
       defeatedBy: {},
       lordFalls: {},
       lastRun: null,
+      linesPlayed: [],
     });
   });
 
@@ -1649,7 +1680,41 @@ describe('storyFlags (run-aware narrative memory)', () => {
       defeatedBy: {},
       lordFalls: {},
       lastRun: null,
+      linesPlayed: [],
     });
+  });
+
+  it('recordLinesPlayed remembers lines once each, newest last, and survives a reload', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordLinesPlayed(['la', 'lb']);
+    meta.recordLinesPlayed(['la', '', null]);
+    expect(meta.getStoryFlags().linesPlayed).toEqual(['lb', 'la']);
+    const reloaded = new MetaProgressionManager(upgradesData);
+    expect(reloaded.getStoryFlags().linesPlayed).toEqual(['lb', 'la']);
+  });
+
+  it('linesPlayed stays bounded: the oldest lines are forgotten first', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordLinesPlayed(Array.from({ length: 70 }, (_, i) => `l${i}`));
+    const played = meta.getStoryFlags().linesPlayed;
+    expect(played).toHaveLength(64);
+    expect(played[0]).toBe('l6');
+    expect(played.at(-1)).toBe('l69');
+  });
+
+  it('adopt-merge keeps lines played on either copy, local most recent', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordLinesPlayed(['local1', 'shared']);
+    store['emblem_rogue_meta_save'] = JSON.stringify({
+      totalValor: 0,
+      totalSupply: 0,
+      purchasedUpgrades: {},
+      milestones: [],
+      storyFlags: { linesPlayed: ['disk1', 'shared'] },
+      savedAt: meta.savedAt + 100000,
+    });
+    meta.addValor(10);
+    expect(meta.getStoryFlags().linesPlayed).toEqual(['disk1', 'local1', 'shared']);
   });
 
   it('adopt-merge takes per-name max counters and later lastRun from disk', () => {
@@ -1719,6 +1784,7 @@ describe('storyFlags (run-aware narrative memory)', () => {
       defeatedBy: {},
       lordFalls: {},
       lastRun: null,
+      linesPlayed: [],
     });
   });
 });

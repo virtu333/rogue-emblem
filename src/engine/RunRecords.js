@@ -1,3 +1,4 @@
+import { isDifficultyId } from './DifficultyEngine.js';
 import { DEED_FORMS } from './DeedTitles.js';
 
 // Records contain display snapshots, never live units or inventory objects.
@@ -8,9 +9,7 @@ export function mergeRunRecords(...sources) {
     const clean = {
       id: record.id.slice(0, 160),
       endedAt: Number.isFinite(record.endedAt) ? record.endedAt : 0,
-      difficulty: ['normal', 'hard', 'lunatic'].includes(record.difficulty)
-        ? record.difficulty
-        : 'normal',
+      difficulty: isDifficultyId(record.difficulty) ? record.difficulty : 'normal',
       seed: Number.isFinite(record.seed) ? record.seed : null,
       actsCleared: Math.max(0, Math.trunc(record.actsCleared) || 0),
       totalTurns: Number.isFinite(record.totalTurns)

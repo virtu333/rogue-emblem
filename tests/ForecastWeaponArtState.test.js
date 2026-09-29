@@ -75,9 +75,9 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('weapon-art forecast is computed in the state the exchange resolves in', () => {
   it.each([
-    ['Recoil Guard + Wrath Strike', 'Recoil Guard', 'sword_wrath_strike', 30],
+    ['Recoil Guard + Grim Stroke', 'Recoil Guard', 'sword_wrath_strike', 30],
     ['Phoenix Brooch at the edge + Precise Cut', 'Phoenix Brooch', 'sword_precise_cut', 8],
-    ['no accessory + Wrath Strike (vengeance-free)', null, 'sword_wrath_strike', 20],
+    ['no accessory + Grim Stroke (vengeance-free)', null, 'sword_wrath_strike', 20],
   ])('%s', (_label, accessoryName, artId, hp) => {
     const attacker = unit('Daska', 'player', 'Iron Sword', {
       accessory: accessoryName ? accessory(accessoryName) : null,

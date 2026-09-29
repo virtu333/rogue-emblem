@@ -93,8 +93,11 @@ test('boss recruit: three candidates side by side, compared, chosen and sworn on
       true,
     );
   }
-  // The draft marks its best: at least one stat leads across three candidates.
-  expect(await dialog.locator('.ch-stat.is-best, .ch-hp.is-best').count()).toBeGreaterThan(0);
+  // The boss's reward gives no advice: no best/grows marks, legend or roster cue, and
+  // the cards' spoken labels say neither (the lord arrival and the arena keep them).
+  await expect(dialog.locator('.is-best, .is-grows, .ch-cue, .ch-legend')).toHaveCount(0);
+  for (const label of await cards.evaluateAll((els) => els.map((el) => el.ariaLabel || '')))
+    expect(label).not.toMatch(/Best |lacks/);
   await expect(cards.nth(0)).toHaveAttribute('aria-pressed', 'true');
   await snap(page, info, 'boss-first');
 
@@ -190,6 +193,9 @@ test('lord arrival: Welcome is required, reroll is offered, the choice resolves 
   await expect(dialog).toBeVisible();
   await expectDraftInView(page, dialog, '.ch-card');
   await expect(dialog.locator('.ch-kicker').first()).toContainText('Lord');
+  // The lord arrival keeps the draft's legend and its marks.
+  await expect(dialog.locator('.ch-legend')).toBeVisible();
+  expect(await dialog.locator('.is-best, .is-grows').count()).toBeGreaterThan(0);
   await page.keyboard.press('Escape');
   await expect(dialog.getByRole('status')).toContainText('Choose a lord');
   await expect(dialog.getByRole('button', { name: 'Reroll', exact: true })).toBeVisible();
@@ -356,14 +362,18 @@ test('difficulty banners: locked modes say why, the terms read beneath', async (
   await waitForScene(page, 'DifficultySelect');
   const dialog = page.getByRole('dialog', { name: 'Choose difficulty', exact: true });
   await expect(dialog).toBeVisible();
-  expect(await expectDraftInView(page, dialog, '.ch-banner')).toBe(3);
+  expect(await expectDraftInView(page, dialog, '.ch-banner')).toBe(4);
   await expect(dialog.locator('article')).toContainText('the terms');
-  await dialog.getByRole('button', { name: /^Hard/ }).tap();
+  await dialog.getByRole('button', { name: /^Nightfall/ }).tap();
   await expect(dialog.locator('.ch-banner[data-mode="hard"]')).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await expect(dialog.locator('article')).toContainText('Beat the game');
+  await expect(dialog.locator('article')).toContainText('Win on Dusk to unlock');
+  // Each rung says where its road ends.
+  await expect(dialog.locator('article .ch-road')).toHaveText(
+    'The road: Acts I–IV, then the Entity.',
+  );
   await expect(dialog.locator('.ch-banner[data-mode="hard"] .ch-lock')).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Confirm', exact: true })).toBeDisabled();
   await snap(page, info, 'difficulty-hard');

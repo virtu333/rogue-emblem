@@ -8,11 +8,17 @@
 // disadvantage, reavers, brave, effective, magic swords, Sunder, stat-bonus
 // weapons), weapon ranks, class skills, mastery perks, traits, affixes,
 // combat accessories, imbues, weapon arts, terrain and range. Per-strike procs
-// (Luna, Sol, Pavise, ...) are outside the displayed numbers by design and are
+// (Umbra, Reclaim, Shieldwall, ...) are outside the displayed numbers by design and are
 // not rolled here; everything the forecast folds in is.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getCombatForecast, resolveCombat, parseRange, isStaff } from '../src/engine/Combat.js';
-import { getSkillCombatMods, applyAccessoryPhaseCombatMods } from '../src/engine/SkillSystem.js';
+import {
+  getSkillCombatMods,
+  applyAccessoryPhaseCombatMods,
+  rollStrikeSkills,
+  rollDefenseSkills,
+} from '../src/engine/SkillSystem.js';
+import { rollDefenseAffixes } from '../src/engine/AffixSystem.js';
 import { getWeaponArtCombatMods, applyWeaponArtCost } from '../src/engine/WeaponArtSystem.js';
 import { forecastProjection } from '../src/ui/forecastDisplay.js';
 import { loadGameData } from './testData.js';
@@ -323,4 +329,64 @@ describe('forecast equals resolution for random matchups', () => {
     },
     120_000,
   );
+  // Thorns is an on-defend affix, so these exchanges resolve with the battle's
+  // per-strike hooks (as BattleScene does). No proc skills, so every strike deals
+  // the forecast damage; the projection must land on the resolved HP, reflect included.
+  it('the all-hits projection includes Thorns exactly as resolution applies it', () => {
+    const PROC_IDS = new Set(PROC_SKILLS.map((s) => s.id));
+    const mismatches = [];
+    let shown = 0;
+    let reflected = 0;
+    for (let seed = 1; seed <= SAMPLES; seed++) {
+      const m = makeMatchup(seed + 200_000);
+      if (parseRange(m.attacker.weapon.range).min !== 1) continue;
+      m.distance = 1;
+      m.defender.col = m.attacker.col + 1;
+      m.defender.row = m.attacker.row;
+      m.defender.affixes = ['thorns'];
+      for (const u of [m.attacker, m.defender]) {
+        u.skills = u.skills.filter((id) => !PROC_IDS.has(id));
+        u.stats.HP = 15 + (seed % 40);
+        u.currentHP = 1 + ((seed * 7) % u.stats.HP);
+      }
+      m.skillCtx = {
+        ...buildSkillCtx(
+          mulberry32(seed),
+          m.attacker,
+          m.defender,
+          [m.attacker],
+          [m.defender],
+          m.atkTerrain,
+          m.defTerrain,
+        ),
+        rollStrikeSkills,
+        rollDefenseSkills,
+        rollDefenseAffixes,
+      };
+      const f = forecastOf(m);
+      const projection = forecastProjection(f);
+      if (!projection) continue;
+      if (f.attacker.crit >= 100 || f.defender.crit >= 100) continue;
+      if (f.attacker.hit <= 0 || (f.defender.canCounter && f.defender.hit <= 0)) continue;
+      const c = Math.max(f.attacker.crit, f.defender.canCounter ? f.defender.crit : 0);
+      const lowestHit = Math.min(f.attacker.hit, f.defender.canCounter ? f.defender.hit : 100);
+      if (c >= lowestHit) continue;
+      shown++;
+      if (f.attacker.thornsReflect > 0 && m.attacker.currentHP > 1) reflected++;
+      const result = resolveWith((c + 0.5) / 100, m);
+      if (
+        result.attackerHP !== projection.attackerHP ||
+        result.defenderHP !== projection.defenderHP
+      )
+        mismatches.push({
+          seed,
+          projection,
+          resolved: { attackerHP: result.attackerHP, defenderHP: result.defenderHP },
+          weapons: [m.attacker.weapon.name, m.defender.weapon.name],
+        });
+    }
+    expect(shown).toBeGreaterThan(40);
+    expect(reflected).toBeGreaterThan(20);
+    expect(mismatches.slice(0, 5)).toEqual([]);
+  }, 120_000);
 });

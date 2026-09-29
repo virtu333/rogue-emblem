@@ -24,6 +24,7 @@ import {
 import { ensureItemUid } from '../utils/itemUid.js';
 import { getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
 import { getImbueStoneItems } from './ImbueSystem.js';
+import { isSignatureWeapon } from './SignatureWeapons.js';
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 const META_INNATE_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
@@ -238,6 +239,8 @@ function buildWeaponUpgradePools(allWeapons, rosterTypes = null) {
     const tier = typeof weapon?.tier === 'string' ? weapon.tier : null;
     if (!name || !type || !LOOT_WEAPON_TIER_INDEX.has(tier)) continue;
     if (rosterTypes && !rosterTypes.has(type)) continue;
+    // A lord's personal weapon is never a drop, upgraded or not.
+    if (isSignatureWeapon(weapon)) continue;
 
     if (!poolsByType.has(type)) poolsByType.set(type, new Map());
     const typeBuckets = poolsByType.get(type);

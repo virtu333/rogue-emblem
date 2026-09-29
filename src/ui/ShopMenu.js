@@ -1,6 +1,7 @@
 import { shopRequirementLabel, forgeImpactSuffix } from './itemDecisionText.js';
 import { equipmentComparison } from './equipmentComparison.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
+import { ContextHelp } from './ContextHelp.js';
 import { equippedBadgeElement } from './equippedBadge.js';
 import { itemKeywordRow, itemKeywordText } from './itemKeywordChips.js';
 import { itemBaseLine } from '../engine/ItemKeywords.js';
@@ -22,7 +23,7 @@ import {
 } from '../engine/ShopCommands.js';
 import {
   canForge,
-  getForgeCost,
+  forgePrice,
   getForgeDisplayInfo,
   getStatForgeCount,
 } from '../engine/ForgeSystem.js';
@@ -294,7 +295,9 @@ export class ShopMenu {
       ),
     );
     if (item.lore) copy.append(el('p', item.lore, 'shop-lore'));
-    appendItemArtDetails(copy, item, this.scene.gameData.weaponArts?.arts || []);
+    appendItemArtDetails(copy, item, this.scene.gameData.weaponArts?.arts || [], {
+      openHelp: (title, blocks) => this.openHelp(title, blocks),
+    });
     if (item.might != null || item.type === 'Staff') {
       const comparisons = el('details');
       comparisons.append(el('summary', 'Compare with your roster'));
@@ -506,7 +509,7 @@ export class ShopMenu {
       choices: stats,
       label: (stat) => stat.label,
       describe: (stat) =>
-        `${Math.max(1, Math.floor(getForgeCost(weapon, stat.key) * (1 - this.forgeOptions().discount)))} gold · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`,
+        `${forgePrice(weapon, stat.key, this.forgeOptions().discount)} gold · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`,
       blocked: (stat) =>
         shopForgeBlock(this.run, weapon, stat.key, { ...this.forgeOptions(), expectedLevel }),
       apply: (stat) => {
@@ -540,6 +543,15 @@ export class ShopMenu {
   }
   leave() {
     if (!this.child) this.controller.leaveShopNode();
+  }
+  /** Shared rules (weapon arts, scrolls) over the shop, which keeps its place. */
+  openHelp(title, blocks) {
+    if (this.child || !this.surface) return;
+    const focus = document.activeElement;
+    this.child = new ContextHelp(this.scene, this.surface.root, title, blocks, () => {
+      this.child = null;
+      focus?.focus?.();
+    });
   }
   setVisible(visible) {
     if (visible) this.open();

@@ -196,6 +196,7 @@ export class MobileRewards {
   }
   render() {
     if (this.controller.saveError) return this.renderSaveFailure();
+    if (this.notice) return this.renderNotice();
     if (this.steps.length) return this.renderStep();
     const scene = this.scene;
     const focus = this.root.contains(document.activeElement)
@@ -305,7 +306,14 @@ export class MobileRewards {
     notes.setAttribute('aria-label', 'Notes');
     // The chosen item's story, as the shop and roster tell it.
     if (c?.item?.lore) notes.append(node('p', c.item.lore, 'ch-reward-lore'));
-    appendItemArtDetails(notes, c?.item, scene.gameData.weaponArts?.arts || []);
+    appendItemArtDetails(notes, c?.item, scene.gameData.weaponArts?.arts || [], {
+      openHelp: (title, blocks) => {
+        if (this.child || this.busy) return;
+        this.child = new ContextHelp(this.overlayScene, this.root, title, blocks, () => {
+          this.child = null;
+        });
+      },
+    });
     for (const notice of scene.runManager.lastBattleCasualtyNotices || []) {
       notes.append(node('p', notice, 'mu-help'));
     }
@@ -433,7 +441,41 @@ export class MobileRewards {
       this.button('Retry save', () => this.controller.retrySave()),
     );
   }
+  /**
+   * A claimed reward's news (team XP: who levelled, which class skill was learned or
+   * found every slot full), shown before the flow moves on. Continue (or Back) goes on.
+   */
+  showNotice(title, lines, onContinue) {
+    this.notice = { title, lines, onContinue };
+    if (this.visible) this.render();
+    else this.open();
+    this.root?.querySelector('[data-focus="notice-continue"]')?.focus();
+  }
+  renderNotice() {
+    const { title, lines } = this.notice;
+    this.renderedStep = null;
+    this.root.replaceChildren();
+    this.root.classList.remove('ch-reward-screen');
+    const header = node('header', null, 'mu-header');
+    header.append(node('h1', title));
+    const list = node('ul', null, 'reward-notice');
+    for (const line of lines) list.append(node('li', line));
+    const actions = node('div', null, 'mu-actions');
+    const go = this.button('Continue', () => this.closeNotice());
+    go.className = 'mu-buy';
+    go.dataset.focus = 'notice-continue';
+    actions.append(go);
+    this.root.append(header, list, actions);
+  }
+  closeNotice() {
+    const notice = this.notice;
+    if (!notice) return;
+    this.notice = null;
+    this.hide();
+    notice.onContinue?.();
+  }
   back() {
+    if (this.notice) return this.closeNotice();
     if (this.busy || !this.steps.length) return;
     this.steps.pop();
     this.saveDraft();

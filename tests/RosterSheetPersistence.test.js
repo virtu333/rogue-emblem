@@ -15,6 +15,7 @@ import { saveServiceRun } from '../src/ui/serviceSave.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { createRecruitUnit } from '../src/engine/UnitManager.js';
 import { _resetInputFocus } from '../src/utils/inputFocus.js';
+import { commitBattleDeeds, emptyBattleDeeds, unitEpithet } from '../src/engine/DeedSystem.js';
 
 const gameData = loadGameData();
 const cls = (name) => gameData.classes.find((c) => c.name === name);
@@ -63,12 +64,15 @@ async function confirm(sheet, choice) {
   await vi.advanceTimersByTimeAsync(0);
 }
 
-// The trade menu opens holding the item; its first slot on the other side takes it.
+// The trade menu opens with nothing held: the first tap holds the card's item (the
+// first on the unit's side), the next gives it to the first slot on the other side.
 function commitToFirstRow(sheet) {
-  const row = sheet.picker.surface.root
-    .querySelectorAll('.tm-row')
-    .find((el) => el.dataset.side === 'right' && el.dataset.index === '0');
-  row.click();
+  const row = (side) =>
+    sheet.picker.surface.root
+      .querySelectorAll('.tm-row')
+      .find((el) => el.dataset.side === side && el.dataset.index === '0');
+  row('left').click();
+  row('right').click();
 }
 
 beforeEach(() => {
@@ -110,6 +114,36 @@ describe('roster sheet saves each change as it applies', () => {
     expect(rows).toContain(
       `${fighter.name}Items ${fighter.inventory.length}/5 · Needs Lance proficiency`,
     );
+    sheet.destroy();
+  });
+
+  it('choosing a title and an Oath (playtest 2026-09-28)', () => {
+    const { sheet, fighter } = setup();
+    fighter.faction = 'player'; // as a recruit is once it joins
+    fighter._battleDeeds = {
+      ...emptyBattleDeeds(),
+      heldPhases: 3,
+      heldPlaces: ['Bridge', 'Bridge', 'Bridge'],
+      crits: 3,
+    };
+    commitBattleDeeds([fighter], gameData.deeds, { battleKey: 'roster-choice' });
+    sheet.index = sheet.units.indexOf(fighter);
+    sheet.render();
+    const press = (label) => {
+      const b = sheet.root.querySelectorAll('button').find((x) => x.textContent === label);
+      expect(b, label).toBeTruthy();
+      b.click();
+    };
+    press('Use as title');
+    expect(unitEpithet(fighter).text).toBe('the Keen Edge');
+    expect(saveServiceRun).toHaveBeenCalledTimes(1);
+    press('No title');
+    expect(unitEpithet(fighter)).toBeNull();
+    press('Greatest deed');
+    expect(unitEpithet(fighter).text).toBe('Who Held the Bridge');
+    press('Oath of the Edge · Keen Eye');
+    expect(fighter.deeds.pledge).toBe('keen_edge');
+    expect(saveServiceRun).toHaveBeenCalledTimes(4);
     sheet.destroy();
   });
 

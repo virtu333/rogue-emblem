@@ -1,4 +1,4 @@
-import { weaponArtScrollText } from './weaponArtDisplay.js';
+import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 // Shop lifecycle and stock management. ShopMenu owns rendering and input.
 import { ShopMenu } from './ShopMenu.js';
 import { saveServiceRun } from './serviceSave.js';
@@ -241,12 +241,8 @@ export class ShopController {
     if (item.teachesWeaponArtId)
       return weaponArtScrollText(item, scene.gameData?.weaponArts?.arts || []);
 
-    if (entryType === 'scroll' || item.type === 'Scroll') {
-      const header = item.special || 'Teaches a skill';
-      const skillDef = scene.gameData?.skills?.find((s) => s.id === item.skillId);
-      const desc = skillDef?.description || '';
-      return desc ? `${header}\n${desc}` : header;
-    }
+    if (entryType === 'scroll' || item.type === 'Scroll')
+      return skillScrollText(item, scene.gameData?.skills || []);
 
     if (item.type === 'Whetstone') {
       if (isImbueStone(item)) {

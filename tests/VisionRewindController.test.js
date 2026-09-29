@@ -387,7 +387,7 @@ describe('VisionRewindController', () => {
 
     it('keeps mid-battle state serializeUnit strips for between-battle reuse', () => {
       // A rewind reverts to the start of the current player phase — it must
-      // not refund once-per-battle Miracle/Phoenix Brooch consumed on earlier
+      // not refund once-per-battle Reprieve/Phoenix Brooch consumed on earlier
       // turns, drop perMapLimit art usage, or unwind live timed-buff stats.
       scene.playerUnits = [
         {

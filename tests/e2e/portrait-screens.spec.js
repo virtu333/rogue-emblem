@@ -218,6 +218,45 @@ for (const vp of PORTRAIT_PHONES) {
         expect(art.art.bottom).toBeGreaterThanOrEqual(art.runTop);
       });
 
+    test('turned sideways and back, the art band settles to the upright frame', async ({
+      page,
+    }) => {
+      await openTitle(page);
+      const frame = () =>
+        page.evaluate(() => {
+          const view = window.__emblemRogueGame.scene.getScene('Title').titleView;
+          const f = view.backdrop.frame;
+          return {
+            band: view.root.style.getPropertyValue('--rt-art-h'),
+            scale: f.scale,
+            sx: f.sx,
+            sy: f.sy,
+            cssW: f.cssW,
+            cssH: f.cssH,
+          };
+        });
+      const upright = await frame();
+      await page.setViewportSize({ width: vp.height, height: vp.width });
+      await expect.poll(frame).not.toEqual(upright);
+      await page.setViewportSize(vp);
+      await expect.poll(frame).toEqual(upright);
+      // iOS can announce the turn back before its layout settles and send nothing after:
+      // the band is measured on the sideways layout, then the layout settles quietly.
+      await page.evaluate(async () => {
+        const view = window.__emblemRogueGame.scene.getScene('Title').titleView;
+        const frames = (n) =>
+          new Promise((done) => {
+            const step = () => (n-- > 0 ? requestAnimationFrame(step) : done());
+            step();
+          });
+        view.root.style.width = `${Math.max(innerWidth, innerHeight)}px`;
+        window.dispatchEvent(new Event('resize'));
+        await frames(2);
+        view.root.style.width = '';
+      });
+      await expect.poll(frame).toEqual(upright);
+    });
+
     test('focus follows the column top to bottom', async ({ page }) => {
       await openTitle(page);
       const order = await page.evaluate(() =>
@@ -268,6 +307,7 @@ async function openSlots(page, kinds) {
           JSON.stringify({
             ...run,
             actIndex: 1,
+            difficultyId: 'lunatic',
             completedBattles: 9,
             savedAt: Date.now() - 42 * 60 * 1000,
             battleInProgress: {
@@ -302,6 +342,10 @@ for (const vp of PORTRAIT_PHONES) {
       await emulateSafeArea(page);
       const menu = await openSlots(page, ['battle', 'home', 'empty']);
       await expect(menu).toContainText('An unlit candle');
+      // The run's difficulty sits beside its act, on the act's line.
+      await expect(menu.locator('.sp-act .sp-difficulty')).toHaveText('Black Sun');
+      const act = menu.locator('.sp-act').first();
+      expect(await act.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
       const body = menu.locator('.re-menu-body');
       expect(await body.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
       await expect(body).not.toHaveClass(/is-more-(above|below)/);
@@ -662,7 +706,7 @@ for (const vp of PORTRAIT_PHONES.slice(0, 2)) {
       );
       // The last category, past the edge: a swipe away, then chosen and kept in view.
       const last = categories.locator('.re-btn').last();
-      await expect(last).toHaveText('Run');
+      await expect(last).toHaveText('Deeds');
       await last.tap();
       await expect(categories.locator('.re-btn').last()).toHaveAttribute('aria-pressed', 'true');
       await expect(dialog.locator('nav[aria-label="Categories"] .re-btn').last()).toBeInViewport({
@@ -741,10 +785,8 @@ test.describe('help and how to play upright', () => {
     const tab = (label) => help.locator('nav[aria-label="Categories"] .re-btn', { hasText: label });
     await tab('Combat').tap();
     await expect(help.locator('[aria-label="Entries"] .re-row')).toHaveCount(4);
-    await tab('Terrain').tap();
-    await expect(
-      detail.getByRole('heading', { name: 'Terrain Effects', exact: true }),
-    ).toBeVisible();
+    await tab('Promo').tap();
+    await expect(detail.getByRole('heading', { name: 'Promotion', exact: true })).toBeVisible();
     await expect(help.locator('[aria-label="Entries"]')).toHaveCount(0);
     // A search still lists its results, even a single one.
     await help.getByRole('searchbox').fill('Promotion');

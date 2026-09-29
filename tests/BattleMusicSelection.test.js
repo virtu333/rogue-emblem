@@ -212,7 +212,7 @@ describe('battle music selection', () => {
         hasCaravan: true,
         fogEnabled: true,
       },
-      battleConfig: { objective: 'rout', biome: 'castle' },
+      battleConfig: { objective: 'rout', biome: 'castle', caravanSpawn: { col: 5, row: 1 } },
       runSeed: 1234,
       isElite: true,
     });
@@ -231,6 +231,13 @@ describe('battle music selection', () => {
       hasCaravan: true,
       isFog: true,
     });
+    // The roll promised a caravan, but its map had no safe tile: no caravan theme.
+    expect(
+      battleMusicContext({
+        battleParams: { hasCaravan: true },
+        battleConfig: { objective: 'rout' },
+      }).hasCaravan,
+    ).toBe(false);
     expect(battleMusicContext().isFog).toBe(false);
     // no run seed: the node's own battle seed still makes the pick stable
     expect(battleMusicContext({ battleParams: { battleSeed: 99 } }).seed).toBe(99);

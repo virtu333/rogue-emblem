@@ -143,7 +143,11 @@
       "type": "Accessory",
       "effects": {},
       "combatEffects": {
-        "gamblerCoin": true
+        "gambler": {
+          "winChance": 0.5,
+          "winAtkBonus": 8,
+          "lossAtkPenalty": -3
+        }
       },
       "price": 1500
     },

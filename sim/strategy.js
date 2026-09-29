@@ -404,7 +404,7 @@ class ProtectedDriver extends RunSimulationDriver {
     this._mustered ||= new Set();
     if (this._mustered.has(rm.currentAct)) return;
     const done = rm.nodeMap.nodes.filter((n) => n.completed).length;
-    if (done < after || rm.roster.length >= rm.getRosterCap()) return;
+    if (done < after) return;
     this._mustered.add(rm.currentAct);
     const pool = this.gameData.recruits?.[rm.currentAct]?.classPool || [];
     if (!pool.length) return;
@@ -599,7 +599,7 @@ class ProtectedDriver extends RunSimulationDriver {
       turnPar: battle.turnPar,
     });
     // Act bosses offer a recruit (BossRecruitOverlay): take the highest-level candidate.
-    if (node.type === 'boss' && !rm.isRunComplete() && rm.roster.length < rm.getRosterCap()) {
+    if (node.type === 'boss' && !rm.isRunComplete()) {
       const candidates =
         generateBossRecruitCandidates(
           rm.currentAct,
@@ -656,33 +656,32 @@ class ProtectedDriver extends RunSimulationDriver {
     const rm = this.runManager;
     const roster = rm.roster;
     let hired = null;
-    if (roster.length < rm.getRosterCap()) {
-      const { recruitTargetLevel } = resolveRecruitScalingTargets(roster);
-      const level = findCommander(roster) ? recruitTargetLevel : 1;
-      const candidates = generateMercenaryCandidates(
-        rm.currentAct,
-        level,
-        this.gameData.recruits,
-        this.gameData.classes,
-        this.gameData.weapons,
-        this.gameData.skills,
-        rm.difficultyId,
-        this.gameData.colosseum,
-        Math.random,
-        this.gameData.traits || null,
-        [...rm.getTakenUnitNames()],
-      ).filter((c) => c?.unit && c.hireCost <= rm.gold);
-      candidates.sort((a, b) => (b.unit.level || 0) - (a.unit.level || 0));
-      const pick = candidates[0];
-      if (pick && rm.spendGold(pick.hireCost)) {
-        pick.unit.faction = 'player';
-        grantMercenaryClassSkills?.(pick.unit, this.gameData.classes, this.gameData.skills);
-        rm.assignUnitUid(pick.unit);
-        roster.push(pick.unit);
-        hired = pick.unit.name;
-        s.mercsHired++;
-        s.mercGold += pick.hireCost;
-      }
+    const { recruitTargetLevel } = resolveRecruitScalingTargets(roster);
+    const level = findCommander(roster) ? recruitTargetLevel : 1;
+    const candidates = generateMercenaryCandidates(
+      rm.currentAct,
+      level,
+      this.gameData.recruits,
+      this.gameData.classes,
+      this.gameData.weapons,
+      this.gameData.skills,
+      rm.difficultyId,
+      this.gameData.colosseum,
+      Math.random,
+      this.gameData.traits || null,
+      [...rm.getTakenUnitNames()],
+      rm.getEffectiveMetaEffects(),
+    ).filter((c) => c?.unit && c.hireCost <= rm.gold);
+    candidates.sort((a, b) => (b.unit.level || 0) - (a.unit.level || 0));
+    const pick = candidates[0];
+    if (pick && rm.spendGold(pick.hireCost)) {
+      pick.unit.faction = 'player';
+      grantMercenaryClassSkills?.(pick.unit, this.gameData.classes, this.gameData.skills);
+      rm.assignUnitUid(pick.unit);
+      roster.push(pick.unit);
+      hired = pick.unit.name;
+      s.mercsHired++;
+      s.mercGold += pick.hireCost;
     }
     rm.markNodeComplete(node.id);
     return { result: 'colosseum_done', hired };

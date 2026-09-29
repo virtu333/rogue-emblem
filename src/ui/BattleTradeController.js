@@ -2,13 +2,14 @@
 // (docs/specs/item-trade.md, "Battle"). The DOM menu (BattleTradeMenu over
 // TradeMenu) and the headless canvas fallback both commit through here, so the
 // guards, the movement commitment, the history beat and the checkpoint are the
-// same whichever surface the player used.
+// same whichever surface the player used. Reordering one of the two units' bags
+// (which can change what it has equipped) goes through here too.
 //
 // Trading is a free, pre-action command: it never touches `hasActed`, and it
 // never touches the partner's `hasActed`, `hasMoved` or `_movementCommitted`.
 
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
-import { applyTrade } from '../engine/ItemTrade.js';
+import { applyReorder, applyTrade } from '../engine/ItemTrade.js';
 
 /** The trade context in battle: player units only, no convoy, no accessories. */
 export const BATTLE_TRADE_CTX = Object.freeze({ context: 'battle' });
@@ -52,6 +53,14 @@ export class BattleTradeController {
    * each other, and the slots belong to exactly those two units.
    */
   canCommit(left, right, from, to) {
+    if (!this.sessionOpen(left, right)) return false;
+    const a = slotUnit(from);
+    const b = slotUnit(to);
+    return (a === left && b === right) || (a === right && b === left);
+  }
+
+  /** The trade session between `left` (acting) and `right` still allows a change. */
+  sessionOpen(left, right) {
     const scene = this.scene;
     if (this.destroyed || !scene || !left || !right || left === right) return false;
     if (scene.battleState !== 'TRADING') return false;
@@ -59,10 +68,27 @@ export class BattleTradeController {
     if (scene.selectedUnit !== left || left.hasActed) return false;
     const fielded = Array.isArray(scene.playerUnits) ? scene.playerUnits : [];
     if (!fielded.includes(left) || !fielded.includes(right)) return false;
-    if (!isAdjacent(left, right)) return false;
-    const a = slotUnit(from);
-    const b = slotUnit(to);
-    return (a === left && b === right) || (a === right && b === left);
+    return isAdjacent(left, right);
+  }
+
+  /**
+   * True when one of the two units' own bags may be reordered with these slots: the
+   * same session rules as canCommit, and both slots belong to one of the two units.
+   */
+  canReorder(left, right, from, to) {
+    if (!this.sessionOpen(left, right)) return false;
+    const unit = slotUnit(from);
+    return !!unit && unit === slotUnit(to) && (unit === left || unit === right);
+  }
+
+  /** The first change of a trade session locks in the acting unit's move. */
+  lockMove(left) {
+    const scene = this.scene;
+    if (scene.tradeMutatedThisSession) return;
+    scene.tradeMutatedThisSession = true;
+    left._movementCommitted = true;
+    scene.preMoveLoc = null;
+    scene.commitVisionSnapshotIfPending();
   }
 
   /**
@@ -75,14 +101,28 @@ export class BattleTradeController {
     const scene = this.scene;
     const result = applyTrade(BATTLE_TRADE_CTX, from, to);
     if (!result.ok) return result;
-    // The first change of a trade session locks in the acting unit's move.
-    if (!scene.tradeMutatedThisSession) {
-      scene.tradeMutatedThisSession = true;
-      left._movementCommitted = true;
-      scene.preMoveLoc = null;
-      scene.commitVisionSnapshotIfPending();
-    }
+    this.lockMove(left);
     observeHistoryAction(scene, 'traded with', left, right, result.detail);
+    scene._captureSuspendCheckpoint?.();
+    return result;
+  }
+
+  /**
+   * Swap two items in the acting unit's or the partner's own bag; a new first weapon
+   * is equipped. Same session guards and move lock as commit; the history beat is
+   * "changed equipment" (the acting unit is always its actor), then a checkpoint.
+   * @returns the ItemTrade reorder result ({ ok: true, kind: 'reorder', equips,
+   *   warnings, detail } | { ok: false, reason }). Nothing is committed unless ok.
+   */
+  reorder(left, right, from, to) {
+    if (!this.canReorder(left, right, from, to)) return { ok: false, reason: TRADE_UNAVAILABLE };
+    const scene = this.scene;
+    const result = applyReorder(BATTLE_TRADE_CTX, from, to);
+    if (!result.ok) return result;
+    this.lockMove(left);
+    const unit = slotUnit(from);
+    const detail = unit === left ? result.detail : `${result.detail} for ${unit.name}`;
+    observeHistoryAction(scene, 'changed equipment', left, null, detail);
     scene._captureSuspendCheckpoint?.();
     return result;
   }

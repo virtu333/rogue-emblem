@@ -1,7 +1,7 @@
 import { MobileRewards } from './MobileRewards.js';
 import { LootScreenController } from './LootScreenController.js';
 import { finishRewardClaim } from '../engine/PendingBattleRewards.js';
-import { gainExperience, checkLevelUpSkills } from '../engine/UnitManager.js';
+import { awardTeamXp, teamXpLines } from '../engine/TeamXp.js';
 import { saveServiceRun } from './serviceSave.js';
 
 // One native reward flow shared by battle completion and campaign re-entry.
@@ -63,19 +63,17 @@ export class PendingRewardController {
     return result;
   }
   activateReward(index) {
+    let notice = [];
     const result = this.applyNativeReward(index, () => {
       const run = this.host.runManager,
         choice = this.choices[index];
       if (!choice) run.awardGold(this.record.skipGold);
       else if (choice.type === 'gold') {
         run.awardGold(choice.goldAmount || 0);
-        for (const unit of run.roster)
-          if (choice.xpAmount) {
-            gainExperience(unit, choice.xpAmount, {
-              extendedLevelingEnabled: run.getDifficultyModifier('extendedLevelingEnabled', false),
-            });
-            checkLevelUpSkills(unit, this.host.gameData.classes);
-          }
+        const report = awardTeamXp(run.roster, choice.xpAmount, this.host.gameData.classes, {
+          extendedLevelingEnabled: run.getDifficultyModifier('extendedLevelingEnabled', false),
+        });
+        notice = teamXpLines(report, this.host.gameData.skills);
       } else if (choice.type === 'accessory')
         (run.accessories ||= []).push(structuredClone(choice.item));
       else if (choice.item?.type === 'Scroll')
@@ -88,7 +86,9 @@ export class PendingRewardController {
       if (this.saveError) this.mobileRewards.renderSaveFailure();
       return;
     }
-    this.finish();
+    // Team XP names who levelled and which class skill came (or found no free slot).
+    if (notice.length) this.mobileRewards.showNotice('Team XP', notice, () => this.finish());
+    else this.finish();
   }
   finish() {
     if (this.saveError) return;

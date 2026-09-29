@@ -26,7 +26,6 @@ import { ColosseumOverlay } from '../src/ui/ColosseumOverlay.js';
 import { ArenaMenu } from '../src/ui/ArenaMenu.js';
 import { createLordUnit, createRecruitUnit } from '../src/engine/UnitManager.js';
 import { _resetInputFocus } from '../src/utils/inputFocus.js';
-import { CHURCH_PROMOTE_COST } from '../src/utils/constants.js';
 
 const gameData = loadGameData();
 const cls = (name) => gameData.classes.find((c) => c.name === name);
@@ -155,11 +154,51 @@ describe('church', () => {
     await chooser.confirm();
     await vi.advanceTimersByTimeAsync(0);
     expect(order).toEqual([
-      { save: 'Great Lord', gold: 10000 - CHURCH_PROMOTE_COST },
-      { rite: 'Great Lord', gold: 10000 - CHURCH_PROMOTE_COST },
+      // Edric is a lord: a lord's church promotion costs 3,500.
+      { save: 'Great Lord', gold: 10000 - 3500 },
+      { rite: 'Great Lord', gold: 10000 - 3500 },
     ]);
     expect(riteSpy).toHaveBeenCalledTimes(1);
     expect(riteSpy.mock.calls[0][0].frame).toBe('screen');
+    menu.destroy();
+  });
+});
+
+describe('church price', () => {
+  it('shows and charges a recruit the 2,000 G recruit price', async () => {
+    const unit = createRecruitUnit({ name: 'Ilse', level: 10 }, cls('Myrmidon'), gameData.weapons);
+    unit.level = 10;
+    const run = {
+      roster: [unit],
+      fallenUnits: [],
+      gold: 10000,
+      getDifficultyModifier: (_k, d) => d,
+      getChurchPromotionCount: () => 0,
+      setChurchPromotionCount: vi.fn(),
+      spendGold(n) {
+        this.gold -= n;
+        return true;
+      },
+    };
+    vi.mocked(saveServiceRun).mockImplementation(() => '');
+    const scene = {
+      gameData,
+      runManager: run,
+      events: eventsFor(),
+      registry: { get: () => null },
+      textures: { exists: () => false },
+      _churchNode: { id: 'church-1' },
+    };
+    const menu = new ChurchMenu({ scene, leaveChurchNode: vi.fn() });
+    menu.promote(unit, 'church-1');
+    const chooser = menu.child;
+    const text = chooser.surface.root.textContent;
+    expect(text).toContain('2000 G · you have 10000 G');
+    expect(text).not.toContain('3500');
+    await chooser.confirm();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(unit.tier).toBe('promoted');
+    expect(run.gold).toBe(8000);
     menu.destroy();
   });
 });
@@ -239,6 +278,52 @@ describe('boss recruit', () => {
       { card: 'Astrid', kind: 'boss', inRoster: true },
       'loot',
     ]);
+  });
+});
+
+describe('boss recruit choice is durable', () => {
+  const runWithOffer = () => ({
+    roster: [],
+    pendingBossRecruit: { version: 1, candidates: [{ unit: { name: 'Astrid' } }] },
+    grantRecruitBlessingConsumables: vi.fn(),
+    shouldTriggerThirdLord: () => false,
+  });
+  const sceneFor = (run, order) => ({
+    gameData,
+    runManager: run,
+    events: eventsFor(),
+    registry: { get: () => null },
+    scene: { isActive: () => true },
+    sys: { isActive: () => true },
+    _persistBattleRunState: vi.fn(() =>
+      order.push({ saved: run.roster.map((u) => u.name), offer: run.pendingBossRecruit }),
+    ),
+    showLootScreen: vi.fn(() => order.push('loot')),
+  });
+
+  it('a skip clears the offer and is saved before the loot screen', async () => {
+    globalThis.__growthRecruit = null;
+    const order = [];
+    const run = runWithOffer();
+    new PostCombatController(sceneFor(run, order)).showBossRecruitScreen();
+    await vi.advanceTimersByTimeAsync(0);
+    delete globalThis.__growthRecruit;
+    expect(order).toEqual([{ saved: [], offer: null }, 'loot']);
+  });
+
+  it('a pick clears the offer in the save that holds the new recruit', async () => {
+    const recruit = createRecruitUnit({ name: 'Astrid', level: 1 }, cls('Sky Lancer'), gameData.weapons); // prettier-ignore
+    globalThis.__growthRecruit = recruit;
+    const order = [];
+    const run = runWithOffer();
+    const recruitSpy = vi
+      .spyOn(GrowthCeremonyController.prototype, 'showRecruit')
+      .mockResolvedValue(true);
+    new PostCombatController(sceneFor(run, order)).showBossRecruitScreen();
+    await vi.advanceTimersByTimeAsync(0);
+    recruitSpy.mockRestore();
+    delete globalThis.__growthRecruit;
+    expect(order).toEqual([{ saved: ['Astrid'], offer: null }, 'loot']);
   });
 });
 

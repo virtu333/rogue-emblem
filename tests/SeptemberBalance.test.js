@@ -17,20 +17,23 @@ function storage(saved) {
   });
 }
 describe('September balance compatibility', () => {
-  it('credits purchased reductions once across save/load and keeps old Sol refund basis', () => {
+  it('credits purchased reductions once across save/load and keeps old Reclaim refund basis', () => {
     storage({
       totalValor: 100,
       totalSupply: 100,
       purchasedUpgrades: { weapon_forge: 3, recruit_weapon_forge: 2, unlock_sol: 1 },
     });
     const m = new MetaProgressionManager(data.metaUpgrades);
+    // Valor: Weapon Forge 150/325/550 -> 150/250/400 = 0 + 75 + 150.
     expect(m.totalValor).toBe(325);
-    expect(m.totalSupply).toBe(1200);
+    // Supply: Quartermaster's Craft paid 800 + 1400. Revision 1 (-> 400/700) credits
+    // 1100 and revision 2 (-> 200/350) another 550.
+    expect(m.totalSupply).toBe(1750);
     expect(m.solRefundBasis).toBe(400);
     m._save();
     const next = new MetaProgressionManager(data.metaUpgrades);
     expect(next.totalValor).toBe(325);
-    expect(next.totalSupply).toBe(1200);
+    expect(next.totalSupply).toBe(1750);
     expect(next.refundUpgrade('unlock_sol').refundAmount).toBe(400);
     next.totalValor = 1000;
     expect(next.purchaseUpgrade('unlock_sol')).toBe(true);
@@ -68,7 +71,7 @@ function unit(name, stats, skills = []) {
     weaponRank: 'Prof',
   };
 }
-describe('Luna defense reduction', () => {
+describe('Umbra defense reduction', () => {
   it.each([
     ['Sword', false, 2],
     ['Tome', false, 9],

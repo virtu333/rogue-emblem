@@ -88,7 +88,10 @@ export class AudioManager {
       if (this.currentMusicKey === key && this.currentMusic?.isPlaying) {
         // If duplicate/stray looping tracks exist, recover by forcing a clean restart.
         const active = this._getLoopingMusicSounds();
-        const hasOverlap = active.some((sound) => sound !== this.currentMusic);
+        // A track fading out (a crossfade) is already on its way out: not an overlap.
+        const hasOverlap = active.some(
+          (sound) => sound !== this.currentMusic && !sound.__audioStopped,
+        );
         if (!hasOverlap) {
           // Invalidate any in-flight load for a DIFFERENT track: "keep playing
           // X" must supersede an older "switch to Y" request still loading,
@@ -136,6 +139,8 @@ export class AudioManager {
         try {
           await this._ensureMusicLoaded(key, scene);
         } catch (_) {
+          // A track handed over to wait for this one does not play on in its place.
+          if (requestSeq === this._musicRequestSeq) this._endHandoff(owner, scene);
           return;
         }
       }
@@ -154,10 +159,16 @@ export class AudioManager {
       // The primary should still be cached (the budget preserves pending keys),
       // but if anything removed it, keep the old music rather than stopping it
       // for a track that can't start.
-      if (!cache.has(key)) return;
+      if (!cache.has(key)) {
+        this._endHandoff(owner, scene);
+        return;
+      }
 
       // Defensive stop: clear any orphan looping music before starting new track.
-      this.stopAllMusic(scene, 0);
+      // A track handed over to bridge this load crossfades out instead of cutting.
+      const bridging = this._handoffActive(owner);
+      this._handoff = null;
+      this.stopAllMusic(scene, bridging && scene?.tweens ? Math.max(fadeMs, 400) : 0);
 
       this._touchMusicCacheKey(key);
       for (const layerKey of layerKeys) {
@@ -670,6 +681,45 @@ export class AudioManager {
 
     this._stopCurrentMusic(scene, fadeMs);
     return true;
+  }
+
+  /**
+   * Hand the playing track to another owner (a scene key) instead of stopping it: it
+   * plays on until that owner starts its own track (crossfading into it) or releases
+   * it. The route map bridges the deploy screen and the battle track's load this way,
+   * so entering a battle is never silent while the battle's music downloads/decodes.
+   */
+  handOffMusic(fromOwnerOrScene, toOwnerOrScene) {
+    const from = this._resolveOwnerToken(fromOwnerOrScene);
+    const to = this._resolveOwnerToken(toOwnerOrScene);
+    if (!from || !to) return false;
+    if (this.currentMusicOwner && from !== this.currentMusicOwner) return false;
+    // As releaseMusic: the old owner's pending requests are void.
+    this._pendingMusic = null;
+    this._musicRequestSeq += 1;
+    if (!this.currentMusic || !this.currentMusicKey) return false;
+    this.currentMusicOwner = to;
+    this._handoff = { key: this.currentMusicKey, owner: to };
+    return true;
+  }
+
+  /** True while `owner` holds a track handed to it that is still the one playing. */
+  _handoffActive(owner) {
+    const h = this._handoff;
+    return Boolean(
+      h &&
+      owner &&
+      h.owner === owner &&
+      this.currentMusicOwner === owner &&
+      this.currentMusicKey === h.key,
+    );
+  }
+
+  /** The owner's own track could not start: let the bridging track go (faded). */
+  _endHandoff(owner, scene) {
+    if (!this._handoffActive(owner)) return;
+    this._handoff = null;
+    this._stopCurrentMusic(scene, scene?.tweens ? 600 : 0);
   }
 
   /** Stop music only if this owner currently controls it. */

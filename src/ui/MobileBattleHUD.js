@@ -24,6 +24,7 @@ import {
   forecastProjection,
   forecastModifierText,
   forecastNotes,
+  forecastReadingPoints,
   forecastTeachingHints,
   formatCritChance,
   formatHitChance,
@@ -47,6 +48,7 @@ import { hasInputFocus, pushInputScope, popInputScope } from '../utils/inputFocu
 import { InputAction } from '../utils/InputActions.js';
 import { getEffectivenessMultiplier } from '../engine/Combat.js';
 import { threatSummaryText, threatSummaryTone } from '../engine/ThreatForecast.js';
+import { relocatePrompt } from '../engine/StaffRelocation.js';
 import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js';
 import { equippedBadgeElement, EQUIPPED_MARKER } from './equippedBadge.js';
 import { itemIcon } from './itemIcons.js';
@@ -71,6 +73,7 @@ const PLAY_STATES = new Set([
 const HINTS = {
   PLAYER_IDLE: 'Tap a unit to begin. Pinch to zoom the map.',
   SELECTING_HEAL_TARGET: 'Choose an ally here or on the map. Back returns without using the staff.',
+  SELECTING_REMAINS_TARGET: 'Tap the highlighted remains to smash them. Back to go back.',
   UNIT_MOVING: 'Moving…',
   UNIT_SELECTED: 'Tap a highlighted tile to move.',
   UNIT_ACTION_MENU: 'Choose an action for this unit.',
@@ -80,6 +83,14 @@ const HINTS = {
   TURN_START_RESOLVING: 'Applying turn-start effects…',
   SHOWING_FORECAST: 'Review the forecast before committing.',
 };
+
+// Warp/Rescue: step 1 names the ally to pick, step 2 where the chosen ally lands.
+function staffRelocateHint(s, state) {
+  if (state !== 'SELECTING_STAFF_ALLY' && state !== 'SELECTING_STAFF_TILE') return null;
+  const caster = s.selectedUnit;
+  const ally = state === 'SELECTING_STAFF_TILE' ? s.staffRelocateAlly : null;
+  return relocatePrompt(caster?.weapon, caster, ally);
+}
 
 // Item rows teach their long press once: the hint line shows until the player
 // has opened a row's details (per device; storage blocked = never nag).
@@ -145,7 +156,7 @@ function forecastWeapon(config) {
  */
 export function pinnedRailCommand(menu, { state, submenu = false, endTurnPending = false } = {}) {
   if (state !== 'UNIT_ACTION_MENU' || submenu || endTurnPending || !menu?.items) return null;
-  return menu.items.find((item) => item?.label === 'Wait') || null;
+  return menu.items.find((item) => item?.id === 'wait') || null;
 }
 
 /**
@@ -190,6 +201,20 @@ export function unitFocusedRail({ state = '', selected = false, menu = false } =
   if (!selected) return false;
   if (state === 'UNIT_ACTION_MENU') return Boolean(menu);
   return UNIT_FOCUS_STATES.has(state) || state.startsWith('SELECTING_');
+}
+
+/**
+ * Column spans (of six) for a unit's usable commands on the upright rail, so every row
+ * is filled: three across, a last pair split in halves, and never one command alone
+ * beside empty cells (four read as two pairs, seven as three, two and two). Pure.
+ */
+export function commandSpans(count) {
+  const n = Math.max(0, Math.floor(count) || 0);
+  if (n === 1) return [6];
+  const spans = Array(n).fill(2);
+  const wide = n % 3 === 2 ? 2 : n % 3 === 1 ? 4 : 0;
+  for (let i = n - wide; i < n; i++) spans[i] = 3;
+  return spans;
 }
 
 // A view over BattleScene's existing actions. Combat calculations and move rules
@@ -361,8 +386,10 @@ export class MobileBattleHUD {
     this.sync();
   }
 
-  focusMenuItem(sourceButton) {
-    const item = this.menu?.items.find((entry) => entry.button === sourceButton);
+  /** Focus a menu row's rail button: `source` is the row's item, or (older menus) its canvas row. */
+  focusMenuItem(source) {
+    if (!source) return;
+    const item = this.menu?.items.find((entry) => entry === source || entry.button === source);
     if (!item?.domButton || !this.available()) return;
     item.domButton.focus({ preventScroll: true });
     item.domButton.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -406,11 +433,9 @@ export class MobileBattleHUD {
       );
       heading.append(control);
     }
-    const forecastNote = el(
-      'p',
-      'mb-detail',
-      'Hit chance is the real chance a strike lands. Hit is rolled as the average of two rolls, so a Hit rating of 75 lands about 88% of the time and 25 about 13%; the forecast shows that chance, for both sides. Crit uses one roll. Critical hits and special effects can change damage. A defeated unit cannot finish its remaining strikes.',
-    );
+    const forecastNote = el('ul', 'mb-detail mb-reading');
+    for (const point of forecastReadingPoints(config.forecast))
+      forecastNote.append(el('li', '', point));
     forecastNote.style.gridColumn = '1 / -1';
     const explanation = el('details', 'mb-detail');
     explanation.append(el('summary', '', 'How to read this forecast'), forecastNote);
@@ -852,6 +877,7 @@ export class MobileBattleHUD {
       Boolean(this.endTurnPending),
       s.infoText?.text,
       s._mobileTerrainFocus,
+      s._remainsCtrl?.markers?._key,
       s.objectiveText?.text,
       s.turnCounterText?.text,
       s.visionHudText?.text,
@@ -867,6 +893,7 @@ export class MobileBattleHUD {
         : null,
       formation ? s._formation.version : null,
       formation ? Boolean(s.dangerZone?.visible) : null,
+      state === 'SELECTING_STAFF_TILE' ? s.staffRelocateAlly?.name : null,
     ]);
     if (key === this.lastSnapshot) return;
     if (
@@ -967,6 +994,11 @@ export class MobileBattleHUD {
         // Move preview: how many visible foes could strike this tile next phase.
         if (threat && threat.col === focus.col && threat.row === focus.row)
           card.append(threatPreviewLine(threat.result));
+        // Zombie remains the player knows of on this tile, and when they rise.
+        const remains = s._zombieTombstones?.length
+          ? s._zombieRemains?.().infoLine(focus.col, focus.row)
+          : null;
+        if (remains) card.append(el('span', 'mb-remains', remains));
         if (terrainRuleLines(terrain).length) {
           const help = this.button(
             'Terrain details ⓘ',
@@ -1015,6 +1047,7 @@ export class MobileBattleHUD {
     const keepScroll = scrollKey === this._scrollKey ? this.body.scrollTop : 0;
     this._scrollKey = scrollKey;
     this.root.classList.toggle('has-unit', Boolean(unit));
+    this.root.classList.toggle('in-formation', formation);
     this.root.classList.toggle('in-menu', state === 'UNIT_ACTION_MENU' && Boolean(this.menu));
     // A submenu (Equip, Item, a staff or art pick) lists rows with stat briefs.
     this.root.classList.toggle(
@@ -1170,7 +1203,8 @@ export class MobileBattleHUD {
           'mb-hint',
           s.inspectMode
             ? 'Tap an ally or enemy to view their details.'
-            : HINTS[state] ||
+            : staffRelocateHint(s, state) ||
+                HINTS[state] ||
                 (state.startsWith('SELECTING_')
                   ? 'Tap a highlighted target. Back to go back.'
                   : 'Choose an action on the battlefield.'),
@@ -1198,6 +1232,13 @@ export class MobileBattleHUD {
         this.body.append(el('p', 'mb-detail mb-hold-hint', 'Hold a row for its full details.'));
       // The pinned command (Wait) was built into the dock by syncDock.
       for (const item of menu.items) if (item !== pinned) list.append(this.menuButton(menu, item));
+      if (!s.inEquipMenu) {
+        // Usable commands fill their rows upright; a greyed one with its reason takes a row.
+        const usable = [...list.children].filter(
+          (b) => !(b.disabled && b.querySelector('.mb-item-summary')),
+        );
+        commandSpans(usable.length).forEach((span, i) => (usable[i].dataset.span = span));
+      }
       if (menu.items.some((entry) => entry.item?.type === 'Consumable'))
         this.body.append(el('p', 'mb-detail', ITEM_ACTION_NOTE));
       this.body.append(list);
@@ -1208,7 +1249,7 @@ export class MobileBattleHUD {
       // Danger joins the action grid (it fills the odd cell) so the rail never
       // overflows into the bottom tools with an open unit menu.
       this.body.append(details);
-      if (restoreMenuFocus) this.focusMenuItem(s._menuFocus?.items[s._menuFocus.index]?.button);
+      if (restoreMenuFocus) this.focusMenuItem(s._menuFocus?.items[s._menuFocus.index]);
       return;
     }
     if (['PLAYER_IDLE', 'UNIT_SELECTED'].includes(state)) {
@@ -1422,7 +1463,7 @@ export class MobileBattleHUD {
         item.onActivate();
       },
       [
-        item.label === 'Attack' && !item.disabled ? 'mb-primary' : '',
+        item.id === 'attack' && !item.disabled ? 'mb-primary' : '',
         expanded ? 'is-expanded' : '',
         className,
       ]

@@ -111,7 +111,7 @@ describe('recording', () => {
     expect(hero._battleDeeds.phaseAttacks).toBe(0);
   });
 
-  it('brink: wounded to 1 HP, or saved by Miracle; not merely standing at 1 HP', () => {
+  it('brink: wounded to 1 HP, or saved by Reprieve; not merely standing at 1 HP', () => {
     const wounded = unit({ currentHP: 1 });
     recordCombat({ events: [strike('attacker')] }, foe(), wounded, {});
     expect(wounded._battleDeeds.brink).toBe(1);
@@ -521,11 +521,14 @@ describe('Oaths', () => {
     expect(promotionOath(u, deedsData, gameData.skills).skillId).toBe('crit_plus_15');
   });
 
-  it('reports a dropped Oath at the skill cap and does not record it', () => {
+  it('at the skill cap the Oath is sworn onto the bench instead of being dropped', () => {
     const u = sworn('held_the_line', { skills: ['a', 'b', 'c', 'd', 'e'] });
     const oath = applyPromotionOath(u, gameData);
-    expect(oath).toMatchObject({ learned: false, dropped: true });
-    expect(u.deeds.oath).toBeUndefined();
+    expect(oath).toMatchObject({ learned: false, benched: true, skillId: 'pavise' });
+    expect(u.deeds.oath).toMatchObject({ deedId: 'held_the_line', skillId: 'pavise' });
+    expect(u.deeds.waitingOath).toBeUndefined();
+    expect(u.skills).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(u.benchedSkills).toEqual(['pavise']);
   });
 
   it('nothing to swear without deeds, or for deeds without an Oath', () => {

@@ -4,7 +4,14 @@
 // ItemTrade does (give appends, swap keeps both slots).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installFakeDom, FakeEvent } from './helpers/fakeDom.js';
-import { CONVOY, fakeEngine, supply, unit, weapon } from './helpers/fakeTradeEngine.js';
+import {
+  CONVOY,
+  applyFakeReorder,
+  fakeEngine,
+  supply,
+  unit,
+  weapon,
+} from './helpers/fakeTradeEngine.js';
 import { TradeMenu, tradeItemBrief } from '../src/ui/TradeMenu.js';
 import { InputAction } from '../src/utils/InputActions.js';
 import { _resetInputFocus, dispatchInputAction } from '../src/utils/inputFocus.js';
@@ -51,12 +58,15 @@ function open({
   left,
   right,
   held = null,
+  cursor = null,
   engine = fakeEngine(),
   commit = null,
+  reorder = undefined,
   bag = null,
 } = {}) {
   const scene = { events: eventsFor() };
   const commits = [];
+  const reorders = [];
   const onClose = vi.fn();
   const menu = new TradeMenu({
     scene,
@@ -65,6 +75,7 @@ function open({
     right,
     bag,
     held,
+    cursor,
     engine,
     onClose,
     commit:
@@ -74,8 +85,17 @@ function open({
         applyMove(from, to);
         return { ok: true };
       }),
+    // `reorder: true` wires the default reorder (the fake apply); a function is used as is.
+    reorder:
+      reorder === true
+        ? (from, to) => {
+            reorders.push({ from, to });
+            applyFakeReorder(from, to);
+            return { ok: true };
+          }
+        : reorder,
   });
-  return { menu, scene, commits, onClose, root: menu.surface.root };
+  return { menu, scene, commits, reorders, onClose, root: menu.surface.root };
 }
 
 const rowsOf = (root) => root.querySelectorAll('.tm-row');
@@ -89,8 +109,13 @@ const status = (root) => root.querySelector('.tm-status');
 const tabs = (root) => root.querySelectorAll('.tm-tab');
 const focused = () => {
   const el = document.activeElement;
+  if (el?.classList?.contains('tm-trade')) return 'dialog';
   return el?.dataset?.side ? `${el.dataset.side}:${el.dataset.index}` : el?.textContent;
 };
+const pressedRows = (root) =>
+  rowsOf(root).filter((el) => el.getAttribute('aria-pressed') === 'true');
+/** A pointer tap: a click with a click count (Enter, Space and pad A click with none). */
+const tap = (el) => el.dispatchEvent(new FakeEvent('click', { detail: 1, button: 0 }));
 
 function pair() {
   const iron = weapon('Iron Sword');
@@ -147,7 +172,9 @@ describe('structure', () => {
     // Rows are never natively disabled: blocked and empty rows stay focusable.
     expect(rowsOf(root).every((el) => el.tagName === 'BUTTON' && el.disabled === false)).toBe(true);
     expect(row(root, 'left', 2).getAttribute('aria-disabled')).toBe('true');
-    expect(focused()).toBe('left:0');
+    // Nothing is highlighted on open: the dialog itself has focus, so keys arrive.
+    expect(focused()).toBe('dialog');
+    expect(root.tabIndex).toBe(-1);
   });
 
   it('battle: the header says trading locks in the move', () => {
@@ -355,6 +382,8 @@ describe('keyboard and gamepad', () => {
     const { edric } = pair();
     const engine = fakeEngine({ convoy: { weapons: [weapon('Axe')], consumables: [] } });
     const { root } = open({ left: edric, right: CONVOY, engine });
+    dom.key('ArrowDown'); // shows the cursor on the first item
+    expect(focused()).toBe('left:0');
     dom.key('ArrowDown');
     dom.key('ArrowDown');
     dom.key('ArrowDown');
@@ -373,6 +402,7 @@ describe('keyboard and gamepad', () => {
   it('Q/E and PageUp/PageDown switch tabs and release the held item', () => {
     const { edric, sera } = pair();
     const { root } = open({ left: edric, right: sera });
+    dom.key('ArrowDown'); // shows the cursor
     dom.key('ArrowDown');
     dom.key('Enter');
     expect(row(root, 'left', 1).getAttribute('aria-pressed')).toBe('true');
@@ -392,6 +422,8 @@ describe('keyboard and gamepad', () => {
   it('gamepad: NAVIGATE moves, L1/R1 switch tabs, A activates', () => {
     const { edric, sera } = pair();
     const { root } = open({ left: edric, right: sera });
+    dispatchInputAction(InputAction.NAVIGATE, { dx: 0, dy: 1 }); // shows the cursor
+    expect(focused()).toBe('left:0');
     dispatchInputAction(InputAction.NAVIGATE, { dx: 0, dy: 1 });
     expect(focused()).toBe('left:1');
     dispatchInputAction(InputAction.CONFIRM);
@@ -413,6 +445,7 @@ describe('keyboard and gamepad', () => {
       root.querySelector('.tm-col-right').rect = { left: 0, top: 358, width: 375, height: 250 };
     };
     stack();
+    dom.key('ArrowDown'); // shows the cursor on left:0
     for (let i = 0; i < 4; i++) dom.key('ArrowDown');
     expect(focused()).toBe('left:4');
     dom.key('ArrowDown');
@@ -429,7 +462,7 @@ describe('keyboard and gamepad', () => {
     expect(focused()).toBe('right:0');
   });
 
-  it('opened with an item held: focus starts on the other column', () => {
+  it('opened with an item held: the cursor starts on the other column', () => {
     const { edric, sera, rapier } = pair();
     const { root } = open({
       left: edric,
@@ -437,7 +470,199 @@ describe('keyboard and gamepad', () => {
       held: { holder: { kind: 'unit', unit: edric }, bag: 'inventory', item: rapier },
     });
     expect(row(root, 'left', 1).getAttribute('aria-pressed')).toBe('true');
+    expect(focused()).toBe('dialog');
+    dom.key('ArrowDown'); // shows it without moving
     expect(focused()).toBe('right:1');
     expect(document.activeElement.getAttribute('aria-label')).toBe('Give Rapier to Sera, slot 2');
+  });
+});
+
+describe('the cursor is hidden until the first key or pad press', () => {
+  it('on open, no row is focused or pressed; the dialog takes the keys', () => {
+    const { edric, sera } = pair();
+    const { root } = open({ left: edric, right: sera });
+    expect(focused()).toBe('dialog');
+    expect(pressedRows(root)).toEqual([]);
+    expect(status(root).textContent).toBe('Choose an item to trade.');
+  });
+
+  it.each([
+    ['ArrowDown', () => dom.key('ArrowDown')],
+    ['ArrowRight', () => dom.key('ArrowRight')],
+    ['Tab', () => dom.key('Tab')],
+    ['Shift+Tab', () => dom.key('Tab', { shiftKey: true })],
+    ['Enter', () => dom.key('Enter')],
+    ['Space', () => dom.key(' ')],
+    ['pad D-pad', () => dispatchInputAction(InputAction.NAVIGATE, { dx: 1, dy: 0 })],
+    ['pad A', () => dispatchInputAction(InputAction.CONFIRM)],
+  ])('%s shows the cursor where it is, without moving or activating', (_name, press) => {
+    const { edric, sera } = pair();
+    const { root, commits } = open({ left: edric, right: sera });
+    press();
+    expect(focused()).toBe('left:0');
+    expect(pressedRows(root)).toEqual([]);
+    expect(commits).toEqual([]);
+    // The next press acts as usual.
+    dom.key('Enter');
+    expect(pressedRows(root).map((el) => `${el.dataset.side}:${el.dataset.index}`)).toEqual([
+      'left:0',
+    ]);
+  });
+
+  it('opened from an item card: nothing held, the hidden cursor on that item', () => {
+    const { edric, sera, rapier } = pair();
+    const { root, commits } = open({
+      left: edric,
+      right: sera,
+      cursor: { holder: { kind: 'unit', unit: edric }, bag: 'inventory', item: rapier },
+    });
+    expect(pressedRows(root)).toEqual([]);
+    expect(focused()).toBe('dialog');
+    expect(status(root).textContent).toBe('Choose an item to trade.');
+    dom.key('ArrowUp'); // shows the cursor on Rapier, not above it
+    expect(focused()).toBe('left:1');
+    expect(commits).toEqual([]);
+  });
+
+  it('a cursor on a convoy item (a clone) finds its row; the tab follows its bag', () => {
+    const { edric } = pair();
+    const axe = weapon('Axe');
+    const tonic = supply('Tonic');
+    const engine = fakeEngine({ convoy: { weapons: [axe], consumables: [supply('Herb'), tonic] } });
+    const { root } = open({
+      left: edric,
+      right: CONVOY,
+      engine,
+      cursor: { holder: CONVOY, bag: 'consumables', item: { ...tonic } },
+    });
+    expect(tabs(root).map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true']);
+    expect(pressedRows(root)).toEqual([]);
+    dom.key('Enter');
+    expect(focused()).toBe('right:1');
+    expect(pressedRows(root)).toEqual([]);
+  });
+
+  it('a pointer tap holds and commits without leaving a row focused', () => {
+    const { edric, sera, rapier } = pair();
+    const { root, commits } = open({ left: edric, right: sera });
+    tap(row(root, 'left', 1));
+    expect(pressedRows(root).map((el) => el.dataset.index)).toEqual(['1']);
+    expect(focused()).toBe('dialog');
+    tap(row(root, 'right', 1));
+    expect(commits).toHaveLength(1);
+    expect(sera.inventory.at(-1)).toBe(rapier);
+    expect(focused()).toBe('dialog');
+    // Holding and releasing by tap leave no row focused either.
+    tap(row(root, 'left', 0));
+    tap(row(root, 'left', 0)); // release
+    expect(focused()).toBe('dialog');
+    // A browser focuses a pressed button: a tap on an inert row still ends on the dialog.
+    const empty = row(root, 'left', 3);
+    empty.focus();
+    tap(empty);
+    expect(focused()).toBe('dialog');
+    // The first key after taps shows the cursor on the last row tapped.
+    dom.key('ArrowDown');
+    expect(focused()).toBe('left:3');
+  });
+
+  it('a key press after a tap keeps the focused row as the cursor (Enter clicks with no count)', () => {
+    const { edric, sera } = pair();
+    const { root } = open({ left: edric, right: sera });
+    tap(row(root, 'left', 1));
+    dom.key('Enter'); // shows the cursor on Rapier; does not release it
+    expect(focused()).toBe('left:1');
+    expect(pressedRows(root).map((el) => el.dataset.index)).toEqual(['1']);
+    dom.key('ArrowRight');
+    dom.key('Enter');
+    expect(focused()).toBe('left:1');
+    expect(sera.inventory.map((i) => i.name)).toEqual(['Iron Lance', 'Rapier']);
+  });
+
+  it('Escape with the cursor hidden releases without showing it', () => {
+    const { edric, sera } = pair();
+    const { root } = open({ left: edric, right: sera });
+    tap(row(root, 'left', 1));
+    dom.key('Escape');
+    expect(pressedRows(root)).toEqual([]);
+    expect(focused()).toBe('dialog');
+  });
+});
+
+describe('reorder within a unit', () => {
+  it('two taps in a unit column swap places; a swap into slot 1 equips', () => {
+    const { edric, sera, iron, rapier } = pair();
+    const extra = weapon('Steel Sword');
+    edric.inventory.push(extra);
+    const { root, commits, reorders } = open({ left: edric, right: sera, reorder: true });
+    row(root, 'left', 2).click();
+    expect(labels(root, 'left').slice(0, 3)).toEqual([
+      'Equip Steel Sword',
+      'Swap Steel Sword with Rapier',
+      'Steel Sword',
+    ]);
+    expect(row(root, 'left', 0).dataset.state).toBe('reorder');
+    expect(row(root, 'left', 0).hasAttribute('aria-pressed')).toBe(false);
+    row(root, 'left', 0).click();
+    expect(reorders).toHaveLength(1);
+    expect(commits).toEqual([]);
+    expect(edric.inventory).toEqual([extra, rapier, iron]);
+    expect(edric.weapon).toBe(extra);
+    expect(status(root).textContent).toBe('Steel Sword is now equipped.');
+    expect(pressedRows(root)).toEqual([]);
+    expect(labels(root, 'left')[0]).toBe('Steel Sword, equipped');
+    expect(focused()).toBe('left:0');
+    // A swap away from slot 1 changes order only.
+    row(root, 'left', 1).click();
+    row(root, 'left', 2).click();
+    expect(edric.inventory).toEqual([extra, iron, rapier]);
+    expect(edric.weapon).toBe(extra);
+    expect(status(root).textContent).toBe('Swapped Rapier and Iron Sword.');
+  });
+
+  it('a slot-1 swap the unit cannot wield is blocked with the reason', () => {
+    const lance = weapon('Iron Lance');
+    const axe = weapon('Iron Axe');
+    const sera = unit('Sera', { inventory: [lance, axe], cannotEquip: ['Iron Axe'] });
+    const edric = unit('Edric', { inventory: [weapon('Iron Sword')] });
+    const reorder = vi.fn(() => ({ ok: true }));
+    const { root } = open({ left: edric, right: sera, reorder });
+    row(root, 'right', 1).click();
+    const first = row(root, 'right', 0);
+    expect(first.getAttribute('aria-label')).toBe('Equip Iron Axe');
+    expect(first.getAttribute('aria-disabled')).toBe('true');
+    first.focus(); // as a browser does on press
+    tap(first);
+    expect(reorder).not.toHaveBeenCalled();
+    expect(status(root).textContent).toBe("Sera can't wield Iron Axe.");
+    expect(focused()).toBe('dialog');
+    expect(sera.inventory).toEqual([lance, axe]);
+  });
+
+  it('the convoy column keeps switching what is held', () => {
+    const { edric } = pair();
+    const engine = fakeEngine({
+      convoy: { weapons: [weapon('Axe'), weapon('Bow')], consumables: [] },
+    });
+    const { root, reorders } = open({ left: edric, right: CONVOY, engine, reorder: true });
+    row(root, 'right', 0).click();
+    expect(row(root, 'right', 1).dataset.state).toBe('switch');
+    row(root, 'right', 1).click();
+    expect(reorders).toEqual([]);
+    expect(pressedRows(root).map((el) => `${el.dataset.side}:${el.dataset.index}`)).toEqual([
+      'right:1',
+    ]);
+  });
+
+  it('a refused reorder keeps the item held and says why', () => {
+    const { edric, sera, iron, rapier } = pair();
+    const reorder = vi.fn(() => ({ ok: false, reason: 'Trading is no longer available.' }));
+    const { root } = open({ left: edric, right: sera, reorder });
+    row(root, 'left', 1).click();
+    row(root, 'left', 0).click();
+    expect(reorder).toHaveBeenCalledOnce();
+    expect(edric.inventory).toEqual([iron, rapier]);
+    expect(status(root).textContent).toBe('Trading is no longer available.');
+    expect(pressedRows(root).map((el) => el.dataset.index)).toEqual(['1']);
   });
 });

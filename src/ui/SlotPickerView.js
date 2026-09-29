@@ -103,6 +103,7 @@ function seals(model) {
  */
 export function buildSlotCard(model, { onPrimary, onDelete }) {
   const card = element('section', null, `sp-card is-${model.state}`);
+  if (model.latest) card.classList.add('is-latest');
   card.dataset.slot = String(model.slot);
   card.dataset.grade = model.grade || 'act1';
   if (model.tone) card.dataset.tone = model.tone;
@@ -111,6 +112,7 @@ export function buildSlotCard(model, { onPrimary, onDelete }) {
 
   const top = element('div', null, 'sp-top');
   top.append(candle(model.state !== 'empty'), element('span', model.kicker, 'sp-kicker'));
+  if (model.latest) top.append(element('span', 'Latest', 'sp-latest'));
   if (model.saved) {
     // "Saved 42 min ago": the verb drops on narrow cards; the tooltip keeps the full stamp.
     const saved = element('span', null, 'sp-saved');
@@ -124,7 +126,15 @@ export function buildSlotCard(model, { onPrimary, onDelete }) {
 
   const head = element('div', null, 'sp-head');
   const titles = element('div', null, 'sp-titles');
-  if (model.actKicker) titles.append(element('p', model.actKicker, 'sp-act'));
+  if (model.actKicker) {
+    const act = element('p', model.actKicker, 'sp-act');
+    if (model.difficulty) {
+      const mode = element('span', model.difficulty.label, 'sp-difficulty');
+      mode.dataset.mode = model.difficulty.id;
+      act.append(' · ', mode);
+    }
+    titles.append(act);
+  }
   const title = element('h3', model.title, 'sp-title');
   title.id = headingId;
   titles.append(title);

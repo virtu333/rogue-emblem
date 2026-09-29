@@ -701,7 +701,7 @@
   {
     "id": "starting_vulnerary",
     "name": "Field Supplies",
-    "description": "Extra Vulnerary for lord at start",
+    "description": "Extra Poultice for lord at start",
     "category": "economy",
     "maxLevel": 1,
     "costs": [75],
@@ -894,7 +894,7 @@
   {
     "id": "recruit_field_supplies",
     "name": "Field Supplies II",
-    "description": "Recruits start with a Vulnerary",
+    "description": "Recruits start with a Poultice",
     "category": "capacity",
     "maxLevel": 1,
     "costs": [200],
@@ -1078,7 +1078,7 @@
   },
   {
     "id": "art_adept",
-    "name": "Art Adept",
+    "name": "Art Flurry",
     "description": "One lord starting weapon gains 1 additional random weapon art",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1139,7 +1139,7 @@
   },
   {
     "id": "unlock_sol",
-    "name": "Sol",
+    "name": "Reclaim",
     "description": "SKL% chance to heal damage dealt",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1152,7 +1152,7 @@
   },
   {
     "id": "unlock_luna",
-    "name": "Luna",
+    "name": "Umbra",
     "description": "SKL% chance to halve DEF/RES",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1165,7 +1165,7 @@
   },
   {
     "id": "unlock_astra",
-    "name": "Astra",
+    "name": "Constellation",
     "description": "SKL/2% chance for 5 consecutive hits",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1178,7 +1178,7 @@
   },
   {
     "id": "unlock_vantage",
-    "name": "Vantage",
+    "name": "Forestall",
     "description": "Attack first when below 50% HP",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1191,7 +1191,7 @@
   },
   {
     "id": "unlock_wrath",
-    "name": "Wrath",
+    "name": "Seethe",
     "description": "+30 Crit when below 50% HP",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1204,7 +1204,7 @@
   },
   {
     "id": "unlock_adept",
-    "name": "Adept",
+    "name": "Flurry",
     "description": "SPD% chance for follow-up attack",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1217,7 +1217,7 @@
   },
   {
     "id": "unlock_miracle",
-    "name": "Miracle",
+    "name": "Reprieve",
     "description": "LCK% chance to survive lethal hit at 1 HP",
     "category": "starting_skills",
     "maxLevel": 1,

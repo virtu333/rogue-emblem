@@ -94,11 +94,13 @@ describe('MapGenerator', () => {
           ),
         );
 
-      it('hard always faces The Lieutenant, never The Entity', () => {
+      it('Nightfall (hard) now continues to The Entity, never The Lieutenant', () => {
         for (let seed = 1; seed <= 15; seed++) {
-          const boss = finalBossFor('hard', seed).enemySpawns.find((e) => e.isBoss);
-          expect(boss.name, `seed ${seed}`).toBe('The Lieutenant');
-          expect(boss.isEntity, `seed ${seed}`).toBeFalsy();
+          const config = finalBossFor('hard', seed);
+          const boss = config.enemySpawns.find((e) => e.isBoss);
+          expect(boss.name, `seed ${seed}`).toBe('The Entity');
+          expect(boss.isEntity, `seed ${seed}`).toBe(true);
+          expect(config.templateId, `seed ${seed}`).toBe('eldritch_sanctum');
         }
       });
 
@@ -1530,16 +1532,11 @@ describe('MapGenerator', () => {
       }
     });
 
-    it('min <= max for all entries', () => {
+    it('0 < min <= max for all entries', () => {
       for (const [act, limits] of Object.entries(DEPLOY_LIMITS)) {
+        expect(limits.min, `${act} min`).toBeGreaterThan(0);
         expect(limits.min, `${act} min`).toBeLessThanOrEqual(limits.max);
       }
-    });
-
-    it('finalBoss entry exists with min and max', () => {
-      expect(DEPLOY_LIMITS.finalBoss).toBeDefined();
-      expect(DEPLOY_LIMITS.finalBoss.min).toBeGreaterThan(0);
-      expect(DEPLOY_LIMITS.finalBoss.max).toBeGreaterThanOrEqual(DEPLOY_LIMITS.finalBoss.min);
     });
   });
 });
@@ -3071,15 +3068,24 @@ describe('resolveAnchorUnitClass', () => {
     });
 
     it('produces a valid caravanSpawn tile when hasCaravan is set', () => {
-      const config = generateBattle({ act: 'act2', objective: 'rout', hasCaravan: true }, data);
-      expect(config.caravanSpawn).toBeTruthy();
-      const { col, row } = config.caravanSpawn;
-      expect(col).toBeGreaterThanOrEqual(0);
-      expect(col).toBeLessThan(config.cols);
-      expect(row).toBeGreaterThanOrEqual(0);
-      expect(row).toBeLessThan(config.rows);
-      const idx = config.mapLayout[row][col];
-      expect(data.terrain[idx].moveCost.Infantry).not.toBe('--');
+      // A cramped map may go without a caravan (CaravanSystem.pickCaravanSpawnTile);
+      // most seeds place one, and every placed tile is on the map and passable.
+      let placed = 0;
+      for (let seed = 1; seed <= 10; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act2', objective: 'rout', hasCaravan: true }, data),
+        );
+        if (!config.caravanSpawn) continue;
+        placed++;
+        const { col, row } = config.caravanSpawn;
+        expect(col).toBeGreaterThanOrEqual(0);
+        expect(col).toBeLessThan(config.cols);
+        expect(row).toBeGreaterThanOrEqual(0);
+        expect(row).toBeLessThan(config.rows);
+        const idx = config.mapLayout[row][col];
+        expect(data.terrain[idx].moveCost.Infantry).not.toBe('--');
+      }
+      expect(placed).toBeGreaterThanOrEqual(7);
     });
 
     it('caravanSpawn does not overlap player or enemy spawns', () => {

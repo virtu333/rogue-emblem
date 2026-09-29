@@ -6,7 +6,7 @@ import { inputHint } from '../utils/inputHint.js';
  * Renders the post-boss recruit card selection UI.
  * Uses a one-shot resolution guard to prevent double-tap.
  */
-import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
+import { prepareBossRecruit } from '../engine/PendingBossRecruit.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { getTraitNames } from '../engine/TraitSystem.js';
 import { applyTextResolution, UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
@@ -44,22 +44,18 @@ export class BossRecruitOverlay {
    */
   show(onComplete) {
     const scene = this.scene;
-    const candidates = generateBossRecruitCandidates(
-      this.runManager.currentAct,
-      this.runManager.roster,
-      this.gameData,
-      this.runManager.getEffectiveMetaEffects(),
-      this.runManager?.fallenUnits || [],
-      [...(this.runManager?.getTakenUnitNames?.() || [])],
-    );
+    // The offer rolled at the victory save (PendingBossRecruit) is the one
+    // shown, on every resume; a run without one rolls it here and saves it
+    // before it is drawn.
+    const hadOffer = Boolean(this.runManager.pendingBossRecruit);
+    const candidates = prepareBossRecruit(this.runManager, this.gameData);
+    if (!hadOffer && candidates) scene._persistBattleRunState?.();
 
     // Fallback — no candidates
     if (!candidates || candidates.length === 0) {
       onComplete(null);
       return;
     }
-    // Each candidate shows (and keeps, once chosen) a face the army lacks.
-    this.runManager?.assignPortraitVariants?.(candidates);
 
     // One-shot resolution guard
     let _resolved = false;
@@ -70,7 +66,8 @@ export class BossRecruitOverlay {
       onComplete(unit);
     };
     if (hasDOMHost()) {
-      showArrivalMenu(this, 'Boss recruit', candidates, resolve, { skip: true });
+      // The boss's reward is the player's own call: no roster cue or draft marks.
+      showArrivalMenu(this, 'Boss recruit', candidates, resolve, { skip: true, hints: false });
       return;
     }
     this._resolveSelection = resolve;

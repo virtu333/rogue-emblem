@@ -2,6 +2,7 @@
 // No Phaser deps.
 
 import { HintManager } from './HintManager.js';
+import { ALWAYS_MET_LORD_NAMES, lordNamesInRun, lordsMetOfMetaSave } from './LordsMet.js';
 
 export const MAX_SLOTS = 3;
 const META_KEY_PREFIX = 'emblem_rogue_slot_';
@@ -266,6 +267,56 @@ export function hasAnySlotMilestone(milestone) {
     }
   }
   return false;
+}
+
+/**
+ * Deed ids earned in any slot (1-3): each save's record, plus the deeds on its run's
+ * units (living and fallen), so saves from before the record still count. Read
+ * cross-slot like hasAnySlotMilestone, so the Title-screen Compendium matches in-run.
+ * @returns {Set<string>}
+ */
+export function earnedDeedIdsAcrossSlots() {
+  const ids = new Set();
+  const addUnits = (units) => {
+    for (const unit of Array.isArray(units) ? units : [])
+      for (const entry of Array.isArray(unit?.deeds?.earned) ? unit.deeds.earned : [])
+        if (typeof entry?.id === 'string') ids.add(entry.id);
+  };
+  for (let i = 1; i <= MAX_SLOTS; i++) {
+    try {
+      const meta = JSON.parse(localStorage.getItem(getMetaKey(i)) || 'null');
+      for (const id of Array.isArray(meta?.deedsEarned) ? meta.deedsEarned : [])
+        if (typeof id === 'string') ids.add(id);
+      const run = JSON.parse(localStorage.getItem(getRunKey(i)) || 'null');
+      addUnits(run?.roster);
+      addUnits(run?.fallenUnits);
+    } catch (_) {
+      /* an unreadable slot adds nothing */
+    }
+  }
+  return ids;
+}
+
+/**
+ * Lords met in any slot (1-3): each save's record (or its backfill for saves from
+ * before it) plus the lords of its run, living and fallen. Read cross-slot like
+ * earnedDeedIdsAcrossSlots, so the Title-screen Compendium matches in-run. Edric and
+ * Sera are always met.
+ * @returns {Set<string>}
+ */
+export function metLordNamesAcrossSlots() {
+  const names = new Set(ALWAYS_MET_LORD_NAMES);
+  for (let i = 1; i <= MAX_SLOTS; i++) {
+    try {
+      const meta = JSON.parse(localStorage.getItem(getMetaKey(i)) || 'null');
+      if (meta) for (const name of lordsMetOfMetaSave(meta)) names.add(name);
+      const run = JSON.parse(localStorage.getItem(getRunKey(i)) || 'null');
+      for (const name of lordNamesInRun(run)) names.add(name);
+    } catch (_) {
+      /* an unreadable slot adds nothing */
+    }
+  }
+  return names;
 }
 
 /** Clear all slot data + active slot key. Used by logout. */

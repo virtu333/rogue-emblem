@@ -7,6 +7,7 @@ import { inputHint } from '../utils/inputHint.js';
 
 import Phaser from 'phaser';
 import { resolveStartingLordDefs } from '../engine/Commander.js';
+import { metLords } from '../engine/LordsMet.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import {
   DOUBLE_ATTACK_SPD_THRESHOLD,
@@ -978,7 +979,6 @@ export class HomeBaseScene extends Phaser.Scene {
       return `Start with ${charges} ${charges === 1 ? 'Vision' : 'Visions'}`;
     }
     if (effect.deployBonus !== undefined) return `+${effect.deployBonus}`;
-    if (effect.rosterCapBonus !== undefined) return `+${effect.rosterCapBonus}`;
     if (effect.recruitStartingVulnerary !== undefined) return `+${effect.recruitStartingVulnerary}`;
     if (effect.extraStartingUnitTier !== undefined)
       return (
@@ -1095,7 +1095,6 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.lordRecruitChanceBonus !== undefined) return 'Lord recruit probability';
     if (effect.recruitPromotionChanceBonus !== undefined) return 'Recruit promotion probability';
     if (effect.deployBonus !== undefined) return 'Deploy slots';
-    if (effect.rosterCapBonus !== undefined) return 'Max roster size';
     if (effect.recruitStartingVulnerary !== undefined) return 'Recruits start with Poultice';
     if (effect.extraStartingUnitTier !== undefined) return 'Extra random starting unit class pool';
     if (effect.lethalArmoryTier !== undefined) return 'Recruits can gain extra weapons';
@@ -1596,7 +1595,9 @@ export class HomeBaseScene extends Phaser.Scene {
     let iy = bgY + 5;
     for (const skillId of available) {
       const skill = skillsData.find((s) => s.id === skillId);
-      const name = skill ? skill.name : skillId;
+      // One lord per skill: another lord's skill is moved here when chosen.
+      const holder = this.meta.getSkillHolder(skillId);
+      const name = `${skill ? skill.name : skillId}${holder ? ` (from ${holder})` : ''}`;
       const entry = applyTextResolution(
         this.add.text(bgX + 8, iy, name, {
           fontFamily: 'Arial',
@@ -1612,7 +1613,7 @@ export class HomeBaseScene extends Phaser.Scene {
       entry.on('pointerover', () => entry.setColor(UI_PALETTE.accent));
       entry.on('pointerout', () => entry.setColor(UI_PALETTE.info));
       entry.on('pointerdown', () => {
-        this.meta.assignSkill(lordName, skillId);
+        this.meta.assignSkill(lordName, skillId, { move: true });
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_confirm');
         this._destroySkillPicker();
@@ -1721,7 +1722,9 @@ export class HomeBaseScene extends Phaser.Scene {
     const objects = [];
     const cam = this.cameras.main;
     const selection = this._getHealedLordSelection();
-    const lords = this.gameData.lords || [];
+    // Only lords this save has met (Edric and Sera from the start).
+    const allLords = this.gameData.lords || [];
+    const lords = metLords(allLords, (name) => this.meta?.hasMetLord?.(name) === true);
     const isCommanderMode = mode === 'commander';
     const audio = this.registry.get('audio');
 
@@ -1873,6 +1876,20 @@ export class HomeBaseScene extends Phaser.Scene {
           this.drawUI();
         });
       }
+    }
+
+    if (lords.length < allLords.length) {
+      objects.push(
+        applyTextResolution(
+          this.add.text(cam.centerX, 436, 'More lords join as you meet them.', {
+            fontFamily: 'Arial',
+            fontSize: '9px',
+            color: UI_PALETTE.muted,
+          }),
+        )
+          .setOrigin(0.5)
+          .setDepth(901),
+      );
     }
 
     // Close button + hint

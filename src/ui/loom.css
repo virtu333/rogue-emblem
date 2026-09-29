@@ -495,6 +495,22 @@
   text-transform: uppercase;
   background: linear-gradient(var(--re-raised), var(--re-panel));
 }
+/* A choice waits in the roster (an Oath): a gold edge and pip on Roster. */
+.re-loom-screen .re-node-actions .re-btn.re-attention {
+  position: relative;
+  border-color: var(--re-gold);
+  color: var(--re-accent-text);
+}
+.re-loom-screen .re-node-actions .re-btn.re-attention::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--re-gold);
+}
 
 .re-loom-card {
   position: relative;

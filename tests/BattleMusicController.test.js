@@ -30,6 +30,15 @@ describe('BattleMusicController', () => {
     );
   });
 
+  it('after a turn of the phone, eases into the level instead of snapping to it', () => {
+    const { audio, scene } = makeScene();
+    const ctrl = new BattleMusicController(scene, { playersInDanger: () => false });
+    const key = ctrl.create({ act: 'act1', intensityFadeMs: 600 });
+    expect(audio.setMusicIntensity).toHaveBeenCalledWith('calm', 600);
+    expect(audio.releaseMusic).not.toHaveBeenCalled();
+    expect(audio.playMusic).toHaveBeenCalledWith(key, scene, 800);
+  });
+
   it('rises on combat and settles after a quiet round', () => {
     const { audio, scene } = makeScene();
     let danger = false;
@@ -66,7 +75,8 @@ describe('BattleMusicController', () => {
     const { audio, scene } = makeScene();
     const ctrl = new BattleMusicController(scene, { playersInDanger: () => false });
     const key = ctrl.create({ act: 'act3', objective: 'escape' });
-    expect(key).toBe(MUSIC.escape);
+    expect(key).toBe(MUSIC.escape.act3);
+    expect(ctrl.create({ act: 'act1', objective: 'escape' })).toBe(MUSIC.escape.act1);
     expect(MUSIC_LAYERS[key]).toBeTruthy();
     expect(audio.setMusicIntensity).toHaveBeenCalledWith('calm', 0);
     // a boss on an escape map still gets its own theme

@@ -7,6 +7,7 @@ import { getAffixCombatMods } from './AffixSystem.js';
 import { isSilenced } from './StatusConditionSystem.js';
 import { getMasteryCombatMods } from './MasterySystem.js';
 import { getTraitCombatMods } from './TraitSystem.js';
+import { setUnitHP } from './UnitHealth.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -83,9 +84,28 @@ function isLivingOnMap(unit) {
   return Number.isFinite(Number(unit.col)) && Number.isFinite(Number(unit.row));
 }
 
-export function resolveGamblerDelta(unit, rollSession = null, rng = Math.random) {
-  const combatEffects = unit?.accessory?.combatEffects;
+/**
+ * A Gambler's Coin's odds and swing, read from its combatEffects (`gambler: { winChance,
+ * winAtkBonus, lossAtkPenalty }`). The legacy `gamblerCoin: true` of older saves keeps
+ * its old 50%, +5 / −3. Returns null for an accessory without the effect.
+ * @returns {{ winChance: number, winAtkBonus: number, lossAtkPenalty: number }|null}
+ */
+export function resolveGamblerConfig(combatEffects) {
   const gambler = combatEffects?.gambler || (combatEffects?.gamblerCoin ? {} : null);
+  if (!gambler) return null;
+  const winChance = Math.min(1, Math.max(0, Number(gambler.winChance) || 0.5));
+  const winAtkBonus = Math.trunc(Number(gambler.winAtkBonus) || 5);
+  const rawLossPenalty = Number(gambler.lossAtkPenalty);
+  const lossAtkPenalty = Number.isFinite(rawLossPenalty)
+    ? rawLossPenalty > 0
+      ? -Math.abs(rawLossPenalty)
+      : Math.trunc(rawLossPenalty)
+    : -3;
+  return { winChance, winAtkBonus, lossAtkPenalty };
+}
+
+export function resolveGamblerDelta(unit, rollSession = null, rng = Math.random) {
+  const gambler = resolveGamblerConfig(unit?.accessory?.combatEffects);
   if (!gambler) return 0;
 
   if (
@@ -95,14 +115,7 @@ export function resolveGamblerDelta(unit, rollSession = null, rng = Math.random)
     return rollSession.gamblerAtkDeltaByUnit.get(unit);
   }
 
-  const winChance = Math.min(1, Math.max(0, Number(gambler.winChance) || 0.5));
-  const winAtkBonus = Math.trunc(Number(gambler.winAtkBonus) || 5);
-  const rawLossPenalty = Number(gambler.lossAtkPenalty);
-  const lossAtkPenalty = Number.isFinite(rawLossPenalty)
-    ? rawLossPenalty > 0
-      ? -Math.abs(rawLossPenalty)
-      : Math.trunc(rawLossPenalty)
-    : -3;
+  const { winChance, winAtkBonus, lossAtkPenalty } = gambler;
   const roller = typeof rng === 'function' ? rng : Math.random;
   const delta = roller() < winChance ? winAtkBonus : lossAtkPenalty;
 
@@ -819,7 +832,7 @@ export function checkPhoenixBrooch(unit) {
   const amount = nextHp - unit.currentHP;
   if (amount <= 0) return { triggered: false, amount: 0 };
 
-  unit.currentHP = nextHp;
+  setUnitHP(unit, nextHp);
   unit._phoenixBroochUsed = true;
   return {
     triggered: true,

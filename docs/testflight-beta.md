@@ -1,9 +1,42 @@
 # Mobile beta release
 
-## Rename to Rogue Dawn — next build (September 25)
+## Current release candidate — September 29, 2026 (upload pending)
+
+Source: `fd2831f` on `main`, the merged [PR #161](https://github.com/virtu333/rogue-emblem/pull/161). This includes #159's changes and the maintenance merges #153–#160 since build 26. #159 and the superseded rotation-guard proposal #162 are closed.
+
+Validation: the final #161 head (`755dd2c`) passed all 27 jobs in [PR CI](https://github.com/virtu333/rogue-emblem/actions/runs/36602452501), and the merged candidate has the identical file tree. Main passed 8,866 unit tests across 557 files (one skipped), production build, data validation/parity, lint/formatting, harness and simulations. All 27 jobs in [main CI](https://github.com/virtu333/rogue-emblem/actions/runs/36622300881) passed on this candidate. Require the latest CI run for the exact upload commit to finish green; the TestFlight workflow enforces this.
+
+The earlier held-touch rotation failure was a test race with the long-press timer: Unit Details legitimately holds the orientation switch until it closes. The final browser specs separately cover a short held press with no release and a completed long press with the detail sheet open. The corrected rotation shard passed on main. Physical iPhone acceptance and a fresh native archive for this candidate remain outstanding.
+
+Upload using the [TestFlight workflow](https://github.com/virtu333/rogue-emblem/actions/workflows/testflight.yml) on `main`: mode `upload`, build number blank (the workflow chooses the next available number), group `Public Playtest`. Record the resulting commit, version/build number, Apple processing result and external review/distribution status here after the run. Upload success and external tester availability are separate stages.
+
+### What to Test — next upload
+
+Paste this into **whats_new** as one line:
+
+> Stronger recruits and larger late-game deployments; Battalion upgrades cost less, with credits for past purchases, and Expanded Ranks is retired with a one-time refund. Skills learned at the five-slot cap now go to a bench you can manage in the roster. Boss recruits and third-lord choices survive a reload, and act transitions save immediately. Trade opens with nothing held and lets you reorder a unit's bag; its first weapon is equipped. Church ceremonies no longer pass a skip tap to the menu underneath. Zombie remains show a countdown and can be smashed. Please load an existing save without uninstalling, check upgrades and skills, rotate during battle and Unit Details, and reload during recruit choices and act transitions. Report any lost progress, duplicate rewards, stuck controls or unreadable text with your phone model, iOS version, build number and the steps that caused it.
+
+### Physical iPhone checks
+
+- Upgrade from the installed beta without uninstalling. Resume an old battle and check roster, inventory, Gambler's Coin, skill bench/waiting-Oath migration and meta progression. Reload again: price-cut credits and the Expanded Ranks refund must not repeat.
+- Turn the phone during a short touch, a long press with Unit Details open, and an enemy action. The board switches at a safe boundary; closing Unit Details permits the pending switch. A stale release must not select a unit, and the next fresh tap must work.
+- Skip church and act ceremonies by touch. The same finger's trailing click must not activate Leave, View map or Menu beneath the ceremony.
+- Force-close/relaunch during boss-recruit and third-lord choices, including after a reroll, and during the act card/story. Offered candidates and the spent reroll persist; a confirmed choice joins once; the next act resumes on its map.
+- Reorder a unit's own bag in roster and battle trade. Check the equipped weapon, battle move lock, history and save/resume. Smash visible zombie remains and check their countdown and fog visibility.
+- Play a battle → rewards → shop/church → next battle loop offline on a small phone. Check scrolling, long names, notch/home-bar clearance, audio after backgrounding, stronger recruits and late-game deploy limits. Also retain build 26's fog/ambush, placement Back to Map and difficulty-screen checks.
+
+## Playtest fixes, fog ambush and the difficulty ladder — build 26
+
+Version **0.1.0 (26)**, source `657f370c` ([PR #152](https://github.com/virtu333/rogue-emblem/pull/152)), uploaded successfully on September 28, 2026 at **17:58 Pacific** (September 29 at 00:58 UTC). The [TestFlight upload run](https://github.com/virtu333/rogue-emblem/actions/runs/36504560665) completed successfully. Apple processed the build as `VALID`; the workflow added it to **Public Playtest** and submitted external beta review. At that run's completion, review had been submitted; it did not yet establish external approval. Cloud was off (offline build).
+
+Submitted What to Test:
+
+> New difficulty ladder: First Light, Dusk (new, ends at the Emperor), Nightfall (now on to the Entity), Black Sun; please check your existing saves still load and old wins unlock the right rungs. Fog: hidden enemies no longer shape your blue range; walking into one stops you short ("Ambush!"). Rescue/Warp: the chosen ally glows gold and gold squares show where they can land. Oaths: if all 5 skill slots are full, the Oath now waits in the roster (gold mark on Roster) until you give up a skill or let it go. Placement: Menu now offers Back to Map before turn 1. Also: HP accessories can't be swapped to heal, weapon arts and scrolls read as short cards, battles no longer start in silence, many smaller playtest fixes. Tell us anything that feels off, especially fog, placement and loading an old save.
+
+## Rename to Rogue Dawn — implemented September 25
 
 The game is now **Rogue Dawn** (was "Rogue Emblem" on the title / "Emblem Rogue" on the home
-screen). The next archive carries the new name everywhere a player sees it: home-screen label
+screen). The app carries the new name everywhere a player sees it: home-screen label
 (`CFBundleDisplayName`, Capacitor `appName`), title and auth lockups, How to Play, PWA manifest
 and `<title>`. Unchanged on purpose: bundle ID `com.davechen.emblemrogue`, team, provisioning,
 version scheme, and every storage key, so testers keep their saves and the build lands on the
@@ -169,7 +202,7 @@ npm run ios:sync
 npx playwright test --config playwright.release.config.js
 ```
 
-## Packaging
+## Packaging — historical initial beta
 
 - Bundle ID: `com.davechen.emblemrogue`
 - Version/build: `0.1.0 (3)`
@@ -249,7 +282,7 @@ expected versus actual behavior, and a screenshot or recording when possible.
 
 Keep map sizes and balance unchanged for this beta. Further art and menu polish should follow tester feedback.
 
-## Git publication status
+## Git publication status — historical initial beta
 
 The release commits are on local `mobile-rebuild-checkpoint`. Pushing to
 `virtu333/rogue-emblem` returned HTTP 403: the active GitHub CLI account

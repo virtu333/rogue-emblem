@@ -22,6 +22,7 @@ import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { fingerprintChanges, rewindFingerprint } from '../src/ui/BattleTimelineRecorder.js';
 import { _resetInputFocus } from '../src/utils/inputFocus.js';
+import { describeBefore, summarizeActionFact } from '../src/engine/RewindDestinations.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
 
 const gameData = loadGameData();
@@ -372,6 +373,218 @@ describe('BattleTradeController.commit', () => {
   });
 });
 
+// Reorder in battle: one unit's own bag, through the same session guards and move lock
+// as a trade. Edric's bag: Iron Sword +1 (equipped), Steel Sword, Rapier, Hand Axe,
+// Javelin (he wields swords only). Sera's: Iron Lance (equipped), Steel Lance, Keen
+// Sword, Heal (staff rank), Spear.
+describe('BattleTradeController.reorder', () => {
+  const equipBeats = (scene) =>
+    (scene._historyBeats || []).filter((b) => b.type === 'changed equipment');
+
+  it('Rapier into slot 1 equips it; the first change locks the move, records and checkpoints', () => {
+    const { scene, controller, edric, sera, ironSword, slot } = session();
+    const rapier = edric.inventory[2];
+    scene._captureSuspendCheckpoint.mockImplementation(() => {
+      scene.checkpoints.push({
+        edric: uids(edric.inventory),
+        weapon: edric.weapon.uid,
+        committed: edric._movementCommitted,
+        beats: equipBeats(scene).length,
+      });
+    });
+    const result = controller.reorder(
+      edric,
+      sera,
+      slot(edric, 'inventory', rapier),
+      slot(edric, 'inventory', ironSword),
+    );
+    expect(result).toEqual({
+      ok: true,
+      kind: 'reorder',
+      equips: rapier,
+      warnings: [],
+      detail: 'Equipped Rapier',
+    });
+    expect(uids(edric.inventory)).toEqual([
+      'uid-rapier',
+      'uid-steel-sword',
+      'uid-iron-sword',
+      'uid-hand-axe',
+      'uid-javelin',
+    ]);
+    expect(edric.weapon).toBe(rapier);
+    expect(scene).toMatchObject({ tradeMutatedThisSession: true, preMoveLoc: null });
+    expect(edric._movementCommitted).toBe(true);
+    expect(edric.hasActed).toBe(false);
+    expect(scene.commitVisionSnapshotIfPending).toHaveBeenCalledOnce();
+    expect(scene.checkpoints).toEqual([
+      {
+        edric: ['uid-rapier', 'uid-steel-sword', 'uid-iron-sword', 'uid-hand-axe', 'uid-javelin'],
+        weapon: 'uid-rapier',
+        committed: true,
+        beats: 1,
+      },
+    ]);
+    expect(equipBeats(scene)).toEqual([
+      expect.objectContaining({
+        actorId: 'u1',
+        targetId: null,
+        label: 'Edric changed equipment · Equipped Rapier.',
+      }),
+    ]);
+    // The rewind menu names the point for the acting unit's equipment change.
+    const lookup = (id) => [edric, sera].find((u) => u.battleEntityId === id) || null;
+    const fact = summarizeActionFact(scene._historyBeats, 'u1', lookup);
+    expect(fact).toMatchObject({ verb: 'equip', actor: 'Edric', detail: 'Equipped Rapier' });
+    expect(describeBefore(fact)).toBe('Before Edric’s equipment change');
+  });
+
+  it("the partner's bag: Edric stays the actor, Sera is never touched beyond her bag", () => {
+    const { scene, controller, edric, sera, ironLance, heal, slot } = session();
+    Object.assign(sera, { hasMoved: true, hasActed: true, _movementCommitted: false });
+    const before = standing(sera);
+    const result = controller.reorder(
+      edric,
+      sera,
+      slot(sera, 'inventory', ironLance),
+      slot(sera, 'inventory', heal),
+    );
+    expect(result).toMatchObject({ ok: true, equips: heal });
+    expect(uids(sera.inventory)).toEqual([
+      'uid-heal',
+      'uid-steel-lance',
+      'uid-keen-sword',
+      'uid-iron-lance',
+      'uid-spear',
+    ]);
+    expect(sera.weapon).toBe(heal);
+    expect(standing(sera)).toEqual(before);
+    expect(edric._movementCommitted).toBe(true);
+    expect(equipBeats(scene).map((b) => [b.label, b.actorId])).toEqual([
+      ['Edric changed equipment · Equipped Heal for Sera.', 'u1'],
+    ]);
+    // A pure order change later in the session: no second lock, its own beat and checkpoint.
+    scene.preMoveLoc = { col: 9, row: 9 };
+    const [vulnerary, elixir] = edric.consumables;
+    expect(
+      controller.reorder(
+        edric,
+        sera,
+        slot(edric, 'consumables', vulnerary),
+        slot(edric, 'consumables', elixir),
+      ),
+    ).toMatchObject({ ok: true, equips: null, detail: 'Swapped Poultice and Elixir' });
+    expect(uids(edric.consumables)).toEqual(['uid-elixir', 'uid-vul-1', 'uid-vul-2']);
+    expect(scene.commitVisionSnapshotIfPending).toHaveBeenCalledOnce();
+    expect(scene.preMoveLoc).toEqual({ col: 9, row: 9 });
+    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledTimes(2);
+    expect(equipBeats(scene).at(-1).label).toBe(
+      'Edric changed equipment · Swapped Poultice and Elixir.',
+    );
+  });
+
+  const reorderGuards = {
+    'the scene left the trade session': (s) => (s.scene.battleState = 'UNIT_ACTION_MENU'),
+    'the enemy phase': (s) => (s.scene.turnManager.currentPhase = 'enemy'),
+    'another unit is selected': (s) => (s.scene.selectedUnit = s.sera),
+    'the acting unit has acted': (s) => (s.edric.hasActed = true),
+    'the partner left the field': (s) => (s.scene.playerUnits = [s.edric]),
+    'the partner is two tiles away': (s) => (s.sera.row = 4),
+    'the controller was destroyed': (s) => s.controller.destroy(),
+    'the slots belong to two units': (s) =>
+      (s.to = s.slot(s.sera, 'inventory', s.sera.inventory[1])),
+    'the bag is a third unit’s': (s) => {
+      const third = { ...s.edric, name: 'Third', inventory: [...s.edric.inventory] };
+      s.scene.playerUnits.push(third);
+      s.from = s.slot(third, 'inventory', s.edric.inventory[2]);
+      s.to = s.slot(third, 'inventory', s.ironSword);
+    },
+  };
+  it.each(Object.keys(reorderGuards))('refuses without any change when %s', (name) => {
+    const s = session();
+    s.from = s.slot(s.edric, 'inventory', s.edric.inventory[2]);
+    s.to = s.slot(s.edric, 'inventory', s.ironSword);
+    reorderGuards[name](s);
+    const bags = json([s.edric, s.sera].map((u) => [u.inventory, u.consumables, u.weapon]));
+    const result = s.controller.reorder(s.edric, s.sera, s.from, s.to);
+    expect(result).toEqual({ ok: false, reason: TRADE_UNAVAILABLE });
+    expect(json([s.edric, s.sera].map((u) => [u.inventory, u.consumables, u.weapon]))).toEqual(
+      bags,
+    );
+    expect(s.edric.weapon).toBe(s.ironSword);
+    expect(s.edric._movementCommitted).toBeUndefined();
+    expect(s.scene.tradeMutatedThisSession).toBe(false);
+    expect(s.scene.preMoveLoc).toEqual({ col: 2, row: 1 });
+    expect(s.scene.commitVisionSnapshotIfPending).not.toHaveBeenCalled();
+    expect(s.scene._captureSuspendCheckpoint).not.toHaveBeenCalled();
+    expect(equipBeats(s.scene)).toEqual([]);
+  });
+
+  it('a refused plan (a weapon he cannot wield into slot 1) never commits movement', () => {
+    const s = session();
+    const axe = s.edric.inventory[3];
+    const before = json([s.edric, s.sera]);
+    const result = s.controller.reorder(
+      s.edric,
+      s.sera,
+      s.slot(s.edric, 'inventory', axe),
+      s.slot(s.edric, 'inventory', s.ironSword),
+    );
+    expect(result).toEqual({ ok: false, reason: "Edric can't wield Hand Axe." });
+    expect(json([s.edric, s.sera])).toEqual(before);
+    expect(s.edric._movementCommitted).toBeUndefined();
+    expect(s.scene.tradeMutatedThisSession).toBe(false);
+    expect(s.scene.commitVisionSnapshotIfPending).not.toHaveBeenCalled();
+    expect(s.scene._captureSuspendCheckpoint).not.toHaveBeenCalled();
+    expect(equipBeats(s.scene)).toEqual([]);
+  });
+
+  it('survives serialize → JSON → resume: the new order and the equipped slot', () => {
+    const { scene, controller, edric, sera, ironSword, slot } = session();
+    const rapier = edric.inventory[2];
+    controller.reorder(
+      edric,
+      sera,
+      slot(edric, 'inventory', rapier),
+      slot(edric, 'inventory', ironSword),
+    );
+    const [checkpoint] = scene.checkpoints;
+    const restored = {
+      playerUnits: [],
+      enemyUnits: [],
+      npcUnits: [],
+      addUnitGraphic: vi.fn(),
+      dimUnit: vi.fn(),
+    };
+    new BattleSuspendController(restored).applyUnits({ ...checkpoint, nextEntityId: 3 });
+    const [e] = restored.playerUnits;
+    expect(uids(e.inventory)).toEqual([
+      'uid-rapier',
+      'uid-steel-sword',
+      'uid-iron-sword',
+      'uid-hand-axe',
+      'uid-javelin',
+    ]);
+    expect(e.weapon).toBe(e.inventory[0]);
+    expect(e.weapon.uid).toBe('uid-rapier');
+    // The forged sword kept its fields in its new slot.
+    expect(e.inventory[2]).toMatchObject({ _forgeLevel: 1, _imbueId: 'ember' });
+    expect(e._movementCommitted).toBe(true);
+  });
+
+  it('the fingerprint sees a pure reorder (same items, same equipped weapon)', () => {
+    const { scene, controller, edric, sera, slot } = session();
+    const before = rewindFingerprint(scene);
+    const [, steel, , axe] = edric.inventory;
+    controller.reorder(edric, sera, slot(edric, 'inventory', steel), slot(edric, 'inventory', axe));
+    expect(edric.weapon.uid).toBe('uid-iron-sword');
+    const changes = fingerprintChanges(scene, before);
+    expect(changes.changed).toBe(true);
+    expect(changes.units).toEqual(['u1']);
+    expect(changes.run).toBe(false);
+  });
+});
+
 describe('BattleScene.findTradeTargets', () => {
   const targets = (scene, unit) =>
     BattleScene.prototype.findTradeTargets.call(scene, unit).map((t) => t.ally.name);
@@ -534,6 +747,30 @@ describe('BattleTradeMenu over the controller', () => {
     expect(s.scene.lastMenuUnit).toBe(s.edric);
     expect(s.scene.tradeMutatedThisSession).toBe(true);
     expect(s.scene.battleTradeMenu).toBeNull();
+  });
+
+  it("two taps in a unit's own column reorder it through the controller", () => {
+    const s = openMenu();
+    s.row('left', 2).click();
+    expect(s.row('left', 0).getAttribute('aria-label')).toBe('Equip Rapier');
+    expect(s.row('left', 3).getAttribute('aria-label')).toBe('Swap Rapier with Hand Axe');
+    s.row('left', 0).click();
+    expect(uids(s.edric.inventory).slice(0, 3)).toEqual([
+      'uid-rapier',
+      'uid-steel-sword',
+      'uid-iron-sword',
+    ]);
+    expect(s.edric.weapon.uid).toBe('uid-rapier');
+    expect(s.edric._movementCommitted).toBe(true);
+    expect(s.scene._captureSuspendCheckpoint).toHaveBeenCalledOnce();
+    expect(s.root.querySelector('.tm-status').textContent).toBe('Rapier is now equipped.');
+    // Hand Axe can't go to slot 1: the row says why and nothing changes.
+    s.row('left', 3).click();
+    expect(s.row('left', 0).getAttribute('aria-disabled')).toBe('true');
+    s.row('left', 0).click();
+    expect(s.root.querySelector('.tm-status').textContent).toBe("Edric can't wield Hand Axe.");
+    expect(s.edric.weapon.uid).toBe('uid-rapier');
+    expect(s.scene._captureSuspendCheckpoint).toHaveBeenCalledOnce();
   });
 
   it('a refused commit leaves the bags and the lock alone and says why', () => {

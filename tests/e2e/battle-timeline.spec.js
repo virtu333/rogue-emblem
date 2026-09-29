@@ -245,18 +245,13 @@ test('fatal decision survives reload and Back; accepting fate exposes read-only 
   await waitForScene(page, 'RunComplete');
   const farewell = page.getByRole('button', { name: 'Skip conversation', exact: true });
   if (await farewell.isVisible()) await farewell.tap();
-  await page.getByRole('button', { name: 'Battle report', exact: true }).tap();
-  const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
-  await expect(view).toBeVisible();
-  await expect(view.locator('.bt-rewind')).toBeDisabled();
-  await expect(view.locator('.bt-summary')).toContainText('Defeat. The run has ended.');
-  await view.getByRole('button', { name: 'Back', exact: true }).tap();
+  // The Battle report is off for now (playtest 2026-09-29).
+  await expect(page.getByRole('button', { name: 'Home Base', exact: true }).last()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Battle report', exact: true })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test('a loss with no charges settles immediately and still offers a free report at 640×480', async ({
-  page,
-}) => {
+test('a loss with no charges settles immediately at 640×480', async ({ page }) => {
   const errors = await boot(page);
   await page.setViewportSize({ width: 640, height: 480 });
   await page.evaluate(async () => {
@@ -271,12 +266,8 @@ test('a loss with no charges settles immediately and still offers a free report 
   await waitForScene(page, 'RunComplete');
   const farewell = page.getByRole('button', { name: 'Skip conversation', exact: true });
   if (await farewell.isVisible()) await farewell.tap();
-  await page.getByRole('button', { name: 'Battle report', exact: true }).tap();
-  const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
-  await expect(view.locator('.bt-rewind')).toBeDisabled();
-  await expect(view.locator('.bt-summary')).toContainText('Defeat. The run has ended.');
-  await expect(view.locator('.bt-rewind')).toBeInViewport();
-  await view.getByRole('button', { name: 'Back', exact: true }).tap();
+  await expect(page.getByRole('button', { name: 'Home Base', exact: true }).last()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Battle report', exact: true })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

@@ -49,6 +49,7 @@ export const GUIDANCE_NOTES = Object.freeze({
   guide_commander_low_hp: { tier: 'essential' },
   guide_recruit_on_map: { tier: 'essential' },
   guide_convoy: { tier: 'essential' },
+  guide_zombie_remains: { tier: 'essential' },
 });
 
 export function noteTier(id) {
@@ -118,6 +119,8 @@ export function guidanceText(id, context = {}) {
       return `${lord} is badly hurt. If ${lord} falls, the run ends. Pull back, heal with a staff, or use a Poultice from Item.`;
     case 'guide_recruit_on_map':
       return `${recruitWho(npc)} under the gold banner can join you. Move a Lord next to them and choose Talk before enemies reach them.`;
+    case 'guide_zombie_remains':
+      return 'Fallen undead leave bones. The number counts the enemy phases until they rise again at half HP. Bring a unit within weapon reach and choose Smash to end them for good. Light magic leaves no bones.';
     case 'guide_convoy':
       return `Convoy is your army’s shared storage between battles. Units fight only with what they carry (${INVENTORY_MAX} weapons, ${CONSUMABLE_MAX} items). Store puts a carried item away; Withdraw hands it to the chosen unit.`;
     default:

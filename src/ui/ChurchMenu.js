@@ -7,9 +7,16 @@ import { ChoicePicker } from './ChoicePicker.js';
 import { withUnitFace } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { saveServiceRun } from './serviceSave.js';
-import { canPromote, resolvePromotionTargets, getDisplayLevel } from '../engine/UnitManager.js';
+import {
+  canPromote,
+  resolvePromotionTargets,
+  getDisplayLevel,
+  reviveStarterWeapon,
+  withIndefiniteArticle,
+} from '../engine/UnitManager.js';
 import { getReviveCost } from '../engine/RunManager.js';
 import {
+  churchPromoteCost,
   churchPromotionBlock,
   promoteAtChurch,
   churchReviveBlock,
@@ -27,10 +34,23 @@ import {
   reviveAtRuins,
 } from '../engine/RuinsCommands.js';
 import { eclipsePhase, kindlePrice } from '../engine/EclipseSystem.js';
+import {
+  churchBlessingBlock,
+  churchBlessingOffers,
+  churchVow,
+  churchVowLine,
+  takeChurchBlessing,
+} from '../engine/ChurchVow.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
-import { CHURCH_PROMOTE_COST, RUINS_SHOP_MARKUP } from '../utils/constants.js';
+import {
+  CHURCH_PROMOTE_COST_LORD,
+  CHURCH_PROMOTE_COST_RECRUIT,
+  RUINS_SHOP_MARKUP,
+  INVENTORY_MAX,
+} from '../utils/constants.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
+import { healUnitFully } from '../engine/UnitHealth.js';
 // The sanctuary's band kicker: both paths before the choice, the chosen one after.
 const RUINS_KICKER = Object.freeze({
   none: 'Heal or wares',
@@ -38,6 +58,11 @@ const RUINS_KICKER = Object.freeze({
   scavenge: 'Scavenge · Wares',
 });
 const ruinsMarkupPct = () => Math.round((RUINS_SHOP_MARKUP - 1) * 100);
+// Revive preview: the weapon an unarmed fallen unit is handed back (reviveStarterWeapon).
+const starterLine = (unit, gameData) => {
+  const weapon = reviveStarterWeapon(unit, gameData?.weapons || [], INVENTORY_MAX);
+  return weapon ? ` Comes back carrying ${withIndefiniteArticle(weapon.name)}.` : '';
+};
 export function ruinsPathLabel(path) {
   return path === 'rest'
     ? 'Rest — heal everyone, revive the fallen'
@@ -109,7 +134,7 @@ export class ChurchMenu {
           this.finish(healAtRuins(run, nodeId));
           return;
         }
-        for (const u of run.roster) u.currentHP = u.stats.HP;
+        for (const u of run.roster) healUnitFully(u);
         this.finish({ ok: true, message: 'All units healed.' });
       }),
     );
@@ -128,17 +153,37 @@ export class ChurchMenu {
           confirmation: true,
           label: (u) => u.name,
           describe: () =>
-            `${getReviveCost(unit)} gold. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels toward the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
+            `${getReviveCost(unit)} gold. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels toward the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'}${starterLine(unit, this.scene.gameData)} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
           blocked: (u) => reviveBlock(u),
           apply: (u) => this.finish(ruins ? reviveAtRuins(run, nodeId, u) : reviveAtChurch(run, u)),
         }),
       );
       b.disabled = !!reason;
       body.append(withUnitFace(b, this.scene, this.scene.gameData, unit));
+      const info = button(`${unit.name}'s details`, () => this.fallenDetails(unit));
+      info.classList.add('church-fallen-details');
+      body.append(info);
       if (reason) body.append(el('p', reason));
     }
     if (!ruins) {
-      body.append(el('h3', `Promote · ${CHURCH_PROMOTE_COST} G`));
+      // One vow per church: Promotion or a Blessing (ChurchVow).
+      const vow = churchVow(run, nodeId);
+      body.append(el('h3', 'Your vow here'));
+      body.append(
+        el(
+          'p',
+          vow
+            ? churchVowLine(vow)
+            : 'Promote your units, or take a blessing: one vow per church. The first promotion or the blessing makes it.',
+          'church-vow-line',
+        ),
+      );
+      body.append(
+        el(
+          'h3',
+          `Promote · ${CHURCH_PROMOTE_COST_RECRUIT} G · lords ${CHURCH_PROMOTE_COST_LORD} G`,
+        ),
+      );
       const eligible = run.roster.filter(canPromote);
       if (!eligible.length)
         body.append(el('p', 'No units eligible yet. Base classes can promote from level 10.'));
@@ -151,9 +196,41 @@ export class ChurchMenu {
         body.append(withUnitFace(b, this.scene, this.scene.gameData, unit));
         if (reason) body.append(el('p', reason));
       }
+      this.renderBlessings(body, run, nodeId);
     }
     this.renderTools(body);
     body.scrollTop = scroll;
+  }
+  /** The altar's minor blessings: taking one is this church's vow. */
+  renderBlessings(body, run, nodeId) {
+    const gameData = this.scene.gameData;
+    const vow = churchVow(run, nodeId);
+    if (vow === 'blessing') return;
+    body.append(el('h3', 'Blessing · Free'));
+    const offers = churchBlessingOffers(run, nodeId, gameData);
+    if (!offers.length) body.append(el('p', 'You already hold every blessing this altar gives.'));
+    for (const blessing of offers) {
+      const reason = churchBlessingBlock(run, nodeId, blessing.id, gameData);
+      const b = button(
+        `${blessing.name} · ${blessing.description}`,
+        () =>
+          this.choose({
+            title: `Take ${blessing.name}?`,
+            choices: [blessing],
+            confirmation: true,
+            confirmLabel: 'Take the blessing',
+            label: (x) => x.name,
+            describe: (x) =>
+              `${x.description} This is your vow here: this church will promote no one.`,
+            blocked: (x) => churchBlessingBlock(run, nodeId, x.id, gameData),
+            apply: (x) => this.finish(takeChurchBlessing(run, nodeId, x.id, gameData)),
+          }),
+        're-btn church-blessing',
+      );
+      b.disabled = !!reason;
+      body.append(b);
+      if (reason) body.append(el('p', reason));
+    }
   }
   renderTools(body) {
     const tools = el('div', null, 'shop-tools');
@@ -312,8 +389,8 @@ export class ChurchMenu {
       gameData,
       title: `Promote ${unit.name}`,
       closeLabel: 'Close',
-      note: `${CHURCH_PROMOTE_COST} G · you have ${run.gold} G`,
-      confirmLabel: (cls) => `Promote to ${cls.name} · ${CHURCH_PROMOTE_COST} G`,
+      note: `${churchPromoteCost(unit)} G · you have ${run.gold} G`,
+      confirmLabel: (cls) => `Promote to ${cls.name} · ${churchPromoteCost(unit)} G`,
       blocked: () => churchPromotionBlock(run, unit, nodeId, gameData),
       apply: (target) => {
         const content = promotionPathContent(unit, target, gameData);
@@ -373,6 +450,26 @@ export class ChurchMenu {
         this.surface.root.inert = false;
         if (next) return next();
         this.render();
+        this.surface.focusContent();
+      },
+    });
+  }
+  /** Read-only unit sheet for a fallen ally, opened from the revive list. */
+  fallenDetails(unit) {
+    if (this.child) return;
+    const fallen = this.scene.runManager.fallenUnits || [];
+    this.surface.root.inert = true;
+    this.child = new MobileRosterSheet({
+      scene: this.scene,
+      run: null,
+      units: fallen,
+      index: Math.max(0, fallen.indexOf(unit)),
+      gameData: this.scene.gameData,
+      onClose: () => {
+        this.child.destroy();
+        this.child = null;
+        if (!this.surface || this.destroyed) return;
+        this.surface.root.inert = false;
         this.surface.focusContent();
       },
     });

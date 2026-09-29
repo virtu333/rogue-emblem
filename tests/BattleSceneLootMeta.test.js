@@ -850,13 +850,15 @@ describe('Loot card hover tooltip lifecycle', () => {
       item,
     );
 
-    expect(result).toContain('Heavy Blade');
-    expect(result).toContain('Base HP cost: 5 per use');
-    expect(result).toContain('Sword');
-    expect(result).toContain('1 use per turn');
-    expect(result).toContain('A powerful overhead strike.');
-    expect(result).toContain('+8 Attack');
-    expect(result).toContain('-10 Hit');
+    expect(result.split('\n')).toEqual([
+      'Weapon art scroll: binds Heavy Blade to one Sword weapon for this run.',
+      'Use: Roster → Skills → Bind to weapon. Kept until bound.',
+      '',
+      'Cost: 5 HP · 3 per battle · 1 per turn',
+      'Effect: +8 Attack · -10 Hit',
+      'Needs: Sword · Proficient',
+      'A powerful overhead strike.',
+    ]);
   });
 
   it('_getLootTooltipText returns skill scroll details', () => {
@@ -881,7 +883,7 @@ describe('Loot card hover tooltip lifecycle', () => {
       item,
     );
 
-    expect(result).toContain('Vantage Scroll');
+    expect(result).toContain('Skill scroll: teaches Forestall to one unit.');
     expect(result).toContain('Strike first when below 50% HP.');
     expect(result).not.toContain('on-combat-start');
     expect(result).toContain('Roster → Skills → Teach');

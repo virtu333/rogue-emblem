@@ -1,4 +1,3 @@
-import { BattleTimelineView } from './BattleTimelineView.js';
 import { getCloudSaveConflict } from '../engine/CloudSaveConflict.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { MAX_SLOTS, getSlotSummary } from '../engine/SlotManager.js';
@@ -6,6 +5,7 @@ import { TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { deedsOfTheMarchSection } from './deedDisplay.js';
 import { runEclipseSummary } from './eclipseContent.js';
 import { slotCardModel } from './slotCardModel.js';
+import { latestSlot } from './titleMenuModel.js';
 import { buildSlotCard, mountSlotPickerArt, slotPickerReducedMotion } from './SlotPickerView.js';
 
 /** Shown when a finished run's rewards could not be written (they retry on Continue). */
@@ -51,19 +51,8 @@ export function runResultMenu(scene, rewards, meta) {
     button('Home Base', () => leave(true), 're-btn re-btn--primary'),
     button('Title', () => leave(false)),
   );
-  if (rm.lastBattleReport?.entries?.length)
-    actions.append(
-      button('Battle report', () => {
-        menu.root.inert = true;
-        new BattleTimelineView(scene, {
-          history: rm.lastBattleReport,
-          charges: 0,
-          onClose: () => {
-            menu.root.inert = false;
-          },
-        });
-      }),
-    );
+  // The Battle report (last battle's timeline) is off for now: it misbehaved on the
+  // phone (playtest 2026-09-29). The run still records rm.lastBattleReport.
   menu.body.append(actions);
   menu.focusContent();
   return menu;
@@ -97,13 +86,17 @@ export function slotMenu(scene) {
     art.refresh();
     const cards = element('div', null, 'sp-cards');
     const now = Date.now();
+    const summaries = Array.from({ length: MAX_SLOTS }, (_, i) => getSlotSummary(i + 1));
+    // The save played last wears a gold rim, so a returning player finds it at once.
+    const latest = latestSlot(summaries);
     for (let slot = 1; slot <= MAX_SLOTS; slot++) {
-      const summary = getSlotSummary(slot);
+      const summary = summaries[slot - 1];
       const model = slotCardModel(slot, summary, {
         gameData: scene.gameData,
         now,
         conflict: Boolean(summary && getCloudSaveConflict(slot)),
       });
+      if (slot === latest) model.latest = true;
       cards.append(
         buildSlotCard(model, {
           onPrimary: (card) => kindle(card, slot, summary),

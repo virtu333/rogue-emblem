@@ -92,6 +92,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -107,6 +108,7 @@
         ],
         "minActByDifficulty": {
           "normal": "never",
+          "dusk": "act3",
           "hard": "act2",
           "lunatic": "act2"
         },
@@ -270,6 +272,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -285,6 +288,7 @@
         ],
         "minActByDifficulty": {
           "normal": "never",
+          "dusk": "act3",
           "hard": "act2",
           "lunatic": "act2"
         },
@@ -410,6 +414,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -425,6 +430,7 @@
         ],
         "minActByDifficulty": {
           "normal": "never",
+          "dusk": "act3",
           "hard": "act2",
           "lunatic": "act2"
         },
@@ -465,6 +471,7 @@
     {
       "id": "chokepoint",
       "name": "Chokepoint",
+      "caravan": false,
       "fogChance": 0.2,
       "zones": [
         {
@@ -597,6 +604,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -612,6 +620,7 @@
         ],
         "minActByDifficulty": {
           "normal": "never",
+          "dusk": "act3",
           "hard": "act2",
           "lunatic": "act2"
         },
@@ -772,6 +781,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -923,6 +933,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -1150,6 +1161,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -1165,6 +1177,7 @@
         ],
         "minActByDifficulty": {
           "normal": "never",
+          "dusk": "act3",
           "hard": "act2",
           "lunatic": "act2"
         },
@@ -1385,6 +1398,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -1400,6 +1414,7 @@
         ],
         "minActByDifficulty": {
           "normal": "never",
+          "dusk": "act3",
           "hard": "act2",
           "lunatic": "act2"
         },
@@ -1554,6 +1569,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -1569,6 +1585,7 @@
         ],
         "minActByDifficulty": {
           "normal": "never",
+          "dusk": "act3",
           "hard": "act2",
           "lunatic": "act2"
         },
@@ -1725,6 +1742,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -1876,6 +1894,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -2042,6 +2061,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -2057,6 +2077,7 @@
         ],
         "minActByDifficulty": {
           "normal": "never",
+          "dusk": "act3",
           "hard": "act2",
           "lunatic": "act2"
         },
@@ -2097,6 +2118,7 @@
     {
       "id": "great_hall",
       "name": "Great Hall",
+      "caravan": false,
       "parBonus": 1,
       "fogChance": 0.1,
       "acts": [
@@ -2334,6 +2356,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -2349,6 +2372,7 @@
         ],
         "minActByDifficulty": {
           "normal": "never",
+          "dusk": "act3",
           "hard": "act2",
           "lunatic": "act2"
         },
@@ -2510,6 +2534,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -2525,6 +2550,7 @@
         ],
         "minActByDifficulty": {
           "normal": "never",
+          "dusk": "act3",
           "hard": "act2",
           "lunatic": "act2"
         },
@@ -2696,6 +2722,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -2860,6 +2887,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -3
         },
@@ -3109,6 +3137,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -1
         },
@@ -3389,6 +3418,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -1
         },
@@ -3555,6 +3585,7 @@
         "difficultyScaling": false,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": 0,
           "lunatic": 0
         },
@@ -3672,6 +3703,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -2
         },
@@ -3823,6 +3855,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -2
         },
@@ -3933,6 +3966,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -2
         },
@@ -4055,6 +4089,7 @@
         "difficultyScaling": true,
         "turnOffsetByDifficulty": {
           "normal": 0,
+          "dusk": 0,
           "hard": -1,
           "lunatic": -2
         },

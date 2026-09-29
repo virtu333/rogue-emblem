@@ -143,7 +143,10 @@ export class LevelUpPopup {
       const lineHeight = 18;
       const panelWidth = 260;
       const quoteLineCount = quoteText ? 3 : 0;
-      const skillLineCount = this.learnedSkills.length > 0 ? this.learnedSkills.length + 1 : 0;
+      const blocked = this.levelUpResult?.blockedSkills || [];
+      const skillLineCount =
+        (this.learnedSkills.length > 0 ? this.learnedSkills.length + 1 : 0) +
+        (blocked.length ? blocked.length + (this.learnedSkills.length ? 0 : 1) : 0);
       const growthLineCount = growthLines.length > 0 ? growthLines.length + 1 : 0;
       const panelHeight =
         (statLines.length + 4 + skillLineCount + growthLineCount + quoteLineCount) * lineHeight +
@@ -232,6 +235,24 @@ export class LevelUpPopup {
             .setOrigin(0, 0)
             .setDepth(902);
           this.objects.push(skillText);
+          y += lineHeight;
+        }
+      }
+
+      // Skills that came due at this level with every skill slot full (kept benched).
+      if (blocked.length > 0) {
+        if (!this.learnedSkills.length) y += 4;
+        for (const skillName of blocked) {
+          const blockedText = presentationText(
+            this.scene,
+            cx - panelWidth / 2 + 12,
+            y,
+            `  BENCHED: ${skillName} (slots full)`,
+            { fontFamily: 'monospace', fontSize: '12px', color: UI_PALETTE.muted },
+          )
+            .setOrigin(0, 0)
+            .setDepth(902);
+          this.objects.push(blockedText);
           y += lineHeight;
         }
       }

@@ -288,11 +288,37 @@
     white-space: nowrap;
     overflow-wrap: normal;
   }
+  /* Church and arena lists scroll in the menu body and end in the footer tools. Rows sit
+     at fractional offsets (the headings are 1.17em), and a scroller lands on whole
+     pixels, so a row scrolled to the edge could stay a fraction of a pixel under it
+     (the revive row, 0.44px, once the vow and blessing lists lengthened the body). The
+     scroll padding keeps a row scrolled into view clear of both edges, and the bottom
+     padding lets the last tool button rest above the clip instead of flush with it. */
+  html.portrait-ui .service-menu .re-menu-body {
+    scroll-padding-block: 8px;
+    padding-bottom: 8px;
+  }
   /* The list takes what its rows need, up to 42% of the split (about the old
      0.75fr share), so a short stock (a caravan's one or two items) leaves the room to
      the detail instead of an empty band above it. */
   html.portrait-ui .shop-split {
     grid-template-rows: fit-content(42%) minmax(180px, 1fr);
+  }
+  /* What the item does for your army comes before its story: at 375x667 the lore
+     ended cleanly at the fold and "Compare with your roster" sat unseen below it
+     (review, build 24). The quote now closes the pane. */
+  html.portrait-ui .shop-copy {
+    display: flex;
+    flex-direction: column;
+  }
+  html.portrait-ui .shop-copy > * {
+    flex: none;
+  }
+  html.portrait-ui .shop-copy > .shop-lore {
+    order: 1;
+  }
+  html.portrait-ui .shop-copy > details {
+    margin: 0 0 12px;
   }
   /* The stock list fades at its lower edge, so a row cut by the fold reads as "more
      below"; the padding lets the last row clear the fade. */
