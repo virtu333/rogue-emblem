@@ -14,6 +14,12 @@ import {
   getFirstLandedStrikeDamage,
   getPostCombatPipelineSteps,
 } from '../src/engine/WeaponArtPostCombat.js';
+import {
+  allyBuff,
+  aoeSplash,
+  runPostCombatEffectsSync,
+  splashTargets,
+} from '../src/engine/PostCombatEffects.js';
 
 const gameData = loadGameData();
 const artById = new Map(gameData.weaponArts.arts.map((art) => [art.id, art]));
@@ -168,6 +174,11 @@ describe('Tier 5 post-combat steps', () => {
   });
 });
 
+// One implementation (engine/PostCombatEffects.js), two drivers: the scene awaits each
+// beat with presentation, the harness acts only on the required ones. Same outcome.
+const runHeadless = (battle, beats) =>
+  runPostCombatEffectsSync(beats, { remove: (unit, options) => battle._removeUnit(unit, options) });
+
 describe('Tier 5 scene/headless parity', () => {
   let scene;
   let headless;
@@ -210,8 +221,8 @@ describe('Tier 5 scene/headless parity', () => {
     headless.playerUnits = [source];
     headless.enemyUnits = [primary, enemyA, enemyB];
 
-    const sceneTargets = scene._collectTier5SplashTargets(step, source, primary);
-    const headlessTargets = headless._collectTier5SplashTargets(step, source, primary);
+    const sceneTargets = splashTargets(step, source, primary, scene._postCombatWorld());
+    const headlessTargets = splashTargets(step, source, primary, headless._postCombatWorld());
 
     expect(sceneTargets.map((u) => u.name)).toEqual(['B']);
     expect(headlessTargets.map((u) => u.name)).toEqual(['B']);
@@ -267,8 +278,13 @@ describe('Tier 5 scene/headless parity', () => {
       nonLethal: false,
     };
 
-    await scene._applyTier5AoeSplashStep(step, sourceScene, primaryScene);
-    headless._applyTier5AoeSplashStep(step, sourceHeadless, primaryHeadless);
+    await scene._playPostCombatBeats(
+      aoeSplash(step, sourceScene, primaryScene, scene._postCombatWorld()),
+    );
+    runHeadless(
+      headless,
+      aoeSplash(step, sourceHeadless, primaryHeadless, headless._postCombatWorld()),
+    );
 
     expect(splashScene.currentHP).toBe(13);
     expect(splashHeadless.currentHP).toBe(13);
@@ -324,8 +340,13 @@ describe('Tier 5 scene/headless parity', () => {
       nonLethal: false,
     };
 
-    await scene._applyTier5AoeSplashStep(step, sourceScene, primaryScene);
-    headless._applyTier5AoeSplashStep(step, sourceHeadless, primaryHeadless);
+    await scene._playPostCombatBeats(
+      aoeSplash(step, sourceScene, primaryScene, scene._postCombatWorld()),
+    );
+    runHeadless(
+      headless,
+      aoeSplash(step, sourceHeadless, primaryHeadless, headless._postCombatWorld()),
+    );
 
     expect(splashScene.currentHP).toBe(13);
     expect(splashHeadless.currentHP).toBe(13);
@@ -391,8 +412,8 @@ describe('Tier 5 scene/headless parity', () => {
 
     await scene._applyTier5AllyBuffStep(strongStep, sourceScene);
     await scene._applyTier5AllyBuffStep(weakStep, sourceScene);
-    headless._applyTier5AllyBuffStep(strongStep, sourceHeadless);
-    headless._applyTier5AllyBuffStep(weakStep, sourceHeadless);
+    runHeadless(headless, allyBuff(strongStep, sourceHeadless, headless._postCombatWorld()));
+    runHeadless(headless, allyBuff(weakStep, sourceHeadless, headless._postCombatWorld()));
 
     expect(allyScene.stats.STR).toBe(12);
     expect(headless._getTimedWeaponArtCombatBuffMods(allyHeadless).critBonus).toBe(10);

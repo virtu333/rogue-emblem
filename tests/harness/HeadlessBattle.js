@@ -77,15 +77,7 @@ import {
   isWeaponArtCompatibleWithWeapon,
   recordWeaponArtUse,
 } from '../../src/engine/WeaponArtSystem.js';
-import {
-  didCombatSideLandHit,
-  getPostCombatPipelineSteps,
-  resolvePostCombatMove,
-} from '../../src/engine/WeaponArtPostCombat.js';
-import {
-  applyCondition,
-  processConditionRecovery,
-} from '../../src/engine/StatusConditionSystem.js';
+import { processConditionRecovery } from '../../src/engine/StatusConditionSystem.js';
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
 import { calculatePar } from '../../src/engine/TurnBonusCalculator.js';
 import {
@@ -114,6 +106,14 @@ import {
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
 import { applyCombatHP } from '../../src/engine/UnitHealth.js';
+import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
+import {
+  applyTimedBuffEntry,
+  expireTimedBuffs,
+  resolveTimedBuffExpiry,
+  timedBuffCombatMods,
+} from '../../src/engine/TimedWeaponArtBuffs.js';
+import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
 
 export const HEADLESS_STATES = {
   PLAYER_IDLE: 'PLAYER_IDLE',
@@ -139,16 +139,6 @@ const HIDDEN_WEAPON_ART_REASONS = new Set([
   'invalid_unlock_act_config',
   'invalid_input',
 ]);
-const TIER5_BUFF_CORE_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
-const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
-  HIT: 'hitBonus',
-  CRIT: 'critBonus',
-  AVOID: 'avoidBonus',
-  ATK: 'atkBonus',
-  DEF_BONUS: 'defBonus',
-  RES_BONUS: 'resBonus',
-  SPD_BONUS: 'spdBonus',
-};
 
 export class HeadlessBattle {
   constructor(gameData, battleParams, roster = null) {
@@ -1161,29 +1151,6 @@ export class HeadlessBattle {
     }
   }
 
-  _applyOnAttackAffixes(attacker, defender, events, sourceSide = null) {
-    if (!attacker || !defender || defender.currentHP <= 0) return;
-    const inferredSide = sourceSide || null;
-    const didLandHit = inferredSide
-      ? didCombatSideLandHit(
-          events,
-          inferredSide,
-          inferredSide === 'attacker' ? attacker : defender,
-          inferredSide === 'attacker' ? defender : attacker,
-        )
-      : events.some((e) => e.type === 'strike' && !e.miss && e.attacker === attacker.name);
-    if (!didLandHit || !attacker.affixes?.length) return;
-    const affixResult = getAttackAffixes(attacker, this.gameData.affixes);
-
-    if (affixResult.poisonDamage > 0 && defender.currentHP > 0) {
-      defender.currentHP = Math.max(1, defender.currentHP - affixResult.poisonDamage);
-    }
-
-    if (affixResult.debuffStat && defender.currentHP > 0) {
-      this.applyBattleDebuff(defender, affixResult.debuffStat, affixResult.debuffValue);
-    }
-  }
-
   _refreshFogVisibility() {
     if (!this.grid?.fogEnabled) return;
     this.grid.updateFogOfWar(this.playerUnits);
@@ -1684,460 +1651,47 @@ export class HeadlessBattle {
     };
   }
 
-  _applyResolvedCombatPostEffects({
-    attacker,
-    defender,
-    result,
-    attackerWeaponArt = null,
-    defenderWeaponArt = null,
-  }) {
-    const steps = getPostCombatPipelineSteps({
-      attacker,
-      defender,
-      result,
-      attackerWeaponArt,
-      defenderWeaponArt,
+  /** Post-combat effects: the engine's (PostCombatEffects.js), without presentation. */
+  _applyResolvedCombatPostEffects(combat) {
+    runPostCombatEffectsSync(postCombatEffects(combat, this._postCombatWorld()), {
+      remove: (unit, options) => this._removeUnit(unit, options),
+      moved: (units) => this._refreshPostCombatMovementState(units),
     });
-    for (const step of steps) {
-      const sourceUnit = step.sourceSide === 'defender' ? defender : attacker;
-      const targetUnit = step.targetSide
-        ? step.targetSide === 'attacker'
-          ? attacker
-          : defender
-        : step.sourceSide === 'defender'
-          ? attacker
-          : defender;
-      switch (step.type) {
-        case 'affix':
-          this._applyOnAttackAffixes(sourceUnit, targetUnit, result.events, step.sourceSide);
-          break;
-        case 'poison':
-          // resolveCombat already applies poison to HP totals; headless has no poison VFX.
-          break;
-        case 'debuff':
-          if (!targetUnit || targetUnit.currentHP <= 0) break;
-          for (const [stat, val] of Object.entries(step.debuffs || {})) {
-            this.applyBattleDebuff(targetUnit, stat, val);
-          }
-          break;
-        case 'divine_charge':
-          this._applyDivineChargeHealStep(step, attacker, defender);
-          break;
-        case 'tier2_damage':
-          if (!targetUnit || targetUnit.currentHP <= 0) break;
-          targetUnit.currentHP = Math.max(
-            step.nonLethal ? 1 : 0,
-            targetUnit.currentHP - step.amount,
-          );
-          break;
-        case 'tier2_debuff':
-          if (!targetUnit || targetUnit.currentHP <= 0) break;
-          this.applyBattleDebuff(targetUnit, step.stat, step.amount);
-          break;
-        case 'tier2_status':
-          if (!targetUnit || targetUnit.currentHP <= 0) break;
-          // durationPhases = full phases; recovery decrements at phase start, hence +1
-          applyCondition(targetUnit, step.status, step.durationPhases + 1, {
-            recoveryChance: 0,
-          });
-          break;
-        case 'art_miss_self_damage':
-          if (!targetUnit || targetUnit.currentHP <= 0) break;
-          targetUnit.currentHP = Math.max(
-            step.nonLethal === false ? 0 : 1,
-            targetUnit.currentHP - step.amount,
-          );
-          break;
-        case 'art_kill_buff':
-          this._applyArtKillBuffStep(step, sourceUnit, targetUnit);
-          break;
-        case 'tier2_pierce':
-          this._applyTier2PierceStep(step, sourceUnit, targetUnit);
-          break;
-        case 'tier2_move':
-          this._applyTier2MoveStep(sourceUnit, targetUnit, step);
-          break;
-        case 'tier2_set_hp':
-          this._applyTier2SetHpStep(step, sourceUnit, targetUnit);
-          break;
-        case 'tier5_aoe_splash':
-          this._applyTier5AoeSplashStep(step, sourceUnit, targetUnit);
-          break;
-        case 'tier5_ally_buff':
-          this._applyTier5AllyBuffStep(step, sourceUnit);
-          break;
-        default:
-          break;
-      }
-    }
   }
 
-  _applyDivineChargeHealStep(step, attacker, defender) {
-    const caster = step.side === 'defender' ? defender : attacker;
-    if (!caster || caster.currentHP <= 0) return;
-    const healAmount = Math.floor((step.damageDealt * step.percent) / 100);
-    if (healAmount <= 0) return;
-    const allies = this._getDivineChargeAllies(caster).filter(
-      (u) =>
-        u.currentHP > 0 &&
-        u.currentHP < u.stats.HP &&
-        u !== caster &&
-        gridDistance(caster.col, caster.row, u.col, u.row) <= step.range,
-    );
-    if (allies.length === 0) return;
-    allies.sort((a, b) => a.currentHP / a.stats.HP - b.currentHP / b.stats.HP);
-    allies[0].currentHP = Math.min(allies[0].stats.HP, allies[0].currentHP + healAmount);
-  }
-
-  _applyTier2MoveStep(sourceUnit, targetUnit, step) {
-    if (!sourceUnit) return;
-    const moveResult = resolvePostCombatMove({
-      sourceUnit,
-      targetUnit,
-      mode: step.mode,
-      distance: step.distance,
+  /** The battle as post-combat effects see it (same shape as BattleScene's). */
+  _postCombatWorld() {
+    return {
+      affixes: this.gameData?.affixes,
       cols: this.grid.cols,
       rows: this.grid.rows,
       getMoveCost: (col, row, moveType) => this.grid.getMoveCost(col, row, moveType),
       getUnitAt: (col, row) => this.getUnitAt(col, row),
-    });
-    if (!moveResult.ok) return;
-    const movedUnits = [];
-    for (const assignment of moveResult.assignments) {
-      assignment.unit.col = assignment.col;
-      assignment.unit.row = assignment.row;
-      movedUnits.push(assignment.unit);
-    }
-    this._refreshPostCombatMovementState(movedUnits);
-  }
-
-  _resolveTier2PierceTarget(sourceUnit, primaryTarget) {
-    if (!sourceUnit || !primaryTarget) return null;
-    const dc = primaryTarget.col - sourceUnit.col;
-    const dr = primaryTarget.row - sourceUnit.row;
-    if (Math.abs(dc) + Math.abs(dr) !== 1) return null;
-    const secondaryCol = primaryTarget.col + dc;
-    const secondaryRow = primaryTarget.row + dr;
-    if (
-      secondaryCol < 0 ||
-      secondaryCol >= this.grid.cols ||
-      secondaryRow < 0 ||
-      secondaryRow >= this.grid.rows
-    ) {
-      return null;
-    }
-    const candidate = this.getUnitAt(secondaryCol, secondaryRow);
-    if (!candidate || candidate.currentHP <= 0) return null;
-    if (!this._getTier5HostileUnitsFor(sourceUnit).includes(candidate)) return null;
-    return candidate;
-  }
-
-  _applyTier2PierceStep(step, sourceUnit, primaryTarget) {
-    if (!sourceUnit) return;
-    if (!primaryTarget) return;
-    const strikeDamages = Array.isArray(step?.damages) ? step.damages : [];
-    if (strikeDamages.length <= 0) return;
-    const target = this._resolveTier2PierceTarget(sourceUnit, primaryTarget);
-    if (!target) return;
-
-    for (const rawDamage of strikeDamages) {
-      if (target.currentHP <= 0) break;
-      const damage = Math.max(0, Math.trunc(Number(rawDamage) || 0));
-      if (damage <= 0) continue;
-      target.currentHP = Math.max(0, target.currentHP - damage);
-      if (target.currentHP <= 0) {
-        this._removeUnit(target, { killer: sourceUnit });
-        break;
-      }
-    }
-  }
-
-  _applyTier2SetHpStep(step, sourceUnit, targetUnit) {
-    if (!sourceUnit || sourceUnit.currentHP <= 0) return;
-    if (!targetUnit || targetUnit.currentHP <= 0) return;
-    const value = Math.max(1, Math.trunc(Number(step?.value) || 0));
-    if (value <= 0) return;
-    const maxHp = Math.max(1, Math.trunc(Number(targetUnit.stats?.HP) || 1));
-    targetUnit.currentHP = Math.min(maxHp, value);
-  }
-
-  _collectTier5SplashTargets(step, sourceUnit, primaryTarget) {
-    if (!sourceUnit || !primaryTarget) return [];
-    const radius = Math.max(0, Math.trunc(Number(step?.radius) || 0));
-    if (radius <= 0) return [];
-    const candidates = this._getTier5HostileUnitsFor(sourceUnit)
-      .filter((unit) => unit && unit !== primaryTarget && unit.currentHP > 0)
-      .filter(
-        (unit) => gridDistance(primaryTarget.col, primaryTarget.row, unit.col, unit.row) <= radius,
-      );
-    const maxTargets = Math.max(0, Math.trunc(Number(step?.maxTargets) || 0));
-    if (maxTargets === 1) {
-      candidates.sort((a, b) => {
-        const aHpPct = (Number(a.currentHP) || 0) / Math.max(1, Number(a.stats?.HP) || 1);
-        const bHpPct = (Number(b.currentHP) || 0) / Math.max(1, Number(b.stats?.HP) || 1);
-        if (aHpPct !== bHpPct) return aHpPct - bHpPct;
-        if (a.row !== b.row) return a.row - b.row;
-        if (a.col !== b.col) return a.col - b.col;
-        return String(a.name || '').localeCompare(String(b.name || ''));
-      });
-      return candidates.slice(0, 1);
-    }
-    candidates.sort((a, b) => {
-      if (a.row !== b.row) return a.row - b.row;
-      if (a.col !== b.col) return a.col - b.col;
-      return String(a.name || '').localeCompare(String(b.name || ''));
-    });
-    return maxTargets > 0 ? candidates.slice(0, maxTargets) : candidates;
-  }
-
-  _getTier5HostileUnitsFor(sourceUnit) {
-    if (!sourceUnit) return [];
-    if (sourceUnit.faction === 'enemy') return this.playerUnits || [];
-    return this.enemyUnits || [];
-  }
-
-  _getTier5SplashDamage(step) {
-    const damageKind = String(step?.damageKind || '').toLowerCase();
-    if (damageKind === 'fixed') {
-      return Math.max(0, Math.trunc(Number(step?.fixedDamage) || 0));
-    }
-    let multiplier = Number(step?.damageMultiplier) || 0;
-    if (multiplier > 1) multiplier /= 100;
-    const basisDamage = Math.max(0, Math.trunc(Number(step?.basisDamage) || 0));
-    return Math.max(0, Math.floor(basisDamage * Math.max(0, multiplier)));
-  }
-
-  _applyTier5AoeSplashStep(step, sourceUnit, primaryTarget) {
-    if (!sourceUnit || sourceUnit.currentHP <= 0) return;
-    if (!primaryTarget) return;
-    const targets = this._collectTier5SplashTargets(step, sourceUnit, primaryTarget);
-    if (targets.length <= 0) return;
-    const splashDamage = this._getTier5SplashDamage(step);
-    if (splashDamage <= 0) return;
-    for (const target of targets) {
-      if (!target || target.currentHP <= 0) continue;
-      const hpFloor = step?.nonLethal ? 1 : 0;
-      target.currentHP = Math.max(hpFloor, target.currentHP - splashDamage);
-      if (target.currentHP <= 0) this._removeUnit(target, { killer: sourceUnit });
-    }
+      hostilesOf: (unit) =>
+        unit?.faction === 'enemy' ? this.playerUnits || [] : unit ? this.enemyUnits || [] : [],
+      alliesOf: (unit) => this._getDivineChargeAllies(unit),
+      turnNumber: this.turnManager?.turnNumber,
+    };
   }
 
   _applyTier5TimedBuffEntry(unit, entry) {
-    if (!unit) return;
-    if (!Array.isArray(unit._battleTimedWeaponArtBuffs)) unit._battleTimedWeaponArtBuffs = [];
-    const key = String(entry?.key || '');
-    if (key) {
-      const existing = unit._battleTimedWeaponArtBuffs.find((buff) => buff?.key === key);
-      if (existing) {
-        existing.stats = { ...(entry.stats || {}) };
-        existing.expiryPhase = entry.expiryPhase;
-        existing.expiryTurn = entry.expiryTurn;
-        existing.artId = entry.artId || null;
-        existing.sourceName = entry.sourceName || null;
-        existing.sourceFaction = entry.sourceFaction || null;
-        this._recomputeTimedWeaponArtBuffState(unit);
-        return;
-      }
-    }
-    unit._battleTimedWeaponArtBuffs.push({
-      key: key || null,
-      artId: entry?.artId || null,
-      sourceName: entry?.sourceName || null,
-      sourceFaction: entry?.sourceFaction || null,
-      expiryPhase: entry?.expiryPhase || null,
-      expiryTurn: Math.max(1, Math.trunc(Number(entry?.expiryTurn) || 1)),
-      stats: { ...(entry?.stats || {}) },
-    });
-    this._recomputeTimedWeaponArtBuffState(unit);
-  }
-
-  _recomputeTimedWeaponArtBuffState(unit) {
-    if (!unit) return;
-    const buffs = Array.isArray(unit._battleTimedWeaponArtBuffs)
-      ? unit._battleTimedWeaponArtBuffs.filter(
-          (entry) => entry && entry.stats && typeof entry.stats === 'object',
-        )
-      : [];
-    unit._battleTimedWeaponArtBuffs = buffs;
-
-    const strongestByStat = {};
-    for (const entry of buffs) {
-      for (const [rawStat, rawValue] of Object.entries(entry.stats || {})) {
-        const stat = String(rawStat || '')
-          .trim()
-          .toUpperCase();
-        if (!stat) continue;
-        const value = Math.trunc(Number(rawValue) || 0);
-        if (value === 0) continue;
-        const prev = strongestByStat[stat];
-        if (!Number.isFinite(prev) || value > prev) strongestByStat[stat] = value;
-      }
-    }
-
-    const prevApplied = unit._battleTimedWeaponArtAppliedStats || {};
-    const nextApplied = {};
-    const allCoreStats = new Set([
-      ...Object.keys(prevApplied),
-      ...Object.keys(strongestByStat).filter((stat) => TIER5_BUFF_CORE_STATS.has(stat)),
-    ]);
-
-    for (const stat of allCoreStats) {
-      const prevValue = Math.trunc(Number(prevApplied[stat]) || 0);
-      const nextValue = TIER5_BUFF_CORE_STATS.has(stat)
-        ? Math.trunc(Number(strongestByStat[stat]) || 0)
-        : 0;
-      const delta = nextValue - prevValue;
-      if (delta !== 0) {
-        unit.stats[stat] = (unit.stats[stat] || 0) + delta;
-        if (stat === 'MOV') unit.stats[stat] = Math.max(1, unit.stats[stat] || 1);
-        else unit.stats[stat] = Math.max(0, unit.stats[stat] || 0);
-        if (stat === 'MOV') unit.mov = unit.stats.MOV;
-      }
-      if (nextValue !== 0) nextApplied[stat] = nextValue;
-    }
-
-    const combatMods = {};
-    for (const [stat, value] of Object.entries(strongestByStat)) {
-      const modKey = TIER5_BUFF_COMBAT_MOD_BY_STAT[stat];
-      if (!modKey) continue;
-      const normalized = Math.trunc(Number(value) || 0);
-      if (normalized === 0) continue;
-      const prev = combatMods[modKey] || 0;
-      if (normalized > prev) combatMods[modKey] = normalized;
-    }
-
-    if (Object.keys(nextApplied).length > 0) unit._battleTimedWeaponArtAppliedStats = nextApplied;
-    else delete unit._battleTimedWeaponArtAppliedStats;
-
-    if (Object.keys(combatMods).length > 0)
-      unit._battleTimedWeaponArtAppliedCombatMods = combatMods;
-    else delete unit._battleTimedWeaponArtAppliedCombatMods;
-
-    if (unit._battleTimedWeaponArtBuffs.length <= 0) {
-      delete unit._battleTimedWeaponArtBuffs;
-    }
+    applyTimedBuffEntry(unit, entry);
   }
 
   _resolveTier5BuffExpiry(sourceUnit, durationPhases = 1) {
-    const phase = sourceUnit?.faction === 'enemy' ? 'enemy' : 'player';
-    const currentTurn = Math.max(1, Math.trunc(Number(this.turnManager?.turnNumber) || 1));
-    const duration = Math.max(1, Math.trunc(Number(durationPhases) || 1));
-    return {
-      expiryPhase: phase,
-      expiryTurn: currentTurn + duration,
-    };
-  }
-
-  _applyTier5AllyBuffStep(step, sourceUnit) {
-    if (!sourceUnit || sourceUnit.currentHP <= 0) return;
-    const range = Math.max(0, Math.trunc(Number(step?.range) || 0));
-    if (range <= 0) return;
-    const rawStats = step?.stats;
-    if (!rawStats || typeof rawStats !== 'object') return;
-    const stats = {};
-    for (const [rawStat, rawValue] of Object.entries(rawStats)) {
-      const stat = String(rawStat || '')
-        .trim()
-        .toUpperCase();
-      if (!stat) continue;
-      const value = Math.trunc(Number(rawValue) || 0);
-      if (value === 0) continue;
-      stats[stat] = value;
-    }
-    if (Object.keys(stats).length <= 0) return;
-
-    const includeSelf = step?.includeSelf === true;
-    const allies = this._getDivineChargeAllies(sourceUnit)
-      .filter((ally) => ally && ally.currentHP > 0)
-      .filter((ally) => includeSelf || ally !== sourceUnit)
-      .filter((ally) => gridDistance(sourceUnit.col, sourceUnit.row, ally.col, ally.row) <= range);
-    if (allies.length <= 0) return;
-
-    const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(
-      sourceUnit,
-      step?.durationPhases,
-    );
-    const keyRoot = `${String(step?.artId || 'tier5_buff')}::${String(sourceUnit.name || '')}`;
-    for (const ally of allies) {
-      this._applyTier5TimedBuffEntry(ally, {
-        key: `${keyRoot}::${String(ally.name || '')}`,
-        artId: step?.artId || null,
-        sourceName: sourceUnit.name || null,
-        sourceFaction: sourceUnit.faction || null,
-        expiryPhase,
-        expiryTurn,
-        stats,
-      });
-    }
-  }
-
-  _applyArtKillBuffStep(step, sourceUnit, targetUnit) {
-    if (!sourceUnit || sourceUnit.currentHP <= 0) return;
-    if (!targetUnit || targetUnit.currentHP > 0) return;
-    const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(
-      sourceUnit,
-      step?.durationPhases,
-    );
-    this._applyTier5TimedBuffEntry(sourceUnit, {
-      key: `${String(step?.artId || 'kill_buff')}::${String(sourceUnit.name || '')}::self`,
-      artId: step?.artId || null,
-      sourceName: sourceUnit.name || null,
-      sourceFaction: sourceUnit.faction || null,
-      expiryPhase,
-      expiryTurn,
-      stats: { ...(step?.stats || {}) },
-    });
+    return resolveTimedBuffExpiry(sourceUnit, this.turnManager?.turnNumber, durationPhases);
   }
 
   _expireTimedWeaponArtBuffs(phase, turn) {
-    const normalizedPhase = phase === 'enemy' ? 'enemy' : 'player';
-    const normalizedTurn = Math.max(1, Math.trunc(Number(turn) || 1));
-    const units = [
-      ...(this.playerUnits || []),
-      ...(this.enemyUnits || []),
-      ...(this.npcUnits || []),
-    ];
-    for (const unit of units) {
-      if (
-        !Array.isArray(unit?._battleTimedWeaponArtBuffs) ||
-        unit._battleTimedWeaponArtBuffs.length <= 0
-      )
-        continue;
-      const previousCount = unit._battleTimedWeaponArtBuffs.length;
-      unit._battleTimedWeaponArtBuffs = unit._battleTimedWeaponArtBuffs.filter((entry) => {
-        const expiryPhase = entry?.expiryPhase === 'enemy' ? 'enemy' : 'player';
-        const expiryTurn = Math.max(1, Math.trunc(Number(entry?.expiryTurn) || 1));
-        const expiresNow = expiryPhase === normalizedPhase && normalizedTurn >= expiryTurn;
-        return !expiresNow;
-      });
-      if (unit._battleTimedWeaponArtBuffs.length !== previousCount) {
-        this._recomputeTimedWeaponArtBuffState(unit);
-      }
-    }
+    expireTimedBuffs(
+      [...(this.playerUnits || []), ...(this.enemyUnits || []), ...(this.npcUnits || [])],
+      phase,
+      turn,
+    );
   }
 
   _getTimedWeaponArtCombatBuffMods(unit) {
-    const mods = unit?._battleTimedWeaponArtAppliedCombatMods;
-    if (!mods || typeof mods !== 'object') {
-      return {
-        hitBonus: 0,
-        critBonus: 0,
-        avoidBonus: 0,
-        atkBonus: 0,
-        defBonus: 0,
-        resBonus: 0,
-        spdBonus: 0,
-      };
-    }
-    return {
-      hitBonus: Math.trunc(Number(mods.hitBonus) || 0),
-      critBonus: Math.trunc(Number(mods.critBonus) || 0),
-      avoidBonus: Math.trunc(Number(mods.avoidBonus) || 0),
-      atkBonus: Math.trunc(Number(mods.atkBonus) || 0),
-      defBonus: Math.trunc(Number(mods.defBonus) || 0),
-      resBonus: Math.trunc(Number(mods.resBonus) || 0),
-      spdBonus: Math.trunc(Number(mods.spdBonus) || 0),
-    };
+    return timedBuffCombatMods(unit);
   }
 
   _refreshPostCombatMovementState(movedUnits) {
@@ -2595,29 +2149,11 @@ export class HeadlessBattle {
   }
 
   applyBattleDebuff(unit, stat, value) {
-    if (!unit._battleDeltas) unit._battleDeltas = {};
-    if (!unit._battleDeltas[stat]) unit._battleDeltas[stat] = 0;
-    const oldVal = unit.stats[stat];
-    unit.stats[stat] = Math.max(0, unit.stats[stat] + value);
-    if (stat === 'MOV') unit.stats[stat] = Math.max(1, unit.stats[stat]);
-    const actualDelta = unit.stats[stat] - oldVal;
-    unit._battleDeltas[stat] += actualDelta;
-    if (stat === 'MOV') unit.mov = unit.stats.MOV;
+    applyBattleDebuff(unit, stat, value);
   }
 
   clearBattleScopedDeltas(units) {
-    if (!Array.isArray(units)) return;
-    for (const unit of units) {
-      if (!unit?._battleDeltas) continue;
-      for (const [stat, delta] of Object.entries(unit._battleDeltas)) {
-        if (!Number.isFinite(delta) || delta === 0) continue;
-        unit.stats[stat] = (unit.stats[stat] || 0) - delta;
-        if (stat === 'MOV') unit.stats[stat] = Math.max(1, unit.stats[stat] || 1);
-        else unit.stats[stat] = Math.max(0, unit.stats[stat] || 0);
-      }
-      unit.mov = unit.stats.MOV;
-      delete unit._battleDeltas;
-    }
+    clearBattleScopedDeltas(units);
   }
 
   getUnitAt(col, row) {

@@ -174,7 +174,7 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
   - `e2e`: one job per lane shard of `tests/e2e/lanes.json`, the only list of browser lanes. Run one with `npm run test:e2e:lane -- <lane>` (`npm run test:e2e:lanes` lists them). `npm run check:e2e-lanes` fails when a spec is in no lane and not excluded with a reason, or when a lane names a missing spec. A new spec goes into a lane.
   - `E2E_PORT=<port>` gives a checkout its own dev server; the default 3000 is reused if something already listens there.
 - **Coverage is measured, not counted.** A fault-injection pilot (Sep 2026) found about half of realistic injected bugs survive the whole unit suite. Gaps, rules and the delete/rewrite procedure: `docs/specs/compression-plan-2026-09-25.md`.
-- **Residual gap:** BattleScene orchestration logic is undertested relative to its complexity. `tests/harness/HeadlessBattle` mirrors the scene's state machine (Canto off, no async presentation, no resume), so a green harness run does not prove the production action lifecycle.
+- **Residual gap:** BattleScene orchestration logic is undertested relative to its complexity. `tests/harness/HeadlessBattle` mirrors the scene's state machine (Canto off, no async presentation, no resume), so a green harness run does not prove the production action lifecycle. Operations move out of the mirror as they are isolated: post-combat effects run from `engine/PostCombatEffects.js` (a generator the scene drives with presentation and the harness drives without), timed weapon-art buffs from `engine/TimedWeaponArtBuffs.js`, battle stat deltas from `engine/BattleStatDeltas.js`. When you extract another, delete the harness copy; don't keep both.
 - **Writing tests:**
   - List the realistic ways a change can fail first; each test should catch one of them.
   - Assert outcomes (player-visible or persisted state, RNG cursor), not internal call order.
@@ -201,7 +201,7 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 Several files have grown large enough to require active management. When adding features, prefer extracting to a new controller/module over expanding these files further.
 
 ### Critical (actively decompose)
-- **BattleScene.js (~10,150 lines)** — 13 controllers extracted (5 original + PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController, HealController, PromotionController, TutorialController). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
+- **BattleScene.js (~11,100 lines)** — 13 controllers extracted (5 original + PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController, HealController, PromotionController, TutorialController). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
 
 ### Large (watch for growth)
 - **NodeMapScene.js (~1,950 lines)** — ChurchController/ShopController now own lifecycle and persistence only; ChurchMenu/ShopMenu and ArenaMenu are the sole service renderers. Do not restore headless canvas branches for tests—use rendering-only test adapters and real engine commands.

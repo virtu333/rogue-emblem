@@ -1,6 +1,6 @@
 # Compression plan and verification audit (2026-09-25)
 
-**Status:** plan. Steps 0–2 are done; nothing else is implemented yet except where marked.
+**Status:** plan. Steps 0–2, 6 and 7 are done and step 5 is under way; nothing else is implemented yet except where marked. Steps 6–9 were added on 2026-09-29 from a second external review, after #152.
 **Source:** an external architecture review, three read-only investigations and a fault-injection pilot, run against `main` at 74cc967 / dfb551f.
 **Line references** are as of those commits. Re-verify them before starting. Since then, #93 routed the attack forecast through `BattleScene._computePlayerForecast`.
 
@@ -15,7 +15,11 @@ The goal is **fewer ways for code to share and repair mutable state**, not fewer
 | 2 | Read-only attack forecast (equipment) (done 2026-09-26) | `WeaponPreviewSession.js` and the equip/restore round trip | characterisation tests first |
 | 3 | Explicit gameplay RNG, one complete path at a time | The global `Math.random` install and presentation shielding wrappers | #2 settled |
 | 4 | Presentation fields off domain units; equipped weapon by identity | Serialization deny-lists; `relinkWeapon` repair | #2 |
-| 5 | The headless harness calls production operations as they become isolated | Mirrored orchestration in `tests/harness/HeadlessBattle.js` | alongside 2–4 |
+| 5 | The headless harness calls production operations as they become isolated (under way: post-combat effects, timed weapon-art buffs and battle stat deltas are shared, see below; XP next) | Mirrored orchestration in `tests/harness/HeadlessBattle.js` | alongside 2–4 |
+| 6 | Previews read what the player knows (**done**, #153: `engine/PlayerKnowledge.js`) | Omniscient occupancy in player-facing previews; per-caller `seenOnly` choices | none |
+| 7 | One owner for HP changes (**done**, #154: `engine/UnitHealth.js`) | Gameplay bookkeeping in `updateHPBar`; direct `currentHP` writes in scenes/UI (`tests/HpWriteBoundary.test.js`) | none |
+| 8 | A shared battle action model: rows with stable ids that both the canvas and the phone rail render | The hidden canvas rows behind the phone menu; label-matched dispatch | none (start with the Ability picker) |
+| 9 | `Grid` split into pure rules and a view, `Grid` kept as a compatibility facade | `tests/harness/HeadlessGrid.js` (a drifted copy of the rules); the engine→ui import | none |
 
 **Serialize changes to the battle lifecycle.** Use one implementation owner at a time for `BattleScene`, checkpoints, RNG and persistence. Other agents can investigate, write independent fixtures, or review. Hold new mechanics that add persistent battle state until steps 2–4 settle.
 
@@ -27,7 +31,7 @@ The goal is **fewer ways for code to share and repair mutable state**, not fewer
 - CI's `e2e-lanes` job runs `npm run check:e2e-lanes` and turns the lanes into the `e2e` job matrix, one job per lane shard;
 - `check:e2e-lanes` fails when a spec is in no lane and not in `excluded` with a reason, when a lane or exclusion names a spec that does not exist, when a spec is listed twice, or when `package.json` or a workflow names specs itself. `tests/E2eLanes.test.js` covers each rule and the real manifest.
 
-105 specs in 11 lanes, none excluded (before: 39 specs in 5 CI steps, 66 in none). Local times are one Playwright worker on a shared 4-core container at load 5–26; CI uses two workers on a 4-vCPU runner. The existing lanes ran 1.6–2.7× faster in CI than here, so the CI column divides by 2.2.
+105 specs in 11 lanes, none excluded (2026-09-29: 122 specs in 12 lanes) (before: 39 specs in 5 CI steps, 66 in none). Local times are one Playwright worker on a shared 4-core container at load 5–26; CI uses two workers on a 4-vCPU runner. The existing lanes ran 1.6–2.7× faster in CI than here, so the CI column divides by 2.2.
 
 | Lane | Specs | Tests | Shards | Local | CI (measured or estimated) |
 |---|---|---|---|---|---|
@@ -45,7 +49,7 @@ The goal is **fewer ways for code to share and repair mutable state**, not fewer
 
 In total about 2 h of browser time locally and about 55 min in CI, spread over 17 jobs. Each job also spends about 50 s on checkout, `npm ci` and the browser install. The longest job is `contracts` (about 7 min), so the e2e wall clock drops from about 16 min (one serial job) to about 7 min.
 
-**Unit-level suites.** The `harness` job now runs `npm run test:sim` (all 8 files, 35 tests, about 11–18 s) and `npm run test:harness` (all 10 files, 165 tests, about 23–36 s) instead of the `test:sim:triage` and `test:journey` subsets. Both are fast enough to stay in that job. `RunSimulationDriver.test.js` failed on main because its fixture cloned a living unit's `unitUid` into the fallen list; since #98, battle entry gives the later holder of a shared uid a fresh one. The fixture now gives the casualty its own uid; the driver was right.
+**Unit-level suites.** The `harness` job now runs `npm run test:sim` (all 8 files, 35 tests, about 11–18 s) and `npm run test:harness` (all 10 files, 165 tests, about 23–36 s; 12 files, 189 tests on 2026-09-29) instead of the `test:sim:triage` and `test:journey` subsets. Both are fast enough to stay in that job. `RunSimulationDriver.test.js` failed on main because its fixture cloned a living unit's `unitUid` into the fallen list; since #98, battle entry gives the later holder of a shared uid a fresh one. The fixture now gives the casualty its own uid; the driver was right.
 
 **What had rotted.** 21 of the 66 unrun specs (38 tests) failed. Each was traced to the change that caused it:
 - Stale:
@@ -168,7 +172,7 @@ Battle execution installs the battle RNG as global `Math.random`. `src/utils/pre
 - Keep legacy-v1 behaviour behind an explicit compatibility policy.
 - Lint-ban ambient randomness in each path once it is migrated.
 
-**Acceptance test pattern:** identical saved state plus identical commands must give an identical domain state and RNG cursor, across animation speed, reduced motion, history viewing, forecast opening and presentation switches. `tests/e2e/portrait-battle.spec.js` ("does not change how the battle plays out"; in PR #99, not yet merged) is a working example of this differential test through the real resume path.
+**Acceptance test pattern:** identical saved state plus identical commands must give an identical domain state and RNG cursor, across animation speed, reduced motion, history viewing, forecast opening and presentation switches. `tests/e2e/portrait-battle.spec.js` ("does not change how the battle plays out"; PR #99, merged as 38e069c) is a working example of this differential test through the real resume path.
 
 ## Verification audit
 
@@ -183,7 +187,9 @@ Battle execution installs the battle RNG as global `Math.random`. `src/utils/pre
   - a gamepad `tap()` races the 250 ms auto-repeat under load.
 - Step 0 fixed these and added `npm run check:e2e-lanes` (see "0. Test hygiene").
 
-**What the headless harness proves:** `HeadlessBattle` calls real engine modules (combat, AI, skills, loot and so on) but mirrors `BattleScene`'s state machine, with `CANTO_DISABLED = true`. It has no async presentation and no checkpoint/resume. A green harness run proves engine resolution for the scenarios it exercises. It does not prove the production action lifecycle; the Journey tests and e2e cover that.
+**Step 5 progress (2026-09-29).** Post-combat effects run from one implementation, `engine/PostCombatEffects.js`: a generator that makes every state change and yields beats (`remove` and `moved` are required; `hp`, `poison`, `status` and `hint` are presentation). `BattleScene` awaits each beat with its presentation; `HeadlessBattle` acts on the required ones only (`runPostCombatEffectsSync`). Timed weapon-art buffs (`engine/TimedWeaponArtBuffs.js`) and battle stat deltas (`engine/BattleStatDeltas.js`) are shared the same way. About 490 mirrored harness lines went; `sim:fullrun:pr` and `test:harness:pr` print identical results before and after. Next: combat and heal XP (the harness awards heal XP as `floor(heal / 2)`, production scales `XP_BASE_HEAL`, and harness combat XP lacks the damage ratio, pressure and Training Doctrine terms, so `sim:fullrun` under-reports XP).
+
+**What the headless harness proves:** `HeadlessBattle` calls real engine modules (combat, AI, skills, loot, post-combat effects and so on) but mirrors `BattleScene`'s state machine, with `CANTO_DISABLED = true`. It has no async presentation and no checkpoint/resume. A green harness run proves engine resolution for the scenarios it exercises. It does not prove the production action lifecycle; the Journey tests and e2e cover that.
 
 **Fault-injection pilot** (65 hand-made realistic mutants across 4 modules, 63 valid):
 
