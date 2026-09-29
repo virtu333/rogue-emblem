@@ -183,7 +183,7 @@ describe('PostCombatController', () => {
     expect(options.fallenRecruits.map((u) => u.name)).toEqual(['Daska']);
   });
 
-  it('a lord who joined this battle (recruit-node Talk) is met once the win is committed', () => {
+  it('a lord who joined this battle (recruit-node Talk) is met once the win is committed', async () => {
     const scene = makeScene();
     const met = [];
     const meta = { recordLordsMet: vi.fn((names) => met.push(...names)) };
@@ -208,6 +208,18 @@ describe('PostCombatController', () => {
     again.runManager.completeBattle = vi.fn(() => false);
     new PostCombatController(again).onVictory();
     expect(idle.recordLordsMet).not.toHaveBeenCalled();
+    // The no-op path heads back to the route map after a real-timer retry; wait
+    // for it here, or its transition lands in a later test's call counts.
+    await vi.waitFor(
+      () =>
+        expect(transitionToSceneMock).toHaveBeenCalledWith(
+          again,
+          'NodeMap',
+          expect.anything(),
+          expect.anything(),
+        ),
+      { timeout: 5000 },
+    );
   });
 
   it('passes no fallen recruits when nobody joined mid-battle', () => {
