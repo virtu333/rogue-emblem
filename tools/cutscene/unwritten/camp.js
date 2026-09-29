@@ -20,14 +20,14 @@
 import { Piece, loadImage } from './engine/piece.js';
 import { makePaper } from './engine/compositor.js';
 import { pulse } from './engine/score.js';
-import { clamp, hash, lerp, smooth } from './engine/raster.js';
-import { flash, glint, star, twos, RGB, stroke } from './engine/anime.js';
+import { clamp, smooth } from './engine/raster.js';
+import { flash } from './engine/anime.js';
 import { onN } from './engine/timing.js';
-import { crane, lerpCam, lookAt, nudge, project } from './engine/world.js';
+import { nudge } from './engine/world.js';
 import { CampWorld } from './engine/camp_world.js';
+import { quantiseCamp } from './camp_palette.js';
 import {
   DURATION as BLOCK_DURATION,
-  FIRE,
   HITS,
   MUSIC_OFFSET as BLOCK_OFFSET,
   NOTES,
@@ -37,8 +37,6 @@ import {
   THREAD,
   CAMERA,
   TIME,
-  at,
-  beat,
 } from './camp_blocking.js';
 
 export const W = 480;
@@ -58,7 +56,15 @@ const SRC = {
   kiraCamp: `${K}/kira_at_camp.webp`,
   standing: `${K}/edric_standing.webp`,
 };
-const MOTIONS = ['camp_edric_rise', 'camp_edric_look', 'camp_kira_map', 'camp_sera_look'];
+const MOTIONS = [
+  'camp_edric_rise',
+  'camp_edric_look',
+  'camp_edric_fire',
+  'camp_kira_map',
+  'camp_sera_look',
+];
+// every drawing of Edric that came from the seated cut-out (its hair is painted auburn: retoned at load)
+const EDRIC_CLIPS = ['camp_edric_rise', 'camp_edric_look', 'camp_edric_fire'];
 
 /**
  * The still cut-outs as figures in the world: metres per source pixel and the feet anchor in
@@ -79,18 +85,87 @@ const CUT = {
 const CLIP = {
   camp_edric_rise: { mpp: 0.0045, cell: [360, 400], anchor: [83.2, 395], face: -1 },
   camp_edric_look: { mpp: 0.00342, cell: [328, 400], anchor: [110, 396], face: -1 },
+  // seated by the fire: breath, a glance, the sword put out toward the flames once and drawn back
+  camp_edric_fire: { mpp: 0.003337, cell: [592, 400], anchor: [348.5, 395], face: -1 },
   camp_kira_map: { mpp: 0.0039, cell: [309, 400], anchor: [186.2, 393], face: 1 },
   camp_sera_look: { mpp: 0.00297, cell: [307, 400], anchor: [148.1, 396], face: 1 },
 };
+
+/**
+ * Edric's hair is dark chestnut (STYLE.md), but the seated cut-out and the clips made from it are
+ * painted auburn. In the head band of each drawing (its top third when he sits, its top sixth
+ * standing) reds and rusts turn toward brown: hue toward 23 degrees, a quarter less saturated,
+ * a little darker. Skin (light) and cloth (not red) are left alone. `cells`: a clip's atlas
+ * layout { cell: [w, h], cols, frames }, or null for a single drawing.
+ */
+function retoneHair(img, cells) {
+  const c = new OffscreenCanvas(img.width, img.height);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height);
+  const p = d.data;
+  const [cw, ch] = cells ? cells.cell : [img.width, img.height];
+  const cols = cells ? cells.cols : 1;
+  const n = cells ? cells.frames : 1;
+  for (let f = 0; f < n; f++) {
+    const ox = (f % cols) * cw;
+    const oy = Math.floor(f / cols) * ch;
+    let top = -1;
+    let bot = -1;
+    for (let yy = 0; yy < ch; yy++) {
+      let any = false;
+      for (let xx = 0; xx < cw; xx += 2)
+        if (p[((oy + yy) * c.width + ox + xx) * 4 + 3] > 128) {
+          any = true;
+          break;
+        }
+      if (any) {
+        if (top < 0) top = yy;
+        bot = yy;
+      }
+    }
+    if (top < 0) continue;
+    const hh = (bot - top + 1) / ch;
+    const frac = 0.16 + 0.14 * smooth(0.85, 0.55, hh);
+    const y1 = top + Math.round(frac * (bot - top + 1));
+    for (let yy = top; yy < y1; yy++)
+      for (let xx = 0; xx < cw; xx++) {
+        const i = ((oy + yy) * c.width + ox + xx) * 4;
+        if (p[i + 3] < 8) continue;
+        const r = p[i] / 255;
+        const g = p[i + 1] / 255;
+        const b = p[i + 2] / 255;
+        const mx = Math.max(r, g, b);
+        const dd = mx - Math.min(r, g, b);
+        if (mx < 0.16 || mx > 0.72 || dd < 1e-6 || mx !== r) continue;
+        const s0 = dd / mx;
+        if (s0 < 0.4) continue;
+        let h = ((g - b) / dd) * 60;
+        if (h < 0) h += 360;
+        if (h > 26 && h < 340) continue;
+        if (h >= 340) h -= 360;
+        const h2 = h + (23 - h) * 0.85;
+        const s2 = s0 * 0.74;
+        const v2 = mx * 0.9;
+        // hue 0..60 sextant: r = v, g rises with hue, b = v (1 - s)
+        const cc = v2 * s2;
+        const m = v2 - cc;
+        const X = cc * (h2 / 60);
+        p[i] = (cc + m) * 255;
+        p[i + 1] = (X + m) * 255;
+        p[i + 2] = m * 255;
+      }
+  }
+  x.putImageData(d, 0, 0);
+  return c;
+}
 
 /** Build figures near the size they are seen at (steps of about a tenth). */
 const bucket = (px) => {
   const p = Math.max(10, Math.min(640, px));
   return Math.round(10 * 1.1 ** Math.round(Math.log(p / 10) / Math.log(1.1)));
 };
-const step = (u, n) => Math.floor(clamp(u) * n) / n;
 const ease = (u) => smooth(0, 1, u);
-const easeOut = (u) => 1 - (1 - clamp(u)) ** 3;
 
 /** Drawing a..b of a clip, back and forth, `rate` times as fast as generated (12 fps). */
 const pingpong = (t, a, b, rate) => {
@@ -111,6 +186,20 @@ const frameAt = (keys, t) => {
     }
   return keys[keys.length - 1][1];
 };
+
+/**
+ * Edric's drawing in the wides: the idle (breath, a glance) through the tilt down, then on the
+ * bar-7 beat 2 (3.6 s) the sword goes out toward the flames (drawings 36-56 of the clip, a little
+ * quicker than generated), holds a beat and comes back. On twos.
+ */
+const EDRIC_FIRE_KEYS = [
+  [0, 0],
+  [3.4, 34],
+  [3.55, 37],
+  [4.72, 56],
+  [4.8, 58],
+];
+const edricFireFrame = (t) => frameAt(EDRIC_FIRE_KEYS, onN(t, 2));
 
 // the Thread's pulses: a bead runs along it on every note of the tune, and a swell on the hits
 const PULSES = [
@@ -135,6 +224,12 @@ export class CampPiece extends Piece {
     this.shots = this.makeShots();
   }
 
+  /** The frame, snapped to the camp's ramps (no olive earth ramp: see camp_palette.js). */
+  render(out, t, { pixel = true, dither = 0.45 } = {}) {
+    this.drawShot(out, this.shotAt(t), t);
+    if (pixel) quantiseCamp(out, this.W, this.H, dither);
+  }
+
   async load() {
     const imgs = await Promise.all(
       Object.entries(SRC).map(async ([k, s]) => {
@@ -148,6 +243,10 @@ export class CampPiece extends Piece {
     this.img = Object.fromEntries(imgs.filter(([, v]) => v));
     this.paper = makePaper(W, H);
     await this.loadMotions(`${DIR}/motion`, MOTIONS);
+    if (this.img.edricFire) this.img.edricFire = retoneHair(this.img.edricFire, null);
+    for (const n of EDRIC_CLIPS)
+      if (this.motionSrc[n])
+        this.motionSrc[n].img = retoneHair(this.motionSrc[n].img, this.motionSrc[n].meta);
     this.build(this.params);
     this.world = new CampWorld({ paper: this.paper, W, H, set: SET });
   }
@@ -183,6 +282,23 @@ export class CampPiece extends Piece {
         dx += (flip ? -1 : 1) * m * a * (Math.sin(ph) * 0.7 + 0.45 * Math.sin(ph * 2.3 + 1));
         dy += m * a * 0.25 * Math.sin(ph * 1.3);
       }
+      if (o.tilt) {
+        // a head lifting about the neck: rotate what is above it (turned to face the other way for
+        // a flipped drawing), the drawing's own pixels moved, not a new head
+        const T = o.tilt;
+        const m = smooth(T.vb, T.va, fv);
+        if (m > 0) {
+          const Px = (flip ? 1 - T.u : T.u) * w;
+          const Py = T.v * h;
+          const phi = -T.phi * m * (flip ? -1 : 1);
+          const c = Math.cos(phi);
+          const s = Math.sin(phi);
+          const ex = u - Px;
+          const ey = v - Py;
+          dx += Px + ex * c - ey * s - u;
+          dy += Py + ex * s + ey * c - v;
+        }
+      }
       out[0] = dx;
       out[1] = dy;
     };
@@ -206,6 +322,7 @@ export class CampPiece extends Piece {
       key,
       shadowW: o.shadowW ?? 0.55,
       gain: o.gain,
+      hueHold: o.hold,
       rim: o.rim,
       layerFor: (px) => (L = self.figure(`${key}`, im, bucket(px), { flip, seed: 5 })),
       place: (x, y, s) => {
@@ -237,6 +354,7 @@ export class CampPiece extends Piece {
       flip,
       shadowW: o.shadowW ?? 0.55,
       gain: o.gain,
+      hueHold: o.hold,
       rim: o.rim,
       layerFor: (px) => {
         M = this.motion(name, bucket(px), { flip });
@@ -287,8 +405,16 @@ export class CampPiece extends Piece {
         { u0: 0.0, u1: 0.4, v0: 0.55, v1: 0.95, amp: 0.012, rate: 2.2 },
       ],
     };
+    // Edric by the fire: his own clip (breath, a glance, the sword put out toward the flames once
+    // on a beat and drawn back); the still cut-out with breath and sway is the fallback
     const e =
-      o.edric ?? this.cutActor('edricFire', ex, ez, 1, { idle: IDLE_E, t: tt, shadowW: 0.6 });
+      o.edric ??
+      this.clipActor('camp_edric_fire', edricFireFrame(t), ex + 0.36, ez, 1, {
+        t: tt,
+        hold: 0.85,
+        shadowW: 0.6,
+      }) ??
+      this.cutActor('edricFire', ex, ez, 1, { idle: IDLE_E, t: tt, shadowW: 0.6, hold: 0.85 });
     // Sera and Kira hold on their clips' first drawings (their own hair, breath and hands, slowly
     // back and forth); the still cut-outs are the fallback
     const s =
@@ -314,7 +440,6 @@ export class CampPiece extends Piece {
 
   /** Render the world with the scene's standing options. */
   renderWorld(f, t, cam, o = {}) {
-    const base = 0.8 + 0.2 * Math.sin(t * 0.7);
     const thread = {
       cfg: THREAD,
       energy: tuneEnergy(t),
@@ -438,7 +563,7 @@ export class CampPiece extends Piece {
       ],
       onN(lt, lt < 0.4 ? 3 : 2),
     );
-    const e = this.clipActor('camp_edric_look', i, ...PEOPLE.edric.seat, 1, { t });
+    const e = this.clipActor('camp_edric_look', i, ...PEOPLE.edric.seat, 1, { t, hold: 0.85 });
     this.renderWorld(f, t, CAMERA.edric(lt), { actors: this.people(t, { edric: e }) });
   }
 
@@ -461,19 +586,44 @@ export class CampPiece extends Piece {
   // --- 7 · he rises -------------------------------------------------------------------------
   shotRise(f, t) {
     const lt = t - S.rise[0];
-    const i = frameAt(
-      [
-        [0, 2],
-        [1.0, 22],
-        [1.3, 26],
-        [2, 36],
-      ],
-      onN(lt, 2),
-    );
-    const e = this.clipActor('camp_edric_rise', i, ...PEOPLE.edric.seat, 1, { t });
+    const hitLt = TIME.hit - S.rise[0];
+    let e;
+    if (lt < hitLt) {
+      const i = frameAt(
+        [
+          [0, 2],
+          [1.0, 22],
+          [1.3, 26],
+          [2, 36],
+        ],
+        onN(lt, 2),
+      );
+      e = this.clipActor('camp_edric_rise', i, ...PEOPLE.edric.seat, 1, { t, hold: 0.85 });
+    } else {
+      // the big hit: a paper-white flash covers the change of drawing, and he stands as drawn,
+      // his face lifted to the Thread (the standing cut-out; its head rises a little more and
+      // holds), breathing, the cloak in the wind. Placed so his head is where the clip's was.
+      const tt = onN(t, 3);
+      const rise = ease((lt - hitLt) / 0.5);
+      const [ex, ez] = PEOPLE.edric.seat;
+      e = this.cutActor('standing', ex - 0.222, ez, 1, {
+        hold: 0.85,
+        t: tt,
+        idle: {
+          seed: 4,
+          breath: 0.006,
+          sway: [{ u0: 1.0, u1: 0.58, v0: 0.12, v1: 0.75, amp: 0.012, rate: 2.2 }],
+          tilt: { u: 0.36, v: 0.16, va: 0.11, vb: 0.19, phi: 0.16 * rise },
+        },
+      });
+    }
     this.renderWorld(f, t, this.shake(CAMERA.rise(lt), t), {
       actors: this.people(t, { edric: e }),
     });
+    // the hit: two frames of paper-white over the whole picture (high, so it stays flat: a middle
+    // value over a dark frame breaks into a halftone screen)
+    const since = lt - hitLt;
+    if (since >= 0 && since < 2 / 24) flash(f, W, H, since < 1 / 24 ? 0.95 : 0.8);
   }
 
   /** The camera takes a small jolt on each crash (the score's clock, on ones). */

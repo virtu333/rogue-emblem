@@ -1,0 +1,14 @@
+{
+  "name": "camp_edric_fire",
+  "frames": 59,
+  "cols": 6,
+  "cell": [592, 400],
+  "fps": 12,
+  "loop": false,
+  "source": "References/cutscene/unwritten/clips/camp_edric_fire_b.mp4",
+  "range": [0, null],
+  "cycle": null,
+  "plate": false,
+  "anchor": [348.5, 395.0],
+  "trimmed": [0, 58]
+}

@@ -46,5 +46,33 @@
       }
     },
     "prompt": "A quiet night scene. The young swordsman sitting on the ground with his sword across his knee puts one hand on the ground and pushes himself up: he rises steadily to his full height, taking the sword in his right hand, the teal cloak swinging and settling around him, and then lifts his eyes and looks up at the sky. Weighty, calm, readable motion, no hurry. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no fire, no scenery, no camera cuts, no camera movement, no zoom, no text."
+  },
+  "camp_edric_fire": {
+    "cutout": "edric_at_fire.webp",
+    "place": {
+      "h": 0.72,
+      "x": 0.5,
+      "y": 0.93
+    },
+    "duration": 5,
+    "last": {
+      "cutout": "edric_at_fire.webp",
+      "place": {
+        "h": 0.72,
+        "x": 0.5,
+        "y": 0.93
+      }
+    },
+    "prompt": "A quiet night scene. The young swordsman sits with his sword across his knee, looking toward the fire on the left of him. He breathes slowly and blinks once. His gaze stays on the fire. Then he takes the sword by its grip in his right hand and, with a small tired push, nudges the point of the blade forward once toward the fire as if prodding a log, and draws it back to rest across his knee. The teal cloak and shaggy hair stir a little in a light breeze. He stays seated, nothing else moves. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no fire, no scenery, no camera cuts, no camera movement, no zoom, no text."
+  },
+  "camp_edric_fire_b": {
+    "cutout": "edric_at_fire.webp",
+    "place": {
+      "h": 0.72,
+      "x": 0.5,
+      "y": 0.93
+    },
+    "duration": 5,
+    "prompt": "A quiet night scene. The young swordsman sits by a campfire that is off to the left of him, his sword resting across his knee. He breathes slowly, blinks once, and stares at the fire. Then with his right hand he lifts the sword a little and prods the fire once with the point of the blade, a small idle tired gesture, and lets it rest on his knee again. The teal cloak and shaggy hair stir a little in a light breeze. He stays seated, nothing else moves. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no fire, no scenery, no camera cuts, no camera movement, no zoom, no text."
   }
 }
