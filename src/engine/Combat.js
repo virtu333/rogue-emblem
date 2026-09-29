@@ -369,6 +369,22 @@ export function usesMagic(weapon) {
   return weapon ? isMagical(weapon) || (weapon.special?.includes('Magic sword') ?? false) : false;
 }
 
+/**
+ * True when a strike is computed against RES (a magic weapon or magic sword, or an art
+ * that targets RES), false when against DEF. Defensive bonuses follow the same stat.
+ */
+export function strikeHitsRes(weapon, mods = null) {
+  return Boolean(mods?.targetsRES) || usesMagic(weapon);
+}
+
+/**
+ * The defender's combat-mod bonus against one strike: +DEF mods against a strike on
+ * DEF, +RES mods against a strike on RES, never both (a +DEF buff does not cut magic).
+ */
+function combatModDefense(defenderMods, hitsRes) {
+  return hitsRes ? Number(defenderMods?.resBonus) || 0 : Number(defenderMods?.defBonus) || 0;
+}
+
 /** Sum a specific stat bonus from weapon bonus array. */
 function sumWeaponBonus(bonuses, stat) {
   return bonuses.reduce((sum, b) => sum + (b.stat === stat ? b.value : 0), 0);
@@ -926,10 +942,10 @@ export function getCombatForecast(
   // Pick the relevant defensive bonus based on incoming weapon type
   const fDefWpnBonuses = defWeapon ? getWeaponStatBonuses(defWeapon) : [];
   const fAtkWpnBonuses = getWeaponStatBonuses(atkWeapon);
-  const fDefWpnDef = sumWeaponBonus(fDefWpnBonuses, usesMagic(atkWeapon) ? 'RES' : 'DEF');
-  const fAtkWpnDef = defWeapon
-    ? sumWeaponBonus(fAtkWpnBonuses, usesMagic(defWeapon) ? 'RES' : 'DEF')
-    : 0;
+  const fAtkHitsRes = strikeHitsRes(atkWeapon, atkMods);
+  const fDefHitsRes = defWeapon ? strikeHitsRes(defWeapon, defMods) : false;
+  const fDefWpnDef = sumWeaponBonus(fDefWpnBonuses, fAtkHitsRes ? 'RES' : 'DEF');
+  const fAtkWpnDef = defWeapon ? sumWeaponBonus(fAtkWpnBonuses, fDefHitsRes ? 'RES' : 'DEF') : 0;
 
   // Attacker stats (skill mods applied as flat adjustments)
   const defTerrainForAtkHit = atkMods?.ignoreTerrainAvoid ? null : defTerrain;
@@ -943,8 +959,7 @@ export function getCombatForecast(
       ignoreRES: atkMods?.ignoreRES,
     }) +
       (atkMods?.atkBonus || 0) -
-      (defMods?.defBonus || 0) -
-      (usesMagic(atkWeapon) ? defMods?.resBonus || 0 : 0) -
+      combatModDefense(defMods, fAtkHitsRes) -
       fDefWpnDef,
   );
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
@@ -1024,8 +1039,7 @@ export function getCombatForecast(
         ignoreRES: defMods?.ignoreRES,
       }) +
         (defMods?.atkBonus || 0) -
-        (atkMods?.defBonus || 0) -
-        (usesMagic(defWeapon) ? atkMods?.resBonus || 0 : 0) -
+        combatModDefense(atkMods, fDefHitsRes) -
         fAtkWpnDef,
     );
     defDmg += getCombatStatScalingBonus(defender, defMods);
@@ -1482,9 +1496,11 @@ export function resolveCombat(
   // Pick the relevant defensive bonus based on incoming weapon type
   const atkWeaponBonuses = getWeaponStatBonuses(atkWeapon);
   const defWeaponBonuses = defWeapon ? getWeaponStatBonuses(defWeapon) : [];
-  const defWeaponDefBonus = sumWeaponBonus(defWeaponBonuses, usesMagic(atkWeapon) ? 'RES' : 'DEF');
+  const atkHitsRes = strikeHitsRes(atkWeapon, atkMods);
+  const defHitsRes = defWeapon ? strikeHitsRes(defWeapon, defMods) : false;
+  const defWeaponDefBonus = sumWeaponBonus(defWeaponBonuses, atkHitsRes ? 'RES' : 'DEF');
   const atkWeaponDefBonus = defWeapon
-    ? sumWeaponBonus(atkWeaponBonuses, usesMagic(defWeapon) ? 'RES' : 'DEF')
+    ? sumWeaponBonus(atkWeaponBonuses, defHitsRes ? 'RES' : 'DEF')
     : 0;
 
   // Pre-compute all the static combat values (with skill mods applied)
@@ -1510,8 +1526,7 @@ export function resolveCombat(
       ignoreRES: atkMods?.ignoreRES,
     }) +
       (atkMods?.atkBonus || 0) -
-      (defMods?.defBonus || 0) -
-      (usesMagic(atkWeapon) ? defMods?.resBonus || 0 : 0) -
+      combatModDefense(defMods, atkHitsRes) -
       defWeaponDefBonus,
   );
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
@@ -1529,8 +1544,7 @@ export function resolveCombat(
       ignoreRES: atkMods?.ignoreRES,
     }) +
       (atkMods?.atkBonus || 0) -
-      (defMods?.defBonus || 0) -
-      (usesMagic(atkWeapon) ? defMods?.resBonus || 0 : 0) -
+      combatModDefense(defMods, atkHitsRes) -
       defWeaponDefBonus,
   );
   atkLunaDmg += getCombatStatScalingBonus(attacker, atkMods);
@@ -1617,8 +1631,7 @@ export function resolveCombat(
         ignoreRES: defMods?.ignoreRES,
       }) +
         (defMods?.atkBonus || 0) -
-        (atkMods?.defBonus || 0) -
-        (usesMagic(defWeapon) ? atkMods?.resBonus || 0 : 0) -
+        combatModDefense(atkMods, defHitsRes) -
         atkWeaponDefBonus,
     );
     defDmg += getCombatStatScalingBonus(defender, defMods);
@@ -1636,8 +1649,7 @@ export function resolveCombat(
         ignoreRES: defMods?.ignoreRES,
       }) +
         (defMods?.atkBonus || 0) -
-        (atkMods?.defBonus || 0) -
-        (usesMagic(defWeapon) ? atkMods?.resBonus || 0 : 0) -
+        combatModDefense(atkMods, defHitsRes) -
         atkWeaponDefBonus,
     );
     defLunaDmg += getCombatStatScalingBonus(defender, defMods);
