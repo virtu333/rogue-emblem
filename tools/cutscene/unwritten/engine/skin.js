@@ -111,48 +111,61 @@ function fillPoly(mask, w, h, pts, val) {
   }
 }
 
-/** Box-dilate the set `core` (value 1) by r px into 1 (core) and 2 (ring), limited to `alpha`. */
+/**
+ * Grow the set `core` (value 1) by r px over `alpha`: returns { acc, near } where acc is 1 for
+ * the core, 2 for the ring, and near[j] is the core pixel a ring pixel copies its paint from
+ * (the part's own edge smeared outward, so a part that moves away from a neighbour that hid
+ * its edge shows its own colours, not the neighbour's).
+ */
 function dilate(core, alpha, w, h, r) {
-  const tmp = new Uint8Array(w * h);
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < w; x++) {
-      let hit = 0;
-      for (let dx = -r; dx <= r && !hit; dx++) {
-        const xx = x + dx;
-        if (xx >= 0 && xx < w && core[y * w + xx] === 1) hit = 1;
-      }
-      tmp[y * w + x] = hit;
+  const acc = new Uint8Array(w * h);
+  const near = new Int32Array(w * h).fill(-1);
+  for (let j = 0; j < w * h; j++)
+    if (core[j] === 1 && alpha[j]) {
+      acc[j] = 1;
+      near[j] = j;
     }
-  const out = new Uint8Array(w * h);
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < w; x++) {
-      const j = y * w + x;
-      if (!alpha[j]) continue;
-      if (core[j] === 1) {
-        out[j] = 1;
-        continue;
+  for (let it = 0; it < r; it++) {
+    const prev = near.slice();
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const j = y * w + x;
+        if (near[j] >= 0 || !alpha[j]) continue;
+        let best = -1;
+        let bd = 1e9;
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const xx = x + dx;
+            const yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+            const c = prev[yy * w + xx];
+            if (c < 0) continue;
+            const d = Math.hypot((c % w) - x, ((c / w) | 0) - y);
+            if (d < bd) {
+              bd = d;
+              best = c;
+            }
+          }
+        if (best >= 0) {
+          near[j] = best;
+          acc[j] = 2;
+        }
       }
-      let hit = 0;
-      for (let dy = -r; dy <= r && !hit; dy++) {
-        const yy = y + dy;
-        if (yy >= 0 && yy < h && tmp[yy * w + x]) hit = 1;
-      }
-      if (hit) out[j] = 2;
-    }
-  return out;
+  }
+  return { acc, near };
 }
 
-/** A capsule (thick segment with round ends) as a polygon. */
-function capsule(a, b, r) {
+/** A capsule (thick segment with round ends, radius r0 at a and r1 at b) as a polygon. */
+function capsule(a, b, r0, r1 = r0) {
   const ang = angle(a, b);
   const pts = [];
   for (let i = 0; i <= 8; i++) {
     const t = ang - Math.PI / 2 + (Math.PI * i) / 8;
-    pts.push([b[0] + Math.cos(t) * r, b[1] + Math.sin(t) * r]);
+    pts.push([b[0] + Math.cos(t) * r1, b[1] + Math.sin(t) * r1]);
   }
   for (let i = 0; i <= 8; i++) {
     const t = ang + Math.PI / 2 + (Math.PI * i) / 8;
-    pts.push([a[0] + Math.cos(t) * r, a[1] + Math.sin(t) * r]);
+    pts.push([a[0] + Math.cos(t) * r0, a[1] + Math.sin(t) * r0]);
   }
   return pts;
 }
@@ -366,14 +379,20 @@ export class Skin {
   buildParts(P) {
     const { w, h } = this;
     const alpha = this.layer.st.alpha;
-    const regions = (this.spec.regions || []).map((r) => ({
+    const regions = this.expandRegions(this.spec.regions || []).map((r) => ({
       name: r.name,
       z: r.z ?? 3,
       bones: r.bones || null,
       lag: r.lag || null,
       poly: (r.poly || []).map(P),
       // capsules [x0, y0, x1, y1, r] (r is a share of the image width): thick strokes
-      caps: (r.caps || []).map(([x0, y0, x1, y1, rr]) => [P([x0, y0]), P([x1, y1]), rr * w]),
+      caps: (r.caps || []).map(([x0, y0, x1, y1, r0, r1]) => [
+        P([x0, y0]),
+        P([x1, y1]),
+        r0 * w,
+        (r1 ?? r0) * w,
+      ]),
+      pad: r.pad,
     }));
     // the default part: whatever no region claims
     regions.unshift({ name: 'body', z: this.spec.bodyZ ?? 3, bones: ['torso', 'head'], poly: null });
@@ -381,8 +400,31 @@ export class Skin {
     for (let i = 1; i < regions.length; i++) {
       const m = new Uint8Array(w * h);
       if (regions[i].poly.length > 2) fillPoly(m, w, h, regions[i].poly, 1);
-      for (const [a, b, rr] of regions[i].caps) fillPoly(m, w, h, capsule(a, b, rr), 1);
+      for (const [a, b, r0, r1] of regions[i].caps) fillPoly(m, w, h, capsule(a, b, r0, r1), 1);
       for (let j = 0; j < w * h; j++) if (m[j]) label[j] = i;
+    }
+    // pixels no region claimed join the nearest region within a few px (slivers along an
+    // outline drawn a little tight), the rest stay in the default part
+    const reach = this.spec.claim ?? 4;
+    for (let it = 0; it < reach; it++) {
+      const prev = label.slice();
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++) {
+          const j = y * w + x;
+          if (prev[j] !== 0 || !alpha[j]) continue;
+          let best = 0;
+          for (let dy = -1; dy <= 1 && !best; dy++)
+            for (let dx = -1; dx <= 1; dx++) {
+              const xx = x + dx;
+              const yy = y + dy;
+              if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+              if (prev[yy * w + xx] > 0) {
+                best = prev[yy * w + xx];
+                break;
+              }
+            }
+          if (best) label[j] = best;
+        }
     }
     this.label = label;
     this.parts = [];
@@ -396,14 +438,70 @@ export class Skin {
           n++;
         }
       if (!n) continue;
-      const accept = dilate(core, alpha, w, h, this.pad);
+      const { acc: accept, near } = dilate(core, alpha, w, h, r.pad ?? this.pad);
       const cands = this.expand(r.bones);
-      const part = { name: r.name, z: r.z, accept, cands, lag: r.lag, n };
+      const part = { name: r.name, z: r.z, accept, near, cands, lag: r.lag, n };
       this.meshPart(part);
       this.parts.push(part);
     }
     this.parts.sort((a, b) => a.z - b.z);
     this.lags = this.spec.lags || {};
+  }
+
+  /**
+   * A region `{ auto: { z: {armN: 6, ...}, r: {arm: 0.11, fore: 0.09, thigh: 0.15, shin: 0.12,
+   * foot: 0.08, hand: 0.07} } }` stands for the limbs drawn as thick strokes along their bones
+   * (radii are shares of the hips-to-neck length). Explicit regions after it override it.
+   */
+  expandRegions(list) {
+    const out = [];
+    const J = this.J;
+    const T = dist(J.hips, J.neck);
+    for (const r of list) {
+      if (!r.auto) {
+        out.push(r);
+        continue;
+      }
+      // regions are in normalised image coordinates: convert the joints back
+      const nz = (p) => [(this.flip ? this.w - p[0] : p[0]) / this.w, p[1] / this.h];
+      const R = { arm: 0.11, fore: 0.09, thigh: 0.15, shin: 0.12, foot: 0.08, hand: 0.075, ...r.auto.r };
+      const Z = { armN: 6, armF: 2, legN: 4, legF: 2, fistN: 9, fistF: 8, ...r.auto.z };
+      const cap = (a, b, k, k2 = k) => [...nz(J[a]), ...nz(J[b]), (k * T) / this.w, (k2 * T) / this.w];
+      for (const s of ['F', 'N']) {
+        const grip = this.grips[s];
+        out.push({
+          name: `leg${s}`,
+          z: Z[`leg${s}`],
+          bones: [`leg${s}`, 'torsoLow'],
+          caps: [
+            cap('hips', `kn${s}`, R.thigh, R.thigh * 0.85),
+            cap(`kn${s}`, `an${s}`, R.shin * 1.1, R.shin * 0.85),
+            cap(`an${s}`, `to${s}`, R.foot),
+          ],
+          pad: r.auto.pad ?? 4,
+        });
+        out.push({
+          name: `arm${s}`,
+          z: Z[`arm${s}`],
+          bones: [`arm${s}`, 'torsoUp', ...(grip ? [] : [`hand${s}`])],
+          caps: [
+            cap(`sh${s}`, `el${s}`, R.arm, R.fore * 1.1),
+            cap(`el${s}`, `wr${s}`, R.fore * 1.1, R.fore * 0.9),
+            ...(grip ? [] : [cap(`wr${s}`, `hd${s}`, R.hand)]),
+          ],
+          pad: r.auto.pad ?? 6,
+        });
+        if (grip)
+          out.push({
+            name: `fist${s}`,
+            z: Z[`fist${s}`],
+            bones: [`hand${s}`, `farm${s}`],
+            caps: [cap(`wr${s}`, `hd${s}`, R.hand * 1.15)],
+            pad: 3,
+          });
+      }
+    }
+    return out;
   }
 
   /** Bone names (or groups) -> bone indices. Unlisted: every body bone. */
@@ -680,10 +778,22 @@ export class Skin {
     const wt = this.layoutWeapon(B);
     // a free hand goes where the blocking puts it relative to the shoulder (the blocking has one
     // shoulder point; the art, seen three-quarters, has two)
-    const hand = {
-      N: [sh.N[0] + B.hdN[0] - B.sh[0], sh.N[1] + B.hdN[1] - B.sh[1]],
-      F: [sh.F[0] + B.hdF[0] - B.sh[0], sh.F[1] + B.hdF[1] - B.sh[1]],
+    // and, so the art's own hang (an arm behind the body) survives, only as a change from the
+    // blocking's neutral (free: [0.05, -0.5] m from the shoulder) added to the art's rest hand
+    const sc = (sk.headR || 0.115) / 0.115;
+    const neutral = [0.05 * sc * this.ppm, 0.5 * sc * this.ppm];
+    const restHand = (s) => [J[`hd${s}`][0] - J[`sh${s}`][0], J[`hd${s}`][1] - J[`sh${s}`][1]];
+    const freeHand = (s, hb) => {
+      const rh = restHand(s);
+      const mu = boneMatrix(tu.ra, tu.rb, spine, neck, new Float32Array(6));
+      // the rest vector turns with the upper torso
+      const v = [mu[0] * rh[0] + mu[1] * rh[1], mu[2] * rh[0] + mu[3] * rh[1]];
+      return [
+        sh[s][0] + v[0] + (hb[0] - B.sh[0] - neutral[0]),
+        sh[s][1] + v[1] + (hb[1] - B.sh[1] - neutral[1]),
+      ];
     };
+    const hand = { N: freeHand('N', B.hdN), F: freeHand('F', B.hdF) };
     const wAng = { N: null, F: null };
     if (wt) {
       for (const s of ['N', 'F']) {
@@ -939,14 +1049,18 @@ export class Skin {
     this.ensure(bw * bh);
     const out = this.src;
     out.fill(-1, 0, bw * bh);
+    const ids = this.trackIds ? (this.ids = new Int16Array(bw * bh).fill(-1)) : null;
+    let pi = -1;
     const { w, h } = this;
     const alpha = this.layer.st.alpha;
     const eps = 0.03;
     for (const part of this.parts) {
+      pi++;
       const D = part.def;
       const R = part.rest;
       const tr = part.tris;
       const acc = part.accept;
+      const near = part.near;
       for (let t = 0; t < tr.length; t += 3) {
         const i0 = tr[t];
         const i1 = tr[t + 1];
@@ -982,9 +1096,10 @@ export class Skin {
             const v = l0 * rv0 + l1 * rv1 + l2 * rv2;
             const iu = u < 0 ? 0 : u >= w ? w - 1 : Math.floor(u);
             const iv = v < 0 ? 0 : v >= h ? h - 1 : Math.floor(v);
-            const j = iv * w + iu;
-            if (!alpha[j] || !acc[j]) continue;
-            out[y * bw + x] = j;
+            const j0 = iv * w + iu;
+            if (!acc[j0]) continue;
+            out[y * bw + x] = acc[j0] === 2 ? near[j0] : j0;
+            if (ids) ids[y * bw + x] = pi;
           }
         }
       }

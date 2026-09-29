@@ -160,6 +160,31 @@ export class PieceClass extends Piece {
     if (typeof window !== 'undefined') window.__skin = this; // for the checking scripts
   }
 
+  /** Debug: the pose at time t of the synthetic move, drawn as one colour per part. */
+  debugIds(name, actor, u, P = 110) {
+    const skin = this.skin(name, actor, P);
+    skin.trackIds = true;
+    const baked = skin.bake(skin.pose(() => synthMove(u), 0));
+    const st = baked.layer.st;
+    const S = 3;
+    const cv = document.createElement('canvas');
+    cv.width = st.w * S;
+    cv.height = st.h * S;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#ccc';
+    g.fillRect(0, 0, cv.width, cv.height);
+    const n = skin.parts.length;
+    for (let i = 0; i < st.w * st.h; i++) {
+      const id = skin.ids[i];
+      if (id < 0) continue;
+      const a = (id / n) * Math.PI * 2;
+      g.fillStyle = `rgb(${128 + 110 * Math.cos(a)},${128 + 110 * Math.cos(a - 2.1)},${128 + 110 * Math.cos(a + 2.1)})`;
+      g.fillRect((i % st.w) * S, ((i / st.w) | 0) * S, S, S);
+    }
+    skin.trackIds = false;
+    return { url: cv.toDataURL('image/png'), parts: skin.parts.map((p) => p.name) };
+  }
+
   /** A debug picture of a rig, 2x: 'parts', 'weights', 'rest' (bake of the rest pose), 'plain'. */
   debugPng(name, actor, mode, P = 110) {
     const skin = this.skin(name, actor, P);

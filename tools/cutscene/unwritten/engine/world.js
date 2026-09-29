@@ -215,6 +215,9 @@ const BED_DARK = [84, 86, 88];
 const BED_LIGHT = [138, 136, 130];
 const BANK_REFL = [92, 89, 84];
 const FOAM = [238, 232, 220];
+const GRAVEL = [158, 153, 144];
+const GRAVEL_W = [102, 100, 98];
+const GRAVEL_HI = [184, 179, 170];
 const STONE_LIT = [140, 139, 141];
 const STONE_MID = [108, 108, 114];
 const STONE_SH = [80, 80, 88];
@@ -659,6 +662,10 @@ export class World {
     // optimised code away, which costs whole frames in the browser
     this._el = 0.5;
     this._er = 0.5;
+    this._swl = 0.5;
+    this._swr = 0.5;
+    this._bl = 0.5;
+    this._br = 0.5;
     this._ht = 0.5;
     this._hx = 0.5;
     this._hz = 0.5;
@@ -682,6 +689,7 @@ export class World {
     this.prof = {};
     this.sunBox = null;
     this.reflSunBox = null;
+    this.msun = null;
     this.frameNo = 0;
     this.last = null;
     this.paper = o.paper;
@@ -746,24 +754,81 @@ export class World {
 
   // ---------------------------------------------------------------- geometry
 
+  /**
+   * The river's plan: its two water edges by Z, how wide each bank's slope is (a gentle
+   * gravel bar, a steep cut bank), and where the gravel lies. The ford itself (|Z| < 4) is
+   * FORD.md's crossing: centred, 16 m wide. Away from it the river meanders within the
+   * picture: upstream it swings left through a narrow riffle into a wide pool (a gravel
+   * bar on the inside of each bend, a cut bank on the outside), a spur of bank juts into
+   * it, and it swings back right far off; downstream it bends the other way. Entropy at
+   * the scale of the picture: nothing runs parallel to anything for long.
+   */
   buildRiver() {
     const n = Math.round((EZ1 - EZ0) / EDZ) + 1;
     this.eL = new Float32Array(n);
     this.eR = new Float32Array(n);
+    this.swL = new Float32Array(n);
+    this.swR = new Float32Array(n);
+    this.barL = new Float32Array(n);
+    this.barR = new Float32Array(n);
     const s = this.seed * 7 + 1;
+    const bump = (Z, c, w) => Math.exp(-(((Z - c) / w) ** 2));
     for (let i = 0; i < n; i++) {
       const Z = EZ0 + i * EDZ;
-      const away = smooth(12, 90, Math.abs(Z));
-      const centre = (valueNoise(Z / 70, 0.5, s) - 0.5) * 9 * away;
-      const half = 8 + (valueNoise(Z / 48, 1.5, s + 1) - 0.5) * 8 * smooth(8, 60, Math.abs(Z));
+      const aZ = Math.abs(Z);
+      // 1 at the crossing, 0 once the river is its own shape again
+      const ford = 1 - smooth(3.5, 10, aZ);
+      let centre =
+        Z > 0
+          ? -9.5 * smooth(5, 46, Z) + 17 * smooth(58, 125, Z) - 7 * smooth(140, 230, Z)
+          : 7.5 * smooth(6, 48, -Z) - 5 * smooth(60, 130, -Z) + 3 * bump(Z, -17, 6);
+      centre += (valueNoise(Z / 70, 0.5, s) - 0.5) * 12 * smooth(60, 160, aZ);
+      let half =
+        Z > 0
+          ? 8 - 2.8 * bump(Z, 29, 9) + 4.5 * bump(Z, 60, 15) - 1.6 * bump(Z, 102, 14)
+          : 8 + 2.6 * bump(Z, -27, 11) - 2.2 * bump(Z, -56, 10);
+      half += (valueNoise(Z / 48, 1.5, s + 1) - 0.5) * 7 * smooth(30, 110, aZ);
+      centre *= 1 - ford;
+      half = lerp(half, 8, ford);
       // the soft irregular edge, a little on each side
       const wig = (k) =>
         (valueNoise(Z / 2.6, k, s + 2) - 0.5) * 0.9 +
         (valueNoise(Z / 0.8, k + 3, s + 3) - 0.5) * 0.35 +
-        (valueNoise(Z / 11, k + 6, s + 4) - 0.5) * 1.4 * smooth(4, 30, Math.abs(Z));
-      this.eL[i] = centre - half - wig(0.5);
-      this.eR[i] = centre + half + wig(7.5);
+        (valueNoise(Z / 11, k + 6, s + 4) - 0.5) * 1.6 * smooth(4, 30, aZ);
+      // a spur of bank juts from the right a little upstream; a lesser one downstream
+      const spurR = 3.4 * bump(Z, 23, 3.2) ** 0.7 + 2.6 * bump(Z, -19, 2.4) ** 0.7;
+      const spurL = 2.2 * bump(Z, 74, 4);
+      // gravel bars on the inside of the bends: wide, low slopes of pebbles
+      const barL =
+        3.4 * bump(Z, 15, 6) + 5 * bump(Z, 120, 18) + 4.2 * bump(Z, -44, 12) + 3 * bump(Z, -17, 5);
+      const barR = 5.5 * bump(Z, 47, 11) + 2.5 * bump(Z, -8.5, 3) * (1 - ford * 0.6);
+      // the water edge sits a little inside a bar
+      this.eL[i] = centre - half - wig(0.5) + spurL + barL * 0.35;
+      this.eR[i] = centre + half + wig(7.5) - spurR - barR * 0.35;
+      this.barL[i] = barL * (1 - ford);
+      this.barR[i] = barR * (1 - ford);
+      // cut banks on the outsides are steep; bars are gentle
+      const cutL = bump(Z, 50, 12) + bump(Z, -8, 5) * 0.6;
+      const cutR = bump(Z, 16, 7) + bump(Z, -42, 12) + bump(Z, 118, 16);
+      this.swL[i] = lerp(Math.max(0.35, 0.9 - 0.5 * cutL + barL * 0.8), 0.9, ford);
+      this.swR[i] = lerp(Math.max(0.35, 0.9 - 0.5 * cutR + barR * 0.8), 0.9, ford);
     }
+  }
+
+  /** Edges plus each side's slope width and gravel, into _el/_er, _swl/_swr, _bl/_br. */
+  edgesFull(Z) {
+    let f = (Z - EZ0) / EDZ;
+    if (f < 0) f = 0;
+    const last = this.eL.length - 1;
+    if (f > last - 1) f = last - 1;
+    const i = f | 0;
+    const k = f - i;
+    this._el = this.eL[i] + (this.eL[i + 1] - this.eL[i]) * k;
+    this._er = this.eR[i] + (this.eR[i + 1] - this.eR[i]) * k;
+    this._swl = this.swL[i] + (this.swL[i + 1] - this.swL[i]) * k;
+    this._swr = this.swR[i] + (this.swR[i + 1] - this.swR[i]) * k;
+    this._bl = this.barL[i] + (this.barL[i + 1] - this.barL[i]) * k;
+    this._br = this.barR[i] + (this.barR[i + 1] - this.barR[i]) * k;
   }
 
   /** Left and right water edges (X) at depth Z, into this._el/_er. */
@@ -780,7 +845,7 @@ export class World {
 
   /** Ground height at (X, Z): the riverbed (negative) or the bank. */
   groundY(X, Z) {
-    this.edges(Z);
+    this.edgesFull(Z);
     const el = this._el;
     const er = this._er;
     if (X > el && X < er) {
@@ -789,7 +854,7 @@ export class World {
       return -depthProfile(Math.abs(X - c) / half) * Math.sqrt(half / 8);
     }
     const out = X <= el ? el - X : X - er;
-    return this.bankH * smooth(0, this.slopeW, out);
+    return this.bankH * smooth(0, X <= el ? this._swl : this._swr, out);
   }
 
   /** Water depth at (X, Z) (0 on the banks). */
@@ -878,6 +943,10 @@ export class World {
         const x = X + hash(n, 1, s) * step;
         const z = Z + hash(n, 2, s) * step;
         const de = this.outside(x, z);
+        // bare gravel on the bars
+        this.edgesFull(z);
+        const onBar = de > 0 && de < (x < (this._el + this._er) / 2 ? this._bl : this._br) * 0.9;
+        if (onBar && hash(n, 15, s) > 0.12) continue;
         // the ford itself is trodden clear
         if (Math.abs(z) < 4.5 && de < 0.6) continue;
         const far = Math.abs(z) > 60 ? 0.5 : 1;
@@ -935,7 +1004,6 @@ export class World {
    */
   hitGround(ox, oy, oz, dx, dy, dz) {
     const BH = this.bankH;
-    const SW = this.slopeW;
     let best = Infinity;
     let type = 0;
     let bx = 0;
@@ -980,8 +1048,8 @@ export class World {
         const t1 = (BH - oy) / dy;
         const x1 = ox + dx * t1;
         const z1 = oz + dz * t1;
-        this.edges(z1);
-        if (x1 <= this._el - SW || x1 >= this._er + SW) {
+        this.edgesFull(z1);
+        if (x1 <= this._el - this._swl || x1 >= this._er + this._swr) {
           this._ht = t1;
           this._hx = x1;
           this._hz = z1;
@@ -1014,20 +1082,22 @@ export class World {
         zg = z0;
       }
     }
-    // the sloped banks: planes rising from the water edge to the bank top
-    const k = BH / SW;
+    // the sloped banks: planes rising from the water edge to the bank top (each side's
+    // slope its own width: a gravel bar is gentle, a cut bank steep)
     for (let side = -1; side <= 1; side += 2) {
-      this.edges(zg);
+      this.edgesFull(zg);
       let e = side < 0 ? this._el : this._er;
-      for (let it = 0; it < 2; it++) {
+      let k = BH / (side < 0 ? this._swl : this._swr);
+      for (let it = 0; it < 3; it++) {
         const den = k * side * dx - dy;
         if (Math.abs(den) < 1e-9) break;
         const t = (oy - k * side * (ox - e)) / den;
         if (!(t > 0) || t >= best) break;
         const zz = oz + dz * t;
-        if (it === 0) {
-          this.edges(zz);
+        if (it < 2) {
+          this.edgesFull(zz);
           e = side < 0 ? this._el : this._er;
+          k = BH / (side < 0 ? this._swl : this._swr);
           continue;
         }
         const yy = oy + dy * t;
@@ -1386,19 +1456,71 @@ export class World {
     this.mtMirror = this.maxTans(B.ox, -B.oy, B.oz);
     const s = this.sunDir();
     const { W, H } = this;
-    // the sun's patch in the reflection image
+    // where the Hollow Sun's mirror image sits: the water breaks it into facets itself
+    // (sunGlitter), so it is not drawn into the reflection image
     const z = s[0] * B.fx - s[1] * B.fy + s[2] * B.fz;
     this.reflSunBox = null;
+    this.msun = null;
     if (z > 0.05) {
       const px = B.cx + ((s[0] * B.rx - s[1] * B.ry + s[2] * B.rz) * B.F) / z;
       const py = B.cy - ((s[0] * B.ux - s[1] * B.uy + s[2] * B.uz) * B.F) / z;
-      const R = (B.F * Math.tan(this.sun.r)) / z + 10;
-      this.reflSunBox = [px - R, py - R, px + R, py + R];
-      for (let y = Math.max(0, Math.floor(py - R)); y <= Math.min(H - 1, py + R); y++)
-        for (let x = Math.max(0, Math.floor(px - R)); x <= Math.min(W - 1, px + R); x++)
-          this.reflAt(y * W + x, t);
-      this.sunInto(this.refl, this.reflId, B, s[0], -s[1], s[2], t, true);
+      const r = Math.max(2, (B.F * Math.tan(this.sun.r)) / z);
+      if (px > -3 * r && px < W + 3 * r && py < H + r) this.msun = { px, py, r };
     }
+  }
+
+  /**
+   * The Hollow Sun broken by the current: the water is a field of small tilted mirrors
+   * (facets long across the flow, short along it, drifting with the current and rocking),
+   * and each one shows whatever part of the mirrored sun its tilt points it at. So the
+   * image falls apart into horizontal slivers strung down a long column under the sun:
+   * whole-ish near its mirror image, thinner, sparser and paler toward the camera, the
+   * gold ring surviving as broken glints. Returns 0 (none), else writes the colour into
+   * c and returns 1 (disc) or 2 (ring).
+   */
+  sunGlitter(x, y, X, zf, fpA, fpL, t, c) {
+    const ms = this.msun;
+    const rs = ms.r;
+    const ddx = x - ms.px;
+    const ddy = y - ms.py;
+    if (ddy < -rs * 1.3 || Math.abs(ddx) > rs * 2.2) return 0;
+    // 0 at the mirror image, 1 at the frame's foot
+    const q = clamp(ddy / Math.max(24, this.H - ms.py));
+    // the facets: a brick grid in (across, along) scaled to the pixel footprint, so they
+    // are a few pixels tall at any distance and drift down the frame with the current
+    const v = zf / (fpL * (2.6 - 1.2 * q)) + 0.3;
+    const jv = Math.floor(v);
+    const u = X / (fpA * (9 + 12 * hash(jv, 3, 71))) + hash(jv, 1, 71) * 7;
+    const iu = Math.floor(u);
+    const h1 = hash(iu, jv, 72);
+    const h2 = hash(iu, jv, 73);
+    const h3 = hash(iu, jv, 74);
+    // each facet rocks with the swell: its tilt sends it up and down the column
+    const amp = rs * 0.5 + Math.max(0, ddy) * 1.12;
+    const G = (Math.sin(h1 * 40 + t * (2.2 + 2.6 * h2)) * 0.5 + (h3 - 0.5)) * amp;
+    const rr = rs * (1 - 0.5 * q);
+    const ex = (ddx + (h2 - 0.5) * rs * (0.5 + 0.9 * q)) / rr;
+    const ey = (ddy + G) / rr;
+    const d = Math.sqrt(ex * ex + ey * ey);
+    const ring = 0.2 + 0.35 * q;
+    if (d > 1 + ring) return 0;
+    // near the camera many facets show only water: the image thins out
+    if (hash(iu, jv, 75) < 0.15 + 0.5 * q) return 0;
+    if (d > 1 - 0.08) {
+      // the ring: broken gold glints
+      if (hash(iu, jv, 76) < 0.2 + 0.4 * q) return 0;
+      const hot = d < 1 + ring * 0.5;
+      c[0] = hot ? 246 : 226;
+      c[1] = hot ? 208 : 182;
+      c[2] = hot ? 116 : 104;
+      return 2;
+    }
+    // the disc: ink, paler as the slivers get thin toward the camera
+    const k = 0.92 - 0.62 * q;
+    c[0] += (14 - c[0]) * k;
+    c[1] += (12 - c[1]) * k;
+    c[2] += (22 - c[2]) * k;
+    return 1;
   }
 
   /** The reflection image at pixel j (computed on first use this frame). */
@@ -1567,7 +1689,11 @@ export class World {
   }
 
   shadeBank(i, X, Z, gt, fpL, type, c) {
-    const de = this.outside(X, Z);
+    this.edgesFull(Z);
+    const left = X < (this._el + this._er) / 2;
+    const de = left ? this._el - X : X - this._er;
+    const sw = left ? this._swl : this._swr;
+    const bar = left ? this._bl : this._br;
     const T = this.tex;
     const lodF = Math.log2(fpL / 0.5 + 1e-6);
     const n = sampMip(T.ground, X / 0.5, Z / 0.5, lodF);
@@ -1609,9 +1735,44 @@ export class World {
         b += (this.refl[o + 2] - b) * k;
       }
     }
-    if (type === 3) {
+    // a gravel bar: pale stones in drifts along the current, dark and wet at the water
+    let gk = 0;
+    if (bar > 0.05) {
+      gk = 1 - smooth(bar * 0.7, bar * 1.1 + n2 * 1.4, de);
+      if (gk > 0) {
+        const drift = samp(T.streak, T.M, X / 0.35 + 3, Z / 2.2);
+        const dry = smooth(0.1, 1.2, de);
+        let pr = GRAVEL_W[0] + (GRAVEL[0] - GRAVEL_W[0]) * dry;
+        let pg = GRAVEL_W[1] + (GRAVEL[1] - GRAVEL_W[1]) * dry;
+        let pb = GRAVEL_W[2] + (GRAVEL[2] - GRAVEL_W[2]) * dry;
+        if (drift > 0.62) {
+          pr *= 0.88;
+          pg *= 0.88;
+          pb *= 0.9;
+        }
+        if (lodF < 2) {
+          // pebbles close up: dark and light stones
+          const g0 = T.ground[0];
+          const pn = samp(g0.d, g0.N, X / 0.04 + 17, Z / 0.04 + 5);
+          const near = 1 - clamp(lodF / 2);
+          if (pn > 0.68) {
+            pr -= pr * 0.22 * near;
+            pg -= pg * 0.22 * near;
+            pb -= pb * 0.2 * near;
+          } else if (pn < 0.28) {
+            pr += (GRAVEL_HI[0] - pr) * 0.6 * near;
+            pg += (GRAVEL_HI[1] - pg) * 0.6 * near;
+            pb += (GRAVEL_HI[2] - pb) * 0.6 * near;
+          }
+        }
+        r += (pr - r) * gk;
+        gg += (pg - gg) * gk;
+        b += (pb - b) * gk;
+      }
+    }
+    if (type === 3 && gk < 0.9) {
       // the cut bank: dark earth, runnels of wet mud down it, a lighter lip
-      const k = 0.35 + 0.35 * (1 - clamp(de / this.slopeW));
+      const k = (0.35 + 0.35 * (1 - clamp(de / sw))) * (1 - gk);
       r += (SLOPE_C[0] - r) * k;
       gg += (SLOPE_C[1] - gg) * k;
       b += (SLOPE_C[2] - b) * k;
@@ -1620,7 +1781,7 @@ export class World {
         r *= 0.84;
         gg *= 0.84;
         b *= 0.86;
-      } else if (run < 0.3 && de > this.slopeW * 0.7) {
+      } else if (run < 0.3 && de > sw * 0.7) {
         r += (GRASS_B[0] - r) * 0.5;
         gg += (GRASS_B[1] - gg) * 0.5;
         b += (GRASS_B[2] - b) * 0.5;
@@ -1744,7 +1905,7 @@ export class World {
       rr += (BANK_REFL[0] - rr) * 0.85;
       rg += (BANK_REFL[1] - rg) * 0.85;
       rb += (BANK_REFL[2] - rb) * 0.85;
-      glint = 0;
+      glint = -1;
     }
     // the water itself: the bed (pebbles, wobbling with the surface) in the shallows,
     // dark steel in the deep
@@ -1793,9 +1954,22 @@ export class World {
       g = g * 0.35 + 6;
       b = b * 0.35 + 11;
     }
+    // the Hollow Sun, broken into facets by the current
+    if (this.msun && glint === 0) {
+      c[0] = r;
+      c[1] = g;
+      c[2] = b;
+      const sg = this.sunGlitter(x, y, X, zf, fpA, fpL, t, c);
+      if (sg) {
+        r = c[0];
+        g = c[1];
+        b = c[2];
+        glint = 2 + sg;
+      }
+    }
     // ripple marks: the troughs a flat darker tone, each crest a thin light line (a
     // net of strokes across the current, like the painted plate)
-    if (w1 > 0 && glint === 0) {
+    if (w1 > 0 && glint <= 0) {
       const graze = 1 - ad * ad;
       const dark = hv < 0.24 ? Math.min(1, (0.24 - hv) * 8.3) * w1 * graze : 0;
       if (dark > 0) {

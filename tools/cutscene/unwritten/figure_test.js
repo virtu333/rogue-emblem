@@ -12,9 +12,17 @@
 
 import { Piece } from './engine/piece.js';
 import { T, BAR } from './engine/score.js';
-import { RGB, put, onTwos } from './engine/anime.js';
-import { clamp, lerp, smooth } from './engine/raster.js';
-import { PARADE_ROWS, drawActor, drawLine, drawParade, fordLine, marchSkeleton, soldierLook } from './engine/figure.js';
+import { RGB, put } from './engine/anime.js';
+import { smooth } from './engine/raster.js';
+import {
+  PARADE_ROWS,
+  drawActor,
+  drawLine,
+  drawParade,
+  fordLine,
+  marchSkeleton,
+  soldierLook,
+} from './engine/figure.js';
 import { LINE, TIME, bedY, skeletonAt } from './ford_blocking.js';
 
 export const W = 480;
@@ -128,7 +136,7 @@ export class PieceClass extends Piece {
     const gy = 246;
     const seed = 3;
     const x0 = 0;
-    const speed = 1.45;
+    const speed = 1.5;
     const skel = (t) => marchSkeleton(t, { x0, seed, speed, name: 'walker' });
     const t = 0.35 + lt;
     // the camera rides on the soldier: the world runs past under his feet
@@ -139,7 +147,8 @@ export class PieceClass extends Piece {
     const h = Math.round((1.8 * s) / 0.826);
     const L = this.figure('march', this.img.march, h);
     this.draw(f, L, 0, this.at(L, 345, gy + 1));
-    for (let x = 250; x < W; x++) put(f, W, H, x, gy, RGB.sepia, 0.85), put(f, W, H, x, gy + 1, RGB.sepia, 0.85);
+    for (let x = 250; x < W; x++)
+      (put(f, W, H, x, gy, RGB.sepia, 0.85), put(f, W, H, x, gy + 1, RGB.sepia, 0.85));
     text(f, 118, 14, 'CODE', RGB.sepia);
     text(f, 312, 14, 'GPT CUT-OUT', RGB.sepia);
     text(f, 118, 22, 'DRAWN EVERY FRAME', RGB.graphite);
@@ -165,7 +174,15 @@ export class PieceClass extends Piece {
       put(f, W, H, px, yOf(bed) + 1, RGB.sepia, 0.9);
       put(f, W, H, px, yOf(0) + Math.sin(px * 0.12 + t * 4) * 0.7, RGB.steelMid, 0.9);
     }
-    drawActor(f, W, H, skel, t, { x: sx, y: gy, s, ax, ay }, { seed: 7, boots: 'brown', wind: 0.35 });
+    drawActor(
+      f,
+      W,
+      H,
+      skel,
+      t,
+      { x: sx, y: gy, s, ax, ay },
+      { seed: 7, boots: 'brown', wind: 0.35 },
+    );
     text(f, 14, 14, 'THE WARDEN THRUST', RGB.sepia);
     text(f, 14, 22, 'FROM SKELETONAT WARDEN T', RGB.graphite);
   }
@@ -207,7 +224,7 @@ export class PieceClass extends Piece {
   shotThreeQuarter(f, lt) {
     const s = 83;
     const gy = 246;
-    const speed = 1.45;
+    const speed = 1.5;
     const t = 0.5 + lt;
     // he turns from side view toward us while marching, then holds
     const yaw = 0.95 * smooth(0.0, 0.7, lt);
@@ -234,7 +251,15 @@ export class PieceClass extends Piece {
           H,
           sk2,
           t,
-          { x: 380 + it.x0 * 20, y: 246 + it.z * 10, s: sg, ax: cam2 + it.x0 * 0 + it.x0, ay: 0, yaw: 0.6, tilt: 0 },
+          {
+            x: 380 + it.x0 * 20,
+            y: 246 + it.z * 10,
+            s: sg,
+            ax: cam2 + it.x0 * 0 + it.x0,
+            ay: 0,
+            yaw: 0.6,
+            tilt: 0,
+          },
           { seed: it.seed, haze: -it.z * 0.12 },
         );
       });
@@ -243,7 +268,3 @@ export class PieceClass extends Piece {
 }
 
 export const SHOTS_OF = (p) => p.shots.map((s) => ({ name: s.name, from: s.from, to: s.to }));
-void clamp;
-void lerp;
-void onTwos;
-void soldierLook;
