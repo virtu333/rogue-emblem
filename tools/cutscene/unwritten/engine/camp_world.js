@@ -33,7 +33,7 @@ const PAPER_REF = [214, 207, 196];
 // the night's ambient: cool violet-blue light from the sky (multiplies an albedo)
 const AMB = [0.2, 0.225, 0.36];
 // the fire's light (multiplies an albedo, times its intensity 0..~1.3)
-const FIRE_C = [1.25, 0.86, 0.34];
+const FIRE_C = [1.25, 0.8, 0.34];
 const HAZE = [70, 64, 92]; // aerial perspective toward the horizon glow
 const INKC = [17, 15, 26];
 const SKY_ZEN = [17, 15, 32];
@@ -448,10 +448,10 @@ export class CampWorld {
   flick(t) {
     const t2 = Math.floor(t * 12) / 12;
     return (
-      0.93 +
-      0.13 * Math.sin(t2 * 9.1) +
-      0.08 * Math.sin(t2 * 17.3 + 1.3) +
-      0.12 * (valueNoise(t2 * 5, 3, 9) - 0.5)
+      0.96 +
+      0.07 * Math.sin(t2 * 9.1) +
+      0.045 * Math.sin(t2 * 17.3 + 1.3) +
+      0.09 * (valueNoise(t2 * 5, 3, 9) - 0.5)
     );
   }
 
@@ -462,7 +462,7 @@ export class CampWorld {
     const dy = Y - f.y;
     const dz = Z - f.z;
     const d2 = dx * dx + dy * dy + dz * dz;
-    return (this.k * 1.3) / (1 + d2 / 2.6);
+    return (this.k * 1.2) / (1 + d2 / 2.0);
   }
 
   /** Shadow multiplier on the ground light at (X, Z): the figures and props block the fire. */
@@ -828,14 +828,14 @@ export class CampWorld {
   }
 
   /** The Thread's direction at u in 0..1 (an arc over the camp, alive with small waves). */
-  threadDir(u, t, TH) {
+  threadDir(u, t, TH, amp = 1) {
     const az = TH.az0 + (TH.az1 - TH.az0) * u + 0.02 * Math.sin(u * 7 + t * 0.6);
     const arc = Math.sin(Math.PI * clamp(u + TH.skew * (u - 0.5) * (1 - u) * 2)) ** 0.85;
     const el =
       0.04 +
       (TH.peak - 0.04) * arc +
-      TH.wave * Math.sin(u * 38 + t * 1.9) +
-      TH.wave * 1.6 * Math.sin(u * 11 - t * 0.9) * (0.4 + arc);
+      TH.wave * amp * Math.sin(u * 38 + t * 1.9) +
+      TH.wave * amp * 1.6 * Math.sin(u * 11 - t * 0.9) * (0.4 + arc);
     return [Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)];
   }
 
@@ -851,9 +851,11 @@ export class CampWorld {
     const k0 = th.k ?? 1;
     let prev = null;
     const t3 = this.t3;
+    // the Thread sings with the tune: its waves swell on each note and settle in the rests
+    const amp = 1 + 4 * (th.energy ?? 0);
     for (let s = 0; s <= n; s++) {
       const u = s / n;
-      const p = this.dirToScreen(B, this.threadDir(u, t, TH));
+      const p = this.dirToScreen(B, this.threadDir(u, t, TH, amp));
       if (p && prev && Math.hypot(p[0] - prev[0], p[1] - prev[1]) < 12) {
         // pulses running along the line: beads and a swell that decays behind them
         let glow = 0;
@@ -874,6 +876,33 @@ export class CampWorld {
         this.plotThread(frame, prev, p, a, glow, t3, s);
       }
       prev = p;
+    }
+    // a four-point glint at the head of each young bead
+    for (const q of th.pulses || []) {
+      const age = t - q.t0;
+      if (age < 0 || age > 1.3) continue;
+      const u = (q.from ?? 0) + age * (q.speed ?? 0.55) - 0.12;
+      if (u < 0 || u > 1) continue;
+      const p = this.dirToScreen(B, this.threadDir(u, t, TH, amp));
+      if (!p) continue;
+      const k = (q.k ?? 1) * (1 - age / 1.3);
+      if (k < 0.3) continue;
+      const r = Math.round(1 + 2.4 * k);
+      const x = Math.round(p[0] - 0.5);
+      const y = Math.round(p[1] - 0.5);
+      for (let d = -r; d <= r; d++) {
+        for (const [xx, yy] of [
+          [x + d, y],
+          [x, y + d],
+        ]) {
+          if (xx < 0 || yy < 0 || xx >= W || yy >= H || !this.sky[yy * W + xx]) continue;
+          const j = (yy * W + xx) * 4;
+          const w = (1 - Math.abs(d) / (r + 1)) * Math.min(1, k * 1.3);
+          frame[j] += (255 - frame[j]) * w;
+          frame[j + 1] += (240 - frame[j + 1]) * w;
+          frame[j + 2] += (190 - frame[j + 2]) * w;
+        }
+      }
     }
   }
 
@@ -965,7 +994,7 @@ export class CampWorld {
     ly *= il;
     lz *= il;
     const lam = Math.max(0, nx * lx + ny * ly + nz * lz);
-    const I = (this.k * 1.3) / (1 + d2 / 2.6);
+    const I = (this.k * 1.2) / (1 + d2 / 2.0);
     const fl = I * (0.18 + 0.82 * lam);
     const sky = (0.8 + 0.2 * ny) * ambK;
     out[0] = A[0] * (AMB[0] * sky + FIRE_C[0] * fl) + warm * 90;
@@ -1061,9 +1090,9 @@ export class CampWorld {
             // the tent's inside: near black with a faint warm bounce low down
             const k = 0.08 + 0.06 * (1 - hy / T.h);
             this.lightSurf(X, hy, Z, nx, ny, nz, CANVAS, c, 0.03);
-            frame[i * 4] = 10 + c[0] * 0.08 + k * 40;
-            frame[i * 4 + 1] = 9 + c[1] * 0.06 + k * 22;
-            frame[i * 4 + 2] = 14 + c[2] * 0.08 + k * 10;
+            frame[i * 4] = 20 + c[0] * 0.08 + k * 40;
+            frame[i * 4 + 1] = 18 + c[1] * 0.06 + k * 22;
+            frame[i * 4 + 2] = 28 + c[2] * 0.08 + k * 10;
             this.ids[i] = ID_TENT + T.i;
             this.zbuf[i] = depth;
             this.ink[i] = 1;

@@ -1,0 +1,13 @@
+{
+  "name": "camp_edric_rise",
+  "frames": 62,
+  "cols": 11,
+  "cell": [360, 400],
+  "fps": 12.0,
+  "loop": false,
+  "source": "References/cutscene/unwritten/clips/camp_edric_rise.mp4",
+  "range": [0, null],
+  "cycle": null,
+  "plate": false,
+  "anchor": [83.2, 395.0]
+}

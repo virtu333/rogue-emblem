@@ -9,7 +9,9 @@ import { bayer, clamp, hash, lerp, smooth, valueNoise } from './raster.js';
 import { drawSprite, layerMatrix } from './view.js';
 
 const AMB = [0.2, 0.225, 0.36];
-const FIRE_C = [1.25, 0.86, 0.34];
+// figures' shadow side: a violet with no green in it (green dark tones snap to the olive ramp)
+const AMB_A = [0.26, 0.2, 0.34];
+const FIRE_C = [1.25, 0.8, 0.34];
 const HAZE = [70, 64, 92];
 const INKC = [17, 15, 26];
 const ID_FENCE = 200;
@@ -620,11 +622,11 @@ export const billboardMethods = {
     const lean = this.wind * 0.06;
     for (const L of layers) {
       for (let k = 0; k < tongues; k++) {
-        const hs = hash(k, d, 41);
-        const hh = (0.28 + 0.5 * hs * hs) * (k === 3 ? 1.15 : 1 - Math.abs(k - 3) * 0.15) * size;
+        const hs = valueNoise(d * 0.42 + k * 3.1, k * 1.7, 44);
+        const hh = (0.34 + 0.5 * hs) * (k === 3 ? 1.15 : 1 - Math.abs(k - 3) * 0.15) * size;
         const wd = (0.2 + 0.07 * hash(k, 3, 41)) * (1 - Math.abs(k - 3) * 0.06);
         const x0 = (k - 3) * 0.075 + (hash(k, d + 1, 43) - 0.5) * 0.05;
-        const tipLean = (hash(k, d, 47) - 0.5) * 0.34 + lean + (k - 3) * 0.04;
+        const tipLean = (valueNoise(d * 0.4 + k * 5, 7.7, 47) - 0.5) * 0.42 + lean + (k - 3) * 0.04;
         const hL = hh * (0.55 + 0.45 * L.s);
         const wL = wd * L.s;
         const ph = hash(k, 2, 41) * 6;
@@ -706,7 +708,7 @@ export const billboardMethods = {
     const y0 = Math.floor(p.sy - R * 1.3);
     const y1 = Math.ceil(p.sy + R * 1.3);
     // warm from below near the flames, cool grey-violet up in the dark
-    const warm = clamp(1 - q.age / 2.2) * this.k;
+    const warm = clamp(1 - q.age / 1.3) * this.k;
     for (let y = y0; y <= y1; y++)
       for (let x = x0; x <= x1; x++) {
         if (x < 0 || y < 0 || x >= W || y >= H) continue;
@@ -717,18 +719,22 @@ export const billboardMethods = {
         const lump = 1 + 0.22 * Math.sin(ang * 3 + q.i * 1.7) + 0.12 * Math.sin(ang * 5 + q.i);
         const d = Math.hypot(dx, dy) / lump;
         if (d > 1) continue;
-        // opacity: dense in the middle, dithered toward the rim
-        const a = q.a * nearK * (1 - d * d * 0.6);
-        if (a < bayer(x, y)) continue;
+        // opacity: solid in the middle, dithered only toward the rim
+        const a = q.a * nearK * (1 - d * d * 0.5);
+        if (d > 0.62 && a < bayer(x, y)) continue;
         const i = y * W + x;
         if (p.depth >= this.zbuf[i]) continue;
         const o = i * 4;
-        // two tones: a lit side toward the fire (below-left of the puff) and a shadow side
-        const lit = clamp(0.5 - dy * 0.5 + (warm > 0 ? 0.3 : 0));
-        const base = [62 + 30 * lit, 56 + 24 * lit, 84 + 20 * lit];
-        frame[o] += (base[0] + 100 * warm * lit - frame[o]) * 0.6;
-        frame[o + 1] += (base[1] * (1 - 0.15 * warm) + 40 * warm * lit - frame[o + 1]) * 0.6;
-        frame[o + 2] += (base[2] * (1 - 0.55 * warm) - frame[o + 2]) * 0.6;
+        // three flat tones, lit from below-left (the fire): the shading of drawn smoke
+        const lit = clamp(0.5 - dy * 0.55 - dx * 0.15 + (warm > 0 ? 0.2 : 0));
+        const tone = lit < 0.36 ? 0 : lit < 0.68 ? 1 : 2;
+        let c = tone === 0 ? [50, 45, 68] : tone === 1 ? [74, 66, 92] : [104, 92, 116];
+        if (warm > 0.25 && tone === 2) c = [150, 100, 84];
+        else if (warm > 0.25 && tone === 1) c = [100, 72, 86];
+        const w = d > 0.62 ? 0.8 : Math.min(0.75, q.a * nearK * 1.5);
+        frame[o] += (c[0] - frame[o]) * w;
+        frame[o + 1] += (c[1] - frame[o + 1]) * w;
+        frame[o + 2] += (c[2] - frame[o + 2]) * w;
       }
   },
 
@@ -857,7 +863,7 @@ export const billboardMethods = {
     // ---- light the drawing and composite it
     const F = this.fire;
     const fp = project(cam, F.x, F.y, F.z, W, H);
-    const I = this.intensity(a.X, Y0 + a.height * 0.45, a.Z) * (a.gain ?? 1);
+    const I = this.intensity(a.X, Y0 + a.height * 0.45, a.Z) * (a.gain ?? 1.15);
     const front = clamp((feet.depth - fp.depth) / 1.4, -1, 1);
     const faceK = 0.42 + 0.58 * smooth(-0.7, 0.9, front);
     const cxA = (x0 + x1) / 2;
@@ -870,6 +876,7 @@ export const billboardMethods = {
     const half = Math.max(8, (x1 - x0) / 2);
     const zA = feet.depth;
     const rimStr = clamp(I * 1.5) * (a.rim ?? 1);
+    const ew = pxH < 150 ? 1 : pxH < 300 ? 2 : 3;
     for (let y = Y0s; y < Y1; y++)
       for (let x = X0; x < X1; x++) {
         const o = (y * W + x) * 4;
@@ -880,9 +887,31 @@ export const billboardMethods = {
         const lf = 0.5 + 0.5 * clamp(sxr, -1, 1);
         const low = clamp((y - y0) / Math.max(1, y1 - y0));
         const L = I * (0.28 + 0.85 * lf) * (0.7 + 0.55 * low) * faceK;
-        let r = sc[o] * (AMB[0] + FIRE_C[0] * L);
-        let g = sc[o + 1] * (AMB[1] + FIRE_C[1] * L);
-        let b = sc[o + 2] * (AMB[2] + FIRE_C[2] * L);
+        let r = sc[o] * (AMB_A[0] + FIRE_C[0] * L);
+        let g = sc[o + 1] * (AMB_A[1] + FIRE_C[1] * L);
+        let b = sc[o + 2] * (AMB_A[2] + FIRE_C[2] * L);
+        // the drawing's own fringe (a pale line where the cut-out met its green) becomes the
+        // ink of the contour: the edge pixels are darkened, deeper for a bigger figure
+        let edge = false;
+        for (let e = 1; e <= ew && !edge; e++)
+          for (const [ox, oy] of [
+            [e, 0],
+            [-e, 0],
+            [0, e],
+            [0, -e],
+          ]) {
+            const xx = x + ox;
+            const yy = y + oy;
+            if (xx < 0 || yy < 0 || xx >= W || yy >= H || !drawn((yy * W + xx) * 4)) {
+              edge = true;
+              break;
+            }
+          }
+        if (edge) {
+          r *= 0.4;
+          g *= 0.38;
+          b *= 0.48;
+        }
         // the rim: the edge that faces the flames takes an orange line
         const nx = Math.round(x + tfx * 2);
         const ny = Math.round(y + tfy * 2);

@@ -232,12 +232,16 @@ const mix = (a, b, k) => a + (b - a) * k;
  */
 export const CAMERA = {
   // the sky, held for the crash and the first notes; then a long tilt down to the camp
-  crane: (lt) =>
-    lerpCam(
+  crane: (lt) => {
+    const k = sm(0, 1, (lt - 0.45) / 2.35) ** 0.9;
+    const c = lerpCam(
       { x: 1.2, y: 2.4, z: -13.5, yaw: 0.3, pitch: 0.72, roll: 0, focal: 300 },
-      { x: -0.4, y: 1.35, z: -8.8, yaw: 0.02, pitch: -0.05, roll: 0, focal: 300 },
-      sm(0, 1, (lt - 0.55) / 2.35) ** 0.9,
-    ),
+      { x: -0.2, y: 1.25, z: -6.6, yaw: 0.0, pitch: -0.02, roll: 0, focal: 310 },
+      k,
+    );
+    // never a frozen card: the sky drifts a little even while the camera waits
+    return { ...c, yaw: c.yaw - 0.02 * lt * (1 - k), pitch: c.pitch + 0.012 * lt * (1 - k) };
+  },
   // the three-shot: low, from the south, a slow push
   three: (lt) => {
     const k = lt / 1.6;
@@ -247,42 +251,43 @@ export const CAMERA = {
       { focal: 335 },
     );
   },
-  // Sera close, from the fire side, a slow push in
+  // Sera close: from the south-east, so the fire is at the left edge and lights her face
   sera: (lt) => {
     const k = lt / 1.6;
-    return lookAt(
-      { x: mix(0.5, 0.62, k), y: 0.9, z: mix(-0.62, -0.5, k) },
-      { x: 1.45, y: 0.98, z: -0.1 },
-      { focal: 400 },
-    );
+    return lookAt({ x: mix(1.35, 1.42, k), y: 0.85, z: mix(-1.5, -1.38, k) }, { x: 1.08, y: 0.95, z: 0 }, { focal: 540 });
   },
-  // what she sees: the sky, a slow drift along the Thread
+  // what she sees: the sky, wide and canted, a slow drift along the Thread
   sky: (lt) => {
     const k = lt / 1.6;
     return lookAt(
       { x: mix(-0.2, 0.5, k), y: 0.8, z: -3.2 },
-      { x: mix(-0.6, 1.6, k), y: mix(5.0, 6.4, k), z: 6 },
-      { focal: 300 },
+      { x: mix(-2.0, 1.0, k), y: mix(4.6, 5.8, k), z: 6 },
+      { focal: 250, roll: mix(0.08, 0.15, k) },
     );
   },
-  // Edric from the south-west, the fire at the right edge
+  // Edric from the south-west, close: the fire is at the right edge and lights his face
   edric: (lt) => {
     const k = lt / 1.6;
-    return lookAt(
-      { x: -2.6, y: 0.9, z: mix(-1.6, -1.35, k) },
-      { x: -1.5, y: 0.85, z: 0.15 },
-      { focal: 380 },
-    );
+    return lookAt({ x: mix(-2.35, -2.15, k), y: 0.9, z: mix(-1.45, -1.3, k) }, { x: -1.65, y: 0.92, z: 0.15 }, { focal: 520 });
   },
-  // Kira, across the fire
-  kira: () => lookAt({ x: -0.6, y: 1.25, z: -0.5 }, { x: 1.05, y: 1.15, z: 1.75 }, { focal: 400 }),
-  // he rises: low and close; then the camera cranes back and tilts up to the sky
-  rise: (lt) =>
-    lerpCam(
-      { x: -1.1, y: 0.55, z: -3.1, yaw: 0.04, pitch: 0.08, roll: 0, focal: 320 },
-      { x: -0.5, y: 0.95, z: -6.6, yaw: 0.12, pitch: 0.36, roll: 0, focal: 300 },
-      sm(0, 1, (lt - 0.9) / 1.1),
-    ),
+  // Kira from the south-east: she faces the fire, so it lights her; a slow push
+  kira: (lt) => {
+    const k = lt / 1.2;
+    return lookAt({ x: mix(2.45, 2.3, k), y: 1.25, z: mix(0.4, 0.55, k) }, { x: 1.0, y: 1.32, z: 1.75 }, { focal: 560 });
+  },
+  // he rises: a low camera close to him that tilts up as he stands, then, on the fill, a fast
+  // pull back and up that lands on the big hit: he is small under the Thread
+  rise: (lt) => {
+    const near = lookAt(
+      { x: -1.95, y: 0.5, z: -1.85 },
+      { x: -1.45, y: mix(0.85, 1.55, sm(0.1, 1.0, lt)), z: 0.15 },
+      { focal: 350 },
+    );
+    const far = { x: -0.3, y: 0.95, z: -6.2, yaw: 0.1, pitch: 0.35, roll: 0, focal: 255 };
+    const nearEnd = lookAt({ x: -1.95, y: 0.5, z: -1.85 }, { x: -1.45, y: 1.55, z: 0.15 }, { focal: 350 });
+    if (lt < 1.0) return near;
+    return lerpCam(nearEnd, far, sm(0, 1, (lt - 1.0) / 0.4) ** 0.8);
+  },
 };
 
 // ------------------------------------------------------------------ queries

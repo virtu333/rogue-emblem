@@ -66,10 +66,10 @@ const MOTIONS = ['camp_edric_rise', 'camp_edric_look', 'camp_kira_map', 'camp_se
  * Edric is about 1.3 m to the top of his hair, Sera 1.15 m, Kira on her crate 1.45 m.
  */
 const CUT = {
-  edricFire: { img: 'edricFire', mpp: 0.00116, anchor: [457, 1127], face: 1 },
+  edricFire: { img: 'edricFire', mpp: 0.00116, anchor: [457, 1127], face: -1 },
   seraCamp: { img: 'seraCamp', mpp: 0.00094, anchor: [480, 1230], face: 1 },
   kiraCamp: { img: 'kiraCamp', mpp: 0.00105, anchor: [500, 1385], face: 1 },
-  standing: { img: 'standing', mpp: 0.001224, anchor: [475, 1462], face: 1 },
+  standing: { img: 'standing', mpp: 0.001224, anchor: [475, 1462], face: -1 },
 };
 
 /**
@@ -77,8 +77,8 @@ const CUT = {
  * cut-out it was made from. All face right.
  */
 const CLIP = {
-  camp_edric_rise: { mpp: 0.0045, cell: [360, 400], anchor: [83.2, 395], face: 1 },
-  camp_edric_look: { mpp: 0.00342, cell: [328, 400], anchor: [110, 396], face: 1 },
+  camp_edric_rise: { mpp: 0.0045, cell: [360, 400], anchor: [83.2, 395], face: -1 },
+  camp_edric_look: { mpp: 0.00342, cell: [328, 400], anchor: [110, 396], face: -1 },
   camp_kira_map: { mpp: 0.0039, cell: [309, 400], anchor: [186.2, 393], face: 1 },
   camp_sera_look: { mpp: 0.00297, cell: [307, 400], anchor: [148.1, 396], face: 1 },
 };
@@ -91,6 +91,14 @@ const bucket = (px) => {
 const step = (u, n) => Math.floor(clamp(u) * n) / n;
 const ease = (u) => smooth(0, 1, u);
 const easeOut = (u) => 1 - (1 - clamp(u)) ** 3;
+
+/** Drawing a..b of a clip, back and forth, `rate` times as fast as generated (12 fps). */
+const pingpong = (t, a, b, rate) => {
+  const span = b - a;
+  const k = Math.floor(t * 12 * rate);
+  const p = ((k % (2 * span)) + 2 * span) % (2 * span);
+  return a + (p < span ? p : 2 * span - p);
+};
 
 /** A drawing schedule [[t, frame], ...] -> the drawing at t (held between keys, floored). */
 const frameAt = (keys, t) => {
@@ -110,6 +118,16 @@ const PULSES = [
   ...HITS.crash.map((t0) => ({ t0, k: 1.5, speed: 0.95, from: -0.05 })),
 ];
 const CRASHES = HITS.crash;
+
+/** How hard the tune is sounding (0..1): each note strikes and rings, the rests are calm. */
+function tuneEnergy(t) {
+  let e = 0;
+  for (const n of NOTES) {
+    if (t < n.t || t > n.t + n.dur + 0.5) continue;
+    e = Math.max(e, Math.exp(-(t - n.t) / 0.32) * (n.dur > 0.5 ? 1 : 0.7));
+  }
+  return e;
+}
 
 export class CampPiece extends Piece {
   constructor() {
@@ -215,6 +233,7 @@ export class CampPiece extends Piece {
       Z,
       Y: o.Y,
       height: C.cell[1] * C.mpp,
+      cell: C.cell,
       flip,
       shadowW: o.shadowW ?? 0.55,
       gain: o.gain,
@@ -270,10 +289,23 @@ export class CampPiece extends Piece {
     };
     const e =
       o.edric ?? this.cutActor('edricFire', ex, ez, 1, { idle: IDLE_E, t: tt, shadowW: 0.6 });
+    // Sera and Kira hold on their clips' first drawings (their own hair, breath and hands, slowly
+    // back and forth); the still cut-outs are the fallback
     const s =
-      o.sera ?? this.cutActor('seraCamp', sx, sz, -1, { idle: IDLE_S, t: tt, shadowW: 0.55 });
+      o.sera ??
+      this.clipActor('camp_sera_look', pingpong(tt, 0, 6, 0.5), sx, sz, -1, {
+        idle: { seed: 2, breath: 0.004 },
+        t: tt,
+      }) ??
+      this.cutActor('seraCamp', sx, sz, -1, { idle: IDLE_S, t: tt, shadowW: 0.55 });
     const k =
-      o.kira ?? this.cutActor('kiraCamp', kx, kz, -1, { idle: IDLE_K, t: tt, shadowW: 0.55 });
+      o.kira ??
+      this.clipActor('camp_kira_map', pingpong(tt, 0, 22, 0.55), kx, kz, -1, {
+        idle: { seed: 3, breath: 0.004 },
+        t: tt,
+        gain: 1.2,
+      }) ??
+      this.cutActor('kiraCamp', kx, kz, -1, { idle: IDLE_K, t: tt, shadowW: 0.55 });
     for (const a of [e, s, k]) if (a) list.push(a);
     return list;
   }
@@ -285,7 +317,8 @@ export class CampPiece extends Piece {
     const base = 0.8 + 0.2 * Math.sin(t * 0.7);
     const thread = {
       cfg: THREAD,
-      k: (o.threadK ?? 0.85) + 0.5 * pulse(t, CRASHES, 0.28),
+      energy: tuneEnergy(t),
+      k: (o.threadK ?? 0.85) + 0.7 * pulse(t, CRASHES, 0.3),
       pulses: PULSES,
     };
     this.world.torchOn = true;
@@ -344,8 +377,46 @@ export class CampPiece extends Piece {
       ],
       onN(lt, lt < 0.8 ? 3 : 2),
     );
-    const s = this.clipActor('camp_sera_look', i, ...PEOPLE.sera.seat, -1, { rim: 1.2, t });
-    this.renderWorld(f, t, CAMERA.sera(lt), { actors: this.people(t, { sera: s }) });
+    const s = this.clipActor('camp_sera_look', i, ...PEOPLE.sera.seat, -1, {
+      rim: 1.4,
+      gain: 1.5,
+      t,
+    });
+    const cam = CAMERA.sera(lt);
+    this.renderWorld(f, t, cam, { actors: this.people(t, { sera: s }) });
+    // the Thread in her eye: a small pale glint while she looks up at it, going out as the lid comes down
+    const eye = this.clipPoint(s, cam, 163 + Math.min(i, 8) * 0.4, 46 + Math.min(i, 8) * 0.5);
+    if (eye) {
+      const k = clamp(1 - (i - 3) / 5) * (0.75 + 0.25 * tuneEnergy(t) + 0.1 * Math.sin(t * 9));
+      if (k > 0.1) {
+        const x = Math.round(eye[0]);
+        const y = Math.round(eye[1]);
+        for (const [dx, dy, a] of [
+          [0, 0, 1],
+          [1, 0, 0.8],
+          [0, 1, 0.6],
+          [-1, 0, 0.35 * k],
+          [0, -1, 0.35 * k],
+          [1, 1, 0.3],
+        ]) {
+          const j = ((y + dy) * W + x + dx) * 4;
+          const w = a * clamp(k * 1.2);
+          f[j] += (255 - f[j]) * w;
+          f[j + 1] += (236 - f[j + 1]) * w;
+          f[j + 2] += (176 - f[j + 2]) * w;
+        }
+      }
+    }
+  }
+
+  /** A clip actor's cell point (u, v) on the screen, after the world has drawn it. */
+  clipPoint(a, cam, u, v) {
+    if (!a) return null;
+    const { m, st } = this.world.cardBox(a, cam);
+    const k = st.h / a.cell[1];
+    const lu = a.flip ? st.w - u * k : u * k;
+    const lv = v * k;
+    return [m[0] * lu + m[1] * lv + m[2], m[3] * lu + m[4] * lv + m[5]];
   }
 
   // --- 4 · the Thread -----------------------------------------------------------------------
@@ -357,14 +428,15 @@ export class CampPiece extends Piece {
   // --- 5 · Edric ---------------------------------------------------------------------------
   shotEdric(f, t) {
     const lt = t - S.edric[0];
+    // he stares at the fire; feels it; his head snaps up (twos), then settles and meets her look
     const i = frameAt(
       [
         [0, 0],
-        [0.5, 6],
-        [1.0, 12],
-        [1.6, 20],
+        [0.4, 2],
+        [0.7, 18],
+        [1.6, 34],
       ],
-      onN(lt, 2),
+      onN(lt, lt < 0.4 ? 3 : 2),
     );
     const e = this.clipActor('camp_edric_look', i, ...PEOPLE.edric.seat, 1, { t });
     this.renderWorld(f, t, CAMERA.edric(lt), { actors: this.people(t, { edric: e }) });
