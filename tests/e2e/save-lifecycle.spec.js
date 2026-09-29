@@ -177,10 +177,10 @@ test('shop: a purchase survives backgrounding mid-visit and a reload', async ({ 
   });
   const shop = page.getByRole('dialog', { name: 'Village', exact: true });
   await expect(shop).toBeVisible();
-  const vulnerary = shop.locator('.shop-stock button', { hasText: 'Vulnerary' }).first();
+  const vulnerary = shop.locator('.shop-stock button', { hasText: 'Poultice' }).first();
   await vulnerary.tap();
   await shop.getByRole('button', { name: /^Buy · \d+ G$/ }).tap();
-  const picker = page.getByRole('dialog', { name: /^Give Vulnerary to$/ });
+  const picker = page.getByRole('dialog', { name: /^Give Poultice to$/ });
   await picker.getByRole('button', { name: /^Convoy/ }).tap();
   await picker.getByRole('button', { name: 'Confirm', exact: true }).tap();
   await expect(picker).toHaveCount(0);
@@ -194,7 +194,7 @@ test('shop: a purchase survives backgrounding mid-visit and a reload', async ({ 
     };
   });
   expect(before.gold).toBeLessThan(5000);
-  expect(before.convoy).toContain('Vulnerary');
+  expect(before.convoy).toContain('Poultice');
   await background(page);
   const saved = await savedRun(page);
   expect(saved.gold).toBe(before.gold);

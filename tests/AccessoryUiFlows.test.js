@@ -127,7 +127,7 @@ describe('accessory UI flows', () => {
     const { overlay, rm } = makeOverlay();
     const unit = rm.roster[0];
     unit.accessory = null;
-    rm.accessories = [{ name: 'Goddess Icon', effects: { LCK: 5 } }];
+    rm.accessories = [{ name: 'Fatethread Pendant', effects: { LCK: 5 } }];
 
     const labels = [];
     overlay._actionBtn = (_x, _y, label) => {
@@ -143,7 +143,7 @@ describe('accessory UI flows', () => {
     const { overlay, rm } = makeOverlay();
     const unit = rm.roster[0];
     unit.accessory = { name: 'Power Ring', effects: { STR: 2 } };
-    rm.accessories = [{ name: 'Goddess Icon', effects: { LCK: 5 } }];
+    rm.accessories = [{ name: 'Fatethread Pendant', effects: { LCK: 5 } }];
 
     const labels = [];
     overlay._actionBtn = (_x, _y, label) => {
@@ -160,7 +160,7 @@ describe('accessory UI flows', () => {
     const { overlay, rm, scene } = makeOverlay();
     const unit = rm.roster[0];
     rm.accessories = [
-      { name: 'Goddess Icon', effects: { LCK: 5 } },
+      { name: 'Fatethread Pendant', effects: { LCK: 5 } },
       { name: 'Power Ring', effects: { STR: 2 } },
     ];
 
@@ -198,21 +198,21 @@ describe('accessory UI flows', () => {
     const { overlay, rm } = makeOverlay();
     const unit = rm.roster[0];
     unit.accessory = { name: 'Old Charm', effects: {} };
-    rm.accessories = [{ name: 'Goddess Icon', effects: { LCK: 5 } }];
+    rm.accessories = [{ name: 'Fatethread Pendant', effects: { LCK: 5 } }];
     overlay._showBanner = vi.fn();
 
     overlay._showAccessoryPicker(unit);
 
     const equipBtn = overlay.tradeObjects.find(
-      (obj) => typeof obj?.text === 'string' && obj.text.startsWith('Goddess Icon'),
+      (obj) => typeof obj?.text === 'string' && obj.text.startsWith('Fatethread Pendant'),
     );
     expect(equipBtn?.handlers.pointerdown).toBeTypeOf('function');
 
     equipBtn.handlers.pointerdown();
 
-    expect(unit.accessory?.name).toBe('Goddess Icon');
+    expect(unit.accessory?.name).toBe('Fatethread Pendant');
     expect(rm.accessories.some((a) => a.name === 'Old Charm')).toBe(true);
-    expect(rm.accessories.some((a) => a.name === 'Goddess Icon')).toBe(false);
+    expect(rm.accessories.some((a) => a.name === 'Fatethread Pendant')).toBe(false);
   });
 
   it('preserves roster left-panel scroll while switching detail tabs', () => {

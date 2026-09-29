@@ -133,7 +133,7 @@ export function statReferenceEntries(gameData = {}) {
     row(
       'Promotion',
       'Growth',
-      `Eligible base classes can use a Master Seal at level ${PROMOTION_MIN_LEVEL} or higher.`,
+      `Eligible base classes can use a Sovereign Seal at level ${PROMOTION_MIN_LEVEL} or higher.`,
       'Promotion applies class stat bonuses (sometimes MOV), may improve growths, resets level to 1, and grants class-innate skills.',
       'When extended leveling is enabled, promoted units past 20 gain 20+N levels: +1 to a random non-MOV stat, ignoring growth rates.',
     ),

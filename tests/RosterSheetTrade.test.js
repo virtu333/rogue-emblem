@@ -27,7 +27,7 @@ const gameData = loadGameData();
 const cls = (name) => gameData.classes.find((c) => c.name === name);
 const ironBow = gameData.weapons.find((w) => w.name === 'Iron Bow');
 const ironAxe = gameData.weapons.find((w) => w.name === 'Iron Axe');
-const vulnerary = gameData.consumables.find((c) => c.name === 'Vulnerary');
+const vulnerary = gameData.consumables.find((c) => c.name === 'Poultice');
 const accessory = (name) => structuredClone(gameData.accessories.find((a) => a.name === name));
 
 const named = (base, name) => ({ ...structuredClone(base), name, uid: `uid-${name}` });
@@ -148,7 +148,7 @@ describe('roster sheet: trade controls', () => {
     // Five weapons, one supply and the accessory.
     expect(texts.filter((t) => t === 'Trade…')).toHaveLength(7);
     expect(buttonTexts(card(sheet, 'B3'))).toContain('Trade…');
-    expect(buttonTexts(card(sheet, 'Vulnerary'))).toContain('Trade…');
+    expect(buttonTexts(card(sheet, 'Poultice'))).toContain('Trade…');
     expect(buttonTexts(card(sheet, 'Power Ring'))).toContain('Trade…');
     sheet.destroy();
   });
@@ -259,7 +259,7 @@ describe('roster sheet: Trade… on an item card', () => {
     const potion = structuredClone(vulnerary);
     archer.consumables = [potion];
     sheet.render();
-    press(card(sheet, 'Vulnerary'), 'Trade…');
+    press(card(sheet, 'Poultice'), 'Trade…');
     expect(sheet.picker.describe(fighter)).toBe('Supplies 0/3');
     await pickPartner(sheet, 'Brom');
     const root = tm(sheet);
@@ -272,7 +272,7 @@ describe('roster sheet: Trade… on an item card', () => {
     row(root, 'right', 0).click();
     expect(archer.consumables).toEqual([]);
     expect(fighter.consumables).toEqual([potion]);
-    expect(tmStatus(root)).toBe('Gave Vulnerary to Brom.');
+    expect(tmStatus(root)).toBe('Gave Poultice to Brom.');
     expect(saveServiceRun).toHaveBeenCalledTimes(1);
     sheet.destroy();
   });
@@ -423,8 +423,8 @@ describe('roster sheet: convoy tab (an item without a uid)', () => {
 describe('roster sheet: accessory Trade…', () => {
   it('lists units only and swaps accessories with their stats and HP', async () => {
     const { sheet, archer, fighter } = setup();
-    // Daska wears the Seraph Robe (+5 HP), 7 HP down; Brom wears the Power Ring (+2 STR).
-    const robe = accessory('Seraph Robe');
+    // Daska wears the Sisters' Mantle (+5 HP), 7 HP down; Brom wears the Power Ring (+2 STR).
+    const robe = accessory("Sisters' Mantle");
     const ringItem = accessory('Power Ring');
     archer.stats.HP = 20;
     archer.accessory = null;
@@ -444,7 +444,7 @@ describe('roster sheet: accessory Trade…', () => {
     ]);
     sheet.render();
 
-    press(card(sheet, 'Seraph Robe'), 'Trade…');
+    press(card(sheet, "Sisters' Mantle"), 'Trade…');
     const picker = sheet.picker;
     expect(picker.choices.map((c) => picker.label(c))).toEqual(['Brom']);
     expect(picker.describe(fighter)).toBe('Wears Power Ring');

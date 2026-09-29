@@ -457,7 +457,29 @@ const LEGENDARY_SKILL_POOL = ['sol', 'luna', 'vantage', 'wrath', 'adept'];
  * @param {Array} allWeapons - weapons.json array
  * @returns {object} a unique legendary weapon object
  */
-export function generateRandomLegendary(allWeapons) {
+/**
+ * The special text of a weapon that grants a skill, naming the skill as
+ * skills.json does today ("Grants Reclaim to wielder"). Saves keep this text, so
+ * the item-name migration rewrites it with this too.
+ */
+export function grantedSkillSpecial(skillId, skillsData = null) {
+  const name =
+    (Array.isArray(skillsData) && skillsData.find((s) => s.id === skillId)?.name) ||
+    GRANTED_SKILL_FALLBACK_NAMES[skillId] ||
+    skillId;
+  return `Grants ${name} to wielder`;
+}
+
+// For callers without skills.json at hand; matches its names.
+const GRANTED_SKILL_FALLBACK_NAMES = {
+  sol: 'Reclaim',
+  luna: 'Umbra',
+  vantage: 'Forestall',
+  wrath: 'Seethe',
+  adept: 'Flurry',
+};
+
+export function generateRandomLegendary(allWeapons, skillsData = null) {
   const name = LEGENDARY_NAMES[Math.floor(Math.random() * LEGENDARY_NAMES.length)];
   const types = Object.keys(SILVER_BASES);
   const type = types[Math.floor(Math.random() * types.length)];
@@ -508,14 +530,7 @@ export function generateRandomLegendary(allWeapons) {
   } else {
     // Skill grant: embed a skill from pool
     const skillId = LEGENDARY_SKILL_POOL[Math.floor(Math.random() * LEGENDARY_SKILL_POOL.length)];
-    const skillNames = {
-      sol: 'Sol',
-      luna: 'Luna',
-      vantage: 'Vantage',
-      wrath: 'Wrath',
-      adept: 'Adept',
-    };
-    weapon.special = `Grants ${skillNames[skillId]} to wielder`;
+    weapon.special = grantedSkillSpecial(skillId, skillsData);
     weapon._grantedSkill = skillId;
   }
 
@@ -1102,7 +1117,7 @@ export function generateShopInventory(
   }
 
   // Guarantee at least one weapon. A single random pick can land on an
-  // unsellable entry (price <= 0, e.g. the Fortify staff in the weapons pool)
+  // unsellable entry (price <= 0, e.g. the Canticle staff in the weapons pool)
   // or an already-used name, which addByName silently rejects — leaving the
   // shop with no weapon. Start at a random index and scan the whole pool so a
   // sellable weapon is added whenever one exists.
@@ -1130,7 +1145,7 @@ export function generateShopInventory(
   // tight 3-4 item count has no room for two more unconditional guarantees
   // on top of the rare-item guarantee above.
   if (!generateOptions?.rareBias) {
-    const guaranteedConsumables = ['Vulnerary', 'Elixir'];
+    const guaranteedConsumables = ['Poultice', 'Elixir'];
     for (const name of guaranteedConsumables) {
       if (usedNames.has(name)) continue;
       const inHealingOrPromotion = [
@@ -1181,11 +1196,11 @@ export function generateShopInventory(
     });
   }
 
-  // Append cure items (Herb + Remedy + Restore staff) if shop cure gating is
+  // Append cure items (Herb + Remedy + Cleanse staff) if shop cure gating is
   // active for this act, so a gated shop always stocks the full reactive kit.
   const shopCureGating = generateOptions?.shopCureGating;
   if (shopCureGating && shopCureGating[actId]) {
-    for (const cureName of ['Herb', 'Remedy', 'Restore']) {
+    for (const cureName of ['Herb', 'Remedy', 'Cleanse']) {
       if (usedNames.has(cureName)) continue;
       const cureItem = findItem(cureName, allWeapons, consumables, allAccessories);
       if (cureItem && cureItem.price > 0) {

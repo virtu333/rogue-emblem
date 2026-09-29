@@ -116,7 +116,7 @@ Critical Damage = 3× normal damage
 Attack Speed    = SPD - max(0, Weapon Weight - floor(STR / 5))   (+ weapon/skill SPD bonuses; staves: SPD)
 Double Attack   = attacker Attack Speed >= defender Attack Speed + 5
 ```
-Doubling reads attack speed, never raw SPD: `calculateEffectiveSpeed` / `canDouble` in `Combat.js` (threshold `DOUBLE_ATTACK_SPD_THRESHOLD`; the Pursuit Ring lowers it, `preventEnemyDouble` effects block the foe's double, an active weapon art gives up its follow-up, and Quick Riposte forces a defender's double). Sims should read `getCombatForecast(...).attacker.doubles` rather than recompute it.
+Doubling reads attack speed, never raw SPD: `calculateEffectiveSpeed` / `canDouble` in `Combat.js` (threshold `DOUBLE_ATTACK_SPD_THRESHOLD`; the Pursuit Ring lowers it, `preventEnemyDouble` effects block the foe's double, an active weapon art gives up its follow-up, and Riposte forces a defender's double). Sims should read `getCombatForecast(...).attacker.doubles` rather than recompute it.
 
 ### Weapon Triangle
 Swords → Axes → Lances → Swords: +10 Hit, +1 Damage (advantage) / -10 Hit, -1 Damage (disadvantage). Mastery rank: +15/+2 advantage, -5/-1 disadvantage. Magic and Bows are outside the triangle.

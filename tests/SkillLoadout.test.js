@@ -43,7 +43,7 @@ import { MAX_SKILLS } from '../src/utils/constants.js';
 const data = loadGameData();
 const cls = (name) => data.classes.find((c) => c.name === name);
 let key = 0;
-// Three enemy phases held on a bridge: "Who Held the Bridge", Oath of the Bridge → Pavise.
+// Three enemy phases held on a bridge: "Who Held the Bridge", Oath of the Bridge → Shieldwall.
 function held(unit) {
   unit._battleDeeds = { ...emptyBattleDeeds(), heldPhases: 3, heldPlaces: ['Bridge', 'Bridge', 'Bridge'] }; // prettier-ignore
   commitBattleDeeds([unit], data.deeds, { battleKey: `bench:${++key}` });
@@ -85,7 +85,7 @@ describe('learning at the cap', () => {
     expect(foe.benchedSkills).toBeUndefined();
   });
 
-  it('a Myrmidon at the cap reaching Lv 10 benches Vantage once, never twice', () => {
+  it('a Myrmidon at the cap reaching Lv 10 benches Forestall once, never twice', () => {
     const unit = createUnit(cls('Myrmidon'), 10, data.weapons, { name: 'Ren' });
     unit.faction = 'player';
     unit.skills = ['sol', 'luna', 'astra', 'wrath', 'pavise'];
@@ -105,7 +105,7 @@ describe('learning at the cap', () => {
     const unit = fighter('Tess');
     unit.skills = [...FULL];
     run.roster.push(unit);
-    const scroll = { name: 'Pavise Scroll', type: 'Scroll', skillId: 'pavise' };
+    const scroll = { name: 'Shieldwall Scroll', type: 'Scroll', skillId: 'pavise' };
     run.scrolls = [scroll];
     expect(teachRosterScroll(run, unit, scroll, data.skills)).toEqual({ ok: true, benched: true });
     expect(unit.benchedSkills).toEqual(['pavise']);
@@ -121,7 +121,7 @@ describe('an Oath at the cap', () => {
     expect(unit.benchedSkills).toContain('pavise');
     expect(unit.deeds.oath).toMatchObject({ skillId: 'pavise', name: 'Oath of the Bridge' });
     expect(unit.deeds.waitingOath).toBeUndefined();
-    expect(result.message).toContain("Oath of the Bridge: Pavise is on Bram's bench");
+    expect(result.message).toContain("Oath of the Bridge: Shieldwall is on Bram's bench");
     // One Oath per unit: nothing more to swear.
     expect(promotionOathCandidates(unit, data.deeds, data.skills)).toEqual([]);
   });
@@ -246,7 +246,7 @@ describe('the bench in the roster', () => {
     const { sheet, unit, press } = open({ hints });
     const box = callout(sheet);
     expect(box.textContent).toContain("New on Bram's bench:");
-    expect(box.textContent).toContain('Pavise');
+    expect(box.textContent).toContain('Shieldwall');
     expect(box.textContent).toContain('all 5 skill slots full');
     expect(box.textContent).toMatch(LESSON);
     const pane = sheet.root.querySelector('.mr-content');
@@ -260,7 +260,7 @@ describe('the bench in the roster', () => {
     expect(sheet.tab).toBe('skills');
     expect(callout(sheet)).toBeFalsy();
     const fresh = sheet.root.querySelectorAll('.mr-bench-new').map((c) => c.textContent);
-    expect(fresh.some((t) => t.includes('Pavise'))).toBe(true);
+    expect(fresh.some((t) => t.includes('Shieldwall'))).toBe(true);
     expect(unseenBenchedSkills(unit)).toEqual([]);
     expect(
       sheet.root.querySelector('.mr-unit-card.is-selected, .mr-units')?.textContent || '',
@@ -279,7 +279,7 @@ describe('the bench in the roster', () => {
     expect(buttons().filter((t) => t === 'Bench')).toHaveLength(unit.skills.length - locked.length);
     const swap = sheet.root
       .querySelectorAll('.mr-card')
-      .find((c) => c.textContent.includes('Pavise') && c.textContent.includes('Swap in…'));
+      .find((c) => c.textContent.includes('Shieldwall') && c.textContent.includes('Swap in…'));
     swap
       .querySelectorAll('button')
       .find((b) => b.textContent === 'Swap in…')
@@ -291,7 +291,7 @@ describe('the bench in the roster', () => {
     expect(unit.benchedSkills).toContain('luna');
     expect(unit.benchedSkills).not.toContain('pavise');
     expect(saveServiceRun).toHaveBeenCalled();
-    expect(sheet.root.textContent).toContain('Pavise in, Luna to the bench.');
+    expect(sheet.root.textContent).toContain('Shieldwall in, Umbra to the bench.');
     sheet.destroy();
   });
 

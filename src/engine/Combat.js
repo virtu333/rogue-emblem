@@ -549,7 +549,7 @@ export function spendPerBattleUse(weapon) {
 
 // --- Staff range ---
 
-/** Get effective range for a staff, accounting for MAG-based range bonuses (Physic). */
+/** Get effective range for a staff, accounting for MAG-based range bonuses (Farcall). */
 export function getEffectiveStaffRange(staff, healer) {
   const baseRange = parseRange(staff.range);
   if (!staff.rangeBonuses) return baseRange;
@@ -1414,7 +1414,7 @@ function applyReflect(evt, strikerHP) {
 }
 
 /**
- * A strike's drain/Sol heal on the striker: none while Wounded, never past max HP.
+ * A strike's drain/Reclaim heal on the striker: none while Wounded, never past max HP.
  * Records the HP it heals to (`strikerHealTo`) and what it actually healed (`healed`).
  */
 function applyStrikeHeal(evt, striker, strikerHP) {
@@ -1760,7 +1760,7 @@ export function resolveCombat(
       );
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
-        // Sol/Drain heal: striker heals HP
+        // Reclaim/Drain heal: striker heals HP
         atkHP = applyStrikeHeal(evt, attacker, atkHP);
         atkHP = applyReflect(evt, atkHP);
       } else {
@@ -1896,6 +1896,10 @@ export function resolveCombat(
 
   // Determine phase order — Vantage, Desperation modify order
   const defenderVantage = defCanCounter && (defMods?.vantage || false);
+  // Skill events carry the skill's display name from skills.json (the banner
+  // looks the skill back up by it); the fallback serves callers without skill data.
+  const skillEventName = (id, fallback) =>
+    skillCtx?.skillsData?.find((skill) => skill.id === id)?.name || fallback;
   const attackerDesperation = atkMods?.desperation || false;
   const defenderDesperation = defCanCounter && (defMods?.desperation || false);
 
@@ -1907,7 +1911,11 @@ export function resolveCombat(
 
   if (defenderVantage) {
     // Vantage: defender strikes first
-    events.push({ type: 'skill', name: 'Vantage', unit: defender.name });
+    events.push({
+      type: 'skill',
+      name: skillEventName('vantage', 'Forestall'),
+      unit: defender.name,
+    });
     strikePhase(
       defender.name,
       attacker.name,
@@ -1961,7 +1969,11 @@ export function resolveCombat(
       );
   } else if (attackerDesperation && atkDoubles) {
     // Desperation: all attacker hits before defender responds
-    events.push({ type: 'skill', name: 'Desperation', unit: attacker.name });
+    events.push({
+      type: 'skill',
+      name: skillEventName('desperation', "Death's Door"),
+      unit: attacker.name,
+    });
     strikePhase(
       attacker.name,
       defender.name,
@@ -2029,7 +2041,11 @@ export function resolveCombat(
       atkWeapon,
     );
     if (atkHP > 0 && defHP > 0 && !warpedSide()) {
-      events.push({ type: 'skill', name: 'Desperation', unit: defender.name });
+      events.push({
+        type: 'skill',
+        name: skillEventName('desperation', "Death's Door"),
+        unit: defender.name,
+      });
       if (defCanCounter) {
         strikePhase(
           defender.name,

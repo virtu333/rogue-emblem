@@ -235,7 +235,7 @@ describe('fog lifts only once an action is committed', () => {
 });
 
 describe('moves inside an action (Rescue/Warp, Blink) lift the fog only on commit', () => {
-  const RESCUE = gameData.weapons.find((w) => w.name === 'Rescue Staff');
+  const RESCUE = gameData.weapons.find((w) => w.name === 'Deliverance Staff');
 
   /** Edric (a Canto caster when asked) moves to (4,1), then relocates Sera to (3,1). */
   async function rescue({ canto }) {

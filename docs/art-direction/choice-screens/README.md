@@ -106,7 +106,7 @@ With `html.portrait-ui` (set by the portrait shell while an upright phone plays 
 same cards become one scrolling column of full-width rows; without the class nothing above
 changes. Rows, not a 2×2 grid: a draft holds one to five cards (rewards add the gold card), so a
 grid leaves a ragged last row, and a row gives every name the full width (Quartermaster Cache,
-Hunter's Volley Scroll) instead of shrinking it to a 90 px column.
+Hawk's Talons Scroll) instead of shrinking it to a 90 px column.
 
 - **Candidates:** the face beside the name, class, HP and weapons; the seven stats in two rows
   of four, the draft's best in gold. The chosen card opens its traits and skills; the others

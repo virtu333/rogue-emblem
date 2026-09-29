@@ -337,7 +337,7 @@ describe('canonical battle state', () => {
         unit.inventory = weapons.slice(0, 5).map((w) => structuredClone(w));
         unit.weapon = unit.inventory[0];
         unit.consumables = Array.from({ length: 3 }, (_, i) => ({
-          name: 'Vulnerary',
+          name: 'Poultice',
           uid: `s${i}`,
           uses: 3,
         }));

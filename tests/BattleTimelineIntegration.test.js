@@ -500,12 +500,12 @@ describe('battlefield presentation integration', () => {
     const { hydrateBattleTimeline } = await import('../src/engine/BattleTimeline.js');
     const { historyFrameAt } = await import('../src/engine/BattleHistoryPresentation.js');
     const [a, c] = scene.playerUnits;
-    // A walks (1,1) → (2,1) → (2,2), beside C at (1,2), then gives C a Vulnerary.
+    // A walks (1,1) → (2,1) → (2,2), beside C at (1,2), then gives C a Poultice.
     const origin = { col: a.col, row: a.row };
     const path = [origin, { col: 2, row: 1 }, { col: 2, row: 2 }];
     rememberHistoryPath(scene, a, path);
     Object.assign(a, { col: 2, row: 2 });
-    const item = { name: 'Vulnerary', type: 'Consumable', uses: 3 };
+    const item = { name: 'Poultice', type: 'Consumable', uses: 3 };
     a.consumables = [item];
     c.consumables = [];
     scene.selectedUnit = a;
@@ -516,7 +516,7 @@ describe('battlefield presentation integration', () => {
       { holder: unitHolder(a), bag: 'consumables', item },
       { holder: unitHolder(c), bag: 'consumables', item: null },
     );
-    expect(given).toMatchObject({ ok: true, kind: 'give', detail: 'Vulnerary' });
+    expect(given).toMatchObject({ ok: true, kind: 'give', detail: 'Poultice' });
     let archive = scene._battleTimeline.presentation;
     expect(archive).not.toBeNull();
     const trade = archive.records.at(-1);

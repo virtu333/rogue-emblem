@@ -1,10 +1,10 @@
-// Staves reach from 1 to N, as in Fire Emblem: Physic and Fortify list "range": "1-2"
+// Staves reach from 1 to N, as in Fire Emblem: Farcall and Canticle list "range": "1-2"
 // (they used to say "2", parsed as exactly 2 tiles, so an adjacent ally could not be
-// healed and Fortify skipped the allies beside the healer). MAG range bonuses still
+// healed and Canticle skipped the allies beside the healer). MAG range bonuses still
 // extend the far end only.
 //
 // Expected values are derived by hand: heal = min(MAG + healBase, max HP - current HP);
-// Physic reach = 1 to 2 (+1 at MAG 10, +1 more at MAG 18).
+// Farcall reach = 1 to 2 (+1 at MAG 10, +1 more at MAG 18).
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
@@ -100,9 +100,9 @@ function scene(playerUnits) {
   return s;
 }
 
-describe('Physic reaches 1 to 2', () => {
+describe('Farcall reaches 1 to 2', () => {
   it('offers an adjacent ally and one 2 tiles away, not one at 3', () => {
-    const sera = healer('Physic'); // MAG 8: reach 1-2
+    const sera = healer('Farcall'); // MAG 8: reach 1-2
     const next = ally('Edric', 4, 5, 10); // distance 1
     const two = ally('Rowan', 6, 4, 10); // distance 2
     const three = ally('Kira', 4, 1, 10); // distance 3
@@ -111,7 +111,7 @@ describe('Physic reaches 1 to 2', () => {
   });
 
   it('heals the adjacent ally: MAG 8 + 5 = 13', async () => {
-    const sera = healer('Physic');
+    const sera = healer('Farcall');
     const next = ally('Edric', 5, 4, 10);
     const s = scene([sera, next]);
     s.startHealTargetSelection(sera, s.findHealTargets(sera), sera.weapon);
@@ -124,7 +124,7 @@ describe('Physic reaches 1 to 2', () => {
 
   it('MAG bonuses still extend only the far end: 3 at MAG 10, 4 at MAG 18', () => {
     const at = (MAG) => {
-      const sera = healer('Physic', { MAG });
+      const sera = healer('Farcall', { MAG });
       const units = [1, 2, 3, 4, 5].map((d) => ally(`D${d}`, 4 + d, 4, 10));
       return scene([sera, ...units])
         .findHealTargets(sera)
@@ -136,9 +136,9 @@ describe('Physic reaches 1 to 2', () => {
   });
 });
 
-describe('Fortify reaches 1 to 2', () => {
+describe('Canticle reaches 1 to 2', () => {
   it('heals the allies beside the healer too, for one use', async () => {
-    const sera = healer('Fortify', { MAG: 10 }); // 10 + 5 = 15 per ally
+    const sera = healer('Canticle', { MAG: 10 }); // 10 + 5 = 15 per ally
     const beside = ally('Edric', 4, 3, 4); // distance 1
     const two = ally('Rowan', 4, 6, 20); // distance 2
     const three = ally('Kira', 7, 4, 5); // distance 3: out of reach
@@ -155,19 +155,19 @@ describe('Fortify reaches 1 to 2', () => {
 
 describe('the item card and brief', () => {
   it('say "Rng 1-2" / "Range 1-2", and the MAG-extended reach for the holder', () => {
-    const physic = weapon('Physic');
+    const physic = weapon('Farcall');
     const sera = { stats: { MAG: 8 } };
-    // Physic: 1 use, +1 at MAG 8 → 2/2.
+    // Farcall: 1 use, +1 at MAG 8 → 2/2.
     expect(battleItemBrief(physic, sera)).toBe('Rng 1-2 · 2/2 uses');
     expect(battleItemSummary(physic, sera)).toContain('Range 1-2');
     expect(battleItemSummary(physic, { stats: { MAG: 18 } })).toContain('Range 1-4');
-    expect(battleItemSummary(weapon('Fortify'), sera)).toContain('Range 1-2');
+    expect(battleItemSummary(weapon('Canticle'), sera)).toContain('Range 1-2');
   });
 });
 
 describe('the other staff users agree', () => {
-  it('the headless harness offers an adjacent ally to Physic', () => {
-    const roster = [{ ...healer('Physic'), isCommander: true, moveType: 'Infantry' }];
+  it('the headless harness offers an adjacent ally to Farcall', () => {
+    const roster = [{ ...healer('Farcall'), isCommander: true, moveType: 'Infantry' }];
     const b = new HeadlessBattle(data, { act: 'act1', objective: 'rout' }, roster);
     b.init();
     const sera = b.playerUnits[0];
@@ -177,8 +177,8 @@ describe('the other staff users agree', () => {
     expect(b._findHealTargets(sera)).toContain(next);
   });
 
-  it('an enemy healer with Physic mends an adjacent ally', () => {
-    const staff = weapon('Physic');
+  it('an enemy healer with Farcall mends an adjacent ally', () => {
+    const staff = weapon('Farcall');
     const cleric = {
       name: 'Cleric',
       faction: 'enemy',

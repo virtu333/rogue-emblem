@@ -46,35 +46,35 @@
   },
   {
     "id": "sol",
-    "name": "Sol",
+    "name": "Reclaim",
     "description": "SKL/2% chance to heal damage dealt on hit",
     "trigger": "on-attack",
     "activation": "SKL_HALF"
   },
   {
     "id": "luna",
-    "name": "Luna",
+    "name": "Umbra",
     "description": "SKL% chance on hit to halve the target’s DEF or RES (rounded down). Terrain protection remains.",
     "trigger": "on-attack",
     "activation": "SKL"
   },
   {
     "id": "astra",
-    "name": "Astra",
+    "name": "Constellation",
     "description": "SKL/2% chance to strike 5 times at half damage",
     "trigger": "on-attack",
     "activation": "SKL_HALF"
   },
   {
     "id": "vantage",
-    "name": "Vantage",
+    "name": "Forestall",
     "description": "Attack first when defending below 50% HP",
     "trigger": "on-combat-start",
     "condition": "below50"
   },
   {
     "id": "wrath",
-    "name": "Wrath",
+    "name": "Seethe",
     "description": "+30 Crit when below 50% HP",
     "trigger": "on-combat-start",
     "condition": "below50",
@@ -84,7 +84,7 @@
   },
   {
     "id": "crit_plus_15",
-    "name": "Critical +15",
+    "name": "Keen Eye",
     "description": "+15 critical hit rate",
     "trigger": "passive",
     "effects": {
@@ -94,7 +94,7 @@
   },
   {
     "id": "sure_shot",
-    "name": "Sure Shot",
+    "name": "True Aim",
     "description": "Ignore enemy terrain avoid bonus, +10 Crit",
     "trigger": "passive",
     "effects": {
@@ -105,7 +105,7 @@
   },
   {
     "id": "lethality",
-    "name": "Lethality",
+    "name": "Fell Stroke",
     "description": "LCK/3% chance to instantly defeat enemy on hit",
     "trigger": "on-attack",
     "activation": "LCK_THIRD",
@@ -113,7 +113,7 @@
   },
   {
     "id": "pavise",
-    "name": "Pavise",
+    "name": "Shieldwall",
     "description": "SKL% chance to halve physical damage taken",
     "trigger": "on-defend",
     "activation": "SKL",
@@ -121,7 +121,7 @@
   },
   {
     "id": "aegis",
-    "name": "Aegis",
+    "name": "Spellward",
     "description": "SKL% chance to halve magical damage taken",
     "trigger": "on-defend",
     "activation": "SKL",
@@ -129,7 +129,7 @@
   },
   {
     "id": "colossus",
-    "name": "Colossus",
+    "name": "Juggernaut",
     "description": "+3 damage on all attacks",
     "trigger": "passive",
     "effects": {
@@ -178,14 +178,14 @@
   },
   {
     "id": "adept",
-    "name": "Adept",
+    "name": "Flurry",
     "description": "SPD% chance for an extra follow-up strike at full damage (once per combat)",
     "trigger": "on-attack",
     "activation": "SPD"
   },
   {
     "id": "miracle",
-    "name": "Miracle",
+    "name": "Reprieve",
     "description": "LCK% chance to survive a lethal hit with 1 HP (once per battle)",
     "trigger": "on-defend",
     "activation": "LCK"
@@ -203,28 +203,28 @@
   },
   {
     "id": "cancel",
-    "name": "Cancel",
+    "name": "Stifle",
     "description": "SPD% chance to negate enemy's follow-up attack",
     "trigger": "on-defend",
     "activation": "SPD"
   },
   {
     "id": "desperation",
-    "name": "Desperation",
+    "name": "Death's Door",
     "description": "Below 50% HP: follow-up attacks land before enemy can counter",
     "trigger": "on-combat-start",
     "condition": "below50"
   },
   {
     "id": "quick_riposte",
-    "name": "Quick Riposte",
+    "name": "Riposte",
     "description": "Above 50% HP: always double when defending",
     "trigger": "on-combat-start",
     "condition": "above50_defending"
   },
   {
     "id": "death_blow",
-    "name": "Death Blow",
+    "name": "Onslaught",
     "description": "+6 STR when initiating combat",
     "trigger": "on-combat-start",
     "condition": "initiating",
@@ -234,7 +234,7 @@
   },
   {
     "id": "darting_blow",
-    "name": "Darting Blow",
+    "name": "Quickstep",
     "description": "+6 SPD when initiating combat",
     "trigger": "on-combat-start",
     "condition": "initiating",
@@ -349,15 +349,15 @@
   },
   {
     "id": "aether",
-    "name": "Aether",
-    "description": "SKL/2%: strike twice — first Sol, then Luna",
+    "name": "Swallow",
+    "description": "SKL/2%: strike twice — first Reclaim, then Umbra",
     "trigger": "on-attack",
     "activation": "SKL_HALF",
     "personal": true
   },
   {
     "id": "flare",
-    "name": "Flare",
+    "name": "Immolation",
     "description": "SKL%: negate RES and drain HP equal to damage",
     "trigger": "on-attack",
     "activation": "SKL",
@@ -443,7 +443,7 @@
   },
   {
     "id": "armored_blow",
-    "name": "Armored Blow",
+    "name": "Iron Advance",
     "description": "+4 DEF when initiating combat",
     "trigger": "on-combat-start",
     "condition": "initiating",
@@ -465,8 +465,8 @@
   },
   {
     "id": "fiendish_blow",
-    "name": "Fiendish Blow",
-    "description": "+4 ATK when initiating combat",
+    "name": "Hellfire Charge",
+    "description": "+4 attack when initiating combat, on a lance (STR) or a tome (MAG)",
     "trigger": "on-combat-start",
     "condition": "initiating",
     "effects": {

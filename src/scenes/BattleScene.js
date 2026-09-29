@@ -1482,7 +1482,7 @@ export class BattleScene extends Phaser.Scene {
         playerUnit1.row = bc.playerSpawns[0].row;
         const steelSword = this.gameData.weapons.find((w) => w.name === 'Steel Sword');
         if (steelSword) addToInventory(playerUnit1, steelSword);
-        const vulnerary = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
+        const vulnerary = this.gameData.consumables.find((c) => c.name === 'Poultice');
         if (vulnerary) addToConsumables(playerUnit1, vulnerary);
         this.playerUnits.push(playerUnit1);
         this.addUnitGraphic(playerUnit1);
@@ -1495,7 +1495,7 @@ export class BattleScene extends Phaser.Scene {
         playerUnit2.proficiencies.push({ type: 'Staff', rank: 'Prof' });
         const healStaff = this.gameData.weapons.find((w) => w.name === 'Heal');
         if (healStaff) addToInventory(playerUnit2, healStaff);
-        const vulnerary2 = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
+        const vulnerary2 = this.gameData.consumables.find((c) => c.name === 'Poultice');
         if (vulnerary2) addToConsumables(playerUnit2, vulnerary2);
         this.playerUnits.push(playerUnit2);
         this.addUnitGraphic(playerUnit2);
@@ -2630,7 +2630,7 @@ export class BattleScene extends Phaser.Scene {
     }
     // Status staff assignment (enemy-only, separate from combat weapon)
     if (spawn.statusStaff) {
-      const staffName = spawn.statusStaff === 'sleep' ? 'Sleep Staff' : 'Silence Staff';
+      const staffName = spawn.statusStaff === 'sleep' ? 'Lullaby Staff' : 'Hush Staff';
       const staffData = this.gameData.weapons.find((w) => w.name === staffName);
       if (staffData) {
         enemy.statusStaff = structuredClone(staffData);

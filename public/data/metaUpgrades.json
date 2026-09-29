@@ -1179,7 +1179,7 @@
   {
     "id": "starting_vulnerary",
     "name": "Field Supplies",
-    "description": "Extra Vulnerary for lord at start",
+    "description": "Extra Poultice for lord at start",
     "category": "economy",
     "maxLevel": 1,
     "costs": [
@@ -1497,7 +1497,7 @@
   {
     "id": "recruit_field_supplies",
     "name": "Field Supplies II",
-    "description": "Recruits start with a Vulnerary",
+    "description": "Recruits start with a Poultice",
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
@@ -1675,7 +1675,7 @@
   {
     "id": "recruit_accessory",
     "name": "Outfitted Recruits",
-    "description": "Recruits who join your army wear a basic stat ring or charm (Power, Magic, Speed, Shield, Barrier or Skill Ring, Goddess Icon, Seraph Robe)",
+    "description": "Recruits who join your army wear a basic stat ring or charm (Power, Magic, Speed, Shield, Barrier or Skill Ring, Fatethread Pendant, Sisters' Mantle)",
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
@@ -1910,7 +1910,7 @@
   },
   {
     "id": "unlock_sol",
-    "name": "Sol",
+    "name": "Reclaim",
     "description": "SKL/2% chance to heal damage dealt",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1925,7 +1925,7 @@
   },
   {
     "id": "unlock_luna",
-    "name": "Luna",
+    "name": "Umbra",
     "description": "SKL% chance on hit to halve the target\u2019s DEF or RES (rounded down). Terrain protection remains.",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1940,7 +1940,7 @@
   },
   {
     "id": "unlock_astra",
-    "name": "Astra",
+    "name": "Constellation",
     "description": "SKL/2% chance to strike 5 times at half damage",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1955,7 +1955,7 @@
   },
   {
     "id": "unlock_vantage",
-    "name": "Vantage",
+    "name": "Forestall",
     "description": "Attack first when below 50% HP",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1970,7 +1970,7 @@
   },
   {
     "id": "unlock_wrath",
-    "name": "Wrath",
+    "name": "Seethe",
     "description": "+30 Crit when below 50% HP",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -1985,7 +1985,7 @@
   },
   {
     "id": "unlock_adept",
-    "name": "Adept",
+    "name": "Flurry",
     "description": "SPD% chance for follow-up attack",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -2000,7 +2000,7 @@
   },
   {
     "id": "unlock_miracle",
-    "name": "Miracle",
+    "name": "Reprieve",
     "description": "LCK% chance to survive lethal hit at 1 HP",
     "category": "starting_skills",
     "maxLevel": 1,
@@ -2030,8 +2030,8 @@
   },
   {
     "id": "unlock_pavise",
-    "name": "Pavise",
-    "description": "Unlock Pavise as an assignable starting skill: SKL% chance to halve physical damage.",
+    "name": "Shieldwall",
+    "description": "Unlock Shieldwall as an assignable starting skill: SKL% chance to halve physical damage.",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
@@ -2050,8 +2050,8 @@
   },
   {
     "id": "unlock_aegis",
-    "name": "Aegis",
-    "description": "Unlock Aegis as an assignable starting skill: SKL% chance to halve magical damage.",
+    "name": "Spellward",
+    "description": "Unlock Spellward as an assignable starting skill: SKL% chance to halve magical damage.",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [

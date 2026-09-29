@@ -70,8 +70,8 @@ function buildRoster(rosterSpec, gameData) {
       }
     }
 
-    // Give everyone a Vulnerary
-    const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
+    // Give everyone a Poultice
+    const vuln = gameData.consumables.find((c) => c.name === 'Poultice');
     if (vuln) addToConsumables(unit, vuln);
 
     // Ensure player faction

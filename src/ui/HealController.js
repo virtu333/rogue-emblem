@@ -199,7 +199,7 @@ export class HealController {
       return;
     }
 
-    // Fortify: auto-heal all targets, no selection needed
+    // Canticle (heal-all staff): auto-heal all targets, no selection needed
     if (staff.healAll) {
       scene.executeHealAll(unit, targets);
       return;
@@ -419,7 +419,7 @@ export class HealController {
       const staff = healer.weapon; // Should already be equipped
 
       if (isCureStaff(staff)) {
-        // Restore-style staff: cleanse instead of heal. A slept ally cured
+        // Cleanse-style staff: cleanse instead of heal. A slept ally cured
         // during player phase can act this turn (selection reads conditions live).
         clearAllConditions(target);
         observeHistoryAction(scene, 'cured', healer, target, staff.name);

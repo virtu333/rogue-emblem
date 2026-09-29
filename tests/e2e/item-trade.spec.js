@@ -73,7 +73,9 @@ async function seedFullBags(page, sceneKey, { convoyFull = false, accessories = 
       if (accessories) {
         unequipAccessory(edric);
         unequipAccessory(sera);
-        const robe = structuredClone(s.gameData.accessories.find((a) => a.name === 'Seraph Robe'));
+        const robe = structuredClone(
+          s.gameData.accessories.find((a) => a.name === "Sisters' Mantle"),
+        );
         const ring = structuredClone(s.gameData.accessories.find((a) => a.name === 'Power Ring'));
         robe.uid = 'robe';
         ring.uid = 'ring';
@@ -393,10 +395,10 @@ for (const vp of VIEWPORTS) {
       );
       const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
       await equipmentTab(page, vp, sheet);
-      const card = itemCard(sheet, 'Seraph Robe');
+      const card = itemCard(sheet, "Sisters' Mantle");
       await card.scrollIntoViewIfNeeded();
       await press(vp, card.getByRole('button', { name: 'Trade…', exact: true }));
-      const picker = page.getByRole('dialog', { name: 'Trade Seraph Robe with…', exact: true });
+      const picker = page.getByRole('dialog', { name: "Trade Sisters' Mantle with…", exact: true });
       // Accessories trade only between units: no Convoy row.
       await expect(picker.getByRole('button', { name: /^Convoy/ })).toHaveCount(0);
       await expect(picker.getByRole('button', { name: /^Sera/ })).toContainText('Wears Power Ring');
@@ -408,8 +410,8 @@ for (const vp of VIEWPORTS) {
         'true',
       );
       await page.screenshot({ path: info.outputPath(`${vp.name}-accessory-trade.png`) });
-      await press(vp, menu.getByRole('button', { name: 'Seraph Robe', exact: true }));
-      await press(vp, menu.getByRole('button', { name: 'Trade Seraph Robe for Power Ring' }));
+      await press(vp, menu.getByRole('button', { name: "Sisters' Mantle", exact: true }));
+      await press(vp, menu.getByRole('button', { name: "Trade Sisters' Mantle for Power Ring" }));
       // By hand: Edric wore the Robe at (HP+5, cur+5) and Sera the Ring (STR+2).
       // Robe off keeps Edric 7 HP down at his base max; the Ring adds 2 STR.
       // Sera: Ring off, Robe on: max +5 and current +5 from full.
@@ -417,7 +419,7 @@ for (const vp of VIEWPORTS) {
       const s = before.sera;
       await expectSaved(page, 'NodeMap', {
         'edric.accessory': 'Power Ring#ring',
-        'sera.accessory': 'Seraph Robe#robe',
+        'sera.accessory': "Sisters' Mantle#robe",
         'edric.HP': e.HP,
         'edric.cur': e.HP - 7,
         'edric.STR': e.STR + 2,
@@ -608,7 +610,7 @@ for (const vp of VIEWPORTS) {
       await page.evaluate(() => {
         const s = window.__emblemRogueGame.scene.getScene('NodeMap');
         const run = s.runManager;
-        const vulnerary = s.gameData.consumables.find((c) => c.name === 'Vulnerary');
+        const vulnerary = s.gameData.consumables.find((c) => c.name === 'Poultice');
         run.roster.find((u) => u.name === 'Edric').consumables = [
           { ...structuredClone(vulnerary), uid: 'v1' },
         ];

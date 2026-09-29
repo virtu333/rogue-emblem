@@ -172,7 +172,7 @@ describe('BattleScene recruit NPC Lethal Armory path', () => {
     }
   });
 
-  it('adds a Vulnerary when recruit field supplies is active', () => {
+  it('adds a Poultice when recruit field supplies is active', () => {
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.25);
     try {
       const scene = makeBattleSceneWithRecruit({ recruitStartingVulnerary: 1 });
@@ -181,7 +181,7 @@ describe('BattleScene recruit NPC Lethal Armory path', () => {
 
       expect(scene.npcUnits).toHaveLength(1);
       const recruit = scene.npcUnits[0];
-      expect(recruit.consumables.some((item) => item.name === 'Vulnerary')).toBe(true);
+      expect(recruit.consumables.some((item) => item.name === 'Poultice')).toBe(true);
     } finally {
       randomSpy.mockRestore();
     }

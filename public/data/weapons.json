@@ -770,8 +770,8 @@
     "price": 300
   },
   {
-    "name": "Mend",
-    "lore": "Triage, day nine: two mends left. Chose the one still arguing.",
+    "name": "Solace",
+    "lore": "Triage, day nine: two charges left. Chose the one still arguing.",
     "type": "Staff",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -787,7 +787,7 @@
     "price": 1500
   },
   {
-    "name": "Physic",
+    "name": "Farcall",
     "lore": "Let it reach the ones I cannot run to. Let it reach them first.",
     "type": "Staff",
     "tier": "Silver",
@@ -814,7 +814,7 @@
     "price": 4000
   },
   {
-    "name": "Recover",
+    "name": "Remembrance",
     "lore": "Closes the wound and breaks the fever. Leaves the dreams where it found them.",
     "type": "Staff",
     "tier": "Silver",
@@ -831,7 +831,7 @@
     "price": 4000
   },
   {
-    "name": "Restore",
+    "name": "Cleanse",
     "lore": "Cures sleep, silence, venom. Does not cure the sergeant who got you into it.",
     "type": "Staff",
     "tier": "Steel",
@@ -848,7 +848,7 @@
     "price": 1200
   },
   {
-    "name": "Fortify",
+    "name": "Canticle",
     "lore": "The last page of the healing rite: everyone, at once, and let the cost be mine.",
     "type": "Staff",
     "tier": "Legend",
@@ -866,7 +866,7 @@
     "price": 0
   },
   {
-    "name": "Sleep Staff",
+    "name": "Lullaby Staff",
     "lore": "Hush now, soldier, down you lie; wake when struck or wake to die.",
     "type": "Staff",
     "tier": "Rare",
@@ -883,7 +883,7 @@
     "price": 0
   },
   {
-    "name": "Silence Staff",
+    "name": "Hush Staff",
     "lore": "It does not still the tongue. It convinces the world not to listen.",
     "type": "Staff",
     "tier": "Rare",
@@ -900,7 +900,7 @@
     "price": 0
   },
   {
-    "name": "Rescue Staff",
+    "name": "Deliverance Staff",
     "lore": "'I was winning!' 'You were surrounded.' 'Tactically winning.'",
     "type": "Staff",
     "tier": "Steel",
@@ -927,7 +927,7 @@
     "price": 2400
   },
   {
-    "name": "Warp Staff",
+    "name": "Fold Staff",
     "lore": "Banned by the war colleges: marching is doctrine, not a suggestion.",
     "type": "Staff",
     "tier": "Legend",
@@ -1120,7 +1120,7 @@
     "price": 0
   },
   {
-    "name": "Sol Scroll",
+    "name": "Reclaim Scroll",
     "lore": "Dawn-office, verse nine: take back from the foe what the foe took from you.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1130,12 +1130,12 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Sol",
+    "special": "Teaches Reclaim",
     "skillId": "sol",
     "price": 2500
   },
   {
-    "name": "Luna Scroll",
+    "name": "Umbra Scroll",
     "lore": "Moon-school primer. Lesson one: a shield is a promise, and promises break.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1145,12 +1145,12 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Luna",
+    "special": "Teaches Umbra",
     "skillId": "luna",
     "price": 2500
   },
   {
-    "name": "Astra Scroll",
+    "name": "Constellation Scroll",
     "lore": "Its author claimed five cuts per blink. His students claim four, and bandages.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1160,12 +1160,12 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Astra",
+    "special": "Teaches Constellation",
     "skillId": "astra",
     "price": 2500
   },
   {
-    "name": "Vantage Scroll",
+    "name": "Forestall Scroll",
     "lore": "'When do I strike first?' 'When you are bleeding. Not a moment sooner.'",
     "type": "Scroll",
     "tier": "Rare",
@@ -1175,12 +1175,12 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Vantage",
+    "special": "Teaches Forestall",
     "skillId": "vantage",
     "price": 2500
   },
   {
-    "name": "Wrath Scroll",
+    "name": "Seethe Scroll",
     "lore": "Not to be studied by the healthy. The drills begin at the second wound.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1190,12 +1190,12 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Wrath",
+    "special": "Teaches Seethe",
     "skillId": "wrath",
     "price": 2500
   },
   {
-    "name": "Adept Scroll",
+    "name": "Flurry Scroll",
     "lore": "Hit him again. No, before you think about it. Again. Better.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1205,12 +1205,12 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Adept",
+    "special": "Teaches Flurry",
     "skillId": "adept",
     "price": 2500
   },
   {
-    "name": "Miracle Scroll",
+    "name": "Reprieve Scroll",
     "lore": "Folded inside, a note in a child's hand: 'Come home anyway.'",
     "type": "Scroll",
     "tier": "Rare",
@@ -1220,7 +1220,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Miracle",
+    "special": "Teaches Reprieve",
     "skillId": "miracle",
     "price": 2500
   },
@@ -1240,7 +1240,7 @@
     "price": 2500
   },
   {
-    "name": "Cancel Scroll",
+    "name": "Stifle Scroll",
     "lore": "Dueling-hall catechism: the second blow is a question. Do not let him ask it.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1250,12 +1250,12 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Cancel",
+    "special": "Teaches Stifle",
     "skillId": "cancel",
     "price": 2500
   },
   {
-    "name": "Desperation Scroll",
+    "name": "Death's Door Scroll",
     "lore": "War college loan card: eleven borrowers, all bleeding at the time. All returned it.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1265,12 +1265,12 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Desperation",
+    "special": "Teaches Death's Door",
     "skillId": "desperation",
     "price": 2500
   },
   {
-    "name": "Quick Riposte Scroll",
+    "name": "Riposte Scroll",
     "lore": "Fencing-master's rule, inked on the cover: while you are whole, answer twice.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1280,12 +1280,12 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Quick Riposte",
+    "special": "Teaches Riposte",
     "skillId": "quick_riposte",
     "price": 2500
   },
   {
-    "name": "Death Blow Scroll",
+    "name": "Onslaught Scroll",
     "lore": "BANNED by the dueling halls for encouraging the first swing. Seized: 40 of 41.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1295,12 +1295,12 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Death Blow",
+    "special": "Teaches Onslaught",
     "skillId": "death_blow",
     "price": 2500
   },
   {
-    "name": "Darting Blow Scroll",
+    "name": "Quickstep Scroll",
     "lore": "Dancer's step-chart, feet drawn in ink. The first step is the whole dance.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1310,7 +1310,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Darting Blow",
+    "special": "Teaches Quickstep",
     "skillId": "darting_blow",
     "price": 2500
   },
@@ -1405,7 +1405,7 @@
     "price": 2500
   },
   {
-    "name": "Windsweep Scroll",
+    "name": "Gale Cut Scroll",
     "lore": "Drill note: finish the cut before his arm hears about the first one.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1415,7 +1415,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Windsweep (Weapon Art)",
+    "special": "Teaches Gale Cut (Weapon Art)",
     "teachesWeaponArtId": "sword_windsweep",
     "allowedWeaponTypes": [
       "Sword"
@@ -1441,7 +1441,7 @@
     "price": 2000
   },
   {
-    "name": "Grounder Scroll",
+    "name": "Sweep Scroll",
     "lore": "The mountain clans pay good money for copies, then feed them to the wyverns.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1451,7 +1451,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Grounder (Weapon Art)",
+    "special": "Teaches Sweep (Weapon Art)",
     "teachesWeaponArtId": "sword_grounder",
     "allowedWeaponTypes": [
       "Sword"
@@ -1459,7 +1459,7 @@
     "price": 2000
   },
   {
-    "name": "Hexblade Scroll",
+    "name": "Witchcut Scroll",
     "lore": "One word is inked in every margin. Say it with the sword drawn. The steel remembers.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1469,7 +1469,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Hexblade (Weapon Art)",
+    "special": "Teaches Witchcut (Weapon Art)",
     "teachesWeaponArtId": "sword_hexblade",
     "allowedWeaponTypes": [
       "Sword"
@@ -1477,7 +1477,7 @@
     "price": 2000
   },
   {
-    "name": "Dragonhaze Scroll",
+    "name": "Heat Haze Scroll",
     "lore": "Written by a swordsman so fast, they say, his portrait came out blurred.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1487,7 +1487,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Dragonhaze (Weapon Art)",
+    "special": "Teaches Heat Haze (Weapon Art)",
     "teachesWeaponArtId": "sword_dragonhaze",
     "allowedWeaponTypes": [
       "Sword"
@@ -1495,7 +1495,7 @@
     "price": 2500
   },
   {
-    "name": "Knightkneeler Scroll",
+    "name": "Kneebreaker Scroll",
     "lore": "The cavalry schools call it unsporting. The infantry call it page twelve.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1505,7 +1505,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Knightkneeler (Weapon Art)",
+    "special": "Teaches Kneebreaker (Weapon Art)",
     "teachesWeaponArtId": "lance_knightkneeler",
     "allowedWeaponTypes": [
       "Lance"
@@ -1531,7 +1531,7 @@
     "price": 2000
   },
   {
-    "name": "Longearche Scroll",
+    "name": "Serpent's Reach Scroll",
     "lore": "Hold it at the very end. Farther. Your arms will object; the enemy more so.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1541,7 +1541,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Longearche (Weapon Art)",
+    "special": "Teaches Serpent's Reach (Weapon Art)",
     "teachesWeaponArtId": "lance_longearche",
     "allowedWeaponTypes": [
       "Lance"
@@ -1549,7 +1549,7 @@
     "price": 2500
   },
   {
-    "name": "Glowing Ember Scroll",
+    "name": "Forgefire Thrust Scroll",
     "lore": "Recopied by a smith, soot in every fold: let the plate take the heat, then return it.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1559,7 +1559,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Glowing Ember (Weapon Art)",
+    "special": "Teaches Forgefire Thrust (Weapon Art)",
     "teachesWeaponArtId": "lance_glowing_ember",
     "allowedWeaponTypes": [
       "Lance"
@@ -1567,7 +1567,7 @@
     "price": 2500
   },
   {
-    "name": "Helm Splitter Scroll",
+    "name": "Helmcleaver Scroll",
     "lore": "Quartermaster's note: helm requisitions rose sharply the year this was issued.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1577,7 +1577,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Helm Splitter (Weapon Art)",
+    "special": "Teaches Helmcleaver (Weapon Art)",
     "teachesWeaponArtId": "axe_helm_splitter",
     "allowedWeaponTypes": [
       "Axe"
@@ -1585,7 +1585,7 @@
     "price": 1500
   },
   {
-    "name": "Wild Abandon Scroll",
+    "name": "Reckless Swing Scroll",
     "lore": "The berserk school's only textbook. Chapter one: stop reading. No chapter two.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1595,7 +1595,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Wild Abandon (Weapon Art)",
+    "special": "Teaches Reckless Swing (Weapon Art)",
     "teachesWeaponArtId": "axe_wild_abandon",
     "allowedWeaponTypes": [
       "Axe"
@@ -1603,7 +1603,7 @@
     "price": 1500
   },
   {
-    "name": "Rushing Blow Scroll",
+    "name": "Charging Cut Scroll",
     "lore": "Axe drill for the charging line: if you stop in his square, you did it wrong.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1613,7 +1613,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Rushing Blow (Weapon Art)",
+    "special": "Teaches Charging Cut (Weapon Art)",
     "teachesWeaponArtId": "axe_rushing_blow",
     "allowedWeaponTypes": [
       "Axe"
@@ -1621,7 +1621,7 @@
     "price": 2000
   },
   {
-    "name": "Armored Strike Scroll",
+    "name": "Ironclad Blow Scroll",
     "lore": "Siege-yard manual. The author's weight is listed on the flyleaf, with some pride.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1631,7 +1631,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Armored Strike (Weapon Art)",
+    "special": "Teaches Ironclad Blow (Weapon Art)",
     "teachesWeaponArtId": "axe_armored_strike",
     "allowedWeaponTypes": [
       "Axe"
@@ -1639,7 +1639,7 @@
     "price": 2500
   },
   {
-    "name": "Encloser Scroll",
+    "name": "Pinning Shot Scroll",
     "lore": "Warden's notes: one arrow through the boot, and he is staying for supper.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1649,7 +1649,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Encloser (Weapon Art)",
+    "special": "Teaches Pinning Shot (Weapon Art)",
     "teachesWeaponArtId": "bow_encloser",
     "allowedWeaponTypes": [
       "Bow"
@@ -1657,7 +1657,7 @@
     "price": 2000
   },
   {
-    "name": "Ward Arrow Scroll",
+    "name": "Gag Arrow Scroll",
     "lore": "'Can an arrow stop a spell?' 'It can stop the mouth that says it.'",
     "type": "Scroll",
     "tier": "Rare",
@@ -1667,7 +1667,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Ward Arrow (Weapon Art)",
+    "special": "Teaches Gag Arrow (Weapon Art)",
     "teachesWeaponArtId": "bow_ward_arrow",
     "allowedWeaponTypes": [
       "Bow"
@@ -1693,7 +1693,7 @@
     "price": 2500
   },
   {
-    "name": "Hunter's Volley Scroll",
+    "name": "Hawk's Talons Scroll",
     "lore": "Poacher's primer: nock two, loose once, never explain the second arrow to a warden.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1703,7 +1703,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Hunter's Volley (Weapon Art)",
+    "special": "Teaches Hawk's Talons (Weapon Art)",
     "teachesWeaponArtId": "bow_hunters_volley",
     "allowedWeaponTypes": [
       "Bow"
@@ -1711,7 +1711,7 @@
     "price": 2500
   },
   {
-    "name": "Burning Quake Scroll",
+    "name": "Cinder Quake Scroll",
     "lore": "Field note: stand well clear of the mark, and of whoever is reading this aloud.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1721,7 +1721,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Burning Quake (Weapon Art)",
+    "special": "Teaches Cinder Quake (Weapon Art)",
     "teachesWeaponArtId": "magic_burning_quake",
     "allowedWeaponTypes": [
       "Tome"
@@ -1729,7 +1729,7 @@
     "price": 2500
   },
   {
-    "name": "Nosferatu Scroll",
+    "name": "Grave Hunger Scroll",
     "lore": "Its readers always looked better afterward. Their targets never did.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1739,7 +1739,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Nosferatu (Weapon Art)",
+    "special": "Teaches Grave Hunger (Weapon Art)",
     "teachesWeaponArtId": "magic_nosferatu",
     "allowedWeaponTypes": [
       "Tome",
@@ -1786,7 +1786,7 @@
     "price": 2000
   },
   {
-    "name": "Seraphim Scroll",
+    "name": "Scouring Fire Scroll",
     "lore": "Siege liturgy: let the holy light find the man inside the plate.",
     "type": "Scroll",
     "tier": "Rare",
@@ -1796,7 +1796,7 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Seraphim (Weapon Art)",
+    "special": "Teaches Scouring Fire (Weapon Art)",
     "teachesWeaponArtId": "magic_seraphim",
     "allowedWeaponTypes": [
       "Tome",

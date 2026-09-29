@@ -1085,7 +1085,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.lordStat !== undefined) return `Base ${effect.lordStat}`;
     if (effect.goldBonus !== undefined) return 'Starting gold bonus';
     if (effect.battleGoldMultiplier !== undefined) return 'Battle gold bonus';
-    if (effect.extraVulnerary !== undefined) return 'Starting Vulnerary';
+    if (effect.extraVulnerary !== undefined) return 'Starting Poultice';
     if (effect.lootCategoryWeightBonuses !== undefined) {
       const desc = this._getLootCategoryBonusesDesc(effect.lootCategoryWeightBonuses);
       if (desc) return desc;
@@ -1095,7 +1095,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.lordRecruitChanceBonus !== undefined) return 'Lord recruit probability';
     if (effect.recruitPromotionChanceBonus !== undefined) return 'Recruit promotion probability';
     if (effect.deployBonus !== undefined) return 'Deploy slots';
-    if (effect.recruitStartingVulnerary !== undefined) return 'Recruits start with Vulnerary';
+    if (effect.recruitStartingVulnerary !== undefined) return 'Recruits start with Poultice';
     if (effect.extraStartingUnitTier !== undefined) return 'Extra random starting unit class pool';
     if (effect.lethalArmoryTier !== undefined) return 'Recruits can gain extra weapons';
     if (effect.recruitWeaponForge !== undefined) return 'Recruits join with forged weapons';

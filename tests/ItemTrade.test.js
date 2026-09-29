@@ -185,7 +185,7 @@ describe('give', () => {
 
   it('a staff-only unit equips a staff it receives; the giver re-equips its other staff', () => {
     const heal = weapon('Heal', 'Staff', 'Prof', { _usesSpent: 2 });
-    const mend = weapon('Mend', 'Staff');
+    const mend = weapon('Solace', 'Staff');
     const priest = unit('Priest', ['Staff'], [heal, mend]);
     const cleric = unit('Cleric', ['Staff'], [], { weapon: null });
     const result = applyTrade(
@@ -648,14 +648,14 @@ describe('convoy', () => {
 
 describe('accessories (roster)', () => {
   it('data: the values these hand-worked cases assume', () => {
-    expect(accessory('Seraph Robe').effects).toEqual({ HP: 5 });
+    expect(accessory("Sisters' Mantle").effects).toEqual({ HP: 5 });
     expect(accessory('Power Ring').effects).toEqual({ STR: 2 });
-    expect(accessory('Boots').effects).toEqual({ MOV: 1 });
+    expect(accessory("Courier's Boots").effects).toEqual({ MOV: 1 });
     expect(accessory('Mercury Sandals').combatEffects.moveTypeOverride).toBe('Flying');
   });
 
   it('a swap moves stats and keeps each unit’s missing HP', () => {
-    const robe = accessory('Seraph Robe');
+    const robe = accessory("Sisters' Mantle");
     const ring = accessory('Power Ring');
     const a = unit('A', ['Sword'], [], { currentHP: 13 });
     const b = unit('B', ['Sword'], []);
@@ -671,7 +671,7 @@ describe('accessories (roster)', () => {
       ok: true,
       kind: 'swap',
       warnings: [],
-      detail: 'Seraph Robe for Power Ring',
+      detail: "Sisters' Mantle for Power Ring",
     });
     // A: robe off → 20 max, 18-5 = 13 current; ring on → STR 7.
     expect(a.accessory).toBe(ring);
@@ -688,8 +688,8 @@ describe('accessories (roster)', () => {
     ['wounded', 18, 13],
     ['floor at 1', 3, 1],
     ['0 HP stays 0', 0, 0],
-  ])('giving away a Seraph Robe (%s): %i/25 → %i/20', (_label, hpBefore, hpAfter) => {
-    const robe = accessory('Seraph Robe');
+  ])("giving away a Sisters' Mantle (%s): %i/25 → %i/20", (_label, hpBefore, hpAfter) => {
+    const robe = accessory("Sisters' Mantle");
     const a = unit('A', ['Sword'], []);
     const b = unit('B', ['Sword'], []);
     equipAccessory(a, robe);
@@ -699,7 +699,7 @@ describe('accessories (roster)', () => {
       slot(a, 'accessory', robe),
       slot(b, 'accessory', null),
     );
-    expect(result).toEqual({ ok: true, kind: 'give', warnings: [], detail: 'Seraph Robe' });
+    expect(result).toEqual({ ok: true, kind: 'give', warnings: [], detail: "Sisters' Mantle" });
     expect(a.accessory).toBeNull();
     expect(a.stats.HP).toBe(20);
     expect(a.currentHP).toBe(hpAfter);
@@ -709,7 +709,7 @@ describe('accessories (roster)', () => {
 
   it('Mercury Sandals move the move type; Boots move MOV', () => {
     const sandals = accessory('Mercury Sandals');
-    const boots = accessory('Boots');
+    const boots = accessory("Courier's Boots");
     const a = unit('A', ['Sword'], []);
     const b = unit('B', ['Lance'], [], { moveType: 'Cavalry', mov: 7 });
     b.stats.MOV = 7;
@@ -730,7 +730,7 @@ describe('accessories (roster)', () => {
 
   it('a give needs an empty slot; the convoy holds no accessories', () => {
     const ring = accessory('Power Ring');
-    const robe = accessory('Seraph Robe');
+    const robe = accessory("Sisters' Mantle");
     const a = unit('A', ['Sword'], [], { accessory: ring });
     const b = unit('B', ['Sword'], [], { accessory: robe });
     const ctx = rosterCtx(a, b);
@@ -747,7 +747,7 @@ describe('accessories (roster)', () => {
   });
 
   it('no heal from an equip/unequip loop through the pool or a trade ping-pong', () => {
-    const robe = accessory('Seraph Robe');
+    const robe = accessory("Sisters' Mantle");
     const a = unit('A', ['Sword'], [], { currentHP: 10 });
     const b = unit('B', ['Sword'], [], { currentHP: 10 });
     const run = realRun(a, b);
@@ -780,7 +780,7 @@ describe('an HP accessory never heals at critical HP', () => {
   ])(
     'at %s: off and on through the pool leaves HP where it was',
     (_label, hpBefore, hpWhileOff) => {
-      const robe = accessory('Seraph Robe');
+      const robe = accessory("Sisters' Mantle");
       const a = unit('A', ['Sword'], []);
       const b = unit('B', ['Sword'], []);
       const run = realRun(a, b);
@@ -797,7 +797,7 @@ describe('an HP accessory never heals at critical HP', () => {
   );
 
   it('a trade swap at 1 HP gives the robe away and back without healing', () => {
-    const robe = accessory('Seraph Robe');
+    const robe = accessory("Sisters' Mantle");
     const ring = accessory('Power Ring');
     const a = unit('A', ['Sword'], []);
     const b = unit('B', ['Sword'], []);
@@ -815,12 +815,12 @@ describe('an HP accessory never heals at critical HP', () => {
   });
 
   it('a heal that does not fill the bar keeps the debt; a full heal clears it', () => {
-    const robe = accessory('Seraph Robe');
+    const robe = accessory("Sisters' Mantle");
     const a = unit('A', ['Sword'], []);
     equipAccessory(a, robe);
     a.currentHP = 1;
     unequipAccessory(a); // 1/20, owes 5 (1 - 5 = -4 lifted to 1)
-    a.currentHP += 10; // a Vulnerary: 11/20
+    a.currentHP += 10; // a Poultice: 11/20
     equipAccessory(a, robe);
     // Same as healing 10 with the robe on: 1/25 → 11/25.
     expect([a.currentHP, a.stats.HP]).toEqual([11, 25]);
@@ -836,7 +836,7 @@ describe('an HP accessory never heals at critical HP', () => {
     const run = new RunManager(gameData);
     run.startRun();
     const [lord] = run.roster;
-    const robe = accessory('Seraph Robe');
+    const robe = accessory("Sisters' Mantle");
     equipAccessory(lord, robe);
     lord.currentHP = 1;
     unequipAccessory(lord); // owes 5
@@ -860,7 +860,7 @@ describe('an HP accessory never heals at critical HP', () => {
     const run = new RunManager(gameData);
     run.startRun();
     const lord = run.roster[0];
-    const robe = accessory('Seraph Robe');
+    const robe = accessory("Sisters' Mantle");
     equipAccessory(lord, robe);
     lord.currentHP = 1;
     unequipAccessory(lord);
@@ -874,7 +874,7 @@ describe('an HP accessory never heals at critical HP', () => {
     const run = new RunManager(gameData);
     run.startRun();
     const lord = run.roster[1];
-    const robe = accessory('Seraph Robe');
+    const robe = accessory("Sisters' Mantle");
     equipAccessory(lord, robe);
     lord.currentHP = 1;
     unequipAccessory(lord); // owes 5
@@ -889,7 +889,7 @@ describe('an HP accessory never heals at critical HP', () => {
   });
 
   it('taking the robe off a unit at 0 HP neither revives it nor leaves a debt', () => {
-    const robe = accessory('Seraph Robe');
+    const robe = accessory("Sisters' Mantle");
     const a = unit('A', ['Sword'], []);
     equipAccessory(a, robe);
     a.currentHP = 0;
@@ -972,9 +972,9 @@ describe('settleEquipped', () => {
 
 describe('fallen units', () => {
   it("returning a fallen unit's accessory to the pool reverses its stats and move type", () => {
-    const robe = accessory('Seraph Robe');
+    const robe = accessory("Sisters' Mantle");
     const sandals = accessory('Mercury Sandals');
-    const boots = accessory('Boots');
+    const boots = accessory("Courier's Boots");
     for (const [item, check] of [
       [robe, (u) => expect([u.stats.HP, u.currentHP]).toEqual([20, 0])],
       [sandals, (u) => expect([u.moveType, u._baseMoveType]).toEqual(['Infantry', undefined])],
@@ -1060,7 +1060,7 @@ describe('reorder within a unit', () => {
   it('a weapon the unit cannot wield never moves into slot 1', () => {
     const sword = weapon('Iron Sword', 'Sword');
     const axe = weapon('Iron Axe', 'Axe');
-    const scroll = { name: 'Vantage Scroll', type: 'Scroll', skillId: 'vantage', uid: 's1' };
+    const scroll = { name: 'Forestall Scroll', type: 'Scroll', skillId: 'vantage', uid: 's1' };
     const edric = unit('Edric', ['Sword'], [sword, axe, scroll]);
     for (const item of [axe, scroll]) {
       const before = structuredClone(edric);
@@ -1092,11 +1092,11 @@ describe('reorder within a unit', () => {
     expect(sera.inventory).toEqual([heal, lance]);
     expect(sera.weapon).toBe(heal);
     // Without the rank it is refused.
-    const kai = unit('Kai', ['Lance'], [weapon('Javelin', 'Lance'), weapon('Mend', 'Staff')]);
+    const kai = unit('Kai', ['Lance'], [weapon('Javelin', 'Lance'), weapon('Solace', 'Staff')]);
     const [javelin, mend] = kai.inventory;
     expect(
       planReorder(battle, slot(kai, 'inventory', mend), slot(kai, 'inventory', javelin)),
-    ).toEqual({ ok: false, reason: "Kai can't wield Mend." });
+    ).toEqual({ ok: false, reason: "Kai can't wield Solace." });
   });
 
   it('items keep their instance: uid, spent uses, imbue and forge fields survive', () => {
@@ -1162,7 +1162,7 @@ describe('reorder within a unit', () => {
 
   it('supplies reorder without touching the equipped weapon', () => {
     const sword = weapon('Iron Sword', 'Sword');
-    const [vulnerary, elixir, tonic] = [supply('Vulnerary'), supply('Elixir'), supply('Tonic')];
+    const [vulnerary, elixir, tonic] = [supply('Poultice'), supply('Elixir'), supply('Tonic')];
     const edric = unit('Edric', ['Sword'], [sword], {
       consumables: [vulnerary, elixir, tonic],
     });
@@ -1177,7 +1177,7 @@ describe('reorder within a unit', () => {
       kind: 'reorder',
       equips: null,
       warnings: [],
-      detail: 'Swapped Tonic and Vulnerary',
+      detail: 'Swapped Tonic and Poultice',
     });
     expect(edric.consumables).toBe(bag);
     expect(edric.consumables).toEqual([tonic, elixir, vulnerary]);

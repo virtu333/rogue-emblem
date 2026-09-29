@@ -1,5 +1,5 @@
 // Closure suite for the final deferred weapon-art mechanics:
-// Tier 3 on-hit status (Encloser/Ward Arrow/Silence Strike) and the bespoke
+// Tier 3 on-hit status (Pinning Shot/Gag Arrow/Silence Strike) and the bespoke
 // trio (All or Nothing, Annihilate, Divine Flare). See
 // docs/reports/weapon_arts_deferred_closure_spec_2026-06-11.md
 import { beforeEach, describe, expect, it, vi } from 'vitest';

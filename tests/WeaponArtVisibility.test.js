@@ -152,12 +152,12 @@ describe('WeaponArt visibility helpers', () => {
     const arts = [
       makeArt({
         id: 'curved',
-        name: 'Curved Shot',
+        name: 'Arcing Shot',
         combatMods: { rangeBonus: 1, hitBonus: 15 },
       }),
     ];
     const lines = getWeaponArtTooltipLines({ name: 'Short Bow', weaponArtId: 'curved' }, arts);
-    expect(lines).toEqual(['Art: Curved Shot - Hit +15, Range +1']);
+    expect(lines).toEqual(['Art: Arcing Shot - Hit +15, Range +1']);
   });
 });
 

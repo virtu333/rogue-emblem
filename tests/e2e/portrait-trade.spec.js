@@ -61,7 +61,7 @@ const SERA = [
   ['Twisting Vortex', 's2'],
   ['Heal', 's3'],
 ];
-const CONVOY_NAMES = ['Iron Axe', 'Steel Lance', 'Iron Bow', 'Conflagration', 'Silence Staff'];
+const CONVOY_NAMES = ['Iron Axe', 'Steel Lance', 'Iron Bow', 'Conflagration', 'Hush Staff'];
 const tag = ([base, uid, name]) => `${name || base}#${uid}`;
 
 /** A real tap on a touch phone, a click on a desktop. */
@@ -80,8 +80,8 @@ async function bootRoute(page, { extra = '', touch = true } = {}) {
 /**
  * Hand-built bags saved to slot 1. `convoy`: that many weapons in the convoy (a staff
  * among them); `breath`: Edric's fifth weapon is a Fire Breath (the convoy cannot store
- * it); `accessories`: Edric wears a Seraph Robe, Sera a Power Ring, and Edric carries a
- * Vulnerary (all three bag tabs show).
+ * it); `accessories`: Edric wears a Sisters' Mantle, Sera a Power Ring, and Edric carries a
+ * Poultice (all three bag tabs show).
  */
 async function seedBags(
   page,
@@ -106,7 +106,7 @@ async function seedBags(
       edric.inventory = edricBag;
       edric.weapon = edric.inventory[0];
       sera.inventory = SERA.map(make);
-      if (seraFull) sera.inventory.push(make(['Glimmer', 's4']), make(['Restore', 's5']));
+      if (seraFull) sera.inventory.push(make(['Glimmer', 's4']), make(['Cleanse', 's5']));
       sera.weapon = sera.inventory[0];
       edric.consumables = [];
       sera.consumables = [];
@@ -117,13 +117,15 @@ async function seedBags(
       if (accessories) {
         unequipAccessory(edric);
         unequipAccessory(sera);
-        const robe = structuredClone(s.gameData.accessories.find((a) => a.name === 'Seraph Robe'));
+        const robe = structuredClone(
+          s.gameData.accessories.find((a) => a.name === "Sisters' Mantle"),
+        );
         const ring = structuredClone(s.gameData.accessories.find((a) => a.name === 'Power Ring'));
         robe.uid = 'robe';
         ring.uid = 'ring';
         equipAccessory(edric, robe);
         equipAccessory(sera, ring);
-        const vulnerary = s.gameData.consumables.find((c) => c.name === 'Vulnerary');
+        const vulnerary = s.gameData.consumables.find((c) => c.name === 'Poultice');
         edric.consumables = [{ ...structuredClone(vulnerary), uid: 'v1' }];
       }
       const { saveRun } = await import('/src/engine/RunManager.js');
@@ -541,15 +543,17 @@ for (const viewport of PORTRAIT_PHONES) {
       await expectStacked(page);
       await expectHeaderAndBody(page, menu, insets);
       await page.screenshot({ path: info.outputPath(`trade-accessory-${size}.png`) });
-      await menu.getByRole('button', { name: /^Seraph Robe/ }).tap();
+      await menu.getByRole('button', { name: /^Sisters' Mantle/ }).tap();
       await menu
-        .getByRole('button', { name: 'Trade Seraph Robe for Power Ring', exact: true })
+        .getByRole('button', { name: "Trade Sisters' Mantle for Power Ring", exact: true })
         .tap();
-      await expect(menu.getByRole('status')).toContainText('Traded Seraph Robe for Power Ring.');
+      await expect(menu.getByRole('status')).toContainText(
+        "Traded Sisters' Mantle for Power Ring.",
+      );
       // The Power Ring's +2 STR moves from Sera to Edric.
       await expectSaved(page, {
         'edric.accessory': 'Power Ring#ring',
-        'sera.accessory': 'Seraph Robe#robe',
+        'sera.accessory': "Sisters' Mantle#robe",
         'edric.STR': before.edric.STR + 2,
         'sera.STR': before.sera.STR - 2,
       });
@@ -714,7 +718,7 @@ test.describe('upright battle trade', () => {
       'Iron Lance',
       'Steel Sword',
     ]);
-    expect(start.sera).toEqual(['Glimmer', 'Heal', 'Restore', 'Rescue Staff', 'Warp Staff']);
+    expect(start.sera).toEqual(['Glimmer', 'Heal', 'Cleanse', 'Deliverance Staff', 'Fold Staff']);
     // Edric (3,3) stays put beside Sera (2,3): select, same tile, Trade, Sera.
     await tapTile(page, 3, 3);
     await tapTile(page, 3, 3);
@@ -768,7 +772,7 @@ test.describe('upright battle trade', () => {
         'Iron Lance',
         'Steel Sword',
       ],
-      Sera: ['Heal', 'Iron Sword', 'Restore', 'Rescue Staff', 'Warp Staff'],
+      Sera: ['Heal', 'Iron Sword', 'Cleanse', 'Deliverance Staff', 'Fold Staff'],
     });
     expect(state.saved).toEqual(state.live);
     await menu.getByRole('button', { name: 'Done', exact: true }).tap();

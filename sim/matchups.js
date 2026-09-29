@@ -8,7 +8,7 @@
 // defender may make a follow-up counter. Both are read from the engine's combat
 // forecast of the same exchange, taken before it resolves: attack speed (SPD less
 // weapon weight beyond STR/5, plus weapon, skill and accessory bonuses) at least 5
-// over the foe's, with the forecast's own exceptions (Pursuit Ring, Quick Riposte,
+// over the foe's, with the forecast's own exceptions (Pursuit Ring, Riposte,
 // weapon arts, preventEnemyDouble, a defender that cannot counter). A fight that ends
 // before the follow-up still counts. The forecast draws no randomness, so these
 // columns never shift the seeded win rates or damage.
@@ -107,8 +107,8 @@ function runMatchup(
     const atkTerrain = null;
     const defTerrain = null;
 
-    // Build skill context. The attacker initiates: without isInitiating, Death Blow,
-    // Darting Blow and the other initiating skills never fired in this sim.
+    // Build skill context. The attacker initiates: without isInitiating, Onslaught,
+    // Quickstep and the other initiating skills never fired in this sim.
     const atkMods = getSkillCombatMods(atk, def, [atk], [def], data.skills, atkTerrain, true);
     const defMods = getSkillCombatMods(def, atk, [def], [atk], data.skills, defTerrain);
     const skillCtx = {

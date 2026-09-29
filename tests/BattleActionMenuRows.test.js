@@ -42,7 +42,7 @@ function displayObject(seed = {}) {
   };
 }
 
-// Edric with two swords (Equip), a Vulnerary (Item) and a foe next to him (Attack).
+// Edric with two swords (Equip), a Poultice (Item) and a foe next to him (Attack).
 function menuScene({ rail, attackable = true }) {
   const unit = {
     name: 'Edric',
@@ -54,7 +54,7 @@ function menuScene({ rail, attackable = true }) {
     weapon: weapon('Iron Sword'),
     skills: [],
     proficiencies: [{ type: 'Sword', rank: 'Prof' }],
-    consumables: [{ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 }],
+    consumables: [{ name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 }],
     graphic: { clearTint: vi.fn() },
   };
   unit.inventory = [unit.weapon, weapon('Steel Sword')];
@@ -256,13 +256,13 @@ describe('the Equip and Item submenus as rows', () => {
     expect(openMenuCommand(scene, 'equip')).not.toBeNull();
   });
 
-  it('Item on the rail: a Vulnerary at full HP is greyed with the reason and cannot be used', () => {
+  it('Item on the rail: a Poultice at full HP is greyed with the reason and cannot be used', () => {
     const { scene, unit } = submenuScene({ rail: true });
     scene.showItemMenu(unit);
     expect(scene._makeMenuTextButton).not.toHaveBeenCalled();
     const vulnerary = openMenuCommand(scene, 'item:0');
     expect(vulnerary).toMatchObject({
-      label: 'Vulnerary (3)',
+      label: 'Poultice (3)',
       disabled: true,
       description: 'HP already full',
     });
@@ -271,7 +271,7 @@ describe('the Equip and Item submenus as rows', () => {
     expect(scene.useConsumable).not.toHaveBeenCalled();
   });
 
-  it('Item on the rail: a hurt but Wounded unit sees the Vulnerary greyed with the Wounded reason', () => {
+  it('Item on the rail: a hurt but Wounded unit sees the Poultice greyed with the Wounded reason', () => {
     const { scene, unit } = submenuScene({ rail: true });
     unit.currentHP = 8;
     applyCondition(unit, 'wounded', 2);
@@ -285,7 +285,7 @@ describe('the Equip and Item submenus as rows', () => {
     expect(scene.useConsumable).not.toHaveBeenCalled();
   });
 
-  it('Item on the rail: a hurt unit uses the Vulnerary', () => {
+  it('Item on the rail: a hurt unit uses the Poultice', () => {
     const { scene, unit } = submenuScene({ rail: true });
     unit.currentHP = 8;
     scene.showItemMenu(unit);

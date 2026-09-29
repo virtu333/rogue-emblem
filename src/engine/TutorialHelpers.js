@@ -35,7 +35,7 @@ export function buildTutorialBattleConfig() {
 export function buildTutorialRoster(gameData) {
   const { lords, classes, weapons, consumables } = gameData;
 
-  // Edric -- Lord, level 3, Iron Sword (from createLordUnit) + Vulnerary
+  // Edric -- Lord, level 3, Iron Sword (from createLordUnit) + Poultice
   const edricDef = lords.find((l) => l.name === 'Edric');
   const edricClass = classes.find((c) => c.name === edricDef.class);
   const edric = createLordUnit(edricDef, edricClass, weapons);
@@ -44,11 +44,11 @@ export function buildTutorialRoster(gameData) {
   edric.currentHP += 2;
   edric.stats.STR += 1;
   edric.stats.SPD += 1;
-  const vuln = consumables.find((c) => c.name === 'Vulnerary');
+  const vuln = consumables.find((c) => c.name === 'Poultice');
   if (vuln) addToConsumables(edric, vuln);
 
   // Sera -- Light Sage: Glimmer (from createLordUnit, stays equipped so she
-  // can fight) + Heal staff for the healing lesson + Vulnerary
+  // can fight) + Heal staff for the healing lesson + Poultice
   const seraDef = lords.find((l) => l.name === 'Sera');
   const seraClass = classes.find((c) => c.name === seraDef.class);
   const sera = createLordUnit(seraDef, seraClass, weapons);
@@ -62,7 +62,7 @@ export function buildTutorialRoster(gameData) {
   }
   const heal = weapons.find((w) => w.name === 'Heal');
   if (heal) addToInventory(sera, heal);
-  const vuln2 = consumables.find((c) => c.name === 'Vulnerary');
+  const vuln2 = consumables.find((c) => c.name === 'Poultice');
   if (vuln2) addToConsumables(sera, vuln2);
 
   return [edric, sera];

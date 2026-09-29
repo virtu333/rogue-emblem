@@ -22,9 +22,9 @@ it('explains ally buffs, exclusions and duration', () => {
 });
 it('exposes drawbacks, debuffs and movement', () => {
   expect(details('All or Nothing')).toContain('On miss: you lose 5 HP per missed strike');
-  expect(details('Galeforce Assault')).toContain('After combat: your HP becomes 5, hit or miss');
-  expect(details('Seal Speed')).toContain('On hit: target SPD -4 for the battle');
-  expect(details('Hit and Run')).toContain('On hit: step back 1 tile');
+  expect(details('Oathstorm')).toContain('After combat: your HP becomes 5, hit or miss');
+  expect(details('Hamstring')).toContain('On hit: target SPD -4 for the battle');
+  expect(details('Strike and Fade')).toContain('On hit: step back 1 tile');
   expect(details('Annihilate')).toContain('On kill: you get +4 STR, +4 SPD for 1 phase');
   expect(details('Silence Strike')).toContain('silence the target for 2 phases');
 });

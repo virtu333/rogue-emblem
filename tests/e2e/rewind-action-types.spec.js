@@ -38,7 +38,7 @@ async function boot(page) {
     // Synthetic loadout only: every action kind is available from the start.
     const patient = s.playerUnits.find((u) => u.name === 'Patient');
     patient.consumables = [
-      { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
+      { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
     ];
     patient._conditions = [{ id: 'poison', turnsRemaining: 3 }];
     s._timelineBoundary = 'turn_start';
@@ -146,14 +146,14 @@ const ACTIONS = [
     },
   ],
   [
-    'Before Edric’s Wrath Strike on Knight',
+    'Before Edric’s Grim Stroke on Knight',
     async (page) => {
       await select(page, 'Edric');
       await hud(page)
         .getByRole('button', { name: /^Weapon Art/ })
         .tap();
       await hud(page)
-        .getByRole('button', { name: /Wrath Strike/ })
+        .getByRole('button', { name: /Grim Stroke/ })
         .tap();
       await tapTile(page, 4, 3);
       await page.getByRole('button', { name: 'Confirm attack', exact: true }).tap();
@@ -175,14 +175,14 @@ const ACTIONS = [
     },
   ],
   [
-    'Before Sera’s Warp Staff on Patient',
+    'Before Sera’s Fold Staff on Patient',
     async (page) => {
       await select(page, 'Sera');
       await hud(page)
         .getByRole('button', { name: /^Heal \(/ })
         .tap();
       await hud(page)
-        .getByRole('button', { name: /Warp Staff/ })
+        .getByRole('button', { name: /Fold Staff/ })
         .tap();
       await tapTile(page, 2, 4);
       const dest = await page.evaluate(
@@ -200,19 +200,19 @@ const ACTIONS = [
         .getByRole('button', { name: /^Heal \(/ })
         .tap();
       await hud(page)
-        .getByRole('button', { name: /Restore/ })
+        .getByRole('button', { name: /Cleanse/ })
         .tap();
       await tapTile(page, 2, 4);
       await hasActed(page, 'Sera');
     },
   ],
   [
-    'Before Patient’s Vulnerary',
+    'Before Patient’s Poultice',
     async (page) => {
       await select(page, 'Patient');
       await hud(page).getByRole('button', { name: 'Item', exact: true }).tap();
       await hud(page)
-        .getByRole('button', { name: /^Vulnerary/ })
+        .getByRole('button', { name: /^Poultice/ })
         .first()
         .tap();
       await hasActed(page, 'Patient');

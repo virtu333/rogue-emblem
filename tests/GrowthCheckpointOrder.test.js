@@ -67,7 +67,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('battle Master Seal', () => {
+describe('battle Sovereign Seal', () => {
   it('promotes, spends the seal and captures the resolved action before the rite', async () => {
     const unit = createRecruitUnit({ name: 'Ilse', level: 10 }, cls('Myrmidon'), gameData.weapons);
     unit.level = 10;
@@ -203,7 +203,7 @@ describe('church price', () => {
   });
 });
 
-describe('roster Master Seal', () => {
+describe('roster Sovereign Seal', () => {
   it('persists through the context before the rite (rewards pass their own persist)', async () => {
     const unit = createRecruitUnit({ name: 'Ilse', level: 10 }, cls('Myrmidon'), gameData.weapons);
     unit.level = 10;

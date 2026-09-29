@@ -42,7 +42,7 @@ describe('tabs', () => {
   it('labels count each side against its capacity, in bag order', () => {
     const edric = unit('Edric', {
       inventory: [weapon('Iron Sword'), weapon('Steel Sword'), weapon('Rapier')],
-      consumables: [supply('Vulnerary')],
+      consumables: [supply('Poultice')],
     });
     const sera = unit('Sera', { inventory: [weapon('Iron Lance')] });
     const { view } = setup({ left: edric, right: sera });
@@ -91,7 +91,7 @@ describe('tabs', () => {
   });
 
   it('opens on the requested tab, else the held bag, else the first', () => {
-    const vuln = supply('Vulnerary');
+    const vuln = supply('Poultice');
     const edric = unit('Edric', { inventory: [weapon('Iron Sword')], consumables: [vuln] });
     const { L, view } = setup({ left: edric, right: unit('Sera') });
     expect(view().bag).toBe('inventory');
@@ -105,7 +105,7 @@ describe('columns', () => {
   it('a unit shows every slot: items first, then Empty placeholders', () => {
     const edric = unit('Edric', {
       inventory: [weapon('Iron Sword'), weapon('Rapier')],
-      consumables: [supply('Vulnerary')],
+      consumables: [supply('Poultice')],
     });
     const sera = unit('Sera', {
       inventory: [weapon('A'), weapon('B'), weapon('C'), weapon('D'), weapon('E')],
@@ -118,7 +118,7 @@ describe('columns', () => {
     expect(v.columns.left.count).toBe('2/5');
     expect(v.columns.right.count).toBe('5/5');
     const s = view({ bag: 'consumables' });
-    expect(names(s.columns.left)).toEqual(['Vulnerary', 'Empty', 'Empty']);
+    expect(names(s.columns.left)).toEqual(['Poultice', 'Empty', 'Empty']);
     expect(names(s.columns.right)).toEqual(['Empty', 'Empty', 'Empty']);
   });
 
@@ -355,7 +355,7 @@ describe('rows', () => {
   });
 
   it('a held item of another bag is not held on this tab', () => {
-    const vuln = supply('Vulnerary');
+    const vuln = supply('Poultice');
     const edric = unit('Edric', { inventory: [weapon('Iron Sword')], consumables: [vuln] });
     const { L, view } = setup({ left: edric, right: unit('Sera') });
     const v = view({ bag: 'inventory', held: { holder: L, bag: 'consumables', item: vuln } });
@@ -398,7 +398,7 @@ describe('reorder rows (reorder: true)', () => {
     const steel = weapon('Steel Sword');
     const edric = unit('Edric', {
       inventory: [iron, rapier, axe, steel],
-      consumables: [supply('Vulnerary'), supply('Elixir')],
+      consumables: [supply('Poultice'), supply('Elixir')],
       cannotEquip: ['Iron Axe'],
     });
     const sera = unit('Sera', { inventory: [weapon('Iron Lance')] });
@@ -469,7 +469,7 @@ describe('reorder rows (reorder: true)', () => {
     const v = view({ reorder: true, held: { holder: L, bag: 'consumables', item: elixir } });
     const first = v.columns.left.rows[0];
     expect(first.state).toBe('reorder');
-    expect(first.name).toBe('Swap Elixir with Vulnerary');
+    expect(first.name).toBe('Swap Elixir with Poultice');
     expect(first.equips).toBeNull();
     expect(activateRow(v, first)).toMatchObject({ type: 'reorder', equips: null });
     expect(first.item).toBe(vulnerary);
@@ -579,7 +579,7 @@ describe('navigation', () => {
   const board = () => {
     const edric = unit('Edric', {
       inventory: [weapon('Iron Sword'), weapon('Rapier')],
-      consumables: [supply('Vulnerary')],
+      consumables: [supply('Poultice')],
       accessory: ring('Power Ring'),
     });
     const engine = fakeEngine({

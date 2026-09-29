@@ -309,7 +309,7 @@ test.describe('phone 844×390', () => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const support = s.playerUnits.find((u) => u.name === 'Support');
       support.consumables = [
-        { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
+        { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
       ];
       // Fixture loadout belongs to the turn start, not to a free bag change.
       s._timelineBoundary = 'turn_start';
@@ -320,10 +320,10 @@ test.describe('phone 844×390', () => {
     await tapTile(page, 2, 4);
     const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
     await trade.getByRole('tab', { name: /^Supplies/ }).tap();
-    await trade.getByRole('button', { name: 'Vulnerary', exact: true }).tap();
+    await trade.getByRole('button', { name: 'Poultice', exact: true }).tap();
     // Patient's free supply slots are numbered gives; the first free one takes it.
     await trade
-      .getByRole('button', { name: /^Give Vulnerary to Patient, slot \d$/ })
+      .getByRole('button', { name: /^Give Poultice to Patient, slot \d$/ })
       .first()
       .tap();
     await trade.getByRole('button', { name: 'Done', exact: true }).tap();

@@ -37,7 +37,7 @@
 - **Meta-progression economy updates**: Added a full refund system with UI/tests, split Deadly Arsenal into Rapier/Silver tiers, added Vanguard Cadre + Field Supplies II, and retuned upgrade costs.
 - **Economy reward rebalance**: Increased battle/loot/par gold rewards, updated gold multipliers, and tuned War Chest starting-gold scaling.
 - **XP tuning for priority targets**: Added a +30% XP bonus for boss/elite kills.
-- **Combat/runtime fixes**: Added `resBonus` support, fixed Adept state initialization paths, corrected Rapier cavalry effectiveness text/data mismatch, and fixed lethal-armory export/wiring.
+- **Combat/runtime fixes**: Added `resBonus` support, fixed Flurry state initialization paths, corrected Rapier cavalry effectiveness text/data mismatch, and fixed lethal-armory export/wiring.
 - **Loot/accessory flow fixes**: Restored accessory loot feedback, added accessory pool equip UX, fixed loot quality/category mapping/effect parsing, and hardened legacy migration parity.
 - **Battle/UI readability pass**: Added weapon stats in equip menus, weight in attack picker details, tighter equip stat layout, faction base rings, tinted HP bar backgrounds, and richer post-battle recruit/loot card text.
 - **Home Base / shop UX polish**: Added meta-upgrade hover tooltips, centered Home Base footer controls, and added NodeMap shop-item hover detail text.
@@ -103,7 +103,7 @@
 - **Node Map**: Column-lane system (5 lanes, non-crossing edges), act progression, auto-save
 - **Accessories**: 18 items (11 stat-based + 7 combat effect), equip/unequip/trade
 - **Fog of War**: Vision ranges by class, fog generation per node
-- **Expanded Skills**: 21 skills (6 trigger types), on-defend (Pavise/Aegis/Miracle), scroll consumables
+- **Expanded Skills**: 21 skills (6 trigger types), on-defend (Shieldwall/Spellward/Reprieve), scroll consumables
 - **Expanded Weapons**: 52 weapons, throwables, effectiveness, poison, drain, siege, equipped stat bonuses
 - **Balance Simulations**: 4 sim scripts (progression, matchups, economy, full run)
 
@@ -120,7 +120,7 @@
 - Weapon/consumable cloning (shared reference bug)
 - Music overlap on scene transitions
 - Node map visual crossing fix (fixed 5-column grid)
-- Staff depletion + auto-equip, Miracle reset per battle
+- Staff depletion + auto-equip, Reprieve reset per battle
 - removeFromInventory filter (combat weapons only)
 - Recruit level scaling to lord level
 - Various UI overflow and positioning fixes

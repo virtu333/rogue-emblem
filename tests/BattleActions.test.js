@@ -8,7 +8,7 @@ import { canTradeBetween } from '../src/engine/ItemTrade.js';
 
 describe('Battle Actions - Trade (canTradeBetween)', () => {
   const sword = () => ({ name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof' });
-  const tonic = () => ({ name: 'Vulnerary', type: 'Consumable', uses: 3 });
+  const tonic = () => ({ name: 'Poultice', type: 'Consumable', uses: 3 });
   const unit = (inventory = [], consumables = []) => ({ inventory, consumables });
 
   it('is offered when either unit carries a weapon or a supply', () => {

@@ -259,17 +259,17 @@ export function weaponSpec(w, ctx = grammarContext()) {
     case 'Light':
       return lightSpec(t.fit, sp.crit, LIGHT_EMBLEM[w.name]);
     case 'Staff': {
-      const n = w.name.toLowerCase();
-      if (/sleep|silence/.test(n))
+      // By what the staff does, not its name (names change; the fields don't).
+      if (w.statusEffect)
         return D.staff({ rod: 'darkWood', fit: 'blackened', gem: 'unlight', variant: 'crescent' });
-      if (/rescue|warp/.test(n))
+      if (w.relocate)
         return D.staff({
           rod: 'darkWood',
           fit: t.fit === 'blackened' ? 'gilt' : t.fit,
           gem: 'sky',
           variant: 'wing',
         });
-      if (/restore/.test(n)) return D.staff({ fit: t.fit, gem: 'pearl', variant: 'crescent' });
+      if (w.cureConditions) return D.staff({ fit: t.fit, gem: 'pearl', variant: 'crescent' });
       return D.staff({
         rod: tier === 'Iron' ? 'wood' : 'darkWood',
         fit: tier === 'Iron' ? 'bronze' : t.fit,
@@ -289,25 +289,25 @@ export function weaponSpec(w, ctx = grammarContext()) {
 }
 
 const BOOSTER = {
-  STR: () => D.gemItem({ mat: 'blood', cut: 'drop' }),
+  STR: () => D.root(),
   MAG: () => D.pouch({ cloth: 'unlight', sparkle: 'lilac' }),
   SKL: () =>
     D.tome({ cover: 'pearl', fit: 'gilt', emblem: 'dark', emblemMat: 'ink', pages: 'parchment' }),
   SPD: () => D.feather({ mat: 'sky' }),
-  DEF: () => D.shield({ face: 'steel', rim: 'silverFit', emblem: 'diamond', emblemMat: 'sky' }),
-  RES: () => D.pendant({ chain: 'silverFit', body: 'silver', gem: 'lilac', form: 'leaf' }),
-  HP: () => D.robe({ cloth: 'pearl', trim: 'gilt', wings: 'pearl' }),
+  DEF: () => D.dragonScale(),
+  RES: () => D.knotCord(),
+  HP: () => D.robe({ cloth: 'verdigris', trim: 'gilt' }),
   MOV: () => D.boot({ leather: 'wood', trim: 'leaf', wing: true }),
 };
 
 export function consumableSpec(c) {
   switch (c.effect) {
     case 'heal':
-      return D.vial({ liquid: 'verdigris' });
+      return D.poultice();
     case 'healFull':
       return D.vial({ shape: 'flask', liquid: 'ember', cork: 'gilt' });
     case 'promote':
-      return D.seal({ wax: 'blood', ribbon: 'cloth', metal: 'gilt', glyph: 'star' });
+      return D.seal({ wax: 'blood', ribbon: 'lilac', metal: 'gilt', glyph: 'crown' });
     case 'reclass':
       return D.seal({
         wax: c.subEffect === 'mounted' ? 'earth' : 'steel',
@@ -348,10 +348,10 @@ export function accessorySpec(a) {
     return D.ringItem({ band: 'silver', gem: 'pearl' });
   }
   const table = {
-    'Goddess Icon': () => D.pendant({ form: 'wing', gem: 'blood' }),
-    'Seraph Robe': () => D.robe({ cloth: 'pearl', trim: 'gilt', wings: 'gilt', hood: true }),
-    Boots: () => D.boot({ leather: 'wood', trim: 'leaf' }),
-    'Delphi Shield': () =>
+    'Fatethread Pendant': () => D.pendant({ form: 'sun', chain: 'blood' }),
+    "Sisters' Mantle": () => D.robe({ cloth: 'pearl', trim: 'verdigris' }),
+    "Courier's Boots": () => D.boot({ leather: 'wood', trim: 'leaf' }),
+    'Picket Buckler': () =>
       D.shield({ face: 'lilac', rim: 'gilt', emblem: 'diamond', emblemMat: 'pearl' }),
     "Veteran's Crest": () =>
       D.medal({

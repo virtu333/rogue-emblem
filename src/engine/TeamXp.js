@@ -38,7 +38,7 @@ export function awardTeamXp(roster, xpAmount, classesData = [], options = {}) {
   return report;
 }
 
-/** One line per unit, e.g. "Kira: Lv 9 → 10 (+1 HP, +1 SPD). Learned Vantage." */
+/** One line per unit, e.g. "Kira: Lv 9 → 10 (+1 HP, +1 SPD). Learned Forestall." */
 export function teamXpLines(report, skillsData = []) {
   const name = (id) => skillsData.find((s) => s.id === id)?.name || id;
   return report.map((entry) => {

@@ -140,15 +140,15 @@ describe('roster sheet', () => {
 
   it('team scrolls tell their story beside their seal', () => {
     const { run, sheet } = rosterSheet();
-    const scroll = structuredClone(gameData.weapons.find((w) => w.name === 'Sol Scroll'));
+    const scroll = structuredClone(gameData.weapons.find((w) => w.name === 'Reclaim Scroll'));
     run.scrolls = [scroll];
     sheet.tab = 'skills';
     sheet.render();
     const card = sheet.root
       .querySelectorAll('.mr-item-card')
       .map(cardParts)
-      .find((c) => c.title === 'Sol Scroll');
-    expect(card.icon).toBe('sol-scroll');
+      .find((c) => c.title === 'Reclaim Scroll');
+    expect(card.icon).toBe('reclaim-scroll');
     expect(card.lore).toBe(scroll.lore);
     sheet.destroy();
   });
@@ -157,7 +157,7 @@ describe('roster sheet', () => {
 describe('battle trade', () => {
   it('every item row leads with its item icon, on both tabs', () => {
     const iron = structuredClone(gameData.weapons.find((w) => w.name === 'Iron Bow'));
-    const salve = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
+    const salve = structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'));
     const left = { name: 'Daska', inventory: [iron], consumables: [salve], weapon: iron };
     const right = { name: 'Brom', inventory: [], consumables: [], weapon: null };
     const menu = new BattleTradeMenu({ events: eventsFor() }, left, right, { commit: vi.fn() });
@@ -170,7 +170,7 @@ describe('battle trade', () => {
         );
     expect(icons()).toEqual(['iron-bow']);
     menu.menu.setBag('consumables');
-    expect(icons()).toEqual(['vulnerary']);
+    expect(icons()).toEqual(['poultice']);
     menu.destroy();
   });
 });

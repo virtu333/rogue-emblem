@@ -348,7 +348,7 @@ describe('SkillSystem silence blocking', () => {
     applyCondition(unit, 'silence', 3);
 
     const mods = getSkillCombatMods(unit, enemy, [], [], gameData.skills, null);
-    // Wrath would normally give crit bonus below 50% HP, but silence blocks it
+    // Seethe would normally give crit bonus below 50% HP, but silence blocks it
     expect(mods.critBonus || 0).toBe(0);
   });
 

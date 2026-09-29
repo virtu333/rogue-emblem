@@ -79,9 +79,9 @@ function session() {
     inventory: edricBag,
     weapon: ironSword,
     consumables: [
-      item('Vulnerary', 'uid-vul-1'),
+      item('Poultice', 'uid-vul-1'),
       item('Elixir', 'uid-elixir'),
-      item('Vulnerary', 'uid-vul-2'),
+      item('Poultice', 'uid-vul-2'),
     ],
     stats: { HP: 22, MOV: 5 },
     currentHP: 22,
@@ -213,7 +213,7 @@ describe('BattleTradeController.commit', () => {
     expect(scene._captureSuspendCheckpoint).toHaveBeenCalledTimes(3);
     // The acting unit is always the actor, whichever column the item left.
     expect(beats(scene).map((b) => b.label)).toEqual([
-      'Edric traded with Sera · Vulnerary.',
+      'Edric traded with Sera · Poultice.',
       'Edric traded with Sera · Herb.',
       'Edric traded with Sera · Iron Sword +1 for Iron Lance.',
     ]);
@@ -473,13 +473,13 @@ describe('BattleTradeController.reorder', () => {
         slot(edric, 'consumables', vulnerary),
         slot(edric, 'consumables', elixir),
       ),
-    ).toMatchObject({ ok: true, equips: null, detail: 'Swapped Vulnerary and Elixir' });
+    ).toMatchObject({ ok: true, equips: null, detail: 'Swapped Poultice and Elixir' });
     expect(uids(edric.consumables)).toEqual(['uid-elixir', 'uid-vul-1', 'uid-vul-2']);
     expect(scene.commitVisionSnapshotIfPending).toHaveBeenCalledOnce();
     expect(scene.preMoveLoc).toEqual({ col: 9, row: 9 });
     expect(scene._captureSuspendCheckpoint).toHaveBeenCalledTimes(2);
     expect(equipBeats(scene).at(-1).label).toBe(
-      'Edric changed equipment · Swapped Vulnerary and Elixir.',
+      'Edric changed equipment · Swapped Poultice and Elixir.',
     );
   });
 

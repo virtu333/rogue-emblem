@@ -11,11 +11,15 @@
 //
 // A save written after the renames carries itemNamesRevision, and the walk skips it.
 
+import { grantedSkillSpecial } from './LootSystem.js';
+
+const GRANTS_SKILL = /^Grants .+ to wielder$/;
+
 /** Bump when a new rename table is added below. */
-export const ITEM_NAMES_REVISION = 1;
+export const ITEM_NAMES_REVISION = 2;
 
 /** Revision 1 (2026-09-26): the Armoury Grammar. Old name -> new name. */
-export const ITEM_RENAMES = Object.freeze({
+const REVISION_1 = {
   'Killing Edge': 'Keen Sword',
   'Wo Dao': 'Jian',
   'Wind Sword': 'Gust Blade',
@@ -52,7 +56,118 @@ export const ITEM_RENAMES = Object.freeze({
   'Sundering Imbuing Stone': 'Armorbane Imbuing Stone',
   // A legendary weapon art named for its weapon (battle history keeps art names).
   'Gemini Tempest': 'Twinsworn Tempest',
-});
+};
+
+/**
+ * Revision 2 (2026-09-27): skills, arts, supplies, gear and staves move off Fire
+ * Emblem's names. Skills are saved by id, so only the scrolls that teach them and
+ * the arts (whose names battle history keeps) are renamed here; old skill names
+ * left in a saved battle log stay as they were.
+ */
+const REVISION_2 = {
+  // Scrolls, named for the skill or art they teach (skill and art ids are unchanged).
+  'Sol Scroll': 'Reclaim Scroll',
+  'Luna Scroll': 'Umbra Scroll',
+  'Astra Scroll': 'Constellation Scroll',
+  'Vantage Scroll': 'Forestall Scroll',
+  'Wrath Scroll': 'Seethe Scroll',
+  'Adept Scroll': 'Flurry Scroll',
+  'Miracle Scroll': 'Reprieve Scroll',
+  'Cancel Scroll': 'Stifle Scroll',
+  'Desperation Scroll': "Death's Door Scroll",
+  'Quick Riposte Scroll': 'Riposte Scroll',
+  'Death Blow Scroll': 'Onslaught Scroll',
+  'Darting Blow Scroll': 'Quickstep Scroll',
+  'Windsweep Scroll': 'Gale Cut Scroll',
+  'Grounder Scroll': 'Sweep Scroll',
+  'Hexblade Scroll': 'Witchcut Scroll',
+  'Dragonhaze Scroll': 'Heat Haze Scroll',
+  'Knightkneeler Scroll': 'Kneebreaker Scroll',
+  'Longearche Scroll': "Serpent's Reach Scroll",
+  'Glowing Ember Scroll': 'Forgefire Thrust Scroll',
+  'Helm Splitter Scroll': 'Helmcleaver Scroll',
+  'Wild Abandon Scroll': 'Reckless Swing Scroll',
+  'Rushing Blow Scroll': 'Charging Cut Scroll',
+  'Armored Strike Scroll': 'Ironclad Blow Scroll',
+  'Encloser Scroll': 'Pinning Shot Scroll',
+  'Ward Arrow Scroll': 'Gag Arrow Scroll',
+  "Hunter's Volley Scroll": "Hawk's Talons Scroll",
+  'Burning Quake Scroll': 'Cinder Quake Scroll',
+  'Nosferatu Scroll': 'Grave Hunger Scroll',
+  'Seraphim Scroll': 'Scouring Fire Scroll',
+  // Weapon arts: saves keep art names in battle history and activation records.
+  'Wrath Strike': 'Grim Stroke',
+  Grounder: 'Sweep',
+  Windsweep: 'Gale Cut',
+  Hexblade: 'Witchcut',
+  'Seal Speed': 'Hamstring',
+  'Finesse Blade': 'Deft Cut',
+  Dragonhaze: 'Heat Haze',
+  'Astra Strike': 'Falling Stars',
+  'Tempest Lance': 'Surging Thrust',
+  'Hit and Run': 'Strike and Fade',
+  Knightkneeler: 'Kneebreaker',
+  'Shatter Slash': 'Guardsplitter',
+  'Glowing Ember': 'Forgefire Thrust',
+  Longearche: "Serpent's Reach",
+  'Helm Splitter': 'Helmcleaver',
+  'Diamond Axe': 'Adamant Cleave',
+  'Wild Abandon': 'Reckless Swing',
+  'Rushing Blow': 'Charging Cut',
+  'Armored Strike': 'Ironclad Blow',
+  'Curved Shot': 'Arcing Shot',
+  Encloser: 'Pinning Shot',
+  'Ward Arrow': 'Gag Arrow',
+  'Break Shot': 'Joint Shot',
+  'Waning Shot': 'Sapping Shot',
+  'Seal Magic': 'Rattle',
+  'Heavy Draw': 'Full Draw',
+  "Hunter's Volley": "Hawk's Talons",
+  'Burning Quake': 'Cinder Quake',
+  Nosferatu: 'Grave Hunger',
+  Seraphim: 'Scouring Fire',
+  'Galeforce Assault': 'Oathstorm',
+  // Supplies, gear and staves (owner review of the naming ledger, round two).
+  Vulnerary: 'Poultice',
+  'Master Seal': 'Sovereign Seal',
+  'Energy Drop': 'Mightroot',
+  'Spirit Dust': 'Spellstone Dust',
+  'Secret Book': 'Drill Primer',
+  Speedwing: 'Fleet Plume',
+  Dracoshield: 'Wyrmscale',
+  Talisman: 'Warding Cord',
+  'Angelic Robe': 'Blessed Vestment',
+  'Goddess Icon': 'Fatethread Pendant',
+  'Seraph Robe': "Sisters' Mantle",
+  Boots: "Courier's Boots",
+  'Delphi Shield': 'Picket Buckler',
+  Mend: 'Solace',
+  Recover: 'Remembrance',
+  Physic: 'Farcall',
+  Fortify: 'Canticle',
+  Restore: 'Cleanse',
+  'Rescue Staff': 'Deliverance Staff',
+  'Warp Staff': 'Fold Staff',
+  'Sleep Staff': 'Lullaby Staff',
+  'Silence Staff': 'Hush Staff',
+};
+
+/**
+ * Old names that are also plain words ("Restore", "Boots"): renamed only on an
+ * item (or in an item-only field), never on some other named thing in a save.
+ */
+const PLAIN_WORD_NAMES = new Set([
+  'Mend',
+  'Recover',
+  'Physic',
+  'Fortify',
+  'Restore',
+  'Boots',
+  'Talisman',
+]);
+
+/** Every rename, old name -> new name. No new name is another rename's old name. */
+export const ITEM_RENAMES = Object.freeze({ ...REVISION_1, ...REVISION_2 });
 
 /** Imbue adjectives by imbue id: the old word, and the word it became. */
 export const IMBUE_ADJECTIVE_RENAMES = Object.freeze({
@@ -150,7 +265,11 @@ function refreshFromCatalog(item, catalog) {
 export function renameItemsDeep(root, gameData = null) {
   const catalog = gameData
     ? new Map(
-        [...(gameData.weapons || []), ...(gameData.consumables || [])].map((w) => [w.name, w]),
+        [
+          ...(gameData.weapons || []),
+          ...(gameData.consumables || []),
+          ...(gameData.accessories || []),
+        ].map((w) => [w.name, w]),
       )
     : null;
   const renamedTargets = new Set(Object.values(ITEM_RENAMES));
@@ -170,6 +289,12 @@ export function renameItemsDeep(root, gameData = null) {
     for (const key of Object.keys(node)) {
       const value = node[key];
       if (typeof value === 'string' && NAME_KEYS.has(key)) {
+        if (
+          key === 'name' &&
+          PLAIN_WORD_NAMES.has(value.replace(/\s\+\d+$/, '')) &&
+          !isItemLike(node)
+        )
+          continue;
         const next = renameItemName(value, { imbueId, knownBases });
         if (next !== value) {
           node[key] = next;
@@ -189,7 +314,29 @@ export function renameItemsDeep(root, gameData = null) {
           value.$ = next;
           changed += 1;
         }
+      } else if (key === 'recruitBlessingGrants' && Array.isArray(value)) {
+        // "blessingId:Item Name" keys: a renamed item must not be granted twice.
+        node[key] = value.map((grant) => {
+          if (typeof grant !== 'string') return grant;
+          const at = grant.indexOf(':');
+          const next =
+            at < 0 ? grant : grant.slice(0, at + 1) + renameItemName(grant.slice(at + 1));
+          if (next !== grant) changed += 1;
+          return next;
+        });
       } else if (value && typeof value === 'object') visit(value, depth + 1);
+    }
+    // A weapon that grants a skill names the skill in its special.
+    if (
+      isItemLike(node) &&
+      typeof node._grantedSkill === 'string' &&
+      GRANTS_SKILL.test(node.special)
+    ) {
+      const next = grantedSkillSpecial(node._grantedSkill, gameData?.skills);
+      if (next !== node.special) {
+        node.special = next;
+        changed += 1;
+      }
     }
     if (renamedHere && isItemLike(node)) {
       const base = String(node._baseName || node.name).replace(/\s\+\d+$/, '');

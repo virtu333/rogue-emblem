@@ -13,8 +13,8 @@ import { serializeSuspendUnit } from '../src/ui/BattleSuspendController.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
-const rescueStaff = gameData.weapons.find((w) => w.name === 'Rescue Staff');
-const warpStaff = gameData.weapons.find((w) => w.name === 'Warp Staff');
+const rescueStaff = gameData.weapons.find((w) => w.name === 'Deliverance Staff');
+const warpStaff = gameData.weapons.find((w) => w.name === 'Fold Staff');
 
 /**
  * Minimal grid stub. `blocked` maps "col,row" to 'all' or an array of
@@ -50,7 +50,7 @@ function unit(name, col, row, overrides = {}) {
 }
 
 describe('staff data (weapons.json)', () => {
-  it('Rescue Staff matches the spec table', () => {
+  it('Deliverance Staff matches the spec table', () => {
     expect(rescueStaff).toMatchObject({
       type: 'Staff',
       tier: 'Steel',
@@ -72,7 +72,7 @@ describe('staff data (weapons.json)', () => {
     expect(rescueStaff.cureConditions).toBeUndefined();
   });
 
-  it('Warp Staff matches the spec table (Mastery-gated, 1 use, premium price)', () => {
+  it('Fold Staff matches the spec table (Mastery-gated, 1 use, premium price)', () => {
     expect(warpStaff).toMatchObject({
       type: 'Staff',
       tier: 'Legend',
@@ -98,7 +98,7 @@ describe('staff data (weapons.json)', () => {
     expect(isRelocateStaff(rescueStaff)).toBe(true);
     expect(isRelocateStaff(warpStaff)).toBe(true);
     expect(isRelocateStaff(gameData.weapons.find((w) => w.name === 'Heal'))).toBe(false);
-    expect(isRelocateStaff(gameData.weapons.find((w) => w.name === 'Restore'))).toBe(false);
+    expect(isRelocateStaff(gameData.weapons.find((w) => w.name === 'Cleanse'))).toBe(false);
     expect(isRelocateStaff(gameData.weapons.find((w) => w.name === 'Iron Sword'))).toBe(false);
     expect(isRelocateStaff(null)).toBe(false);
     // Non-staff item with a stray relocate field is not a relocate staff.
@@ -107,30 +107,30 @@ describe('staff data (weapons.json)', () => {
 });
 
 describe('loot pool placement (lootTables.json)', () => {
-  it('Rescue Staff rides the act2+ weapon pools', () => {
-    expect(gameData.lootTables.act1.weapons).not.toContain('Rescue Staff');
-    expect(gameData.lootTables.act2.weapons).toContain('Rescue Staff');
-    expect(gameData.lootTables.act3.weapons).toContain('Rescue Staff');
-    expect(gameData.lootTables.act4.weapons).toContain('Rescue Staff');
+  it('Deliverance Staff rides the act2+ weapon pools', () => {
+    expect(gameData.lootTables.act1.weapons).not.toContain('Deliverance Staff');
+    expect(gameData.lootTables.act2.weapons).toContain('Deliverance Staff');
+    expect(gameData.lootTables.act3.weapons).toContain('Deliverance Staff');
+    expect(gameData.lootTables.act4.weapons).toContain('Deliverance Staff');
   });
 
-  it('Warp Staff is act3/act4 only', () => {
-    expect(gameData.lootTables.act1.weapons).not.toContain('Warp Staff');
-    expect(gameData.lootTables.act2.weapons).not.toContain('Warp Staff');
-    expect(gameData.lootTables.act3.weapons).toContain('Warp Staff');
-    expect(gameData.lootTables.act4.weapons).toContain('Warp Staff');
+  it('Fold Staff is act3/act4 only', () => {
+    expect(gameData.lootTables.act1.weapons).not.toContain('Fold Staff');
+    expect(gameData.lootTables.act2.weapons).not.toContain('Fold Staff');
+    expect(gameData.lootTables.act3.weapons).toContain('Fold Staff');
+    expect(gameData.lootTables.act4.weapons).toContain('Fold Staff');
   });
 
   it('both pool names resolve to real weapons', () => {
-    for (const name of ['Rescue Staff', 'Warp Staff']) {
+    for (const name of ['Deliverance Staff', 'Fold Staff']) {
       expect(gameData.weapons.find((w) => w.name === name)).toBeTruthy();
     }
   });
 
   it('neither staff joins enemy pools', () => {
     const enemyJson = JSON.stringify(gameData.enemies);
-    expect(enemyJson).not.toContain('Rescue Staff');
-    expect(enemyJson).not.toContain('Warp Staff');
+    expect(enemyJson).not.toContain('Deliverance Staff');
+    expect(enemyJson).not.toContain('Fold Staff');
   });
 });
 

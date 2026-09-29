@@ -369,7 +369,7 @@ describe('BattleScene shim delegation contracts', () => {
         .spyOn(LootScreenController, 'renderConsumableUnitPicker')
         .mockImplementation(() => {});
       const scene = makeScene();
-      const item = { name: 'Vulnerary', effect: 'heal', value: 10 };
+      const item = { name: 'Poultice', effect: 'heal', value: 10 };
       const group = [];
       BattleScene.prototype.showConsumableUnitPicker.call(scene, item, group, 2);
       expect(spy).toHaveBeenCalledWith(scene, item, group, 2);
@@ -381,7 +381,7 @@ describe('BattleScene shim delegation contracts', () => {
         .spyOn(LootScreenController, 'renderStatBoostPicker')
         .mockImplementation(() => {});
       const scene = makeScene();
-      const item = { name: 'Energy Drop', effect: 'statBoost' };
+      const item = { name: 'Mightroot', effect: 'statBoost' };
       const group = [];
       BattleScene.prototype.showStatBoostUnitPicker.call(scene, item, group, 1);
       expect(spy).toHaveBeenCalledWith(scene, item, group, 1);

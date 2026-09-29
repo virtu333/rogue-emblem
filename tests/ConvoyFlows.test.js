@@ -104,7 +104,7 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
-    const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
+    const vuln = gameData.consumables.find((c) => c.name === 'Poultice');
     unit.inventory = [];
     unit.consumables = [structuredClone(vuln)];
     unit.skills = unit.skills || [];
@@ -494,7 +494,7 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
-    const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
+    const vuln = gameData.consumables.find((c) => c.name === 'Poultice');
     unit.inventory = [];
     unit.consumables = [];
     unit.skills = unit.skills || [];
@@ -518,7 +518,7 @@ describe('convoy scene/UI flows', () => {
     takeAction.onClick();
 
     expect(unit.consumables).toHaveLength(1);
-    expect(unit.consumables[0].name).toBe('Vulnerary');
+    expect(unit.consumables[0].name).toBe('Poultice');
     expect(rm.getConvoyCounts().consumables).toBe(0);
   });
 
@@ -526,7 +526,7 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     rm.roster = [];
-    const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
+    const vuln = gameData.consumables.find((c) => c.name === 'Poultice');
     rm.addToConvoy(vuln);
 
     const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
@@ -643,7 +643,7 @@ describe('convoy scene/UI flows', () => {
   it('clamps convoy scroll offset after convoy content shrinks', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
-    const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
+    const vuln = gameData.consumables.find((c) => c.name === 'Poultice');
     const ironSword = gameData.weapons.find((w) => w.name === 'Iron Sword');
     const unit = rm.roster[0];
     unit.inventory = [];
@@ -691,7 +691,7 @@ describe('removeFromConvoyByUid', () => {
   it('removes exactly the matching item from either bucket and returns it', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
-    const vuln = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
+    const vuln = structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'));
     vuln.uid = 'itm_test_consumable';
     const sword = structuredClone(gameData.weapons.find((w) => w.name === 'Iron Sword'));
     sword.uid = 'itm_test_weapon';
@@ -699,7 +699,7 @@ describe('removeFromConvoyByUid', () => {
     expect(rm.addToConvoy(sword)).toBe(true);
 
     const removed = rm.removeFromConvoyByUid('itm_test_consumable');
-    expect(removed?.name).toBe('Vulnerary');
+    expect(removed?.name).toBe('Poultice');
     expect(rm.convoy.consumables.some((i) => i.uid === 'itm_test_consumable')).toBe(false);
     expect(rm.convoy.weapons.some((i) => i.uid === 'itm_test_weapon')).toBe(true);
 

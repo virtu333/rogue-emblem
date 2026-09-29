@@ -12,11 +12,11 @@ import { loadGameData } from './testData.js';
 const data = loadGameData();
 describe('decision details', () => {
   it('does not impose weapon proficiency on scrolls', () => {
-    expect(shopRequirementLabel({ name: 'Sol Scroll', type: 'Scroll', rankRequired: 'Prof' })).toBe(
-      '',
-    );
     expect(
-      shopRequirementLabel({ name: 'Hexblade Scroll', type: 'Scroll', rankRequired: 'Mast' }),
+      shopRequirementLabel({ name: 'Reclaim Scroll', type: 'Scroll', rankRequired: 'Prof' }),
+    ).toBe('');
+    expect(
+      shopRequirementLabel({ name: 'Witchcut Scroll', type: 'Scroll', rankRequired: 'Mast' }),
     ).toBe('');
     // Same wording as every other rank line (rankRequirementText).
     expect(shopRequirementLabel({ type: 'Lance', rankRequired: 'Mast' })).toBe(

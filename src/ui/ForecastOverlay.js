@@ -575,7 +575,7 @@ export class ForecastOverlay {
     }
     if (unit.skills?.includes('miracle')) {
       const used = unit._miracleUsed;
-      parts.push(`Miracle: ${used ? 'Used' : 'Ready'}`);
+      parts.push(`Reprieve: ${used ? 'Used' : 'Ready'}`);
     }
     if (parts.length) {
       const skillText = applyTextResolution(

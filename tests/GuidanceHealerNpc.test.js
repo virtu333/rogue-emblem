@@ -161,11 +161,11 @@ describe('healer note for a hurt NPC ally', () => {
   it('needs a staff that restores HP: a cure staff alone does not count', () => {
     const garrick = recruit(5, 3, 9);
     garrick._conditions = [{ id: 'sleep', turnsRemaining: 2 }];
-    expect(scene({ staves: ['Restore'], npcUnits: [garrick] }).pick()).toBeNull();
+    expect(scene({ staves: ['Cleanse'], npcUnits: [garrick] }).pick()).toBeNull();
     // A relocation staff never moves NPCs either.
-    expect(scene({ staves: ['Warp Staff'], npcUnits: [recruit(5, 3, 9)] }).pick()).toBeNull();
+    expect(scene({ staves: ['Fold Staff'], npcUnits: [recruit(5, 3, 9)] }).pick()).toBeNull();
     // With Heal in the bag as well, the heal is on offer.
-    expect(scene({ staves: ['Restore', 'Heal'], npcUnits: [garrick] }).pick()?.context.npc).toBe(
+    expect(scene({ staves: ['Cleanse', 'Heal'], npcUnits: [garrick] }).pick()?.context.npc).toBe(
       garrick,
     );
   });

@@ -25,7 +25,7 @@ const unit = (name, stats, skills = []) => ({
 
 describe('the forecast warns when an enemy skill can change counter damage', () => {
   // The reviewer's case: 8 HP / 20 DEF against 25 attack. The plain counter deals
-  // 5, but Luna ignores DEF and would deal 15 and kill.
+  // 5, but Umbra ignores DEF and would deal 15 and kill.
   const edric = unit('Edric', { HP: 8, STR: 5, DEF: 20, SKL: 20 });
   const forecastAgainst = (skills) =>
     getCombatForecast(edric, blade, unit('Brute', { HP: 40, STR: 20, DEF: 0 }, skills), blade, 1);

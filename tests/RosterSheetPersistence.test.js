@@ -90,7 +90,7 @@ afterEach(() => {
 describe('roster sheet saves each change as it applies', () => {
   it('trading an item to another unit', async () => {
     const { sheet, archer, fighter } = setup();
-    const vulnerary = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
+    const vulnerary = structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'));
     archer.consumables = [vulnerary];
     fighter.consumables = [];
     sheet.tradeItem(archer, vulnerary);
@@ -141,7 +141,7 @@ describe('roster sheet saves each change as it applies', () => {
     expect(unitEpithet(fighter)).toBeNull();
     press('Greatest deed');
     expect(unitEpithet(fighter).text).toBe('Who Held the Bridge');
-    press('Oath of the Edge · Critical +15');
+    press('Oath of the Edge · Keen Eye');
     expect(fighter.deeds.pledge).toBe('keen_edge');
     expect(saveServiceRun).toHaveBeenCalledTimes(4);
     sheet.destroy();
@@ -199,7 +199,7 @@ describe('roster sheet saves each change as it applies', () => {
   it('uses the context persist (rewards) instead of a direct save when given', async () => {
     const persist = vi.fn(() => true);
     const { sheet, archer, fighter } = setup({ persist });
-    const vulnerary = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
+    const vulnerary = structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'));
     archer.consumables = [vulnerary];
     fighter.consumables = [];
     sheet.tradeItem(archer, vulnerary);

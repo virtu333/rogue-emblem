@@ -432,66 +432,67 @@
       "model": "gemini-3.1-flash-image",
       "hash": "f1dfd73cc7645168"
     },
-    "mend": {
+    "solace": {
       "approved": true,
       "source": "mend-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "6a2752fe4a1dec01"
     },
-    "physic": {
+    "farcall": {
       "approved": true,
       "source": "physic-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "d977fcfc4f20f530"
     },
-    "recover": {
+    "remembrance": {
       "approved": true,
       "source": "recover-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "c49aa6eb27bf1619"
     },
-    "restore": {
+    "cleanse": {
       "approved": true,
       "source": "restore-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "6b40d744b6346208"
     },
-    "fortify": {
+    "canticle": {
       "approved": true,
       "source": "fortify-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "98d28efe127761b3"
     },
-    "sleep-staff": {
+    "lullaby-staff": {
       "approved": true,
       "source": "sleep-staff-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "8597c1022277f493"
     },
-    "silence-staff": {
+    "hush-staff": {
       "approved": true,
       "source": "silence-staff-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "070fb3dba40b386d",
       "note": "Re-prompted: no rainbow ring."
     },
-    "rescue-staff": {
+    "deliverance-staff": {
       "approved": true,
       "source": "rescue-staff-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "51325fe81f19c313"
     },
-    "warp-staff": {
+    "fold-staff": {
       "approved": true,
       "source": "warp-staff-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "aa4a6398a3bf441c"
     },
-    "vulnerary": {
+    "poultice": {
       "approved": true,
-      "source": "vulnerary-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "1b3496ed66b57e8f"
+      "source": "poultice-pro-t2",
+      "model": "gemini-3-pro-image",
+      "hash": "cf7b933983b79f26",
+      "note": "Repainted 2026-09-27 for the rename: a herb-stained linen pad tied with twine (was the Vulnerary vial)."
     },
     "elixir": {
       "approved": true,
@@ -499,54 +500,58 @@
       "model": "gemini-3.1-flash-image",
       "hash": "db07b3db8c6e9769"
     },
-    "master-seal": {
+    "sovereign-seal": {
       "approved": true,
-      "source": "master-seal-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "839a650f9f2012cd"
+      "source": "sovereign-seal-pro-t3",
+      "model": "gemini-3-pro-image",
+      "hash": "881aaea5ec407c4d",
+      "note": "Repainted 2026-09-27 for the rename: crimson wax stamped with a gold crown (was the Master Seal star)."
     },
-    "energy-drop": {
+    "mightroot": {
       "approved": true,
-      "source": "energy-drop-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "3ae0dca3ee490f0c"
+      "source": "mightroot-pro-t3",
+      "model": "gemini-3-pro-image",
+      "hash": "c273e0d561d6e383",
+      "note": "Repainted 2026-09-27 for the rename: a split root glowing ember (was the Energy Drop gem)."
     },
-    "spirit-dust": {
+    "spellstone-dust": {
       "approved": true,
       "source": "spirit-dust-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "2b18a71e3068c073"
     },
-    "secret-book": {
+    "drill-primer": {
       "approved": true,
       "source": "secret-book-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "2ddddc42e70e286e"
     },
-    "speedwing": {
+    "fleet-plume": {
       "approved": true,
       "source": "speedwing-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "41d6e711e1dda0b3"
     },
-    "dracoshield": {
+    "wyrmscale": {
       "approved": true,
-      "source": "dracoshield-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "a1b9d87b4b27c103"
-    },
-    "talisman": {
-      "approved": true,
-      "source": "talisman-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "b9b927bbbfa0215d"
-    },
-    "angelic-robe": {
-      "approved": true,
-      "source": "angelic-robe-pro-t5",
+      "source": "wyrmscale-pro-t3",
       "model": "gemini-3-pro-image",
-      "hash": "346ff1871f7e616e",
-      "note": "Rerolled 2026-09-26: a winged white-and-gold vestment; takes 1-4 kept a keyed halo from a glow in the prompt."
+      "hash": "27aad84973b7e022",
+      "note": "Repainted 2026-09-27 for the rename: one torn dragon scale (was the Dracoshield shield)."
+    },
+    "warding-cord": {
+      "approved": true,
+      "source": "warding-cord-pro-t3",
+      "model": "gemini-3-pro-image",
+      "hash": "2b07ae6b396c48ce",
+      "note": "Repainted 2026-09-27 for the rename: a knotted red-and-white cord with a bead (was the Talisman pendant)."
+    },
+    "blessed-vestment": {
+      "approved": true,
+      "source": "angelic-robe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "ad2099cc942938e9",
+      "note": "Restored 2026-09-27 (owner): the plain folded robe from before the winged reroll, which suited the old Angelic Robe name."
     },
     "swiftsoles": {
       "approved": true,
@@ -618,26 +623,27 @@
       "hash": "8a99e9892fbaf9ae",
       "note": "Re-prompted for a plain band."
     },
-    "goddess-icon": {
+    "fatethread-pendant": {
       "approved": true,
-      "source": "goddess-icon-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "9bf2094e457bc110"
-    },
-    "seraph-robe": {
-      "approved": true,
-      "source": "seraph-robe-pro-t4",
+      "source": "fatethread-pendant-pro-t2",
       "model": "gemini-3-pro-image",
-      "hash": "0fc622ff6ef32882",
-      "note": "Rerolled 2026-09-26: a hooded mantle with three pairs of wings (owner direction)."
+      "hash": "6ff58b44c232b2fb",
+      "note": "Repainted 2026-09-27 for the rename: a worn hollow sun disc on crimson thread (was the winged Goddess Icon)."
     },
-    "boots": {
+    "sisters-mantle": {
+      "approved": true,
+      "source": "seraph-robe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "e7cb60b016ace89b",
+      "note": "Restored 2026-09-27 (owner): the plain folded robe from before the winged reroll, which suited the old Seraph Robe name."
+    },
+    "couriers-boots": {
       "approved": true,
       "source": "boots-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "532179db2303d47d"
     },
-    "delphi-shield": {
+    "picket-buckler": {
       "approved": true,
       "source": "delphi-shield-flash-t1",
       "model": "gemini-3.1-flash-image",

@@ -505,7 +505,7 @@ for (const viewport of PORTRAIT_PHONES) {
       expect(errors).toEqual([]);
     });
 
-    test('Master Seal: path chooser, then the rite over the whole screen; promoted once', async ({
+    test('Sovereign Seal: path chooser, then the rite over the whole screen; promoted once', async ({
       page,
     }) => {
       // Boots a battle: give it the slow-runner budget (CI runners are slower).
@@ -514,7 +514,7 @@ for (const viewport of PORTRAIT_PHONES) {
       await quietSettings(page);
       const insets = await safeAreaInsets(page, NOTCH_PORTRAIT);
       await bootBattle(page);
-      // A Knight with the longest name, a Master Seal and a deed's Oath: the fullest rite
+      // A Knight with the longest name, a Sovereign Seal and a deed's Oath: the fullest rite
       // (seven bonuses, two new weapons, a rank, two skills and the Oath, a growth note).
       const name = await page.evaluate((recruit) => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -553,7 +553,7 @@ for (const viewport of PORTRAIT_PHONES) {
       await page.touchscreen.tap(point.x, point.y);
       const hud = page.getByRole('complementary', { name: 'Battle commands' });
       await hud.getByRole('button', { name: 'Item', exact: true }).tap();
-      await hud.getByRole('button', { name: /^Master Seal/ }).tap();
+      await hud.getByRole('button', { name: /^Sovereign Seal/ }).tap();
 
       const chooser = page.getByRole('dialog', { name: 'Choose promotion', exact: true });
       await expect(chooser.locator('.gr-path')).toHaveCount(2);

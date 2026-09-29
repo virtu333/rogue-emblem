@@ -36,7 +36,7 @@ function scene() {
   return s;
 }
 
-// A level-9 Myrmidon (learns Vantage at 10) already holding five skills.
+// A level-9 Myrmidon (learns Forestall at 10) already holding five skills.
 function fullMyrmidon(level = 9) {
   const unit = createUnit(
     gameData.classes.find((c) => c.name === 'Myrmidon'),
@@ -51,7 +51,7 @@ function fullMyrmidon(level = 9) {
 }
 
 describe('level-ups at the skill limit', () => {
-  it('Myrmidon learns Vantage at 10 (the help and the data agree)', () => {
+  it('Myrmidon learns Forestall at 10 (the help and the data agree)', () => {
     expect(skillGateLevels(fullMyrmidon(), gameData.classes).get('vantage')).toBe(10);
   });
 
@@ -64,10 +64,10 @@ describe('level-ups at the skill limit', () => {
     expect(unit.benchedSkills).toEqual(['vantage']); // kept, not lost
     const [card] = s._pendingLevelUpPopups;
     expect(card.learnedNames).toEqual([]);
-    expect(card.levelUp.blockedSkills).toEqual(['Vantage']);
-    expect(levelUpContent(unit, card.levelUp).blocked).toEqual(['Vantage']);
-    expect(skillLimitNote(['Vantage'])).toBe(
-      'All 5 skill slots full: Vantage kept on the bench (swap in from Skills).',
+    expect(card.levelUp.blockedSkills).toEqual(['Forestall']);
+    expect(levelUpContent(unit, card.levelUp).blocked).toEqual(['Forestall']);
+    expect(skillLimitNote(['Forestall'])).toBe(
+      'All 5 skill slots full: Forestall kept on the bench (swap in from Skills).',
     );
   });
 
@@ -85,7 +85,7 @@ describe('level-ups at the skill limit', () => {
     unit.skills = unit.skills.slice(0, 4);
     await s.awardScaledXP(unit, XP_PER_LEVEL);
     expect(unit.skills).toContain('vantage');
-    expect(s._pendingLevelUpPopups[0].learnedNames).toEqual(['Vantage']);
+    expect(s._pendingLevelUpPopups[0].learnedNames).toEqual(['Forestall']);
     expect(s._pendingLevelUpPopups[0].levelUp.blockedSkills).toBeUndefined();
   });
 });

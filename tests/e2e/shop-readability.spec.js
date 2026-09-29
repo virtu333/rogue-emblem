@@ -24,7 +24,9 @@ for (const width of [667, 844]) {
         // Entering a service knot makes it the party's (NodeMapScene.onNodeClick).
         s.runManager.currentNodeId = n.id;
         const sword = structuredClone(s.gameData.weapons.find((w) => w.name === 'Steel Sword'));
-        const icon = structuredClone(s.gameData.accessories.find((w) => w.name === 'Goddess Icon'));
+        const icon = structuredClone(
+          s.gameData.accessories.find((w) => w.name === 'Fatethread Pendant'),
+        );
         s.showShopOverlay(n, [
           { type: 'weapon', item: sword, price: 1000 },
           { type: 'accessory', item: icon, price: 1000 },
@@ -43,7 +45,7 @@ for (const width of [667, 844]) {
       await expect(shop.locator('.shop-hero .ia-hero')).toBeVisible();
       await expect(shop.locator('.shop-lore')).toBeVisible();
       await expect(shop.locator('.shop-lore')).not.toBeEmpty();
-      await shop.locator('.shop-row').filter({ hasText: 'Goddess Icon' }).tap();
+      await shop.locator('.shop-row').filter({ hasText: 'Fatethread Pendant' }).tap();
       await expect(shop.locator('.shop-mechanics')).toContainText('LCK');
       await page.screenshot({ path: `test-results/shop-${width}-details.png` });
       await shop.locator('.shop-row').filter({ hasText: 'Steel Sword' }).last().tap();

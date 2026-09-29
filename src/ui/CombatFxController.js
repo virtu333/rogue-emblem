@@ -604,7 +604,7 @@ export class CombatFxController {
   }
 
   /**
-   * Defensive-proc reaction (Pavise, Aegis, Miracle, Shielded): the target
+   * Defensive-proc reaction (Shieldwall, Spellward, Reprieve, Shielded): the target
    * holds ground and braces -- a squash instead of the usual knockback.
    * Fire-and-forget (yoyo restores scale).
    */

@@ -10,8 +10,8 @@ import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
 const PLAIN = gameData.terrain.findIndex((t) => t.name === 'Plain');
-const RESCUE = gameData.weapons.find((w) => w.name === 'Rescue Staff');
-const WARP = gameData.weapons.find((w) => w.name === 'Warp Staff');
+const RESCUE = gameData.weapons.find((w) => w.name === 'Deliverance Staff');
+const WARP = gameData.weapons.find((w) => w.name === 'Fold Staff');
 const GOLD = { fill: UI_HEX.accent, edge: UI_HEX.accentText };
 
 function fakeScene() {

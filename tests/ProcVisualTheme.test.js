@@ -49,7 +49,7 @@ describe('classifyActivation', () => {
   });
 
   it('falls back to neutral for combat-start skills, unknown ids, and bad input', () => {
-    expect(classifyActivation({ id: 'vantage', name: 'Vantage' }, skills)).toBe(
+    expect(classifyActivation({ id: 'vantage', name: 'Forestall' }, skills)).toBe(
       PROC_CATEGORY.NEUTRAL,
     );
     expect(classifyActivation({ id: 'nonexistent_skill', name: '?' }, skills)).toBe(
@@ -65,7 +65,7 @@ describe('splitStrikeActivations', () => {
     const activations = [
       { id: 'weapon_art', name: 'Wrath Strike' },
       { id: 'luna', name: 'Luna' },
-      { id: 'pavise', name: 'Pavise' },
+      { id: 'pavise', name: 'Shieldwall' },
       { id: 'thorns', name: 'Thorns' },
     ];
     const split = splitStrikeActivations(activations, skills);
@@ -111,9 +111,9 @@ describe('themeFor', () => {
 
 describe('classifySkillEventName', () => {
   it('classifies pre-combat skill events by display name', () => {
-    expect(classifySkillEventName('Astra', skills)).toBe(PROC_CATEGORY.OFFENSE);
-    expect(classifySkillEventName('Vantage', skills)).toBe(PROC_CATEGORY.NEUTRAL);
-    expect(classifySkillEventName('Desperation', skills)).toBe(PROC_CATEGORY.NEUTRAL);
+    expect(classifySkillEventName('Constellation', skills)).toBe(PROC_CATEGORY.OFFENSE);
+    expect(classifySkillEventName('Forestall', skills)).toBe(PROC_CATEGORY.NEUTRAL);
+    expect(classifySkillEventName("Death's Door", skills)).toBe(PROC_CATEGORY.NEUTRAL);
     expect(classifySkillEventName('Not A Skill', skills)).toBe(PROC_CATEGORY.NEUTRAL);
   });
 });

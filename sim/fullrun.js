@@ -190,7 +190,7 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
       const defRange = getWeaponRange(target);
       const distance = atkRange.max >= 2 ? 2 : 1; // Ranged units attack from range 2
 
-      // The attacker initiates (Death Blow and the other initiating skills fire).
+      // The attacker initiates (Onslaught and the other initiating skills fire).
       const atkMods = getSkillCombatMods(
         unit,
         target,

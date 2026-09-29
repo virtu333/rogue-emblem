@@ -228,7 +228,7 @@ it('real arena combat saves damage, rewards and fight count before showing its d
 it('casualty notices persist transferred and convoy-full retained gear without discarding either', () => {
   const { run } = runFixture();
   const fallen = structuredClone(run.roster[1]);
-  fallen.consumables = [{ name: 'Vulnerary', type: 'Consumable', uses: 3 }];
+  fallen.consumables = [{ name: 'Poultice', type: 'Consumable', uses: 3 }];
   fallen.accessory = { name: 'Ring', type: 'Accessory' };
   while (run.canAddToConvoy(fallen.inventory[0])) run.addToConvoy(fallen.inventory[0]);
   run._transferFallenUnitItems(fallen);

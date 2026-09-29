@@ -111,7 +111,7 @@ describe('recording', () => {
     expect(hero._battleDeeds.phaseAttacks).toBe(0);
   });
 
-  it('brink: wounded to 1 HP, or saved by Miracle; not merely standing at 1 HP', () => {
+  it('brink: wounded to 1 HP, or saved by Reprieve; not merely standing at 1 HP', () => {
     const wounded = unit({ currentHP: 1 });
     recordCombat({ events: [strike('attacker')] }, foe(), wounded, {});
     expect(wounded._battleDeeds.brink).toBe(1);

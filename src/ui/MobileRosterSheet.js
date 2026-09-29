@@ -1169,7 +1169,7 @@ export class MobileRosterSheet {
       gameData: this.gameData,
       title: `Promote ${unit.name}`,
       closeLabel: 'Close',
-      note: `Uses 1 ${item.name || 'Master Seal'}`,
+      note: `Uses 1 ${item.name || 'Sovereign Seal'}`,
       blocked: () => rosterClassChangeBlock(this.run, unit, item, this.gameData),
       apply: (choice) => {
         const content = promotionPathContent(unit, choice, this.gameData);
@@ -1248,8 +1248,11 @@ export class MobileRosterSheet {
   }
   itemDescription(item, unit) {
     if (item.type === 'Accessory') return formatAccessoryDetail(item);
+    // A stat booster's tag already names its stat ("+2 STR").
     if (item.type === 'Consumable')
-      return `${getConsumableDescription(item)} · ${formatUses(item)}`;
+      return item.effect === 'statBoost' && itemKeywords(item).length
+        ? `Permanent · ${formatUses(item)}`
+        : `${getConsumableDescription(item)} · ${formatUses(item)}`;
     if (item.type === 'Staff') {
       const range = getEffectiveStaffRange(item, unit);
       return `Staff · Range ${range.min === range.max ? range.max : `${range.min}–${range.max}`} · Uses ${getStaffRemainingUses(item, unit)}/${getStaffMaxUses(item, unit)}${item.perBattleUses ? ' · Refills after battle' : ''}`;

@@ -360,7 +360,7 @@ describe('LCK_THIRD activation chance', () => {
   });
 });
 
-describe('Pavise 5% floor', () => {
+describe('Shieldwall 5% floor', () => {
   it('procs even with SKL 0 due to minimum 5% activation', () => {
     const defender = makeUnit({ skills: ['pavise'], stats: { ...makeUnit().stats, SKL: 0 } });
     let procCount = 0;
@@ -816,11 +816,11 @@ describe('Skills data integrity', () => {
 
 describe('Scroll weapons exist for new skills', () => {
   const expectedScrolls = [
-    'Cancel Scroll',
-    'Desperation Scroll',
-    'Quick Riposte Scroll',
-    'Death Blow Scroll',
-    'Darting Blow Scroll',
+    'Stifle Scroll',
+    "Death's Door Scroll",
+    'Riposte Scroll',
+    'Onslaught Scroll',
+    'Quickstep Scroll',
     'Shove Scroll',
     'Pull Scroll',
   ];

@@ -28,7 +28,7 @@ import { XP_BASE_HEAL } from '../src/utils/constants.js';
 
 const gameData = loadGameData();
 const artById = new Map(gameData.weaponArts.arts.map((art) => [art.id, art]));
-const restoreStaff = gameData.weapons.find((w) => w.name === 'Restore');
+const restoreStaff = gameData.weapons.find((w) => w.name === 'Cleanse');
 const wardingCharm = gameData.accessories.find((a) => a.name === 'Warding Charm');
 
 function makeUnit(overrides = {}) {
@@ -105,7 +105,7 @@ describe('countermeasures: data shapes', () => {
 
     for (const actId of ['act2', 'act3', 'act4']) {
       const table = gameData.lootTables[actId];
-      expect(table.weapons).toContain('Restore');
+      expect(table.weapons).toContain('Cleanse');
       expect(table.accessories).toContain('Warding Charm');
       expect(
         table.healing.some((name) => {
@@ -121,7 +121,7 @@ describe('countermeasures: data shapes', () => {
     expect(gameData.lootTables.act3.healing).toContain('Remedy');
     expect(gameData.lootTables.act4.healing).toContain('Remedy');
     // Act 1 stays countermeasure-free (no status pressure before act2)
-    expect(gameData.lootTables.act1.weapons).not.toContain('Restore');
+    expect(gameData.lootTables.act1.weapons).not.toContain('Cleanse');
     expect(gameData.lootTables.act1.healing).not.toContain('Herb');
   });
 });
@@ -162,7 +162,7 @@ describe('countermeasures: status immunity engine gate', () => {
   });
 
   it('resolveStatusStaff short-circuits without consuming RNG for immune targets', () => {
-    const staff = gameData.weapons.find((w) => w.name === 'Sleep Staff');
+    const staff = gameData.weapons.find((w) => w.name === 'Lullaby Staff');
     const caster = makeUnit({ faction: 'enemy' });
     const target = withWardingCharm(makeUnit());
     const rng = vi.fn(() => 0); // would always hit if rolled
@@ -439,9 +439,9 @@ describe('countermeasures: shop cure gating includes the Restore staff', () => {
     const names = inventory.map((entry) => entry.item.name);
     expect(names).toContain('Herb');
     expect(names).toContain('Remedy');
-    expect(names).toContain('Restore');
+    expect(names).toContain('Cleanse');
 
-    const restoreEntry = inventory.find((entry) => entry.item.name === 'Restore');
+    const restoreEntry = inventory.find((entry) => entry.item.name === 'Cleanse');
     expect(restoreEntry.type).toBe('weapon');
     expect(restoreEntry.price).toBe(1200);
   });
@@ -461,7 +461,7 @@ describe('countermeasures: shop cure gating includes the Restore staff', () => {
       const names = inventory.map((entry) => entry.item.name);
       expect(names).not.toContain('Herb');
       expect(names).not.toContain('Remedy');
-      expect(names).not.toContain('Restore');
+      expect(names).not.toContain('Cleanse');
     }
   });
 });

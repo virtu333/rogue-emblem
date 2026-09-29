@@ -59,7 +59,7 @@ function makeArcher(name = 'Daska') {
       skillsData: gameData.skills,
     },
   );
-  unit.consumables = [structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'))];
+  unit.consumables = [structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'))];
   return unit;
 }
 

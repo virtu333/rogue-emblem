@@ -99,7 +99,7 @@ settleEquipped(unit, preferred)
 - **Unequip HP** (`UnitManager.applyAccessoryStats`, unequip branch). Keep missing HP constant,
   floor at 1, and never raise HP (a unit at 0 stays at 0):
   `currentHP = min(stats.HP, max(min(currentHP, 1), currentHP - hp))`. This closes the free-heal
-  loop: before, 10/20 → equip Seraph Robe 15/25 → unequip 15/20 → …; after, 10/20 → 15/25 →
+  loop: before, 10/20 → equip Sisters' Mantle 15/25 → unequip 15/20 → …; after, 10/20 → 15/25 →
   10/20. A full-HP unit is unchanged.
 - **Fallen units.** `RunManager._transferFallenUnitItems` unequips the accessory, reversing its
   stats, before returning it to the pool.
@@ -352,7 +352,7 @@ damage dealt), and enemies target it freely.
     - a swap when both the convoy and the bag are full;
     - Withdraw equips an unarmed unit;
     - clones are found by uid;
-  - accessory swap: stats by hand, Mercury Sandals move type, Seraph Robe missing HP, full HP,
+  - accessory swap: stats by hand, Mercury Sandals move type, Sisters' Mantle missing HP, full HP,
     0 HP;
   - instance fields deep-equal after a move;
   - `canTradeBetween`;

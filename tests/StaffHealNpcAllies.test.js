@@ -1,5 +1,5 @@
 // Staves heal green units: the merchant caravan (CaravanSystem.createCaravanUnit) and
-// recruit NPCs live in scene.npcUnits, and a player's heal, cure and Fortify staves
+// recruit NPCs live in scene.npcUnits, and a player's heal, cure and Canticle staves
 // (and Healing Circle) treat them as allies, as Fire Emblem does. Relocation staves
 // stay army-only, enemies never mend them, and the fog still hides them.
 //
@@ -135,11 +135,11 @@ describe('NPC allies of the army', () => {
 });
 
 describe('heal staff targets', () => {
-  // Physic ("range": "1-2") reaches 1 to 2 tiles at MAG 8 (its +1 bonus starts at
+  // Farcall ("range": "1-2") reaches 1 to 2 tiles at MAG 8 (its +1 bonus starts at
   // MAG 10). Every candidate below stands 2 tiles from the healer at (4,4) except
   // Tess (3, out of reach), so only the rule under test can exclude it.
   function board() {
-    const healer = makeHealer('Physic');
+    const healer = makeHealer('Farcall');
     const hurtAlly = {
       ...makeHealer('Heal'),
       name: 'Edric',
@@ -190,8 +190,8 @@ describe('heal staff targets', () => {
     expect(scene.findHealTargets(healer)).toEqual([]);
   });
 
-  it('cure a slept recruit with Restore, but relocation staves never move NPCs', () => {
-    const healer = makeHealer('Restore');
+  it('cure a slept recruit with Cleanse, but relocation staves never move NPCs', () => {
+    const healer = makeHealer('Cleanse');
     const recruit = makeRecruit('Garrick', 4, 6, 24); // distance 2, full HP
     recruit._conditions = [{ id: 'sleep', turnsRemaining: 2 }];
     const caravan = createCaravanUnit('act2', { col: 4, row: 5 }); // no conditions
@@ -206,7 +206,7 @@ describe('heal staff targets', () => {
     scene.grid.rows = 10;
     scene.grid.getMoveCost = () => 1;
     caravan.currentHP = 2;
-    for (const name of ['Rescue Staff', 'Warp Staff']) {
+    for (const name of ['Deliverance Staff', 'Fold Staff']) {
       const relocator = makeHealer(name);
       scene.playerUnits = [relocator];
       expect(scene.findHealTargets(relocator)).toEqual([]);
@@ -262,8 +262,8 @@ describe('healing the merchant caravan', () => {
     expect(scene.animateHeal).toHaveBeenCalledWith(caravan, 5, healer);
   });
 
-  it('cures a recruit NPC with Restore without touching its HP', async () => {
-    const healer = makeHealer('Restore');
+  it('cures a recruit NPC with Cleanse without touching its HP', async () => {
+    const healer = makeHealer('Cleanse');
     const recruit = makeRecruit('Garrick', 4, 5, 9);
     recruit._conditions = [{ id: 'silence', turnsRemaining: 2 }];
     const scene = makeScene({ playerUnits: [healer], npcUnits: [recruit] });
@@ -277,9 +277,9 @@ describe('healing the merchant caravan', () => {
     expect(healer.xp).toBe(20);
   });
 
-  it('Fortify heals the army and every NPC ally in range for one use', async () => {
-    const healer = makeHealer('Fortify', { MAG: 10 }); // 10 + 5 = 15 per target, range 1-2
-    // Everyone below stands within Fortify's reach of 1 to 2 tiles.
+  it('Canticle heals the army and every NPC ally in range for one use', async () => {
+    const healer = makeHealer('Canticle', { MAG: 10 }); // 10 + 5 = 15 per target, range 1-2
+    // Everyone below stands within Canticle's reach of 1 to 2 tiles.
     const ally = { ...makeHealer('Heal'), name: 'Edric', col: 4, row: 6, currentHP: 4 };
     ally.stats = { HP: 30 };
     const caravan = createCaravanUnit('act2', { col: 5, row: 5 }); // 26 HP, distance 2

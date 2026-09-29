@@ -80,7 +80,7 @@ it.each(['weapon', 'consumable'])(
     const menu = d.shop.nativeMenu,
       unit = d.run.roster[0];
     const item = structuredClone(
-      type === 'weapon' ? unit.weapon : d.data.consumables.find((i) => i.name === 'Vulnerary'),
+      type === 'weapon' ? unit.weapon : d.data.consumables.find((i) => i.name === 'Poultice'),
     );
     const field = type === 'weapon' ? 'inventory' : 'consumables';
     unit[field] = Array.from({ length: type === 'weapon' ? 5 : 3 }, () => structuredClone(item));
@@ -185,7 +185,7 @@ it('ruins stock, prices and visit limits survive leave, reload and re-entry', ()
 });
 
 it('shop scroll headers do not imply a weapon rank requirement', () => {
-  const item = structuredClone(d.data.weapons.find((i) => i.name === 'Sol Scroll'));
+  const item = structuredClone(d.data.weapons.find((i) => i.name === 'Reclaim Scroll'));
   expect(item.rankRequired).toBe('Prof');
   d.scene.shopBuyItems = [{ type: 'scroll', item, price: 100 }];
   d.shop.nativeMenu.render();
@@ -193,7 +193,7 @@ it('shop scroll headers do not imply a weapon rank requirement', () => {
     .all()
     .map((n) => n.textContent)
     .join(' ');
-  expect(text).toContain('Sol Scroll');
+  expect(text).toContain('Reclaim Scroll');
   expect(text).not.toContain('Requires Prof');
   expect(text).not.toMatch(/Needs (Scroll )?(proficiency|Master rank)/);
 });

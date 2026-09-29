@@ -116,7 +116,7 @@ export function guidanceText(id, context = {}) {
         touch ? 'Tap Back' : 'Press Esc or right-click'
       } to try a closer tile, or Wait.`;
     case 'guide_commander_low_hp':
-      return `${lord} is badly hurt. If ${lord} falls, the run ends. Pull back, heal with a staff, or use a Vulnerary from Item.`;
+      return `${lord} is badly hurt. If ${lord} falls, the run ends. Pull back, heal with a staff, or use a Poultice from Item.`;
     case 'guide_recruit_on_map':
       return `${recruitWho(npc)} under the gold banner can join you. Move a Lord next to them and choose Talk before enemies reach them.`;
     case 'guide_zombie_remains':

@@ -373,7 +373,7 @@ export function getVillageGoldReward(act) {
 /**
  * Roll the visit's item reward: one draw from the act's healing + statBooster
  * loot pools (consumables only — delivered to the convoy, which avoids
- * inventory-full edge cases). Falls back to a Vulnerary. Returns a clone.
+ * inventory-full edge cases). Falls back to a Poultice. Returns a clone.
  */
 export function rollVillageRewardItem(act, lootTables, consumablesCatalog, rng = Math.random) {
   const table = lootTables?.[act] || null;
@@ -382,8 +382,7 @@ export function rollVillageRewardItem(act, lootTables, consumablesCatalog, rng =
     ...(Array.isArray(table?.statBooster) ? table.statBooster : []),
   ].filter((name) => typeof name === 'string');
   const catalog = Array.isArray(consumablesCatalog) ? consumablesCatalog : [];
-  const name = pool.length > 0 ? pool[Math.floor(rng() * pool.length)] : 'Vulnerary';
-  const item =
-    catalog.find((c) => c?.name === name) || catalog.find((c) => c?.name === 'Vulnerary');
+  const name = pool.length > 0 ? pool[Math.floor(rng() * pool.length)] : 'Poultice';
+  const item = catalog.find((c) => c?.name === name) || catalog.find((c) => c?.name === 'Poultice');
   return item ? structuredClone(item) : null;
 }

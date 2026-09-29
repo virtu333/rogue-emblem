@@ -420,9 +420,9 @@ describe('VillageSystem', () => {
       expect(item?.name).toBe(gameData.lootTables.act1.healing[0]);
     });
 
-    it('falls back to a Vulnerary when the pools are empty', () => {
+    it('falls back to a Poultice when the pools are empty', () => {
       const item = rollVillageRewardItem('act1', {}, gameData.consumables, () => 0);
-      expect(item?.name).toBe('Vulnerary');
+      expect(item?.name).toBe('Poultice');
     });
 
     it('returns a clone, not the catalog entry', () => {

@@ -89,7 +89,7 @@ it('Scavenge commits, opens the wares, and leave, re-entry and reload never offe
   expect(d.scene._currentShopIsRuins).toBe(true);
   expect(d.run.roster[0].currentHP).toBe(1);
   // Buy from the wares.
-  const vulnerary = structuredClone(d.data.consumables.find((i) => i.name === 'Vulnerary'));
+  const vulnerary = structuredClone(d.data.consumables.find((i) => i.name === 'Poultice'));
   const entry = { type: 'consumable', item: vulnerary, price: 100 };
   d.scene.shopBuyItems = [entry];
   const gold = d.run.gold;

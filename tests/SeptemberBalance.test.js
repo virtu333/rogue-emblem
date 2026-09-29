@@ -17,7 +17,7 @@ function storage(saved) {
   });
 }
 describe('September balance compatibility', () => {
-  it('credits purchased reductions once across save/load and keeps old Sol refund basis', () => {
+  it('credits purchased reductions once across save/load and keeps old Reclaim refund basis', () => {
     storage({
       totalValor: 100,
       totalSupply: 100,
@@ -71,7 +71,7 @@ function unit(name, stats, skills = []) {
     weaponRank: 'Prof',
   };
 }
-describe('Luna defense reduction', () => {
+describe('Umbra defense reduction', () => {
   it.each([
     ['Sword', false, 2],
     ['Tome', false, 9],

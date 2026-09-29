@@ -623,7 +623,7 @@ export class HeadlessBattle {
     p1.row = bc.playerSpawns[0].row;
     const steelSword = this.gameData.weapons.find((w) => w.name === 'Steel Sword');
     if (steelSword) addToInventory(p1, steelSword);
-    const vul = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
+    const vul = this.gameData.consumables.find((c) => c.name === 'Poultice');
     if (vul) addToConsumables(p1, vul);
     this.playerUnits.push(p1);
 
@@ -636,7 +636,7 @@ export class HeadlessBattle {
       p2.proficiencies.push({ type: 'Staff', rank: 'Prof' });
       const heal = this.gameData.weapons.find((w) => w.name === 'Heal');
       if (heal) addToInventory(p2, heal);
-      const vul2 = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
+      const vul2 = this.gameData.consumables.find((c) => c.name === 'Poultice');
       if (vul2) addToConsumables(p2, vul2);
       this.playerUnits.push(p2);
     }

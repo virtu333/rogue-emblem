@@ -23,7 +23,7 @@ import { TERRAIN } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
-const ROBE = () => structuredClone(gameData.accessories.find((a) => a.name === 'Seraph Robe'));
+const ROBE = () => structuredClone(gameData.accessories.find((a) => a.name === "Sisters' Mantle"));
 const bar = () => ({ setPosition() {}, setSize() {}, setFillStyle() {} });
 const plain = { name: 'Plain', avoidBonus: 0, defBonus: 0 };
 
@@ -270,7 +270,7 @@ describe('the arena applies a bout like a battle does', () => {
 });
 
 describe('the roster’s item heal settles the debt on a heal to full', () => {
-  it('a Vulnerary that fills the unit forgives it; one that falls short keeps it', () => {
+  it('a Poultice that fills the unit forgives it; one that falls short keeps it', () => {
     const overlay = Object.create(RosterOverlay.prototype);
     Object.assign(overlay, {
       scene: { registry: { get: () => null } },
@@ -278,10 +278,10 @@ describe('the roster’s item heal settles the debt on a heal to full', () => {
       refresh() {},
     });
     const full = debtor(15);
-    overlay._useHealItem(full, { name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 });
+    overlay._useHealItem(full, { name: 'Poultice', effect: 'heal', value: 10, uses: 3 });
     expect([full.currentHP, full._accessoryHpOwed]).toEqual([20, undefined]);
     const short = debtor(5);
-    overlay._useHealItem(short, { name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 });
+    overlay._useHealItem(short, { name: 'Poultice', effect: 'heal', value: 10, uses: 3 });
     expect([short.currentHP, short._accessoryHpOwed]).toEqual([15, 5]);
   });
 });

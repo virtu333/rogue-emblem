@@ -24,7 +24,7 @@ keep weapons as easy to classify as FE's are. The brainstorm and the choices are
 - **Relics keep proper names.** Legend-tier weapons are one of a kind, and the lore
   keeps proper nouns scarce, so a name marks something rare: Twinsworn, Namethief,
   Tidebreaker, Hermit's Bow, Firstwind, Breachbolt, Endword (Ragnarok, Gae Bolg,
-  Doomblade, Ruin, Starfall kept theirs). Their card's base line says "Relic Sword".
+  Doomblade, Ruin, Starfall kept theirs). Their card's base line says "Legend Sword", matching the reward tier.
 - **Personal weapons keep proper names too.** Each lord has one (`signatureOf` in
   weapons.json, `engine/SignatureWeapons.js`): Rapier (Edric), Godsend (Rowan),
   Windward (Astrid), Holdfast (Cael), Endgame (Kira), Threadlight (Sera), Last Watch
@@ -62,7 +62,46 @@ Five renames changed the concept, so their paintings and icons were redrawn: Jia
 blade), Lancehook (a hooked quillon), Axehook (a bill hook) and Tidebreaker (a
 breaking-wave back). The other renamed items kept their pictures under the new ids.
 
+## Round two: supplies, gear, staves, skills and arts
+
+Owner review of the naming ledger, 2026-09-27. The general note: a new name should be
+at least as dramatic as the one it replaces, and it need not be a literal translation.
+
+- **Stat boosters are lore objects that point at their stat**, and every booster card
+  shows the stat as a tag (`+2 STR`; [item-keywords.md](item-keywords.md)): Mightroot
+  (STR), Spellstone Dust (MAG), Drill Primer (SKL), Fleet Plume (SPD), Wyrmscale (DEF),
+  Warding Cord (RES), Blessed Vestment (HP). Swiftsoles (MOV) was already ours.
+- **Supplies and gear:** Poultice (was Vulnerary), Sovereign Seal (Master Seal; it joins
+  Infantry Seal and Mounted Seal), Fatethread Pendant (Goddess Icon), Sisters' Mantle
+  (Seraph Robe), Courier's Boots (Boots), Picket Buckler (Delphi Shield).
+- **Staves are named for what they do:** Heal → Solace → Remembrance climb in power;
+  Farcall (ranged heal), Canticle (heals everyone; Legend), Cleanse (cures status),
+  Deliverance Staff (pulls an ally to you), Fold Staff (sends an ally away; Legend),
+  Lullaby Staff and Hush Staff (enemy sleep and silence). The pixel icons pick a staff's
+  look from its fields (`statusEffect`, `relocate`, `cureConditions`), never its name.
+- **Skills and arts change display names only.** Ids are unchanged, so saved units,
+  learned arts and meta assignments are untouched. Examples: Sol → Reclaim, Luna →
+  Umbra, Astra → Constellation, Aether → Swallow, Desperation → Death's Door, Pavise →
+  Shieldwall (Bulwark is the Knight's mastery perk), Colossus → Juggernaut, Flare →
+  Immolation, Fiendish Blow → Hellfire Charge; Grounder → Sweep, Nosferatu → Grave
+  Hunger, Galeforce Assault → Oathstorm. Canto keeps its name. The full lists are in
+  `data/skills.json` and `data/weaponArts.json`; `tests/SkillArtNames.test.js` holds
+  the retired names.
+- **Scrolls follow what they teach:** "<skill or art name> Scroll", "Teaches <name>".
+- **Names come from data.** Combat labels a proc with the skill's name from
+  `skills.json` (`skillDisplayName`), an art's activation record carries the art's own
+  name, and a weapon that grants a skill names it from data (`grantedSkillSpecial`).
+
+`ITEM_NAMES_REVISION` 2 renames saved scrolls, arts, supplies, gear and staves, the
+`recruitBlessingGrants` keys that name an item, and "Grants Sol to wielder" specials.
+Old names that are plain words (Restore, Boots, Mend, …) are renamed only on items.
+
+Six paintings changed subject with their names and were redrawn: Mightroot, Wyrmscale,
+Warding Cord, Fatethread Pendant, Sovereign Seal and Poultice. Blessed Vestment and
+Sisters' Mantle went back to the plain folded robes they had before the winged reroll
+(owner's call). The rest kept their pictures under the new ids.
+
 ## Not renamed here
 
-Accessories, supplies, staves, scrolls and class names are the next passes. The lore
-bible (`docs/lore/`, on its own branch) still names some relics by their old names.
+Class names are the next pass. The lore bible (`docs/lore/`, on its own branch) still
+names some relics by their old names.

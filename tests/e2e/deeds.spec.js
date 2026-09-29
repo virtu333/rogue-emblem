@@ -164,7 +164,7 @@ for (const [label, device] of [
         const s = window.__emblemRogueGame.scene.getScene('Battle');
         const deeds = await import('/src/engine/DeedSystem.js');
         const u = s.playerUnits.find((x) => x.name === 'Sera');
-        // A Myrmidon (two paths) who held a bridge, with a Master Seal.
+        // A Myrmidon (two paths) who held a bridge, with a Sovereign Seal.
         Object.assign(u, {
           name: 'Seraphina',
           isLord: false,
@@ -191,7 +191,9 @@ for (const [label, device] of [
       const chooser = page.getByRole('dialog', { name: 'Choose promotion', exact: true });
       await expect(chooser).toBeVisible();
       for (const path of await chooser.locator('.gr-path').all()) {
-        await expect(path.locator('.gr-path-oath')).toContainText('Oath of the Bridge · Pavise');
+        await expect(path.locator('.gr-path-oath')).toContainText(
+          'Oath of the Bridge · Shieldwall',
+        );
         expect(await path.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
       }
       await page.screenshot({ path: info.outputPath(`oath-chooser-${label}.png`) });
@@ -202,7 +204,7 @@ for (const [label, device] of [
       await expect(rite.locator('.gr-kicker')).toHaveText(
         'Promotion · Seraphina, Who Held the Bridge',
       );
-      await expect(rite.locator('.gr-seal--oath')).toContainText('Pavise');
+      await expect(rite.locator('.gr-seal--oath')).toContainText('Shieldwall');
       await expect(rite.locator('.gr-seal--oath')).toContainText('Oath of the Bridge');
       if (SHOTS) await page.waitForTimeout(3200);
       await page.screenshot({ path: info.outputPath(`oath-rite-${label}.png`) });
@@ -404,7 +406,7 @@ test.describe('player choices (phone 390×844)', () => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const deeds = await import('/src/engine/DeedSystem.js');
       const u = s.playerUnits.find((x) => x.name === 'Sera');
-      // A Myrmidon who held a bridge (Oath: Pavise) and landed three crits (Critical +15).
+      // A Myrmidon who held a bridge (Oath: Shieldwall) and landed three crits (Keen Eye).
       Object.assign(u, {
         name: 'Seraphina',
         isLord: false,
@@ -433,17 +435,17 @@ test.describe('player choices (phone 390×844)', () => {
     });
     const chooser = page.getByRole('dialog', { name: 'Choose promotion', exact: true });
     await expect(chooser).toBeVisible();
-    // A Duelist can learn either Oath (a Swordmaster already has Critical +15).
+    // A Duelist can learn either Oath (a Swordmaster already has Keen Eye).
     await chooser.getByRole('button', { name: 'Select Duelist', exact: true }).click();
     const oaths = chooser.getByRole('group', { name: 'Oath to swear', exact: true });
     await expect(oaths.getByRole('button')).toHaveText([
-      'Oath of the Bridge · Pavise',
-      'Oath of the Edge · Critical +15',
+      'Oath of the Bridge · Shieldwall',
+      'Oath of the Edge · Keen Eye',
     ]);
     await expect(oaths.getByRole('button').first()).toHaveAttribute('aria-pressed', 'true');
-    await oaths.getByRole('button', { name: 'Oath of the Edge · Critical +15' }).click();
+    await oaths.getByRole('button', { name: 'Oath of the Edge · Keen Eye' }).click();
     await expect(
-      oaths.getByRole('button', { name: 'Oath of the Edge · Critical +15' }),
+      oaths.getByRole('button', { name: 'Oath of the Edge · Keen Eye' }),
     ).toHaveAttribute('aria-pressed', 'true');
     await expect(chooser.locator('.gr-path[data-path="Duelist"] .gr-path-oath')).toContainText(
       'Oath of the Edge',
@@ -451,7 +453,7 @@ test.describe('player choices (phone 390×844)', () => {
     // The Swordmaster path explains why it would swear the other Oath.
     await chooser.getByRole('button', { name: 'Select Swordmaster', exact: true }).click();
     await expect(chooser.locator('.gr-oath-note')).toHaveText(
-      'A Swordmaster already has Critical +15, so this path swears Oath of the Bridge.',
+      'A Swordmaster already has Keen Eye, so this path swears Oath of the Bridge.',
     );
     await chooser.getByRole('button', { name: 'Select Duelist', exact: true }).click();
     await expect(
@@ -504,18 +506,18 @@ test.describe('player choices (phone 390×844)', () => {
       window.__oathUnit = u;
     });
     expect(await page.evaluate(() => window.__church)).toContain(
-      "Oath of the Bridge: Pavise is on Bramwell's bench",
+      "Oath of the Bridge: Shieldwall is on Bramwell's bench",
     );
     // The pane opens on a callout that names the new skill on the bench.
     const callout = page.locator('.mr-bench-callout');
     await expect(callout).toBeInViewport();
     await expect(callout).toContainText("New on Bramwell's bench");
-    await expect(callout).toContainText('Pavise');
+    await expect(callout).toContainText('Shieldwall');
     await expect(page.locator('.mr-unit-card', { hasText: 'Bramwell' })).toContainText(
       'New skill benched',
     );
     await callout.getByRole('button', { name: 'Go to Skills', exact: true }).click();
-    const card = page.locator('.mr-bench-new', { hasText: 'Pavise' });
+    const card = page.locator('.mr-bench-new', { hasText: 'Shieldwall' });
     await expect(card).toBeVisible();
     await expect(page.locator('.mr-bench-callout')).toHaveCount(0);
     // Every button fits the phone: nothing spills past the pane.
@@ -525,10 +527,10 @@ test.describe('player choices (phone 390×844)', () => {
     }
     await page.screenshot({ path: info.outputPath('skill-bench-phone.png') });
     await card.getByRole('button', { name: 'Swap in…', exact: true }).click();
-    const picker = page.getByRole('dialog', { name: 'Equip Pavise in place of', exact: true });
-    await picker.getByRole('button', { name: /^Luna/ }).click();
+    const picker = page.getByRole('dialog', { name: 'Equip Shieldwall in place of', exact: true });
+    await picker.getByRole('button', { name: /^Umbra/ }).click();
     await picker.getByRole('button', { name: 'Confirm', exact: true }).click();
-    await expect(page.locator('.mr-sheet')).toContainText('Pavise in, Luna to the bench.');
+    await expect(page.locator('.mr-sheet')).toContainText('Shieldwall in, Umbra to the bench.');
     const unit = await page.evaluate(() => ({
       skills: window.__oathUnit.skills,
       bench: window.__oathUnit.benchedSkills,
@@ -558,7 +560,7 @@ test.describe('player choices (phone 390×844)', () => {
       .locator('.mr-bench-callout')
       .getByRole('button', { name: 'Go to Skills', exact: true })
       .click();
-    await expect(page.locator('.mr-bench-new', { hasText: 'Pavise' })).toBeVisible();
+    await expect(page.locator('.mr-bench-new', { hasText: 'Shieldwall' })).toBeVisible();
     await page
       .locator('.mr-sheet header')
       .getByRole('button', { name: 'Close', exact: true })
@@ -593,7 +595,7 @@ test.describe('player choices (phone 390×844)', () => {
     await page.screenshot({ path: info.outputPath('compendium-deeds-list-phone.png') });
     await dialog.getByRole('button', { name: /^Held the Line/ }).click();
     await expect(dialog.getByText('Title: Who Held the Line · ★★★★')).toBeVisible();
-    await expect(dialog.getByText(/^Oath: Pavise/)).toBeVisible();
+    await expect(dialog.getByText(/^Oath: Shieldwall/)).toBeVisible();
     await page.screenshot({ path: info.outputPath('compendium-deeds-phone.png') });
     expect(errors).toEqual([]);
   });

@@ -917,7 +917,7 @@ export function applyRecruitWeaponForge(unit, forgeCount = 0, rng = Math.random)
 
 /**
  * Basic stat accessories a recruit can join with (Outfitted Recruits meta upgrade).
- * Pure stat accessories only — combat-effect accessories and chase items (Boots)
+ * Pure stat accessories only — combat-effect accessories and chase items (Courier's Boots)
  * are excluded.
  */
 export const RECRUIT_STARTING_ACCESSORY_POOL = [
@@ -927,8 +927,8 @@ export const RECRUIT_STARTING_ACCESSORY_POOL = [
   'Shield Ring',
   'Barrier Ring',
   'Skill Ring',
-  'Goddess Icon',
-  'Seraph Robe',
+  'Fatethread Pendant',
+  "Sisters' Mantle",
 ];
 
 /**
@@ -1311,7 +1311,7 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
   const learnedSkills = [];
   const droppedSkills = [];
   const innateSkills = getClassInnateSkills(promotedClassData.name, skillsData);
-  // The new class's curriculum from its first level (the Sniper's Death Blow) is
+  // The new class's curriculum from its first level (the Sniper's Onslaught) is
   // learned with the promotion, as checkLevelUpSkills would at the next level-up.
   // Class curricula are player progression: enemies never learn them (as there).
   const firstLevelSkills =

@@ -609,7 +609,7 @@ export class RunManager {
     this.rngSeed = this.runSeed >>> 0;
     this.visionChargesRemaining = this.getBaseVisionCharges();
     this.visionCount = 0;
-    this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
+    this.randomLegendary = generateRandomLegendary(this.gameData.weapons, this.gameData.skills);
     this.nodeMap = this._withNodeMapSeed(() =>
       generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
         fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
@@ -1537,7 +1537,7 @@ export class RunManager {
 
     if (effect.type === 'extra_consumable' || effect.type === 'extra_vulnerary') {
       const itemName =
-        typeof effect.params.itemName === 'string' ? effect.params.itemName : 'Vulnerary';
+        typeof effect.params.itemName === 'string' ? effect.params.itemName : 'Poultice';
       const configuredCount = effect.params.count ?? effect.params.value ?? value;
       const count = Math.max(0, Math.trunc(Number(configuredCount || 0)));
       if (count <= 0) {
@@ -2694,7 +2694,7 @@ export class RunManager {
 
   /**
    * Build one starting lord. The commander slot carries the extra Steel-tier
-   * weapon, Deadly Arsenal loadout, Battle Trinket, and extra Vulnerary;
+   * weapon, Deadly Arsenal loadout, Battle Trinket, and extra Poultice;
    * Sera's healer kit (Staff proficiency + staff) travels with Sera herself,
    * whichever slot she occupies.
    */
@@ -2736,7 +2736,7 @@ export class RunManager {
     }
 
     addToConsumables(unit, {
-      name: 'Vulnerary',
+      name: 'Poultice',
       type: 'Consumable',
       effect: 'heal',
       value: 10,
@@ -2745,7 +2745,7 @@ export class RunManager {
     });
     if (isCommander && me?.extraVulnerary) {
       addToConsumables(unit, {
-        name: 'Vulnerary',
+        name: 'Poultice',
         type: 'Consumable',
         effect: 'heal',
         value: 10,
@@ -2868,7 +2868,7 @@ export class RunManager {
       );
     }
     if (this.metaEffects?.recruitStartingVulnerary) {
-      const vulnerary = this.gameData?.consumables?.find((c) => c.name === 'Vulnerary');
+      const vulnerary = this.gameData?.consumables?.find((c) => c.name === 'Poultice');
       if (vulnerary) addToConsumables(unit, vulnerary);
     }
     if (unit.weapon && !canEquip(unit, unit.weapon)) {

@@ -99,7 +99,7 @@ describe('deed rite', () => {
     expect(rite.querySelector('.gr-deed-seal-mark').textContent).toBe('H');
     expect(rite.querySelector('.gr-deed-count').textContent).toBe('1 / 3');
     // A higher deed swears by default; this one is an Oath the player may pick instead.
-    expect(rite.querySelector('.gr-deed-oath').textContent).toBe('Oath option · Pavise');
+    expect(rite.querySelector('.gr-deed-oath').textContent).toBe('Oath option · Shieldwall');
     expect(rite.querySelector('.gr-deed-skip')).not.toBeNull();
     expect(hasOpenOverlay(scene)).toBe(true);
     const button = () => rite.querySelector('.gr-deed-next');
@@ -113,7 +113,7 @@ describe('deed rite', () => {
     expect(rite.querySelector('.gr-deed-epithet-text').textContent).toBe(
       'Bane of the Knight Commander',
     );
-    expect(rite.querySelector('.gr-deed-oath').textContent).toBe('Oath at promotion · Fiendish Blow'); // prettier-ignore
+    expect(rite.querySelector('.gr-deed-oath').textContent).toBe('Oath at promotion · Hellfire Charge'); // prettier-ignore
     await vi.advanceTimersByTimeAsync(4000); // reveals by itself
     expect(button().getAttribute('aria-label')).toBe('Next deed');
     pointer(rite);
@@ -207,9 +207,9 @@ describe('roster Deeds section', () => {
     expect(text).toContain('Oath at promotion');
     const oaths = root.querySelectorAll('.mr-oath-option');
     expect(oaths.map((p) => p.textContent)).toEqual([
-      'Oath of the Bane · Fiendish Blow',
-      'Oath of the Bridge · Pavise',
-      'Oath of the Edge · Critical +15',
+      'Oath of the Bane · Hellfire Charge',
+      'Oath of the Bridge · Shieldwall',
+      'Oath of the Edge · Keen Eye',
     ]);
     // Inspecting (no run): nothing to pick, so no choice buttons.
     expect(text).not.toContain('Use as title');

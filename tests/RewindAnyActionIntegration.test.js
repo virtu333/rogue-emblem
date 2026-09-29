@@ -168,8 +168,8 @@ describe('rewind to before any action', () => {
     b.row += 1;
     b.hasMoved = true;
     b._movementCommitted = true;
-    b.consumables = [...(b.consumables || []), { name: 'Vulnerary', uses: 3 }];
-    observeHistoryAction(scene, 'traded with', b, c, 'Vulnerary');
+    b.consumables = [...(b.consumables || []), { name: 'Poultice', uses: 3 }];
+    observeHistoryAction(scene, 'traded with', b, c, 'Poultice');
     scene._historyActor = b.battleEntityId;
     scene.battleState = 'TRADING';
     scene._captureSuspendCheckpoint();
@@ -319,13 +319,13 @@ describe('rewind to before any action', () => {
     const { scene, driver } = fixture();
     const [a, b, c] = scene.playerUnits;
     act(scene, a);
-    const vulnerary = driver.data.consumables.find((i) => i.name === 'Vulnerary');
+    const vulnerary = driver.data.consumables.find((i) => i.name === 'Poultice');
     b.consumables = [ensureItemUid(structuredClone(vulnerary))];
     scene._timelineBoundary = 'player_action';
     scene._captureSuspendCheckpoint();
     expect(scene._visionController.settleParkedActivation()).toBe(false);
     b.consumables = [ensureItemUid(structuredClone(vulnerary))];
-    expect(b.consumables[0].name).toBe('Vulnerary');
+    expect(b.consumables[0].name).toBe('Poultice');
     expect(scene._visionController.settleParkedActivation()).toBe(true);
     act(scene, c);
   });

@@ -160,7 +160,7 @@ describe('BattleScene boss recruit card details', () => {
             { type: 'Lance', rank: 'Prof' },
             { type: 'Axe', rank: 'Adept' },
           ],
-          skills: ['Adept'],
+          skills: ['Flurry'],
         },
       },
     ]);
@@ -174,7 +174,7 @@ describe('BattleScene boss recruit card details', () => {
     expect(labels.some((text) => text.includes('HP 32 STR 14 SPD 12'))).toBe(true);
     expect(labels.some((text) => text.includes('DEF 11 RES 6 MOV 8'))).toBe(true);
     expect(labels.some((text) => text.includes('Wpn: Lnc(P) Axe(A)'))).toBe(true);
-    expect(labels.some((text) => text.includes('Skill: Adept'))).toBe(true);
+    expect(labels.some((text) => text.includes('Skill: Flurry'))).toBe(true);
     expect(labels.some((text) => text.includes('flying juggernaut'))).toBe(false);
 
     const nameObj = scene._testTextObjects.find((obj) => obj.text === 'Rhea');

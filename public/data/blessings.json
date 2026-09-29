@@ -76,13 +76,13 @@
       "lore": "No one leaves the shrine without a salve. Yes, even you. Especially you.",
       "name": "Field Medic",
       "tier": 1,
-      "description": "All units, including later recruits, receive a Vulnerary.",
+      "description": "All units, including later recruits, receive a Poultice.",
       "weight": 1,
       "boons": [
         {
           "type": "starting_consumable_all",
           "params": {
-            "name": "Vulnerary"
+            "name": "Poultice"
           }
         }
       ],

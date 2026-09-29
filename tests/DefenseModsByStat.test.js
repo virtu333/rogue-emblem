@@ -89,7 +89,7 @@ describe('a +DEF mod guards against DEF strikes only; a +RES mod against RES str
     expect(attackerHit(MAGIC_SWORD, mods({ resBonus: 3 }))).toEqual({ forecast: 9, resolved: 9 });
   });
 
-  it('an art that targets RES (Hexblade) meets RES bonuses, not DEF ones', () => {
+  it('an art that targets RES (Witchcut) meets RES bonuses, not DEF ones', () => {
     // Sword on RES: 10 + 5 − 3 = 12.
     const hexblade = mods({ targetsRES: true });
     expect(attackerHit(SWORD, mods({ defBonus: 3 }), { atkMods: hexblade })).toEqual({

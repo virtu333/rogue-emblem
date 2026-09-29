@@ -205,7 +205,7 @@ for (const viewport of [SE, IPHONE_13]) {
         ['Steel Sword', 1000],
         ['Rapier', 1800],
         ['Keen Sword', 2300],
-        ['Vulnerary', 300],
+        ['Poultice', 300],
       ]);
       await expectShopLayout(page, shop, insets);
       await page.screenshot({ path: info.outputPath(`shop-buy-${size}.png`) });
@@ -329,7 +329,7 @@ for (const viewport of [SE, IPHONE_13]) {
 
     test('caravan: the Merchant Caravan fits, and a purchase is saved', async ({ page }, info) => {
       await bootRoute(page);
-      const shop = await openShop(page, [['Vulnerary', 300]], { caravan: true });
+      const shop = await openShop(page, [['Poultice', 300]], { caravan: true });
       await expect(shop.getByRole('heading', { name: 'Merchant Caravan' })).toBeVisible();
       await expect(shop.getByRole('button', { name: /^Restock/ })).toHaveCount(0);
       await expectShopLayout(page, shop, insets);
@@ -342,13 +342,13 @@ for (const viewport of [SE, IPHONE_13]) {
       expect(band.box - band.rows, 'empty space under the stock').toBeLessThanOrEqual(24);
       await page.screenshot({ path: info.outputPath(`caravan-${size}.png`) });
       await shop.getByRole('button', { name: 'Buy · 300 G', exact: true }).tap();
-      const give = page.getByRole('dialog', { name: 'Give Vulnerary to', exact: true });
+      const give = page.getByRole('dialog', { name: 'Give Poultice to', exact: true });
       await give.getByRole('button', { name: /^Edric/ }).tap();
       await give.getByRole('button', { name: 'Confirm', exact: true }).tap();
       await expect(give).toHaveCount(0);
       await expectSaved(page, (run) => {
         expect(run.gold).toBe(9700);
-        expect(run.edric.consumables).toContain('Vulnerary');
+        expect(run.edric.consumables).toContain('Poultice');
       });
     });
 
@@ -646,11 +646,11 @@ for (const viewport of [SE, IPHONE_13]) {
       expect(inset).toBeGreaterThanOrEqual(8);
       await page.screenshot({ path: info.outputPath(`ruins-market-${size}.png`) });
       const gold = (await saved(page)).live.gold;
-      await market.locator('.shop-row').filter({ hasText: 'Vulnerary' }).first().tap();
+      await market.locator('.shop-row').filter({ hasText: 'Poultice' }).first().tap();
       const buy = market.getByRole('button', { name: /^Buy · \d+ G$/ });
       const price = Number((await buy.textContent()).match(/(\d+) G/)[1]);
       await buy.tap();
-      const give = page.getByRole('dialog', { name: 'Give Vulnerary to', exact: true });
+      const give = page.getByRole('dialog', { name: 'Give Poultice to', exact: true });
       await give.locator('.re-btn--primary').tap();
       await expect(give).toHaveCount(0);
       await expectSaved(page, (run) => expect(run.gold).toBe(gold - price));
@@ -786,7 +786,7 @@ for (const viewport of [SE, IPHONE_13]) {
         unit.weapon = unit.inventory[0];
         unit.inventory[0].weaponArtIds = arts.slice(0, 3).map((a) => a.id);
         unit.inventory[0].weaponArtSources = ['innate', 'scroll', 'meta_innate'];
-        s.runManager.scrolls = [{ name: "Hunter's Volley Scroll", teachesWeaponArtId: arts[3].id }];
+        s.runManager.scrolls = [{ name: "Hawk's Talons Scroll", teachesWeaponArtId: arts[3].id }];
         return { old: arts[0].name, next: arts[3].id };
       });
       await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
@@ -794,7 +794,7 @@ for (const viewport of [SE, IPHONE_13]) {
       await sheet.getByRole('button', { name: 'Skills', exact: true }).tap();
       await sheet.getByRole('button', { name: 'Bind to weapon…' }).tap();
       const weapons = page.getByRole('dialog', {
-        name: "Choose weapon for Hunter's Volley Scroll",
+        name: "Choose weapon for Hawk's Talons Scroll",
       });
       await expect(weapons).toBeVisible();
       // The weapon list gets the room it needs before the preview: whole, or at least
@@ -888,7 +888,7 @@ for (const viewport of [
       await expectPortraitUi(page, false);
       const shop = await openShop(page, [
         ['Steel Sword', 1000],
-        ['Vulnerary', 300],
+        ['Poultice', 300],
       ]);
       await page.screenshot({ path: test.info().outputPath(`shop-landscape-${size}.png`) });
       await expectClassInert(page, 'shop');

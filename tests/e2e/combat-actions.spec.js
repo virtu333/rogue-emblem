@@ -110,8 +110,8 @@ test('Weapon art forecast cancel has no cost; confirmed combat charges once', as
   await select(page, 'Edric');
   const before = await unit(page, 'Edric');
   await hud.getByRole('button', { name: /^Weapon Art/ }).tap();
-  await expect(hud.getByRole('button', { name: /Wrath Strike/ }).locator('small')).toBeVisible();
-  await hud.getByRole('button', { name: /Wrath Strike/ }).tap();
+  await expect(hud.getByRole('button', { name: /Grim Stroke/ }).locator('small')).toBeVisible();
+  await hud.getByRole('button', { name: /Grim Stroke/ }).tap();
   await tapTile(page, 4, 3);
   await expect(page.getByRole('button', { name: 'Confirm attack', exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/combat-art-forecast.png' });
@@ -148,7 +148,7 @@ test('Heal restores HP and re-equips combat weapon', async ({ page }) => {
   expect((await unit(page, 'Patient')).hp).toBeGreaterThan(10);
   expect(errors).toEqual([]);
 });
-for (const staff of ['Warp Staff', 'Rescue Staff']) {
+for (const staff of ['Fold Staff', 'Deliverance Staff']) {
   test(`${staff}: cancel destination costs nothing; valid destination spends one use`, async ({
     page,
   }) => {
@@ -156,9 +156,9 @@ for (const staff of ['Warp Staff', 'Rescue Staff']) {
     await select(page, 'Sera');
     await hud.getByRole('button', { name: /^Heal \(/ }).tap();
     await hud.getByRole('button', { name: new RegExp(staff) }).tap();
-    const target = staff === 'Warp Staff' ? [2, 4] : [4, 4];
-    const kind = staff === 'Warp Staff' ? 'Warp' : 'Rescue';
-    const moved = staff === 'Warp Staff' ? 'Patient' : 'Utility';
+    const target = staff === 'Fold Staff' ? [2, 4] : [4, 4];
+    const kind = staff === 'Fold Staff' ? 'Warp' : 'Rescue';
+    const moved = staff === 'Fold Staff' ? 'Patient' : 'Utility';
     // Step 1 says what to tap; step 2 names the chosen ally, outlines it in gold
     // and shows its landing squares (playtest 2026-09-28).
     await expect(hud.getByText(new RegExp(`^${kind}: tap a green ally`))).toBeVisible();
@@ -201,7 +201,7 @@ for (const staff of ['Warp Staff', 'Rescue Staff']) {
     );
     await tapTile(page, dest.col, dest.row);
     await expect.poll(async () => (await unit(page, 'Sera')).acted).toBe(true);
-    expect(await unit(page, staff === 'Warp Staff' ? 'Patient' : 'Utility')).toMatchObject({
+    expect(await unit(page, staff === 'Fold Staff' ? 'Patient' : 'Utility')).toMatchObject({
       col: dest.col,
       row: dest.row,
     });
@@ -219,7 +219,7 @@ for (const staff of ['Warp Staff', 'Rescue Staff']) {
     expect(errors).toEqual([]);
   });
 }
-test('Dance refreshes a spent ally, Restore cures a condition', async ({ page }) => {
+test('Dance refreshes a spent ally, Cleanse cures a condition', async ({ page }) => {
   const { hud, errors } = await boot(page);
   await select(page, 'Patient');
   await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
@@ -238,7 +238,7 @@ test('Dance refreshes a spent ally, Restore cures a condition', async ({ page })
   });
   await select(page, 'Sera');
   await hud.getByRole('button', { name: /^Heal \(/ }).tap();
-  await hud.getByRole('button', { name: /Restore/ }).tap();
+  await hud.getByRole('button', { name: /Cleanse/ }).tap();
   await tapTile(page, 2, 4);
   await expect.poll(async () => (await unit(page, 'Sera')).acted).toBe(true);
   expect(
@@ -251,7 +251,7 @@ test('Dance refreshes a spent ally, Restore cures a condition', async ({ page })
   ).toEqual([]);
   expect(errors).toEqual([]);
 });
-for (const staff of ['Heal', 'Warp Staff', 'Rescue Staff']) {
+for (const staff of ['Heal', 'Fold Staff', 'Deliverance Staff']) {
   test(`Backing out of ${staff} targeting restores the combat weapon before Wait`, async ({
     page,
   }) => {
@@ -281,7 +281,7 @@ test('Low HP and spent abilities show disabled reasons without consuming an acti
   await select(page, 'Edric');
   await hud.getByRole('button', { name: /^Weapon Art/ }).tap();
   await expect(hud.getByRole('button', { name: /Dueling Blade.*Not enough HP/ })).toBeDisabled();
-  await expect(hud.getByRole('button', { name: /Wrath Strike/ })).toBeEnabled();
+  await expect(hud.getByRole('button', { name: /Grim Stroke/ })).toBeEnabled();
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   // Cancel can return to the selected movement state; deselect before changing units.

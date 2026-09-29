@@ -181,11 +181,11 @@ describe('levelUpContent', () => {
   const unit = { name: 'Edric', className: 'Lord', stats: { HP: 20, STR: 6, MAG: 2, SKL: 7, SPD: 9, DEF: 5, RES: 3, LCK: 6 } }; // prettier-ignore
 
   it('rows reconstruct before/after from the (already applied) stats', () => {
-    const c = levelUpContent(unit, { newLevel: 5, gains: { HP: 1, STR: 1 } }, ['Vantage']);
+    const c = levelUpContent(unit, { newLevel: 5, gains: { HP: 1, STR: 1 } }, ['Forestall']);
     expect(c.rows.find((r) => r.stat === 'HP')).toEqual({ stat: 'HP', gain: 1, before: 19, after: 20 }); // prettier-ignore
     expect(c.rows.find((r) => r.stat === 'MAG')).toEqual({ stat: 'MAG', gain: 0, before: 2, after: 2 }); // prettier-ignore
     expect(c).toMatchObject({ levelFrom: '4', levelTo: '5', total: 2, kind: 'normal', beat: null });
-    expect(c.skills).toEqual(['Vantage']);
+    expect(c.skills).toEqual(['Forestall']);
   });
 
   it('perfect and lean levels get their own beat; extended levels are never lean', () => {

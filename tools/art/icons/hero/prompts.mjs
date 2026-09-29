@@ -105,27 +105,31 @@ export const HERO_SUBJECTS = {
   endword: `${BOOK}: a legendary white-and-gold prayer book with a radiant gold star, gilded corners, bright light`,
   // Staves
   heal: `${STAFF}: a wooden healing staff topped with a bronze ring holding a green gem`,
-  mend: `${STAFF}: a dark wood healing staff with a steel ring holding a green gem`,
-  physic: `${STAFF}: a long healing staff with a silver ring holding a green gem`,
-  recover: `${STAFF}: a dark wood staff with a silver crook holding a large green gem`,
-  restore: `${STAFF}: a staff with a silver crescent head holding a pearl-white gem`,
-  fortify: `${STAFF}: a legendary gilded staff with a green gem ringed by a golden halo`,
-  'sleep-staff': `${STAFF}: a black staff with a crescent-moon head and a violet gem`,
-  'silence-staff': `${STAFF}: a plain black staff with a closed crescent head holding a dark violet gem, no rings`,
-  'rescue-staff': `${STAFF}: a dark wood staff with small silver wings around a sky-blue gem`,
-  'warp-staff': `${STAFF}: a legendary gilded staff with golden wings around a sky-blue gem`,
+  solace: `${STAFF}: a dark wood healing staff with a steel ring holding a green gem`,
+  farcall: `${STAFF}: a long healing staff with a silver ring holding a green gem`,
+  remembrance: `${STAFF}: a dark wood staff with a silver crook holding a large green gem`,
+  cleanse: `${STAFF}: a staff with a silver crescent head holding a pearl-white gem`,
+  canticle: `${STAFF}: a legendary gilded staff with a green gem ringed by a golden halo`,
+  'lullaby-staff': `${STAFF}: a black staff with a crescent-moon head and a violet gem`,
+  'hush-staff': `${STAFF}: a plain black staff with a closed crescent head holding a dark violet gem, no rings`,
+  'deliverance-staff': `${STAFF}: a dark wood staff with small silver wings around a sky-blue gem`,
+  'fold-staff': `${STAFF}: a legendary gilded staff with golden wings around a sky-blue gem`,
   // Consumables
-  vulnerary: 'a small glass vial of green healing salve with a cork stopper',
+  poultice:
+    'a field poultice: a folded pad of pale linen bandage soaked green with crushed healing herbs, a few fresh green leaves tucked in its folds, tied with a short length of brown twine',
   elixir: 'a round glass flask of glowing golden elixir with a gold cap',
-  'master-seal': 'a crimson wax seal medallion stamped with a gold star, with grey ribbons',
-  'energy-drop': 'a crimson teardrop-shaped gem glowing faintly from inside',
-  'spirit-dust': 'a small violet cloth pouch spilling sparkling lilac dust',
-  'secret-book': 'a small pale leather book with a gold clasp',
-  speedwing: 'a single pale sky-blue feather',
-  dracoshield: 'a small steel-blue dragon-scale shield with a diamond emblem',
-  talisman: 'a silver leaf-shaped pendant with a lilac gem on a fine chain',
-  'angelic-robe':
-    'a neatly folded white-and-gold vestment of luminous cloth, a pair of small white feathered wings stitched at its shoulders, gold feather embroidery and rows of tiny gold stitching along the hem, crisp dark outline, no glow or halo around it',
+  'sovereign-seal':
+    'a royal wax seal: a thick round medallion of deep crimson wax stamped with a gold crown, a thin gilded rim, two long regal ribbons of purple and gold trailing from it',
+  mightroot:
+    'a single gnarled knobbly root, thick as a thumb, dark earthy brown bark split to show pale ember-orange flesh inside, a few fine rootlets at its tip, a faint warm ember glow from the split',
+  'spellstone-dust': 'a small violet cloth pouch spilling sparkling lilac dust',
+  'drill-primer': 'a small pale leather book with a gold clasp',
+  'fleet-plume': 'a single pale sky-blue feather',
+  wyrmscale:
+    'one single large dragon scale, shaped like a broad rounded shield, glossy steel-blue with an iridescent green sheen, a raised central ridge and fine growth lines, its rough base edge still ragged where it was torn free',
+  'warding-cord':
+    'a short protective cord of braided red and white thread, tied in three tight decorative knots along its length, a small lilac glass bead threaded on the middle knot, loose frayed tassels at both ends',
+  'blessed-vestment': 'a neatly folded green robe with gold trim',
   swiftsoles: 'a pair of light leather boots with small green wings at the ankles',
   'infantry-seal': 'a steel-blue wax seal stamped with a silver boot emblem, with ribbons',
   'mounted-seal': 'an earth-brown wax seal stamped with a silver horseshoe, with ribbons',
@@ -139,11 +143,11 @@ export const HERO_SUBJECTS = {
   'shield-ring': 'a plain polished gold ring set with a round steel-blue gem, a smooth plain band',
   'barrier-ring': 'a plain polished gold ring set with a round lilac gem, a smooth plain band',
   'skill-ring': 'a plain polished gold ring set with a round pearl-white gem, a smooth plain band',
-  'goddess-icon': 'a small gold winged pendant with a rose-red gem',
-  'seraph-robe':
-    'a flowing white hooded mantle laid open, embroidered with three pairs of pale gold feathered wings rising up its back, a pale gold clasp, radiant soft light spilling from its folds',
-  boots: 'a pair of sturdy brown leather boots with green trim',
-  'delphi-shield': 'a lilac round shield with a gilded rim and a pearl diamond emblem',
+  'fatethread-pendant':
+    'a small worn gold sun-disc pendant with a hollow centre, its face rubbed smooth and blank by thumbs, hung on a fine crimson thread tied in a loop',
+  'sisters-mantle': 'a folded white robe with green trim',
+  'couriers-boots': 'a pair of sturdy brown leather boots with green trim',
+  'picket-buckler': 'a lilac round shield with a gilded rim and a pearl diamond emblem',
   'veterans-crest': 'a bronze shield-shaped medal with a gold star, hanging from a blue ribbon',
   'wrath-band': 'a blackened metal bracer band with a crimson inlay',
   'counter-seal':

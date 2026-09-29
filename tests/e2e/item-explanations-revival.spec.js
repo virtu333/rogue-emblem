@@ -125,7 +125,7 @@ test('Seraphim reward explains the scroll before claiming', async ({ page }, inf
   expect(errors).toEqual([]);
 });
 
-test('roster Spirit Dust previews, cancels, applies once and saves immediately', async ({
+test('roster Spellstone Dust previews, cancels, applies once and saves immediately', async ({
   page,
 }, info) => {
   const errors = collectErrors(page);
@@ -145,7 +145,7 @@ test('roster Spirit Dust previews, cancels, applies once and saves immediately',
     s.registry.set('activeSlot', 1);
     const unit = s.runManager.roster[0];
     unit.consumables = [
-      structuredClone(s.gameData.consumables.find((i) => i.name === 'Spirit Dust')),
+      structuredClone(s.gameData.consumables.find((i) => i.name === 'Spellstone Dust')),
     ];
     return unit.stats.MAG;
   });
@@ -154,9 +154,9 @@ test('roster Spirit Dust previews, cancels, applies once and saves immediately',
   await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
   const card = roster
     .locator('.mr-card')
-    .filter({ has: page.getByRole('heading', { name: 'Spirit Dust', exact: true }) });
+    .filter({ has: page.getByRole('heading', { name: 'Spellstone Dust', exact: true }) });
   await card.getByRole('button', { name: 'Use', exact: true }).tap();
-  const confirm = page.getByRole('dialog', { name: 'Use Spirit Dust?', exact: true });
+  const confirm = page.getByRole('dialog', { name: 'Use Spellstone Dust?', exact: true });
   await expect(confirm).toContainText(`MAG ${before} → ${before + 2}`);
   await expect(confirm).toContainText('Permanently increases MAG by 2');
   await page.screenshot({ path: info.outputPath('spirit-dust-confirm.png') });
@@ -169,7 +169,7 @@ test('roster Spirit Dust previews, cancels, applies once and saves immediately',
   await card.getByRole('button', { name: 'Use', exact: true }).tap();
   await confirm.getByRole('button', { name: 'Confirm', exact: true }).tap();
   await expect(confirm).not.toBeVisible();
-  await expect(roster).toContainText('+2 MAG from Spirit Dust');
+  await expect(roster).toContainText('+2 MAG from Spellstone Dust');
   expect(
     await page.evaluate(async () => {
       const s = window.__emblemRogueGame.scene.getScene('NodeMap');

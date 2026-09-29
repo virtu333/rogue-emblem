@@ -121,14 +121,14 @@ function pair() {
   const iron = weapon('Iron Sword');
   const rapier = weapon('Rapier');
   const lance = weapon('Iron Lance');
-  const edric = unit('Edric', { inventory: [iron, rapier], consumables: [supply('Vulnerary')] });
+  const edric = unit('Edric', { inventory: [iron, rapier], consumables: [supply('Poultice')] });
   const sera = unit('Sera', { inventory: [lance], cannotEquip: ['Rapier'] });
   return { iron, rapier, lance, edric, sera };
 }
 
 describe('item lines', () => {
   it('a staff in the convoy (no wielder) shows its base range instead of breaking', () => {
-    const staff = { name: 'Silence Staff', type: 'Staff', range: '3-7', uses: 2 };
+    const staff = { name: 'Hush Staff', type: 'Staff', range: '3-7', uses: 2 };
     expect(tradeItemBrief(staff, null)).toBe('Staff · Rng 3-7');
     expect(tradeItemBrief(staff, undefined)).toBe('Staff · Rng 3-7');
   });
@@ -408,7 +408,7 @@ describe('keyboard and gamepad', () => {
     expect(row(root, 'left', 1).getAttribute('aria-pressed')).toBe('true');
     dom.key('e');
     expect(tabs(root).map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true']);
-    expect(labels(root, 'left')).toEqual(['Vulnerary', 'Empty slot 2', 'Empty slot 3']);
+    expect(labels(root, 'left')).toEqual(['Poultice', 'Empty slot 2', 'Empty slot 3']);
     expect(rowsOf(root).some((el) => el.getAttribute('aria-pressed') === 'true')).toBe(false);
     expect(focused()).toBe('left:1');
     dom.key('PageUp');

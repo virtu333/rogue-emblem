@@ -346,7 +346,7 @@ test.describe('battle notices on a small phone', () => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       s.time.timeScale = 0.01; // hold them while measured
       const c = s._getCeremonies();
-      c.showNotice({ message: 'Knight Commander used Sleep Staff! Edric fell asleep! (100%)' });
+      c.showNotice({ message: 'Knight Commander used Lullaby Staff! Edric fell asleep! (100%)' });
       c.showNotice({ message: "Village saved! +300g, Vampire's Bloodshard sent to convoy" });
       c.showNotice({ message: 'Edric couldn’t learn Commander’s Gambit (skill limit reached)' });
     });

@@ -973,7 +973,7 @@ describe('removeFromInventory', () => {
     const unit = createEnemyUnit(myrmidon, 1, data.weapons);
     const sword = unit.weapon; // Iron Sword
     const consumable = {
-      name: 'Vulnerary',
+      name: 'Poultice',
       type: 'Consumable',
       effect: 'heal',
       value: 10,
@@ -995,7 +995,7 @@ describe('removeFromInventory', () => {
     const unit = createEnemyUnit(myrmidon, 1, data.weapons);
     const sword = unit.weapon;
     const consumable = {
-      name: 'Vulnerary',
+      name: 'Poultice',
       type: 'Consumable',
       effect: 'heal',
       value: 10,

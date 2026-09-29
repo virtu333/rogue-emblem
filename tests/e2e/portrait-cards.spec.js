@@ -198,7 +198,7 @@ async function openRewards(page) {
     r.choices.splice(
       0,
       r.choices.length,
-      { type: 'skillScroll', item: find(s.gameData.weapons, "Hunter's Volley Scroll") },
+      { type: 'skillScroll', item: find(s.gameData.weapons, "Hawk's Talons Scroll") },
       { type: 'accessory', item: find(accessories, "Bounty Hunter's Mark") },
       { type: 'weapon', item: find(s.gameData.weapons, 'Gale Blade') },
       { type: 'healing', item: find(consumables, 'Infantry Seal'), quantity: 2 },
@@ -843,7 +843,7 @@ for (const viewport of PORTRAIT_PHONES)
       const name = (await first.locator('.ch-name').textContent()).trim();
       await first.tap();
       const contract = page.getByRole('dialog', { name: `Hire ${name}`, exact: true });
-      await expect(contract.locator('.ch-terms')).toContainText('Luna');
+      await expect(contract.locator('.ch-terms')).toContainText('Umbra');
       // The card and the terms each hold their whole text (the contract scrolls).
       for (const part of ['.ch-contract .ch-card', '.ch-terms'])
         expect(
@@ -878,7 +878,7 @@ for (const viewport of PORTRAIT_PHONES)
         r.reveal?.skip();
         const find = (list, name) => structuredClone(list.find((x) => x.name === name));
         const accessories = s.gameData.accessories?.accessories || s.gameData.accessories || [];
-        const scroll = find(s.gameData.weapons, 'Glowing Ember Scroll');
+        const scroll = find(s.gameData.weapons, 'Forgefire Thrust Scroll');
         r.choices.splice(
           0,
           r.choices.length,

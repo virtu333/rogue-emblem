@@ -249,7 +249,7 @@ describe('BattleScene: an enemy attacks an unarmed unit', () => {
 describe('saves and battle checkpoints keep an unarmed unit unarmed', () => {
   function roster() {
     const heal = structuredClone(gameData.weapons.find((w) => w.name === 'Heal'));
-    const vulnerary = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
+    const vulnerary = structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'));
     return {
       empty: bare({ name: 'Empty' }),
       supplies: bare({ name: 'Supplies', consumables: [vulnerary] }),
@@ -268,7 +268,7 @@ describe('saves and battle checkpoints keep an unarmed unit unarmed', () => {
     expect(byName('Empty').inventory).toEqual([]);
     expect(byName('Empty').weapon).toBeNull();
     expect(byName('Supplies').weapon).toBeNull();
-    expect(byName('Supplies').consumables.map((c) => c.name)).toEqual(['Vulnerary']);
+    expect(byName('Supplies').consumables.map((c) => c.name)).toEqual(['Poultice']);
     expect(byName('Staffed').inventory.map((w) => w.name)).toEqual(['Heal']);
     expect(byName('Staffed').weapon).toBeNull();
     // Armed lords are untouched by the round trip.

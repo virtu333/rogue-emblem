@@ -101,10 +101,23 @@ describe('tags', () => {
   it('plain weapons, staves, scrolls, supplies and accessories have no tags', () => {
     expect(itemKeywords(weapon('Iron Sword'))).toEqual([]);
     expect(itemKeywords(weapon('Heal'))).toEqual([]);
-    expect(itemKeywords(weapon('Sol Scroll'))).toEqual([]);
+    expect(itemKeywords(weapon('Reclaim Scroll'))).toEqual([]);
     expect(itemKeywords(consumables[0])).toEqual([]);
     expect(itemKeywords(accessories[0])).toEqual([]);
     expect(itemKeywords(null)).toEqual([]);
+  });
+
+  it('a stat booster says which stat it raises, and nothing else does', () => {
+    // The booster names are lore objects that only point at their stat.
+    const booster = (stat) => consumables.find((c) => c.effect === 'statBoost' && c.stat === stat);
+    expect(texts(booster('STR'))).toEqual(['+2 STR']);
+    expect(texts(booster('HP'))).toEqual(['+5 HP']);
+    expect(texts(booster('MOV'))).toEqual(['+1 MOV']);
+    const boosters = consumables.filter((c) => c.effect === 'statBoost');
+    expect(boosters.length).toBeGreaterThanOrEqual(8);
+    for (const c of boosters) expect(itemKeywords(c), c.name).toHaveLength(1);
+    const others = consumables.filter((c) => c.effect !== 'statBoost');
+    expect(others.filter((c) => itemKeywords(c).length).map((c) => c.name)).toEqual([]);
   });
 
   it('every tag carries its full rule for the tooltip', () => {
@@ -124,7 +137,7 @@ describe('base line', () => {
     expect(itemBaseLine(weapon('Sunder Bow'))).toBe('Rare Bow');
     expect(itemBaseLine(weapon('Conflagration'))).toBe('Tome');
     expect(itemBaseLine(weapon('Endword'))).toBe('Legend Light Tome');
-    expect(itemBaseLine(weapon('Mend'))).toBe('Staff');
+    expect(itemBaseLine(weapon('Solace'))).toBe('Staff');
   });
 
   it('is left out when the name already says it', () => {
@@ -137,6 +150,6 @@ describe('base line', () => {
   it('supplies, scrolls and accessories have none', () => {
     expect(itemBaseLine(consumables[0])).toBeNull();
     expect(itemBaseLine(accessories[0])).toBeNull();
-    expect(itemBaseLine(weapon('Sol Scroll'))).toBeNull();
+    expect(itemBaseLine(weapon('Reclaim Scroll'))).toBeNull();
   });
 });

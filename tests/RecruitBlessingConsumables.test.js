@@ -13,7 +13,7 @@ describe('Field Medic at recruitment', () => {
   it('grants exactly once, including after serialization and a save restore', () => {
     const { rm, data, unit } = fixture();
     rm.grantRecruitBlessingConsumables(unit);
-    expect(unit.consumables.map((item) => item.name)).toEqual(['Vulnerary']);
+    expect(unit.consumables.map((item) => item.name)).toEqual(['Poultice']);
     rm.roster.push(serializeUnit(unit));
     const restored = RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), data);
     const recruit = restored.roster.at(-1);
@@ -28,7 +28,7 @@ describe('Field Medic at recruitment', () => {
   });
   it('falls back to convoy without replacing a full bag, and respects a full convoy', () => {
     const { rm, unit, data } = fixture();
-    const item = data.consumables.find((item) => item.name === 'Vulnerary');
+    const item = data.consumables.find((item) => item.name === 'Poultice');
     unit.consumables = Array.from({ length: 3 }, () => structuredClone(item));
     rm.grantRecruitBlessingConsumables(unit);
     expect(unit.consumables).toHaveLength(3);

@@ -656,7 +656,7 @@ export class MobileBattleHUD {
       } else side.append(el('p', 'mb-detail', skill.name));
     }
     if (unit.skills?.some((skill) => (typeof skill === 'string' ? skill : skill?.id) === 'miracle'))
-      side.append(el('p', 'mb-detail', `Miracle: ${unit._miracleUsed ? 'used' : 'ready'}`));
+      side.append(el('p', 'mb-detail', `Reprieve: ${unit._miracleUsed ? 'used' : 'ready'}`));
     if (attacking && config.weaponArt) {
       const cost = this.scene._formatWeaponArtCostLabel(unit, config.weaponArt);
       const after = this.scene._getWeaponArtHpAfterCost(unit, config.weaponArt);

@@ -8,7 +8,7 @@ function fixture() {
   const sword = { name: 'Sword', type: 'Sword' };
   const a = { skills: [], inventory: [sword], consumables: [], weapon: sword, proficiencies: [] };
   const b = { skills: [], inventory: [], consumables: [], proficiencies: [] };
-  const scroll = { name: 'Wrath scroll', skillId: 'wrath' };
+  const scroll = { name: 'Seethe scroll', skillId: 'wrath' };
   return {
     a,
     b,

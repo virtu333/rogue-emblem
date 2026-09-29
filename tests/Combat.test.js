@@ -971,7 +971,7 @@ describe('Combat resolution', () => {
       ]);
       expect(result.events).toContainEqual({
         type: 'skill',
-        name: 'Desperation',
+        name: "Death's Door",
         unit: defender.name,
       });
     } finally {
@@ -1013,7 +1013,7 @@ describe('Combat resolution', () => {
         defender.name,
       ]);
       const desperationEvents = result.events.filter(
-        (e) => e.type === 'skill' && e.name === 'Desperation',
+        (e) => e.type === 'skill' && e.name === "Death's Door",
       );
       expect(desperationEvents.length).toBe(1);
       expect(desperationEvents[0].unit).toBe(attacker.name);
@@ -1049,7 +1049,7 @@ describe('Combat resolution', () => {
         { atkMods: {}, defMods: { quickRiposte: true, desperation: true } },
       );
       const defenderDesperationEvents = result.events.filter(
-        (e) => e.type === 'skill' && e.name === 'Desperation' && e.unit === defender.name,
+        (e) => e.type === 'skill' && e.name === "Death's Door" && e.unit === defender.name,
       );
       expect(defenderDesperationEvents.length).toBe(0);
     } finally {
@@ -1266,7 +1266,7 @@ describe('Staff healing (MAG-based)', () => {
   });
 
   it('calculateHealAmount caps at missing HP', () => {
-    const staff = data.weapons.find((w) => w.name === 'Mend');
+    const staff = data.weapons.find((w) => w.name === 'Solace');
     const healer = makeHealer(10); // MAG 10 + healBase 10 = 20
     const target = makeTarget(17); // only 3 missing HP
     expect(calculateHealAmount(staff, healer, target)).toBe(3);
@@ -1310,7 +1310,7 @@ describe('Staff healing (MAG-based)', () => {
   });
 
   it('Recover heals MAG + 15', () => {
-    const staff = data.weapons.find((w) => w.name === 'Recover');
+    const staff = data.weapons.find((w) => w.name === 'Remembrance');
     const healer = makeHealer(8);
     const target = makeTarget(1); // 19 missing HP
     // MAG 8 + healBase 15 = 23, capped at 19
@@ -1373,34 +1373,34 @@ describe('Staff effective range', () => {
 
   // Staves reach from 1 to N (Fire Emblem): an adjacent ally is always in reach.
   it('Physic base range is 1-2', () => {
-    const physic = data.weapons.find((w) => w.name === 'Physic');
+    const physic = data.weapons.find((w) => w.name === 'Farcall');
     const range = getEffectiveStaffRange(physic, makeHealer(5));
     expect(range).toEqual({ min: 1, max: 2 });
   });
 
   it('Physic gains +1 range at MAG 10', () => {
-    const physic = data.weapons.find((w) => w.name === 'Physic');
+    const physic = data.weapons.find((w) => w.name === 'Farcall');
     expect(getEffectiveStaffRange(physic, makeHealer(9))).toEqual({ min: 1, max: 2 });
     const range = getEffectiveStaffRange(physic, makeHealer(10));
     expect(range).toEqual({ min: 1, max: 3 });
   });
 
   it('Physic gains +2 range at MAG 18', () => {
-    const physic = data.weapons.find((w) => w.name === 'Physic');
+    const physic = data.weapons.find((w) => w.name === 'Farcall');
     expect(getEffectiveStaffRange(physic, makeHealer(17))).toEqual({ min: 1, max: 3 });
     const range = getEffectiveStaffRange(physic, makeHealer(18));
     expect(range).toEqual({ min: 1, max: 4 });
   });
 
   it('Fortify has range 1-2 with healAll flag', () => {
-    const fortify = data.weapons.find((w) => w.name === 'Fortify');
+    const fortify = data.weapons.find((w) => w.name === 'Canticle');
     expect(fortify.healAll).toBe(true);
     const range = getEffectiveStaffRange(fortify, makeHealer(5));
     expect(range).toEqual({ min: 1, max: 2 });
   });
 
-  it('Rescue Staff targeting range scales at MAG 10 and 18 breakpoints', () => {
-    const rescue = data.weapons.find((w) => w.name === 'Rescue Staff');
+  it('Deliverance Staff targeting range scales at MAG 10 and 18 breakpoints', () => {
+    const rescue = data.weapons.find((w) => w.name === 'Deliverance Staff');
     expect(rescue.relocate).toBe('rescue');
     expect(getEffectiveStaffRange(rescue, makeHealer(9))).toEqual({ min: 2, max: 3 });
     expect(getEffectiveStaffRange(rescue, makeHealer(10))).toEqual({ min: 2, max: 4 });
@@ -1408,8 +1408,8 @@ describe('Staff effective range', () => {
     expect(getEffectiveStaffRange(rescue, makeHealer(18))).toEqual({ min: 2, max: 5 });
   });
 
-  it('Warp Staff destination radius scales at MAG 12 and 18 breakpoints', () => {
-    const warp = data.weapons.find((w) => w.name === 'Warp Staff');
+  it('Fold Staff destination radius scales at MAG 12 and 18 breakpoints', () => {
+    const warp = data.weapons.find((w) => w.name === 'Fold Staff');
     expect(warp.relocate).toBe('warp');
     expect(getEffectiveStaffRange(warp, makeHealer(11))).toEqual({ min: 1, max: 4 });
     expect(getEffectiveStaffRange(warp, makeHealer(12))).toEqual({ min: 1, max: 5 });
@@ -1447,7 +1447,7 @@ describe('Staff data integrity', () => {
       (w) => w.type === 'Staff' && !w.statusEffect && !w.relocate,
     );
     expect(menders.map((w) => w.name).sort()).toEqual(
-      ['Fortify', 'Heal', 'Mend', 'Physic', 'Recover', 'Restore'].sort(),
+      ['Canticle', 'Heal', 'Solace', 'Farcall', 'Remembrance', 'Cleanse'].sort(),
     );
     for (const staff of menders) expect(parseRange(staff.range).min, staff.name).toBe(1);
   });
@@ -1460,19 +1460,19 @@ describe('Staff data integrity', () => {
   });
 
   it('Physic is in act3 loot table', () => {
-    expect(data.lootTables.act3.weapons).toContain('Physic');
+    expect(data.lootTables.act3.weapons).toContain('Farcall');
   });
 
   it('Physic has rangeBonuses array', () => {
-    const physic = data.weapons.find((w) => w.name === 'Physic');
+    const physic = data.weapons.find((w) => w.name === 'Farcall');
     expect(physic.rangeBonuses).toBeDefined();
     expect(physic.rangeBonuses.length).toBe(2);
   });
 
   it('Mend/Physic/Recover have updated balance patch prices', () => {
-    const mend = data.weapons.find((w) => w.name === 'Mend');
-    const physic = data.weapons.find((w) => w.name === 'Physic');
-    const recover = data.weapons.find((w) => w.name === 'Recover');
+    const mend = data.weapons.find((w) => w.name === 'Solace');
+    const physic = data.weapons.find((w) => w.name === 'Farcall');
+    const recover = data.weapons.find((w) => w.name === 'Remembrance');
     expect(mend.price).toBe(1500);
     expect(physic.price).toBe(4000);
     expect(recover.price).toBe(4000);

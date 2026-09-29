@@ -287,12 +287,12 @@ describe('Roster trade (canvas) gives through ItemTrade', () => {
   it('gives a supply into a free slot, and a stale supply row moves nothing', () => {
     const { overlay, rm, scene } = makeOverlay();
     const { unitA, unitB } = pair(rm);
-    const vulnerary = { name: 'Vulnerary', type: 'Consumable', uses: 3, uid: 'uid-vul' };
+    const vulnerary = { name: 'Poultice', type: 'Consumable', uses: 3, uid: 'uid-vul' };
     const elixir = { name: 'Elixir', type: 'Consumable', uses: 1, uid: 'uid-elx' };
     unitA.consumables = [vulnerary, elixir];
     overlay._showTradeScreen(unitA, unitB);
     const elixirRow = supplyButton(scene, 'Elixir');
-    supplyButton(scene, 'Vulnerary').trigger('pointerdown');
+    supplyButton(scene, 'Poultice').trigger('pointerdown');
     expect(unitA.consumables).toEqual([elixir]);
     expect(unitB.consumables).toEqual([vulnerary]);
     // The Elixir row from the first draw is stale once the item is gone.
@@ -305,10 +305,10 @@ describe('Roster trade (canvas) gives through ItemTrade', () => {
     const { overlay, rm, scene } = makeOverlay();
     const { unitA, unitB } = pair(rm);
     rm.roster = [unitA];
-    unitA.consumables = [{ name: 'Vulnerary', type: 'Consumable', uses: 3 }];
+    unitA.consumables = [{ name: 'Poultice', type: 'Consumable', uses: 3 }];
     overlay._showTradeScreen(unitA, unitB);
     expect(leftHits(scene)).toEqual([]);
-    expect(supplyButton(scene, 'Vulnerary')).toBeUndefined();
+    expect(supplyButton(scene, 'Poultice')).toBeUndefined();
   });
 });
 
@@ -319,7 +319,7 @@ describe('Roster trade copy', () => {
     const axe = makeWeapon('Iron Axe', 'Axe');
     const unitA = makeUnit({ name: 'Edric', type: 'Sword', inventory: [sword], weapon: sword });
     const unitB = makeUnit({ name: 'Bran', type: 'Axe', inventory: [axe], weapon: axe });
-    unitA.consumables = [{ name: 'Vulnerary', type: 'Consumable', uses: 3 }];
+    unitA.consumables = [{ name: 'Poultice', type: 'Consumable', uses: 3 }];
     unitB.consumables = [{ name: 'Elixir', type: 'Consumable', uses: 1 }];
     rm.roster = [unitA, unitB];
     overlay.selection = { type: 'unit', index: 0 };
@@ -335,7 +335,7 @@ describe('Roster trade copy', () => {
     const sword = makeWeapon('Iron Sword', 'Sword');
     const unitA = makeUnit({ name: 'Edric', type: 'Sword', inventory: [sword], weapon: sword });
     const unitB = makeUnit({ name: 'Bran', type: 'Axe', inventory: [], weapon: null });
-    unitA.consumables = [{ name: 'Vulnerary', type: 'Consumable', uses: 3 }];
+    unitA.consumables = [{ name: 'Poultice', type: 'Consumable', uses: 3 }];
     unitB.inventory = undefined;
     unitB.consumables = undefined;
 

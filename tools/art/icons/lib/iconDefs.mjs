@@ -1199,6 +1199,17 @@ function glyphShape(kind, cx, cy, s = 1) {
       return arc(cx, cy - 0.5, 3.8, Math.PI * 0.75, Math.PI * 2.25, 2.2);
     case 'sun':
       return ring(cx, cy, 2.2, 4.4);
+    case 'crown':
+      // Three points over a band.
+      return poly([
+        [cx - 5, cy + 3.6],
+        [cx - 5, cy - 3.4],
+        [cx - 2.6, cy - 0.6],
+        [cx, cy - 4.6],
+        [cx + 2.6, cy - 0.6],
+        [cx + 5, cy - 3.4],
+        [cx + 5, cy + 3.6],
+      ]);
     case 'eye':
       return ell(cx, cy, 5, 2.6);
     case 'cross':
@@ -1388,6 +1399,161 @@ export function herb() {
   };
 }
 
+/** A gnarled root split to show its ember flesh (a STR booster). */
+export function root() {
+  const f = frame([6.5, 26.5], -50);
+  const body = [];
+  for (let i = 0; i <= 12; i++) {
+    const t = i / 12;
+    body.push([t * 22, -(4.6 * (1 - t * 0.6) + Math.sin(t * 9) * 0.6)]);
+  }
+  for (let i = 12; i >= 0; i--) {
+    const t = i / 12;
+    body.push([t * 22, 4.3 * (1 - t * 0.6) + Math.cos(t * 8) * 0.5]);
+  }
+  return {
+    parts: [
+      { shape: poly(f.pts(body)), mat: 'darkWood', shade: 'cyl', sep: true, spec: 1 },
+      { shape: cap(f.at(20, 0), f.at(26.5, -2.8), 0.6), mat: 'darkWood', shade: 'flat', level: 2 },
+      { shape: cap(f.at(18, 1), f.at(24, 4), 0.55), mat: 'darkWood', shade: 'flat', level: 2 },
+      // The split: ember flesh along the grain, glowing faintly.
+      {
+        shape: cap(f.at(3.5, -0.8), f.at(15, -0.3), 1.6),
+        mat: 'ember',
+        shade: 'flat',
+        level: 3,
+        emissive: true,
+        casts: false,
+      },
+      { shape: circ(...f.at(2.5, 2.6), 1.3), mat: 'earth', shade: 'sphere', sep: true },
+    ],
+    shadow: true,
+  };
+}
+
+/** One large dragon scale, torn free: a rounded shield of horn with a ridge (a DEF booster). */
+export function dragonScale({ mat = 'steel', sheen = 'verdigris' } = {}) {
+  const pts = [];
+  for (let i = 0; i <= 16; i++) {
+    const a = Math.PI * (1.05 + (i / 16) * 0.9);
+    pts.push([16 + Math.cos(a) * 11, 17 + Math.sin(a) * 11.5]);
+  }
+  pts.push([24, 20], [19.5, 26], [16, 29.5], [12.5, 26], [8, 20]);
+  return {
+    parts: [
+      { shape: poly(pts), mat, shade: 'dome', domeDepth: 3, spec: 1.5, sep: true },
+      {
+        shape: cap([16, 8.5], [16, 27], 0.9),
+        mat,
+        shade: 'bevel',
+        bevel: 0.8,
+        sep: true,
+        casts: false,
+      },
+      {
+        shape: arc(16, 19, 7.4, Math.PI * 1.1, Math.PI * 1.9, 0.7),
+        mat: sheen,
+        shade: 'flat',
+        level: 3,
+        casts: false,
+        minSize: 24,
+      },
+      {
+        shape: arc(16, 21, 4.4, Math.PI * 1.1, Math.PI * 1.9, 0.6),
+        mat: sheen,
+        shade: 'flat',
+        level: 2,
+        casts: false,
+        minSize: 32,
+      },
+    ],
+    shadow: true,
+  };
+}
+
+/** A braided cord of red and white thread, knotted three times, a bead on the middle knot (a RES booster). */
+export function knotCord({ a = 'blood', b = 'pearl', bead = 'lilac' } = {}) {
+  const path = [
+    [6, 25],
+    [10, 20],
+    [16, 17],
+    [22, 13],
+    [26, 7],
+  ];
+  const parts = [];
+  for (let i = 0; i < path.length - 1; i++)
+    parts.push({
+      shape: cap(path[i], path[i + 1], 1.5),
+      mat: i % 2 ? b : a,
+      shade: 'cyl',
+      stripes: { period: 1.8, axis: [1, 1] },
+      sep: true,
+    });
+  for (const [x, y] of [path[1], path[2], path[3]])
+    parts.push({ shape: circ(x, y, 2.6), mat: a, shade: 'sphere', sep: true, spec: 1 });
+  parts.push({
+    shape: circ(16, 17, 1.5),
+    mat: bead,
+    shade: 'sphere',
+    sep: true,
+    spec: 1,
+    emissive: true,
+  });
+  // Frayed tassels at both ends.
+  for (const [x, y, dx, dy] of [
+    [6, 25, -2.6, 3.4],
+    [6, 25, 0.4, 4.2],
+    [26, 7, 2.8, -3],
+    [26, 7, 3.8, -0.6],
+  ])
+    parts.push({
+      shape: cap([x, y], [x + dx, y + dy], 0.55),
+      mat: b,
+      shade: 'flat',
+      level: 3,
+      casts: false,
+    });
+  return { parts, shadow: true };
+}
+
+/** A field poultice: a folded linen pad stained green with herbs, tied with twine, a leaf tucked in. */
+export function poultice() {
+  return {
+    parts: [
+      {
+        shape: poly([
+          [5, 18],
+          [16, 11],
+          [27, 16],
+          [27, 21],
+          [16, 28],
+          [5, 23],
+        ]),
+        mat: 'parchment',
+        shade: 'bevel',
+        bevel: 1,
+        sep: true,
+      },
+      { shape: ell(16, 19.5, 7, 3.6, -8), mat: 'verdigris', shade: 'flat', level: 2, casts: false },
+      { shape: cap([12, 13], [20, 26], 0.8), mat: 'wood', shade: 'cyl', sep: true },
+      {
+        shape: poly([
+          [18, 14],
+          [22, 7],
+          [25, 6],
+          [24, 9.5],
+          [20, 15],
+        ]),
+        mat: 'leaf',
+        shade: 'dome',
+        spec: 1,
+        sep: true,
+      },
+    ],
+    shadow: true,
+  };
+}
+
 // ── Accessories ──────────────────────────────────────────────────────────
 
 export function ringItem({ band = 'gilt', gem = 'blood', cut = 'round', wide = false } = {}) {
@@ -1476,6 +1642,19 @@ export function pendant({ chain = 'gilt', body = 'gilt', gem = 'pearl', form = '
         spec: 1,
         sep: true,
       });
+  if (form === 'sun') {
+    // A hollow sun disc, thumbed smooth; the gem is left out.
+    parts.push({
+      shape: ring(16, 20, 3, 7.6),
+      mat: body,
+      shade: 'dome',
+      domeDepth: 2,
+      spec: 1.5,
+      sep: true,
+    });
+    parts.push({ shape: circ(16, 10.6, 1.7), mat: chain, shade: 'sphere', sep: true });
+    return { parts, shadow: true };
+  }
   const bodyShape =
     form === 'wing'
       ? ell(16, 18.5, 4.4, 6.2)

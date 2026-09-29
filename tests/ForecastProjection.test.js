@@ -113,7 +113,7 @@ describe('forecast HP projection keeps descriptive specials and static accessori
 
 describe('weapon-art projection eligibility', () => {
   it('includes Hunter’s Volley after the upfront cost, stopping at a kill', () => {
-    const art = data.weaponArts.arts.find((a) => a.name === "Hunter's Volley");
+    const art = data.weaponArts.arts.find((a) => a.name === "Hawk's Talons");
     expect(art).toBeTruthy();
     const attacker = unit('A', { ...sword, type: 'Bow', range: '2' });
     const defender = unit('D');

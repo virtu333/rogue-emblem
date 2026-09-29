@@ -288,7 +288,7 @@ function createRunPreset(gameData, meta, config) {
       { type: 'Light', rank: 'Prof' },
       { type: 'Staff', rank: 'Mast' },
     ];
-    sera.inventory = ['Glimmer', 'Heal', 'Restore', 'Rescue Staff', 'Warp Staff'].map(item);
+    sera.inventory = ['Glimmer', 'Heal', 'Cleanse', 'Deliverance Staff', 'Fold Staff'].map(item);
     sera.weapon = sera.inventory[0];
     for (const [name, className, skills] of [
       ['Utility', 'Mage', ['blink', 'rally_cry_skill', 'healing_circle', 'ensnare']],
@@ -317,8 +317,8 @@ function createRunPreset(gameData, meta, config) {
 
 /**
  * Roster review units: an Oath already sworn onto a full unit's bench (Bramwell), one
- * who will meet the cap when promoted with his Master Seal (Corwin), and Edric in a
- * Seraph Robe at 1 HP with an Elixir and a Vulnerary (the robe's HP debt).
+ * who will meet the cap when promoted with his Sovereign Seal (Corwin), and Edric in a
+ * Sisters' Mantle at 1 HP with an Elixir and a Poultice (the robe's HP debt).
  */
 function addRosterChecks(runManager, gameData) {
   const cls = (name) => gameData.classes.find((c) => c.name === name);
@@ -345,16 +345,18 @@ function addRosterChecks(runManager, gameData) {
   const corwin = heldTheBridge(
     createUnit(cls('Fighter'), 10, gameData.weapons, { name: 'Corwin' }),
   );
-  const seal = consumable('Master Seal');
+  const seal = consumable('Sovereign Seal');
   if (seal) corwin.consumables = [seal];
   runManager.roster.push(bramwell, corwin);
 
   const edric = runManager.roster.find((u) => u.name === 'Edric');
-  const robe = structuredClone(gameData.accessories.find((a) => a.name === 'Seraph Robe') || null);
+  const robe = structuredClone(
+    gameData.accessories.find((a) => a.name === "Sisters' Mantle") || null,
+  );
   if (edric && robe) {
     equipAccessory(edric, robe);
     edric.currentHP = 1;
-    edric.consumables = [consumable('Elixir'), consumable('Vulnerary')].filter(Boolean);
+    edric.consumables = [consumable('Elixir'), consumable('Poultice')].filter(Boolean);
   }
   runManager.ensureUnitUids();
   runManager.ensurePortraitVariants();

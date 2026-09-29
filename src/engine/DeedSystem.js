@@ -187,7 +187,7 @@ export function recordCombat(result, attacker, defender, ctx = {}) {
       miracle.add(target);
   }
   // Brink: a wounded unit that ends the exchange on its last hit point (or
-  // was held up by Miracle). Starting at 1 HP and not being hit does not count.
+  // was held up by Reprieve). Starting at 1 HP and not being hit does not count.
   for (const unit of [attacker, defender]) {
     if (!isDeedUnit(unit) || !(Number(unit.currentHP) > 0)) continue;
     if (miracle.has(unit) || (woundedNow.has(unit) && Number(unit.currentHP) === 1))

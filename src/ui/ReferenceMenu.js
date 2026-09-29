@@ -384,10 +384,11 @@ export function compendiumEntries(controller, tab, filter, tabKey = null) {
           );
       }
     }
-    // Weapons list as what they are and their rules ("Silver Sword · Crit 30").
+    // Weapons list as what they are and their rules ("Silver Sword · Crit 30");
+    // a stat booster lists the stat it raises ("Consumable · +2 STR").
     const summary = isCombatWeapon(item)
       ? [itemBaseLine(item), itemKeywordText(item)].filter(Boolean).join(' · ')
-      : [item.type, item.tier, item.className].filter(Boolean).join(' · ');
+      : [item.type, item.tier, item.className, itemKeywordText(item)].filter(Boolean).join(' · ');
     return {
       name: item.name || 'Unknown',
       item,

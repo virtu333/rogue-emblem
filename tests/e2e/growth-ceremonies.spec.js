@@ -1,5 +1,5 @@
 // Growth ceremonies through real flows (docs/art-direction/growth/): the
-// promotion rite via the battle Master Seal (two paths, chooser), via the
+// promotion rite via the battle Sovereign Seal (two paths, chooser), via the
 // roster seal and via the church; a refresh mid-rite in battle and at the
 // church; and the level-up card at each battle speed. Each check asserts the
 // gains are committed exactly once and the game stays playable.
@@ -103,7 +103,7 @@ async function dismissRite(page, rite) {
   await expect(page.getByRole('dialog', { name: 'Promotion', exact: true })).toHaveCount(0);
 }
 
-test('battle Master Seal: path chooser, then the rite over the map; gains once', async ({
+test('battle Sovereign Seal: path chooser, then the rite over the map; gains once', async ({
   page,
 }, info) => {
   const errors = collect(page);
@@ -111,7 +111,7 @@ test('battle Master Seal: path chooser, then the rite over the map; gains once',
   const name = await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const u = s.playerUnits.find((x) => x.name === 'Sera');
-    // A Myrmidon with two paths (Swordmaster, Duelist) and a Master Seal.
+    // A Myrmidon with two paths (Swordmaster, Duelist) and a Sovereign Seal.
     Object.assign(u, {
       name: 'Ilse',
       isLord: false,
@@ -132,7 +132,7 @@ test('battle Master Seal: path chooser, then the rite over the map; gains once',
   await tapUnit(page, name);
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
   await hud.getByRole('button', { name: 'Item', exact: true }).tap();
-  await hud.getByRole('button', { name: /^Master Seal/ }).tap();
+  await hud.getByRole('button', { name: /^Sovereign Seal/ }).tap();
   const chooser = page.getByRole('dialog', { name: 'Choose promotion', exact: true });
   await expect(chooser).toBeVisible();
   const paths = chooser.locator('.gr-path');
@@ -256,7 +256,7 @@ test('refresh mid-rite (battle seal): promotion and seal kept exactly once, rite
   await tapUnit(page, 'Edric');
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
   await hud.getByRole('button', { name: 'Item', exact: true }).tap();
-  await hud.getByRole('button', { name: /^Master Seal/ }).tap();
+  await hud.getByRole('button', { name: /^Sovereign Seal/ }).tap();
   const rite = page.getByRole('dialog', { name: 'Promotion', exact: true });
   await expect(rite).toBeVisible({ timeout: 20000 });
   const stored = await page.evaluate(() => {
@@ -351,7 +351,7 @@ test('church chooser for Sera: staves she already uses read as a rank, not a gai
   expect(errors).toEqual([]);
 });
 
-test('roster Master Seal between battles: chooser, save, rite over the roster', async ({
+test('roster Sovereign Seal between battles: chooser, save, rite over the roster', async ({
   page,
 }) => {
   const errors = collect(page);

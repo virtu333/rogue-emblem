@@ -644,11 +644,11 @@ describe('CompendiumOverlay', () => {
   });
 
   describe('search', () => {
-    it('querying "Pavise" finds results', () => {
+    it('querying "Shieldwall" finds results', () => {
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
       overlay.show();
       overlay.searchInputActive = true;
-      overlay._setSearchQuery('Pavise');
+      overlay._setSearchQuery('Shieldwall');
       expect(overlay.searchResults.length).toBeGreaterThan(0);
     });
 

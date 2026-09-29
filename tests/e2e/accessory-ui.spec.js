@@ -37,11 +37,11 @@ test.describe('Accessory UI smoke', () => {
       s.runManager.gold = 10000;
       s.onNodeClick(n);
       s.shopBuyItems = [
-        { type: 'scroll', price: 100, item: { name: 'Sol Scroll', type: 'Scroll' } },
+        { type: 'scroll', price: 100, item: { name: 'Reclaim Scroll', type: 'Scroll' } },
         {
           type: 'accessory',
           price: 100,
-          item: { name: 'Goddess Icon', type: 'Accessory', effects: { LCK: 5 } },
+          item: { name: 'Fatethread Pendant', type: 'Accessory', effects: { LCK: 5 } },
         },
       ];
       s._shopController.refreshShop();
@@ -53,18 +53,21 @@ test.describe('Accessory UI smoke', () => {
     await expect(shop).toBeVisible();
     const status = shop.getByRole('status');
 
-    await shop.locator('.shop-row', { hasText: 'Sol Scroll' }).click();
+    await shop.locator('.shop-row', { hasText: 'Reclaim Scroll' }).click();
     await shop.getByRole('button', { name: 'Buy · 100 G', exact: true }).click();
-    const confirm = page.getByRole('dialog', { name: 'Buy Sol Scroll?', exact: true });
+    const confirm = page.getByRole('dialog', { name: 'Buy Reclaim Scroll?', exact: true });
     await confirm.getByRole('button', { name: 'Confirm', exact: true }).click();
-    await expect(status).toContainText('Sol Scroll → Scroll pool.');
+    await expect(status).toContainText('Reclaim Scroll → Scroll pool.');
 
-    await shop.locator('.shop-row', { hasText: 'Goddess Icon' }).click();
+    await shop.locator('.shop-row', { hasText: 'Fatethread Pendant' }).click();
     await shop.getByRole('button', { name: 'Buy · 100 G', exact: true }).click();
-    const picker = page.getByRole('dialog', { name: 'Buy and equip Goddess Icon', exact: true });
+    const picker = page.getByRole('dialog', {
+      name: 'Buy and equip Fatethread Pendant',
+      exact: true,
+    });
     await picker.getByRole('button', { name: /Keep in shared pool/ }).click();
     await picker.getByRole('button', { name: 'Confirm', exact: true }).click();
-    await expect(status).toContainText('Goddess Icon → Accessory pool.');
+    await expect(status).toContainText('Fatethread Pendant → Accessory pool.');
 
     const after = await page.evaluate(() => {
       const rm = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
@@ -110,7 +113,7 @@ test.describe('Accessory UI smoke', () => {
       };
 
       nodeMap.runManager.accessories = [
-        { name: 'Goddess Icon', effects: { LCK: 5 } },
+        { name: 'Fatethread Pendant', effects: { LCK: 5 } },
         { name: 'Power Ring', effects: { STR: 2 } },
       ];
       overlay._showAccessoryPicker(unit);

@@ -198,7 +198,7 @@ describe('phone review routes (deploy previews)', () => {
     expect(r.data.battleParams).toMatchObject({ fogEnabled: true, devScenario: 'fog_ambush' });
     const sera = r.data.roster.find((u) => u.name === 'Sera');
     expect(sera.skills).toContain('canto');
-    expect(sera.inventory.map((w) => w.name)).toContain('Rescue Staff');
+    expect(sera.inventory.map((w) => w.name)).toContain('Deliverance Staff');
     expect(registry.get('activeSlot')).toBeNull();
   });
 
@@ -214,11 +214,11 @@ describe('phone review routes (deploy previews)', () => {
     expect(bramwell.benchedUnseen).toContain('pavise');
     const corwin = roster.find((u) => u.name === 'Corwin');
     expect(corwin.skills).toHaveLength(5);
-    expect(corwin.consumables.map((c) => c.name)).toEqual(['Master Seal']);
+    expect(corwin.consumables.map((c) => c.name)).toEqual(['Sovereign Seal']);
     const edric = roster.find((u) => u.name === 'Edric');
-    expect(edric.accessory?.name).toBe('Seraph Robe');
+    expect(edric.accessory?.name).toBe("Sisters' Mantle");
     expect(edric.currentHP).toBe(1);
-    expect(edric.consumables.map((c) => c.name)).toEqual(['Elixir', 'Vulnerary']);
+    expect(edric.consumables.map((c) => c.name)).toEqual(['Elixir', 'Poultice']);
     expect(registry.get('activeSlot')).toBeNull();
     // First-time lessons teach once, in memory (no slot): the skill bench's included.
     const hints = registry.get('hints');

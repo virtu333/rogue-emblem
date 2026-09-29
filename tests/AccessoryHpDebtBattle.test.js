@@ -9,7 +9,7 @@ import { equipAccessory, unequipAccessory } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
-const ROBE = () => structuredClone(gameData.accessories.find((a) => a.name === 'Seraph Robe'));
+const ROBE = () => structuredClone(gameData.accessories.find((a) => a.name === "Sisters' Mantle"));
 const bar = () => ({ setPosition: vi.fn(), setSize: vi.fn(), setFillStyle: vi.fn() });
 
 function battle() {
@@ -35,7 +35,7 @@ function battle() {
     hpBar: { bg: bar(), fill: bar() },
     ...extra,
   });
-  const staff = { ...gameData.weapons.find((w) => w.name === 'Mend'), _usesSpent: 0 };
+  const staff = { ...gameData.weapons.find((w) => w.name === 'Solace'), _usesSpent: 0 };
   const healer = unit('Sera', {
     weapon: staff,
     inventory: [staff],
@@ -112,9 +112,9 @@ describe('HP accessory debt and a full heal between battles', () => {
     expect([unit.currentHP, unit.stats.HP]).toEqual([max - 8, max]);
   });
 
-  it('a Vulnerary that stops short of full keeps the debt', async () => {
+  it('a Poultice that stops short of full keeps the debt', async () => {
     const { run, unit, robe, rosterAccessoryAction, rosterItemAction, item } = await setup();
-    expect(rosterItemAction(run, unit, item('Vulnerary'), 'use')).toBe('');
+    expect(rosterItemAction(run, unit, item('Poultice'), 'use')).toBe('');
     expect(unit.currentHP).toBe(11);
     expect(unit._accessoryHpOwed).toBe(5);
     expect(rosterAccessoryAction(run, unit, robe)).toBe('');

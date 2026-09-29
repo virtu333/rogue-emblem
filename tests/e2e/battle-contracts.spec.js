@@ -96,7 +96,7 @@ for (const mobile of [true, false]) {
       await page.evaluate(() => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
         s.playerUnits.find((u) => u.name === 'Edric').consumables = [
-          structuredClone(s.gameData.consumables.find((i) => i.name === 'Vulnerary')),
+          structuredClone(s.gameData.consumables.find((i) => i.name === 'Poultice')),
         ];
         s.playerUnits.find((u) => u.name === 'Sera').consumables = [];
       });
@@ -109,10 +109,10 @@ for (const mobile of [true, false]) {
       await tile(page, 2, 3, mobile);
       const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
       await trade.getByRole('tab', { name: /^Supplies/ }).click();
-      await trade.getByRole('button', { name: 'Vulnerary', exact: true }).click();
+      await trade.getByRole('button', { name: 'Poultice', exact: true }).click();
       // Sera carries no supplies: her free slots are numbered, and slot 1 takes it.
       await trade
-        .getByRole('button', { name: 'Give Vulnerary to Sera, slot 1', exact: true })
+        .getByRole('button', { name: 'Give Poultice to Sera, slot 1', exact: true })
         .click();
       await trade.getByRole('button', { name: 'Done', exact: true }).click();
       await action(page, 'Trade', mobile);
@@ -154,7 +154,7 @@ test.describe('desktop full–full trade', () => {
     test.slow(); // boot, a trade and a Wait
     const errors = await boot(page, false);
     // Edric: five weapons, the Iron Sword equipped. Sera (the preset): Glimmer
-    // equipped, then Heal, Restore, Rescue Staff and Warp Staff; Light and Staff only.
+    // equipped, then Heal, Cleanse, Deliverance Staff and Fold Staff; Light and Staff only.
     const before = await page.evaluate(async () => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const { ensureItemUid } = await import('/src/utils/itemUid.js');
@@ -176,7 +176,9 @@ test.describe('desktop full–full trade', () => {
         edric: ['Iron Sword', 'Steel Sword', 'Rapier', 'Iron Lance', 'Iron Axe'].map((n) =>
           uid(edric, n),
         ),
-        sera: ['Glimmer', 'Heal', 'Restore', 'Rescue Staff', 'Warp Staff'].map((n) => uid(sera, n)),
+        sera: ['Glimmer', 'Heal', 'Cleanse', 'Deliverance Staff', 'Fold Staff'].map((n) =>
+          uid(sera, n),
+        ),
         seraWeapon: sera.weapon.name,
         index: s.runManager.battleInProgress.checkpoint.checkpointIndex,
       };
@@ -421,7 +423,7 @@ for (const layout of TRADE_LAYOUTS) {
           weapon('Silver Sword'),
           weapon('Iron Lance'),
         );
-        edric.consumables = ['Vulnerary', 'Elixir', 'Master Seal'].map((n) =>
+        edric.consumables = ['Poultice', 'Elixir', 'Sovereign Seal'].map((n) =>
           structuredClone(s.gameData.consumables.find((c) => c.name === n)),
         );
         s.selectUnit(edric);
@@ -506,7 +508,7 @@ test.describe('phone Canto and rewind contracts', () => {
         u.skills.push('canto');
         u.currentHP -= 10;
         u.consumables = [
-          structuredClone(s.gameData.consumables.find((i) => i.name === 'Vulnerary')),
+          structuredClone(s.gameData.consumables.find((i) => i.name === 'Poultice')),
         ];
         s.updateHPBar(u);
         s.battleConfig.villageTile = pos;
@@ -517,7 +519,7 @@ test.describe('phone Canto and rewind contracts', () => {
           s.gameData.terrain.findIndex((t) => t.name === 'Village'),
         );
         s._villageController._renderMarker();
-        // The injected loadout (a fresh Vulnerary instance) is fixture state that belongs
+        // The injected loadout (a fresh Poultice instance) is fixture state that belongs
         // to the turn start, not a free bag change between activations: rewind
         // fingerprints items by identity, so record it as the turn-start point.
         s._timelineBoundary = 'turn_start';
@@ -529,7 +531,7 @@ test.describe('phone Canto and rewind contracts', () => {
       await action(page, 'Item', true);
       await page
         .getByRole('complementary', { name: 'Battle commands' })
-        .getByRole('button', { name: /^Vulnerary/ })
+        .getByRole('button', { name: /^Poultice/ })
         .tap();
       await page.waitForFunction(
         () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'CANTO_MOVING',
