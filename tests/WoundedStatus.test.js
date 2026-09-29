@@ -9,6 +9,7 @@ import {
 } from '../src/engine/StatusConditionSystem.js';
 import { applyGrievousStatus, getAttackAffixes } from '../src/engine/AffixSystem.js';
 import { statusDescriptions } from '../src/engine/BattleInformation.js';
+import { postCombatEffects, runPostCombatEffectsSync } from '../src/engine/PostCombatEffects.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
 
@@ -63,5 +64,39 @@ describe('Wounded', () => {
     for (const u of rm.roster) expect(isWounded(u)).toBe(false);
     rm.roster[0].currentHP = 1;
     expect(healUnitFully(rm.roster[0])).toBeGreaterThan(0);
+  });
+});
+
+describe('Grievous through the post-combat effects (scene and harness alike)', () => {
+  const strike = (attackerSide, miss = false) => ({ type: 'strike', attackerSide, miss });
+  const world = { affixes: data.affixes, alliesOf: () => [], hostilesOf: () => [] };
+  const fight = (events) => {
+    const foe = {
+      name: 'Brute',
+      faction: 'enemy',
+      affixes: ['grievous'],
+      currentHP: 20,
+      stats: { HP: 20 },
+    };
+    const hero = unit(10);
+    const beats = [
+      ...postCombatEffects({ attacker: foe, defender: hero, result: { events } }, world),
+    ];
+    return { hero, beats };
+  };
+
+  it('a landed hit leaves the defender Wounded and says so', () => {
+    const { hero, beats } = fight([strike('attacker')]);
+    expect(isWounded(hero)).toBe(true);
+    expect(beats).toContainEqual({ kind: 'status', unit: hero, status: 'wounded' });
+    expect(beats).toContainEqual({ kind: 'hint', unit: hero, text: 'Wounded', tone: 'bad' });
+  });
+
+  it('a miss, or only the defender landing, wounds no one', () => {
+    for (const events of [[strike('attacker', true)], [strike('defender')]]) {
+      const { hero, beats } = fight(events);
+      expect(isWounded(hero)).toBe(false);
+      expect(beats.some((b) => b.kind === 'status')).toBe(false);
+    }
   });
 });

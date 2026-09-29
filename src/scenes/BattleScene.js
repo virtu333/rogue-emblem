@@ -30,6 +30,16 @@ import {
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
 import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
+import { rowText } from '../ui/battleMenuModel.js';
+import { applyXpGain, combatXpAwards, scaledXp } from '../engine/BattleXp.js';
+import { postCombatEffects, allyBuff } from '../engine/PostCombatEffects.js';
+import {
+  applyTimedBuffEntry,
+  expireTimedBuffs,
+  resolveTimedBuffExpiry,
+  timedBuffCombatMods,
+} from '../engine/TimedWeaponArtBuffs.js';
+import { applyBattleDebuff, clearBattleScopedDeltas } from '../engine/BattleStatDeltas.js';
 import {
   applyCombatHP,
   damageUnit,
@@ -92,8 +102,6 @@ import {
   createLordUnit,
   createEnemyUnit as createEnemyUnitFromClass,
   createPromotedEnemyUnit,
-  calculateCombatXP,
-  gainExperience,
   addToInventory,
   addToConsumables,
   removeFromConsumables,
@@ -105,8 +113,6 @@ import {
   canPromote,
   resolvePromotionTargetClass,
   grantSecondaryWeapons,
-  checkLevelUpSkills,
-  skillGateLevels,
   hasProficiency,
   canEquip,
   applyStatBoost,
@@ -116,7 +122,6 @@ import {
   inventoryDisplayOrder,
 } from '../engine/UnitManager.js';
 import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
-import { getXpShareRatio, getXpShareRecipients, calculateSharedXp } from '../engine/XpShare.js';
 import {
   getSkillCombatMods,
   rollStrikeSkills,
@@ -132,7 +137,6 @@ import {
   getTurnStartAffixes,
   getOnDeathAffixes,
   getAttackAffixes,
-  applyGrievousStatus,
   rollDefenseAffixes,
   getWarpCandidates,
   getAffixMovBonus,
@@ -145,11 +149,6 @@ import {
   applyWeaponArtCost,
   resetWeaponArtTurnUsage,
 } from '../engine/WeaponArtSystem.js';
-import {
-  didCombatSideLandHit,
-  getPostCombatPipelineSteps,
-  resolvePostCombatMove,
-} from '../engine/WeaponArtPostCombat.js';
 import {
   presentQueuedLevelUps,
   completeResolvedAction,
@@ -179,7 +178,6 @@ import {
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
   XP_BASE_DANCE,
-  XP_DEFEND_SURVIVE,
   XP_SPECIAL_ENEMY_MULTIPLIER,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
@@ -360,15 +358,18 @@ function dimColor(color, factor = 0.3) {
   return (r << 16) | (g << 8) | b;
 }
 
-const TIER5_BUFF_CORE_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
-const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
-  HIT: 'hitBonus',
-  CRIT: 'critBonus',
-  AVOID: 'avoidBonus',
-  ATK: 'atkBonus',
-  DEF_BONUS: 'defBonus',
-  RES_BONUS: 'resBonus',
-  SPD_BONUS: 'spdBonus',
+// Post-combat floating labels by tone (engine/PostCombatEffects.js beats).
+const POST_COMBAT_HINT_COLORS = {
+  intimidate: '#ff6600',
+  bad: UI_PALETTE.bad,
+  good: UI_PALETTE.good,
+  status: UI_PALETTE.rarityEpic,
+  bloodlust: '#ff6699',
+  pierce: '#ff7777',
+  warn: UI_PALETTE.warn,
+  splash: '#ff9966',
+  buff: '#66ff99',
+  heal: '#00ff00',
 };
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 
@@ -6400,39 +6401,66 @@ export class BattleScene extends Phaser.Scene {
 
   // Publish each completed menu once. Canvas and DOM share the same guarded
   // actions; disabled rows remain visible without becoming focus targets.
-  _registerActionMenu() {
+  // A menu built from rows (battleMenuModel) passes them: the rail renders the rows
+  // themselves and needs no canvas object; a canvas row, when there is one, is found
+  // by its row id. Older menus are read from their canvas rows.
+  _registerActionMenu(rows = null) {
     const objects = this.actionMenu;
     const unit = this.selectedUnit;
-    const items = (objects || [])
-      .filter((button) => typeof button?._action === 'function')
-      .map((button) => ({
-        label: button.text,
-        item: button._menuItem,
-        description: button._menuDescription,
-        note: button._menuNote || null,
-        button,
-        disabled: Boolean(button._menuDisabled),
-        color: button._menuColor || UI_PALETTE.text,
+    const entries = rows
+      ? rows.map((row) => {
+          const button = (objects || []).find((object) => object?._rowId === row.id) || null;
+          return {
+            id: row.id,
+            label: rowText(row),
+            item: row.item,
+            description: row.description,
+            note: row.note,
+            button,
+            disabled: row.disabled,
+            color: row.color || UI_PALETTE.text,
+            run: () => row.invoke(),
+          };
+        })
+      : (objects || [])
+          .filter((button) => typeof button?._action === 'function')
+          .map((button) => ({
+            id: null,
+            label: button.text,
+            item: button._menuItem,
+            description: button._menuDescription,
+            note: button._menuNote || null,
+            button,
+            disabled: Boolean(button._menuDisabled),
+            color: button._menuColor || UI_PALETTE.text,
+            run: () => button._action(),
+          }));
+    const items = entries.map(({ run, ...entry }) => {
+      const item = {
+        ...entry,
         onActivate: () => {
           if (
             this.actionMenu !== objects ||
             this.selectedUnit !== unit ||
             this.battleState !== 'UNIT_ACTION_MENU' ||
-            button._menuDisabled
+            entry.disabled ||
+            entry.button?._menuDisabled
           )
             return;
           this._inputController?.commitSelectionMenu(objects);
-          return button._action();
+          return run();
         },
         onFocus: () => {
           if (this._mobileBattleHud?.menu?.objects === objects) {
-            this._mobileBattleHud.focusMenuItem(button);
+            this._mobileBattleHud.focusMenuItem(item);
           } else {
-            button.setColor?.(UI_PALETTE.accentText);
+            entry.button?.setColor?.(UI_PALETTE.accentText);
           }
         },
-        onBlur: () => button.setColor?.(button._menuColor || UI_PALETTE.text),
-      }));
+        onBlur: () => entry.button?.setColor?.(entry.button._menuColor || UI_PALETTE.text),
+      };
+      return item;
+    });
     this._mobileBattleHud?.showMenu(items, objects);
     this._menuFocus?.setItems(items.filter((item) => !item.disabled));
   }
@@ -8276,336 +8304,60 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  async applyOnAttackAffixes(attacker, defender, events, sourceSide = null) {
-    if (!attacker || !defender || defender.currentHP <= 0) return;
-    const inferredSide = sourceSide || null;
-    const didLandHit = inferredSide
-      ? didCombatSideLandHit(
-          events,
-          inferredSide,
-          inferredSide === 'attacker' ? attacker : defender,
-          inferredSide === 'attacker' ? defender : attacker,
-        )
-      : events.some((e) => e.type === 'strike' && !e.miss && e.attacker === attacker.name);
-    if (!didLandHit || !attacker.affixes?.length) return;
-    const affixResult = getAttackAffixes(attacker, this.gameData.affixes);
-
-    if (affixResult.poisonDamage > 0 && defender.currentHP > 0) {
-      damageUnit(defender, affixResult.poisonDamage, { floor: 1 });
-      this.updateHPBar(defender);
-      await this.showPoisonDamage(defender, affixResult.poisonDamage);
-    }
-
-    if (affixResult.debuffStat && defender.currentHP > 0) {
-      this.applyBattleDebuff(defender, affixResult.debuffStat, affixResult.debuffValue);
-      const pos = this.grid.gridToPixel(defender.col, defender.row);
-      this.showMinorHintAt(
-        pos.x,
-        pos.y,
-        `-${Math.abs(affixResult.debuffValue)} ${affixResult.debuffStat}`,
-        UI_PALETTE.bad,
-      );
-    }
-
-    // Grievous: the target is Wounded (no healing but a staff) for its next turns.
-    if (affixResult.inflictStatus && defender.currentHP > 0) {
-      const applied = applyGrievousStatus(defender, affixResult);
-      if (applied) {
-        this._addConditionIcon(defender, affixResult.inflictStatus);
-        const pos = this.grid.gridToPixel(defender.col, defender.row);
-        this.showMinorHintAt(pos.x, pos.y, 'Wounded', UI_PALETTE.bad);
-      }
-    }
+  /** Everything that happens after a combat resolves (engine/PostCombatEffects.js). */
+  async _applyResolvedCombatPostEffects(combat) {
+    await this._playPostCombatBeats(postCombatEffects(combat, this._postCombatWorld()));
   }
 
-  async _applyResolvedCombatPostEffects({
-    attacker,
-    defender,
-    result,
-    attackerWeaponArt = null,
-    defenderWeaponArt = null,
-  }) {
-    const steps = getPostCombatPipelineSteps({
-      attacker,
-      defender,
-      result,
-      attackerWeaponArt,
-      defenderWeaponArt,
-    });
-
-    for (const step of steps) {
-      const sourceUnit = step.sourceSide === 'defender' ? defender : attacker;
-      const targetUnit = step.targetSide
-        ? step.targetSide === 'attacker'
-          ? attacker
-          : defender
-        : step.sourceSide === 'defender'
-          ? attacker
-          : defender;
-      switch (step.type) {
-        case 'affix':
-          await this.applyOnAttackAffixes(sourceUnit, targetUnit, result.events, step.sourceSide);
-          break;
-        case 'poison':
-          if (targetUnit && targetUnit.currentHP > 0) {
-            await this.showPoisonDamage(targetUnit, step.damage);
-          }
-          break;
-        case 'debuff':
-          if (!targetUnit || targetUnit.currentHP <= 0) break;
-          for (const [stat, val] of Object.entries(step.debuffs || {})) {
-            this.applyBattleDebuff(targetUnit, stat, val);
-          }
-          {
-            const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
-            this.showMinorHintAt(pos.x, pos.y, 'Intimidated!', '#ff6600');
-          }
-          break;
-        case 'divine_charge':
-          await this._applyDivineChargeHealStep(step, attacker, defender);
-          break;
-        case 'tier2_damage':
-          if (!targetUnit || targetUnit.currentHP <= 0) break;
-          {
-            const hpFloor = step.nonLethal ? 1 : 0;
-            const actualDamage = damageUnit(targetUnit, step.amount, { floor: hpFloor });
-            if (actualDamage > 0) {
-              this.updateHPBar(targetUnit);
-              await this.showPoisonDamage(targetUnit, actualDamage);
-            }
-          }
-          break;
-        case 'tier2_debuff':
-          if (!targetUnit || targetUnit.currentHP <= 0) break;
-          this.applyBattleDebuff(targetUnit, step.stat, step.amount);
-          {
-            const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
-            this.showMinorHintAt(
-              pos.x,
-              pos.y,
-              `-${Math.abs(step.amount)} ${step.stat}`,
-              UI_PALETTE.bad,
-            );
-          }
-          break;
-        case 'tier2_status':
-          if (!targetUnit || targetUnit.currentHP <= 0) break;
-          {
-            // durationPhases = full phases; recovery decrements at the start of
-            // the afflicted side's phase before it acts, hence the +1.
-            const applied = applyCondition(targetUnit, step.status, step.durationPhases + 1, {
-              recoveryChance: 0,
-            });
-            const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
-            if (!applied) {
-              // statusImmunity accessory (or invalid status) blocked it
-              this.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);
-              break;
-            }
-            this._addConditionIcon(targetUnit, step.status);
-            (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y, step.status);
-            const statusLabels = {
-              root: 'Rooted!',
-              silence: 'Silenced!',
-              sleep: 'Asleep!',
-              acid: 'Acid!',
-            };
-            this.showMinorHintAt(
-              pos.x,
-              pos.y,
-              statusLabels[step.status] || 'Afflicted!',
-              UI_PALETTE.rarityEpic,
-            );
-          }
-          break;
-        case 'art_miss_self_damage':
-          if (!targetUnit || targetUnit.currentHP <= 0) break;
-          {
-            const hpFloor = step.nonLethal === false ? 0 : 1;
-            const actualDamage = damageUnit(targetUnit, step.amount, { floor: hpFloor });
-            if (actualDamage > 0) {
-              this.updateHPBar(targetUnit);
-              await this.showPoisonDamage(targetUnit, actualDamage);
-            }
-          }
-          break;
-        case 'art_kill_buff':
-          if (!sourceUnit || sourceUnit.currentHP <= 0) break;
-          if (!targetUnit || targetUnit.currentHP > 0) break;
-          {
-            const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(
-              sourceUnit,
-              step.durationPhases,
-            );
-            this._applyTier5TimedBuffEntry(sourceUnit, {
-              key: `${String(step.artId || 'kill_buff')}::${String(sourceUnit.name || '')}::self`,
-              artId: step.artId || null,
-              sourceName: sourceUnit.name || null,
-              sourceFaction: sourceUnit.faction || null,
-              expiryPhase,
-              expiryTurn,
-              stats: { ...(step.stats || {}) },
-            });
-            const pos = this.grid.gridToPixel(sourceUnit.col, sourceUnit.row);
-            this.showMinorHintAt(pos.x, pos.y, 'Bloodlust!', '#ff6699');
-          }
-          break;
-        case 'tier2_pierce':
-          await this._applyTier2PierceStep(step, sourceUnit, targetUnit);
-          break;
-        case 'tier2_move':
-          await this._applyTier2MoveStep(sourceUnit, targetUnit, step);
-          break;
-        case 'tier2_set_hp':
-          this._applyTier2SetHpStep(step, sourceUnit, targetUnit);
-          break;
-        case 'tier5_aoe_splash':
-          await this._applyTier5AoeSplashStep(step, sourceUnit, targetUnit);
-          break;
-        case 'tier5_ally_buff':
-          await this._applyTier5AllyBuffStep(step, sourceUnit);
-          break;
-        default:
-          break;
-      }
-    }
-  }
-
-  async _applyDivineChargeHealStep(step, attacker, defender) {
-    const caster = step.side === 'defender' ? defender : attacker;
-    if (!caster || caster.currentHP <= 0) return;
-    const healAmount = Math.floor((step.damageDealt * step.percent) / 100);
-    if (healAmount <= 0) return;
-    const allies = this.getDivineChargeAllies(caster).filter(
-      (u) =>
-        u.currentHP > 0 &&
-        u.currentHP < u.stats.HP &&
-        u !== caster &&
-        gridDistance(caster.col, caster.row, u.col, u.row) <= step.range,
-    );
-    if (allies.length === 0) return;
-    allies.sort((a, b) => a.currentHP / a.stats.HP - b.currentHP / b.stats.HP);
-    const healTarget = allies[0];
-    const actualHeal = healUnit(healTarget, healAmount);
-    this.updateHPBar(healTarget);
-    if (actualHeal > 0) {
-      const pos = this.grid.gridToPixel(healTarget.col, healTarget.row);
-      this.showMinorHintAt(pos.x, pos.y, `+${actualHeal} HP`, '#00ff00');
-    }
-  }
-
-  async _applyTier2MoveStep(sourceUnit, targetUnit, step) {
-    if (!sourceUnit) return;
-    const moveResult = resolvePostCombatMove({
-      sourceUnit,
-      targetUnit,
-      mode: step.mode,
-      distance: step.distance,
+  /** The battle as post-combat effects see it (PostCombatEffects `world`). */
+  _postCombatWorld() {
+    return {
+      affixes: this.gameData?.affixes,
       cols: this.grid.cols,
       rows: this.grid.rows,
       getMoveCost: (col, row, moveType) => this.grid.getMoveCost(col, row, moveType),
       getUnitAt: (col, row) => this.getUnitAt(col, row),
-    });
-    if (!moveResult.ok) return;
-
-    const movedUnits = [];
-    for (const assignment of moveResult.assignments) {
-      assignment.unit.col = assignment.col;
-      assignment.unit.row = assignment.row;
-      movedUnits.push(assignment.unit);
-    }
-    for (const unit of movedUnits) {
-      this.updateUnitPosition(unit);
-    }
-    this._refreshPostCombatMovementState(movedUnits);
+      hostilesOf: (unit) => this._getTier5HostileUnitsFor(unit),
+      alliesOf: (unit) => this.getDivineChargeAllies(unit),
+      turnNumber: this.turnManager?.turnNumber,
+    };
   }
 
-  _resolveTier2PierceTarget(sourceUnit, primaryTarget) {
-    if (!sourceUnit || !primaryTarget) return null;
-    const dc = primaryTarget.col - sourceUnit.col;
-    const dr = primaryTarget.row - sourceUnit.row;
-    if (Math.abs(dc) + Math.abs(dr) !== 1) return null;
-    const secondaryCol = primaryTarget.col + dc;
-    const secondaryRow = primaryTarget.row + dr;
-    if (
-      secondaryCol < 0 ||
-      secondaryCol >= this.grid.cols ||
-      secondaryRow < 0 ||
-      secondaryRow >= this.grid.rows
-    ) {
-      return null;
-    }
-    const candidate = this.getUnitAt(secondaryCol, secondaryRow);
-    if (!candidate || candidate.currentHP <= 0) return null;
-    if (!this._getTier5HostileUnitsFor(sourceUnit).includes(candidate)) return null;
-    return candidate;
+  /** Act on each beat the effects yield, in order: a death plays before the next effect. */
+  async _playPostCombatBeats(beats) {
+    for (const beat of beats) await this._playPostCombatBeat(beat);
   }
 
-  async _applyTier2PierceStep(step, sourceUnit, primaryTarget) {
-    if (!sourceUnit) return;
-    if (!primaryTarget) return;
-    const strikeDamages = Array.isArray(step?.damages) ? step.damages : [];
-    if (strikeDamages.length <= 0) return;
-    const target = this._resolveTier2PierceTarget(sourceUnit, primaryTarget);
-    if (!target) return;
-
-    for (const rawDamage of strikeDamages) {
-      if (target.currentHP <= 0) break;
-      const damage = Math.max(0, Math.trunc(Number(rawDamage) || 0));
-      if (damage <= 0) continue;
-      const actualDamage = damageUnit(target, damage);
-      if (actualDamage <= 0) continue;
-      this.updateHPBar(target);
-      const pos = this.grid.gridToPixel(target.col, target.row);
-      this.showMinorHintAt(pos.x, pos.y, `Pierce -${actualDamage}`, '#ff7777');
-      if (target.currentHP <= 0) {
-        await this.removeUnit(target, { killer: sourceUnit });
+  async _playPostCombatBeat(beat) {
+    const unit = beat.unit;
+    switch (beat.kind) {
+      case 'remove':
+        await this.removeUnit(unit, { killer: beat.killer });
+        break;
+      case 'moved':
+        for (const moved of beat.units) this.updateUnitPosition(moved);
+        this._refreshPostCombatMovementState(beat.units);
+        break;
+      case 'hp':
+        this.updateHPBar(unit);
+        break;
+      case 'poison':
+        await this.showPoisonDamage(unit, beat.amount);
+        break;
+      case 'status': {
+        const pos = this.grid.gridToPixel(unit.col, unit.row);
+        this._addConditionIcon(unit, beat.status);
+        (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y, beat.status);
         break;
       }
+      case 'hint': {
+        const pos = this.grid.gridToPixel(unit.col, unit.row);
+        this.showMinorHintAt(pos.x, pos.y, beat.text, POST_COMBAT_HINT_COLORS[beat.tone]);
+        break;
+      }
+      default:
+        break;
     }
-  }
-
-  _applyTier2SetHpStep(step, sourceUnit, targetUnit) {
-    if (!sourceUnit || sourceUnit.currentHP <= 0) return;
-    if (!targetUnit || targetUnit.currentHP <= 0) return;
-    const value = Math.max(1, Math.trunc(Number(step?.value) || 0));
-    if (value <= 0) return;
-    const maxHp = Math.max(1, Math.trunc(Number(targetUnit.stats?.HP) || 1));
-    const nextHp = Math.min(maxHp, value);
-    if (targetUnit.currentHP === nextHp) return;
-    setUnitHP(targetUnit, nextHp);
-    this.updateHPBar(targetUnit);
-    const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
-    this.showMinorHintAt(pos.x, pos.y, `HP -> ${nextHp}`, UI_PALETTE.warn);
-  }
-
-  _collectTier5SplashTargets(step, sourceUnit, primaryTarget) {
-    if (!sourceUnit || !primaryTarget) return [];
-    const radius = Math.max(0, Math.trunc(Number(step?.radius) || 0));
-    if (radius <= 0) return [];
-    const candidates = this._getTier5HostileUnitsFor(sourceUnit)
-      .filter((unit) => unit && unit !== primaryTarget && unit.currentHP > 0)
-      .filter(
-        (unit) => gridDistance(primaryTarget.col, primaryTarget.row, unit.col, unit.row) <= radius,
-      );
-    const maxTargets = Math.max(0, Math.trunc(Number(step?.maxTargets) || 0));
-    if (maxTargets === 1) {
-      candidates.sort((a, b) => {
-        const aHpPct = (Number(a.currentHP) || 0) / Math.max(1, Number(a.stats?.HP) || 1);
-        const bHpPct = (Number(b.currentHP) || 0) / Math.max(1, Number(b.stats?.HP) || 1);
-        if (aHpPct !== bHpPct) return aHpPct - bHpPct;
-        if (a.row !== b.row) return a.row - b.row;
-        if (a.col !== b.col) return a.col - b.col;
-        return String(a.name || '').localeCompare(String(b.name || ''));
-      });
-      return candidates.slice(0, 1);
-    }
-    candidates.sort((a, b) => {
-      if (a.row !== b.row) return a.row - b.row;
-      if (a.col !== b.col) return a.col - b.col;
-      return String(a.name || '').localeCompare(String(b.name || ''));
-    });
-    return maxTargets > 0 ? candidates.slice(0, maxTargets) : candidates;
   }
 
   _getTier5HostileUnitsFor(sourceUnit) {
@@ -8614,238 +8366,29 @@ export class BattleScene extends Phaser.Scene {
     return this.enemyUnits || [];
   }
 
-  _getTier5SplashDamage(step) {
-    const damageKind = String(step?.damageKind || '').toLowerCase();
-    if (damageKind === 'fixed') {
-      return Math.max(0, Math.trunc(Number(step?.fixedDamage) || 0));
-    }
-    let multiplier = Number(step?.damageMultiplier) || 0;
-    if (multiplier > 1) multiplier /= 100;
-    const basisDamage = Math.max(0, Math.trunc(Number(step?.basisDamage) || 0));
-    return Math.max(0, Math.floor(basisDamage * Math.max(0, multiplier)));
-  }
-
-  async _applyTier5AoeSplashStep(step, sourceUnit, primaryTarget) {
-    if (!sourceUnit || sourceUnit.currentHP <= 0) return;
-    if (!primaryTarget) return;
-    const targets = this._collectTier5SplashTargets(step, sourceUnit, primaryTarget);
-    if (targets.length <= 0) return;
-    const splashDamage = this._getTier5SplashDamage(step);
-    if (splashDamage <= 0) return;
-    for (const target of targets) {
-      if (!target || target.currentHP <= 0) continue;
-      const hpFloor = step?.nonLethal ? 1 : 0;
-      const actualDamage = damageUnit(target, splashDamage, { floor: hpFloor });
-      if (actualDamage <= 0) continue;
-      this.updateHPBar(target);
-      const pos = this.grid.gridToPixel(target.col, target.row);
-      this.showMinorHintAt(pos.x, pos.y, `Splash -${actualDamage}`, '#ff9966');
-      if (target.currentHP <= 0) {
-        await this.removeUnit(target, { killer: sourceUnit });
-      }
-    }
+  /** A Tier 5 ally buff (and the Rally ability): PostCombatEffects.allyBuff. */
+  async _applyTier5AllyBuffStep(step, sourceUnit) {
+    await this._playPostCombatBeats(allyBuff(step, sourceUnit, this._postCombatWorld()));
   }
 
   _applyTier5TimedBuffEntry(unit, entry) {
-    if (!unit) return;
-    if (!Array.isArray(unit._battleTimedWeaponArtBuffs)) unit._battleTimedWeaponArtBuffs = [];
-    const key = String(entry?.key || '');
-    if (key) {
-      const existing = unit._battleTimedWeaponArtBuffs.find((buff) => buff?.key === key);
-      if (existing) {
-        existing.stats = { ...(entry.stats || {}) };
-        existing.expiryPhase = entry.expiryPhase;
-        existing.expiryTurn = entry.expiryTurn;
-        existing.artId = entry.artId || null;
-        existing.sourceName = entry.sourceName || null;
-        existing.sourceFaction = entry.sourceFaction || null;
-        this._recomputeTimedWeaponArtBuffState(unit);
-        return;
-      }
-    }
-    unit._battleTimedWeaponArtBuffs.push({
-      key: key || null,
-      artId: entry?.artId || null,
-      sourceName: entry?.sourceName || null,
-      sourceFaction: entry?.sourceFaction || null,
-      expiryPhase: entry?.expiryPhase || null,
-      expiryTurn: Math.max(1, Math.trunc(Number(entry?.expiryTurn) || 1)),
-      stats: { ...(entry?.stats || {}) },
-    });
-    this._recomputeTimedWeaponArtBuffState(unit);
-  }
-
-  _recomputeTimedWeaponArtBuffState(unit) {
-    if (!unit) return;
-    const buffs = Array.isArray(unit._battleTimedWeaponArtBuffs)
-      ? unit._battleTimedWeaponArtBuffs.filter(
-          (entry) => entry && entry.stats && typeof entry.stats === 'object',
-        )
-      : [];
-    unit._battleTimedWeaponArtBuffs = buffs;
-
-    const strongestByStat = {};
-    for (const entry of buffs) {
-      for (const [rawStat, rawValue] of Object.entries(entry.stats || {})) {
-        const stat = String(rawStat || '')
-          .trim()
-          .toUpperCase();
-        if (!stat) continue;
-        const value = Math.trunc(Number(rawValue) || 0);
-        if (value === 0) continue;
-        const prev = strongestByStat[stat];
-        if (!Number.isFinite(prev) || value > prev) strongestByStat[stat] = value;
-      }
-    }
-
-    const prevApplied = unit._battleTimedWeaponArtAppliedStats || {};
-    const nextApplied = {};
-    const allCoreStats = new Set([
-      ...Object.keys(prevApplied),
-      ...Object.keys(strongestByStat).filter((stat) => TIER5_BUFF_CORE_STATS.has(stat)),
-    ]);
-
-    for (const stat of allCoreStats) {
-      const prevValue = Math.trunc(Number(prevApplied[stat]) || 0);
-      const nextValue = TIER5_BUFF_CORE_STATS.has(stat)
-        ? Math.trunc(Number(strongestByStat[stat]) || 0)
-        : 0;
-      const delta = nextValue - prevValue;
-      if (delta !== 0) {
-        unit.stats[stat] = (unit.stats[stat] || 0) + delta;
-        if (stat === 'MOV') unit.stats[stat] = Math.max(1, unit.stats[stat] || 1);
-        else unit.stats[stat] = Math.max(0, unit.stats[stat] || 0);
-        if (stat === 'MOV') unit.mov = unit.stats.MOV;
-      }
-      if (nextValue !== 0) nextApplied[stat] = nextValue;
-    }
-
-    const combatMods = {};
-    for (const [stat, value] of Object.entries(strongestByStat)) {
-      const modKey = TIER5_BUFF_COMBAT_MOD_BY_STAT[stat];
-      if (!modKey) continue;
-      const normalized = Math.trunc(Number(value) || 0);
-      if (normalized === 0) continue;
-      const prev = combatMods[modKey] || 0;
-      if (normalized > prev) combatMods[modKey] = normalized;
-    }
-
-    if (Object.keys(nextApplied).length > 0) unit._battleTimedWeaponArtAppliedStats = nextApplied;
-    else delete unit._battleTimedWeaponArtAppliedStats;
-
-    if (Object.keys(combatMods).length > 0)
-      unit._battleTimedWeaponArtAppliedCombatMods = combatMods;
-    else delete unit._battleTimedWeaponArtAppliedCombatMods;
-
-    if (unit._battleTimedWeaponArtBuffs.length <= 0) {
-      delete unit._battleTimedWeaponArtBuffs;
-    }
+    applyTimedBuffEntry(unit, entry);
   }
 
   _resolveTier5BuffExpiry(sourceUnit, durationPhases = 1) {
-    const phase = sourceUnit?.faction === 'enemy' ? 'enemy' : 'player';
-    const currentTurn = Math.max(1, Math.trunc(Number(this.turnManager?.turnNumber) || 1));
-    const duration = Math.max(1, Math.trunc(Number(durationPhases) || 1));
-    return {
-      expiryPhase: phase,
-      expiryTurn: currentTurn + duration,
-    };
-  }
-
-  async _applyTier5AllyBuffStep(step, sourceUnit) {
-    if (!sourceUnit || sourceUnit.currentHP <= 0) return;
-    const range = Math.max(0, Math.trunc(Number(step?.range) || 0));
-    if (range <= 0) return;
-    const rawStats = step?.stats;
-    if (!rawStats || typeof rawStats !== 'object') return;
-    const stats = {};
-    for (const [rawStat, rawValue] of Object.entries(rawStats)) {
-      const stat = String(rawStat || '')
-        .trim()
-        .toUpperCase();
-      if (!stat) continue;
-      const value = Math.trunc(Number(rawValue) || 0);
-      if (value === 0) continue;
-      stats[stat] = value;
-    }
-    if (Object.keys(stats).length <= 0) return;
-
-    const includeSelf = step?.includeSelf === true;
-    const allies = this.getDivineChargeAllies(sourceUnit)
-      .filter((ally) => ally && ally.currentHP > 0)
-      .filter((ally) => includeSelf || ally !== sourceUnit)
-      .filter((ally) => gridDistance(sourceUnit.col, sourceUnit.row, ally.col, ally.row) <= range);
-    if (allies.length <= 0) return;
-
-    const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(
-      sourceUnit,
-      step?.durationPhases,
-    );
-    const keyRoot = `${String(step?.artId || 'tier5_buff')}::${String(sourceUnit.name || '')}`;
-    for (const ally of allies) {
-      this._applyTier5TimedBuffEntry(ally, {
-        key: `${keyRoot}::${String(ally.name || '')}`,
-        artId: step?.artId || null,
-        sourceName: sourceUnit.name || null,
-        sourceFaction: sourceUnit.faction || null,
-        expiryPhase,
-        expiryTurn,
-        stats,
-      });
-      const pos = this.grid.gridToPixel(ally.col, ally.row);
-      this.showMinorHintAt(pos.x, pos.y, 'Buffed!', '#66ff99');
-    }
+    return resolveTimedBuffExpiry(sourceUnit, this.turnManager?.turnNumber, durationPhases);
   }
 
   _expireTimedWeaponArtBuffs(phase, turn) {
-    const normalizedPhase = phase === 'enemy' ? 'enemy' : 'player';
-    const normalizedTurn = Math.max(1, Math.trunc(Number(turn) || 1));
-    const units = [
-      ...(this.playerUnits || []),
-      ...(this.enemyUnits || []),
-      ...(this.npcUnits || []),
-    ];
-    for (const unit of units) {
-      if (
-        !Array.isArray(unit?._battleTimedWeaponArtBuffs) ||
-        unit._battleTimedWeaponArtBuffs.length <= 0
-      )
-        continue;
-      const previousCount = unit._battleTimedWeaponArtBuffs.length;
-      unit._battleTimedWeaponArtBuffs = unit._battleTimedWeaponArtBuffs.filter((entry) => {
-        const expiryPhase = entry?.expiryPhase === 'enemy' ? 'enemy' : 'player';
-        const expiryTurn = Math.max(1, Math.trunc(Number(entry?.expiryTurn) || 1));
-        const expiresNow = expiryPhase === normalizedPhase && normalizedTurn >= expiryTurn;
-        return !expiresNow;
-      });
-      if (unit._battleTimedWeaponArtBuffs.length !== previousCount) {
-        this._recomputeTimedWeaponArtBuffState(unit);
-      }
-    }
+    expireTimedBuffs(
+      [...(this.playerUnits || []), ...(this.enemyUnits || []), ...(this.npcUnits || [])],
+      phase,
+      turn,
+    );
   }
 
   _getTimedWeaponArtCombatBuffMods(unit) {
-    const mods = unit?._battleTimedWeaponArtAppliedCombatMods;
-    if (!mods || typeof mods !== 'object') {
-      return {
-        hitBonus: 0,
-        critBonus: 0,
-        avoidBonus: 0,
-        atkBonus: 0,
-        defBonus: 0,
-        resBonus: 0,
-        spdBonus: 0,
-      };
-    }
-    return {
-      hitBonus: Math.trunc(Number(mods.hitBonus) || 0),
-      critBonus: Math.trunc(Number(mods.critBonus) || 0),
-      avoidBonus: Math.trunc(Number(mods.avoidBonus) || 0),
-      atkBonus: Math.trunc(Number(mods.atkBonus) || 0),
-      defBonus: Math.trunc(Number(mods.defBonus) || 0),
-      resBonus: Math.trunc(Number(mods.resBonus) || 0),
-      spdBonus: Math.trunc(Number(mods.spdBonus) || 0),
-    };
+    return timedBuffCombatMods(unit);
   }
 
   /**
@@ -9123,56 +8666,26 @@ export class BattleScene extends Phaser.Scene {
     defenderHpAtStart = null,
     { survivedAttack = false } = {},
   ) {
-    if (opponent?._noXP) return;
-    const survivalXp = survivedAttack && playerUnit?.currentHP > 0 ? XP_DEFEND_SURVIVE : 0;
-    let baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
-    let damageRatio = 1;
-    if (!opponentDied && Number.isFinite(damageDealt) && Number.isFinite(defenderHpAtStart)) {
-      const safeDamage = Math.max(0, Math.trunc(damageDealt));
-      const safeStartHp = Math.max(1, Math.trunc(defenderHpAtStart));
-      if (safeDamage <= 0) {
-        if (survivalXp > 0) await this.awardScaledXP(playerUnit, survivalXp);
-        return;
-      }
-      damageRatio = Math.min(1, safeDamage / safeStartHp);
-      baseXp = Math.floor(baseXp * damageRatio);
-    }
-    const rewardMultiplier = this.getEnemyXpMultiplier(opponent);
-    const pressureXpMultiplier = this.getTurnPressureState().xpMultiplier;
-    // Training Doctrine meta upgrade: non-lord units earn bonus combat XP.
-    const recruitXpBonus = playerUnit?.isLord
-      ? 0
-      : Number(this.runManager?.metaEffects?.recruitXpBonus) || 0;
-    const adjustedBaseXp = Math.max(
-      survivalXp,
-      Math.floor(baseXp * rewardMultiplier * pressureXpMultiplier * (1 + recruitXpBonus)),
-    );
-    // Mentor's Band (EXP Share): capture recipients before the holder's award
-    // so a mid-award level-up can't change eligibility. Mirrored by the
-    // headless harness (HeadlessBattle._awardSharedCombatXP) — keep in sync.
-    // Shares use the recipient's own XP formula, so they must be computed even
-    // when the holder's rounded award is 0 (overleveled holder, <1 multipliers).
-    const xpShareRatio = getXpShareRatio(playerUnit);
-    const xpShareRecipients =
-      xpShareRatio > 0 ? getXpShareRecipients(playerUnit, this.playerUnits || []) : [];
-    if (adjustedBaseXp > 0) {
-      await this.awardScaledXP(playerUnit, adjustedBaseXp);
-    }
-    for (const ally of xpShareRecipients) {
+    // Who earns what (BattleXp.combatXpAwards): the unit, then Mentor's Band shares.
+    const awards = combatXpAwards({
+      unit: playerUnit,
+      opponent,
+      opponentDied,
+      damageDealt,
+      opponentHpAtStart: defenderHpAtStart,
+      survivedAttack,
+      rewardMultiplier: this.getEnemyXpMultiplier(opponent),
+      pressureXpMultiplier: this.getTurnPressureState().xpMultiplier,
+      // Training Doctrine meta upgrade: non-lord units earn bonus combat XP.
+      recruitXpBonus: Number(this.runManager?.metaEffects?.recruitXpBonus) || 0,
+      allies: this.playerUnits || [],
+    });
+    for (const award of awards) {
       // The scene may have shut down while a level-up popup was showing.
-      if (this.sys?.isActive?.() === false) break;
-      if (ally.currentHP <= 0) continue; // safety: state changed mid-sequence
-      const sharedXp = calculateSharedXp(
-        ally,
-        opponent,
-        opponentDied,
-        xpShareRatio,
-        damageRatio * rewardMultiplier * pressureXpMultiplier,
-      );
-      if (sharedXp <= 0) continue;
-      // Direct awardScaledXP: shares never re-enter awardXP, so bands cannot
-      // chain (allies of allies) and heal/dance XP is never shared.
-      await this.awardScaledXP(ally, sharedXp);
+      if (award.share && this.sys?.isActive?.() === false) break;
+      // Shares go straight to awardScaledXP: they never re-enter awardXP, so bands
+      // cannot chain (allies of allies) and heal/dance XP is never shared.
+      await this.awardScaledXP(award.unit, award.baseXp);
     }
   }
 
@@ -9200,18 +8713,16 @@ export class BattleScene extends Phaser.Scene {
   async awardScaledXP(playerUnit, baseXp) {
     const hasTurnInfo = typeof this.getCurrentTurnNumber === 'function';
     const turnsTaken = hasTurnInfo ? this.getCurrentTurnNumber() : 0;
-    const parXpMult = hasTurnInfo
-      ? getParXpMultiplier(turnsTaken, this.turnPar, this.turnBonusConfig)
-      : 1;
-    const xpMultiplier = Number.isFinite(this.battleParams?.xpMultiplier)
-      ? this.battleParams.xpMultiplier
-      : 1;
-    const blessingXpDelta = this.runManager?.getXpMultiplierDelta?.() || 0;
-    const traitXpMult = getTraitXpMultiplier(playerUnit, this.gameData?.traits || null);
-    const xp = Math.max(
-      1,
-      Math.floor(baseXp * parXpMult * (xpMultiplier + blessingXpDelta) * traitXpMult),
-    );
+    const xp = scaledXp(baseXp, {
+      parXpMultiplier: hasTurnInfo
+        ? getParXpMultiplier(turnsTaken, this.turnPar, this.turnBonusConfig)
+        : 1,
+      xpMultiplier: Number.isFinite(this.battleParams?.xpMultiplier)
+        ? this.battleParams.xpMultiplier
+        : 1,
+      blessingXpDelta: this.runManager?.getXpMultiplierDelta?.() || 0,
+      traitXpMultiplier: getTraitXpMultiplier(playerUnit, this.gameData?.traits || null),
+    });
 
     // Show floating XP text
     const pos = this.grid.gridToPixel(playerUnit.col, playerUnit.row);
@@ -9232,38 +8743,35 @@ export class BattleScene extends Phaser.Scene {
       onComplete: () => xpText.destroy(),
     });
 
-    // Apply XP and check for level-ups
+    // Apply XP, levels and every skill grant before any presentation (BattleXp).
+    // Informational popups wait for a resolved action/turn checkpoint, never suspend
+    // halfway through combat. A skill that comes due at a level reached now but finds
+    // all five slots full is named on the card (once: later level-ups retry it silently).
     const extendedLevelingEnabled =
       this.runManager?.getDifficultyModifier('extendedLevelingEnabled', false) || false;
-    const result = gainExperience(playerUnit, xp, { extendedLevelingEnabled });
-
-    // Apply every skill grant before any presentation. Informational popups
-    // wait for a resolved action/turn checkpoint, never suspend halfway through combat.
-    // A skill that comes due at a level reached now but finds all five slots full is
-    // named on the card (once: later level-ups retry it silently).
-    const reachedLevels = new Set((result.levelUps || []).map((lv) => lv.newLevel));
-    const gateLevels = skillGateLevels(playerUnit, this.gameData.classes);
-    for (const lvUp of levelUpDisplayResults(playerUnit.stats, result.levelUps)) {
+    const { statsAfterGain, levelUps } = applyXpGain(playerUnit, xp, {
+      classes: this.gameData.classes,
+      extendedLevelingEnabled,
+    });
+    const cards = levelUpDisplayResults(
+      statsAfterGain,
+      levelUps.map((entry) => entry.levelUp),
+    );
+    const skillName = (id) => this.gameData.skills.find((s) => s.id === id)?.name || id;
+    for (let i = 0; i < cards.length; i++) {
       // The scene may have shut down while a previous popup was showing (its
       // shutdown hook resolves the await) -- don't build popups on a dead scene.
       if (this.sys?.isActive?.() === false) break;
       // Update HP bar after level-up (maxHP may have increased)
       this.updateHPBar(playerUnit);
-      // Check for new skills learned at this level
-      const droppedIds = [];
-      const learnedIds = checkLevelUpSkills(playerUnit, this.gameData.classes, droppedIds);
-      const skillName = (id) => this.gameData.skills.find((s) => s.id === id)?.name || id;
-      const learnedNames = learnedIds.map(skillName);
-      const blockedNames = droppedIds
-        .filter((id) => reachedLevels.has(gateLevels.get(id)))
-        .map(skillName);
+      const lvUp = cards[i];
+      const blockedNames = levelUps[i].blockedIds.map(skillName);
       if (blockedNames.length) lvUp.blockedSkills = blockedNames;
-      reachedLevels.clear();
       (this._pendingLevelUpPopups ||= []).push({
         unitName: playerUnit.name,
         ...(playerUnit.battleEntityId ? { unitId: playerUnit.battleEntityId } : {}),
         levelUp: lvUp,
-        learnedNames,
+        learnedNames: levelUps[i].learnedIds.map(skillName),
       });
     }
   }
@@ -10208,35 +9716,11 @@ export class BattleScene extends Phaser.Scene {
 
   /** Apply a battle-scoped stat debuff (e.g. Corrosive) with flooring guards. */
   applyBattleDebuff(unit, stat, value) {
-    if (!unit._battleDeltas) unit._battleDeltas = {};
-    if (!unit._battleDeltas[stat]) unit._battleDeltas[stat] = 0;
-
-    const oldVal = unit.stats[stat];
-    // Apply delta
-    unit.stats[stat] = Math.max(0, unit.stats[stat] + value);
-    // Special guard for MOV: minimum 1
-    if (stat === 'MOV') unit.stats[stat] = Math.max(1, unit.stats[stat]);
-
-    // Store the actual delta applied (in case value was clamped by floor)
-    const actualDelta = unit.stats[stat] - oldVal;
-    unit._battleDeltas[stat] += actualDelta;
-
-    if (stat === 'MOV') unit.mov = unit.stats.MOV;
+    applyBattleDebuff(unit, stat, value);
   }
 
   clearBattleScopedDeltas(units) {
-    if (!Array.isArray(units)) return;
-    for (const unit of units) {
-      if (!unit?._battleDeltas) continue;
-      for (const [stat, delta] of Object.entries(unit._battleDeltas)) {
-        if (!Number.isFinite(delta) || delta === 0) continue;
-        unit.stats[stat] = (unit.stats[stat] || 0) - delta;
-        if (stat === 'MOV') unit.stats[stat] = Math.max(1, unit.stats[stat] || 1);
-        else unit.stats[stat] = Math.max(0, unit.stats[stat] || 0);
-      }
-      unit.mov = unit.stats.MOV;
-      delete unit._battleDeltas;
-    }
+    clearBattleScopedDeltas(units);
   }
 
   /** Heal units standing on Fort or Throne at turn start */
