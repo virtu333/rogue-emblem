@@ -30,6 +30,7 @@ import {
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
 import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
+import { rowText } from '../ui/battleMenuModel.js';
 import { applyXpGain, combatXpAwards, scaledXp } from '../engine/BattleXp.js';
 import { postCombatEffects, allyBuff } from '../engine/PostCombatEffects.js';
 import {
@@ -6395,39 +6396,66 @@ export class BattleScene extends Phaser.Scene {
 
   // Publish each completed menu once. Canvas and DOM share the same guarded
   // actions; disabled rows remain visible without becoming focus targets.
-  _registerActionMenu() {
+  // A menu built from rows (battleMenuModel) passes them: the rail renders the rows
+  // themselves and needs no canvas object; a canvas row, when there is one, is found
+  // by its row id. Older menus are read from their canvas rows.
+  _registerActionMenu(rows = null) {
     const objects = this.actionMenu;
     const unit = this.selectedUnit;
-    const items = (objects || [])
-      .filter((button) => typeof button?._action === 'function')
-      .map((button) => ({
-        label: button.text,
-        item: button._menuItem,
-        description: button._menuDescription,
-        note: button._menuNote || null,
-        button,
-        disabled: Boolean(button._menuDisabled),
-        color: button._menuColor || UI_PALETTE.text,
+    const entries = rows
+      ? rows.map((row) => {
+          const button = (objects || []).find((object) => object?._rowId === row.id) || null;
+          return {
+            id: row.id,
+            label: rowText(row),
+            item: row.item,
+            description: row.description,
+            note: row.note,
+            button,
+            disabled: row.disabled,
+            color: row.color || UI_PALETTE.text,
+            run: () => row.invoke(),
+          };
+        })
+      : (objects || [])
+          .filter((button) => typeof button?._action === 'function')
+          .map((button) => ({
+            id: null,
+            label: button.text,
+            item: button._menuItem,
+            description: button._menuDescription,
+            note: button._menuNote || null,
+            button,
+            disabled: Boolean(button._menuDisabled),
+            color: button._menuColor || UI_PALETTE.text,
+            run: () => button._action(),
+          }));
+    const items = entries.map(({ run, ...entry }) => {
+      const item = {
+        ...entry,
         onActivate: () => {
           if (
             this.actionMenu !== objects ||
             this.selectedUnit !== unit ||
             this.battleState !== 'UNIT_ACTION_MENU' ||
-            button._menuDisabled
+            entry.disabled ||
+            entry.button?._menuDisabled
           )
             return;
           this._inputController?.commitSelectionMenu(objects);
-          return button._action();
+          return run();
         },
         onFocus: () => {
           if (this._mobileBattleHud?.menu?.objects === objects) {
-            this._mobileBattleHud.focusMenuItem(button);
+            this._mobileBattleHud.focusMenuItem(item);
           } else {
-            button.setColor?.(UI_PALETTE.accentText);
+            entry.button?.setColor?.(UI_PALETTE.accentText);
           }
         },
-        onBlur: () => button.setColor?.(button._menuColor || UI_PALETTE.text),
-      }));
+        onBlur: () => entry.button?.setColor?.(entry.button._menuColor || UI_PALETTE.text),
+      };
+      return item;
+    });
     this._mobileBattleHud?.showMenu(items, objects);
     this._menuFocus?.setItems(items.filter((item) => !item.disabled));
   }
