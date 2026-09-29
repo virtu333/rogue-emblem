@@ -670,6 +670,7 @@ class ProtectedDriver extends RunSimulationDriver {
       Math.random,
       this.gameData.traits || null,
       [...rm.getTakenUnitNames()],
+      rm.getEffectiveMetaEffects(),
     ).filter((c) => c?.unit && c.hireCost <= rm.gold);
     candidates.sort((a, b) => (b.unit.level || 0) - (a.unit.level || 0));
     const pick = candidates[0];
