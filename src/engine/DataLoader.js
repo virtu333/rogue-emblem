@@ -8,6 +8,7 @@ export class DataLoader {
   constructor() {
     this.terrain = null;
     this.lords = null;
+    this.specialChars = null;
     this.classes = null;
     this.weapons = null;
     this.skills = null;
@@ -37,6 +38,7 @@ export class DataLoader {
     const [
       terrain,
       lords,
+      specialChars,
       classes,
       weapons,
       skills,
@@ -63,6 +65,7 @@ export class DataLoader {
     ] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
+      this.loadJSON('data/specialChars.json'),
       this.loadJSON('data/classes.json'),
       this.loadJSON('data/weapons.json'),
       this.loadJSON('data/skills.json'),
@@ -89,6 +92,7 @@ export class DataLoader {
     ]);
     this.terrain = terrain;
     this.lords = lords;
+    this.specialChars = specialChars;
     this.classes = classes;
     this.weapons = weapons;
     this.skills = skills;
@@ -129,6 +133,7 @@ export class DataLoader {
     return {
       terrain,
       lords,
+      specialChars,
       classes,
       weapons,
       skills,
@@ -168,3 +173,4 @@ export class DataLoader {
     return response.json();
   }
 }
+

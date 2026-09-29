@@ -92,6 +92,11 @@ export class InputController {
     if (avoidBonus) info += ` | Avo ${avoidBonus > 0 ? '+' : ''}${avoidBonus}`;
     if (parseInt(terrain.defBonus)) info += ` | Def +${terrain.defBonus}`;
     for (const line of terrainRuleLines(terrain)) info += `\n${line}`;
+    // Zombie remains the player knows of: "Zombie remains · rises in 2 enemy phases".
+    const remains = scene._zombieTombstones?.length
+      ? scene._zombieRemains?.().infoLine(col, row)
+      : null;
+    if (remains) info += `\n${remains}`;
 
     const threat = scene._threatSight?.describe(col, row);
     if (threat) info += `\nThreat: ${threat}`;
@@ -457,6 +462,9 @@ export class InputController {
         break;
       case 'SELECTING_BREAK_TARGET':
         scene.handleBreakTargetClick(gp);
+        break;
+      case 'SELECTING_REMAINS_TARGET':
+        scene.handleRemainsTargetClick(gp);
         break;
       case 'SELECTING_ABILITY_TILE':
         scene.handleAbilityTileClick(gp);

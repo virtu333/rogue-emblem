@@ -61,11 +61,14 @@ describe('level-ups at the skill limit', () => {
     await s.awardScaledXP(unit, XP_PER_LEVEL);
     expect(unit.level).toBe(10);
     expect(unit.skills).not.toContain('vantage');
+    expect(unit.benchedSkills).toEqual(['vantage']); // kept, not lost
     const [card] = s._pendingLevelUpPopups;
     expect(card.learnedNames).toEqual([]);
     expect(card.levelUp.blockedSkills).toEqual(['Vantage']);
     expect(levelUpContent(unit, card.levelUp).blocked).toEqual(['Vantage']);
-    expect(skillLimitNote(['Vantage'])).toBe('Skill limit (5 skills): could not learn Vantage');
+    expect(skillLimitNote(['Vantage'])).toBe(
+      'All 5 skill slots full: Vantage kept on the bench (swap in from Skills).',
+    );
   });
 
   it('a later level-up retries it quietly', async () => {

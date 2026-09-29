@@ -24,7 +24,11 @@ import { createSeededRng } from '../engine/BlessingEngine.js';
  *    keeps time, the words ride on it.
  */
 
-import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
+import {
+  buildNarrativeContext,
+  selectDialogueEntries,
+  victoryEndingKey,
+} from '../engine/NarrativeDirector.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 import { composeFinaleRally } from '../engine/FinaleRally.js';
 import { isEntity } from '../engine/EntitySystem.js';
@@ -76,6 +80,19 @@ export class BattleBeatsController {
     const pre = selectDialogueEntries(boss.preBattle, ctx) || [];
     const reply = selectDialogueEntries(boss.preBattleReply, ctx) || [];
     return [...pre, ...reply];
+  }
+
+  /**
+   * The Lieutenant, seen once in an Act III boss battle on every road that never
+   * fights him (all but First Light, which ends at him): Sera's rival appears to her
+   * as a vision, so the road knows who he is and why Act IV says he is gone.
+   */
+  getLieutenantVisionEntries() {
+    const scene = this.scene;
+    if (!scene.isBoss || scene.battleParams?.act !== 'act3' || !scene.runManager) return [];
+    if (victoryEndingKey(scene.runManager, scene.gameData) === 'victory_lieutenant') return [];
+    const vision = scene.gameData?.dialogue?.bossEncounters?.['The Lieutenant']?.vision;
+    return selectDialogueEntries(vision, this._ctx('The Lieutenant')) || [];
   }
 
   /**
@@ -228,15 +245,21 @@ export class BattleBeatsController {
     }
   }
 
+  onLowHealth(unit) {
+    if (unit?.specialCharId && unit.faction === 'player' && unit.currentHP > 0 && unit.currentHP * 2 <= unit.stats.HP) {
+      this._maybeQuip(unit, 'lowHP');
+    }
+  }
+
   /** A lord landed a critical strike (either phase). Fire-and-forget. */
   onCritStrike(striker) {
-    if (!striker?.isLord || striker.faction !== 'player') return;
+    if ((!striker?.isLord && !striker?.specialCharId) || striker.faction !== 'player') return;
     this._maybeQuip(striker, 'onCrit', { chance: QUIP_CHANCE });
   }
 
   /** A unit died; quip for a lord's killing blow. Fire-and-forget. */
   onKill(victim, killer) {
-    if (!killer?.isLord || killer.faction !== 'player') return;
+    if ((!killer?.isLord && !killer?.specialCharId) || killer.faction !== 'player') return;
     if (!(killer.currentHP > 0)) return;
     if (victim?.isBoss) {
       this._maybeQuip(killer, 'onKill', { guaranteed: true });
@@ -245,19 +268,46 @@ export class BattleBeatsController {
     }
   }
 
-  _maybeQuip(lord, poolKey, { chance = 1, guaranteed = false } = {}) {
+  /**
+   * An ally fell: a lord on the field says so (playtest 2026-09-28: nobody reacted).
+   * The commander speaks if it stands, else the lord nearest the fallen (ties by
+   * name). Always shown, as a quip over the speaker; never for the commander's own
+   * fall (that ends the run) or in the tutorial.
+   */
+  onAllyFall(fallen) {
+    const scene = this.scene;
+    if (!fallen || fallen.faction !== 'player' || fallen.isCommander) return null;
+    if (scene.battleParams?.tutorialMode) return null;
+    const lords = (scene.playerUnits || []).filter(
+      (u) => u && u !== fallen && u.isLord && u.currentHP > 0,
+    );
+    if (!lords.length) return null;
+    const dist = (u) => Math.abs(u.col - fallen.col) + Math.abs(u.row - fallen.row);
+    const speaker =
+      lords.find((u) => u.isCommander) ||
+      [...lords].sort((a, b) => dist(a) - dist(b) || (a.name < b.name ? -1 : 1))[0];
+    return this._maybeQuip(speaker, 'onAllyFall', {
+      guaranteed: true,
+      tokens: { '{fallen}': fallen.name },
+    });
+  }
+
+  _maybeQuip(lord, poolKey, { chance = 1, guaranteed = false, tokens = null } = {}) {
     const scene = this.scene;
     const now = scene.time?.now ?? 0;
     if (!guaranteed) {
       if (now - this._lastQuipAt < QUIP_COOLDOWN_MS) return;
       if (this._random() >= chance) return;
     }
-    const pool = scene.gameData?.dialogue?.lordQuips?.[poolKey]?.[lord.name];
+    const pool = lord.specialCharId
+      ? scene.gameData?.dialogue?.specialChars?.[lord.specialCharId]?.[poolKey]
+      : scene.gameData?.dialogue?.lordQuips?.[poolKey]?.[lord.name];
     if (!Array.isArray(pool) || pool.length === 0) return;
-    const line =
+    let line =
       scene.runManager?.pickNarrativeLine?.(pool, `quip:${poolKey}:${lord.name}`) ||
       pool[Math.floor(this._random() * pool.length)];
     if (typeof line !== 'string' || !line) return;
+    for (const [token, value] of Object.entries(tokens || {})) line = line.split(token).join(value);
     if (guaranteed) {
       // A boss-kill quip replaces any quip already on screen (e.g. the crit
       // quip from the same killing strike) instead of stacking with it.
@@ -265,6 +315,7 @@ export class BattleBeatsController {
     }
     this._lastQuipAt = now;
     this._showQuipText(lord, line);
+    return { speaker: lord.name, line };
   }
 
   _showQuipText(lord, line) {
@@ -317,3 +368,4 @@ export class BattleBeatsController {
     }
   }
 }
+

@@ -123,3 +123,16 @@ it('reports capped reclass skills, but never flags already-known skills as losse
     applyRosterClassChange(second.run, second.unit, second.seal, hero, data).droppedSkills,
   ).not.toContain('vigilance');
 });
+
+it('a seal in the convoy promotes the chosen unit and leaves the convoy once spent', () => {
+  const { unit, seal } = fixture();
+  unit.consumables = [];
+  const run = { roster: [unit], convoy: { weapons: [], consumables: [seal] } };
+  const target = resolvePromotionTargets(unit, data.classes, data.lords).find(
+    (c) => c.name === 'Warrior',
+  );
+  expect(applyRosterClassChange(run, unit, seal, target, data).ok).toBe(true);
+  expect(unit.className).toBe('Warrior');
+  expect(run.convoy.consumables).toEqual([]);
+  expect(applyRosterClassChange(run, unit, seal, target, data).ok).toBe(false);
+});

@@ -3068,15 +3068,24 @@ describe('resolveAnchorUnitClass', () => {
     });
 
     it('produces a valid caravanSpawn tile when hasCaravan is set', () => {
-      const config = generateBattle({ act: 'act2', objective: 'rout', hasCaravan: true }, data);
-      expect(config.caravanSpawn).toBeTruthy();
-      const { col, row } = config.caravanSpawn;
-      expect(col).toBeGreaterThanOrEqual(0);
-      expect(col).toBeLessThan(config.cols);
-      expect(row).toBeGreaterThanOrEqual(0);
-      expect(row).toBeLessThan(config.rows);
-      const idx = config.mapLayout[row][col];
-      expect(data.terrain[idx].moveCost.Infantry).not.toBe('--');
+      // A cramped map may go without a caravan (CaravanSystem.pickCaravanSpawnTile);
+      // most seeds place one, and every placed tile is on the map and passable.
+      let placed = 0;
+      for (let seed = 1; seed <= 10; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act2', objective: 'rout', hasCaravan: true }, data),
+        );
+        if (!config.caravanSpawn) continue;
+        placed++;
+        const { col, row } = config.caravanSpawn;
+        expect(col).toBeGreaterThanOrEqual(0);
+        expect(col).toBeLessThan(config.cols);
+        expect(row).toBeGreaterThanOrEqual(0);
+        expect(row).toBeLessThan(config.rows);
+        const idx = config.mapLayout[row][col];
+        expect(data.terrain[idx].moveCost.Infantry).not.toBe('--');
+      }
+      expect(placed).toBeGreaterThanOrEqual(7);
     });
 
     it('caravanSpawn does not overlap player or enemy spawns', () => {

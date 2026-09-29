@@ -1,0 +1,20 @@
+[
+  {
+    "id": "old_knight",
+    "name": "Gaspar",
+    "class": "Paladin",
+    "baseClass": "Cavalier",
+    "temperament": "wry",
+    "bio": "A retired knight whose steady hand outlasted his strength. He rides ahead so the young can learn to follow.",
+    "baseStats": { "HP": 18, "STR": 10, "MAG": 0, "SKL": 12, "SPD": 10, "DEF": 6, "RES": 2, "LCK": 3, "MOV": 6 },
+    "difficultyBases": {
+      "normal": { "HP": 18, "DEF": 6 },
+      "dusk": { "HP": 19, "DEF": 6 },
+      "hard": { "HP": 20, "DEF": 7 },
+      "lunatic": { "HP": 21, "DEF": 8 }
+    },
+    "growths": { "HP": 20, "STR": 10, "MAG": 0, "SKL": 15, "SPD": 10, "DEF": 5, "RES": 5, "LCK": 5 },
+    "skills": ["canto", "aegis"],
+    "weapons": ["Steel Lance", "Iron Sword"]
+  }
+]

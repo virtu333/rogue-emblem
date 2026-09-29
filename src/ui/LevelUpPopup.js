@@ -239,7 +239,7 @@ export class LevelUpPopup {
         }
       }
 
-      // Skills that came due at this level with every skill slot full.
+      // Skills that came due at this level with every skill slot full (kept benched).
       if (blocked.length > 0) {
         if (!this.learnedSkills.length) y += 4;
         for (const skillName of blocked) {
@@ -247,7 +247,7 @@ export class LevelUpPopup {
             this.scene,
             cx - panelWidth / 2 + 12,
             y,
-            `  SKILL LIMIT: ${skillName} not learned`,
+            `  BENCHED: ${skillName} (slots full)`,
             { fontFamily: 'monospace', fontSize: '12px', color: UI_PALETTE.muted },
           )
             .setOrigin(0, 0)

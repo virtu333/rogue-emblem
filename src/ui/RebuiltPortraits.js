@@ -42,6 +42,7 @@ export function rebuiltPortraitKey(scene, unit) {
   if (!unit) return null;
   const name = normalize(unit.name);
   const candidates = [];
+  if (unit.specialCharId) candidates.push(`special_${unit.specialCharId}`);
   if (unit.isBoss) candidates.push(`boss_${name}`);
   if (unit.isLord || manifest[`lord_${name}`]) {
     if (unit.tier === 'promoted') candidates.push(`lord_${name}_promoted`);
@@ -105,3 +106,4 @@ export function dialoguePortraitKey(scene, name, legacyKey) {
   }
   return legacyKey;
 }
+

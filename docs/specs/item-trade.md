@@ -2,7 +2,9 @@
 
 Status: approved for the round-3 TestFlight wave (2026-09-27). Replaces "give only" moves with FE trading:
 **give** moves an item into a free slot; **trade** exchanges two items, and works even when both
-bags are full.
+bags are full. Playtest 2026-09-29 (`docs/playtest-triage-2026-09-29.md`, rows 9-10) added
+**reorder** (two items swap places in one unit's bag; the first weapon slot is the equipped one)
+and a menu that opens with nothing held or highlighted.
 
 ## Before this change
 
@@ -34,6 +36,9 @@ bagItems(ctx, holder, bag), bagCapacity(ctx, holder, bag)   // 5 / 3 / 1; convoy
 planTrade(ctx, from, to)  -> { ok: true, kind: 'give' | 'swap', warnings: [{ code, unit }], detail }
                            | { ok: false, reason }
 applyTrade(ctx, from, to) -> same shape; re-plans first, then mutates
+planReorder(ctx, from, to)  -> { ok: true, kind: 'reorder', equips: item | null, warnings: [], detail }
+                             | { ok: false, reason }
+applyReorder(ctx, from, to) -> same shape; re-plans first, then mutates
 canTradeBetween(a, b)     // true if either unit carries anything in inventory or consumables
 settleEquipped(unit, preferred)
 ```
@@ -102,6 +107,33 @@ settleEquipped(unit, preferred)
 `giveRosterItemBlock` / `giveRosterItem` stay as thin wrappers (unit-to-unit give) and keep the
 "Bag full." wording.
 
+### Reorder (one unit's own bag)
+
+`planTrade` still refuses two slots of one holder ("Choose another unit."); swapping two items
+inside one unit's bag is `planReorder` / `applyReorder`. The equipped weapon is the one in the
+first weapon slot (`normalizeEquippedFirst`), so a reorder can change what is equipped.
+
+Validation (first failure wins; the reason is the UI string):
+
+1. An accessory bag: "Only weapons and supplies can be reordered."
+2. A convoy holder: "Only a unit's own items can be reordered." (The convoy's order is its own.)
+3. Two different units: "Reorder items within one unit's bag."
+4. Context: a player unit in battle; between battles, a unit still in `run.roster`
+   ("Unit is no longer in the roster.").
+5. Two bags: "Items trade only within the same bag."
+6. An empty target, or the same item twice: "Choose another item to swap with."
+7. Stale items (unit bags match by identity): "Item is no longer available."
+8. The two items trade places in **display order** (`inventoryDisplayOrder`: the equipped weapon
+   first, so an old save whose equipped weapon sits later is read the way every view draws it).
+   If the first weapon slot changes, the item that lands there must be one the unit can wield
+   (`canEquip`: a staff with its rank too, as the battle Equip menu allows; never a scroll), or
+   the reorder is refused with "⟨unit⟩ can't wield ⟨item⟩." Otherwise it is order only.
+
+Apply writes the new order into the unit's own array in place (the same array and the same
+instances: `uid`, `_usesSpent`, `_imbueId`, forge fields and arts stay) and, when the first
+weapon slot changed, sets `unit.weapon` to the item there (`equips`). `detail` is "Equipped
+⟨item⟩" or "Swapped ⟨a⟩ and ⟨b⟩". Supplies reorder the same way and never touch the weapon.
+
 ## UI: `src/ui/tradeMenuModel.js` (pure) + `src/ui/TradeMenu.js` + `src/ui/trade.css`
 
 **Tabs**
@@ -123,7 +155,13 @@ settleEquipped(unit, preferred)
   - rows in the other column commit, and are named:
     - "Trade ⟨held⟩ for ⟨item⟩" for an item row;
     - "Give ⟨held⟩ to ⟨holder⟩" for an empty row;
-  - other rows in the same column switch which item is held.
+  - other item rows in the same column:
+    - in a unit's column (when the caller wires `reorder`) **reorder**: the two items swap
+      places. A swap that touches the first weapon slot is named "Equip ⟨item⟩" for the item that
+      lands there, any other "Swap ⟨held⟩ with ⟨item⟩"; the plan comes from `planReorder`, so a
+      refused one ("Sera can't wield Iron Axe.") is blocked like any other target;
+    - in the convoy's column (or without `reorder`) **switch** which item is held;
+  - empty rows in the same column stay inert.
 - Blocked targets:
   - use `aria-disabled` (not `disabled`), so they stay focusable;
   - put their reason in the `role=status` line.
@@ -131,18 +169,35 @@ settleEquipped(unit, preferred)
   unarmed".
 
 **Committing and closing**
-- The second tap commits, as in FE. There is no extra confirm step.
+- The second tap commits (or reorders), as in FE. There is no extra confirm step. A reorder's
+  message is "⟨item⟩ is now equipped." or "Swapped ⟨a⟩ and ⟨b⟩."; the cursor stays on the slot
+  the held item moved into.
 - Rows use `bindCancelablePress`, so a swipe to scroll never commits.
 - `ignoreRepeatedActivation` and an `applying` flag prevent a double commit.
 - Cancel (Esc / B / rail Back / overlay) releases a held item first; with nothing held, it closes.
 - The title stays "Trade items", with a **Done** button.
+
+**Opening: nothing held, nothing highlighted**
+- Players tap an item to start a trade, so no caller opens the menu with an item held (item
+  card, convoy card, Trade with…, battle Trade; the `held` prop remains for tests and future
+  callers) and no row is highlighted on open.
+- The cursor is logical until the first key or pad press: on open the dialog itself (tabIndex −1,
+  no outline) holds DOM focus, so keys still arrive, and the cursor sits on `initialFocus` (the
+  first item), or on the source item's row when an item card or convoy card opened the menu
+  (`cursor`), scrolled into view.
+- The first arrow, D-pad, Tab, Enter, Space or A press shows the cursor where it is: it focuses
+  that row without moving or activating anything. Later presses act as usual.
+- Pointer taps never leave a focus ring: a click with a click count (`event.detail > 0`) is a
+  pointer; Enter, Space and the pad's A click with none. After a pointer activation the dialog
+  keeps focus (the tapped row becomes the logical cursor); after a key or pad activation the
+  focused row stays the visible cursor, and a re-render refocuses it.
 
 **Input and layout**
 - Keyboard and gamepad:
   - arrows move in 2D (within a column; across columns keeping the row index);
   - Enter/Space activate;
   - Q/E, PageUp/PageDown or L1/R1 switch tabs.
-- After a commit, focus returns to the same slot index in the originating column.
+- After a commit, the cursor returns to the same slot index in the originating column.
 - Rows are at least 44 px on a coarse pointer and 32 px on a fine one.
 - It must fit 568×320 (header + tabs + 5 rows + status) with no horizontal overflow; each column
   scrolls on its own.
@@ -188,7 +243,23 @@ settleEquipped(unit, preferred)
 Never touch the partner's `hasActed`, `hasMoved` or `_movementCommitted`. Trading stays a free,
 pre-action command (Attack, Item and Wait remain), and it is never offered after Canto.
 
-`BattleTradeMenu` wraps `TradeMenu` with the battle context and the Weapons and Supplies tabs.
+`reorder(left, right, from, to)` reorders the acting unit's or the partner's own bag:
+
+1. **Guard.** The same session rules as `commit`, and both slots belong to one unit, which is
+   `left` or `right`; otherwise `{ ok: false }` without committing movement.
+2. **Apply.** `applyReorder({ context: 'battle' }, from, to)`; a refusal commits nothing.
+3. **First success in the session** locks the move exactly as a trade does (shared with
+   `commit`, so a trade then a reorder, or the reverse, locks once).
+4. **Record.** `observeHistoryAction(scene, 'changed equipment', left, null, detail)`: the
+   acting unit is always the actor, so the rewind point reads "Before ⟨left⟩'s equipment
+   change" (`RewindDestinations` maps the beat to `equip`; a trade in the same activation
+   outranks it). For the partner's bag the detail ends "for ⟨partner⟩".
+5. **Checkpoint.** `_captureSuspendCheckpoint()`. Units serialize their bags in order and the
+   equipped index, so a resumed battle has the new order and weapon; the rewind fingerprint
+   covers inventory order and the equipped index, so a pure reorder is a change.
+
+`BattleTradeMenu` wraps `TradeMenu` with the battle context and the Weapons and Supplies tabs,
+and wires `reorder` to the controller.
 `close()` still returns to `showActionMenu(left)`. `findTradeTargets` uses `canTradeBetween` and
 keeps its adjacency check. The canvas fallback stays give-only, but its mutations go through the
 controller.
@@ -199,12 +270,12 @@ and the timeline fingerprint already covers bags.
 ## Roster (between battles)
 
 - **Item cards.** **Trade…** replaces **Give…** on weapon and supply cards. It opens a picker of
-  the other units plus "Convoy" (units only for an accessory), then `TradeMenu` with the item
-  held. The picker blocks nobody; a full bag shows e.g. "Items 5/5 · full: pick an item to
-  trade".
+  the other units plus "Convoy" (units only for an accessory), then `TradeMenu` on that item's
+  tab with **nothing held** (the hidden cursor starts on the item's row; the first tap picks it).
+  The picker blocks nobody; a full bag shows e.g. "Items 5/5 · full: pick an item to trade".
 - **Trade with…** in the Equipment heading opens `TradeMenu` with nothing held.
 - **Convoy tab.** When the unit's bag is full, Withdraw becomes **Trade…**: `TradeMenu(unit,
-  Convoy)` with the convoy item held.
+  Convoy)` with nothing held, the cursor on the convoy item's row, scrolled into view.
 - **Store** (`RosterInventory.rosterItemBlock` / `rosterItemAction`) may take a unit's last
   combat weapon. `rosterItemWarnings` returns the same `leaves_unarmed` warning, and the Store
   button carries it as its description, with "Leaves ⟨unit⟩ unarmed." beside it and in the
@@ -213,8 +284,8 @@ and the timeline fingerprint already covers bags.
 - **Accessory card.** Gets **Trade…**, which leads to the Accessory tab. Pool Equip / Unequip
   are unchanged.
 - **Wiring.** `TradeMenu` is stored in the sheet's `picker`, so the existing guards and
-  `destroy()` cover it. Every successful commit calls `persistNow()`, which honours the shop,
-  rewards and church persist hooks. The sheet re-renders when the menu closes.
+  `destroy()` cover it. Every successful commit or reorder calls `persistNow()` once, which
+  honours the shop, rewards and church persist hooks. The sheet re-renders when the menu closes.
 - **Canvas.** `RosterTradeController` routes its two give paths through `applyTrade`.
 - **Shop and rewards copy only:**
   - shop: "Full: sent to convoy · trade it in from Roster";
@@ -253,7 +324,8 @@ damage dealt), and enemies target it freely.
   passing the item around, and MOV, move type and max HP would change mid-turn.
 - Convoy access in battle.
 - A swap step inside the shop or reward pickers.
-- Reordering or discarding items.
+- Discarding items.
+- Reordering the convoy or moving an item into an empty slot of its own bag.
 - Scroll and accessory pools as trade holders.
 - Trading after Canto.
 - Deleting the canvas fallbacks.
@@ -285,7 +357,13 @@ damage dealt), and enemies target it freely.
   - instance fields deep-equal after a move;
   - `canTradeBetween`;
   - no heal from an equip/unequip loop;
-  - a fallen unit's stats return to base.
+  - a fallen unit's stats return to base;
+  - reorder: slot 1 ↔ 3 equips the item moved in (in the same array); slot 2 ↔ 4 keeps the
+    weapon; an unwieldable weapon or a scroll is refused for slot 1; a staff with its rank is
+    allowed; instance fields survive; an old save's display order; an unarmed unit equips;
+    supplies; the convoy, the accessory slot, an empty slot, two units, two bags, stale items, an
+    enemy and a unit off the roster are refused with nothing changed; `planTrade` still refuses
+    one holder's two items.
 - **Model** (`tests/TradeMenuModel.test.js`):
   - labels and accessible names;
   - slot counts;
@@ -294,16 +372,25 @@ damage dealt), and enemies target it freely.
   - cancel order;
   - 2D navigation and tabs;
   - focus after a commit;
-  - accessory tab and battle notice visibility.
+  - accessory tab and battle notice visibility;
+  - reorder rows (names, `equips`, blocked reasons, activation), the convoy column still
+    switching, and reorder off without `reorder` or `planReorder`.
+- **Menu** (`tests/TradeMenu.test.js`): nothing focused or pressed on open; each first key or
+  pad press shows the cursor without moving or activating; a card's `cursor`; pointer taps leave
+  the dialog focused; two taps reorder; a refused reorder.
 - **Controller** (`tests/BattleTradeController.test.js`):
   - the session flags and the snapshot happen once;
   - history detail and checkpoint;
   - the guards;
   - a failed plan never commits movement;
-  - the partner is untouched.
+  - the partner is untouched;
+  - reorder: guards, the shared move lock, the "changed equipment" beat and its rewind label,
+    the checkpoint, serialize → resume, and the fingerprint seeing a pure reorder.
 - **e2e:**
   - `battle-contracts.spec.js` (contracts):
+    - nothing highlighted on open; the first key shows the cursor;
     - a full–full swap of the equipped weapon;
+    - a keyboard reorder that equips Rapier, checkpointed, and a refused one;
     - Attack still offered after Done;
     - Wait acts once;
     - the checkpoint is committed;
@@ -317,6 +404,9 @@ damage dealt), and enemies target it freely.
     - a convoy swap with both sides full;
     - an accessory swap (stats and HP);
     - opened from the shop and the rewards Roster buttons;
-    - gamepad;
+    - a card's Trade… opens with nothing held; the first tap holds and commits nothing, and
+      leaves no row focused;
+    - a reorder that equips (saved) and a refused one;
+    - gamepad (the first A shows the cursor);
     - layout.
   - Update `compact-route-roster.spec.js` (Give… → Trade…) and `ui-completion.spec.js`.

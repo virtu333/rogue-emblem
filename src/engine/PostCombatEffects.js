@@ -21,7 +21,7 @@
 //   hostilesOf(unit), alliesOf(unit)   (Tier 5 targets; Divine Charge / buff allies)
 //   turnNumber
 
-import { getAttackAffixes } from './AffixSystem.js';
+import { applyGrievousStatus, getAttackAffixes } from './AffixSystem.js';
 import { gridDistance } from './Combat.js';
 import { applyCondition } from './StatusConditionSystem.js';
 import { damageUnit, healUnit, setUnitHP } from './UnitHealth.js';
@@ -168,7 +168,7 @@ function* damageOverTime(unit, amount, floor) {
   }
 }
 
-/** On-hit affixes of the side that landed a hit (poison never kills; a stat debuff). */
+/** On-hit affixes of the side that landed a hit (poison never kills; a stat debuff; Wounded). */
 function* onAttackAffixes(attacker, defender, events, sourceSide, world) {
   if (!attacker || !defender || defender.currentHP <= 0) return;
   const side = sourceSide || null;
@@ -197,6 +197,14 @@ function* onAttackAffixes(attacker, defender, events, sourceSide, world) {
       text: `-${Math.abs(affixResult.debuffValue)} ${affixResult.debuffStat}`,
       tone: 'bad',
     };
+  }
+
+  // Grievous: the hit leaves the defender Wounded (no healing but a staff's).
+  if (affixResult.inflictStatus && defender.currentHP > 0) {
+    if (applyGrievousStatus(defender, affixResult)) {
+      yield { kind: 'status', unit: defender, status: affixResult.inflictStatus };
+      yield { kind: 'hint', unit: defender, text: 'Wounded', tone: 'bad' };
+    }
   }
 }
 

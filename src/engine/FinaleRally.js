@@ -139,7 +139,8 @@ export function composeFinaleRally({
     };
     if (role === 'recruit') {
       const temper = temperamentFor(unit, { voice, seed: s });
-      const own = usable(pool?.recruits?.[temper], { hurt });
+      const personal = usable(pool?.specialChars?.[unit.specialCharId], { hurt });
+      const own = personal.length ? personal : usable(pool?.recruits?.[temper], { hurt });
       const any = Object.values(pool?.recruits || {}).flatMap((l) => usable(l, { hurt }));
       choose('recruit', own.length ? own : any);
     } else {
@@ -167,3 +168,4 @@ export function composeFinaleRally({
   }
   return out;
 }
+

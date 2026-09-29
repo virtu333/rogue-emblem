@@ -263,16 +263,15 @@ describe('Recruit battle intro (playtest 4: a field note, never a dialog)', () =
     expect(next.pick()).toBeNull();
   });
 
-  it('names a fogged recruit the gold banner marks, but not other hidden green units', () => {
+  it('names a recruit in fog (always in view), but never a hidden caravan', () => {
     const recruit = garrick();
+    const caravan = createCaravanUnit('act2', { col: 6, row: 4 });
     const { scene, settings } = guidanceScene({
-      npcUnits: [recruit],
+      npcUnits: [caravan, recruit],
       grid: { fogEnabled: true, isVisible: () => false },
     });
     settings.getGuidance = () => 'light';
     const g = new GuidanceController(scene);
-    expect(g.pick()).toBeNull(); // hidden and unmarked
-    scene._recruitBeacon = { npc: recruit };
     expect(g.pick()).toMatchObject({ id: 'guide_recruit_on_map', anchor: recruit });
   });
 
@@ -636,5 +635,31 @@ describe('unit-scoped notes step aside when their moment is over', () => {
       expect(note.close, note.id).not.toHaveBeenCalled();
       expect(g.note, note.id).toBe(note);
     }
+  });
+});
+
+describe('Zombie remains note', () => {
+  it('teaches the countdown, Smash and Light once, pointing at a pile the player has seen', () => {
+    const text = guidanceText('guide_zombie_remains', {});
+    expect(text).toMatch(/enemy phases/);
+    expect(text).toMatch(/Smash/);
+    expect(text).toMatch(/Light/);
+    expect(GUIDANCE_NOTES.guide_zombie_remains.tier).toBe('essential');
+    const pile = { col: 5, row: 3, turnsRemaining: 3, count: 1 };
+    const { scene, hints, settings } = guidanceScene();
+    settings.getGuidance = () => 'light';
+    const g = new GuidanceController(scene);
+    expect(g.pick()).toBeNull(); // no remains yet
+    scene._remainsCtrl = { knownTiles: () => [pile], markers: { shown: [pile] } };
+    expect(g.pick()).toMatchObject({ id: 'guide_zombie_remains', anchor: pile });
+    hints.markSeen('guide_zombie_remains');
+    expect(g.pick()).toBeNull();
+  });
+
+  it('says nothing about remains the fog hides', () => {
+    const { scene, settings } = guidanceScene();
+    settings.getGuidance = () => 'light';
+    scene._remainsCtrl = { knownTiles: () => [], markers: { shown: [] } };
+    expect(new GuidanceController(scene).pick()).toBeNull();
   });
 });

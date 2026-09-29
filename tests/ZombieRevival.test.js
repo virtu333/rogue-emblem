@@ -14,20 +14,11 @@ import {
   DIFFICULTY_GATED_CLASSES,
   filterClassPoolByDifficulty,
 } from '../src/utils/constants.js';
+import { buildRisenUnit, createRemains, leavesRemains } from '../src/engine/ZombieRemains.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
 const skillsData = gameData.skills;
-
-// --- Helper: pure tombstone-creation predicate ---
-function shouldCreateTombstone(unit, killerWeaponType) {
-  return (
-    ZOMBIE_CLASSES.has(unit.className) &&
-    !unit._revived &&
-    !unit.isBoss &&
-    killerWeaponType !== 'Light'
-  );
-}
 
 // --- 1. Light effectiveness vs zombies (3x) ---
 describe('Light effectiveness vs zombies', () => {
@@ -55,33 +46,34 @@ describe('Light effectiveness vs zombies', () => {
   });
 });
 
-// --- 2. Zombie tombstone creation logic ---
-describe('Zombie tombstone creation logic', () => {
-  it('zombie killed by non-Light weapon should create tombstone', () => {
+// --- 2. Who leaves remains (engine/ZombieRemains.leavesRemains) ---
+describe('Zombie remains creation logic', () => {
+  const sword = { weapon: { type: 'Sword' } };
+  it('zombie killed by non-Light weapon leaves remains', () => {
     for (const cls of ZOMBIE_CLASSES) {
       const unit = { className: cls, _revived: false, isBoss: false };
-      expect(shouldCreateTombstone(unit, 'Sword')).toBe(true);
+      expect(leavesRemains(unit, sword)).toBe(true);
     }
   });
 
-  it('zombie killed by Light weapon should NOT create tombstone', () => {
+  it('zombie killed by Light weapon leaves none', () => {
     const unit = { className: 'Zombie', _revived: false, isBoss: false };
-    expect(shouldCreateTombstone(unit, 'Light')).toBe(false);
+    expect(leavesRemains(unit, { weapon: { type: 'Light' } })).toBe(false);
   });
 
-  it('already revived zombie should NOT create tombstone', () => {
+  it('already revived zombie leaves none', () => {
     const unit = { className: 'Zombie', _revived: true, isBoss: false };
-    expect(shouldCreateTombstone(unit, 'Sword')).toBe(false);
+    expect(leavesRemains(unit, sword)).toBe(false);
   });
 
-  it('boss zombie should NOT create tombstone', () => {
+  it('boss zombie leaves none', () => {
     const unit = { className: 'Revenant', _revived: false, isBoss: true };
-    expect(shouldCreateTombstone(unit, 'Axe')).toBe(false);
+    expect(leavesRemains(unit, { weapon: { type: 'Axe' } })).toBe(false);
   });
 
-  it('non-zombie class should NOT create tombstone', () => {
+  it('non-zombie class leaves none', () => {
     const unit = { className: 'Fighter', _revived: false, isBoss: false };
-    expect(shouldCreateTombstone(unit, 'Sword')).toBe(false);
+    expect(leavesRemains(unit, sword)).toBe(false);
   });
 });
 
@@ -130,45 +122,6 @@ describe('zombie_drain skill handler', () => {
   });
 });
 
-// --- 4. Rout deferral while tombstones exist ---
-describe('Rout deferral while tombstones exist', () => {
-  it('defers rout when enemies=0 but tombstones remain', () => {
-    const enemyCount = 0;
-    const tombstoneCount = 2;
-    const shouldDefer = enemyCount === 0 && tombstoneCount > 0;
-    expect(shouldDefer).toBe(true);
-  });
-
-  it('does not defer when enemies remain regardless of tombstones', () => {
-    const enemyCount = 3;
-    const tombstoneCount = 1;
-    const shouldDefer = enemyCount === 0 && tombstoneCount > 0;
-    expect(shouldDefer).toBe(false);
-  });
-
-  it('does not defer when no enemies and no tombstones', () => {
-    const enemyCount = 0;
-    const tombstoneCount = 0;
-    const shouldDefer = enemyCount === 0 && tombstoneCount > 0;
-    expect(shouldDefer).toBe(false);
-  });
-});
-
-// --- 5. _noXP flag on revived units ---
-describe('_noXP flag on revived units', () => {
-  it('unit with _noXP should skip XP rewards', () => {
-    const unit = { _noXP: true, className: 'Zombie', level: 3 };
-    const shouldSkipXP = !!unit._noXP;
-    expect(shouldSkipXP).toBe(true);
-  });
-
-  it('normal unit without _noXP should receive XP', () => {
-    const unit = { className: 'Fighter', level: 5 };
-    const shouldSkipXP = !!unit._noXP;
-    expect(shouldSkipXP).toBe(false);
-  });
-});
-
 // --- 6. filterClassPoolByDifficulty ---
 describe('filterClassPoolByDifficulty', () => {
   const pool = ['Fighter', 'Zombie', 'Revenant', 'Dragon', 'Archer', 'Dragon Lord'];
@@ -204,57 +157,13 @@ describe('filterClassPoolByDifficulty', () => {
   });
 });
 
-// --- Helper: create snapshot matching BattleScene's corrected shape ---
+// --- Helpers: the real record and revival (engine/ZombieRemains.js) ---
 function createSnapshot(unit) {
-  return {
-    className: unit.className,
-    level: unit.level,
-    weapon: structuredClone(unit.weapon),
-    inventory: structuredClone(unit.inventory || []),
-    skills: [...(unit.skills || [])],
-    stats: { ...unit.stats },
-    moveType: unit.moveType,
-    proficiencies: structuredClone(unit.proficiencies || []),
-    tier: unit.tier || 'base',
-    mov: unit.mov,
-  };
+  return createRemains(unit, { col: 0, row: 0 }).snapshot;
 }
 
-// --- Helper: rebuild unit from snapshot matching BattleScene's corrected revival ---
 function reviveFromSnapshot(snap, spawnCol, spawnRow) {
-  return {
-    name: snap.className,
-    className: snap.className,
-    tier: snap.tier || 'base',
-    level: snap.level,
-    xp: 0,
-    isLord: false,
-    personalGrowths: null,
-    growths: {},
-    proficiencies: structuredClone(snap.proficiencies || []),
-    skills: [...snap.skills],
-    col: spawnCol,
-    row: spawnRow,
-    mov: snap.mov || snap.stats.MOV || 4,
-    moveType: snap.moveType || 'Infantry',
-    stats: { ...snap.stats },
-    currentHP: Math.max(1, Math.floor(snap.stats.HP / 2)),
-    faction: 'enemy',
-    weapon: snap.weapon ? structuredClone(snap.weapon) : null,
-    inventory: snap.weapon ? [structuredClone(snap.weapon)] : [],
-    consumables: [],
-    affixes: [],
-    accessory: null,
-    weaponRank: snap.proficiencies?.[0]?.rank || 'Prof',
-    hasMoved: false,
-    hasActed: false,
-    _revived: true,
-    _noXP: true,
-    isBoss: false,
-    graphic: null,
-    label: null,
-    hpBar: null,
-  };
+  return buildRisenUnit({ snapshot: snap }, { col: spawnCol, row: spawnRow });
 }
 
 // --- 7. Snapshot restore logic ---
@@ -527,68 +436,6 @@ describe('Revival unit field completeness', () => {
     const unit = reviveFromSnapshot(snap, 0, 0);
     expect(unit.moveType).toBe('Infantry');
     expect(unit.mov).toBe(snap.stats.MOV || 4);
-  });
-});
-
-// --- 10. Spawn position fallback logic ---
-describe('Spawn position fallback logic', () => {
-  // Simulates the getUnitAt-based neighbor search from processZombieRevival
-  function findSpawnPosition(deathCol, deathRow, cols, rows, occupiedSet) {
-    let spawnCol = deathCol;
-    let spawnRow = deathRow;
-    const key = (c, r) => `${c},${r}`;
-    if (occupiedSet.has(key(spawnCol, spawnRow))) {
-      const dirs = [
-        { dc: -1, dr: 0 },
-        { dc: 1, dr: 0 },
-        { dc: 0, dr: -1 },
-        { dc: 0, dr: 1 },
-      ];
-      for (const { dc, dr } of dirs) {
-        const nc = spawnCol + dc;
-        const nr = spawnRow + dr;
-        if (nc >= 0 && nc < cols && nr >= 0 && nr < rows && !occupiedSet.has(key(nc, nr))) {
-          return { col: nc, row: nr };
-        }
-      }
-      return null; // no room
-    }
-    return { col: spawnCol, row: spawnRow };
-  }
-
-  it('returns death position when unoccupied', () => {
-    const result = findSpawnPosition(5, 5, 10, 10, new Set());
-    expect(result).toEqual({ col: 5, row: 5 });
-  });
-
-  it('returns adjacent position when death tile is occupied', () => {
-    const result = findSpawnPosition(5, 5, 10, 10, new Set(['5,5']));
-    expect(result).not.toBeNull();
-    expect(result).not.toEqual({ col: 5, row: 5 });
-    // Should be one of the 4 neighbors
-    const dist = Math.abs(result.col - 5) + Math.abs(result.row - 5);
-    expect(dist).toBe(1);
-  });
-
-  it('returns null when death tile and all neighbors are occupied', () => {
-    const occupied = new Set(['5,5', '4,5', '6,5', '5,4', '5,6']);
-    const result = findSpawnPosition(5, 5, 10, 10, occupied);
-    expect(result).toBeNull();
-  });
-
-  it('respects grid bounds at corner', () => {
-    // Corner (0,0) — left and up neighbors are out of bounds
-    const occupied = new Set(['0,0']);
-    const result = findSpawnPosition(0, 0, 10, 10, occupied);
-    expect(result).not.toBeNull();
-    expect(result.col).toBeGreaterThanOrEqual(0);
-    expect(result.row).toBeGreaterThanOrEqual(0);
-  });
-
-  it('returns null at corner when all in-bounds neighbors are occupied', () => {
-    const occupied = new Set(['0,0', '1,0', '0,1']);
-    const result = findSpawnPosition(0, 0, 10, 10, occupied);
-    expect(result).toBeNull();
   });
 });
 

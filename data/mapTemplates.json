@@ -471,6 +471,7 @@
     {
       "id": "chokepoint",
       "name": "Chokepoint",
+      "caravan": false,
       "fogChance": 0.2,
       "zones": [
         {
@@ -2117,6 +2118,7 @@
     {
       "id": "great_hall",
       "name": "Great Hall",
+      "caravan": false,
       "parBonus": 1,
       "fogChance": 0.1,
       "acts": [

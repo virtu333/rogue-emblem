@@ -111,7 +111,7 @@ describe('story slice selection contracts', () => {
         for (const [key, condition] of Object.entries(value.when)) {
           expect(KNOWN_WHEN_KEYS.has(key), key).toBe(true);
           if (booleans.has(key)) expect(typeof condition, key).toBe('boolean');
-          else if (key === 'minRunsCompleted') {
+          else if (key === 'minRunsCompleted' || key === 'maxRunsStarted') {
             expect(Number.isInteger(condition)).toBe(true);
             expect(condition).toBeGreaterThanOrEqual(0);
           } else {

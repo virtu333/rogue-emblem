@@ -39,6 +39,7 @@ import {
   getDisplayLevel,
   equipIfUnarmed,
   inventoryDisplayOrder,
+  benchedSkillsNote,
 } from '../engine/UnitManager.js';
 import { equippedMarker } from './equippedBadge.js';
 import { isForged } from '../engine/ForgeSystem.js';
@@ -1815,7 +1816,7 @@ export class RosterOverlay {
       this._showBanner(
         droppedNames.length > 0
           ? `${unit.name} promoted to ${promotedClassData.name}! ` +
-              `Skill limit: couldn't learn ${droppedNames.join(', ')}. ${(promotionResult.notices || []).join(' ')}`
+              `${benchedSkillsNote(droppedNames)} ${(promotionResult.notices || []).join(' ')}`
           : `${unit.name} promoted to ${promotedClassData.name}! ${(promotionResult.notices || []).join(' ')}`,
         droppedNames.length > 0 ? UI_PALETTE.warn : UI_PALETTE.accent,
       );

@@ -17,6 +17,12 @@ import {
   MAX_STARTING_SKILLS,
 } from '../utils/constants.js';
 import { DEFAULT_STARTING_LORD_NAMES, defaultPartnerFor } from './Commander.js';
+import {
+  ALWAYS_MET_LORD_NAMES,
+  lordNamesInRun,
+  lordsMetOfMetaSave,
+  mergeLordNames,
+} from './LordsMet.js';
 
 const DEFAULT_LORD_SELECTION = Object.freeze({
   commander: DEFAULT_STARTING_LORD_NAMES[0],
@@ -111,14 +117,90 @@ function mergeSettledRunIds(...lists) {
   return ids.slice(-MAX_SETTLED_RUN_IDS);
 }
 
-const PRE_BALANCE_COSTS = {
-  recruit_weapon_forge: [800, 1400],
-  weapon_forge: [150, 325, 550],
-  lethal_armory_killer: [900],
-  lethal_armory_silver: [1400],
-  recruit_field_supplies: [375],
-  master_of_arms: [600],
-};
+/**
+ * Price cuts that credit past buyers. A save carries the revision it was last settled
+ * at (`balanceRevision`); loading an older save credits every later revision once:
+ * for each tier bought, `from` price - `to` price, in the upgrade's currency. Both
+ * price lists are frozen here, never read from metaUpgrades.json, so a later cut
+ * cannot change what an earlier revision owes (revision 1 used to read the live
+ * prices, which revision 2 lowered again). The newest revision's `to` prices are the
+ * data's (tests/SeptemberBalance.test.js holds them together).
+ */
+export const BALANCE_REVISIONS = Object.freeze([
+  {
+    revision: 1, // September 2026 balance
+    from: {
+      recruit_weapon_forge: [800, 1400],
+      weapon_forge: [150, 325, 550],
+      lethal_armory_killer: [900],
+      lethal_armory_silver: [1400],
+      recruit_field_supplies: [375],
+      master_of_arms: [600],
+    },
+    to: {
+      recruit_weapon_forge: [400, 700],
+      weapon_forge: [150, 250, 400],
+      lethal_armory_killer: [600],
+      lethal_armory_silver: [900],
+      recruit_field_supplies: [250],
+      master_of_arms: [350],
+    },
+  },
+  {
+    revision: 2, // 2026-09-29 playtest: the Battalion tab at half price
+    from: {
+      deploy_limit: [500],
+      recruit_skill: [500],
+      recruit_field_supplies: [250],
+      veteran_recruits: [250, 450, 700],
+      extra_starting_unit_pool: [400, 700, 1000, 1500],
+      lethal_armory: [500],
+      lethal_armory_killer: [600],
+      lethal_armory_silver: [900],
+      master_of_arms: [350],
+      recruit_xp: [350, 700],
+      recruit_accessory: [650],
+      recruit_weapon_forge: [400, 700],
+    },
+    to: {
+      deploy_limit: [150],
+      recruit_skill: [250],
+      recruit_field_supplies: [125],
+      veteran_recruits: [125, 225, 350],
+      extra_starting_unit_pool: [200, 350, 500, 750],
+      lethal_armory: [250],
+      lethal_armory_killer: [300],
+      lethal_armory_silver: [450],
+      master_of_arms: [175],
+      recruit_xp: [175, 350],
+      recruit_accessory: [325],
+      recruit_weapon_forge: [200, 350],
+    },
+  },
+]);
+
+export const CURRENT_BALANCE_REVISION = BALANCE_REVISIONS[BALANCE_REVISIONS.length - 1].revision;
+
+/**
+ * Upgrades taken out of the game. Each purchased level is refunded once, in its
+ * currency, and the key is deleted; `retiredUpgradeRefunds` records how many levels
+ * were paid, so a stale copy that brings the key back (the disk/cloud max-merge) is
+ * cleared again without paying twice.
+ */
+export const RETIRED_UPGRADES = Object.freeze({
+  // Expanded Ranks: the roster no longer has a cap (2026-09-29 playtest).
+  roster_cap: { currency: 'supply', refundPerLevel: 175 },
+});
+
+function normalizeRetiredUpgradeRefunds(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const id of Object.keys(RETIRED_UPGRADES)) {
+    const levels = Math.max(0, Math.floor(Number(raw[id]) || 0));
+    if (levels > 0) out[id] = levels;
+  }
+  return out;
+}
 
 const DEFAULT_STORAGE_KEY = 'emblem_rogue_meta_save';
 const DEADLY_ARSENAL_SPLIT_MIGRATION_CUTOFF = Date.UTC(2026, 1, 14);
@@ -189,12 +271,13 @@ export class MetaProgressionManager {
     this.onSave = null;
     this.upgradesData = upgradesData;
     this.storageKey = storageKey;
-    this.balanceRevision = 1;
+    this.balanceRevision = CURRENT_BALANCE_REVISION;
     this.solRefundBasis = 600;
     this.totalValor = 0;
     this.totalSupply = 0;
     this.savedAt = 0;
     this.purchasedUpgrades = {};
+    this.retiredUpgradeRefunds = {}; // { roster_cap: 1 }: retired levels already refunded
     this.runsCompleted = 0;
     this.runsStarted = 0;
     this.lastDifficulty = null;
@@ -202,16 +285,21 @@ export class MetaProgressionManager {
     this.settledRunIds = []; // recent runs whose end rewards were paid (idempotency)
     this.seenDialogueKeys = [];
     this.deedsEarned = []; // deed ids any unit of this save has earned (the Compendium's)
+    // Lords who have joined an army on this save; the home base and Compendium show only
+    // these (Edric and Sera always).
+    this.lordsMet = [...ALWAYS_MET_LORD_NAMES];
     this.hintState = null;
     this.skillAssignments = {}; // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
     this.lordSelection = { ...DEFAULT_LORD_SELECTION }; // commander-choice picks, persisted
     this.milestones = new Set(); // e.g. "beatAct1", "beatAct2", "beatAct3"
     this.storyFlags = defaultStoryFlags(); // run-aware narrative memory
 
+    let savedMeta = null;
     try {
       const raw = localStorage.getItem(this.storageKey);
       if (raw) {
         const saved = JSON.parse(raw);
+        savedMeta = saved;
         this.lastDifficulty = isDifficultyId(saved.lastDifficulty) ? saved.lastDifficulty : null;
 
         // Migration: old single-currency saves have totalRenown but no totalValor
@@ -253,24 +341,72 @@ export class MetaProgressionManager {
         this.deedsEarned = mergeDeedIds(saved.deedsEarned);
         if (saved.storyFlags) this.storyFlags = normalizeStoryFlags(saved.storyFlags);
         this.solRefundBasis = Number(saved.solRefundBasis) === 400 ? 400 : 600;
-        if (!saved.balanceRevision) {
-          if (this.getUpgradeLevel('unlock_sol') > 0) this.solRefundBasis = 400;
-          for (const [id, oldCosts] of Object.entries(PRE_BALANCE_COSTS)) {
-            const upgrade = this.upgradesData.find((u) => u.id === id);
-            if (!upgrade) continue;
-            let credit = 0;
-            for (let i = 0; i < Math.min(this.getUpgradeLevel(id), oldCosts.length); i++) {
-              credit += Math.max(0, oldCosts[i] - upgrade.costs[i]);
-            }
-            if (this.getCurrencyForUpgrade(id) === 'valor') this.totalValor += credit;
-            else this.totalSupply += credit;
-          }
-          // The next normal save persists credit and marker atomically without making
-          // a read-only load appear newer than a pending cloud merge.
-        }
+        if (!saved.balanceRevision && this.getUpgradeLevel('unlock_sol') > 0)
+          this.solRefundBasis = 400;
+        this._creditBalanceRevisionsSince(saved.balanceRevision);
+        this.retiredUpgradeRefunds = normalizeRetiredUpgradeRefunds(saved.retiredUpgradeRefunds);
+        this._settleRetiredUpgrades();
+        // The next normal save persists credits and markers atomically without making
+        // a read-only load appear newer than a pending cloud merge.
       }
     } catch (_) {
       /* incognito / quota exceeded */
+    }
+    // Saves from before the list backfill it from their records; lords in the slot's
+    // in-progress run have joined, so they always count.
+    this.lordsMet = mergeLordNames(lordsMetOfMetaSave(savedMeta), this._lordsInSavedRun());
+  }
+
+  /** Lords in the run saved beside this meta (its slot's run save), if any. */
+  _lordsInSavedRun() {
+    const slot = /^emblem_rogue_slot_(\d+)_meta$/.exec(this.storageKey)?.[1];
+    const runKey = slot
+      ? `emblem_rogue_slot_${slot}_run`
+      : this.storageKey === DEFAULT_STORAGE_KEY
+        ? 'emblem_rogue_run_save'
+        : null;
+    if (!runKey) return [];
+    try {
+      return lordNamesInRun(JSON.parse(localStorage.getItem(runKey) || 'null'));
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /** Credit every balance revision newer than the save's (see BALANCE_REVISIONS). */
+  _creditBalanceRevisionsSince(savedRevision) {
+    const settled = Math.max(0, Math.floor(Number(savedRevision) || 0));
+    for (const { revision, from, to } of BALANCE_REVISIONS) {
+      if (revision <= settled) continue;
+      for (const [id, oldCosts] of Object.entries(from)) {
+        const newCosts = to[id] || [];
+        let credit = 0;
+        for (let i = 0; i < Math.min(this.getUpgradeLevel(id), oldCosts.length); i++) {
+          credit += Math.max(0, oldCosts[i] - (Number(newCosts[i]) || 0));
+        }
+        if (credit <= 0) continue;
+        if (this.getCurrencyForUpgrade(id) === 'valor') this.totalValor += credit;
+        else this.totalSupply += credit;
+      }
+    }
+  }
+
+  /**
+   * Refund retired upgrades once and drop their keys (see RETIRED_UPGRADES). Runs at
+   * load and again after a disk merge, which can bring a retired key back.
+   */
+  _settleRetiredUpgrades() {
+    for (const [id, { currency, refundPerLevel }] of Object.entries(RETIRED_UPGRADES)) {
+      if (!Object.prototype.hasOwnProperty.call(this.purchasedUpgrades, id)) continue;
+      const level = this.getUpgradeLevel(id);
+      const refunded = this.retiredUpgradeRefunds[id] || 0;
+      if (level > refunded) {
+        const credit = (level - refunded) * refundPerLevel;
+        if (currency === 'valor') this.totalValor += credit;
+        else this.totalSupply += credit;
+        this.retiredUpgradeRefunds[id] = level;
+      }
+      delete this.purchasedUpgrades[id];
     }
   }
 
@@ -458,6 +594,28 @@ export class MetaProgressionManager {
     if (merged.length === this.deedsEarned.length) return;
     this.deedsEarned = merged;
     this._save();
+  }
+
+  /** Has this lord joined an army on this save? Edric and Sera always have. */
+  hasMetLord(name) {
+    return ALWAYS_MET_LORD_NAMES.includes(name) || this.lordsMet.includes(name);
+  }
+
+  /** The lords this save has met, sorted. */
+  getLordsMet() {
+    return [...this.lordsMet];
+  }
+
+  /**
+   * Remember lords who joined (idempotent; saves only when one is new).
+   * @returns {boolean} whether any name was new
+   */
+  recordLordsMet(names) {
+    const merged = mergeLordNames(this.lordsMet, names);
+    if (merged.length === this.lordsMet.length) return false;
+    this.lordsMet = merged;
+    this._save();
+    return true;
   }
 
   markDialogueSeen(key) {
@@ -727,25 +885,31 @@ export class MetaProgressionManager {
   /**
    * The starting pair after tier gating: tier 0 forces the default pair,
    * tier 1 honors the commander and forces the default partner, tier 2
-   * honors both. Lord-name existence is enforced by the consumer
+   * honors both. A lord this save has not met falls back like tier gating
+   * (unmet commander -> default pair; unmet partner -> default partner).
+   * Lord-name existence is enforced by the consumer
    * (RunManager falls back to the default pair for unknown names).
    */
   getLordSelection() {
     const tier = this.getCommanderChoiceTier();
     if (tier <= 0) return { ...DEFAULT_LORD_SELECTION };
     const stored = normalizeLordSelection(this.lordSelection);
-    if (tier === 1)
+    // A pick of a lord this save has not met never leads a run.
+    if (!this.hasMetLord(stored.commander)) return { ...DEFAULT_LORD_SELECTION };
+    if (tier === 1 || !this.hasMetLord(stored.partner))
       return { commander: stored.commander, partner: defaultPartnerFor(stored.commander) };
     return stored;
   }
 
   /**
-   * Pick the commander (requires tier >= 1). If the pick collides with the
-   * stored partner, the partner resets to the default for that commander.
+   * Pick the commander (requires tier >= 1 and a lord this save has met). If the
+   * pick collides with the stored partner, the partner resets to the default for
+   * that commander.
    */
   setCommander(name) {
     if (typeof name !== 'string' || name.length === 0) return false;
     if (this.getCommanderChoiceTier() < 1) return false;
+    if (!this.hasMetLord(name)) return false;
     const partner =
       this.lordSelection?.partner === name ? defaultPartnerFor(name) : this.lordSelection?.partner;
     this.lordSelection = normalizeLordSelection({ commander: name, partner });
@@ -753,10 +917,11 @@ export class MetaProgressionManager {
     return true;
   }
 
-  /** Pick the partner (requires tier >= 2; must differ from the commander). */
+  /** Pick the partner (requires tier >= 2 and a met lord; must differ from the commander). */
   setPartner(name) {
     if (typeof name !== 'string' || name.length === 0) return false;
     if (this.getCommanderChoiceTier() < 2) return false;
+    if (!this.hasMetLord(name)) return false;
     if (this.lordSelection?.commander === name) return false;
     this.lordSelection = normalizeLordSelection({
       commander: this.lordSelection?.commander,
@@ -771,7 +936,7 @@ export class MetaProgressionManager {
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
    *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponQualityBonus, lootCategoryWeightBonuses,
    *            lordRecruitChanceBonus, recruitPromotionChanceBonus,
-   *            deployBonus, rosterCapBonus, visionChargesBonus, caravanChanceBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
+   *            deployBonus, visionChargesBonus, caravanChanceBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
    *            lethalArmoryTier, recruitWeaponForge, recruitStartingAccessory, recruitXpBonus,
    *            startingWeaponForge, deadlyArsenalTier,
    *            ironArms, steelArms, artAdept, startingAccessoryTier, startingStaffTier,
@@ -794,7 +959,6 @@ export class MetaProgressionManager {
       lordRecruitChanceBonus: 0,
       recruitPromotionChanceBonus: 0,
       deployBonus: 0,
-      rosterCapBonus: 0,
       visionChargesBonus: 0,
       caravanChanceBonus: 0,
       recruitRandomSkill: false,
@@ -881,7 +1045,6 @@ export class MetaProgressionManager {
       if (effect.recruitPromotionChanceBonus !== undefined)
         effects.recruitPromotionChanceBonus = effect.recruitPromotionChanceBonus;
       if (effect.deployBonus !== undefined) effects.deployBonus = effect.deployBonus;
-      if (effect.rosterCapBonus !== undefined) effects.rosterCapBonus = effect.rosterCapBonus;
       if (effect.visionChargesBonus !== undefined)
         effects.visionChargesBonus = effect.visionChargesBonus;
       if (effect.caravanChanceBonus !== undefined)
@@ -1079,6 +1242,7 @@ export class MetaProgressionManager {
     this.runsStarted = 0;
     this.skillAssignments = {};
     this.lordSelection = { ...DEFAULT_LORD_SELECTION };
+    this.lordsMet = [...ALWAYS_MET_LORD_NAMES];
     this.milestones = new Set();
     this.storyFlags = defaultStoryFlags();
     this.runRecords = [];
@@ -1136,6 +1300,12 @@ export class MetaProgressionManager {
         this.purchasedUpgrades[id] = Math.max(localLevel, diskLevel);
       }
     }
+    // A refund either copy paid stays paid; a retired key the merge brought back from
+    // a stale copy is dropped again (and paid only if neither copy has refunded it).
+    const diskRefunds = normalizeRetiredUpgradeRefunds(disk.retiredUpgradeRefunds);
+    for (const [id, levels] of Object.entries(diskRefunds))
+      this.retiredUpgradeRefunds[id] = Math.max(this.retiredUpgradeRefunds[id] || 0, levels);
+    this._settleRetiredUpgrades();
     if (Array.isArray(disk.milestones)) {
       for (const m of disk.milestones) this.milestones.add(m);
     }
@@ -1162,6 +1332,7 @@ export class MetaProgressionManager {
       disk.seenDialogueKeys || [],
     );
     this.deedsEarned = mergeDeedIds(this.deedsEarned, disk.deedsEarned);
+    this.lordsMet = mergeLordNames(this.lordsMet, lordsMetOfMetaSave(disk));
     if (disk.storyFlags && typeof disk.storyFlags === 'object') {
       const diskFlags = normalizeStoryFlags(disk.storyFlags);
       // Counters are monotonic, so per-name max can only over-remember —
@@ -1223,6 +1394,7 @@ export class MetaProgressionManager {
       totalValor: this.totalValor,
       totalSupply: this.totalSupply,
       purchasedUpgrades: this.purchasedUpgrades,
+      retiredUpgradeRefunds: this.retiredUpgradeRefunds,
       runsCompleted: this.runsCompleted,
       runsStarted: this.runsStarted,
       lastDifficulty: this.lastDifficulty,
@@ -1234,6 +1406,7 @@ export class MetaProgressionManager {
       settledRunIds: this.settledRunIds,
       seenDialogueKeys: this.seenDialogueKeys,
       deedsEarned: this.deedsEarned,
+      lordsMet: this.lordsMet,
       hintState: this.hintState,
       savedAt: this.savedAt,
     });
@@ -1256,6 +1429,7 @@ export class MetaProgressionManager {
       totalValor: this.totalValor,
       totalSupply: this.totalSupply,
       purchasedUpgrades: this.purchasedUpgrades,
+      retiredUpgradeRefunds: this.retiredUpgradeRefunds,
       runsCompleted: this.runsCompleted,
       runsStarted: this.runsStarted,
       lastDifficulty: this.lastDifficulty,
@@ -1267,6 +1441,7 @@ export class MetaProgressionManager {
       settledRunIds: this.settledRunIds,
       seenDialogueKeys: this.seenDialogueKeys,
       deedsEarned: this.deedsEarned,
+      lordsMet: this.lordsMet,
       hintState: this.hintState,
       savedAt: this.savedAt,
     };

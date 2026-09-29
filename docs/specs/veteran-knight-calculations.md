@@ -162,6 +162,7 @@ for(const name of ['Iron Sword','Rapier 7','Rapier 6']) {
     eligible++;e.currentHP=first.defenderHP;
     const ed=createLordUnit(data.lords.find(l=>l.name==='Edric'),clazz('Lord'),data.weapons);
     ed.weapon=weapon(name==='Iron Sword'?'Iron Sword':'Rapier');
+    if(name==='Rapier 7')ed.weapon.might=7;
     if(name==='Rapier 6')ed.weapon.might=6;
     const second=combat(ed,e);
     if(second.defenderDied){edricKills++;combinedKills++;}
@@ -225,3 +226,4 @@ console.log(JSON.stringify({engineRef,trials,seed:'LCG 1664525/1013904223; seeds
     'Monte Carlo error around 50% is about +/-1.3 percentage points (95%) for 6000 independent trials; enemy population sampling adds uncertainty.'],
   candidateComparison,difficultyComparison,byClass,supportSensitivity,feeding,act2Falloff,bosses,rapier,growth,xp},null,2));
 ```
+

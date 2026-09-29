@@ -1,3 +1,4 @@
+import { combatBlocksCanto } from '../engine/SpecialCharacterPolicy.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { revealSettledVision } from './BattleActionCompletion.js';
 import { findBattleEntity, isBattleEntityId } from '../engine/BattleEntityIdentity.js';
@@ -113,7 +114,7 @@ export function completeResolvedAction(scene, continuation) {
       ally.graphic?.clearTint?.();
     }
   } else if (unit) {
-    scene.finishUnitAction(unit, { skipCanto: continuation.skipCanto === true });
+    scene.finishUnitAction(unit, { skipCanto: continuation.skipCanto === true || (continuation.kind === 'combat' && combatBlocksCanto(unit)) });
     return;
   }
   scene.selectedUnit = null;
@@ -130,3 +131,4 @@ export function completeResolvedAction(scene, continuation) {
   revealSettledVision(scene);
   scene._captureSuspendCheckpoint?.();
 }
+

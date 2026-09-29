@@ -19,9 +19,8 @@ import {
   canEquip,
   equipIfUnarmed,
   applyStatBoost,
-  gainExperience,
-  checkLevelUpSkills,
 } from '../engine/UnitManager.js';
+import { awardTeamXp, teamXpLines } from '../engine/TeamXp.js';
 import { canForge, canForgeStat } from '../engine/ForgeSystem.js';
 import { canImbue, isImbueStone, getImbueStoneDetailText } from '../engine/ImbueSystem.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
@@ -334,18 +333,17 @@ export class LootScreenController {
             audio.playSFX('sfx_confirm');
           }
           awardGoldNow(scaledGoldAmount);
-          // Distribute team XP to entire roster
-          if (choice.xpAmount && runManager.roster) {
-            const extOpt = {
-              extendedLevelingEnabled:
-                runManager?.getDifficultyModifier?.('extendedLevelingEnabled', false) || false,
-            };
-            for (const unit of runManager.roster) {
-              gainExperience(unit, choice.xpAmount, extOpt);
-              checkLevelUpSkills(unit, gameData.classes);
-            }
-          }
-          scene.finalizeLootPick(lootGroup, cardIdx);
+          // Team XP to the whole roster; the level-ups and class skills are named
+          // before the loot screen moves on.
+          const report = awardTeamXp(runManager.roster, choice.xpAmount, gameData.classes, {
+            extendedLevelingEnabled:
+              runManager?.getDifficultyModifier?.('extendedLevelingEnabled', false) || false,
+          });
+          const lines = teamXpLines(report, gameData.skills);
+          const done = () => scene.finalizeLootPick(lootGroup, cardIdx);
+          if (lines.length && this.mobileRewards)
+            this.mobileRewards.showNotice('Team XP', lines, done);
+          else done();
         };
       } else if (choice.type === 'forge') {
         // Forge whetstone card

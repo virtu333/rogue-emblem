@@ -198,3 +198,37 @@ test('roster tolerates thumb drift but rejects scroll and slide-off releases', a
     await cards.nth(1).evaluate((b) => getComputedStyle(b).backgroundColor),
   );
 });
+test('a heal in the convoy is used on the chosen unit without withdrawing it', async ({ page }) => {
+  const sheet = await roster(page);
+  const name = await page.evaluate(() => {
+    const overlay = window.__emblemRogueGame.scene.getScene('NodeMap').rosterOverlay;
+    const run = overlay.runManager;
+    const unit = run.roster[0];
+    unit.currentHP = 1;
+    run.addToConvoy({
+      name: 'Convoy test tonic',
+      type: 'Consumable',
+      effect: 'heal',
+      value: 10,
+      uses: 1,
+    });
+    overlay._mobileSheet.index = 0;
+    overlay._mobileSheet.render();
+    return unit.name;
+  });
+  await sheet.getByRole('button', { name: 'Convoy', exact: true }).tap();
+  const card = sheet.getByRole('article').filter({
+    has: page.getByRole('heading', { name: 'Convoy test tonic', exact: true }),
+  });
+  await card.getByRole('button', { name: `Use on ${name}`, exact: true }).tap();
+  await expect(card).toHaveCount(0);
+  const after = await page.evaluate(() => {
+    const run = window.__emblemRogueGame.scene.getScene('NodeMap').rosterOverlay.runManager;
+    return {
+      hp: run.roster[0].currentHP,
+      carried: run.roster[0].consumables.some((c) => c.name === 'Convoy test tonic'),
+      stored: run.convoy.consumables.some((c) => c.name === 'Convoy test tonic'),
+    };
+  });
+  expect(after).toEqual({ hp: 11, carried: false, stored: false });
+});

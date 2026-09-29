@@ -194,25 +194,39 @@
   },
   "lordRecruitLines": {
     "Edric": [
-      "Rally to me. We're stronger together."
+      "Rally to me. We're stronger together.",
+      "Edric, of the border hall. Point me at the front and I'll stay there.",
+      "You've kept these people alive this far. Let me help carry the rest."
     ],
     "Kira": [
-      "I see the line to win. Do you?"
+      "I see the line to win. Do you?",
+      "I've watched your column for three days. Your left flank is a gift to them. I'll fix it.",
+      "Playing this alone? Brave. Also terrible. Move over."
     ],
     "Voss": [
-      "Still standing. That's all that matters."
+      "Still standing. That's all that matters.",
+      "Border warden, twenty years. I'll walk with you as long as my knees agree.",
+      "Room in your column for one more? Good. Maybe fewer names in my ledger, then."
     ],
     "Sera": [
-      "I dreamt of this moment. Stay close."
+      "I dreamt of this moment. Stay close.",
+      "I've seen your banner in my dreams, longer than you've carried it.",
+      "The thread led me here, to you. I've learned not to argue with it."
     ],
     "Rowan": [
-      "My lance is blessed. My aim? That's all me."
+      "My lance is blessed. My aim? That's all me.",
+      "Need a rider? You need a rider. Everyone needs a rider. Especially this one.",
+      "Rowan, and this is my mount. One of us is a legend. We take turns."
     ],
     "Astrid": [
-      "The sky sees what the ground misses. I'll be your sight."
+      "The sky sees what the ground misses. I'll be your sight.",
+      "I've been watching you from above for a mile. You'll do. I'll fly point.",
+      "Astrid. Sky legions, once. I work alone. I'll make an exception."
     ],
     "Cael": [
-      "I'll hold the line. Don't have too much fun back there."
+      "I'll hold the line. Don't have too much fun back there.",
+      "You need a wall. I need something to stand in front of. Fair trade.",
+      "Cael. I hold ground. Put me where it's worst and go do your part."
     ]
   },
   "actTransitions": {
@@ -225,6 +239,34 @@
         }
       ],
       "variants": [
+        {
+          "when": {
+            "maxRunsStarted": 1,
+            "lastRunResult": "none"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "A ring of robed mages, chanting in the dark. Every word they speak falls through the floor and never lands."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "A crowned man watches them work. He is counting something. Coins, or years. I cannot tell which he is spending."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Under the consecrated stones, something sleeps. It is not hungry. They are feeding it anyway."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "And then a road, {commander}. Broken in a dozen places, but a road. It begins where we are standing."
+            }
+          ]
+        },
         {
           "when": {
             "lastRunResult": "defeat",
@@ -2508,6 +2550,32 @@
             "portrait": "portrait_boss_iron_captain",
             "line": "Half my guard, gone... Hold the border! Fall back and REFORM!"
           }
+        ],
+        "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Iron Captain",
+                "portrait": "portrait_boss_iron_captain",
+                "line": "Half my guard down, and still you haven't learned? The line broke you once. Close ranks!"
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossSlainBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Iron Captain",
+                "portrait": "portrait_boss_iron_captain",
+                "line": "This wound... I've taken it before, on a road like this one. Not again. FORM UP!"
+              }
+            ]
+          }
         ]
       },
       "defeat": {
@@ -2516,9 +2584,41 @@
             "speaker": "Iron Captain",
             "portrait": "portrait_boss_iron_captain",
             "line": "Impossible... the border was supposed to hold..."
+          },
+          {
+            "speaker": "Sera",
+            "portrait": "portrait_lord_sera",
+            "line": "A dispatch in his coat, seal unbroken: By the Emperor's hand. Hold the border until the ritual is complete."
+          },
+          {
+            "speaker": "Edric",
+            "portrait": "portrait_lord_edric",
+            "line": "He never opened it. Twenty years of orders, and he never needed to read one."
           }
         ],
         "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Iron Captain",
+                "portrait": "portrait_boss_iron_captain",
+                "line": "I held the line against you once... one victory in twenty years... it wasn't enough."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "A dispatch in his coat, seal unbroken: By the Emperor's hand. Hold the border until the ritual is complete."
+              },
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "He never opened it. Twenty years of orders, and he never needed to read one."
+              }
+            ]
+          },
           {
             "when": {
               "bossSlainBefore": true
@@ -2528,6 +2628,16 @@
                 "speaker": "Iron Captain",
                 "portrait": "portrait_boss_iron_captain",
                 "line": "Again... why does it feel like... again..."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "A dispatch in his coat, seal unbroken: By the Emperor's hand. Hold the border until the ritual is complete."
+              },
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "He never opened it. Twenty years of orders, and he never needed to read one."
               }
             ]
           }
@@ -2665,6 +2775,32 @@
             "portrait": "portrait_boss_warchief",
             "line": "HAH! Now the blood flows! MORE! GIVE ME MORE!"
           }
+        ],
+        "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Warchief",
+                "portrait": "portrait_boss_warchief",
+                "line": "HAH! You cut me, but I still remember how you fell. Your bones cracked like old treaties!"
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossSlainBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Warchief",
+                "portrait": "portrait_boss_warchief",
+                "line": "This blood... I've smelled it on my own axe before. HAH! Then this time I spill yours first!"
+              }
+            ]
+          }
         ]
       },
       "defeat": {
@@ -2673,9 +2809,41 @@
             "speaker": "Warchief",
             "portrait": "portrait_boss_warchief",
             "line": "Hah... you fight well. Better than I expected."
+          },
+          {
+            "speaker": "Edric",
+            "portrait": "portrait_lord_edric",
+            "line": "He wiped his axe with this. Imperial seal. 'Clans to close the roads while the Emperor's rite proceeds.'"
+          },
+          {
+            "speaker": "Sera",
+            "portrait": "portrait_lord_sera",
+            "line": "Paid to guard a ritual he would never see. I wonder what the Emperor promised them for it."
           }
         ],
         "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Warchief",
+                "portrait": "portrait_boss_warchief",
+                "line": "Hah... I beat you once. Remember that. Put it in your songs: I beat you once."
+              },
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "He wiped his axe with this. Imperial seal. 'Clans to close the roads while the Emperor's rite proceeds.'"
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "Paid to guard a ritual he would never see. I wonder what the Emperor promised them for it."
+              }
+            ]
+          },
           {
             "when": {
               "bossSlainBefore": true
@@ -2685,6 +2853,16 @@
                 "speaker": "Warchief",
                 "portrait": "portrait_boss_warchief",
                 "line": "Twice... felled twice by the same blade... what a war this is..."
+              },
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "He wiped his axe with this. Imperial seal. 'Clans to close the roads while the Emperor's rite proceeds.'"
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "Paid to guard a ritual he would never see. I wonder what the Emperor promised them for it."
               }
             ]
           }
@@ -2822,6 +3000,32 @@
             "portrait": "portrait_boss_knight_commander",
             "line": "My armor cracks... but my faith holds. The emperor is watching!"
           }
+        ],
+        "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Knight Commander",
+                "portrait": "portrait_boss_knight_commander",
+                "line": "You have drawn blood. Last time the ground drew yours. Doctrine repeats itself."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossSlainBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Knight Commander",
+                "portrait": "portrait_boss_knight_commander",
+                "line": "This wound. I have dreamed it night after night, and woken every time. I will wake from this."
+              }
+            ]
+          }
         ]
       },
       "defeat": {
@@ -2830,9 +3034,41 @@
             "speaker": "Knight Commander",
             "portrait": "portrait_boss_knight_commander",
             "line": "The emperor will hear of this. You've only delayed the inevitable."
+          },
+          {
+            "speaker": "Sera",
+            "portrait": "portrait_lord_sera",
+            "line": "His ledger, last page: Remounts sent to the sacred ground, forty. Returned, none. Fodder, not required."
+          },
+          {
+            "speaker": "Edric",
+            "portrait": "portrait_lord_edric",
+            "line": "Fodder not required. They weren't sending those horses down there to be ridden, were they?"
           }
         ],
         "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Knight Commander",
+                "portrait": "portrait_boss_knight_commander",
+                "line": "I broke you once... and still the doctrine fails... someone tell the colleges..."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "His ledger, last page: Remounts sent to the sacred ground, forty. Returned, none. Fodder, not required."
+              },
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Fodder not required. They weren't sending those horses down there to be ridden, were they?"
+              }
+            ]
+          },
           {
             "when": {
               "bossSlainBefore": true
@@ -2842,6 +3078,16 @@
                 "speaker": "Knight Commander",
                 "portrait": "portrait_boss_knight_commander",
                 "line": "Again the rebellion... again this ending... my faith does not waver..."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "His ledger, last page: Remounts sent to the sacred ground, forty. Returned, none. Fodder, not required."
+              },
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Fodder not required. They weren't sending those horses down there to be ridden, were they?"
               }
             ]
           }
@@ -2979,6 +3225,32 @@
             "portrait": "portrait_boss_archmage",
             "line": "Half integrity lost... recalculating. You are outpacing my models."
           }
+        ],
+        "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Archmage",
+                "portrait": "portrait_boss_archmage",
+                "line": "An anomaly. Last iteration you broke at precisely this point. Adjusting for stubbornness."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossSlainBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Archmage",
+                "portrait": "portrait_boss_archmage",
+                "line": "Half integrity... the same fracture, at the same angle. My notes predicted this. My notes end here."
+              }
+            ]
+          }
         ]
       },
       "defeat": {
@@ -2987,9 +3259,41 @@
             "speaker": "Archmage",
             "portrait": "portrait_boss_archmage",
             "line": "The rifts... they're stronger than my models predicted..."
+          },
+          {
+            "speaker": "Sera",
+            "portrait": "portrait_lord_sera",
+            "line": "A page torn from his notes. Scrawled under the sums, pressed hard enough to tear: NOT WAKING. BEING FED."
+          },
+          {
+            "speaker": "Edric",
+            "portrait": "portrait_lord_edric",
+            "line": "He knew. He knew, and he kept on doing sums."
           }
         ],
         "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Archmage",
+                "portrait": "portrait_boss_archmage",
+                "line": "Result not replicated... one success is only an anecdote... how embarrassing..."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "A page torn from his notes. Scrawled under the sums, pressed hard enough to tear: NOT WAKING. BEING FED."
+              },
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "He knew. He knew, and he kept on doing sums."
+              }
+            ]
+          },
           {
             "when": {
               "bossSlainBefore": true
@@ -2999,6 +3303,16 @@
                 "speaker": "Archmage",
                 "portrait": "portrait_boss_archmage",
                 "line": "Reproducible... my death is... reproducible... what a final datum..."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "A page torn from his notes. Scrawled under the sums, pressed hard enough to tear: NOT WAKING. BEING FED."
+              },
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "He knew. He knew, and he kept on doing sums."
               }
             ]
           }
@@ -3136,6 +3450,32 @@
             "portrait": "portrait_boss_blade_lord",
             "line": "Bleeding... the lieutenant never showed me this thread. No matter. I cut my own."
           }
+        ],
+        "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Blade Lord",
+                "portrait": "portrait_boss_blade_lord",
+                "line": "First blood to you. Last time, I drew the last. The form does not change."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossSlainBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Blade Lord",
+                "portrait": "portrait_boss_blade_lord",
+                "line": "This cut. I have felt it in a thread the lieutenant never showed me. So it was real."
+              }
+            ]
+          }
         ]
       },
       "defeat": {
@@ -3147,6 +3487,18 @@
           }
         ],
         "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Blade Lord",
+                "portrait": "portrait_boss_blade_lord",
+                "line": "I cut your thread once... it was meant to stay cut..."
+              }
+            ]
+          },
           {
             "when": {
               "bossSlainBefore": true
@@ -3293,6 +3645,32 @@
             "portrait": "portrait_boss_iron_wall",
             "line": "The walls crack... then I am the wall. Come and break against ME."
           }
+        ],
+        "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Iron Wall",
+                "portrait": "portrait_boss_iron_wall",
+                "line": "You chip the wall. You did last time too, just before it came down on you."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossSlainBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Iron Wall",
+                "portrait": "portrait_boss_iron_wall",
+                "line": "The stone cracks where it cracked before... I remember the sound. I do not remember yielding."
+              }
+            ]
+          }
         ]
       },
       "defeat": {
@@ -3304,6 +3682,18 @@
           }
         ],
         "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Iron Wall",
+                "portrait": "portrait_boss_iron_wall",
+                "line": "I stood... once... when it mattered... and now I fall... when it matters more..."
+              }
+            ]
+          },
           {
             "when": {
               "bossSlainBefore": true
@@ -3450,6 +3840,32 @@
             "portrait": "portrait_boss_the_lieutenant",
             "line": "You cut deeper than the visions promised. Enough. I stop holding back the future."
           }
+        ],
+        "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "This is where your line broke last time. I watched it twice: once here, once in the glass."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossSlainBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "I have seen this wound in every future where you win. I told myself those futures were rare."
+              }
+            ]
+          }
         ]
       },
       "preBattleReply": {
@@ -3551,6 +3967,18 @@
         "variants": [
           {
             "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "The Lieutenant",
+                "portrait": "portrait_boss_the_lieutenant",
+                "line": "I ended you once... I saw it so plainly... why can't I see... what comes after this..."
+              }
+            ]
+          },
+          {
+            "when": {
               "bossSlainBefore": true
             },
             "entries": [
@@ -3560,6 +3988,30 @@
                 "line": "Every timeline... you find me in every one... master, the pattern... is breaking..."
               }
             ]
+          }
+        ]
+      },
+      "vision": {
+        "base": [
+          {
+            "speaker": "The Lieutenant",
+            "portrait": "portrait_boss_the_lieutenant",
+            "line": "Hello, Sera. Don't look for me on this field. I stand where none of your roads can reach."
+          },
+          {
+            "speaker": "Sera",
+            "portrait": "portrait_lord_sera",
+            "line": "You always did prefer the far side of the glass. Afraid of what my light would show up close?"
+          },
+          {
+            "speaker": "The Lieutenant",
+            "portrait": "portrait_boss_the_lieutenant",
+            "line": "I have watched you win this fight a hundred ways. It changes nothing. His Majesty's work is nearly done."
+          },
+          {
+            "speaker": "Sera",
+            "portrait": "portrait_lord_sera",
+            "line": "He's gone. For the first time since this began, no other sight presses against mine."
           }
         ]
       }
@@ -3606,6 +4058,32 @@
             "speaker": "The Emperor",
             "portrait": "portrait_boss_the_emperor",
             "line": "You DARE wound me? I held the dark back for decades — behold what I kept for myself!"
+          }
+        ],
+        "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "The Emperor",
+                "portrait": "portrait_boss_the_emperor",
+                "line": "I watched you die once, rebel. I remember the arithmetic. It still runs in my favor."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossSlainBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "The Emperor",
+                "portrait": "portrait_boss_the_emperor",
+                "line": "This wound again... the rift keeps its receipts. I paid once. I will not pay twice!"
+              }
+            ]
           }
         ]
       },
@@ -3706,6 +4184,18 @@
           }
         ],
         "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "The Emperor",
+                "portrait": "portrait_boss_the_emperor",
+                "line": "I buried you once... I paid for that with everything... it should have lasted..."
+              }
+            ]
+          },
           {
             "when": {
               "bossSlainBefore": true
@@ -3931,6 +4421,32 @@
             "portrait": "portrait_boss_dark_rider",
             "line": "My blood on the wind... the shadows howl for yours in kind."
           }
+        ],
+        "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Dark Rider",
+                "portrait": "portrait_boss_dark_rider",
+                "line": "The dark remembers how you fell at this crossroads. It is whispering the way to me again."
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossSlainBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Dark Rider",
+                "portrait": "portrait_boss_dark_rider",
+                "line": "The shadows showed me this blade once before. I did not believe them. I believe them now."
+              }
+            ]
+          }
         ]
       },
       "defeat": {
@@ -3939,9 +4455,41 @@
             "speaker": "Dark Rider",
             "portrait": "portrait_boss_dark_rider",
             "line": "The darkness... will find another rider..."
+          },
+          {
+            "speaker": "Sera",
+            "portrait": "portrait_lord_sera",
+            "line": "His last sealed order. The wax is warm, and it hums against my palm like something breathing far below."
+          },
+          {
+            "speaker": "Edric",
+            "portrait": "portrait_lord_edric",
+            "line": "One line inside: Deliver to the lowest stair. Whatever answers is the addressee."
           }
         ],
         "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Dark Rider",
+                "portrait": "portrait_boss_dark_rider",
+                "line": "I ran you down once... the dark promised me forever... it only lent me the once..."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "His last sealed order. The wax is warm, and it hums against my palm like something breathing far below."
+              },
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "One line inside: Deliver to the lowest stair. Whatever answers is the addressee."
+              }
+            ]
+          },
           {
             "when": {
               "bossSlainBefore": true
@@ -3951,6 +4499,16 @@
                 "speaker": "Dark Rider",
                 "portrait": "portrait_boss_dark_rider",
                 "line": "Always this crossroads... always your blade... the dark... lied to me..."
+              },
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "His last sealed order. The wax is warm, and it hums against my palm like something breathing far below."
+              },
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "One line inside: Deliver to the lowest stair. Whatever answers is the addressee."
               }
             ]
           }
@@ -4088,6 +4646,32 @@
             "portrait": "portrait_boss_berserker_king",
             "line": "YES! Half dead and twice alive! THIS is a fight worth my crown!"
           }
+        ],
+        "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Berserker King",
+                "portrait": "portrait_boss_berserker_king",
+                "line": "You cut deeper than last time! GOOD! Last time you barely lasted this long!"
+              }
+            ]
+          },
+          {
+            "when": {
+              "bossSlainBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Berserker King",
+                "portrait": "portrait_boss_berserker_king",
+                "line": "HAH! This pain! I KNOW this pain! It ended me once. Let it TRY again!"
+              }
+            ]
+          }
         ]
       },
       "defeat": {
@@ -4099,6 +4683,18 @@
           }
         ],
         "variants": [
+          {
+            "when": {
+              "bossKilledYouBefore": true
+            },
+            "entries": [
+              {
+                "speaker": "Berserker King",
+                "portrait": "portrait_boss_berserker_king",
+                "line": "I crushed you once... and you came back... HAH... best trick... I've ever seen..."
+              }
+            ]
+          },
           {
             "when": {
               "bossSlainBefore": true
@@ -4210,6 +4806,11 @@
           "speaker": "Sera",
           "portrait": "portrait_lord_sera",
           "line": "The lieutenant has fallen. The visions are clearing... but something deeper still stirs. I can feel it."
+        },
+        {
+          "speaker": "Sera",
+          "portrait": "portrait_lord_sera",
+          "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
         }
       ],
       "variants": [
@@ -4232,6 +4833,11 @@
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
               "line": "But something deeper still stirs beneath it all. If it wakes... we will be needed again."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4250,6 +4856,11 @@
               "speaker": "Edric",
               "portrait": "portrait_lord_edric",
               "line": "Count everyone before we lower the banner."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4268,6 +4879,11 @@
               "speaker": "Kira",
               "portrait": "portrait_lord_kira",
               "line": "Keep the record; the next march may need it."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4286,6 +4902,11 @@
               "speaker": "Voss",
               "portrait": "portrait_lord_voss",
               "line": "A quiet camp. I had forgotten the sound."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4304,6 +4925,11 @@
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
               "line": "I will write down what held the visions back this time."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4322,6 +4948,11 @@
               "speaker": "Rowan",
               "portrait": "portrait_lord_rowan",
               "line": "Let the horses drink before anyone raises a toast."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4340,6 +4971,11 @@
               "speaker": "Astrid",
               "portrait": "portrait_lord_astrid",
               "line": "I can finally see our whole column from above."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4358,6 +4994,11 @@
               "speaker": "Cael",
               "portrait": "portrait_lord_cael",
               "line": "Set down the shields. I will take the first watch."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4375,6 +5016,11 @@
               "speaker": "Edric",
               "portrait": "portrait_lord_edric",
               "line": "Clear skies are enough for today. Tomorrow we ready the banner again."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4392,6 +5038,11 @@
               "speaker": "Kira",
               "portrait": "portrait_lord_kira",
               "line": "Something deeper... so the real game has more moves left. Good. I hate endings."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4409,6 +5060,11 @@
               "speaker": "Voss",
               "portrait": "portrait_lord_voss",
               "line": "Still stirring, is it? Fine. I'm still standing."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4426,6 +5082,11 @@
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
               "line": "Then I will keep watch over the deep. It's my turn to guard the dream."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4443,6 +5104,11 @@
               "speaker": "Rowan",
               "portrait": "portrait_lord_rowan",
               "line": "Let it stir. The lance stays blessed, and my aim is only getting better."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4460,6 +5126,11 @@
               "speaker": "Astrid",
               "portrait": "portrait_lord_astrid",
               "line": "Then I'll fly higher next time — and see it coming before it wakes."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         },
@@ -4477,25 +5148,276 @@
               "speaker": "Cael",
               "portrait": "portrait_lord_cael",
               "line": "Let it come when it comes. It'll find the wall already built."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Past the fens, ash still drifts up from the capital. There is a harder road, and it runs to the Emperor's door."
             }
           ]
         }
       ]
     },
-    "victory_emperor": [
-      {
-        "speaker": "Sera",
-        "portrait": "portrait_lord_sera",
-        "line": "The emperor is defeated. The ritual is broken... mostly. I still see something beneath it all. Sleeping, but not for long."
-      }
-    ],
-    "victory_entity": [
-      {
-        "speaker": "Sera",
-        "portrait": "portrait_lord_sera",
-        "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
-      }
-    ],
+    "victory_emperor": {
+      "base": [
+        {
+          "speaker": "Sera",
+          "portrait": "portrait_lord_sera",
+          "line": "The emperor is defeated. The ritual is broken... mostly. I still see something beneath it all. Sleeping, but not for long."
+        }
+      ],
+      "variants": [
+        {
+          "when": {
+            "commander": "Edric"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly. I still see something beneath it all. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Then we rest while it sleeps, and count ourselves twice. If it wakes, it wakes to all of us."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly. I still see something beneath it all. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Sleeping pieces still count. I'll leave the board set up. Just in case."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly. I still see something beneath it all. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Let it sleep. I'll sit up with a blade across my knees. Old habit."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly. I still see something beneath it all. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will keep listening to it breathe. Someone has to, and I've had the most practice."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly. I still see something beneath it all. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Mostly broken is still broken. I'll drink to mostly. The rest can wait its turn."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly. I still see something beneath it all. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "From up here the capital is only ash and quiet. Whatever's under it, I'll see it rise first."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The emperor is defeated. The ritual is broken... mostly. I still see something beneath it all. Sleeping, but not for long."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Then it wakes to find a wall on top of it. Let it try to turn over."
+            }
+          ]
+        }
+      ]
+    },
+    "victory_entity": {
+      "base": [
+        {
+          "speaker": "Sera",
+          "portrait": "portrait_lord_sera",
+          "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+        }
+      ],
+      "variants": [
+        {
+          "when": {
+            "commander": "Edric"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "I counted twice. Everyone who can stand is standing. That's the only future I need to see."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "An unwritten board. No endgame in sight. Finally, a game that doesn't have to end."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Nothing new in the ledger tonight. I'll close it for a while. Not forever. A while."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "No thread in my hands. Just all of you. I think that's what I was weaving toward the whole time."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Can't see what comes next? Perfect. Then nobody can call it luck."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "The wind's moving again. I'm going up. Nothing to see but sky, for once."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Then I'll stand here a while longer. Somebody should, in case it snores."
+            }
+          ]
+        }
+      ]
+    },
     "defeat": {
       "base": [
         {
@@ -5717,7 +6639,11 @@
         "These walls were raised to keep something in.",
         "Posted on the gate: CURFEW AT DUSK. Beneath it, older and faded: CURFEW AT NOON.",
         "The capital's streets are swept clean. Nobody is left to dirty them.",
-        "Quartermaster's note: arrows, low. Rations, lower. Morale, don't ask."
+        "Quartermaster's note: arrows, low. Rations, lower. Morale, don't ask.",
+        "Ash on every sill in the capital. The sweepers stopped sweeping and started stacking.",
+        "Lay a palm on the paving stones. They hum, low and steady, like a held note.",
+        "Barracks ration board: Bread, half. Water, boiled. Singing, forbidden.",
+        "'Why's the ground humming?' 'Orders say it isn't.' 'Orders say a lot.'"
       ],
       "finalBoss": [
         "The end of the path. One way or another.",
@@ -5760,7 +6686,9 @@
         "Even the ground trembles at what waits ahead.",
         "Palace guard roster, one name circled in red ink: DO NOT ENGAGE ALONE.",
         "Their parade finery has been patched with campaign cloth.",
-        "Overheard at the barricade: 'That one doesn't sleep. I've watched it not sleep.'"
+        "Overheard at the barricade: 'That one doesn't sleep. I've watched it not sleep.'",
+        "Palace guard's pay slip: Hazard bonus approved. Reason: see below. Below is blank.",
+        "Their cloaks are grey with ash. None of them has bothered to shake it off."
       ],
       "finalBoss": [
         "All that power, concentrated in one vessel.",
@@ -5802,7 +6730,9 @@
         "Beyond this, only the emperor himself.",
         "The throne-room doors stand open. They have not been closed in a month.",
         "Palace steward's list: Guests expected, one army. Chairs set out, one.",
-        "'They're waiting for us.' 'Longer than we think. Look at the dust.'"
+        "'They're waiting for us.' 'Longer than we think. Look at the dust.'",
+        "The throne-room stairs are warm underfoot. Nobody has lit a fire in weeks.",
+        "Pinned to a pillar: His Majesty is not to be disturbed. Neither is what he listens to."
       ],
       "finalBoss": [
         "The source of everything. Right here.",
@@ -5844,7 +6774,9 @@
         "Another who refused to break.",
         "A cellar door in the capital, knocked on thrice. It opens. Someone was waiting.",
         "Chalked on an alley wall: STILL HERE. An arrow points down the alley.",
-        "'You the ones from the border?' 'What's left of us.' 'Good. I'm what's left too.'"
+        "'You the ones from the border?' 'What's left of us.' 'Good. I'm what's left too.'",
+        "A lamplighter still walks rounds in the ash. 'Somebody ought to see where they step.'",
+        "Chalked on a cellar door: HUMS LOUDER AT NIGHT. KNOCK TWICE IF YOU'RE LEAVING."
       ],
       "finalBoss": [
         "One last warrior, drawn to the final stand.",
@@ -5860,37 +6792,88 @@
     "Edric": [
       "The banner is yours now. Keep them together.",
       "This is as far as I march. Carry it the rest of the way, {commander}.",
-      "Don't look back. The army follows you now."
+      "Don't look back. The army follows you now.",
+      "Count them again tonight. For me. Every name.",
+      "I meant to walk everyone home. Walk them home for me."
     ],
     "Kira": [
       "I found the winning line... just not for me.",
       "Don't stop. The path is still there. I can almost see it.",
-      "Heh. Thought I'd be the last one standing."
+      "Heh. Thought I'd be the last one standing.",
+      "I hate endings. Especially this one. Play on without me.",
+      "A piece lost. Don't stop to mourn it. Use the square it leaves."
     ],
     "Voss": [
       "Still standing... for now. Go. Finish this.",
       "Took more than I expected. Don't waste what's left.",
-      "The shield breaks so the sword can strike. Go."
+      "The shield breaks so the sword can strike. Go.",
+      "Put my name in the ledger. Bottom of the page. I earned the spot.",
+      "Not standing anymore. Somebody else's turn. Go on."
     ],
     "Sera": [
       "The visions are fading... but I see you, {commander}. You'll find the way.",
       "I couldn't see this path. Maybe that means it's the right one.",
-      "The future isn't written yet. Not even I could see this far."
+      "The future isn't written yet. Not even I could see this far.",
+      "The thread slips out of my hands... hold it tighter than I did.",
+      "I see you all walking on without me. It's still a good vision."
     ],
     "Rowan": [
       "My lance... it's blessed. Take it. It'll know your hand.",
       "The sky was beautiful from up there. Keep looking up.",
-      "One last charge. Make it count for both of us."
+      "One last charge. Make it count for both of us.",
+      "Look after my mount. And tell them it was skill. Right up to the end.",
+      "Out of luck, at last. Nobody say I didn't have a good run of it."
     ],
     "Astrid": [
       "I could see so far from up there... not far enough, it seems.",
       "The wind carries on. So should you.",
-      "Don't look down. I never did."
+      "Don't look down. I never did.",
+      "Tell the sky legions I didn't come down on purpose.",
+      "The ground came up faster than I thought. It always does."
     ],
     "Cael": [
       "The line holds. Even without me, the line holds.",
       "I said I'd hold. And I did. Now go.",
-      "Every wall falls eventually. Build a better one."
+      "Every wall falls eventually. Build a better one.",
+      "Someone else hold the line. It's heavy. You'll manage.",
+      "The wall's down. Step over me and keep going. That's what it's for."
+    ]
+  },
+  "commanderFall": {
+    "Edric": [
+      "I'm sorry. I couldn't count you all home. Not this time.",
+      "Leave the banner. Take each other. Get out.",
+      "Tell them I tried. Tell them I was proud of every one of you."
+    ],
+    "Kira": [
+      "Checkmate. Mine, this time. Remember the position.",
+      "Out of moves. That's never happened to me before. Remember it.",
+      "Wrong line. Reset the board. You'll see where I went wrong."
+    ],
+    "Voss": [
+      "Ledger's yours now. Keep it short.",
+      "Knees gave first. Always said they would.",
+      "Tell the wardens I stood as long as I could."
+    ],
+    "Sera": [
+      "The thread snaps... I've felt this before. I'll find you again.",
+      "Not this path. I'll weave another. Wait for me at the start.",
+      "I'm sorry, everyone. I saw it too late. Next time, sooner."
+    ],
+    "Rowan": [
+      "Ah. So that's what bad luck feels like. Nobody tell Voss.",
+      "Look after my mount. It was the better rider all along.",
+      "The lance was blessed. I just... wasn't, today."
+    ],
+    "Astrid": [
+      "Falling. The ground finally caught me.",
+      "Should've stayed higher. Go. Don't wait for me.",
+      "The wind's gone. Fall back, all of you. Last order from the sky."
+    ],
+    "Cael": [
+      "The wall's down. Everyone, run. That's the last order.",
+      "Held as long as I could. Longer than they expected.",
+      "Sorry, back rank. You'll have to complain to someone else now."
     ]
   },
   "lordQuips": {
@@ -5898,74 +6881,146 @@
       "Edric": [
         "For the banner!",
         "Stay down!",
-        "This ends here!"
+        "This ends here!",
+        "That one's for all of them!",
+        "Enough! Leave my people be!"
       ],
       "Kira": [
         "Right where I wanted you.",
         "Checkmate.",
-        "Saw that coming."
+        "Saw that coming.",
+        "Forced move.",
+        "You walked right into that one."
       ],
       "Voss": [
         "Still standing. You're not.",
         "Felt that one myself.",
-        "Next."
+        "Next.",
+        "Old bow. Still bites.",
+        "That goes in the ledger. Your column."
       ],
       "Sera": [
         "I saw this strike land.",
         "The threads align.",
-        "Fate favors us."
+        "Fate favors us.",
+        "I've seen you fall before. Now you do.",
+        "The light cuts where the thread is thin."
       ],
       "Rowan": [
         "Blessed — told you!",
         "Clean hit. Mostly skill.",
-        "Fate pays up."
+        "Fate pays up.",
+        "Did everyone see that? Somebody saw that.",
+        "Blessed, yes. Aimed, also yes."
       ],
       "Astrid": [
         "Death from above!",
         "Never saw the sky coming.",
-        "The wind strikes true."
+        "The wind strikes true.",
+        "Straight down the wind.",
+        "You looked up too late."
       ],
       "Cael": [
         "The wall pushes BACK.",
         "Felt that? Good.",
-        "Shield arm's still strong."
+        "Shield arm's still strong.",
+        "The wall hits back. Surprise.",
+        "Shield first. Then that."
       ]
     },
     "onKill": {
       "Edric": [
         "Rest now. It's over.",
         "One step closer.",
-        "The banner marches on."
+        "The banner marches on.",
+        "It's done. Nobody else gets hurt here.",
+        "One fewer between us and home."
       ],
       "Kira": [
         "The line was always mine.",
         "Piece taken.",
-        "That's the game."
+        "That's the game.",
+        "Off the board.",
+        "Exactly as planned. More or less."
       ],
       "Voss": [
         "Buried tougher.",
         "Still here. You're not.",
-        "One more for the ledger."
+        "One more for the ledger.",
+        "Down. The ground can have this one.",
+        "Not my ledger. Somebody else can write that one."
       ],
       "Sera": [
         "This thread ends here.",
         "I foresaw your fall.",
-        "The vision holds."
+        "The vision holds.",
+        "Rest. Your thread is done.",
+        "I'm sorry. There was no other path for you."
       ],
       "Rowan": [
         "Fate called it.",
         "The lance decides.",
-        "Skill. Definitely skill."
+        "Skill. Definitely skill.",
+        "And the crowd goes wild! The crowd is my mount.",
+        "Another one for the song. Verse nine."
       ],
       "Astrid": [
         "Grounded. For good.",
         "The sky keeps its word.",
-        "Clear skies ahead."
+        "Clear skies ahead.",
+        "Nothing left below. Moving on.",
+        "Quiet down there now."
       ],
       "Cael": [
         "You broke first.",
         "The line holds. Always.",
-        "Down and staying down."
+        "Down and staying down.",
+        "Walls don't chase. They wait. You came.",
+        "You hit the wall. The wall won."
+      ]
+    },
+    "onAllyFall": {
+      "Edric": [
+        "No. Not {fallen}. I had you counted. I had you counted.",
+        "Hold here. Someone close their eyes. Then we go on.",
+        "{fallen}. I'll carry your name home. I promise.",
+        "I lost one. Everyone else, close in. Now."
+      ],
+      "Kira": [
+        "No. That was my line. I sent them there.",
+        "A piece down. I'll mourn when the board's clear. Not before.",
+        "{fallen} deserved a better game than this one.",
+        "Close the gap. I don't want to look at it empty."
+      ],
+      "Voss": [
+        "{fallen}. Another line in the ledger. Too soon.",
+        "Should've been me. Always figured it would be.",
+        "Mark where they fell. We come back for them after.",
+        "{fallen}... still standing for you. Both of us, now."
+      ],
+      "Sera": [
+        "I saw a thread where {fallen} lived. Why wasn't it this one?",
+        "Go gently. I'll remember you, even when the weave forgets.",
+        "{fallen}... I looked too far ahead and not close enough.",
+        "One more light gone out. Hold on to each other."
+      ],
+      "Rowan": [
+        "{fallen}? Get up. Come on. That was a joke, right? Get up.",
+        "Luck ran out for the wrong one today.",
+        "I'll ride twice as hard. Someone has to, for them.",
+        "No song needs this verse. {fallen}, I'm sorry."
+      ],
+      "Astrid": [
+        "Lost one below. {fallen}. I saw it and couldn't reach them.",
+        "From up here it looks small. It isn't.",
+        "The wind's gone still. {fallen}, go easy.",
+        "Circling back. Too late. Always too late for this part."
+      ],
+      "Cael": [
+        "{fallen} was behind me. That was the whole point.",
+        "I should have been standing there. Next time I will be.",
+        "Close up around me. Nobody else falls on my side.",
+        "Stone doesn't weep. I'll make an exception tonight."
       ]
     }
   },
@@ -8100,6 +9155,31 @@
           "I stood at empty gates for years. Now there are people behind me. That's better."
         ]
       }
+    },
+    "specialChars": {
+      "old_knight": {
+        "levelUp": {
+          "normal": [
+            "A little left in these bones, then.",
+            "Experience is knowing which effort to spare."
+          ],
+          "blank": [
+            "The young will do the growing. I will mind the road."
+          ],
+          "perfect": [
+            "Well. Perhaps the years have been flattering me."
+          ],
+          "milestones": {
+            "10": [
+              "Ten more lessons. I hope someone was watching."
+            ]
+          }
+        },
+        "fallen": [
+          "Ride on. You know the road now.",
+          "Do not turn back for me. Keep them safe."
+        ]
+      }
     }
   },
   "finaleRally": {
@@ -8397,6 +9477,33 @@
         "Someday someone will sing about this. I want to be in the verse.",
         "Look at us. Look at all of us. We're a story now.",
         "Hold on to this moment, everyone. We're writing the ending."
+      ]
+    },
+    "specialChars": {
+      "old_knight": [
+        "My last charge is yours. Make it count."
+      ]
+    }
+  },
+  "specialChars": {
+    "old_knight": {
+      "intro": [
+        "I will ride ahead. Watch my hands, then choose your own stroke."
+      ],
+      "victory": [
+        "You have no need of an old man's shadow now. That is a victory worth the ride."
+      ],
+      "revival": [
+        "The saddle is still warm. I suppose retirement must wait."
+      ],
+      "lowHP": [
+        "Easy now. Even old steel has its limits."
+      ],
+      "onCrit": [
+        "The hand remembers."
+      ],
+      "onKill": [
+        "Hold your line. There is more road ahead."
       ]
     }
   }

@@ -316,6 +316,39 @@ describe('BossRecruitOverlay', () => {
     expect(scene.hideLootRoster).toHaveBeenCalled();
   });
 
+  it('shows the offer already saved on the run and does not roll another', () => {
+    const saved = [makeCandidate('Dara', 'Myrmidon'), makeCandidate('Eno', 'Fighter')];
+    runManager.pendingBossRecruit = { version: 1, actId: 'act1', candidates: saved };
+    generateBossRecruitCandidatesMock.mockReturnValue([makeCandidate('Other', 'Archer')]);
+    scene._persistBattleRunState = vi.fn();
+
+    const cb = vi.fn();
+    overlay.show(cb);
+    const cards = overlay.displayObjects.filter(
+      (obj) => obj.kind === 'rectangle' && obj.handlers?.pointerdown && obj.depth === 701,
+    );
+    cards[1].handlers.pointerdown({ button: 0 });
+
+    expect(generateBossRecruitCandidatesMock).not.toHaveBeenCalled();
+    expect(cb).toHaveBeenCalledWith(saved[1].unit);
+    expect(scene._persistBattleRunState).not.toHaveBeenCalled(); // nothing new to save
+  });
+
+  it('a draft rolled here is kept on the run and saved before it is drawn', () => {
+    const rolled = [makeCandidate('Arin', 'Myrmidon')];
+    generateBossRecruitCandidatesMock.mockReturnValue(rolled);
+    let heldWhenSaved = null;
+    scene._persistBattleRunState = vi.fn(() => {
+      heldWhenSaved = runManager.pendingBossRecruit?.candidates;
+    });
+
+    overlay.show(vi.fn());
+
+    expect(scene._persistBattleRunState).toHaveBeenCalledTimes(1);
+    expect(heldWhenSaved).toBe(rolled);
+    expect(overlay.displayObjects.length).toBeGreaterThan(0);
+  });
+
   it('empty candidates fires callback immediately with null', () => {
     generateBossRecruitCandidatesMock.mockReturnValue(null);
 

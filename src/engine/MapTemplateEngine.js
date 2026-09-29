@@ -969,6 +969,7 @@ export function validateMapTemplatesConfig(config, options = {}) {
         'fogChance',
         'parBonus',
         'weight',
+        'caravan',
         'acts',
         'biome',
         'zones',
@@ -1135,6 +1136,9 @@ export function validateMapTemplatesConfig(config, options = {}) {
         validateAnchors(`${path}.anchors`, template.anchors, errors);
       }
       validateBridges(path, template, errors);
+      if (template.caravan !== undefined && typeof template.caravan !== 'boolean') {
+        errors.push(`${path}.caravan must be a boolean when provided`);
+      }
       if (template.fogChance !== undefined) {
         if (
           !isFiniteNumber(template.fogChance) ||

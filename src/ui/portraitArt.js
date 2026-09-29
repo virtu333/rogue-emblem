@@ -100,6 +100,7 @@ export function portraitCandidates(unit, gameData = {}) {
   const name = normalize(unit.name);
   const out = [];
   const rebuilt = (id) => rebuiltManifest[id] && out.push(id);
+  if (unit.specialCharId) rebuilt(`special_${unit.specialCharId}`);
   if (unit.isBoss) rebuilt(`boss_${name}`);
   if (unit.isLord || rebuiltManifest[`lord_${name}`]) {
     if (unit.tier === 'promoted') rebuilt(`lord_${name}_promoted`);
@@ -315,3 +316,4 @@ export function pc98PortraitElement({
   picture.append(img);
   return picture;
 }
+

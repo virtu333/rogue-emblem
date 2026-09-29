@@ -268,6 +268,13 @@ describe('SkillSystem accessory phase helpers', () => {
     expect(second).toBe(-3);
   });
 
+  it("the shipped Gambler's Coin: 50% for +8, otherwise −3", () => {
+    const coin = loadGameData().accessories.find((a) => a.name === "Gambler's Coin");
+    const unit = { name: 'Edric', accessory: coin };
+    const flip = (roll) => resolveGamblerDelta(unit, null, () => roll);
+    expect([flip(0), flip(0.49), flip(0.5), flip(0.99)]).toEqual([8, 8, -3, -3]);
+  });
+
   it('applyAccessoryPhaseCombatMods applies Moontide and Gambler aliases', () => {
     const unit = {
       name: 'Sera',

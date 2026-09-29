@@ -521,13 +521,14 @@ describe('Oaths', () => {
     expect(promotionOath(u, deedsData, gameData.skills).skillId).toBe('crit_plus_15');
   });
 
-  it('at the skill cap the Oath waits on the unit instead of being dropped', () => {
+  it('at the skill cap the Oath is sworn onto the bench instead of being dropped', () => {
     const u = sworn('held_the_line', { skills: ['a', 'b', 'c', 'd', 'e'] });
     const oath = applyPromotionOath(u, gameData);
-    expect(oath).toMatchObject({ learned: false, waiting: true, skillId: 'pavise' });
-    expect(u.deeds.oath).toBeUndefined();
-    expect(u.deeds.waitingOath).toMatchObject({ deedId: 'held_the_line', skillId: 'pavise' });
+    expect(oath).toMatchObject({ learned: false, benched: true, skillId: 'pavise' });
+    expect(u.deeds.oath).toMatchObject({ deedId: 'held_the_line', skillId: 'pavise' });
+    expect(u.deeds.waitingOath).toBeUndefined();
     expect(u.skills).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(u.benchedSkills).toEqual(['pavise']);
   });
 
   it('nothing to swear without deeds, or for deeds without an Oath', () => {

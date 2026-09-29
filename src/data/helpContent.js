@@ -4,6 +4,7 @@
 
 import { GENERATED_HELP_TABS } from './generated/mechanicsHelp.js';
 import { GAME_TITLE } from '../utils/gameIdentity.js';
+import { CHURCH_PROMOTE_COST_LORD, CHURCH_PROMOTE_COST_RECRUIT } from '../utils/constants.js';
 
 const GOLD = '#ffdd44';
 const CYAN = '#66ddff';
@@ -114,6 +115,10 @@ const STATIC_HELP_TABS = [
           { text: 'Silence (Nightfall/Black Sun only):', color: GOLD },
           { text: '  Blocks magic, staves, weapon arts,', color: GRAY },
           { text: '  and all skills. Physical attacks OK.', color: GRAY },
+          { text: '' },
+          { text: 'Wounded (Grievous enemies):', color: GOLD },
+          { text: '  No HP recovery for 2 turns except', color: GRAY },
+          { text: '  from a staff: no drain, items, forts.', color: GRAY },
           { text: '' },
           { text: 'Enemy Mages/Sages/Bishops may carry', color: CYAN },
           { text: 'status staves on higher difficulties.' },
@@ -351,9 +356,11 @@ const STATIC_HELP_TABS = [
           { text: '   Promoted classes gain a free skill' },
           { text: '   (e.g. Swordmaster gets Crit+15).' },
           { text: '' },
-          { text: 'Max 5 skills per unit. A skill that', color: RED },
-          { text: 'comes due with all 5 slots full is', color: RED },
-          { text: 'named on the level-up card, not learned.', color: RED },
+          { text: '5 skills go into battle. A skill', color: GOLD },
+          { text: 'learned with all 5 slots full waits', color: GOLD },
+          { text: 'on the bench: swap skills between', color: GOLD },
+          { text: 'battles in Roster > Skills.', color: GOLD },
+          { text: 'Lord and class skills can’t be benched.', color: GRAY },
         ],
       },
       {
@@ -450,6 +457,27 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        title: 'Undead Remains',
+        tags: ['zombie', 'revenant', 'undead', 'bones', 'remains', 'smash', 'revive'],
+        lines: [
+          { text: 'Zombies and Revenants rise again:', color: GOLD },
+          { text: '  a fallen one leaves bones on its tile.' },
+          { text: '  The number on the bones counts the' },
+          { text: '  enemy phases until it rises at half HP.' },
+          { text: '  At 1 (red) it rises next enemy phase.', color: RED },
+          { text: '' },
+          { text: 'Smash:', color: CYAN },
+          { text: '  With bones in weapon reach, choose' },
+          { text: '  Smash and pick the pile. It always' },
+          { text: '  works (no roll, no counter, no EXP)' },
+          { text: "  and ends the unit's action." },
+          { text: '' },
+          { text: 'Rout waits until every pile is gone.', color: GRAY },
+          { text: 'Light magic leaves no bones; a risen', color: GRAY },
+          { text: 'foe stays down when it falls again.', color: GRAY },
+        ],
+      },
+      {
         title: 'The Eclipse',
         lines: [
           { text: 'Battle time darkens the Hollow Sun.', color: GOLD },
@@ -478,11 +506,17 @@ const STATIC_HELP_TABS = [
           { text: '  Talk to them with your lord!' },
           { text: 'Village:', color: CYAN },
           { text: '  Buy, sell, and forge weapons.' },
+          { text: '  Forging costs more on better weapons:' },
+          { text: '  Iron ×0.6, Steel ×1, Silver ×1.5, Legend ×2.' },
           { text: 'Ruins:', color: GOLD },
           { text: '  Pre-boss camp: rest (heal, revive)' },
           { text: '  or scavenge marked-up wares. One only.' },
           { text: 'Church:', color: '#e0e0e0' },
-          { text: '  Heal, revive allies, and promote.' },
+          { text: '  Heal and revive allies. Then one vow:' },
+          { text: '  promote units, or take a blessing.' },
+          {
+            text: `  Promotion: ${CHURCH_PROMOTE_COST_RECRUIT} G, lords ${CHURCH_PROMOTE_COST_LORD} G.`,
+          },
           { text: 'Colosseum:', color: GOLD },
           { text: '  Wager on fights or hire mercenaries.' },
           { text: 'Boss:', color: RED },

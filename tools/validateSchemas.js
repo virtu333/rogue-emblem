@@ -19,6 +19,7 @@ const AJV_SCHEMAS = [
   { schema: 'lootTables.schema.json', data: 'lootTables.json' },
   { schema: 'terrain.schema.json', data: 'terrain.json' },
   { schema: 'lords.schema.json', data: 'lords.json' },
+  { schema: 'specialChars.schema.json', data: 'specialChars.json' },
   { schema: 'consumables.schema.json', data: 'consumables.json' },
   { schema: 'recruits.schema.json', data: 'recruits.json' },
   { schema: 'metaUpgrades.schema.json', data: 'metaUpgrades.json' },
@@ -78,3 +79,4 @@ if (crossRef.valid) {
 if (failed) {
   process.exit(1);
 }
+

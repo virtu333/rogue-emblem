@@ -21,6 +21,22 @@ for (const map of ['corridor_siege', 'magma_flow']) {
           minTile: (32 * b._battleCamera.minZoom * rect.height) / b.scale.height,
         };
       });
+    // The battle opens on the overview: the whole board, fitted.
+    expect((await read()).zoom).toBeCloseTo((await read()).min);
+    const whole = await page.evaluate(() => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      const bounds = b._getBattleMapBounds();
+      const c = b.cameras.main;
+      const tl = b._battleCamera.worldToScreen(bounds.left, bounds.top);
+      const br = b._battleCamera.worldToScreen(
+        bounds.left + bounds.width,
+        bounds.top + bounds.height,
+      );
+      return tl.x >= -1 && tl.y >= -1 && br.x <= c.width + 1 && br.y <= c.height + 1;
+    });
+    expect(whole).toBe(true);
+    // Recenter frames the army at a readable size.
+    await page.getByRole('button', { name: 'Recenter', exact: true }).tap();
     expect((await read()).tile).toBeGreaterThanOrEqual(29.9);
     await page.getByRole('button', { name: 'Overview', exact: true }).tap();
     expect((await read()).zoom).toBeCloseTo((await read()).min);

@@ -32,6 +32,7 @@ export function validateCrossReferences(datasets = null) {
   const accessories = datasets?.accessories ?? readJson('accessories.json');
   const consumables = datasets?.consumables ?? readJson('consumables.json');
   const lords = datasets?.lords ?? readJson('lords.json');
+  const specialChars = datasets?.specialChars ?? (datasets ? [] : readJson('specialChars.json'));
   const recruits = datasets?.recruits ?? readJson('recruits.json');
   const deedsData = datasets?.deeds ?? readJson('deeds.json');
   const terrain = datasets?.terrain ?? readJson('terrain.json');
@@ -78,6 +79,21 @@ export function validateCrossReferences(datasets = null) {
           `classes.json:${cls.name}.promotesFrom references unknown class "${cls.promotesFrom}"`,
         );
       }
+    }
+  }
+
+  const specialIds = new Set();
+  for (const unit of specialChars) {
+    if (specialIds.has(unit.id)) errors.push(`specialChars.json: duplicate id "${unit.id}"`);
+    specialIds.add(unit.id);
+    for (const name of [unit.class, unit.baseClass]) {
+      if (!classNames.has(name)) errors.push(`specialChars.json:${unit.id} references unknown class "${name}"`);
+    }
+    for (const id of unit.skills) {
+      if (!skillIds.has(id)) errors.push(`specialChars.json:${unit.id} references unknown skill "${id}"`);
+    }
+    for (const name of unit.weapons) {
+      if (!weaponNames.has(name)) errors.push(`specialChars.json:${unit.id} references unknown weapon "${name}"`);
     }
   }
 
@@ -137,6 +153,55 @@ export function validateCrossReferences(datasets = null) {
     }
   }
 
+  // Personal weapons (signatureOf): one per lord, a type the lord starts able to
+  // wield, and never in a loot table (shops stock from the same tables).
+  const lordByName = new Map(
+    (Array.isArray(lords) ? lords : []).filter((l) => l?.name).map((l) => [l.name, l]),
+  );
+  const PROFICIENCY_WORD = {
+    Sword: 'Swords',
+    Lance: 'Lances',
+    Axe: 'Axes',
+    Bow: 'Bows',
+    Tome: 'Tomes',
+    Light: 'Light',
+  };
+  const signatureNames = new Set();
+  const signatureOwners = new Set();
+  for (const weapon of Array.isArray(weapons) ? weapons : []) {
+    if (weapon?.signatureOf === undefined) continue;
+    signatureNames.add(weapon.name);
+    const lord = lordByName.get(weapon.signatureOf);
+    if (!lord) {
+      errors.push(
+        `weapons.json:${weapon.name}.signatureOf references unknown lord "${weapon.signatureOf}"`,
+      );
+      continue;
+    }
+    if (signatureOwners.has(lord.name)) {
+      errors.push(`weapons.json: lord "${lord.name}" has more than one signature weapon`);
+    }
+    signatureOwners.add(lord.name);
+    const word = PROFICIENCY_WORD[weapon.type];
+    if (!word || !String(lord.weapon || '').includes(word)) {
+      errors.push(
+        `weapons.json:${weapon.name} is ${lord.name}'s signature weapon but ${lord.name} cannot wield a ${weapon.type}`,
+      );
+    }
+  }
+  for (const [actId, table] of Object.entries(lootTables || {})) {
+    for (const [poolKey, pool] of Object.entries(table || {})) {
+      for (const entry of Array.isArray(pool) ? pool : []) {
+        const itemName = typeof entry === 'string' ? entry : entry?.name;
+        if (signatureNames.has(itemName)) {
+          errors.push(
+            `lootTables.json:${actId}.${poolKey} lists signature weapon "${itemName}" (personal weapons never drop or sell)`,
+          );
+        }
+      }
+    }
+  }
+
   for (const actId of ['act1', 'act2', 'act3', 'act4']) {
     for (const className of Array.isArray(recruits?.[actId]?.classPool)
       ? recruits[actId].classPool
@@ -174,3 +239,4 @@ export function validateCrossReferences(datasets = null) {
 
   return { valid: errors.length === 0, errors };
 }
+

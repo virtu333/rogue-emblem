@@ -1,11 +1,29 @@
 {
   "version": 1,
   "generator": "tools/art/pc98/build.mjs",
-  "sizes": [192, 96, 64, 48, 40, 32],
+  "sizes": [
+    192,
+    96,
+    64,
+    48,
+    40,
+    32
+  ],
   "masterSize": 192,
-  "factions": ["ember", "steel", "blood", "verdigris", "unlight"],
+  "factions": [
+    "ember",
+    "steel",
+    "blood",
+    "verdigris",
+    "unlight"
+  ],
   "atlas": {
-    "sizes": [32, 40, 48, 64],
+    "sizes": [
+      32,
+      40,
+      48,
+      64
+    ],
     "columns": 10
   },
   "portraits": {
@@ -1768,6 +1786,11 @@
       "source": "rebuilt",
       "faction": "ember",
       "frame": 95
+    },
+    "special_old_knight": {
+      "source": "rebuilt",
+      "faction": "steel",
+      "variant": true
     }
   }
 }

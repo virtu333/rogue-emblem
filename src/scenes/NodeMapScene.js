@@ -1,4 +1,7 @@
+import { specialCharacterEntries } from '../engine/SpecialCharacterDialogue.js';
 import { PendingRewardController } from '../ui/PendingRewardController.js';
+import { resumeBossRecruit } from '../ui/BossRecruitResume.js';
+import { resumeLordArrival } from '../ui/LordArrivalResume.js';
 import { CampaignMapOverlay } from '../ui/CampaignMapOverlay.js';
 import { NodeMapMenu } from '../ui/NodeMapMenu.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -44,6 +47,7 @@ import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { ChurchController } from '../ui/ChurchController.js';
 import { ShopController } from '../ui/ShopController.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
+import { recordRunLordsMet } from '../engine/LordsMet.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { NodeMapCursorController } from '../ui/NodeMapCursorController.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -191,6 +195,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   create() {
     this._pendingRewards = null;
+    this._bossRecruitResume = null;
     const lifecycleGeneration = beginSceneLifecycle(this);
     this._promotionChoicePanelOpen = 0;
 
@@ -210,6 +215,8 @@ export class NodeMapScene extends Phaser.Scene {
 
     // Auto-save on every node map entry
     this.persistRunSave();
+    // Every lord in this run has joined the army: a new run's pair, a loaded save's.
+    recordRunLordsMet(this.registry.get('meta'), this.runManager);
     // Page hidden / app backgrounded: save the route state as it stands.
     this._unregisterSaveFlusher?.();
     this._unregisterSaveFlusher = registerSaveFlusher('NodeMap', () =>
@@ -346,6 +353,8 @@ export class NodeMapScene extends Phaser.Scene {
     this._unregisterSaveFlusher = null;
     this._pendingRewards?.destroy();
     this._pendingRewards = null;
+    this._bossRecruitResume?._cleanup?.();
+    this._bossRecruitResume = null;
 
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
@@ -447,7 +456,8 @@ export class NodeMapScene extends Phaser.Scene {
               this.gameData?.dialogue?.actTransitions?.runStartCommander,
               ctx,
             ) || [];
-          const entries = [...visionEntries, ...voiceEntries];
+          const veteran = this.runManager.roster.find((unit) => unit.specialCharId === 'old_knight');
+          const entries = [...visionEntries, ...voiceEntries, ...specialCharacterEntries(this.gameData, veteran, 'intro')];
           if (
             Array.isArray(entries) &&
             entries.length > 0 &&
@@ -1663,9 +1673,30 @@ export class NodeMapScene extends Phaser.Scene {
       !this.isSceneReady ||
       this.isStoryInputLocked?.() ||
       !this.runManager.pendingBattleReward ||
-      this._pendingRewards
+      this._pendingRewards ||
+      this._bossRecruitResume
     )
       return;
+    // A boss recruit left undecided by a reload comes first, then the rewards.
+    if (this.runManager.pendingBossRecruit) {
+      this._bossRecruitResume = resumeBossRecruit(this, () => {
+        this._bossRecruitResume = null;
+        this.openPendingRewards();
+      });
+      return;
+    }
+    // Then a lord arrival left undecided (Power of Friendship).
+    if (this.runManager.pendingThirdLord) {
+      let done = false;
+      const arrival = resumeLordArrival(this, () => {
+        done = true;
+        this._bossRecruitResume = null;
+        this.openPendingRewards();
+      });
+      // An arrival that resolved while it was being opened has nothing to hold.
+      if (!done) this._bossRecruitResume = arrival;
+      return;
+    }
     this._pendingRewards = new PendingRewardController(this, {
       onLeave: () => {
         this._pendingRewards = null;
@@ -2093,3 +2124,4 @@ export class NodeMapScene extends Phaser.Scene {
     });
   }
 }
+

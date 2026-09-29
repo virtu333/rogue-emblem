@@ -3,6 +3,7 @@ import {
   createBallistaState,
   isBallistaTile,
   getBallistaRange,
+  ballistaRangeForAct,
   getBallistaDangerTiles,
   selectBallistaTarget,
   resolveBallistaStrike,
@@ -41,7 +42,8 @@ describe('BallistaEngine', () => {
   describe('createBallistaState', () => {
     it('returns correct shape with enemy owner', () => {
       const state = createBallistaState(5, 3);
-      expect(state).toEqual({ col: 5, row: 3, owner: 'enemy', captured: false });
+      expect(state).toEqual({ col: 5, row: 3, owner: 'enemy', captured: false, range: 5 });
+      expect(createBallistaState(5, 3, 3).range).toBe(3);
     });
   });
 
@@ -63,8 +65,31 @@ describe('BallistaEngine', () => {
   });
 
   describe('getBallistaRange', () => {
-    it('returns 5', () => {
+    it('reads the ballista’s own range; one saved without it (or a bad value) keeps 5', () => {
       expect(getBallistaRange()).toBe(5);
+      expect(getBallistaRange({ col: 1, row: 1 })).toBe(5);
+      expect(getBallistaRange({ col: 1, row: 1, range: 3 })).toBe(3);
+      expect(getBallistaRange({ col: 1, row: 1, range: 0 })).toBe(5);
+      expect(getBallistaRange({ col: 1, row: 1, range: 2.5 })).toBe(5);
+    });
+
+    it('grows by act: 3 in Act II, 4 in Act III, 5 from Act IV on', () => {
+      expect(ballistaRangeForAct('act2')).toBe(3);
+      expect(ballistaRangeForAct('act3')).toBe(4);
+      expect(ballistaRangeForAct('act4')).toBe(5);
+      expect(ballistaRangeForAct('postAct')).toBe(5);
+      expect(ballistaRangeForAct('finalBoss')).toBe(5);
+    });
+
+    it('a range-3 ballista threatens and fires only within 3 tiles', () => {
+      const short = { col: 10, row: 10, range: 3 };
+      // Manhattan diamond of radius 3 less its centre: 2·3·4 = 24 tiles.
+      const tiles = getBallistaDangerTiles(short, 30, 30);
+      expect(tiles.length).toBe(24);
+      expect(tiles.some((t) => t.col === 13 && t.row === 10)).toBe(true);
+      expect(tiles.some((t) => t.col === 14 && t.row === 10)).toBe(false);
+      expect(selectBallistaTarget(short, [makeUnit(14, 10, 5)])).toBeNull();
+      expect(selectBallistaTarget(short, [makeUnit(13, 10, 5)])).not.toBeNull();
     });
   });
 
@@ -252,7 +277,16 @@ describe('BallistaEngine', () => {
         expect(hard.mapLayout[b.row][b.col]).toBe(TERRAIN.Ballista);
         expect(b.owner).toBe('enemy');
         expect(b.captured).toBe(false);
+        expect(b.range).toBe(3); // Act II
       }
+      const act3 = withSeed(1, () =>
+        generateBattle(
+          { act: 'act3', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
+          data,
+        ),
+      );
+      expect(act3.ballistas?.length).toBeGreaterThan(0);
+      expect(act3.ballistas.every((b) => b.range === 4)).toBe(true);
     });
 
     it('no Ballista in Act 1 on any difficulty', () => {

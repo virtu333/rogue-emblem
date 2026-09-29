@@ -271,6 +271,20 @@ describe('the Equip and Item submenus as rows', () => {
     expect(scene.useConsumable).not.toHaveBeenCalled();
   });
 
+  it('Item on the rail: a hurt but Wounded unit sees the Vulnerary greyed with the Wounded reason', () => {
+    const { scene, unit } = submenuScene({ rail: true });
+    unit.currentHP = 8;
+    applyCondition(unit, 'wounded', 2);
+    scene.showItemMenu(unit);
+    const vulnerary = openMenuCommand(scene, 'item:0');
+    expect(vulnerary).toMatchObject({
+      disabled: true,
+      description: 'Wounded: only a staff heals',
+    });
+    vulnerary.onActivate();
+    expect(scene.useConsumable).not.toHaveBeenCalled();
+  });
+
   it('Item on the rail: a hurt unit uses the Vulnerary', () => {
     const { scene, unit } = submenuScene({ rail: true });
     unit.currentHP = 8;

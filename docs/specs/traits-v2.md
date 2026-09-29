@@ -93,6 +93,9 @@ v1 data, run before the engine change, so Reckless's perk override is included).
    every hit and adds `resBonus` against magic). This applies to every Def-type
    combat mod (Bulwark, Iron Scales, Standard Bearer, Stalwart, Old Campaigner).
    It predates this work and affects the whole game, so it is only flagged here.
+   Fixed 2026-09-29 (playtest #17): combat-mod defence follows the stat the strike
+   is computed on (`strikeHitsRes` in Combat.js), so +DEF mods meet only DEF strikes
+   and +RES mods only RES strikes (`tests/DefenseModsByStat.test.js`).
 5. Stale copy: the help page said "Recruits (not lords)", although lords have rolled
    one trait since #64, and a UnitDetailOverlay comment said the same.
 6. Not trait code, flagged only: reclass also drops meta growth bonuses (same

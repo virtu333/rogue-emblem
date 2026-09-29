@@ -1,3 +1,4 @@
+import { skipsClassProgression } from './SpecialCharacterPolicy.js';
 // MasterySystem — pure module for class-mastery tracking + trait-modulated perks.
 //
 // Model: a unit accrues battle participation per class in `unit.classBattles`
@@ -72,7 +73,7 @@ export function getBaseClassName(unit, classesData) {
 
 /** Increment the unit's battle count in its CURRENT class (mutates in place). */
 export function recordBattleParticipation(unit) {
-  if (!unit || !unit.className) return;
+  if (!unit || !unit.className || skipsClassProgression(unit)) return;
   if (!unit.classBattles || typeof unit.classBattles !== 'object') {
     unit.classBattles = {};
   }
@@ -136,7 +137,7 @@ export function getMasteryThreshold(unit, traitsData) {
 
 /** True when the unit's current-family progress meets its effective threshold. */
 export function isMastered(unit, classesData, traitsData = null) {
-  return getMasteryProgress(unit, classesData) >= getMasteryThreshold(unit, traitsData);
+  return !skipsClassProgression(unit) && getMasteryProgress(unit, classesData) >= getMasteryThreshold(unit, traitsData);
 }
 
 /** Sanitize a perk-like object down to the seven whitelisted flat mod keys. */
@@ -159,7 +160,7 @@ function sanitizePerkMods(mods) {
  * `classMods` is the unmodified class perk, for side-by-side display.
  */
 export function getMasteryPerk(unit, classesData, traitsData = null) {
-  if (!unit?.className) return null;
+  if (!unit?.className || skipsClassProgression(unit)) return null;
   const base = getBaseClassName(unit, classesData);
   const entry = Array.isArray(classesData)
     ? classesData.find((c) => c?.name === base) ||
@@ -212,3 +213,4 @@ export function getTraitXpMultiplier(unit, traitsData) {
 }
 
 export { PERK_MOD_KEYS };
+

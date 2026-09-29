@@ -150,7 +150,9 @@ export class BattlefieldLab {
       const fit = Math.min((width - 32 * k) / bounds.width, (height - 32 * k) / bounds.height);
       s._battleCamera.minZoom = Math.max(0.5 * k, fit);
       s._battleCamera.maxZoom = Math.max(3 * k, fit * 2.5);
-      if (!previous) this.recenter();
+      // A battle opens on the whole board, so its size and every corner are seen
+      // before the first move (playtest 2026-09-29); Recenter frames the army.
+      if (!previous) s._battleCamera.resetView();
       else if (previous.overview) s._battleCamera.resetView();
       else {
         cam.setZoom(

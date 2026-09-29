@@ -117,7 +117,7 @@ describe('revival catch-up', () => {
     const result = reviveAtChurch(run, u);
     expect(result.ok).toBe(true);
     expect(result.message).toContain(
-      atCap ? 'could not learn Catch-up Skill' : 'Learned: Catch-up Skill',
+      atCap ? 'Catch-up Skill kept on the bench' : 'Learned: Catch-up Skill',
     );
   });
 });

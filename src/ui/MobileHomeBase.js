@@ -10,6 +10,7 @@ import {
 } from '../utils/SceneRouter.js';
 import portraitManifest from './RebuiltPortraitManifest.json';
 import { hasPc98, pc98PortraitElement, usePc98 } from './portraitArt.js';
+import { metLords } from '../engine/LordsMet.js';
 const node = (tag, cls, text) => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -226,7 +227,9 @@ export class MobileHomeBase {
               : 'Unlock Chosen Companions in Upgrades → Lords to change partner.',
           ),
         );
-      for (const candidate of lords) {
+      // Only lords this save has met (Edric and Sera from the start).
+      const met = metLords(lords, (name) => this.meta.hasMetLord?.(name) === true);
+      for (const candidate of met) {
         const current = candidate.name === selection[this.role];
         const blocked = this.role === 'partner' && candidate.name === selection.commander;
         const b = this.button(
@@ -253,6 +256,8 @@ export class MobileHomeBase {
         );
         list.append(b);
       }
+      if (met.length < lords.length)
+        list.append(node('p', 'mu-help mh-more-lords', 'More lords join as you meet them.'));
     } else {
       const name = lord?.name;
       const assigned = this.meta.getSkillAssignments()[name] || [];

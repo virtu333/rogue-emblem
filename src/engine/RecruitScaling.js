@@ -1,3 +1,4 @@
+import { contributesToTeamLevel } from './SpecialCharacterPolicy.js';
 import { RECRUIT_PROMOTION_BASE_LEVEL, BOSS_RECRUIT_PROMOTED_PENALTY } from '../utils/constants.js';
 import { findCommander } from './Commander.js';
 
@@ -18,6 +19,11 @@ export function resolveRecruitScalingTargets(units) {
     anchor?.tier === 'promoted' ? RECRUIT_PROMOTION_BASE_LEVEL + anchorLevel : anchorLevel;
   const dynamicPromotionLevel = RECRUIT_PROMOTION_BASE_LEVEL + anchorPromotedLevel;
   const promotedLevelTarget = Math.max(0, anchorPromotedLevel - BOSS_RECRUIT_PROMOTED_PENALTY);
+  // A recruit whose promotion roll fails joins in its base class, capped here (then
+  // one level lower: RecruitPromotion.getFailBaseLevel). The cap is the commander's
+  // effective level (promoted = 10 + level), never below the promotion level: an
+  // unpromoted Lv 16 commander used to cap a failed recruit at base Lv 9.
+  const failBaseLevelCap = Math.max(dynamicPromotionLevel, recruitTargetLevel);
 
   return {
     anchorPromotedLevel,
@@ -26,6 +32,7 @@ export function resolveRecruitScalingTargets(units) {
     recruitTargetLevel,
     dynamicPromotionLevel,
     promotedLevelTarget,
+    failBaseLevelCap,
   };
 }
 
@@ -34,7 +41,7 @@ export function resolveRecruitScalingTargets(units) {
  * Promoted units count as RECRUIT_PROMOTION_BASE_LEVEL + their promoted level.
  */
 export function resolveTeamAverageLevel(units) {
-  const roster = Array.isArray(units) ? units : [];
+  const roster = (Array.isArray(units) ? units : []).filter(contributesToTeamLevel);
   if (roster.length === 0) return 1;
   let sum = 0;
   for (const u of roster) {
@@ -48,16 +55,62 @@ export function resolveTeamAverageLevel(units) {
 // Backward-compatible alias for existing call sites/tests.
 export const resolveRecruitPromotionTargets = resolveRecruitScalingTargets;
 
-/** Creation-time bonus only; ordinary saved stats preserve it through promotion/resume. */
-export function applyAct3RecruitBonus(unit, act) {
-  if (act !== 'act3' || unit?.tier !== 'base') return;
+// The join bonus: flat stats a non-lord recruit gets once, when it is created, so it
+// can stand beside the lords (playtest 2026-09-29). Act 1 closes the lords' base-stat
+// head start (lords average 54.7 base points, the Act 1 recruit classes 46.5) with
+// one point where that gap sits; later acts give the Act 3 readiness package.
+// `attack` is STR or MAG by the recruit's weapons; `guard` is the lower of DEF/RES.
+export const RECRUIT_JOIN_BONUS = Object.freeze({
+  act1: Object.freeze({ HP: 2, attack: 2, SKL: 1, SPD: 1, DEF: 1, RES: 1 }),
+  act2: Object.freeze({ HP: 2, attack: 2, SPD: 1, guard: 1 }),
+  act3: Object.freeze({ HP: 2, attack: 2, SPD: 1, guard: 1 }),
+  act4: Object.freeze({ HP: 2, attack: 2, SPD: 1, guard: 1 }),
+});
+// A recruit that joins already promoted (recruit nodes, boss recruits, Colosseum
+// mercenaries, the Vanguard Cadre) gets +8 in Acts 3-4 and nothing earlier (an Act 2
+// board can draw promoted classes through crossActPoolAccess: it gets none). Measured
+// with no meta, promoted recruits at the same promoted level as the promoted lords
+// (created the way a recruited lord is: Lv 10 base, promoted, levelled) trail them by
+// 8.6 stat points in Act 3 and 9.8 in Act 4 (by source, 8.1-10.7). +8 is the largest
+// package no source overshoots: the Colosseum's mercenaries, who already roll two +1
+// stats, trail by only 8.1 in Act 3. It goes where the gap sits: DEF trails by 3.1-3.6,
+// the attack stat by 2-4, RES by 1-2. Lords never get it; recruited lords keep the
+// package they have.
+export const RECRUIT_PROMOTED_JOIN_BONUS = Object.freeze({
+  act3: Object.freeze({ HP: 2, attack: 2, SPD: 1, DEF: 2, RES: 1 }),
+  act4: Object.freeze({ HP: 2, attack: 2, SPD: 1, DEF: 2, RES: 1 }),
+});
+// Recruited lords keep only the Act 3 package they had before: in the early acts
+// the bonus exists to close the gap to the lords, so a lord never gets it there.
+const LORD_JOIN_BONUS_ACTS = new Set(['act3']);
+
+/**
+ * Creation-time bonus only; ordinary saved stats preserve it through promotion and
+ * resume. Every recruit source calls it once with the act whose pool it came from:
+ * recruit nodes, boss recruits, Colosseum mercenaries and the Vanguard Cadre.
+ * Base-class recruits take RECRUIT_JOIN_BONUS; a recruit that joins already promoted
+ * takes RECRUIT_PROMOTED_JOIN_BONUS (Acts 3-4 only). Lords never get the promoted
+ * package (they are what it measures against) and enemies get neither.
+ */
+export function applyRecruitJoinBonus(unit, act) {
+  if (!unit?.stats || unit.faction === 'enemy') return;
+  let bonus;
+  if (unit.tier === 'base') {
+    if (unit.isLord && !LORD_JOIN_BONUS_ACTS.has(act)) return;
+    bonus = RECRUIT_JOIN_BONUS[act];
+  } else if (unit.tier === 'promoted') {
+    if (unit.isLord) return;
+    bonus = RECRUIT_PROMOTED_JOIN_BONUS[act];
+  }
+  if (!bonus) return;
   const type =
     unit.proficiencies?.find((p) => p.type !== 'Staff')?.type || unit.proficiencies?.[0]?.type;
-  const offense = ['Tome', 'Light', 'Staff'].includes(type) ? 'MAG' : 'STR';
-  const defense = unit.stats.DEF <= unit.stats.RES ? 'DEF' : 'RES';
-  unit.stats.HP += 2;
-  unit.currentHP += 2;
-  unit.stats[offense] += 2;
-  unit.stats.SPD += 1;
-  unit.stats[defense] += 1;
+  const attack = ['Tome', 'Light', 'Staff'].includes(type) ? 'MAG' : 'STR';
+  const guard = unit.stats.DEF <= unit.stats.RES ? 'DEF' : 'RES';
+  for (const [key, value] of Object.entries(bonus)) {
+    const stat = key === 'attack' ? attack : key === 'guard' ? guard : key;
+    unit.stats[stat] = (unit.stats[stat] || 0) + value;
+  }
+  if (bonus.HP) unit.currentHP = (Number(unit.currentHP) || 0) + bonus.HP;
 }
+

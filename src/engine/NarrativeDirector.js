@@ -33,6 +33,7 @@ export const KNOWN_WHEN_KEYS = new Set([
   'commander',
   'difficulty',
   'minRunsCompleted',
+  'maxRunsStarted',
   'lastRunResult',
   'lastRunDefeatedByKnown',
   'lastRunAct',
@@ -122,6 +123,10 @@ export function evaluateWhen(when, ctx) {
           break;
         case 'minRunsCompleted':
           if (typeof value !== 'number' || !(ctx.runsCompleted >= value)) return false;
+          break;
+        case 'maxRunsStarted':
+          // The run being played counts (runs are counted as they start): 1 = the first.
+          if (typeof value !== 'number' || !(ctx.runsStarted <= value)) return false;
           break;
         case 'lastRunResult':
           if (ctx.lastRunResult !== value) return false;

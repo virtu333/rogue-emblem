@@ -596,7 +596,7 @@ export class UnitDetailOverlay {
     }
 
     // Class mastery (player/NPC recruits + lords — not generic enemies)
-    if (unit.faction !== 'enemy') {
+    if (unit.faction !== 'enemy' && unit.specialCharId !== 'old_knight') {
       const classesData = this.gameData?.classes || null;
       const traitsData = this.gameData?.traits || null;
       if (classesData) {
@@ -1234,3 +1234,4 @@ export class UnitDetailOverlay {
     }
   }
 }
+
