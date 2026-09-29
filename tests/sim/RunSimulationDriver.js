@@ -172,6 +172,10 @@ export class RunSimulationDriver {
     battleParams.metaEffects = structuredClone(
       this.runManager.getEffectiveMetaEffects?.() ?? this.runManager.metaEffects ?? null,
     );
+    // XP inputs BattleScene reads from the run itself (BattleXp via the harness).
+    battleParams.extendedLevelingEnabled =
+      this.runManager.getDifficultyModifier?.('extendedLevelingEnabled', false) === true;
+    battleParams.blessingXpDelta = this.runManager.getXpMultiplierDelta?.() || 0;
     battleParams.fallenUnits = Array.isArray(this.runManager.fallenUnits)
       ? structuredClone(this.runManager.fallenUnits)
       : [];

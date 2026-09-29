@@ -11,6 +11,7 @@ vi.mock('phaser', () => ({
 import { loadGameData } from './testData.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
+import { getParXpMultiplier } from '../src/engine/TurnBonusCalculator.js';
 import {
   createUnit,
   equipAccessory,
@@ -362,6 +363,16 @@ describe("Mentor's Band: BattleScene.awardXP share pass", () => {
 });
 
 describe("Mentor's Band: headless harness parity", () => {
+  // A share is granted like any award (BattleScene.awardScaledXP): the battle's
+  // turn-par multiplier applies. These units carry no trait and the battle no XP rate.
+  const scaledShare = (battle, share) =>
+    Math.max(
+      1,
+      Math.floor(
+        share *
+          getParXpMultiplier(battle.turnManager.turnNumber, battle.turnPar, gameData.turnBonus),
+      ),
+    );
   const battleParams = {
     act: 'act1',
     objective: 'rout',
@@ -427,7 +438,7 @@ describe("Mentor's Band: headless harness parity", () => {
     battle._executeCombat(holder, enemy);
 
     expect(enemy.currentHP).toBeLessThanOrEqual(0);
-    expect(trainee.xp).toBe(expectedShare);
+    expect(trainee.xp).toBe(scaledShare(battle, expectedShare));
     expect(holder.xp).toBeGreaterThan(0); // holder's own XP untouched
   });
 
@@ -475,7 +486,7 @@ describe("Mentor's Band: headless harness parity", () => {
     // Holder survives and counters the 1 HP enemy dead → counter XP + share.
     expect(holder.currentHP).toBeGreaterThan(0);
     expect(enemy.currentHP).toBeLessThanOrEqual(0);
-    expect(trainee.xp).toBe(expectedShare);
+    expect(trainee.xp).toBe(scaledShare(battle, expectedShare));
   });
 
   it("shares flow even when the holder's rounded XP is 0 (parity with BattleScene)", () => {
@@ -520,7 +531,7 @@ describe("Mentor's Band: headless harness parity", () => {
 
     expect(enemy.currentHP).toBeLessThanOrEqual(0);
     expect(holder.xp).toBe(0); // rounded holder award stays skipped
-    expect(trainee.xp).toBe(expectedShare);
+    expect(trainee.xp).toBe(scaledShare(battle, expectedShare));
   });
 
   it('no share without the band equipped', () => {
