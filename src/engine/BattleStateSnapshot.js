@@ -90,6 +90,8 @@ function validRestoreFields(state, width, height) {
         return (
           tile(tomb) &&
           integer(tomb.turnsRemaining, 1) &&
+          // Optional: records saved before the flag existed read as seen (ZombieRemains).
+          optional(tomb, 'seen', (v) => typeof v === 'boolean') &&
           record(saved) &&
           text(saved.className) &&
           integer(saved.level, 1) &&

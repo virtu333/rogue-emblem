@@ -44,10 +44,12 @@ const DEV_PRESETS = new Set([
   // Phone review setups (playtest 2026-09-28): see docs/playtest-triage-2026-09-28.md.
   'fog_ambush',
   'roster_checks',
+  // Playtest 2026-09-29 #11: Zombie remains, the countdown and Smash (devScenarios.js).
+  'zombie_remains',
   'ladder',
 ]);
 // Presets built on the combat_actions loadout (Edric, Sera and three utility units).
-const COMBAT_LOADOUT_PRESETS = new Set(['combat_actions', 'fog_ambush']);
+const COMBAT_LOADOUT_PRESETS = new Set(['combat_actions', 'fog_ambush', 'zombie_remains']);
 const DEV_QA_SEQUENCE = [
   {
     step: 1,
@@ -542,6 +544,11 @@ export function buildDevStartupRoute(gameData, registry, config) {
   if (config.preset === 'fog_ambush') {
     battleParams.fogEnabled = true;
     battleParams.devScenario = 'fog_ambush';
+  }
+  // The remains review: a Rout down to one weak Zombie beside Edric (devScenarios.js).
+  if (config.preset === 'zombie_remains') {
+    battleParams.objective = 'rout';
+    battleParams.devScenario = 'zombie_remains';
   }
   return {
     key: 'Battle',

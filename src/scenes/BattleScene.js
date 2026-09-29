@@ -180,7 +180,6 @@ import {
   XP_SPECIAL_ENEMY_MULTIPLIER,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
-  ZOMBIE_CLASSES,
   filterClassPoolByDifficulty,
   ENTITY_SPLASH_COUNT,
   ENTITY_FOOTPRINT,
@@ -293,6 +292,7 @@ import { MobileBattleHUD } from '../ui/MobileBattleHUD.js';
 import { CaravanController } from '../ui/CaravanController.js';
 import { VillageController } from '../ui/VillageController.js';
 import { RecruitBeaconController } from '../ui/RecruitBeaconController.js';
+import { SMASH_TARGET_STATE, ZombieRemainsController } from '../ui/ZombieRemainsController.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
@@ -383,6 +383,11 @@ function playerKnowledgeOf(scene) {
     units: [...(scene.playerUnits || []), ...(scene.enemyUnits || []), ...(scene.npcUnits || [])],
     revealed: [scene._recruitBeacon?.npc],
   });
+}
+
+/** The battle's Zombie remains (ZombieRemainsController), made on first use. */
+function remainsOf(scene) {
+  return (scene._remainsCtrl ||= new ZombieRemainsController(scene));
 }
 
 /** Reset per-battle state on a unit at deploy time. */
@@ -668,6 +673,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._recruitBeacon) {
       this._recruitBeacon.destroy();
       this._recruitBeacon = null;
+    }
+    if (this._remainsCtrl) {
+      this._remainsCtrl.destroy();
+      this._remainsCtrl = null;
     }
     if (this._promotionController) {
       this._promotionController.destroy();
@@ -1957,6 +1966,8 @@ export class BattleScene extends Phaser.Scene {
       // Recruit battles: a banner marks the recruit from turn 1, through fog too
       // (RecruitBeaconController replaces the old fog-only "?" marker).
       (this._recruitBeacon ||= new RecruitBeaconController(this)).create();
+      // Zombie remains: a bone pile and countdown on each seen record (ZombieRemains).
+      remainsOf(this).create();
 
       // FOG OF WAR indicator
       if (this.grid.fogEnabled) {
@@ -3615,6 +3626,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.dangerZone?.visible && this.dangerZoneStale) this.refreshVisibleDangerZone();
     this._pinnedThreats?.refresh();
     this._recruitBeacon?.sync();
+    this._remainsCtrl?.sync();
     this._mobileBattleHud?.sync();
     this._portraitBattle?.update();
     if (!this._uiCamera) return;
@@ -3924,6 +3936,7 @@ export class BattleScene extends Phaser.Scene {
       'SELECTING_SWAP_TARGET',
       'SELECTING_DANCE_TARGET',
       'SELECTING_BREAK_TARGET',
+      SMASH_TARGET_STATE,
       'SELECTING_ABILITY_TILE',
       'TRADING',
       'CANTO_MOVING',
@@ -4110,6 +4123,9 @@ export class BattleScene extends Phaser.Scene {
       this.grid.clearAttackHighlights();
       this.breakTargets = [];
       this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === SMASH_TARGET_STATE) {
+      remainsOf(this).cancel();
+      this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === 'SELECTING_ABILITY_TILE') {
       this._cancelAbilityTileSelection();
       this.showActionMenu(this.selectedUnit);
@@ -4200,6 +4216,7 @@ export class BattleScene extends Phaser.Scene {
       s === 'SELECTING_SWAP_TARGET' ||
       s === 'SELECTING_DANCE_TARGET' ||
       s === 'SELECTING_BREAK_TARGET' ||
+      s === SMASH_TARGET_STATE ||
       s === 'SELECTING_ABILITY_TILE' ||
       s === 'TRADING' ||
       s === 'CANTO_MOVING'
@@ -5362,6 +5379,11 @@ export class BattleScene extends Phaser.Scene {
     this.executeBreak(this.selectedUnit, target);
   }
 
+  /** Smash: a tap on highlighted remains (ZombieRemainsController). */
+  handleRemainsTargetClick(gp) {
+    return remainsOf(this).handleClick(gp);
+  }
+
   executeBreak(unit, target) {
     this.hideActionMenu();
     const removed = this.grid.clearTemporaryTerrainAt?.(target.col, target.row);
@@ -6262,6 +6284,9 @@ export class BattleScene extends Phaser.Scene {
     // Break: adjacent temporary wall terrain (Waller)
     if (this.findBreakTargets(unit).length > 0)
       command('break', 'Break', () => this.startBreakTargetSelection(unit));
+    // Smash: known Zombie remains in reach of a usable weapon (ZombieRemainsController)
+    if (remainsOf(this).findTargets(unit).length > 0)
+      command('smash', 'Smash', () => remainsOf(this).begin(unit));
     // Talk: Lord adjacent to NPC (the roster has no cap)
     if (unit.isLord && this.npcUnits.length > 0) {
       const talkTarget = this.findTalkTarget(unit);
@@ -9018,30 +9043,9 @@ export class BattleScene extends Phaser.Scene {
       if (idx !== -1) this.enemyUnits.splice(idx, 1);
       this._applyKillRewards(unit, killer);
       (this._battleBeats ||= new BattleBeatsController(this)).onKill(unit, killer);
-      // Zombie revival: create tombstone if killed by non-Light weapon
-      if (ZOMBIE_CLASSES.has(unit.className) && !unit._revived && !unit.isBoss) {
-        const killerWeaponType = killer?.weapon?.type;
-        if (killerWeaponType !== 'Light') {
-          this._zombieTombstones = this._zombieTombstones || [];
-          this._zombieTombstones.push({
-            col: deathCol,
-            row: deathRow,
-            turnsRemaining: 3,
-            snapshot: {
-              className: unit.className,
-              level: unit.level,
-              weapon: structuredClone(unit.weapon),
-              inventory: structuredClone(unit.inventory || []),
-              skills: [...(unit.skills || [])],
-              stats: { ...unit.stats },
-              moveType: unit.moveType,
-              proficiencies: structuredClone(unit.proficiencies || []),
-              tier: unit.tier || 'base',
-              mov: unit.mov,
-            },
-          });
-        }
-      }
+      // Zombie / Revenant remains: a tile record that rises in 3 enemy phases unless
+      // smashed (engine/ZombieRemains.js, ZombieRemainsController).
+      remainsOf(this).onEnemyFell(unit, killer, { col: deathCol, row: deathRow });
     }
     this._inputController?.refreshHoverInfo();
     this.dangerZoneStale = true;
@@ -9595,91 +9599,13 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  /** Enemy-phase start: remains tick, rise or crumble (ZombieRemainsController). */
   async processZombieRevival() {
-    if (!this._zombieTombstones || this._zombieTombstones.length === 0) return;
-    const revived = [];
-    this._zombieTombstones = this._zombieTombstones.filter((tomb) => {
-      tomb.turnsRemaining--;
-      if (tomb.turnsRemaining > 0) return true;
-      revived.push(tomb);
-      return false;
-    });
-    for (const tomb of revived) {
-      const snap = tomb.snapshot;
-      // Find spawn position -- original tile or nearest passable+empty
-      let spawnCol = tomb.col;
-      let spawnRow = tomb.row;
-      const deathTerrain = this.grid.getTerrainAt(spawnCol, spawnRow);
-      const deathMc = deathTerrain?.moveCost?.[snap.moveType];
-      const deathImpassable = deathMc === '--' || deathMc == null;
-      if (deathImpassable || this.getUnitAt(spawnCol, spawnRow)) {
-        const dirs = [
-          { dc: -1, dr: 0 },
-          { dc: 1, dr: 0 },
-          { dc: 0, dr: -1 },
-          { dc: 0, dr: 1 },
-        ];
-        let found = false;
-        for (const { dc, dr } of dirs) {
-          const nc = spawnCol + dc;
-          const nr = spawnRow + dr;
-          if (
-            nc >= 0 &&
-            nc < this.battleConfig.cols &&
-            nr >= 0 &&
-            nr < this.battleConfig.rows &&
-            !this.getUnitAt(nc, nr)
-          ) {
-            const t = this.grid.getTerrainAt(nc, nr);
-            const mc = t?.moveCost?.[snap.moveType];
-            if (mc === '--' || mc == null) continue; // impassable -> skip
-            spawnCol = nc;
-            spawnRow = nr;
-            found = true;
-            break;
-          }
-        }
-        if (!found) continue; // no room -- skip revival
-      }
-      const unit = {
-        name: snap.className,
-        className: snap.className,
-        tier: snap.tier || 'base',
-        level: snap.level,
-        xp: 0,
-        isLord: false,
-        personalGrowths: null,
-        growths: {},
-        proficiencies: structuredClone(snap.proficiencies || []),
-        skills: [...snap.skills],
-        col: spawnCol,
-        row: spawnRow,
-        mov: snap.mov || snap.stats.MOV || 4,
-        moveType: snap.moveType || 'Infantry',
-        stats: { ...snap.stats },
-        currentHP: Math.max(1, Math.floor(snap.stats.HP / 2)),
-        faction: 'enemy',
-        weapon: snap.weapon ? structuredClone(snap.weapon) : null,
-        inventory: snap.weapon ? [structuredClone(snap.weapon)] : [],
-        consumables: [],
-        affixes: [],
-        accessory: null,
-        weaponRank: snap.proficiencies?.[0]?.rank || 'Prof',
-        hasMoved: false,
-        hasActed: false,
-        _revived: true,
-        _noXP: true,
-        isBoss: false,
-        graphic: null,
-        label: null,
-        hpBar: null,
-      };
-      this.enemyUnits.push(unit);
-      this.addUnitGraphic(unit);
-      observeHistoryAction(this, 'revived', unit);
-      await this.showBriefBanner(`${unit.className} has risen!`, UI_PALETTE.rarityEpic);
-    }
-    if (revived.length > 0) this.checkBattleEnd();
+    await remainsOf(this).processRevival();
+  }
+
+  _zombieRemains() {
+    return remainsOf(this);
   }
 
   /** Handle the Waller affix terrain creation */
@@ -10679,6 +10605,7 @@ export class BattleScene extends Phaser.Scene {
   /** Hide/show enemy and NPC graphics based on fog visibility. */
   updateEnemyVisibility() {
     if (!this.grid.fogEnabled) return;
+    if (this._zombieTombstones?.length) remainsOf(this).noteSeen();
     this.refreshVisibleDangerZone?.();
     for (const enemy of this.enemyUnits) {
       let vis;

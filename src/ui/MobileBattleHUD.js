@@ -73,6 +73,7 @@ const PLAY_STATES = new Set([
 const HINTS = {
   PLAYER_IDLE: 'Tap a unit to begin. Pinch to zoom the map.',
   SELECTING_HEAL_TARGET: 'Choose an ally here or on the map. Back returns without using the staff.',
+  SELECTING_REMAINS_TARGET: 'Tap the highlighted remains to smash them. Back to go back.',
   UNIT_MOVING: 'Moving…',
   UNIT_SELECTED: 'Tap a highlighted tile to move.',
   UNIT_ACTION_MENU: 'Choose an action for this unit.',
@@ -876,6 +877,7 @@ export class MobileBattleHUD {
       Boolean(this.endTurnPending),
       s.infoText?.text,
       s._mobileTerrainFocus,
+      s._remainsCtrl?.markers?._key,
       s.objectiveText?.text,
       s.turnCounterText?.text,
       s.visionHudText?.text,
@@ -992,6 +994,11 @@ export class MobileBattleHUD {
         // Move preview: how many visible foes could strike this tile next phase.
         if (threat && threat.col === focus.col && threat.row === focus.row)
           card.append(threatPreviewLine(threat.result));
+        // Zombie remains the player knows of on this tile, and when they rise.
+        const remains = s._zombieTombstones?.length
+          ? s._zombieRemains?.().infoLine(focus.col, focus.row)
+          : null;
+        if (remains) card.append(el('span', 'mb-remains', remains));
         if (terrainRuleLines(terrain).length) {
           const help = this.button(
             'Terrain details ⓘ',

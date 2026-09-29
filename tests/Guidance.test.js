@@ -637,3 +637,29 @@ describe('unit-scoped notes step aside when their moment is over', () => {
     }
   });
 });
+
+describe('Zombie remains note', () => {
+  it('teaches the countdown, Smash and Light once, pointing at a pile the player has seen', () => {
+    const text = guidanceText('guide_zombie_remains', {});
+    expect(text).toMatch(/enemy phases/);
+    expect(text).toMatch(/Smash/);
+    expect(text).toMatch(/Light/);
+    expect(GUIDANCE_NOTES.guide_zombie_remains.tier).toBe('essential');
+    const pile = { col: 5, row: 3, turnsRemaining: 3, count: 1 };
+    const { scene, hints, settings } = guidanceScene();
+    settings.getGuidance = () => 'light';
+    const g = new GuidanceController(scene);
+    expect(g.pick()).toBeNull(); // no remains yet
+    scene._remainsCtrl = { knownTiles: () => [pile], markers: { shown: [pile] } };
+    expect(g.pick()).toMatchObject({ id: 'guide_zombie_remains', anchor: pile });
+    hints.markSeen('guide_zombie_remains');
+    expect(g.pick()).toBeNull();
+  });
+
+  it('says nothing about remains the fog hides', () => {
+    const { scene, settings } = guidanceScene();
+    settings.getGuidance = () => 'light';
+    scene._remainsCtrl = { knownTiles: () => [], markers: { shown: [] } };
+    expect(new GuidanceController(scene).pick()).toBeNull();
+  });
+});

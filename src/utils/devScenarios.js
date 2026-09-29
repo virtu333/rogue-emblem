@@ -3,6 +3,7 @@
 import { showMinorHint } from '../ui/HintDisplay.js';
 import { TILE_SIZE } from './constants.js';
 import { UI_HEX } from './uiStyles.js';
+import { setUnitHP } from '../engine/UnitHealth.js';
 
 /**
  * fog_ambush: hide one enemy on the farthest fogged tile a player unit can reach this
@@ -65,8 +66,67 @@ function markTile(scene, { col, row }) {
   return marker;
 }
 
+/**
+ * zombie_remains: the Rout comes down to one weak Zombie on an open tile beside Edric
+ * (every other enemy and all reinforcements are gone). Attack it and it leaves remains
+ * ("3"); end turns and the count falls; Smash them to win. Returns the placement, or
+ * null when Edric has no open neighbour.
+ */
+export function placeZombieRemains(scene) {
+  const grid = scene.grid;
+  const edric = (scene.playerUnits || []).find((u) => u?.name === 'Edric');
+  if (!grid || !edric || typeof scene.addEnemyFromSpawn !== 'function') return null;
+  const occupied = (col, row) =>
+    [...scene.playerUnits, ...scene.enemyUnits, ...(scene.npcUnits || [])].some(
+      (u) => u && u.currentHP > 0 && u.col === col && u.row === row,
+    );
+  const tiles = [
+    [1, 0],
+    [-1, 0],
+    [0, -1],
+    [0, 1],
+  ]
+    .map(([dc, dr]) => ({ col: edric.col + dc, row: edric.row + dr }))
+    .filter(({ col, row }) => {
+      if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return false;
+      const cost = grid.getTerrainAt(col, row)?.moveCost?.Infantry;
+      return cost !== '--' && cost != null && !occupied(col, row);
+    });
+  // Open ground first: no avoid bonus, so Edric's blow lands.
+  const avoid = ({ col, row }) => Number(grid.getTerrainAt(col, row)?.avoidBonus) || 0;
+  const tile = tiles.sort((a, b) => avoid(a) - avoid(b))[0];
+  if (!tile) return null;
+  // Splice in place: the turn manager holds this array.
+  for (const enemy of scene.enemyUnits.splice(0)) scene.removeUnitGraphic?.(enemy);
+  if (scene.battleConfig) scene.battleConfig.reinforcements = null;
+  const zombie = scene.addEnemyFromSpawn({ className: 'Zombie', level: 1, ...tile });
+  if (!zombie) return null;
+  Object.assign(zombie.stats, { SPD: 0, LCK: 0, DEF: 0 });
+  zombie.skills = [];
+  setUnitHP(zombie, 1);
+  scene.updateHPBar?.(zombie);
+  if (grid.fogEnabled) {
+    grid.updateFogOfWar(scene.playerUnits);
+    scene.updateEnemyVisibility?.();
+  }
+  scene.dangerZoneStale = true;
+  scene.updateObjectiveText?.();
+  return { unit: edric, zombie, spot: { ...tile } };
+}
+
 export function applyDevScenario(scene) {
   const scenario = scene?.battleParams?.devScenario;
+  if (scenario === 'zombie_remains') {
+    const placed = placeZombieRemains(scene);
+    scene._devScenarioResult = placed;
+    showMinorHint(
+      scene,
+      placed
+        ? 'Review: fell the Zombie with Edric, end turns to watch the count, then Smash the bones.'
+        : 'Review: no open tile beside Edric here; try another seed.',
+    );
+    return placed;
+  }
   if (scenario !== 'fog_ambush') return null;
   const placed = placeFogAmbush(scene);
   scene._devScenarioResult = placed; // what was set up, for review tests
