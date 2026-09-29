@@ -200,3 +200,8 @@ Done, each with unit tests (and browser tests where there is UI):
 - Story and lines: first-run cold open, Act I/II dispatches, the Lieutenant's vision (Dusk and up), fall reactions and commander last words, Act IV flavour, the First Light tease, fuller thin pools.
 
 Waiting: the Wounded status (anti-heal) is built on the HP-ownership work (`engine/UnitHealth.js`) once that PR lands.
+
+PR notes for the strict-slice threshold change (Waves 3–4; CI's check:threshold-pr-notes reads these from the PR body):
+- Attribution command: `node tests/sim/fullrun-slice-runner.js --slice ambush_hard_invincible` on each commit.
+- first_bad_sha: e6e7f191 (Wounded: the Grievous affix joins the tier-1 affix pool Hard rolls from). parent_sha: 887c03c2.
+- Failing metrics / threshold breaches: ambush_hard_invincible avg_gold 54901 > 54400 (53483 on the parent; 52496 on main before Waves 3–4). Change: `--max-avg-gold` 54400 → 56800, the same ~3.4% headroom. Every other metric is unchanged.
