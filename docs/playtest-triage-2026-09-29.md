@@ -44,3 +44,32 @@ Also found: `sim/matchups.js` never passes `isInitiating`, so Death Blow and the
 **Wave C — UX**: #9 and #10 trade, #14 stat order, #15 hidden lords, #12 boss-reward hints, #11 skeleton remains + Smash.
 
 **Wave D — Items and lords**: #16 Coin, #17 Vampiric and Warded numbers, #18 personal weapons (+ icon atlas), #19 story gating.
+
+## Owner decisions (2026-09-29)
+- Hidden lords: only Edric and Sera show at the start; others appear once met and recruited (omitted, not silhouetted; Banner owners aren't auto-marked).
+- Skeleton remains + Smash: approved. No runtime error box was seen (both "menu" reports were the ghost click).
+- Dusk: no Dragons before Act IV (Zombie/Revenant unchanged). Gambler's Coin: better than Power Ring, and no fishing.
+- Vampiric: 1 HP per hit that deals damage. Warded +1 DEF / +2 RES. Binding 50%. Venomous 7.
+- Personal weapons approved; Voss gets a short bow, not the Rapier. Story without Edric/Sera: backlog.
+- Battalion half price, more deploy slots, no roster cap (Expanded Ranks refunded). All extra recruit buffs.
+- Sniper: player-only buffs (enemy Snipers are scary): no promotion boost, no extra bows.
+- Stat panel: literal swap.
+
+## Status: implemented on `claude/playtest-2026-09-29` (PR #159 + PR #160 + this batch)
+| # | Done | Notes |
+|---|---|---|
+| 1, 2 | Ghost click swallowed at document capture after any pointer skip (`ceremonyDom.bindCeremonySkip`); save right after `advanceAct()`; boss-recruit draft saved and re-offered after a reload (`engine/PendingBossRecruit.js`). | Third-lord arrival has the same reload gap (follow-up). |
+| 3 | Shielded settles before Thorns/Teleporter; "−N Thorns"; no 0 chip; drain shows HP actually healed; forecast projects the reflect; help text. | |
+| 4 | `difficulty.json` `enemyClassEarliestAct` (Dusk: Dragon → act4). Dusk Act III dragon battles 48% → 0%. | |
+| 5–7 | Deploy act3 5–7, act4/finale/postAct 5–8, bonus on max only; enemy caps raised; recruit join level averages the top 6. Battalion halved (Tactical Advantage 150, beatAct1), revision-2 credit. Roster cap removed; Expanded Ranks refunded 175 Supply once (ledgered). | No in-game notice of refunds/credits. |
+| 5, 8 | Recruit promotion 2000 G (lords 3500); promoted joins 0.4 → 0.65; failed-roll join level follows the commander's effective level; join bonus for every base-class recruit source (Act 1 +8, later +6); boss recruits/mercs/Vanguard Cadre get seasoned growths, Skilled Recruits, recruit meta upgrades. Sniper: player-only Death Blow, joins with a Recurve Bow. `sim/matchups.js` and `sim/fullrun.js` pass `isInitiating`. | Open: Act 2 recruits now out-kill lords with no meta (+6 → +4?); promoted recruits still −7..−9 stat points vs lords (extend the bonus?). |
+| 9, 10 | Trade opens with nothing held; cursor is logical until a key/pad press; same-unit reorder in trade (slot 0 = equipped), roster and battle (move lock, "changed equipment" beat, checkpoint). | |
+| 11 | `engine/ZombieRemains.js`, `RemainsMarkerController`, `ZombieRemainsController`; Smash (no roll, no RNG, can win a Rout); fog-aware; harness shares the module. | |
+| 12 | Boss arrival: no cue strip, legend, best/grows marks or hold tip. | |
+| 13 | Caravan: ≥6 from enemy spawns, 6 (≥4) from the army, reachable, exits away from the enemy; caravan nodes avoid great_hall/chokepoint (`"caravan": false`), redraw up to 8 layouts, and a tag with no caravan is cleared. 0 misses in 37,716 generations. | |
+| 14 | `ui/statOrder.js`: portrait 2-column order HP MAG STR SKL SPD DEF RES LCK MOV. | |
+| 15 | `engine/LordsMet.js` + `MetaProgressionManager.lordsMet` (union-merged, backfilled); unmet lords omitted in home base, picker and Compendium. | |
+| 16 | Gambler's Coin 50% +8 / −3, one flip per unit per phase; saved coins migrate on load (`engine/AccessoryCatalogMigration.js`). | |
+| 17 | Vampiric 1 HP per damaging hit; Warded +1/+2; Binding 50%; Venomous 7. DEF bonuses no longer reduce magic damage (the bonus follows the stat the strike targets). | |
+| 18 | Personal weapons via `signatureOf`: Godsend, Windward, Holdfast, Endgame, Threadlight, Last Watch (Voss). | Threadlight tests weakest; optional small RES bonus. |
+| 19 | Backlog. | |

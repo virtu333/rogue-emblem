@@ -49,14 +49,14 @@ emblem-rogue/
 │   ├── mapSizes.json      # 10 map size templates by act/phase
 │   ├── mapTemplates.json  # 20 zone-based templates (9 rout, 8 seize, 3 escape) incl. tundra/volcanic/castle
 │   ├── mechanicsReference.json # In-game help: combat formulas, weapon ranks
-│   ├── metaUpgrades.json  # 60 tiered upgrades in 6 categories
+│   ├── metaUpgrades.json  # 79 tiered upgrades in 6 categories
 │   ├── recruits.json      # Recruit pools by act (act1-act4) + namePool
 │   ├── referenceViewer.json # Reference viewer config: formulas, weapon ranks, game version
 │   ├── skills.json        # 52 skills across 7 trigger types
 │   ├── terrain.json       # 19 terrain types (incl. Ice, Lava Crack, Floor, Pillar, Ballista, Swamp, Bog, Acidic Swamp/Bog)
 │   ├── turnBonus.json     # Turn par calculation config
 │   ├── weaponArts.json    # 75 weapon arts across 5 types, HP-cost combat mods
-│   ├── weapons.json       # 116 weapons across 8 types (incl. Restore cure staff, enemy-only status staves)
+│   ├── weapons.json       # 136 weapons across 8 types (incl. Restore cure staff, enemy-only status staves, lord personal weapons)
 │   └── whetstones.json    # 5 whetstones: Silver (choice), Might, Crit, Hit, Weight
 ├── src/
 │   ├── main.js            # Auth gate + Phaser bootstrap (exports cloudState)
@@ -83,17 +83,17 @@ Auth/offline gate (main.js) → Boot → Title → SlotPicker → HomeBase → D
 Read the JSON files directly for full schemas. Non-obvious behaviors:
 - **classes.json** — Base classes have `growthRanges` (string "55-70", rolled once at recruitment). Promoted classes have `promotionBonuses`. Some have `learnableSkills: [{ skillId, level }]`.
 - **Item names are identity** (saves store whole items; weapon-art gates, siege lookups, icons and fx key on names). Renaming an item goes through `ITEM_RENAMES` + `ITEM_NAMES_REVISION` in `engine/ItemNameMigration.js`, which `RunManager.fromJSON` runs over old saves (`docs/specs/item-names.md`). Weapon names follow the family grammar there; rule tags come from `engine/ItemKeywords.js` (`docs/specs/item-keywords.md`).
-- **weapons.json** — Scrolls have `skillId` field (consumable, not equippable as weapons). Staves gain +1 use at MAG 8/14/20; uses tracked via `_usesSpent` (survives serialization). Prices: Iron=500, Steel=1000, Silver=2000, Legend=0, Scrolls=2500, Staves 300/600/1000/1200/0.
+- **weapons.json** — Scrolls have `skillId` field (consumable, not equippable as weapons). `signatureOf: "<Lord>"` marks a lord's personal weapon: Deadly Arsenal I gives it to that lord as commander (`engine/SignatureWeapons.js`), and it never enters loot (the validator enforces one per lord, wieldable, not in loot tables). Staves gain +1 use at MAG 8/14/20; uses tracked via `_usesSpent` (survives serialization). Prices: Iron=500, Steel=1000, Silver=2000, Legend=0, Scrolls=2500, Staves 300/600/1000/1200/0.
 - **consumables.json** — Stat boosters are loot-only (not in shops). Reclass seals: Infantry Seal, Mounted Seal.
 - **lootTables.json** — Act 1: no rare pool, limited forge pool. Loot weapons filtered by roster proficiencies.
 - **accessories.json** — Stat accessories modify `unit.stats` directly on equip/unequip. Combat accessories have `combatEffects` evaluated at combat time by Combat.js + SkillSystem.js. Conditions: `below50`, `above75`, `on_forest`, `adjacent_ally`, `no_ally_within_2`, and more (see SkillSystem.isAccessoryConditionMet).
-- **metaUpgrades.json** — Effects cumulative per tier (level 2 shows total bonus, not incremental). Growth and flat stat upgrades are independent tracks.
+- **metaUpgrades.json** — Effects cumulative per tier (level 2 shows total bonus, not incremental). Growth and flat stat upgrades are independent tracks. A price change credits past buyers through a frozen `BALANCE_REVISIONS` entry in `MetaProgressionManager`; a removed upgrade is refunded once through `RETIRED_UPGRADES` and the `retiredUpgradeRefunds` ledger (Expanded Ranks: there is no roster cap).
 - **enemies.json** — Act 1 `levelRange` overridden per-node by `ACT_LEVEL_SCALING` in NodeMapGenerator.js (row 0: `[1,1]`, row 1: `[1,2]`, row 2: `[1,3]`, default: `[2,3]`).
 - **recruits.json** — `levelRange` overridden at spawn. Recruit scaling is Edric-anchored (see `RecruitScaling.js`), not simple lord-level mirroring.
 - **colosseum.json** — `crossActPoolAccess: true` pulls next-act recruit classes into merc generation. This means act2 can draw promoted act3 classes and must use promote-path handling.
 - **mapTemplates.json** — Castle templates (corridor_siege, castle_ruins, great_hall) gated to act2+ via `"acts"` field. Escape templates require an `escapeZone` and use endless `repeatingWaves` pursuit reinforcements (active on Normal too — they ARE the objective pressure). `"caravan": false` (chokepoint, great_hall) keeps a template off nodes that rolled a Merchant Caravan (`pickTemplateForNode`); `generateBattle` redraws a caravan node's layout (up to `CARAVAN_PLACEMENT_ATTEMPTS`) before giving up, and a locked map with no caravan drops the route-map tag (`RunManager._settleCaravanPromise`).
 - **affixes.json** — `difficultyGating`: First Light 5%, Dusk 8% (1 max, none in Act 1), Nightfall 12%/1 max, Black Sun 30%/2 max. Mutual exclusion + class exclusion rules enforced by AffixEngine.
-- **difficulty.json** — Four rungs, easiest first (`DifficultyEngine.DIFFICULTY_IDS`); ids are save data and never change, names are `label`s. First Light (`normal`) ends at the Lieutenant, Dusk (`dusk`) at the Emperor (Act IV), Nightfall (`hard`) and Black Sun (`lunatic`) at the Entity. Compare rungs with `isDifficultyAtLeast`, never with id lists; unlocks are `DIFFICULTY_UNLOCKS`. Every table keyed by difficulty (affix gating, par multiplier, Eclipse gain, template turn offsets and reinforcement gates) needs a `dusk` entry. A run keeps the act list it started with, so a Hard run saved before the ladder still ends at the Emperor.
+- **difficulty.json** — Four rungs, easiest first (`DifficultyEngine.DIFFICULTY_IDS`); ids are save data and never change, names are `label`s. First Light (`normal`) ends at the Lieutenant, Dusk (`dusk`) at the Emperor (Act IV), Nightfall (`hard`) and Black Sun (`lunatic`) at the Entity. Compare rungs with `isDifficultyAtLeast`, never with id lists; `enemyClassEarliestAct` holds a gated enemy class back until an act (Dusk: no Dragon before Act IV); unlocks are `DIFFICULTY_UNLOCKS`. Every table keyed by difficulty (affix gating, par multiplier, Eclipse gain, template turn offsets and reinforcement gates) needs a `dusk` entry. A run keeps the act list it started with, so a Hard run saved before the ladder still ends at the Emperor.
 - **turnBonus.json** — Par formula uses sqrt enemy scaling (capped at linear), area/terrain penalties, then `*0.8` and optional difficulty multiplier. See `TurnBonusCalculator.js:calculatePar()` for current logic. Late pressure: XP/gold decay at 5+ turns over par; boss enrage at turn 12 or 5 over par.
 - **whetstones.json** — Applied immediately on loot pickup, never enter inventory.
 - **imbues.json** — One imbue per weapon, instance-only state (`weapon._imbueId`; canonical weapons.json never gains imbue fields). Effects resolve catalog-side at combat time via `ImbueSystem.js`; combat mods merge like weapon-art mods in `Combat.js`. Imbuing Stones are whetstone-like `forge`-category loot (act2+), stone names listed in lootTables forge pools (whetstones doubled so stones drop ~half as often as Silver Whetstone).
