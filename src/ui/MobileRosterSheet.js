@@ -54,7 +54,11 @@ import {
   tradePartnerItemText,
   tradePartnerText,
 } from './rosterTradeChoices.js';
-import { inventoryDisplayOrder } from '../engine/UnitManager.js';
+import {
+  benchedSkillsNote,
+  benchedSkillsOf,
+  inventoryDisplayOrder,
+} from '../engine/UnitManager.js';
 import { equippedBadgeElement } from './equippedBadge.js';
 import { weaponComparisonParts } from './equipmentComparison.js';
 import { itemKeywordRow } from './itemKeywordChips.js';
@@ -85,15 +89,19 @@ import {
   deedTallyText,
   epithetText,
   oathOptionsInOrder,
-  oathTradeableSkills,
   pledgeOath,
   promotionOathCandidates,
-  releaseWaitingOath,
-  swearWaitingOath,
   TITLE_NONE,
-  waitingOath,
   unitDisplayName,
 } from '../engine/DeedSystem.js';
+import {
+  benchSkill,
+  benchSkillBlock,
+  equipSkill,
+  lockedSkillIds,
+  markBenchSeen,
+  unseenBenchedSkills,
+} from '../engine/SkillLoadout.js';
 import { actLabel } from './ceremonyContent.js';
 import { fitText } from './ceremonyDom.js';
 import { createHealthBar } from './healthBar.js';
@@ -271,6 +279,14 @@ export class MobileRosterSheet {
   }
   render(message = '') {
     if (this.destroyed) return;
+    // Opening a unit's Skills (between battles) is seeing its bench: the news clears
+    // before the list and pip are drawn, and saves. The tab still marks what was new.
+    const shown = this.units?.[this.index];
+    if (this.tab === 'skills' && this.run && shown) {
+      const fresh = unseenBenchedSkills(shown);
+      if (fresh.length) this._freshBench = { unit: shown, ids: new Set(fresh) };
+      if (markBenchSeen(shown)) this.persistNow();
+    }
     const oldScroll = this.root.querySelector('.mr-content')?.scrollTop || 0;
     // Upright, the unit list is a sideways strip; keep its position across renders.
     const oldStrip = this.root.querySelector('.mr-units')?.scrollLeft || 0;
@@ -311,12 +327,13 @@ export class MobileRosterSheet {
       const hpRow = el('span', null, 'mr-unit-hp');
       hpRow.append(createHealthBar(unit), el('small', `${unit.currentHP}/${unit.stats.HP}`));
       info.append(classLine, hpRow);
-      // A waiting Oath is a choice left to make: the unit says so in the list.
-      const oathWaits = Boolean(this.run && waitingOath(unit));
-      if (oathWaits) info.append(el('span', 'Oath waiting', 'mr-unit-flag'));
+      // A skill that arrived with every slot full waits on the bench: the list says so
+      // until the player has seen it on Skills.
+      const benchNews = Boolean(this.run && unseenBenchedSkills(unit).length);
+      if (benchNews) info.append(el('span', 'New skill benched', 'mr-unit-flag'));
       b.setAttribute(
         'aria-label',
-        `${unit.name}, Level ${getDisplayLevel(unit)} ${unit.className}, HP ${unit.currentHP} of ${unit.stats.HP}${oathWaits ? ', Oath waiting' : ''}`,
+        `${unit.name}, Level ${getDisplayLevel(unit)} ${unit.className}, HP ${unit.currentHP} of ${unit.stats.HP}${benchNews ? ', new skill benched' : ''}`,
       );
       b.append(info);
       b.setAttribute('aria-pressed', String(index === this.index));
@@ -367,7 +384,7 @@ export class MobileRosterSheet {
       );
       summary.append(createHealthBar(unit));
       body.append(summary);
-      this.waitingOathCallout(unit);
+      this.benchCallout(unit);
       if (this.tab === 'stats') this.stats(unit);
       if (this.tab === 'skills') this.skills(unit);
       if (this.tab === 'gear') this.gear(unit);
@@ -547,9 +564,11 @@ export class MobileRosterSheet {
       this.render(`${done}${this.persistNow()}`);
     };
     const sworn = unit.deeds?.oath;
-    const waiting = waitingOath(unit);
-    if (sworn?.skillId) this.card(`${sworn.name || 'Oath'} · sworn`, skillText(sworn.skillId));
-    else if (waiting) this.waitingOathCard(unit, waiting, manage, skillText, choose);
+    if (sworn?.skillId)
+      this.card(
+        `${sworn.name || 'Oath'} · sworn${benchedSkillsOf(unit).includes(sworn.skillId) ? ' · on the bench' : ''}`,
+        skillText(sworn.skillId),
+      );
     else if (unit.tier !== 'promoted') {
       const options = promotionOathCandidates(unit, this.gameData.deeds, this.gameData.skills);
       if (options.length === 1)
@@ -634,122 +653,128 @@ export class MobileRosterSheet {
     }
   }
   /**
-   * A waiting Oath, at the top of the unit's pane on every tab: the choice lives at the
-   * foot of Stats (Deeds), so the pane says so and takes the player there. The first
-   * time a save meets one, it also says what a waiting Oath is (playtest 2026-09-28).
+   * A skill that arrived with every slot full is on the unit's bench: until the
+   * player has looked at Skills, the top of the pane says so on every other tab and
+   * takes them there. The first time a save meets one, it also says what the bench
+   * is (playtest 2026-09-28: skills used to be lost at the cap).
    */
-  waitingOathCallout(unit) {
-    const waiting = this.run ? waitingOath(unit) : null;
-    if (!waiting) return;
-    const box = el('aside', null, 'mr-callout mr-oath-callout');
-    box.setAttribute('aria-label', `${waiting.name || 'Oath'} is waiting`);
-    box.append(el('h4', `${waiting.name || 'An Oath'} is waiting`));
-    const full = (unit.skills?.length || 0) >= MAX_SKILLS;
+  benchCallout(unit) {
+    if (!this.run || this.tab === 'skills') return;
+    const fresh = unseenBenchedSkills(unit);
+    if (!fresh.length) return;
+    const names = fresh.map((id) => this.gameData.skills?.find((sk) => sk.id === id)?.name || id);
+    const box = el('aside', null, 'mr-callout mr-bench-callout');
+    box.setAttribute('aria-label', `${unit.name} has a new skill on the bench`);
     box.append(
+      el('h4', `New on ${unit.name}'s bench: ${names.join(', ')}`),
       el(
         'p',
-        full
-          ? `All ${MAX_SKILLS} skill slots are full. Give up a skill to swear it, or keep your skills and let it go.`
-          : 'A skill slot is free: swear it now.',
+        `It arrived with all ${MAX_SKILLS} skill slots full, so it waits on the bench. Swap it in on Skills.`,
       ),
     );
     // Told once per save; it stays up for as long as this sheet is open.
     const hints = this.scene?.registry?.get?.('hints');
-    if (this._oathLesson === undefined)
-      this._oathLesson = Boolean(hints?.shouldShow?.('roster_oath_waiting'));
-    if (this._oathLesson)
+    if (this._benchLesson === undefined)
+      this._benchLesson = Boolean(hints?.shouldShow?.('roster_skill_benched'));
+    if (this._benchLesson)
       box.append(
         el(
           'p',
-          'New: a unit swears one Oath when it promotes. If every skill slot is full, the Oath waits here instead of being lost. Lord and class skills can’t be given up.',
+          'New: a unit keeps every skill it learns. Only five go into battle; the rest wait on its bench, and you can swap them between battles. Lord and class skills can’t be benched.',
           'mr-callout-lesson',
         ),
       );
-    const onStats = this.tab === 'stats';
     box.append(
-      this.button(onStats ? 'Go to the Oath' : 'Choose in Deeds', () => {
-        if (this.tab !== 'stats') {
-          this.tab = 'stats';
-          this.render();
-        }
-        const card = this.root.querySelector('.mr-oath-waiting');
-        card?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
-        card?.querySelector('button')?.focus({ preventScroll: true });
+      this.button('Go to Skills', () => {
+        this.tab = 'skills';
+        this.render();
+        this.root.querySelector('.mr-bench-new button')?.focus({ preventScroll: true });
       }),
     );
     this.body.append(box);
   }
+  /** One skill's card text: its kind and what it does. */
+  skillLine(id) {
+    const skill = this.gameData.skills?.find((s) => s.id === id);
+    return `${skill?.trigger === 'passive-aura' ? 'Passive aura · ' : skill?.trigger === 'passive' ? 'Passive · ' : ''}${skill?.description || ''}`;
+  }
+  skillName(id) {
+    return this.gameData.skills?.find((s) => s.id === id)?.name || id;
+  }
   /**
-   * An Oath earned at promotion while every skill slot was full: it waits here until
-   * the player gives up a skill for it, or lets it go (asked twice: it is final).
+   * Equip a benched skill; with every slot full the player picks the skill it
+   * replaces (that one goes to the bench).
    */
-  waitingOathCard(unit, waiting, manage, skillText, choose) {
-    const card = this.card(`${waiting.name || 'Oath'} · waiting`, skillText(waiting.skillId));
-    card.classList.add('mr-oath-waiting');
-    const full = (unit.skills?.length || 0) >= MAX_SKILLS;
-    card.append(
-      el(
-        'p',
-        full
-          ? `Skill slots full (${MAX_SKILLS}/${MAX_SKILLS}). Give up one skill to swear this Oath, or keep your skills and let it go.`
-          : 'A skill slot is free: swear this Oath now.',
-        'mr-deed-meta',
-      ),
-    );
-    if (!manage) return;
-    const name = (id) => this.gameData.skills?.find((sk) => sk.id === id)?.name || id;
-    const oathSkill = name(waiting.skillId);
-    const swear = (giveUp) =>
-      choose(
-        () => swearWaitingOath(unit, giveUp, this.gameData).ok,
-        giveUp
-          ? `${unit.name} swore ${waiting.name}: ${oathSkill} in place of ${name(giveUp)}.`
-          : `${unit.name} swore ${waiting.name}: learned ${oathSkill}.`,
-      );
-    if (!full) {
-      const b = this.button(`Swear · learn ${oathSkill}`, () => swear(null));
-      b.classList.add('mr-oath-option');
-      card.append(b);
-    } else {
-      const tradeable = oathTradeableSkills(unit, this.gameData);
-      for (const id of tradeable) {
-        const b = this.button(`Give up ${name(id)}`, () => swear(id));
-        b.classList.add('mr-oath-option');
-        card.append(b);
-      }
-      if (!tradeable.length)
-        card.append(
-          el('p', 'Every skill here is personal or innate to the class.', 'mr-deed-meta'),
-        );
+  swapInSkill(unit, id) {
+    if (this.picker || this.destroyed) return;
+    if ((unit.skills?.length || 0) < MAX_SKILLS) {
+      const reason = equipSkill(unit, id, null, this.gameData);
+      this.render(reason || `${this.skillName(id)} equipped.${this.persistNow()}`);
+      return;
     }
-    const release = this.button(
-      this._releasingOath === unit ? `Let ${waiting.name} go for good?` : 'Keep my skills',
-      () => {
-        if (this._releasingOath !== unit) {
-          this._releasingOath = unit;
-          this.render();
-          return;
-        }
-        this._releasingOath = null;
-        choose(() => releaseWaitingOath(unit), `${unit.name} let ${waiting.name} go.`);
+    const locked = lockedSkillIds(unit, this.gameData);
+    let message = '';
+    this.picker = new ChoicePicker({
+      scene: this.scene,
+      title: `Equip ${this.skillName(id)} in place of`,
+      choices: [...unit.skills],
+      closeLabel: 'Cancel',
+      label: (out) => this.skillName(out),
+      describe: (out) => this.skillLine(out),
+      blocked: (out) => (locked.has(out) ? benchSkillBlock(unit, out, this.gameData) : ''),
+      apply: (out) => {
+        const reason = equipSkill(unit, id, out, this.gameData);
+        if (reason) return { ok: false, reason };
+        message = `${this.skillName(id)} in, ${this.skillName(out)} to the bench.${this.persistNow()}`;
+        return { ok: true };
       },
-    );
-    release.classList.add('mr-oath-release');
-    card.append(release);
+      onClose: () => {
+        this.picker = null;
+        if (!this.destroyed) this.render(message);
+      },
+    });
   }
   skills(unit) {
-    this.body.append(el('h3', `Skills · ${unit.skills?.length || 0}/${MAX_SKILLS}`));
-    const waiting = waitingOath(unit);
-    if (waiting)
-      this.card(`${waiting.name || 'Oath'} · waiting`, 'Swear it from Deeds by giving up a skill.');
+    // Marked new until the player leaves this unit's Skills (render clears the news).
+    const fresh = this._freshBench?.unit === unit ? this._freshBench.ids : new Set();
+    // Loadout choices are run state: only the manage view (between battles) makes them.
+    const manage = Boolean(this.run?.roster?.includes(unit));
+    const locked = lockedSkillIds(unit, this.gameData);
+    this.body.append(el('h3', `Equipped · ${unit.skills?.length || 0}/${MAX_SKILLS}`));
     for (const id of unit.skills || []) {
-      const skill = this.gameData.skills?.find((s) => s.id === id);
-      this.card(
-        skill?.name || id,
-        `${skill?.trigger === 'passive-aura' ? 'Passive aura · ' : skill?.trigger === 'passive' ? 'Passive · ' : ''}${skill?.description || ''}`,
-      );
+      const c = this.card(this.skillName(id), this.skillLine(id));
+      if (!manage) continue;
+      if (locked.has(id)) c.append(el('small', 'Can’t be benched', 'mr-skill-locked'));
+      else
+        c.append(
+          this.button('Bench', () =>
+            this.render(
+              benchSkill(unit, id, this.gameData) ||
+                `${this.skillName(id)} to the bench.${this.persistNow()}`,
+            ),
+          ),
+        );
     }
     if (!(unit.skills || []).length) this.card('Skills', 'No skills learned yet.');
+    const bench = benchedSkillsOf(unit);
+    if (bench.length || manage) {
+      this.body.append(el('h3', `Bench · ${bench.length}`, 'mr-section'));
+      if (!bench.length)
+        this.card(
+          'Bench is empty',
+          `Skills learned with all ${MAX_SKILLS} slots full wait here, never lost. Bench a skill to make room for another.`,
+        );
+    }
+    for (const id of bench) {
+      const c = this.card(this.skillName(id), this.skillLine(id));
+      if (fresh.has(id)) {
+        c.classList.add('mr-bench-new');
+        c.querySelector('h4')?.append(el('small', 'New', 'mr-new-tag'));
+      }
+      if (!manage) continue;
+      const full = (unit.skills?.length || 0) >= MAX_SKILLS;
+      c.append(this.button(full ? 'Swap in…' : 'Equip', () => this.swapInSkill(unit, id)));
+    }
     const artsHeading = el('h3', 'Weapon arts', 'mr-section');
     this.body.append(artsHeading);
     let count = 0;
@@ -1071,7 +1096,9 @@ export class MobileRosterSheet {
         if (result.ok) {
           const skillName =
             this.gameData.skills.find((s) => s.id === scroll.skillId)?.name || scroll.skillId;
-          this.render(`${unit.name} learned ${skillName}.${this.persistNow()}`);
+          this.render(
+            `${unit.name} learned ${skillName}${result.benched ? ` (on the bench: all ${MAX_SKILLS} slots are full)` : ''}.${this.persistNow()}`,
+          );
           growthCeremonies(this.scene)?.showSealed({
             title: `${unit.name} learned ${skillName}`,
             detail: 'New skill',
@@ -1122,7 +1149,7 @@ export class MobileRosterSheet {
         const result = applyRosterClassChange(this.run, unit, item, choice, this.gameData);
         if (!result.ok) return result;
         const dropped = getSkillDisplayNames(result.droppedSkills, this.gameData.skills);
-        message = `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}${this.persistNow()}`;
+        message = `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}${this.persistNow()}`;
         rite = { content, before };
         return result;
       },
@@ -1180,7 +1207,7 @@ export class MobileRosterSheet {
             });
           else this.scene.registry.get('audio')?.playSFX('sfx_confirm');
           this.render(
-            `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}${this.persistNow()}`,
+            `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}${this.persistNow()}`,
           );
         }
         return result;

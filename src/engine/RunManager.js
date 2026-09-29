@@ -5,6 +5,7 @@ import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
 import { migrateUnitTraits, rollAndApplyLordTrait } from './TraitSystem.js';
 import { normalizeUnitDeeds, unitEpithet } from './DeedSystem.js';
+import { migrateWaitingOath } from './SkillLoadout.js';
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
 import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
 // RunManager.js — Pure class: run state (roster, node map, act progression, unit serialization)
@@ -52,6 +53,8 @@ import {
   applyRecruitWeaponForge,
   grantRecruitStartingAccessory,
   learnSkill,
+  benchedSkillsOf,
+  knowsSkill,
   LETHAL_ARMORY_WEAPONS,
   equipWeapon,
   normalizeEquippedFirst,
@@ -1055,8 +1058,11 @@ export class RunManager {
           restored.push(skillId);
           continue;
         }
+        // A lord's own skill is restored to the equipped list, never left benched.
+        if (benchedSkillsOf(unit).includes(skillId))
+          unit.benchedSkills = benchedSkillsOf(unit).filter((id) => id !== skillId);
 
-        const result = learnSkill(unit, skillId);
+        const result = learnSkill(unit, skillId, { bench: false });
         if (result.learned) {
           restored.push(skillId);
           continue;
@@ -1073,6 +1079,7 @@ export class RunManager {
           if (!personalSkillIds.has(sid) && !unitInnateIds.has(sid)) {
             const displaced = unit.skills.splice(i, 1)[0];
             unit.skills.push(skillId);
+            unit.benchedSkills = [...benchedSkillsOf(unit), displaced]; // kept, not lost
             restored.push(skillId);
             displacedByUnit[unit.name] = { displaced, replacedBy: skillId };
             restoredWithDisplacement = true;
@@ -1086,6 +1093,7 @@ export class RunManager {
             if (!personalSkillIds.has(sid)) {
               const displaced = unit.skills.splice(i, 1)[0];
               unit.skills.push(skillId);
+              unit.benchedSkills = [...benchedSkillsOf(unit), displaced]; // kept, not lost
               restored.push(skillId);
               displacedByUnit[unit.name] = { displaced, replacedBy: skillId };
               restoredWithDisplacement = true;
@@ -4403,11 +4411,10 @@ export class RunManager {
       const currentClass = classByName.get(unit.className);
       if (!currentClass) return;
 
+      // A class skill once lost to a full list (before the bench) comes back benched.
       const tryLearn = (skillId) => {
-        if (!skillId) return;
-        if (unit.skills.includes(skillId)) return;
-        if (unit.skills.length >= MAX_SKILLS) return;
-        unit.skills.push(skillId);
+        if (!skillId || knowsSkill(unit, skillId)) return;
+        learnSkill(unit, skillId);
       };
 
       for (const entry of currentClass.learnableSkills || []) {
@@ -4549,6 +4556,17 @@ export class RunManager {
         normalized.push(canonical);
       }
       unit.skills = normalized;
+      // The bench: canonical ids, never one that is also equipped.
+      if (Array.isArray(unit.benchedSkills)) {
+        const bench = [];
+        for (const skillId of unit.benchedSkills) {
+          const canonical = toCanonicalSkillId(skillId);
+          if (seen.has(canonical)) continue;
+          seen.add(canonical);
+          bench.push(canonical);
+        }
+        unit.benchedSkills = bench;
+      }
     };
 
     runManager.roster.forEach(normalizeUnit);
@@ -4956,6 +4974,9 @@ export class RunManager {
     RunManager.migrateUnitClassState(rm);
     RunManager.migrateWeaponArtItemState(rm);
     RunManager.migrateClassLearnableSkills(rm);
+    // Before the bench, an Oath at the cap waited for a free slot: it is sworn now.
+    rm.roster.forEach(migrateWaitingOath);
+    rm.fallenUnits.forEach(migrateWaitingOath);
 
     // Stamp missing item UIDs from legacy saves before relinking/equipment migration.
     rm.roster.forEach(stampUnitItemUids);

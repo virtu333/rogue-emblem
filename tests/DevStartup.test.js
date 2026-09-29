@@ -202,14 +202,16 @@ describe('phone review routes (deploy previews)', () => {
     expect(registry.get('activeSlot')).toBeNull();
   });
 
-  it('roster_checks: an Oath waiting, one to meet the cap, Edric in a robe at 1 HP', () => {
+  it('roster_checks: an Oath on the bench, one to meet the cap, Edric in a robe at 1 HP', () => {
     const registry = createRegistry();
     const r = route('?devScene=nodemap&preset=roster_checks&seed=1', registry);
     expect(r.key).toBe('NodeMap');
     const roster = r.data.runManager.roster;
     const bramwell = roster.find((u) => u.name === 'Bramwell');
     expect(bramwell.tier).toBe('promoted');
-    expect(bramwell.deeds.waitingOath).toMatchObject({ skillId: 'pavise' });
+    expect(bramwell.deeds.oath).toMatchObject({ skillId: 'pavise' });
+    expect(bramwell.benchedSkills).toContain('pavise');
+    expect(bramwell.benchedUnseen).toContain('pavise');
     const corwin = roster.find((u) => u.name === 'Corwin');
     expect(corwin.skills).toHaveLength(5);
     expect(corwin.consumables.map((c) => c.name)).toEqual(['Master Seal']);
@@ -218,11 +220,11 @@ describe('phone review routes (deploy previews)', () => {
     expect(edric.currentHP).toBe(1);
     expect(edric.consumables.map((c) => c.name)).toEqual(['Elixir', 'Vulnerary']);
     expect(registry.get('activeSlot')).toBeNull();
-    // First-time lessons teach once, in memory (no slot): the waiting Oath's included.
+    // First-time lessons teach once, in memory (no slot): the skill bench's included.
     const hints = registry.get('hints');
-    expect(hints.shouldShow('roster_oath_waiting')).toBe(true);
-    expect(hints.shouldShow('roster_oath_waiting')).toBe(false);
-    expect(hints.hasSeen('roster_oath_waiting')).toBe(true);
+    expect(hints.shouldShow('roster_skill_benched')).toBe(true);
+    expect(hints.shouldShow('roster_skill_benched')).toBe(false);
+    expect(hints.hasSeen('roster_skill_benched')).toBe(true);
     // Nothing else interrupts the review (the route map's own first-visit notes).
     expect(hints.shouldShow('nodemap_intro')).toBe(false);
     expect(hints.hasSeen('nodemap_hp_persist')).toBe(true);
@@ -238,7 +240,7 @@ describe('phone review routes (deploy previews)', () => {
     const off = createRegistry();
     off.set('settings', { getHints: () => false });
     route('?devScene=nodemap&preset=roster_checks&seed=1', off);
-    expect(off.get('hints').shouldShow('roster_oath_waiting')).toBe(false);
+    expect(off.get('hints').shouldShow('roster_skill_benched')).toBe(false);
   });
 
   it('ladder: Dusk and Nightfall open on the difficulty screen', () => {

@@ -472,7 +472,7 @@ test.describe('player choices (phone 390×844)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('an Oath waiting at the skill cap is sworn from the roster by giving up a skill', async ({
+  test('an Oath at the skill cap is sworn onto the bench and swapped in from Skills', async ({
     page,
   }, info) => {
     const errors = collect(page);
@@ -504,36 +504,42 @@ test.describe('player choices (phone 390×844)', () => {
       window.__oathUnit = u;
     });
     expect(await page.evaluate(() => window.__church)).toContain(
-      'Oath of the Bridge waits in Deeds until Bramwell gives up a skill for it.',
+      "Oath of the Bridge: Pavise is on Bramwell's bench",
     );
-    // The pane opens on a callout that says the Oath waits, and takes the player to it.
-    const callout = page.locator('.mr-oath-callout');
+    // The pane opens on a callout that names the new skill on the bench.
+    const callout = page.locator('.mr-bench-callout');
     await expect(callout).toBeInViewport();
-    await expect(callout).toContainText('Oath of the Bridge is waiting');
+    await expect(callout).toContainText("New on Bramwell's bench");
+    await expect(callout).toContainText('Pavise');
     await expect(page.locator('.mr-unit-card', { hasText: 'Bramwell' })).toContainText(
-      'Oath waiting',
+      'New skill benched',
     );
-    await callout.getByRole('button', { name: 'Go to the Oath', exact: true }).click();
-    const card = page.locator('.mr-oath-waiting');
-    await expect(card).toBeInViewport();
-    await expect(card).toContainText('Oath of the Bridge · waiting');
-    await expect(card).toContainText('Skill slots full (5/5)');
-    // Every button fits the phone: nothing spills past the card.
-    for (const b of await card.locator('button').all()) {
+    await callout.getByRole('button', { name: 'Go to Skills', exact: true }).click();
+    const card = page.locator('.mr-bench-new', { hasText: 'Pavise' });
+    await expect(card).toBeVisible();
+    await expect(page.locator('.mr-bench-callout')).toHaveCount(0);
+    // Every button fits the phone: nothing spills past the pane.
+    for (const b of await page.locator('.mr-content .mr-card button').all()) {
       const box = await b.boundingBox();
       expect(box.x + box.width).toBeLessThanOrEqual(390);
     }
-    await page.screenshot({ path: info.outputPath('oath-waiting-phone.png') });
-    await card.getByRole('button', { name: 'Give up Luna', exact: true }).click();
-    await expect(page.locator('.mr-sheet')).toContainText('Oath of the Bridge · sworn');
-    await expect(page.locator('.mr-oath-callout')).toHaveCount(0);
-    const skills = await page.evaluate(() => window.__oathUnit.skills);
-    expect(skills).toContain('pavise');
-    expect(skills).not.toContain('luna');
+    await page.screenshot({ path: info.outputPath('skill-bench-phone.png') });
+    await card.getByRole('button', { name: 'Swap in…', exact: true }).click();
+    const picker = page.getByRole('dialog', { name: 'Equip Pavise in place of', exact: true });
+    await picker.getByRole('button', { name: /^Luna/ }).click();
+    await picker.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await expect(page.locator('.mr-sheet')).toContainText('Pavise in, Luna to the bench.');
+    const unit = await page.evaluate(() => ({
+      skills: window.__oathUnit.skills,
+      bench: window.__oathUnit.benchedSkills,
+    }));
+    expect(unit.skills).toContain('pavise');
+    expect(unit.skills).not.toContain('luna');
+    expect(unit.bench).toContain('luna');
     expect(errors).toEqual([]);
   });
 
-  test('the route map marks Roster while an Oath waits', async ({ page }) => {
+  test('the route map marks Roster while a new skill waits on a bench', async ({ page }) => {
     const errors = collect(page);
     await quiet(page);
     await page.goto('/?devScene=nodemap&preset=roster_checks&seed=1&mobilePreview=1');
@@ -542,21 +548,17 @@ test.describe('player choices (phone 390×844)', () => {
     });
     // The act opens on a conversation; the route map comes after it.
     await page.getByRole('button', { name: 'Skip conversation', exact: true }).click();
-    // roster_checks: Bramwell's Oath of the Bridge waits for a skill slot.
+    // roster_checks: Bramwell's Oath of the Bridge was sworn onto his full bench.
     const roster = page.getByRole('button', { name: 'Roster', exact: true });
     await expect(roster).toHaveClass(/\bre-attention\b/);
-    await expect(roster).toHaveAttribute('aria-description', 'An Oath is waiting');
+    await expect(roster).toHaveAttribute('aria-description', 'A new skill is on the bench');
     await roster.click();
     await page.locator('.mr-unit-card', { hasText: 'Bramwell' }).click();
     await page
-      .locator('.mr-oath-callout')
-      .getByRole('button', { name: 'Go to the Oath', exact: true })
+      .locator('.mr-bench-callout')
+      .getByRole('button', { name: 'Go to Skills', exact: true })
       .click();
-    await page
-      .locator('.mr-oath-waiting')
-      .getByRole('button', { name: /^Give up / })
-      .first()
-      .click();
+    await expect(page.locator('.mr-bench-new', { hasText: 'Pavise' })).toBeVisible();
     await page
       .locator('.mr-sheet header')
       .getByRole('button', { name: 'Close', exact: true })

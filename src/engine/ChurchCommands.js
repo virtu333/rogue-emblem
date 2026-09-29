@@ -5,9 +5,10 @@ import {
   promoteUnit,
   getSkillDisplayNames,
   withIndefiniteArticle,
+  benchedSkillsNote,
 } from './UnitManager.js';
 import { getReviveCost } from './RunManager.js';
-import { applyPromotionOath, oathWaitingNote } from './DeedSystem.js';
+import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
 import { CHURCH_PROMOTE_COST } from '../utils/constants.js';
 import { kindleBlock } from './EclipseSystem.js';
 export function churchPromotionBlock(run, unit, nodeId, gameData) {
@@ -35,11 +36,11 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
   const oath = applyPromotionOath(unit, gameData);
   run.setChurchPromotionCount(nodeId, run.getChurchPromotionCount(nodeId) + 1);
   const dropped = getSkillDisplayNames(result?.droppedSkills || [], gameData.skills);
-  const waits = oath?.waiting ? ` ${oathWaitingNote(unit, oath)}` : '';
+  const waits = oath?.benched ? ` ${oathBenchedNote(unit, oath)}` : '';
   return {
     ok: true,
     oath,
-    message: `${unit.name} promoted to ${canonical.name}.${oath?.learned ? ` ${oath.name}: learned ${oath.skillName}.` : ''}${dropped.length ? ` Skill limit: could not learn ${dropped.join(', ')}.` : ''}${waits}`,
+    message: `${unit.name} promoted to ${canonical.name}.${oath?.learned ? ` ${oath.name}: learned ${oath.skillName}.` : ''}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}${waits}`,
   };
 }
 export function churchReviveBlock(run, unit) {
@@ -58,7 +59,7 @@ export function reviveAtChurch(run, unit) {
   const dropped = getSkillDisplayNames(run.lastRevivalResult?.droppedSkills, run.gameData.skills);
   return {
     ok: true,
-    message: `${unit.name} revived at level ${unit.level} with 1 HP.${catchUp.levels ? ` Gained ${catchUp.levels} catch-up levels at growths minus 10 percentage points; future growths are unchanged.` : ''}${run.lastRevivalResult?.starterWeapon ? ` Carries ${withIndefiniteArticle(run.lastRevivalResult.starterWeapon)}.` : ''} Use Heal all, then Roster to re-equip from the convoy.${learned.length ? ` Learned: ${learned.join(', ')}.` : ''}${dropped.length ? ` Skill limit: could not learn ${dropped.join(', ')}.` : ''}`,
+    message: `${unit.name} revived at level ${unit.level} with 1 HP.${catchUp.levels ? ` Gained ${catchUp.levels} catch-up levels at growths minus 10 percentage points; future growths are unchanged.` : ''}${run.lastRevivalResult?.starterWeapon ? ` Carries ${withIndefiniteArticle(run.lastRevivalResult.starterWeapon)}.` : ''} Use Heal all, then Roster to re-equip from the convoy.${learned.length ? ` Learned: ${learned.join(', ')}.` : ''}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}`,
   };
 }
 // Kindle: pay gold to lift the Eclipse's shadow, once per church node.

@@ -124,7 +124,7 @@
 .mr-card p {
   color: var(--re-muted);
 }
-/* A choice left to make (a waiting Oath): gold-edged, at the top of the unit's pane. */
+/* News the player should act on (a new skill on the bench): gold-edged, atop the pane. */
 .mr-callout {
   border: 1px solid var(--re-gold);
   border-left-width: 4px;
@@ -146,6 +146,19 @@
 }
 .mr-callout button {
   margin-top: 4px;
+}
+/* A benched skill the player has not seen yet; a skill that never leaves the loadout. */
+.mr-card.mr-bench-new {
+  border-color: var(--re-gold);
+}
+.mr-card h4 .mr-new-tag {
+  display: inline;
+  margin: 0 0 0 8px;
+  color: var(--re-accent-text);
+  font-size: 11px;
+}
+.mr-card small.mr-skill-locked {
+  color: var(--re-muted);
 }
 .mr-unit-info > .mr-unit-flag {
   color: var(--re-accent-text);

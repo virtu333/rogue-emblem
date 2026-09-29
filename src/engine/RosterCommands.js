@@ -11,7 +11,7 @@ import {
   getCombatWeapons,
   normalizeEquippedFirst,
 } from './UnitManager.js';
-import { applyPromotionOath, oathWaitingNote } from './DeedSystem.js';
+import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
 import { consumableSource, spendConsumableUse } from './RosterInventory.js';
 
 export function rosterClassChangeBlock(run, unit, item, gameData) {
@@ -92,7 +92,7 @@ function promote(run, unit, item, promotedClassData, gameData) {
   const oath = applyPromotionOath(unit, gameData);
   const droppedSkills = [...(promotionResult?.droppedSkills || [])];
   if (oath?.learned) notices.push(`${oath.name}: learned ${oath.skillName}.`);
-  if (oath?.waiting) notices.push(oathWaitingNote(unit, oath));
+  if (oath?.benched) notices.push(oathBenchedNote(unit, oath));
 
   for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData, true)) {
     if (!addToInventory(unit, newWeapon))

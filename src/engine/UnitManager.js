@@ -129,10 +129,40 @@ export function getClassInnateSkills(className, skillsData) {
 
 // --- Skill learning ---
 
-/** Attempt to teach a unit a skill. Returns { learned, skillId?, reason? }. */
-export function learnSkill(unit, skillId) {
-  if (unit.skills.includes(skillId)) return { learned: false, reason: 'already_known' };
-  if (unit.skills.length >= MAX_SKILLS) return { learned: false, reason: 'at_cap' };
+// --- Skill loadout ---
+// `unit.skills` holds the equipped skills (at most MAX_SKILLS): combat and every
+// battle system read only these. `unit.benchedSkills` holds skills the unit knows but
+// has not equipped. A player unit that learns a skill with every slot full keeps it on
+// the bench (playtest 2026-09-28: skills used to be lost at the cap); between battles
+// the roster swaps skills between the two (engine/SkillLoadout.js). Enemies never
+// bench: at the cap they simply do not learn.
+
+/** Skills the unit knows but has not equipped. */
+export function benchedSkillsOf(unit) {
+  return Array.isArray(unit?.benchedSkills) ? unit.benchedSkills : [];
+}
+
+/** Whether the unit knows a skill, equipped or benched. */
+export function knowsSkill(unit, skillId) {
+  return Boolean(unit?.skills?.includes(skillId) || benchedSkillsOf(unit).includes(skillId));
+}
+
+/**
+ * Attempt to teach a unit a skill. Returns { learned, skillId?, reason?, benched? }.
+ * At the cap a player unit keeps the skill on its bench: { learned: false, benched:
+ * true, reason: 'at_cap' } (callers that report "slots full" still see at_cap), and
+ * the skill is marked new (`benchedUnseen`) until the roster shows it. `bench: false`
+ * refuses at the cap instead (a caller that makes room itself).
+ */
+export function learnSkill(unit, skillId, { bench = true } = {}) {
+  if (!Array.isArray(unit.skills)) unit.skills = [];
+  if (knowsSkill(unit, skillId)) return { learned: false, reason: 'already_known' };
+  if (unit.skills.length >= MAX_SKILLS) {
+    if (!bench || unit.faction === 'enemy') return { learned: false, reason: 'at_cap' };
+    unit.benchedSkills = [...benchedSkillsOf(unit), skillId];
+    unit.benchedUnseen = [...(unit.benchedUnseen || []).filter((id) => id !== skillId), skillId];
+    return { learned: false, benched: true, skillId, reason: 'at_cap' };
+  }
   unit.skills.push(skillId);
   return { learned: true, skillId };
 }
@@ -1265,14 +1295,21 @@ export function getSkillDisplayNames(skillIds, skillsData) {
   return (skillIds || []).map((sid) => skillsData?.find((s) => s.id === sid)?.name || sid);
 }
 
+/** One line for skills that arrived with every slot full: they wait on the bench. */
+export function benchedSkillsNote(names) {
+  const list = (names || []).filter(Boolean);
+  if (!list.length) return '';
+  return `All ${MAX_SKILLS} skill slots full: ${list.join(', ')} kept on the bench (swap in from Skills).`;
+}
+
 /**
- * Player-facing notice for class innates lost to the MAX_SKILLS cap during
- * promotion. Returns null when nothing was dropped.
+ * Player-facing notice for class innates benched by the MAX_SKILLS cap during
+ * promotion. Returns null when nothing was benched.
  */
 export function formatDroppedSkillsNotice(unitName, droppedSkills, skillsData) {
   if (!droppedSkills?.length) return null;
   const names = getSkillDisplayNames(droppedSkills, skillsData);
-  return `${unitName} couldn't learn ${names.join(', ')} (skill limit reached)`;
+  return `${unitName}: ${benchedSkillsNote(names)}`;
 }
 
 // --- Reclass ---

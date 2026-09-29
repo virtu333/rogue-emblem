@@ -314,8 +314,8 @@ function createRunPreset(gameData, meta, config) {
 }
 
 /**
- * Roster review units: an Oath already waiting for a skill slot (Bramwell), one who
- * will meet the cap when promoted with his Master Seal (Corwin), and Edric in a
+ * Roster review units: an Oath already sworn onto a full unit's bench (Bramwell), one
+ * who will meet the cap when promoted with his Master Seal (Corwin), and Edric in a
  * Seraph Robe at 1 HP with an Elixir and a Vulnerary (the robe's HP debt).
  */
 function addRosterChecks(runManager, gameData) {
@@ -493,10 +493,10 @@ export function buildDevStartupRoute(gameData, registry, config) {
     config.sceneKey === 'RunComplete'
   )
     registry.set('activeSlot', null);
-  // Roster review: first-time lessons (the waiting Oath's) teach as in a fresh save,
+  // Roster review: first-time lessons (the skill bench's) teach as in a fresh save,
   // remembered for this page only, never in a slot.
   if (config.preset === 'roster_checks' && !registry.get('hints'))
-    registry.set('hints', sessionHints(registry, ['roster_oath_waiting']));
+    registry.set('hints', sessionHints(registry, ['roster_skill_benched']));
 
   const meta = ensureMetaRegistry(registry, gameData, config.preset);
 

@@ -25,8 +25,7 @@
 // `unit.name` is identity: epithets never go into it. Render titles through
 // `unitDisplayName` / `titledName` / `sentenceName`.
 
-import { getClassInnateSkills, getXpEffectiveLevel, learnSkill } from './UnitManager.js';
-import { unitBaseClassName } from './ClassLineage.js';
+import { getXpEffectiveLevel, learnSkill } from './UnitManager.js';
 import { MAX_SKILLS } from '../utils/constants.js';
 import { DEED_FORMS, titledName, unitEpithet } from './DeedTitles.js';
 
@@ -768,7 +767,7 @@ export function chooseTitle(unit, deedId) {
  * Swear the Oath on a player promotion (battle seal, church, roster seal).
  * Call right after promoteUnit so class innates count as known. Silent
  * engine promotions (recruit spawns, colosseum, boss recruits) never call it.
- * @returns {null | {..., learned: boolean, dropped: boolean}}
+ * @returns {null | {..., learned: boolean, benched: boolean}}
  */
 export function applyPromotionOath(unit, gameData = {}) {
   const oath = promotionOath(unit, gameData.deeds, gameData.skills);
@@ -783,104 +782,19 @@ export function applyPromotionOath(unit, gameData = {}) {
   };
   const state = sanitizeUnitDeeds(unit.deeds) || freshDeeds(unit);
   delete state.pledge;
-  if (result.learned) {
+  if (result.learned || result.benched) {
     delete state.waitingOath;
     state.oath = record;
     unit.deeds = state;
-    return { ...oath, learned: true, waiting: false };
-  }
-  // Skill slots full: the Oath is not lost. It waits on the unit until the player
-  // gives up a skill for it (swearWaitingOath) or lets it go (releaseWaitingOath).
-  if (result.reason === 'at_cap') {
-    state.waitingOath = record;
-    unit.deeds = state;
-    return { ...oath, learned: false, waiting: true };
+    // Every slot full: sworn all the same, and kept on the bench (SkillLoadout).
+    return { ...oath, learned: result.learned === true, benched: result.benched === true };
   }
   unit.deeds = state;
-  return { ...oath, learned: false, waiting: false };
+  return { ...oath, learned: false, benched: false };
 }
 
-/** Parse "Charisma: Allies..." to its skill id ("charisma"), as RunManager does. */
-function personalSkillId(text) {
-  if (typeof text !== 'string' || !text) return null;
-  const colon = text.indexOf(':');
-  const name = (colon > 0 ? text.slice(0, colon) : text).trim();
-  return name ? name.toLowerCase().replace(/\s+/g, '_') : null;
-}
-
-/**
- * Skills a unit can give up for its waiting Oath: never a lord's personal skills,
- * nor a skill its class line grants innately (the act-transition restore protects
- * the same ones).
- */
-export function oathTradeableSkills(unit, gameData = {}) {
-  const skills = Array.isArray(unit?.skills) ? unit.skills : [];
-  const protectedIds = new Set();
-  const lord = unit?.isLord ? (gameData.lords || []).find((l) => l?.name === unit.name) : null;
-  const personal = personalSkillId(lord?.personalSkill);
-  if (personal) protectedIds.add(personal);
-  if (lord?.personalSkillL20?.skillId) protectedIds.add(lord.personalSkillL20.skillId);
-  if (unit?._personalSkillL20?.skillId) protectedIds.add(unit._personalSkillL20.skillId);
-  const skillsData = gameData.skills || [];
-  for (const id of getClassInnateSkills(unit?.className, skillsData)) protectedIds.add(id);
-  const base = unit?.tier === 'promoted' ? unitBaseClassName(unit, gameData.classes) : null;
-  if (base) for (const id of getClassInnateSkills(base, skillsData)) protectedIds.add(id);
-  return skills.filter((id) => !protectedIds.has(id));
-}
-
-/** The Oath waiting on a unit for a free skill slot, or null. */
-export function waitingOath(unit) {
-  const w = unit?.deeds?.waitingOath;
-  return isObject(w) && typeof w.skillId === 'string' ? w : null;
-}
-
-/** How many units in a roster have an Oath waiting on them. */
-export function rosterOathsWaiting(roster) {
-  return (Array.isArray(roster) ? roster : []).filter((u) => waitingOath(u)).length;
-}
-
-/**
- * Swear the waiting Oath: give up `giveUpSkillId` (one of oathTradeableSkills) for
- * it, or pass null when a slot is already free. The new skill takes the old one's
- * place in the list. Returns { ok, reason?, givenUp? }.
- */
-export function swearWaitingOath(unit, giveUpSkillId, gameData = {}) {
-  const waiting = waitingOath(unit);
-  if (!waiting) return { ok: false, reason: 'No Oath is waiting.' };
-  if (!Array.isArray(unit.skills)) unit.skills = [];
-  const state = sanitizeUnitDeeds(unit.deeds) || freshDeeds(unit);
-  const known = unit.skills.includes(waiting.skillId);
-  let givenUp = null;
-  if (!known) {
-    if (giveUpSkillId == null) {
-      if (unit.skills.length >= MAX_SKILLS)
-        return { ok: false, reason: 'Choose a skill to give up.' };
-      unit.skills.push(waiting.skillId);
-    } else {
-      if (!oathTradeableSkills(unit, gameData).includes(giveUpSkillId))
-        return { ok: false, reason: 'That skill cannot be given up.' };
-      unit.skills[unit.skills.indexOf(giveUpSkillId)] = waiting.skillId;
-      givenUp = giveUpSkillId;
-    }
-  }
-  delete state.waitingOath;
-  state.oath = { ...waiting };
-  unit.deeds = state;
-  return { ok: true, givenUp };
-}
-
-/** Let the waiting Oath go: the unit keeps its skills and never swears it. */
-export function releaseWaitingOath(unit) {
-  if (!waitingOath(unit)) return false;
-  const state = sanitizeUnitDeeds(unit.deeds) || freshDeeds(unit);
-  delete state.waitingOath;
-  state.oathReleased = true; // one Oath per unit: a released one is never offered again
-  unit.deeds = state;
-  return true;
-}
-
-/** The line a promotion shows when its Oath has to wait for a free skill slot. */
-export function oathWaitingNote(unit, oath) {
+/** The line a promotion shows when its Oath is sworn onto the bench (slots full). */
+export function oathBenchedNote(unit, oath) {
   const who = typeof unit?.name === 'string' && unit.name ? unit.name : 'this unit';
-  return `Skill slots full: ${oath?.name || 'the Oath'} waits in Deeds until ${who} gives up a skill for it.`;
+  return `${oath?.name || 'The Oath'}: ${oath?.skillName || 'its skill'} is on ${who}'s bench (all ${MAX_SKILLS} skill slots are full). Swap it in from Skills.`;
 }

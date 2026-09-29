@@ -63,9 +63,10 @@ describe('awardTeamXp', () => {
     const rowan = myrmidon('Rowan', 9, 90, five);
     const report = awardTeamXp([rowan], 25, data.classes);
     expect(rowan.skills).toEqual(five);
+    expect(rowan.benchedSkills).toEqual([vantage]); // kept, not lost
     expect(report[0].blocked).toEqual([vantage]);
     expect(teamXpLines(report, data.skills)[0]).toContain(
-      `${vantageName} needs a free skill slot (all 5 are full).`,
+      `${vantageName} is on the bench (all 5 slots are full).`,
     );
     // The next level-up retries it silently, as the battlefield card does.
     rowan.xp = 90;
