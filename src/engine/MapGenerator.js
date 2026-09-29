@@ -31,13 +31,32 @@ import { createScopedLogger } from '../utils/logger.js';
 const DEBUG_MAP_GEN = false;
 const mapGenLog = createScopedLogger('MapGen', { debug: DEBUG_MAP_GEN });
 
+/** Extra layouts a caravan node may draw when the merchant finds no tile on the first. */
+export const CARAVAN_PLACEMENT_ATTEMPTS = 8;
+
 /**
  * Generate a full battle configuration from params + game data.
+ *
+ * A node that rolled a caravan (`params.hasCaravan`) promised one on the route map, so a
+ * layout with no room for it is drawn again from the same RNG stream, up to
+ * CARAVAN_PLACEMENT_ATTEMPTS layouts in all (same seed, same result; a first layout that
+ * fits is returned untouched). Only a map that never fits comes back without a caravan.
  * @param {Object} params - { act, objective, sizeKey? (optional override), difficultyMod?, enemyCountBonus? }
  * @param {Object} deps - { terrain, classes, weapons, skills, mapSizes, mapTemplates, enemies }
  * @returns {Object} battleConfig
  */
 export function generateBattle(params, deps) {
+  const first = generateBattleLayout(params, deps);
+  if (!params?.hasCaravan || first.caravanSpawn) return first;
+  for (let attempt = 1; attempt < CARAVAN_PLACEMENT_ATTEMPTS; attempt++) {
+    const retry = generateBattleLayout(params, deps);
+    if (retry.caravanSpawn) return retry;
+  }
+  return first;
+}
+
+/** One layout, no caravan retry (generateBattle wraps it). */
+export function generateBattleLayout(params, deps) {
   const {
     act = 'act1',
     objective = 'rout',

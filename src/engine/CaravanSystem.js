@@ -36,6 +36,15 @@ export function rollCaravanSpawn(params, chanceBonus = 0, rng = Math.random) {
   return rng() < chance;
 }
 
+/**
+ * Whether a map template can carry a caravan. `caravan: false` in mapTemplates.json marks
+ * a template too cramped for the placement rules (a great hall, a chokepoint); a node that
+ * rolled a caravan never draws one (NodeMapGenerator.pickTemplateForNode).
+ */
+export function templateAllowsCaravan(template) {
+  return template?.caravan !== false;
+}
+
 /** Simple local passability check (no Phaser deps). */
 function isTilePassable(terrainData, mapLayout, col, row, cols, rows, moveType = 'Infantry') {
   if (col < 0 || col >= cols || row < 0 || row >= rows) return false;

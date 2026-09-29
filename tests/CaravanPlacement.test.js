@@ -97,8 +97,9 @@ describe('caravan placement over generated maps', () => {
   it('covers every eligible template and act', () => {
     expect(new Set(cases.map((c) => c.templateId)).size).toBeGreaterThanOrEqual(12);
     expect(results.length).toBe(cases.length * SEEDS.length);
-    // Most caravan rolls still get a caravan (cramped maps may go without).
-    expect(placed.length / results.length).toBeGreaterThan(0.8);
+    // A caravan roll gets its caravan: a layout with no room is drawn again
+    // (generateBattle), even on the cramped templates no caravan node is given.
+    expect(placed.length / results.length).toBeGreaterThan(0.98);
   });
 
   it('is at least 6 tiles from every enemy spawn and 4 from every player spawn', () => {
@@ -111,8 +112,9 @@ describe('caravan placement over generated maps', () => {
       expect(toArmy, where).toBeGreaterThanOrEqual(4);
       if (toArmy >= 6) farFromArmy++;
     }
-    // The neutral band is the rule; nearer the army only on cramped maps.
-    expect(farFromArmy / placed.length).toBeGreaterThan(0.7);
+    // The neutral band is the rule; nearer the army only on cramped maps (the redraw
+    // that now rescues those maps is why this floor is below the one-layout 77%).
+    expect(farFromArmy / placed.length).toBeGreaterThan(0.6);
   });
 
   it('is on open ground the army can walk to', () => {

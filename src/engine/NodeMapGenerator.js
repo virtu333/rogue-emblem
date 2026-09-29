@@ -4,7 +4,7 @@
 
 import { NODE_TYPES, FOG_CHANCE_BY_ACT } from '../utils/constants.js';
 import { rollBiome, getTemplateBiome } from './MapGenerator.js';
-import { rollCaravanSpawn } from './CaravanSystem.js';
+import { rollCaravanSpawn, templateAllowsCaravan } from './CaravanSystem.js';
 import { rollVillageSpawn } from './VillageSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
 
@@ -90,6 +90,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
           actId,
           type === NODE_TYPES.BOSS,
           biome,
+          { caravan: node.battleParams?.hasCaravan === true },
         );
         if (template) {
           node.templateId = template.id;
@@ -235,6 +236,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
             actId,
             false,
             rollBiome(actId),
+            { caravan: node.battleParams.hasCaravan === true },
           );
           if (template) {
             node.templateId = template.id;
@@ -493,6 +495,9 @@ function rollBattleSeed() {
  * @param {string} [actId] - optional act id for template act filtering
  * @param {boolean} [isBossNode] - whether this is a boss node
  * @param {string} [biome] - optional biome to prefer (falls back to full pool if no match)
+ * @param {{ caravan?: boolean }} [options] - caravan: the node rolled a Merchant Caravan, so
+ *   templates marked `caravan: false` are left out (kept if nothing else fits). The pick
+ *   is still one Math.random() draw, so a node's other rolls line up with or without it.
  * @returns {Object|null} template or null if mapTemplates not provided
  */
 export function pickTemplateForNode(
@@ -501,6 +506,7 @@ export function pickTemplateForNode(
   actId = null,
   isBossNode = false,
   biome = null,
+  { caravan = false } = {},
 ) {
   if (!mapTemplates) return null;
   const pool = mapTemplates[objective];
@@ -514,9 +520,11 @@ export function pickTemplateForNode(
     if (allowedRout.length === 0) return null;
     return allowedRout[0];
   }
-  const filteredByAct = actId
+  const actPool = actId
     ? pool.filter((template) => !Array.isArray(template.acts) || template.acts.includes(actId))
     : pool;
+  const caravanPool = caravan ? actPool.filter(templateAllowsCaravan) : actPool;
+  const filteredByAct = caravanPool.length > 0 ? caravanPool : actPool;
   // Filter by biome if provided, fall back to full act-filtered pool
   const biomeFiltered = biome
     ? filteredByAct.filter((t) => getTemplateBiome(t) === biome)

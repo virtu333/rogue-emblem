@@ -3250,6 +3250,19 @@ export class RunManager {
     }
     const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
     if (node) node.encounterLocked = true;
+    this._settleCaravanPromise(node);
+  }
+
+  /**
+   * The route map's "Caravan" tag reads `battleParams.hasCaravan`. Once the node's map is
+   * locked the tag follows the result: a map that found no room for the merchant (a rare
+   * miss, or a save from before placement had rules) drops the flag, so nothing promised
+   * is missing. A placed caravan leaves it set.
+   */
+  _settleCaravanPromise(node) {
+    if (!node?.battleParams?.hasCaravan) return;
+    const locked = this.battleConfigsByNodeId?.[node.id];
+    if (locked && !locked.caravanSpawn) node.battleParams.hasCaravan = false;
   }
 
   canReenterService(nodeId) {
@@ -5011,6 +5024,7 @@ export class RunManager {
     if (rm.nodeMap?.nodes && rm.battleConfigsByNodeId) {
       for (const node of rm.nodeMap.nodes) {
         if (rm.battleConfigsByNodeId[node.id]) node.encounterLocked = true;
+        rm._settleCaravanPromise(node);
       }
     }
 
