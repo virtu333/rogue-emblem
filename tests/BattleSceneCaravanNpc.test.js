@@ -90,7 +90,7 @@ function makeScene(npcUnits) {
     npcUnits,
     enemyUnits: [],
     playerUnits: [],
-    runManager: { roster: [{}, {}], getRosterCap: () => 12 },
+    runManager: { roster: [{}, {}] },
     battleConfig: { objective: 'rout' },
     gameData: { classes: [], lords: [] },
     _playerDeathsThisBattle: 0,

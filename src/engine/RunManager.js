@@ -16,7 +16,6 @@ import {
   ACT_CONFIG,
   STARTING_GOLD,
   MAX_SKILLS,
-  ROSTER_CAP,
   STARTING_ACCESSORY_TIERS,
   STARTING_STAFF_TIERS,
   DEADLY_ARSENAL_SIGNATURE_WEAPONS,
@@ -62,6 +61,7 @@ import {
   grantReviveStarterWeapon,
 } from './UnitManager.js';
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
+import { signatureWeaponFor } from './SignatureWeapons.js';
 import { generateRandomLegendary } from './LootSystem.js';
 import { getActiveSlot, getRunClockFloorKey, getRunKey, MAX_SLOTS } from './SlotManager.js';
 import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
@@ -2766,18 +2766,25 @@ export class RunManager {
     if (deadlyArsenalTier <= 0) return;
 
     const byType = LETHAL_ARMORY_WEAPONS[primaryType] || null;
-    const signatureName = DEADLY_ARSENAL_SIGNATURE_WEAPONS[primaryType] || null;
-    if (!byType || !signatureName) return;
+    if (!byType) return;
 
+    // The lord's own personal weapon (weapons.json `signatureOf`); a lord without
+    // one falls back to the signature weapon of their primary weapon type.
     const allWeapons = this.gameData?.weapons || [];
-    const signature = allWeapons.find((weapon) => weapon.name === signatureName);
+    const personal = signatureWeaponFor(unit?.name, allWeapons);
+    const byTypeName = DEADLY_ARSENAL_SIGNATURE_WEAPONS[primaryType] || null;
+    const signature =
+      personal && canEquip(unit, personal)
+        ? personal
+        : allWeapons.find((weapon) => weapon.name === byTypeName) || null;
+    if (!signature) return;
     const silver = byType.silver
       ? allWeapons.find((weapon) => weapon.name === byType.silver)
       : null;
 
-    // Tier 1: replace the Steel slot with the type's signature weapon.
+    // Tier 1: replace the Steel slot with the signature weapon.
     if (byType.steel) this._removeWeaponByName(unit, byType.steel);
-    if (signature) addToInventory(unit, signature);
+    addToInventory(unit, signature);
 
     // Tier 2: add the silver weapon and auto-equip it.
     if (deadlyArsenalTier >= 2 && silver && addToInventory(unit, silver)) {
@@ -3486,10 +3493,6 @@ export class RunManager {
     return true;
   }
 
-  getRosterCap() {
-    return ROSTER_CAP + (this.metaEffects?.rosterCapBonus || 0);
-  }
-
   /**
    * Mark a battle as suspended-in-progress. The flag carries the entry
    * snapshot needed to (a) resume the battle later ("Continue from battle")
@@ -3832,12 +3835,10 @@ export class RunManager {
    * @param {object|string} unitRef - the fallen unit (preferred: two fallen allies may
    *   share a name), its `unitUid`, or — legacy callers — its name (first match)
    * @param {number} cost - gold cost (scales with level/promotion)
-   * @returns {boolean} true if revived, false if roster full or insufficient gold
+   * @returns {boolean} true if revived, false if the unit is not fallen or gold is short
+   *   (the roster has no cap)
    */
   reviveFallenUnit(unitRef, cost) {
-    const rosterCap = this.getRosterCap();
-    if (this.roster.length >= rosterCap) return false; // Can't revive if roster full
-
     // Verify unit exists before spending gold (prevents burning currency on stale names)
     const idx = this._findFallenIndex(unitRef);
     if (idx === -1) return false;
