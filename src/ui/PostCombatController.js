@@ -304,7 +304,11 @@ export class PostCombatController {
                 scene.gameData?.dialogue?.eliteVictory?.[act] ||
                 scene.gameData?.dialogue?.eliteVictory?.act3;
               if (Array.isArray(elitePool) && elitePool.length > 0) {
-                const line = elitePool[Math.floor(Math.random() * elitePool.length)];
+                // Picked like every narrative pool (rotation, never the battle RNG: a
+                // draw here, just before loot, let the pool's size shift elite loot).
+                const line =
+                  scene.runManager?.pickNarrativeLine?.(elitePool, `eliteVictory:${act}`) ||
+                  elitePool[0];
                 await scene.dialogueOverlay?.show(null, line, null);
               }
             } catch (_) {}
