@@ -445,7 +445,15 @@ export class Skin {
       this.parts.push(part);
     }
     this.parts.sort((a, b) => a.z - b.z);
-    this.lags = this.spec.lags || {};
+    // lag sets in use, each with its delay (s) and drag (share of the body's own travel)
+    const DEFAULT_LAGS = {
+      cloak: { sec: 0.17, drag: 0.5 },
+      hair: { sec: 0.12, drag: 0.4 },
+      skirt: { sec: 0.08, drag: 0.3 },
+    };
+    this.lags = {};
+    for (const p of this.parts)
+      if (p.lag) this.lags[p.lag.set] = { ...(DEFAULT_LAGS[p.lag.set] || {}), ...(this.spec.lags || {})[p.lag.set] };
   }
 
   /**

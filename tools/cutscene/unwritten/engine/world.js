@@ -674,6 +674,7 @@ export class World {
     this._ri = 0;
     this._ca = 0.5;
     this._st = 0.5;
+    this._flat = 0;
     this._sn = new Float32Array(3);
     this._px = 0.5;
     this._pz = 0.5;
@@ -891,11 +892,23 @@ export class World {
       const half = (this._er - this._el) / 2;
       X = c + s.u * half;
     }
-    const cy = s.top - s.ry;
+    // the ellipsoid rises a little above the top and is cut off there (flat crown)
+    const flat = s.flat ?? 0.3;
+    const cy = s.top - s.ry * (1 - flat);
+    // facets: a few planes the surface snaps to, mostly facing up and out
+    const fac = [];
+    const nf = 6 + Math.floor(hash(i, 21, 77) * 4);
+    for (let k = 0; k < nf; k++) {
+      const az = hash(i, 30 + k, 77) * TWO_PI;
+      const el = 0.15 + hash(i, 50 + k, 77) * 1.1;
+      fac.push(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az));
+    }
     return {
       ...s,
       X,
       cy,
+      cut: 1 - flat,
+      fac,
       i,
       ex: Math.cos(s.yaw || 0),
       ez: Math.sin(s.yaw || 0),
@@ -2128,10 +2141,28 @@ export class World {
     }
     const sq = Math.sqrt(disc);
     const t = (-Bq - sq) / (2 * A);
+    const n = this._sn;
+    // the crown is cut flat (a weathered top you could step on): a ray that enters the
+    // ellipsoid above the top plane meets the plane instead, or misses
+    const ly0 = ly + ey * t;
+    const cut = s.cut;
+    if (ly0 > cut) {
+      const tp = (cut - ly) / ey;
+      if (!(ey < 0) || tp > (-Bq + sq) / (2 * A)) {
+        this._st = Infinity;
+        return;
+      }
+      this._st = tp;
+      this._flat = 1;
+      n[0] = (lx + ex * tp) * 0.001;
+      n[1] = 1;
+      n[2] = (lz + ez * tp) * 0.001;
+      return;
+    }
     this._st = t;
-    const n = this._sn || (this._sn = new Float32Array(3));
+    this._flat = 0;
     n[0] = lx + ex * t;
-    n[1] = ly + ey * t;
+    n[1] = ly0;
     n[2] = lz + ez * t;
   }
 
@@ -2205,12 +2236,55 @@ export class World {
               const nzw = -(nx0 / s.a) * s.ez + (nz0 / s.c) * s.ex;
               const nyw = ny0 / s.ry;
               const nl = Math.sqrt(nxw * nxw + nyw * nyw + nzw * nzw);
-              const dif = (nxw * Lx + nyw * Ly + nzw * Lz) / nl;
+              let mx = nxw / nl;
+              let my = nyw / nl;
+              let mz = nzw / nl;
+              // snap the sides to the stone's facets (flat planes, a hard edge between
+              // them, cracked where two meet); the cut crown stays one flat plane
+              let crack = false;
+              const flatTop = this._flat === 1;
+              if (!flatTop) {
+                const F = s.fac;
+                let b1 = -2;
+                let b2 = -2;
+                let bk = 0;
+                for (let k = 0; k < F.length; k += 3) {
+                  const d = mx * F[k] + my * F[k + 1] + mz * F[k + 2];
+                  if (d > b1) {
+                    b2 = b1;
+                    b1 = d;
+                    bk = k;
+                  } else if (d > b2) b2 = d;
+                }
+                mx = 0.3 * mx + 0.7 * F[bk];
+                my = 0.3 * my + 0.7 * F[bk + 1];
+                mz = 0.3 * mz + 0.7 * F[bk + 2];
+                const ml = Math.sqrt(mx * mx + my * my + mz * mz);
+                mx /= ml;
+                my /= ml;
+                mz /= ml;
+                crack = b1 - b2 < 0.035 * (1 + 3 / Math.max(4, this.F / st));
+              } else {
+                // a crack or two across the crown
+                const wx = ox + dx * st - s.X;
+                const wz = oz + dz * st - s.Z;
+                const cn = valueNoise(wx * 3.1 + s.i * 7, wz * 3.1, 61);
+                crack = Math.abs(cn - 0.5) < 0.018 + st / this.F;
+              }
+              const dif = mx * Lx + my * Ly + mz * Lz;
               // lit on top, dark and wet low down, the slick one wet all over
-              let c =
-                dif > 0.66 && hy > s.top * 0.45 ? STONE_LIT : dif > 0.25 ? STONE_MID : STONE_SH;
+              let c = flatTop
+                ? s.slick
+                  ? STONE_MID
+                  : STONE_LIT
+                : dif > 0.62 && hy > s.top * 0.4
+                  ? STONE_LIT
+                  : dif > 0.22
+                    ? STONE_MID
+                    : STONE_SH;
               if (hy < 0.035 + 0.05 * s.a) c = STONE_WET;
               else if (s.slick && c === STONE_LIT) c = STONE_MID;
+              if (crack && hy > 0.03) c = STONE_WET;
               // wet patches and lichen: a flat second tone over the surface
               let tn = s.tone;
               const g0 = this.tex.ground[0];
