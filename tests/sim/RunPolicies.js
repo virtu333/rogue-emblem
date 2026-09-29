@@ -1,6 +1,6 @@
 // RunPolicies.js - Deterministic policy helpers for full-run simulations.
 
-import { NODE_TYPES, ROSTER_CAP } from '../../src/utils/constants.js';
+import { NODE_TYPES } from '../../src/utils/constants.js';
 import { getReviveCost } from '../../src/engine/RunManager.js';
 
 const NODE_PRIORITY = {
@@ -49,7 +49,7 @@ export function chooseChurchPlan(runManager, options = {}) {
 }
 
 function desiredVulneraries(roster) {
-  const unitCount = Math.max(1, Math.min(roster.length, ROSTER_CAP));
+  const unitCount = Math.max(1, roster.length);
   return Math.min(unitCount, 4);
 }
 

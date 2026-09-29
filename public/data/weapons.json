@@ -39,7 +39,8 @@
     "weight": 2,
     "range": "1",
     "special": "Effective vs Armored/Cavalry (2x)",
-    "price": 1800
+    "price": 1800,
+    "signatureOf": "Edric"
   },
   {
     "name": "Silver Sword",
@@ -2120,5 +2121,95 @@
       "Light"
     ],
     "price": 3000
+  },
+  {
+    "name": "Godsend",
+    "lore": "Blessed at a roadside shrine for a copper. Its rider swears the aim was extra.",
+    "type": "Lance",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 8,
+    "hit": 85,
+    "crit": 10,
+    "weight": 5,
+    "range": "1",
+    "special": "Effective vs Armored/Cavalry (2x)",
+    "price": 1800,
+    "signatureOf": "Rowan"
+  },
+  {
+    "name": "Windward",
+    "lore": "Sky-legion issue, cut down for a rider who never once flew in formation.",
+    "type": "Lance",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 7,
+    "hit": 85,
+    "crit": 5,
+    "weight": 4,
+    "range": "1",
+    "special": "+2 STR, +2 SPD if no adjacent allies",
+    "price": 1800,
+    "signatureOf": "Astrid"
+  },
+  {
+    "name": "Holdfast",
+    "lore": "Scratched on the haft: THEY GO AROUND, OR THEY GO HOME.",
+    "type": "Axe",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 9,
+    "hit": 80,
+    "crit": 5,
+    "weight": 6,
+    "range": "1",
+    "special": "+3 DEF when equipped",
+    "price": 1800,
+    "signatureOf": "Cael"
+  },
+  {
+    "name": "Endgame",
+    "lore": "Last chapter of a war-college primer. Someone has struck out the word 'last'.",
+    "type": "Tome",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 6,
+    "hit": 95,
+    "crit": 5,
+    "weight": 2,
+    "range": "1-2",
+    "special": "Effective vs Cavalry/Flying (2x)",
+    "price": 1800,
+    "signatureOf": "Kira"
+  },
+  {
+    "name": "Threadlight",
+    "lore": "One thread of noon, spun fine enough to close a wound or stitch a vision shut.",
+    "type": "Light",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 6,
+    "hit": 100,
+    "crit": 10,
+    "weight": 1,
+    "range": "1-2",
+    "special": "",
+    "price": 1800,
+    "signatureOf": "Sera"
+  },
+  {
+    "name": "Last Watch",
+    "lore": "Watch log, final entry before dawn: all quiet. Bow strung. Names counted twice.",
+    "type": "Bow",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 5,
+    "hit": 90,
+    "crit": 20,
+    "weight": 4,
+    "range": "1-2",
+    "special": "Close-range bow. +2 RES when equipped",
+    "price": 1800,
+    "signatureOf": "Voss"
   }
 ]

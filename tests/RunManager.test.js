@@ -11,7 +11,7 @@ import {
 import * as NodeMapGenerator from '../src/engine/NodeMapGenerator.js';
 import { loadGameData } from './testData.js';
 import { createCaravanUnit } from '../src/engine/CaravanSystem.js';
-import { NODE_TYPES, ELITE_GOLD_MULTIPLIER, ROSTER_CAP } from '../src/utils/constants.js';
+import { NODE_TYPES, ELITE_GOLD_MULTIPLIER } from '../src/utils/constants.js';
 import { calculateBattleGold } from '../src/engine/LootSystem.js';
 import { getStartupTelemetry } from '../src/utils/startupTelemetry.js';
 
@@ -2763,7 +2763,7 @@ describe('Fallen unit tracking and revival', () => {
     expect(rm.fallenUnits.length).toBe(0);
   });
 
-  it('reviveFallenUnit fails if insufficient gold or roster full', () => {
+  it('reviveFallenUnit fails on insufficient gold, never on roster size (no cap)', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
 
@@ -2778,40 +2778,16 @@ describe('Fallen unit tracking and revival', () => {
     expect(success).toBe(false);
     expect(rm.fallenUnits.length).toBe(1); // Still fallen
 
-    // Test roster full (max = 12 by default)
+    // A roster past the old cap (12, or 15 with Expanded Ranks) still takes the unit back.
     rm.gold = 2000;
-    rm.roster = Array(12)
+    rm.roster = Array(20)
       .fill(null)
       .map((_, i) => ({ name: `Unit${i}`, stats: { HP: 30 }, currentHP: 30 }));
     success = rm.reviveFallenUnit(fallenName, 1000);
-    expect(success).toBe(false);
-  });
-
-  it('getRosterCap includes meta roster cap bonus', () => {
-    const baseRm = new RunManager(gameData, null);
-    const boostedRm = new RunManager(gameData, { rosterCapBonus: 3 });
-
-    expect(baseRm.getRosterCap()).toBe(ROSTER_CAP);
-    expect(boostedRm.getRosterCap()).toBe(ROSTER_CAP + 3);
-  });
-
-  it('reviveFallenUnit consults getRosterCap for capacity checks', () => {
-    const rm = new RunManager(gameData, null);
-    rm.startRun();
-
-    const fallen = rm.roster[0];
-    const fallenName = fallen.name;
-    rm.roster = rm.roster.slice(1);
-    rm.fallenUnits.push(fallen);
-    rm.gold = 2000;
-
-    const capSpy = vi.spyOn(rm, 'getRosterCap').mockReturnValue(1);
-    const success = rm.reviveFallenUnit(fallenName, 1000);
-
-    expect(success).toBe(false);
-    expect(capSpy).toHaveBeenCalled();
-    expect(rm.gold).toBe(2000);
-    capSpy.mockRestore();
+    expect(success).toBe(true);
+    expect(rm.gold).toBe(1000);
+    expect(rm.roster).toHaveLength(21);
+    expect(rm.fallenUnits).toHaveLength(0);
   });
 
   it('reviveFallenUnit does not spend gold if unit name not found', () => {

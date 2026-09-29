@@ -145,3 +145,49 @@ test('remembered deployment restores survivors, keeps commander, and can clear o
   await dialog.getByRole('button', { name: 'Deploy', exact: true }).tap();
   expect(await page.evaluate(() => window.deployedNames)).toEqual(['Edric', 'Sera']);
 });
+
+// 2026-09-29: the roster has no cap and Act IV deploys up to 8 (+2 with Tactical
+// Advantage and the Scout Blessing). A long list must scroll, stop at the max and keep
+// its confirm control reachable on a phone.
+test('a roster past the old cap deploys ten, and stops at the max', async ({ page }, info) => {
+  test.slow(); // ten taps, each re-rendering a sixteen-row list
+  await boot(page);
+  const reserveCount = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const base = s.runManager.roster;
+    const extra = Array.from({ length: 16 - base.length }, (_, i) => ({
+      ...structuredClone(base[base.length - 1]),
+      name: `Reserve ${String(i + 1).padStart(2, '0')}`,
+      isLord: false,
+    }));
+    s.runManager.roster = [...base, ...extra];
+    s.runManager.lastDeployment = [];
+    s.showDeployScreen(s.runManager.roster, { min: 5, max: 10 }, (units) => {
+      window.deployedNames = units.map((u) => u.name);
+    });
+    return extra.length;
+  });
+  const dialog = page.getByRole('dialog', { name: 'Deploy units', exact: true });
+  await expect(dialog).toContainText('/ 10 selected · Minimum 5');
+  const reserves = dialog.getByRole('button', { name: /Reserve \d\d/ });
+  await expect(reserves).toHaveCount(reserveCount);
+  // The commander is pre-selected: nine reserves fill the ten slots.
+  await expect(dialog).toContainText('1 / 10 selected');
+  for (let i = 0; i < 9; i++) {
+    await reserves.nth(i).tap();
+    await expect(dialog).toContainText(`${i + 2} / 10 selected`);
+  }
+  // Full: the unpicked rows are disabled, and a forced eleventh pick is refused.
+  await expect(reserves.last()).toHaveAttribute('aria-disabled', 'true');
+  await reserves.last().tap({ force: true });
+  await expect(reserves.last()).toHaveAttribute('aria-pressed', 'false');
+  await expect(dialog).toContainText('10 / 10 selected');
+  const deploy = dialog.getByRole('button', { name: 'Deploy', exact: true });
+  await expect(deploy).toBeEnabled();
+  await deploy.scrollIntoViewIfNeeded();
+  await expect(deploy).toBeInViewport();
+  await page.screenshot({ path: info.outputPath('deployment-ten.png') });
+  await deploy.tap();
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(() => window.deployedNames.length)).toBe(10);
+});

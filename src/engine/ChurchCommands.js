@@ -50,7 +50,6 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
 }
 export function churchReviveBlock(run, unit) {
   if (!run.fallenUnits.includes(unit)) return 'Unit is no longer awaiting revival.';
-  if (run.roster.length >= run.getRosterCap()) return 'Roster full.';
   return run.gold < getReviveCost(unit) ? 'Not enough gold.' : '';
 }
 export function reviveAtChurch(run, unit) {
