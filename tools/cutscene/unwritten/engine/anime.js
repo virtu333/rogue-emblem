@@ -23,6 +23,9 @@ export const RGB = {
   steelMid: hexToRgb('#77a5c6'),
 };
 
+/** A glow's tones for light that is not the Thread's: steel and bone, never gold. */
+export const PALE = [RGB.steelMid, RGB.steel, RGB.paperHi];
+
 /** Drawing index on twos (12 drawings a second at 24 fps). */
 export const twos = (t) => Math.floor(t * 12);
 /** t held on twos: for anything that should step like a drawing. */
@@ -53,7 +56,8 @@ export const dput = (frame, fw, fh, x, y, c, a) => {
  * Focus lines (shuchusen): tapered ink wedges pointing at (cx, cy), leaving a clear
  * ellipse. `drawing` reseeds them: pass twos(t) and they boil.
  * o: { inner: clear radius (px), count, width (px at the frame edge), color, aspect,
- *      jitter (0..1 inner radius spread), amount (0..1 how many lines are drawn) }
+ *      jitter (0..1 inner radius spread), amount (0..1 how many lines are drawn),
+ *      outer (px: where the lines end, fraying into the dither) }
  */
 export function focusLines(frame, fw, fh, cx, cy, drawing, o = {}) {
   const {
@@ -65,6 +69,7 @@ export function focusLines(frame, fw, fh, cx, cy, drawing, o = {}) {
     jitter = 0.45,
     amount = 1,
     seed = 3,
+    outer = Infinity, // lines end here (px from the point), fraying into the dither
   } = o;
   const BINS = 1440;
   const bins = new Int16Array(BINS).fill(-1);
@@ -96,7 +101,12 @@ export function focusLines(frame, fw, fh, cx, cy, drawing, o = {}) {
       let d = Math.abs(th - a);
       if (d > Math.PI) d = Math.PI * 2 - d;
       const hw = (w * (r - r0)) / (R - r0);
-      if (d * r < hw) put(frame, fw, fh, x, y, color);
+      if (d * r >= hw) continue;
+      if (r > outer * 0.5) {
+        if (r > outer) continue;
+        if ((r - outer * 0.5) / (outer * 0.5) > bayer(x, y) * 0.9 + 0.05) continue;
+      }
+      put(frame, fw, fh, x, y, color);
     }
 }
 
@@ -413,9 +423,10 @@ export function flakes(frame, fw, fh, src, t, t0, t1, o = {}) {
 /**
  * The thread's light around (cx, cy), radius r, strength k: a dithered halo of gold
  * pixels thinning outward (brighter golds in the middle). Pixel-art light: no blending,
- * which would only muddy the colour under it.
+ * which would only muddy the colour under it. tones: [outer, mid, core] (gold unless it
+ * is a light that is not the Thread's: use PALE for steel and lamplight).
  */
-export function glow(frame, fw, fh, cx, cy, r, k) {
+export function glow(frame, fw, fh, cx, cy, r, k, tones = [RGB.gold, RGB.goldHi, RGB.goldWhite]) {
   const x0 = Math.max(0, (cx - r) | 0);
   const x1 = Math.min(fw, (cx + r) | 0);
   const y0 = Math.max(0, (cy - r) | 0);
@@ -426,7 +437,7 @@ export function glow(frame, fw, fh, cx, cy, r, k) {
       if (d >= 1) continue;
       const a = (1 - d) ** 2.2 * k;
       if (a * 0.85 <= bayer(x, y)) continue;
-      put(frame, fw, fh, x, y, a > 0.7 ? RGB.goldWhite : a > 0.4 ? RGB.goldHi : RGB.gold);
+      put(frame, fw, fh, x, y, a > 0.7 ? tones[2] : a > 0.4 ? tones[1] : tones[0]);
     }
 }
 

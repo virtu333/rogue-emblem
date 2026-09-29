@@ -1424,7 +1424,8 @@ export class World {
       this.splashAt(frame, cam, s.X, s.Z, t, s.t0, s.strength ?? 1, s.seed ?? 1);
     for (const s of o.sprays || []) this.spraySheet(frame, cam, s);
     if (this.rain > 0) this.drawRain(frame, B, t, o.rainWind || [1.2, 0]);
-    if (o.foreground?.length) this.drawForeground(frame, B, t2, o.foreground, o.wind ?? 1);
+    if (o.foreground?.length)
+      this.drawForeground(frame, B, t2, o.foreground, o.wind ?? 1, o.foregroundSmear ?? 0);
     lap('fx');
   }
 
@@ -1551,9 +1552,10 @@ export class World {
       // the ring: broken gold glints
       if (hash(iu, jv, 76) < 0.45 + 0.4 * q) return 0;
       const hot = d < 1 + ring * 0.5;
+      // the ring's reflection is pale bone, not gold: gold is the Thread's alone
       c[0] = hot ? 246 : 226;
-      c[1] = hot ? 208 : 182;
-      c[2] = hot ? 116 : 104;
+      c[1] = hot ? 240 : 220;
+      c[2] = hot ? 226 : 204;
       return 2;
     }
     // the disc: ink, paler as the slivers get thin toward the camera
@@ -1627,6 +1629,21 @@ export class World {
         tmp[o + 2] = buf[o + 2];
       }
     hollowSun(tmp, W, H, px, py, r, t, 1);
+    if (mirror) {
+      // the sun's image in the water: the ring goes pale bone (gold is the Thread's alone)
+      for (let y = y0; y <= y1; y++)
+        for (let x = x0; x <= x1; x++) {
+          const o = (y * W + x) * 4;
+          const r0 = tmp[o];
+          const b0 = tmp[o + 2];
+          if (r0 - b0 > 40) {
+            const k = clamp((r0 - 150) / 100);
+            tmp[o] = 214 + 30 * k;
+            tmp[o + 1] = 208 + 30 * k;
+            tmp[o + 2] = 194 + 30 * k;
+          }
+        }
+    }
     for (let y = y0; y <= y1; y++)
       for (let x = x0; x <= x1; x++) {
         const i = y * W + x;
@@ -3407,7 +3424,7 @@ export class World {
    * the camera, so they pass faster than the subject in a tracking shot.
    * items: [{ X, Z, kind: 'reeds' | 'stone', h (m), seed }]
    */
-  drawForeground(frame, B, t2, items, windK) {
+  drawForeground(frame, B, t2, items, windK, smear = 0) {
     const { W, H } = this;
     const paper = this.paper;
     const mask = this.fgMask;
@@ -3479,13 +3496,16 @@ export class World {
         const g = this.gust(X, Z, t2) * windK;
         const side = hash(seed, b, 61) < 0.5 ? -1 : 1;
         const lean =
-          side * (0.25 + 0.55 * hash(seed, b, 59)) + (0.2 + 0.55 * g) * Math.cos(this.wind.dir);
-        const wB = 0.028 * (0.7 + 0.6 * hash(seed, b, 60));
+          side *
+            (it.arch ?? 0.25 + 0.55 * hash(seed, b, 59)) *
+            (it.arch ? 0.7 + 0.6 * hash(seed, b, 59) : 1) +
+          (0.2 + 0.55 * g) * Math.cos(this.wind.dir);
+        const wB = 0.02 * (0.7 + 0.6 * hash(seed, b, 60));
         let prev = null;
-        const NS = 14;
+        const NS = 22;
         for (let k = 0; k <= NS; k++) {
           const v = k / NS;
-          const phi = lean * v ** 1.8;
+          const phi = lean * v ** (it.arch ? 1.3 : 1.8);
           const px = X + Math.sin(phi) * h * v * 0.95;
           const py = base + Math.cos(phi) * h * v - Math.max(0, Math.abs(phi) - 1.1) * h * 0.2 * v;
           const p = proj(px, py, Z);
@@ -3495,7 +3515,9 @@ export class World {
           }
           if (prev) {
             // a leaf: swelling from the root, tapering to a point
-            const prof = Math.sin(Math.PI * Math.min(1, v * 1.35 + 0.08)) ** 0.7 * (1 - v * 0.3);
+            // (the root is off the bottom of a lens-level frame, so the blade must stay
+            // broad over the part that shows and taper only toward its tip)
+            const prof = (1 - v) ** 0.8 * (0.55 + 0.45 * Math.sin(Math.PI * Math.min(1, v * 2.2)));
             const half = Math.max(0.5, wB * prof * p[2]);
             const L = Math.ceil(Math.hypot(p[0] - prev[0], p[1] - prev[1])) + 1;
             for (let st = 0; st <= L; st++) {
@@ -3520,6 +3542,28 @@ export class World {
       }
     }
     if (!any) return;
+    // a fast pass: what is near the lens is dragged into streaks along its motion (the
+    // drawing of a blur: a dithered tail behind each leaf), so it never strobes
+    if (smear && Math.abs(smear) >= 4) {
+      const L = Math.min(56, Math.abs(smear) * 0.7);
+      const orig = mask.slice();
+      const dir = smear < 0 ? 1 : -1; // the trail lies behind the motion
+      for (let y = 0; y < H; y++) {
+        let carry = 0;
+        let tone = 1;
+        for (let k = 0; k < W; k++) {
+          const x = dir > 0 ? k : W - 1 - k;
+          const i = y * W + x;
+          if (orig[i]) {
+            carry = L;
+            tone = orig[i];
+          } else if (carry > 0) {
+            carry--;
+            if (carry / L > bayer(x, y) * 0.95 + 0.05) mask[i] = tone === 2 ? 1 : tone;
+          }
+        }
+      }
+    }
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
         const i = y * W + x;
@@ -3581,6 +3625,7 @@ export function foregroundRow(o) {
       h: (kind === 'stone' ? (o.stoneH ?? 0.28) : (o.h ?? 1.1)) * (0.7 + 0.6 * hash(k, 5, seed)),
       seed,
       Y: o.Y,
+      arch: o.arch,
     });
   }
   return out;

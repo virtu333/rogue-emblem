@@ -49,6 +49,7 @@ import {
   focusLines,
   glint,
   glow,
+  PALE,
   impact,
   put,
   shake,
@@ -264,6 +265,36 @@ const SLIP_FALL = [
   [12.3, 22],
 ];
 
+// the flickers on the roll's ten strokes, in the order the fight will show them
+const RUSH_INSERTS = [
+  'sun',
+  'ford',
+  'guard',
+  'edricEye',
+  'spray',
+  'helm',
+  'clash',
+  'crimson',
+  'struck',
+  'fall',
+];
+
+// the bind's push and give: [time, -1..1] (see bindPush); BIND_SHIFT metres at +-1
+const PUSH = [
+  [7.2, 0],
+  [8.0, 0],
+  [8.3, 0.55],
+  [8.6, 1],
+  [8.85, 0.95],
+  [9.0, 0.25],
+  [9.25, -0.85],
+  [9.45, -0.5],
+  [9.6, 0.05],
+];
+const BIND_SHIFT = 0.07;
+// the hips of the drawings held in the bind, cell px (annotated by eye on the atlases)
+const HIPS = { edric_slide_burst: [233, 172], warden_yield_cut: [153, 167] };
+
 const FALL_TIP = 1;
 const BIND_LEAN = 1; // which way a positive lean tips a figure toward +X (by eye) // which way the flipped slip clip rotates to lie back (by eye)
 const RUN_H = 1.76; // edric_run's cell height in metres (the runner is ~1.68 m in it)
@@ -361,6 +392,10 @@ export class FordPiece extends Piece {
       x.fill();
       this.img.wGuard = c;
     }
+    // gold is the Thread's alone: the struck close-up was painted in amber light, which
+    // the palette snaps to the ember ramp (a yellow face, brass armour). Its warm tan is
+    // turned toward skin and steel before the plate is built.
+    if (this.img.struck) this.img.struck = retoneWarm(this.img.struck);
   }
 
   // ------------------------------------------------------------------ figures
@@ -447,6 +482,7 @@ export class FordPiece extends Piece {
         M = this.motion(name, bucket(px), { flip });
         return M.layer(i);
       },
+      motionRef: () => M,
       place: (x, y, s) => M.place(x, y, s),
       xf: o.rot ? { rot: o.rot } : undefined,
       opts: o.opts,
@@ -484,8 +520,10 @@ export class FordPiece extends Piece {
     xf.sy = (xf.sy ?? 1) * sy;
     const m = layerMatrix(xf, { x: W / 2, y: H / 2, zoom: 1, rot: 0 }, W, H);
     const k = st.h / a.cut.h;
-    const lu = a.flip ? st.w - u * k : u * k;
-    const lv = v * k;
+    let lu = a.flip ? st.w - u * k : u * k;
+    let lv = v * k;
+    // a body bent by the bind (bendActor): the point goes where the drawing was moved to
+    if (a.bend) [lu, lv] = a.bend.fwd(lu, lv);
     const sx = m[0] * lu + m[1] * lv + m[2];
     const syy = m[3] * lu + m[4] * lv + m[5];
     // the card faces the camera at the feet's depth: offsets along the camera's right/up
@@ -659,41 +697,115 @@ export class FordPiece extends Piece {
       f[o + 1] = 19 + (f[o + 1] - 207) * 0.05;
       f[o + 2] = 30 + (f[o + 2] - 196) * 0.05;
     }
+    // single-frame inserts on the roll's strokes: this future flickering past. Each lands
+    // on the first frame at or after its stroke, the slow early strokes hold two frames and
+    // the fast late ones (under two frames apart) one, so every image is on the drum.
     const roll = HITS('roll', 0, S.rush[1]);
+    const fr = Math.round(t * 24);
     let hi = -1;
-    for (let i = 0; i < roll.length; i++) if (roll[i] <= t + 1e-6) hi = i;
-    // single-frame inserts on the roll's strokes: this future flickering past
-    const INS = ['sun', 'helm', 'ford', 'edricEye', 'sun', 'struck', 'helm', 'ford', 'sun', 'helm'];
-    if (hi >= 0 && t - roll[hi] < 1 / 24 - 1e-3) {
-      const name = INS[hi % INS.length];
-      if (name === 'sun') hollowSun(f, W, H, 240, 135, 60, t, 1);
-      else if (name === 'ford') {
-        this.world.render(
-          f,
-          t + 5,
-          { x: 1.5, y: 1.4, z: -9, yaw: -0.05, pitch: -0.05, focal: 300 },
-          {
-            stage: 1,
-            rain: 0.5,
-          },
-        );
-      } else {
-        const l = this.plateOf(name, { zoom: 1.15, skin: name !== 'helm' });
-        if (l) this.draw(f, l, name === 'struck' ? 1 : 0, null, pageCam(240, 135, 1.1));
-      }
+    for (let i = 0; i < roll.length; i++) {
+      const start = Math.ceil(roll[i] * 24 - 1e-3);
+      const hold = roll[i + 1] !== undefined && (roll[i + 1] - roll[i]) * 24 > 2.2 ? 2 : 1;
+      if (fr >= start && fr < start + hold) hi = i;
     }
+    if (hi >= 0) this.rushInsert(f, RUSH_INSERTS[hi % RUSH_INSERTS.length], t);
+    // the tunnel's lines thin out over an insert so the image reads
+    const ins = hi >= 0 ? 0.3 : 1;
     focusLines(f, W, H, 240, 135, twos(t), {
       inner: 24,
       count: 150,
       width: 3,
       color: RGB.graphite,
-      amount: 0.35 + 0.5 * k,
+      amount: (0.35 + 0.5 * k) * ins,
       aspect: 1.3,
       jitter: 0.9,
     });
-    threadTunnel(f, W, H, 240, 135, t, { speed: 1.1 + 3.5 * k * k, amount: 0.55 + 0.45 * k });
-    glow(f, W, H, 240, 135, 30 + 70 * k, 0.6 + 0.4 * k);
+    threadTunnel(f, W, H, 240, 135, t, {
+      speed: 1.1 + 3.5 * k * k,
+      amount: (0.55 + 0.45 * k) * ins,
+    });
+    glow(f, W, H, 240, 135, 30 + 70 * k, (0.6 + 0.4 * k) * ins);
     flash(f, W, H, smooth(0.6, 0.8, lt) * 0.97);
+  }
+
+  /**
+   * One flicker of the roll: a glimpse of a shot to come, drawn as ink lines (paint stage
+   * 1) so it is a drawing of the future, not the future itself.
+   */
+  rushInsert(f, name, t) {
+    const wx = actorAt('warden', TIME.plant).X;
+    switch (name) {
+      case 'sun':
+        hollowSun(f, W, H, 240, 135, 60, t, 1);
+        break;
+      case 'ford':
+        this.world.render(
+          f,
+          t + 5,
+          { x: 1.5, y: 1.4, z: -9, yaw: -0.05, pitch: -0.05, focal: 300 },
+          { stage: 1, rain: 0.5 },
+        );
+        break;
+      case 'guard': {
+        const cam = lookAt(
+          { x: wx - 1.65, y: 0.6, z: -2.6 },
+          { x: wx - 0.36, y: 1.04, z: 0 },
+          { focal: 364, roll: 0.01 },
+        );
+        const wd = this.clipActor('warden_level', 14, wx, 0, -1, { fb: 'wGuard', rings: 0.4 });
+        this.world.render(f, 3.9, cam, { stage: 1, rain: 0.7, actors: [wd], wind: 1 });
+        break;
+      }
+      case 'spray': {
+        const cam = lookAt({ x: 1.4, y: 0.5, z: -2.1 }, { x: 2.5, y: 1.0, z: 0 }, { focal: 300 });
+        this.world.render(f, 6.9, cam, {
+          stage: 1,
+          rain: 0.8,
+          sprays: [{ X: 1.3, Z: -0.1, age: 0.5, width: 3.0, dir: 1, height: 2.4, seed: 4 }],
+        });
+        break;
+      }
+      case 'clash': {
+        // white sparks and a star on the ink: the bind's contact
+        for (let i = 0; i < W * H * 4; i += 4) {
+          f[i] = 14;
+          f[i + 1] = 12;
+          f[i + 2] = 22;
+        }
+        sparks(f, W, H, 250, 120, t + 0.15, t, { count: 90, speed: 300, life: 0.4, seed: 8 });
+        star(f, W, H, 250, 120, 44, RGB.paperHi);
+        glow(f, W, H, 250, 120, 36, 0.9, PALE);
+        break;
+      }
+      case 'crimson': {
+        for (let i = 0; i < W * H * 4; i += 4) {
+          f[i] = 14;
+          f[i + 1] = 12;
+          f[i + 2] = 22;
+        }
+        crescent(f, 240, 150, 0.16, 7);
+        break;
+      }
+      case 'fall': {
+        const cam = lookAt(
+          { x: 3.95, y: 0.36, z: 2.2 },
+          { x: 3.72, y: 0.5, z: -0.4 },
+          { focal: 300, roll: 0.015 },
+        );
+        const ed = this.clipActor('edric_slip_fall', 16, 3.6, -0.45, 1, {
+          flip: true,
+          fb: 'eOver',
+          Y: -0.15,
+          rot: 0.5,
+        });
+        this.world.render(f, 12.1, cam, { stage: 1, rain: 0.75, actors: [ed], wind: 0.9 });
+        break;
+      }
+      default: {
+        const l = this.plateOf(name, { zoom: 1.15, skin: name !== 'helm' });
+        if (l) this.draw(f, l, name === 'struck' ? 1 : 0, null, pageCam(240, 135, 1.1));
+      }
+    }
   }
 
   // --- 2 · 29.1: extreme wide. Crane down from the Hollow Sun to the ford --------------
@@ -887,11 +999,14 @@ export class FordPiece extends Piece {
       if (lc > 0.62) star(f, W, H, tip.x, tip.y, 2 + (twos(t) % 2), RGB.paperHi);
       const fk = smooth(SET, SET + 0.2, lc);
       focusLines(f, W, H, tip.x, tip.y, twos(t), {
-        inner: 150,
-        amount: 0.16 * fk,
-        aspect: 1.6,
-        width: 2,
-        color: RGB.sepia,
+        inner: 70,
+        outer: 230,
+        count: 150,
+        amount: 0.3 * fk,
+        aspect: 1.5,
+        width: 3,
+        jitter: 0.5,
+        color: RGB.graphite,
       });
     }
   }
@@ -911,15 +1026,18 @@ export class FordPiece extends Piece {
         z: -2.75,
         x0: -8,
         x1: 6,
-        step: 1.3,
+        arch: 1.15, // blades bend over in an arch: the tips sweep through the frame
+        step: 1.7,
         kind: 'mixed',
-        h: 0.62,
+        h: 1.35,
         stoneH: 0.16,
-        gaps: 0.35,
+        gaps: 0.42,
         seed: 5,
         Y: 0,
       }),
     );
+    // the leaves pass the lens ~3.6 times faster than the runner: dragged into streaks
+    const fgV = ((actorAt('edric', t).X - actorAt('edric', t - 1 / 24).X) * cam.focal) / 0.95;
     const splashes = run.falls.map((s, i) => ({
       X: s.X + 0.15,
       Z: (i % 2 ? 0.12 : -0.1) + 0,
@@ -933,6 +1051,7 @@ export class FordPiece extends Piece {
       actors: [run.actor],
       splashes,
       foreground: fg,
+      foregroundSmear: -fgV,
       wind: 1.1,
     });
   }
@@ -1046,13 +1165,9 @@ export class FordPiece extends Piece {
    * ground with the bind and steps back on the yield.
    */
   station(aa) {
-    // in the bind the pair rocks a hair, push and give, on threes (feet deep in the water)
-    const rock =
-      aa > TIME.bind - 0.3 && aa < TIME.yield
-        ? 0.035 *
-          Math.sin((onN(aa, 3) - TIME.bind) * 4.1) *
-          smooth(TIME.bind - 0.3, TIME.bind + 0.2, aa)
-        : 0;
+    // in the bind the pair moves as one: Edric presses and the Warden gives ground, then
+    // he presses back (bindPush), both bodies carried the same way so the blades stay crossed
+    const rock = BIND_SHIFT * this.bindPush(aa);
     const bx = this.bindX(clamp(aa, TIME.clash, 10.4)) + rock;
     const E = CLIP.edric_slide_burst;
     const Wc = CLIP.warden_yield_cut;
@@ -1068,6 +1183,33 @@ export class FordPiece extends Piece {
     const shaftX = p0[0] + (p1[0] - p0[0]) * u; // from the Warden's anchor (he faces -X)
     const step = 0.6 * smooth(10.4, 10.62, aa) + 0.12 * smooth(11.2, 11.35, aa);
     return { e: bx - bm[0], w: bx - shaftX + step, bx, by: bm[1] };
+  }
+
+  /**
+   * The push and give of the bind, -1..1 (+1: Edric presses and the Warden gives ground;
+   * -1: the Warden presses back). Eased between held keys: a surge, a hold at its top, the
+   * counter, the final lock (equal strain, trembling) where the helm will decide.
+   */
+  bindPush(aa) {
+    if (aa <= PUSH[0][0] || aa >= PUSH[PUSH.length - 1][0]) return 0;
+    for (let i = 1; i < PUSH.length; i++)
+      if (aa < PUSH[i][0]) {
+        const [t0, v0] = PUSH[i - 1];
+        const [t1, v1] = PUSH[i];
+        return lerp(v0, v1, smooth(t0, t1, aa));
+      }
+    return 0;
+  }
+
+  /** How far each body leans (radians, + toward screen right) at aa, on the push. */
+  bindLean(aa) {
+    const p = this.bindPush(aa);
+    const strain = smooth(TIME.bind, TIME.decide, aa);
+    const d = twos(aa); // a tremor on twos that grows toward the decision
+    return {
+      e: 0.015 + 0.05 * p + strain * 0.011 * Math.sin(d * 2.7),
+      w: -0.015 + 0.045 * p + strain * 0.011 * Math.sin(d * 2.7 + 1.9),
+    };
   }
 
   /** The bind point's X from the blocking (held at its ends outside the bind). */
@@ -1240,7 +1382,7 @@ export class FordPiece extends Piece {
     // impact frames: ink and paper, on the crash (inside the hit-stop's held frames)
     if (lt < 1 / 24) impact(f, W, H, { mode: 'neg' });
     else if (lt < 2 / 24) impact(f, W, H, { mode: 'pos' });
-    else if (lt < 3 / 24 && c) glow(f, W, H, c[0], c[1], 40, 0.8);
+    else if (lt < 3 / 24 && c) glow(f, W, H, c[0], c[1], 40, 0.8, PALE);
   }
 
   /** The screen point where Edric's blade crosses the Warden's shaft (bind clips), or null. */
@@ -1262,10 +1404,10 @@ export class FordPiece extends Piece {
     const lt = t - t0;
     const a = act(t);
     const a3 = onN(a, 3); // the hold on threes
-    const st = this.station(a3);
-    // the orbit: the background one way, the reeds the other
+    // the orbit: the background one way, the reeds the other (centred on the bind's rest
+    // point, not on the pair, so their push and give shows against the frame)
     const ang = lerp(-0.42, -0.08, lt / (t1 - t0));
-    const cam0 = orbit({ x: st.bx - 0.15, y: 0.9, z: 0 }, 3.0, ang, 1.2, {
+    const cam0 = orbit({ x: this.bindX(a3) - 0.15, y: 0.9, z: 0 }, 3.0, ang, 1.2, {
       focal: 390,
       lookY: 0.86,
     });
@@ -1294,13 +1436,11 @@ export class FordPiece extends Piece {
     });
     const ed = this.edricAt(a3, a3);
     const wd = this.wardenAt(a3, a3);
-    // the bodies strain: each leans into the lock as it presses and is bent back as the
-    // other does (counter-phased, on threes), with a tremor that grows toward the decision
-    const push = Math.sin((a3 - TIME.bind) * 4.1);
-    const strain = smooth(TIME.bind, TIME.decide, a);
-    const trem = (k) => strain * 0.012 * Math.sin(twos(a) * 2.7 + k);
-    ed.actor.xf = { rot: BIND_LEAN * (0.03 + 0.03 * push) + trem(0) };
-    wd.xf = { rot: -BIND_LEAN * (0.02 - 0.03 * push) + trem(1.9) };
+    // the bodies push and give: the trunks bend about the hips, each into the lock as it
+    // presses and back as the other does, with a tremor that grows toward the decision
+    const ln = this.bindLean(a3);
+    bendActor(ed.actor, { pivot: HIPS.edric_slide_burst, ramp: 75, lean: ln.e });
+    bendActor(wd, { pivot: HIPS.warden_yield_cut, ramp: 75, lean: ln.w });
     this.world.render(f, a, cam, {
       rain: 0.9,
       rainWind: [2.2, 0.4],
@@ -1310,28 +1450,39 @@ export class FordPiece extends Piece {
     });
     const c = this.contact(ed.actor, wd, cam);
     if (c) {
-      // sparks grinding on twos: a few each drawing, thrown down along the shaft
-      const d = twos(a);
+      // sparks grind down the shaft where the steel meets it, a fresh few each drawing
+      // (threes), more as the pressure rises, thrown along the shaft and falling
+      const pt = this.cardPoint(wd, cam, ...CPTS.shaft.point);
+      const bt = this.cardPoint(wd, cam, ...CPTS.shaft.butt);
+      const along = Math.atan2(bt.y - pt.y, bt.x - pt.x);
+      const d = Math.floor(a * 8);
+      const press = Math.abs(this.bindPush(a3));
+      const n = Math.round(11 + 14 * press);
       for (let k = 0; k < 3; k++)
-        sparks(f, W, H, c[0], c[1], a, (d - k) / 12, {
-          count: 11,
-          speed: 190,
-          life: 0.24,
+        sparks(f, W, H, c[0], c[1], a, (d - k) / 8, {
+          count: n,
+          speed: 160 + 100 * press,
+          life: 0.34,
           seed: 100 + d - k,
-          dir: 2.3,
+          dir: along + 0.25 * (((d - k) % 3) - 1),
         });
-      glow(f, W, H, c[0], c[1], 9, 0.45 + 0.25 * (d % 2));
-      if (d % 2) star(f, W, H, c[0], c[1], 5, RGB.paperHi);
+      glow(f, W, H, c[0], c[1], 8 + 3 * press, 0.4 + 0.25 * (d % 2), PALE);
+      if (d % 2) star(f, W, H, c[0], c[1], 4 + Math.round(2 * press), RGB.paperHi);
     }
-    // breath, on threes: a pale puff at Edric's mouth
+    // breath, on threes: a pale puff at Edric's mouth, and the Warden's through his visor
     this.breath(f, ed.actor, cam, a3, 1);
+    this.breath(f, wd, cam, a3, 2);
   }
 
   /** A breath: a small pale puff at Edric's mouth that forms and thins on threes. */
   breath(f, a, cam, t, seed) {
     const ph = (((t * 0.85 + seed * 0.3) % 1) + 1) % 1;
-    if (ph > 0.55 || a.cut.key !== 'edric_slide_burst') return;
-    const m = this.cardPoint(a, cam, 254, 108);
+    if (ph > 0.55) return;
+    // the mouth (Edric) or the visor's slit (the Warden), in cell px, and which way it drifts
+    const at = { edric_slide_burst: [254, 108, 1], warden_yield_cut: [110, 92, -1] }[a.cut.key];
+    if (!at) return;
+    const m = this.cardPoint(a, cam, at[0], at[1]);
+    const dirn = a.flip ? -at[2] : at[2];
     const r = 1.5 + ph * 7;
     for (let y = -r; y <= r; y++)
       for (let x = -r; x <= r; x++) {
@@ -1339,7 +1490,7 @@ export class FordPiece extends Piece {
         if (d > 1) continue;
         const k = (1 - d) * (1 - ph / 0.55) * 0.6;
         if (k > hashDither(x, y))
-          put(f, W, H, m.x + 3 + x + ph * 12, m.y + y - ph * 3, RGB.paperHi);
+          put(f, W, H, m.x + dirn * (3 + ph * 12) + x, m.y + y - ph * 3, RGB.paperHi);
       }
   }
 
@@ -1397,7 +1548,7 @@ export class FordPiece extends Piece {
     if (on > 0) {
       const flare = on < 0.1 ? 5 : on < 0.2 ? 3 : 2 + ((twos(t) >> 1) % 2);
       star(f, W, H, ex, ey, flare, RGB.paperHi);
-      if (on < 0.25) glow(f, W, H, ex, ey, 14, 0.5 * (1 - on / 0.25));
+      if (on < 0.25) glow(f, W, H, ex, ey, 14, 0.5 * (1 - on / 0.25), PALE);
     }
     // rain in front of him (drawings on twos)
     speedLines(f, W, H, t, {
@@ -1770,6 +1921,110 @@ function shorten(sk, len) {
 }
 
 const hashDither = (x, y) => hash(x & 63, y & 63, 5);
+
+/**
+ * A trunk bend for a clip drawing (the skin idea of engine/skin.js, reduced to one joint,
+ * for the small push and give of a bind: a few degrees, well inside the +-25 deg trunk
+ * limit). Everything above the hips turns about them, more the higher it is (a smooth
+ * ramp), so hips and feet stay and the shoulders, arms and weapon lean together.
+ * spec: { pivot: [x, y] the hips in cell px, ramp: cell px over which the bend builds,
+ * lean: radians, positive = the top goes toward screen right }.
+ */
+class Bend {
+  constructor(actor, spec) {
+    this.a = actor;
+    this.spec = spec;
+  }
+
+  /** Layer-space pivot, ramp and scale of the drawing in use. */
+  frame() {
+    const M = this.a.motionRef();
+    const k = M.s;
+    const { pivot, ramp } = this.spec;
+    const flip = this.a.flip;
+    return { Px: flip ? M.w - pivot[0] * k : pivot[0] * k, Py: pivot[1] * k, L: ramp * k };
+  }
+
+  /** Where a drawing point (layer px) is moved to. */
+  fwd(lu, lv) {
+    const { Px, Py, L } = this.frame();
+    const lean = this.spec.lean;
+    if (!lean) return [lu, lv];
+    const h = clamp((Py - lv) / L);
+    const phi = lean * h * h * (3 - 2 * h);
+    const c = Math.cos(phi);
+    const sn = Math.sin(phi);
+    const dx = lu - Px;
+    const dy = lv - Py;
+    return [Px + dx * c - dy * sn, Py + dx * sn + dy * c];
+  }
+
+  /** drawSprite's warp: where in the drawing the pixel at (u, v) is taken from. */
+  warp(u, v, out) {
+    const lean = this.spec.lean;
+    if (!lean) {
+      out[0] = 0;
+      out[1] = 0;
+      return;
+    }
+    const { Px, Py, L } = this.frame();
+    const h = clamp((Py - v) / L);
+    const phi = lean * h * h * (3 - 2 * h);
+    const c = Math.cos(phi);
+    const sn = Math.sin(phi);
+    const dx = u - Px;
+    const dy = v - Py;
+    out[0] = Px + dx * c + dy * sn - u;
+    out[1] = Py - dx * sn + dy * c - v;
+  }
+}
+
+/** Bend an actor's drawing (see Bend). Returns the actor. */
+function bendActor(actor, spec) {
+  actor.bend = new Bend(actor, spec);
+  actor.opts = { ...actor.opts, warp: (u, v, out) => actor.bend.warp(u, v, out) };
+  return actor;
+}
+
+/**
+ * A painting with its amber tan (hue 26-56 degrees, mid saturation, light) turned toward
+ * peach and grey: skin snaps to the skin ramp and brass to steel instead of the ember
+ * ramp's gold. Hair, cloth and everything not amber are left alone.
+ */
+function retoneWarm(img, hk = 0.6, sk = 0.65) {
+  const c = new OffscreenCanvas(img.width, img.height);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height);
+  const p = d.data;
+  for (let i = 0; i < p.length; i += 4) {
+    const r = p[i] / 255;
+    const g = p[i + 1] / 255;
+    const b = p[i + 2] / 255;
+    const mx = Math.max(r, g, b);
+    const dd = mx - Math.min(r, g, b);
+    if (mx < 0.5 || dd < 1e-6) continue;
+    const s = dd / mx;
+    if (s <= 0.25 || s >= 0.85) continue;
+    let h;
+    if (mx === r) h = (((g - b) / dd) % 6) * 60;
+    else if (mx === g) h = ((b - r) / dd + 2) * 60;
+    else h = ((r - g) / dd + 4) * 60;
+    if (h < 0) h += 360;
+    if (h <= 26 || h >= 56) continue;
+    const h2 = h * hk;
+    const s2 = s * sk;
+    const cc = mx * s2;
+    const xx = cc * (1 - Math.abs(((h2 / 60) % 2) - 1));
+    const m = mx - cc;
+    // hue is 15-34 degrees here: red-to-yellow sextant
+    p[i] = (cc + m) * 255;
+    p[i + 1] = (xx + m) * 255;
+    p[i + 2] = m * 255;
+  }
+  x.putImageData(d, 0, 0);
+  return c;
+}
 
 /** Page point (x, y) through a page camera -> screen. */
 function scrPage(c, x, y) {
