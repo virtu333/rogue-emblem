@@ -1573,7 +1573,7 @@ export class FordPiece extends Piece {
    * onto it (the blocking swings him toward the camera here).
    */
   slipZ(aa) {
-    return -0.5 * smooth(10.28, 10.55, aa);
+    return -0.6 * smooth(10.28, 10.55, aa);
   }
 
   /** The top of the slick stone: what Edric's lead foot lands on. */
@@ -1661,7 +1661,7 @@ export class FordPiece extends Piece {
     const a = act(t);
     const aa = onN(a, 2);
     const hit = TIME.clash + 4 / 24; // the frame after the stop's first impact frames
-    const cam0 = lookAt({ x: 3.45, y: 1.05, z: -3.9 }, { x: 3.62, y: 0.9, z: 0 }, { focal: 330 });
+    const cam0 = lookAt({ x: 3.45, y: 1.35, z: -3.9 }, { x: 3.62, y: 0.82, z: 0 }, { focal: 330 });
     const [sx, sy, sr] = shake(t, [[hit, 1]], 7, 0.13, 0.015);
     const punch = 1 + 0.1 * pulse(t, [hit], 0.14);
     const cam = nudge({ ...cam0, focal: cam0.focal * punch }, sx, sy, sr);
@@ -1719,10 +1719,10 @@ export class FordPiece extends Piece {
     const a3 = onN(a, 3); // the hold on threes
     // the orbit: the background one way, the reeds the other (centred on the bind's rest
     // point, not on the pair, so their push and give shows against the frame)
-    const ang = lerp(-0.42, -0.08, lt / (t1 - t0));
-    const cam0 = orbit({ x: this.bindX(a3) - 0.15, y: 0.9, z: 0 }, 3.0, ang, 1.2, {
-      focal: 390,
-      lookY: 0.86,
+    const ang = lerp(-0.5, -0.15, lt / (t1 - t0));
+    const cam0 = orbit({ x: this.bindX(a3) - 0.15, y: 0.9, z: 0 }, 3.1, ang, 1.4, {
+      focal: 385,
+      lookY: 0.76,
     });
     const [sx, sy] = shake(
       t,
@@ -1937,7 +1937,7 @@ export class FordPiece extends Piece {
       rain: 0.8,
       actors: [ed.actor, wd],
       splashes: [
-        { X: 3.72, Z: -0.55, t0: TIME.stone, strength: 0.8, seed: 61 },
+        { X: 3.72, Z: -0.6, t0: TIME.stone, strength: 0.8, seed: 61 },
         { X: 4.2, Z: 0.1, t0: 10.95, strength: 0.8, seed: 62 },
         { X: this.station(10.62).w - 0.2, Z: 0, t0: 10.6, strength: 0.6, seed: 63 },
       ],

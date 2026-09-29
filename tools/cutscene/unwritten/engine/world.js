@@ -627,7 +627,7 @@ function makeStones(seed) {
     { X: -1.5, Z: -1.15, a: 0.36, c: 0.3, top: 0.12, ry: 0.32, yaw: -0.5 },
     { X: 2.0, Z: 0.6, a: 0.46, c: 0.38, top: 0.2, ry: 0.4, yaw: 0.9 },
     // the slick one Edric slips on: low and flat
-    { X: 3.72, Z: -0.55, a: 0.6, c: 0.44, top: 0.07, ry: 0.22, yaw: 0.15, slick: true },
+    { X: 3.72, Z: -0.6, a: 0.52, c: 0.38, top: 0.07, ry: 0.22, yaw: 0.15, slick: true },
   ];
   // upstream and downstream, in the river and along its edges
   for (let i = 0; i < 46; i++) {
