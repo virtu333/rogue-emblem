@@ -1,2 +1,1613 @@
-// placeholder while ford.js is written
-export { W, H, DURATION, MUSIC_OFFSET, BAR, FIRST_BAR, at, PieceClass, SHOTS_OF } from './world_test.js';
+// "The Ford" (FORD.md): bars 28.3-36 of "Under the Broken Sun", 13.6 s. One complete
+// future: Edric crosses a ford under the Hollow Sun, fights the Empire's spearman in the
+// river and loses. Sixteen shots, all staged in one procedural world (engine/world.js) from
+// one flat-camera plan (ford_blocking.js), so space stays continuous across the cuts.
+//
+//    1  28.3  the rush down the Thread (the roll); white on the crash
+//    2  29.1  extreme wide: crane down from the Hollow Sun to the ford; the sun's
+//             reflection breaking in the current; Edric starts to run; the line waits
+//    3  30.1  low at the water: the Warden's boots step into the shallows, the line
+//             behind stepping in unison
+//    4  30.3  medium, frontal: the spear levels at the lens (drawn in code), held
+//    5  31.1  tracking profile: Edric runs through the ford, feet locked to the riverbed,
+//             a splash on each footfall, reeds and stones passing the lens
+//    6  31.4  extreme close-up: Edric's eye; the spear point is in it
+//    7  32.1  over the Warden's shoulder: the thrust on the snare, the spear shooting
+//             away from us; Edric drops under it
+//    8  32.2+ wide, low: the spray sheet erupts, the point withdraws through it
+//    9  32.4  three cuts on the fill: spray wall, the helm's eye slit, a shape in the spray
+//   10  33.1  the clash on the crash: impact frames, sparks, hit-stop, a shock ring
+//   11  33.3  the bind: a slow orbit, sparks grinding on twos, rain; the hold
+//   12  34.3  close-up: the helm's eye slit; a tilt; he decides
+//   13  35.1  the yield: the Warden steps away, Edric pitches onto the slick stone; the
+//             camera whips round and crosses the line (the only time)
+//   14  35.3  the crimson cut: negative crimson impact frames, hit-stop
+//   15  35.4  close-up: Edric's face; the spray hangs in the air
+//   16  36.1  wide, low: he falls onto his back in the river; the splash settles; the
+//             Hollow Sun in the water; on the fill the paint lifts off the page
+//
+// The craft (FORD.md): tame and tsume, hit-stop (figures, particles and rain freeze
+// together, then catch up: engine/timing.js), impact frames, smears on fast arcs,
+// drawings on twos (threes in the holds), the camera on ones, shake on hits, foreground
+// passing the lens, footfalls from the clips' contacts (engine/locomotion.js: no sliding
+// feet), shot sizes that never repeat back to back, screen direction held (ours right,
+// the Empire left) and crossed once.
+//
+// World coordinates: X along the crossing (as the blocking), Y up from the water, and the
+// world's Z = -(the blocking's z): the world's camera sits downstream (-Z) looking up the
+// river at the Hollow Sun, so +X is screen right until the line is crossed.
+
+import { Piece, loadImage } from './engine/piece.js';
+import { makePaper } from './engine/compositor.js';
+import { KIT, pulse } from './engine/score.js';
+import { clamp, hash, lerp, smooth } from './engine/raster.js';
+import { layerMatrix, cam as pageCam } from './engine/view.js';
+import {
+  RGB,
+  easeOut,
+  flash,
+  focusLines,
+  glow,
+  impact,
+  put,
+  shake,
+  slash,
+  sparks,
+  speedLines,
+  star,
+  threadTunnel,
+  twos,
+} from './engine/anime.js';
+import { hollowSun } from './engine/fx.js';
+import { hitStop, inStop, keyMove, onN, slowMo } from './engine/timing.js';
+import { spear as drawSpear } from './engine/props.js';
+import { Stride } from './engine/locomotion.js';
+import {
+  World,
+  crane,
+  foregroundRow,
+  impulse,
+  lookAt,
+  nudge,
+  orbit,
+  project,
+  smearFrame,
+} from './engine/world.js';
+import { drawSoldier, history, soldierLook } from './engine/figure.js';
+import {
+  DURATION as BLOCK_DURATION,
+  LINE,
+  MUSIC_OFFSET as BLOCK_OFFSET,
+  TIME,
+  actorAt,
+  bindPoint,
+  groundY as blockGround,
+  skeletonAt,
+} from './ford_blocking.js';
+
+export const W = 480;
+export const H = 270;
+export const FIRST_BAR = 28;
+export const MUSIC_OFFSET = BLOCK_OFFSET; // 44.0 s: bar 28, beat 3
+export const DURATION = BLOCK_DURATION; // at(37): 13.6 s
+export { BAR } from './engine/score.js';
+/** Piece-local time of bar n, beat b. */
+export { at } from './ford_blocking.js';
+
+const DIR = '/docs/art-direction/anime-op';
+const K = `${DIR}/cutouts`;
+const R = `${DIR}/refs`;
+
+// images: every one optional (a missing file falls back; see fig())
+const SRC = {
+  edricEye: `${R}/b01_edric_eye.webp`,
+  helm: `${R}/f_warden_helm.webp`,
+  struck: `${R}/f_edric_struck.webp`,
+  soldier: `${K}/empire_soldier.webp`,
+  standing: `${K}/edric_standing.webp`,
+  charge: `${K}/edric_charge.webp`,
+  falls: `${K}/edric_falls.webp`,
+  wGuard: `${K}/f_warden_poses_1_guard.webp`,
+  wThrust: `${K}/f_warden_poses_2_thrust.webp`,
+  wRecover: `${K}/f_warden_poses_3_recover.webp`,
+  wDecide: `${K}/f_warden_poses_4_decide.webp`,
+  wYield: `${K}/f_warden_cut_1_yield.webp`,
+  wWind: `${K}/f_warden_cut_2_windup.webp`,
+  wCut: `${K}/f_warden_cut_3_cut.webp`,
+  eSlide: `${K}/f_edric_slide_burst_1_slide.webp`,
+  eRise: `${K}/f_edric_slide_burst_2_rise.webp`,
+  eCut: `${K}/f_edric_slide_burst_3_rising_cut.webp`,
+  eOver: `${K}/f_edric_slip_fall_1_overbalance.webp`,
+  eStruck: `${K}/f_edric_slip_fall_2_struck.webp`,
+  eFall: `${K}/f_edric_slip_fall_3_fall.webp`,
+};
+
+// generated clips (skipped when absent): the run, and the batch-7 clips when they land
+const MOTIONS = [
+  'edric_run',
+  'edric_tumble',
+  'warden_thrust',
+  'warden_yield_cut',
+  'edric_slide_burst',
+  'edric_slip_fall',
+];
+
+/**
+ * The cut-outs as figures in the world: which image, metres per source pixel (one scale
+ * per generated sheet, measured on the standing heights), the feet anchor in source px
+ * (f_sheets.json), the way the drawing faces (+1 right), and an optional crop (source px)
+ * that removes a painted weapon so the code can draw it instead.
+ */
+const CUT = {
+  // the Warden (batch 7: the poses sheet and the cut sheet; he is 1.9 m in his helm)
+  wGuard: { img: 'wGuard', mpp: 0.00317, anchor: [217.2, 560], face: -1 },
+  wThrust: { img: 'wThrust', mpp: 0.00317, anchor: [736.9, 533], face: -1 },
+  // the thrust's body, its painted spear cropped off at the hands (the code draws it)
+  wThrustBody: {
+    img: 'wThrust',
+    mpp: 0.00317,
+    anchor: [736.9 - 468, 533],
+    face: -1,
+    crop: { x: 468, y: 0, w: 537, h: 550 },
+  },
+  wRecover: { img: 'wRecover', mpp: 0.00317, anchor: [334.7, 572], face: -1 },
+  wDecide: { img: 'wDecide', mpp: 0.00317, anchor: [130.2, 769], face: -1 },
+  wYield: { img: 'wYield', mpp: 0.00226, anchor: [303.5, 872], face: -1 },
+  wWind: { img: 'wWind', mpp: 0.00226, anchor: [247.1, 926], face: -1 },
+  wCut: { img: 'wCut', mpp: 0.00226, anchor: [292.4, 730], face: -1 },
+  // the old stand-in, for the walk into the water (he steps between it and 'decide')
+  soldier: { img: 'soldier', mpp: 0.00161, anchor: [232, 1278], face: -1 },
+  // Edric (batch 7; 1.78 m)
+  eSlide: { img: 'eSlide', mpp: 0.0021, anchor: [401.4, 473], face: 1 },
+  eRise: { img: 'eRise', mpp: 0.0021, anchor: [411.2, 699], face: 1 },
+  eCut: { img: 'eCut', mpp: 0.0021, anchor: [347, 871], face: 1 },
+  eOver: { img: 'eOver', mpp: 0.0023, anchor: [300.5, 637], face: 1 },
+  eStruck: { img: 'eStruck', mpp: 0.0023, anchor: [223.6, 676], face: 1 },
+  eFall: { img: 'eFall', mpp: 0.0023, anchor: [382.4, 499], face: 1 },
+  charge: { img: 'charge', mpp: 0.00135, anchor: [440, 1170], face: 1 },
+  standing: { img: 'standing', mpp: 0.00122, anchor: [470, 1460], face: 1 },
+};
+// what a missing drawing falls back to
+const FALLBACK = {
+  wGuard: 'soldier',
+  wThrust: 'soldier',
+  wThrustBody: 'soldier',
+  wRecover: 'soldier',
+  wDecide: 'soldier',
+  wYield: 'soldier',
+  wWind: 'soldier',
+  wCut: 'soldier',
+  eSlide: 'charge',
+  eRise: 'charge',
+  eCut: 'charge',
+  eOver: 'charge',
+  eStruck: 'standing',
+  eFall: 'standing',
+};
+
+// points on the drawings (source px): hands, blade and shaft ends, for the code to use
+const PTS = {
+  wGuard: { lead: [150, 286], rear: [266, 254] },
+  wThrustBody: { lead: [14, 150], rear: [95, 150] },
+  wRecover: { point: [20, 65], butt: [465, 285] },
+  eCut: { hilt: [452, 250], tip: [556, 24] },
+  eRise: { hilt: [905 - 456, 408 - 185], tip: [600 - 456, 203 - 185] },
+};
+
+/**
+ * The batch-7 clips (MiniMax, 12 fps, not stabilised: each figure moves inside a fixed
+ * cell, so a cell held at one world point keeps the planted feet planted). mpp: metres
+ * per cell px, from each clip's first drawing against the cut-out it was made from.
+ * Points in cell px, measured on the atlases.
+ */
+const CLIP = {
+  warden_thrust: { mpp: 0.00595, cell: [582, 300], anchor: [402.7, 295], face: -1 },
+  warden_yield_cut: { mpp: 0.00809, cell: [332, 300], anchor: [151.6, 278], face: -1 },
+  edric_slide_burst: { mpp: 0.00627, cell: [458, 300], anchor: [209.6, 295], face: 1 },
+  edric_slip_fall: { mpp: 0.0063, cell: [433, 300], anchor: [343.7, 292], face: 1 },
+};
+const CPTS = {
+  // the Warden's shaft in the bind stance (yield_cut drawings 0-5): point, lower hand end
+  shaft: { point: [76, 41], butt: [163, 245] },
+  // Edric's blade in the rising cut: as it strikes (drawings 10-11), then held in the
+  // bind (12-20: shorter and steeper, pressed against the shaft)
+  strike: { hilt: [304, 90], tip: [367, 5] },
+  blade: { hilt: [300, 94], tip: [330, 26] },
+};
+
+/** A frame schedule [[t, frame], ...] -> the drawing at t (held between keys, floored). */
+const frameAt = (keys, t) => {
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++)
+    if (t < keys[i][0]) {
+      const [t0, f0] = keys[i - 1];
+      const [t1, f1] = keys[i];
+      return Math.floor(f0 + ((f1 - f0) * (t - t0)) / (t1 - t0));
+    }
+  return keys[keys.length - 1][1];
+};
+// Edric: the slide held, the burst on the clash, the rising cut held through the bind
+const SLIDE_BURST = [
+  [5.97, 0],
+  [6.8, 5],
+  [6.95, 6],
+  [7.2, 10],
+  [8.4, 13],
+  [10.4, 20],
+];
+// the Warden: the yield's step on the kick, the wind-up, the cut on the crash, the follow
+const YIELD_CUT = [
+  [7.0, 0],
+  [10.3, 5],
+  [10.4, 6],
+  [10.62, 10],
+  [10.8, 14],
+  [10.95, 17],
+  [11.1, 25],
+  [11.16, 26],
+  [11.3, 28],
+  [11.7, 33],
+  [13.6, 41],
+];
+// Edric: the overbalance, struck on the crash, falling back
+const SLIP_FALL = [
+  [10.4, 0],
+  [11.12, 4],
+  [11.2, 5],
+  [11.6, 10],
+  [12.0, 14],
+  [12.3, 22],
+];
+
+const RUN_H = 1.76; // edric_run's cell height in metres (the runner is ~1.68 m in it)
+
+/** Build figures near the size they are seen at (in steps of about a tenth). */
+const bucket = (px) => {
+  const p = Math.max(10, Math.min(560, px));
+  return Math.round(10 * 1.1 ** Math.round(Math.log(p / 10) / Math.log(1.1)));
+};
+const step = (u, n) => Math.floor(clamp(u) * n) / n; // progress in n stutters
+const Zw = (zb) => -zb; // the blocking's z to the world's Z
+
+// hit-stops: the thrust (short), the clash and the cut (long). Everything that acts reads
+// its time through these; only the camera keeps the score's clock.
+const STOPS = [
+  { t: TIME.thrust, hold: 2, catch: 3 },
+  { t: TIME.clash, hold: 4, catch: 5 },
+  { t: TIME.cut, hold: 4, catch: 4 },
+];
+const act = (t) => hitStop(t, STOPS);
+
+const HITS = (name, t0, t1) =>
+  KIT[name].map((h) => h.t - MUSIC_OFFSET).filter((x) => x >= t0 - 1e-6 && x < t1);
+
+// the shots' edges, on the drums
+const S = {
+  rush: [0, TIME.run],
+  wide: [TIME.run, TIME.water],
+  low: [TIME.water, TIME.level],
+  level: [TIME.level, TIME.plant],
+  track: [TIME.plant, TIME.eye],
+  eye: [TIME.eye, TIME.charge],
+  ots: [TIME.charge, 6.2],
+  spray: [6.2, TIME.sprayEnd],
+  wall: [TIME.sprayEnd, 7.0],
+  slit: [7.0, 7.1],
+  shape: [7.1, TIME.clash],
+  clash: [TIME.clash, TIME.bind],
+  bind: [TIME.bind, TIME.decide],
+  helm: [TIME.decide, TIME.yield],
+  yield: [TIME.yield, TIME.cut],
+  cut: [TIME.cut, 11.6],
+  face: [11.6, TIME.fall],
+  fall: [TIME.fall, DURATION],
+};
+
+export class FordPiece extends Piece {
+  constructor() {
+    super(W, H);
+    this.shots = this.makeShots();
+  }
+
+  async load() {
+    // every image optional: a missing one is skipped and its drawings fall back
+    const imgs = await Promise.all(
+      Object.entries(SRC).map(async ([k, s]) => {
+        try {
+          return [k, await loadImage(s)];
+        } catch {
+          return [k, null];
+        }
+      }),
+    );
+    this.img = Object.fromEntries(imgs.filter(([, v]) => v));
+    this.paper = makePaper(W, H);
+    await this.loadMotions(`${DIR}/motion`, MOTIONS);
+    this.build(this.params);
+    // the ford's stones where the blocking has them (the slick one under Edric's foot)
+    this.world = new World({ paper: this.paper, W, H });
+    this.prepare();
+  }
+
+  /** Images cleaned up once for the code: the guard's spear stub is removed. */
+  prepare() {
+    const g = this.img.wGuard;
+    if (g) {
+      const c = new OffscreenCanvas(g.width, g.height);
+      const x = c.getContext('2d');
+      x.drawImage(g, 0, 0);
+      // the painted shaft below and ahead of the lead hand: the code draws the spear
+      x.globalCompositeOperation = 'destination-out';
+      x.beginPath();
+      x.moveTo(60, 262);
+      x.lineTo(138, 262);
+      x.lineTo(138, 298);
+      x.lineTo(128, 330);
+      x.lineTo(60, 340);
+      x.closePath();
+      x.fill();
+      this.img.wGuard = c;
+    }
+  }
+
+  // ------------------------------------------------------------------ figures
+
+  /** A cut-out spec (with its fallback when the image is missing). */
+  cut(key) {
+    let k = key;
+    if (!this.img[CUT[k].img] && FALLBACK[k]) k = FALLBACK[k];
+    if (!this.img[CUT[k].img]) k = 'soldier';
+    const c = CUT[k];
+    const im = this.img[c.img];
+    const w = c.crop ? c.crop.w : im.width;
+    const h = c.crop ? c.crop.h : im.height;
+    return { key: k, ...c, im, w, h, height: h * c.mpp };
+  }
+
+  /** The figure layer of a cut-out built at px tall. */
+  layerOf(c, px, flip) {
+    return this.figure(`${c.key}${c.crop ? ':c' : ''}`, c.im, bucket(px), {
+      flip,
+      crop: c.crop,
+    });
+  }
+
+  /**
+   * A cut-out standing in the world at (X, Z) (world Z), facing `face` (+1 screen right
+   * on the uncrossed side). o: { flip (screen), Y, stage, rings, wade, reflect, rot,
+   * opts, sy }.
+   */
+  actor(key, X, Z, face, o = {}) {
+    const c = this.cut(key);
+    const flip = o.flip ?? c.face !== face;
+    let L = null;
+    return {
+      X,
+      Z,
+      Y: o.Y,
+      height: c.height,
+      cut: c,
+      flip,
+      layerFor: (px) => (L = this.layerOf(c, px, flip)),
+      place: (x, y, s) => {
+        const k = L.st.h / c.h;
+        const ax = flip ? L.st.w - c.anchor[0] * k : c.anchor[0] * k;
+        return { x, y, ax, ay: c.anchor[1] * k, scale: s };
+      },
+      xf: o.rot ? { rot: o.rot } : undefined,
+      opts: o.opts,
+      stage: o.stage,
+      rings: o.rings ?? 0.5,
+      wade: o.wade,
+      reflect: o.reflect,
+      seed: o.seed ?? 1,
+    };
+  }
+
+  /**
+   * A clip drawing standing in the world: the cell's anchor at (X, Z), drawing i. Falls
+   * back to a cut-out (key `fb`) when the clip hasn't been made. o as actor().
+   */
+  clipActor(name, i, X, Z, face, o = {}) {
+    const src = this.motionSrc?.[name];
+    if (!src) return this.actor(o.fb ?? 'soldier', X, Z, face, o);
+    const C = CLIP[name];
+    const flip = o.flip ?? C.face !== face;
+    const cut = {
+      key: name,
+      mpp: C.mpp,
+      anchor: C.anchor,
+      w: C.cell[0],
+      h: C.cell[1],
+      face: C.face,
+    };
+    let M = null;
+    return {
+      X,
+      Z,
+      Y: o.Y,
+      height: C.cell[1] * C.mpp,
+      cut,
+      flip,
+      frame: i,
+      layerFor: (px) => {
+        M = this.motion(name, bucket(px), { flip });
+        return M.layer(i);
+      },
+      place: (x, y, s) => M.place(x, y, s),
+      xf: o.rot ? { rot: o.rot } : undefined,
+      opts: o.opts,
+      stage: o.stage,
+      rings: o.rings ?? 0.5,
+      wade: o.wade,
+      reflect: o.reflect,
+      seed: o.seed ?? 1,
+    };
+  }
+
+  /**
+   * Where a source-px point of a world actor lands, as drawAsActor places it: screen
+   * [x, y] and the world point on the actor's card. Must mirror World.drawActor.
+   */
+  cardPoint(a, cam, u, v) {
+    const w = this.world;
+    const ground = w.groundY(a.X, a.Z);
+    const Y0 = a.Y ?? ground;
+    const feet = project(cam, a.X, Y0, a.Z, W, H);
+    const head = project(cam, a.X, Y0 + a.height, a.Z, W, H);
+    const vx = head.sx - feet.sx;
+    const vy = head.sy - feet.sy;
+    const pxH = Math.hypot(vx, vy);
+    const layer = a.layerFor(pxH);
+    const st = layer.st;
+    const s = (feet.scale * a.height) / st.h;
+    const sy = pxH / (feet.scale * a.height);
+    const base = a.place(feet.sx, feet.sy, s);
+    const xf = { ...base, ...(a.xf || {}) };
+    xf.x = base.x;
+    xf.y = base.y;
+    xf.scale = s;
+    xf.rot = (xf.rot || 0) + Math.atan2(vx, -vy);
+    xf.sy = (xf.sy ?? 1) * sy;
+    const m = layerMatrix(xf, { x: W / 2, y: H / 2, zoom: 1, rot: 0 }, W, H);
+    const k = st.h / a.cut.h;
+    const lu = a.flip ? st.w - u * k : u * k;
+    const lv = v * k;
+    const sx = m[0] * lu + m[1] * lv + m[2];
+    const syy = m[3] * lu + m[4] * lv + m[5];
+    // the card faces the camera at the feet's depth: offsets along the camera's right/up
+    const mpp = a.cut.mpp;
+    const du = (a.flip ? -1 : 1) * (u - a.cut.anchor[0]) * mpp;
+    const dv = (a.cut.anchor[1] - v) * mpp;
+    const yaw = cam.yaw || 0;
+    return {
+      x: sx,
+      y: syy,
+      X: a.X + Math.cos(yaw) * du,
+      Y: Y0 + dv,
+      Z: a.Z - Math.sin(yaw) * du,
+      depth: feet.depth,
+      scale: feet.scale,
+    };
+  }
+
+  /** The screen box of an actor (for effects that must sit on it). */
+  cardBox(a, cam) {
+    const p0 = this.cardPoint(a, cam, 0, 0);
+    const p1 = this.cardPoint(a, cam, a.cut.w, a.cut.h);
+    return [Math.min(p0.x, p1.x), Math.min(p0.y, p1.y), Math.max(p0.x, p1.x), Math.max(p0.y, p1.y)];
+  }
+
+  /**
+   * Edric running on the generated clip, locked to the world: from X0 at t0 he travels
+   * exactly as far as the planted foot needs (Stride), at the rate that covers `speed`
+   * m/s. Returns the actor and the footfalls (world X, time) up to t.
+   */
+  runner(t, t0, X0, speed, o = {}) {
+    const M0 = this.motion('edric_run', 360);
+    if (!M0) {
+      const X = X0 + speed * (t - t0);
+      return { actor: this.actor('charge', X, 0, 1, o), falls: [], X };
+    }
+    const mPerPx = RUN_H / 360;
+    const S0 = this.memo(`stride:${speed.toFixed(3)}`, () => {
+      const at1 = new Stride(M0, { rate: 1 }).speed(1) * mPerPx;
+      return new Stride(M0, { rate: speed / at1 });
+    });
+    const u = Math.max(0, t - t0);
+    const X = X0 + S0.travel(u) * mPerPx;
+    const i = S0.index(u);
+    let M = null;
+    const actor = {
+      X,
+      Z: o.Z ?? 0,
+      height: RUN_H,
+      layerFor: (px) => {
+        M = this.motion('edric_run', bucket(px), { flip: !!o.flip });
+        return M.layer(i);
+      },
+      place: (x, y, s) => M.place(x, y, s),
+      stage: o.stage,
+      rings: 0.9,
+      seed: 3,
+      opts: o.opts,
+    };
+    const falls = S0.footfallsIn(Math.max(0, u - 1.2), u + 1e-6).map((f) => ({
+      X: X0 + f.world * mPerPx,
+      t: t0 + f.u,
+    }));
+    return { actor, falls, X, stride: S0 };
+  }
+
+  /**
+   * The Empire's line (and, far off, the Warden) drawn in code from the blocking's
+   * skeletons (engine/figure.js), as world actors so they wade, reflect and sort.
+   * names: blocking actor names; flip: the crossed side.
+   */
+  soldiers(t, cam, names, o = {}) {
+    const tt = onN(t, 2);
+    return names.map((n, i) => {
+      const sk = shorten(skeletonAt(n, tt), o.spear ?? 2.3);
+      const X = sk.X;
+      const Z = Zw(sk.Z ?? 0);
+      const skW = { ...sk, Z: 0 };
+      const look = soldierLook(o.seedBase ?? 101 + i * 7);
+      // the skeleton stands on the blocking's ground; lift it onto the world's
+      const lift = this.world.groundY(X, Z) - blockGround(X, sk.Z ?? 0);
+      return {
+        X,
+        Z,
+        height: 1.95,
+        wade: true,
+        rings: 0.35,
+        seed: 20 + i,
+        stage: o.stage,
+        box: null,
+        draw: (buf) => {
+          const p = project(cam, X, Math.max(0, lift), Z, W, H);
+          if (p.depth < 0.5) return;
+          const xf = { x: p.sx, y: p.sy, s: p.scale, ax: X, ay: 0, flip: !!o.flip, yaw: 0 };
+          const hist = history(
+            (q) => ({ ...shorten(skeletonAt(n, q), o.spear ?? 2.3), Z: 0 }),
+            tt,
+            8,
+          );
+          // aerial perspective: through the rain even the near rank goes pale
+          const haze = clamp(0.25 + (p.depth - 5) / 40) * (o.haze ?? 1);
+          drawSoldier(buf, W, H, skW, xf, { look, haze, hist, t: tt, detail: o.detail });
+          // the painter writes colour only: mark what it drew for the compositor
+          const r = 3.6 * p.scale + 8;
+          const x0 = Math.max(0, Math.floor(p.sx - r));
+          const x1 = Math.min(W, Math.ceil(p.sx + r));
+          const y0 = Math.max(0, Math.floor(p.sy - r * 1.1));
+          const y1 = Math.min(H, Math.ceil(p.sy + r * 0.4));
+          // and the rain's haze over them (aerial perspective, toward the world's mist)
+          const mist = o.mist ?? clamp(0.15 + (p.depth - 4) / 30, 0, 0.6);
+          for (let y = y0; y < y1; y++)
+            for (let x = x0; x < x1; x++) {
+              const q = (y * W + x) * 4;
+              if (buf[q] === 1 && buf[q + 1] === 0 && buf[q + 2] === 1) continue;
+              buf[q + 3] = 255;
+              buf[q] += (199 - buf[q]) * mist * 0.85;
+              buf[q + 1] += (194 - buf[q + 1]) * mist;
+              buf[q + 2] += (192 - buf[q + 2]) * mist;
+            }
+        },
+      };
+    });
+  }
+
+  /** A spear from world point A (butt) to B (point), drawn in code with perspective. */
+  spear3d(f, cam, A, B, o = {}) {
+    const pa = project(cam, A[0], A[1], A[2], W, H);
+    const pb = project(cam, B[0], B[1], B[2], W, H);
+    if (pa.depth < 0.06 || pb.depth < 0.06) {
+      // clip to just in front of the lens
+      const near = 0.08;
+      const k = (near - pa.depth) / (pb.depth - pa.depth);
+      if (pa.depth < near && pb.depth < near) return;
+      const C = [lerp(A[0], B[0], k), lerp(A[1], B[1], k), lerp(A[2], B[2], k)];
+      return this.spear3d(f, cam, pa.depth < near ? C : A, pb.depth < near ? C : B, o);
+    }
+    const wb = 0.05; // the shaft's thickness (m), the blade's width scales from it
+    drawSpear(f, W, H, [pa.sx, pa.sy, wb * pa.scale * 2.2], [pb.sx, pb.sy, wb * pb.scale * 2.2], {
+      blade: o.blade ?? 0.13,
+      glint: o.glint ?? null,
+      light: o.light ?? 1,
+    });
+    return { pa, pb };
+  }
+
+  // ------------------------------------------------------------------ plates
+
+  plateOf(key, o = {}) {
+    const im = this.img[key];
+    if (!im) return null;
+    // the memo key carries the build options: one image, several builds
+    return this.plate(`${key}:${o.zoom ?? 1}:${o.skin ? 's' : ''}${o.tag || ''}`, im, o);
+  }
+
+  // ------------------------------------------------------------------ the shots
+
+  makeShots() {
+    const L = [];
+    const shot = (name, [from, to], draw, enter) => L.push({ name, from, to, draw, enter });
+    shot('rush', S.rush, (f, t) => this.shotRush(f, t));
+    shot('wide', S.wide, (f, t) => this.shotWide(f, t));
+    shot('low', S.low, (f, t) => this.shotLow(f, t));
+    shot('level', S.level, (f, t) => this.shotLevel(f, t));
+    shot('track', S.track, (f, t) => this.shotTrack(f, t));
+    shot('eye', S.eye, (f, t) => this.shotEye(f, t));
+    shot('ots', S.ots, (f, t) => this.shotOts(f, t));
+    shot('spray', S.spray, (f, t) => this.shotSpray(f, t));
+    shot('wall', S.wall, (f, t) => this.shotWall(f, t));
+    shot('slit', S.slit, (f, t) => this.shotSlit(f, t));
+    shot('shape', S.shape, (f, t) => this.shotShape(f, t));
+    shot('clash', S.clash, (f, t) => this.shotClash(f, t));
+    shot('bind', S.bind, (f, t) => this.shotBind(f, t));
+    shot('helm', S.helm, (f, t) => this.shotHelm(f, t));
+    shot('yield', S.yield, (f, t) => this.shotYield(f, t));
+    shot('cut', S.cut, (f, t) => this.shotCut(f, t));
+    shot('face', S.face, (f, t) => this.shotFace(f, t));
+    shot('fall', S.fall, (f, t) => this.shotFall(f, t));
+    return L;
+  }
+
+  // --- 1 · 28.3: the rush down the Thread (the roll), white on the crash ------------
+  shotRush(f, t) {
+    const lt = t - S.rush[0];
+    const k = lt / (S.rush[1] - S.rush[0]);
+    // the page is dark ink here: we are inside the Thread
+    for (let i = 0; i < W * H; i++) {
+      const o = i * 4;
+      f[o] = 22 + (f[o] - 214) * 0.05;
+      f[o + 1] = 19 + (f[o + 1] - 207) * 0.05;
+      f[o + 2] = 30 + (f[o + 2] - 196) * 0.05;
+    }
+    const roll = HITS('roll', 0, S.rush[1]);
+    let hi = -1;
+    for (let i = 0; i < roll.length; i++) if (roll[i] <= t + 1e-6) hi = i;
+    // single-frame inserts on the roll's strokes: this future flickering past
+    const INS = ['sun', 'helm', 'ford', 'edricEye', 'sun', 'struck', 'helm', 'ford', 'sun', 'helm'];
+    if (hi >= 0 && t - roll[hi] < 1 / 24 - 1e-3) {
+      const name = INS[hi % INS.length];
+      if (name === 'sun') hollowSun(f, W, H, 240, 135, 60, t, 1);
+      else if (name === 'ford') {
+        this.world.render(
+          f,
+          t + 5,
+          { x: 1.5, y: 1.4, z: -9, yaw: -0.05, pitch: -0.05, focal: 300 },
+          {
+            stage: 1,
+            rain: 0.5,
+          },
+        );
+      } else {
+        const l = this.plateOf(name, { zoom: 1.15, skin: name !== 'helm' });
+        if (l) this.draw(f, l, name === 'struck' ? 1 : 0, null, pageCam(240, 135, 1.1));
+      }
+    }
+    focusLines(f, W, H, 240, 135, twos(t), {
+      inner: 24,
+      count: 150,
+      width: 3,
+      color: RGB.graphite,
+      amount: 0.35 + 0.5 * k,
+      aspect: 1.3,
+      jitter: 0.9,
+    });
+    threadTunnel(f, W, H, 240, 135, t, { speed: 1.1 + 3.5 * k * k, amount: 0.55 + 0.45 * k });
+    glow(f, W, H, 240, 135, 30 + 70 * k, 0.6 + 0.4 * k);
+    flash(f, W, H, smooth(0.6, 0.8, lt) * 0.97);
+  }
+
+  // --- 2 · 29.1: extreme wide. Crane down from the Hollow Sun to the ford --------------
+  shotWide(f, t) {
+    const [t0] = S.wide;
+    const lt = t - t0;
+    const a = act(t);
+    // tame, then tsume: a breath on the sun, the drop through cloud and ridge, the settle
+    const k = smooth(0.08, 1.25, lt) ** 0.85;
+    const cam0 = crane(
+      { x: -2.2, z: -27, yaw: 0.035, focal: 300, roll: 0 },
+      { y: 34, pitch: 0.5, z: -34 },
+      { y: 2.3, pitch: -0.012 },
+      k,
+    );
+    const [sx, sy] = shake(t, [t0], 3, 0.12);
+    const cam = nudge(cam0, sx, sy);
+    // the page inks itself in, in stutters, out of the white
+    const stage = 2 * (1 - step(lt / 0.24, 3));
+    const run = this.runner(a, TIME.run, -14, 3.44);
+    const actors = [
+      run.actor,
+      ...this.soldiers(a, cam, ['warden', ...LINE], { mist: 0.22, haze: 0.5 }),
+    ];
+    this.world.render(f, a, cam, {
+      stage,
+      rain: 0.5,
+      clouds: 0.55,
+      actors,
+      wind: 1.2,
+    });
+    if (lt < 2 / 24) flash(f, W, H, 1 - lt * 12);
+  }
+
+  // --- 3 · 30.1: low at the water. The Warden's boots step into the shallows ----------
+  shotLow(f, t) {
+    const [t0] = S.low;
+    const lt = t - t0;
+    const a = act(t);
+    // across the shallows from downstream, low: the column on the bank spreads out
+    // behind him instead of stacking up along the lens
+    // low at the water, across the shallows from downstream: the column on the bank
+    // spreads out behind him instead of stacking up along the lens
+    const cam = lookAt(
+      { x: lerp(4.75, 4.9, lt / 0.8), y: 0.24, z: -3.15 },
+      { x: 8.6, y: 0.72, z: 0.4 },
+      { focal: 320, roll: -0.025 },
+    );
+    // the Warden's walk: two drawings, a contact and a passing position, each step
+    // planted where it lands (the support foot holds; the figure moves only between)
+    const w = this.wardenWalk(a);
+    const actors = [w.actor, ...this.soldiers(a, cam, LINE, { haze: 0.7, mist: 0.24 })];
+    const splashes = w.falls.map((s, i) => ({
+      X: s.X,
+      Z: s.Z,
+      t0: s.t,
+      strength: 0.6,
+      seed: 30 + i,
+    }));
+    this.world.render(f, a, cam, { rain: 0.6, actors, splashes, wind: 1 });
+  }
+
+  /**
+   * The Warden wading into the shallows (shot 3): one drawing, carried a stride at a
+   * time. Each stride lifts him (the passing position, a squash and a rise) and sets him
+   * down a stride on, knee deep, a splash where the foot goes in; between strides he is
+   * still. Everything below the knee is under the water, so nothing is seen to slide.
+   */
+  wardenWalk(a) {
+    const T0 = TIME.water - 0.02;
+    const every = 0.4; // a stride on each beat, with the line
+    const stride = 0.4;
+    const X0 = 6.9;
+    const k = Math.max(0, Math.floor((a - T0) / every));
+    const u = clamp((a - T0 - k * every) / 0.16); // the stride itself takes 0.16 s
+    const halted = a > TIME.level - 0.05;
+    const kk = halted ? Math.min(k, 2) : k;
+    const uu = halted ? 1 : u;
+    const X = X0 - stride * (kk - 1 + smooth(0, 1, uu));
+    const lift = Math.sin(Math.PI * uu) * 0.05; // the rise of the passing position
+    const falls = [];
+    for (let j = 0; j <= kk; j++)
+      falls.push({
+        X: X0 - stride * j - 0.12,
+        Z: 0.05 + (j % 2 ? 0.12 : -0.08),
+        t: T0 + j * every + 0.16,
+      });
+    const actor = this.actor('wDecide', X, 0.1, -1, {
+      rings: 0.9,
+      Y: this.world.groundY(X, 0.1) + lift,
+    });
+    // the squash as the weight comes down
+    actor.xf = { sy: 1 + 0.03 * Math.sin(Math.PI * uu) - (uu > 0.95 && uu < 1 ? 0.03 : 0) };
+    return { actor, falls };
+  }
+
+  // --- 4 · 30.3: medium, frontal. The spear levels straight at the lens ----------------
+  shotLevel(f, t) {
+    const [t0, t1] = S.level;
+    const lt = t - t0;
+    const a = act(t);
+    // the Warden still advancing to his mark; the camera backs away with him
+    const wx = actorAt('warden', onN(a, 2)).X;
+    const cam = lookAt(
+      { x: wx - 1.95, y: 1.24, z: -0.78 },
+      { x: wx - 0.1, y: 1.2, z: 0.05 },
+      { focal: 330, roll: 0.035 },
+    );
+    const wd = this.actor('wGuard', wx, 0, -1, { rings: 0.4 });
+    this.world.render(f, a, cam, { rain: 0.7, actors: [wd], wind: 1 });
+    // the spear: pivots at the lead hand, from carried (point up) to level at the lens
+    const lead = this.cardPoint(wd, cam, ...PTS.wGuard.lead);
+    const rear = this.cardPoint(wd, cam, ...PTS.wGuard.rear);
+    const u = keyMove(a, t0 + 0.02, 0.42, { ant: 0.3, back: 0.1, over: 0.05, n: 2 });
+    // the level direction: from the hands to just beside the lens
+    // aimed just past the lens (to its left), so the spear shows foreshortened, not end-on
+    const cy_ = Math.cos(cam.yaw);
+    const sy_ = Math.sin(cam.yaw);
+    const aim = [cam.x - cy_ * 0.2, cam.y + 0.3, cam.z + sy_ * 0.2];
+    const dL = norm3([aim[0] - lead.X, aim[1] - lead.Y, aim[2] - lead.Z]);
+    const up = [0, 1, 0];
+    const dir = norm3(lerp3(up, dL, clamp(u, -0.2, 1.1)));
+    const reach = 1.62;
+    const tip = [lead.X + dir[0] * reach, lead.Y + dir[1] * reach, lead.Z + dir[2] * reach];
+    const butt = [lead.X - dir[0] * 0.8, lead.Y - dir[1] * 0.8, lead.Z - dir[2] * 0.8];
+    // the snap: ghosts of the spear along its arc (drawn behind, ink only)
+    if (u > 0.05 && u < 0.97) {
+      for (const g of [0.55, 0.3]) {
+        const d2 = norm3(lerp3(up, dL, clamp(u * g, -0.2, 1.1)));
+        const gt = [lead.X + d2[0] * reach, lead.Y + d2[1] * reach, lead.Z + d2[2] * reach];
+        const pa = project(cam, lead.X, lead.Y, lead.Z, W, H);
+        const pb = project(cam, gt[0], gt[1], gt[2], W, H);
+        if (pa.depth > 0.1 && pb.depth > 0.1) ghostLine(f, pa.sx, pa.sy, pb.sx, pb.sy, g);
+      }
+    }
+    const sp = this.spear3d(f, cam, butt, tip, {
+      glint: u > 0.95 ? ((lt - 0.45) / 0.3) % 1.4 : null,
+    });
+    // his hands over the shaft (the fists are painted; redraw the lead fist on top)
+    this.redrawPatch(f, wd, cam, lead, 11);
+    this.redrawPatch(f, wd, cam, rear, 9);
+    if (sp && u > 0.9)
+      focusLines(f, W, H, sp.pb.sx, sp.pb.sy, twos(t), {
+        inner: 70,
+        amount: 0.55 * smooth(0.9, 1, u),
+        aspect: 1.5,
+        width: 5,
+        color: RGB.sepia,
+      });
+    void t1;
+    void rear;
+  }
+
+  /** Redraw the actor's own pixels in a small disc around a card point (a fist over a code-drawn shaft). */
+  redrawPatch(f, a, cam, p, r) {
+    const buf = this.scratch('patch');
+    buf.set(f);
+    // draw the actor alone into buf, then copy back its pixels within r of p
+    const w = this.world;
+    const keep = { zbuf: w.zbuf.slice(), ids: w.ids.slice(), stg: w.stg.slice() };
+    w.zbuf.fill(Infinity);
+    w.stg.fill(0);
+    w.ids.fill(0);
+    const sc = w.scratch;
+    // reuse drawActor's own placement by drawing into buf over a cleared depth
+    w.drawActor(buf, cam, w.B, w.t, { ...a, wade: false, reflect: false, shadow: false }, 0);
+    for (let y = Math.max(0, Math.floor(p.y - r)); y < Math.min(H, p.y + r); y++)
+      for (let x = Math.max(0, Math.floor(p.x - r)); x < Math.min(W, p.x + r); x++) {
+        if ((x - p.x) ** 2 + (y - p.y) ** 2 > r * r) continue;
+        const i = y * W + x;
+        if (w.ids[i] !== 210) continue;
+        const o = i * 4;
+        f[o] = buf[o];
+        f[o + 1] = buf[o + 1];
+        f[o + 2] = buf[o + 2];
+        f[o + 3] = buf[o + 3];
+      }
+    w.zbuf.set(keep.zbuf);
+    w.ids.set(keep.ids);
+    w.stg.set(keep.stg);
+    void sc;
+  }
+
+  // --- 5 · 31.1: tracking profile. Edric runs through the ford --------------------------
+  shotTrack(f, t) {
+    const [t0, t1] = S.track;
+    const a = act(t);
+    const X0 = actorAt('edric', t0).X;
+    const X1 = actorAt('edric', t1).X;
+    const run = this.runner(a, t0, X0, (X1 - X0) / (t1 - t0));
+    // the camera follows the blocking's smooth path (on ones); the runner steps on twos
+    const cx = actorAt('edric', t).X + 0.7;
+    const cam = { x: cx, y: 0.95, z: -3.7, yaw: 0.01, pitch: -0.035, roll: 0, focal: 330 };
+    const fg = this.memo('track:fg', () =>
+      foregroundRow({
+        z: -2.75,
+        x0: -8,
+        x1: 6,
+        step: 1.3,
+        kind: 'mixed',
+        h: 0.62,
+        stoneH: 0.16,
+        gaps: 0.35,
+        seed: 5,
+        Y: 0,
+      }),
+    );
+    const splashes = run.falls.map((s, i) => ({
+      X: s.X + 0.15,
+      Z: (i % 2 ? 0.12 : -0.1) + 0,
+      t0: s.t,
+      strength: 0.75,
+      seed: 50 + Math.round(s.t * 10),
+    }));
+    this.world.render(f, a, cam, {
+      rain: 0.65,
+      rainWind: [1.4, 0],
+      actors: [run.actor],
+      splashes,
+      foreground: fg,
+      wind: 1.1,
+    });
+  }
+
+  // --- 6 · 31.4: extreme close-up of Edric's eye. The spear point is in it ------------
+  shotEye(f, t) {
+    const [t0] = S.eye;
+    const lt = t - t0;
+    const k = easeOut(lt / 0.45);
+    const c = pageCam(lerp(236, 226, k), lerp(128, 114, k), 1 + 0.22 * k, 0);
+    const l = this.plateOf('edricEye', { zoom: 1.35, skin: true });
+    if (l) this.draw(f, l, 0, null, c);
+    // the iris (plate px 1536x1024 -> page): the point, foreshortened, catching the light
+    const [ix, iy] = scrPage(c, 223 * 1.0, 113 * 1.0);
+    const s = 0.8 + 0.5 * k;
+    // the reflected point fills half the iris: the shaft from outside the eye, the leaf
+    // of the blade at its centre, catching the light
+    drawSpear(f, W, H, [ix + 26 * s, iy + 12 * s, 1.5], [ix - 2, iy - 1, 7 * s], {
+      blade: 0.45,
+      light: 1,
+    });
+    if (lt > 0.2) star(f, W, H, ix - 1, iy - 1, 2 + (twos(t) % 2), RGB.paperHi);
+    // rain across the lens
+    speedLines(f, W, H, t, {
+      vertical: true,
+      density: 0.05,
+      speed: 900,
+      len: 26,
+      color: RGB.paperHi,
+      seed: 21,
+    });
+    focusLines(f, W, H, ix, iy, twos(t), { inner: 170, amount: 0.5, aspect: 1.7, width: 6 });
+  }
+
+  // --- 7 · 32.1: over the Warden's shoulder. The thrust, on the snare -----------------
+  shotOts(f, t) {
+    const [t0] = S.ots;
+    const a = act(t);
+    const aa = onN(a, 2);
+    const cam0 = lookAt({ x: 6.9, y: 1.5, z: -1.75 }, { x: 1.3, y: 0.7, z: 0.05 }, { focal: 400 });
+    const [sx, sy, sr] = shake(t, [[TIME.thrust, 1]], 5, 0.12, 0.01);
+    const push = 1 + 0.07 * pulse(t, [TIME.thrust], 0.15);
+    const cam = nudge({ ...cam0, focal: cam0.focal * push }, sx, sy, sr);
+    const wd = this.wardenAt(a, aa);
+    const ed = this.edricAt(a, aa, { crossed: false });
+    const sprays = this.slideSpray(a);
+    this.world.render(f, a, cam, {
+      rain: 0.7,
+      actors: [ed.actor, wd],
+      sprays,
+      splashes: ed.splashes,
+      wind: 1,
+    });
+    if (aa >= TIME.thrustGo) {
+      // focus lines on the point; ink streaks along the shaft on the snap
+      const tip = this.cardPoint(wd, cam, 15, 77);
+      const hand = this.cardPoint(wd, cam, 262, 78);
+      if (wd.frame >= 9)
+        focusLines(f, W, H, tip.x, tip.y, twos(t), {
+          inner: 55,
+          amount: 0.7,
+          aspect: 1.4,
+          width: 5,
+        });
+      if (aa < TIME.thrust + 0.05)
+        speedLinesAlong(f, { sx: hand.x, sy: hand.y }, { sx: tip.x, sy: tip.y }, t);
+    }
+    if (inStop(t, STOPS) && t < TIME.thrust + 1 / 24) impact(f, W, H, { mode: 'neg' });
+    void t0;
+  }
+
+  /** The spray sheet Edric throws up as he drops (one sheet, seen from every camera). */
+  slideSpray(a) {
+    const t0 = TIME.drop + 0.12;
+    if (a < t0) return [];
+    return [{ X: 1.05, Z: -0.12, age: a - t0, width: 2.6, dir: 1, height: 2.2, seed: 4 }];
+  }
+
+  /**
+   * The Warden from the plant to the fall (shots 7-16), on the clips where they exist:
+   * the thrust, the block (the yield clip's first drawings), the yield, the cut. The
+   * cell stays at his station; only the yield's step moves it (while the foot is up).
+   */
+  wardenAt(a, aa, o = {}) {
+    const st = this.station(aa);
+    let key;
+    let i;
+    if (aa < TIME.recover) {
+      key = 'warden_thrust';
+      i =
+        aa < 5.833
+          ? Math.floor(clamp((aa - 5.2) / 0.633) * 7)
+          : clamp(Math.floor(10 + (aa - TIME.thrust) * 12), 8, 18);
+    } else if (aa < 6.62 && !o.noRecover) {
+      // the recovery: the painted in-between (the spear drawn back across the body)
+      return this.actor('wRecover', st.w + 0.12, 0, -1, { flip: o.flip, rings: 0.6 });
+    } else {
+      key = 'warden_yield_cut';
+      i = frameAt(YIELD_CUT, aa);
+    }
+    return this.clipActor(key, i, st.w, 0, -1, {
+      flip: o.flip,
+      rings: 0.6,
+      fb: key === 'warden_thrust' ? 'wThrust' : 'wYield',
+    });
+  }
+
+  /**
+   * Where the two stand in the close shots: the bind point from the blocking; Edric's cell
+   * so his blade's middle meets it, the Warden's so his shaft does. The Warden gives
+   * ground with the bind and steps back on the yield.
+   */
+  station(aa) {
+    // in the bind the pair rocks a hair, push and give, on threes (feet deep in the water)
+    const rock =
+      aa > TIME.bind - 0.3 && aa < TIME.yield
+        ? 0.035 *
+          Math.sin((onN(aa, 3) - TIME.bind) * 4.1) *
+          smooth(TIME.bind - 0.3, TIME.bind + 0.2, aa)
+        : 0;
+    const bx = this.bindX(clamp(aa, TIME.clash, 10.4)) + rock;
+    const E = CLIP.edric_slide_burst;
+    const Wc = CLIP.warden_yield_cut;
+    const B = CPTS.blade;
+    const P = CPTS.shaft;
+    const bm = [
+      (B.hilt[0] * 0.3 + B.tip[0] * 0.7 - E.anchor[0]) * E.mpp,
+      (E.anchor[1] - (B.hilt[1] * 0.3 + B.tip[1] * 0.7)) * E.mpp,
+    ];
+    const p0 = [(P.point[0] - Wc.anchor[0]) * Wc.mpp, (Wc.anchor[1] - P.point[1]) * Wc.mpp];
+    const p1 = [(P.butt[0] - Wc.anchor[0]) * Wc.mpp, (Wc.anchor[1] - P.butt[1]) * Wc.mpp];
+    const u = clamp((p0[1] - bm[1]) / (p0[1] - p1[1]));
+    const shaftX = p0[0] + (p1[0] - p0[0]) * u; // from the Warden's anchor (he faces -X)
+    const step = 0.6 * smooth(10.4, 10.62, aa) + 0.12 * smooth(11.2, 11.35, aa);
+    return { e: bx - bm[0], w: bx - shaftX + step, bx, by: bm[1] };
+  }
+
+  /** The bind point's X from the blocking (held at its ends outside the bind). */
+  bindX(aa) {
+    const p = bindPoint(clamp(aa, TIME.clash, 10.7));
+    return p ? p.x : 3.7;
+  }
+
+  /**
+   * Edric from the charge to the fall: the run, the slide under the spray (the cell
+   * slides with the blocking: nothing is planted), the burst from a fixed cell, the bind,
+   * the overbalance and the fall (the slip clip). Returns { actor, splashes }.
+   */
+  edricAt(a, aa, o = {}) {
+    const crossed = !!o.crossed;
+    const flip = crossed ? true : undefined;
+    const st = this.station(aa);
+    const eX = actorAt('edric', aa).X;
+    if (aa < TIME.drop + 0.02) {
+      const X0 = actorAt('edric', S.track[0]).X;
+      const X1 = actorAt('edric', S.track[1]).X;
+      const run = this.runner(a, S.track[0], X0, (X1 - X0) / (S.track[1] - S.track[0]));
+      const splashes = run.falls.map((q, k) => ({
+        X: q.X + 0.15,
+        Z: k % 2 ? 0.1 : -0.1,
+        t0: q.t,
+        strength: 0.8,
+        seed: 70 + k,
+      }));
+      return { actor: run.actor, splashes };
+    }
+    if (aa < 6.9) {
+      const i = frameAt(SLIDE_BURST, aa);
+      return {
+        actor: this.clipActor('edric_slide_burst', i, eX + 0.1, 0, 1, {
+          flip,
+          rings: 1,
+          fb: 'eSlide',
+        }),
+        splashes: [{ X: eX + 0.4, Z: -0.1, t0: TIME.drop + 0.1, strength: 1.4, seed: 80 }],
+      };
+    }
+    if (aa < 10.4) {
+      const i = frameAt(SLIDE_BURST, aa);
+      return {
+        actor: this.clipActor('edric_slide_burst', i, st.e, 0, 1, { flip, rings: 0.9, fb: 'eCut' }),
+        splashes: [],
+      };
+    }
+    // the slip clip's cell: his body where the bind left it
+    const i = frameAt(SLIP_FALL, aa);
+    const cx = this.station(10.39).e + 0.2;
+    return {
+      actor: this.clipActor('edric_slip_fall', i, cx, 0, 1, {
+        flip,
+        rings: 1,
+        fb: 'eOver',
+        Y: o.Y,
+      }),
+      splashes: [],
+    };
+  }
+
+  // --- 8 · 32.2+: wide, low. The spray sheet; the point withdraws through it ---------
+  shotSpray(f, t) {
+    const [t0] = S.spray;
+    const lt = t - t0;
+    const a = act(t);
+    const aa = onN(a, 2);
+    const cam = lookAt(
+      { x: 1.9 + 0.3 * lt, y: 0.36, z: -7.6 },
+      { x: 3.0, y: 0.75, z: 0 },
+      { focal: 290, roll: 0.02 },
+    );
+    const wd = this.wardenAt(a, aa);
+    const ed = this.edricAt(a, aa);
+    const sprays = this.slideSpray(a);
+    this.world.render(f, a, cam, {
+      rain: 0.7,
+      actors: [ed.actor, wd],
+      sprays,
+      splashes: ed.splashes,
+      impulses: [impulse(1.4, 0, TIME.thrust, 0.5)],
+      wind: 1.2,
+    });
+  }
+
+  // --- 9 · 32.4: three cuts on the fill ------------------------------------------------
+  shotWall(f, t) {
+    // the spray wall, close: it fills the frame and falls
+    const a = act(t);
+    const lt = t - S.wall[0];
+    const cam = lookAt(
+      { x: 1.0 + 0.4 * lt, y: 0.5, z: -2.1 },
+      { x: 2.5, y: 1.0, z: 0 },
+      { focal: 300 },
+    );
+    const [sx, sy] = shake(t, [[S.wall[0], 0.7]], 4, 0.1);
+    // the wall at its height (time runs slow inside it), falling as the cut ends; the
+    // Warden a shape beyond it, waiting
+    this.world.render(f, a, nudge(cam, sx, sy), {
+      rain: 0.8,
+      actors: [this.wardenAt(a, onN(a, 2))],
+      sprays: [{ X: 1.3, Z: -0.1, age: 0.42 + lt * 0.9, width: 3.0, dir: 1, height: 2.4, seed: 4 }],
+    });
+  }
+
+  shotSlit(f, t) {
+    const lt = t - S.slit[0];
+    const l = this.helmPlate();
+    const slit = this.plateOf('helm', { zoom: 2.3, skin: false }) || l.layer;
+    const c = pageCam(262, 110, 2.1 + 0.2 * lt, 0);
+    this.draw(f, slit, 0, null, c);
+    const [ex, ey] = scrPage(c, ...l.eye);
+    star(f, W, H, ex, ey, 3, RGB.paperHi);
+  }
+
+  shotShape(f, t) {
+    // a shape moving in the spray: Edric's burst seen through the falling sheet
+    const a = act(t);
+    const cam = lookAt({ x: 3.6, y: 0.8, z: -3.4 }, { x: 2.6, y: 0.8, z: 0 }, { focal: 330 });
+    const ed = this.edricAt(a, onN(a, 2));
+    ed.actor.opts = { silhouette: RGB.ink, rim: { dir: [-0.7, -0.7], w: 1.5, color: RGB.steel } };
+    this.world.render(f, a, cam, { rain: 0.8, actors: [ed.actor], sprays: this.slideSpray(a) });
+  }
+
+  // --- 10 · 33.1: the clash, on the crash -----------------------------------------------
+  shotClash(f, t) {
+    const [t0] = S.clash;
+    const lt = t - t0;
+    const a = act(t);
+    const aa = onN(a, 2);
+    const hit = TIME.clash + 4 / 24; // the frame after the stop's first impact frames
+    const cam0 = lookAt({ x: 3.45, y: 1.05, z: -3.9 }, { x: 3.62, y: 0.9, z: 0 }, { focal: 330 });
+    const [sx, sy, sr] = shake(t, [[hit, 1]], 7, 0.13, 0.015);
+    const punch = 1 + 0.1 * pulse(t, [hit], 0.14);
+    const cam = nudge({ ...cam0, focal: cam0.focal * punch }, sx, sy, sr);
+    const st = this.station(aa);
+    const ed = this.edricAt(a, aa);
+    const wd = this.wardenAt(a, aa);
+    this.world.render(f, a, cam, {
+      rain: 0.8,
+      rainWind: [1.8, 0],
+      actors: [ed.actor, wd],
+      impulses: [impulse(st.bx, 0, TIME.clash, 1.3)],
+      splashes: [{ X: st.e + 0.35, Z: -0.25, t0: 6.97, strength: 0.7, seed: 9 }],
+      sprays: this.slideSpray(a),
+      wind: 1.3,
+    });
+    const c = this.contact(ed.actor, wd, cam);
+    if (c) {
+      sparks(f, W, H, c[0], c[1], a, TIME.clash, { count: 80, speed: 340, life: 0.55, seed: 5 });
+      const v = a - TIME.clash;
+      if (v < 0.14) star(f, W, H, c[0], c[1], 26 * (1 - v / 0.14));
+    }
+    // impact frames: ink and paper, on the crash (inside the hit-stop's held frames)
+    if (lt < 1 / 24) impact(f, W, H, { mode: 'neg' });
+    else if (lt < 2 / 24) impact(f, W, H, { mode: 'pos' });
+    else if (lt < 3 / 24 && c) glow(f, W, H, c[0], c[1], 40, 0.8);
+  }
+
+  /** The screen point where Edric's blade crosses the Warden's shaft (bind clips), or null. */
+  contact(ea, wa, cam) {
+    if (ea.cut.key !== 'edric_slide_burst' || wa.cut.key !== 'warden_yield_cut') return null;
+    if (ea.frame < 10 || wa.frame > 5) return null;
+    const B = ea.frame < 12 ? CPTS.strike : CPTS.blade;
+    const h = this.cardPoint(ea, cam, ...B.hilt);
+    const tp = this.cardPoint(ea, cam, ...B.tip);
+    const p = this.cardPoint(wa, cam, ...CPTS.shaft.point);
+    const b = this.cardPoint(wa, cam, ...CPTS.shaft.butt);
+    const r = segX([h.x, h.y], [tp.x, tp.y], [p.x, p.y], [b.x, b.y]);
+    return r;
+  }
+
+  // --- 11 · 33.3: the bind. A slow orbit; the hold ------------------------------------
+  shotBind(f, t) {
+    const [t0, t1] = S.bind;
+    const lt = t - t0;
+    const a = act(t);
+    const a3 = onN(a, 3); // the hold on threes
+    const st = this.station(a3);
+    // the orbit: the background one way, the reeds the other
+    const ang = lerp(-0.42, -0.08, lt / (t1 - t0));
+    const cam0 = orbit({ x: st.bx - 0.15, y: 0.9, z: 0 }, 3.0, ang, 1.2, {
+      focal: 390,
+      lookY: 0.86,
+    });
+    const [sx, sy] = shake(
+      t,
+      HITS('kick', t0, t1).map((h) => [h, 0.35]),
+      1.6,
+      0.08,
+    );
+    const cam = nudge(cam0, sx, sy);
+    const ring = this.memo('bind:ring', () => {
+      const out = [];
+      for (let k = 0; k < 11; k++) {
+        const q = -1.35 + k * 0.23;
+        const stone = k % 4 === 2;
+        out.push({
+          X: 3.6 + Math.sin(q) * 2.2,
+          Z: -Math.cos(q) * 2.2,
+          kind: stone ? 'stone' : 'reeds',
+          h: stone ? 0.2 : 0.75,
+          seed: 40 + k,
+          Y: 0,
+        });
+      }
+      return out;
+    });
+    const ed = this.edricAt(a3, a3);
+    const wd = this.wardenAt(a3, a3);
+    this.world.render(f, a, cam, {
+      rain: 0.9,
+      rainWind: [2.2, 0.4],
+      actors: [ed.actor, wd],
+      foreground: ring,
+      wind: 1.4,
+    });
+    const c = this.contact(ed.actor, wd, cam);
+    if (c) {
+      // sparks grinding on twos: a few each drawing, thrown down along the shaft
+      const d = twos(a);
+      for (let k = 0; k < 3; k++)
+        sparks(f, W, H, c[0], c[1], a, (d - k) / 12, {
+          count: 11,
+          speed: 190,
+          life: 0.24,
+          seed: 100 + d - k,
+          dir: 2.3,
+        });
+      glow(f, W, H, c[0], c[1], 9, 0.45 + 0.25 * (d % 2));
+      if (d % 2) star(f, W, H, c[0], c[1], 5, RGB.paperHi);
+    }
+    // breath, on threes: a pale puff at Edric's mouth
+    this.breath(f, ed.actor, cam, a3, 1);
+  }
+
+  /** A breath: a small pale puff at Edric's mouth that forms and thins on threes. */
+  breath(f, a, cam, t, seed) {
+    const ph = (((t * 0.85 + seed * 0.3) % 1) + 1) % 1;
+    if (ph > 0.55 || a.cut.key !== 'edric_slide_burst') return;
+    const m = this.cardPoint(a, cam, 254, 108);
+    const r = 1.5 + ph * 7;
+    for (let y = -r; y <= r; y++)
+      for (let x = -r; x <= r; x++) {
+        const d = Math.hypot(x, y * 1.4) / r;
+        if (d > 1) continue;
+        const k = (1 - d) * (1 - ph / 0.55) * 0.6;
+        if (k > hashDither(x, y))
+          put(f, W, H, m.x + 3 + x + ph * 12, m.y + y - ph * 3, RGB.paperHi);
+      }
+  }
+
+  // --- 12 · 34.3: close-up. The helm's eye slit; a tilt; he decides ------------------
+  helmPlate() {
+    if (this.img.helm) {
+      return { layer: this.plateOf('helm', { zoom: 1.6, skin: false }), eye: [262, 119] };
+    }
+    // fallback: the helm of the old stand-in, cropped close
+    const im = this.img.soldier;
+    const l = this.plate('helmCrop', im, {
+      crop: { x: 150, y: 60, w: 180, h: 101 },
+      zoom: 1.2,
+    });
+    return { layer: l, eye: [270, 115] };
+  }
+
+  shotHelm(f, t) {
+    const [t0] = S.helm;
+    const lt = t - t0;
+    const a = act(t);
+    const hp = this.helmPlate();
+    // the tilt: a small snap down toward the blade at the blocking's decide, on twos
+    const tilt = keyMove(a, TIME.decide + 0.12, 0.3, { ant: 0.35, back: 0.15, over: 0.08, n: 2 });
+    const c = pageCam(
+      240 + 6 * tilt,
+      130 - 12 * tilt + lt * 1.5,
+      1.2 + 0.03 * lt + 0.03 * tilt,
+      0.085 * tilt,
+    );
+    this.draw(f, hp.layer, 0, null, c);
+    const [ex, ey] = scrPage(c, ...hp.eye);
+    // the eye: a glint that comes on as he decides, and stays
+    if (a > TIME.decide + 0.3) star(f, W, H, ex, ey, 2 + ((twos(t) >> 1) % 2), RGB.paperHi);
+    // rain in front of him, and runnels down the iron (drawings on twos)
+    speedLines(f, W, H, t, {
+      vertical: true,
+      density: 0.09,
+      speed: 1100,
+      len: 34,
+      color: RGB.paperHi,
+      seed: 31,
+    });
+  }
+
+  // --- 13 · 35.1: the yield. The camera whips round and crosses the line --------------
+  whipCam(t) {
+    const w0 = 10.6;
+    const w1 = 10.8;
+    const w = smooth(w0, w1, t);
+    const settle = t > w1 ? Math.exp(-(t - w1) * 9) * Math.sin((t - w1) * 18) * 0.05 : 0;
+    const ang = lerp(-0.3, Math.PI + 0.35, w) + settle + 0.06 * (t - TIME.yield);
+    const cx = lerp(4.1, 4.35, w);
+    return orbit({ x: cx, y: 1.0, z: 0 }, lerp(3.5, 3.3, w), ang, lerp(1.3, 1.2, w), {
+      focal: 340,
+      lookY: 0.95,
+    });
+  }
+
+  shotYield(f, t) {
+    const a = act(t);
+    const aa = onN(a, 2);
+    const cam = this.whipCam(t);
+    const crossed = t >= 10.7;
+    const ed = this.edricAt(a, aa, { crossed });
+    const wd = this.wardenAt(a, aa);
+    this.world.render(f, a, cam, {
+      rain: 0.8,
+      actors: [ed.actor, wd],
+      splashes: [
+        { X: 3.8, Z: 0, t0: TIME.stone, strength: 0.8, seed: 61 },
+        { X: 4.2, Z: 0.1, t0: 10.95, strength: 0.8, seed: 62 },
+        { X: this.station(10.62).w - 0.2, Z: 0, t0: 10.6, strength: 0.6, seed: 63 },
+      ],
+      wind: 1.3,
+    });
+    // the whip: the eye can't follow; streaked multiples and speed lines
+    const prev = this.whipCam(t - 1 / 24);
+    let dyaw = cam.yaw - prev.yaw;
+    dyaw -= Math.round(dyaw / (Math.PI * 2)) * Math.PI * 2;
+    const drag = -dyaw * cam.focal * 0.9;
+    if (Math.abs(drag) > 3) smearFrame(f, W, H, drag, 0, { t, seed: 13 });
+  }
+
+  // --- 14 · 35.3: the crimson cut -------------------------------------------------------
+  shotCut(f, t) {
+    const [t0] = S.cut;
+    const lt = t - t0;
+    const a = act(t);
+    const aa = onN(a, 2);
+    const cam0 = orbit({ x: 4.35, y: 1.0, z: 0 }, 3.1, Math.PI + 0.4, 1.2, {
+      focal: 350,
+      lookY: 0.95,
+    });
+    const [sx, sy, sr] = shake(t, [[TIME.cut + 4 / 24, 1.2]], 8, 0.14, 0.02);
+    const cam = nudge(cam0, sx, sy, sr);
+    const ed = this.edricAt(a, aa, { crossed: true });
+    const wd = this.wardenAt(a, aa);
+    this.world.render(f, a, cam, {
+      rain: 0.85,
+      actors: [ed.actor, wd],
+      impulses: [impulse(ed.actor.X, 0, TIME.cut, 0.8)],
+      wind: 1.2,
+    });
+    // the crimson stroke across his back: drawn over two drawings on the score's clock
+    // (so it is there inside the stop's negative frames), then it holds and breaks up
+    const back = this.cardPoint(ed.actor, cam, 238, 128);
+    const v = t - TIME.cut;
+    if (v >= 0 && v < 0.34) {
+      // (slash() draws the stroke in over p 0..0.6 and wipes it from its root after)
+      const gone = step((v - 0.2) / 0.14, 3);
+      const p = clamp(v / (2 / 24)) * 0.6 + 0.4 * gone;
+      if (p > 0 && p < 1)
+        slash(f, W, H, back.x - 95, back.y - 85, back.x + 85, back.y + 80, p, 24, 7);
+    }
+    // negative crimson impact frames, on the crash
+    if (lt < 3 / 24) impact(f, W, H, { mode: 'neg', light: RGB.crimson });
+    else if (lt < 4 / 24) flash(f, W, H, 0.35, RGB.crimson);
+  }
+
+  // --- 15 · 35.4: close-up. Edric's face; the spray hangs in the air ---------------------
+  shotFace(f, t) {
+    const [t0] = S.face;
+    const lt = t - t0;
+    const slow = slowMo(t, t0, S.face[1], 0.18, 0.02) - t0;
+    const l = this.plateOf('struck', { zoom: 1.2, skin: true });
+    // he falls back: the frame drifts with him, slowly (time slowed)
+    const c = pageCam(236 - 10 * slow, 130 + 16 * slow, 1.05 + 0.04 * slow, -0.05 * slow);
+    if (l) this.draw(f, l, 0, { ...l.xf, flip: true }, c);
+    // spray hanging in the air: droplets that barely move
+    for (let i = 0; i < 70; i++) {
+      const x0 = hash(i, 1, 91) * W;
+      const y0 = hash(i, 2, 91) * H;
+      const vx = (hash(i, 3, 91) - 0.3) * 60;
+      const vy = -40 + hash(i, 4, 91) * 30;
+      const x = x0 + vx * slow;
+      const y = y0 + vy * slow + 30 * slow * slow;
+      const r = hash(i, 5, 91) < 0.25 ? 2 : 1;
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++)
+          if (dx * dx + dy * dy <= r * r)
+            put(f, W, H, x + dx, y + dy, dx < 0 && dy < 0 ? RGB.paperHi : RGB.steel);
+    }
+    // crimson drops from the cut, among them
+    for (let i = 0; i < 9; i++) {
+      const x = 330 + hash(i, 6, 92) * 120 - 40 * slow;
+      const y = 60 + hash(i, 7, 92) * 140 - 18 * slow;
+      put(f, W, H, x, y, RGB.crimson);
+      put(f, W, H, x + 1, y, RGB.crimson);
+      put(f, W, H, x, y + 1, RGB.blood);
+    }
+    // slow rain: long, pale streaks barely falling
+    speedLines(f, W, H, t0 + slow * 0.4, {
+      vertical: true,
+      density: 0.06,
+      speed: 700,
+      len: 30,
+      color: RGB.paperHi,
+      seed: 41,
+    });
+    if (lt < 1 / 24) flash(f, W, H, 0.3, RGB.crimson);
+  }
+
+  // --- 16 · 36.1: wide, low. He falls onto his back; the paint lifts ------------------
+  shotFall(f, t) {
+    const [t0] = S.fall;
+    const lt = t - t0;
+    const a = act(t);
+    const aa = onN(a, 2);
+    // the crossed side, low, looking downstream; the Hollow Sun in the water beyond him
+    const cam = lookAt(
+      { x: 3.72 - 0.06 * lt, y: 0.44 - 0.05 * lt, z: 3.35 - 0.22 * lt },
+      { x: 4.0, y: 0.22, z: -0.25 },
+      { focal: 300, roll: 0.015 },
+    );
+    const [sx, sy] = shake(
+      t,
+      [
+        [TIME.fall, 0.6],
+        [TIME.landed, 1],
+      ],
+      4,
+      0.12,
+    );
+    const camS = nudge(cam, sx, sy);
+    // the lift: the paint comes off the page in stutters on the fill's snares
+    const lift = HITS('snare', TIME.lift - 0.01, DURATION + 1);
+    let stage = 0;
+    lift.forEach((h, i) => {
+      if (t >= h) stage = [1.0, 1.7, 2.4, 3][Math.min(3, i)];
+    });
+    if (t >= DURATION - 2 / 24) stage = 3;
+    // where he comes down: a body's length in front of the Warden's station
+    const LX = 3.42;
+    const LZ = -0.45;
+    let ed;
+    if (aa < 12.3) {
+      // the slip clip tipping back into the water, sinking as it goes
+      const sink = -0.12 - 0.5 * smooth(t0 - 0.1, 12.3, aa);
+      ed = this.edricAt(a, aa, { crossed: true, Y: sink }).actor;
+      ed.X = LX + 0.2;
+      ed.Z = LZ;
+    } else {
+      ed = this.actor('eFall', LX + 0.1, LZ, 1, {
+        flip: true,
+        rings: 1,
+        Y: -0.44 - 0.08 * smooth(TIME.landed, TIME.landed + 0.8, aa),
+      });
+    }
+    ed.stage = stage;
+    const wd = this.wardenAt(a, aa);
+    wd.stage = stage;
+    // the sun is cheated round to the downstream sky (the camera has turned): only here
+    const sun0 = this.world.sun;
+    this.world.sun = { ...sun0, az: 3.2, el: 0.16 };
+    this.world.render(f, a, camS, {
+      stage,
+      rain: 0.75,
+      actors: [ed, wd, ...this.soldiers(a, camS, LINE, { flip: true, stage })],
+      splashes: [
+        { X: LX + 0.2, Z: LZ, t0: TIME.fall, strength: 1.1, seed: 12 },
+        { X: LX - 0.2, Z: LZ, t0: TIME.landed, strength: 1.5, seed: 13 },
+      ],
+      wind: 0.9,
+    });
+    this.world.sun = sun0;
+  }
+}
+
+// ---------------------------------------------------------------------- helpers
+
+/** A skeleton with its spear cut to `len` m (the blocking's 3.05 m runs off the frame). */
+function shorten(sk, len) {
+  const w = sk.weapon;
+  if (!w || w.kind !== 'spear') return sk;
+  const L = Math.hypot(w.tip[0] - w.butt[0], w.tip[1] - w.butt[1]) || 1;
+  const k = len / L;
+  const r = w.rear;
+  const tip = [r[0] + (w.tip[0] - r[0]) * k, r[1] + (w.tip[1] - r[1]) * k];
+  const butt = [r[0] + (w.butt[0] - r[0]) * k, r[1] + (w.butt[1] - r[1]) * k];
+  return { ...sk, weapon: { ...w, tip, butt } };
+}
+
+const norm3 = (v) => {
+  const l = Math.hypot(v[0], v[1], v[2]) || 1;
+  return [v[0] / l, v[1] / l, v[2] / l];
+};
+const lerp3 = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
+const hashDither = (x, y) => hash(x & 63, y & 63, 5);
+
+/** Page point (x, y) through a page camera -> screen. */
+function scrPage(c, x, y) {
+  const dx = (x - c.x) * c.zoom;
+  const dy = (y - c.y) * c.zoom;
+  const cs = Math.cos(c.rot);
+  const sn = Math.sin(c.rot);
+  return [cs * dx - sn * dy + W / 2, sn * dx + cs * dy + H / 2];
+}
+
+/** Where segments ab and cd cross (or their closest approach within 6 px), or null. */
+function segX(a, b, c, d) {
+  const r = [b[0] - a[0], b[1] - a[1]];
+  const s = [d[0] - c[0], d[1] - c[1]];
+  const den = r[0] * s[1] - r[1] * s[0];
+  if (Math.abs(den) < 1e-6) return null;
+  const u = ((c[0] - a[0]) * s[1] - (c[1] - a[1]) * s[0]) / den;
+  const v = ((c[0] - a[0]) * r[1] - (c[1] - a[1]) * r[0]) / den;
+  if (u < -0.3 || u > 1.3 || v < -0.3 || v > 1.3) return null;
+  return [a[0] + r[0] * u, a[1] + r[1] * u];
+}
+
+/** A smear ghost: a thick dithered graphite stroke (the multiple of a fast arc). */
+function ghostLine(f, x0, y0, x1, y1, k) {
+  const L = Math.ceil(Math.hypot(x1 - x0, y1 - y0));
+  for (let i = 0; i <= L; i++) {
+    const u = i / L;
+    const w = 1 + 3 * u;
+    for (let d = -w; d <= w; d++) {
+      const x = x0 + (x1 - x0) * u + d * 0.7;
+      const y = y0 + (y1 - y0) * u - d * 0.7;
+      if (hashDither(x | 0, y | 0) < k * 0.7) put(f, W, H, x, y, RGB.graphite);
+    }
+  }
+}
+
+/** Speed lines along a segment (the spear's snap): short ink strokes parallel to it. */
+function speedLinesAlong(f, pa, pb, t) {
+  const dx = pb.sx - pa.sx;
+  const dy = pb.sy - pa.sy;
+  const L = Math.hypot(dx, dy) || 1;
+  const nx = -dy / L;
+  const ny = dx / L;
+  const d = twos(t);
+  for (let i = 0; i < 14; i++) {
+    const off = (hash(i, d, 3) - 0.5) * 40;
+    const u0 = hash(i, d, 4) * 0.7;
+    const len = 0.15 + 0.3 * hash(i, d, 5);
+    for (let k = 0; k < L * len; k++) {
+      const u = u0 + k / L;
+      put(f, W, H, pa.sx + dx * u + nx * off, pa.sy + dy * u + ny * off, RGB.sepia);
+    }
+  }
+}
+
+export const PieceClass = FordPiece;
+export const SHOTS_OF = (p) => p.shots.map((s) => ({ name: s.name, from: s.from, to: s.to }));

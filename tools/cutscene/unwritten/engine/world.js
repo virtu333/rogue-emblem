@@ -22,14 +22,20 @@
 //
 // Cameras: project, unproject, lookAt, orbit, crane, lerpCam, nudge (screen shake).
 // Also impulse (a shock wave for render), foregroundRow (maemono along a line) and
-// smearFrame (a whip pan's drag). world.prof holds the last frame's per-pass times (ms).
+// smearFrame (a whip pan's drag: streaked multiples and ink speed lines, never a blur).
+// world.prof holds the last frame's per-pass times (ms).
 //
 // How it is drawn: every pixel casts a ray. Rays that hit the ground find the river (a
 // trench along Z with sloped banks) or the bank top; the rest meet ridge "curtains" on
 // circles of increasing radius around the ford (real parallax, aerial perspective by
 // distance) or the sky, where clouds lie on a plane 1.5 km up. Water samples a second
 // image, the background seen from the camera mirrored in Y = 0, displaced by the wave
-// slope (so the Hollow Sun breaks up in the current). Every surface writes an id and a
+// slope; the Hollow Sun itself is broken by the water analytically (sunGlitter: a field
+// of small tilted mirrors, so its image falls apart into horizontal slivers strung down a
+// column, pale toward the lens, the gold ring left as glints). The river meanders within
+// the picture (buildRiver: a riffle, a pool, a jutting spur, gravel bars on the insides
+// of the bends, steep cut banks on the outsides); the stones are ellipsoids cut by planes
+// (flat crowns, facets, cracks where faces meet). Every surface writes an id and a
 // depth; the ink contours come from id changes (the world's own shapes), and the paint
 // stages dissolve wash -> lines -> pencil -> paper in noise patches like every layer.
 
@@ -1399,7 +1405,7 @@ export class World {
     };
     this.passRays(B);
     lap('rays');
-    this.passReflection(B, t);
+    this.passReflection(B);
     lap('refl');
     this.passShade(frame, B, t);
     lap('shade');
@@ -1467,10 +1473,11 @@ export class World {
   /**
    * The background seen in the water: for a pixel whose ray goes down, the sky and
    * ridges along the mirrored ray from the camera mirrored in Y = 0. Computed lazily
-   * (only where the water samples it, see reflAt); the Hollow Sun's patch is made up
-   * front and the sun drawn into it, so its reflection breaks up with the rest.
+   * (only where the water samples it, see reflAt). The Hollow Sun is not drawn into
+   * it: the water breaks it into facets itself (sunGlitter); this only finds where its
+   * mirror image sits.
    */
-  passReflection(B, t) {
+  passReflection(B) {
     this.frameNo = (this.frameNo + 1) >>> 0 || 1;
     this.mtMirror = this.maxTans(B.ox, -B.oy, B.oz);
     const s = this.sunDir();
@@ -1505,17 +1512,18 @@ export class World {
    * gold ring surviving as broken glints. Returns 0 (none), else writes the colour into
    * c and returns 1 (disc) or 2 (ring).
    */
-  sunGlitter(x, y, X, zf, fpA, fpL, t, c) {
+  sunGlitter(x, y, X, zf, fpA, fpL, t, c, gt = 50) {
     const ms = this.msun;
     const rs = ms.r;
     const ddx = x - ms.px;
     const ddy = y - ms.py;
     if (Math.abs(ddx) > rs * 2.4) return 0;
     // 0 at the mirror image, 1 at the frame's foot (below) or the horizon (above)
+    // (toward the horizon the path stays dense: the slivers only get thinner there)
     const q =
       ddy >= 0
         ? clamp(ddy / Math.max(24, this.H - ms.py))
-        : clamp(-ddy / Math.max(12, ms.py - this.horizonY));
+        : 0.3 * clamp(-ddy / Math.max(12, ms.py - this.horizonY));
     // the facets: a brick grid in (across, along) scaled to the pixel footprint, so they
     // are a few pixels tall at any distance and drift down the frame with the current
     const v = zf / (fpL * (2.6 - 1.2 * q)) + 0.3;
@@ -1528,14 +1536,16 @@ export class World {
     // each facet rocks with the swell: its tilt sends it up and down the column
     const amp = rs * 1.15 + Math.abs(ddy) * 1.1;
     const G = (Math.sin(h1 * 40 + t * (2.2 + 2.6 * h2)) * 0.5 + (h3 - 0.5)) * amp;
-    const rr = rs * (1 - 0.5 * q);
+    // close to the lens the facets are few, small and pale: the image is far off
+    const nearK = smooth(2, 26, gt);
+    const rr = rs * (1 - 0.5 * q) * (0.55 + 0.45 * nearK);
     const ex = (ddx + (h2 - 0.5) * rs * (0.5 + 0.9 * q)) / rr;
     const ey = (ddy + G) / rr;
     const d = Math.sqrt(ex * ex + ey * ey);
     const ring = 0.2 + 0.35 * q;
     if (d > 1 + ring) return 0;
     // near the camera many facets show only water: the image thins out
-    if (hash(iu, jv, 75) < 0.15 + 0.5 * q) return 0;
+    if (hash(iu, jv, 75) < 0.15 + 0.5 * q + 0.35 * (1 - nearK)) return 0;
     if (d > 1 - 0.08) {
       // the ring: broken gold glints
       if (hash(iu, jv, 76) < 0.2 + 0.4 * q) return 0;
@@ -1546,7 +1556,7 @@ export class World {
       return 2;
     }
     // the disc: ink, paler as the slivers get thin toward the camera
-    const k = 0.92 - 0.62 * q;
+    const k = (0.92 - 0.62 * q) * (0.4 + 0.6 * nearK);
     c[0] += (14 - c[0]) * k;
     c[1] += (12 - c[1]) * k;
     c[2] += (22 - c[2]) * k;
@@ -1989,7 +1999,7 @@ export class World {
       c[0] = r;
       c[1] = g;
       c[2] = b;
-      const sg = this.sunGlitter(x, y, X, zf, fpA, fpL, t, c);
+      const sg = this.sunGlitter(x, y, X, zf, fpA, fpL, t, c, gt);
       if (sg) {
         r = c[0];
         g = c[1];
@@ -3083,38 +3093,71 @@ export class World {
         0.1 + 0.9 * (u - 0.9) ** 0.7 * s,
         0.6 * (1 - (u - 0.9) / 0.6),
       );
-    // the crown
+    // the crown: a ragged wall of water thrown up round the point (drawn on twos), its
+    // top breaking into fingers, inked along its rim; the far half behind, the near half
+    // in front of whatever stands in it
     const u2 = Math.floor(u * 12) / 12;
-    const cd = 0.42 * Math.sqrt(s);
-    if (u2 < cd) {
+    const cd = 0.3 * Math.sqrt(s);
+    // a footfall only throws droplets; a body hitting the water throws a crown
+    if (s >= 0.9 && u2 < cd) {
       const k = u2 / cd;
       const rc = (0.1 + 0.3 * Math.sqrt(k)) * Math.sqrt(s);
       const hc = 0.5 * s * Math.sin(Math.PI * Math.min(1, k * 1.15)) ** 0.8;
-      const n = 18;
-      for (let j = 0; j < n; j++) {
-        const a = (j / n) * TWO_PI + hash(j, seed, 3) * 0.3;
-        const b = project(cam, X + Math.cos(a) * rc, 0, Z + Math.sin(a) * rc, W, H);
-        const tp = project(
-          cam,
-          X + Math.cos(a) * rc * 1.45,
-          hc * (0.55 + 0.6 * hash(j, seed, 4)),
-          Z + Math.sin(a) * rc * 1.45,
-          W,
-          H,
+      const n = 36;
+      const B = [];
+      const T = [];
+      const fins = [];
+      for (let j = 0; j <= n; j++) {
+        const a = (j / n) * TWO_PI;
+        // the rim: fingers of different heights, flaring outward as they rise
+        const fin = 0.3 + 0.8 * valueNoise(j * 1.3, seed * 3.1, 7) + 0.3 * hash(j % n, seed, 4);
+        fins.push(fin);
+        B.push(project(cam, X + Math.cos(a) * rc, 0, Z + Math.sin(a) * rc, W, H));
+        T.push(
+          project(
+            cam,
+            X + Math.cos(a) * rc * (1.25 + 0.3 * k),
+            hc * fin,
+            Z + Math.sin(a) * rc * (1.25 + 0.3 * k),
+            W,
+            H,
+          ),
         );
-        if (b.depth < 0.3 || tp.depth < 0.3) continue;
-        const L = Math.ceil(Math.hypot(tp.sx - b.sx, tp.sy - b.sy)) + 1;
-        const wid = Math.max(1, Math.round(0.03 * b.scale));
-        for (let q = 0; q <= L; q++) {
-          const v = q / L;
-          const x = b.sx + (tp.sx - b.sx) * v;
-          const y = b.sy + (tp.sy - b.sy) * v;
-          for (let w = 0; w < wid; w++) {
-            const xx = Math.round(x) + w;
-            const yy = Math.round(y);
-            if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
-            const o = (yy * W + xx) * 4;
-            this.fxPut(frame, xx, yy, b.depth - 0.05, v > 0.92 ? SEPIA : foamC(o), 1, v > 0.92);
+      }
+      const white = [236, 232, 222];
+      for (let j = 0; j < n; j++) {
+        const b0 = B[j];
+        const b1 = B[j + 1];
+        const t0 = T[j];
+        const t1 = T[j + 1];
+        if (b0.depth < 0.3 || b1.depth < 0.3 || t0.depth < 0.3 || t1.depth < 0.3) continue;
+        const z = (b0.depth + b1.depth) / 2 - 0.02;
+        // the strip, column by column between the two base-top pairs
+        const xa = Math.min(b0.sx, b1.sx, t0.sx, t1.sx);
+        const xb = Math.max(b0.sx, b1.sx, t0.sx, t1.sx);
+        const span = Math.max(1, Math.ceil(xb - xa));
+        for (let q = 0; q <= span; q++) {
+          const v = q / span;
+          const bx = b0.sx + (b1.sx - b0.sx) * v;
+          const by = b0.sy + (b1.sy - b0.sy) * v;
+          const tx = t0.sx + (t1.sx - t0.sx) * v;
+          const ty = t0.sy + (t1.sy - t0.sy) * v;
+          const L = Math.ceil(Math.hypot(tx - bx, ty - by));
+          if (L < 1) continue;
+          for (let r = 0; r <= L; r++) {
+            const h = r / L; // 0 at the water, 1 at the rim
+            const x = bx + (tx - bx) * h;
+            const y = by + (ty - by) * h;
+            if (h > 0.9) {
+              this.fxPut(frame, x, y, z, SEPIA, 1, true);
+              continue;
+            }
+            // thinner toward the rim; streaks of falling water down it; gaps in the wall
+            if (fins[j] < 0.55 && h > 0.35) continue;
+            const dens = (0.72 - 0.5 * h * h - 0.35 * k) * Math.min(1, 0.55 + 0.45 * s);
+            const o = ((y | 0) * W + (x | 0)) * 4;
+            const streak = hash(Math.round(x * 0.5), seed, 8) > 0.8;
+            this.fxPut(frame, x, y, z, streak ? foamC(Math.max(0, o)) : white, dens);
           }
         }
       }
@@ -3193,7 +3236,8 @@ export class World {
       const Z = o.Z + lz * v * w;
       cols.push({
         b: project(cam, X, 0, Z, W, H),
-        c: project(cam, X, crest, Z, W, H),
+        // the sheet leans the way it was thrown: its crest runs ahead of its foot
+        c: project(cam, X + dir * 0.2 * crest, crest, Z, W, H),
         tip: finger > 1.05,
       });
     }
@@ -3212,27 +3256,45 @@ export class World {
         if (yb - top < 1) continue;
         // falling streams: vertical streaks, steady across the sheet
         const streak = 0.55 + 0.45 * valueNoise(x * 0.45, 3.3, seed);
-        for (let y = Math.floor(top); y <= Math.ceil(yb); y++) {
+        const rib = valueNoise(x * 0.5, 7.7, seed + 2) > 0.74;
+        const y0 = Math.floor(top);
+        for (let y = y0; y <= Math.ceil(yb); y++) {
           if (x < 0 || y < 0 || x >= W || y >= H) continue;
           const hk = (yb - y) / (yb - top); // 0 at the water, 1 at the crest
-          if (valueNoise(x * 0.3, y * 0.3 + age * 9, seed + 5) > 0.82 - 0.35 * hk) continue;
-          const dens = str * (1 - fall * 0.85) * streak * (0.98 - 0.55 * hk * hk);
+          // the crest's edge is inked (broken here and there), its fingers too
+          if (y <= y0 + 1 && valueNoise(x * 0.35, seed, 9) > 0.25) {
+            this.fxPut(frame, x, y, z, SEPIA, 1 - fall * 0.8, true);
+            continue;
+          }
+          if (valueNoise(x * 0.3, y * 0.3 + age * 9, seed + 5) > 0.86 - 0.3 * hk) continue;
+          const dens = str * (1 - fall * 0.85) * streak * (1.05 - 0.5 * hk * hk);
           const i = y * W + x;
           const oo = i * 4;
           if (hk > 0.93 && (A.tip || Bc.tip)) {
             this.fxPut(frame, x, y, z, SEPIA, 1 - fall, true);
             continue;
           }
-          const c =
-            dens > 0.6
-              ? white
-              : [
-                  paper[oo] * FOAM[0] * KR,
-                  paper[oo + 1] * FOAM[1] * KG,
-                  paper[oo + 2] * FOAM[2] * KB,
-                ];
-          this.fxPut(frame, x, y, z, c, dens);
-          if (dens > 0.5 && this.stg[i] === 0 && z < this.zbuf[i]) this.ids[i] = ID_FX;
+          const foam = [
+            paper[oo] * FOAM[0] * KR,
+            paper[oo + 1] * FOAM[1] * KG,
+            paper[oo + 2] * FOAM[2] * KB,
+          ];
+          // white where the water is thick (the churning foot, the streams), a paler
+          // veil between the streams that the world shows through, grey ribs of falling
+          // water; ragged holes open toward the crest
+          // a veil the world shows through, drawn in streams: the churning foot and the
+          // crest band solid white, thin white streams running up it, a pale dithered
+          // wash between them, a few grey ribs
+          const px = yb - top > 40 ? 0.9 : 0.45; // streams thin out when the sheet is small
+          const stream = valueNoise(x * px, 1.7, seed + 3) > 0.6;
+          const solid = hk > 0.8 || hk < 0.18 + 0.1 * streak || stream;
+          if (!solid) {
+            if (rib && hk < 0.8) this.fxPut(frame, x, y, z, [188, 186, 186], dens);
+            else this.fxPut(frame, x, y, z, foam, dens * 0.42);
+            continue;
+          }
+          this.fxPut(frame, x, y, z, dens > 0.42 ? white : foam, dens > 0.42 ? 1 : dens * 1.6);
+          if (dens > 0.42 && this.stg[i] === 0 && z < this.zbuf[i]) this.ids[i] = ID_FX;
         }
       }
     }
@@ -3432,31 +3494,37 @@ export class World {
           }
         continue;
       }
-      // a clump of broad blades
-      const nb = 4 + Math.floor(hash(seed, 1, 55) * 4);
+      // a clump of blades: long curved leaves, widest a third of the way up, the tips
+      // bent over by the wind, each a little its own way (out of focus: flat dark ink)
+      const nb = 3 + Math.floor(hash(seed, 1, 55) * 4);
       for (let b = 0; b < nb; b++) {
-        const h = (it.h ?? 1.2) * (0.55 + 0.6 * hash(seed, b, 56));
-        const X = it.X + (hash(seed, b, 57) - 0.5) * 0.35;
+        const h = (it.h ?? 1.2) * (0.5 + 0.65 * hash(seed, b, 56));
+        const X = it.X + (hash(seed, b, 57) - 0.5) * 0.4;
         const Z = it.Z + (hash(seed, b, 58) - 0.5) * 0.25;
         const g = this.gust(X, Z, t2) * windK;
-        const lean = (hash(seed, b, 59) - 0.5) * 0.7 + (0.15 + 0.5 * g) * Math.cos(this.wind.dir);
-        const wB = 0.05 * (0.7 + 0.6 * hash(seed, b, 60));
+        const side = hash(seed, b, 61) < 0.5 ? -1 : 1;
+        const lean =
+          side * (0.25 + 0.55 * hash(seed, b, 59)) + (0.2 + 0.55 * g) * Math.cos(this.wind.dir);
+        const wB = 0.028 * (0.7 + 0.6 * hash(seed, b, 60));
         let prev = null;
-        for (let k = 0; k <= 8; k++) {
-          const v = k / 8;
-          const phi = lean * v ** 1.4;
-          const px = X + Math.sin(phi) * h * v * 0.9;
-          const py = base + Math.cos(phi * 0.6) * h * v;
+        const NS = 14;
+        for (let k = 0; k <= NS; k++) {
+          const v = k / NS;
+          const phi = lean * v ** 1.8;
+          const px = X + Math.sin(phi) * h * v * 0.95;
+          const py = base + Math.cos(phi) * h * v - Math.max(0, Math.abs(phi) - 1.1) * h * 0.2 * v;
           const p = proj(px, py, Z);
           if (!p) {
             prev = null;
             continue;
           }
           if (prev) {
-            const half = Math.max(0.6, wB * (1 - v * 0.85) * p[2] * 0.5);
+            // a leaf: swelling from the root, tapering to a point
+            const prof = Math.sin(Math.PI * Math.min(1, v * 1.35 + 0.08)) ** 0.7 * (1 - v * 0.3);
+            const half = Math.max(0.5, wB * prof * p[2]);
             const L = Math.ceil(Math.hypot(p[0] - prev[0], p[1] - prev[1])) + 1;
-            for (let s = 0; s <= L; s++) {
-              const q = s / L;
+            for (let st = 0; st <= L; st++) {
+              const q = st / L;
               const xm = prev[0] + (p[0] - prev[0]) * q;
               const ym = prev[1] + (p[1] - prev[1]) * q;
               const zm = prev[3] + (p[3] - prev[3]) * q;
@@ -3465,7 +3533,8 @@ export class World {
                 if (x < 0 || y < 0 || x >= W || y >= H) continue;
                 const i = y * W + x;
                 if (zm >= this.zbuf[i]) continue;
-                mask[i] = 1;
+                // the side toward the sky catches a little light
+                mask[i] = x > xm + half - 1.2 && half > 1.5 ? 2 : 1;
                 this.zbuf[i] = zm;
                 any = true;
               }
