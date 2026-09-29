@@ -35,6 +35,9 @@ function displayObject(seed = {}) {
     setColor() {
       return this;
     },
+    on() {
+      return this;
+    },
     destroy: vi.fn(),
   };
 }
@@ -207,6 +210,84 @@ describe('a unit’s action menu as rows', () => {
       scene._villageController = { getWaitNote: () => 'Ending here visits the village' };
       scene.showActionMenu(unit);
       expect(openMenuCommand(scene, 'wait').note).toBe('Ending here visits the village');
+    }
+  });
+});
+
+// The Equip and Item submenus: the same model, the real menu code (not the stubs above).
+function submenuScene({ rail }) {
+  const ctx = menuScene({ rail });
+  const { scene } = ctx;
+  scene.showEquipMenu = BattleScene.prototype.showEquipMenu;
+  scene.showItemMenu = BattleScene.prototype.showItemMenu;
+  scene._getWeaponArtCatalog = () => [];
+  scene._showWeaponDetailTooltip = vi.fn();
+  scene._hideWeaponDetailTooltip = vi.fn();
+  scene.useConsumable = vi.fn();
+  scene.add.text = () => displayObject();
+  return ctx;
+}
+
+describe('the Equip and Item submenus as rows', () => {
+  it('Equip on the rail: a row per weapon and Back, no canvas; choosing one equips it', () => {
+    const { scene, unit } = submenuScene({ rail: true });
+    const steel = unit.inventory[1];
+    scene.showEquipMenu(unit);
+    expect(scene._makeMenuTextButton).not.toHaveBeenCalled();
+    expect(published(scene).map((item) => [item.id, item.label, item.item?.name ?? null])).toEqual([
+      ['weapon:0', 'E Iron Sword', 'Iron Sword'],
+      ['weapon:1', '  Steel Sword', 'Steel Sword'],
+      ['back', 'Back', null],
+    ]);
+    openMenuCommand(scene, 'weapon:1').onActivate();
+    expect(unit.weapon).toBe(steel);
+    // Back at the unit's own menu.
+    expect(openMenuCommand(scene, 'wait')).not.toBeNull();
+    expect(scene.inEquipMenu).toBe(false);
+  });
+
+  it('Equip Back returns to the unit menu without equipping', () => {
+    const { scene, unit } = submenuScene({ rail: true });
+    const iron = unit.weapon;
+    scene.showEquipMenu(unit);
+    openMenuCommand(scene, 'back').onActivate();
+    expect(unit.weapon).toBe(iron);
+    expect(scene.inEquipMenu).toBe(false);
+    expect(openMenuCommand(scene, 'equip')).not.toBeNull();
+  });
+
+  it('Item on the rail: a Vulnerary at full HP is greyed with the reason and cannot be used', () => {
+    const { scene, unit } = submenuScene({ rail: true });
+    scene.showItemMenu(unit);
+    expect(scene._makeMenuTextButton).not.toHaveBeenCalled();
+    const vulnerary = openMenuCommand(scene, 'item:0');
+    expect(vulnerary).toMatchObject({
+      label: 'Vulnerary (3)',
+      disabled: true,
+      description: 'HP already full',
+    });
+    expect(vulnerary.item).toBe(unit.consumables[0]);
+    vulnerary.onActivate();
+    expect(scene.useConsumable).not.toHaveBeenCalled();
+  });
+
+  it('Item on the rail: a hurt unit uses the Vulnerary', () => {
+    const { scene, unit } = submenuScene({ rail: true });
+    unit.currentHP = 8;
+    scene.showItemMenu(unit);
+    const vulnerary = openMenuCommand(scene, 'item:0');
+    expect(vulnerary.disabled).toBe(false);
+    vulnerary.onActivate();
+    expect(scene.useConsumable).toHaveBeenCalledWith(unit, unit.consumables[0]);
+  });
+
+  it('on desktop both submenus tag each canvas row with its row id', () => {
+    for (const open of ['showEquipMenu', 'showItemMenu']) {
+      const { scene, unit } = submenuScene({ rail: false });
+      scene[open](unit);
+      const items = published(scene);
+      expect(canvasRows(scene).map((row) => row._rowId)).toEqual(items.map((item) => item.id));
+      for (const item of items) expect(item.button._rowId).toBe(item.id);
     }
   });
 });
