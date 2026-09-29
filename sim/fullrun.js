@@ -32,7 +32,6 @@ import {
   ACT_CONFIG,
   ACT_SEQUENCE,
   NODE_TYPES,
-  ROSTER_CAP,
   DEPLOY_LIMITS,
   STARTING_GOLD,
   ENEMY_COUNT_OFFSET,
@@ -80,7 +79,6 @@ function getMetaEffects(level) {
       battleGoldMultiplier: 0,
       extraVulnerary: 0,
       deployBonus: 0,
-      rosterCapBonus: 0,
     };
   if (level === 1)
     return {
@@ -89,7 +87,6 @@ function getMetaEffects(level) {
       battleGoldMultiplier: 0.2,
       extraVulnerary: 0,
       deployBonus: 0,
-      rosterCapBonus: 0,
     };
   if (level === 2)
     return {
@@ -98,7 +95,6 @@ function getMetaEffects(level) {
       battleGoldMultiplier: 0.4,
       extraVulnerary: 1,
       deployBonus: 0,
-      rosterCapBonus: 0,
     };
   return {
     statBonuses: { HP: 6, STR: 2, DEF: 2, SPD: 2, SKL: 2, RES: 1 },
@@ -106,7 +102,6 @@ function getMetaEffects(level) {
     battleGoldMultiplier: 0.4,
     extraVulnerary: 1,
     deployBonus: 1,
-    rosterCapBonus: 2,
   };
 }
 
@@ -424,12 +419,8 @@ function simulateRun(metaLevel, verbose) {
           }
         }
 
-        // Add recruit to roster if battle won and space available
-        if (
-          recruitUnit &&
-          result.victory &&
-          roster.length < ROSTER_CAP + (meta.rosterCapBonus || 0)
-        ) {
+        // Add recruit to roster if battle won (the roster has no cap)
+        if (recruitUnit && result.victory) {
           recruitUnit.faction = 'player';
           roster.push(recruitUnit);
           if (verbose)

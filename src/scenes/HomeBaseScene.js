@@ -978,7 +978,6 @@ export class HomeBaseScene extends Phaser.Scene {
       return `Start with ${charges} ${charges === 1 ? 'Vision' : 'Visions'}`;
     }
     if (effect.deployBonus !== undefined) return `+${effect.deployBonus}`;
-    if (effect.rosterCapBonus !== undefined) return `+${effect.rosterCapBonus}`;
     if (effect.recruitStartingVulnerary !== undefined) return `+${effect.recruitStartingVulnerary}`;
     if (effect.extraStartingUnitTier !== undefined)
       return (
@@ -1095,7 +1094,6 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.lordRecruitChanceBonus !== undefined) return 'Lord recruit probability';
     if (effect.recruitPromotionChanceBonus !== undefined) return 'Recruit promotion probability';
     if (effect.deployBonus !== undefined) return 'Deploy slots';
-    if (effect.rosterCapBonus !== undefined) return 'Max roster size';
     if (effect.recruitStartingVulnerary !== undefined) return 'Recruits start with Vulnerary';
     if (effect.extraStartingUnitTier !== undefined) return 'Extra random starting unit class pool';
     if (effect.lethalArmoryTier !== undefined) return 'Recruits can gain extra weapons';

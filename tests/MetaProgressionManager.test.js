@@ -344,7 +344,6 @@ describe('MetaProgressionManager', () => {
   it('getActiveEffects returns capacity effects', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.deploy_limit = 1;
-    meta.purchasedUpgrades.roster_cap = 1;
     meta.purchasedUpgrades.vision_charges_2 = 1;
     meta.purchasedUpgrades.recruit_field_supplies = 1;
     meta.purchasedUpgrades.veteran_recruits = 3;
@@ -357,7 +356,7 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.recruit_xp = 1;
     const effects = meta.getActiveEffects();
     expect(effects.deployBonus).toBe(1);
-    expect(effects.rosterCapBonus).toBe(3);
+    expect(effects).not.toHaveProperty('rosterCapBonus');
     expect(effects.visionChargesBonus).toBe(1);
     expect(effects.recruitStartingVulnerary).toBe(1);
     expect(effects.recruitPromotionChanceBonus).toBe(0.24);
@@ -395,7 +394,7 @@ describe('MetaProgressionManager', () => {
     expect(effects.goldBonus).toBe(0);
     expect(effects.battleGoldMultiplier).toBe(0);
     expect(effects.deployBonus).toBe(0);
-    expect(effects.rosterCapBonus).toBe(0);
+    expect(effects).not.toHaveProperty('rosterCapBonus');
     expect(effects.visionChargesBonus).toBe(0);
     expect(effects.recruitStartingVulnerary).toBe(0);
     expect(effects.recruitPromotionChanceBonus).toBe(0);
@@ -1097,7 +1096,7 @@ describe('MetaProgressionManager', () => {
   it('purchaseUpgrade blocked by unmet milestone', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.totalSupply = 9999;
-    // deploy_limit requires beatAct2
+    // deploy_limit requires beatAct1
     const result = meta.purchaseUpgrade('deploy_limit');
     expect(result).toBe(false);
     expect(meta.getUpgradeLevel('deploy_limit')).toBe(0);
@@ -1106,7 +1105,7 @@ describe('MetaProgressionManager', () => {
   it('purchaseUpgrade succeeds when milestone is met', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.totalSupply = 9999;
-    meta.recordMilestone('beatAct2');
+    meta.recordMilestone('beatAct1');
     const result = meta.purchaseUpgrade('deploy_limit');
     expect(result).toBe(true);
     expect(meta.getUpgradeLevel('deploy_limit')).toBe(1);
@@ -1262,12 +1261,10 @@ describe('MetaProgressionManager', () => {
     expect(meta.meetsPrerequisites('lord_skl_flat')).toBe(true);
   });
 
-  it('deploy_limit requires beatAct2 milestone', () => {
+  it('deploy_limit requires the beatAct1 milestone (was beatAct2)', () => {
     const meta = new MetaProgressionManager(upgradesData);
     expect(meta.meetsPrerequisites('deploy_limit')).toBe(false);
     meta.recordMilestone('beatAct1');
-    expect(meta.meetsPrerequisites('deploy_limit')).toBe(false); // needs beatAct2
-    meta.recordMilestone('beatAct2');
     expect(meta.meetsPrerequisites('deploy_limit')).toBe(true);
   });
 
