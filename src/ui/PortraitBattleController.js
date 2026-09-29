@@ -14,6 +14,7 @@
 
 import { classifyBattleBoundary } from './BattleCheckpointAdapter.js';
 import { BattleSuspendController } from './BattleSuspendController.js';
+import { swallowTrailingClick } from './ceremonyDom.js';
 import { battlefieldLabEnabled } from './BattlefieldLab.js';
 import { canUseTouchUI } from '../utils/domUI.js';
 import { hasInputFocus } from '../utils/inputFocus.js';
@@ -99,7 +100,14 @@ export class PortraitBattleController {
   create() {
     this._applyClasses();
     if (typeof window === 'undefined' || !this.phoneLayout()) return this;
-    const onChange = () => this.check();
+    const onChange = () => {
+      // A turn can move a rail button under a finger still held on the board.
+      // Some browsers dispatch its trailing click to that new button even when
+      // they drop the touch release. Keep that click from opening a modal that
+      // would block the pending orientation handoff. A new press cancels the guard.
+      if (this.mismatch() && this.scene?.input?.activePointer?.isDown) swallowTrailingClick(null);
+      this.check();
+    };
     const onPreference = () => {
       this._refreshEnabled();
       this._applyClasses();
