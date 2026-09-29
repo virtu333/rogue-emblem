@@ -1281,6 +1281,19 @@ export class FordPiece extends Piece {
   }
 
   /** The spray sheet Edric throws up as he drops (one sheet, seen from every camera). */
+  /**
+   * The wake Edric's slide cuts through the water: from where he dropped to where he is
+   * (his cell rides the blocking's path), a V of foam behind the spray.
+   */
+  slideWake(a) {
+    const t0 = TIME.drop + 0.06;
+    if (a < t0) return [];
+    const aa = Math.min(a, 7.05);
+    const X1 = actorAt('edric', aa).X + 0.25;
+    const X0 = actorAt('edric', TIME.drop).X - 0.1;
+    return [{ X0, X1, Z: 0, width: 0.75, seed: 5, alpha: 1 }];
+  }
+
   slideSpray(a) {
     const t0 = TIME.drop + 0.12;
     if (a < t0) return [];
@@ -1482,6 +1495,7 @@ export class FordPiece extends Piece {
       rain: 0.7,
       actors: [ed.actor, wd],
       sprays,
+      wakes: this.slideWake(a),
       splashes: ed.splashes,
       impulses: [impulse(1.4, 0, TIME.thrust, 0.5)],
       wind: 1.2,

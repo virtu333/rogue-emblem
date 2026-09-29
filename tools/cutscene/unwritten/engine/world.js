@@ -624,7 +624,7 @@ const EDZ = 0.1;
 function makeStones(seed) {
   const S = [
     { X: -6.0, Z: 0.7, a: 0.42, c: 0.34, top: 0.16, ry: 0.36, yaw: 0.3 },
-    { X: -1.5, Z: -0.5, a: 0.36, c: 0.3, top: 0.12, ry: 0.32, yaw: -0.5 },
+    { X: -1.5, Z: -1.15, a: 0.36, c: 0.3, top: 0.12, ry: 0.32, yaw: -0.5 },
     { X: 2.0, Z: 0.6, a: 0.46, c: 0.38, top: 0.2, ry: 0.4, yaw: 0.9 },
     // the slick one Edric slips on: low and flat
     { X: 3.72, Z: -0.55, a: 0.6, c: 0.44, top: 0.07, ry: 0.22, yaw: 0.15, slick: true },
@@ -1445,6 +1445,7 @@ export class World {
       this.splashAt(frame, cam, s.X, s.Z, t, s.t0, s.strength ?? 1, s.seed ?? 1);
     for (const s of o.puffs || [])
       this.puffAt(frame, cam, s.X, s.Z, t, s.t0, s.strength ?? 1, s.seed ?? 1);
+    for (const s of o.wakes || []) this.wakeAt(frame, cam, s);
     for (const s of o.sprays || []) this.spraySheet(frame, cam, s);
     if (this.rain > 0) this.drawRain(frame, B, t, o.rainWind || [1.2, 0]);
     if (o.foreground?.length)
@@ -3290,6 +3291,73 @@ export class World {
         this.fxPut(frame, p.sx + 1, p.sy, p.depth, hi);
         this.fxPut(frame, p.sx, p.sy + 1, p.depth, SEPIA, 1, true);
         this.fxPut(frame, p.sx + 1, p.sy + 1, p.depth, SEPIA, 1, true);
+      }
+    }
+  }
+
+  /**
+   * The wake of something ploughing along the water (Edric's slide): a bow ridge of foam at the
+   * head, two arms of broken foam spreading behind it in a V, churned white patches between
+   * them, all thinning and breaking up with age. Call after render(). o: { X0 (where it began),
+   * X1 (the head now), Z, width (m, the V's spread at its oldest), seed, alpha }.
+   */
+  wakeAt(frame, cam, o) {
+    const { W, H } = this;
+    const paper = this.paper;
+    const len = Math.abs(o.X1 - o.X0);
+    if (len < 0.05) return;
+    const sgn = Math.sign(o.X1 - o.X0);
+    const wmax = o.width ?? 0.9;
+    const seed = o.seed ?? 1;
+    const foam = (i) => [
+      paper[i] * FOAM[0] * KR,
+      paper[i + 1] * FOAM[1] * KG,
+      paper[i + 2] * FOAM[2] * KB,
+    ];
+    const n = Math.ceil(len * 26);
+    for (let j = 0; j < n; j++) {
+      const u = j / n; // 0 the oldest water, 1 at the head
+      const age = 1 - u;
+      const X = o.X0 + (o.X1 - o.X0) * u;
+      const spread = 0.1 + wmax * age ** 0.8;
+      const keep = (o.alpha ?? 1) * (1 - age ** 1.4 * 0.85);
+      for (let side = -1; side <= 1; side += 2) {
+        // the arms: broken dashes
+        if (hash(j, seed * 3 + side, 61) < 0.4 + 0.5 * age) continue;
+        const Z = o.Z + side * spread + (hash(j, seed, 62) - 0.5) * 0.06;
+        const p = project(cam, X - sgn * 0.02, 0, Z, W, H);
+        if (p.depth < 0.3) continue;
+        const x = Math.round(p.sx);
+        const y = Math.round(p.sy);
+        if (x < 0 || y < 0 || x >= W || y >= H) continue;
+        const i = y * W + x;
+        if (this.ids[i] !== ID_WATER || this.stg[i] !== 0) continue;
+        if (keep <= bayer(x, y) * 0.9 + 0.05) continue;
+        const c = foam(i * 4);
+        this.fxPut(frame, x, y, p.depth, c);
+        // a second pixel along the dash so it reads as a line, not dust
+        if (p.scale > 60) this.fxPut(frame, x + 1, y, p.depth, c);
+      }
+      // churned patches between the arms
+      if (hash(j, seed, 63) < 0.32) {
+        const Z = o.Z + (hash(j, seed, 64) - 0.5) * spread * 1.5;
+        const p = project(cam, X, 0, Z, W, H);
+        if (p.depth < 0.3) continue;
+        const r = Math.max(
+          1,
+          Math.min(3, Math.round((0.05 + 0.08 * hash(j, seed, 65)) * p.scale * 0.5)),
+        );
+        for (let dy = -r; dy <= r; dy++)
+          for (let dx = -r * 2; dx <= r * 2; dx++) {
+            if ((dx / 2) ** 2 + dy * dy > r * r) continue;
+            const x = Math.round(p.sx) + dx;
+            const y = Math.round(p.sy) + dy;
+            if (x < 0 || y < 0 || x >= W || y >= H) continue;
+            const i = y * W + x;
+            if (this.ids[i] !== ID_WATER || this.stg[i] !== 0) continue;
+            if (keep * 0.9 <= bayer(x, y) * 0.9 + 0.05) continue;
+            this.fxPut(frame, x, y, p.depth, foam(i * 4));
+          }
       }
     }
   }
