@@ -69,12 +69,32 @@ const LANCE_BY_NAME = {
   Doomblade: { variant: 'glaive', head: 'blackened', tassel: null },
   'Gae Bolg': { variant: 'barbs', head: 'blood', tassel: null },
   Axehook: { variant: 'hook' },
+  // Lords' personal lances (weapons.json signatureOf) wear gilt fittings: Rowan's
+  // blessed broad head with a gilt tassel, Astrid's slim leaf head with a sky (SPD) one.
+  Godsend: { variant: 'broad', fit: 'gilt', tassel: 'gilt' },
+  Windward: { variant: 'leaf', fit: 'gilt', tassel: 'sky' },
 };
 
 const AXE_BY_NAME = {
   Bladehook: { variant: 'hook' },
   // Blue-grey steel like its painting, not the white legend metal.
   Tidebreaker: { head: 'steel', gem: 'sky' },
+  // Cael's personal axe: a broad bearded head on gilt fittings.
+  Holdfast: { variant: 'great', fit: 'gilt' },
+};
+
+/** Lords' personal bows and light tomes (weapons.json signatureOf). */
+const BOW_BY_NAME = {
+  // Voss's short bow: nocked and ready, RES-lilac grip (it adds RES).
+  'Last Watch': { fit: STAT_MATERIAL.RES, arrow: 'darkWood' },
+};
+/** Tomes whose cover is not their element's: Kira's slate war-college primer. */
+const TOME_COVER = {
+  Endgame: { cover: 'slate', emblemMat: 'leaf' },
+};
+const LIGHT_EMBLEM = {
+  // Sera's thread of light: a lilac (seer's) emblem instead of the gilt sun.
+  Threadlight: 'lilac',
 };
 
 function accentFor(sp, tier) {
@@ -94,6 +114,8 @@ const TOME_ELEMENT = {
   Conflagration: 'fire',
   Witchfire: 'fire',
   Firstwind: 'wind',
+  // Kira's personal tome is a wind spell (it fells riders and fliers).
+  Endgame: 'wind',
   Breachbolt: 'thunder',
   'Twisting Vortex': 'dark',
 };
@@ -142,8 +164,8 @@ export function tomeSpec(
   };
 }
 
-export function lightSpec(fit, crit) {
-  return tomeSpec('light', fit, 'parchment', crit ? 'blood' : 'gilt', 'pearl');
+export function lightSpec(fit, crit, emblem = null) {
+  return tomeSpec('light', fit, 'parchment', emblem || (crit ? 'blood' : 'gilt'), 'pearl');
 }
 
 export function weaponSpec(w, ctx = grammarContext()) {
@@ -227,11 +249,15 @@ export function weaponSpec(w, ctx = grammarContext()) {
         fit: acc || t.fit,
         size: sp.long ? 1.12 : sp.short ? 0.82 : 1,
         recurve: sp.short || sp.brave || /hermit/i.test(w.name),
+        ...BOW_BY_NAME[w.name],
       });
-    case 'Tome':
-      return tomeSpec(TOME_ELEMENT[w.name] || 'fire', t.fit);
+    case 'Tome': {
+      const el = TOME_ELEMENT[w.name] || 'fire';
+      const own = TOME_COVER[w.name];
+      return own ? tomeSpec(el, t.fit, own.cover, own.emblemMat) : tomeSpec(el, t.fit);
+    }
     case 'Light':
-      return lightSpec(t.fit, sp.crit);
+      return lightSpec(t.fit, sp.crit, LIGHT_EMBLEM[w.name]);
     case 'Staff': {
       const n = w.name.toLowerCase();
       if (/sleep|silence/.test(n))

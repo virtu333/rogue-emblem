@@ -345,8 +345,10 @@ export function filterClassPoolByDifficulty(classPool, difficultyMode) {
   return classPool.filter((name) => !DIFFICULTY_GATED_CLASSES.has(name));
 }
 
-// Deadly Arsenal tier 1: the commander's Steel-slot weapon is replaced by the
-// signature weapon of their primary proficiency (tier 2 adds the silver weapon).
+// Deadly Arsenal tier 1: the commander's Steel-slot weapon is replaced by their
+// personal weapon (weapons.json `signatureOf`, engine/SignatureWeapons.js); a lord
+// without one gets the signature weapon of their primary proficiency from this
+// table (tier 2 adds the silver weapon).
 export const DEADLY_ARSENAL_SIGNATURE_WEAPONS = {
   Sword: 'Rapier',
   Lance: 'Horsebane',

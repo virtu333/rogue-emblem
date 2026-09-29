@@ -1768,7 +1768,7 @@
   {
     "id": "weapon_tier",
     "name": "Deadly Arsenal",
-    "description": "Edric's Steel Sword is replaced with Rapier",
+    "description": "Your commander's Steel weapon is replaced by their personal weapon",
     "category": "starting_equipment",
     "maxLevel": 1,
     "costs": [
@@ -1783,7 +1783,7 @@
   {
     "id": "weapon_tier_silver",
     "name": "Deadly Arsenal II",
-    "description": "Edric also starts with a Silver Sword (auto-equipped)",
+    "description": "Your commander also starts with a Silver weapon (auto-equipped)",
     "category": "starting_equipment",
     "maxLevel": 1,
     "costs": [

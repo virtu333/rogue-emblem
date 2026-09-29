@@ -102,6 +102,7 @@ export const FX_FAMILIES = Object.freeze({
 export const WEAPON_FX_RULES = Object.freeze({
   byName: {
     Firstwind: 'wind',
+    Endgame: 'wind', // Kira's personal tome (its name and lore carry no element word)
     Breachbolt: 'thunder',
     'Twisting Vortex': 'dark',
     'Eldritch Grasp': 'dark',
