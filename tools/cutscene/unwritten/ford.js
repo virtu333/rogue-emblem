@@ -825,8 +825,8 @@ export class FordPiece extends Piece {
     const hasClip = !!this.motionSrc?.warden_thrust;
     // the swish: the spear's arc from up to level, drawn as ink ghosts around his hands
     if (lt >= SNAP && lt < SET + 1 / 24 && hasClip) {
-      const piv = this.cardPoint(wd, cam, 425, 93);
-      const tip = this.cardPoint(wd, cam, 305, 94);
+      const piv = this.cardPoint(wd, cam, 420, 128);
+      const tip = this.cardPoint(wd, cam, 302, 152.5);
       const R = Math.hypot(tip.x - piv.x, tip.y - piv.y);
       const a1 = Math.atan2(tip.y - piv.y, tip.x - piv.x);
       const a0 = a1 + Math.PI / 2; // from straight up (the level point is to his left)
@@ -851,18 +851,18 @@ export class FordPiece extends Piece {
       }
     }
     if (lt >= SET && hasClip) {
-      const sock = this.cardPoint(wd, cam, 352, 93);
-      const tip = this.cardPoint(wd, cam, 305, 94);
+      const sock = this.cardPoint(wd, cam, 355, 142.6);
+      const tip = this.cardPoint(wd, cam, 302, 152.5);
       // a glint runs out along the blade once he is still, then the point holds a star
       const g = (lc - 0.42) / 0.22;
       if (g > 0 && g < 1.3) glint(f, W, H, sock.x, sock.y, tip.x, tip.y, g, 5, 0.18);
       if (lc > 0.62) star(f, W, H, tip.x, tip.y, 2 + (twos(t) % 2), RGB.paperHi);
       const fk = smooth(SET, SET + 0.2, lc);
       focusLines(f, W, H, tip.x, tip.y, twos(t), {
-        inner: 64 - 10 * creep,
-        amount: 0.42 * fk,
+        inner: 70 - 10 * creep,
+        amount: 0.3 * fk,
         aspect: 1.6,
-        width: 4,
+        width: 3,
         color: RGB.sepia,
       });
     }
@@ -1073,11 +1073,16 @@ export class FordPiece extends Piece {
     }
     if (aa < 6.9) {
       const i = frameAt(SLIDE_BURST, aa);
+      // the slide skims the surface (on the riverbed the water would swallow all but his
+      // cloak); as he springs up out of it his feet find the bed again
+      const bed = this.world.groundY(eX + 0.1, 0);
+      const Y = lerp(-0.2, bed, smooth(4, 8, i));
       return {
         actor: this.clipActor('edric_slide_burst', i, eX + 0.1, 0, 1, {
           flip,
           rings: 1,
           fb: 'eSlide',
+          Y,
         }),
         splashes: [{ X: eX + 0.4, Z: -0.1, t0: TIME.drop + 0.1, strength: 1.4, seed: 80 }],
       };
@@ -1180,6 +1185,15 @@ export class FordPiece extends Piece {
     const st = this.station(aa);
     const ed = this.edricAt(a, aa);
     const wd = this.wardenAt(a, aa);
+    // the blow lands: the Warden is rocked back on his heels and recovers; Edric's body
+    // follows through into it (a peak two drawings after the stop, then a damped return)
+    const u = aa - TIME.clash;
+    const k =
+      u <= 0 ? 0 : u < 0.09 ? u / 0.09 : Math.exp(-(u - 0.09) / 0.22) * Math.cos((u - 0.09) * 9);
+    wd.X += 0.12 * k;
+    wd.xf = { rot: BIND_LEAN * 0.07 * k };
+    ed.actor.X += 0.07 * k;
+    ed.actor.xf = { rot: BIND_LEAN * 0.05 * k };
     this.world.render(f, a, cam, {
       rain: 0.8,
       rainWind: [1.8, 0],

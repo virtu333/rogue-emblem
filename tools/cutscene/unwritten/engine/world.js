@@ -2895,19 +2895,40 @@ export class World {
         if (wade) {
           const h = aboveW(x, y);
           if (h < 0) {
-            // below the surface: a faint, water-tinted ghost of the legs in the shallows
-            if (depth < 0.7 && h > -feet.scale * 0.35 && this.stg[i] === 0 && bayer(x, y) < 0.25) {
-              frame[o] = frame[o] * 0.72 + sc[o] * 0.18;
-              frame[o + 1] = frame[o + 1] * 0.72 + sc[o + 1] * 0.2;
-              frame[o + 2] = frame[o + 2] * 0.72 + sc[o + 2] * 0.24;
+            // below the surface: the legs seen through the water, refracted (each row
+            // shifted with the swell), tinted toward the river and fading with depth
+            const deepK = -h / (feet.scale * 0.4);
+            if (deepK < 1 && this.stg[i] === 0 && zA < this.zbuf[i] + 0.5) {
+              const sx2 = Math.round(x + Math.sin(y * 0.9 + t2 * 10) * (0.6 + deepK));
+              const so = (y * W + Math.max(X0, Math.min(X1 - 1, sx2))) * 4;
+              if (drawn(so) && bayer(x, y) < 0.85 - 0.6 * deepK) {
+                const k = 0.5 * (1 - deepK) + 0.08;
+                frame[o] = frame[o] * (1 - k) + (sc[so] * 0.7 + 12) * k;
+                frame[o + 1] = frame[o + 1] * (1 - k) + (sc[so + 1] * 0.75 + 16) * k;
+                frame[o + 2] = frame[o + 2] * (1 - k) + (sc[so + 2] * 0.8 + 30) * k;
+              }
             }
             continue;
           }
           if (zA >= this.zbuf[i]) continue;
-          if (h < 1.1 && this.stg[i] === 0 && hash(x, t2 * 12, 5) > 0.25) {
-            frame[o] = paper[o] * FOAM[0] * KR;
-            frame[o + 1] = paper[o + 1] * FOAM[1] * KG;
-            frame[o + 2] = paper[o + 2] * FOAM[2] * KB;
+          // at the surface: a wet, darker band on the figure, then broken foam clumps
+          // hugging it (drawn on twos, in patches, never a dotted rule)
+          if (h < 1.6 && this.stg[i] === 0) {
+            const clump = valueNoise(x * 0.45, Math.floor(t2 * 12) * 0.7, (a.seed ?? 1) + 11);
+            if (clump > 0.42) {
+              frame[o] = paper[o] * FOAM[0] * KR;
+              frame[o + 1] = paper[o + 1] * FOAM[1] * KG;
+              frame[o + 2] = paper[o + 2] * FOAM[2] * KB;
+              this.zbuf[i] = zA;
+              this.ids[i] = ID_ACTOR;
+              continue;
+            }
+          }
+          if (h < 3.2) {
+            frame[o] = sc[o] * 0.62;
+            frame[o + 1] = sc[o + 1] * 0.62;
+            frame[o + 2] = sc[o + 2] * 0.68;
+            frame[o + 3] = sc[o + 3];
             this.zbuf[i] = zA;
             this.ids[i] = ID_ACTOR;
             continue;
@@ -3211,6 +3232,7 @@ export class World {
    * angle (radians: the line turned from the X axis) }.
    */
   spraySheet(frame, cam, o) {
+    const SPRAY_SHADE = [196, 196, 204];
     const { W, H } = this;
     const age = o.age ?? 0;
     if (age < 0 || age > 2.4) return;
@@ -3256,7 +3278,7 @@ export class World {
       const ex = p2.sx - p.sx;
       const ey = p2.sy - p.sy;
       const sp = Math.hypot(ex, ey) || 1;
-      const el = Math.min(3.2, 1 + sp * 0.35);
+      const el = Math.min(1.9, 1 + sp * 0.22); // streaks, not feathers
       blobs.push([p.sx, p.sy, r, p.depth - 0.02, ex / sp, ey / sp, el]);
     }
     const white = [241, 236, 224];
@@ -3273,7 +3295,10 @@ export class World {
             const x = (cx + dx) | 0;
             const y = (cy + dy) | 0;
             if (pass) {
-              this.fxPut(frame, x, y, z, white);
+              // the shadow side of each blob (down and away from the light): a pale
+              // grey crescent, so the mass has volume instead of reading as a cut-out
+              const shade = r0 > 2.2 && dx * 0.55 + dy * 0.85 > r0 * 0.45;
+              this.fxPut(frame, x, y, z, shade ? SPRAY_SHADE : white);
               if (x >= 0 && y >= 0 && x < W && y < H) {
                 const i = y * W + x;
                 if (this.stg[i] === 0 && z < this.zbuf[i]) this.ids[i] = ID_FX;
