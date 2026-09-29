@@ -87,6 +87,7 @@ import {
 } from './WeaponArtSystem.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { restorePendingBossRecruit } from './PendingBossRecruit.js';
+import { restorePendingThirdLord } from './PendingThirdLord.js';
 import { UNIT_PRESENTATION_FIELDS } from './BattleUnitState.js';
 import {
   RECRUIT_PREVIEW_VERSION,
@@ -481,6 +482,7 @@ export class RunManager {
     this.pendingCaravanShop = null;
     this.pendingBattleReward = null;
     this.pendingBossRecruit = null;
+    this.pendingThirdLord = null;
     this.reachedFirstActBoss = false;
     this.activeCaravanShop = null;
     this.lastBattleCasualtyNotices = [];
@@ -622,6 +624,7 @@ export class RunManager {
     this.pendingCaravanShop = null;
     this.pendingBattleReward = null;
     this.pendingBossRecruit = null;
+    this.pendingThirdLord = null;
     this.reachedFirstActBoss = false;
     this.activeCaravanShop = null;
     this.lastBattleCasualtyNotices = [];
@@ -4372,6 +4375,7 @@ export class RunManager {
       pendingCaravanShop: this.pendingCaravanShop || null,
       pendingBattleReward: this.pendingBattleReward || null,
       pendingBossRecruit: this.pendingBossRecruit || null,
+      pendingThirdLord: this.pendingThirdLord || null,
       reachedFirstActBoss: this.reachedFirstActBoss === true,
       activeCaravanShop: this.activeCaravanShop || null,
       endRunRewards: this.endRunRewards || null,
@@ -5005,6 +5009,12 @@ export class RunManager {
       saved.thirdLordJoined === true ||
       (saved.thirdLordJoined === undefined && Number(saved.completedBattles || 0) >= 3);
     rm.thirdLordRerolled = saved.thirdLordRerolled === true;
+    rm.pendingThirdLord = restorePendingThirdLord(saved.pendingThirdLord, {
+      actId: rm.currentAct,
+      hasPendingReward: Boolean(rm.pendingBattleReward),
+      joined: rm.thirdLordJoined,
+      takenNames: [...(rm.roster || []), ...(rm.fallenUnits || [])].map((u) => u?.name),
+    });
     if (!Array.isArray(saved.shownDialogueKeys)) {
       const isInProgress = Boolean(
         saved.currentNodeId ||

@@ -656,9 +656,17 @@ function createRecruitFromPool(
  * @param {Object} metaEffects - effective meta effects (use getEffectiveMetaEffects())
  * @param {Array} fallenUnits - units that died this run
  * @param {string} mode - 'random'|'pick3'|'pick3_reroll'|'pick_all'
+ * @param {() => number} [rng] - draft stream (default Math.random)
  * @returns {{ candidates: Array, mode: string }|null} null if no lords available
  */
-export function generateThirdLordCandidates(roster, gameData, metaEffects, fallenUnits, mode) {
+export function generateThirdLordCandidates(
+  roster,
+  gameData,
+  metaEffects,
+  fallenUnits,
+  mode,
+  rng = Math.random,
+) {
   const availLords = getAvailableLords(
     roster,
     gameData.lords,
@@ -697,13 +705,13 @@ export function generateThirdLordCandidates(roster, gameData, metaEffects, falle
   } else if (mode === 'pick3' || mode === 'pick3_reroll') {
     const shuffled = [...availLords];
     for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(rng() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     selected = shuffled.slice(0, 3);
   } else {
     // 'random' — single lord
-    selected = [availLords[Math.floor(Math.random() * availLords.length)]];
+    selected = [availLords[Math.floor(rng() * availLords.length)]];
   }
 
   const candidates = selected

@@ -34,6 +34,7 @@ import { showImportantHint } from './HintDisplay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { BossRecruitOverlay } from './BossRecruitOverlay.js';
 import { prepareBossRecruit, resolveBossRecruit } from '../engine/PendingBossRecruit.js';
+import { prepareThirdLord, resolveThirdLordArrival } from '../engine/PendingThirdLord.js';
 import { pushRunSave } from '../cloud/CloudSync.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
@@ -216,6 +217,11 @@ export class PostCombatController {
         // The boss recruit draft is rolled and saved with the reward, so a
         // reload before the choice offers the same candidates.
         if (scene.isBoss) prepareBossRecruit(scene.runManager, scene.gameData);
+        // So is the third lord's arrival when this victory brings it due. After a
+        // boss recruit it is rolled once that choice is made (the pick changes who
+        // is left to arrive); a boss with no recruit to offer has no choice to wait for.
+        if (!scene.runManager.pendingBossRecruit && scene.runManager.shouldTriggerThirdLord())
+          prepareThirdLord(scene.runManager, scene.gameData);
       }
       scene._persistBattleRunState?.();
       afterVictoryBand(async () => {
@@ -565,6 +571,9 @@ export class PostCombatController {
       resolveBossRecruit(scene.runManager, selectedUnit);
       // A lord picked here has joined: this save has met them.
       if (selectedUnit) recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
+      // The arrival that follows is rolled in this same save.
+      if (scene.runManager.shouldTriggerThirdLord() && hasDOMHost())
+        prepareThirdLord(scene.runManager, scene.gameData);
       // The choice is durable before anything else happens: a pick is on the
       // roster and a skip is final, so a reload can neither re-offer nor lose
       // it. (The join card saves first itself.)
@@ -590,14 +599,18 @@ export class PostCombatController {
     scene._lordArrivalOverlay = overlay;
     scene.lootGroup = overlay.displayObjects;
     overlay.show((selectedUnit) => {
-      scene.runManager.resolveThirdLord(selectedUnit);
+      resolveThirdLordArrival(scene.runManager, selectedUnit);
       recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
       scene.lootGroup = null;
       scene._lordArrivalOverlay = null;
       const joined = selectedUnit && scene.runManager.roster?.includes?.(selectedUnit);
       const next = () => scene.showLootScreen();
       if (joined && this._canPresentJoin()) this._presentJoin(selectedUnit, 'lord', next);
-      else next();
+      else {
+        // The choice is durable before anything follows it (a join card saves first).
+        scene._persistBattleRunState?.();
+        next();
+      }
     });
   }
 
