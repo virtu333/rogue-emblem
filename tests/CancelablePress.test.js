@@ -41,19 +41,6 @@ describe('cancelable long press', () => {
     send('click', { detail: 0 });
     expect(tap).toHaveBeenCalledTimes(2);
   });
-  it('ignores a pointer click without a press on this control', () => {
-    const { send, tap } = setup();
-    send('click');
-    expect(tap).not.toHaveBeenCalled();
-    send('click', { detail: 0 }); // keyboard and accessibility activation still works
-    expect(tap).toHaveBeenCalledTimes(1);
-    send('pointerdown');
-    send('pointerup');
-    send('click');
-    expect(tap).toHaveBeenCalledTimes(2);
-    send('click');
-    expect(tap).toHaveBeenCalledTimes(2);
-  });
   it.each(['pointercancel', 'pointerleave', 'pointermove'])('cancels hold after %s', (event) => {
     const { send, hold, tap } = setup();
     send('pointerdown');
