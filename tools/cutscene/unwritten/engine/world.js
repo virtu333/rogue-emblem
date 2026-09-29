@@ -218,9 +218,9 @@ const FOAM = [238, 232, 220];
 const GRAVEL = [158, 153, 144];
 const GRAVEL_W = [102, 100, 98];
 const GRAVEL_HI = [184, 179, 170];
-const STONE_LIT = [140, 139, 141];
-const STONE_MID = [108, 108, 114];
-const STONE_SH = [80, 80, 88];
+const STONE_LIT = [174, 170, 168];
+const STONE_MID = [130, 128, 132];
+const STONE_SH = [92, 92, 100];
 const STONE_WET = [62, 62, 70];
 const REED_T = [112, 106, 92];
 const REED_W = [150, 144, 122];
@@ -675,6 +675,7 @@ export class World {
     this._ca = 0.5;
     this._st = 0.5;
     this._flat = 0;
+    this._edge = 0.5;
     this._sn = new Float32Array(3);
     this._px = 0.5;
     this._pz = 0.5;
@@ -892,22 +893,26 @@ export class World {
       const half = (this._er - this._el) / 2;
       X = c + s.u * half;
     }
-    // the ellipsoid rises a little above the top and is cut off there (flat crown)
-    const flat = s.flat ?? 0.3;
-    const cy = s.top - s.ry * (1 - flat);
-    // facets: a few planes the surface snaps to, mostly facing up and out
-    const fac = [];
-    const nf = 6 + Math.floor(hash(i, 21, 77) * 4);
+    // an ellipsoid cut by planes: the crown (flat, what a foot stands on) and a few
+    // facets, mostly facing up and out, each cutting off its own slice
+    const cut = s.flat ?? 0.55 + 0.2 * hash(i, 20, 77);
+    const cy = s.top - s.ry * cut;
+    const fac = [0, 1, 0, cut];
+    const nf = 5 + Math.floor(hash(i, 21, 77) * 4);
     for (let k = 0; k < nf; k++) {
       const az = hash(i, 30 + k, 77) * TWO_PI;
-      const el = 0.15 + hash(i, 50 + k, 77) * 1.1;
-      fac.push(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az));
+      const el = -0.1 + hash(i, 50 + k, 77) * 1.0;
+      fac.push(
+        Math.cos(el) * Math.cos(az),
+        Math.sin(el),
+        Math.cos(el) * Math.sin(az),
+        0.7 + 0.22 * hash(i, 70 + k, 77),
+      );
     }
     return {
       ...s,
       X,
       cy,
-      cut: 1 - flat,
       fac,
       i,
       ex: Math.cos(s.yaw || 0),
@@ -2120,7 +2125,13 @@ export class World {
 
   // ---------------------------------------------------------------- stones
 
-  /** Ray (from the camera, unit d) against stone s: sets this._st (Infinity: miss). */
+  /**
+   * Ray (from the camera, unit d) against stone s: sets this._st (Infinity: miss), the
+   * local normal this._sn, this._flat (1 when a cut face was hit, not the rounded body)
+   * and this._edge (how near the hit is to the next face, in local units: a crack or an
+   * arris when small). A stone is an ellipsoid cut by a few planes (its facets, and the
+   * flat crown), so it has hard edges and a broken silhouette.
+   */
   stoneHit(s, ox, oy, oz, dx, dy, dz) {
     const vx = ox - s.X;
     const vy = oy - s.cy;
@@ -2140,30 +2151,47 @@ export class World {
       return;
     }
     const sq = Math.sqrt(disc);
-    const t = (-Bq - sq) / (2 * A);
-    const n = this._sn;
-    // the crown is cut flat (a weathered top you could step on): a ray that enters the
-    // ellipsoid above the top plane meets the plane instead, or misses
-    const ly0 = ly + ey * t;
-    const cut = s.cut;
-    if (ly0 > cut) {
-      const tp = (cut - ly) / ey;
-      if (!(ey < 0) || tp > (-Bq + sq) / (2 * A)) {
+    let tE = (-Bq - sq) / (2 * A);
+    let tX = (-Bq + sq) / (2 * A);
+    let fk = -1; // the face entered (-1: the rounded body)
+    let t2 = -Infinity; // the next latest entry (for the edge)
+    const F = s.fac;
+    for (let k = 0; k < F.length; k += 4) {
+      const den = F[k] * ex + F[k + 1] * ey + F[k + 2] * ez;
+      const num = F[k + 3] - (F[k] * lx + F[k + 1] * ly + F[k + 2] * lz);
+      if (den < -1e-9) {
+        const t = num / den;
+        if (t > tE) {
+          t2 = tE;
+          tE = t;
+          fk = k;
+        } else if (t > t2) t2 = t;
+      } else if (den > 1e-9) {
+        const t = num / den;
+        if (t < tX) tX = t;
+      } else if (num < 0) {
         this._st = Infinity;
         return;
       }
-      this._st = tp;
-      this._flat = 1;
-      n[0] = (lx + ex * tp) * 0.001;
-      n[1] = 1;
-      n[2] = (lz + ez * tp) * 0.001;
+    }
+    if (tE > tX) {
+      this._st = Infinity;
       return;
     }
-    this._st = t;
-    this._flat = 0;
-    n[0] = lx + ex * t;
-    n[1] = ly0;
-    n[2] = lz + ez * t;
+    this._st = tE;
+    this._edge = (tE - t2) * Math.sqrt(A);
+    const n = this._sn;
+    if (fk >= 0) {
+      this._flat = 1;
+      n[0] = F[fk];
+      n[1] = F[fk + 1];
+      n[2] = F[fk + 2];
+    } else {
+      this._flat = 0;
+      n[0] = lx + ex * tE;
+      n[1] = ly + ey * tE;
+      n[2] = lz + ez * tE;
+    }
   }
 
   drawStones(frame, B) {
@@ -2236,54 +2264,26 @@ export class World {
               const nzw = -(nx0 / s.a) * s.ez + (nz0 / s.c) * s.ex;
               const nyw = ny0 / s.ry;
               const nl = Math.sqrt(nxw * nxw + nyw * nyw + nzw * nzw);
-              let mx = nxw / nl;
-              let my = nyw / nl;
-              let mz = nzw / nl;
-              // snap the sides to the stone's facets (flat planes, a hard edge between
-              // them, cracked where two meet); the cut crown stays one flat plane
-              let crack = false;
-              const flatTop = this._flat === 1;
-              if (!flatTop) {
-                const F = s.fac;
-                let b1 = -2;
-                let b2 = -2;
-                let bk = 0;
-                for (let k = 0; k < F.length; k += 3) {
-                  const d = mx * F[k] + my * F[k + 1] + mz * F[k + 2];
-                  if (d > b1) {
-                    b2 = b1;
-                    b1 = d;
-                    bk = k;
-                  } else if (d > b2) b2 = d;
-                }
-                mx = 0.3 * mx + 0.7 * F[bk];
-                my = 0.3 * my + 0.7 * F[bk + 1];
-                mz = 0.3 * mz + 0.7 * F[bk + 2];
-                const ml = Math.sqrt(mx * mx + my * my + mz * mz);
-                mx /= ml;
-                my /= ml;
-                mz /= ml;
-                crack = b1 - b2 < 0.035 * (1 + 3 / Math.max(4, this.F / st));
-              } else {
-                // a crack or two across the crown
-                const wx = ox + dx * st - s.X;
-                const wz = oz + dz * st - s.Z;
-                const cn = valueNoise(wx * 3.1 + s.i * 7, wz * 3.1, 61);
-                crack = Math.abs(cn - 0.5) < 0.018 + st / this.F;
-              }
+              const mx = nxw / nl;
+              const my = nyw / nl;
+              const mz = nzw / nl;
+              const cutFace = this._flat === 1;
+              const top = cutFace && my > 0.97;
+              // an arris or crack where two faces meet (about a pixel wide)
+              const crack = this._edge * Math.min(s.a, s.ry, s.c) < (1.1 * z) / this.F;
               const dif = mx * Lx + my * Ly + mz * Lz;
-              // lit on top, dark and wet low down, the slick one wet all over
-              let c = flatTop
+              // flat washes: the crown lit (the slick one wet), faces by their angle,
+              // dark and wet at the waterline
+              let c = top
                 ? s.slick
                   ? STONE_MID
                   : STONE_LIT
-                : dif > 0.62 && hy > s.top * 0.4
+                : dif > 0.6 && hy > s.top * 0.35
                   ? STONE_LIT
-                  : dif > 0.22
+                  : dif > 0.2
                     ? STONE_MID
                     : STONE_SH;
-              if (hy < 0.035 + 0.05 * s.a) c = STONE_WET;
-              else if (s.slick && c === STONE_LIT) c = STONE_MID;
+              if (!top && hy < 0.03 + 0.04 * s.a) c = STONE_WET;
               if (crack && hy > 0.03) c = STONE_WET;
               // wet patches and lichen: a flat second tone over the surface
               let tn = s.tone;

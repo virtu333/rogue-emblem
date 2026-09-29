@@ -23,7 +23,6 @@
 
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-const lerp = (a, b, k) => a + (b - a) * k;
 const smooth01 = (u) => {
   u = clamp(u, 0, 1);
   return u * u * (3 - 2 * u);
@@ -63,6 +62,10 @@ const GROUPS = {
   legF: ['thighF', 'shinF', 'footF'],
 };
 const STRETCH = { min: 0.9, max: 1.1 };
+/** How much the foot turns with its shin (0: stays flat, 1: rigid with the leg). */
+const FOOT_FOLLOW = 0.75;
+/** How wide a bone blends into its neighbours (1 = the rig's `blend`); hinges that should stay crisp are small. */
+const SOFT = { footN: 0.35, footF: 0.35, handN: 0.5, handF: 0.5, head: 0.8 };
 /** How much each bone counts when picking the key pose nearest a skeleton. */
 const DIST_W = {
   torsoLow: 1.4,
@@ -395,7 +398,12 @@ export class Skin {
       pad: r.pad,
     }));
     // the default part: whatever no region claims
-    regions.unshift({ name: 'body', z: this.spec.bodyZ ?? 3, bones: ['torso', 'head'], poly: null });
+    regions.unshift({
+      name: 'body',
+      z: this.spec.bodyZ ?? 3,
+      bones: ['torso', 'head'],
+      poly: null,
+    });
     const label = new Int16Array(w * h).fill(0);
     for (let i = 1; i < regions.length; i++) {
       const m = new Uint8Array(w * h);
@@ -405,7 +413,7 @@ export class Skin {
     }
     // pixels no region claimed join the nearest region within a few px (slivers along an
     // outline drawn a little tight), the rest stay in the default part
-    const reach = this.spec.claim ?? 4;
+    const reach = this.spec.claim ?? 12;
     for (let it = 0; it < reach; it++) {
       const prev = label.slice();
       for (let y = 0; y < h; y++)
@@ -453,7 +461,11 @@ export class Skin {
     };
     this.lags = {};
     for (const p of this.parts)
-      if (p.lag) this.lags[p.lag.set] = { ...(DEFAULT_LAGS[p.lag.set] || {}), ...(this.spec.lags || {})[p.lag.set] };
+      if (p.lag)
+        this.lags[p.lag.set] = {
+          ...(DEFAULT_LAGS[p.lag.set] || {}),
+          ...(this.spec.lags || {})[p.lag.set],
+        };
   }
 
   /**
@@ -472,9 +484,22 @@ export class Skin {
       }
       // regions are in normalised image coordinates: convert the joints back
       const nz = (p) => [(this.flip ? this.w - p[0] : p[0]) / this.w, p[1] / this.h];
-      const R = { arm: 0.11, fore: 0.09, thigh: 0.15, shin: 0.12, foot: 0.08, hand: 0.075, ...r.auto.r };
+      const R = {
+        arm: 0.11,
+        fore: 0.09,
+        thigh: 0.15,
+        shin: 0.12,
+        foot: 0.08,
+        hand: 0.075,
+        ...r.auto.r,
+      };
       const Z = { armN: 6, armF: 2, legN: 4, legF: 2, fistN: 9, fistF: 8, ...r.auto.z };
-      const cap = (a, b, k, k2 = k) => [...nz(J[a]), ...nz(J[b]), (k * T) / this.w, (k2 * T) / this.w];
+      const cap = (a, b, k, k2 = k) => [
+        ...nz(J[a]),
+        ...nz(J[b]),
+        (k * T) / this.w,
+        (k2 * T) / this.w,
+      ];
       const skip = r.auto.skip || [];
       for (const s of ['F', 'N']) {
         const grip = this.grips[s];
@@ -520,7 +545,8 @@ export class Skin {
     const all = this.bones.filter((b) => !b.weapon && !b.set).map((b) => b.name);
     for (const n of names || all) {
       if (n === 'weapon') for (const ix of this.wk?.ix || []) out.push(ix);
-      else if (GROUPS[n]) for (const g of GROUPS[n]) this.boneIx[g] !== undefined && out.push(this.boneIx[g]);
+      else if (GROUPS[n])
+        for (const g of GROUPS[n]) this.boneIx[g] !== undefined && out.push(this.boneIx[g]);
       else if (this.boneIx[n] !== undefined) out.push(this.boneIx[n]);
     }
     return out;
@@ -577,8 +603,20 @@ export class Skin {
     part.bi = new Int16Array(nv * 4).fill(-1);
     part.bw = new Float32Array(nv * 4);
     const lag = part.lag;
-    const lo = lag ? lag.from.map((v, k) => (k ? v * h : this.flip ? (1 - v) * w : v * w)) : null;
-    const hi = lag ? lag.to.map((v, k) => (k ? v * h : this.flip ? (1 - v) * w : v * w)) : null;
+    // the ramp along which a part starts to lag: explicit (normalised), or for hair the top of the
+    // head, away from the face
+    const toPx = (a) => a.map((v, k) => (k ? v * h : this.flip ? (1 - v) * w : v * w));
+    let lo = null;
+    let hi = null;
+    if (lag && lag.from) {
+      lo = toPx(lag.from);
+      hi = toPx(lag.to);
+    } else if (lag) {
+      const J = this.J;
+      const hv = [J.head[0] - J.neck[0], J.head[1] - J.neck[1]];
+      lo = [J.head[0] + hv[0] * 0.55, J.head[1] + hv[1] * 0.55];
+      hi = [J.head[0] + hv[0] * 1.15, J.head[1] + hv[1] * 1.15];
+    }
     const tau = this.tau;
     for (let v = 0; v < nv; v++) {
       const px = pos[v * 2];
@@ -594,7 +632,7 @@ export class Skin {
       let ws = [];
       let sum = 0;
       for (let k = 0; k < cs.length; k++) {
-        const e = (ds[k] - dmin) / tau;
+        const e = (ds[k] - dmin) / (tau * (SOFT[this.bones[cs[k]].name] ?? 1));
         const wv = Math.exp(-e * e);
         ws.push([cs[k], wv]);
         sum += wv;
@@ -831,14 +869,12 @@ export class Skin {
       let wrist;
       let el;
       let fa = angle(S, H);
-      let stretch = 1;
       for (let pass = 0; pass < 2; pass++) {
         const ha = wAng[s] !== null ? wAng[s] : fa + (h.ang - f.ang);
         wrist = polar(H, ha + Math.PI, h.len);
         const r = ik2(S, wrist, u.len, f.len, side);
         el = r.joint;
         wrist = r.end;
-        stretch = r.stretch;
         fa = angle(el, wrist);
       }
       const ha = wAng[s] !== null ? wAng[s] : fa + (h.ang - f.ang);
@@ -855,19 +891,25 @@ export class Skin {
       const an = B[`an${s}`];
       const to = B[`to${s}`];
       const kn = B[`kn${s}`];
-      // the art's ankle-to-toe drop against the blocking's: keep the sole on the same ground
-      const drop = ft.rb[1] - ft.ra[1];
-      const target = [an[0], to[1] - drop];
-      const ub = [target[0] - B.hips[0], target[1] - B.hips[1]];
-      const side = Math.sign(ub[0] * (kn[1] - B.hips[1]) - ub[1] * (kn[0] - B.hips[0])) || 1;
-      const r = ik2(hips, target, th.len, sn.len, side);
+      // the foot turns with the shin (FOOT_FOLLOW of its change), so the ankle bends as little
+      // as the leg does; the ankle is then set so the sole sits where the blocking's toe is
+      let fa = ft.ang;
+      let r = null;
+      for (let pass = 0; pass < 3; pass++) {
+        const fv = polar([0, 0], fa, ft.len);
+        const target = [an[0], to[1] - fv[1]];
+        const ub = [target[0] - B.hips[0], target[1] - B.hips[1]];
+        const side = Math.sign(ub[0] * (kn[1] - B.hips[1]) - ub[1] * (kn[0] - B.hips[0])) || 1;
+        r = ik2(hips, target, th.len, sn.len, side);
+        fa = ft.ang + FOOT_FOLLOW * angDiff(angle(r.joint, r.end), sn.ang);
+      }
+      const fv = polar([0, 0], fa, ft.len);
       T[this.boneIx[`thigh${s}`]] = [hips, r.joint];
       T[this.boneIx[`shin${s}`]] = [r.joint, r.end];
-      T[this.boneIx[`foot${s}`]] = [r.end, [r.end[0] + (ft.rb[0] - ft.ra[0]), r.end[1] + drop]];
+      T[this.boneIx[`foot${s}`]] = [r.end, [r.end[0] + fv[0], r.end[1] + fv[1]]];
     }
     if (wt)
-      for (let i = 0; i < this.wk.ix.length; i++)
-        T[this.wk.ix[i]] = [wt.pos[i], wt.pos[i + 1]];
+      for (let i = 0; i < this.wk.ix.length; i++) T[this.wk.ix[i]] = [wt.pos[i], wt.pos[i + 1]];
     return { T, B, joints: this.jointsOf(T) };
   }
 
@@ -981,6 +1023,7 @@ export class Skin {
     if (n <= this.cap) return;
     this.cap = n;
     this.src = new Int32Array(n);
+    this.under = new Int32Array(n);
     const st = this.layer.st;
     this.proxy = {
       st: {
@@ -1057,12 +1100,15 @@ export class Skin {
     const bw = Math.ceil(x1) - ox + 3;
     const bh = Math.ceil(y1) - oy + 3;
     this.ensure(bw * bh);
+    // `out` holds the painting's pixels (each part's own, back to front); `under` the smeared
+    // edges parts grow beneath their neighbours, which only show where nothing else covers
     const out = this.src;
+    const under = this.under;
     out.fill(-1, 0, bw * bh);
+    under.fill(-1, 0, bw * bh);
     const ids = this.trackIds ? (this.ids = new Int16Array(bw * bh).fill(-1)) : null;
     let pi = -1;
     const { w, h } = this;
-    const alpha = this.layer.st.alpha;
     const eps = 0.03;
     for (const part of this.parts) {
       pi++;
@@ -1108,7 +1154,8 @@ export class Skin {
             const iv = v < 0 ? 0 : v >= h ? h - 1 : Math.floor(v);
             const j0 = iv * w + iu;
             if (!acc[j0]) continue;
-            out[y * bw + x] = acc[j0] === 2 ? near[j0] : j0;
+            if (acc[j0] === 2) under[y * bw + x] = near[j0];
+            else out[y * bw + x] = j0;
             if (ids) ids[y * bw + x] = pi;
           }
         }
@@ -1121,7 +1168,7 @@ export class Skin {
     const src = this.layer.st;
     const sm = this.layer.mask;
     for (let i = 0; i < bw * bh; i++) {
-      const j = out[i];
+      const j = out[i] >= 0 ? out[i] : under[i];
       if (j < 0) {
         ps.alpha[i] = 0;
         continue;
