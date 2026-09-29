@@ -258,6 +258,7 @@ All phases complete on `main` as of Feb 15, 2026.
 - [ ] Extra Node Events - +1 RECRUIT guaranteed per act (350 Supply)
 - [ ] NPC Warriors - recruit battle NPCs gain +2 all stats (200 Supply)
 - [ ] Special Characters: `data/specialChars.json` (3-5 named units with fixed growths, personal skills, unlock via meta)
+  - [ ] First entry proposed: the Veteran Knight (Jeigan archetype), an opt-in pre-promoted Paladin starter. See `docs/specs/veteran-knight.md` (backlog; sim-gated)
 - [ ] Tests for new upgrade types, special character creation, equip slot meta
 
 ---
