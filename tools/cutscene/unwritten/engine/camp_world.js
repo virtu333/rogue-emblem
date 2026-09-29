@@ -21,36 +21,36 @@
 // Thread's pale gold; the Thread is thin, cold, and the only thing that sparkles.
 
 import { basis, project } from './world.js';
-import { bayer, clamp, hash, lerp, smooth, valueNoise } from './raster.js';
-import { drawSprite, layerMatrix } from './view.js';
+import { bayer, clamp, hash, smooth, valueNoise } from './raster.js';
 import { billboardMethods } from './camp_billboards.js';
 
 const TWO_PI = Math.PI * 2;
-const PAPER_REF = [214, 207, 196];
 
 // ------------------------------------------------------------------------ colours (targets)
 
+// The page at night: the vellum is toned indigo, washes are pale and transparent, and the
+// paper's grain shows through every one of them. Dim warm tones lean to mauve and violet grey,
+// never to olive (the camp's palette snap has no earth ramp either: camp_palette.js).
+
 // the night's ambient: cool violet-blue light from the sky (multiplies an albedo)
 const AMB = [0.2, 0.225, 0.36];
-// the fire's light (multiplies an albedo, times its intensity 0..~1.3)
-const FIRE_C = [1.25, 0.8, 0.34];
-const HAZE = [70, 64, 92]; // aerial perspective toward the horizon glow
-const INKC = [17, 15, 26];
-const SKY_ZEN = [17, 15, 32];
-const SKY_MID = [40, 36, 66];
-const SKY_HOR = [86, 80, 108];
-const SKY_GLOW = [128, 104, 118]; // the eastern horizon: the dawn to come
-const GRASS_DARK = [84, 80, 80];
-const GRASS_DRY = [124, 110, 98];
-const EARTH = [158, 130, 96];
-const TRAMPLED = [178, 146, 106];
-const SOOT = [40, 34, 32];
-const CANVAS = [214, 198, 164];
-const CANVAS_DK = [150, 134, 110];
-const WOOD = [126, 96, 66];
-const WOOD_DK = [84, 64, 48];
-const STONE = [140, 132, 126];
-const BARREL = [122, 92, 62];
+// the fire's light (multiplies an albedo, times its intensity 0..~1.3): red-orange, never yellow
+const FIRE_C = [1.2, 0.6, 0.22];
+const HAZE = [66, 60, 90]; // aerial perspective toward the horizon glow
+const INKC = [14, 12, 22];
+const SKY_ZEN = [14, 13, 27];
+const SKY_MID = [34, 32, 54];
+const SKY_HOR = [74, 70, 98];
+const SKY_GLOW = [128, 104, 122]; // the eastern horizon: the dawn to come
+const GRASS_DARK = [70, 68, 92];
+const GRASS_PALE = [96, 92, 112];
+const EARTH = [158, 122, 100];
+const TRAMPLED = [176, 136, 108];
+const SOOT = [34, 30, 36];
+const CANVAS = [204, 188, 158];
+const WOOD = [122, 92, 72];
+const STONE = [132, 126, 138];
+const BARREL = [118, 90, 72];
 
 // ids: what each pixel shows (edges come from changes between them)
 const ID_SKY = 1;
@@ -59,9 +59,7 @@ const ID_GROUND = 20;
 const ID_TENT = 40; // + tent index
 const ID_PROP = 80;
 const ID_STONE = 120;
-const ID_FENCE = 200;
 const ID_GRASS = 205;
-const ID_ACTOR = 210;
 const ID_FX = 230;
 
 // ------------------------------------------------------------------------ noise
@@ -151,19 +149,21 @@ function textures() {
 
 const TAB = 2048;
 const RIDGES = [
-  // near hills with a dark line of cypresses, then paler ranges into the glow
+  // near hills with a dark line of cypresses, then paler ranges into the glow. `ink`: how much of
+  // the crest is a found line (drawn in ink) rather than soft (pigment pooling) or lost (haze)
   {
     R: 62,
     base: 5,
     amp: 13,
     freq: 2.6,
     seed: 11,
-    trees: 80,
-    tree: [1.8, 4.2],
-    tw: 0.9,
-    lit: [34, 31, 48],
-    sh: [26, 24, 38],
+    trees: 34,
+    tree: [1.5, 3.4],
+    tw: 1.0,
+    lit: [40, 36, 56],
+    sh: [30, 27, 44],
     mist: 4,
+    ink: 0.16,
   },
   {
     R: 135,
@@ -171,12 +171,13 @@ const RIDGES = [
     amp: 30,
     freq: 3.1,
     seed: 17,
-    trees: 50,
-    tree: [3.5, 7.5],
+    trees: 22,
+    tree: [3.0, 6.5],
     tw: 1.8,
-    lit: [46, 43, 64],
-    sh: [38, 35, 56],
+    lit: [52, 48, 72],
+    sh: [43, 40, 62],
     mist: 9,
+    ink: 0.05,
   },
   {
     R: 420,
@@ -187,9 +188,10 @@ const RIDGES = [
     trees: 0,
     tree: [0, 0],
     tw: 1,
-    lit: [62, 58, 84],
-    sh: [55, 51, 76],
+    lit: [66, 62, 88],
+    sh: [59, 55, 80],
     mist: 26,
+    ink: -0.1,
   },
   {
     R: 1400,
@@ -200,9 +202,10 @@ const RIDGES = [
     trees: 0,
     tree: [0, 0],
     tw: 1,
-    lit: [78, 73, 100],
-    sh: [72, 67, 94],
+    lit: [80, 75, 102],
+    sh: [74, 69, 96],
     mist: 90,
+    ink: -0.3,
   },
 ];
 
@@ -247,7 +250,18 @@ function buildRidge(L) {
   for (let i = 0; i <= TAB; i++) if (h[i] > hmax) hmax = h[i];
   const d = new Float32Array(TAB + 1);
   for (let i = 0; i <= TAB; i++) d[i] = h[Math.min(TAB, i + 2)] - h[Math.max(0, i - 2)];
-  return { ...L, h, d, hmax };
+  // how the crest is drawn along its length: > 0.5 found (a line of ink), 0.22..0.5 soft
+  // (pigment pooled along it, no line), below that lost in the haze
+  const eq = new Float32Array(TAB / 8);
+  for (let k = 0; k < eq.length; k++) {
+    const th = (k / eq.length) * TWO_PI;
+    eq[k] = clamp(
+      valueNoise(Math.cos(th) * 5 + 3, Math.sin(th) * 5 + 7, L.seed + 900) * 1.3 - 0.15 + L.ink,
+      0,
+      1,
+    );
+  }
+  return { ...L, h, d, hmax, eq };
 }
 
 // ------------------------------------------------------------------------ the world
@@ -275,6 +289,7 @@ export class CampWorld {
     this.fire = { x: 0, y: 0.55, z: 0 };
     this._c = new Float64Array(3);
     this._n = new Float64Array(3);
+    this.buildGrain();
     this.buildStars();
     this.buildProps();
     this.buildTufts();
@@ -282,6 +297,26 @@ export class CampWorld {
   }
 
   // ---------------------------------------------------------------- building
+
+  /**
+   * The vellum's tooth as a screen-fixed field (the page does not move when the camera does): a
+   * fine hash, a 2 px clumping and short horizontal fibres, about -1.3..1.3. Washes multiply by
+   * 1 + k * grain, so pigment settles darker in the valleys of the paper.
+   */
+  buildGrain() {
+    const { W, H } = this;
+    const g = new Float32Array(W * H);
+    const p = this.paper;
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        const fine = hash(x, y, 313) - 0.5;
+        const clump = valueNoise(x * 0.45, y * 0.5, 317) - 0.5;
+        const fibre = valueNoise(x * 0.11, y * 0.85, 331) - 0.5;
+        const mottle = p ? (p[(y * W + x) * 4] - 207) / 24 : 0;
+        g[y * W + x] = fine * 0.8 + clump * 0.9 + fibre * 0.7 + mottle * 0.5;
+      }
+    this.grain = g;
+  }
 
   buildStars() {
     this.stars = [];
@@ -305,32 +340,45 @@ export class CampWorld {
   buildProps() {
     const S = this.set;
     this.tents = (S.tents || []).map((t, i) => {
-      // the door (the -u end) faces the fire, plus a little jitter
-      const yaw = Math.atan2(t.z, t.x) + (t.jitter || 0);
+      // the door (the -u end) faces the fire, plus a little jitter (or the tent's own yaw)
+      const yaw = t.yaw ?? Math.atan2(t.z, t.x) + (t.jitter || 0);
       const c = Math.cos(yaw);
       const s = Math.sin(yaw);
-      const Nn = Math.hypot(t.w / 2, t.h);
+      const a = t.L / 2;
+      const b = t.w / 2;
+      const Nn = Math.hypot(b, t.h);
       const corners = [];
       for (const u of [-1, 1])
         for (const y of [0, 1])
           for (const v of [-1, 1]) {
-            const lu = (u * t.L) / 2;
-            const lv = (v * t.w) / 2;
-            corners.push([t.x + lu * c - lv * s, y * t.h, t.z + lu * s + lv * c]);
+            const lu = u * a;
+            const lv = v * b;
+            corners.push([t.x + lu * c - lv * s, y * (t.h + 0.35), t.z + lu * s + lv * c]);
           }
+      // guy ropes run out from the pole tips along the ridge: their pegs widen the box
+      const rope = t.rope ?? 1.5;
+      for (const u of [-1, 1]) {
+        const lu = u * (a + rope);
+        corners.push([t.x + lu * c, 0, t.z + lu * s]);
+      }
       return {
         ...t,
         i,
         c,
         s,
         yaw,
+        a,
+        b,
+        rope,
+        sag: t.sag ?? 0.16,
         nN: Nn,
-        // planes in local (u, y, v): normal and offset
+        // planes of the unsagged prism in local (u, y, v): normal and offset. The roof is then
+        // found on the sagged ridge (see tentRoof): the prism only bounds the search.
         pl: [
-          [0, t.w / 2 / Nn, t.h / Nn, (t.h * (t.w / 2)) / Nn],
-          [0, t.w / 2 / Nn, -t.h / Nn, (t.h * (t.w / 2)) / Nn],
-          [-1, 0, 0, t.L / 2],
-          [1, 0, 0, t.L / 2],
+          [0, b / Nn, t.h / Nn, (t.h * b) / Nn],
+          [0, b / Nn, -t.h / Nn, (t.h * b) / Nn],
+          [-1, 0, 0, a],
+          [1, 0, 0, a],
           [0, -1, 0, 0],
         ],
         corners,
@@ -342,63 +390,76 @@ export class CampWorld {
       this.boxes.push(this.mkBox(b.x, b.z, b.sx, b.sz, b.h, b.yaw, 'bench'));
     for (const b of S.crates || [])
       if (!b.hidden) this.boxes.push(this.mkBox(b.x, b.z, b.sx, b.sz, b.sy * 2, b.yaw, 'crate'));
-    // the fire's two logs
-    // a small pile of logs leaning on each other, laid out from the middle
-    for (let k = 0; k < 5; k++) {
-      const a = 0.4 + k * 1.25;
-      this.boxes.push(
-        this.mkBox(
-          Math.cos(a) * 0.14,
-          Math.sin(a) * 0.14,
-          0.3 + 0.08 * hash(k, 1, 78),
-          0.045,
-          0.1 + 0.06 * (k % 2),
-          a,
-          'log',
-        ),
-      );
-    }
+    // the fire's logs: charred, lying across each other and leaning in over the coals
+    // (p0 -> p1 in metres from the fire's centre, r the radius)
+    this.logs = [
+      { p0: [-0.34, 0.055, 0.07], p1: [0.3, 0.06, -0.09], r: 0.055 },
+      { p0: [0.08, 0.05, -0.32], p1: [-0.05, 0.07, 0.3], r: 0.05 },
+      { p0: [-0.3, 0.05, -0.15], p1: [0.0, 0.3, 0.02], r: 0.042 },
+      { p0: [0.29, 0.05, 0.13], p1: [0.01, 0.27, -0.02], r: 0.042 },
+      { p0: [0.12, 0.05, 0.3], p1: [-0.03, 0.24, 0.02], r: 0.038 },
+    ].map((L) => {
+      const ab = [L.p1[0] - L.p0[0], L.p1[1] - L.p0[1], L.p1[2] - L.p0[2]];
+      return { ...L, ab, abab: ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2] };
+    });
     this.cyls = [];
     for (const s of S.stumps || []) this.cyls.push({ ...s, kind: 'stump' });
     for (const s of S.barrels || []) this.cyls.push({ ...s, kind: 'barrel' });
-    // stones round the fire and a few scattered, as ellipsoids sitting on the ground
+    // stones: ellipsoids resting on the ground, cut by a few planes into a flat crown and
+    // facets (world.js's stones): a ring round the fire, a few scattered, bedrolls at the tents
     this.stones = [];
-    const ring = 0.55;
-    for (let k = 0; k < 10; k++) {
-      const a = (k / 10) * TWO_PI + hash(k, 1, 77) * 0.3;
+    const facets = (k) => {
+      const F = [];
+      // the crown
+      F.push(0, 1, 0, 0.66 + 0.16 * hash(k, 20, 77));
+      const n = 4 + Math.floor(hash(k, 21, 77) * 3);
+      for (let f = 0; f < n; f++) {
+        const th = hash(k, 30 + f, 77) * TWO_PI;
+        const el = 0.12 + 0.7 * hash(k, 40 + f, 77);
+        F.push(Math.cos(th) * Math.cos(el), Math.sin(el), Math.sin(th) * Math.cos(el));
+        F.push(0.6 + 0.24 * hash(k, 50 + f, 77));
+      }
+      return F;
+    };
+    const ring = 0.56;
+    for (let k = 0; k < 9; k++) {
+      const an = (k / 9) * TWO_PI + hash(k, 1, 77) * 0.3;
       const r = ring + (hash(k, 2, 77) - 0.5) * 0.08;
       this.stones.push({
-        x: Math.cos(a) * r,
-        z: Math.sin(a) * r,
-        a: 0.13 + 0.06 * hash(k, 3, 77),
-        b: 0.1 + 0.05 * hash(k, 4, 77),
-        c: 0.12 + 0.05 * hash(k, 5, 77),
+        x: Math.cos(an) * r,
+        z: Math.sin(an) * r,
+        a: 0.1 + 0.04 * hash(k, 3, 77),
+        b: 0.075 + 0.035 * hash(k, 4, 77),
+        c: 0.09 + 0.04 * hash(k, 5, 77),
         yaw: hash(k, 6, 77) * 3,
         ring: true,
+        fac: facets(k),
       });
     }
     for (let k = 0; k < 14; k++) {
-      const a = hash(k, 7, 77) * TWO_PI;
+      const an = hash(k, 7, 77) * TWO_PI;
       const r = 2.8 + hash(k, 8, 77) * 9;
       this.stones.push({
-        x: Math.cos(a) * r,
-        z: Math.sin(a) * r,
+        x: Math.cos(an) * r,
+        z: Math.sin(an) * r,
         a: 0.14 + 0.3 * hash(k, 9, 77),
         b: 0.1 + 0.16 * hash(k, 10, 77),
         c: 0.14 + 0.25 * hash(k, 11, 77),
         yaw: hash(k, 12, 77) * 3,
+        fac: facets(k + 40),
       });
     }
     // bedrolls beside the tents (dark low lumps)
     for (const t of this.tents.slice(0, 5))
       this.stones.push({
-        x: t.x - t.c * (t.L / 2 + 1.4) + t.s * 0.6,
-        z: t.z - t.s * (t.L / 2 + 1.4) - t.c * 0.6,
+        x: t.x - t.c * (t.a + 1.4) + t.s * 0.6,
+        z: t.z - t.s * (t.a + 1.4) - t.c * 0.6,
         a: 0.9,
         b: 0.22,
         c: 0.38,
         yaw: t.yaw + 1.57,
         bed: true,
+        fac: [],
       });
   }
 
@@ -421,6 +482,10 @@ export class CampWorld {
       [1.45, -0.1, 0.9],
       [0.35, 1.7, 0.8],
       [0.4, -2.6, 1.1],
+      // no grass between the lens and Edric's feet at the end (it crosses his legs)
+      [-1.5, -1.0, 1.3],
+      [-1.0, -2.2, 1.2],
+      [-2.4, -0.4, 1.0],
     ];
     this.tufts = [];
     for (let k = 0; k < 1500 && this.tufts.length < 900; k++) {
@@ -676,35 +741,68 @@ export class CampWorld {
       r += (hz0 - r) * mk;
       g += (hz1 - g) * mk;
       bl += (hz2 - bl) * mk;
-      // the near ridge takes a hint of firelight on its crest? no: too far. Its top edge is
-      // a found line (a darker pigment pool) in places
+      // the crest: where it is found it is a line of ink; where soft the pigment pools along it
+      // (a darker wash, no line); where lost it melts into the haze
       const pxBelow = (q / th) * this.B.F;
-      if (pxBelow < 1.6 && li < 2 && hash(i >> 4, li, 5) > 0.35) {
-        r *= 0.72;
-        g *= 0.72;
-        bl *= 0.78;
+      if (li < 3) {
+        const eq = L.eq[i >> 3];
+        const w = li === 0 ? 1.7 : li === 1 ? 1.15 : 0.85;
+        if (eq > 0.5) {
+          if (pxBelow < w) {
+            r = r * 0.15 + INKC[0] * 0.85;
+            g = g * 0.15 + INKC[1] * 0.85;
+            bl = bl * 0.15 + INKC[2] * 0.85;
+          }
+        } else if (eq > 0.22) {
+          if (pxBelow < 2.6) {
+            r *= 0.8;
+            g *= 0.8;
+            bl *= 0.84;
+          }
+        } else if (pxBelow < 2.4) {
+          const k2 = 0.5 * (1 - pxBelow / 2.4);
+          r += (hz0 - r) * k2;
+          g += (hz1 - g) * k2;
+          bl += (hz2 - bl) * k2;
+        }
       }
       out[0] = r;
       out[1] = g;
       out[2] = bl;
       return ID_RIDGE + li;
     }
-    // the sky: a cool wash overhead, the glow of the coming dawn low in the east
+    // the sky: washes laid in bands, the edge of each a wandering line where the pigment pooled
+    // as it dried (never a perfect ramp); the glow of the coming dawn low in the east
     const az = Math.atan2(dx, dz);
-    const e = smooth(-0.03, 0.85, dy);
-    const glow = Math.exp(-(((az - 1.15) / 0.95) ** 2)) * (1 - smooth(0, 0.5, dy));
-    const w2 = e ** 0.55;
-    let r = SKY_HOR[0] * (1 - w2) + SKY_MID[0] * w2;
-    let g = SKY_HOR[1] * (1 - w2) + SKY_MID[1] * w2;
-    let bl = SKY_HOR[2] * (1 - w2) + SKY_MID[2] * w2;
-    const z2 = smooth(0.35, 1, dy);
+    const wob =
+      valueNoise(az * 3.2 + 7, dy * 7 + 3, 61) * 0.62 + valueNoise(az * 10 + 1, dy * 21, 67) * 0.38;
+    const pp = smooth(-0.03, 1.0, dy + (wob - 0.5) * 0.24);
+    const NB = 7;
+    const pb = pp * NB;
+    const bi = Math.floor(pb);
+    const fr = pb - bi;
+    const pq = (bi + 0.5) / NB;
+    const w2 = smooth(0, 0.42, pq);
+    const z2 = smooth(0.42, 1, pq);
+    let r = SKY_HOR[0] + (SKY_MID[0] - SKY_HOR[0]) * w2;
+    let g = SKY_HOR[1] + (SKY_MID[1] - SKY_HOR[1]) * w2;
+    let bl = SKY_HOR[2] + (SKY_MID[2] - SKY_HOR[2]) * w2;
     r += (SKY_ZEN[0] - r) * z2;
     g += (SKY_ZEN[1] - g) * z2;
     bl += (SKY_ZEN[2] - bl) * z2;
-    r += (SKY_GLOW[0] - r) * glow * 0.6;
-    g += (SKY_GLOW[1] - g) * glow * 0.6;
-    bl += (SKY_GLOW[2] - bl) * glow * 0.6;
-    // thin cloud drifting, lighter than the sky, torn into streaks by the wind
+    if (fr < 0.14) {
+      const k = 0.93 + 0.07 * (fr / 0.14);
+      r *= k;
+      g *= k;
+      bl *= k;
+    }
+    const glow = Math.exp(-(((az - 1.15) / 0.95) ** 2)) * (1 - smooth(0, 0.5, dy));
+    const gq = Math.max(0, Math.floor(glow * 3.4 + (wob - 0.5) * 0.9)) / 3.4;
+    r += (SKY_GLOW[0] - r) * gq * 0.6;
+    g += (SKY_GLOW[1] - g) * gq * 0.6;
+    bl += (SKY_GLOW[2] - bl) * gq * 0.6;
+    // clouds: two flat washes, a pale thin one and a darker thick core, the pigment pooled
+    // darker along the edge of the thin one (streaked out by the wind)
     let ca = 0;
     if (dy > 0.01) {
       const tc = (700 - oy) / dy;
@@ -712,16 +810,19 @@ export class CampWorld {
       const wz = oz + dz * tc + 3 * t + 800;
       const T = this.tex;
       const d = samp(T.cloud, T.N, wx / 520, wz / 190);
-      const th = 0.5;
+      const th = 0.56;
       if (d > th) {
-        const k = smooth(th, th + 0.14, d) * smooth(0.01, 0.2, dy) * 0.95;
-        // the masses are cooler and lighter at their edges, thicker (darker) in the middle
-        const core = smooth(th + 0.12, th + 0.3, d);
-        const lift = 1.55 - 0.5 * core;
-        r += (r * lift + 12 - r) * k;
-        g += (g * lift + 10 - g) * k;
-        bl += (bl * (lift - 0.05) + 14 - bl) * k;
-        ca = k;
+        const hk = smooth(0.01, 0.2, dy);
+        if (hk > 0.35) {
+          const core = d > th + 0.11;
+          const edge = d < th + 0.03;
+          const lift = core ? 1.06 : 1.24;
+          const em = edge ? 0.86 : 1;
+          r = (r * lift + (core ? 5 : 12)) * em;
+          g = (g * lift + (core ? 4 : 10)) * em;
+          bl = (bl * (lift - 0.03) + (core ? 7 : 16)) * em;
+          ca = 1;
+        }
       }
     }
     this._ca = ca;
@@ -731,55 +832,75 @@ export class CampWorld {
     return ID_SKY;
   }
 
-  /** The ground at (X, Z), d m from the camera: earth and grass under the fire's pool. */
+  /**
+   * The ground at (X, Z), d m from the camera: washes (a cool grass wash with a paler one laid over
+   * it in patches, the trampled earth of the camp), the fire's light as a pool in flat bands
+   * whose edges wander and breathe with the flames.
+   */
   shadeGround(X, Z, d, t, out) {
     const T = this.tex;
     const n1 = samp(T.ground, T.N, X * 0.3 + 40, Z * 0.3 + 17);
     const n2 = samp(T.ground, T.N, X * 1.6, Z * 1.6 + 5);
     const near = 1 - smooth(6, 26, d);
-    const n3 = near > 0 ? samp(T.ground, T.N, X * 5.5 + 9, Z * 5.5) : 0.5;
     const rr = Math.sqrt(X * X + Z * Z);
-    // grass tones, then the trodden earth of the camp, then soot round the fire
-    let a0 = GRASS_DARK[0] + (GRASS_DRY[0] - GRASS_DARK[0]) * n1;
-    let a1 = GRASS_DARK[1] + (GRASS_DRY[1] - GRASS_DARK[1]) * n1;
-    let a2 = GRASS_DARK[2] + (GRASS_DRY[2] - GRASS_DARK[2]) * n1;
-    const trod = smooth(7, 2.6, rr + (n2 - 0.5) * 2.6);
-    const tr = EARTH[0] + (TRAMPLED[0] - EARTH[0]) * n2;
-    const tg = EARTH[1] + (TRAMPLED[1] - EARTH[1]) * n2;
-    const tb = EARTH[2] + (TRAMPLED[2] - EARTH[2]) * n2;
-    a0 += (tr - a0) * trod * 0.85;
-    a1 += (tg - a1) * trod * 0.85;
-    a2 += (tb - a2) * trod * 0.85;
-    const soot = smooth(1.1, 0.45, rr + (n2 - 0.5) * 0.5);
+    // grass: a dark wash, a paler one laid over it in patches with a pooled (darker) edge
+    const patch = smooth(0.5, 0.53, n1);
+    let a0 = GRASS_DARK[0] + (GRASS_PALE[0] - GRASS_DARK[0]) * patch * 0.8;
+    let a1 = GRASS_DARK[1] + (GRASS_PALE[1] - GRASS_DARK[1]) * patch * 0.8;
+    let a2 = GRASS_DARK[2] + (GRASS_PALE[2] - GRASS_DARK[2]) * patch * 0.8;
+    if (patch > 0.04 && patch < 0.96) {
+      a0 *= 0.88;
+      a1 *= 0.88;
+      a2 *= 0.9;
+    }
+    // the trampled earth of the camp: a wash with a ragged edge, a second layer nearer the fire
+    const t0 = rr + (n2 - 0.5) * 2.8;
+    const trod = smooth(4.4, 4.15, t0) * 0.6 + smooth(3.1, 2.85, t0) * 0.4;
+    const tk = n2 > 0.55 ? 1 : 0.93;
+    a0 += (EARTH[0] * tk + (TRAMPLED[0] - EARTH[0]) * (n2 > 0.66 ? 1 : 0) - a0) * trod * 0.92;
+    a1 += (EARTH[1] * tk + (TRAMPLED[1] - EARTH[1]) * (n2 > 0.66 ? 1 : 0) - a1) * trod * 0.92;
+    a2 += (EARTH[2] * tk + (TRAMPLED[2] - EARTH[2]) * (n2 > 0.66 ? 1 : 0) - a2) * trod * 0.92;
+    const soot = smooth(1.05, 0.72, rr + (n2 - 0.5) * 0.4);
     a0 += (SOOT[0] - a0) * soot;
     a1 += (SOOT[1] - a1) * soot;
     a2 += (SOOT[2] - a2) * soot;
-    // brush: darker and paler flecks in the wash, finer near the eye, gone with distance
-    const br = 1 + (n3 - 0.5) * 0.5 * near + (n2 - 0.5) * 0.3;
-    // blades: a fleck of dark in cells of the ground
+    // dry-brush: short darker ticks in the wash near the eye, gone with distance
     if (near > 0.1) {
-      // thin ticks, longer along Z (blades lying over), broken by a second noise
       const v = valueNoise(X * 8.5, Z * 2.6, 3) * valueNoise(X * 2, Z * 2, 8);
-      if (v > 0.36) {
-        const k = 0.72 + 0.2 * smooth(0.36, 0.5, 1 - v);
+      if (v > 0.42) {
+        const k = 0.84 + 0.1 * smooth(0.42, 0.55, 1 - v);
         a0 *= k;
         a1 *= k;
         a2 *= k;
       }
     }
-    const I = this.intensity(X, 0, Z);
+    // the fire's pool in flat bands
+    const f = this.fire;
+    const dx = X - f.x;
+    const dz = Z - f.z;
     const sh = this.shadowAt(X, Z);
-    const lit = I * sh;
-    let r = a0 * br * (AMB[0] + FIRE_C[0] * lit);
-    let g = a1 * br * (AMB[1] + FIRE_C[1] * lit);
-    let b = a2 * br * (AMB[2] + FIRE_C[2] * lit);
+    // the pool's edge wanders like a brush's: a slow noise on top of the trodden-earth one
+    const wob = valueNoise(X * 0.9 + 5, Z * 0.9 + 9, 27) - 0.5;
+    const Ip =
+      ((this.k * 1.2) / (1 + (dx * dx + dz * dz + 0.3) / 1.5)) *
+      sh *
+      (1 + 0.32 * (n2 - 0.5) + 0.6 * wob);
+    const Lb =
+      0.14 * smooth(0.1, 0.125, Ip) +
+      0.14 * smooth(0.18, 0.21, Ip) +
+      0.14 * smooth(0.28, 0.32, Ip) +
+      0.13 * smooth(0.42, 0.46, Ip) +
+      0.1 * smooth(0.62, 0.66, Ip);
+    let r = a0 * (AMB[0] + FIRE_C[0] * Lb);
+    let g = a1 * (AMB[1] + FIRE_C[1] * Lb);
+    let b = a2 * (AMB[2] + FIRE_C[2] * Lb);
     // embers glowing in the ashes under the flames
     if (soot > 0.2) {
       const e = valueNoise(X * 14, Z * 14 + this.t2 * 2.3, 7);
       if (e > 0.72) {
         const k = (e - 0.72) * 3 * soot * this.k;
-        r += 150 * k;
-        g += 55 * k;
+        r += 120 * k;
+        g += 42 * k;
         b += 12 * k;
       }
     }
@@ -891,7 +1012,7 @@ export class CampWorld {
         // slow stitching: the brightness breathes along it
         const shimmer = 0.6 + 0.4 * Math.sin(u * 60 - t3 * 5.2) * Math.sin(u * 9 + t3 * 1.3);
         const a = clamp((0.8 * shimmer + glow) * k0);
-        this.plotThread(frame, prev, p, a, glow, t3, s);
+        this.plotThread(frame, prev, p, a, glow);
       }
       prev = p;
     }
@@ -924,7 +1045,7 @@ export class CampWorld {
     }
   }
 
-  plotThread(frame, p0, p1, a, glow, t3, s) {
+  plotThread(frame, p0, p1, a, glow) {
     const { W, H } = this;
     const len = Math.max(1, Math.hypot(p1[0] - p0[0], p1[1] - p0[1]));
     const steps = Math.ceil(len * 1.5);
@@ -1011,8 +1132,11 @@ export class CampWorld {
     ];
   }
 
-  /** Light a surface point: albedo A (rgb 0..255), normal n, extra emissive [r, g, b]. */
-  lightSurf(X, Y, Z, nx, ny, nz, A, out, warm = 0, ambK = 1) {
+  /**
+   * Light a surface point: albedo A (rgb 0..255), normal n, extra emissive [r, g, b]. With `cel`
+   * the fire's light is three flat steps (the way a drawn scene is lit), not a ramp.
+   */
+  lightSurf(X, Y, Z, nx, ny, nz, A, out, warm = 0, ambK = 1, cel = true) {
     const f = this.fire;
     let lx = f.x - X;
     let ly = f.y - Y;
@@ -1024,21 +1148,66 @@ export class CampWorld {
     lz *= il;
     const lam = Math.max(0, nx * lx + ny * ly + nz * lz);
     const I = (this.k * 1.2) / (1 + d2 / 2.0);
-    const fl = I * (0.18 + 0.82 * lam);
+    let fl = I * (0.18 + 0.82 * lam);
+    if (cel)
+      fl =
+        0.9 *
+        (0.38 * smooth(0.05, 0.075, fl) +
+          0.34 * smooth(0.16, 0.19, fl) +
+          0.28 * smooth(0.36, 0.4, fl));
     const sky = (0.8 + 0.2 * ny) * ambK;
     out[0] = A[0] * (AMB[0] * sky + FIRE_C[0] * fl) + warm * 90;
     out[1] = A[1] * (AMB[1] * sky + FIRE_C[1] * fl) + warm * 34;
     out[2] = A[2] * (AMB[2] * sky + FIRE_C[2] * fl) + warm * 6;
   }
 
+  /**
+   * Canvas in the night: the side toward the fire takes a warm band (two flat steps, reaching
+   * about 12 m: an artist's reach, more than a real fire's), the far side the cool of the sky,
+   * the faces toward the pale east a little lighter than the ones turned away.
+   */
+  tentTone(X, Y, Z, nx, ny, nz, A, out) {
+    const f = this.fire;
+    let lx = f.x - X;
+    let ly = f.y - Y;
+    let lz = f.z - Z;
+    const d2 = lx * lx + ly * ly + lz * lz;
+    const il = 1 / Math.sqrt(d2 + 1e-6);
+    const lam = Math.max(0, (nx * lx + ny * ly + nz * lz) * il);
+    const wl = ((this.k * 1.5) / (1 + d2 / 9)) * lam;
+    const wb = 0.5 * smooth(0.045, 0.065, wl) + 0.5 * smooth(0.11, 0.14, wl);
+    const e = nx * 0.86 + ny * 0.28 - nz * 0.1;
+    const ab = smooth(-0.12, 0.1, e);
+    // the fire's light washes the sky's blue out of the faces it reaches: warm ones go orange-brown
+    // (a colour the palette has), not dusty rose (which it does not)
+    const am = (0.78 + 0.6 * ab) * (1 - 0.65 * wb);
+    out[0] = A[0] * (AMB[0] * am + FIRE_C[0] * wb * 0.3);
+    out[1] = A[1] * (AMB[1] * am + FIRE_C[1] * wb * 0.3);
+    out[2] = A[2] * (AMB[2] * am + FIRE_C[2] * wb * 0.3);
+  }
+
+  /** A tent's roof height at local (u, v): the ridge sags between its poles, the canvas slopes to the hem. */
+  tentRoofY(T, u, v) {
+    const r = T.h - T.sag * (1 - (u / T.a) * (u / T.a));
+    return r * (1 - Math.abs(v) / T.b);
+  }
+
   drawProps(frame, B) {
+    this.drawTents(frame, B);
+    this.drawBoxes(frame, B);
+    this.drawLogs(frame, B);
+    this.drawCylinders(frame, B);
+    this.drawStones(frame, B);
+    for (const T of this.tents) this.tentLines(frame, T);
+  }
+
+  drawTents(frame, B) {
     const cam = this.cam;
-    const { W, H } = this;
+    const { W } = this;
     const ox = B.ox;
     const oy = B.oy;
     const oz = B.oz;
     const c = new Float64Array(3);
-    // tents
     for (const T of this.tents) {
       const [bx0, by0, bx1, by1] = this.boxOf(cam, T.corners);
       if (bx0 >= bx1 || by0 >= by1) continue;
@@ -1046,6 +1215,7 @@ export class CampWorld {
       const lox = ox - T.x;
       const loz = oz - T.z;
       const lo = [lox * T.c + loz * T.s, oy, -lox * T.s + loz * T.c];
+      const reach = 2 * (T.L + T.w + T.h);
       for (let y = by0; y < by1; y++)
         for (let x = bx0; x < bx1; x++) {
           const i = y * W + x;
@@ -1053,7 +1223,7 @@ export class CampWorld {
           const dy = this.rdy[i];
           const dz = this.rdz[i];
           const ld = [dx * T.c + dz * T.s, dy, -dx * T.s + dz * T.c];
-          // convex prism: clip the ray against its planes
+          // convex prism bounds the search: clip the ray against its planes
           let t0 = 0.05;
           let t1 = 1e9;
           let face = -1;
@@ -1082,64 +1252,252 @@ export class CampWorld {
             }
           }
           if (!ok || face < 0) continue;
-          const depth = t0 * this.cf[i];
+          let th = t0;
+          if (face <= 1) {
+            // the roof is the sagged surface inside the prism: march to it, then bisect
+            const tEnd = Math.min(t1, t0 + reach);
+            let tp = t0;
+            let hit = false;
+            const NS = 14;
+            for (let k = 1; k <= NS && !hit; k++) {
+              const tk = t0 + ((tEnd - t0) * k) / NS;
+              if (lo[1] + ld[1] * tk <= this.tentRoofY(T, lo[0] + ld[0] * tk, lo[2] + ld[2] * tk)) {
+                let a = tp;
+                let b = tk;
+                for (let q = 0; q < 6; q++) {
+                  const m = (a + b) * 0.5;
+                  if (lo[1] + ld[1] * m <= this.tentRoofY(T, lo[0] + ld[0] * m, lo[2] + ld[2] * m))
+                    b = m;
+                  else a = m;
+                }
+                th = b;
+                hit = true;
+              }
+              tp = tk;
+            }
+            if (!hit) continue;
+          }
+          const depth = th * this.cf[i];
           if (depth >= this.zbuf[i]) continue;
-          // the hit in local coords, and its normal in world coords
-          const hu = lo[0] + ld[0] * t0;
-          const hy = lo[1] + ld[1] * t0;
-          const hv = lo[2] + ld[2] * t0;
-          const pl = T.pl[face];
-          const nu = pl[0];
-          const nv = pl[2];
+          const hu = lo[0] + ld[0] * th;
+          const hy = lo[1] + ld[1] * th;
+          const hv = lo[2] + ld[2] * th;
+          // the normal in local coords: the sagged roof's gradient, or the gable's plane
+          let nu;
+          let ny = 0;
+          let nv = 0;
+          if (face <= 1) {
+            const Ru = T.h - T.sag * (1 - (hu / T.a) * (hu / T.a));
+            const dRu = (T.sag * 2 * hu) / (T.a * T.a);
+            const kv = 1 - Math.abs(hv) / T.b;
+            nu = -dRu * kv;
+            ny = 1;
+            nv = (Ru * (hv > 0 ? 1 : -1)) / T.b;
+            const nl = Math.hypot(nu, ny, nv);
+            nu /= nl;
+            ny /= nl;
+            nv /= nl;
+          } else nu = face === 2 ? -1 : 1;
           const nx = nu * T.c - nv * T.s;
           const nz = nu * T.s + nv * T.c;
-          const ny = pl[1];
-          const X = ox + dx * t0;
-          const Z = oz + dz * t0;
-          let A = CANVAS;
-          let warm = 0;
-          let inked = 1;
-          // canvas: long seams down the slope, patches, a darker hem near the ground
-          const seam = Math.abs(((hu / 0.62) % 1) - 0.5) > 0.47 ? 0.78 : 1;
-          const patch =
-            hash(Math.floor(hu / 0.9), Math.floor(hy / 0.8) + (hv > 0 ? 40 : 0), T.i + 3) > 0.9
-              ? 0.86
-              : 1;
-          const stain = 0.86 + 0.24 * valueNoise(hu * 1.7 + T.i * 9, hy * 1.7 + hv * 1.3, 4);
-          const hem = smooth(0.0, 0.5, hy);
-          let sh = seam * patch * stain * (0.72 + 0.28 * hem);
-          let inDoor = false;
+          const X = ox + dx * th;
+          const Z = oz + dz * th;
+          const far = smooth(18, 60, depth);
+          // canvas: panels stitched along the ridge, radiating folds from the pole tips where it
+          // sags, a mud-splashed hem
+          const pan = Math.floor((hu + T.a) / 0.66);
+          const pf = (hu + T.a) / 0.66 - pan;
+          let sh = 0.93 + 0.13 * hash(pan, T.i, 91);
+          if (face <= 1) {
+            if (pf < 0.05 || pf > 0.95) sh *= 0.74;
+            const nearEnd = Math.min(T.a - Math.abs(hu), 1.6);
+            const dpole = Math.min(Math.abs(hu + T.a), Math.abs(hu - T.a));
+            const qq = Math.abs(hv) / (dpole + 0.14);
+            const ph = qq / 0.46;
+            const fold = 1 - smooth(0, 0.13, Math.abs(ph - Math.round(ph)));
+            sh *= 1 - 0.2 * fold * Math.exp(-dpole / 0.9) * (0.4 + 0.6 * (1 - far));
+            void nearEnd;
+          }
+          sh *= 0.94 + 0.09 * valueNoise(hu * 1.6 + T.i * 9, hy * 1.9 + hv * 1.3, 4);
+          const hemH = 0.15 + 0.05 * Math.sin(hu * 6.5 + T.i);
+          if (hy < hemH) sh *= 0.72;
+          let idv = ID_TENT + T.i;
           if (face === 2) {
-            // the door: a dark triangular opening, with the flaps folded back either side
-            const dw = T.w * 0.5 * 0.5 * (1 - hy / (T.h * 0.85));
-            if (hy < T.h * 0.85 && Math.abs(hv) < dw) inDoor = true;
-            else if (hy < T.h * 0.85 && Math.abs(hv) < dw + 0.28) sh *= 0.72; // the fold
+            // the door end: an open flap on one tent (a dark opening, the flaps tied back), a
+            // laced seam on the rest
+            if (T.open) {
+              const dw = T.b * 0.46 * (1 - hy / (T.h * 0.88));
+              if (hy < T.h * 0.88 && Math.abs(hv) < dw) {
+                const k = 0.1 + 0.08 * (1 - hy / T.h);
+                this.lightSurf(X, hy, Z, nx, ny, nz, CANVAS, c, 0.03);
+                frame[i * 4] = 18 + c[0] * 0.06 + k * 46;
+                frame[i * 4 + 1] = 15 + c[1] * 0.05 + k * 22;
+                frame[i * 4 + 2] = 26 + c[2] * 0.06 + k * 12;
+                this.ids[i] = ID_TENT + 25 + T.i;
+                this.zbuf[i] = depth;
+                this.ink[i] = 1;
+                this.sky[i] = 0;
+                continue;
+              }
+              if (hy < T.h * 0.88 && Math.abs(hv) < dw + 0.34 * T.b) sh *= 0.8; // the folded flap
+            } else if (Math.abs(hv) < 0.035 + 0.02 * (1 - hy / T.h) && hy < T.h * 0.85) sh *= 0.66; // the closed flap's seam
           }
-          if (inDoor) {
-            // the tent's inside: near black with a faint warm bounce low down
-            const k = 0.08 + 0.06 * (1 - hy / T.h);
-            this.lightSurf(X, hy, Z, nx, ny, nz, CANVAS, c, 0.03);
-            frame[i * 4] = 20 + c[0] * 0.08 + k * 40;
-            frame[i * 4 + 1] = 18 + c[1] * 0.06 + k * 22;
-            frame[i * 4 + 2] = 28 + c[2] * 0.08 + k * 10;
-            this.ids[i] = ID_TENT + T.i;
-            this.zbuf[i] = depth;
-            this.ink[i] = 1;
-            continue;
-          }
-          this.lightSurf(X, hy, Z, nx, ny, nz, [A[0] * sh, A[1] * sh, A[2] * sh], c, warm, 1.75);
+          const A = [CANVAS[0] * sh, CANVAS[1] * sh, CANVAS[2] * sh];
+          this.tentTone(X, hy, Z, nx, ny, nz, A, c);
           // aerial perspective
-          const hz = smooth(20, 120, depth) * 0.4;
+          const hz = smooth(20, 120, depth) * 0.45;
           frame[i * 4] = c[0] + (HAZE[0] - c[0]) * hz;
           frame[i * 4 + 1] = c[1] + (HAZE[1] - c[1]) * hz;
           frame[i * 4 + 2] = c[2] + (HAZE[2] - c[2]) * hz;
-          this.ids[i] = ID_TENT + T.i;
+          this.ids[i] = idv;
           this.zbuf[i] = depth;
-          this.ink[i] = inked;
+          this.ink[i] = 1;
           this.sky[i] = 0;
         }
     }
-    // boxes (benches, crates, the logs)
+  }
+
+  /**
+   * A tent's drawn lines, in ink on the world's own edges: the sagging ridge, the rafters of the
+   * gable ends, the scalloped hem, the pole tips, a guy rope to its peg from each pole. Depth-tested
+   * against the tents (a line behind the canvas is not drawn); thicker and darker near the
+   * eye, thin and pale in the distance; the line breaks in places (lost) and swells in others.
+   */
+  tentLines(frame, T) {
+    const { W, H } = this;
+    const cam = this.cam;
+    const wp = (u, y, v) => {
+      const X = T.x + u * T.c - v * T.s;
+      const Z = T.z + u * T.s + v * T.c;
+      const p = project(cam, X, y, Z, W, H);
+      return p;
+    };
+    const mid = wp(0, T.h * 0.5, 0);
+    if (mid.depth < 0.4) return;
+    const dist = mid.depth;
+    const near = 1 - smooth(10, 40, dist);
+    const wNear = dist < 9 ? 2.2 : dist < 18 ? 1.6 : 1;
+    const inkA = 0.55 + 0.4 * near;
+    const col = [INKC[0] + 10, INKC[1] + 8, INKC[2] + 12];
+    const bias = 0.06;
+    const line = (pts, wb, gap, id) => {
+      for (let s = 1; s < pts.length; s++) {
+        const p0 = pts[s - 1];
+        const p1 = pts[s];
+        if (p0.depth < 0.3 || p1.depth < 0.3) continue;
+        if (gap && hash(Math.floor(s / 2), T.i, id) < gap) continue;
+        // the pen presses in the middle of a stroke and lifts at its ends
+        const k = s / pts.length;
+        const w = wb * (0.55 + 0.6 * Math.sin(Math.PI * k) ** 0.6);
+        this.strokeZ(
+          frame,
+          p0.sx,
+          p0.sy,
+          p1.sx,
+          p1.sy,
+          w,
+          w,
+          col,
+          p0.depth - bias * (1 + 0.02 * p0.depth),
+          p1.depth - bias * (1 + 0.02 * p1.depth),
+          ID_GRASS,
+          inkA,
+          false,
+        );
+      }
+    };
+    const N = 22;
+    // the ridge, with its sag
+    const ridge = [];
+    for (let s = 0; s <= N; s++) {
+      const u = -T.a + (2 * T.a * s) / N;
+      ridge.push(wp(u, T.h - T.sag * (1 - (u / T.a) * (u / T.a)), 0));
+    }
+    line(ridge, wNear * 1.1, 0.06, 71);
+    // the gable rafters and the hem
+    for (const e of [-1, 1]) {
+      for (const sd of [-1, 1]) {
+        const apex = wp(e * T.a, T.h, 0);
+        const foot = wp(e * T.a, 0, sd * T.b);
+        line([apex, foot], wNear * 0.8, 0.1, 72 + e + sd);
+      }
+    }
+    for (const sd of [-1, 1]) {
+      const hem = [];
+      for (let s = 0; s <= N; s++) {
+        const u = -T.a + (2 * T.a * s) / N;
+        // the hem lifts a little between pegs
+        hem.push(wp(u, 0.02 + 0.045 * Math.abs(Math.sin((u + T.a) * 2.6)), sd * T.b));
+      }
+      line(hem, wNear * 0.9, 0.16, 75 + sd);
+    }
+    // pole tips and guy ropes
+    if (dist < 45) {
+      const rc = [80, 60, 60];
+      for (const e of [-1, 1]) {
+        const top = wp(e * T.a, T.h, 0);
+        const tip = wp(e * T.a, T.h + 0.3, 0);
+        if (top.depth > 0.3 && tip.depth > 0.3)
+          this.strokeZ(
+            frame,
+            top.sx,
+            top.sy,
+            tip.sx,
+            tip.sy,
+            Math.max(1, wNear * 0.7),
+            1,
+            col,
+            top.depth - 0.06,
+            top.depth - 0.06,
+            ID_GRASS,
+            inkA,
+            false,
+          );
+        const peg = wp(e * (T.a + T.rope), 0, 0);
+        if (peg.depth > 0.3 && top.depth > 0.3) {
+          // the rope: a thin taut line (a hair of pale cord over the ink), a peg driven at its foot
+          this.strokeZ(
+            frame,
+            top.sx,
+            top.sy,
+            peg.sx,
+            peg.sy,
+            1,
+            1,
+            rc,
+            top.depth - 0.06,
+            peg.depth - 0.06,
+            ID_GRASS,
+            0.85,
+            false,
+          );
+          const px = Math.round(peg.sx);
+          const py = Math.round(peg.sy);
+          this.bpx(
+            frame,
+            px,
+            py - 1,
+            peg.depth - 0.06,
+            col[0],
+            col[1],
+            col[2],
+            ID_GRASS,
+            false,
+            inkA,
+          );
+          this.bpx(frame, px, py, peg.depth - 0.06, col[0], col[1], col[2], ID_GRASS, false, inkA);
+        }
+      }
+    }
+  }
+
+  drawBoxes(frame, B) {
+    const cam = this.cam;
+    const { W } = this;
+    const ox = B.ox;
+    const oy = B.oy;
+    const oz = B.oz;
+    const c = new Float64Array(3);
     for (const Bx of this.boxes) {
       const [bx0, by0, bx1, by1] = this.boxOf(cam, Bx.corners);
       if (bx0 >= bx1 || by0 >= by1) continue;
@@ -1201,23 +1559,11 @@ export class CampWorld {
           const X = ox + dx * t0;
           const Y = oy + dy * t0;
           const Z = oz + dz * t0;
-          const isLog = Bx.kind === 'log';
           const grain =
-            0.82 +
-            0.3 * valueNoise(lo[0] * 9 + ld[0] * t0 * 9 + Bx.x * 7, (lo[2] + ld[2] * t0) * 21, 5);
-          const A0 = isLog ? WOOD_DK : Bx.kind === 'crate' ? WOOD : WOOD;
-          const A = [A0[0] * grain, A0[1] * grain, A0[2] * grain];
-          this.lightSurf(
-            X,
-            Y,
-            Z,
-            nx,
-            ny,
-            nz,
-            A,
-            c,
-            isLog ? 0.95 * this.k * (1 - smooth(0.2, 0.7, Math.hypot(X, Z))) : 0,
-          );
+            0.86 +
+            0.24 * valueNoise(lo[0] * 9 + ld[0] * t0 * 9 + Bx.x * 7, (lo[2] + ld[2] * t0) * 21, 5);
+          const A = [WOOD[0] * grain, WOOD[1] * grain, WOOD[2] * grain];
+          this.lightSurf(X, Y, Z, nx, ny, nz, A, c, 0);
           frame[i * 4] = c[0];
           frame[i * 4 + 1] = c[1];
           frame[i * 4 + 2] = c[2];
@@ -1227,7 +1573,121 @@ export class CampWorld {
           this.sky[i] = 0;
         }
     }
-    // stumps and barrels: vertical cylinders with a top
+  }
+
+  /**
+   * The fire's logs: charred cylinders lying across each other and leaning in. Black bark with
+   * cracks that glow red where the heat is (deepest in the middle), the cut ends pale ash ringed
+   * with coals.
+   */
+  drawLogs(frame, B) {
+    const cam = this.cam;
+    const { W } = this;
+    const F = this.fire;
+    const ox = B.ox - F.x;
+    const oy = B.oy;
+    const oz = B.oz - F.z;
+    const c = new Float64Array(3);
+    for (let li = 0; li < this.logs.length; li++) {
+      const L = this.logs[li];
+      const pts = [];
+      for (const q of [L.p0, L.p1])
+        for (const [a, b] of [
+          [-1, -1],
+          [1, -1],
+          [-1, 1],
+          [1, 1],
+        ])
+          pts.push([F.x + q[0] + a * L.r, q[1] + (b > 0 ? L.r : -L.r), F.z + q[2] + a * L.r]);
+      const [bx0, by0, bx1, by1] = this.boxOf(cam, pts, 1);
+      if (bx0 >= bx1 || by0 >= by1) continue;
+      const ab = L.ab;
+      const abab = L.abab;
+      const ao = [ox - L.p0[0], oy - L.p0[1], oz - L.p0[2]];
+      const abao = ab[0] * ao[0] + ab[1] * ao[1] + ab[2] * ao[2];
+      const aoao = ao[0] * ao[0] + ao[1] * ao[1] + ao[2] * ao[2];
+      for (let y = by0; y < by1; y++)
+        for (let x = bx0; x < bx1; x++) {
+          const i = y * W + x;
+          const dx = this.rdx[i];
+          const dy = this.rdy[i];
+          const dz = this.rdz[i];
+          const abd = ab[0] * dx + ab[1] * dy + ab[2] * dz;
+          const aod = ao[0] * dx + ao[1] * dy + ao[2] * dz;
+          const A = abab - abd * abd;
+          const Bq = abab * aod - abao * abd;
+          const C = abab * aoao - abao * abao - L.r * L.r * abab;
+          const h = Bq * Bq - A * C;
+          if (h < 0 || A < 1e-9) continue;
+          let t0 = (-Bq - Math.sqrt(h)) / A;
+          let yy = abao + t0 * abd;
+          let cap = false;
+          if (yy < 0 || yy > abab) {
+            // the cut end: the plane at that end, inside the radius
+            const tc = ((yy < 0 ? 0 : abab) - abao) / abd;
+            const px = ao[0] + tc * dx - (ab[0] * (yy < 0 ? 0 : abab)) / abab;
+            const py = ao[1] + tc * dy - (ab[1] * (yy < 0 ? 0 : abab)) / abab;
+            const pz = ao[2] + tc * dz - (ab[2] * (yy < 0 ? 0 : abab)) / abab;
+            if (Math.abs(abd) < 1e-9 || px * px + py * py + pz * pz > L.r * L.r) continue;
+            t0 = tc;
+            cap = true;
+            yy = yy < 0 ? 0 : abab;
+          }
+          if (t0 < 0.05) continue;
+          const depth = t0 * this.cf[i];
+          if (depth >= this.zbuf[i]) continue;
+          const X = ox + dx * t0;
+          const Y = oy + dy * t0;
+          const Z = oz + dz * t0;
+          // the normal: out from the axis, or along it at a cut end
+          let nx;
+          let ny;
+          let nz;
+          const s = yy / abab;
+          if (cap) {
+            const sg = s <= 0 ? -1 : 1;
+            const il = 1 / Math.sqrt(abab);
+            nx = sg * ab[0] * il;
+            ny = sg * ab[1] * il;
+            nz = sg * ab[2] * il;
+          } else {
+            nx = (ao[0] + t0 * dx - ab[0] * s) / L.r;
+            ny = (ao[1] + t0 * dy - ab[1] * s) / L.r;
+            nz = (ao[2] + t0 * dz - ab[2] * s) / L.r;
+          }
+          // heat: strongest near the middle of the fire, on the faces that look into it
+          const rad = Math.hypot(X - F.x, Z - F.z);
+          const heat = (1 - smooth(0.05, 0.42, rad)) * this.k;
+          const ang = Math.atan2(ny, nx + nz * 0.3);
+          const crack =
+            valueNoise(s * 14 + li * 5, ang * 2.4 + li, 5) * 0.7 +
+            valueNoise(s * 31, ang * 5, 9) * 0.3;
+          let em = 0;
+          if (cap) em = 0.55 * heat;
+          else if (crack > 0.55) em = smooth(0.55, 0.68, crack) * (0.25 + 0.75 * heat);
+          const bark = 0.8 + 0.4 * valueNoise(s * 20 + li * 3, ang * 4, 12);
+          const Abark = cap ? [110, 96, 92] : [46 * bark, 34 * bark, 36 * bark];
+          this.lightSurf(X, Y, Z, nx, ny, nz, Abark, c, 0);
+          // coals glow red-orange, never yellow
+          frame[i * 4] = c[0] + 190 * em;
+          frame[i * 4 + 1] = c[1] + 62 * em;
+          frame[i * 4 + 2] = c[2] + 16 * em;
+          this.ids[i] = ID_PROP + 2 + li;
+          this.zbuf[i] = depth;
+          this.ink[i] = 0;
+          this.sky[i] = 0;
+        }
+    }
+  }
+
+  /** Stumps and barrels: vertical cylinders with a top. */
+  drawCylinders(frame, B) {
+    const cam = this.cam;
+    const { W } = this;
+    const ox = B.ox;
+    const oy = B.oy;
+    const oz = B.oz;
+    const c = new Float64Array(3);
     for (const Cy of this.cyls) {
       const pts = [];
       for (const a of [0, 1.57, 3.14, 4.71])
@@ -1281,15 +1741,15 @@ export class CampWorld {
             ny = 0;
           }
           let A = Cy.kind === 'barrel' ? BARREL : WOOD;
-          let k = 0.85 + 0.3 * valueNoise(Math.atan2(nz, nx) * 5 + Cy.x, Y * 6, 3);
+          let k = 0.88 + 0.24 * valueNoise(Math.atan2(nz, nx) * 5 + Cy.x, Y * 6, 3);
           if (Cy.kind === 'barrel' && !top) {
             const hb = Y / Cy.h;
             if (Math.abs(hb - 0.18) < 0.045 || Math.abs(hb - 0.82) < 0.045) k *= 0.55; // hoops
           }
           if (top && Cy.kind === 'stump') {
             // rings on the cut top
-            k *= 0.88 + 0.2 * Math.sin(Math.hypot(X - Cy.x, Z - Cy.z) * 34);
-            A = [150, 120, 84];
+            k *= 0.9 + 0.16 * Math.sin(Math.hypot(X - Cy.x, Z - Cy.z) * 34);
+            A = [150, 118, 96];
           }
           this.lightSurf(X, Y, Z, nx, ny, nz, [A[0] * k, A[1] * k, A[2] * k], c);
           frame[i * 4] = c[0];
@@ -1301,7 +1761,71 @@ export class CampWorld {
           this.sky[i] = 0;
         }
     }
-    // stones (ellipsoids resting on the ground) and bedrolls
+  }
+
+  /**
+   * A stone's ray test: an ellipsoid cut by planes (a flat crown and facets, as world.js's stones)
+   * in its own unit-sphere frame. Returns t (or Infinity) and sets this._sn (local normal),
+   * this._flat and this._edge (how far the entry face's edge is from the next: a crack under a
+   * pixel wide).
+   */
+  stoneHit(s, lx, ly, lz, ex, ey, ez) {
+    const A = ex * ex + ey * ey + ez * ez;
+    const Bq = 2 * (lx * ex + ly * ey + lz * ez);
+    const Cq = lx * lx + ly * ly + lz * lz - 1;
+    const disc = Bq * Bq - 4 * A * Cq;
+    if (disc < 0) return Infinity;
+    const sq = Math.sqrt(disc);
+    let tE = (-Bq - sq) / (2 * A);
+    let tX = (-Bq + sq) / (2 * A);
+    let fk = -1;
+    let t2 = -Infinity;
+    const F = s.fac;
+    for (let k = 0; k < F.length; k += 4) {
+      const den = F[k] * ex + F[k + 1] * ey + F[k + 2] * ez;
+      const num = F[k + 3] - (F[k] * lx + F[k + 1] * ly + F[k + 2] * lz);
+      if (den < -1e-9) {
+        const t = num / den;
+        if (t > tE) {
+          t2 = tE;
+          tE = t;
+          fk = k;
+        } else if (t > t2) t2 = t;
+      } else if (den > 1e-9) {
+        const t = num / den;
+        if (t < tX) tX = t;
+      } else if (num < 0) return Infinity;
+    }
+    if (tE > tX) return Infinity;
+    this._edge = (tE - t2) * Math.sqrt(A);
+    const n = this._sn;
+    if (fk >= 0) {
+      this._flat = 1;
+      n[0] = F[fk];
+      n[1] = F[fk + 1];
+      n[2] = F[fk + 2];
+    } else {
+      this._flat = 0;
+      n[0] = lx + ex * tE;
+      n[1] = ly + ey * tE;
+      n[2] = lz + ez * tE;
+    }
+    return tE;
+  }
+
+  /**
+   * Stones (faceted ellipsoids resting on the ground) and bedrolls. Flat washes by facet (lit,
+   * mid, shadow), a crack of ink where two facets meet; the ring's stones are blackened with soot
+   * on the side toward the flames, the coals lighting their top edge red.
+   */
+  drawStones(frame, B) {
+    const cam = this.cam;
+    const { W } = this;
+    const ox = B.ox;
+    const oy = B.oy;
+    const oz = B.oz;
+    const c = new Float64Array(3);
+    if (!this._sn) this._sn = new Float64Array(3);
     for (let si = 0; si < this.stones.length; si++) {
       const St = this.stones[si];
       const pts = [];
@@ -1317,6 +1841,7 @@ export class CampWorld {
       const ou = (lox * cs + loz * sn) / St.a;
       const ov = (-lox * sn + loz * cs) / St.c;
       const oyy = (oy - St.b * 0.6) / St.b;
+      const rr = Math.hypot(St.x, St.z) || 1;
       for (let y = by0; y < by1; y++)
         for (let x = bx0; x < bx1; x++) {
           const i = y * W + x;
@@ -1326,24 +1851,16 @@ export class CampWorld {
           const du = (dx * cs + dz * sn) / St.a;
           const dv = (-dx * sn + dz * cs) / St.c;
           const dyy = dy / St.b;
-          const a = du * du + dyy * dyy + dv * dv;
-          const b = ou * du + oyy * dyy + ov * dv;
-          const cc = ou * ou + oyy * oyy + ov * ov - 1;
-          const disc = b * b - a * cc;
-          if (disc <= 0) continue;
-          const t0 = (-b - Math.sqrt(disc)) / a;
-          if (t0 < 0.05) continue;
+          const t0 = this.stoneHit(St, ou, oyy, ov, du, dyy, dv);
+          if (!(t0 > 0.05) || t0 === Infinity) continue;
           const Y = oy + dy * t0;
           if (Y < 0) continue;
           const depth = t0 * this.cf[i];
           if (depth >= this.zbuf[i]) continue;
-          const hu = ou + du * t0;
-          const hyy = oyy + dyy * t0;
-          const hv = ov + dv * t0;
-          // the normal of an ellipsoid: gradient of the implicit form
-          let nu = hu / St.a;
-          let nyy = hyy / St.b;
-          let nv = hv / St.c;
+          // local normal -> world (the gradient of the implicit form, then the yaw)
+          let nu = this._sn[0] / St.a;
+          let nyy = this._sn[1] / St.b;
+          let nv = this._sn[2] / St.c;
           const nl = Math.hypot(nu, nyy, nv) || 1;
           nu /= nl;
           nyy /= nl;
@@ -1352,27 +1869,30 @@ export class CampWorld {
           const nz = nu * sn + nv * cs;
           const X = ox + dx * t0;
           const Z = oz + dz * t0;
-          const base = St.bed ? [96, 84, 70] : STONE;
-          const tone = 0.78 + 0.4 * valueNoise(X * 3 + 11, Z * 3 + Y * 3, 6);
-          // fire-ring stones: sooty on top, lit red on the side toward the flames
+          const crack =
+            this._flat === 1 && this._edge * Math.min(St.a, St.b, St.c) < (1.1 * depth) / this.B.F;
+          const base = St.bed ? [92, 80, 78] : STONE;
+          const tone = 0.82 + 0.34 * valueNoise(X * 3 + 11, Z * 3 + Y * 3, 6);
+          let A0 = [base[0] * tone, base[1] * tone, base[2] * tone];
           let warm = 0;
-          if (St.ring)
-            warm =
-              0.25 *
-              this.k *
-              Math.max(0, -(nx * X + nz * Z) / 0.6) *
-              (0.5 + 0.5 * Math.min(1, Y / 0.1));
-          this.lightSurf(
-            X,
-            Y,
-            Z,
-            nx,
-            nyy,
-            nz,
-            [base[0] * tone, base[1] * tone, base[2] * tone],
-            c,
-            warm,
-          );
+          if (St.ring) {
+            // toward the fire (inward) the stone is black with soot; a red line of coal light
+            // sits on the top edge; the outer side keeps its grey
+            const inward = (-nx * St.x - nz * St.z) / rr;
+            const soot = smooth(-0.15, 0.5, inward);
+            A0 = [
+              A0[0] + (26 - A0[0]) * soot * 0.85,
+              A0[1] + (22 - A0[1]) * soot * 0.85,
+              A0[2] + (28 - A0[2]) * soot * 0.85,
+            ];
+            warm = 0.2 * this.k * smooth(0.2, 0.9, nyy) * smooth(-0.1, 0.4, inward);
+          }
+          this.lightSurf(X, Y, Z, nx, nyy, nz, A0, c, warm);
+          if (crack) {
+            c[0] = c[0] * 0.35 + INKC[0] * 0.65;
+            c[1] = c[1] * 0.35 + INKC[1] * 0.65;
+            c[2] = c[2] * 0.35 + INKC[2] * 0.65;
+          }
           frame[i * 4] = c[0];
           frame[i * 4 + 1] = c[1];
           frame[i * 4 + 2] = c[2];
@@ -1384,7 +1904,11 @@ export class CampWorld {
     }
   }
 
-  /** Ink on the nearer side of every edge between solid things (found lines, broken by the dither). */
+  /**
+   * Ink on the nearer side of every edge between solid things: a fine line where a thing meets
+   * the ground or the sky, heavier for near and dark things, breaking in places (lost) and
+   * swelling in others (found). Far things are drawn thinner and paler.
+   */
   passInk(frame) {
     const { W, H } = this;
     const ids = this.ids;
@@ -1399,34 +1923,44 @@ export class CampWorld {
           const near = zb[i] < zb[j] ? i : j;
           const far = near === i ? j : i;
           if (!this.ink[near]) continue;
-          // sky and ridges are never inked here; ground against an object is (its foot)
+          // sky and ridges are inked at their crests (background()); ground against an object is
+          // the object's foot
           if (ids[near] < 30) continue;
-          // an edge with real depth between the sides (not two faces of one object)
           if (ids[near] >= ID_TENT && ids[near] < ID_PROP && ids[far] === ids[near]) continue;
           const px = near % W;
           const py = (near / W) | 0;
           if (hash(px >> 1, py >> 1, 17) < 0.14) continue; // the line breaks in places
+          const d = zb[near];
+          const k = 0.8 - 0.35 * smooth(14, 50, d);
           const o = near * 4;
-          frame[o] = frame[o] * 0.3 + INKC[0] * 0.7;
-          frame[o + 1] = frame[o + 1] * 0.3 + INKC[1] * 0.7;
-          frame[o + 2] = frame[o + 2] * 0.3 + INKC[2] * 0.7;
+          frame[o] = frame[o] * (1 - k) + INKC[0] * k;
+          frame[o + 1] = frame[o + 1] * (1 - k) + INKC[1] * k;
+          frame[o + 2] = frame[o + 2] * (1 - k) + INKC[2] * k;
         }
       }
   }
 
-  /** The vellum's grain shows through the wash: a few percent, so dark passages still feel painted. */
+  /**
+   * The vellum's tooth shows through every wash: pigment settles darker in the valleys of the
+   * paper. Strongest in the sky and the far ground, lighter where the fire's light has bleached
+   * the wash; drawings and effects are left clean.
+   */
   paperGrain(frame) {
-    const p = this.paper;
-    if (!p) return;
     const n = this.W * this.H;
+    const g = this.grain;
     for (let i = 0; i < n; i++) {
-      const o = i * 4;
       const id = this.ids[i];
       if (id >= ID_FX) continue;
-      const g = 0.93 + 0.07 * ((p[o] + p[o + 1]) / (2 * 207));
-      frame[o] *= g;
-      frame[o + 1] *= g;
-      frame[o + 2] *= g;
+      const o = i * 4;
+      // brighter pixels lose some of it (the light lifts the wash off the tooth)
+      const lum = (frame[o] + frame[o + 1] + frame[o + 2]) / 765;
+      // canvas takes less (a big flat mid-tone between two palette colours turns to noise)
+      const tent = id >= ID_TENT && id < ID_PROP ? 0.5 : 1;
+      const k = (0.16 - 0.08 * Math.min(1, lum * 2.2)) * (id === ID_SKY ? 0.9 : 1) * tent;
+      const m = 1 + k * g[i];
+      frame[o] *= m;
+      frame[o + 1] *= m;
+      frame[o + 2] *= m;
     }
   }
 }

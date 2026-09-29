@@ -10,8 +10,8 @@
 
 import { Piece } from './engine/piece.js';
 import { BAR } from './engine/score.js';
-import { RGB, put, dput } from './engine/anime.js';
-import { bayer, clamp, lerp, smooth } from './engine/raster.js';
+import { RGB, put } from './engine/anime.js';
+import { bayer, clamp, lerp } from './engine/raster.js';
 import {
   CAMERA,
   DURATION,
@@ -109,7 +109,6 @@ const GLYPHS = {
   '%': '101001010100101',
   ' ': '000000000000000',
 };
-const textWidth = (s, k = 1) => s.length * 4 * k - k;
 function text(f, x, y, s, c, k = 1, halo = null) {
   const draw = (ox, oy, col) => {
     let cx = x + ox;
@@ -160,15 +159,6 @@ function dline(f, x0, y0, x1, y1, c, on = 3, off = 3, a = 1) {
   for (let i = 0; i <= n; i++)
     if (i % (on + off) < on) put(f, W, H, x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n, c, a);
 }
-function ring(f, cx, cy, rx, ry, c, a = 1, dith = 1) {
-  const n = Math.ceil(Math.max(rx, ry) * 6);
-  for (let i = 0; i < n; i++) {
-    const th = (i / n) * Math.PI * 2;
-    const x = cx + Math.cos(th) * rx;
-    const y = cy + Math.sin(th) * ry;
-    if (dith >= 1 || dith > bayer(x | 0, y | 0)) put(f, W, H, x, y, c, a);
-  }
-}
 
 // ------------------------------------------------------------------ the shots' captions
 
@@ -193,7 +183,7 @@ const sx = (X) => CX + X * PX;
 const sy = (Z) => CY - Z * PX; // north (+Z) is up the page
 
 function tentCorners(t) {
-  const yaw = Math.atan2(t.z, t.x) + (t.jitter || 0);
+  const yaw = t.yaw ?? Math.atan2(t.z, t.x) + (t.jitter || 0);
   const c = Math.cos(yaw);
   const s = Math.sin(yaw);
   return [
@@ -386,7 +376,7 @@ export class PieceClass extends Piece {
     text(f, 250, 42, `BAR ${bar} BEAT ${beat.toFixed(1)}   ${t.toFixed(2)} S`, C.sepia, 1);
     // each person's gaze and gesture now
     let y = 60;
-    for (const [name, p] of Object.entries(PEOPLE)) {
+    for (const name of Object.keys(PEOPLE)) {
       disc(f, 254, y + 2, 3, PCOL[name]);
       const g = gazeTarget(name, t);
       text(f, 262, y - 1, `${name} LOOKS AT ${Array.isArray(g) ? 'POINT' : g}`, C.ink, 1);
