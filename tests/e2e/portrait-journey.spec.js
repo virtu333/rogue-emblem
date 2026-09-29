@@ -166,14 +166,14 @@ async function enterBattle(page, errors) {
       await confirm.tap();
       continue;
     }
-    if (await start.isVisible()) {
-      // Formation (three or more units): take the default placement and start.
+    const state = await battleSnapshot(page);
+    if (state.state === 'DEPLOY_POSITIONING') {
+      // Start has a longer accessible name until everyone is placed.
       await battleRail(page).getByRole('button', { name: 'Auto-place', exact: true }).tap();
       await uprightStep(page, errors, start, { min: RAIL_MIN });
       await start.tap();
       continue;
     }
-    const state = await battleSnapshot(page);
     if (state.state === 'PLAYER_IDLE' && state.phase === 'player') break;
   }
   await battleIdle(page);
