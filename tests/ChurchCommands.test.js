@@ -159,15 +159,15 @@ describe('church revival transactions', () => {
     expect(snapshot()).toBe(before);
   });
 
-  it('does not charge or remove the fallen unit when roster fills after selection', () => {
-    run.roster = Array.from({ length: run.getRosterCap() }, (_, i) => ({
+  it('revives into a roster of any size (the roster has no cap)', () => {
+    run.roster = Array.from({ length: 20 }, (_, i) => ({
       ...recruit(),
       name: `Recruit ${i}`,
     }));
-    const before = snapshot();
-    expect(churchReviveBlock(run, unit)).toBe('Roster full.');
-    expect(reviveAtChurch(run, unit).ok).toBe(false);
-    expect(snapshot()).toBe(before);
+    expect(churchReviveBlock(run, unit)).toBe('');
+    expect(reviveAtChurch(run, unit).ok).toBe(true);
+    expect(run.roster).toHaveLength(21);
+    expect(run.roster).toContain(unit);
   });
 
   it('rechecks the promoted cost and latest gold at application time', () => {

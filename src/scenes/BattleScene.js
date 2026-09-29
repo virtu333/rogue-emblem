@@ -169,7 +169,6 @@ import {
   CONSUMABLE_MAX,
   LOOT_CHOICES,
   ELITE_LOOT_CHOICES,
-  ROSTER_CAP,
   DEPLOY_LIMITS,
   TERRAIN,
   TERRAIN_HEAL_PERCENT,
@@ -6262,16 +6261,10 @@ export class BattleScene extends Phaser.Scene {
     // Break: adjacent temporary wall terrain (Waller)
     if (this.findBreakTargets(unit).length > 0)
       command('break', 'Break', () => this.startBreakTargetSelection(unit));
-    // Talk: Lord adjacent to NPC, roster not full
+    // Talk: Lord adjacent to NPC (the roster has no cap)
     if (unit.isLord && this.npcUnits.length > 0) {
       const talkTarget = this.findTalkTarget(unit);
-      const rosterCap =
-        this.runManager?.getRosterCap?.() ??
-        ROSTER_CAP + (this.runManager?.metaEffects?.rosterCapBonus || 0);
-      const fullRosterCount =
-        (this.runManager?.roster?.length ?? this.playerUnits.length) -
-        (this._playerDeathsThisBattle || 0);
-      if (talkTarget && fullRosterCount < rosterCap) {
+      if (talkTarget) {
         command('talk', 'Talk', () => {
           this.hideActionMenu();
           this.executeTalk(unit);

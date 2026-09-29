@@ -63,14 +63,15 @@ export const XP_MIN = 1;
 export const XP_DEFEND_SURVIVE = XP_MIN;
 export const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 
-// Deploy limits by act
+// Deploy limits by act. Deploy bonuses (Tactical Advantage, Scout Blessing) raise the
+// max only (resolveDeployLimits), so a battle deploys at most max + 2 units.
 export const DEPLOY_LIMITS = {
   act1: { min: 3, max: 4 },
   act2: { min: 4, max: 5 },
-  act3: { min: 5, max: 6 },
-  act4: { min: 6, max: 6 },
-  postAct: { min: 4, max: 6 },
-  finalBoss: { min: 4, max: 6 },
+  act3: { min: 5, max: 7 },
+  act4: { min: 5, max: 8 },
+  postAct: { min: 5, max: 8 },
+  finalBoss: { min: 5, max: 8 },
 };
 
 // Enemy count = deployCount + roll(min, max)
@@ -176,7 +177,6 @@ export const NODE_GOLD_MULTIPLIER = {
   ruins: 0, // No combat
   colosseum: 0, // No standard combat
 };
-export const ROSTER_CAP = 12;
 
 // Gold economy
 export const STARTING_GOLD = 200;
