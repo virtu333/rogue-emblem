@@ -35,6 +35,12 @@ import { InputAction } from '../src/utils/InputActions.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
+
+// The scene's open action menu as BattleScene._registerActionMenu publishes it.
+function openMenu(scene, items) {
+  scene.actionMenu = [];
+  scene._actionMenuPublished = { objects: scene.actionMenu, items };
+}
 const weapon = (name, uid) => ({
   ...structuredClone(data.weapons.find((w) => w.name === name)),
   uid,
@@ -321,7 +327,7 @@ describe('direct attack after moving', () => {
     const { scene, hero, ranged } = makeScene();
     hero.hasMoved = true;
     hero._movementCommitted = true;
-    scene.actionMenu = [{ text: 'Attack', _action: vi.fn() }];
+    openMenu(scene, [{ id: 'attack', disabled: false }]);
     scene.getUnitAt = BattleScene.prototype.getUnitAt;
     const input = new InputController(scene);
     scene._inputController = input;
@@ -341,12 +347,12 @@ describe('direct attack after moving', () => {
     scene.getUnitAt = BattleScene.prototype.getUnitAt;
     const input = new InputController(scene);
     scene._inputController = input;
-    scene.actionMenu = [{ text: 'Attack', _action: vi.fn() }];
+    openMenu(scene, [{ id: 'attack', disabled: false }]);
     expect(input.tryDirectAttack({ col: outOfReach.col, row: outOfReach.row })).toBe(false);
     scene.inEquipMenu = true;
     expect(input.tryDirectAttack({ col: adjacent.col, row: adjacent.row })).toBe(false);
     scene.inEquipMenu = false;
-    scene.actionMenu = [{ text: 'Attack', _action: vi.fn(), _menuDisabled: true }];
+    openMenu(scene, [{ id: 'attack', disabled: true }]);
     expect(input.tryDirectAttack({ col: adjacent.col, row: adjacent.row })).toBe(false);
     expect(scene.battleState).toBe('UNIT_ACTION_MENU');
   });

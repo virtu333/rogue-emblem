@@ -101,8 +101,8 @@ for (const mobile of [true, false]) {
       await waitState(page, 'UNIT_ACTION_MENU');
       const menu = await battle(
         page,
-        `return (s.actionMenu || []).filter((o) => typeof o?.text === 'string' && o._action)
-           .map((o) => ({ label: o.text, disabled: Boolean(o._menuDisabled), why: o._menuDescription || null }));`,
+        `return s._actionMenuPublished.items
+           .map((item) => ({ label: item.label, disabled: item.disabled, why: item.description || null }));`,
       );
       expect(menu.find((m) => m.label === 'Attack')).toEqual({
         label: 'Attack',
@@ -119,8 +119,11 @@ for (const mobile of [true, false]) {
         await expect(rail).toContainText('Fighter · Unarmed');
       }
       await page.screenshot({ path: testInfo.outputPath('unarmed-menu.png') });
-      // A click on the greyed row does nothing.
-      await battle(page, `s.actionMenu.find((o) => o.text === 'Attack')._action();`);
+      // Choosing the greyed command does nothing.
+      await battle(
+        page,
+        `s._actionMenuPublished.items.find((item) => item.id === 'attack').onActivate();`,
+      );
       expect(await state(page)).toBe('UNIT_ACTION_MENU');
 
       // Wait acts.

@@ -17,6 +17,7 @@ import {
 import { UI_HEX } from '../utils/uiStyles.js';
 import { combatDistance, getFootprintKeys } from '../engine/EntitySystem.js';
 import { chooseAttackTile } from '../engine/AttackOptions.js';
+import { openMenuCommand } from './battleMenuModel.js';
 
 /** Battle states where a long press on a unit opens its detail sheet (planning only). */
 const HOLD_DETAIL_STATES = new Set([
@@ -783,10 +784,8 @@ export class InputController {
     const s = this.scene;
     if (s.battleState !== 'UNIT_ACTION_MENU' || s.inEquipMenu || !s.selectedUnit) return false;
     if (this.isSelectionMenu() || s._isTutorialStrictGateActive?.()) return false;
-    const attack = (s.actionMenu || []).find(
-      (o) => o?.text === 'Attack' && typeof o._action === 'function' && !o._menuDisabled,
-    );
-    if (!attack) return false;
+    const attack = openMenuCommand(s, 'attack');
+    if (!attack || attack.disabled) return false;
     const target = s.getUnitAt(gp.col, gp.row);
     if (!target || target.faction === 'player' || !canInspectUnit(s.grid, target)) return false;
     const unit = s.selectedUnit;

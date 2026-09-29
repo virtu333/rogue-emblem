@@ -44,3 +44,14 @@ export function rowText(row) {
 export function railOwnsMenus(scene) {
   return Boolean(scene?._mobileBattleHud);
 }
+
+/**
+ * A command of the scene's open menu by its row id, or null (no menu open, the menu
+ * was replaced, or it does not offer the command). BattleScene._registerActionMenu
+ * publishes each menu's items with the menu they belong to.
+ */
+export function openMenuCommand(scene, id) {
+  const published = scene?._actionMenuPublished;
+  if (!published || !scene.actionMenu || published.objects !== scene.actionMenu) return null;
+  return published.items.find((item) => item?.id === id) || null;
+}
