@@ -14,18 +14,18 @@ import { bayer, clamp, hash, smooth } from './engine/raster.js';
 const onTwos = (t) => Math.floor(t * 12 + 1e-6) / 12;
 
 // ash: a dark underside, a mid grey with a little brown, a warm top where the fire reaches it
-const SHADE = [92, 80, 86];
-const MID = [168, 150, 142];
-const HIGH = [226, 188, 146];
-const GRIT_PALE = [208, 186, 160];
-const GRIT_DARK = [70, 58, 60];
+const SHADE = [84, 62, 60];
+const MID = [146, 128, 122];
+const HIGH = [192, 152, 126];
+const GRIT_PALE = [200, 168, 132];
+const GRIT_DARK = [58, 46, 50];
 
 /** Write one pixel if nothing nearer covers it. */
 function px(world, f, x, y, z, c) {
   const { W, H } = world;
   if (x < 0 || y < 0 || x >= W || y >= H) return;
   const i = y * W + x;
-  if (z > world.zbuf[i] + 0.03) return;
+  if (z > world.zbuf[i] + 0.03 + 0.3) return; // dust wraps a boot: it may lie a little in front of what it hides behind
   const o = i * 4;
   f[o] = c[0];
   f[o + 1] = c[1];
@@ -48,7 +48,7 @@ export function puff(world, f, cam, t, p) {
   const u = age / p.life;
   const F = p.fire || { x: 0, y: 0.5, z: 0 };
   const fp = project(cam, F.x, F.y, F.z, W, H);
-  const fade = smooth(0.42, 1.0, u); // how much of the puff has dissolved
+  const fade = smooth(0.3, 0.95, u); // how much of the puff has dissolved
   // ---- the clouds
   for (let k = 0; k < p.n; k++) {
     const r = (j) => hash(k, j, p.seed);
@@ -62,7 +62,8 @@ export function puff(world, f, cam, t, p) {
     const Y = p.Y + Math.max(0, rise - 0.5 * Math.max(0, age - 0.2) ** 2 * (0.3 + r(6)) * 2);
     // pops open in a few drawings, then swells slowly and thins at the end
     const pop = 1 - (1 - Math.min(1, age / 0.14)) ** 2;
-    const rad = p.size * (0.5 + 0.6 * r(4)) * (0.25 + 0.75 * pop) * (1 + 0.35 * u) * (1 - 0.35 * fade);
+    const rad =
+      p.size * (0.5 + 0.6 * r(4)) * (0.25 + 0.75 * pop) * (1 + 0.35 * u) * (1 - 0.35 * fade);
     const q = project(cam, X, Y, Z, W, H);
     if (q.depth < 0.3) continue;
     const rp = Math.max(1.3, rad * q.scale);
@@ -75,25 +76,27 @@ export function puff(world, f, cam, t, p) {
     lx /= ll;
     ly /= ll;
     const R = Math.ceil(rp + 1);
+    const idx = Math.floor(tt * 12 + 1e-6);
     for (let dy = -R; dy <= R; dy++)
       for (let dx = -R; dx <= R; dx++) {
-        // a cloud is lumpy: its edge wanders with the angle
+        // a cloud of ash is particulate, not a disc: dense at its heart, ragged toward its edge, and it
+        // boils from one drawing to the next
         const ang = Math.atan2(dy, dx);
-        const lump = 0.82 + 0.3 * hash(Math.floor((ang + Math.PI) * 1.6), k, p.seed + 5);
+        const lump = 0.8 + 0.35 * hash(Math.floor((ang + Math.PI) * 1.4), k, p.seed + 5);
         const d = Math.hypot(dx, dy) / (rp * lump);
         if (d > 1) continue;
         const x = Math.round(cx + dx);
         const y = Math.round(cy + dy);
-        // the puff dissolves on the page's dither, thin edges first
-        if (bayer(x, y) < fade * 0.95 + (d > 0.7 ? 0.12 * u : 0)) continue;
+        const dens = (1 - d * d) ** 0.7 * (1 - fade);
+        if (hash(x, y, p.seed + k * 13 + idx * 3) > dens * 0.9) continue;
         const lit = clamp(0.5 + 0.55 * ((dx * lx + dy * ly) / (rp + 0.5)) - 0.25 * d);
         const w = (p.warm ?? 0.6) * lit;
         let c;
-        if (lit < 0.32) c = SHADE;
+        if (lit < 0.34) c = SHADE;
         else if (w > 0.5) c = HIGH;
         else c = MID;
-        // the lowest rim of a cloud is its underside: dark
-        if (dy > rp * 0.45) c = SHADE;
+        // the lowest side of a cloud is its underside
+        if (dy > rp * 0.55) c = SHADE;
         px(world, f, x, y, q.depth - 0.02, c);
       }
   }

@@ -76,7 +76,8 @@ const CUT = {
   edricFire: { img: 'edricFire', mpp: 0.00116, anchor: [457, 1127], face: -1 },
   seraCamp: { img: 'seraCamp', mpp: 0.00094, anchor: [480, 1230], face: 1 },
   kiraCamp: { img: 'kiraCamp', mpp: 0.00105, anchor: [500, 1385], face: 1 },
-  standing: { img: 'standing', mpp: 0.001224, anchor: [475, 1462], face: -1 },
+  // the anchor row is the boots' soles (1392); the sword's point hangs 0.09 m lower, at the left
+  standing: { img: 'standing', mpp: 0.001224, anchor: [475, 1392], face: -1 },
 };
 
 /**
@@ -217,7 +218,12 @@ const RISE = {
   x: PEOPLE.edric.seat[0] + 0.1,
   standX: PEOPLE.edric.seat[0] - 0.122,
   pushLt: 0.7,
-  handCell: [246, 326],
+  handCell: [246, 340],
+  pushBootCell: [92, 376], // the planted boot's sole while he crouches
+  bootCells: [
+    [560, 1391], // his rear boot (source px of the standing cut-out)
+    [440, 1391], // and the near one
+  ],
 };
 
 // the Thread's pulses: a bead runs along it on every note of the tune, and a swell on the hits
@@ -487,7 +493,6 @@ export class CampPiece extends Piece {
 
   /** Render the world with the scene's standing options. */
   renderWorld(f, t, cam, o = {}) {
-    if (globalThis.__campDbg?.cam) cam = globalThis.__campDbg.cam; // DEBUG (removed before commit)
     const thread = {
       cfg: THREAD,
       energy: tuneEnergy(t),
@@ -646,37 +651,62 @@ export class CampPiece extends Piece {
 
   // --- 7 · he rises -------------------------------------------------------------------------
 
+  /** A world point on the vertical plane z = Z that a screen pixel shows (for effects tied to a drawing). */
+  planePoint(cam, sx, sy, Z) {
+    const d = unproject(cam, sx, sy, W, H);
+    const tt = (Z - cam.z) / d[2];
+    return { X: cam.x + d[0] * tt, Y: cam.y + d[1] * tt, Z };
+  }
+
   /**
-   * Where his hand presses the rock (a world point on its crown): the drawing's hand on the ground
-   * is behind his rear knee (the cell point below, flipped), a point at eye level for this low
-   * camera, so it is found where that pixel's ray meets the crown's plane. Computed once from the
-   * camera at the moment the hand is still down.
+   * Where his hand is on the rock, as a world point where that pixel of the clip's drawing shows: the
+   * drawing's hand rests behind his rear knee (the cell point RISE.handCell), so the ash rises there
+   * (the crown's own plane at that pixel is metres behind him, out of the picture). Seen from the
+   * camera as it is while the hand is still down.
    */
   handSpot() {
     if (this._hand) return this._hand;
     const lt0 = RISE.pushLt - 0.05;
-    const top = this.world.seats.edric.top;
-    const a = this.clipActor(
-      'camp_edric_rise',
-      frameAt(RISE.frames, onN(lt0, 2)),
-      RISE.x,
-      PEOPLE.edric.seat[1],
-      1,
-      { who: 'edric', ground: true },
-    );
+    const ez = PEOPLE.edric.seat[1];
+    const a = this.clipActor('camp_edric_rise', frameAt(RISE.frames, onN(lt0, 2)), RISE.x, ez, 1, {
+      who: 'edric',
+      ground: true,
+    });
     const cam = CAMERA.rise(lt0);
     const q = this.clipPoint(a, cam, ...RISE.handCell);
-    const d = unproject(cam, q[0], q[1], W, H);
-    const tt = d[1] < -1e-4 ? (top - cam.y) / d[1] : 3;
-    this._hand = { X: cam.x + d[0] * tt, Y: top, Z: cam.z + d[2] * tt };
+    this._hand = this.planePoint(cam, q[0], q[1], ez);
+    // and the planted boot's sole, which pushes at the same moment
+    const b = this.clipPoint(a, cam, ...RISE.pushBootCell);
+    this._pushBoot = this.planePoint(cam, b[0], b[1], ez);
     return this._hand;
+  }
+
+  /** A source pixel (u, v) of a still cut-out actor on the screen (like clipPoint). */
+  cutPoint(a, cam, key, u, v) {
+    const { m, st } = this.world.cardBox(a, cam);
+    const k = st.h / this.img[CUT[key].img].height;
+    const lu = a.flip ? st.w - u * k : u * k;
+    return [m[0] * lu + m[1] * v * k + m[2], m[3] * lu + m[4] * v * k + m[5]];
+  }
+
+  /** Where the standing figure's boots meet the rock, for the landing's dust (world points). */
+  bootSpots() {
+    if (this._boots) return this._boots;
+    const hitLt = TIME.hit - S.rise[0];
+    const ez = PEOPLE.edric.seat[1];
+    const a = this.cutActor('standing', RISE.standX, ez, 1, { who: 'edric' });
+    const cam = CAMERA.rise(hitLt);
+    this._boots = RISE.bootCells.map(([u, v]) => {
+      const q = this.cutPoint(a, cam, 'standing', u, v);
+      return this.planePoint(cam, q[0], q[1], ez);
+    });
+    return this._boots;
   }
 
   shotRise(f, t) {
     const lt = t - S.rise[0];
     const hitLt = TIME.hit - S.rise[0];
     const ez = PEOPLE.edric.seat[1];
-    const top = this.world.seats.edric.top;
     let e;
     if (lt < hitLt) {
       const i = frameAt(RISE.frames, onN(lt, 2));
@@ -719,53 +749,63 @@ export class CampPiece extends Piece {
         },
       });
     }
-    // where his hand presses: a dent while it is down, a scuff of ash on the rock when it lifts
     const H0 = this.handSpot();
-    const decals = [];
-    if (lt < RISE.pushLt) decals.push({ x: H0.X, y: top, z: H0.Z, r: 0.1, k: 0.6, ash: 0, seed: 3 });
-    else decals.push({ x: H0.X, y: top, z: H0.Z, r: 0.17, k: 0.3, ash: 0.7, seed: 5 });
     const cam = this.shake(CAMERA.rise(lt), t);
-    this.renderWorld(f, t, cam, { actors: this.people(t, { edric: e }), decals });
+    this.renderWorld(f, t, cam, { actors: this.people(t, { edric: e }) });
     // the ash the hand kicks up as it pushes off, and the dust each boot puts up when he lands: a
     // few clouds that pop open, rise and settle over about half a second, and grit on arcs
     const fire = this.world.fire;
     puff(this.world, f, cam, t, {
       X: H0.X,
-      Y: top + 0.02,
+      Y: H0.Y,
       Z: H0.Z,
       t0: S.rise[0] + RISE.pushLt,
-      life: 0.55,
-      n: 11,
-      grit: 12,
-      size: 0.075,
-      spread: 0.36,
-      up: 0.42,
+      life: 0.6,
+      n: 9,
+      grit: 14,
+      size: 0.07,
+      spread: 0.34,
+      up: 0.3,
       drift: [-0.06, 0.03],
       seed: 11,
       warm: 0.55,
       fire,
     });
-    for (const [k, dxb] of [
-      [0, -0.17],
-      [1, 0.15],
-    ])
+    const PB = this._pushBoot;
+    puff(this.world, f, cam, t, {
+      X: PB.X,
+      Y: PB.Y,
+      Z: PB.Z,
+      t0: S.rise[0] + RISE.pushLt + 0.02,
+      life: 0.5,
+      n: 8,
+      grit: 8,
+      size: 0.05,
+      spread: 0.4,
+      up: 0.22,
+      ring: true,
+      seed: 31,
+      warm: 0.5,
+      fire,
+    });
+    this.bootSpots().forEach((B, k) =>
       puff(this.world, f, cam, t, {
-        X: RISE.standX + dxb,
-        Y: top + 0.01,
-        Z: ez - 0.02,
+        X: B.X,
+        Y: B.Y,
+        Z: B.Z,
         t0: TIME.hit,
-        life: 0.6,
-        n: 9,
-        grit: 9,
-        size: 0.07,
-        spread: 0.5,
-        up: 0.26,
+        life: 0.7,
+        n: 12,
+        grit: 12,
+        size: 0.1,
+        spread: 0.75,
+        up: 0.42,
         ring: true,
-        drift: [-0.05, 0],
         seed: 21 + k,
         warm: 0.5,
         fire,
-      });
+      }),
+    );
     // the hit: two frames of paper-white over the whole picture (high, so it stays flat: a middle
     // value over a dark frame breaks into a halftone screen)
     const since = lt - hitLt;

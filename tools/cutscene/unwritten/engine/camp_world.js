@@ -500,6 +500,10 @@ export class CampWorld {
       [-1.5, -1.0, 1.3],
       [-1.0, -2.2, 1.2],
       [-2.4, -0.4, 1.0],
+      // nor between the last shot's lens and the rock he rises from
+      [-2.0, -1.9, 1.0],
+      [-2.7, -1.3, 0.9],
+      [-1.2, -1.7, 0.8],
     ];
     this.tufts = [];
     for (let k = 0; k < 1500 && this.tufts.length < 900; k++) {
@@ -1599,7 +1603,22 @@ export class CampWorld {
             const band = Math.floor((su + 2) * 4.2) % 5;
             base = band === 1 ? BLANKET_A : band === 3 ? BLANKET_B : BLANKET_C;
           }
-          const A = [base[0] * grain, base[1] * grain, base[2] * grain];
+          let gk = grain;
+          if (Bx.kind === 'bench') {
+            // a plank on two end blocks: between them the side is the dark of the space under the seat,
+            // and the plank has a seam and grain (not one solid orange block)
+            const su = lo[0] + ld[0] * t0;
+            const sv = lo[2] + ld[2] * t0;
+            if (ax !== 1) {
+              const leg = Math.abs(su) > Bx.sx - 0.13;
+              const seat = Y > Bx.h - 0.075;
+              if (!leg && !seat) gk *= 0.22;
+              else if (seat && (Y > Bx.h - 0.085 || hash(Math.floor(su * 30), 3, 19) > 0.8))
+                gk *= 0.8;
+            } else if (Math.abs(sv) < 0.008) gk *= 0.55;
+            else if (hash(Math.floor(su * 40), Math.floor(sv * 4), 21) > 0.86) gk *= 0.85;
+          }
+          const A = [base[0] * gk, base[1] * gk, base[2] * gk];
           this.lightSurf(X, Y, Z, nx, ny, nz, A, c, 0);
           frame[i * 4] = c[0];
           frame[i * 4 + 1] = c[1];

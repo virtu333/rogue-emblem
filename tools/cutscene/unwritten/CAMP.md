@@ -106,23 +106,34 @@ east.
 ## Grounding (what carries whom)
 
 The owner's test is "is it real?": every figure and object rests on something you can see. Measured, not
-guessed:
+guessed (cut 4 made the two seats real objects, not shapes):
 
-| Who | What carries them | How it was measured |
+| Who | What carries them | How it was made and measured |
 |---|---|---|
-| Edric | A flat faceted sandstone slab (`SET.seats`, 0.16 m high), drawn in the world, lit by the fire. His seated cut-out really sits on the ground with one boot planted, so the slab is his seat and his plane. | The fire clip's lowest row is 395 in every drawing (boot planted); the folded shin ends 50 cell px higher (depth), which lands on the slab's back. The rise clip's crouch ends on row 371-375, the standing drawings on 396: `ground: true` puts each drawing's own lowest row on the slab. |
-| Sera | A folded striped blanket (`SET.seats`, two layers) under her hem. | Her clip ends on row 396 in every drawing; the blanket's front edge is 0.06 m in front of the anchor. |
-| Kira | Her painted crate (it is in her drawing; a second one would double). | The crate base is row 345-350, her near boot row 393 (0.2 m nearer). The contact line follows each column's lowest pixel, so both get their shadow. |
+| Edric | A rough block of sandstone (`SET.seats`, drawn by `engine/camp_seats.js`): 1.1 m x 0.7 m, 0.25 m high, an irregular ring of 17 sides in two tiers (steep foot, shoulders leaning in), worn chamfers, a broken corner, a crown that tilts away from where he sits, strata, cracks, soil grown up its foot, a lower step fused behind its left end, a block broken off at its foot, pebbles, grass rooted at its base. Sunk into the ground. | The clips do not all sit at the same x (lower-body centres: fire clip -1.40, look clip -1.77, crouch -1.67..-1.88, measured from the atlases), so the rock is centred where the fire, rise and standing drawings all put their boots (-1.5), the fire clip is moved 0.1 m and the rise 0.1 m to meet it, and the standing cut-out's anchor row is the boots' soles (1392), not the sword's point (1462: it hovered 0.09 m over the crown). The crown is the contact plane (`Y = top`). |
+| Sera | A folded wool blanket (height field): a fold that is a rounded tube along the front edge, a top sheet with a ragged raw edge over a base sheet that shows at the ends, a corner turned over with the plain reverse showing, stripes that follow the fold (measured from it, so top and base line up), crease lines, a dip where she sits with wrinkles running from it. About 7 cm thick at the fold. | Her clip ends on row 396; the blanket's front edge is 0.2 m in front of her hem and its top under her is 0.06 m. |
+| Kira | Her painted crate (it is in her drawing; a second one would double). | The crate base is row 345-350, her near boot row 393 (0.2 m nearer). The contact line follows each column's lowest pixel. |
 | The torchbearer | The ground at his depth; a contact under each foot and a torch pool round him; tents in front hide him through the depth buffer. | |
-| Props | Every stone, barrel, crate, tent, post, tripod leg and seat has a contact-occlusion footprint (`camp_ground.js` footprints, a grid built once) and the stumps, barrels, crates and bench throw a shadow. | |
+| Props | Every stone, barrel, crate, tent, post, tripod leg and seat has a contact-occlusion footprint (`camp_ground.js`, a grid built once); stumps, barrels, crates, the bench and both seats throw a shadow. The bench is a plank on two end blocks (dark under the seat), not a solid block. | |
 
-Shadows (`engine/camp_ground.js`): a contact shadow under every touching column of a drawing (tight, 3 px),
-a cast shadow thrown away from the fire from the figure's own drawing (each pixel at height y is thrown
-1.5 y along the ground and given some depth), softer and fainter with height, lengthened and shortened by the
-fire's flicker (`this.k`) and moved by its wobble; the shadow also takes a third of the sky's light so it
-reads where the fire's pool is thin. Weight in shot 7: his hand presses a mark into the slab that becomes a
-scuff of ash and kicks ash up; on the hit the body squashes 3.5 % and rebounds, the cloak settles, each boot
-puts up dust (`camp_fx.js`). The last camera is lower so his boots, the slab and his shadow are in frame.
+Both seats are lit by the fire (`lightRock` for stone: a sky term that favours what faces up, the fire in three
+flat steps, a warm fill on the low sides from the trampled ground, the sky's blue washed out of what the fire
+reaches so lit stone lands on the ember ramp and not on salmon), take the figure's cast shadow, are inked on their
+contours (found on the dark side and at the foot, thin on the lit lip, lost in patches: `passSeatInk`) and are
+drawn under the person who sits on them (the actor pass draws over a seat's ids).
+
+Shadows (`engine/camp_ground.js`, `shadeGround`): a contact shadow under every touching column of a drawing (tight,
+3 px), and a cast shadow thrown away from the fire from the figure's own drawing (each pixel at height y is thrown
+2 y along the ground), fanning out with its length (a point of light), darker near the contact and fainter with height
+and length. On the ground it is drawn, not blended: a mid tone and a dark core through an ordered dither, cooler than
+the earth round it, so it reads at game size (the low cameras see it as a dark fan running away from the fire beside
+each person). Weight in shot 7: the hand and the planted boot put up ash and grit when he pushes off (a few ragged
+clouds that pop open in three drawings, rise, thin on the dither and settle over 0.5 s, with grit on arcs that lands and
+lies there); on the hit the body squashes 3.5 % and rebounds, the cloak settles and each boot puts up a ring of
+dust (`camp_fx.js`, world space, on twos, depth-tested against the figure but allowed to lie in front of it). Where the
+effects go is taken from the drawings: the hand's cell point and the standing cut-out's boot pixels are unprojected
+onto the card's plane. The last shot's first second keeps its camera low (the target rises only after the push-off) so
+the crown, the hand's ash and the boot are in frame.
 
 ## Systems
 
@@ -131,8 +142,9 @@ puts up dust (`camp_fx.js`). The last camera is lower so his boots, the slab and
 | `camp_blocking.js` | The plan as data (tents included: size, yaw, sag, open flap): fire, seats, characters' facing and eyelines, the gestures and their times, the sky's Thread, the score's notes for the pulses, the seven cameras. `validate()` checks the eyelines meet and the cuts sit on notes. |
 | `camp_previs.js` | A flat plan-view animatic (`?piece=camp_previs`): the layout from above, eyelines as dashed rays, each shot's lens as a wedge, the shot boundaries, the tune's notes and the crashes on a score bar. |
 | `engine/camp_world.js` | A procedural night camp seen through a real perspective camera: sky, stars, the Thread, ridges, ground, tents, props, grass tufts in wind, the fire (flame, light, flicker, shadows), smoke, embers, figures composited with firelight, rim light and shadows. |
-| `engine/camp_ground.js` | The seats, contact occlusion, cast shadows (from the fire, from each figure's drawing) and marks on the ground (decals). |
-| `camp_fx.js` | Ash and dust kicked up by a hand or a boot. |
+| `engine/camp_seats.js` | The two seats: the rock (planes, exact) and the blanket (height field), their lighting, ink, footprints and cast shadows, the pebbles and grass at the rock's foot. |
+| `engine/camp_ground.js` | Contact occlusion, cast shadows (from the fire, from each figure's drawing and from the seats) and marks on the ground (decals). |
+| `camp_fx.js` | Ash and dust kicked up by a hand or a boot (`puff`). |
 | `motion/camp_blade.py` | Finds each drawing's sword blade (a line in cell px, in the clip's JSON) so camp.js repaints it as a clean two-pixel steel blade with a highlight line; the fast smear drawings keep their paint. |
 | `camp_palette.js` | The camp's palette snap: the master ramps without the olive earth ramp. |
 | `camp.js` | The seven shots (`?piece=camp`; `node tools/cutscene/render.mjs --piece camp --video out.mp4`). |

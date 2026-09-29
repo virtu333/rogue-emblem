@@ -14,7 +14,6 @@
 //
 // Installed on CampWorld's prototype (engine/camp_world.js, camp_ground.js).
 
-import { project } from './world.js';
 import { clamp, hash, smooth, valueNoise } from './raster.js';
 
 const TWO_PI = Math.PI * 2;
@@ -26,7 +25,6 @@ export const ID_BLANKET = 192;
 // materials (albedo, before the night's and the fire's light)
 const ROCK_TOP = [196, 168, 134];
 const ROCK_SIDE = [168, 138, 112];
-const ROCK_DARK = [96, 78, 74];
 const SOIL = [60, 46, 44];
 const WOOL_RED = [170, 70, 66];
 const WOOL_CREAM = [196, 176, 140];
@@ -478,7 +476,9 @@ export const seatMethods = {
     let fl = I * (0.12 + 0.88 * lam) * this.shadowAt(X, Z);
     fl =
       0.78 *
-      (0.36 * smooth(0.05, 0.075, fl) + 0.34 * smooth(0.15, 0.18, fl) + 0.3 * smooth(0.33, 0.37, fl));
+      (0.36 * smooth(0.05, 0.075, fl) +
+        0.34 * smooth(0.15, 0.18, fl) +
+        0.3 * smooth(0.33, 0.37, fl));
     // the fire's light washes the sky's blue out of what it reaches (warm ones go ember, not salmon)
     const sky = (0.5 + 0.75 * Math.max(0, ny)) * (1 - 0.55 * (fl / 0.78));
     out[0] = A[0] * (AMB_R[0] * sky + FIRE_R[0] * fl) + warm * 90;
@@ -617,7 +617,17 @@ export const seatMethods = {
         // the earth round it is lit by the fire and throws some of it back: a warm fill on the low sides
         const Iw = this.intensity(X, 0.05, Z);
         const bounce = (0.16 + 0.5 * Iw) * (1 - 0.65 * ny * ny) * smooth(0.36, 0.03, Y) + 0.14 * Iw;
-        this.lightRock(X, Y, Z, nx, ny, nz, [A[0] * tone * dk, A[1] * tone * dk, A[2] * tone * dk], c, bounce);
+        this.lightRock(
+          X,
+          Y,
+          Z,
+          nx,
+          ny,
+          nz,
+          [A[0] * tone * dk, A[1] * tone * dk, A[2] * tone * dk],
+          c,
+          bounce,
+        );
         // a rim of the fire's light on the crown's lip and the chamfers toward it
         if ((q.kind === 'chamfer' || q.kind === 'break') && facing > 0.2) {
           const rk = 0.11 * this.k * (facing - 0.2);
@@ -631,8 +641,6 @@ export const seatMethods = {
           c[1] = c[1] * (1 - k2) + INK[1] * k2;
           c[2] = c[2] * (1 - k2) + INK[2] * k2;
         }
-        if (globalThis.__campDbg?.probe && x === globalThis.__campDbg.probe[0] && y === globalThis.__campDbg.probe[1])
-          console.error('PROBE', q.kind, 'A', A, 'tone', tone, 'n', nx.toFixed(2), ny.toFixed(2), nz.toFixed(2), 'c', c[0] | 0, c[1] | 0, c[2] | 0, 'bounce', bounce);
         frame[i * 4] = c[0];
         frame[i * 4 + 1] = c[1];
         frame[i * 4 + 2] = c[2];
@@ -853,5 +861,3 @@ export const seatMethods = {
       }
   },
 };
-
-export { project };

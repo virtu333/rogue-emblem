@@ -320,8 +320,8 @@ export const CAMERA = {
   edric: (lt) => {
     const k = lt / 1.6;
     return lookAt(
-      { x: mix(-2.35, -2.15, k), y: 0.9, z: mix(-1.45, -1.3, k) },
-      { x: -1.65, y: 0.92, z: 0.15 },
+      { x: mix(-2.35, -2.15, k), y: 1.02, z: mix(-1.45, -1.3, k) },
+      { x: -1.65, y: 1.04, z: 0.15 },
       { focal: 520 },
     );
   },
@@ -338,8 +338,9 @@ export const CAMERA = {
   // a breath of anticipation (a small dolly in, 0.55-0.72), a fast middle, a long settle back and
   // up that arrives on the big hit (1.4) and keeps drifting after it: he is small under the Thread
   rise: (lt) => {
-    const eye = { x: -1.95, y: 0.5, z: -1.85 };
-    const tilt = (l) => mix(0.85, 1.55, sm(0.1, 1.0, l));
+    const eye = { x: -1.95, y: 0.66, z: -1.85 };
+    // the target stays low while the hand is on the rock (its push-off is in frame), then lifts with him
+    const tilt = (l) => mix(0.62, 1.55, sm(0.45, 1.15, l));
     const cam = (l, dolly = 0) => {
       // toward the seat along the ground, by `dolly` metres
       const dx = 0.5;
