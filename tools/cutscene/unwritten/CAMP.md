@@ -66,30 +66,41 @@ east.
 | # | From | To | Size / move | What happens | Assets |
 |---|---|---|---|---|---|
 | 1 | 5.1 | 7.1 | Sky -> wide, a tilt down that starts after a held breath | The crash (two frames of white). The Thread across the stars, a bead running along it on every note (the wave in it swells on each note and settles in the rests). The sky drifts even while the camera waits. Tilt down past the ridge to the camp, smoke and embers rising toward the Thread; a torchbearer walks behind the tents. Three small figures at the fire, each alive (their own hair and breath). | world; Sera and Kira from their clips' first drawings, Edric a cut-out with idle warps |
-| 2 | 7.1 | 8.1 | Medium three-shot, slow push | The geography and the status quo: Kira with the map, Edric staring at the flames, Sera with her chin up. Figures on threes; the fire's flicker on every face; the long shadows thrown away from the flames. | as 1 |
+| 2 | 7.1 | 8.1 | Medium three-shot, slow push | The geography and the status quo: Kira with the map, Edric staring at the flames, Sera with her chin up. On bar 7 beat 2 Edric puts his sword out toward the flames once, as if to prod a log, and draws it back (`camp_edric_fire`). Figures on threes; the fire's flicker on every face; the long shadows thrown away from the flames. | as 1, Edric from `camp_edric_fire` |
 | 3 | 8.1 | 9.1 | Close-up from the south-east, slow push in | Sera's face lit from the left, Kira behind her shoulder watching. The long E: a breath, the Thread as a glint in her eye. On the rest (beat 4) the glint goes out, her lids close and her eyes come down. | `camp_sera_look` |
 | 4 | 9.1 | 10.1 | Sky, wide, canted, a slow drift | On the crash, what she sees: the Thread flares (the halo opens to two pixels), beads with a four-point glint run along it on each note, the wave in it sings; embers and smoke rise past the tent tops; stars. A small camera jolt on the crash. | world |
 | 5 | 10.1 | 11.1 | Medium close-up from the south-west, slow push | Edric stares at the fire, feels it, his head snaps up (twos) and turns to her; he settles, meets her look, the ghost of a smile. Flame at the frame's edge, embers drifting across, Kira small behind him. | `camp_edric_look` |
 | 6 | 11.1 | 11.4 | Close-up from the south-east, slow push | Kira works, stops, lifts her eyes from the map to Edric (the ponytail swings through). The fire is behind us and lights her face. | `camp_kira_map` |
-| 7 | 11.4 | 13.1 | Low and close, a tilt up with him, then a fast pull back that lands on the hit | On the leading tone Edric puts a hand down and rises; the fill under it. The camera cranes back and tilts up on the fill and arrives on the big hit (12.3.5): he stands under the Thread looking up, Kira and Sera at the fire, the sky clear above him for the logo. The camera never quite stops (a slow drift back through the hold). | `camp_edric_rise` |
+| 7 | 11.4 | 13.1 | Low and close, a tilt up with him, then one move back and up that lands on the hit | On the leading tone Edric puts a hand down and rises; the fill under it. The camera makes one move on the fill: a small dolly in (anticipation, 0.55-0.72 s), a smootherstep pull back and up (a fast middle, a long settle) that arrives on the big hit (12.3.5). A paper-white two-frame flash covers the change from the rise clip to the standing cut-out: he stands under the Thread with his face lifted (his head rises a little more and holds), Kira and Sera at the fire, the sky clear above him for the logo. The camera never quite stops. | `camp_edric_rise`, then `edric_standing` |
 
 ## How it was made
 
-- The world is procedural (`engine/camp_world.js`, `engine/camp_billboards.js`): ridges on
-  circles, ground and tents by ray tests, a point light at the flames for everything (ground,
-  props, grass tips, figures), the Thread as a curve of directions at infinity.
-- The three characters are the batch-4 cut-outs and four MiniMax H3 clips made from them
+- The world is procedural (`engine/camp_world.js`, `engine/camp_billboards.js`) and drawn as ink and
+  wash (the Unwritten Page, STYLE.md): the sky is washes laid in bands whose edges wander, clouds are
+  two flat tones, ridge crests are a line of ink where found, a pooled darker wash where soft and
+  haze where lost, the ground two overlapping washes with the fire's pool in flat bands that breathe
+  with the flame, and the vellum's grain is multiplied through every wash. The dither snap is kept.
+- Tents are ray-cast ridge tents (sagging ridge, panel seams, fold lines from the pole tips, a scalloped
+  hem, guy ropes and pegs, the fire-facing side a warm band, the far side cool, one flap open), their
+  edges drawn as depth-tested ink strokes. The fire is eight drawings of flat tongues (darker outer,
+  paler inner, one small pale core, ink at the tips only), logs standing in it, faceted stones
+  blackened on the fire side, heat shimmer and sparks. Nothing warm is yellow except the core.
+- The palette snap (`camp_palette.js`) leaves out the earth ramp: dim warm tones used to drift olive.
+- The three characters are the batch-4 cut-outs and five MiniMax H3 clips made from them
   (`motion/camp_jobs.json`, `motion/camp_minimax.mjs`, packed by `clip.py`, trimmed by
-  `trim_atlas.py`): Sera lowering her eyes, Edric looking up and across the fire, Kira with
-  the map, Edric rising. $2.00 (five 5 s clips at H3 768P; the first Sera clip painted its own
-  background and was regenerated).
-- Edric's cut-outs face left as drawn and are flipped to face Sera; Sera and Kira face right
-  and are flipped to face the fire.
+  `trim_atlas.py`): Sera lowering her eyes, Edric looking up and across the fire, Kira with the map,
+  Edric rising, Edric at the fire (breath, a glance, the sword put out toward the flames).
+  $2.80 in all: five 5 s clips at H3 768P, the first Sera clip regenerated, and two variants of the
+  fire clip ($0.80; the one with a loop-closing last frame did little and is unused).
+- Edric's cut-outs face left as drawn and are flipped to face Sera; Sera and Kira face right and are
+  flipped to face the fire. His hair is painted auburn in the seated cut-out and the clips made from
+  it: it is retoned to chestnut at load (`retoneHair`), and firelight keeps its hue (`hueHold`).
 
 ## What would lift it further
 
-- A drawing of Edric facing right (no flip: his pauldron and sword hand would be on the right
-  side of the frame, toward the fire) and a blink patch for the close-ups.
+- A drawing of Edric facing right (no flip) and a blink patch for the close-ups: Edric's blinks in the
+  wides come from his clip (a lowered lid mid-clip), not a patch on the cut-out.
+- The poked sword shows a saw of dark pixels along its edge at game size (a 1 px diagonal).
 - Sera's eye close-up with the Thread in it, and a hand insert (batch 8 prompts).
 - A painted camp prop sheet (tent fronts, tripod, barrels) to replace the ray-tested props.
 
@@ -97,9 +108,10 @@ east.
 
 | File | What it is |
 |---|---|
-| `camp_blocking.js` | The plan as data: fire, seats, characters' facing and eyelines, the gestures and their times, the sky's Thread, the score's notes for the pulses, the seven cameras. `validate()` checks the eyelines meet and the cuts sit on notes. |
+| `camp_blocking.js` | The plan as data (tents included: size, yaw, sag, open flap): fire, seats, characters' facing and eyelines, the gestures and their times, the sky's Thread, the score's notes for the pulses, the seven cameras. `validate()` checks the eyelines meet and the cuts sit on notes. |
 | `camp_previs.js` | A flat plan-view animatic (`?piece=camp_previs`): the layout from above, eyelines as dashed rays, each shot's lens as a wedge, the shot boundaries, the tune's notes and the crashes on a score bar. |
 | `engine/camp_world.js` | A procedural night camp seen through a real perspective camera: sky, stars, the Thread, ridges, ground, tents, props, grass tufts in wind, the fire (flame, light, flicker, shadows), smoke, embers, figures composited with firelight, rim light and shadows. |
+| `camp_palette.js` | The camp's palette snap: the master ramps without the olive earth ramp. |
 | `camp.js` | The seven shots (`?piece=camp`; `node tools/cutscene/render.mjs --piece camp --video out.mp4`). |
 
 ## Continuity notes
