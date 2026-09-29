@@ -199,7 +199,8 @@ Done, each with unit tests (and browser tests where there is UI):
 - Church vow: each church gives promotions or one minor blessing, not both.
 - Story and lines: first-run cold open, Act I/II dispatches, the Lieutenant's vision (Dusk and up), fall reactions and commander last words, Act IV flavour, the First Light tease, fuller thin pools.
 
-Waiting: the Wounded status (anti-heal) is built on the HP-ownership work (`engine/UnitHealth.js`) once that PR lands.
+- Wounded (after #154): Grievous enemies leave a unit unable to recover HP except from a staff for 2 turns; statuses now end with the battle.
+- Elite victory line no longer draws from the battle RNG; phone battles open on the whole board.
 
 PR notes for the strict-slice threshold change (Waves 3–4; CI's check:threshold-pr-notes reads these from the PR body):
 - Attribution command: `node tests/sim/fullrun-slice-runner.js --slice ambush_hard_invincible` on each commit.
