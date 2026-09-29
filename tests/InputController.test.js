@@ -4,6 +4,12 @@ import { InputController } from '../src/ui/InputController.js';
 import { TERRAIN } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
+// The scene's open action menu as BattleScene._registerActionMenu publishes it.
+function openMenu(scene, items) {
+  scene.actionMenu = [];
+  scene._actionMenuPublished = { objects: scene.actionMenu, items };
+}
+
 function makeScene(overrides = {}) {
   return {
     _isTouchPointer: vi.fn(() => false),
@@ -1027,7 +1033,7 @@ describe('desktop: clicking an enemy while a unit is selected', () => {
       _isTutorialStrictGateActive: () => false,
       showActionMenu: vi.fn(() => {
         scene.battleState = 'UNIT_ACTION_MENU';
-        scene.actionMenu = [{ text: 'Attack', _action: () => {} }];
+        openMenu(scene, [{ id: 'attack', disabled: false }]);
       }),
       findAttackTargets: vi.fn((u) =>
         Math.abs(u.col - foe.col) + Math.abs(u.row - foe.row) === 1 ? [foe] : [],

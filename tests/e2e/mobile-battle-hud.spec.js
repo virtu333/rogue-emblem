@@ -383,19 +383,22 @@ for (const viewport of [
     await expect(hud.locator('.mb-dock .mb-pinned-command')).toHaveCount(0);
 
     // Support has six commands on Full: greyed Attack, Shove, Pull, Trade, Swap, Wait.
-    const canvas = await page.evaluate(() => {
+    const menu = await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const u = s.playerUnits.find((p) => p.name === 'Support');
       s.selectUnit(u);
       s.showActionMenu(u);
       return {
-        labels: s.actionMenu.filter((o) => typeof o?._action === 'function').map((o) => o.text),
+        // The rail draws the menu's rows itself: no canvas row is built behind it.
+        canvasRows: s.actionMenu.length,
+        labels: s._actionMenuPublished.items.map((item) => item.label),
         focus: s._menuFocus.items.map((item) => item.label),
       };
     });
-    // The canvas menu and the keyboard/gamepad order are unchanged: Wait last.
-    expect(canvas.labels).toEqual(['Attack', 'Shove', 'Pull', 'Trade', 'Swap', 'Wait']);
-    expect(canvas.focus).toEqual(['Shove', 'Pull', 'Trade', 'Swap', 'Wait']);
+    // The command order and the keyboard/gamepad order are unchanged: Wait last.
+    expect(menu.canvasRows).toBe(0);
+    expect(menu.labels).toEqual(['Attack', 'Shove', 'Pull', 'Trade', 'Swap', 'Wait']);
+    expect(menu.focus).toEqual(['Shove', 'Pull', 'Trade', 'Swap', 'Wait']);
     const list = hud.locator('.mb-body .mb-actions > button');
     await expect(list).toHaveCount(5);
     await expect(list.first()).toContainText('No target in range 1');
