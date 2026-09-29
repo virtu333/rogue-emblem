@@ -698,6 +698,15 @@ export class FordPiece extends Piece {
             for (let x = x0; x < x1; x++) {
               const q = (y * W + x) * 4;
               if (buf[q] === 1 && buf[q + 1] === 0 && buf[q + 2] === 1) continue;
+              // the paint stages: where the page has gone to lines, paper or pencil under him,
+              // so has he (a code drawing has no ink stage: he comes and goes in patches)
+              if (world.stg[y * W + x] >= 1) {
+                buf[q] = 1;
+                buf[q + 1] = 0;
+                buf[q + 2] = 1;
+                buf[q + 3] = 0;
+                continue;
+              }
               buf[q + 3] = 255;
               buf[q] += (paper[q] * 0.93 - buf[q]) * mist * 0.8;
               buf[q + 1] += (paper[q + 1] * 0.94 - buf[q + 1]) * mist * 0.8;
