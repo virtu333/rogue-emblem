@@ -412,6 +412,7 @@ export class CampPiece extends Piece {
       this.clipActor('camp_edric_fire', edricFireFrame(t), ex + 0.36, ez, 1, {
         t: tt,
         hold: 0.85,
+        gain: 1.4,
         shadowW: 0.6,
       }) ??
       this.cutActor('edricFire', ex, ez, 1, { idle: IDLE_E, t: tt, shadowW: 0.6, hold: 0.85 });
@@ -563,7 +564,12 @@ export class CampPiece extends Piece {
       ],
       onN(lt, lt < 0.4 ? 3 : 2),
     );
-    const e = this.clipActor('camp_edric_look', i, ...PEOPLE.edric.seat, 1, { t, hold: 0.85 });
+    const e = this.clipActor('camp_edric_look', i, ...PEOPLE.edric.seat, 1, {
+      t,
+      hold: 0.85,
+      gain: 1.9,
+      rim: 1.2,
+    });
     this.renderWorld(f, t, CAMERA.edric(lt), { actors: this.people(t, { edric: e }) });
   }
 
@@ -598,7 +604,11 @@ export class CampPiece extends Piece {
         ],
         onN(lt, 2),
       );
-      e = this.clipActor('camp_edric_rise', i, ...PEOPLE.edric.seat, 1, { t, hold: 0.85 });
+      e = this.clipActor('camp_edric_rise', i, ...PEOPLE.edric.seat, 1, {
+        t,
+        hold: 0.85,
+        gain: 1.5,
+      });
     } else {
       // the big hit: a paper-white flash covers the change of drawing, and he stands as drawn,
       // his face lifted to the Thread (the standing cut-out; its head rises a little more and
