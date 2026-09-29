@@ -35,10 +35,19 @@ describe('combat FX family mapping (one table, data-driven)', () => {
     for (const name of ['Fire', 'Wildfire', 'Conflagration', 'Witchfire'])
       expect(fxFamilyIdForWeapon(byName(name))).toBe('fire');
     expect(fxFamilyIdForWeapon(byName('Firstwind'))).toBe('wind');
+    // Kira's personal tome is wind though nothing in its name or lore says so.
+    expect(fxFamilyIdForWeapon(byName('Endgame'))).toBe('wind');
     expect(fxFamilyIdForWeapon(byName('Breachbolt'), { distance: 5 })).toBe('thunder');
     expect(fxFamilyIdForWeapon(byName('Twisting Vortex'))).toBe('dark');
     // Light tomes stay holy light even when the name says lightning.
-    for (const name of ['Glimmer', 'Brilliance', 'Crownlight', 'Sunflare', 'Endword'])
+    for (const name of [
+      'Glimmer',
+      'Brilliance',
+      'Crownlight',
+      'Sunflare',
+      'Endword',
+      'Threadlight',
+    ])
       expect(fxFamilyIdForWeapon(byName(name))).toBe('light');
     // An unknown tome falls back through lore, then the type default.
     expect(fxFamilyIdForWeapon({ type: 'Tome', name: 'Gale Page', lore: '' })).toBe('wind');

@@ -63,14 +63,15 @@ export const XP_MIN = 1;
 export const XP_DEFEND_SURVIVE = XP_MIN;
 export const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 
-// Deploy limits by act
+// Deploy limits by act. Deploy bonuses (Tactical Advantage, Scout Blessing) raise the
+// max only (resolveDeployLimits), so a battle deploys at most max + 2 units.
 export const DEPLOY_LIMITS = {
   act1: { min: 3, max: 4 },
   act2: { min: 4, max: 5 },
-  act3: { min: 5, max: 6 },
-  act4: { min: 6, max: 6 },
-  postAct: { min: 4, max: 6 },
-  finalBoss: { min: 4, max: 6 },
+  act3: { min: 5, max: 7 },
+  act4: { min: 5, max: 8 },
+  postAct: { min: 5, max: 8 },
+  finalBoss: { min: 5, max: 8 },
 };
 
 // Enemy count = deployCount + roll(min, max)
@@ -142,7 +143,7 @@ export const BOSS_RECRUIT_LORD_CHANCE = 0.25; // 25% chance one slot is a lord
 export const BOSS_RECRUIT_COUNT = 3;
 export const RECRUIT_NODE_LORD_CHANCE = 0.15; // 15% chance recruit node NPC is a lord
 export const BOSS_RECRUIT_PROMOTION_CHANCE_BASE = 0.7;
-export const NODE_RECRUIT_PROMOTION_CHANCE_BASE = 0.4;
+export const NODE_RECRUIT_PROMOTION_CHANCE_BASE = 0.65;
 export const RECRUIT_PROMOTION_CHANCE_CAP = 0.95;
 
 // Act sequence and config for node map
@@ -176,7 +177,6 @@ export const NODE_GOLD_MULTIPLIER = {
   ruins: 0, // No combat
   colosseum: 0, // No standard combat
 };
-export const ROSTER_CAP = 12;
 
 // Gold economy
 export const STARTING_GOLD = 200;
@@ -195,7 +195,10 @@ export const GOLD_LOOT_REWARD_MULTIPLIER = 1.2;
 export const GOLD_PAR_BONUS_MULTIPLIER = 2.5;
 export const GOLD_SKIP_LOOT_MULTIPLIER = 1.5;
 export const SHOP_SELL_RATIO = 0.5;
-export const CHURCH_PROMOTE_COST = 3500;
+// Church promotion: lords pay the old price, every other unit less (playtest
+// 2026-09-29: recruits were too weak next to lords). ChurchCommands.churchPromoteCost.
+export const CHURCH_PROMOTE_COST_LORD = 3500;
+export const CHURCH_PROMOTE_COST_RECRUIT = 2000;
 export const REVIVE_BASE_COST = 500;
 export const REVIVE_COST_PER_LEVEL = 300;
 export const REVIVE_PROMOTION_MULTIPLIER = 2.5;
@@ -342,8 +345,10 @@ export function filterClassPoolByDifficulty(classPool, difficultyMode) {
   return classPool.filter((name) => !DIFFICULTY_GATED_CLASSES.has(name));
 }
 
-// Deadly Arsenal tier 1: the commander's Steel-slot weapon is replaced by the
-// signature weapon of their primary proficiency (tier 2 adds the silver weapon).
+// Deadly Arsenal tier 1: the commander's Steel-slot weapon is replaced by their
+// personal weapon (weapons.json `signatureOf`, engine/SignatureWeapons.js); a lord
+// without one gets the signature weapon of their primary proficiency from this
+// table (tier 2 adds the silver weapon).
 export const DEADLY_ARSENAL_SIGNATURE_WEAPONS = {
   Sword: 'Rapier',
   Lance: 'Horsebane',

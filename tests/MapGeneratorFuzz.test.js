@@ -13,6 +13,20 @@ const data = loadGameData();
 const mapTemplates = data.mapTemplates;
 
 const ACTS = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
+
+// Every deploy bonus a run can stack (Tactical Advantage + the Scout Blessing), read
+// from the data so a new source widens the fuzz: the deploy screen allows the act's
+// max plus all of it (resolveDeployLimits), so every map must place that many units.
+const MAX_DEPLOY_BONUS =
+  data.metaUpgrades.reduce(
+    (sum, u) =>
+      sum + Math.max(0, ...(u.effects || []).map((e) => Math.trunc(Number(e?.deployBonus) || 0))),
+    0,
+  ) +
+  data.blessings.blessings
+    .flatMap((b) => b.boons || [])
+    .filter((boon) => boon?.type === 'deploy_cap_delta')
+    .reduce((sum, boon) => sum + Math.max(0, Math.trunc(Number(boon.params?.value) || 0)), 0);
 const OBJECTIVES = ['rout', 'seize', 'escape'];
 const DIFFICULTIES = ['normal', 'hard', 'lunatic'];
 const SEEDS_PER_COMBO = 25;
@@ -40,7 +54,7 @@ describe('MapGenerator fuzz — validateBattleConfig over the full matrix', () =
 
     let seedCounter = 1;
     for (const act of ACTS) {
-      const deployCount = DEPLOY_LIMITS[act]?.max || 4;
+      const deployCount = (DEPLOY_LIMITS[act]?.max || 4) + MAX_DEPLOY_BONUS;
       for (const objective of OBJECTIVES) {
         for (const difficultyId of DIFFICULTIES) {
           for (const variant of VARIANTS) {
@@ -86,6 +100,7 @@ describe('MapGenerator fuzz — validateBattleConfig over the full matrix', () =
       }
     }
 
+    expect(MAX_DEPLOY_BONUS).toBeGreaterThanOrEqual(2);
     expect(generated).toBeGreaterThan(500);
     expect(failures, `\n${failures.slice(0, 40).join('\n')}`).toEqual([]);
     // Explicit timeout: the caravan variant grew the matrix by a third, and

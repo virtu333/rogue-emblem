@@ -41,7 +41,7 @@ describe('RecruitPromotion', () => {
   describe('getRecruitPromotionChance', () => {
     it('uses boss and recruit-node defaults', () => {
       expect(getRecruitPromotionChance(RECRUIT_PROMOTION_CONTEXT.BOSS, null)).toBe(0.7);
-      expect(getRecruitPromotionChance(RECRUIT_PROMOTION_CONTEXT.RECRUIT_NODE, null)).toBe(0.4);
+      expect(getRecruitPromotionChance(RECRUIT_PROMOTION_CONTEXT.RECRUIT_NODE, null)).toBe(0.65);
     });
 
     it('applies meta bonus and clamps to cap', () => {

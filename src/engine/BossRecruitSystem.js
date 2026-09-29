@@ -7,9 +7,10 @@ import {
   BOSS_RECRUIT_LORD_CHANCE,
   BOSS_RECRUIT_COUNT,
   BASE_CLASS_LEVEL_CAP,
+  RECRUIT_SKILL_POOL,
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
-import { resolveRecruitScalingTargets, applyAct3RecruitBonus } from './RecruitScaling.js';
+import { resolveRecruitScalingTargets, applyRecruitJoinBonus } from './RecruitScaling.js';
 import { DEFAULT_STARTING_LORD_NAMES, resolveStartingLordNames } from './Commander.js';
 import {
   RECRUIT_PROMOTION_CONTEXT,
@@ -327,7 +328,7 @@ export function generateBossRecruitCandidates(
   const rosterClassNames = new Set(roster.map((u) => u.className));
 
   // Recruit scaling anchor is the commander to keep behavior aligned across systems.
-  const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget } =
+  const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget, failBaseLevelCap } =
     resolveRecruitScalingTargets(roster);
 
   const poolKey = resolveRecruitPoolKey(actId, recruits);
@@ -412,7 +413,7 @@ export function generateBossRecruitCandidates(
 
       const promotedClassName = sourceClassData.name;
       const fallbackClassName = roll.baseClassName;
-      const fallbackLevel = getFailBaseLevel(recruitTargetLevel, dynamicPromotionLevel);
+      const fallbackLevel = getFailBaseLevel(recruitTargetLevel, failBaseLevelCap);
 
       if (roll.promote) {
         if (!isClassAvailable(promotedClassName)) continue;
@@ -453,7 +454,7 @@ export function generateBossRecruitCandidates(
     );
     if (unit) {
       if (!isClassAvailable(unit.className)) continue;
-      applyAct3RecruitBonus(unit, poolKey);
+      applyRecruitJoinBonus(unit, poolKey);
       unit.name = makeUniqueRecruitName(unit.name, takenNames);
       takenNames.add(unit.name);
       takenClassNames.add(unit.className);
@@ -505,7 +506,7 @@ export function generateBossRecruitCandidates(
           baseLevelOverride: null,
         },
       );
-      applyAct3RecruitBonus(unit, poolKey);
+      applyRecruitJoinBonus(unit, poolKey);
       unit.name = chosenLord.name || unit.name;
       takenNames.add(unit.name);
       const lordCandidate = {
@@ -543,6 +544,9 @@ function createRecruitFromPool(
 ) {
   const statBonuses = metaEffects?.statBonuses || null;
   const growthBonuses = metaEffects?.growthBonuses || null;
+  // Boss recruits get what recruit-node recruits get: seasoned growths and the
+  // Skilled Recruits skill (RecruitNodeSystem.buildRecruitNodeUnit).
+  const skillPool = metaEffects?.recruitRandomSkill ? RECRUIT_SKILL_POOL : null;
   const maybeAddStartingVulnerary = (unit) => {
     if (!metaEffects?.recruitStartingVulnerary) return;
     const vulnerary = (consumables || []).find((c) => c.name === 'Vulnerary');
@@ -578,9 +582,15 @@ function createRecruitFromPool(
       weapons,
       statBonuses,
       growthBonuses,
-      null,
+      skillPool,
       classes,
-      { traitsData, skillsData: skills, rng: Math.random, traitClassData: promotedClassData },
+      {
+        traitsData,
+        skillsData: skills,
+        rng: Math.random,
+        traitClassData: promotedClassData,
+        seasoned: true,
+      },
     );
     addClassInnates(unit, baseClassData.name);
     promoteUnit(unit, promotedClassData, promotedClassData.promotionBonuses, skills);
@@ -623,9 +633,9 @@ function createRecruitFromPool(
       weapons,
       statBonuses,
       growthBonuses,
-      null,
+      skillPool,
       classes,
-      { traitsData, skillsData: skills, rng: Math.random },
+      { traitsData, skillsData: skills, rng: Math.random, seasoned: true },
     );
     addClassInnates(unit, classData.name);
     if (metaEffects?.lethalArmoryTier) {

@@ -25,6 +25,11 @@ keep weapons as easy to classify as FE's are. The brainstorm and the choices are
   keeps proper nouns scarce, so a name marks something rare: Twinsworn, Namethief,
   Tidebreaker, Hermit's Bow, Firstwind, Breachbolt, Endword (Ragnarok, Gae Bolg,
   Doomblade, Ruin, Starfall kept theirs). Their card's base line says "Relic Sword".
+- **Personal weapons keep proper names too.** Each lord has one (`signatureOf` in
+  weapons.json, `engine/SignatureWeapons.js`): Rapier (Edric), Godsend (Rowan),
+  Windward (Astrid), Holdfast (Cael), Endgame (Kira), Threadlight (Sera), Last Watch
+  (Voss). Deadly Arsenal I gives the commander theirs in place of the Steel weapon; they
+  never drop or sell, so no loot table lists them (`npm run validate:data` checks).
 - **Tomes climb a ladder.** Fire → Wildfire → Conflagration; Glimmer → Brilliance →
   Crownlight (the sun's crown, the lore's name for the corona).
 - **Imbues** follow the same one-word-one-rule idea: the crit imbue is **Cruel** (it was

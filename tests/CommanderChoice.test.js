@@ -269,35 +269,80 @@ describe('createInitialRoster with chosen lords', () => {
     expect(edric.consumables.filter((c) => c.name === 'Vulnerary')).toHaveLength(1);
   });
 
-  it('Deadly Arsenal generalizes per primary type (tome commander -> Witchfire)', () => {
+  // Deadly Arsenal I swaps the commander's Steel weapon for their own personal
+  // weapon, chosen by lord (playtest 2026-09-29 #18), not the old by-type table
+  // (Horsebane / Hammer / Witchfire / Sunflare, and the Rapier for Voss).
+  it.each([
+    // commander, personal weapon, Steel weapon it replaces, Iron weapon kept, old pick
+    ['Edric', 'Rapier', 'Steel Sword', 'Iron Sword', null],
+    ['Rowan', 'Godsend', 'Steel Lance', 'Iron Lance', 'Horsebane'],
+    ['Astrid', 'Windward', 'Steel Lance', 'Iron Lance', 'Horsebane'],
+    ['Cael', 'Holdfast', 'Steel Axe', 'Iron Axe', 'Hammer'],
+    ['Kira', 'Endgame', 'Wildfire', 'Fire', 'Witchfire'],
+    ['Sera', 'Threadlight', 'Brilliance', 'Glimmer', 'Sunflare'],
+    ['Voss', 'Last Watch', 'Steel Sword', 'Iron Sword', 'Rapier'],
+  ])('Deadly Arsenal I: %s gets %s', (commander, personal, steel, iron, oldPick) => {
+    const partner = commander === 'Sera' ? 'Edric' : 'Sera';
     const rm = new RunManager(gameData, {
-      startingLords: { commander: 'Kira', partner: 'Sera' },
+      startingLords: { commander, partner },
       deadlyArsenalTier: 1,
     });
-    const [kira] = rm.createInitialRoster();
-    expect(findWeapon(kira, 'Witchfire')).toBeTruthy();
-    expect(findWeapon(kira, 'Wildfire')).toBeFalsy(); // Steel slot replaced
+    const [lord, second] = rm.createInitialRoster();
+    expect(lord.name).toBe(commander);
+    expect(findWeapon(lord, personal)).toBeTruthy();
+    expect(findWeapon(lord, steel)).toBeFalsy(); // Steel slot replaced
+    expect(findWeapon(lord, iron)).toBeTruthy();
+    if (oldPick) expect(findWeapon(lord, oldPick)).toBeFalsy();
+    // The commander still fights with their Iron weapon until they choose otherwise.
+    expect(lord.weapon?.name).toBe(iron);
+    // Only the commander: the partner gets neither an extra weapon nor theirs.
+    const partnerPersonal = gameData.weapons.find((w) => w.signatureOf === second.name);
+    expect(partnerPersonal).toBeTruthy();
+    expect(findWeapon(second, partnerPersonal.name)).toBeFalsy();
   });
 
-  it('Deadly Arsenal tier 2 adds and equips the silver weapon', () => {
+  it('Deadly Arsenal tier 2 adds and equips the silver weapon beside the personal one', () => {
     const rm = new RunManager(gameData, {
       startingLords: { commander: 'Rowan', partner: 'Sera' },
       deadlyArsenalTier: 2,
     });
     const [rowan] = rm.createInitialRoster();
-    expect(findWeapon(rowan, 'Horsebane')).toBeTruthy(); // lance signature
+    expect(findWeapon(rowan, 'Godsend')).toBeTruthy();
     expect(findWeapon(rowan, 'Steel Lance')).toBeFalsy();
     expect(findWeapon(rowan, 'Silver Lance')).toBeTruthy();
     expect(rowan.weapon?.name).toBe('Silver Lance');
   });
 
-  it('sword-secondary Voss anchors on Swords (Rapier signature)', () => {
+  it('Voss (swords first, then bows) takes his bow and the Silver Sword at tier 2', () => {
     const rm = new RunManager(gameData, {
       startingLords: { commander: 'Voss', partner: 'Sera' },
-      deadlyArsenalTier: 1,
+      deadlyArsenalTier: 2,
     });
     const [voss] = rm.createInitialRoster();
-    expect(findWeapon(voss, 'Rapier')).toBeTruthy();
+    expect(voss.inventory.map((w) => w.name).sort()).toEqual(
+      ['Iron Sword', 'Last Watch', 'Silver Sword'].sort(),
+    );
+    expect(voss.weapon?.name).toBe('Silver Sword');
+  });
+
+  it('a lord with no personal weapon falls back to the by-type signature', () => {
+    const data = structuredClone(gameData);
+    for (const w of data.weapons) if (w.signatureOf === 'Kira') delete w.signatureOf;
+    const rm = new RunManager(data, {
+      startingLords: { commander: 'Kira', partner: 'Sera' },
+      deadlyArsenalTier: 1,
+    });
+    const [kira] = rm.createInitialRoster();
+    expect(findWeapon(kira, 'Witchfire')).toBeTruthy();
+    expect(findWeapon(kira, 'Endgame')).toBeFalsy();
+    expect(findWeapon(kira, 'Wildfire')).toBeFalsy();
+  });
+
+  it('without Deadly Arsenal the commander keeps the Steel weapon, no personal one', () => {
+    const rm = new RunManager(gameData, { startingLords: { commander: 'Cael', partner: 'Sera' } });
+    const [cael] = rm.createInitialRoster();
+    expect(findWeapon(cael, 'Steel Axe')).toBeTruthy();
+    expect(findWeapon(cael, 'Holdfast')).toBeFalsy();
   });
 
   it('unknown lord names heal to the default pair', () => {

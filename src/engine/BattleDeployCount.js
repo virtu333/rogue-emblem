@@ -25,7 +25,8 @@ export function battleDeployCount({
 }
 
 /**
- * The deploy screen's limits for a battle. A battle's map is locked the first time it
+ * The deploy screen's limits for a battle: the act's min, and its max plus the deploy
+ * bonus. A battle's map is locked the first time it
  * is entered (RunManager.lockBattleConfig) with one player spawn per unit deployed then,
  * and Continue from Map keeps that lock so the encounter can't be rerolled. Re-entering
  * may therefore deploy no more units than the lock has spawns: a unit past the last
@@ -42,8 +43,10 @@ export function resolveDeployLimits({
   deployBonus = 0,
   lockedSpawnCount = null,
 } = {}) {
+  // A deploy bonus (Tactical Advantage, Scout Blessing) opens more slots; it never
+  // raises the number of units a battle requires.
   const bonus = Math.trunc(Number(deployBonus) || 0);
-  let min = Math.max(1, base.min + bonus);
+  let min = Math.max(1, base.min);
   let max = Math.max(min, base.max + bonus);
   let lockedTo = null;
   const locked = Number(lockedSpawnCount);

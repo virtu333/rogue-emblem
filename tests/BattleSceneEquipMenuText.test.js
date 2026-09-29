@@ -315,16 +315,13 @@ describe('BattleScene equip menu text', () => {
     expect(labels).toContain('Equip');
   });
 
-  it('Talk gating uses runManager.getRosterCap when available', () => {
+  it('Talk is offered however large the roster is (the roster has no cap)', () => {
     const scene = makeBaseScene();
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
     scene.findTalkTarget = vi.fn(() => ({ id: 'npc_1' }));
     scene.npcUnits = [{ id: 'npc_1' }];
-    const getRosterCap = vi.fn(() => 15);
-    scene.runManager = {
-      roster: new Array(12).fill({}),
-      getRosterCap,
-    };
+    // Past the old cap of 12 (15 with Expanded Ranks).
+    scene.runManager = { roster: new Array(20).fill({}) };
 
     const unit = {
       col: 1,
@@ -339,7 +336,6 @@ describe('BattleScene equip menu text', () => {
     BattleScene.prototype.showActionMenu.call(scene, unit);
 
     const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
-    expect(getRosterCap).toHaveBeenCalled();
     expect(labels).toContain('Talk');
   });
 

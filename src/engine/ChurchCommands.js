@@ -9,9 +9,13 @@ import {
 } from './UnitManager.js';
 import { getReviveCost } from './RunManager.js';
 import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
-import { CHURCH_PROMOTE_COST } from '../utils/constants.js';
+import { CHURCH_PROMOTE_COST_LORD, CHURCH_PROMOTE_COST_RECRUIT } from '../utils/constants.js';
 import { kindleBlock } from './EclipseSystem.js';
 import { churchVowBlock, commitChurchVow } from './ChurchVow.js';
+/** What a church charges to promote this unit: lords pay more than everyone else. */
+export function churchPromoteCost(unit) {
+  return unit?.isLord ? CHURCH_PROMOTE_COST_LORD : CHURCH_PROMOTE_COST_RECRUIT;
+}
 export function churchPromotionBlock(run, unit, nodeId, gameData) {
   if (!run.roster.includes(unit) || !canPromote(unit)) return 'Unit is not eligible for promotion.';
   if (!resolvePromotionTargets(unit, gameData.classes, gameData.lords)?.length)
@@ -21,7 +25,7 @@ export function churchPromotionBlock(run, unit, nodeId, gameData) {
   if (vowed) return vowed;
   const limit = run.getDifficultyModifier('churchPromotionLimit', -1);
   if (limit >= 0 && run.getChurchPromotionCount(nodeId) >= limit) return 'Promotion limit reached.';
-  if (run.gold < CHURCH_PROMOTE_COST) return 'Not enough gold.';
+  if (run.gold < churchPromoteCost(unit)) return 'Not enough gold.';
   return '';
 }
 export function promoteAtChurch(run, unit, nodeId, target, gameData) {
@@ -34,7 +38,7 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
     gameData.lords.find((l) => l.name === unit.name)?.promotionBonuses ||
     canonical?.promotionBonuses;
   if (!canonical || !bonuses) return { ok: false, reason: 'Promotion unavailable.' };
-  if (!run.spendGold(CHURCH_PROMOTE_COST)) return { ok: false, reason: 'Not enough gold.' };
+  if (!run.spendGold(churchPromoteCost(unit))) return { ok: false, reason: 'Not enough gold.' };
   const result = promoteUnit(unit, canonical, bonuses, gameData.skills);
   // A deed's Oath is sworn at the altar too.
   const oath = applyPromotionOath(unit, gameData);
@@ -50,7 +54,6 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
 }
 export function churchReviveBlock(run, unit) {
   if (!run.fallenUnits.includes(unit)) return 'Unit is no longer awaiting revival.';
-  if (run.roster.length >= run.getRosterCap()) return 'Roster full.';
   return run.gold < getReviveCost(unit) ? 'Not enough gold.' : '';
 }
 export function reviveAtChurch(run, unit) {

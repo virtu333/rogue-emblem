@@ -16,7 +16,7 @@ import {
   unequipAccessory,
 } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
-import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../src/utils/constants.js';
+import { RECRUIT_PROMOTION_BASE_LEVEL } from '../src/utils/constants.js';
 
 function makeScene() {
   return { registry: { get: () => null } };
@@ -52,9 +52,6 @@ function makeRunManager(overrides = {}) {
     difficultyMode: null,
     metaEffects: {},
     roster: [],
-    getRosterCap() {
-      return ROSTER_CAP + (this.metaEffects?.rosterCapBonus || 0);
-    },
     awardGold(amount) {
       this.gold += amount;
     },
@@ -374,15 +371,15 @@ describe('ColosseumOverlay', () => {
     expect(overlay._mercHired).toBe(true);
   });
 
-  it('merc board respects rosterCapBonus for full-roster gating', () => {
+  it('merc board offers hires to a roster of any size (no roster cap)', () => {
     const scene = makeScene();
-    const roster = Array.from({ length: 12 }, (_, i) =>
+    // Past the old cap of 12 (15 with Expanded Ranks).
+    const roster = Array.from({ length: 20 }, (_, i) =>
       makeUnit(gameData, `CapUnit${String(i + 1).padStart(2, '0')}`),
     );
     const runManager = makeRunManager({
       gold: 1000,
       roster,
-      metaEffects: { rosterCapBonus: 3 },
     });
     const overlay = new ColosseumOverlay(scene, runManager, gameData);
     const merc = makeUnit(gameData, 'CapMerc', 6);
@@ -463,28 +460,27 @@ describe('ColosseumOverlay', () => {
     expect(runManager.roster).toHaveLength(0);
   });
 
-  it('hireMercenary rejects full-roster commit-time guard without charging or mutating', () => {
+  it('hireMercenary hires into a roster past the old cap', () => {
     const scene = makeScene();
-    const spendSpy = vi.fn(() => true);
     const runManager = makeRunManager({
       gold: 1000,
-      roster: Array.from({ length: ROSTER_CAP }, (_, i) =>
+      roster: Array.from({ length: 20 }, (_, i) =>
         makeUnit(gameData, `FullUnit${String(i + 1).padStart(2, '0')}`),
       ),
-      spendGold: spendSpy,
     });
     const overlay = new ColosseumOverlay(scene, runManager, gameData);
-    const merc = makeUnit(gameData, 'MercRosterFull', 6);
+    const merc = makeUnit(gameData, 'MercRosterBig', 6);
 
     overlay.show({ id: 'col-hire-guard-3' }, vi.fn());
     overlay._mercCandidates = [{ unit: merc, hireCost: 100 }];
 
     const hired = overlay._hireMercenary(0);
 
-    expect(hired).toBe(false);
-    expect(spendSpy).not.toHaveBeenCalled();
-    expect(runManager.roster).toHaveLength(ROSTER_CAP);
-    expect(merc._hired).not.toBe(true);
+    expect(hired).toBe(true);
+    expect(runManager.gold).toBe(900);
+    expect(runManager.roster).toHaveLength(21);
+    expect(runManager.roster).toContain(merc);
+    expect(merc._hired).toBe(true);
   });
 
   it('unit select list uses getDisplayLevel for extended levels', () => {

@@ -32,7 +32,6 @@ import {
   ACT_CONFIG,
   ACT_SEQUENCE,
   NODE_TYPES,
-  ROSTER_CAP,
   DEPLOY_LIMITS,
   STARTING_GOLD,
   ENEMY_COUNT_OFFSET,
@@ -80,7 +79,6 @@ function getMetaEffects(level) {
       battleGoldMultiplier: 0,
       extraVulnerary: 0,
       deployBonus: 0,
-      rosterCapBonus: 0,
     };
   if (level === 1)
     return {
@@ -89,7 +87,6 @@ function getMetaEffects(level) {
       battleGoldMultiplier: 0.2,
       extraVulnerary: 0,
       deployBonus: 0,
-      rosterCapBonus: 0,
     };
   if (level === 2)
     return {
@@ -98,7 +95,6 @@ function getMetaEffects(level) {
       battleGoldMultiplier: 0.4,
       extraVulnerary: 1,
       deployBonus: 0,
-      rosterCapBonus: 0,
     };
   return {
     statBonuses: { HP: 6, STR: 2, DEF: 2, SPD: 2, SKL: 2, RES: 1 },
@@ -106,7 +102,6 @@ function getMetaEffects(level) {
     battleGoldMultiplier: 0.4,
     extraVulnerary: 1,
     deployBonus: 1,
-    rosterCapBonus: 2,
   };
 }
 
@@ -195,8 +190,24 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
       const defRange = getWeaponRange(target);
       const distance = atkRange.max >= 2 ? 2 : 1; // Ranged units attack from range 2
 
-      const atkMods = getSkillCombatMods(unit, target, alive.player, alive.enemy, data.skills);
-      const defMods = getSkillCombatMods(target, unit, alive.enemy, alive.player, data.skills);
+      // The attacker initiates (Death Blow and the other initiating skills fire).
+      const atkMods = getSkillCombatMods(
+        unit,
+        target,
+        alive.player,
+        alive.enemy,
+        data.skills,
+        atkTerrain,
+        true,
+      );
+      const defMods = getSkillCombatMods(
+        target,
+        unit,
+        alive.enemy,
+        alive.player,
+        data.skills,
+        defTerrain,
+      );
 
       const result = resolveCombat(
         unit,
@@ -259,8 +270,23 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
       const atkRange = getWeaponRange(enemy);
       const distance = atkRange.max >= 2 ? 2 : 1;
 
-      const atkMods = getSkillCombatMods(enemy, target, alive.enemy, alive.player, data.skills);
-      const defMods = getSkillCombatMods(target, enemy, alive.player, alive.enemy, data.skills);
+      const atkMods = getSkillCombatMods(
+        enemy,
+        target,
+        alive.enemy,
+        alive.player,
+        data.skills,
+        atkTerrain,
+        true,
+      );
+      const defMods = getSkillCombatMods(
+        target,
+        enemy,
+        alive.player,
+        alive.enemy,
+        data.skills,
+        defTerrain,
+      );
 
       const result = resolveCombat(
         enemy,
@@ -424,12 +450,8 @@ function simulateRun(metaLevel, verbose) {
           }
         }
 
-        // Add recruit to roster if battle won and space available
-        if (
-          recruitUnit &&
-          result.victory &&
-          roster.length < ROSTER_CAP + (meta.rosterCapBonus || 0)
-        ) {
+        // Add recruit to roster if battle won (the roster has no cap)
+        if (recruitUnit && result.victory) {
           recruitUnit.faction = 'player';
           roster.push(recruitUnit);
           if (verbose)
