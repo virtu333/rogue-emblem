@@ -70,7 +70,8 @@ export class BossRecruitOverlay {
       onComplete(unit);
     };
     if (hasDOMHost()) {
-      showArrivalMenu(this, 'Boss recruit', candidates, resolve, { skip: true });
+      // The boss's reward is the player's own call: no roster cue or draft marks.
+      showArrivalMenu(this, 'Boss recruit', candidates, resolve, { skip: true, hints: false });
       return;
     }
     this._resolveSelection = resolve;

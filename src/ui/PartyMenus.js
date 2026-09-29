@@ -81,13 +81,15 @@ export function describeUnit(gameData, unit, scene = null) {
 // cards (portrait, crest, idling sprite, stats against each other, traits,
 // the roster cue); selection lifts a card, confirm seals it and hands the
 // unit to the caller, whose join ceremony follows. `resolve` is the same
-// one-shot command as before; nothing here touches the run.
+// one-shot command as before; nothing here touches the run. `hints: false`
+// (the boss reward) shows the units without advice: no roster cue, no
+// best-in-draft / grows-fastest marks or legend, no hold tip in the details.
 export function showArrivalMenu(
   owner,
   title,
   candidates,
   resolve,
-  { skip = false, reroll = null } = {},
+  { skip = false, reroll = null, hints = true } = {},
 ) {
   const lord = title === 'Lord arrival';
   const confirmLabel = lord ? 'Welcome' : 'Recruit';
@@ -127,6 +129,7 @@ export function showArrivalMenu(
     roster: owner.runManager?.roster || owner.scene?.runManager?.roster || [],
     gameData: owner.gameData,
     temperamentOf: (unit) => unitTemperament(owner.scene, unit),
+    hints,
   });
   const render = () => {
     const scrollTop = draftScrollTop(surface.body);
@@ -177,6 +180,7 @@ export function showArrivalMenu(
         units,
         index: candidates.indexOf(selected),
         run: null,
+        tips: hints,
         onClose: () => {
           owner.inspector.destroy();
           surface.root.inert = false;
@@ -185,7 +189,8 @@ export function showArrivalMenu(
       });
     });
     const { footer, lead } = draftFooter(inspect, confirm);
-    lead.append(statLegend(), feedback);
+    if (hints) lead.append(statLegend());
+    lead.append(feedback);
     surface.body.replaceChildren(row, footer);
     keepDraftScroll(row, scrollTop);
     stopFit?.();

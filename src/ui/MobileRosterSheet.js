@@ -163,8 +163,10 @@ export class MobileRosterSheet {
     portraitKey = null,
     terrainForUnit = null,
     persist = null,
+    tips = true,
   }) {
     Object.assign(this, {
+      tips,
       persist,
       scene,
       units,
@@ -1549,7 +1551,8 @@ export class MobileRosterSheet {
         }),
     });
     // The one-time hold tip stays for this sheet's lifetime (renders rebuild the body).
-    if (this.holdTipEl === undefined) this.holdTipEl = holdTip();
+    // `tips: false` (the boss reward's details) never shows or spends it.
+    if (this.holdTipEl === undefined) this.holdTipEl = this.tips ? holdTip() : null;
     if (this.holdTipEl && !this.holdTipEl.isConnected)
       this.body.querySelector('.mr-summary')?.after(this.holdTipEl);
   }
