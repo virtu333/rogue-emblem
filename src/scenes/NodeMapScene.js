@@ -1,5 +1,6 @@
 import { PendingRewardController } from '../ui/PendingRewardController.js';
 import { resumeBossRecruit } from '../ui/BossRecruitResume.js';
+import { resumeLordArrival } from '../ui/LordArrivalResume.js';
 import { CampaignMapOverlay } from '../ui/CampaignMapOverlay.js';
 import { NodeMapMenu } from '../ui/NodeMapMenu.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -1680,6 +1681,18 @@ export class NodeMapScene extends Phaser.Scene {
         this._bossRecruitResume = null;
         this.openPendingRewards();
       });
+      return;
+    }
+    // Then a lord arrival left undecided (Power of Friendship).
+    if (this.runManager.pendingThirdLord) {
+      let done = false;
+      const arrival = resumeLordArrival(this, () => {
+        done = true;
+        this._bossRecruitResume = null;
+        this.openPendingRewards();
+      });
+      // An arrival that resolved while it was being opened has nothing to hold.
+      if (!done) this._bossRecruitResume = arrival;
       return;
     }
     this._pendingRewards = new PendingRewardController(this, {

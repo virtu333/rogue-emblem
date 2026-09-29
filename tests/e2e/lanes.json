@@ -74,6 +74,7 @@
         "portrait-services.spec.js",
         "portrait-ceremonies.spec.js",
         "ceremony-ghost-click.spec.js",
+        "third-lord-reload.spec.js",
         "portrait-rail.spec.js",
         "portrait-screens.spec.js",
         "portrait-journey.spec.js",
