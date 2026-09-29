@@ -6757,14 +6757,6 @@ export class BattleScene extends Phaser.Scene {
     this._weaponPreviewedItem = null;
     this.inEquipMenu = true;
     this.battleState = 'UNIT_ACTION_MENU';
-
-    const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuWidth = 155;
-    const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
-      ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - menuWidth;
-    const menuY = pos.y - 10;
-
     this.actionMenu = [];
 
     const displayWeapons = inventoryDisplayOrder(unit).filter(
@@ -6773,9 +6765,58 @@ export class BattleScene extends Phaser.Scene {
         item.type !== 'Scroll' &&
         (canEquip(unit, item) || !hasProficiency(unit, item)),
     );
+    // The menu as rows (battleMenuModel): the canvas and the phone rail render them.
+    const rows = [
+      ...displayWeapons.map((wpn, i) => {
+        const isNonProficient = !hasProficiency(unit, wpn);
+        const canEquipNow = canEquip(unit, wpn);
+        const marker = wpn === unit.weapon ? EQUIPPED_MARKER : '  ';
+        const artMarker = hasWeaponArt(wpn, this._getWeaponArtCatalog()) ? '*' : '';
+        return menuRow({
+          id: `weapon:${i}`,
+          label: `${marker}${wpn?.name || 'Weapon'}${artMarker}${isNonProficient ? ' (no prof)' : ''}`,
+          item: wpn,
+          disabled: !canEquipNow,
+          color: isNonProficient
+            ? UI_PALETTE.muted
+            : wpn === unit.weapon
+              ? UI_PALETTE.accentText
+              : UI_PALETTE.text,
+          invoke: () => {
+            if (!canEquipNow) return;
+            equipWeapon(unit, wpn);
+            this.showActionMenu(unit);
+          },
+        });
+      }),
+      menuRow({
+        id: 'back',
+        label: 'Back',
+        color: UI_PALETTE.muted,
+        invoke: () => {
+          this.inEquipMenu = false;
+          this.showActionMenu(unit);
+        },
+      }),
+    ];
+    if (!railOwnsMenus(this)) this._drawEquipMenuRows(unit, rows);
+    this._registerActionMenu(rows);
+  }
+
+  /** The desktop canvas equip menu: weapon rows that scroll, stat tooltips, Back below. */
+  _drawEquipMenuRows(unit, rows) {
+    const pos = this.grid.gridToPixel(unit.col, unit.row);
+    const menuWidth = 155;
+    const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - menuWidth;
+    const menuY = pos.y - 10;
+
+    const weaponRows = rows.filter((row) => row.id !== 'back');
+    const backRow = rows.find((row) => row.id === 'back');
     const itemHeight = this.isMobileInput ? 36 : 20;
     const menuPadding = 8;
-    const contentHeight = displayWeapons.length * itemHeight;
+    const contentHeight = weaponRows.length * itemHeight;
     const fullMenuHeight = contentHeight + menuPadding;
     const maxMenuHeight = Math.max(itemHeight + menuPadding, this.cameras.main.height - 52);
     const menuHeight = Math.min(fullMenuHeight, maxMenuHeight);
@@ -6795,47 +6836,35 @@ export class BattleScene extends Phaser.Scene {
       .setStrokeStyle(1, UI_HEX.line);
     this.actionMenu.push(bg);
 
-    const rows = [];
-    displayWeapons.forEach((wpn, i) => {
+    const scrollRows = [];
+    weaponRows.forEach((row, i) => {
+      const wpn = row.item;
       const itemY = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
       const itemX = menuPos.x + menuWidth / 2;
       const isNonProficient = !hasProficiency(unit, wpn);
-      const canEquipNow = canEquip(unit, wpn);
-      const marker = wpn === unit.weapon ? EQUIPPED_MARKER : '  ';
-      const artMarker = hasWeaponArt(wpn, this._getWeaponArtCatalog()) ? '*' : '';
-      const label = `${marker}${wpn?.name || 'Weapon'}${artMarker}${isNonProficient ? ' (no prof)' : ''}`;
-      const defaultColor = isNonProficient
-        ? UI_PALETTE.muted
-        : wpn === unit.weapon
-          ? UI_PALETTE.accentText
-          : UI_PALETTE.text;
 
       const equipFontSize = this.isMobileInput ? '13px' : '9px';
       const text = this._makeMenuTextButton(
         itemX,
         itemY,
-        label,
+        row.label,
         {
           fontFamily: 'monospace',
           fontSize: equipFontSize,
-          color: defaultColor,
+          color: row.color,
           lineSpacing: 1,
         },
-        defaultColor,
-        () => {
-          if (!canEquipNow) return;
-          equipWeapon(unit, wpn);
-          this.showActionMenu(unit);
-        },
+        row.color,
+        () => row.invoke(),
         {
           hitWidth: menuWidth - 10,
           hitHeight: itemHeight,
           hoverColor: isNonProficient ? UI_PALETTE.muted : UI_PALETTE.accentText,
-          disabled: !canEquipNow,
+          disabled: row.disabled,
         },
       );
 
-      text._menuItem = wpn;
+      text._rowId = row.id;
       text.on('pointerover', () => {
         this._showWeaponDetailTooltip(wpn, menuRect, text.y, unit);
       });
@@ -6845,20 +6874,20 @@ export class BattleScene extends Phaser.Scene {
         }
       });
 
-      rows.push({ text, baseY: itemY, rowHeight: itemHeight });
+      scrollRows.push({ text, baseY: itemY, rowHeight: itemHeight });
       this.actionMenu.push(text);
     });
 
     const viewHeight = menuHeight - menuPadding;
     let hasOverflow = false;
-    if (contentHeight > viewHeight && rows.length > 0 && this.input?.on) {
+    if (contentHeight > viewHeight && scrollRows.length > 0 && this.input?.on) {
       hasOverflow = true;
       const topY = menuPos.y + 4;
       const bottomY = menuPos.y + menuHeight - 4;
       const minScroll = viewHeight - contentHeight;
       let scrollY = 0;
       const applyScroll = () => {
-        for (const row of rows) {
+        for (const row of scrollRows) {
           const centerY = row.baseY + scrollY;
           row.text.y = centerY;
           const visible =
@@ -6892,6 +6921,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Auto-show tooltip for equipped weapon (skip if overflowing -- equipped row may be off-screen)
     if (!hasOverflow) {
+      const displayWeapons = weaponRows.map((row) => row.item);
       const equippedWpn = displayWeapons.find((w) => w === unit.weapon) || displayWeapons[0];
       if (equippedWpn) {
         const eqIdx = displayWeapons.indexOf(equippedWpn);
@@ -6900,27 +6930,23 @@ export class BattleScene extends Phaser.Scene {
         this._weaponPreviewedItem = equippedWpn;
       }
     }
-    this.actionMenu.push(
-      this._makeMenuTextButton(
-        menuPos.x + menuWidth / 2,
-        menuPos.y + menuHeight + 20,
-        'Back',
-        {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color: UI_PALETTE.muted,
-          backgroundColor: UI_PALETTE.panel,
-        },
-        UI_PALETTE.muted,
-        () => {
-          this.inEquipMenu = false;
-          this.showActionMenu(unit);
-        },
-        { hitWidth: menuWidth - 10, hitHeight: 38 },
-      ),
+    const back = this._makeMenuTextButton(
+      menuPos.x + menuWidth / 2,
+      menuPos.y + menuHeight + 20,
+      backRow.label,
+      {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: backRow.color,
+        backgroundColor: UI_PALETTE.panel,
+      },
+      backRow.color,
+      () => backRow.invoke(),
+      { hitWidth: menuWidth - 10, hitHeight: 38 },
     );
+    back._rowId = backRow.id;
+    this.actionMenu.push(back);
     this._pinToScreen(this.actionMenu);
-    this._registerActionMenu();
   }
 
   /** DEPRECATED: Scrolls now handled in team pool via RosterOverlay. */
@@ -6954,6 +6980,90 @@ export class BattleScene extends Phaser.Scene {
 
     // Use consumables array instead of filtering inventory
     const consumables = unit.consumables || [];
+    // The menu as rows (battleMenuModel): the canvas and the phone rail render them.
+    const rows = [
+      ...consumables.map((item, i) => {
+        // Check usability
+        const isHeal = item.effect === 'heal' || item.effect === 'healFull';
+        const isCure = item.effect === 'cure' || item.effect === 'cureHeal';
+        const isPromote = item.effect === 'promote';
+        const isReclass = item.effect === 'reclass';
+        const canUsePromote =
+          canPromote(unit) &&
+          Boolean(resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)) &&
+          this.getPromotionConsumable(unit) === item;
+        const canUseReclass =
+          canReclass(unit) &&
+          getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0;
+        // Cure usability: self or adjacent allies have conditions
+        let canUseCure = false;
+        if (isCure) {
+          const hasSelfCond = (unit._conditions || []).length > 0;
+          const adjAllies = this.playerUnits.filter(
+            (a) =>
+              a !== unit &&
+              a.currentHP > 0 &&
+              !a._removing &&
+              gridDistance(unit.col, unit.row, a.col, a.row) === 1 &&
+              (a._conditions || []).length > 0,
+          );
+          canUseCure = hasSelfCond || adjAllies.length > 0;
+        }
+        const reason =
+          item.uses !== undefined && item.uses <= 0
+            ? 'No uses remaining'
+            : isHeal && unit.currentHP >= unit.stats.HP
+              ? 'HP already full'
+              : isHeal && isWounded(unit)
+                ? 'Wounded: only a staff heals'
+                : isCure && !canUseCure
+                  ? 'No conditions to cure'
+                  : isPromote && !canUsePromote
+                    ? 'Promotion unavailable'
+                    : isReclass && !canUseReclass
+                      ? 'No available reclass'
+                      : '';
+        const usable = !reason;
+        let label = item.name;
+        if (item.uses !== undefined) label += ` (${item.uses})`;
+        return menuRow({
+          id: `item:${i}`,
+          label,
+          item,
+          description: reason,
+          disabled: !usable,
+          color: usable ? UI_PALETTE.good : UI_PALETTE.lineStrong,
+          invoke: () => {
+            if (!unit.consumables?.includes(item) || (item.uses !== undefined && item.uses <= 0))
+              return;
+            if (isHeal && unit.currentHP >= unit.stats.HP) {
+              this.showItemMenu(unit);
+              return;
+            }
+            if (isCure) this._startCureTargetSelection(unit, item);
+            else this.useConsumable(unit, item);
+          },
+        });
+      }),
+      menuRow({
+        id: 'back',
+        label: 'Back',
+        color: UI_PALETTE.muted,
+        invoke: () => {
+          this.hideActionMenu();
+          this.inEquipMenu = false;
+          this.showActionMenu(unit);
+        },
+      }),
+    ];
+    if (!railOwnsMenus(this)) this._drawItemMenuRows(unit, rows);
+    this._registerActionMenu(rows);
+  }
+
+  /** The desktop canvas item menu: each consumable with its brief, the action note, Back. */
+  _drawItemMenuRows(unit, rows) {
+    const itemRows = rows.filter((row) => row.id !== 'back');
+    const backRow = rows.find((row) => row.id === 'back');
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     const itemHeight = 38;
     const menuWidth = 240;
@@ -6963,7 +7073,7 @@ export class BattleScene extends Phaser.Scene {
     const menuY = pos.y - 10;
 
     const noteHeight = 36;
-    const menuHeight = (consumables.length + 1) * itemHeight + noteHeight + 8; // +1 for Back
+    const menuHeight = (itemRows.length + 1) * itemHeight + noteHeight + 8; // +1 for Back
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = this.add
@@ -6979,84 +7089,34 @@ export class BattleScene extends Phaser.Scene {
       .setStrokeStyle(1, UI_HEX.line);
     this.actionMenu.push(bg);
 
-    consumables.forEach((item, i) => {
+    itemRows.forEach((row, i) => {
       const iy = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
       const ix = menuPos.x + menuWidth / 2;
-
-      // Check usability
-      const isHeal = item.effect === 'heal' || item.effect === 'healFull';
-      const isCure = item.effect === 'cure' || item.effect === 'cureHeal';
-      const isPromote = item.effect === 'promote';
-      const isReclass = item.effect === 'reclass';
-      const canUsePromote =
-        canPromote(unit) &&
-        Boolean(resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)) &&
-        this.getPromotionConsumable(unit) === item;
-      const canUseReclass =
-        canReclass(unit) &&
-        getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0;
-      // Cure usability: self or adjacent allies have conditions
-      let canUseCure = false;
-      if (isCure) {
-        const hasSelfCond = (unit._conditions || []).length > 0;
-        const adjAllies = this.playerUnits.filter(
-          (a) =>
-            a !== unit &&
-            a.currentHP > 0 &&
-            !a._removing &&
-            gridDistance(unit.col, unit.row, a.col, a.row) === 1 &&
-            (a._conditions || []).length > 0,
-        );
-        canUseCure = hasSelfCond || adjAllies.length > 0;
-      }
-      const reason =
-        item.uses !== undefined && item.uses <= 0
-          ? 'No uses remaining'
-          : isHeal && unit.currentHP >= unit.stats.HP
-            ? 'HP already full'
-            : isHeal && isWounded(unit)
-              ? 'Wounded: only a staff heals'
-              : isCure && !canUseCure
-                ? 'No conditions to cure'
-                : isPromote && !canUsePromote
-                  ? 'Promotion unavailable'
-                  : isReclass && !canUseReclass
-                    ? 'No available reclass'
-                    : '';
-      const usable = !reason;
-      let label = item.name;
-      if (item.uses !== undefined) label += ` (${item.uses})`;
-
-      const color = usable ? UI_PALETTE.good : UI_PALETTE.lineStrong;
       const text = this._makeMenuTextButton(
         ix,
         iy - 4,
-        label,
+        row.label,
         {
           fontFamily: 'monospace',
           fontSize: '11px',
-          color,
+          color: row.color,
         },
-        color,
-        () => {
-          if (!unit.consumables?.includes(item) || (item.uses !== undefined && item.uses <= 0))
-            return;
-          if (isHeal && unit.currentHP >= unit.stats.HP) {
-            this.showItemMenu(unit);
-            return;
-          }
-          if (isCure) this._startCureTargetSelection(unit, item);
-          else this.useConsumable(unit, item);
-        },
-        { hitWidth: menuWidth - 10, hitHeight: itemHeight, disabled: !usable },
+        row.color,
+        () => row.invoke(),
+        { hitWidth: menuWidth - 10, hitHeight: itemHeight, disabled: row.disabled },
       );
-      text._menuItem = item;
-      text._menuDescription = reason;
-      const brief = presentationText(this, ix, iy + 8, reason || battleItemBrief(item, unit), {
-        fontFamily: 'Arial',
-        fontSize: '10px',
-        color: UI_PALETTE.muted,
-      })
+      text._rowId = row.id;
+      const brief = presentationText(
+        this,
+        ix,
+        iy + 8,
+        row.description || battleItemBrief(row.item, unit),
+        {
+          fontFamily: 'Arial',
+          fontSize: '10px',
+          color: UI_PALETTE.muted,
+        },
+      )
         .setOrigin(0.5)
         .setDepth(401);
       this.actionMenu.push(text, brief);
@@ -7065,7 +7125,7 @@ export class BattleScene extends Phaser.Scene {
     const note = presentationText(
       this,
       menuPos.x + 8,
-      menuPos.y + 4 + consumables.length * itemHeight,
+      menuPos.y + 4 + itemRows.length * itemHeight,
       ITEM_ACTION_NOTE,
       {
         fontFamily: 'Arial',
@@ -7077,27 +7137,23 @@ export class BattleScene extends Phaser.Scene {
     this.actionMenu.push(note);
 
     // Back button
-    const backY = menuPos.y + 4 + consumables.length * itemHeight + noteHeight + itemHeight / 2;
+    const backY = menuPos.y + 4 + itemRows.length * itemHeight + noteHeight + itemHeight / 2;
     const backText = this._makeMenuTextButton(
       menuPos.x + menuWidth / 2,
       backY,
-      'Back',
+      backRow.label,
       {
         fontFamily: 'monospace',
         fontSize: '11px',
-        color: UI_PALETTE.muted,
+        color: backRow.color,
       },
-      UI_PALETTE.muted,
-      () => {
-        this.hideActionMenu();
-        this.inEquipMenu = false;
-        this.showActionMenu(unit);
-      },
+      backRow.color,
+      () => backRow.invoke(),
       { hitWidth: menuWidth - 10, hitHeight: itemHeight },
     );
+    backText._rowId = backRow.id;
     this.actionMenu.push(backText);
     this._pinToScreen(this.actionMenu);
-    this._registerActionMenu();
   }
 
   async useConsumable(unit, item) {
