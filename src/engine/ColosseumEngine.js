@@ -63,6 +63,7 @@ export function getAvailableTiers(actId, colosseumData) {
  * @param {string|null} difficultyMode - 'normal'|'hard'|'lunatic'
  * @param {Object} colosseumData - colosseum.json
  * @param {Function} rng - () => [0,1) random number
+ * @param {Object} [difficultyData] - difficulty.json (per-rung class act gates)
  * @returns {{ unit: Object, weapon: Object, level: number }}
  */
 export function generateChallenger(
@@ -75,6 +76,7 @@ export function generateChallenger(
   difficultyMode,
   colosseumData,
   rng,
+  difficultyData = null,
 ) {
   const pool = enemyPools?.pools?.[actId];
   if (!pool) throw new Error(`No enemy pool for act: ${actId}`);
@@ -84,7 +86,10 @@ export function generateChallenger(
   const usePromoted = actIdx >= 2; // act3 = index 2
   let classPool = [...(pool.base || [])];
   if (usePromoted && pool.promoted) classPool.push(...pool.promoted);
-  classPool = filterClassPoolByDifficulty(classPool, difficultyMode);
+  classPool = filterClassPoolByDifficulty(classPool, difficultyMode, {
+    act: actId,
+    difficulty: difficultyData,
+  });
   if (classPool.length === 0) throw new Error(`Empty class pool for act: ${actId}`);
 
   const className = classPool[Math.floor(rng() * classPool.length)];

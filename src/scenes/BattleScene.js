@@ -2403,6 +2403,7 @@ export class BattleScene extends Phaser.Scene {
       const filteredNames = filterClassPoolByDifficulty(
         classNames,
         this.battleParams?.difficultyId,
+        { act, difficulty: this.gameData?.difficulty },
       );
       for (const className of filteredNames) {
         if (!earlyEnemyAllowed(className, this.battleParams)) continue;

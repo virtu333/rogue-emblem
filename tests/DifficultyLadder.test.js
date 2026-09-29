@@ -13,6 +13,7 @@ import {
 } from '../src/engine/DifficultyEngine.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { generateBattle } from '../src/engine/MapGenerator.js';
+import { generateChallenger } from '../src/engine/ColosseumEngine.js';
 import { filterClassPoolByDifficulty } from '../src/utils/constants.js';
 import { validateMapTemplatesConfig } from '../src/engine/MapTemplateEngine.js';
 import { loadGameData } from './testData.js';
@@ -88,6 +89,77 @@ describe('what each rung does', () => {
     expect(filterClassPoolByDifficulty(pool, 'normal')).toEqual(['Fighter']);
     for (const id of ['dusk', 'hard', 'lunatic'])
       expect(filterClassPoolByDifficulty(pool, id)).toEqual(pool);
+  });
+
+  it('Dusk holds Dragons back until Act IV; Dragon Lord, Zombie and Revenant stay', () => {
+    const pool = ['Fighter', 'Zombie', 'Revenant', 'Dragon', 'Dragon Lord'];
+    const dusk = (act) =>
+      filterClassPoolByDifficulty(pool, 'dusk', { act, difficulty: gameData.difficulty });
+    for (const act of ['act1', 'act2', 'act3'])
+      expect(dusk(act)).toEqual(['Fighter', 'Zombie', 'Revenant', 'Dragon Lord']);
+    for (const act of ['act4', 'postAct', 'finalBoss']) expect(dusk(act)).toEqual(pool);
+    // A gated class never leaks through an unknown act.
+    expect(dusk(undefined)).not.toContain('Dragon');
+    // Nightfall and Black Sun are unchanged: Dragons in Act III.
+    for (const id of ['hard', 'lunatic'])
+      expect(
+        filterClassPoolByDifficulty(pool, id, { act: 'act3', difficulty: gameData.difficulty }),
+      ).toEqual(pool);
+  });
+
+  it('Dusk Act III battles never field a Dragon; Nightfall ones do; Dusk Act IV fields Dragon Lords', () => {
+    const count = (difficultyId, act, className) => {
+      let total = 0;
+      const original = Math.random;
+      let seed = 11;
+      Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+      try {
+        for (let i = 0; i < 60; i++)
+          for (const objective of ['rout', 'seize'])
+            total += generateBattle(
+              { act, objective, difficultyId, row: 3 },
+              gameData,
+            ).enemySpawns.filter((s) => s.className === className).length;
+      } finally {
+        Math.random = original;
+      }
+      return total;
+    };
+    expect(count('dusk', 'act3', 'Dragon')).toBe(0);
+    expect(count('hard', 'act3', 'Dragon')).toBeGreaterThan(0);
+    expect(count('dusk', 'act4', 'Dragon Lord')).toBeGreaterThan(0);
+  });
+
+  it('Dusk arena challengers in Act III are never Dragons', () => {
+    const tier = gameData.colosseum.arena.tiers.gold;
+    let seed = 5;
+    const rng = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+    const drawn = new Set();
+    for (let i = 0; i < 400; i++) {
+      const { unit } = generateChallenger(
+        14,
+        tier,
+        'act3',
+        gameData.enemies,
+        gameData.classes,
+        gameData.weapons,
+        'dusk',
+        gameData.colosseum,
+        rng,
+        gameData.difficulty,
+      );
+      drawn.add(unit.className);
+    }
+    expect(drawn.has('Dragon')).toBe(false);
+    expect(drawn.has('Revenant')).toBe(true);
+  });
+
+  it('the class act gate must name real acts', () => {
+    const broken = structuredClone(gameData.difficulty);
+    broken.modes.dusk.enemyClassEarliestAct = { Dragon: 'act9' };
+    expect(validateDifficultyConfig(broken).errors).toContain(
+      'modes.dusk.enemyClassEarliestAct must map classes to act ids',
+    );
   });
 
   it('a Dusk run can build Act IV battles', () => {

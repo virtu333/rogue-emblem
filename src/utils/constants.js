@@ -1,5 +1,5 @@
 // Core game constants — derived from GDD
-import { isDifficultyAtLeast } from '../engine/DifficultyEngine.js';
+import { ENEMY_ACT_GATE_ORDER, isDifficultyAtLeast } from '../engine/DifficultyEngine.js';
 
 export const TILE_SIZE = 32;
 export const PORTRAIT_SIZE = 128;
@@ -336,10 +336,32 @@ export const DARK_CLASSES = new Set([
   'Entity',
 ]);
 
-export function filterClassPoolByDifficulty(classPool, difficultyMode) {
-  // Dusk and harder reach Act IV, whose pools are built on these classes.
-  if (isDifficultyAtLeast(difficultyMode, 'dusk')) return classPool;
-  return classPool.filter((name) => !DIFFICULTY_GATED_CLASSES.has(name));
+/** True when `act` is `earliestAct` or later; an unknown act never qualifies. */
+export function isActAtOrAfter(act, earliestAct) {
+  const current = ENEMY_ACT_GATE_ORDER.indexOf(act);
+  const required = ENEMY_ACT_GATE_ORDER.indexOf(earliestAct);
+  return current !== -1 && required !== -1 && current >= required;
+}
+
+/**
+ * The enemy classes a battle, reinforcement or arena challenger may draw on this
+ * rung. First Light never sees DIFFICULTY_GATED_CLASSES. Dusk and harder do (Act IV's
+ * pools are built on them), except that a mode's `enemyClassEarliestAct`
+ * (difficulty.json) holds a class back until an act: Dusk meets Dragons in Act IV.
+ * A gated class is dropped when the act is unknown.
+ * @param {string[]} classPool
+ * @param {string} difficultyMode
+ * @param {{ act?: string, difficulty?: object }} [options] the battle's act and the
+ *   difficulty.json root (`gameData.difficulty`)
+ */
+export function filterClassPoolByDifficulty(classPool, difficultyMode, options = {}) {
+  if (!isDifficultyAtLeast(difficultyMode, 'dusk')) {
+    return classPool.filter((name) => !DIFFICULTY_GATED_CLASSES.has(name));
+  }
+  const modeId = String(difficultyMode).toLowerCase();
+  const earliest = options?.difficulty?.modes?.[modeId]?.enemyClassEarliestAct;
+  if (!earliest || typeof earliest !== 'object') return classPool;
+  return classPool.filter((name) => !earliest[name] || isActAtOrAfter(options.act, earliest[name]));
 }
 
 // Deadly Arsenal tier 1: the commander's Steel-slot weapon is replaced by the

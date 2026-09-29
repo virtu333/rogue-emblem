@@ -183,6 +183,7 @@ export class ColosseumOverlay {
       difficultyId,
       colosseumData,
       Math.random,
+      this.gameData.difficulty,
     );
 
     this._showForecast();
