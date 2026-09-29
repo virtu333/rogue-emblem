@@ -28,7 +28,7 @@ export function placeFogAmbush(scene) {
       unit.row,
       Number(unit.mov ?? unit.stats?.MOV) || 0,
       unit.moveType || 'Infantry',
-      scene.buildUnitPositionMap?.('player') || null,
+      scene.buildUnitPositionMap?.() || null,
       'player',
       scene._getCostModifier?.(unit) || 0,
     );

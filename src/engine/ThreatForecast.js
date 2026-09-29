@@ -12,7 +12,9 @@
 //   grid                    Grid-like (cols, rows, fogEnabled, isVisible,
 //                           getMovementRange, getAttackRange)
 //   enemyUnits, ballistas   live arrays
-//   positions()             Map "col,row" -> { faction } of every living unit
+//   positions()             Map "col,row" -> { faction } of every living unit the
+//                           player knows of (PlayerKnowledge.js): a hidden unit
+//                           blocking a visible enemy's stop would give itself away
 //   costModifier(unit)      terrain-cost reduction for a unit (skills)
 
 import { canInspectUnit, statusStaffThreat } from './BattleInformation.js';
@@ -20,9 +22,19 @@ import { getFootprint, isEntity } from './EntitySystem.js';
 import { willRemainRootedNextPhase } from './StatusConditionSystem.js';
 import { getBallistaDangerTiles } from './BallistaEngine.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
-import { parseRange } from './Combat.js';
+import { isStaff, parseRange } from './Combat.js';
 
 const tileKey = (col, row) => `${col},${row}`;
+
+/**
+ * The equipped weapon a unit can strike with, or null. A staff heals or hexes
+ * but never deals damage (Combat.js), and the AI only attacks with the equipped
+ * weapon's range, so a staff-only unit (every enemy Cleric) threatens no damage.
+ */
+function strikingWeapon(unit) {
+  const weapon = unit?.weapon;
+  return weapon && !isStaff(weapon) && weapon.type !== 'Scroll' ? weapon : null;
+}
 
 /** Living and visible to the player (fog + inspection rules). */
 export function isThreatSourceVisible(grid, enemy) {
@@ -65,6 +77,7 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
     ctx.costModifier ? ctx.costModifier(enemy) : 0,
   );
   const staff = statusStaffThreat(enemy);
+  const weapon = strikingWeapon(enemy);
   for (const [key, entry] of moveRange) {
     if (entry?.stoppable === false) continue;
     const [mc, mr] = key.split(',').map(Number);
@@ -73,8 +86,8 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
         status.add(tileKey(t.col, t.row));
       }
     }
-    if (enemy.weapon) {
-      for (const t of grid.getAttackRange(mc, mr, enemy.weapon)) {
+    if (weapon) {
+      for (const t of grid.getAttackRange(mc, mr, weapon)) {
         damage.add(tileKey(t.col, t.row));
       }
     }
@@ -84,7 +97,7 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
 
 /**
  * Where a unit can stop with `mov` movement, and the tiles its weapon reaches
- * beyond them (the attack fringe the move preview draws in red).
+ * beyond them (the attack fringe the move preview draws in red; none for a staff).
  * @returns {{ moveRange: Map, attackTiles: Array<{col,row}> }}
  */
 export function unitReach(grid, unit, { mov = 0, positions = null, costModifier = 0 } = {}) {
@@ -98,11 +111,12 @@ export function unitReach(grid, unit, { mov = 0, positions = null, costModifier 
     costModifier,
   );
   const attack = new Set();
-  if (unit.weapon) {
+  const weapon = strikingWeapon(unit);
+  if (weapon) {
     for (const [key, entry] of moveRange) {
       if (entry?.stoppable === false) continue;
       const [mc, mr] = key.split(',').map(Number);
-      for (const t of grid.getAttackRange(mc, mr, unit.weapon)) {
+      for (const t of grid.getAttackRange(mc, mr, weapon)) {
         const tk = tileKey(t.col, t.row);
         if (!moveRange.has(tk)) attack.add(tk);
       }
@@ -187,7 +201,8 @@ function gridHasIce(grid) {
 
 function withinBareReach(enemy, col, row) {
   const mov = willRemainRootedNextPhase(enemy) ? 0 : Number(enemy.mov || enemy.stats?.MOV) || 0;
-  let reach = enemy.weapon ? parseRange(enemy.weapon.range).max : 0;
+  const weapon = strikingWeapon(enemy);
+  let reach = weapon ? parseRange(weapon.range).max : 0;
   const staff = statusStaffThreat(enemy);
   if (staff) reach = Math.max(reach, staff.max);
   return Math.abs(enemy.col - col) + Math.abs(enemy.row - row) <= mov + reach;

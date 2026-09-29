@@ -29,6 +29,7 @@ import {
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
+import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
 import { isDifficultyAtLeast } from '../engine/DifficultyEngine.js';
 import { applyDevScenario } from '../utils/devScenarios.js';
 import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.js';
@@ -363,14 +364,20 @@ const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
 };
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 
-/** Reset per-battle state on a unit at deploy time. */
-/** An enemy the fog hides from the player (as updateEnemyVisibility draws it). */
-function isHiddenEnemy(grid, unit) {
-  if (!grid?.fogEnabled || unit?.faction !== 'enemy') return false;
-  if (isEntity(unit)) return !getFootprint(unit).some((t) => grid.isVisible(t.col, t.row));
-  return !grid.isVisible(unit.col, unit.row);
+/**
+ * The board as the player knows it (PlayerKnowledge.js): their own units, what the
+ * fog shows and the recruit's beacon (it shows through the fog). Every pre-commit
+ * preview reads this view.
+ */
+function playerKnowledgeOf(scene) {
+  return createPlayerKnowledge({
+    grid: scene.grid,
+    units: [...(scene.playerUnits || []), ...(scene.enemyUnits || []), ...(scene.npcUnits || [])],
+    revealed: [scene._recruitBeacon?.npc],
+  });
 }
 
+/** Reset per-battle state on a unit at deploy time. */
 export function resetUnitForBattle(unit) {
   delete unit._legendaryGraceTurn;
   unit.hasMoved = false;
@@ -3420,29 +3427,26 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  buildUnitPositionMap(moverFaction) {
-    const map = new Map();
-    // In fog the player plans around the enemies they can see (FogAmbush.js).
-    const seenOnly = moverFaction === 'player';
-    for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
-      if (!u || u._removing || u.currentHP <= 0) continue;
-      if (seenOnly && isHiddenEnemy(this.grid, u)) continue;
-      if (isEntity(u)) {
-        for (const tile of getFootprint(u)) {
-          map.set(`${tile.col},${tile.row}`, { faction: u.faction });
-        }
-      } else {
-        map.set(`${u.col},${u.row}`, { faction: u.faction });
-      }
-    }
-    return map;
+  /**
+   * Where the units the player knows of stand, for planning and threat previews
+   * (blue ranges, Danger, inspected reach). In fog the player plans around what
+   * they can see (FogAmbush.js). There is deliberately no omniscient variant:
+   * execution uses buildOccupiedSet and the enemy AI builds its own map.
+   */
+  buildUnitPositionMap() {
+    return playerKnowledgeOf(this).positions();
   }
 
+  /**
+   * Tiles other units stand on. `seenOnly` limits it to the units the player knows
+   * of (previews, and a player's move before its ambush check); without it this is
+   * the world, for resolving moves that have been committed.
+   */
   buildOccupiedSet(excludeUnit = null, { seenOnly = false } = {}) {
+    if (seenOnly) return playerKnowledgeOf(this).occupied(excludeUnit);
     const occupied = new Set();
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       if (!unit || unit === excludeUnit || unit._removing || unit.currentHP <= 0) continue;
-      if (seenOnly && isHiddenEnemy(this.grid, unit)) continue;
       if (isEntity(unit)) {
         for (const tile of getFootprint(unit)) {
           occupied.add(`${tile.col},${tile.row}`);
@@ -3454,14 +3458,15 @@ export class BattleScene extends Phaser.Scene {
     return occupied;
   }
 
-  /** An enemy the fog hides from the player (as updateEnemyVisibility draws it). */
-  _isHiddenEnemy(unit) {
-    return isHiddenEnemy(this.grid, unit);
+  /** A live unit the player does not know of (PlayerKnowledge.js), e.g. fog-hidden. */
+  _isHiddenUnit(unit) {
+    return Boolean(unit) && !playerKnowledgeOf(this).isKnown(unit);
   }
 
   /**
-   * Cut a player's planned path where it runs into an enemy hidden in the fog
-   * (FogAmbush.js). Returns the path to walk, its movement cost and the ambusher.
+   * Cut a player's planned path where it runs into a unit hidden in the fog
+   * (FogAmbush.js): an enemy, or an NPC the fog hides. Returns the path to walk,
+   * its movement cost and the unit that stopped it.
    */
   _ambushCut(unit, effective) {
     const path = effective.effectivePath;
@@ -3478,10 +3483,11 @@ export class BattleScene extends Phaser.Scene {
             ? getFootprint(u).some((t) => t.col === col && t.row === row)
             : u.col === col && u.row === row),
       ) || null;
+    const knowledge = playerKnowledgeOf(this);
     const cut = ambushStop(path, {
       hiddenAt: (col, row) => {
         const found = occupant(col, row);
-        return found && this._isHiddenEnemy(found) ? found : null;
+        return found && !knowledge.isKnown(found) ? found : null;
       },
       blockedAt: (col, row) => Boolean(occupant(col, row)),
     });
@@ -3499,10 +3505,17 @@ export class BattleScene extends Phaser.Scene {
    * The unit may still act.
    */
   _resolveAmbush(unit, ambusher, { canto = false } = {}) {
-    observeHistoryAction(this, 'was ambushed by', unit, ambusher);
+    // A hidden NPC stops the move the same way, but it is no ambush.
+    const hostile = ambusher.faction === 'enemy';
+    if (hostile) observeHistoryAction(this, 'was ambushed by', unit, ambusher);
     if (this._inputController) this._inputController._pendingMoveAttack = null;
     const pos = this.grid.gridToPixel(ambusher.col, ambusher.row);
-    this.showMinorHintAt?.(pos.x, pos.y, 'Ambush!', UI_PALETTE.bad);
+    this.showMinorHintAt?.(
+      pos.x,
+      pos.y,
+      hostile ? 'Ambush!' : 'Blocked',
+      hostile ? UI_PALETTE.bad : UI_PALETTE.text,
+    );
     if (canto) return; // Canto's end completes the action, which lifts the fog and saves.
     unit._movementCommitted = true;
     this.preMoveLoc = null;
@@ -4648,7 +4661,7 @@ export class BattleScene extends Phaser.Scene {
       unit.graphic.setTint(0xaaaaff);
     }
 
-    this.unitPositions = this.buildUnitPositionMap(unit.faction);
+    this.unitPositions = this.buildUnitPositionMap();
     this.movementRange = this.grid.getMovementRange(
       unit.col,
       unit.row,
@@ -5684,7 +5697,7 @@ export class BattleScene extends Phaser.Scene {
   startCantoMove(unit, remainingMov) {
     this._resetCantoPreInitFaultTracking();
     this.battleState = 'CANTO_MOVING';
-    const positions = this.buildUnitPositionMap(unit.faction);
+    const positions = this.buildUnitPositionMap();
     const moveRange = this.grid.getMovementRange(
       unit.col,
       unit.row,
@@ -5766,7 +5779,7 @@ export class BattleScene extends Phaser.Scene {
       path = this.grid.reconstructIcePath(this.cantoRange, unit.col, unit.row, gp.col, gp.row);
       if (!path || path.length < 2) {
         // Fallback to A* for non-ice paths
-        const positions = this.buildUnitPositionMap(unit.faction);
+        const positions = this.buildUnitPositionMap();
         path = this.grid.findPath(
           unit.col,
           unit.row,
@@ -11075,7 +11088,7 @@ export class BattleScene extends Phaser.Scene {
       grid: this.grid,
       enemyUnits: this.enemyUnits || [],
       ballistas: this.ballistas || [],
-      positions: () => this.buildUnitPositionMap('enemy'),
+      positions: () => this.buildUnitPositionMap(),
       costModifier: (unit) => this._getCostModifier(unit),
     };
   }

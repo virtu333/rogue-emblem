@@ -697,13 +697,8 @@ export class FormationController {
     const u = this.heldIndex();
     if (u === -1 || this.formation.at[u] === null || !s.grid?.getMovementRange) return null;
     const unit = this.units[u];
-    const positions = s.buildUnitPositionMap?.('player') || new Map();
-    // Fog: an unseen enemy never shapes the preview (it would give itself away).
-    if (s.grid.fogEnabled)
-      for (const [key, entry] of positions) {
-        const [col, row] = key.split(',').map(Number);
-        if (entry?.faction !== 'player' && !s.grid.isVisible(col, row)) positions.delete(key);
-      }
+    // The player's view (PlayerKnowledge.js): an unseen unit never shapes the preview.
+    const positions = s.buildUnitPositionMap?.() || new Map();
     const { moveRange, attackTiles } = unitReach(s.grid, unit, {
       mov: isRooted(unit) ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0),
       positions,

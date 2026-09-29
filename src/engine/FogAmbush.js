@@ -1,13 +1,14 @@
-// Fog ambush: in fog of war the player plans moves around the enemies they can see.
-// A hidden enemy never shapes the blue range; a move whose path runs into one stops
-// on the last tile before it where the unit may stand, and the enemy is revealed.
+// Fog ambush: in fog of war the player plans moves around the units they can see
+// (PlayerKnowledge.js). A hidden unit never shapes the blue range or the path
+// preview; a move whose path runs into one stops on the last tile before it where
+// the unit may stand, and the unit is revealed (an enemy there is an ambush).
 
 /**
  * Where a planned path really ends.
  * @param {{col:number,row:number}[]} path - start tile first
  * @param {{ hiddenAt: (col:number,row:number) => object|null,
  *           blockedAt: (col:number,row:number) => boolean }} probes
- *   hiddenAt: the hidden enemy standing on a tile, if any.
+ *   hiddenAt: the hidden unit standing on a tile, if any.
  *   blockedAt: a tile the unit may pass but not stop on (another unit stands there).
  * @returns {{ path: {col:number,row:number}[], ambusher: object|null, stopIndex: number }}
  *   the path cut to its real end (unchanged, with ambusher null, when nothing hides on it)

@@ -8,7 +8,12 @@ import { getAttackRange } from '../engine/AttackOptions.js';
 // state each frame and calls back into TutorialController for actions.
 
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
-import { COACH_CHAPTERS, coachChapterIndex, tutorialCoachState } from './tutorialCoachModel.js';
+import {
+  COACH_CHAPTERS,
+  availableMenuLabels,
+  coachChapterIndex,
+  tutorialCoachState,
+} from './tutorialCoachModel.js';
 
 const COVERING_STATES = new Set([
   'TUTORIAL_HINT',
@@ -109,10 +114,7 @@ export class TutorialCoach {
       healer: (u.inventory || []).some((item) => item?.type === 'Staff' && !item.relocate),
     }));
     const commander = (s.playerUnits || []).find((u) => u.isCommander) || null;
-    const menu =
-      s._mobileBattleHud?.menu?.items?.map((item) => item.label) ||
-      s.actionMenu?.map?.((entry) => entry?.label).filter(Boolean) ||
-      [];
+    const menu = availableMenuLabels(s);
     return {
       step: Number(s.tutorialStep),
       gateReleased: Boolean(s._tutorialStrictGateReleased),
