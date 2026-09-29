@@ -185,9 +185,17 @@ function effectiveLevel(unit) {
 }
 
 /**
+ * The most units the recruit-node join level averages over. Act 3+ deploy caps grew
+ * to 7-8 (+2 with bonuses); averaging that many would pull the deepest benchwarmer in
+ * and lower join levels, so the squad stays at the six it was.
+ */
+export const RECRUIT_NODE_LEVEL_SQUAD_MAX = 6;
+
+/**
  * The level a recruit-node recruit joins at: the average effective level of the
- * strongest squad you can field this act (the top deploy-cap units), plus blessing /
- * meta recruit-level bonuses, never below the act pool's minimum.
+ * strongest squad you can field this act (the top deploy-cap units, at most
+ * RECRUIT_NODE_LEVEL_SQUAD_MAX), plus blessing / meta recruit-level bonuses, never
+ * below the act pool's minimum.
  */
 export function resolveRecruitNodeLevel({
   roster = [],
@@ -196,7 +204,8 @@ export function resolveRecruitNodeLevel({
   deployBonus = 0,
   recruitLevelBonus = 0,
 } = {}) {
-  const cap = Math.max(1, (DEPLOY_LIMITS[act]?.max || 4) + Math.trunc(Number(deployBonus) || 0));
+  const deployCap = (DEPLOY_LIMITS[act]?.max || 4) + Math.trunc(Number(deployBonus) || 0);
+  const cap = Math.max(1, Math.min(RECRUIT_NODE_LEVEL_SQUAD_MAX, deployCap));
   const levels = (Array.isArray(roster) ? roster : [])
     .map(effectiveLevel)
     .sort((a, b) => b - a)

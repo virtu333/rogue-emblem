@@ -1,6 +1,5 @@
 import './harness/JourneyTestSetup.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ROSTER_CAP } from '../src/utils/constants.js';
 
 // ── Hoisted mocks ──
 const { gainExperienceMock } = vi.hoisted(() => ({
@@ -134,9 +133,6 @@ function makeRunManager(overrides = {}) {
     difficultyMode: null,
     metaEffects: {},
     roster: [],
-    getRosterCap() {
-      return ROSTER_CAP + (this.metaEffects?.rosterCapBonus || 0);
-    },
     awardGold(amount) {
       this.gold += amount;
     },

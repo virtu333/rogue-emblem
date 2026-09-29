@@ -254,11 +254,9 @@ export class ArenaMenu {
       ? 'Already hired.'
       : c._mercHired
         ? 'One hire per visit.'
-        : c.runManager.roster.length >= c._getRosterCap()
-          ? 'Roster full.'
-          : c.runManager.gold < hireCost
-            ? 'Not enough gold.'
-            : '';
+        : c.runManager.gold < hireCost
+          ? 'Not enough gold.'
+          : '';
     const contract = el('div', null, 'ch-contract');
     const row = draftRow(1, 'ch-hire');
     row.append(
@@ -279,7 +277,7 @@ export class ArenaMenu {
       el('h3', 'Contract'),
       el('p', `${hireCost} G`, 'ch-terms-cost'),
       el('p', `Hire cost: ${hireCost} G · Gold after hire ${c.runManager.gold - hireCost} G`),
-      el('p', `Roster ${c.runManager.roster.length} / ${c._getRosterCap()} · One hire per visit`),
+      el('p', `Roster ${c.runManager.roster.length} · One hire per visit`),
     );
     if (reason) terms.append(el('p', reason, 'ch-terms-warn'));
     if (content?.cue) terms.append(el('p', content.cue.text, 'ch-terms-cue'));

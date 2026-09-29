@@ -96,7 +96,6 @@ import {
   BOSS_STAT_BONUS,
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
-  ROSTER_CAP,
   TERRAIN,
   XP_BASE_HEAL,
   XP_SPECIAL_ENEMY_MULTIPLIER,
@@ -419,10 +418,10 @@ export class HeadlessBattle {
       actions.push({ label: 'Escape', supported: true });
     }
 
-    // Talk
+    // Talk (the roster has no cap)
     if (unit.isLord && this.npcUnits.length > 0) {
       const talkTarget = this._findTalkTarget(unit);
-      if (talkTarget && this.playerUnits.length < ROSTER_CAP) {
+      if (talkTarget) {
         actions.push({ label: 'Talk', supported: true });
       }
     }

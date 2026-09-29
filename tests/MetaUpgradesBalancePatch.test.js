@@ -12,15 +12,6 @@ describe('meta upgrades rebalance patch guards', () => {
       description: '+10% battle gold per level',
       effects: [{ battleGoldMultiplier: 0.1 }, { battleGoldMultiplier: 0.2 }],
     },
-    {
-      id: 'roster_cap',
-      costs: [175],
-      description: '+3 max roster size',
-      effects: [{ rosterCapBonus: 3 }],
-      requires: {
-        milestones: ['beatAct1'],
-      },
-    },
     { id: 'vision_charges_2', costs: [200] },
     {
       id: 'vision_charges_3',
@@ -40,7 +31,7 @@ describe('meta upgrades rebalance patch guards', () => {
     },
     {
       id: 'recruit_field_supplies',
-      costs: [250],
+      costs: [125],
       requires: {
         upgrades: [{ id: 'starting_vulnerary', level: 1 }],
       },
@@ -87,15 +78,15 @@ describe('meta upgrades rebalance patch guards', () => {
     { id: 'legendary_heir', costs: [1000, 500, 250, 750] },
     { id: 'commander_choice', costs: [1500] },
     { id: 'partner_choice', costs: [1000] },
-    // 2026-07-04 recruit-focused capacity upgrades.
+    // 2026-07-04 recruit-focused capacity upgrades (halved 2026-09-29, below).
     {
       id: 'recruit_xp',
-      costs: [350, 700],
+      costs: [175, 350],
       effects: [{ recruitXpBonus: 0.1 }, { recruitXpBonus: 0.2 }],
     },
     {
       id: 'recruit_accessory',
-      costs: [650],
+      costs: [325],
       effects: [{ recruitStartingAccessory: 1 }],
       requires: {
         milestones: ['beatAct1'],
@@ -103,13 +94,28 @@ describe('meta upgrades rebalance patch guards', () => {
     },
     {
       id: 'recruit_weapon_forge',
-      costs: [400, 700],
+      costs: [200, 350],
       effects: [{ recruitWeaponForge: 1 }, { recruitWeaponForge: 2 }],
       requires: {
         upgrades: [{ id: 'lethal_armory', level: 1 }],
         milestones: ['beatAct1'],
       },
     },
+    // 2026-09-29 playtest: the Battalion tab (recruit power) at half price, and the
+    // extra deploy slot cheaper still, open after Act 1.
+    {
+      id: 'deploy_limit',
+      costs: [150],
+      effects: [{ deployBonus: 1 }],
+      requires: { milestones: ['beatAct1'] },
+    },
+    { id: 'recruit_skill', costs: [250] },
+    { id: 'veteran_recruits', costs: [125, 225, 350] },
+    { id: 'extra_starting_unit_pool', costs: [200, 350, 500, 750] },
+    { id: 'lethal_armory', costs: [250] },
+    { id: 'lethal_armory_killer', costs: [300] },
+    { id: 'lethal_armory_silver', costs: [450] },
+    { id: 'master_of_arms', costs: [175] },
   ];
 
   it('prices every stat track by value: no weaker stat costs more than a stronger one', () => {
@@ -156,5 +162,32 @@ describe('meta upgrades rebalance patch guards', () => {
         expect(upgrade.requires, `${expected.id} requires`).toEqual(expected.requires);
       }
     }
+  });
+
+  it('the Battalion tree: twelve upgrades, 5,600 Supply in all, and no Expanded Ranks', () => {
+    const battalion = upgrades.filter((u) => u.category === 'capacity');
+    expect(battalion.map((u) => u.id).sort()).toEqual(
+      [
+        'deploy_limit',
+        'extra_starting_unit_pool',
+        'lethal_armory',
+        'lethal_armory_killer',
+        'lethal_armory_silver',
+        'master_of_arms',
+        'recruit_accessory',
+        'recruit_field_supplies',
+        'recruit_skill',
+        'recruit_weapon_forge',
+        'recruit_xp',
+        'veteran_recruits',
+      ].sort(),
+    );
+    // 150 + 250 + 125 + 700 + 1800 + 250 + 300 + 450 + 175 + 525 + 325 + 550
+    const total = battalion.reduce((sum, u) => sum + u.costs.reduce((a, b) => a + b, 0), 0);
+    expect(total).toBe(5600);
+    // The roster has no cap, so nothing sells a bigger one.
+    expect(byId.has('roster_cap')).toBe(false);
+    for (const u of upgrades)
+      for (const effect of u.effects || []) expect(effect).not.toHaveProperty('rosterCapBonus');
   });
 });

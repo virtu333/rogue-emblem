@@ -16,7 +16,6 @@ import {
   ACT_CONFIG,
   STARTING_GOLD,
   MAX_SKILLS,
-  ROSTER_CAP,
   STARTING_ACCESSORY_TIERS,
   STARTING_STAFF_TIERS,
   DEADLY_ARSENAL_SIGNATURE_WEAPONS,
@@ -3495,10 +3494,6 @@ export class RunManager {
     return true;
   }
 
-  getRosterCap() {
-    return ROSTER_CAP + (this.metaEffects?.rosterCapBonus || 0);
-  }
-
   /**
    * Mark a battle as suspended-in-progress. The flag carries the entry
    * snapshot needed to (a) resume the battle later ("Continue from battle")
@@ -3841,12 +3836,10 @@ export class RunManager {
    * @param {object|string} unitRef - the fallen unit (preferred: two fallen allies may
    *   share a name), its `unitUid`, or — legacy callers — its name (first match)
    * @param {number} cost - gold cost (scales with level/promotion)
-   * @returns {boolean} true if revived, false if roster full or insufficient gold
+   * @returns {boolean} true if revived, false if the unit is not fallen or gold is short
+   *   (the roster has no cap)
    */
   reviveFallenUnit(unitRef, cost) {
-    const rosterCap = this.getRosterCap();
-    if (this.roster.length >= rosterCap) return false; // Can't revive if roster full
-
     // Verify unit exists before spending gold (prevents burning currency on stale names)
     const idx = this._findFallenIndex(unitRef);
     if (idx === -1) return false;

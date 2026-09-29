@@ -231,6 +231,24 @@ describe('recruit level', () => {
     ).toBe(11);
   });
 
+  it('bigger Act 3+ deploy caps still average the top six, so join levels do not drop', () => {
+    // Six promoted units at 15..10 count 25..20: 135 / 6 = 22.5 -> 22 (above every act's
+    // pool minimum). The two base Lv 2 and Lv 1 units are the bench a wider average would
+    // pull in: seven wide (135 + 2) / 7 = 19.6 -> 19, eight wide (135 + 3) / 8 -> 17.
+    const promoted = [15, 14, 13, 12, 11, 10].map((level) => ({ level, tier: 'promoted' }));
+    const roster = [...promoted, { level: 2 }, { level: 1 }];
+    for (const act of ['act3', 'act4', 'finalBoss', 'postAct']) {
+      for (const deployBonus of [0, 1, 2]) {
+        expect(
+          resolveRecruitNodeLevel({ roster, act, enemies: gameData.enemies, deployBonus }),
+          `${act} +${deployBonus}`,
+        ).toBe(22);
+      }
+    }
+    // Acts 1-2 keep their narrower squads: act2 cap 5 -> (25+24+23+22+21)/5 = 23.
+    expect(resolveRecruitNodeLevel({ roster, act: 'act2', enemies: gameData.enemies })).toBe(23);
+  });
+
   it('adds the recruit level bonus and never drops below the act minimum', () => {
     expect(
       resolveRecruitNodeLevel({

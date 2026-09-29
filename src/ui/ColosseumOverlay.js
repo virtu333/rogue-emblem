@@ -28,7 +28,7 @@ import {
   equipWeapon,
   settleAccessoryHpOwed,
 } from '../engine/UnitManager.js';
-import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
+import { RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
 import { findCommander } from '../engine/Commander.js';
 import { applyCombatSideHP } from '../engine/UnitHealth.js';
@@ -575,10 +575,8 @@ export class ColosseumOverlay {
       return false;
     }
     const { unit, hireCost } = candidate;
-    const rosterCount = (this.runManager.roster || []).length;
-    const rosterFull = rosterCount >= this._getRosterCap();
 
-    if (unit?._hired || this._mercHired || rosterFull) {
+    if (unit?._hired || this._mercHired) {
       this._showMercBrowse();
       return false;
     }
@@ -624,13 +622,6 @@ export class ColosseumOverlay {
 
   _getDifficultyId() {
     return this.runManager?.difficultyId ?? this.runManager?.difficultyMode ?? 'normal';
-  }
-
-  _getRosterCap() {
-    if (typeof this.runManager?.getRosterCap === 'function') {
-      return this.runManager.getRosterCap();
-    }
-    return ROSTER_CAP + (this.runManager?.metaEffects?.rosterCapBonus || 0);
   }
 
   _persistVisit() {

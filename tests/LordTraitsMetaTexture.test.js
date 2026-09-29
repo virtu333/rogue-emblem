@@ -97,7 +97,9 @@ describe('advanced starting-skill unlocks', () => {
     const sumCosts = (list) => list.reduce((sum, u) => sum + u.costs.reduce((a, b) => a + b, 0), 0);
     const priced = data.metaUpgrades.filter((u) => u.id !== 'legendary_lord_chance');
     const total = sumCosts(priced.filter((u) => !isMagLckTrack(u)));
-    expect(total).toBe(53385);
+    // 2026-09-29: the Battalion tab went from 11,575 to 5,600 (Expanded Ranks retired,
+    // the rest halved, Tactical Advantage 150): 53,385 - 5,975.
+    expect(total).toBe(47410);
     expect(total / 53428).toBeLessThan(1.03);
     expect(sumCosts(priced.filter(isMagLckTrack))).toBe(4080);
   });
