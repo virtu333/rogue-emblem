@@ -137,6 +137,8 @@
         loco_test: () => import('./loco_test.js'),
         figure_test: () => import('./figure_test.js'),
         skin_test: () => import('./skin_test.js'),
+        camp: () => import('./camp.js'),
+        camp_previs: () => import('./camp_previs.js'),
       };
       const which = params.get('piece') || 'again';
       const mod = await (PIECES[which] || PIECES.again)();

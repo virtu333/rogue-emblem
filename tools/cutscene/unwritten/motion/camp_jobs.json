@@ -1,0 +1,50 @@
+{
+  "camp_sera_look": {
+    "cutout": "sera_at_camp.webp",
+    "place": {
+      "h": 0.8,
+      "x": 0.5,
+      "y": 0.93
+    },
+    "duration": 5,
+    "prompt": "The seated red-haired seer, arms around her drawn-up knees, slowly lowers her upturned gaze from high up to level and a little to the right: her chin comes down slightly, her heavy eyelids close in one slow blink, she draws a long breath and lets it out so her shoulders rise and fall, and a few strands of her long wavy crimson hair stir in a light breeze. Her body stays seated and still, hands clasped round her knees, nothing else moves. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. IMPORTANT: the background is a flat, uniform pure green (#00FF00) for the whole clip, exactly as in the first frame, filling the whole frame: do not paint any trees, rocks, ground, fire, sky, stars or scenery, no shadow, no camera cuts, no camera movement, no zoom, no text."
+  },
+  "camp_edric_look": {
+    "cutout": "edric_at_fire.webp",
+    "place": {
+      "h": 0.72,
+      "x": 0.5,
+      "y": 0.93
+    },
+    "duration": 5,
+    "prompt": "A quiet night scene. The young swordsman sits with his sword across his knee, staring toward the right into a fire. Slowly he lifts his eyes and raises his head to look across the fire at someone to the right: he meets their gaze and holds it, lets out a slow breath, and the faintest tired half-smile crosses his face before his gaze drops again. The teal cloak and shaggy hair stir a little in a light breeze. He stays seated, his hand resting on the sword, nothing else moves. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no fire, no scenery, no camera cuts, no camera movement, no zoom, no text."
+  },
+  "camp_kira_map": {
+    "cutout": "kira_at_camp.webp",
+    "place": {
+      "h": 0.8,
+      "x": 0.5,
+      "y": 0.93
+    },
+    "duration": 5,
+    "prompt": "A quiet night scene. The pale-haired scout sits on a wooden crate reading a big parchment map held on their knee, looking down at it. They tap the map with a gloved finger twice, then stop. Their eyes lift and look toward the right, across a fire, at someone, and hold there. Then they slowly lower the map and fold it shut in both hands, and settle back with a quiet exhale. The ponytail and coat stir a little in a light breeze. They stay seated on the crate. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no fire, no scenery, no camera cuts, no camera movement, no zoom, no text."
+  },
+  "camp_edric_rise": {
+    "cutout": "edric_at_fire.webp",
+    "place": {
+      "h": 0.6,
+      "x": 0.45,
+      "y": 0.93
+    },
+    "duration": 5,
+    "last": {
+      "cutout": "edric_standing.webp",
+      "place": {
+        "h": 0.82,
+        "x": 0.5,
+        "y": 0.93
+      }
+    },
+    "prompt": "A quiet night scene. The young swordsman sitting on the ground with his sword across his knee puts one hand on the ground and pushes himself up: he rises steadily to his full height, taking the sword in his right hand, the teal cloak swinging and settling around him, and then lifts his eyes and looks up at the sky. Weighty, calm, readable motion, no hurry. Keep exactly the art style of the first frame: fine sepia ink lines and soft transparent watercolour, the same character design, face, costume and colours. 2D hand-drawn anime animation. The background stays a flat, uniform pure green (#00FF00) for the whole clip: no ground, no shadow, no fire, no scenery, no camera cuts, no camera movement, no zoom, no text."
+  }
+}

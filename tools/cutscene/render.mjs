@@ -64,6 +64,17 @@ const PIECES = {
       },
     ]),
   ),
+  // "The Night Before" (unwritten/CAMP.md): bars 5-12, from 6.4 s; camp_previs is its layout reel
+  ...Object.fromEntries(
+    ['camp', 'camp_previs'].map((k) => [
+      k,
+      {
+        page: `/tools/cutscene/unwritten/index.html?export=1&piece=${k}`,
+        music: 'References/cutscene/unwritten/broken_sun.mp3',
+        musicOffset: 6.4,
+      },
+    ]),
+  ),
   ...Object.fromEntries(
     ['cold', 'ja', 'captions'].map((v) => [
       `glass_${v}`,
