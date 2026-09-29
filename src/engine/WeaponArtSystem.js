@@ -1,6 +1,7 @@
 // WeaponArtSystem.js - Weapon Art gating, usage tracking, and combat mod helpers
 
 import { isSilenced } from './StatusConditionSystem.js';
+import { setUnitHP } from './UnitHealth.js';
 
 const RANK_ORDER = { Prof: 0, Mast: 1 };
 const VALID_FACTIONS = new Set(['player', 'enemy', 'npc']);
@@ -680,7 +681,7 @@ export function applyWeaponArtCost(unit, art, opts = {}) {
   const hpCost = getEffectiveWeaponArtHpCost(unit, art, opts);
   if (!unit || hpCost <= 0) return;
   const hp = toFiniteNumber(unit.currentHP, toFiniteNumber(unit?.stats?.HP, 0));
-  unit.currentHP = Math.max(1, hp - hpCost);
+  setUnitHP(unit, Math.max(1, hp - hpCost));
 }
 
 export function resetWeaponArtTurnUsage(unit, context = {}) {

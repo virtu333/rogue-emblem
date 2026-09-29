@@ -3,6 +3,7 @@
 
 import { debugState } from '../utils/debugMode.js';
 import { gainExperience } from '../engine/UnitManager.js';
+import { healUnitFully } from '../engine/UnitHealth.js';
 
 export class DebugOverlay {
   constructor(scene) {
@@ -135,7 +136,7 @@ export class DebugOverlay {
         label: 'Heal All',
         onClick: () => {
           for (const u of scene.playerUnits) {
-            u.currentHP = u.stats.HP;
+            healUnitFully(u);
             scene.updateHPBar(u);
           }
           this._toast('All units healed');

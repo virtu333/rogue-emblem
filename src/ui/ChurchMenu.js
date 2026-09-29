@@ -1,4 +1,3 @@
-import { settleAccessoryHpOwed } from '../engine/UnitManager.js';
 import { revivalCatchUpPlan } from '../engine/RevivalCatchUp.js';
 import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
@@ -45,6 +44,7 @@ import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import { CHURCH_PROMOTE_COST, RUINS_SHOP_MARKUP, INVENTORY_MAX } from '../utils/constants.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
+import { healUnitFully } from '../engine/UnitHealth.js';
 // The sanctuary's band kicker: both paths before the choice, the chosen one after.
 const RUINS_KICKER = Object.freeze({
   none: 'Heal or wares',
@@ -128,10 +128,7 @@ export class ChurchMenu {
           this.finish(healAtRuins(run, nodeId));
           return;
         }
-        for (const u of run.roster) {
-          u.currentHP = u.stats.HP;
-          settleAccessoryHpOwed(u);
-        }
+        for (const u of run.roster) healUnitFully(u);
         this.finish({ ok: true, message: 'All units healed.' });
       }),
     );

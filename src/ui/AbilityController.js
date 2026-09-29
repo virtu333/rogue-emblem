@@ -23,6 +23,7 @@ import { canInspectUnit, seenTileOccupant } from '../engine/BattleInformation.js
 import { deedsFor } from './DeedController.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
+import { healUnit } from '../engine/UnitHealth.js';
 
 const BLINK_TILE_COLOR = UI_HEX.lineStrong;
 const ALLY_AOE_COLOR = UI_HEX.hpHigh;
@@ -453,10 +454,8 @@ export class AbilityController {
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
     for (const ally of affected) {
-      const maxHp = Math.max(1, Math.trunc(Number(ally.stats?.HP) || 1));
       const oldHP = Number(ally.currentHP) || 0;
-      ally.currentHP = Math.min(maxHp, oldHP + amount);
-      const healed = ally.currentHP - oldHP;
+      const healed = healUnit(ally, amount);
       if (healed <= 0) continue;
       deedsFor(scene).onHeal(unit, ally, oldHP);
       observeHistoryAction(scene, 'healed', unit, ally, `${healed} HP`, { amount: healed });

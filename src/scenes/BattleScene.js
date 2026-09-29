@@ -30,6 +30,13 @@ import {
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
 import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
+import {
+  applyCombatHP,
+  damageUnit,
+  healUnit,
+  healUnitFully,
+  setUnitHP,
+} from '../engine/UnitHealth.js';
 import { isDifficultyAtLeast } from '../engine/DifficultyEngine.js';
 import { applyDevScenario } from '../utils/devScenarios.js';
 import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.js';
@@ -107,7 +114,6 @@ import {
   getReclassTargets,
   reclassUnit,
   inventoryDisplayOrder,
-  settleAccessoryHpOwed,
 } from '../engine/UnitManager.js';
 import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
 import { getXpShareRatio, getXpShareRecipients, calculateSharedXp } from '../engine/XpShare.js';
@@ -3341,10 +3347,8 @@ export class BattleScene extends Phaser.Scene {
     this.refreshVisibleDangerZone?.();
   }
 
+  /** Draw a unit's HP bar. Presentation only: HP rules live in UnitHealth.js. */
   updateHPBar(unit) {
-    // Every heal in battle redraws the bar: a unit healed to full owes nothing from
-    // an HP accessory it took off, so later damage cannot make the debt stale.
-    settleAccessoryHpOwed(unit);
     let pos, barWidth, barHeight;
     if (isEntity(unit)) {
       const center = getEntityCenter(unit);
@@ -7087,13 +7091,11 @@ export class BattleScene extends Phaser.Scene {
       this.commitVisionSnapshotIfPending();
 
       if (item.effect === 'heal') {
-        const oldHP = unit.currentHP;
-        unit.currentHP = Math.min(unit.stats.HP, unit.currentHP + item.value);
-        const healed = unit.currentHP - oldHP;
+        const healed = healUnit(unit, item.value);
         this.updateHPBar(unit);
         await this.showBriefBanner(`${unit.name} healed ${healed} HP!`, UI_PALETTE.good);
       } else if (item.effect === 'healFull') {
-        unit.currentHP = unit.stats.HP;
+        healUnitFully(unit);
         this.updateHPBar(unit);
         await this.showBriefBanner(`${unit.name} fully healed!`, UI_PALETTE.good);
       } else if (item.effect === 'cure' || item.effect === 'cureHeal') {
@@ -7106,9 +7108,7 @@ export class BattleScene extends Phaser.Scene {
         // allies that already moved this phase (same pattern as Swap).
         if (!target.hasActed) this.undimUnit(target);
         if (item.effect === 'cureHeal' && item.value > 0) {
-          const oldHP = target.currentHP;
-          target.currentHP = Math.min(target.stats.HP, target.currentHP + item.value);
-          const healed = target.currentHP - oldHP;
+          const healed = healUnit(target, item.value);
           this.updateHPBar(target);
           await this.showBriefBanner(
             `${target.name} cured and healed ${healed} HP!`,
@@ -7793,6 +7793,9 @@ export class BattleScene extends Phaser.Scene {
       '_battleTimedWeaponArtAppliedCombatMods',
     );
     const hadMov = Object.prototype.hasOwnProperty.call(attacker, 'mov');
+    // The preview's HP changes go through UnitHealth, which may settle HP accessory debt.
+    const hadHpOwed = Object.prototype.hasOwnProperty.call(attacker, '_accessoryHpOwed');
+    const originalHpOwed = attacker._accessoryHpOwed;
 
     const originalHP = attacker.currentHP;
     const originalPhoenixFlag = attacker._phoenixBroochUsed;
@@ -7835,6 +7838,9 @@ export class BattleScene extends Phaser.Scene {
 
       if (hadPhoenixFlag) attacker._phoenixBroochUsed = originalPhoenixFlag;
       else delete attacker._phoenixBroochUsed;
+
+      if (hadHpOwed) attacker._accessoryHpOwed = originalHpOwed;
+      else delete attacker._accessoryHpOwed;
 
       if (hadTimedBuffs) attacker._battleTimedWeaponArtBuffs = originalTimedBuffs;
       else delete attacker._battleTimedWeaponArtBuffs;
@@ -8003,24 +8009,30 @@ export class BattleScene extends Phaser.Scene {
           followUp,
           strikeIndex: strikeIndex++,
         });
-        if (!event.miss && attacker.faction === 'player' && defender.faction === 'enemy') {
-          defender._hitByPlayerThisPhase = true;
-        }
       }
     }
 
-    // Apply final HP
-    attacker.currentHP = result.attackerHP;
-    defender.currentHP = result.defenderHP;
+    // Shielded spends its guard on the first player hit that lands this phase. Read
+    // from the result (the player's own strikes), never from the animation.
+    if (
+      attacker.faction === 'player' &&
+      defender.faction === 'enemy' &&
+      result.events.some((e) => e.type === 'strike' && !e.miss && e.attackerSide !== 'defender')
+    ) {
+      defender._hitByPlayerThisPhase = true;
+    }
+
+    // Apply final HP (UnitHealth: the same outcome whether or not strikes were shown)
+    applyCombatHP(attacker, defender, result);
 
     // Debug invincibility: restore player-faction units to full HP
     if (this.isDevToolsEnabled() && debugState.invincible) {
       if (attacker.faction === 'player') {
-        attacker.currentHP = attacker.stats.HP;
+        healUnitFully(attacker);
         result.attackerDied = false;
       }
       if (defender.faction === 'player') {
-        defender.currentHP = defender.stats.HP;
+        healUnitFully(defender);
         result.defenderDied = false;
       }
     }
@@ -8275,7 +8287,7 @@ export class BattleScene extends Phaser.Scene {
     const affixResult = getAttackAffixes(attacker, this.gameData.affixes);
 
     if (affixResult.poisonDamage > 0 && defender.currentHP > 0) {
-      defender.currentHP = Math.max(1, defender.currentHP - affixResult.poisonDamage);
+      damageUnit(defender, affixResult.poisonDamage, { floor: 1 });
       this.updateHPBar(defender);
       await this.showPoisonDamage(defender, affixResult.poisonDamage);
     }
@@ -8342,9 +8354,7 @@ export class BattleScene extends Phaser.Scene {
           if (!targetUnit || targetUnit.currentHP <= 0) break;
           {
             const hpFloor = step.nonLethal ? 1 : 0;
-            const prevHP = targetUnit.currentHP;
-            targetUnit.currentHP = Math.max(hpFloor, targetUnit.currentHP - step.amount);
-            const actualDamage = prevHP - targetUnit.currentHP;
+            const actualDamage = damageUnit(targetUnit, step.amount, { floor: hpFloor });
             if (actualDamage > 0) {
               this.updateHPBar(targetUnit);
               await this.showPoisonDamage(targetUnit, actualDamage);
@@ -8397,10 +8407,8 @@ export class BattleScene extends Phaser.Scene {
         case 'art_miss_self_damage':
           if (!targetUnit || targetUnit.currentHP <= 0) break;
           {
-            const prevHP = targetUnit.currentHP;
             const hpFloor = step.nonLethal === false ? 0 : 1;
-            targetUnit.currentHP = Math.max(hpFloor, targetUnit.currentHP - step.amount);
-            const actualDamage = prevHP - targetUnit.currentHP;
+            const actualDamage = damageUnit(targetUnit, step.amount, { floor: hpFloor });
             if (actualDamage > 0) {
               this.updateHPBar(targetUnit);
               await this.showPoisonDamage(targetUnit, actualDamage);
@@ -8464,9 +8472,7 @@ export class BattleScene extends Phaser.Scene {
     if (allies.length === 0) return;
     allies.sort((a, b) => a.currentHP / a.stats.HP - b.currentHP / b.stats.HP);
     const healTarget = allies[0];
-    const prevHP = healTarget.currentHP;
-    healTarget.currentHP = Math.min(healTarget.stats.HP, healTarget.currentHP + healAmount);
-    const actualHeal = healTarget.currentHP - prevHP;
+    const actualHeal = healUnit(healTarget, healAmount);
     this.updateHPBar(healTarget);
     if (actualHeal > 0) {
       const pos = this.grid.gridToPixel(healTarget.col, healTarget.row);
@@ -8533,9 +8539,7 @@ export class BattleScene extends Phaser.Scene {
       if (target.currentHP <= 0) break;
       const damage = Math.max(0, Math.trunc(Number(rawDamage) || 0));
       if (damage <= 0) continue;
-      const prevHP = target.currentHP;
-      target.currentHP = Math.max(0, target.currentHP - damage);
-      const actualDamage = prevHP - target.currentHP;
+      const actualDamage = damageUnit(target, damage);
       if (actualDamage <= 0) continue;
       this.updateHPBar(target);
       const pos = this.grid.gridToPixel(target.col, target.row);
@@ -8555,7 +8559,7 @@ export class BattleScene extends Phaser.Scene {
     const maxHp = Math.max(1, Math.trunc(Number(targetUnit.stats?.HP) || 1));
     const nextHp = Math.min(maxHp, value);
     if (targetUnit.currentHP === nextHp) return;
-    targetUnit.currentHP = nextHp;
+    setUnitHP(targetUnit, nextHp);
     this.updateHPBar(targetUnit);
     const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
     this.showMinorHintAt(pos.x, pos.y, `HP -> ${nextHp}`, UI_PALETTE.warn);
@@ -8617,9 +8621,7 @@ export class BattleScene extends Phaser.Scene {
     for (const target of targets) {
       if (!target || target.currentHP <= 0) continue;
       const hpFloor = step?.nonLethal ? 1 : 0;
-      const prevHP = target.currentHP;
-      target.currentHP = Math.max(hpFloor, target.currentHP - splashDamage);
-      const actualDamage = prevHP - target.currentHP;
+      const actualDamage = damageUnit(target, splashDamage, { floor: hpFloor });
       if (actualDamage <= 0) continue;
       this.updateHPBar(target);
       const pos = this.grid.gridToPixel(target.col, target.row);
@@ -8963,7 +8965,7 @@ export class BattleScene extends Phaser.Scene {
       onComplete: () => dmgText.destroy(),
     });
 
-    target.currentHP = event.targetHPAfter;
+    setUnitHP(target, event.targetHPAfter);
     this.updateHPBar(target);
 
     // Sleep: wake on damage -- remove Zzz icon and un-dim immediately
@@ -8973,7 +8975,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (event.heal > 0 && event.strikerHealTo !== undefined) {
-      striker.currentHP = event.strikerHealTo;
+      setUnitHP(striker, event.strikerHealTo);
       this.updateHPBar(striker);
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
       const healText = presentationText(this, sPos.x + 12, sPos.y - 8, `+${event.heal}`, {
@@ -8993,8 +8995,9 @@ export class BattleScene extends Phaser.Scene {
       });
     }
 
-    if (event.reflectDamage > 0 && striker.currentHP > 0) {
-      striker.currentHP = Math.max(1, striker.currentHP - event.reflectDamage);
+    // Thorns: the combat result already carries the striker's HP after the reflection.
+    if (event.reflectDamage > 0 && event.strikerHPAfter !== undefined) {
+      setUnitHP(striker, event.strikerHPAfter);
       this.updateHPBar(striker);
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
       const refText = presentationText(this, sPos.x, sPos.y - 16, `${event.reflectDamage}`, {
@@ -9482,7 +9485,7 @@ export class BattleScene extends Phaser.Scene {
         );
         for (const victim of victims) {
           if (victim.currentHP <= 0) continue;
-          victim.currentHP = Math.max(0, victim.currentHP - effect.amount);
+          damageUnit(victim, effect.amount);
           this.updateHPBar(victim);
           const pos = this.grid.gridToPixel(victim.col, victim.row);
           const txt = this.add
@@ -9870,10 +9873,7 @@ export class BattleScene extends Phaser.Scene {
     for (const effect of skillEffects) {
       if (!isCurrent()) return;
       if (effect.type === 'heal' && effect.amount > 0) {
-        effect.target.currentHP = Math.min(
-          effect.target.stats.HP,
-          effect.target.currentHP + effect.amount,
-        );
+        healUnit(effect.target, effect.amount);
         this.updateHPBar(effect.target);
         if (this._showsTurnEffectOn(effect.target))
           await this.animateHeal(effect.target, effect.amount);
@@ -9886,10 +9886,7 @@ export class BattleScene extends Phaser.Scene {
     for (const effect of affixEffects) {
       if (!isCurrent()) return;
       if (effect.type === 'heal' && effect.amount > 0) {
-        effect.target.currentHP = Math.min(
-          effect.target.stats.HP,
-          effect.target.currentHP + effect.amount,
-        );
+        healUnit(effect.target, effect.amount);
         this.updateHPBar(effect.target);
         if (this._showsTurnEffectOn(effect.target))
           await this.animateHeal(effect.target, effect.amount);
@@ -9907,10 +9904,8 @@ export class BattleScene extends Phaser.Scene {
       if (!isCurrent()) return;
       if (!unit || unit.currentHP <= 0 || !isAcidPoisoned(unit)) continue;
       const tickDamage = computeAcidDamage(unit.stats?.HP);
-      const nextHP = Math.max(1, unit.currentHP - tickDamage);
-      const appliedDamage = unit.currentHP - nextHP;
+      const appliedDamage = damageUnit(unit, tickDamage, { floor: 1 });
       if (appliedDamage <= 0) continue;
-      unit.currentHP = nextHP;
       this.updateHPBar(unit);
       if (this._showsTurnEffectOn(unit)) await this.showAcidDamage(unit, appliedDamage);
     }
@@ -9945,7 +9940,7 @@ export class BattleScene extends Phaser.Scene {
         seed: (this.turnManager?.turnNumber || 0) * 97 + ballista.col * 13 + ballista.row,
       });
       if (result.didHit) {
-        target.currentHP = Math.max(0, target.currentHP - result.damage);
+        damageUnit(target, result.damage);
         this.updateHPBar(target);
         if (target.graphic) {
           const pos = this.grid.gridToPixel(target.col, target.row);
@@ -10248,7 +10243,7 @@ export class BattleScene extends Phaser.Scene {
       const healAmount = Math.floor(baseHeal * decayMult);
       unit._fortHealStreak = streak + 1;
       if (healAmount <= 0) continue;
-      unit.currentHP = Math.min(unit.stats.HP, unit.currentHP + healAmount);
+      healUnit(unit, healAmount);
       this.updateHPBar(unit);
       if (this._showsTurnEffectOn(unit)) await this.animateHeal(unit, healAmount);
     }
@@ -10265,7 +10260,7 @@ export class BattleScene extends Phaser.Scene {
       if (isLavaCrackTerrainIndex(terrainIdx)) {
         const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP, LAVA_CRACK_DAMAGE);
         if (appliedDamage <= 0) continue;
-        unit.currentHP = nextHP;
+        setUnitHP(unit, nextHP);
         this.updateHPBar(unit);
         const shown = this._showsTurnEffectOn(unit);
         if (shown) {
@@ -10846,7 +10841,7 @@ export class BattleScene extends Phaser.Scene {
       if (!victim || victim === primaryTarget || victim.currentHP <= 0) continue;
       if (victim.faction === 'enemy') continue; // Don't splash allies
       const dmg = rollSplashDamage();
-      victim.currentHP = Math.max(0, victim.currentHP - dmg);
+      damageUnit(victim, dmg);
       this.updateHPBar(victim);
       const pos = this.grid.gridToPixel(tile.col, tile.row);
       (this._combatFx ||= new CombatFxController(this)).playOverlay('fx_sig_entity', pos.x, pos.y);

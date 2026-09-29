@@ -16,6 +16,7 @@ import {
   ENEMY_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { accessoryHpOwed, setAccessoryHpOwed, settleAccessoryHpOwed } from './UnitHealth.js';
 import { unitBaseClassName } from './ClassLineage.js';
 import { applyForge } from './ForgeSystem.js';
 import {
@@ -1762,27 +1763,8 @@ function applyAccessoryStats(unit, accessory, sign) {
   }
 }
 
-function accessoryHpOwed(unit) {
-  const owed = Math.trunc(Number(unit?._accessoryHpOwed) || 0);
-  return owed > 0 ? owed : 0;
-}
-
-function setAccessoryHpOwed(unit, amount) {
-  if (amount > 0) unit._accessoryHpOwed = amount;
-  else delete unit._accessoryHpOwed;
-}
-
-/**
- * Forget HP a unit owes from taking off an HP accessory at critical HP once it no
- * longer matters: the unit is back at full HP (it rested or was healed past the
- * debt) or is down. Revival starts a unit afresh, so it clears the debt outright.
- */
-export function settleAccessoryHpOwed(unit) {
-  if (!unit || typeof unit !== 'object' || unit._accessoryHpOwed === undefined) return;
-  const current = Number(unit.currentHP);
-  const max = Number(unit.stats?.HP);
-  if (!accessoryHpOwed(unit) || !(current > 0) || current >= max) delete unit._accessoryHpOwed;
-}
+// The debt itself (owed, settled) lives with the rest of HP in UnitHealth.js.
+export { settleAccessoryHpOwed };
 
 /**
  * Apply an equipped accessory's move-type override (e.g. Mercury Sandals'

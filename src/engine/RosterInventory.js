@@ -10,11 +10,11 @@ import {
   isLastCombatWeapon,
   equipAccessory,
   unequipAccessory,
-  settleAccessoryHpOwed,
 } from './UnitManager.js';
 import { clearAllConditions, getConditions } from './StatusConditionSystem.js';
 import { TRADE_WARNINGS } from './ItemTrade.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
+import { healUnit, healUnitFully } from './UnitHealth.js';
 
 function convoyIndex(list, item) {
   return list.findIndex((candidate) =>
@@ -124,16 +124,10 @@ export function rosterItemAction(run, unit, item, action) {
   }
   if (action === 'heal' || action === 'use') {
     if (item.effect === 'statBoost') applyStatBoost(unit, item);
-    if (['heal', 'healFull', 'cureHeal'].includes(item.effect)) {
-      unit.currentHP = Math.min(
-        unit.stats.HP,
-        unit.currentHP + (item.effect === 'healFull' ? unit.stats.HP : item.value),
-      );
-    }
+    // UnitHealth settles HP accessory debt on a heal to full; a partial heal keeps it.
+    if (item.effect === 'healFull') healUnitFully(unit);
+    else if (['heal', 'cureHeal'].includes(item.effect)) healUnit(unit, item.value);
     if (['cure', 'cureHeal'].includes(item.effect)) clearAllConditions(unit);
-    // Healed to full: no HP accessory debt is owed any more (a later fight must not
-    // find a stale one; a partial heal keeps it).
-    settleAccessoryHpOwed(unit);
     spendConsumableUse(run, unit, item);
   }
   return '';

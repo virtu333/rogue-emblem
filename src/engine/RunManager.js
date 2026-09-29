@@ -118,6 +118,7 @@ import {
   DEFAULT_STARTING_LORD_NAMES,
 } from './Commander.js';
 import { unitBaseClassName } from './ClassLineage.js';
+import { healUnitFully, setUnitHP } from './UnitHealth.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = UNIT_PRESENTATION_FIELDS;
@@ -3816,9 +3817,7 @@ export class RunManager {
    * @param {string} nodeId - the rest node
    */
   rest(nodeId) {
-    for (const unit of this.roster) {
-      unit.currentHP = unit.stats.HP;
-    }
+    for (const unit of this.roster) healUnitFully(unit);
     this.markNodeComplete(nodeId);
   }
 
@@ -3857,7 +3856,7 @@ export class RunManager {
       this.gameData?.classes || [],
       createSeededRng(seed),
     );
-    unit.currentHP = 1; // Catch-up HP gains do not turn revival into a full heal.
+    setUnitHP(unit, 1); // Catch-up HP gains do not turn revival into a full heal.
     delete unit._accessoryHpOwed; // A revived unit owes nothing from its last life.
     // Death sent its gear to the convoy: an unarmed unit comes back with an Iron weapon.
     const starter = grantReviveStarterWeapon(unit, this.gameData?.weapons || [], INVENTORY_MAX);
@@ -3932,10 +3931,7 @@ export class RunManager {
     this.actIndex++;
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
     // The act boss has fallen: the army rests before the next act and starts it whole.
-    for (const unit of this.roster) {
-      if (unit?.stats) unit.currentHP = unit.stats.HP;
-      settleAccessoryHpOwed(unit);
-    }
+    for (const unit of this.roster) if (unit?.stats) healUnitFully(unit);
     this.nodeMap = this._withNodeMapSeed(() =>
       generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
         fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
