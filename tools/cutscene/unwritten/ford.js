@@ -1490,9 +1490,36 @@ export class FordPiece extends Piece {
     const lt = t - t0;
     const slow = slowMo(t, t0, S.face[1], 0.18, 0.02) - t0;
     const l = this.plateOf('struck', { zoom: 1.2, skin: true });
-    // he falls back: the frame drifts with him, slowly (time slowed)
-    const c = pageCam(236 - 10 * slow, 130 + 16 * slow, 1.05 + 0.04 * slow, -0.05 * slow);
-    if (l) this.draw(f, l, 0, { ...l.xf, flip: true }, c);
+    // the blow snaps his head back in two drawings, then time slows and it keeps going,
+    // barely: the plate turns about his neck (below the frame), overscanned over a dark
+    // underlay so the turn never shows the page
+    const snap = 1 - Math.exp(-onN(lt, 2) / 0.05);
+    const rot = 0.075 * snap + 0.12 * slow;
+    const c = pageCam(236 - 10 * slow, 132 + 10 * slow, 1.03 + 0.05 * slow, 0);
+    for (let i = 0; i < W * H * 4; i += 4) {
+      f[i] = 30;
+      f[i + 1] = 26;
+      f[i + 2] = 40;
+    }
+    if (l) {
+      const w = l.st.w;
+      const h = l.st.h;
+      this.draw(
+        f,
+        l,
+        0,
+        {
+          x: W / 2 + 6 * snap,
+          y: H / 2 + h * 0.6 * l.xf.scale * 1.18 + 20 - 5 * snap,
+          ax: w / 2,
+          ay: h * 1.1,
+          scale: l.xf.scale * 1.18,
+          rot,
+          flip: true,
+        },
+        c,
+      );
+    }
     // spray hanging in the air: droplets that barely move
     for (let i = 0; i < 70; i++) {
       const x0 = hash(i, 1, 91) * W;
@@ -1554,7 +1581,7 @@ export class FordPiece extends Piece {
     const lift = HITS('snare', TIME.lift - 0.01, DURATION + 1);
     let stage = 0;
     lift.forEach((h, i) => {
-      if (t >= h) stage = [1.0, 1.7, 2.4, 3][Math.min(3, i)];
+      if (t >= h) stage = [0.55, 1.2, 2.0, 3][Math.min(3, i)]; // the paint lifts in patches first
     });
     if (t >= DURATION - 2 / 24) stage = 3;
     // where he comes down: a body's length in front of the Warden's station
@@ -1582,7 +1609,7 @@ export class FordPiece extends Piece {
       ed = this.actor('eFall', LX + 0.1, LZ, 1, {
         flip: true,
         rings: 1,
-        Y: -0.26 - 0.05 * smooth(0, 1.0, v) - bob,
+        Y: -0.33 - 0.05 * smooth(0, 1.0, v) - bob,
         rot: rock,
       });
     }
@@ -1602,55 +1629,23 @@ export class FordPiece extends Piece {
     });
     // the water he lands in: a white mass thrown up along his length that breaks into
     // blobs and drops (anime water: flat white, an ink rim, no gradients)
-    if (stage < 3) bodySplash(f, camS, LX + 0.1, LZ, 1.7, a - HIT, 1, 7);
+    if (stage < 3)
+      this.world.spraySheet(f, camS, {
+        X: LX + 0.1,
+        Z: LZ,
+        width: 1.8,
+        age: a - HIT + 1 / 24, // already thrown on the landing frame
+        dir: 0.2,
+        height: 0.8,
+        strength: 0.8,
+        seed: 7,
+      });
     this.world.sun = sun0;
   }
 }
 
 // ---------------------------------------------------------------------- helpers
 
-/** A skeleton with its spear cut to `len` m (the blocking's 3.05 m runs off the frame). */
-function shorten(sk, len) {
-  const w = sk.weapon;
-  if (!w || w.kind !== 'spear') return sk;
-  const L = Math.hypot(w.tip[0] - w.butt[0], w.tip[1] - w.butt[1]) || 1;
-  const k = len / L;
-  const r = w.rear;
-  const tip = [r[0] + (w.tip[0] - r[0]) * k, r[1] + (w.tip[1] - r[1]) * k];
-  const butt = [r[0] + (w.butt[0] - r[0]) * k, r[1] + (w.butt[1] - r[1]) * k];
-  return { ...sk, weapon: { ...w, tip, butt } };
-}
-
-const hashDither = (x, y) => hash(x & 63, y & 63, 5);
-
-/** Page point (x, y) through a page camera -> screen. */
-function scrPage(c, x, y) {
-  const dx = (x - c.x) * c.zoom;
-  const dy = (y - c.y) * c.zoom;
-  const cs = Math.cos(c.rot);
-  const sn = Math.sin(c.rot);
-  return [cs * dx - sn * dy + W / 2, sn * dx + cs * dy + H / 2];
-}
-
-/** Where segments ab and cd cross (or their closest approach within 6 px), or null. */
-function segX(a, b, c, d) {
-  const r = [b[0] - a[0], b[1] - a[1]];
-  const s = [d[0] - c[0], d[1] - c[1]];
-  const den = r[0] * s[1] - r[1] * s[0];
-  if (Math.abs(den) < 1e-6) return null;
-  const u = ((c[0] - a[0]) * s[1] - (c[1] - a[1]) * s[0]) / den;
-  const v = ((c[0] - a[0]) * r[1] - (c[1] - a[1]) * r[0]) / den;
-  if (u < -0.3 || u > 1.3 || v < -0.3 || v > 1.3) return null;
-  return [a[0] + r[0] * u, a[1] + r[1] * u];
-}
-
-/** A smear ghost: a thick dithered graphite stroke (the multiple of a fast arc). */
-/**
- * A body landing flat in the water, seen through cam: blobs of white water thrown up
- * along a line (len m along X at Z), big and many at first, breaking up as they rise and
- * fall; each blob flat paper-white with an ink rim on its lower side. u: seconds since
- * the landing. Deterministic per seed.
- */
 /** A camera whip in one frame: every row dragged sideways over L px (a box average). */
 function panBlur(f, L) {
   const n = Math.max(2, Math.round(L));
@@ -1734,42 +1729,42 @@ function crescent(f, cx, cy, p, seed = 1) {
     }
 }
 
-function bodySplash(f, cam, X, Z, len, u, strength = 1, seed = 1) {
-  if (u < 0 || u > 1.1) return;
-  const WHITE = [238, 233, 222];
-  const n = Math.round(190 * strength);
-  const uu = Math.floor(u * 24) / 24; // on ones: water moves fast
-  const blobs = [];
-  for (let j = 0; j < n; j++) {
-    const along = (hash(j, seed, 1) - 0.5) * len;
-    const side = hash(j, seed, 2) < 0.5 ? -1 : 1;
-    // thrown up and out to the sides; the middle of the body throws highest
-    const mid = 1 - Math.abs(along / (len / 2)) ** 2;
-    const vy = (0.9 + 3.2 * hash(j, seed, 3) ** 1.4) * (0.5 + 0.5 * mid) * strength;
-    const vz = side * (0.3 + 1.4 * hash(j, seed, 4));
-    const vx = (hash(j, seed, 5) - 0.5) * 1.1;
-    const q = uu + 1.5 / 24 - hash(j, seed, 6) * 0.03; // already thrown on the landing frame
-    if (q < 0) continue;
-    const Y = 0.05 + vy * q - 4.9 * q * q;
-    if (Y < 0) continue;
-    const p = project(cam, X + along + vx * q, Y, Z + vz * q, W, H);
-    if (p.depth < 0.3) continue;
-    // the sheet (big blobs merging) at first, breaking into drops of every size
-    const big = hash(j, seed, 7);
-    const size = (0.03 + 0.17 * big * big) * Math.max(0.22, 1 - q * 2.4);
-    blobs.push([p.sx, p.sy, Math.max(0.6, size * p.scale * 0.5)]);
-  }
-  // two passes: ink discs one pixel larger, then white discs: the union gets one contour
-  for (const pass of [0, 1])
-    for (const [cx, cy, r0] of blobs) {
-      const r = pass ? r0 : r0 + 1;
-      const c = pass ? WHITE : RGB.sepia;
-      for (let dy = -r; dy <= r; dy++)
-        for (let dx = -r; dx <= r; dx++)
-          if (dx * dx + dy * dy <= r * r) put(f, W, H, cx + dx, cy + dy, c);
-    }
+/** A skeleton with its spear cut to `len` m (the blocking's 3.05 m runs off the frame). */
+function shorten(sk, len) {
+  const w = sk.weapon;
+  if (!w || w.kind !== 'spear') return sk;
+  const L = Math.hypot(w.tip[0] - w.butt[0], w.tip[1] - w.butt[1]) || 1;
+  const k = len / L;
+  const r = w.rear;
+  const tip = [r[0] + (w.tip[0] - r[0]) * k, r[1] + (w.tip[1] - r[1]) * k];
+  const butt = [r[0] + (w.butt[0] - r[0]) * k, r[1] + (w.butt[1] - r[1]) * k];
+  return { ...sk, weapon: { ...w, tip, butt } };
 }
 
+const hashDither = (x, y) => hash(x & 63, y & 63, 5);
+
+/** Page point (x, y) through a page camera -> screen. */
+function scrPage(c, x, y) {
+  const dx = (x - c.x) * c.zoom;
+  const dy = (y - c.y) * c.zoom;
+  const cs = Math.cos(c.rot);
+  const sn = Math.sin(c.rot);
+  return [cs * dx - sn * dy + W / 2, sn * dx + cs * dy + H / 2];
+}
+
+/** Where segments ab and cd cross (or their closest approach within 6 px), or null. */
+function segX(a, b, c, d) {
+  const r = [b[0] - a[0], b[1] - a[1]];
+  const s = [d[0] - c[0], d[1] - c[1]];
+  const den = r[0] * s[1] - r[1] * s[0];
+  if (Math.abs(den) < 1e-6) return null;
+  const u = ((c[0] - a[0]) * s[1] - (c[1] - a[1]) * s[0]) / den;
+  const v = ((c[0] - a[0]) * r[1] - (c[1] - a[1]) * r[0]) / den;
+  if (u < -0.3 || u > 1.3 || v < -0.3 || v > 1.3) return null;
+  return [a[0] + r[0] * u, a[1] + r[1] * u];
+}
+
+/** A smear ghost: a thick dithered graphite stroke (the multiple of a fast arc). */
 function speedLinesAlong(f, pa, pb, t) {
   const dx = pb.sx - pa.sx;
   const dy = pb.sy - pa.sy;
