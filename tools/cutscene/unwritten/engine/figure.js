@@ -54,7 +54,7 @@ export function makeTones(o = {}) {
   const hz = clamp(o.haze ?? 0);
   const up = (arr, i, k) => arr[Math.min(arr.length - 1, Math.max(0, i + k))];
   const ki = Math.round(hz * 3.4); // steps up the ink ramp
-  const kb = Math.round(hz * 2.3); // steps up the blood ramp
+  const kb = Math.floor(hz * 1.6); // steps up the blood ramp
   const ke = Math.round(hz * 2.2); // steps up the ember ramp
   const set = (arr, k, i0, i1, i2, i3, i4, i5) => ({
     edge: up(arr, i0, k),
@@ -494,7 +494,7 @@ export function marchSkeleton(t, o = {}) {
   const nearT = [sh[0] + f * Math.sin(swing) * armL * 0.9, sh[1] - Math.cos(swing) * armL * 0.9];
   const pref = [-0.35 * f, -1];
   const an = ik2(sh[0], sh[1], nearT[0], nearT[1], D.upper, D.fore, pref);
-  const farT = [sh[0] + f * 0.3 * scale, sh[1] - 0.3 * scale + 0.01 * Math.cos(2 * Math.PI * 2 * ph)];
+  const farT = [sh[0] + f * 0.26 * scale, sh[1] - 0.2 * scale + 0.012 * Math.cos(2 * Math.PI * 2 * ph)];
   const af = ik2(sh[0], sh[1], farT[0], farT[1], D.upper, D.fore, pref);
   const ang = Math.PI / 2 - 0.05 + look.spearJitter + 0.012 * Math.sin(2 * Math.PI * 2 * (ph - 0.1));
   const dir = [Math.cos(ang) * f, Math.sin(ang)];
