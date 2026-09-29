@@ -18,6 +18,7 @@ import {
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
 import { pickCaravanSpawnTile } from './CaravanSystem.js';
+import { ballistaRangeForAct, createBallistaState } from './BallistaEngine.js';
 import {
   pickVillageTile,
   calibrateBanditSpawn,
@@ -99,6 +100,7 @@ export function generateBattle(params, deps) {
   const diffMode = params.difficultyId || 'normal';
   // Ballistas are Nightfall/Black Sun only, and never in Act 1: a range-5 bolt every
   // enemy phase against two level-1 lords was the opening map's hardest threat.
+  // Their reach grows by act (BallistaEngine.ballistaRangeForAct).
   const ballistasAllowed =
     isDifficultyAtLeast(diffMode, 'hard') && (params.act || 'act1') !== 'act1';
   if (template.features) {
@@ -110,7 +112,7 @@ export function generateBattle(params, deps) {
         mapLayout[pos.row][pos.col] = idx;
         if (feat.type === 'Throne') thronePos = pos;
         if (feat.type === 'Ballista') {
-          ballistas.push({ col: pos.col, row: pos.row, owner: 'enemy', captured: false });
+          ballistas.push(createBallistaState(pos.col, pos.row, ballistaRangeForAct(act)));
         }
       }
     }

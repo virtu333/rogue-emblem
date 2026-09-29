@@ -45,7 +45,11 @@ function validRestoreFields(state, width, height) {
     !optional(state, 'ballistas', (value) =>
       list(
         value,
-        (b) => tile(b) && ['player', 'enemy'].includes(b.owner) && typeof b.captured === 'boolean',
+        (b) =>
+          tile(b) &&
+          ['player', 'enemy'].includes(b.owner) &&
+          typeof b.captured === 'boolean' &&
+          (b.range === undefined || (Number.isInteger(b.range) && b.range >= 1)),
       ),
     )
   )
