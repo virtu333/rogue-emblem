@@ -741,7 +741,7 @@ export class FordPiece extends Piece {
         // at rest: ankle-deep at the edge (the ground there is a hand under the surface)
         const xE = warden ? 7.05 : er - 0.2 + 0.36 * j(2);
         const D = warden ? 0 : 0.9 + 0.09 * j(3); // the strides down the bank
-        const scale = warden ? 1.06 : 0.95 + 0.06 * hash(i, 4, 41);
+        const scale = warden ? 1.03 : 0.95 + 0.06 * hash(i, 4, 41);
         const t0 = warden ? 1.2 : 2.0 + 0.035 * j(5); // in step, a hair apart
         const ground = (X) => w.groundY(X, Z);
         // the Warden marches on into the water; the men close up at its edge
@@ -1417,7 +1417,12 @@ export class FordPiece extends Piece {
     if (aa < 10.4) {
       const i = frameAt(SLIDE_BURST, aa);
       return {
-        actor: this.clipActor('edric_slide_burst', i, st.e, 0, 1, { flip, rings: 0.9, fb: 'eCut' }),
+        actor: this.clipActor('edric_slide_burst', i, st.e, this.slipZ(aa), 1, {
+          flip,
+          rings: 0.9,
+          fb: 'eCut',
+          Y: this.stepUp(aa, st.e),
+        }),
         splashes: [],
       };
     }
@@ -1425,14 +1430,38 @@ export class FordPiece extends Piece {
     const i = frameAt(SLIP_FALL, aa);
     const cx = this.station(10.39).e + 0.2;
     return {
-      actor: this.clipActor('edric_slip_fall', i, cx, 0, 1, {
+      actor: this.clipActor('edric_slip_fall', i, cx, this.slipZ(aa), 1, {
         flip,
         rings: 1,
         fb: 'eOver',
-        Y: o.Y,
+        Y: o.Y ?? this.stepUp(aa, cx),
       }),
       splashes: [],
     };
+  }
+
+  /**
+   * Edric's depth as he lunges onto the slick stone: it lies half a metre toward the lens
+   * from the line the two fought on (so nobody stands inside it), and he steps diagonally
+   * onto it (the blocking swings him toward the camera here).
+   */
+  slipZ(aa) {
+    return -0.5 * smooth(10.28, 10.55, aa);
+  }
+
+  /** The top of the slick stone: what Edric's lead foot lands on. */
+  slickTop() {
+    return this.memo('slickTop', () => this.world.stones.find((q) => q.slick).top);
+  }
+
+  /**
+   * Edric's card height as he steps up out of the shoal onto the slick stone (his lead foot
+   * lands on its crown at the overbalance, and slips off it): the bed until 10.28, the crown
+   * by 10.52.
+   */
+  stepUp(aa, X) {
+    const bed = this.world.groundY(X, 0);
+    return lerp(bed, this.slickTop(), smooth(10.28, 10.52, aa));
   }
 
   // --- 8 · 32.2+: wide, low. The spray sheet; the point withdraws through it ---------
@@ -1773,14 +1802,14 @@ export class FordPiece extends Piece {
     if (crossed) {
       const sl = this.edricSlip(aa);
       ed.actor.xf = { rot: sl.rot };
-      ed.actor.Y = this.world.groundY(ed.actor.X, ed.actor.Z) + sl.dY;
+      ed.actor.Y = this.slickTop() + sl.dY;
     }
     const wd = this.wardenAt(a, aa);
     this.world.render(f, a, cam, {
       rain: 0.8,
       actors: [ed.actor, wd],
       splashes: [
-        { X: 3.8, Z: 0, t0: TIME.stone, strength: 0.8, seed: 61 },
+        { X: 3.72, Z: -0.55, t0: TIME.stone, strength: 0.8, seed: 61 },
         { X: 4.2, Z: 0.1, t0: 10.95, strength: 0.8, seed: 62 },
         { X: this.station(10.62).w - 0.2, Z: 0, t0: 10.6, strength: 0.6, seed: 63 },
       ],
@@ -1820,7 +1849,7 @@ export class FordPiece extends Piece {
     const sl = this.edricSlip(Math.min(aa, TIME.cut));
     const rec = smooth(TIME.cut, TIME.cut + 0.25, aa);
     ed.actor.xf = { rot: sl.rot * (1 - rec) };
-    ed.actor.Y = this.world.groundY(ed.actor.X, ed.actor.Z) + sl.dY * (1 - rec);
+    ed.actor.Y = this.slickTop() + sl.dY * (1 - rec);
     const wd = this.wardenAt(a, aa);
     this.world.render(f, a, cam, {
       rain: 0.85,
@@ -1918,9 +1947,9 @@ export class FordPiece extends Piece {
     // the crossed side, low at the water and close: he falls through the frame
     // (framed to hold the Warden standing over him: the camera is turned toward his side)
     const cam = lookAt(
-      { x: 4.3 - 0.05 * lt, y: 0.36 - 0.04 * lt, z: 2.25 - 0.18 * lt },
+      { x: 4.3 - 0.05 * lt, y: 0.36 - 0.04 * lt, z: 2.9 - 0.18 * lt },
       // the camera follows him down (on ones): from his chest to the water he lands in
-      { x: 3.98, y: lerp(0.62, 0.28, smooth(0.05, 0.45, lt)), z: -0.4 },
+      { x: 3.98, y: lerp(0.62, 0.28, smooth(0.05, 0.45, lt)), z: 0.1 },
       { focal: 300, roll: 0.015 },
     );
     const [sx, sy] = shake(
@@ -1942,7 +1971,7 @@ export class FordPiece extends Piece {
     if (t >= DURATION - 2 / 24) stage = 3;
     // where he comes down: a body's length in front of the Warden's station
     const LX = 3.42;
-    const LZ = -0.45;
+    const LZ = 0.1;
     const HIT = TIME.landed; // his back meets the water on the snare
     let ed;
     if (aa < HIT) {

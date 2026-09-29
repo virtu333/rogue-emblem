@@ -627,7 +627,7 @@ function makeStones(seed) {
     { X: -1.5, Z: -0.5, a: 0.36, c: 0.3, top: 0.12, ry: 0.32, yaw: -0.5 },
     { X: 2.0, Z: 0.6, a: 0.46, c: 0.38, top: 0.2, ry: 0.4, yaw: 0.9 },
     // the slick one Edric slips on: low and flat
-    { X: 3.8, Z: -0.2, a: 0.55, c: 0.42, top: 0.07, ry: 0.22, yaw: 0.2, slick: true },
+    { X: 3.72, Z: -0.55, a: 0.6, c: 0.44, top: 0.07, ry: 0.22, yaw: 0.15, slick: true },
   ];
   // upstream and downstream, in the river and along its edges
   for (let i = 0; i < 46; i++) {
@@ -852,7 +852,11 @@ export class World {
     this._er = this.eR[i] + (this.eR[i + 1] - this.eR[i]) * k;
   }
 
-  /** Ground height at (X, Z): the riverbed (negative) or the bank. */
+  /**
+   * Ground height at (X, Z): the riverbed (negative) or the bank. The ford has a shoal round the
+   * slick stone (X 2 to 5.6): the Warden holds the shallows, and a man can step up onto the
+   * stone from it (FORD.md: "he holds the shallows, where Edric has to slow down").
+   */
   groundY(X, Z) {
     this.edgesFull(Z);
     const el = this._el;
@@ -860,10 +864,27 @@ export class World {
     if (X > el && X < er) {
       const c = (el + er) / 2;
       const half = (er - el) / 2;
-      return -depthProfile(Math.abs(X - c) / half) * Math.sqrt(half / 8);
+      const bed = -depthProfile(Math.abs(X - c) / half) * Math.sqrt(half / 8);
+      const zz = Z / 1.5;
+      if (zz > -3 && zz < 3) {
+        const sh = smooth(1.9, 2.9, X) * (1 - smooth(4.6, 5.6, X)) * Math.exp(-zz * zz);
+        return bed + 0.27 * sh;
+      }
+      return bed;
     }
     const out = X <= el ? el - X : X - er;
     return this.bankH * smooth(0, X <= el ? this._swl : this._swr, out);
+  }
+
+  /** What a foot stands on at (X, Z): the ground, or the flat crown of a stone under it. */
+  standY(X, Z) {
+    let y = this.groundY(X, Z);
+    for (const s of this.stones) {
+      const dx = ((X - s.X) * s.ex + (Z - s.Z) * s.ez) / (s.a * 0.85);
+      const dz = (-(X - s.X) * s.ez + (Z - s.Z) * s.ex) / (s.c * 0.85);
+      if (dx * dx + dz * dz < 1) y = Math.max(y, s.top);
+    }
+    return y;
   }
 
   /** Water depth at (X, Z) (0 on the banks). */
@@ -2943,15 +2964,19 @@ export class World {
           if (h < 0) {
             // below the surface: the legs seen through the water, refracted (each row
             // shifted with the swell), tinted toward the river and fading with depth
-            const deepK = -h / (feet.scale * 0.4);
-            if (deepK < 1 && this.stg[i] === 0 && zA < this.zbuf[i] + 0.5) {
+            const deepK = -h / (feet.scale * 0.66);
+            if (
+              deepK < 1 &&
+              this.stg[i] === 0 &&
+              (zA < this.zbuf[i] + 0.5 || this.ids[i] === ID_WATER)
+            ) {
               const sx2 = Math.round(x + Math.sin(y * 0.9 + t2 * 10) * (0.6 + deepK));
               const so = (y * W + Math.max(X0, Math.min(X1 - 1, sx2))) * 4;
-              if (drawn(so) && bayer(x, y) < 0.85 - 0.6 * deepK) {
-                const k = 0.5 * (1 - deepK) + 0.08;
-                frame[o] = frame[o] * (1 - k) + (sc[so] * 0.7 + 12) * k;
-                frame[o + 1] = frame[o + 1] * (1 - k) + (sc[so + 1] * 0.75 + 16) * k;
-                frame[o + 2] = frame[o + 2] * (1 - k) + (sc[so + 2] * 0.8 + 30) * k;
+              if (drawn(so) && bayer(x, y) < 1.05 - 0.45 * deepK) {
+                const k = 0.8 * (1 - deepK) ** 0.7 + 0.14;
+                frame[o] = frame[o] * (1 - k) + (sc[so] * 0.78 + 26) * k;
+                frame[o + 1] = frame[o + 1] * (1 - k) + (sc[so + 1] * 0.8 + 30) * k;
+                frame[o + 2] = frame[o + 2] * (1 - k) + (sc[so + 2] * 0.86 + 40) * k;
               }
             }
             continue;
