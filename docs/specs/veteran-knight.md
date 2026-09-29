@@ -1,595 +1,501 @@
-# Spec: The Veteran Knight (Jeigan archetype)
+# Spec: Gaspar, the Veteran Knight
 
-**Status:** Proposed. Backlog: not scheduled until the balance questions in *Open questions*
-are answered and the sim gates in *Validation* pass.
-**Size:** Medium. Mostly data plus one new creation path. No combat or XP formula changes
-in v1.
-**Working name:** Gaspard, `specialChars` id `old_knight` (placeholder; not in the recruit
-`namePool`, not a lord).
+**Status:** Revised proposal, 2026-09-29. Documentation and calculations only.
+Implementation starts after review of the provisional stat line and validation plan.
+**Scope:** Default starting non-lord on all four difficulties; Rapier balance adjustment;
+cosmetic no-meta victory badge; bespoke character presentation.
+**Analysis baseline:** main at `f5f748f12b1e4e25150732f9974384f45a81a0d3`.
+This replaces the earlier opt-in STR11 / full-Canto proposal and its uncommitted calculations.
 
-## Intent
+## Intent and confirmed decisions
 
-Fire Emblem's Jeigan: a veteran who joins already promoted. His starting stats are good,
-but he gains almost no XP and grows almost nothing. He carries the opening and then fades.
+Gaspar is an experienced promoted Paladin with reliable opening combat, limited learning,
+and poor long-term growth. He enables a less account-dependent opening and teaches weapon
+choice and roster development. An extra competent action each turn is the main early benefit;
+poor growths determine its duration. Normal may become easier, but must retain meaningful decisions.
 
-Why this game wants him:
+Confirmed by the designer:
 
-1. **A different run shape.** A run can lean on a strong starter and never touch the meta
-   tree. The "Meta Upgrades: OFF" toggle already exists but only takes power away; the
-   veteran lends some back that does not grow.
-2. **The early game is hard with two units** (`docs/design-log.md`, 2026-07-04). That
-   difficulty is the root of the "funnel everything into Edric" habit. A third competent
-   body in Act 1 addresses the root, not the symptom.
-3. It is the first entry of the long-planned *Special Characters* item
-   (`ROADMAP.md`, Wave 10: `data/specialChars.json`, named units with fixed growths).
+- Gaspar joins **every new ordinary run**, including the first run, on all four difficulties.
+  No Veteran toggle, unlock or separate mode. The scripted tutorial retains its own roster.
+- STR10 and SPD10 on every difficulty. Harder rungs receive modest defensive adjustments,
+  rather than offensive scaling to reproduce Normal kill rates.
+- Increase base SKL to reflect experience; increase DEF and reduce HP from the previous
+  HP22 / DEF4 proposal. Exact numbers below are recommendations for discussion.
+- Fixed, slightly higher but still poor growths; half-rate home-base growth bonuses.
+- **Cannot reclass.** Promoted from arrival; cannot promote again.
+- Iron Sword and Steel Lance, with Steel Lance initially equipped.
+- Restricted Canto: remaining movement after permitted noncombat actions; none after initiating combat.
+- Ordinary kill credit and Mentor's Band rules. No assist split or targeted anti-feeding penalty.
+- In-run investment applies normally: blessings and their costs, forging, weapon trading,
+  accessories, stat boosters and scrolls. Home-base join bonuses remain restricted.
+- Gaspar counts toward opening Cavalier eligibility. Keep the Vanguard Paladin roll.
+- **Rapier might 7 → 6**; all other Rapier fields remain unchanged.
+- A no-meta victory earns a cosmetic badge, independent of Gaspar's survival or deployment.
+- Bespoke art and character lines are part of delivery, not optional generic placeholders.
+- Name: **Gaspar**, special-character id `old_knight`. He is not a lord.
 
-Design targets, from the request:
+## Recommended provisional numbers
 
-- The **Iron Sword** (light) lets him double, and so kill outright, a good share of Act 1
-  enemies.
-- The **Steel Lance** (heavy) slows him too much to double. He wounds most early enemies but
-  does not one-shot most of them.
-- **Low HP / DEF**: he cannot tank a group.
-- **Very low growths.** Home-base growth upgrades reach him at half strength.
-- He must **not trivialize First Light (Normal)**.
-- He must not turn safe "chip, then let Edric finish" play into a runaway Edric.
+These are candidates supported by the calculations below, not implemented or shipping-approved.
 
-## TL;DR of the proposal
+| Difficulty | HP | STR | MAG | SKL | SPD | DEF | RES | LCK | MOV |
+|---|---|---|---|---|---|---|---|---|---|
+| First Light | 18 | 10 | 0 | 12 | 10 | 6 | 2 | 3 | 6 |
+| Dusk | 19 | 10 | 0 | 12 | 10 | 6 | 2 | 3 | 6 |
+| Nightfall | 20 | 10 | 0 | 12 | 10 | 7 | 2 | 3 | 6 |
+| Black Sun | 21 | 10 | 0 | 12 | 10 | 8 | 2 | 3 | 6 |
 
-| Decision | Proposal |
+**Why HP18 / DEF6:** armor and technique rather than a large health pool. In the controlled
+comparison, it improves three-round physical survival over HP22 / DEF4 without making him
+as persistent as HP20 / DEF6 or HP18 / DEF7. Low HP / RES leaves magic dangerous.
+HP20 / DEF5 is the conservative alternative if HP18 feels too brittle.
+
+**Growths on every rung:** HP20 STR10 MAG0 SKL15 SPD10 DEF5 RES5 LCK5, total 70
+(previously 60). No difficulty growth deltas initially: the small common increase addresses
+the request without adding another scaling system. Revisit only if full-run evidence warrants it.
+
+- Actual expected total gain is **1.17 points per level**, including the guaranteed-stat fallback.
+- Expected HP gain is **0.67 per level**, not 0.20: all failed rolls fall back to the
+  highest-growth stat, HP. Eight levels add roughly 5.4 HP in expectation.
+- Max half-rate Normal meta growths add +13 percentage points per stat and raise expected
+  total gain to **1.88 points per level**. Difficulty-scaled equivalents are about
+  1.75 Dusk, 1.69 Nightfall and 1.45 Black Sun.
+- Round once: `Math.round(rawMetaBonus * difficultyGrowthMultiplier * 0.5)`.
+  Do not round at an intermediate step.
+- Blessing bonuses/costs use the ordinary difficulty scaling, with no additional 0.5.
+  Preserve ordinary behavior for negative growths; do not grant discounted pact costs.
+
+Class curriculum and class mastery remain disabled in the proposed v1. This prevents
+Wayfarer (+ATK / SPD), Ride Down (+3 ATK) and the inherited Sol curriculum from undoing
+the authored role. Scrolls and other deliberately earned skill sources remain legal.
+Aegis is retained; the Canto restriction does not remove his ordinary class identity.
+
+## Reproducible combat analysis
+
+Supporting files:
+
+- [Executable calculation appendix](veteran-knight-calculations.md)
+- [Full results and assumptions](veteran-knight-calculations-results.md)
+
+The script calls the actual engine's `generateBattle`, `createEnemyUnit`,
+`createPromotedEnemyUnit`, `getCombatForecast`, `resolveCombat`, skill resolution,
+2RN hit probability and XP formulas. No gameplay files or source data are changed.
+
+**Sample:** 595 generated rout maps per rung, 85 for each non-boss Act 1 row (0–6),
+three deployed units, Cavaliers permitted. First row is Fighter-only. This weights each
+prospective row equally; it is not a distribution of actual player routes or node choices.
+Each offense/survival comparison uses 6,000 seeded trials over the generated enemy population.
+
+**Definitions:**
+
+- Potential ORKO: forecast damage × attack count reaches full enemy HP, assuming hits,
+  ignoring crits and the possibility that a counter kills Gaspar before a follow-up.
+- Actual kill: a resolved player-initiated combat, including real 2RN, crits, counters and Aegis.
+- Forecast HP damage: average damage capped at 100% enemy HP; it is not realized expected
+  damage, because misses and interrupted follow-ups are not deducted.
+- Survival after N enemy rounds: fresh random enemies initiate successively; Gaspar counters
+  when legal; bows attack at range 2; no healing. A round may contain two incoming strikes.
+  These are **rounds**, not a guaranteed count of landed hits.
+
+**Limits:** plain terrain except explicit sensitivity checks; no movement/Canto,
+Sera healing, resource economy, random learned enemy skills, affixes, poison, status weapons,
+throne or boss enrage. Act 2 uses equal weights across its 11 attacking base classes,
+not map-weighted composition. Bosses include the runtime **+2 to every stat**
+(`BOSS_STAT_BONUS`) after canonical creation and the boss crit reduction.
+The model does not prove a boss cannot be soloed with healing or terrain.
+
+At 6,000 independent trials, a 50% Monte Carlo proportion has approximately ±1.3 percentage
+points of 95% sampling error. Enemy-population sampling and omitted systems add uncertainty.
+Use these numbers to select a prototype, not as full-run shipping gates.
+Earlier uncommitted percentages are superseded, not directly comparable under different samples.
+
+The appendix contains the exact executable source used for this report; it is documentation,
+not a gameplay module. To reproduce the recorded report, use engine checkout `f5f748f12b1e4e25150732f9974384f45a81a0d3`, copy this
+appendix's JavaScript code block into `docs/specs/veteran-knight-calculations.mjs` there, then run from that checkout:
+
+```sh
+node docs/specs/veteran-knight-calculations.mjs > /tmp/gaspar-calculations.json
+```
+
+### HP / DEF tradeoff on First Light
+
+All rows below hold STR10, SKL12 and all other non-HP/DEF stats constant.
+
+| Candidate (HP / DEF) | Survive 2 rounds, sword / lance % | Survive 3, sword / lance % | Survive 4, sword / lance % |
+|---|---|---|---|
+| 22 / 4 | 96.9 / 85.6 | 36.7 / 29.6 | 9.9 / 6.6 |
+| 20 / 5 | 96.9 / 86.1 | 41.4 / 33.9 | 12.2 / 8.3 |
+| 20 / 6 | 99.6 / 93 | 60 / 53 | 23.1 / 18.1 |
+| 18 / 6 | 97.1 / 86.5 | 47.4 / 39.8 | 15.5 / 11 |
+| 19 / 6 | 99.1 / 91.1 | 53.2 / 47 | 18.9 / 14.4 |
+| 18 / 7 | 99.8 / 93.3 | 69.6 / 60.3 | 31.3 / 25.3 |
+
+Higher DEF protects every hit and makes each point of healing more valuable. Lowering HP
+does not provide a one-for-one offset. This is why HP18 / DEF7 is not the recommendation.
+The original STR11 / SKL7 / HP22 / DEF4 line was rerun separately in the JSON.
+
+### Role by difficulty
+
+| Difficulty | HP | DEF | Sword kill % | Lance kill % | Lance forecast HP damage % | Survive 2 rounds sword / lance % |
+|---|---|---|---|---|---|---|
+| First Light | 18 | 6 | 46.3 | 7 | 69.1 | 97.1 / 86.5 |
+| Dusk | 19 | 6 | 42.4 | 3.2 | 65 | 95.9 / 83.7 |
+| Nightfall | 20 | 7 | 1.5 | 0.9 | 51.8 | 93.7 / 76.1 |
+| Black Sun | 21 | 8 | 0 | 0.1 | 38.3 | 82.2 / 41.2 |
+
+Sword AS9 / lance AS4 are unchanged across rungs. On Normal/Dusk he can kill weak enemies
+with the sword and train allies with the lance. On Nightfall/Black Sun he is a **reliable
+helper**, not an opening one-round killer. Defensive boosts do not cancel the higher enemy
+offense. Black Sun's lance exposure is particularly dangerous because enemy speed can
+enable follow-ups; switching to the sword before baiting matters.
+
+**Discussion point:** accept this support role on higher rungs? Restoring sword kills there
+would require changing the confirmed STR/SPD constraint or providing stronger equipment.
+A small late-game growth increase would not solve that opening threshold.
+
+### Normal matchup detail
+
+| Enemy class | Sword potential / actual kill % | Lance potential / actual kill % | Lance capped forecast HP damage % |
+|---|---|---|---|
+| Fighter | 98.4 / 98.5 | 0 / 3.6 | 60.9 |
+| Soldier | 0 / 5.3 | 0 / 2.6 | 56.6 |
+| Cavalier | 0 / 3.1 | 0 / 1.4 | 59.5 |
+| Archer | 93.4 / 93.5 | 0 / 1.5 | 82.9 |
+| Myrmidon | 0 / 0.5 | 27.1 / 27.1 | 93.9 |
+
+The Steel Lance still kills level-1 Myrmidons through mastery weapon-triangle advantage.
+It is not a universal feeding weapon. Higher SKL improves lance true hit from about 88.9%
+at SKL7 to 96.2% at SKL12 in this sample. It also increases incidental crits:
+mean forecast crit rises from roughly 0.3% to 2.3%, which can occasionally spoil a planned feed.
+Aegis activation rises from 7% to 12% against magic.
+
+### Support and terrain sensitivities
+
+- Edric's nearby Charisma raises average lance true hit to **99.6%**.
+- A forest defender lowers lance true hit to **77.5%**
+  and sword actual kills to **39.5%**.
+- Sera's adjacent Renewal Aura restores 3 HP per player turn. It is **not simulated here**;
+  lower incoming physical damage can make repeated heal-and-bait play substantially stronger.
+- A traded might-6 Rapier raises Gaspar's Normal actual kill rate to
+  **66.9%** in this sample.
+  `signatureOf` identifies the weapon's source; existing proficiency rules do not bind
+  it to Edric. This is an **intended tradeoff from investing in the Rapier meta upgrade**. Trading
+  it to Gaspar spends Edric's access to the same weapon and is not a loophole to suppress.
+  Keep it in full-run validation to understand the resulting party choices, not to force
+  meta-enabled damage back into the no-meta target band.
+
+### Act 2 falloff, Normal, static starting stats
+
+| Act 2 enemy level | Sword / lance actual kill % | Survive 2 rounds sword / lance % |
+|---|---|---|
+| 3 | 26.2 / 17.4 | 83.6 / 83.4 |
+| 5 | 14.2 / 7 | 66.8 / 59.7 |
+| 6 | 19.4 / 6.7 | 34.8 / 32.6 |
+| 8 | 8.1 / 2.3 | 27.9 / 21.6 |
+
+The level-6 Steel weapon transition changes both damage and attack-speed thresholds, so kill
+rates need not decline monotonically. No level-ups or investment are included here.
+Keeping Gaspar useful through items is a legitimate player decision; automatic act scaling is not.
+
+### Boss safety
+
+| Normal boss | Sword / lance forecast HP damage % | Survive one enemy round, sword / lance % |
+|---|---|---|
+| Iron Captain | 27.7 / 43.9 | 99.4 / 99.4 |
+| Warchief | 74.7 / 44.4 | 100 / 100 |
+| Knight Commander | 2.3 / 15.7 | 5.9 / 25.8 |
+| Archmage | 31.2 / 46.2 | 12.3 / 4.5 |
+| Dark Rider | 2.3 / 15.7 | 15.8 / 39.8 |
+
+Gaspar cannot kill either Act 1 boss from full HP in one ordinary round in this baseline.
+The Act 2 bosses are dangerous to initiate against: the mean counter damage against
+Knight Commander is about 20 with the sword, exceeding Gaspar's starting HP18.
+Do not describe all bosses as unconditional one-shots: enemy growth rolls, hit rolls,
+follow-ups, weapon choice and Aegis change the outcome.
+
+## Rapier adjustment and feeding
+
+**Proposed future data edit:** `data/weapons.json`, Rapier `might: 7 → 6`, then normal
+data sync/schema/parity validation. No change to weight2, hit95, crit5, range, price,
+effectiveness, rank or identity.
+
+Effectiveness multiplies weapon might, so the nerf is **-1 damage per hit normally,
+-2 against Armored/Cavalry**, before other modifiers. On a double, those become -2 / -4.
+
+L1 Edric, no stat meta, Rapier equipped, plain terrain, L1 Normal enemies:
+
+| L1 Normal enemy | HP | Edric Rapier 7 → 6: damage per hit | Potential round damage 7 → 6 |
+|---|---|---|---|
+| Fighter | 22 | 10 → 9 | 20 → 18 |
+| Soldier | 21 | 6 → 5 | 12 → 10 |
+| Cavalier | 20 | 13 → 11 | 26 → 22 |
+| Knight | 22 | 8 → 6 | 16 → 12 |
+
+Edric still potentially kills a fresh L1 Cavalier with the nerfed Rapier. After one
+Gaspar lance hit, that Cavalier has 7 HP, so either Rapier version finishes in one hit.
+The nerf trims the combination but does not eliminate its basic safety.
+
+Two sequential player actions against the same sampled Normal Act 1 enemies:
+Gaspar's Steel Lance first, then fresh L1 Edric if the enemy and Gaspar survived;
+no aura/terrain/healing, actual crits and 2RN included:
+
+| Edric's weapon | Edric kills: % of all starting targets | Edric kills: % of surviving chipped targets | Combined two-action kill % |
+|---|---|---|---|
+| Iron Sword | 53.8 | 57.7 | 60.5 |
+| Rapier 7 | 84.6 | 90.7 | 91.3 |
+| Rapier 6 | 79.2 | 84.9 | 85.9 |
+
+This measures a local kill opportunity, **not** Edric's full-run XP ceiling, safe positioning
+or enemy-phase exposure. The Iron Sword row is the relevant ordinary no-meta starter.
+Rapier normally enters through Deadly Arsenal, so its nerf primarily trims a meta-enabled
+opening; do not count it as a universal offset for adding Gaspar. The designer explicitly
+accepts transferring this meta-earned advantage to Gaspar as an intended equipment tradeoff.
+
+**Existing saves:** weapons are stored as instance snapshots. Proposed v1 policy is that
+new runs/newly created Rapiers use might6; ongoing saved weapons keep their existing stats
+and forge history. No retroactive item migration in this feature. Confirm this policy before
+implementation if balancing all resumed runs is required.
+
+Keep full normal kill credit. Allow Mentor's Band under its existing adjacency/effective-level
+rules; it is a later acquired accessory, **not an added starting item**.
+Test party-wide XP, not only commander XP. A different starting lord must remain supported.
+
+## XP, meta and roster side effects
+
+Promoted effective XP level is visible level +12. At promoted L1, base awards against
+base-tier enemies are:
+
+| Enemy level | Kill XP | Non-kill formula XP |
+|---|---|---|
+| 8 | 1 | 1 |
+| 9 | 9 | 2 |
+| 10 | 25 | 10 |
+| 12 | 35 | 20 |
+
+Actual awards additionally apply chip ratio, survival minimum, reward/turn/difficulty modifiers.
+Normal ordinary enemies remain at ≤8 in Act 2; Dusk/Nightfall can reach9, Black Sun10.
+Bosses and promoted enemies use their own effective levels. Team XP from gold choices and
+arena rewards are additional sources. No special XP multiplier initially.
+
+| Source | Gaspar rule |
 |---|---|
-| What he is | A **recruit-tier named unit** (`isLord: false`), built from a new `data/specialChars.json` entry. Not a lord. |
-| How he is offered | A run-start **option at Difficulty Select**, next to the Meta toggle. Default **off**; baseline balance is untouched for anyone who does not take him. |
-| Class / level | Paladin, promoted tier, level 1 (XP-effective level 13). |
-| Stats | A hand-authored line **per difficulty rung**, so his *role* stays constant as enemies scale. Normal: HP22 STR11 SKL7 SPD10 DEF4 RES2 LCK3 MOV6. |
-| Weapons | Steel Lance (**equipped**) + Iron Sword. The player chooses to draw the sword on player phase. |
-| Growths | Fixed, not rolled: HP15 STR10 MAG0 SKL10 SPD10 DEF5 RES5 LCK5 (about 1.1 stat points a level). |
-| XP | **No new XP code.** The existing promoted +12 effective level already gives him 1 XP per action against every enemy up to level 8, i.e. all of Acts 1–2. |
-| Meta | Growth bonuses at **×0.5** (as asked). **No** meta flat-stat bonuses and **no** recruit join perks. Details in *Meta and blessing interactions*. |
-| Kill feeding | Leave XP rules alone. The existing diminishing-XP tiers bound how far feeding can push Edric. Neutralise three side effects the veteran *would* cause (recruit-node levels, revival catch-up, sim deploy order), then measure. |
-| Black Sun | **Not offered in v1.** No sensible Iron Sword line holds the archetype there (see *Balance numbers*). |
+| Home-base recruit growth upgrades | Half rate × ordinary difficulty multiplier |
+| Home-base recruit flat stats and join loadout/perks | None; deterministic fixed join state |
+| Training Doctrine | Ordinary non-lord combat XP bonus |
+| In-run blessings, pacts, forges, accessories, boosts, traded weapons, scrolls | Ordinary scope/effects/costs; no Gaspar-specific penalty |
+| Lord-only effects | Do not apply |
+| Class curriculum/mastery | Disabled in proposed v1 |
+| Reclass seals | Cannot target Gaspar; explanation shown before spending |
+| Church revival | Ordinary non-lord rules and cost |
 
-## Current state (verified)
+Exclude Gaspar from recruit-node join-level averages and revival catch-up target averages.
+At creation he otherwise counts as level11 for recruit-node averaging and would inflate
+early recruits. Audit shared team-level helpers for the same exclusion.
+His own revival catch-up remains ordinary; reduced revival growth rolls still have the
+guaranteed-stat fallback, and can sometimes grant more than one point.
 
-Everything below was read or run against the code on this branch. "Ran" means the number
-comes from the real engine functions (`createEnemyUnit`, `generateBattle`,
-`getCombatForecast` / `resolveCombat` with skill context, `calculateCombatXP`, `levelUp`)
-in ad-hoc scripts. Those scripts are not committed; the implementation PR adds a
-reproducible sim.
+Let him count toward opening cavalry eligibility, including the persisted fallen roster.
+The first Fighter-only battle remains Fighter-only under the existing rule.
+Keep Vanguard's Paladin pool and allow both units to coexist.
 
-### A near-identical unit already exists
+Do not assume an additional deployment always adds an enemy:
+Normal/Dusk Act 1 deployment scaling caps at3; Nightfall/Black Sun enemy-count bases are
+floors5/6; density caps can bind. This is an existing rule, not a targeted counterbalance.
+Four-starter and larger-party tests are required.
 
-The Vanguard Cadre meta upgrade (`extra_starting_unit_pool`) at tier 4 can roll a Paladin.
+## Identity, presentation and authored content
 
-- Pool and creation:
-  - `EXTRA_STARTER_CLASS_POOLS[4]`: `src/engine/RunManager.js:124-129`
-  - `_createExtraStartingUnit`: `RunManager.js:2731-2799`. It builds a level-1 Cavalier via
-    `createRecruitUnit`, then calls `promoteUnit` into Paladin.
-- Loadout, `_applyExtraStarterPaladinLoadout` (`RunManager.js:2592-2607`): Iron Sword +
-  Steel Lance, Steel Lance equipped.
-- Result: HP23 STR8 MAG1 SKL6 SPD7 DEF8 RES4 LCK4 MOV6.
-  - Growths are the full rolled Cavalier ranges (HP 65-80, STR 40-55, …) plus meta.
-  - Construction is unseeded (`Math.random` for class, name and growths).
-  - `BlessingSelectScene._rebuildRunManager` calls `startRun` again, so the unit can
-    re-roll.
-- This is the creation template. The veteran differs in:
-  - authored stats and growths
-  - determinism
-  - meta handling
-  - identity
+Gaspar is a named non-lord with ordinary recruit death/revival and no lord-only Talk/Seize rights.
+Use stable `specialCharId`, not display-name checks. Reserve Gaspar from generic name rolls.
+No special lord entry or automatic insertion into lord recruitment pools.
 
-### Class data
+**Required art scope:**
 
-- The Paladin (`data/classes.json`) has no `baseStats` and no `growthRanges`, only
-  `promotionBonuses` (HP+3 STR+2 MAG+1 SKL+1 SPD+1 DEF+2 RES+2 MOV+1).
-- Other class facts:
-  - `promotesFrom: Cavalier`
-  - `learnableSkills: ride_down @10`
-- Class-innate skills, in `data/skills.json`:
-  - `aegis`: halves magic damage, SKL% chance
-  - `canto`
-- `createLordUnit` hardcodes `tier: 'base'` (`src/engine/UnitManager.js:245-248`), and
-  `schemas/lords.schema.json` has no notion of a pre-promoted lord.
+1. Bespoke portrait, matching the current portrait renderer (128×128 target), readable in
+   roster/details/dialogue and on mobile. Do not reuse a Cavalier face as the final asset.
+2. Bespoke mounted map/battle sprite matching the active renderer and its action states.
+   Maintain a readable old-knight silhouette: grey hair, worn practical armor, restrained
+   crest, visibly experienced rather than decrepit. Sword/lance presentation must be coherent.
+3. Use the current rebuilt-sprite source/manifest/bake/sync path: source art is retained,
+   shipped textures follow the current 64×64 tile texture footprint. Match current asset
+   contracts and texture lookup behavior; do not load an oversized raw render at runtime.
+4. Verify transparent edges, alignment, selection/acted/death appearance and portrait-mode
+   battle presentation. Asset lookup follows `specialCharId`, independent of `isLord`.
+5. No requirement for a new audio voice actor or new combat animation system. Text and art
+   must have their own character identity while using the existing presentation machinery.
 
-### XP
+**Required text scope:** one run-start introduction, a character bio, combat/bait acknowledgments,
+minor and major level-up lines, low-HP warnings, last words, revival acknowledgment,
+victory/ending presence where appropriate, and the restriction/help text.
+Use a dedicated special-character voice namespace with ordinary class fallback.
+Lines that mention a specific lord require that lord's presence; Gaspar joins alternate pairs too.
+Do not put him in the lord voice-count, recruit or finale-rally pools by accident.
 
-- `getXpEffectiveLevel` (`UnitManager.js:1087-1090`) is `level + 12` for promoted units.
-- `calculateCombatXP` (`UnitManager.js:1092-1115`) returns `XP_MIN = 1` when the attacker is
-  7+ effective levels up.
+Draft tone and lines for review (authoring proposals, not final content):
 
-Ran, XP per action ("kill / non-kill"):
+- Bio: "The wars taught Gaspar what armor stops, and what it does not. He has little
+  left to learn and younger soldiers left to teach."
+- Introduction: "Let me take the first blow. You decide where the second lands."
+- Lance acknowledgment: "Watch the opening. It is yours."
+- Sword acknowledgment: "Some lessons are best ended quickly."
+- Minor level-up: "A little left in these old bones."
+- Major level-up: "Apparently I am not finished."
+- Low HP: "Armor has its limits. So do I."
+- Last words: "Keep the line. You know how."
+- Revival: "Once more, then. Do not make a habit of it."
+- Victory: "You carried the last mile. That was always the plan."
 
-| Veteran level ↓ / enemy level → | 1–8 | 10 | 12 | 15 | 17 |
-|---|---|---|---|---|---|
-| Promoted L1 | 1 / 1 | 25 / 10 | 35 / 20 | 50 / 35 | 60 / 45 |
-| Promoted L5 | 1 / 1 | 1 / 1 | 1 / 1 | 30 / 15 | 40 / 25 |
+The UI must explain low growth/XP, half-rate home-base growths, fixed starting kit,
+no reclass, restricted Canto and no class curriculum/mastery.
+Avoid describing him merely as a regular Paladin with hidden exceptions.
 
-- Act 1 enemies are levels 1–3 and Act 2 are 3–8 (`ACT_LEVEL_SCALING`,
-  `src/engine/NodeMapGenerator.js:20-25`). So through Act 2 he levels only from:
-  - roughly 100 actions per level, and
-  - team XP from gold loot picks (`LOOT_GOLD_TEAM_XP` = 25, `src/utils/constants.js:239`).
-- Level-ups always give at least one stat (`levelUpFallbackStat`, `UnitManager.js:979-991`),
-  going to the highest-growth stat.
+## Restricted Canto contract
 
-### Kill credit and XP sharing
+Gaspar alone uses the restricted policy; all other Paladins retain normal Canto.
 
-- Kill credit (`combatXpAwards`, `src/engine/BattleXp.js:41-90`): the killer gets full kill
-  XP whoever did the chip damage. There is no assist split.
-- Mentor's Band (`src/engine/XpShare.js:32-58`) shares to adjacent allies at a *strictly
-  lower* effective level. Each ally gets half of the XP their own formula would earn.
-  - A level-1 veteran (effective 13) is above every base-tier unit, so Edric receives
-    shares from his fights until Edric promotes.
+- Remaining MOV only: pre-action and post-action movement share one terrain-cost budget.
+- Combat initiation blocks Canto for that activation even if it misses, kills nothing,
+  uses a weapon art or gains a level.
+- Permitted noncombat actions (item use, support/interaction actions available to this
+  non-lord, and Wait where the current flow supports it) can allow remaining movement.
+- Forecast/cancel does not count as initiated combat.
+- A later trade/equip/menu step must not reopen Canto after an attack.
+- Enemy-phase counters do not permanently disable the next player activation.
+- A legal dance refresh starts a fresh activation under normal rules.
+- Suspend/resume, rewind and queued level-up continuations preserve the action category and
+  remaining movement. Use the shared action-completion policy and serialize facts where needed.
+- Root/status restrictions still apply. Do not special-case only the visible Attack menu.
 
-### Levels that read the roster
+## No-meta victory badge and saves
 
-- **Recruit-node join level** (`resolveRecruitNodeLevel`,
-  `src/engine/RecruitNodeSystem.js:176-204`):
-  - It averages the top-N roster units, counting promoted units as `10 + level`.
-  - A level-1 veteran counts as 11. Example: Edric 1, Sera 1, veteran 11 averages to 4, not
-    1.
-- **Revival catch-up** (`src/engine/RevivalCatchUp.js:13-45`) targets the living roster's
-  average effective level.
-- **Boss recruits and Colosseum** anchor on the commander (`RecruitScaling.js`), so they are
-  unaffected.
+Badge condition: **victory && run.noMetaMode === true**. No Gaspar-alive/deployed test.
+It is cosmetic: no additional currency, stat unlock or gameplay payout.
 
-### Enemies and deployment
+Persist the provenance from run start through save/cloud/settlement/run history.
+Add `noMetaMode` to the run-record whitelist and render the badge with difficulty.
+Optional account-level "first no-meta clear" may mirror this cosmetic achievement.
+Do not infer no-meta from an empty upgrade tree or zero bonuses. Old unknown records do not
+receive the badge retroactively.
 
-- `restrictOpeningCavaliers` (`src/engine/EarlyEnemyRules.js:4-11`) keeps Cavaliers out
-  while roster + fallen < 3 on Normal Act 1. A third starter lifts it from battle 1.
-- Enemy count scales with deployed units (`MapGenerator.js:130, 2113-2145`).
-- `DEPLOY_LIMITS.act1 = {min: 3, max: 4}` (`constants.js:67-74`). So he always deploys until
-  the roster reaches 4, then competes for a slot.
+Every newly created ordinary roster appends Gaspar after the starting lords, before Vanguard.
+Creation and blessing-screen rebuilds must be deterministic and idempotent.
+**Existing runs remain unchanged:** do not inject him on load or into a suspended battle.
+There is no player-facing Veteran mode to persist; analysis-only with/without arms are separate.
+His identity, rules and authored stat/growth state survive normal serialization and revival.
 
-### Meta and blessings
+## Future implementation map (no implementation in this revision)
 
-- Meta flat stats and growths reach non-lords through `createRecruitUnit(..., statBonuses,
-  growthBonuses)`. Difficulty already scales growth bonuses (`growthBonusMultiplier`
-  1 / 0.9 / 0.8 / 0.5 in `data/difficulty.json`; `RunManager._scaleGrowthBonuses`,
-  `RunManager.js:4078-4091`).
-- Run-start blessings apply to whatever is in the roster *after* it is built:
-  - `_applyGrowthDeltaToUnits`: `RunManager.js:834-844`
-  - `_applyTargetedGrowthDeltaToUnits`: `RunManager.js:846-857`
-  - `_applyStatDeltaToUnits`: `RunManager.js:807-822`
-- No-meta mode:
-  - Toggle: `DifficultySelectScene.js:451-466`
-  - It nulls `metaEffects` (`BlessingSelectScene.js:94-103`) and persists `noMetaMode`
-    (`RunManager.js:4289, 4888`).
-  - It changes no payout, milestone or record.
+| Area | Planned change |
+|---|---|
+| Special-character data/schema/loader | Authored Gaspar entry; every difficulty id present; defensive deltas; explicit policies |
+| Pure creation module | Deterministic special-character construction and meta-growth application |
+| Run start/rebuild/fast path | Default inclusion once on new ordinary runs; no toggle; no old-save injection |
+| UnitManager/reclass UI | Shared cannot-reclass guard, preview/target filters and mutation protection; message before seal consumption |
+| Action completion and harness | Shared restricted-Canto policy; attack facts preserved through saves/rewinds/level-up continuations |
+| Mastery/curriculum | Explicit opt-out; earned skill sources remain functional |
+| Recruit/revival scaling | Exclude Gaspar from target averages |
+| Weapons data | Rapier might6 for new item instances; existing snapshot policy as above |
+| Records/settlement/UI | No-meta provenance and cosmetic victory badge, difficulty retained |
+| Special art/voice | Bespoke assets, manifest routing, dedicated lines, generic fallback |
+| Data/content pipeline | Source data + runtime sync, schemas/parity/content checks when implemented |
 
-### First run and tutorial
-
-- The first-run fast path (`src/utils/firstRunFastPath.js`) skips Difficulty Select. A
-  brand-new player never sees the option on run 1.
-- The tutorial builds its own roster (`TutorialHelpers.js:40-60`) and is unaffected.
-
-## Design
-
-### 1. Identity: a named recruit-tier unit, not a lord
-
-A lord entry would bring four costs:
-
-- a schema change, since there is no pre-promoted lord
-- an eighth voice sheet, finale-rally entries, farewell and recruit lines, plus
-  `lord_<name>` portraits and sprites (count-locked in `tests/TracedSprites.test.js:77-85`,
-  `UnitVoiceContent.test.js:104`, `FinaleRally.test.js:47`, `DialogueCast.test.js:104-109`)
-- Talk and Seize rights, and a duty to reach the escape tile
-- a leak into the third-lord, boss-recruit and recruit-node lord pools (`getAvailableLords`)
-
-A recruit-tier unit gets permadeath, church revival, last words and the Paladin class
-voice with no new plumbing. That is the right tier for a unit designed to fade.
-
-He is still *named and fixed*:
-
-- a fixed name
-- a pinned portrait variant (one of the existing Cavalier/Soldier faces; a bespoke face is
-  a later art task)
-- a pinned temperament
-
-The veteran flavour already exists in class voice: `recruitLines.Paladin` has "Three
-campaigns, two mounts, one oath…".
-
-**New data: `data/specialChars.json`** (+ schema, + `public/data` sync), one entry for now:
+Illustrative special-character policies (names are provisional, not an existing schema):
 
 ```json
 {
   "id": "old_knight",
-  "name": "Gaspard",
-  "archetype": "veteran",
+  "name": "Gaspar",
   "className": "Paladin",
   "baseClass": "Cavalier",
   "level": 1,
-  "baseStats": { "HP": 22, "STR": 11, "MAG": 0, "SKL": 7, "SPD": 10, "DEF": 4, "RES": 2, "LCK": 3, "MOV": 6 },
+  "baseStats": {"HP":18,"STR":10,"MAG":0,"SKL":12,"SPD":10,"DEF":6,"RES":2,"LCK":3,"MOV":6},
   "statDeltasByDifficulty": {
     "normal": {},
-    "dusk": { "STR": 1 },
-    "hard": { "HP": 2, "STR": 4, "SKL": 1, "SPD": 1, "LCK": 1, "RES": -1 },
-    "lunatic": null
+    "dusk": {"HP":1},
+    "hard": {"HP":2,"DEF":1},
+    "lunatic": {"HP":3,"DEF":2}
   },
-  "growths": { "HP": 15, "STR": 10, "MAG": 0, "SKL": 10, "SPD": 10, "DEF": 5, "RES": 5, "LCK": 5 },
-  "inventory": ["Steel Lance", "Iron Sword"],
+  "growths": {"HP":20,"STR":10,"MAG":0,"SKL":15,"SPD":10,"DEF":5,"RES":5,"LCK":5},
+  "inventory": ["Steel Lance","Iron Sword"],
   "equipped": "Steel Lance",
   "metaGrowthScale": 0.5,
-  "portraitVariant": "cavalier_c",
-  "temperament": "grim",
-  "traits": ["old_guard"],
+  "canReclass": false,
   "classMastery": false,
-  "countsTowardRosterLevel": false
+  "classCurriculum": false,
+  "cantoPolicy": "noncombat",
+  "countsTowardRosterLevel": false,
+  "portraitId": "special_old_knight",
+  "spriteId": "special_old_knight",
+  "voiceId": "old_knight",
+  "temperament": "grim",
+  "traits": ["old_guard"]
 }
 ```
 
-About `statDeltasByDifficulty`:
-
-- A `null` rung means the veteran is not offered on that rung.
-- Every rung key must be present, per the CLAUDE.md rule for difficulty-keyed tables.
-- The schema should require all four keys (`DIFFICULTY_IDS`) so a future rung cannot
-  silently miss an entry.
-
-### 2. How he is offered
-
-A run-start option, **"Veteran: ON/OFF"**, on Difficulty Select beside "Meta Upgrades:
-ON/OFF":
-
-- Default is off. It is independent of the Meta toggle; all four combinations are legal.
-  "Meta OFF + Veteran ON" is the "win without meta" run the request describes.
-- It is hidden, or shown locked, on rungs whose delta is `null` (Black Sun in v1).
-- It persists on the run as `veteranMode: boolean`, defaulting to `false` for old saves,
-  exactly like `noMetaMode`.
-- It is recorded on the run record so history can show "with the Veteran".
-- It is offered from the second run on. The fast path skips the screen on run 1 anyway, and
-  a crutch is most useful to a player who has just lost once.
-  - No milestone gate is proposed (see *Open questions*).
-
-Alternatives considered:
-
-- Always present: this rebalances every run, which is the outcome the request wants to
-  avoid.
-- A blessing: this competes with blessings and needs a new effect type. BlessingSelect also
-  rebuilds the RunManager.
-- A meta purchase: this contradicts the point of "win without meta".
-
-A blessing is a reasonable second delivery channel later.
-
-### 3. Build path
-
-- A new `createSpecialCharacter(def, { difficultyId, metaEffects, rng, gameData })`
-  lives in a new pure module `src/engine/SpecialCharacters.js`. `RunManager` should not
-  grow further (CLAUDE.md, *God Objects*).
-- The flow copies `_createExtraStartingUnit` (Cavalier template, then `promoteUnit` into
-  Paladin, so `baseClass`, promoted mastery and class innates are all canonical), then
-  **overwrites**:
-  - `stats` = `baseStats` + the rung's delta
-  - `growths` = `growths` + (meta growth bonuses × difficulty `growthBonusMultiplier` ×
-    `metaGrowthScale`), rounded like `_scaleGrowthBonuses`
-  - inventory and equipped weapon from the entry
-  - `traits` = the entry's list. No `rollAndApplyTraits`, so no random Hardy +3 HP.
-  - `specialCharId = 'old_knight'`
-- It is **fully deterministic**: no rolls at all, so a `startRun` rebuild yields the same
-  unit.
-- `createInitialRoster` appends him after the lords, when `veteranMode` is on and the
-  rung is not `null`. He is placed before any Vanguard Cadre starter, and the two stack.
-- Save shape: `serializeUnit` is `{...unit}`, so `specialCharId` persists with no
-  migration. `fromJSON` needs nothing: the lord-flag repair keys on lord names only.
-
-### 4. Stats and weapons
-
-Numbers are from the ad-hoc engine scripts. The Act 1 mix is the real `generateBattle`
-level distribution, per class. "ORKO" is the chance to kill from full HP in his own
-round, crits ignored. Survival counts fresh enemies attacking in a row with no healing.
-Canto is *not* modelled; see the note below.
-
-**Target band for every offered rung**:
-
-| Measure | Target |
-|---|---|
-| Sword ORKO of Act 1 fodder | about 35–50% |
-| Lance ORKO | 15% or less |
-| Lance damage | 55–70% of the enemy's HP |
-| Survives 2 enemy attacks | at least 85% |
-| Survives 3 enemy attacks | about 20–40% |
-| Survives 4 enemy attacks | 10% or less |
-
-| Rung | Line | Sword AS / Lance AS | Sword ORKO | Lance ORKO | Lance % HP | Survive 2 / 3 / 4 |
-|---|---|---|---|---|---|---|
-| First Light | HP22 STR11 SKL7 SPD10 DEF4 RES2 LCK3 | 9 / 4 | 38% | 14% | 69% | 98 / 36 / 8% |
-| Dusk | same, STR 12 | 9 / 4 | 37% | 15% | 68% | 93 / 31 / 7% |
-| Nightfall | HP24 STR15 SKL8 SPD11 DEF4 RES1 LCK4 | 11 / 6 | 48% | 14% | 65% | 86 / 21 / 4% |
-| Black Sun | (not offered) | — | — | — | — | — |
-
-Survival figures are with the sword held.
-
-First Light, by class:
-
-| Enemy | Sword | Steel Lance | Hits him for (sword held / lance held) |
-|---|---|---|---|
-| Myrmidon | never doubles (AS 7–9); 66% HP | 68% ORKO (triangle) | 6.4 / 5.9; Myrmidon L3+ doubles him when he holds the lance |
-| Soldier | doubles, 0% ORKO, 79% HP | 57% HP | 9.2 / 7.6 |
-| Fighter | doubles, **100% ORKO** | 56% HP | 6.5 / **11.2** |
-| Archer | doubles, 92% ORKO | 80% HP | 6.3 / 6.3 |
-| Cavalier | doubles, 0% ORKO, 81% HP | 57% HP | 9.2 / 7.6 |
-
-That is the requested shape:
-
-- The sword kills axe users and archers outright and nearly kills everything else.
-- The lance wounds everything except Myrmidons, which it kills through the triangle.
-- Which weapon he *ends his turn holding* is a real decision. The sword is safe against
-  axes, the lance against lances, and the lance invites Myrmidons to double him.
-
-**Why the Steel Lance is equipped by default.** Lazy enemy-phase play then chips instead
-of clearing. Auto-killing on the counter is how FE players over-use Jeigans. Killing with
-the sword is a deliberate player-phase choice.
-
-Tuning knobs, in order of use:
-
-1. **STR** (11–13) moves sword ORKO. First Light at STR 13 gives sword 64% / lance 31%,
-   which is too strong.
-2. **SPD 10** is load-bearing: with STR 10–14 the Steel Lance is AS 4 and never doubles.
-   At SPD 11 the lance doubles Fighters about 59% of the time.
-3. **HP/DEF.** DEF 3 or HP 20 drops survival of 2 attacks to about 68%, which is
-   too fragile.
-
-Other stat decisions:
-
-- **Skills:** class innates only (`aegis`, `canto`).
-  - Strip `ride_down`, which is +3 ATK after moving 3 and would blow the sword band.
-  - He will realistically never reach promoted level 10. The explicit strip also stops
-    the base-line `sol` from arriving via `checkLevelUpSkills`.
-- **No class mastery** (`classMastery: false`). Cavalier-family Wayfarer (+1 ATK, +1 SPD
-  after 8 battles) would push the lance to AS 5, where it doubles about 12% of Act 1
-  enemies.
-  - Flavour: a veteran has nothing left to learn from the class.
-  - Needs a small `MasterySystem` guard.
-
-**Canto is the biggest unmodelled factor.** Hit-and-retreat hides the fragility these
-tables measure. Keep it, because it is class-innate and the FE-true choice. The sims below
-must run with it, and if First Light is too easy, removing Canto for this unit is lever #1
-before touching stats.
-
-**Act 1 bosses (First Light, STR 11).**
-
-| Boss | Sword | Lance | Threat to him |
-|---|---|---|---|
-| Iron Captain | 32% HP | 38% HP | about 12 per hit |
-| Warchief | 84% HP (2% ORKO) | 38% HP | about 15 per hit while he holds the lance: two hits kill |
-
-Neither boss is soloable.
-
-**Fall-off.** Ran with the static First Light line (STR 11) against Act 2, First Light:
-
-| Enemy level | Best-weapon ORKO | Hits him for (per attack) | Notes |
-|---|---|---|---|
-| 3 | 41% | 8.5 | Still carrying |
-| 4–5 | 23–32% | 9–10 | No longer a "kills most" unit |
-| 6–8 (Steel weapons) | 13–34% | 12–14 | Two or three hits kill him |
-| Act 2 boss (Knight Commander, L12) | — | about 20–25 | One-shots him from 22 HP |
-
-- With the STR 13 line the same table reads 57% → 28%, so STR mostly shifts *when* he
-  fades, by roughly one row of the map.
-- With eight levels of the proposed growths (expected HP27 STR12 SKL8 SPD11) he gains a few
-  points of ORKO but does not recover.
-- **His window is Act 1 and the opening rows of Act 2.**
-
-On First Light, which ends at the Lieutenant after Act 3, that window is roughly 40% of the
-run. This is why First Light gets the weakest line.
-
-### 5. Growth and XP
-
-- **Growths are fixed and low:** HP15 STR10 MAG0 SKL10 SPD10 DEF5 RES5 LCK5, total 60,
-  against about 305 (range midpoints) for a rolled Cavalier.
-  - Expected gain is about 1.1 stat points per level, against 3–4 for a normal unit.
-  - The guaranteed-one-stat fallback lands on HP, the highest growth, which is the least
-    snowbally stat for a fragile unit.
-- **XP needs no new code.** At promoted effective level 13 he earns 1 XP per action in Acts
-  1–2 and real XP only from level-10+ enemies (Act 3).
-  - Team XP from gold picks (25 each) is his main early source, about one level per four
-    picks. That is fine: at 1.1 points per level it is noise.
-- **Do not add an XP multiplier below 1** in v1.
-  - It is redundant through Act 2.
-  - It would also miss team-XP loot and Colosseum XP, which bypass `scaledXp`
-    (`LootScreenController.js:340-345`, `PendingRewardController.js:73-77`,
-    `ColosseumOverlay.js:398`).
-  - If Act 3+ leveling proves too generous, add an `xpMultiplier` on the `old_guard` trait.
-    The existing Hungry (×1.2) path handles it with no engine change.
-
-### 6. Meta and blessing interactions
-
-The design rule: **his join state is nearly meta-invariant.** He substitutes for meta
-progress rather than scaling with it. The one concession is the requested half-rate
-growths.
-
-| Modifier | Normal non-lord | Veteran |
-|---|---|---|
-| Meta growth upgrades (`recruit_*_growth`) | full × difficulty mult | **×0.5** × difficulty mult (as requested) |
-| Meta flat stats (`recruit_*_flat`, up to +10 HP) | full | **none**. This matters more than growths: +10 HP would break the fragility target outright, while growths barely act before Act 3. |
-| Recruit join perks: Lethal Armory, Quartermaster's Craft forge, Outfitted Recruits accessory, recruit skill, field supplies, Master of Arms | yes | **none** (fixed kit) |
-| Training Doctrine (`recruitXpBonus`) | yes | yes. Harmless: +20% of 1 is still 1. |
-| Blessing `all_growths_delta`, `targeted_growths_delta` (recruit scope) | full | **×0.5**, the same carve-out as meta growths |
-| Blessing stat deltas (`all_units_stat_delta`, Rally Cry, run-start max HP) | yes | yes. Run-wide effects the player chose. Revisit if the sims flag it. |
-| Lord-only blessings | no | no |
-| Difficulty `growthBonusMultiplier` | applies | applies, multiplied by the 0.5 |
-
-Where the carve-outs hook in:
-
-- The creation function, for meta.
-- A `growthBonusScale(unit)` helper consulted by `_applyGrowthDeltaToUnits` and
-  `_applyTargetedGrowthDeltaToUnits`, for blessings.
-- The join-perk block, which the special path simply does not call.
-
-### 7. Side effects to neutralise (`countsTowardRosterLevel: false`)
-
-1. **Recruit-node join level.**
-   - Exclude special characters with `countsTowardRosterLevel: false` from
-     `resolveRecruitNodeLevel`'s top-N.
-   - Without this, the veteran would make Act 1 node recruits join about 3 levels higher.
-     That is a hidden power boost larger than anything in his own stat line.
-2. **Revival catch-up target** (`RevivalCatchUp.js`): exclude for the same reason.
-3. **`resolveTeamAverageLevel`** (`RecruitScaling.js:42-52`): currently only tests call it.
-   Exclude anyway, so a future caller inherits the rule.
-4. **Opening-Cavalier protection.** Recommendation: **let him count.** The rule's own
-   comment says cavalry arrives "after help has joined", and he is help. The earlier
-   cavalry is also a free counterweight on First Light. (Open question.)
-5. **Enemy count:** deploying him adds enemies through the existing deploy-count scaling.
-   Keep it: it is the "punish the clock" tax, applied honestly.
-
-### 8. Kill feeding
-
-What a veteran enables:
-
-- **Chip then finish.** The Steel Lance leaves Act 1 enemies at 30–45% HP. Edric (or any
-  recruit) takes the kill for full XP, with no assist split.
-- **Mentor's Band on the veteran.** Adjacent allies get half their own XP formula on every
-  fight he takes, including enemy-phase counters.
-  - This is capped at half of a self-kill.
-  - It stops for Edric once Edric promotes.
-  - The Band is act2+ loot and shops.
-
-Why v1 changes nothing here. The existing diminishing-XP tiers bound how far feeding can
-push Edric. Past three effective levels above the enemy, XP falls fast: 25 → 9 → 1 per
-kill. Ran, with Edric taking a given share of all kills in a First Light Act 1 + Act 2 path
-(kill XP only):
-
-| Edric's share of kills | Edric level, end of Act 1 | End of Act 2 |
-|---|---|---|
-| 33% | 4.4 | 9.5 |
-| 50% | 5.7 | 11.1 |
-| 75% | 6.9 | 12.1 |
-| 100% (perfect feeding) | 7.4 | 12.4 |
-
-- Going from "Edric takes half the kills" to "Edric takes every kill" is worth about
-  **+1.7 levels by the Act 1 boss and +1.3 by the end of Act 2**.
-- Edric then promotes at 10 or more, and effective 22 gives him little from Act 2–3
-  enemies. Feeding saturates.
-- The real risk the veteran adds is **safety**: fewer resets, fewer losses. That is his job.
-  Whether that safety is too much on First Light is what the sims must answer. XP
-  mechanics are the wrong tool for it.
-- The design log's principles agree: punish the clock, not the unit; nothing that scales
-  off the unit being strong.
-
-**Mentor's Band:** allow it. The design log's stated purpose for the Band is "the strong
-unit equips it … turns juggernaut turns into roster development". A veteran training
-recruits is the most FE-true use it has.
-
-If the sims show feeding runs away, levers in order:
-
-1. Weaken the lance chip (lower STR). This narrows how often the chip leaves a
-   one-hit-kill for a weak unit.
-2. Remove Canto from the veteran.
-3. Add one enemy on maps where he is deployed. This is a clock tax, in line with the
-   design log.
-4. Exclude the **commander** from receiving the veteran's Band share: a one-line filter in
-   `getXpShareRecipients`, keyed on `specialCharId`.
-
-**Rejected:** an assist rule such as "kills of enemies the veteran wounded this turn give no
-kill bonus". It is opaque, it punishes the correct FE play, and it breaks the design log's
-"no targeted nerfs" principle.
-
-### 9. Death, voice, UI
-
-- **Death:** an ordinary recruit death, with class and temperament last words, a deed
-  announcement, and church revival.
-  - He is excluded from the revival catch-up *target*.
-  - His own revival follows the normal rule (`RevivalCatchUp.js:16-26`). At effective
-    level 13 he is above any early roster average, so catch-up does nothing for him early.
-  - Later (Act 3+) it can raise him toward the roster average. It rolls at growths −10,
-    clamped at 0, so each level gives only the one guaranteed stat point.
-- **Voice:** the class Paladin pools plus a pinned temperament.
-  - `temperamentFor` needs a special-character override. Today temperament is derived
-    from name + run seed (`UnitVoice.js:84-89`).
-  - Optional later: a small `unitVoice.special.old_knight` pool for level-ups ("Another
-    year, another notch on the belt.") and last words. It is not required for v1.
-- **Trait `old_guard`** (`data/traits.json` + `src/ui/traitContent.js`):
-  - Never rolled (roll weight 0) and has no creation mods.
-  - It is the UI carrier that explains him everywhere traits already show: the roster, unit
-    detail, mobile sheet and growth card.
-  - Suggested text: "Past his prime. Joins promoted, learns little, grows slowly."
-  - Do not call it "Veteran": that is already the deed "Veteran of the March".
-- **Difficulty Select:** the toggle row plus a one-line description. Help → Meta-Progression
-  (or Promotion) gets a short paragraph.
-- **Deploy screen:** nothing new. He is optional once the roster exceeds the minimum.
-
-## Implementation plan
-
-| Area | Files | Change |
-|---|---|---|
-| Data | `data/specialChars.json` (new), `schemas/specialChars.schema.json` (new), `public/data/…` via `npm run sync-data`; data loader; `validate:data` / `check:data-parity` pick it up | One entry. The schema requires every `DIFFICULTY_IDS` key in `statDeltasByDifficulty`. |
-| Creation | `src/engine/SpecialCharacters.js` (new, pure) | `createSpecialCharacter`, `growthBonusScale(unit)`, `countsTowardRosterLevel(unit)`, `isSpecialCharOffered(def, difficultyId)` |
-| Run start | `src/engine/RunManager.js` | Add `veteranMode` (ctor, `startRun` options, `toJSON` / `fromJSON` defaulting to false). `createInitialRoster` appends the unit. Blessing growth loops consult `growthBonusScale`. The victory record gets a `veteran` field, plus the `RunRecords.js` whitelist. |
-| Menus | `src/scenes/DifficultySelectScene.js`, `BlessingSelectScene.js` (passes the flag through its rebuild), `firstRunFastPath.js` (stays off) | Toggle beside the Meta toggle |
-| Levels | `RecruitNodeSystem.js:176-204`, `RevivalCatchUp.js`, `RecruitScaling.js:42-52` | Exclude units with `countsTowardRosterLevel` false |
-| Mastery / skills | `MasterySystem.js`, `UnitManager.checkLevelUpSkills` | Respect `classMastery: false`. Skip learnable skills for special characters that opt out. |
-| Voice / traits | `UnitVoice.js` (temperament override), `data/traits.json` + `src/ui/traitContent.js` (`old_guard`) | |
-| Help | `src/data/helpContent.js` | One paragraph (watch the about-15-lines page limit) |
-| Sims | `tests/sim/RunPolicies.js:26-35`, `tests/sim/fullrun-runner.js`, `sim/strategy.js` | Deploy order sorts by `getXpEffectiveLevel`, not raw `level`: the current sort would bench a level-1 promoted unit. Add a `--veteran` flag. |
-
-No changes to `Combat.js`, `BattleXp.js`, `XpShare.js` (unless lever 4 is pulled) or
-`difficulty.json`.
-
-## Tests
-
-Each test catches one realistic failure:
-
-1. **Determinism:** two `startRun` calls with the same seed produce identical veteran units.
-   `BlessingSelect` rebuilds must not re-roll him.
-2. **Per-rung stats:** stats equal base + delta for each offered rung, and Black Sun does
-   not create him. Expected values are written out by hand, not recomputed.
-3. **Meta invariance:** with endgame meta (every upgrade maxed), his stats equal the
-   no-meta stats, and his growths equal base + ⌊0.5 × meta × difficulty mult⌉. No forge,
-   no accessory, no extra skill.
-4. **Blessing carve-out:** on First Light, Scholar's Vow (+5 all growths) adds exactly +3
-   (`Math.round(2.5)`, matching `_scaleGrowthBonuses`) to him and +5 to a normal recruit.
-5. **Recruit-node level:** Edric 1 + Sera 1 + veteran gives node level 1, not 4. A test that
-   fails before the exclusion is added.
-6. **Revival catch-up** ignores him in the target average.
-7. **Save round trip:** `specialCharId`, the growths and `veteranMode` survive
-   `toJSON` / `fromJSON`. An old save with no `veteranMode` loads as false.
-8. **Loadout:** the Steel Lance is equipped and the Iron Sword is in inventory; `ride_down`
-   is never learned; mastery never applies.
-9. **XP pin:** a promoted L1 unit earns exactly 1 XP killing a level-8 enemy. This guards
-   the property the design relies on in case someone retunes the +12.
-
-## Validation (sim gates before shipping)
-
-Use the real-engine harness (`tests/sim/RunSimulationDriver.js`, `ScriptedAgent`, Canto on
-where the harness allows) with the deploy-sort fix. Run at least 200 seeded runs per
-arm on First Light and Dusk, with meta off and with the `endgame` preset.
-
-| Metric | Gate |
-|---|---|
-| Win rate, veteran ON vs OFF, **meta off** | ON may be higher, but less than the win-rate gap between meta off and meta `endgame`. He substitutes for meta and never beats it. |
-| Win rate, veteran ON, **meta endgame**, First Light | ≤ +5 points over OFF. He must not stack into a trivial mode. |
-| Act 1 battles won with zero player losses | Report it; this is the "trivialises Normal" signal. |
-| Edric level at the Act 1 boss and at the end of Act 2 | ≤ +1.5 over OFF with a **feeder policy**: a `ScriptedAgent` variant that chips with the veteran and hands kills to Edric |
-| Veteran's share of kills, by act | Must fall steeply by Act 2's second half (the fade) |
-| Veteran death rate by act | Nonzero in Act 2. If he never dies, he is too safe. |
-
-The existing `sim/fullrun.js` abstract sim cannot see chip damage, the Band, par or Canto.
-Use it only as a smoke test.
-
-## Open questions for the designer
-
-1. **Opt-in or always present?** This spec says opt-in, off by default. If you want him in
-   every run (the FE norm), the whole baseline needs the rebalance you anticipated, and
-   First Light probably wants STR 10 and no Canto.
-2. **Black Sun:** not offered, as proposed? The alternative is offering the Nightfall line
-   as "a helper, not the archetype": sword ORKO about 10% there even at STR 17.
-3. **Unlock:** available from run 2 with no gate, as proposed? Alternatives are `beatAct1`,
-   or "after a loss".
-4. **Should "Meta OFF + Veteran ON" pay anything?** No-meta runs are unrewarded today. A
-   milestone or record badge is cheap; payout changes are not in scope.
-5. **Opening-Cavalier ban:** let him lift it (proposed), or exclude him from the count?
-6. **Canto:** keep (proposed) and remove it only if the sims say so, or cut it up front?
-7. **Name, face and voice:** Gaspard is a placeholder. A bespoke portrait and voice pool are
-   optional follow-ups.
-8. **Vanguard Cadre overlap:** tier 4 can roll a second, much tankier and higher-growth
-   Paladin. Should that pool drop Paladin now that a Paladin special exists?
-
-## Rejected alternatives
-
-- **A lord entry.** Schema, portrait and voice cost, plus leaks into lord recruit pools. See
-  *Design*, section 1.
-- **Rolled "bad" growths** (Cavalier ranges minus N): non-deterministic, and indistinguishable
-  from an unlucky Vanguard roll. Fixed growths make the archetype legible.
-- **A per-unit XP multiplier below 1:** redundant through Act 2 and bypassed by team XP.
-  Kept as a later lever on the trait.
-- **Assist or anti-feed XP rules:** see *Kill feeding*.
-- **Scaling his stats by act** (a "keeps up" veteran): that defeats the archetype. Scaling by
-  *difficulty rung* keeps his role constant. Scaling by *act* would erase the fade.
+Use class normalization/promotion helpers, but do not roll random growths, traits, names or
+join perks merely to overwrite them: that consumes RNG and obscures deterministic creation.
+Set both `stats.HP` and `currentHP` correctly after authored stat application.
+The non-lord remains able to acquire standard in-run equipment and skills.
+
+## Validation before gameplay delivery
+
+Focused behavioral checks:
+
+- New runs on every rung and first-run fast path receive exactly one Gaspar; tutorial and
+  existing/suspended saves retain their original roster.
+- Blessing rebuild, save round trip, revival and cloud resume preserve identity and policies.
+- Exact fixed stats; all difficulty keys populated; half meta growths rounded once;
+  flat/perk exclusion; ordinary boon and pact effects; in-run investment works.
+- Reclass preview, target list and direct mutation path all refuse him without spending a seal.
+- Sword/lance default loadout and correct HP; curriculum/mastery restrictions; scrolls still work.
+- Every combat-completion path blocks his Canto; noncombat paths respect remaining movement;
+  other Paladins unaffected; cancel, dance, rewind/resume and queued level-up cases covered.
+- Recruit/revival target averages exclude him, including empty/one-unit boundary cases.
+- Rapier damage pin with and without effectiveness; instance/forge save policy verified.
+- Normal kill credit/Band parity; no-meta badge settlement/history/cloud idempotence and provenance.
+- Bespoke portrait/sprite/voice lookup, fallback and mobile presentation.
+
+Full-run validation uses the real-engine harness with shared Canto, XP, healing and equipment rules.
+Deploy selection must use battlefield value/role; neither raw level nor promoted effective XP
+level alone reliably values a fading veteran.
+
+Compare paired seed sets across all four difficulties and meta off/early/endgame:
+baseline; Gaspar only; Rapier nerf only; Gaspar + Rapier nerf.
+For no-meta arms where Rapier is unavailable, explain why the Rapier-only intervention is inert.
+Include Vanguard four-starter parties and alternate commanders.
+
+Policies: competent ordinary play, aggressive sword play, deliberate feeding across the party,
+Sera-assisted baiting, and investment/trading including the nerfed Rapier and Mentor's Band.
+Start with at least 200 paired runs per important arm; extend when confidence intervals or
+failure patterns prevent a useful conclusion. Do not infer a precise 5-point win-rate effect
+from an underpowered sample.
+
+Report win/act-clear rates with paired uncertainty, losses, turns/par/clock, resource spending,
+recruit/village rescue success, whole-roster XP/promotions, Gaspar deployment and contribution
+by act, and survival conditional on exposure. Inspect early Black Sun maps separately.
+
+Shipping judgments:
+
+- Normal opening still requires positioning, weapon choice and objective decisions.
+- No-meta play is more accessible without requiring every kill to go to the commander.
+- The veteran's offensive advantage fades; better recruits become attractive deployments.
+- Proper protection or benching is rewarded. **No minimum death-rate requirement.**
+- Late relevance through deliberate investment/support is permitted.
+- Do not require Gaspar to be weaker than all endgame meta or cap Edric at an arbitrary level delta.
+- Do not add targeted commander/Band penalties or a Gaspar-specific enemy surcharge without
+  evidence and a separate design discussion.
+
+## Remaining discussion
+
+1. **Stat candidate:** HP18 / DEF6 / SKL12 is recommended; HP20 / DEF5 is the conservative
+   alternative. Confirm after reviewing the physical-vs-magic tradeoff.
+2. **Harder-rung role:** current STR10/SPD10 makes Nightfall/Black Sun a chip/support unit.
+   Defensive boosts preserve survivability, not Normal kill thresholds.
+3. **Save balance policy:** new Rapiers use might6, saved instances preserve existing stats.
+4. **Presentation:** approve character direction and draft lines before final art/text production.
+5. **Curriculum/mastery opt-out:** retained from the previous proposal and surfaced clearly;
+   revisiting it requires recalculating Wayfarer/Ride Down thresholds.
+
+These discussion items do not reopen the confirmed default-inclusion, no-reclass, restricted-Canto,
+ordinary in-run investment, kill-credit, Band, cavalry, Vanguard or no-meta badge decisions.
