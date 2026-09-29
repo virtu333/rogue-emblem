@@ -10008,7 +10008,7 @@ export class BattleScene extends Phaser.Scene {
     // Defer rout victory until after reinforcements are applied (cleared below)
     this._reinforcementsPendingThisTurn = true;
     try {
-      // Merchant Caravan: 1-tile greedy step toward the nearest edge, before
+      // Merchant Caravan: 1-tile greedy step toward its exit edge, before
       // enemy AI acts so enemies can react to the caravan's new position.
       if (!resume) this._caravanController?.stepTurn();
       // Debug: skip enemy phase entirely

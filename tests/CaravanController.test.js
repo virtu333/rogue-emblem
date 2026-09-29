@@ -145,6 +145,34 @@ describe('CaravanController', () => {
       expect(scene.showBriefBanner).toHaveBeenCalledWith('Caravan escaped!', expect.any(String));
     });
 
+    it('follows the exit its spawn chose and leaves only through that edge', () => {
+      // Spawned from battleConfig with an upward exit on a 10x6 field.
+      const scene = makeScene({
+        grid: makeGrid(10, 6),
+        battleConfig: { caravanSpawn: { col: 1, row: 2, exit: { dc: 0, dr: -1 } } },
+      });
+      const ctrl = new CaravanController(scene);
+      ctrl.spawnIfConfigured();
+      const merchant = scene.npcUnits[0];
+      ctrl.stepTurn();
+      // Col 1 is next to the left edge, but its way out is up.
+      expect({ col: merchant.col, row: merchant.row }).toEqual({ col: 1, row: 1 });
+      expect(scene._caravanExited).toBeFalsy();
+      ctrl.stepTurn();
+      expect(scene._caravanExited).toBe(true);
+      expect(scene.npcUnits).toHaveLength(0);
+
+      // Down: the bottom edge is row 5 of this 6-row field.
+      const down = makeScene({
+        grid: makeGrid(10, 6),
+        battleConfig: { caravanSpawn: { col: 8, row: 4, exit: { dc: 0, dr: 1 } } },
+      });
+      const downCtrl = new CaravanController(down);
+      downCtrl.spawnIfConfigured();
+      downCtrl.stepTurn();
+      expect(down._caravanExited).toBe(true);
+    });
+
     it('is a no-op once the caravan has already exited', () => {
       const scene = makeScene({ _caravanExited: true });
       const ctrl = new CaravanController(scene);
