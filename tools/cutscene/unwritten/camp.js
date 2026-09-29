@@ -23,7 +23,8 @@ import { pulse } from './engine/score.js';
 import { clamp, smooth } from './engine/raster.js';
 import { flash } from './engine/anime.js';
 import { onN } from './engine/timing.js';
-import { nudge, lookAt } from './engine/world.js';
+import { nudge } from './engine/world.js';
+import { dustPuff } from './camp_fx.js';
 import { CampWorld } from './engine/camp_world.js';
 import { quantiseCamp } from './camp_palette.js';
 import {
@@ -226,8 +227,6 @@ export class CampPiece extends Piece {
 
   /** The frame, snapped to the camp's ramps (no olive earth ramp: see camp_palette.js). */
   render(out, t, { pixel = true, dither = 0.45 } = {}) {
-    if (typeof location !== 'undefined')
-      globalThis.__campDbg = new URLSearchParams(location.search).get('dbg');
     this.drawShot(out, this.shotAt(t), t);
     if (pixel) quantiseCamp(out, this.W, this.H, dither);
   }
@@ -332,7 +331,7 @@ export class CampPiece extends Piece {
         const ax = flip ? L.st.w - c.anchor[0] * k : c.anchor[0] * k;
         return { x, y, ax, ay: c.anchor[1] * k, scale: s };
       },
-      xf: o.rot ? { rot: o.rot } : undefined,
+      xf: o.rot || o.sy ? { rot: o.rot, sy: o.sy } : undefined,
     };
     Object.defineProperty(a, 'opts', {
       get: () =>
@@ -359,15 +358,22 @@ export class CampPiece extends Piece {
       hueHold: o.hold,
       rim: o.rim,
       // a clip that carries its blade's line (motion/camp_blade.py) has it repainted clean
-      blade:
-        this.motionSrc[name].meta.blade && globalThis.__campDbg !== 'noblade'
-          ? () => this.motionSrc[name].meta.blade[i]
-          : undefined,
+      blade: this.motionSrc[name].meta.blade ? () => this.motionSrc[name].meta.blade[i] : undefined,
       layerFor: (px) => {
         M = this.motion(name, bucket(px), { flip });
         return M.layer(i);
       },
-      place: (x, y, s) => M.place(x, y, s),
+      // `ground`: the clip's drawings do not all end on the same row (a crouch lifts its lowest
+      // point above the line the standing drawings stand on), so each drawing's own lowest opaque
+      // row is what meets the seat: no hovering, no sinking
+      place: (x, y, s) => {
+        const p = M.place(x, y, s);
+        if (o.ground) {
+          const b = M.extreme(i, 'bottom');
+          if (b) p.ay = b[1] + 1;
+        }
+        return p;
+      },
       xf: o.rot ? { rot: o.rot } : undefined,
     };
     Object.defineProperty(a, 'opts', {
@@ -452,7 +458,7 @@ export class CampPiece extends Piece {
         who: 'kira',
         idle: { seed: 3, breath: 0.004 },
         t: tt,
-        gain: 1.2,
+        gain: 1.45,
       }) ??
       this.cutActor('kiraCamp', kx, kz, -1, { who: 'kira', idle: IDLE_K, t: tt, shadowW: 0.55 });
     for (const a of [e, s, k]) if (a) list.push(a);
@@ -480,6 +486,7 @@ export class CampPiece extends Piece {
       flame: o.flame,
       starK: o.starK,
       fireK: o.fireK,
+      decals: o.decals,
     });
   }
 
@@ -508,14 +515,7 @@ export class CampPiece extends Piece {
   // --- 2 · the three-shot ---------------------------------------------------------------
   shotThree(f, t) {
     const lt = t - S.three[0];
-    let cam = CAMERA.three(lt);
-    const dbg =
-      typeof location !== 'undefined' ? new URLSearchParams(location.search).get('dbg') : null;
-    globalThis.__campDbg = dbg;
-    if (dbg === 'top')
-      cam = lookAt({ x: 0, y: 7, z: -3.2 }, { x: 0, y: 0, z: 0.6 }, { focal: 300 });
-    if (dbg === 'oblique')
-      cam = lookAt({ x: -3.2, y: 2.6, z: -4.5 }, { x: 0, y: 0.3, z: 0.6 }, { focal: 330 });
+    const cam = CAMERA.three(lt);
     this.renderWorld(f, t, cam, { actors: this.people(t) });
   }
 
@@ -629,19 +629,20 @@ export class CampPiece extends Piece {
   shotRise(f, t) {
     const lt = t - S.rise[0];
     const hitLt = TIME.hit - S.rise[0];
+    const [ex, ez] = PEOPLE.edric.seat;
+    const top = this.world.seats.edric.top;
+    const frames = [
+      [0, 2],
+      [1.0, 22],
+      [1.3, 26],
+      [2, 36],
+    ];
     let e;
     if (lt < hitLt) {
-      const i = frameAt(
-        [
-          [0, 2],
-          [1.0, 22],
-          [1.3, 26],
-          [2, 36],
-        ],
-        onN(lt, 2),
-      );
-      e = this.clipActor('camp_edric_rise', i, ...PEOPLE.edric.seat, 1, {
+      const i = frameAt(frames, onN(lt, 2));
+      e = this.clipActor('camp_edric_rise', i, ex, ez, 1, {
         who: 'edric',
+        ground: true,
         t,
         hold: 0.85,
         gain: 1.5,
@@ -650,24 +651,82 @@ export class CampPiece extends Piece {
       // the big hit: a paper-white flash covers the change of drawing, and he stands as drawn,
       // his face lifted to the Thread (the standing cut-out; its head rises a little more and
       // holds), breathing, the cloak in the wind. Placed so his head is where the clip's was.
+      // His weight comes down on the slab: the body squashes a few per cent and rebounds (twos),
+      // the cloak, thrown up by the rise, settles.
       const tt = onN(t, 3);
+      const u = Math.max(0, onN(lt, 2) - hitLt);
       const rise = ease((lt - hitLt) / 0.5);
-      const [ex, ez] = PEOPLE.edric.seat;
+      const land = Math.exp(-u / 0.07) * Math.cos(u * 26);
       e = this.cutActor('standing', ex - 0.222, ez, 1, {
         who: 'edric',
         hold: 0.85,
         t: tt,
+        sy: 1 - 0.035 * land,
         idle: {
           seed: 4,
           breath: 0.006,
-          sway: [{ u0: 1.0, u1: 0.58, v0: 0.12, v1: 0.75, amp: 0.012, rate: 2.2 }],
+          sway: [
+            {
+              u0: 1.0,
+              u1: 0.58,
+              v0: 0.12,
+              v1: 0.75,
+              amp: 0.012 * (1 + 1.6 * Math.exp(-u / 0.25)),
+              rate: 2.2,
+            },
+          ],
           tilt: { u: 0.36, v: 0.16, va: 0.11, vb: 0.19, phi: 0.16 * rise },
         },
       });
     }
-    this.renderWorld(f, t, this.shake(CAMERA.rise(lt), t), {
-      actors: this.people(t, { edric: e }),
-    });
+    // where his hand presses: the drawing's hand rests behind his back (the cell point 208, 308, 0.55 m
+    // behind the anchor, flipped), so the mark is on the slab's flat top at its rear-left edge, the
+    // nearest place the hand can push the stone (the hand's own ray never meets the slab: it is at eye level)
+    if (!this._handSpot) {
+      const sl = this.world.seats.edric;
+      this._handSpot = { x: sl.x - sl.a * 0.55, z: sl.z + sl.c * 0.12 };
+    }
+    const H0 = this._handSpot;
+    const decals = [];
+    if (H0) {
+      // pressed while the hand is down (the first third of a second), a scuff of ash left when it lifts
+      if (lt < 0.34) decals.push({ x: H0.x, y: top, z: H0.z, r: 0.085, k: 0.55, ash: 0, seed: 3 });
+      else decals.push({ x: H0.x, y: top, z: H0.z, r: 0.11, k: 0.24, ash: 0.55, seed: 5 });
+    }
+    const cam = this.shake(CAMERA.rise(lt), t);
+    this.renderWorld(f, t, cam, { actors: this.people(t, { edric: e }), decals });
+    // the ash the hand kicks up as it pushes off, and the dust each boot puts up when he lands
+    if (H0)
+      dustPuff(f, W, H, cam, t, {
+        X: H0.x,
+        Y: top + 0.03,
+        Z: H0.z,
+        t0: S.rise[0] + 0.3,
+        life: 0.8,
+        n: 18,
+        seed: 11,
+        spread: 0.22,
+        up: 0.32,
+        drift: [0.05, 0.02],
+        warm: 0.6,
+      });
+    for (const [k, dxb] of [
+      [0, -0.16],
+      [1, 0.14],
+    ])
+      dustPuff(f, W, H, cam, t, {
+        X: ex - 0.222 + dxb,
+        Y: top + 0.01,
+        Z: ez - 0.02,
+        t0: TIME.hit + 0.02,
+        life: 0.7,
+        n: 16,
+        seed: 21 + k,
+        spread: 0.3,
+        up: 0.16,
+        drift: [-0.08, 0],
+        warm: 0.5,
+      });
     // the hit: two frames of paper-white over the whole picture (high, so it stays flat: a middle
     // value over a dark frame breaks into a halftone screen)
     const since = lt - hitLt;

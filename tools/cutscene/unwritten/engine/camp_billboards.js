@@ -521,6 +521,24 @@ export const billboardMethods = {
       z,
       ID_ACTOR,
     );
+    // his feet are on the ground: a dark contact under each, and the torch's own light on the earth
+    // around him (camp_world.js shadeGround) with his shadow thrown from it
+    for (const fx of [swing * sc * 0.5, -swing * sc * 0.5]) {
+      const cx = Math.round(base.sx + fx);
+      const cy = Math.round(base.sy);
+      for (let dx = -2; dx <= 2; dx++)
+        for (let dy = 0; dy <= 1; dy++) {
+          const x = cx + dx;
+          const y = cy + dy;
+          if (x < 0 || y < 0 || x >= W || y >= H) continue;
+          const i = y * W + x;
+          if (this.ids[i] !== 20 && this.ids[i] !== ID_ACTOR) continue;
+          const k = (dy === 0 ? 0.55 : 0.4) * (1 - Math.abs(dx) / 3);
+          frame[i * 4] *= 1 - k;
+          frame[i * 4 + 1] *= 1 - k;
+          frame[i * 4 + 2] *= 1 - k * 0.95;
+        }
+    }
     // body and head
     this.strokeZ(
       frame,
@@ -1101,7 +1119,7 @@ export const billboardMethods = {
         if (t >= 0 && t <= len && Math.abs(o) <= 1.0 * taper + 0.05) {
           const c = o > 0.25 ? HI : o < -0.45 ? LO : MID;
           const dm = Math.hypot(x - F0.sx, y - F0.sy) / feetScale;
-          const bk = 0.5 + 0.8 * clamp(1.3 / (1 + (dm * dm) / 1.6));
+          const bk = 0.42 + 0.55 * clamp(1.3 / (1 + (dm * dm) / 1.6));
           const warm = 0.06 * (bk - 0.8);
           buf[q] = Math.min(255, c[0] * bk * (1 + warm) * (c === HI ? 0.88 + 0.12 * wx : 1));
           buf[q + 1] = Math.min(255, c[1] * bk);

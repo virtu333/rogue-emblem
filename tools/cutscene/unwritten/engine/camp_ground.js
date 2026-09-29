@@ -12,6 +12,7 @@
 //
 // Installed on CampWorld's prototype (engine/camp_world.js).
 
+import { project } from './world.js';
 import { clamp, hash, smooth } from './raster.js';
 
 const TWO_PI = Math.PI * 2;
@@ -341,6 +342,59 @@ export const groundMethods = {
       }
     void ground;
     void Y0;
+  },
+
+  // ---------------------------------------------------------------- marks on the ground
+
+  /**
+   * Marks on a horizontal surface, drawn on the world before the figures: a hand pressed on a slab, a
+   * scuff where a boot dragged. Each: { x, y (height of the surface), z, r (m), k (darkness of the
+   * press 0..1), ash (0..1, how much pale ash is scattered on it), seed }. A pixel is marked when
+   * its ray meets that plane inside the mark (a ragged edge) and the plane is what the pixel shows.
+   */
+  drawDecals(frame, list) {
+    const { W, H } = this;
+    const B = this.B;
+    for (const d of list) {
+      if (Math.abs(B.oy - d.y) < 0.02) continue;
+      const cen = project(this.cam, d.x, d.y, d.z, W, H);
+      if (cen.depth < 0.3) continue;
+      const rp = d.r * cen.scale * 1.5;
+      const x0 = Math.max(0, Math.floor(cen.sx - rp - 2));
+      const x1 = Math.min(W - 1, Math.ceil(cen.sx + rp + 2));
+      const y0 = Math.max(0, Math.floor(cen.sy - rp - 2));
+      const y1 = Math.min(H - 1, Math.ceil(cen.sy + rp * 0.6 + 2));
+      for (let y = y0; y <= y1; y++)
+        for (let x = x0; x <= x1; x++) {
+          const i = y * W + x;
+          const dy = this.rdy[i];
+          if (Math.abs(dy) < 1e-4) continue;
+          const tt = (d.y - B.oy) / dy;
+          if (tt < 0.05) continue;
+          if (Math.abs(tt * this.cf[i] - this.zbuf[i]) > 0.03 + 0.004 * this.zbuf[i]) continue;
+          const gx = B.ox + tt * this.rdx[i] - d.x;
+          const gz = B.oz + tt * this.rdz[i] - d.z;
+          // a ragged edge: the radius wanders with the angle
+          const ang = Math.atan2(gz, gx);
+          const rr =
+            d.r * (0.75 + 0.35 * hash(Math.floor(((ang + Math.PI) / TWO_PI) * 9), d.seed ?? 1, 41));
+          const q = Math.hypot(gx, gz) / rr;
+          if (q >= 1) continue;
+          const o = i * 4;
+          const n = hash(x >> 1, y >> 1, (d.seed ?? 1) + 7);
+          if ((d.ash ?? 0) > 0 && n < d.ash * (1 - q)) {
+            // ash scattered over the press: a few pale flecks, warm where the fire reaches them
+            frame[o] += (176 - frame[o]) * 0.7;
+            frame[o + 1] += (150 - frame[o + 1]) * 0.7;
+            frame[o + 2] += (132 - frame[o + 2]) * 0.6;
+          } else {
+            const k = 1 - (d.k ?? 0.4) * (1 - q * q) * (0.75 + 0.25 * n);
+            frame[o] *= k;
+            frame[o + 1] *= k;
+            frame[o + 2] *= k * 1.02;
+          }
+        }
+    }
   },
 
   /** Shadow multiplier on the ground light at (X, Z): the figures and props block the fire. */

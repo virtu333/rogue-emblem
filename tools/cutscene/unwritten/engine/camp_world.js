@@ -65,7 +65,6 @@ const ID_RIDGE = 10; // + layer
 const ID_GROUND = 20;
 const ID_TENT = 40; // + tent index
 const ID_PROP = 80;
-const ID_SEAT = 100; // + seat index: what carries a person's weight
 const ID_STONE = 120;
 const ID_GRASS = 205;
 const ID_FX = 230;
@@ -566,6 +565,7 @@ export class CampWorld {
     // the figures first (their drawings decide where the fire's light is blocked), then the world
     this.preps = (o.actors || []).map((a) => this.prepActor(a, cam));
     this.buildShadows(this.preps);
+    this._sentry = this.torchOn && o.sentry !== 0 ? this.sentryAt(t) : null;
     this.zbuf.fill(1e9);
     this.ids.fill(0);
     this.ink.fill(0);
@@ -576,6 +576,7 @@ export class CampWorld {
     this.drawProps(frame, B);
     this.passInk(frame);
     this.paperGrain(frame);
+    if (o.decals?.length) this.drawDecals(frame, o.decals);
     this.drawBillboards(frame, cam, B, t, o);
     this.vignette(frame);
   }
@@ -861,9 +862,22 @@ export class CampWorld {
       0.14 * smooth(0.28, 0.32, Ip) +
       0.13 * smooth(0.42, 0.46, Ip) +
       0.1 * smooth(0.62, 0.66, Ip);
-    let r = a0 * (AMB[0] + FIRE_C[0] * Lb);
-    let g = a1 * (AMB[1] + FIRE_C[1] * Lb);
-    let b = a2 * (AMB[2] + FIRE_C[2] * Lb);
+    // the torchbearer's own light on the earth round him (a small pool that walks with him)
+    let Lt = 0;
+    const S = this._sentry;
+    if (S) {
+      const d2 = (X - S.X - 0.5) ** 2 + (Z - S.Z) ** 2;
+      if (d2 < 30) {
+        const It = (0.95 / (1 + (d2 + 1.6) / 1.5)) * (0.85 + 0.3 * Math.sin(this.t2 * 11));
+        Lt =
+          0.16 * smooth(0.06, 0.08, It) +
+          0.14 * smooth(0.14, 0.17, It) +
+          0.12 * smooth(0.26, 0.3, It);
+      }
+    }
+    let r = a0 * (AMB[0] + FIRE_C[0] * (Lb + Lt));
+    let g = a1 * (AMB[1] + FIRE_C[1] * (Lb + Lt));
+    let b = a2 * (AMB[2] + FIRE_C[2] * (Lb + Lt));
     // embers glowing in the ashes under the flames
     if (soot > 0.2) {
       const e = valueNoise(X * 14, Z * 14 + this.t2 * 2.3, 7);
@@ -881,10 +895,6 @@ export class CampWorld {
       r *= k;
       g *= k;
       b *= k * 1.02;
-    }
-    if (globalThis.__campDbg === 'shadow') {
-      r += 220 * (1 - sh);
-      b += 220 * this.aoAt(X, Z);
     }
     // contact occlusion: a tight dark line where things meet the ground
     const ao = this.aoAt(X, Z);
