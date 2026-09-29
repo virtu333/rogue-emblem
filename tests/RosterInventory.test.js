@@ -172,3 +172,63 @@ describe('roster inventory actions', () => {
     expect(unit.consumables).toEqual([herb]);
   });
 });
+
+// Between battles, heals, boosters and seals work straight from the convoy on a
+// chosen unit (playtest 2026-09-28): no free bag slot, no withdraw-then-use.
+describe('using consumables from the convoy', () => {
+  const liveConvoyItem = (run) => run.convoy.consumables.at(-1);
+
+  it('a heal from the convoy mends the unit and spends a use there; the last use leaves', () => {
+    const { run, unit } = fixture();
+    unit.consumables = [];
+    unit.currentHP = unit.stats.HP - 15;
+    run.addToConvoy({ name: 'Potion', type: 'Consumable', effect: 'heal', value: 10, uses: 2 });
+    const potion = liveConvoyItem(run);
+    expect(rosterItemAction(run, unit, potion, 'use')).toBe('');
+    expect(unit.currentHP).toBe(unit.stats.HP - 5);
+    expect(potion.uses).toBe(1);
+    expect(run.convoy.consumables).toContain(potion);
+    expect(unit.consumables).toEqual([]);
+    expect(rosterItemAction(run, unit, potion, 'use')).toBe('');
+    expect(unit.currentHP).toBe(unit.stats.HP);
+    expect(run.convoy.consumables).not.toContain(potion);
+    expect(rosterItemAction(run, unit, potion, 'use')).toContain('no longer');
+  });
+
+  it('works with a full bag, and never for a full-HP unit or a convoy weapon', () => {
+    const { run, unit } = fixture();
+    const vulnerary = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
+    unit.consumables = [0, 1, 2].map(() => structuredClone(vulnerary));
+    run.addToConvoy({ ...vulnerary, uses: 1 });
+    const stored = liveConvoyItem(run);
+    expect(rosterItemBlock(run, unit, stored, 'use')).toBe('HP is already full.');
+    unit.currentHP = 1;
+    expect(rosterItemAction(run, unit, stored, 'use')).toBe('');
+    expect(unit.currentHP).toBe(11);
+    expect(unit.consumables.map((c) => c.uses)).toEqual([3, 3, 3]);
+    run.addToConvoy(unit.weapon);
+    expect(rosterItemBlock(run, unit, run.convoy.weapons.at(-1), 'use')).toContain('no longer');
+    // Storing is still only for what the unit carries.
+    run.addToConvoy({ ...vulnerary });
+    expect(rosterItemBlock(run, unit, liveConvoyItem(run), 'store')).toContain('no longer');
+  });
+
+  it('a booster from the convoy raises the stat once', () => {
+    const { run, unit } = fixture();
+    run.addToConvoy({
+      name: 'Energy Drop',
+      type: 'Consumable',
+      effect: 'statBoost',
+      stat: 'STR',
+      value: 2,
+      uses: 1,
+    });
+    const drop = liveConvoyItem(run);
+    const str = unit.stats.STR;
+    expect(rosterItemAction(run, unit, drop, 'use')).toBe('');
+    expect(unit.stats.STR).toBe(str + 2);
+    expect(run.convoy.consumables).not.toContain(drop);
+    expect(rosterItemAction(run, unit, drop, 'use')).toContain('no longer');
+    expect(unit.stats.STR).toBe(str + 2);
+  });
+});

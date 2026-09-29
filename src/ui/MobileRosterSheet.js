@@ -1403,6 +1403,22 @@ export class MobileRosterSheet {
       }
     }
   }
+  /** A convoy consumable's Use (or Promote / Reclass) on `unit`, without withdrawing it. */
+  convoyUse(card, unit, item) {
+    if (['heal', 'healFull', 'cure', 'cureHeal', 'statBoost'].includes(item.effect))
+      this.action(card, `Use on ${unit.name}`, unit, item, 'use');
+    if (['promote', 'reclass'].includes(item.effect)) {
+      const reason = rosterClassChangeBlock(this.run, unit, item, this.gameData);
+      card.append(
+        this.button(
+          `${item.effect === 'promote' ? 'Promote' : 'Reclass'} ${unit.name}`,
+          () => this.changeClass(unit, item),
+          reason,
+        ),
+      );
+      if (reason) card.append(el('small', reason));
+    }
+  }
   convoy(unit) {
     const items = this.run.getConvoyItems();
     const counts = this.run.getConvoyCounts();
@@ -1416,7 +1432,7 @@ export class MobileRosterSheet {
     shared.append(
       el(
         'p',
-        'Storage shared by the whole army between battles. Store puts a carried item here; Withdraw gives it to the unit below, or Trade… swaps it when their bag is full.',
+        'Storage shared by the whole army between battles. Store puts a carried item here; Withdraw gives it to the unit below, or Trade… swaps it when their bag is full. Heals, boosters and seals can be used from here on that unit.',
         'mr-convoy-explain',
       ),
     );
@@ -1447,6 +1463,8 @@ export class MobileRosterSheet {
     const live = [...this.run.convoy.weapons, ...this.run.convoy.consumables];
     [...items.weapons, ...items.consumables].forEach((item, index) => {
       const c = this.itemCard(item, unit);
+      // Heals, boosters and seals work straight from the convoy on the unit below.
+      if (item.type === 'Consumable') this.convoyUse(c, unit, live[index]);
       const bag = tradeBagFor(item);
       const holder = unitHolder(unit);
       if (
