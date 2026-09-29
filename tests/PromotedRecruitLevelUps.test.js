@@ -70,8 +70,33 @@ describe('promoted recruits · level-ups', () => {
 
   it('a recruit that fails its promotion roll still joins near the commander’s strength', () => {
     // Unchanged: an unpromoted recruit next to a Great Lord 8 is base level 17.
-    const { recruitTargetLevel, dynamicPromotionLevel } = resolveRecruitScalingTargets(edricAt(8));
+    const { recruitTargetLevel, dynamicPromotionLevel, failBaseLevelCap } =
+      resolveRecruitScalingTargets(edricAt(8));
     expect(getFailBaseLevel(recruitTargetLevel, dynamicPromotionLevel)).toBe(17);
+    expect(failBaseLevelCap).toBe(18);
+    expect(getFailBaseLevel(recruitTargetLevel, failBaseLevelCap)).toBe(17);
+  });
+
+  it('beside an unpromoted commander, a failed boss recruit joins one level below him', () => {
+    // Edric at base Lv 15 (effective 15): the fallback used to stop at Lv 9 (10 - 1).
+    const roster = [{ name: 'Edric', isLord: true, isCommander: true, tier: 'base', level: 15 }];
+    expect(resolveRecruitScalingTargets(roster).failBaseLevelCap).toBe(15);
+    // Early commanders keep the old cap: base Lv 6 -> 10 (the promotion level).
+    const early = [{ name: 'Edric', isLord: true, isCommander: true, tier: 'base', level: 6 }];
+    expect(resolveRecruitScalingTargets(early).failBaseLevelCap).toBe(10);
+    // Every promotion roll fails (0.99 > 0.7): each Act 3-pool candidate joins base Lv 14.
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const candidates = generateBossRecruitCandidates(
+      'act2',
+      roster,
+      { ...gameData, lords: [] },
+      null,
+    );
+    expect(candidates.length).toBeGreaterThan(0);
+    for (const { unit } of candidates) {
+      expect(unit.tier).toBe('base');
+      expect(unit.level).toBe(14);
+    }
   });
 
   it('every promoted boss recruit promotes from base level 10', () => {

@@ -9,8 +9,9 @@ import {
   addToInventory,
   addToConsumables,
 } from '../../src/engine/UnitManager.js';
+import { churchPromoteCost } from '../../src/engine/ChurchCommands.js';
 import {
-  CHURCH_PROMOTE_COST,
+  CHURCH_PROMOTE_COST_RECRUIT,
   DEPLOY_LIMITS,
   NODE_TYPES,
   AMBUSH_SHOP_DISCOUNT,
@@ -404,7 +405,8 @@ export class RunSimulationDriver {
     this.metrics.churchNodes++;
 
     const plan = chooseChurchPlan(this.runManager, {
-      promoteCost: CHURCH_PROMOTE_COST,
+      // The cheapest church promotion (a non-lord's); the unit's own price is checked below.
+      promoteCost: CHURCH_PROMOTE_COST_RECRUIT,
     });
 
     let revived = null;
@@ -425,7 +427,7 @@ export class RunSimulationDriver {
     if (plan.promote) {
       promoted = this._tryChurchPromotion();
       if (promoted) {
-        this.metrics.churchGoldSpent += CHURCH_PROMOTE_COST;
+        this.metrics.churchGoldSpent += promoted.cost;
         this.metrics.promotions++;
       }
     }
@@ -433,14 +435,14 @@ export class RunSimulationDriver {
     // Church always heals at end of visit in this sim.
     this.runManager.rest(node.id);
 
-    return { result: 'church_done', revived, promoted };
+    return { result: 'church_done', revived, promoted: promoted?.name ?? null };
   }
 
   _tryChurchPromotion() {
-    if (this.runManager.gold < CHURCH_PROMOTE_COST) return null;
-
     const target = this.runManager.roster.find((u) => canPromote(u));
     if (!target) return null;
+    const cost = churchPromoteCost(target);
+    if (this.runManager.gold < cost) return null;
 
     const lords = this.gameData.lords || [];
     const classes = this.gameData.classes || [];
@@ -464,9 +466,9 @@ export class RunSimulationDriver {
     const promotedClassData = classes.find((c) => c.name === promotedClassName);
     if (!promotedClassData) return null;
 
-    if (!this.runManager.spendGold(CHURCH_PROMOTE_COST)) return null;
+    if (!this.runManager.spendGold(cost)) return null;
     promoteUnit(target, promotedClassData, promotionBonuses, this.gameData.skills);
-    return target.name;
+    return { name: target.name, cost };
   }
 
   _findBestRecipient(item) {

@@ -143,7 +143,7 @@ export const BOSS_RECRUIT_LORD_CHANCE = 0.25; // 25% chance one slot is a lord
 export const BOSS_RECRUIT_COUNT = 3;
 export const RECRUIT_NODE_LORD_CHANCE = 0.15; // 15% chance recruit node NPC is a lord
 export const BOSS_RECRUIT_PROMOTION_CHANCE_BASE = 0.7;
-export const NODE_RECRUIT_PROMOTION_CHANCE_BASE = 0.4;
+export const NODE_RECRUIT_PROMOTION_CHANCE_BASE = 0.65;
 export const RECRUIT_PROMOTION_CHANCE_CAP = 0.95;
 
 // Act sequence and config for node map
@@ -195,7 +195,10 @@ export const GOLD_LOOT_REWARD_MULTIPLIER = 1.2;
 export const GOLD_PAR_BONUS_MULTIPLIER = 2.5;
 export const GOLD_SKIP_LOOT_MULTIPLIER = 1.5;
 export const SHOP_SELL_RATIO = 0.5;
-export const CHURCH_PROMOTE_COST = 3500;
+// Church promotion: lords pay the old price, every other unit less (playtest
+// 2026-09-29: recruits were too weak next to lords). ChurchCommands.churchPromoteCost.
+export const CHURCH_PROMOTE_COST_LORD = 3500;
+export const CHURCH_PROMOTE_COST_RECRUIT = 2000;
 export const REVIVE_BASE_COST = 500;
 export const REVIVE_COST_PER_LEVEL = 300;
 export const REVIVE_PROMOTION_MULTIPLIER = 2.5;

@@ -101,6 +101,25 @@ export function rollGrowthRates(growthRanges) {
   return growths;
 }
 
+/**
+ * "Seasoned" recruit growths: the upper half of every growth range ("40-70" ->
+ * "55-70"). Every recruit source rolls from these (recruit nodes, boss recruits,
+ * Colosseum mercenaries, the Vanguard Cadre): createRecruitUnit's `seasoned` option.
+ */
+export function seasonedGrowthRanges(growthRanges) {
+  if (!growthRanges || typeof growthRanges !== 'object') return growthRanges;
+  const out = {};
+  for (const [stat, range] of Object.entries(growthRanges)) {
+    const [lo, hi] = String(range).split('-').map(Number);
+    if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
+      out[stat] = range;
+      continue;
+    }
+    out[stat] = `${Math.ceil((lo + hi) / 2)}-${hi}`;
+  }
+  return out;
+}
+
 // --- Skill assignment helpers ---
 
 /**
@@ -627,7 +646,10 @@ export function createRecruitUnit(
   if (!classData.growthRanges && classData.promotesFrom) {
     growthSource = classesData?.find((c) => c.name === classData.promotesFrom) || classData;
   }
-  const growths = growthSource.growthRanges ? rollGrowthRates(growthSource.growthRanges) : {};
+  const growthRanges = options.seasoned
+    ? seasonedGrowthRanges(growthSource.growthRanges)
+    : growthSource.growthRanges;
+  const growths = growthRanges ? rollGrowthRates(growthRanges) : {};
   if (classData.growthBonuses) {
     for (const [stat, bonus] of Object.entries(classData.growthBonuses)) {
       growths[stat] = (growths[stat] || 0) + bonus;
@@ -709,10 +731,16 @@ export function createRecruitUnit(
     learnSkill(unit, skill);
   }
 
-  // Give Archer/Sniper recruits a Longbow for tactical range advantage.
-  // Keep this scoped to dedicated bow classes (not all classes with Bow proficiency).
-  const isArcherTypeRecruit = classData.name === 'Archer' || classData.name === 'Sniper';
-  if (isArcherTypeRecruit) {
+  // Dedicated bow recruits arrive with a second bow (not every class with Bow
+  // proficiency). Archers get a Longbow for reach. A recruit that joins as a Sniper
+  // (built as an Archer, then promoted: options.traitClassData is the class it will
+  // play) gets a Recurve Bow instead, equipped, so it can answer at one tile too. Only
+  // recruits come through here; enemy Snipers keep their own weapons.
+  const joinsAs = options.traitClassData?.name || classData.name;
+  if (joinsAs === 'Sniper') {
+    const recurve = allWeapons.find((w) => w.name === 'Recurve Bow');
+    if (recurve && addToInventory(unit, recurve)) equipWeapon(unit, unit.inventory.at(-1));
+  } else if (classData.name === 'Archer') {
     const longbow = allWeapons.find((w) => w.name === 'Longbow');
     if (longbow) addToInventory(unit, longbow);
   }
@@ -1283,7 +1311,16 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
   const learnedSkills = [];
   const droppedSkills = [];
   const innateSkills = getClassInnateSkills(promotedClassData.name, skillsData);
-  for (const sid of innateSkills) {
+  // The new class's curriculum from its first level (the Sniper's Death Blow) is
+  // learned with the promotion, as checkLevelUpSkills would at the next level-up.
+  // Class curricula are player progression: enemies never learn them (as there).
+  const firstLevelSkills =
+    unit.faction === 'enemy'
+      ? []
+      : (promotedClassData.learnableSkills || [])
+          .filter((entry) => entry?.skillId && entry.level <= unit.level)
+          .map((entry) => entry.skillId);
+  for (const sid of [...innateSkills, ...firstLevelSkills]) {
     const result = learnSkill(unit, sid);
     if (result.learned) learnedSkills.push(sid);
     else if (result.reason === 'at_cap') droppedSkills.push(sid);

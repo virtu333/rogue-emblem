@@ -16,6 +16,7 @@ import {
 } from '../engine/UnitManager.js';
 import { getReviveCost } from '../engine/RunManager.js';
 import {
+  churchPromoteCost,
   churchPromotionBlock,
   promoteAtChurch,
   churchReviveBlock,
@@ -41,7 +42,12 @@ import {
   takeChurchBlessing,
 } from '../engine/ChurchVow.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
-import { CHURCH_PROMOTE_COST, RUINS_SHOP_MARKUP, INVENTORY_MAX } from '../utils/constants.js';
+import {
+  CHURCH_PROMOTE_COST_LORD,
+  CHURCH_PROMOTE_COST_RECRUIT,
+  RUINS_SHOP_MARKUP,
+  INVENTORY_MAX,
+} from '../utils/constants.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 import { healUnitFully } from '../engine/UnitHealth.js';
@@ -172,7 +178,12 @@ export class ChurchMenu {
           'church-vow-line',
         ),
       );
-      body.append(el('h3', `Promote · ${CHURCH_PROMOTE_COST} G`));
+      body.append(
+        el(
+          'h3',
+          `Promote · ${CHURCH_PROMOTE_COST_RECRUIT} G · lords ${CHURCH_PROMOTE_COST_LORD} G`,
+        ),
+      );
       const eligible = run.roster.filter(canPromote);
       if (!eligible.length)
         body.append(el('p', 'No units eligible yet. Base classes can promote from level 10.'));
@@ -378,8 +389,8 @@ export class ChurchMenu {
       gameData,
       title: `Promote ${unit.name}`,
       closeLabel: 'Close',
-      note: `${CHURCH_PROMOTE_COST} G · you have ${run.gold} G`,
-      confirmLabel: (cls) => `Promote to ${cls.name} · ${CHURCH_PROMOTE_COST} G`,
+      note: `${churchPromoteCost(unit)} G · you have ${run.gold} G`,
+      confirmLabel: (cls) => `Promote to ${cls.name} · ${churchPromoteCost(unit)} G`,
       blocked: () => churchPromotionBlock(run, unit, nodeId, gameData),
       apply: (target) => {
         const content = promotionPathContent(unit, target, gameData);

@@ -119,6 +119,7 @@ import {
   DEFAULT_STARTING_LORD_NAMES,
 } from './Commander.js';
 import { unitBaseClassName } from './ClassLineage.js';
+import { applyRecruitJoinBonus } from './RecruitScaling.js';
 import { healUnitFully, setUnitHP } from './UnitHealth.js';
 
 // Phaser-specific fields that must be stripped for serialization
@@ -2828,12 +2829,15 @@ export class RunManager {
         skillsData: this.gameData?.skills,
         rng: Math.random,
         traitClassData: hasRecruitTemplate ? null : classData,
+        // The Cadre is a recruit like any other: seasoned growths and the join bonus.
+        seasoned: true,
       },
     );
     if (!hasRecruitTemplate) {
       promoteUnit(unit, classData, classData.promotionBonuses || {}, this.gameData?.skills || []);
     }
     unit.faction = 'player';
+    applyRecruitJoinBonus(unit, this.currentAct || 'act1');
 
     if (className === 'Paladin') {
       this._applyExtraStarterPaladinLoadout(unit);

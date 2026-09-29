@@ -19,7 +19,8 @@
 //    seat the recruit on a tile the unit that actually spawns can stand on.
 //
 // Recruit-node recruits are "seasoned": growths roll in the upper half of each class
-// range and they always carry at least one trait (the node is an elite-like fight).
+// range (as every recruit source's do: UnitManager.seasonedGrowthRanges) and they
+// always carry at least one trait (the node is an elite-like fight).
 
 import {
   BASE_CLASS_LEVEL_CAP,
@@ -40,7 +41,7 @@ import {
   isPromotedRecruitSource,
   rollRecruitPromotion,
 } from './RecruitPromotion.js';
-import { applyAct3RecruitBonus, resolveRecruitScalingTargets } from './RecruitScaling.js';
+import { applyRecruitJoinBonus, resolveRecruitScalingTargets } from './RecruitScaling.js';
 import { applyTraitCreationMods, rollTraits } from './TraitSystem.js';
 import {
   addToConsumables,
@@ -54,8 +55,12 @@ import {
   learnSkill,
   levelUp,
   promoteUnit,
+  seasonedGrowthRanges,
   traitProfileForClass,
 } from './UnitManager.js';
+
+// Seasoned growths live in UnitManager now (every recruit source rolls them).
+export { seasonedGrowthRanges };
 
 export const RECRUIT_PREVIEW_VERSION = 1;
 const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
@@ -210,28 +215,6 @@ export function resolveRecruitNodeLevel({
     : 1;
   const actMin = enemies?.pools?.[act]?.levelRange?.[0] || 1;
   return Math.max(actMin, avg + Math.trunc(Number(recruitLevelBonus) || 0));
-}
-
-/** Upper half of every growth range: "40-70" → "55-70". */
-export function seasonedGrowthRanges(growthRanges) {
-  if (!growthRanges || typeof growthRanges !== 'object') return growthRanges;
-  const out = {};
-  for (const [stat, range] of Object.entries(growthRanges)) {
-    const [lo, hi] = String(range).split('-').map(Number);
-    if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
-      out[stat] = range;
-      continue;
-    }
-    out[stat] = `${Math.ceil((lo + hi) / 2)}-${hi}`;
-  }
-  return out;
-}
-
-function seasonedClass(classData) {
-  if (!classData) return classData;
-  if (classData.growthRanges)
-    return { ...classData, growthRanges: seasonedGrowthRanges(classData.growthRanges) };
-  return classData;
 }
 
 function ensureOneTrait(unit, traitsData, rng, profile) {
@@ -413,7 +396,8 @@ export function buildRecruitNodeUnit(opts = {}) {
         deployBonus,
         recruitLevelBonus,
       });
-      const { dynamicPromotionLevel, promotedLevelTarget } = resolveRecruitScalingTargets(roster);
+      const { dynamicPromotionLevel, promotedLevelTarget, failBaseLevelCap } =
+        resolveRecruitScalingTargets(roster);
       const plan = planRecruitNodeSpawn(
         { preview, act, roster, fallenUnits, gameData, metaEffects, startingLordNames },
         rng,
@@ -437,7 +421,7 @@ export function buildRecruitNodeUnit(opts = {}) {
             baseLevelOverride: null,
           },
         );
-        applyAct3RecruitBonus(unit, act);
+        applyRecruitJoinBonus(unit, act);
         unit.faction = 'npc';
         return { unit, isLord: true, level: unit.level };
       }
@@ -457,13 +441,13 @@ export function buildRecruitNodeUnit(opts = {}) {
       const make = (d, cls, extra = {}) =>
         createRecruitUnit(
           d,
-          seasoned ? seasonedClass(cls) : cls,
+          cls,
           gameData.weapons,
           statBonuses,
           growthBonuses,
           skillPool,
           classes,
-          { ...traitOptions, ...extra },
+          { ...traitOptions, seasoned, ...extra },
         );
       if (npcClassData.tier === 'promoted') {
         const { roll, baseClass } = plan;
@@ -488,7 +472,7 @@ export function buildRecruitNodeUnit(opts = {}) {
             {
               ...def,
               className: baseClass.name,
-              level: getFailBaseLevel(level, dynamicPromotionLevel),
+              level: getFailBaseLevel(level, failBaseLevelCap),
             },
             baseClass,
           );
@@ -504,7 +488,7 @@ export function buildRecruitNodeUnit(opts = {}) {
       }
       if (seasoned) ensureOneTrait(unit, gameData.traits, rng, profile);
 
-      applyAct3RecruitBonus(unit, act);
+      applyRecruitJoinBonus(unit, act);
       if (metaEffects?.lethalArmoryTier)
         grantLethalArmoryWeapon(unit, gameData.weapons, metaEffects.lethalArmoryTier);
       if (metaEffects?.recruitWeaponForge)
