@@ -89,8 +89,14 @@ function normalizeCombatDrainPercent(value) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/** Most HP a percent drain may heal on one strike (Vampiric: 2), or null for no cap. */
+/** Most HP a percent drain may heal on one strike, or null for no cap. */
 function normalizeCombatDrainMaxPerHit(value) {
+  const n = Math.trunc(Number(value));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** A flat drain: exactly this many HP on each hit that deals damage (Vampiric: 1), or null. */
+function normalizeCombatDrainPerHit(value) {
   const n = Math.trunc(Number(value));
   return Number.isFinite(n) && n > 0 ? n : null;
 }
@@ -215,6 +221,7 @@ function normalizeCombatMods(mods) {
     drainMaxPerHit: normalizeCombatDrainPercent(mods.drainPercent)
       ? normalizeCombatDrainMaxPerHit(mods.drainMaxPerHit)
       : null,
+    drainPerHit: normalizeCombatDrainPerHit(mods.drainPerHit),
     damageMultiplier: normalizeCombatDamageMultiplier(mods.damageMultiplier),
     ignoreWeaponTriangle: Boolean(mods.ignoreWeaponTriangle),
     ignoreRES: Boolean(mods.ignoreRES),
@@ -256,6 +263,7 @@ export function mergeCombatMods(baseMods, extraMods) {
     preventEnemyDouble: base.preventEnemyDouble || extra.preventEnemyDouble,
     multiHit: extra.multiHit || base.multiHit,
     ...mergeCombatDrain(base, extra),
+    drainPerHit: Math.max(base.drainPerHit || 0, extra.drainPerHit || 0) || null,
     damageMultiplier:
       Math.max(base.damageMultiplier || 0, extra.damageMultiplier || 0) > 1
         ? Math.max(base.damageMultiplier || 0, extra.damageMultiplier || 0)
@@ -1108,6 +1116,7 @@ export function getCombatForecast(
             m?.vantage ||
             m?.desperation ||
             m?.drainPercent ||
+            m?.drainPerHit ||
             m?.vengeance ||
             (hasWeaponArtActivation(m) && !m.weaponArtProjectionSafe),
         ) &&
@@ -1159,6 +1168,7 @@ export function getCombatForecast(
       // Wounded: no drain heals (resolveCombat zeroes them); the forecast agrees.
       drainPercent: isWounded(attacker) ? 0 : atkMods?.drainPercent || 0,
       drainMaxPerHit: isWounded(attacker) ? null : atkMods?.drainMaxPerHit || null,
+      drainPerHit: isWounded(attacker) ? 0 : atkMods?.drainPerHit || 0,
       skills: atkActivated,
       warnings: atkWarnings,
       thornsReflect: thornsReflectDamage(atkDmg, atkThornsPct),
@@ -1177,6 +1187,7 @@ export function getCombatForecast(
       multiHit: defMultiHit,
       drainPercent: isWounded(defender) ? 0 : defMods?.drainPercent || 0,
       drainMaxPerHit: isWounded(defender) ? null : defMods?.drainMaxPerHit || null,
+      drainPerHit: isWounded(defender) ? 0 : defMods?.drainPerHit || 0,
       skills: defActivated,
       warnings: defWarnings,
       thornsReflect: thornsReflectDamage(defDmg, defThornsPct),
@@ -1217,6 +1228,7 @@ function rollStrike(
   perHitHeal = 0,
   critMultiplier = CRIT_MULTIPLIER,
   drainMaxPerHit = null,
+  drainPerHit = 0,
 ) {
   const attackerSide = strikeSides?.attackerSide || null;
   const targetSide = strikeSides?.targetSide || null;
@@ -1341,6 +1353,8 @@ function rollStrike(
       const capped = drainMaxPerHit > 0 ? Math.min(drained, drainMaxPerHit) : drained;
       heal = Math.max(heal, Math.min(capped, targetHP));
     }
+    // Flat drain (Vampiric): exactly N HP on each hit that deals damage.
+    if (drainPerHit > 0) heal = Math.max(heal, Math.min(drainPerHit, targetHP));
     heal = Math.min(heal, targetHP);
     if (perHitHeal > 0) {
       heal += Math.max(0, Math.trunc(perHitHeal));
@@ -1711,6 +1725,7 @@ export function resolveCombat(
     const targetSide = isAttackingDefender ? 'defender' : 'attacker';
     const drainPct = (isAttackingDefender ? atkMods : defMods)?.drainPercent || 0;
     const drainCap = (isAttackingDefender ? atkMods : defMods)?.drainMaxPerHit || null;
+    const drainFlat = (isAttackingDefender ? atkMods : defMods)?.drainPerHit || 0;
     const strikePerHitHeal = isAttackingDefender ? atkPerHitHeal : defPerHitHeal;
     const strikeCritMult = isAttackingDefender ? atkCritMult : defCritMult;
     for (let i = 0; i < count && atkHP > 0 && defHP > 0; i++) {
@@ -1729,6 +1744,7 @@ export function resolveCombat(
         strikePerHitHeal,
         strikeCritMult,
         drainCap,
+        drainFlat,
       );
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
@@ -1791,6 +1807,7 @@ export function resolveCombat(
           strikePerHitHeal,
           strikeCritMult,
           drainCap,
+          drainFlat,
         );
         bonusEvt.adeptStrike = true;
         if (isAttackingDefender) {
