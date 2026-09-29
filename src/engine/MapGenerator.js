@@ -15,6 +15,7 @@ import {
   TOXIC_COVERAGE_BY_ACT,
   ENTITY_FOOTPRINT,
   filterClassPoolByDifficulty,
+  RECRUIT_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
 import { pickCaravanSpawnTile } from './CaravanSystem.js';
@@ -205,9 +206,10 @@ export function generateBattle(params, deps) {
     act,
     {
       ...enemies.bosses,
-      [act]: (enemies.bosses[act] || []).filter((boss) =>
-        earlyEnemyAllowed(boss.className, params),
-      ),
+      [act]: (params.isElite === true && !isBoss && objective === 'seize'
+        ? eliteCaptains(enemies, act, adjustedLevelRange, classes)
+        : enemies.bosses[act] || []
+      ).filter((boss) => earlyEnemyAllowed(boss.className, params)),
     },
     thronePos,
     adjustedLevelRange,
@@ -510,6 +512,27 @@ function filterByBiome(pool, biome) {
   if (!biome) return pool;
   const biomeMatches = pool.filter((t) => getTemplateBiome(t) === biome);
   return biomeMatches.length > 0 ? biomeMatches : pool;
+}
+
+// Elite seize battles hold a captain, not the act's boss (playtest 2026-09-28: a
+// mid-act elite fielded Act III's Blade Lord at L17, and the same boss could wait at
+// the act's end). Captains come from enemies.elites.<act> and are scaled to the node:
+// the top of its enemy level range plus two (Act I: plus none), a promoted class
+// that many levels past promotion. They still hold the throne as the map's boss
+// (isBoss: boss bonus, bar, AI), with no boss card or lines (those need scene.isBoss).
+const ELITE_CAPTAIN_LEVEL_OFFSET = { act1: 0 };
+const ELITE_CAPTAIN_DEFAULT_OFFSET = 2;
+
+export function eliteCaptains(enemies, act, levelRange, classes = []) {
+  const list = enemies?.elites?.[act];
+  if (!Array.isArray(list) || !list.length) return enemies?.bosses?.[act] || [];
+  const top = Math.max(1, Math.trunc(Number(levelRange?.[1]) || 1));
+  const offset = ELITE_CAPTAIN_LEVEL_OFFSET[act] ?? ELITE_CAPTAIN_DEFAULT_OFFSET;
+  return list.map((entry) => {
+    const promoted = classes.find((c) => c.name === entry.className)?.tier === 'promoted';
+    const level = Math.max(1, top + offset - (promoted ? RECRUIT_PROMOTION_BASE_LEVEL : 0));
+    return { className: entry.className, name: entry.name, level };
+  });
 }
 
 export function pickTemplate(objective, mapTemplates, act = null, options = {}) {
