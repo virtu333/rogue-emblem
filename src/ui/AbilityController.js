@@ -24,6 +24,7 @@ import { deedsFor } from './DeedController.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import { healUnit } from '../engine/UnitHealth.js';
+import { menuRow, railOwnsMenus, rowText } from './battleMenuModel.js';
 
 const BLINK_TILE_COLOR = UI_HEX.lineStrong;
 const ALLY_AOE_COLOR = UI_HEX.hpHigh;
@@ -124,16 +125,55 @@ export class AbilityController {
       return;
     }
 
+    // The menu as rows (battleMenuModel): the canvas and the phone rail both render them.
+    const rows = [
+      ...entries.map((entry) => {
+        const usable = entry.canUse && entry.hasTargets;
+        return menuRow({
+          id: `ability:${entry.skill.id}`,
+          label: entry.skill.name,
+          status: this._statusLine(unit, entry),
+          description: entry.skill.description,
+          disabled: !usable,
+          color: usable ? UI_PALETTE.text : UI_PALETTE.muted,
+          invoke: () => {
+            // Re-check at click time — usage/silence may have changed since render
+            const latest = this._getAbilityEntries(unit).find((e) => e.skill.id === entry.skill.id);
+            if (!latest || !latest.canUse || !latest.hasTargets) {
+              this.showAbilityPicker(unit);
+              return;
+            }
+            const audio = scene.registry.get('audio');
+            if (audio) audio.playSFX('sfx_confirm');
+            this._selectAbility(unit, latest.skill);
+          },
+        });
+      }),
+      // A real menu entry keeps confirm/navigation usable even when every skill is disabled.
+      menuRow({
+        id: 'back',
+        label: 'Back',
+        color: UI_PALETTE.text,
+        invoke: () => scene.requestCancel({ allowPause: false }),
+      }),
+    ];
+
+    scene.actionMenu = [];
+    if (!railOwnsMenus(scene)) this._drawCanvasRows(unit, rows, entries);
+    scene._registerActionMenu(rows);
+  }
+
+  /** The desktop canvas menu for the picker's rows (the phone rail renders its own). */
+  _drawCanvasRows(unit, rows, entries) {
+    const scene = this.scene;
     const pos = scene.grid.gridToPixel(unit.col, unit.row);
     const menuWidth = 280;
     const menuX = hasRoomRightOf(scene.grid, unit.col, unit.row)
       ? pos.x + TILE_SIZE
       : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
-
-    scene.actionMenu = [];
     const itemHeight = scene.isMobileInput ? 46 : 42;
-    const menuHeight = (entries.length + 1) * itemHeight + 12;
+    const menuHeight = rows.length * itemHeight + 12;
     const menuPos = scene._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = scene.add
@@ -149,59 +189,30 @@ export class AbilityController {
       .setStrokeStyle(1, UI_HEX.line);
     scene.actionMenu.push(bg);
 
-    entries.forEach((entry, i) => {
-      const rowY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
-      const usable = entry.canUse && entry.hasTargets;
-      const color = usable ? UI_PALETTE.text : UI_PALETTE.muted;
-      const label = `${entry.skill.name}\n   ${this._statusLine(unit, entry)}`;
+    rows.forEach((row, i) => {
+      const skill = entries[i]?.skill || null;
       const text = scene._makeMenuTextButton(
         menuPos.x + 8,
-        rowY,
-        label,
-        {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color,
-          lineSpacing: 1,
-        },
-        color,
-        () => {
-          // Re-check at click time — usage/silence may have changed since render
-          const latest = this._getAbilityEntries(unit).find((e) => e.skill.id === entry.skill.id);
-          if (!latest || !latest.canUse || !latest.hasTargets) {
-            this.showAbilityPicker(unit);
-            return;
-          }
-          const audio = scene.registry.get('audio');
-          if (audio) audio.playSFX('sfx_confirm');
-          this._selectAbility(unit, latest.skill);
-        },
+        menuPos.y + 6 + i * itemHeight + itemHeight / 2,
+        rowText(row),
+        skill
+          ? { fontFamily: 'monospace', fontSize: '10px', color: row.color, lineSpacing: 1 }
+          : { fontFamily: 'monospace', fontSize: '12px', color: row.color },
+        row.color,
+        () => row.invoke(),
         {
           originX: 0,
           originY: 0.5,
           hitWidth: menuWidth - 12,
           hitHeight: itemHeight,
-          disabled: !usable,
+          disabled: row.disabled,
         },
       );
-      text._menuDescription = entry.skill.description;
-      this._wireAbilityTooltip(text, entry.skill);
+      text._rowId = row.id;
+      if (skill) this._wireAbilityTooltip(text, skill);
       scene.actionMenu.push(text);
     });
-    // A real menu entry keeps confirm/navigation usable even when every skill is disabled.
-    scene.actionMenu.push(
-      scene._makeMenuTextButton(
-        menuPos.x + 8,
-        menuPos.y + 6 + entries.length * itemHeight + itemHeight / 2,
-        'Back',
-        { fontFamily: 'monospace', fontSize: '12px', color: UI_PALETTE.text },
-        UI_PALETTE.text,
-        () => scene.requestCancel({ allowPause: false }),
-        { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
-      ),
-    );
     scene._pinToScreen(scene.actionMenu);
-    scene._registerActionMenu();
   }
 
   _wireAbilityTooltip(text, skill) {

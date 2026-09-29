@@ -385,8 +385,10 @@ export class MobileBattleHUD {
     this.sync();
   }
 
-  focusMenuItem(sourceButton) {
-    const item = this.menu?.items.find((entry) => entry.button === sourceButton);
+  /** Focus a menu row's rail button: `source` is the row's item, or (older menus) its canvas row. */
+  focusMenuItem(source) {
+    if (!source) return;
+    const item = this.menu?.items.find((entry) => entry === source || entry.button === source);
     if (!item?.domButton || !this.available()) return;
     item.domButton.focus({ preventScroll: true });
     item.domButton.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -1240,7 +1242,7 @@ export class MobileBattleHUD {
       // Danger joins the action grid (it fills the odd cell) so the rail never
       // overflows into the bottom tools with an open unit menu.
       this.body.append(details);
-      if (restoreMenuFocus) this.focusMenuItem(s._menuFocus?.items[s._menuFocus.index]?.button);
+      if (restoreMenuFocus) this.focusMenuItem(s._menuFocus?.items[s._menuFocus.index]);
       return;
     }
     if (['PLAYER_IDLE', 'UNIT_SELECTED'].includes(state)) {
