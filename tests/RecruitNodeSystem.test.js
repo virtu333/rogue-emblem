@@ -317,17 +317,51 @@ describe('recruit-node lords and promotions', () => {
     expect(unit.level).toBe(10);
   });
 
+  it('a recruit node promotes its recruit 65% of the time', () => {
+    const args = {
+      act: 'act4',
+      preview: { className: 'Hero', name: 'Test Recruit' },
+      roster: lordRoster(null),
+    };
+    // Draws: lord roll, lord pick, lord promotion roll, then the recruit's promotion roll.
+    expect(build({ ...args, rng: scripted([0.99, 0.99, 0.99, 0.64]) }).unit.tier).toBe('promoted');
+    expect(build({ ...args, rng: scripted([0.99, 0.99, 0.99, 0.65]) }).unit.tier).toBe('base');
+  });
+
+  it('a failed promotion roll joins near an unpromoted commander, not at Lv 9', () => {
+    const failed = (level, tier) =>
+      build({
+        act: 'act3',
+        preview: { className: 'Hero', name: 'Test Recruit' },
+        roster: lordRoster(null, level, tier),
+        rng: scripted([0.99, 0.99, 0.99, 0.99]),
+      }).unit;
+    // Every lord (the commander included) at base Lv 15: the squad averages 15, and
+    // the recruit joins one level below the commander's Lv 15 (it used to stop at 9).
+    const late = failed(15, 'base');
+    expect(late.className).toBe('Mercenary');
+    expect(late.level).toBe(14);
+    // A promoted commander is unchanged: Great Lord 4 (effective 14) -> base Lv 13.
+    const promoted = failed(4, 'promoted');
+    expect(promoted.className).toBe('Mercenary');
+    expect(promoted.level).toBe(13);
+    // A low commander never lowers it: a base Lv 7 squad joins at Act 3's floor, Lv 8
+    // (enemies.json act3 levelRange[0]), capped at the promotion level 10: Lv 7, as before.
+    expect(failed(7, 'base').level).toBe(7);
+  });
+
   it('recruitPromotionChanceBonus raises the regular promotion chance', () => {
     const args = {
       act: 'act4',
       preview: { className: 'Hero', name: 'Test Recruit' },
       roster: lordRoster(null),
     };
-    const a = build({ ...args, rng: scripted([0.99, 0.99, 0.99, 0.55]) });
+    // The base chance is 0.65: a 0.75 roll fails it, and succeeds at 0.65 + 0.2.
+    const a = build({ ...args, rng: scripted([0.99, 0.99, 0.99, 0.75]) });
     expect(a.unit.tier).toBe('base');
     const b = build({
       ...args,
-      rng: scripted([0.99, 0.99, 0.99, 0.55]),
+      rng: scripted([0.99, 0.99, 0.99, 0.75]),
       metaEffects: { recruitPromotionChanceBonus: 0.2 },
     });
     expect(b.unit.tier).toBe('promoted');
@@ -373,7 +407,8 @@ describe('recruit-node lords and promotions', () => {
         gameData: { ...gameData, traits: null },
       }).unit;
     const boosted = spawn('act3');
-    const baseline = spawn('act4');
+    // Baseline: an act with no join bonus (lords get none in act 4; nobody at the finale).
+    const baseline = spawn(isLordSlot ? 'act4' : 'finalBoss');
     expect(boosted.tier).toBe('base');
     expect(boosted.isLord).toBe(isLordSlot);
     expect(boosted.className).toBe(baseline.className);

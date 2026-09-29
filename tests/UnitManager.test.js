@@ -1188,14 +1188,31 @@ describe('createRecruitUnit', () => {
       expect(unit.inventory[1].name).toBe('Longbow');
     });
 
-    it('gives Sniper recruit a Longbow as secondary weapon', () => {
+    it('gives a Sniper recruit a Recurve Bow (equipped) instead of a Longbow', () => {
       const unit = createRecruitUnit(
         { className: 'Sniper', name: 'Faye', level: 8 },
         sniperClass,
         data.weapons,
       );
-      const longbow = unit.inventory.find((w) => w.name === 'Longbow');
-      expect(longbow).toBeDefined();
+      expect(unit.inventory.find((w) => w.name === 'Longbow')).toBeUndefined();
+      expect(unit.weapon.name).toBe('Recurve Bow');
+      expect(unit.weapon.range).toBe('1-2');
+      expect(unit.inventory[0]).toBe(unit.weapon);
+    });
+
+    it('an Archer built to join as a Sniper gets the Recurve Bow too', () => {
+      const unit = createRecruitUnit(
+        { className: 'Archer', name: 'Faye', level: 10 },
+        archerClass,
+        data.weapons,
+        null,
+        null,
+        null,
+        null,
+        { traitClassData: data.classes.find((c) => c.name === 'Sniper') },
+      );
+      expect(unit.inventory.map((w) => w.name)).toEqual(['Recurve Bow', 'Steel Bow']);
+      expect(unit.weapon).toBe(unit.inventory[0]);
     });
 
     it('does NOT give Longbow to non-archer bow class', () => {

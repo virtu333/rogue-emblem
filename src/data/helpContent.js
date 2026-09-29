@@ -4,6 +4,7 @@
 
 import { GENERATED_HELP_TABS } from './generated/mechanicsHelp.js';
 import { GAME_TITLE } from '../utils/gameIdentity.js';
+import { CHURCH_PROMOTE_COST_LORD, CHURCH_PROMOTE_COST_RECRUIT } from '../utils/constants.js';
 
 const GOLD = '#ffdd44';
 const CYAN = '#66ddff';
@@ -492,6 +493,9 @@ const STATIC_HELP_TABS = [
           { text: 'Church:', color: '#e0e0e0' },
           { text: '  Heal and revive allies. Then one vow:' },
           { text: '  promote units, or take a blessing.' },
+          {
+            text: `  Promotion: ${CHURCH_PROMOTE_COST_RECRUIT} G, lords ${CHURCH_PROMOTE_COST_LORD} G.`,
+          },
           { text: 'Colosseum:', color: GOLD },
           { text: '  Wager on fights or hire mercenaries.' },
           { text: 'Boss:', color: RED },

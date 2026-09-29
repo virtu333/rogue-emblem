@@ -195,8 +195,24 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
       const defRange = getWeaponRange(target);
       const distance = atkRange.max >= 2 ? 2 : 1; // Ranged units attack from range 2
 
-      const atkMods = getSkillCombatMods(unit, target, alive.player, alive.enemy, data.skills);
-      const defMods = getSkillCombatMods(target, unit, alive.enemy, alive.player, data.skills);
+      // The attacker initiates (Death Blow and the other initiating skills fire).
+      const atkMods = getSkillCombatMods(
+        unit,
+        target,
+        alive.player,
+        alive.enemy,
+        data.skills,
+        atkTerrain,
+        true,
+      );
+      const defMods = getSkillCombatMods(
+        target,
+        unit,
+        alive.enemy,
+        alive.player,
+        data.skills,
+        defTerrain,
+      );
 
       const result = resolveCombat(
         unit,
@@ -259,8 +275,23 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
       const atkRange = getWeaponRange(enemy);
       const distance = atkRange.max >= 2 ? 2 : 1;
 
-      const atkMods = getSkillCombatMods(enemy, target, alive.enemy, alive.player, data.skills);
-      const defMods = getSkillCombatMods(target, enemy, alive.player, alive.enemy, data.skills);
+      const atkMods = getSkillCombatMods(
+        enemy,
+        target,
+        alive.enemy,
+        alive.player,
+        data.skills,
+        atkTerrain,
+        true,
+      );
+      const defMods = getSkillCombatMods(
+        target,
+        enemy,
+        alive.player,
+        alive.enemy,
+        data.skills,
+        defTerrain,
+      );
 
       const result = resolveCombat(
         enemy,
