@@ -263,16 +263,15 @@ describe('Recruit battle intro (playtest 4: a field note, never a dialog)', () =
     expect(next.pick()).toBeNull();
   });
 
-  it('names a fogged recruit the gold banner marks, but not other hidden green units', () => {
+  it('names a recruit in fog (always in view), but never a hidden caravan', () => {
     const recruit = garrick();
+    const caravan = createCaravanUnit('act2', { col: 6, row: 4 });
     const { scene, settings } = guidanceScene({
-      npcUnits: [recruit],
+      npcUnits: [caravan, recruit],
       grid: { fogEnabled: true, isVisible: () => false },
     });
     settings.getGuidance = () => 'light';
     const g = new GuidanceController(scene);
-    expect(g.pick()).toBeNull(); // hidden and unmarked
-    scene._recruitBeacon = { npc: recruit };
     expect(g.pick()).toMatchObject({ id: 'guide_recruit_on_map', anchor: recruit });
   });
 

@@ -264,6 +264,20 @@ describe('Formation: the held unit’s menu', () => {
     expect(c.notice).toBe("Rowan waits: Cavalry units can't stand on Mountain.");
   });
 
+  it('a menu pick that may not take the held unit’s tile is refused: the unit stays in hand, tinted', () => {
+    const { c } = setup();
+    c.assign(0, CAVALRY_BANNED); // Edric
+    tap(c, CAVALRY_BANNED);
+    tap(c, CAVALRY_BANNED); // Edric's menu
+    const before = names(c);
+    expect(c.moveTo(2, CAVALRY_BANNED)).toBe(false); // Rowan (Cavalry) is waiting
+    expect(names(c)).toEqual(before);
+    // What is drawn matches what is held: no tint left on a unit that is no longer in hand.
+    expect(c.heldUnit?.name).toBe('Edric');
+    expect(c.units[0].graphic.tint).toBe(0xaaaaff);
+    expect(c.notice).toBe("Cavalry units can't stand on Mountain.");
+  });
+
   it('Details pages through the units on the field only', () => {
     const { c, scene } = setup();
     scene.unitDetailOverlay = { show: vi.fn(), visible: false };

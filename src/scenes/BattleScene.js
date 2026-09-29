@@ -11107,7 +11107,8 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     for (const npc of this.npcUnits) {
-      const vis = this.grid.isVisible(npc.col, npc.row);
+      // The recruit shows through fog (canInspectUnit); the caravan does not.
+      const vis = canInspectUnit(this.grid, npc);
       if (npc.graphic) npc.graphic.setVisible(vis);
       if (npc.label) npc.label.setVisible(vis);
       if (npc.factionIndicator) npc.factionIndicator.setVisible(vis);

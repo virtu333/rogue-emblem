@@ -472,6 +472,17 @@ html.mobile-preview .mu-screen {
   margin: 6px 0;
 }
 
+/* A claimed reward's news (team XP level-ups, class skills), before the flow moves on. */
+.mu-screen .reward-notice {
+  margin: 0;
+  padding: 0 0 0 18px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+.mu-screen .reward-notice li + li {
+  margin-top: 6px;
+}
+
 .reward-tools {
   display: flex;
   gap: 6px;
