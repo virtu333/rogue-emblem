@@ -546,6 +546,238 @@ export function marchSkeleton(t, o = {}) {
   };
 }
 
+/**
+ * The landings of a march, from where the hips are to where they end up: `n` steps every `dt`
+ * from t0, each a stride ahead of the other foot's plant (facing f), the last one closing up
+ * beside the front foot when `close` (a halt: left, right, close). Returns { rest, steps,
+ * halt } for stepSkeleton: rest = the feet at t = -inf, steps = [{ t, foot, x }], halt = the
+ * time of the closing stamp (or null).
+ */
+export function marchPlan({
+  xh0,
+  xhE,
+  f = -1,
+  n = 3,
+  t0,
+  dt = 0.4,
+  close = true,
+  first = 'F',
+  stance = 0.12,
+}) {
+  const other = first === 'F' ? 'N' : 'F';
+  // the first foot to step starts behind, the other in front (a natural stance)
+  const rest = { [first]: xh0 - f * stance, [other]: xh0 + f * stance };
+  const D = (xhE - xh0) * f; // metres to advance along the facing
+  // close: (n - 1) strides carry the front foot to xhE + stance; else n strides
+  const s = close ? D / Math.max(1, n - 1) : (D - stance) / (n - 0.5);
+  const steps = [];
+  let x = rest[other];
+  for (let k = 0; k < n; k++) {
+    const foot = k % 2 ? other : first;
+    x = k === n - 1 && close ? x - f * stance * 2 : x + f * s;
+    steps.push({ t: t0 + k * dt, foot, x });
+  }
+  return { rest, steps, halt: close ? t0 + (n - 1) * dt : null, stride: s };
+}
+
+/**
+ * A soldier on real ground, in the skeleton format of ford_blocking.js but in world metres (Y up
+ * from the water): he stands, marches in step and halts, each sole on ground(X) (which slopes
+ * under a foot on a bank: the boot tilts with it). The heel strikes and sinks the hips, the
+ * swing foot arcs, the near arm swings against the near leg; the spear is carried with its butt
+ * a hand off the ground, dropped onto the ground on the halt's stamp (the hips settle with it)
+ * and grounded while he stands. A pure function of t.
+ * o: { rest: { N, F } (foot x at rest), steps: [{ t, foot, x }], halt (t of the stamp | null),
+ *      ground (X) => Y, facing (-1 left), z, scale, seed, swing (s), spearLen (m) }
+ */
+export function stepSkeleton(t, o) {
+  const { facing: f = -1, z = 0, scale = 1, seed = 0, ground = () => 0 } = o;
+  const look = soldierLook(seed);
+  const D = dimsOf(scale);
+  const swing = o.swing ?? 0.34;
+  const steps = o.steps ?? [];
+  const halt = o.halt ?? null;
+  const spearLen = o.spearLen ?? 2.3;
+  const toeVec = [0.19 * scale, -0.05 * scale];
+  const TL = Math.hypot(toeVec[0], toeVec[1]);
+  const flat = Math.atan2(toeVec[1], toeVec[0]);
+  const lift = 0.15 * scale;
+  const plants = { N: [{ t: -1e9, x: o.rest.N }], F: [{ t: -1e9, x: o.rest.F }] };
+  for (const st of steps) plants[st.foot].push({ t: st.t, x: st.x });
+
+  // one foot: ankle (x, y), toe (x, y), and how far through its swing it is (0..1, 0 planted)
+  const foot = (nm) => {
+    const P = plants[nm];
+    let k = 0;
+    while (k + 1 < P.length && t >= P[k + 1].t) k++;
+    const nx = P[k + 1];
+    const tau = t - P[k].t;
+    const slope = (x) => {
+      const a = Math.atan((f * (ground(x + 0.09) - ground(x - 0.09))) / 0.18);
+      return Math.max(-0.55, Math.min(0.55, a));
+    };
+    const plantedAt = (x, pitch, rise) => {
+      // a flat foot; on a heel strike the toe is up and the heel takes the ground first;
+      // before it leaves, the heel rises about the toe
+      const g = ground(x);
+      const sl = slope(x);
+      if (rise > 0) {
+        const toeX = x + f * toeVec[0];
+        const toeY = ground(toeX) + ANKLE * scale + toeVec[1];
+        const th = flat + sl - rise;
+        return {
+          x: toeX - f * TL * Math.cos(th),
+          y: toeY - TL * Math.sin(th),
+          tx: toeX,
+          ty: toeY,
+          u: 0,
+        };
+      }
+      const th = flat + sl + pitch;
+      const y = g + ANKLE * scale;
+      return { x, y, tx: x + f * TL * Math.cos(th), ty: y + TL * Math.sin(th), u: 0 };
+    };
+    if (nx && t >= nx.t - swing) {
+      const u = (t - (nx.t - swing)) / swing;
+      const x0 = P[k].x;
+      const e = sstep(u) ** 0.9;
+      const x = lerp(x0, nx.x, e);
+      const arc = lift * Math.sin(Math.PI * Math.pow(u, 0.8)) ** 1.1;
+      const y = ground(x) + ANKLE * scale + arc;
+      const pitch = lerp(-0.6, 0.3, sstep(u * 1.15));
+      const th = flat + pitch;
+      return { x, y, tx: x + f * TL * Math.cos(th), ty: y + TL * Math.sin(th), u };
+    }
+    if (nx) {
+      // planted; the heel comes up in the last 0.1 s before the swing
+      const r = clamp((t - (nx.t - swing - 0.1)) / 0.1);
+      if (r > 0) return plantedAt(P[k].x, 0, 0.5 * r ** 1.3);
+    }
+    const strike = tau > 0 && tau < 0.09 ? 0.3 * (1 - tau / 0.09) ** 1.5 : 0;
+    return plantedAt(P[k].x, strike, 0);
+  };
+  const N = foot('N');
+  const F = foot('F');
+
+  // marching: 1 across the steps (each window rises fast and falls off slowly), 0 at rest
+  let mf = 0;
+  for (const st of steps) {
+    const a = st.t - swing - 0.1;
+    const w = sstep((t - a) / 0.1) * (1 - sstep((t - (st.t + 0.05)) / 0.16));
+    mf = Math.max(mf, w);
+  }
+  // the hips: between the feet, as high as the longer leg allows, sinking on each heel strike
+  const hx = (N.x + F.x) / 2;
+  const reach = 0.99 * (D.thigh + D.shin);
+  const cap = Math.min(
+    N.y + Math.sqrt(Math.max(0.05, reach * reach - (hx - N.x) ** 2)),
+    F.y + Math.sqrt(Math.max(0.05, reach * reach - (hx - F.x) ** 2)),
+  );
+  let sink = 0;
+  for (const st of steps) {
+    const u = t - st.t;
+    if (u > -0.02 && u < 0.3)
+      sink = Math.max(sink, 0.014 * scale * Math.sin(Math.PI * clamp((u + 0.02) / 0.32)) ** 1.2);
+  }
+  if (halt !== null) {
+    // the stamp: the weight comes down on the closing foot and settles
+    const u = t - halt;
+    if (u > -0.03) {
+      const dip =
+        0.034 * scale * (u < 0.05 ? sstep((u + 0.03) / 0.08) : Math.exp(-(u - 0.05) / 0.11));
+      sink += dip;
+    }
+  }
+  const step0 = (t - (steps[0]?.t ?? 0)) / 0.4;
+  const bob = -mf * 0.012 * scale * Math.cos(2 * Math.PI * step0);
+  // what the hips stand over: the ground under the feet that are down (a foot in the air holds
+  // nothing up)
+  const wN = 1 - clamp(N.u * 1.6);
+  const wF = 1 - clamp(F.u * 1.6);
+  const base =
+    wN + wF < 0.05
+      ? (ground(N.x) + ground(F.x)) / 2
+      : (wN * ground(N.x) + wF * ground(F.x)) / (wN + wF);
+  const hipY = Math.min(cap - 0.004, base + 0.865 * scale + bob) - sink;
+  const hips = [hx, hipY];
+
+  // the trunk: upright at rest, leaning into the march, a jolt on each heel strike
+  const lean =
+    0.03 + mf * (0.09 + 0.025 * (look.helmShade - 0.5)) + (0.4 * sink) / Math.max(0.3, D.trunk);
+  const tv = [Math.sin(lean) * f, Math.cos(lean)];
+  const nv = [Math.cos(lean) * f, -Math.sin(lean)];
+  const neck = [hips[0] + tv[0] * D.trunk, hips[1] + tv[1] * D.trunk];
+  const spine = [
+    hips[0] + tv[0] * D.trunk * 0.5 + nv[0] * 0.025 * scale,
+    hips[1] + tv[1] * D.trunk * 0.5 + nv[1] * 0.025 * scale,
+  ];
+  const ha = lean - 0.11 + 0.02 * Math.sin(2 * Math.PI * step0);
+  const head = [neck[0] + Math.sin(ha) * f * D.neck, neck[1] + Math.cos(ha) * D.neck];
+  const sh = [neck[0] - tv[0] * 0.05 * scale, neck[1] - tv[1] * 0.05 * scale];
+
+  const legs = {};
+  for (const [nm, ft] of [
+    ['N', N],
+    ['F', F],
+  ]) {
+    const r = ik2(hips[0], hips[1], ft.x, ft.y, D.thigh, D.shin, [f, 0.15]);
+    legs[nm] = { knee: r.joint, foot: r.end, toe: [ft.tx, ft.ty] };
+  }
+
+  // arms: the near arm swings against the near leg; the far hand holds the spear
+  const armL = (D.upper + D.fore) * 0.985;
+  const relN = clamp(((N.x - hx) * f) / 0.3, -1.2, 1.2);
+  const sw = -relN * 0.42 * mf;
+  const nearT = [sh[0] + f * Math.sin(sw) * armL * 0.9, sh[1] - Math.cos(sw) * armL * 0.9];
+  const pref = [-0.35 * f, -1];
+  const an = ik2(sh[0], sh[1], nearT[0], nearT[1], D.upper, D.fore, pref);
+  // the grip: chest high on the march, lower and closer when he stands at his spear
+  const gx = lerp(0.17, 0.26, mf);
+  const gy = lerp(-0.34, -0.2, mf);
+  const farT = [
+    sh[0] + f * gx * scale,
+    sh[1] + gy * scale + 0.012 * Math.cos(2 * Math.PI * step0) * mf,
+  ];
+  const af = ik2(sh[0], sh[1], farT[0], farT[1], D.upper, D.fore, pref);
+  // the shaft: near vertical, leaning a little toward the front. Carried, the butt hangs a hand
+  // off the ground; on the halt's stamp it drops (accelerating) and stands on the ground
+  const ang = Math.PI / 2 - 0.05 + look.spearJitter;
+  const dir = [Math.cos(ang) * f, Math.sin(ang)];
+  let carry = 0.15 * mf;
+  if (halt !== null) {
+    const d = clamp((t - (halt - 0.14)) / 0.14);
+    carry *= 1 - d * d;
+  }
+  const hand = af.end;
+  let buttX = hand[0] - dir[0] * 1.05;
+  let buttY = ground(buttX) + 0.012 + carry;
+  for (let i = 0; i < 2; i++) {
+    const dB = (hand[1] - buttY) / dir[1]; // hand to butt along the shaft
+    buttX = hand[0] - dir[0] * dB;
+    buttY = ground(buttX) + 0.012 + carry;
+  }
+  const butt = [buttX, buttY];
+  const tip = [butt[0] + dir[0] * spearLen, butt[1] + dir[1] * spearLen];
+  return {
+    name: o.name ?? `step${seed}`,
+    t,
+    facing: f,
+    X: hips[0],
+    Z: z,
+    hips,
+    spine,
+    neck,
+    head,
+    headR: D.headR,
+    shoulder: sh,
+    legs,
+    arms: { N: { elbow: an.joint, hand: an.end }, F: { elbow: af.joint, hand: af.end } },
+    weapon: { kind: 'spear', butt, tip, rear: af.end, lead: null, dir, ang, aimW: 0 },
+    over: 0,
+    march: mf,
+  };
+}
+
 /** Recent skeletons for the cloth: hist[k] is the skeleton at t - k / 24 (k = 0 is now). */
 export const HIST_DT = 1 / 24;
 export function history(skelFn, t, n = 8) {

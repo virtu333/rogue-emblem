@@ -1422,6 +1422,8 @@ export class World {
     lap('actors');
     for (const s of o.splashes || [])
       this.splashAt(frame, cam, s.X, s.Z, t, s.t0, s.strength ?? 1, s.seed ?? 1);
+    for (const s of o.puffs || [])
+      this.puffAt(frame, cam, s.X, s.Z, t, s.t0, s.strength ?? 1, s.seed ?? 1);
     for (const s of o.sprays || []) this.spraySheet(frame, cam, s);
     if (this.rain > 0) this.drawRain(frame, B, t, o.rainWind || [1.2, 0]);
     if (o.foreground?.length)
@@ -2903,6 +2905,33 @@ export class World {
           frame[o + 2] *= k + 0.03;
         }
     }
+    // contact patches: under every sole that is down on the bank, wet earth darkens where a
+    // boot presses it (tight, hard-edged, ambient occlusion); in water the rings do this
+    if (a.contacts)
+      for (const c of a.contacts) {
+        if (c.on === false) continue;
+        const gy = this.groundY(c.X, c.Z);
+        if (gy < 0.01) continue;
+        const pc = project(cam, c.X, gy, c.Z, W, H);
+        if (pc.depth < 0.3) continue;
+        const rx = Math.max(1.4, (c.r ?? 0.17) * pc.scale);
+        const ry = Math.max(1, rx * 0.42);
+        for (let y = Math.floor(pc.sy - ry - 1); y <= pc.sy + ry + 1; y++)
+          for (let x = Math.floor(pc.sx - rx - 1); x <= pc.sx + rx + 1; x++) {
+            if (x < 0 || y < 0 || x >= W || y >= H) continue;
+            const i = y * W + x;
+            const id = this.ids[i];
+            if ((id !== ID_BANK && id !== ID_SLOPE) || this.stg[i] !== 0) continue;
+            const e = ((x - pc.sx) / rx) ** 2 + ((y - pc.sy) / ry) ** 2;
+            if (e > 1) continue;
+            if ((1 - e) * 2 < bayer(x, y)) continue;
+            const o = i * 4;
+            const k = e < 0.4 ? 0.58 : 0.76;
+            frame[o] *= k;
+            frame[o + 1] *= k;
+            frame[o + 2] *= k + 0.03;
+          }
+      }
     // the body: hidden below the ripple line, foam where the water meets it
     for (let y = Y0s; y < Y1; y++)
       for (let x = X0; x < X1; x++) {
@@ -3236,6 +3265,61 @@ export class World {
         this.fxPut(frame, p.sx + 1, p.sy, p.depth, hi);
         this.fxPut(frame, p.sx, p.sy + 1, p.depth, SEPIA, 1, true);
         this.fxPut(frame, p.sx + 1, p.sy + 1, p.depth, SEPIA, 1, true);
+      }
+    }
+  }
+
+  /** The world's own haze at a distance (m): 0 near, toward 1 far (what the ground takes). */
+  fogAt(dist) {
+    return dist / (dist + 240);
+  }
+
+  /**
+   * Wet earth kicked up where a boot or a spear butt lands on a bank (call after render(), like
+   * splashAt): a few clods and pale flecks thrown low round the point, falling back; a damp dark
+   * patch that stays a moment. Nothing here on water (that is a splash).
+   */
+  puffAt(frame, cam, X, Z, t, t0, strength = 1, seed = 1) {
+    const u = t - t0;
+    if (u < 0 || u > 0.6) return;
+    const { W, H } = this;
+    const paper = this.paper;
+    const gY = Math.max(0, this.groundY(X, Z));
+    const s = strength;
+    const clod = (o) => [
+      paper[o] * WET_MUD[0] * KR * 0.8,
+      paper[o + 1] * WET_MUD[1] * KG * 0.8,
+      paper[o + 2] * WET_MUD[2] * KB * 0.82,
+    ];
+    const fleck = [222, 216, 204];
+    const n = Math.round(14 * s);
+    for (let j = 0; j < n; j++) {
+      const a = hash(j, seed, 51) * TWO_PI;
+      const vh = (0.3 + hash(j, seed, 52) * 0.9) * Math.sqrt(s);
+      const vy = (0.7 + hash(j, seed, 53) * 1.3) * Math.sqrt(s);
+      const uu = u - hash(j, seed, 54) * 0.05;
+      if (uu < 0) continue;
+      const Y = vy * uu - 4.9 * uu * uu;
+      if (Y < 0) continue;
+      const p = project(
+        cam,
+        X + Math.cos(a) * (0.05 + vh * uu),
+        gY + Y,
+        Z + Math.sin(a) * (0.05 + vh * uu),
+        W,
+        H,
+      );
+      if (p.depth < 0.3) continue;
+      const x = Math.round(p.sx);
+      const y = Math.round(p.sy);
+      const big = p.scale > 40 && hash(j, seed, 55) > 0.55;
+      const pale = hash(j, seed, 56) < 0.4;
+      const o = (Math.max(0, Math.min(H - 1, y)) * W + Math.max(0, Math.min(W - 1, x))) * 4;
+      const c = pale ? fleck : clod(o);
+      this.fxPut(frame, x, y, p.depth, c);
+      if (big) {
+        this.fxPut(frame, x + 1, y, p.depth, c);
+        this.fxPut(frame, x, y + 1, p.depth, c);
       }
     }
   }

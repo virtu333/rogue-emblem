@@ -74,16 +74,13 @@ import {
   orbit,
   project,
 } from './engine/world.js';
-import { drawSoldier, history, soldierLook } from './engine/figure.js';
+import { drawSoldier, history, marchPlan, soldierLook, stepSkeleton } from './engine/figure.js';
 import {
   DURATION as BLOCK_DURATION,
-  LINE,
   MUSIC_OFFSET as BLOCK_OFFSET,
   TIME,
   actorAt,
   bindPoint,
-  groundY as blockGround,
-  skeletonAt,
 } from './ford_blocking.js';
 
 export const W = 480;
@@ -297,7 +294,17 @@ const HIPS = { edric_slide_burst: [233, 172], warden_yield_cut: [153, 167] };
 
 // every drawing of Edric (their warm tan is retoned at load: see retoneWarm)
 const EDRIC_MOTIONS = ['edric_run', 'edric_tumble', 'edric_slide_burst', 'edric_slip_fall'];
-const EDRIC_IMAGES = ['standing', 'charge', 'falls', 'eSlide', 'eRise', 'eCut', 'eOver', 'eStruck', 'eFall'];
+const EDRIC_IMAGES = [
+  'standing',
+  'charge',
+  'falls',
+  'eSlide',
+  'eRise',
+  'eCut',
+  'eOver',
+  'eStruck',
+  'eFall',
+];
 
 // the eye in the uncropped helm plate (page px), for the one-sixteenth cut on the slit
 const SLIT_EYE = [336, 58];
@@ -312,7 +319,6 @@ const bucket = (px) => {
   return Math.round(10 * 1.1 ** Math.round(Math.log(p / 10) / Math.log(1.1)));
 };
 const step = (u, n) => Math.floor(clamp(u) * n) / n; // progress in n stutters
-const Zw = (zb) => -zb; // the blocking's z to the world's Z
 
 // hit-stops: the thrust (short), the clash and the cut (long). Everything that acts reads
 // its time through these; only the camera keeps the score's clock.
@@ -603,63 +609,179 @@ export class FordPiece extends Piece {
   }
 
   /**
-   * The Empire's line (and, far off, the Warden) drawn in code from the blocking's
-   * skeletons (engine/figure.js), as world actors so they wade, reflect and sort.
-   * names: blocking actor names; flip: the crossed side.
+   * The Empire's rank on the far bank, and (far off, in the wide) the Warden coming down to
+   * the water: code-drawn soldiers (engine/figure.js) standing on the world's real ground.
+   * Each man is staged from the terrain, not from the blocking's column: he starts a stride
+   * or two up the bank and steps down it in step with the others, every sole on the ground
+   * at its own X (the slope tilts the boot), and halts at the water's edge in the shallows
+   * with a stamp and a settle, the spear butt dropping onto the bed. The rank is a real one:
+   * a man's width and a half between the shoulders, uneven the way men are, following the
+   * shore. Returns { actors, splashes, puffs }: the footfalls as effects for world.render.
+   * names: 'warden' in it adds the Warden; o: { flip (ignored: derived from the camera), stage,
+   * mist, haze, n (men in the rank), zMin/zMax (only the men in that stretch of shore) }.
    */
   soldiers(t, cam, names, o = {}) {
     const tt = onN(t, 2);
-    return names.map((n, i) => {
-      const sk = shorten(skeletonAt(n, tt), o.spear ?? 2.3);
-      // the blocking files them in a column along the crossing; staged, they stand as a
-      // rank abreast on the bank, facing the ford (same steps, in unison)
-      const r = o.rank === false ? -1 : LINE.indexOf(n);
-      const X = r < 0 ? sk.X : sk.X - 0.43 * r + 0.18 * (r % 2);
-      const Z = r < 0 ? Zw(sk.Z ?? 0) : 0.6 + r * 0.95; // receding upstream from the ford
-      const skW = { ...sk, Z: 0 };
-      const look = soldierLook(o.seedBase ?? 101 + i * 7);
-      // the skeleton stands on the blocking's ground; lift it onto the world's
-      const lift = this.world.groundY(X, Z) - blockGround(sk.X, sk.Z ?? 0);
-      return {
+    const men = this.rankStaging().filter((m) =>
+      m.warden ? names.includes('warden') : m.Z >= (o.zMin ?? -99) && m.Z <= (o.zMax ?? 99),
+    );
+    const actors = [];
+    const splashes = [];
+    const puffs = [];
+    const world = this.world;
+    for (const m of men) {
+      const skel = (q) => m.skel(q);
+      const sk = skel(tt);
+      const X = sk.X;
+      const Z = m.Z;
+      const look = m.look;
+      // where he stands on the page: the water plane under his hips; the skeleton is in
+      // world metres, so his soles land wherever the ground is
+      const p = project(cam, X, 0, Z, W, H);
+      // which way he turns toward the lens (3/4 view), and on which side of the page he
+      // faces: from the ray to him (he faces -X, toward the ford)
+      const rx = X - cam.x;
+      const rz = Z - cam.z;
+      const rl = Math.hypot(rx, rz) || 1;
+      const vx = rx / rl;
+      const vz = rz / rl;
+      const side = -vz; // > 0: he faces screen right
+      const yaw = Math.max(0, Math.min(1.2, Math.atan2(vx, Math.abs(side))));
+      // the haze: aerial perspective from the world's own fog, a touch stronger (the ink
+      // ramps step up on it), and the same veil over what is drawn
+      const dist = Math.max(1, p.depth);
+      const fog = world.fogAt(dist);
+      const haze = clamp(0.1 + fog * 4.2, 0, 0.8) * (o.haze ?? 1);
+      const mist = clamp(0.06 + fog * 2.4, 0, 0.5) * (o.mist ?? 1);
+      const sc = p.scale;
+      const box = [
+        p.sx - 1.7 * sc - 6,
+        p.sy - 3.1 * sc - 6,
+        p.sx + 1.7 * sc + 6,
+        p.sy + 0.8 * sc + 6,
+      ];
+      actors.push({
         X,
         Z,
-        height: 1.95,
-        wade: true,
-        rings: 0.35,
-        seed: 20 + i,
+        height: 1.95 * m.scale,
+        rings: m.warden ? 0.5 : 0.4,
+        seed: 20 + m.i,
         stage: o.stage,
-        box: null,
-        draw: (buf) => {
-          const p = project(cam, X, Math.max(0, lift), Z, W, H);
-          if (p.depth < 0.5) return;
-          const xf = { x: p.sx, y: p.sy, s: p.scale, ax: sk.X, ay: 0, flip: !!o.flip, yaw: 0 };
-          const hist = history(
-            (q) => ({ ...shorten(skeletonAt(n, q), o.spear ?? 2.3), Z: 0 }),
-            tt,
-            8,
-          );
-          // aerial perspective: through the rain even the near rank goes pale
-          const haze = clamp(0.25 + (p.depth - 5) / 40) * (o.haze ?? 1);
-          drawSoldier(buf, W, H, skW, xf, { look, haze, hist, t: tt, detail: o.detail });
-          // the painter writes colour only: mark what it drew for the compositor
-          const r = 3.6 * p.scale + 8;
-          const x0 = Math.max(0, Math.floor(p.sx - r));
-          const x1 = Math.min(W, Math.ceil(p.sx + r));
-          const y0 = Math.max(0, Math.floor(p.sy - r * 1.1));
-          const y1 = Math.min(H, Math.ceil(p.sy + r * 0.4));
-          // and the rain's haze over them (aerial perspective, toward the world's mist)
-          const mist = o.mist ?? clamp(0.15 + (p.depth - 4) / 30, 0, 0.6);
+        shadow: false,
+        box,
+        // a contact patch under each sole that is down (on wet earth: a small dark spot)
+        contacts: ['N', 'F'].map((nm) => ({
+          X: sk.legs[nm].foot[0],
+          Z,
+          r: 0.17,
+          on: sk.legs[nm].foot[1] - m.ground(sk.legs[nm].foot[0]) < 0.11,
+        })),
+        draw: (buf, info) => {
+          const xf = { x: p.sx, y: p.sy, s: sc, ax: X, ay: 0, flip: side > 0, yaw };
+          const hist = history(skel, tt, 8);
+          drawSoldier(buf, W, H, sk, xf, {
+            look,
+            haze,
+            hist,
+            t: tt,
+            detail: o.detail,
+            boots: 'black',
+          });
+          // the painter writes colour only: mark what it drew for the compositor, and lay the
+          // world's haze over it
+          const paper = info.paper;
+          const x0 = Math.max(0, Math.floor(box[0]));
+          const x1 = Math.min(W, Math.ceil(box[2]));
+          const y0 = Math.max(0, Math.floor(box[1]));
+          const y1 = Math.min(H, Math.ceil(box[3]));
           for (let y = y0; y < y1; y++)
             for (let x = x0; x < x1; x++) {
               const q = (y * W + x) * 4;
               if (buf[q] === 1 && buf[q + 1] === 0 && buf[q + 2] === 1) continue;
               buf[q + 3] = 255;
-              buf[q] += (199 - buf[q]) * mist * 0.85;
-              buf[q + 1] += (194 - buf[q + 1]) * mist;
-              buf[q + 2] += (192 - buf[q + 2]) * mist;
+              buf[q] += (paper[q] * 0.93 - buf[q]) * mist * 0.8;
+              buf[q + 1] += (paper[q + 1] * 0.94 - buf[q + 1]) * mist * 0.8;
+              buf[q + 2] += (paper[q + 2] * 0.97 - buf[q + 2]) * mist * 0.8;
             }
         },
+      });
+      // the footfalls and the spear's stamp as effects: a splash where the ground is under
+      // water, a kick of wet earth where it is not
+      for (const e of m.events) {
+        const g = world.groundY(e.X, Z);
+        const fx = { X: e.X, Z, t0: e.t, strength: e.strength, seed: 40 + m.i * 3 + e.k };
+        if (g < -0.015) splashes.push(fx);
+        else puffs.push({ ...fx, Y: g });
+      }
+    }
+    return { actors, splashes, puffs };
+  }
+
+  /**
+   * Where each man of the rank stands, and how he gets there (memoised: it reads the
+   * world's shore). The Warden first (index 0) when the wide wants him.
+   */
+  rankStaging() {
+    return this.memo('rank', () => {
+      const w = this.world;
+      const men = [];
+      const shore = (Z) => {
+        w.edges(Z);
+        return w._er;
       };
+      const N = 11;
+      for (let r = -1; r < N; r++) {
+        const warden = r < 0;
+        const i = r + 1;
+        const j = (k) => hash(i, k, 41) - 0.5;
+        // a man's width and a half between the shoulders, uneven; centred on the Warden's
+        // place, so the rank runs out of frame both ways
+        const Z = warden ? 0 : (r - (N - 1) / 2) * 1.7 + 0.3 * j(1);
+        const er = shore(Z);
+        // at rest: ankle-deep at the edge (the ground there is a hand under the surface)
+        const xE = warden ? 7.05 : er - 0.2 + 0.36 * j(2);
+        const D = warden ? 0 : 0.9 + 0.09 * j(3); // the strides down the bank
+        const scale = warden ? 1.06 : 0.95 + 0.06 * hash(i, 4, 41);
+        const t0 = warden ? 1.2 : 2.0 + 0.035 * j(5); // in step, a hair apart
+        const ground = (X) => w.groundY(X, Z);
+        // the Warden marches on into the water; the men close up at its edge
+        const plan = warden
+          ? marchPlan({ xh0: 8.95, xhE: 7.05, f: -1, n: 4, t0, dt: 0.4, close: false })
+          : marchPlan({ xh0: xE + D, xhE: xE, f: -1, n: 3, t0, dt: 0.4, close: true });
+        const seed = 101 + i * 7;
+        const opts = {
+          ...plan,
+          ground,
+          facing: -1,
+          z: 0,
+          scale,
+          seed,
+          spearLen: warden ? 2.4 : 2.3,
+          name: warden ? 'warden' : `line${r}`,
+        };
+        const events = plan.steps.map((s, k) => ({
+          k,
+          t: s.t,
+          X: s.x,
+          strength: k === plan.steps.length - 1 && plan.halt !== null ? 0.5 : 0.34,
+        }));
+        if (plan.halt !== null) {
+          // the butt of the spear comes down on the stamp
+          const sk = stepSkeleton(plan.halt + 0.2, opts);
+          events.push({ k: 7, t: plan.halt, X: sk.weapon.butt[0], strength: 0.3 });
+        }
+        men.push({
+          i,
+          warden,
+          Z,
+          scale,
+          look: soldierLook(seed),
+          ground,
+          events,
+          skel: (q) => stepSkeleton(q, opts),
+        });
+      }
+      return men;
     });
   }
 
@@ -839,15 +961,15 @@ export class FordPiece extends Piece {
     // the page inks itself in, in stutters, out of the white
     const stage = 2 * (1 - step(lt / 0.24, 3));
     const run = this.runner(a, TIME.run, -14, 3.44);
-    const actors = [
-      run.actor,
-      ...this.soldiers(a, cam, ['warden', ...LINE], { mist: 0.22, haze: 0.5 }),
-    ];
+    const line = this.soldiers(a, cam, ['warden']);
+    const actors = [run.actor, ...line.actors];
     this.world.render(f, a, cam, {
       stage,
       rain: 0.5,
       clouds: 0.55,
       actors,
+      splashes: line.splashes,
+      puffs: line.puffs,
       wind: 1.2,
     });
     if (lt < 2 / 24) flash(f, W, H, 1 - lt * 12);
@@ -870,15 +992,13 @@ export class FordPiece extends Piece {
     // the Warden's walk: two drawings, a contact and a passing position, each step
     // planted where it lands (the support foot holds; the figure moves only between)
     const w = this.wardenWalk(a);
-    const actors = [w.actor, ...this.soldiers(a, cam, LINE, { haze: 0.7, mist: 0.24 })];
-    const splashes = w.falls.map((s, i) => ({
-      X: s.X,
-      Z: s.Z,
-      t0: s.t,
-      strength: 0.6,
-      seed: 30 + i,
-    }));
-    this.world.render(f, a, cam, { rain: 0.6, actors, splashes, wind: 1 });
+    const line = this.soldiers(a, cam, [], { zMin: 2.2 });
+    const actors = [w.actor, ...line.actors];
+    const splashes = [
+      ...w.falls.map((s, i) => ({ X: s.X, Z: s.Z, t0: s.t, strength: 0.6, seed: 30 + i })),
+      ...line.splashes,
+    ];
+    this.world.render(f, a, cam, { rain: 0.6, actors, splashes, puffs: line.puffs, wind: 1 });
   }
 
   /**
@@ -1864,12 +1984,14 @@ export class FordPiece extends Piece {
     // the sun is cheated round to the downstream sky (the camera has turned): only here
     const sun0 = this.world.sun;
     this.world.sun = { ...sun0, az: 3.2, el: 0.16 };
+    const line = this.soldiers(a, camS, [], { stage });
     this.world.render(f, a, camS, {
       stage,
       rain: 0.75,
-      actors: [ed, wd, ...this.soldiers(a, camS, LINE, { flip: true, stage })],
+      actors: [ed, wd, ...line.actors],
       // droplets and the ring only (a flat body throws sheets, not a crown: below)
-      splashes: [{ X: LX + 0.1, Z: LZ, t0: HIT, strength: 0.85, seed: 13 }],
+      splashes: [{ X: LX + 0.1, Z: LZ, t0: HIT, strength: 0.85, seed: 13 }, ...line.splashes],
+      puffs: line.puffs,
       wind: 0.9,
     });
     // the water he lands in: a white mass thrown up along his length that breaks into
@@ -1972,18 +2094,6 @@ function crescent(f, cx, cy, p, seed = 1) {
         for (let dx = -r; dx <= r; dx++)
           if (dx * dx + dy * dy <= r * r) put(f, W, H, x + dx, y + dy, RGB.crimson);
     }
-}
-
-/** A skeleton with its spear cut to `len` m (the blocking's 3.05 m runs off the frame). */
-function shorten(sk, len) {
-  const w = sk.weapon;
-  if (!w || w.kind !== 'spear') return sk;
-  const L = Math.hypot(w.tip[0] - w.butt[0], w.tip[1] - w.butt[1]) || 1;
-  const k = len / L;
-  const r = w.rear;
-  const tip = [r[0] + (w.tip[0] - r[0]) * k, r[1] + (w.tip[1] - r[1]) * k];
-  const butt = [r[0] + (w.butt[0] - r[0]) * k, r[1] + (w.butt[1] - r[1]) * k];
-  return { ...sk, weapon: { ...w, tip, butt } };
 }
 
 const hashDither = (x, y) => hash(x & 63, y & 63, 5);
