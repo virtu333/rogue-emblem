@@ -163,14 +163,22 @@ export const PEOPLE = {
  * crates, a spear tripod, the banner pole, a palisade, far sentry fires.
  */
 export const SET = {
+  // Ridge tents. (x, z) centre, ridge length L, width w, pole height h, `yaw` the ridge's direction
+  // (its -u end, the door, faces the fire when the yaw points away from it), `sag` how far the ridge
+  // dips between the poles (m), `open` a door left open (a dark flap). Sizes, angles and sags differ;
+  // some stand half behind others, or behind the barrels.
   tents: [
-    { x: -6.8, z: 7.5, L: 4.2, w: 3.2, h: 2.6, jitter: 0.2 },
-    { x: -2.4, z: 9.8, L: 4.6, w: 3.4, h: 2.8, jitter: -0.15 },
-    { x: 3.6, z: 8.9, L: 4.0, w: 3.0, h: 2.5, jitter: 0.1 },
-    { x: 8.6, z: 6.4, L: 4.4, w: 3.2, h: 2.7, jitter: -0.2 },
-    { x: -11.8, z: 2.6, L: 4.0, w: 3.0, h: 2.5, jitter: 0.15 },
-    { x: 13.2, z: 1.2, L: 5.2, w: 3.8, h: 3.1, jitter: -0.1 },
-    { x: -14.5, z: 11.5, L: 4.4, w: 3.2, h: 2.7, jitter: 0.1 },
+    { x: -6.4, z: 5.8, L: 4.2, w: 3.1, h: 2.6, yaw: 0.34, sag: 0.2 },
+    { x: -1.9, z: 11.0, L: 3.4, w: 2.6, h: 2.2, yaw: 1.2, sag: 0.13, open: true },
+    { x: 4.6, z: 9.8, L: 4.8, w: 3.4, h: 2.9, yaw: -0.3, sag: 0.24 },
+    { x: 0.9, z: 14.6, L: 3.6, w: 2.8, h: 2.4, yaw: 0.5, sag: 0.16 }, // peeks between the two
+    { x: 7.8, z: 5.2, L: 3.9, w: 2.9, h: 2.4, yaw: 0.22, sag: 0.15 },
+    { x: 6.0, z: 7.6, L: 2.5, w: 1.9, h: 1.55, yaw: 0.05, sag: 0.09 }, // a one-man wedge behind the barrels
+    { x: -12.4, z: 2.6, L: 4.0, w: 3.0, h: 2.5, yaw: 0.9, sag: 0.17 },
+    { x: 14.6, z: 1.6, L: 5.6, w: 4.0, h: 3.3, yaw: -0.45, sag: 0.26, rope: 2.0 },
+    { x: -10.6, z: 12.8, L: 5.6, w: 4.0, h: 3.2, yaw: 0.12, sag: 0.25 },
+    { x: -16.4, z: 8.5, L: 4.4, w: 3.2, h: 2.7, yaw: 1.0, sag: 0.18 },
+    { x: 12.0, z: 12.6, L: 4.6, w: 3.4, h: 2.8, yaw: 0.3, sag: 0.2 },
   ],
   stumps: [
     { x: -3.3, z: -1.0, r: 0.26, h: 0.42 },
@@ -287,22 +295,34 @@ export const CAMERA = {
       { focal: 560 },
     );
   },
-  // he rises: a low camera close to him that tilts up as he stands, then, on the fill, a fast
-  // pull back and up that lands on the big hit: he is small under the Thread
+  // he rises: a low camera close to him that tilts up as he stands; then one move on the fill:
+  // a breath of anticipation (a small dolly in, 0.55-0.72), a fast middle, a long settle back and
+  // up that arrives on the big hit (1.4) and keeps drifting after it: he is small under the Thread
   rise: (lt) => {
-    const near = lookAt(
-      { x: -1.95, y: 0.5, z: -1.85 },
-      { x: -1.45, y: mix(0.85, 1.55, sm(0.1, 1.0, lt)), z: 0.15 },
-      { focal: 350 },
-    );
-    const far = { x: -0.7, y: 0.6, z: -3.7, yaw: 0.05, pitch: 0.27, roll: 0, focal: 290 };
-    const nearEnd = lookAt(
-      { x: -1.95, y: 0.5, z: -1.85 },
-      { x: -1.45, y: 1.55, z: 0.15 },
-      { focal: 350 },
-    );
-    if (lt < 1.0) return near;
-    const c = lerpCam(nearEnd, far, sm(0, 1, (lt - 1.0) / 0.4) ** 0.8);
+    const eye = { x: -1.95, y: 0.5, z: -1.85 };
+    const tilt = (l) => mix(0.85, 1.55, sm(0.1, 1.0, l));
+    const cam = (l, dolly = 0) => {
+      // toward the seat along the ground, by `dolly` metres
+      const dx = 0.5;
+      const dz = 2.0;
+      const n = Math.hypot(dx, dz);
+      return lookAt(
+        { x: eye.x + (dx / n) * dolly, y: eye.y, z: eye.z + (dz / n) * dolly },
+        { x: -1.45, y: tilt(l), z: 0.15 },
+        { focal: 350 + 6 * (dolly / 0.16) },
+      );
+    };
+    const T0 = 0.55; // anticipation starts
+    const T1 = 0.72; // the pull-back starts
+    const T2 = 1.6; // and is done
+    if (lt < T0) return cam(lt);
+    const dolly = 0.16 * sm(T0, T1, lt);
+    if (lt < T1) return cam(lt, dolly);
+    const far = { x: -0.75, y: 0.62, z: -3.55, yaw: 0.05, pitch: 0.26, roll: 0, focal: 315 };
+    // smootherstep: slow out of the anticipation, fast in the middle, a long settle
+    const u = Math.min(1, (lt - T1) / (T2 - T1));
+    const k = u * u * u * (u * (6 * u - 15) + 10);
+    const c = lerpCam(cam(T1, 0.16), far, k);
     // after the hit the camera keeps drifting back, very slowly: the last frame is never frozen
     return {
       ...c,
