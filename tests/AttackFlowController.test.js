@@ -31,6 +31,7 @@ vi.mock('../src/ui/ForecastOverlay.js', () => ({
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { InputController } from '../src/ui/InputController.js';
+import { HintManager } from '../src/engine/HintManager.js';
 import { InputAction } from '../src/utils/InputActions.js';
 import { loadGameData } from './testData.js';
 
@@ -355,5 +356,60 @@ describe('direct attack after moving', () => {
     openMenu(scene, [{ id: 'attack', disabled: true }]);
     expect(input.tryDirectAttack({ col: adjacent.col, row: adjacent.row })).toBe(false);
     expect(scene.battleState).toBe('UNIT_ACTION_MENU');
+  });
+});
+
+describe('affix rules at decision time', () => {
+  for (const close of ['cancel', 'confirm']) {
+    it(`shows all new rules before combat, keeps them through cycling, then acknowledges on ${close}`, async () => {
+      const { scene, hero, adjacent, ranged } = makeScene();
+      const hints = new HintManager(1);
+      hints.seen.clear();
+      hints._save = vi.fn();
+      scene.registry.get = (key) => (key === 'hints' ? hints : null);
+      adjacent.affixes = ['venomous', 'corrosive', 'deathburst'];
+      adjacent.currentHP = 1;
+      const flow = scene._attackFlow();
+      flow.begin(hero);
+      await flow.showForecast(hero, adjacent);
+      const notes = () => renders.at(-1).forecast.defender.affixNotes;
+      expect(notes().map((n) => n.affixId)).toEqual(['venomous', 'corrosive', 'deathburst']);
+      expect(notes().every((n) => n.showDescription && n.description)).toBe(true);
+      expect(hints.hasSeen('affix_deathburst')).toBe(false);
+      expect(scene.executeCombat).not.toHaveBeenCalled();
+      flow.cycleWeapon(1);
+      expect(notes().every((n) => n.showDescription)).toBe(true);
+      // Target cycling must not acknowledge a lesson or consume the battle hint budget.
+      await flow.showForecast(hero, ranged, { rerender: true });
+      await flow.showForecast(hero, adjacent, { rerender: true });
+      expect(notes().every((n) => n.showDescription)).toBe(true);
+      expect(scene._contextualHintBattle).toBeUndefined();
+      if (close === 'cancel') flow.cancelForecast();
+      else scene.confirmForecastCombat();
+      expect(
+        ['venomous', 'corrosive', 'deathburst'].every((id) => hints.hasSeen(`affix_${id}`)),
+      ).toBe(true);
+      expect(scene.executeCombat).toHaveBeenCalledTimes(close === 'confirm' ? 1 : 0);
+      await flow.showForecast(hero, adjacent);
+      expect(notes().every((n) => !n.showDescription)).toBe(true);
+    });
+  }
+  it('ignores a hidden neighbor when forecasting a ranged Deathburst kill', async () => {
+    const { scene, hero, adjacent, ranged } = makeScene();
+    ranged.affixes = ['deathburst'];
+    ranged.currentHP = 1;
+    adjacent.col = ranged.col + 1;
+    adjacent.row = ranged.row;
+    scene.grid.fogEnabled = true;
+    scene.grid.isVisible = (c, r) => c === ranged.col && r === ranged.row;
+    const flow = scene._attackFlow();
+    flow.begin(hero);
+    await flow.showForecast(hero, ranged);
+    expect(renders.at(-1).forecast.defender.affixNotes).toEqual([]);
+    scene.grid.isVisible = () => true;
+    await flow.showForecast(hero, ranged, { rerender: true });
+    expect(renders.at(-1).forecast.defender.affixNotes.map((n) => n.affixId)).toEqual([
+      'deathburst',
+    ]);
   });
 });

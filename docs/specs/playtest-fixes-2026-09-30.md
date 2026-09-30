@@ -135,10 +135,11 @@ with amounts read from `effects` (never a second hardcoded 5):
 | Venomous | it attacks or counters (can counter, in range, awake) | +5 after combat if it hits · never kills |
 | Corrosive | it attacks or counters | −2 DEF once after combat if it hits; stacks across combats |
 | Grievous | it attacks or counters | Wounded 2 turns if it hits |
-| Deathburst | your best case (every hit lands, crits where possible) kills it, at any range | Dies: 5 damage to every unit next to it · can kill |
+| Deathburst | your best case (every hit lands, crits where possible) kills it and a living known unit is within its blast radius | Dies: 5 damage to every unit next to it · can kill |
 
-**Engine.** `affixForecastNotes(attacker, defender, forecast, affixData)` in `AffixSystem.js` is a
-pure function (implemented in `AffixForecast.js`, re-exported here to avoid a Combat import cycle) that returns `[{ affixId, name, text, tone }]` per side. It uses the forecast's own
+**Engine.** `affixForecastNotes(attacker, defender, forecast, affixData, { visibleUnits })` in `AffixSystem.js` is a
+pure function (implemented in `AffixForecast.js`, re-exported here to avoid a Combat import cycle) that returns `[{ affixId, name, text, description, tone }]` per side. Optional `visibleUnits` contains
+only known living candidates for a death blast; the opponent is checked directly. It uses the forecast's own
 `canCounter`, damage and distance, so counter rules (Sleep, range, counter prevention) come from
 one place. It replaces the hand-built `atkWarnings` / `defWarnings`; `simpleExchange` hides the HP
 projection for exchange-affix effects it cannot model (the affix data replaces the hard-coded list).
@@ -153,16 +154,20 @@ still supplies its conservative HP projection. Unknown affixes suppress projecti
 - Canvas and phone render the same notes (`ForecastOverlay` and `MobileBattleHUD.forecastSide`
   both read `info.affixNotes`). Wrap long lines and measure their height, rather than
   assuming 14px rows.
-- The first time a player meets a given affix in a forecast, its full rule text is shown once
-  (`showContextualHint`, keyed per affix). This uses the existing queue: the full rule waits
-  for a safe idle state and the queue shows at most one contextual lesson per battle. The
-  immediate consequence is always visible in the forecast; after acknowledgment the
-  full-rule hint is suppressed for that affix on this save.
+- The first time a player meets a given affix in a forecast, its full rule is visible
+  inside the forecast before confirmation, alongside the short consequence. On the phone
+  it is an open disclosure; on canvas it is wrapped text. This does not use the contextual
+  hint queue or its per-battle budget. All new affixes in the exchange show their rules.
+- Weapon/target cycling keeps these explanations expanded. Confirming or canceling the
+  forecast marks every displayed affix lesson read through the save slot's HintManager.
+  Later forecasts show the short consequence; the phone disclosure can be reopened.
 - `field` affixes stay off the forecast. A player who wants them taps the enemy, which opens
   inspection.
 
 **Inspection.** Enemy Affixes sits right under name/HP on mobile and desktop, with each affix's
-name and rule text, instead of at the bottom of Stats. Keep the real weapon name (`Iron Lance`);
+name and rule text, instead of at the bottom of Stats. The canvas fallback uses compact
+consequence rows with full-rule hover/long-press tooltips to keep tabs and Gear above
+the fixed footer at 640×480. Keep the real weapon name (`Iron Lance`);
 the effect belongs to the unit.
 
 **Map.** Keep the existing single pip per affix. Per-affix glyphs on a 32px tile read as noise on
@@ -198,7 +203,8 @@ in this fix.
    adjacent unit. No affix damage on all misses.
 6. Renderers: the desktop forecast and the native phone forecast show the same notes, with long
    names and three affixes, above the confirm control, without clipping or pushing it offscreen.
-   The one-time full-rule hint fires once per affix per save.
+   Full rules are visible before confirmation for every unseen affix, stay expanded through
+   cycling, and are acknowledged on confirm or cancel. Later previews collapse them.
 7. A fog-hidden enemy exposes no notes or inspector details. Forecast and inspection reads leave
    unit state and battle RNG untouched.
 
@@ -305,3 +311,23 @@ forecast, Canto input, inspection, phone HUD and rotation. Mutation checks caugh
 the recruit veto, Canto Danger states and the existing shared stale-menu guard. Build, lint
 (0 errors), formatting, schema validation, generated-reference checks, content integrity and
 30-file data parity passed.
+
+
+## Review follow-up (40b5392e)
+
+The delayed full-rule hint was a spec miss. Full explanations now belong to the forecast
+itself, independent of optional contextual hints. The regular desktop roster already uses
+the scrolling DOM sheet; the supported canvas fallback did overlap its footer with Thorns,
+Deathburst and a full Gear tab. Its affix rows are compact, with full rules on hover/long press.
+
+Deathburst retains its possible-kill check, but now also needs a living known unit in the
+blast radius. The preview receives only inspectable units, so hidden occupants cannot
+change the warning. All factions count, matching the actual blast. Suppression is about
+known victims, not a guarantee that unseen tiles are safe.
+
+The obsolete forecast `warnings` field is removed; Thorns projection uses affix ids from
+`affixNotes`. Difficulty resolution and encounter generation share one legacy exclusion
+fallback (First Light Act 1 only). The Combat header/import ordering is corrected.
+
+Validation results are recorded in the review document. Physical iOS checks remain a
+release task; browser emulation does not replace them.

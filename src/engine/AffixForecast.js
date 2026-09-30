@@ -18,7 +18,13 @@ export function affixForecastText(affix) {
 }
 
 /** Notes belong to their source unit's column, including defensive/on-death effects. */
-export function affixForecastNotes(attacker, defender, forecast, affixData) {
+export function affixForecastNotes(
+  attacker,
+  defender,
+  forecast,
+  affixData,
+  { visibleUnits = [] } = {},
+) {
   const out = { attacker: [], defender: [] };
   const entries = [
     ['attacker', attacker, defender, forecast.attacker, forecast.defender],
@@ -57,7 +63,17 @@ export function affixForecastNotes(attacker, defender, forecast, affixData) {
         case 'lethal':
           applies =
             incomingHit &&
-            maxStrike(incoming) * damagingHits >= (unit.currentHP ?? unit.stats?.HP ?? Infinity);
+            maxStrike(incoming) * damagingHits >= (unit.currentHP ?? unit.stats?.HP ?? Infinity) &&
+            [opponent, ...visibleUnits].some((other) => {
+              if (other === unit || (other.currentHP ?? other.stats?.HP ?? 0) <= 0) return false;
+              const positioned = [unit.col, unit.row, other.col, other.row].every(Number.isFinite);
+              const distance = positioned
+                ? Math.abs(unit.col - other.col) + Math.abs(unit.row - other.row)
+                : other === opponent
+                  ? forecast.display?.distance
+                  : Infinity;
+              return distance <= (affix.range || 1);
+            });
           break;
       }
       if (applies)

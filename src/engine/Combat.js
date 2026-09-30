@@ -1,4 +1,3 @@
-import { affixForecastNotes } from './AffixForecast.js';
 // Combat.js — Pure combat calculation engine (no Phaser dependencies)
 // All functions are stateless; BattleScene owns HP/state mutation.
 
@@ -12,6 +11,7 @@ import {
   ENTITY_CRIT_RATE_MULT,
   ENTITY_CRIT_DMG_MULT,
 } from '../utils/constants.js';
+import { affixForecastNotes } from './AffixForecast.js';
 import { rollHit } from './HitRoll.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusConditionSystem.js';
@@ -1094,26 +1094,23 @@ export function getCombatForecast(
       },
     },
     skillCtx?.affixData,
+    { visibleUnits: skillCtx?.visibleUnits },
   );
-  // Legacy consumers read warnings on the side affected by the opponent's affix.
-  // Renderers use affixNotes, which belongs to the affix's own unit instead.
-  const atkWarnings = affixNotes.defender.map((note) => note.name);
-  const defWarnings = affixNotes.attacker.map((note) => note.name);
 
   // Thorns: the damage each landed, non-critical hit sends back to its striker. The
   // HP projection includes it when this context resolves on-defend affixes (as
   // battles do); otherwise, or without the affix data, the projection stays hidden.
   const affixesResolve = Boolean(skillCtx?.rollStrikeSkills && skillCtx?.rollDefenseAffixes);
   const atkThornsPct =
-    affixesResolve && atkWarnings.includes('Thorns')
+    affixesResolve && affixNotes.defender.some((note) => note.affixId === 'thorns')
       ? getThornsReflectPct(defender, skillCtx?.affixData)
       : 0;
   const defThornsPct =
-    affixesResolve && defWarnings.includes('Thorns')
+    affixesResolve && affixNotes.attacker.some((note) => note.affixId === 'thorns')
       ? getThornsReflectPct(attacker, skillCtx?.affixData)
       : 0;
-  const warningsHideProjection = (warnings, thornsPct) =>
-    warnings.some((w) => w !== 'Thorns' || !(thornsPct > 0));
+  const notesHideProjection = (notes, thornsPct) =>
+    notes.some((note) => note.affixId !== 'thorns' || !(thornsPct > 0));
 
   // Read-only display metadata. Resolution order and RNG are untouched.
   const forecast = {
@@ -1150,8 +1147,8 @@ export function getCombatForecast(
         !(defCanCounter && getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)) &&
         !weaponSpecialChangesExchangeHp(atkWeapon) &&
         !(defCanCounter && weaponSpecialChangesExchangeHp(defWeapon)) &&
-        !warningsHideProjection(atkWarnings, atkThornsPct) &&
-        !warningsHideProjection(defWarnings, defThornsPct) &&
+        !notesHideProjection(affixNotes.defender, atkThornsPct) &&
+        !notesHideProjection(affixNotes.attacker, defThornsPct) &&
         ![
           [attacker, atkWeapon],
           [defender, defWeapon],
@@ -1199,7 +1196,6 @@ export function getCombatForecast(
       drainMaxPerHit: isWounded(attacker) ? null : atkMods?.drainMaxPerHit || null,
       drainPerHit: isWounded(attacker) ? 0 : atkMods?.drainPerHit || 0,
       skills: atkActivated,
-      warnings: atkWarnings,
       affixNotes: affixNotes.attacker,
       thornsReflect: thornsReflectDamage(atkDmg, atkThornsPct),
     },
@@ -1219,7 +1215,6 @@ export function getCombatForecast(
       drainMaxPerHit: isWounded(defender) ? null : defMods?.drainMaxPerHit || null,
       drainPerHit: isWounded(defender) ? 0 : defMods?.drainPerHit || 0,
       skills: defActivated,
-      warnings: defWarnings,
       affixNotes: affixNotes.defender,
       thornsReflect: thornsReflectDamage(defDmg, defThornsPct),
     },

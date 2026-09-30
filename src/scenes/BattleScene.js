@@ -8032,7 +8032,13 @@ export class BattleScene extends Phaser.Scene {
         dist,
         atkTerrain,
         defTerrain,
-        this.buildSkillCtx(attacker, defender, weaponArt, { weapon: planned }),
+        {
+          ...this.buildSkillCtx(attacker, defender, weaponArt, { weapon: planned }),
+          // Pass only known units: quiet blast warnings must not disclose occupants in fog.
+          visibleUnits: [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].filter((unit) =>
+            canInspectUnit(this.grid, unit),
+          ),
+        },
       ),
     );
   }
@@ -8137,6 +8143,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   hideForecast() {
+    this._attackFlowController?.closeForecast();
     if (this._forecastOverlay) {
       this._forecastOverlay.destroy();
       this._forecastOverlay = null;

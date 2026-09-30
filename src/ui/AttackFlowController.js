@@ -22,7 +22,6 @@
 
 import { ForecastOverlay } from './ForecastOverlay.js';
 import { TutorialController } from './TutorialController.js';
-import { showContextualHint } from './HintDisplay.js';
 import { combatDistance, getFootprint, isEntity } from '../engine/EntitySystem.js';
 import {
   getAttackWeapons,
@@ -49,6 +48,7 @@ export class AttackFlowController {
     this.scene = scene;
     this.focusedTarget = null;
     this._lastTargetByUnit = new WeakMap();
+    this._affixLessonsShown = new Set();
   }
 
   distance(unit, target) {
@@ -331,11 +331,15 @@ export class AttackFlowController {
       atkTerrain,
       defTerrain,
     });
-    for (const note of [
-      ...(forecast.attacker.affixNotes || []),
-      ...(forecast.defender.affixNotes || []),
-    ])
-      showContextualHint(scene, `affix_${note.affixId}`, `${note.name}: ${note.description}`);
+    const hints = scene.registry?.get?.('hints');
+    for (const info of [forecast.attacker, forecast.defender]) {
+      info.affixNotes = (info.affixNotes || []).map((note) => {
+        const id = `affix_${note.affixId}`;
+        const showDescription = Boolean(note.description) && !hints?.hasSeen?.(id);
+        if (showDescription) this._affixLessonsShown.add(id);
+        return { ...note, showDescription };
+      });
+    }
 
     scene._forecastValidWeapons = validWeapons;
     const targets = scene.attackTargets || [];
@@ -373,6 +377,13 @@ export class AttackFlowController {
       );
     }
     return forecast;
+  }
+
+  /** Closing the decision acknowledges every rule displayed, including cycled targets. */
+  closeForecast() {
+    const hints = this.scene.registry?.get?.('hints');
+    for (const id of this._affixLessonsShown) hints?.markSeen?.(id);
+    this._affixLessonsShown.clear();
   }
 
   /** ◀ ▶ / swipe / Left-Right / L1-R1 in the forecast. */

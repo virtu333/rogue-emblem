@@ -141,13 +141,15 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   siegeWeaponConfig: null,
 });
 
+const recruitAffixExclusions = (config, id) =>
+  config?.modes?.[id]?.recruitAffixExcludedActs ??
+  (id === 'normal' ? DIFFICULTY_DEFAULTS.recruitAffixExcludedActs : []);
+
 /** Encounter policy, independent of Eclipse's rolled/guaranteed affix overrides. */
 export function recruitAffixesAllowed(params, difficultyData) {
   if (!params?.isRecruitBattle) return true;
   const id = params.difficultyId || 'normal';
-  const excluded =
-    difficultyData?.modes?.[id]?.recruitAffixExcludedActs ??
-    (id === 'normal' ? DIFFICULTY_DEFAULTS.recruitAffixExcludedActs : []);
+  const excluded = recruitAffixExclusions(difficultyData, id);
   return !excluded.includes(params.act || 'act1');
 }
 
@@ -331,6 +333,7 @@ export function resolveDifficultyMode(config, difficultyId = 'normal') {
   const resolved = {
     ...DIFFICULTY_DEFAULTS,
     ...(isObject(mode) ? mode : {}),
+    recruitAffixExcludedActs: [...recruitAffixExclusions(config, selectedId)],
   };
   resolved.actsIncluded =
     Array.isArray(resolved.actsIncluded) && resolved.actsIncluded.length > 0

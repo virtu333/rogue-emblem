@@ -160,7 +160,15 @@ test('small phones keep long forecasts scrollable with confirmation visible', as
     const attacker = { ...config.attacker, name: 'A very long commander name' };
     const forecast = {
       ...config.forecast,
-      attacker: { ...config.forecast.attacker, warnings: Array(10).fill('Extra combat warning') },
+      attacker: {
+        ...config.forecast.attacker,
+        affixNotes: Array.from({ length: 10 }, () => ({
+          name: 'Venomous',
+          text: 'Extra combat consequence',
+          description: 'Read all effects before confirming.',
+          showDescription: true,
+        })),
+      },
     };
     hud.showForecast({ ...config, attacker, forecast });
   });

@@ -245,6 +245,9 @@ test('all exchange affixes are readable in a phone forecast and enemy inspection
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const attacker = s.playerUnits[0],
       enemy = s.enemyUnits[0];
+    const { HintManager } = await import('/src/engine/HintManager.js');
+    s.registry.set('hints', new HintManager(1));
+    s.registry.get('hints').reset();
     enemy.affixes = ['venomous', 'corrosive', 'deathburst'];
     enemy.currentHP = 1;
     enemy.weapon = structuredClone(s.gameData.weapons.find((w) => w.name === 'Iron Sword'));
@@ -262,7 +265,38 @@ test('all exchange affixes are readable in a phone forecast and enemy inspection
   await expect(forecast).toContainText(
     'Deathburst · On death: 5 damage to adjacent units; can kill',
   );
+  await expect(forecast.locator('.mb-affix[open]')).toHaveCount(3);
+  await expect(forecast.locator('.mb-affix[open]')).toContainText([
+    'Cannot kill: leaves at least 1 HP.',
+    'Stacks across combats.',
+    'allies and enemies alike. Can kill.',
+  ]);
+  expect(
+    await page.evaluate(() =>
+      window.__emblemRogueGame.scene
+        .getScene('Battle')
+        .registry.get('hints')
+        .hasSeen('affix_deathburst'),
+    ),
+  ).toBe(false);
   await page.screenshot({ path: info.outputPath('affix-forecast.png') });
+  await page.keyboard.press('Escape');
+  expect(
+    await page.evaluate(() =>
+      window.__emblemRogueGame.scene
+        .getScene('Battle')
+        .registry.get('hints')
+        .hasSeen('affix_deathburst'),
+    ),
+  ).toBe(true);
+  await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    await s.showForecast(s.playerUnits[0], s.enemyUnits[0]);
+  });
+  await expect(forecast.locator('.mb-affix')).toHaveCount(3);
+  await expect(forecast.locator('.mb-affix[open]')).toHaveCount(0);
+  await forecast.locator('.mb-affix').last().locator('summary').click();
+  await expect(forecast.locator('.mb-affix').last().locator('p')).toBeVisible();
   await page.keyboard.press('Escape');
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -275,5 +309,99 @@ test('all exchange affixes are readable in a phone forecast and enemy inspection
   await page.getByRole('button', { name: 'Equipment', exact: true }).click();
   await expect(roster).toContainText('Stacks across combats.');
   await page.screenshot({ path: info.outputPath('affix-inspection.png') });
+  expect(errors).toEqual([]);
+});
+
+test('canvas fallback keeps long affixes and full Gear above the footer at 640 by 480', async ({
+  page,
+}, info) => {
+  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1');
+  await waitForScene(page, 'Battle');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+  );
+  const bounds = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const u = s.enemyUnits[0];
+    u.affixes = ['thorns', 'deathburst'];
+    u.inventory = Array.from({ length: 5 }, () =>
+      structuredClone(s.gameData.weapons.find((w) => w.name === 'Iron Lance')),
+    );
+    u.consumables = [
+      { name: 'Vulnerary', uses: 3 },
+      { name: 'Antidote', uses: 3 },
+    ];
+    u.skills = ['vantage', 'luna', 'sol'];
+    // Normal desktop uses the DOM sheet; force its supported canvas fallback.
+    document.getElementById('game-wrapper').id = 'canvas-fallback-test';
+    s.unitDetailOverlay.show(u, s.grid.getTerrainAt(u.col, u.row), s.gameData);
+    const o = s.unitDetailOverlay;
+    const measure = () => ({
+      footer: o._unitObjects.find((t) => t.text?.includes('[ESC]')).getBounds().top,
+      contentBottom: Math.max(...o._tabObjects.map((t) => t.getBounds().bottom)),
+      panelBottom: o._panel.getBounds().bottom,
+    });
+    const stats = measure();
+    o._activeTab = 'gear';
+    o._refreshTabs();
+    const gear = measure();
+    const thorns = o._unitObjects.find((t) => t.text?.startsWith('Thorns ·'));
+    o._showSkillTooltip(
+      thorns,
+      s.gameData.affixes.affixes.find((a) => a.id === 'thorns').description,
+    );
+    return { stats, gear, tooltip: o._skillTooltip[1].text };
+  });
+  for (const b of [bounds.stats, bounds.gear]) {
+    expect(b.contentBottom).toBeLessThan(b.footer);
+    expect(b.panelBottom).toBeLessThanOrEqual(480);
+  }
+  expect(bounds.tooltip).toContain('crits and overkill count');
+  await page.screenshot({ path: info.outputPath('canvas-affix-details.png') });
+});
+
+test('first-time full affix rules fit the canvas forecast before confirmation', async ({
+  page,
+}, info) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1');
+  await waitForScene(page, 'Battle');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+  );
+  const result = await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s._mobileBattleHud?.destroy();
+    s._mobileBattleHud = null;
+    const { HintManager } = await import('/src/engine/HintManager.js');
+    s.registry.set('hints', new HintManager(1));
+    s.registry.get('hints').reset();
+    const attacker = s.playerUnits[0],
+      enemy = s.enemyUnits[0];
+    enemy.affixes = ['venomous', 'corrosive', 'deathburst'];
+    enemy.currentHP = 1;
+    enemy.weapon = structuredClone(s.gameData.weapons.find((w) => w.name === 'Iron Sword'));
+    enemy.col = attacker.col + 1;
+    enemy.row = attacker.row;
+    await s.showForecast(attacker, enemy);
+    const o = s._forecastOverlay;
+    const text = o.displayObjects.filter((t) => /^(Venomous|Corrosive|Deathburst) ·/.test(t.text));
+    return {
+      text: text.map((t) => t.text),
+      top: o.displayObjects[0].getBounds().top,
+      bottom: Math.max(...text.map((t) => t.getBounds().bottom)),
+      confirmTop: o.displayObjects.find((t) => t.text === 'CONFIRM ATTACK').getBounds().top,
+      confirmBottom: o.displayObjects.find((t) => t.text === 'CONFIRM ATTACK').getBounds().bottom,
+      seen: s.registry.get('hints').hasSeen('affix_deathburst'),
+    };
+  });
+  expect(result.text).toHaveLength(3);
+  expect(result.text.every((t) => t.includes('\n'))).toBe(true);
+  expect(result.top).toBeGreaterThanOrEqual(0);
+  expect(result.bottom).toBeLessThan(result.confirmTop);
+  expect(result.confirmBottom).toBeLessThanOrEqual(480);
+  expect(result.seen).toBe(false);
+  await page.screenshot({ path: info.outputPath('canvas-first-affixes.png') });
   expect(errors).toEqual([]);
 });

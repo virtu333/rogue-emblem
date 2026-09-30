@@ -95,7 +95,39 @@ the line warns about damage that cannot land.
 
 ## Before release
 
-- [ ] #1 and #2, or a decision to ship without them.
-- [ ] Run the `portrait` and `mobile-ui` lanes, plus `battle-information.spec.js`.
+- [x] #1 and #2, addressed and browser-verified.
+- [x] Run the `portrait` and `mobile-ui` lanes, plus `battle-information.spec.js`.
 - [ ] iOS: the Act 1 First Light recruit fight has no affix, a later Venomous or Deathburst forecast
       reads cleanly, and Danger works while Canto is confirming.
+
+## Resolution
+
+Findings 1–3 and the actionable nits are addressed on this branch:
+
+- Full affix rules appear inside the forecast before confirmation. All unseen affixes
+  expand, without spending the general hint budget. Cycling weapons or targets keeps
+  them expanded; confirm/cancel acknowledges every displayed rule through HintManager.
+  Subsequent phone forecasts retain a reopenable disclosure.
+- The regular desktop details view uses the same scrolling DOM sheet as mobile.
+  The canvas fallback did overlap its footer in the reported two-affix/full-Gear case.
+  It now has one compact line per affix and the full rule on hover/long press.
+- Deathburst needs a possible kill and a living known unit in the blast radius.
+  Player, enemy and NPC victims all count. The scene passes only inspectable units,
+  so an unseen neighbor cannot disclose its position through the warning.
+- Combat's header/import order is corrected. The obsolete `warnings` field is removed;
+  Thorns projection reads `affixNotes` by id. Difficulty resolution and recruit policy
+  share their missing-key fallback.
+
+Regression coverage checks cancel and confirm, cycling, multiple new affixes, the real
+HintManager acknowledgment, fog boundaries, all victim factions, legacy difficulty
+resolution, and actual canvas/phone layout. The long-forecast browser fixtures now
+exercise `affixNotes` rather than the unused `warnings` property.
+
+
+**Follow-up validation:** 8,978 unit tests, 192 harness tests and 41 simulations passed.
+Browser checks passed on their first attempts: all 280 portrait-lane cases, all 36
+mobile-ui cases, 7 battle-information cases and 3 forecast-input contracts (326 total).
+Build, formatting, lint (0 errors; existing warnings), schema validation, data parity,
+generated-reference and content checks passed. Mutation checks caught disabling the
+inline explanations and exposing a hidden blast neighbor. A physical iOS smoke test
+is still outstanding before release.

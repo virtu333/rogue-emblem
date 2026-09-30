@@ -125,13 +125,18 @@ export class ForecastOverlay {
     const affixTexts = [forecast.attacker, forecast.defender].map((info) =>
       (info.affixNotes || []).map((note) =>
         applyTextResolution(
-          scene.add.text(0, 0, `${note.name} · ${note.text}`, {
-            fontFamily: 'Arial',
-            fontSize: '10px',
-            color: UI_PALETTE.warn,
-            wordWrap: { width: 178 },
-            lineSpacing: 2,
-          }),
+          scene.add.text(
+            0,
+            0,
+            `${note.name} · ${note.text}${note.showDescription ? `\n${note.description}` : ''}`,
+            {
+              fontFamily: 'Arial',
+              fontSize: '10px',
+              color: UI_PALETTE.warn,
+              wordWrap: { width: 178 },
+              lineSpacing: 2,
+            },
+          ),
         ).setDepth(depth + 1),
       ),
     );

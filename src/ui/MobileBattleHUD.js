@@ -683,8 +683,15 @@ export class MobileBattleHUD {
       );
     }
     if (attacking && config.gamblerLine) side.append(el('p', 'mb-notice', config.gamblerLine));
-    for (const note of info.affixNotes || [])
-      side.append(el('p', 'mb-notice', `${note.name} · ${note.text}`));
+    for (const note of info.affixNotes || []) {
+      const disclosure = el('details', 'mb-detail mb-affix');
+      disclosure.open = Boolean(note.showDescription);
+      disclosure.append(
+        el('summary', 'mb-notice', `${note.name} · ${note.text}`),
+        el('p', '', note.description),
+      );
+      side.append(disclosure);
+    }
     return side;
   }
 

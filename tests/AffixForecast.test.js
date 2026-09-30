@@ -97,12 +97,25 @@ describe('conditional consequences', () => {
     expect(notes(['teleporter'], { damage: 0 })).toEqual([]);
     expect(ids(notes(['shielded', 'teleporter']))).toEqual(['shielded']);
   });
-  it('Deathburst warns for possible crit/double kills, even at range two', () => {
+  it('Deathburst warns for possible crit/double kills, with an adjacent opponent', () => {
     expect(notes(['deathburst'], { damage: 3 })).toEqual([]);
-    expect(ids(notes(['deathburst'], { damage: 3, crit: 1 }, {}, {}, 2))).toEqual(['deathburst']);
+    expect(ids(notes(['deathburst'], { damage: 3, crit: 1 }, {}, {}, 1))).toEqual(['deathburst']);
     expect(ids(notes(['deathburst'], { damage: 4, attackCount: 2 }))).toEqual(['deathburst']);
     expect(notes(['deathburst'], { damage: 8, hit: 0 })).toEqual([]);
     expect(ids(notes(['shielded', 'deathburst']))).toEqual(['shielded']);
+  });
+  it('only warns for a ranged blast with a living, known unit in its radius', () => {
+    const attacker = unit({ col: 3, row: 1, faction: 'player' });
+    const defender = unit({ col: 1, row: 1, affixes: ['deathburst'] });
+    const forecast = { display: { distance: 2 }, attacker: side(), defender: side() };
+    const note = (visibleUnits = []) =>
+      affixForecastNotes(attacker, defender, forecast, affixData, { visibleUnits }).defender;
+    expect(note()).toEqual([]);
+    // All factions can be hit. Unseen occupants are deliberately absent from this input.
+    for (const faction of ['player', 'enemy', 'npc'])
+      expect(ids(note([unit({ faction, col: 2, row: 1 })]))).toEqual(['deathburst']);
+    expect(note([unit({ col: 1, row: 3 })])).toEqual([]);
+    expect(note([unit({ col: 2, row: 1, currentHP: 0 }), defender])).toEqual([]);
   });
   it('puts an initiating enemy affix in the attacker column', () => {
     const result = affixForecastNotes(

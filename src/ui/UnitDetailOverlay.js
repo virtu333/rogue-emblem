@@ -1,3 +1,4 @@
+import { affixForecastText } from '../engine/AffixForecast.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { canInspectUnit } from '../engine/BattleInformation.js';
 import { formatPerkMods } from './rosterDisplay.js';
@@ -340,12 +341,16 @@ export class UnitDetailOverlay {
       const text = this._unitText(
         lx,
         y,
-        `${affix?.name || id}: ${affix?.description || ''}`,
+        `${affix?.name || id} · ${affixForecastText(affix || {}) || affix?.description || ''}`,
         UI_PALETTE.warn,
         '9px',
       );
-      text.setWordWrapWidth(OVERLAY_W - 24);
-      y += text.height + 4;
+      fitCanvasText(text, OVERLAY_W - 24);
+      if (affix?.description)
+        this._wireTooltipTarget(text, () =>
+          this._showSkillTooltip(text, `${affix.name}: ${affix.description}`),
+        );
+      y += 14;
     }
 
     // --- Tab Buttons ---

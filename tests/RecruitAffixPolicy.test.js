@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { generateBattle } from '../src/engine/MapGenerator.js';
 import { RunManager } from '../src/engine/RunManager.js';
-import { recruitAffixesAllowed, validateDifficultyConfig } from '../src/engine/DifficultyEngine.js';
+import {
+  recruitAffixesAllowed,
+  resolveDifficultyMode,
+  validateDifficultyConfig,
+} from '../src/engine/DifficultyEngine.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import { loadGameData } from './testData.js';
 const data = loadGameData();
@@ -94,6 +98,17 @@ describe('First Light Act 1 recruit policy', () => {
     const higher = battle(42, { templateId: template.id, difficultyId: 'hard' }, clone);
     expect(higher.reinforcements.scriptedWaves[0].spawns[0].affixes).toEqual(['venomous']);
     expect(template.reinforcements.scriptedWaves[0].spawns[0].affixes).toEqual(['venomous']);
+  });
+  it('resolves the same legacy exclusions used by encounter policy on every difficulty', () => {
+    const config = structuredClone(data.difficulty);
+    for (const id of Object.keys(config.modes)) {
+      delete config.modes[id].recruitAffixExcludedActs;
+      const { modifiers } = resolveDifficultyMode(config, id);
+      expect(modifiers.recruitAffixExcludedActs).toEqual(id === 'normal' ? ['act1'] : []);
+      expect(!modifiers.recruitAffixExcludedActs.includes('act1')).toBe(
+        recruitAffixesAllowed({ isRecruitBattle: true, act: 'act1', difficultyId: id }, config),
+      );
+    }
   });
   it('rejects invalid policy configuration', () => {
     const config = structuredClone(data.difficulty);
