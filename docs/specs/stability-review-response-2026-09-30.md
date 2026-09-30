@@ -408,3 +408,32 @@ hardening. Keep commits narrow within each PR when controller and engine changes
   `src/engine/MetaProgressionManager.js`, `src/engine/RunManager.js`.
 - Test limitations: `tests/HealthPresentationInvariance.test.js`; implementation should also
   strengthen existing action recovery, cloud, native mirror and checkpoint-order tests.
+
+## Implementation progress — 2026-09-30
+
+The first two independent implementation PRs are open as drafts against `main` at
+`97c8308`. Nothing has been merged.
+
+- [PR #167: preserve damaged save slots](https://github.com/virtu333/rogue-emblem/pull/167)
+  implements read-only inspection/allocation, occupied damaged and orphaned slots, safe entry
+  guards, recovery cards, verified raw archival with resumable discard, separate archive
+  retirement, native disk acknowledgement, and logout/cloud protection for recovery records.
+  Clock-floor and hint keys alone remain cleanup bookkeeping and do not reserve an empty slot;
+  inspection still preserves those bytes. Applying validated local/native/cloud recovery pairs
+  remains in PR 7; unavailable repair sources are not advertised in this tranche.
+- [PR #168: guard phase transitions](https://github.com/virtu333/rogue-emblem/pull/168)
+  implements source-phase/current-roster guards and optional injected rejection diagnostics.
+  Escape and removed-actor completion explicitly check the remaining players. Standalone
+  terminal callbacks finish once; reversible scene Vision decisions can resume phase flow.
+  Original session/turn ownership remains in PR 3.
+
+Local validation: PR #167 passed 563 unit files / 9,013 tests; PR #168 passed 562 unit files /
+8,987 tests. Phase/action checks plus all harness/simulation suites passed 27 files / 331 tests;
+strict PR fuzz and full-run simulations passed. Deliberately restoring destructive reads or
+removing the phase guard made the regression tests fail. Formatting, lint (existing warnings,
+no errors), builds and the relevant data/content checks passed.
+
+Both PRs await CI and review. Playwright Chromium downloads returned truncated archives, so
+browser recovery/layout checks could not execute locally. Native acknowledgement and relaunch
+have unit coverage; physical iOS validation remains outstanding. PRs 3–8 remain the next
+implementation work, in the dependency order above.
