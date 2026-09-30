@@ -131,3 +131,22 @@ Build, formatting, lint (0 errors; existing warnings), schema validation, data p
 generated-reference and content checks passed. Mutation checks caught disabling the
 inline explanations and exposing a hidden blast neighbor. A physical iOS smoke test
 is still outstanding before release.
+
+## Second pass: fb1dd61b
+
+I re-ran `test:unit` here: 8,977 passed, 1 skipped. Findings 1–3 are fixed as described. I found
+nothing that blocks merging. Two small follow-ups, both optional:
+
+- **Acknowledgement can happen without the player reading the rule (low).** `hideForecast()` marks
+  every shown rule as seen, and it runs on paths the player did not choose. Examples: scene
+  shutdown (~line 627, which includes the portrait/landscape switch) and End Turn. If a forecast
+  is open at that moment, its first-time explanation collapses unread. Suggested fix: mark rules
+  seen only from confirm and cancel (`cancelForecast`, the confirm path), and let the other
+  `hideForecast` callers discard `_affixLessonsShown` instead.
+- **Field affixes truncate in the canvas inspection line (low).** Regenerator, Waller and Haste
+  have no `forecastText`, so the compact row falls back to the full description and cuts it with
+  an ellipsis (Waller loses most of its sentence). The tooltip still has the full rule. A short
+  `summary` string for these three (e.g. "Heals 20% HP each enemy phase") would read better.
+  Validate it the same way as `forecastText`.
+
+The only remaining release item is the physical iOS smoke test.
