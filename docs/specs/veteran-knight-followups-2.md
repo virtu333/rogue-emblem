@@ -185,7 +185,8 @@ Full-run balance validation and human playtesting remain the balance gate. See
 - The canvas roster has fitted trait and biography rows with full text on hover/long-press.
   Loom previews retain the special trait flag.
 - Gaspar has a separate help page. Existing overlong help pages are split at topic boundaries
-  (or lose a blank separator), so every page satisfies the shared 15-line test.
+  (or lose a blank separator), so every page satisfies the shared 15-line test. Browser
+  assertions follow the new catalog entries, including the page found by searching Par.
 - Regression coverage includes a real legacy checkpoint captured/restored through
   `BattleSuspendController`, exact new-unit migration/JSON round trips, repeated DOM
   Gear/Convoy redraws, all four level-up pools, bench/swap protection, and weapon quip pools
