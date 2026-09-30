@@ -2,7 +2,7 @@
 
 Six notes from Dave's and AP's playtests: three about Canto, one about the village shop,
 one about lava, and one about an apparently ordinary Iron Lance dealing poison damage.
-Items 1–5 are implemented on this branch. Item 6 and the review follow-ups below are
+Items 1–5 are implemented on this branch. Items 6–7 and the review follow-ups below are
 specified for the next implementation pass; this document update changes no gameplay code.
 
 Verdicts: **BUG** · **GAP** (design gap) · **OK** (works as designed, but reads badly)
@@ -15,6 +15,7 @@ Verdicts: **BUG** · **GAP** (design gap) · **OK** (works as designed, but read
 | 4 | "Maxing out forges at a village turned off buying" | **OK (feedback)** | No code ties the forge count to buying. `shopBuyBlock` checks only stock, price and gold. The 1000 G forge left 1161 G, which was below every price in stock: Act 3 prices are ×1.3, the Elixir sits at 1950 and the Act 3 pool has no Vulnerary. The greyed Buy kept its ember fill at 45% opacity, so it still looked live. | Rows priced out of reach show the price in the warn colour (`is-short`). The disabled Buy loses the ember fill (`shop-buy--short`). The reason reads "Not enough gold: N G short.", and a stock that is entirely out of reach says "Nothing here is within X G. Sell, restock or leave." |
 | 5 | Lava shouldn't affect fliers | **GAP** | Lava burned every unit (`processTerrainDamage`). Fliers were already immune to acid and ice. | `lavaBurnsUnit(unit)` in `TerrainHazards.js` (false for `moveType: 'Flying'`), used by `BattleScene.processTerrainDamage` and the `HeadlessBattle` mirror. The Lava Crack rule text adds "Flying units are immune". The AI has no lava avoidance, so nothing changes there. |
 | 6 | First Light, third-map recruit battle: a Soldier with an Iron Lance dealt unexplained poison | **GAP (disclosure)** + approved balance change | Recruit fights guarantee an affixed hunter even in Act 1 on First Light. `venomous` adds 5 post-combat damage to a unit's attacks without changing its weapon. Its effect is absent from forecast warnings; mobile inspection puts its explanation at the bottom of Stats. Dave confirmed the reported encounter was a recruit battle. | Planned: no enemy affixes in First Light Act 1 recruit fights; keep the extra hunter. Disclose every affix that changes the exchange in the fight preview, driven by affix data (one quiet line each), and move affixes to the top of inspection. See the implementation spec below. |
+| 7 | (Review) Danger does nothing during Canto | **BUG** | Found in review of items 2–3. The phone dock shows Danger beside Wait in `CANTO_CONFIRM`, and the legacy controls show it in `CANTO_MOVING` (`battle_selected`), but `_onDangerClick` and `togglePersistentDanger` accept only idle, selection, the action menu and formation. A tap or hold, and the desktop Danger key, are ignored while Canto is being chosen or confirmed. That is exactly when a safe tile is being picked. | One shared predicate for the states where Danger works, adding both Canto states. See §7 below. |
 
 ## Canto confirm (`CANTO_CONFIRM`)
 
@@ -200,32 +201,63 @@ Run the focused generation, affix, post-combat and forecast suites, the relevant
 mobile browser contracts, and data validation and parity. On the built iOS app, check the early
 recruit encounter (no affix) and one later Venomous or Deathburst encounter before the next upload.
 
+## 7. Danger during Canto — implementation spec
+
+**Cause.** Danger has three entry points, and they disagree about when it works.
+- **The phone HUD** draws Danger in the dock whenever `planning` holds (`renderDock`: idle,
+  selection, or `isUnitMenuState`, which now includes `CANTO_CONFIRM`). The legacy controls
+  show it in `battle_selected`, which covers `CANTO_MOVING`.
+- **A tap, the `danger` key and the pad** reach `BattleScene._onDangerClick`.
+- **A hold (pin)** reaches `togglePersistentDanger`.
+
+The last two each hard-code `['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU', FORMATION_STATE]`,
+so in both Canto states the button is drawn but does nothing.
+
+**Fix.**
+- Add `DANGER_STATES` in `battleMenuModel.js`: `PLAYER_IDLE`, `UNIT_SELECTED`,
+  `UNIT_ACTION_MENU`, `CANTO_MOVING`, `CANTO_CONFIRM`, formation. Add `canUseDanger(scene)` over
+  it, keeping the story-lock and tutorial guards.
+- `_onDangerClick`, `togglePersistentDanger` and the dock's Danger button all read `canUseDanger`,
+  so the button is shown exactly when it works.
+- `SELECTING_*` target states and the forecast keep Danger off, as today. The legacy
+  `battle_selected` context therefore stops offering it outside Canto: give Canto its own context
+  (`battle_canto: ['danger']`) rather than showing a dead button in the target-selection states.
+
+**Behaviour.**
+- Toggling Danger during Canto overlays the enemy reach on the blue Canto range. It draws on its
+  own layer, so neither hides the other.
+- A pin survives the Canto move, Back and Wait, as it survives a normal move.
+- An unpinned overlay follows the same rule as after an ordinary action: it stays until toggled
+  off, and selecting the next unit hides it (`selectUnit`).
+- Danger reads `calculateDangerZone`, which already uses only what the player knows, so a
+  fog-hidden enemy adds no reach.
+- Toggling it changes no game state and draws no RNG. The unit stays where it is, Back still
+  returns it to the Canto origin, and the confirm menu stays open.
+
+**Tests.**
+1. Drive the real event route in `CANTO_MOVING` and `CANTO_CONFIRM`: a `mobile:danger` tap and
+   the `danger` key show and hide the overlay, and a hold pins it. Checking only that the button
+   is rendered missed this bug.
+2. In a `SELECTING_*` state and the forecast, no Danger button is drawn and the handlers do
+   nothing, so the shown and working states cannot drift apart again.
+3. In `CANTO_CONFIRM`, with Danger toggled, the state, the unit's tile, `_cantoPending` and the
+   RNG cursor are unchanged; Back still restores the origin and Wait still settles once.
+4. The pin survives Back and Wait.
+5. A fog-hidden enemy adds no Danger tiles during Canto.
+6. Plant the bug (drop the Canto states from `DANGER_STATES`) and watch tests 1 and 3 fail.
+
 ## Review follow-ups on implemented items 1–5
 
 Reviewed source head: `b644573`. The existing focused suites passed: Canto confirm,
 movement recovery, Threat Sight, lava banner/hazards, native shop and rail pinning
 (137 tests). The controlled poison reproduction above also passed against this branch.
 
-### P2 — Danger is displayed but inert in Canto confirmation
-
-`MobileBattleHUD.renderDock` now renders a Danger button beside Wait in
-`CANTO_CONFIRM`. Its tap emits `mobile:danger`, which reaches `_onDangerClick`.
-That method still permits only idle, selection, the ordinary action menu and formation.
-`togglePersistentDanger` has the same omission, so holding Danger to pin it also does
-nothing. Two temporary reproducer assertions fail: no toggle call, and no pin/show call.
-
-Allow `CANTO_CONFIRM` in both Danger entry points (or share one planning-state
-predicate with the HUD). Keep overlay/story/tutorial input guards. Add a test that
-activates the displayed native button through its event route and checks the overlay,
-plus a hold/pin test; merely testing that the button is rendered misses this bug.
-Also verify the intended behavior in `CANTO_MOVING`, while the player chooses a tile.
-
 ### Resume and input coverage before release
 
 The new Canto scene tests cover real terrain costs, fog withholding, Back, retargeting,
 Wait, End Turn and animation/recovery paths well. The test named for the W key/mobile
 Menu calls `confirmCantoMove` directly, so it does not validate either input binding.
-The rail test verifies that Wait/Danger render, but does not activate Danger.
+The rail test verifies that Wait/Danger render, but does not activate Danger (now item 7).
 
 Add a real checkpoint/resume case from `CANTO_CONFIRM` after a resolved attack and
 after a consumable. Check HP, item uses, origin/location, fog, history and remaining
