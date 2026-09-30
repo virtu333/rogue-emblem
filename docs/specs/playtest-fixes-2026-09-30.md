@@ -14,8 +14,8 @@ Verdicts: **BUG** · **GAP** (design gap) · **OK** (works as designed, but read
 | 3 | Threat arrows don't show during Canto | **BUG** | `ThreatSightController.focus()` ran only in `UNIT_SELECTED`/`UNIT_ACTION_MENU` and returned null for units with `hasActed`. Canto sets both `CANTO_MOVING` and `hasActed`. The path preview was also gated to `UNIT_SELECTED`. | Threat Sight is active in `CANTO_MOVING` (hovered Canto tile, read from `cantoRange`) and in `CANTO_CONFIRM` (the unit's tile). In those two states `hasActed` does not block it. `updatePathPreview` draws the Canto walk. |
 | 4 | "Maxing out forges at a village turned off buying" | **OK (feedback)** | No code ties the forge count to buying. `shopBuyBlock` checks only stock, price and gold. The 1000 G forge left 1161 G, which was below every price in stock: Act 3 prices are ×1.3, the Elixir sits at 1950 and the Act 3 pool has no Vulnerary. The greyed Buy kept its ember fill at 45% opacity, so it still looked live. | Rows priced out of reach show the price in the warn colour (`is-short`). The disabled Buy loses the ember fill (`shop-buy--short`). The reason reads "Not enough gold: N G short.", and a stock that is entirely out of reach says "Nothing here is within X G. Sell, restock or leave." |
 | 5 | Lava shouldn't affect fliers | **GAP** | Lava burned every unit (`processTerrainDamage`). Fliers were already immune to acid and ice. | `lavaBurnsUnit(unit)` in `TerrainHazards.js` (false for `moveType: 'Flying'`), used by `BattleScene.processTerrainDamage` and the `HeadlessBattle` mirror. The Lava Crack rule text adds "Flying units are immune". The AI has no lava avoidance, so nothing changes there. |
-| 6 | First Light, third-map recruit battle: a Soldier with an Iron Lance dealt unexplained poison | **GAP (disclosure)** + approved balance change | Recruit fights guarantee an affixed hunter even in Act 1 on First Light. `venomous` adds 5 post-combat damage to a unit's attacks without changing its weapon. Its effect is absent from forecast warnings; mobile inspection puts its explanation at the bottom of Stats. Dave confirmed the reported encounter was a recruit battle. | Planned: no enemy affixes in First Light Act 1 recruit fights; keep the extra hunter. Disclose every affix that changes the exchange in the fight preview, driven by affix data (one quiet line each), and move affixes to the top of inspection. See the implementation spec below. |
-| 7 | (Review) Danger does nothing during Canto | **BUG** | Found in review of items 2–3. The phone dock shows Danger beside Wait in `CANTO_CONFIRM`, and the legacy controls show it in `CANTO_MOVING` (`battle_selected`), but `_onDangerClick` and `togglePersistentDanger` accept only idle, selection, the action menu and formation. A tap or hold, and the desktop Danger key, are ignored while Canto is being chosen or confirmed. That is exactly when a safe tile is being picked. | One shared predicate for the states where Danger works, adding both Canto states. See §7 below. |
+| 6 | First Light, third-map recruit battle: a Soldier with an Iron Lance dealt unexplained poison | **GAP (disclosure)** + approved balance change | Recruit fights guarantee an affixed hunter even in Act 1 on First Light. `venomous` adds 5 post-combat damage to a unit's attacks without changing its weapon. Its effect is absent from forecast warnings; mobile inspection puts its explanation at the bottom of Stats. Dave confirmed the reported encounter was a recruit battle. | Implemented: no enemy affixes in First Light Act 1 recruit fights; keep the extra hunter. Disclose every affix that changes the exchange in the fight preview, driven by affix data (one quiet line each), and move affixes to the top of inspection. See the implementation spec below. |
+| 7 | (Review) Danger does nothing during Canto | **BUG** | Found in review of items 2–3. The phone dock shows Danger beside Wait in `CANTO_CONFIRM`, and the legacy controls show it in `CANTO_MOVING` (`battle_selected`), but `_onDangerClick` and `togglePersistentDanger` accept only idle, selection, the action menu and formation. A tap or hold, and the desktop Danger key, are ignored while Canto is being chosen or confirmed. That is exactly when a safe tile is being picked. | Implemented one shared predicate for the states where Danger works, adding both Canto states and excluding enemy phases. See §7 below. |
 
 ## Canto confirm (`CANTO_CONFIRM`)
 
@@ -133,26 +133,31 @@ with amounts read from `effects` (never a second hardcoded 5):
 | Thorns | your hits land at range 1 for 4+ damage | 25% of your damage reflects |
 | Teleporter | your hit deals damage | Warps up to 3 tiles when hit |
 | Venomous | it attacks or counters (can counter, in range, awake) | +5 after combat if it hits · never kills |
-| Corrosive | it attacks or counters | −2 DEF per hit, rest of battle |
+| Corrosive | it attacks or counters | −2 DEF once after combat if it hits; stacks across combats |
 | Grievous | it attacks or counters | Wounded 2 turns if it hits |
 | Deathburst | your best case (every hit lands, crits where possible) kills it, at any range | Dies: 5 damage to every unit next to it · can kill |
 
 **Engine.** `affixForecastNotes(attacker, defender, forecast, affixData)` in `AffixSystem.js` is a
-pure function that returns `[{ affixId, name, text, tone }]` per side. It uses the forecast's own
+pure function (implemented in `AffixForecast.js`, re-exported here to avoid a Combat import cycle) that returns `[{ affixId, name, text, tone }]` per side. It uses the forecast's own
 `canCounter`, damage and distance, so counter rules (Sleep, range, counter prevention) come from
 one place. It replaces the hand-built `atkWarnings` / `defWarnings`; `simpleExchange` hides the HP
-projection whenever an `exchange` note is present (today's `venomous` / `deathburst` list becomes
-data). Forecast reads draw no gameplay RNG and mutate nothing.
+projection for exchange-affix effects it cannot model (the affix data replaces the hard-coded list).
+Thorns declares `forecastProjectionSafe: true`: the existing rounded, nonlethal reflection calculation
+still supplies its conservative HP projection. Unknown affixes suppress projections. Forecast reads draw no gameplay RNG and mutate nothing.
 
 **Presentation — quiet by default.**
 - Each note is one line under the enemy's column: the affix name in the affix colour, then the
-  consequence (`Venomous · +5 after combat if it hits`). Enemies carry at most 2 affixes (Black
-  Sun's cap), so the forecast grows by 2 lines at most. No boxes, badges or all-caps tags.
+  consequence (`Venomous · +5 after combat if it hits`). Eclipse can raise the ordinary
+  two-affix cap, so render every applicable note and size from wrapped text. No boxes, badges
+  or all-caps tags.
 - Canvas and phone render the same notes (`ForecastOverlay` and `MobileBattleHUD.forecastSide`
-  both already read `info.warnings`). Wrap long lines and measure their height, rather than
+  both read `info.affixNotes`). Wrap long lines and measure their height, rather than
   assuming 14px rows.
 - The first time a player meets a given affix in a forecast, its full rule text is shown once
-  (`showContextualHint`, keyed per affix). After that the one-liner is enough.
+  (`showContextualHint`, keyed per affix). This uses the existing queue: the full rule waits
+  for a safe idle state and the queue shows at most one contextual lesson per battle. The
+  immediate consequence is always visible in the forecast; after acknowledgment the
+  full-rule hint is suppressed for that affix on this save.
 - `field` affixes stay off the forecast. A player who wants them taps the enemy, which opens
   inspection.
 
@@ -192,7 +197,7 @@ in this fix.
    hit, including a zero-damage hit, and leaves the target at 1 HP. Deathburst can kill an
    adjacent unit. No affix damage on all misses.
 6. Renderers: the desktop forecast and the native phone forecast show the same notes, with long
-   names and two affixes, above the confirm control, without clipping or pushing it offscreen.
+   names and three affixes, above the confirm control, without clipping or pushing it offscreen.
    The one-time full-rule hint fires once per affix per save.
 7. A fog-hidden enemy exposes no notes or inspector details. Forecast and inspection reads leave
    unit state and battle RNG untouched.
@@ -216,7 +221,7 @@ so in both Canto states the button is drawn but does nothing.
 **Fix.**
 - Add `DANGER_STATES` in `battleMenuModel.js`: `PLAYER_IDLE`, `UNIT_SELECTED`,
   `UNIT_ACTION_MENU`, `CANTO_MOVING`, `CANTO_CONFIRM`, formation. Add `canUseDanger(scene)` over
-  it, keeping the story-lock and tutorial guards.
+  it, keeping the story-lock, tutorial and enemy-phase guards.
 - `_onDangerClick`, `togglePersistentDanger` and the dock's Danger button all read `canUseDanger`,
   so the button is shown exactly when it works.
 - `SELECTING_*` target states and the forecast keep Danger off, as today. The legacy
@@ -263,10 +268,40 @@ Add a real checkpoint/resume case from `CANTO_CONFIRM` after a resolved attack a
 after a consumable. Check HP, item uses, origin/location, fog, history and remaining
 movement; document the different rollback boundary instead of promising that every
 resume lands directly in Canto. Exercise actual W/Enter/Back/mobile Wait bindings,
-including repeated activation and a stale menu callback after Back. These are focused
+including repeated activation and a stale menu callback after Back.
+Verified: the existing shared menu wrapper refuses a callback once its menu has been
+closed or replaced. A regression covers Back, a later Canto choice and repeated activation;
+no additional Canto-specific guard is needed. These are focused
 integration checks rather than another full-run simulation requirement.
 
 Browser revalidation in this review was blocked before test execution: Chromium was
 absent and its download returned a truncated archive. This does not contradict the
 author's reported contracts-lane pass, but this review did not independently reproduce
 that browser result or run on a physical iOS device.
+
+### Implementation verification (2026-09-30)
+
+Items 6–7 are implemented. Policy is evaluated from canonical difficulty data and the
+encounter act. It blocks initial rolled/guaranteed affixes and strips scripted reinforcement
+affixes from cloned templates; already locked encounters are preserved. The extra hunter
+and recruit remain. Exchange forecasts now have conditional source-side notes, including
+critical-hit and follow-up possibilities for Deathburst, zero-damage hits for hit-triggered
+effects, and no Wounded warning against status immunity. Rally's numeric aura now names its
+source. Enemy affixes show full rules immediately below HP in inspection on every tab.
+
+Real RunManager checkpoint/JSON-restore tests confirm the refresh boundaries: after resolved
+combat, HP/weapon state survives and the unit resumes Canto at its origin with its original
+remaining movement; after a consumable, the earlier checkpoint restores pre-item HP and uses
+and returns to idle. Neither restore reveals the unconfirmed Canto destination's fog.
+Browser tests exercise mobile Danger events, the D key, hold-to-pin, Back and mobile Wait;
+forecast/inspection coverage includes three exchange affixes. The earlier browser-download
+block was resolved using the official Chrome for Testing artifact. A physical iOS check remains
+part of release validation.
+
+Validation: 8,973 unit tests, 192 harness tests and 41 simulation tests passed. The browser
+contracts lane completed all 74 cases; one scene-boot timeout passed on retry before its
+Canto assertions ran. An independent browser run passed 41 cases covering the new portrait
+forecast, Canto input, inspection, phone HUD and rotation. Mutation checks caught removal of
+the recruit veto, Canto Danger states and the existing shared stale-menu guard. Build, lint
+(0 errors), formatting, schema validation, generated-reference checks, content integrity and
+30-file data parity passed.

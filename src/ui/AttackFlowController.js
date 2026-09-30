@@ -22,6 +22,7 @@
 
 import { ForecastOverlay } from './ForecastOverlay.js';
 import { TutorialController } from './TutorialController.js';
+import { showContextualHint } from './HintDisplay.js';
 import { combatDistance, getFootprint, isEntity } from '../engine/EntitySystem.js';
 import {
   getAttackWeapons,
@@ -330,6 +331,11 @@ export class AttackFlowController {
       atkTerrain,
       defTerrain,
     });
+    for (const note of [
+      ...(forecast.attacker.affixNotes || []),
+      ...(forecast.defender.affixNotes || []),
+    ])
+      showContextualHint(scene, `affix_${note.affixId}`, `${note.name}: ${note.description}`);
 
     scene._forecastValidWeapons = validWeapons;
     const targets = scene.attackTargets || [];

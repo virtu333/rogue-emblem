@@ -37,7 +37,7 @@ import {
   terrainRuleLines,
 } from '../engine/BattleInformation.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
-import { isUnitMenuState } from './battleMenuModel.js';
+import { isUnitMenuState, canUseDanger } from './battleMenuModel.js';
 import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
@@ -683,7 +683,8 @@ export class MobileBattleHUD {
       );
     }
     if (attacking && config.gamblerLine) side.append(el('p', 'mb-notice', config.gamblerLine));
-    for (const warning of info.warnings || []) side.append(el('p', 'mb-notice', warning));
+    for (const note of info.affixNotes || [])
+      side.append(el('p', 'mb-notice', `${note.name} · ${note.text}`));
     return side;
   }
 
@@ -1118,7 +1119,7 @@ export class MobileBattleHUD {
     const staffInfo = statusStaffInfo(unit);
     if (staffInfo) detailContent.append(el('p', '', staffInfo.text));
     detailContent.append(el('pre', '', info || 'Tap a tile to inspect terrain.'));
-    if (['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state)) {
+    if (canUseDanger(s)) {
       detailContent.append(
         this.button(
           s.keepDangerVisible ? 'Unpin global Danger' : 'Keep global Danger visible',
@@ -1529,7 +1530,7 @@ export class MobileBattleHUD {
       this.dock.classList.toggle('has-pinned', false);
       this.dock.append(
         startButton(s._formation, (label, action, cls) => this.button(label, action, cls)),
-        this.dangerToggle({ compact: true, viaEvent: true }),
+        ...(canUseDanger(s) ? [this.dangerToggle({ compact: true, viaEvent: true })] : []),
       );
       this.dock.classList.toggle('is-formation', true);
       return;
@@ -1538,19 +1539,20 @@ export class MobileBattleHUD {
     const planning =
       (['PLAYER_IDLE', 'UNIT_SELECTED'].includes(state) || isUnitMenuState(state)) &&
       s.turnManager?.currentPhase !== 'enemy';
-    this.dock.hidden = !planning;
+    this.dock.hidden = !planning && !canUseDanger(s);
     const pin = planning && pinned && this.menu ? pinned : null;
     const dockEndTurn = planning && !pin && endTurn;
     this.dock.classList.toggle('has-pinned', Boolean(pin || dockEndTurn));
-    if (!planning) return;
+    if (!planning && !canUseDanger(s)) return;
     if (pin) this.dock.append(this.menuButton(this.menu, pin, 'mb-pinned-command'));
     else if (dockEndTurn) this.dock.append(this.endTurnButton('mb-pinned-command'));
-    this.dock.append(
-      this.dangerToggle({
-        compact: Boolean(pin || dockEndTurn),
-        viaEvent: state !== 'UNIT_ACTION_MENU',
-      }),
-    );
+    if (canUseDanger(s))
+      this.dock.append(
+        this.dangerToggle({
+          compact: Boolean(pin || dockEndTurn),
+          viaEvent: !isUnitMenuState(state),
+        }),
+      );
   }
 
   dangerToggle({ compact = false, viaEvent = false } = {}) {

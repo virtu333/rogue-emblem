@@ -78,6 +78,9 @@ function makeScene() {
           y: args[1],
           text: content,
           color: args[3]?.color,
+          height:
+            Math.ceil(Math.max(1, content.length * 6) / (args[3]?.wordWrap?.width || Infinity)) *
+            14,
           width: Math.max(1, content.length) * 6,
         });
       },
@@ -473,23 +476,31 @@ describe('ForecastOverlay', () => {
       expect(gamblerText).toBeTruthy();
     });
 
-    it('shows warning labels (BLOCK, REFLECT, WARP)', () => {
+    it('renders three wrapped consequences under their source, sized above the footer', () => {
+      const names = ['Venomous', 'Corrosive', 'Deathburst'];
+      const affixNotes = names.map((name) => ({
+        name,
+        text: 'Consequences that need enough space to wrap onto another line',
+      }));
       const overlay = new ForecastOverlay(scene);
       overlay.render({
         attacker: makeUnit(),
-        defender: makeUnit({ name: 'Boss' }),
-        forecast: makeForecast({}, { warnings: ['Shielded', 'Thorns', 'Teleporter'] }),
-        weaponArt: null,
-        gamblerLine: null,
+        defender: makeUnit({ name: 'Captain' }),
+        forecast: makeForecast({}, { affixNotes }),
         validWeapons: [],
       });
-
-      const block = overlay.displayObjects.find((o) => o.text === '[BLOCK]');
-      const reflect = overlay.displayObjects.find((o) => o.text === '[REFLECT]');
-      const warp = overlay.displayObjects.find((o) => o.text === '[WARP]');
-      expect(block).toBeTruthy();
-      expect(reflect).toBeTruthy();
-      expect(warp).toBeTruthy();
+      const notes = overlay.displayObjects.filter((o) =>
+        names.some((name) => o.text?.startsWith(`${name} ·`)),
+      );
+      expect(notes).toHaveLength(3);
+      expect(notes.every((o) => o.x > 320)).toBe(true);
+      const panel = overlay.displayObjects[0];
+      expect(notes[2].y + notes[2].height).toBeLessThan(panel.y + panel.height / 2 - 18);
+      expect(
+        overlay.displayObjects.some((o) => ['[BLOCK]', '[REFLECT]', '[WARP]'].includes(o.text)),
+      ).toBe(false);
+      overlay.destroy();
+      expect(notes.every((o) => o.destroy.mock.calls.length === 1)).toBe(true);
     });
 
     it('renders forged weapon name in green color (#44ff88)', () => {

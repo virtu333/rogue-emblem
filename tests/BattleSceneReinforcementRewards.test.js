@@ -733,3 +733,56 @@ describe('BattleScene reinforcement reward scaling', () => {
     });
   });
 });
+
+it('Deathburst can kill adjacent NPCs and its own allies, but leaves units at range two alone', async () => {
+  const scene = new BattleScene();
+  Object.assign(scene, {
+    registry: { get: () => null },
+    gameData,
+    runManager: null,
+    battleState: 'COMBAT_RESOLVING',
+    battleConfig: { objective: 'rout' },
+    playerUnits: [],
+    goldEarned: 0,
+    _combatFx: { deathFade: async () => {} },
+    _battleBeats: { onKill: vi.fn() },
+    _awaitSceneDelay: async () => {},
+    _applyKillRewards: vi.fn(),
+    removeUnitGraphic: vi.fn(),
+    updateObjectiveText: vi.fn(),
+    updateHPBar: vi.fn(),
+    checkBattleEnd: vi.fn(),
+    grid: {
+      gridToPixel: (col, row) => ({ x: col * 32, y: row * 32 }),
+      clearTemporaryTerrainsBySource: vi.fn(),
+    },
+    add: {
+      text: () => {
+        const text = { setOrigin: () => text, setDepth: () => text, destroy: vi.fn() };
+        return text;
+      },
+    },
+    tweens: { add: (config) => config.onComplete?.() },
+  });
+  const unit = (name, faction, col, row, hp) => ({
+    name,
+    faction,
+    col,
+    row,
+    currentHP: hp,
+    stats: { HP: 20 },
+    className: 'Soldier',
+    level: 1,
+    affixes: [],
+  });
+  const source = { ...unit('Burst', 'enemy', 2, 2, 0), affixes: ['deathburst'] };
+  const ally = unit('Other enemy', 'enemy', 3, 2, 5);
+  const npc = unit('Recruit', 'npc', 2, 3, 4);
+  const far = unit('Distant enemy', 'enemy', 4, 2, 5);
+  scene.enemyUnits = [source, ally, far];
+  scene.npcUnits = [npc];
+  await scene.removeUnit(source);
+  expect([ally.currentHP, npc.currentHP, far.currentHP]).toEqual([0, 0, 5]);
+  expect(scene.enemyUnits).toEqual([far]);
+  expect(scene.npcUnits).toEqual([]);
+});

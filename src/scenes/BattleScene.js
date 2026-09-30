@@ -37,6 +37,7 @@ import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
 import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
 import {
   CANTO_CONFIRM_STATE,
+  canUseDanger,
   isUnitMenuState,
   menuRow,
   railOwnsMenus,
@@ -4221,14 +4222,15 @@ export class BattleScene extends Phaser.Scene {
     if (s === 'PLAYER_IDLE') ctx = 'battle_player_idle';
     else if (s === 'UNIT_SELECTED') ctx = 'battle_unit_selected';
     // States where roster IS allowed (matches _onRosterClick rosterStates)
+    else if (s === 'CANTO_MOVING' || s === CANTO_CONFIRM_STATE) ctx = 'battle_canto';
+    else if (s === 'UNIT_ACTION_MENU') ctx = 'battle_action';
     else if (
-      s === 'UNIT_ACTION_MENU' ||
       s === 'SELECTING_TARGET' ||
       s === 'SELECTING_HEAL_TARGET' ||
       s === 'SELECTING_STAFF_ALLY' ||
       s === 'SELECTING_STAFF_TILE'
     )
-      ctx = 'battle_action';
+      ctx = 'battle_target';
     // States where roster is NOT allowed
     else if (
       s === 'UNIT_MOVED' ||
@@ -4241,9 +4243,7 @@ export class BattleScene extends Phaser.Scene {
       s === 'SELECTING_BREAK_TARGET' ||
       s === SMASH_TARGET_STATE ||
       s === 'SELECTING_ABILITY_TILE' ||
-      s === 'TRADING' ||
-      s === 'CANTO_MOVING' ||
-      s === CANTO_CONFIRM_STATE
+      s === 'TRADING'
     )
       ctx = 'battle_selected';
     // SHOWING_FORECAST: roster is technically allowed per _onRosterClick rosterStates,
@@ -4303,12 +4303,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _onDangerClick() {
-    if (this.isStoryInputLocked()) return;
-    if (
-      ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU', FORMATION_STATE].includes(
-        this.battleState,
-      )
-    ) {
+    if (canUseDanger(this)) {
       if (this.dangerZoneStale || !this.dangerZoneCache) {
         this.dangerZoneCache = this.calculateDangerZone();
         this.dangerZoneStale = false;
@@ -4320,14 +4315,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   togglePersistentDanger() {
-    if (
-      this.isStoryInputLocked() ||
-      this._isTutorialStrictGateActive?.() ||
-      !['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU', FORMATION_STATE].includes(
-        this.battleState,
-      )
-    )
-      return;
+    if (!canUseDanger(this)) return;
     this.keepDangerVisible = !this.keepDangerVisible;
     if (this.keepDangerVisible) {
       this.dangerZoneCache = this.calculateDangerZone();

@@ -3,6 +3,7 @@
 
 import { gridDistance, thornsReflectDamage } from './Combat.js';
 import { applyCondition } from './StatusConditionSystem.js';
+export { affixForecastNotes } from './AffixForecast.js';
 
 function getAffix(affixId, affixData) {
   return affixData?.affixes?.find((a) => a.id === affixId) || null;
@@ -58,7 +59,8 @@ export function getAffixCombatMods(unit, opponent, allAllies, affixData, terrain
       const dist = gridDistance(unit.col, unit.row, ally.col, ally.row);
       if (dist <= (affix.range || 0) && affix.effects) {
         if (affix.effects.atkBonus) mods.atkBonus += affix.effects.atkBonus;
-        // Don't add to activated list here (ally's aura)
+        if (!mods.activated.some((entry) => entry.id === affix.id))
+          mods.activated.push({ id: affix.id, name: affix.name });
       }
     }
   }

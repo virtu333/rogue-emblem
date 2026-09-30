@@ -6,6 +6,13 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
+import { createUnit } from '../src/engine/UnitManager.js';
+import { RunManager } from '../src/engine/RunManager.js';
+import {
+  captureResolvedAction,
+  completeResolvedAction,
+} from '../src/ui/BattlePresentationCheckpoint.js';
 import { Grid } from '../src/engine/Grid.js';
 import { openMenuCommand } from '../src/ui/battleMenuModel.js';
 import { loadGameData } from './testData.js';
@@ -155,6 +162,22 @@ describe('Canto confirm', () => {
     const wait = openMenuCommand(scene, 'wait');
     expect(wait?.label).toBe('Wait');
     expect(scene._actionMenuPublished.items.map((i) => i.id)).toEqual(['wait']);
+  });
+
+  it('a stale Wait callback after Back cannot settle a later Canto choice', () => {
+    const { scene } = setup();
+    cantoTo(scene, 3);
+    const stale = openMenuCommand(scene, 'wait');
+    scene.undoCantoMove();
+    stale.onActivate();
+    expect(scene.battleState).toBe('CANTO_MOVING');
+    cantoTo(scene, 2);
+    stale.onActivate();
+    expect(scene.battleState).toBe('CANTO_CONFIRM');
+    expect(scene.turnManager.unitActed).not.toHaveBeenCalled();
+    openMenuCommand(scene, 'wait').onActivate();
+    stale.onActivate();
+    expect(scene.turnManager.unitActed).toHaveBeenCalledTimes(1);
   });
 
   it('Wait completes exactly once at the new tile, with one moved beat', () => {
@@ -453,5 +476,191 @@ describe('Canto budget and terrain (real Grid)', () => {
     expect(scene.cantoRange.has('1,1')).toBe(true);
     expect(scene.cantoRange.get('1,1').cost).toBe(3);
     expect(scene.cantoRange.has('2,1')).toBe(false);
+  });
+});
+
+describe('Danger during Canto', () => {
+  for (const confirm of [false, true]) {
+    it(`toggle/pin preserves Canto and fog before ${confirm ? 'Wait' : 'moving'}`, () => {
+      const { scene, edric, grid } = setup();
+      if (confirm) cantoTo(scene, 3);
+      let visible = false;
+      scene.dangerZone = {
+        get visible() {
+          return visible;
+        },
+        toggle: vi.fn(() => {
+          visible = !visible;
+        }),
+        show: vi.fn(() => {
+          visible = true;
+        }),
+      };
+      scene.calculateDangerZone = vi.fn(() => [{ col: 1, row: 1 }]);
+      const pending = scene._cantoPending;
+      const before = {
+        state: scene.battleState,
+        col: edric.col,
+        row: edric.row,
+        range: scene.cantoRange,
+      };
+      const rng = vi.spyOn(Math, 'random');
+      scene._onDangerClick();
+      expect(visible).toBe(true);
+      scene._onDangerClick();
+      expect(visible).toBe(false);
+      scene.togglePersistentDanger();
+      expect(scene.keepDangerVisible).toBe(true);
+      expect({
+        state: scene.battleState,
+        col: edric.col,
+        row: edric.row,
+        range: scene.cantoRange,
+      }).toEqual(before);
+      expect(scene._cantoPending).toBe(pending);
+      expect(grid.isVisible(5, 1)).toBe(false);
+      expect(rng).not.toHaveBeenCalled();
+      rng.mockRestore();
+      if (confirm) scene.undoCantoMove();
+      expect(scene.keepDangerVisible).toBe(true);
+      cantoTo(scene, 2);
+      scene.confirmCantoMove();
+      expect(scene.keepDangerVisible).toBe(true);
+      expect(scene.turnManager.unitActed).toHaveBeenCalledTimes(1);
+    });
+  }
+  it('routes legacy Canto controls separately from target selection', () => {
+    const { scene } = setup();
+    scene.isMobileInput = true;
+    scene.game = { events: { emit: vi.fn() } };
+    for (const [state, context] of [
+      ['CANTO_MOVING', 'battle_canto'],
+      ['CANTO_CONFIRM', 'battle_canto'],
+      ['SELECTING_TARGET', 'battle_target'],
+      ['SELECTING_HEAL_TARGET', 'battle_target'],
+      ['UNIT_ACTION_MENU', 'battle_action'],
+    ]) {
+      scene.battleState = state;
+      scene._emitMobileContext();
+      expect(scene.game.events.emit).toHaveBeenLastCalledWith('mobile:setContext', { context });
+    }
+  });
+  it('suppresses Danger during target selection, forecast, story and tutorial gates', () => {
+    const { scene } = setup();
+    scene.dangerZone = { toggle: vi.fn(), show: vi.fn() };
+    scene.calculateDangerZone = vi.fn();
+    for (const state of ['SELECTING_TARGET', 'SELECTING_HEAL_TARGET', 'SHOWING_FORECAST']) {
+      scene.battleState = state;
+      scene._onDangerClick();
+      scene.togglePersistentDanger();
+    }
+    scene.battleState = 'CANTO_CONFIRM';
+    scene.isStoryInputLocked = () => true;
+    scene._onDangerClick();
+    scene.isStoryInputLocked = () => false;
+    scene._isTutorialStrictGateActive = () => true;
+    scene.togglePersistentDanger();
+    expect(scene.calculateDangerZone).not.toHaveBeenCalled();
+    expect(scene.dangerZone.toggle).not.toHaveBeenCalled();
+    expect(scene.dangerZone.show).not.toHaveBeenCalled();
+  });
+});
+
+// Real run checkpoint and JSON restore, at the two distinct rollback boundaries.
+function withPersistence(scene, edric) {
+  for (const unit of [...scene.playerUnits, ...scene.enemyUnits]) {
+    const original = { ...unit };
+    const full = createUnit(
+      gameData.classes.find(
+        (c) => c.name === (unit.faction === 'player' ? 'Mercenary' : 'Fighter'),
+      ),
+      1,
+      gameData.weapons,
+      { name: unit.name },
+    );
+    Object.assign(unit, full, original, { stats: { ...full.stats, ...original.stats } });
+  }
+  edric.battleEntityId = 'u1';
+  scene.runManager = new RunManager(gameData);
+  scene.runManager.startRun({ runSeed: 42, applyBlessingsAtStart: false });
+  scene.runManager.beginBattleInProgress('act1_test');
+  scene.reseedBattleRng = vi.fn();
+  scene._persistBattleRunState = () => ({ ok: true });
+  scene._captureSuspendCheckpoint = BattleScene.prototype._captureSuspendCheckpoint.bind(scene);
+  for (const name of [
+    'commitVisionSnapshotIfPending',
+    '_clearCombatRollSession',
+    '_clearSelectedWeaponArt',
+    'updateObjectiveText',
+    'updateVisionHud',
+    'updateHPBar',
+  ])
+    scene[name] = vi.fn();
+  scene.showBriefBanner = async () => {};
+  scene.addUnitGraphic = (unit) => {
+    unit.graphic = { clearTint: vi.fn(), setTint: vi.fn(), setAlpha: vi.fn(), setVisible: vi.fn() };
+  };
+}
+function restoreSavedScene(scene) {
+  const saved = JSON.parse(JSON.stringify(scene.runManager.toJSON()));
+  scene.runManager = RunManager.fromJSON(saved, gameData);
+  const cp = scene.runManager.battleInProgress.checkpoint;
+  scene.playerUnits = [];
+  scene.enemyUnits = [];
+  scene.npcUnits = [];
+  scene.selectedUnit = null;
+  scene._cantoPending = null;
+  scene.cantoRange = null;
+  const controller = new BattleSuspendController(scene);
+  controller.applyUnits(cp);
+  controller.finalizeResume(cp);
+  return cp;
+}
+describe('Canto confirm checkpoint rollback', () => {
+  it('after combat restores its resolved HP/uses at the origin, then offers Canto again', () => {
+    const { scene, edric, grid } = setup({ remaining: 3 });
+    withPersistence(scene, edric);
+    edric.currentHP = 17;
+    edric.weapon = { ...SWORD, uses: 8, uid: 'test-sword' };
+    edric.inventory = [edric.weapon];
+    const continuation = { kind: 'combat', unitId: 'u1', unitName: edric.name };
+    captureResolvedAction(scene, continuation);
+    completeResolvedAction(scene, continuation);
+    cantoTo(scene, 3);
+    expect(scene.battleState).toBe('CANTO_CONFIRM');
+    const cp = restoreSavedScene(scene);
+    const restored = scene.playerUnits[0];
+    expect(cp.pendingActionCompletion.kind).toBe('combat');
+    expect(scene.battleState).toBe('CANTO_MOVING');
+    expect([restored.col, restored.row, restored.currentHP, restored.weapon.uses]).toEqual([
+      0, 1, 17, 8,
+    ]);
+    expect(restored.weapon).toBe(restored.inventory[0]);
+    expect(scene._cantoRemaining).toBe(3);
+    expect(scene._cantoPending).toBeNull();
+    expect(grid.isVisible(5, 1)).toBe(false);
+  });
+  it('after a consumable restores the earlier checkpoint, including the unused item and HP', async () => {
+    const { scene, edric, grid } = setup({ remaining: 3 });
+    withPersistence(scene, edric);
+    edric.hasActed = false;
+    edric.currentHP = 8;
+    const item = { name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 };
+    edric.consumables = [item];
+    scene.battleState = 'PLAYER_IDLE';
+    scene._captureSuspendCheckpoint();
+    await scene.useConsumable(edric, item);
+    expect([edric.currentHP, item.uses, scene.battleState]).toEqual([18, 2, 'CANTO_MOVING']);
+    cantoTo(scene, 3);
+    expect(scene.battleState).toBe('CANTO_CONFIRM');
+    const cp = restoreSavedScene(scene);
+    expect(cp.pendingActionCompletion).toBeNull();
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    const restored = scene.playerUnits[0];
+    expect([restored.col, restored.row, restored.currentHP, restored.consumables[0].uses]).toEqual([
+      0, 1, 8, 3,
+    ]);
+    expect(restored.hasActed).toBe(false);
+    expect(grid.isVisible(5, 1)).toBe(false);
   });
 });

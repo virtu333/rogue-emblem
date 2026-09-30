@@ -335,6 +335,19 @@ export class UnitDetailOverlay {
     this._unitText(lx + barW + 6, y, `${unit.currentHP}/${unit.stats.HP}`, STAT_COLORS.HP, '10px');
     y += 18;
 
+    for (const id of unit.affixes || []) {
+      const affix = this.gameData?.affixes?.affixes?.find((a) => a.id === id);
+      const text = this._unitText(
+        lx,
+        y,
+        `${affix?.name || id}: ${affix?.description || ''}`,
+        UI_PALETTE.warn,
+        '9px',
+      );
+      text.setWordWrapWidth(OVERLAY_W - 24);
+      y += text.height + 4;
+    }
+
     // --- Tab Buttons ---
     this._drawTabButtons(lx, y);
     y += 24;
@@ -656,31 +669,6 @@ export class UnitDetailOverlay {
         traitText.on('pointerout', () => this._hideSkillTooltip());
         y += 13;
       }
-    }
-
-    // Affixes (Enemy/NPC only typically, but show for all if present)
-    if (unit.affixes && unit.affixes.length > 0) {
-      const affixNames = unit.affixes
-        .map((aid) => {
-          const ad = this.gameData?.affixes?.affixes?.find((a) => a.id === aid);
-          return ad ? ad.name : aid;
-        })
-        .join(', ');
-      const affixText = this._tabText(lx, y, `Affixes: ${affixNames}`, UI_PALETTE.warn, '10px');
-
-      // Multi-line tooltip for descriptions
-      const descriptions = unit.affixes
-        .map((aid) => {
-          const ad = this.gameData?.affixes?.affixes?.find((a) => a.id === aid);
-          return ad ? `${ad.name}: ${ad.description}` : aid;
-        })
-        .join('\n');
-
-      affixText.setInteractive({ useHandCursor: true });
-      affixText.on('pointerover', () => this._showSkillTooltip(affixText, descriptions));
-      affixText.on('pointerout', () => this._hideSkillTooltip());
-
-      y += 13;
     }
 
     // Growths (player/NPC only)

@@ -210,21 +210,21 @@
       "id": "deathburst",
       "name": "Deathburst",
       "trigger": "on-death",
-      "description": "On death, deals 5 damage to all units within 1 tile",
+      "description": "On death, deals 5 damage to every adjacent unit, allies and enemies alike. Can kill.",
       "effects": "aoeDamage:5"
     },
     {
       "id": "venomous",
       "name": "Venomous",
       "trigger": "on-attack",
-      "description": "All attacks inflict 5 poison damage after combat",
+      "description": "After combat, if it landed a hit, deals 5 more damage once to its target. Cannot kill: leaves at least 1 HP.",
       "effects": "poisonDamage:5"
     },
     {
       "id": "corrosive",
       "name": "Corrosive",
       "trigger": "on-attack",
-      "description": "Attacks reduce target DEF by 2 for the rest of battle (stacks)",
+      "description": "After combat, if it landed a hit, reduces target DEF by 2 once for the rest of battle. Stacks across combats.",
       "effects": "debuffStat:DEF, debuffValue:-2, debuffDuration:battle"
     }
   ],

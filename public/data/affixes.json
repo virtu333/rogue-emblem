@@ -12,7 +12,11 @@
       },
       "weight": 1.0,
       "icon": "thorns",
-      "narrativeHint": "A crackling aura of pain surrounds this enemy."
+      "narrativeHint": "A crackling aura of pain surrounds this enemy.",
+      "forecast": "exchange",
+      "forecastCondition": "reflect",
+      "forecastText": "Reflects {reflectMeleePctPercent}% of adjacent hit damage; cannot kill",
+      "forecastProjectionSafe": true
     },
     {
       "id": "regenerator",
@@ -25,12 +29,13 @@
       },
       "weight": 1.0,
       "icon": "regen",
-      "narrativeHint": "Wounds close unnaturally fast on this enemy."
+      "narrativeHint": "Wounds close unnaturally fast on this enemy.",
+      "forecast": "field"
     },
     {
       "id": "venomous",
       "name": "Venomous",
-      "description": "All attacks inflict 5 poison damage after combat",
+      "description": "After combat, if it landed a hit, deals 5 more damage once to its target. Cannot kill: leaves at least 1 HP.",
       "tier": 1,
       "trigger": "on-attack",
       "effects": {
@@ -38,7 +43,10 @@
       },
       "weight": 1.0,
       "icon": "venom",
-      "narrativeHint": "A sickly green haze clings to this enemy weapon."
+      "narrativeHint": "A sickly green haze clings to this enemy weapon.",
+      "forecast": "exchange",
+      "forecastCondition": "hit",
+      "forecastText": "+{poisonDamage} after combat if it hits; cannot kill"
     },
     {
       "id": "rally",
@@ -52,7 +60,8 @@
       },
       "weight": 0.8,
       "icon": "rally",
-      "narrativeHint": "This enemy presence emboldens those nearby."
+      "narrativeHint": "This enemy presence emboldens those nearby.",
+      "forecast": "numbers"
     },
     {
       "id": "waller",
@@ -67,7 +76,8 @@
       },
       "weight": 0.7,
       "icon": "waller",
-      "narrativeHint": "The ground buckles and rises around this enemy."
+      "narrativeHint": "The ground buckles and rises around this enemy.",
+      "forecast": "field"
     },
     {
       "id": "teleporter",
@@ -81,7 +91,10 @@
       },
       "weight": 0.6,
       "icon": "teleport",
-      "narrativeHint": "This enemy flickers and its position seems uncertain."
+      "narrativeHint": "This enemy flickers and its position seems uncertain.",
+      "forecast": "exchange",
+      "forecastCondition": "damage-taken",
+      "forecastText": "Warps up to {warpRange} tiles after damage"
     },
     {
       "id": "shielded",
@@ -95,7 +108,10 @@
       },
       "weight": 0.6,
       "icon": "shield",
-      "narrativeHint": "A translucent barrier shimmers around this enemy."
+      "narrativeHint": "A translucent barrier shimmers around this enemy.",
+      "forecast": "exchange",
+      "forecastCondition": "first-hit",
+      "forecastText": "First hit against it deals 0"
     },
     {
       "id": "berserker",
@@ -110,12 +126,13 @@
       "aiOverride": "target_lowest_hp",
       "weight": 0.8,
       "icon": "berserk",
-      "narrativeHint": "This enemy eyes burn with frenzied rage."
+      "narrativeHint": "This enemy eyes burn with frenzied rage.",
+      "forecast": "numbers"
     },
     {
       "id": "deathburst",
       "name": "Deathburst",
-      "description": "On death, deals 5 damage to all units within 1 tile",
+      "description": "On death, deals 5 damage to every adjacent unit, allies and enemies alike. Can kill.",
       "tier": 2,
       "trigger": "on-death",
       "range": 1,
@@ -124,7 +141,10 @@
       },
       "weight": 0.5,
       "icon": "deathburst",
-      "narrativeHint": "Dark energy pulses within this enemy."
+      "narrativeHint": "Dark energy pulses within this enemy.",
+      "forecast": "exchange",
+      "forecastCondition": "lethal",
+      "forecastText": "On death: {aoeDamage} damage to adjacent units; can kill"
     },
     {
       "id": "anchored",
@@ -141,12 +161,13 @@
       },
       "weight": 0.7,
       "icon": "anchor",
-      "narrativeHint": "This enemy is rooted to its position."
+      "narrativeHint": "This enemy is rooted to its position.",
+      "forecast": "numbers"
     },
     {
       "id": "corrosive",
       "name": "Corrosive",
-      "description": "Attacks reduce target DEF by 2 for the rest of battle (stacks)",
+      "description": "After combat, if it landed a hit, reduces target DEF by 2 once for the rest of battle. Stacks across combats.",
       "tier": 2,
       "trigger": "on-attack",
       "effects": {
@@ -156,12 +177,15 @@
       },
       "weight": 0.5,
       "icon": "corrosive",
-      "narrativeHint": "Acid drips from this enemy weapon."
+      "narrativeHint": "Acid drips from this enemy weapon.",
+      "forecast": "exchange",
+      "forecastCondition": "hit",
+      "forecastText": "{debuffValue} {debuffStat} after combat if it hits; stacks across combats"
     },
     {
       "id": "grievous",
       "name": "Grievous",
-      "description": "Hits leave the target Wounded for 2 turns: it recovers no HP except from a staff",
+      "description": "After combat, if it landed a hit, leaves the target Wounded for 2 turns: it recovers no HP except from a staff.",
       "tier": 1,
       "trigger": "on-attack",
       "effects": {
@@ -170,7 +194,10 @@
       },
       "weight": 0.7,
       "icon": "grievous",
-      "narrativeHint": "Barbed edges on this enemy weapon leave wounds that will not close."
+      "narrativeHint": "Barbed edges on this enemy weapon leave wounds that will not close.",
+      "forecast": "exchange",
+      "forecastCondition": "hit",
+      "forecastText": "Wounded {statusTurns} turns if it hits"
     },
     {
       "id": "haste",
@@ -183,7 +210,8 @@
       },
       "weight": 0.8,
       "icon": "haste",
-      "narrativeHint": "This enemy moves with unnatural speed."
+      "narrativeHint": "This enemy moves with unnatural speed.",
+      "forecast": "field"
     }
   ],
   "config": {

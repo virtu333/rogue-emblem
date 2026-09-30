@@ -427,7 +427,7 @@ describe('MobileControls context stack', () => {
     ]);
   });
 
-  it('battle_selected keeps inspect hidden', () => {
+  it('battle_canto keeps inspect hidden', () => {
     const events = createMockEvents();
     const { documentMock, rightPanel } = createMockMobileDom();
     globalThis.document = documentMock;
@@ -435,7 +435,7 @@ describe('MobileControls context stack', () => {
 
     const controls = new MobileControls({ events });
     controls.show();
-    events.emit('mobile:setContext', { context: 'battle_selected' });
+    events.emit('mobile:setContext', { context: 'battle_canto' });
 
     expect(rightPanel.children.map((c) => c.dataset.action)).toEqual(['danger']);
   });
@@ -851,7 +851,7 @@ describe('battle_action context (Fix 5)', () => {
     expect(rightPanel.children.map((c) => c.dataset.action)).toEqual(['danger', 'roster']);
   });
 
-  it('battle_selected context has only danger (no roster)', () => {
+  it('battle_canto context has only danger (no roster)', () => {
     const events = createMockEvents();
     const { documentMock, rightPanel } = createMockMobileDom();
     globalThis.document = documentMock;
@@ -859,7 +859,7 @@ describe('battle_action context (Fix 5)', () => {
 
     const controls = new MobileControls({ events });
     controls.show();
-    events.emit('mobile:setContext', { context: 'battle_selected' });
+    events.emit('mobile:setContext', { context: 'battle_canto' });
 
     expect(rightPanel.children.map((c) => c.dataset.action)).toEqual(['danger']);
   });

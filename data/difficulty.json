@@ -38,7 +38,8 @@
       "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 3,
       "classStatBonuses": {},
-      "enemyClassEarliestAct": {}
+      "enemyClassEarliestAct": {},
+      "recruitAffixExcludedActs": ["act1"]
     },
     "dusk": {
       "label": "Dusk",
@@ -79,7 +80,8 @@
       "classStatBonuses": {},
       "enemyClassEarliestAct": {
         "Dragon": "act4"
-      }
+      },
+      "recruitAffixExcludedActs": []
     },
     "hard": {
       "label": "Nightfall",
@@ -135,7 +137,8 @@
         "Fighter": 1,
         "Archer": 1
       },
-      "enemyClassEarliestAct": {}
+      "enemyClassEarliestAct": {},
+      "recruitAffixExcludedActs": []
     },
     "lunatic": {
       "label": "Black Sun",
@@ -200,7 +203,8 @@
         "Fighter": 2,
         "Archer": 2
       },
-      "enemyClassEarliestAct": {}
+      "enemyClassEarliestAct": {},
+      "recruitAffixExcludedActs": []
     }
   }
 }

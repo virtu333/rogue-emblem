@@ -3,16 +3,30 @@
   "title": "Affixes",
   "type": "object",
   "properties": {
-    "version": { "type": "integer", "minimum": 1 },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
     "affixes": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "name": { "type": "string", "minLength": 1 },
-          "description": { "type": "string" },
-          "tier": { "type": "integer", "minimum": 1 },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "integer",
+            "minimum": 1
+          },
           "trigger": {
             "type": "string",
             "enum": [
@@ -24,19 +38,77 @@
               "on-death"
             ]
           },
-          "range": { "type": "integer", "minimum": 1 },
-          "condition": { "type": "string" },
-          "effects": { "type": "object" },
-          "weight": { "type": "number", "minimum": 0 },
-          "icon": { "type": "string", "minLength": 1 },
-          "narrativeHint": { "type": "string" },
-          "aiOverride": { "type": "string" }
+          "range": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "condition": {
+            "type": "string"
+          },
+          "effects": {
+            "type": "object"
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0
+          },
+          "icon": {
+            "type": "string",
+            "minLength": 1
+          },
+          "narrativeHint": {
+            "type": "string"
+          },
+          "aiOverride": {
+            "type": "string"
+          },
+          "forecast": {
+            "type": "string",
+            "enum": ["numbers", "exchange", "field"]
+          },
+          "forecastCondition": {
+            "type": "string",
+            "enum": ["first-hit", "reflect", "damage-taken", "hit", "lethal"]
+          },
+          "forecastText": {
+            "type": "string",
+            "minLength": 1
+          },
+          "forecastProjectionSafe": {
+            "type": "boolean"
+          }
         },
-        "required": ["id", "name", "description", "tier", "trigger", "effects", "weight", "icon"],
-        "additionalProperties": false
+        "required": [
+          "id",
+          "name",
+          "description",
+          "tier",
+          "trigger",
+          "effects",
+          "weight",
+          "icon",
+          "forecast"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "forecast": {
+                  "const": "exchange"
+                }
+              }
+            },
+            "then": {
+              "required": ["forecastText", "forecastCondition"]
+            }
+          }
+        ]
       }
     },
-    "config": { "type": "object" }
+    "config": {
+      "type": "object"
+    }
   },
   "required": ["version", "affixes", "config"],
   "additionalProperties": false

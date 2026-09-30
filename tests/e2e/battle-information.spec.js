@@ -1,9 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { waitForScene } from './helpers.js';
-async function boot(page) {
+async function boot(page, query = '') {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&battleLab=1');
+  await page.goto(
+    `/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&battleLab=1${query}`,
+  );
   await waitForScene(page, 'Battle');
   await page.waitForFunction(
     () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
@@ -144,4 +146,134 @@ test('boss pressure is visible before enrage and remains while active', async ({
     s._mobileBattleHud.sync();
   });
   await expect(hud).toContainText('Boss enraged');
+});
+
+test('Canto Danger works through mobile events, keyboard and hold, with Back and Wait intact', async ({
+  page,
+}) => {
+  const errors = await boot(page);
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const u = s.playerUnits[0];
+    window.cantoUnit = u;
+    window.cantoOrigin = { col: u.col, row: u.row };
+    u.skills = [...new Set([...(u.skills || []), 'canto'])];
+    u.hasActed = true;
+    s.selectedUnit = u;
+    s.startCantoMove(u, 3);
+    s._mobileBattleHud.sync();
+    s.game.events.emit('mobile:danger');
+  });
+  const danger = page.getByRole('button', { name: 'Danger', exact: true });
+  await expect(danger).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('d');
+  await expect(danger).toHaveAttribute('aria-pressed', 'false');
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const occupied = [...s.playerUnits, ...s.enemyUnits, ...s.npcUnits];
+    const tile = [...s.cantoRange.entries()]
+      .map(([key]) => {
+        const [col, row] = key.split(',').map(Number);
+        return { col, row };
+      })
+      .find((t) => !occupied.some((u) => u.col === t.col && u.row === t.row));
+    if (!tile) throw new Error('No free Canto tile');
+    window.cantoTile = tile;
+    s.handleCantoClick(tile);
+  });
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'CANTO_CONFIRM',
+  );
+  await expect(page.getByRole('button', { name: 'Wait', exact: true })).toBeVisible();
+  await danger.click();
+  await expect(danger).toHaveAttribute('aria-pressed', 'true');
+  const pinned = await danger.boundingBox();
+  await page.mouse.move(pinned.x + pinned.width / 2, pinned.y + pinned.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(650);
+  await page.mouse.up();
+  await expect(page.getByRole('button', { name: 'Danger · pinned' })).toBeVisible();
+  expect(
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      return {
+        state: s.battleState,
+        col: window.cantoUnit.col,
+        row: window.cantoUnit.row,
+        pending: Boolean(s._cantoPending),
+        sameTile:
+          window.cantoUnit.col === window.cantoTile.col &&
+          window.cantoUnit.row === window.cantoTile.row,
+      };
+    }),
+  ).toMatchObject({ state: 'CANTO_CONFIRM', pending: true, sameTile: true });
+  await page.keyboard.press('Escape');
+  expect(
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      return {
+        state: s.battleState,
+        pinned: s.keepDangerVisible,
+        origin:
+          window.cantoUnit.col === window.cantoOrigin.col &&
+          window.cantoUnit.row === window.cantoOrigin.row,
+      };
+    }),
+  ).toEqual({ state: 'CANTO_MOVING', pinned: true, origin: true });
+  await page.evaluate(() =>
+    window.__emblemRogueGame.scene.getScene('Battle').handleCantoClick(window.cantoTile),
+  );
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'CANTO_CONFIRM',
+  );
+  await page.getByRole('button', { name: 'Wait', exact: true }).click();
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+  );
+  expect(
+    await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').keepDangerVisible),
+  ).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('all exchange affixes are readable in a phone forecast and enemy inspection', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const errors = await boot(page, '&portrait=1');
+  await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const attacker = s.playerUnits[0],
+      enemy = s.enemyUnits[0];
+    enemy.affixes = ['venomous', 'corrosive', 'deathburst'];
+    enemy.currentHP = 1;
+    enemy.weapon = structuredClone(s.gameData.weapons.find((w) => w.name === 'Iron Sword'));
+    attacker.weapon = attacker.inventory.find((w) => w.type === 'Sword') || attacker.weapon;
+    enemy.col = attacker.col + (attacker.col < s.grid.cols - 1 ? 1 : -1);
+    enemy.row = attacker.row;
+    s.updateUnitPosition(enemy);
+    await s._attackFlow().showForecast(attacker, enemy);
+  });
+  const forecast = page.getByRole('dialog', { name: /Combat forecast/i });
+  await expect(forecast).toContainText('Venomous · +5 after combat if it hits; cannot kill');
+  await expect(forecast).toContainText(
+    'Corrosive · -2 DEF after combat if it hits; stacks across combats',
+  );
+  await expect(forecast).toContainText(
+    'Deathburst · On death: 5 damage to adjacent units; can kill',
+  );
+  await page.screenshot({ path: info.outputPath('affix-forecast.png') });
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const enemy = s.enemyUnits[0];
+    s.unitDetailOverlay.show(enemy, s.grid.getTerrainAt(enemy.col, enemy.row), s.gameData);
+  });
+  const roster = page.getByRole('dialog', { name: /Roster|Unit/i });
+  await expect(roster).toContainText('Can kill.');
+  await expect(roster).toContainText('Cannot kill: leaves at least 1 HP.');
+  await page.getByRole('button', { name: 'Equipment', exact: true }).click();
+  await expect(roster).toContainText('Stacks across combats.');
+  await page.screenshot({ path: info.outputPath('affix-inspection.png') });
+  expect(errors).toEqual([]);
 });
