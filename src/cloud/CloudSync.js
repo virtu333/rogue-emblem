@@ -12,6 +12,7 @@ import {
   getMetaKey,
   getRunClockFloorKey,
   getRunKey,
+  hasSlotRecoveryRecord,
   MAX_SLOTS,
 } from '../engine/SlotManager.js';
 import { markStartup } from '../utils/startupTelemetry.js';
@@ -113,6 +114,10 @@ function applyRunSlots(runData, metaData) {
   const metaSlots = migrateCloudData(metaData);
   const skipped = new Set();
   for (let i = 1; i <= MAX_SLOTS; i++) {
+    if (hasSlotRecoveryRecord(i)) {
+      skipped.add(i);
+      continue;
+    }
     const key = getRunKey(i);
     const cloudSlot = runSlots[String(i)];
     if (cloudSlot == null) continue;
@@ -160,7 +165,7 @@ function applyRunSlots(runData, metaData) {
 function applyMetaSlots(metaData, skipped = new Set()) {
   const metaSlots = migrateCloudData(metaData);
   for (let i = 1; i <= MAX_SLOTS; i++) {
-    if (skipped.has(i)) continue;
+    if (skipped.has(i) || hasSlotRecoveryRecord(i)) continue;
     const key = getMetaKey(i);
     const cloudSlot = metaSlots[String(i)];
     if (cloudSlot == null) continue;

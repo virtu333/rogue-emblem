@@ -76,6 +76,25 @@ describe('CloudSync run merge guard', () => {
     __resetCloudSyncStatusForTests();
   });
 
+  it.each(['quarantine', 'pair_journal'])(
+    'never hydrates an occupied %s recovery slot, but hydrates other slots',
+    async (suffix) => {
+      store[`emblem_rogue_slot_1_${suffix}`] = 'raw recovery evidence';
+      store[getRunKey(1)] = 'original run bytes';
+      store[getMetaKey(1)] = 'original meta bytes';
+      mockCloudBootstrap({
+        runData: { 1: { gold: 999, savedAt: 200 }, 2: { gold: 57, savedAt: 200 } },
+        metaData: { 1: { totalValor: 999, savedAt: 200 }, 2: { totalValor: 23, savedAt: 200 } },
+      });
+      await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+      expect(store[getRunKey(1)]).toBe('original run bytes');
+      expect(store[getMetaKey(1)]).toBe('original meta bytes');
+      expect(store[`emblem_rogue_slot_1_${suffix}`]).toBe('raw recovery evidence');
+      expect(JSON.parse(store[getRunKey(2)]).gold).toBe(57);
+      expect(JSON.parse(store[getMetaKey(2)]).totalValor).toBe(23);
+    },
+  );
+
   it('normalizes cloud effects settings with the same OS-based migration', async () => {
     mockCloudBootstrap({
       settingsData: { musicVolume: 0.2, reducedEffects: true, effectsQuality: 'high' },

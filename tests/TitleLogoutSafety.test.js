@@ -3,6 +3,7 @@ const mocks = vi.hoisted(() => ({
   flush: vi.fn(),
   signOut: vi.fn(),
   clear: vi.fn(),
+  summary: vi.fn(),
 }));
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 vi.mock('../src/cloud/CloudSync.js', () => ({
@@ -14,6 +15,7 @@ vi.mock('../src/cloud/supabaseClient.js', () => ({ signOut: mocks.signOut }));
 vi.mock('../src/engine/SlotManager.js', () => ({
   MAX_SLOTS: 3,
   clearAllSlotData: mocks.clear,
+  getSlotSummary: mocks.summary,
   getSlotCount: vi.fn(),
   getNextAvailableSlot: vi.fn(),
   getMetaKey: vi.fn(),
@@ -40,6 +42,18 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe('logout preserves local progress unless backup and signout succeed', () => {
+  it.each([{ recoveryRequired: true }, { runCorrupt: true }])(
+    'keeps damaged saves before backup or signout (%j)',
+    async (summary) => {
+      mocks.summary.mockReturnValue(summary);
+      await scene._handleLogout({ userId: 'tester' });
+      await scene._finishLogout();
+      expect(mocks.flush).not.toHaveBeenCalled();
+      expect(mocks.signOut).not.toHaveBeenCalled();
+      expect(mocks.clear).not.toHaveBeenCalled();
+      expect(values.get('save')).toBe('precious progress');
+    },
+  );
   it('will not log out while a retained device/cloud conflict remains unresolved', async () => {
     values.set(
       'emblem_rogue_slot_1_cloud_conflict',

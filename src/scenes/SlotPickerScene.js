@@ -5,6 +5,7 @@ import {
   describeSavedRun,
 } from '../engine/CloudSaveConflict.js';
 import { hasDOMHost } from '../utils/domUI.js';
+import { showSlotRecovery } from '../ui/SlotRecoveryDialog.js';
 import { slotMenu, slotDialog } from '../ui/RunFlowMenus.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // SlotPickerScene — Save slot selection screen
@@ -39,6 +40,7 @@ export class SlotPickerScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
+    this._recoveryAttempt = null;
     const slotArg = (value) =>
       Number.isInteger(value) && value >= 1 && value <= MAX_SLOTS ? value : null;
     // Title's Resume: continue this slot's run in progress.
@@ -61,7 +63,7 @@ export class SlotPickerScene extends Phaser.Scene {
         const ready = resume
           ? summary?.hasActiveRun && !summary.runCorrupt
           : hasMetaProgression(summary);
-        if (ready) void this.selectSlot(slot, summary);
+        if (ready && !summary?.recoveryRequired) void this.selectSlot(slot, summary);
       });
     }
     const cx = this.cameras.main.centerX;
@@ -321,6 +323,31 @@ export class SlotPickerScene extends Phaser.Scene {
         }),
       ).setOrigin(0.5);
       this.slotCards.push(emptyText);
+    } else if (summary.recoveryRequired) {
+      const note = applyTextResolution(
+        this.add.text(x, y - 12, 'Save needs recovery\nYour data is kept.', {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: UI_PALETTE.warn,
+          align: 'center',
+          wordWrap: { width: w - 16 },
+          lineSpacing: 6,
+        }),
+      ).setOrigin(0.5);
+      const review = applyTextResolution(
+        this.add.text(x, y + 40, '[ Review ]', {
+          fontFamily: 'Arial',
+          fontSize: '14px',
+          color: UI_PALETTE.good,
+          backgroundColor: UI_PALETTE.selected,
+          padding: { x: 12, y: 6 },
+        }),
+      )
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      review.on('pointerdown', () => this.selectSlot(slot, summary));
+      this.slotCards.push(note, review);
+      this._slotFocusEntries.push({ slot, summary, selectBtn: review });
     } else {
       // Valor
       const valorText = applyTextResolution(
@@ -454,6 +481,11 @@ export class SlotPickerScene extends Phaser.Scene {
 
   async selectSlot(slot, summary) {
     if (this.isTransitioning) return;
+    // Re-read before constructing default metadata, including stale Title shortcuts.
+    if (getSlotSummary(slot)?.recoveryRequired || summary?.recoveryRequired) {
+      showSlotRecovery(this, slot);
+      return;
+    }
     const conflict = getCloudSaveConflict(slot);
     if (conflict && hasDOMHost()) {
       this._showCloudChoice(slot, conflict);
@@ -864,6 +896,10 @@ export class SlotPickerScene extends Phaser.Scene {
 
   confirmDelete(slot) {
     if (this.isTransitioning) return;
+    if (getSlotSummary(slot)?.recoveryRequired) {
+      showSlotRecovery(this, slot);
+      return;
+    }
     if (hasDOMHost()) {
       this.nativeDialog?.destroy();
       if (this.slotMenu) this.slotMenu.root.inert = true;
@@ -877,6 +913,10 @@ export class SlotPickerScene extends Phaser.Scene {
             'Delete save',
             () => {
               if (!this.nativeDialog || this.nativeDialog.destroyed) return;
+              if (getSlotSummary(slot)?.recoveryRequired) {
+                showSlotRecovery(this, slot);
+                return;
+              }
               deleteSlot(slot);
               const cloud = this.registry.get('cloud');
               if (cloud) deleteSlotCloud(cloud.userId, slot);
@@ -948,6 +988,10 @@ export class SlotPickerScene extends Phaser.Scene {
     yesBtn.on('pointerover', () => yesBtn.setColor(UI_PALETTE.bad));
     yesBtn.on('pointerout', () => yesBtn.setColor(UI_PALETTE.bad));
     yesBtn.on('pointerdown', () => {
+      if (getSlotSummary(slot)?.recoveryRequired) {
+        showSlotRecovery(this, slot);
+        return;
+      }
       deleteSlot(slot);
       const cloud = this.registry.get('cloud');
       if (cloud) deleteSlotCloud(cloud.userId, slot);

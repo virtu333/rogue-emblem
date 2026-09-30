@@ -32,22 +32,73 @@ export function getMetaClockFloorKey(slot) {
   return `${META_KEY_PREFIX}${slot}${META_CLOCK_FLOOR_SUFFIX}`;
 }
 
-/** Count of occupied slots (1-3 that have meta data). */
+export const getSlotQuarantineKey = (slot) => `${META_KEY_PREFIX}${slot}_quarantine`;
+export const getSlotPairJournalKey = (slot) => `${META_KEY_PREFIX}${slot}_pair_journal`;
+
+/** The canonical bytes a discard must preserve, including absent keys. */
+export function getSlotDataKeys(slot) {
+  return [
+    getMetaKey(slot),
+    getRunKey(slot),
+    getRunClockFloorKey(slot),
+    getMetaClockFloorKey(slot),
+    `${META_KEY_PREFIX}${slot}_cloud_conflict`,
+    `${META_KEY_PREFIX}${slot}_hints`,
+  ];
+}
+
+/** Recovery records reserve their slot, even after its canonical keys were removed. */
+export function hasSlotRecoveryRecord(slot) {
+  try {
+    return [getSlotQuarantineKey(slot), getSlotPairJournalKey(slot)].some(
+      (key) => localStorage.getItem(key) !== null,
+    );
+  } catch {
+    return true;
+  }
+}
+
+/** Read-only inspection; missing metadata alone is not evidence of an empty slot. */
+export function inspectSlot(slot) {
+  let raw = {};
+  try {
+    for (const key of [
+      ...getSlotDataKeys(slot),
+      getSlotQuarantineKey(slot),
+      getSlotPairJournalKey(slot),
+    ])
+      raw[key] = localStorage.getItem(key);
+  } catch {
+    return { status: 'unreadable', raw, meta: parseMetaObject(raw[getMetaKey(slot)]) };
+  }
+  const meta = parseMetaObject(raw[getMetaKey(slot)]);
+  const run = parseMetaObject(raw[getRunKey(slot)]);
+  const hasRunData = raw[getRunKey(slot)] !== null;
+  const recovery =
+    raw[getSlotQuarantineKey(slot)] !== null || raw[getSlotPairJournalKey(slot)] !== null;
+  const occupied =
+    [getMetaKey(slot), getRunKey(slot), `${META_KEY_PREFIX}${slot}_cloud_conflict`].some(
+      (key) => raw[key] !== null,
+    ) || recovery;
+  return {
+    status: recovery ? 'recovery-required' : !occupied ? 'empty' : meta ? 'valid' : 'damaged',
+    raw,
+    meta,
+    hasRunData,
+    runParseable: Boolean(run),
+  };
+}
+
+/** Count of occupied slots, including damaged and recovery-only saves. */
 export function getSlotCount() {
   return getOccupiedSlots().length;
 }
 
-/** Array of slot numbers that have meta data saved. */
+/** Array of slot numbers containing save or recovery evidence. */
 export function getOccupiedSlots() {
   const occupied = [];
   for (let i = 1; i <= MAX_SLOTS; i++) {
-    try {
-      if (localStorage.getItem(getMetaKey(i)) !== null) {
-        occupied.push(i);
-      }
-    } catch (_) {
-      /* ignore */
-    }
+    if (inspectSlot(i).status !== 'empty') occupied.push(i);
   }
   return occupied;
 }
@@ -66,55 +117,23 @@ function parseMetaObject(raw) {
   }
 }
 
-/** Remove keys for slots whose meta JSON is corrupt or invalid. */
-function cleanCorruptSlots() {
-  for (let i = 1; i <= MAX_SLOTS; i++) {
-    let raw;
-    try {
-      raw = localStorage.getItem(getMetaKey(i));
-    } catch (_) {
-      continue; // storage access error — leave slot alone
-    }
-    if (raw !== null && parseMetaObject(raw) === null) {
-      console.warn(`[SlotManager] Corrupt meta in slot ${i}, auto-cleaning`);
-      deleteSlot(i);
-    }
-  }
-}
-
 /** First empty slot number (1-3), or null if all full. */
 export function getNextAvailableSlot() {
-  cleanCorruptSlots();
   for (let i = 1; i <= MAX_SLOTS; i++) {
-    try {
-      if (localStorage.getItem(getMetaKey(i)) === null) return i;
-    } catch (_) {
-      /* ignore */
-    }
+    if (inspectSlot(i).status === 'empty') return i;
   }
   return null;
 }
 
 /**
- * Summary info for a slot. Returns null if slot is empty (no meta).
+ * Summary info for a slot. Returns null only when no slot evidence exists.
  * If meta is valid but run JSON is corrupt, returns summary with runCorrupt: true.
  * @returns {{ slot, valor, supply, runsCompleted, runsStarted, upgradesOwned, metaSavedAt, hasActiveRun, actReached, runCorrupt } | null}
  */
 export function getSlotSummary(slot) {
-  let metaRaw;
-  try {
-    metaRaw = localStorage.getItem(getMetaKey(slot));
-  } catch (_) {
-    return null; // storage access error — do NOT delete, treat as empty
-  }
-  if (metaRaw === null) return null;
-
-  const meta = parseMetaObject(metaRaw);
-  if (!meta) {
-    console.warn(`[SlotManager] Corrupt meta in slot ${slot}, auto-cleaning`);
-    deleteSlot(slot);
-    return null;
-  }
+  const inspection = inspectSlot(slot);
+  if (inspection.status === 'empty') return null;
+  const meta = inspection.meta || {};
   const summary = {
     slot,
     milestones: Array.isArray(meta.milestones) ? meta.milestones.slice() : [],
@@ -136,17 +155,22 @@ export function getSlotSummary(slot) {
     runCorrupt: false,
   };
 
-  let runRaw;
-  try {
-    runRaw = localStorage.getItem(getRunKey(slot));
-  } catch (_) {
-    summary.runCorrupt = true;
-    console.error(`[SlotManager] Failed to read run data for slot ${slot}`);
-    return summary;
+  if (inspection.status !== 'valid') {
+    return {
+      ...summary,
+      slotStatus: inspection.status,
+      recoveryRequired: true,
+      metaDamaged: !inspection.meta,
+      runCorrupt: inspection.status === 'unreadable',
+      runRecoverable: inspection.runParseable === true,
+    };
   }
-  if (runRaw) {
+
+  const runRaw = inspection.raw[getRunKey(slot)];
+  if (runRaw !== null) {
     try {
       const run = JSON.parse(runRaw);
+      if (!run || typeof run !== 'object' || Array.isArray(run)) throw new Error('Invalid run');
       summary.hasActiveRun = true;
       summary.actReached = (run.actIndex || 0) + 1;
       summary.savedAt = Number.isFinite(run.savedAt) ? run.savedAt : null;
@@ -183,6 +207,7 @@ export function getSlotSummary(slot) {
         ? `${node.type} node${Number.isFinite(node.row) ? ` · stage ${node.row + 1}` : ''}`
         : 'Act start';
     } catch (_) {
+      summary.hasActiveRun = false;
       summary.runCorrupt = true;
       console.error(`[SlotManager] Corrupt run data in slot ${slot}`);
     }
@@ -321,6 +346,12 @@ export function metLordNamesAcrossSlots() {
 
 /** Clear all slot data + active slot key. Used by logout. */
 export function clearAllSlotData() {
+  if (
+    Array.from({ length: MAX_SLOTS }, (_, i) => getSlotSummary(i + 1)).some(
+      (summary) => summary?.recoveryRequired || summary?.runCorrupt,
+    )
+  )
+    return false;
   for (let i = 1; i <= MAX_SLOTS; i++) {
     deleteSlot(i);
   }
@@ -329,4 +360,5 @@ export function clearAllSlotData() {
   } catch (err) {
     console.warn('[SlotManager] clearAllSlotData failed:', err?.message || err);
   }
+  return true;
 }

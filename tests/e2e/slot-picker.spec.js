@@ -18,10 +18,78 @@ async function waitForScene(page, key) {
 test.setTimeout(120000);
 
 const VIEWPORTS = [
+  { width: 640, height: 480, phone: false },
   { width: 844, height: 390, phone: true },
   { width: 667, height: 375, phone: true },
   { width: 1280, height: 800, phone: false },
 ];
+
+test('damaged and orphaned saves stay occupied; failed archival loses no data', async ({
+  page,
+}) => {
+  const errors = await openPicker(page, { phone: false });
+  const raw = await page.evaluate(() => {
+    localStorage.setItem('emblem_rogue_slot_1_meta', '{bad original meta');
+    localStorage.removeItem('emblem_rogue_slot_2_meta');
+    localStorage.setItem('emblem_rogue_slot_2_run', '{"gold":137,"actIndex":0}');
+    window.__emblemRogueGame.scene.getScene('SlotPicker').drawSlots();
+    const original = Storage.prototype.setItem;
+    window.__failRecoveryCopy = true;
+    Storage.prototype.setItem = function (key, value) {
+      if (window.__failRecoveryCopy && key === 'emblem_rogue_slot_1_quarantine')
+        throw new DOMException('Recovery copy quota exceeded', 'QuotaExceededError');
+      return original.call(this, key, value);
+    };
+    return Object.fromEntries(
+      Object.keys(localStorage).map((key) => [key, localStorage.getItem(key)]),
+    );
+  });
+  await expect(
+    page.getByRole('button', { name: 'Review recovery for Slot 1', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Review recovery for Slot 2', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New run in Slot 2', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Review recovery for Slot 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Archive and discard…', exact: true }).click();
+  await page.getByRole('button', { name: 'Archive and discard', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Slot 1 recovery', exact: true })).toContainText(
+    'quota exceeded',
+  );
+  expect(
+    await page.evaluate(() =>
+      Object.fromEntries(Object.keys(localStorage).map((key) => [key, localStorage.getItem(key)])),
+    ),
+  ).toEqual(raw);
+  await page.evaluate(() => {
+    window.__failRecoveryCopy = false;
+  });
+  await page.getByRole('button', { name: 'Archive and discard…', exact: true }).click();
+  await page.getByRole('button', { name: 'Archive and discard', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Slot 1 recovery', exact: true })).toContainText(
+    'recovery copy holds',
+  );
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem('emblem_rogue_slot_1_quarantine')).values,
+    ),
+  ).toMatchObject({
+    emblem_rogue_slot_1_meta: raw.emblem_rogue_slot_1_meta,
+    emblem_rogue_slot_1_run: raw.emblem_rogue_slot_1_run,
+  });
+  await page.getByRole('button', { name: 'Keep save', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Review recovery for Slot 1', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Review recovery for Slot 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Free slot…', exact: true }).click();
+  await page.getByRole('button', { name: 'Keep recovery copy', exact: true }).click();
+  expect(
+    await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_quarantine')),
+  ).not.toBeNull();
+  expect(errors).toEqual([]);
+});
 
 async function openPicker(page, { phone, reduceMotion = false }) {
   const errors = [];

@@ -570,6 +570,17 @@ export class NativeSaveMirror {
     return this.writing;
   }
 
+  /** A destructive caller needs acknowledgement, not a fire-and-forget flush. */
+  async ensureDurable(key, value) {
+    if (!this.active || !shouldMirrorKey(key) || this.storage.getItem(key) !== value) return false;
+    this.dirty.add(key);
+    await this.flush();
+    if (!this.active || this.storage.getItem(key) !== value) return false;
+    const entry = this.records.get(key);
+    if (!entry) return value === null && !this.stamps.has(key);
+    return entry.value === value && entry.pending === 0 && Boolean(entry.slot);
+  }
+
   /** Route Storage mutations of `target` through the mirror (patches the prototype). */
   hookStorage(proto, target) {
     const mirror = this;

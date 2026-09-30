@@ -12,6 +12,11 @@ const mocked = vi.hoisted(() => ({
   loadRunMock: vi.fn(() => null),
   ensureAudioUnlockedMock: vi.fn(async () => {}),
   metaInstances: [],
+  summary: vi.fn(() => null),
+  showRecovery: vi.fn(),
+  deleteSlot: vi.fn(),
+  domHost: vi.fn(() => false),
+  dialogActions: [],
 }));
 
 vi.mock('../src/utils/SceneRouter.js', () => ({
@@ -27,10 +32,20 @@ vi.mock('../src/utils/firstRunFastPath.js', async (importActual) => {
 
 vi.mock('../src/engine/SlotManager.js', () => ({
   MAX_SLOTS: 3,
-  getSlotSummary: vi.fn(() => null),
-  deleteSlot: vi.fn(),
+  getSlotSummary: mocked.summary,
+  deleteSlot: mocked.deleteSlot,
   setActiveSlot: mocked.setActiveSlotMock,
   getMetaKey: mocked.getMetaKeyMock,
+}));
+
+vi.mock('../src/ui/SlotRecoveryDialog.js', () => ({ showSlotRecovery: mocked.showRecovery }));
+vi.mock('../src/utils/domUI.js', () => ({ hasDOMHost: mocked.domHost }));
+vi.mock('../src/ui/RunFlowMenus.js', async (importActual) => ({
+  ...(await importActual()),
+  slotDialog: (_scene, _title, _copy, actions) => {
+    mocked.dialogActions = actions;
+    return { destroyed: false };
+  },
 }));
 
 vi.mock('../src/engine/MetaProgressionManager.js', () => ({
@@ -96,6 +111,31 @@ describe('SlotPickerScene selectSlot transition safety', () => {
     mocked.transitionToSceneMock.mockResolvedValue(true);
     mocked.startFirstRunFastPathMock.mockResolvedValue(true);
     mocked.loadRunMock.mockReturnValue(null);
+    mocked.summary.mockReturnValue(null);
+    mocked.domHost.mockReturnValue(false);
+  });
+
+  it('rechecks a formerly healthy slot before confirming deletion', () => {
+    mocked.domHost.mockReturnValue(true);
+    const { scene } = makeScene();
+    scene.confirmDelete(1);
+    mocked.summary.mockReturnValue({ recoveryRequired: true });
+    mocked.dialogActions.find(([label]) => label === 'Delete save')[1]();
+    expect(mocked.deleteSlot).not.toHaveBeenCalled();
+    expect(mocked.showRecovery).toHaveBeenCalledWith(scene, 1);
+  });
+
+  it('refuses stale healthy selection when the current slot needs recovery', async () => {
+    mocked.summary.mockReturnValue({ recoveryRequired: true });
+    const { scene, store } = makeScene({ activeSlot: 1, meta: { totalValor: 900 } });
+    const before = new Map(store);
+    await scene.selectSlot(2, { hasActiveRun: true });
+    expect(store).toEqual(before);
+    expect(mocked.metaInstances).toHaveLength(0);
+    expect(mocked.transitionToSceneMock).not.toHaveBeenCalled();
+    expect(mocked.startFirstRunFastPathMock).not.toHaveBeenCalled();
+    expect(mocked.setActiveSlotMock).not.toHaveBeenCalled();
+    expect(mocked.showRecovery).toHaveBeenCalledWith(scene, 2);
   });
 
   it('rolls back staged slot state when transition returns false', async () => {

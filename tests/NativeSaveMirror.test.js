@@ -171,6 +171,40 @@ describe('record format', () => {
   });
 });
 
+describe('durable acknowledgement for recovery copies', () => {
+  it('waits for the native write, rejects failures, and restores the exact recovery bytes on relaunch', async () => {
+    const key = 'emblem_rogue_slot_1_quarantine';
+    const raw = JSON.stringify({ savedAt: 123, values: { meta: '{bad', run: '{"gold":137}' } });
+    const storage = new FakeStorage();
+    const backend = fakeBackend();
+    const mirror = new NativeSaveMirror({ storage, backend, ...manualTimers() });
+    await mirror.restore();
+    storage.setItem(key, raw);
+    backend.failNext = 1;
+    expect(await mirror.ensureDurable(key, raw)).toBe(false);
+    expect(await mirror.ensureDurable(key, raw)).toBe(true);
+    const restored = new FakeStorage();
+    const next = new NativeSaveMirror({ storage: restored, backend, ...manualTimers() });
+    await next.restore();
+    expect(restored.getItem(key)).toBe(raw);
+    storage.removeItem(key);
+    expect(await mirror.ensureDurable(key, null)).toBe(true);
+    const third = new FakeStorage();
+    await new NativeSaveMirror({ storage: third, backend, ...manualTimers() }).restore();
+    expect(third.getItem(key)).toBeNull();
+  });
+
+  it('does not acknowledge a replaced local value or a stopped mirror', async () => {
+    const key = 'emblem_rogue_slot_1_quarantine';
+    const storage = new FakeStorage({ [key]: 'different raw bytes' });
+    const mirror = new NativeSaveMirror({ storage, backend: fakeBackend(), ...manualTimers() });
+    await mirror.restore();
+    expect(await mirror.ensureDurable(key, 'expected bytes')).toBe(false);
+    mirror.cancel();
+    expect(await mirror.ensureDurable(key, 'different raw bytes')).toBe(false);
+  });
+});
+
 describe('restore planning', () => {
   const key = 'emblem_rogue_slot_1_run';
   const rec = (value, seq = 1) => decodeRecord(encodeRecord({ key, seq, value }));

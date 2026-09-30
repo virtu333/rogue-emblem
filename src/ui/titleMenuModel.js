@@ -108,7 +108,8 @@ function newestBy(entries, timeOf) {
  * take a new run without overwriting one. `summary` is getSlotSummary's.
  */
 export function hasMetaProgression(summary) {
-  if (!summary || summary.hasActiveRun || summary.runCorrupt) return false;
+  if (!summary || summary.recoveryRequired || summary.hasActiveRun || summary.runCorrupt)
+    return false;
   return (
     (summary.upgradesOwned || 0) > 0 ||
     (summary.valor || 0) > 0 ||

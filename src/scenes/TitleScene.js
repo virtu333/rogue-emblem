@@ -328,6 +328,17 @@ export class TitleScene extends Phaser.Scene {
    */
   async _handleLogout(cloud) {
     if (this._logoutInProgress || this.nativeMenu) return;
+    if (
+      Array.from({ length: MAX_SLOTS }, (_, i) => getSlotSummary(i + 1)).some(
+        (summary) => summary?.recoveryRequired || summary?.runCorrupt,
+      )
+    ) {
+      this._setLogoutNotice(
+        'Review damaged saves in Save Slots before logging out. Your data has been kept.',
+        'warn',
+      );
+      return;
+    }
     const conflicts = Array.from({ length: MAX_SLOTS }, (_, i) => i + 1).filter(
       getCloudSaveConflict,
     );
@@ -429,6 +440,17 @@ export class TitleScene extends Phaser.Scene {
 
   async _finishLogout() {
     if (this._logoutInProgress) return;
+    if (
+      Array.from({ length: MAX_SLOTS }, (_, i) => getSlotSummary(i + 1)).some(
+        (summary) => summary?.recoveryRequired || summary?.runCorrupt,
+      )
+    ) {
+      this._setLogoutNotice(
+        'Review damaged saves in Save Slots before logging out. Your data has been kept.',
+        'warn',
+      );
+      return;
+    }
     this._logoutInProgress = true;
     this._showLogoutProgress(
       'Signing out',
@@ -442,7 +464,15 @@ export class TitleScene extends Phaser.Scene {
       this._setLogoutNotice('Could not log out. Local saves were kept. Please retry.', 'bad');
       return;
     }
-    clearAllSlotData();
+    if (clearAllSlotData() === false) {
+      this._logoutInProgress = false;
+      this._closeTitleMenu();
+      this._setLogoutNotice(
+        'Signed out. A save still needs recovery; its local data was kept.',
+        'warn',
+      );
+      return;
+    }
     try {
       localStorage.removeItem('emblem_rogue_settings');
     } catch {

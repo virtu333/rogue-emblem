@@ -1,214 +1,253 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  inspectSlot,
   getSlotSummary,
-  getMetaKey,
-  getRunKey,
+  getSlotCount,
+  getOccupiedSlots,
   getNextAvailableSlot,
+  clearAllSlotData,
 } from '../src/engine/SlotManager.js';
+import {
+  archiveAndDiscardSlot,
+  retireSlotArchive,
+  readSlotArchive,
+} from '../src/engine/SlotRecovery.js';
 
-// Mock localStorage
-const store = {};
-const localStorageMock = {
-  getItem: vi.fn((key) => store[key] ?? null),
-  setItem: vi.fn((key, val) => {
-    store[key] = val;
-  }),
-  removeItem: vi.fn((key) => {
-    delete store[key];
-  }),
-  clear: vi.fn(() => {
-    for (const k of Object.keys(store)) delete store[k];
-  }),
-};
-Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
+let values, storage;
+const META = 'emblem_rogue_slot_1_meta';
+const RUN = 'emblem_rogue_slot_1_run';
+const ARCHIVE = 'emblem_rogue_slot_1_quarantine';
+const JOURNAL = 'emblem_rogue_slot_1_pair_journal';
+beforeEach(() => {
+  values = new Map();
+  storage = {
+    getItem: vi.fn((key) => values.get(key) ?? null),
+    setItem: vi.fn((key, value) => values.set(key, String(value))),
+    removeItem: vi.fn((key) => values.delete(key)),
+  };
+  vi.stubGlobal('localStorage', storage);
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
-describe('SlotManager corruption handling', () => {
-  let errorSpy;
+describe('read-only slot inspection and allocation', () => {
+  it.each(['{bad', 'null', '[]', '42', '"x"', '', null])(
+    'preserves every byte when metadata is %s and a run survives',
+    (raw) => {
+      if (raw !== null) values.set(META, raw);
+      values.set(RUN, '{"actIndex":1,"gold":137}');
+      values.set('unrelated', 'keep me');
+      const before = new Map(values);
+      expect(inspectSlot(1)).toMatchObject({
+        status: 'damaged',
+        hasRunData: true,
+        runParseable: true,
+      });
+      expect(getSlotSummary(1)).toMatchObject({
+        slot: 1,
+        recoveryRequired: true,
+        hasActiveRun: false,
+        runRecoverable: true,
+      });
+      expect(getSlotCount()).toBe(1);
+      expect(getOccupiedSlots()).toEqual([1]);
+      expect(getNextAvailableSlot()).toBe(2);
+      expect(values).toEqual(before);
+    },
+  );
 
-  beforeEach(() => {
-    localStorageMock.clear();
-    localStorageMock.getItem.mockImplementation((key) => store[key] ?? null);
-    localStorageMock.setItem.mockImplementation((key, val) => {
-      store[key] = val;
+  it.each(['cloud_conflict', 'quarantine', 'pair_journal'])(
+    'reserves a slot with only %s evidence',
+    (suffix) => {
+      values.set(`emblem_rogue_slot_1_${suffix}`, 'raw recovery evidence');
+      const before = new Map(values);
+      expect(getSlotSummary(1)?.recoveryRequired).toBe(true);
+      expect(getNextAvailableSlot()).toBe(2);
+      expect(values).toEqual(before);
+    },
+  );
+
+  it('excludes unreadable slots and preserves available metadata in their summary', () => {
+    values.set(META, '{"totalValor":500,"totalSupply":200}');
+    storage.getItem.mockImplementation((key) => {
+      if (key === RUN) throw new Error('SecurityError');
+      return values.get(key) ?? null;
     });
-    localStorageMock.removeItem.mockClear();
-    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('returns runCorrupt: true when run JSON is invalid but meta is valid', () => {
-    const slot = 1;
-    store[getMetaKey(slot)] = JSON.stringify({
-      totalValor: 500,
-      totalSupply: 200,
-      runsCompleted: 3,
+    expect(inspectSlot(1).status).toBe('unreadable');
+    expect(getSlotSummary(1)).toMatchObject({
+      valor: 500,
+      supply: 200,
+      recoveryRequired: true,
+      runCorrupt: true,
     });
-    store[getRunKey(slot)] = '{{{bad json';
-
-    const summary = getSlotSummary(slot);
-
-    expect(summary).not.toBeNull();
-    expect(summary.hasActiveRun).toBe(false);
-    expect(summary.runCorrupt).toBe(true);
-    expect(summary.valor).toBe(500);
-    expect(summary.supply).toBe(200);
-    expect(summary.runsCompleted).toBe(3);
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining(`slot ${slot}`));
+    expect(getNextAvailableSlot()).toBe(2);
+    expect(storage.setItem).not.toHaveBeenCalled();
+    expect(storage.removeItem).not.toHaveBeenCalled();
   });
 
-  it('returns null and auto-cleans malformed meta JSON', () => {
-    const slot = 2;
-    store[getMetaKey(slot)] = '{{{bad meta';
-    store[getRunKey(slot)] = JSON.stringify({ actIndex: 1 });
-
-    let summary;
-    expect(() => {
-      summary = getSlotSummary(slot);
-    }).not.toThrow();
-
-    expect(summary).toBeNull();
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getMetaKey(slot));
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getRunKey(slot));
-  });
-
-  it('returns runCorrupt: false for healthy slot', () => {
-    const slot = 3;
-    store[getMetaKey(slot)] = JSON.stringify({
-      totalValor: 100,
-      totalSupply: 50,
-      runsCompleted: 1,
+  it('treats total storage unavailability as occupied rather than allocating a slot', () => {
+    storage.getItem.mockImplementation(() => {
+      throw new Error('denied');
     });
-    store[getRunKey(slot)] = JSON.stringify({ actIndex: 2 });
-
-    const summary = getSlotSummary(slot);
-
-    expect(summary).not.toBeNull();
-    expect(summary.runCorrupt).toBe(false);
-    expect(summary.hasActiveRun).toBe(true);
-    expect(summary.actReached).toBe(3);
+    expect(getSlotCount()).toBe(3);
+    expect(getNextAvailableSlot()).toBeNull();
+    expect(getSlotSummary(1)?.slotStatus).toBe('unreadable');
   });
 
-  it('returns runCorrupt: true when localStorage.getItem throws on run key', () => {
-    const slot = 1;
-    store[getMetaKey(slot)] = JSON.stringify({
-      totalValor: 300,
-      totalSupply: 100,
+  it('keeps the healthy summary and optional-meta-field compatibility', () => {
+    values.set(META, '{"runsCompleted":2}');
+    values.set(RUN, '{"actIndex":2}');
+    expect(getSlotSummary(1)).toMatchObject({
+      valor: 0,
+      supply: 0,
       runsCompleted: 2,
+      runsStarted: 2,
+      hasActiveRun: true,
+      actReached: 3,
+      runCorrupt: false,
     });
+    expect(getSlotSummary(2)).toBeNull();
+    values.set(META, '{}');
+    values.delete(RUN);
+    expect(getSlotSummary(1)).toMatchObject({ hasActiveRun: false, runCorrupt: false });
+  });
 
-    // Make getItem throw only for the run key (simulates SecurityError in private browsing)
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === getRunKey(slot)) throw new DOMException('SecurityError');
-      return store[key] ?? null;
+  it.each(['{bad', 'null', '[]', '42', '', '{"roster":42}'])(
+    'never advertises malformed run %s as active, and keeps its bytes',
+    (run) => {
+      values.set(META, '{"totalValor":500,"totalSupply":200}');
+      values.set(RUN, run);
+      expect(getSlotSummary(1)).toMatchObject({
+        hasActiveRun: false,
+        runCorrupt: true,
+        valor: 500,
+        supply: 200,
+      });
+      expect(values.get(RUN)).toBe(run);
+    },
+  );
+
+  it('keeps bookkeeping-only keys read-only without mistaking them for a lost run', () => {
+    values.set('emblem_rogue_slot_1_run_clock_floor', '123');
+    values.set('emblem_rogue_slot_1_meta_clock_floor', '456');
+    values.set('emblem_rogue_slot_1_hints', '["heal"]');
+    const before = new Map(values);
+    expect(getSlotSummary(1)).toBeNull();
+    expect(getNextAvailableSlot()).toBe(1);
+    expect(values).toEqual(before);
+  });
+});
+
+function seedDamagedSave() {
+  values.set(META, '{bad raw meta');
+  values.set(RUN, '{"actIndex":1,"gold":137}');
+  values.set('emblem_rogue_slot_1_cloud_conflict', 'raw conflict');
+  values.set('emblem_rogue_slot_1_run_clock_floor', '123');
+  values.set('emblem_rogue_slot_1_meta_clock_floor', '456');
+  values.set('emblem_rogue_slot_1_hints', '["heal"]');
+  values.set('unrelated', 'untouched');
+}
+
+describe('explicit archive, discard and retirement', () => {
+  it('keeps the exact raw bytes before discard and reserves the recovery-only slot', () => {
+    seedDamagedSave();
+    const originals = Object.fromEntries([...values].filter(([key]) => key !== 'unrelated'));
+    expect(archiveAndDiscardSlot(1)).toEqual({ ok: true });
+    expect(readSlotArchive(1)).toMatchObject({
+      version: 1,
+      slot: 1,
+      state: 'archived',
+      values: originals,
     });
-
-    const summary = getSlotSummary(slot);
-
-    expect(summary).not.toBeNull();
-    expect(summary.runCorrupt).toBe(true);
-    expect(summary.valor).toBe(300);
-    expect(summary.supply).toBe(100);
-    expect(summary.runsCompleted).toBe(2);
-    expect(summary.hasActiveRun).toBe(false);
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining(`slot ${slot}`));
+    expect([...values.keys()].sort()).toEqual([ARCHIVE, 'unrelated'].sort());
+    expect(getNextAvailableSlot()).toBe(2);
+    expect(retireSlotArchive(1)).toEqual({ ok: true });
+    expect(getNextAvailableSlot()).toBe(1);
+    expect(values.get('unrelated')).toBe('untouched');
   });
 
-  it('returns runCorrupt: false when no run data exists', () => {
-    const slot = 1;
-    store[getMetaKey(slot)] = JSON.stringify({
-      totalValor: 0,
-      totalSupply: 0,
-      runsCompleted: 0,
+  it('records absent keys explicitly without inventing metadata', () => {
+    values.set(RUN, '{"gold":137}');
+    expect(archiveAndDiscardSlot(1).ok).toBe(true);
+    expect(readSlotArchive(1).values[META]).toBeNull();
+    expect(values.has(META)).toBe(false);
+  });
+
+  it('does not remove any data if a recovery copy cannot be written', () => {
+    seedDamagedSave();
+    const before = new Map(values);
+    storage.setItem.mockImplementation(() => {
+      throw new Error('quota exceeded');
     });
-
-    const summary = getSlotSummary(slot);
-
-    expect(summary).not.toBeNull();
-    expect(summary.runCorrupt).toBe(false);
-    expect(summary.hasActiveRun).toBe(false);
+    expect(archiveAndDiscardSlot(1).ok).toBe(false);
+    expect(values).toEqual(before);
+    expect(storage.removeItem).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ['null', 'null'],
-    ['array', '[]'],
-    ['string', '"x"'],
-    ['number', '42'],
-  ])('returns null and auto-cleans parseable invalid meta (%s)', (_label, rawMeta) => {
-    const slot = 2;
-    store[getMetaKey(slot)] = rawMeta;
-    store[getRunKey(slot)] = JSON.stringify({ actIndex: 1 });
-
-    let summary;
-    expect(() => {
-      summary = getSlotSummary(slot);
-    }).not.toThrow();
-
-    expect(summary).toBeNull();
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getMetaKey(slot));
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getRunKey(slot));
+  it('does not delete canonical data if backup verification fails', () => {
+    seedDamagedSave();
+    storage.setItem.mockImplementation((key) => values.set(key, 'truncated'));
+    expect(archiveAndDiscardSlot(1).ok).toBe(false);
+    expect(values.get(RUN)).toBe('{"actIndex":1,"gold":137}');
+    expect(values.get(META)).toBe('{bad raw meta');
+    expect(storage.removeItem).not.toHaveBeenCalled();
   });
 
-  it('corrupt meta auto-cleans: deleteSlot is called and summary returns null', () => {
-    const slot = 2;
-    store[getMetaKey(slot)] = '{{{bad meta';
-    store[getRunKey(slot)] = JSON.stringify({ actIndex: 1 });
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it.each([META, RUN, 'emblem_rogue_slot_1_hints'])(
+    'retains a complete recovery copy and safely retries partial deletion at %s',
+    (failureKey) => {
+      seedDamagedSave();
+      const originals = Object.fromEntries([...values].filter(([key]) => key !== 'unrelated'));
+      storage.removeItem.mockImplementation((key) => {
+        if (key === failureKey) throw new Error('write denied');
+        values.delete(key);
+      });
+      expect(archiveAndDiscardSlot(1).ok).toBe(false);
+      expect(readSlotArchive(1)).toMatchObject({ state: 'archiving', values: originals });
+      expect(getSlotSummary(1)?.recoveryRequired).toBe(true);
+      expect(retireSlotArchive(1).ok).toBe(false);
+      storage.removeItem.mockImplementation((key) => values.delete(key));
+      expect(archiveAndDiscardSlot(1).ok).toBe(true);
+      expect(readSlotArchive(1).values).toEqual(originals);
+    },
+  );
 
-    const summary = getSlotSummary(slot);
-
-    expect(summary).toBeNull();
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getMetaKey(slot));
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getRunKey(slot));
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(`slot ${slot}`));
-    warnSpy.mockRestore();
-  });
-
-  it('storage access error does NOT delete slot data', () => {
-    const slot = 1;
-    store[getMetaKey(slot)] = JSON.stringify({ totalValor: 100 });
-
-    // Make getItem throw for the meta key (simulates SecurityError)
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === getMetaKey(slot)) throw new DOMException('SecurityError');
-      return store[key] ?? null;
+  it('never overwrites an existing archive or deletes data changed after partial discard', () => {
+    seedDamagedSave();
+    storage.removeItem.mockImplementation(() => {
+      throw new Error('denied');
     });
-
-    const summary = getSlotSummary(slot);
-
-    expect(summary).toBeNull();
-    expect(localStorageMock.removeItem).not.toHaveBeenCalled();
+    archiveAndDiscardSlot(1);
+    const firstCopy = values.get(ARCHIVE);
+    values.set(RUN, 'new progress from another tab');
+    storage.removeItem.mockImplementation((key) => values.delete(key));
+    expect(archiveAndDiscardSlot(1).ok).toBe(false);
+    expect(values.get(ARCHIVE)).toBe(firstCopy);
+    expect(values.get(RUN)).toBe('new progress from another tab');
+    expect(retireSlotArchive(1).ok).toBe(false);
   });
 
-  it('getNextAvailableSlot cleans corrupt slots before allocation', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    // Slot 1 has parseable-but-invalid meta shape.
-    store[getMetaKey(1)] = 'null';
-    // Slot 2 is healthy
-    store[getMetaKey(2)] = JSON.stringify({ totalValor: 50 });
-    // Slot 3 is empty
-
-    const slot = getNextAvailableSlot();
-
-    // Should return 1 because corrupt slot 1 was cleaned
-    expect(slot).toBe(1);
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getMetaKey(1));
-    warnSpy.mockRestore();
+  it('refuses discard/retirement while a pair restore remains unfinished', () => {
+    seedDamagedSave();
+    values.set(JOURNAL, 'raw restore evidence');
+    const before = new Map(values);
+    expect(archiveAndDiscardSlot(1).ok).toBe(false);
+    expect(retireSlotArchive(1).ok).toBe(false);
+    expect(values).toEqual(before);
   });
 
-  it('keeps healthy object meta (with missing optional fields) without deleting', () => {
-    const slot = 3;
-    store[getMetaKey(slot)] = JSON.stringify({ runsCompleted: 2 });
-
-    const summary = getSlotSummary(slot);
-
-    expect(summary).not.toBeNull();
-    expect(summary.valor).toBe(0);
-    expect(summary.supply).toBe(0);
-    expect(summary.runsCompleted).toBe(2);
-    expect(localStorageMock.removeItem).not.toHaveBeenCalled();
+  it('logout cleanup refuses damaged or archived data without deleting healthy slots either', () => {
+    seedDamagedSave();
+    values.set('emblem_rogue_slot_2_meta', '{"totalValor":250}');
+    const before = new Map(values);
+    expect(clearAllSlotData()).toBe(false);
+    expect(values).toEqual(before);
+    archiveAndDiscardSlot(1);
+    const afterDiscard = new Map(values);
+    expect(clearAllSlotData()).toBe(false);
+    expect(values).toEqual(afterDiscard);
   });
 });
