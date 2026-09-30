@@ -4,6 +4,17 @@ A browser-based tactical RPG (formerly "Emblem Rogue" / "Rogue Emblem") combinin
 
 **Play now:** https://emblem-rogue.netlify.app/
 
+## Ask about game mechanics
+
+Give an assistant with browsing or GitHub access this repository link and your question.
+**Assistants: start with [the mechanics investigation guide](docs/ASK_ABOUT_MECHANICS.md)**
+for topic routes, authoritative sources, and interaction checks.
+
+For a specific battle, include a screenshot or relevant unit stats, equipment, skills,
+and your game build if known. Answers default to current `main` gameplay unless you
+provide a release or commit; an installed build may differ. When sharing an unmerged
+documentation PR, use the guide link in its description to get started.
+
 ## Project Status
 
 Feature-complete through 4 acts with full run loop, meta-progression, and 3 difficulty modes. 3,400+ tests across 170+ files. Active development continues on content expansion and balance tuning.
