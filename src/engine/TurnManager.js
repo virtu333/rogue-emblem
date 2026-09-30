@@ -1,16 +1,18 @@
 // TurnManager — Player/enemy phase state machine (no Phaser dependencies)
 
 export class TurnManager {
-  constructor({ onPhaseChange, onVictory, onDefeat, checkBattleEnd }) {
+  constructor({ onPhaseChange, onVictory, onDefeat, checkBattleEnd, onRejectedTransition }) {
     this.onPhaseChange = onPhaseChange;
     this.onVictory = onVictory;
     this.onDefeat = onDefeat;
     this._externalCheckBattleEnd = checkBattleEnd || null;
+    this._onRejectedTransition = onRejectedTransition || null;
 
     this.playerUnits = [];
     this.enemyUnits = [];
     this.currentPhase = 'player';
     this.turnNumber = 1;
+    this._battleEnded = false;
   }
 
   init(playerUnits, enemyUnits, npcUnits, objective = 'rout') {
@@ -23,30 +25,48 @@ export class TurnManager {
   startBattle() {
     this.turnNumber = 1;
     this.currentPhase = 'player';
+    this._battleEnded = false;
     this.onPhaseChange('player', this.turnNumber);
   }
 
   /** Called when a player unit finishes its action. Checks if phase should end. */
   unitActed(unit) {
+    if (
+      this._battleEnded ||
+      this.currentPhase !== 'player' ||
+      !unit ||
+      !this.playerUnits.includes(unit)
+    )
+      return this._rejectTransition('unitActed');
     unit.hasActed = true;
+    this.checkPlayerPhaseComplete();
+    return true;
+  }
 
-    // Check if all player units have acted
-    const allActed = this.playerUnits.filter((u) => u != null).every((u) => u.hasActed);
-    if (allActed) {
-      this.endPlayerPhase();
-    }
+  /** Escape/death can remove an actor before completion; only check those still on the field. */
+  checkPlayerPhaseComplete() {
+    if (this._battleEnded || this.currentPhase !== 'player')
+      return this._rejectTransition('checkPlayerPhaseComplete');
+    if (!this.playerUnits.filter((unit) => unit != null).every((unit) => unit.hasActed))
+      return false;
+    return this.endPlayerPhase();
   }
 
   endPlayerPhase() {
-    if (this._checkBattleEnd()) return;
+    if (this._battleEnded || this.currentPhase !== 'player')
+      return this._rejectTransition('endPlayerPhase');
+    if (this._checkBattleEnd()) return false;
 
     this.currentPhase = 'enemy';
     this.onPhaseChange('enemy', this.turnNumber);
+    return true;
   }
 
   /** Called by BattleScene after AI finishes all enemy actions. */
   endEnemyPhase() {
-    if (this._checkBattleEnd()) return;
+    if (this._battleEnded || this.currentPhase !== 'enemy')
+      return this._rejectTransition('endEnemyPhase');
+    if (this._checkBattleEnd()) return false;
 
     // Reset enemy units
     for (const u of this.enemyUnits) {
@@ -57,6 +77,12 @@ export class TurnManager {
     this.turnNumber++;
     this.currentPhase = 'player';
     this.onPhaseChange('player', this.turnNumber);
+    return true;
+  }
+
+  _rejectTransition(action) {
+    this._onRejectedTransition?.({ action, phase: this.currentPhase, turn: this.turnNumber });
+    return false;
   }
 
   // Unit removal is handled by BattleScene via in-place splice.
@@ -70,15 +96,19 @@ export class TurnManager {
 
   _checkBattleEnd() {
     if (this._externalCheckBattleEnd) {
-      return this._externalCheckBattleEnd();
+      // Scene checks also return true while a reversible Vision decision is open.
+      // Only the standalone fallback below owns an irreversible end latch.
+      return Boolean(this._externalCheckBattleEnd());
     }
     // Fallback for standalone/test usage
     if (this.playerUnits.length === 0) {
+      this._battleEnded = true;
       this.onDefeat();
       return true;
     }
     // Rout: all enemies dead = victory
     if (this.objective === 'rout' && this.enemyUnits.length === 0) {
+      this._battleEnded = true;
       this.onVictory();
       return true;
     }

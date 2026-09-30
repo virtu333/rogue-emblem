@@ -373,6 +373,7 @@ describe('headless harness mirror', () => {
 
     b.grid.mapLayout[caravan.row][caravan.col] = TERRAIN.LavaCrack;
     b.aiController.processEnemyPhase = async () => {}; // no AI turn: only the hazards
+    b.turnManager.currentPhase = 'enemy';
     await b._processEnemyPhase();
     // 13 - 5 lava at the end of turn 2, then turn 3's aura: + 3.
     expect(b.turnManager.turnNumber).toBe(3);

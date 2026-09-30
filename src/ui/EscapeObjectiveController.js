@@ -130,7 +130,7 @@ export class EscapeObjectiveController {
     // Vision from those still on the field (the escaped unit's path never revealed).
     revealSettledVision(scene);
     scene._captureSuspendCheckpoint?.();
-    scene.turnManager.unitActed(unit);
+    scene.turnManager.checkPlayerPhaseComplete();
   }
 
   _showEscapeFloat(unit, message) {
