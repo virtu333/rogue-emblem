@@ -148,6 +148,82 @@ describe('ThreatSightController', () => {
     expect(sight.describe(6, 2)).toBeNull();
   });
 
+  it('Canto: hover previews a tile of the canto range, even though the unit has acted', () => {
+    const player = sera();
+    player.hasActed = true;
+    const enemy = foe(8, 2);
+    const scene = makeScene({
+      enemies: [enemy],
+      player,
+      state: 'CANTO_MOVING',
+      hover: { col: 5, row: 2 },
+    });
+    // The move range is stale and empty; only the canto range (2 tiles left) may count.
+    scene.movementRange = new Map();
+    scene.cantoRange = scene.grid.getMovementRange(
+      player.col,
+      player.row,
+      4,
+      'Infantry',
+      scene.threatContext().positions(),
+      'player',
+    );
+    const sight = new ThreatSightController(scene).create();
+    sight.sync();
+    expect(sight.current).toMatchObject({ col: 5, row: 2, hovering: true });
+    expect(sight.current.result.damage).toEqual([enemy]);
+    expect(sight.describe(5, 2)).toBe('1 foe can reach');
+    // Outside the canto range: falls back to the unit's own tile.
+    scene._threatFocusTile = { col: 11, row: 4 };
+    sight.sync();
+    expect(sight.current).toMatchObject({ col: 1, row: 2, hovering: false });
+    expect(sight.describe(11, 4)).toBeNull();
+  });
+
+  it('Canto: a hover only movementRange would allow is ignored', () => {
+    const player = sera();
+    player.hasActed = true;
+    const scene = makeScene({
+      enemies: [foe(8, 2)],
+      player,
+      state: 'CANTO_MOVING',
+      hover: { col: 5, row: 2 },
+    });
+    scene.cantoRange = new Map([['2,2', { cost: 1, parent: '1,2' }]]);
+    const sight = new ThreatSightController(scene).create();
+    sight.sync();
+    expect(sight.current).toMatchObject({ col: 1, row: 2, hovering: false });
+  });
+
+  it('Canto confirm: reads the tile the unit moved to', () => {
+    const player = sera();
+    player.hasActed = true;
+    player.col = 6;
+    const scene = makeScene({
+      enemies: [foe(8, 2)],
+      player,
+      state: 'CANTO_CONFIRM',
+      hover: { col: 3, row: 2 },
+    });
+    scene.cantoRange = null;
+    const sight = new ThreatSightController(scene).create();
+    sight.sync();
+    expect(sight.current).toMatchObject({ col: 6, row: 2, hovering: false });
+    expect(sight.describe(6, 2)).toBe('1 foe can reach');
+  });
+
+  it('a unit that has acted gets no threat sight in an ordinary state', () => {
+    for (const state of ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU']) {
+      const player = sera();
+      player.hasActed = true;
+      const scene = makeScene({ enemies: [foe(8, 2)], player, state, hover: { col: 5, row: 2 } });
+      const sight = new ThreatSightController(scene).create();
+      sight.sync();
+      expect(sight.current, state).toBeNull();
+      expect(sight.describe(1, 2), state).toBeNull();
+    }
+  });
+
   it('memoizes per tile until the world changes', () => {
     const player = sera();
     const enemy = foe(8, 2);

@@ -6059,7 +6059,16 @@ export class BattleScene extends Phaser.Scene {
     this.grid.clearPath?.();
     this._recordPendingCantoPath();
     this._cantoPending = null;
-    completeBattleAction(this, unit);
+    try {
+      completeBattleAction(this, unit);
+    } catch (err) {
+      // Same fail-closed path as a broken Canto animation: settle where it stands.
+      this._recoverFromMovementFault(unit, {
+        context: 'confirmCantoMove',
+        reason: 'Error while confirming canto move',
+        error: err,
+      });
+    }
     this.refreshEndTurnControl?.();
   }
 
@@ -6072,7 +6081,12 @@ export class BattleScene extends Phaser.Scene {
     this._cantoPending = null;
     unit.col = pending.origin.col;
     unit.row = pending.origin.row;
-    this.updateUnitPosition(unit);
+    try {
+      this.updateUnitPosition(unit);
+    } catch (err) {
+      // Visuals only: the unit is back on its tile, so the choice still reopens.
+      console.error('[undoCantoMove] failed to sync unit position visuals', err);
+    }
     this.startCantoMove(unit, pending.remaining);
     this._threatSight?.sync(true);
     this._inputController?.refreshHoverInfo();
