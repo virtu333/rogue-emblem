@@ -99,6 +99,11 @@ describe('Gaspar follow-up contracts', () => {
     expect(run.roster).toHaveLength(4);
     expect(run.roster.find((u) => u.isCommander)?.name).toBe('Cael');
     expect(chooseDeployRoster(run.roster, 4)).toContain(gaspar(run));
+    expect(
+      chooseDeployRoster(run.roster, 4)
+        .slice(0, 2)
+        .map((u) => u.name),
+    ).toEqual(['Cael', 'Kira']);
     const weak = {
       ...structuredClone(gaspar(run)),
       specialCharId: undefined,

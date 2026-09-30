@@ -150,7 +150,7 @@ test('production mobile bundle boots offline and uses traced battle art without 
       const gaspar = s.playerUnits.find((unit) => unit.specialCharId === 'old_knight');
       return { name: gaspar?.name, sprite: gaspar?.graphic?.texture?.key };
     }),
-  ).toEqual({ name: 'Gaspar', sprite: 'contrast-rebuilt-special_old_knight' });
+  ).toEqual({ name: 'Gaspar', sprite: 'traced-special_old_knight' });
   expect(
     await page.evaluate(() => window.__emblemRogueGame.registry.get('cloud') || null),
   ).toBeNull();

@@ -52,6 +52,8 @@ export function chooseDeployRoster(roster, deployCount) {
   // Keep lords deployed first, then compare actual combat value.
   const sorted = [...roster].sort((a, b) => {
     if (Boolean(a.isLord) !== Boolean(b.isLord)) return a.isLord ? -1 : 1;
+    // Preserve lord placement/activation order; forecast ranks the remaining recruits.
+    if (a.isLord && b.isLord) return (b.level || 0) - (a.level || 0);
     return deploymentCombatValue(b) - deploymentCombatValue(a);
   });
   return sorted.slice(0, Math.max(1, deployCount));
