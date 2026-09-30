@@ -1,498 +1,410 @@
-# Stability review response: validated findings and implementation spec (2026-09-30)
+# Stability review response: findings, specification and implementation plan (2026-09-30)
 
-An external source review of `main` at `1a6e2d0` reported five defects in how actions commit,
-how saves persist and how the scene lifecycle ends. This document checks every claim against
-`main` at `97c8308`. Of the files involved, only `BattleScene.js` changed between the two
-commits, and the lines at issue did not move. It then sets out an implementation plan in the
-order the work should land.
+## Review basis and recommendation
 
-Each claim was traced in source. Most were also reproduced with stubbed vitest probes, which
-were deleted afterwards. Line numbers refer to `97c8308`.
+The original source review covered `main` at `1a6e2d0`. The first version of this response
+validated it against `97c8308ae0e1e9d73069e5fcd724c06814837883`, reporting source traces and
+temporary reproduction probes. This revision rechecks the proposed fixes against that same
+commit. Those earlier probes are evidence reported by the original author; this document does
+not claim that the new acceptance tests already exist or pass. Source references below are
+pinned to this commit; names are preferable to line numbers as implementation proceeds.
 
-## 1. Verdict summary
+Keep the eight-PR approach and the existing controllers, continuation formats and canonical
+save keys. Start with slot inspection and phase guards, then session ownership and combat.
+Do not require a permanent save-envelope migration or a complete combat-outcome refactor
+before fixing these defects. The pair-write fix does need durable recovery evidence: an
+in-memory snapshot and best-effort rollback cannot provide the guarantee originally proposed.
 
-| # | Review claim | Review severity | Verdict | Our severity | Corrections |
-|---|---|---|---|---|---|
-| 1 | Reading a slot with corrupt meta deletes the whole slot | High | **Confirmed** | Medium (rare trigger, total loss) | Only unparseable or non-object meta triggers it; `{}` passes. Local keys only; the cloud rows survive. The behaviour is deliberate and pinned by tests. |
-| 2 | Reclass can softlock after committing | High | **Confirmed** (probe) | Medium | A realistic trigger is a synchronous throw. The awaited banner cannot reject (see §2.3). The same function also continues after shutdown. |
-| 3a | Combat can persist a partly applied exchange | High | **Confirmed** (probe) | Medium | Strikes write HP as each one lands (`_showStrikeResult`, `BattleScene.js:8764`), so a throw loses the rest of the exchange, not all of it. The catch discards the replay intent and saves a checkpoint. |
-| 3b | Heal and consumables apply the effect before charging the cost | High | **Confirmed** (probe) | Medium | Also leaves the staff equipped: `restoreCombatWeapon` never runs. `executeHealAll` has no re-entry guard. |
-| 3c | Post-combat beats can abort the remaining gameplay | (part of 3) | **Confirmed, worse than stated** | Medium–High | A cosmetic throw before a splash or pierce `remove` beat leaves a 0-HP enemy in `enemyUnits`. The catch only reconciles the attacker and defender, and `checkBattleEnd` counts `enemyUnits.length`. That can block a Rout victory. |
-| 4 | Cancelling a lifecycle await looks like completion; stale continuations run | Medium–High | **Confirmed mechanism; no current player path** | Low–Medium (latent) | Orientation switch and Save & Exit only fire at `PLAYER_IDLE` (`canSwitchBattlePresentation`, `utils/portraitBattle.js:190`; `showPauseMenu` gating). Pending timers are removed at shutdown. The gap is continuations already in flight, and every liveness flag the scene has cannot tell a restart apart (§5.1). |
-| 4b | TurnManager accepts repeated transitions | (hardening) | **Confirmed** (probe) | Low | A double `endEnemyPhase` skips a turn; a stale `unitActed` in the enemy phase fires the enemy phase twice. No normal-play reproduction. |
-| 5 | Cloud hydration writes run and meta without atomicity | Medium | **Confirmed** (probe) | Low–Medium | A failed run write already skips that slot's meta (`skipped` set, `CloudSync.js:111-158`). The open cases are run-applied-then-meta-failed and no reporting. |
+| Finding | Validated scope | Priority / severity |
+| --- | --- | --- |
+| 1: reading deletes a slot | Invalid/non-object metadata causes deletion of local slot data; cloud rows survive. Missing metadata also makes an orphaned run appear empty. | Medium; preserve data first |
+| 2: reclass softlock | Class/history can change before seal consumption, checkpoint and action completion; redraw/setup errors can abort the flow. | Medium |
+| 3a: partial combat checkpoint | Strike presentation writes live HP; recovery can save before the exchange and its effects finish. | Medium |
+| 3b: effects without costs | Healing, relocation and consumables can lose later cost, equipment-restoration or XP steps. | Medium |
+| 3c: incomplete post-combat effects | A cosmetic failure can prevent later removals, leaving third-party enemies at 0 HP and blocking Rout victory. | Medium–High; highest gameplay priority |
+| 4: stale continuations | Cancellation resolves waits; shutdown/restart can make old continuations appear alive. Current orientation and Save & Exit gates reduce exposure. | Low–Medium; latent mechanism |
+| 4b: repeated phase transitions | TurnManager accepts transitions in the wrong phase. Existing pipeline epochs reduce normal-play exposure. | Low |
+| 5: mixed run/meta restore | A successful first write and failed second write can leave a mixed or orphaned slot; local failures are not returned to callers. | Low–Medium; storage recovery work |
 
-**Where we disagree with the review**
+These severity adjustments are reasonable, but failure frequency has not been measured.
+Lifecycle animation guards normally resolve rather than reject, so a rejected banner is not
+the usual trigger. Their setup, nested async methods, imports and modal callbacks can still
+throw or reject; not every awaited operation is covered by the guard. Presentation errors,
+session cancellation, gameplay errors and storage errors need different recovery behavior.
 
-- **Severity is lower across the board.** Every awaited presentation goes through
-  `_createLifecycleAwaitGuard` (`BattleScene.js:899-952`), whose promise only ever resolves: on
-  completion, cancel, timeout and scheduling errors alike. "The banner rejects" therefore really
-  means a *synchronous* throw inside animation or setup code, such as a destroyed sprite, a null
-  `hpBar` or `this.add.*` after teardown. Those throws are rare, but when one happens the saved
-  state is wrong, so the fixes are still worth making.
-- **The deeper version of finding 4 is the opposite of a rejection.** Because cancellation
-  resolves, code after each await keeps running after shutdown. It then reaches
-  `finishUnitAction → completeBattleAction → captureCheckpoint`
-  (`BattleSuspendController.js:65`). That function checks `battleInProgress`, the phase and the
-  fatal flags, but not shutdown. `_captureSuspendCheckpoint`'s `||=` even rebuilds the suspend
-  controller that shutdown nulled.
-- **No new architecture is needed first.** The project already has the pattern to settle an
-  action and then present it:
-  - `PromotionController` commits the change, spends the seal and saves the continuation
-    (`captureResolvedAction`, `ui/BattlePresentationCheckpoint.js:63`) before any await.
-  - It checks `sceneEnded` after each await.
-  - It finishes exactly once, through commit flags in its catch.
+Promotion provides much of the intended pattern, but is not a complete reference: it redraws
+the sprite before granting proficiency weapons and capturing the checkpoint. A redraw error
+can therefore skip required state. Include this small ordering correction with reclass.
 
-  Combat already saves a pre-roll intent (`_commitCombatIntent`) and ends through
-  `presentQueuedLevelUps` / `completeResolvedAction`. The plan below applies that one pattern to
-  every action rather than bringing in a competing "battle session" layer.
+## Required guarantees and scope
 
-## 2. Invariants this spec enforces
+1. **Presentation independence.** For each migrated action path, normal, skipped, timed-out
+   and failed presentation produces the same settled gameplay state and resumable continuation.
+   Compare HP, positions, statuses/buffs, inventory and equipment identity, costs, XP/growth,
+   queued level-ups, rewards/deeds/history, membership of unit lists, action completion and RNG.
+   Cover player and enemy combat. This is a staged guarantee, not a claim that every action and
+   phase flow has already been migrated.
+2. **Original-session ownership.** Work started in a closed or superseded session cannot
+   mutate state, save, finish an action or clear fields belonging to a newer session. Ownership
+   is checked using the token captured when the work started, including catch/finally paths.
+3. **Non-destructive inspection.** Listing, selecting and allocating slots never removes or
+   overwrites data. Damaged, unreadable, orphaned and recovery-only slots remain occupied.
+4. **Pair restore with recoverable failure.** Readers see a verified old or new run/meta pair.
+   If writes and rollback both fail, the slot is explicitly blocked with durable recovery
+   evidence until repair succeeds. Do not promise that two independent storage keys are
+   physically atomic, or that a failed restoration somehow leaves the old bytes intact.
 
-1. **I1: presentation cannot change outcomes.** For every player action, the state after a
-   normal run, a run with presentation skipped, and a run where presentation throws at any await
-   point is identical. That covers HP, positions, conditions and buffs, item and staff uses,
-   inventory identity, equipped weapon, XP, level queue, `hasActed`, unit lists, the RNG cursor
-   and the persisted checkpoint.
-2. **I2: a torn-down session never writes.** After the battle scene shuts down, nothing started
-   before the shutdown may mutate battle state, write a checkpoint or touch the next session's
-   scene fields.
-3. **I3: reads never destroy.** Inspecting or allocating a slot never removes or overwrites a
-   storage key. Only an explicit player action discards data.
-4. **I4: a slot pair applies all or nothing.** Cloud hydration leaves each slot as the old
-   complete pair or the new complete pair, and it reports local write failures separately from
-   fetch failures.
+For reclass, promotion, staff, ability and item actions, the intended order is:
 
-### 2.3 How an action runs (shared by WS2–WS4)
+1. Validate choices, targets, data, costs and ownership before mutation.
+2. Apply gameplay effects, costs, equipment restoration, XP/growth and history synchronously,
+   without graphics calls or awaited presentation. Validate domain operations before starting;
+   synchronous code alone does not make a multi-step mutation transactional.
+3. Capture the existing resolved-action continuation and checkpoint; preserve stable unit
+   identity and the existing `finish`/`combat` resume semantics.
+4. Present the captured before/after facts. A cosmetic failure skips presentation; loss of
+   ownership stops the old flow. A real player decision is not automatically skipped.
+5. Present queued level-ups and complete the action once, using operation-local stage flags.
 
-```
-pre-commit checks ─► COMMIT (sync: effects + costs + XP numbers + history)
-                   ─► captureResolvedAction(scene, continuation)   // checkpoint now holds the outcome
-                   ─► PRESENT (awaits; any throw = skip remaining presentation; session loss = stop)
-                   ─► presentQueuedLevelUps(scene, continuation)
-                   ─► completeResolvedAction(scene, continuation)  // exactly once
-```
+Checkpoint helpers must return a meaningful persisted/failed/not-applicable result, rather
+than discard storage failure. After settlement, a failed save leaves the action settled in
+memory and offers save retry without charging costs or applying effects again. Prevent a
+second action or destructive transition from overwriting the retry state. No-slot/tutorial
+battles can explicitly use the in-memory completion path. A domain failure is not classified
+as cosmetic and must not save a partially settled action as successfully complete.
 
-- A failure before COMMIT returns the player to the action menu with nothing spent.
-- A failure after COMMIT skips the rest of the presentation and still completes the action,
-  exactly once.
-- Resume already completes the action from `_pendingActionCompletion`
-  (`BattleCheckpointAdapter.js:31,53`).
+Combat PR 5 preserves its pre-roll intent and current sequencing while removing the identified
+presentation dependencies. Full settle-before-presentation for combat is PR 8, not a guarantee
+that PR 5 can acquire merely by wrapping the animation loop in a catch.
 
-## 3. Workstreams
+## WS1: Non-destructive slot inspection and recovery (PR 1)
 
-They are listed in landing order. Each is one PR with its own tests.
+`src/engine/SlotManager.js` currently deletes invalid-meta slots from summary/allocation paths.
+Deletion includes run, metadata, conflict, clock-floor and hint data. It is deliberate and
+pinned by `tests/slotCorruption.test.js`. Cloud survival is useful recovery evidence, but does
+not make local deletion safe: New Game may reuse the apparently empty slot before hydration.
 
-### WS1: Non-destructive slot inspection (Finding 1)
+### Implementation
 
-**Validated behaviour**
-- `getSlotSummary` (`engine/SlotManager.js:103-117`) and `cleanCorruptSlots` (`:70-84`, called
-  by `getNextAvailableSlot` at `:86-87`) call `deleteSlot` whenever `parseMetaObject` returns
-  null. That means a JSON parse error or a non-object value (`'null'`, `'[]'`, `'42'`, `''`).
-- `deleteSlot` (`:195-206`) removes `_meta`, `_run`, `_run_clock_floor`, `_meta_clock_floor`
-  and `_cloud_conflict`, plus the slot's hints.
-- The callers are every Title create (`TitleScene.js:119`, `:499`), New Game (`:506`), every
-  SlotPicker card draw (`SlotPickerScene.js:59`, `:293`, `:441`) and `RunFlowMenus.js:98`.
-- A read-only code path therefore erases an intact run the first time the Title screen loads.
-- The cloud rows are not deleted. For a signed-in player, the next `fetchAllToLocalStorage`
-  restores the run (`CloudSync.js:131`) unless a New Game in that slot overwrites it first.
-- `setItem` writes atomically, so the game's own writers cannot produce truncated meta. The
-  trigger is outside tampering, extensions, storage-layer faults or a future writer bug.
-- The auto-clean is deliberate and pinned by tests. It already caused one UX bug:
-  `docs/integration-review-2026-09-21.md:28` (F6) found that Title computes `hasSlots` before
-  the sweep deletes the slot, so "a corrupt-only save renders CONTINUE into an empty picker".
-  The fix must not bring that back: a damaged slot counts as occupied everywhere.
+- Add read-only `inspectSlot(slot)` with `empty`, `valid`, `damaged`, `unreadable` and
+  `recovery-required` states. Inspect run, meta and relevant conflict/quarantine/journal
+  evidence. Missing meta means empty only when no other slot evidence exists. Preserve the
+  healthy summary shape; damaged summaries must not advertise a playable run before validation.
+- Make summary/allocation checks non-destructive and keep all nonempty states occupied in
+  Title, SlotPicker and New Game. Existing recovery copies also reserve the slot.
+- Offer recovery from a validated local backup, native copy, cloud pair or conflict pair.
+  Reuse validation rules and show the source and consequences before applying a repair.
+  Cloud/native repair can be integrated once the pair helper lands; unavailable sources should
+  not appear as working options in PR 1.
+- Rebuilding default meta is **progression reset**, not transparent repair: it can lose valor,
+  supply, upgrades and payout records. If offered, require an explicit choice explaining that
+  loss, archive originals, validate the retained run, and prevent automatic cloud upload from
+  replacing the recoverable meta with newly timestamped defaults before that choice.
+- Discard must first persist and verify a raw recovery archive, including original strings,
+  absence of keys, conflict, clock floors and relevant hints. If backup fails, remove nothing.
+  Keep existing key names and the `emblem_rogue_` prefix for any added recovery key.
+- Do not overwrite the only archive with another discard or silently free an archived slot.
+  Provide an explicit archive-retirement/reuse choice; preserve the only recovery copy until
+  that choice. Logout/clear-all behavior must distinguish ordinary cache removal from explicit
+  deletion of recovery evidence. Bound archive size without dropping sole recovery evidence.
+- Check failures during canonical-key deletion: show recovery-required until cleanup succeeds,
+  rather than claiming the slot is empty after only part of the reset completed.
 
-**Change**
-- Add a pure `inspectSlot(slot)` returning
-  `{ status: 'empty'|'valid'|'damaged'|'unreadable', hasRunData, runParseable }`.
-  A storage exception gives `unreadable`; a missing meta key gives `empty`, as today.
-- Make `getSlotSummary` read-only. Damaged meta returns
-  `{ slot, metaDamaged: true, hasActiveRun: false, runRecoverable }` instead of deleting and
-  returning null. Keep the healthy summary shape unchanged.
-- Rename `cleanCorruptSlots` into a non-destructive check. `getNextAvailableSlot` skips
-  `damaged` and `unreadable` slots, so a damaged slot counts as occupied.
-- Add `quarantineAndResetSlot(slot)`, reachable only from an explicit player action:
-  - Copy the raw `_meta`, `_run` and `_cloud_conflict` strings into one
-    `emblem_rogue_slot_{n}_quarantine` record `{ meta, run, conflict, at }`. Keep only the
-    latest, to bound quota use.
-  - Then call `deleteSlot`.
-  - Existing key names stay unchanged, as CLAUDE.md requires.
-- Add a damaged-slot card to `slotCardModel` / SlotPicker with two options:
-  - **Repair**: rebuild default meta and keep the run. `MetaProgressionManager` already starts
-    from defaults when the meta fails to parse.
-  - **Discard**: run `quarantineAndResetSlot`. Discard keeps today's confirm dialog.
-- Title's "has saves" check counts a damaged slot, so CONTINUE opens a picker with the damaged
-  card rather than an empty picker.
-- `clearAllSlotData` (logout) also removes the quarantine keys.
+### Acceptance
 
-**Tests** (`tests/slotCorruption.test.js`)
-- Rewrite the four tests that pin deletion: `:62`, the `it.each` over non-object values, `:154`
-  and `:185`.
-- New tests:
-  1. Damaged meta with an intact run: `getSlotSummary` and `getNextAvailableSlot` leave every key
-     byte-identical. Snapshot the whole fake store before and after.
-  2. `getNextAvailableSlot` never returns a damaged slot.
-  3. `quarantineAndResetSlot` keeps the raw strings and frees the slot.
-  4. Repair keeps the run and `summary.hasActiveRun` becomes true.
-  5. A storage exception gives `unreadable` and deletes nothing. The existing test at `:169`
-     stays.
-  6. `clearAllSlotData` removes the quarantine keys.
-  7. `SlotCardModel` renders the damaged state with the longest labels at 640×480.
-- Plant the bug: re-add the `deleteSlot` call and test 1 must fail.
-- Check that `tests/e2e/save-lifecycle.spec.js:423` and the `NativeSaveMirror` tests hold no
-  assumption about corrupt meta.
+Snapshot the whole fake store before and after Title/summary/allocation inspection. It must be
+byte-identical for valid, malformed, non-object and absent meta with an intact run, conflict-only,
+archive-only and journal-only slots. Storage read exceptions delete nothing. Allocation skips
+all occupied/recovery states. Inject backup, verification and deletion failures. Check repair
+preserves earned metadata when a valid source exists, and reset cannot silently upload defaults.
+Verify damaged cards at 640×480 and the CONTINUE-to-picker path. Reintroducing automatic deletion
+must fail the preservation tests.
 
-### WS2: Reclass settles like promotion (Finding 2)
+## WS7: TurnManager transition guards (PR 2)
 
-**Validated behaviour**
-- `executeReclass` (`BattleScene.js:7582-7633`) does the following, in order:
-  - sets `COMBAT_RESOLVING`
-  - `reclassUnit` (`:7598`) and history
-  - redraws the sprite (`:7609-7610`)
-  - grants Iron weapons (`:7613-7622`) and calls `updateHPBar`
-  - awaits the banner (`:7626`)
-  - consumes the seal (`:7629-7630`)
-  - `finishUnitAction` (`:7632`)
-- There is no try/catch and no `captureResolvedAction`.
-- The picker callback (`:7551`) fires and forgets, so any throw becomes an unhandled rejection
-  with the class changed, the seal unspent and the state stuck at `COMBAT_RESOLVING`. That is an
-  in-session softlock.
-- Separately, a shutdown during the banner resolves the await, and the seal and
-  `finishUnitAction` then run on a dead scene.
-- Resume is consistent but weaker than promotion. No checkpoint is taken until
-  `finishUnitAction`, so a refresh right after the banner quietly reverts the reclass.
+`src/engine/TurnManager.js` accepts `endPlayerPhase`, `endEnemyPhase` and `unitActed` without
+validating their originating phase. Fixing phase guards is small and independent.
 
-**Change**: mirror `PromotionController` (`ui/PromotionController.js:54-90`, `:166-266`)
-- Move reclass into `ui/ReclassController.js`, following the CLAUDE.md rule against inline
-  multi-step flows.
-- COMMIT, synchronously:
-  - `reclassUnit`, history and the weapon grants (`addToInventory` / `equipIfUnarmed`)
-  - the seal: `uses--`, and remove it at 0
-  - `captureResolvedAction(scene, { kind: 'finish', unitName, unitId })`
-- PRESENT:
-  - sprite refresh, HP bar and banner
-  - after each await, return if `sceneEnded(scene, token)` (see WS5)
-- The catch uses commit flags `applied` and `sealConsumed` exactly as promotion does:
-  - not applied: restore `UNIT_ACTION_MENU`
-  - applied: spend the seal if it has not been spent, then `_recoverUnitActionError`
-- The picker callback adds `.catch` → `_recoverUnitActionError`.
+- Reject a phase-ending call unless its source phase is current. Check before battle-end
+  detection and callbacks; rejection has no state changes or callback side effects. Return
+  consistent accepted/rejected results and update callers where they depend on that result.
+- Audit every `unitActed` caller and define its legal phase and current-unit membership.
+  Reject stale or removed actors before setting `hasActed`. Preserve any legitimate enemy or
+  NPC marking behavior through an explicit contract rather than accepting arbitrary phases.
+- Keep the engine independent of browser telemetry; expose an injected diagnostic callback or
+  report rejected transitions at the scene boundary.
+- A phase check cannot reject old work that arrives during a later turn's same phase.
+  Existing epochs and WS5 originating-operation checks cover that case.
 
-**Tests** (new `tests/ReclassErrorRecovery.test.js`, alongside the promotion tests in
-`BattleSceneActionErrorRecovery.test.js:165-209`)
-- A rejecting banner, and separately a throwing `addUnitGraphic`: the class changed, the seal
-  was spent exactly once, the action finished exactly once, the state is not blocking and there
-  is no unhandled rejection.
-- The checkpoint is written before the banner with the new class, seal count 0 and
-  `_pendingActionCompletion.kind === 'finish'`. Mirror `GrowthCheckpointOrder.test.js:71-113`.
-- A failure before commit (`oldClassData` missing): the seal is untouched and the menu is
-  restored.
-- Shutdown during the banner: the seal is already spent, no finish runs and no checkpoint is
-  written after shutdown.
-- An unarmed unit gets its granted weapon equipped by the time of the checkpoint.
+Test repeated/wrong-phase transitions, stale membership, callback counts and battle-end
+behavior. Run the harness/simulation checks to detect legitimate callers that need adjustment.
 
-### WS3: Combat and post-combat keep presentation apart from state (Findings 3a, 3c)
+## WS5: Session ownership and cancel/timeout semantics (PR 3)
 
-**Validated behaviour**
-- Before the first animation await in `_runCombatResolutionAtSpeed` (`BattleScene.js:8216-8264`):
-  - the art HP cost, art usage, recoil guard and the Phoenix check
-  - `resolveCombat`, which draws RNG, spends per-battle weapon uses and removes Sleep on a hit
-  - timeline facts and history for every strike
-- The strikes then animate (`:8267-8282`), with contact callbacks writing each strike's HP
-  (`:8764`).
-- After the animations:
-  - `_hitByPlayerThisPhase` (`:8291`)
-  - `applyCombatHP` (`:8295`)
-  - deeds
-  - post-combat effects (`:8313`)
-  - Phoenix
-- Back in `executeCombat`: the intent is cleared (`:8446`), then XP, `removeUnit`, beats, level-ups
-  and `completeResolvedAction` (`:8499`).
-- The catch (`:8500-8540`):
-  - clears the replay intent
-  - removes only the attacker or defender at ≤0 HP
-  - marks `hasActed`
-  - runs `completeBattleAction`, which **saves a checkpoint of the half-applied state**
-- The probe produced exactly that: art cost paid, counter, poison, kill and XP missing, and the
-  timeline recording strikes that were never applied.
-- `_playPostCombatBeats` (`:8566-8568`) is a bare `for await` with no per-beat guard. A throw in
-  `updateHPBar`, `showMinorHintAt`, `_addConditionIcon` or `playStatus`:
-  - drops every later beat, including state beats: `remove`, emitted by `pierce` at
-    `PostCombatEffects.js:294` and by `aoeSplash` at `:370`, and `moved`
-  - leaves any victim other than the attacker or defender dead but still in `enemyUnits`
+Lifecycle guards currently resolve completion, timeout and cancellation alike. Shutdown removes
+pending timers but not continuations already in flight. Phaser can reuse the scene instance;
+reset flags and `isActive()` alone cannot distinguish old work after a restart.
 
-**Change: step 1 (this PR). Keep the current flow and make presentation unable to cut it short.**
-1. Divide `_playPostCombatBeat` into its state part and its presentation part:
-   - `remove` and `moved` are state. They always run. `removeUnit` already guards its own fade.
-   - `hp`, `poison`, `status` and `hint` are presentation, each wrapped in try/catch →
-     `reportAsyncError('post_combat_beat_presentation', …)`.
-   - The loop keeps going after a presentation failure.
-2. In `_runCombatResolutionAtSpeed`, wrap the strike and skill animation loop in try/catch. A
-   throw sets `presentationFailed = true`, stops animating, and carries on to `applyCombatHP`.
-   That is the same code path as skipped strikes, which `HealthPresentationInvariance` already
-   covers.
-3. Add a `resultApplied` flag. If a throw still reaches the catch in `executeCombat` after
-   `resolveCombat` returned but before `applyCombatHP` ran, apply the result there, from the
-   result object, never from animation state.
-4. The catch's reconcile walks every unit list for `currentHP <= 0`, not only the attacker and
-   defender.
-5. Apply the WS5 session checks after each await in `executeCombat`. The current check at
-   `:8499` cannot see a restart.
+### Implementation
 
-**Change: step 2 (follow-up, needs its own design review). Settle, then present.**
-- Pure `engine/CombatSettlement.js` returns a `CombatOutcome`:
-  - strikes with HP before and after each one
-  - deaths, including third parties
-  - displacements, statuses and buffs
-  - the XP award
-- The scene applies the outcome and then presents it. `_showStrikeResult` becomes display-only,
-  driven by the per-strike display HP it already receives (`setDisplayedHP`).
-- This deletes the harness's mirror of the combat path, per the CLAUDE.md residual-gap rule.
-- It changes when HP bars and death removals become true, so it waits until the step 1 matrix
-  exists to catch regressions.
+- Maintain a monotonic session counter across `init` and shutdown; invalidate ownership at the
+  start of shutdown cleanup. Do not reset the counter. Capture it at each operation's entry,
+  before the first await or scheduled callback. Also capture the action/phase epoch when a
+  newer operation in the same session can supersede it.
+- Pass original ownership through controllers, nested helpers, presentation callbacks and
+  continuation helpers. Check it before every post-await mutation and inside catch/finally,
+  delayed callbacks and recovery. Old finally blocks must not reset new combat speed, selected
+  art, audio, pending intent or completion fields.
+- Gate `BattleSuspendController.captureCheckpoint`, `completeBattleAction`, resolved-action
+  helpers and scene checkpoint wrappers with expected ownership. Do not recreate the suspend
+  controller after shutdown. Async callers must supply the originating token; a default that
+  samples the current token at save time does not protect an old continuation. Document any
+  remaining synchronous callers and unaudited paths instead of declaring them covered.
+- Return structured lifecycle wait outcomes: completed, skipped/timeout, or cancelled.
+  Timeout may finish committed work only while it still owns the session. Cancellation stops
+  that work. Preserve existing callers during migration, but track the ones not yet audited.
+- Use operation-specific visual cleanup on timeout: restore intended alpha/position or destroy
+  temporary objects safely. Do not generically call tween completion callbacks or copy arbitrary
+  end properties: callbacks may mutate gameplay, and yoyo/relative tweens have different ends.
+- Scheduled async helpers check session plus any expected phase/turn/epoch before firing and
+  recheck after their internal awaits. Post-await callbacks cannot rely on a dispatch-time check.
 
-**Tests** (new `tests/CombatInterruptionMatrix.test.js`)
-- Modes:
-  - normal
-  - skipped presentation
-  - throw before and after each strike's contact
-  - throw inside a skill activation
-  - throw in each post-combat presentation beat
-  - throw in `removeUnit`
-  - throw in the level-up popup
-- Scenarios:
-  - a two-strike lethal exchange
-  - a counter kill
-  - a weapon art with an HP cost
-  - an `aoeSplash` two-target kill and a pierce kill
-  - a shove
-  - poison
-- Each mode's full semantic snapshot must equal the normal snapshot. The snapshot covers HP,
-  positions, conditions, buffs, the unit lists, `hasActed`, weapon uses, art usage, XP and the
-  level queue, the RNG cursor, `_pendingCommittedAction`, and the persisted checkpoint payload.
-- Replace the finish-only assertions in `StabilityHardening.test.js:183-300`.
-- Plant the bug: remove each new try/catch in turn and its matrix cells must fail.
+### Acceptance
 
-### WS4: Staff, ability and item actions settle first (Finding 3b)
+Use the real guard with controllable timers: cancel mid-wait, restart the same scene instance,
+restore active flags, then flush microtasks. Assert no old mutation, save, finish, intent clear
+or next-session field change. Cover catch/finally and controller lazy recreation. Timeout keeps
+ownership, repairs only visual state and completes a committed action once. Invalid phase/epoch
+callbacks are dropped. Test failed checkpoint retry separately from cosmetic error recovery.
 
-**Validated behaviour** (probed against the real controller with presentation stubbed to throw)
+## WS2: Reclass and promotion ordering (PR 4)
 
-| Flow | Mutations before the first await | Mutations after it (lost on a throw) |
-|---|---|---|
-| `executeHeal` (`HealController.js:412-480`) | target HP, deeds, history, legendary self-heal | `spendStaffUse`, `restoreCombatWeapon`, XP |
-| `executeHeal` cure branch (`:421-440`) | conditions cleared, icons | `spendStaffUse`, `restoreCombatWeapon`, XP |
-| `executeHealAll` (`:482-525`) | first target only | targets 2..n, the staff use, weapon restore, XP |
-| `executeRelocate` (`:349-379`) | nothing (the move happens *inside* `animateRelocate`, `:400-402`) | move, staff use, restore, XP |
-| `useConsumable` (`BattleScene.js:7323-7380`) | heal or cure | history, `uses--`, item removal |
-| `AbilityController.executeBlink` (`:279-319`) | `markUsed` | the move (between two fades) |
-| `executeWarp` (Teleporter affix, `BattleScene.js:8824-8858`) | nothing | the move (between fades); dereferences `hpBar.bg` unguarded |
+Reclass currently redraws, grants weapons and awaits its banner before spending the seal.
+Promotion spends the seal early, but also redraws before weapon grants and checkpoint capture.
 
-Every one of these recovers through `_recoverUnitActionError`, which only finishes the action.
-`finishUnitAction` then saves a checkpoint, so the free heal, the partial target list or the held
-staff is persisted.
+- Extract reclass into `src/ui/ReclassController.js`, matching the repository's controller
+  structure and preserving the scene wrapper.
+- Validate class data and seal before mutation. Apply class/oath/deed/history changes, weapon
+  grants and `equipIfUnarmed`, then consume/remove the seal and capture the resolved continuation.
+  Refresh sprite/HP bars and present the banner only after these required steps.
+- Move promotion's graphics refresh after its weapon grants and checkpoint too. Keep genuine
+  promotion/oath choices before settlement and guard their callbacks with original ownership.
+- Use per-operation settlement/cost/capture/completion stages in normal and recovery paths.
+  A cosmetic throw after settlement must neither charge again nor return to a replayable menu.
+  A prevalidation failure leaves state untouched. Do not infer complete settlement merely from
+  the class having changed when another required domain step failed.
+- Observe picker promises and errors so fire-and-forget callbacks cannot create unhandled
+  rejections; recovery itself checks the captured ownership.
 
-**Change**
-- Pure `engine/StaffActions.js` exports `settleStaffHeal`, `settleStaffCure`,
-  `settleStaffHealAll` and `settleStaffRelocate`. Each applies every effect and cost at once:
-  - all targets' HP, the self-heal and the cures
-  - positions, for relocate
-  - one `spendStaffUse`
-  - history
-  - It returns an outcome `{ steps: [{ target, before, after, amount }], selfHeal, cured, moved, xpBase }`.
-- `engine/ItemUse.js`: `settleConsumable` applies the effect, `uses--` and removal at 0 in one go.
-- The controllers:
-  - settle
-  - call `restoreCombatWeapon`
-  - award XP
-  - `captureResolvedAction`
-  - present the outcome under the WS5 session checks
-  - `presentQueuedLevelUps`
-  - `completeResolvedAction`
+Test both promotion and reclass with a throwing sprite refresh, HP bar, banner and popup; a
+rejected presentation promise; invalid precommit data; checkpoint failure/retry; and shutdown/
+restart. Assert weapons/equipment, class, seal and continuation at the checkpoint before any
+presentation. Completion and cost occur once. Domain/prevalidation failures have their own
+assertions rather than being forced into the presentation-equivalence matrix.
 
-  Before implementing, confirm that `awardScaledXP` has no internal await (validation says it
-  applies synchronously and only queues popups).
-- `animateRelocate`, blink and warp become pure fades around a move that has already happened.
-  They take `from` and `to` and never write `col` or `row`.
-- Give `executeHealAll` the same `HEAL_RESOLVING` re-entry guard as `executeHeal`.
-- Guard `executeWarp` against a null `hpBar`.
+## WS3: Complete combat despite cosmetic failure (PR 5)
 
-**Tests** (new `tests/StaffActionInterruptionMatrix.test.js`, plus pure tests for the settle
-functions)
-- Cover heal, cure, healAll with one and with three targets, relocate, blink, and consumable
-  heal, healFull, cure and cureHeal.
-- For each, cover these modes:
-  - normal
-  - skipped
-  - a throw at each await, including the second of three target animations and the self-heal
-    animation
-  - an XP throw
-  - shutdown mid-flow
-- Each must give an identical snapshot: every target's HP, conditions, staff `_usesSpent`,
-  consumable identity and count, the equipped weapon, XP, `hasActed`, `battleState` and the
-  checkpoint payload.
-- Strengthen `BattleSceneActionErrorRecovery.test.js:112-163` and `HealXP.test.js:130-162`,
-  which today only assert that `finishUnitAction` was called.
+### Why an animation-loop catch is insufficient
 
-### WS5: A battle-session token and a cancel/skip split (Finding 4)
+`_runCombatResolutionAtSpeed` pays art costs and can await Phoenix presentation before
+`resolveCombat`; strike callbacks write HP. `animateStrike` also invokes Teleporter
+`executeWarp`, which selects a destination with RNG and moves the unit inside fades, and can
+return without moving when graphics are missing. Skipping that animation therefore changes
+positions and RNG, even if final HP is subsequently applied.
 
-**Validated behaviour**
-- `guard.cancel` resolves with no value (`BattleScene.js:924-938`), the same as completion. The
-  watchdog timeout goes through `cancel('timeout')`.
-- `_scheduleSafeDelayedAsync` (`:1049-1099`) checks only `scene.isActive()`; `phase` and `turn`
-  are used for diagnostics only. Pending timers *are* removed at shutdown (`:606`, `:617-619`), so
-  the real exposure is continuations already in flight.
-- Phaser reuses the scene instance, and `restart` runs stop and then start in one synchronous
-  `processQueue`. `BattleScene` has no `preload`, so `create()` runs synchronously and
-  `init` resets `_sceneShutdownCleanedUp = false` (`:516`). Then the queued continuations run.
-- So `isActive()`, `_sceneShutdownCleanedUp` and `sceneEnded()` all read "alive" for a stale
-  continuation after a restart. That includes the existing guards at `:5098`, `:5102`, `:6744`
-  and `:8499`, `PromotionController.js:27` and `BattlePresentationCheckpoint.js:77`.
-- Only the enemy-phase epoch (`_enemyPhaseEpoch`) and the turn-start token are safe across a
-  restart.
-- No current player path shuts the scene down mid-action: the orientation switch and pause
-  require `PLAYER_IDLE`. The remaining windows are a victory or transition-recovery shutdown
-  racing a tail, a future restart path, and a backgrounded tab. In the last case the watchdog
-  timeout removes a tween partway through a fade and can leave a sprite partly transparent.
+`PostCombatEffects` mutates gameplay while yielding beats. A visual failure can stop its
+generator before later effects. `removeUnit` guards a fade, but still mixes required death,
+reward and Deathburst work with unguarded visual calls. Catching that whole function and
+calling the death handled is unsafe. The current outer combat catch sees only attacker and
+defender; a local `result` in the inner helper is not available there after rejection.
 
-**Change**
-- Add `this._battleSession = (this._battleSession || 0) + 1` in `init` and again in
-  `_runSceneShutdownCleanup`. Never reset it.
-- Add helpers `scene._sessionToken()` and `scene._ownsSession(token)`, which check that the
-  token matches and that the shutdown flag is clear.
-- Change `sceneEnded(scene)` in `PromotionController` and `BattlePresentationCheckpoint` to
-  `sceneEnded(scene, token)`, keeping the old flag check as well.
-- Lifecycle guards resolve with a status: `'done' | 'timeout' | 'cancelled'`.
-  `_awaitSceneTween` / `_awaitSceneDelay` return it; callers that ignore it behave as before.
-  - `timeout` means presentation was skipped. Snap the targets to their end values (fixing the
-    partly transparent sprite) and continue the committed action.
-  - `cancelled` means the session is gone. Flows check `_ownsSession(token)` and stop.
-- Defence in depth:
-  - `BattleSuspendController.captureCheckpoint` and `completeBattleAction` refuse to run when the
-    scene has shut down.
-  - `_captureSuspendCheckpoint` no longer recreates the controller after shutdown.
-  - This is what enforces I2 even in a flow nobody has audited.
-- `_scheduleSafeDelayedAsync` captures the token when it schedules. When it fires it checks
-  `_ownsSession(token)`, plus `phase` and `turn` against `turnManager` when they are given.
-- Rollout order, with the most exposed sites first: relocate, blink, heal and cure, warp,
-  reclass (WS2), the combat tail, and `animateEnemyMove` (`:10294`).
+### Implementation
 
-**Tests** (new `tests/BattleSessionLifecycle.test.js`, using the real guard implementation)
-- Cancel mid-tween and flush microtasks. Assert no mutation and no checkpoint.
-- Also cover the restart sequence: cancel, flip `isActive` back to true and reset the shutdown
-  flag, then flush microtasks. The same asserts must hold. This is the case today's flags miss.
-- Timeout: the tween snaps to its end value and the flow completes.
-- A `_scheduleSafeDelayedAsync` callback is dropped on a session or phase mismatch.
-- Plant the bug: remove the token check and the restart-sequence test must fail.
+1. Keep an explicit operation-owned resolution context shared by the combat helper and its
+   caller: intent, rolled result and completed settlement stages. Preserve pre-roll RNG intent.
+   A flag for final HP application is not a flag for complete combat settlement; never reapply
+   final HP after later effects have changed it.
+2. Separate Phoenix gameplay, art costs/usage, XP/growth, status and reward work from their
+   visual methods. Cosmetic errors before resolution must not prevent the roll or subsequent
+   settlement. Fatal domain failures remain distinct and retain recoverable intent/state.
+3. Move Teleporter gameplay out of `animateStrike` in this PR, including destination choice
+   and RNG consumption. Process it at the same logical strike point with the same interim HP
+   eligibility and RNG ordering as successful play. Record from/to facts for presentation.
+   Missing sprites or bars cannot affect movement. Blink/staff relocation follow in PR 6.
+4. Catch strike/skill visual failures at narrow presentation boundaries, stop remaining visuals
+   and continue required combat steps. During this incremental PR, any contact-based live HP
+   writes must converge to the authoritative exchange before post-combat effects begin. Preserve
+   existing per-strike behavior and Teleporter decisions; full display-only HP is PR 8.
+5. Split post-combat beats into required work and optional drawing. Always exhaust required
+   effects while ownership is valid. A moved beat may need fog/cache updates even when its
+   graphic refresh failed; status icons and hints must not prevent later remove beats.
+6. Audit `removeUnit` and recursive Deathburst: isolate drawing errors around every cosmetic
+   call, including damage display before recursive death processing. Preserve kill attribution,
+   rewards, on-kill hooks, remains and unit-list removal exactly once; clear re-entry state
+   safely. A scan of all faction lists for unprocessed 0-HP units is defense in depth, not a
+   substitute for correct death settlement and rewards.
+7. Apply the same guarantees to enemy combat and the player tail: XP, level-up queues, victory,
+   Canto/action completion and checkpoint. Clear replay intent only after required settlement
+   has succeeded. Cosmetic failures must not route through the old half-state-save catch.
 
-### WS6: Pair-safe cloud hydration and honest reporting (Finding 5)
+### Acceptance
 
-**Validated behaviour**
-- `fetchAllToLocalStorage` (`cloud/CloudSync.js:213-261`) runs `applyRunSlots` over every slot,
-  and then `applyMetaSlots`.
-- A failed run write adds the slot to `skipped`, so its meta is not applied. That direction is
-  safe and is tested at `tests/CloudSync.test.js:219`.
-- A failed meta write (`:178-186`) is only logged. It is not rolled back, not reported and not
-  retried.
-- The function returns `{ rejectedCount }`, which counts fetch failures only. `main.js:415` and
-  `:431` retry only on that count.
-- Both writes use a raw `setItem`, not the quota-shedding `setItemFreeingSpace` used by the play
-  path (`engine/SaveSpace.js`).
-- `preserveCloudConflict` writes a large `_cloud_conflict` record just before the pair, which
-  adds quota pressure.
-- The consequences, checked by probe:
-  - **Fresh slot**: the run exists without meta. The slot reads as empty because slot presence
-    is defined by the meta key, and New Game silently overwrites the run.
-  - **Existing slot**: a new run sits next to old meta. The next meta save stamps
-    `savedAt = max(Date.now(), …)` (`MetaProgressionManager.js:1425`), so that stale meta then
-    wins `shouldPreferLocalMeta` (`CloudSync.js:917-926`) and can be pushed over the newer cloud
-    meta. Only lists that are merged as unions survive. This path was derived from code, not
-    probed end to end.
-- Likelihood is low. It needs a quota-class failure on the second write. It is most plausible on
-  iOS WebKit with suspended battles in several slots plus conflict records.
+Add a real-path interruption matrix, covering both actors' deaths, counters, multi-strikes,
+art HP costs, Phoenix, Teleporter, splash/pierce third-party kills, chained Deathburst, shove,
+poison, rewards, XP/growth, victory and Canto. Inject before/after contact, skill drawing, every
+post-combat visual beat, recursive death drawing and popup presentation. Compare semantic
+snapshots and normalized checkpoint payloads, including positions, health-accessory debt,
+fog/visibility, RNG and list membership;
+exclude wall-clock timestamps and diagnostic counters only.
 
-**Change (option A: snapshot and roll back, with no key or format change)**
-- Replace the two passes with a per-slot `applySlotPair(slot, cloudRun, cloudMeta)`:
-  1. Snapshot the raw `_run`, `_meta` and `_cloud_conflict` strings.
-  2. Write the conflict record if one is needed, then the meta, then the run, each through
-     `setItemFreeingSpace`.
-  3. If any write throws, restore all three from the snapshot (`removeItem` where a key did not
-     exist before) and skip the slot.
-- The result becomes
-  `{ rejectedCount, localApplyFailures, failedSlots: [{ slot, reason }] }`.
-  - `main.js` treats `localApplyFailures > 0` like a rejection for the background retry.
-  - It calls `reportCloudFailure('cloud_apply_local', …)` and shows the existing storage-full
-    hint.
-- Option B (one envelope key per slot) is rejected: CLAUDE.md fixes the
-  `emblem_rogue_slot_{n}_meta/run` key names, and the native mirror and cloud schema assume two
-  keys.
-- Option C (staged revision plus pointer) is also rejected: it doubles quota use at exactly the
-  moment quota is the failure.
+Existing `HealthPresentationInvariance` tests stub post-combat/Phoenix and replace strike
+animation. They are useful focused checks, not evidence for the full action. Replace or extend
+finish-only recovery assertions. Include fixed-v1 and legacy checkpoint/RNG behavior and the
+current Canto confirm, Wait, Back and retap paths, plus Commander's Gambit refresh. Do not add
+checkpoint calls that change legacy reseeding or the fixed-v1 RNG cursor. Tests must assert
+expected kills, costs and rewards independently, not merely compare two equally wrong
+implementations.
 
-**Tests** (extend `tests/CloudSync.test.js`, reusing `SaveSpaceQuota`'s quota storage stub)
-- Fail at each write boundary: the conflict record, the meta, the run, and a failing restore.
-  The previous raw run, meta and conflict strings stay byte-identical, `failedSlots` includes the
-  slot, and `rejectedCount` is still 0.
-- A fresh slot whose apply fails leaves no orphan run key.
-- A slot that fails does not block the other slots from applying.
-- `setItemFreeingSpace` sheds optional history before giving up.
-- Plant the bug: drop the restore and the tests must fail.
+## WS4: Staff, ability and item settlement (PR 6)
 
-**Adjacent, not in scope:** `backgroundCloudRefetch` (`main.js:428-446`) can apply cloud data
-while the game is already running. Separately confirm that a live `RunManager` never reads a pair
-that was half-applied under it.
+Heal/cure/healAll can apply effects before staff use, weapon restoration and XP. HealAll can
+stop after its first target. Staff relocation and Blink move inside fades; consumables can heal
+before their uses/removal/history. `awardScaledXP` has no internal await, but creates text/tweens
+before applying XP and can throw again before completing its queue work. It is not safe merely
+because it runs synchronously.
 
-### WS7: TurnManager transition guards (Finding 4b)
+- Add small engine settlement functions for staff and consumable rules; keep scene wrappers
+  and existing data rules. Validate all targets first, then apply every target's heal/cure or
+  position, legendary self-heal, one staff/item charge, depletion/removal, history and XP.
+  Restore the original combat weapon before capture. Preserve inventory item identity.
+- Split XP/growth/skill and level-up queue mutation from XP text, bars and popups. Record the
+  presentation facts without creating graphics in the domain function. Reuse this split in
+  combat, staff and other affected XP callers.
+- Settle Blink usage and movement together. Staff relocation/Blink presentation takes recorded
+  from/to coordinates and never writes `col`/`row`. Teleporter was already covered in PR 5.
+- Give HealAll a re-entry/ownership guard consistent with the other healing paths. Capture the
+  resolved continuation, present under WS5 ownership, then finish once. Save failure uses retry
+  without reapplying costs or target effects.
 
-**Validated behaviour** (`engine/TurnManager.js`, 88 lines)
-- `unitActed`, `endPlayerPhase` and `endEnemyPhase` never check `currentPhase`.
-- Probes: two `endEnemyPhase` calls reach turn 3, and `endEnemyPhase` during the player phase
-  skips a turn.
-- There are ten call sites and none of them checks the phase first. The enemy-phase and
-  turn-start pipelines are protected by epochs.
+Cover heal, cure, one/three-target healAll, self-heal, relocation, Blink and all consumable
+effects. Inject failures on the second target, XP drawing, weapon-display refresh and popups.
+Assert all targets, spent uses, inventory/equipment identity, XP/growth/queue, RNG, continuation
+and completion. Include shutdown/restart and invalid precommit data as separate cases.
 
-**Change**
-- `endPlayerPhase` returns `false` and does nothing unless `currentPhase === 'player'`.
-  `endEnemyPhase` does the same unless the phase is `'enemy'`.
-- `unitActed` still sets `hasActed` in any phase, but ends the phase only during the player
-  phase.
-- Report a rejected transition with `reportAsyncError('turn_transition_rejected', …)` so it shows
-  up in telemetry rather than being swallowed silently.
+## WS6: Recoverable pair writes and honest cloud reporting (PR 7)
 
-**Tests**
-- Pure `TurnManager` tests for the four probe cases.
-- Run the harness and sim lanes (`test:harness`, `sim:fullrun:pr`) to confirm no legitimate
-  caller relied on a transition from the wrong phase.
+`src/cloud/CloudSync.js` applies run slots and then metadata. A failed run write already skips
+that slot's meta, but meta-write failure leaves the first write applied and only logs it.
+`rejectedCount` reports fetch failures. `src/main.js` retries based on that count.
 
-## 4. Order and sizing
+### Contract and implementation
 
-| PR | Workstream | Size | Depends on |
-|---|---|---|---|
-| 1 | WS1 slot inspection | S | none |
-| 2 | WS7 TurnManager guards | S | none |
-| 3 | WS5 session token and guard status (helpers, checkpoint gate, delayed helper) | M | none |
-| 4 | WS2 reclass controller | S | 3 (token) |
-| 5 | WS3 step 1: combat presentation isolation and interruption matrix | M | 3 |
-| 6 | WS4 staff, ability and item settle-first | M–L | 3; reuses the matrix helpers from 5 |
-| 7 | WS6 pair-safe hydration | S–M | none (can land in parallel) |
-| 8 | WS3 step 2: `CombatOutcome` settle-then-present, delete the harness mirror | L | 5, 6 |
+- Preserve `emblem_rogue_slot_{n}_meta` and `_run` as canonical keys. The repository's key-name
+  requirement does not forbid an additional prefixed recovery journal. A permanent slot envelope
+  and cloud-schema migration remain deferred.
+- Build a per-slot merge plan first, preserving current timestamp winner selection, run-record
+  and lord unions, conflict policy and clock floors. Do not replace that logic with blind cloud
+  assignment. Fetch both resources successfully before applying; two successful network requests
+  still do not guarantee a single backend revision, so retain existing validation/conflict rules.
+- Use one shared local pair-apply helper for hydration and conflict restore. Save a bounded
+  write-ahead before-image journal with transaction ID, old raw strings/absences and every
+  touched canonical/conflict/floor key. Persist and verify it before changing those keys. If
+  quota cannot accommodate recovery evidence, fail unchanged rather than proceed unprotected.
+- Apply the computed writes synchronously with no await between them, verify the complete pair,
+  then mark the transaction committed before removing the journal. Pending means restore the
+  old pair; committed means verify/retain the new pair and finish cleanup. Recovery is idempotent.
+  If rollback fails, keep evidence and mark the slot recovery-required. Do not continue play,
+  allocate it, construct managers from partial data or push it to cloud.
+- Quota shedding may remove optional history, but must never delete the sole pending journal
+  or quarantine. A malformed/unreadable journal requires recovery rather than default metadata.
+- Recover before startup slot inspection and manager construction. Gate all relevant slot
+  readers/writers while recovery is pending. Reuse WS1 damaged-slot UX for unresolved recovery.
+  Existing conflict restore's separate rollback path must use this same contract.
+- Native mirroring is a release gate: `nativeSaveMirror` debounces per-key writes and flushes
+  them asynchronously. A correct local pair can still become mixed on native restore. Make
+  mirroring transaction-aware, with durable native recovery evidence before pair-file writes,
+  a completion marker after both, and ordered recovery before restored data becomes readable.
+  Specify batching/serialization and crash recovery before enabling the helper in native builds;
+  deleting the local journal before the mirror sees it must not erase native recovery evidence.
+- Defer hydration of the actively loaded slot in `backgroundCloudRefetch`; apply other slots.
+  Resume deferred application at an explicit safe boundary before fresh managers load. An
+  alternative requires deliberate live-manager reconciliation, not a half-pair check alone.
+- Return fetch failures, local apply failures and deferred slots separately, retaining existing
+  `rejectedCount` meaning. Include failed slot, stage and rollback/recovery status. Bound retries
+  for storage failures; do not hammer a full store or treat intentional deferral as an outage.
+  Surface actionable storage/recovery status in existing UI and report `cloud_apply_local`.
 
-PRs 1, 2 and 7 are independent and low risk. PR 3 is the base for the in-battle work.
+### Acceptance
 
-## 5. Review recommendations we would defer
+Fault-inject at journal creation/verification, conflict/meta/run/floor writes, committed marker,
+cleanup and each rollback step. Successful rollback restores exact prior bytes; failed rollback
+leaves a blocked, recoverable slot with intact evidence. Simulate process interruption after
+every write and repeat startup recovery. Include fresh slots, absent keys, malformed journals,
+merge/conflict behavior, quota shedding, unrelated slots, active-slot deferral and reporting.
+For native storage, fail/interrupt after every individual mirrored write, restart/restore, and
+assert a complete old/new pair or an explicitly blocked recovery state. Do not assert impossible
+byte equality when the injected fault also prevents restoration.
 
-- **Narrowing controller access** (explicit queries and commands instead of the whole scene).
-  This is the right direction, but only after WS3 step 2 gives controllers an outcome object to
-  consume. Doing it earlier moves methods without changing who owns the state.
-- **Incremental types at the boundaries** (`ActionContinuation`, `CombatOutcome`, the slot
-  inspection result). Add JSDoc `@typedef`s when each workstream adds its type. No TypeScript
-  migration.
-- **A WebKit browser lane and an iOS smoke checklist** (backgrounding, orientation, save and
-  resume). Worth adding next to WS5, since the backgrounded-tab timeout is the most plausible
-  real-world trigger found. It needs the CI-cost trade-off decided in `tests/e2e/lanes.json`.
+## WS3 follow-up: Compute a full combat outcome (PR 8)
 
-## 6. Verification checklist per PR
+After PR 5's matrix pins semantics, extract shared engine combat settlement, covering strikes,
+interim HP, RNG decisions, Teleporter/displacements, statuses, Phoenix, third-party deaths,
+rewards and XP. Design its exact boundaries before implementation; avoid introducing a second
+copy of domain rules in a new outcome builder. Apply a complete outcome, capture the continuation
+and then present recorded facts. `_showStrikeResult` becomes display-only using a new display-HP
+projection/helper; `setDisplayedHP` is not an existing API in the reviewed source.
 
-- `npm run format:check`, `lint`, `validate:data`, `build`, `test:unit`.
-- `test:harness` and `test:sim` for WS3, WS4, WS5 and WS7.
-- Each new test is shown to fail once against a planted bug (CLAUDE.md testing rules).
-- The e2e lanes that touch saves (`save-lifecycle`), the portrait switch and battle entry pass.
+Replace the harness's duplicated combat flow with the shared engine path. Keep independent
+scenario assertions and expected outcomes so sharing code does not make tests tautological.
+Preserve continuation compatibility, RNG order, Canto and victory sequencing.
+
+## Delivery order, size and dependencies
+
+| PR | Scope | Size | Dependencies |
+| --- | --- | --- | --- |
+| 1 | WS1: read-only slots, occupied damaged states, safe archive/recovery UX | S–M | None; pair repair integration follows PR 7 |
+| 2 | WS7: TurnManager guards and caller audit | S | None |
+| 3 | WS5: original session/operation ownership, wait outcomes, checkpoint status/retry | M | None; base for battle changes |
+| 4 | WS2: reclass controller plus promotion grant/checkpoint ordering | S–M | PR 3 |
+| 5 | WS3: combat isolation, Teleporter/Phoenix/death-chain correctness, full-state matrix | M–L | PR 3; shared XP split coordinated with PR 6 |
+| 6 | WS4: staff, ability, item and XP settle-first paths | M–L | PR 3; matrix/helper reuse from PR 5 |
+| 7 | WS6: journaled pair helper, recovery, native mirror, conflict/background integration | M–L | PR 1 recovery UX; may proceed alongside battle work |
+| 8 | WS3 follow-up: shared complete combat outcome, harness duplication removal | L | PRs 5–6 and design review |
+
+PRs 1 and 2 remain the starting recommendation. PR 3 enables safe interruption handling;
+prioritize PR 5's third-party deaths after it. PR 7 is no longer described as independent or
+low risk: its failure recovery and native integration are part of correctness, not optional
+hardening. Keep commits narrow within each PR when controller and engine changes need separation.
+
+## Verification and deferred work
+
+- Run repository-required formatting, lint, data validation, build and unit checks for each
+  implementation PR. Run relevant harness/simulation checks for phase, lifecycle and gameplay
+  changes, using the scripts present when the PR lands.
+- Follow `CLAUDE.md`: test externally observable outcomes, include independent expected facts,
+  and demonstrate that each regression test fails with the relevant bug deliberately restored.
+  Presentation-failure, storage-failure, domain-failure and cancellation matrices are distinct.
+- Extend existing run-flow, contracts, portrait, battle-history and presentation/input browser
+  coverage as relevant; register new specs in `tests/e2e/lanes.json`. Do not assume a lane named
+  `save-lifecycle` exists because a save-lifecycle spec does.
+- Keep broader controller command/query restrictions and TypeScript migration deferred. Add
+  useful JSDoc boundary types with the individual PRs, not a preliminary type project.
+- A dedicated WebKit CI lane can remain follow-up work. Native/iOS smoke checks for background,
+  restart, orientation, save/resume and storage recovery belong to PRs 3/7 release validation;
+  do not defer those lifecycle checks with the browser-lane investment.
+
+## Source index (reviewed at `97c8308`)
+
+- Slot policy and recovery: `src/engine/SlotManager.js`, `src/engine/SaveSpace.js`,
+  `src/engine/CloudSaveConflict.js`, `tests/slotCorruption.test.js`.
+- Gameplay settlement: `src/scenes/BattleScene.js` (`executeReclass`,
+  `_runCombatResolutionAtSpeed`, `executeCombat`, `_playPostCombatBeats`, `animateStrike`,
+  `executeWarp`, `awardScaledXP`, `removeUnit`), `src/engine/PostCombatEffects.js`,
+  `src/ui/PromotionController.js`, `src/ui/HealController.js`, `src/ui/AbilityController.js`.
+- Continuation/lifecycle: `src/ui/BattleSuspendController.js`,
+  `src/ui/BattlePresentationCheckpoint.js`, `src/ui/BattleActionCompletion.js`,
+  `src/utils/portraitBattle.js`, `src/engine/TurnManager.js`.
+- Persistence: `src/cloud/CloudSync.js`, `src/main.js`, `src/utils/nativeSaveMirror.js`,
+  `src/engine/MetaProgressionManager.js`, `src/engine/RunManager.js`.
+- Test limitations: `tests/HealthPresentationInvariance.test.js`; implementation should also
+  strengthen existing action recovery, cloud, native mirror and checkpoint-order tests.
