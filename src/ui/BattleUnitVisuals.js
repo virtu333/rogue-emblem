@@ -7,10 +7,6 @@ const LORD_SPRITE_KEYS = {
 
 export function battleUnitSpriteKey(scene, unit) {
   if (unit.isCaravan && scene.textures.exists('merchant_caravan')) return 'merchant_caravan';
-  if (unit.specialCharId) {
-    const own = rebuiltSpriteKey(scene, unit);
-    if (own) return own;
-  }
   const traced = tracedSpriteKey(scene, unit);
   if (traced) return traced;
   const rebuilt = rebuiltSpriteKey(scene, unit);

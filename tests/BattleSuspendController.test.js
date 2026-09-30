@@ -575,3 +575,22 @@ describe('committed attack intent', () => {
     expect(scene.showLordDeathVisionPrompt).toHaveBeenCalled();
   });
 });
+
+it('restores legacy Gaspar checkpoint units with Measured Step and fixed traits in every group', () => {
+  const scene = makeScene();
+  const old = makeUnit({ specialCharId: 'old_knight', skills: ['canto', 'aegis'], traits: [] });
+  const checkpoint = Object.fromEntries(
+    ['playerUnits', 'enemyUnits', 'npcUnits', 'escapedUnits', 'nonDeployedUnits'].map((key) => [
+      key,
+      [serializeSuspendUnit(old)],
+    ]),
+  );
+  new BattleSuspendController(scene).applyUnits(checkpoint);
+  for (const key of Object.keys(checkpoint)) {
+    expect(scene[key][0].skills).toEqual(['measured_step', 'aegis']);
+    expect(scene[key][0].traits).toEqual(['old_campaigner', 'set_in_his_ways']);
+    expect(scene[key][0].specialRulesVersion).toBe(1);
+  }
+  // Restored active and benched copies share the same policy without touching the source.
+  expect(old.skills).toEqual(['canto', 'aegis']);
+});

@@ -104,7 +104,11 @@ describe('legendary lord creation and persistence', () => {
     saved.roster.forEach((u) => delete u.traits);
     const legacy = RunManager.fromJSON(saved, data);
     expect(legacy.legendaryLordChance).toBe(0);
-    expect(legacy.roster.every((u) => !u.traits)).toBe(true);
+    expect(legacy.roster.filter((u) => !u.specialCharId).every((u) => !u.traits)).toBe(true);
+    expect(legacy.roster.find((u) => u.specialCharId)?.traits).toEqual([
+      'old_campaigner',
+      'set_in_his_ways',
+    ]);
   });
   it('prices both tiers in Valor and exposes the cumulative chance bonus', () => {
     const meta = new MetaProgressionManager(data.metaUpgrades, 'legendary-test');

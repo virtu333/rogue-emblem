@@ -45,6 +45,8 @@ export class BattleBeatsController {
     this._random = random;
     this.scene = scene;
     this._lastQuipAt = -Infinity;
+    this._lastSpecialQuipAt = -Infinity;
+    this._lowHealthSpoken = new Set();
     this._live = new Set(); // quip texts still on screen (for destroy())
     this._rallyTimers = [];
     this._rallied = false;
@@ -252,7 +254,9 @@ export class BattleBeatsController {
       unit.currentHP > 0 &&
       unit.currentHP * 2 <= unit.stats.HP
     ) {
-      this._maybeQuip(unit, 'lowHP');
+      const id = unit.unitUid || unit.battleEntityId || unit;
+      if (this._lowHealthSpoken.has(id)) return;
+      if (this._maybeQuip(unit, 'lowHP', { specialCooldown: true })) this._lowHealthSpoken.add(id);
     }
   }
 
@@ -266,11 +270,23 @@ export class BattleBeatsController {
   onKill(victim, killer) {
     if ((!killer?.isLord && !killer?.specialCharId) || killer.faction !== 'player') return;
     if (!(killer.currentHP > 0)) return;
+    const key = killer.specialCharId && killer.weapon?.type === 'Sword' ? 'onKillSword' : 'onKill';
     if (victim?.isBoss) {
-      this._maybeQuip(killer, 'onKill', { guaranteed: true });
+      this._maybeQuip(killer, key, { guaranteed: true });
     } else {
-      this._maybeQuip(killer, 'onKill', { chance: QUIP_CHANCE });
+      this._maybeQuip(killer, key, { chance: QUIP_CHANCE });
     }
+  }
+
+  onChipLance(unit, foe) {
+    if (
+      unit?.specialCharId &&
+      unit.faction === 'player' &&
+      unit.currentHP > 0 &&
+      unit.weapon?.type === 'Lance' &&
+      foe?.currentHP > 0
+    )
+      return this._maybeQuip(unit, 'onChipLance', { chance: 0.35 });
   }
 
   /**
@@ -297,11 +313,18 @@ export class BattleBeatsController {
     });
   }
 
-  _maybeQuip(lord, poolKey, { chance = 1, guaranteed = false, tokens = null } = {}) {
+  _maybeQuip(
+    lord,
+    poolKey,
+    { chance = 1, guaranteed = false, tokens = null, specialCooldown = false } = {},
+  ) {
     const scene = this.scene;
     const now = scene.time?.now ?? 0;
     if (!guaranteed) {
-      if (now - this._lastQuipAt < QUIP_COOLDOWN_MS) return;
+      const last = specialCooldown
+        ? Math.max(this._lastQuipAt, this._lastSpecialQuipAt)
+        : this._lastQuipAt;
+      if (now - last < QUIP_COOLDOWN_MS) return;
       if (this._random() >= chance) return;
     }
     const pool = lord.specialCharId
@@ -318,7 +341,8 @@ export class BattleBeatsController {
       // quip from the same killing strike) instead of stacking with it.
       this.destroy();
     }
-    this._lastQuipAt = now;
+    if (specialCooldown) this._lastSpecialQuipAt = now;
+    else this._lastQuipAt = now;
     this._showQuipText(lord, line);
     return { speaker: lord.name, line };
   }

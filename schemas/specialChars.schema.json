@@ -191,6 +191,40 @@
         "items": {
           "type": "string"
         }
+      },
+      "canReclass": {
+        "type": "boolean"
+      },
+      "canPromote": {
+        "type": "boolean"
+      },
+      "classProgression": {
+        "type": "boolean"
+      },
+      "countsTowardRosterLevel": {
+        "type": "boolean"
+      },
+      "metaGrowthScale": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "traits": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "uniqueItems": true
+      },
+      "rulesVersion": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "legacySkills": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
       }
     },
     "required": [

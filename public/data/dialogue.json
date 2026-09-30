@@ -301,7 +301,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "So many threads walked, {commander}. Even victory frays. The corruption stirs again — so do we."
+              "line": "So many threads walked, {commander}. Even victory frays. The corruption stirs again \u2014 so do we."
             }
           ]
         },
@@ -313,7 +313,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "We won. I saw it end. Yet the visions pull us back — the wound beneath is not closed."
+              "line": "We won. I saw it end. Yet the visions pull us back \u2014 the wound beneath is not closed."
             }
           ]
         }
@@ -337,7 +337,7 @@
             {
               "speaker": "Edric",
               "portrait": "portrait_lord_edric",
-              "line": "Then the banner goes forward. Rally to me — we finish this march together."
+              "line": "Then the banner goes forward. Rally to me \u2014 we finish this march together."
             }
           ]
         },
@@ -899,7 +899,7 @@
             {
               "speaker": "Rowan",
               "portrait": "portrait_lord_rowan",
-              "line": "A blessed lance and a fresh road. One of us is lucky — let's find out which."
+              "line": "A blessed lance and a fresh road. One of us is lucky \u2014 let's find out which."
             }
           ]
         },
@@ -1220,7 +1220,7 @@
             {
               "speaker": "Kira",
               "portrait": "portrait_lord_kira",
-              "line": "Good. A watcher means a pattern — and every pattern can be broken."
+              "line": "Good. A watcher means a pattern \u2014 and every pattern can be broken."
             }
           ]
         },
@@ -1581,7 +1581,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+              "line": "The sacred ground ahead is corrupted. The ritual is close \u2014 and so is the lieutenant."
             },
             {
               "speaker": "Edric",
@@ -1598,7 +1598,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+              "line": "The sacred ground ahead is corrupted. The ritual is close \u2014 and so is the lieutenant."
             },
             {
               "speaker": "Sera",
@@ -1615,7 +1615,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+              "line": "The sacred ground ahead is corrupted. The ritual is close \u2014 and so is the lieutenant."
             },
             {
               "speaker": "Edric",
@@ -1632,7 +1632,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+              "line": "The sacred ground ahead is corrupted. The ritual is close \u2014 and so is the lieutenant."
             },
             {
               "speaker": "Kira",
@@ -1649,7 +1649,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+              "line": "The sacred ground ahead is corrupted. The ritual is close \u2014 and so is the lieutenant."
             },
             {
               "speaker": "Voss",
@@ -1666,7 +1666,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+              "line": "The sacred ground ahead is corrupted. The ritual is close \u2014 and so is the lieutenant."
             },
             {
               "speaker": "Sera",
@@ -1683,7 +1683,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+              "line": "The sacred ground ahead is corrupted. The ritual is close \u2014 and so is the lieutenant."
             },
             {
               "speaker": "Rowan",
@@ -1700,7 +1700,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+              "line": "The sacred ground ahead is corrupted. The ritual is close \u2014 and so is the lieutenant."
             },
             {
               "speaker": "Astrid",
@@ -1717,7 +1717,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+              "line": "The sacred ground ahead is corrupted. The ritual is close \u2014 and so is the lieutenant."
             },
             {
               "speaker": "Cael",
@@ -1859,7 +1859,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "I can separate my rival’s visions from my own now."
+              "line": "I can separate my rival\u2019s visions from my own now."
             }
           ]
         },
@@ -2048,7 +2048,7 @@
             {
               "speaker": "Sera",
               "portrait": "portrait_lord_sera",
-              "line": "The lieutenant is near. Their visions press against mine — but I am done being watched."
+              "line": "The lieutenant is near. Their visions press against mine \u2014 but I am done being watched."
             },
             {
               "speaker": "Sera",
@@ -2701,7 +2701,7 @@
               {
                 "speaker": "Rowan",
                 "portrait": "portrait_lord_rowan",
-                "line": "Let us test the empire’s border drills."
+                "line": "Let us test the empire\u2019s border drills."
               }
             ]
           },
@@ -2750,7 +2750,7 @@
               {
                 "speaker": "Warchief",
                 "portrait": "portrait_boss_warchief",
-                "line": "Hah! My axe remembers your blood. Come — let it drink twice!"
+                "line": "Hah! My axe remembers your blood. Come \u2014 let it drink twice!"
               }
             ]
           },
@@ -3151,7 +3151,7 @@
               {
                 "speaker": "Rowan",
                 "portrait": "portrait_lord_rowan",
-                "line": "Let us see the empire’s first lance at work."
+                "line": "Let us see the empire\u2019s first lance at work."
               }
             ]
           },
@@ -3200,7 +3200,7 @@
               {
                 "speaker": "Archmage",
                 "portrait": "portrait_boss_archmage",
-                "line": "Fascinating — the same variables return. Last iteration, you perished. Shall we replicate?"
+                "line": "Fascinating \u2014 the same variables return. Last iteration, you perished. Shall we replicate?"
               }
             ]
           },
@@ -3632,7 +3632,7 @@
               {
                 "speaker": "Iron Wall",
                 "portrait": "portrait_boss_iron_wall",
-                "line": "I have felt these walls fall before — in a dream that tasted of your steel."
+                "line": "I have felt these walls fall before \u2014 in a dream that tasted of your steel."
               }
             ]
           }
@@ -3815,7 +3815,7 @@
               {
                 "speaker": "The Lieutenant",
                 "portrait": "portrait_boss_the_lieutenant",
-                "line": "You return. Of course you return. I have ended you before — this timeline makes one more."
+                "line": "You return. Of course you return. I have ended you before \u2014 this timeline makes one more."
               }
             ]
           },
@@ -3827,7 +3827,7 @@
               {
                 "speaker": "The Lieutenant",
                 "portrait": "portrait_boss_the_lieutenant",
-                "line": "So it was never one path I failed to seal, but a weave of them. Impressive. Futile — but impressive."
+                "line": "So it was never one path I failed to seal, but a weave of them. Impressive. Futile \u2014 but impressive."
               }
             ]
           }
@@ -3950,7 +3950,7 @@
               {
                 "speaker": "Cael",
                 "portrait": "portrait_lord_cael",
-                "line": "Then you've seen my shield too. Tell me — did you find a way through it?"
+                "line": "Then you've seen my shield too. Tell me \u2014 did you find a way through it?"
               }
             ]
           }
@@ -4046,7 +4046,7 @@
               {
                 "speaker": "The Emperor",
                 "portrait": "portrait_boss_the_emperor",
-                "line": "You. The regicide echoes through the rift — I have felt this death before. Never again."
+                "line": "You. The regicide echoes through the rift \u2014 I have felt this death before. Never again."
               }
             ]
           }
@@ -4057,7 +4057,7 @@
           {
             "speaker": "The Emperor",
             "portrait": "portrait_boss_the_emperor",
-            "line": "You DARE wound me? I held the dark back for decades — behold what I kept for myself!"
+            "line": "You DARE wound me? I held the dark back for decades \u2014 behold what I kept for myself!"
           }
         ],
         "variants": [
@@ -4276,7 +4276,7 @@
               {
                 "speaker": "Edric",
                 "portrait": "portrait_lord_edric",
-                "line": "It doesn't speak. It doesn't need to. Steel yourselves — we end the cycle here."
+                "line": "It doesn't speak. It doesn't need to. Steel yourselves \u2014 we end the cycle here."
               }
             ]
           },
@@ -4312,7 +4312,7 @@
               {
                 "speaker": "Sera",
                 "portrait": "portrait_lord_sera",
-                "line": "I hear it. Beneath the silence — every timeline screaming at once. Fight on."
+                "line": "I hear it. Beneath the silence \u2014 every timeline screaming at once. Fight on."
               }
             ]
           },
@@ -4822,7 +4822,7 @@
             {
               "speaker": "Edric",
               "portrait": "portrait_lord_edric",
-              "line": "It's done. The lieutenant has fallen — the army can finally breathe."
+              "line": "It's done. The lieutenant has fallen \u2014 the army can finally breathe."
             },
             {
               "speaker": "Sera",
@@ -5125,7 +5125,7 @@
             {
               "speaker": "Astrid",
               "portrait": "portrait_lord_astrid",
-              "line": "Then I'll fly higher next time — and see it coming before it wakes."
+              "line": "Then I'll fly higher next time \u2014 and see it coming before it wakes."
             },
             {
               "speaker": "Sera",
@@ -6490,7 +6490,7 @@
             {
               "speaker": "Edric",
               "portrait": "portrait_lord_edric",
-              "line": "Then we try again. As many times as it takes — the banner doesn't stay down."
+              "line": "Then we try again. As many times as it takes \u2014 the banner doesn't stay down."
             }
           ]
         },
@@ -6666,7 +6666,7 @@
       ],
       "act2": [
         "An officer commands these troops. Stay sharp.",
-        "Imperial elites. Not conscripts — true believers.",
+        "Imperial elites. Not conscripts \u2014 true believers.",
         "This garrison was reinforced recently.",
         "Requisition slip found in the mud: Experience required. Mercy optional.",
         "The pickets salute each other here. Bad sign. It means someone's in charge.",
@@ -6675,7 +6675,7 @@
       "act3": [
         "The corruption has champions of its own.",
         "Whatever guards this place has forgotten mercy.",
-        "The air crackles. Not lightning — something older.",
+        "The air crackles. Not lightning \u2014 something older.",
         "The reed-cutters won't cross this ground. They leave offerings at the edge instead.",
         "Scout's report: they barely spoke while making camp. They knew the drill.",
         "A priest's aside: whatever holds this ground once prayed. It has forgotten how."
@@ -6769,7 +6769,7 @@
         "A traveler asks whether your army has room. They have stopped asking politely."
       ],
       "act4": [
-        "To still fight, this deep in — that's something.",
+        "To still fight, this deep in \u2014 that's something.",
         "The corruption spat this one out. Their loss.",
         "Another who refused to break.",
         "A cellar door in the capital, knocked on thrice. It opens. Someone was waiting.",
@@ -6907,7 +6907,7 @@
         "The light cuts where the thread is thin."
       ],
       "Rowan": [
-        "Blessed — told you!",
+        "Blessed \u2014 told you!",
         "Clean hit. Mostly skill.",
         "Fate pays up.",
         "Did everyone see that? Somebody saw that.",
@@ -9173,7 +9173,11 @@
             "10": [
               "Ten more lessons. I hope someone was watching."
             ]
-          }
+          },
+          "major": [
+            "Apparently there was something left to learn.",
+            "Do not tell the horse. It will expect more of me."
+          ]
         },
         "fallen": [
           "Ride on. You know the road now.",
@@ -9497,13 +9501,33 @@
         "The saddle is still warm. I suppose retirement must wait."
       ],
       "lowHP": [
-        "Easy now. Even old steel has its limits."
+        "Still here. The horse seems surprised.",
+        "I have been worse. I was younger then, which helped.",
+        "A scratch. An increasingly persuasive scratch."
       ],
       "onCrit": [
         "The hand remembers."
       ],
       "onKill": [
         "Hold your line. There is more road ahead."
+      ],
+      "reclassRefusal": [
+        "A new class? At my age? I would sooner teach the horse to fly.",
+        "Thirty years in this armor. It knows me better than any seal ever will.",
+        "Save the seal for someone who still has growing to do.",
+        "I tried being something else once. The horse objected."
+      ],
+      "promoteRefusal": [
+        "Promote me again and I outrank the king. Neither of us wants that.",
+        "There is no rank above tired, and I already hold it."
+      ],
+      "onChipLance": [
+        "Watch the opening. It is yours.",
+        "There. A lesson with room for an answer."
+      ],
+      "onKillSword": [
+        "Some lessons are best ended quickly.",
+        "Old hands. Short work."
       ]
     }
   }

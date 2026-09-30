@@ -24,6 +24,8 @@ export default [
       'src/engine/ShopEconomy.js',
       'src/engine/PortraitVariants.js',
       'src/engine/SpecialCharacters.js',
+      'src/engine/SpecialCharacterPolicy.js',
+      'src/engine/CantoRule.js',
     ],
     languageOptions: { ecmaVersion: 2025 },
   },

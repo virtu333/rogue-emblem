@@ -85,7 +85,7 @@ function classVoice(voice, className, classes) {
 export function temperamentFor(unit, { voice = null, seed = 0 } = {}) {
   const available = TEMPERAMENT_IDS.filter((id) => voice?.temperaments?.[id]);
   if (!available.length || !unit?.name) return null;
-  if (available.includes(unit.temperament)) return unit.temperament;
+  if (unit.specialCharId && available.includes(unit.temperament)) return unit.temperament;
   return available[voiceHash(`${seed >>> 0}|temperament|${unit.name}`) % available.length];
 }
 
@@ -210,6 +210,13 @@ export function levelUpLine(unit, content, ctx = {}) {
     if (unit.isLord && !lord) return null;
     if (lord) {
       const lu = lord.levelUp || {};
+      const gained = (content.rows || []).filter(
+        (row) => Number(row.gain ?? row.delta ?? 0) > 0,
+      ).length;
+      if (unit.specialCharId && kind !== 'perfect' && !milestone && gained >= 2) {
+        const major = pickFrom(`${source}:major`, lu.major);
+        if (major) return major;
+      }
       if (milestone) {
         const hit = pickFrom(`${source}:m${milestone}`, lu.milestones?.[milestone]);
         if (hit) return hit;

@@ -1,4 +1,4 @@
-import { combatBlocksCanto } from '../engine/SpecialCharacterPolicy.js';
+import { cantoRuleFor } from '../engine/CantoRule.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { revealSettledVision } from './BattleActionCompletion.js';
 import { findBattleEntity, isBattleEntityId } from '../engine/BattleEntityIdentity.js';
@@ -117,7 +117,7 @@ export function completeResolvedAction(scene, continuation) {
     scene.finishUnitAction(unit, {
       skipCanto:
         continuation.skipCanto === true ||
-        (continuation.kind === 'combat' && combatBlocksCanto(unit)),
+        (continuation.kind === 'combat' && cantoRuleFor(unit) === 'noncombat'),
     });
     return;
   }

@@ -10,6 +10,12 @@ vi.mock('phaser', () => ({
   default: { Scene: class {} },
 }));
 
+vi.mock('../src/ui/LevelUpPopup.js', () => ({
+  LevelUpPopup: class {
+    async show() {}
+  },
+}));
+
 vi.mock('../src/utils/SceneRouter.js', async () => {
   const actual = await vi.importActual('../src/utils/SceneRouter.js');
   return { ...actual, transitionToScene: vi.fn(async () => true) };
@@ -28,6 +34,7 @@ vi.mock('../src/ui/RosterOverlay.js', () => ({
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { gridDistance } from '../src/engine/Combat.js';
+import { completeResolvedAction } from '../src/ui/BattlePresentationCheckpoint.js';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -509,5 +516,106 @@ describe('silenced magic guard parity', () => {
 
     // Should proceed — executeCombat called
     expect(scene.executeCombat).toHaveBeenCalledWith(attacker, defender);
+  });
+});
+
+// Drive real combat completion and the real movement state transition; only visuals
+// and the numerical exchange are stubbed. The headless harness does not run Canto.
+describe('Measured Step scene completion', () => {
+  function movementScene(skills, specialCharId = null) {
+    const scene = setupScene();
+    const unit = makeUnit({
+      name: specialCharId ? 'Gaspar' : 'Paladin',
+      specialCharId,
+      skills,
+      stats: { HP: 25, STR: 10, MAG: 0, SKL: 12, SPD: 10, DEF: 6, RES: 2, LCK: 3, MOV: 6 },
+      _movementSpent: 2,
+    });
+    const foe = makeEnemy();
+    scene.playerUnits = [unit];
+    scene.enemyUnits = [foe];
+    scene.turnManager.currentPhase = 'player';
+    scene.finishUnitAction = BattleScene.prototype.finishUnitAction.bind(scene);
+    scene.commitVisionSnapshotIfPending = vi.fn();
+    scene.hideActionMenu = vi.fn();
+    scene.dimUnit = vi.fn();
+    scene.buildUnitPositionMap = () => new Map();
+    scene.grid.showMovementRange = vi.fn();
+    scene._getCostModifier = () => null;
+    scene._resetCantoPreInitFaultTracking = vi.fn();
+    scene._runCombatResolution = vi.fn(async () => ({
+      result: { attackerHP: 25, defenderHP: 25, events: [] },
+    }));
+    scene._playLevelUpSfx = vi.fn();
+    scene._stopLevelUpSfx = vi.fn();
+    return { scene, unit, foe };
+  }
+
+  it.each([false, true])(
+    'combat with weapon art=%s consumes Gaspar action without Canto',
+    async (art) => {
+      const { scene, unit, foe } = movementScene(['measured_step', 'aegis'], 'old_knight');
+      const selected = art
+        ? { id: 'test_art', name: 'Test Art', hpCost: 1, combatMods: { atkBonus: 1 } }
+        : null;
+      scene._getSelectedWeaponArtForUnit = () => selected;
+      await scene.executeCombat(unit, foe);
+      expect(scene._runCombatResolution).toHaveBeenCalled();
+      expect(scene.battleState).toBe('PLAYER_IDLE');
+      expect(scene.grid.showMovementRange).not.toHaveBeenCalled();
+      expect(unit.hasActed).toBe(true);
+    },
+  );
+
+  it('ordinary Paladin retains four tiles of postcombat movement', async () => {
+    const { scene, unit, foe } = movementScene(['canto']);
+    await scene.executeCombat(unit, foe);
+    expect(scene.battleState).toBe('CANTO_MOVING');
+    expect(scene.grid.getMovementRange).toHaveBeenCalledWith(
+      unit.col,
+      unit.row,
+      4,
+      unit.moveType,
+      expect.any(Map),
+      'player',
+      null,
+    );
+  });
+
+  it('a noncombat item action retains Gaspar remaining movement', async () => {
+    const { scene, unit } = movementScene(['measured_step'], 'old_knight');
+    const item = { name: 'Energy Drop', effect: 'statBoost', stat: 'STR', value: 2, uses: 1 };
+    unit.consumables = [item];
+    scene.showBriefBanner = vi.fn(async () => {});
+    scene.updateUnitPosition = vi.fn();
+    await scene.useConsumable(unit, item);
+    expect(scene.battleState).toBe('CANTO_MOVING');
+    expect(scene.grid.getMovementRange).toHaveBeenCalledWith(
+      unit.col,
+      unit.row,
+      4,
+      unit.moveType,
+      expect.any(Map),
+      'player',
+      null,
+    );
+  });
+
+  it('serialized combat level-up continuation retains the movement restriction', async () => {
+    const { scene, unit, foe } = movementScene(['measured_step'], 'old_knight');
+    scene._pendingLevelUpPopups = [
+      { unitName: unit.name, levelUp: { newLevel: 2, statGains: { STR: 1 } }, learnedNames: [] },
+    ];
+    let saved;
+    scene._captureSuspendCheckpoint = () => {
+      if (scene._pendingActionCompletion)
+        saved = JSON.parse(JSON.stringify(scene._pendingActionCompletion));
+    };
+    await scene.executeCombat(unit, foe);
+    expect(saved).toMatchObject({ kind: 'combat', unitName: 'Gaspar' });
+    unit.hasActed = false;
+    completeResolvedAction(scene, saved);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.grid.showMovementRange).not.toHaveBeenCalled();
   });
 });

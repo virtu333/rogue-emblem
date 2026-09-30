@@ -1,6 +1,6 @@
 # Spec: Gaspar follow-ups (review of PR 164)
 
-**Status:** Proposed, 2026-09-29. Addresses the review of
+**Status:** Implemented, 2026-09-30. Addresses the review of
 [PR 164](https://github.com/virtu333/rogue-emblem/pull/164) against
 `docs/specs/veteran-knight.md`.
 **Size:** Medium. Data plus small engine helpers, one art pass, tests. No balance changes.
@@ -32,8 +32,11 @@ Two **special traits** in `data/traits.json`:
 
 | id | Name (≤ 16 chars) | Text |
 |---|---|---|
-| `old_campaigner` | Old Campaigner | Joins promoted with a fixed kit. Learns slowly, grows little; home-base growth upgrades count half. |
+| `old_campaigner` | Campaign Veteran | Fixed promoted kit; low XP and growth. Home-base growth upgrades count half. |
 | `set_in_his_ways` | Set in His Ways | Cannot reclass or promote again. Learns no class skills or mastery. |
+
+The display name is **Campaign Veteran** because the existing `woodsman` trait already uses
+**Old Campaigner**. Gaspar’s personality is **wry**.
 
 - Schema: add `rarity: "special"` and `specialCharId: "old_knight"`. This mirrors the legendary
   lord traits (`rarity: "legendary"`, `lordName`).
@@ -171,8 +174,8 @@ style differs from every other unit.
                          hair: 'silver', armor: true, rects: HORSE }
    ```
 
-   The source already lives at `docs/art/rebuilt-sprite-sources/special_old_knight.png`,
-   which is where `R()` points.
+   The original rebuilt source traced too small (0.251). The implemented roster uses
+   `docs/art/sprite-candidates-2026-09-30/sources/special_old_knight.png` (redrawn, 0.879).
 2. `node tools/art/sprite-trace/cli.mjs trace …` to review. Then `lineup` at display size
    on dusk and night grades, next to `lord_rowan` and the Paladin, Cavalier and enemy
    Paladin sprites.
@@ -234,8 +237,7 @@ Changes:
 
 ## 8. Smaller fixes
 
-- **Temperament:** the spec said `grim`, but data and tests use `wry`. Pick one and update the
-  spec or the data. Gate `temperamentFor`'s stored-temperament branch on `unit.specialCharId`,
+- **Temperament:** use **wry** in the spec, data and UI. Gate `temperamentFor`'s stored-temperament branch on `unit.specialCharId`,
   so no other unit bypasses the per-run hash.
 - **Tutorial flag:** `startRun({ tutorialMode })` is never passed. The tutorial builds its own
   roster. Either remove the option, or pass it from the tutorial entry if a future tutorial

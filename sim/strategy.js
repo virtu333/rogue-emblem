@@ -2,6 +2,7 @@
 // numbers; docs/specs/strategy-layer-proposal.md, proposals).
 //
 //   npm run sim:strategy -- --section <name> [--seeds N] [--seed S] [--difficulty normal]
+//   Add --includeVeteran false for comparisons against the pre-Gaspar starting roster.
 //
 //   spawn      recruit survival vs spawn placement      [--replays 4]
 //   unitvalue  one more unit vs other node rewards      [--trials 60; the spec used 150]
@@ -42,6 +43,7 @@ const opts = parseArgs({
   seed: 1,
   maxActions: 2600,
   agent: 'tactician',
+  includeVeteran: true,
 });
 
 const gameData = loadGameData();
@@ -1080,7 +1082,11 @@ function buildSquad(act, size, trialSeed) {
   const rng = seededRng(hash32(`squad:${act}:${trialSeed}`));
   const rm = new RunManager(gameData, null);
   rm.runSeed = trialSeed;
-  const units = rm.createInitialRoster().map((u) => structuredClone(u));
+  const units = rm
+    .createInitialRoster({
+      includeVeteran: opts.includeVeteran !== false && opts.includeVeteran !== 'false',
+    })
+    .map((u) => structuredClone(u));
   // Promoted pool entries (act 3) are built on their base class and promoted below.
   const pool = (gameData.recruits[cfg.act]?.classPool || [])
     .map((name) => {
@@ -1664,7 +1670,11 @@ async function sectionArts() {
   const rm = new RunManager(gameData, null);
   rm.runSeed = 1;
   installSeed(99);
-  const lords = rm.createInitialRoster().map((u) => structuredClone(u));
+  const lords = rm
+    .createInitialRoster({
+      includeVeteran: opts.includeVeteran !== false && opts.includeVeteran !== 'false',
+    })
+    .map((u) => structuredClone(u));
   const rng = seededRng(5);
   for (const u of lords) levelTo(u, 3, rng);
   const arts = new Map(gameData.weaponArts.arts.map((a) => [a.id, a]));

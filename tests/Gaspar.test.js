@@ -63,9 +63,9 @@ describe('Gaspar starter and investment rules', () => {
         ['Steel Lance', 'Iron Sword'],
       );
       assert.ok(unit.proficiencies.every((p) => p.rank === 'Mast'));
-      assert.deepEqual(unit.skills, ['canto', 'aegis']);
+      assert.deepEqual(unit.skills, ['measured_step', 'aegis']);
     }
-    assert.equal(veteran(start('normal', null, { tutorialMode: true })), undefined);
+    assert.equal(veteran(start()).name, 'Gaspar');
   });
 
   it('stacks with Vanguard and bypasses recruit flat bonuses and join perks', () => {
@@ -200,10 +200,8 @@ describe('Gaspar scaling and combat completion', () => {
     const opponent = { level: 2, tier: 'base' };
     assert.equal(calculateCombatXP(unit, opponent, true), 1);
     assert.deepEqual(getXpShareRecipients(unit, run.roster), [edric]);
-    assert.equal(
-      calculateSharedXp(edric, opponent, true, 0.5),
-      Math.floor(calculateCombatXP(edric, opponent, true) * 0.5),
-    );
+    // Level-1 Edric versus a level-2 foe: floor((25 combat + 15 kill + 5 level gap) / 2).
+    assert.equal(calculateSharedXp(edric, opponent, true, 0.5), 22);
     edric.tier = 'promoted';
     assert.deepEqual(getXpShareRecipients(unit, [edric]), []);
   });
@@ -230,6 +228,9 @@ describe('Gaspar scaling and combat completion', () => {
     assert.equal(options.skipCanto, false);
     delete unit.specialCharId;
     completeResolvedAction(scene, saved);
+    assert.equal(options.skipCanto, true); // Measured Step owns the rule.
+    unit.skills = ['canto'];
+    completeResolvedAction(scene, saved);
     assert.equal(options.skipCanto, false);
   });
 });
@@ -241,8 +242,8 @@ describe('Gaspar voice, assets and no-meta records', () => {
     assert.ok(
       rebuiltPortraitUrl('special_old_knight', 'pc98').endsWith('/192/special_old_knight.png'),
     );
-    const scene = { textures: { exists: (key) => key === 'rebuilt-special_old_knight' } };
-    assert.equal(battleUnitSpriteKey(scene, unit), 'rebuilt-special_old_knight');
+    const scene = { textures: { exists: (key) => key === 'traced-special_old_knight' } };
+    assert.equal(battleUnitSpriteKey(scene, unit), 'traced-special_old_knight');
     const voice = data.dialogue.unitVoice;
     assert.equal(temperamentFor(unit, { voice, seed: 99 }), 'wry');
     assert.ok(levelUpLine(unit, { kind: 'normal', levelTo: '2' }, { voice, seed: 99 }).line);

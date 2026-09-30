@@ -1,3 +1,4 @@
+import { specialCharacterRefusal } from '../engine/SpecialCharacterDialogue.js';
 import { unitUidOf } from '../engine/UnitIdentity.js';
 import { teachRosterScroll } from '../engine/RosterTransfers.js';
 import { applyRosterClassChange } from '../engine/RosterCommands.js';
@@ -1430,15 +1431,17 @@ export class RosterOverlay {
           }
         } else if (item.effect === 'promote') {
           if (
-            canPromote(unit) &&
-            resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)
+            specialCharacterRefusal(this.gameData, unit, 'promote') ||
+            (canPromote(unit) &&
+              resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords))
           ) {
             this._actionBtn(btnX, y, '[Use]', () => this._usePromote(unit, item));
           }
         } else if (item.effect === 'reclass') {
           if (
-            canReclass(unit) &&
-            getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0
+            specialCharacterRefusal(this.gameData, unit, 'reclass') ||
+            (canReclass(unit) &&
+              getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0)
           ) {
             this._actionBtn(btnX, y, '[Use]', () => this._showReclassClassPicker(unit, item));
           }
@@ -1772,6 +1775,11 @@ export class RosterOverlay {
     if (this._promotionChoosing) return;
     this._promotionChoosing = true;
     try {
+      const refusal = specialCharacterRefusal(this.gameData, unit, 'promote', this.runManager);
+      if (refusal) {
+        this._showBanner(refusal, UI_PALETTE.bad);
+        return;
+      }
       // Find promotion targets
       const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
       if (!targets?.length) {
@@ -1829,7 +1837,11 @@ export class RosterOverlay {
   _showReclassClassPicker(unit, sealItem) {
     const targets = getReclassTargets(unit, this.gameData.classes, sealItem.subEffect);
     if (targets.length === 0) {
-      this._showBanner('No valid reclass targets.', UI_PALETTE.bad);
+      this._showBanner(
+        specialCharacterRefusal(this.gameData, unit, 'reclass', this.runManager) ||
+          'No valid reclass targets.',
+        UI_PALETTE.bad,
+      );
       return;
     }
 

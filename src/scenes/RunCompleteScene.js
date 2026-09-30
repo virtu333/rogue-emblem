@@ -390,7 +390,7 @@ export class RunCompleteScene extends Phaser.Scene {
       }),
     );
     const veteran = this.runManager?.roster?.find(
-      (unit) => unit.specialCharId === 'old_knight' && unit.currentHP > 0,
+      (unit) => unit.specialCharId && unit.currentHP > 0,
     );
     if (this.result === 'victory' && Array.isArray(entries))
       entries.push(...specialCharacterEntries(this.gameData, veteran, 'victory'));

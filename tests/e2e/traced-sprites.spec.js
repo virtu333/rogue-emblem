@@ -47,7 +47,7 @@ test('traced sprites use tile anchors, animate and stay aligned after rewind', a
     }));
   });
   for (const u of units) {
-    expect(u.key, JSON.stringify(u)).toMatch(/^(traced-|contrast-rebuilt-special_old_knight$)/);
+    expect(u.key, JSON.stringify(u)).toMatch(/^traced-/);
     expect(u.width).toBe(64);
     expect(u.height).toBe(64);
     expect(u.x).toBe(u.pos.x);
@@ -128,7 +128,15 @@ test('every class, faction, lord and boss resolves to a traced texture on the sh
     const b = game.scene.getScene('Battle');
     const { classes, lords, enemies } = b.gameData;
     const lordClasses = new Set(lords.flatMap((l) => [l.class, l.promotedClass]));
-    const probes = [];
+    const probes = [
+      {
+        name: 'Gaspar',
+        specialCharId: 'old_knight',
+        spriteId: 'special_old_knight',
+        className: 'Paladin',
+        faction: 'player',
+      },
+    ];
     for (const c of classes) {
       if (lordClasses.has(c.name)) continue;
       if (c.tier === 'boss') {

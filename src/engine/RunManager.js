@@ -1,3 +1,4 @@
+import { skipsClassProgression, normalizeSpecialCharacter } from './SpecialCharacterPolicy.js';
 import { createVeteranKnight } from './SpecialCharacters.js';
 import { validateBattleState } from './BattleStateSnapshot.js';
 import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
@@ -603,7 +604,7 @@ export class RunManager {
       this.runSeed = Number(initialSeed);
     }
     this.nextUnitUid = 1;
-    this.roster = this.createInitialRoster({ includeVeteran: options.tutorialMode !== true });
+    this.roster = this.createInitialRoster();
     this.ensureUnitUids();
     this.ensurePortraitVariants();
     this.runRecordId ||= globalThis.crypto?.randomUUID?.() || `run-${this.runSeed}-${Date.now()}`;
@@ -4450,7 +4451,7 @@ export class RunManager {
     const skillsData = runManager.gameData?.skills || [];
     if (!classes.length || !skillsData.length) return;
     const applyInnates = (unit) => {
-      if (!unit) return;
+      if (!unit || skipsClassProgression(unit)) return;
       if (!Array.isArray(unit.skills)) unit.skills = [];
       const addInnatesFor = (className) => {
         for (const sid of getClassInnateSkills(className, skillsData)) {
@@ -4476,7 +4477,7 @@ export class RunManager {
     const classByName = new Map(classes.map((c) => [c.name, c]));
 
     const applyLearnables = (unit) => {
-      if (!unit || unit.specialCharId === 'old_knight') return;
+      if (!unit || skipsClassProgression(unit)) return;
       if (!Array.isArray(unit.skills)) unit.skills = [];
       if (!Number.isFinite(unit.level)) return;
 
@@ -4684,8 +4685,16 @@ export class RunManager {
       ? saved.fallenUnits.filter((u) => rm._isValidSerializedUnit(u))
       : [];
 
-    rm.roster = rm.roster.map((u) => normalizeUnitDeeds(migrateUnitTraits({ ...u })));
-    rm.fallenUnits = rm.fallenUnits.map((u) => normalizeUnitDeeds(migrateUnitTraits({ ...u })));
+    rm.roster = rm.roster.map((u) =>
+      normalizeUnitDeeds(
+        migrateUnitTraits(normalizeSpecialCharacter({ ...u }, gameData.specialChars)),
+      ),
+    );
+    rm.fallenUnits = rm.fallenUnits.map((u) =>
+      normalizeUnitDeeds(
+        migrateUnitTraits(normalizeSpecialCharacter({ ...u }, gameData.specialChars)),
+      ),
+    );
     // Unit identity: legacy saves stamp every roster/fallen unit now (roster order,
     // then fallen), counter-based and RNG-free, so a reload stamps the same way.
     rm.nextUnitUid =

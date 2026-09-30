@@ -1,3 +1,4 @@
+import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { saveServiceRun } from './serviceSave.js';
 import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
@@ -442,10 +443,7 @@ export class MobileRosterSheet {
   stats(unit) {
     if (unit.specialCharId) {
       const def = this.gameData.specialChars?.find((entry) => entry.id === unit.specialCharId);
-      this.card(
-        'Veteran knight',
-        `${def?.bio || ''} Canto after noncombat actions only. Cannot reclass or gain class skills or mastery.`,
-      );
+      this.card('Biography', def?.bio || '');
     }
     const conditions = statusDescriptions(unit);
     if (conditions.length)
@@ -515,7 +513,7 @@ export class MobileRosterSheet {
           ? 'Flying — no terrain defense or avoid bonus.'
           : `Defense +${parseInt(terrain.defBonus) || 0} · Avoid +${parseInt(terrain.avoidBonus) || 0}`,
       );
-    if (unit.faction !== 'enemy' && unit.specialCharId !== 'old_knight') {
+    if (unit.faction !== 'enemy' && !skipsClassProgression(unit)) {
       const mastered = isMastered(unit, this.gameData.classes, this.gameData.traits);
       const perk = getMasteryPerk(unit, this.gameData.classes, this.gameData.traits);
       const progress = getMasteryProgress(unit, this.gameData.classes);
@@ -548,10 +546,15 @@ export class MobileRosterSheet {
         ],
         helpPreview(MASTERY_HELP),
       );
+    }
+    if (unit.faction !== 'enemy') {
       const traits = traitLines(unit, this.gameData);
       if (traits.length) this.body.append(el('h3', 'Traits', 'mr-section'));
       for (const trait of traits)
-        this.card(`${trait.legendary ? 'Legendary · ' : ''}${trait.name}`, trait.text);
+        this.card(
+          `${trait.legendary ? 'Legendary · ' : trait.special ? 'Special · ' : ''}${trait.name}`,
+          trait.text,
+        );
       // Flavor only: how this recruit talks (level-ups, promotion, last words).
       const temperament = unit.isLord ? null : unitTemperament(this.scene, unit);
       if (temperament)

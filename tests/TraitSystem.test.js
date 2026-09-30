@@ -43,7 +43,7 @@ const data = loadGameData();
 const classes = data.classes;
 const traits = data.traits;
 const trait = (id) => traits.find((t) => t.id === id);
-const REGULAR = traits.filter((t) => !t.lordName && !t.retired);
+const REGULAR = traits.filter((t) => !t.lordName && !t.specialCharId && !t.retired);
 const LEGENDARY = traits.filter((t) => t.rarity === 'legendary');
 const RETIRED = traits.filter((t) => t.retired);
 
@@ -161,6 +161,7 @@ describe('traits.json data contract (rules v2)', () => {
     'description',
     'rarity',
     'lordName',
+    'specialCharId',
     'retired',
     'roll',
     'staffSelfHeal',
@@ -240,7 +241,7 @@ describe('traits.json data contract (rules v2)', () => {
         expect(VALID_STATS.has(stat) || stat === 'MOV' || stat === ATTACK_STAT_TOKEN).toBe(true);
       for (const stat of Object.keys(t.creationMods.growths || {}))
         expect(VALID_STATS.has(stat) || stat === ATTACK_STAT_TOKEN).toBe(true);
-      if (t.retired || t.lordName) continue;
+      if (t.retired || t.lordName || t.specialCharId) continue;
       // An offensive stat bump must follow the class (Str on a mage is dead weight).
       for (const bucket of ['stats', 'growths'])
         for (const stat of Object.keys(t.creationMods[bucket] || {}))

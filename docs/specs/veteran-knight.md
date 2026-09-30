@@ -421,15 +421,15 @@ Illustrative special-character policies (names are provisional, not an existing 
   "equipped": "Steel Lance",
   "metaGrowthScale": 0.5,
   "canReclass": false,
-  "classMastery": false,
+  "classProgression": false,
   "classCurriculum": false,
-  "cantoPolicy": "noncombat",
+  "skills": ["measured_step", "aegis"],
   "countsTowardRosterLevel": false,
   "portraitId": "special_old_knight",
   "spriteId": "special_old_knight",
   "voiceId": "old_knight",
-  "temperament": "grim",
-  "traits": ["old_guard"]
+  "temperament": "wry",
+  "traits": ["old_campaigner", "set_in_his_ways"]
 }
 ```
 

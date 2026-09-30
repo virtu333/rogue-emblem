@@ -1,3 +1,4 @@
+import { normalizeSpecialCharacter } from '../engine/SpecialCharacterPolicy.js';
 import { persistWithTimelineFallback } from '../engine/BattleTimelinePersistence.js';
 import { resumeFatalDecision } from './BattleFatalDecision.js';
 import { recordBattleTimeline, rewindFingerprint } from './BattleTimelineRecorder.js';
@@ -143,7 +144,7 @@ export class BattleSuspendController {
     );
     const restore = (targetArr, list) => {
       for (const data of Array.isArray(list) ? list : []) {
-        const unit = structuredClone(data);
+        const unit = normalizeSpecialCharacter(structuredClone(data), scene.gameData?.specialChars);
         // The checkpoint crossed a JSON boundary, which breaks the
         // weapon === inventory[i] identity invariant — relink like fromJSON.
         restoreEquippedReference(unit);
@@ -171,7 +172,7 @@ export class BattleSuspendController {
     scene.escapedUnits = (
       Array.isArray(checkpoint.escapedUnits) ? checkpoint.escapedUnits : []
     ).map((data) => {
-      const unit = structuredClone(data);
+      const unit = normalizeSpecialCharacter(structuredClone(data), scene.gameData?.specialChars);
       restoreEquippedReference(unit);
       relinkWeapon(unit);
       registerBattleEntity(scene, unit);
@@ -182,6 +183,7 @@ export class BattleSuspendController {
     }
     scene.nonDeployedUnits = structuredClone(checkpoint.nonDeployedUnits || []);
     for (const unit of scene.nonDeployedUnits) {
+      normalizeSpecialCharacter(unit, scene.gameData?.specialChars);
       restoreEquippedReference(unit);
       relinkWeapon(unit);
       registerBattleEntity(scene, unit);

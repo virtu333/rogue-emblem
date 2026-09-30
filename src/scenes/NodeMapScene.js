@@ -456,9 +456,7 @@ export class NodeMapScene extends Phaser.Scene {
               this.gameData?.dialogue?.actTransitions?.runStartCommander,
               ctx,
             ) || [];
-          const veteran = this.runManager.roster?.find(
-            (unit) => unit.specialCharId === 'old_knight',
-          );
+          const veteran = this.runManager.roster?.find((unit) => unit.specialCharId);
           const entries = [
             ...visionEntries,
             ...voiceEntries,

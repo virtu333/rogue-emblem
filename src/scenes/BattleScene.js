@@ -1,3 +1,5 @@
+import { cantoRuleFor } from '../engine/CantoRule.js';
+import { specialCharacterRefusal } from '../engine/SpecialCharacterDialogue.js';
 import { battleItemBrief, ITEM_ACTION_NOTE } from '../ui/battleItemSummary.js';
 import {
   historyUnitVisible,
@@ -5100,7 +5102,7 @@ export class BattleScene extends Phaser.Scene {
     // Check for Canto: use remaining movement after acting
     if (!skipCanto) {
       // Rooted units cannot use Canto (root may land mid-action via counter-art)
-      const hasCanto = unit.skills?.includes('canto') && !isRooted(unit);
+      const hasCanto = Boolean(cantoRuleFor(unit));
       const movSpent = unit._movementSpent || 0;
       const remaining = unit.stats.MOV - movSpent;
       if (hasCanto && remaining > 0 && unit.faction === 'player') {
@@ -7035,6 +7037,7 @@ export class BattleScene extends Phaser.Scene {
           );
           canUseCure = hasSelfCond || adjAllies.length > 0;
         }
+        const refusal = specialCharacterRefusal(this.gameData, unit, item.effect);
         const reason =
           item.uses !== undefined && item.uses <= 0
             ? 'No uses remaining'
@@ -7045,9 +7048,9 @@ export class BattleScene extends Phaser.Scene {
                 : isCure && !canUseCure
                   ? 'No conditions to cure'
                   : isPromote && !canUsePromote
-                    ? 'Promotion unavailable'
+                    ? refusal || 'Promotion unavailable'
                     : isReclass && !canUseReclass
-                      ? 'No available reclass'
+                      ? refusal || 'No available reclass'
                       : '';
         const usable = !reason;
         let label = item.name;
@@ -7337,7 +7340,11 @@ export class BattleScene extends Phaser.Scene {
 
   showReclassClassPicker(unit, sealItem) {
     if (!sealItem || !canReclass(unit)) {
-      this.showBriefBanner('Cannot reclass this unit.', UI_PALETTE.bad);
+      this.showBriefBanner(
+        specialCharacterRefusal(this.gameData, unit, 'reclass', this.runManager) ||
+          'Cannot reclass this unit.',
+        UI_PALETTE.bad,
+      );
       this.battleState = 'UNIT_ACTION_MENU';
       this.showActionMenu(unit);
       return;
@@ -8335,7 +8342,8 @@ export class BattleScene extends Phaser.Scene {
         return;
       await (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth();
 
-      (this._battleBeats ||= new BattleBeatsController(this)).onLowHealth(attacker);
+      (this._battleBeats ||= new BattleBeatsController(this)).onChipLance(attacker, defender);
+      this._battleBeats.onLowHealth(attacker);
       const continuation = {
         kind: 'combat',
         unitName: attacker.name,

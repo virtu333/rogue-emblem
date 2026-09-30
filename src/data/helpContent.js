@@ -532,6 +532,10 @@ const STATIC_HELP_TABS = [
       {
         title: 'Meta-Progression',
         lines: [
+          { text: 'Gaspar joins every new run.', color: GOLD },
+          { text: 'His traits explain his fixed kit;' },
+          { text: 'Measured Step explains his movement.' },
+          { text: '' },
           { text: 'Two currencies earned each run:', color: GOLD },
           { text: '' },
           { text: 'Valor (gold) — hero upgrades:', color: GOLD },

@@ -1937,7 +1937,7 @@ export class HeadlessBattle {
     this.healTargets = [];
     this._clearSelectedWeaponArt();
 
-    // Canto disabled in MVP
+    // Canto (including Measured Step) is disabled in this harness; scene tests cover it.
     unit.hasActed = true;
     this._handleVillageVisit(unit);
     this.selectedUnit = null;
