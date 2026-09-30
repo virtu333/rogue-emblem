@@ -1,3 +1,4 @@
+import { specialCharacterRefusalText } from './SpecialCharacterDialogue.js';
 // Shared class-change commands. All mutations are synchronous: input cannot
 // interleave weapon grants and seal consumption. Revalidate ownership at apply.
 import {
@@ -19,6 +20,8 @@ export function rosterClassChangeBlock(run, unit, item, gameData) {
   // A seal works from the unit's bag or straight from the convoy.
   if (!consumableSource(run, unit, item) || !((item.uses ?? 1) > 0))
     return 'Seal is no longer available.';
+  const refusal = specialCharacterRefusalText(gameData, unit, item.effect);
+  if (refusal) return refusal;
   if (item.effect === 'promote') {
     if (!canPromote(unit)) return 'Requires a base class at level 10 or higher.';
     return resolvePromotionTargets(unit, gameData.classes, gameData.lords)?.length
@@ -105,6 +108,7 @@ function promote(run, unit, item, promotedClassData, gameData) {
   return { ok: true, notices, droppedSkills, oath };
 }
 function reclass(run, unit, sealItem, newClassData, gameData) {
+  if (!canReclass(unit)) return { ok: false, reason: 'This unit cannot reclass.' };
   const notices = [];
   const oldClassData = gameData.classes.find((c) => c.name === unit.className);
   if (!oldClassData) return { ok: false, reason: 'Reclass data missing.' };

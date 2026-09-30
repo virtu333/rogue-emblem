@@ -85,5 +85,9 @@
   },
   "lord_cael_promoted": {
     "file": "lord_cael_promoted.png"
+  },
+  "special_old_knight": {
+    "file": "special_old_knight.png",
+    "lazy": true
   }
 }

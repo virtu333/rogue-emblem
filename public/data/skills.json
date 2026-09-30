@@ -267,7 +267,11 @@
     "name": "Blink",
     "description": "Once per battle: teleport to an open tile within 4 spaces",
     "trigger": "action",
-    "actionAbility": { "kind": "teleport_self", "range": 4, "perMapLimit": 1 }
+    "actionAbility": {
+      "kind": "teleport_self",
+      "range": 4,
+      "perMapLimit": 1
+    }
   },
   {
     "id": "rally_cry_skill",
@@ -277,7 +281,10 @@
     "actionAbility": {
       "kind": "ally_buff",
       "radius": 2,
-      "stats": { "STR": 2, "SPD": 2 },
+      "stats": {
+        "STR": 2,
+        "SPD": 2
+      },
       "durationPhases": 2,
       "perMapLimit": 1
     }
@@ -287,14 +294,25 @@
     "name": "Healing Circle",
     "description": "Once per battle: restore 15 HP to self and allies within 2 tiles",
     "trigger": "action",
-    "actionAbility": { "kind": "aoe_heal", "radius": 2, "amount": 15, "includeSelf": true, "perMapLimit": 1 }
+    "actionAbility": {
+      "kind": "aoe_heal",
+      "radius": 2,
+      "amount": 15,
+      "includeSelf": true,
+      "perMapLimit": 1
+    }
   },
   {
     "id": "ensnare",
     "name": "Ensnare",
     "description": "Once per battle: root enemies within 2 tiles for 1 phase (may act, not move)",
     "trigger": "action",
-    "actionAbility": { "kind": "aoe_root", "radius": 2, "durationPhases": 1, "perMapLimit": 1 }
+    "actionAbility": {
+      "kind": "aoe_root",
+      "radius": 2,
+      "durationPhases": 1,
+      "perMapLimit": 1
+    }
   },
   {
     "id": "canto",
@@ -307,7 +325,8 @@
       "Holy Knight",
       "Seraph Knight",
       "Great Knight"
-    ]
+    ],
+    "cantoRule": "any"
   },
   {
     "id": "commanders_gambit",
@@ -392,7 +411,11 @@
     "trigger": "on-defend",
     "activation": "always",
     "effects": {
-      "debuffAttacker": { "STR": -1, "MAG": -2, "SPD": -1 }
+      "debuffAttacker": {
+        "STR": -1,
+        "MAG": -2,
+        "SPD": -1
+      }
     },
     "personal": true
   },
@@ -403,7 +426,10 @@
     "trigger": "on-attack",
     "activation": "SKL",
     "effects": {
-      "healLowestAlly": { "range": 3, "percent": 50 }
+      "healLowestAlly": {
+        "range": 3,
+        "percent": 50
+      }
     },
     "personal": true
   },
@@ -525,7 +551,9 @@
     "description": "Heals 50% of damage dealt on attack",
     "trigger": "on-attack",
     "activation": "always",
-    "effects": { "drainPercent": 50 },
+    "effects": {
+      "drainPercent": 50
+    },
     "classInnate": "Revenant"
   },
   {
@@ -534,7 +562,16 @@
     "description": "Reduces incoming damage by 3",
     "trigger": "on-defend",
     "activation": "always",
-    "effects": { "damageReduction": 3 },
+    "effects": {
+      "damageReduction": 3
+    },
     "classInnate": "Dragon Lord"
+  },
+  {
+    "id": "measured_step",
+    "name": "Measured Step",
+    "description": "Use remaining movement after a noncombat action. Not after fighting.",
+    "trigger": "passive",
+    "cantoRule": "noncombat"
   }
 ]

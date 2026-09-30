@@ -85,6 +85,7 @@ function classVoice(voice, className, classes) {
 export function temperamentFor(unit, { voice = null, seed = 0 } = {}) {
   const available = TEMPERAMENT_IDS.filter((id) => voice?.temperaments?.[id]);
   if (!available.length || !unit?.name) return null;
+  if (unit.specialCharId && available.includes(unit.temperament)) return unit.temperament;
   return available[voiceHash(`${seed >>> 0}|temperament|${unit.name}`) % available.length];
 }
 
@@ -93,7 +94,8 @@ export function temperamentLabel(id, voice) {
   return typeof label === 'string' && label.trim() ? label : null;
 }
 
-function lordVoice(unit, voice) {
+function personalVoice(unit, voice) {
+  if (unit?.specialCharId) return voice?.specialChars?.[unit.specialCharId] || null;
   if (!unit?.isLord || typeof unit.name !== 'string') return null;
   return voice?.lords?.[unit.name] || null;
 }
@@ -203,15 +205,23 @@ export function levelUpLine(unit, content, ctx = {}) {
     const milestone = milestoneKey(content);
 
     // Lords are characters, not recruits: their own lines or silence.
-    const lord = lordVoice(unit, voice);
+    const lord = personalVoice(unit, voice);
+    const source = unit.specialCharId ? 'special' : 'lord';
     if (unit.isLord && !lord) return null;
     if (lord) {
       const lu = lord.levelUp || {};
+      const gained = (content.rows || []).filter(
+        (row) => Number(row.gain ?? row.delta ?? 0) > 0,
+      ).length;
+      if (unit.specialCharId && kind !== 'perfect' && !milestone && gained >= 3) {
+        const major = pickFrom(`${source}:major`, lu.major);
+        if (major) return major;
+      }
       if (milestone) {
-        const hit = pickFrom(`lord:m${milestone}`, lu.milestones?.[milestone]);
+        const hit = pickFrom(`${source}:m${milestone}`, lu.milestones?.[milestone]);
         if (hit) return hit;
       }
-      return pickFrom(`lord:${kind}`, lu[kind]) || pickFrom('lord:normal', lu.normal);
+      return pickFrom(`${source}:${kind}`, lu[kind]) || pickFrom(`${source}:normal`, lu.normal);
     }
 
     if (milestone) {
@@ -298,7 +308,7 @@ export function promotionLine(unit, toClass, ctx = {}) {
     const { voice = null, seed = 0 } = ctx;
     if (!voice || !unit?.name) return null;
     const tokens = voiceTokens(unit, voice, ctx);
-    const pool = usable(lordVoice(unit, voice)?.promotion || voice.classes?.[toClass]?.promotion, tokens); // prettier-ignore
+    const pool = usable(personalVoice(unit, voice)?.promotion || voice.classes?.[toClass]?.promotion, tokens); // prettier-ignore
     if (!pool.length) return null;
     return fillVoiceTokens(strideLine(pool, `${seed >>> 0}|${unit.name}|promote:${toClass}`, 0), tokens); // prettier-ignore
   } catch {
@@ -312,6 +322,9 @@ export function fallenLine(unit, ctx = {}) {
     const { voice = null, classes = null, seed = 0 } = ctx;
     if (!voice || !unit?.name || unit.isLord) return null;
     const tokens = voiceTokens(unit, voice, ctx);
+    const personal = usable(voice.specialChars?.[unit.specialCharId]?.fallen, tokens);
+    if (personal.length)
+      return fillVoiceTokens(strideLine(personal, `${seed >>> 0}|${unit.name}|fallen`, 0), tokens);
     const temperament = temperamentFor(unit, { voice, seed });
     const chosen = pickCategory(
       [

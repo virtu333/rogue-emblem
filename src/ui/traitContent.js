@@ -87,7 +87,8 @@ function masteryText(trait, unit, gameData) {
 export function traitEffectText(trait, unit = null, gameData = null) {
   if (!trait) return '';
   // Legendary and retired traits read exactly as the catalog describes them.
-  if (trait.rarity === 'legendary' || trait.retired) return trait.description || '';
+  if (['legendary', 'special'].includes(trait.rarity) || trait.retired)
+    return trait.description || '';
   return (
     masteryText(trait, unit, gameData) ||
     (trait.creationMods ? creationText(trait, unit) : null) ||
@@ -103,5 +104,6 @@ export function traitLines(unit, gameData) {
     name: trait.name,
     text: traitEffectText(trait, unit, gameData),
     legendary: trait.rarity === 'legendary',
+    special: trait.rarity === 'special',
   }));
 }

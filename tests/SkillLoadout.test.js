@@ -2,6 +2,7 @@
 // equipped (all battle reads); a skill learned with every slot full waits on the
 // bench instead of being lost, and the roster swaps skills between battles. An Oath
 // sworn at the cap goes to the bench too (it used to wait, or be given up for).
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
@@ -41,6 +42,7 @@ import { _resetInputFocus } from '../src/utils/inputFocus.js';
 import { MAX_SKILLS } from '../src/utils/constants.js';
 
 const data = loadGameData();
+data.dialogue = JSON.parse(readFileSync(new URL('../data/dialogue.json', import.meta.url)));
 const cls = (name) => data.classes.find((c) => c.name === name);
 let key = 0;
 // Three enemy phases held on a bridge: "Who Held the Bridge", Oath of the Bridge → Pavise.
@@ -309,6 +311,49 @@ describe('the bench in the roster', () => {
     expect(unit.skills).toHaveLength(MAX_SKILLS);
     expect(unit.benchedSkills).toHaveLength(benched);
     expect(saveServiceRun.mock.calls.length).toBeGreaterThanOrEqual(2);
+    sheet.destroy();
+  });
+
+  it('keeps Gaspar personal skills locked in the rendered Skills tab', () => {
+    const run = new RunManager(data);
+    run.startRun();
+    const unit = run.roster.find((u) => u.specialCharId);
+    const { sheet, buttons } = open({ tab: 'skills', setup: { run, unit } });
+    expect(sheet.root.textContent).toContain('Measured Step');
+    expect(sheet.root.textContent).toContain('Personal skills can’t be benched.');
+    expect(buttons()).not.toContain('Bench');
+    sheet.destroy();
+  });
+
+  it('renders Gear and Convoy seal refusals stably without writing narrative history', () => {
+    const run = new RunManager(data);
+    run.startRun();
+    const unit = run.roster.find((u) => u.specialCharId);
+    for (const effect of ['promote', 'reclass']) {
+      const seal = data.consumables.find((c) => c.effect === effect);
+      unit.consumables.push(structuredClone(seal));
+      run.convoy.consumables.push(structuredClone(seal));
+    }
+    const before = structuredClone(run.narrativeSeen);
+    const { sheet } = open({ tab: 'gear', setup: { run, unit } });
+    const refusals = () =>
+      sheet.root
+        .querySelectorAll('small')
+        .map((n) => n.textContent)
+        .filter((t) => t.startsWith('Gaspar:'));
+    const gear = refusals();
+    expect(gear).toHaveLength(2);
+    for (let i = 0; i < 3; i++) {
+      sheet.render();
+      expect(refusals()).toEqual(gear);
+      sheet.tab = 'convoy';
+      sheet.render();
+      expect(refusals()).toEqual(gear);
+      sheet.tab = 'gear';
+      sheet.render();
+    }
+    expect(run.narrativeSeen).toEqual(before);
+    expect(saveServiceRun).not.toHaveBeenCalled();
     sheet.destroy();
   });
 

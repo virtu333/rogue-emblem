@@ -105,9 +105,9 @@ test('DOM Help resolves mobile copy, searches all categories and restores browsi
   const previousScroll = await menu.locator('article').evaluate((el) => el.scrollTop);
   const search = menu.getByRole('searchbox');
   await search.fill('Par');
-  await expect(menu.locator('.re-row').filter({ hasText: 'Battle Objectives' })).toContainText(
-    'Goals',
-  );
+  await expect(
+    menu.locator('.re-row').filter({ hasText: 'Battle Stakes & Rewards' }),
+  ).toContainText('Goals');
   await expect(menu.locator('article')).toContainText('Par: target turns');
   await expect(search).toBeFocused();
   await page.keyboard.press('Home');

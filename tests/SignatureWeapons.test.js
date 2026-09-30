@@ -32,7 +32,7 @@ const plain = data.terrain.find((t) => t.name === 'Plain');
 
 // Owner-approved line (docs/playtest-triage-2026-09-29.md #18), after the sim pass.
 const TABLE = {
-  Edric: { name: 'Rapier', type: 'Sword', might: 7, hit: 95, crit: 5, weight: 2, range: '1' },
+  Edric: { name: 'Rapier', type: 'Sword', might: 6, hit: 95, crit: 5, weight: 2, range: '1' },
   Rowan: { name: 'Godsend', type: 'Lance', might: 8, hit: 85, crit: 10, weight: 5, range: '1' },
   Astrid: { name: 'Windward', type: 'Lance', might: 7, hit: 85, crit: 5, weight: 4, range: '1' },
   Cael: { name: 'Holdfast', type: 'Axe', might: 9, hit: 80, crit: 5, weight: 6, range: '1' },

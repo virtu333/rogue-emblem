@@ -29,6 +29,7 @@
 //  15. many run records strand Close or Back;
 //  16. any of it leaks into landscape phones or desktop.
 import { test, expect } from '@playwright/test';
+import { HELP_TABS } from '../../src/data/helpContent.js';
 import { waitForGame, waitForScene } from './helpers.js';
 import {
   PORTRAIT_PHONES,
@@ -784,7 +785,18 @@ test.describe('help and how to play upright', () => {
     await expect(help.getByRole('button', { name: 'Back to list' })).toHaveCount(0);
     const tab = (label) => help.locator('nav[aria-label="Categories"] .re-btn', { hasText: label });
     await tab('Combat').tap();
-    await expect(help.locator('[aria-label="Entries"] .re-row')).toHaveCount(4);
+    const combatPages = HELP_TABS.find((category) => category.label === 'Combat').pages;
+    const entries = help.locator('[aria-label="Entries"] .re-row');
+    await expect(entries).toHaveCount(combatPages.length);
+    for (const { title } of combatPages)
+      await expect(entries.filter({ hasText: title })).toHaveCount(1);
+    await entries.filter({ hasText: 'Attack Speed & Doubling' }).tap();
+    await expect(
+      detail.getByRole('heading', { name: 'Attack Speed & Doubling', exact: true }),
+    ).toBeVisible();
+    await expectNoSidewaysScroll(page, '.re-reference');
+    await help.getByRole('button', { name: 'Back to list' }).tap();
+    await expect(entries).toHaveCount(combatPages.length);
     await tab('Promo').tap();
     await expect(detail.getByRole('heading', { name: 'Promotion', exact: true })).toBeVisible();
     await expect(help.locator('[aria-label="Entries"]')).toHaveCount(0);

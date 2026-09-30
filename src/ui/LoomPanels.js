@@ -142,7 +142,7 @@ function recruitBlock(view) {
   if (view.traits.length) {
     const list = element('ul', null, 're-loom-recruit-traits');
     for (const trait of view.traits) {
-      const item = element('li', null, trait.legendary ? 'is-legendary' : '');
+      const item = element('li', null, trait.legendary || trait.special ? 'is-legendary' : '');
       item.append(element('strong', trait.name), document.createTextNode(` ${trait.text}`));
       list.append(item);
     }

@@ -1,3 +1,4 @@
+import { contributesToTeamLevel } from './SpecialCharacterPolicy.js';
 // RecruitNodeSystem.js — who waits at a recruit node, known before you choose the road.
 //
 // docs/specs/strategy-layer.md. Pure (no Phaser). Two halves:
@@ -207,6 +208,7 @@ export function resolveRecruitNodeLevel({
   const deployCap = (DEPLOY_LIMITS[act]?.max || 4) + Math.trunc(Number(deployBonus) || 0);
   const cap = Math.max(1, Math.min(RECRUIT_NODE_LEVEL_SQUAD_MAX, deployCap));
   const levels = (Array.isArray(roster) ? roster : [])
+    .filter(contributesToTeamLevel)
     .map(effectiveLevel)
     .sort((a, b) => b - a)
     .slice(0, cap);

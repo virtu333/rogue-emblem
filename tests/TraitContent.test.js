@@ -98,12 +98,14 @@ describe('trait lines on recruit cards', () => {
         name: 'Kindled',
         text: '+1 Mag and +10% Mag growth (the stat it fights with).',
         legendary: false,
+        special: false,
       },
       {
         id: 'reckless',
         name: 'Reckless',
         text: trait('reckless').description,
         legendary: false,
+        special: false,
       },
     ]);
     expect(traitLines({ traits: ['standard_bearer'] }, gameData)[0].legendary).toBe(true);

@@ -118,6 +118,24 @@ test('production mobile bundle boots offline and uses traced battle art without 
   await page.getByRole('button', { name: 'Travel', exact: true }).tap();
   await page.waitForFunction(() => window.__emblemRogueGame.scene.isActive('Battle'));
   await expect(page.locator('#game-wrapper')).toHaveAttribute('data-terrain-art', 'procedural');
+  // Three starters enable formation placement before turn 1. Dismiss camera notes,
+  // then exercise the production placement controls rather than bypassing the screen.
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle')._formation?.ready === true,
+  );
+  const cameraNote = page
+    .getByRole('dialog', { name: 'Field notes', exact: true })
+    .getByRole('button', { name: 'Continue', exact: true });
+  for (let i = 0; i < 10; i++) {
+    await page.waitForTimeout(300);
+    if (await cameraNote.isVisible()) {
+      await page.waitForTimeout(550);
+      await cameraNote.tap();
+    } else if (await page.getByRole('button', { name: 'Auto-place', exact: true }).isVisible())
+      break;
+  }
+  await page.getByRole('button', { name: 'Auto-place', exact: true }).tap();
+  await page.getByRole('button', { name: 'Start battle', exact: true }).tap();
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -126,6 +144,13 @@ test('production mobile bundle boots offline and uses traced battle art without 
       }),
     )
     .toBe(true);
+  expect(
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const gaspar = s.playerUnits.find((unit) => unit.specialCharId === 'old_knight');
+      return { name: gaspar?.name, sprite: gaspar?.graphic?.texture?.key };
+    }),
+  ).toEqual({ name: 'Gaspar', sprite: 'traced-special_old_knight' });
   expect(
     await page.evaluate(() => window.__emblemRogueGame.registry.get('cloud') || null),
   ).toBeNull();

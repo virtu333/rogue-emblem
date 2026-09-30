@@ -79,7 +79,7 @@ test('rebuilt sprites load with tile anchors and remain aligned after rewind', a
     expect(u.y).toBe(u.pos.y);
   }
 });
-test('classic comparison loads neither rebuilt nor traced textures', async ({ page }) => {
+test('classic comparison uses the ordinary Paladin fallback for Gaspar', async ({ page }) => {
   await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1&spriteArt=classic');
   await waitForScene(page, 'Battle');
   expect(

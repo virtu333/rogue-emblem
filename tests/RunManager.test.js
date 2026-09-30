@@ -38,9 +38,9 @@ describe('RunManager', () => {
   });
 
   describe('startRun', () => {
-    it('creates roster with 2 lords', () => {
+    it('creates roster with 2 lords and Gaspar', () => {
       rm.startRun();
-      expect(rm.roster.length).toBe(2);
+      expect(rm.roster.length).toBe(3);
     });
 
     it('first unit is Edric (Lord)', () => {
@@ -58,15 +58,15 @@ describe('RunManager', () => {
     it('adds exactly one extra starter when extraStartingUnitTier is active', () => {
       const rmMeta = new RunManager(gameData, { extraStartingUnitTier: 1 });
       rmMeta.startRun();
-      expect(rmMeta.roster).toHaveLength(3);
-      expect(rmMeta.roster[2].className).toBe('Archer');
-      expect(rmMeta.usedRecruitNames[rmMeta.roster[2].className]).toContain(rmMeta.roster[2].name);
+      expect(rmMeta.roster).toHaveLength(4);
+      expect(rmMeta.roster[3].className).toBe('Archer');
+      expect(rmMeta.usedRecruitNames[rmMeta.roster[3].className]).toContain(rmMeta.roster[3].name);
     });
 
     it('extra starter class is constrained to unlocked tier pool', () => {
       const rmMeta = new RunManager(gameData, { extraStartingUnitTier: 3 });
       rmMeta.startRun();
-      const extra = rmMeta.roster[2];
+      const extra = rmMeta.roster[3];
       const allowed = new Set(['Archer', 'Knight', 'Cavalier']);
       expect(allowed.has(extra.className)).toBe(true);
     });
@@ -76,7 +76,7 @@ describe('RunManager', () => {
       try {
         const rmMeta = new RunManager(gameData, { extraStartingUnitTier: 1, lethalArmoryTier: 2 });
         rmMeta.startRun();
-        const extra = rmMeta.roster[2];
+        const extra = rmMeta.roster[3];
         // Archer recruit gets: base bow + Longbow (recruit perk) + Lethal Armory weapon = 3
         expect(extra.inventory.length).toBe(3);
         // The granted weapon is equipped, so it moves to the top (equipped-first).
@@ -92,7 +92,7 @@ describe('RunManager', () => {
       try {
         const baselineRm = new RunManager(gameData, { extraStartingUnitTier: 1 });
         baselineRm.startRun();
-        const baseline = baselineRm.roster[2];
+        const baseline = baselineRm.roster[3];
 
         const boostedRm = new RunManager(gameData, {
           extraStartingUnitTier: 1,
@@ -101,7 +101,7 @@ describe('RunManager', () => {
           recruitRandomSkill: true,
         });
         boostedRm.startRun();
-        const boosted = boostedRm.roster[2];
+        const boosted = boostedRm.roster[3];
 
         expect(boosted.stats.HP).toBe(baseline.stats.HP + 2);
         expect(boosted.currentHP).toBe(baseline.currentHP + 2);
@@ -172,7 +172,7 @@ describe('RunManager', () => {
           recruitStartingVulnerary: 1,
         });
         rmMeta.startRun();
-        const extra = rmMeta.roster[2];
+        const extra = rmMeta.roster[3];
         expect(extra.consumables.some((c) => c.name === 'Vulnerary')).toBe(true);
       } finally {
         randomSpy.mockRestore();
@@ -187,7 +187,7 @@ describe('RunManager', () => {
           recruitWeaponForge: 2,
         });
         rmMeta.startRun();
-        const extra = rmMeta.roster[2];
+        const extra = rmMeta.roster[3];
         const combatWeapons = extra.inventory.filter((w) => w.type !== 'Staff');
         expect(combatWeapons.length).toBeGreaterThan(0);
         for (const weapon of combatWeapons) {
@@ -214,7 +214,7 @@ describe('RunManager', () => {
           recruitWeaponForge: 1,
         });
         rmMeta.startRun();
-        const extra = rmMeta.roster[2];
+        const extra = rmMeta.roster[3];
         // Archer: base bow + Longbow + Lethal Armory Steel Bow, all forged once
         expect(extra.inventory.length).toBe(3);
         for (const weapon of extra.inventory) {
@@ -233,7 +233,7 @@ describe('RunManager', () => {
           recruitStartingAccessory: 1,
         });
         rmMeta.startRun();
-        const extra = rmMeta.roster[2];
+        const extra = rmMeta.roster[3];
         expect(extra.accessory).toBeTruthy();
         expect(typeof extra.accessory.uid).toBe('string');
         // Archer is physical: never a Magic Ring
@@ -251,7 +251,7 @@ describe('RunManager', () => {
       try {
         const rmMeta = new RunManager(gameData, { extraStartingUnitTier: 4 });
         rmMeta.startRun();
-        const extra = rmMeta.roster[2];
+        const extra = rmMeta.roster[3];
         expect(extra.className).toBe('Paladin');
 
         const names = extra.inventory.map((w) => w.name).sort();
@@ -1805,7 +1805,7 @@ describe('RunManager', () => {
     it('returns copies of roster units', () => {
       rm.startRun();
       const roster = rm.getRoster();
-      expect(roster.length).toBe(2);
+      expect(roster.length).toBe(3);
       // Modifying returned roster shouldn't affect internal state
       roster[0].name = 'CHANGED';
       expect(rm.roster[0].name).not.toBe('CHANGED');
@@ -1828,7 +1828,7 @@ describe('RunManager', () => {
       expect(restored.gold).toBe(500);
       expect(restored.completedBattles).toBe(3);
       expect(restored.currentNodeId).toBe(startNode.id);
-      expect(restored.roster.length).toBe(2);
+      expect(restored.roster.length).toBe(3);
       expect(restored.roster[0].name).toBe('Edric');
       expect(restored.nodeMap.actId).toBe('act1');
     });
@@ -2554,7 +2554,7 @@ describe('Fallen unit tracking and revival', () => {
     rm.roster.push(recruit);
 
     // Simulate battle: 2 units survive, 1 falls
-    const survivors = [rm.roster[0], rm.roster[1]];
+    const survivors = rm.roster.slice(0, 3);
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.fallenUnits.length).toBe(1);
@@ -2586,7 +2586,7 @@ describe('Fallen unit tracking and revival', () => {
     fallen.accessory = structuredClone(accessory);
     rm.roster.push(fallen);
 
-    const survivors = [rm.roster[0], rm.roster[1]];
+    const survivors = rm.roster.slice(0, 3);
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: 2, consumables: 1 });
@@ -2621,7 +2621,7 @@ describe('Fallen unit tracking and revival', () => {
     fallen.accessory = structuredClone(accessory);
     rm.roster.push(fallen);
 
-    const survivors = [rm.roster[0], rm.roster[1]];
+    const survivors = rm.roster.slice(0, 3);
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual(caps);
@@ -2656,7 +2656,7 @@ describe('Fallen unit tracking and revival', () => {
     fallen.accessory = structuredClone(accessory);
     rm.roster.push(fallen);
 
-    const survivors = [rm.roster[0], rm.roster[1]];
+    const survivors = rm.roster.slice(0, 3);
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: caps.weapons, consumables: 1 });
@@ -2689,7 +2689,7 @@ describe('Fallen unit tracking and revival', () => {
     fallen.accessory = null;
     rm.roster.push(fallen);
 
-    const survivors = [rm.roster[0], rm.roster[1]];
+    const survivors = rm.roster.slice(0, 3);
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: 1, consumables: 0 });
@@ -2720,7 +2720,7 @@ describe('Fallen unit tracking and revival', () => {
     fallen.accessory = null;
     rm.roster.push(fallen);
 
-    const survivors = [rm.roster[0], rm.roster[1]];
+    const survivors = rm.roster.slice(0, 3);
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: caps.weapons, consumables: 0 });
@@ -2744,7 +2744,7 @@ describe('Fallen unit tracking and revival', () => {
 
     const success = rm.reviveFallenUnit(fallenName, 1000);
     expect(success).toBe(true);
-    expect(rm.roster.length).toBe(2); // Back to 2 (was 1, revived 1)
+    expect(rm.roster.length).toBe(3); // Back to 3 (was 2, revived 1)
     expect(rm.roster.find((u) => u.name === fallenName).currentHP).toBe(1);
   });
 
@@ -3998,9 +3998,8 @@ describe('blessing run-start effect application', () => {
     rm.applyRunStartBlessingEffects();
 
     rm.roster.forEach((unit, idx) => {
-      expect(unit.isLord).toBe(true);
       for (const stat of ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']) {
-        expect(unit.growths[stat]).toBe((baseGrowths[idx][stat] || 0) + 12);
+        expect(unit.growths[stat]).toBe((baseGrowths[idx][stat] || 0) + (unit.isLord ? 12 : -10));
       }
     });
     const lordBonuses = rm.getEffectiveLordGrowthBonuses();

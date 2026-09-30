@@ -9155,6 +9155,35 @@
           "I stood at empty gates for years. Now there are people behind me. That's better."
         ]
       }
+    },
+    "specialChars": {
+      "old_knight": {
+        "levelUp": {
+          "normal": [
+            "A little left in these bones, then.",
+            "Experience is knowing which effort to spare."
+          ],
+          "blank": [
+            "The young will do the growing. I will mind the road."
+          ],
+          "perfect": [
+            "Well. Perhaps the years have been flattering me."
+          ],
+          "milestones": {
+            "10": [
+              "Ten more lessons. I hope someone was watching."
+            ]
+          },
+          "major": [
+            "Apparently there was something left to learn.",
+            "Do not tell the horse. It will expect more of me."
+          ]
+        },
+        "fallen": [
+          "Ride on. You know the road now.",
+          "Do not turn back for me. Keep them safe."
+        ]
+      }
     }
   },
   "finaleRally": {
@@ -9452,6 +9481,53 @@
         "Someday someone will sing about this. I want to be in the verse.",
         "Look at us. Look at all of us. We're a story now.",
         "Hold on to this moment, everyone. We're writing the ending."
+      ]
+    },
+    "specialChars": {
+      "old_knight": [
+        "My last charge is yours. Make it count."
+      ]
+    }
+  },
+  "specialChars": {
+    "old_knight": {
+      "intro": [
+        "I will ride ahead. Watch my hands, then choose your own stroke."
+      ],
+      "victory": [
+        "You have no need of an old man's shadow now. That is a victory worth the ride."
+      ],
+      "revival": [
+        "The saddle is still warm. I suppose retirement must wait."
+      ],
+      "lowHP": [
+        "Still here. The horse seems surprised.",
+        "I have been worse. I was younger then, which helped.",
+        "A scratch. An increasingly persuasive scratch."
+      ],
+      "onCrit": [
+        "The hand remembers."
+      ],
+      "onKill": [
+        "Hold your line. There is more road ahead."
+      ],
+      "reclassRefusal": [
+        "A new class? At my age? I would sooner teach the horse to fly.",
+        "Thirty years in this armor. It knows me better than any seal ever will.",
+        "Save the seal for someone who still has growing to do.",
+        "I tried being something else once. The horse objected."
+      ],
+      "promoteRefusal": [
+        "Promote me again and I outrank the king. Neither of us wants that.",
+        "There is no rank above tired, and I already hold it."
+      ],
+      "onChipLance": [
+        "Watch the opening. It is yours.",
+        "There. A lesson with room for an answer."
+      ],
+      "onKillSword": [
+        "Some lessons are best ended quickly.",
+        "Old hands. Short work."
       ]
     }
   }

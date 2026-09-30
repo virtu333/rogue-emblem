@@ -1,3 +1,4 @@
+import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { saveServiceRun } from './serviceSave.js';
 import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
@@ -440,6 +441,10 @@ export class MobileRosterSheet {
     });
   }
   stats(unit) {
+    if (unit.specialCharId) {
+      const def = this.gameData.specialChars?.find((entry) => entry.id === unit.specialCharId);
+      this.card('Biography', def?.bio || '');
+    }
     const conditions = statusDescriptions(unit);
     if (conditions.length)
       this.card(
@@ -508,7 +513,7 @@ export class MobileRosterSheet {
           ? 'Flying — no terrain defense or avoid bonus.'
           : `Defense +${parseInt(terrain.defBonus) || 0} · Avoid +${parseInt(terrain.avoidBonus) || 0}`,
       );
-    if (unit.faction !== 'enemy') {
+    if (unit.faction !== 'enemy' && !skipsClassProgression(unit)) {
       const mastered = isMastered(unit, this.gameData.classes, this.gameData.traits);
       const perk = getMasteryPerk(unit, this.gameData.classes, this.gameData.traits);
       const progress = getMasteryProgress(unit, this.gameData.classes);
@@ -541,10 +546,15 @@ export class MobileRosterSheet {
         ],
         helpPreview(MASTERY_HELP),
       );
+    }
+    if (unit.faction !== 'enemy') {
       const traits = traitLines(unit, this.gameData);
       if (traits.length) this.body.append(el('h3', 'Traits', 'mr-section'));
       for (const trait of traits)
-        this.card(`${trait.legendary ? 'Legendary · ' : ''}${trait.name}`, trait.text);
+        this.card(
+          `${trait.legendary ? 'Legendary · ' : trait.special ? 'Special · ' : ''}${trait.name}`,
+          trait.text,
+        );
       // Flavor only: how this recruit talks (level-ups, promotion, last words).
       const temperament = unit.isLord ? null : unitTemperament(this.scene, unit);
       if (temperament)
@@ -698,7 +708,7 @@ export class MobileRosterSheet {
       box.append(
         el(
           'p',
-          'New: a unit keeps every skill it learns. Only five go into battle; the rest wait on its bench, and you can swap them between battles. Lord and class skills can’t be benched.',
+          'New: a unit keeps every skill it learns. Only five go into battle; the rest wait on its bench, and you can swap them between battles. Personal and class skills can’t be benched.',
           'mr-callout-lesson',
         ),
       );
@@ -762,7 +772,8 @@ export class MobileRosterSheet {
     for (const id of unit.skills || []) {
       const c = this.card(this.skillName(id), this.skillLine(id));
       if (!manage) continue;
-      if (locked.has(id)) c.append(el('small', 'Can’t be benched', 'mr-skill-locked'));
+      if (locked.has(id))
+        c.append(el('small', benchSkillBlock(unit, id, this.gameData), 'mr-skill-locked'));
       else
         c.append(
           this.button('Bench', () =>

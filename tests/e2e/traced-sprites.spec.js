@@ -128,7 +128,15 @@ test('every class, faction, lord and boss resolves to a traced texture on the sh
     const b = game.scene.getScene('Battle');
     const { classes, lords, enemies } = b.gameData;
     const lordClasses = new Set(lords.flatMap((l) => [l.class, l.promotedClass]));
-    const probes = [];
+    const probes = [
+      {
+        name: 'Gaspar',
+        specialCharId: 'old_knight',
+        spriteId: 'special_old_knight',
+        className: 'Paladin',
+        faction: 'player',
+      },
+    ];
     for (const c of classes) {
       if (lordClasses.has(c.name)) continue;
       if (c.tier === 'boss') {

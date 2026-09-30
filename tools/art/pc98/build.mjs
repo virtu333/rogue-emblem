@@ -86,7 +86,7 @@ const plan = buildPlan(baseSet);
 const generated = (id) => Boolean(variantSources[id]) && existsSync(join(VARIANT_DIR, `${id}.png`));
 const variantIds = plan.jobs.map((j) => j.id).filter((id) => !baseSet.has(id) && generated(id));
 const ids = [...baseIds, ...variantIds].sort();
-const isVariant = (id) => !baseSet.has(id);
+const isVariant = (id) => !baseSet.has(id) || rebuiltManifest[id]?.lazy === true;
 const todo = ONLY ? ids.filter((id) => ONLY.includes(id)) : ids;
 
 for (const dir of [...SIZES.map(String), 'baked', 'plates', 'atlas'])

@@ -7,12 +7,14 @@
 // skills between the two lists here. Pure: no Phaser, no RNG.
 //
 // Locked skills cannot be benched once equipped: a lord's own skills and the skills
-// its class line grants innately (the same ones the act-transition restore
-// protects). One that arrives with every slot full waits on the bench like any other.
+// its class line grants innately, plus a named character’s fixed kit. Class innates
+// are the same ones the act-transition restore protects. One that arrives with
+// every slot full waits on the bench like any other.
 //
 // `benchedUnseen` lists skills benched since the player last looked at the unit's
 // Skills tab: the roster's notice, its unit flag and the route map's Roster pip.
 
+import { specialCharacterDefinition } from './SpecialCharacterPolicy.js';
 import { MAX_SKILLS } from '../utils/constants.js';
 import { benchedSkillsOf, getClassInnateSkills, learnSkill } from './UnitManager.js';
 import { unitBaseClassName } from './ClassLineage.js';
@@ -25,7 +27,7 @@ function personalSkillId(text) {
   return name ? name.toLowerCase().replace(/\s+/g, '_') : null;
 }
 
-/** Skills that can't be benched: a lord's own, and the class line's innates. */
+/** Locked skills: personal/fixed kits and the class line's innates. */
 export function lockedSkillIds(unit, gameData = {}) {
   const locked = new Set();
   const lord = unit?.isLord ? (gameData.lords || []).find((l) => l?.name === unit.name) : null;
@@ -33,6 +35,8 @@ export function lockedSkillIds(unit, gameData = {}) {
   if (personal) locked.add(personal);
   if (lord?.personalSkillL20?.skillId) locked.add(lord.personalSkillL20.skillId);
   if (unit?._personalSkillL20?.skillId) locked.add(unit._personalSkillL20.skillId);
+  for (const id of specialCharacterDefinition(unit, gameData.specialChars)?.skills || [])
+    locked.add(id);
   const skillsData = gameData.skills || [];
   for (const id of getClassInnateSkills(unit?.className, skillsData)) locked.add(id);
   const base = unit?.tier === 'promoted' ? unitBaseClassName(unit, gameData.classes) : null;
@@ -43,6 +47,8 @@ export function lockedSkillIds(unit, gameData = {}) {
 /** Why `skillId` cannot be benched now, or ''. */
 export function benchSkillBlock(unit, skillId, gameData = {}) {
   if (!unit?.skills?.includes(skillId)) return 'That skill is not equipped.';
+  if (specialCharacterDefinition(unit, gameData.specialChars)?.skills?.includes(skillId))
+    return 'Personal skills can’t be benched.';
   if (lockedSkillIds(unit, gameData).has(skillId))
     return unit?.isLord
       ? 'Lord and class skills can’t be benched.'

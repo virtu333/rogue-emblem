@@ -40,7 +40,7 @@ export function showRunRecords(scene) {
     for (const record of rows)
       menu.body.append(
         button(
-          `${new Date(record.endedAt).toLocaleDateString()} · ${record.difficulty} · Slot ${record.slot} · ${record.roster
+          `${new Date(record.endedAt).toLocaleDateString()} · ${record.difficulty}${record.noMetaMode === true ? ' · No Meta Victory' : ''} · Slot ${record.slot} · ${record.roster
             .filter((u) => u.isLord)
             .map((u) => u.name)
             .join(' & ')}`,
@@ -57,6 +57,7 @@ export function showRunRecords(scene) {
         `${record.difficulty} · ${record.actsCleared} acts cleared${record.totalTurns == null ? '' : ` · ${record.totalTurns} turns`}${record.shadow == null ? '' : ` · ${shadowSummary(record.shadow, scene.gameData?.eclipse)}`} · Seed ${record.seed ?? 'unknown'}`,
       ),
     );
+    if (record.noMetaMode === true) menu.body.append(element('p', 'Badge: No Meta Victory'));
     for (const unit of record.roster) {
       const title = unit.epithet
         ? titledName(unit.name, { text: unit.epithet, form: unit.epithetForm })

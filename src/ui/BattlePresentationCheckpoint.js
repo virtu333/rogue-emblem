@@ -1,3 +1,4 @@
+import { cantoRuleFor } from '../engine/CantoRule.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { revealSettledVision } from './BattleActionCompletion.js';
 import { findBattleEntity, isBattleEntityId } from '../engine/BattleEntityIdentity.js';
@@ -113,7 +114,11 @@ export function completeResolvedAction(scene, continuation) {
       ally.graphic?.clearTint?.();
     }
   } else if (unit) {
-    scene.finishUnitAction(unit, { skipCanto: continuation.skipCanto === true });
+    scene.finishUnitAction(unit, {
+      skipCanto:
+        continuation.skipCanto === true ||
+        (continuation.kind === 'combat' && cantoRuleFor(unit) === 'noncombat'),
+    });
     return;
   }
   scene.selectedUnit = null;

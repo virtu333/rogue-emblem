@@ -1,3 +1,4 @@
+import { contributesToTeamLevel } from './SpecialCharacterPolicy.js';
 import {
   XP_STAT_NAMES,
   BASE_CLASS_LEVEL_CAP,
@@ -14,7 +15,7 @@ export const REVIVAL_GROWTH_PENALTY = 10;
 
 // Use the existing XP tier equivalence (promoted +12); never grant a free promotion.
 export function revivalCatchUpPlan(unit, roster = []) {
-  const living = roster.filter((u) => u !== unit && u.currentHP > 0);
+  const living = roster.filter((u) => u !== unit && u.currentHP > 0 && contributesToTeamLevel(u));
   const current = Math.max(1, Math.trunc(Number(unit.level) || 1));
   const average = living.length
     ? Math.floor(living.reduce((sum, u) => sum + getXpEffectiveLevel(u), 0) / living.length)

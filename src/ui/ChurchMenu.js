@@ -1,3 +1,4 @@
+import { specialCharacterEntries } from '../engine/SpecialCharacterDialogue.js';
 import { revivalCatchUpPlan } from '../engine/RevivalCatchUp.js';
 import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
@@ -155,7 +156,15 @@ export class ChurchMenu {
           describe: () =>
             `${getReviveCost(unit)} gold. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels toward the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'}${starterLine(unit, this.scene.gameData)} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
           blocked: (u) => reviveBlock(u),
-          apply: (u) => this.finish(ruins ? reviveAtRuins(run, nodeId, u) : reviveAtChurch(run, u)),
+          apply: (u) => {
+            const result = ruins ? reviveAtRuins(run, nodeId, u) : reviveAtChurch(run, u);
+            const line = specialCharacterEntries(this.scene.gameData, u, 'revival')[0]?.line;
+            return this.finish(
+              result.ok && line
+                ? { ...result, message: `${result.message} ${u.name}: ${line}` }
+                : result,
+            );
+          },
         }),
       );
       b.disabled = !!reason;

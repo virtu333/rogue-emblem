@@ -18,8 +18,8 @@ export function rebuiltSpritesEnabled(search) {
 // Most entries are pre-rendered to their final 64/128px texture by
 // tools/bakeRebuiltSprites.mjs; the ~1250px sources never ship.
 export function preloadRebuiltSprites(scene) {
-  if (!rebuiltSpritesEnabled()) return;
   for (const [key, entry] of Object.entries(manifest)) {
+    if (!rebuiltSpritesEnabled()) continue;
     if (entry.texture) continue; // Built at runtime from an already-loaded class texture.
     if (!scene.textures.exists(`rebuilt-${key}`))
       scene.load.image(
@@ -61,6 +61,10 @@ export function prepareRebuiltSprites(scene) {
 
 export function rebuiltSpriteKey(scene, unit) {
   if (!rebuiltSpritesEnabled()) return null;
+  if (unit?.specialCharId) {
+    const own = `rebuilt-special_${unit.specialCharId}`;
+    if (scene.textures.exists(own)) return own;
+  }
   let key;
   if (unit.faction === 'enemy') {
     const bossKey = `boss_${unit.name?.toLowerCase().replace(/ /g, '_')}`;

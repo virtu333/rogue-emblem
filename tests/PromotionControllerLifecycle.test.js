@@ -100,3 +100,26 @@ for (const shutdown of [false, true])
       spy.mockRestore();
     }
   });
+
+it('Gaspar refuses a Master Seal through the scene flow without spending item or action', async () => {
+  const { scene, seal, controller } = fixture();
+  const { loadGameData } = await import('./testData.js');
+  const { readFileSync } = await import('node:fs');
+  const { createVeteranKnight } = await import('../src/engine/SpecialCharacters.js');
+  scene.gameData = loadGameData();
+  scene.gameData.dialogue = JSON.parse(
+    readFileSync(new URL('../data/dialogue.json', import.meta.url)),
+  );
+  const unit = createVeteranKnight(scene.gameData);
+  unit.consumables.push(seal);
+  expect(await controller.executePromotion(unit, seal)).toBe(false);
+  expect(scene.showBriefBanner).toHaveBeenCalledWith(
+    expect.stringMatching(/^Gaspar: /),
+    expect.anything(),
+  );
+  expect(scene.battleState).toBe('UNIT_ACTION_MENU');
+  expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
+  expect(scene.finishUnitAction).not.toHaveBeenCalled();
+  expect(seal.uses).toBe(1);
+  expect(unit.consumables).toContain(seal);
+});

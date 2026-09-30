@@ -1,3 +1,9 @@
+import {
+  canReclassSpecial,
+  canPromoteSpecial,
+  skipsClassProgression,
+  normalizeSpecialCharacter,
+} from './SpecialCharacterPolicy.js';
 // UnitManager.js — Pure unit creation, leveling, XP, promotion functions
 // No Phaser imports. Matches Combat.js pattern (stateless helpers).
 
@@ -191,7 +197,7 @@ export function learnSkill(unit, skillId, { bench = true } = {}) {
 export function checkLevelUpSkills(unit, classesData, droppedSkills = []) {
   const learned = [];
   // Class curricula are player progression; enemies use assignEnemySkills.
-  if (unit.faction === 'enemy') return learned;
+  if (unit.faction === 'enemy' || skipsClassProgression(unit)) return learned;
 
   const cls = classesData.find((c) => c.name === unit.className);
   const tryLearn = (skillId) => {
@@ -240,6 +246,7 @@ export function checkLevelUpSkills(unit, classesData, droppedSkills = []) {
  */
 export function skillGateLevels(unit, classesData = []) {
   const gates = new Map();
+  if (skipsClassProgression(unit)) return gates;
   const add = (skillId, level) => {
     if (!skillId) return;
     if (!gates.has(skillId) || level < gates.get(skillId)) gates.set(skillId, level);
@@ -1176,6 +1183,7 @@ export function calculateCombatXP(attacker, defender, defenderDied) {
 
 /** Check if unit can promote (base tier, level >= 10). */
 export function canPromote(unit) {
+  if (!canPromoteSpecial(unit)) return false;
   return unit.tier === 'base' && unit.level >= PROMOTION_MIN_LEVEL;
 }
 
@@ -1185,6 +1193,7 @@ export function canPromote(unit) {
  */
 export function normalizeUnitClassState(unit, classData) {
   if (!unit || !classData) return unit;
+  normalizeSpecialCharacter(unit);
 
   const canonicalTier = classData.tier || unit.tier || 'base';
   unit.tier = canonicalTier;
@@ -1271,6 +1280,7 @@ export function resolvePromotionTargetClass(unit, classesData, lordsData = []) {
  * instead of losing them silently.
  */
 export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsData) {
+  if (!canPromoteSpecial(unit)) return { learnedSkills: [], droppedSkills: [] };
   // Apply promotion bonuses to stats
   for (const stat of [...XP_STAT_NAMES, 'MOV']) {
     const bonus = promotionBonuses[stat] || 0;
@@ -1381,6 +1391,7 @@ const RECLASS_SEAL_MOVE_TYPES = {
 /** Check if a unit can reclass at all (not lord, not Dancer/Bard). */
 export function canReclass(unit) {
   if (!unit) return false;
+  if (!canReclassSpecial(unit)) return false;
   if (unit.isLord) return false;
   if (RECLASS_EXCLUDED_CLASSES.has(unit.className)) return false;
   return true;
@@ -1475,7 +1486,7 @@ export function reclassUnit(
   skillsData,
   traitsData = null,
 ) {
-  if (!unit || !newClassData || !oldClassData) return;
+  if (!unit || !newClassData || !oldClassData || !canReclass(unit)) return;
 
   const oldMaxHP = unit.stats.HP;
 

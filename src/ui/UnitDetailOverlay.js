@@ -1,3 +1,4 @@
+import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { canInspectUnit } from '../engine/BattleInformation.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import {
@@ -290,6 +291,13 @@ export class UnitDetailOverlay {
       this._unitObjects.push(downArrow);
     }
 
+    const bio = this.gameData?.specialChars?.find((entry) => entry.id === unit.specialCharId)?.bio;
+    if (bio) {
+      y += 16;
+      const text = this._unitText(lx, y, bio, UI_PALETTE.muted, '8px');
+      text.setWordWrapWidth(OVERLAY_W - 112);
+      y += text.height;
+    }
     y += 16;
     const tierStr = unit.tier === 'promoted' ? 'Promoted' : 'Base';
     this._unitText(
@@ -596,7 +604,7 @@ export class UnitDetailOverlay {
     }
 
     // Class mastery (player/NPC recruits + lords — not generic enemies)
-    if (unit.faction !== 'enemy') {
+    if (unit.faction !== 'enemy' && !skipsClassProgression(unit)) {
       const classesData = this.gameData?.classes || null;
       const traitsData = this.gameData?.traits || null;
       if (classesData) {
@@ -629,12 +637,19 @@ export class UnitDetailOverlay {
           y += 13;
         }
       }
-
+    }
+    if (unit.faction !== 'enemy') {
       // Traits (recruits roll 0-2; lords roll one)
       const unitTraits = traitLines(unit, this.gameData);
       if (unitTraits.length > 0) {
         const names = unitTraits.map((t) => t.name).join(', ');
-        const traitText = this._tabText(lx, y, `Traits: ${names}`, UI_PALETTE.rarityEpic, '9px');
+        const traitText = this._tabText(
+          lx,
+          y,
+          `Traits: ${names}`,
+          unitTraits.some((t) => t.special) ? UI_PALETTE.accentText : UI_PALETTE.rarityEpic,
+          '9px',
+        );
         const descriptions = unitTraits.map((t) => `${t.name}: ${t.text}`).join('\n');
         traitText.setInteractive({ useHandCursor: true });
         traitText.on('pointerover', () => this._showSkillTooltip(traitText, descriptions));

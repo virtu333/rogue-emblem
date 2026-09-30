@@ -1,3 +1,4 @@
+import { normalizeSpecialCharacter } from './SpecialCharacterPolicy.js';
 import { migrateUnitTraits } from './TraitSystem.js';
 import { normalizeBattleRecruits, reconcileRecruitIdentities } from './BattleRecruits.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
@@ -26,7 +27,8 @@ export function captureBattleWorldState(scene) {
 
 export function restoreBattleWorldState(scene, snapshot) {
   for (const group of [...UNIT_GROUPS, 'escapedUnits', 'nonDeployedUnits']) {
-    for (const unit of scene[group] || []) migrateUnitTraits(unit);
+    for (const unit of scene[group] || [])
+      migrateUnitTraits(normalizeSpecialCharacter(unit, scene.gameData?.specialChars));
   }
   const grid = scene.grid;
   // Older saves have no terrain snapshot. Preserve their existing fallback

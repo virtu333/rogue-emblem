@@ -358,7 +358,7 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
 
       // A real tap opens the other unit's details.
       const cards = sheet.getByRole('navigation', { name: 'Units' }).getByRole('button');
-      await expect(cards).toHaveCount(2);
+      await expect(cards).toHaveCount(3);
       const second = await cards.nth(1).locator('strong').innerText();
       await cards.nth(1).tap();
       await expect(cards.nth(1)).toHaveAttribute('aria-pressed', 'true');
@@ -380,7 +380,9 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
         const first = units[0];
         for (let i = 0; i < 14; i++)
           units.push({ ...first, name: `A very long traveling companion name ${i}` });
-        overlay._mobileSheet.index = 12;
+        overlay._mobileSheet.index = units.findIndex(
+          (unit) => unit.name === 'A very long traveling companion name 10',
+        );
         overlay._mobileSheet.render();
       });
       const strip = sheet.locator('.mr-units');

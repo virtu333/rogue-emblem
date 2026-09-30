@@ -1,3 +1,4 @@
+import { contributesToTeamLevel } from './SpecialCharacterPolicy.js';
 import { RECRUIT_PROMOTION_BASE_LEVEL, BOSS_RECRUIT_PROMOTED_PENALTY } from '../utils/constants.js';
 import { findCommander } from './Commander.js';
 
@@ -40,7 +41,7 @@ export function resolveRecruitScalingTargets(units) {
  * Promoted units count as RECRUIT_PROMOTION_BASE_LEVEL + their promoted level.
  */
 export function resolveTeamAverageLevel(units) {
-  const roster = Array.isArray(units) ? units : [];
+  const roster = (Array.isArray(units) ? units : []).filter(contributesToTeamLevel);
   if (roster.length === 0) return 1;
   let sum = 0;
   for (const u of roster) {

@@ -370,5 +370,19 @@
       }
     },
     "masteryBattlesDelta": 2
+  },
+  {
+    "id": "old_campaigner",
+    "name": "Campaign Veteran",
+    "description": "Fixed promoted kit; low XP and growth. Home-base growth upgrades count half.",
+    "rarity": "special",
+    "specialCharId": "old_knight"
+  },
+  {
+    "id": "set_in_his_ways",
+    "name": "Set in His Ways",
+    "description": "Cannot reclass or promote again. Learns no class skills or mastery.",
+    "rarity": "special",
+    "specialCharId": "old_knight"
   }
 ]

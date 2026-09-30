@@ -1768,6 +1768,11 @@
       "source": "rebuilt",
       "faction": "ember",
       "frame": 95
+    },
+    "special_old_knight": {
+      "source": "rebuilt",
+      "faction": "steel",
+      "variant": true
     }
   }
 }

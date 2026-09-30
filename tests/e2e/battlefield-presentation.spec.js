@@ -65,8 +65,8 @@ test('desktop presents the shared battlefield art without the phone layout', asy
   expect(result.mobileHud).toBe(false);
   expect(result.unpaintedNames).toEqual([]);
   expect(result.painted).toBe(result.total);
-  // The traced sprites (the default, as on phones) cover every unit; they carry their own
-  // outline, so the contrast pass (classic / rebuilt art only) leaves them alone.
+  // Ordinary units retain traced art and its outline; Gaspar has his own mounted sprite.
+  expect(result.sprites).toContain('traced-special_old_knight');
   for (const key of result.sprites) expect(key).toMatch(/^traced-/);
   expect(result.rings).toContain('player');
   expect(result.rings).toContain('enemy');
@@ -355,4 +355,75 @@ test('all ten lab maps paint every cell on desktop', async ({ page }) => {
     r.names.forEach((n) => seen.add(n));
   }
   expect(seen.size).toBeGreaterThanOrEqual(10);
+});
+
+test('Gaspar canvas detail exposes his biography, descriptive traits and Measured Step at 640x480', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 640, height: 480 });
+  await boot(page);
+  const result = await page.evaluate(async () => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    const { UnitDetailOverlay } = await import('/src/ui/UnitDetailOverlay.js');
+    const g = b.playerUnits.find((u) => u.specialCharId);
+    const detail = new UnitDetailOverlay(b, b.gameData);
+    const host = document.getElementById('game-wrapper');
+    host.id = 'gaspar-canvas-check';
+    try {
+      detail.show(g);
+    } finally {
+      host.id = 'game-wrapper';
+    }
+    b.__gasparDetail = detail;
+    const stats = detail._tabObjects
+      .filter((o) => o.text)
+      .map((o) => ({ text: o.text, right: o.getBounds().right, bottom: o.getBounds().bottom }));
+    const bio = detail._unitObjects.find((o) => o.text === b.gameData.specialChars[0].bio);
+    detail._activeTab = 'gear';
+    detail._refreshTabs();
+    const gear = detail._tabObjects.filter((o) => o.text).map((o) => o.text);
+    detail._activeTab = 'stats';
+    detail._refreshTabs();
+    return { stats, bio: bio?.text, gear };
+  });
+  expect(result.bio).toBeTruthy();
+  expect(
+    result.stats.some(
+      (o) => o.text.includes('Campaign Veteran') && o.text.includes('Set in His Ways'),
+    ),
+  ).toBe(true);
+  expect(result.stats.some((o) => o.text.startsWith('Mastery:'))).toBe(false);
+  for (const row of result.stats) {
+    expect(row.right, row.text).toBeLessThanOrEqual(520);
+    expect(row.bottom, row.text).toBeLessThanOrEqual(407);
+  }
+  expect(result.gear.some((s) => s.includes('Measured Step'))).toBe(true);
+  await page.screenshot({ path: '/tmp/gaspar-desktop-detail.png' });
+});
+
+test('No Meta Victory result badge matches the saved victory record', async ({ page }) => {
+  await boot(page);
+  const result = await page.evaluate(async () => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    const { MetaProgressionManager } = await import('/src/engine/MetaProgressionManager.js');
+    const { runResultMenu } = await import('/src/ui/RunFlowMenus.js');
+    const meta = new MetaProgressionManager(b.gameData.metaUpgrades, 'gaspar-badge-test');
+    const rm = b.runManager;
+    rm.noMetaMode = true;
+    rm.actIndex = 3;
+    const rewards = rm.settleEndRunRewards(meta, 'victory');
+    const archived = meta.runRecords.find((r) => r.id === rm.runRecordId);
+    rm.noMetaMode = false; // The menu must use the archived result, not this live flag.
+    b.result = 'victory';
+    let menu = runResultMenu(b, rewards, meta);
+    const shown = menu.body.textContent.includes('Badge earned: No Meta Victory');
+    menu.destroy();
+    delete archived.noMetaMode;
+    rm.noMetaMode = true;
+    menu = runResultMenu(b, rewards, meta);
+    const hidden = !menu.body.textContent.includes('Badge earned: No Meta Victory');
+    menu.destroy();
+    return { recorded: !!archived, shown, hidden };
+  });
+  expect(result).toEqual({ recorded: true, shown: true, hidden: true });
 });

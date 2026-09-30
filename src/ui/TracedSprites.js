@@ -93,6 +93,8 @@ export function tracedKeyFor(
     if (has(`npc_${cls}`)) return `npc_${cls}`;
     return playerClassKey(unit, cls, has);
   }
+  const special = unit.specialCharId ? `special_${unit.specialCharId}` : null;
+  if (special && has(special)) return special;
   if (unit.isLord) {
     const base = `lord_${classKey(unit.name)}`;
     if (unit.tier === 'promoted' && has(`${base}_promoted`)) return `${base}_promoted`;

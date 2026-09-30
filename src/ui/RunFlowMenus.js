@@ -38,6 +38,15 @@ export function runResultMenu(scene, rewards, meta) {
   ])
     stats.append(element('dt', label), element('dd', String(value)));
   menu.body.append(stats);
+  if (
+    scene.result === 'victory' &&
+    meta?.runRecords?.some(
+      (record) =>
+        record.id === (rm.runRecordId || `legacy-${rm.runSeed}`) && record.noMetaMode === true,
+    )
+  ) {
+    menu.body.append(element('p', 'Badge earned: No Meta Victory', 're-run-note'));
+  }
   const deeds = deedsOfTheMarchSection(rm);
   if (deeds) menu.body.append(deeds);
   if (meta && rewards.appliedToMeta === false)

@@ -33,10 +33,19 @@ describe('Input (controls) help content', () => {
     expect(inputTab.tags).toEqual(expect.arrayContaining(['controls', 'gamepad', 'keyboard']));
     for (const page of inputTab.pages) {
       // Overlay budget: ~15 lines per page, ~42 chars per 9px monospace line
-      expect(page.lines.length).toBeLessThanOrEqual(15);
+
       for (const line of page.lines) {
         expect((line?.text || '').length).toBeLessThanOrEqual(42);
       }
     }
   });
+});
+
+// This panel has one shared height regardless of the selected tab.
+it('every help page fits the 15-line panel budget', () => {
+  for (const tab of HELP_TABS) {
+    for (const page of tab.pages) {
+      expect(page.lines.length, `${tab.label}: ${page.title}`).toBeLessThanOrEqual(15);
+    }
+  }
 });

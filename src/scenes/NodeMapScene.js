@@ -1,3 +1,4 @@
+import { specialCharacterEntries } from '../engine/SpecialCharacterDialogue.js';
 import { PendingRewardController } from '../ui/PendingRewardController.js';
 import { resumeBossRecruit } from '../ui/BossRecruitResume.js';
 import { resumeLordArrival } from '../ui/LordArrivalResume.js';
@@ -455,7 +456,12 @@ export class NodeMapScene extends Phaser.Scene {
               this.gameData?.dialogue?.actTransitions?.runStartCommander,
               ctx,
             ) || [];
-          const entries = [...visionEntries, ...voiceEntries];
+          const veteran = this.runManager.roster?.find((unit) => unit.specialCharId);
+          const entries = [
+            ...visionEntries,
+            ...voiceEntries,
+            ...specialCharacterEntries(this.gameData, veteran, 'intro'),
+          ];
           if (
             Array.isArray(entries) &&
             entries.length > 0 &&

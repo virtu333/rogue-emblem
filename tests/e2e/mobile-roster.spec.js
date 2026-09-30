@@ -232,3 +232,69 @@ test('a heal in the convoy is used on the chosen unit without withdrawing it', a
   });
   expect(after).toEqual({ hp: 11, carried: false, stored: false });
 });
+
+for (const viewport of [
+  { width: 640, height: 480 },
+  { width: 390, height: 844 },
+])
+  test(`Gaspar’s wry personality, traits and Measured Step fit at ${viewport.width}x${viewport.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    const sheet = await roster(page);
+    await sheet
+      .getByRole('navigation', { name: 'Units' })
+      .getByRole('button', { name: /Gaspar/ })
+      .tap();
+    await expect(sheet.getByRole('heading', { name: 'Biography', exact: true })).toBeVisible();
+    await expect(
+      sheet.getByRole('heading', { name: 'Special · Campaign Veteran', exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      sheet.getByRole('heading', { name: 'Special · Set in His Ways', exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      sheet.getByRole('heading', { name: 'Temperament · Wry', exact: true }),
+    ).toHaveCount(1);
+    expect(await sheet.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+    await sheet.getByRole('button', { name: 'Skills', exact: true }).tap();
+    await expect(sheet.getByText('Measured Step', { exact: true })).toHaveCount(1);
+    await expect(
+      sheet.getByText(
+        'Passive · Use remaining movement after a noncombat action. Not after fighting.',
+        {
+          exact: true,
+        },
+      ),
+    ).toHaveCount(1);
+    await page.screenshot({ path: `/tmp/gaspar-roster-${viewport.width}.png` });
+  });
+
+test('Gaspar seal refusals appear on roster item cards without spending the seals', async ({
+  page,
+}) => {
+  const sheet = await roster(page);
+  await page.evaluate(() => {
+    const o = window.__emblemRogueGame.scene.getScene('NodeMap').rosterOverlay;
+    const g = o.runManager.roster.find((u) => u.specialCharId);
+    g.consumables = o.gameData.consumables
+      .filter((i) => ['promote', 'reclass'].includes(i.effect))
+      .slice(0, 2)
+      .map((i) => ({ ...i, uses: 1 }));
+    o._mobileSheet.index = o.runManager.roster.indexOf(g);
+    o._mobileSheet.render();
+  });
+  await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
+  const notices = sheet.locator('small').filter({ hasText: /^Gaspar:/ });
+  await expect(notices).toHaveCount(2);
+  await expect(sheet.getByRole('button', { name: 'Promote', exact: true })).toBeDisabled();
+  await expect(sheet.getByRole('button', { name: 'Reclass', exact: true })).toBeDisabled();
+  expect(
+    await page.evaluate(() =>
+      window.__emblemRogueGame.scene
+        .getScene('NodeMap')
+        .runManager.roster.find((u) => u.specialCharId)
+        .consumables.map((i) => i.uses),
+    ),
+  ).toEqual([1, 1]);
+});

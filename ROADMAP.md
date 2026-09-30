@@ -257,7 +257,7 @@ All phases complete on `main` as of Feb 15, 2026.
 - [ ] Better Shop Inventory - higher tier items 1 act earlier (2 tiers, 200->400 Supply)
 - [ ] Extra Node Events - +1 RECRUIT guaranteed per act (350 Supply)
 - [ ] NPC Warriors - recruit battle NPCs gain +2 all stats (200 Supply)
-- [ ] Special Characters: `data/specialChars.json` (3-5 named units with fixed growths, personal skills, unlock via meta)
+- [ ] Special Characters: `data/specialChars.json` — Gaspar veteran starter implemented; [spec](docs/specs/veteran-knight.md). Other named units remain planned.
 - [ ] Tests for new upgrade types, special character creation, equip slot meta
 
 ---
@@ -366,3 +366,4 @@ All phases complete on `main` as of Feb 15, 2026.
 ## Deployment
 
 Auto-deploys via Netlify GitHub integration. Pushing to `main` triggers build + publish automatically. No manual `netlify deploy` needed.
+

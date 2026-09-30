@@ -126,6 +126,7 @@ export function getTraitRoles(unit) {
 export function isTraitEligible(trait, unit, options = {}) {
   if (!trait || typeof trait.id !== 'string') return false;
   if (trait.retired) return false;
+  if (trait.specialCharId) return unit?.specialCharId === trait.specialCharId;
   if (trait.lordName) return Boolean(unit?.isLord && unit.name === trait.lordName);
   if (Array.isArray(trait.eligibleWeaponTypes)) {
     const profs = Array.isArray(unit?.proficiencies) ? unit.proficiencies : [];
@@ -160,6 +161,7 @@ export function getTraitRollWeight(trait, unit) {
 export function rollTraits(traitsData, count, rng = Math.random, unit = null, options = {}) {
   if (!Array.isArray(traitsData) || traitsData.length === 0 || count <= 0) return [];
   const pool = traitsData
+    .filter((trait) => trait.rarity !== 'special')
     .filter((t) => isTraitEligible(t, unit, options))
     .map((t) => ({ id: t.id, weight: getTraitRollWeight(t, unit) }));
   const picked = [];

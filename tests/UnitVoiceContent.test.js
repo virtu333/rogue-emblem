@@ -98,7 +98,7 @@ describe('unit voice content contract', () => {
       ).toBe(true);
     const traitIds = new Set(gameData.traits.map((t) => t.id));
     for (const id of Object.keys(voice.traits)) expect(traitIds.has(id), id).toBe(true);
-    for (const t of gameData.traits.filter((t) => t.rarity !== 'legendary'))
+    for (const t of gameData.traits.filter((t) => !['legendary', 'special'].includes(t.rarity)))
       expect(voice.traits[t.id]?.length, t.id).toBeGreaterThanOrEqual(3);
     expect(Object.keys(voice.stats).sort()).toEqual([...XP_STAT_NAMES].sort());
     expect(Object.keys(voice.lords).sort()).toEqual([...lordNames].sort());

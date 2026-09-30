@@ -69,6 +69,8 @@ test('the route track bridges into the battle track with no silent gap', async (
   if (await deploy.isVisible()) {
     // The deploy screen plays the route's track, not silence.
     expect(await page.evaluate(() => window.__musicLog.at(-1))).toBe(routeKey);
+    await deploy.getByRole('button', { name: /^Sera/ }).click();
+    await deploy.getByRole('button', { name: /^Gaspar/ }).click();
     await deploy.getByRole('button', { name: 'Deploy', exact: true }).click();
   }
   await page.waitForFunction(

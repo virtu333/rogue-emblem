@@ -350,7 +350,7 @@ describe('createInitialRoster with chosen lords', () => {
       startingLords: { commander: 'Nonexistent', partner: 'AlsoFake' },
     });
     const roster = rm.createInitialRoster();
-    expect(roster.map((u) => u.name)).toEqual(['Edric', 'Sera']);
+    expect(roster.map((u) => u.name)).toEqual(['Edric', 'Sera', 'Gaspar']);
     expect(roster[0].isCommander).toBe(true);
   });
 
@@ -365,7 +365,7 @@ describe('createInitialRoster with chosen lords', () => {
     for (const startingLords of cases) {
       const rm = new RunManager(gameData, { startingLords });
       const roster = rm.createInitialRoster();
-      expect(rm.getStartingLordNames()).toEqual(roster.map((u) => u.name));
+      expect(rm.getStartingLordNames()).toEqual(roster.filter((u) => u.isLord).map((u) => u.name));
     }
   });
 

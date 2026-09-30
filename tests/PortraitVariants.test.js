@@ -299,7 +299,7 @@ describe('legacy saves', () => {
     const b = RunManager.fromJSON(structuredClone(saved), data);
     const faces = (rm) => rm.roster.map((u) => u.portraitVariant ?? null);
     expect(faces(a)).toEqual(faces(b));
-    const generic = a.roster.filter((u) => !u.isLord);
+    const generic = a.roster.filter((u) => !u.isLord && !u.specialCharId);
     expect(generic.every((u) => typeof u.portraitVariant === 'string')).toBe(true);
     const fighterLine = generic.filter((u) => ['Fighter', 'Warrior'].includes(u.className));
     expect(new Set(fighterLine.map((u) => u.portraitVariant)).size).toBe(fighterLine.length);

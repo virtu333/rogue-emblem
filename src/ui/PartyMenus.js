@@ -56,7 +56,7 @@ export function describeUnit(gameData, unit, scene = null) {
   if (unit.proficiencies?.length)
     box.append(element('p', unit.proficiencies.map((p) => `${p.type} ${p.rank}`).join(' · ')));
   for (const trait of traitLines(unit, gameData))
-    box.append(element('p', `${trait.name}: ${trait.text}`));
+    box.append(element('p', `${trait.special ? 'Special · ' : ''}${trait.name}: ${trait.text}`));
   for (const id of unit.skills || []) {
     const skill = gameData.skills?.find((s) => s.id === id);
     box.append(element('p', `${skill?.name || id}: ${skill?.description || ''}`));

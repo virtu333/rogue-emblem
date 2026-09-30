@@ -5,9 +5,15 @@
   "items": {
     "type": "object",
     "properties": {
-      "id": { "type": "string" },
-      "name": { "type": "string" },
-      "description": { "type": "string" },
+      "id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
       "trigger": {
         "type": "string",
         "enum": [
@@ -20,12 +26,24 @@
           "action"
         ]
       },
-      "activation": { "type": "string" },
-      "condition": { "type": "string" },
-      "range": { "type": "integer" },
-      "rangeMin": { "type": "integer" },
-      "auraTarget": { "type": "string" },
-      "effects": { "type": "object" },
+      "activation": {
+        "type": "string"
+      },
+      "condition": {
+        "type": "string"
+      },
+      "range": {
+        "type": "integer"
+      },
+      "rangeMin": {
+        "type": "integer"
+      },
+      "auraTarget": {
+        "type": "string"
+      },
+      "effects": {
+        "type": "object"
+      },
       "actionAbility": {
         "type": "object",
         "properties": {
@@ -33,23 +51,57 @@
             "type": "string",
             "enum": ["teleport_self", "ally_buff", "aoe_heal", "aoe_root"]
           },
-          "range": { "type": "integer", "minimum": 1 },
-          "radius": { "type": "integer", "minimum": 1 },
+          "range": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "radius": {
+            "type": "integer",
+            "minimum": 1
+          },
           "stats": {
             "type": "object",
-            "additionalProperties": { "type": "integer" }
+            "additionalProperties": {
+              "type": "integer"
+            }
           },
-          "durationPhases": { "type": "integer", "minimum": 1 },
-          "amount": { "type": "integer", "minimum": 1 },
-          "includeSelf": { "type": "boolean" },
-          "perMapLimit": { "type": "integer", "minimum": 1 }
+          "durationPhases": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "includeSelf": {
+            "type": "boolean"
+          },
+          "perMapLimit": {
+            "type": "integer",
+            "minimum": 1
+          }
         },
         "required": ["kind", "perMapLimit"],
         "additionalProperties": false
       },
-      "personal": { "type": "boolean" },
+      "personal": {
+        "type": "boolean"
+      },
       "classInnate": {
-        "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }]
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "cantoRule": {
+        "enum": ["any", "noncombat"]
       }
     },
     "required": ["id", "name", "description", "trigger"],

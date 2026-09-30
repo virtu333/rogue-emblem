@@ -38,7 +38,7 @@ const seedOf = (seed) => (Number.isFinite(Number(seed)) ? Number(seed) >>> 0 : 0
 
 /** Lords and bosses keep their own portraits. */
 export function wearsOwnPortrait(unit) {
-  return Boolean(unit?.isLord || unit?.isBoss);
+  return Boolean(unit?.isLord || unit?.isBoss || unit?.specialCharId);
 }
 
 /** 'm' | 'f' | null for a recruit name ("Bram 2" reads as "Bram"). */

@@ -1,3 +1,7 @@
+import {
+  specialCharacterRefusalText,
+  speakSpecialCharacterRefusal,
+} from '../engine/SpecialCharacterDialogue.js';
 import { unitUidOf } from '../engine/UnitIdentity.js';
 import { teachRosterScroll } from '../engine/RosterTransfers.js';
 import { applyRosterClassChange } from '../engine/RosterCommands.js';
@@ -75,6 +79,7 @@ import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { portraitCanvasFrame } from './portraitArt.js';
+import { traitLines } from './traitContent.js';
 import { epithetText } from '../engine/DeedTitles.js';
 import { fitCanvasText } from './deedDisplay.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
@@ -1276,6 +1281,26 @@ export class RosterOverlay {
         y += 12;
       }
     }
+
+    // Compact canvas fallback; hover/long-press reveals full rules and biography.
+    const traits = traitLines(unit, this.gameData);
+    if (traits.length) {
+      y += 6;
+      const names = traits.map((trait) => trait.name).join(' · ');
+      const row = fitCanvasText(
+        this._text(x, y, `Traits: ${names}`, UI_PALETTE.accent, '9px'),
+        DETAIL_WIDTH - 24,
+      );
+      this._wireTooltipTarget(row, () =>
+        this._showSkillTooltip(row, traits.map((t) => `${t.name}: ${t.text}`).join('\n')),
+      );
+      y += 16;
+    }
+    const bio = this.gameData?.specialChars?.find((entry) => entry.id === unit.specialCharId)?.bio;
+    if (bio) {
+      const row = fitCanvasText(this._text(x, y, bio, UI_PALETTE.muted, '9px'), DETAIL_WIDTH - 24);
+      this._wireTooltipTarget(row, () => this._showSkillTooltip(row, bio));
+    }
   }
 
   _drawGearTab(x, y, unit) {
@@ -1430,15 +1455,17 @@ export class RosterOverlay {
           }
         } else if (item.effect === 'promote') {
           if (
-            canPromote(unit) &&
-            resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)
+            specialCharacterRefusalText(this.gameData, unit, 'promote') ||
+            (canPromote(unit) &&
+              resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords))
           ) {
             this._actionBtn(btnX, y, '[Use]', () => this._usePromote(unit, item));
           }
         } else if (item.effect === 'reclass') {
           if (
-            canReclass(unit) &&
-            getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0
+            specialCharacterRefusalText(this.gameData, unit, 'reclass') ||
+            (canReclass(unit) &&
+              getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0)
           ) {
             this._actionBtn(btnX, y, '[Use]', () => this._showReclassClassPicker(unit, item));
           }
@@ -1772,6 +1799,11 @@ export class RosterOverlay {
     if (this._promotionChoosing) return;
     this._promotionChoosing = true;
     try {
+      const refusal = speakSpecialCharacterRefusal(this.gameData, unit, 'promote', this.runManager);
+      if (refusal) {
+        this._showBanner(refusal, UI_PALETTE.bad);
+        return;
+      }
       // Find promotion targets
       const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
       if (!targets?.length) {
@@ -1829,7 +1861,11 @@ export class RosterOverlay {
   _showReclassClassPicker(unit, sealItem) {
     const targets = getReclassTargets(unit, this.gameData.classes, sealItem.subEffect);
     if (targets.length === 0) {
-      this._showBanner('No valid reclass targets.', UI_PALETTE.bad);
+      this._showBanner(
+        speakSpecialCharacterRefusal(this.gameData, unit, 'reclass', this.runManager) ||
+          'No valid reclass targets.',
+        UI_PALETTE.bad,
+      );
       return;
     }
 

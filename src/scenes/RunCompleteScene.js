@@ -1,3 +1,4 @@
+import { specialCharacterEntries } from '../engine/SpecialCharacterDialogue.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { PAYOUT_PENDING_NOTE, runResultMenu } from '../ui/RunFlowMenus.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
@@ -388,6 +389,11 @@ export class RunCompleteScene extends Phaser.Scene {
         runManager: this.runManager,
       }),
     );
+    const veteran = this.runManager?.roster?.find(
+      (unit) => unit.specialCharId && unit.currentHP > 0,
+    );
+    if (this.result === 'victory' && Array.isArray(entries))
+      entries.push(...specialCharacterEntries(this.gameData, veteran, 'victory'));
     if (!Array.isArray(entries) || entries.length <= 0) return null;
     return adaptDialogueEntries(entries, this.runManager?.getStartingLordNames?.());
   }

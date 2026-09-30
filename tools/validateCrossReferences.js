@@ -32,6 +32,7 @@ export function validateCrossReferences(datasets = null) {
   const accessories = datasets?.accessories ?? readJson('accessories.json');
   const consumables = datasets?.consumables ?? readJson('consumables.json');
   const lords = datasets?.lords ?? readJson('lords.json');
+  const specialChars = datasets?.specialChars ?? (datasets ? [] : readJson('specialChars.json'));
   const recruits = datasets?.recruits ?? readJson('recruits.json');
   const deedsData = datasets?.deeds ?? readJson('deeds.json');
   const terrain = datasets?.terrain ?? readJson('terrain.json');
@@ -78,6 +79,24 @@ export function validateCrossReferences(datasets = null) {
           `classes.json:${cls.name}.promotesFrom references unknown class "${cls.promotesFrom}"`,
         );
       }
+    }
+  }
+
+  const specialIds = new Set();
+  for (const unit of specialChars) {
+    if (specialIds.has(unit.id)) errors.push(`specialChars.json: duplicate id "${unit.id}"`);
+    specialIds.add(unit.id);
+    for (const name of [unit.class, unit.baseClass]) {
+      if (!classNames.has(name))
+        errors.push(`specialChars.json:${unit.id} references unknown class "${name}"`);
+    }
+    for (const id of unit.skills) {
+      if (!skillIds.has(id))
+        errors.push(`specialChars.json:${unit.id} references unknown skill "${id}"`);
+    }
+    for (const name of unit.weapons) {
+      if (!weaponNames.has(name))
+        errors.push(`specialChars.json:${unit.id} references unknown weapon "${name}"`);
     }
   }
 

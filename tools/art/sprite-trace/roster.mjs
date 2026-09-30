@@ -44,6 +44,21 @@ const PEGASUS = [
 
 export const ROSTER = {
   sources: {
+    special_old_knight: {
+      src: 'docs/art/sprite-candidates-2026-09-30/sources/special_old_knight.png',
+      kind: 'mounted',
+      main: 'blue',
+      hair: 'silver',
+      armor: true,
+      head: [0.3, 0.15, 0.61, 0.4],
+      pose: 'lance',
+      rects: [
+        ...HORSE,
+        { slot: 'metal', box: [0.87, 0, 1, 0.15], from: ['armor', 'linen'] },
+        { slot: 'wood', box: [0.68, 0.24, 0.87, 0.36], from: ['trim', 'leather', 'main'] },
+        { slot: 'wood', box: [0.56, 0.35, 0.7, 0.45], from: ['trim', 'leather', 'main'] },
+      ],
+    },
     // --- lords ---------------------------------------------------------------------------
     // owner note on this candidate: less gold trim on the base lord, sword brought in
     edric: {
@@ -758,6 +773,12 @@ export const PROMOTED_CLASSES = new Set(
 /** Every runtime texture: { key, source, faction, keepMain, corrupt, identity }. */
 export function bakeEntries() {
   const out = [];
+  out.push({
+    key: 'special_old_knight',
+    source: 'special_old_knight',
+    faction: 'player',
+    keepMain: true,
+  });
   for (const [name, base, promoted] of LORDS) {
     out.push({ key: `lord_${name}`, source: base, faction: 'player', keepMain: true });
     out.push({ key: `lord_${name}_promoted`, source: promoted, faction: 'player', keepMain: true });

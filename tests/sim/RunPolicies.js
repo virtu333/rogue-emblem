@@ -2,6 +2,7 @@
 
 import { NODE_TYPES } from '../../src/utils/constants.js';
 import { getReviveCost } from '../../src/engine/RunManager.js';
+import { getCombatForecast } from '../../src/engine/Combat.js';
 
 const NODE_PRIORITY = {
   [NODE_TYPES.RECRUIT]: 5,
@@ -22,13 +23,38 @@ export function chooseNode(availableNodes) {
   return [...availableNodes].sort((a, b) => scoreNode(b) - scoreNode(a))[0];
 }
 
+// A common plain-ground foe makes this a battlefield comparison, not a level comparison.
+// It remains a simple deployment heuristic, not the deliberate-feeding balance policy.
+export function deploymentCombatValue(unit) {
+  const stats = unit?.stats;
+  if (!stats) return unit?.level || 0;
+  if (unit.weapon?.type === 'Staff') return (stats.MAG || 0) * 2 + (stats.HP || 0) / 4;
+  const foe = {
+    stats: { HP: 28, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 6, RES: 3, LCK: 3 },
+    moveType: 'Infantry',
+    skills: [],
+    faction: 'enemy',
+  };
+  const plain = { name: 'Plain', defBonus: 0, avoidBonus: 0 };
+  const forecast = getCombatForecast(unit, unit.weapon, foe, null, 1, plain, plain);
+  const attack = forecast.attacker;
+  return (
+    (attack.damage * (attack.doubles ? 2 : 1) * (attack.brave ? 2 : 1) * attack.hit) / 100 +
+    (stats.HP || 0) / 4 +
+    (stats.DEF || 0) +
+    (stats.RES || 0) / 2
+  );
+}
+
 export function chooseDeployRoster(roster, deployCount) {
   if (!Array.isArray(roster) || roster.length === 0) return [];
 
-  // Keep lords deployed first, then highest level units.
+  // Keep lords deployed first, then compare actual combat value.
   const sorted = [...roster].sort((a, b) => {
     if (Boolean(a.isLord) !== Boolean(b.isLord)) return a.isLord ? -1 : 1;
-    return (b.level || 0) - (a.level || 0);
+    // Preserve the existing descending lord-level order; forecast ranks the remaining recruits.
+    if (a.isLord && b.isLord) return (b.level || 0) - (a.level || 0);
+    return deploymentCombatValue(b) - deploymentCombatValue(a);
   });
   return sorted.slice(0, Math.max(1, deployCount));
 }

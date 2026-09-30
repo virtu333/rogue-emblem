@@ -493,5 +493,15 @@
       "height": 40
     },
     "source": "characters/fighter.png"
+  },
+  "special_old_knight": {
+    "file": "special_old_knight.png",
+    "kind": "mounted",
+    "bounds": {
+      "x": 204,
+      "y": 17,
+      "width": 866,
+      "height": 1224
+    }
   }
 }

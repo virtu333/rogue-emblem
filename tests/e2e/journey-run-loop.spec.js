@@ -81,13 +81,20 @@ async function travelToBattle(page) {
   await page.getByRole('button', { name: 'Travel', exact: true }).click();
   await waitForScene(page, 'Battle');
   await page.waitForFunction(
-    () => ['DEPLOY_SELECTION', 'PLAYER_IDLE'].includes(window.__sceneState?.battle?.state),
+    () =>
+      ['DEPLOY_SELECTION', 'DEPLOY_POSITIONING', 'PLAYER_IDLE'].includes(
+        window.__sceneState?.battle?.state,
+      ),
     null,
     { timeout: 30_000 },
   );
   const deploy = page.getByRole('dialog', { name: 'Deploy units', exact: true });
   if (await deploy.isVisible())
     await deploy.getByRole('button', { name: 'Deploy', exact: true }).click();
+  if ((await page.evaluate(() => window.__sceneState?.battle?.state)) === 'DEPLOY_POSITIONING') {
+    await page.getByRole('button', { name: 'Auto-place', exact: true }).click();
+    await page.getByRole('button', { name: 'Start battle', exact: true }).click();
+  }
   await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE', null, {
     timeout: 30_000,
   });

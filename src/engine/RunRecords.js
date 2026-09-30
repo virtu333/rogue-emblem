@@ -1,3 +1,4 @@
+import { specialCharacterDefinition } from './SpecialCharacterPolicy.js';
 import { isDifficultyId } from './DifficultyEngine.js';
 import { DEED_FORMS } from './DeedTitles.js';
 
@@ -10,6 +11,7 @@ export function mergeRunRecords(...sources) {
       id: record.id.slice(0, 160),
       endedAt: Number.isFinite(record.endedAt) ? record.endedAt : 0,
       difficulty: isDifficultyId(record.difficulty) ? record.difficulty : 'normal',
+      ...(record.noMetaMode === true ? { noMetaMode: true } : {}),
       seed: Number.isFinite(record.seed) ? record.seed : null,
       actsCleared: Math.max(0, Math.trunc(record.actsCleared) || 0),
       totalTurns: Number.isFinite(record.totalTurns)
@@ -27,6 +29,7 @@ export function mergeRunRecords(...sources) {
           className: String(u.className || '').slice(0, 80),
           level: Math.max(1, Math.trunc(u.level) || 1),
           isLord: u.isLord === true,
+          ...(specialCharacterDefinition(u) ? { specialCharId: u.specialCharId } : {}),
           // A title earned on the march (Deeds & Epithets); absent on older records.
           ...(typeof u.epithet === 'string' && u.epithet.trim()
             ? {

@@ -457,7 +457,12 @@ export function describeRecruitPreview(built, { traitLines = null } = {}) {
     seasoned: !built.isLord,
     stats: shown.map((k) => ({ stat: STAT_LABEL[k], value: unit.stats?.[k] ?? 0 })),
     growths,
-    traits: traits.map((t) => ({ name: t.name, text: t.text, legendary: !!t.legendary })),
+    traits: traits.map((t) => ({
+      name: t.name,
+      text: t.text,
+      legendary: !!t.legendary,
+      special: !!t.special,
+    })),
     kicker: [
       built.isLord ? 'LORD' : null,
       unit.className.toUpperCase(),

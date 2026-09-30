@@ -350,5 +350,6 @@
   "lord_sera": { "eye": 0.36, "cx": 0.5 },
   "lord_sera_promoted": { "eye": 0.36, "cx": 0.5 },
   "lord_voss": { "eye": 0.36, "cx": 0.5 },
-  "lord_voss_promoted": { "eye": 0.36, "cx": 0.5 }
+  "lord_voss_promoted": { "eye": 0.36, "cx": 0.5 },
+  "special_old_knight": { "eye": 0.32, "cx": 0.58 }
 }

@@ -1,3 +1,5 @@
+import { skipsClassProgression, normalizeSpecialCharacter } from './SpecialCharacterPolicy.js';
+import { createVeteranKnight } from './SpecialCharacters.js';
 import { validateBattleState } from './BattleStateSnapshot.js';
 import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
@@ -2878,9 +2880,10 @@ export class RunManager {
   }
 
   /** Create the two starting lords: the chosen commander + partner (default Edric + Sera). */
-  createInitialRoster() {
+  createInitialRoster({ includeVeteran = true } = {}) {
     const { lords } = this.gameData;
     const me = this.metaEffects;
+    if (includeVeteran) this._trackRecruitNameUse('Paladin', 'Gaspar');
 
     // Resolve the starting pair; unknown lord names heal to the default pair.
     const [commanderDef, partnerDef] = resolveStartingLordDefs(me, lords);
@@ -2938,6 +2941,14 @@ export class RunManager {
     }
 
     const roster = startingLordUnits.map((unit) => serializeUnit(unit));
+    if (includeVeteran) {
+      const veteran = createVeteranKnight(this.gameData, {
+        difficultyId: this.difficultyId,
+        metaGrowthBonuses: me?.growthBonuses,
+        growthMultiplier: this._getGrowthBonusMultiplier(),
+      });
+      if (veteran) roster.push(serializeUnit(veteran));
+    }
     const extraStarterTier = Math.max(0, Math.trunc(Number(me?.extraStartingUnitTier) || 0));
     if (extraStarterTier > 0) {
       const classPool = this._resolveExtraStarterClassPoolByTier(extraStarterTier);
@@ -4248,6 +4259,7 @@ export class RunManager {
                 id: this.runRecordId || `legacy-${this.runSeed}`,
                 endedAt: Date.now(),
                 difficulty: this.difficultyId,
+                noMetaMode: this.noMetaMode === true,
                 seed: this.runSeed,
                 actsCleared: this.actIndex + 1,
                 totalTurns: this.totalTurns,
@@ -4257,6 +4269,7 @@ export class RunManager {
                   className: unit.className,
                   level: unit.level,
                   isLord: unit.isLord,
+                  specialCharId: unit.specialCharId,
                   tier: unit.tier,
                   portraitVariant: unit.portraitVariant, // the face the unit wore (portrait variety)
                   ...deedRecordFields(unit),
@@ -4438,7 +4451,7 @@ export class RunManager {
     const skillsData = runManager.gameData?.skills || [];
     if (!classes.length || !skillsData.length) return;
     const applyInnates = (unit) => {
-      if (!unit) return;
+      if (!unit || skipsClassProgression(unit)) return;
       if (!Array.isArray(unit.skills)) unit.skills = [];
       const addInnatesFor = (className) => {
         for (const sid of getClassInnateSkills(className, skillsData)) {
@@ -4464,7 +4477,7 @@ export class RunManager {
     const classByName = new Map(classes.map((c) => [c.name, c]));
 
     const applyLearnables = (unit) => {
-      if (!unit) return;
+      if (!unit || skipsClassProgression(unit)) return;
       if (!Array.isArray(unit.skills)) unit.skills = [];
       if (!Number.isFinite(unit.level)) return;
 
@@ -4672,8 +4685,16 @@ export class RunManager {
       ? saved.fallenUnits.filter((u) => rm._isValidSerializedUnit(u))
       : [];
 
-    rm.roster = rm.roster.map((u) => normalizeUnitDeeds(migrateUnitTraits({ ...u })));
-    rm.fallenUnits = rm.fallenUnits.map((u) => normalizeUnitDeeds(migrateUnitTraits({ ...u })));
+    rm.roster = rm.roster.map((u) =>
+      normalizeUnitDeeds(
+        migrateUnitTraits(normalizeSpecialCharacter({ ...u }, gameData.specialChars)),
+      ),
+    );
+    rm.fallenUnits = rm.fallenUnits.map((u) =>
+      normalizeUnitDeeds(
+        migrateUnitTraits(normalizeSpecialCharacter({ ...u }, gameData.specialChars)),
+      ),
+    );
     // Unit identity: legacy saves stamp every roster/fallen unit now (roster order,
     // then fallen), counter-based and RNG-free, so a reload stamps the same way.
     rm.nextUnitUid =

@@ -277,6 +277,8 @@ function createRunPreset(gameData, meta, config) {
   if (COMBAT_LOADOUT_PRESETS.has(config.preset)) {
     runManager.advanceAct();
     // Deliberately synthetic loadouts; real combat rules and costs still apply.
+    // Keep this five-unit action laboratory independent of the ordinary starter roster.
+    runManager.roster = runManager.roster.filter((unit) => !unit.specialCharId);
     const item = (name) => structuredClone(gameData.weapons.find((w) => w.name === name));
     const edric = runManager.roster.find((u) => u.name === 'Edric');
     edric.inventory = [item('Iron Sword')];

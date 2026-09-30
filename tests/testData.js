@@ -14,6 +14,7 @@ export function loadGameData() {
   return {
     terrain: loadJSON('terrain.json'),
     lords: loadJSON('lords.json'),
+    specialChars: loadJSON('specialChars.json'),
     classes: loadJSON('classes.json'),
     weapons: loadJSON('weapons.json'),
     skills: loadJSON('skills.json'),
