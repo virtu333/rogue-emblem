@@ -33,6 +33,7 @@ export function completeBattleAction(scene, unit, { skipDim = false } = {}) {
   scene.preMoveLoc = null;
   scene._preFogSnapshot = null;
   scene.cantoRange = null;
+  scene._cantoPending = null;
   scene.battleState = 'PLAYER_IDLE';
   scene._timelineBoundary = 'player_action';
   scene._timelineFacts = [...(scene._timelineFacts || []), `${unit.name} finished their action.`];

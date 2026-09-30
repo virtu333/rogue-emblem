@@ -341,6 +341,8 @@ const STATIC_HELP_TABS = [
             text: '  Press W or click own tile to skip.',
             mobileText: '  Tap Menu to finish repositioning.',
           },
+          { text: '  After moving, Wait ends the turn;' },
+          { text: '  Back returns to choose again.' },
           { text: '' },
           { text: 'Personal: Lords learn a unique skill', color: GOLD },
           { text: '  at level 20, or promoted level 10.', color: GRAY },

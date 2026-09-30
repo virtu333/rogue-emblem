@@ -35,7 +35,13 @@ import {
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
 import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
-import { menuRow, railOwnsMenus, rowText } from '../ui/battleMenuModel.js';
+import {
+  CANTO_CONFIRM_STATE,
+  isUnitMenuState,
+  menuRow,
+  railOwnsMenus,
+  rowText,
+} from '../ui/battleMenuModel.js';
 import { applyXpGain, combatXpAwards, scaledXp } from '../engine/BattleXp.js';
 import { postCombatEffects, allyBuff } from '../engine/PostCombatEffects.js';
 import {
@@ -779,7 +785,7 @@ export class BattleScene extends Phaser.Scene {
       this._attackFlow().handleInputAction(action, payload, InputAction)
     )
       return;
-    const inMenu = this.battleState === 'UNIT_ACTION_MENU';
+    const inMenu = isUnitMenuState(this.battleState);
     // The battle is over: the mouse path hides the cursor/info at BATTLE_END
     // (onPointerMove), so don't let the pad re-show the tile highlight or pan
     // the camera under the victory/defeat banner either.
@@ -1108,7 +1114,7 @@ export class BattleScene extends Phaser.Scene {
           event.altKey ||
           event.ctrlKey ||
           event.metaKey ||
-          this.battleState !== 'UNIT_ACTION_MENU' ||
+          !isUnitMenuState(this.battleState) ||
           !hasInputFocus(this) ||
           hasOpenOverlay(this) ||
           this.isStoryInputLocked()
@@ -1205,7 +1211,9 @@ export class BattleScene extends Phaser.Scene {
       },
       wait: () => {
         if (this.isStoryInputLocked()) return;
-        if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
+        if (this.battleState === CANTO_CONFIRM_STATE && this.selectedUnit) {
+          this.confirmCantoMove();
+        } else if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
           this.grid.clearHighlights();
           completeBattleAction(this, this.selectedUnit);
         }
@@ -1874,7 +1882,10 @@ export class BattleScene extends Phaser.Scene {
           },
           menu: () => {
             if (this.isStoryInputLocked()) return;
-            if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
+            if (this.battleState === CANTO_CONFIRM_STATE && this.selectedUnit) {
+              this.confirmCantoMove();
+              this.refreshEndTurnControl();
+            } else if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
               this.grid.clearHighlights();
               completeBattleAction(this, this.selectedUnit);
               this.refreshEndTurnControl();
@@ -3876,6 +3887,7 @@ export class BattleScene extends Phaser.Scene {
       'COMBAT_RESOLVING',
       'HEAL_RESOLVING',
       'CANTO_MOVING',
+      CANTO_CONFIRM_STATE,
     ]);
     return allowedStates.has(this.battleState);
   }
@@ -3946,6 +3958,7 @@ export class BattleScene extends Phaser.Scene {
       'SELECTING_ABILITY_TILE',
       'TRADING',
       'CANTO_MOVING',
+      CANTO_CONFIRM_STATE,
     ];
     return cancelStates.includes(this.battleState);
   }
@@ -4140,6 +4153,9 @@ export class BattleScene extends Phaser.Scene {
       const tradeMutated = this.tradeMutatedThisSession;
       this.showActionMenu(this.selectedUnit);
       this.tradeMutatedThisSession = tradeMutated;
+    } else if (this.battleState === CANTO_CONFIRM_STATE) {
+      // Back: the Canto move is not settled yet, so the unit returns to choose again.
+      this.undoCantoMove();
     } else if (this.battleState === 'CANTO_MOVING') {
       // Skip Canto -- end unit's turn
       this.grid.clearHighlights();
@@ -4182,6 +4198,7 @@ export class BattleScene extends Phaser.Scene {
       'SELECTING_ABILITY_TILE',
       'TRADING',
       'CANTO_MOVING',
+      CANTO_CONFIRM_STATE,
     ];
     return (
       playerInputStates.includes(this.battleState) &&
@@ -4225,7 +4242,8 @@ export class BattleScene extends Phaser.Scene {
       s === SMASH_TARGET_STATE ||
       s === 'SELECTING_ABILITY_TILE' ||
       s === 'TRADING' ||
-      s === 'CANTO_MOVING'
+      s === 'CANTO_MOVING' ||
+      s === CANTO_CONFIRM_STATE
     )
       ctx = 'battle_selected';
     // SHOWING_FORECAST: roster is technically allowed per _onRosterClick rosterStates,
@@ -4376,7 +4394,13 @@ export class BattleScene extends Phaser.Scene {
     }
     if (!this.canForceEndTurn()) return;
     if (this.battleState === 'PLAYER_IDLE') this._visionController?.settleParkedActivation?.();
-    const cantoUnit = this.battleState === 'CANTO_MOVING' ? this.selectedUnit : null;
+    const cantoUnit =
+      this.battleState === 'CANTO_MOVING' || this.battleState === CANTO_CONFIRM_STATE
+        ? this.selectedUnit
+        : null;
+    // End Turn over a Canto confirm settles the move where the unit stands.
+    if (this.battleState === CANTO_CONFIRM_STATE) this._recordPendingCantoPath();
+    this._cantoPending = null;
     this.commitVisionSnapshotIfPending();
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
@@ -4761,6 +4785,7 @@ export class BattleScene extends Phaser.Scene {
       else unit._movementSpent = rollbackMovementSpent;
       this.preMoveLoc = null;
       this.cantoRange = null;
+      this._cantoPending = null;
       this.selectedUnit = unit;
       this.battleState = 'UNIT_SELECTED';
 
@@ -4797,6 +4822,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.preMoveLoc = null;
     this.cantoRange = null;
+    this._cantoPending = null;
     this._preFogSnapshot = null;
     this.selectedUnit = null;
     this.battleState = 'PLAYER_IDLE';
@@ -5108,7 +5134,8 @@ export class BattleScene extends Phaser.Scene {
       // Rooted units cannot use Canto (root may land mid-action via counter-art)
       const hasCanto = Boolean(cantoRuleFor(unit));
       const movSpent = unit._movementSpent || 0;
-      const remaining = unit.stats.MOV - movSpent;
+      // The same MOV the unit's move range read (selectUnit), less the terrain cost spent.
+      const remaining = (Number(unit.mov ?? unit.stats?.MOV) || 0) - movSpent;
       if (hasCanto && remaining > 0 && unit.faction === 'player') {
         unit.hasActed = true;
         this.selectedUnit = unit;
@@ -5737,6 +5764,9 @@ export class BattleScene extends Phaser.Scene {
   startCantoMove(unit, remainingMov) {
     this._resetCantoPreInitFaultTracking();
     this.battleState = 'CANTO_MOVING';
+    this._cantoPending = null;
+    this._cantoRemaining = remainingMov;
+    this._lastPathPreviewKey = null;
     const positions = this.buildUnitPositionMap();
     const moveRange = this.grid.getMovementRange(
       unit.col,
@@ -5904,19 +5934,35 @@ export class BattleScene extends Phaser.Scene {
         error,
       });
     };
+    const cantoOrigin = { col: unit.col, row: unit.row };
+    const cantoRangeAtOrigin = this.cantoRange;
     const finalizeCantoMove = () => {
       if (finalizeTriggered || recoveryTriggered) return;
       finalizeTriggered = true;
-      if (cantoFinalPath.length > 1) rememberHistoryPath(this, unit, cantoFinalPath, false);
       unit.col = destCol;
       unit.row = destRow;
       try {
         this.updateUnitPosition(unit);
-        if (cantoAmbush.ambusher) this._resolveAmbush(unit, cantoAmbush.ambusher, { canto: true });
         this.cantoRange = null;
         this._resetCantoPreInitFaultTracking();
-        // Canto's end is the turn's end: completeBattleAction lifts the fog here.
-        completeBattleAction(this, unit);
+        if (cantoAmbush.ambusher) {
+          // A hidden unit stopped the move: it has shown something, so it is locked in.
+          if (cantoFinalPath.length > 1) rememberHistoryPath(this, unit, cantoFinalPath, false);
+          this._resolveAmbush(unit, cantoAmbush.ambusher, { canto: true });
+          // Canto's end is the turn's end: completeBattleAction lifts the fog here.
+          completeBattleAction(this, unit);
+          return;
+        }
+        // Nothing is settled yet: Wait ends the turn here, Back returns to the choice
+        // (playtest Sep 2026: a mis-tapped Canto tile cost a rewind).
+        this._cantoPending = {
+          unit,
+          origin: cantoOrigin,
+          remaining: this._cantoRemaining,
+          range: cantoRangeAtOrigin,
+          path: cantoFinalPath,
+        };
+        this.showCantoConfirmMenu(unit);
       } catch (err) {
         failCantoMove('Error while finalizing canto move', err);
       }
@@ -5956,6 +6002,8 @@ export class BattleScene extends Phaser.Scene {
     };
     try {
       this.grid.clearHighlights();
+      this.grid.clearPath?.();
+      this._lastPathPreviewKey = null;
       const fallbackMs = Math.max(500, path.length * 140);
       this.time.delayedCall(fallbackMs, () => {
         if (!finalizeTriggered && !recoveryTriggered && this.scene?.isActive?.()) {
@@ -5967,6 +6015,87 @@ export class BattleScene extends Phaser.Scene {
     } catch (err) {
       failCantoMove('Error during canto animation setup', err);
     }
+  }
+
+  /**
+   * After a Canto move: the unit stands on its new tile, but nothing is settled (no
+   * fog lifted, no village visited, no save). Wait ends its turn there; Back returns it
+   * to where the Canto began, to choose again.
+   */
+  showCantoConfirmMenu(unit) {
+    this.hideActionMenu();
+    this.battleState = CANTO_CONFIRM_STATE;
+    this.actionMenu = [];
+    const rows = [
+      menuRow({
+        id: 'wait',
+        label: 'Wait',
+        note: this._villageController?.getWaitNote(unit) || null,
+        color: UI_PALETTE.text,
+        invoke: () => {
+          this.registry.get('audio')?.playSFX('sfx_confirm');
+          this.confirmCantoMove();
+        },
+      }),
+    ];
+    if (!railOwnsMenus(this)) this._drawActionMenuRows(unit, rows);
+    this._registerActionMenu(rows, { state: CANTO_CONFIRM_STATE });
+    this._threatSight?.sync(true);
+    this._inputController?.refreshHoverInfo();
+    this.refreshEndTurnControl?.();
+  }
+
+  _recordPendingCantoPath() {
+    const pending = this._cantoPending;
+    if (pending?.path?.length > 1) rememberHistoryPath(this, pending.unit, pending.path, false);
+  }
+
+  /** Wait after a Canto move: the unit's turn ends where it stands. */
+  confirmCantoMove() {
+    const unit = this.selectedUnit;
+    if (this.battleState !== CANTO_CONFIRM_STATE || !unit) return;
+    this.hideActionMenu();
+    this.grid.clearHighlights();
+    this.grid.clearPath?.();
+    this._recordPendingCantoPath();
+    this._cantoPending = null;
+    completeBattleAction(this, unit);
+    this.refreshEndTurnControl?.();
+  }
+
+  /** Back after a Canto move: return to the tile the Canto began on and choose again. */
+  undoCantoMove() {
+    const pending = this._cantoPending;
+    const unit = this.selectedUnit;
+    if (this.battleState !== CANTO_CONFIRM_STATE || !unit || pending?.unit !== unit) return;
+    this.hideActionMenu();
+    this._cantoPending = null;
+    unit.col = pending.origin.col;
+    unit.row = pending.origin.row;
+    this.updateUnitPosition(unit);
+    this.startCantoMove(unit, pending.remaining);
+    this._threatSight?.sync(true);
+    this._inputController?.refreshHoverInfo();
+  }
+
+  /**
+   * A tap during the Canto confirm: the unit's own tile is Wait; another tile the
+   * Canto could reach moves there instead (still to be confirmed).
+   */
+  handleCantoConfirmClick(gp) {
+    const unit = this.selectedUnit;
+    const pending = this._cantoPending;
+    if (!unit || !pending) return;
+    if (gp.col === unit.col && gp.row === unit.row) {
+      this.confirmCantoMove();
+      return;
+    }
+    const entry = pending.range?.get(`${gp.col},${gp.row}`);
+    if (!entry || entry.stoppable === false) return;
+    const atOrigin = gp.col === pending.origin.col && gp.row === pending.origin.row;
+    this.undoCantoMove();
+    // Back on the Canto's first tile: the choice is open again (a tap there skips).
+    if (!atOrigin && this.battleState === 'CANTO_MOVING') this.handleCantoClick(gp);
   }
 
   // --- Action Menu ---
@@ -6431,7 +6560,7 @@ export class BattleScene extends Phaser.Scene {
   // A menu built from rows (battleMenuModel) passes them: the rail renders the rows
   // themselves and needs no canvas object; a canvas row, when there is one, is found
   // by its row id. Older menus are read from their canvas rows.
-  _registerActionMenu(rows = null) {
+  _registerActionMenu(rows = null, { state = 'UNIT_ACTION_MENU' } = {}) {
     const objects = this.actionMenu;
     const unit = this.selectedUnit;
     const entries = rows
@@ -6469,7 +6598,7 @@ export class BattleScene extends Phaser.Scene {
           if (
             this.actionMenu !== objects ||
             this.selectedUnit !== unit ||
-            this.battleState !== 'UNIT_ACTION_MENU' ||
+            this.battleState !== state ||
             entry.disabled ||
             entry.button?._menuDisabled
           )

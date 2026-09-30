@@ -55,3 +55,12 @@ export function openMenuCommand(scene, id) {
   if (!published || !scene.actionMenu || published.objects !== scene.actionMenu) return null;
   return published.items.find((item) => item?.id === id) || null;
 }
+
+/**
+ * States whose open menu is a unit's command rows: its action menu, or the confirm
+ * after a Canto move (Wait ends the turn there; Back returns to the Canto choice).
+ */
+export const CANTO_CONFIRM_STATE = 'CANTO_CONFIRM';
+export function isUnitMenuState(state) {
+  return state === 'UNIT_ACTION_MENU' || state === CANTO_CONFIRM_STATE;
+}
