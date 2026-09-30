@@ -1,0 +1,1163 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "3362e34cb380a957fe19d460d3c9642224369805",
+  "options": {
+    "mode": "campaign",
+    "seeds": 50,
+    "seedStart": 1,
+    "workers": 4,
+    "difficulty": "normal",
+    "agent": "tactician",
+    "route": "recruit",
+    "profile": "act1",
+    "variants": [
+      "extra_starting_unit_pool",
+      "deploy_limit",
+      "recruit_skill",
+      "recruit_accessory",
+      "veteran_recruits",
+      "recruit_spd_growth",
+      "recruit_def_growth",
+      "lord_spd_growth",
+      "lord_def_growth",
+      "weapon_tier",
+      "extra_starting_unit_pool+deploy_limit"
+    ],
+    "runs": 20,
+    "fractions": [0.5, 0.65, 0.8, 1],
+    "deployCosts": [150],
+    "buyPolicy": "battalion",
+    "buying": "save",
+    "commander": "Edric",
+    "partner": "Sera",
+    "maxActions": 2600,
+    "starters": [],
+    "supplyBudget": 800,
+    "valorBudget": 800,
+    "loadout": null,
+    "out": "docs/reports/meta-balance-2026-09-30-campaign-saving.json",
+    "rawOut": "docs/reports/meta-balance-2026-09-30-campaign-saving.rows.json.gz",
+    "help": false
+  },
+  "plan": {
+    "loadout": {
+      "purchases": {},
+      "milestones": []
+    },
+    "variants": [],
+    "skipped": [],
+    "schedules": [
+      {
+        "fraction": 0.5,
+        "deployCost": 150,
+        "name": "battalion_0.5_deploy_150"
+      },
+      {
+        "fraction": 0.65,
+        "deployCost": 150,
+        "name": "battalion_0.65_deploy_150"
+      },
+      {
+        "fraction": 0.8,
+        "deployCost": 150,
+        "name": "battalion_0.8_deploy_150"
+      },
+      {
+        "fraction": 1,
+        "deployCost": 150,
+        "name": "battalion_1_deploy_150"
+      }
+    ]
+  },
+  "coverage": {
+    "recruit_hp_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_str_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_mag_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_def_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_spd_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_skl_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_res_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_lck_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_hp_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_str_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_mag_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_def_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_spd_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_skl_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_res_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_lck_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_hp_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_str_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_mag_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_def_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_spd_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_skl_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_res_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_lck_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_hp_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_str_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_mag_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_def_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_spd_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_skl_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_res_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_lck_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "starting_gold": {
+      "status": "modeled_with_policy_limits"
+    },
+    "battle_gold": {
+      "status": "modeled_with_policy_limits"
+    },
+    "starting_vulnerary": {
+      "status": "unmeasured",
+      "reason": "The battle agent cannot use consumables."
+    },
+    "loot_quality": {
+      "status": "unmeasured",
+      "reason": "The reward policy takes gold or skips; it does not use loot equipment."
+    },
+    "studied_training": {
+      "status": "unmeasured",
+      "reason": "The reward policy does not learn scrolls."
+    },
+    "trinket_collector": {
+      "status": "unmeasured",
+      "reason": "The reward policy does not equip loot accessories."
+    },
+    "heros_call": {
+      "status": "modeled_with_policy_limits"
+    },
+    "trade_contacts": {
+      "status": "unmeasured",
+      "reason": "The run policy does not transact with caravans."
+    },
+    "deploy_limit": {
+      "status": "modeled_with_policy_limits"
+    },
+    "vision_charges_2": {
+      "status": "unmeasured",
+      "reason": "The battle agent cannot rewind."
+    },
+    "vision_charges_3": {
+      "status": "unmeasured",
+      "reason": "The battle agent cannot rewind."
+    },
+    "legendary_heir": {
+      "status": "modeled_with_policy_limits"
+    },
+    "commander_choice": {
+      "status": "unmeasured",
+      "reason": "A fixed starting pair does not measure selection freedom."
+    },
+    "partner_choice": {
+      "status": "unmeasured",
+      "reason": "A fixed starting pair does not measure selection freedom."
+    },
+    "recruit_skill": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_field_supplies": {
+      "status": "unmeasured",
+      "reason": "The battle agent cannot use consumables."
+    },
+    "veteran_recruits": {
+      "status": "modeled_with_policy_limits"
+    },
+    "extra_starting_unit_pool": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lethal_armory": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lethal_armory_killer": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lethal_armory_silver": {
+      "status": "modeled_with_policy_limits"
+    },
+    "master_of_arms": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_xp": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_accessory": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_weapon_forge": {
+      "status": "modeled_with_policy_limits"
+    },
+    "weapon_forge": {
+      "status": "modeled_with_policy_limits"
+    },
+    "weapon_tier": {
+      "status": "modeled_with_policy_limits"
+    },
+    "weapon_tier_silver": {
+      "status": "modeled_with_policy_limits"
+    },
+    "iron_arms": {
+      "status": "unmeasured",
+      "reason": "The battle agent does not choose weapon arts."
+    },
+    "steel_arms": {
+      "status": "unmeasured",
+      "reason": "The battle agent does not choose weapon arts."
+    },
+    "art_adept": {
+      "status": "unmeasured",
+      "reason": "The battle agent does not choose weapon arts."
+    },
+    "starting_accessory": {
+      "status": "modeled_with_policy_limits"
+    },
+    "staff_upgrade": {
+      "status": "modeled_with_policy_limits"
+    },
+    "starting_reclass_seal": {
+      "status": "unmeasured",
+      "reason": "The run policy does not reclass."
+    },
+    "extra_skill_slot": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_sol": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_luna": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_astra": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_vantage": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_wrath": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_adept": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_miracle": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_guard": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_pavise": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_aegis": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_renewal": {
+      "status": "modeled_with_policy_limits"
+    },
+    "legendary_lord_chance": {
+      "status": "modeled_with_policy_limits"
+    }
+  },
+  "limitations": [
+    "Seed pairing shares initial seeds, not identical subsequent events: upgrades can change RNG consumption and routes.",
+    "No consumable use, weapon-art decisions, rewinds, reclassing, caravan trades, colosseum transactions, or loot-equipment use.",
+    "Gold/team-XP or skip reward policy; church-only promotion; lords-first deployment; limited weapon switching; no skill bench decisions.",
+    "Tactician uses the simple rescue agent on seize/escape; rescue/scripted agents charge enemies.",
+    "No blessings selected. Results condition on fixed difficulty/pair/routing and saving or opportunistic buying; difficulty unlock progression is not modeled.",
+    "Timeout/stuck cohorts are censored, not defeats, and receive no payout; report their counts before interpreting complete pairs.",
+    "Normal approximate paired intervals are screening diagnostics; zero discordant pairs do not establish equivalence.",
+    "Starter exemptions are owner-supplied labels, not inferred recommendations. No production prices change."
+  ],
+  "summary": [
+    {
+      "schedule": "battalion_0.5_deploy_150",
+      "cohorts": 50,
+      "censoredCohorts": 7,
+      "act1ReachedByEnd": 39,
+      "victoriesByEnd": 0,
+      "firstAct1Runs": [
+        13,
+        5,
+        10,
+        15,
+        1,
+        12,
+        null,
+        12,
+        9,
+        20,
+        3,
+        7,
+        null,
+        10,
+        7,
+        4,
+        19,
+        7,
+        null,
+        null,
+        9,
+        2,
+        null,
+        null,
+        11,
+        3,
+        20,
+        5,
+        12,
+        8,
+        17,
+        14,
+        4,
+        5,
+        13,
+        null,
+        null,
+        11,
+        17,
+        null,
+        8,
+        null,
+        9,
+        15,
+        null,
+        9,
+        15,
+        10,
+        9,
+        4
+      ],
+      "firstVictoryRuns": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "checkpoints": [
+        {
+          "run": 1,
+          "observed": 50,
+          "winRate": 0,
+          "battles": 3.02,
+          "supplyBalance": 42.3,
+          "valorBalance": 26.9,
+          "supplySpent": 4,
+          "valorSpent": 19.4,
+          "meanOwnedTiers": 0
+        },
+        {
+          "run": 3,
+          "observed": 50,
+          "winRate": 0,
+          "battles": 3.34,
+          "supplyBalance": 126.1,
+          "valorBalance": 36.5,
+          "supplySpent": 19,
+          "valorSpent": 108.6,
+          "meanOwnedTiers": 1.16
+        },
+        {
+          "run": 5,
+          "observed": 49,
+          "winRate": 0,
+          "battles": 3.4693877551020407,
+          "supplyBalance": 108.36734693877551,
+          "valorBalance": 48.57142857142857,
+          "supplySpent": 137.75510204081633,
+          "valorSpent": 197.55102040816325,
+          "meanOwnedTiers": 2.6530612244897958
+        },
+        {
+          "run": 10,
+          "observed": 49,
+          "winRate": 0,
+          "battles": 3.8979591836734695,
+          "supplyBalance": 108.36734693877551,
+          "valorBalance": 93.36734693877551,
+          "supplySpent": 437.7551020408163,
+          "valorSpent": 452.7551020408163,
+          "meanOwnedTiers": 6.183673469387755
+        },
+        {
+          "run": 20,
+          "observed": 43,
+          "winRate": 0,
+          "battles": 4.604651162790698,
+          "supplyBalance": 115.11627906976744,
+          "valorBalance": 115.34883720930233,
+          "supplySpent": 1095.4651162790697,
+          "valorSpent": 1095.2325581395348,
+          "meanOwnedTiers": 12.906976744186046
+        }
+      ]
+    },
+    {
+      "schedule": "battalion_0.65_deploy_150",
+      "cohorts": 50,
+      "censoredCohorts": 7,
+      "act1ReachedByEnd": 36,
+      "victoriesByEnd": 0,
+      "firstAct1Runs": [
+        13,
+        5,
+        null,
+        null,
+        1,
+        null,
+        14,
+        11,
+        9,
+        null,
+        3,
+        14,
+        null,
+        5,
+        7,
+        4,
+        19,
+        6,
+        null,
+        18,
+        9,
+        2,
+        null,
+        null,
+        19,
+        3,
+        20,
+        5,
+        12,
+        17,
+        17,
+        13,
+        4,
+        5,
+        12,
+        15,
+        null,
+        11,
+        null,
+        null,
+        8,
+        null,
+        9,
+        15,
+        null,
+        9,
+        null,
+        10,
+        9,
+        4
+      ],
+      "firstVictoryRuns": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "checkpoints": [
+        {
+          "run": 1,
+          "observed": 50,
+          "winRate": 0,
+          "battles": 3.02,
+          "supplyBalance": 46.3,
+          "valorBalance": 26.9,
+          "supplySpent": 0,
+          "valorSpent": 19.4,
+          "meanOwnedTiers": 0
+        },
+        {
+          "run": 3,
+          "observed": 50,
+          "winRate": 0,
+          "battles": 3.34,
+          "supplyBalance": 129.5,
+          "valorBalance": 36.5,
+          "supplySpent": 15.6,
+          "valorSpent": 108.6,
+          "meanOwnedTiers": 1.16
+        },
+        {
+          "run": 5,
+          "observed": 49,
+          "winRate": 0,
+          "battles": 3.4285714285714284,
+          "supplyBalance": 145.20408163265307,
+          "valorBalance": 51.12244897959184,
+          "supplySpent": 101.63265306122449,
+          "valorSpent": 195.71428571428572,
+          "meanOwnedTiers": 2.3877551020408165
+        },
+        {
+          "run": 10,
+          "observed": 49,
+          "winRate": 0,
+          "battles": 3.5714285714285716,
+          "supplyBalance": 167.3469387755102,
+          "valorBalance": 75.10204081632654,
+          "supplySpent": 364.59183673469386,
+          "valorSpent": 456.83673469387753,
+          "meanOwnedTiers": 5.877551020408164
+        },
+        {
+          "run": 20,
+          "observed": 43,
+          "winRate": 0,
+          "battles": 4.069767441860465,
+          "supplyBalance": 135.58139534883722,
+          "valorBalance": 83.25581395348837,
+          "supplySpent": 1014.4186046511628,
+          "valorSpent": 1066.7441860465117,
+          "meanOwnedTiers": 11.186046511627907
+        }
+      ]
+    },
+    {
+      "schedule": "battalion_0.8_deploy_150",
+      "cohorts": 50,
+      "censoredCohorts": 2,
+      "act1ReachedByEnd": 36,
+      "victoriesByEnd": 0,
+      "firstAct1Runs": [
+        null,
+        5,
+        null,
+        null,
+        1,
+        null,
+        14,
+        11,
+        9,
+        9,
+        3,
+        14,
+        null,
+        5,
+        9,
+        4,
+        null,
+        6,
+        19,
+        18,
+        9,
+        2,
+        null,
+        13,
+        19,
+        3,
+        20,
+        5,
+        12,
+        17,
+        null,
+        null,
+        4,
+        5,
+        11,
+        15,
+        null,
+        11,
+        null,
+        null,
+        8,
+        10,
+        9,
+        12,
+        null,
+        8,
+        null,
+        18,
+        15,
+        4
+      ],
+      "firstVictoryRuns": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "checkpoints": [
+        {
+          "run": 1,
+          "observed": 50,
+          "winRate": 0,
+          "battles": 3.02,
+          "supplyBalance": 46.3,
+          "valorBalance": 26.9,
+          "supplySpent": 0,
+          "valorSpent": 19.4,
+          "meanOwnedTiers": 0
+        },
+        {
+          "run": 3,
+          "observed": 50,
+          "winRate": 0,
+          "battles": 3.28,
+          "supplyBalance": 137.8,
+          "valorBalance": 37.4,
+          "supplySpent": 6.4,
+          "valorSpent": 106.8,
+          "meanOwnedTiers": 1.14
+        },
+        {
+          "run": 5,
+          "observed": 49,
+          "winRate": 0,
+          "battles": 3.326530612244898,
+          "supplyBalance": 182.14285714285714,
+          "valorBalance": 50.10204081632653,
+          "supplySpent": 61.83673469387755,
+          "valorSpent": 193.87755102040816,
+          "meanOwnedTiers": 2.326530612244898
+        },
+        {
+          "run": 10,
+          "observed": 49,
+          "winRate": 0,
+          "battles": 3.510204081632653,
+          "supplyBalance": 141.3265306122449,
+          "valorBalance": 83.77551020408163,
+          "supplySpent": 378.3673469387755,
+          "valorSpent": 435.9183673469388,
+          "meanOwnedTiers": 5.653061224489796
+        },
+        {
+          "run": 20,
+          "observed": 48,
+          "winRate": 0,
+          "battles": 3.8541666666666665,
+          "supplyBalance": 198.75,
+          "valorBalance": 81.25,
+          "supplySpent": 928.75,
+          "valorSpent": 1046.25,
+          "meanOwnedTiers": 10.354166666666666
+        }
+      ]
+    },
+    {
+      "schedule": "battalion_1_deploy_150",
+      "cohorts": 50,
+      "censoredCohorts": 1,
+      "act1ReachedByEnd": 35,
+      "victoriesByEnd": 0,
+      "firstAct1Runs": [
+        null,
+        5,
+        15,
+        18,
+        1,
+        null,
+        14,
+        null,
+        13,
+        9,
+        3,
+        14,
+        16,
+        5,
+        12,
+        4,
+        null,
+        6,
+        19,
+        18,
+        10,
+        2,
+        null,
+        14,
+        null,
+        3,
+        null,
+        5,
+        13,
+        17,
+        17,
+        19,
+        4,
+        5,
+        12,
+        null,
+        null,
+        null,
+        null,
+        null,
+        12,
+        10,
+        null,
+        10,
+        null,
+        8,
+        null,
+        18,
+        15,
+        4
+      ],
+      "firstVictoryRuns": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "checkpoints": [
+        {
+          "run": 1,
+          "observed": 50,
+          "winRate": 0,
+          "battles": 3.02,
+          "supplyBalance": 46.3,
+          "valorBalance": 26.9,
+          "supplySpent": 0,
+          "valorSpent": 19.4,
+          "meanOwnedTiers": 0
+        },
+        {
+          "run": 3,
+          "observed": 50,
+          "winRate": 0,
+          "battles": 3.28,
+          "supplyBalance": 144.2,
+          "valorBalance": 37.4,
+          "supplySpent": 0,
+          "valorSpent": 106.8,
+          "meanOwnedTiers": 1.14
+        },
+        {
+          "run": 5,
+          "observed": 50,
+          "winRate": 0,
+          "battles": 3.22,
+          "supplyBalance": 227.6,
+          "valorBalance": 50.3,
+          "supplySpent": 16,
+          "valorSpent": 193.3,
+          "meanOwnedTiers": 2.3
+        },
+        {
+          "run": 10,
+          "observed": 50,
+          "winRate": 0,
+          "battles": 3.66,
+          "supplyBalance": 157.3,
+          "valorBalance": 77.3,
+          "supplySpent": 343,
+          "valorSpent": 423,
+          "meanOwnedTiers": 5
+        },
+        {
+          "run": 20,
+          "observed": 49,
+          "winRate": 0,
+          "battles": 3.693877551020408,
+          "supplyBalance": 258.265306122449,
+          "valorBalance": 103.46938775510205,
+          "supplySpent": 851.0204081632653,
+          "valorSpent": 1005.8163265306123,
+          "meanOwnedTiers": 9.816326530612244
+        }
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "baseline": "battalion_0.5_deploy_150",
+      "schedule": "battalion_0.65_deploy_150",
+      "eligiblePairs": 41,
+      "censoredPairs": 9,
+      "deltas": {
+        "wins": {
+          "n": 41,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "battles": {
+          "n": 41,
+          "mean": -2.3658536585365852,
+          "se": 1.2853565973656624,
+          "ci95": [-4.885152589373284, 0.15344527230011318],
+          "nonzeroPairs": 39
+        },
+        "act1ByEnd": {
+          "n": 41,
+          "mean": -0.07317073170731707,
+          "se": 0.07317073170731708,
+          "ci95": [-0.21658536585365856, 0.07024390243902441],
+          "nonzeroPairs": 9
+        },
+        "victoryByEnd": {
+          "n": 41,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "supplyBalance": {
+          "n": 41,
+          "mean": 18.29268292682927,
+          "se": 22.57346391344835,
+          "ci95": [-25.9513063435295, 62.53667219718804],
+          "nonzeroPairs": 40
+        },
+        "valorBalance": {
+          "n": 41,
+          "mean": -26.341463414634145,
+          "se": 12.69245069246309,
+          "ci95": [-51.218666771861805, -1.464260057406488],
+          "nonzeroPairs": 39
+        }
+      }
+    },
+    {
+      "baseline": "battalion_0.5_deploy_150",
+      "schedule": "battalion_0.8_deploy_150",
+      "eligiblePairs": 42,
+      "censoredPairs": 8,
+      "deltas": {
+        "wins": {
+          "n": 42,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "battles": {
+          "n": 42,
+          "mean": -3.5476190476190474,
+          "se": 1.2955755948210483,
+          "ci95": [-6.086947213468302, -1.0082908817697929],
+          "nonzeroPairs": 40
+        },
+        "act1ByEnd": {
+          "n": 42,
+          "mean": -0.09523809523809523,
+          "se": 0.08893174123309443,
+          "ci95": [-0.2695443080549603, 0.07906811757876983],
+          "nonzeroPairs": 14
+        },
+        "victoryByEnd": {
+          "n": 42,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "supplyBalance": {
+          "n": 42,
+          "mean": 84.76190476190476,
+          "se": 19.30781916685658,
+          "ci95": [46.91857919486586, 122.60523032894366],
+          "nonzeroPairs": 42
+        },
+        "valorBalance": {
+          "n": 42,
+          "mean": -32.38095238095238,
+          "se": 13.041119297999698,
+          "ci95": [-57.941546205031784, -6.820358556872971],
+          "nonzeroPairs": 42
+        }
+      }
+    },
+    {
+      "baseline": "battalion_0.5_deploy_150",
+      "schedule": "battalion_1_deploy_150",
+      "eligiblePairs": 43,
+      "censoredPairs": 7,
+      "deltas": {
+        "wins": {
+          "n": 43,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "battles": {
+          "n": 43,
+          "mean": -4.488372093023256,
+          "se": 1.5620684008201482,
+          "ci95": [-7.550026158630747, -1.4267180274157654],
+          "nonzeroPairs": 41
+        },
+        "act1ByEnd": {
+          "n": 43,
+          "mean": -0.09302325581395349,
+          "se": 0.08686717682851999,
+          "ci95": [-0.26328292239785267, 0.0772364107699457],
+          "nonzeroPairs": 14
+        },
+        "victoryByEnd": {
+          "n": 43,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "supplyBalance": {
+          "n": 43,
+          "mean": 136.27906976744185,
+          "se": 31.288362067473784,
+          "ci95": [74.95388011519324, 197.60425941969046],
+          "nonzeroPairs": 42
+        },
+        "valorBalance": {
+          "n": 43,
+          "mean": -15,
+          "se": 13.735961322167274,
+          "ci95": [-41.92248419144786, 11.922484191447857],
+          "nonzeroPairs": 42
+        }
+      }
+    }
+  ],
+  "rowCount": 200,
+  "rawArtifact": "docs/reports/meta-balance-2026-09-30-campaign-saving.rows.json.gz"
+}
