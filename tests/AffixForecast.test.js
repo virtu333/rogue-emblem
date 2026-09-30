@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Ajv from 'ajv';
 import { readFileSync } from 'node:fs';
-import { affixForecastNotes, affixForecastText } from '../src/engine/AffixForecast.js';
+import {
+  affixForecastNotes,
+  affixForecastText,
+  affixSummaryText,
+} from '../src/engine/AffixForecast.js';
 import { getAffixCombatMods } from '../src/engine/AffixSystem.js';
 import { getCombatForecast } from '../src/engine/Combat.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
@@ -53,6 +57,32 @@ describe('affix forecast contract', () => {
       }
       expect(affixForecastText(affix)).not.toMatch(/[{}]/);
     }
+  });
+
+  // The canvas inspection row is one line of 9px text (UnitDetailOverlay): an affix with
+  // no forecast line needs its own short summary, or its long description is cut off.
+  it('gives every affix a short inspection line with no unfilled placeholder', () => {
+    for (const affix of affixData.affixes) {
+      if (affix.forecast !== 'exchange') {
+        const bad = structuredClone(affixData);
+        delete bad.affixes.find((a) => a.id === affix.id).summary;
+        expect(validate(bad), `${affix.id}.summary`).toBe(false);
+      }
+      const line = `${affix.name} · ${affixSummaryText(affix)}`;
+      expect(affixSummaryText(affix), affix.id).not.toBe('');
+      expect(line, affix.id).not.toMatch(/[{}]/);
+      expect(line.length, line).toBeLessThanOrEqual(66);
+    }
+    const byId = (id) => affixData.affixes.find((a) => a.id === id);
+    expect(affixSummaryText(byId('regenerator'))).toBe('Heals 20% max HP each enemy phase');
+    expect(affixSummaryText(byId('haste'))).toBe('+2 MOV');
+    // An exchange affix's inspection line is its forecast line.
+    expect(affixSummaryText(byId('thorns'))).toBe(affixForecastText(byId('thorns')));
+    expect(affixForecastText(byId('thorns'))).toMatch(/^Reflects 25% /);
+  });
+
+  it('leaves an unknown placeholder visible rather than printing an empty value', () => {
+    expect(affixSummaryText({ effects: {}, summary: 'Heals {nope}%' })).toBe('Heals {nope}%');
   });
   it('omits number and field affixes and never consumes RNG or mutates inputs', () => {
     const attacker = unit();

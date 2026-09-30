@@ -4645,7 +4645,7 @@ export class BattleScene extends Phaser.Scene {
         planned.type === 'Staff' ||
         planned.type === 'Breath')
     ) {
-      this.hideForecast();
+      this.hideForecast({ acknowledge: true });
       this.showActionMenu(unit);
       return;
     }
@@ -4656,7 +4656,7 @@ export class BattleScene extends Phaser.Scene {
       planned !== unit.weapon &&
       (!unit.inventory?.includes(planned) || !canEquip(unit, planned))
     ) {
-      this.hideForecast();
+      this.hideForecast({ acknowledge: true });
       this.showActionMenu(unit);
       return;
     }
@@ -4671,7 +4671,7 @@ export class BattleScene extends Phaser.Scene {
     else normalizeEquippedFirst(unit);
     if (artEntry) this._setSelectedWeaponArt(unit, artEntry.art.id, artEntry.weapon);
     this.commitVisionSnapshotIfPending();
-    this.hideForecast();
+    this.hideForecast({ acknowledge: true });
     this.executeCombat(unit, target);
   }
 
@@ -8142,8 +8142,9 @@ export class BattleScene extends Phaser.Scene {
     return this._attackFlow().showForecast(attacker, defender, options);
   }
 
-  hideForecast() {
-    this._attackFlowController?.closeForecast();
+  /** `acknowledge`: the player confirmed or cancelled, having read the forecast's rules. */
+  hideForecast({ acknowledge = false } = {}) {
+    this._attackFlowController?.closeForecast({ acknowledge });
     if (this._forecastOverlay) {
       this._forecastOverlay.destroy();
       this._forecastOverlay = null;

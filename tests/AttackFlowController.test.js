@@ -394,6 +394,29 @@ describe('affix rules at decision time', () => {
       expect(notes().every((n) => !n.showDescription)).toBe(true);
     });
   }
+  // End Turn, a rewind and scene shutdown (the phone turning) close the forecast without
+  // the player's Confirm/Cancel: the rules they showed must stay unread.
+  it('an unchosen close (End Turn, rewind, shutdown) leaves the rules unread', async () => {
+    const { scene, hero, adjacent } = makeScene();
+    const hints = new HintManager(1);
+    hints.seen.clear();
+    hints._save = vi.fn();
+    scene.registry.get = (key) => (key === 'hints' ? hints : null);
+    adjacent.affixes = ['venomous'];
+    const flow = scene._attackFlow();
+    flow.begin(hero);
+    await flow.showForecast(hero, adjacent);
+    scene.hideForecast();
+    expect(hints.hasSeen('affix_venomous')).toBe(false);
+    expect(hints._save).not.toHaveBeenCalled();
+    // The next forecast explains it in full again, and its Cancel acknowledges it.
+    flow.begin(hero);
+    await flow.showForecast(hero, adjacent);
+    expect(renders.at(-1).forecast.defender.affixNotes[0].showDescription).toBe(true);
+    flow.cancelForecast();
+    expect(hints.hasSeen('affix_venomous')).toBe(true);
+  });
+
   it('ignores a hidden neighbor when forecasting a ranged Deathburst kill', async () => {
     const { scene, hero, adjacent, ranged } = makeScene();
     ranged.affixes = ['deathburst'];

@@ -30,7 +30,8 @@
       "weight": 1.0,
       "icon": "regen",
       "narrativeHint": "Wounds close unnaturally fast on this enemy.",
-      "forecast": "field"
+      "forecast": "field",
+      "summary": "Heals {healSelfPctPercent}% max HP each enemy phase"
     },
     {
       "id": "venomous",
@@ -61,7 +62,8 @@
       "weight": 0.8,
       "icon": "rally",
       "narrativeHint": "This enemy presence emboldens those nearby.",
-      "forecast": "numbers"
+      "forecast": "numbers",
+      "summary": "Enemies within {range} tiles gain +{atkBonus} ATK"
     },
     {
       "id": "waller",
@@ -77,7 +79,8 @@
       "weight": 0.7,
       "icon": "waller",
       "narrativeHint": "The ground buckles and rises around this enemy.",
-      "forecast": "field"
+      "forecast": "field",
+      "summary": "Raises a Wall beside it each enemy phase ({terrainDuration} turns)"
     },
     {
       "id": "teleporter",
@@ -127,7 +130,8 @@
       "weight": 0.8,
       "icon": "berserk",
       "narrativeHint": "This enemy eyes burn with frenzied rage.",
-      "forecast": "numbers"
+      "forecast": "numbers",
+      "summary": "+{atkBonus} ATK, {defPenalty} DEF; hunts the weakest unit"
     },
     {
       "id": "deathburst",
@@ -162,7 +166,8 @@
       "weight": 0.7,
       "icon": "anchor",
       "narrativeHint": "This enemy is rooted to its position.",
-      "forecast": "numbers"
+      "forecast": "numbers",
+      "summary": "Cannot be shoved or pulled; +2 DEF on Fort or Throne"
     },
     {
       "id": "corrosive",
@@ -211,7 +216,8 @@
       "weight": 0.8,
       "icon": "haste",
       "narrativeHint": "This enemy moves with unnatural speed.",
-      "forecast": "field"
+      "forecast": "field",
+      "summary": "+{movBonus} MOV"
     }
   ],
   "config": {

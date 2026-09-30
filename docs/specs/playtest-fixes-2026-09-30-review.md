@@ -150,3 +150,22 @@ nothing that blocks merging. Two small follow-ups, both optional:
   Validate it the same way as `forecastText`.
 
 The only remaining release item is the physical iOS smoke test.
+
+### Second-pass follow-ups: resolved
+
+- **Only a player's choice acknowledges a rule.** `hideForecast({ acknowledge })`: Confirm (all
+  three exits of `confirmForecastCombat`) and Cancel (`cancelForecast`) mark the shown rules
+  seen. End Turn, rewind and scene shutdown close the forecast without marking anything, so the
+  rule shows in full next time. `AttackFlowController.test.js` covers an unchosen close followed
+  by a Cancel; the test fails if acknowledgement is unconditional again.
+- **Short inspection lines for every affix.** Affixes without a forecast line (`numbers` and
+  `field`) now require a `summary`, enforced by the schema, and it is filled from their effects.
+  - `affixSummaryText` gives the forecast line, or the summary, for the canvas inspection row.
+  - An unknown `{placeholder}` now stays visible instead of printing as an empty value, so the
+    contract test catches it.
+  - Every line, including the affix name, is at most 66 characters (Berserker and Anchored were
+    73 and 77).
+
+Checks: 8,980 unit tests, data validation and parity, reference, UI theme, format, lint and
+build. Browser lanes were not re-run for this patch; it changes only the canvas row's text and
+when rules are marked seen.

@@ -8,13 +8,25 @@ const maxStrike = (info) =>
     Math.max(0, info?.damage || 0) * (info?.crit > 0 ? info.critMultiplier || CRIT_MULTIPLIER : 1),
   );
 
+// `{key}` reads the affix's effects (plus `range`); `{fooPctPercent}` shows a `fooPct`
+// fraction as a whole percent. An unknown key is left as written, so tests catch it.
+function fillAffixTemplate(affix, template) {
+  const values = { ...affix.effects, range: affix.range };
+  for (const [key, value] of Object.entries(affix.effects || {}))
+    if (key.endsWith('Pct') && Number.isFinite(value))
+      values[`${key}Percent`] = Math.round(value * 100);
+  return (template || '').replace(/\{(\w+)\}/g, (match, key) =>
+    values[key] === undefined ? match : String(values[key]),
+  );
+}
+
 export function affixForecastText(affix) {
-  const values = {
-    ...affix.effects,
-    range: affix.range,
-    reflectMeleePctPercent: Math.round((affix.effects?.reflectMeleePct || 0) * 100),
-  };
-  return (affix.forecastText || '').replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ''));
+  return fillAffixTemplate(affix, affix?.forecastText);
+}
+
+/** One short line for inspection: the forecast line, else the affix's `summary`. */
+export function affixSummaryText(affix) {
+  return fillAffixTemplate(affix, affix?.forecastText || affix?.summary);
 }
 
 /** Notes belong to their source unit's column, including defensive/on-death effects. */

@@ -76,6 +76,10 @@
           },
           "forecastProjectionSafe": {
             "type": "boolean"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [
@@ -101,6 +105,18 @@
             },
             "then": {
               "required": ["forecastText", "forecastCondition"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "forecast": {
+                  "enum": ["numbers", "field"]
+                }
+              }
+            },
+            "then": {
+              "required": ["summary"]
             }
           }
         ]
