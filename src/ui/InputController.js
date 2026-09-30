@@ -165,18 +165,33 @@ export class InputController {
         scene.grid.clearPath();
         scene._lastPathPreviewKey = null;
       }
+    } else if (scene.battleState === 'CANTO_MOVING' && scene.selectedUnit && scene.cantoRange) {
+      // Canto: the same walk preview over the remaining move, so its terrain cost shows.
+      const unit = scene.selectedUnit;
+      const key = `${col},${row}`;
+      const entry = scene.cantoRange.get(key);
+      if (entry && entry.stoppable !== false && key !== `${unit.col},${unit.row}`) {
+        if (scene._lastPathPreviewKey === `canto:${key}`) return;
+        this._showPreviewPath(unit, col, row, {
+          range: scene.cantoRange,
+          positions: scene.buildUnitPositionMap(),
+        });
+        scene._lastPathPreviewKey = `canto:${key}`;
+      } else {
+        scene.grid.clearPath();
+        scene._lastPathPreviewKey = null;
+      }
     }
   }
 
-  _showPreviewPath(unit, col, row) {
+  _showPreviewPath(
+    unit,
+    col,
+    row,
+    { range = this.scene.movementRange, positions = this.scene.unitPositions } = {},
+  ) {
     const scene = this.scene;
-    const icePath = scene.grid.reconstructIcePath(
-      scene.movementRange,
-      unit.col,
-      unit.row,
-      col,
-      row,
-    );
+    const icePath = scene.grid.reconstructIcePath(range, unit.col, unit.row, col, row);
     const path =
       icePath ||
       scene.grid.findPath(
@@ -185,7 +200,7 @@ export class InputController {
         col,
         row,
         unit.moveType,
-        scene.unitPositions,
+        positions,
         unit.faction,
         scene._getCostModifier(unit),
       );
@@ -471,6 +486,9 @@ export class InputController {
         break;
       case 'CANTO_MOVING':
         scene.handleCantoClick(gp);
+        break;
+      case 'CANTO_CONFIRM':
+        scene.handleCantoConfirmClick(gp);
         break;
       case 'DEPLOY_POSITIONING':
         scene._formation?.handleTileTap(gp);

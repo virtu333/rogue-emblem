@@ -36,7 +36,22 @@ export const THREAT_SIGHT_DEPTHS = Object.freeze({
   SIGILS: 16, // above sprites, HP bars and affix pips
 });
 
-const ACTIVE_STATES = new Set(['UNIT_SELECTED', 'UNIT_ACTION_MENU']);
+// Canto too: the unit has acted, but where it ends its turn is still being chosen
+// (CANTO_MOVING reads the hovered tile, CANTO_CONFIRM the tile it moved to).
+const ACTIVE_STATES = new Set([
+  'UNIT_SELECTED',
+  'UNIT_ACTION_MENU',
+  'CANTO_MOVING',
+  'CANTO_CONFIRM',
+]);
+const CANTO_STATES = new Set(['CANTO_MOVING', 'CANTO_CONFIRM']);
+
+/** The destinations a hovered tile may preview in this state (null: the unit's own tile). */
+function previewRange(s) {
+  if (s.battleState === 'UNIT_SELECTED') return s.movementRange;
+  if (s.battleState === 'CANTO_MOVING') return s.cantoRange;
+  return null;
+}
 const MAX_LINES = 8;
 
 let nextUnitId = 1;
@@ -81,12 +96,14 @@ export class ThreatSightController {
   focus() {
     const s = this.scene;
     const unit = s.selectedUnit;
-    if (!unit || unit.faction !== 'player' || unit.currentHP <= 0 || unit.hasActed) return null;
+    if (!unit || unit.faction !== 'player' || unit.currentHP <= 0) return null;
+    if (unit.hasActed && !CANTO_STATES.has(s.battleState)) return null;
     if (!ACTIVE_STATES.has(s.battleState)) return null;
     if (s.turnManager?.currentPhase && s.turnManager.currentPhase !== 'player') return null;
     const hover = s._threatFocusTile;
-    if (s.battleState === 'UNIT_SELECTED' && hover && s.movementRange) {
-      const entry = s.movementRange.get(`${hover.col},${hover.row}`);
+    const range = previewRange(s);
+    if (hover && range) {
+      const entry = range.get(`${hover.col},${hover.row}`);
       const own = hover.col === unit.col && hover.row === unit.row;
       if (entry && entry.stoppable !== false && !own)
         return { unit, col: hover.col, row: hover.row, hovering: true };
@@ -117,8 +134,7 @@ export class ThreatSightController {
     const s = this.scene;
     const own = focus.unit.col === col && focus.unit.row === row;
     if (!own) {
-      if (s.battleState !== 'UNIT_SELECTED') return null;
-      const entry = s.movementRange?.get(`${col},${row}`);
+      const entry = previewRange(s)?.get(`${col},${row}`);
       if (!entry || entry.stoppable === false) return null;
     }
     return threatSummaryText(this.query(focus.unit, col, row));

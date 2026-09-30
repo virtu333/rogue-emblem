@@ -1,4 +1,4 @@
-import { isDifficultyAtLeast } from './DifficultyEngine.js';
+import { isDifficultyAtLeast, recruitAffixesAllowed } from './DifficultyEngine.js';
 import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
 // MapGenerator.js — Procedural map generation from zone-based templates
 // Pure functions, no Phaser dependency.
@@ -237,6 +237,8 @@ export function generateBattleLayout(params, deps) {
     { enemyPoisonChance, statusStaffConfig, siegeWeaponConfig, difficultyId: params.difficultyId },
   );
   enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
+    allowAffixes:
+      params.allowEnemyAffixes !== false && recruitAffixesAllowed(params, deps.difficulty),
     affixConfig: deps.affixes,
     difficultyId: params.difficultyId || 'normal',
     act,
@@ -391,6 +393,8 @@ export function generateBattleLayout(params, deps) {
   });
 
   const reinforcementConfig = cloneReinforcementConfig(template, {
+    allowAffixes:
+      params.allowEnemyAffixes !== false && recruitAffixesAllowed(params, deps.difficulty),
     act,
     difficultyId: params.difficultyId || 'normal',
   });
@@ -606,7 +610,10 @@ function meetsActThreshold(currentAct, requiredAct) {
   return ci !== -1 && ri !== -1 && ci >= ri;
 }
 
-function cloneReinforcementConfig(template, { act = null, difficultyId = 'normal' } = {}) {
+function cloneReinforcementConfig(
+  template,
+  { act = null, difficultyId = 'normal', allowAffixes = true } = {},
+) {
   if (!template || !template.reinforcements) return {};
 
   const gating = template.reinforcements.minActByDifficulty;
@@ -665,6 +672,12 @@ function cloneReinforcementConfig(template, { act = null, difficultyId = 'normal
       } else if (Array.isArray(extras)) {
         r.waves = r.waves.concat(extras);
       }
+    }
+  }
+
+  if (!allowAffixes) {
+    for (const wave of r.scriptedWaves || []) {
+      for (const spawn of wave.spawns || []) delete spawn.affixes;
     }
   }
 

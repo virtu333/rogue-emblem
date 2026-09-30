@@ -35,7 +35,12 @@ async function openForecast(page) {
         ...config.forecast,
         attacker: {
           ...config.forecast.attacker,
-          warnings: Array(12).fill('Long forecast warning: read all effects before confirming.'),
+          affixNotes: Array.from({ length: 12 }, () => ({
+            name: 'Venomous',
+            text: 'Long forecast consequence',
+            description: 'Read all effects before confirming.',
+            showDescription: true,
+          })),
         },
       },
     });

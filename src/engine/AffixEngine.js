@@ -99,6 +99,7 @@ function resolveDifficultyRules(config, difficultyId) {
  *     guaranteedTier      highest affix tier the guarantee draws from
  */
 export function assignAffixesToEnemySpawns(enemySpawns, options = {}) {
+  if (options.allowAffixes === false) return enemySpawns;
   const spawns = assignRolledAffixes(enemySpawns, options);
   const eclipse = options.eclipse;
   if (!eclipse || !(Number(eclipse.guaranteedCount) > 0)) return spawns;

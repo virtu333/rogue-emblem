@@ -220,3 +220,41 @@ it('all forge stat choices preview the wielder’s resulting combat numbers', ()
   expect(text.crit).toContain('Crit 4 → 9');
   expect(text.weight).toContain('AS 1 → 2');
 });
+
+// Playtest (Sep 2026): after a 1000 G forge the purse (1161 G) was below every price and
+// the Buy button still wore its ember fill, which read as "forging turned off buying".
+it('a stock out of reach says so: short rows, a greyed Buy and how much gold is missing', () => {
+  const item = structuredClone(d.data.weapons.find((i) => i.name === 'Steel Sword'));
+  const cheap = structuredClone(d.data.weapons.find((i) => i.name === 'Iron Sword'));
+  d.run.gold = 1161;
+  d.scene.shopBuyItems = [{ type: 'weapon', item, price: 1690 }];
+  const menu = d.shop.nativeMenu;
+  menu.selected = item;
+  menu.render();
+  const nodes = () => menu.surface.body.all();
+  const text = () =>
+    nodes()
+      .map((n) => n.textContent)
+      .join(' | ');
+  const buy = () => nodes().find((n) => n.tag === 'button' && n.textContent === 'Buy · 1690 G');
+  expect(buy().disabled).toBe(true);
+  expect(buy().classList.contains('shop-buy--short')).toBe(true);
+  expect(text()).toContain('Not enough gold: 529 G short.');
+  expect(text()).toContain('Nothing here is within 1161 G.');
+  expect(
+    nodes()
+      .find((n) => n.classList.contains('shop-row'))
+      .classList.contains('is-short'),
+  ).toBe(true);
+
+  // One affordable item: the stock-wide note goes, and that row is not marked short.
+  d.scene.shopBuyItems.push({ type: 'weapon', item: cheap, price: 500 });
+  menu.selected = cheap;
+  menu.render();
+  expect(text()).not.toContain('Nothing here is within');
+  const rows = nodes().filter((n) => n.classList.contains('shop-row'));
+  expect(rows.map((r) => r.classList.contains('is-short'))).toEqual([true, false]);
+  const cheapBuy = nodes().find((n) => n.tag === 'button' && n.textContent === 'Buy · 500 G');
+  expect(cheapBuy.disabled).toBe(false);
+  expect(cheapBuy.classList.contains('shop-buy--short')).toBe(false);
+});

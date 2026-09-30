@@ -55,3 +55,30 @@ export function openMenuCommand(scene, id) {
   if (!published || !scene.actionMenu || published.objects !== scene.actionMenu) return null;
   return published.items.find((item) => item?.id === id) || null;
 }
+
+/**
+ * States whose open menu is a unit's command rows: its action menu, or the confirm
+ * after a Canto move (Wait ends the turn there; Back returns to the Canto choice).
+ */
+export const CANTO_CONFIRM_STATE = 'CANTO_CONFIRM';
+export function isUnitMenuState(state) {
+  return state === 'UNIT_ACTION_MENU' || state === CANTO_CONFIRM_STATE;
+}
+
+export const DANGER_STATES = new Set([
+  'PLAYER_IDLE',
+  'UNIT_SELECTED',
+  'UNIT_ACTION_MENU',
+  'CANTO_MOVING',
+  CANTO_CONFIRM_STATE,
+  'DEPLOY_POSITIONING',
+]);
+
+export function canUseDanger(scene) {
+  return (
+    DANGER_STATES.has(scene?.battleState) &&
+    scene.turnManager?.currentPhase !== 'enemy' &&
+    !scene.isStoryInputLocked?.() &&
+    !scene._isTutorialStrictGateActive?.()
+  );
+}

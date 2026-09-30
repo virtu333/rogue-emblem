@@ -536,6 +536,18 @@ test.describe('phone Canto and rewind contracts', () => {
       );
       if (ending === 'Back') await back(page, true);
       else await tile(page, village.col, village.row, true);
+      if (ending === 'move') {
+        // A Canto step is not settled by the tap: Wait confirms it, and nothing (village,
+        // save) happens before then.
+        await page.waitForFunction(
+          () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'CANTO_CONFIRM',
+        );
+        const pending = await summary(page);
+        expect(pending.village.status).toBe('intact');
+        expect(pending.gold).toBe(before.gold);
+        expect(pending.checkpoint.checkpointIndex).toBe(before.checkpoint.checkpointIndex);
+        await action(page, 'Wait', true);
+      }
       await idle(page);
       const after = await summary(page);
       expect(after.village.status).toBe('visited');

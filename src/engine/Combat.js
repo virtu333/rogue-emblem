@@ -11,6 +11,7 @@ import {
   ENTITY_CRIT_RATE_MULT,
   ENTITY_CRIT_DMG_MULT,
 } from '../utils/constants.js';
+import { affixForecastNotes } from './AffixForecast.js';
 import { rollHit } from './HitRoll.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusConditionSystem.js';
@@ -1071,43 +1072,51 @@ export function getCombatForecast(
   // Collect activated skills for UI display
   const atkActivated = atkMods?.activated || [];
   const defActivated = defMods?.activated || [];
-  const atkWarnings = [];
-  const defWarnings = [];
-
-  if (Array.isArray(defender.affixes)) {
-    if (defender.affixes.includes('shielded') && !defender._hitByPlayerThisPhase)
-      atkWarnings.push('Shielded');
-    if (defender.affixes.includes('thorns') && distance === 1 && atkDmg > 0)
-      atkWarnings.push('Thorns');
-    if (defender.affixes.includes('teleporter') && atkDmg > 0) atkWarnings.push('Teleporter');
-  }
-  if (Array.isArray(attacker.affixes)) {
-    if (attacker.affixes.includes('shielded') && !attacker._hitByPlayerThisPhase)
-      defWarnings.push('Shielded');
-    if (attacker.affixes.includes('thorns') && distance === 1 && defDmg > 0)
-      defWarnings.push('Thorns');
-    if (attacker.affixes.includes('teleporter') && defDmg > 0) defWarnings.push('Teleporter');
-  }
+  const affixNotes = affixForecastNotes(
+    attacker,
+    defender,
+    {
+      display: { distance },
+      attacker: {
+        damage: atkDmg,
+        crit: atkCrit,
+        hit: atkHit,
+        attackCount: atkCount,
+        critMultiplier: isEntity(defender) ? ENTITY_CRIT_DMG_MULT : CRIT_MULTIPLIER,
+      },
+      defender: {
+        damage: defDmg,
+        crit: defCrit,
+        hit: defHit,
+        attackCount: defCount,
+        canCounter: defCanCounter,
+        critMultiplier: isEntity(attacker) ? ENTITY_CRIT_DMG_MULT : CRIT_MULTIPLIER,
+      },
+    },
+    skillCtx?.affixData,
+    { visibleUnits: skillCtx?.visibleUnits },
+  );
 
   // Thorns: the damage each landed, non-critical hit sends back to its striker. The
   // HP projection includes it when this context resolves on-defend affixes (as
   // battles do); otherwise, or without the affix data, the projection stays hidden.
   const affixesResolve = Boolean(skillCtx?.rollStrikeSkills && skillCtx?.rollDefenseAffixes);
   const atkThornsPct =
-    affixesResolve && atkWarnings.includes('Thorns')
+    affixesResolve && affixNotes.defender.some((note) => note.affixId === 'thorns')
       ? getThornsReflectPct(defender, skillCtx?.affixData)
       : 0;
   const defThornsPct =
-    affixesResolve && defWarnings.includes('Thorns')
+    affixesResolve && affixNotes.attacker.some((note) => note.affixId === 'thorns')
       ? getThornsReflectPct(attacker, skillCtx?.affixData)
       : 0;
-  const warningsHideProjection = (warnings, thornsPct) =>
-    warnings.some((w) => w !== 'Thorns' || !(thornsPct > 0));
+  const notesHideProjection = (notes, thornsPct) =>
+    notes.some((note) => note.affixId !== 'thorns' || !(thornsPct > 0));
 
   // Read-only display metadata. Resolution order and RNG are untouched.
   const forecast = {
     display: {
       triangle: atkTriangle,
+      distance,
       counterHasDamageProc: [...(defender.skills || []), defWeapon?._grantedSkill].some((skill) =>
         COUNTER_DAMAGE_PROCS.has(typeof skill === 'string' ? skill : skill?.id),
       ),
@@ -1138,15 +1147,18 @@ export function getCombatForecast(
         !(defCanCounter && getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)) &&
         !weaponSpecialChangesExchangeHp(atkWeapon) &&
         !(defCanCounter && weaponSpecialChangesExchangeHp(defWeapon)) &&
-        !warningsHideProjection(atkWarnings, atkThornsPct) &&
-        !warningsHideProjection(defWarnings, defThornsPct) &&
+        !notesHideProjection(affixNotes.defender, atkThornsPct) &&
+        !notesHideProjection(affixNotes.attacker, defThornsPct) &&
         ![
           [attacker, atkWeapon],
           [defender, defWeapon],
         ].some(
           ([u, weapon]) =>
             accessoryChangesExchangeHp(u) ||
-            (u.affixes || []).some((id) => ['venomous', 'deathburst'].includes(id)) ||
+            (u.affixes || []).some((id) => {
+              const affix = skillCtx?.affixData?.affixes?.find((entry) => entry.id === id);
+              return !affix || (affix.forecast === 'exchange' && !affix.forecastProjectionSafe);
+            }) ||
             [...(u.skills || []), weapon?._grantedSkill].some((s) =>
               [
                 'miracle',
@@ -1184,7 +1196,7 @@ export function getCombatForecast(
       drainMaxPerHit: isWounded(attacker) ? null : atkMods?.drainMaxPerHit || null,
       drainPerHit: isWounded(attacker) ? 0 : atkMods?.drainPerHit || 0,
       skills: atkActivated,
-      warnings: atkWarnings,
+      affixNotes: affixNotes.attacker,
       thornsReflect: thornsReflectDamage(atkDmg, atkThornsPct),
     },
     defender: {
@@ -1203,7 +1215,7 @@ export function getCombatForecast(
       drainMaxPerHit: isWounded(defender) ? null : defMods?.drainMaxPerHit || null,
       drainPerHit: isWounded(defender) ? 0 : defMods?.drainPerHit || 0,
       skills: defActivated,
-      warnings: defWarnings,
+      affixNotes: affixNotes.defender,
       thornsReflect: thornsReflectDamage(defDmg, defThornsPct),
     },
   };

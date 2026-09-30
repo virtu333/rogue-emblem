@@ -89,6 +89,14 @@ describe('pinnedRailCommand', () => {
     expect(pinnedRailCommand(short, { state: 'UNIT_ACTION_MENU' })?.label).toBe('Wait');
   });
 
+  it('pins Wait in the Canto confirm, the same as in an action menu', () => {
+    const menu = { items: items(['Wait']) };
+    expect(pinnedRailCommand(menu, { state: 'CANTO_CONFIRM' })).toBe(menu.items[0]);
+    expect(pinnedRailCommand(menu, { state: 'CANTO_CONFIRM', endTurnPending: true })).toBeNull();
+    // The pick-a-tile half of Canto has no menu to pin from.
+    expect(pinnedRailCommand(menu, { state: 'CANTO_MOVING' })).toBeNull();
+  });
+
   it('leaves submenus, other states and the end-turn prompt alone', () => {
     const menu = { items: items(SIX) };
     expect(pinnedRailCommand(menu, { state: 'UNIT_ACTION_MENU', submenu: true })).toBeNull();
@@ -102,6 +110,14 @@ describe('pinnedRailCommand', () => {
 });
 
 describe('the dock', () => {
+  it('holds a pinned Wait beside Danger in the Canto confirm', () => {
+    const { hud } = hudFor('CANTO_CONFIRM', ['Wait']);
+    hud.syncDock('CANTO_CONFIRM', hud.menu.items[0]);
+    expect(hud.dock.hidden).toBe(false);
+    expect(hud.dock.classList.contains('has-pinned')).toBe(true);
+    expect(hud.dock.children[0].textContent).toBe('Wait');
+  });
+
   it('holds Wait and a compact Danger in one row in a six-command menu', () => {
     const { hud, scene } = hudFor('UNIT_ACTION_MENU', SIX);
     const wait = hud.menu.items[5];
@@ -222,6 +238,7 @@ describe('the upright header yields to a unit in action', () => {
     ])
       expect(unitFocusedRail({ state, selected: true }), state).toBe(true);
     expect(unitFocusedRail({ state: 'UNIT_ACTION_MENU', selected: true, menu: true })).toBe(true);
+    expect(unitFocusedRail({ state: 'CANTO_CONFIRM', selected: true, menu: true })).toBe(true);
   });
 
   it('never at idle, in the enemy phase, in Formation, or without a selected unit', () => {
@@ -236,6 +253,7 @@ describe('the upright header yields to a unit in action', () => {
       expect(unitFocusedRail({ state, selected: true, menu: true }), state).toBe(false);
     // An action menu still being built (no rail menu yet), or no unit selected.
     expect(unitFocusedRail({ state: 'UNIT_ACTION_MENU', selected: true, menu: false })).toBe(false);
+    expect(unitFocusedRail({ state: 'CANTO_CONFIRM', selected: true, menu: false })).toBe(false);
     expect(unitFocusedRail({ state: 'SELECTING_TARGET', selected: false })).toBe(false);
   });
 });

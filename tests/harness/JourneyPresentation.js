@@ -9,7 +9,15 @@ export class PresentationNode {
     this.style = {};
     this.attributes = {};
     this.className = classes;
-    this.classList = { add() {}, remove() {}, toggle() {} };
+    const names = () => (this.className || '').split(/\s+/).filter(Boolean);
+    const set = (list) => (this.className = list.join(' '));
+    this.classList = {
+      add: (...c) => set([...new Set([...names(), ...c])]),
+      remove: (...c) => set(names().filter((n) => !c.includes(n))),
+      toggle: (c, on = !names().includes(c)) =>
+        on ? this.classList.add(c) : this.classList.remove(c),
+      contains: (c) => names().includes(c),
+    };
     this.scrollTop = 0;
   }
   append(...nodes) {

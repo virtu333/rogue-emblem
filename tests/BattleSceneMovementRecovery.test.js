@@ -97,6 +97,8 @@ function makeScene() {
     this.battleState = 'PLAYER_IDLE';
   });
   scene.dimUnit = vi.fn();
+  // The phone rail renders menus (the Canto confirm needs no canvas here).
+  scene._mobileBattleHud = { showMenu: vi.fn(), hideMenu: vi.fn() };
 
   return { scene, unit };
 }
@@ -194,6 +196,7 @@ describe('BattleScene movement recovery', () => {
       unit.hasActed = true;
       scene._villageController = {
         handleUnitActionEnd: vi.fn((u) => calls.push(`village:${u.col},${u.row}`)),
+        getWaitNote: () => null,
       };
       scene._captureSuspendCheckpoint = vi.fn(() => calls.push('save'));
       scene.turnManager.unitActed = vi.fn(() => calls.push('phase'));
@@ -212,6 +215,12 @@ describe('BattleScene movement recovery', () => {
       BattleScene.prototype.handleCantoClick.call(scene, { col: 2, row: 1 });
       // The fallback timer must not apply a second completion after recovery.
       for (const [, callback] of scene.time.delayedCall.mock.calls) callback();
+      if (failure === 'dim') {
+        // Dim fails in the Wait that settles the Canto move (CANTO_CONFIRM).
+        expect(scene.battleState).toBe('CANTO_CONFIRM');
+        expect(calls).toEqual([]);
+        BattleScene.prototype.confirmCantoMove.call(scene);
+      }
       expect(calls).toEqual([`village:${failure === 'setup' ? '1,1' : '2,1'}`, 'save', 'phase']);
       expect(scene.battleState).toBe('PLAYER_IDLE');
       expect(unit.hasActed).toBe(true);

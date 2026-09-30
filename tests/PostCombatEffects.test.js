@@ -6,6 +6,7 @@ import {
   allyBuff,
   aoeSplash,
   runPostCombatEffectsSync,
+  postCombatEffects,
   splashDamage,
 } from '../src/engine/PostCombatEffects.js';
 
@@ -83,5 +84,57 @@ describe('PostCombatEffects beats', () => {
       expiryTurn: 4, // turn 3 + 1 phase of the source's side
     });
     expect(source.stats.STR).toBe(10); // includeSelf is off
+  });
+});
+
+// Pin the disclosure against the actual on-hit pipeline, rather than a parallel model.
+describe('Venomous and Corrosive disclosure', () => {
+  const affixes = {
+    affixes: [
+      { id: 'venomous', name: 'Venomous', trigger: 'on-attack', effects: { poisonDamage: 5 } },
+      {
+        id: 'corrosive',
+        name: 'Corrosive',
+        trigger: 'on-attack',
+        effects: { debuffStat: 'DEF', debuffValue: -2 },
+      },
+    ],
+  };
+  it('even zero-damage hits from a fallen source apply once per combat, and poison cannot kill', () => {
+    const source = { ...unit('Soldier', 'enemy', 0, 0, 0, 20), affixes: ['venomous', 'corrosive'] };
+    const target = { ...unit('Edric', 'player', 1, 0, 4, 20), stats: { HP: 20, DEF: 6 } };
+    const context = { ...world([target], [source]), affixes };
+    const events = Array.from({ length: 2 }, () => ({
+      type: 'strike',
+      attackerSide: 'attacker',
+      damage: 0,
+      miss: false,
+    }));
+    runPostCombatEffectsSync(
+      postCombatEffects({ attacker: source, defender: target, result: { events } }, context),
+    );
+    expect(target.currentHP).toBe(1);
+    expect(target.stats.DEF).toBe(4);
+    runPostCombatEffectsSync(
+      postCombatEffects({ attacker: source, defender: target, result: { events } }, context),
+    );
+    expect(target.currentHP).toBe(1);
+    expect(target.stats.DEF).toBe(2);
+  });
+  it('all misses cause neither poison nor corrosion', () => {
+    const source = { ...unit('Soldier', 'enemy', 0, 0, 20), affixes: ['venomous', 'corrosive'] };
+    const target = { ...unit('Edric', 'player', 1, 0, 20), stats: { HP: 20, DEF: 6 } };
+    runPostCombatEffectsSync(
+      postCombatEffects(
+        {
+          attacker: source,
+          defender: target,
+          result: { events: [{ type: 'strike', attackerSide: 'attacker', miss: true }] },
+        },
+        { ...world([target], [source]), affixes },
+      ),
+    );
+    expect(target.currentHP).toBe(20);
+    expect(target.stats.DEF).toBe(6);
   });
 });

@@ -338,8 +338,8 @@ const STATIC_HELP_TABS = [
           { text: 'Canto (Paladin/Falcon Knight):', color: CYAN },
           { text: '  Use remaining movement after acting.' },
           {
-            text: '  Press W or click own tile to skip.',
-            mobileText: '  Tap Menu to finish repositioning.',
+            text: '  W/own tile skips; after, Wait or Back.',
+            mobileText: '  Menu skips; after a move, Wait or Back.',
           },
           { text: '' },
           { text: 'Personal: Lords learn a unique skill', color: GOLD },

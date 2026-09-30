@@ -390,6 +390,11 @@ export class MobileRosterSheet {
       );
       summary.append(createHealthBar(unit));
       body.append(summary);
+      for (const id of unit.affixes || []) {
+        const affix = this.gameData.affixes?.affixes?.find((a) => a.id === id);
+        this.card(affix?.name || id, affix?.description || '');
+      }
+
       this.benchCallout(unit);
       if (this.tab === 'stats') this.stats(unit);
       if (this.tab === 'skills') this.skills(unit);
@@ -564,10 +569,6 @@ export class MobileRosterSheet {
         ).classList.add('mr-flavor');
       // Who they are (traits, temperament), then what they have done.
       if (unit.faction === 'player') this.deeds(unit);
-    }
-    for (const id of unit.affixes || []) {
-      const affix = this.gameData.affixes?.affixes?.find((a) => a.id === id);
-      this.card(affix?.name || id, affix?.description || '');
     }
     if (unit.growths && unit.faction !== 'enemy') this.body.append(growthsCard(unit.growths));
   }

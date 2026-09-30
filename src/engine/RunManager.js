@@ -79,7 +79,9 @@ import {
 import {
   resolveDifficultyMode,
   DIFFICULTY_DEFAULTS,
+  ENEMY_ACT_GATE_ORDER,
   difficultyVictoryMilestone,
+  recruitAffixesAllowed,
 } from './DifficultyEngine.js';
 import { assignPortraitVariants, backfillPortraitVariants } from './PortraitVariants.js';
 import {
@@ -3043,9 +3045,19 @@ export class RunManager {
   getRecruitNodeBattleMods(node) {
     if (node?.type !== 'recruit') return { enemyCountBonus: 0, affixCount: 0 };
     const int = (key) => Math.max(0, Math.trunc(Number(this.getDifficultyModifier(key, 0)) || 0));
+    const nodeAct = node.battleParams?.act || node.act || node.id?.split('_')[0];
     return {
       enemyCountBonus: int('recruitEnemyCountBonus'),
-      affixCount: int('recruitAffixCount'),
+      affixCount: recruitAffixesAllowed(
+        {
+          isRecruitBattle: true,
+          difficultyId: this.difficultyId,
+          act: ENEMY_ACT_GATE_ORDER.includes(nodeAct) ? nodeAct : this.currentAct,
+        },
+        this.gameData?.difficulty,
+      )
+        ? int('recruitAffixCount')
+        : 0,
     };
   }
 
@@ -3132,6 +3144,7 @@ export class RunManager {
       Number.isFinite(battleParams.recruitGuardianChance) ? battleParams.recruitGuardianChance : 0,
     );
     battleParams.difficultyId = this.difficultyId || 'normal';
+    battleParams.allowEnemyAffixes = recruitAffixesAllowed(battleParams, this.gameData?.difficulty);
     // The Eclipse: phase + eclipsed-node enemy levels and affix overrides. Keys are
     // only added when they change something, so a Pale run's params are unchanged.
     const eclipseMods = eclipseBattleMods({

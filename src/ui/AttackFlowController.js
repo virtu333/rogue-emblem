@@ -48,6 +48,7 @@ export class AttackFlowController {
     this.scene = scene;
     this.focusedTarget = null;
     this._lastTargetByUnit = new WeakMap();
+    this._affixLessonsShown = new Set();
   }
 
   distance(unit, target) {
@@ -260,7 +261,7 @@ export class AttackFlowController {
   cancelForecast() {
     const scene = this.scene;
     const target = scene.forecastTarget;
-    scene.hideForecast();
+    scene.hideForecast({ acknowledge: true });
     scene._clearCombatRollSession();
     scene.battleState = 'SELECTING_TARGET';
     if (scene.attackTargets?.length) this.showTargetHighlights();
@@ -330,6 +331,15 @@ export class AttackFlowController {
       atkTerrain,
       defTerrain,
     });
+    const hints = scene.registry?.get?.('hints');
+    for (const info of [forecast.attacker, forecast.defender]) {
+      info.affixNotes = (info.affixNotes || []).map((note) => {
+        const id = `affix_${note.affixId}`;
+        const showDescription = Boolean(note.description) && !hints?.hasSeen?.(id);
+        if (showDescription) this._affixLessonsShown.add(id);
+        return { ...note, showDescription };
+      });
+    }
 
     scene._forecastValidWeapons = validWeapons;
     const targets = scene.attackTargets || [];
@@ -367,6 +377,19 @@ export class AttackFlowController {
       );
     }
     return forecast;
+  }
+
+  /**
+   * The forecast closed. Only the player's own Confirm or Cancel acknowledges the rules it
+   * showed (cycled targets included); End Turn, a rewind or a scene shutdown (the phone
+   * turning) closes it unread, so the rules show in full next time.
+   */
+  closeForecast({ acknowledge = false } = {}) {
+    if (acknowledge) {
+      const hints = this.scene.registry?.get?.('hints');
+      for (const id of this._affixLessonsShown) hints?.markSeen?.(id);
+    }
+    this._affixLessonsShown.clear();
   }
 
   /** ◀ ▶ / swipe / Left-Right / L1-R1 in the forecast. */

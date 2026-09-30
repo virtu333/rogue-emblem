@@ -114,6 +114,7 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   enemyCountBase: 0,
   recruitEnemyCountBonus: 0,
   recruitAffixCount: 0,
+  recruitAffixExcludedActs: Object.freeze(['act1']),
   act1EnemyCountDeployCap: 3,
   enemyEquipTierShift: 0,
   enemySkillChance: 0,
@@ -139,6 +140,18 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   rewindGranularity: 'action',
   siegeWeaponConfig: null,
 });
+
+const recruitAffixExclusions = (config, id) =>
+  config?.modes?.[id]?.recruitAffixExcludedActs ??
+  (id === 'normal' ? DIFFICULTY_DEFAULTS.recruitAffixExcludedActs : []);
+
+/** Encounter policy, independent of Eclipse's rolled/guaranteed affix overrides. */
+export function recruitAffixesAllowed(params, difficultyData) {
+  if (!params?.isRecruitBattle) return true;
+  const id = params.difficultyId || 'normal';
+  const excluded = recruitAffixExclusions(difficultyData, id);
+  return !excluded.includes(params.act || 'act1');
+}
 
 /**
  * Compare a difficulty mode against DIFFICULTY_DEFAULTS and return human-readable
@@ -265,6 +278,14 @@ export function validateDifficultyConfig(config) {
       errors.push(`modes.${difficultyId}.enemyClassEarliestAct must map classes to act ids`);
     }
 
+    if (
+      mode.recruitAffixExcludedActs !== undefined &&
+      (!Array.isArray(mode.recruitAffixExcludedActs) ||
+        mode.recruitAffixExcludedActs.some((act) => !ENEMY_ACT_GATE_ORDER.includes(act)))
+    ) {
+      errors.push(`modes.${difficultyId}.recruitAffixExcludedActs must be an array of act ids`);
+    }
+
     for (const key of DIFFICULTY_REQUIRED_KEYS) {
       if (!(key in mode)) errors.push(`modes.${difficultyId} missing required key: ${key}`);
     }
@@ -312,6 +333,7 @@ export function resolveDifficultyMode(config, difficultyId = 'normal') {
   const resolved = {
     ...DIFFICULTY_DEFAULTS,
     ...(isObject(mode) ? mode : {}),
+    recruitAffixExcludedActs: [...recruitAffixExclusions(config, selectedId)],
   };
   resolved.actsIncluded =
     Array.isArray(resolved.actsIncluded) && resolved.actsIncluded.length > 0

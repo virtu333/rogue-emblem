@@ -86,7 +86,11 @@ import {
   rollVillageRewardItem,
   VILLAGE_STATUS,
 } from '../../src/engine/VillageSystem.js';
-import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../../src/engine/TerrainHazards.js';
+import {
+  computeLavaCrackHp,
+  isLavaCrackTerrainIndex,
+  lavaBurnsUnit,
+} from '../../src/engine/TerrainHazards.js';
 import { stampCommanderFlag } from '../../src/engine/Commander.js';
 import {
   buildRecruitNodeUnit,
@@ -1199,7 +1203,7 @@ export class HeadlessBattle {
     for (const unit of [...(units || [])]) {
       if (!unit || unit.currentHP <= 0) continue;
       const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
-      if (!isLavaCrackTerrainIndex(terrainIdx)) continue;
+      if (!isLavaCrackTerrainIndex(terrainIdx) || !lavaBurnsUnit(unit)) continue;
       const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP);
       if (appliedDamage <= 0) continue;
       unit.currentHP = nextHP;

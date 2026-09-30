@@ -122,6 +122,26 @@ export class ForecastOverlay {
         ).setDepth(depth + 1),
       ),
     );
+    const affixTexts = [forecast.attacker, forecast.defender].map((info) =>
+      (info.affixNotes || []).map((note) =>
+        applyTextResolution(
+          scene.add.text(
+            0,
+            0,
+            `${note.name} · ${note.text}${note.showDescription ? `\n${note.description}` : ''}`,
+            {
+              fontFamily: 'Arial',
+              fontSize: '10px',
+              color: UI_PALETTE.warn,
+              wordWrap: { width: 178 },
+              lineSpacing: 2,
+            },
+          ),
+        ).setDepth(depth + 1),
+      ),
+    );
+    const affixHeight = (side) =>
+      affixTexts[side].reduce((height, text) => height + text.height + 5, 0);
     const noteHeight = (side) => notes[side].reduce((height, text) => height + text.height + 5, 0);
 
     // Pre-calculate content height for dynamic panel sizing
@@ -132,13 +152,11 @@ export class ForecastOverlay {
     if (_atkSkills.length > 0 || _hasMiracle(attacker)) _atkExtraH += 24;
     if (weaponArt) _atkExtraH += 24;
     if (gamblerLine) _atkExtraH += 24;
-    if (forecast.attacker.warnings?.length)
-      _atkExtraH += 2 + forecast.attacker.warnings.length * 14;
+    _atkExtraH += affixHeight(0);
     let _defExtraH = 0;
     const _defSkills = forecast.defender.skills || [];
     if (_defSkills.length > 0 || _hasMiracle(defender)) _defExtraH += 24;
-    if (forecast.defender.warnings?.length)
-      _defExtraH += 2 + forecast.defender.warnings.length * 14;
+    _defExtraH += affixHeight(1);
     const panelH = 166 + Math.max(_atkExtraH + noteHeight(0), _defExtraH + noteHeight(1));
     const panelX = (scene.cameras.main.width - panelW) / 2;
     const panelY = scene.cameras.main.height - panelH - 10;
@@ -159,6 +177,7 @@ export class ForecastOverlay {
       weapon,
       equippedWeapon,
       notes: notes[0],
+      affixTexts: affixTexts[0],
       predictedHP: projection?.attackerHP,
     });
     this._drawSide(
@@ -174,6 +193,7 @@ export class ForecastOverlay {
         gamblerLine: null,
         validWeapons: null,
         notes: notes[1],
+        affixTexts: affixTexts[1],
         predictedHP: projection?.defenderHP,
         targetIndex,
         targetCount,
@@ -650,37 +670,11 @@ export class ForecastOverlay {
       y += gamblerText.height + 2;
     }
 
-    if (info.warnings?.length) {
-      y += 2;
-      for (const warn of info.warnings) {
-        let label = warn.toUpperCase();
-        let color = UI_PALETTE.warn;
-        if (warn === 'Shielded') {
-          label = '[BLOCK]';
-          color = UI_PALETTE.info;
-        }
-        if (warn === 'Thorns') {
-          label = '[REFLECT]';
-          color = UI_PALETTE.bad;
-        }
-        if (warn === 'Teleporter') {
-          label = '[WARP]';
-          color = UI_PALETTE.rarityEpic;
-        }
-
-        const warningText = applyTextResolution(
-          scene.add.text(x + 2, y, label, {
-            fontFamily: 'Arial',
-            fontSize: '10px',
-            color,
-            fontStyle: 'bold',
-            backgroundColor: '#00000088',
-            padding: { x: 4, y: 1 },
-          }),
-        ).setDepth(textDepth);
-        this.displayObjects.push(warningText);
-        y += 14;
-      }
+    for (const text of opts.affixTexts || []) {
+      text.x = x + 2;
+      text.y = y;
+      this.displayObjects.push(text);
+      y += text.height + 5;
     }
   }
 

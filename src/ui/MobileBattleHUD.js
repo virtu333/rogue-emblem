@@ -37,6 +37,7 @@ import {
   terrainRuleLines,
 } from '../engine/BattleInformation.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
+import { isUnitMenuState, canUseDanger } from './battleMenuModel.js';
 import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
@@ -69,6 +70,7 @@ const PLAY_STATES = new Set([
   'COMBAT_RESOLVING',
   'TURN_START_RESOLVING',
   'CANTO_MOVING',
+  'CANTO_CONFIRM',
 ]);
 const HINTS = {
   PLAYER_IDLE: 'Tap a unit to begin. Pinch to zoom the map.',
@@ -78,6 +80,7 @@ const HINTS = {
   UNIT_SELECTED: 'Tap a highlighted tile to move.',
   UNIT_ACTION_MENU: 'Choose an action for this unit.',
   CANTO_MOVING: 'Tap a tile to reposition, or choose Menu to finish.',
+  CANTO_CONFIRM: 'Wait to end the turn here, or Back to choose another tile.',
   ENEMY_PHASE: 'Enemy turn',
   COMBAT_RESOLVING: 'Resolving combat…',
   TURN_START_RESOLVING: 'Applying turn-start effects…',
@@ -155,7 +158,7 @@ function forecastWeapon(config) {
  * where the dock sits: below the scrolling list.
  */
 export function pinnedRailCommand(menu, { state, submenu = false, endTurnPending = false } = {}) {
-  if (state !== 'UNIT_ACTION_MENU' || submenu || endTurnPending || !menu?.items) return null;
+  if (!isUnitMenuState(state) || submenu || endTurnPending || !menu?.items) return null;
   return menu.items.find((item) => item?.id === 'wait') || null;
 }
 
@@ -192,6 +195,7 @@ const UNIT_FOCUS_STATES = new Set([
   'UNIT_MOVING',
   'UNIT_ACTION_MENU',
   'CANTO_MOVING',
+  'CANTO_CONFIRM',
   'SHOWING_FORECAST',
   'CONFIRMING_ATTACK',
 ]);
@@ -199,7 +203,7 @@ const UNIT_FOCUS_STATES = new Set([
 /** The rail is about one unit's action (its header yields to it on the upright rail). */
 export function unitFocusedRail({ state = '', selected = false, menu = false } = {}) {
   if (!selected) return false;
-  if (state === 'UNIT_ACTION_MENU') return Boolean(menu);
+  if (isUnitMenuState(state)) return Boolean(menu);
   return UNIT_FOCUS_STATES.has(state) || state.startsWith('SELECTING_');
 }
 
@@ -276,7 +280,7 @@ export class MobileBattleHUD {
         this.scene.requestCancel();
         return;
       }
-      if (!this.menu || this.scene.battleState !== 'UNIT_ACTION_MENU') return;
+      if (!this.menu || !isUnitMenuState(this.scene.battleState)) return;
       // Keep native Enter/Space activation and Tab, but prevent the scene from
       // also acting on this key after the DOM control has handled it.
       event.stopPropagation();
@@ -679,7 +683,15 @@ export class MobileBattleHUD {
       );
     }
     if (attacking && config.gamblerLine) side.append(el('p', 'mb-notice', config.gamblerLine));
-    for (const warning of info.warnings || []) side.append(el('p', 'mb-notice', warning));
+    for (const note of info.affixNotes || []) {
+      const disclosure = el('details', 'mb-detail mb-affix');
+      disclosure.open = Boolean(note.showDescription);
+      disclosure.append(
+        el('summary', 'mb-notice', `${note.name} · ${note.text}`),
+        el('p', '', note.description),
+      );
+      side.append(disclosure);
+    }
     return side;
   }
 
@@ -955,7 +967,7 @@ export class MobileBattleHUD {
     if (s._inputController?._planningInspection && s.selectedUnit) {
       this.summary.append(el('p', 'mb-detail', `Inspecting · Selected: ${s.selectedUnit.name}`));
     }
-    const focus = state === 'UNIT_ACTION_MENU' && unit ? unit : s._mobileTerrainFocus || unit;
+    const focus = isUnitMenuState(state) && unit ? unit : s._mobileTerrainFocus || unit;
     if (unit) {
       this.summary.append(el('h2', '', unit.name));
       this.summary.append(
@@ -1048,7 +1060,7 @@ export class MobileBattleHUD {
     this._scrollKey = scrollKey;
     this.root.classList.toggle('has-unit', Boolean(unit));
     this.root.classList.toggle('in-formation', formation);
-    this.root.classList.toggle('in-menu', state === 'UNIT_ACTION_MENU' && Boolean(this.menu));
+    this.root.classList.toggle('in-menu', isUnitMenuState(state) && Boolean(this.menu));
     // A submenu (Equip, Item, a staff or art pick) lists rows with stat briefs.
     this.root.classList.toggle(
       'in-submenu',
@@ -1114,7 +1126,7 @@ export class MobileBattleHUD {
     const staffInfo = statusStaffInfo(unit);
     if (staffInfo) detailContent.append(el('p', '', staffInfo.text));
     detailContent.append(el('pre', '', info || 'Tap a tile to inspect terrain.'));
-    if (['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state)) {
+    if (canUseDanger(s)) {
       detailContent.append(
         this.button(
           s.keepDangerVisible ? 'Unpin global Danger' : 'Keep global Danger visible',
@@ -1212,7 +1224,7 @@ export class MobileBattleHUD {
       );
     if (state === 'SELECTING_TARGET') this.appendTargetList();
     if (state === 'SELECTING_HEAL_TARGET') this.appendHealTargetList();
-    if (state === 'UNIT_ACTION_MENU' && this.menu) {
+    if (isUnitMenuState(state) && this.menu) {
       const menu = this.menu;
       if (s._inputController?._planningInspection && unit) {
         const inspection = el('div', 'mb-command-grid');
@@ -1456,7 +1468,7 @@ export class MobileBattleHUD {
           this.menu !== menu ||
           s.actionMenu !== menu.objects ||
           s.selectedUnit !== menu.unit ||
-          s.battleState !== 'UNIT_ACTION_MENU' ||
+          !isUnitMenuState(s.battleState) ||
           item.disabled
         )
           return;
@@ -1525,28 +1537,29 @@ export class MobileBattleHUD {
       this.dock.classList.toggle('has-pinned', false);
       this.dock.append(
         startButton(s._formation, (label, action, cls) => this.button(label, action, cls)),
-        this.dangerToggle({ compact: true, viaEvent: true }),
+        ...(canUseDanger(s) ? [this.dangerToggle({ compact: true, viaEvent: true })] : []),
       );
       this.dock.classList.toggle('is-formation', true);
       return;
     }
     this.dock.classList.toggle('is-formation', false);
     const planning =
-      ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state) &&
+      (['PLAYER_IDLE', 'UNIT_SELECTED'].includes(state) || isUnitMenuState(state)) &&
       s.turnManager?.currentPhase !== 'enemy';
-    this.dock.hidden = !planning;
+    this.dock.hidden = !planning && !canUseDanger(s);
     const pin = planning && pinned && this.menu ? pinned : null;
     const dockEndTurn = planning && !pin && endTurn;
     this.dock.classList.toggle('has-pinned', Boolean(pin || dockEndTurn));
-    if (!planning) return;
+    if (!planning && !canUseDanger(s)) return;
     if (pin) this.dock.append(this.menuButton(this.menu, pin, 'mb-pinned-command'));
     else if (dockEndTurn) this.dock.append(this.endTurnButton('mb-pinned-command'));
-    this.dock.append(
-      this.dangerToggle({
-        compact: Boolean(pin || dockEndTurn),
-        viaEvent: state !== 'UNIT_ACTION_MENU',
-      }),
-    );
+    if (canUseDanger(s))
+      this.dock.append(
+        this.dangerToggle({
+          compact: Boolean(pin || dockEndTurn),
+          viaEvent: !isUnitMenuState(state),
+        }),
+      );
   }
 
   dangerToggle({ compact = false, viaEvent = false } = {}) {

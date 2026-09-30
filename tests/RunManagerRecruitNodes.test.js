@@ -70,7 +70,7 @@ describe('recruit previews on the run map', () => {
 });
 
 describe('recruit battle params', () => {
-  it('carry the preview, one more hunter and an affixed captain (normal)', () => {
+  it('carry the preview and one more hunter, without an Act 1 First Light captain', () => {
     const rm = freshRun(21);
     const node = recruitNodes(rm)[0];
     const params = rm.getBattleParams(node);
@@ -79,8 +79,9 @@ describe('recruit battle params', () => {
       name: node.recruitPreview.name,
     });
     expect(params.recruitEnemyCountBonus).toBe(1);
-    expect(params.eclipseAffix.guaranteedCount).toBeGreaterThanOrEqual(1);
-    expect(rm.getRecruitNodeBattleMods(node)).toEqual({ enemyCountBonus: 1, affixCount: 1 });
+    expect(params.allowEnemyAffixes).toBe(false);
+    expect(params.eclipseAffix).toBeUndefined();
+    expect(rm.getRecruitNodeBattleMods(node)).toEqual({ enemyCountBonus: 1, affixCount: 0 });
   });
 
   it('hard and lunatic send two extra hunters', () => {

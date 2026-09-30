@@ -16,7 +16,9 @@ of playtests (phone and a Mac desktop browser). Captures:
 
 ## 1. Threat sight — who can reach this tile
 
-While a player unit is selected (`UNIT_SELECTED`, or the action menu before it acts):
+While a player unit is selected (`UNIT_SELECTED`, or the action menu before it acts), and
+while a unit that has acted picks where its Canto ends (`CANTO_MOVING`: the hovered Canto
+tile; `CANTO_CONFIRM`: the tile it moved to, until Wait):
 
 - **Which tile.** The destination under the mouse / grid cursor when it is a stoppable
   move tile; otherwise (no hover, off-range, touch, after a tap-move) the unit's own

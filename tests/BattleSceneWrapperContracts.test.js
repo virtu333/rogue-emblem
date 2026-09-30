@@ -916,6 +916,9 @@ describe('BattleScene shim delegation contracts', () => {
         row: 2,
       };
 
+      scene.playerUnits = [attacker];
+      scene.enemyUnits = [defender];
+      scene.npcUnits = [];
       await BattleScene.prototype.showForecast.call(scene, attacker, defender);
 
       expect(scene._forecastOverlay).toBeInstanceOf(ForecastOverlay);
