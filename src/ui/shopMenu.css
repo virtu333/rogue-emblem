@@ -162,6 +162,22 @@
   margin: 0 0 6px;
   color: var(--re-muted);
 }
+.shop-reason--gold {
+  color: var(--re-warn);
+}
+/* A price the purse can't reach: warn-coloured price line on the row. */
+.shop-row.is-short .shop-row-text span {
+  color: var(--re-warn);
+}
+/* An unaffordable Buy must not wear the ember fill: at 45% opacity it still read as live. */
+.shop-commit .re-btn--primary.shop-buy--short:disabled {
+  background: var(--re-panel);
+  background-color: var(--re-panel);
+  border-color: var(--re-line-soft);
+  color: var(--re-muted);
+  text-shadow: none;
+  cursor: not-allowed;
+}
 .shop-warning {
   margin: 0 0 6px;
   color: var(--re-warn);

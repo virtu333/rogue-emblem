@@ -180,6 +180,19 @@ export class ShopMenu {
             : 'No eligible items.',
         ),
       );
+    // Out of reach reads as out of reach: the row's price turns warn, and a stock
+    // the purse can't touch says so (a forge's cost can empty the purse; playtest
+    // Sep 2026 read that as "forging turned off buying").
+    const short = (row) =>
+      this.scene.activeShopTab === 'buy' && Number(row.entry?.price) > this.run.gold;
+    if (rows.length && rows.every(short))
+      stock.append(
+        el(
+          'p',
+          `Nothing here is within ${this.run.gold} G. Sell, restock or leave.`,
+          'shop-reason shop-reason--gold',
+        ),
+      );
     rows.forEach((row, i) => {
       const b = button(
         null,
@@ -191,6 +204,7 @@ export class ShopMenu {
         're-btn shop-row',
       );
       b.dataset.shopFocus = `item-${i}`;
+      if (short(row)) b.classList.add('is-short');
       b.setAttribute('aria-pressed', String(row.item === this.selected));
       const sub =
         this.scene.activeShopTab === 'buy'
@@ -326,6 +340,7 @@ export class ShopMenu {
     const action = el('div', null, 'shop-commit');
     const tab = this.scene.activeShopTab;
     let reason = '';
+    let goldShort = false;
     if (tab === 'buy') {
       reason = shopBuyBlock(this.run, this.scene.shopBuyItems, row.entry);
       const b = button(
@@ -334,6 +349,11 @@ export class ShopMenu {
         're-btn re-btn--primary',
       );
       b.disabled = !!reason;
+      goldShort = reason === 'Not enough gold.';
+      if (goldShort) {
+        reason = `Not enough gold: ${row.entry.price - this.run.gold} G short.`;
+        b.classList.add('shop-buy--short');
+      }
       action.append(b);
     } else if (tab === 'sell') {
       reason = shopSellBlock(this.run, row);
@@ -372,7 +392,8 @@ export class ShopMenu {
       if (b.disabled) reason = 'No forges remain at this shop.';
       action.append(b);
     }
-    if (reason) action.prepend(el('p', reason, 'shop-reason'));
+    if (reason)
+      action.prepend(el('p', reason, goldShort ? 'shop-reason shop-reason--gold' : 'shop-reason'));
     container.append(copy, action);
   }
   persist() {

@@ -11,6 +11,11 @@ export function isLavaCrackTerrainIndex(terrainIndex) {
   return terrainIndex === TERRAIN.LavaCrack;
 }
 
+/** Lava burns what stands on it; a flier hovers over the crack and is never burned. */
+export function lavaBurnsUnit(unit) {
+  return Boolean(unit) && unit.moveType !== 'Flying';
+}
+
 export function computeLavaCrackHp(currentHP, damage = LAVA_CRACK_DAMAGE) {
   const safeHp = Number(currentHP) || 0;
   const nextHP = Math.max(1, safeHp - damage);

@@ -60,4 +60,22 @@ describe('lava burns', () => {
     await s.processTerrainDamage([unit('Edric', 0)]);
     expect(s.showBriefBanner).not.toHaveBeenCalled();
   });
+
+  // Playtest (Sep 30 2026): "I don't think lava tiles should affect fliers."
+  it('a flier on lava is not burned; a grounded unit beside it is', async () => {
+    const L = TERRAIN.LavaCrack;
+    const s = scene([[L, L]]);
+    const wyvern = { ...unit('Wyvern', 0), moveType: 'Flying' };
+    const knight = { ...unit('Knight', 1), moveType: 'Armored' };
+    await s.processTerrainDamage([wyvern, knight]);
+    expect(wyvern.currentHP).toBe(20);
+    expect(knight.currentHP).toBe(15);
+    expect(s.showTerrainDamage).toHaveBeenCalledTimes(1);
+    expect(s.showBriefBanner.mock.calls[0][0]).toBe('Lava burns Knight -5');
+  });
+
+  it('the lava tile says fliers are immune', () => {
+    const lava = terrain.find((t) => t.name === 'Lava Crack');
+    expect(lava.special).toMatch(/Flying units are immune/);
+  });
 });

@@ -141,7 +141,7 @@
     },
     "avoidBonus": "0",
     "defBonus": "0",
-    "special": "Burns 5 HP at the end of its side's phase (never below 1 HP)"
+    "special": "Burns 5 HP at the end of its side's phase (never below 1 HP). Flying units are immune"
   },
   {
     "name": "Floor",

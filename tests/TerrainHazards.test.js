@@ -5,6 +5,7 @@ import { pickTemplate } from '../src/engine/MapGenerator.js';
 import {
   computeAcidDamage,
   computeLavaCrackHp,
+  lavaBurnsUnit,
   isAcidTerrainIndex,
   isLavaCrackTerrainIndex,
 } from '../src/engine/TerrainHazards.js';
@@ -357,10 +358,12 @@ describe('Terrain hazards', () => {
       expect(computeLavaCrackHp(3)).toEqual({ nextHP: 1, appliedDamage: 2 });
     });
 
-    it('flying units still take lava damage (logic is unit-type agnostic)', () => {
-      const flying = { moveType: 'Flying', currentHP: 10 };
-      const result = computeLavaCrackHp(flying.currentHP);
-      expect(result).toEqual({ nextHP: 5, appliedDamage: 5 });
+    it('lava burns every move type except flying', () => {
+      expect(lavaBurnsUnit({ moveType: 'Flying' })).toBe(false);
+      for (const moveType of ['Infantry', 'Armored', 'Cavalry']) {
+        expect(lavaBurnsUnit({ moveType })).toBe(true);
+      }
+      expect(lavaBurnsUnit(null)).toBe(false);
     });
 
     it('non-lava terrain indices do not match lava crack', () => {

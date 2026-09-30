@@ -205,6 +205,7 @@ import {
   computeLavaCrackHp,
   isAcidTerrainIndex,
   isLavaCrackTerrainIndex,
+  lavaBurnsUnit,
   lavaBurnBanner,
 } from '../engine/TerrainHazards.js';
 import {
@@ -9762,6 +9763,7 @@ export class BattleScene extends Phaser.Scene {
       if (isEntity(unit)) continue; // Entity immune to terrain hazards
       const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
       if (isLavaCrackTerrainIndex(terrainIdx)) {
+        if (!lavaBurnsUnit(unit)) continue; // Fliers pass over the crack unburned
         const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP, LAVA_CRACK_DAMAGE);
         if (appliedDamage <= 0) continue;
         setUnitHP(unit, nextHP);
