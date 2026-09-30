@@ -1,6 +1,6 @@
 # Spec: Gaspar follow-ups, round 2 (review of PR 164 at `ff6081f`)
 
-**Status:** Proposed, 2026-09-30. Reviews the round-1 follow-ups
+**Status:** Implemented, 2026-09-30. Reviews the round-1 follow-ups
 (`docs/specs/veteran-knight-followups.md`, commits `239142b` and `ff6081f`) on
 [PR 164](https://github.com/virtu333/rogue-emblem/pull/164).
 **Size:** Small. Mostly one-line fixes, plus tests.
@@ -174,3 +174,26 @@ class rule. The bench message reads "Personal skills can't be benched."
 
 Full-run balance validation and human playtesting remain the balance gate. See
 `veteran-knight.md` "Validation before gameplay delivery".
+
+## Implementation notes
+
+- New special characters carry the current trait rules version. The other direct trait
+  assignments already call `applyTraitCreationMods`, which stamps it.
+- Refusal previews use the first line without changing narrative history; explicit canvas
+  roster/battle attempts pick fresh lines. Disabled DOM buttons show stable refusal text.
+- Fixed personal skills are locked in both the commands and rendered skill cards.
+- The canvas roster has fitted trait and biography rows with full text on hover/long-press.
+  Loom previews retain the special trait flag.
+- Gaspar has a separate help page. Existing overlong help pages are split at topic boundaries
+  (or lose a blank separator), so every page satisfies the shared 15-line test.
+- Regression coverage includes a real legacy checkpoint captured/restored through
+  `BattleSuspendController`, exact new-unit migration/JSON round trips, repeated DOM
+  Gear/Convoy redraws, all four level-up pools, bench/swap protection, and weapon quip pools
+  without advancing battle RNG. Planted version, refusal-state, voice and lock bugs fail their new tests.
+- Literal Unicode punctuation is restored without changing dialogue or JSON semantics.
+
+Validation: the full local unit suite, targeted roster/checkpoint tests, all four previously
+failing portrait browser cases, data validation/parity, reference check, production build,
+formatting, lint, and a 640×480 canvas roster/tooltip visual check. Refusal portrait thumbnails
+remain optional and deferred. Balance, growths and difficulty bases are unchanged; the full-run
+balance and human-playtest gate remains open as described above.

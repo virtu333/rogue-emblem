@@ -3,6 +3,7 @@
 // the shared input bus (dispatchInputAction) the way GamepadReader would.
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadGameData } from './testData.js';
+import { readFileSync } from 'node:fs';
 import { RunManager } from '../src/engine/RunManager.js';
 import { InputAction } from '../src/utils/InputActions.js';
 import {
@@ -21,6 +22,7 @@ vi.mock('phaser', () => ({
 }));
 
 const gameData = loadGameData();
+gameData.dialogue = JSON.parse(readFileSync(new URL('../data/dialogue.json', import.meta.url)));
 
 let RosterOverlay;
 beforeAll(async () => {
@@ -65,6 +67,10 @@ function makeObj(seed = {}) {
   const chain =
     (fn) =>
     (...a) => (fn?.(...a), o);
+  o.setText = chain((text) => {
+    o.text = text;
+    o.width = Math.max(8, String(text).length * 6);
+  });
   o.setDepth = chain();
   o.setStrokeStyle = chain();
   o.setOrigin = chain();
@@ -453,5 +459,66 @@ describe('RosterOverlay gamepad focus — nested over a parent scope (church/sho
     expect(activeInputOwner()).toBe(parent); // control restored to the parent
     expect(cover).toEqual([false, true]); // re-exposed exactly once -> ring restores
     popInputScope(parent);
+  });
+});
+
+describe('Gaspar canvas roster presentation', () => {
+  it('fits trait and biography rows above the footer, with complete text available on inspect', () => {
+    const { overlay, rm } = makeOverlay({ rosterCount: 0 });
+    const index = rm.roster.findIndex((u) => u.specialCharId);
+    const unit = rm.roster[index];
+    overlay.selection = { kind: 'unit', index };
+    const targets = [];
+    vi.spyOn(overlay, '_wireTooltipTarget').mockImplementation((row, show) =>
+      targets.push({ row, show }),
+    );
+    vi.spyOn(overlay, '_showSkillTooltip').mockImplementation(() => {});
+    overlay.show();
+    const rows = targets.slice(-2);
+    expect(rows[0].row.text).toContain('Campaign Veteran');
+    for (const { row, show } of rows) {
+      expect(row.x + row.width).toBeLessThanOrEqual(620);
+      expect(row.y + row.height).toBeLessThan(437);
+      show();
+    }
+    expect(overlay._showSkillTooltip.mock.calls[0][1]).toContain(
+      'Home-base growth upgrades count half',
+    );
+    expect(overlay._showSkillTooltip.mock.calls[0][1]).toContain('Cannot reclass or promote again');
+    expect(overlay._showSkillTooltip.mock.calls[1][1]).toBe(
+      gameData.specialChars.find((d) => d.id === unit.specialCharId).bio,
+    );
+    // A future long trait name remains fitted, while its tooltip preserves the full rule.
+    unit.traits = [
+      ...unit.traits,
+      ...gameData.traits.filter((t) => t.rarity === 'legendary').map((t) => t.id),
+    ];
+    overlay.drawUnitDetails();
+    expect(targets.at(-2).row.x + targets.at(-2).row.width).toBeLessThanOrEqual(620);
+    overlay.hide();
+  });
+
+  it('redraws Gear and Convoy repeatedly without changing refusal history, then speaks on a tap', async () => {
+    const { overlay, rm } = makeOverlay({ rosterCount: 0 });
+    const index = rm.roster.findIndex((u) => u.specialCharId);
+    const unit = rm.roster[index];
+    const seal = structuredClone(gameData.consumables.find((c) => c.effect === 'promote'));
+    unit.consumables.push(seal);
+    rm.convoy.consumables.push(structuredClone(seal));
+    const before = structuredClone(rm.narrativeSeen);
+    overlay.selection = { kind: 'unit', index };
+    overlay._activeTab = 'gear';
+    overlay.show();
+    for (let i = 0; i < 3; i++) {
+      overlay.selection = { kind: 'unit', index };
+      overlay.drawUnitDetails();
+      overlay.selection = { kind: 'convoy' };
+      overlay.drawUnitDetails();
+    }
+    expect(rm.narrativeSeen).toEqual(before);
+    await overlay._usePromote(unit, seal);
+    expect(rm.narrativeSeen).not.toEqual(before);
+    expect(unit.consumables).toContain(seal);
+    overlay.hide();
   });
 });

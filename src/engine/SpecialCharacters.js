@@ -1,4 +1,5 @@
 import defaults from '../../data/specialChars.json' with { type: 'json' };
+import { TRAIT_RULES_VERSION } from './TraitSystem.js';
 import { metaGrowthScale } from './SpecialCharacterPolicy.js';
 import { parseWeaponProficiencies, normalizeUnitClassState } from './UnitManager.js';
 import { ensureItemUid } from '../utils/itemUid.js';
@@ -42,6 +43,7 @@ export function createSpecialCharacter(
     proficiencies: parseWeaponProficiencies(cls.weaponProficiencies),
     skills: [...def.skills],
     traits: [...(def.traits || [])],
+    traitRulesVersion: TRAIT_RULES_VERSION,
     temperament: def.temperament,
     col: 0,
     row: 0,

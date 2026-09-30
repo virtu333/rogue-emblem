@@ -1,14 +1,25 @@
 import { canPromoteSpecial, canReclassSpecial } from './SpecialCharacterPolicy.js';
 
-// Refusals are presentation only; every mutation still validates the policy.
-export function specialCharacterRefusal(gameData, unit, effect, run = null) {
+// Eligibility and rendering read stable text without advancing narrative history.
+function refusalPool(gameData, unit, effect) {
   const blocked =
     effect === 'promote'
       ? !canPromoteSpecial(unit)
       : effect === 'reclass' && !canReclassSpecial(unit);
   if (!blocked) return null;
   const pool = gameData?.dialogue?.specialChars?.[unit?.specialCharId]?.[`${effect}Refusal`];
-  if (!pool?.length) return null;
+  return Array.isArray(pool) && pool.length ? pool : null;
+}
+
+export function specialCharacterRefusalText(gameData, unit, effect) {
+  const pool = refusalPool(gameData, unit, effect);
+  return pool ? `${unit.name}: ${pool[0]}` : null;
+}
+
+// Only an explicit player attempt chooses a fresh line.
+export function speakSpecialCharacterRefusal(gameData, unit, effect, run) {
+  const pool = refusalPool(gameData, unit, effect);
+  if (!pool) return null;
   const line = run?.pickNarrativeLine?.(pool, `refusal:${effect}:${unit.specialCharId}`) || pool[0];
   return `${unit.name}: ${line}`;
 }

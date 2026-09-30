@@ -2,6 +2,15 @@ import { describe, it, expect, vi } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadGameData } from './testData.js';
+import { benchSkill, equipSkill } from '../src/engine/SkillLoadout.js';
+import {
+  specialCharacterRefusalText,
+  speakSpecialCharacterRefusal,
+} from '../src/engine/SpecialCharacterDialogue.js';
+import { levelUpContent } from '../src/ui/growthContent.js';
+import { levelUpLine } from '../src/engine/UnitVoice.js';
+import { describeRecruitPreview } from '../src/ui/loomModel.js';
+import { createBattleRng } from '../src/engine/BattleRng.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { normalizeUnitClassState } from '../src/engine/UnitManager.js';
 import { cantoRuleFor } from '../src/engine/CantoRule.js';
@@ -67,6 +76,113 @@ describe('Gaspar follow-up contracts', () => {
         expect(rollTraits(data.traits, 2, rng, candidate)).not.toEqual(
           expect.arrayContaining(['old_campaigner']),
         );
+    }
+  });
+
+  it('creates current traits: migration and a real run JSON round-trip change no unit fields', () => {
+    const run = start();
+    const unit = gaspar(run);
+    const before = structuredClone(unit);
+    migrateUnitTraits(unit);
+    expect(unit).toEqual(before);
+    expect(gaspar(RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), data))).toEqual(
+      before,
+    );
+  });
+
+  it.each(['promote', 'reclass'])(
+    'keeps %s previews pure and chooses fresh dialogue only on an attempt',
+    (effect) => {
+      const run = start();
+      const unit = gaspar(run);
+      const item = structuredClone(data.consumables.find((c) => c.effect === effect));
+      unit.consumables.push(item);
+      const before = structuredClone(run.narrativeSeen);
+      const line = specialCharacterRefusalText(data, unit, effect);
+      for (let i = 0; i < 6; i++) {
+        expect(rosterClassChangeBlock(run, unit, item, data)).toBe(line);
+        if (effect === 'promote')
+          expect(churchPromotionBlock(run, unit, 'church', data)).toBe(line);
+      }
+      expect(run.narrativeSeen).toEqual(before);
+      const first = speakSpecialCharacterRefusal(data, unit, effect, run);
+      expect(run.narrativeSeen).not.toEqual(before);
+      expect(speakSpecialCharacterRefusal(data, unit, effect, run)).not.toBe(first);
+      expect(specialCharacterRefusalText(data, unit, effect)).toBe(line);
+    },
+  );
+
+  it.each([
+    [{ HP: 1 }, 'blank'],
+    [{ HP: 1, STR: 1 }, 'normal'],
+    [{ HP: 1, STR: 1, SKL: 1 }, 'major'],
+    [{ HP: 1, STR: 1, MAG: 1, SKL: 1, SPD: 1, DEF: 1, RES: 1, LCK: 1 }, 'perfect'],
+  ])('selects the intended level-up pool for %j gains', (gains, pool) => {
+    const unit = gaspar(start());
+    const content = levelUpContent(unit, { newLevel: 2, gains });
+    const quote = levelUpLine(unit, content, { voice: data.dialogue.unitVoice, seed: 1234 });
+    expect(quote.source).toBe(`special:${pool}`);
+    expect(data.dialogue.unitVoice.specialChars[unit.specialCharId].levelUp[pool]).toContain(
+      quote.line,
+    );
+  });
+
+  it('locks the fixed kit against benching and swaps while allowing an earned skill to be benched', () => {
+    const unit = gaspar(start());
+    unit.skills.push('sol', 'luna', 'astra');
+    unit.benchedSkills = ['vantage'];
+    const before = structuredClone(unit);
+    for (const id of ['measured_step', 'aegis']) {
+      expect(benchSkill(unit, id, data)).toBe('Personal skills can’t be benched.');
+      expect(equipSkill(unit, 'vantage', id, data)).toBe('Personal skills can’t be benched.');
+    }
+    expect(unit).toEqual(before);
+    expect(benchSkill(unit, 'sol', data)).toBe('');
+    const paladin = { ...structuredClone(unit), specialCharId: undefined, skills: ['canto'] };
+    expect(benchSkill(paladin, 'canto', data)).toBe('Class skills can’t be benched.');
+  });
+
+  it('passes the special trait flag to the Loom card', () => {
+    const unit = gaspar(start());
+    const preview = describeRecruitPreview({ unit }, { traitLines: (u) => traitLines(u, data) });
+    expect(preview.traits).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'Campaign Veteran', special: true, legendary: false }),
+        expect.objectContaining({ name: 'Set in His Ways', special: true, legendary: false }),
+      ]),
+    );
+  });
+
+  it('routes surviving lance chips and sword/lance kills through their own pools without touching battle RNG', () => {
+    const run = start();
+    const unit = gaspar(run);
+    const battleRng = createBattleRng(9876);
+    const rngBefore = battleRng.getState();
+    const globalRandom = vi.spyOn(Math, 'random').mockImplementation(battleRng);
+    try {
+      const scene = { gameData: data, runManager: run, time: { now: 0 } };
+      const beats = new BattleBeatsController(scene, () => 0.34);
+      beats._showQuipText = vi.fn();
+      const pools = data.dialogue.specialChars[unit.specialCharId];
+      expect(pools.onChipLance).toContain(beats.onChipLance(unit, { currentHP: 1 }).line);
+      expect(beats._showQuipText).toHaveBeenCalledTimes(1);
+      scene.time.now += 10000;
+      expect(beats.onChipLance(unit, { currentHP: 0 })).toBeUndefined();
+      unit.weapon = unit.inventory.find((w) => w.type === 'Sword');
+      expect(beats.onChipLance(unit, { currentHP: 1 })).toBeUndefined();
+      beats.onKill({ isBoss: true }, unit);
+      expect(pools.onKillSword).toContain(beats._showQuipText.mock.calls.at(-1)[1]);
+      unit.weapon = unit.inventory.find((w) => w.type === 'Lance');
+      beats.onKill({ isBoss: true }, unit);
+      expect(pools.onKill).toContain(beats._showQuipText.mock.calls.at(-1)[1]);
+      const rejected = new BattleBeatsController(scene, () => 0.35);
+      rejected._showQuipText = vi.fn();
+      rejected.onChipLance(unit, { currentHP: 1 });
+      expect(rejected._showQuipText).not.toHaveBeenCalled();
+      expect(battleRng.getState()).toEqual(rngBefore);
+      expect(globalRandom).not.toHaveBeenCalled();
+    } finally {
+      globalRandom.mockRestore();
     }
   });
 

@@ -81,6 +81,11 @@ const STATIC_HELP_TABS = [
           { text: 'Critical Rate:', color: RED },
           { text: '  SKL/2 + Weapon Crit - enemy LCK' },
           { text: '' },
+        ],
+      },
+      {
+        title: 'Attack Speed & Doubling',
+        lines: [
           { text: 'Attack Speed (AS):', color: CYAN },
           { text: '  SPD - MAX(0, Wpn Weight - STR/5)' },
           { text: '' },
@@ -120,6 +125,11 @@ const STATIC_HELP_TABS = [
           { text: '  No HP recovery for 2 turns except', color: GRAY },
           { text: '  from a staff: no drain, items, forts.', color: GRAY },
           { text: '' },
+        ],
+      },
+      {
+        title: 'Status Countermeasures',
+        lines: [
           { text: 'Enemy Mages/Sages/Bishops may carry', color: CYAN },
           { text: 'status staves on higher difficulties.' },
           { text: '' },
@@ -154,7 +164,6 @@ const STATIC_HELP_TABS = [
           { text: '' },
           { text: "Village: end any unit's action on it", color: CYAN },
           { text: '(Wait works) before bandits raze it.', color: CYAN },
-          { text: '' },
           { text: 'Move types: Foot, Armor, Cavalry,', color: GRAY },
           { text: 'Flying. Flying ignores terrain cost.', color: GRAY },
         ],
@@ -355,12 +364,16 @@ const STATIC_HELP_TABS = [
           { text: '3. Class Innate', color: CYAN },
           { text: '   Promoted classes gain a free skill' },
           { text: '   (e.g. Swordmaster gets Crit+15).' },
-          { text: '' },
+        ],
+      },
+      {
+        title: 'Skill Loadout',
+        lines: [
           { text: '5 skills go into battle. A skill', color: GOLD },
           { text: 'learned with all 5 slots full waits', color: GOLD },
           { text: 'on the bench: swap skills between', color: GOLD },
           { text: 'battles in Roster > Skills.', color: GOLD },
-          { text: 'Lord and class skills can’t be benched.', color: GRAY },
+          { text: 'Personal and class skills stay equipped.', color: GRAY },
         ],
       },
       {
@@ -399,7 +412,6 @@ const STATIC_HELP_TABS = [
           { text: '   its class never teaches. A unit' },
           { text: '   swears one, at promotion; choose' },
           { text: '   which in the roster or chooser.' },
-          { text: '' },
           { text: 'Deeds are found by playing. The', color: GRAY },
           { text: 'Compendium lists those you earned.', color: GRAY },
         ],
@@ -449,6 +461,11 @@ const STATIC_HELP_TABS = [
           { text: '  Pursuers arrive endlessly — outrun them!' },
           { text: '  Other units may exit early for gold.' },
           { text: '' },
+        ],
+      },
+      {
+        title: 'Battle Stakes & Rewards',
+        lines: [
           { text: 'If your commander falls, the run', color: RED },
           { text: 'ends immediately. Other units can fall', color: RED },
           { text: 'but the run continues.', color: RED },
@@ -511,6 +528,11 @@ const STATIC_HELP_TABS = [
           { text: 'Ruins:', color: GOLD },
           { text: '  Pre-boss camp: rest (heal, revive)' },
           { text: '  or scavenge marked-up wares. One only.' },
+        ],
+      },
+      {
+        title: 'Services & Bosses',
+        lines: [
           { text: 'Church:', color: '#e0e0e0' },
           { text: '  Heal and revive allies. Then one vow:' },
           { text: '  promote units, or take a blessing.' },
@@ -532,10 +554,6 @@ const STATIC_HELP_TABS = [
       {
         title: 'Meta-Progression',
         lines: [
-          { text: 'Gaspar joins every new run.', color: GOLD },
-          { text: 'His traits explain his fixed kit;' },
-          { text: 'Measured Step explains his movement.' },
-          { text: '' },
           { text: 'Two currencies earned each run:', color: GOLD },
           { text: '' },
           { text: 'Valor (gold) — hero upgrades:', color: GOLD },
@@ -549,6 +567,22 @@ const STATIC_HELP_TABS = [
           { text: '' },
           { text: 'Spend at the Home Base. Upgrades', color: GRAY },
           { text: 'persist across all runs.', color: GRAY },
+        ],
+      },
+      {
+        title: 'Gaspar the Veteran',
+        tags: ['gaspar', 'veteran', 'traits', 'measured step', 'no-meta'],
+        lines: [
+          { text: 'Gaspar joins every new run.', color: GOLD },
+          { text: 'His traits explain his fixed kit.' },
+          { text: 'Inspect them in Roster > Stats.' },
+          { text: '' },
+          { text: 'Measured Step uses remaining movement', color: CYAN },
+          { text: 'after a noncombat action, never a fight.' },
+          { text: 'His personal skills cannot be benched.' },
+          { text: '' },
+          { text: 'Win with meta disabled to earn', color: GOLD },
+          { text: 'the no-meta victory badge.' },
         ],
       },
       {
@@ -570,7 +604,6 @@ const STATIC_HELP_TABS = [
           { text: 'GeneralUser GS: S. Christian Collins', color: CYAN },
           { text: 'Virtuosity Drums, Growlybass,', color: CYAN },
           { text: '  Emilyguitar, Splendid Grand Piano' },
-          { text: '' },
           { text: 'The soundtrack is CC BY-SA 4.0.', color: GOLD },
         ],
       },

@@ -1,4 +1,4 @@
-import { specialCharacterRefusal } from './SpecialCharacterDialogue.js';
+import { specialCharacterRefusalText } from './SpecialCharacterDialogue.js';
 import { revivalCatchUpPlan } from './RevivalCatchUp.js';
 import {
   canPromote,
@@ -19,7 +19,7 @@ export function churchPromoteCost(unit) {
 }
 export function churchPromotionBlock(run, unit, nodeId, gameData) {
   if (run.roster.includes(unit)) {
-    const refusal = specialCharacterRefusal(gameData, unit, 'promote', run);
+    const refusal = specialCharacterRefusalText(gameData, unit, 'promote');
     if (refusal) return refusal;
   }
   if (!run.roster.includes(unit) || !canPromote(unit)) return 'Unit is not eligible for promotion.';

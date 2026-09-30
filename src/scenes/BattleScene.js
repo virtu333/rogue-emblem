@@ -1,5 +1,8 @@
 import { cantoRuleFor } from '../engine/CantoRule.js';
-import { specialCharacterRefusal } from '../engine/SpecialCharacterDialogue.js';
+import {
+  specialCharacterRefusalText,
+  speakSpecialCharacterRefusal,
+} from '../engine/SpecialCharacterDialogue.js';
 import { battleItemBrief, ITEM_ACTION_NOTE } from '../ui/battleItemSummary.js';
 import {
   historyUnitVisible,
@@ -7037,7 +7040,7 @@ export class BattleScene extends Phaser.Scene {
           );
           canUseCure = hasSelfCond || adjAllies.length > 0;
         }
-        const refusal = specialCharacterRefusal(this.gameData, unit, item.effect);
+        const refusal = specialCharacterRefusalText(this.gameData, unit, item.effect);
         const reason =
           item.uses !== undefined && item.uses <= 0
             ? 'No uses remaining'
@@ -7341,7 +7344,7 @@ export class BattleScene extends Phaser.Scene {
   showReclassClassPicker(unit, sealItem) {
     if (!sealItem || !canReclass(unit)) {
       this.showBriefBanner(
-        specialCharacterRefusal(this.gameData, unit, 'reclass', this.runManager) ||
+        speakSpecialCharacterRefusal(this.gameData, unit, 'reclass', this.runManager) ||
           'Cannot reclass this unit.',
         UI_PALETTE.bad,
       );

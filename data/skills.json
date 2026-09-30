@@ -54,7 +54,7 @@
   {
     "id": "luna",
     "name": "Luna",
-    "description": "SKL% chance on hit to halve the target\u2019s DEF or RES (rounded down). Terrain protection remains.",
+    "description": "SKL% chance on hit to halve the target’s DEF or RES (rounded down). Terrain protection remains.",
     "trigger": "on-attack",
     "activation": "SKL"
   },
@@ -369,7 +369,7 @@
   {
     "id": "aether",
     "name": "Aether",
-    "description": "SKL/2%: strike twice \u2014 first Sol, then Luna",
+    "description": "SKL/2%: strike twice — first Sol, then Luna",
     "trigger": "on-attack",
     "activation": "SKL_HALF",
     "personal": true

@@ -708,7 +708,7 @@ export class MobileRosterSheet {
       box.append(
         el(
           'p',
-          'New: a unit keeps every skill it learns. Only five go into battle; the rest wait on its bench, and you can swap them between battles. Lord and class skills can’t be benched.',
+          'New: a unit keeps every skill it learns. Only five go into battle; the rest wait on its bench, and you can swap them between battles. Personal and class skills can’t be benched.',
           'mr-callout-lesson',
         ),
       );
@@ -772,7 +772,8 @@ export class MobileRosterSheet {
     for (const id of unit.skills || []) {
       const c = this.card(this.skillName(id), this.skillLine(id));
       if (!manage) continue;
-      if (locked.has(id)) c.append(el('small', 'Can’t be benched', 'mr-skill-locked'));
+      if (locked.has(id))
+        c.append(el('small', benchSkillBlock(unit, id, this.gameData), 'mr-skill-locked'));
       else
         c.append(
           this.button('Bench', () =>

@@ -213,7 +213,7 @@ export function levelUpLine(unit, content, ctx = {}) {
       const gained = (content.rows || []).filter(
         (row) => Number(row.gain ?? row.delta ?? 0) > 0,
       ).length;
-      if (unit.specialCharId && kind !== 'perfect' && !milestone && gained >= 2) {
+      if (unit.specialCharId && kind !== 'perfect' && !milestone && gained >= 3) {
         const major = pickFrom(`${source}:major`, lu.major);
         if (major) return major;
       }

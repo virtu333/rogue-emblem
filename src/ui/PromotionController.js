@@ -1,4 +1,4 @@
-import { specialCharacterRefusal } from '../engine/SpecialCharacterDialogue.js';
+import { speakSpecialCharacterRefusal } from '../engine/SpecialCharacterDialogue.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // PromotionController -- Master Seal promotion flow extracted from BattleScene.
 // Owns target resolution, the promotion choice panel, applying the promotion,
@@ -41,7 +41,7 @@ export class PromotionController {
       return false;
     }
 
-    const refusal = specialCharacterRefusal(scene.gameData, unit, 'promote', scene.runManager);
+    const refusal = speakSpecialCharacterRefusal(scene.gameData, unit, 'promote', scene.runManager);
     if (refusal) {
       await scene.showBriefBanner(refusal, UI_PALETTE.bad);
       scene.battleState = 'UNIT_ACTION_MENU';

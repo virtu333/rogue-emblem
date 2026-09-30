@@ -34,7 +34,7 @@ vi.mock('../src/ui/RosterOverlay.js', () => ({
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { gridDistance } from '../src/engine/Combat.js';
-import { completeResolvedAction } from '../src/ui/BattlePresentationCheckpoint.js';
+import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -601,21 +601,45 @@ describe('Measured Step scene completion', () => {
     );
   });
 
-  it('serialized combat level-up continuation retains the movement restriction', async () => {
-    const { scene, unit, foe } = movementScene(['measured_step'], 'old_knight');
-    scene._pendingLevelUpPopups = [
-      { unitName: unit.name, levelUp: { newLevel: 2, statGains: { STR: 1 } }, learnedNames: [] },
-    ];
-    let saved;
-    scene._captureSuspendCheckpoint = () => {
-      if (scene._pendingActionCompletion)
-        saved = JSON.parse(JSON.stringify(scene._pendingActionCompletion));
+  it('restores a real legacy checkpoint and finishes the resolved attack once without Canto', () => {
+    const { scene: source, unit } = movementScene(['canto', 'aegis'], 'old_knight');
+    // An old save paused on the level-up screen, after combat and XP resolved.
+    unit.level = 2;
+    unit.stats.STR += 1;
+    source._pendingActionCompletion = { kind: 'combat', unitName: unit.name };
+    source.runManager.battleInProgress = { nodeId: 'n1', checkpoint: null };
+    source.runManager.setBattleCheckpoint = (cp) => {
+      source.runManager.battleInProgress.checkpoint = cp;
     };
-    await scene.executeCombat(unit, foe);
-    expect(saved).toMatchObject({ kind: 'combat', unitName: 'Gaspar' });
-    unit.hasActed = false;
-    completeResolvedAction(scene, saved);
+    source.reseedBattleRng = vi.fn();
+    source._persistBattleRunState = () => ({ ok: true });
+    expect(new BattleSuspendController(source).captureCheckpoint()).toBe(true);
+    const checkpoint = JSON.parse(JSON.stringify(source.runManager.battleInProgress.checkpoint));
+    expect(checkpoint.pendingActionCompletion).toMatchObject({
+      kind: 'combat',
+      unitName: 'Gaspar',
+    });
+    expect(checkpoint.playerUnits[0].specialRulesVersion).toBeUndefined();
+
+    const { scene } = movementScene([]);
+    scene.playerUnits = [];
+    scene.enemyUnits = [];
+    scene.addUnitGraphic = vi.fn();
+    scene.reseedBattleRng = vi.fn();
+    scene.updateObjectiveText = vi.fn();
+    scene.updateVisionHud = vi.fn();
+    scene.refreshEndTurnControl = vi.fn();
+    const finish = vi.spyOn(scene, 'finishUnitAction');
+    const controller = new BattleSuspendController(scene);
+    controller.applyUnits(checkpoint);
+    const restored = scene.playerUnits[0];
+    expect(restored.skills).toEqual(['measured_step', 'aegis']);
+    controller.finalizeResume(checkpoint);
     expect(scene.battleState).toBe('PLAYER_IDLE');
     expect(scene.grid.showMovementRange).not.toHaveBeenCalled();
+    expect(finish).toHaveBeenCalledTimes(1);
+    expect(restored.hasActed).toBe(true);
+    expect(restored).toMatchObject({ level: 2, stats: { STR: 11 } });
+    expect(scene._runCombatResolution).not.toHaveBeenCalled();
   });
 });
