@@ -134,28 +134,69 @@ export function bindHold(
   };
 }
 
-// Hover/keyboard-focus preview. A manual popover renders in the top layer, so no
-// z-index or clipping ancestor (chamfers, scroll panes) can cut it; browsers
-// without the Popover API fall back to the native title tooltip.
-function bindPreview(info, text) {
+const HOVER_SHOW_MS = 280;
+// A short grace on leaving, so sliding between neighbouring targets doesn't flicker.
+const HOVER_HIDE_MS = 100;
+const DEFAULT_FOOTER = 'Click ⓘ for more';
+/** Mouse and trackpad only: touch and gamepad keep their own gestures. */
+export const FINE_HOVER_MEDIA = '(hover: hover) and (pointer: fine)';
+
+function matches(media) {
+  try {
+    return Boolean(globalThis.matchMedia?.(media).matches);
+  } catch {
+    return false;
+  }
+}
+
+function previewText(content) {
+  if (content == null || content === false) return '';
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) return content.map(previewText).join(' ');
+  return content.textContent || '';
+}
+
+/**
+ * Hover/keyboard-focus preview for any control. A manual popover renders in the top
+ * layer, so no z-index or clipping ancestor (chamfers, scroll panes) can cut it;
+ * browsers without the Popover API fall back to the native title tooltip. The popover
+ * never takes pointer events, so it cannot swallow the click it describes.
+ *
+ * @param {HTMLElement} target
+ * @param {() => (string|Node|Node[]|{content: string|Node|Node[], footer?: string}|null)} contentFn
+ *   read each time the preview is about to open; null/'' skips this time (e.g. a
+ *   disclosure that is already open). An object may carry its own `footer`.
+ * @param {object} [options]
+ * @param {string} [options.footer] the line under the content ('' for none)
+ * @param {string} [options.media] pointer media query that must match (checked at
+ *   event time, so a touch-only device never sees a preview)
+ * @param {'start'|'end'} [options.align] which edge of the target the popover lines up with
+ * @returns {HTMLElement|null} the popover element, or null without the Popover API
+ */
+export function bindHoverPreview(
+  target,
+  contentFn,
+  { footer = DEFAULT_FOOTER, media = '(hover: hover)', align = 'end' } = {},
+) {
   const tip = document.createElement('span');
   tip.className = 're-info-tip';
   tip.setAttribute('role', 'tooltip');
   tip.id = `re-info-tip-${++tipId}`;
-  tip.textContent = text;
-  const supported = typeof tip.showPopover === 'function';
-  if (!supported) {
-    info.title = text;
+  if (typeof tip.showPopover !== 'function') {
+    const text = previewText(contentFn());
+    if (text) target.title = text;
     return null;
   }
   tip.popover = 'manual';
-  info.setAttribute('aria-describedby', tip.id);
-  let timer = null;
+  target.setAttribute('aria-describedby', tip.id);
+  let showTimer = null;
+  let hideTimer = null;
   const place = () => {
-    const r = info.getBoundingClientRect();
+    const r = target.getBoundingClientRect();
     const width = Math.min(280, globalThis.innerWidth - 16);
     tip.style.width = `${width}px`;
-    const left = Math.max(8, Math.min(globalThis.innerWidth - width - 8, r.right - width));
+    const preferred = align === 'start' ? r.left : r.right - width;
+    const left = Math.max(8, Math.min(globalThis.innerWidth - width - 8, preferred));
     tip.style.left = `${left}px`;
     const below = r.bottom + 6;
     tip.style.top = `${below}px`;
@@ -163,37 +204,54 @@ function bindPreview(info, text) {
     if (below + height > globalThis.innerHeight - 8)
       tip.style.top = `${Math.max(8, r.top - height - 6)}px`;
   };
-  const show = () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      if (!info.isConnected || tip.matches?.(':popover-open')) return;
-      if (!tip.isConnected) info.after(tip);
-      try {
-        tip.showPopover();
-        place();
-      } catch {
-        /* detached or unsupported in this context */
-      }
-    }, 280);
+  const open = () => {
+    if (!target.isConnected || tip.matches?.(':popover-open') || !matches(media)) return;
+    const raw = contentFn();
+    const resolved = raw && typeof raw === 'object' && 'content' in raw ? raw : { content: raw };
+    const content = resolved.content;
+    if (!content || (Array.isArray(content) && !content.length)) return;
+    // A disclosure's own content is hidden while it is closed, so the popover sits
+    // beside the whole disclosure, never inside it.
+    if (!tip.isConnected) (target.closest('details') || target).after(tip);
+    if (typeof content === 'string') tip.textContent = content;
+    else tip.replaceChildren(...[content].flat());
+    tip.dataset.footer = resolved.footer ?? footer;
+    try {
+      tip.showPopover();
+      place();
+    } catch {
+      /* detached or unsupported in this context */
+    }
   };
-  const hide = () => {
-    clearTimeout(timer);
+  const show = () => {
+    clearTimeout(hideTimer);
+    clearTimeout(showTimer);
+    showTimer = setTimeout(open, HOVER_SHOW_MS);
+  };
+  const close = () => {
+    clearTimeout(showTimer);
     try {
       if (tip.matches?.(':popover-open')) tip.hidePopover();
     } catch {
       /* already closed */
     }
   };
-  info.addEventListener('pointerenter', (event) => {
-    if (event.pointerType === 'mouse') show();
+  const hide = ({ immediate = true } = {}) => {
+    clearTimeout(showTimer);
+    clearTimeout(hideTimer);
+    if (immediate) close();
+    else hideTimer = setTimeout(close, HOVER_HIDE_MS);
+  };
+  target.addEventListener('pointerenter', (event) => {
+    if (event.pointerType === 'mouse' && matches(media)) show();
   });
-  info.addEventListener('pointerleave', hide);
-  info.addEventListener('focus', () => {
-    if (info.matches(':focus-visible')) show();
+  target.addEventListener('pointerleave', () => hide({ immediate: false }));
+  target.addEventListener('focus', () => {
+    if (target.matches(':focus-visible') && matches(media)) show();
   });
-  info.addEventListener('blur', hide);
-  info.addEventListener('click', hide);
-  info.addEventListener('keydown', (event) => {
+  target.addEventListener('blur', () => hide());
+  target.addEventListener('click', () => hide());
+  target.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') hide();
   });
   return tip;
@@ -222,7 +280,7 @@ export function attachInfo(card, { title, open, preview = '', heading, enabled, 
   glyph.setAttribute('aria-hidden', 'true');
   glyph.textContent = 'i';
   info.append(glyph);
-  const tip = preview && hoverPointer() ? bindPreview(info, preview) : null;
+  const tip = preview && hoverPointer() ? bindHoverPreview(info, () => preview) : null;
   if (decorate) decorate(info);
   else info.addEventListener('click', () => open());
   if (head) {
