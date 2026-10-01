@@ -106,11 +106,16 @@ export function weaponArtEffectRows(art) {
         swap: 'swap places with the target',
         push: `push the target back ${tiles(e.distance)} (only when next to it)`,
         through: `pass ${tiles(e.distance)} through the target`,
+        ram: `ram the target back up to ${tiles(e.distance)} (only when next to it); a crash deals ${e.collisionDamage} to it and to a foe it hits`,
       }[e.mode] || `move (${e.mode})`,
     );
   const area = getWeaponArtArea(art);
   if (area) rows.push(weaponArtAreaRow(area, getWeaponArtTargeting(art)));
-  const { allyBuff } = getWeaponArtTier5Effects(art);
+  const { allyBuff, allyHeal } = getWeaponArtTier5Effects(art);
+  if (allyHeal)
+    onHit(
+      `allies within ${tiles(allyHeal.radius)} of you heal ${allyHeal.percentOfDamage}% of the damage you dealt`,
+    );
   if (allyBuff)
     onHit(
       `allies within ${tiles(allyBuff.range)} get ${statList(allyBuff.stats)} for ${phases(allyBuff.durationPhases)}${allyBuff.includeSelf ? ', you included' : ''}`,

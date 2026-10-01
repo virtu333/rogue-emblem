@@ -1493,6 +1493,8 @@ export function resolveCombat(
   const events = [];
   let atkHP = attacker.currentHP ?? attacker.stats.HP;
   let defHP = defender.currentHP ?? defender.stats.HP;
+  const atkStartHP = atkHP;
+  const defStartHP = defHP;
 
   // ── Null / staff attacker weapon → no-op (matches getCombatForecast) ──
   const attackerCanInitiate = !!atkWeapon && !isStaff(atkWeapon);
@@ -2270,5 +2272,7 @@ export function resolveCombat(
     // Each side's flat combat mods (skills, accessories, art, imbue, timed buffs; no
     // procs): an area weapon art's blows reuse them against every other victim.
     strikeMods: { attacker: atkMods, defender: defMods },
+    // HP each side entered the combat with (a heal on damage dealt ignores overkill).
+    startHP: { attacker: atkStartHP, defender: defStartHP },
   };
 }

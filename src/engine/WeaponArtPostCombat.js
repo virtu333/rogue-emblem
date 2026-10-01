@@ -9,6 +9,7 @@ import {
 } from './WeaponArtSystem.js';
 import { mergeCombatMods } from './Combat.js';
 import { isRooted } from './StatusConditionSystem.js';
+import { isEntity } from './EntitySystem.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = [
@@ -19,7 +20,7 @@ const TIER2_EFFECT_ORDER = [
   'postCombatMove',
   'setHp',
 ];
-const VALID_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through']);
+const VALID_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through', 'ram']);
 
 function getOpposingSide(side) {
   return side === 'attacker' ? 'defender' : 'attacker';
@@ -221,6 +222,7 @@ export function getPostCombatPipelineSteps({
             targetSide: getOpposingSide(side),
             mode: effect.mode,
             distance: effect.distance,
+            ...(effect.mode === 'ram' ? { collisionDamage: effect.collisionDamage } : {}),
           });
           continue;
         }
@@ -273,6 +275,23 @@ export function getPostCombatPipelineSteps({
     const tier5Effects = getWeaponArtTier5Effects(art);
     const areaStep = areaDamageStep(side, art, result, attacker, defender);
     if (areaStep && areaStep.area.shape !== 'line') steps.push(areaStep);
+    if (tier5Effects.allyHeal) {
+      // What the user dealt the target, overkill excluded (Divine Charge's sum, capped
+      // at the HP the target entered the combat with).
+      const landed = getLandedStrikeDamages(result?.events, side, attacker, defender).reduce(
+        (sum, damage) => sum + damage,
+        0,
+      );
+      const targetStartHp = Number(result?.startHP?.[getOpposingSide(side)]);
+      steps.push({
+        type: 'ally_heal',
+        sourceSide: side,
+        artId: art?.id || null,
+        radius: tier5Effects.allyHeal.radius,
+        percent: tier5Effects.allyHeal.percentOfDamage,
+        dealt: Number.isFinite(targetStartHp) ? Math.min(landed, targetStartHp) : landed,
+      });
+    }
     if (tier5Effects.allyBuff) {
       const buff = tier5Effects.allyBuff;
       steps.push({
@@ -371,8 +390,9 @@ export function resolvePostCombatMove({
   // Root pins units against art-driven displacement: a rooted source cannot
   // reposition itself, and a rooted defender cannot be swapped or pushed.
   // (Deliberate ally actions like Shove/Pull remain allowed as counterplay.)
-  const movesSource = normalizedMode !== 'push';
-  const movesTarget = normalizedMode === 'swap' || normalizedMode === 'push';
+  const movesSource = normalizedMode !== 'push' && normalizedMode !== 'ram';
+  const movesTarget =
+    normalizedMode === 'swap' || normalizedMode === 'push' || normalizedMode === 'ram';
   if (movesSource && isRooted(sourceUnit)) return { ok: false, reason: 'rooted' };
   if (movesTarget && targetUnit && isRooted(targetUnit)) return { ok: false, reason: 'rooted' };
   // Anchored (and anything else the caller pins) is never displaced by another unit.
@@ -387,7 +407,10 @@ export function resolvePostCombatMove({
   const targetStillAtExpectedTile =
     targetUnit && getUnitAt(targetUnit.col, targetUnit.row) === targetUnit;
   const requiresLiveTarget =
-    normalizedMode === 'swap' || normalizedMode === 'push' || normalizedMode === 'through';
+    normalizedMode === 'swap' ||
+    normalizedMode === 'push' ||
+    normalizedMode === 'through' ||
+    normalizedMode === 'ram';
   if (requiresLiveTarget && (!targetAlive || !targetStillAtExpectedTile)) {
     return { ok: false, reason: 'invalid_target' };
   }
@@ -467,6 +490,40 @@ export function resolvePostCombatMove({
         { unit: sourceUnit, col: sourceDestCol, row: sourceDestRow },
         { unit: targetUnit, col: targetDestCol, row: targetDestRow },
       ],
+    };
+  }
+
+  if (normalizedMode === 'ram') {
+    // The Entity's footprint never moves. Otherwise the target slides up to `distance`
+    // tiles and stops before the edge, impassable ground or a living unit; stopping
+    // short is a collision (with that unit, or with nothing for a wall).
+    if (isEntity(targetUnit)) return { ok: false, reason: 'immovable' };
+    let col = targetUnit.col;
+    let row = targetUnit.row;
+    let collision = null;
+    for (let i = 0; i < stepDistance; i++) {
+      const nextCol = col + direction.dc;
+      const nextRow = row + direction.dr;
+      if (
+        !isInBounds(nextCol, nextRow, cols, rows) ||
+        !Number.isFinite(getMoveCost(nextCol, nextRow, targetUnit.moveType))
+      ) {
+        collision = { obstacle: null };
+        break;
+      }
+      const occupant = getUnitAt(nextCol, nextRow);
+      if (occupant && occupant !== targetUnit && !(occupant.currentHP <= 0)) {
+        collision = { obstacle: occupant };
+        break;
+      }
+      col = nextCol;
+      row = nextRow;
+    }
+    const moved = col !== targetUnit.col || row !== targetUnit.row;
+    return {
+      ok: true,
+      assignments: moved ? [{ unit: targetUnit, col, row }] : [],
+      collision,
     };
   }
 

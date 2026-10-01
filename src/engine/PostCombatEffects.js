@@ -147,13 +147,16 @@ function* postCombatStep(step, { attacker, defender, result, sourceUnit, targetU
       }
       break;
     case 'tier2_move':
-      yield* postCombatMove(sourceUnit, targetUnit, step, world);
+      yield* postCombatMove(sourceUnit, targetUnit, step, world, result);
       break;
     case 'tier2_set_hp':
       yield* setHp(step, sourceUnit, targetUnit);
       break;
     case 'area_damage':
       yield* areaDamage(step, sourceUnit, targetUnit, world, result);
+      break;
+    case 'ally_heal':
+      yield* allyHeal(step, sourceUnit, world);
       break;
     case 'tier5_ally_buff':
       yield* allyBuff(step, sourceUnit, world);
@@ -235,7 +238,7 @@ function* divineChargeHeal(step, attacker, defender, world) {
     yield { kind: 'hint', unit: healTarget, text: `+${actualHeal} HP`, tone: 'heal' };
 }
 
-function* postCombatMove(sourceUnit, targetUnit, step, world) {
+function* postCombatMove(sourceUnit, targetUnit, step, world, result) {
   if (!sourceUnit) return;
   const moveResult = resolvePostCombatMove({
     sourceUnit,
@@ -248,14 +251,82 @@ function* postCombatMove(sourceUnit, targetUnit, step, world) {
     getUnitAt: world.getUnitAt,
     isImmovable: (unit) => isDisplacementImmune(unit, world.affixes),
   });
-  if (!moveResult.ok) return;
+  if (!moveResult.ok) {
+    const pinned = moveResult.reason === 'rooted' || moveResult.reason === 'immovable';
+    if (step.mode === 'ram' && pinned && targetUnit?.currentHP > 0)
+      yield { kind: 'hint', unit: targetUnit, text: 'Braced!', tone: 'good' };
+    return;
+  }
   const units = [];
   for (const assignment of moveResult.assignments) {
     assignment.unit.col = assignment.col;
     assignment.unit.row = assignment.row;
     units.push(assignment.unit);
   }
-  yield { kind: 'moved', units };
+  if (units.length > 0) yield { kind: 'moved', units };
+  if (moveResult.collision) yield* collide(step, sourceUnit, targetUnit, moveResult, world, result);
+}
+
+/**
+ * A ram that stopped short: the target takes the collision damage, and so does a foe of
+ * the user it hit (an ally of the user never). Both take their damage before either
+ * falls. The target is the combat's primary, so its owner removes it (and pays its XP);
+ * the obstacle is an area victim: it falls here and leaves a credit.
+ */
+function* collide(step, sourceUnit, targetUnit, moveResult, world, result) {
+  const amount = Math.max(0, Math.trunc(Number(step.collisionDamage) || 0));
+  if (amount <= 0) return;
+  const obstacle = moveResult.collision.obstacle;
+  const hostile =
+    obstacle && obstacle.currentHP > 0 && world.hostilesOf(sourceUnit).includes(obstacle);
+  const struck = [targetUnit, hostile ? obstacle : null].filter((u) => u && u.currentHP > 0);
+  const dealt = new Map();
+  for (const unit of struck) {
+    const hpBefore = unit.currentHP;
+    const actual = damageUnit(unit, amount);
+    dealt.set(unit, { hpBefore, actual });
+    if (actual <= 0) continue;
+    yield { kind: 'hp', unit };
+    yield { kind: 'hint', unit, text: `Crash -${actual}`, tone: 'splash' };
+  }
+  if (hostile && dealt.get(obstacle)?.actual > 0) {
+    if (result)
+      (result.areaCredits ||= []).push({
+        source: sourceUnit,
+        victim: obstacle,
+        damage: dealt.get(obstacle).actual,
+        hpBefore: dealt.get(obstacle).hpBefore,
+        killed: obstacle.currentHP <= 0,
+      });
+    if (obstacle.currentHP <= 0) yield { kind: 'remove', unit: obstacle, killer: sourceUnit };
+  }
+}
+
+/** Benediction: on hit, each ally beside the user heals a share of the damage dealt. */
+function* allyHeal(step, sourceUnit, world) {
+  if (!sourceUnit || sourceUnit.currentHP <= 0) return;
+  const amount = Math.floor(
+    (Math.max(0, Number(step.dealt) || 0) * (Number(step.percent) || 0)) / 100,
+  );
+  if (amount <= 0) return;
+  const radius = Math.max(0, Math.trunc(Number(step.radius) || 0));
+  const allies = world
+    .alliesOf(sourceUnit)
+    .filter((ally) => ally && ally !== sourceUnit && ally.currentHP > 0)
+    .filter((ally) => gridDistance(sourceUnit.col, sourceUnit.row, ally.col, ally.row) <= radius)
+    .sort((a, b) => {
+      const da = gridDistance(sourceUnit.col, sourceUnit.row, a.col, a.row);
+      const db = gridDistance(sourceUnit.col, sourceUnit.row, b.col, b.row);
+      if (da !== db) return da - db;
+      if (a.row !== b.row) return a.row - b.row;
+      return a.col - b.col;
+    });
+  for (const ally of allies) {
+    const healed = healUnit(ally, amount);
+    if (healed <= 0) continue;
+    yield { kind: 'hp', unit: ally };
+    yield { kind: 'hint', unit: ally, text: `+${healed} HP`, tone: 'heal' };
+  }
 }
 
 function* setHp(step, sourceUnit, targetUnit) {

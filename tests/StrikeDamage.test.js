@@ -89,6 +89,8 @@ describe('strikeDamage', () => {
       const result = resolveCombat(swordsman, sword, fighter, axe, 1, null, null);
       const first = result.events.find((e) => e.type === 'strike' && e.attackerSide !== 'defender');
       expect(first).toMatchObject({ miss: false, isCrit: false, damage: 14 });
+      // The HP each side entered with (Benediction caps its heal there).
+      expect(result.startHP).toEqual({ attacker: 30, defender: 30 });
     } finally {
       Math.random = prev;
     }

@@ -168,7 +168,7 @@ function normalizeDamageMultiplier(value) {
   return n > 1 ? n : null;
 }
 
-const VALID_TIER2_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through']);
+const VALID_TIER2_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through', 'ram']);
 const VALID_TIER2_DEBUFF_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
 const VALID_AREA_SHAPES = new Set(['radius', 'line', 'around_attacker']);
 const VALID_TARGETING = new Set(['normal_attack', 'chosen_center']);
@@ -215,7 +215,11 @@ function normalizeTier2MoveEffect(effect) {
   const mode = toNonEmptyString(effect.mode)?.toLowerCase();
   if (!mode || !VALID_TIER2_MOVE_MODES.has(mode)) return null;
   const distance = Math.max(1, Math.trunc(toFiniteNumber(effect.distance, 1)));
-  return { mode, distance };
+  if (mode !== 'ram') return { mode, distance };
+  // A ram pushes up to `distance` tiles; stopped short, the target (and a foe it hits)
+  // takes `collisionDamage`.
+  const collisionDamage = Math.max(0, Math.trunc(toFiniteNumber(effect.collisionDamage, 0)));
+  return { mode, distance, collisionDamage };
 }
 
 function normalizeTier2StatusEffect(effect) {
@@ -298,6 +302,18 @@ export function normalizeWeaponArtArea(area) {
 /** The art's normalized area, or null. */
 export function getWeaponArtArea(art) {
   return normalizeWeaponArtArea(art?.area);
+}
+
+/**
+ * Benediction-style heal: on hit, every ally within `radius` of the user heals
+ * `percentOfDamage`% of the damage the user dealt the target (overkill excluded).
+ */
+export function normalizeAllyHealEffect(effect) {
+  if (!effect || typeof effect !== 'object') return null;
+  const radius = Math.trunc(toFiniteNumber(effect.radius, 0));
+  const percentOfDamage = toFiniteNumber(effect.percentOfDamage, 0);
+  if (radius < 1 || !(percentOfDamage > 0)) return null;
+  return { radius, percentOfDamage };
 }
 
 export function normalizeTier5AllyBuffEffect(effect) {
@@ -400,6 +416,7 @@ export function getWeaponArtKillEffects(art) {
 
 export function getWeaponArtTier5Effects(art) {
   return {
+    allyHeal: normalizeAllyHealEffect(art?.effects?.allyHeal),
     allyBuff: normalizeTier5AllyBuffEffect(art?.effects?.allyBuff),
   };
 }
