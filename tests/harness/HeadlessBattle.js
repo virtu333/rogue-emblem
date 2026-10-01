@@ -77,7 +77,7 @@ import {
   resolveStatusStaff,
 } from '../../src/engine/StatusConditionSystem.js';
 import { applyEnemySpawnGear } from '../../src/engine/EnemySpawnGear.js';
-import { settleCombatWeapons } from '../../src/engine/PerBattleWeapons.js';
+import { spendCombatShots, swapSpentWeapons } from '../../src/engine/PerBattleWeapons.js';
 import { canAttackWithWeapon, getAttackWeapons } from '../../src/engine/AttackOptions.js';
 import { combatDistance, getFootprint, isEntity } from '../../src/engine/EntitySystem.js';
 import {
@@ -1830,7 +1830,7 @@ export class HeadlessBattle {
     );
 
     applyCombatHP(attacker, defender, result); // UnitHealth, as BattleScene applies it
-    settleCombatWeapons(attacker, defender, result); // Breachbolt shots and swap, as BattleScene
+    spendCombatShots(attacker, defender, result); // Breachbolt shots, as BattleScene
     this._recordDeedCombat(attacker, defender, result);
 
     this._applyResolvedCombatPostEffects({
@@ -1859,6 +1859,7 @@ export class HeadlessBattle {
 
     if (defender.currentHP <= 0) this._removeUnit(defender, { killer: attacker });
     if (attacker.currentHP <= 0) this._removeUnit(attacker, { killer: defender });
+    swapSpentWeapons([attacker, defender]); // after kill credit, as BattleScene
 
     if (this._checkBattleEnd()) {
       this._clearCombatRollSession();
@@ -2255,7 +2256,7 @@ export class HeadlessBattle {
     );
 
     applyCombatHP(attacker, defender, result); // UnitHealth, as BattleScene applies it
-    settleCombatWeapons(attacker, defender, result); // Breachbolt shots and swap, as BattleScene
+    spendCombatShots(attacker, defender, result); // Breachbolt shots, as BattleScene
     this._recordDeedCombat(attacker, defender, result);
 
     this._applyResolvedCombatPostEffects({
@@ -2287,6 +2288,7 @@ export class HeadlessBattle {
 
     if (defender.currentHP <= 0) this._removeUnit(defender, { killer: attacker });
     if (attacker.currentHP <= 0) this._removeUnit(attacker, { killer: defender });
+    swapSpentWeapons([attacker, defender]); // after kill credit, as BattleScene
 
     this._checkBattleEnd();
     this._clearCombatRollSession();

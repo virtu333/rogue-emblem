@@ -60,7 +60,7 @@ import {
   setUnitHP,
 } from '../engine/UnitHealth.js';
 import { applyEnemySpawnGear } from '../engine/EnemySpawnGear.js';
-import { settleCombatWeapons } from '../engine/PerBattleWeapons.js';
+import { spendCombatShots, swapSpentWeapons } from '../engine/PerBattleWeapons.js';
 import {
   advanceTurnPressure,
   bestLordEscapeDistance,
@@ -7325,6 +7325,14 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
+  /**
+   * After a combat's deaths are settled (kill credit read the weapon that struck), a
+   * survivor whose per-battle weapon ran dry switches to one that can still strike.
+   */
+  _swapSpentWeapons(...units) {
+    this._announceWeaponSwaps(swapSpentWeapons(units));
+  }
+
   /** Tell the player when one of their units switched weapons after its tome ran dry. */
   _announceWeaponSwaps(swaps = []) {
     for (const { unit, to } of swaps) {
@@ -8211,9 +8219,9 @@ export class BattleScene extends Phaser.Scene {
 
     // Apply final HP (UnitHealth: the same outcome whether or not strikes were shown)
     applyCombatHP(attacker, defender, result);
-    // Per-battle weapons (Breachbolt) spend a shot for each side that struck with them;
-    // a unit whose weapon ran dry switches to one that can still strike.
-    this._announceWeaponSwaps(settleCombatWeapons(attacker, defender, result).swaps);
+    // Per-battle weapons (Breachbolt) spend a shot for each side that struck with them
+    // (the switch away from a dry weapon waits for the deaths: _swapSpentWeapons).
+    spendCombatShots(attacker, defender, result);
 
     // Debug invincibility: restore player-faction units to full HP
     if (this.isDevToolsEnabled() && debugState.invincible) {
@@ -8396,6 +8404,7 @@ export class BattleScene extends Phaser.Scene {
       if (attacker.currentHP <= 0) {
         await this.removeUnit(attacker, { killer: defender });
       }
+      this._swapSpentWeapons(attacker, defender);
 
       if (
         this._fatalDecision ||
@@ -10364,6 +10373,7 @@ export class BattleScene extends Phaser.Scene {
 
       if (target.currentHP <= 0) await this.removeUnit(target, { killer: enemy });
       if (enemy.currentHP <= 0) await this.removeUnit(enemy, { killer: target });
+      this._swapSpentWeapons(enemy, target);
 
       // Entity splash damage on adjacent tiles after primary attack
       if (isEntity(enemy) && enemy.currentHP > 0) {

@@ -115,6 +115,57 @@ describe('HeadlessBattle mirrors', () => {
     expect(hero.weapon).toBe(fire);
   });
 
+  describe('a last-shot kill is credited to the weapon that struck', () => {
+    // The hero's Breachbolt (Tome) fires its last shot and kills; the weapon it then
+    // switches to is of another kind. Kill credit must read the Breachbolt.
+    function lastShotKill(fallbackName, foeClass) {
+      const battle = battleFor();
+      const hero = battle.playerUnits[0];
+      battle.playerUnits = [hero];
+      hero.proficiencies = [
+        { type: 'Tome', rank: 'Mast' },
+        { type: 'Light', rank: 'Mast' },
+        { type: 'Sword', rank: 'Mast' },
+      ];
+      Object.assign(hero.stats, { MAG: 40, SKL: 60, LCK: 30 });
+      const bolt = structuredClone(data.weapons.find((w) => w.name === 'Breachbolt'));
+      const fallback = structuredClone(data.weapons.find((w) => w.name === fallbackName));
+      bolt._usesSpent = bolt.uses - 1;
+      hero.inventory = [bolt, fallback];
+      hero.weapon = bolt;
+      battle.enemyUnits = [];
+      const cols = battle.battleConfig.cols;
+      const foe = battle._addEnemyFromSpawn({
+        className: foeClass,
+        level: 1,
+        col: hero.col + 4 < cols ? hero.col + 4 : hero.col - 4,
+        row: hero.row,
+      });
+      foe.currentHP = 1;
+      // A second foe far away keeps the battle going (a win would commit the deeds).
+      battle._addEnemyFromSpawn({
+        className: 'Fighter',
+        level: 1,
+        col: cols - 1,
+        row: battle.battleConfig.rows - 1,
+      });
+      battle._executeCombat(hero, foe);
+      expect(battle.enemyUnits).not.toContain(foe); // the shot killed
+      expect(hero.weapon.name).toBe(fallbackName); // and the hero then switched
+      return { battle, hero };
+    }
+
+    it('in the deeds (kills by weapon type)', () => {
+      const { hero } = lastShotKill('Iron Sword', 'Fighter');
+      expect(hero._battleDeeds.killsByWeapon).toEqual({ Tome: 1 });
+    });
+
+    it('for zombie remains (only Light leaves none)', () => {
+      const { battle } = lastShotKill('Glimmer', 'Zombie');
+      expect(battle._zombieTombstones).toHaveLength(1);
+    });
+  });
+
   it('an enemy that chooses its status staff uses it (a use is spent, the AI moves on)', async () => {
     const battle = battleFor();
     const target = battle.playerUnits[0];
