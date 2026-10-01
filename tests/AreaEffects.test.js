@@ -138,7 +138,7 @@ describe('Battering Ram: push up to two tiles, crash when stopped short', () => 
 
   it('reads as one row', () => {
     expect(weaponArtDetailLines({ ...ram, name: 'Ram', hpCost: 6 }).join('\n')).toContain(
-      'ram the target back up to 2 tiles (only when next to it); a crash deals 5',
+      'ram the target back up to 2 tiles (only when next to it); if blocked, it and any foe it hits take 5',
     );
   });
 });

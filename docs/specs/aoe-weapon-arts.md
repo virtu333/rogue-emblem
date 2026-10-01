@@ -397,7 +397,9 @@ stays Mast with HP ≥ 5 and map ≤ 2.
   - "Aim: any tile 3-10 away; a 1-tile blast; always lands, no counter"
   - Doom Thrust: "at range 2 it pierces but doesn't push"
   - "On hit: allies next to you heal 50% of the damage"
-  - "On hit: push 2; a crash deals 5 (and 5 to a foe it hits)"
+  - "On hit: ram the target back up to 2 tiles (only when next to it); if blocked, it and
+    any foe it hits take 5" (the shop and roster tooltips wrap it to four to six lines at
+    640x480, under Galeforce Assault and Doom Thrust)
   - "On kill: you may move again"
   - Splash rows lose "of the first hit". The "an area blow…" rule goes once into
     `WEAPON_ARTS_HELP`.

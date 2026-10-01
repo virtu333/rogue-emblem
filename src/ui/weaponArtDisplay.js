@@ -106,7 +106,7 @@ export function weaponArtEffectRows(art) {
         swap: 'swap places with the target',
         push: `push the target back ${tiles(e.distance)} (only when next to it)`,
         through: `pass ${tiles(e.distance)} through the target`,
-        ram: `ram the target back up to ${tiles(e.distance)} (only when next to it); a crash deals ${e.collisionDamage} to it and to a foe it hits`,
+        ram: `ram the target back up to ${tiles(e.distance)} (only when next to it); if blocked, it and any foe it hits take ${e.collisionDamage}`,
       }[e.mode] || `move (${e.mode})`,
     );
   const area = getWeaponArtArea(art);
