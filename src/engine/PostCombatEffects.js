@@ -354,6 +354,7 @@ export function* areaDamage(step, sourceUnit, primary, world, result = null) {
   const plan = planAreaBlows({
     source: sourceUnit,
     primary,
+    center: step.center ?? null,
     area: step.area,
     units: world.hostilesOf(sourceUnit),
     world,

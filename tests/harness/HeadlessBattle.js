@@ -106,6 +106,7 @@ import {
 } from '../../src/utils/constants.js';
 import { applyCombatHP, setUnitHP } from '../../src/engine/UnitHealth.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
+import { areaStrikeEffects, isAreaStrikeCenter } from '../../src/engine/AreaStrike.js';
 import {
   applyTimedBuffEntry,
   expireTimedBuffs,
@@ -1846,6 +1847,49 @@ export class HeadlessBattle {
     }
 
     this._finishUnitAction(attacker);
+  }
+
+  /**
+   * A chosen-center weapon art (engine/AreaStrike.js): the art's cost, every blow in the
+   * blast, removals, then XP from the credits, as BattleScene will resolve it. Returns
+   * false (nothing spent) when the art cannot be used or the center is out of range.
+   */
+  executeAreaStrike(unit, artId, center) {
+    if (!unit || unit.currentHP <= 0 || unit.hasActed) return false;
+    const entry = this._getAvailableWeaponArtEntriesForUnit(unit).find((e) => e.art.id === artId);
+    if (!entry) return false;
+    const { weapon, art } = entry;
+    const artCostOpts = {
+      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+    };
+    const check = canUseWeaponArt(unit, weapon, art, {
+      turnNumber: this.turnManager?.turnNumber,
+      isInitiating: true,
+      actorFaction: unit.faction,
+      ...artCostOpts,
+    });
+    if (!check.ok) return false;
+    if (unit.weapon !== weapon) equipWeapon(unit, weapon);
+    const world = this._postCombatWorld();
+    if (!isAreaStrikeCenter(unit, art, center, world)) return false;
+
+    applyWeaponArtCost(unit, art, artCostOpts);
+    recordWeaponArtUse(unit, art, { turnNumber: this.turnManager?.turnNumber });
+    this._applyRecoilGuardAfterArtUse(unit, art);
+    this._checkPhoenixBrooch(unit);
+
+    const result = {};
+    runPostCombatEffectsSync(areaStrikeEffects({ unit, art, center, world }, result), {
+      remove: (victim, options) => this._removeUnit(victim, options),
+    });
+    for (const credit of result.areaCredits || [])
+      if (credit.victim.faction === 'player') this._checkPhoenixBrooch(credit.victim);
+    if (unit.faction === 'player' && unit.currentHP > 0 && result.areaCredits?.length)
+      this._awardCombatXP(unit, null, false, null, null, { credits: result.areaCredits });
+
+    if (this._checkBattleEnd()) return true;
+    this._finishUnitAction(unit);
+    return true;
   }
 
   _healOptions() {
