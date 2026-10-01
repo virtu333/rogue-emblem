@@ -112,6 +112,69 @@ describe('executeRelocate', () => {
     expect(ctx2.finishUnitAction).toHaveBeenCalledWith(healer2);
   });
 
+  it.each([
+    ['Rescue Staff', true],
+    ['Rescue Staff', false],
+    ['Warp Staff', true],
+    ['Warp Staff', false],
+    ['Teleporter', true],
+  ])('%s preserves visual opacity for acted=%s and the next turn', async (name, hasActed) => {
+    const ctx = makeSceneCtx();
+    const visual = () => ({
+      alpha: 1,
+      setAlpha(alpha) {
+        this.alpha = alpha;
+      },
+      setTint(tint) {
+        this.tint = tint;
+      },
+      clearTint() {
+        this.tint = null;
+      },
+    });
+    const ally = makeAlly({
+      hasActed,
+      graphic: visual(),
+      label: visual(),
+      factionIndicator: visual(),
+      hpBar: { bg: visual(), fill: visual() },
+    });
+    if (hasActed) BattleScene.prototype.dimUnit.call(ctx, ally);
+    const targets = [
+      ally.graphic,
+      ally.label,
+      ally.factionIndicator,
+      ally.hpBar.bg,
+      ally.hpBar.fill,
+    ];
+    const before = targets.map((target) => target.alpha);
+    ctx._awaitSceneTween = vi.fn(async ({ targets, alpha }) => {
+      for (const target of targets)
+        target.alpha = typeof alpha === 'function' ? alpha(target) : alpha;
+    });
+
+    if (name === 'Teleporter') {
+      ctx.grid.cols = 10;
+      ctx.grid.rows = 10;
+      ctx.grid.getMoveCost = () => 1;
+      await BattleScene.prototype.executeWarp.call(ctx, ally, 2, { col: 4, row: 6 });
+    } else {
+      await BattleScene.prototype.executeRelocate.call(ctx, makeHealer(freshStaff(name)), ally, {
+        col: 5,
+        row: 4,
+      });
+    }
+
+    expect(ally.hasActed).toBe(hasActed);
+    expect(targets.map((target) => target.alpha)).toEqual(before);
+    // This is the visual reset the player-turn handler uses. The sprite and HP
+    // bar must not retain an opacity that this reset does not change.
+    ally.hasActed = false;
+    BattleScene.prototype.undimUnit.call(ctx, ally);
+    expect(targets.map((target) => target.alpha)).toEqual([1, 1, 1, 1, 1]);
+    expect(ally.graphic.tint).toBeNull();
+  });
+
   it('enters HEAL_RESOLVING and clears the relocation selection state', async () => {
     const ctx = makeSceneCtx();
     const staff = freshStaff('Rescue Staff');

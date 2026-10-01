@@ -14,8 +14,8 @@
 //    swaps both (and the JS) on activation; offline, the installed pair is served.
 //    ~3.5 MB — boot-critical files BootScene / the deferred warmup load every launch.
 //
-// 2. RUNTIME (StaleWhileRevalidate, stable filenames): the ~2400 other sprite,
-//    portrait, terrain images and the audio. Never precached (well over 100 MB).
+// 2. RUNTIME: stable image filenames use StaleWhileRevalidate; immutable,
+//    content-addressed audio uses CacheFirst. Never precached (well over 100 MB).
 //
 // Revisions: vite-plugin-pwa defaults `dontCacheBustURLsMatching` to /^assets\//
 // (Vite's hashed output dir) — but the game's own media also lives under assets/, so
@@ -77,13 +77,14 @@ export const RUNTIME_CACHE_ROUTES = Object.freeze([
     maxEntries: 3200,
   },
   {
-    // Music + SFX — same stable-filename reasoning as images.
+    // Immutable audio recordings; changed bytes get a new physical URL.
     urlPattern: /\/assets\/audio\/.*\.(mp3|ogg|wav|m4a)$/i,
-    cacheName: 'er-audio-assets',
-    // 248 audio files with the composed soundtrack: 88 music loops and layers,
-    // 142 ceremony stingers, 18 SFX. 400 leaves headroom for new tracks and
-    // tonics; purgeOnQuotaError is the real safety valve.
-    maxEntries: 400,
+    cacheName: 'er-audio-assets-v2',
+    handler: 'CacheFirst',
+    // Two complete generations of the 258-file soundtrack fit (98 music,
+    // 142 stingers, 18 SFX), with headroom. Quota pressure can still evict
+    // warmed files; a missing version never substitutes a legacy recording.
+    maxEntries: 800,
   },
 ]);
 
@@ -93,7 +94,7 @@ const SIXTY_DAYS = 60 * 24 * 60 * 60;
 export function workboxRuntimeCaching() {
   return RUNTIME_CACHE_ROUTES.map((route) => ({
     urlPattern: route.urlPattern,
-    handler: 'StaleWhileRevalidate',
+    handler: route.handler || 'StaleWhileRevalidate',
     options: {
       cacheName: route.cacheName,
       expiration: {

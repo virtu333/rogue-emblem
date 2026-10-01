@@ -8835,6 +8835,7 @@ export class BattleScene extends Phaser.Scene {
       unit.hpBar.fill,
     ].filter(Boolean);
     if (targets.length <= 0) return;
+    const originalAlpha = new Map(targets.map((target) => [target, target.alpha ?? 1]));
 
     await this._awaitSceneTween(
       {
@@ -8850,7 +8851,7 @@ export class BattleScene extends Phaser.Scene {
     await this._awaitSceneTween(
       {
         targets,
-        alpha: unit.hasActed ? 0.5 : 1,
+        alpha: (target) => originalAlpha.get(target),
         duration: 180,
       },
       { label: 'execute_warp_fade_in' },

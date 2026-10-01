@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect, vi } from 'vitest';
 import { AudioManager } from '../src/utils/AudioManager.js';
 
@@ -404,7 +405,8 @@ describe('AudioManager', () => {
       decodeAudioData: vi.fn((bytes, onSuccess) => onSuccess({ decoded: bytes.byteLength })),
     };
 
-    const fakeBytes = new ArrayBuffer(32);
+    const file = readFileSync(new URL('../assets/audio/music/music_title.mp3', import.meta.url));
+    const fakeBytes = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
     const originalFetch = globalThis.fetch;
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -447,12 +449,16 @@ describe('AudioManager', () => {
       decodeAudioData: vi.fn((bytes, onSuccess) => onSuccess({ decoded: bytes.byteLength })),
     };
 
-    const fakeBytes = new ArrayBuffer(16);
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn(async () => ({
-      ok: true,
-      arrayBuffer: async () => fakeBytes,
-    }));
+    globalThis.fetch = vi.fn(async (url) => {
+      const key = /([^/]+)-[a-f0-9]{64}\.mp3$/.exec(url)[1];
+      const file = readFileSync(new URL('../assets/audio/music/' + key + '.mp3', import.meta.url));
+      return {
+        ok: true,
+        arrayBuffer: async () =>
+          file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength),
+      };
+    });
 
     try {
       const audio = new AudioManager(sound, { maxCachedMusicTracks: 2 });

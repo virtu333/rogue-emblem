@@ -161,7 +161,7 @@ function installDevDiagnostics() {
     return rows;
   };
 
-  window.__emblemDumpAudioDiag = () => {
+  window.__emblemDumpAudioDiag = async () => {
     const all = window.__emblemDumpStartupTelemetry('audio_diag') || [];
     const asyncErrors = window.__emblemDumpStartupTelemetry('async_error') || [];
     const summary = {
@@ -169,7 +169,25 @@ function installDevDiagnostics() {
       asyncErrorCount: asyncErrors.length,
     };
     console.info('[StartupDiag] audio summary:', summary);
-    return { summary, audioDiag: all, asyncErrors };
+    const audio = window.__emblemRogueGame?.registry?.get?.('audio')?.getAudioDiagnostics?.();
+    const controller = navigator.serviceWorker?.controller?.scriptURL || null;
+    let registration;
+    try {
+      registration = await navigator.serviceWorker?.getRegistration?.();
+    } catch {
+      /* Diagnostics must also work without service-worker access. */
+    }
+    return {
+      summary,
+      audioDiag: all,
+      asyncErrors,
+      audio,
+      serviceWorker: {
+        controller,
+        active: registration?.active?.scriptURL || null,
+        waiting: registration?.waiting?.scriptURL || null,
+      },
+    };
   };
 }
 installDevDiagnostics();

@@ -67,7 +67,13 @@ export function sharesTimeline(buffer, loop, primaryBuffer, primaryLoop) {
   const primaryDur = Number(primaryBuffer?.duration);
   if (!Number.isFinite(dur) || !Number.isFinite(primaryDur)) return false;
   if (Math.abs(dur - primaryDur) > LOOP_DURATION_TOLERANCE_S) return false;
-  if (!primaryLoop) return !loop;
+  if (!primaryLoop) {
+    const rate = Math.max(
+      Number(buffer?.sampleRate) || 44100,
+      Number(primaryBuffer?.sampleRate) || 44100,
+    );
+    return !loop && Math.abs(dur - primaryDur) <= 1 / rate;
+  }
   if (primaryLoop.loopEnd > dur) return false;
   if (!loop) return true;
   return (
@@ -114,6 +120,12 @@ export class LoopedMusic {
     this._layers = new Map();
     this._startTime = null;
 
+    const given = Object.keys(layers).filter((n) => layers[n]);
+    const primaryName = given.includes('full') ? 'full' : given[0];
+    const primaryLoop = validLoopFor(layers[primaryName], loops[primaryName]);
+    if (!primaryName || (loops[primaryName] && !primaryLoop))
+      throw new Error('invalid-primary-timeline');
+
     this._out = context.createGain();
     this._out.gain.value = volume;
     // Ducking has its own stage so it never fights the volume fades on _out.
@@ -122,24 +134,22 @@ export class LoopedMusic {
     this._out.connect(this._duck);
     this._duck.connect(destination);
 
-    const given = Object.keys(layers).filter((n) => layers[n]);
-    const primaryName = given.includes('full') ? 'full' : given[0];
     this._primaryName = primaryName;
     /** Layer name -> cache key the track wants (a missing layer can join later). */
     this.layerKeys = { ...(keys || {}) };
     if (primaryName && !this.layerKeys[primaryName]) this.layerKeys[primaryName] = key;
-    const primaryLoop = validLoopFor(layers[primaryName], loops[primaryName]);
     // Every layer loops with the primary's region; a layer that can't share it
     // (e.g. a stale cached file) is dropped and the primary plays alone.
     const names = given.filter(
       (n) =>
         n === primaryName ||
-        sharesTimeline(
-          layers[n],
-          validLoopFor(layers[n], loops[n]),
-          layers[primaryName],
-          primaryLoop,
-        ),
+        ((!loops[n] || validLoopFor(layers[n], loops[n])) &&
+          sharesTimeline(
+            layers[n],
+            validLoopFor(layers[n], loops[n]),
+            layers[primaryName],
+            primaryLoop,
+          )),
     );
     this._additive = new Set(
       names.filter((n) => n !== primaryName && Number.isFinite(Number(layerGains?.[n]))),
@@ -249,7 +259,10 @@ export class LoopedMusic {
     if (this._destroyed || !name || !buffer || this._layers.has(name)) return false;
     const primary = this._layers.get(this._primaryName);
     if (!primary) return false;
-    if (!sharesTimeline(buffer, validLoopFor(buffer, loop), primary.buffer, primary.loop)) {
+    if (
+      (loop && !validLoopFor(buffer, loop)) ||
+      !sharesTimeline(buffer, validLoopFor(buffer, loop), primary.buffer, primary.loop)
+    ) {
       return false;
     }
     const gain = this.context.createGain();
