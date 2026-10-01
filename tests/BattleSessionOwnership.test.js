@@ -249,7 +249,9 @@ describe('originating battle session ownership', () => {
     scene.resetFortHealStreak = () => {};
     scene.hideActionMenu = () => {};
     scene.updateHPBar = () => {};
+    scene._presentScaledXP = () => {};
     scene._getCombatFx = () => ({});
+    scene.awardScaledXP = () => 20;
     scene.finishUnitAction = vi.fn();
     scene._recoverUnitActionError = vi.fn();
     scene.animateHeal = () =>
@@ -259,12 +261,26 @@ describe('originating battle session ownership', () => {
     let reject;
     const healer = {
       name: 'Old healer',
-      stats: { MAG: 5 },
-      weapon: { type: 'Staff', name: 'Heal', healBase: 5 },
+      stats: { MAG: 5, HP: 20 },
+      currentHP: 20,
+      col: 1,
+      row: 1,
+      proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+      weapon: {
+        type: 'Staff',
+        name: 'Heal',
+        healBase: 5,
+        rankRequired: 'Prof',
+        range: '1',
+        uses: 3,
+      },
       inventory: [],
       faction: 'player',
     };
-    const target = { name: 'Old target', stats: { HP: 20 }, currentHP: 10 };
+    const target = { name: 'Old target', stats: { HP: 20 }, currentHP: 10, col: 1, row: 2 };
+    healer.inventory = [healer.weapon];
+    scene.playerUnits = [healer, target];
+    scene.npcUnits = [];
     const pending = controller.executeHeal(healer, target);
     expect(reject).toBeTypeOf('function');
     restart(scene);

@@ -527,6 +527,29 @@ describe('HeadlessBattle', () => {
     expect(battle.playerUnits).not.toContain(caravan);
   });
 
+  it('retains a depleted staff after the shared settlement and equips a counter weapon', () => {
+    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
+    battle.init();
+    const healer = battle.playerUnits.find((unit) => unit.name === 'Sera');
+    const staff = healer.inventory.find((item) => item.type === 'Staff');
+    const tome = structuredClone(
+      gameData.weapons.find((item) => item.type === 'Tome' && item.rankRequired === 'Prof'),
+    );
+    healer.proficiencies.push({ type: 'Tome', rank: 'Prof' });
+    healer.inventory = [staff,tome];
+    healer.weapon = staff;
+    staff.uses = 1;
+    healer.stats.MAG = 6;
+    staff._usesSpent = 0;
+    const target = battle.playerUnits.find((unit) => unit !== healer);
+    target.currentHP = 1;
+    battle._executeHeal(healer, target);
+    expect(staff._usesSpent).toBe(1);
+    expect(healer.inventory).toContain(staff);
+    expect(healer.weapon).toBe(tome);
+    expect(healer.hasActed).toBe(true);
+  });
+
   it('chooseAction throws for unsupported action', () => {
     const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
     battle.init();
