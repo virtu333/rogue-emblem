@@ -2473,6 +2473,147 @@
         ]
       },
       "scrollOnly": true
+    },
+    {
+      "id": "axe_sweeping_cleave",
+      "name": "Sweeping Cleave",
+      "weaponType": "Axe",
+      "allowedTypes": [
+        "Axe",
+        "Sword"
+      ],
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Prof",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "area": {
+        "shape": "around_attacker",
+        "radius": 1,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.5
+        },
+        "strikes": "once"
+      },
+      "description": "A wide arc that catches every foe standing beside you.",
+      "combatMods": {
+        "hitBonus": 5,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Sweeping Cleave"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lance_skewer",
+      "name": "Skewer",
+      "weaponType": "Lance",
+      "allowedTypes": [
+        "Lance",
+        "Bow"
+      ],
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Prof",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "area": {
+        "shape": "line",
+        "length": 2,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.6
+        },
+        "strikes": "each_landed"
+      },
+      "description": "Drives through the target into whoever stands behind it.",
+      "combatMods": {
+        "hitBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Skewer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "light_benediction",
+      "name": "Benediction",
+      "weaponType": "Light",
+      "allowedTypes": [
+        "Light"
+      ],
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Prof",
+      "hpCost": 6,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "The light that burns the foe mends the friends at your side.",
+      "allowedFactions": [
+        "player"
+      ],
+      "effects": {
+        "allyHeal": {
+          "radius": 1,
+          "percentOfDamage": 50
+        }
+      },
+      "combatMods": {
+        "atkBonus": 2,
+        "hitBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Benediction"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lance_battering_ram",
+      "name": "Battering Ram",
+      "weaponType": "Lance",
+      "allowedTypes": [
+        "Lance",
+        "Axe"
+      ],
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Prof",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "Drives the target back hard; whatever stops it hurts.",
+      "allowedFactions": [
+        "player"
+      ],
+      "effects": {
+        "afterCombat": [
+          {
+            "type": "move",
+            "mode": "ram",
+            "distance": 2,
+            "collisionDamage": 5
+          }
+        ]
+      },
+      "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Battering Ram"
+          }
+        ]
+      }
     }
   ]
 }

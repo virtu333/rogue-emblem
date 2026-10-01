@@ -22,8 +22,10 @@ const allArts = gameData.weaponArts.arts;
 const artById = new Map(allArts.map((a) => [a.id, a]));
 
 describe('Tier 1 Weapon Arts Expansion', () => {
-  it('has exactly 83 arts', () => {
-    expect(allArts.length).toBe(83);
+  // 83, plus the four area arts of docs/specs/aoe-weapon-arts.md (Sweeping Cleave, Skewer,
+  // Benediction, Battering Ram).
+  it('has exactly 87 arts', () => {
+    expect(allArts.length).toBe(87);
   });
 
   it('all art IDs are unique', () => {
@@ -57,11 +59,11 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     });
 
     it('steel tier has correct count', () => {
-      expect(steelArts.length).toBe(24);
+      expect(steelArts.length).toBe(26); // + Sweeping Cleave, Skewer
     });
 
     it('silver tier has correct count', () => {
-      expect(silverArts.length).toBe(26);
+      expect(silverArts.length).toBe(28); // + Benediction, Battering Ram
     });
 
     it('legendary tier has correct count', () => {
@@ -189,7 +191,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     );
 
     it('has 30 weapon art scrolls', () => {
-      expect(weaponArtScrolls.length).toBe(30);
+      expect(weaponArtScrolls.length).toBe(34); // + the four area art scrolls
     });
 
     it('every scroll references a valid art ID', () => {
@@ -342,8 +344,8 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       expect(allArts.filter((a) => a.tierAffinity === 'Iron' && !a.legacy).length).toBe(14);
     });
 
-    it('active Steel pool has 20 arts (24 minus 4 legacy)', () => {
-      expect(allArts.filter((a) => a.tierAffinity === 'Steel' && !a.legacy).length).toBe(20);
+    it('active Steel pool has 22 arts (26 minus 4 legacy)', () => {
+      expect(allArts.filter((a) => a.tierAffinity === 'Steel' && !a.legacy).length).toBe(22);
     });
   });
 
@@ -368,7 +370,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       expect(act2Pool).toContain('Windsweep Scroll');
       expect(act2Pool).toContain('Seraphim Scroll');
       expect(act2Pool).not.toContain('Precise Cut Scroll');
-      expect(act2Pool.length).toBe(13);
+      expect(act2Pool.length).toBe(15); // + Sweeping Cleave, Skewer
     });
 
     it('loot tables have updated act3 weapon art scroll pool', () => {
@@ -376,7 +378,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       expect(act3Pool).toContain('Dragonhaze Scroll');
       expect(act3Pool).toContain('Nosferatu Scroll');
       expect(act3Pool).not.toContain('Comet Edge Scroll');
-      expect(act3Pool.length).toBe(22);
+      expect(act3Pool.length).toBe(26); // + the four area art scrolls
     });
   });
 });

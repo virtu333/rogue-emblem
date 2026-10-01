@@ -170,3 +170,51 @@ describe('Benediction: allies beside the user heal a share of the damage dealt',
     expect(beside.currentHP).toBe(10);
   });
 });
+
+describe('the shipped area arts (catalog)', () => {
+  const catalog = (id) => data.weaponArts.arts.find((a) => a.id === id);
+
+  it("Sweeping Cleave and Skewer are open to any side; Benediction and Battering Ram are the player's", () => {
+    // No enemy knockback (owner decision 2026-10-01).
+    expect(catalog('axe_sweeping_cleave').allowedFactions).toBeUndefined();
+    expect(catalog('lance_skewer').allowedFactions).toBeUndefined();
+    expect(catalog('light_benediction').allowedFactions).toEqual(['player']);
+    expect(catalog('lance_battering_ram').allowedFactions).toEqual(['player']);
+  });
+
+  it('each is taught by a scroll that drops in acts 2-3', () => {
+    const teaches = (id) => data.weapons.find((w) => w.teachesWeaponArtId === id)?.name;
+    for (const [id, acts] of [
+      ['axe_sweeping_cleave', ['act2', 'act3']],
+      ['lance_skewer', ['act2', 'act3']],
+      ['light_benediction', ['act3']],
+      ['lance_battering_ram', ['act3']],
+    ]) {
+      const scroll = teaches(id);
+      expect(scroll, id).toBe(`${catalog(id).name} Scroll`);
+      for (const act of acts)
+        expect(data.lootTables[act].weaponArtScroll, `${id} ${act}`).toContain(scroll);
+    }
+  });
+
+  it('the shipped Sweeping Cleave lands as its fixture did', () => {
+    // Iron Axe 7 + STR 12 − DEF 4 = 15, × 0.5 = 7.
+    const axe = unit('Axe', 'player', 2, 2, { STR: 12 }, { weapon: weapon('Iron Axe') });
+    const target = unit('Target', 'enemy', 3, 2, { DEF: 4 });
+    const north = unit('North', 'enemy', 2, 1, { DEF: 4 });
+    run(catalog('axe_sweeping_cleave'), axe, target, [axe, target, north]);
+    expect(north.currentHP).toBe(23);
+  });
+
+  it('every shipped area art explains itself in its rows', () => {
+    for (const id of [
+      'axe_sweeping_cleave',
+      'lance_skewer',
+      'light_benediction',
+      'lance_battering_ram',
+    ]) {
+      const text = weaponArtDetailLines(catalog(id)).join('\n');
+      expect(text, id).toMatch(/Area: |heal 50%|ram the target back up to 2 tiles/);
+    }
+  });
+});
