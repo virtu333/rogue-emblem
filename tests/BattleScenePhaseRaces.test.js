@@ -273,7 +273,10 @@ describe('player turn-start input ownership', () => {
     scene.onPhaseChange('player', 3);
     await delayedCallbacks.find((entry) => entry.ms === 1200).cb();
     expect(scene._captureSuspendCheckpoint).toHaveBeenCalledTimes(2);
-    expect(scene._captureSuspendCheckpoint).toHaveBeenLastCalledWith({ preserveRng: true });
+    expect(scene._captureSuspendCheckpoint).toHaveBeenLastCalledWith({
+      preserveRng: true,
+      session: scene._battleSession,
+    });
     expect(scene._pendingLevelUpPopups).toEqual([]);
     expect(scene.battleState).toBe('PLAYER_IDLE');
   });
@@ -328,7 +331,10 @@ describe('player turn-start input ownership', () => {
         scene._enemyPhaseEpoch = 1;
         scene.battleState = 'PLAYER_IDLE';
       }
-      if (kind === 'shutdown') scene.scene.isActive = () => false;
+      if (kind === 'shutdown') {
+        scene._sceneShutdownCleanedUp = true;
+        scene.scene.isActive = () => false;
+      }
       if (kind === 'prompt') {
         scene.visionDialog = {};
         scene.battleState = 'PAUSED';
@@ -631,6 +637,7 @@ describe('removeUnit presentation failures', () => {
       currentHP: 0,
     };
     const scene = Object.assign(Object.create(BattleScene.prototype), {
+      _battleSession: 1,
       registry: { get: () => null },
       playerUnits: [commander],
       enemyUnits: [],

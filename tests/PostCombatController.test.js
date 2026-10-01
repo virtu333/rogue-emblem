@@ -36,6 +36,7 @@ function makeScene() {
     stopMusic: vi.fn(),
   };
   return {
+    _battleSession: 1,
     battleState: 'PLAYER_IDLE',
     _reinforcementsPendingThisTurn: true,
     _victoryPressureState: null,

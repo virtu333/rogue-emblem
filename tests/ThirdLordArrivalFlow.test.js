@@ -87,6 +87,7 @@ function sceneFor(run, extra = {}) {
   const meta = { recordLordsMet: vi.fn(() => true) };
   const saves = [];
   const scene = {
+    _battleSession: 1,
     gameData,
     runManager: run,
     events: { once() {}, on() {}, off() {} },
@@ -109,6 +110,7 @@ function sceneFor(run, extra = {}) {
 describe('the win that brings the lord due', () => {
   function victoryScene(run, { isBoss = false } = {}) {
     const scene = sceneFor(run, {
+      _battleSession: 1,
       isBoss,
       isElite: false,
       nodeId: 'n1',

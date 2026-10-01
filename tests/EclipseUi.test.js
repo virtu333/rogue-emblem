@@ -216,7 +216,13 @@ describe('HUD and records', () => {
   it('projects shadow from the scene turn and par', () => {
     const rm = new RunManager(data);
     rm.startRun({ runSeed: 3, applyBlessingsAtStart: false });
-    const scene = { runManager: rm, battleParams: {}, turnPar: 8, turnManager: { turnNumber: 9 } };
+    const scene = {
+      _battleSession: 1,
+      runManager: rm,
+      battleParams: {},
+      turnPar: 8,
+      turnManager: { turnNumber: 9 },
+    };
     expect(projectedShadow(scene)).toBe(4);
     scene.turnManager.turnNumber = 5;
     expect(projectedShadow(scene)).toBe(0);

@@ -164,7 +164,7 @@ test.describe('desktop full–full trade', () => {
       edric.inventory.push(...['Steel Sword', 'Rapier', 'Iron Lance', 'Iron Axe'].map(weapon));
       for (const u of [edric, sera]) u.inventory.forEach(ensureItemUid);
       s._timelineBoundary = 'turn_start';
-      s._captureSuspendCheckpoint();
+      s._captureSuspendCheckpoint({ session: s._battleSession });
       window.__acted = [];
       const unitActed = s.turnManager.unitActed.bind(s.turnManager);
       s.turnManager.unitActed = (unit) => {
@@ -299,7 +299,7 @@ test.describe('desktop trade reorder', () => {
       edric.inventory.push(...['Steel Sword', 'Rapier', 'Iron Axe'].map(weapon));
       for (const u of s.playerUnits) u.inventory.forEach(ensureItemUid);
       s._timelineBoundary = 'turn_start';
-      s._captureSuspendCheckpoint();
+      s._captureSuspendCheckpoint({ session: s._battleSession });
       return {
         uids: edric.inventory.map((w) => w.uid),
         index: s.runManager.battleInProgress.checkpoint.checkpointIndex,
@@ -521,7 +521,7 @@ test.describe('phone Canto and rewind contracts', () => {
         // to the turn start, not a free bag change between activations: rewind
         // fingerprints items by identity, so record it as the turn-start point.
         s._timelineBoundary = 'turn_start';
-        s._captureSuspendCheckpoint();
+        s._captureSuspendCheckpoint({ session: s._battleSession });
         return u.stats.HP;
       }, village);
       const before = await summary(page);
@@ -590,7 +590,7 @@ test.describe('phone Canto and rewind contracts', () => {
       meta._save();
       s.registry.set('activeSlot', 1);
       setActiveSlot(1);
-      s._captureSuspendCheckpoint();
+      s._captureSuspendCheckpoint({ session: s._battleSession });
     });
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle'),

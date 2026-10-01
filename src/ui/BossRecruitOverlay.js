@@ -1,3 +1,4 @@
+import { battleSession } from './BattleSession.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { showArrivalMenu } from './PartyMenus.js';
 import { inputHint } from '../utils/inputHint.js';
@@ -44,12 +45,13 @@ export class BossRecruitOverlay {
    */
   show(onComplete) {
     const scene = this.scene;
+    const session = battleSession(scene);
     // The offer rolled at the victory save (PendingBossRecruit) is the one
     // shown, on every resume; a run without one rolls it here and saves it
     // before it is drawn.
     const hadOffer = Boolean(this.runManager.pendingBossRecruit);
     const candidates = prepareBossRecruit(this.runManager, this.gameData);
-    if (!hadOffer && candidates) scene._persistBattleRunState?.();
+    if (!hadOffer && candidates) scene._persistBattleRunState?.(null, { session: session });
 
     // Fallback — no candidates
     if (!candidates || candidates.length === 0) {

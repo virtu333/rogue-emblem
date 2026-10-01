@@ -843,7 +843,12 @@ describe('legacy migration (rules v1 → v2)', () => {
   });
 
   it('battle snapshot restore migrates battle units', () => {
-    const scene = { playerUnits: [legacy(['nimble'])], enemyUnits: [], npcUnits: [] };
+    const scene = {
+      _battleSession: 1,
+      playerUnits: [legacy(['nimble'])],
+      enemyUnits: [],
+      npcUnits: [],
+    };
     restoreBattleWorldState(scene, {});
     expect(scene.playerUnits[0].growths.SPD).toBe(40);
     expect(scene.playerUnits[0].traitRulesVersion).toBe(TRAIT_RULES_VERSION);

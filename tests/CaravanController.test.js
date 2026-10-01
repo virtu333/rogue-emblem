@@ -26,6 +26,7 @@ function makeGraphic() {
 
 function makeScene(overrides = {}) {
   return {
+    _battleSession: 1,
     battleConfig: {},
     battleParams: { act: 'act2' },
     npcUnits: [],

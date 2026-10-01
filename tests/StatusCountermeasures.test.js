@@ -264,6 +264,7 @@ describe('countermeasures: art status vs immunity (scene/headless parity)', () =
 describe('countermeasures: Restore staff flow', () => {
   function makeHealSceneCtx() {
     const ctx = {
+      _battleSession: 1,
       battleParams: { xpMultiplier: 1 },
       battleState: '',
       registry: { get: () => ({ playSFX() {} }) },
@@ -387,7 +388,7 @@ describe('countermeasures: Restore staff flow', () => {
     expect(ctx.undimUnit).toHaveBeenCalledWith(target);
     expect(staff._usesSpent).toBe(1);
     expect(ctx.awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL);
-    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer);
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
     // Target HP untouched — Restore is cure-only
     expect(target.currentHP).toBe(target.stats.HP);
   });

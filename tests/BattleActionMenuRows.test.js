@@ -61,6 +61,7 @@ function menuScene({ rail, attackable = true }) {
   const foe = { name: 'Fighter', faction: 'enemy', col: 2, row: 1, currentHP: 20 };
   const scene = new BattleScene();
   Object.assign(scene, {
+    _battleSession: 1,
     selectedUnit: unit,
     playerUnits: [unit],
     enemyUnits: [foe],
@@ -155,7 +156,10 @@ describe('a unit’s action menu as rows', () => {
 
     scene.showActionMenu(unit);
     openMenuCommand(scene, 'wait').onActivate();
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { skipCanto: true });
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, {
+      skipCanto: true,
+      session: scene._battleSession,
+    });
   });
 
   it('a silenced mage’s Attack is greyed with the reason and does nothing', () => {

@@ -1,3 +1,4 @@
+import { isCurrentBattleSession } from './BattleSession.js';
 import { commitHistoryPath, observeHistoryAction } from './BattleHistoryRecorder.js';
 import { settleAccessoryHpOwed } from '../engine/UnitHealth.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
@@ -16,7 +17,8 @@ export function revealSettledVision(scene) {
 
 // Complete an action only after its final location is settled, including Canto.
 // Keep rewards and the suspend save ahead of the possible phase transition.
-export function completeBattleAction(scene, unit, { skipDim = false } = {}) {
+export function completeBattleAction(scene, unit, { skipDim = false, session } = {}) {
+  if (!isCurrentBattleSession(scene, session)) return false;
   commitHistoryPath(scene, unit);
   if (!(scene._historyBeats || []).some((b) => b.actorId === unit.battleEntityId))
     observeHistoryAction(
@@ -41,7 +43,8 @@ export function completeBattleAction(scene, unit, { skipDim = false } = {}) {
   // Before the save: reconcile HP accessory debt (UnitHealth settles it on every HP
   // change; this also covers state loaded from before it did).
   for (const ally of scene.playerUnits || []) settleAccessoryHpOwed(ally);
-  scene._captureSuspendCheckpoint?.();
-  if (!skipDim) safeBattlePresentation('action dim', () => scene.dimUnit(unit));
+  const saved = scene._captureSuspendCheckpoint?.({ session });
+  if (!skipDim) safeBattlePresentation('action dim', () => scene.dimUnit(unit), { scene });
   scene.turnManager.unitActed(unit);
+  return scene.runManager?.battleInProgress ? saved === true : true;
 }

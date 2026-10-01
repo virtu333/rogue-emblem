@@ -37,6 +37,7 @@ describe('legacy recruit identity at the restore boundary', () => {
       const { rm, army, npc, node, records } = fixture();
       const mercUid = rm.roster.at(-1).unitUid;
       const scene = {
+        _battleSession: 1,
         runManager: rm,
         playerUnits: [
           ...army.slice(0, -1),
@@ -69,7 +70,7 @@ describe('legacy recruit identity at the restore boundary', () => {
 
   it('links escaped recruits, stays stable on recapture, and does not consume RNG', () => {
     const { rm, npc, records } = fixture();
-    const scene = { runManager: rm, playerUnits: [], escapedUnits: [npc] };
+    const scene = { _battleSession: 1, runManager: rm, playerUnits: [], escapedUnits: [npc] };
     const random = vi.spyOn(Math, 'random').mockImplementation(() => {
       throw new Error('RNG consumed');
     });

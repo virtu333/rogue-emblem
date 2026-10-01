@@ -135,6 +135,7 @@ function makeScene({ policy = 'fixed-v1', inventory = null, heroExtra = {} } = {
   const scene = Object.create(BattleScene.prototype);
   const checkpoints = [];
   Object.assign(scene, {
+    _battleSession: 1,
     gameData: data,
     battleParams: {},
     battleConfig: {},
@@ -600,7 +601,9 @@ describe('contract: planning an attack never changes equipment', () => {
     await step('tap the first target', () => flow.switchForecastTarget(fighter));
     expect(planned()).toBe('Iron Sword');
     await step('next weapon', () => scene._cycleForecastWeapon(1));
-    await step('a checkpoint while planning', () => scene._captureSuspendCheckpoint());
+    await step('a checkpoint while planning', () =>
+      scene._captureSuspendCheckpoint({ session: scene._battleSession }),
+    );
     expect(checkpoints.at(-1).hero.equippedInventoryIndex).toBe(0);
     expect(checkpoints.at(-1).hero.weapon.uid).toBe('iron');
     await step('Cancel', () => scene.handleCancel());

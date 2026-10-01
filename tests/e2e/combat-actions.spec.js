@@ -218,6 +218,62 @@ for (const staff of ['Warp Staff', 'Rescue Staff']) {
     ).toBe(1);
     expect(errors).toEqual([]);
   });
+
+  test(`${staff}: a spent ally becomes fully visible and selectable next turn`, async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    const { hud, errors } = await boot(page);
+    const moved = staff === 'Warp Staff' ? 'Patient' : 'Utility';
+    await select(page, moved);
+    await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
+    const visuals = () =>
+      page.evaluate((name) => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        const u = s.playerUnits.find((u) => u.name === name);
+        return {
+          acted: u.hasActed,
+          sprite: u.graphic.alpha,
+          label: u.label?.alpha ?? null,
+          ring: u.factionIndicator.alpha,
+          hp: [u.hpBar.bg.alpha, u.hpBar.fill.alpha],
+          tinted: u.graphic.isTinted,
+        };
+      }, moved);
+    const spent = await visuals();
+    expect(spent).toMatchObject({ acted: true, sprite: 1, hp: [1, 1], tinted: true });
+
+    await select(page, 'Sera');
+    await hud.getByRole('button', { name: /^Heal \(/ }).tap();
+    await hud.getByRole('button', { name: new RegExp(staff) }).tap();
+    await select(page, moved);
+    const dest = await page.evaluate(
+      () => window.__emblemRogueGame.scene.getScene('Battle').staffRelocateTiles[0],
+    );
+    await tapTile(page, dest.col, dest.row);
+    await expect.poll(async () => (await unit(page, 'Sera')).acted).toBe(true);
+    expect(await visuals()).toEqual(spent);
+
+    // Use the actual enemy phase and player-turn visual reset, then tap the
+    // relocated unit to prove its appearance agrees with its available action.
+    await hud.getByRole('button', { name: 'End turn…', exact: true }).tap();
+    await hud.getByRole('button', { name: 'End turn now', exact: true }).tap();
+    await page.waitForFunction(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      return s.turnManager.turnNumber === 2 && s.battleState === 'PLAYER_IDLE';
+    });
+    expect(await visuals()).toEqual({
+      acted: false,
+      sprite: 1,
+      label: spent.label === null ? null : 1,
+      ring: 1,
+      hp: [1, 1],
+      tinted: false,
+    });
+    await select(page, moved);
+    await expect(hud.getByRole('button', { name: 'Wait', exact: true })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
 }
 test('Dance refreshes a spent ally, Restore cures a condition', async ({ page }) => {
   const { hud, errors } = await boot(page);

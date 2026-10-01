@@ -65,6 +65,7 @@ function text() {
 function scene(playerUnits) {
   const s = new BattleScene();
   Object.assign(s, {
+    _battleSession: 1,
     playerUnits,
     npcUnits: [],
     enemyUnits: [],
@@ -145,7 +146,9 @@ describe('Fortify reaches 1 to 2', () => {
     const s = scene([sera, beside, two, three]);
     const staff = sera.weapon;
     s.startHealTargetSelection(sera, s.findHealTargets(sera), staff);
-    await vi.waitFor(() => expect(s.finishUnitAction).toHaveBeenCalledWith(sera));
+    await vi.waitFor(() =>
+      expect(s.finishUnitAction).toHaveBeenCalledWith(sera, { session: s._battleSession }),
+    );
     expect(beside.currentHP).toBe(19); // 4 + 15
     expect(two.currentHP).toBe(30); // 20 + 10 (capped at 30)
     expect(three.currentHP).toBe(5);

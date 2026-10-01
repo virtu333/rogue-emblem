@@ -74,6 +74,7 @@ function setup() {
     graphic: sprite(),
   };
   Object.assign(scene, {
+    _battleSession: 1,
     grid,
     gameData,
     playerUnits: [edric],
@@ -155,7 +156,7 @@ describe('fog lifts only once an action is committed', () => {
   it('Wait on the new tile lifts the fog before the suspend save', async () => {
     const { scene, grid, edric, brigand } = setup();
     await moveNextToBrigand(scene, edric);
-    scene.finishUnitAction(edric, { skipCanto: true });
+    scene.finishUnitAction(edric, { skipCanto: true, session: scene._battleSession });
     expect(grid.isVisible(5, 1)).toBe(true);
     expect(grid.everSeenSet.has('5,1')).toBe(true);
     expect(brigand.graphic.visible).toBe(true);
@@ -166,7 +167,7 @@ describe('fog lifts only once an action is committed', () => {
   it('completing an action directly (staff, item, talk...) reveals too', async () => {
     const { scene, grid, edric } = setup();
     await moveNextToBrigand(scene, edric);
-    completeBattleAction(scene, edric);
+    completeBattleAction(scene, edric, { session: scene._battleSession });
     expect(grid.isVisible(5, 1)).toBe(true);
     expect(scene.saved).toEqual([true]);
   });
@@ -180,13 +181,13 @@ describe('fog lifts only once an action is committed', () => {
       litAtCanto = grid.isVisible(5, 1);
     });
     await moveNextToBrigand(scene, edric);
-    scene.finishUnitAction(edric);
+    scene.finishUnitAction(edric, { session: scene._battleSession });
     expect(scene.startCantoMove).toHaveBeenCalledWith(edric, 1);
     // The turn isn't over: no fog lifted, and no save that would record it.
     expect(litAtCanto).toBe(false);
     expect(scene.saved).toEqual([]);
     // Canto ends (a step, or staying put): its completion lifts the fog before the save.
-    completeBattleAction(scene, edric);
+    completeBattleAction(scene, edric, { session: scene._battleSession });
     expect(grid.isVisible(5, 1)).toBe(true);
     expect(scene.saved).toEqual([true]);
   });
@@ -209,7 +210,11 @@ describe('fog lifts only once an action is committed', () => {
     // Another ally stands at (4,1); the fog there has not been refreshed yet.
     scene.playerUnits.push({ ...edric, name: 'Sera', col: 4, row: 1 });
     expect(grid.isVisible(5, 1)).toBe(false);
-    completeResolvedAction(scene, { kind: 'combat', unitName: 'Ghost' });
+    completeResolvedAction(
+      scene,
+      { kind: 'combat', unitName: 'Ghost' },
+      { session: scene._battleSession },
+    );
     expect(scene.saved).toEqual([true]);
   });
 
@@ -275,7 +280,7 @@ describe('moves inside an action (Rescue/Warp, Blink) lift the fog only on commi
     expect(litAtCanto()).toBe(false);
     expect(grid.everSeenSet.has('5,1')).toBe(false);
     expect(scene.saved).toEqual([]);
-    completeBattleAction(scene, edric);
+    completeBattleAction(scene, edric, { session: scene._battleSession });
     expect(grid.isVisible(5, 1)).toBe(true);
     expect(scene.saved).toEqual([true]);
   });
@@ -304,7 +309,7 @@ describe('moves inside an action (Rescue/Warp, Blink) lift the fog only on commi
     expect(scene.startCantoMove).toHaveBeenCalled();
     expect(litAtCanto).toBe(false);
     expect(scene.saved).toEqual([]);
-    completeBattleAction(scene, edric);
+    completeBattleAction(scene, edric, { session: scene._battleSession });
     expect(grid.isVisible(5, 1)).toBe(true);
     expect(scene.saved).toEqual([true]);
   });
@@ -448,7 +453,7 @@ describe('previews after an uncommitted move name only what the player sees', ()
     const abilities = new AbilityController(scene);
     const ensnare = () => abilities._getAbilityEntries(edric).find((e) => e.skill.id === 'ensnare');
     expect(ensnare().hasTargets).toBe(false);
-    completeBattleAction(scene, edric);
+    completeBattleAction(scene, edric, { session: scene._battleSession });
     expect(ensnare().hasTargets).toBe(true);
   });
 

@@ -1,3 +1,4 @@
+import { rememberAudioBuffer } from '../src/utils/audioAssets.js';
 import { describe, it, expect, vi } from 'vitest';
 import { StingerPlayer } from '../src/utils/StingerPlayer.js';
 import { AudioManager, STINGER_MIN_WAIT_MS } from '../src/utils/AudioManager.js';
@@ -158,12 +159,12 @@ function makeSound(loaded = {}) {
 
 function musicBuffer(key, seconds = null) {
   const duration = seconds ?? getMusicLoop(key)?.duration ?? 60;
-  return {
+  return rememberAudioBuffer(key, {
     duration,
     length: Math.round(duration * 48000),
     numberOfChannels: 2,
     getChannelData: () => new Float32Array(1),
-  };
+  });
 }
 
 describe('AudioManager stingers', () => {
@@ -269,7 +270,13 @@ describe('AudioManager stingers', () => {
     }
     // each file fetched once, and only the common cues decoded
     expect(audio._fetchStingerBytes).toHaveBeenCalledTimes(fetched.size);
+    expect(fetched.size).toBe(Object.keys(MUSIC_STINGERS).length);
     expect(audio._decodeAudioData).toHaveBeenCalledTimes(STINGER_PRELOAD.length);
+    // Another prefetch in the same key reuses compressed bytes: the 142-file
+    // catalog is not fetched again at every track start.
+    audio.prefetchStingers(Object.keys(MUSIC_STINGERS));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(audio._fetchStingerBytes).toHaveBeenCalledTimes(fetched.size);
   });
 
   it('plays a prefetched cue from its kept file, without fetching it again', async () => {
@@ -347,19 +354,19 @@ describe('AudioManager stingers', () => {
 describe('AudioManager music cache byte budget', () => {
   it('evicts older decoded tracks once the byte budget is exceeded', async () => {
     const sound = makeSound({
-      music_title: musicBuffer('music_title', 100), // ~36.6 MB decoded
-      music_shop: musicBuffer('music_shop', 100),
-      music_home_base: musicBuffer('music_home_base', 100),
+      music_title: musicBuffer('music_title'),
+      music_shop: musicBuffer('music_shop'),
+      music_home_base: musicBuffer('music_home_base'),
     });
     const audio = new AudioManager(sound, {
       maxCachedMusicTracks: 10,
-      maxCachedMusicMegabytes: 80,
+      maxCachedMusicMegabytes: 70,
     });
     await audio.playMusic('music_title', null, 0);
     await audio.playMusic('music_shop', null, 0);
     expect(sound.game.cache.audio.has('music_title')).toBe(true);
     await audio.playMusic('music_home_base', null, 0);
-    // three tracks would be ~110 MB: the oldest goes, the playing one stays
+    // The three real timelines exceed the byte budget; the oldest goes.
     expect(sound.game.cache.audio.has('music_title')).toBe(false);
     expect(sound.game.cache.audio.has('music_shop')).toBe(true);
     expect(sound.game.cache.audio.has('music_home_base')).toBe(true);

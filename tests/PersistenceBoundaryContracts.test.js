@@ -285,6 +285,7 @@ it('popup checkpoint contains applied XP/skills and resumes the final action, no
   unit.col = 1;
   unit.row = 1;
   Object.assign(scene, {
+    _battleSession: 1,
     playerUnits: [unit],
     enemyUnits: [],
     npcUnits: [],
@@ -323,7 +324,11 @@ it('popup checkpoint contains applied XP/skills and resumes the final action, no
     expect(checkpoint.playerUnits[0].skills).toEqual(unit.skills);
     expect(checkpoint.pendingActionCompletion).toEqual({ kind: 'combat', unitName: unit.name });
   });
-  await presentQueuedLevelUps(scene, { kind: 'combat', unitName: unit.name });
+  await presentQueuedLevelUps(
+    scene,
+    { kind: 'combat', unitName: unit.name },
+    { session: scene._battleSession },
+  );
   const checkpoint = loadRun(data, 1).battleInProgress.checkpoint;
   scene.playerUnits = [];
   scene.enemyUnits = [];
@@ -333,8 +338,13 @@ it('popup checkpoint contains applied XP/skills and resumes the final action, no
   new BattleSuspendController(scene).applyUnits(checkpoint);
   scene.checkBattleEnd = vi.fn(() => false);
   scene.finishUnitAction = vi.fn();
-  completeResolvedAction(scene, checkpoint.pendingActionCompletion);
-  expect(scene.finishUnitAction).toHaveBeenCalledWith(scene.playerUnits[0], { skipCanto: false });
+  completeResolvedAction(scene, checkpoint.pendingActionCompletion, {
+    session: scene._battleSession,
+  });
+  expect(scene.finishUnitAction).toHaveBeenCalledWith(scene.playerUnits[0], {
+    skipCanto: false,
+    session: scene._battleSession,
+  });
   expect(scene.playerUnits[0].level).toBe(15);
   expect(popupShow).toHaveBeenCalledTimes(1);
 });
@@ -350,6 +360,7 @@ it('JSON-resumed resolved action enters real Canto with only its unspent movemen
     _movementSpent: 4,
   };
   Object.assign(scene, {
+    _battleSession: 1,
     playerUnits: [unit],
     grid: { clearAttackHighlights: vi.fn() },
     checkBattleEnd: () => false,
@@ -360,7 +371,9 @@ it('JSON-resumed resolved action enters real Canto with only its unspent movemen
     startCantoMove: vi.fn(),
     _captureSuspendCheckpoint: vi.fn(),
   });
-  completeResolvedAction(scene, JSON.parse(JSON.stringify({ kind: 'finish', unitName: 'Rider' })));
+  completeResolvedAction(scene, JSON.parse(JSON.stringify({ kind: 'finish', unitName: 'Rider' })), {
+    session: scene._battleSession,
+  });
   expect(scene.startCantoMove).toHaveBeenCalledExactlyOnceWith(unit, 3);
   expect(unit.hasActed).toBe(true);
   expect(scene.selectedUnit).toBe(unit);
@@ -382,6 +395,7 @@ it('JSON-resumed Gambit refreshes only nearby living units and captures one new 
     _movementSpent: 3,
   }));
   Object.assign(scene, {
+    _battleSession: 1,
     playerUnits: units,
     checkBattleEnd: () => false,
     grid: { clearAttackHighlights: vi.fn() },
@@ -392,6 +406,7 @@ it('JSON-resumed Gambit refreshes only nearby living units and captures one new 
   completeResolvedAction(
     scene,
     JSON.parse(JSON.stringify({ kind: 'combat', unitName: 'Lord', gambitTriggered: true })),
+    { session: scene._battleSession },
   );
   expect(units.map((u) => u.hasActed)).toEqual([false, false, true, true]);
   expect(units.map((u) => u._movementSpent)).toEqual([0, 0, 3, 3]);

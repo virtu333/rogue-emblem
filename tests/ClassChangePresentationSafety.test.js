@@ -15,7 +15,8 @@ const gameData = loadGameData();
 const cls = (name) => gameData.classes.find((c) => c.name === name);
 const plainUnit = (unit) => {
   const state = { ...unit };
-  for (const field of ['graphic', 'label', 'hpBar', 'hpBg']) delete state[field];
+  for (const field of ['graphic', 'label', 'hpBar', 'hpBg', 'affixPips', 'factionIndicator'])
+    delete state[field];
   return JSON.parse(JSON.stringify(state));
 };
 
@@ -29,7 +30,8 @@ function fixture(kind, failure = null) {
   );
   const seal = {
     name: kind === 'promote' ? 'Master Seal' : 'Infantry Seal',
-    effect: kind,
+    effect: kind === 'promote' ? 'promote' : 'reclass',
+    ...(kind === 'promote' ? {} : { subEffect: 'infantry' }),
     uses: 1,
   };
   unit.level = kind === 'promote' ? 10 : 3;
@@ -115,6 +117,19 @@ for (const kind of ['reclass', 'promote'])
       expect(broken.seal.uses).toBe(0);
       expect(broken.scene.finishUnitAction).toHaveBeenCalledTimes(1);
       expect(broken.scene._recoverUnitActionError).not.toHaveBeenCalled();
+    });
+
+    it('finishes a current paused session using the shared ownership policy', async () => {
+      vi.spyOn(PromotionChoicePanel.prototype, 'show').mockResolvedValue(cls('Warrior'));
+      vi.spyOn(LevelUpPopup.prototype, 'show').mockResolvedValue();
+      const { scene, unit, seal, execute } = fixture(kind);
+      scene.sys = { isActive: () => false, settings: { active: false } };
+      expect(await execute()).toBe(true);
+      expect(unit.className).toBe(kind === 'promote' ? 'Warrior' : 'Mercenary');
+      expect(seal.uses).toBe(0);
+      expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
+      expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { session: 1 });
+      expect(scene.battleState).toBe('PLAYER_IDLE');
     });
 
     it('a settled old-session banner cannot finish the restarted battle', async () => {

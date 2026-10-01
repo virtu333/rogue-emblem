@@ -1,3 +1,4 @@
+import { isCurrentBattleSession } from './BattleSession.js';
 import { cantoRuleFor } from '../engine/CantoRule.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { revealSettledVision } from './BattleActionCompletion.js';
@@ -60,21 +61,23 @@ export function readCommittedAction(value) {
 
 // Presentation must never be the only thing preventing a resolved action from
 // reaching storage. Resume runs this small continuation, never combat or XP.
-export function captureResolvedAction(scene, continuation) {
+export function captureResolvedAction(scene, continuation, { session } = {}) {
+  if (!isCurrentBattleSession(scene, session)) return false;
   if (scene._fatalDecision || scene._fatalCapturePending || scene._defeatDecision) return;
   scene.commitVisionSnapshotIfPending?.();
   scene._pendingActionCompletion = continuation;
-  scene._captureSuspendCheckpoint?.();
+  return scene._captureSuspendCheckpoint?.({ session }) === true;
 }
 
-export async function presentQueuedLevelUps(scene, continuation = null) {
+export async function presentQueuedLevelUps(scene, continuation = null, { session } = {}) {
+  if (!isCurrentBattleSession(scene, session)) return;
   if (scene._fatalDecision || scene._fatalCapturePending || scene._defeatDecision) return;
   const queue = scene._pendingLevelUpPopups || [];
   if (!queue.length) return;
   scene._pendingLevelUpPopups = [];
-  if (continuation) captureResolvedAction(scene, continuation);
+  if (continuation) captureResolvedAction(scene, continuation, { session });
   for (const { unitName, unitId, levelUp, learnedNames } of queue) {
-    if (scene._sceneShutdownCleanedUp || scene.sys?.isActive?.() === false) return;
+    if (!isCurrentBattleSession(scene, session)) return;
     const unit = findBattleEntity(scene, { unitId, unitName }, ['playerUnits']);
     if (!unit) continue;
     scene._playLevelUpSfx(levelUpKind(levelUp));
@@ -82,12 +85,13 @@ export async function presentQueuedLevelUps(scene, continuation = null) {
     try {
       await new LevelUpPopup(scene, unit, levelUp, false, learnedNames).show();
     } finally {
-      scene._stopLevelUpSfx();
+      if (isCurrentBattleSession(scene, session)) scene._stopLevelUpSfx();
     }
   }
 }
 
-export function completeResolvedAction(scene, continuation) {
+export function completeResolvedAction(scene, continuation, { session } = {}) {
+  if (!isCurrentBattleSession(scene, session)) return false;
   scene._pendingActionCompletion = null;
   continuation = readActionContinuation(continuation);
   if (!continuation) return;
@@ -115,6 +119,7 @@ export function completeResolvedAction(scene, continuation) {
     }
   } else if (unit) {
     scene.finishUnitAction(unit, {
+      session,
       skipCanto:
         continuation.skipCanto === true ||
         (continuation.kind === 'combat' && cantoRuleFor(unit) === 'noncombat'),
@@ -133,5 +138,5 @@ export function completeResolvedAction(scene, continuation) {
       "Commander's Gambit refreshed nearby allies.",
     ];
   revealSettledVision(scene);
-  scene._captureSuspendCheckpoint?.();
+  scene._captureSuspendCheckpoint?.({ session });
 }

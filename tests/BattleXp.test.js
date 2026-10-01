@@ -157,6 +157,7 @@ describe('the headless harness gives heal XP as the game does', () => {
     // Before: floor(healed / 2). Now: scaledXp(20) = 20 × 1.25 (turn 1 is under par: S).
     const battle = Object.create(HeadlessBattle.prototype);
     Object.assign(battle, {
+      _battleSession: 1,
       gameData: { ...data, deeds: null },
       turnManager: { turnNumber: 1 },
       turnPar: 8,

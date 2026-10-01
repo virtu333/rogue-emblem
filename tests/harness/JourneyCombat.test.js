@@ -49,7 +49,7 @@ function fixture() {
   Object.assign(enemy, { name: 'Hidden enemy', faction: 'enemy', col: 3, row: 3 });
   s.enemyUnits = [enemy];
   for (const unit of [...s.playerUnits, ...s.enemyUnits]) s.addUnitGraphic(unit);
-  expect(s._captureSuspendCheckpoint()).toBe(true);
+  expect(s._captureSuspendCheckpoint({ session: s._battleSession })).toBe(true);
   return { d, s };
 }
 function checkpoint() {
@@ -116,7 +116,11 @@ it.each([1, 42, 773])(
       expect(restored.turnManager.unitActedCalls).toBe(1);
       expect(restored.runManager.battleInProgress.checkpoint.pendingActionCompletion).toBeNull();
     });
-    await presentQueuedLevelUps(s, { kind: 'combat', unitName: unit.name });
+    await presentQueuedLevelUps(
+      s,
+      { kind: 'combat', unitName: unit.name },
+      { session: s._battleSession },
+    );
     assertFresh(restored);
     const second = reload(d);
     expect(second.turnManager.unitActedCalls).toBe(0);
@@ -130,7 +134,11 @@ it('calibration: omitting the presentation checkpoint save exposes the stale com
   await s.awardScaledXP(s.playerUnits[0], 20);
   vi.spyOn(s, '_persistBattleRunState').mockReturnValue({ ok: true });
   popup.mockImplementation(async () => expect(() => assertFresh(s)).toThrow());
-  await presentQueuedLevelUps(s, { kind: 'combat', unitName: s.playerUnits[0].name });
+  await presentQueuedLevelUps(
+    s,
+    { kind: 'combat', unitName: s.playerUnits[0].name },
+    { session: s._battleSession },
+  );
   expect(popup).toHaveBeenCalledTimes(1);
 });
 
@@ -140,11 +148,11 @@ it('failed checkpoint writes are not reported durable; retry persists without re
   await s.awardScaledXP(s.playerUnits[0], 20);
   storage.failWrites = true;
   vi.spyOn(console, 'warn').mockImplementation(() => {});
-  expect(s._captureSuspendCheckpoint()).toBe(false);
+  expect(s._captureSuspendCheckpoint({ session: s._battleSession })).toBe(false);
   expect(checkpoint()).toEqual(prior);
   expect(reload(d).playerUnits[0].level).toBe(14);
   storage.failWrites = false;
-  expect(s._captureSuspendCheckpoint()).toBe(true);
+  expect(s._captureSuspendCheckpoint({ session: s._battleSession })).toBe(true);
   expect(reload(d).playerUnits[0].level).toBe(15);
   assertFresh(s);
 });
@@ -161,7 +169,7 @@ it('resume preserves conditions, usage, movement, terrain and fog without reveal
     _miracleUsed: true,
   });
   s.grid.mapLayout[1][1] = 2;
-  s._captureSuspendCheckpoint();
+  s._captureSuspendCheckpoint({ session: s._battleSession });
   const r = reload(d);
   for (const key of [
     '_movementSpent',
@@ -190,7 +198,7 @@ it('sanctioned Rewind persists restored state and spent charge; map continuation
   v.captureSnapshot();
   const hp = s.playerUnits[0].currentHP;
   s.playerUnits[0].currentHP = 1;
-  s._captureSuspendCheckpoint();
+  s._captureSuspendCheckpoint({ session: s._battleSession });
   expect(v.executeRewind()).toBe(true);
   const r = reload(d);
   expect(r.playerUnits[0].currentHP).toBe(hp);

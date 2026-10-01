@@ -67,6 +67,7 @@ function scene() {
     ]),
   });
   Object.assign(s, {
+    _battleSession: 1,
     playerUnits: [unit()],
     enemyUnits: [unit('Waller', 'enemy')],
     npcUnits: [],
@@ -202,7 +203,7 @@ describe('battle commitment and Canto completion contracts', () => {
       });
       if (mode !== 'ordinary') u.skills = ['canto'];
       s.selectedUnit = u;
-      s.finishUnitAction(u);
+      s.finishUnitAction(u, { session: s._battleSession });
       if (mode !== 'ordinary') {
         expect(persist).not.toHaveBeenCalled();
         expect(visit).not.toHaveBeenCalled();
@@ -243,7 +244,7 @@ describe('Vision world state and hydration', () => {
     });
     u.weapon = u.inventory[1];
     s.captureVisionSnapshot();
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
     const cp = json(s.runManager.battleInProgress.checkpoint);
     const resumed = restoreCheckpoint(cp);
     resumed.visionSnapshot = cp.visionSnapshot; // same nested restore as finalizeResume
@@ -311,7 +312,7 @@ describe('Vision world state and hydration', () => {
   it('suspend JSON preserves temporary terrain lifetime and owner references', () => {
     const s = scene();
     s.grid.setTemporaryTerrain(2, 2, 'Wall', 2, s.enemyUnits[0]);
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
     const restored = restoreCheckpoint(s.runManager.battleInProgress.checkpoint);
     expect(restored.grid.mapLayout[2][2]).toBe(1);
     expect(restored.grid.temporaryTerrains[0].sourceUnit).toBe(restored.enemyUnits[0]);
@@ -402,7 +403,7 @@ describe('deed progress (Deeds & Epithets)', () => {
     expect(s.enemyUnits[0]._slewAllies).toEqual(['Mira']);
 
     recordCombat({ events: [crit] }, s.playerUnits[0], s.enemyUnits[0], { phase: 'player' });
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
     const resumed = restoreCheckpoint(s.runManager.battleInProgress.checkpoint);
     expect(resumed.playerUnits[0]._battleDeeds).toMatchObject({ crits: 2 });
     expect(resumed.enemyUnits[0]._slewAllies).toEqual(['Mira']);

@@ -70,7 +70,7 @@ function fixture({ units = 3, policy = null, difficulty = null } = {}) {
   vi.spyOn(scene._visionController, 'playRewindEffect').mockImplementation(() => {});
   scene.captureVisionSnapshot();
   scene._timelineBoundary = 'turn_start';
-  expect(scene._captureSuspendCheckpoint()).toBe(true);
+  expect(scene._captureSuspendCheckpoint({ session: scene._battleSession })).toBe(true);
   return { driver, scene, run };
 }
 /** Complete one player action with a real observable effect. */
@@ -80,7 +80,7 @@ function act(scene, unit, { hp = -2, move = 1 } = {}) {
   unit.hasMoved = true;
   scene._battleRng(); // an action consumes the battle stream (e.g. a hit roll)
   observeHistoryAction(scene, 'waited', unit);
-  completeBattleAction(scene, unit);
+  completeBattleAction(scene, unit, { session: scene._battleSession });
 }
 const board = (scene) =>
   scene.playerUnits.map((u) => [u.battleEntityId, u.col, u.row, u.currentHP, u.hasActed === true]);
@@ -172,7 +172,7 @@ describe('rewind to before any action', () => {
     observeHistoryAction(scene, 'traded with', b, c, 'Vulnerary');
     scene._historyActor = b.battleEntityId;
     scene.battleState = 'TRADING';
-    scene._captureSuspendCheckpoint();
+    scene._captureSuspendCheckpoint({ session: scene._battleSession });
     const tradeRow = scene._battleTimeline.entries.at(-1);
     expect(tradeRow).toMatchObject({ kind: 'recovery', destination: false });
     scene.battleState = 'PLAYER_IDLE';
@@ -302,7 +302,7 @@ describe('rewind to before any action', () => {
     a.consumables = [...(a.consumables || []), ensureItemUid(structuredClone(tonic))];
     scene._battleRng();
     observeHistoryAction(scene, 'visited the village', a);
-    completeBattleAction(scene, a);
+    completeBattleAction(scene, a, { session: scene._battleSession });
     expect(scene._battleTimeline.entries.length).toBe(entries + 1);
     expect(scene._battleTimeline.entries.at(-1)).toMatchObject({
       kind: 'player_action',
@@ -322,7 +322,7 @@ describe('rewind to before any action', () => {
     const vulnerary = driver.data.consumables.find((i) => i.name === 'Vulnerary');
     b.consumables = [ensureItemUid(structuredClone(vulnerary))];
     scene._timelineBoundary = 'player_action';
-    scene._captureSuspendCheckpoint();
+    scene._captureSuspendCheckpoint({ session: scene._battleSession });
     expect(scene._visionController.settleParkedActivation()).toBe(false);
     b.consumables = [ensureItemUid(structuredClone(vulnerary))];
     expect(b.consumables[0].name).toBe('Vulnerary');
@@ -387,7 +387,7 @@ describe('rewind to before any action', () => {
     scene._battleTimeline = null;
     run.battleInProgress.timeline = null;
     scene._timelineBoundary = 'turn_start';
-    scene._captureSuspendCheckpoint();
+    scene._captureSuspendCheckpoint({ session: scene._battleSession });
     const [a, b] = scene.playerUnits;
     act(scene, a);
     const afterA = board(scene);

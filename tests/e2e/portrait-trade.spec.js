@@ -702,7 +702,7 @@ test.describe('upright battle trade', () => {
       );
       for (const u of s.playerUnits) u.inventory.forEach(ensureItemUid);
       s._timelineBoundary = 'turn_start';
-      s._captureSuspendCheckpoint();
+      s._captureSuspendCheckpoint({ session: s._battleSession });
       const names = (u) => u.inventory.map((w) => w.name);
       return { edric: names(edric), sera: names(s.playerUnits.find((u) => u.name === 'Sera')) };
     });
