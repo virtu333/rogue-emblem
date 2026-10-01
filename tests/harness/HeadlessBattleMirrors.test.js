@@ -95,6 +95,26 @@ describe('HeadlessBattle mirrors', () => {
     );
   });
 
+  it('a spent Breachbolt is neither a reach for targeting nor re-equipped', () => {
+    const battle = battleFor();
+    const hero = battle.playerUnits[0];
+    const foe = battle.enemyUnits[0];
+    battle.enemyUnits = [foe];
+    hero.proficiencies = [{ type: 'Tome', rank: 'Mast' }];
+    const fire = structuredClone(data.weapons.find((w) => w.name === 'Fire'));
+    const bolt = structuredClone(data.weapons.find((w) => w.name === 'Breachbolt'));
+    hero.inventory = [fire, bolt];
+    hero.weapon = fire;
+    foe.col = hero.col + 4 < battle.battleConfig.cols ? hero.col + 4 : hero.col - 4;
+    foe.row = hero.row;
+    expect(battle._findAttackTargets(hero)).toContain(foe); // in Breachbolt reach
+
+    bolt._usesSpent = bolt.uses; // the player's shots are gone
+    expect(battle._findAttackTargets(hero)).not.toContain(foe);
+    battle._ensureValidWeaponForTarget(hero, foe);
+    expect(hero.weapon).toBe(fire);
+  });
+
   it('an enemy that chooses its status staff uses it (a use is spent, the AI moves on)', async () => {
     const battle = battleFor();
     const target = battle.playerUnits[0];

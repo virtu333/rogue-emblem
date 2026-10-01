@@ -78,6 +78,7 @@ import {
 } from '../../src/engine/StatusConditionSystem.js';
 import { applyEnemySpawnGear } from '../../src/engine/EnemySpawnGear.js';
 import { settleCombatWeapons } from '../../src/engine/PerBattleWeapons.js';
+import { canAttackWithWeapon, getAttackWeapons } from '../../src/engine/AttackOptions.js';
 import { combatDistance, getFootprint, isEntity } from '../../src/engine/EntitySystem.js';
 import {
   advanceTurnPressure,
@@ -1249,7 +1250,9 @@ export class HeadlessBattle {
 
   _findAttackTargets(unit) {
     const targets = [];
-    const combatWeapons = getCombatWeapons(unit);
+    // As BattleScene.findAttackTargets: weapons that can attack now (rank, silence,
+    // per-battle shots left).
+    const combatWeapons = getAttackWeapons(unit);
     if (combatWeapons.length === 0) return targets;
     const enemies = unit.faction === 'player' ? this.enemyUnits : this.playerUnits;
     for (const enemy of enemies) {
@@ -1308,9 +1311,15 @@ export class HeadlessBattle {
 
   _ensureValidWeaponForTarget(unit, target) {
     const dist = combatDistance(unit, target); // the Entity's footprint, as in combat
-    if (unit.weapon && isInRange(unit.weapon, dist) && !isStaff(unit.weapon)) return;
-    // Find a weapon that can reach the target
-    const combatWeapons = getCombatWeapons(unit);
+    if (
+      unit.weapon &&
+      isInRange(unit.weapon, dist) &&
+      !isStaff(unit.weapon) &&
+      canAttackWithWeapon(unit, unit.weapon)
+    )
+      return;
+    // Find a weapon that can reach the target (never a spent per-battle weapon)
+    const combatWeapons = getAttackWeapons(unit);
     for (const w of combatWeapons) {
       const bonus = getWeaponRangeBonus(unit, w, this.gameData.skills);
       const { min, max } = parseRange(w.range);
