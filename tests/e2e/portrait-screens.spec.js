@@ -26,7 +26,10 @@
 //      cue, or the Portrait mode note is long;
 //  14. Pause actions scroll or fall under the notch / home bar; Settings from Pause
 //      does not return to it;
-//  15. many run records strand Close or Back;
+//  15. many run records strand Close or Back; a detailed (v2) record's cards push the
+//      page sideways, its long titled names or 20 survivors overflow, the fallen or
+//      their falls go missing, an older (v1) record stops rendering; keyboard focus
+//      cannot read the chronicle or return to the record it came from;
 //  16. any of it leaks into landscape phones or desktop.
 import { test, expect } from '@playwright/test';
 import { HELP_TABS } from '../../src/data/helpContent.js';
@@ -942,6 +945,160 @@ test.describe('run records upright', () => {
     // Sixty saved, the latest fifty kept (the archive's own cap).
     await expect(records.getByRole('button', { name: /Slot 1/ })).toHaveCount(50);
     await close.tap();
+    await expect(records).toHaveCount(0);
+  });
+});
+
+/**
+ * A v2 victory record at the archive's limits: 20 survivors (the longest titled name
+ * first), every gear slot, five skills, six deeds, and `fallen` fallen units.
+ */
+function detailedRecord(id, endedAt, fallen) {
+  const survivor = (i) => ({
+    name: i === 0 ? 'Ottoline' : `Recruit${i}`,
+    className: i === 0 ? 'Light Priestess' : 'Falcon Knight',
+    level: 20,
+    isLord: i < 2,
+    ...(i === 0 ? { epithet: 'Bane of the Archmage', epithetForm: 'bane' } : {}),
+    tally: { kills: 14 + i, bossKills: 2, crits: 3, battles: 20 },
+    stats: [62, 31, 6, 28, 27, 25, 14, 22],
+    weapon: 'Silver Sword +2',
+    items: ['Steel Sword', 'Keen Sword', 'Iron Sword', 'Rapier', 'Vulnerary', 'Elixir', 'Master Seal'], // prettier-ignore
+    accessory: "Bounty Hunter's Mark",
+    skills: ['charisma', 'sol', 'vantage', 'resolve', 'pavise'],
+    deeds: ['bossbane', 'held_the_line', 'red_harvest', 'veteran', 'keen_edge', 'giantslayer'],
+  });
+  return {
+    v: 2,
+    id,
+    endedAt,
+    difficulty: 'dusk',
+    actsCleared: 4,
+    totalTurns: 188,
+    seed: 77,
+    shadow: 58,
+    roster: Array.from({ length: 20 }, (_, i) => survivor(i)),
+    fallen: Array.from({ length: fallen }, (_, i) => ({
+      name: `Fallen${i}`,
+      className: 'Hero',
+      level: 7,
+      isLord: false,
+      tally: { kills: 2 },
+      fellAt: { act: 'act2', battle: 7 + i },
+    })),
+  };
+}
+
+test.describe('detailed victory records upright', () => {
+  test.use(upright(SE));
+
+  test('20 survivors and many fallen read upright; a no-loss run says so; v1 still renders', async ({
+    page,
+  }) => {
+    await quietSettings(page);
+    await page.addInitScript(
+      (records) => {
+        localStorage.setItem('emblem_rogue_slot_1_meta', JSON.stringify({ runRecords: records }));
+      },
+      [
+        detailedRecord('many-fallen', Date.UTC(2026, 8, 3), 20),
+        detailedRecord('no-fallen', Date.UTC(2026, 8, 2), 0),
+        {
+          id: 'old',
+          endedAt: Date.UTC(2026, 8, 1),
+          difficulty: 'normal',
+          actsCleared: 3,
+          roster: [{ name: 'Sera', className: 'Light Priestess', level: 15, isLord: true }],
+        },
+      ],
+    );
+    const errors = pageErrors(page);
+    await page.goto('/?devScene=title');
+    await waitForScene(page, 'Title');
+    await page.getByRole('button', { name: 'Records', exact: true }).tap();
+    const records = page.getByRole('dialog', { name: 'Victory records' });
+    const rows = records.locator('.rr-entry');
+    await expect(rows).toHaveCount(3);
+    // The difficulty reads by its ladder name, never its save id.
+    await expect(rows.nth(0)).toHaveAccessibleName(/· Dusk · .*20 survivors · 20 fallen · Slot 1$/);
+    await expect(rows.nth(2)).toHaveAccessibleName(/· First Light · Sera · 3 acts/);
+    await expectTappable(rows.nth(0));
+    await rows.nth(0).tap();
+
+    const survivors = records.locator('.rr-units:not(.rr-fallen)');
+    await expect(survivors.locator('.rr-unit')).toHaveCount(20);
+    const first = survivors.locator('.rr-unit').first();
+    await expect(first.locator('.rr-unit-name')).toHaveText('Ottoline, Bane of the Archmage');
+    await expect(first.locator('.rr-stat')).toHaveCount(8);
+    await expect(first.locator('.rr-gear li')).toHaveCount(9); // weapon, 7 carried, accessory
+    await expect(first.locator('.rr-skill').first()).toHaveText('Charisma');
+    await expect(first.locator('.rr-deed').first()).toHaveText('Bossbane');
+    await expect(first.locator('.rr-tally')).toHaveText(
+      '14 kills · 2 bosses · 3 crits · 20 battles',
+    );
+    await expect(records.locator('.rr-fact-eclipse dd')).toHaveText('Umbral · 58 shadow');
+    const fallen = records.locator('.rr-fallen .rr-unit');
+    await expect(fallen).toHaveCount(20);
+    await expect(fallen.last().locator('.rr-fell')).toHaveText('Fell in Act II · battle 26');
+    // Nothing in a card runs past the body or pushes the page sideways.
+    await expectNoSidewaysScroll(page, '.re-run-flow .re-menu-body');
+    const spill = await records.locator('.re-menu-body').evaluate((body) => {
+      const edge = body.getBoundingClientRect();
+      return [...body.querySelectorAll('.rr-unit, .rr-unit *')]
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width && (r.right > edge.right + 0.5 || r.left < edge.left - 0.5);
+        })
+        .map((el) => el.className);
+    });
+    expect(spill).toEqual([]);
+    await fallen.last().scrollIntoViewIfNeeded();
+    const back = records.getByRole('button', { name: 'Back to victories', exact: true });
+    await expectTappable(back);
+    await back.tap();
+
+    await rows.nth(1).tap();
+    await expect(records.locator('.rr-empty')).toHaveText('No one fell on this march.');
+    await back.tap();
+    await rows.nth(2).tap();
+    await expect(records.getByText('Sera · Light Priestess · Lv 15 · Lord', { exact: true })).toBeVisible(); // prettier-ignore
+    await expect(records.locator('.rr-unit')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('victory records by keyboard (640x480)', () => {
+  test('arrows read the chronicle, Escape returns to the record it came from', async ({ page }) => {
+    await quietSettings(page);
+    await page.addInitScript(
+      (records) => {
+        localStorage.setItem('emblem_rogue_slot_1_meta', JSON.stringify({ runRecords: records }));
+      },
+      [
+        detailedRecord('newer', Date.UTC(2026, 8, 3), 3),
+        detailedRecord('older', Date.UTC(2026, 8, 2), 3),
+      ],
+    );
+    await page.goto('/?devScene=title');
+    await waitForScene(page, 'Title');
+    await page.getByRole('button', { name: 'Records', exact: true }).click();
+    const records = page.getByRole('dialog', { name: 'Victory records' });
+    const rows = records.locator('.rr-entry');
+    await expect(rows.first()).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(rows.nth(1)).toBeFocused();
+    await page.keyboard.press('Enter');
+    const back = records.getByRole('button', { name: 'Back to victories', exact: true });
+    await expect(back).toBeFocused();
+    const body = records.locator('.re-menu-body');
+    await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBe(0);
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    await page.keyboard.press('PageDown');
+    await page.keyboard.press('Escape');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(1)).toBeFocused();
+    await page.keyboard.press('Escape');
     await expect(records).toHaveCount(0);
   });
 });
