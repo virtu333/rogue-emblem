@@ -65,7 +65,9 @@ export class RunCompleteScene extends Phaser.Scene {
       saveRun(rm, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null, slot);
     } else {
       clearSavedRun(
-        cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+        cloud
+          ? (resolvedSlot, abandonedRun) => deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+          : null,
         slot,
       );
     }

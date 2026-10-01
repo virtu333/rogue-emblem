@@ -32,22 +32,191 @@ export function getMetaClockFloorKey(slot) {
   return `${META_KEY_PREFIX}${slot}${META_CLOCK_FLOOR_SUFFIX}`;
 }
 
-/** Count of occupied slots (1-3 that have meta data). */
+export const getSlotQuarantineKey = (slot) => `${META_KEY_PREFIX}${slot}_quarantine`;
+export const getSlotPairJournalKey = (slot) => `${META_KEY_PREFIX}${slot}_pair_journal`;
+export const getSlotRecoveryOwnerKey = (slot) => `${META_KEY_PREFIX}${slot}_recovery_owner`;
+export const getSlotCloudPendingKey = (slot) => `${META_KEY_PREFIX}${slot}_cloud_pending`;
+export const UNKNOWN_SLOT_RECOVERY_OWNER = Symbol('unknown-slot-recovery-owner');
+
+function parseRecoveryOwner(raw) {
+  const record = parseMetaObject(raw);
+  return record?.version === 1 && typeof record.userId === 'string' && record.userId.trim()
+    ? record.userId
+    : UNKNOWN_SLOT_RECOVERY_OWNER;
+}
+
+/** An archived copy retains account ownership after its canonical keys are discarded. */
+export function getSlotRecoveryOwner(slot, storage = globalThis.localStorage) {
+  try {
+    const raw = storage.getItem(getSlotRecoveryOwnerKey(slot));
+    if (raw !== null) return parseRecoveryOwner(raw);
+    const pendingRaw = storage.getItem(getSlotCloudPendingKey(slot));
+    if (pendingRaw !== null) return parseRecoveryOwner(pendingRaw);
+    const archiveRaw = storage.getItem(getSlotQuarantineKey(slot));
+    if (archiveRaw === null) return null;
+    const archive = parseMetaObject(archiveRaw);
+    if (!archive?.values || typeof archive.values !== 'object') return UNKNOWN_SLOT_RECOVERY_OWNER;
+    // Older verified archives predate owner markers. Absence is unassigned;
+    // malformed records remain unknown and may never be assigned implicitly.
+    if (!Object.hasOwn(archive.values, getSlotRecoveryOwnerKey(slot))) {
+      return archive.version === 1 &&
+        archive.slot === slot &&
+        ['archiving', 'archived'].includes(archive.state) &&
+        getSlotDataKeys(slot)
+          .filter(
+            (key) => ![getSlotRecoveryOwnerKey(slot), getSlotCloudPendingKey(slot)].includes(key),
+          )
+          .every(
+            (key) =>
+              Object.hasOwn(archive.values, key) &&
+              (archive.values[key] === null || typeof archive.values[key] === 'string'),
+          )
+        ? null
+        : UNKNOWN_SLOT_RECOVERY_OWNER;
+    }
+    const archivedOwner = archive.values[getSlotRecoveryOwnerKey(slot)];
+    if (archivedOwner === null) return null;
+    return typeof archivedOwner === 'string'
+      ? parseRecoveryOwner(archivedOwner)
+      : UNKNOWN_SLOT_RECOVERY_OWNER;
+  } catch {
+    return UNKNOWN_SLOT_RECOVERY_OWNER;
+  }
+}
+
+export function isSlotRecoveryOwnedBy(slot, userId, storage = globalThis.localStorage) {
+  return typeof userId === 'string' && getSlotRecoveryOwner(slot, storage) === userId;
+}
+
+/** The canonical bytes a discard must preserve, including absent keys. */
+export function getSlotDataKeys(slot) {
+  return [
+    getMetaKey(slot),
+    getRunKey(slot),
+    getRunClockFloorKey(slot),
+    getMetaClockFloorKey(slot),
+    `${META_KEY_PREFIX}${slot}_cloud_conflict`,
+    `${META_KEY_PREFIX}${slot}_hints`,
+    getSlotRecoveryOwnerKey(slot),
+    getSlotCloudPendingKey(slot),
+  ];
+}
+
+/** Recovery records reserve their slot, even after its canonical keys were removed. */
+export function hasSlotRecoveryRecord(slot) {
+  try {
+    return [
+      getSlotQuarantineKey(slot),
+      getSlotPairJournalKey(slot),
+      getSlotRecoveryOwnerKey(slot),
+      getSlotCloudPendingKey(slot),
+    ].some((key) => localStorage.getItem(key) !== null);
+  } catch {
+    return true;
+  }
+}
+
+/** Read-only inspection; missing metadata alone is not evidence of an empty slot. */
+export function inspectSlot(slot, storage = globalThis.localStorage) {
+  let raw = {};
+  try {
+    for (const key of [
+      ...getSlotDataKeys(slot),
+      getSlotQuarantineKey(slot),
+      getSlotPairJournalKey(slot),
+    ])
+      raw[key] = storage.getItem(key);
+  } catch {
+    return { status: 'unreadable', raw, meta: parseMetaObject(raw[getMetaKey(slot)]) };
+  }
+  const metaObject = parseMetaObject(raw[getMetaKey(slot)]);
+  const meta = isReadableMetaShape(metaObject) ? metaObject : null;
+  const runObject = parseMetaObject(raw[getRunKey(slot)]);
+  const conflictObject = parseMetaObject(raw[`${META_KEY_PREFIX}${slot}_cloud_conflict`]);
+  const exportDiscardPending = [meta, runObject, conflictObject].some(
+    (record) => record?._exportDiscardPending === true,
+  );
+  const run = isReadableRunShape(runObject) ? runObject : null;
+  const hasRunData = raw[getRunKey(slot)] !== null;
+  const recovery =
+    raw[getSlotQuarantineKey(slot)] !== null ||
+    raw[getSlotPairJournalKey(slot)] !== null ||
+    raw[getSlotRecoveryOwnerKey(slot)] !== null ||
+    raw[getSlotCloudPendingKey(slot)] !== null;
+  const occupied =
+    [getMetaKey(slot), getRunKey(slot), `${META_KEY_PREFIX}${slot}_cloud_conflict`].some(
+      (key) => raw[key] !== null,
+    ) || recovery;
+  return {
+    status: recovery
+      ? 'recovery-required'
+      : !occupied
+        ? 'empty'
+        : meta && !exportDiscardPending && (!hasRunData || run)
+          ? 'valid'
+          : 'damaged',
+    raw,
+    meta,
+    hasRunData,
+    runParseable: Boolean(run),
+  };
+}
+
+// Legacy saves may omit these fields. If supplied, the fields the slot UI
+// reads must retain their container shapes; parsing JSON alone is insufficient.
+export function isReadableMetaShape(meta) {
+  if (
+    !meta ||
+    typeof meta !== 'object' ||
+    Array.isArray(meta) ||
+    meta._exportDiscardPending === true
+  )
+    return false;
+  for (const key of [
+    'purchasedUpgrades',
+    'skillAssignments',
+    'lordSelection',
+    'retiredUpgradeRefunds',
+  ]) {
+    if (meta[key] != null && (typeof meta[key] !== 'object' || Array.isArray(meta[key])))
+      return false;
+  }
+  for (const key of ['milestones', 'runRecords', 'lordsMet', 'deeds']) {
+    if (meta[key] != null && !Array.isArray(meta[key])) return false;
+  }
+  return true;
+}
+
+export function isReadableRunShape(run) {
+  if (!run || typeof run !== 'object' || Array.isArray(run) || run._exportDiscardPending === true)
+    return false;
+  if (
+    run.roster != null &&
+    (!Array.isArray(run.roster) ||
+      run.roster.some((unit) => !unit || typeof unit !== 'object' || Array.isArray(unit)))
+  )
+    return false;
+  if (run.nodeMap != null && (typeof run.nodeMap !== 'object' || Array.isArray(run.nodeMap)))
+    return false;
+  if (
+    run.nodeMap?.nodes != null &&
+    (!Array.isArray(run.nodeMap.nodes) ||
+      run.nodeMap.nodes.some((node) => !node || typeof node !== 'object' || Array.isArray(node)))
+  )
+    return false;
+  return true;
+}
+
+/** Count of occupied slots, including damaged and recovery-only saves. */
 export function getSlotCount() {
   return getOccupiedSlots().length;
 }
 
-/** Array of slot numbers that have meta data saved. */
+/** Array of slot numbers containing save or recovery evidence. */
 export function getOccupiedSlots() {
   const occupied = [];
   for (let i = 1; i <= MAX_SLOTS; i++) {
-    try {
-      if (localStorage.getItem(getMetaKey(i)) !== null) {
-        occupied.push(i);
-      }
-    } catch (_) {
-      /* ignore */
-    }
+    if (inspectSlot(i).status !== 'empty') occupied.push(i);
   }
   return occupied;
 }
@@ -66,55 +235,23 @@ function parseMetaObject(raw) {
   }
 }
 
-/** Remove keys for slots whose meta JSON is corrupt or invalid. */
-function cleanCorruptSlots() {
-  for (let i = 1; i <= MAX_SLOTS; i++) {
-    let raw;
-    try {
-      raw = localStorage.getItem(getMetaKey(i));
-    } catch (_) {
-      continue; // storage access error — leave slot alone
-    }
-    if (raw !== null && parseMetaObject(raw) === null) {
-      console.warn(`[SlotManager] Corrupt meta in slot ${i}, auto-cleaning`);
-      deleteSlot(i);
-    }
-  }
-}
-
 /** First empty slot number (1-3), or null if all full. */
 export function getNextAvailableSlot() {
-  cleanCorruptSlots();
   for (let i = 1; i <= MAX_SLOTS; i++) {
-    try {
-      if (localStorage.getItem(getMetaKey(i)) === null) return i;
-    } catch (_) {
-      /* ignore */
-    }
+    if (inspectSlot(i).status === 'empty') return i;
   }
   return null;
 }
 
 /**
- * Summary info for a slot. Returns null if slot is empty (no meta).
+ * Summary info for a slot. Returns null only when no slot evidence exists.
  * If meta is valid but run JSON is corrupt, returns summary with runCorrupt: true.
  * @returns {{ slot, valor, supply, runsCompleted, runsStarted, upgradesOwned, metaSavedAt, hasActiveRun, actReached, runCorrupt } | null}
  */
-export function getSlotSummary(slot) {
-  let metaRaw;
-  try {
-    metaRaw = localStorage.getItem(getMetaKey(slot));
-  } catch (_) {
-    return null; // storage access error — do NOT delete, treat as empty
-  }
-  if (metaRaw === null) return null;
-
-  const meta = parseMetaObject(metaRaw);
-  if (!meta) {
-    console.warn(`[SlotManager] Corrupt meta in slot ${slot}, auto-cleaning`);
-    deleteSlot(slot);
-    return null;
-  }
+export function getSlotSummary(slot, storage = globalThis.localStorage) {
+  const inspection = inspectSlot(slot, storage);
+  if (inspection.status === 'empty') return null;
+  const meta = inspection.meta || {};
   const summary = {
     slot,
     milestones: Array.isArray(meta.milestones) ? meta.milestones.slice() : [],
@@ -136,17 +273,26 @@ export function getSlotSummary(slot) {
     runCorrupt: false,
   };
 
-  let runRaw;
-  try {
-    runRaw = localStorage.getItem(getRunKey(slot));
-  } catch (_) {
-    summary.runCorrupt = true;
-    console.error(`[SlotManager] Failed to read run data for slot ${slot}`);
-    return summary;
+  if (inspection.status !== 'valid') {
+    return {
+      ...summary,
+      slotStatus: inspection.status,
+      recoveryRequired: true,
+      metaDamaged: !inspection.meta,
+      runCorrupt:
+        inspection.status === 'unreadable' || (inspection.hasRunData && !inspection.runParseable),
+      runRecoverable: inspection.runParseable === true,
+      savedAt: Number.isFinite(parseMetaObject(inspection.raw[getRunKey(slot)])?.savedAt)
+        ? parseMetaObject(inspection.raw[getRunKey(slot)]).savedAt
+        : null,
+    };
   }
-  if (runRaw) {
+
+  const runRaw = inspection.raw[getRunKey(slot)];
+  if (runRaw !== null) {
     try {
       const run = JSON.parse(runRaw);
+      if (!run || typeof run !== 'object' || Array.isArray(run)) throw new Error('Invalid run');
       summary.hasActiveRun = true;
       summary.actReached = (run.actIndex || 0) + 1;
       summary.savedAt = Number.isFinite(run.savedAt) ? run.savedAt : null;
@@ -183,7 +329,10 @@ export function getSlotSummary(slot) {
         ? `${node.type} node${Number.isFinite(node.row) ? ` · stage ${node.row + 1}` : ''}`
         : 'Act start';
     } catch (_) {
+      summary.hasActiveRun = false;
       summary.runCorrupt = true;
+      summary.recoveryRequired = true;
+      summary.slotStatus = 'damaged';
       console.error(`[SlotManager] Corrupt run data in slot ${slot}`);
     }
   }
@@ -199,6 +348,8 @@ export function deleteSlot(slot) {
     localStorage.removeItem(getRunClockFloorKey(slot));
     localStorage.removeItem(getMetaClockFloorKey(slot));
     localStorage.removeItem(`emblem_rogue_slot_${slot}_cloud_conflict`);
+    localStorage.removeItem(getSlotRecoveryOwnerKey(slot));
+    localStorage.removeItem(getSlotCloudPendingKey(slot));
   } catch (err) {
     console.warn('[SlotManager] deleteSlot failed:', err?.message || err);
   }
@@ -319,9 +470,51 @@ export function metLordNamesAcrossSlots() {
   return names;
 }
 
+/** Tag retained recovery evidence before sign-out; never reassign an existing owner. */
+export function prepareRecoveryLogout(userId, storage = globalThis.localStorage) {
+  const markers = [];
+  try {
+    for (let slot = 1; slot <= MAX_SLOTS; slot++) {
+      const inspection = inspectSlot(slot, storage);
+      if (inspection.status === 'unreadable')
+        throw new Error('Could not verify recovery data. Stay signed in and retry.');
+      const conflict = inspection.raw[`${META_KEY_PREFIX}${slot}_cloud_conflict`] !== null;
+      if (inspection.status === 'empty' || (inspection.status === 'valid' && !conflict)) continue;
+      const owner = getSlotRecoveryOwner(slot, storage);
+      const key = getSlotRecoveryOwnerKey(slot);
+      if (owner !== null) {
+        const raw = inspection.raw[key];
+        if (raw !== null) markers.push({ key, raw });
+        continue;
+      }
+      if (typeof userId !== 'string' || !userId.trim())
+        throw new Error('Could not identify the recovery save owner. Stay signed in and retry.');
+      const raw = JSON.stringify({ version: 1, userId, savedAt: Date.now() });
+      storage.setItem(key, raw);
+      if (storage.getItem(key) !== raw)
+        throw new Error('Could not verify recovery ownership. Your saves were kept.');
+      markers.push({ key, raw });
+    }
+    return { ok: true, markers };
+  } catch (error) {
+    return { ok: false, reason: error?.message || 'Could not preserve recovery ownership.' };
+  }
+}
+
 /** Clear all slot data + active slot key. Used by logout. */
 export function clearAllSlotData() {
+  let preserved = false;
   for (let i = 1; i <= MAX_SLOTS; i++) {
+    const inspection = inspectSlot(i);
+    const summary = getSlotSummary(i);
+    if (
+      summary?.recoveryRequired ||
+      summary?.runCorrupt ||
+      inspection.raw[`${META_KEY_PREFIX}${i}_cloud_conflict`] !== null
+    ) {
+      preserved = true;
+      continue;
+    }
     deleteSlot(i);
   }
   try {
@@ -329,4 +522,5 @@ export function clearAllSlotData() {
   } catch (err) {
     console.warn('[SlotManager] clearAllSlotData failed:', err?.message || err);
   }
+  return !preserved;
 }

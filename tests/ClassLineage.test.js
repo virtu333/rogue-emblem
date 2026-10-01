@@ -96,7 +96,7 @@ describe('class lineage', () => {
 
   it('a stale line (reclassed since) is ignored', () => {
     const unit = promoted('Soldier', 'Duelist');
-    reclassUnit(unit, cls('Sniper'), classes, gameData.skills);
+    reclassUnit(unit, cls('Sniper'), cls('Duelist'), classes, gameData.skills);
     expect(unit.className).toBe('Sniper');
     expect(unitBaseClassName(unit, classes)).toBe('Archer');
   });

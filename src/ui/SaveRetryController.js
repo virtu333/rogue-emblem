@@ -181,10 +181,9 @@ export class SaveRetryController {
   _release(value) {
     this.wait?.guard.resolve({ saved: value });
     this.wait = null;
-    if (value) {
-      this.exitWait?.guard.resolve({ allowExit: true });
-      this.exitWait = null;
-    }
+    // Rejected retries are a Stay decision, never an invisible paused exit.
+    this.exitWait?.guard.resolve({ allowExit: value });
+    this.exitWait = null;
   }
   _close() {
     const surface = this.surface;
@@ -279,7 +278,8 @@ export class SaveRetryController {
       b.disabled = this.episode.busy === true;
       surface.body.append(b);
     };
-    add('Retry', 'retry', () => void this.retry());
+    if (this.scene._battleSuspendController?.hasRetryCandidate())
+      add('Retry', 'retry', () => void this.retry());
     if (exit) {
       add('Exit anyway', 'exit', () => this.exitAnyway());
       add('Stay', 'stay', () => this.stay());

@@ -237,7 +237,6 @@ describe('executePromotion error recovery', () => {
     expect(unit.consumables).not.toContain(seal);
     expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
     expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, {
-      skipCanto: true,
       session: scene._battleSession,
     });
   });

@@ -296,3 +296,21 @@ it('Retry repaint survives a prior menu teardown failure and still writes once',
   expect(suspend.retryCheckpoint).toHaveBeenCalledOnce();
   expect(controller.isBlocking()).toBe(false);
 });
+
+it.each(['checkpoint_replaced', 'no_candidate'])(
+  'a rejected %s Retry resolves Save & Exit as Stay',
+  async (reason) => {
+    const { controller, suspend } = fixture();
+    fail(controller);
+    controller.keepPlaying();
+    suspend.retryCheckpoint.mockReturnValue({ ok: false, reason: 'quota' });
+    const exit = controller.ensureDurableForExit({ session: 1 });
+    for (let i = 0; i < 4; i++) await Promise.resolve();
+    expect(controller.exitWait).not.toBeNull();
+    suspend.retryCheckpoint.mockReturnValue({ ok: false, reason });
+    await controller.retry();
+    expect(await exit).toBe(false);
+    expect(controller.exitWait).toBeNull();
+    expect(controller.state).toBe('degraded');
+  },
+);

@@ -201,3 +201,113 @@ test('refresh while the dialog is open resumes the last durable checkpoint', asy
   ).toBe(oldHP);
   await expect(page.locator('[data-save-retry]')).toHaveCount(0);
 });
+
+test('a rejected exit Retry returns to the battle, and an absent candidate has no Retry button', async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.locator('[data-save-retry-action="keep"]').click();
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.showPauseMenu();
+    s.pauseOverlay.hideForTransition();
+    window.__retryExit = s.pauseOverlay.onSaveAndExit();
+  });
+  await expect(page.locator('[data-save-retry="exit"]')).toBeVisible();
+  await page.evaluate(() => {
+    window.__emblemRogueGame.scene.getScene('Battle')._battleSuspendController.dropRetryCandidate();
+  });
+  await page.locator('[data-save-retry-action="retry"]').click();
+  await page.evaluate(() => window.__retryExit);
+  await expect(page.locator('[data-save-retry="exit"]')).toHaveCount(0);
+  expect(
+    await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').battleState),
+  ).toBe('PLAYER_IDLE');
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.showPauseMenu();
+    s.pauseOverlay.hideForTransition();
+    window.__retryExit = s.pauseOverlay.onSaveAndExit();
+  });
+  await expect(page.locator('[data-save-retry="exit"]')).toBeVisible();
+  await expect(page.locator('[data-save-retry-action="retry"]')).toHaveCount(0);
+  await page.locator('[data-save-retry-action="stay"]').click();
+  await page.evaluate(() => window.__retryExit);
+});
+
+test('a real consumable action survives quota, Retry and Save & Exit without repeating its heal or cost', async ({
+  page,
+}) => {
+  await quietSettings(page);
+  await openDevBattle(page);
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const actor = s.playerUnits[0];
+    const item = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
+    actor.currentHP = 1;
+    actor.consumables = [item];
+    actor.skills = []; // Ordinary completion, with no extra Canto choice.
+    s.updateHPBar(actor);
+    s._captureSuspendCheckpoint({ session: s._battleSession });
+    window.__retryOldSave = localStorage.getItem('emblem_rogue_slot_1_run');
+    window.__retryWrite = Storage.prototype.setItem;
+    window.__retryFail = true;
+    Storage.prototype.setItem = function (key, value) {
+      if (window.__retryFail && /^emblem_rogue_slot_\d+_run/.test(key))
+        throw new DOMException('Injected action quota', 'QuotaExceededError');
+      return window.__retryWrite.call(this, key, value);
+    };
+    window.__retryAction = s.useConsumable(actor, item);
+    window.__retryActionState = {
+      hp: actor.currentHP,
+      uses: item.uses,
+      xp: actor.xp,
+      rng: s._battleRng.getState(),
+    };
+  });
+  await expect(page.locator('[data-save-retry="action"]')).toBeVisible();
+  expect(await page.evaluate(() => window.__retryActionState)).toMatchObject({ hp: 11, uses: 2 });
+  expect(
+    await page.evaluate(
+      () => localStorage.getItem('emblem_rogue_slot_1_run') === window.__retryOldSave,
+    ),
+  ).toBe(true);
+  await page.locator('[data-save-retry-action="retry"]').click();
+  await expect(page.getByText('Still not saved. Tries: 1', { exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    window.__retryFail = false;
+  });
+  await page.locator('[data-save-retry-action="retry"]').click();
+  await page.evaluate(() => window.__retryAction);
+  const result = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const actor = s.playerUnits[0];
+    return {
+      hp: actor.currentHP,
+      uses: actor.consumables[0].uses,
+      xp: actor.xp,
+      rng: s._battleRng.getState(),
+      acted: actor.hasActed,
+    };
+  });
+  expect(result).toEqual({
+    ...(await page.evaluate(() => window.__retryActionState)),
+    acted: true,
+  });
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.showPauseMenu();
+    s.pauseOverlay.hideForTransition();
+    window.__retryExit = s.pauseOverlay.onSaveAndExit();
+  });
+  await page.evaluate(() => window.__retryExit);
+  await expect(page.locator('.re-title')).toBeVisible();
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run')),
+  );
+  expect(saved.battleInProgress.checkpoint.playerUnits[0]).toMatchObject({
+    currentHP: 11,
+    hasActed: true,
+    consumables: [expect.objectContaining({ uses: 2 })],
+  });
+});

@@ -123,7 +123,6 @@ import {
   addToConsumables,
   removeFromConsumables,
   equipWeapon,
-  equipIfUnarmed,
   normalizeEquippedFirst,
   getStaffWeapon,
   getCombatWeapons,
@@ -135,7 +134,6 @@ import {
   applyStatBoost,
   canReclass,
   getReclassTargets,
-  reclassUnit,
   inventoryDisplayOrder,
 } from '../engine/UnitManager.js';
 import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
@@ -319,6 +317,7 @@ import { BoundingFocusController } from '../ui/BoundingFocusController.js';
 import { LootScreenController } from '../ui/LootScreenController.js';
 import { PostCombatController } from '../ui/PostCombatController.js';
 import { PromotionController } from '../ui/PromotionController.js';
+import { ReclassController } from '../ui/ReclassController.js';
 import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
 import { TutorialController } from '../ui/TutorialController.js';
 import { locateUnit, nextReadyUnit } from '../ui/UnitLocator.js';
@@ -721,6 +720,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._promotionController) {
       this._promotionController.destroy();
       this._promotionController = null;
+    }
+    if (this._reclassController) {
+      this._reclassController.destroy();
+      this._reclassController = null;
     }
     this._pinnedThreats?.destroy();
     this._pinnedThreats = null;
@@ -3457,8 +3460,8 @@ export class BattleScene extends Phaser.Scene {
 
   updateUnitPosition(unit) {
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    unit.graphic.setPosition(pos.x, pos.y);
-    unit.graphic.setDepth(this._unitGraphicDepth(unit));
+    unit.graphic?.setPosition(pos.x, pos.y);
+    unit.graphic?.setDepth(this._unitGraphicDepth(unit));
     if (unit.label) unit.label.setPosition(pos.x, pos.y);
     if (unit.factionIndicator) unit.factionIndicator.setPosition(pos.x, pos.y + RING_OFFSET_Y);
     this.updateHPBar(unit);
@@ -3485,17 +3488,18 @@ export class BattleScene extends Phaser.Scene {
     const ratio = Math.max(0, unit.currentHP / unit.stats.HP);
     const fillWidth = barWidth * ratio;
 
-    unit.hpBar.bg.setPosition(pos.x, barY);
-    unit.hpBar.fill.setPosition(pos.x - barWidth / 2 + fillWidth / 2, barY);
-    unit.hpBar.fill.setSize(fillWidth, barHeight);
-    unit.hpBar.fill.setFillStyle(getHPBarColor(ratio));
+    unit.hpBar?.bg?.setPosition(pos.x, barY);
+    unit.hpBar?.fill?.setPosition(pos.x - barWidth / 2 + fillWidth / 2, barY);
+    unit.hpBar?.fill?.setSize(fillWidth, barHeight);
+    unit.hpBar?.fill?.setFillStyle(getHPBarColor(ratio));
     if (unit.isBoss) this._bossPresence?.onUnitHp(unit);
     this._inputController?.refreshHoverInfo();
   }
 
-  removeUnitGraphic(unit) {
-    // Free presentation that refers to this graphic (death dissolve, poses) first.
-    this._combatFx?.releaseUnit?.(unit);
+  removeUnitGraphic(unit, { skipFxRelease = false } = {}) {
+    // A class change already released these resources against the live identity.
+    // Other removals free presentation tied to the graphic first.
+    if (!skipFxRelease) this._combatFx?.releaseUnit?.(unit);
     if (unit.graphic) {
       unit.graphic.destroy();
       unit.graphic = null;
@@ -4592,7 +4596,10 @@ export class BattleScene extends Phaser.Scene {
             // A payout that did not reach disk keeps the save so it can retry.
             if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
               clearSavedRun(
-                cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+                cloud
+                  ? (resolvedSlot, abandonedRun) =>
+                      deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+                  : null,
                 slot,
               );
             const audio = this.registry.get('audio');
@@ -6408,7 +6415,9 @@ export class BattleScene extends Phaser.Scene {
     )
       command('promote', 'Promote', () => {
         this.hideActionMenu();
-        this.executePromotion(unit, this.getPromotionConsumable(unit));
+        this.executePromotion(unit, this.getPromotionConsumable(unit)).catch((error) =>
+          reportAsyncError('promotion_failed', error, { unit: unit.name }),
+        );
       });
     const usableReclassSeals = this.getUsableReclassConsumables(unit);
     if (usableReclassSeals.length === 1)
@@ -7294,7 +7303,11 @@ export class BattleScene extends Phaser.Scene {
   async useConsumable(unit, item) {
     const session = battleSession(this);
     if (!isCurrentBattleSession(this, session)) return false;
-    if (item?.effect === 'promote') return this.executePromotion(unit, item);
+    if (item?.effect === 'promote')
+      return this.executePromotion(unit, item).catch((error) => {
+        reportAsyncError('promotion_failed', error, { unit: unit.name });
+        return false;
+      });
     if (item?.effect === 'reclass') return this.showReclassClassPicker(unit, item);
     const target = ['cure', 'cureHeal'].includes(item?.effect)
       ? this._pendingCureTarget || unit
@@ -7514,7 +7527,9 @@ export class BattleScene extends Phaser.Scene {
         () => {
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
-          this.executeReclass(unit, sealItem, cls);
+          this.executeReclass(unit, sealItem, cls).catch((error) =>
+            reportAsyncError('reclass_failed', error, { unit: unit.name }),
+          );
         },
         { hitWidth: menuWidth - 10, hitHeight: itemHeight },
       );
@@ -7545,60 +7560,12 @@ export class BattleScene extends Phaser.Scene {
     this._registerActionMenu();
   }
 
-  async executeReclass(unit, sealItem, newClassData) {
-    const session = battleSession(this);
-    if (!canReclass(unit)) return;
-    this.hideActionMenu();
-    this.battleState = 'COMBAT_RESOLVING'; // block input
-
-    const oldClassData = this.gameData.classes.find((c) => c.name === unit.className);
-    if (!oldClassData) {
-      await this.showBriefBanner('Reclass data missing.', UI_PALETTE.bad);
-      if (!isCurrentBattleSession(this, session)) return;
-      this.battleState = 'UNIT_ACTION_MENU';
-      this.showActionMenu(unit);
-      return;
-    }
-
-    // Track old proficiency types to detect new ones
-    const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
-
-    reclassUnit(
+  executeReclass(unit, sealItem, newClassData) {
+    return (this._reclassController ||= new ReclassController(this)).executeReclass(
       unit,
+      sealItem,
       newClassData,
-      oldClassData,
-      this.gameData.classes,
-      this.gameData.skills,
-      this.gameData.traits || null,
     );
-    observeHistoryAction(this, 'reclassed', unit, null, newClassData.name);
-
-    // Refresh sprite
-    this.removeUnitGraphic(unit);
-    this.addUnitGraphic(unit);
-
-    // Grant Iron weapons for newly gained proficiency types
-    for (const prof of unit.proficiencies) {
-      if (oldTypes.has(prof.type)) continue;
-      const newWeapon = this.gameData.weapons.find(
-        (w) => w.type === prof.type && w.tier === 'Iron',
-      );
-      if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-        // A unit whose old weapon no longer fits (or had none) takes up the new one.
-        if (addToInventory(unit, newWeapon)) equipIfUnarmed(unit, unit.inventory.at(-1));
-      }
-    }
-
-    this.updateHPBar(unit);
-
-    await this.showBriefBanner(`${unit.name} reclassed to ${newClassData.name}!`, UI_PALETTE.info);
-    if (!isCurrentBattleSession(this, session)) return;
-
-    // Consume seal
-    sealItem.uses = (sealItem.uses ?? 1) - 1;
-    if (sealItem.uses <= 0) removeFromConsumables(unit, sealItem);
-
-    this.finishUnitAction(unit, { session: session });
   }
 
   _getCombatRollSessionKey(attacker, defender) {
@@ -9183,6 +9150,16 @@ export class BattleScene extends Phaser.Scene {
 
   /** Suspend-checkpoint shim (see BattleSuspendController). */
   _captureSuspendCheckpoint(options = {}) {
+    if (!Number.isInteger(options.session)) {
+      reportAsyncError(
+        'battle_checkpoint_missing_session',
+        new Error('Checkpoint origin session required'),
+        {
+          scene: this.scene?.key || 'Battle',
+        },
+      );
+      return false;
+    }
     if (!isCurrentBattleSession(this, options.session)) return false;
     return (this._battleSuspendController ||= new BattleSuspendController(this)).captureCheckpoint(
       options,

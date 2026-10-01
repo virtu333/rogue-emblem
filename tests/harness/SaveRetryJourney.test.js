@@ -11,6 +11,16 @@ import { journeyBattleScene } from './JourneyBattleScene.js';
 import { BattleSuspendController } from '../../src/ui/BattleSuspendController.js';
 import { createBattleTimeline } from '../../src/engine/BattleTimeline.js';
 import { BattleScene } from '../../src/scenes/BattleScene.js';
+import { completeBattleAction } from '../../src/ui/BattleActionCompletion.js';
+import {
+  captureResolvedAction,
+  completeResolvedAction,
+  presentQueuedLevelUps,
+} from '../../src/ui/BattlePresentationCheckpoint.js';
+import { BattleTradeController } from '../../src/ui/BattleTradeController.js';
+import { unitHolder } from '../../src/engine/ItemTrade.js';
+import { VisionRewindController } from '../../src/ui/VisionRewindController.js';
+import { EscapeObjectiveController } from '../../src/ui/EscapeObjectiveController.js';
 
 function fixture() {
   const storage = new JourneyStorage();
@@ -20,6 +30,11 @@ function fixture() {
   const scene = journeyBattleScene(driver.run, driver.data);
   scene._battleSession = 1;
   scene.playerUnits = driver.run.roster;
+  scene.playerUnits.forEach((unit, index) => {
+    unit.col = index;
+    unit.row = 1;
+    scene.addUnitGraphic(unit);
+  });
   scene._battleRewindPolicy = 'fixed-v1';
   const suspend = new BattleSuspendController(scene);
   scene._battleSuspendController = suspend;
@@ -424,5 +439,236 @@ it.each(['_fatalDecision', '_fatalCapturePending', '_defeatDecision', 'BATTLE_EN
     await scene.pauseOverlay.options.onSaveAndExit();
     expect(scene.clearBattleScopedDeltas).not.toHaveBeenCalled();
     expect(transitionToSceneWithBlockedRetry).not.toHaveBeenCalled();
+  },
+);
+
+it(
+  'the production durable writer hook clears a degraded episode independently of capture reporting',
+  { timeout: 20_000 },
+  async () => {
+    const { scene, suspend, storage } = fixture();
+    storage.failWrites = true;
+    capture(suspend);
+    const first = scene._saveRetryGate(1);
+    scene._saveRetry.keepPlaying();
+    expect(await first).toEqual({ saved: false });
+    expect(scene._saveRetry.isUnsaved()).toBe(true);
+    storage.failWrites = false;
+    // This is the production persistence helper; no capture result is published.
+    expectLocalDurability(scene._persistBattleRunState(null, { session: 1 }));
+    expect(scene._saveRetry.state).toBe('idle');
+    expect(suspend.hasRetryCandidate()).toBe(false);
+    expect(scene._saveRetryGate(1)).toBeNull();
+  },
+);
+
+it(
+  'consecutive production save failures each hold a fresh unresolved gate',
+  { timeout: 20_000 },
+  async () => {
+    const { scene, suspend, storage } = fixture();
+    storage.failWrites = true;
+    capture(suspend);
+    const first = scene._saveRetryGate(1);
+    storage.failWrites = false;
+    await scene._saveRetry.retry();
+    expect(await first).toEqual({ saved: true });
+    scene.playerUnits[0].currentHP = 7;
+    storage.failWrites = true;
+    capture(suspend);
+    const second = scene._saveRetryGate(1);
+    expect(second).not.toBe(first);
+    let released = false;
+    const continuation = second.then(() => {
+      released = true;
+    });
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    expect(released).toBe(false);
+    expect(scene._saveRetry.isBlocking()).toBe(true);
+    scene._saveRetry.keepPlaying();
+    await continuation;
+    expect(released).toBe(true);
+  },
+);
+
+it(
+  'failed capture and failed Retry keep full frozen history until storage genuinely requires a trimmed successful write',
+  { timeout: 20_000 },
+  () => {
+    const { scene, suspend, storage } = fixture();
+    scene.runManager.battleInProgress.timeline = {
+      ...createBattleTimeline(),
+      presentation: { nextId: 2, frames: ['full frozen history'] },
+    };
+    const writer = scene._persistBattleRunState.bind(scene);
+    scene._persistBattleRunState = () => ({ ok: false, reason: 'quota' });
+    expect(capture(suspend)).toBe(false);
+    const frozen = structuredClone(suspend._retryCandidate);
+    const cursor = scene._battleRng.getState();
+    expect(frozen.battleInProgress.timeline.presentation.frames).toEqual(['full frozen history']);
+    expect(suspend.retryCheckpoint({ session: 1 })).toEqual({ ok: false, reason: 'quota' });
+    expect(suspend._retryCandidate).toEqual(frozen);
+    scene._persistBattleRunState = writer;
+    expectLocalDurability(suspend.retryCheckpoint({ session: 1 }));
+    expect(durable(storage).battleInProgress.timeline).toEqual(frozen.battleInProgress.timeline);
+    expect(scene._battleRng.getState()).toEqual(cursor);
+  },
+);
+
+// The routing matrix drives actual capture owners with a real RunManager and
+// writer. Per-action HP/cost/RNG settlement matrices live beside their owners.
+const captureOwners = [
+  [
+    'resolved action',
+    (scene, actor) =>
+      captureResolvedAction(scene, { kind: 'finish', unitName: actor.name }, { session: 1 }),
+  ],
+  ['Wait / Canto completion', (scene, actor) => completeBattleAction(scene, actor, { session: 1 })],
+  [
+    'removed actor continuation',
+    (scene) =>
+      completeResolvedAction(scene, { kind: 'finish', unitName: 'removed actor' }, { session: 1 }),
+  ],
+  [
+    'level-up continuation',
+    (scene, actor) => {
+      actor.xp = 95;
+      scene.awardScaledXP(actor, 20, { present: false });
+      expect(scene._pendingLevelUpPopups).toHaveLength(1);
+      return presentQueuedLevelUps(scene, { kind: 'finish', unitName: actor.name }, { session: 1 });
+    },
+  ],
+  [
+    'ambush movement',
+    (scene, actor) => {
+      scene.showMinorHintAt = () => {};
+      scene._resolveAmbush(actor, { faction: 'enemy', col: 2, row: 2 });
+    },
+  ],
+  [
+    'committed attack intent',
+    (scene, actor) => {
+      const enemy = { ...actor, name: 'Enemy', faction: 'enemy' };
+      scene.enemyUnits = [enemy];
+      scene.addUnitGraphic(enemy);
+      scene._ensureCombatRollSession = () => null;
+      scene._commitCombatIntent(actor, enemy);
+    },
+  ],
+  [
+    'turn-start handoff recovery',
+    (scene) => {
+      scene.battleState = 'ENEMY_PHASE';
+      scene._settleUnitSpritesAfterError = () => {};
+      scene.showBriefBanner = () => {};
+      expect(scene._recoverPlayerHandoff(1, Error('Injected handoff failure'))).toBe(true);
+    },
+  ],
+  [
+    'Vision restore',
+    (scene) => {
+      scene.captureVisionSnapshot();
+      vi.spyOn(scene._visionController, 'playRewindEffect').mockImplementation(() => {});
+      expect(scene.applyVisionSnapshot()).toBe(true);
+    },
+  ],
+  [
+    'parked activation',
+    (scene) => {
+      scene.goldEarned = 77;
+      new VisionRewindController(scene, scene.runManager).settleParkedActivation();
+    },
+  ],
+  ...[false, true].map((queued) => [
+    queued ? 'turn-start before level-up' : 'turn-start final checkpoint',
+    async (scene) => {
+      scene.showPhaseBanner = () => {};
+      scene.dangerZone = { hide() {} };
+      scene.renderTurnCounter = () => {};
+      scene.processTurnStartEffects = async () => {};
+      scene.processBallistaFire = async () => {};
+      if (queued) {
+        const actor = scene.playerUnits[0];
+        actor.xp = 95;
+        scene.awardScaledXP(actor, 20, { present: false });
+        expect(scene._pendingLevelUpPopups).toHaveLength(1);
+      }
+      let pipeline;
+      scene._scheduleSafeDelayedAsync = (_ms, label, callback) => {
+        if (label === 'player_phase_turn_start_pipeline') pipeline = callback;
+      };
+      const captures = vi.spyOn(scene, '_captureSuspendCheckpoint');
+      scene.onPhaseChange('player', 1);
+      await pipeline();
+      expect(captures).toHaveBeenCalledTimes(queued ? 2 : 1);
+      if (queued) expect(captures.mock.calls[0][0]).toEqual({ session: 1 });
+    },
+  ]),
+  ['End Turn', (scene) => scene.forceEndTurn()],
+  [
+    'escape',
+    (scene, actor) => {
+      actor.isLord = false;
+      new EscapeObjectiveController(scene).executeEscape(actor);
+    },
+  ],
+  [
+    'trade reorder',
+    (scene, actor) => {
+      const other = scene.playerUnits[1];
+      other.col = actor.col + 1;
+      other.row = actor.row;
+      actor.consumables = [
+        { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
+        { name: 'Elixir', type: 'Consumable', effect: 'healFull', uses: 1 },
+      ];
+      scene.battleState = 'TRADING';
+      scene.selectedUnit = actor;
+      const controller = new BattleTradeController(scene);
+      const slot = (item) => ({ holder: unitHolder(actor), bag: 'consumables', item });
+      expect(
+        controller.reorder(actor, other, slot(actor.consumables[0]), slot(actor.consumables[1])).ok,
+      ).toBe(true);
+    },
+  ],
+  [
+    'trade',
+    (scene, actor) => {
+      const other = scene.playerUnits[1];
+      other.col = actor.col + 1;
+      other.row = actor.row;
+      actor.consumables = [
+        { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
+      ];
+      other.consumables = [];
+      scene.battleState = 'TRADING';
+      scene.selectedUnit = actor;
+      const controller = new BattleTradeController(scene);
+      const from = { holder: unitHolder(actor), bag: 'consumables', item: actor.consumables[0] };
+      const to = { holder: unitHolder(other), bag: 'consumables', item: null };
+      expect(controller.commit(actor, other, from, to).ok).toBe(true);
+    },
+  ],
+];
+it.each(captureOwners)(
+  '%s capture routes local quota into a held retry gate',
+  { timeout: 20_000 },
+  async (_label, execute) => {
+    const { scene, storage } = fixture();
+    const before = durable(storage);
+    storage.failWrites = true;
+    await execute(scene, scene.playerUnits[0]);
+    expect(durable(storage)).toEqual(before);
+    expect(scene._saveRetry.isBlocking()).toBe(true);
+    const gate = scene._saveRetryGate(1);
+    let released = false;
+    const work = gate.then(() => {
+      released = true;
+    });
+    await Promise.resolve();
+    expect(released).toBe(false);
+    scene._saveRetry.keepPlaying();
+    await work;
+    expect(released).toBe(true);
   },
 );

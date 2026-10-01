@@ -406,7 +406,13 @@ describe('a usable weapon given to an unarmed unit is equipped', () => {
     const unit = createRecruitUnit({ name: 'Kai', level: 3 }, fighter, gameData.weapons);
     unit.inventory = [];
     unit.weapon = null;
-    const seal = { name: 'Infantry Seal', type: 'Consumable', effect: 'reclass', uses: 1 };
+    const seal = {
+      name: 'Infantry Seal',
+      type: 'Consumable',
+      effect: 'reclass',
+      subEffect: 'infantry',
+      uses: 1,
+    };
     unit.consumables = [seal];
     await s.executeReclass(unit, seal, mercenary);
     // Fighter (Axes) → Mercenary (Swords): the new Sword rank grants an Iron Sword.
