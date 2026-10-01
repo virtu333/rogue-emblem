@@ -665,7 +665,10 @@
     "crit": 0,
     "weight": 10,
     "range": "3-10",
-    "uses": 1,
+    "uses": 3,
+    "usesByFaction": {
+      "enemy": 5
+    },
     "perBattleUses": true,
     "special": "Siege magic",
     "weaponArtIds": [

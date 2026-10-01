@@ -25,6 +25,7 @@ import {
   getEffectiveStaffRange,
   parseRange,
 } from '../engine/Combat.js';
+import { perBattleUsesText } from '../engine/ItemKeywords.js';
 import {
   canUseWeaponArt,
   getWeaponArtIds,
@@ -1166,6 +1167,8 @@ export class UnitDetailOverlay {
     if (!weapon || !anchor) return;
     const lines = [];
     if (weapon.special) lines.push(`Special: ${weapon.special}`);
+    const usesLine = perBattleUsesText(weapon, this._unit);
+    if (usesLine) lines.push(`${usesLine} (refills after battle)`);
     const imbueInfo = getImbueDisplayInfo(weapon, this.gameData?.imbues);
     if (imbueInfo) {
       const detail = imbueInfo.description ? ` - ${imbueInfo.description}` : '';

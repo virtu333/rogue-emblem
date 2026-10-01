@@ -14,6 +14,8 @@ import {
   getEffectiveStaffRange,
   resolveHeal,
   spendStaffUse,
+  hasPerBattleUsesLeft,
+  nextStrikeWeapon,
 } from './Combat.js';
 import { canEquip } from './UnitManager.js';
 import { computeEffectivePath } from './Grid.js';
@@ -190,6 +192,18 @@ export class AIController {
   }
 
   /**
+   * A per-battle weapon whose uses are spent this battle (an enemy Breachbolt after its
+   * shots) cannot attack or counter (Combat.canCounter, AttackOptions). Swap to the
+   * first carried combat weapon that can still strike; with none, keep it (the unit
+   * then has no attack and only moves). Proficiency is not checked: enemy gear is
+   * assigned by MapGenerator, not equipped by rank (a Dark Knight carries Breachbolt).
+   */
+  _equipUsableWeapon(enemy) {
+    const next = nextStrikeWeapon(enemy);
+    if (next && next !== enemy.weapon) enemy.weapon = next;
+  }
+
+  /**
    * Decide where to move and who to attack.
    * Strategy: find tile in movement range that puts a player in weapon range.
    * If none, move toward nearest player.
@@ -201,6 +215,7 @@ export class AIController {
    *   If no attack available, stay put (don't chase away from throne).
    */
   _decideAction(enemy, allEnemies, playerUnits, npcUnits) {
+    this._equipUsableWeapon(enemy);
     const forceLowestHpTargeting = this._hasAiOverride(enemy, 'target_lowest_hp');
     let returnToPost = false;
     if (enemy.aiMode === 'guard') {
@@ -518,7 +533,7 @@ export class AIController {
           bestAttack.target.row,
         );
         const best = pickBestWeapon(enemy, bestAttack.target, (ent, wpn, tgt) => {
-          if (!isInRange(wpn, dist)) return -Infinity;
+          if (!isInRange(wpn, dist) || !hasPerBattleUsesLeft(wpn, ent)) return -Infinity;
           const atkStat = isMagical(wpn) ? ent.stats.MAG : ent.stats.STR;
           const defStat = isMagical(wpn) ? tgt.stats.RES : tgt.stats.DEF;
           let score = Math.max(0, atkStat + (wpn.might || 0) - defStat);

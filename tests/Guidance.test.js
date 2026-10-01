@@ -453,11 +453,13 @@ describe('GuidanceController moments', () => {
 
     it('leaves out a weapon with no uses left', () => {
       const fire = weapon('Fire'); // 1–2
-      const bolt = weapon('Breachbolt'); // 3–10, one use per battle
+      const bolt = weapon('Breachbolt'); // 3–10, `uses` per battle for the player
       const profs = [{ type: 'Tome', rank: 'Mast' }];
       const mage = unit([fire, bolt], profs);
       expect(reason(mage)).toBe('No target in range 1–10');
-      bolt._usesSpent = 1;
+      bolt._usesSpent = bolt.uses - 1;
+      expect(reason(mage)).toBe('No target in range 1–10');
+      bolt._usesSpent = bolt.uses;
       expect(reason(mage)).toBe('No target in range 1–2');
       // Nothing left to attack with: Fire Emblem's hidden Attack, not a wrong range.
       expect(reason(unit([bolt], profs))).toBeNull();

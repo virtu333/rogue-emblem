@@ -12,7 +12,11 @@ import {
 } from '../../src/engine/DeedSystem.js';
 import { AIController } from '../../src/engine/AIController.js';
 import { generateBattle, reconcileRecruitSpawnTile } from '../../src/engine/MapGenerator.js';
-import { scheduleReinforcementsForTurn } from '../../src/engine/ReinforcementScheduler.js';
+import {
+  parRaiseForArrivals,
+  reinforcementMoveTypes,
+  scheduleReinforcementsForTurn,
+} from '../../src/engine/ReinforcementScheduler.js';
 import {
   armyAndNpcAllies,
   isRecruitNpc,
@@ -30,6 +34,7 @@ import {
   getEffectiveStaffRange,
   getStaffMaxUses,
   spendStaffUse,
+  settlePerBattleWeaponUses,
 } from '../../src/engine/Combat.js';
 import {
   createLordUnit,
@@ -42,7 +47,6 @@ import {
   canEquip,
   addToInventory,
   addToConsumables,
-  grantSecondaryWeapons,
 } from '../../src/engine/UnitManager.js';
 import {
   getSkillCombatMods,
@@ -69,7 +73,16 @@ import {
   isWeaponArtCompatibleWithWeapon,
   recordWeaponArtUse,
 } from '../../src/engine/WeaponArtSystem.js';
-import { processConditionRecovery } from '../../src/engine/StatusConditionSystem.js';
+import {
+  processConditionRecovery,
+  resolveStatusStaff,
+} from '../../src/engine/StatusConditionSystem.js';
+import { applyEnemySpawnGear } from '../../src/engine/EnemySpawnGear.js';
+import {
+  advanceTurnPressure,
+  createTurnPressureState,
+  measureTurnPressure,
+} from '../../src/engine/TurnPressure.js';
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
 import {
   calculatePar,
@@ -98,8 +111,6 @@ import {
 } from '../../src/engine/RecruitNodeSystem.js';
 import {
   BOSS_STAT_BONUS,
-  SUNDER_WEAPON_BY_TYPE,
-  POISON_WEAPON_BY_TYPE,
   TERRAIN,
   XP_BASE_HEAL,
   XP_SPECIAL_ENEMY_MULTIPLIER,
@@ -311,6 +322,10 @@ export class HeadlessBattle {
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       unit._phoenixBroochUsed = false;
     }
+
+    // Anti-turtle clock (engine/TurnPressure.js), as BattleScene: measured once the
+    // field is populated, advanced at the start of every enemy phase.
+    this.antiTurtleState = createTurnPressureState(this._measureTurnPressure());
 
     // Turn par — mirrors BattleScene (full-run sims commit the Eclipse against it).
     this.turnPar = this.gameData.turnBonus
@@ -932,36 +947,13 @@ export class HeadlessBattle {
       }
       enemy.currentHP = enemy.stats.HP;
     }
-    if (spawn.sunderWeapon) {
-      const primaryType = enemy.proficiencies?.[0]?.type;
-      const sunderName = primaryType ? SUNDER_WEAPON_BY_TYPE[primaryType] : null;
-      if (sunderName) {
-        const sunderData = this.gameData.weapons.find((weapon) => weapon.name === sunderName);
-        if (sunderData) {
-          const sunderClone = structuredClone(sunderData);
-          enemy.weapon = sunderClone;
-          enemy.inventory = [sunderClone];
-        }
-      }
-    } else if (spawn.poisonWeapon) {
-      const primaryType = enemy.proficiencies?.[0]?.type;
-      const poisonName = primaryType ? POISON_WEAPON_BY_TYPE[primaryType] : null;
-      if (poisonName) {
-        const poisonData = this.gameData.weapons.find((weapon) => weapon.name === poisonName);
-        if (poisonData) {
-          const poisonClone = structuredClone(poisonData);
-          enemy.weapon = poisonClone;
-          enemy.inventory = [poisonClone];
-        }
-      }
-    }
-    // Grant secondary weapons for multi-proficiency enemies on Hard/Lunatic
-    if (!spawn.sunderWeapon && !spawn.poisonWeapon && !spawn.siegeWeapon && !spawn.isEntity) {
-      const diffId = this.battleParams?.difficultyId;
-      if (diffId === 'hard' || diffId === 'lunatic') {
-        grantSecondaryWeapons(enemy, this.gameData.weapons, enemy.weapon?.tier || 'Iron');
-      }
-    }
+    if (spawn.isEntity) enemy.isEntity = true;
+    // As BattleScene.addEnemyFromSpawn (engine/EnemySpawnGear.js): Entity weapons,
+    // Sunder/Poison, siege with its fallback, status staff, Nightfall+ secondaries.
+    applyEnemySpawnGear(enemy, spawn, {
+      weapons: this.gameData.weapons,
+      difficultyId: this.battleParams?.difficultyId,
+    });
 
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
     if (
@@ -1013,6 +1005,11 @@ export class HeadlessBattle {
       mapLayout: this.battleConfig.mapLayout,
       terrain: this.gameData.terrain,
       occupied: this._getReinforcementOccupiedTiles(),
+      moveTypes: reinforcementMoveTypes(
+        this._getReinforcementTemplatePool(),
+        this.gameData.classes,
+      ),
+      classMoveType: (name) => this.gameData.classes.find((c) => c.name === name)?.moveType,
       difficultyId: this.battleParams?.difficultyId || 'normal',
       difficultyTurnOffset: Math.trunc(Number(this.battleParams?.reinforcementTurnOffset) || 0),
       enemyCountBonus: Math.trunc(Number(this.battleParams?.enemyCountBonus) || 0),
@@ -1027,7 +1024,7 @@ export class HeadlessBattle {
       return { ...schedule, spawned: 0 };
 
     let spawned = 0;
-    const successfulWaveKeys = new Set();
+    const arrived = [];
     for (let i = 0; i < schedule.spawns.length; i++) {
       const scheduledSpawn = schedule.spawns[i];
       const spec = this._buildReinforcementSpawnSpec(scheduledSpawn, i);
@@ -1035,15 +1032,12 @@ export class HeadlessBattle {
       const enemy = this._addEnemyFromSpawn(spec, { reinforcementMeta: scheduledSpawn });
       if (enemy) {
         spawned++;
-        // Mirrors BattleScene: each non-repeating wave that arrived bumps par by 1.
-        if (scheduledSpawn.waveIndex != null && scheduledSpawn.waveType !== 'repeating')
-          successfulWaveKeys.add(
-            `${scheduledSpawn.waveType || 'procedural'}:${scheduledSpawn.waveIndex}`,
-          );
+        arrived.push(scheduledSpawn);
       }
     }
-    if (Number.isFinite(this.turnPar) && successfulWaveKeys.size > 0)
-      this.turnPar += successfulWaveKeys.size;
+    // As BattleScene: +1 par per arrived wave that raises par (waveRaisesPar).
+    const parRaise = parRaiseForArrivals(arrived);
+    if (Number.isFinite(this.turnPar) && parRaise > 0) this.turnPar += parRaise;
     return { ...schedule, spawned };
   }
 
@@ -1130,10 +1124,32 @@ export class HeadlessBattle {
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     } else if (phase === 'enemy') {
+      this._advanceTurnPressure(turn);
       processConditionRecovery(this.enemyUnits);
       this.grid.tickTemporaryTerrains?.();
       this.battleState = HEADLESS_STATES.ENEMY_PHASE;
     }
+  }
+
+  _measureTurnPressure() {
+    return measureTurnPressure({
+      playerUnits: this.playerUnits,
+      enemyUnits: this.enemyUnits,
+      escapedUnits: this.escapedUnits,
+      battleConfig: this.battleConfig,
+    });
+  }
+
+  /** As BattleScene.updateAntiTurtlePressure (the boss enrage fx aside). */
+  _advanceTurnPressure(turn) {
+    if (!this.antiTurtleState) return;
+    const step = advanceTurnPressure(this.antiTurtleState, this._measureTurnPressure(), {
+      turn,
+      par: this.turnPar,
+      turnBonusConfig: this.gameData.turnBonus,
+    });
+    this.antiTurtleState = step.state;
+    this.aiController?.setAggressiveMode?.(step.aggressiveMode);
   }
 
   _onVictory() {
@@ -1799,6 +1815,7 @@ export class HeadlessBattle {
     );
 
     applyCombatHP(attacker, defender, result); // UnitHealth, as BattleScene applies it
+    settlePerBattleWeaponUses(attacker, defender, result); // Breachbolt uses, as BattleScene
     this._recordDeedCombat(attacker, defender, result);
 
     this._applyResolvedCombatPostEffects({
@@ -2121,6 +2138,13 @@ export class HeadlessBattle {
               this._executeEnemyCombat(enemy, target);
               return Promise.resolve();
             },
+            // As BattleScene.executeEnemyStatusStaff without the banner and icons.
+            onStatusStaff: (enemy, target) => {
+              if (!enemy.statusStaff) return Promise.resolve();
+              resolveStatusStaff(enemy.statusStaff, enemy, target);
+              spendStaffUse(enemy.statusStaff);
+              return Promise.resolve();
+            },
             onDecision: (enemy, decision) => this._recordEnemyAiDecision(enemy, decision),
             onUnitDone: (enemy) => {
               enemy.hasActed = true;
@@ -2212,6 +2236,7 @@ export class HeadlessBattle {
     );
 
     applyCombatHP(attacker, defender, result); // UnitHealth, as BattleScene applies it
+    settlePerBattleWeaponUses(attacker, defender, result); // Breachbolt uses, as BattleScene
     this._recordDeedCombat(attacker, defender, result);
 
     this._applyResolvedCombatPostEffects({

@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Dusk Pressure PR 1: Breachbolt Shots, Par-Neutral Waves, Shared Turn Pressure (Oct 1, 2026)
+
+No tuning yet (docs/specs/dusk-pressure.md, PR 1).
+
+- **Breachbolt shots are spent:**
+  - Nothing ever spent a Breachbolt use, so an enemy siege caster fired every enemy phase and a looted copy never ran dry.
+  - A combat in which the wielder strikes with it (attacking or countering, hit or miss) now spends one shot. The player's copy has 3 per battle and an enemy's has 5 (`weapons.json` `uses` / `usesByFaction`), with no MAG bonus. Shots refill after every battle.
+  - A spent copy cannot counter.
+  - An enemy siege caster keeps its own weapon behind the tome and switches to it once its shots are gone. The Danger overlay draws that weapon's reach.
+  - The weapon tooltip, the roster card and the Siege keyword show the shots, read from data.
+- **Par-neutral waves:** whether a wave raises par is now one rule shared by the battle and the headless harness (`ReinforcementScheduler.waveRaisesPar`). Repeating pursuit waves stay par-neutral as before, and the coming rout ladder will be too.
+- **Reinforcement tiles:**
+  - Procedural arrivals no longer land on Lava Crack, the Acidic tiles, a Ballista, a Throne or a Village.
+  - An arrival's tile must suit every class it might copy, so an Armored arrival is never left stranded on Swamp.
+  - An authored arrival is checked against its own class.
+- **Anti-turtle clock:**
+  - The anti-turtle and boss enrage clock moved to `engine/TurnPressure.js`, and the headless harness now runs it too. Before, harness guards never left their posts.
+  - **Fix:** the clock's baseline was taken before any enemy had spawned, so kills never counted as progress and the AI turned aggressive three turns into every battle. Kills now reset it.
+- **Headless harness parity:** enemy spawn gear (Entity weapons, Sunder and Poison, siege tomes, status staves, Nightfall+ secondaries) now comes from one engine module (`engine/EnemySpawnGear.js`), and the harness's enemies use their status staves.
+
 ### Staff Relocation Visuals (Sep 30, 2026)
 
 - Rescue and Warp preserve each visual element's opacity when moving an already-used ally, so the next turn restores its ready appearance without leaving the sprite or HP bar faded.

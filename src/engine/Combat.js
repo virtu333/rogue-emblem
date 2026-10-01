@@ -530,11 +530,15 @@ export function spendStaffUse(staff) {
 }
 
 // --- Per-battle weapon uses (e.g. Breachbolt) ---
+// A combat weapon with `perBattleUses` refills every battle (RunManager.completeBattle
+// and BattleScene reset `_usesSpent`). Its uses come from data: `usesByFaction[faction]`
+// when present (Breachbolt: enemies 5), else `uses` (Breachbolt: 3). MAG adds nothing
+// (staves keep their MAG bonus through getStaffMaxUses).
 
-/** Total max uses for a per-battle-use weapon given the user's MAG. */
+/** Uses a per-battle weapon has in each battle for this unit. */
 export function getPerBattleMaxUses(weapon, unit) {
-  const base = weapon.uses ?? 0;
-  return base + calculateBonusUses(unit.stats.MAG);
+  const byFaction = weapon?.usesByFaction?.[unit?.faction];
+  return Number.isFinite(byFaction) ? byFaction : (weapon?.uses ?? 0);
 }
 
 /** Remaining uses for a per-battle-use weapon. */
@@ -543,9 +547,62 @@ export function getPerBattleRemainingUses(weapon, unit) {
   return Math.max(0, getPerBattleMaxUses(weapon, unit) - spent);
 }
 
+/** False only for a per-battle weapon whose uses are spent this battle. */
+export function hasPerBattleUsesLeft(weapon, unit) {
+  return !weapon?.perBattleUses || isStaff(weapon) || getPerBattleRemainingUses(weapon, unit) > 0;
+}
+
+/**
+ * The combat weapon a unit strikes with next: the equipped one, or, once a per-battle
+ * weapon is spent, the first carried combat weapon that can still strike (null when
+ * none can). Rank is not checked: enemy gear is assigned, not equipped by rank.
+ * AIController equips it; ThreatForecast draws its reach.
+ */
+export function nextStrikeWeapon(unit) {
+  const current = unit?.weapon;
+  if (!current) return null;
+  if (hasPerBattleUsesLeft(current, unit)) return current;
+  return (
+    (unit.inventory || []).find(
+      (w) =>
+        w &&
+        w !== current &&
+        !isStaff(w) &&
+        w.type !== 'Scroll' &&
+        w.type !== 'Consumable' &&
+        hasPerBattleUsesLeft(w, unit),
+    ) || null
+  );
+}
+
 /** Spend one use of a per-battle weapon (mutates weapon). */
 export function spendPerBattleUse(weapon) {
   weapon._usesSpent = (weapon._usesSpent || 0) + 1;
+}
+
+/**
+ * Settle per-battle weapon uses after a resolved combat: each side that struck with a
+ * per-battle weapon (attacking or countering, hit or miss) spends one use. Read from
+ * the result's strike events, never from the animation. Mutates the weapons; returns
+ * which sides spent a use.
+ */
+export function settlePerBattleWeaponUses(attacker, defender, result) {
+  const spent = { attacker: false, defender: false };
+  const struck = new Set(
+    (result?.events || [])
+      .filter((e) => e?.type === 'strike' && e.attackerSide)
+      .map((e) => e.attackerSide),
+  );
+  for (const [side, unit] of [
+    ['attacker', attacker],
+    ['defender', defender],
+  ]) {
+    const weapon = unit?.weapon;
+    if (!struck.has(side) || !weapon?.perBattleUses || isStaff(weapon)) continue;
+    spendPerBattleUse(weapon);
+    spent[side] = true;
+  }
+  return spent;
 }
 
 // --- Staff range ---
@@ -780,6 +837,8 @@ export function canDouble(attacker, defender, atkWeapon, defWeapon) {
 /** True if defender can counter-attack at this distance */
 export function canCounter(defender, defenderWeapon, distance) {
   if (!defenderWeapon || isStaff(defenderWeapon)) return false;
+  // A per-battle weapon with no uses left this battle cannot strike back.
+  if (!hasPerBattleUsesLeft(defenderWeapon, defender)) return false;
   return isInRange(defenderWeapon, distance);
 }
 

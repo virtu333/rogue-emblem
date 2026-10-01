@@ -22,17 +22,19 @@ import { getFootprint, isEntity } from './EntitySystem.js';
 import { willRemainRootedNextPhase } from './StatusConditionSystem.js';
 import { getBallistaDangerTiles } from './BallistaEngine.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
-import { isStaff, parseRange } from './Combat.js';
+import { isStaff, nextStrikeWeapon, parseRange } from './Combat.js';
 
 const tileKey = (col, row) => `${col},${row}`;
 
 /**
- * The equipped weapon a unit can strike with, or null. A staff heals or hexes
- * but never deals damage (Combat.js), and the AI only attacks with the equipped
- * weapon's range, so a staff-only unit (every enemy Cleric) threatens no damage.
+ * The weapon a unit will strike with, or null. A staff heals or hexes but never
+ * deals damage (Combat.js), and the AI only attacks with the equipped weapon's
+ * range, so a staff-only unit (every enemy Cleric) threatens no damage. A spent
+ * per-battle weapon (Breachbolt) gives way to the weapon the AI swaps to
+ * (Combat.nextStrikeWeapon).
  */
 function strikingWeapon(unit) {
-  const weapon = unit?.weapon;
+  const weapon = nextStrikeWeapon(unit);
   return weapon && !isStaff(weapon) && weapon.type !== 'Scroll' ? weapon : null;
 }
 
