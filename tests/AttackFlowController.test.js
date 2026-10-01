@@ -87,6 +87,7 @@ function makeScene() {
   const terrain = data.terrain[0];
   const scene = Object.create(BattleScene.prototype);
   Object.assign(scene, {
+    _battleSession: 1,
     gameData: data,
     battleParams: {},
     battleConfig: {},

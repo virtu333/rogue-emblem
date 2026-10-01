@@ -48,6 +48,7 @@ function createPhaseScene(overrides = {}) {
     }),
   };
   return {
+    _battleSession: 1,
     isMobileInput: true,
     inspectMode: true,
     inspectionPanel,

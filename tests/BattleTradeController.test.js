@@ -107,6 +107,7 @@ function session() {
     currentHP: 18,
   };
   const scene = {
+    _battleSession: 1,
     battleState: 'TRADING',
     turnManager: { currentPhase: 'player' },
     selectedUnit: edric,
@@ -550,6 +551,7 @@ describe('BattleTradeController.reorder', () => {
     );
     const [checkpoint] = scene.checkpoints;
     const restored = {
+      _battleSession: 1,
       playerUnits: [],
       enemyUnits: [],
       npcUnits: [],
@@ -613,6 +615,7 @@ describe('BattleScene.findTradeTargets', () => {
 describe('a swap survives the checkpoint and the rewind fingerprint', () => {
   function restoreScene() {
     return {
+      _battleSession: 1,
       playerUnits: [],
       enemyUnits: [],
       npcUnits: [],

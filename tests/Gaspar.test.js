@@ -210,6 +210,7 @@ describe('Gaspar scaling and combat completion', () => {
     const unit = veteran(start());
     let options;
     const scene = {
+      _battleSession: 1,
       playerUnits: [unit],
       checkBattleEnd: () => false,
       finishUnitAction: (_, value) => {
@@ -219,18 +220,26 @@ describe('Gaspar scaling and combat completion', () => {
     const saved = readActionContinuation(
       JSON.parse(JSON.stringify({ kind: 'combat', unitName: unit.name })),
     );
-    completeResolvedAction(scene, saved);
+    completeResolvedAction(scene, saved, { session: scene._battleSession });
     assert.equal(options.skipCanto, true);
-    completeResolvedAction(scene, { kind: 'finish', unitName: unit.name, skipCanto: true });
+    completeResolvedAction(
+      scene,
+      { kind: 'finish', unitName: unit.name, skipCanto: true },
+      { session: scene._battleSession },
+    );
     assert.equal(options.skipCanto, true);
     unit.hasActed = false; // Dance or the next player activation.
-    completeResolvedAction(scene, { kind: 'finish', unitName: unit.name });
+    completeResolvedAction(
+      scene,
+      { kind: 'finish', unitName: unit.name },
+      { session: scene._battleSession },
+    );
     assert.equal(options.skipCanto, false);
     delete unit.specialCharId;
-    completeResolvedAction(scene, saved);
+    completeResolvedAction(scene, saved, { session: scene._battleSession });
     assert.equal(options.skipCanto, true); // Measured Step owns the rule.
     unit.skills = ['canto'];
-    completeResolvedAction(scene, saved);
+    completeResolvedAction(scene, saved, { session: scene._battleSession });
     assert.equal(options.skipCanto, false);
   });
 });

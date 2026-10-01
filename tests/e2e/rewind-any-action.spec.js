@@ -36,7 +36,7 @@ async function boot(page, { mobile = true } = {}) {
     setActiveSlot(1);
     s.runManager.visionChargesRemaining = 3;
     s.updateVisionHud?.();
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
   });
   return errors;
 }
@@ -99,7 +99,7 @@ async function fullBags(page) {
     for (const u of s.playerUnits)
       [...u.inventory, ...(u.consumables || [])].forEach(ensureItemUid);
     s._timelineBoundary = 'turn_start';
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
   });
 }
 
@@ -313,7 +313,7 @@ test.describe('phone 844×390', () => {
       ];
       // Fixture loadout belongs to the turn start, not to a free bag change.
       s._timelineBoundary = 'turn_start';
-      s._captureSuspendCheckpoint();
+      s._captureSuspendCheckpoint({ session: s._battleSession });
     });
     await select(page, 'Support');
     await hud.getByRole('button', { name: 'Trade', exact: true }).tap();
@@ -451,7 +451,7 @@ test.describe('phone 844×390', () => {
       equipWeapon(edric, might);
       // Fixture loadout belongs to the turn start, not to a free equip.
       s._timelineBoundary = 'turn_start';
-      s._captureSuspendCheckpoint();
+      s._captureSuspendCheckpoint({ session: s._battleSession });
       return {
         might: { uid: might.uid, name: might.name, mt: might.might, hit: might.hit },
         hit: { uid: hit.uid, name: hit.name, mt: hit.might, hit: hit.hit },
@@ -542,7 +542,7 @@ test.describe('desktop 1280×800', () => {
         const u = s.playerUnits.find((unit) => unit.name === n);
         s.selectUnit(u);
         s.showActionMenu(u);
-        s.finishUnitAction(u, { skipCanto: true });
+        s.finishUnitAction(u, { skipCanto: true, session: s._battleSession });
       }, name);
       await idle(page);
       states.push(await digest(page));

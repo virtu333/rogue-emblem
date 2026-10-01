@@ -1470,6 +1470,31 @@ export function applyReclassSkills(unit, classesData, skillsData) {
   return { learnedSkills, droppedSkills };
 }
 
+/** Reject malformed unit containers and illegal targets before any reclass mutation. */
+export function canApplyReclass(unit, newClassData, oldClassData, classesData) {
+  if (
+    !canReclass(unit) ||
+    !newClassData ||
+    !oldClassData ||
+    !Array.isArray(classesData) ||
+    !Array.isArray(unit.inventory) ||
+    !Array.isArray(unit.proficiencies) ||
+    unit.inventory.some((weapon) => !weapon || typeof weapon !== 'object') ||
+    unit.proficiencies.some((prof) => !prof || typeof prof.type !== 'string') ||
+    !unit.stats ||
+    typeof unit.stats !== 'object' ||
+    Array.isArray(unit.stats) ||
+    !Number.isFinite(unit.stats.HP) ||
+    oldClassData.name !== unit.className ||
+    !classesData.includes(oldClassData) ||
+    !classesData.includes(newClassData)
+  )
+    return false;
+  return ['infantry', 'mounted'].some((group) =>
+    getReclassTargets(unit, classesData, group).includes(newClassData),
+  );
+}
+
 /**
  * Reclass a unit into a new class. Mutates unit in-place.
  * Uses base-stat delta: newStat[S] = unit.stats[S] - oldBase[S] + newBase[S], clamped ≥ 1.
@@ -1486,7 +1511,7 @@ export function reclassUnit(
   skillsData,
   traitsData = null,
 ) {
-  if (!unit || !newClassData || !oldClassData || !canReclass(unit)) return;
+  if (!canApplyReclass(unit, newClassData, oldClassData, classesData)) return null;
 
   const oldMaxHP = unit.stats.HP;
 

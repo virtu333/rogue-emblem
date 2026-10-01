@@ -24,6 +24,7 @@ function makeTextStub() {
 
 function makeSceneCtx({ xpMultiplier = 1 } = {}) {
   return {
+    _battleSession: 1,
     battleParams: { xpMultiplier },
     battleState: '',
     registry: { get: () => ({ playSFX() {} }) },
@@ -101,7 +102,7 @@ describe('Heal XP', () => {
     await BattleScene.prototype.executeHeal.call(ctx, healer, target);
 
     expect(awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL);
-    expect(finishUnitAction).toHaveBeenCalledWith(healer);
+    expect(finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
   });
 
   it('executeHealAll awards a single XP_BASE_HEAL for AoE heal', async () => {
@@ -124,7 +125,7 @@ describe('Heal XP', () => {
 
     expect(awardScaledXP).toHaveBeenCalledTimes(1);
     expect(awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL);
-    expect(finishUnitAction).toHaveBeenCalledWith(healer);
+    expect(finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
   });
 
   it('executeHeal still calls finishUnitAction if awardScaledXP rejects', async () => {
@@ -141,7 +142,7 @@ describe('Heal XP', () => {
 
     await BattleScene.prototype.executeHeal.call(ctx, healer, target).catch(() => {});
 
-    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer);
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
   });
 
   it('executeHealAll still calls finishUnitAction if awardScaledXP rejects', async () => {
@@ -158,7 +159,7 @@ describe('Heal XP', () => {
 
     await BattleScene.prototype.executeHealAll.call(ctx, healer, targets).catch(() => {});
 
-    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer);
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
   });
 
   it('awardScaledXP applies difficulty multiplier to heal XP', async () => {

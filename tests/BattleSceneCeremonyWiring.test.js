@@ -38,6 +38,7 @@ describe('BattleScene ceremony wiring', () => {
     const scene = Object.create(BattleScene.prototype);
     const boss = { name: 'Dark Rider', isBoss: true };
     Object.assign(scene, {
+      _battleSession: 1,
       isBoss: true,
       _bossName: 'Dark Rider',
       runManager: {},
@@ -56,6 +57,7 @@ describe('BattleScene ceremony wiring', () => {
     const c = ceremonies();
     const resumed = Object.create(BattleScene.prototype);
     Object.assign(resumed, {
+      _battleSession: 1,
       isBoss: true,
       _bossName: 'Dark Rider',
       runManager: {},
@@ -66,6 +68,7 @@ describe('BattleScene ceremony wiring', () => {
     await resumed._presentBossEncounter();
     const plain = Object.create(BattleScene.prototype);
     Object.assign(plain, {
+      _battleSession: 1,
       isBoss: false,
       _bossName: 'Warchief', // seize maps carry a named boss outside boss nodes
       runManager: {},
@@ -153,6 +156,7 @@ describe('BattleScene ceremony wiring', () => {
     const make = (objective, others) => {
       const scene = Object.create(BattleScene.prototype);
       Object.assign(scene, {
+        _battleSession: 1,
         registry: { get: () => null },
         enemyUnits: [boss, ...others],
         playerUnits: [],

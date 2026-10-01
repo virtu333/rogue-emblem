@@ -19,6 +19,7 @@ function setup() {
   };
   unit.proficiencies[0].type = tome.type;
   const scene = {
+    _battleSession: 1,
     grid: { clearAttackHighlights() {}, showHealRange() {} },
     registry: { get: () => null },
     updateHPBar() {},

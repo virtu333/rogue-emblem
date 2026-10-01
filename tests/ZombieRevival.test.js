@@ -455,6 +455,7 @@ describe('awardXP integration — _noXP guard', () => {
 
   function makeAwardXPCtx() {
     return {
+      _battleSession: 1,
       battleParams: { xpMultiplier: 1 },
       turnPar: undefined,
       turnBonusConfig: undefined,
@@ -561,6 +562,7 @@ describe('processZombieRevival integration — terrain passability', () => {
   function makeRevivalCtx(terrainGrid, unitPositions = []) {
     const unitSet = new Set(unitPositions.map(([c, r]) => `${c},${r}`));
     return {
+      _battleSession: 1,
       _zombieTombstones: [],
       battleConfig: { cols: terrainGrid[0].length, rows: terrainGrid.length },
       enemyUnits: [],

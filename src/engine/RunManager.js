@@ -5290,11 +5290,11 @@ export function isRunSaveCurrent(runManager, slotNumber) {
   return Number.isFinite(stamp) && readLocalRunSavedAt(key) === stamp;
 }
 
-export function saveRun(runManager, onSave, slotNumber) {
+export function saveRun(runManager, onSave, slotNumber, { candidate = null } = {}) {
   const key = resolveRunKey(slotNumber);
   if (!key) return { ok: false, reason: 'missing_slot' };
   const json = {
-    ...runManager.toJSON(),
+    ...(candidate ?? runManager.toJSON()),
     savedAt: computeNextRunSavedAt(slotNumber, key),
   };
   let localOk = false;

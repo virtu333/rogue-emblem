@@ -346,6 +346,7 @@ describe('Oaths', () => {
     const seal = structuredClone(data.consumables.find((i) => i.effect === 'promote'));
     edric.consumables = [seal];
     const scene = {
+      _battleSession: 1,
       gameData: data,
       registry: { get: () => null },
       sys: { isActive: () => true },
@@ -446,6 +447,7 @@ describe('presentation content', () => {
 describe('DeedController', () => {
   function scene(over = {}) {
     return {
+      _battleSession: 1,
       gameData: data,
       runManager: { currentAct: 'act1', completedBattles: 2 },
       battleParams: { deployCount: 4 },

@@ -1,3 +1,4 @@
+import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { TutorialController } from './TutorialController.js';
 import { applyLegendaryStaffHeal } from '../engine/TraitSystem.js';
@@ -54,6 +55,7 @@ function healSource(source, target, scene) {
 export class HealController {
   constructor(scene) {
     this.scene = scene;
+    this.session = battleSession(scene);
     this.previousCombatWeapons = new WeakMap();
   }
 
@@ -348,6 +350,9 @@ export class HealController {
    */
   async executeRelocate(healer, ally, dest) {
     const scene = this.scene;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
+    if (!isCurrentBattleSession(scene, session)) return;
     scene.battleState = 'HEAL_RESOLVING';
     scene.grid.clearAttackHighlights();
     scene.staffRelocateTargets = [];
@@ -358,6 +363,7 @@ export class HealController {
       const staff = healer.weapon; // Should already be equipped
 
       await this.animateRelocate(ally, dest);
+      if (!isCurrentBattleSession(scene, session)) return;
       observeHistoryAction(scene, 'relocated', healer, ally, healer.weapon?.name);
 
       // The landing's vision lifts the fog only when the caster's action is
@@ -371,17 +377,23 @@ export class HealController {
 
       try {
         await scene.awardScaledXP(healer, XP_BASE_HEAL);
+        if (!isCurrentBattleSession(scene, session)) return;
       } finally {
-        scene.finishUnitAction(healer);
+        if (isCurrentBattleSession(scene, session))
+          scene.finishUnitAction(healer, { session: session });
       }
     } catch (err) {
-      scene._recoverUnitActionError(healer, 'staffRelocate', err);
+      if (!isCurrentBattleSession(scene, session)) return;
+      scene._recoverUnitActionError(healer, 'staffRelocate', err, { session });
     }
   }
 
   /** Fade-out → move → fade-in (BattleScene.executeWarp pattern). */
   async animateRelocate(ally, dest) {
     const scene = this.scene;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
+    if (!isCurrentBattleSession(scene, session)) return;
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
 
@@ -401,6 +413,7 @@ export class HealController {
         { targets, alpha: 0, duration: 180 },
         { label: 'staff_relocate_fade_out' },
       );
+      if (!isCurrentBattleSession(scene, session)) return;
     }
     ally.col = dest.col;
     ally.row = dest.row;
@@ -410,11 +423,15 @@ export class HealController {
         { targets, alpha: (target) => originalAlpha.get(target), duration: 180 },
         { label: 'staff_relocate_fade_in' },
       );
+      if (!isCurrentBattleSession(scene, session)) return;
     }
   }
 
   async executeHeal(healer, target) {
     const scene = this.scene;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
+    if (!isCurrentBattleSession(scene, session)) return;
     if (scene.battleState === 'HEAL_RESOLVING') return;
     scene.battleState = 'HEAL_RESOLVING';
     scene.grid.clearAttackHighlights();
@@ -432,6 +449,7 @@ export class HealController {
         // allies that already moved this phase (same pattern as Swap).
         if (!target.hasActed) scene.undimUnit(target);
         await this.animateCure(target, healer);
+        if (!isCurrentBattleSession(scene, session)) return;
 
         spendStaffUse(staff);
         deedsFor(scene).onStaffUse(healer, staff);
@@ -439,8 +457,10 @@ export class HealController {
 
         try {
           await scene.awardScaledXP(healer, XP_BASE_HEAL);
+          if (!isCurrentBattleSession(scene, session)) return;
         } finally {
-          scene.finishUnitAction(healer);
+          if (isCurrentBattleSession(scene, session))
+            scene.finishUnitAction(healer, { session: session });
         }
         return;
       }
@@ -468,7 +488,9 @@ export class HealController {
 
       // Animate
       await scene.animateHeal(target, result.healAmount, healer);
+      if (!isCurrentBattleSession(scene, session)) return;
       if (selfHeal) await scene.animateHeal(healer, selfHeal);
+      if (!isCurrentBattleSession(scene, session)) return;
 
       // Spend a use and check depletion
       spendStaffUse(staff);
@@ -477,16 +499,22 @@ export class HealController {
 
       try {
         await scene.awardScaledXP(healer, XP_BASE_HEAL);
+        if (!isCurrentBattleSession(scene, session)) return;
       } finally {
-        scene.finishUnitAction(healer);
+        if (isCurrentBattleSession(scene, session))
+          scene.finishUnitAction(healer, { session: session });
       }
     } catch (err) {
-      scene._recoverUnitActionError(healer, 'heal', err);
+      if (!isCurrentBattleSession(scene, session)) return;
+      scene._recoverUnitActionError(healer, 'heal', err, { session });
     }
   }
 
   async executeHealAll(healer, targets) {
     const scene = this.scene;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
+    if (!isCurrentBattleSession(scene, session)) return;
     scene.battleState = 'HEAL_RESOLVING';
     scene.grid.clearAttackHighlights();
 
@@ -513,7 +541,9 @@ export class HealController {
         );
         if (selfHeal) scene.updateHPBar(healer);
         await scene.animateHeal(target, result.healAmount, healer);
+        if (!isCurrentBattleSession(scene, session)) return;
         if (selfHeal) await scene.animateHeal(healer, selfHeal);
+        if (!isCurrentBattleSession(scene, session)) return;
       }
 
       // Single use spent for all targets
@@ -523,16 +553,22 @@ export class HealController {
 
       try {
         await scene.awardScaledXP(healer, XP_BASE_HEAL);
+        if (!isCurrentBattleSession(scene, session)) return;
       } finally {
-        scene.finishUnitAction(healer);
+        if (isCurrentBattleSession(scene, session))
+          scene.finishUnitAction(healer, { session: session });
       }
     } catch (err) {
-      scene._recoverUnitActionError(healer, 'healAll', err);
+      if (!isCurrentBattleSession(scene, session)) return;
+      scene._recoverUnitActionError(healer, 'healAll', err, { session });
     }
   }
 
   async animateCure(target, source = null) {
     const scene = this.scene;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
+    if (!isCurrentBattleSession(scene, session)) return;
     const reduced = scene._reduceMotion();
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
@@ -563,12 +599,17 @@ export class HealController {
     });
 
     await scene._awaitSceneDelay(reduced ? 120 : 250, { label: 'animate_cure_tint_clear' });
+    if (!isCurrentBattleSession(scene, session)) return;
     if (target.graphic.clearTint) target.graphic.clearTint();
     await scene._awaitSceneDelay(reduced ? 100 : 250, { label: 'animate_cure_tail' });
+    if (!isCurrentBattleSession(scene, session)) return;
   }
 
   async animateHeal(target, healAmount, source = null) {
     const scene = this.scene;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
+    if (!isCurrentBattleSession(scene, session)) return;
     const reduced = scene._reduceMotion();
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
@@ -600,8 +641,10 @@ export class HealController {
     });
 
     await scene._awaitSceneDelay(reduced ? 120 : 250, { label: 'animate_heal_tint_clear' });
+    if (!isCurrentBattleSession(scene, session)) return;
     if (target.graphic.clearTint) target.graphic.clearTint();
     await scene._awaitSceneDelay(reduced ? 100 : 250, { label: 'animate_heal_tail' });
+    if (!isCurrentBattleSession(scene, session)) return;
   }
 
   destroy() {
