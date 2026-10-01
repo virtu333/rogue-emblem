@@ -204,12 +204,12 @@ describe('enemy siege gear and fallback', () => {
 describe('an enemy siege caster through the headless enemy phase', () => {
   afterEach(() => restoreMathRandom());
 
-  it('fires exactly its enemy shots, then fights on with its fallback tome', async () => {
+  /** One sturdy player unit at 0,0 and a siege Sage nine tiles away on open ground. */
+  function siegeDuel({ fallback = true } = {}) {
     installSeed(7);
     const fixture = loadFixture('act1_rout_basic');
     const battle = new HeadlessBattle(data, { ...fixture.battleParams }, fixture.buildRoster(data));
     battle.init();
-    // One sturdy player unit; one siege Sage nine tiles away on open ground.
     const target = battle.playerUnits[0];
     battle.playerUnits = [target];
     Object.assign(target.stats, { HP: 999, DEF: 99, RES: 99, SPD: 99, LCK: 99 });
@@ -229,26 +229,42 @@ describe('an enemy siege caster through the headless enemy phase', () => {
       row: 0,
       siegeWeapon: 'Breachbolt',
     });
-    expect(sage.weapon.name).toBe('Breachbolt');
-    const fallbackName = sage.inventory[1]?.name;
-    expect(fallbackName).toBeTruthy();
-
+    if (!fallback) sage.inventory = [sage.weapon];
     const strikesBy = [];
     const original = battle._executeEnemyCombat.bind(battle);
     battle._executeEnemyCombat = (enemy, foe) => {
       strikesBy.push(enemy.weapon.name);
       return original(enemy, foe);
     };
-    for (let turn = 1; turn <= ENEMY_SHOTS + 3; turn++) {
-      battle.turnManager.turnNumber = turn;
-      battle.turnManager.currentPhase = 'enemy';
-      battle.battleState = HEADLESS_STATES.ENEMY_PHASE;
-      sage.hasActed = false;
-      await battle._processEnemyPhase();
-      if (battle.battleState === HEADLESS_STATES.BATTLE_END) break;
-    }
+    const run = async (phases) => {
+      for (let turn = 1; turn <= phases; turn++) {
+        battle.turnManager.turnNumber = turn;
+        battle.turnManager.currentPhase = 'enemy';
+        battle.battleState = HEADLESS_STATES.ENEMY_PHASE;
+        sage.hasActed = false;
+        await battle._processEnemyPhase();
+        if (battle.battleState === HEADLESS_STATES.BATTLE_END) break;
+      }
+    };
+    return { battle, sage, strikesBy, run };
+  }
+
+  it('fires exactly its enemy shots, then fights on with its fallback tome', async () => {
+    const { sage, strikesBy, run } = siegeDuel();
+    expect(sage.weapon.name).toBe('Breachbolt');
+    const fallbackName = sage.inventory[1]?.name;
+    expect(fallbackName).toBeTruthy();
+    await run(ENEMY_SHOTS + 3);
     expect(strikesBy.filter((n) => n === 'Breachbolt')).toHaveLength(ENEMY_SHOTS);
     expect(strikesBy.slice(0, ENEMY_SHOTS).every((n) => n === 'Breachbolt')).toBe(true);
     expect(sage.weapon.name).toBe(fallbackName);
+  });
+
+  it('with nothing to fall back on, a spent caster stops attacking (Danger shows it harmless)', async () => {
+    const { sage, strikesBy, run } = siegeDuel({ fallback: false });
+    await run(ENEMY_SHOTS + 4);
+    expect(strikesBy).toHaveLength(ENEMY_SHOTS);
+    expect(sage.weapon._usesSpent).toBe(ENEMY_SHOTS);
+    expect(nextStrikeWeapon(sage)).toBeNull();
   });
 });

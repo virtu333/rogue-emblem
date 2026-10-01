@@ -194,9 +194,10 @@ export class AIController {
   /**
    * A per-battle weapon whose uses are spent this battle (an enemy Breachbolt after its
    * shots) cannot attack or counter (Combat.canCounter, AttackOptions). Swap to the
-   * first carried combat weapon that can still strike; with none, keep it (the unit
-   * then has no attack and only moves). Proficiency is not checked: enemy gear is
-   * assigned by MapGenerator, not equipped by rank (a Dark Knight carries Breachbolt).
+   * first carried combat weapon that can still strike; with none, keep it: attack
+   * planning then skips the unit's attacks (it only moves), as the Danger overlay
+   * shows it. Proficiency is not checked: enemy gear is assigned by MapGenerator, not
+   * equipped by rank (a Dark Knight carries Breachbolt).
    */
   _equipUsableWeapon(enemy) {
     const next = nextStrikeWeapon(enemy);
@@ -498,7 +499,8 @@ export class AIController {
     // Combine player + NPC units as valid attack targets
     const attackableUnits = [...playerUnits, ...(npcUnits || [])];
     for (const candidate of candidatePlans) {
-      if (!enemy.weapon) break;
+      // No strike with a spent per-battle weapon and nothing to swap to.
+      if (!enemy.weapon || !hasPerBattleUsesLeft(enemy.weapon, enemy)) break;
 
       for (const target of attackableUnits) {
         if (!target || target.currentHP <= 0 || target._removing) continue;
@@ -1231,6 +1233,7 @@ export class AIController {
 
   _selectBestInRangeTarget(enemy, targets) {
     if (!enemy?.weapon || !Array.isArray(targets) || targets.length === 0) return null;
+    if (!hasPerBattleUsesLeft(enemy.weapon, enemy)) return null;
     const forceLowestHpTargeting = this._hasAiOverride(enemy, 'target_lowest_hp');
     let best = null;
     let bestScore = -Infinity;
