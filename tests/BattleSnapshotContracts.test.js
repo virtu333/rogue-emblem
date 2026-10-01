@@ -457,7 +457,7 @@ describe('deed progress (Deeds & Epithets)', () => {
     deedsFor(s).onCombat(s.playerUnits[1], s.enemyUnits[0], { events: [crit] });
     const fallen = s.playerUnits.splice(1, 1)[0];
     deedsFor(s).onUnitRemoved(fallen, s.enemyUnits[0]);
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
     const resumed = restoreCheckpoint(s.runManager.battleInProgress.checkpoint);
     expect(resumed.playerUnits[0].weapon._strikes).toBe(2);
     expect(resumed._fallenBattleRecords).toEqual([
