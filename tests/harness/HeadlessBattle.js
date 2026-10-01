@@ -115,11 +115,7 @@ import {
 } from '../../src/engine/TimedWeaponArtBuffs.js';
 import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
 import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
-import {
-  enemyWeaponArtTuning,
-  scoreEnemyWeaponArt,
-  selectEnemyWeaponArt,
-} from '../../src/engine/EnemyArtScoring.js';
+import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
 import {
   buildRisenUnit,
   createRemains,
@@ -1551,18 +1547,8 @@ export class HeadlessBattle {
     });
   }
 
-  _scoreEnemyWeaponArt(unit, art) {
-    return scoreEnemyWeaponArt(unit, art, {
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-    });
-  }
-
   _getEnemyWeaponArtDifficultyId() {
     return this.battleParams?.difficultyId || null;
-  }
-
-  _getEnemyWeaponArtTuning() {
-    return enemyWeaponArtTuning(this._getEnemyWeaponArtDifficultyId());
   }
 
   _rollEnemyWeaponArtChance() {

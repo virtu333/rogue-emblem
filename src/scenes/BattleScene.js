@@ -7940,21 +7940,10 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  _scoreEnemyWeaponArt(unit, art) {
-    return (this._weaponArtController ||= new WeaponArtController(this))._scoreEnemyWeaponArt(
-      unit,
-      art,
-    );
-  }
-
   _getEnemyWeaponArtDifficultyId() {
     return (this._weaponArtController ||= new WeaponArtController(
       this,
     ))._getEnemyWeaponArtDifficultyId();
-  }
-
-  _getEnemyWeaponArtTuning() {
-    return (this._weaponArtController ||= new WeaponArtController(this))._getEnemyWeaponArtTuning();
   }
 
   _selectEnemyWeaponArt(unit, target) {

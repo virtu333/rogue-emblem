@@ -8,11 +8,7 @@ import {
   isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
 import { resolveWeaponArtIds } from './WeaponArtVisibility.js';
-import {
-  enemyWeaponArtTuning,
-  scoreEnemyWeaponArt,
-  selectEnemyWeaponArt,
-} from '../engine/EnemyArtScoring.js';
+import { selectEnemyWeaponArt } from '../engine/EnemyArtScoring.js';
 import { isStaff } from '../engine/Combat.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
@@ -411,20 +407,9 @@ export class WeaponArtController {
     });
   }
 
-  _scoreEnemyWeaponArt(unit, art) {
-    return scoreEnemyWeaponArt(unit, art, {
-      weaponArtHpCostDelta:
-        this.scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-    });
-  }
-
   _getEnemyWeaponArtDifficultyId() {
     const scene = this.scene;
     return scene.battleParams?.difficultyId || scene.runManager?.difficultyId || null;
-  }
-
-  _getEnemyWeaponArtTuning() {
-    return enemyWeaponArtTuning(this._getEnemyWeaponArtDifficultyId());
   }
 
   /** engine/EnemyArtScoring.selectEnemyWeaponArt over this unit's usable arts. */

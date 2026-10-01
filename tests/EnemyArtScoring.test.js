@@ -42,11 +42,20 @@ describe('scoreEnemyWeaponArt (the scene rule, pinned)', () => {
 });
 
 describe('tuning', () => {
-  it('the harness now uses the same ladder as the scene, Dusk included', () => {
-    const battle = new HeadlessBattle(data, { act: 'act1', objective: 'rout' });
-    battle.battleParams = { difficultyId: 'dusk' };
-    expect(battle._getEnemyWeaponArtTuning()).toEqual({ minScore: 1.5, useChance: 0.75 });
+  it('the harness picks by the same ladder as the scene, Dusk included', () => {
     expect(enemyWeaponArtTuning('dusk')).toEqual({ minScore: 1.5, useChance: 0.75 });
+    // +4 Hit scores 1.4: under Dusk's 1.5 floor, over Nightfall's 0.75.
+    const modest = { id: 'fixture_modest', combatMods: { hitBonus: 4 }, hpCost: 0 };
+    const pick = (difficultyId) => {
+      const battle = new HeadlessBattle(data, { act: 'act1', objective: 'rout' });
+      battle.battleParams = { difficultyId };
+      battle._enemyWeaponArtRandom = () => 0;
+      battle._getWeaponArtChoices = () => [{ art: modest, canUse: true }];
+      const brute = unit('Brute', 'enemy', 2, 2, {}, { weapon: weapon('Iron Axe') });
+      return battle._selectEnemyWeaponArt(brute, unit('Target', 'player', 3, 2))?.id ?? null;
+    };
+    expect(pick('dusk')).toBeNull();
+    expect(pick('hard')).toBe('fixture_modest');
   });
 });
 
