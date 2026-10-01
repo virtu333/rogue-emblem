@@ -143,6 +143,14 @@ export class BattleSuspendController {
   retryCheckpoint() {
     const scene = this.scene;
     if (!isCurrentBattleSession(scene, this.session)) return { ok: false, reason: 'stale_session' };
+    if (!scene.runManager?.battleInProgress) return { ok: false, reason: 'no_battle' };
+    if (
+      scene.battleState === 'BATTLE_END' ||
+      scene._fatalDecision ||
+      scene._fatalCapturePending ||
+      scene._defeatDecision
+    )
+      return { ok: false, reason: 'unstable_boundary' };
     if (
       !this._retryCandidate ||
       !this._retryCheckpoint ||

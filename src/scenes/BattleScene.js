@@ -7436,7 +7436,10 @@ export class BattleScene extends Phaser.Scene {
     this.inEquipMenu = false;
 
     if (item.effect === 'promote') {
-      const didPromote = await this.executePromotion(unit, item);
+      const didPromote = await this.executePromotion(unit, item).catch((error) => {
+        reportAsyncError('promotion_failed', error, { unit: unit.name });
+        return false;
+      });
       if (!isCurrentBattleSession(this, session)) return;
       if (!didPromote) return;
       return;
@@ -9231,6 +9234,16 @@ export class BattleScene extends Phaser.Scene {
 
   /** Suspend-checkpoint shim (see BattleSuspendController). */
   _captureSuspendCheckpoint(options = {}) {
+    if (!Number.isInteger(options.session)) {
+      reportAsyncError(
+        'battle_checkpoint_missing_session',
+        new Error('Checkpoint origin session required'),
+        {
+          scene: this.scene?.key || 'Battle',
+        },
+      );
+      return false;
+    }
     if (!isCurrentBattleSession(this, options.session)) return false;
     return (this._battleSuspendController ||= new BattleSuspendController(this)).captureCheckpoint(
       options,
