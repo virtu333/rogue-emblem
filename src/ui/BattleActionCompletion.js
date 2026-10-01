@@ -1,5 +1,6 @@
 import { commitHistoryPath, observeHistoryAction } from './BattleHistoryRecorder.js';
 import { settleAccessoryHpOwed } from '../engine/UnitHealth.js';
+import { safeBattlePresentation } from './safeBattlePresentation.js';
 /**
  * Fog of war shows what settled units see. A move reveals nothing on its own: the
  * fog lifts from a unit's new tile only once its action there is committed (Wait,
@@ -27,7 +28,6 @@ export function completeBattleAction(scene, unit, { skipDim = false } = {}) {
     );
   scene._historyActor = unit.battleEntityId;
   unit.hasActed = true;
-  if (!skipDim) scene.dimUnit(unit);
   scene._villageController?.handleUnitActionEnd(unit);
   scene.selectedUnit = null;
   scene.preMoveLoc = null;
@@ -42,5 +42,6 @@ export function completeBattleAction(scene, unit, { skipDim = false } = {}) {
   // change; this also covers state loaded from before it did).
   for (const ally of scene.playerUnits || []) settleAccessoryHpOwed(ally);
   scene._captureSuspendCheckpoint?.();
+  if (!skipDim) safeBattlePresentation('action dim', () => scene.dimUnit(unit));
   scene.turnManager.unitActed(unit);
 }
