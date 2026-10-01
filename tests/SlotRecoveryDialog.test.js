@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
   dom: vi.fn(),
   dialog: vi.fn(),
+  mirrorAvailable: true,
 }));
 vi.mock('../src/cloud/CloudSync.js', () => ({
   deleteSlotCloud: mocks.deleteCloud,
@@ -13,7 +14,7 @@ vi.mock('../src/cloud/CloudSync.js', () => ({
 }));
 vi.mock('../src/utils/nativeSaveMirror.js', () => ({
   nativeCapacitor: mocks.native,
-  getNativeSaveMirror: () => ({ ensureDurable: mocks.durable }),
+  getNativeSaveMirror: () => (mocks.mirrorAvailable ? { ensureDurable: mocks.durable } : null),
 }));
 vi.mock('../src/utils/domUI.js', () => ({ hasDOMHost: mocks.dom }));
 vi.mock('../src/ui/RunFlowMenus.js', () => ({ slotDialog: mocks.dialog }));
@@ -25,6 +26,7 @@ const RUN = 'emblem_rogue_slot_1_run';
 const ARCHIVE = 'emblem_rogue_slot_1_quarantine';
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.mirrorAvailable = true;
   mocks.native.mockReturnValue({});
   mocks.dom.mockReturnValue(false);
   mocks.dialog.mockImplementation((_scene, _title, _body, actions) => ({ actions }));
@@ -86,6 +88,106 @@ describe('native recovery discard', () => {
     await vi.waitFor(() => expect(mocks.fetch).toHaveBeenCalledWith('account-b'));
     expect(JSON.parse(values.get(key)).userId).toBe('account-b');
   });
+  it.each(['offline', 'different account', 'missing device backup', 'failed device backup'])(
+    'offers a warned reservation exit without erasing local bytes or cloud data (%s)',
+    async (kind) => {
+      values.clear();
+      const key = 'emblem_rogue_slot_1_cloud_pending';
+      values.set(
+        key,
+        JSON.stringify({ version: 1, userId: kind === 'offline' ? null : 'account-a' }),
+      );
+      values.set(META, '{"totalValor":999}');
+      values.set(RUN, '{"runRecordId":"local-live","gold":4242}');
+      if (kind === 'different account') scene.registry.get = () => ({ userId: 'account-b' });
+      if (kind === 'missing device backup') mocks.mirrorAvailable = false;
+      mocks.durable.mockResolvedValue(kind !== 'failed device backup');
+      showSlotRecovery(scene, 1);
+      if (kind === 'offline')
+        expect(scene.confirmDialog.some((o) => o.copy?.includes('You are playing offline'))).toBe(
+          true,
+        );
+      activate('Release reservation…');
+      expect(scene.confirmDialog.some((o) => o.copy?.includes('may replace that cloud copy'))).toBe(
+        true,
+      );
+      expect(values.has(key)).toBe(true);
+      activate('Keep reservation');
+      expect(values.has(key)).toBe(true);
+      if (kind === 'failed device backup') {
+        activate('Release on this device only…');
+        activate('Accept risk and release locally');
+      } else {
+        activate('Release reservation…');
+        activate('Release reservation');
+      }
+      await vi.waitFor(() => expect(values.has(key)).toBe(false));
+      expect(values.get(META)).toBe('{"totalValor":999}');
+      expect(values.get(RUN)).toBe('{"runRecordId":"local-live","gold":4242}');
+      expect(mocks.deleteCloud).not.toHaveBeenCalled();
+      expect(mocks.fetch).not.toHaveBeenCalled();
+    },
+  );
+
+  it('acknowledges the removed reservation using the real native current-byte contract', async () => {
+    values.clear();
+    const key = 'emblem_rogue_slot_1_cloud_pending';
+    values.set(key, '{"version":1,"userId":"account-a"}');
+    mocks.durable.mockImplementation(
+      async (recordKey, raw) => (values.get(recordKey) ?? null) === raw,
+    );
+    showSlotRecovery(scene, 1);
+    activate('Release reservation…');
+    activate('Release reservation');
+    await vi.waitFor(() => expect(scene.drawSlots).toHaveBeenCalled());
+    expect(values.has(key)).toBe(false);
+  });
+
+  it('failed native release acknowledgement restores the marker and offers the explicit local exit', async () => {
+    values.clear();
+    const key = 'emblem_rogue_slot_1_cloud_pending';
+    const raw = '{"version":1,"userId":"account-a"}';
+    values.set(key, raw);
+    mocks.durable.mockResolvedValue(false);
+    showSlotRecovery(scene, 1);
+    activate('Release reservation…');
+    activate('Release reservation');
+    await vi.waitFor(() => expect(values.get(key)).toBe(raw));
+    activate('Release on this device only…');
+    activate('Accept risk and release locally');
+    expect(values.has(key)).toBe(false);
+  });
+
+  it('a large live save does not hide the native device-only reservation exit', () => {
+    values.clear();
+    values.set('emblem_rogue_slot_1_cloud_pending', '{"version":1,"userId":null}');
+    values.set(RUN, 'original'.repeat(100000));
+    const before = new Map(values);
+    showSlotRecovery(scene, 1);
+    expect(buttons.some((entry) => entry.copy === '[ Release on this device only… ]')).toBe(true);
+    expect(values).toEqual(before);
+  });
+
+  it('stale reservation release does not remove a replacement reservation', async () => {
+    values.clear();
+    const key = 'emblem_rogue_slot_1_cloud_pending';
+    values.set(key, '{"version":1,"userId":"account-a"}');
+    let resolve;
+    mocks.durable.mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    showSlotRecovery(scene, 1);
+    activate('Release reservation…');
+    activate('Release reservation');
+    const replacement = '{"version":1,"userId":"account-b"}';
+    values.set(key, replacement);
+    resolve(true);
+    await Promise.resolve();
+    expect(values.get(key)).toBe(replacement);
+  });
+
   it('an archived copy can only retire through the reserved Free path', async () => {
     mocks.durable.mockResolvedValue(true);
     confirmDiscard();

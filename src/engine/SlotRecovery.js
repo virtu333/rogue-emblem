@@ -161,6 +161,12 @@ export function discardExportedSlot(slot, snapshot, confirmed, storage = globalT
       storage.setItem(anchorKey, anchor);
       if (storage.getItem(anchorKey) !== anchor) throw new Error('Could not begin local discard.');
     }
+    let exportedOwner = snapshot[getSlotRecoveryOwnerKey(slot)];
+    if (exportedOwner === null && snapshot[getSlotCloudPendingKey(slot)] !== null) {
+      // Exporting an account-owned reservation must not assign it to whichever
+      // account happens to be signed in when the archive is subsequently freed.
+      exportedOwner = snapshot[getSlotCloudPendingKey(slot)];
+    }
     const record = {
       version: 1,
       slot,
@@ -171,7 +177,7 @@ export function discardExportedSlot(slot, snapshot, confirmed, storage = globalT
       values: Object.fromEntries(
         getSlotDataKeys(slot).map((key) => [
           key,
-          key === getSlotRecoveryOwnerKey(slot) ? snapshot[key] : null,
+          key === getSlotRecoveryOwnerKey(slot) ? exportedOwner : null,
         ]),
       ),
     };
@@ -338,4 +344,46 @@ export function retireSlotArchive(
   } catch (err) {
     return { ok: false, reason: err?.message || 'Could not free this slot.' };
   }
+}
+
+/** Explicitly abandon cloud recovery; preserve all canonical bytes and cloud data. */
+export function releaseSlotCloudPending(slot, expectedRaw, storage = globalThis.localStorage) {
+  try {
+    if (
+      !validSlot(slot) ||
+      typeof expectedRaw !== 'string' ||
+      storage.getItem(getSlotCloudPendingKey(slot)) !== expectedRaw
+    )
+      throw new Error('The reservation changed. Review it again.');
+    if (
+      [getSlotQuarantineKey(slot), getSlotPairJournalKey(slot), getSlotRecoveryOwnerKey(slot)].some(
+        (key) => storage.getItem(key) !== null,
+      )
+    )
+      throw new Error(
+        'Keep or resolve the remaining recovery data before releasing this reservation.',
+      );
+    storage.removeItem(getSlotCloudPendingKey(slot));
+    if (storage.getItem(getSlotCloudPendingKey(slot)) !== null)
+      throw new Error('Could not release the reservation. Retry.');
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: err.message };
+  }
+}
+
+/** The UI uses the same complete envelope size as the archive writer. */
+export function slotArchiveByteSize(slot, storage = globalThis.localStorage) {
+  const now = Date.now();
+  return (
+    JSON.stringify({
+      version: 1,
+      slot,
+      state: 'archiving',
+      discardStarted: true,
+      at: now,
+      savedAt: now,
+      values: Object.fromEntries(getSlotDataKeys(slot).map((key) => [key, storage.getItem(key)])),
+    }).length * 2
+  );
 }

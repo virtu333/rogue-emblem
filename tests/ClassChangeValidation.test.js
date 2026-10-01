@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { ReclassController } from '../src/ui/ReclassController.js';
+import { LevelUpPopup } from '../src/ui/LevelUpPopup.js';
 import { PromotionController } from '../src/ui/PromotionController.js';
 import { createUnit, reclassUnit } from '../src/engine/UnitManager.js';
 import * as unitManager from '../src/engine/UnitManager.js';
@@ -293,12 +294,158 @@ it('picker reports a rejected reclass operation', async () => {
   );
 });
 
-it('promotion rejects missing uses rather than inventing an untracked charge', async () => {
-  const { scene, unit } = fixture();
-  const seal = { effect: 'promote' };
+function promotionFixture() {
+  const fixtureData = fixture();
+  const { scene, unit } = fixtureData;
+  const seal = { effect: 'promote', uses: 1 };
   unit.consumables = [seal];
+  scene.showPromotionBanner = vi.fn(async () => {});
+  scene._playLevelUpSfx = vi.fn();
+  scene._stopLevelUpSfx = vi.fn();
+  vi.spyOn(unitManager, 'resolvePromotionTargets').mockReturnValue([cls('Warrior')]);
+  vi.spyOn(LevelUpPopup.prototype, 'show').mockResolvedValue();
+  return { ...fixtureData, seal, controller: new PromotionController(scene) };
+}
+
+it('promotion rejects missing uses at validation, with a fixture that otherwise promotes', async () => {
+  const valid = promotionFixture();
+  expect(await valid.controller.executePromotion(valid.unit, valid.seal)).toBe(true);
+  expect(valid.unit.className).toBe('Warrior');
+  expect(valid.seal.uses).toBe(0);
+  expect(valid.scene.finishUnitAction).toHaveBeenCalledOnce();
+
+  const { scene, unit, seal, controller } = promotionFixture();
+  delete seal.uses;
   const before = structuredClone(unit);
-  expect(await new PromotionController(scene).executePromotion(unit, seal)).toBe(false);
+  const resolve = vi.spyOn(unitManager, 'resolvePromotionTargets');
+  resolve.mockClear();
+  expect(await controller.executePromotion(unit, seal)).toBe(false);
   expect(unit).toEqual(before);
+  expect(scene.showBriefBanner).toHaveBeenCalledWith(
+    'Master Seal required to promote.',
+    expect.anything(),
+  );
+  expect(resolve).not.toHaveBeenCalled();
   expect(scene.finishUnitAction).not.toHaveBeenCalled();
+  expect(scene._captureSuspendCheckpoint).not.toHaveBeenCalled();
+});
+
+it.each(['promotion', 'reclass'])(
+  '%s controller preserves the old sprite when replacement construction fails',
+  async (kind) => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { scene, unit, seal, controller } = kind === 'promotion' ? promotionFixture() : fixture();
+    const old = { destroy: vi.fn() };
+    unit.graphic = old;
+    scene.addUnitGraphic = () => {
+      throw new Error('replacement unavailable');
+    };
+    scene.removeUnitGraphic = (removed) => removed.graphic?.destroy();
+    const result =
+      kind === 'promotion'
+        ? await controller.executePromotion(unit, seal)
+        : await controller.executeReclass(unit, seal, cls('Mercenary'));
+    expect(result).toBe(true);
+    expect(unit.className).toBe(kind === 'promotion' ? 'Warrior' : 'Mercenary');
+    expect(unit.graphic).toBe(old);
+    expect(old.destroy).not.toHaveBeenCalled();
+    expect(seal.uses).toBe(0);
+    expect(unit.hasActed).toBe(true);
+    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledOnce();
+    expect(scene.finishUnitAction).toHaveBeenCalledOnce();
+  },
+);
+
+it.each(['promotion', 'reclass'])(
+  '%s history failure still saves its class, spends the seal and settles once',
+  async (kind) => {
+    const { scene, unit, seal, controller } = kind === 'promotion' ? promotionFixture() : fixture();
+    const report = vi.spyOn(errorReporter, 'reportAsyncError').mockImplementation(() => {});
+    scene.runManager = { battleInProgress: {} };
+    scene._historyBeats = {
+      length: 0,
+      push: () => {
+        throw new Error('history unavailable');
+      },
+    };
+    const result =
+      kind === 'promotion'
+        ? await controller.executePromotion(unit, seal)
+        : await controller.executeReclass(unit, seal, cls('Mercenary'));
+    expect(result).toBe(true);
+    expect(unit.className).toBe(kind === 'promotion' ? 'Warrior' : 'Mercenary');
+    expect(seal.uses).toBe(0);
+    expect(unit.consumables).toEqual([]);
+    expect(unit.hasActed).toBe(true);
+    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledOnce();
+    expect(scene.finishUnitAction).toHaveBeenCalledOnce();
+    expect(scene._recoverUnitActionError).not.toHaveBeenCalled();
+    expect(report).toHaveBeenCalledWith(
+      `${kind === 'promotion' ? 'promoted' : 'reclassed'}_history_failed`,
+      expect.any(Error),
+      { unit: unit.name },
+    );
+  },
+);
+
+it('a CombatFx release error still retires the old graphics and keeps the replacement', () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const { scene, unit } = fixture();
+  const old = { destroy: vi.fn() };
+  const replacement = { destroy: vi.fn() };
+  unit.graphic = old;
+  scene.addUnitGraphic = (actor) => {
+    actor.graphic = replacement;
+  };
+  scene._combatFx = {
+    releaseUnit: vi.fn((actor) => {
+      expect(actor).toBe(unit);
+      expect(actor.graphic).toBe(old);
+      throw new Error('release failed');
+    }),
+  };
+  scene.removeUnitGraphic = BattleScene.prototype.removeUnitGraphic;
+  scene._removeAllConditionIcons = vi.fn();
+  expect(() => replaceUnitGraphic(scene, unit)).not.toThrow();
+  expect(unit.graphic).toBe(replacement);
+  expect(old.destroy).toHaveBeenCalledOnce();
+  expect(replacement.destroy).not.toHaveBeenCalled();
+  expect(scene._combatFx.releaseUnit).toHaveBeenCalledOnce();
+});
+
+it('Promote menu observes a rejected promotion operation', async () => {
+  const { scene, unit, seal } = promotionFixture();
+  const report = vi.spyOn(errorReporter, 'reportAsyncError').mockImplementation(() => {});
+  const rejection = new Error('promotion rejected');
+  unit.level = 10;
+  scene.executePromotion = vi.fn().mockRejectedValue(rejection);
+  scene.getPromotionConsumable = () => seal;
+  scene.gameData = data;
+  scene.npcUnits = [];
+  scene.enemyUnits = [];
+  scene.battleConfig = { objective: 'rout' };
+  scene.grid = { fogEnabled: false };
+  scene.registry = { get: () => null };
+  scene._drawActionMenuRows = vi.fn();
+  scene._registerActionMenu = vi.fn();
+  for (const method of [
+    'findAttackTargets',
+    'getUsableStaves',
+    'getUsableReclassConsumables',
+    'findTradeTargets',
+    'findSwapTargets',
+    'findBreakTargets',
+  ])
+    scene[method] = () => [];
+  scene._hasUsableWeaponArtTargets = () => false;
+  scene._hasAbilities = () => false;
+  scene.showActionMenu = BattleScene.prototype.showActionMenu;
+  scene.showActionMenu(unit);
+  const rows = scene._registerActionMenu.mock.calls[0][0];
+  const promote = rows.find((row) => row.id === 'promote');
+  expect(promote).toBeTruthy();
+  promote.invoke();
+  await vi.waitFor(() =>
+    expect(report).toHaveBeenCalledWith('promotion_failed', rejection, { unit: unit.name }),
+  );
 });

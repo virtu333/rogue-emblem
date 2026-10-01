@@ -1,3 +1,5 @@
+import { safeBattlePresentation } from './safeBattlePresentation.js';
+
 // Class changes keep their old drawable unit until a replacement is complete.
 // Creation is synchronous; track partial objects so a failed build leaks none.
 const fields = ['graphic', 'label', 'factionIndicator', 'hpBar', 'affixPips'];
@@ -40,11 +42,13 @@ export function replaceUnitGraphic(scene, unit) {
   const replacement = Object.fromEntries(fields.map((field) => [field, unit[field]]));
   Object.assign(unit, previous);
   try {
-    scene._combatFx?.releaseUnit?.(unit);
+    safeBattlePresentation('class change FX release', () => scene._combatFx?.releaseUnit?.(unit), {
+      scene,
+    });
   } finally {
     Object.assign(unit, replacement);
   }
   // Destroy only the previous references. The live unit already owns the new
   // sprite and bar; its condition icons remain attached to that live unit.
-  scene.removeUnitGraphic({ ...unit, ...previous, _conditionIcons: {} });
+  scene.removeUnitGraphic({ ...unit, ...previous, _conditionIcons: {} }, { skipFxRelease: true });
 }

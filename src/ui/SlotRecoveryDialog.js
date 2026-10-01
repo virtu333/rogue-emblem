@@ -18,6 +18,8 @@ import {
   forgetSlotArchive,
   discardExportedSlot,
   MAX_SLOT_ARCHIVE_BYTES,
+  releaseSlotCloudPending,
+  slotArchiveByteSize,
 } from '../engine/SlotRecovery.js';
 import { fetchAllToLocalStorage } from '../cloud/CloudSync.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -197,14 +199,16 @@ export function showSlotRecovery(scene, slot, notice = '') {
   const actions = [['Keep save', keep, true]];
   const archived = archive?.state === 'archived';
   const owner = getSlotRecoveryOwner(slot);
-  const accountNotice =
-    owner !== null && owner !== scene.registry?.get('cloud')?.userId
+  const signedInUserId = scene.registry?.get('cloud')?.userId;
+  const accountNotice = !signedInUserId
+    ? 'You are playing offline. Sign in to check a cloud copy, or explicitly release this reservation to use the slot locally. '
+    : owner !== null && owner !== signedInUserId
       ? 'This recovery data belongs to another or unidentified account. Sign back into the original account to choose its cloud copy. '
       : '';
   const pending = localStorage.getItem(getSlotCloudPendingKey(slot)) !== null;
   const body =
     pending && !archive
-      ? 'Cloud recovery is pending. This slot stays reserved until the original account fetches its cloud copy or confirms that no copy exists. Sign in and retry; a new game cannot overwrite that copy.'
+      ? 'Cloud recovery is pending. Retry with the original account to restore its cloud copy. You can also release the reservation below after reviewing the overwrite warning.'
       : archive?.externalCopy
         ? 'Your original bytes are in the export you verified. This local record only reserves the slot; keep the exported file before freeing it.'
         : archived
@@ -282,6 +286,80 @@ export function showSlotRecovery(scene, slot, notice = '') {
         showSlotRecovery(scene, slot);
       },
     ]);
+    actions.push([
+      'Release reservation…',
+      () => {
+        const expected = localStorage.getItem(getSlotCloudPendingKey(slot));
+        const mirror = nativeCapacitor() ? getNativeSaveMirror() : null;
+        confirm(
+          scene,
+          `Release Slot ${slot} reservation?`,
+          'This gives up automatic cloud recovery for this slot. Existing local data and the cloud copy are kept. A new game or later cloud backup may replace that cloud copy. Only proceed if you accept that loss or have another verified copy.' +
+            (nativeCapacitor() && !mirror
+              ? ' Device backup is unavailable: this releases the slot on this device only. An older reservation may return after reinstall or storage recovery.'
+              : ''),
+          'Release reservation',
+          () => showSlotRecovery(scene, slot),
+          async () => {
+            const dialog = scene.nativeDialog || scene.confirmDialog;
+            const result = releaseSlotCloudPending(slot, expected);
+            if (!result.ok) {
+              showSlotRecovery(scene, slot, result.reason);
+              return;
+            }
+            if (mirror) {
+              let durable = false;
+              try {
+                durable = await mirror.ensureDurable(getSlotCloudPendingKey(slot), null);
+              } catch {
+                /* Keep the reservation unless release reached device storage. */
+              }
+              if (!durable) {
+                // ensureDurable verifies current local bytes; remove first, then
+                // acknowledge. Failed acknowledgement restores only our marker.
+                if (localStorage.getItem(getSlotCloudPendingKey(slot)) === null)
+                  localStorage.setItem(getSlotCloudPendingKey(slot), expected);
+                if ((scene.nativeDialog || scene.confirmDialog) === dialog)
+                  showSlotRecovery(
+                    scene,
+                    slot,
+                    'Device backup could not verify release. Your reservation was kept. Retry, or choose the explicit device-only exit.',
+                  );
+                return;
+              }
+            }
+            if (
+              (scene.nativeDialog || scene.confirmDialog) !== dialog ||
+              scene.sys?.isActive?.() === false
+            )
+              return;
+            scene.drawSlots();
+            showSlotRecovery(scene, slot);
+          },
+          'Keep reservation',
+        );
+      },
+    ]);
+    if (nativeCapacitor())
+      actions.push([
+        'Release on this device only…',
+        () => {
+          const expected = localStorage.getItem(getSlotCloudPendingKey(slot));
+          confirm(
+            scene,
+            `Release Slot ${slot} locally?`,
+            'Use this exit if device backup cannot verify a release. It gives up automatic cloud recovery; a new game or later backup may replace the cloud copy. Local save bytes and cloud data are kept now. An older reservation may return after reinstall or device storage recovery.',
+            'Accept risk and release locally',
+            () => showSlotRecovery(scene, slot),
+            () => {
+              const result = releaseSlotCloudPending(slot, expected);
+              scene.drawSlots();
+              showSlotRecovery(scene, slot, result.ok ? '' : result.reason);
+            },
+            'Keep reservation',
+          );
+        },
+      ]);
   } else {
     if (archive?.state === 'archiving')
       actions.push([
@@ -341,12 +419,9 @@ export function showSlotRecovery(scene, slot, notice = '') {
   // originals remain reserved; do not offer an export attestation or destruction.
   const nativeOversized =
     nativeCapacitor() &&
+    !pending &&
     !archived &&
-    JSON.stringify(
-      Object.fromEntries(getSlotDataKeys(slot).map((key) => [key, localStorage.getItem(key)])),
-    ).length *
-      2 >
-      MAX_SLOT_ARCHIVE_BYTES;
+    slotArchiveByteSize(slot) > MAX_SLOT_ARCHIVE_BYTES;
   if (nativeOversized) actions.splice(1);
   present(
     scene,

@@ -23,6 +23,7 @@ Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, wri
 
 const mocked = vi.hoisted(() => ({
   fromMock: vi.fn(),
+  getSession: vi.fn(),
   reportAsyncError: vi.fn(),
   markStartup: vi.fn(),
 }));
@@ -30,6 +31,7 @@ const mocked = vi.hoisted(() => ({
 vi.mock('../src/cloud/supabaseClient.js', () => ({
   supabase: {
     from: mocked.fromMock,
+    auth: { getSession: mocked.getSession },
   },
 }));
 vi.mock('../src/utils/errorReporter.js', () => ({ reportAsyncError: mocked.reportAsyncError }));
@@ -40,6 +42,7 @@ import {
   pushRunSave,
   deleteRunSave,
   __resetCloudSyncStatusForTests,
+  __resetCloudSyncQueuesForTests,
   fetchAllToLocalStorage,
   getCloudSyncStatus,
   pushSettings,
@@ -51,6 +54,9 @@ function makeTableApi({ data = null, selectError = null } = {}) {
   return {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
+        setHeader() {
+          return this;
+        },
         maybeSingle: vi.fn(async () => {
           if (selectError) return { data: null, error: selectError };
           return { data: data == null ? null : { data }, error: null };
@@ -83,6 +89,11 @@ describe('CloudSync run merge guard', () => {
     mocked.reportAsyncError.mockReset();
     mocked.markStartup.mockReset();
     __resetCloudSyncStatusForTests();
+    __resetCloudSyncQueuesForTests();
+    mocked.getSession.mockReset().mockResolvedValue({
+      data: { session: { user: { id: 'account-a' }, access_token: 'account-a-token' } },
+      error: null,
+    });
   });
 
   it.each(['healthy', 'absent', 'missing progression', 'wrong account', 'write failure'])(
@@ -155,6 +166,64 @@ describe('CloudSync run merge guard', () => {
       expect(store[getRunKey(1)]).toBeUndefined();
     },
   );
+  it.each(['anonymous', 'different user', 'missing bearer', 'auth error', 'dropped during fetch'])(
+    'does not treat an empty RLS result as proof of absence (%s)',
+    async (kind) => {
+      const marker = JSON.stringify({ version: 1, userId: 'account-a' });
+      store[getSlotCloudPendingKey(1)] = marker;
+      mockCloudBootstrap();
+      const invalid = {
+        data: {
+          session:
+            kind === 'different user'
+              ? { user: { id: 'account-b' }, access_token: 'account-b-token' }
+              : kind === 'missing bearer'
+                ? { user: { id: 'account-a' } }
+                : null,
+        },
+        error: kind === 'auth error' ? new Error('expired') : null,
+      };
+      if (kind === 'dropped during fetch')
+        mocked.getSession
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'account-a' }, access_token: 'account-a-token' } },
+          })
+          .mockResolvedValue(invalid);
+      else mocked.getSession.mockResolvedValue(invalid);
+      await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+      expect(store).toEqual({ [getSlotCloudPendingKey(1)]: marker });
+      expect(getNextAvailableSlot()).toBe(2);
+    },
+  );
+
+  it.each(['new meta', 'new run', 'quarantine', 'pair journal', 'owner'])(
+    'keeps occupied reservation bytes during hydration (%s)',
+    async (kind) => {
+      const marker = JSON.stringify({ version: 1, userId: 'account-a' });
+      store[getSlotCloudPendingKey(1)] = marker;
+      const key = {
+        'new meta': getMetaKey(1),
+        'new run': getRunKey(1),
+        quarantine: 'emblem_rogue_slot_1_quarantine',
+        'pair journal': 'emblem_rogue_slot_1_pair_journal',
+        owner: 'emblem_rogue_slot_1_recovery_owner',
+      }[kind];
+      store[key] =
+        kind === 'new meta'
+          ? '{"totalValor":999}'
+          : kind === 'new run'
+            ? '{"gold":4242,"runRecordId":"new-live-run"}'
+            : 'original recovery bytes';
+      const before = { ...store };
+      mockCloudBootstrap({
+        runData: { 1: { runRecordId: 'cloud-old', gold: 3 } },
+        metaData: { 1: { totalValor: 3 } },
+      });
+      await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+      expect(store).toEqual(before);
+    },
+  );
+
   it('keeps the reservation when clearing it throws, then idempotently retries the complete cloud pair', async () => {
     const marker = JSON.stringify({ version: 1, userId: 'account-a' });
     store[getSlotCloudPendingKey(1)] = marker;

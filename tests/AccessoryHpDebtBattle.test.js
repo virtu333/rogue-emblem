@@ -22,7 +22,8 @@ function battle() {
     turnManager: { turnNumber: 1, currentPhase: 'player' },
     registry: { get: () => null },
     animateHeal: vi.fn(async () => {}),
-    awardScaledXP: vi.fn(async () => {}),
+    awardScaledXP: vi.fn(() => 20),
+    _presentScaledXP: vi.fn(),
     finishUnitAction: vi.fn(),
   });
   const unit = (name, extra) => ({
@@ -40,9 +41,12 @@ function battle() {
   const healer = unit('Sera', {
     weapon: staff,
     inventory: [staff],
+    proficiencies: [{ type: 'Staff', rank: 'Prof' }],
     stats: { HP: 18, MAG: 12, SKL: 5 },
   });
-  const wearer = unit('Edric');
+  const wearer = unit('Edric', { col: 1 });
+  scene.playerUnits = [healer, wearer];
+  scene.npcUnits = [];
   return { scene, healer, wearer };
 }
 
@@ -54,7 +58,7 @@ describe('HP accessory debt and a full heal in battle', () => {
     wearer.currentHP = 1;
     unequipAccessory(wearer); // 1/20, owes 5
     expect(wearer._accessoryHpOwed).toBe(5);
-    await new HealController(scene).executeHeal(healer, wearer);
+    expect(await new HealController(scene).executeHeal(healer, wearer)).toBe(true);
     expect(wearer.currentHP).toBe(20);
     expect(wearer._accessoryHpOwed).toBeUndefined();
     wearer.currentHP -= 8; // 12/20
@@ -69,7 +73,7 @@ describe('HP accessory debt and a full heal in battle', () => {
     wearer.currentHP = 1;
     unequipAccessory(wearer); // 1/20, owes 5
     healer.stats.MAG = 0; // a small heal
-    await new HealController(scene).executeHeal(healer, wearer);
+    expect(await new HealController(scene).executeHeal(healer, wearer)).toBe(true);
     expect(wearer.currentHP).toBeLessThan(20);
     const healed = wearer.currentHP;
     equipAccessory(wearer, robe);

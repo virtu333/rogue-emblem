@@ -19,10 +19,13 @@ import { PostCombatController } from '../src/ui/PostCombatController.js';
 import { HealController } from '../src/ui/HealController.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { isCurrentBattleSession } from '../src/ui/BattleSession.js';
+import { LootScreenController } from '../src/ui/LootScreenController.js';
+import { BossRecruitOverlay } from '../src/ui/BossRecruitOverlay.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { completeBattleAction } from '../src/ui/BattleActionCompletion.js';
 import {
   captureResolvedAction,
+  presentQueuedLevelUps,
   completeResolvedAction,
 } from '../src/ui/BattlePresentationCheckpoint.js';
 
@@ -246,7 +249,9 @@ describe('originating battle session ownership', () => {
     scene.resetFortHealStreak = () => {};
     scene.hideActionMenu = () => {};
     scene.updateHPBar = () => {};
+    scene._presentScaledXP = () => {};
     scene._getCombatFx = () => ({});
+    scene.awardScaledXP = () => 20;
     scene.finishUnitAction = vi.fn();
     scene._recoverUnitActionError = vi.fn();
     scene.animateHeal = () =>
@@ -256,12 +261,26 @@ describe('originating battle session ownership', () => {
     let reject;
     const healer = {
       name: 'Old healer',
-      stats: { MAG: 5 },
-      weapon: { type: 'Staff', name: 'Heal', healBase: 5 },
+      stats: { MAG: 5, HP: 20 },
+      currentHP: 20,
+      col: 1,
+      row: 1,
+      proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+      weapon: {
+        type: 'Staff',
+        name: 'Heal',
+        healBase: 5,
+        rankRequired: 'Prof',
+        range: '1',
+        uses: 3,
+      },
       inventory: [],
       faction: 'player',
     };
-    const target = { name: 'Old target', stats: { HP: 20 }, currentHP: 10 };
+    const target = { name: 'Old target', stats: { HP: 20 }, currentHP: 10, col: 1, row: 2 };
+    healer.inventory = [healer.weapon];
+    scene.playerUnits = [healer, target];
+    scene.npcUnits = [];
     const pending = controller.executeHeal(healer, target);
     expect(reject).toBeTypeOf('function');
     restart(scene);
@@ -328,14 +347,41 @@ describe('originating battle session ownership', () => {
     scene.finishUnitAction = vi.fn();
     scene._recoverUnitActionError = vi.fn();
     let reject;
-    controller._applyRally = () =>
+    const skill = {
+      id: 'rally',
+      trigger: 'action',
+      actionAbility: { kind: 'ally_buff', radius: 2, stats: { STR: 2 }, perMapLimit: 1 },
+    };
+    const actor = {
+      name: 'Old actor',
+      faction: 'player',
+      currentHP: 20,
+      col: 0,
+      row: 0,
+      skills: ['rally'],
+    };
+    const ally = {
+      name: 'Old ally',
+      faction: 'player',
+      currentHP: 20,
+      col: 1,
+      row: 0,
+      stats: { STR: 5 },
+    };
+    scene.playerUnits = [actor, ally];
+    scene.enemyUnits = [];
+    scene.npcUnits = [];
+    scene.gameData = { skills: [skill] };
+    scene.turnManager = { currentPhase: 'player', turnNumber: 1 };
+    scene.grid = { clearAttackHighlights() {}, gridToPixel: () => ({ x: 0, y: 0 }) };
+    scene._combatFx = { playBuff() {} };
+    scene._playPostCombatBeats = () =>
       new Promise((_r, j) => {
         reject = j;
       });
-    const pending = controller.executeSelfCentered(
-      { name: 'Old actor' },
-      { id: 'rally', actionAbility: { kind: 'ally_buff' } },
-    );
+    const pending = controller.executeSelfCentered(actor, skill);
+    expect(ally.stats.STR).toBe(7);
+    expect(reject).toBeTypeOf('function');
     restart(scene);
     reject(new Error('old effect closed'));
     await pending;
@@ -468,6 +514,19 @@ function realPauseHost() {
   return { scene, manager };
 }
 describe('paused current battle ownership', () => {
+  it('safe delayed work entered paused executes immediately without a resume timer', async () => {
+    const { scene, manager } = realPauseHost();
+    manager.pause('Battle');
+    let settled = false;
+    scene.time = { delayedCall: vi.fn() };
+    await scene._scheduleSafeDelayedAsync(200, 'paused settlement', () => {
+      settled = true;
+    });
+    expect(settled).toBe(true);
+    expect(scene.time.delayedCall).not.toHaveBeenCalled();
+    expect(scene.sys.isActive()).toBe(false);
+  });
+
   it('real Phaser pause preserves session ownership while obsolete owners remain rejected', () => {
     const { scene, manager } = realPauseHost();
     const old = scene._battleSession - 1;
@@ -592,7 +651,7 @@ describe('checkpoint retry uses the live save owner', () => {
     const floor = Date.now() + 100000;
     store.set(getRunClockFloorKey(1), String(floor));
     quota = false;
-    expect(ctrl.retryCheckpoint()).toMatchObject({ ok: true });
+    expect(ctrl.retryCheckpoint({ session: 1 })).toMatchObject({ ok: true });
     const saved = JSON.parse(store.get(getRunKey(1)));
     expect(saved.savedAt).toBeGreaterThan(floor);
     expect(isRunSaveCurrent(rm, 1)).toBe(true);
@@ -625,3 +684,265 @@ it('missing origin tokens never grant mutation permission, including an uninitia
   expect(scene._persistBattleRunState()).toEqual({ ok: false, reason: 'stale_session' });
   expect(unit.hasActed).toBe(false);
 });
+
+// A live RunManager and a real local save make omissions observable: rejecting a
+// token must protect both the replacement battle and its durable checkpoint.
+function liveCheckpointHost() {
+  const { scene } = sceneWithPendingTween();
+  const store = new Map();
+  vi.stubGlobal('localStorage', {
+    getItem: (key) => store.get(key) ?? null,
+    setItem: (key, value) => store.set(key, value),
+    removeItem: (key) => store.delete(key),
+  });
+  scene.runManager = new RunManager({});
+  scene.runManager.beginBattleInProgress('replacement', {});
+  scene.registry = { get: (key) => (key === 'activeSlot' ? 1 : null) };
+  scene.grid = { mapLayout: [[0]], clearAttackHighlights() {} };
+  scene.turnManager = { currentPhase: 'player', turnNumber: 2 };
+  scene.playerUnits = [];
+  scene.enemyUnits = [];
+  scene.npcUnits = [];
+  scene.reseedBattleRng = () => {};
+  scene._pendingActionCompletion = { kind: 'finish', unitName: 'Previously settled action' };
+  scene._pendingLevelUpPopups = [{ unitName: 'Absent actor', levelUp: {} }];
+  scene.battleState = 'COMBAT_RESOLVING';
+  scene.finishUnitAction = (unit, { session } = {}) => {
+    unit.hasActed = true;
+    scene._captureSuspendCheckpoint({ session });
+  };
+  expect(scene._persistBattleRunState(null, { session: scene._battleSession }).ok).toBe(true);
+  return { scene, store };
+}
+function protectedState(scene, store, unit) {
+  return {
+    storage: [...store.entries()],
+    run: scene.runManager.toJSON(),
+    action: structuredClone(scene._pendingActionCompletion),
+    popups: structuredClone(scene._pendingLevelUpPopups),
+    state: scene.battleState,
+    acted: unit.hasActed,
+  };
+}
+
+describe('required operation origins protect a live replacement save', () => {
+  const helpers = {
+    captureResolvedAction: (scene, unit, session) =>
+      captureResolvedAction(scene, { kind: 'finish', unitName: unit.name }, { session }),
+    presentQueuedLevelUps: (scene, unit, session) =>
+      presentQueuedLevelUps(scene, { kind: 'finish', unitName: unit.name }, { session }),
+    completeResolvedAction: (scene, unit, session) =>
+      completeResolvedAction(scene, { kind: 'finish', unitName: unit.name }, { session }),
+    _isSceneActiveForAsync: (scene, _unit, session) => {
+      expect(scene._isSceneActiveForAsync(session)).toBe(false);
+    },
+    _captureSuspendCheckpoint: (scene, _unit, session) =>
+      scene._captureSuspendCheckpoint({ session }),
+    _recoverUnitActionError: (scene, unit, session) =>
+      scene._recoverUnitActionError(unit, 'old operation', new Error('old failure'), { session }),
+  };
+  for (const [name, invoke] of Object.entries(helpers)) {
+    it.each(['missing', 'stale'])('%s origin cannot enter ' + name, async (origin) => {
+      const { scene, store } = liveCheckpointHost();
+      const unit = {
+        name: 'New actor',
+        hasActed: false,
+        faction: 'player',
+        currentHP: 20,
+        stats: { HP: 20 },
+        inventory: [],
+        skills: [],
+        col: 0,
+        row: 0,
+      };
+      scene.playerUnits = [unit];
+      const before = protectedState(scene, store, unit);
+      const session = origin === 'missing' ? undefined : scene._battleSession - 1;
+      await invoke(scene, unit, session);
+      expect(protectedState(scene, store, unit)).toEqual(before);
+    });
+  }
+  it('the current explicit origin can capture into the same real storage fixture', () => {
+    const { scene, store } = liveCheckpointHost();
+    scene.battleState = 'PLAYER_IDLE';
+    scene._pendingActionCompletion = null;
+    scene._pendingLevelUpPopups = [];
+    expect(scene._captureSuspendCheckpoint({ session: scene._battleSession })).toBe(true);
+    expect(JSON.parse(store.get(getRunKey(1))).battleInProgress.checkpoint.checkpointIndex).toBe(1);
+  });
+});
+
+describe('previous-session continuations leave replacement state intact', () => {
+  it('a previous post-combat controller cannot initialize a replacement loot screen', () => {
+    const { scene } = liveCheckpointHost();
+    const controller = new PostCombatController(scene);
+    restart(scene);
+    scene._elitePicksRemaining = 7;
+    scene._lootCleanedUp = true;
+    scene._lootResolving = true;
+    const render = vi.spyOn(controller, '_showMasteryNotice').mockImplementation(() => {});
+    const cards = vi
+      .spyOn(LootScreenController.prototype, 'renderCards')
+      .mockImplementation(() => {});
+    try {
+      controller.showLootScreen();
+      expect([scene._elitePicksRemaining, scene._lootCleanedUp, scene._lootResolving]).toEqual([
+        7,
+        true,
+        true,
+      ]);
+      expect(scene._lootController).toBeUndefined();
+      expect(render).not.toHaveBeenCalled();
+    } finally {
+      render.mockRestore();
+      cards.mockRestore();
+    }
+  });
+  it('a stale boss-recruit pick cannot clear the new offer or add a recruit', () => {
+    const { scene, store } = liveCheckpointHost();
+    const controller = new PostCombatController(scene);
+    let pick;
+    const overlay = vi.spyOn(BossRecruitOverlay.prototype, 'show').mockImplementation((cb) => {
+      pick = cb;
+    });
+    try {
+      controller.showBossRecruitScreen();
+      restart(scene);
+      scene.runManager = new RunManager({});
+      const offer = { version: 1, candidates: [{ unit: { name: 'New offer' } }] };
+      scene.runManager.pendingBossRecruit = offer;
+      scene.lootGroup = ['new overlay'];
+      scene._bossRecruitOverlay = 'new recruit screen';
+      const before = [...store.entries()];
+      pick({ name: 'Old choice' });
+      expect(scene.runManager.roster).toEqual([]);
+      expect(scene.runManager.pendingBossRecruit).toBe(offer);
+      expect(scene.lootGroup).toEqual(['new overlay']);
+      expect(scene._bossRecruitOverlay).toBe('new recruit screen');
+      expect([...store.entries()]).toEqual(before);
+    } finally {
+      overlay.mockRestore();
+    }
+  });
+  it('a settled old death fade cannot splice a unit reintroduced by resume', async () => {
+    const { scene } = liveCheckpointHost();
+    const unit = { name: 'Restored actor', faction: 'player', currentHP: 0, col: 0, row: 0 };
+    scene.playerUnits = [unit];
+    scene.removeUnitGraphic = vi.fn();
+    let finishFade;
+    scene._combatFx = {
+      deathFade: () =>
+        new Promise((resolve) => {
+          finishFade = resolve;
+        }),
+    };
+    const pending = scene.removeUnit(unit);
+    restart(scene);
+    scene.playerUnits = [unit];
+    scene._playerDeathsThisBattle = 0;
+    scene.updateObjectiveText = vi.fn();
+    finishFade();
+    await pending;
+    expect(scene.playerUnits).toEqual([unit]);
+    expect(scene._playerDeathsThisBattle).toBe(0);
+    expect(scene.removeUnitGraphic).not.toHaveBeenCalled();
+    expect(scene.updateObjectiveText).not.toHaveBeenCalled();
+  });
+  it('a settled old ballista shot cannot mutate the replacement battle', async () => {
+    const { scene } = liveCheckpointHost();
+    const target = {
+      name: 'Restored target',
+      currentHP: 20,
+      stats: { HP: 20, RES: 0 },
+      col: 1,
+      row: 0,
+    };
+    scene.playerUnits = [target];
+    scene.ballistas = [{ col: 0, row: 0, owner: 'enemy' }];
+    scene._reduceMotion = () => true;
+    let finishShot;
+    scene._combatFx = {
+      ballistaShot: () =>
+        new Promise((resolve) => {
+          finishShot = resolve;
+        }),
+    };
+    scene.updateHPBar = vi.fn();
+    const rng = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const pending = scene.processBallistaFire([target], 'enemy');
+      restart(scene);
+      scene.playerUnits = [target];
+      finishShot();
+      await pending;
+      expect(target.currentHP).toBe(10);
+      expect(scene.updateHPBar).not.toHaveBeenCalled();
+    } finally {
+      rng.mockRestore();
+    }
+  });
+  it('XP preparation invalidated before its first award cannot grant XP', async () => {
+    const { scene } = sceneWithPendingTween();
+    const unit = { name: 'Old actor', level: 10, tier: 'base', currentHP: 20, xp: 0 };
+    scene.playerUnits = [unit];
+    scene.getEnemyXpMultiplier = () => 1;
+    scene.getTurnPressureState = () => {
+      restart(scene);
+      return { xpMultiplier: 1 };
+    };
+    scene.awardScaledXP = async (actor, xp) => {
+      actor.xp += xp;
+    };
+    await scene.awardXP(unit, { level: 10, tier: 'base' }, true);
+    expect(unit.xp).toBe(0);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+  });
+});
+
+it.each(['player', 'enemy'])(
+  'a completed old %s cleanup cannot decide defeat for the replacement field',
+  async (owner) => {
+    const { scene } = sceneWithPendingTween();
+    const player = { name: 'Old commander', faction: 'player', currentHP: 10, isCommander: true };
+    const enemy = { name: 'Old enemy', faction: 'enemy', currentHP: 10 };
+    scene.grid = { clearAttackHighlights() {} };
+    scene.playerUnits = [player];
+    scene.enemyUnits = [enemy];
+    scene.escapedUnits = [];
+    scene._commitCombatIntent = () => {};
+    scene.resetFortHealStreak = () => {};
+    scene._prepareCombatContext = () => ({});
+    scene._runCombatResolution = async () => ({
+      result: { attackerHP: 10, defenderHP: 10, events: [] },
+    });
+    scene.awardXP = async () => {};
+    scene._maybeShowTutorialPermadeathHint = async () => {};
+    let release;
+    let entered = false;
+    scene._sweepFallenUnits = () =>
+      new Promise((resolve) => {
+        entered = true;
+        release = resolve;
+      });
+    scene.checkBattleEnd = vi.fn();
+    scene._clearCombatRollSession = vi.fn();
+    scene._clearSelectedWeaponArt = vi.fn();
+    const work =
+      owner === 'player'
+        ? scene.executeCombat(player, enemy)
+        : scene.executeEnemyCombat(enemy, player);
+    for (let i = 0; i < 12 && !entered; i++) await Promise.resolve();
+    expect(entered).toBe(true);
+    restart(scene);
+    const replacement = { name: 'New commander', isCommander: true, currentHP: 0 };
+    scene.playerUnits = [replacement];
+    scene.escapedUnits = [];
+    release();
+    await work;
+    expect(scene.checkBattleEnd).not.toHaveBeenCalled();
+    expect(scene.playerUnits).toEqual([replacement]);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene._clearCombatRollSession).not.toHaveBeenCalled();
+    expect(scene._clearSelectedWeaponArt).not.toHaveBeenCalled();
+  },
+);

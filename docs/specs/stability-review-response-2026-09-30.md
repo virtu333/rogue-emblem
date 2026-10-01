@@ -72,7 +72,7 @@ For reclass, promotion, staff, ability and item actions, the intended order is:
 Checkpoint helpers must return a meaningful persisted/failed/not-applicable result, rather
 than discard storage failure. After settlement, a failed save leaves the action settled in
 memory and exposes save retry without charging costs or applying effects again. The latest
-checkpoint wins: a new capture replaces the failed candidate, and a superseded retry returns
+installed checkpoint wins: installing a new checkpoint replaces its failed candidate. A construction failure may retain older recovery evidence, but retry requires matching live gameplay and cannot roll back a newer action. A superseded retry returns
 `checkpoint_replaced`. PR 6 integrates a player-facing retry control and makes destructive
 exit flows respect the retained failure status. No-slot/tutorial
 battles can explicitly use the in-memory completion path. A domain failure is not classified
@@ -318,7 +318,7 @@ that slot's meta, but meta-write failure leaves the first write applied and only
 - Retain canonical `emblem_rogue_slot_{n}_meta/run` keys and existing timestamp winner,
   run-record/lord union, conflict and clock-floor policies. Compute and validate a selected
   candidate before storage writes; successful fetches do not prove one backend revision.
-- Replace the undo journal with one forward-staged candidate. Persist and verify it, then
+- Replace the undo journal with exactly one forward-staging key per slot holding one candidate, its ownership and recovery evidence. Persist and verify it, then
   write and verify readable progression before the run. Keep the candidate until all writes
   verify; retry/startup recovery applies the same candidate forward, without new timestamps.
   Reuse the registered per-slot `pair_journal` key, or register its replacement in every
@@ -339,8 +339,8 @@ that slot's meta, but meta-write failure leaves the first write applied and only
   slots only when explicitly using `setItemFreeingSpace`; measure and disclose that exception.
   Do not delete sole evidence to create space.
 - Detect newer foreign canonical data before replaying an old stage. Retain evidence and defer
-  rather than overwrite newer data. If canonical data equals or supersedes the candidate,
-  drop the stale stage instead of locking the slot. Tag stages with account ownership and
+  rather than overwrite newer data. If validated canonical data equals or demonstrably supersedes the candidate,
+  retire the stale stage only after any sole displaced raw evidence has a verified archive elsewhere. Newer timestamps alone do not prove compatibility. Foreign or ambiguous data retains the evidence and defers application visibly; explicit recovery/release remains available. Tag stages with account ownership and
   preserve it during logout. Recover offline too, after `nativeSavesReady` and before cloud
   pull, Title and ordinary readers or managers load.
 - Exclude the temporary stage key from native mirror writes **and restore planning**, including
@@ -394,8 +394,8 @@ Preserve continuation compatibility, RNG order, Canto and victory sequencing.
 | 3c hotfix (#171) | Cosmetic isolation, third-party death cleanup, shared completion and XP model ordering                               | S–M  | None; ship before PR 3                                                           |
 | 3 (#173)         | WS5: monotonic session ownership, parked cancellation waits, external dialogue/timer guards, checkpoint status/retry | M–L  | Stacked on #171; verify with #168                                                |
 | 4 (#172)         | WS2: reclass controller plus promotion cost/weapon/checkpoint ordering                                               | S–M  | Rebased on #173; shared session contract required |
-| 5                | WS3: narrow required/cosmetic boundaries, Teleporter extraction and real-scene failure matrix                        | M    | PR 3 and hotfix; no staged combat context or HP catch-up layer                   |
-| 6                | WS4: staff, item, ability, movement, recruitment, dance and ballista settle-first paths                      | M–L  | PR 3; reuse real-scene matrix from PR 5                                          |
+| 5 (#175)         | WS3: narrow required/cosmetic boundaries, Teleporter extraction and real-scene failure matrix                        | M    | PR 3 and hotfix; no staged combat context or HP catch-up layer                   |
+| 6a / 6b / 6c    | WS4: staff/items; movement/abilities/recruitment/Dance/Ballista; local save retry UI | M each | Stack on corrected #175, then 6a → 6b → 6c |
 | 7                | WS6: single forward-staged candidate, ownership, recovery and all hydration/upload paths                             | M–L  | PR 1 recovery UX; independent of battle work                                     |
 | 8                | WS3 follow-up: shared full combat outcome and harness duplication removal                                            | L    | PRs 5–6 and design review                                                        |
 
@@ -542,8 +542,7 @@ See `stability-round2-remediation-2026-10-01.md` and
 `stability-pr5-combat-boundary.md` for the reviewed fixes and PR 5 design.
 CI PR #174 removes the base-branch filter so stacked PRs run the same checks.
 The earlier verification branch was a squash aggregate; replace it with real merge
-commits linking the published implementation heads. Merge order remains #168, #167,
-#171, #173, #172 rebased on #173, then PR 5.
+commits linking the published implementation heads. The round-three order is #174 and #168, then corrected #171, #173, #172 and #175. #167 lands separately after S1–S4. After #168 lands, merge main into #171/#173 and carry the verified phase/session resolutions; Escape must use checkPlayerPhaseComplete().
 
 Freeing a local recovery copy retains an account-owned cloud-pending reservation until
 a paired fetch applies or clears it. An unknown owner cannot be silently rebound.
@@ -589,3 +588,23 @@ main also added an opacity regression calling the removed `executeWarp`; it now 
 real settlement followed by `_presentWarp`, preserving its movement/opacity assertions.
 The final unit rerun passed. CI is green on #167, #171 and #174; the final #173/#172/#175
 heads are rerunning checks after fixture updates. Main remains unchanged.
+
+
+## Round-three progress and release rules — 2026-10-01
+
+The review and accepted PR 6 design are in `stability-round3-remediation-2026-10-01.md` and `stability-pr6-action-settlement.md`. #168 has merged (`31fb3524`); #174 remains open pending merge approval. All seven individual heads had green CI before the round-three fixes. Green CI does not establish the missing guard or reservation scenarios.
+
+The latest installed checkpoint wins. Retry writes its frozen candidate through saveRun and cannot reapply costs, recapture, reseed, or append a timeline row. Retain an older failed candidate across a pre-install construction failure only as recovery evidence; retry must refuse it if live gameplay has advanced. Once a newer checkpoint installs, the older candidate is discarded. Local storage failure can return a refresh/crash to the last durable checkpoint; Retry or Keep playing makes that bounded exception explicit. Cloud upload protection with a durable local save does not trigger the local-save modal.
+
+The prior round-two combined numbers (9,284 unit, 236 harness/simulation, 22 final Chromium cases) are local verification, not CI on the combined branch. Mutation counts are reports of executed checks, not independent coverage statistics. Same-build legacy live/resume and fixed-v1 presentation parity are distinct guarantees; cross-build resume parity requires a migration test and is not asserted by the live-play matrix. Physical iOS/WebKit remain unverified.
+
+Known follow-up: construction-time controller sessions cannot identify an older continuation that lazily constructs a new controller after restart. Existing waits and continuation checks are guarded; full operation-origin propagation remains a separate audited API change. Paused current-session delayed helpers may settle immediately; shutdown/replacement waits park.
+
+
+## PR 6 implementation and final local verification
+
+Staff and consumables, movement/abilities/recruitment, and local save retry now implement the accepted settlement design. PR 6a is #176 and PR 6b is #177. Costs, HP/positions, growth and recruitment settle synchronously before the continuation checkpoint and optional presentation. Save retry keeps a frozen candidate, gates the next pipeline boundary, supports Keep playing and warned exit, and checks terminal/session ownership. Renderer failure cannot retain inaccessible modal/input ownership or prevent the retry writer.
+
+The actual combined merges at source `4df5e656` passed 579 unit files / 9,509 tests, 14 harness files / 226 tests and 9 simulation files / 41 tests. Real Chromium verification passed 42 unique battle/action/retry cases without retries plus 9 slot-picker cases; retry layouts were inspected at 640×480 and phone landscape/portrait. Independent review reported 185 passing targeted tests. Physical iOS/WebKit and cross-build resume parity are not covered by those numbers. The strict PR harness fuzz suite passed 50 runs and the four strict full-run PR slices passed 42 runs without stuck cases or timeouts. These are local checks; CI on the published heads is queued.
+
+The old fixture failures and the two independent retry review findings are documented in `stability-round3-remediation-2026-10-01.md`. The class-change, phase and damaged-save fixes are included in the combined source. No further architecture is introduced: construction-only controller origin propagation remains a disclosed follow-up; PR 7 pair recovery and PR 8 computed combat outcomes remain to implement.

@@ -12,6 +12,10 @@ function makeUnit(overrides = {}) {
   return {
     col: 1,
     row: 1,
+    name: 'Actor',
+    faction: 'player',
+    currentHP: 20,
+    stats: { HP: 20 },
     hasActed: false,
     graphic: {},
     label: null,
@@ -23,6 +27,8 @@ function makeScene() {
   const scene = new BattleScene();
   scene.hideActionMenu = vi.fn();
   scene.grid = {
+    getMoveCost: () => 1,
+    clearAttackHighlights() {},
     gridToPixel: vi.fn((col, row) => ({ x: col * 16, y: row * 16 })),
   };
   scene.tweens = {
@@ -31,6 +37,9 @@ function makeScene() {
       return {};
     }),
   };
+  scene.registry = { get: () => null };
+  scene._awaitSceneTween = async () => ({ status: 'completed' });
+  scene._refreshPostCombatMovementState = vi.fn();
   scene.updateUnitPosition = vi.fn();
   scene.dimUnit = vi.fn();
   scene.finishUnitAction = vi.fn((unit) => {
@@ -41,12 +50,13 @@ function makeScene() {
 }
 
 describe('BattleScene executeSwap dim consistency', () => {
-  it('keeps ally dimmed when ally already acted before swap', () => {
+  it('keeps ally dimmed when ally already acted before swap', async () => {
     const scene = makeScene();
     const actor = makeUnit({ col: 2, row: 2, hasActed: false });
     const ally = makeUnit({ col: 3, row: 2, hasActed: true });
 
-    BattleScene.prototype.executeSwap.call(scene, actor, { ally });
+    scene.playerUnits = [actor, ally];
+    await BattleScene.prototype.executeSwap.call(scene, actor, { ally });
 
     expect(actor.col).toBe(3);
     expect(actor.row).toBe(2);
@@ -63,12 +73,13 @@ describe('BattleScene executeSwap dim consistency', () => {
     expect(scene.hideActionMenu).toHaveBeenCalledTimes(1);
   });
 
-  it('does not force dim ally when ally has not acted before swap', () => {
+  it('does not force dim ally when ally has not acted before swap', async () => {
     const scene = makeScene();
     const actor = makeUnit({ col: 5, row: 1, hasActed: false });
     const ally = makeUnit({ col: 5, row: 2, hasActed: false });
 
-    BattleScene.prototype.executeSwap.call(scene, actor, { ally });
+    scene.playerUnits = [actor, ally];
+    await BattleScene.prototype.executeSwap.call(scene, actor, { ally });
 
     expect(actor.col).toBe(5);
     expect(actor.row).toBe(2);

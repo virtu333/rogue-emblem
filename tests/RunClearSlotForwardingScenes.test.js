@@ -88,7 +88,10 @@ vi.mock('../src/cloud/CloudSync.js', async () => {
 import { RunCompleteScene } from '../src/scenes/RunCompleteScene.js';
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
-import { clearSavedRun } from '../src/engine/RunManager.js';
+import { clearSavedRun, RunManager, saveRun } from '../src/engine/RunManager.js';
+import { HomeBaseScene } from '../src/scenes/HomeBaseScene.js';
+import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
+import { loadGameData } from './testData.js';
 import { deleteRunSave } from '../src/cloud/CloudSync.js';
 
 const store = {};
@@ -219,6 +222,8 @@ describe('Run clear callback forwarding across scenes', () => {
 
   it('NodeMap scene abandon callback uses resolved clear slot when registry activeSlot is missing', async () => {
     localStorage.setItem('emblem_rogue_active_slot', '2');
+    const abandoned = { runRecordId: 'abandoned-slot-2', runSeed: 7, gold: 137 };
+    localStorage.setItem('emblem_rogue_slot_2_run', JSON.stringify(abandoned));
     const scene = Object.create(NodeMapScene.prototype);
     scene.pauseOverlay = null;
     scene.gameData = {};
@@ -241,11 +246,14 @@ describe('Run clear callback forwarding across scenes', () => {
     expect(clearSavedRun).toHaveBeenCalledTimes(1);
     expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), undefined);
     expect(deleteRunSave).toHaveBeenCalledTimes(1);
-    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2, null);
+    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2, abandoned);
+    expect(store.emblem_rogue_slot_2_run).toBeUndefined();
   });
 
   it('Battle scene abandon callback uses resolved clear slot when registry activeSlot is missing', async () => {
     localStorage.setItem('emblem_rogue_active_slot', '2');
+    const abandoned = { runRecordId: 'abandoned-slot-2', runSeed: 7, gold: 137 };
+    localStorage.setItem('emblem_rogue_slot_2_run', JSON.stringify(abandoned));
     const scene = Object.create(BattleScene.prototype);
     scene.battleState = 'PLAYER_IDLE';
     scene.pauseOverlay = null;
@@ -277,7 +285,40 @@ describe('Run clear callback forwarding across scenes', () => {
     expect(clearSavedRun).toHaveBeenCalledTimes(1);
     expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), undefined);
     expect(deleteRunSave).toHaveBeenCalledTimes(1);
-    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2, null);
+    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2, abandoned);
+    expect(store.emblem_rogue_slot_2_run).toBeUndefined();
+  });
+
+  it('HomeBase payout retry forwards the complete cleared run identity to cloud deletion', () => {
+    const gd = loadGameData();
+    const rm = new RunManager(gd);
+    rm.startRun({ runSeed: 7, applyBlessingsAtStart: false });
+    rm.status = 'defeat';
+    rm.endRunRewards = {
+      result: 'defeat',
+      valor: 37,
+      supply: 11,
+      currencyMultiplier: 1,
+      appliedToMeta: false,
+      settledAt: 100,
+    };
+    const meta = new MetaProgressionManager(gd.metaUpgrades, 'emblem_rogue_slot_2_meta');
+    expect(saveRun(rm, null, 2).ok).toBe(true);
+    const abandoned = JSON.parse(store.emblem_rogue_slot_2_run);
+    const scene = Object.create(HomeBaseScene.prototype);
+    scene.gameData = gd;
+    scene.registry = {
+      get: (key) => ({ cloud: { userId: 'user-1' }, activeSlot: 2, meta })[key] ?? null,
+    };
+    scene.events = { once: vi.fn() };
+    scene.input = { on: vi.fn(), keyboard: { on: vi.fn() } };
+    scene.drawUI = vi.fn();
+    HomeBaseScene.prototype.create.call(scene);
+    expect(meta.totalValor).toBe(37);
+    expect(meta.totalSupply).toBe(11);
+    expect(store.emblem_rogue_slot_2_run).toBeUndefined();
+    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2, abandoned);
+    scene._onSceneShutdown();
   });
 
   it('Battle defeat recovery title callback uses resolved clear slot when registry activeSlot is missing', async () => {
