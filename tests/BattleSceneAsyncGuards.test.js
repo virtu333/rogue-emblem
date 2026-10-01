@@ -142,7 +142,7 @@ describe('BattleScene async guards', () => {
     );
   });
 
-  it('resolves tween-backed awaits when lifecycle awaits are cancelled', async () => {
+  it('parks tween-backed continuations when the battle is cancelled', async () => {
     const scene = new BattleScene();
     scene.scene = { isActive: () => true };
     scene.cameras = { main: { centerX: 320, centerY: 240 } };
@@ -174,8 +174,14 @@ describe('BattleScene async guards', () => {
     await Promise.resolve();
     expect(scene._lifecycleAwaitGuards.size).toBe(1);
 
+    let resumed = false;
+    void pending.then(() => {
+      resumed = true;
+    });
     scene._cancelLifecycleAwaits('scene_shutdown');
-    await pending;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(resumed).toBe(false);
 
     expect(tweenHandle.remove).toHaveBeenCalledTimes(1);
     expect(scene._lifecycleAwaitGuards.size).toBe(0);

@@ -22,6 +22,7 @@ afterEach(() => vi.restoreAllMocks());
 
 function fixture(count = 2) {
   const scene = {
+    _battleSession: 1,
     playerUnits: [],
     enemyUnits: [],
     npcUnits: [],
@@ -148,8 +149,15 @@ describe('canonical battle state', () => {
     const scene = fixture(1);
     scene.enemyUnits.push({ ...scene.playerUnits[0], faction: 'enemy', battleEntityId: 'u99' });
     scene.finishUnitAction = vi.fn();
-    completeResolvedAction(scene, { kind: 'finish', unitName: scene.playerUnits[0].name });
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(scene.playerUnits[0], { skipCanto: false });
+    completeResolvedAction(
+      scene,
+      { kind: 'finish', unitName: scene.playerUnits[0].name },
+      { session: scene._battleSession },
+    );
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(scene.playerUnits[0], {
+      skipCanto: false,
+      session: scene._battleSession,
+    });
   });
 
   it('rejects ambiguous IDs, nested history and malformed or oversized snapshots', () => {

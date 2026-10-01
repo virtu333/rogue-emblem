@@ -107,7 +107,7 @@ export class JourneyBattleDriver {
         });
         return foe;
       });
-      expect(s._captureSuspendCheckpoint()).toBe(true);
+      expect(s._captureSuspendCheckpoint({ session: s._battleSession })).toBe(true);
       const enemy = s.enemyUnits[action.target];
       const result = resolveCombat(unit, unit.weapon, enemy, enemy.weapon, 1, null, null, {
         skillsData: data.skills,
@@ -120,7 +120,11 @@ export class JourneyBattleDriver {
         new Promise((resolve) => {
           this.closePopup = resolve;
         });
-      this.presentation = presentQueuedLevelUps(s, { kind: 'combat', unitName: unit.name });
+      this.presentation = presentQueuedLevelUps(
+        s,
+        { kind: 'combat', unitName: unit.name },
+        { session: s._battleSession },
+      );
       expect(this.closePopup, 'real presentation reaches popup').toBeTypeOf('function');
       this.phase = 'popup';
       this.assertDurable();
@@ -134,7 +138,9 @@ export class JourneyBattleDriver {
     } else if (action.type === 'combat-popup-dismiss') {
       this.closePopup();
       await this.presentation;
-      completeResolvedAction(this.scene, this.scene._pendingActionCompletion);
+      completeResolvedAction(this.scene, this.scene._pendingActionCompletion, {
+        session: this.scene._battleSession,
+      });
       this.phase = 'settled';
     } else {
       this.assertDurable();

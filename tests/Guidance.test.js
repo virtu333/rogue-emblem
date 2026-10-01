@@ -183,6 +183,7 @@ function guidanceScene(overrides = {}) {
     inventory: [],
   };
   const scene = {
+    _battleSession: 1,
     registry: {
       get: (key) => ({ hints, settings, meta: { runsCompleted: 0 } })[key],
     },

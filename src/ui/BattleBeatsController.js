@@ -1,4 +1,5 @@
 import { presentationText } from '../utils/presentationText.js';
+import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
 /**
  * BattleBeatsController -- mid-battle story beats.
@@ -127,13 +128,13 @@ export class BattleBeatsController {
     const adapted = adaptDialogueEntries(entries, scene.runManager.getStartingLordNames?.());
     for (const entry of adapted) {
       if (!entry || typeof entry.line !== 'string') continue;
-      try {
-        // Auto-dismisses after ~3s; input is locked while visible via
-        // isStoryInputLocked()'s dialogueOverlay.visible check.
-        await scene.dialogueOverlay?.show(entry.speaker, entry.line, entry.portrait);
-      } catch (_) {
-        /* a failed overlay must not break combat flow */
-      }
+      // Auto-dismisses after ~3s; input is locked while visible via
+      // isStoryInputLocked()'s dialogueOverlay.visible check.
+      await safeBattlePresentation(
+        'boss half health dialogue',
+        () => scene.dialogueOverlay?.show(entry.speaker, entry.line, entry.portrait),
+        { scene },
+      );
     }
   }
 
@@ -349,51 +350,56 @@ export class BattleBeatsController {
 
   _showQuipText(lord, line) {
     const scene = this.scene;
-    try {
-      const pos = scene.grid?.gridToPixel?.(lord.col, lord.row);
-      if (!pos) return;
-      const screen = scene._worldToScreen?.(pos.x, pos.y) || pos;
-      const cam = scene.cameras?.main;
-      const width = cam?.width || 640;
-      const height = cam?.height || 480;
-      const travel = scene._reduceMotion?.() ? 0 : 20;
-      const quip = presentationText(scene, screen.x, screen.y + QUIP_OFFSET_Y, line, {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        wordWrap: { width: Math.max(80, Math.min(280, width - 24)) },
-        color: '#ffe9a8',
-        fontStyle: 'italic',
-        backgroundColor: '#000000cc',
-        padding: { x: 5, y: 2 },
-      })
-        .setOrigin(0.5)
-        .setDepth(QUIP_DEPTH)
-        .setAlpha(0);
-      // Clamp the entire bubble and its upward animation, not just its anchor.
-      const halfW = (quip.width || 0) / 2;
-      const halfH = (quip.height || 0) / 2;
-      quip.x = Math.max(8 + halfW, Math.min(width - 8 - halfW, screen.x));
-      quip.y = Math.max(8 + halfH + travel, Math.min(height - 8 - halfH, screen.y + QUIP_OFFSET_Y));
-      scene._pinToScreen?.(quip);
-      this._live.add(quip);
-      scene.tweens.add({
-        targets: quip,
-        alpha: 1,
-        duration: 120,
-      });
-      scene.tweens.add({
-        targets: quip,
-        y: quip.y - travel,
-        alpha: 0,
-        delay: 900,
-        duration: 1400,
-        onComplete: () => {
-          this._live.delete(quip);
-          if (quip?.scene) quip.destroy();
-        },
-      });
-    } catch (_) {
-      /* rendering flavor text must never break combat */
-    }
+    safeBattlePresentation(
+      'battle quip',
+      () => {
+        const pos = scene.grid?.gridToPixel?.(lord.col, lord.row);
+        if (!pos) return;
+        const screen = scene._worldToScreen?.(pos.x, pos.y) || pos;
+        const cam = scene.cameras?.main;
+        const width = cam?.width || 640;
+        const height = cam?.height || 480;
+        const travel = scene._reduceMotion?.() ? 0 : 20;
+        const quip = presentationText(scene, screen.x, screen.y + QUIP_OFFSET_Y, line, {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          wordWrap: { width: Math.max(80, Math.min(280, width - 24)) },
+          color: '#ffe9a8',
+          fontStyle: 'italic',
+          backgroundColor: '#000000cc',
+          padding: { x: 5, y: 2 },
+        })
+          .setOrigin(0.5)
+          .setDepth(QUIP_DEPTH)
+          .setAlpha(0);
+        // Clamp the entire bubble and its upward animation, not just its anchor.
+        const halfW = (quip.width || 0) / 2;
+        const halfH = (quip.height || 0) / 2;
+        quip.x = Math.max(8 + halfW, Math.min(width - 8 - halfW, screen.x));
+        quip.y = Math.max(
+          8 + halfH + travel,
+          Math.min(height - 8 - halfH, screen.y + QUIP_OFFSET_Y),
+        );
+        scene._pinToScreen?.(quip);
+        this._live.add(quip);
+        scene.tweens.add({
+          targets: quip,
+          alpha: 1,
+          duration: 120,
+        });
+        scene.tweens.add({
+          targets: quip,
+          y: quip.y - travel,
+          alpha: 0,
+          delay: 900,
+          duration: 1400,
+          onComplete: () => {
+            this._live.delete(quip);
+            if (quip?.scene) quip.destroy();
+          },
+        });
+      },
+      { scene },
+    );
   }
 }

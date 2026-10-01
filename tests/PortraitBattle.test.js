@@ -361,6 +361,7 @@ describe('PortraitBattleController', () => {
       getRoster: () => ['roster'],
     };
     const scene = {
+      _battleSession: 1,
       mobileCameraEnabled: true,
       battleState: 'PLAYER_IDLE',
       battleParams: { act: 'act1' },

@@ -17,6 +17,14 @@ Line refs are `origin/main` @31fb3524 unless marked **#175**
 (`fix/stability-combat-boundaries` @8d0eef99) or **#171**
 (`fix/stability-death-cleanup` @8788e247).
 
+Both PRs are now on main (merge aff4518e). Rechecked there: area victims fall through
+`removeUnit` inside `_playPostCombatBeats` (`remove`/`moved` required, the rest guarded,
+each beat behind the battle session); Deathburst chains no longer call
+`checkBattleEnd`; the combat owner removes the primary, sweeps, then runs
+`hasBattleDefeat`; victory waits for `completeResolvedAction` after XP. The Phoenix
+check over area victims (§2.6 step 3) runs after the attacker's and defender's, each
+behind the session guard. The line numbers below are still the pre-merge ones.
+
 ## 1. What exists today (verified)
 
 - **Data.** `data/weaponArts.json` has 83 arts. Every one has `targeting: "normal_attack"`.

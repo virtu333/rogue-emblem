@@ -75,6 +75,7 @@ function makeText() {
 function makeScene({ playerUnits = [], npcUnits = [], enemyUnits = [], visible = null } = {}) {
   const scene = new BattleScene();
   Object.assign(scene, {
+    _battleSession: 1,
     playerUnits,
     npcUnits,
     enemyUnits,
@@ -163,7 +164,12 @@ describe('heal staff targets', () => {
 
   it('offer a wounded caravan and recruit in reach after the army, and nothing else', () => {
     const { healer, hurtAlly, caravan, recruit, npcUnits, enemy } = board();
-    const scene = makeScene({ playerUnits: [healer, hurtAlly], npcUnits, enemyUnits: [enemy] });
+    const scene = makeScene({
+      _battleSession: 1,
+      playerUnits: [healer, hurtAlly],
+      npcUnits,
+      enemyUnits: [enemy],
+    });
     expect(scene.findHealTargets(healer)).toEqual([hurtAlly, caravan, recruit]);
   });
 
@@ -236,7 +242,7 @@ describe('healing the merchant caravan', () => {
     expect(healer._battleDeeds.healed).toBe(13);
     expect(scene.animateHeal).toHaveBeenCalledWith(caravan, 13, healer);
     expect(scene.updateHPBar).toHaveBeenCalledWith(caravan);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(healer);
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(healer, { session: scene._battleSession });
     expect(scene._historyBeats).toContainEqual(
       expect.objectContaining({
         type: 'healed',
@@ -289,7 +295,11 @@ describe('healing the merchant caravan', () => {
     const staff = healer.weapon;
 
     scene.startHealTargetSelection(healer, scene.findHealTargets(healer), staff);
-    await vi.waitFor(() => expect(scene.finishUnitAction).toHaveBeenCalledWith(healer));
+    await vi.waitFor(() =>
+      expect(scene.finishUnitAction).toHaveBeenCalledWith(healer, {
+        session: scene._battleSession,
+      }),
+    );
 
     expect(ally.currentHP).toBe(19); // 4 + 15
     expect(caravan.currentHP).toBe(26); // 20 + 6 (capped)
@@ -310,6 +320,7 @@ describe('Healing Circle', () => {
     const enemy = { name: 'Brigand', faction: 'enemy', col: 5, row: 4, currentHP: 3 };
     enemy.stats = { HP: 20 };
     const scene = makeScene({
+      _battleSession: 1,
       playerUnits: [caster],
       npcUnits: [caravan, farRecruit],
       enemyUnits: [enemy],
@@ -335,7 +346,7 @@ describe('Healing Circle', () => {
     expect(farRecruit.currentHP).toBe(5);
     expect(enemy.currentHP).toBe(3);
     expect(caster._battleDeeds.healed).toBe(15);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(caster);
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(caster, { session: scene._battleSession });
   });
 
   it('with only full-HP units around, has nothing to do', () => {
@@ -420,7 +431,7 @@ describe('a caravan heal on the battle timeline (production checkpoint and resto
     vi.spyOn(scene._visionController, 'playRewindEffect').mockImplementation(() => {});
     scene.captureVisionSnapshot();
     scene._timelineBoundary = 'turn_start';
-    expect(scene._captureSuspendCheckpoint()).toBe(true);
+    expect(scene._captureSuspendCheckpoint({ session: scene._battleSession })).toBe(true);
     return { driver, run, scene };
   }
 

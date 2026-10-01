@@ -57,7 +57,7 @@ function fixture() {
   s.playerUnits = [mentor, trainee];
   s.enemyUnits = [enemy];
   for (const unit of [...s.playerUnits, ...s.enemyUnits]) s.addUnitGraphic(unit);
-  expect(s._captureSuspendCheckpoint()).toBe(true);
+  expect(s._captureSuspendCheckpoint({ session: s._battleSession })).toBe(true);
   return { d, s, mentor, trainee, enemy };
 }
 
@@ -80,11 +80,15 @@ it('an unarmed trainee levels up from a Mentor share, and resume keeps it unarme
   // (floor 1 XP), and 99 + at least 1 crosses the 100 XP line.
   enemy.currentHP = 0;
   await s.awardXP(mentor, enemy, true);
-  await presentQueuedLevelUps(s, { kind: 'combat', unitName: mentor.name });
+  await presentQueuedLevelUps(
+    s,
+    { kind: 'combat', unitName: mentor.name },
+    { session: s._battleSession },
+  );
   expect(trainee.level).toBe(levelBefore + 1);
   expect(trainee.weapon).toBeNull();
   expect(trainee.inventory).toEqual([]);
-  s._captureSuspendCheckpoint();
+  s._captureSuspendCheckpoint({ session: s._battleSession });
 
   const restored = reload(d);
   const back = traineeOf(restored);
@@ -113,7 +117,7 @@ it('Rewind restores an unarmed unit exactly (HP, bag, weapon: null)', () => {
   trainee.currentHP = 1;
   trainee.inventory = [sword];
   trainee.weapon = sword;
-  s._captureSuspendCheckpoint();
+  s._captureSuspendCheckpoint({ session: s._battleSession });
   expect(v.executeRewind()).toBe(true);
   const live = traineeOf(s);
   expect(live.currentHP).toBe(hp);

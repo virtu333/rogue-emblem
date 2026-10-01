@@ -404,7 +404,7 @@ describe('executeCombat and executeEnemyCombat shared path', () => {
 
   it("an enemy's area art gives each hurt player victim its low-HP line, not only the target", async () => {
     const enemy = makeEnemy();
-    const target = makeUnit({ name: 'Target' });
+    const target = makeUnit({ name: 'Target', isCommander: true });
     const beside = makeUnit({ name: 'Beside', col: 3, row: 1 });
     scene.enemyUnits = [enemy];
     scene.playerUnits = [target, beside];
@@ -583,7 +583,7 @@ describe('Measured Step scene completion', () => {
       _movementSpent: 2,
     });
     const foe = makeEnemy();
-    scene.playerUnits = [unit];
+    scene.playerUnits = [unit, makeUnit({ name: 'Edric', isCommander: true })];
     scene.enemyUnits = [foe];
     scene.turnManager.currentPhase = 'player';
     scene.finishUnitAction = BattleScene.prototype.finishUnitAction.bind(scene);

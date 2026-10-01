@@ -1,3 +1,4 @@
+import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { normalizeSpecialCharacter } from '../engine/SpecialCharacterPolicy.js';
 import { persistWithTimelineFallback } from '../engine/BattleTimelinePersistence.js';
 import { resumeFatalDecision } from './BattleFatalDecision.js';
@@ -48,6 +49,8 @@ export const serializeSuspendUnit = serializeBattleUnit;
 export class BattleSuspendController {
   constructor(scene) {
     this.scene = scene;
+    this.session = battleSession(scene);
+    this._retryCheckpoint = null;
   }
 
   /**
@@ -62,20 +65,26 @@ export class BattleSuspendController {
    *   before its rolls: keep the RNG stream and decision key untouched (the
    *   forecast's roll session depends on it) and add no timeline row.
    */
-  captureCheckpoint({ preserveRng = false, commitIntent = false } = {}) {
+  captureCheckpoint({ preserveRng = false, commitIntent = false, session = this.session } = {}) {
     const scene = this.scene;
+    if (!isCurrentBattleSession(scene, session) || session !== this.session)
+      return this._captureResult({ ok: false, reason: 'stale_session' });
     const rm = scene.runManager;
-    if (!rm?.battleInProgress) return false; // tutorial/standalone or battle already settled
+    if (!rm?.battleInProgress) return this._captureResult({ ok: false, reason: 'no_battle' }); // tutorial/standalone or battle already settled
     if (
       scene.battleState === 'BATTLE_END' ||
       scene._fatalDecision ||
       scene._fatalCapturePending ||
       scene._defeatDecision
     )
-      return false;
+      return this._captureResult({ ok: false, reason: 'unstable_boundary' });
     const enemyBoundary =
       scene.turnManager?.currentPhase === 'enemy' && scene._enemyActionCheckpoint === true;
-    if (scene.turnManager?.currentPhase !== 'player' && !enemyBoundary) return false;
+    if (scene.turnManager?.currentPhase !== 'player' && !enemyBoundary)
+      return this._captureResult({ ok: false, reason: 'wrong_phase' });
+    // A newer capture owns retry state even if serialization itself fails.
+    this._retryCandidate = null;
+    this._retryCheckpoint = null;
     try {
       const index = (Number(rm.battleInProgress.checkpoint?.checkpointIndex) || 0) + 1;
       const base = Number.isFinite(scene.visionBaseSeed) ? scene.visionBaseSeed >>> 0 : 0;
@@ -89,6 +98,7 @@ export class BattleSuspendController {
         scene._battleDecisionRngState = scene._battleRng?.getState?.() || null;
       const checkpoint = this._buildCheckpoint(index, seed);
       rm.setBattleCheckpoint(checkpoint);
+      this._retryCheckpoint = checkpoint;
       if (!commitIntent) {
         try {
           // Optional history failure must never prevent the latest recovery save.
@@ -98,25 +108,69 @@ export class BattleSuspendController {
           console.warn('[Timeline] optional history unavailable:', error?.message || error);
         }
       }
-      let persisted = scene._persistBattleRunState?.();
+      let candidate = rm.toJSON ? rm.toJSON() : null;
+      let persisted = scene._persistBattleRunState?.(candidate, { session });
       if (persisted?.reason === 'quota' && rm.toJSON && rm.battleInProgress.timeline) {
         const fallback = persistWithTimelineFallback(
-          rm.toJSON(),
-          (candidate) => scene._persistBattleRunState(candidate),
+          candidate,
+          (candidate) => scene._persistBattleRunState(candidate, { session }),
           persisted,
         );
         persisted = fallback;
+        if (fallback.candidate) candidate = fallback.candidate;
         if (fallback.ok) {
           rm.battleInProgress = fallback.candidate.battleInProgress;
           scene._battleTimeline = rm.battleInProgress.timeline;
           scene._timelineCurrentEntryId = rm.battleInProgress.timelineCurrentEntryId;
         }
       }
-      return persisted?.ok === true;
+      this._retryCandidate = persisted?.ok ? null : candidate && structuredClone(candidate);
+      return this._captureResult(persisted || { ok: false, reason: 'missing_persistence' });
     } catch (err) {
       console.warn('[BattleSuspend] checkpoint capture failed:', err?.message || err);
-      return false;
+      return this._captureResult({ ok: false, reason: 'capture_error' });
     }
+  }
+
+  _captureResult(result) {
+    this.lastResult = result;
+    if (isCurrentBattleSession(this.scene, this.session))
+      this.scene._checkpointPersistenceResult = result;
+    return result.ok === true;
+  }
+
+  // A storage retry must not recapture, append history or reseed legacy RNG.
+  retryCheckpoint() {
+    const scene = this.scene;
+    if (!isCurrentBattleSession(scene, this.session)) return { ok: false, reason: 'stale_session' };
+    if (!scene.runManager?.battleInProgress) return { ok: false, reason: 'no_battle' };
+    if (
+      scene.battleState === 'BATTLE_END' ||
+      scene._fatalDecision ||
+      scene._fatalCapturePending ||
+      scene._defeatDecision
+    )
+      return { ok: false, reason: 'unstable_boundary' };
+    if (
+      !this._retryCandidate ||
+      !this._retryCheckpoint ||
+      scene.runManager?.battleInProgress?.checkpoint !== this._retryCheckpoint
+    )
+      return { ok: false, reason: 'checkpoint_replaced' };
+    const result = scene._persistBattleRunState?.(this._retryCandidate, {
+      session: this.session,
+    }) || {
+      ok: false,
+      reason: 'missing_persistence',
+    };
+    if (result.ok) {
+      scene.runManager.battleInProgress = this._retryCandidate.battleInProgress;
+      scene._battleTimeline = scene.runManager.battleInProgress.timeline;
+      scene._timelineCurrentEntryId = scene.runManager.battleInProgress.timelineCurrentEntryId;
+      this._retryCandidate = null;
+    }
+    this._captureResult(result);
+    return result;
   }
 
   _buildCheckpoint(checkpointIndex, rngSeed) {
@@ -296,7 +350,7 @@ export class BattleSuspendController {
     }
     const continuation = readActionContinuation(checkpoint.pendingActionCompletion);
     if (continuation) {
-      completeResolvedAction(scene, continuation);
+      completeResolvedAction(scene, continuation, { session: this.session });
       return;
     }
     const committed = readCommittedAction(checkpoint.pendingCommittedAction);

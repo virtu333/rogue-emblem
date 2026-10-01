@@ -1,4 +1,5 @@
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
+import { safeBattlePresentation } from './safeBattlePresentation.js';
 // VillageController — Village & bandit secondary objective battle-scene
 // wiring, extracted per the BattleScene decomposition rule (never inline
 // multi-step flows). Owns the village marker, the visit reward flow (gold into
@@ -142,10 +143,16 @@ export class VillageController {
       ? `Village saved! +${gold}g, ${grantedItemName} sent to convoy`
       : `Village saved! +${gold}g`;
     observeHistoryAction(scene, 'visited the village', unit, null, message);
-    scene.showBriefBanner?.(message, UI_PALETTE.good)?.catch?.(() => {});
+    safeBattlePresentation(
+      'village reward',
+      () => scene.showBriefBanner?.(message, UI_PALETTE.good),
+      { scene: this.scene },
+    );
 
     clearSeekTileBandits(scene.enemyUnits);
-    scene.updateObjectiveText?.();
+    safeBattlePresentation('village objective', () => scene.updateObjectiveText?.(), {
+      scene: this.scene,
+    });
     return true;
   }
 
@@ -167,8 +174,14 @@ export class VillageController {
     this._resolveTile(state);
     clearSeekTileBandits(scene.enemyUnits);
     observeHistoryAction(scene, 'razed the village', enemy);
-    scene.showBriefBanner?.('Village razed!', UI_PALETTE.bad)?.catch?.(() => {});
-    scene.updateObjectiveText?.();
+    safeBattlePresentation(
+      'village razed',
+      () => scene.showBriefBanner?.('Village razed!', UI_PALETTE.bad),
+      { scene: this.scene },
+    );
+    safeBattlePresentation('village objective', () => scene.updateObjectiveText?.(), {
+      scene: this.scene,
+    });
     return true;
   }
 
@@ -234,7 +247,9 @@ export class VillageController {
     } else {
       scene._villageState = target;
     }
-    scene.updateObjectiveText?.();
+    safeBattlePresentation('village objective', () => scene.updateObjectiveText?.(), {
+      scene: this.scene,
+    });
   }
 
   /** Convert the tile to Plain (visited/razed must not re-trigger) and clear the marker. */

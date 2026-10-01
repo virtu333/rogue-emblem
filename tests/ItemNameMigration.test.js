@@ -160,6 +160,7 @@ describe('battle checkpoint and rewind timeline', () => {
         battleParams: { siegeWeaponConfig: { weaponName: 'Bolting' } },
         entryBattleState: { convoy: { weapons: [legacy('Adder Blade', 'Venin Blade')] } },
         checkpoint: {
+          _battleSession: 1,
           version: 2,
           playerUnits: [
             {

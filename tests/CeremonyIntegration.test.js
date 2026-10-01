@@ -188,6 +188,7 @@ describe('lord falls: FALLEN band + Sera offer over the unchanged decision', () 
     hudHost.className = 'mobile-battle-hud';
     dom.host.append(hudHost);
     const scene = {
+      _battleSession: 1,
       gameData,
       events: emitter(),
       battleState: 'PLAYER_IDLE',
@@ -314,6 +315,7 @@ describe('victory band', () => {
   function victoryScene() {
     const delayed = [];
     const scene = {
+      _battleSession: 1,
       gameData,
       events: emitter(),
       battleState: 'PLAYER_IDLE',
