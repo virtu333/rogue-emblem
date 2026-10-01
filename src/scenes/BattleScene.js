@@ -27,6 +27,7 @@ import { battlePlace } from '../ui/placeDisplay.js';
 import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
 import { presentationText, isolateBattleTextFactory } from '../utils/presentationText.js';
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
+import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
@@ -56,6 +57,7 @@ import {
 import { applyBattleDebuff, clearBattleScopedDeltas } from '../engine/BattleStatDeltas.js';
 import {
   applyCombatHP,
+  applyStrikeHP,
   damageUnit,
   healUnit,
   healUnitFully,
@@ -152,7 +154,7 @@ import {
   getOnDeathAffixes,
   getAttackAffixes,
   rollDefenseAffixes,
-  getWarpCandidates,
+  settleTeleporterWarp,
   getAffixMovBonus,
 } from '../engine/AffixSystem.js';
 import { shouldAllowUndoMove } from '../engine/TradeFlow.js';
@@ -5194,8 +5196,10 @@ export class BattleScene extends Phaser.Scene {
     this._pendingActionCompletion = null;
     this.commitVisionSnapshotIfPending();
     this._clearCombatRollSession();
-    this.hideActionMenu();
-    this.grid.clearAttackHighlights();
+    safeBattlePresentation('action menu cleanup', () => this.hideActionMenu(), { scene: this });
+    safeBattlePresentation('action highlights', () => this.grid.clearAttackHighlights(), {
+      scene: this,
+    });
     this.attackTargets = [];
     this.healTargets = [];
     this.staffRelocateTargets = [];
@@ -5861,8 +5865,12 @@ export class BattleScene extends Phaser.Scene {
       unit.faction,
       this._getCostModifier(unit),
     );
-    this.grid.showMovementRange(moveRange, unit.col, unit.row, 0x44aaff, 0.3);
     this.cantoRange = moveRange;
+    safeBattlePresentation(
+      'Canto range',
+      () => this.grid.showMovementRange(moveRange, unit.col, unit.row, 0x44aaff, 0.3),
+      { scene: this },
+    );
   }
 
   handleShoveTargetClick(gp) {
@@ -8355,7 +8363,7 @@ export class BattleScene extends Phaser.Scene {
       applyWeaponArtCost(attacker, selectedArt, artCostOpts);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
       this._applyRecoilGuardAfterArtUse(attacker, selectedArt);
-      this.updateHPBar(attacker);
+      safeBattlePresentation('art cost HP', () => this.updateHPBar(attacker), { scene: this });
       await this._checkPhoenixBrooch(attacker);
       if (!isCurrentBattleSession(this, session)) return;
     }
@@ -8402,16 +8410,45 @@ export class BattleScene extends Phaser.Scene {
     for (const event of result.events) {
       if (event.type === 'skill') {
         prevStrikeSide = null;
-        await this.animateSkillActivation(event);
+        await safeBattlePresentation('skill activation', () => this.animateSkillActivation(event), {
+          scene: this,
+        });
         if (!isCurrentBattleSession(this, session)) return;
       } else {
         const followUp = event.attackerSide != null && event.attackerSide === prevStrikeSide;
         prevStrikeSide = event.attackerSide ?? null;
-        await this.animateStrike(event, attacker, defender, {
-          followUp,
-          strikeIndex: strikeIndex++,
-        });
+        const striker = event.attackerSide === 'defender' ? defender : attacker;
+        const target = striker === attacker ? defender : attacker;
+        applyStrikeHP(striker, target, event);
+        const index = strikeIndex++;
+        await safeBattlePresentation(
+          `strike ${index}`,
+          () =>
+            this.animateStrike(event, attacker, defender, {
+              followUp,
+              strikeIndex: index,
+            }),
+          { scene: this },
+        );
         if (!isCurrentBattleSession(this, session)) return;
+        if (event.warpRange > 0 && event.targetHPAfter > 0) {
+          const warp = settleTeleporterWarp({
+            unit: target,
+            range: event.warpRange,
+            attacker: striker,
+            grid: this.grid,
+            getUnitAt: (col, row) => this.getUnitAt(col, row),
+          });
+          if (warp) {
+            this._refreshPostCombatMovementState([target]);
+            await safeBattlePresentation(
+              'warp',
+              () => this._presentWarp(target, warp, { session }),
+              { scene: this },
+            );
+            if (!isCurrentBattleSession(this, session)) return;
+          }
+        }
       }
     }
 
@@ -8572,7 +8609,9 @@ export class BattleScene extends Phaser.Scene {
   async executeCombat(attacker, defender) {
     const session = battleSession(this);
     this.battleState = 'COMBAT_RESOLVING';
-    this.grid.clearAttackHighlights();
+    safeBattlePresentation('combat highlights', () => this.grid.clearAttackHighlights(), {
+      scene: this,
+    });
     this._commitCombatIntent(attacker, defender);
     this.resetFortHealStreak(attacker);
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
@@ -8606,14 +8645,22 @@ export class BattleScene extends Phaser.Scene {
 
       if (this.battleParams?.tutorialMode && this.tutorialStep === 5) {
         this.tutorialStep = 6;
-        await (this._tutorialController ||= new TutorialController(this)).showXpLesson();
-        if (!isCurrentBattleSession(this, session)) return;
+        await safeBattlePresentation(
+          'tutorial XP',
+          () => (this._tutorialController ||= new TutorialController(this)).showXpLesson(),
+          { scene: this },
+        );
         if (!isCurrentBattleSession(this, session)) return;
         this.battleState = 'COMBAT_RESOLVING';
       }
 
       // Tutorial: a counter-attack on a non-commander lord teaches permadeath
-      await this._maybeShowTutorialPermadeathHint(attacker, attacker.currentHP < attackerHpAtStart);
+      await safeBattlePresentation(
+        'tutorial permadeath',
+        () =>
+          this._maybeShowTutorialPermadeathHint(attacker, attacker.currentHP < attackerHpAtStart),
+        { scene: this },
+      );
       if (!isCurrentBattleSession(this, session)) return;
 
       if (defender.currentHP <= 0) {
@@ -8640,11 +8687,22 @@ export class BattleScene extends Phaser.Scene {
         this.battleState === 'BATTLE_END'
       )
         return;
-      await (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth();
+      await safeBattlePresentation(
+        'boss half health',
+        () => (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth(),
+        { scene: this },
+      );
       if (!isCurrentBattleSession(this, session)) return;
 
-      (this._battleBeats ||= new BattleBeatsController(this)).onChipLance(attacker, defender);
-      this._battleBeats.onLowHealth(attacker);
+      safeBattlePresentation(
+        'chip lance',
+        () =>
+          (this._battleBeats ||= new BattleBeatsController(this)).onChipLance(attacker, defender),
+        { scene: this },
+      );
+      safeBattlePresentation('attacker low health', () => this._battleBeats.onLowHealth(attacker), {
+        scene: this,
+      });
       const continuation = {
         kind: 'combat',
         unitName: attacker.name,
@@ -8659,6 +8717,11 @@ export class BattleScene extends Phaser.Scene {
     } catch (err) {
       if (!isCurrentBattleSession(this, session)) return;
       this._pendingCommittedAction = null;
+      reportAsyncError('battle_combat_domain_error', err, {
+        battleState: this.battleState,
+        phase: this.turnManager?.currentPhase,
+        turn: this.turnManager?.turnNumber,
+      });
       console.error('[BattleScene] combat error:', err);
       // Best-effort: reconcile dead units to prevent zombie state
       try {
@@ -8893,11 +8956,6 @@ export class BattleScene extends Phaser.Scene {
         this._showStrikeResult(event, striker, target, reduced);
       },
     });
-
-    if (event.warpRange > 0 && target.currentHP > 0) {
-      await this.executeWarp(target, event.warpRange, striker);
-      if (!isCurrentBattleSession(this, session)) return;
-    }
   }
 
   /** Floating MISS over a dodging target (strike presentation, see CombatChoreography). */
@@ -8948,7 +9006,6 @@ export class BattleScene extends Phaser.Scene {
       onComplete: () => dmgText.destroy(),
     });
 
-    setUnitHP(target, event.targetHPAfter);
     this.updateHPBar(target);
 
     // Sleep: wake on damage -- remove Zzz icon and un-dim immediately
@@ -8958,7 +9015,6 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (event.heal > 0 && event.strikerHealTo !== undefined) {
-      setUnitHP(striker, event.strikerHealTo);
       this.updateHPBar(striker);
     }
     // Show what the drain actually healed (nothing at full HP).
@@ -8983,7 +9039,6 @@ export class BattleScene extends Phaser.Scene {
 
     // Thorns: the combat result already carries the striker's HP after the reflection.
     if (event.reflectDamage > 0 && event.strikerHPAfter !== undefined) {
-      setUnitHP(striker, event.strikerHPAfter);
       this.updateHPBar(striker);
     }
     // Labelled, and only what the striker actually lost (Thorns leaves 1 HP).
@@ -9007,45 +9062,8 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** Execute warp for Teleporter affix. Target is the unit warping. */
-  async executeWarp(unit, range, attacker) {
-    const session = battleSession(this);
-    const bestPicks = getWarpCandidates(unit, range, attacker, this.grid, (c, r) =>
-      this.getUnitAt(c, r),
-    );
-    if (bestPicks.length === 0) return;
-    const pick = bestPicks[Math.floor(Math.random() * bestPicks.length)];
-    const targets = [
-      unit.graphic,
-      unit.label,
-      unit.factionIndicator,
-      unit.hpBar.bg,
-      unit.hpBar.fill,
-    ].filter(Boolean);
-    if (targets.length <= 0) return;
-    const originalAlpha = new Map(targets.map((target) => [target, target.alpha ?? 1]));
-
-    await this._awaitSceneTween(
-      {
-        targets,
-        alpha: 0,
-        duration: 180,
-      },
-      { label: 'execute_warp_fade_out' },
-    );
-    if (!isCurrentBattleSession(this, session)) return;
-    unit.col = pick.col;
-    unit.row = pick.row;
-    this.updateUnitPosition(unit);
-    await this._awaitSceneTween(
-      {
-        targets,
-        alpha: (target) => originalAlpha.get(target),
-        duration: 180,
-      },
-      { label: 'execute_warp_fade_in' },
-    );
-    if (!isCurrentBattleSession(this, session)) return;
+  _presentWarp(unit, warp, { session }) {
+    return presentTeleporterWarp(this, unit, warp, { session });
   }
   /** Animate a pre-combat skill activation event (Vantage, Astra, Desperation). */
   async animateSkillActivation(event) {
@@ -10770,7 +10788,11 @@ export class BattleScene extends Phaser.Scene {
       }
 
       // Tutorial: the first hit on a non-commander lord teaches permadeath
-      await this._maybeShowTutorialPermadeathHint(target, target.currentHP < targetHpAtStart);
+      await safeBattlePresentation(
+        'tutorial permadeath',
+        () => this._maybeShowTutorialPermadeathHint(target, target.currentHP < targetHpAtStart),
+        { scene: this },
+      );
       if (!isCurrentBattleSession(this, session)) return;
 
       if (target.currentHP <= 0) await this.removeUnit(target, { killer: enemy });
@@ -10799,13 +10821,26 @@ export class BattleScene extends Phaser.Scene {
         this.battleState === 'BATTLE_END'
       )
         return;
-      await (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth();
+      await safeBattlePresentation(
+        'boss half health',
+        () => (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth(),
+        { scene: this },
+      );
       if (!isCurrentBattleSession(this, session)) return;
 
-      (this._battleBeats ||= new BattleBeatsController(this)).onLowHealth(target);
+      safeBattlePresentation(
+        'defender low health',
+        () => (this._battleBeats ||= new BattleBeatsController(this)).onLowHealth(target),
+        { scene: this },
+      );
       this.checkBattleEnd();
     } catch (err) {
       if (!isCurrentBattleSession(this, session)) return;
+      reportAsyncError('battle_combat_domain_error', err, {
+        battleState: this.battleState,
+        phase: this.turnManager?.currentPhase,
+        turn: this.turnManager?.turnNumber,
+      });
       console.error('[BattleScene] enemy combat error:', err);
       try {
         if (target?.currentHP <= 0) await this.removeUnit(target, { killer: enemy });

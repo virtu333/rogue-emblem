@@ -7,6 +7,7 @@ import { readActionContinuation } from '../engine/ActionContinuation.js';
 import { LevelUpPopup } from './LevelUpPopup.js';
 import { gridDistance } from '../engine/Combat.js';
 import { levelUpKind } from './growthContent.js';
+import { safeBattlePresentation } from './safeBattlePresentation.js';
 
 // Save fields are untrusted; the one definition of the shape lives in the engine.
 export { readActionContinuation };
@@ -80,12 +81,19 @@ export async function presentQueuedLevelUps(scene, continuation = null, { sessio
     if (!isCurrentBattleSession(scene, session)) return;
     const unit = findBattleEntity(scene, { unitId, unitName }, ['playerUnits']);
     if (!unit) continue;
-    scene._playLevelUpSfx(levelUpKind(levelUp));
-    scene.updateHPBar(unit);
+    safeBattlePresentation('level-up sound', () => scene._playLevelUpSfx(levelUpKind(levelUp)), {
+      scene,
+    });
+    safeBattlePresentation('level-up HP', () => scene.updateHPBar(unit), { scene });
     try {
-      await new LevelUpPopup(scene, unit, levelUp, false, learnedNames).show();
+      await safeBattlePresentation(
+        'level-up popup',
+        () => new LevelUpPopup(scene, unit, levelUp, false, learnedNames).show(),
+        { scene },
+      );
     } finally {
-      if (isCurrentBattleSession(scene, session)) scene._stopLevelUpSfx();
+      if (isCurrentBattleSession(scene, session))
+        safeBattlePresentation('level-up sound cleanup', () => scene._stopLevelUpSfx(), { scene });
     }
   }
 }
@@ -116,7 +124,7 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
       ally.hasMoved = false;
       ally._movementCommitted = false;
       ally._movementSpent = 0;
-      ally.graphic?.clearTint?.();
+      safeBattlePresentation('Gambit tint', () => ally.graphic?.clearTint?.(), { scene });
     }
   } else if (unit) {
     scene.finishUnitAction(unit, {
@@ -129,7 +137,9 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
   }
   scene.selectedUnit = null;
   scene.battleState = 'PLAYER_IDLE';
-  scene.grid.clearAttackHighlights();
+  safeBattlePresentation('resolved action highlights', () => scene.grid.clearAttackHighlights(), {
+    scene,
+  });
   scene.attackTargets = [];
   scene.commitVisionSnapshotIfPending?.();
   scene._timelineBoundary = 'player_action';
