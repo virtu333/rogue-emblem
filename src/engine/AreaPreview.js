@@ -35,6 +35,8 @@ const isHostile = (a, b) => {
  * @param {object} p.knowledge    createPlayerKnowledge(...) for the player's previews
  * @param {object} p.world        { cols, rows, getMoveCost, getTerrainAt?, affixes? }
  * @param {object|null} p.strikeMods the attacker's merged combat mods (Combat.combatStrikeMods)
+ * @param {object|null} [p.weapon] the weapon the art strikes with (the art's weapon, which
+ *                                confirming equips; default: the equipped one)
  * @param {number} [p.blows]      how many blows a per-hit area lands (the forecast's hits)
  * @param {number} [p.dealt]      the damage the forecast says the target takes (for heals)
  * @returns {{ tiles: object[], victims: object[], heals: object[], push: object|null } | null}
@@ -47,6 +49,7 @@ export function previewAreaArt({
   knowledge,
   world,
   strikeMods = null,
+  weapon = null,
   blows = 1,
   dealt = 0,
 }) {
@@ -68,6 +71,7 @@ export function previewAreaArt({
       units: known.filter((u) => isHostile(attacker, u)),
       world,
       strikeMods,
+      weapon,
     });
     out.victims = plan.map(({ unit, damage }) => {
       const hpAfter = Math.max(Math.min(floor, unit.currentHP), unit.currentHP - damage * count);
@@ -110,7 +114,7 @@ export function previewAreaArt({
         damage: move.collision ? ram.collisionDamage : 0,
         obstacle: obstacle && isHostile(attacker, obstacle) ? obstacle : null,
       };
-    } else {
+    } else if (move.reason === 'rooted' || move.reason === 'immovable') {
       out.push = {
         to: { col: target.col, row: target.row },
         crash: false,

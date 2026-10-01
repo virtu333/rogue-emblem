@@ -126,6 +126,16 @@ describe('Battering Ram: push up to two tiles, crash when stopped short', () => 
     }
   });
 
+  it('from range 2 nothing moves and nothing braces, Anchored or not', () => {
+    for (const extra of [{}, { affixes: ['anchored'] }]) {
+      const a = unit('Lancer', 'player', 0, 1);
+      const t = target(extra);
+      const { beats } = run(ram, a, t, [a, t]);
+      expect([t.col, t.currentHP]).toEqual([2, 30]);
+      expect(beats.some((b) => b.kind === 'hint')).toBe(false);
+    }
+  });
+
   it('reads as one row', () => {
     expect(weaponArtDetailLines({ ...ram, name: 'Ram', hpCost: 6 }).join('\n')).toContain(
       'ram the target back up to 2 tiles (only when next to it); a crash deals 5',

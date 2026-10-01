@@ -159,20 +159,24 @@ export class AttackFlowController {
   /**
    * The selected art's preview against `target`, or null when no area art is selected.
    * `strikeMods` are the forecast's merged mods; without them the art's own mods stand
-   * in (target selection draws no numbers).
+   * in (target selection draws no numbers). The blows are struck with the art's weapon,
+   * which confirming equips, whatever is equipped now.
    */
-  areaPreviewFor(target, { strikeMods = null, blows = 1, dealt = 0 } = {}) {
+  areaPreviewFor(target, { strikeMods = null, blows = 1, dealt = 0, weapon = null } = {}) {
     const scene = this.scene;
     const unit = scene.selectedUnit;
     const art = unit ? scene._getSelectedWeaponArtForUnit?.(unit, { isInitiating: true }) : null;
     if (!art || !target) return null;
+    const artWeapon =
+      weapon || scene._resolveSelectedWeaponArtEntry?.(unit)?.weapon || unit.weapon || null;
     const preview = previewAreaArt({
       attacker: unit,
       art,
       target,
       knowledge: this.knowledge(),
       world: this.previewWorld(),
-      strikeMods: strikeMods || combatStrikeMods({ atkWeaponArtMods: art.combatMods }, unit.weapon),
+      strikeMods: strikeMods || combatStrikeMods({ atkWeaponArtMods: art.combatMods }, artWeapon),
+      weapon: artWeapon,
       blows,
       dealt,
     });
@@ -416,7 +420,12 @@ export class AttackFlowController {
         Math.max(0, Number(forecast.attacker.damage) || 0) * hits,
         Math.max(0, Number(defender.currentHP) || 0),
       );
-      const preview = this.showAreaPreview(defender, { strikeMods, blows: hits, dealt });
+      const preview = this.showAreaPreview(defender, {
+        strikeMods,
+        blows: hits,
+        dealt,
+        weapon: chosen,
+      });
       forecast.attacker.areaNotes = areaForecastLines(preview);
     } else {
       this.clearAreaPreview();

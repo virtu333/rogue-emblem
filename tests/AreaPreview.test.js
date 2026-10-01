@@ -89,6 +89,95 @@ describe('area preview numbers', () => {
   });
 });
 
+describe("the preview strikes with the art's weapon", () => {
+  it('a Sweeping Cleave on a held Steel Sword previews the sword, not the equipped axe', () => {
+    // Confirming equips the art's weapon. Steel Sword 8 + STR 12 − DEF 5 = 15, × 0.5 = 7;
+    // the equipped Steel Axe (10) would have shown 8.
+    const sword = weapon('Steel Sword');
+    const axe = weapon('Steel Axe');
+    const hero = unit(
+      'Hero',
+      'player',
+      2,
+      2,
+      { STR: 12 },
+      { weapon: axe, inventory: [axe, sword] },
+    );
+    const target = unit('Target', 'enemy', 3, 2, { DEF: 5 });
+    const side = unit('Side', 'enemy', 2, 1, { DEF: 5 });
+    const p = preview({
+      attacker: hero,
+      artId: 'axe_sweeping_cleave',
+      target,
+      units: [hero, target, side],
+      weapon: sword,
+    });
+    expect(visible(p).victims).toEqual([['Side', 7, false]]);
+  });
+});
+
+describe("the attack flow previews with the art's weapon", () => {
+  it('target selection reads the selected art entry, not the equipped weapon', () => {
+    const sword = weapon('Steel Sword');
+    const axe = weapon('Steel Axe');
+    const hero = unit(
+      'Hero',
+      'player',
+      2,
+      2,
+      { STR: 12 },
+      { weapon: axe, inventory: [axe, sword] },
+    );
+    const target = unit('Target', 'enemy', 3, 2, { DEF: 5 });
+    const side = unit('Side', 'enemy', 2, 1, { DEF: 5 });
+    const scene = {
+      battleState: 'SELECTING_TARGET',
+      selectedUnit: hero,
+      playerUnits: [hero],
+      enemyUnits: [target, side],
+      npcUnits: [],
+      gameData: data,
+      grid: { ...fogGrid(), gridToPixel: (c, r) => ({ x: c * 32, y: r * 32 }) },
+      add: {
+        graphics: () => new Proxy({}, { get: (_, __, g) => () => g }),
+        text: () => {
+          const t = { setOrigin: () => t, setDepth: () => t, destroy: () => {} };
+          return t;
+        },
+      },
+      _getSelectedWeaponArtForUnit: () => art('axe_sweeping_cleave'),
+      _resolveSelectedWeaponArtEntry: () => ({ weapon: sword, art: art('axe_sweeping_cleave') }),
+    };
+    const flow = new AttackFlowController(scene);
+    flow.focusTarget(target);
+    expect(flow._areaPreview.preview.victims.map((v) => [v.unit.name, v.damage])).toEqual([
+      ['Side', 7],
+    ]);
+  });
+});
+
+describe('ram preview', () => {
+  const ram = data.weaponArts.arts.find((a) => a.id === 'lance_battering_ram');
+  const ramPreview = (lancerCol, extra = {}) => {
+    const lancer = unit('Lancer', 'player', lancerCol, 1, {}, { weapon: weapon('Javelin') });
+    const target = unit('Target', 'enemy', 3, 1, {}, extra);
+    const knowledge = createPlayerKnowledge({ grid: fogGrid(), units: [lancer, target] });
+    return previewAreaArt({ attacker: lancer, art: ram, target, knowledge, world });
+  };
+
+  it('from range 2 nothing is pushed, so nothing is promised (no "braces")', () => {
+    const p = ramPreview(1);
+    expect(p.push).toBeNull();
+    expect(areaForecastLines(p)).toEqual([]);
+  });
+
+  it('an adjacent Anchored target braces', () => {
+    const p = ramPreview(2, { affixes: ['anchored'] });
+    expect(p.push).toMatchObject({ braced: true });
+    expect(areaForecastLines(p)).toEqual(['Push: the target braces']);
+  });
+});
+
 describe('blows per hit', () => {
   it('a line lands once per expected hit, a blast once whatever the hits', () => {
     // Oathlance 10 + STR 12 + Piercing Charge's +8 − DEF 5 = 25, × its 0.9 multi-hit = 22.

@@ -28,8 +28,11 @@ export function areaBounds(world) {
   };
 }
 
-/** One blow of `area` from `source` on `victim` (before any HP floor). */
-export function areaBlowDamage(source, victim, area, strikeMods, world) {
+/**
+ * One blow of `area` from `source` on `victim` (before any HP floor), struck with
+ * `weapon` (the art's weapon; the equipped one when not given).
+ */
+export function areaBlowDamage(source, victim, area, strikeMods, world, weapon = source?.weapon) {
   const damage = area?.damage;
   if (!damage || !source || !victim) return 0;
   if (damage.kind === 'fixed') return Math.max(0, Math.trunc(damage.amount) || 0);
@@ -37,7 +40,7 @@ export function areaBlowDamage(source, victim, area, strikeMods, world) {
   const terrain = world?.getTerrainAt?.(victim.col, victim.row) ?? null;
   let blow = strikeDamage(
     source,
-    source.weapon,
+    weapon,
     victim,
     victim.weapon || null,
     terrain,
@@ -72,6 +75,7 @@ function lowestHpPctFirst(a, b) {
  *                                AI, only the known ones for a preview
  * @param {object} p.world        { cols, rows, getMoveCost, getTerrainAt? }
  * @param {object|null} p.strikeMods the attacker's merged combat mods
+ * @param {object|null} [p.weapon]  the weapon the art strikes with (default: equipped)
  * @returns {{ unit: object, damage: number }[]} in area order
  */
 export function planAreaBlows({
@@ -82,6 +86,7 @@ export function planAreaBlows({
   units = [],
   world,
   strikeMods = null,
+  weapon = null,
 }) {
   if (!source || !area) return [];
   const tiles = areaTilesFor(
@@ -94,6 +99,6 @@ export function planAreaBlows({
   if (area.maxTargets > 0) victims = victims.slice(0, area.maxTargets);
   return victims.map((unit) => ({
     unit,
-    damage: areaBlowDamage(source, unit, area, strikeMods, world),
+    damage: areaBlowDamage(source, unit, area, strikeMods, world, weapon || source.weapon),
   }));
 }

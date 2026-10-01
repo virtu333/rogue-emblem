@@ -387,6 +387,12 @@ export function resolvePostCombatMove({
     .toLowerCase();
   if (!VALID_MOVE_MODES.has(normalizedMode)) return { ok: false, reason: 'invalid_mode' };
 
+  // Every art move needs the target beside its user; from range nothing moves, so no
+  // pin (root, Anchored) is ever reported for a move that could not have happened.
+  const stepDistance = Math.max(1, Math.trunc(Number(distance) || 1));
+  const direction = isCardinalAdjacent(sourceUnit, targetUnit);
+  if (!direction) return { ok: false, reason: 'not_adjacent' };
+
   // Root pins units against art-driven displacement: a rooted source cannot
   // reposition itself, and a rooted defender cannot be swapped or pushed.
   // (Deliberate ally actions like Shove/Pull remain allowed as counterplay.)
@@ -399,9 +405,6 @@ export function resolvePostCombatMove({
   if (movesTarget && targetUnit && isImmovable?.(targetUnit)) {
     return { ok: false, reason: 'immovable' };
   }
-  const stepDistance = Math.max(1, Math.trunc(Number(distance) || 1));
-  const direction = isCardinalAdjacent(sourceUnit, targetUnit);
-  if (!direction) return { ok: false, reason: 'not_adjacent' };
 
   const targetAlive = targetUnit?.currentHP > 0;
   const targetStillAtExpectedTile =
