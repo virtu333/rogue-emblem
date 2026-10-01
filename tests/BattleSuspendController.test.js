@@ -630,7 +630,7 @@ describe('checkpoint persistence retry ownership', () => {
     scene.runManager.battleInProgress.checkpoint.goldEarned = 999;
     scene.runManager.battleInProgress.nodeId = 'mutated live node';
     fail = false;
-    expect(controller.retryCheckpoint()).toEqual({ ok: true });
+    expect(controller.retryCheckpoint({ session: 1 })).toEqual({ ok: true });
     expect(stored.gold).toBe(7);
     expect(stored.battleInProgress.nodeId).toBe('n1');
     expect(stored.battleInProgress.checkpoint.goldEarned).toBe(120);
@@ -651,7 +651,7 @@ describe('checkpoint persistence retry ownership', () => {
       const checkpoint = structuredClone(scene.runManager.battleInProgress.checkpoint);
       const cursor = rng.getState();
       const reseeds = scene.reseedBattleRng.mock.calls.length;
-      expect(controller.retryCheckpoint()).toEqual({ ok: true });
+      expect(controller.retryCheckpoint({ session: 1 })).toEqual({ ok: true });
       expect(scene.runManager.battleInProgress.checkpoint).toEqual(checkpoint);
       expect(rng.getState()).toEqual(cursor);
       expect(scene.reseedBattleRng.mock.calls.length).toBe(reseeds);
@@ -663,7 +663,10 @@ describe('checkpoint persistence retry ownership', () => {
         expect(reseeds).toBe(0);
       }
       scene._battleSession = 2;
-      expect(controller.retryCheckpoint()).toEqual({ ok: false, reason: 'stale_session' });
+      expect(controller.retryCheckpoint({ session: 1 })).toEqual({
+        ok: false,
+        reason: 'stale_session',
+      });
       expect(scene._persistBattleRunState).toHaveBeenCalledTimes(2);
     },
   );
@@ -699,7 +702,7 @@ describe('checkpoint retry snapshots', () => {
     expect(ctrl._retryCandidate.battleInProgress.timeline.earlierHistoryUnavailable).toBe(true);
     scene.runManager.battleInProgress.timeline.currentTurn = 999;
     scene._persistBattleRunState.mockReturnValue({ ok: true });
-    expect(ctrl.retryCheckpoint()).toEqual({ ok: true });
+    expect(ctrl.retryCheckpoint({ session: 1 })).toEqual({ ok: true });
     expect(scene._battleTimeline).toBe(scene.runManager.battleInProgress.timeline);
     expect(scene._battleTimeline.currentTurn).toBe(4);
     expect(scene._battleTimeline.earlierHistoryUnavailable).toBe(true);
@@ -717,6 +720,41 @@ it('a newer capture serialization error cannot retry a previous failed candidate
   };
   expect(ctrl.captureCheckpoint()).toBe(false);
   const writes = scene._persistBattleRunState.mock.calls.length;
-  expect(ctrl.retryCheckpoint()).toEqual({ ok: false, reason: 'checkpoint_replaced' });
+  expect(ctrl.retryCheckpoint({ session: 1 })).toEqual({
+    ok: false,
+    reason: 'checkpoint_replaced',
+  });
   expect(scene._persistBattleRunState).toHaveBeenCalledTimes(writes);
+});
+
+it.each(['missing_slot', 'missing_run', 'stale_session', 'missing_persistence'])(
+  'does not retain or clone a retry candidate for %s',
+  (reason) => {
+    const scene = makeScene();
+    const candidate = { battleInProgress: scene.runManager.battleInProgress };
+    scene.runManager.toJSON = vi.fn(() => candidate);
+    scene._persistBattleRunState.mockReturnValue({ ok: false, reason });
+    const clone = vi.spyOn(globalThis, 'structuredClone');
+    const controller = new BattleSuspendController(scene);
+    controller.captureCheckpoint({ session: 1 });
+    expect(controller.hasRetryCandidate()).toBe(false);
+    expect(clone.mock.calls.some(([arg]) => arg === candidate)).toBe(false);
+    clone.mockRestore();
+  },
+);
+
+it('a successful retry and explicit drop both leave no candidate without a false replacement', () => {
+  const scene = makeScene();
+  const controller = new BattleSuspendController(scene);
+  expect(controller.retryCheckpoint({ session: 1 })).toEqual({ ok: false, reason: 'no_candidate' });
+  scene._persistBattleRunState.mockReturnValueOnce({ ok: false, reason: 'write_error' });
+  controller.captureCheckpoint({ session: 1 });
+  expect(controller.retryCheckpoint({ session: 1 })).toEqual({ ok: true });
+  expect(controller.retryCheckpoint({ session: 1 })).toEqual({ ok: false, reason: 'no_candidate' });
+  scene._persistBattleRunState.mockReturnValueOnce({ ok: false, reason: 'write_error' });
+  controller.captureCheckpoint({ session: 1 });
+  expect(controller.hasRetryCandidate()).toBe(true);
+  controller.dropRetryCandidate();
+  expect(controller.hasRetryCandidate()).toBe(false);
+  expect(controller.retryCheckpoint({ session: 1 })).toEqual({ ok: false, reason: 'no_candidate' });
 });

@@ -328,6 +328,7 @@ import {
   findBattleEntity,
 } from '../engine/BattleEntityIdentity.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
+import { SaveRetryController } from '../ui/SaveRetryController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
 import { PortraitBattleController } from '../ui/PortraitBattleController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
@@ -449,6 +450,11 @@ export class BattleScene extends Phaser.Scene {
     // Never reset this identity: Phaser restarts reuse the same Scene instance.
     this._cancelLifecycleAwaits('scene_replaced');
     this._battleSession = (this._battleSession || 0) + 1;
+    this._saveRetry?.destroy();
+    this._saveRetry = null;
+    this._checkpointPersistenceResult = null;
+    this._saveFailureReported = false;
+    this._cloudPushErrorReported = false;
     if (!data) {
       console.error('[BattleScene] init() called without data:', data);
       throw new Error('BattleScene requires data');
@@ -599,6 +605,8 @@ export class BattleScene extends Phaser.Scene {
   _runSceneShutdownCleanup() {
     if (this._sceneShutdownCleanedUp) return;
     this._sceneShutdownCleanedUp = true;
+    this._saveRetry?.destroy();
+    this._saveRetry = null;
 
     const audio = this.registry.get('audio');
     // Turning the phone re-opens the battle from its checkpoint; the re-opened scene
@@ -2246,6 +2254,7 @@ export class BattleScene extends Phaser.Scene {
 
   isStoryInputLocked() {
     return Boolean(
+      this._saveRetry?.isBlocking() ||
       this._storyDialogueActive ||
       this._ceremonies?.isBlocking?.() ||
       this.dialogueOverlay?.visible ||
@@ -3720,6 +3729,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   update() {
+    this._saveRetry?.update();
     if (this.dangerZone?.visible && this.dangerZoneStale) this.refreshVisibleDangerZone();
     this._pinnedThreats?.refresh();
     this._recruitBeacon?.sync();
@@ -4622,6 +4632,23 @@ export class BattleScene extends Phaser.Scene {
     const saveExitCb = this.runManager
       ? async () => {
           try {
+            const terminal = () =>
+              this.battleState === 'BATTLE_END' ||
+              this._fatalDecision ||
+              this._fatalCapturePending ||
+              this._defeatDecision;
+            if (!isCurrentBattleSession(this, session) || terminal()) return;
+            if (this._saveRetry) {
+              const durable = await this._saveRetry.ensureDurableForExit({ session });
+              if (!isCurrentBattleSession(this, session) || terminal()) return;
+              if (!durable) {
+                this.battleState = this.prePauseState || 'PLAYER_IDLE';
+                this.pauseOverlay = null;
+                this.refreshEndTurnControl();
+                onResume?.();
+                return;
+              }
+            }
             // Return to title -- the suspend checkpoint is already persisted,
             // so Continue will offer Resume Battle / Continue from Map.
             this.clearBattleScopedDeltas(this.playerUnits);
@@ -4683,11 +4710,13 @@ export class BattleScene extends Phaser.Scene {
         onResume?.();
       },
       onSaveAndExit: saveExitCb,
-      onSaveAndExitWarning: fromRewards
-        ? 'Your battle and remaining rewards are saved. Resume returns to the map, where you can reopen rewards.'
-        : backToMap
-          ? 'The battle has not started. Resume on the Title screen returns to the map; this battle waits there.'
-          : 'Battle suspended. Choose Resume on the Title screen to pick up where you left off.',
+      onSaveAndExitWarning: this._saveRetry?.isUnsaved()
+        ? 'Not saved yet. Exit tries to save it.'
+        : fromRewards
+          ? 'Your battle and remaining rewards are saved. Resume returns to the map, where you can reopen rewards.'
+          : backToMap
+            ? 'The battle has not started. Resume on the Title screen returns to the map; this battle waits there.'
+            : 'Battle suspended. Choose Resume on the Title screen to pick up where you left off.',
       onBackToMap: backToMap,
       onAbandon: abandonCb,
       campaignMapData,
@@ -8432,6 +8461,18 @@ export class BattleScene extends Phaser.Scene {
       scene: this,
     });
     this._commitCombatIntent(attacker, defender);
+    const saveGate = this._saveRetryGate(session);
+    if (saveGate) {
+      await saveGate;
+      if (
+        !isCurrentBattleSession(this, session) ||
+        this.battleState === 'BATTLE_END' ||
+        this._fatalDecision ||
+        this._fatalCapturePending ||
+        this._defeatDecision
+      )
+        return;
+    }
     this.resetFortHealStreak(attacker);
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
     const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
@@ -9102,6 +9143,22 @@ export class BattleScene extends Phaser.Scene {
         slot,
         { candidate },
       );
+      if (result.ok) {
+        this._saveFailureReported = false;
+        this._saveRetry?.onDurableWrite({ session });
+        if (result.cloud?.reason === 'callback_error' && !this._cloudPushErrorReported) {
+          this._cloudPushErrorReported = true;
+          reportAsyncError('battle_cloud_push_error', new Error('callback_error'));
+        }
+      } else if (['quota', 'write_error'].includes(result.reason) && !this._saveFailureReported) {
+        this._saveFailureReported = true;
+        reportAsyncError('battle_save_failed', new Error(result.reason), {
+          phase: this.turnManager?.currentPhase,
+          turn: this.turnManager?.turnNumber,
+          checkpointIndex: this.runManager.battleInProgress?.checkpoint?.checkpointIndex,
+          policy: this._battleRewindPolicy,
+        });
+      }
       if (!result.ok && result.reason !== 'missing_slot') {
         console.warn('[BattleScene] battle-state save failed:', result.reason);
       }
@@ -9110,6 +9167,18 @@ export class BattleScene extends Phaser.Scene {
       console.warn('[BattleScene] battle-state save failed:', err?.message || err);
       return { ok: false, reason: 'write_error' };
     }
+  }
+
+  _onCheckpointResult(result, options) {
+    if (!isCurrentBattleSession(this, options.session)) return;
+    (this._saveRetry ||= new SaveRetryController(this).create()).onCheckpointResult(
+      result,
+      options,
+    );
+  }
+
+  _saveRetryGate(session) {
+    return this._saveRetry?.whenSettled(session) || null;
   }
 
   /** Suspend-checkpoint shim (see BattleSuspendController). */
@@ -9680,6 +9749,18 @@ export class BattleScene extends Phaser.Scene {
             this.battleState === 'BATTLE_END'
           ) {
             return;
+          }
+          const saveGate = this._saveRetryGate(session);
+          if (saveGate) {
+            await saveGate;
+            if (
+              !isCurrentBattleSession(this, session) ||
+              this.battleState === 'BATTLE_END' ||
+              this._fatalDecision ||
+              this._fatalCapturePending ||
+              this._defeatDecision
+            )
+              return;
           }
           // The army's end-of-phase hazards also reach its NPC allies.
           await this.processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
@@ -10378,6 +10459,18 @@ export class BattleScene extends Phaser.Scene {
                   this._captureSuspendCheckpoint?.({ session: session });
                 } finally {
                   this._enemyActionCheckpoint = false;
+                }
+                const saveGate = this._saveRetryGate(session);
+                if (saveGate) {
+                  await saveGate;
+                  if (
+                    !isCurrentBattleSession(this, session) ||
+                    this.battleState === 'BATTLE_END' ||
+                    this._fatalDecision ||
+                    this._fatalCapturePending ||
+                    this._defeatDecision
+                  )
+                    return;
                 }
                 await presentQueuedLevelUps(this, null, { session });
               }

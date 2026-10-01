@@ -22,7 +22,8 @@
         "contextual-help.spec.js",
         "formation.spec.js",
         "journey-contracts.spec.js",
-        "battle-timeline.spec.js"
+        "battle-timeline.spec.js",
+        "save-retry.spec.js"
       ]
     },
     {

@@ -42,7 +42,10 @@ afterEach(() => {
 it('checkpoint retry saves the frozen result with a fresh timestamp, without rerolling combat', async () => {
   const { scene, storage, attacker, defender } = fixture('plain kill');
   storage.failWrites = true;
-  await scene.executeCombat(attacker, defender);
+  const pending = scene.executeCombat(attacker, defender);
+  expect(scene._saveRetry.isBlocking()).toBe(true);
+  scene._saveRetry.keepPlaying();
+  await pending;
   expect(scene._checkpointPersistenceResult.ok).toBe(false);
   const checkpoint = model(scene.runManager.battleInProgress.checkpoint);
   const cursor = scene._battleRng.getState();
@@ -50,13 +53,52 @@ it('checkpoint retry saves the frozen result with a fresh timestamp, without rer
   const oldTimestamp = JSON.parse(storage.getItem('emblem_rogue_slot_1_run')).savedAt;
   storage.failWrites = false;
   Date.now.mockReturnValue(oldTimestamp + 1000);
-  expect(scene._battleSuspendController.retryCheckpoint().ok).toBe(true);
+  expect(scene._battleSuspendController.retryCheckpoint({ session: 1 }).ok).toBe(true);
   const durable = JSON.parse(storage.getItem('emblem_rogue_slot_1_run'));
   expect(durable.savedAt).toBe(oldTimestamp + 1000);
   expect(model(durable.battleInProgress.checkpoint)).toEqual(checkpoint);
   expect(scene._battleRng.getState()).toEqual(cursor);
   expect(model({ attacker, defender, gold: scene.goldEarned })).toEqual(state);
 });
+
+it(
+  'failed committed-attack save blocks rolls and HP until Keep playing',
+  { timeout: 20_000 },
+  async () => {
+    const { scene, storage, attacker, defender } = fixture('plain kill');
+    const hp = [attacker.currentHP, defender.currentHP];
+    const rng = scene._battleRng.getState();
+    storage.failWrites = true;
+    const work = scene.executeCombat(attacker, defender);
+    await Promise.resolve();
+    expect(scene._saveRetry.isBlocking()).toBe(true);
+    expect([attacker.currentHP, defender.currentHP]).toEqual(hp);
+    expect(scene._battleRng.getState()).toEqual(rng);
+    scene._saveRetry.keepPlaying();
+    await work;
+    expect(defender.currentHP).toBe(0);
+    expect(attacker.hasActed).toBe(true);
+  },
+);
+
+it.each(['_fatalDecision', '_fatalCapturePending', '_defeatDecision', 'BATTLE_END'])(
+  'committed save gate cannot resume combat after %s',
+  { timeout: 20_000 },
+  async (flag) => {
+    const { scene, storage, attacker, defender } = fixture('plain kill');
+    storage.failWrites = true;
+    const hp = [attacker.currentHP, defender.currentHP];
+    const cursor = scene._battleRng.getState();
+    const work = scene.executeCombat(attacker, defender);
+    if (flag === 'BATTLE_END') scene.battleState = flag;
+    else scene[flag] = true;
+    scene._saveRetry.update();
+    await work;
+    expect([attacker.currentHP, defender.currentHP]).toEqual(hp);
+    expect(scene._battleRng.getState()).toEqual(cursor);
+    expect(attacker.hasActed).toBe(false);
+  },
+);
 
 it.each(['player', 'enemy'])(
   '%s entry reports a required-domain failure instead of masking it as presentation',

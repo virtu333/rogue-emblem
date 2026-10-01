@@ -435,7 +435,9 @@ it.each(['blink', 'circle', 'talk', 'dance'])(
   async (kind) => {
     const f = fixture(kind);
     f.storage.failWrites = true;
-    await f.execute();
+    const pending = f.execute();
+    f.scene._saveRetry.keepPlaying();
+    await pending;
     expect(f.scene._checkpointPersistenceResult).toMatchObject({ ok: false, reason: 'quota' });
     const before = clean({
       players: f.scene.playerUnits,

@@ -22,3 +22,29 @@ PR 6 decisions are accepted in `stability-pr6-action-settlement.md`: Talk commit
 PR 7 uses one forward stage key per slot. A foreign/ambiguous newer canonical pair retains evidence and defers; an equal or proven superseding pair permits stage retirement only after sole raw evidence is safely archived elsewhere. Timestamps alone cannot prove compatible progression. Native excludes stage mirroring and recovery planning; canonical timestamps respect native floors.
 
 Verification entries below distinguish targeted tests, integrated local runs, individual-head CI and physical-device checks. Mutation records identify each edit and failing assertion; reported counts are not independent audits.
+
+## Final local integration verification
+
+PR 6a staff/consumables is published as #176 and PR 6b movement/abilities as #177. Save retry (6c) follows them. The local combined branch uses actual merges of the corrected battle stack, #172 and #167; the verified source head is `4df5e656` (tree `1e1032fe`). Published commit IDs can differ because publication preserves the canonical GitHub parents; compare source trees.
+
+| Check | Final result | Scope |
+| --- | --- | --- |
+| Full unit | 579 files / 9,509 tests passed | Combined battle, class-change and save-recovery source; two workers |
+| Full harness | 14 files / 226 tests passed | Journey persistence/combat and headless parity; exact local result and optional offline cloud status |
+| Simulation tests | 9 files / 41 tests passed | `test:sim`; the strict PR fuzz/full-run suites are listed separately below |
+| Battle/action/retry Chromium | 42 unique cases passed, no retries | Real Chromium 145, Vite and assets; committed refresh, rewind, staff/recruit, paused sessions and retry/exit |
+| Strict PR harness fuzz | 50 runs passed, no errors/timeouts | Preset PR scenarios |
+| Strict full-run PR slices | 4 slices / 42 runs passed, no stuck cases/timeouts | Pressure normal/hard, progression and ambush; expected defeats are allowed |
+| Production build | Passed; 258 packaged audio files verified | Full asset checkout, 13.45 seconds |
+| Content/reference checks | Passed | Data, audio, UI, references, sprites and e2e lane coverage |
+| Full lint | 0 errors / 364 existing warnings | No new lint errors; this is not a warning-free repository claim |
+| Slot-picker Chromium | 9 cases passed | Damaged saves and reservation recovery |
+| Independent review | 185 targeted tests reported passing | Adversarial battle/save review; targeted evidence, not a full-suite coverage claim |
+
+The first full unit run found 16 failures in eight older test files. Each was checked against the production contract. Fixtures now supply living roster members, owned skills, legal adjacent targets and synchronous domain XP; the Measured Step test uses a supported healing item and also asserts its HP gain and cost. Portrait asserts the explicit origin and `progress:false`. The old consumable Canto test asserted a refund that conflicts with settlement-before-presentation; it now checks the actual serialized settled HP/use, finish continuation, original position, remaining Canto and unchanged fog. These changes retain the relevant gameplay assertions and strengthen action acceptance/completion checks.
+
+Save-retry review caught two presentation/terminal defects: a throwing repaint could strand Retry, and successful save-exit awaits could steal a terminal decision. Retry now keeps its gate until the writer returns, even when the repaint fails; constructor failures independently release partial input/overlay/DOM ownership. Save & Exit checks the originating session and terminal decision before and after its await. Real menu-construction faults and both save outcomes are tested. Reintroducing the repaint and save-exit defects fails the corresponding assertions.
+
+The latest installed checkpoint wins; a stale candidate cannot overwrite newly advanced gameplay. Retry never replays costs, captures another boundary or reseeds RNG. A durable local save with offline/protected cloud backup clears the local retry indication. Keep playing acknowledges the bounded last-durable-save exception on refresh or crash.
+
+These are local results, not CI on the combined branch. CI is queued for the newly published heads. The PR-only change-size note check was skipped outside a PR context; it is not counted as a passed gate. Desktop 640×480 and phone landscape/portrait retry layouts were visually checked. Physical iOS/WebKit and cross-build resume parity remain unverified. Construction-time controller origin propagation remains the disclosed API follow-up. PR 7 forward-staged pair recovery and PR 8 computed combat outcomes remain separate work.

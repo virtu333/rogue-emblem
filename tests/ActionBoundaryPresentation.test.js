@@ -404,7 +404,9 @@ it.each(['fixed-v1', 'legacy-v1'])(
 it('storage retry writes a frozen staff settlement without repeating its cost or growth', async () => {
   const f = fixture('growth');
   f.storage.failWrites = true;
-  await f.execute();
+  const pending = f.execute();
+  f.scene._saveRetry.keepPlaying();
+  await pending;
   expect(f.scene._checkpointPersistenceResult.ok).toBe(false);
   const before = clean({
     players: f.scene.playerUnits,
