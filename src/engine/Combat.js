@@ -814,6 +814,18 @@ export function strikeDamage(
   return Math.max(0, damage);
 }
 
+/**
+ * The attacker's merged combat mods for a combat with `skillCtx`: skills and the like
+ * (`atkMods`), the weapon art (`atkWeaponArtMods`) and the weapon's imbue, merged as the
+ * forecast and resolveCombat merge them. Area blows and their preview reuse it.
+ */
+export function combatStrikeMods(skillCtx, atkWeapon) {
+  return mergeCombatMods(
+    mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods),
+    getImbueCombatMods(atkWeapon, skillCtx?.imbuesData),
+  );
+}
+
 /** True if attacker is fast enough to strike twice (after weight penalty) */
 export function canDouble(attacker, defender, atkWeapon, defWeapon) {
   const atkEffectiveSpd = calculateEffectiveSpeed(attacker, atkWeapon);
@@ -965,10 +977,7 @@ export function getCombatForecast(
 
   // Weapon imbue mods merge exactly like weapon-art mods, on whichever side
   // wields the imbued weapon (so defensive imbues also apply when defending).
-  const atkMods = mergeCombatMods(
-    mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods),
-    getImbueCombatMods(atkWeapon, skillCtx?.imbuesData),
-  );
+  const atkMods = combatStrikeMods(skillCtx, atkWeapon);
   const defMods = mergeCombatMods(
     mergeCombatMods(skillCtx?.defMods, skillCtx?.defWeaponArtMods),
     defWeapon ? getImbueCombatMods(defWeapon, skillCtx?.imbuesData) : null,
@@ -1521,10 +1530,7 @@ export function resolveCombat(
 
   // Weapon imbue mods merge exactly like weapon-art mods, on whichever side
   // wields the imbued weapon (so defensive imbues also apply when defending).
-  const atkMods = mergeCombatMods(
-    mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods),
-    getImbueCombatMods(atkWeapon, skillCtx?.imbuesData),
-  );
+  const atkMods = combatStrikeMods(skillCtx, atkWeapon);
   const defMods = mergeCombatMods(
     mergeCombatMods(skillCtx?.defMods, skillCtx?.defWeaponArtMods),
     defWeapon ? getImbueCombatMods(defWeapon, skillCtx?.imbuesData) : null,

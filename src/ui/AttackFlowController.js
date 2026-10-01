@@ -21,6 +21,10 @@
 // forecast is the pure getCombatForecast (via scene._computePlayerForecast).
 
 import { ForecastOverlay } from './ForecastOverlay.js';
+import { AreaPreviewController } from './AreaPreviewController.js';
+import { areaForecastLines, previewAreaArt } from '../engine/AreaPreview.js';
+import { combatStrikeMods } from '../engine/Combat.js';
+import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
 import { TutorialController } from './TutorialController.js';
 import { combatDistance, getFootprint, isEntity } from '../engine/EntitySystem.js';
 import {
@@ -123,7 +127,75 @@ export class AttackFlowController {
     if (scene.selectedUnit) this._lastTargetByUnit.set(scene.selectedUnit, target);
     scene._gridCursor?.snapTo?.(target.col, target.row);
     this.showReticle(target);
+    // An area art shows where it reaches and whom (numbers wait for the forecast).
+    if (scene.battleState === 'SELECTING_TARGET') this.showAreaPreview(target, { numbers: false });
     scene._mobileBattleHud?.sync?.();
+  }
+
+  // --- Area preview (docs/specs/aoe-weapon-arts.md §5) ------------------------
+
+  /** The board as the player knows it: own units, what the fog shows, the beacon. */
+  knowledge() {
+    const scene = this.scene;
+    return createPlayerKnowledge({
+      grid: scene.grid,
+      units: [...(scene.playerUnits || []), ...(scene.enemyUnits || []), ...(scene.npcUnits || [])],
+      revealed: [scene._recruitBeacon?.npc],
+    });
+  }
+
+  /** The world an area preview reads: board size, terrain and affix data, never units. */
+  previewWorld() {
+    const scene = this.scene;
+    return {
+      cols: scene.grid?.cols ?? 0,
+      rows: scene.grid?.rows ?? 0,
+      getMoveCost: (col, row, moveType) => scene.grid?.getMoveCost?.(col, row, moveType) ?? 1,
+      getTerrainAt: (col, row) => scene.grid.getTerrainAt?.(col, row) ?? null,
+      affixes: scene.gameData?.affixes,
+    };
+  }
+
+  /**
+   * The selected art's preview against `target`, or null when no area art is selected.
+   * `strikeMods` are the forecast's merged mods; without them the art's own mods stand
+   * in (target selection draws no numbers).
+   */
+  areaPreviewFor(target, { strikeMods = null, blows = 1, dealt = 0 } = {}) {
+    const scene = this.scene;
+    const unit = scene.selectedUnit;
+    const art = unit ? scene._getSelectedWeaponArtForUnit?.(unit, { isInitiating: true }) : null;
+    if (!art || !target) return null;
+    const preview = previewAreaArt({
+      attacker: unit,
+      art,
+      target,
+      knowledge: this.knowledge(),
+      world: this.previewWorld(),
+      strikeMods: strikeMods || combatStrikeMods({ atkWeaponArtMods: art.combatMods }, unit.weapon),
+      blows,
+      dealt,
+    });
+    const empty =
+      !preview || (preview.tiles.length === 0 && preview.heals.length === 0 && !preview.push);
+    return empty ? null : preview;
+  }
+
+  showAreaPreview(target, opts = {}) {
+    const scene = this.scene;
+    const preview = this.areaPreviewFor(target, opts);
+    if (!preview) {
+      this.clearAreaPreview();
+      return null;
+    }
+    (this._areaPreview ||= new AreaPreviewController(scene)).show(preview, {
+      numbers: opts.numbers !== false,
+    });
+    return preview;
+  }
+
+  clearAreaPreview() {
+    this._areaPreview?.clear();
   }
 
   // --- Target reticle (presentation only) ------------------------------------
@@ -157,6 +229,7 @@ export class AttackFlowController {
       });
       this._onUpdate = () => {
         if (this._reticle?.visible && !this.isAttacking()) this.hideReticle();
+        if (this._areaPreview?.preview && !this.isAttacking()) this.clearAreaPreview();
       };
       scene.events?.on?.('update', this._onUpdate);
     }
@@ -275,6 +348,7 @@ export class AttackFlowController {
     scene.attackTargets = [];
     this.focusedTarget = null;
     this.hideReticle();
+    this.clearAreaPreview();
     scene.showActionMenu(scene.selectedUnit);
   }
 
@@ -331,6 +405,22 @@ export class AttackFlowController {
       atkTerrain,
       defTerrain,
     });
+    // An area art: its full preview, with the combat's merged mods, and its forecast lines.
+    if (weaponArt) {
+      const strikeMods = combatStrikeMods(
+        scene._buildForecastSkillCtx?.(attacker, defender, weaponArt, { weapon: chosen }),
+        chosen,
+      );
+      const hits = Math.max(1, Number(forecast.attacker.attackCount) || 1);
+      const dealt = Math.min(
+        Math.max(0, Number(forecast.attacker.damage) || 0) * hits,
+        Math.max(0, Number(defender.currentHP) || 0),
+      );
+      const preview = this.showAreaPreview(defender, { strikeMods, blows: hits, dealt });
+      forecast.attacker.areaNotes = areaForecastLines(preview);
+    } else {
+      this.clearAreaPreview();
+    }
     const hints = scene.registry?.get?.('hints');
     for (const info of [forecast.attacker, forecast.defender]) {
       info.affixNotes = (info.affixNotes || []).map((note) => {
