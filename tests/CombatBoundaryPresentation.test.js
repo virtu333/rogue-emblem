@@ -235,6 +235,13 @@ it.each(['fixed-v1', 'legacy-v1'])(
         checkpoint,
       });
     };
+    // Independent HP oracle for both policy streams: sword advantage gives
+    // 10 STR + 5 might + 1 - 4 DEF = 12. Teleporter cancels the
+    // remaining exchange before the counter, so attacker HP stays 20.
+    // Neither unit falls, so gold is zero.
+    expect([live.attacker.currentHP, live.defender.currentHP, live.scene.goldEarned]).toEqual([
+      20, 10, 0,
+    ]);
     const expected = outcome(live.scene);
 
     const resumed = resumeFixture();
@@ -256,6 +263,11 @@ it.each(['fixed-v1', 'legacy-v1'])(
     expect(replay).toBeTypeOf('function');
     await replay();
     expect(outcome(resumed.scene)).toEqual(expected);
+    expect([
+      resumed.scene.playerUnits.find((unit) => unit.name === live.attacker.name).currentHP,
+      resumed.scene.enemyUnits.find((unit) => unit.name === live.defender.name).currentHP,
+      resumed.scene.goldEarned,
+    ]).toEqual([20, 10, 0]);
     const defender = resumed.scene.enemyUnits.find((entry) => entry.name === 'Enemy');
     expect([defender.currentHP, defender.col, defender.row]).toEqual([10, 4, 4]);
     if (policy === 'fixed-v1')
