@@ -80,7 +80,16 @@ the camp would reach the turtle sooner. So neither one taxes the turtle. What do
 it: arrivals that keep coming until the field is clear, and enemies that do not come to
 it.
 
-DEFAULT_ARMY_TABLE
+**The default army** (no edge, 48 runs, rout maps). The harness player takes 9–24 turns
+a battle and suffers 9–43 would-be KOs per battle, so it is no proxy for a human. Its one
+use: on its own scale, the ladder hurts weak play more than strong play.
+
+| Configuration | Turns turtle / push | Turtle S/A/B/C | Push S/A/B/C | Shadow turtle / push | Force-won stalls turtle / push |
+|---|---|---|---|---|---|
+| Dusk today | 10.8 / 8.8 | 22/42/20/16 | 46/35/11/8 | 51.2 ± 2.2 / 27.0 ± 2.0 | 73 / 39 |
+| Dusk ladder | 14.7 / 12.8 | 12/6/24/58 | 21/10/22/47 | 92.7 ± 1.1 / 81.7 ± 2.0 | 83 / 67 |
+| Nightfall today | 17.4 / 14.9 | 4/20/28/48 | 9/25/29/37 | 93.2 ± 1.2 / 86.7 ± 2.3 | 157 / 83 |
+| Nightfall ladder | 24.2 / 20.8 | 2/1/2/95 | 2/2/4/92 | 96.7 / 96.9 | 239 / 187 |
 
 ## 2. Changes
 
