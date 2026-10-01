@@ -70,6 +70,7 @@ function makeUnit(name, col, row, faction = 'player') {
  */
 function makeSplashScene({ victims }) {
   const scene = new BattleScene();
+  scene.scene = { isActive: () => true };
   scene.playerUnits = victims.filter((v) => v.faction === 'player');
   scene.enemyUnits = [];
   scene.npcUnits = [];

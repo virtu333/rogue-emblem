@@ -1,3 +1,4 @@
+import { createBattleRng } from '../src/engine/BattleRng.js';
 // BattleSuspendController: checkpoint capture (RNG reseed + persist), exact
 // unit serialization for mid-turn state, and the resume restore path.
 
@@ -593,4 +594,59 @@ it('restores legacy Gaspar checkpoint units with Measured Step and fixed traits 
   }
   // Restored active and benched copies share the same policy without touching the source.
   expect(old.skills).toEqual(['canto', 'aegis']);
+});
+
+describe('checkpoint persistence retry ownership', () => {
+  it('a retry writes the captured run candidate even if live state changed, and clears the failure status', () => {
+    const scene = makeScene({ _battleSession: 1 });
+    scene.runManager.gold = 7;
+    scene.runManager.toJSON = function () {
+      return { gold: this.gold, battleInProgress: this.battleInProgress };
+    };
+    let stored = null;
+    let fail = true;
+    scene._persistBattleRunState = (candidate) => {
+      if (fail) return { ok: false, reason: 'write_error' };
+      stored = JSON.parse(JSON.stringify(candidate || scene.runManager.toJSON()));
+      return { ok: true };
+    };
+    const controller = new BattleSuspendController(scene);
+    expect(controller.captureCheckpoint()).toBe(false);
+    scene.runManager.gold = 999;
+    fail = false;
+    expect(controller.retryCheckpoint()).toEqual({ ok: true });
+    expect(stored.gold).toBe(7);
+    expect(stored.battleInProgress.checkpoint.checkpointIndex).toBe(1);
+    expect(scene._checkpointPersistenceResult).toEqual({ ok: true });
+  });
+  it.each(['legacy', 'fixed-v1'])(
+    're-persists the identical %s checkpoint and RNG instead of recapturing',
+    (policy) => {
+      const rng = createBattleRng(137);
+      rng();
+      rng();
+      const scene = makeScene({ _battleSession: 1, _battleRewindPolicy: policy, _battleRng: rng });
+      scene.runManager.rngSeed = 137;
+      scene._persistBattleRunState.mockReturnValueOnce({ ok: false, reason: 'write_error' });
+      const controller = new BattleSuspendController(scene);
+      expect(controller.captureCheckpoint()).toBe(false);
+      const checkpoint = structuredClone(scene.runManager.battleInProgress.checkpoint);
+      const cursor = rng.getState();
+      const reseeds = scene.reseedBattleRng.mock.calls.length;
+      expect(controller.retryCheckpoint()).toEqual({ ok: true });
+      expect(scene.runManager.battleInProgress.checkpoint).toEqual(checkpoint);
+      expect(rng.getState()).toEqual(cursor);
+      expect(scene.reseedBattleRng.mock.calls.length).toBe(reseeds);
+      if (policy === 'fixed-v1') {
+        expect(cursor).toEqual({
+          algorithm: 'mulberry32-v1',
+          cursor: (137 + 2 * 0x6d2b79f5) >>> 0,
+        });
+        expect(reseeds).toBe(0);
+      }
+      scene._battleSession = 2;
+      expect(controller.retryCheckpoint()).toEqual({ ok: false, reason: 'stale_session' });
+      expect(scene._persistBattleRunState).toHaveBeenCalledTimes(2);
+    },
+  );
 });

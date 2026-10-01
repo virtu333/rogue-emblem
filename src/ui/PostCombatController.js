@@ -1,3 +1,4 @@
+import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { persistBattleDefeat } from './BattleFatalDecision.js';
 import { fallenBattleRecruits } from '../engine/BattleRecruits.js';
 import { unitIdentityKey, unitUidOf } from '../engine/UnitIdentity.js';
@@ -61,10 +62,13 @@ function settleEndRunForScene(scene, result) {
 export class PostCombatController {
   constructor(scene) {
     this.scene = scene;
+    this.session = battleSession(scene);
   }
 
   onVictory() {
     const scene = this.scene;
+    const session = this.session;
+    if (!isCurrentBattleSession(scene, session)) return;
     if (scene.battleState === 'BATTLE_END') return;
     scene._reinforcementsPendingThisTurn = false;
     scene.battleState = 'BATTLE_END';
@@ -99,7 +103,7 @@ export class PostCombatController {
       let started = false;
       let timer = null;
       const run = () => {
-        if (started) return undefined;
+        if (started || !isCurrentBattleSession(scene, session)) return undefined;
         started = true;
         timer?.remove?.(false);
         band?.release();
@@ -111,7 +115,7 @@ export class PostCombatController {
 
     if (scene.battleParams.tutorialMode) {
       afterVictoryBand(async () => {
-        if (!scene.scene?.isActive?.()) return;
+        if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
         const tutorial = (scene._tutorialController ||= new TutorialController(scene));
         // A fresh player goes straight into their first run; anyone else returns to title.
         const startRun = Boolean(tutorial.pauseOptions?.()?.onStartRun);
@@ -129,7 +133,8 @@ export class PostCombatController {
               : [{ label: 'Back to title', value: 'title', primary: true }],
           },
         );
-        if (!scene.scene?.isActive?.()) return;
+        if (!isCurrentBattleSession(scene, session)) return;
+        if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
         tutorial.recordCompletion();
         if (choice === 'run') scene._transitionTutorialToTitle({ autoAction: 'newGame' });
         else scene._transitionTutorialToTitle();
@@ -225,7 +230,7 @@ export class PostCombatController {
       }
       scene._persistBattleRunState?.();
       afterVictoryBand(async () => {
-        if (!scene.scene?.isActive?.()) return;
+        if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
         if (!completionApplied) {
           console.warn('[BattleScene] completeBattle no-op; skipping loot/recruit flow.');
           try {
@@ -240,6 +245,7 @@ export class PostCombatController {
               },
               { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
             );
+            if (!isCurrentBattleSession(scene, session)) return;
             if (result.status !== TRANSITION_RESULTS.STARTED) {
               console.warn('[BattleScene] completeBattle no-op transition blocked; retrying.');
               resetTransitionLocks(scene);
@@ -252,6 +258,7 @@ export class PostCombatController {
                 },
                 { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
               );
+              if (!isCurrentBattleSession(scene, session)) return;
               if (!retryOk) {
                 if (scene._victoryBanner) {
                   scene._victoryBanner.destroy();
@@ -264,6 +271,7 @@ export class PostCombatController {
               }
             }
           } catch (err) {
+            if (!isCurrentBattleSession(scene, session)) return;
             console.warn('[BattleScene] completeBattle no-op transition failed:', err);
             if (scene._victoryBanner) {
               scene._victoryBanner.destroy();
@@ -278,7 +286,8 @@ export class PostCombatController {
           // save. Present them here when victory skipped the next player turn.
           if (scene._pendingLevelUpPopups?.length) {
             await presentQueuedLevelUps(scene);
-            if (!scene.scene?.isActive?.()) return;
+            if (!isCurrentBattleSession(scene, session)) return;
+            if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
           }
           if (scene.isBoss && scene._bossName && scene.runManager) {
             const bossName = scene._resolveBossDialogueName(scene._bossName);
@@ -294,14 +303,17 @@ export class PostCombatController {
             );
             meta?.recordBossSlain?.(bossName);
             await scene._showStoryDialogueOnce(dialogueKey, entries);
+            if (!isCurrentBattleSession(scene, session)) return;
           }
         } catch (err) {
+          if (!isCurrentBattleSession(scene, session)) return;
           console.warn('[BattleScene] boss defeat dialogue failed:', err);
         }
 
         // Deeds earned this battle: committed and saved above; the rite only shows them.
         if (scene._newDeeds?.length) await deedsFor(scene).presentVictory();
-        if (!scene.scene?.isActive?.()) return;
+        if (!isCurrentBattleSession(scene, session)) return;
+        if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
         if (scene.runManager.isRunComplete()) {
           // Final boss: award turn-bonus gold silently, skip loot screen
           scene._awardTurnBonusGold();
@@ -323,9 +335,11 @@ export class PostCombatController {
                   scene.runManager?.pickNarrativeLine?.(elitePool, `eliteVictory:${act}`) ||
                   elitePool[0];
                 await scene.dialogueOverlay?.show(null, line, null);
+                if (!isCurrentBattleSession(scene, session)) return;
               }
             } catch (_) {}
-            if (!scene.scene?.isActive?.()) return;
+            if (!isCurrentBattleSession(scene, session)) return;
+            if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
           }
           if (scene.runManager.shouldTriggerThirdLord()) {
             scene._showThirdLordArrival();
@@ -360,6 +374,8 @@ export class PostCombatController {
 
   async transitionAfterBattle() {
     const scene = this.scene;
+    const session = this.session;
+    if (!isCurrentBattleSession(scene, session)) return;
     if (scene.isTransitioningOut) return false;
     scene.isTransitioningOut = true;
     try {
@@ -377,6 +393,7 @@ export class PostCombatController {
             },
             { reason: TRANSITION_REASONS.VICTORY },
           );
+          if (!isCurrentBattleSession(scene, session)) return;
           if (!ok) throw new Error('Scene transition to RunComplete blocked');
         } else {
           const fromAct = scene.runManager.currentAct;
@@ -407,7 +424,9 @@ export class PostCombatController {
               : null;
           try {
             await scene._showStoryDialogueOnce(transKey, entries, { category: 'actTransition' });
+            if (!isCurrentBattleSession(scene, session)) return;
           } catch (err) {
+            if (!isCurrentBattleSession(scene, session)) return;
             console.warn('[BattleScene] act transition dialogue failed:', err);
           }
           if (actCard) {
@@ -418,7 +437,9 @@ export class PostCombatController {
                 !scene.dialogueOverlay?.lastSequenceSkippedAsSeen;
               if (linesRead) void actCard.close();
               else await actCard.finish();
+              if (!isCurrentBattleSession(scene, session)) return;
             } catch (err) {
+              if (!isCurrentBattleSession(scene, session)) return;
               console.warn('[BattleScene] act card failed:', err);
             }
           }
@@ -431,6 +452,7 @@ export class PostCombatController {
             },
             { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
           );
+          if (!isCurrentBattleSession(scene, session)) return;
           if (!ok2) throw new Error('Scene transition to NodeMap blocked (act advance)');
         }
       } else {
@@ -443,10 +465,12 @@ export class PostCombatController {
           },
           { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
         );
+        if (!isCurrentBattleSession(scene, session)) return;
         if (!ok3) throw new Error('Scene transition to NodeMap blocked');
       }
       return true;
     } catch (err) {
+      if (!isCurrentBattleSession(scene, session)) return;
       scene.isTransitioningOut = false;
       scene.reportLootError('transitionAfterBattle', err, {
         isElite: scene.isElite,
@@ -460,6 +484,8 @@ export class PostCombatController {
 
   async forceTransitionAfterBattle() {
     const scene = this.scene;
+    const session = this.session;
+    if (!isCurrentBattleSession(scene, session)) return;
     scene._postLootTransitionCompleted = true;
     scene._clearPostLootTransitionFallback();
     resetTransitionLocks(scene);
@@ -478,6 +504,7 @@ export class PostCombatController {
           },
           { reason: TRANSITION_REASONS.VICTORY },
         );
+        if (!isCurrentBattleSession(scene, session)) return;
       } else {
         ok = await transitionToScene(
           scene,
@@ -488,6 +515,7 @@ export class PostCombatController {
           },
           { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
         );
+        if (!isCurrentBattleSession(scene, session)) return;
       }
       if (!ok) {
         console.error(
@@ -500,6 +528,7 @@ export class PostCombatController {
         }
       }
     } catch (err) {
+      if (!isCurrentBattleSession(scene, session)) return;
       console.error('[BattleScene][LootFlow] forceTransitionAfterBattle failed', err);
       if (scene.runManager?.isRunComplete?.()) {
         scene.showVictoryTransitionRecovery();
@@ -511,9 +540,12 @@ export class PostCombatController {
 
   async transitionToRunCompleteWithRetry(result = 'defeat') {
     const scene = this.scene;
+    const session = this.session;
+    if (!isCurrentBattleSession(scene, session)) return false;
     const reason = result === 'victory' ? TRANSITION_REASONS.VICTORY : TRANSITION_REASONS.DEFEAT;
     return retryBooleanAction(
       (attempt) => {
+        if (!isCurrentBattleSession(scene, session)) return new Promise(() => {});
         const timeoutToken = Symbol('runcomplete_transition_timeout');
         let timeoutHandle = null;
         const timeoutPromise = new Promise((resolve) => {
@@ -535,6 +567,8 @@ export class PostCombatController {
         );
         return Promise.race([ok, timeoutPromise]).then((outcome) => {
           if (timeoutHandle) clearTimeout(timeoutHandle);
+          if (!isCurrentBattleSession(scene, session) && outcome !== true)
+            return new Promise(() => {});
           if (outcome === timeoutToken) {
             console.warn(`[BattleScene] ${result} transition attempt timed out`, {
               attempt,
@@ -798,6 +832,8 @@ export class PostCombatController {
 
   onDefeat() {
     const scene = this.scene;
+    const session = this.session;
+    if (!isCurrentBattleSession(scene, session)) return;
     if (scene.battleState === 'BATTLE_END') return;
     if (scene.runManager?.battleInProgress) {
       try {
@@ -808,6 +844,7 @@ export class PostCombatController {
         );
         scene.runManager.lastBattleReport = readOnlyBattleReport(scene._battleTimeline);
       } catch (error) {
+        if (!isCurrentBattleSession(scene, session)) return;
         console.warn('[Timeline] terminal report unavailable:', error);
       }
     }
@@ -858,13 +895,14 @@ export class PostCombatController {
 
     if (scene.battleParams.tutorialMode) {
       scene.time.delayedCall(1500, async () => {
-        if (!scene.scene?.isActive?.()) return;
+        if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
         await showImportantHint(
           scene,
           'Your commander fell — the battle is lost. In a real run, this would end the run.\nThe tutorial is always there to try again from the title.',
           { actions: [{ label: 'Back to title', value: true, primary: true }] },
         );
-        if (!scene.scene?.isActive?.()) return;
+        if (!isCurrentBattleSession(scene, session)) return;
+        if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
         scene._transitionTutorialToTitle();
       });
     } else if (scene.runManager) {
@@ -878,16 +916,18 @@ export class PostCombatController {
         scene._persistBattleRunState?.();
       }
       scene.time.delayedCall(2000, async () => {
-        if (!scene.scene?.isActive?.()) return;
+        if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
         // Clear any stale transition locks -- the 2s delay gives legitimate
         // in-flight transitions plenty of time to finish.
         resetTransitionLocks(scene);
         const transitioned = await scene.transitionToRunCompleteWithRetry('defeat');
+        if (!isCurrentBattleSession(scene, session)) return;
         if (!transitioned && scene.scene?.isActive?.()) scene.showDefeatTransitionRecovery();
       });
     } else {
       // Standalone mode -- restart battle after delay
       scene.time.delayedCall(2000, () => {
+        if (!isCurrentBattleSession(scene, session)) return;
         restartScene(scene, undefined, { reason: TRANSITION_REASONS.RETRY });
       });
     }

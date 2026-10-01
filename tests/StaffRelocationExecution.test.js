@@ -191,6 +191,7 @@ describe('executeRelocate', () => {
       healer,
       'staffRelocate',
       expect.any(Error),
+      { session: undefined },
     );
   });
 
@@ -209,6 +210,7 @@ describe('executeRelocate', () => {
       healer,
       'staffRelocate',
       expect.any(Error),
+      { session: undefined },
     );
   });
 

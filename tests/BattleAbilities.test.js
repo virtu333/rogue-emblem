@@ -383,6 +383,7 @@ describe('Blink (SELECTING_ABILITY_TILE)', () => {
       unit,
       'ability_blink',
       expect.any(Error),
+      { session: undefined },
     );
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
   });

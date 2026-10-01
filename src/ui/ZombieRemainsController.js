@@ -1,3 +1,4 @@
+import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 // ZombieRemainsController — the battle side of a fallen Zombie's remains
 // (rules: engine/ZombieRemains.js; drawing: RemainsMarkerController).
 //
@@ -33,6 +34,7 @@ export const SMASH_TARGET_STATE = 'SELECTING_REMAINS_TARGET';
 export class ZombieRemainsController {
   constructor(scene) {
     this.scene = scene;
+    this.session = battleSession(scene);
     this.targets = [];
     this.markers = new RemainsMarkerController(scene);
   }
@@ -167,6 +169,8 @@ export class ZombieRemainsController {
    */
   async processRevival() {
     const scene = this.scene;
+    const session = this.session;
+    if (!isCurrentBattleSession(scene, session)) return;
     if (!scene?._zombieTombstones?.length) return;
     const { kept, rising } = tickRemains(scene._zombieTombstones);
     scene._zombieTombstones = kept;
@@ -188,6 +192,7 @@ export class ZombieRemainsController {
       // Seen rising only where the player sees: the fog keeps its secret.
       if (this.isVisible(tile.col, tile.row))
         await scene.showBriefBanner(`${unit.className} has risen!`, UI_PALETTE.rarityEpic);
+      if (!isCurrentBattleSession(scene, session)) return;
     }
     this.markers.sync();
     scene.updateObjectiveText?.();

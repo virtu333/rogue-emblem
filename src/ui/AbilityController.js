@@ -1,3 +1,4 @@
+import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // AbilityController — the "Ability" action-menu surface for utility abilities
 // (action-trigger skills with structured `actionAbility` data: Blink, Rally
@@ -33,6 +34,7 @@ const ENEMY_AOE_COLOR = UI_HEX.warn;
 export class AbilityController {
   constructor(scene) {
     this.scene = scene;
+    this.session = battleSession(scene);
   }
 
   create() {
@@ -278,6 +280,8 @@ export class AbilityController {
 
   async executeBlink(unit, skill, tile) {
     const scene = this.scene;
+    const session = this.session;
+    if (!isCurrentBattleSession(scene, session)) return;
     // Block input (cancel/End Turn/Vision) while the teleport resolves —
     // same convention as HealController.executeRelocate. finishUnitAction
     // moves the state onward once the effect completes.
@@ -298,6 +302,7 @@ export class AbilityController {
           { targets, alpha: 0, duration: 180 },
           { label: 'ability_blink_fade_out' },
         );
+        if (!isCurrentBattleSession(scene, session)) return;
       }
       observeHistoryAction(scene, 'relocated', unit, null, skill.name);
       unit.col = tile.col;
@@ -308,13 +313,15 @@ export class AbilityController {
           { targets, alpha: 1, duration: 180 },
           { label: 'ability_blink_fade_in' },
         );
+        if (!isCurrentBattleSession(scene, session)) return;
       }
       // A teleport is movement: the danger zone is stale; the fog lifts only when
       // the action is committed (finishUnitAction, or where Canto ends).
       scene._refreshPostCombatMovementState([unit], { revealFog: false });
       scene.finishUnitAction(unit);
     } catch (err) {
-      scene._recoverUnitActionError(unit, 'ability_blink', err);
+      if (!isCurrentBattleSession(scene, session)) return;
+      scene._recoverUnitActionError(unit, 'ability_blink', err, { session });
     }
   }
 
@@ -409,6 +416,8 @@ export class AbilityController {
 
   async executeSelfCentered(unit, skill) {
     const scene = this.scene;
+    const session = this.session;
+    if (!isCurrentBattleSession(scene, session)) return;
     // Block input while the effect resolves (see executeBlink) — otherwise
     // UNIT_ACTION_MENU stays live through the awaited FX/buff steps.
     scene.battleState = 'HEAL_RESOLVING';
@@ -420,19 +429,25 @@ export class AbilityController {
       const kind = skill.actionAbility?.kind;
       if (kind === 'ally_buff') {
         await this._applyRally(unit, skill);
+        if (!isCurrentBattleSession(scene, session)) return;
       } else if (kind === 'aoe_heal') {
         await this._applyHealingCircle(unit, skill);
+        if (!isCurrentBattleSession(scene, session)) return;
       } else if (kind === 'aoe_root') {
         await this._applyEnsnare(unit, skill);
+        if (!isCurrentBattleSession(scene, session)) return;
       }
       scene.finishUnitAction(unit);
     } catch (err) {
-      scene._recoverUnitActionError(unit, 'ability', err);
+      if (!isCurrentBattleSession(scene, session)) return;
+      scene._recoverUnitActionError(unit, 'ability', err, { session });
     }
   }
 
   async _applyRally(unit, skill) {
     const scene = this.scene;
+    const session = this.session;
+    if (!isCurrentBattleSession(scene, session)) return;
     const ability = skill.actionAbility;
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
@@ -455,6 +470,7 @@ export class AbilityController {
       },
       unit,
     );
+    if (!isCurrentBattleSession(scene, session)) return;
   }
 
   async _applyHealingCircle(unit, skill) {
