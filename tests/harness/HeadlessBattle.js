@@ -78,6 +78,7 @@ import {
 } from '../../src/engine/StatusConditionSystem.js';
 import { applyEnemySpawnGear } from '../../src/engine/EnemySpawnGear.js';
 import { settleCombatWeapons } from '../../src/engine/PerBattleWeapons.js';
+import { combatDistance, getFootprint, isEntity } from '../../src/engine/EntitySystem.js';
 import {
   advanceTurnPressure,
   createTurnPressureState,
@@ -993,7 +994,9 @@ export class HeadlessBattle {
   _getReinforcementOccupiedTiles() {
     return [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]
       .filter((unit) => unit && Number.isFinite(unit.col) && Number.isFinite(unit.row))
-      .map((unit) => ({ col: unit.col, row: unit.row }));
+      .flatMap((unit) =>
+        isEntity(unit) ? getFootprint(unit) : [{ col: unit.col, row: unit.row }],
+      );
   }
 
   _resolveReinforcementsForTurn(turn) {
@@ -1238,7 +1241,8 @@ export class HeadlessBattle {
   _buildUnitPositionMap(moverFaction) {
     const map = new Map();
     for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
-      map.set(`${u.col},${u.row}`, { faction: u.faction });
+      for (const t of isEntity(u) ? getFootprint(u) : [u])
+        map.set(`${t.col},${t.row}`, { faction: u.faction });
     }
     return map;
   }
@@ -1249,13 +1253,11 @@ export class HeadlessBattle {
     if (combatWeapons.length === 0) return targets;
     const enemies = unit.faction === 'player' ? this.enemyUnits : this.playerUnits;
     for (const enemy of enemies) {
-      if (
-        this.grid.fogEnabled &&
-        unit.faction === 'player' &&
-        !this.grid.isVisible(enemy.col, enemy.row)
-      )
-        continue;
-      const dist = gridDistance(unit.col, unit.row, enemy.col, enemy.row);
+      const seen = isEntity(enemy)
+        ? getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row))
+        : this.grid.isVisible(enemy.col, enemy.row);
+      if (this.grid.fogEnabled && unit.faction === 'player' && !seen) continue;
+      const dist = combatDistance(unit, enemy);
       if (
         combatWeapons.some((w) => {
           const bonus = getWeaponRangeBonus(unit, w, this.gameData.skills);
@@ -1781,7 +1783,11 @@ export class HeadlessBattle {
   _executeCombat(attacker, defender) {
     // As BattleScene.executeCombat: measured before the art's HP cost or any strike.
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
-    const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
+    // As BattleScene._prepareCombatContext: the Entity fights from its footprint.
+    const dist =
+      isEntity(attacker) || isEntity(defender)
+        ? combatDistance(attacker, defender)
+        : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
     this._ensureCombatRollSession(attacker, defender);
@@ -2208,7 +2214,11 @@ export class HeadlessBattle {
   _executeEnemyCombat(attacker, defender) {
     // As BattleScene.executeEnemyCombat: measured before the art's HP cost or any strike.
     const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
-    const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
+    // As BattleScene._prepareCombatContext: the Entity fights from its footprint.
+    const dist =
+      isEntity(attacker) || isEntity(defender)
+        ? combatDistance(attacker, defender)
+        : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
     this._ensureCombatRollSession(attacker, defender);
