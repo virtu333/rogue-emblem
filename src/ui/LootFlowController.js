@@ -1,3 +1,4 @@
+import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { inputHint } from '../utils/inputHint.js';
 import {
@@ -29,6 +30,7 @@ const POST_LOOT_TRANSITION_RECHECK_MS = 250;
 export class LootFlowController {
   constructor(scene) {
     this.scene = scene;
+    this.session = battleSession(scene);
   }
 
   _clearPostLootTransitionFallback() {
@@ -41,12 +43,15 @@ export class LootFlowController {
 
   _startPostLootTransition() {
     const scene = this.scene;
+    const session = this.session;
+    if (!isCurrentBattleSession(scene, session)) return;
     if (scene._postLootTransitionStarted) return;
     scene._postLootTransitionStarted = true;
     scene._postLootTransitionCompleted = false;
     scene._postLootTransitionStartedAt = Date.now();
 
     const maybeForceFallback = () => {
+      if (!isCurrentBattleSession(scene, session)) return;
       if (scene._postLootTransitionCompleted) return;
       const elapsed = Date.now() - scene._postLootTransitionStartedAt;
       if (scene.isStoryInputLocked() && elapsed < POST_LOOT_TRANSITION_STORY_GRACE_MS) {
@@ -65,6 +70,7 @@ export class LootFlowController {
     );
     scene._transitionAfterBattlePromise = Promise.resolve(scene.transitionAfterBattle())
       .then((ok) => {
+        if (!isCurrentBattleSession(scene, session)) return;
         if (ok === true) {
           scene._postLootTransitionCompleted = true;
           this._clearPostLootTransitionFallback();
@@ -72,6 +78,7 @@ export class LootFlowController {
         // If failed or undefined, leave the fallback timer running
       })
       .catch((err) => {
+        if (!isCurrentBattleSession(scene, session)) return;
         console.warn('[BattleScene] transitionAfterBattle rejected:', err);
         // Don't clear fallback - let it fire forceTransitionAfterBattle
       });
@@ -759,9 +766,12 @@ export class LootFlowController {
 
   scheduleLootCleanup(lootGroup) {
     const scene = this.scene;
+    const session = this.session;
+    if (!isCurrentBattleSession(scene, session)) return;
     if (scene._lootCleanupScheduled) return;
     scene._lootCleanupScheduled = true;
     const runCleanup = () => {
+      if (!isCurrentBattleSession(scene, session)) return;
       scene._lootCleanupScheduled = false;
       scene._lootCleanupTimeout = null;
       if (scene._sceneShutdownCleanedUp) return;

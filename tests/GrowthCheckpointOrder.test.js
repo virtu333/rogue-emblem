@@ -75,6 +75,7 @@ describe('battle Master Seal', () => {
     unit.consumables = [seal];
     const order = [];
     const scene = {
+      _battleSession: 1,
       gameData,
       events: eventsFor(),
       registry: { get: () => null },
@@ -260,6 +261,7 @@ describe('boss recruit', () => {
         return true;
       });
     const scene = {
+      _battleSession: 1,
       gameData,
       runManager: run,
       events: eventsFor(),
@@ -289,6 +291,7 @@ describe('boss recruit choice is durable', () => {
     shouldTriggerThirdLord: () => false,
   });
   const sceneFor = (run, order) => ({
+    _battleSession: 1,
     gameData,
     runManager: run,
     events: eventsFor(),

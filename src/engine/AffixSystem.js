@@ -267,6 +267,24 @@ export function getAffixMovBonus(affixIds, affixData) {
  * Find valid warp tiles for Teleporter affix.
  * Returns { col, row, distToAttacker }[] representing candidates at the MAXIMUM valid distance.
  */
+/** Settle a Teleporter move with one draw iff a legal destination exists. */
+export function settleTeleporterWarp({
+  unit,
+  range,
+  attacker,
+  grid,
+  getUnitAt,
+  random = Math.random,
+}) {
+  const candidates = getWarpCandidates(unit, range, attacker, grid, getUnitAt);
+  if (candidates.length === 0) return null;
+  const pick = candidates[Math.floor(random() * candidates.length)];
+  const from = { col: unit.col, row: unit.row };
+  unit.col = pick.col;
+  unit.row = pick.row;
+  return { unit, from, to: { col: pick.col, row: pick.row } };
+}
+
 export function getWarpCandidates(unit, range, attacker, grid, getUnitAt) {
   const candidates = [];
   for (let dr = -range; dr <= range; dr++) {

@@ -105,7 +105,10 @@ describe('executeTalk error recovery', () => {
     await scene.executeTalk(lord);
 
     expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(lord, { skipCanto: true });
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(lord, {
+      skipCanto: true,
+      session: scene._battleSession,
+    });
   });
 });
 
@@ -119,7 +122,10 @@ describe('executeHeal error recovery', () => {
     await scene.executeHeal(healer, target);
 
     expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(healer, { skipCanto: true });
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(healer, {
+      skipCanto: true,
+      session: scene._battleSession,
+    });
   });
 
   it('does not double-finish when the inner XP award throws after finishUnitAction ran', async () => {
@@ -158,7 +164,10 @@ describe('executeHealAll error recovery', () => {
     await scene.executeHealAll(healer, [target]);
 
     expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(healer, { skipCanto: true });
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(healer, {
+      skipCanto: true,
+      session: scene._battleSession,
+    });
   });
 });
 
@@ -204,7 +213,9 @@ describe('executePromotion error recovery', () => {
     expect(seal.uses).toBe(0);
     expect(unit.consumables).not.toContain(seal);
     expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { skipCanto: true });
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, {
+      session: scene._battleSession,
+    });
   });
 });
 
@@ -249,7 +260,9 @@ describe('_recoverUnitActionError', () => {
     scene.battleState = 'COMBAT_RESOLVING';
     const unit = makeUnit({ hasActed: true });
 
-    scene._recoverUnitActionError(unit, 'test', new Error('boom'));
+    scene._recoverUnitActionError(unit, 'test', new Error('boom'), {
+      session: scene._battleSession,
+    });
 
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
     expect(scene.battleState).toBe('PLAYER_IDLE');
@@ -262,7 +275,9 @@ describe('_recoverUnitActionError', () => {
     scene.turnManager = { currentPhase: 'enemy' };
     const unit = makeUnit({ hasActed: true });
 
-    scene._recoverUnitActionError(unit, 'test', new Error('boom'));
+    scene._recoverUnitActionError(unit, 'test', new Error('boom'), {
+      session: scene._battleSession,
+    });
 
     expect(scene.battleState).toBe('ENEMY_PHASE');
     expect(scene.selectedUnit).toBeUndefined();
@@ -281,7 +296,9 @@ describe('_recoverUnitActionError', () => {
     });
     const unit = makeUnit();
 
-    scene._recoverUnitActionError(unit, 'test', new Error('boom'));
+    scene._recoverUnitActionError(unit, 'test', new Error('boom'), {
+      session: scene._battleSession,
+    });
 
     expect(scene.battleState).toBe('ENEMY_PHASE');
   });
@@ -292,7 +309,9 @@ describe('_recoverUnitActionError', () => {
     scene.battleState = 'BATTLE_END';
     const unit = makeUnit();
 
-    scene._recoverUnitActionError(unit, 'test', new Error('boom'));
+    scene._recoverUnitActionError(unit, 'test', new Error('boom'), {
+      session: scene._battleSession,
+    });
 
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
     expect(scene.battleState).toBe('BATTLE_END');

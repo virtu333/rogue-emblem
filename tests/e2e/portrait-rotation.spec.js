@@ -91,7 +91,8 @@ async function stageAndSave(page) {
     ].find(([c, r]) => free(c, r));
     s.grid.setTemporaryTerrain(ice[0], ice[1], 'Ice', 3, edric);
     s.registry.get('settings').setHints(false);
-    if (!s._captureSuspendCheckpoint()) throw new Error('setup save failed');
+    if (!s._captureSuspendCheckpoint({ session: s._battleSession }))
+      throw new Error('setup save failed');
   });
   return saveProfile(page);
 }

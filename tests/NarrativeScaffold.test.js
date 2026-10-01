@@ -528,6 +528,7 @@ describe('Scene wiring', () => {
     };
     let shownEntries = null;
     const scene = {
+      _battleSession: 1,
       battleState: 'PLAYER_IDLE',
       battleParams: { tutorialMode: false, act: 'act1' },
       scene: { isActive: () => true },
@@ -626,6 +627,7 @@ describe('Scene wiring', () => {
 
     let storyLocked = true;
     const scene = {
+      _battleSession: 1,
       _postLootTransitionStarted: false,
       _postLootTransitionCompleted: false,
       _postLootTransitionStartedAt: 0,
@@ -655,6 +657,7 @@ describe('Scene wiring', () => {
 describe('Input gate', () => {
   it('blocks E/R/O/D action methods while story lock is active', () => {
     const scene = {
+      _battleSession: 1,
       isStoryInputLocked: () => true,
       battleState: 'PLAYER_IDLE',
       dangerZoneStale: false,
@@ -876,6 +879,7 @@ describe('Lord farewell (Surface 2)', () => {
       ...unitOverrides,
     };
     const scene = {
+      _battleSession: 1,
       registry: { get: () => null },
       removeUnitGraphic: vi.fn(),
       playerUnits: [unit],
@@ -1069,6 +1073,7 @@ describe('Elite victory flavor (Surface 6)', () => {
     const pending = [];
     const sceneState = { active: true };
     const scene = {
+      _battleSession: 1,
       battleState: 'PLAYER_IDLE',
       battleParams: { tutorialMode: false, act: 'act1' },
       scene: { isActive: () => sceneState.active },

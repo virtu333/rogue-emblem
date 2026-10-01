@@ -167,6 +167,7 @@ function makeSceneCtx(multiplier, playerUnits = []) {
     destroy() {},
   };
   return {
+    _battleSession: 1,
     battleParams: {},
     battleState: '',
     playerUnits,
@@ -201,7 +202,7 @@ describe('HealController applies the fixed resolver on every path', () => {
     expect(ally.currentHP).toBe(30);
     expect(ctx.animateHeal).toHaveBeenCalledWith(ally, 1, sera);
     expect(staff._usesSpent).toBe(1);
-    expect(ctx.finishUnitAction).toHaveBeenCalledWith(sera);
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(sera, { session: ctx._battleSession });
     expect(ctx._recoverUnitActionError).not.toHaveBeenCalled();
   });
 

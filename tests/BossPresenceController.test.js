@@ -84,6 +84,7 @@ function makeScene({ hp = 52, reduceMotion = true } = {}) {
   };
   const made = [];
   return {
+    _battleSession: 1,
     boss,
     made,
     gameData,

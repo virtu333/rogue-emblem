@@ -60,7 +60,7 @@ describe('BattleScene fog danger invalidation', () => {
     // Wait on the new tile: the fog lifts and the cached danger is dropped.
     scene.dimUnit = vi.fn();
     scene.turnManager = { unitActed: vi.fn() };
-    completeBattleAction(scene, unit);
+    completeBattleAction(scene, unit, { session: scene._battleSession });
     expect(scene.grid.updateFogOfWar).toHaveBeenCalledWith(scene.playerUnits);
     expect(scene.dangerZoneStale).toBe(true);
     expect(scene.battleState).toBe('PLAYER_IDLE');
