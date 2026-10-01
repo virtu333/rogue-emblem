@@ -295,7 +295,9 @@ export class Grid {
     if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
     if (!Number.isInteger(terrainIndex) || !this.terrainData[terrainIndex]) return false;
     this.mapLayout[row][col] = terrainIndex;
-    safeBattlePresentation('terrain tile', () => this._rerenderTile(col, row));
+    safeBattlePresentation('terrain tile', () => this._rerenderTile(col, row), {
+      scene: this.scene,
+    });
     this.terrainRevision = (this.terrainRevision || 0) + 1;
     for (const listener of this._terrainListeners || []) {
       try {
@@ -861,15 +863,19 @@ export class Grid {
         const key = `${col},${row}`;
         const fog = this.fogOverlays[row]?.[col];
         if (!fog) continue;
-        safeBattlePresentation('fog overlay', () => {
-          if (newVisible.has(key)) {
-            fog.setAlpha(0); // fully visible
-          } else if (this.everSeenSet.has(key)) {
-            fog.setAlpha(0.3); // seen before
-          } else {
-            fog.setAlpha(0.7); // never seen
-          }
-        });
+        safeBattlePresentation(
+          'fog overlay',
+          () => {
+            if (newVisible.has(key)) {
+              fog.setAlpha(0); // fully visible
+            } else if (this.everSeenSet.has(key)) {
+              fog.setAlpha(0.3); // seen before
+            } else {
+              fog.setAlpha(0.7); // never seen
+            }
+          },
+          { scene: this.scene },
+        );
       }
     }
   }

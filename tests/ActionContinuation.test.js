@@ -18,6 +18,7 @@ import weapons from '../data/weapons.json';
 
 function state() {
   const scene = {
+    _battleSession: 1,
     playerUnits: [],
     enemyUnits: [],
     npcUnits: [],

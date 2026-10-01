@@ -90,7 +90,7 @@ describe('BattleScene level-up audio lifecycle', () => {
 
     await BattleScene.prototype.awardScaledXP.call(scene, unit, 50);
     expect(popupShowMock).not.toHaveBeenCalled();
-    await presentQueuedLevelUps(scene);
+    await presentQueuedLevelUps(scene, null, { session: scene._battleSession });
 
     expect(lifecycle).toEqual([
       'play:sfx_levelup',
@@ -110,7 +110,7 @@ describe('BattleScene level-up audio lifecycle', () => {
     scene.playerUnits = [unit];
 
     await BattleScene.prototype.awardScaledXP.call(scene, unit, 30);
-    await presentQueuedLevelUps(scene);
+    await presentQueuedLevelUps(scene, null, { session: scene._battleSession });
 
     expect(scene.sound.stopByKey).toHaveBeenCalledTimes(1);
     BattleScene.prototype._stopLevelUpSfx.call(scene);
@@ -132,7 +132,7 @@ describe('BattleScene level-up audio lifecycle', () => {
     await scene.awardScaledXP(unit, 200);
     expect(scene._pendingLevelUpPopups.map((p) => p.levelUp.displayStats.STR)).toEqual([11, 12]);
     expect(unit.stats.STR).toBe(12);
-    await presentQueuedLevelUps(scene);
+    await presentQueuedLevelUps(scene, null, { session: scene._battleSession });
     expect(unit.stats.STR).toBe(12);
     expect(popupShowMock).toHaveBeenCalledTimes(2);
   });

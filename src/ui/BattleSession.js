@@ -5,13 +5,11 @@ export function battleSession(scene) {
   return scene?._battleSession;
 }
 
-export function isCurrentBattleSession(scene, session = battleSession(scene)) {
+export function isCurrentBattleSession(scene, session) {
   return Boolean(
     scene &&
+    Number.isInteger(session) &&
     session === battleSession(scene) &&
-    !scene._sceneShutdownCleanedUp &&
-    // Phaser marks settings.active in start(), before create() reaches RUNNING.
-    // Initial resume recovery may legitimately persist during that create phase.
-    (scene.sys?.isActive?.() !== false || scene.sys?.settings?.active === true),
+    !scene._sceneShutdownCleanedUp,
   );
 }

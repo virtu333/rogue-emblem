@@ -46,6 +46,7 @@ function unit(name, faction, weaponName, extra = {}) {
 function scene(attacker, defender) {
   const s = new BattleScene();
   Object.assign(s, {
+    _battleSession: 1,
     gameData: data,
     grid: { getTerrainAt: () => plain, fogEnabled: false },
     turnManager: { turnNumber: 1, currentPhase: 'player' },

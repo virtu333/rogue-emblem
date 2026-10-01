@@ -1,4 +1,4 @@
-import { battleSession, isCurrentBattleSession } from './BattleSession.js';
+import { isCurrentBattleSession } from './BattleSession.js';
 import { cantoRuleFor } from '../engine/CantoRule.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { revealSettledVision } from './BattleActionCompletion.js';
@@ -61,11 +61,7 @@ export function readCommittedAction(value) {
 
 // Presentation must never be the only thing preventing a resolved action from
 // reaching storage. Resume runs this small continuation, never combat or XP.
-export function captureResolvedAction(
-  scene,
-  continuation,
-  { session = battleSession(scene) } = {},
-) {
+export function captureResolvedAction(scene, continuation, { session } = {}) {
   if (!isCurrentBattleSession(scene, session)) return false;
   if (scene._fatalDecision || scene._fatalCapturePending || scene._defeatDecision) return;
   scene.commitVisionSnapshotIfPending?.();
@@ -73,11 +69,7 @@ export function captureResolvedAction(
   return scene._captureSuspendCheckpoint?.({ session }) === true;
 }
 
-export async function presentQueuedLevelUps(
-  scene,
-  continuation = null,
-  { session = battleSession(scene) } = {},
-) {
+export async function presentQueuedLevelUps(scene, continuation = null, { session } = {}) {
   if (!isCurrentBattleSession(scene, session)) return;
   if (scene._fatalDecision || scene._fatalCapturePending || scene._defeatDecision) return;
   const queue = scene._pendingLevelUpPopups || [];
@@ -98,11 +90,7 @@ export async function presentQueuedLevelUps(
   }
 }
 
-export function completeResolvedAction(
-  scene,
-  continuation,
-  { session = battleSession(scene) } = {},
-) {
+export function completeResolvedAction(scene, continuation, { session } = {}) {
   if (!isCurrentBattleSession(scene, session)) return false;
   scene._pendingActionCompletion = null;
   continuation = readActionContinuation(continuation);
@@ -131,6 +119,7 @@ export function completeResolvedAction(
     }
   } else if (unit) {
     scene.finishUnitAction(unit, {
+      session,
       skipCanto:
         continuation.skipCanto === true ||
         (continuation.kind === 'combat' && cantoRuleFor(unit) === 'noncombat'),

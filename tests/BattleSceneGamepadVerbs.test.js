@@ -14,6 +14,7 @@ const unit = (col, row, extra = {}) => ({ col, row, currentHP: 10, hasActed: fal
 
 function cycleScene(overrides = {}) {
   return {
+    _battleSession: 1,
     isStoryInputLocked: () => false,
     battleState: 'PLAYER_IDLE',
     _gridCursor: { cursorCol: 0, cursorRow: 0, snapTo: vi.fn() },
@@ -66,7 +67,11 @@ describe('BattleScene _cycleCursorToUnit', () => {
   });
 
   it('is inert outside PLAYER_IDLE', () => {
-    const scene = cycleScene({ battleState: 'UNIT_SELECTED', playerUnits: [unit(1, 0)] });
+    const scene = cycleScene({
+      _battleSession: 1,
+      battleState: 'UNIT_SELECTED',
+      playerUnits: [unit(1, 0)],
+    });
     cycle(scene, 1);
     expect(scene._gridCursor.snapTo).not.toHaveBeenCalled();
   });

@@ -164,14 +164,14 @@ describe('LoopedMusic', () => {
     expect(late.startTime).toBeCloseTo(ctx.currentTime + 0.03);
   });
 
-  it('plays a whole-file loop when no valid loop points exist', () => {
+  it('plays an intentional whole-file loop without metadata', () => {
     const { ctx, sources } = makeContext();
     const m = new LoopedMusic({
       context: ctx,
       destination: ctx.destination,
       key: 'k',
       layers: { full: buf(30) },
-      loops: { full: { loopStart: 5, loopEnd: 90, duration: 91 } },
+      loops: {},
     });
     m.play();
     expect(sources[0].loop).toBe(true);
@@ -226,19 +226,44 @@ describe('LoopedMusic', () => {
     expect(m.layerNames).toEqual(['full']);
   });
 
-  it('drops a fresh layer when the primary is stale, so both never loop differently', () => {
-    const { ctx, sources } = makeContext();
+  it('rejects invalid declared primary metadata before creating audio nodes', () => {
+    const { ctx, gains } = makeContext();
+    expect(
+      () =>
+        new LoopedMusic({
+          context: ctx,
+          destination: ctx.destination,
+          key: 'k',
+          layers: { full: buf(80.4), calm: buf(80.4) },
+          loops: { full: { loopStart: 5, loopEnd: 90, duration: 91 }, calm: loops.calm },
+        }),
+    ).toThrow('invalid-primary-timeline');
+    expect(gains).toHaveLength(0);
+  });
+
+  it('rejects a near-length loopless layer rather than letting its wraps drift', () => {
+    const { ctx } = makeContext();
+    const m = new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'k',
+      layers: { full: buf(10), calm: buf(10.1) },
+    });
+    expect(m.layerNames).toEqual(['full']);
+    expect(m.addLayer('calm', buf(10.1))).toBe(false);
+  });
+
+  it('does not inherit the primary loop after declared secondary metadata fails validation', () => {
+    const { ctx } = makeContext();
     const m = new LoopedMusic({
       context: ctx,
       destination: ctx.destination,
       key: 'k',
       layers: { full: buf(80.4), calm: buf(80.4) },
-      // primary metadata describes another build; calm's own entry is valid
-      loops: { full: { loopStart: 5, loopEnd: 90, duration: 91 }, calm: loops.calm },
+      loops: { full: loops.full, calm: { loopStart: 1, loopEnd: 40, duration: 40 } },
     });
     expect(m.layerNames).toEqual(['full']);
-    m.play();
-    expect(sources[0].loopEnd).toBe(0); // whole-file loop
+    expect(m.addLayer('calm', buf(80.4), { loopStart: 1, loopEnd: 40, duration: 40 })).toBe(false);
   });
 
   it('keeps same-length layers on a shared whole-file loop when no metadata validates', () => {

@@ -280,7 +280,8 @@ export class AbilityController {
 
   async executeBlink(unit, skill, tile) {
     const scene = this.scene;
-    const session = this.session;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
     if (!isCurrentBattleSession(scene, session)) return;
     // Block input (cancel/End Turn/Vision) while the teleport resolves —
     // same convention as HealController.executeRelocate. finishUnitAction
@@ -318,7 +319,7 @@ export class AbilityController {
       // A teleport is movement: the danger zone is stale; the fog lifts only when
       // the action is committed (finishUnitAction, or where Canto ends).
       scene._refreshPostCombatMovementState([unit], { revealFog: false });
-      scene.finishUnitAction(unit);
+      scene.finishUnitAction(unit, { session: session });
     } catch (err) {
       if (!isCurrentBattleSession(scene, session)) return;
       scene._recoverUnitActionError(unit, 'ability_blink', err, { session });
@@ -416,7 +417,8 @@ export class AbilityController {
 
   async executeSelfCentered(unit, skill) {
     const scene = this.scene;
-    const session = this.session;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
     if (!isCurrentBattleSession(scene, session)) return;
     // Block input while the effect resolves (see executeBlink) — otherwise
     // UNIT_ACTION_MENU stays live through the awaited FX/buff steps.
@@ -437,7 +439,7 @@ export class AbilityController {
         await this._applyEnsnare(unit, skill);
         if (!isCurrentBattleSession(scene, session)) return;
       }
-      scene.finishUnitAction(unit);
+      scene.finishUnitAction(unit, { session: session });
     } catch (err) {
       if (!isCurrentBattleSession(scene, session)) return;
       scene._recoverUnitActionError(unit, 'ability', err, { session });
@@ -446,7 +448,8 @@ export class AbilityController {
 
   async _applyRally(unit, skill) {
     const scene = this.scene;
-    const session = this.session;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
     if (!isCurrentBattleSession(scene, session)) return;
     const ability = skill.actionAbility;
     const audio = scene.registry.get('audio');

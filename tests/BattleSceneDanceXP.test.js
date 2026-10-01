@@ -23,6 +23,7 @@ function makeTextStub() {
 
 function makeSceneCtx({ xpMultiplier = 1 } = {}) {
   return {
+    _battleSession: 1,
     battleParams: { xpMultiplier },
     registry: { get: () => ({ playSFX() {} }) },
     grid: { gridToPixel: () => ({ x: 0, y: 0 }) },
@@ -67,7 +68,7 @@ describe('BattleScene Dance XP', () => {
     expect(ally.hasMoved).toBe(false);
     expect(ally.hasActed).toBe(false);
     expect(awardScaledXP).toHaveBeenCalledWith(dancer, XP_BASE_DANCE);
-    expect(finishUnitAction).toHaveBeenCalledWith(dancer);
+    expect(finishUnitAction).toHaveBeenCalledWith(dancer, { session: ctx._battleSession });
   });
 
   it('executeDance still calls finishUnitAction if awardScaledXP rejects', async () => {
@@ -82,7 +83,7 @@ describe('BattleScene Dance XP', () => {
 
     await BattleScene.prototype.executeDance.call(ctx, dancer, { ally }).catch(() => {});
 
-    expect(ctx.finishUnitAction).toHaveBeenCalledWith(dancer);
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(dancer, { session: ctx._battleSession });
   });
 
   it('awardScaledXP applies difficulty multiplier and floors XP', async () => {

@@ -24,6 +24,7 @@ Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, wri
 
 function makeCheckpoint(overrides = {}) {
   return {
+    _battleSession: 1,
     version: 1,
     checkpointIndex: 3,
     rngSeed: 12345,

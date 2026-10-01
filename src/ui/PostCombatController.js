@@ -67,7 +67,8 @@ export class PostCombatController {
 
   onVictory() {
     const scene = this.scene;
-    const session = this.session;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
     if (!isCurrentBattleSession(scene, session)) return;
     if (scene.battleState === 'BATTLE_END') return;
     scene._reinforcementsPendingThisTurn = false;
@@ -228,7 +229,7 @@ export class PostCombatController {
         if (!scene.runManager.pendingBossRecruit && scene.runManager.shouldTriggerThirdLord())
           prepareThirdLord(scene.runManager, scene.gameData);
       }
-      scene._persistBattleRunState?.();
+      scene._persistBattleRunState?.(null, { session: session });
       afterVictoryBand(async () => {
         if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
         if (!completionApplied) {
@@ -285,7 +286,7 @@ export class PostCombatController {
           // Enemy-phase counterattack levels are already in the completed-run
           // save. Present them here when victory skipped the next player turn.
           if (scene._pendingLevelUpPopups?.length) {
-            await presentQueuedLevelUps(scene);
+            await presentQueuedLevelUps(scene, null, { session: session });
             if (!isCurrentBattleSession(scene, session)) return;
             if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
           }
@@ -374,7 +375,8 @@ export class PostCombatController {
 
   async transitionAfterBattle() {
     const scene = this.scene;
-    const session = this.session;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
     if (!isCurrentBattleSession(scene, session)) return;
     if (scene.isTransitioningOut) return false;
     scene.isTransitioningOut = true;
@@ -401,7 +403,7 @@ export class PostCombatController {
           // Save the new act now: the act card and story below can take a
           // while, and a reload during them must resume on the next act's
           // map, not on the finished one.
-          scene._persistBattleRunState?.();
+          scene._persistBattleRunState?.(null, { session: session });
           const toAct = scene.runManager.currentAct;
           const transKey = getActTransitionKey(fromAct, toAct);
           const narrative = buildNarrativeContext({
@@ -484,7 +486,8 @@ export class PostCombatController {
 
   async forceTransitionAfterBattle() {
     const scene = this.scene;
-    const session = this.session;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
     if (!isCurrentBattleSession(scene, session)) return;
     scene._postLootTransitionCompleted = true;
     scene._clearPostLootTransitionFallback();
@@ -540,7 +543,8 @@ export class PostCombatController {
 
   async transitionToRunCompleteWithRetry(result = 'defeat') {
     const scene = this.scene;
-    const session = this.session;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
     if (!isCurrentBattleSession(scene, session)) return false;
     const reason = result === 'victory' ? TRANSITION_REASONS.VICTORY : TRANSITION_REASONS.DEFEAT;
     return retryBooleanAction(
@@ -598,10 +602,13 @@ export class PostCombatController {
 
   showBossRecruitScreen() {
     const scene = this.scene;
+    const session = battleSession(scene);
+    if (session !== this.session || !isCurrentBattleSession(scene, session)) return false;
     const overlay = new BossRecruitOverlay(scene, scene.runManager, scene.gameData);
     scene._bossRecruitOverlay = overlay;
     scene.lootGroup = overlay.displayObjects;
     overlay.show((selectedUnit) => {
+      if (!isCurrentBattleSession(scene, session)) return;
       resolveBossRecruit(scene.runManager, selectedUnit);
       // A lord picked here has joined: this save has met them.
       if (selectedUnit) recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
@@ -612,10 +619,11 @@ export class PostCombatController {
       // roster and a skip is final, so a reload can neither re-offer nor lose
       // it. (The join card saves first itself.)
       const joins = selectedUnit && this._canPresentJoin();
-      if (!joins) scene._persistBattleRunState?.();
+      if (!joins) scene._persistBattleRunState?.(null, { session: session });
       scene.lootGroup = null;
       scene._bossRecruitOverlay = null;
       const next = () => {
+        if (!isCurrentBattleSession(scene, session)) return;
         if (scene.runManager.shouldTriggerThirdLord()) {
           scene._showThirdLordArrival();
         } else {
@@ -629,20 +637,25 @@ export class PostCombatController {
 
   _showThirdLordArrival() {
     const scene = this.scene;
+    const session = battleSession(scene);
+    if (session !== this.session || !isCurrentBattleSession(scene, session)) return false;
     const overlay = new LordArrivalOverlay(scene, scene.runManager, scene.gameData);
     scene._lordArrivalOverlay = overlay;
     scene.lootGroup = overlay.displayObjects;
     overlay.show((selectedUnit) => {
+      if (!isCurrentBattleSession(scene, session)) return;
       resolveThirdLordArrival(scene.runManager, selectedUnit);
       recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
       scene.lootGroup = null;
       scene._lordArrivalOverlay = null;
       const joined = selectedUnit && scene.runManager.roster?.includes?.(selectedUnit);
-      const next = () => scene.showLootScreen();
+      const next = () => {
+        if (isCurrentBattleSession(scene, session)) scene.showLootScreen();
+      };
       if (joined && this._canPresentJoin()) this._presentJoin(selectedUnit, 'lord', next);
       else {
         // The choice is durable before anything follows it (a join card saves first).
-        scene._persistBattleRunState?.();
+        scene._persistBattleRunState?.(null, { session: session });
         next();
       }
     });
@@ -659,9 +672,11 @@ export class PostCombatController {
    */
   _presentJoin(unit, kind, next) {
     const scene = this.scene;
+    const session = battleSession(scene);
+    if (session !== this.session || !isCurrentBattleSession(scene, session)) return false;
     let card = null;
     try {
-      scene._persistBattleRunState?.();
+      scene._persistBattleRunState?.(null, { session: session });
       card = growthCeremonies(scene)?.showRecruit({ unit, kind });
     } catch (err) {
       console.warn('[PostCombatController] join card failed:', err);
@@ -718,6 +733,8 @@ export class PostCombatController {
 
   showLootScreen() {
     const scene = this.scene;
+    const session = battleSession(scene);
+    if (session !== this.session || !isCurrentBattleSession(scene, session)) return false;
     const audio = scene.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.loot, scene, 300);
     scene._elitePicksRemaining = scene.isElite ? ELITE_MAX_PICKS : 1;
@@ -725,7 +742,7 @@ export class PostCombatController {
     scene._lootResolving = false;
     if (hasDOMHost()) {
       prepareBattleRewards(scene.runManager, scene.gameData, this.rewardContext());
-      scene._persistBattleRunState?.();
+      scene._persistBattleRunState?.(null, { session: session });
       scene._lootController = new PendingRewardController(scene, {
         onLeave: () => this.transitionAfterBattle(),
         onComplete: () => this.transitionAfterBattle(),
@@ -832,7 +849,8 @@ export class PostCombatController {
 
   onDefeat() {
     const scene = this.scene;
-    const session = this.session;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
     if (!isCurrentBattleSession(scene, session)) return;
     if (scene.battleState === 'BATTLE_END') return;
     if (scene.runManager?.battleInProgress) {
@@ -913,7 +931,7 @@ export class PostCombatController {
       // commander (may be null for e.g. field-empty losses).
       if (!scene._defeatDecision?.durable) {
         scene.runManager.failRun(defeatContext);
-        scene._persistBattleRunState?.();
+        scene._persistBattleRunState?.(null, { session: session });
       }
       scene.time.delayedCall(2000, async () => {
         if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;

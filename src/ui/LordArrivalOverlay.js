@@ -1,3 +1,4 @@
+import { battleSession } from './BattleSession.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { showArrivalMenu } from './PartyMenus.js';
 import { inputHint } from '../utils/inputHint.js';
@@ -499,7 +500,9 @@ export class LordArrivalOverlay {
 
   _save() {
     const scene = this.scene;
-    if (typeof scene?._persistBattleRunState === 'function') scene._persistBattleRunState();
+    const session = battleSession(scene);
+    if (typeof scene?._persistBattleRunState === 'function')
+      scene._persistBattleRunState(null, { session: session });
     else if (scene?.registry?.get) saveServiceRun(scene);
   }
 

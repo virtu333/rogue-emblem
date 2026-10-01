@@ -34,6 +34,7 @@ describe('act boss victory: the act advance is saved before the act card and sto
 
     const saves = [];
     const scene = {
+      _battleSession: 1,
       runManager: rm,
       gameData,
       isElite: false,

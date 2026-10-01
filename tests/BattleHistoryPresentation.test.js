@@ -162,6 +162,7 @@ describe('historical battlefield data', () => {
 
   it('does not substitute hidden terrain after observation history is lost', () => {
     const state = {
+      _battleSession: 1,
       mapLayout: [[0, 1]],
       playerUnits: [],
       enemyUnits: [],

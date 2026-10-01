@@ -134,6 +134,7 @@ export class ZombieRemainsController {
 
   execute(unit, target) {
     const scene = this.scene;
+    const session = battleSession(scene);
     this.targets = [];
     scene.hideActionMenu();
     const { list, smashed } = smashRemains(this.records, target);
@@ -157,7 +158,7 @@ export class ZombieRemainsController {
     scene.updateObjectiveText?.();
     // The last remains of a Rout: the battle is won here (as a killing blow is).
     if (scene.checkBattleEnd?.()) return true;
-    scene.finishUnitAction(unit, { skipCanto: true });
+    scene.finishUnitAction(unit, { skipCanto: true, session: session });
     return true;
   }
 
@@ -169,7 +170,8 @@ export class ZombieRemainsController {
    */
   async processRevival() {
     const scene = this.scene;
-    const session = this.session;
+    const session = battleSession(scene);
+    if (session !== this.session) return false;
     if (!isCurrentBattleSession(scene, session)) return;
     if (!scene?._zombieTombstones?.length) return;
     const { kept, rising } = tickRemains(scene._zombieTombstones);

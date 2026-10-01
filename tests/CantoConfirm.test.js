@@ -82,6 +82,7 @@ function setup({ remaining = 4, map = null } = {}) {
     graphic: sprite(),
   };
   Object.assign(scene, {
+    _battleSession: 1,
     grid,
     gameData,
     playerUnits: [edric],
@@ -430,7 +431,7 @@ describe('Canto budget and terrain (real Grid)', () => {
 
   it('finishUnitAction hands Canto unit.mov minus movement spent, not stats.MOV', () => {
     const { scene, edric } = cavalrySetup({ mov: 8, statMov: 7, spent: 3 });
-    scene.finishUnitAction(edric);
+    scene.finishUnitAction(edric, { session: scene._battleSession });
     // 8 - 3 = 5 (stats.MOV would have given 4).
     expect(scene.startCantoMove).toHaveBeenCalledTimes(1);
     expect(scene.startCantoMove).toHaveBeenCalledWith(edric, 5);
@@ -440,13 +441,13 @@ describe('Canto budget and terrain (real Grid)', () => {
 
   it('falls back to stats.MOV when the unit carries no mov', () => {
     const { scene, edric } = cavalrySetup({ mov: null, statMov: 7, spent: 2 });
-    scene.finishUnitAction(edric);
+    scene.finishUnitAction(edric, { session: scene._battleSession });
     expect(scene.startCantoMove).toHaveBeenCalledWith(edric, 5);
   });
 
   it('a unit that spent its whole move gets no Canto and completes', () => {
     const { scene, edric } = cavalrySetup({ mov: 8, statMov: 7, spent: 8 });
-    scene.finishUnitAction(edric);
+    scene.finishUnitAction(edric, { session: scene._battleSession });
     expect(scene.startCantoMove).not.toHaveBeenCalled();
     expect(scene.turnManager.unitActed).toHaveBeenCalledWith(edric);
   });
@@ -457,7 +458,7 @@ describe('Canto budget and terrain (real Grid)', () => {
     const map = Array.from({ length: 3 }, () => Array(12).fill(PLAIN));
     map[1][1] = FOREST;
     const { scene, edric } = cavalrySetup({ mov: 8, statMov: 8, spent: 6, map });
-    scene.finishUnitAction(edric);
+    scene.finishUnitAction(edric, { session: scene._battleSession });
     const range = scene.cantoRange;
     expect(scene.startCantoMove).toHaveBeenCalledWith(edric, 2);
     expect(range.has('1,1')).toBe(false); // forest: 3 > 2
@@ -472,7 +473,7 @@ describe('Canto budget and terrain (real Grid)', () => {
     const map = Array.from({ length: 3 }, () => Array(12).fill(PLAIN));
     map[1][1] = FOREST;
     const { scene, edric } = cavalrySetup({ mov: 8, statMov: 8, spent: 5, map });
-    scene.finishUnitAction(edric);
+    scene.finishUnitAction(edric, { session: scene._battleSession });
     expect(scene.cantoRange.has('1,1')).toBe(true);
     expect(scene.cantoRange.get('1,1').cost).toBe(3);
     expect(scene.cantoRange.has('2,1')).toBe(false);
@@ -624,8 +625,8 @@ describe('Canto confirm checkpoint rollback', () => {
     edric.weapon = { ...SWORD, uses: 8, uid: 'test-sword' };
     edric.inventory = [edric.weapon];
     const continuation = { kind: 'combat', unitId: 'u1', unitName: edric.name };
-    captureResolvedAction(scene, continuation);
-    completeResolvedAction(scene, continuation);
+    captureResolvedAction(scene, continuation, { session: scene._battleSession });
+    completeResolvedAction(scene, continuation, { session: scene._battleSession });
     cantoTo(scene, 3);
     expect(scene.battleState).toBe('CANTO_CONFIRM');
     const cp = restoreSavedScene(scene);
@@ -648,7 +649,7 @@ describe('Canto confirm checkpoint rollback', () => {
     const item = { name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 };
     edric.consumables = [item];
     scene.battleState = 'PLAYER_IDLE';
-    scene._captureSuspendCheckpoint();
+    scene._captureSuspendCheckpoint({ session: scene._battleSession });
     await scene.useConsumable(edric, item);
     expect([edric.currentHP, item.uses, scene.battleState]).toEqual([18, 2, 'CANTO_MOVING']);
     cantoTo(scene, 3);

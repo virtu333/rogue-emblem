@@ -1,4 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createRequire } from 'node:module';
+import { RunManager, isRunSaveCurrent } from '../src/engine/RunManager.js';
+import { BattleHistorySession } from '../src/ui/BattleHistorySession.js';
+import { VisionRewindController } from '../src/ui/VisionRewindController.js';
+import { captureBattleState } from '../src/ui/BattleCheckpointAdapter.js';
+import { createBattleRng } from '../src/engine/BattleRng.js';
+import { getRunKey, getRunClockFloorKey } from '../src/engine/SlotManager.js';
+const require = createRequire(import.meta.url);
+const PhaserSceneManager = require('phaser/src/scene/SceneManager.js');
+const PhaserSystems = require('phaser/src/scene/Systems.js');
+const EventEmitter = require('eventemitter3');
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 vi.mock('../src/utils/errorReporter.js', () => ({ reportAsyncError: vi.fn() }));
 import { DialogueOverlay } from '../src/ui/DialogueOverlay.js';
@@ -7,6 +18,7 @@ import { AbilityController } from '../src/ui/AbilityController.js';
 import { PostCombatController } from '../src/ui/PostCombatController.js';
 import { HealController } from '../src/ui/HealController.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { isCurrentBattleSession } from '../src/ui/BattleSession.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { completeBattleAction } from '../src/ui/BattleActionCompletion.js';
 import {
@@ -55,7 +67,10 @@ function attachDialogue(scene) {
 async function drain() {
   for (let i = 0; i < 8; i++) await Promise.resolve();
 }
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe('originating battle session ownership', () => {
   it('shutdown and synchronous init never resume a tween action or its finally', async () => {
@@ -300,7 +315,7 @@ describe('originating battle session ownership', () => {
     scene.dimUnit = () => {};
     scene._captureSuspendCheckpoint = () => false;
     scene.turnManager = { unitActed() {} };
-    expect(completeBattleAction(scene, unit)).toBe(false);
+    expect(completeBattleAction(scene, unit, { session: scene._battleSession })).toBe(false);
     expect(unit.hasActed).toBe(true);
     expect(scene.battleState).toBe('PLAYER_IDLE');
     expect(scene.selectedUnit).toBeNull();
@@ -371,13 +386,19 @@ describe('originating battle session ownership', () => {
     restart(scene);
     scene.sys = { isActive: () => false, settings: { active: true } };
     scene.runManager = null;
-    expect(scene._persistBattleRunState()).toEqual({ ok: false, reason: 'missing_run' });
+    expect(scene._persistBattleRunState(null, { session: scene._battleSession })).toEqual({
+      ok: false,
+      reason: 'missing_run',
+    });
     expect(scene._persistBattleRunState(null, { session: oldSession })).toEqual({
       ok: false,
       reason: 'stale_session',
     });
     scene.sys.settings.active = false;
-    expect(scene._persistBattleRunState()).toEqual({ ok: false, reason: 'stale_session' });
+    expect(scene._persistBattleRunState(null, { session: scene._battleSession })).toEqual({
+      ok: false,
+      reason: 'missing_run',
+    });
   });
   it('a sweep paused at a death cannot remove remaining old actors after replacement', async () => {
     const { scene } = sceneWithPendingTween();
@@ -426,4 +447,181 @@ describe('originating battle session ownership', () => {
     expect(scene._clearSelectedWeaponArt).not.toHaveBeenCalled();
     expect(scene.battleState).toBe('PLAYER_IDLE');
   });
+});
+
+function realPauseHost() {
+  const { scene } = sceneWithPendingTween();
+  scene.sys = new PhaserSystems(scene);
+  scene.sys.settings.status = 5; // Phaser RUNNING
+  scene.sys.settings.active = true;
+  scene.sys.events = new EventEmitter();
+  const manager = Object.create(PhaserSceneManager.prototype);
+  manager.keys = { Battle: scene };
+  scene.game = { scene: manager };
+  scene.events = new EventEmitter();
+  scene.scene = {
+    key: 'Battle',
+    isActive: () => scene.sys.isActive(),
+    isVisible: () => true,
+    setVisible() {},
+  };
+  return { scene, manager };
+}
+describe('paused current battle ownership', () => {
+  it('real Phaser pause preserves session ownership while obsolete owners remain rejected', () => {
+    const { scene, manager } = realPauseHost();
+    const old = scene._battleSession - 1;
+    manager.pause('Battle');
+    expect(scene.sys.settings.active).toBe(false);
+    expect(scene.sys.isActive()).toBe(false);
+    expect(scene._persistBattleRunState(null, { session: scene._battleSession })).toEqual({
+      ok: false,
+      reason: 'missing_run',
+    });
+    expect(scene._persistBattleRunState(null, { session: old })).toEqual({
+      ok: false,
+      reason: 'stale_session',
+    });
+  });
+  it('delays, tweens and an enemy tail entered while paused settle instead of parking', async () => {
+    const { scene, manager } = realPauseHost();
+    manager.pause('Battle');
+    expect(await scene._awaitSceneDelay(150)).toEqual({ status: 'skipped_paused' });
+    const cancel = vi.fn();
+    expect(await scene._awaitSceneTween({ duration: 100 }, { onCancel: cancel })).toEqual({
+      status: 'skipped_paused',
+    });
+    expect(cancel).toHaveBeenCalledWith('paused');
+    scene._reinforcementsPendingThisTurn = true;
+    await scene._scheduleSafeDelayedAsync(10, 'enemy_tail', async () => {
+      await scene._awaitSceneDelay(100);
+      scene._reinforcementsPendingThisTurn = false;
+    });
+    expect(scene._reinforcementsPendingThisTurn).toBe(false);
+    expect(scene._lifecycleAwaitGuards?.size || 0).toBe(0);
+  });
+  it.each(['delay', 'tween'])(
+    'a %s entered active can time out paused and releases its finally',
+    async (kind) => {
+      vi.useFakeTimers();
+      const { scene, manager } = realPauseHost();
+      scene.time = { delayedCall: () => ({ remove() {} }) };
+      let finalized = false;
+      const waiting = (
+        kind === 'delay'
+          ? scene._awaitSceneDelay(100, { timeoutMs: 30 })
+          : scene._awaitSceneTween({ duration: 100 }, { timeoutMs: 30 })
+      ).finally(() => {
+        finalized = true;
+      });
+      manager.pause('Battle');
+      await vi.advanceTimersByTimeAsync(30);
+      expect(await waiting).toEqual({ status: 'timed_out' });
+      expect(finalized).toBe(true);
+    },
+  );
+  it('rewind persists while the real history session still owns the Phaser pause', async () => {
+    const { scene, manager } = realPauseHost();
+    const store = new Map();
+    vi.stubGlobal('localStorage', {
+      getItem: (k) => store.get(k) ?? null,
+      setItem: (k, v) => store.set(k, v),
+      removeItem: (k) => store.delete(k),
+    });
+    const rm = new RunManager({});
+    rm.visionChargesRemaining = 2;
+    rm.visionCount = 0;
+    rm.beginBattleInProgress('a', {});
+    scene.runManager = rm;
+    scene.registry = { get: (key) => (key === 'activeSlot' ? 1 : null) };
+    scene.grid = { mapLayout: [[0]] };
+    scene.playerUnits = [];
+    scene.enemyUnits = [];
+    scene.npcUnits = [];
+    scene._battleRewindPolicy = 'fixed-v1';
+    scene._battleRng = createBattleRng(42);
+    const state = captureBattleState(scene, { rngSeed: 42 });
+    const controller = new VisionRewindController(scene, rm);
+    controller._prepareTarget = () => state;
+    controller._applySnapshot = () => true;
+    const history = new BattleHistorySession(scene);
+    controller._historySession = history;
+    expect(scene.sys.isActive()).toBe(false);
+    const original = scene._persistBattleRunState.bind(scene);
+    scene._persistBattleRunState = vi.fn((...args) => {
+      expect(history.destroyed).not.toBe(true);
+      expect(scene.sys.isActive()).toBe(false);
+      return original(...args);
+    });
+    expect(controller.executeRewind(state)).toBe(true);
+    const saved = JSON.parse(store.get(getRunKey(1)));
+    expect(saved.visionChargesRemaining).toBe(1);
+    expect(saved.battleInProgress.checkpoint.rngState).toEqual(state.rngState);
+    expect(history.destroyed).toBe(true);
+    await history.ready;
+  });
+});
+
+describe('checkpoint retry uses the live save owner', () => {
+  it('re-stamps against a raised remote floor and updates the live manager stamp without a capture', () => {
+    const { scene } = sceneWithPendingTween();
+    const store = new Map();
+    let quota = true;
+    vi.stubGlobal('localStorage', {
+      getItem: (k) => store.get(k) ?? null,
+      setItem: (k, v) => {
+        if (quota && k === getRunKey(1)) throw new DOMException('full', 'QuotaExceededError');
+        store.set(k, v);
+      },
+      removeItem: (k) => store.delete(k),
+    });
+    const rm = new RunManager({});
+    rm.beginBattleInProgress('a', {});
+    scene.runManager = rm;
+    scene.registry = { get: (k) => (k === 'activeSlot' ? 1 : null) };
+    scene.turnManager = { currentPhase: 'player', turnNumber: 1 };
+    scene.playerUnits = [];
+    scene.enemyUnits = [];
+    scene.npcUnits = [];
+    scene.grid = { mapLayout: [[0]] };
+    scene.reseedBattleRng = vi.fn();
+    const ctrl = new BattleSuspendController(scene);
+    expect(ctrl.captureCheckpoint()).toBe(false);
+    const before = structuredClone(rm.battleInProgress.checkpoint);
+    const reseeds = scene.reseedBattleRng.mock.calls.length;
+    const floor = Date.now() + 100000;
+    store.set(getRunClockFloorKey(1), String(floor));
+    quota = false;
+    expect(ctrl.retryCheckpoint()).toEqual({ ok: true });
+    const saved = JSON.parse(store.get(getRunKey(1)));
+    expect(saved.savedAt).toBeGreaterThan(floor);
+    expect(isRunSaveCurrent(rm, 1)).toBe(true);
+    expect(rm.battleInProgress.checkpoint).toEqual(before);
+    expect(scene.reseedBattleRng).toHaveBeenCalledTimes(reseeds);
+  });
+  it('init resets parked loot cleanup flags for the replacement battle', () => {
+    const { scene } = sceneWithPendingTween();
+    scene._lootCleanupScheduled = true;
+    scene._lootResolving = true;
+    scene._lootCleanedUp = true;
+    restart(scene);
+    expect([scene._lootCleanupScheduled, scene._lootResolving, scene._lootCleanedUp]).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+});
+
+it('missing origin tokens never grant mutation permission, including an uninitialized scene', () => {
+  expect(isCurrentBattleSession({})).toBe(false);
+  expect(isCurrentBattleSession({ _battleSession: 1 })).toBe(false);
+  const { scene } = sceneWithPendingTween();
+  const unit = { name: 'Actor', hasActed: false };
+  expect(scene.finishUnitAction(unit)).toBe(false);
+  expect(completeBattleAction(scene, unit)).toBe(false);
+  expect(captureResolvedAction(scene, { kind: 'finish' })).toBe(false);
+  expect(scene._captureSuspendCheckpoint()).toBe(false);
+  expect(scene._persistBattleRunState()).toEqual({ ok: false, reason: 'stale_session' });
+  expect(unit.hasActed).toBe(false);
 });

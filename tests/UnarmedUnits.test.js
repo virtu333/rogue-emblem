@@ -391,6 +391,7 @@ describe('a usable weapon given to an unarmed unit is equipped', () => {
   it('in battle, a reclass seal that grants a new weapon type arms an unarmed unit', async () => {
     const s = new BattleScene();
     Object.assign(s, {
+      _battleSession: 1,
       gameData,
       runManager: null,
       hideActionMenu: vi.fn(),

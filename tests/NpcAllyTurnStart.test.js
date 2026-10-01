@@ -71,6 +71,7 @@ function phaseScene({ playerUnits = [], npcUnits = [], enemyUnits = [], layout, 
   const scene = new BattleScene();
   const delayed = [];
   Object.assign(scene, {
+    _battleSession: 1,
     scene: { isActive: () => true },
     battleParams: {},
     battleConfig: { objective: 'rout' },
@@ -166,6 +167,7 @@ describe('player turn start', () => {
     const rowan = recruit('Rowan', 4, 6, 10); // 2 tiles away: outside range 1
     const foe = enemy(5, 4, 5); // adjacent enemy
     const scene = phaseScene({
+      _battleSession: 1,
       playerUnits: [healer],
       npcUnits: [caravan, garrick, rowan],
       enemyUnits: [foe],
@@ -222,6 +224,7 @@ describe('player turn start', () => {
     const garrick = recruit('Garrick', 5, 5, 4, 24); // throne: floor(2.4) = 2
     const foe = enemy(6, 6, 5); // an enemy on a fort waits for its own phase
     const scene = phaseScene({
+      _battleSession: 1,
       playerUnits: [sera(0, 7)],
       npcUnits: [caravan, garrick],
       enemyUnits: [foe],
@@ -280,6 +283,7 @@ describe('player phase end: terrain hazards', () => {
     const garrick = recruit('Garrick', 3, 3, 3);
     const foe = enemy(4, 4, 15); // burns at the end of its own phase instead
     const scene = phaseScene({
+      _battleSession: 1,
       playerUnits: [edric],
       npcUnits: [caravan, garrick],
       enemyUnits: [foe],

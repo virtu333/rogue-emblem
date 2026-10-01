@@ -89,6 +89,7 @@ const chain = () => {
 function battle({ show, bars }) {
   const scene = new BattleScene();
   Object.assign(scene, {
+    _battleSession: 1,
     gameData: { ...gameData, weaponArts: { arts: [] } },
     grid: {
       fogEnabled: false,

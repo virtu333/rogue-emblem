@@ -108,6 +108,7 @@
       "name": "battle-history",
       "description": "Battle timeline, rewinds, threat sight and refresh-safe committed attacks",
       "specs": [
+        "battle-session-pause.spec.js",
         "combat-refresh-commit.spec.js",
         "rewind-action-types.spec.js",
         "rewind-any-action.spec.js",
@@ -197,7 +198,7 @@
       "description": "The production build: phone release smoke and the offline texture-atlas service worker",
       "config": "playwright.release.config.js",
       "build": true,
-      "specs": ["mobile-release.spec.js", "offline-atlas.spec.js"]
+      "specs": ["mobile-release.spec.js", "offline-atlas.spec.js", "audio-upgrade.spec.js"]
     }
   ],
   "excluded": []

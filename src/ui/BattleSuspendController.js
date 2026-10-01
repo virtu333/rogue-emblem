@@ -82,6 +82,9 @@ export class BattleSuspendController {
       scene.turnManager?.currentPhase === 'enemy' && scene._enemyActionCheckpoint === true;
     if (scene.turnManager?.currentPhase !== 'player' && !enemyBoundary)
       return this._captureResult({ ok: false, reason: 'wrong_phase' });
+    // A newer capture owns retry state even if serialization itself fails.
+    this._retryCandidate = null;
+    this._retryCheckpoint = null;
     try {
       const index = (Number(rm.battleInProgress.checkpoint?.checkpointIndex) || 0) + 1;
       const base = Number.isFinite(scene.visionBaseSeed) ? scene.visionBaseSeed >>> 0 : 0;
@@ -105,22 +108,23 @@ export class BattleSuspendController {
           console.warn('[Timeline] optional history unavailable:', error?.message || error);
         }
       }
-      this._retryCandidate = rm.toJSON ? structuredClone(rm.toJSON()) : null;
-      let persisted = scene._persistBattleRunState?.(null, { session });
+      let candidate = rm.toJSON ? rm.toJSON() : null;
+      let persisted = scene._persistBattleRunState?.(candidate, { session });
       if (persisted?.reason === 'quota' && rm.toJSON && rm.battleInProgress.timeline) {
         const fallback = persistWithTimelineFallback(
-          rm.toJSON(),
+          candidate,
           (candidate) => scene._persistBattleRunState(candidate, { session }),
           persisted,
         );
         persisted = fallback;
-        if (fallback.candidate) this._retryCandidate = structuredClone(fallback.candidate);
+        if (fallback.candidate) candidate = fallback.candidate;
         if (fallback.ok) {
           rm.battleInProgress = fallback.candidate.battleInProgress;
           scene._battleTimeline = rm.battleInProgress.timeline;
           scene._timelineCurrentEntryId = rm.battleInProgress.timelineCurrentEntryId;
         }
       }
+      this._retryCandidate = persisted?.ok ? null : candidate && structuredClone(candidate);
       return this._captureResult(persisted || { ok: false, reason: 'missing_persistence' });
     } catch (err) {
       console.warn('[BattleSuspend] checkpoint capture failed:', err?.message || err);
@@ -140,6 +144,7 @@ export class BattleSuspendController {
     const scene = this.scene;
     if (!isCurrentBattleSession(scene, this.session)) return { ok: false, reason: 'stale_session' };
     if (
+      !this._retryCandidate ||
       !this._retryCheckpoint ||
       scene.runManager?.battleInProgress?.checkpoint !== this._retryCheckpoint
     )
@@ -150,6 +155,12 @@ export class BattleSuspendController {
       ok: false,
       reason: 'missing_persistence',
     };
+    if (result.ok) {
+      scene.runManager.battleInProgress = this._retryCandidate.battleInProgress;
+      scene._battleTimeline = scene.runManager.battleInProgress.timeline;
+      scene._timelineCurrentEntryId = scene.runManager.battleInProgress.timelineCurrentEntryId;
+      this._retryCandidate = null;
+    }
     this._captureResult(result);
     return result;
   }
@@ -331,7 +342,7 @@ export class BattleSuspendController {
     }
     const continuation = readActionContinuation(checkpoint.pendingActionCompletion);
     if (continuation) {
-      completeResolvedAction(scene, continuation);
+      completeResolvedAction(scene, continuation, { session: this.session });
       return;
     }
     const committed = readCommittedAction(checkpoint.pendingCommittedAction);
