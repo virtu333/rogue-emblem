@@ -230,7 +230,7 @@ describe('BlessingSelectScene transition guards', () => {
     expect(clearSavedRun).toHaveBeenCalledTimes(1);
     expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), 2);
     expect(deleteRunSave).toHaveBeenCalledTimes(1);
-    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2);
+    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2, null);
   });
 
   it('successful transition uses resolved clear slot when registry activeSlot is missing', async () => {
@@ -249,7 +249,7 @@ describe('BlessingSelectScene transition guards', () => {
     expect(clearSavedRun).toHaveBeenCalledTimes(1);
     expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), undefined);
     expect(deleteRunSave).toHaveBeenCalledTimes(1);
-    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2);
+    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2, null);
   });
 
   it('_confirm blocks subsequent _back', () => {

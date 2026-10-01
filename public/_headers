@@ -12,3 +12,7 @@
   Cache-Control: public, max-age=0, must-revalidate
 /registerSW.js
   Cache-Control: public, max-age=0, must-revalidate
+
+# These physical filenames contain the SHA-256 of their immutable audio bytes.
+/assets/audio/versioned/*
+  Cache-Control: public, max-age=31536000, immutable

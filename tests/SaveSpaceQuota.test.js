@@ -169,7 +169,7 @@ describe('a save that hits the quota makes room in the other slots', () => {
     vi.stubGlobal('localStorage', storage);
     vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    expect(saveRun(rm, null, 1)).toEqual({ ok: true });
+    expect(saveRun(rm, null, 1)).toEqual({ ok: true, cloud: { queued: false, reason: 'offline' } });
     expect(JSON.parse(storage.getItem(getRunKey(1))).roster).toEqual(
       JSON.parse(JSON.stringify(rm.toJSON().roster)),
     );

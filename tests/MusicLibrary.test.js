@@ -89,7 +89,7 @@ describe('music library', () => {
     expect(loop.loopStart).toBe(0);
     expect(Math.abs(loop.loopEnd - loop.duration)).toBeLessThan(0.01);
     const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
-    expect(html).toContain('assets/audio/music/music_login.mp3');
+    expect(html).toContain("bgMusic.src = '__ER_LOGIN_AUDIO_URL__'");
   });
 
   it('every boss has its own enrage layer on the theme it is fought to', () => {

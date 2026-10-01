@@ -68,7 +68,12 @@ export async function startFirstRunFastPath(scene, { gameData, slot }) {
     // transition success — same post-transition order as BlessingSelectScene.
     meta?.incrementRunsStarted?.();
     const cloud = scene.registry.get('cloud');
-    clearSavedRun(cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null, slot);
+    clearSavedRun(
+      cloud
+        ? (resolvedSlot, abandonedRun) => deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+        : null,
+      slot,
+    );
   }
 
   return transitioned;

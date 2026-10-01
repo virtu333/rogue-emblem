@@ -214,7 +214,7 @@ describe('Run clear callback forwarding across scenes', () => {
     expect(clearSavedRun).toHaveBeenCalledTimes(1);
     expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), undefined);
     expect(deleteRunSave).toHaveBeenCalledTimes(1);
-    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2);
+    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2, null);
   });
 
   it('NodeMap scene abandon callback uses resolved clear slot when registry activeSlot is missing', async () => {
@@ -241,7 +241,7 @@ describe('Run clear callback forwarding across scenes', () => {
     expect(clearSavedRun).toHaveBeenCalledTimes(1);
     expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), undefined);
     expect(deleteRunSave).toHaveBeenCalledTimes(1);
-    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2);
+    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2, null);
   });
 
   it('Battle scene abandon callback uses resolved clear slot when registry activeSlot is missing', async () => {
@@ -277,7 +277,7 @@ describe('Run clear callback forwarding across scenes', () => {
     expect(clearSavedRun).toHaveBeenCalledTimes(1);
     expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), undefined);
     expect(deleteRunSave).toHaveBeenCalledTimes(1);
-    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2);
+    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2, null);
   });
 
   it('Battle defeat recovery title callback uses resolved clear slot when registry activeSlot is missing', async () => {
@@ -294,7 +294,7 @@ describe('Run clear callback forwarding across scenes', () => {
     expect(clearSavedRun).toHaveBeenCalledTimes(1);
     expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), undefined);
     expect(deleteRunSave).toHaveBeenCalledTimes(1);
-    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2);
+    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2, null);
   });
 
   it('Battle victory recovery title callback uses resolved clear slot when registry activeSlot is missing', async () => {
@@ -311,6 +311,6 @@ describe('Run clear callback forwarding across scenes', () => {
     expect(clearSavedRun).toHaveBeenCalledTimes(1);
     expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), undefined);
     expect(deleteRunSave).toHaveBeenCalledTimes(1);
-    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2);
+    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2, null);
   });
 });

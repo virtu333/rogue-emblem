@@ -17,6 +17,8 @@ import { loadGameFont } from '../utils/loadGameFont.js';
 
 import Phaser from 'phaser';
 import { DataLoader } from '../engine/DataLoader.js';
+import { audioAssetUrl } from '../utils/audioAssets.js';
+import { ESSENTIAL_SFX, COMBAT_SFX } from '../utils/sfxConfig.js';
 import { AudioManager } from '../utils/AudioManager.js';
 import { SettingsManager } from '../utils/SettingsManager.js';
 import { cloudState } from '../main.js';
@@ -431,39 +433,22 @@ export class BootScene extends Phaser.Scene {
     );
 
     // SFX (18 effects)
-    const essentialSfx = ['sfx_cursor', 'sfx_confirm', 'sfx_cancel', 'sfx_gold'];
-    const combatSfx = [
-      'sfx_sword',
-      'sfx_lance',
-      'sfx_axe',
-      'sfx_bow',
-      'sfx_fire',
-      'sfx_thunder',
-      'sfx_ice',
-      'sfx_light',
-      'sfx_dark',
-      'sfx_heal',
-      'sfx_hit',
-      'sfx_crit',
-      'sfx_death',
-      'sfx_levelup',
-    ];
-    for (const key of essentialSfx) {
-      this.load.audio(key, [`assets/audio/sfx/${key}.mp3`]);
+    for (const key of ESSENTIAL_SFX) {
+      this.load.audio(key, [audioAssetUrl(key)]);
     }
     if (this._startupFlags.reducedPreload) {
       this._deferredAssetGroups.push('combat_sfx');
-      for (const key of combatSfx) {
+      for (const key of COMBAT_SFX) {
         this._deferredAssets.push({
           type: 'audio',
           key,
-          src: [`assets/audio/sfx/${key}.mp3`],
+          src: [audioAssetUrl(key)],
           group: 'combat_sfx',
         });
       }
     } else {
-      for (const key of combatSfx) {
-        this.load.audio(key, [`assets/audio/sfx/${key}.mp3`]);
+      for (const key of COMBAT_SFX) {
+        this.load.audio(key, [audioAssetUrl(key)]);
       }
     }
   }

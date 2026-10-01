@@ -8,9 +8,14 @@ import {
   clearAllSlotData,
   hasSlotRecoveryRecord,
   getSlotDataKeys,
+  getSlotCloudPendingKey,
+  getSlotRecoveryOwner,
+  prepareRecoveryLogout,
 } from '../src/engine/SlotManager.js';
 import {
   archiveAndDiscardSlot,
+  archiveSlot,
+  claimUnassignedCloudPending,
   retireSlotArchive,
   readSlotArchive,
   retakeSlotArchive,
@@ -40,6 +45,68 @@ afterEach(() => {
 });
 
 describe('read-only slot inspection and allocation', () => {
+  it.each([false, true])(
+    'logout ownership survives pending discard, including interrupted deletion (%s)',
+    (interrupted) => {
+      values.set(META, '{bad');
+      values.set(RUN, '{"gold":137}');
+      expect(archiveSlot(1).ok).toBe(true);
+      if (interrupted) {
+        storage.removeItem.mockImplementation((key) => {
+          if (key === RUN) throw new Error('interrupted');
+          values.delete(key);
+        });
+        expect(archiveAndDiscardSlot(1).ok).toBe(false);
+        storage.removeItem.mockImplementation((key) => values.delete(key));
+      }
+      expect(prepareRecoveryLogout('account-a').ok).toBe(true);
+      expect(archiveAndDiscardSlot(1).ok).toBe(true);
+      expect(getSlotRecoveryOwner(1)).toBe('account-a');
+      expect(values.has(META)).toBe(false);
+      expect(values.has(RUN)).toBe(false);
+      const removed = storage.removeItem.mock.calls.map(([key]) => key);
+      expect(removed.at(-1)).toBe('emblem_rogue_slot_1_recovery_owner');
+    },
+  );
+
+  it.each([null, 'account-a', 'malformed'])(
+    'claims only an explicitly unassigned empty cloud reservation (%s)',
+    (owner) => {
+      const key = getSlotCloudPendingKey(1);
+      const raw =
+        owner === 'malformed' ? '{bad pending' : JSON.stringify({ version: 1, userId: owner });
+      values.set(key, raw);
+      const result = claimUnassignedCloudPending(1, 'account-b');
+      if (owner === null) {
+        expect(result.ok).toBe(true);
+        expect(JSON.parse(values.get(key)).userId).toBe('account-b');
+      } else {
+        expect(result.ok).toBe(false);
+        expect(values.get(key)).toBe(raw);
+      }
+    },
+  );
+  it('does not claim an unassigned reservation over newly written local run bytes', () => {
+    const key = getSlotCloudPendingKey(1);
+    const raw = JSON.stringify({ version: 1, userId: null });
+    values.set(key, raw);
+    values.set(RUN, 'new local run bytes');
+    expect(claimUnassignedCloudPending(1, 'account-b').ok).toBe(false);
+    expect(values.get(key)).toBe(raw);
+    expect(values.get(RUN)).toBe('new local run bytes');
+  });
+
+  it('refuses to retake a native pending copy when an original key already reached deletion on disk', () => {
+    values.set(META, '{bad');
+    values.set(RUN, 'original run bytes');
+    expect(archiveSlot(1).ok).toBe(true);
+    values.delete(RUN); // disk replay before discardStarted reached disk
+    const before = new Map(values);
+    expect(retakeSlotArchive(1)).toMatchObject({ ok: false });
+    expect(values).toEqual(before);
+    expect(readSlotArchive(1).values[RUN]).toBe('original run bytes');
+  });
+
   it('fails closed when recovery evidence cannot be read', () => {
     storage.getItem.mockImplementation(() => {
       throw new Error('storage denied');
@@ -229,7 +296,7 @@ describe('explicit archive, discard and retirement', () => {
     expect(archiveAndDiscardSlot(1).ok).toBe(true);
     expect(readSlotArchive(1).values[ownerKey]).toBe(owner);
     expect(retireSlotArchive(1).ok).toBe(true);
-    expect(getNextAvailableSlot()).toBe(1);
+    expect(getNextAvailableSlot()).toBe(2);
   });
 
   it('can discard a verified export when storage has no room for a second full copy', () => {
@@ -308,6 +375,7 @@ describe('explicit archive, discard and retirement', () => {
         'emblem_rogue_slot_1_cloud_conflict',
         'emblem_rogue_slot_1_hints',
         'emblem_rogue_slot_1_recovery_owner',
+        'emblem_rogue_slot_1_cloud_pending',
       ].map((key) => [key, values.get(key) ?? null]),
     );
     const before = new Map(values);
@@ -318,7 +386,7 @@ describe('explicit archive, discard and retirement', () => {
     expect(readSlotArchive(1)).toMatchObject({ externalCopy: true, state: 'archived' });
     expect(getNextAvailableSlot()).toBe(2);
     expect(retireSlotArchive(1).ok).toBe(true);
-    expect(getNextAvailableSlot()).toBe(1);
+    expect(getNextAvailableSlot()).toBe(2);
   });
 
   it('refuses external discard when new data arrived after export', () => {
@@ -391,7 +459,7 @@ describe('explicit archive, discard and retirement', () => {
     expect([...values.keys()].sort()).toEqual([ARCHIVE, 'unrelated'].sort());
     expect(getNextAvailableSlot()).toBe(2);
     expect(retireSlotArchive(1)).toEqual({ ok: true });
-    expect(getNextAvailableSlot()).toBe(1);
+    expect(getNextAvailableSlot()).toBe(2);
     expect(values.get('unrelated')).toBe('untouched');
   });
 
@@ -440,6 +508,7 @@ describe('explicit archive, discard and retirement', () => {
       expect(readSlotArchive(1).values).toEqual({
         ...originals,
         emblem_rogue_slot_1_recovery_owner: null,
+        emblem_rogue_slot_1_cloud_pending: null,
       });
     },
   );

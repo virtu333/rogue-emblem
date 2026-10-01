@@ -1,11 +1,22 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ durable: vi.fn(), native: vi.fn(), deleteCloud: vi.fn() }));
-vi.mock('../src/cloud/CloudSync.js', () => ({ deleteSlotCloud: mocks.deleteCloud }));
+const mocks = vi.hoisted(() => ({
+  durable: vi.fn(),
+  native: vi.fn(),
+  deleteCloud: vi.fn(),
+  fetch: vi.fn(),
+  dom: vi.fn(),
+  dialog: vi.fn(),
+}));
+vi.mock('../src/cloud/CloudSync.js', () => ({
+  deleteSlotCloud: mocks.deleteCloud,
+  fetchAllToLocalStorage: mocks.fetch,
+}));
 vi.mock('../src/utils/nativeSaveMirror.js', () => ({
   nativeCapacitor: mocks.native,
   getNativeSaveMirror: () => ({ ensureDurable: mocks.durable }),
 }));
-vi.mock('../src/utils/domUI.js', () => ({ hasDOMHost: () => false }));
+vi.mock('../src/utils/domUI.js', () => ({ hasDOMHost: mocks.dom }));
+vi.mock('../src/ui/RunFlowMenus.js', () => ({ slotDialog: mocks.dialog }));
 import { showSlotRecovery } from '../src/ui/SlotRecoveryDialog.js';
 
 let values, scene, buttons;
@@ -15,6 +26,8 @@ const ARCHIVE = 'emblem_rogue_slot_1_quarantine';
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.native.mockReturnValue({});
+  mocks.dom.mockReturnValue(false);
+  mocks.dialog.mockImplementation((_scene, _title, _body, actions) => ({ actions }));
   values = new Map([
     [META, '{bad'],
     [RUN, '{"gold":137}'],
@@ -60,6 +73,54 @@ function confirmDiscard() {
 }
 
 describe('native recovery discard', () => {
+  it('offers an explicit signed-in account choice for an unassigned pending slot, without automatically claiming it', async () => {
+    values.clear();
+    const key = 'emblem_rogue_slot_1_cloud_pending';
+    values.set(key, JSON.stringify({ version: 1, userId: null }));
+    scene.registry.get = () => ({ userId: 'account-b' });
+    showSlotRecovery(scene, 1);
+    expect(JSON.parse(values.get(key)).userId).toBeNull();
+    activate('Choose this account’s cloud copy…');
+    expect(JSON.parse(values.get(key)).userId).toBeNull();
+    activate('Check this account’s cloud copy');
+    await vi.waitFor(() => expect(mocks.fetch).toHaveBeenCalledWith('account-b'));
+    expect(JSON.parse(values.get(key)).userId).toBe('account-b');
+  });
+  it('an archived copy can only retire through the reserved Free path', async () => {
+    mocks.durable.mockResolvedValue(true);
+    confirmDiscard();
+    await vi.waitFor(() => expect(scene._recoveryAttempt).toBeNull());
+    showSlotRecovery(scene, 1);
+    expect(buttons.some((entry) => entry.copy === '[ Free slot… ]')).toBe(true);
+    expect(buttons.some((entry) => entry.copy === '[ Remove copy only… ]')).toBe(false);
+    expect(values.has(ARCHIVE)).toBe(true);
+  });
+  it.each([false, true])(
+    'native never offers blob export attestation, and oversized originals offer Keep only (%s)',
+    (oversized) => {
+      mocks.dom.mockReturnValue(true);
+      if (oversized) values.set(RUN, 'original'.repeat(100000));
+      const before = new Map(values);
+      showSlotRecovery(scene, 1);
+      const labels = scene.nativeDialog.actions.map(([label]) => label);
+      expect(labels).not.toContain('Export recovery copy');
+      if (oversized) expect(labels).toEqual(['Keep save']);
+      expect(values).toEqual(before);
+    },
+  );
+  it('hydrates the owned slot immediately after Free and keeps the reservation while the fetch is pending', async () => {
+    mocks.durable.mockResolvedValue(true);
+    scene.registry.get = () => ({ userId: 'account-a' });
+    confirmDiscard();
+    await vi.waitFor(() => expect(scene._recoveryAttempt).toBeNull());
+    showSlotRecovery(scene, 1);
+    activate('Free slot…');
+    activate('Delete copy and free slot');
+    await vi.waitFor(() => expect(scene._recoveryAttempt).toBeNull());
+    expect(mocks.fetch).toHaveBeenCalledWith('account-a');
+    expect(JSON.parse(values.get('emblem_rogue_slot_1_cloud_pending')).userId).toBe('account-a');
+  });
+
   it.each([false, true])(
     'frees an owned archived copy, including legacy archives (%s)',
     async (legacy) => {
@@ -89,6 +150,7 @@ describe('native recovery discard', () => {
           ['emblem_rogue_slot_1_meta_clock_floor', null],
           ['emblem_rogue_slot_1_cloud_conflict', null],
           ['emblem_rogue_slot_1_hints', null],
+          ['emblem_rogue_slot_1_cloud_pending', values.get('emblem_rogue_slot_1_cloud_pending')],
         ].sort(),
       );
     },
@@ -189,6 +251,8 @@ describe('native recovery discard', () => {
     values.set(RUN, '{"gold":999}');
     showSlotRecovery(scene, 1);
     activate('Retake pending copy');
+    expect(JSON.parse(values.get(ARCHIVE)).values[RUN]).toBe('{"gold":137}');
+    activate('Replace pending copy');
     expect(JSON.parse(values.get(ARCHIVE)).values[RUN]).toBe('{"gold":999}');
     mocks.durable.mockResolvedValue(true);
     activate('Archive and discard…');

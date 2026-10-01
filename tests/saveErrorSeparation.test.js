@@ -61,7 +61,7 @@ describe('H2+H3 — Save error separation', () => {
   describe('RunManager.saveRun', () => {
     it('returns { ok: true } on successful save', () => {
       const result = saveRun(makeMockRunManager(), null, 1);
-      expect(result).toEqual({ ok: true });
+      expect(result).toEqual({ ok: true, cloud: { queued: false, reason: 'offline' } });
     });
 
     it('returns { ok: false } when localStorage throws, onSave NOT called', () => {
@@ -100,7 +100,7 @@ describe('H2+H3 — Save error separation', () => {
         throw new Error('cloud error');
       });
       const result = saveRun(makeMockRunManager(), onSave, 1);
-      expect(result).toEqual({ ok: true });
+      expect(result).toEqual({ ok: true, cloud: { queued: false, reason: 'callback_error' } });
       expect(onSave).toHaveBeenCalledTimes(1);
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining('[RunManager] onSave callback error'),

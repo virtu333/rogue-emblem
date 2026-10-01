@@ -394,7 +394,7 @@ export class TitleScene extends Phaser.Scene {
     await this._finishLogout();
   }
 
-  async _finishLogout() {
+  async _finishLogout({ keepUndurableRecovery = false } = {}) {
     if (this._logoutInProgress) return;
     this._logoutInProgress = true;
     const prepared = prepareRecoveryLogout(
@@ -405,7 +405,7 @@ export class TitleScene extends Phaser.Scene {
       this._setLogoutNotice(prepared.reason, 'bad');
       return;
     }
-    if (nativeCapacitor() && prepared.markers.length) {
+    if (nativeCapacitor() && prepared.markers.length && !keepUndurableRecovery) {
       this._showLogoutProgress('Keeping recovery data', 'Verifying save ownership on this device…');
       try {
         const mirror = getNativeSaveMirror();
@@ -420,6 +420,26 @@ export class TitleScene extends Phaser.Scene {
         this._logoutInProgress = false;
         this._closeTitleMenu();
         this._setLogoutNotice(error.message, 'bad');
+        if (hasDOMHost()) {
+          const menu = this._openTitleMenu('Keep recovery data on this device?');
+          menu.body.append(
+            element(
+              'p',
+              'The device backup could not be verified. Your recovery data and account ownership stay in this device’s local storage when you sign out. That copy can be lost if the device clears local storage. Stay signed in to retry the device backup, or explicitly keep this local copy and sign out.',
+            ),
+          );
+          menu.body.append(
+            button('Stay signed in', () => this._closeTitleMenu(), 're-btn re-btn--primary'),
+          );
+          menu.body.append(
+            button('Keep recovery data on this device and sign out', () => {
+              if (this.nativeMenu !== menu) return;
+              this._closeTitleMenu();
+              void this._finishLogout({ keepUndurableRecovery: true });
+            }),
+          );
+          menu.focusContent();
+        }
         return;
       }
     }
@@ -473,10 +493,14 @@ export class TitleScene extends Phaser.Scene {
 
   _refreshCloudSyncStatusNotice() {
     const cloud = this.registry.get('cloud');
-    const showNotice = !!cloud?.syncStatus?.authExpired;
-    if (showNotice === this._cloudNoticeShown) return;
-    this._cloudNoticeShown = showNotice;
-    this.titleView?.setCloudNotice(showNotice ? CLOUD_EXPIRED_NOTICE : '');
+    const message = cloud?.syncStatus?.authExpired
+      ? CLOUD_EXPIRED_NOTICE
+      : cloud?.syncStatus?.mode === 'local_only'
+        ? cloud.syncStatus.message
+        : '';
+    if (message === this._cloudNoticeShown) return;
+    this._cloudNoticeShown = message;
+    this.titleView?.setCloudNotice(message);
   }
 
   update() {

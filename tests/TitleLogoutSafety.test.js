@@ -45,6 +45,20 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe('logout preserves local progress unless backup and signout succeed', () => {
+  it('shows a protected-slot backup notice on Title and refreshes it when the slot changes', () => {
+    const status = {
+      mode: 'local_only',
+      message: 'Slot 1: local save kept; cloud backup paused until recovery is resolved.',
+    };
+    scene.registry = { get: () => ({ syncStatus: status }) };
+    scene.titleView = { setCloudNotice: vi.fn() };
+    scene._refreshCloudSyncStatusNotice();
+    expect(scene.titleView.setCloudNotice).toHaveBeenCalledWith(status.message);
+    status.message = 'Slot 2: local save kept; cloud backup paused until recovery is resolved.';
+    scene._refreshCloudSyncStatusNotice();
+    expect(scene.titleView.setCloudNotice).toHaveBeenLastCalledWith(status.message);
+  });
+
   it.each([{ recoveryRequired: true }, { runCorrupt: true }])(
     'signs out while retaining recovery data (%j)',
     async (summary) => {

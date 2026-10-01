@@ -6,6 +6,10 @@ import {
   getSlotQuarantineKey,
   getSlotPairJournalKey,
   getSlotRecoveryOwnerKey,
+  getSlotRecoveryOwner,
+  getSlotCloudPendingKey,
+  getMetaKey,
+  getRunKey,
 } from './SlotManager.js';
 
 function validSlot(slot) {
@@ -39,13 +43,15 @@ export function readSlotArchive(slot, storage = globalThis.localStorage) {
     typeof archive.values !== 'object' ||
     !getSlotDataKeys(slot).every(
       (key) =>
-        (key === getSlotRecoveryOwnerKey(slot) && !Object.hasOwn(archive.values, key)) ||
+        ([getSlotRecoveryOwnerKey(slot), getSlotCloudPendingKey(slot)].includes(key) &&
+          !Object.hasOwn(archive.values, key)) ||
         (Object.hasOwn(archive.values, key) &&
           (archive.values[key] === null || typeof archive.values[key] === 'string')),
     )
   )
     throw new Error('The recovery copy could not be read safely. Keep it for recovery.');
   archive.values[getSlotRecoveryOwnerKey(slot)] ??= null;
+  archive.values[getSlotCloudPendingKey(slot)] ??= null;
   return archive;
 }
 
@@ -72,6 +78,14 @@ export function archiveSlot(slot, storage = globalThis.localStorage) {
         savedAt: Date.now(),
         values,
       };
+      checkedWrite(slot, archive, storage);
+    }
+    // Logout can assign ownership after the raw copy was prepared. Fold it in
+    // before native acknowledgement and before deleting any canonical key.
+    const ownerRaw = storage.getItem(getSlotRecoveryOwnerKey(slot));
+    if (ownerRaw !== null && archive.values[getSlotRecoveryOwnerKey(slot)] !== ownerRaw) {
+      archive.values[getSlotRecoveryOwnerKey(slot)] = ownerRaw;
+      archive.savedAt = Math.max(Date.now(), (archive.savedAt || 0) + 1);
       checkedWrite(slot, archive, storage);
     }
     return { ok: true, archive, raw: storage.getItem(getSlotQuarantineKey(slot)) };
@@ -184,13 +198,19 @@ export function archiveAndDiscardSlot(slot, storage = globalThis.localStorage, e
   try {
     // A previous deletion may have stopped partway. Do not delete new data written
     // by another tab/cloud job since the copy was made.
-    for (const key of getSlotDataKeys(slot)) {
+    for (const key of getSlotDataKeys(slot).filter(
+      (key) => key !== getSlotRecoveryOwnerKey(slot),
+    )) {
       const current = storage.getItem(key);
       if (current !== null && current !== archive.values[key])
         throw new Error('The save changed after it was archived. Keep both copies for recovery.');
     }
-    checkedWrite(slot, { ...archive, discardStarted: true }, storage);
-    for (const key of getSlotDataKeys(slot)) {
+    archive.discardStarted = true;
+    checkedWrite(slot, archive, storage);
+    for (const key of [
+      ...getSlotDataKeys(slot).filter((key) => key !== getSlotRecoveryOwnerKey(slot)),
+      getSlotRecoveryOwnerKey(slot),
+    ]) {
       storage.removeItem(key);
       if (storage.getItem(key) !== null)
         throw new Error('Could not finish discarding the save. Retry.');
@@ -212,12 +232,71 @@ export function archiveAndDiscardSlot(slot, storage = globalThis.localStorage, e
   }
 }
 
+/** Explicit account choice for a known unassigned, empty cloud reservation. */
+export function claimUnassignedCloudPending(slot, userId, storage = globalThis.localStorage) {
+  try {
+    if (!validSlot(slot) || typeof userId !== 'string' || !userId.trim())
+      throw new Error('Sign in to choose this account.');
+    const key = getSlotCloudPendingKey(slot);
+    const raw = storage.getItem(key);
+    const pending = JSON.parse(raw);
+    if (
+      pending?.version !== 1 ||
+      pending.userId !== null ||
+      [
+        getSlotQuarantineKey(slot),
+        getSlotPairJournalKey(slot),
+        getSlotRecoveryOwnerKey(slot),
+        getMetaKey(slot),
+        getRunKey(slot),
+      ].some((recordKey) => storage.getItem(recordKey) !== null)
+    )
+      throw new Error('This reservation already belongs to an account or contains recovery data.');
+    const next = JSON.stringify({
+      ...pending,
+      userId,
+      savedAt: Math.max(Date.now(), (pending.savedAt || 0) + 1),
+    });
+    if (storage.getItem(key) !== raw)
+      throw new Error('Cloud reservation changed. Review it again.');
+    storage.setItem(key, next);
+    if (storage.getItem(key) !== next)
+      throw new Error('Could not verify your account choice. Keep the slot reserved.');
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: err.message };
+  }
+}
+
+/** Reserve Free before native acknowledgement; the archive remains until confirmed. */
+export function prepareSlotCloudPending(slot, userId = null, storage = globalThis.localStorage) {
+  try {
+    const archive = readSlotArchive(slot, storage);
+    if (archive?.state !== 'archived') throw new Error('Finish discard before freeing this slot.');
+    const owner = getSlotRecoveryOwner(slot, storage);
+    const existing = storage.getItem(getSlotCloudPendingKey(slot));
+    if (existing !== null) return { ok: true, raw: existing };
+    const raw = JSON.stringify({
+      version: 1,
+      userId: typeof owner === 'string' ? owner : userId,
+      savedAt: Date.now(),
+    });
+    storage.setItem(getSlotCloudPendingKey(slot), raw);
+    if (storage.getItem(getSlotCloudPendingKey(slot)) !== raw)
+      throw new Error('Could not reserve cloud recovery. The copy was kept.');
+    return { ok: true, raw };
+  } catch (err) {
+    return { ok: false, reason: err.message };
+  }
+}
+
 /** A separate, confirmed choice retires the last raw copy and frees the slot. */
 export function retireSlotArchive(
   slot,
   storage = globalThis.localStorage,
   expectedArchiveRaw,
   expectedOwnerRaw,
+  userId = null,
 ) {
   if (!validSlot(slot)) return { ok: false, reason: 'Invalid save slot.' };
   try {
@@ -233,9 +312,14 @@ export function retireSlotArchive(
     if (
       archive?.state !== 'archived' ||
       storage.getItem(getSlotPairJournalKey(slot)) !== null ||
-      getSlotDataKeys(slot).some((key) => key !== ownerKey && storage.getItem(key) !== null)
+      getSlotDataKeys(slot).some(
+        (key) =>
+          key !== ownerKey && key !== getSlotCloudPendingKey(slot) && storage.getItem(key) !== null,
+      )
     )
       throw new Error('Finish recovery or discard before freeing this slot.');
+    const reserved = prepareSlotCloudPending(slot, userId, storage);
+    if (!reserved.ok) throw new Error(reserved.reason);
     storage.removeItem(getSlotQuarantineKey(slot));
     if (storage.getItem(getSlotQuarantineKey(slot)) !== null)
       throw new Error('Could not free this slot. Retry.');

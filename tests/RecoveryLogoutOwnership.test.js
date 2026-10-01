@@ -6,6 +6,13 @@ const mocks = vi.hoisted(() => ({
   writes: [],
   native: false,
   mirror: null,
+  dom: false,
+}));
+vi.mock('../src/utils/domUI.js', () => ({ hasDOMHost: () => mocks.dom }));
+vi.mock('../src/ui/MenuSurface.js', async () => ({
+  ...(await vi.importActual('../src/ui/MenuSurface.js')),
+  element: (kind, text) => ({ kind, text }),
+  button: (label, action) => ({ label, action }),
 }));
 vi.mock('../src/utils/nativeSaveMirror.js', async () => {
   const actual = await vi.importActual('../src/utils/nativeSaveMirror.js');
@@ -49,6 +56,7 @@ beforeEach(() => {
   mocks.writes.length = 0;
   mocks.native = false;
   mocks.mirror = null;
+  mocks.dom = false;
   __resetCloudSyncStatusForTests();
   store = new Map();
   storage = {
@@ -254,6 +262,42 @@ describe('logout recovery ownership and subsequent cloud hydration', () => {
     expect(mocks.signOut).not.toHaveBeenCalled();
     await scene._finishLogout();
     expect(mocks.signOut).toHaveBeenCalledOnce();
+  });
+
+  it('requires a fresh explicit device-only choice when the native mirror is unavailable', async () => {
+    mocks.native = true;
+    mocks.dom = true;
+    storage.setItem(getRunKey(1), '{original damaged run');
+    scene._openTitleMenu = () => {
+      const menu = {
+        entries: [],
+        body: { append: (...entries) => menu.entries.push(...entries) },
+        focusContent: vi.fn(),
+      };
+      scene.nativeMenu = menu;
+      return menu;
+    };
+    scene._closeTitleMenu = () => {
+      scene.nativeMenu = null;
+    };
+    await scene._finishLogout();
+    expect(mocks.signOut).not.toHaveBeenCalled();
+    expect(getSlotRecoveryOwner(1)).toBe('account-a');
+    const cancelled = scene.nativeMenu.entries.find((entry) =>
+      entry.label?.startsWith('Keep recovery data'),
+    );
+    scene._closeTitleMenu();
+    cancelled.action();
+    expect(mocks.signOut).not.toHaveBeenCalled();
+    await scene._finishLogout();
+    const choice = scene.nativeMenu.entries.find((entry) =>
+      entry.label?.startsWith('Keep recovery data'),
+    );
+    choice.action();
+    await vi.waitFor(() => expect(mocks.signOut).toHaveBeenCalledOnce());
+    expect(storage.getItem(getRunKey(1))).toBe('{original damaged run');
+    expect(getSlotRecoveryOwner(1)).toBe('account-a');
+    expect(reload).toHaveBeenCalledOnce();
   });
 
   it('recovers known ownership from the archive and fails closed on malformed evidence', () => {

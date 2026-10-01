@@ -5,16 +5,21 @@ import {
   getSlotPairJournalKey,
   getSlotRecoveryOwner,
   getSlotRecoveryOwnerKey,
+  getSlotCloudPendingKey,
 } from '../engine/SlotManager.js';
 import {
   archiveAndDiscardSlot,
   archiveSlot,
   readSlotArchive,
   retireSlotArchive,
+  prepareSlotCloudPending,
+  claimUnassignedCloudPending,
   retakeSlotArchive,
   forgetSlotArchive,
   discardExportedSlot,
+  MAX_SLOT_ARCHIVE_BYTES,
 } from '../engine/SlotRecovery.js';
+import { fetchAllToLocalStorage } from '../cloud/CloudSync.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { nativeCapacitor, getNativeSaveMirror } from '../utils/nativeSaveMirror.js';
 import { slotDialog } from './RunFlowMenus.js';
@@ -107,7 +112,14 @@ async function confirmRecoveryChange(scene, slot, retire) {
   try {
     let archiveRaw;
     const ownerRaw = retire ? localStorage.getItem(getSlotRecoveryOwnerKey(slot)) : undefined;
-    if (retire) archiveRaw = localStorage.getItem(getSlotQuarantineKey(slot));
+    const userId = scene.registry?.get('cloud')?.userId ?? null;
+    let pendingRaw;
+    if (retire) {
+      archiveRaw = localStorage.getItem(getSlotQuarantineKey(slot));
+      const pending = prepareSlotCloudPending(slot, userId);
+      if (!pending.ok) throw new Error(pending.reason);
+      pendingRaw = pending.raw;
+    }
     if (!retire) {
       const prepared = archiveSlot(slot);
       if (!prepared.ok) throw new Error(prepared.reason);
@@ -120,10 +132,19 @@ async function confirmRecoveryChange(scene, slot, retire) {
           'The device backup is unavailable. Your save was kept. Retry after restarting.',
         );
       const keys = retire
-        ? getSlotDataKeys(slot).filter((key) => key !== getSlotRecoveryOwnerKey(slot))
+        ? [
+            ...getSlotDataKeys(slot).filter(
+              (key) => ![getSlotRecoveryOwnerKey(slot), getSlotCloudPendingKey(slot)].includes(key),
+            ),
+            getSlotCloudPendingKey(slot),
+          ]
         : [getSlotQuarantineKey(slot)];
       for (const key of keys) {
-        const value = retire ? null : archiveRaw;
+        const value = retire
+          ? key === getSlotCloudPendingKey(slot)
+            ? pendingRaw
+            : null
+          : archiveRaw;
         if (!(await mirror.ensureDurable(key, value)))
           throw new Error('The device backup could not be verified. Your recovery data was kept.');
         if (!ownsDialog()) return;
@@ -131,9 +152,13 @@ async function confirmRecoveryChange(scene, slot, retire) {
     }
     if (!ownsDialog()) return;
     const result = retire
-      ? retireSlotArchive(slot, localStorage, archiveRaw, ownerRaw)
+      ? retireSlotArchive(slot, localStorage, archiveRaw, ownerRaw, userId)
       : archiveAndDiscardSlot(slot, localStorage, archiveRaw);
     if (!result.ok) throw new Error(result.reason);
+    if (retire && userId) {
+      await fetchAllToLocalStorage(userId);
+      if (!ownsDialog()) return;
+    }
     scene.requestCancel({ allowExit: false });
     scene.drawSlots();
     showSlotRecovery(scene, slot);
@@ -176,12 +201,16 @@ export function showSlotRecovery(scene, slot, notice = '') {
     owner !== null && owner !== scene.registry?.get('cloud')?.userId
       ? 'This recovery data belongs to another or unidentified account. Sign back into the original account to choose its cloud copy. '
       : '';
-  const body = archive?.externalCopy
-    ? 'Your original bytes are in the export you verified. This local record only reserves the slot; keep the exported file before freeing it.'
-    : archived
-      ? 'A recovery copy holds your original save. Keep it, or export it before freeing this slot.'
-      : 'Your save has been kept. Missing progression will not be replaced with defaults. Retry reading, or archive the original data before discarding it.';
-  if (hasDOMHost())
+  const pending = localStorage.getItem(getSlotCloudPendingKey(slot)) !== null;
+  const body =
+    pending && !archive
+      ? 'Cloud recovery is pending. This slot stays reserved until the original account fetches its cloud copy or confirms that no copy exists. Sign in and retry; a new game cannot overwrite that copy.'
+      : archive?.externalCopy
+        ? 'Your original bytes are in the export you verified. This local record only reserves the slot; keep the exported file before freeing it.'
+        : archived
+          ? 'A recovery copy holds your original save. Keep it, or export it before freeing this slot.'
+          : 'Your save has been kept. Missing progression will not be replaced with defaults. Retry reading, or archive the original data before discarding it.';
+  if (hasDOMHost() && !nativeCapacitor())
     actions.push([
       'Export recovery copy',
       () => {
@@ -212,25 +241,67 @@ export function showSlotRecovery(scene, slot, notice = '') {
         confirm(
           scene,
           `Free Slot ${slot}?`,
-          'This removes the local recovery copy. Cloud saves are kept and can return on your next sign-in. Export and check your copy first if you want to keep it.',
+          'This removes the local recovery copy. Cloud saves are kept. The slot stays reserved while its original account fetches or clears its cloud copy. Export and check your copy first if you want to keep it.',
           'Delete copy and free slot',
           () => showSlotRecovery(scene, slot),
           () => void confirmRecoveryChange(scene, slot, true),
           'Keep recovery copy',
         ),
     ]);
+  } else if (pending && !archive) {
+    const userId = scene.registry?.get('cloud')?.userId;
+    let unassigned = false;
+    try {
+      const record = JSON.parse(localStorage.getItem(getSlotCloudPendingKey(slot)));
+      unassigned = record?.version === 1 && record.userId === null;
+    } catch {
+      /* Unknown ownership remains blocked. */
+    }
+    if (unassigned && userId)
+      actions.push([
+        'Choose this account’s cloud copy…',
+        () =>
+          confirm(
+            scene,
+            `Cloud account for Slot ${slot}?`,
+            'This local reservation has no original account. Check the signed-in account’s cloud slot. Its cloud run and progression will return together; if it has no copy, the slot can be used again.',
+            'Check this account’s cloud copy',
+            () => showSlotRecovery(scene, slot),
+            async () => {
+              const result = claimUnassignedCloudPending(slot, userId);
+              if (result.ok) await fetchAllToLocalStorage(userId);
+              showSlotRecovery(scene, slot, result.ok ? '' : result.reason);
+            },
+          ),
+      ]);
+    actions.push([
+      'Retry cloud recovery',
+      async () => {
+        const userId = scene.registry?.get('cloud')?.userId;
+        if (userId) await fetchAllToLocalStorage(userId);
+        showSlotRecovery(scene, slot);
+      },
+    ]);
   } else {
     if (archive?.state === 'archiving')
       actions.push([
         'Retake pending copy',
-        () => {
-          const result = retakeSlotArchive(slot);
-          showSlotRecovery(
+        () =>
+          confirm(
             scene,
-            slot,
-            result.ok ? 'Pending copy updated. Original data was kept.' : result.reason,
-          );
-        },
+            `Retake Slot ${slot} copy?`,
+            'This replaces the pending recovery copy with the current local bytes. If you need the older original bytes, keep or export the copy first.',
+            'Replace pending copy',
+            () => showSlotRecovery(scene, slot),
+            () => {
+              const result = retakeSlotArchive(slot);
+              showSlotRecovery(
+                scene,
+                slot,
+                result.ok ? 'Pending copy updated. Original data was kept.' : result.reason,
+              );
+            },
+          ),
       ]);
     actions.push(['Retry read', () => showSlotRecovery(scene, slot)]);
     actions.push([
@@ -246,7 +317,7 @@ export function showSlotRecovery(scene, slot, notice = '') {
         ),
     ]);
   }
-  if (archive || getRawArchive(slot) !== null)
+  if (!archived && (archive || getRawArchive(slot) !== null))
     actions.push([
       'Remove copy only…',
       () => {
@@ -266,10 +337,21 @@ export function showSlotRecovery(scene, slot, notice = '') {
         );
       },
     ]);
+  // WKWebView cannot prove a blob download reached Files. Oversized native
+  // originals remain reserved; do not offer an export attestation or destruction.
+  const nativeOversized =
+    nativeCapacitor() &&
+    !archived &&
+    JSON.stringify(
+      Object.fromEntries(getSlotDataKeys(slot).map((key) => [key, localStorage.getItem(key)])),
+    ).length *
+      2 >
+      MAX_SLOT_ARCHIVE_BYTES;
+  if (nativeOversized) actions.splice(1);
   present(
     scene,
     `Slot ${slot} recovery`,
-    `${accountNotice}${body}${notice ? `\n\n${notice}` : ''}`,
+    `${accountNotice}${body}${nativeOversized ? '\n\nThis save is too large for a verified device recovery copy. Keep it on this device; no data has been removed.' : ''}${notice ? `\n\n${notice}` : ''}`,
     actions,
   );
 }

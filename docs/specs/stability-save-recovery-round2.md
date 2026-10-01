@@ -1,0 +1,15 @@
+# Save recovery round 2
+
+A completed recovery copy can only be retired through Free, which first creates `emblem_rogue_slot_N_cloud_pending`. The key reserves the slot from play, overwrite, upload and logout cleanup until the owning account fetches both run and progression successfully. Progression is written and verified first; either write or reservation-removal failure retains the reservation for retry. Invalid remote container shapes and a run without progression retain it too. This narrow empty-slot path does not implement the general forward pair transaction planned for PR 7.
+
+The native mirror includes this reservation key. Native Free verifies its disk copy before removing the archive. Native hydration stamps both canonical values above the mirror’s live/tombstone and clock floors, verifies both on disk before removing the reservation, and verifies its final tombstone too. Any acknowledgement failure retains or reinstates the reservation for retry; a kill before debounce cannot erase the recovered pair and expose an empty slot. Archives incorporate any ownership assigned at logout before acknowledgement or deletion, and discard deletes the live owner marker last.
+
+A reservation with a known account can only hydrate for that account. An offline reservation explicitly recorded with `userId: null` offers a signed-in player a separate confirmation to check that account’s cloud copy. Login alone never claims it. Malformed or unknown ownership remains blocked. The confirmation requires the reserved slot still be empty.
+
+Cross-account local discard remains an explicit device-user choice: the player may remove another account’s local recovery copy after reviewing the warning. That choice never deletes the cloud copy or transfers ownership; the cloud-pending reservation retains the original known owner. Sign into that original account to restore it.
+
+The web export-and-discard attestation is unavailable in native WKWebView. A native archive over the 1 MiB limit offers Keep; originals remain reserved. A native logout whose mirror is unavailable offers Stay signed in or an explicit device-only preservation choice. The latter retains local recovery bytes and ownership, while warning that the unverified device copy can be lost if local storage is cleared.
+
+Run abandonment captures the local run before deletion and sends its `runRecordId` to cloud deletion. No verified local identity means no cloud delete. The cloud identity is checked on every compare-and-swap attempt; compensation after a progression-upload failure can restore only into an absent remote slot.
+
+`saveRun` reports local persistence separately from cloud scheduling with `{ ok: true, cloud }`. A protected slot returns `{ queued: false, reason: 'protected_slot' }`, reports once per account/slot and surfaces a local-only cloud notice. A successful local save is not a claim of durable cloud backup. Retry candidates use the original RunManager identity and the regular timestamp-floor computation.

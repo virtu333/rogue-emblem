@@ -1,6 +1,8 @@
 import { mergeRunRecords } from '../engine/RunRecords.js';
 import { lordsMetOfMetaSave, mergeLordNames } from '../engine/LordsMet.js';
 import { normalizeSettings } from '../utils/SettingsManager.js';
+import { stampPendingCloudPair } from '../engine/CloudPendingRecovery.js';
+import { nativeCapacitor, getNativeSaveMirror } from '../utils/nativeSaveMirror.js';
 import { preserveCloudConflict } from '../engine/CloudSaveConflict.js';
 // CloudSync.js — Fire-and-forget cloud save/load via Supabase
 // All methods catch errors and console.warn — never throw.
@@ -14,6 +16,12 @@ import {
   getRunKey,
   hasSlotRecoveryRecord,
   getSlotSummary,
+  getSlotCloudPendingKey,
+  getSlotQuarantineKey,
+  getSlotPairJournalKey,
+  getSlotRecoveryOwnerKey,
+  isReadableRunShape,
+  isReadableMetaShape,
   MAX_SLOTS,
 } from '../engine/SlotManager.js';
 import { markStartup } from '../utils/startupTelemetry.js';
@@ -44,6 +52,13 @@ const cloudSyncStatus = {
 };
 
 export function getCloudSyncStatus() {
+  if (
+    cloudSyncStatus.mode === 'local_only' &&
+    ![...protectedBackupReported].some((signature) =>
+      protectedLocalSlot(Number(signature.slice(signature.lastIndexOf(':') + 1))),
+    )
+  )
+    resetCloudSyncStatus();
   return cloudSyncStatus;
 }
 
@@ -119,6 +134,79 @@ function protectedLocalSlot(slot) {
     );
   } catch {
     return true;
+  }
+}
+
+async function applyPendingCloudSlots(userId, runData, metaData) {
+  const runSlots = migrateCloudData(runData);
+  const metaSlots = migrateCloudData(metaData);
+  for (let slot = 1; slot <= MAX_SLOTS; slot++) {
+    const key = getSlotCloudPendingKey(slot);
+    let originalPendingRaw;
+    let mirror;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw === null) continue;
+      originalPendingRaw = raw;
+      const pending = JSON.parse(raw);
+      if (pending?.version !== 1 || pending.userId !== userId) continue;
+      // A copy or journal still present means Free has not completed.
+      if (
+        [
+          getSlotQuarantineKey(slot),
+          getSlotPairJournalKey(slot),
+          getSlotRecoveryOwnerKey(slot),
+        ].some((recordKey) => localStorage.getItem(recordKey) !== null)
+      )
+        continue;
+      const run = runSlots[String(slot)] ?? null;
+      const meta = metaSlots[String(slot)] ?? null;
+      if (
+        (run !== null && !isReadableRunShape(run)) ||
+        (meta !== null && !isReadableMetaShape(meta)) ||
+        (run !== null && meta === null)
+      )
+        continue;
+      // Native Free already mirrored the reservation. Verify it again before
+      // any asynchronous canonical acknowledgement, including an account claim.
+      mirror = nativeCapacitor() ? getNativeSaveMirror() : null;
+      if (nativeCapacitor() && !mirror)
+        throw new Error('Device backup is unavailable. Cloud recovery stays reserved.');
+      if (mirror && !(await mirror.ensureDurable(key, raw)))
+        throw new Error('Cloud reservation device backup failed.');
+      const canonical = mirror
+        ? stampPendingCloudPair(slot, run, meta, localStorage, mirror)
+        : [
+            [getMetaKey(slot), meta === null ? null : JSON.stringify(meta)],
+            [getRunKey(slot), run === null ? null : JSON.stringify(run)],
+          ];
+      // Progression first; retain the reservation through partial local or disk
+      // writes. A kill before debounce cannot expose an empty reusable slot.
+      for (const [canonicalKey, valueRaw] of canonical) {
+        if (localStorage.getItem(key) !== raw) throw new Error('cloud reservation changed');
+        if (valueRaw === null) localStorage.removeItem(canonicalKey);
+        else localStorage.setItem(canonicalKey, valueRaw);
+        if (localStorage.getItem(canonicalKey) !== valueRaw)
+          throw new Error('cloud recovery write failed');
+        if (mirror && !(await mirror.ensureDurable(canonicalKey, valueRaw)))
+          throw new Error('Recovered save device backup failed.');
+      }
+      if (localStorage.getItem(key) !== raw) throw new Error('cloud reservation changed');
+      localStorage.removeItem(key);
+      if (localStorage.getItem(key) !== null) throw new Error('cloud reservation clear failed');
+      if (mirror && !(await mirror.ensureDurable(key, null)))
+        throw new Error('Cloud reservation retirement device backup failed.');
+    } catch (err) {
+      // The pair is already durable if its final reservation tombstone failed.
+      // Keep the UI reserved for a retry; never replace a newer reservation.
+      try {
+        if (mirror && originalPendingRaw && localStorage.getItem(key) === null)
+          localStorage.setItem(key, originalPendingRaw);
+      } catch {
+        /* The acknowledged canonical pair still survives on disk. */
+      }
+      reportCloudFailure('cloud_pending_recovery', err, { slot });
+    }
   }
 }
 
@@ -252,8 +340,10 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
   if (runRes.status === 'fulfilled') {
     // Apply run/progression as a fetched pair. A partial fetch must not mix
     // another device's run with this device's progression. Settings are independent.
-    if (metaRes.status === 'fulfilled')
+    if (metaRes.status === 'fulfilled') {
+      await applyPendingCloudSlots(userId, runRes.value, metaRes.value);
       skippedRunSlots = applyRunSlots(runRes.value, metaRes.value);
+    }
   } else {
     console.warn('CloudSync fetch run_saves:', runRes.reason);
     reportCloudFailure('cloud_fetch_table', runRes.reason, { table: TABLES.run });
@@ -283,6 +373,7 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
     rejectedCount: rejected.length,
     timeoutFailures,
   });
+  getCloudSyncStatus(); // Refresh the shared notice after a reservation was resolved.
   return { rejectedCount: rejected.length };
 }
 
@@ -344,9 +435,26 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
   return next;
 }
 
+const protectedBackupReported = new Set();
 export function pushRunSave(userId, slot, runData) {
-  if (!supabase || protectedLocalSlot(slot)) return;
+  if (protectedLocalSlot(slot)) {
+    const signature = `${userId}:${slot}`;
+    if (!protectedBackupReported.has(signature)) {
+      protectedBackupReported.add(signature);
+      reportCloudFailure('cloud_backup_protected_slot', new Error('protected_slot'), { slot });
+    }
+    if (!cloudSyncStatus.authExpired) {
+      cloudSyncStatus.mode = 'local_only';
+      cloudSyncStatus.message = `Slot ${slot}: local save kept; cloud backup paused until recovery is resolved.`;
+      cloudSyncStatus.context = 'protected_slot';
+      cloudSyncStatus.updatedAt = Date.now();
+    }
+    return { queued: false, reason: 'protected_slot' };
+  }
+  if (!supabase || !userId) return { queued: false, reason: 'offline' };
+  getCloudSyncStatus(); // A resolved recovery gate no longer pauses new backups.
   updateSlotInTable(userId, TABLES.run, slot, runData);
+  return { queued: true };
 }
 
 export function pushMeta(userId, slot, metaData) {
@@ -382,8 +490,10 @@ export function pushSettings(userId, settingsData) {
   return next;
 }
 
-export function deleteRunSave(userId, slot) {
-  if (!supabase) return;
+export function deleteRunSave(userId, slot, abandonedRun) {
+  const runRecordId = abandonedRun?.runRecordId;
+  if (!supabase || protectedLocalSlot(slot) || typeof runRecordId !== 'string' || !runRecordId)
+    return { queued: false, reason: 'unverified_run' };
   const runQueueKey = `${userId}:${TABLES.run}`;
   const metaQueueKey = `${userId}:${TABLES.meta}`;
   const prevRun = updateQueues.get(runQueueKey) || Promise.resolve();
@@ -391,11 +501,21 @@ export function deleteRunSave(userId, slot) {
   const next = Promise.allSettled([prevRun, prevMeta])
     .catch(() => {})
     .then(async () => {
+      if (protectedLocalSlot(slot)) return;
       // Snapshot cloud run slot for compensating restore if later meta sync fails.
       const cloudRunBeforeDelete = await fetchTableRow(userId, TABLES.run);
       const runBeforeDelete = migrateCloudData(cloudRunBeforeDelete.data)[String(slot)] ?? null;
 
-      await writeSlotWithAuthRefresh(userId, TABLES.run, slot, null, SLOT_WRITE_MAX_ATTEMPTS);
+      if (runBeforeDelete?.runRecordId !== runRecordId) return;
+      const deleted = await writeSlotWithAuthRefresh(
+        userId,
+        TABLES.run,
+        slot,
+        null,
+        SLOT_WRITE_MAX_ATTEMPTS,
+        runRecordId,
+      );
+      if (deleted === false) return;
 
       const localMetaState = readLocalJSONWithState(getMetaKey(slot));
       if (localMetaState.parseError) {
@@ -441,6 +561,7 @@ export function deleteRunSave(userId, slot) {
               slot,
               runBeforeDelete,
               SLOT_WRITE_MAX_ATTEMPTS,
+              null, // Compensate only into an absent row; never replace a new remote run.
             );
           } catch (restoreErr) {
             reportCloudFailure('cloud_delete_run_restore_failed', restoreErr, {
@@ -580,6 +701,7 @@ export async function __flushCloudSyncQueuesForTests() {
 export function __resetCloudSyncQueuesForTests() {
   updateQueues.clear();
   remoteNewerWarnedSignatures.clear();
+  protectedBackupReported.clear();
 }
 
 export function __resetCloudSyncStatusForTests() {
@@ -845,13 +967,21 @@ async function deleteTableRowWithRevision(userId, table, expectedUpdatedAt) {
   return { ok: true };
 }
 
-async function writeSlotWithRetry(userId, table, slot, slotData, maxAttempts) {
+async function writeSlotWithRetry(userId, table, slot, slotData, maxAttempts, expectedRunRecordId) {
   if (!supabase) throw new Error('Cloud unavailable');
   let lastConflict = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const row = await fetchTableRow(userId, table);
     const slotMap = migrateCloudData(row.data);
     const remoteSlot = slotMap[String(slot)];
+    if (
+      expectedRunRecordId !== undefined &&
+      (protectedLocalSlot(slot) ||
+        (expectedRunRecordId === null
+          ? remoteSlot != null
+          : remoteSlot?.runRecordId !== expectedRunRecordId))
+    )
+      return false;
     if (
       slotData !== null &&
       isCloudSlotPayload(remoteSlot) &&
@@ -912,9 +1042,24 @@ async function writeSlotWithRetry(userId, table, slot, slotData, maxAttempts) {
   }
 }
 
-async function writeSlotWithAuthRefresh(userId, table, slot, slotData, maxAttempts) {
+async function writeSlotWithAuthRefresh(
+  userId,
+  table,
+  slot,
+  slotData,
+  maxAttempts,
+  expectedRunRecordId,
+) {
   try {
-    await writeSlotWithRetry(userId, table, slot, slotData, maxAttempts);
+    const result = await writeSlotWithRetry(
+      userId,
+      table,
+      slot,
+      slotData,
+      maxAttempts,
+      expectedRunRecordId,
+    );
+    if (result === false) return false;
     clearAuthExpiredStatusOnSuccess();
     clearClockFloorSavedAt(table, slot);
     return;
@@ -922,7 +1067,15 @@ async function writeSlotWithAuthRefresh(userId, table, slot, slotData, maxAttemp
     const refreshed = await tryRefreshSessionAfterAuthError(err);
     if (!refreshed) throw err;
   }
-  await writeSlotWithRetry(userId, table, slot, slotData, maxAttempts);
+  const result = await writeSlotWithRetry(
+    userId,
+    table,
+    slot,
+    slotData,
+    maxAttempts,
+    expectedRunRecordId,
+  );
+  if (result === false) return false;
   clearAuthExpiredStatusOnSuccess();
   clearClockFloorSavedAt(table, slot);
 }

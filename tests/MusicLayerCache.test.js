@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { AUDIO_ASSETS } from '../src/utils/audioAssets.js';
+import { rememberAudioBuffer } from '../src/utils/audioAssets.js';
 // Layered music under the music cache budget (mobile: 3 tracks / 120 MB).
 //
 // An adaptive track is several cached buffers (primary + calm and/or a boss's
@@ -19,14 +23,14 @@ const SAMPLE_RATE = 44100;
 function decodedBuffer(key) {
   const loop = getMusicLoop(key);
   const duration = loop ? loop.duration : 30;
-  return {
+  return rememberAudioBuffer(key, {
     key,
     duration,
     length: Math.round(duration * SAMPLE_RATE),
     numberOfChannels: 2,
     sampleRate: SAMPLE_RATE,
     getChannelData: () => new Float32Array(1),
-  };
+  });
 }
 
 /** Decoded bytes the manager accounts for one track (float32 PCM). */
@@ -67,7 +71,17 @@ function makeContext() {
       ctx.sources.push(source);
       return source;
     }),
-    decodeAudioData: vi.fn((bytes) => Promise.resolve(decodedBuffer(bytes.key))),
+    decodeAudioData: vi.fn((bytes) =>
+      Promise.resolve(
+        decodedBuffer(
+          Object.keys(AUDIO_ASSETS).find(
+            (k) =>
+              AUDIO_ASSETS[k].sha256 ===
+              createHash('sha256').update(new Uint8Array(bytes)).digest('hex'),
+          ),
+        ),
+      ),
+    ),
   };
   return ctx;
 }
@@ -120,7 +134,7 @@ let fetchLog;
 let failNext;
 
 function keyFromSrc(src) {
-  const m = /\/([^/]+)\.mp3$/.exec(String(src));
+  const m = /\/([^/]+)-[a-f0-9]{64}\.mp3$/.exec(String(src));
   return m ? m[1] : String(src);
 }
 
@@ -136,7 +150,12 @@ beforeEach(() => {
         failNext.delete(key);
         return { ok: false, status: 503 };
       }
-      return { ok: true, arrayBuffer: async () => ({ key }) };
+      const bytes = readFileSync(new URL('../assets/audio/music/' + key + '.mp3', import.meta.url));
+      return {
+        ok: true,
+        arrayBuffer: async () =>
+          bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+      };
     }),
   );
 });
@@ -271,8 +290,11 @@ describe('layered music under the mobile cache budget', () => {
     await audio.playMusic(ENTITY, null, 0);
     // BattleMusicController decodes the finale and its hum while the theme plays.
     audio.preloadMusic([FINALE, FINALE_HUM]);
-    await vi.waitFor(() => expect(sound.game.cache.audio.has(FINALE_HUM)).toBe(true));
-    expect(sound.game.cache.audio.has(FINALE)).toBe(true);
+    // Native hashing/decode may complete siblings in either order.
+    await vi.waitFor(() => {
+      expect(sound.game.cache.audio.has(FINALE)).toBe(true);
+      expect(sound.game.cache.audio.has(FINALE_HUM)).toBe(true);
+    });
     expectPlaying(audio, ENTITY);
     // The first wound cuts the theme; the finale starts on the hinge's handoff.
     audio.stopMusic(null, 0, true);

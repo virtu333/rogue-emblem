@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
 import { HintManager } from '../src/engine/HintManager.js';
-import { getRunKey, getMetaKey } from '../src/engine/SlotManager.js';
+import {
+  getSlotCloudPendingKey,
+  getNextAvailableSlot,
+  clearAllSlotData,
+  getRunKey,
+  getMetaKey,
+} from '../src/engine/SlotManager.js';
 
 const store = {};
 const localStorageMock = {
@@ -29,7 +35,10 @@ vi.mock('../src/cloud/supabaseClient.js', () => ({
 vi.mock('../src/utils/errorReporter.js', () => ({ reportAsyncError: mocked.reportAsyncError }));
 vi.mock('../src/utils/startupTelemetry.js', () => ({ markStartup: mocked.markStartup }));
 
+import { archiveAndDiscardSlot, retireSlotArchive } from '../src/engine/SlotRecovery.js';
 import {
+  pushRunSave,
+  deleteRunSave,
   __resetCloudSyncStatusForTests,
   fetchAllToLocalStorage,
   getCloudSyncStatus,
@@ -74,6 +83,100 @@ describe('CloudSync run merge guard', () => {
     mocked.reportAsyncError.mockReset();
     mocked.markStartup.mockReset();
     __resetCloudSyncStatusForTests();
+  });
+
+  it.each(['healthy', 'absent', 'missing progression', 'wrong account', 'write failure'])(
+    'Free reserves the cloud copy until a complete owned fetch (%s)',
+    async (scenario) => {
+      store[getMetaKey(1)] = '{bad';
+      store[getRunKey(1)] = '{"runRecordId":"local-damaged","gold":137}';
+      expect(archiveAndDiscardSlot(1).ok).toBe(true);
+      expect(retireSlotArchive(1, localStorage, undefined, undefined, 'account-a').ok).toBe(true);
+      const pending = store[getSlotCloudPendingKey(1)];
+      clearAllSlotData();
+      expect(store[getSlotCloudPendingKey(1)]).toBe(pending);
+      expect(getNextAvailableSlot()).toBe(2);
+      expect(pushRunSave('account-a', 1, { runRecordId: 'new-game', savedAt: 999 })).toEqual({
+        queued: false,
+        reason: 'protected_slot',
+      });
+      expect(deleteRunSave('account-a', 1, null)).toMatchObject({ queued: false });
+      mockCloudBootstrap({
+        runData:
+          scenario === 'absent'
+            ? null
+            : { 1: { runRecordId: 'cloud-healthy', gold: 731, savedAt: 100 } },
+        metaData: ['absent', 'missing progression'].includes(scenario)
+          ? null
+          : { 1: { totalValor: 347, savedAt: 100 } },
+      });
+      if (scenario === 'write failure')
+        localStorageMock.setItem.mockImplementation((key, raw) => {
+          if (key === getRunKey(1)) throw new Error('quota');
+          store[key] = String(raw);
+        });
+      await fetchAllToLocalStorage(scenario === 'wrong account' ? 'account-b' : 'account-a', {
+        timeoutMs: 50,
+      });
+      if (['missing progression', 'wrong account', 'write failure'].includes(scenario)) {
+        expect(store[getSlotCloudPendingKey(1)]).toBe(pending);
+        expect(getNextAvailableSlot()).toBe(2);
+      } else {
+        expect(store[getSlotCloudPendingKey(1)]).toBeUndefined();
+        if (scenario === 'healthy') {
+          expect(JSON.parse(store[getRunKey(1)]).runRecordId).toBe('cloud-healthy');
+          expect(JSON.parse(store[getMetaKey(1)]).totalValor).toBe(347);
+        } else expect(getNextAvailableSlot()).toBe(1);
+      }
+      localStorageMock.setItem.mockImplementation((key, raw) => {
+        store[key] = String(raw);
+      });
+    },
+  );
+
+  it.each([{ roster: 7 }, { nodeMap: { nodes: {} } }, { _exportDiscardPending: true }])(
+    'keeps cloud recovery reserved for unreadable remote run %j',
+    async (run) => {
+      store[getSlotCloudPendingKey(1)] = JSON.stringify({ version: 1, userId: 'account-a' });
+      mockCloudBootstrap({ runData: { 1: run }, metaData: { 1: { totalValor: 731 } } });
+      await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+      expect(store[getSlotCloudPendingKey(1)]).toBeDefined();
+      expect(store[getRunKey(1)]).toBeUndefined();
+      expect(getNextAvailableSlot()).toBe(2);
+    },
+  );
+  it.each([[], 42, { purchasedUpgrades: 7 }, { milestones: {} }])(
+    'keeps cloud recovery reserved for unreadable progression %j',
+    async (meta) => {
+      store[getSlotCloudPendingKey(1)] = JSON.stringify({ version: 1, userId: 'account-a' });
+      mockCloudBootstrap({ runData: { 1: { runRecordId: 'cloud-run' } }, metaData: { 1: meta } });
+      await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+      expect(store[getSlotCloudPendingKey(1)]).toBeDefined();
+      expect(store[getRunKey(1)]).toBeUndefined();
+    },
+  );
+  it('keeps the reservation when clearing it throws, then idempotently retries the complete cloud pair', async () => {
+    const marker = JSON.stringify({ version: 1, userId: 'account-a' });
+    store[getSlotCloudPendingKey(1)] = marker;
+    mockCloudBootstrap({
+      runData: { 1: { runRecordId: 'cloud-run', gold: 731 } },
+      metaData: { 1: { totalValor: 347 } },
+    });
+    localStorageMock.removeItem.mockImplementation((key) => {
+      if (key === getSlotCloudPendingKey(1)) throw new Error('clear blocked');
+      delete store[key];
+    });
+    await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+    expect(store[getSlotCloudPendingKey(1)]).toBe(marker);
+    expect(JSON.parse(store[getRunKey(1)]).gold).toBe(731);
+    expect(JSON.parse(store[getMetaKey(1)]).totalValor).toBe(347);
+    localStorageMock.removeItem.mockImplementation((key) => {
+      delete store[key];
+    });
+    await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+    expect(store[getSlotCloudPendingKey(1)]).toBeUndefined();
+    expect(JSON.parse(store[getRunKey(1)]).gold).toBe(731);
+    expect(JSON.parse(store[getMetaKey(1)]).totalValor).toBe(347);
   });
 
   it.each(['quarantine', 'pair_journal'])(

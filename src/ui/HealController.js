@@ -391,6 +391,9 @@ export class HealController {
       ally.hpBar?.bg,
       ally.hpBar?.fill,
     ].filter(Boolean);
+    // Spent units use a sprite tint, label alpha and a separately styled ring.
+    // A blanket 0.5 also dims the sprite/HP bar beyond the next turn's reset.
+    const originalAlpha = new Map(targets.map((target) => [target, target.alpha ?? 1]));
 
     if (targets.length > 0) {
       await scene._awaitSceneTween(
@@ -403,7 +406,7 @@ export class HealController {
     scene.updateUnitPosition(ally);
     if (targets.length > 0) {
       await scene._awaitSceneTween(
-        { targets, alpha: ally.hasActed ? 0.5 : 1, duration: 180 },
+        { targets, alpha: (target) => originalAlpha.get(target), duration: 180 },
         { label: 'staff_relocate_fade_in' },
       );
     }

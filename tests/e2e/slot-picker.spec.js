@@ -89,6 +89,21 @@ test('damaged and orphaned saves stay occupied; failed archival loses no data', 
   expect(
     await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_quarantine')),
   ).not.toBeNull();
+  await page.getByRole('button', { name: 'Free slot…', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete copy and free slot', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Review recovery for Slot 1', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New run in Slot 1', exact: true })).toHaveCount(0);
+  expect(
+    await page.evaluate(async () => {
+      const { getSlotCloudPendingKey } = await import('/src/engine/SlotManager.js');
+      return {
+        archive: localStorage.getItem('emblem_rogue_slot_1_quarantine'),
+        reserved: localStorage.getItem(getSlotCloudPendingKey(1)) !== null,
+      };
+    }),
+  ).toEqual({ archive: null, reserved: true });
   expect(errors).toEqual([]);
 });
 

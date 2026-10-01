@@ -35,6 +35,7 @@ export function getMetaClockFloorKey(slot) {
 export const getSlotQuarantineKey = (slot) => `${META_KEY_PREFIX}${slot}_quarantine`;
 export const getSlotPairJournalKey = (slot) => `${META_KEY_PREFIX}${slot}_pair_journal`;
 export const getSlotRecoveryOwnerKey = (slot) => `${META_KEY_PREFIX}${slot}_recovery_owner`;
+export const getSlotCloudPendingKey = (slot) => `${META_KEY_PREFIX}${slot}_cloud_pending`;
 export const UNKNOWN_SLOT_RECOVERY_OWNER = Symbol('unknown-slot-recovery-owner');
 
 function parseRecoveryOwner(raw) {
@@ -49,6 +50,8 @@ export function getSlotRecoveryOwner(slot, storage = globalThis.localStorage) {
   try {
     const raw = storage.getItem(getSlotRecoveryOwnerKey(slot));
     if (raw !== null) return parseRecoveryOwner(raw);
+    const pendingRaw = storage.getItem(getSlotCloudPendingKey(slot));
+    if (pendingRaw !== null) return parseRecoveryOwner(pendingRaw);
     const archiveRaw = storage.getItem(getSlotQuarantineKey(slot));
     if (archiveRaw === null) return null;
     const archive = parseMetaObject(archiveRaw);
@@ -60,7 +63,9 @@ export function getSlotRecoveryOwner(slot, storage = globalThis.localStorage) {
         archive.slot === slot &&
         ['archiving', 'archived'].includes(archive.state) &&
         getSlotDataKeys(slot)
-          .filter((key) => key !== getSlotRecoveryOwnerKey(slot))
+          .filter(
+            (key) => ![getSlotRecoveryOwnerKey(slot), getSlotCloudPendingKey(slot)].includes(key),
+          )
           .every(
             (key) =>
               Object.hasOwn(archive.values, key) &&
@@ -93,6 +98,7 @@ export function getSlotDataKeys(slot) {
     `${META_KEY_PREFIX}${slot}_cloud_conflict`,
     `${META_KEY_PREFIX}${slot}_hints`,
     getSlotRecoveryOwnerKey(slot),
+    getSlotCloudPendingKey(slot),
   ];
 }
 
@@ -103,6 +109,7 @@ export function hasSlotRecoveryRecord(slot) {
       getSlotQuarantineKey(slot),
       getSlotPairJournalKey(slot),
       getSlotRecoveryOwnerKey(slot),
+      getSlotCloudPendingKey(slot),
     ].some((key) => localStorage.getItem(key) !== null);
   } catch {
     return true;
@@ -122,7 +129,8 @@ export function inspectSlot(slot, storage = globalThis.localStorage) {
   } catch {
     return { status: 'unreadable', raw, meta: parseMetaObject(raw[getMetaKey(slot)]) };
   }
-  const meta = parseMetaObject(raw[getMetaKey(slot)]);
+  const metaObject = parseMetaObject(raw[getMetaKey(slot)]);
+  const meta = isReadableMetaShape(metaObject) ? metaObject : null;
   const runObject = parseMetaObject(raw[getRunKey(slot)]);
   const conflictObject = parseMetaObject(raw[`${META_KEY_PREFIX}${slot}_cloud_conflict`]);
   const exportDiscardPending = [meta, runObject, conflictObject].some(
@@ -133,7 +141,8 @@ export function inspectSlot(slot, storage = globalThis.localStorage) {
   const recovery =
     raw[getSlotQuarantineKey(slot)] !== null ||
     raw[getSlotPairJournalKey(slot)] !== null ||
-    raw[getSlotRecoveryOwnerKey(slot)] !== null;
+    raw[getSlotRecoveryOwnerKey(slot)] !== null ||
+    raw[getSlotCloudPendingKey(slot)] !== null;
   const occupied =
     [getMetaKey(slot), getRunKey(slot), `${META_KEY_PREFIX}${slot}_cloud_conflict`].some(
       (key) => raw[key] !== null,
@@ -155,8 +164,32 @@ export function inspectSlot(slot, storage = globalThis.localStorage) {
 
 // Legacy saves may omit these fields. If supplied, the fields the slot UI
 // reads must retain their container shapes; parsing JSON alone is insufficient.
-function isReadableRunShape(run) {
-  if (!run || run._exportDiscardPending === true) return false;
+export function isReadableMetaShape(meta) {
+  if (
+    !meta ||
+    typeof meta !== 'object' ||
+    Array.isArray(meta) ||
+    meta._exportDiscardPending === true
+  )
+    return false;
+  for (const key of [
+    'purchasedUpgrades',
+    'skillAssignments',
+    'lordSelection',
+    'retiredUpgradeRefunds',
+  ]) {
+    if (meta[key] != null && (typeof meta[key] !== 'object' || Array.isArray(meta[key])))
+      return false;
+  }
+  for (const key of ['milestones', 'runRecords', 'lordsMet', 'deeds']) {
+    if (meta[key] != null && !Array.isArray(meta[key])) return false;
+  }
+  return true;
+}
+
+export function isReadableRunShape(run) {
+  if (!run || typeof run !== 'object' || Array.isArray(run) || run._exportDiscardPending === true)
+    return false;
   if (
     run.roster != null &&
     (!Array.isArray(run.roster) ||
@@ -316,6 +349,7 @@ export function deleteSlot(slot) {
     localStorage.removeItem(getMetaClockFloorKey(slot));
     localStorage.removeItem(`emblem_rogue_slot_${slot}_cloud_conflict`);
     localStorage.removeItem(getSlotRecoveryOwnerKey(slot));
+    localStorage.removeItem(getSlotCloudPendingKey(slot));
   } catch (err) {
     console.warn('[SlotManager] deleteSlot failed:', err?.message || err);
   }
