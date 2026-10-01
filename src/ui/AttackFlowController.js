@@ -24,7 +24,7 @@ import { ForecastOverlay } from './ForecastOverlay.js';
 import { AreaPreviewController } from './AreaPreviewController.js';
 import { areaForecastLines, previewAreaArt } from '../engine/AreaPreview.js';
 import { combatStrikeMods } from '../engine/Combat.js';
-import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
+import { playerKnowledgeOf } from './battleKnowledge.js';
 import { TutorialController } from './TutorialController.js';
 import { combatDistance, getFootprint, isEntity } from '../engine/EntitySystem.js';
 import {
@@ -134,14 +134,9 @@ export class AttackFlowController {
 
   // --- Area preview (docs/specs/aoe-weapon-arts.md §5) ------------------------
 
-  /** The board as the player knows it: own units, what the fog shows, the beacon. */
+  /** The board as the player knows it (the scene's own view, battleKnowledge.js). */
   knowledge() {
-    const scene = this.scene;
-    return createPlayerKnowledge({
-      grid: scene.grid,
-      units: [...(scene.playerUnits || []), ...(scene.enemyUnits || []), ...(scene.npcUnits || [])],
-      revealed: [scene._recruitBeacon?.npc],
-    });
+    return playerKnowledgeOf(this.scene);
   }
 
   /** The world an area preview reads: board size, terrain and affix data, never units. */
@@ -597,6 +592,8 @@ export class AttackFlowController {
     this._reticleTween = null;
     this._reticle?.destroy?.();
     this._reticle = null;
+    this._areaPreview?.destroy();
+    this._areaPreview = null;
     this.focusedTarget = null;
     this.scene = null;
   }

@@ -127,18 +127,19 @@ export function previewAreaArt({
 }
 
 /**
- * The forecast's Area lines: a summary, then up to `max` victims, then "+N more".
- * Heals read "if it hits". Only units in the preview (the known ones) are named.
+ * The forecast's Area lines: a summary, then up to `max` victims, then "+N more". A
+ * normal attack's area lands only if a strike does, so its summary says so, as the heals
+ * line does; a chosen-center strike (`onHit: false`) always lands. Only units in the
+ * preview (the known ones) are named.
  */
-export function areaForecastLines(preview, { max = 3 } = {}) {
+export function areaForecastLines(preview, { max = 3, onHit = true } = {}) {
   if (!preview) return [];
   const lines = [];
   const { victims = [], heals = [], push = null } = preview;
   if (victims.length > 0) {
     const kos = victims.filter((v) => v.kills).length;
-    lines.push(
-      `Area: ${victims.length} ${victims.length === 1 ? 'foe' : 'foes'}${kos ? `, ${kos} KO` : ''}`,
-    );
+    const count = `${victims.length} ${victims.length === 1 ? 'foe' : 'foes'}${kos ? `, ${kos} KO` : ''}`;
+    lines.push(onHit ? `Area if it hits: ${count}` : `Area: ${count}`);
     for (const v of victims.slice(0, max))
       lines.push(`${v.unit.name} −${v.damage}${v.kills ? ' KO' : ''}`);
     if (victims.length > max) lines.push(`+${victims.length - max} more`);

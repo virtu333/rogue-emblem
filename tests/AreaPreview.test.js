@@ -82,7 +82,11 @@ describe('area preview numbers', () => {
       ['Frail', 10, true],
       ['Sturdy', 12, false],
     ]);
-    expect(visible(p).lines).toEqual(['Area: 2 foes, 1 KO', 'Frail −10 KO', 'Sturdy −12']);
+    expect(visible(p).lines).toEqual([
+      'Area if it hits: 2 foes, 1 KO',
+      'Frail −10 KO',
+      'Sturdy −12',
+    ]);
     // The forecast lists them with the attacker's notes.
     const forecast = { attacker: { areaNotes: visible(p).lines }, defender: {} };
     expect(forecastNotes(forecast, true, 30)).toEqual(expect.arrayContaining(visible(p).lines));
@@ -351,5 +355,22 @@ describe('the attack flow draws the preview from known units only', () => {
     expect(results[0].drawn.rings).toBe(1);
     expect(results[1].drawn.rings).toBe(1);
     expect(results[0].drawn.chips).toEqual([]);
+  });
+
+  it('rings the Entity on every tile of its footprint, and destroy() clears the preview', () => {
+    const { scene, target, drawn } = recorderScene({ withHidden: false });
+    // A 3x3 Entity anchored beside the target, within the blast (radius 1 of (2,1)).
+    scene.enemyUnits.push(unit('Entity', 'enemy', 2, 0, {}, { isEntity: true }));
+    scene.enemyUnits = scene.enemyUnits.filter((u) => u.name !== 'Seen');
+    const flow = new AttackFlowController(scene);
+    flow.focusTarget(target);
+    expect(flow._areaPreview.preview.victims.map((v) => v.unit.name)).toEqual(['Entity']);
+    expect(drawn.rings).toBe(9);
+    const preview = flow._areaPreview;
+    expect(preview.objects.length).toBeGreaterThan(0);
+    flow.destroy();
+    expect(preview.objects).toEqual([]);
+    expect(preview.preview).toBeNull();
+    expect(flow._areaPreview).toBeNull();
   });
 });

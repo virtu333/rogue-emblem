@@ -34,7 +34,7 @@ import {
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
-import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
+import { playerKnowledgeOf } from '../ui/battleKnowledge.js';
 import {
   CANTO_CONFIRM_STATE,
   canUseDanger,
@@ -384,19 +384,6 @@ const POST_COMBAT_HINT_COLORS = {
   heal: '#00ff00',
 };
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
-
-/**
- * The board as the player knows it (PlayerKnowledge.js): their own units, what the
- * fog shows and the recruit's beacon (it shows through the fog). Every pre-commit
- * preview reads this view.
- */
-function playerKnowledgeOf(scene) {
-  return createPlayerKnowledge({
-    grid: scene.grid,
-    units: [...(scene.playerUnits || []), ...(scene.enemyUnits || []), ...(scene.npcUnits || [])],
-    revealed: [scene._recruitBeacon?.npc],
-  });
-}
 
 /** The battle's Zombie remains (ZombieRemainsController), made on first use. */
 function remainsOf(scene) {

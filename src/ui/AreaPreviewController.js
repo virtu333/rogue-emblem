@@ -12,6 +12,7 @@
 // Phaser construction runs under the presentation RNG: drawing never moves the battle's.
 
 import { TILE_SIZE } from '../utils/constants.js';
+import { getFootprint } from '../engine/EntitySystem.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
 import { UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
 import { withPresentationRandom } from '../utils/presentationRandom.js';
@@ -47,10 +48,13 @@ export class AreaPreviewController {
         const { x, y } = scene.grid.gridToPixel(tile.col, tile.row);
         g.fillRect(x - half + 1, y - half + 1, TILE_SIZE - 2, TILE_SIZE - 2);
       }
+      // One ring per tile the unit stands on (the Entity's whole footprint).
       const ring = (unit, color) => {
-        const { x, y } = scene.grid.gridToPixel(unit.col, unit.row);
         g.lineStyle(2, color, 0.95);
-        g.strokeRect(x - half + 2, y - half + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+        for (const tile of getFootprint(unit)) {
+          const { x, y } = scene.grid.gridToPixel(tile.col, tile.row);
+          g.strokeRect(x - half + 2, y - half + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+        }
       };
       for (const v of preview.victims || []) ring(v.unit, AREA_PREVIEW_TINT);
       for (const h of preview.heals || []) if (h.amount > 0) ring(h.unit, HEAL_TINT);
