@@ -69,6 +69,18 @@ export function getAffixCombatMods(unit, opponent, allAllies, affixData, terrain
 }
 
 /**
+ * Anchored: a passive affix that keeps its holder on its tile whatever moves it
+ * (Shove, Pull, and weapon-art push, swap and ram alike).
+ */
+export function isDisplacementImmune(unit, affixData) {
+  if (!affixData || !Array.isArray(unit?.affixes)) return false;
+  return unit.affixes.some((aid) => {
+    const affix = getAffix(aid, affixData);
+    return affix?.trigger === 'passive' && affix.effects?.immuneToDisplacement === true;
+  });
+}
+
+/**
  * Roll on-defend affix effects (Shielded, Teleporter, Thorns).
  * Damage-changing affixes (Shielded) settle first, whatever order the affixes were
  * rolled in, so the reactions (Thorns, Teleporter) read the damage actually taken.

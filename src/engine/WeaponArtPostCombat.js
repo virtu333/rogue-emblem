@@ -370,6 +370,7 @@ export function resolvePostCombatMove({
   rows = 0,
   getMoveCost = null,
   getUnitAt = null,
+  isImmovable = null,
 } = {}) {
   if (!sourceUnit || typeof getMoveCost !== 'function' || typeof getUnitAt !== 'function') {
     return { ok: false, reason: 'invalid_input' };
@@ -388,6 +389,10 @@ export function resolvePostCombatMove({
   const movesTarget = normalizedMode === 'swap' || normalizedMode === 'push';
   if (movesSource && isRooted(sourceUnit)) return { ok: false, reason: 'rooted' };
   if (movesTarget && targetUnit && isRooted(targetUnit)) return { ok: false, reason: 'rooted' };
+  // Anchored (and anything else the caller pins) is never displaced by another unit.
+  if (movesTarget && targetUnit && isImmovable?.(targetUnit)) {
+    return { ok: false, reason: 'immovable' };
+  }
   const stepDistance = Math.max(1, Math.trunc(Number(distance) || 1));
   const direction = isCardinalAdjacent(sourceUnit, targetUnit);
   if (!direction) return { ok: false, reason: 'not_adjacent' };

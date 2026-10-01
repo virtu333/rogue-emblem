@@ -21,7 +21,7 @@
 //   hostilesOf(unit), alliesOf(unit)   (Tier 5 targets; Divine Charge / buff allies)
 //   turnNumber
 
-import { applyGrievousStatus, getAttackAffixes } from './AffixSystem.js';
+import { applyGrievousStatus, getAttackAffixes, isDisplacementImmune } from './AffixSystem.js';
 import { gridDistance } from './Combat.js';
 import { applyCondition } from './StatusConditionSystem.js';
 import { damageUnit, healUnit, setUnitHP } from './UnitHealth.js';
@@ -243,6 +243,7 @@ function* postCombatMove(sourceUnit, targetUnit, step, world) {
     rows: world.rows,
     getMoveCost: world.getMoveCost,
     getUnitAt: world.getUnitAt,
+    isImmovable: (unit) => isDisplacementImmune(unit, world.affixes),
   });
   if (!moveResult.ok) return;
   const units = [];
