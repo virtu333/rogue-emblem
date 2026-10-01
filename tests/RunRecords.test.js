@@ -1,14 +1,10 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import {
-  DETAILED_RUN_RECORDS,
-  MAX_RECORD_FALLEN,
-  fallenForRecord,
-  mergeRunRecords,
-} from '../src/engine/RunRecords.js';
+import { MAX_RECORD_FALLEN, fallenForRecord, mergeRunRecords } from '../src/engine/RunRecords.js';
 import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { getMetaKey } from '../src/engine/SlotManager.js';
 import { loadGameData } from './testData.js';
+import { mergeRunRecordsV1 } from './fixtures/runRecordsV1.js';
 import {
   fellAtText,
   plainUnitLine,
@@ -200,6 +196,27 @@ describe('victory records v2: one run from two sources', () => {
   });
 });
 
+describe('victory records v2 on a v1-era client', () => {
+  it('an older client reads v2 records as v1, and its write-back never displaces them', () => {
+    // Twelve wins: ten detailed, two trimmed, each with fallen.
+    const v2 = mergeRunRecords(
+      Array.from({ length: 12 }, (_, i) => ({ ...dirtyV2(), id: `w${i}`, endedAt: 100 + i })),
+    );
+    const old = mergeRunRecordsV1(JSON.parse(JSON.stringify(v2)));
+    expect(old).toHaveLength(12);
+    for (const rec of old) {
+      // Exactly what v1 knew: no version, no fallen, survivors as identity rows.
+      expect(Object.keys(rec)).toEqual(['id', 'endedAt', 'difficulty', 'seed', 'actsCleared', 'totalTurns', 'shadow', 'roster']); // prettier-ignore
+      expect(rec.difficulty).toBe('dusk');
+      expect(rec.roster).toEqual([{ name: 'Ottoline', className: 'Sage', level: 14, isLord: false }]); // prettier-ignore
+      expect(plainUnitLine(rec.roster[0])).toBe('Ottoline · Sage · Lv 14');
+    }
+    // The older client saves and syncs its stripped copy; the next v2 merge keeps the detail.
+    expect(mergeRunRecords(v2, old)).toEqual(v2);
+    expect(mergeRunRecords(old, v2)).toEqual(v2);
+  });
+});
+
 describe('victory records v2: size budget', () => {
   const v2Record = (i) => ({
     ...dirtyV2(),
@@ -207,7 +224,7 @@ describe('victory records v2: size budget', () => {
     endedAt: 1000 + i,
   });
 
-  it(`keeps detail on the newest ${DETAILED_RUN_RECORDS}; older ones trim to identity + tally`, () => {
+  it(`keeps detail on the newest 10; older ones trim to identity + tally`, () => {
     const merged = mergeRunRecords(Array.from({ length: 20 }, (_, i) => v2Record(i)));
     expect(merged.map((r) => r.endedAt)).toEqual(Array.from({ length: 20 }, (_, i) => 1019 - i));
     for (const [index, rec] of merged.entries()) {
@@ -215,7 +232,7 @@ describe('victory records v2: size budget', () => {
       expect(rec.v).toBe(2);
       expect(unit.tally).toEqual({ kills: 14, bossKills: 2, healed: 120 });
       expect(rec.fallen).toHaveLength(3);
-      if (index < DETAILED_RUN_RECORDS) expect(unit.stats).toHaveLength(8);
+      if (index < 10) expect(unit.stats).toHaveLength(8);
       else expect(Object.keys(unit)).toEqual(['name', 'className', 'level', 'isLord', 'tally']);
     }
     // Deterministic and idempotent: a second pass (a reload, a sync) changes nothing.
@@ -289,9 +306,9 @@ describe('victory records v2: size budget', () => {
     );
     // A slot's meta save holds all of it (×3 slots in localStorage, one cloud row each).
     // Budgets (v1's realistic ceiling was ~203 KB): a regression guard, not a target.
-    expect(typical).toBeLessThan(300_000);
-    expect(realistic).toBeLessThan(640_000);
-    expect(worst).toBeLessThan(1_200_000);
+    expect(typical).toBeLessThan(260_000);
+    expect(realistic).toBeLessThan(560_000);
+    expect(worst).toBeLessThan(1_050_000);
   });
 });
 

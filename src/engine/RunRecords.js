@@ -20,7 +20,7 @@ import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_STAT_NAMES } from '../uti
 
 export const RUN_RECORD_VERSION = 2;
 export const MAX_RUN_RECORDS = 50;
-export const DETAILED_RUN_RECORDS = 15;
+export const DETAILED_RUN_RECORDS = 10;
 export const MAX_RECORD_UNITS = 20;
 export const MAX_RECORD_FALLEN = 20;
 /** Everything a unit can carry besides the equipped weapon. */

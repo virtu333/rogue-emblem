@@ -1,0 +1,56 @@
+import { specialCharacterDefinition } from '../../src/engine/SpecialCharacterPolicy.js';
+import { isDifficultyId } from '../../src/engine/DifficultyEngine.js';
+import { DEED_FORMS } from '../../src/engine/DeedTitles.js';
+
+// Frozen copy of mergeRunRecords as v1-era clients ship it (before schema v2, commit
+// 31fb3524). tests/RunRecords.test.js reads v2 records through it: an older client must
+// keep reading them, and its write-back must never displace the v2 copy.
+// Records contain display snapshots, never live units or inventory objects.
+export function mergeRunRecordsV1(...sources) {
+  const byId = new Map();
+  for (const record of sources.flat()) {
+    if (!record || typeof record.id !== 'string' || !record.id) continue;
+    const clean = {
+      id: record.id.slice(0, 160),
+      endedAt: Number.isFinite(record.endedAt) ? record.endedAt : 0,
+      difficulty: isDifficultyId(record.difficulty) ? record.difficulty : 'normal',
+      ...(record.noMetaMode === true ? { noMetaMode: true } : {}),
+      seed: Number.isFinite(record.seed) ? record.seed : null,
+      actsCleared: Math.max(0, Math.trunc(record.actsCleared) || 0),
+      totalTurns: Number.isFinite(record.totalTurns)
+        ? Math.max(0, Math.trunc(record.totalTurns))
+        : null,
+      // The Eclipse's final shadow (null for runs before it or with it off).
+      shadow: Number.isFinite(record.shadow)
+        ? Math.max(0, Math.min(1000, Math.trunc(record.shadow)))
+        : null,
+      roster: (Array.isArray(record.roster) ? record.roster : [])
+        .slice(0, 20)
+        .filter((u) => typeof u?.name === 'string')
+        .map((u) => ({
+          name: u.name.slice(0, 80),
+          className: String(u.className || '').slice(0, 80),
+          level: Math.max(1, Math.trunc(u.level) || 1),
+          isLord: u.isLord === true,
+          ...(specialCharacterDefinition(u) ? { specialCharId: u.specialCharId } : {}),
+          // A title earned on the march (Deeds & Epithets); absent on older records.
+          ...(typeof u.epithet === 'string' && u.epithet.trim()
+            ? {
+                epithet: u.epithet.trim().slice(0, 80),
+                epithetForm: DEED_FORMS.includes(u.epithetForm) ? u.epithetForm : 'the',
+              }
+            : {}),
+          // Optional (records from before portrait variety have neither).
+          ...(u.tier === 'promoted' ? { tier: 'promoted' } : {}),
+          ...(typeof u.portraitVariant === 'string' && /^[a-z0-9_]{1,64}$/.test(u.portraitVariant)
+            ? { portraitVariant: u.portraitVariant }
+            : {}),
+        })),
+    };
+    if (!byId.has(clean.id) || clean.endedAt > byId.get(clean.id).endedAt)
+      byId.set(clean.id, clean);
+  }
+  return [...byId.values()]
+    .sort((a, b) => b.endedAt - a.endedAt || a.id.localeCompare(b.id))
+    .slice(0, 50);
+}
