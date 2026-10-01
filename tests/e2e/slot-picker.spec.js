@@ -104,6 +104,28 @@ test('damaged and orphaned saves stay occupied; failed archival loses no data', 
       };
     }),
   ).toEqual({ archive: null, reserved: true });
+  await expect(page.getByRole('dialog', { name: 'Slot 1 recovery', exact: true })).toContainText(
+    'You are playing offline',
+  );
+  await page.getByRole('button', { name: 'Release reservation…', exact: true }).click();
+  const releaseDialog = page.getByRole('dialog', {
+    name: 'Release Slot 1 reservation?',
+    exact: true,
+  });
+  await expect(releaseDialog).toContainText('may replace that cloud copy');
+  await expect(
+    page.getByRole('button', { name: 'Release reservation', exact: true }),
+  ).toBeInViewport();
+  await page.getByRole('button', { name: 'Keep reservation', exact: true }).click();
+  expect(
+    await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_cloud_pending')),
+  ).not.toBeNull();
+  await page.getByRole('button', { name: 'Release reservation…', exact: true }).click();
+  await page.getByRole('button', { name: 'Release reservation', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'New run in Slot 1', exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_cloud_pending')),
+  ).toBeNull();
   expect(errors).toEqual([]);
 });
 

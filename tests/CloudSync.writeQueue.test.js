@@ -360,17 +360,41 @@ describe('CloudSync write queue hardening', () => {
       const metaApi = makeSlotTableApi({ slotMap: { 1: { totalValor: 50, savedAt: 100 } } });
       localStorage.setItem(getMetaKey(1), JSON.stringify({ totalValor: 99, savedAt: 200 }));
       mocked.fromMock.mockImplementation((table) => (table === 'run_saves' ? runApi : metaApi));
-      deleteRunSave(
+      const result = deleteRunSave(
         'user-1',
         1,
         scenario === 'missing local identity' ? null : { runRecordId: 'abandoned-run' },
       );
+      if (scenario === 'missing local identity')
+        expect(result).toEqual({ queued: false, reason: 'unverified_run' });
       await __flushCloudSyncQueuesForTests();
       expect(runApi.state.row.data['1'].runRecordId).toBe(
         scenario === 'changed during CAS retry' ? 'new-remote-run' : 'cloud-other',
       );
       expect(runApi.state.row.data['2'].runRecordId).toBe('untouched');
       expect(metaApi.state.row.data['1'].totalValor).toBe(50);
+    },
+  );
+
+  it.each(['same snapshot', 'different gold', 'new ID'])(
+    'deletes a legacy run only with the complete abandoned snapshot (%s)',
+    async (kind) => {
+      const abandoned = { runSeed: 7, gold: 137, savedAt: 100 };
+      const remote =
+        kind === 'different gold'
+          ? { ...abandoned, gold: 999 }
+          : kind === 'new ID'
+            ? { ...abandoned, runRecordId: 'new-run' }
+            : { savedAt: 100, gold: 137, runSeed: 7 };
+      const runApi = makeSlotTableApi({ slotMap: { 1: remote, 2: { runSeed: 8 } } });
+      const metaApi = makeSlotTableApi({ slotMap: { 1: { totalValor: 50 } } });
+      localStorage.setItem(getMetaKey(1), '{"totalValor":99,"savedAt":200}');
+      mocked.fromMock.mockImplementation((table) => (table === 'run_saves' ? runApi : metaApi));
+      deleteRunSave('user-1', 1, abandoned);
+      await __flushCloudSyncQueuesForTests();
+      if (kind === 'same snapshot') expect(runApi.state.row.data['1']).toBeUndefined();
+      else expect(runApi.state.row.data['1']).toEqual(remote);
+      expect(runApi.state.row.data['2']).toEqual({ runSeed: 8 });
     },
   );
 

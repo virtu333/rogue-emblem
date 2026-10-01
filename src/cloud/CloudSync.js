@@ -104,18 +104,18 @@ function migrateCloudData(cloudData) {
  * Fetch a single table's data for a user.
  * Returns the data field or null.
  */
-async function fetchTable(userId, table) {
-  const row = await fetchTableRow(userId, table);
+async function fetchTable(userId, table, accessToken) {
+  const row = await fetchTableRow(userId, table, accessToken);
   return row.data;
 }
 
-async function fetchTableRow(userId, table) {
+async function fetchTableRow(userId, table, accessToken) {
   if (!supabase) return { exists: false, data: null, updatedAt: null };
-  const { data, error } = await supabase
-    .from(table)
-    .select('data,updated_at')
-    .eq('user_id', userId)
-    .maybeSingle();
+  let query = supabase.from(table).select('data,updated_at').eq('user_id', userId);
+  // Bind pending recovery to the verified account. The SDK can otherwise
+  // substitute its anonymous key if auth disappears just before request send.
+  if (accessToken) query = query.setHeader('Authorization', `Bearer ${accessToken}`);
+  const { data, error } = await query.maybeSingle();
   if (error) throw error;
   if (!data) return { exists: false, data: null, updatedAt: null };
   return {
@@ -137,85 +137,138 @@ function protectedLocalSlot(slot) {
   }
 }
 
-async function applyPendingCloudSlots(userId, runData, metaData) {
+// Serialize within a tab; byte checks also protect against another tab writing
+// during native acknowledgements. Exact owned writes permit a local retry only.
+const pendingRecoveryQueues = new Map();
+const pendingRecoveryWrites = new Map();
+
+async function authenticatedSession(userId) {
+  try {
+    const result = await withTimeout(supabase.auth?.getSession?.(), FETCH_TIMEOUT_MS);
+    const session = result?.data?.session;
+    return !result?.error &&
+      session?.user?.id === userId &&
+      typeof session.access_token === 'string' &&
+      session.access_token
+      ? session
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+async function ownsAuthenticatedSession(userId) {
+  return (await authenticatedSession(userId)) !== null;
+}
+
+async function applyPendingCloudSlot(userId, slot, runSlots, metaSlots) {
+  const key = getSlotCloudPendingKey(slot);
+  let originalPendingRaw;
+  let mirror;
+  let retiredByUs = false;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return;
+    originalPendingRaw = raw;
+    const pending = JSON.parse(raw);
+    if (pending?.version !== 1 || pending.userId !== userId) return;
+    if (!(await ownsAuthenticatedSession(userId))) return;
+    const recoveryKeys = [
+      getSlotQuarantineKey(slot),
+      getSlotPairJournalKey(slot),
+      getSlotRecoveryOwnerKey(slot),
+    ];
+    const canonicalKeys = [getMetaKey(slot), getRunKey(slot)];
+    const previous = pendingRecoveryWrites.get(slot);
+    const expected =
+      previous?.raw === raw
+        ? previous.values
+        : new Map(canonicalKeys.map((recordKey) => [recordKey, null]));
+    const isUnchanged = () =>
+      localStorage.getItem(key) === raw &&
+      recoveryKeys.every((recordKey) => localStorage.getItem(recordKey) === null) &&
+      canonicalKeys.every(
+        (recordKey) => localStorage.getItem(recordKey) === expected.get(recordKey),
+      );
+    // Nonempty local data without an owned write proof belongs to another writer.
+    // Keep both it and the reservation. Never replace it with a cloud fetch.
+    if (!isUnchanged()) return;
+    const run = runSlots[String(slot)] ?? null;
+    const meta = metaSlots[String(slot)] ?? null;
+    if (
+      (run !== null && !isReadableRunShape(run)) ||
+      (meta !== null && !isReadableMetaShape(meta)) ||
+      (run !== null && meta === null)
+    )
+      return;
+    mirror = nativeCapacitor() ? getNativeSaveMirror() : null;
+    if (nativeCapacitor() && !mirror)
+      throw new Error('Device backup is unavailable. Cloud recovery stays reserved.');
+    if (mirror && !(await mirror.ensureDurable(key, raw)))
+      throw new Error('Cloud reservation device backup failed.');
+    if (!isUnchanged() || !(await ownsAuthenticatedSession(userId)) || !isUnchanged()) return;
+    const canonical = mirror
+      ? stampPendingCloudPair(slot, run, meta, localStorage, mirror)
+      : [
+          [getMetaKey(slot), meta === null ? null : JSON.stringify(meta)],
+          [getRunKey(slot), run === null ? null : JSON.stringify(run)],
+        ];
+    pendingRecoveryWrites.set(slot, { raw, values: expected });
+    for (const [canonicalKey, valueRaw] of canonical) {
+      if (!isUnchanged()) throw new Error('cloud reservation or local save changed');
+      if (valueRaw === null) localStorage.removeItem(canonicalKey);
+      else localStorage.setItem(canonicalKey, valueRaw);
+      expected.set(canonicalKey, valueRaw);
+      if (!isUnchanged()) throw new Error('cloud recovery write failed');
+      if (mirror && !(await mirror.ensureDurable(canonicalKey, valueRaw)))
+        throw new Error('Recovered save device backup failed.');
+    }
+    if (!isUnchanged() || !(await ownsAuthenticatedSession(userId)) || !isUnchanged()) return;
+    localStorage.removeItem(key);
+    retiredByUs = true;
+    if (localStorage.getItem(key) !== null) throw new Error('cloud reservation clear failed');
+    if (mirror && !(await mirror.ensureDurable(key, null)))
+      throw new Error('Cloud reservation retirement device backup failed.');
+    pendingRecoveryWrites.delete(slot);
+  } catch (err) {
+    // Only our retirement may be undone. A released/replaced reservation is final
+    // for this operation; a stale fetch cannot resurrect it after an await.
+    try {
+      if (mirror && retiredByUs && originalPendingRaw && localStorage.getItem(key) === null)
+        localStorage.setItem(key, originalPendingRaw);
+    } catch {
+      /* Acknowledged canonical data still survives on disk. */
+    }
+    reportCloudFailure('cloud_pending_recovery', err, { slot });
+  }
+}
+
+async function applyPendingCloudSlots(userId, runData, metaData, fetchSession) {
+  // A reservation created during an ordinary fetch must wait for a new,
+  // bearer-bound fetch. Retrospective authentication cannot validate its rows.
+  if (!fetchSession) return;
   const runSlots = migrateCloudData(runData);
   const metaSlots = migrateCloudData(metaData);
   for (let slot = 1; slot <= MAX_SLOTS; slot++) {
-    const key = getSlotCloudPendingKey(slot);
-    let originalPendingRaw;
-    let mirror;
+    const previous = pendingRecoveryQueues.get(slot) || Promise.resolve();
+    const next = previous
+      .catch(() => {})
+      .then(() => applyPendingCloudSlot(userId, slot, runSlots, metaSlots));
+    pendingRecoveryQueues.set(slot, next);
     try {
-      const raw = localStorage.getItem(key);
-      if (raw === null) continue;
-      originalPendingRaw = raw;
-      const pending = JSON.parse(raw);
-      if (pending?.version !== 1 || pending.userId !== userId) continue;
-      // A copy or journal still present means Free has not completed.
-      if (
-        [
-          getSlotQuarantineKey(slot),
-          getSlotPairJournalKey(slot),
-          getSlotRecoveryOwnerKey(slot),
-        ].some((recordKey) => localStorage.getItem(recordKey) !== null)
-      )
-        continue;
-      const run = runSlots[String(slot)] ?? null;
-      const meta = metaSlots[String(slot)] ?? null;
-      if (
-        (run !== null && !isReadableRunShape(run)) ||
-        (meta !== null && !isReadableMetaShape(meta)) ||
-        (run !== null && meta === null)
-      )
-        continue;
-      // Native Free already mirrored the reservation. Verify it again before
-      // any asynchronous canonical acknowledgement, including an account claim.
-      mirror = nativeCapacitor() ? getNativeSaveMirror() : null;
-      if (nativeCapacitor() && !mirror)
-        throw new Error('Device backup is unavailable. Cloud recovery stays reserved.');
-      if (mirror && !(await mirror.ensureDurable(key, raw)))
-        throw new Error('Cloud reservation device backup failed.');
-      const canonical = mirror
-        ? stampPendingCloudPair(slot, run, meta, localStorage, mirror)
-        : [
-            [getMetaKey(slot), meta === null ? null : JSON.stringify(meta)],
-            [getRunKey(slot), run === null ? null : JSON.stringify(run)],
-          ];
-      // Progression first; retain the reservation through partial local or disk
-      // writes. A kill before debounce cannot expose an empty reusable slot.
-      for (const [canonicalKey, valueRaw] of canonical) {
-        if (localStorage.getItem(key) !== raw) throw new Error('cloud reservation changed');
-        if (valueRaw === null) localStorage.removeItem(canonicalKey);
-        else localStorage.setItem(canonicalKey, valueRaw);
-        if (localStorage.getItem(canonicalKey) !== valueRaw)
-          throw new Error('cloud recovery write failed');
-        if (mirror && !(await mirror.ensureDurable(canonicalKey, valueRaw)))
-          throw new Error('Recovered save device backup failed.');
-      }
-      if (localStorage.getItem(key) !== raw) throw new Error('cloud reservation changed');
-      localStorage.removeItem(key);
-      if (localStorage.getItem(key) !== null) throw new Error('cloud reservation clear failed');
-      if (mirror && !(await mirror.ensureDurable(key, null)))
-        throw new Error('Cloud reservation retirement device backup failed.');
-    } catch (err) {
-      // The pair is already durable if its final reservation tombstone failed.
-      // Keep the UI reserved for a retry; never replace a newer reservation.
-      try {
-        if (mirror && originalPendingRaw && localStorage.getItem(key) === null)
-          localStorage.setItem(key, originalPendingRaw);
-      } catch {
-        /* The acknowledged canonical pair still survives on disk. */
-      }
-      reportCloudFailure('cloud_pending_recovery', err, { slot });
+      await next;
+    } finally {
+      if (pendingRecoveryQueues.get(slot) === next) pendingRecoveryQueues.delete(slot);
     }
   }
 }
 
-function applyRunSlots(runData, metaData) {
+function applyRunSlots(runData, metaData, reservedAtStart = new Set()) {
   const runSlots = migrateCloudData(runData);
   const metaSlots = migrateCloudData(metaData);
   const skipped = new Set();
   for (let i = 1; i <= MAX_SLOTS; i++) {
-    if (protectedLocalSlot(i)) {
+    if (reservedAtStart.has(i) || protectedLocalSlot(i)) {
       skipped.add(i);
       continue;
     }
@@ -330,10 +383,25 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
 
   markStartup('cloud_sync_start', { timeoutMs });
 
+  let reservedAtStart;
+  try {
+    reservedAtStart = new Set(
+      Array.from({ length: MAX_SLOTS }, (_, i) => i + 1).filter(
+        (slot) => localStorage.getItem(getSlotCloudPendingKey(slot)) !== null,
+      ),
+    );
+  } catch (err) {
+    reportCloudFailure('cloud_pending_inspection', err);
+    return;
+  }
+
+  const fetchSession = reservedAtStart.size ? await authenticatedSession(userId) : null;
+  if (reservedAtStart.size && !fetchSession) return;
+
   const [runRes, metaRes, settingsRes] = await Promise.allSettled([
-    withTimeout(fetchTable(userId, TABLES.run), timeoutMs),
-    withTimeout(fetchTable(userId, TABLES.meta), timeoutMs),
-    withTimeout(fetchTable(userId, TABLES.settings), timeoutMs),
+    withTimeout(fetchTable(userId, TABLES.run, fetchSession?.access_token), timeoutMs),
+    withTimeout(fetchTable(userId, TABLES.meta, fetchSession?.access_token), timeoutMs),
+    withTimeout(fetchTable(userId, TABLES.settings, fetchSession?.access_token), timeoutMs),
   ]);
 
   let skippedRunSlots = new Set();
@@ -341,8 +409,8 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
     // Apply run/progression as a fetched pair. A partial fetch must not mix
     // another device's run with this device's progression. Settings are independent.
     if (metaRes.status === 'fulfilled') {
-      await applyPendingCloudSlots(userId, runRes.value, metaRes.value);
-      skippedRunSlots = applyRunSlots(runRes.value, metaRes.value);
+      await applyPendingCloudSlots(userId, runRes.value, metaRes.value, fetchSession);
+      skippedRunSlots = applyRunSlots(runRes.value, metaRes.value, reservedAtStart);
     }
   } else {
     console.warn('CloudSync fetch run_saves:', runRes.reason);
@@ -492,7 +560,13 @@ export function pushSettings(userId, settingsData) {
 
 export function deleteRunSave(userId, slot, abandonedRun) {
   const runRecordId = abandonedRun?.runRecordId;
-  if (!supabase || protectedLocalSlot(slot) || typeof runRecordId !== 'string' || !runRecordId)
+  const identity =
+    typeof runRecordId === 'string' && runRecordId
+      ? runRecordId
+      : isReadableRunShape(abandonedRun)
+        ? abandonedRun
+        : undefined;
+  if (!supabase || protectedLocalSlot(slot) || identity === undefined)
     return { queued: false, reason: 'unverified_run' };
   const runQueueKey = `${userId}:${TABLES.run}`;
   const metaQueueKey = `${userId}:${TABLES.meta}`;
@@ -506,14 +580,14 @@ export function deleteRunSave(userId, slot, abandonedRun) {
       const cloudRunBeforeDelete = await fetchTableRow(userId, TABLES.run);
       const runBeforeDelete = migrateCloudData(cloudRunBeforeDelete.data)[String(slot)] ?? null;
 
-      if (runBeforeDelete?.runRecordId !== runRecordId) return;
+      if (!matchesRunIdentity(runBeforeDelete, identity)) return;
       const deleted = await writeSlotWithAuthRefresh(
         userId,
         TABLES.run,
         slot,
         null,
         SLOT_WRITE_MAX_ATTEMPTS,
-        runRecordId,
+        identity,
       );
       if (deleted === false) return;
 
@@ -700,6 +774,8 @@ export async function __flushCloudSyncQueuesForTests() {
 
 export function __resetCloudSyncQueuesForTests() {
   updateQueues.clear();
+  pendingRecoveryQueues.clear();
+  pendingRecoveryWrites.clear();
   remoteNewerWarnedSignatures.clear();
   protectedBackupReported.clear();
 }
@@ -967,6 +1043,23 @@ async function deleteTableRowWithRevision(userId, table, expectedUpdatedAt) {
   return { ok: true };
 }
 
+// Legacy runs have no stable ID. Delete only the complete snapshot we cleared;
+// a newer or different legacy run cannot be mistaken for that abandoned save.
+function matchesRunIdentity(run, identity) {
+  if (typeof identity === 'string') return run?.runRecordId === identity;
+  const ordered = (value) =>
+    Array.isArray(value)
+      ? value.map(ordered)
+      : value && typeof value === 'object'
+        ? Object.fromEntries(
+            Object.keys(value)
+              .sort()
+              .map((key) => [key, ordered(value[key])]),
+          )
+        : value;
+  return !!run && !!identity && JSON.stringify(ordered(run)) === JSON.stringify(ordered(identity));
+}
+
 async function writeSlotWithRetry(userId, table, slot, slotData, maxAttempts, expectedRunRecordId) {
   if (!supabase) throw new Error('Cloud unavailable');
   let lastConflict = null;
@@ -979,7 +1072,7 @@ async function writeSlotWithRetry(userId, table, slot, slotData, maxAttempts, ex
       (protectedLocalSlot(slot) ||
         (expectedRunRecordId === null
           ? remoteSlot != null
-          : remoteSlot?.runRecordId !== expectedRunRecordId))
+          : !matchesRunIdentity(remoteSlot, expectedRunRecordId)))
     )
       return false;
     if (

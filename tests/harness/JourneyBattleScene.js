@@ -47,8 +47,12 @@ export function journeyBattleScene(run, data) {
       // restored scene in a soak; retaining call arguments would pin whole units.
       unitActedCalls: 0,
       endPlayerPhaseCalls: 0,
+      checkPlayerPhaseCompleteCalls: 0,
       unitActed() {
         this.unitActedCalls++;
+      },
+      checkPlayerPhaseComplete() {
+        this.checkPlayerPhaseCompleteCalls++;
       },
       endPlayerPhase() {
         this.endPlayerPhaseCalls++;

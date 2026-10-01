@@ -14,6 +14,94 @@ describe('TurnManager', () => {
     onDefeat = vi.fn();
   });
 
+  it('rejects wrong-phase and repeated phase ends without resetting enemies or invoking battle-end callbacks', () => {
+    const checkBattleEnd = vi.fn(() => false);
+    const tm = new TurnManager({ onPhaseChange, onVictory, onDefeat, checkBattleEnd });
+    const enemy = makeUnit('Goblin', 'enemy');
+    tm.init([makeUnit('Edric')], [enemy], [], 'rout');
+    enemy.hasMoved = enemy.hasActed = true;
+    expect(tm.endEnemyPhase()).toBe(false);
+    expect(tm.turnNumber).toBe(1);
+    expect(enemy.hasMoved).toBe(true);
+    expect(checkBattleEnd).not.toHaveBeenCalled();
+    expect(tm.endPlayerPhase()).toBe(true);
+    expect(tm.endPlayerPhase()).toBe(false);
+    expect(tm.endEnemyPhase()).toBe(true);
+    expect(tm.endEnemyPhase()).toBe(false);
+    expect(tm.turnNumber).toBe(2);
+    expect(onPhaseChange.mock.calls).toEqual([
+      ['enemy', 1],
+      ['player', 2],
+    ]);
+    expect(checkBattleEnd).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores stale or removed units before marking or changing phase', () => {
+    const tm = new TurnManager({ onPhaseChange, onVictory, onDefeat });
+    const player = makeUnit('Edric');
+    const removed = makeUnit('Gone');
+    tm.init([player], [makeUnit('Goblin', 'enemy')], []);
+    expect(tm.unitActed(removed)).toBe(false);
+    expect(tm.unitActed(null)).toBe(false);
+    expect(removed.hasActed).toBe(false);
+    expect(tm.unitActed(player)).toBe(true);
+    player.hasActed = false;
+    expect(tm.unitActed(player)).toBe(false);
+    expect(player.hasActed).toBe(false);
+    expect(onPhaseChange.mock.calls).toEqual([['enemy', 1]]);
+  });
+
+  it('reports rejected transitions through an injected diagnostic without gameplay callbacks', () => {
+    const onRejectedTransition = vi.fn();
+    const tm = new TurnManager({ onPhaseChange, onVictory, onDefeat, onRejectedTransition });
+    tm.init([makeUnit('Edric')], [makeUnit('Goblin', 'enemy')], []);
+    expect(tm.endEnemyPhase()).toBe(false);
+    expect(tm.unitActed(makeUnit('Removed'))).toBe(false);
+    expect(onRejectedTransition.mock.calls).toEqual([
+      [{ action: 'endEnemyPhase', phase: 'player', turn: 1 }],
+      [{ action: 'unitActed', phase: 'player', turn: 1 }],
+    ]);
+    expect(onPhaseChange).not.toHaveBeenCalled();
+    expect(onVictory).not.toHaveBeenCalled();
+    expect(onDefeat).not.toHaveBeenCalled();
+  });
+
+  it('checks remaining units after Escape without accepting a removed actor', () => {
+    const tm = new TurnManager({ onPhaseChange, onVictory, onDefeat });
+    const escaped = makeUnit('Escaped');
+    const staying = makeUnit('Edric');
+    tm.init([escaped, staying], [makeUnit('Goblin', 'enemy')], [], 'escape');
+    tm.playerUnits.splice(0, 1);
+    expect(tm.checkPlayerPhaseComplete()).toBe(false);
+    staying.hasActed = true;
+    expect(tm.checkPlayerPhaseComplete()).toBe(true);
+    expect(escaped.hasActed).toBe(false);
+    expect(tm.currentPhase).toBe('enemy');
+  });
+
+  it('does not repeat victory/defeat or mutate units once battle end is detected', () => {
+    const player = makeUnit('Edric');
+    const tm = new TurnManager({ onPhaseChange, onVictory, onDefeat });
+    tm.init([player], [], [], 'rout');
+    expect(tm.endPlayerPhase()).toBe(false);
+    expect(tm.endPlayerPhase()).toBe(false);
+    expect(tm.unitActed(player)).toBe(false);
+    expect(tm.checkPlayerPhaseComplete()).toBe(false);
+    expect(player.hasActed).toBe(false);
+    expect(onVictory).toHaveBeenCalledTimes(1);
+    expect(onPhaseChange).not.toHaveBeenCalled();
+  });
+
+  it('allows a phase end after a reversible scene Vision decision is resolved', () => {
+    const checkBattleEnd = vi.fn().mockReturnValueOnce(true).mockReturnValue(false);
+    const tm = new TurnManager({ onPhaseChange, onVictory, onDefeat, checkBattleEnd });
+    tm.init([makeUnit('Edric')], [makeUnit('Goblin', 'enemy')], [], 'rout');
+    expect(tm.endPlayerPhase()).toBe(false);
+    expect(tm.currentPhase).toBe('player');
+    expect(tm.endPlayerPhase()).toBe(true);
+    expect(tm.currentPhase).toBe('enemy');
+  });
+
   it('constructor initializes player phase at turn 1', () => {
     const tm = new TurnManager({ onPhaseChange, onVictory, onDefeat });
     expect(tm.currentPhase).toBe('player');

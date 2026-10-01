@@ -22,6 +22,8 @@ import {
   forgetSlotArchive,
   MAX_SLOT_ARCHIVE_BYTES,
   discardExportedSlot,
+  releaseSlotCloudPending,
+  slotArchiveByteSize,
 } from '../src/engine/SlotRecovery.js';
 
 let values, storage;
@@ -86,6 +88,56 @@ describe('read-only slot inspection and allocation', () => {
       }
     },
   );
+  it('exporting and discarding a reservation preserves its original account ownership', () => {
+    const key = getSlotCloudPendingKey(1);
+    values.set(key, '{"version":1,"userId":"original-account","savedAt":100}');
+    const snapshot = Object.fromEntries(
+      [...getSlotDataKeys(1), ARCHIVE, JOURNAL].map((recordKey) => [
+        recordKey,
+        storage.getItem(recordKey),
+      ]),
+    );
+    expect(discardExportedSlot(1, snapshot, true).ok).toBe(true);
+    expect(getSlotRecoveryOwner(1)).toBe('original-account');
+    expect(retireSlotArchive(1, storage, undefined, undefined, 'different-account').ok).toBe(true);
+    expect(JSON.parse(values.get(key)).userId).toBe('original-account');
+  });
+
+  it('release is explicit and does not remove a newer reservation or remaining evidence', () => {
+    const key = getSlotCloudPendingKey(1);
+    const original = '{"version":1,"userId":null}';
+    values.set(key, original);
+    expect(releaseSlotCloudPending(1, undefined).ok).toBe(false);
+    values.set(key, 'new reservation');
+    expect(releaseSlotCloudPending(1, original).ok).toBe(false);
+    expect(values.get(key)).toBe('new reservation');
+    values.set(ARCHIVE, 'raw preserved evidence');
+    expect(releaseSlotCloudPending(1, 'new reservation').ok).toBe(false);
+    expect(values.get(ARCHIVE)).toBe('raw preserved evidence');
+  });
+
+  it('a native archive sized just below the lifecycle envelope limit can finish discard', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1800000000000);
+    const emptyEnvelopeBytes = slotArchiveByteSize(1);
+    const payloadCharacters = Math.floor((MAX_SLOT_ARCHIVE_BYTES - emptyEnvelopeBytes) / 2) - 5;
+    values.set(RUN, 'x'.repeat(payloadCharacters));
+    expect(slotArchiveByteSize(1)).toBeLessThanOrEqual(MAX_SLOT_ARCHIVE_BYTES);
+    expect(archiveAndDiscardSlot(1).ok).toBe(true);
+    expect(values.has(RUN)).toBe(false);
+    expect(JSON.parse(values.get(ARCHIVE)).values[RUN]).toHaveLength(payloadCharacters);
+    expect(JSON.parse(values.get(ARCHIVE)).state).toBe('archived');
+  });
+
+  it('archive size includes keys and the complete envelope at the native limit', () => {
+    // String values alone fit, but escaped strings and envelope overhead do not.
+    values.set(RUN, 'x'.repeat(MAX_SLOT_ARCHIVE_BYTES / 2 - 100));
+    expect(values.get(RUN).length * 2).toBeLessThan(MAX_SLOT_ARCHIVE_BYTES);
+    expect(slotArchiveByteSize(1)).toBeGreaterThan(MAX_SLOT_ARCHIVE_BYTES);
+    expect(archiveSlot(1).ok).toBe(false);
+    expect(values.has(RUN)).toBe(true);
+    expect(values.has(ARCHIVE)).toBe(false);
+  });
+
   it('does not claim an unassigned reservation over newly written local run bytes', () => {
     const key = getSlotCloudPendingKey(1);
     const raw = JSON.stringify({ version: 1, userId: null });

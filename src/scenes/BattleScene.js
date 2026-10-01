@@ -1685,6 +1685,11 @@ export class BattleScene extends Phaser.Scene {
         onVictory: () => this.onVictory(),
         onDefeat: () => this.onDefeat(),
         checkBattleEnd: () => this.checkBattleEnd(),
+        onRejectedTransition: (transition) =>
+          console.warn('[BattleScene] rejected phase transition:', {
+            ...transition,
+            battleState: this.battleState,
+          }),
       });
       this.turnManager.init(this.playerUnits, this.enemyUnits, this.npcUnits, bc.objective);
 
