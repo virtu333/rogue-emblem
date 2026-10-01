@@ -116,6 +116,31 @@ describe('read-only slot inspection and allocation', () => {
     expect(values.get(ARCHIVE)).toBe('raw preserved evidence');
   });
 
+  it.each(['new owner', 'owner delete failure', 'pending delete failure'])(
+    'keeps the reviewed orphan reservation when release races or fails (%s)',
+    (kind) => {
+      const key = getSlotCloudPendingKey(1);
+      const ownerKey = 'emblem_rogue_slot_1_recovery_owner';
+      const pending = '{"version":1,"userId":"account-a"}';
+      const owner = '{"version":1,"userId":"account-a","savedAt":123}';
+      values.set(key, pending);
+      values.set(ownerKey, kind === 'new owner' ? 'new ownership evidence' : owner);
+      values.set(RUN, '{"gold":4242}');
+      if (kind !== 'new owner')
+        storage.removeItem.mockImplementation((recordKey) => {
+          if (recordKey === (kind === 'owner delete failure' ? ownerKey : key)) {
+            if (recordKey === ownerKey) values.delete(recordKey);
+            throw new Error('interrupted delete');
+          }
+          values.delete(recordKey);
+        });
+      expect(releaseSlotCloudPending(1, pending, storage, owner).ok).toBe(false);
+      expect(values.get(key)).toBe(pending);
+      expect(values.get(ownerKey)).toBe(kind === 'new owner' ? 'new ownership evidence' : owner);
+      expect(values.get(RUN)).toBe('{"gold":4242}');
+    },
+  );
+
   it('a native archive sized just below the lifecycle envelope limit can finish discard', () => {
     vi.spyOn(Date, 'now').mockReturnValue(1800000000000);
     const emptyEnvelopeBytes = slotArchiveByteSize(1);
@@ -338,7 +363,7 @@ describe('explicit archive, discard and retirement', () => {
     });
     expect(retireSlotArchive(1)).toMatchObject({
       ok: false,
-      reason: expect.stringContaining('Archive and discard'),
+      reason: expect.stringContaining('explicitly release'),
     });
     expect(values.has(ARCHIVE)).toBe(false);
     expect(values.get(ownerKey)).toBe(owner);

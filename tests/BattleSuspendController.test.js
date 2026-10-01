@@ -686,7 +686,7 @@ describe('checkpoint retry snapshots', () => {
       clone.mockRestore();
     }
   });
-  it('keeps the most trimmed failed quota candidate and adopts it on retry success', () => {
+  it('retains the full quota candidate so freeing storage preserves its optional history', () => {
     const scene = makeScene({ _battleSession: 1 });
     scene.runManager.battleInProgress.timeline = {
       ...createBattleTimeline(),
@@ -698,14 +698,17 @@ describe('checkpoint retry snapshots', () => {
     scene._persistBattleRunState.mockReturnValue({ ok: false, reason: 'quota' });
     const ctrl = new BattleSuspendController(scene);
     expect(ctrl.captureCheckpoint()).toBe(false);
-    expect(ctrl._retryCandidate.battleInProgress.timeline.presentation).toBeNull();
-    expect(ctrl._retryCandidate.battleInProgress.timeline.earlierHistoryUnavailable).toBe(true);
+    expect(ctrl._retryCandidate.battleInProgress.timeline.presentation.frames).toEqual([
+      'large frame',
+    ]);
+    expect(ctrl._retryCandidate.battleInProgress.timeline.earlierHistoryUnavailable).not.toBe(true);
     scene.runManager.battleInProgress.timeline.currentTurn = 999;
     scene._persistBattleRunState.mockReturnValue({ ok: true });
     expect(ctrl.retryCheckpoint({ session: 1 })).toEqual({ ok: true });
     expect(scene._battleTimeline).toBe(scene.runManager.battleInProgress.timeline);
     expect(scene._battleTimeline.currentTurn).toBe(4);
-    expect(scene._battleTimeline.earlierHistoryUnavailable).toBe(true);
+    expect(scene._battleTimeline.earlierHistoryUnavailable).not.toBe(true);
+    expect(scene._battleTimeline.presentation.frames).toEqual(['large frame']);
   });
 });
 

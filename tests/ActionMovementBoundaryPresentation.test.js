@@ -351,16 +351,32 @@ describe('movement and utility actions settle through their shipping entry point
     });
 });
 
-describe('accepted utility actions checkpoint before their first rendering call', () => {
+describe('accepted utility actions are durable before their first action effect', () => {
   for (const kind of scenarios.filter((value) => !value.startsWith('ballista'))) {
     it(kind, async () => {
       const f = fixture(kind);
+      const effect = ['shove', 'pull', 'swap', 'swap acted', 'blink'].includes(kind)
+        ? 'tween'
+        : kind === 'circle'
+          ? 'fx.playHeal'
+          : kind === 'ensnare'
+            ? 'fx.playStatus'
+            : kind === 'talk'
+              ? 'dialogue.show'
+              : 'fx.playBuff';
       let first;
-      f.scene.grid.clearAttackHighlights = () => {
-        first ||= clean(structuredClone(f.scene.runManager.battleInProgress.checkpoint));
-        throw new Error('first render failed');
-      };
+      let sawEffect = false;
+      f.calls.observe((label) => {
+        if (label !== effect || sawEffect) return;
+        sawEffect = true;
+        // Observe the real effect, excluding highlight/menu cleanup. Assertions
+        // run outside the presentation catch so renderer recovery cannot hide them.
+        first = JSON.parse(f.storage.getItem('emblem_rogue_slot_1_run') || 'null')?.battleInProgress
+          ?.checkpoint;
+      });
       await f.execute();
+      expect(f.calls.labels).toContain(effect);
+      expect(first, `${kind}: durable checkpoint at ${effect}`).toBeTruthy();
       expect(first.pendingActionCompletion).toMatchObject({ kind: 'finish', unitName: 'Actor' });
       const actor = first.playerUnits.find((entry) => entry.name === 'Actor');
       const target = first.playerUnits.find((entry) => entry.name === 'Target');

@@ -378,7 +378,7 @@ function applySettings(settingsData) {
  * Called once on login, before Phaser boots.
  */
 export async function fetchAllToLocalStorage(userId, options = {}) {
-  if (!supabase) return;
+  if (!supabase) return { rejectedCount: 0, deferredReservationSlots: [] };
   const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : FETCH_TIMEOUT_MS;
 
   markStartup('cloud_sync_start', { timeoutMs });
@@ -392,11 +392,21 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
     );
   } catch (err) {
     reportCloudFailure('cloud_pending_inspection', err);
-    return;
+    return { rejectedCount: 1, deferredReservationSlots: [] };
   }
 
   const fetchSession = reservedAtStart.size ? await authenticatedSession(userId) : null;
-  if (reservedAtStart.size && !fetchSession) return;
+  let deferredReservationSlots = fetchSession ? [] : [...reservedAtStart];
+  if (deferredReservationSlots.length)
+    reportCloudFailure(
+      'cloud_pending_session_unavailable',
+      new Error('Cloud recovery session could not be verified.'),
+      {
+        slots: deferredReservationSlots,
+      },
+    );
+  // A reservation needs a bearer-bound fetch, but it must not block unrelated
+  // slots and settings. Ordinary hydration still respects each local protection.
 
   const [runRes, metaRes, settingsRes] = await Promise.allSettled([
     withTimeout(fetchTable(userId, TABLES.run, fetchSession?.access_token), timeoutMs),
@@ -442,7 +452,22 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
     timeoutFailures,
   });
   getCloudSyncStatus(); // Refresh the shared notice after a reservation was resolved.
-  return { rejectedCount: rejected.length };
+  try {
+    // Include recovery deferred after the fetch too (auth loss, missing pair,
+    // or native acknowledgement). Background retry is bounded by main.js.
+    deferredReservationSlots = Array.from({ length: MAX_SLOTS }, (_, i) => i + 1).filter(
+      (slot) => localStorage.getItem(getSlotCloudPendingKey(slot)) !== null,
+    );
+  } catch (err) {
+    reportCloudFailure('cloud_pending_inspection', err);
+    return { rejectedCount: rejected.length + 1, deferredReservationSlots: [...reservedAtStart] };
+  }
+  return { rejectedCount: rejected.length, deferredReservationSlots };
+}
+
+/** Background pulls retry deferred reservations instead of treating partial hydration as success. */
+export function isCloudHydrationComplete(result) {
+  return result?.rejectedCount === 0 && (result.deferredReservationSlots?.length ?? 0) === 0;
 }
 
 /**

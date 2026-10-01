@@ -119,6 +119,7 @@ export class BattleSuspendController {
         }
       }
       let candidate = rm.toJSON ? rm.toJSON() : null;
+      const fullCandidate = candidate;
       let persisted = scene._persistBattleRunState?.(candidate, { session });
       if (persisted?.reason === 'quota' && rm.toJSON && rm.battleInProgress.timeline) {
         const fallback = persistWithTimelineFallback(
@@ -137,7 +138,7 @@ export class BattleSuspendController {
       }
       this._retryCandidate =
         RETRYABLE_SAVE_REASONS.includes(persisted?.reason) && candidate
-          ? structuredClone(candidate)
+          ? structuredClone(fullCandidate)
           : null;
       if (this._retryCandidate) this._retryLiveFingerprint = this._liveFingerprint();
       return report(persisted || { ok: false, reason: 'missing_persistence' });
@@ -241,9 +242,9 @@ export class BattleSuspendController {
       scene._battleTimeline = rm.battleInProgress.timeline;
       scene._timelineCurrentEntryId = rm.battleInProgress.timelineCurrentEntryId;
       this.dropRetryCandidate();
-    } else if (RETRYABLE_SAVE_REASONS.includes(result.reason)) {
-      this._retryCandidate = candidate;
     }
+    // On failure retain the full frozen candidate. A later Retry may have enough
+    // storage; only a successfully written fallback can shed optional history.
     this._captureResult(result, { session });
     return result;
   }

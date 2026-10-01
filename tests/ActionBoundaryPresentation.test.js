@@ -279,11 +279,11 @@ describe('remaining action settlement through real scene entries', () => {
     });
 });
 
-it('effect, cost, growth and finish checkpoint are durable before the first renderer call', async () => {
+it('effect, cost, growth and restored combat weapon are durable before the first heal effect', async () => {
   const f = fixture('growth');
   let observed;
-  f.calls.observe(() => {
-    if (!observed)
+  f.calls.observe((label) => {
+    if (label === 'fx.playHeal' && !observed)
       observed = {
         checkpoint: JSON.parse(f.storage.getItem('emblem_rogue_slot_1_run')).battleInProgress
           ?.checkpoint,
@@ -303,7 +303,11 @@ it('effect, cost, growth and finish checkpoint are durable before the first rend
     unitName: 'Sera',
   });
   expect(observed.checkpoint.playerUnits.find((unit) => unit.name === 'Target').currentHP).toBe(16);
-  expect(observed.checkpoint.playerUnits.find((unit) => unit.name === 'Sera').xp).toBe(15);
+  const savedHealer = observed.checkpoint.playerUnits.find((unit) => unit.name === 'Sera');
+  expect(savedHealer.xp).toBe(15);
+  expect(savedHealer.equippedInventoryIndex).toBe(0);
+  expect(savedHealer.inventory[savedHealer.equippedInventoryIndex].name).toBe(f.tome.name);
+  expect(savedHealer.inventory.find((weapon) => weapon.type === 'Staff')._usesSpent).toBe(1);
   expect(f.actor.hasActed).toBe(true);
 });
 it('HealAll rejects programmatic re-entry while the first target is rendering', async () => {
@@ -315,8 +319,17 @@ it('HealAll rejects programmatic re-entry while the first target is rendering', 
     });
   const first = f.execute();
   expect(f.staff._usesSpent).toBe(1);
-  expect(await f.execute()).toBe(false);
+  // Keep the second selection legal so weapon restoration cannot be the reason
+  // for rejection: the resolving guard must run before target validation.
+  f.actor.weapon = f.staff;
+  expect(f.scene._healController.findHealTargets(f.actor, f.staff)).toContain(f.target);
+  const validateTargets = vi.spyOn(f.scene._healController, 'findHealTargets');
+  const second = f.execute();
+  expect(validateTargets).not.toHaveBeenCalled();
+  expect(await second).toBe(false);
   expect(f.staff._usesSpent).toBe(1);
+  expect(f.target.currentHP).toBe(16);
+  f.actor.weapon = f.tome;
   release();
   for (let n = 0; n < 5; n++) await Promise.resolve();
   release();

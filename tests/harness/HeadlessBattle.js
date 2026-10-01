@@ -1932,7 +1932,7 @@ export class HeadlessBattle {
       battleRecruits: this._battleRecruits,
       runManager: this.runManager,
     });
-    if (!joined) return;
+    if (!joined) throw new Error(`Invalid Talk recruit: ${npc?.name || 'missing target'}`);
     this._battleRecruits = joined.battleRecruits;
     this._refreshFogVisibility();
     this._finishUnitAction(lord);

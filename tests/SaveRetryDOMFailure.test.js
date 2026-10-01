@@ -77,3 +77,21 @@ it.each([true, false])(
     controller.destroy();
   },
 );
+
+it('a warned exit without a candidate offers Stay and Exit anyway, with no inert Retry', async () => {
+  const { controller, scene } = fixture();
+  scene.events = new EventEmitter();
+  installFakeDom(vi);
+  scene._battleSuspendController.hasRetryCandidate = () => false;
+  scene._battleSuspendController.retryCheckpoint = vi.fn();
+  controller.onCheckpointResult({ ok: false, reason: 'capture_error' }, { session: 1 });
+  const exit = controller.ensureDurableForExit({ session: 1 });
+  const actions = controller.surface.body.children
+    .filter((n) => n.dataset.saveRetryAction)
+    .map((n) => n.dataset.saveRetryAction);
+  expect(actions).toEqual(['exit', 'stay']);
+  controller.stay();
+  expect(await exit).toBe(false);
+  expect(scene._battleSuspendController.retryCheckpoint).not.toHaveBeenCalled();
+  controller.destroy();
+});

@@ -449,3 +449,27 @@ it('Promote menu observes a rejected promotion operation', async () => {
     expect(report).toHaveBeenCalledWith('promotion_failed', rejection, { unit: unit.name }),
   );
 });
+
+it('the inventory Master Seal row observes a rejected promotion operation', async () => {
+  const { scene, unit, seal } = promotionFixture();
+  const report = vi.spyOn(errorReporter, 'reportAsyncError').mockImplementation(() => {});
+  const rejection = new Error('inventory promotion rejected');
+  scene.executePromotion = vi.fn().mockRejectedValue(rejection);
+  scene.grid = { fogEnabled: false };
+  scene.registry = { get: () => null };
+  scene._drawItemMenuRows = vi.fn();
+  scene._registerActionMenu = vi.fn();
+  scene.showItemMenu(unit);
+  const rows = scene._registerActionMenu.mock.calls[0][0];
+  const row = rows.find((entry) => entry.item === seal);
+  expect(row).toBeTruthy();
+  expect(row.disabled).toBe(false);
+  const before = structuredClone(unit);
+  row.invoke();
+  await vi.waitFor(() =>
+    expect(report).toHaveBeenCalledWith('promotion_failed', rejection, { unit: unit.name }),
+  );
+  expect(scene.executePromotion).toHaveBeenCalledWith(unit, seal);
+  expect(unit).toEqual(before);
+  expect(scene.finishUnitAction).not.toHaveBeenCalled();
+});

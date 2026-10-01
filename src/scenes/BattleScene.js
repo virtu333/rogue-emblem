@@ -7303,7 +7303,11 @@ export class BattleScene extends Phaser.Scene {
   async useConsumable(unit, item) {
     const session = battleSession(this);
     if (!isCurrentBattleSession(this, session)) return false;
-    if (item?.effect === 'promote') return this.executePromotion(unit, item);
+    if (item?.effect === 'promote')
+      return this.executePromotion(unit, item).catch((error) => {
+        reportAsyncError('promotion_failed', error, { unit: unit.name });
+        return false;
+      });
     if (item?.effect === 'reclass') return this.showReclassClassPicker(unit, item);
     const target = ['cure', 'cureHeal'].includes(item?.effect)
       ? this._pendingCureTarget || unit
@@ -9146,6 +9150,16 @@ export class BattleScene extends Phaser.Scene {
 
   /** Suspend-checkpoint shim (see BattleSuspendController). */
   _captureSuspendCheckpoint(options = {}) {
+    if (!Number.isInteger(options.session)) {
+      reportAsyncError(
+        'battle_checkpoint_missing_session',
+        new Error('Checkpoint origin session required'),
+        {
+          scene: this.scene?.key || 'Battle',
+        },
+      );
+      return false;
+    }
     if (!isCurrentBattleSession(this, options.session)) return false;
     return (this._battleSuspendController ||= new BattleSuspendController(this)).captureCheckpoint(
       options,
