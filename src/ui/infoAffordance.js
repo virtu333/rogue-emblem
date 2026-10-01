@@ -163,9 +163,13 @@ function previewText(content) {
  * never takes pointer events, so it cannot swallow the click it describes.
  *
  * @param {HTMLElement} target
- * @param {() => (string|Node|Node[]|{content: string|Node|Node[], footer?: string}|null)} contentFn
- *   read each time the preview is about to open; null/'' skips this time (e.g. a
- *   disclosure that is already open). An object may carry its own `footer`.
+ * @param {string|(() => (string|Node|Node[]|{content: string|Node|Node[], footer?: string}|null))} contentFn
+ *   A string is static text: the popover holds it from creation and `aria-describedby`
+ *   points at it at once (the caller mounts the returned popover, as attachInfo does).
+ *   A function is read each time the preview is about to open; null/'' skips this time
+ *   (e.g. a disclosure that is already open), and an object may carry its own `footer`.
+ *   The popover is mounted, and `aria-describedby` set, on first open, so a device that
+ *   never previews (touch) is never left pointing at a node that is not in the page.
  * @param {object} [options]
  * @param {string} [options.footer] the line under the content ('' for none)
  * @param {string} [options.media] pointer media query that must match (checked at
@@ -182,13 +186,22 @@ export function bindHoverPreview(
   tip.className = 're-info-tip';
   tip.setAttribute('role', 'tooltip');
   tip.id = `re-info-tip-${++tipId}`;
+  const isStatic = typeof contentFn === 'string';
+  const read = isStatic ? () => contentFn : contentFn;
   if (typeof tip.showPopover !== 'function') {
-    const text = previewText(contentFn());
+    const raw = read();
+    const text = previewText(
+      raw && typeof raw === 'object' && 'content' in raw ? raw.content : raw,
+    );
     if (text) target.title = text;
     return null;
   }
   tip.popover = 'manual';
-  target.setAttribute('aria-describedby', tip.id);
+  if (isStatic) {
+    tip.textContent = contentFn;
+    tip.dataset.footer = footer;
+    target.setAttribute('aria-describedby', tip.id);
+  }
   let showTimer = null;
   let hideTimer = null;
   const place = () => {
@@ -206,7 +219,7 @@ export function bindHoverPreview(
   };
   const open = () => {
     if (!target.isConnected || tip.matches?.(':popover-open') || !matches(media)) return;
-    const raw = contentFn();
+    const raw = read();
     const resolved = raw && typeof raw === 'object' && 'content' in raw ? raw : { content: raw };
     const content = resolved.content;
     if (!content || (Array.isArray(content) && !content.length)) return;
@@ -216,6 +229,7 @@ export function bindHoverPreview(
     if (typeof content === 'string') tip.textContent = content;
     else tip.replaceChildren(...[content].flat());
     tip.dataset.footer = resolved.footer ?? footer;
+    target.setAttribute('aria-describedby', tip.id);
     try {
       tip.showPopover();
       place();
@@ -280,7 +294,7 @@ export function attachInfo(card, { title, open, preview = '', heading, enabled, 
   glyph.setAttribute('aria-hidden', 'true');
   glyph.textContent = 'i';
   info.append(glyph);
-  const tip = preview && hoverPointer() ? bindHoverPreview(info, () => preview) : null;
+  const tip = preview && hoverPointer() ? bindHoverPreview(info, preview) : null;
   if (decorate) decorate(info);
   else info.addEventListener('click', () => open());
   if (head) {

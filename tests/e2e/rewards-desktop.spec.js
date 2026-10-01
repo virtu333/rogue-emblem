@@ -40,16 +40,22 @@ test('Escape after claiming rewards never opens Settings on the finishing battle
   await dialog.getByRole('button', { name: 'Take gold', exact: true }).click();
   // Escape while the finished battle is still the active scene: the reward dialog is gone
   // and the NodeMap transition has not landed (the window the old canvas-loot check leaked).
+  let pressesInBattle = 0;
   await expect
     .poll(
       async () => {
         const scene = await page.evaluate(() => window.__sceneState?.activeScene);
-        if (scene === 'Battle') await page.keyboard.press('Escape');
+        if (scene === 'Battle') {
+          pressesInBattle++;
+          await page.keyboard.press('Escape');
+        }
         return scene;
       },
       { timeout: 20_000 },
     )
     .toBe('NodeMap');
+  // Not vacuous: Escape really was pressed while the finished battle was still active.
+  expect(pressesInBattle).toBeGreaterThan(0);
   expect(await page.evaluate(() => window.__settingsSeen)).toEqual([]);
 });
 
