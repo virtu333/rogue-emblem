@@ -148,10 +148,23 @@ function cleanFallen(u) {
   return out;
 }
 
+/**
+ * At most `max` units in their own order; when some must go, every lord stays (a late
+ * third lord is still in the record, and so in the lords-met backfill).
+ */
+function keepLordsFirst(list, max) {
+  if (list.length <= max) return list;
+  const lords = list.filter((u) => u.isLord === true);
+  const others = list.filter((u) => u.isLord !== true);
+  const keep = new Set([...lords, ...others].slice(0, max));
+  return list.filter((u) => keep.has(u));
+}
+
 const validUnits = (list, max) =>
-  (Array.isArray(list) ? list : [])
-    .slice(0, max)
-    .filter((u) => isObject(u) && typeof u.name === 'string');
+  keepLordsFirst(
+    (Array.isArray(list) ? list : []).filter((u) => isObject(u) && typeof u.name === 'string'),
+    max,
+  );
 
 function cleanRecord(record) {
   const v2 = Number.isInteger(record.v) && record.v >= RUN_RECORD_VERSION;
@@ -176,8 +189,8 @@ function cleanRecord(record) {
 }
 
 /**
- * An older record kept lean: survivors keep identity + tally, the fallen keep who they
- * were and where they fell. Stable under a second pass.
+ * An older record kept lean: survivors keep identity + tally (the fallen hold no more
+ * than that, plus where they fell). Stable under a second pass.
  */
 function trimRecord(record) {
   if (!record.v) return record;
@@ -188,13 +201,6 @@ function trimRecord(record) {
       for (const key of DETAIL_KEYS) delete out[key];
       return out;
     }),
-    fallen: record.fallen.map((u) => ({
-      name: u.name,
-      className: u.className,
-      level: u.level,
-      isLord: u.isLord,
-      ...(u.fellAt ? { fellAt: u.fellAt } : {}),
-    })),
   };
 }
 
@@ -231,9 +237,21 @@ export function mergeRunRecords(...sources) {
     byId.set(clean.id, held ? preferred(held, clean) : clean);
   }
   return [...byId.values()]
-    .sort((a, b) => b.endedAt - a.endedAt || a.id.localeCompare(b.id))
+    .sort((a, b) => b.endedAt - a.endedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .slice(0, MAX_RUN_RECORDS)
     .map((record, index) => (index < DETAILED_RUN_RECORDS ? record : trimRecord(record)));
+}
+
+/**
+ * Smaller and smaller archives for a save that hit the storage quota (pure, lazy):
+ * first every record lean (identity + tally), then the lean archive without its oldest
+ * win, one at a time, down to none. The meta save writes the first that fits, so a
+ * full store never keeps a run's payout off disk for the sake of its history.
+ * @param {object[]} records  clean records, newest first (mergeRunRecords output)
+ */
+export function* runRecordsUnderPressure(records) {
+  const lean = (Array.isArray(records) ? records : []).map(trimRecord);
+  for (let n = lean.length; n >= 0; n--) yield lean.slice(0, n);
 }
 
 // ── Writer helpers (RunManager builds a won run's record from these) ──────────
@@ -312,12 +330,10 @@ export function fallenRecord(unit) {
  * rest in the order they fell; the list stays in the order they fell.
  */
 export function fallenForRecord(fallen) {
-  const list = (Array.isArray(fallen) ? fallen : []).filter(
-    (u) => isObject(u) && typeof u.name === 'string' && !u.isCaravan,
+  return keepLordsFirst(
+    (Array.isArray(fallen) ? fallen : []).filter(
+      (u) => isObject(u) && typeof u.name === 'string' && !u.isCaravan,
+    ),
+    MAX_RECORD_FALLEN,
   );
-  if (list.length <= MAX_RECORD_FALLEN) return list;
-  const keep = new Set(
-    [...list.filter((u) => u.isLord), ...list.filter((u) => !u.isLord)].slice(0, MAX_RECORD_FALLEN),
-  );
-  return list.filter((u) => keep.has(u));
 }

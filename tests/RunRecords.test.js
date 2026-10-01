@@ -1,5 +1,10 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { MAX_RECORD_FALLEN, fallenForRecord, mergeRunRecords } from '../src/engine/RunRecords.js';
+import {
+  MAX_RECORD_FALLEN,
+  fallenForRecord,
+  mergeRunRecords,
+  runRecordsUnderPressure,
+} from '../src/engine/RunRecords.js';
 import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { getMetaKey } from '../src/engine/SlotManager.js';
@@ -151,6 +156,26 @@ describe('victory records v2', () => {
     expect(clean.fallen.map((u) => u.name)).toEqual(fallen.slice(0, 20).map((u) => u.name));
   });
 
+  it('keeps every surviving lord when more than 20 survive, in roster order', () => {
+    const roster = Array.from({ length: 24 }, (_, i) => ({
+      name: `S${i}`,
+      className: 'Fighter',
+      level: 1,
+      isLord: i === 0 || i === 23,
+    }));
+    const [clean] = mergeRunRecords([{ ...dirtyV2(), roster }]);
+    // 19 places left after the two lords: S0 (a lord), S1..S18, then the late lord S23.
+    expect(clean.roster.map((u) => u.name)).toEqual([
+      ...Array.from({ length: 19 }, (_, i) => `S${i}`),
+      'S23',
+    ]);
+  });
+
+  it('orders wins that ended together by id code units, never by locale', () => {
+    const ids = mergeRunRecords(['b', 'a', 'B', 'ä'].map((id) => record(id, 7))).map((r) => r.id);
+    expect(ids).toEqual(['B', 'a', 'b', 'ä']);
+  });
+
   it('the writer keeps every fallen lord when more than 20 fell, in the order they fell', () => {
     const fallen = Array.from({ length: 24 }, (_, i) => ({ name: `F${i}`, isLord: i >= 22 }));
     fallen.push({ name: 'Caravan', isCaravan: true });
@@ -218,10 +243,25 @@ describe('victory records v2 on a v1-era client', () => {
 });
 
 describe('victory records v2: size budget', () => {
+  // A fallen unit with every field a record keeps for the fallen.
+  const FALLEN_FULL = {
+    name: 'Kai',
+    className: 'Hero',
+    level: 7,
+    isLord: false,
+    specialCharId: 'old_knight',
+    epithet: 'the Untouched',
+    epithetForm: 'the',
+    tier: 'promoted',
+    portraitVariant: 'variant_hero_2',
+    tally: { kills: 5, crits: 1 },
+    fellAt: { act: 'act2', battle: 7 },
+  };
   const v2Record = (i) => ({
     ...dirtyV2(),
     id: `run-${i}`,
     endedAt: 1000 + i,
+    fallen: [FALLEN_FULL],
   });
 
   it(`keeps detail on the newest 10; older ones trim to identity + tally`, () => {
@@ -231,7 +271,8 @@ describe('victory records v2: size budget', () => {
       const unit = rec.roster[0];
       expect(rec.v).toBe(2);
       expect(unit.tally).toEqual({ kills: 14, bossKills: 2, healed: 120 });
-      expect(rec.fallen).toHaveLength(3);
+      // Old wins keep their fallen whole: face, title and tally, and where they fell.
+      expect(rec.fallen).toEqual([FALLEN_FULL]);
       if (index < 10) expect(unit.stats).toHaveLength(8);
       else expect(Object.keys(unit)).toEqual(['name', 'className', 'level', 'isLord', 'tally']);
     }
@@ -306,9 +347,97 @@ describe('victory records v2: size budget', () => {
     );
     // A slot's meta save holds all of it (×3 slots in localStorage, one cloud row each).
     // Budgets (v1's realistic ceiling was ~203 KB): a regression guard, not a target.
-    expect(typical).toBeLessThan(260_000);
-    expect(realistic).toBeLessThan(560_000);
-    expect(worst).toBeLessThan(1_050_000);
+    expect(typical).toBeLessThan(270_000);
+    expect(realistic).toBeLessThan(720_000);
+    expect(worst).toBeLessThan(1_250_000);
+  });
+});
+
+describe('victory records under storage pressure', () => {
+  const win = (i) => ({ ...dirtyV2(), id: `w${i}`, endedAt: 100 + i });
+
+  it('offers the lean archive, then drops the oldest win one at a time, down to none', () => {
+    const records = mergeRunRecords(Array.from({ length: 3 }, (_, i) => win(i)));
+    const steps = [...runRecordsUnderPressure(records)];
+    expect(steps.map((list) => list.map((r) => r.id))).toEqual([
+      ['w2', 'w1', 'w0'],
+      ['w2', 'w1'],
+      ['w2'],
+      [],
+    ]);
+    const lean = steps[0][0];
+    expect(lean.roster[0]).toEqual({ name: 'Ottoline', className: 'Sage', level: 14, isLord: false, tally: { kills: 14, bossKills: 2, healed: 120 } }); // prettier-ignore
+    expect(lean.fallen).toEqual(records[0].fallen);
+    // The input is left as it was (pure).
+    expect(records[0].roster[0].stats).toHaveLength(8);
+  });
+
+  /** localStorage that refuses any write past `limit` characters in all. */
+  function quotaStore(limit) {
+    const store = new Map();
+    const size = () => [...store.values()].reduce((n, v) => n + v.length, 0);
+    return {
+      store,
+      getItem: (k) => store.get(k) ?? null,
+      setItem(k, v) {
+        const after = size() - (store.get(k)?.length || 0) + String(v).length;
+        if (after > limit) {
+          const err = new Error('The quota has been exceeded.');
+          err.name = 'QuotaExceededError';
+          throw err;
+        }
+        store.set(k, String(v));
+      },
+      removeItem: (k) => store.delete(k),
+    };
+  }
+
+  it('a payout that no longer fits keeps the archive lean and lands', () => {
+    const records = Array.from({ length: 12 }, (_, i) => win(i));
+    const storage = quotaStore(Infinity);
+    vi.stubGlobal('localStorage', storage);
+    const meta = new MetaProgressionManager([], getMetaKey(1));
+    meta.runRecords = mergeRunRecords(records);
+    expect(meta._save().ok).toBe(true);
+    const full = storage.store.get(getMetaKey(1)).length;
+    // Room for a lean archive only: the detailed copy (plus the payout) no longer fits.
+    const leanBytes = JSON.stringify([...runRecordsUnderPressure(meta.runRecords)][0]).length;
+    const detailBytes = JSON.stringify(meta.runRecords).length;
+    const limit = full - detailBytes + leanBytes + 2_000;
+    const tight = quotaStore(limit);
+    tight.store.set(getMetaKey(1), storage.store.get(getMetaKey(1)));
+    vi.stubGlobal('localStorage', tight);
+    const result = meta.applyRunPayout((m) => {
+      m.addValor(500);
+      m.recordRunEnd({ result: 'victory', victoryRecord: { ...dirtyV2(), id: 'new', endedAt: 999 } }); // prettier-ignore
+    });
+    expect(result.ok).toBe(true);
+    const saved = JSON.parse(tight.store.get(getMetaKey(1)));
+    expect(saved.totalValor).toBe(500);
+    expect(saved.runRecords).toHaveLength(13);
+    expect(saved.runRecords[0].id).toBe('new');
+    expect(saved.runRecords.every((r) => r.roster.every((u) => !('stats' in u)))).toBe(true);
+    expect(meta.runRecords).toEqual(saved.runRecords);
+  });
+
+  it('when even the lean archive is too big, the oldest wins go first', () => {
+    const tight = quotaStore(Infinity);
+    vi.stubGlobal('localStorage', tight);
+    const meta = new MetaProgressionManager([], getMetaKey(1));
+    meta.runRecords = mergeRunRecords(Array.from({ length: 12 }, (_, i) => win(i)));
+    expect(meta._save().ok).toBe(true);
+    const lean = [...runRecordsUnderPressure(meta.runRecords)][0];
+    // Room for about half the lean archive.
+    const base = tight.store.get(getMetaKey(1)).length - JSON.stringify(meta.runRecords).length;
+    const limited = quotaStore(base + JSON.stringify(lean.slice(0, 6)).length + 200);
+    vi.stubGlobal('localStorage', limited);
+    expect(meta.applyRunPayout((m) => m.addValor(1)).ok).toBe(true);
+    const saved = JSON.parse(limited.store.get(getMetaKey(1)));
+    expect(saved.totalValor).toBe(1);
+    expect(saved.runRecords.map((r) => r.id)).toEqual(lean.slice(0, saved.runRecords.length).map((r) => r.id)); // prettier-ignore
+    expect(saved.runRecords.length).toBeGreaterThanOrEqual(6);
+    expect(saved.runRecords.length).toBeLessThan(12);
+    expect(saved.runRecords[0].id).toBe('w11'); // the newest win stays
   });
 });
 
