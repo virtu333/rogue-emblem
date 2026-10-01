@@ -243,6 +243,7 @@ describe('act advance: act card with the transition lines', () => {
       getStartingLordNames: () => ['Edric', 'Sera'],
     };
     const scene = {
+      _battleSession: 1,
       gameData: entries
         ? gameData
         : { ...gameData, dialogue: { ...gameData.dialogue, actTransitions: {} } },
