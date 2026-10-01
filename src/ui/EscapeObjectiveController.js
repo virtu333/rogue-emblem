@@ -1,3 +1,4 @@
+import { battleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { revealSettledVision } from './BattleActionCompletion.js';
 // EscapeObjectiveController — Escape battle objective (markers + escape flow).
@@ -90,6 +91,7 @@ export class EscapeObjectiveController {
    */
   executeEscape(unit) {
     const scene = this.scene;
+    const session = battleSession(scene);
     scene.commitVisionSnapshotIfPending();
     scene._clearCombatRollSession?.();
     scene._clearSelectedWeaponArt?.();
@@ -129,7 +131,7 @@ export class EscapeObjectiveController {
     scene._timelineFacts = [...(scene._timelineFacts || []), `${unit.name} escaped.`];
     // Vision from those still on the field (the escaped unit's path never revealed).
     revealSettledVision(scene);
-    scene._captureSuspendCheckpoint?.();
+    scene._captureSuspendCheckpoint?.({ session });
     scene.turnManager.checkPlayerPhaseComplete();
   }
 

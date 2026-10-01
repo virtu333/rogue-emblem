@@ -20,6 +20,7 @@ const lord = (name, col, row, extra = {}) => ({
 function beatsScene({ playerUnits, dialogue = {}, tutorial = false } = {}) {
   const shown = [];
   const scene = {
+    _battleSession: 1,
     playerUnits,
     battleParams: { tutorialMode: tutorial },
     gameData: { dialogue },
@@ -87,6 +88,7 @@ describe('the commander falls', () => {
   it('speaks its last words before the run ends', async () => {
     const unit = lord('Edric', 0, 0, { isCommander: true, currentHP: 0, className: 'Lord' });
     const scene = {
+      _battleSession: 1,
       registry: { get: () => null },
       removeUnitGraphic: vi.fn(),
       playerUnits: [unit],

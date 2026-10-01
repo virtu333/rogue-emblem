@@ -56,6 +56,7 @@ function items(labels) {
 function hudFor(state, labels) {
   vi.stubGlobal('document', { createElement: fakeElement });
   const scene = {
+    _battleSession: 1,
     battleState: state,
     turnManager: { currentPhase: 'player' },
     dangerZone: { visible: false, tiles: [] },

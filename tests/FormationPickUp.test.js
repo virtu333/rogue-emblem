@@ -86,6 +86,7 @@ function setup({ fog = false, enemies = [] } = {}) {
   const map = Array.from({ length: 5 }, () => Array(7).fill(PLAIN));
   const drawn = [];
   const scene = {
+    _battleSession: 1,
     gameData,
     enemyUnits: enemies,
     npcUnits: [],

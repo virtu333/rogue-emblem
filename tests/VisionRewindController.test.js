@@ -52,6 +52,7 @@ function makeDisplayObject(seed = {}) {
 
 function makeScene(overrides = {}) {
   return {
+    _battleSession: 1,
     visionSnapshot: null,
     pendingVisionSnapshot: null,
     visionDialog: null,
@@ -837,6 +838,7 @@ describe('VisionRewindController', () => {
       scene.enemyUnits = [];
       scene.npcUnits = [];
       scene.visionSnapshot = {
+        _battleSession: 1,
         runBattleState: { convoy: { weapons: [], consumables: [] }, accessories: [], gold: 0 },
         playerUnits: [{ name: 'A', stats: {}, currentHP: 20, skills: [], col: 0, row: 0 }],
         enemyUnits: [],
@@ -950,6 +952,7 @@ describe('VisionRewindController', () => {
       scene.enemyUnits = [];
       scene.npcUnits = [];
       scene.visionSnapshot = {
+        _battleSession: 1,
         playerUnits: [{ name: 'Edric', col: 1, row: 2, stats: {} }],
         enemyUnits: [],
         npcUnits: [],
@@ -974,6 +977,7 @@ describe('VisionRewindController', () => {
       scene.enemyUnits = [];
       scene.npcUnits = [];
       scene.visionSnapshot = {
+        _battleSession: 1,
         playerUnits: [],
         enemyUnits: [],
         npcUnits: [],
@@ -1007,6 +1011,7 @@ describe('VisionRewindController', () => {
         [overlay10, overlay11],
       ];
       scene.visionSnapshot = {
+        _battleSession: 1,
         playerUnits: [],
         enemyUnits: [],
         npcUnits: [],
@@ -1033,6 +1038,7 @@ describe('VisionRewindController', () => {
       scene.enemyUnits = [];
       scene.npcUnits = [];
       scene.visionSnapshot = {
+        _battleSession: 1,
         playerUnits: [],
         enemyUnits: [],
         npcUnits: [],
@@ -1056,6 +1062,7 @@ describe('VisionRewindController', () => {
       scene._villageState = { col: 4, row: 6, status: 'visited', rewardItemUid: 'itm_9_x' };
       scene._caravanExited = true;
       scene.visionSnapshot = {
+        _battleSession: 1,
         playerUnits: [],
         enemyUnits: [],
         npcUnits: [],
@@ -1084,6 +1091,7 @@ describe('VisionRewindController', () => {
       scene.npcUnits = [];
       scene._caravanExited = true;
       scene.visionSnapshot = {
+        _battleSession: 1,
         playerUnits: [],
         enemyUnits: [],
         npcUnits: [],
@@ -1105,6 +1113,7 @@ describe('VisionRewindController', () => {
       scene.npcUnits = [];
       scene.turnPar = 12; // bumped by reinforcements
       scene.visionSnapshot = {
+        _battleSession: 1,
         playerUnits: [],
         enemyUnits: [],
         npcUnits: [],
@@ -1127,6 +1136,7 @@ describe('VisionRewindController', () => {
       scene.npcUnits = [];
       scene.turnPar = 10;
       scene.visionSnapshot = {
+        _battleSession: 1,
         playerUnits: [],
         enemyUnits: [],
         npcUnits: [],
@@ -1149,6 +1159,7 @@ describe('VisionRewindController', () => {
       scene.npcUnits = [];
       scene.turnPar = 5; // current value
       scene.visionSnapshot = {
+        _battleSession: 1,
         playerUnits: [],
         enemyUnits: [],
         npcUnits: [],

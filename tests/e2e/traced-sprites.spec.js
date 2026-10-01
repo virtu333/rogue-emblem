@@ -74,7 +74,7 @@ test('traced sprites use tile anchors, animate and stay aligned after rewind', a
     b.registry.set('activeSlot', 1);
     setActiveSlot(1);
     b.runManager.visionChargesRemaining = 3;
-    b._captureSuspendCheckpoint();
+    b._captureSuspendCheckpoint({ session: b._battleSession });
     b.selectUnit(b.playerUnits[0]);
     b.moveUnit(b.playerUnits[0], 7, 2);
   });

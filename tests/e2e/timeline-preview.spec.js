@@ -52,7 +52,7 @@ async function boot(page, query = '') {
       u.stats.HP = 99;
       u.currentHP = 99;
     }
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
   });
 }
 
@@ -63,7 +63,7 @@ async function playTurn(page) {
     for (const u of [...s.playerUnits]) {
       if (u.hasActed) continue;
       s.selectUnit(u);
-      s.finishUnitAction(u, { skipCanto: true });
+      s.finishUnitAction(u, { skipCanto: true, session: s._battleSession });
       await new Promise((r) => setTimeout(r, 60));
     }
     s.forceEndTurn();
@@ -98,7 +98,7 @@ async function shuffle(page, times) {
       u.row = at.row;
       u.currentHP = 99 - (i % 7);
       s.updateUnitPosition?.(u);
-      s._captureSuspendCheckpoint();
+      s._captureSuspendCheckpoint({ session: s._battleSession });
       await new Promise((r) => setTimeout(r, 5));
     }
   }, times);
@@ -240,7 +240,7 @@ for (const viewport of [
           s.removeUnitGraphic(enemy);
           s.addUnitGraphic(enemy);
         }
-        s._captureSuspendCheckpoint();
+        s._captureSuspendCheckpoint({ session: s._battleSession });
       });
       await playTurn(page);
       await shuffle(page, 6);

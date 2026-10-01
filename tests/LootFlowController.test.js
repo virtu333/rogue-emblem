@@ -96,6 +96,7 @@ function makeScene() {
   const containers = [];
   const audio = { playSFX: vi.fn() };
   const scene = {
+    _battleSession: 1,
     cameras: {
       main: {
         centerX: 320,

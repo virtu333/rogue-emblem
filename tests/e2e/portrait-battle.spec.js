@@ -527,7 +527,8 @@ test('turning the phone mid-battle does not change how the battle plays out', as
     s.updateUnitPosition(enemy);
     // First-use tips are per-save UI state; keep them out of the runs being compared.
     s.registry.get('settings').setHints(false);
-    if (!s._captureSuspendCheckpoint()) throw new Error('setup save failed');
+    if (!s._captureSuspendCheckpoint({ session: s._battleSession }))
+      throw new Error('setup save failed');
   });
   const saved = await saveProfile(page);
 

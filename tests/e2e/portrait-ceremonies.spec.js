@@ -652,7 +652,7 @@ for (const viewport of PORTRAIT_PHONES) {
         s.registry.set('activeSlot', 1);
         setActiveSlot(1);
         s.runManager.visionChargesRemaining = 3;
-        s._captureSuspendCheckpoint();
+        s._captureSuspendCheckpoint({ session: s._battleSession });
         // A lord who fell to a boss deep in the run: the longest result lines.
         s.runManager.completedBattles = 12;
         const commander = s.playerUnits.find((u) => u.isCommander);

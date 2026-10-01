@@ -4,6 +4,7 @@ import { specialCharacterRefusalText } from './SpecialCharacterDialogue.js';
 import {
   canPromote,
   canReclass,
+  canApplyReclass,
   resolvePromotionTargets,
   getReclassTargets,
   promoteUnit,
@@ -111,7 +112,8 @@ function reclass(run, unit, sealItem, newClassData, gameData) {
   if (!canReclass(unit)) return { ok: false, reason: 'This unit cannot reclass.' };
   const notices = [];
   const oldClassData = gameData.classes.find((c) => c.name === unit.className);
-  if (!oldClassData) return { ok: false, reason: 'Reclass data missing.' };
+  if (!canApplyReclass(unit, newClassData, oldClassData, gameData.classes))
+    return { ok: false, reason: 'Reclass data missing or invalid.' };
   // Track old proficiency types to detect new ones
   const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
@@ -123,6 +125,8 @@ function reclass(run, unit, sealItem, newClassData, gameData) {
     gameData.skills,
     gameData.traits || null,
   );
+
+  if (result === null) return { ok: false, reason: 'Reclass is unavailable.' };
 
   for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData)) {
     if (!addToInventory(unit, newWeapon))

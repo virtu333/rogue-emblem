@@ -313,6 +313,7 @@ describe('onDefeat recovery path', () => {
   it('creates defeat recovery panel when transitionToRunCompleteWithRetry returns false', async () => {
     const pending = [];
     const scene = makeRecoveryScene({
+      _battleSession: 1,
       battleState: 'PLAYER_IDLE',
       battleParams: { tutorialMode: false },
       scene: { isActive: () => true },

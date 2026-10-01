@@ -1,3 +1,5 @@
+import { createBattleTimeline } from '../src/engine/BattleTimeline.js';
+import { createBattleRng } from '../src/engine/BattleRng.js';
 // BattleSuspendController: checkpoint capture (RNG reseed + persist), exact
 // unit serialization for mid-turn state, and the resume restore path.
 
@@ -38,9 +40,13 @@ function makeUnit(overrides = {}) {
 
 function makeScene(overrides = {}) {
   const scene = {
+    _battleSession: 1,
     battleState: 'PLAYER_IDLE',
     runManager: {
       battleInProgress: { nodeId: 'n1', checkpoint: null },
+      toJSON() {
+        return { battleInProgress: this.battleInProgress };
+      },
       setBattleCheckpoint: vi.fn(function (cp) {
         this.battleInProgress.checkpoint = cp;
       }),
@@ -222,7 +228,12 @@ describe('applyUnits (resume restore)', () => {
 
   it('restores units with graphics, relinked weapons, dimming, and condition icons', () => {
     const scene = makeScene();
-    const source = makeScene({ playerUnits: [makeUnit()], enemyUnits: [], npcUnits: [] });
+    const source = makeScene({
+      _battleSession: 1,
+      playerUnits: [makeUnit()],
+      enemyUnits: [],
+      npcUnits: [],
+    });
     new BattleSuspendController(source).captureCheckpoint();
     const cp = roundTrip(source.runManager.battleInProgress.checkpoint);
 
@@ -242,6 +253,7 @@ describe('applyUnits (resume restore)', () => {
     const scene = makeScene();
     new BattleSuspendController(scene).applyUnits(
       roundTrip({
+        _battleSession: 1,
         playerUnits: [],
         enemyUnits: [],
         npcUnits: [],
@@ -291,6 +303,7 @@ describe('applyUnits (resume restore)', () => {
     const scene = makeScene();
     new BattleSuspendController(scene).applyUnits(
       roundTrip({
+        _battleSession: 1,
         playerUnits: [],
         enemyUnits: [],
         npcUnits: [],
@@ -327,6 +340,7 @@ describe('applyUnits (resume restore)', () => {
     const scene = makeScene();
     new BattleSuspendController(scene).applyUnits(
       roundTrip({
+        _battleSession: 1,
         playerUnits: [],
         enemyUnits: [],
         npcUnits: [],
@@ -429,6 +443,7 @@ it('migrates pre-commitment trade saves without spending the remaining action or
     }),
   ];
   new BattleSuspendController(scene).applyUnits({
+    _battleSession: 1,
     playerUnits: JSON.parse(JSON.stringify(units)),
     enemyUnits: [],
     npcUnits: [],
@@ -593,4 +608,115 @@ it('restores legacy Gaspar checkpoint units with Measured Step and fixed traits 
   }
   // Restored active and benched copies share the same policy without touching the source.
   expect(old.skills).toEqual(['canto', 'aegis']);
+});
+
+describe('checkpoint persistence retry ownership', () => {
+  it('a retry writes the captured run candidate even if live state changed, and clears the failure status', () => {
+    const scene = makeScene({ _battleSession: 1 });
+    scene.runManager.gold = 7;
+    scene.runManager.toJSON = function () {
+      return { gold: this.gold, battleInProgress: this.battleInProgress };
+    };
+    let stored = null;
+    let fail = true;
+    scene._persistBattleRunState = (candidate) => {
+      if (fail) return { ok: false, reason: 'write_error' };
+      stored = JSON.parse(JSON.stringify(candidate || scene.runManager.toJSON()));
+      return { ok: true };
+    };
+    const controller = new BattleSuspendController(scene);
+    expect(controller.captureCheckpoint()).toBe(false);
+    scene.runManager.gold = 999;
+    scene.runManager.battleInProgress.checkpoint.goldEarned = 999;
+    scene.runManager.battleInProgress.nodeId = 'mutated live node';
+    fail = false;
+    expect(controller.retryCheckpoint()).toEqual({ ok: true });
+    expect(stored.gold).toBe(7);
+    expect(stored.battleInProgress.nodeId).toBe('n1');
+    expect(stored.battleInProgress.checkpoint.goldEarned).toBe(120);
+    expect(stored.battleInProgress.checkpoint.checkpointIndex).toBe(1);
+    expect(scene._checkpointPersistenceResult).toEqual({ ok: true });
+  });
+  it.each(['legacy', 'fixed-v1'])(
+    're-persists the identical %s checkpoint and RNG instead of recapturing',
+    (policy) => {
+      const rng = createBattleRng(137);
+      rng();
+      rng();
+      const scene = makeScene({ _battleSession: 1, _battleRewindPolicy: policy, _battleRng: rng });
+      scene.runManager.rngSeed = 137;
+      scene._persistBattleRunState.mockReturnValueOnce({ ok: false, reason: 'write_error' });
+      const controller = new BattleSuspendController(scene);
+      expect(controller.captureCheckpoint()).toBe(false);
+      const checkpoint = structuredClone(scene.runManager.battleInProgress.checkpoint);
+      const cursor = rng.getState();
+      const reseeds = scene.reseedBattleRng.mock.calls.length;
+      expect(controller.retryCheckpoint()).toEqual({ ok: true });
+      expect(scene.runManager.battleInProgress.checkpoint).toEqual(checkpoint);
+      expect(rng.getState()).toEqual(cursor);
+      expect(scene.reseedBattleRng.mock.calls.length).toBe(reseeds);
+      if (policy === 'fixed-v1') {
+        expect(cursor).toEqual({
+          algorithm: 'mulberry32-v1',
+          cursor: (137 + 2 * 0x6d2b79f5) >>> 0,
+        });
+        expect(reseeds).toBe(0);
+      }
+      scene._battleSession = 2;
+      expect(controller.retryCheckpoint()).toEqual({ ok: false, reason: 'stale_session' });
+      expect(scene._persistBattleRunState).toHaveBeenCalledTimes(2);
+    },
+  );
+});
+
+describe('checkpoint retry snapshots', () => {
+  it('does not clone the complete run on a successful save', () => {
+    const scene = makeScene();
+    const json = { battleInProgress: scene.runManager.battleInProgress };
+    scene.runManager.toJSON = vi.fn(() => json);
+    const clone = vi.spyOn(globalThis, 'structuredClone');
+    try {
+      expect(new BattleSuspendController(scene).captureCheckpoint()).toBe(true);
+      expect(scene.runManager.toJSON).toHaveBeenCalledOnce();
+      expect(clone.mock.calls.some(([arg]) => arg === json)).toBe(false);
+    } finally {
+      clone.mockRestore();
+    }
+  });
+  it('keeps the most trimmed failed quota candidate and adopts it on retry success', () => {
+    const scene = makeScene({ _battleSession: 1 });
+    scene.runManager.battleInProgress.timeline = {
+      ...createBattleTimeline(),
+      entries: [],
+      presentation: { nextId: 2, frames: ['large frame'] },
+      currentTurn: 4,
+      revision: 1,
+    };
+    scene._persistBattleRunState.mockReturnValue({ ok: false, reason: 'quota' });
+    const ctrl = new BattleSuspendController(scene);
+    expect(ctrl.captureCheckpoint()).toBe(false);
+    expect(ctrl._retryCandidate.battleInProgress.timeline.presentation).toBeNull();
+    expect(ctrl._retryCandidate.battleInProgress.timeline.earlierHistoryUnavailable).toBe(true);
+    scene.runManager.battleInProgress.timeline.currentTurn = 999;
+    scene._persistBattleRunState.mockReturnValue({ ok: true });
+    expect(ctrl.retryCheckpoint()).toEqual({ ok: true });
+    expect(scene._battleTimeline).toBe(scene.runManager.battleInProgress.timeline);
+    expect(scene._battleTimeline.currentTurn).toBe(4);
+    expect(scene._battleTimeline.earlierHistoryUnavailable).toBe(true);
+  });
+});
+
+it('a newer capture serialization error cannot retry a previous failed candidate', () => {
+  const scene = makeScene({ _battleSession: 1 });
+  scene._persistBattleRunState.mockReturnValue({ ok: false, reason: 'write_error' });
+  const ctrl = new BattleSuspendController(scene);
+  expect(ctrl.captureCheckpoint()).toBe(false);
+  expect(ctrl._retryCandidate).not.toBeNull();
+  scene.runManager.toJSON = () => {
+    throw Error('cannot serialize newer action');
+  };
+  expect(ctrl.captureCheckpoint()).toBe(false);
+  const writes = scene._persistBattleRunState.mock.calls.length;
+  expect(ctrl.retryCheckpoint()).toEqual({ ok: false, reason: 'checkpoint_replaced' });
+  expect(scene._persistBattleRunState).toHaveBeenCalledTimes(writes);
 });

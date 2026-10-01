@@ -175,7 +175,7 @@ test('night light layer follows movement and rewind, then shuts down cleanly', a
     b.registry.set('activeSlot', 1);
     setActiveSlot(1);
     b.runManager.visionChargesRemaining = 3;
-    b._captureSuspendCheckpoint();
+    b._captureSuspendCheckpoint({ session: b._battleSession });
     const layer = b._atmosphere.light;
     const before = { ...layer.stats };
     const unit = b.playerUnits[0];

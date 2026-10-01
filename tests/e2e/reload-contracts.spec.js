@@ -210,7 +210,7 @@ for (const action of ['level up', 'promotion']) {
         s.updateUnitPosition(enemy);
         s.updateHPBar(enemy);
       }
-      s._captureSuspendCheckpoint();
+      s._captureSuspendCheckpoint({ session: s._battleSession });
       return u.name;
     }, action);
     await tapUnit(page, name);
@@ -380,7 +380,7 @@ test('a resumed battle keeps its deployment and fallen counts for the Last', asy
       unit.currentHP = 0;
       await s.removeUnit(unit);
     }
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
     return { deployed, deployCount: s.battleParams.deployCount };
   });
   expect(before.deployed).toEqual([

@@ -49,6 +49,7 @@ function scene({ staves = ['Heal'], npcUnits = [], visible = null, state = 'UNIT
     inventory: [],
   };
   const s = {
+    _battleSession: 1,
     registry: {
       get: (key) =>
         ({

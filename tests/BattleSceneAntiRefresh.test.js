@@ -23,6 +23,7 @@ import { VisionRewindController } from '../src/ui/VisionRewindController.js';
 
 function makeCtx(extra = {}) {
   const ctx = Object.create(BattleScene.prototype);
+  ctx._battleSession = 1;
   ctx.registry = { get: vi.fn((key) => (key === 'activeSlot' ? 2 : null)) };
   ctx.runManager = { battleInProgress: null, roster: [] };
   return Object.assign(ctx, extra);
@@ -37,8 +38,8 @@ describe('BattleScene anti-refresh suspend', () => {
   describe('_persistBattleRunState', () => {
     it('saves the run for the active slot', () => {
       const ctx = makeCtx();
-      BattleScene.prototype._persistBattleRunState.call(ctx);
-      expect(saveRunMock).toHaveBeenCalledWith(ctx.runManager, null, 2);
+      BattleScene.prototype._persistBattleRunState.call(ctx, null, { session: ctx._battleSession });
+      expect(saveRunMock).toHaveBeenCalledWith(ctx.runManager, null, 2, { candidate: null });
     });
 
     it('routes the cloud push callback when a cloud session exists', () => {
@@ -50,13 +51,21 @@ describe('BattleScene anti-refresh suspend', () => {
           return null;
         }),
       };
-      BattleScene.prototype._persistBattleRunState.call(ctx);
-      expect(saveRunMock).toHaveBeenCalledWith(ctx.runManager, expect.any(Function), 3);
+      BattleScene.prototype._persistBattleRunState.call(ctx, null, { session: ctx._battleSession });
+      expect(saveRunMock).toHaveBeenCalledWith(ctx.runManager, expect.any(Function), 3, {
+        candidate: null,
+      });
     });
 
     it('no-ops without a runManager or an active slot', () => {
-      BattleScene.prototype._persistBattleRunState.call(makeCtx({ runManager: null }));
-      BattleScene.prototype._persistBattleRunState.call(makeCtx({ registry: { get: () => null } }));
+      BattleScene.prototype._persistBattleRunState.call(makeCtx({ runManager: null }), null, {
+        session: makeCtx({ runManager: null })._battleSession,
+      });
+      BattleScene.prototype._persistBattleRunState.call(
+        makeCtx({ registry: { get: () => null } }),
+        null,
+        { session: makeCtx({ registry: { get: () => null } })._battleSession },
+      );
       expect(saveRunMock).not.toHaveBeenCalled();
     });
 
@@ -65,7 +74,11 @@ describe('BattleScene anti-refresh suspend', () => {
       saveRunMock.mockImplementationOnce(() => {
         throw new Error('storage exploded');
       });
-      expect(() => BattleScene.prototype._persistBattleRunState.call(ctx)).not.toThrow();
+      expect(() =>
+        BattleScene.prototype._persistBattleRunState.call(ctx, null, {
+          session: ctx._battleSession,
+        }),
+      ).not.toThrow();
     });
   });
 
@@ -76,9 +89,11 @@ describe('BattleScene anti-refresh suspend', () => {
         .mockReturnValue(true);
       const ctx = makeCtx();
 
-      expect(BattleScene.prototype._captureSuspendCheckpoint.call(ctx)).toBe(true);
+      expect(
+        BattleScene.prototype._captureSuspendCheckpoint.call(ctx, { session: ctx._battleSession }),
+      ).toBe(true);
       const firstController = ctx._battleSuspendController;
-      BattleScene.prototype._captureSuspendCheckpoint.call(ctx);
+      BattleScene.prototype._captureSuspendCheckpoint.call(ctx, { session: ctx._battleSession });
 
       expect(firstController).toBeInstanceOf(BattleSuspendController);
       expect(ctx._battleSuspendController).toBe(firstController);
@@ -92,6 +107,7 @@ describe('BattleScene anti-refresh suspend', () => {
       const callOrder = [];
       const unit = { name: 'Galvin', skills: [], stats: { MOV: 5 }, faction: 'player' };
       const ctx = makeCtx({
+        _battleSession: 1,
         commitVisionSnapshotIfPending: vi.fn(),
         _clearCombatRollSession: vi.fn(),
         hideActionMenu: vi.fn(),
@@ -103,7 +119,10 @@ describe('BattleScene anti-refresh suspend', () => {
         turnManager: { unitActed: vi.fn(() => callOrder.push('unitActed')) },
       });
 
-      BattleScene.prototype.finishUnitAction.call(ctx, unit, { skipCanto: true });
+      BattleScene.prototype.finishUnitAction.call(ctx, unit, {
+        skipCanto: true,
+        session: ctx._battleSession,
+      });
 
       expect(unit.hasActed).toBe(true);
       expect(callOrder).toEqual(['checkpoint', 'unitActed']);

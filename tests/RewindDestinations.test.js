@@ -153,6 +153,7 @@ describe('summarizing a player activation', () => {
 function state(turn, phase = 'player', acted = []) {
   return captureBattleState(
     {
+      _battleSession: 1,
       playerUnits: ['u1', 'u2', 'u4'].map((id, i) => ({
         battleEntityId: id,
         name: names[id],

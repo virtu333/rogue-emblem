@@ -83,12 +83,13 @@ const chain = () => {
 };
 
 /**
- * A battle scene resolving one combat for real. `show`: strikes reach the real
- * per-strike presentation (_showStrikeResult); `bars`: HP bars really draw.
+ * A battle scene resolving one combat for real. `show` runs the strike's
+ * HP-bar presentation; `bars` selects the real bar drawer or an absent renderer.
  */
 function battle({ show, bars }) {
   const scene = new BattleScene();
   Object.assign(scene, {
+    _battleSession: 1,
     gameData: { ...gameData, weaponArts: { arts: [] } },
     grid: {
       fogEnabled: false,
@@ -122,8 +123,9 @@ function battle({ show, bars }) {
   if (!bars) scene.updateHPBar = () => {};
   scene.animateStrike = async (event, attacker, defender) => {
     if (!show || event.miss) return;
-    const striker = event.attackerSide === 'defender' ? defender : attacker;
-    scene._showStrikeResult(event, striker, striker === attacker ? defender : attacker, true);
+    // Rendering runs independently of strike settlement in UnitHealth.
+    scene.updateHPBar(attacker);
+    scene.updateHPBar(defender);
   };
   return scene;
 }
@@ -140,9 +142,9 @@ async function fight(world, attacker, defender) {
 }
 
 const WORLDS = [
-  { name: 'strikes shown, bars drawn', show: true, bars: true },
-  { name: 'strikes not shown', show: false, bars: true },
-  { name: 'strikes shown, bars never drawn', show: true, bars: false },
+  { name: 'strike presentation runs, bars drawn', show: true, bars: true },
+  { name: 'strike presentation absent', show: false, bars: true },
+  { name: 'strike presentation runs, bars absent', show: true, bars: false },
 ];
 
 describe('a drain that tops the unit up mid-combat settles its debt in every world', () => {

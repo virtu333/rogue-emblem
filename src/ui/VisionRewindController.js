@@ -1,3 +1,4 @@
+import { battleSession } from './BattleSession.js';
 import { visionLabel } from './visionLabel.js';
 import { BattleHistorySession } from './BattleHistorySession.js';
 import { observeHistoryAction, resetHistoryRecording } from './BattleHistoryRecorder.js';
@@ -658,6 +659,7 @@ export class VisionRewindController {
    */
   settleParkedActivation() {
     const scene = this.scene;
+    const session = battleSession(scene);
     const last = scene._battleTimeline?.entries?.at(-1);
     if (
       !this.runManager?.battleInProgress ||
@@ -683,7 +685,7 @@ export class VisionRewindController {
       (scene._timelineFacts ||= []).push('Supplies changed.');
     }
     scene._timelineBoundary = 'player_action';
-    scene._captureSuspendCheckpoint?.();
+    scene._captureSuspendCheckpoint?.({ session: session });
     return Boolean(scene._battleTimeline?.entries?.at(-1)?.destination);
   }
 
@@ -975,6 +977,7 @@ export class VisionRewindController {
     intent = this.createRewindIntent(target),
   ) {
     const scene = this.scene;
+    const session = battleSession(scene);
     if (this.runManager && !this.runManager.battleInProgress) return false;
     if (!target || this._rewindCommitting) return false;
     const host = this._chargeHost();
@@ -999,7 +1002,7 @@ export class VisionRewindController {
         expectedRevision: intent.expectedRevision,
       });
       const result = persistBattleRewind(prepared, (candidate) =>
-        scene._persistBattleRunState(candidate),
+        scene._persistBattleRunState(candidate, { session: session }),
       );
       if (!result.ok) {
         if (

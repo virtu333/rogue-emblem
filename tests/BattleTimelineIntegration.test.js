@@ -52,7 +52,7 @@ function fixture() {
   vi.spyOn(scene._visionController, 'playRewindEffect').mockImplementation(() => {});
   scene.captureVisionSnapshot();
   scene._timelineBoundary = 'turn_start';
-  expect(scene._captureSuspendCheckpoint()).toBe(true);
+  expect(scene._captureSuspendCheckpoint({ session: scene._battleSession })).toBe(true);
   return { driver, scene, run };
 }
 describe('production timeline boundaries and recovery', () => {
@@ -72,7 +72,7 @@ describe('production timeline boundaries and recovery', () => {
           const ready = scene.playerUnits.filter((unit) => !unit.hasActed);
           const actor = ready[Math.floor(choose() * ready.length)];
           trace.push({ action: 'wait', actorId: actor.battleEntityId });
-          completeBattleAction(scene, actor);
+          completeBattleAction(scene, actor, { session: scene._battleSession });
           counts.wait++;
           const history = scene._battleTimeline;
           const destinations = history.entries.filter(
@@ -145,7 +145,7 @@ describe('production timeline boundaries and recovery', () => {
   );
   it('records completed actions, preserves spent actions, and restricts Lunatic destinations', () => {
     const { scene } = fixture();
-    completeBattleAction(scene, scene.playerUnits[0]);
+    completeBattleAction(scene, scene.playerUnits[0], { session: scene._battleSession });
     const history = scene._battleTimeline;
     expect(history.entries.map((e) => e.kind)).toEqual(['turn_start', 'player_action']);
     expect(canRewindToEntry(history, 2, { allowPlayerActions: true, difficulty: 'normal' })).toBe(
@@ -157,7 +157,7 @@ describe('production timeline boundaries and recovery', () => {
     expect(getEntryState(history, 2).playerUnits[0].hasActed).toBe(true);
     scene._pendingActionCompletion = { kind: 'combat', unitName: scene.playerUnits[1].name };
     scene._timelineFacts = ['Combat resolved before level-up.'];
-    scene._captureSuspendCheckpoint();
+    scene._captureSuspendCheckpoint({ session: scene._battleSession });
     expect(scene._battleTimeline.entries.at(-1).destination).toBe(false);
   });
   it('fatal checkpoint reload preserves dead commander identity and never starts AI', () => {
@@ -225,10 +225,10 @@ describe('production timeline boundaries and recovery', () => {
     expect(controller.showLordDeathPrompt()).toBe(true);
     expect(scene.onDefeat).not.toHaveBeenCalled();
     const retry = dialog.mock.calls.at(-1)[0].onConfirm;
-    persist.mockImplementation((candidate) =>
+    persist.mockImplementation((candidate, options) =>
       candidate.battleInProgress.timeline.entries.length
         ? { ok: false, reason: 'quota' }
-        : write(candidate),
+        : write(candidate, options),
     );
     retry();
     expect(scene.onDefeat).toHaveBeenCalledOnce();
@@ -257,7 +257,8 @@ describe('production timeline boundaries and recovery', () => {
   });
   it('restoring an exhausted player phase hands off once, including after reload', () => {
     const { scene, driver } = fixture();
-    for (const unit of scene.playerUnits) completeBattleAction(scene, unit);
+    for (const unit of scene.playerUnits)
+      completeBattleAction(scene, unit, { session: scene._battleSession });
     const history = scene._battleTimeline;
     const id = history.entries.at(-1).id;
     const state = getEntryState(history, id);
@@ -291,7 +292,7 @@ describe('production timeline boundaries and recovery', () => {
     scene._timelineBoundary = 'enemy_action';
     scene.turnManager.currentPhase = 'enemy';
     scene._enemyActionCheckpoint = true;
-    scene._captureSuspendCheckpoint();
+    scene._captureSuspendCheckpoint({ session: scene._battleSession });
     const row = scene._battleTimeline.entries.at(-1);
     expect(JSON.stringify(row)).not.toContain('Secret General');
     expect(row.facts.join(' ')).toContain('Unseen enemy critically hit');
@@ -313,9 +314,9 @@ describe('production timeline boundaries and recovery', () => {
       { unitName: scene.playerUnits[0].name, levelUp: { gains: { HP: 1 } } },
     ];
     const continuation = { kind: 'combat', unitName: scene.playerUnits[0].name };
-    captureResolvedAction(scene, continuation);
-    await presentQueuedLevelUps(scene, continuation);
-    expect(scene._captureSuspendCheckpoint()).toBe(false);
+    captureResolvedAction(scene, continuation, { session: scene._battleSession });
+    await presentQueuedLevelUps(scene, continuation, { session: scene._battleSession });
+    expect(scene._captureSuspendCheckpoint({ session: scene._battleSession })).toBe(false);
     expect(storage.getItem('emblem_rogue_slot_1_run')).toBe(raw);
     expect(loadRun(driver.data, 1).battleInProgress.checkpoint.recoveryKind).toBe('fatal_pending');
   });
@@ -355,10 +356,10 @@ describe('production timeline boundaries and recovery', () => {
       const { scene, driver, run } = fixture();
       const target = getEntryState(scene._battleTimeline, 1);
       const write = scene._persistBattleRunState.bind(scene);
-      vi.spyOn(scene, '_persistBattleRunState').mockImplementation((candidate) => {
+      vi.spyOn(scene, '_persistBattleRunState').mockImplementation((candidate, options) => {
         const data = candidate || run.toJSON();
         if (data.battleInProgress.timeline?.entries.length) return { ok: false, reason: 'quota' };
-        return write(candidate);
+        return write(candidate, options);
       });
       if (mode === 'fatal') {
         scene.playerUnits.shift();
@@ -370,7 +371,7 @@ describe('production timeline boundaries and recovery', () => {
             branchBattleTimeline(scene._battleTimeline, 1),
           ),
         ).toBe(true);
-      else expect(scene._captureSuspendCheckpoint()).toBe(true);
+      else expect(scene._captureSuspendCheckpoint({ session: scene._battleSession })).toBe(true);
       const saved = loadRun(driver.data, 1);
       expect(saved.battleInProgress.timeline.entries).toHaveLength(0);
       expect(saved.battleInProgress.timeline.earlierHistoryUnavailable).toBe(true);
@@ -434,7 +435,7 @@ describe('production timeline boundaries and recovery', () => {
     scene.enemyUnits = [enemy];
     scene.addUnitGraphic(enemy);
     scene._timelineBoundary = 'turn_start';
-    scene._captureSuspendCheckpoint();
+    scene._captureSuspendCheckpoint({ session: scene._battleSession });
     const targetId = scene._timelineCurrentEntryId,
       target = getEntryState(scene._battleTimeline, targetId);
     const ctx = { rollStrikeSkills, rollDefenseSkills, skillsData: driver.data.skills };
@@ -470,12 +471,13 @@ describe('production timeline boundaries and recovery', () => {
     const unit = scene.playerUnits[0];
     const continuation = { kind: 'finish', unitName: unit.name, unitId: unit.battleEntityId };
     scene._timelineFacts = [`${unit.name} hit Enemy for 5 damage.`];
-    captureResolvedAction(scene, continuation);
+    captureResolvedAction(scene, continuation, { session: scene._battleSession });
     const fragmentId = scene._battleTimeline.entries.at(-1).id;
     const restored = loadRun(driver.data, 1),
       resumed = journeyBattleScene(restored, driver.data);
     resumed._battleTimeline = restored.battleInProgress.timeline;
-    resumed.finishUnitAction = (unit) => completeBattleAction(resumed, unit);
+    resumed.finishUnitAction = (unit) =>
+      completeBattleAction(resumed, unit, { session: resumed._battleSession });
     const controller = new BattleSuspendController(resumed);
     controller.applyUnits(restored.battleInProgress.checkpoint);
     controller.finalizeResume(restored.battleInProgress.checkpoint);
@@ -528,10 +530,10 @@ describe('battlefield presentation integration', () => {
       JSON.parse(JSON.stringify(scene._battleTimeline)),
     );
     run.battleInProgress.timeline = scene._battleTimeline;
-    completeBattleAction(scene, c);
+    completeBattleAction(scene, c, { session: scene._battleSession });
     const afterC = structuredClone(scene._battleTimeline);
     const cId = scene._timelineCurrentEntryId;
-    completeBattleAction(scene, a);
+    completeBattleAction(scene, a, { session: scene._battleSession });
     archive = scene._battleTimeline.presentation;
     const last = archive.records.at(-1);
     expect(last.actorId).toBe(a.battleEntityId);

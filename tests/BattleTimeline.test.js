@@ -16,6 +16,7 @@ function state(turn = 1, phase = 'player', extra = {}) {
   return {
     ...captureBattleState(
       {
+        _battleSession: 1,
         playerUnits: [],
         enemyUnits: [],
         npcUnits: [],
