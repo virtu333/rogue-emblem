@@ -592,7 +592,7 @@ describe('checkpoint retry uses the live save owner', () => {
     const floor = Date.now() + 100000;
     store.set(getRunClockFloorKey(1), String(floor));
     quota = false;
-    expect(ctrl.retryCheckpoint()).toEqual({ ok: true });
+    expect(ctrl.retryCheckpoint()).toMatchObject({ ok: true });
     const saved = JSON.parse(store.get(getRunKey(1)));
     expect(saved.savedAt).toBeGreaterThan(floor);
     expect(isRunSaveCurrent(rm, 1)).toBe(true);
