@@ -1024,6 +1024,7 @@ describe('desktop: clicking an enemy while a unit is selected', () => {
     const foe = { name: 'Fighter', faction: 'enemy', currentHP: 20, ...enemyAt };
     const at = (col, row) => [unit, foe].find((u) => u.col === col && u.row === row) || null;
     const scene = makeScene({
+      _battleSession: 1,
       isMobileInput: mobile,
       battleState: 'UNIT_SELECTED',
       selectedUnit: unit,

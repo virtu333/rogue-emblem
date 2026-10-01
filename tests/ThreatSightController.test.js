@@ -50,6 +50,7 @@ function makeScene({ enemies, player, hover = null, state = 'UNIT_SELECTED', red
   );
   const handlers = new Map();
   const scene = {
+    _battleSession: 1,
     grid,
     battleState: state,
     selectedUnit: player,

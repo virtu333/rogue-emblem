@@ -1,3 +1,4 @@
+import { battleSession } from './BattleSession.js';
 // Formation: before turn 1 the deployed army waits off the map and the player
 // chooses who stands on which spawn tile (engine rules: engine/FormationPlacement.js).
 //
@@ -582,10 +583,11 @@ export class FormationController {
    */
   async returnToMap() {
     const s = this.scene;
+    const session = battleSession(s);
     if (!this.canReturnToMap()) return false;
     const rm = s.runManager;
     rm.revertBattleInProgressToEntry();
-    s._persistBattleRunState?.();
+    s._persistBattleRunState?.(null, { session: session });
     s.registry?.get?.('audio')?.stopMusic?.(s, 0);
     const result = await transitionToSceneWithBlockedRetry(
       s,

@@ -15,6 +15,7 @@ const terrain = loadGameData().terrain;
 
 function scene(layout, hidden = new Set()) {
   const s = Object.create(BattleScene.prototype);
+  s._battleSession = 1;
   s.grid = { mapLayout: layout };
   s._showsTurnEffectOn = (unit) => !hidden.has(unit.name);
   s.showTerrainDamage = vi.fn(async () => {});

@@ -299,7 +299,7 @@ async function scenario(kind, failure = 0) {
       checkBattleEnd: () => scene.checkBattleEnd(),
     });
     scene.turnManager.init(scene.playerUnits, scene.enemyUnits, scene.npcUnits);
-    completeBattleAction(scene, commander);
+    completeBattleAction(scene, commander, { session: scene._battleSession });
     const saved = JSON.parse(storage.getItem('emblem_rogue_slot_1_run'))?.battleInProgress
       ?.checkpoint;
     expect(saved).toBeTruthy();
@@ -480,7 +480,7 @@ it.each(['player', 'enemy'])(
     scene.playerUnits = [actor, commander];
     driver.run.roster = scene.playerUnits;
     for (const unit of [...scene.playerUnits, ...scene.enemyUnits]) scene.addUnitGraphic(unit);
-    scene._captureSuspendCheckpoint();
+    scene._captureSuspendCheckpoint({ session: scene._battleSession });
     expect(driver.run.battleInProgress.checkpoint.playerUnits.map((unit) => unit.name)).toContain(
       'Commander',
     );

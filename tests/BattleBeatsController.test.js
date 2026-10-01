@@ -51,6 +51,7 @@ const DIALOGUE = {
 function makeScene(overrides = {}) {
   const shown = [];
   const scene = {
+    _battleSession: 1,
     isBoss: true,
     _bossName: 'Iron Captain',
     _resolveBossDialogueName: (name) => (name === 'Dark Champion' ? 'The Lieutenant' : name),
@@ -377,6 +378,7 @@ describe("entityRally — the army answers the Entity's finale", () => {
 
   function rallyScene(playerUnits) {
     return makeScene({
+      _battleSession: 1,
       playerUnits,
       enemyUnits: [{ isEntity: true, isBoss: true, currentHP: 70, stats: { HP: 80 } }],
       gameData: { dialogue: { ...DIALOGUE, finaleRally: RALLY } },

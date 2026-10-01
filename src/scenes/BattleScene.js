@@ -300,6 +300,7 @@ import { resetTransitionLocks, ensureSceneLoaded } from '../utils/sceneLoader.js
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
+import { battleSession, isCurrentBattleSession } from '../ui/BattleSession.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import { BattleCameraController } from '../utils/BattleCameraController.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
@@ -435,6 +436,7 @@ function resetPlayerUnitsForTurn(scene, turn) {
 export class BattleScene extends Phaser.Scene {
   constructor() {
     super('Battle');
+    this._battleSession = 0;
   }
 
   isDevToolsEnabled() {
@@ -442,6 +444,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   init(data) {
+    // Never reset this identity: Phaser restarts reuse the same Scene instance.
+    this._cancelLifecycleAwaits('scene_replaced');
+    this._battleSession = (this._battleSession || 0) + 1;
     if (!data) {
       console.error('[BattleScene] init() called without data:', data);
       throw new Error('BattleScene requires data');
@@ -525,6 +530,9 @@ export class BattleScene extends Phaser.Scene {
     this._onDevToggleKeyDown = null;
     this._mobileHandlers = null;
     this._lootCleanupTimeout = null;
+    this._lootCleanupScheduled = false;
+    this._lootResolving = false;
+    this._lootCleanedUp = false;
     this._managedSceneTimers = new Set();
     this._lifecycleAwaitGuards = new Set();
     this._reinforcementsPendingThisTurn = false;
@@ -877,8 +885,8 @@ export class BattleScene extends Phaser.Scene {
     ic.updatePathPreview(col, row);
   }
 
-  _isSceneActiveForAsync() {
-    return Boolean(this.scene?.isActive?.());
+  _isSceneActiveForAsync(session) {
+    return isCurrentBattleSession(this, session);
   }
 
   _trackManagedSceneTimer(timer) {
@@ -903,6 +911,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _createLifecycleAwaitGuard({ label = 'battle_await', timeoutMs = 1500, onCancel = null } = {}) {
+    const session = battleSession(this);
     let settled = false;
     let resolvePromise = null;
     let timeoutHandle = null;
@@ -923,12 +932,28 @@ export class BattleScene extends Phaser.Scene {
     });
     guard.resolve = (value) => {
       if (settled) return;
+      if (!isCurrentBattleSession(this, session)) {
+        settled = true;
+        cleanup();
+        return; // Park obsolete work, including its catch/finally blocks.
+      }
       settled = true;
       cleanup();
-      resolvePromise(value);
+      resolvePromise(value || { status: 'completed' });
     };
     guard.cancel = (reason = 'cancelled') => {
       if (settled) return;
+      guard.cancelled = true;
+      if (reason === 'timeout' && isCurrentBattleSession(this, session))
+        guard.resolve({ status: 'timed_out' });
+      else {
+        // Cancellation releases resources, never the continuation. A rejected
+        // promise would run old error recovery and finally against the restart.
+        settled = true;
+        cleanup();
+      }
+      // Mark cancellation before removing the tween: Phaser can synchronously
+      // invoke onStop during remove(), which must not release parked work.
       if (typeof onCancel === 'function') {
         try {
           onCancel(reason);
@@ -940,7 +965,6 @@ export class BattleScene extends Phaser.Scene {
           });
         }
       }
-      guard.resolve();
     };
     (this._lifecycleAwaitGuards ||= new Set()).add(guard);
     if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
@@ -965,8 +989,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async _awaitSceneDelay(delayMs, { label = 'scene_delay', timeoutMs = null } = {}) {
+    const session = battleSession(this);
     const safeDelay = Number.isFinite(delayMs) ? Math.max(0, delayMs) : 0;
-    if (safeDelay <= 0 || !this._isSceneActiveForAsync()) return;
+    if (!this._isSceneActiveForAsync(session)) return new Promise(() => {});
+    if (this.scene?.isActive?.() === false) return { status: 'skipped_paused' };
+    if (safeDelay <= 0) return { status: 'completed' };
     let timer = null;
     const { promise, guard } = this._createLifecycleAwaitGuard({
       label,
@@ -994,17 +1021,25 @@ export class BattleScene extends Phaser.Scene {
       });
       guard.resolve();
     }
-    await promise;
+    const outcome = await promise;
+    if (!isCurrentBattleSession(this, session)) return new Promise(() => {});
+    return outcome;
   }
 
   async _awaitSceneTween(
     tweenConfig,
-    { label = 'scene_tween', timeoutMs = null, onCancel = null } = {},
+    {
+      label = 'scene_tween',
+      timeoutMs = null,
+      onCancel = null,
+      session = battleSession(this),
+    } = {},
   ) {
     if (!tweenConfig) return;
-    if (!this._isSceneActiveForAsync()) {
-      if (typeof onCancel === 'function') onCancel('inactive');
-      return;
+    if (!this._isSceneActiveForAsync(session)) return new Promise(() => {});
+    if (this.scene?.isActive?.() === false) {
+      if (typeof onCancel === 'function') onCancel('paused');
+      return { status: 'skipped_paused' };
     }
     const duration = Number(tweenConfig.duration) || 0;
     const delay = Number(tweenConfig.delay) || 0;
@@ -1026,6 +1061,7 @@ export class BattleScene extends Phaser.Scene {
     const originalOnComplete = wrappedConfig.onComplete;
     const originalOnStop = wrappedConfig.onStop;
     wrappedConfig.onComplete = (...args) => {
+      if (guard.cancelled || !this._isSceneActiveForAsync(session)) return;
       try {
         originalOnComplete?.(...args);
       } finally {
@@ -1033,6 +1069,7 @@ export class BattleScene extends Phaser.Scene {
       }
     };
     wrappedConfig.onStop = (...args) => {
+      if (guard.cancelled || !this._isSceneActiveForAsync(session)) return;
       try {
         originalOnStop?.(...args);
       } finally {
@@ -1049,7 +1086,9 @@ export class BattleScene extends Phaser.Scene {
       });
       guard.resolve();
     }
-    await promise;
+    const outcome = await promise;
+    if (!isCurrentBattleSession(this, session)) return new Promise(() => {});
+    return outcome;
   }
 
   _scheduleSafeDelayedAsync(
@@ -1058,12 +1097,14 @@ export class BattleScene extends Phaser.Scene {
     callback,
     { phase = null, turn = null, onError = null } = {},
   ) {
+    const session = battleSession(this);
     const safeDelay = Number.isFinite(delayMs) ? Math.max(0, delayMs) : 0;
     const run = async () => {
-      if (!this._isSceneActiveForAsync()) return;
+      if (!this._isSceneActiveForAsync(session)) return;
       try {
         await callback();
       } catch (err) {
+        if (!this._isSceneActiveForAsync(session)) return;
         reportAsyncError('battle_delayed_async_error', err, {
           label,
           phase,
@@ -1085,6 +1126,10 @@ export class BattleScene extends Phaser.Scene {
       }
     };
 
+    if (!isCurrentBattleSession(this, session)) return null;
+    // Paused scenes retain this session: settle immediately rather than queue
+    // a Phaser timer that cannot fire until resume. Shutdown still rejects above.
+    if (this.scene?.isActive?.() === false) return run();
     let timer = null;
     try {
       timer = this.time?.delayedCall?.(safeDelay, () => {
@@ -1109,6 +1154,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _bindGameplayKeyboardHandlers() {
+    const session = battleSession(this);
     const keyboard = this.input?.keyboard;
     if (!keyboard?.on) return;
 
@@ -1222,7 +1268,7 @@ export class BattleScene extends Phaser.Scene {
           this.confirmCantoMove();
         } else if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
           this.grid.clearHighlights();
-          completeBattleAction(this, this.selectedUnit);
+          completeBattleAction(this, this.selectedUnit, { session: session });
         }
       },
       previousForecastWeapon: () => {
@@ -1307,6 +1353,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async beginBattle(deployedRoster) {
+    const session = battleSession(this);
     try {
       const startupFlags = this.registry.get('startupFlags');
       this.isMobileInput = Boolean(startupFlags?.isMobile);
@@ -1452,7 +1499,7 @@ export class BattleScene extends Phaser.Scene {
           isBoss: this.isBoss,
           isElite: this.isElite,
         });
-        this._persistBattleRunState?.();
+        this._persistBattleRunState?.(null, { session: session });
       }
 
       // Create player units.
@@ -1778,6 +1825,7 @@ export class BattleScene extends Phaser.Scene {
       try {
         this.renderTurnCounter(Math.max(1, this.getCurrentTurnNumber()));
       } catch (err) {
+        if (!isCurrentBattleSession(this, session)) return;
         console.warn('[BattleScene] initial turn counter failed:', err);
       }
 
@@ -1899,7 +1947,7 @@ export class BattleScene extends Phaser.Scene {
               this.refreshEndTurnControl();
             } else if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
               this.grid.clearHighlights();
-              completeBattleAction(this, this.selectedUnit);
+              completeBattleAction(this, this.selectedUnit, { session: session });
               this.refreshEndTurnControl();
             } else if (this.canOpenPauseFromMenu()) {
               this.showPauseMenu();
@@ -2075,6 +2123,7 @@ export class BattleScene extends Phaser.Scene {
       }
 
       await this._presentBossEncounter();
+      if (!isCurrentBattleSession(this, session)) return;
 
       if (this.isBoss && this._bossName && this.runManager) {
         const bossName = this._resolveBossDialogueName(this._bossName);
@@ -2085,11 +2134,14 @@ export class BattleScene extends Phaser.Scene {
         )).getBossPreBattleEntries(bossName);
         try {
           await this._showStoryDialogueOnce(dialogueKey, entries);
+          if (!isCurrentBattleSession(this, session)) return;
           await this._showStoryDialogueOnce(
             'lieutenant_vision',
             this._battleBeats.getLieutenantVisionEntries(),
           );
+          if (!isCurrentBattleSession(this, session)) return;
         } catch (err) {
+          if (!isCurrentBattleSession(this, session)) return;
           console.warn('[BattleScene] boss pre-battle dialogue failed:', err);
         }
       }
@@ -2101,6 +2153,7 @@ export class BattleScene extends Phaser.Scene {
             this._resumeCheckpoint,
           );
         } catch (err) {
+          if (!isCurrentBattleSession(this, session)) return;
           // A checkpoint that cannot be restored must not trap the player in
           // a resume loop — revert it (or park a fatal one) and persist.
           this._abandonUnrestorableResume();
@@ -2111,7 +2164,8 @@ export class BattleScene extends Phaser.Scene {
       } else {
         if (this._formation?.active) {
           await this._formation.run();
-          if (!this._isSceneActiveForAsync()) return;
+          if (!isCurrentBattleSession(this, session)) return;
+          if (!this._isSceneActiveForAsync(session)) return;
         }
         // Dev/preview review setups only (devStartup sets battleParams.devScenario).
         if (this.battleParams?.devScenario) applyDevScenario(this);
@@ -2120,6 +2174,7 @@ export class BattleScene extends Phaser.Scene {
       }
       this.refreshEndTurnControl();
     } catch (err) {
+      if (!isCurrentBattleSession(this, session)) return;
       console.error('BattleScene.beginBattle failed:', err);
       let fatalResumeParked = this._fatalResumeParked === true;
       if (this._resumeCheckpoint) {
@@ -2230,6 +2285,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async _showStorySequence(entries, options = {}) {
+    const session = battleSession(this);
     if (!Array.isArray(entries) || entries.length <= 0 || !this.dialogueOverlay) return;
     this._storyDialogueActive = true;
     try {
@@ -2237,18 +2293,23 @@ export class BattleScene extends Phaser.Scene {
         adaptDialogueEntries(entries, this.runManager?.getStartingLordNames?.()),
         options,
       );
+      if (!isCurrentBattleSession(this, session)) return;
     } finally {
-      this._storyDialogueActive = false;
-      this.refreshEndTurnControl();
+      if (isCurrentBattleSession(this, session)) {
+        this._storyDialogueActive = false;
+        this.refreshEndTurnControl();
+      }
     }
   }
 
   async _showStoryDialogueOnce(dialogueKey, entries, options = {}) {
+    const session = battleSession(this);
     if (!this.runManager || typeof dialogueKey !== 'string' || !dialogueKey) return;
     if (this.runManager.hasShownDialogue(dialogueKey)) return;
     if (!Array.isArray(entries) || entries.length <= 0) return;
     this.runManager.markDialogueShown(dialogueKey);
     await this._showStorySequence(entries, { ...options, key: dialogueKey });
+    if (!isCurrentBattleSession(this, session)) return;
   }
 
   _clearPostLootTransitionFallback() {
@@ -2902,13 +2963,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   applyVisionSnapshot() {
+    const session = battleSession(this);
     const applied = (this._visionController ||= new VisionRewindController(
       this,
       this.runManager,
     ))._applySnapshot();
     // Re-checkpoint the rewound state so a refresh resumes at the restored
     // turn start (with the Vision charge spend locked in alongside it).
-    if (applied) this._captureSuspendCheckpoint?.();
+    if (applied) this._captureSuspendCheckpoint?.({ session: session });
     return applied;
   }
 
@@ -3557,6 +3619,7 @@ export class BattleScene extends Phaser.Scene {
    * The unit may still act.
    */
   _resolveAmbush(unit, ambusher, { canto = false } = {}) {
+    const session = battleSession(this);
     // A hidden NPC stops the move the same way, but it is no ambush.
     const hostile = ambusher.faction === 'enemy';
     if (hostile) observeHistoryAction(this, 'was ambushed by', unit, ambusher);
@@ -3574,7 +3637,7 @@ export class BattleScene extends Phaser.Scene {
     this._preFogSnapshot = null;
     this.commitVisionSnapshotIfPending?.();
     revealSettledVision(this);
-    this._captureSuspendCheckpoint?.();
+    this._captureSuspendCheckpoint?.({ session: session });
   }
 
   /** Get terrain cost reduction for a unit from passive skills (e.g. Pathfinder). */
@@ -4092,6 +4155,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleCancel() {
+    const session = battleSession(this);
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_cancel');
     if (this.battleState === 'SHOWING_FORECAST') {
@@ -4174,7 +4238,7 @@ export class BattleScene extends Phaser.Scene {
       this.cantoRange = null;
       this._resetCantoPreInitFaultTracking();
       const cantoUnit = this.selectedUnit;
-      completeBattleAction(this, cantoUnit);
+      completeBattleAction(this, cantoUnit, { session: session });
     } else if (this.battleState === 'UNIT_ACTION_MENU') {
       if (this.inEquipMenu) {
         this.inEquipMenu = false;
@@ -4384,6 +4448,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   forceEndTurn() {
+    const session = battleSession(this);
     if (this.isStoryInputLocked()) return;
     if (this._isTutorialStrictGateActive()) {
       if (this.battleState !== 'TUTORIAL_HINT') {
@@ -4448,17 +4513,18 @@ export class BattleScene extends Phaser.Scene {
     if (cantoUnit) {
       // End Turn also skips a pending Canto. Settle its village/save obligations
       // once; all units are acted, so unitActed performs the phase transition.
-      completeBattleAction(this, cantoUnit);
+      completeBattleAction(this, cantoUnit, { session: session });
     } else {
       // A moved unit that never acted ends its turn where it stands: reveal now.
       revealSettledVision(this);
-      this._captureSuspendCheckpoint?.();
+      this._captureSuspendCheckpoint?.({ session: session });
       this.turnManager.endPlayerPhase();
     }
     this.refreshEndTurnControl();
   }
 
   showPauseMenu({ onResume = null, fromRewards = false } = {}) {
+    const session = battleSession(this);
     const abandonPayout = this.runManager?.previewEndRunRewards?.();
     this.prePauseState = this.battleState;
     this.battleState = 'PAUSED';
@@ -4479,6 +4545,7 @@ export class BattleScene extends Phaser.Scene {
           transitionToSceneWithBlockedRetry(this, 'Title', { gameData: this.gameData }, { reason }),
           timeoutPromise,
         ]);
+        if (!isCurrentBattleSession(this, session)) return;
       } finally {
         if (timeoutHandle) clearTimeout(timeoutHandle);
       }
@@ -4515,6 +4582,7 @@ export class BattleScene extends Phaser.Scene {
             const audio = this.registry.get('audio');
             if (audio) audio.stopMusic(this, 0);
             const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.ABANDON_RUN);
+            if (!isCurrentBattleSession(this, session)) return;
             if (!ok) {
               if (this.sys?.isActive?.() === false) {
                 // Scene already shut down -- another transition won the race;
@@ -4530,6 +4598,7 @@ export class BattleScene extends Phaser.Scene {
               try {
                 this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
               } catch (err) {
+                if (!isCurrentBattleSession(this, session)) return;
                 markStartup('pause_transition_double_failure', {
                   scene: 'Battle',
                   reason: 'ABANDON_RUN',
@@ -4538,6 +4607,7 @@ export class BattleScene extends Phaser.Scene {
               }
             }
           } catch (err) {
+            if (!isCurrentBattleSession(this, session)) return;
             reportAsyncError('Battle-pause-abandon', err);
             this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
           }
@@ -4553,6 +4623,7 @@ export class BattleScene extends Phaser.Scene {
             const audio = this.registry.get('audio');
             if (audio) audio.stopMusic(this, 0);
             const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.SAVE_EXIT);
+            if (!isCurrentBattleSession(this, session)) return;
             if (!ok) {
               if (this.sys?.isActive?.() === false) {
                 // Scene already shut down -- another transition won the race;
@@ -4568,6 +4639,7 @@ export class BattleScene extends Phaser.Scene {
               try {
                 this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
               } catch (err) {
+                if (!isCurrentBattleSession(this, session)) return;
                 markStartup('pause_transition_double_failure', {
                   scene: 'Battle',
                   reason: 'SAVE_EXIT',
@@ -4576,6 +4648,7 @@ export class BattleScene extends Phaser.Scene {
               }
             }
           } catch (err) {
+            if (!isCurrentBattleSession(this, session)) return;
             reportAsyncError('Battle-pause-save-exit', err);
             this.showPauseTransitionRecovery(TRANSITION_REASONS.SAVE_EXIT);
           }
@@ -4762,6 +4835,7 @@ export class BattleScene extends Phaser.Scene {
       rollbackMovementSpent,
     } = {},
   ) {
+    const session = battleSession(this);
     discardHistoryPath(this, unit);
     const prefix = `[${context}]`;
     if (context === 'handleCantoClick') this._resetCantoPreInitFaultTracking();
@@ -4841,7 +4915,7 @@ export class BattleScene extends Phaser.Scene {
     try {
       // A failed Canto animation still commits its final gameplay location.
       // Visual recovery was attempted above; do not repeat a broken dim call.
-      completeBattleAction(this, unit, { skipDim: true });
+      completeBattleAction(this, unit, { skipDim: true, session: session });
     } catch (actErr) {
       console.error(`${prefix} failed to finalize unit action during recovery`, actErr);
     }
@@ -5034,12 +5108,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async afterMove(unit) {
+    const session = battleSession(this);
     // No fog update here: the move can still be undone, so its vision waits until
     // the unit's action is committed (revealSettledVision).
     if (this.battleParams.tutorialMode && this.tutorialStep === 3) {
       this.tutorialStep = 4;
       this._clearTutorialGuideHighlights();
       await (this._tutorialController ||= new TutorialController(this)).showFortLesson(unit);
+      if (!isCurrentBattleSession(this, session)) return;
       if (!this.scene?.isActive?.()) return;
       this._tutorialStrictGateReleased = true;
     }
@@ -5095,7 +5171,8 @@ export class BattleScene extends Phaser.Scene {
     return targets;
   }
 
-  finishUnitAction(unit, { skipCanto = false } = {}) {
+  finishUnitAction(unit, { skipCanto = false, session } = {}) {
+    if (!isCurrentBattleSession(this, session)) return false;
     if (this._pendingLevelUpPopups?.length && this.turnManager?.currentPhase !== 'enemy') {
       this.battleState = 'COMBAT_RESOLVING';
       const continuation = {
@@ -5104,14 +5181,14 @@ export class BattleScene extends Phaser.Scene {
         ...(unit.battleEntityId ? { unitId: unit.battleEntityId } : {}),
         skipCanto,
       };
-      return presentQueuedLevelUps(this, continuation)
+      return presentQueuedLevelUps(this, continuation, { session })
         .then(() => {
-          if (this._sceneShutdownCleanedUp || this.sys?.isActive?.() === false) return;
-          completeResolvedAction(this, continuation);
+          if (!isCurrentBattleSession(this, session)) return;
+          completeResolvedAction(this, continuation, { session });
         })
         .catch((error) => {
-          if (this._sceneShutdownCleanedUp || this.sys?.isActive?.() === false) return;
-          this._recoverUnitActionError(unit, 'level-up presentation', error);
+          if (!isCurrentBattleSession(this, session)) return;
+          this._recoverUnitActionError(unit, 'level-up presentation', error, { session });
         });
     }
     this._pendingActionCompletion = null;
@@ -5147,7 +5224,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    completeBattleAction(this, unit);
+    completeBattleAction(this, unit, { session });
   }
 
   /**
@@ -5156,12 +5233,13 @@ export class BattleScene extends Phaser.Scene {
    * a thrown blocking state ('COMBAT_RESOLVING'/'HEAL_RESOLVING') can't softlock
    * the battle.
    */
-  _recoverUnitActionError(unit, label, err) {
+  _recoverUnitActionError(unit, label, err, { session } = {}) {
+    if (!isCurrentBattleSession(this, session)) return false;
     console.error(`[BattleScene] ${label} error:`, err);
     if (this.battleState === 'BATTLE_END') return;
     try {
       if (unit && !unit.hasActed) {
-        this.finishUnitAction(unit, { skipCanto: true });
+        this.finishUnitAction(unit, { skipCanto: true, session: session });
         return;
       }
     } catch (recoveryErr) {
@@ -5336,6 +5414,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   executeShove(unit, target) {
+    const session = battleSession(this);
     this.commitVisionSnapshotIfPending();
     this.hideActionMenu();
     const pos = this.grid.gridToPixel(target.destCol, target.destRow);
@@ -5353,12 +5432,13 @@ export class BattleScene extends Phaser.Scene {
         target.ally.col = target.destCol;
         target.ally.row = target.destRow;
         this.updateUnitPosition(target.ally);
-        this.finishUnitAction(unit);
+        this.finishUnitAction(unit, { session: session });
       },
     });
   }
 
   executePull(unit, target) {
+    const session = battleSession(this);
     this.commitVisionSnapshotIfPending();
     this.hideActionMenu();
     // Move both simultaneously: unit retreats, ally moves to unit's old spot
@@ -5391,7 +5471,7 @@ export class BattleScene extends Phaser.Scene {
         target.ally.row = allyDestRow;
         this.updateUnitPosition(unit);
         this.updateUnitPosition(target.ally);
-        this.finishUnitAction(unit);
+        this.finishUnitAction(unit, { session: session });
       },
     });
   }
@@ -5417,6 +5497,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   executeBreak(unit, target) {
+    const session = battleSession(this);
     this.hideActionMenu();
     const removed = this.grid.clearTemporaryTerrainAt?.(target.col, target.row);
     const audio = this.registry.get('audio');
@@ -5432,7 +5513,7 @@ export class BattleScene extends Phaser.Scene {
       const pos = this.grid.gridToPixel(target.col, target.row);
       this.showMinorHintAt(pos.x, pos.y, 'Break!', UI_PALETTE.accentText);
     }
-    this.finishUnitAction(unit, { skipCanto: true });
+    this.finishUnitAction(unit, { skipCanto: true, session: session });
   }
 
   startTradeTargetSelection(unit) {
@@ -5647,6 +5728,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   executeSwap(unit, target) {
+    const session = battleSession(this);
     this.commitVisionSnapshotIfPending();
     this.hideActionMenu();
     const unitPos = this.grid.gridToPixel(target.ally.col, target.ally.row);
@@ -5685,7 +5767,7 @@ export class BattleScene extends Phaser.Scene {
         target.ally.row = unitOldRow;
         this.updateUnitPosition(unit);
         this.updateUnitPosition(target.ally);
-        this.finishUnitAction(unit);
+        this.finishUnitAction(unit, { session: session });
         if (allyWasActed) this.dimUnit(target.ally);
       },
     });
@@ -5700,6 +5782,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async executeDance(unit, target) {
+    const session = battleSession(this);
     this.commitVisionSnapshotIfPending();
     this.hideActionMenu();
     const audio = this.registry.get('audio');
@@ -5735,12 +5818,14 @@ export class BattleScene extends Phaser.Scene {
     try {
       try {
         await this.awardScaledXP(unit, XP_BASE_DANCE);
+        if (!isCurrentBattleSession(this, session)) return;
       } finally {
         // Dancer ends turn
-        this.finishUnitAction(unit);
+        if (isCurrentBattleSession(this, session))
+          this.finishUnitAction(unit, { session: session });
       }
     } catch (err) {
-      this._recoverUnitActionError(unit, 'dance', err);
+      this._recoverUnitActionError(unit, 'dance', err, { session });
     }
   }
 
@@ -5827,13 +5912,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleCantoClick(gp) {
+    const session = battleSession(this);
     const unit = this.selectedUnit;
     // Click own tile or W key = skip Canto
     if (gp.col === unit.col && gp.row === unit.row) {
       this.grid.clearHighlights();
       this.cantoRange = null;
       this._resetCantoPreInitFaultTracking();
-      completeBattleAction(this, unit);
+      completeBattleAction(this, unit, { session: session });
       return;
     }
     const key = `${gp.col},${gp.row}`;
@@ -5949,7 +6035,7 @@ export class BattleScene extends Phaser.Scene {
           if (cantoFinalPath.length > 1) rememberHistoryPath(this, unit, cantoFinalPath, false);
           this._resolveAmbush(unit, cantoAmbush.ambusher, { canto: true });
           // Canto's end is the turn's end: completeBattleAction lifts the fog here.
-          completeBattleAction(this, unit);
+          completeBattleAction(this, unit, { session: session });
           return;
         }
         // Nothing is settled yet: Wait ends the turn here, Back returns to the choice
@@ -6051,6 +6137,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Wait after a Canto move: the unit's turn ends where it stands. */
   confirmCantoMove() {
+    const session = battleSession(this);
     const unit = this.selectedUnit;
     if (this.battleState !== CANTO_CONFIRM_STATE || !unit) return;
     this.hideActionMenu();
@@ -6059,7 +6146,7 @@ export class BattleScene extends Phaser.Scene {
     this._recordPendingCantoPath();
     this._cantoPending = null;
     try {
-      completeBattleAction(this, unit);
+      completeBattleAction(this, unit, { session: session });
     } catch (err) {
       // Same fail-closed path as a broken Canto animation: settle where it stands.
       this._recoverFromMovementFault(unit, {
@@ -6286,6 +6373,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showActionMenu(unit) {
+    const session = battleSession(this);
     // Back at the menu, any chosen weapon art is dropped (the attack is re-planned).
     this._clearSelectedWeaponArt();
     this.hideActionMenu();
@@ -6471,7 +6559,9 @@ export class BattleScene extends Phaser.Scene {
       );
       if (ballista) command('capture', 'Capture', () => this._captureBallista(unit));
     }
-    command('wait', 'Wait', () => this.finishUnitAction(unit, { skipCanto: true }));
+    command('wait', 'Wait', () =>
+      this.finishUnitAction(unit, { skipCanto: true, session: session }),
+    );
 
     const rows = commands.map(({ id, label, run }) => {
       const blocked = blockedActions.has(id);
@@ -6549,6 +6639,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Capture: the unit takes the enemy ballista it stands on, and its action ends. */
   _captureBallista(unit) {
+    const session = battleSession(this);
     this.hideActionMenu();
     this.commitVisionSnapshotIfPending();
     const ballista = this.ballistas?.find((b) => b.col === unit.col && b.row === unit.row);
@@ -6565,7 +6656,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     unit.hasActed = true;
-    this.finishUnitAction(unit);
+    this.finishUnitAction(unit, { session: session });
   }
 
   // Publish each completed menu once. Canvas and DOM share the same guarded
@@ -6726,9 +6817,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async executeTalk(lord) {
+    const session = battleSession(this);
     const npc = this.findTalkTarget(lord);
     if (!npc) {
-      this.finishUnitAction(lord);
+      this.finishUnitAction(lord, { session: session });
       return;
     }
 
@@ -6751,8 +6843,9 @@ export class BattleScene extends Phaser.Scene {
       const carded = growth
         ? await growth.showRecruit({ unit: npc, kind: 'recruit', line })
         : false;
+      if (!isCurrentBattleSession(this, session)) return;
       if (!carded) await this.dialogueOverlay.show(npc.name, line, this._getPortraitKey(npc));
-      if (this._sceneShutdownCleanedUp || this.sys?.isActive?.() === false) return;
+      if (!isCurrentBattleSession(this, session)) return;
 
       // Remove from NPC array
       const npcIdx = this.npcUnits.indexOf(npc);
@@ -6778,9 +6871,9 @@ export class BattleScene extends Phaser.Scene {
       this.runManager?.assignUnitUid?.(npc);
       this._battleRecruits = recordBattleRecruit(this._battleRecruits, npc);
 
-      this.finishUnitAction(lord);
+      this.finishUnitAction(lord, { session: session });
     } catch (err) {
-      this._recoverUnitActionError(lord, 'talk', err);
+      this._recoverUnitActionError(lord, 'talk', err, { session });
     }
   }
 
@@ -7332,11 +7425,13 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async useConsumable(unit, item) {
+    const session = battleSession(this);
     this.hideActionMenu();
     this.inEquipMenu = false;
 
     if (item.effect === 'promote') {
       const didPromote = await this.executePromotion(unit, item);
+      if (!isCurrentBattleSession(this, session)) return;
       if (!didPromote) return;
       return;
     } else if (item.effect === 'reclass') {
@@ -7355,10 +7450,12 @@ export class BattleScene extends Phaser.Scene {
         const healed = healUnit(unit, item.value);
         this.updateHPBar(unit);
         await this.showBriefBanner(`${unit.name} healed ${healed} HP!`, UI_PALETTE.good);
+        if (!isCurrentBattleSession(this, session)) return;
       } else if (item.effect === 'healFull') {
         healUnitFully(unit);
         this.updateHPBar(unit);
         await this.showBriefBanner(`${unit.name} fully healed!`, UI_PALETTE.good);
+        if (!isCurrentBattleSession(this, session)) return;
       } else if (item.effect === 'cure' || item.effect === 'cureHeal') {
         // Use on the cure target (self or adjacent ally)
         const target = this._pendingCureTarget || unit;
@@ -7375,8 +7472,10 @@ export class BattleScene extends Phaser.Scene {
             `${target.name} cured and healed ${healed} HP!`,
             UI_PALETTE.good,
           );
+          if (!isCurrentBattleSession(this, session)) return;
         } else {
           await this.showBriefBanner(`${target.name}'s conditions cured!`, UI_PALETTE.good);
+          if (!isCurrentBattleSession(this, session)) return;
         }
       }
 
@@ -7385,9 +7484,9 @@ export class BattleScene extends Phaser.Scene {
       item.uses--;
       if (item.uses <= 0) removeFromConsumables(unit, item);
 
-      this.finishUnitAction(unit);
+      this.finishUnitAction(unit, { session: session });
     } catch (err) {
-      this._recoverUnitActionError(unit, 'consumable', err);
+      this._recoverUnitActionError(unit, 'consumable', err, { session });
     }
   }
 
@@ -7591,6 +7690,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async executeReclass(unit, sealItem, newClassData) {
+    const session = battleSession(this);
     if (!canReclass(unit)) return;
     this.hideActionMenu();
     this.battleState = 'COMBAT_RESOLVING'; // block input
@@ -7598,6 +7698,7 @@ export class BattleScene extends Phaser.Scene {
     const oldClassData = this.gameData.classes.find((c) => c.name === unit.className);
     if (!oldClassData) {
       await this.showBriefBanner('Reclass data missing.', UI_PALETTE.bad);
+      if (!isCurrentBattleSession(this, session)) return;
       this.battleState = 'UNIT_ACTION_MENU';
       this.showActionMenu(unit);
       return;
@@ -7635,12 +7736,13 @@ export class BattleScene extends Phaser.Scene {
     this.updateHPBar(unit);
 
     await this.showBriefBanner(`${unit.name} reclassed to ${newClassData.name}!`, UI_PALETTE.info);
+    if (!isCurrentBattleSession(this, session)) return;
 
     // Consume seal
     sealItem.uses = (sealItem.uses ?? 1) - 1;
     if (sealItem.uses <= 0) removeFromConsumables(unit, sealItem);
 
-    this.finishUnitAction(unit);
+    this.finishUnitAction(unit, { session: session });
   }
 
   _getCombatRollSessionKey(attacker, defender) {
@@ -7757,6 +7859,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async _checkPhoenixBrooch(unit) {
+    const session = battleSession(this);
     if (!unit || unit.currentHP <= 0) return false;
     const result = checkPhoenixBrooch(unit);
     if (!result?.triggered) return false;
@@ -7765,6 +7868,7 @@ export class BattleScene extends Phaser.Scene {
       await safeBattlePresentation('Phoenix heal', () => this.animateHeal(unit, result.amount), {
         scene: this,
       });
+      if (!isCurrentBattleSession(this, session)) return;
     }
     return true;
   }
@@ -8214,25 +8318,33 @@ export class BattleScene extends Phaser.Scene {
    * @returns {Promise<{ result: object, selectedArt: object|null }>}
    */
   async _runCombatResolution(attacker, defender, ctx) {
+    const session = battleSession(this);
     safeBattlePresentation('combat music', () => this._musicCtrl?.onCombat(), { scene: this });
     const previous = this._combatSpeedSnapshot;
     this._combatSpeedSnapshot = battleSpeed(this);
     try {
       return await this._runCombatResolutionAtSpeed(attacker, defender, ctx);
     } finally {
-      safeBattlePresentation('resolved combat music', () => this._musicCtrl?.onCombatResolved?.(), {
-        scene: this,
-      });
-      safeBattlePresentation(
-        'strike cleanup',
-        () => this._combatFx?.finishStrike?.(attacker, defender),
-        { scene: this },
-      );
-      this._combatSpeedSnapshot = previous;
+      if (isCurrentBattleSession(this, session)) {
+        safeBattlePresentation(
+          'resolved combat music',
+          () => this._musicCtrl?.onCombatResolved?.(),
+          {
+            scene: this,
+          },
+        );
+        safeBattlePresentation(
+          'strike cleanup',
+          () => this._combatFx?.finishStrike?.(attacker, defender),
+          { scene: this },
+        );
+        this._combatSpeedSnapshot = previous;
+      }
     }
   }
 
   async _runCombatResolutionAtSpeed(attacker, defender, ctx) {
+    const session = battleSession(this);
     const { dist, atkTerrain, defTerrain, selectedArt } = ctx;
 
     // Apply weapon art cost if selected
@@ -8245,6 +8357,7 @@ export class BattleScene extends Phaser.Scene {
       this._applyRecoilGuardAfterArtUse(attacker, selectedArt);
       this.updateHPBar(attacker);
       await this._checkPhoenixBrooch(attacker);
+      if (!isCurrentBattleSession(this, session)) return;
     }
 
     const skillCtx = this.buildSkillCtx(attacker, defender, selectedArt);
@@ -8290,6 +8403,7 @@ export class BattleScene extends Phaser.Scene {
       if (event.type === 'skill') {
         prevStrikeSide = null;
         await this.animateSkillActivation(event);
+        if (!isCurrentBattleSession(this, session)) return;
       } else {
         const followUp = event.attackerSide != null && event.attackerSide === prevStrikeSide;
         prevStrikeSide = event.attackerSide ?? null;
@@ -8297,6 +8411,7 @@ export class BattleScene extends Phaser.Scene {
           followUp,
           strikeIndex: strikeIndex++,
         });
+        if (!isCurrentBattleSession(this, session)) return;
       }
     }
 
@@ -8340,8 +8455,11 @@ export class BattleScene extends Phaser.Scene {
       attackerWeaponArt: selectedArt,
       defenderWeaponArt: null,
     });
+    if (!isCurrentBattleSession(this, session)) return;
     await this._checkPhoenixBrooch(attacker);
+    if (!isCurrentBattleSession(this, session)) return;
     await this._checkPhoenixBrooch(defender);
+    if (!isCurrentBattleSession(this, session)) return;
 
     return { result, selectedArt };
   }
@@ -8352,6 +8470,7 @@ export class BattleScene extends Phaser.Scene {
    * the result is applied, so the intent is cleared as soon as that happens.
    */
   _commitCombatIntent(attacker, defender) {
+    const session = battleSession(this);
     this._pendingCommittedAction = null;
     if (!this.runManager?.battleInProgress || this.battleParams?.tutorialMode) return;
     if (attacker?.faction !== 'player' || this.turnManager?.currentPhase !== 'player') return;
@@ -8380,7 +8499,7 @@ export class BattleScene extends Phaser.Scene {
     const gambler = { attacker: chosen(attacker), defender: chosen(defender) };
     if (gambler.attacker !== null || gambler.defender !== null)
       this._pendingCommittedAction.gamblerAtkDelta = gambler;
-    this._captureSuspendCheckpoint?.({ commitIntent: true });
+    this._captureSuspendCheckpoint?.({ commitIntent: true, session: session });
   }
 
   /** Put a committed attack's already-rolled Gambler's Coin modifiers back in play. */
@@ -8451,6 +8570,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async executeCombat(attacker, defender) {
+    const session = battleSession(this);
     this.battleState = 'COMBAT_RESOLVING';
     this.grid.clearAttackHighlights();
     this._commitCombatIntent(attacker, defender);
@@ -8464,6 +8584,7 @@ export class BattleScene extends Phaser.Scene {
         equipArtWeapon: true,
       });
       const { result } = await this._runCombatResolution(attacker, defender, ctx);
+      if (!isCurrentBattleSession(this, session)) return;
       // The outcome is applied to live state now; every checkpoint from here
       // on reflects it, so none may carry the pre-roll intent.
       this._pendingCommittedAction = null;
@@ -8480,25 +8601,31 @@ export class BattleScene extends Phaser.Scene {
           damageDealt,
           defenderHpAtStart,
         );
+        if (!isCurrentBattleSession(this, session)) return;
       }
 
       if (this.battleParams?.tutorialMode && this.tutorialStep === 5) {
         this.tutorialStep = 6;
         await (this._tutorialController ||= new TutorialController(this)).showXpLesson();
-        if (!this.scene?.isActive?.()) return;
+        if (!isCurrentBattleSession(this, session)) return;
+        if (!isCurrentBattleSession(this, session)) return;
         this.battleState = 'COMBAT_RESOLVING';
       }
 
       // Tutorial: a counter-attack on a non-commander lord teaches permadeath
       await this._maybeShowTutorialPermadeathHint(attacker, attacker.currentHP < attackerHpAtStart);
+      if (!isCurrentBattleSession(this, session)) return;
 
       if (defender.currentHP <= 0) {
         await this.removeUnit(defender, { killer: attacker });
+        if (!isCurrentBattleSession(this, session)) return;
       }
       if (attacker.currentHP <= 0) {
         await this.removeUnit(attacker, { killer: defender });
+        if (!isCurrentBattleSession(this, session)) return;
       }
       await this._sweepFallenUnits();
+      if (!isCurrentBattleSession(this, session)) return;
       // A fatal cascade must decide defeat before a popup can checkpoint an
       // army with no commander. Victory still waits for the combat owner's XP.
       if (hasBattleDefeat(this.playerUnits, this.escapedUnits)) {
@@ -8514,6 +8641,7 @@ export class BattleScene extends Phaser.Scene {
       )
         return;
       await (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth();
+      if (!isCurrentBattleSession(this, session)) return;
 
       (this._battleBeats ||= new BattleBeatsController(this)).onChipLance(attacker, defender);
       this._battleBeats.onLowHealth(attacker);
@@ -8525,17 +8653,21 @@ export class BattleScene extends Phaser.Scene {
           event.skillActivations?.some((skill) => skill.id === 'commanders_gambit'),
         ),
       };
-      await presentQueuedLevelUps(this, continuation);
-      if (this._sceneShutdownCleanedUp || this.sys?.isActive?.() === false) return;
-      completeResolvedAction(this, continuation);
+      await presentQueuedLevelUps(this, continuation, { session });
+      if (!isCurrentBattleSession(this, session)) return;
+      completeResolvedAction(this, continuation, { session });
     } catch (err) {
+      if (!isCurrentBattleSession(this, session)) return;
       this._pendingCommittedAction = null;
       console.error('[BattleScene] combat error:', err);
       // Best-effort: reconcile dead units to prevent zombie state
       try {
         if (defender?.currentHP <= 0) await this.removeUnit(defender, { killer: attacker });
+        if (!isCurrentBattleSession(this, session)) return;
         if (attacker?.currentHP <= 0) await this.removeUnit(attacker, { killer: defender });
+        if (!isCurrentBattleSession(this, session)) return;
         await this._sweepFallenUnits();
+        if (!isCurrentBattleSession(this, session)) return;
         this.checkBattleEnd();
       } catch (cleanupErr) {
         console.error('[BattleScene] combat cleanup error:', cleanupErr);
@@ -8565,12 +8697,14 @@ export class BattleScene extends Phaser.Scene {
         this.attackTargets = [];
         this.selectedUnit = null;
         if (shouldConsumeAction) {
-          completeBattleAction(this, attacker, { skipDim: true });
+          completeBattleAction(this, attacker, { skipDim: true, session });
         }
       }
     } finally {
-      this._clearCombatRollSession();
-      this._clearSelectedWeaponArt();
+      if (isCurrentBattleSession(this, session)) {
+        this._clearCombatRollSession();
+        this._clearSelectedWeaponArt();
+      }
     }
   }
 
@@ -8595,7 +8729,9 @@ export class BattleScene extends Phaser.Scene {
 
   /** Act on each beat the effects yield, in order: a death plays before the next effect. */
   async _playPostCombatBeats(beats) {
+    const session = battleSession(this);
     for (const beat of beats) {
+      if (!isCurrentBattleSession(this, session)) return;
       if (beat.kind === 'remove' || beat.kind === 'moved') {
         await this._playPostCombatBeat(beat);
       } else {
@@ -8605,6 +8741,7 @@ export class BattleScene extends Phaser.Scene {
           { scene: this },
         );
       }
+      if (!isCurrentBattleSession(this, session)) return;
     }
   }
 
@@ -8691,6 +8828,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async animateStrike(event, attacker, defender, opts = {}) {
+    const session = battleSession(this);
     const reduced = this._reduceMotion();
     const strikerIsAttacker =
       event.attackerSide === 'attacker' || event.attackerSide === 'defender'
@@ -8721,6 +8859,7 @@ export class BattleScene extends Phaser.Scene {
         category: legendaryArt ? 'art' : 'offense',
         side: striker.faction === 'player' ? 'left' : 'right',
       });
+      if (!isCurrentBattleSession(this, session)) return;
     }
 
     const audio = this.registry.get('audio');
@@ -8744,6 +8883,7 @@ export class BattleScene extends Phaser.Scene {
       artCatalog: this._getWeaponArtCatalog(),
       onStrikeSound: () => {
         if (audio && !event.miss) this._combatFx?.playStrikeSound(this.getWeaponSFX(striker));
+        if (!isCurrentBattleSession(this, session)) return;
       },
       onMiss: () => this._showStrikeMiss(target, reduced),
       onContact: () => {
@@ -8756,6 +8896,7 @@ export class BattleScene extends Phaser.Scene {
 
     if (event.warpRange > 0 && target.currentHP > 0) {
       await this.executeWarp(target, event.warpRange, striker);
+      if (!isCurrentBattleSession(this, session)) return;
     }
   }
 
@@ -8868,6 +9009,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Execute warp for Teleporter affix. Target is the unit warping. */
   async executeWarp(unit, range, attacker) {
+    const session = battleSession(this);
     const bestPicks = getWarpCandidates(unit, range, attacker, this.grid, (c, r) =>
       this.getUnitAt(c, r),
     );
@@ -8891,6 +9033,7 @@ export class BattleScene extends Phaser.Scene {
       },
       { label: 'execute_warp_fade_out' },
     );
+    if (!isCurrentBattleSession(this, session)) return;
     unit.col = pick.col;
     unit.row = pick.row;
     this.updateUnitPosition(unit);
@@ -8902,6 +9045,7 @@ export class BattleScene extends Phaser.Scene {
       },
       { label: 'execute_warp_fade_in' },
     );
+    if (!isCurrentBattleSession(this, session)) return;
   }
   /** Animate a pre-combat skill activation event (Vantage, Astra, Desperation). */
   async animateSkillActivation(event) {
@@ -8958,6 +9102,7 @@ export class BattleScene extends Phaser.Scene {
     defenderHpAtStart = null,
     { survivedAttack = false } = {},
   ) {
+    const session = battleSession(this);
     // Who earns what (BattleXp.combatXpAwards): the unit, then Mentor's Band shares.
     const awards = combatXpAwards({
       unit: playerUnit,
@@ -8974,10 +9119,11 @@ export class BattleScene extends Phaser.Scene {
     });
     for (const award of awards) {
       // The scene may have shut down while a level-up popup was showing.
-      if (award.share && this.sys?.isActive?.() === false) break;
+      if (!isCurrentBattleSession(this, session)) break;
       // Shares go straight to awardScaledXP: they never re-enter awardXP, so bands
       // cannot chain (allies of allies) and heal/dance XP is never shared.
       await this.awardScaledXP(award.unit, award.baseXp);
+      if (!isCurrentBattleSession(this, session)) return;
     }
   }
 
@@ -9003,6 +9149,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async awardScaledXP(playerUnit, baseXp) {
+    const session = battleSession(this);
     const hasTurnInfo = typeof this.getCurrentTurnNumber === 'function';
     const turnsTaken = hasTurnInfo ? this.getCurrentTurnNumber() : 0;
     const xp = scaledXp(baseXp, {
@@ -9034,7 +9181,7 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < cards.length; i++) {
       // The scene may have shut down while a previous popup was showing (its
       // shutdown hook resolves the await) -- don't build popups on a dead scene.
-      if (this.sys?.isActive?.() === false) break;
+      if (!isCurrentBattleSession(this, session)) break;
       // Update HP bar after level-up (maxHP may have increased)
       safeBattlePresentation('level-up HP', () => this.updateHPBar(playerUnit), { scene: this });
       const lvUp = cards[i];
@@ -9086,6 +9233,7 @@ export class BattleScene extends Phaser.Scene {
    * @returns {'reverted'|'fatal'|'none'}
    */
   _abandonUnrestorableResume() {
+    const session = battleSession(this);
     const rm = this.runManager;
     if (!rm?.battleInProgress) return 'none';
     let outcome = 'reverted';
@@ -9094,20 +9242,22 @@ export class BattleScene extends Phaser.Scene {
       outcome = 'fatal';
       this._fatalResumeParked = true;
     }
-    this._persistBattleRunState?.();
+    this._persistBattleRunState?.(null, { session: session });
     return outcome;
   }
 
-  _persistBattleRunState(candidate = null) {
+  _persistBattleRunState(candidate = null, { session } = {}) {
+    if (!isCurrentBattleSession(this, session)) return { ok: false, reason: 'stale_session' };
     if (!this.runManager) return { ok: false, reason: 'missing_run' };
     try {
       const cloud = this.registry?.get?.('cloud');
       const slot = this.registry?.get?.('activeSlot');
       if (!Number.isInteger(slot)) return { ok: false, reason: 'missing_slot' }; // dev/QA route without a slot — nothing to lock
       const result = saveRun(
-        candidate ? { toJSON: () => candidate } : this.runManager,
+        this.runManager,
         cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
         slot,
+        { candidate },
       );
       if (!result.ok && result.reason !== 'missing_slot') {
         console.warn('[BattleScene] battle-state save failed:', result.reason);
@@ -9120,13 +9270,25 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Suspend-checkpoint shim (see BattleSuspendController). */
-  _captureSuspendCheckpoint(options) {
+  _captureSuspendCheckpoint(options = {}) {
+    if (!Number.isInteger(options.session)) {
+      reportAsyncError(
+        'battle_checkpoint_missing_session',
+        new Error('Checkpoint origin session required'),
+        {
+          scene: this.scene?.key || 'Battle',
+        },
+      );
+      return false;
+    }
+    if (!isCurrentBattleSession(this, options.session)) return false;
     return (this._battleSuspendController ||= new BattleSuspendController(this)).captureCheckpoint(
       options,
     );
   }
 
   async removeUnit(unit, options = {}) {
+    const session = battleSession(this);
     if (!unit || unit._removing) return;
     const roster =
       unit.faction === 'player'
@@ -9170,6 +9332,7 @@ export class BattleScene extends Phaser.Scene {
       },
       { scene: this },
     );
+    if (!isCurrentBattleSession(this, session)) return;
     safeBattlePresentation('death graphic cleanup', () => this.removeUnitGraphic(unit), {
       scene: this,
     });
@@ -9200,7 +9363,9 @@ export class BattleScene extends Phaser.Scene {
           if (line) {
             try {
               await this.dialogueOverlay?.show(unit.name, line, this._getPortraitKey(unit));
+              if (!isCurrentBattleSession(this, session)) return;
             } catch (_) {}
+            if (!isCurrentBattleSession(this, session)) return;
           }
         }
         // After the last words: a titled unit is named in full as it falls.
@@ -9218,7 +9383,9 @@ export class BattleScene extends Phaser.Scene {
             const portraitKey = this._getPortraitKey(unit);
             try {
               await this.dialogueOverlay?.show(unit.name, line, portraitKey);
+              if (!isCurrentBattleSession(this, session)) return;
             } catch (_) {}
+            if (!isCurrentBattleSession(this, session)) return;
           }
           // Tutorial: fate grants a Vision charge so the player can be walked
           // through a rewind at the next player-phase start.
@@ -9241,7 +9408,9 @@ export class BattleScene extends Phaser.Scene {
               this.runManager?.pickNarrativeLine?.(pool, `commanderFall:${unit.name}`) || pool[0];
             try {
               await this.dialogueOverlay?.show(unit.name, line, this._getPortraitKey(unit));
+              if (!isCurrentBattleSession(this, session)) return;
             } catch (_) {}
+            if (!isCurrentBattleSession(this, session)) return;
           }
         }
         // Someone on the field answers the loss (a quip over a living lord).
@@ -9333,6 +9502,7 @@ export class BattleScene extends Phaser.Scene {
           );
           if (victim.currentHP <= 0) {
             await this.removeUnit(victim, { killer: unit });
+            if (!isCurrentBattleSession(this, session)) return;
           }
         }
         await safeBattlePresentation(
@@ -9340,38 +9510,44 @@ export class BattleScene extends Phaser.Scene {
           () => this._awaitSceneDelay(150, { label: 'death_affix_chain_tick' }),
           { scene: this },
         );
+        if (!isCurrentBattleSession(this, session)) return;
       }
     } finally {
-      unit._removing = false;
-      this.grid?.clearTemporaryTerrainsBySource?.(unit);
-      if (hasAoEDeathEffect) {
-        this._deathAffixChainDepth = Math.max(0, (this._deathAffixChainDepth || 1) - 1);
-        // The combat/shot owner removes its primary casualties with attribution
-        // before sweeping and deciding victory. A chain must not steal that work.
+      if (isCurrentBattleSession(this, session)) {
+        unit._removing = false;
+        this.grid?.clearTemporaryTerrainsBySource?.(unit);
+        if (hasAoEDeathEffect) {
+          this._deathAffixChainDepth = Math.max(0, (this._deathAffixChainDepth || 1) - 1);
+          // The combat/shot owner removes its primary casualties with attribution
+          // before sweeping and deciding victory. A chain must not steal that work.
+        }
       }
     }
-
+    if (!isCurrentBattleSession(this, session)) return;
     // Clear any temporary walls owned by this unit (waller affix cleanup)
     this.grid?.clearTemporaryTerrainsBySource?.(unit);
-
     unit._removing = false;
   }
 
   /** Reconcile all factions after effects/errors, through the normal death funnel. */
   async _sweepFallenUnits() {
+    const session = battleSession(this);
     const fallen = [
       ...(this.playerUnits || []),
       ...(this.enemyUnits || []),
       ...(this.npcUnits || []),
     ];
     for (const unit of fallen) {
+      if (!isCurrentBattleSession(this, session)) return;
       if (unit && unit.currentHP <= 0 && !unit._removing) await this.removeUnit(unit);
+      if (!isCurrentBattleSession(this, session)) return;
     }
   }
 
   // --- Phase management ---
 
   onPhaseChange(phase, turn) {
+    const session = battleSession(this);
     this._playerTurnStartPipelineTurn = null;
     this._playerTurnStartToken?.settle?.();
     const turnStartToken = {};
@@ -9402,8 +9578,8 @@ export class BattleScene extends Phaser.Scene {
           };
     const isSceneActiveForAsync =
       typeof this._isSceneActiveForAsync === 'function'
-        ? () => this._isSceneActiveForAsync()
-        : () => true;
+        ? () => this._isSceneActiveForAsync(session)
+        : () => isCurrentBattleSession(this, session);
     if (typeof this._clearCombatRollSession === 'function') this._clearCombatRollSession();
     if (this.isMobileInput) {
       this.inspectMode = false;
@@ -9537,8 +9713,8 @@ export class BattleScene extends Phaser.Scene {
             this.updateVisionHud();
             const presentedLevelUps = Boolean(this._pendingLevelUpPopups?.length);
             if (presentedLevelUps) {
-              this._captureSuspendCheckpoint?.();
-              await presentQueuedLevelUps(this);
+              this._captureSuspendCheckpoint?.({ session: session });
+              await presentQueuedLevelUps(this, null, { session: session });
               if (!isCurrentTurnStart()) return;
             }
             this.battleState = 'PLAYER_IDLE';
@@ -9548,7 +9724,10 @@ export class BattleScene extends Phaser.Scene {
             } else {
               // Only a fully resolved turn start is safe to resume.
               this._timelineBoundary = 'turn_start';
-              this._captureSuspendCheckpoint?.({ preserveRng: presentedLevelUps });
+              this._captureSuspendCheckpoint?.({
+                preserveRng: presentedLevelUps,
+                session: session,
+              });
             }
           } finally {
             // Errors still resolving this phase settle after the recovery below.
@@ -9685,6 +9864,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Apply all turn-start effects (skills, affixes, terrain) in unified sequence */
   async processTurnStartEffects(units, { skipRecovery = false, isCurrent = () => true } = {}) {
+    const session = battleSession(this);
     if (!isCurrent()) return;
     // 0. Status condition recovery (sleep/silence)
     // Player-phase recovery runs early (before all-sleeping check), so skip here
@@ -9701,6 +9881,7 @@ export class BattleScene extends Phaser.Scene {
         const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
         if (this._showsTurnEffectOn(evt.unit))
           await this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
+        if (!isCurrentBattleSession(this, session)) return;
         if (!isCurrent()) return;
         this._removeConditionIcon(evt.unit, evt.conditionId);
         this.undimUnit(evt.unit);
@@ -9709,6 +9890,7 @@ export class BattleScene extends Phaser.Scene {
 
     // 0b. Acid tick damage (non-lethal, maxHP-scaled)
     await this._processAcidTicks(units, isCurrent);
+    if (!isCurrentBattleSession(this, session)) return;
     if (!isCurrent()) return;
 
     // 1. Skill effects (e.g. Renewal)
@@ -9720,6 +9902,7 @@ export class BattleScene extends Phaser.Scene {
         this.updateHPBar(effect.target);
         if (this._showsTurnEffectOn(effect.target))
           await this.animateHeal(effect.target, effect.amount);
+        if (!isCurrentBattleSession(this, session)) return;
       }
     }
 
@@ -9733,16 +9916,20 @@ export class BattleScene extends Phaser.Scene {
         this.updateHPBar(effect.target);
         if (this._showsTurnEffectOn(effect.target))
           await this.animateHeal(effect.target, effect.amount);
+        if (!isCurrentBattleSession(this, session)) return;
       } else if (effect.type === 'spawn_terrain') {
         await this.executeWallerSpawn(effect);
+        if (!isCurrentBattleSession(this, session)) return;
       }
     }
 
     // 3. Terrain healing (Fort/Throne)
     if (isCurrent()) await this.processTerrainHealing(units, isCurrent);
+    if (!isCurrentBattleSession(this, session)) return;
   }
 
   async _processAcidTicks(units, isCurrent = () => true) {
+    const session = battleSession(this);
     for (const unit of units) {
       if (!isCurrent()) return;
       if (!unit || unit.currentHP <= 0 || !isAcidPoisoned(unit)) continue;
@@ -9751,6 +9938,7 @@ export class BattleScene extends Phaser.Scene {
       if (appliedDamage <= 0) continue;
       this.updateHPBar(unit);
       if (this._showsTurnEffectOn(unit)) await this.showAcidDamage(unit, appliedDamage);
+      if (!isCurrentBattleSession(this, session)) return;
     }
   }
 
@@ -9769,6 +9957,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async processBallistaFire(targetUnits, owner, isCurrent = () => true) {
+    const session = battleSession(this);
+    const phaseCurrent = isCurrent;
+    isCurrent = () => isCurrentBattleSession(this, session) && phaseCurrent();
     if (!this.ballistas || this.ballistas.length === 0) return;
     const reduced = this._reduceMotion();
     for (const ballista of this.ballistas) {
@@ -9827,6 +10018,7 @@ export class BattleScene extends Phaser.Scene {
         if (!isCurrent()) return;
         if (target.currentHP <= 0) {
           await this.removeUnit(target, { killer: null });
+          if (!isCurrentBattleSession(this, session)) return;
           if (!isCurrent()) return;
           await this._sweepFallenUnits();
           if (!isCurrent()) return;
@@ -9871,7 +10063,9 @@ export class BattleScene extends Phaser.Scene {
 
   /** Enemy-phase start: remains tick, rise or crumble (ZombieRemainsController). */
   async processZombieRevival() {
+    const session = battleSession(this);
     await remainsOf(this).processRevival();
+    if (!isCurrentBattleSession(this, session)) return;
   }
 
   _zombieRemains() {
@@ -9880,6 +10074,8 @@ export class BattleScene extends Phaser.Scene {
 
   /** Handle the Waller affix terrain creation */
   async executeWallerSpawn(effect) {
+    const session = battleSession(this);
+    if (!isCurrentBattleSession(this, session)) return;
     const unit = effect.sourceUnit;
     const range = effect.range || 1;
     const moveType = unit.moveType || 'Infantry';
@@ -9988,6 +10184,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Heal units standing on Fort or Throne at turn start */
   async processTerrainHealing(units, isCurrent = () => true) {
+    const session = battleSession(this);
     for (const unit of units) {
       if (!isCurrent()) return;
       const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
@@ -10007,10 +10204,12 @@ export class BattleScene extends Phaser.Scene {
       healUnit(unit, healAmount);
       this.updateHPBar(unit);
       if (this._showsTurnEffectOn(unit)) await this.animateHeal(unit, healAmount);
+      if (!isCurrentBattleSession(this, session)) return;
     }
   }
 
   async processTerrainDamage(units) {
+    const session = battleSession(this);
     // Lava burns are named together once the pass is done: the floating number alone
     // was easy to miss, most of all on a phone's shrunken board.
     const burned = [];
@@ -10028,6 +10227,7 @@ export class BattleScene extends Phaser.Scene {
         if (shown) {
           burned.push(`${unit.name} -${appliedDamage}`);
           await this.showTerrainDamage(unit, appliedDamage);
+          if (!isCurrentBattleSession(this, session)) return;
         }
         // Lava damage wakes sleeping units
         if (isSleeping(unit)) {
@@ -10038,8 +10238,10 @@ export class BattleScene extends Phaser.Scene {
           if (!unit.hasActed) this.undimUnit(unit);
           if (shown)
             await this.showBriefBanner(`${unit.name} woke up from lava damage!`, UI_PALETTE.warn);
+          if (!isCurrentBattleSession(this, session)) return;
         }
         await this._checkPhoenixBrooch(unit);
+        if (!isCurrentBattleSession(this, session)) return;
         continue;
       }
 
@@ -10065,8 +10267,10 @@ export class BattleScene extends Phaser.Scene {
         (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y, 'acid');
       }
       await this.showBriefBanner(`${unit.name} is corroded by acid!`, UI_PALETTE.good);
+      if (!isCurrentBattleSession(this, session)) return;
     }
     if (burned.length) await this.showBriefBanner(lavaBurnBanner(burned), UI_PALETTE.warn);
+    if (!isCurrentBattleSession(this, session)) return;
   }
 
   async showTerrainDamage(unit, damage) {
@@ -10145,7 +10349,8 @@ export class BattleScene extends Phaser.Scene {
    * prompt, a rewind that replaced this phase, or scene shutdown).
    */
   _recoverEnemyPhaseError(turn, err = null) {
-    if (!this._isSceneActiveForAsync?.() || this._sceneShutdownCleanedUp) return false;
+    if (!this._isSceneActiveForAsync?.(battleSession(this)) || this._sceneShutdownCleanedUp)
+      return false;
     if (this.battleState === 'BATTLE_END' || this.visionDialog) return false;
     // The tail's endEnemyPhase() advances turn/phase before onPhaseChange runs,
     // so a throw inside the player handoff lands here already in turn + 1.
@@ -10186,6 +10391,7 @@ export class BattleScene extends Phaser.Scene {
    * skipping the turn-start effects that could not be scheduled.
    */
   _recoverPlayerHandoff(playerTurn, err = null) {
+    const session = battleSession(this);
     if (this.battleState === 'BATTLE_END' || this.visionDialog) return false;
     if (this.battleState !== 'ENEMY_PHASE' && this.battleState !== 'TURN_START_RESOLVING')
       return false;
@@ -10214,7 +10420,7 @@ export class BattleScene extends Phaser.Scene {
     // failed handoff from the previous enemy-phase checkpoint.
     try {
       this._timelineBoundary = 'turn_start';
-      this._captureSuspendCheckpoint?.();
+      this._captureSuspendCheckpoint?.({ session: session });
     } catch (checkpointErr) {
       console.warn('[BattleScene] checkpoint skipped after handoff error:', checkpointErr);
     }
@@ -10253,6 +10459,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async startEnemyPhase({ resume = false } = {}) {
+    const session = battleSession(this);
     // Epoch token: a Vision rewind restores a player-phase snapshot while this
     // async pipeline may still be in flight (AI loop or the tail below). Every
     // step re-checks the epoch so a superseded phase can never act on, or
@@ -10260,10 +10467,10 @@ export class BattleScene extends Phaser.Scene {
     this._enemyPhaseEpoch = (this._enemyPhaseEpoch || 0) + 1;
     const phaseEpoch = this._enemyPhaseEpoch;
     const phaseSuperseded = () =>
+      !isCurrentBattleSession(this, session) ||
       phaseEpoch !== this._enemyPhaseEpoch ||
       this.battleState === 'BATTLE_END' ||
-      this._sceneShutdownCleanedUp ||
-      this.sys?.isActive?.() === false;
+      this._sceneShutdownCleanedUp;
     // Defer rout victory until after reinforcements are applied (cleared below)
     this._reinforcementsPendingThisTurn = true;
     try {
@@ -10335,17 +10542,17 @@ export class BattleScene extends Phaser.Scene {
                 // resumes only the remaining enemies, never this combat or XP.
                 this._enemyActionCheckpoint = true;
                 try {
-                  this._captureSuspendCheckpoint?.();
+                  this._captureSuspendCheckpoint?.({ session: session });
                 } finally {
                   this._enemyActionCheckpoint = false;
                 }
-                await presentQueuedLevelUps(this);
+                await presentQueuedLevelUps(this, null, { session });
               }
             },
           },
         );
       } finally {
-        this.finalizeEnemyPhaseAiStats();
+        if (isCurrentBattleSession(this, session)) this.finalizeEnemyPhaseAiStats();
       }
 
       // End enemy phase. Skip the whole tail when the battle ended, when a
@@ -10369,11 +10576,12 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     } finally {
-      this._reinforcementsPendingThisTurn = false;
+      if (isCurrentBattleSession(this, session)) this._reinforcementsPendingThisTurn = false;
     }
   }
 
   async animateEnemyMove(enemy, path) {
+    const session = battleSession(this);
     if (!path || path.length < 2) return;
 
     const occupied = this.buildOccupiedSet(enemy);
@@ -10408,7 +10616,8 @@ export class BattleScene extends Phaser.Scene {
         },
         { label: 'animate_enemy_move_step', timeoutMs: duration + 700 },
       );
-      if (!this._isSceneActiveForAsync()) return;
+      if (!isCurrentBattleSession(this, session)) return;
+      if (!this._isSceneActiveForAsync(session)) return;
     }
 
     rememberHistoryPath(this, enemy, finalPath, false);
@@ -10420,6 +10629,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async executeEnemyStatusStaff(enemy, target) {
+    const session = battleSession(this);
     const staff = enemy.statusStaff;
     if (!staff) return;
     const result = resolveStatusStaff(staff, enemy, target);
@@ -10437,6 +10647,7 @@ export class BattleScene extends Phaser.Scene {
         `${enemy.name} used ${staff.name}! ${target.name} is protected!`,
         UI_PALETTE.good,
       );
+      if (!isCurrentBattleSession(this, session)) return;
       return;
     }
     const hitPct = Math.round(result.hitChance);
@@ -10449,6 +10660,7 @@ export class BattleScene extends Phaser.Scene {
         `${enemy.name} used ${staff.name}! ${statusText} (${hitPct}%)`,
         UI_PALETTE.bad,
       );
+      if (!isCurrentBattleSession(this, session)) return;
       this._addConditionIcon(target, result.conditionId);
       {
         const pos = this.grid.gridToPixel(target.col, target.row);
@@ -10467,6 +10679,7 @@ export class BattleScene extends Phaser.Scene {
         `${enemy.name} used ${staff.name}! Miss! (${hitPct}%)`,
         UI_PALETTE.muted,
       );
+      if (!isCurrentBattleSession(this, session)) return;
     }
   }
 
@@ -10534,6 +10747,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async executeEnemyCombat(enemy, target) {
+    const session = battleSession(this);
     this.resetFortHealStreak(enemy);
     const enemyHpAtStart = Math.max(0, Math.trunc(Number(enemy?.currentHP) || 0));
     const targetHpAtStart = Math.max(0, Math.trunc(Number(target?.currentHP) || 0));
@@ -10541,7 +10755,7 @@ export class BattleScene extends Phaser.Scene {
     try {
       const ctx = this._prepareCombatContext(enemy, target, { isPlayerInitiator: false });
       const { result } = await this._runCombatResolution(enemy, target, ctx);
-
+      if (!isCurrentBattleSession(this, session)) return;
       // Award XP to player defender if they survived: at least the survival
       // minimum, even with no counter (unarmed, out of reach) or no damage dealt.
       if (target.faction === 'player' && target.currentHP > 0) {
@@ -10552,19 +10766,25 @@ export class BattleScene extends Phaser.Scene {
         await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart, {
           survivedAttack: true,
         });
+        if (!isCurrentBattleSession(this, session)) return;
       }
 
       // Tutorial: the first hit on a non-commander lord teaches permadeath
       await this._maybeShowTutorialPermadeathHint(target, target.currentHP < targetHpAtStart);
+      if (!isCurrentBattleSession(this, session)) return;
 
       if (target.currentHP <= 0) await this.removeUnit(target, { killer: enemy });
+      if (!isCurrentBattleSession(this, session)) return;
       if (enemy.currentHP <= 0) await this.removeUnit(enemy, { killer: target });
+      if (!isCurrentBattleSession(this, session)) return;
 
       // Entity splash damage on adjacent tiles after primary attack
       if (isEntity(enemy) && enemy.currentHP > 0) {
         await this._applyEntitySplash(enemy, target);
+        if (!isCurrentBattleSession(this, session)) return;
       }
       await this._sweepFallenUnits();
+      if (!isCurrentBattleSession(this, session)) return;
       // A fatal cascade must decide defeat before a popup can checkpoint an
       // army with no commander. Victory still waits for the combat owner's XP.
       if (hasBattleDefeat(this.playerUnits, this.escapedUnits)) {
@@ -10580,26 +10800,34 @@ export class BattleScene extends Phaser.Scene {
       )
         return;
       await (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth();
+      if (!isCurrentBattleSession(this, session)) return;
 
       (this._battleBeats ||= new BattleBeatsController(this)).onLowHealth(target);
       this.checkBattleEnd();
     } catch (err) {
+      if (!isCurrentBattleSession(this, session)) return;
       console.error('[BattleScene] enemy combat error:', err);
       try {
         if (target?.currentHP <= 0) await this.removeUnit(target, { killer: enemy });
+        if (!isCurrentBattleSession(this, session)) return;
         if (enemy?.currentHP <= 0) await this.removeUnit(enemy, { killer: target });
+        if (!isCurrentBattleSession(this, session)) return;
         await this._sweepFallenUnits();
+        if (!isCurrentBattleSession(this, session)) return;
         this.checkBattleEnd();
       } catch (cleanupErr) {
         console.error('[BattleScene] enemy combat cleanup error:', cleanupErr);
       }
     } finally {
-      this._clearCombatRollSession();
+      if (isCurrentBattleSession(this, session)) {
+        this._clearCombatRollSession();
+      }
     }
   }
 
   /** Apply Entity AoE splash -- 0-2 random tiles within Manhattan 1 of primary target */
   async _applyEntitySplash(entity, primaryTarget) {
+    const session = battleSession(this);
     const tiles = rollSplashTiles(
       primaryTarget.col,
       primaryTarget.row,
@@ -10629,14 +10857,17 @@ export class BattleScene extends Phaser.Scene {
         },
         { scene: this },
       );
+      if (!isCurrentBattleSession(this, session)) return;
       if (victim.currentHP <= 0) {
         await this.removeUnit(victim, { killer: entity });
+        if (!isCurrentBattleSession(this, session)) return;
       }
     }
     await this._sweepFallenUnits();
   }
 
   async executeEnemyBreak(enemy, tile) {
+    const session = battleSession(this);
     if (!tile) return;
     const removed = this.grid.clearTemporaryTerrainAt?.(tile.col, tile.row);
     if (removed && (!this.grid.fogEnabled || this.grid.isVisible(tile.col, tile.row)))
@@ -10644,6 +10875,7 @@ export class BattleScene extends Phaser.Scene {
     const pos = this.grid.gridToPixel(tile.col, tile.row);
     this.showMinorHintAt(pos.x, pos.y, 'Break!', UI_PALETTE.accentText);
     await this._awaitSceneDelay(120, { label: 'enemy_break_hold' });
+    if (!isCurrentBattleSession(this, session)) return;
   }
 
   showPhaseBanner(phase, turn) {

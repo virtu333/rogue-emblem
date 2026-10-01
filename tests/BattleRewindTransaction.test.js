@@ -12,6 +12,7 @@ function fixture() {
   rm.beginBattleInProgress('a', {});
   const state = captureBattleState(
     {
+      _battleSession: 1,
       playerUnits: [],
       enemyUnits: [],
       npcUnits: [],

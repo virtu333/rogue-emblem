@@ -23,6 +23,7 @@ function freshStaff(name) {
 
 function makeSceneCtx() {
   return {
+    _battleSession: 1,
     battleParams: { xpMultiplier: 1 },
     battleState: '',
     registry: { get: () => ({ playSFX() {} }) },
@@ -88,7 +89,7 @@ describe('executeRelocate', () => {
     expect(staff._usesSpent).toBe(1);
     expect(ctx.awardScaledXP).toHaveBeenCalledTimes(1);
     expect(ctx.awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL);
-    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer);
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
     expect(ctx._recoverUnitActionError).not.toHaveBeenCalled();
   });
 
@@ -101,7 +102,7 @@ describe('executeRelocate', () => {
     await BattleScene.prototype.executeRelocate.call(ctx, healer, unacted, { col: 8, row: 4 });
     expect(unacted.hasActed).toBe(false);
     expect(ctx.finishUnitAction).toHaveBeenCalledTimes(1);
-    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer);
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
 
     const ctx2 = makeSceneCtx();
     const staff2 = freshStaff('Warp Staff');
@@ -109,7 +110,7 @@ describe('executeRelocate', () => {
     const acted = makeAlly({ hasActed: true });
     await BattleScene.prototype.executeRelocate.call(ctx2, healer2, acted, { col: 8, row: 4 });
     expect(acted.hasActed).toBe(true);
-    expect(ctx2.finishUnitAction).toHaveBeenCalledWith(healer2);
+    expect(ctx2.finishUnitAction).toHaveBeenCalledWith(healer2, { session: ctx2._battleSession });
   });
 
   it.each([
@@ -249,11 +250,12 @@ describe('executeRelocate', () => {
       .call(ctx, healer, ally, { col: 5, row: 4 })
       .catch(() => {});
 
-    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer);
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
     expect(ctx._recoverUnitActionError).toHaveBeenCalledWith(
       healer,
       'staffRelocate',
       expect.any(Error),
+      { session: ctx._battleSession },
     );
   });
 
@@ -272,6 +274,7 @@ describe('executeRelocate', () => {
       healer,
       'staffRelocate',
       expect.any(Error),
+      { session: ctx._battleSession },
     );
   });
 
@@ -294,7 +297,7 @@ describe('executeRelocate', () => {
 
     await BattleScene.prototype.executeRelocate.call(ctx, healer, ally, { col: 8, row: 4 });
 
-    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer);
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
     expect(fogBeforeFinish).toBe(0);
     expect(ctx.updateEnemyVisibility).not.toHaveBeenCalled();
   });
@@ -437,6 +440,7 @@ describe('cancel flow', () => {
   it('canForceEndTurn allows End Turn during both staff states', () => {
     for (const state of ['SELECTING_STAFF_ALLY', 'SELECTING_STAFF_TILE']) {
       const ctx = {
+        _battleSession: 1,
         isStoryInputLocked: () => false,
         battleState: state,
         turnManager: { currentPhase: 'player' },

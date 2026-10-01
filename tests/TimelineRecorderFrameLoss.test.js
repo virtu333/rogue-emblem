@@ -36,14 +36,14 @@ function fixture() {
   scene._visionController = new VisionRewindController(scene, run);
   scene.captureVisionSnapshot();
   scene._timelineBoundary = 'turn_start';
-  expect(scene._captureSuspendCheckpoint()).toBe(true);
+  expect(scene._captureSuspendCheckpoint({ session: scene._battleSession })).toBe(true);
   return { scene };
 }
 
 function step(scene, hp) {
   scene.playerUnits[0].currentHP = hp;
   scene._timelineFacts = [`HP ${hp}`];
-  return scene._captureSuspendCheckpoint();
+  return scene._captureSuspendCheckpoint({ session: scene._battleSession });
 }
 
 it('a rejected frame costs one row, never the archive', () => {
