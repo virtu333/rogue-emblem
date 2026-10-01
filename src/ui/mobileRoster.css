@@ -184,6 +184,10 @@
   color: var(--re-good);
   font-weight: 600;
 }
+/* "Used in 14 strikes · 3 kills" (ItemUsage). */
+.mr-card .mr-usage {
+  color: var(--re-muted);
+}
 .mr-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr) auto);

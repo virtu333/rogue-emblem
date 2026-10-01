@@ -258,3 +258,55 @@ it('a stock out of reach says so: short rows, a greyed Buy and how much gold is 
   expect(cheapBuy.disabled).toBe(false);
   expect(cheapBuy.classList.contains('shop-buy--short')).toBe(false);
 });
+
+// Player feedback (Oct 2026): selling trash was overwhelming without knowing whether
+// a row was someone's only weapon, or how much it had been used.
+it("sell rows tag someone's only weapon or staff and say how much each item was used", () => {
+  const [edric] = d.run.roster;
+  const weapon = (name) => structuredClone(d.data.weapons.find((i) => i.name === name));
+  const sword = Object.assign(weapon('Iron Sword'), { uid: 'test-sword', _strikes: 14, _kills: 3 });
+  edric.inventory = [sword];
+  edric.weapon = sword;
+  const heal = Object.assign(weapon('Heal'), { _casts: 9 });
+  const mae = {
+    ...structuredClone(edric),
+    name: 'Mae',
+    unitUid: 'u-mae-test',
+    proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+    inventory: [heal],
+    weapon: null,
+    consumables: [],
+  };
+  d.run.roster = [edric, mae]; // no other unit's rows to confuse
+  d.run.convoy.weapons = [weapon('Iron Lance')];
+  const menu = d.shop.nativeMenu;
+  d.scene.activeShopTab = 'sell';
+  menu.selected = sword;
+  menu.render();
+  const nodes = () => menu.surface.body.all();
+  const rowOf = (item) =>
+    nodes().find((n) => n.classList.contains('shop-row') && n.all().some((c) => c.textContent === item.name && c.tag === 'strong')); // prettier-ignore
+  const tagsOf = (row) =>
+    row
+      .all()
+      .filter((n) => n.classList.contains('shop-risk'))
+      .map((n) => [n.textContent, n.classList.contains('is-hard') ? 'hard' : 'soft']);
+  const subOf = (row) => row.all().find((n) => n.tag === 'span' && /\+\d+ G/.test(n.textContent));
+  // Edric's only weapon and Mae's only staff.
+  expect(tagsOf(rowOf(sword))).toEqual([['Only weapon', 'hard']]);
+  expect(subOf(rowOf(sword)).textContent).toMatch(/^Edric · \+\d+ G · 14 strikes$/);
+  expect(tagsOf(rowOf(heal))).toEqual([['Only staff', 'hard']]);
+  expect(subOf(rowOf(heal)).textContent).toMatch(/^Mae · \+\d+ G · 9 uses$/);
+  // The convoy's lance belongs to no one: no tag, and no use yet.
+  const lance = d.run.convoy.weapons[0];
+  expect(tagsOf(rowOf(lance))).toEqual([]);
+  expect(subOf(rowOf(lance)).textContent).toMatch(/^Convoy · \+\d+ G$/);
+  // The detail pane says it in full, with the warning the confirm repeats.
+  const text = nodes().map((n) => n.textContent);
+  expect(text).toContain('Used in 14 strikes · 3 kills');
+  expect(text).toContain('Leaves Edric unarmed.');
+  // A spare sword lifts the tag from both swords.
+  edric.inventory.push(weapon('Iron Sword'));
+  menu.render();
+  expect(tagsOf(rowOf(sword))).toEqual([]);
+});
