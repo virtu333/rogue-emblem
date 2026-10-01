@@ -11,6 +11,7 @@ No tuning yet (docs/specs/dusk-pressure.md, PR 1).
   - A combat in which the wielder strikes with it (attacking or countering, hit or miss) now spends one shot. The player's copy has 3 per battle and an enemy's has 5 (`weapons.json` `uses` / `usesByFaction`), with no MAG bonus. Shots refill after every battle.
   - A spent copy cannot counter.
   - An enemy siege caster keeps its own weapon behind the tome and switches to it once its shots are gone. The Danger overlay draws that weapon's reach.
+  - A unit whose Breachbolt fires its last shot switches to its next usable weapon as soon as the combat's deaths are settled, so it can counter again at once. Kill credit still goes to the Breachbolt. A player unit only switches to a weapon it can equip, and a banner names the new weapon. An enemy with nothing to switch to stops attacking.
   - The weapon tooltip, the roster card and the Siege keyword show the shots, read from data. A Breachbolt already in a save (still holding `uses: 1`) takes the catalog counts when the run loads (`engine/WeaponCatalogMigration.js`, beside the item-name and Gambler's Coin migrations).
 - **Par-neutral waves:** whether a wave raises par is now one rule shared by the battle and the headless harness (`ReinforcementScheduler.waveRaisesPar`). Repeating pursuit waves stay par-neutral as before, and the coming rout ladder will be too.
 - **Reinforcement tiles:**
