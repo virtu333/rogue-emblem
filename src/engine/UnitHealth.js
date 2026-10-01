@@ -98,6 +98,15 @@ export function applyCombatHP(attacker, defender, result) {
   applyCombatSideHP(defender, 'defender', result);
 }
 
+/** Settle one strike before presentation: target damage, drain, then reflection. */
+export function applyStrikeHP(striker, target, event) {
+  if (!event || event.type !== 'strike' || event.miss) return;
+  setUnitHP(target, event.targetHPAfter);
+  if (event.heal > 0 && event.strikerHealTo !== undefined) setUnitHP(striker, event.strikerHealTo);
+  if (event.reflectDamage > 0 && event.strikerHPAfter !== undefined)
+    setUnitHP(striker, event.strikerHPAfter);
+}
+
 /**
  * One side of applyCombatHP ('attacker' | 'defender'), for callers that keep only one
  * unit (the arena's challenger is not kept). `floor` holds the final HP up (the
