@@ -8435,6 +8435,8 @@ export class BattleScene extends Phaser.Scene {
           0,
           defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
         );
+        // Area victims (result.areaCredits) pay no XP here yet. Slice 4b pays them by
+        // reading BattleXp.AREA_XP_LIVE, the switch the harness already reads.
         await this.awardXP(
           attacker,
           defender,
