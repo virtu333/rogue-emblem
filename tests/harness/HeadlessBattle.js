@@ -63,7 +63,6 @@ import {
 import {
   applyWeaponArtCost,
   canUseWeaponArt,
-  getEffectiveWeaponArtHpCost,
   getWeaponArtCombatMods,
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
@@ -115,6 +114,11 @@ import {
 } from '../../src/engine/TimedWeaponArtBuffs.js';
 import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
 import { actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
+import {
+  enemyWeaponArtTuning,
+  scoreEnemyWeaponArt,
+  selectEnemyWeaponArt,
+} from '../../src/engine/EnemyArtScoring.js';
 import {
   buildRisenUnit,
   createRemains,
@@ -1544,32 +1548,9 @@ export class HeadlessBattle {
   }
 
   _scoreEnemyWeaponArt(unit, art) {
-    const mods = getWeaponArtCombatMods(art);
-    const artOpts = {
+    return scoreEnemyWeaponArt(unit, art, {
       weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-    };
-    const hpCost = getEffectiveWeaponArtHpCost(unit, art, artOpts);
-    const effectivenessScore =
-      mods.effectiveness?.multiplier > 1 ? (mods.effectiveness.multiplier - 1) * 4 : 0;
-    const rangeOverrideScore = mods.rangeOverride
-      ? (Math.max(mods.rangeOverride.min, mods.rangeOverride.max) - 1) * 1.5
-      : 0;
-    return (
-      mods.atkBonus * 3 +
-      mods.hitBonus * 0.35 +
-      mods.critBonus * 0.25 +
-      mods.spdBonus * 0.5 +
-      mods.avoidBonus * 0.15 +
-      mods.defBonus * 0.1 +
-      effectivenessScore +
-      (mods.rangeBonus || 0) * 1.2 +
-      rangeOverrideScore +
-      (mods.preventCounter ? 3.5 : 0) +
-      (mods.targetsRES ? 2.5 : 0) +
-      (mods.halfPhysicalDamage ? 2.5 : 0) +
-      (mods.vengeance ? 4 : 0) -
-      hpCost * 0.75
-    );
+    });
   }
 
   _getEnemyWeaponArtDifficultyId() {
@@ -1577,12 +1558,7 @@ export class HeadlessBattle {
   }
 
   _getEnemyWeaponArtTuning() {
-    const rawDifficulty = this._getEnemyWeaponArtDifficultyId();
-    if (!rawDifficulty) return { minScore: 0.75, useChance: 1.0 };
-    const difficultyId = String(rawDifficulty).toLowerCase();
-    if (difficultyId === 'normal') return { minScore: 2.25, useChance: 0.6 };
-    if (difficultyId === 'lunatic') return { minScore: 0.25, useChance: 1.0 };
-    return { minScore: 0.75, useChance: 0.9 };
+    return enemyWeaponArtTuning(this._getEnemyWeaponArtDifficultyId());
   }
 
   _rollEnemyWeaponArtChance() {
@@ -1594,9 +1570,9 @@ export class HeadlessBattle {
     return Math.min(1, Math.max(0, roll));
   }
 
+  /** The scene's rule (engine/EnemyArtScoring), over the harness's world. */
   _selectEnemyWeaponArt(unit, target) {
     if (!unit?.weapon) return null;
-    const tuning = this._getEnemyWeaponArtTuning();
     const choices = this._getWeaponArtChoices(unit, unit.weapon, {
       isAI: true,
       isInitiating: true,
@@ -1604,24 +1580,15 @@ export class HeadlessBattle {
       targetFaction: target?.faction,
     }).filter((entry) => entry.canUse);
     if (choices.length <= 0) return null;
-    const scored = choices
-      .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(unit, choice.art) }))
-      .filter((entry) => entry.score >= tuning.minScore);
-    if (scored.length <= 0) return null;
-    if (tuning.useChance < 1 && this._rollEnemyWeaponArtChance() > tuning.useChance) return null;
-    scored.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      const sortArtOpts = {
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-      };
-      const aCost = getEffectiveWeaponArtHpCost(unit, a.art, sortArtOpts);
-      const bCost = getEffectiveWeaponArtHpCost(unit, b.art, sortArtOpts);
-      if (aCost !== bCost) return aCost - bCost;
-      const aId = String(a.art?.id || '');
-      const bId = String(b.art?.id || '');
-      return aId.localeCompare(bId);
+    return selectEnemyWeaponArt({
+      unit,
+      target,
+      choices,
+      world: () => this._postCombatWorld(),
+      difficultyId: this._getEnemyWeaponArtDifficultyId(),
+      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      roll: () => this._rollEnemyWeaponArtChance(),
     });
-    return scored[0].art;
   }
 
   _buildSkillCtx(attacker, defender, weaponArt = null) {

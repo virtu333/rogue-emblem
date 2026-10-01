@@ -6,12 +6,13 @@ import {
   canUseWeaponArt,
   getEffectiveWeaponArtHpCost,
   isWeaponArtCompatibleWithWeapon,
-  getWeaponArtCombatMods,
-  getWeaponArtTier2Effects,
-  getWeaponArtMissEffects,
-  getWeaponArtKillEffects,
 } from '../engine/WeaponArtSystem.js';
 import { resolveWeaponArtIds } from './WeaponArtVisibility.js';
+import {
+  enemyWeaponArtTuning,
+  scoreEnemyWeaponArt,
+  selectEnemyWeaponArt,
+} from '../engine/EnemyArtScoring.js';
 import { isStaff } from '../engine/Combat.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
@@ -411,42 +412,10 @@ export class WeaponArtController {
   }
 
   _scoreEnemyWeaponArt(unit, art) {
-    const scene = this.scene;
-    const mods = getWeaponArtCombatMods(art);
-    const artOpts = {
-      weaponArtHpCostDelta: scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-    };
-    const hpCost = getEffectiveWeaponArtHpCost(unit, art, artOpts);
-    const effectivenessScore =
-      mods.effectiveness?.multiplier > 1 ? (mods.effectiveness.multiplier - 1) * 4 : 0;
-    const rangeOverrideScore = mods.rangeOverride
-      ? (Math.max(mods.rangeOverride.min, mods.rangeOverride.max) - 1) * 1.5
-      : 0;
-    const statusCount = getWeaponArtTier2Effects(art).inflictStatus.length;
-    const { selfDamageOnMiss } = getWeaponArtMissEffects(art);
-    const { killBuff } = getWeaponArtKillEffects(art);
-    return (
-      mods.atkBonus * 3 +
-      mods.hitBonus * 0.35 +
-      mods.critBonus * 0.25 +
-      mods.spdBonus * 0.5 +
-      mods.avoidBonus * 0.15 +
-      mods.defBonus * 0.1 +
-      effectivenessScore +
-      (mods.rangeBonus || 0) * 1.2 +
-      rangeOverrideScore +
-      (mods.preventCounter ? 3.5 : 0) +
-      (mods.targetsRES ? 2.5 : 0) +
-      (mods.halfPhysicalDamage ? 2.5 : 0) +
-      (mods.vengeance ? 4 : 0) +
-      statusCount * 3 +
-      (mods.damageMultiplier > 1 ? (mods.damageMultiplier - 1) * 6 : 0) +
-      (mods.ignoreWeaponTriangle ? 1.5 : 0) +
-      (mods.ignoreRES ? 3 : 0) +
-      (killBuff ? 1 : 0) -
-      (selfDamageOnMiss ? selfDamageOnMiss * 0.3 : 0) -
-      hpCost * 0.75
-    );
+    return scoreEnemyWeaponArt(unit, art, {
+      weaponArtHpCostDelta:
+        this.scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+    });
   }
 
   _getEnemyWeaponArtDifficultyId() {
@@ -455,19 +424,13 @@ export class WeaponArtController {
   }
 
   _getEnemyWeaponArtTuning() {
-    const rawDifficulty = this._getEnemyWeaponArtDifficultyId();
-    if (!rawDifficulty) return { minScore: 0.75, useChance: 1.0 };
-    const difficultyId = String(rawDifficulty).toLowerCase();
-    if (difficultyId === 'normal') return { minScore: 2.25, useChance: 0.6 };
-    if (difficultyId === 'dusk') return { minScore: 1.5, useChance: 0.75 };
-    if (difficultyId === 'lunatic') return { minScore: 0.25, useChance: 1.0 };
-    return { minScore: 0.75, useChance: 0.9 };
+    return enemyWeaponArtTuning(this._getEnemyWeaponArtDifficultyId());
   }
 
+  /** engine/EnemyArtScoring.selectEnemyWeaponArt over this unit's usable arts. */
   _selectEnemyWeaponArt(unit, target) {
     const scene = this.scene;
     if (!unit?.weapon) return null;
-    const tuning = this._getEnemyWeaponArtTuning();
     const choices = this._getWeaponArtChoices(unit, unit.weapon, {
       isAI: true,
       isInitiating: true,
@@ -475,24 +438,15 @@ export class WeaponArtController {
       targetFaction: target?.faction,
     }).filter((entry) => entry.canUse);
     if (choices.length <= 0) return null;
-    const scored = choices
-      .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(unit, choice.art) }))
-      .filter((entry) => entry.score >= tuning.minScore);
-    if (scored.length <= 0) return null;
-    if (tuning.useChance < 1 && this._rollEnemyWeaponArtChance() > tuning.useChance) return null;
-    scored.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      const sortArtOpts = {
-        weaponArtHpCostDelta: scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-      };
-      const aCost = getEffectiveWeaponArtHpCost(unit, a.art, sortArtOpts);
-      const bCost = getEffectiveWeaponArtHpCost(unit, b.art, sortArtOpts);
-      if (aCost !== bCost) return aCost - bCost;
-      const aId = String(a.art?.id || '');
-      const bId = String(b.art?.id || '');
-      return aId.localeCompare(bId);
+    return selectEnemyWeaponArt({
+      unit,
+      target,
+      choices,
+      world: () => scene._postCombatWorld?.() || null,
+      difficultyId: this._getEnemyWeaponArtDifficultyId(),
+      weaponArtHpCostDelta: scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      roll: () => this._rollEnemyWeaponArtChance(),
     });
-    return scored[0].art;
   }
 
   _rollEnemyWeaponArtChance() {
