@@ -210,11 +210,20 @@ then hunts for the rest of the battle.
   attacking or countering. A spent Breachbolt cannot counter, and `canAttackWithWeapon`
   rejects it.
 - **Enemy fallback.** An enemy siege caster keeps its own weapon behind the Breachbolt
-  and re-equips it once its shots are spent. The AI plans attacks only with weapons that
-  pass `canAttackWithWeapon`. The enemy variant skips the rank check, because Dark
-  Knight (Tomes P) carries a Mastery tome.
-- **Display.** The tooltip, keyword, unit and roster rows show the remaining uses from
-  data.
+  and re-equips it once its shots are spent. The swap uses `Combat.nextStrikeWeapon`,
+  and ThreatForecast draws the same weapon. The AI checks shots only, not
+  `canAttackWithWeapon` in full:
+  - the rank check would disarm a Dark Knight (Tomes P) carrying the Mastery tome;
+  - the silence check would change how the AI picks attacks today (Combat already
+    blocks silenced magic), which is out of scope.
+- **Display.** The weapon tooltip, the roster card and the Siege keyword show the shots,
+  read from data. The canvas unit row is left alone because it is already at its width
+  limit.
+- **Also in PR 1:**
+  - The anti-turtle baseline fix.
+  - Arrival tiles checked against every move type an arrival may copy.
+  - `REINFORCEMENT_EXCLUDED_TERRAIN`.
+  - Harness mirrors for anti-turtle, spawn gear and enemy staves.
 
 **Artillery AI (later PR).** A Breachbolt holder that still has shots does not move. It
 fires from its post at the best target 3–10 away, and ThreatForecast draws its reach from
