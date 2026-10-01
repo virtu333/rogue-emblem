@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Staff Relocation Visuals (Sep 30, 2026)
+
+- Rescue and Warp preserve each visual element's opacity when moving an already-used ally, so the next turn restores its ready appearance without leaving the sprite or HP bar faded.
+
 ### Audio Recording Versions (Sep 30, 2026)
 
 - Returning desktop installs now request exact soundtrack versions instead of replaying old cached placeholder music. Adaptive layers validate recording identity and timeline compatibility; invalid recordings fail cleanly.
