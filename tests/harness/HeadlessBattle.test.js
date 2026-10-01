@@ -448,6 +448,29 @@ describe('HeadlessBattle', () => {
     expect(battle.selectedUnit.hasActed).toBe(false);
   });
 
+  it.each(['missing', 'dead', 'caravan', 'already joined'])(
+    'invalid %s Talk target throws without spending the action',
+    (kind) => {
+      const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
+      battle.init();
+      const lord = battle.playerUnits.find((unit) => unit.isLord);
+      const npc = { name: 'Invalid recruit', faction: 'npc', currentHP: 10 };
+      battle.npcUnits = kind === 'missing' ? [] : [npc];
+      if (kind === 'dead') npc.currentHP = 0;
+      if (kind === 'caravan') npc.isCaravan = true;
+      if (kind === 'already joined') battle.playerUnits.push(npc);
+      const players = [...battle.playerUnits],
+        npcs = [...battle.npcUnits];
+      const finish = vi.spyOn(battle, '_finishUnitAction');
+      expect(() => battle._executeTalk(lord, npc)).toThrow(/Invalid Talk recruit/);
+      expect(finish).not.toHaveBeenCalled();
+      expect(lord.hasActed).toBe(false);
+      expect(npc.faction).toBe('npc');
+      expect(battle.playerUnits).toEqual(players);
+      expect(battle.npcUnits).toEqual(npcs);
+    },
+  );
+
   it('offers no Talk to the merchant caravan (an NPC, never a recruit)', () => {
     const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
     battle.init();
