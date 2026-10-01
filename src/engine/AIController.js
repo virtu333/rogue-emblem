@@ -142,7 +142,11 @@ export class AIController {
         decision.target.col,
         decision.target.row,
       );
-      if (!enemy.weapon || !isInRange(enemy.weapon, plannedDist)) {
+      if (
+        !enemy.weapon ||
+        !hasPerBattleUsesLeft(enemy.weapon, enemy) ||
+        !isInRange(enemy.weapon, plannedDist)
+      ) {
         targetToAttack = this._selectBestInRangeTarget(enemy, [
           ...playerUnits,
           ...(npcUnits || []),
@@ -732,7 +736,7 @@ export class AIController {
     const blocker = attackable.find((u) => u.col === goal.col && u.row === goal.row) || null;
 
     // A unit blocking the village tile is the one target worth deviating for.
-    if (blocker && enemy.weapon) {
+    if (blocker && enemy.weapon && hasPerBattleUsesLeft(enemy.weapon, enemy)) {
       let best = null;
       let bestPathLen = Infinity;
       for (const candidate of candidatePlans) {
@@ -817,7 +821,7 @@ export class AIController {
 
     // Opportunistic attack from the landing tile — may be null; never deviates.
     let target = null;
-    if (enemy.weapon) {
+    if (enemy.weapon && hasPerBattleUsesLeft(enemy.weapon, enemy)) {
       let bestScore = -Infinity;
       for (const unit of attackable) {
         const dist = gridDistance(finalTile.col, finalTile.row, unit.col, unit.row);

@@ -1532,6 +1532,41 @@ describe('AIController', () => {
       expect(decision.target).toBe(adjacentPlayer);
     });
 
+    it('never strikes with a spent per-battle weapon (blocker or opportunistic)', () => {
+      // Breachbolt-like: one shot a battle for an enemy, already spent; range 1 here.
+      const spent = () => ({
+        name: 'Spent Tome',
+        type: 'Tome',
+        range: '1',
+        perBattleUses: true,
+        uses: 1,
+        _usesSpent: 1,
+      });
+      const blockerAi = new AIController(
+        createMockGrid([{ col: 5, row: 6 }]),
+        {},
+        {
+          objective: 'rout',
+        },
+      );
+      const blocked = makeBandit({ aiTargetTile: { col: 5, row: 7 }, weapon: spent() });
+      blocked.inventory = [blocked.weapon];
+      const blocker = makePlayer({ col: 5, row: 7 });
+      const d1 = blockerAi._decideAction(blocked, [blocked], [blocker], []);
+      expect(d1.target).toBeNull();
+
+      const tiles = [
+        { col: 5, row: 6 },
+        { col: 5, row: 7 },
+        { col: 5, row: 8 },
+      ];
+      const ai = new AIController(createMockGrid(tiles), {}, { objective: 'rout' });
+      const bandit = makeBandit({ weapon: spent() });
+      bandit.inventory = [bandit.weapon];
+      const d2 = ai._decideAction(bandit, [bandit], [makePlayer({ col: 4, row: 8 })], []);
+      expect(d2.target).toBeNull();
+    });
+
     it('reverts to normal chase behavior once the mode is cleared', () => {
       const moveTiles = [
         { col: 4, row: 5 },
