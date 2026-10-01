@@ -737,6 +737,7 @@ describe('BattleScene reinforcement reward scaling', () => {
 it('Deathburst can kill adjacent NPCs and its own allies, but leaves units at range two alone', async () => {
   const scene = new BattleScene();
   Object.assign(scene, {
+    _battleSession: 1,
     registry: { get: () => null },
     gameData,
     runManager: null,

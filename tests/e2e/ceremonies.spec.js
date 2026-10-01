@@ -182,7 +182,7 @@ test.describe('boss encounter, bar and resume', () => {
       meta._save();
       s.registry.set('activeSlot', 1);
       setActiveSlot(1);
-      s._captureSuspendCheckpoint();
+      s._captureSuspendCheckpoint({ session: s._battleSession });
       return s.enemyUnits.find((u) => u.isBoss).currentHP;
     });
     await page.evaluate(() => history.replaceState(null, '', '/?mobilePreview=1'));

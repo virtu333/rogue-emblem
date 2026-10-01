@@ -64,6 +64,7 @@ const caravan = (col, row) => ({ ...villager(col, row), name: 'Merchant', isCara
 function battle(grid, { enemies = [], players = [], npcs = [] }) {
   const scene = new BattleScene();
   Object.assign(scene, {
+    _battleSession: 1,
     grid,
     enemyUnits: enemies,
     playerUnits: players,

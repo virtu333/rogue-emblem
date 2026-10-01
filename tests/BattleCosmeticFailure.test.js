@@ -13,11 +13,11 @@ import { createVillageState } from '../src/engine/VillageSystem.js';
 import { completeBattleAction } from '../src/ui/BattleActionCompletion.js';
 import { RunDriver, JourneyStorage } from './harness/RunDriver.js';
 import { _resetUidCounter } from '../src/utils/itemUid.js';
-import { isolateBattleTextFactory } from '../src/utils/presentationText.js';
 import { safeBattlePresentation } from '../src/ui/safeBattlePresentation.js';
 import * as errors from '../src/utils/errorReporter.js';
 import { HeadlessBattle, HEADLESS_STATES } from './harness/HeadlessBattle.js';
 import { checkInvariants } from './harness/Invariants.js';
+import { presentationFailureProxy as rendering } from './harness/PresentationFailureProxy.js';
 
 const data = loadGameData();
 const originalRandom = Math.random;
@@ -41,61 +41,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// Proxy every rendering surface supplied by the Journey fixture. Throw at the
-// nth actual presentation call, rather than mirroring production failure points.
-function rendering(scene, failure = 0) {
-  let calls = 0;
-  const call =
-    (fn) =>
-    (...args) => {
-      calls++;
-      if (failure === 'all' || calls === failure) throw new Error('Renderer unavailable');
-      return fn(...args);
-    };
-  const visual = new Proxy(
-    {},
-    { get: (_, key) => (key === 'then' ? undefined : call(() => visual)) },
-  );
-  const surface = (methods) =>
-    new Proxy(methods, {
-      get: (target, key) => (typeof target[key] === 'function' ? call(target[key]) : target[key]),
-    });
-  scene.add = surface({
-    text: () => {
-      Math.random();
-      return visual;
-    },
-  });
-  scene.tweens = surface({ add: () => {} });
-  scene._combatFx = surface({
-    deathFade: async () => {},
-    playOverlay: () => {},
-    playStatus: () => {},
-    finishStrike: () => {},
-  });
-  scene._musicCtrl = surface({ onCombat: () => {}, onCombatResolved: () => {} });
-  scene._battleBeats = surface({ onKill: () => {}, onAllyFall: () => {} });
-  scene._inputController = surface({ refreshHoverInfo: () => {} });
-  scene._pinnedThreats = surface({ invalidate: () => {} });
-  for (const name of [
-    'updateHPBar',
-    'removeUnitGraphic',
-    'updateObjectiveText',
-    'showMinorHintAt',
-    'updateUnitPosition',
-    'refreshVisibleDangerZone',
-    'updateEnemyVisibility',
-    'animateHeal',
-  ]) {
-    scene[name] = call(() => {});
-  }
-  scene._awaitSceneDelay = call(async () => {});
-  isolateBattleTextFactory(scene); // Production fixed-v1 setup; legacy streams intentionally differ.
-  const count = () => calls;
-  count.visual = visual;
-  count.call = call;
-  return count;
-}
 function unit(name, faction, col, row, hp = 20) {
   return {
     name,
@@ -299,7 +244,7 @@ async function scenario(kind, failure = 0) {
       checkBattleEnd: () => scene.checkBattleEnd(),
     });
     scene.turnManager.init(scene.playerUnits, scene.enemyUnits, scene.npcUnits);
-    completeBattleAction(scene, commander);
+    completeBattleAction(scene, commander, { session: scene._battleSession });
     const saved = JSON.parse(storage.getItem('emblem_rogue_slot_1_run'))?.battleInProgress
       ?.checkpoint;
     expect(saved).toBeTruthy();
@@ -480,7 +425,7 @@ it.each(['player', 'enemy'])(
     scene.playerUnits = [actor, commander];
     driver.run.roster = scene.playerUnits;
     for (const unit of [...scene.playerUnits, ...scene.enemyUnits]) scene.addUnitGraphic(unit);
-    scene._captureSuspendCheckpoint();
+    scene._captureSuspendCheckpoint({ session: scene._battleSession });
     expect(driver.run.battleInProgress.checkpoint.playerUnits.map((unit) => unit.name)).toContain(
       'Commander',
     );
@@ -566,27 +511,50 @@ it('enemy entry attributes its primary casualty after a splash victim starts a D
   ]);
 });
 
-it('init clears counters and flags whose cancelled continuations never run finally', async () => {
+it('init clears counters after a real cancelled Deathburst wait parks its old finally', async () => {
   const { scene } = fixture();
   const burst = { ...unit('Burst', 'enemy', 1, 1, 0), affixes: ['deathburst'] };
   scene.playerUnits = [{ ...unit('Edric', 'player', 0, 0), isCommander: true }];
   scene.enemyUnits = [burst];
+  scene.scene = { isActive: () => true };
+  scene._awaitSceneDelay = BattleScene.prototype._awaitSceneDelay;
   let entered;
   const waiting = new Promise((resolve) => {
     entered = resolve;
   });
-  scene._awaitSceneDelay = () => {
-    entered();
-    return new Promise(() => {});
+  const timer = { remove: vi.fn() };
+  // The rendering fixture supplies the clock; the production delay creates its
+  // actual lifecycle guard and timeout. No tick is delivered before shutdown.
+  scene.time = {
+    delayedCall: vi.fn(() => {
+      entered();
+      return timer;
+    }),
   };
-  void scene.removeUnit(burst);
+  let completed = false;
+  void scene.removeUnit(burst).then(() => {
+    completed = true;
+  });
   await waiting;
+  const oldSession = scene._battleSession;
+  expect(scene._lifecycleAwaitGuards.size).toBe(1);
   expect(scene._deathAffixChainDepth).toBe(1);
+  expect(burst._removing).toBe(true);
   scene._combatSpeedSnapshot = 4;
+  // Use the real shutdown cancellation entry point, then Phaser's synchronous
+  // re-init order on this same Scene object. Obsolete promises remain parked.
+  scene._sceneShutdownCleanedUp = true;
+  scene._cancelLifecycleAwaits('scene_shutdown');
+  expect(scene._lifecycleAwaitGuards.size).toBe(0);
+  expect(timer.remove).toHaveBeenCalledOnce();
   scene.init({ gameData: data });
+  for (let n = 0; n < 8; n++) await Promise.resolve();
+  expect(scene._battleSession).toBeGreaterThan(oldSession);
+  expect(completed).toBe(false);
+  expect(burst._removing).toBe(true);
   expect(scene._deathAffixChainDepth).toBe(0);
   expect(scene._combatSpeedSnapshot).toBeUndefined();
-  // The reused scene starts its next battle even while the old finally is parked.
+  // The replacement battle can resolve a defeat while the old finally stays parked.
   scene.playerUnits = [{ ...unit('Edric', 'player', 0, 0, 0), isCommander: true }];
   scene.enemyUnits = [unit('Enemy', 'enemy', 3, 3)];
   scene.battleState = 'PLAYER_IDLE';

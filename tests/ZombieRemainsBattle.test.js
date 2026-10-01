@@ -103,6 +103,7 @@ function battle({ rail = true, enemies = [], remains = [remainsAt(2, 1)], visibl
     throw new Error('battle RNG drawn');
   });
   Object.assign(scene, {
+    _battleSession: 1,
     selectedUnit: unit,
     playerUnits: [unit],
     enemyUnits: enemies,
@@ -223,7 +224,10 @@ describe('the Smash command', () => {
     scene.handleRemainsTargetClick({ col: 2, row: 1 });
     expect(scene._zombieTombstones).toEqual([]);
     expect(scene.objectiveText.text).toBe('Rout: 1 enemy remaining');
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { skipCanto: true });
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, {
+      skipCanto: true,
+      session: scene._battleSession,
+    });
     expect(scene.commitVisionSnapshotIfPending).toHaveBeenCalled();
     expect(scene.onVictory).not.toHaveBeenCalled();
     expect(random).not.toHaveBeenCalled();
@@ -321,6 +325,7 @@ describe('rising where the player cannot see', () => {
 describe('saves keep the remains', () => {
   function checkpointScene(remains, visible) {
     const scene = {
+      _battleSession: 1,
       playerUnits: [],
       enemyUnits: [],
       npcUnits: [],

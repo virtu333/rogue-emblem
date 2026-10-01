@@ -1,3 +1,4 @@
+import { battleSession } from './BattleSession.js';
 // BattleTradeController -- the one write path for trading in battle
 // (docs/specs/item-trade.md, "Battle"). The DOM menu (BattleTradeMenu over
 // TradeMenu) and the headless canvas fallback both commit through here, so the
@@ -99,11 +100,12 @@ export class BattleTradeController {
   commit(left, right, from, to) {
     if (!this.canCommit(left, right, from, to)) return { ok: false, reason: TRADE_UNAVAILABLE };
     const scene = this.scene;
+    const session = battleSession(scene);
     const result = applyTrade(BATTLE_TRADE_CTX, from, to);
     if (!result.ok) return result;
     this.lockMove(left);
     observeHistoryAction(scene, 'traded with', left, right, result.detail);
-    scene._captureSuspendCheckpoint?.();
+    scene._captureSuspendCheckpoint?.({ session: session });
     return result;
   }
 
@@ -117,13 +119,14 @@ export class BattleTradeController {
   reorder(left, right, from, to) {
     if (!this.canReorder(left, right, from, to)) return { ok: false, reason: TRADE_UNAVAILABLE };
     const scene = this.scene;
+    const session = battleSession(scene);
     const result = applyReorder(BATTLE_TRADE_CTX, from, to);
     if (!result.ok) return result;
     this.lockMove(left);
     const unit = slotUnit(from);
     const detail = unit === left ? result.detail : `${result.detail} for ${unit.name}`;
     observeHistoryAction(scene, 'changed equipment', left, null, detail);
-    scene._captureSuspendCheckpoint?.();
+    scene._captureSuspendCheckpoint?.({ session: session });
     return result;
   }
 }

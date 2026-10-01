@@ -77,6 +77,7 @@ function makeUnit(overrides = {}) {
 // Minimal BattleScene stand-in: real awardXP, recorded awardScaledXP.
 function makeXpScene(playerUnits) {
   return {
+    _battleSession: 1,
     playerUnits,
     getEnemyXpMultiplier: () => 1,
     getTurnPressureState: () => ({ xpMultiplier: 1 }),

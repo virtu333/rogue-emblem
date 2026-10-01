@@ -15,6 +15,7 @@ const bar = () => ({ setPosition: vi.fn(), setSize: vi.fn(), setFillStyle: vi.fn
 function battle() {
   const scene = Object.create(BattleScene.prototype);
   Object.assign(scene, {
+    _battleSession: 1,
     gameData,
     battleState: 'UNIT_ACTION_MENU',
     grid: { gridToPixel: () => ({ x: 0, y: 0 }), clearAttackHighlights: vi.fn() },

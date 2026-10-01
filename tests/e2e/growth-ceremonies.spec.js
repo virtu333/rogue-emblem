@@ -251,7 +251,7 @@ test('refresh mid-rite (battle seal): promotion and seal kept exactly once, rite
     u.level = 10;
     u.skills = [];
     u.consumables = [structuredClone(s.gameData.consumables.find((i) => i.effect === 'promote'))];
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
   });
   await tapUnit(page, 'Edric');
   const hud = page.getByRole('complementary', { name: 'Battle commands' });

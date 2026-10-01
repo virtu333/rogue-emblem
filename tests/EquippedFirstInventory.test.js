@@ -37,6 +37,7 @@ function swordsman(inventory, weapon = inventory[0]) {
   return {
     name: 'Hero',
     className: 'Myrmidon',
+    tier: 'base',
     faction: 'player',
     level: 5,
     stats: { HP: 20, STR: 8, MAG: 8, SKL: 8, SPD: 8, DEF: 4, RES: 3, LCK: 5, MOV: 5 },

@@ -28,6 +28,7 @@ function makeRect() {
 
 function makeScene(overrides = {}) {
   return {
+    _battleSession: 1,
     battleConfig: {},
     battleParams: { act: 'act1' },
     gameData,

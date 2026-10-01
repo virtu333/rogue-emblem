@@ -491,6 +491,7 @@ function makeUnit(overrides = {}) {
 
 function makeEscapeScene(overrides = {}) {
   const scene = {
+    _battleSession: 1,
     battleConfig: {
       objective: 'escape',
       escapeTiles: [
@@ -589,6 +590,7 @@ describe('EscapeObjectiveController', () => {
     const staying = makeUnit({ name: 'Edric', isLord: true, hasActed: true });
     const persisted = [];
     const scene = makeEscapeScene({
+      _battleSession: 1,
       playerUnits: [unit, staying],
     });
     scene._captureSuspendCheckpoint = () =>
@@ -654,6 +656,7 @@ describe('EscapeObjectiveController', () => {
 function makeBattleEndCtx(overrides = {}) {
   const ctx = Object.create(BattleScene.prototype);
   return Object.assign(ctx, {
+    _battleSession: 1,
     battleState: 'PLAYER_IDLE',
     visionDialog: null,
     playerUnits: [],
@@ -738,6 +741,7 @@ describe('escapedUnits persistence', () => {
   it('suspend checkpoint carries escaped units and applyUnits restores them', () => {
     const escaped = makeUnit({ name: 'Rec1' });
     const scene = {
+      _battleSession: 1,
       battleState: 'PLAYER_IDLE',
       runManager: {
         battleInProgress: { nodeId: 'n1', checkpoint: null },
@@ -779,6 +783,7 @@ describe('escapedUnits persistence', () => {
     // Restore into a fresh scene (JSON round trip like localStorage)
     const restored = JSON.parse(JSON.stringify(cp));
     const fresh = {
+      _battleSession: 1,
       playerUnits: [],
       enemyUnits: [],
       npcUnits: [],
@@ -796,6 +801,7 @@ describe('escapedUnits persistence', () => {
 
   it('vision snapshot rewinds escaped units and the gold earned this turn', () => {
     const scene = {
+      _battleSession: 1,
       playerUnits: [],
       enemyUnits: [],
       npcUnits: [],

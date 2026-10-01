@@ -84,7 +84,7 @@ test('a recruit who joins and falls in the same battle can be revived at the chu
     Object.assign(npc, spot, { faction: 'npc' });
     s.npcUnits.push(npc);
     s.addUnitGraphic(npc);
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
     window.__talk = s.executeTalk(lord);
   });
   await clickThrough(page, () =>
@@ -95,7 +95,7 @@ test('a recruit who joins and falls in the same battle can be revived at the chu
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     await window.__talk;
     s.battleState = 'PLAYER_IDLE';
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
     window.__death = s.removeUnit(s.playerUnits.find((u) => u.name === 'Daska'));
   });
   await clickThrough(page, () =>
@@ -221,7 +221,7 @@ test('a fallen recruit is recorded even when a living ally shares its name', asy
     Object.assign(npc, spot, { faction: 'npc' });
     s.npcUnits.push(npc);
     s.addUnitGraphic(npc);
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
     window.__npc = npc;
     window.__talk = s.executeTalk(lord);
     return { name: ally.name, uid: ally.unitUid || null };
@@ -233,7 +233,7 @@ test('a fallen recruit is recorded even when a living ally shares its name', asy
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     await window.__talk;
     s.battleState = 'PLAYER_IDLE';
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
     window.__death = s.removeUnit(window.__npc);
     return window.__npc.unitUid;
   });

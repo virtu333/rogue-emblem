@@ -56,7 +56,7 @@ describe('BattleScene executeSwap dim consistency', () => {
     expect(actor.hasActed).toBe(true);
     expect(ally.hasActed).toBe(true);
     expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(actor);
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(actor, { session: scene._battleSession });
 
     expect(scene.dimUnit).toHaveBeenCalledWith(actor);
     expect(scene.dimUnit).toHaveBeenCalledWith(ally);
@@ -78,7 +78,7 @@ describe('BattleScene executeSwap dim consistency', () => {
     expect(actor.hasActed).toBe(true);
     expect(ally.hasActed).toBe(false);
     expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(actor);
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(actor, { session: scene._battleSession });
 
     expect(scene.dimUnit).toHaveBeenCalledWith(actor);
     expect(scene.dimUnit).not.toHaveBeenCalledWith(ally);

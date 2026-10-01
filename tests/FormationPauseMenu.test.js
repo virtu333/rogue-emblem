@@ -84,6 +84,7 @@ function enteredRun() {
 
 function formationScene({ rm, nodeId }) {
   const scene = {
+    _battleSession: 1,
     runManager: rm,
     nodeId,
     gameData,
@@ -108,6 +109,7 @@ beforeEach(() => {
 describe('Formation: the rail Menu opens the pause menu', () => {
   function menuScene(extra = {}) {
     return Object.assign(Object.create(BattleScene.prototype), {
+      _battleSession: 1,
       battleState: FORMATION_STATE,
       _formation: { ready: true, menu: null, picker: null },
       turnManager: { currentPhase: 'player' },
@@ -141,6 +143,7 @@ describe('Formation: the pause menu offers Back to Map', () => {
   function pausedFrom(state, canReturn = true) {
     const base = overlayScene();
     const scene = Object.assign(Object.create(BattleScene.prototype), base, {
+      _battleSession: 1,
       battleState: state,
       runManager: { previewEndRunRewards: () => ({ valor: 1, supply: 2 }), nodeMap: null },
       registry: { get: () => null },

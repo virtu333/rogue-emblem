@@ -79,16 +79,16 @@ function suspendedBattleSave() {
   scene._visionController = new VisionRewindController(scene, run);
   scene.captureVisionSnapshot();
   scene._timelineBoundary = 'turn_start';
-  expect(scene._captureSuspendCheckpoint()).toBe(true);
+  expect(scene._captureSuspendCheckpoint({ session: scene._battleSession })).toBe(true);
   for (let turn = 2; turn <= 4; turn++) {
     for (let hp = 1; hp <= 3; hp++) {
       scene.playerUnits[0].currentHP = 20 - turn - hp;
       scene._timelineFacts = [`HP ${hp}`];
-      scene._captureSuspendCheckpoint();
+      scene._captureSuspendCheckpoint({ session: scene._battleSession });
     }
     scene.turnManager.turnNumber = turn;
     scene._timelineBoundary = 'turn_start';
-    scene._captureSuspendCheckpoint();
+    scene._captureSuspendCheckpoint({ session: scene._battleSession });
   }
   const saved = JSON.parse(JSON.stringify({ ...run.toJSON(), savedAt: 1000 }));
   expect(saved.battleInProgress.timeline.entries.length).toBeGreaterThan(5);

@@ -1,3 +1,4 @@
+import { isCurrentBattleSession } from './BattleSession.js';
 import { cantoRuleFor } from '../engine/CantoRule.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { revealSettledVision } from './BattleActionCompletion.js';
@@ -6,6 +7,7 @@ import { readActionContinuation } from '../engine/ActionContinuation.js';
 import { LevelUpPopup } from './LevelUpPopup.js';
 import { gridDistance } from '../engine/Combat.js';
 import { levelUpKind } from './growthContent.js';
+import { safeBattlePresentation } from './safeBattlePresentation.js';
 
 // Save fields are untrusted; the one definition of the shape lives in the engine.
 export { readActionContinuation };
@@ -60,34 +62,44 @@ export function readCommittedAction(value) {
 
 // Presentation must never be the only thing preventing a resolved action from
 // reaching storage. Resume runs this small continuation, never combat or XP.
-export function captureResolvedAction(scene, continuation) {
+export function captureResolvedAction(scene, continuation, { session } = {}) {
+  if (!isCurrentBattleSession(scene, session)) return false;
   if (scene._fatalDecision || scene._fatalCapturePending || scene._defeatDecision) return;
   scene.commitVisionSnapshotIfPending?.();
   scene._pendingActionCompletion = continuation;
-  scene._captureSuspendCheckpoint?.();
+  return scene._captureSuspendCheckpoint?.({ session }) === true;
 }
 
-export async function presentQueuedLevelUps(scene, continuation = null) {
+export async function presentQueuedLevelUps(scene, continuation = null, { session } = {}) {
+  if (!isCurrentBattleSession(scene, session)) return;
   if (scene._fatalDecision || scene._fatalCapturePending || scene._defeatDecision) return;
   const queue = scene._pendingLevelUpPopups || [];
   if (!queue.length) return;
   scene._pendingLevelUpPopups = [];
-  if (continuation) captureResolvedAction(scene, continuation);
+  if (continuation) captureResolvedAction(scene, continuation, { session });
   for (const { unitName, unitId, levelUp, learnedNames } of queue) {
-    if (scene._sceneShutdownCleanedUp || scene.sys?.isActive?.() === false) return;
+    if (!isCurrentBattleSession(scene, session)) return;
     const unit = findBattleEntity(scene, { unitId, unitName }, ['playerUnits']);
     if (!unit) continue;
-    scene._playLevelUpSfx(levelUpKind(levelUp));
-    scene.updateHPBar(unit);
+    safeBattlePresentation('level-up sound', () => scene._playLevelUpSfx(levelUpKind(levelUp)), {
+      scene,
+    });
+    safeBattlePresentation('level-up HP', () => scene.updateHPBar(unit), { scene });
     try {
-      await new LevelUpPopup(scene, unit, levelUp, false, learnedNames).show();
+      await safeBattlePresentation(
+        'level-up popup',
+        () => new LevelUpPopup(scene, unit, levelUp, false, learnedNames).show(),
+        { scene },
+      );
     } finally {
-      scene._stopLevelUpSfx();
+      if (isCurrentBattleSession(scene, session))
+        safeBattlePresentation('level-up sound cleanup', () => scene._stopLevelUpSfx(), { scene });
     }
   }
 }
 
-export function completeResolvedAction(scene, continuation) {
+export function completeResolvedAction(scene, continuation, { session } = {}) {
+  if (!isCurrentBattleSession(scene, session)) return false;
   scene._pendingActionCompletion = null;
   continuation = readActionContinuation(continuation);
   if (!continuation) return;
@@ -112,10 +124,11 @@ export function completeResolvedAction(scene, continuation) {
       ally.hasMoved = false;
       ally._movementCommitted = false;
       ally._movementSpent = 0;
-      ally.graphic?.clearTint?.();
+      safeBattlePresentation('Gambit tint', () => ally.graphic?.clearTint?.(), { scene });
     }
   } else if (unit) {
     scene.finishUnitAction(unit, {
+      session,
       skipCanto:
         continuation.skipCanto === true ||
         (continuation.kind === 'combat' && cantoRuleFor(unit) === 'noncombat'),
@@ -124,7 +137,9 @@ export function completeResolvedAction(scene, continuation) {
   }
   scene.selectedUnit = null;
   scene.battleState = 'PLAYER_IDLE';
-  scene.grid.clearAttackHighlights();
+  safeBattlePresentation('resolved action highlights', () => scene.grid.clearAttackHighlights(), {
+    scene,
+  });
   scene.attackTargets = [];
   scene.commitVisionSnapshotIfPending?.();
   scene._timelineBoundary = 'player_action';
@@ -134,7 +149,7 @@ export function completeResolvedAction(scene, continuation) {
       "Commander's Gambit refreshed nearby allies.",
     ];
   revealSettledVision(scene);
-  scene._captureSuspendCheckpoint?.();
+  scene._captureSuspendCheckpoint?.({ session });
   // The actor may have fallen before resume, or Gambit may have left no one
   // available. Completion still owes the phase check for the surviving roster.
   scene.turnManager.checkPlayerPhaseComplete();
