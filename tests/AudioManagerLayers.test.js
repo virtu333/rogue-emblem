@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { rememberAudioBuffer } from '../src/utils/audioAssets.js';
 import { describe, it, expect, vi } from 'vitest';
 import { AudioManager } from '../src/utils/AudioManager.js';
 import { LoopedMusic } from '../src/utils/LoopedMusic.js';
@@ -31,7 +33,10 @@ function makeContext() {
 
 function decoded(key) {
   const loop = getMusicLoop(key);
-  return { duration: loop ? loop.duration : 60, getChannelData: () => new Float32Array(1) };
+  return rememberAudioBuffer(key, {
+    duration: loop ? loop.duration : 60,
+    getChannelData: () => new Float32Array(1),
+  });
 }
 
 function makeSound(loadedKeys) {
@@ -249,5 +254,61 @@ describe('AudioManager — extra layers (a boss enrage layer)', () => {
   it('treats unknown intensity names as full', () => {
     const audio = new AudioManager(makeSound([]));
     expect(audio.setMusicIntensity('thunder')).toBe('full');
+  });
+});
+
+describe('AudioManager recording recovery', () => {
+  const key = 'music_battle_act1_2';
+  function musicBytes() {
+    const file = readFileSync(new URL('../assets/audio/music/' + key + '.mp3', import.meta.url));
+    return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
+  }
+  it('replaces an unverified same-duration cached recording with verified bytes', async () => {
+    const sound = makeSound([key]);
+    sound.game.cache.audio.add(key, {
+      duration: getMusicLoop(key).duration,
+      getChannelData: () => new Float32Array(1),
+    });
+    sound.context.decodeAudioData = vi.fn(async () => decoded(key));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, arrayBuffer: async () => musicBytes() })),
+    );
+    const audio = new AudioManager(sound);
+    audio._fetchAndDecodeStinger = vi.fn(async () => null);
+    audio._fetchStingerBytes = vi.fn(async () => new ArrayBuffer(1));
+    try {
+      await audio.playMusic(key, null, 0);
+      expect(audio.currentMusicKey).toBe(key);
+      expect(sound.context.decodeAudioData).toHaveBeenCalledTimes(1);
+      expect(audio.getAudioDiagnostics().events.some((e) => e.type === 'cache-rejected')).toBe(
+        true,
+      );
+    } finally {
+      audio.stopAllMusic(null);
+      vi.unstubAllGlobals();
+    }
+  });
+  it('a rejected response never falls through to an unverified Phaser loader', async () => {
+    const sound = makeSound([]);
+    sound.context.decodeAudioData = vi.fn(async () => decoded(key));
+    const corrupt = musicBytes();
+    new Uint8Array(corrupt)[100] ^= 1;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, arrayBuffer: async () => corrupt })),
+    );
+    const scene = { load: { audio: vi.fn() } };
+    const audio = new AudioManager(sound);
+    try {
+      await audio.playMusic(key, scene, 0);
+      expect(audio.currentMusic).toBeNull();
+      expect(sound.game.cache.audio.has(key)).toBe(false);
+      expect(sound.context.decodeAudioData).not.toHaveBeenCalled();
+      expect(scene.load.audio).not.toHaveBeenCalled();
+      expect(audio.getAudioDiagnostics().events.at(-1).reason).toContain('audio-integrity-failed');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -197,7 +197,7 @@
       "description": "The production build: phone release smoke and the offline texture-atlas service worker",
       "config": "playwright.release.config.js",
       "build": true,
-      "specs": ["mobile-release.spec.js", "offline-atlas.spec.js"]
+      "specs": ["mobile-release.spec.js", "offline-atlas.spec.js", "audio-upgrade.spec.js"]
     }
   ],
   "excluded": []

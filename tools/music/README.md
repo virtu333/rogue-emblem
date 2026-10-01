@@ -35,7 +35,13 @@ can also ship a stem as its own variant (the finale's `_hum`), which the game pl
 an additive layer.
 Before rendering, a form check refuses any score with a bar in which nothing sounds
 (declare intended silences in `score.silent_ok`). Then run `npm run sync-assets`
-to copy the files to `public/`. `--preview` also writes files to `References/music-preview/`
+to copy the files to `public/`, then `npm run build:audio` to update the checked-in
+audio manifest and local hashed-file staging. Reload an already-running dev server
+after a render. `npm run build` performs both packaging steps automatically.
+The app requests immutable hashed filenames and verifies music/stinger bytes before
+decoding; `npm run check:audio` detects a stale manifest. For iOS, set
+`ER_MUSIC_ASSET_DIR` to the complete compact music directory before building so the
+bundled manifest hashes the final re-encoded files. `--preview` also writes files to `References/music-preview/`
 that play through the loop jump, so you can listen to the seam.
 
 Rendered stems are cached in `References/music-cache/` (or `MUSIC_CACHE`), shared by

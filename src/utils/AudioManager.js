@@ -1,6 +1,15 @@
 // AudioManager - lightweight wrapper around Phaser's sound manager.
 
-import { LoopedMusic } from './LoopedMusic.js';
+import { LoopedMusic, validLoopFor } from './LoopedMusic.js';
+import {
+  audioAssetUrl,
+  verifyAudioBytes,
+  rememberAudioBuffer,
+  audioBufferMatches,
+  shareAudioTimeline,
+  AUDIO_ASSETS,
+  AUDIO_REVISION,
+} from './audioAssets.js';
 import { STINGER_PRELOAD, getMusicLayers, getMusicLoop } from './musicConfig.js';
 import { MUSIC_STINGERS } from './musicStingers.js';
 import { STINGER_FADE_MS, StingerPlayer } from './StingerPlayer.js';
@@ -28,6 +37,7 @@ export class AudioManager {
     this.musicVolume = 0.5;
     this.sfxVolume = 0.7;
     this.debugMusic = false;
+    this._audioEvents = [];
     this.loadingMusic = new Map();
     this._musicRequestSeq = 0;
     this._musicCacheLru = [];
@@ -135,12 +145,13 @@ export class AudioManager {
       pendingKeys = [key, ...layerKeys];
       this._pendingMusicKeys = pendingKeys;
 
-      if (!cache.has(key)) {
+      if (!this._hasUsableMusic(key)) {
         try {
           await this._ensureMusicLoaded(key, scene);
-        } catch (_) {
+        } catch (err) {
           // A track handed over to wait for this one does not play on in its place.
           if (requestSeq === this._musicRequestSeq) this._endHandoff(owner, scene);
+          this._audioEvent('load-failed', { key, reason: err?.message });
           return;
         }
       }
@@ -149,7 +160,9 @@ export class AudioManager {
       // setMusicIntensity).
       if (layerKeys.length > 0 && this._canUseLoopedMusic()) {
         await Promise.allSettled(
-          layerKeys.filter((k) => !cache.has(k)).map((k) => this._ensureMusicLoaded(k, scene)),
+          layerKeys
+            .filter((k) => !this._hasUsableMusic(k))
+            .map((k) => this._ensureMusicLoaded(k, scene)),
         );
       }
 
@@ -159,7 +172,7 @@ export class AudioManager {
       // The primary should still be cached (the budget preserves pending keys),
       // but if anything removed it, keep the old music rather than stopping it
       // for a track that can't start.
-      if (!cache.has(key)) {
+      if (!this._hasUsableMusic(key)) {
         this._endHandoff(owner, scene);
         return;
       }
@@ -192,6 +205,12 @@ export class AudioManager {
       this.currentMusicKey = key;
       this.currentMusicOwner = owner;
       this._trackMusicSound(this.currentMusic);
+      this._audioEvent('started', {
+        key,
+        owner,
+        layers: this.currentMusic.layerNames || [],
+        intensity: this.musicIntensity,
+      });
       if (Number.isFinite(startAt) && this.currentMusic instanceof LoopedMusic) {
         this.currentMusic.play(startAt);
       } else {
@@ -213,6 +232,7 @@ export class AudioManager {
         this._tweenSoundVolume(scene, this.currentMusic, 0, 1, fadeMs);
       }
     } catch (err) {
+      this._audioEvent('play-failed', { key, reason: err?.message });
       // Never surface async audio errors to scene callers (fire-and-forget usage).
       if (this.debugMusic) console.warn('[AudioManager] playMusic failed:', key, err);
     } finally {
@@ -257,12 +277,22 @@ export class AudioManager {
     const layerMap = this._layerMapFor(key, extraLayers);
     this.currentMusicLayerKeys = [];
     if (this._canUseLoopedMusic() && isDecodedAudioBuffer(buffer) && (loop || layerMap)) {
+      this._validateMusicBuffer(key, buffer);
+      if (!audioBufferMatches(key, buffer)) throw new Error(`unverified-music-buffer:${key}`);
       const layers = { full: buffer };
       const loops = { full: loop };
       for (const [name, layerKey] of Object.entries(layerMap || {})) {
         if (name === 'full') continue;
         const layerBuffer = cache.get(layerKey);
         if (!isDecodedAudioBuffer(layerBuffer)) continue;
+        if (
+          !audioBufferMatches(layerKey, layerBuffer) ||
+          !shareAudioTimeline(key, layerKey) ||
+          !validLoopFor(layerBuffer, getMusicLoop(layerKey))
+        ) {
+          this._audioEvent('layer-rejected', { key, layerKey, reason: 'identity-or-timeline' });
+          continue;
+        }
         layers[name] = layerBuffer;
         loops[name] = getMusicLoop(layerKey);
       }
@@ -285,6 +315,7 @@ export class AudioManager {
       } catch (err) {
         if (this.debugMusic) console.warn('[AudioManager] looped music failed:', key, err);
         this.currentMusicLayerKeys = [];
+        throw err;
       }
     }
     return this.sound.add(key, { loop: true, volume });
@@ -323,13 +354,18 @@ export class AudioManager {
       this._restoringMusicKeys.delete(layerKey);
       if (this.currentMusic !== music || !music.isPlaying || music.hasLayer(name)) return;
       const buffer = cache.get(layerKey);
-      if (!isDecodedAudioBuffer(buffer)) return;
+      if (
+        !isDecodedAudioBuffer(buffer) ||
+        !audioBufferMatches(layerKey, buffer) ||
+        !shareAudioTimeline(music.key, layerKey)
+      )
+        return;
       if (!music.addLayer(name, buffer, getMusicLoop(layerKey), layerKey)) return;
       if (!this.currentMusicLayerKeys.includes(layerKey)) this.currentMusicLayerKeys.push(layerKey);
       this._touchMusicCacheKey(layerKey);
       if (this.musicIntensity === name) music.setLayer(name, fadeMs);
     };
-    if (cache.has(layerKey)) {
+    if (this._hasUsableMusic(layerKey)) {
       attach();
       return;
     }
@@ -360,7 +396,7 @@ export class AudioManager {
   preloadMusic(keys, ownerOrScene = null) {
     const scene = this._resolveSceneContext(ownerOrScene);
     for (const key of keys || []) {
-      if (!key || this.sound?.game?.cache?.audio?.has?.(key)) continue;
+      if (!key || this._hasUsableMusic(key)) continue;
       this._ensureMusicLoaded(key, scene)
         .then(() => this._touchMusicCacheKey(key))
         .catch(() => {});
@@ -483,7 +519,7 @@ export class AudioManager {
   }
 
   _getStingerSources(key) {
-    return [`assets/audio/stingers/${key}.mp3`];
+    return [audioAssetUrl(key)];
   }
 
   async _fetchAndDecodeStinger(key) {
@@ -503,9 +539,10 @@ export class AudioManager {
       try {
         const response = await fetch(src, { signal: controller?.signal });
         if (!response?.ok) throw new Error(`http-${response?.status || 'error'}`);
-        return await response.arrayBuffer();
+        return verifyAudioBytes(key, await response.arrayBuffer());
       } catch (err) {
         lastErr = err;
+        this._audioEvent('asset-rejected', { key, url: src, reason: err?.message });
       } finally {
         clearTimeout(timeout);
       }
@@ -516,7 +553,65 @@ export class AudioManager {
   _getMusicSources(key) {
     // mp3 decodes everywhere (Safari included); ogg twins were dropped to
     // halve the audio payload.
-    return [`assets/audio/music/${key}.mp3`];
+    return [audioAssetUrl(key)];
+  }
+
+  _validateMusicBuffer(key, buffer) {
+    if (!this._canUseLoopedMusic()) return;
+    const loop = getMusicLoop(key);
+    if (!isDecodedAudioBuffer(buffer) || (loop && !validLoopFor(buffer, loop)))
+      throw new Error(`invalid-music-timeline:${key}`);
+  }
+
+  _hasUsableMusic(key) {
+    const cache = this.sound?.game?.cache?.audio;
+    if (!cache?.has?.(key)) return false;
+    if (!this._canUseLoopedMusic()) return true;
+    const buffer = cache.get?.(key);
+    try {
+      this._validateMusicBuffer(key, buffer);
+      if (!audioBufferMatches(key, buffer)) throw new Error('unverified-recording');
+      return true;
+    } catch (err) {
+      cache.remove?.(key);
+      this._audioEvent('cache-rejected', { key, reason: err?.message });
+      return false;
+    }
+  }
+
+  _audioEvent(type, details = {}) {
+    this._audioEvents.push({ type, at: this.audioTime(), ...details });
+    if (this._audioEvents.length > 64) this._audioEvents.shift();
+    if (this.debugMusic) console.info('[AudioManager]', type, details);
+  }
+
+  getAudioDiagnostics() {
+    const music = this.currentMusic;
+    const layers = music?._layers
+      ? Array.from(music._layers, ([name, entry]) => ({
+          name,
+          key: entry.key,
+          asset: AUDIO_ASSETS[entry.key] || null,
+          duration: entry.buffer?.duration,
+          loop: entry.loop,
+        }))
+      : [];
+    return {
+      revision: AUDIO_REVISION,
+      contextState: this.sound?.context?.state,
+      requested: this._pendingMusicKeys.slice(),
+      current: this.currentMusicKey,
+      owner: this.currentMusicOwner,
+      intensity: this.musicIntensity,
+      startTime: music?.startTime,
+      layers,
+      voices: this._getLoopingMusicSounds().map((voice) => ({
+        key: voice.key,
+        current: voice === music,
+        stopping: Boolean(voice.__audioStopped),
+      })),
+      events: this._audioEvents.slice(),
+    };
   }
 
   _ensureMusicLoaded(key, scene, timeoutMs = null) {
@@ -524,18 +619,14 @@ export class AudioManager {
       timeoutMs,
       this.isMobile ? this.mobileMusicLoadTimeoutMs : this.musicLoadTimeoutMs,
     );
-    if (this.sound.game.cache.audio.has(key)) return Promise.resolve();
+    if (this._hasUsableMusic(key)) return Promise.resolve();
     if (this.loadingMusic.has(key)) return this.loadingMusic.get(key);
 
     const promise = (async () => {
       if (this._canUseWebAudioFetchDecode()) {
-        try {
-          await this._fetchAndDecodeMusic(key, effectiveTimeoutMs);
-          return;
-        } catch (err) {
-          // Fall back to scene loader only when available.
-          if (!scene?.load) throw err;
-        }
+        // A rejected recording must not bypass verification via the scene loader.
+        await this._fetchAndDecodeMusic(key, effectiveTimeoutMs);
+        return;
       }
       await this._loadMusicWithSceneLoader(key, scene, effectiveTimeoutMs);
     })().finally(() => {
@@ -575,13 +666,21 @@ export class AudioManager {
       try {
         const response = await fetch(src, { signal: controller?.signal });
         if (!response?.ok) throw new Error(`http-${response?.status || 'error'}`);
-        const bytes = await response.arrayBuffer();
+        const bytes = verifyAudioBytes(key, await response.arrayBuffer());
         const decoded = await this._decodeAudioData(context, bytes);
-        cache.add(key, decoded);
+        this._validateMusicBuffer(key, decoded);
+        cache.add(key, rememberAudioBuffer(key, decoded));
+        this._audioEvent('loaded', {
+          key,
+          url: src,
+          hash: AUDIO_ASSETS[key]?.sha256,
+          duration: decoded?.duration,
+        });
         this._markMusicCached(key);
         return;
       } catch (err) {
         lastErr = err;
+        this._audioEvent('asset-rejected', { key, url: src, reason: err?.message });
       } finally {
         clearTimeout(timeoutHandle);
       }
@@ -637,6 +736,7 @@ export class AudioManager {
         } catch (_) {}
       };
       const onFileComplete = () => {
+        rememberAudioBuffer(key, this.sound.game.cache.audio.get?.(key));
         this._markMusicCached(key);
         cleanup();
         resolve();
@@ -1062,6 +1162,7 @@ export class AudioManager {
       // Already stopping (likely mid fade-out) -- its cleanup is scheduled;
       // hard-cutting here would audibly clip legitimate fades.
       if (sound.__audioStopped) continue;
+      this._audioEvent('orphan-stopped', { key: sound.key });
       if (this.debugMusic) {
         console.warn('[AudioManager] watchdog killing orphan:', sound.key);
       }

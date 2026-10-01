@@ -30,6 +30,7 @@ jobs:
       - run: npm ci
       - run: npm run validate:data
       - run: npm run check:data-parity
+      - run: npm run check:audio
       - run: npm run check:ui-theme
       - run: npm run check:sprites
       - run: npm run check:reference

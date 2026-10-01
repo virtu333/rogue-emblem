@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { buildAudioAssets } from './tools/buildAudioAssets.mjs';
 import { VitePWA } from 'vite-plugin-pwa';
 import {
   HASHED_BUILD_OUTPUT,
@@ -37,6 +38,12 @@ export default defineConfig({
   base: './',
   publicDir: 'public',
   plugins: [
+    {
+      name: 'versioned-audio-dev',
+      configureServer() {
+        buildAudioAssets({ musicDir: process.env.ER_MUSIC_ASSET_DIR });
+      },
+    },
     VitePWA({
       // 'prompt' (not 'autoUpdate') so a freshly deployed worker does NOT skipWaiting and
       // take over a page still running the old code-split build. It stays in the waiting

@@ -49,15 +49,12 @@ describe('iOS music', () => {
     }
   });
 
-  it('the TestFlight workflow builds the app with it, after the web build', () => {
+  it('the TestFlight workflow selects compact bytes before generating the bundled manifest', () => {
     const wf = readFileSync(join(ROOT, '.github', 'workflows', 'testflight.yml'), 'utf8');
     expect(wf).toContain('node tools/ios/compactMusic.mjs --in assets/audio/music');
     expect(wf).toMatch(/needs: \[ci-passed, ios-music\]/);
-    const build = wf.indexOf('npm run build');
-    const copy = wf.indexOf('cp "$RUNNER_TEMP"/ios-music/*.mp3');
-    const sync = wf.indexOf('npx cap sync ios');
-    expect(build).toBeGreaterThan(0);
-    expect(copy).toBeGreaterThan(build);
-    expect(sync).toBeGreaterThan(copy);
+    expect(wf).toContain('ER_MUSIC_ASSET_DIR="$RUNNER_TEMP/ios-music" npm run build');
+    expect(wf).not.toContain('cp "$RUNNER_TEMP"/ios-music/*.mp3');
+    expect(wf.indexOf('ER_MUSIC_ASSET_DIR=')).toBeLessThan(wf.indexOf('npx cap sync ios'));
   });
 });

@@ -590,7 +590,8 @@
       <button type="button" id="rotate-portrait" hidden>Play upright</button>
     </div>
 
-    <script>
+    <script type="module">
+      import { audioAssetUrl } from '/src/utils/audioAssets.js';
       // --- Auth screen: login music + teardown hook. The key art itself is mounted by
       // main.js through the shared backdrop helper (src/art/keyart/keyArtBackdrop.js),
       // the same one TitleScene uses, so the two screens always match.
@@ -606,7 +607,7 @@
 
         var bgMusic = new Audio();
         bgMusic.preload = 'none';
-        bgMusic.src = 'assets/audio/music/music_login.mp3';
+        bgMusic.src = audioAssetUrl('music_login');
         bgMusic.loop = true;
         bgMusic.volume = musicVol;
 
