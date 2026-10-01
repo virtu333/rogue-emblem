@@ -1,7 +1,7 @@
 # Area-of-effect weapon arts
 
 Status: spec, 2026-10-01. Nothing built yet. The owner's decisions below are binding;
-the open questions are at the end.
+the owner's answers to the open questions (2026-10-01) are at the end.
 
 **Builds:** Splash v2 (each victim's own DEF/RES/effectiveness, XP credit, tile
 preview); a preview for every area art; pick-a-center targeting; Line Pierce at range;
@@ -126,7 +126,7 @@ Extract the attacker-damage block of `getCombatForecast` (`Combat.js:954-971`) i
   - **The victim's side:** the triangle against the victim's own weapon, and the victim's
     terrain DEF.
   - **Effectiveness:** weapon and art effectiveness (and `negateEffectiveness`), capped at
-    **3×** for area blows. This is tentative, pending owner. The 5× cap stays for the
+    **3×** for area blows (decided). The 5× cap stays for the
     primary.
 - **Excluded:** per-strike procs (`rollStrikeSkills`: Luna, Sol, Astra and the like). An
   area blow never rolls hit or crit. Rule text: "an area blow always lands and never crits;
@@ -191,7 +191,7 @@ failure.
 `actionXpAwards({ unit, primary, credits, ...the inputs of combatXpAwards })` returns the
 same `{unit, baseXp, share}[]`, with **one entry per recipient**.
 
-The rates are **tentative, pending owner**. They are data: a new root block, `areaXp`, in
+The rates are **decided** (owner, 2026-10-01). They are data: a new root block, `areaXp`, in
 `weaponArts.json`.
 
 **Primary.** Exactly what `combatXpAwards` gives today: damage ratio, kill bonus,
@@ -290,7 +290,7 @@ still needs a lord.
 
 - `effects.allyHeal`: `{ "radius": 1, "percentOfDamage": 50 }`
 - `afterCombat` move `mode: "ram"`: `{ "distance": 2, "collisionDamage": 5 }`
-- `effects.killMove`: `{ "distance": "full" }`
+- `effects.killMove`: `{ "refresh": true }`
 
 ### 3.2 Migrating the eight existing arts
 
@@ -322,7 +322,7 @@ today's basis strike critted or procced.
 the documented difference on a fixture where the first strike crits.
 
 **Doom Thrust.** Doomblade (1-2) gains a pierce at range 2, because the line shape works
-at range (recommended, pending owner). Its push still needs adjacency
+at range (decided). Its push still needs adjacency
 (`resolvePostCombatMove` returns `not_adjacent`). Its display row says so: "at range 2 it
 pierces but doesn't push".
 
@@ -363,7 +363,7 @@ enemies arts (§7).
 - **Stormcall.** MAG 22 + 8 − RES 6 = 24 × 0.8 ≈ 19 to each of up to 5 tiles, with no
   miss and no counter. Cataclysm Bolt: about 29 at Breachbolt's 55 base Hit, plus ×0.5
   over 12 tiles. Same budget, traded for reliability.
-- **Tempest vs fliers.** Area blows cap at 3× (tentative), so a flier in the area takes
+- **Tempest vs fliers.** Area blows cap at 3× (decided), so a flier in the area takes
   about (MAG 25 + 12×3 + 5 − RES 10) × 0.75 ≈ 42. At the primary's 5× cap it would be
   about 60. The owner asked for the restore; the 3× area cap keeps it below a guaranteed
   one-shot.
@@ -428,36 +428,30 @@ New pool entries shift loot RNG, so the content slice carries `check:threshold-p
 - **How:** `healUnit` each one (Wounded heals 0). The `divine_charge` beat path is reused.
   Divine Charge itself keeps its single most-hurt target.
 
-### Oathstorm kill-move (`killMove`): two options, owner to choose
+### Oathstorm kill-move (`killMove`): full refresh (decided)
 
-Either way, Oathstorm's placeholder `advance 1` is removed. It stood in for this
-(`weapon_arts_tier2_legendary_spec_2026-02-17.md:38-50`). `set_hp 5` and the ally buff
-stay. Both options trigger after `executeCombat` removes its casualties, when the attacker
-is alive and not rooted and the primary died.
+Owner, 2026-10-01: a kill refreshes the actor (FE Galeforce), through the Gambit refresh
+path.
 
-**(a) Move only, through Canto.** The owner's wording ("move only").
+- Oathstorm's placeholder `advance 1` is removed; it stood in for this
+  (`weapon_arts_tier2_legendary_spec_2026-02-17.md:38-50`). `set_hp 5` and the ally buff
+  stay.
+- **Trigger:** after `executeCombat` removes its casualties, if the attacker is alive and
+  not rooted, and the primary died.
+- **Data:** `effects.killMove: { "refresh": true }`.
+- **Continuation:** gains a `refreshActor` boolean. `readActionContinuation`
+  (`ActionContinuation.js:20-40`) validates it, and `BattleStateSnapshot.js:124-127` uses
+  the same reader.
+- **Refresh:** `completeResolvedAction`'s existing Gambit refresh path
+  (`BattlePresentationCheckpoint.js:97-116`) refreshes the actor alone. It clears
+  `hasActed`, `hasMoved`, `_movementCommitted` and `_movementSpent`, records history
+  "refreshed", and takes the checkpoint. About 10 lines.
+- **Limits:** `perTurnLimit: 1` (already set) keeps it to one refresh a turn. Its HP cost
+  gets a playtest review.
+- **Precedence:** Commander's Gambit wins if both fire.
+- **Harness:** ignores the flag. This is a documented residual gap.
 
-- `ActionContinuation.readActionContinuation` (`:20-40`) accepts an optional
-  `freeMove: integer 1-20` (the unit's MOV). `BattleStateSnapshot.js:124-127` validates
-  it through the same reader.
-- `completeResolvedAction` (`BattlePresentationCheckpoint.js:117-124`) passes it to
-  `finishUnitAction(unit, { skipCanto, freeMove })`.
-- `finishUnitAction`'s Canto branch (`BattleScene.js:5125-5143`) starts
-  `startCantoMove(unit, max(freeMove, remaining))` even without a Canto skill.
-- Size: small-medium. Four touch points, all on code #171/#175 rewrite.
-
-**(b) Full refresh, FE Galeforce.** The unit may act again.
-
-- The continuation gains a `refreshActor` boolean, validated the same way.
-- `completeResolvedAction`'s existing Gambit refresh path
-  (`BattlePresentationCheckpoint.js:97-116`) refreshes the actor alone: clear `hasActed`,
-  `hasMoved`, `_movementCommitted`, `_movementSpent`; record history "refreshed"; take the
-  checkpoint.
-- About 10 lines. It is much stronger, so it would want `perTurnLimit 1` (already set) and
-  an HP-cost review.
-
-**Both options:** Commander's Gambit wins if both fire. The harness ignores the
-continuation (Canto off), a documented residual gap.
+The move-only Canto variant was considered and not chosen.
 
 ## 5. Previews (all area arts, before confirmation)
 
@@ -637,17 +631,18 @@ changes the harness's art picks, and slice 7 carries `check:threshold-pr-notes`.
 
 ### Which enemies get area arts
 
-No enemy spawn path gives enemies arts today (§1). Tentative, pending owner:
+No enemy spawn path gives enemies arts today (§1). Decided:
 
-- **Who:** act 3+ elites, on Nightfall and above (`isDifficultyAtLeast`).
-- **What:** Sweeping Cleave or Skewer only, bound to their weapon at spawn.
+- **Who:** act 3+ elites, on Nightfall and Black Sun (`isDifficultyAtLeast(id, 'hard')`).
+- **What:** Sweeping Cleave or Skewer only, bound to their weapon at spawn. No enemy
+  knockback: Battering Ram is player-only.
 - **Where:** a small data-driven hook in `difficulty.json`, with a `dusk` entry.
 
 That hook is its own slice (7b). Until it lands, slice 7 is scoring only.
 
 ### Danger and ThreatForecast
 
-Unchanged (recommended, pending owner). Danger shows where a foe can *start* a fight.
+Unchanged (decided). Danger shows where a foe can *start* a fight.
 Spill depends on who stands where, so painting it would mostly be noise. Threat Sight's
 per-unit panel gains one line, e.g. "Art: Skewer, also hits 2 tiles behind".
 
@@ -659,7 +654,7 @@ per-unit panel gains one line, e.g. "Art: Skewer, also hits 2 tiles behind".
   (`HeadlessBattle.js:1810-1826`).
 - **Chosen center:** `HeadlessBattle.executeAreaStrike(unit, artId, center)` drives
   `engine/AreaStrike.js`.
-- **Kill-move continuation:** ignored, because the harness runs with Canto off. This is a
+- **Kill-move refresh:** ignored, because the harness never refreshes an actor. This is a
   documented residual gap.
 - **Optional:** move Entity splash into the engine as an `entity_splash` step that takes
   `world.random`, keeping today's draw order. The harness then gains it. (**#175** notes
@@ -682,7 +677,7 @@ once.
 | Shielded | An area blow spends the guard or is negated by it. |
 | Ram / Anchored | A rooted, Anchored or Entity target moved (by push, swap or ram); a collision without a block; an allied obstacle hurt; a hidden obstacle in the preview. |
 | Benediction | Overkill heals; the user heals; a Wounded ally heals. |
-| Kill-move (option chosen) | Granted on a miss or a non-kill; ignores root; lost on refresh (resume continuation); beats Gambit. |
+| Kill-move refresh | Granted on a miss or a non-kill; ignores root; lost on refresh (resume continuation); a second refresh in one turn; beats Gambit. |
 | Preview | Each PlayerKnowledge pair (§5); chips equal the executed damage when nothing is hidden. |
 | Pick-a-center | Esc order; an illegal tile locks; the state lists are complete; resuming from the `area_strike` intent gives identical HP and RNG cursor; a fatal decision clears the intent; history and boss half-health fire; deeds `onCombat` doesn't; portrait cursor mapping. |
 | AI | Pinned scene scores for every existing art; the area bonus is zero with no victims; `chosen_center` never chosen; harness and scene pick the same art for a seed. |
@@ -722,36 +717,30 @@ PR touches `PostCombatEffects`, `WeaponArtPostCombat`, `BattleXp`, `AttackFlowCo
 | 5 | Engine support for ram, `allyHeal`, `around_attacker`, line at range; fixture arts only, nothing in loot | Pre | M |
 | 6 | `AreaPreview.js` + `AreaPreviewController` + forecast Area row + PlayerKnowledge pairs | Pre | M-L |
 | 7 | `EnemyArtScoring.js` extraction + area bonus; harness copy deleted; threshold PR notes | Pre | S-M |
-| 7b | Enemy elite art binding (pending owner) | Pre | S |
+| 7b | Enemy elite art binding | Pre | S |
 | 8 | Content: Sweeping Cleave, Skewer, Benediction, Battering Ram data, scrolls, loot, help, icons, threshold notes (after 6, so no area art ships without a preview) | Pre, after 6 | M |
 | 9 | `AreaStrike.js` + harness `executeAreaStrike` + tests | Pre | M |
 | 10 | Pick-a-center scene wiring: `AreaTargetingController`, `SELECTING_AREA_CENTER`, input, mobile context, the `area_strike` intent and resume dispatch, history and rewind, Stormcall data, e2e | Post | L |
-| 11 | Oathstorm kill-move, option (a) or (b) | Post | S (b) / S-M (a) |
+| 11 | Oathstorm kill-move (full refresh) | Post | S |
 | 12 | Entity splash into the engine (optional) | Post | S |
 
 **Order:** 0 → 1 → 2 → 3 → 4a → 5 → 6 → 7 → 8 → 9, then 4b → 10 → 11 → 12 once both
 stability PRs are in and the post slices are re-anchored.
 
-## 11. Open questions for the owner
+## 11. Decisions (owner, 2026-10-01)
 
-Each answer marked *(recommended)* is the spec's default until the owner decides.
-
-1. **Friendly fire:** none for any art; a ram never hurts an ally. *(recommended)*
-2. **Blind fire:** allowed. Stormcall may target a center with no *seen* foe in the area;
-   the prompt says "no known foes", and hidden victims are revealed by labels.
-   *(recommended)*
-3. **Doom Thrust:** accept the pierce at range 2; it can't push there, and its row says so.
-   *(recommended)*
-4. **Oathstorm:** replace `advance 1` (decided). Kill-move option (a) move-only through
-   Canto, or (b) full refresh through the Gambit path?
-5. **Anchored:** respected by every push, swap and ram (slice 0). *(recommended)*
-6. **Enemy area arts:** act 3+ elites, Sweeping Cleave and Skewer only, Nightfall and
-   above. *(tentative)*
-7. **Danger:** primary reach only, plus a Threat Sight line. *(recommended)*
-8. **XP:** hit 0.35, kill 0.6, cap 75, all on base XP before the battle multipliers.
-   *(tentative)*
-9. **Area effectiveness cap:** 3×, with 5× kept for the primary. *(tentative)*
-10. **Collision:** fixed 5, and an enemy obstacle takes it too. *(recommended)*
+1. **Friendly fire:** none for any art. A ram never hurts an ally.
+2. **Blind fire:** allowed. Stormcall may target a center with no *seen* foe; the prompt
+   says "no known foes".
+3. **Doom Thrust:** gains a pierce at range 2. It can't push there, and its row says so.
+4. **Oathstorm:** `advance 1` is replaced by a full refresh on a kill, through the Gambit
+   path with `refreshActor`.
+5. **Anchored:** respected by every push, swap and ram (slice 0).
+6. **Enemy area arts:** act 3+ elites on Nightfall and Black Sun, Sweeping Cleave and
+   Skewer only. No enemy knockback.
+7. **Danger:** primary reach only, plus a Threat Sight line.
+8. **XP:** hit 0.35, kill 0.6, cap 75, on base XP before the battle multipliers.
+9. **Area effectiveness cap:** 3×. Only the primary can reach 5×.
+10. **Collision:** fixed 5, also dealt to an enemy obstacle.
 11. **Names:** Sweeping Cleave, Skewer, Benediction, Battering Ram, Stormcall.
-12. **Ashfall:** deferred; Stormcall is the only chosen-center art for now.
-
+12. **Ashfall:** deferred. Stormcall ships.
