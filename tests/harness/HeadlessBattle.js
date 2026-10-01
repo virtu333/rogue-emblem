@@ -1307,7 +1307,7 @@ export class HeadlessBattle {
   }
 
   _ensureValidWeaponForTarget(unit, target) {
-    const dist = gridDistance(unit.col, unit.row, target.col, target.row);
+    const dist = combatDistance(unit, target); // the Entity's footprint, as in combat
     if (unit.weapon && isInRange(unit.weapon, dist) && !isStaff(unit.weapon)) return;
     // Find a weapon that can reach the target
     const combatWeapons = getCombatWeapons(unit);

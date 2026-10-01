@@ -74,6 +74,20 @@ describe('HeadlessBattle mirrors', () => {
     hero.weapon = hero.inventory.find((w) => w.range === '1') || hero.weapon;
     hero.weapon.range = '1';
     expect(battle._findAttackTargets(hero)).toContain(entity);
+    // Touching the body, a melee weapon stays equipped (no swap to a bow for the
+    // anchor's distance).
+    hero.proficiencies = [
+      { type: 'Sword', rank: 'Mast' },
+      { type: 'Bow', rank: 'Mast' },
+    ];
+    const sword = structuredClone(data.weapons.find((w) => w.name === 'Iron Sword'));
+    const bow = structuredClone(data.weapons.find((w) => w.name === 'Iron Bow'));
+    hero.inventory = [sword, bow];
+    hero.weapon = sword;
+    hero.col = 3; // above the top-middle body tile: the anchor is two tiles away
+    hero.row = 0;
+    battle._ensureValidWeaponForTarget(hero, entity);
+    expect(hero.weapon).toBe(sword);
     const blocked = battle._buildUnitPositionMap('player');
     expect(blocked.has('4,3')).toBe(true); // a body tile, not the anchor
     expect(battle._getReinforcementOccupiedTiles()).toEqual(
