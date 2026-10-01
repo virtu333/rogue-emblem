@@ -2065,7 +2065,8 @@ export class HeadlessBattle {
   _checkBattleEnd() {
     // Mirrors BattleScene.checkBattleEnd: strict isCommander flag, stamped at setup.
     const commanderEscaped = (this.escapedUnits || []).some((u) => u.isCommander);
-    const commanderAlive = this.playerUnits.some((u) => u.isCommander) || commanderEscaped;
+    const commanderAlive =
+      this.playerUnits.some((u) => u.isCommander && u.currentHP > 0) || commanderEscaped;
     const fieldEmpty = this.playerUnits.length === 0 && !(this.escapedUnits?.length > 0);
     if (!commanderAlive || fieldEmpty) {
       this._onDefeat();

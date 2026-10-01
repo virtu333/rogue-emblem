@@ -17,3 +17,6 @@ tests/artifacts/fullrun/
 .eslintcache
 
 test-results-release/
+
+# Content-addressed audio staging, generated before dev/build
+/public/assets/audio/versioned/

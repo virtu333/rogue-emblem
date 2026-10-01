@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "node tools/buildUITheme.js && node tools/buildReferenceContent.js && node tools/syncData.js && node tools/syncAssets.js && vite build",
+    "build": "node tools/buildUITheme.js && node tools/buildReferenceContent.js && node tools/syncData.js && node tools/syncAssets.js && node tools/buildAudioAssets.mjs && vite build && node tools/buildAudioAssets.mjs --packaged",
     "preview": "vite preview",
     "build:reference": "node tools/buildReferenceContent.js",
     "check:reference": "node tools/buildReferenceContent.js --check",
@@ -66,7 +66,9 @@
     "prepare": "husky",
     "ios:sync": "npm run build && cap sync ios",
     "ios:open": "cap open ios",
-    "predev": "node tools/buildUITheme.js",
+    "predev": "node tools/buildUITheme.js && node tools/buildAudioAssets.mjs",
+    "build:audio": "node tools/buildAudioAssets.mjs",
+    "check:audio": "node tools/buildAudioAssets.mjs --check",
     "check:ui-theme": "node tools/buildUITheme.js --check",
     "check:sprites": "node tools/bakeRebuiltSprites.mjs --check",
     "bake:sprites": "node tools/bakeRebuiltSprites.mjs && node tools/syncAssets.js",
@@ -93,6 +95,7 @@
     "@capacitor/ios": "^8.5.2",
     "@fontsource/cinzel": "^5.3.0",
     "@fontsource/press-start-2p": "^5.3.0",
+    "@noble/hashes": "^2.4.0",
     "@supabase/supabase-js": "^2.95.3",
     "phaser": "^3.80.0"
   },

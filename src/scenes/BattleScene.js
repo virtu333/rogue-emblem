@@ -407,6 +407,7 @@ function remainsOf(scene) {
 /** Reset per-battle state on a unit at deploy time. */
 export function resetUnitForBattle(unit) {
   delete unit._legendaryGraceTurn;
+  unit._removing = false;
   unit.hasMoved = false;
   unit._movementCommitted = false;
   unit.hasActed = false;
@@ -512,6 +513,9 @@ export class BattleScene extends Phaser.Scene {
     this._pendingLevelUpPopups = [];
     this._pendingActionCompletion = null;
     this._pendingCommittedAction = null;
+    // Cancelled operations may never reach their finally blocks.
+    this._deathAffixChainDepth = 0;
+    this._combatSpeedSnapshot = undefined;
     this.pauseTransitionRecovery = null;
     this._sceneShutdownCleanupRegistered = false;
     this._sceneShutdownCleanedUp = false;
@@ -7750,9 +7754,11 @@ export class BattleScene extends Phaser.Scene {
     if (!unit || unit.currentHP <= 0) return false;
     const result = checkPhoenixBrooch(unit);
     if (!result?.triggered) return false;
-    safeBattlePresentation('Phoenix HP', () => this.updateHPBar(unit));
+    safeBattlePresentation('Phoenix HP', () => this.updateHPBar(unit), { scene: this });
     if (typeof this.animateHeal === 'function') {
-      await safeBattlePresentation('Phoenix heal', () => this.animateHeal(unit, result.amount));
+      await safeBattlePresentation('Phoenix heal', () => this.animateHeal(unit, result.amount), {
+        scene: this,
+      });
     }
     return true;
   }
@@ -8202,15 +8208,19 @@ export class BattleScene extends Phaser.Scene {
    * @returns {Promise<{ result: object, selectedArt: object|null }>}
    */
   async _runCombatResolution(attacker, defender, ctx) {
-    safeBattlePresentation('combat music', () => this._musicCtrl?.onCombat());
+    safeBattlePresentation('combat music', () => this._musicCtrl?.onCombat(), { scene: this });
     const previous = this._combatSpeedSnapshot;
     this._combatSpeedSnapshot = battleSpeed(this);
     try {
       return await this._runCombatResolutionAtSpeed(attacker, defender, ctx);
     } finally {
-      safeBattlePresentation('resolved combat music', () => this._musicCtrl?.onCombatResolved?.());
-      safeBattlePresentation('strike cleanup', () =>
-        this._combatFx?.finishStrike?.(attacker, defender),
+      safeBattlePresentation('resolved combat music', () => this._musicCtrl?.onCombatResolved?.(), {
+        scene: this,
+      });
+      safeBattlePresentation(
+        'strike cleanup',
+        () => this._combatFx?.finishStrike?.(attacker, defender),
+        { scene: this },
       );
       this._combatSpeedSnapshot = previous;
     }
@@ -8310,8 +8320,12 @@ export class BattleScene extends Phaser.Scene {
     }
 
     deedsFor(this).onCombat(attacker, defender, result);
-    safeBattlePresentation('resolved attacker HP', () => this.updateHPBar(attacker));
-    safeBattlePresentation('resolved defender HP', () => this.updateHPBar(defender));
+    safeBattlePresentation('resolved attacker HP', () => this.updateHPBar(attacker), {
+      scene: this,
+    });
+    safeBattlePresentation('resolved defender HP', () => this.updateHPBar(defender), {
+      scene: this,
+    });
 
     await this._applyResolvedCombatPostEffects({
       attacker,
@@ -8573,8 +8587,10 @@ export class BattleScene extends Phaser.Scene {
       if (beat.kind === 'remove' || beat.kind === 'moved') {
         await this._playPostCombatBeat(beat);
       } else {
-        await safeBattlePresentation(`post-combat ${beat.kind}`, () =>
-          this._playPostCombatBeat(beat),
+        await safeBattlePresentation(
+          `post-combat ${beat.kind}`,
+          () => this._playPostCombatBeat(beat),
+          { scene: this },
         );
       }
     }
@@ -8588,7 +8604,9 @@ export class BattleScene extends Phaser.Scene {
         break;
       case 'moved':
         for (const moved of beat.units)
-          safeBattlePresentation('post-combat position', () => this.updateUnitPosition(moved));
+          safeBattlePresentation('post-combat position', () => this.updateUnitPosition(moved), {
+            scene: this,
+          });
         this._refreshPostCombatMovementState(beat.units);
         break;
       case 'hp':
@@ -8651,7 +8669,9 @@ export class BattleScene extends Phaser.Scene {
    */
   _refreshPostCombatMovementState(movedUnits, { revealFog = true } = {}) {
     if (!Array.isArray(movedUnits) || movedUnits.length <= 0) return;
-    safeBattlePresentation('post-combat danger', () => this.refreshVisibleDangerZone?.());
+    safeBattlePresentation('post-combat danger', () => this.refreshVisibleDangerZone?.(), {
+      scene: this,
+    });
     if (revealFog && this.grid.fogEnabled) {
       this.grid.updateFogOfWar(this.playerUnits);
       this.updateEnemyVisibility();
@@ -8849,6 +8869,7 @@ export class BattleScene extends Phaser.Scene {
       unit.hpBar.fill,
     ].filter(Boolean);
     if (targets.length <= 0) return;
+    const originalAlpha = new Map(targets.map((target) => [target, target.alpha ?? 1]));
 
     await this._awaitSceneTween(
       {
@@ -8864,7 +8885,7 @@ export class BattleScene extends Phaser.Scene {
     await this._awaitSceneTween(
       {
         targets,
-        alpha: unit.hasActed ? 0.5 : 1,
+        alpha: (target) => originalAlpha.get(target),
         duration: 180,
       },
       { label: 'execute_warp_fade_in' },
@@ -9003,7 +9024,7 @@ export class BattleScene extends Phaser.Scene {
       // shutdown hook resolves the await) -- don't build popups on a dead scene.
       if (this.sys?.isActive?.() === false) break;
       // Update HP bar after level-up (maxHP may have increased)
-      safeBattlePresentation('level-up HP', () => this.updateHPBar(playerUnit));
+      safeBattlePresentation('level-up HP', () => this.updateHPBar(playerUnit), { scene: this });
       const lvUp = cards[i];
       const blockedNames = levelUps[i].blockedIds.map(skillName);
       if (blockedNames.length) lvUp.blockedSkills = blockedNames;
@@ -9014,26 +9035,30 @@ export class BattleScene extends Phaser.Scene {
         learnedNames: levelUps[i].learnedIds.map(skillName),
       });
     }
-    safeBattlePresentation('XP', () => {
-      // Show floating XP text
-      const pos = this.grid.gridToPixel(playerUnit.col, playerUnit.row);
-      const xpText = presentationText(this, pos.x, pos.y - 20, `+${xp} XP`, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: UI_PALETTE.info,
-        fontStyle: 'bold',
-      })
-        .setOrigin(0.5)
-        .setDepth(300);
+    safeBattlePresentation(
+      'XP',
+      () => {
+        // Show floating XP text
+        const pos = this.grid.gridToPixel(playerUnit.col, playerUnit.row);
+        const xpText = presentationText(this, pos.x, pos.y - 20, `+${xp} XP`, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: UI_PALETTE.info,
+          fontStyle: 'bold',
+        })
+          .setOrigin(0.5)
+          .setDepth(300);
 
-      this.tweens.add({
-        targets: xpText,
-        y: pos.y - 44,
-        alpha: 0,
-        duration: 800,
-        onComplete: () => xpText.destroy(),
-      });
-    });
+        this.tweens.add({
+          targets: xpText,
+          y: pos.y - 44,
+          alpha: 0,
+          duration: 800,
+          onComplete: () => xpText.destroy(),
+        });
+      },
+      { scene: this },
+    );
   }
 
   /**
@@ -9124,18 +9149,18 @@ export class BattleScene extends Phaser.Scene {
     // Presentation only: a failed fade must never keep a fallen unit (above
     // all the commander) on the board. Its retry would return early on
     // _removing, and checkBattleEnd would never see the death.
-    try {
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_death');
-      await (this._combatFx ||= new CombatFxController(this)).deathFade(unit);
-    } catch (fadeErr) {
-      console.warn('[BattleScene] death animation failed; removing unit anyway:', fadeErr);
-    }
-    try {
-      this.removeUnitGraphic(unit);
-    } catch (graphicErr) {
-      console.warn('[BattleScene] unit graphic cleanup failed:', graphicErr);
-    }
+    await safeBattlePresentation(
+      'death fade',
+      async () => {
+        const audio = this.registry.get('audio');
+        if (audio) audio.playSFX('sfx_death');
+        await (this._combatFx ||= new CombatFxController(this)).deathFade(unit);
+      },
+      { scene: this },
+    );
+    safeBattlePresentation('death graphic cleanup', () => this.removeUnitGraphic(unit), {
+      scene: this,
+    });
     // Splice in-place so TurnManager's reference stays valid
     if (unit.faction === 'player') {
       const idx = this.playerUnits.indexOf(unit);
@@ -9192,7 +9217,7 @@ export class BattleScene extends Phaser.Scene {
             });
             host.visionChargesRemaining += 1;
             this._tutorialLordRewindPromptPending = unit.name;
-            safeBattlePresentation('Vision HUD', () => this.updateVisionHud());
+            safeBattlePresentation('Vision HUD', () => this.updateVisionHud(), { scene: this });
           }
         }
         // The commander's last words: the run ends with this fall (playtest
@@ -9208,8 +9233,10 @@ export class BattleScene extends Phaser.Scene {
           }
         }
         // Someone on the field answers the loss (a quip over a living lord).
-        safeBattlePresentation('ally fall', () =>
-          (this._battleBeats ||= new BattleBeatsController(this)).onAllyFall(unit),
+        safeBattlePresentation(
+          'ally fall',
+          () => (this._battleBeats ||= new BattleBeatsController(this)).onAllyFall(unit),
+          { scene: this },
         );
       }
     } else if (unit.faction === 'npc') {
@@ -9219,20 +9246,28 @@ export class BattleScene extends Phaser.Scene {
       const idx = this.enemyUnits.indexOf(unit);
       if (idx !== -1) this.enemyUnits.splice(idx, 1);
       this._applyKillRewards(unit, killer);
-      safeBattlePresentation('kill reaction', () =>
-        (this._battleBeats ||= new BattleBeatsController(this)).onKill(unit, killer),
+      safeBattlePresentation(
+        'kill reaction',
+        () => (this._battleBeats ||= new BattleBeatsController(this)).onKill(unit, killer),
+        { scene: this },
       );
       // Zombie / Revenant remains: a tile record that rises in 3 enemy phases unless
       // smashed (engine/ZombieRemains.js, ZombieRemainsController).
       remainsOf(this).onEnemyFell(unit, killer, { col: deathCol, row: deathRow });
     }
-    safeBattlePresentation('death hover', () => this._inputController?.refreshHoverInfo());
+    safeBattlePresentation('death hover', () => this._inputController?.refreshHoverInfo(), {
+      scene: this,
+    });
     this.dangerZoneStale = true;
-    safeBattlePresentation('death pinned threats', () => this._pinnedThreats?.invalidate());
+    safeBattlePresentation('death pinned threats', () => this._pinnedThreats?.invalidate(), {
+      scene: this,
+    });
     // Boss death: the bar drains away; FOE VANQUISHED when the battle goes on
     // (seize maps always -- the throne is still to take).
     if (unit.isBoss && unit.faction === 'enemy') {
-      safeBattlePresentation('boss death', () => this._bossPresence?.onBossDefeated());
+      safeBattlePresentation('boss death', () => this._bossPresence?.onBossDefeated(), {
+        scene: this,
+      });
       if (
         shouldShowFelled({
           objective: this.battleConfig.objective,
@@ -9240,9 +9275,11 @@ export class BattleScene extends Phaser.Scene {
           reviving: this._zombieTombstones?.length || 0,
         })
       )
-        safeBattlePresentation('boss defeated banner', () => this._showBossDefeatedBanner());
+        safeBattlePresentation('boss defeated banner', () => this._showBossDefeatedBanner(), {
+          scene: this,
+        });
     }
-    safeBattlePresentation('death objective', () => this.updateObjectiveText());
+    safeBattlePresentation('death objective', () => this.updateObjectiveText(), { scene: this });
 
     const deathEffects = getOnDeathAffixes(unit, this.gameData.affixes);
     const hasAoEDeathEffect = deathEffects.some((effect) => effect?.type === 'aoe_damage');
@@ -9258,32 +9295,38 @@ export class BattleScene extends Phaser.Scene {
         for (const victim of victims) {
           if (victim.currentHP <= 0) continue;
           damageUnit(victim, effect.amount);
-          safeBattlePresentation('Deathburst', () => {
-            this.updateHPBar(victim);
-            const pos = this.grid.gridToPixel(victim.col, victim.row);
-            const txt = this.add
-              .text(pos.x, pos.y - 16, `${effect.amount}`, {
-                fontFamily: 'monospace',
-                fontSize: '12px',
-                color: UI_PALETTE.warn,
-                fontStyle: 'bold',
-              })
-              .setOrigin(0.5)
-              .setDepth(320);
-            this.tweens.add({
-              targets: txt,
-              y: pos.y - 32,
-              alpha: 0,
-              duration: 500,
-              onComplete: () => txt.destroy(),
-            });
-          });
+          safeBattlePresentation(
+            'Deathburst',
+            () => {
+              this.updateHPBar(victim);
+              const pos = this.grid.gridToPixel(victim.col, victim.row);
+              const txt = this.add
+                .text(pos.x, pos.y - 16, `${effect.amount}`, {
+                  fontFamily: 'monospace',
+                  fontSize: '12px',
+                  color: UI_PALETTE.warn,
+                  fontStyle: 'bold',
+                })
+                .setOrigin(0.5)
+                .setDepth(320);
+              this.tweens.add({
+                targets: txt,
+                y: pos.y - 32,
+                alpha: 0,
+                duration: 500,
+                onComplete: () => txt.destroy(),
+              });
+            },
+            { scene: this },
+          );
           if (victim.currentHP <= 0) {
             await this.removeUnit(victim, { killer: unit });
           }
         }
-        await safeBattlePresentation('Deathburst delay', () =>
-          this._awaitSceneDelay(150, { label: 'death_affix_chain_tick' }),
+        await safeBattlePresentation(
+          'Deathburst delay',
+          () => this._awaitSceneDelay(150, { label: 'death_affix_chain_tick' }),
+          { scene: this },
         );
       }
     } finally {
@@ -9291,10 +9334,8 @@ export class BattleScene extends Phaser.Scene {
       this.grid?.clearTemporaryTerrainsBySource?.(unit);
       if (hasAoEDeathEffect) {
         this._deathAffixChainDepth = Math.max(0, (this._deathAffixChainDepth || 1) - 1);
-        if (this._deathAffixChainDepth === 0 && this.battleState !== 'BATTLE_END') {
-          await this._sweepFallenUnits();
-          this.checkBattleEnd();
-        }
+        // The combat/shot owner removes its primary casualties with attribution
+        // before sweeping and deciding victory. A chain must not steal that work.
       }
     }
 
@@ -9725,72 +9766,92 @@ export class BattleScene extends Phaser.Scene {
       if (!target) continue;
       const result = resolveBallistaStrike(ballista, target);
       // Presentation of the resolved shot: the bolt flies before the number shows.
-      await (this._combatFx ||= new CombatFxController(this)).ballistaShot(ballista, target, {
-        hit: result.didHit,
-        seed: (this.turnManager?.turnNumber || 0) * 97 + ballista.col * 13 + ballista.row,
-      });
+      await safeBattlePresentation(
+        'ballista shot',
+        () =>
+          (this._combatFx ||= new CombatFxController(this)).ballistaShot(ballista, target, {
+            hit: result.didHit,
+            seed: (this.turnManager?.turnNumber || 0) * 97 + ballista.col * 13 + ballista.row,
+          }),
+        { scene: this },
+      );
+      if (!isCurrent()) return;
       if (result.didHit) {
         damageUnit(target, result.damage);
-        this.updateHPBar(target);
-        if (target.graphic) {
-          const pos = this.grid.gridToPixel(target.col, target.row);
-          const txt = this.add
-            .text(pos.x, pos.y - 16, `${result.damage}`, {
-              fontFamily: 'monospace',
-              fontSize: '13px',
-              color: UI_PALETTE.warn,
-              fontStyle: 'bold',
-            })
-            .setOrigin(0.5)
-            .setDepth(301);
-          await this._awaitSceneTween(
-            {
-              targets: txt,
-              y: reduced ? pos.y - 16 : pos.y - 32,
-              alpha: 0,
-              duration: 600,
-              onComplete: () => {
-                txt.destroy();
-              },
-            },
-            {
-              label: 'ballista_hit_float',
-              onCancel: () => txt.destroy(),
-            },
-          );
-        }
+        await safeBattlePresentation(
+          'ballista hit',
+          async () => {
+            this.updateHPBar(target);
+            if (target.graphic) {
+              const pos = this.grid.gridToPixel(target.col, target.row);
+              const txt = this.add
+                .text(pos.x, pos.y - 16, `${result.damage}`, {
+                  fontFamily: 'monospace',
+                  fontSize: '13px',
+                  color: UI_PALETTE.warn,
+                  fontStyle: 'bold',
+                })
+                .setOrigin(0.5)
+                .setDepth(301);
+              await this._awaitSceneTween(
+                {
+                  targets: txt,
+                  y: reduced ? pos.y - 16 : pos.y - 32,
+                  alpha: 0,
+                  duration: 600,
+                  onComplete: () => {
+                    txt.destroy();
+                  },
+                },
+                {
+                  label: 'ballista_hit_float',
+                  onCancel: () => txt.destroy(),
+                },
+              );
+            }
+          },
+          { scene: this },
+        );
         if (!isCurrent()) return;
         if (target.currentHP <= 0) {
           await this.removeUnit(target, { killer: null });
+          if (!isCurrent()) return;
+          await this._sweepFallenUnits();
           if (!isCurrent()) return;
           this.checkBattleEnd();
           if (this.battleState === 'BATTLE_END') return;
         }
       } else if (target.graphic) {
-        const pos = this.grid.gridToPixel(target.col, target.row);
-        const txt = this.add
-          .text(pos.x, pos.y - 16, 'Miss', {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: UI_PALETTE.muted,
-            fontStyle: 'bold',
-          })
-          .setOrigin(0.5)
-          .setDepth(301);
-        await this._awaitSceneTween(
-          {
-            targets: txt,
-            y: reduced ? pos.y - 16 : pos.y - 32,
-            alpha: 0,
-            duration: 600,
-            onComplete: () => {
-              txt.destroy();
-            },
+        await safeBattlePresentation(
+          'ballista miss',
+          async () => {
+            const pos = this.grid.gridToPixel(target.col, target.row);
+            const txt = this.add
+              .text(pos.x, pos.y - 16, 'Miss', {
+                fontFamily: 'monospace',
+                fontSize: '11px',
+                color: UI_PALETTE.muted,
+                fontStyle: 'bold',
+              })
+              .setOrigin(0.5)
+              .setDepth(301);
+            await this._awaitSceneTween(
+              {
+                targets: txt,
+                y: reduced ? pos.y - 16 : pos.y - 32,
+                alpha: 0,
+                duration: 600,
+                onComplete: () => {
+                  txt.destroy();
+                },
+              },
+              {
+                label: 'ballista_miss_float',
+                onCancel: () => txt.destroy(),
+              },
+            );
           },
-          {
-            label: 'ballista_miss_float',
-            onCancel: () => txt.destroy(),
-          },
+          { scene: this },
         );
       }
     }
@@ -10535,17 +10596,21 @@ export class BattleScene extends Phaser.Scene {
       if (victim.faction === 'enemy') continue; // Don't splash allies
       const dmg = rollSplashDamage();
       damageUnit(victim, dmg);
-      await safeBattlePresentation('Entity splash', async () => {
-        this.updateHPBar(victim);
-        const pos = this.grid.gridToPixel(tile.col, tile.row);
-        (this._combatFx ||= new CombatFxController(this)).playOverlay(
-          'fx_sig_entity',
-          pos.x,
-          pos.y,
-        );
-        this.showMinorHintAt(pos.x, pos.y, `Splash -${dmg}`, UI_PALETTE.rarityEpic);
-        await this._awaitSceneDelay(200, { label: 'entity_splash_tick' });
-      });
+      await safeBattlePresentation(
+        'Entity splash',
+        async () => {
+          this.updateHPBar(victim);
+          const pos = this.grid.gridToPixel(tile.col, tile.row);
+          (this._combatFx ||= new CombatFxController(this)).playOverlay(
+            'fx_sig_entity',
+            pos.x,
+            pos.y,
+          );
+          this.showMinorHintAt(pos.x, pos.y, `Splash -${dmg}`, UI_PALETTE.rarityEpic);
+          await this._awaitSceneDelay(200, { label: 'entity_splash_tick' });
+        },
+        { scene: this },
+      );
       if (victim.currentHP <= 0) {
         await this.removeUnit(victim, { killer: entity });
       }
@@ -10816,43 +10881,53 @@ export class BattleScene extends Phaser.Scene {
   updateEnemyVisibility() {
     if (!this.grid.fogEnabled) return;
     if (this._zombieTombstones?.length) remainsOf(this).noteSeen();
-    safeBattlePresentation('fog danger', () => this.refreshVisibleDangerZone?.());
-    safeBattlePresentation('unit visibility', () => {
-      for (const enemy of this.enemyUnits) {
-        let vis;
-        if (isEntity(enemy)) {
-          vis = getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row));
-        } else {
-          vis = this.grid.isVisible(enemy.col, enemy.row);
-        }
-        if (enemy.graphic) enemy.graphic.setVisible(vis);
-        if (enemy.label) enemy.label.setVisible(vis);
-        if (enemy.factionIndicator) enemy.factionIndicator.setVisible(vis);
-        if (enemy.hpBar) {
-          enemy.hpBar.bg.setVisible(vis);
-          enemy.hpBar.fill.setVisible(vis);
-        }
-        if (enemy.affixPips) {
-          enemy.affixPips.forEach((p) => p.setVisible(vis));
-        }
-      }
-      for (const npc of this.npcUnits) {
-        // The recruit shows through fog (canInspectUnit); the caravan does not.
-        const vis = canInspectUnit(this.grid, npc);
-        if (npc.graphic) npc.graphic.setVisible(vis);
-        if (npc.label) npc.label.setVisible(vis);
-        if (npc.factionIndicator) npc.factionIndicator.setVisible(vis);
-        if (npc.hpBar) {
-          npc.hpBar.bg.setVisible(vis);
-          npc.hpBar.fill.setVisible(vis);
-        }
-        if (npc.affixPips) {
-          npc.affixPips.forEach((p) => p.setVisible(vis));
-        }
-        // Status badges (acid ground, an enemy art) hide with the NPC they sit on.
-        Object.values(npc._conditionIcons || {}).forEach((icon) => icon?.setVisible?.(vis));
-      }
-    });
+    safeBattlePresentation('fog danger', () => this.refreshVisibleDangerZone?.(), { scene: this });
+    for (const enemy of this.enemyUnits) {
+      safeBattlePresentation(
+        'enemy visibility',
+        () => {
+          let vis;
+          if (isEntity(enemy)) {
+            vis = getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row));
+          } else {
+            vis = this.grid.isVisible(enemy.col, enemy.row);
+          }
+          if (enemy.graphic) enemy.graphic.setVisible(vis);
+          if (enemy.label) enemy.label.setVisible(vis);
+          if (enemy.factionIndicator) enemy.factionIndicator.setVisible(vis);
+          if (enemy.hpBar) {
+            enemy.hpBar.bg.setVisible(vis);
+            enemy.hpBar.fill.setVisible(vis);
+          }
+          if (enemy.affixPips) {
+            enemy.affixPips.forEach((p) => p.setVisible(vis));
+          }
+        },
+        { scene: this },
+      );
+    }
+    for (const npc of this.npcUnits) {
+      safeBattlePresentation(
+        'NPC visibility',
+        () => {
+          // The recruit shows through fog (canInspectUnit); the caravan does not.
+          const vis = canInspectUnit(this.grid, npc);
+          if (npc.graphic) npc.graphic.setVisible(vis);
+          if (npc.label) npc.label.setVisible(vis);
+          if (npc.factionIndicator) npc.factionIndicator.setVisible(vis);
+          if (npc.hpBar) {
+            npc.hpBar.bg.setVisible(vis);
+            npc.hpBar.fill.setVisible(vis);
+          }
+          if (npc.affixPips) {
+            npc.affixPips.forEach((p) => p.setVisible(vis));
+          }
+          // Status badges (acid ground, an enemy art) hide with the NPC they sit on.
+          Object.values(npc._conditionIcons || {}).forEach((icon) => icon?.setVisible?.(vis));
+        },
+        { scene: this },
+      );
+    }
   }
 
   onVictory() {
