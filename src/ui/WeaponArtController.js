@@ -8,7 +8,7 @@ import {
   isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
 import { resolveWeaponArtIds } from './WeaponArtVisibility.js';
-import { selectEnemyWeaponArt } from '../engine/EnemyArtScoring.js';
+import { enemyAreaArtOf, selectEnemyWeaponArt } from '../engine/EnemyArtScoring.js';
 import { isStaff } from '../engine/Combat.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
@@ -410,6 +410,19 @@ export class WeaponArtController {
   _getEnemyWeaponArtDifficultyId() {
     const scene = this.scene;
     return scene.battleParams?.difficultyId || scene.runManager?.difficultyId || null;
+  }
+
+  /** The area art this enemy could swing next phase, or null (threat sight's line). */
+  enemyAreaArt(unit) {
+    if (!unit?.weapon || unit.faction === 'player') return null;
+    return enemyAreaArtOf(
+      this._getWeaponArtChoices(unit, unit.weapon, {
+        isAI: true,
+        isInitiating: true,
+        actorFaction: unit.faction,
+        targetFaction: 'player',
+      }),
+    );
   }
 
   /** engine/EnemyArtScoring.selectEnemyWeaponArt over this unit's usable arts. */

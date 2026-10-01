@@ -110,6 +110,7 @@ import {
   getEntityCenter,
   entityHealth,
 } from '../engine/EntitySystem.js';
+import { bindEnemyAreaArt } from '../engine/EnemyAreaArts.js';
 import {
   createLordUnit,
   createEnemyUnit as createEnemyUnitFromClass,
@@ -2655,6 +2656,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
+    if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
     if (
       spawn.aiTargetTile &&
@@ -10733,6 +10735,8 @@ export class BattleScene extends Phaser.Scene {
       ballistas: this.ballistas || [],
       positions: () => this.buildUnitPositionMap(),
       costModifier: (unit) => this._getCostModifier(unit),
+      areaArtOf: (unit) =>
+        (this._weaponArtController ||= new WeaponArtController(this)).enemyAreaArt(unit),
     };
   }
 

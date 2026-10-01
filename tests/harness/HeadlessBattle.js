@@ -116,6 +116,7 @@ import {
 import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
 import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
+import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import {
   buildRisenUnit,
   createRemains,
@@ -972,6 +973,7 @@ export class HeadlessBattle {
       }
     }
 
+    if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
     if (
       spawn.aiTargetTile &&

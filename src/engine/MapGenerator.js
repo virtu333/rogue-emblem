@@ -18,6 +18,7 @@ import {
   RECRUIT_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
+import { assignEnemyAreaArts } from './EnemyAreaArts.js';
 import { pickCaravanSpawnTile } from './CaravanSystem.js';
 import { ballistaRangeForAct, createBallistaState } from './BallistaEngine.js';
 import {
@@ -243,6 +244,17 @@ export function generateBattleLayout(params, deps) {
     difficultyId: params.difficultyId || 'normal',
     act,
     eclipse: params.eclipseAffix || null,
+  });
+  // Elite battles from Act III at Nightfall+: one or two enemies carry an area art
+  // (EnemyAreaArts.js, enemies.json eliteAreaArts). Draws from the battle seed only
+  // when the battle qualifies.
+  enemySpawns = assignEnemyAreaArts(enemySpawns, {
+    isElite: params.isElite === true,
+    act,
+    difficultyId: params.difficultyId,
+    classes,
+    config: enemies.eliteAreaArts || null,
+    random: () => Math.random(),
   });
 
   // 7. NPC spawn for recruit battles

@@ -646,15 +646,34 @@ No enemy spawn path gives enemies arts today (§1). Decided:
 - **Who:** act 3+ elites, on Nightfall and Black Sun (`isDifficultyAtLeast(id, 'hard')`).
 - **What:** Sweeping Cleave or Skewer only, bound to their weapon at spawn. No enemy
   knockback: Battering Ram is player-only.
-- **Where:** a small data-driven hook in `difficulty.json`, with a `dusk` entry.
-
-That hook is its own slice (7b). Until it lands, slice 7 is scoring only.
+- **Where (built, slice 7b):** `enemies.json` `eliteAreaArts` (`minDifficulty: "hard"`,
+  `acts`, `count: [1, 2]`, `byWeaponType`: Axe/Sword → Sweeping Cleave, Lance/Bow →
+  Skewer), read by `engine/EnemyAreaArts.js`. It sits with the enemy pools rather than in
+  `difficulty.json`: it is one rule with a floor, not a table keyed by rung, so there is
+  no `dusk` entry to keep. The cross-reference validator holds every listed art to one
+  the AI can swing with that weapon type: open to enemies, AI on, not a legendary's own,
+  `normal_attack` with an area, and never one that moves a unit.
+- **How:** `MapGenerator` writes `areaArt` on one or two eligible spawns (not a boss, the
+  Entity, a siege crew or a recruit guardian; the type is the class's first non-staff
+  proficiency, the type its weapon is drawn from). It draws from the battle seed only
+  when the battle qualifies, so every other battle generates exactly as before. The scene
+  and the harness bind the art to the weapon that can carry it (`bindEnemyAreaArt`) when
+  they build the unit; from there it is an ordinary bound art: HP cost, per-map uses,
+  `selectEnemyWeaponArt`.
+- **What the AI does with it:** the §7 score. Sweeping Cleave on its own scores
+  5 Hit × 0.35 − 6 HP × 0.75 = −2.75, so it swings only when the arc is worth about 3.5
+  (Nightfall's bar is 0.75): a kill beside it, or two foes each losing more than half
+  their HP. Skewer (+10 Hit, −1.0 alone) needs one foe behind the target to lose about
+  55%. Armed elites are threats when a swing would finish someone, not on every attack.
 
 ### Danger and ThreatForecast
 
 Unchanged (decided). Danger shows where a foe can *start* a fight.
 Spill depends on who stands where, so painting it would mostly be noise. Threat Sight's
-per-unit panel gains one line, e.g. "Art: Skewer, also hits 2 tiles behind".
+line says how many of the foes that reach the tile carry a usable area art:
+"2 foes can reach · 1 with an area art" (`threatsOnTile(...).area` from
+`ctx.areaArtOf`, WeaponArtController.enemyAreaArt → `EnemyArtScoring.enemyAreaArtOf`).
+A spent or unaffordable art drops out, and the threat cache's signature includes it.
 
 ## 8. Harness parity
 

@@ -80,6 +80,20 @@ export function scoreAreaBonus(unit, art, target, world) {
   return 0.8 * value;
 }
 
+/**
+ * The area art an enemy could swing, or null: the first usable `normal_attack` art with
+ * an area among its `choices` (usable { art } entries, as selectEnemyWeaponArt takes).
+ * Threat sight names such foes; the AI may still pass on it.
+ */
+export function enemyAreaArtOf(choices) {
+  for (const choice of choices || []) {
+    if (choice?.canUse === false) continue;
+    const art = choice?.art;
+    if (art && getWeaponArtTargeting(art) === 'normal_attack' && getWeaponArtArea(art)) return art;
+  }
+  return null;
+}
+
 /** Difficulty tuning: the least score worth an art, and how often the AI uses one. */
 export function enemyWeaponArtTuning(difficultyId) {
   if (!difficultyId) return { minScore: 0.75, useChance: 1.0 };
