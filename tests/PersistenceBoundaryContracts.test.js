@@ -19,6 +19,7 @@ import { ChurchController } from '../src/ui/ChurchController.js';
 import { ColosseumOverlay } from '../src/ui/ColosseumOverlay.js';
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { TurnManager } from '../src/engine/TurnManager.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import {
   presentQueuedLevelUps,
@@ -403,6 +404,13 @@ it('JSON-resumed Gambit refreshes only nearby living units and captures one new 
     _captureSuspendCheckpoint: vi.fn(),
     finishUnitAction: vi.fn(),
   });
+  scene.turnManager = new TurnManager({
+    checkBattleEnd: () => false,
+    onPhaseChange: () => {},
+    onVictory: () => {},
+    onDefeat: () => {},
+  });
+  scene.turnManager.init(units, [{ currentHP: 20 }], []);
   completeResolvedAction(
     scene,
     JSON.parse(JSON.stringify({ kind: 'combat', unitName: 'Lord', gambitTriggered: true })),

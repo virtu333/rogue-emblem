@@ -114,6 +114,7 @@ describe('BattleScene anti-refresh suspend', () => {
         grid: { clearAttackHighlights: vi.fn() },
         _clearSelectedWeaponArt: vi.fn(),
         dimUnit: vi.fn(),
+        playerUnits: [unit],
         _captureSuspendCheckpoint: vi.fn(() => callOrder.push('checkpoint')),
         turnManager: { unitActed: vi.fn(() => callOrder.push('unitActed')) },
       });

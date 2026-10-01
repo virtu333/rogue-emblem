@@ -45,6 +45,7 @@ export function completeBattleAction(scene, unit, { skipDim = false, session } =
   for (const ally of scene.playerUnits || []) settleAccessoryHpOwed(ally);
   const saved = scene._captureSuspendCheckpoint?.({ session });
   if (!skipDim) safeBattlePresentation('action dim', () => scene.dimUnit(unit), { scene });
-  scene.turnManager.unitActed(unit);
+  if (scene.playerUnits.includes(unit)) scene.turnManager.unitActed(unit);
+  else scene.turnManager.checkPlayerPhaseComplete();
   return scene.runManager?.battleInProgress ? saved === true : true;
 }

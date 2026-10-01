@@ -103,8 +103,9 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
   scene._pendingActionCompletion = null;
   continuation = readActionContinuation(continuation);
   if (!continuation) return;
-  const unit = findBattleEntity(scene, continuation, ['playerUnits']);
   if (scene.checkBattleEnd?.()) return;
+  const actor = findBattleEntity(scene, continuation, ['playerUnits']);
+  const unit = actor?.currentHP <= 0 ? null : actor;
   if (
     continuation.kind === 'combat' &&
     unit &&
@@ -149,4 +150,7 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
     ];
   revealSettledVision(scene);
   scene._captureSuspendCheckpoint?.({ session });
+  // The actor may have fallen before resume, or Gambit may have left no one
+  // available. Completion still owes the phase check for the surviving roster.
+  scene.turnManager.checkPlayerPhaseComplete();
 }

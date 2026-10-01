@@ -9,7 +9,7 @@ Part of the stability effort. Read with `docs/specs/stability-round2-remediation
 
 The A2 fix changes `_isSceneActiveForAsync`, so recheck the matrix-infrastructure notes below about `scene.scene.isActive` against the fixed tree. The line numbers below are from the pre-fix stack and will shift.
 
-Base: the #171 + #173 stack (`test/stability-stack-verification`, `8f5c568e`). All `file:line` refer to that tree. PR 5 is a delta over the stack, not over `main`.
+Published PR base: #173 (`fix/stability-session-ownership`); PR 5 is #175 (`fix/stability-combat-boundaries`). The evidence and historical `file:line` references below were collected on the earlier #171 + #173 integration tree (`8f5c568e`) and are not current line references. The combined verification branch is a test integration, not the PR base.
 
 ## Goal / non-goals
 
@@ -96,7 +96,7 @@ if (event.warpRange > 0 && event.targetHPAfter > 0) {            // was live cur
 
 `_presentWarp(unit, { to })`: the old targets filter, `if (targets.length <= 0) return` before any tween, fade-out, `updateUnitPosition(unit)`, fade-in; it never writes `col`/`row`. Delete `executeWarp` (at the review base no test called it; current main later added an opacity regression, which is migrated to settlement plus `_presentWarp`; `tests/AffixCombat.test.js:117` uses `getWarpCandidates`). Settling after the strike's own animation keeps CombatChoreography's `tileDistance` and the damage-number tile right; settling before `_applyResolvedCombatPostEffects` (:8358) keeps pierce (PostCombatEffects.js:259–264), shove (:250–254) and Tier 5 splash reading the warped tile, as live play does today and every failure world now will. Combat.js ends the exchange at the warp event (:1795, :1867): one warp per combat, no later strike depends on it.
 
-**RNG-order equivalence (fixed-v1).** The draw stays at the same logical point: after strike *i*'s animation, before event *i+1*, post-combat and the growth rolls in `applyXpGain`. Nothing between `resolveCombat` and that point draws from the battle stream: strike texts use `presentationText`/`isolateBattleTextFactory` (:2385), fx are seeded (`fxSeed`), quips use `BattleBeatsController`'s own `createSeededRng` (:44). Draw count is one iff candidates exist, identical to today whenever sprites exist; the only change is the old bug (draw, then no move when `targets` was empty, :8910 → :8918). So a fixed-v1 checkpoint holding a committed attack (`_commitCombatIntent` :8379; `rngState` saved policy-independently at BattleCheckpointAdapter.js:16, restored at BattleSuspendController.js:282) replays identically across the version line. **Legacy-v1** keeps the same settlement draw order, but its `this.add.text` sites (poison :8957, Deathburst :9348, `showMinorHintAt`) still draw from the stream, so its cursor is compared live-vs-resume on one build only, which is what it already was (the resume hint itself draws text).
+**RNG-order equivalence (fixed-v1).** The draw stays at the same logical point: after strike *i*'s animation, before event *i+1*, post-combat and the growth rolls in `applyXpGain`. Nothing between `resolveCombat` and that point draws from the battle stream: strike texts use `presentationText`/`isolateBattleTextFactory` (:2385), fx are seeded (`fxSeed`), quips use `BattleBeatsController`'s own `createSeededRng` (:44). Draw count is one iff candidates exist, identical to today whenever sprites exist; the only change is the old bug (draw, then no move when `targets` was empty, :8910 → :8918). A fixed-v1 checkpoint holding a committed attack (`_commitCombatIntent` :8379; `rngState` saved policy-independently at BattleCheckpointAdapter.js:16, restored at BattleSuspendController.js:282) has the same replay inputs across the version line. This is a compatibility argument, not an executed cross-version migration test. Round-3 tests exercise the actual JSON load, unit restore, finalize-resume and committed-attack replay on this build for both fixed-v1 and legacy-v1 Teleporter exchanges. Fixed-v1 compares the complete normalized checkpoint and gameplay/RNG state. The legacy example compares gameplay, current RNG and checkpoint state, separately pinning the differing `decisionRngState` envelope: legacy capture leaves it unchanged, whereas finalize-resume fills it from the incoming checkpoint. **Legacy-v1** retains unisolated canvas text sites, so this one shown live/resume example does not promise presentation-independent legacy cursors or general parity across versions.
 
 Harness: `tests/harness/HeadlessBattle.js` has no warp (combat :1780–1830 goes straight to `applyCombatHP`), so nothing to delete. Optional one-liner: call `settleTeleporterWarp` for the warp event after `resolveCombat` so Teleporter enemies stop desynchronising the harness stream; PR 8 removes the duplication anyway.
 
@@ -122,7 +122,7 @@ Amend the spec's "and RNG": "and, for fixed-v1 battles, the RNG cursor. A legacy
 
 **Scenarios and independent expectations** (hand-derived from data, never from the code under test): plain kill (gold = 28+8 for a level-1 enemy as #171 pinned); counter kills a non-commander (deaths 1, no XP); brave/double + drain on the `debtor` unit (debt forgiven, HP 10); art HP cost + Phoenix (HP 12, `_phoenixBroochUsed`, call 1 is the art-cost bar); Thorns (striker 7); Teleporter survives (position ∈ `getWarpCandidates` max-distance set; draw count = (cursor delta ÷ 0x6d2b79f5 mod 2³², BattleRng.js:14) equals the hand count: one hit roll per strike, one crit roll per landed strike, one warp draw, nothing after the warp event because it ends the exchange at Combat.js:1795); Teleporter lethal (cursor equals the no-affix twin: a dead target ends the exchange either way and the affix roll itself draws nothing, AffixSystem.js:118–123); Teleporter boxed in (no candidates → no draw); Teleporter + Tier 2 pierce (secondary target computed from the warped tile); Deathburst chain (rewards once, 72); Tier 5 splash third-party kill + Zombie remains; poison/status beats; level-up (`veteranFixture` at 99 xp → level 15, `wrath`, one queued popup); victory (`result 'victory'`, no continuation capture); Canto confirm/Wait/Back/retap and Commander's Gambit refresh (adjacent allies `hasActed` false, BattlePresentationCheckpoint.js:101–130); enemy phase: kill, counter-kill with `survivedAttack` XP, enemy Teleporter warped by the counter, Entity splash (two 1-HP neighbours fall); one checkpoint-retry case (storage throws, `retryCheckpoint` re-persists the frozen candidate, combat not re-run).
 
-**Planted regressions that must fail:** restore the live `target.currentHP > 0` gate; draw before the candidates check; write `col`/`row` inside the fade; unguard :8269; settle the warp after post-combat effects; drop the Thorns write from `applyStrikeHP`; make `safeBattlePresentation` stop reporting (telemetry assertion); unguard `checkBossHalfHealth` in the enemy path.
+**Planted regressions that must fail:** draw before the candidates check; write `col`/`row` inside the fade; unguard :8269; settle the warp after post-combat effects; drop the Thorns write from `applyStrikeHP`; make `safeBattlePresentation` stop reporting (telemetry assertion); unguard `checkBossHalfHealth` in the enemy path.
 
 ## Deferred
 
@@ -144,8 +144,26 @@ M: `AffixSystem.js` +25, `UnitHealth.js` +15, `BattleScene.js` ≈ −45/+70, `s
 
 The final implementation also guards completion overlays, per-target Warp opacity
 cleanup and the two inner `BattleBeatsController` rendering catches found in review.
-The matrix has 22 real-entry scenarios plus 11 focused tests and exercises no-sprite
+The matrix has 23 real-entry scenarios plus 13 focused tests and exercises no-sprite
 worlds as well as skipped, paused and failed presentation. Dropping only the live-HP
 Teleporter gate is now an equivalent mutation because interim HP is already settled;
 regressions that restore presentation-owned HP/movement are independently caught.
 Latest-checkpoint-wins retry semantics are unchanged; the retry UI belongs to PR 6.
+
+
+## Round-3 verification scope
+
+The real-entry matrix gives each scenario an explicit 20-second timeout; the rest
+of the suite keeps Vitest's normal timeout. The new fog scenario uses shipping
+`Grid.updateFogOfWar` and `BattleScene.updateEnemyVisibility`, checks the independently
+enumerated 24-tile visibility union and hidden warped defender before post-combat
+effects, and compares gameplay, durable fog and fixed-v1 RNG through shown, skipped,
+paused, missing-sprite, all-failed and every nth failed rendering call. A planted
+removal of the warp's `_refreshPostCombatMovementState` call must fail this test even
+though the later end-of-action fog refresh remains.
+
+Same-build committed Teleporter replay is covered through `RunManager.fromJSON`,
+`BattleSuspendController.applyUnits` and `finalizeResume`, and the real scheduled
+attack callback. No old-build/new-build executable pair was run. Legacy presentation
+parity and arbitrary cross-version resume remain unverified. Mutation results and
+unit counts in this note describe local runs, not combined-branch CI.

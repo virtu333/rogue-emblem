@@ -10,6 +10,9 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 import { createBattleRng } from '../src/engine/BattleRng.js';
 import { Grid } from '../src/engine/Grid.js';
 import { TurnManager } from '../src/engine/TurnManager.js';
+import { RunManager } from '../src/engine/RunManager.js';
+import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
+import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
 import { equipAccessory, unequipAccessory } from '../src/engine/UnitManager.js';
 import { _resetUidCounter } from '../src/utils/itemUid.js';
 import { loadGameData } from './testData.js';
@@ -185,6 +188,90 @@ it('real strike contact observes settled Thorns HP before the final combat backs
   expect([attacker.currentHP, defender.currentHP]).toEqual([7, 10]);
   expect(reportAsyncError).not.toHaveBeenCalled();
 });
+
+it.each(['fixed-v1', 'legacy-v1'])(
+  'a serialized %s committed Teleporter attack resumes with the same outcome on this build',
+  async (policy) => {
+    const resumeFixture = () => {
+      const result = fixture('Teleporter survives');
+      result.scene._battleRewindPolicy = policy;
+      result.scene.runManager.battleInProgress.rewindPolicy = policy;
+      result.scene.reseedBattleRng = BattleScene.prototype.reseedBattleRng;
+      if (policy === 'legacy-v1')
+        // Legacy scene factories are genuinely unisolated; individual shipping
+        // presentationText calls still isolate their own UUID draws.
+        result.scene.add.text = result.calls.call(() => {
+          Math.random();
+          return result.calls.visual;
+        }, 'add.text');
+      return result;
+    };
+    const live = resumeFixture();
+    // Resume relinks only proficient weapons; ordinary matrix weapons omit this
+    // catalog field because they never cross the real load boundary.
+    for (const unit of [...live.scene.playerUnits, ...live.scene.enemyUnits])
+      unit.weapon.rankRequired = 'Prof';
+    live.scene._commitCombatIntent(live.attacker, live.defender);
+    const saved = JSON.parse(live.storage.getItem('emblem_rogue_slot_1_run'));
+    expect(saved.battleInProgress.checkpoint).toMatchObject({
+      rewindPolicy: policy,
+      rngState: { algorithm: 'mulberry32-v1', cursor: 7 },
+      pendingCommittedAction: { kind: 'attack' },
+    });
+    await live.scene.executeCombat(live.attacker, live.defender);
+    const outcome = (scene) => {
+      const checkpoint = structuredClone(scene.runManager.battleInProgress.checkpoint);
+      // This envelope is used for fixed-v1 decision keys. Legacy captures leave
+      // it unchanged, while finalizeResume fills it from the incoming checkpoint;
+      // compare the legacy live stream and complete gameplay state separately.
+      if (policy === 'legacy-v1') delete checkpoint.decisionRngState;
+      return model({
+        players: scene.playerUnits.map(serializeBattleUnit),
+        enemies: scene.enemyUnits.map(serializeBattleUnit),
+        gold: scene.goldEarned,
+        rng: scene._battleRng.getState(),
+        phase: scene.turnManager.currentPhase,
+        state: scene.battleState,
+        checkpoint,
+      });
+    };
+    const expected = outcome(live.scene);
+
+    const resumed = resumeFixture();
+    resumed.scene.runManager = RunManager.fromJSON(saved, data);
+    const checkpoint = resumed.scene.runManager.battleInProgress.checkpoint;
+    resumed.scene.playerUnits = [];
+    resumed.scene.enemyUnits = [];
+    resumed.scene.npcUnits = [];
+    const suspend = new BattleSuspendController(resumed.scene);
+    resumed.scene._battleSuspendController = suspend;
+    suspend.applyUnits(checkpoint);
+    resumed.scene.turnManager.init(resumed.scene.playerUnits, resumed.scene.enemyUnits, []);
+    let replay;
+    resumed.scene._scheduleSafeDelayedAsync = (_delay, label, callback) => {
+      expect(label).toBe('resume_committed_attack');
+      replay = callback;
+    };
+    suspend.finalizeResume(checkpoint);
+    expect(replay).toBeTypeOf('function');
+    await replay();
+    expect(outcome(resumed.scene)).toEqual(expected);
+    const defender = resumed.scene.enemyUnits.find((entry) => entry.name === 'Enemy');
+    expect([defender.currentHP, defender.col, defender.row]).toEqual([10, 4, 4]);
+    if (policy === 'fixed-v1')
+      expect(resumed.scene._battleRng.getState().cursor).toBe((7 + 4 * 0x6d2b79f5) >>> 0);
+    else {
+      expect(live.scene.runManager.battleInProgress.checkpoint.decisionRngState).toEqual(
+        live.scene._battleRng.getState(),
+      );
+      expect(resumed.scene.runManager.battleInProgress.checkpoint.decisionRngState).toEqual({
+        algorithm: 'mulberry32-v1',
+        cursor: 7,
+      });
+    }
+    expect(reportAsyncError).not.toHaveBeenCalled();
+  },
+);
 
 it.each(['normal', 'position failure', 'fade-in failure'])(
   'a real Teleporter exchange restores each target alpha after %s',
@@ -546,6 +633,45 @@ function fixture(kind, failure = 0, world = 'shown') {
       entry.hpBar = { bg: calls.visual, fill: calls.visual };
     }
   }
+  if (kind === 'Teleporter fog') {
+    // Use shipping fog/visibility rules, rather than the journey fixture's fixed
+    // fog. The surviving defender moves from a visible tile to (4,4), outside
+    // both infantry vision diamonds. Check at the next domain boundary: action
+    // completion refreshes fog again and would hide a missing warp refresh.
+    Object.assign(scene.grid, {
+      scene,
+      fogEnabled: true,
+      visibleSet: new Set(),
+      everSeenSet: new Set(),
+      getVisionRange: Grid.prototype.getVisionRange,
+      updateFogOfWar: Grid.prototype.updateFogOfWar,
+      isVisible: Grid.prototype.isVisible,
+    });
+    scene.grid.updateFogOfWar(scene.playerUnits);
+    scene.updateEnemyVisibility = BattleScene.prototype.updateEnemyVisibility;
+    scene.refreshVisibleDangerZone = calls.call(
+      BattleScene.prototype.refreshVisibleDangerZone.bind(scene),
+      'refreshVisibleDangerZone',
+    );
+    // Keep renderer failures counted while observing its player-visible output.
+    const graphic = Object.assign(Object.create(calls.visual), { visible: true });
+    graphic.setVisible = calls.call((visible) => {
+      graphic.visible = visible;
+      return graphic;
+    }, 'enemy.graphic.setVisible');
+    if (world !== 'no sprites') defender.graphic = graphic;
+    const postEffects = scene._applyResolvedCombatPostEffects.bind(scene);
+    scene._applyResolvedCombatPostEffects = async (...args) => {
+      scene._warpFogBoundary = {
+        visible: [...scene.grid.visibleSet].sort(),
+        seen: [...scene.grid.everSeenSet].sort(),
+        warpVisible: scene.grid.isVisible(defender.col, defender.row),
+        rng: scene._battleRng.getState(),
+      };
+      scene._warpGraphicVisible = graphic.visible;
+      return postEffects(...args);
+    };
+  }
   scene.turnManager = new TurnManager({
     onPhaseChange: () => {},
     checkBattleEnd: () => scene.checkBattleEnd(),
@@ -586,6 +712,7 @@ async function run(kind, failure = 0, world = 'shown') {
     committed: scene._pendingCommittedAction,
     popups: scene._pendingLevelUpPopups,
     visible: scene.grid.visibleSet,
+    warpFogBoundary: scene._warpFogBoundary,
     rng: scene._battleRng.getState(),
     selectedArt: scene._selectedWeaponArt,
     rolls: scene._combatRollSession,
@@ -639,10 +766,48 @@ function assertOutcome(kind, result) {
     expect(attacker._gambitUsedThisTurn).toBe(true);
     expect(scene.playerUnits.every((entry) => !entry.hasActed)).toBe(true);
   }
-  if (kind === 'Teleporter survives') {
+  if (kind === 'Teleporter survives' || kind === 'Teleporter fog') {
     // One strike: two hit draws, one crit draw, then exactly one warp draw.
     expect(scene._battleRng.getState().cursor).toBe((7 + 4 * 0x6d2b79f5) >>> 0);
     expect([defender.col, defender.row]).toEqual([4, 4]);
+  }
+  if (kind === 'Teleporter fog') {
+    expect(scene._warpGraphicVisible).toBe(false);
+    // Hand-enumerated union of radius-3 Manhattan diamonds at (0,0) and (2,2).
+    const visible = [
+      '0,0',
+      '0,1',
+      '0,2',
+      '0,3',
+      '1,0',
+      '1,1',
+      '1,2',
+      '1,3',
+      '1,4',
+      '2,0',
+      '2,1',
+      '2,2',
+      '2,3',
+      '2,4',
+      '2,5',
+      '3,0',
+      '3,1',
+      '3,2',
+      '3,3',
+      '3,4',
+      '4,1',
+      '4,2',
+      '4,3',
+      '5,2',
+    ];
+    expect(scene._warpFogBoundary).toEqual({
+      visible,
+      seen: visible,
+      warpVisible: false,
+      rng: { algorithm: 'mulberry32-v1', cursor: (7 + 4 * 0x6d2b79f5) >>> 0 },
+    });
+    expect([...result.snapshot.checkpoint.fog.visible].sort()).toEqual(visible);
+    expect([...result.snapshot.checkpoint.fog.everSeen].sort()).toEqual(visible);
   }
   if (kind === 'Teleporter lethal' || kind === 'Teleporter boxed') {
     expect(scene._battleRng.getState().cursor).toBe((7 + 3 * 0x6d2b79f5) >>> 0);
@@ -699,6 +864,7 @@ describe.each([
   'Thorns',
   'drain debt',
   'Teleporter survives',
+  'Teleporter fog',
   'Teleporter lethal',
   'Teleporter boxed',
   'Deathburst',
@@ -747,5 +913,5 @@ describe.each([
         expected.snapshot,
       );
     }
-  });
+  }, 20_000);
 });
