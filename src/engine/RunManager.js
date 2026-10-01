@@ -3,6 +3,7 @@ import { createVeteranKnight } from './SpecialCharacters.js';
 import { validateBattleState } from './BattleStateSnapshot.js';
 import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
+import { migrateSavedPerBattleWeapons } from './WeaponCatalogMigration.js';
 import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
@@ -4666,6 +4667,8 @@ export class RunManager {
     migrateSavedItemNames(saved, gameData);
     // Gambler's Coins saved with the legacy flag take the catalog's odds (same places).
     migrateSavedGamblerCoins(saved, gameData);
+    // Per-battle weapons (Breachbolt) take the catalog's shot counts (same places).
+    migrateSavedPerBattleWeapons(saved, gameData);
     const rm = new RunManager(gameData, saved.metaEffects || null);
     rm.legendaryLordChance = Math.min(0.15, Math.max(0, Number(saved.legendaryLordChance) || 0));
     rm.lastDeployment = normalizeDeploymentNames(saved.lastDeployment);
