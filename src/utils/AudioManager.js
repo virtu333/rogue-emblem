@@ -113,7 +113,6 @@ export class AudioManager {
           if (owner) this.currentMusicOwner = owner;
           return;
         }
-        this.stopAllMusic(scene, 0);
       }
 
       const requestSeq = ++this._musicRequestSeq;
@@ -177,12 +176,6 @@ export class AudioManager {
         return;
       }
 
-      // Defensive stop: clear any orphan looping music before starting new track.
-      // A track handed over to bridge this load crossfades out instead of cutting.
-      const bridging = this._handoffActive(owner);
-      this._handoff = null;
-      this.stopAllMusic(scene, bridging && scene?.tweens ? Math.max(fadeMs, 400) : 0);
-
       this._touchMusicCacheKey(key);
       for (const layerKey of layerKeys) {
         if (cache.has(layerKey)) this._touchMusicCacheKey(layerKey);
@@ -196,14 +189,36 @@ export class AudioManager {
         audioCtx.resume?.().catch(() => {});
       }
 
-      this.currentMusic = this._createMusicSound(
-        key,
-        fadeMs > 0 ? 0 : this._curve(this.musicVolume),
-        layers,
-        layerGains,
-      );
+      // Construct and start the verified replacement before committing the
+      // handoff. A constructor/start failure leaves the current voice playing.
+      let nextMusic;
+      try {
+        nextMusic = this._createMusicSound(
+          key,
+          fadeMs > 0 ? 0 : this._curve(this.musicVolume),
+          layers,
+          layerGains,
+        );
+        const started =
+          Number.isFinite(startAt) && nextMusic instanceof LoopedMusic
+            ? nextMusic.play(startAt)
+            : nextMusic.play();
+        if (started === false) throw new Error(`music-start-failed:${key}`);
+      } catch (err) {
+        nextMusic?.destroy?.();
+        throw err;
+      }
+      // Phaser registers a newly created voice immediately; exclude it from
+      // orphan cleanup while stopping/crossfading the outgoing music.
+      const bridging = this._handoffActive(owner);
+      this._handoff = null;
+      this.stopAllMusic(scene, bridging && scene?.tweens ? Math.max(fadeMs, 400) : 0, nextMusic);
+      this.currentMusic = nextMusic;
       this.currentMusicKey = key;
       this.currentMusicOwner = owner;
+      this.currentMusicLayerKeys =
+        nextMusic instanceof LoopedMusic ? nextMusic.bufferKeys.filter((k) => k !== key) : [];
+      for (const layerKey of this.currentMusicLayerKeys) this._touchMusicCacheKey(layerKey);
       this._trackMusicSound(this.currentMusic);
       this._audioEvent('started', {
         key,
@@ -211,11 +226,6 @@ export class AudioManager {
         layers: this.currentMusic.layerNames || [],
         intensity: this.musicIntensity,
       });
-      if (Number.isFinite(startAt) && this.currentMusic instanceof LoopedMusic) {
-        this.currentMusic.play(startAt);
-      } else {
-        this.currentMusic.play();
-      }
       // The voice now holds its buffers (and is protected as live); a layer it
       // dropped (off the primary's timeline) no longer needs to be kept.
       if (this._pendingMusicKeys === pendingKeys) {
@@ -275,7 +285,6 @@ export class AudioManager {
     const buffer = typeof cache.get === 'function' ? cache.get(key) : null;
     const loop = getMusicLoop(key);
     const layerMap = this._layerMapFor(key, extraLayers);
-    this.currentMusicLayerKeys = [];
     if (this._canUseLoopedMusic() && isDecodedAudioBuffer(buffer) && (loop || layerMap)) {
       this._validateMusicBuffer(key, buffer);
       if (!audioBufferMatches(key, buffer)) throw new Error(`unverified-music-buffer:${key}`);
@@ -308,13 +317,9 @@ export class AudioManager {
           layerGains: layerGains || {},
           volume,
         });
-        // The layers the voice actually kept (one off the primary's timeline is dropped).
-        this.currentMusicLayerKeys = music.bufferKeys.filter((k) => k !== key);
-        for (const layerKey of this.currentMusicLayerKeys) this._touchMusicCacheKey(layerKey);
         return music;
       } catch (err) {
         if (this.debugMusic) console.warn('[AudioManager] looped music failed:', key, err);
-        this.currentMusicLayerKeys = [];
         throw err;
       }
     }
@@ -539,7 +544,7 @@ export class AudioManager {
       try {
         const response = await fetch(src, { signal: controller?.signal });
         if (!response?.ok) throw new Error(`http-${response?.status || 'error'}`);
-        return verifyAudioBytes(key, await response.arrayBuffer());
+        return await verifyAudioBytes(key, await response.arrayBuffer());
       } catch (err) {
         lastErr = err;
         this._audioEvent('asset-rejected', { key, url: src, reason: err?.message });
@@ -666,7 +671,7 @@ export class AudioManager {
       try {
         const response = await fetch(src, { signal: controller?.signal });
         if (!response?.ok) throw new Error(`http-${response?.status || 'error'}`);
-        const bytes = verifyAudioBytes(key, await response.arrayBuffer());
+        const bytes = await verifyAudioBytes(key, await response.arrayBuffer());
         const decoded = await this._decodeAudioData(context, bytes);
         this._validateMusicBuffer(key, decoded);
         cache.add(key, rememberAudioBuffer(key, decoded));
@@ -836,7 +841,7 @@ export class AudioManager {
   }
 
   /** Stop all currently playing looping music sounds (including orphaned tracks). */
-  stopAllMusic(scene, fadeMs = 0) {
+  stopAllMusic(scene, fadeMs = 0, except = null) {
     this._pendingMusic = null;
     this._musicRequestSeq += 1;
     const looping = this._getLoopingMusicSounds();
@@ -847,6 +852,7 @@ export class AudioManager {
       );
     }
     for (const sound of looping) {
+      if (sound === except) continue;
       this._stopSound(sound, scene, fadeMs);
     }
     this.currentMusic = null;

@@ -117,6 +117,7 @@ describe('executeRelocate', () => {
     ['Rescue Staff', false],
     ['Warp Staff', true],
     ['Warp Staff', false],
+    ['Teleporter', true],
   ])('%s preserves visual opacity for acted=%s and the next turn', async (name, hasActed) => {
     const ctx = makeSceneCtx();
     const visual = () => ({
@@ -152,10 +153,17 @@ describe('executeRelocate', () => {
         target.alpha = typeof alpha === 'function' ? alpha(target) : alpha;
     });
 
-    await BattleScene.prototype.executeRelocate.call(ctx, makeHealer(freshStaff(name)), ally, {
-      col: 5,
-      row: 4,
-    });
+    if (name === 'Teleporter') {
+      ctx.grid.cols = 10;
+      ctx.grid.rows = 10;
+      ctx.grid.getMoveCost = () => 1;
+      await BattleScene.prototype.executeWarp.call(ctx, ally, 2, { col: 4, row: 6 });
+    } else {
+      await BattleScene.prototype.executeRelocate.call(ctx, makeHealer(freshStaff(name)), ally, {
+        col: 5,
+        row: 4,
+      });
+    }
 
     expect(ally.hasActed).toBe(hasActed);
     expect(targets.map((target) => target.alpha)).toEqual(before);

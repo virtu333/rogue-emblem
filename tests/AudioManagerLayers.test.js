@@ -258,6 +258,37 @@ describe('AudioManager — extra layers (a boss enrage layer)', () => {
 });
 
 describe('AudioManager recording recovery', () => {
+  it.each(['constructor', 'start'])(
+    'keeps the current verified voice and its layers when the replacement %s fails',
+    async (failure) => {
+      const oldKey = 'music_battle_act1';
+      const calm = getMusicLayers(oldKey).calm;
+      const sound = makeSound([oldKey, calm, 'music_title']);
+      const audio = new AudioManager(sound);
+      audio.preloadStingers = vi.fn();
+      audio.prefetchStingers = vi.fn();
+      await audio.playMusic(oldKey, 'NodeMap', 0);
+      const previous = audio.currentMusic;
+      const stop = vi.spyOn(previous, 'stop');
+      const factory =
+        failure === 'constructor' ? sound.context.createGain : sound.context.createBufferSource;
+      factory.mockImplementationOnce(() => {
+        throw new Error(`failed-${failure}`);
+      });
+
+      await audio.playMusic('music_title', 'Title', 0);
+
+      expect(audio.currentMusic).toBe(previous);
+      expect(audio.currentMusicKey).toBe(oldKey);
+      expect(audio.currentMusicOwner).toBe('NodeMap');
+      expect(audio.currentMusicLayerKeys).toEqual([calm]);
+      expect(previous.isPlaying).toBe(true);
+      expect(stop).not.toHaveBeenCalled();
+      expect(sound.add).not.toHaveBeenCalled();
+      audio.stopAllMusic(null);
+    },
+  );
+
   const key = 'music_battle_act1_2';
   function musicBytes() {
     const file = readFileSync(new URL('../assets/audio/music/' + key + '.mp3', import.meta.url));

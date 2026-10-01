@@ -290,8 +290,11 @@ describe('layered music under the mobile cache budget', () => {
     await audio.playMusic(ENTITY, null, 0);
     // BattleMusicController decodes the finale and its hum while the theme plays.
     audio.preloadMusic([FINALE, FINALE_HUM]);
-    await vi.waitFor(() => expect(sound.game.cache.audio.has(FINALE_HUM)).toBe(true));
-    expect(sound.game.cache.audio.has(FINALE)).toBe(true);
+    // Native hashing/decode may complete siblings in either order.
+    await vi.waitFor(() => {
+      expect(sound.game.cache.audio.has(FINALE)).toBe(true);
+      expect(sound.game.cache.audio.has(FINALE_HUM)).toBe(true);
+    });
     expectPlaying(audio, ENTITY);
     // The first wound cuts the theme; the finale starts on the hinge's handoff.
     audio.stopMusic(null, 0, true);

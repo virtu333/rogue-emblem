@@ -18,9 +18,17 @@ export function audioAssetUrl(key) {
   return audioAsset(key).url;
 }
 
-export function verifyAudioBytes(key, bytes) {
+export async function verifyAudioBytes(key, bytes) {
   if (!(bytes instanceof ArrayBuffer)) throw new Error(`invalid-audio-bytes:${key}`);
-  if (bytesToHex(sha256(new Uint8Array(bytes))) !== audioAsset(key).sha256) {
+  let hash;
+  try {
+    if (globalThis.crypto?.subtle)
+      hash = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', bytes));
+  } catch {
+    // Some WebViews expose subtle but cannot use it in their origin/context.
+  }
+  if (!hash) hash = sha256(new Uint8Array(bytes));
+  if (bytesToHex(hash) !== audioAsset(key).sha256) {
     throw new Error(`audio-integrity-failed:${key}`);
   }
   return bytes;

@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
 
 const DIST = resolve('dist');
+const APP_PACKAGE = process.env.ER_AUDIO_APP_PACKAGE === '1';
 const PORT = Number(process.env.ER_AUDIO_UPGRADE_PORT || 4182);
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const manifest = JSON.parse(readFileSync('src/utils/AudioAssetManifest.json', 'utf8'));
@@ -30,9 +31,15 @@ async function wait(page, check) {
 }
 
 async function serverFor(legacyWorker, probe) {
-  const state = { upgraded: false };
+  const state = { upgraded: false, offline: false, served: [], blocked: [] };
   const server = http.createServer((req, res) => {
     const path = new URL(req.url, ORIGIN).pathname.slice(1);
+    if (state.offline) {
+      state.blocked.push(path);
+      req.socket.destroy();
+      return;
+    }
+    state.served.push(path);
     let body;
     if (path === 'sw.js' && !state.upgraded) body = legacyWorker;
     else if (path === 'audio-probe.js') body = probe;
@@ -67,7 +74,6 @@ async function serverFor(legacyWorker, probe) {
 for (const oldKeys of [[KEY], [KEY, CALM]]) {
   test(`an upgraded desktop install ignores legacy audio (${oldKeys.length} stale layers), including offline`, async ({
     page,
-    context,
   }) => {
     test.setTimeout(120_000);
     const temp = mkdtempSync(join(tmpdir(), 'er-old-audio-sw-'));
@@ -107,11 +113,13 @@ for (const oldKeys of [[KEY], [KEY, CALM]]) {
           const cache = await caches.open('er-audio-assets');
           for (const key of keys)
             await cache.put(`/assets/audio/music/${key}.mp3`, await fetch('/legacy/fixture.mp3'));
+          await (
+            await caches.open('er-image-assets')
+          ).put('/migration-marker', new Response('keep'));
         },
         [...oldKeys, 'music_battle_act1'],
       );
-      // First fetch still gets the legacy recording even though the origin has
-      // no unversioned replacement. A fully warmed old install is realistic.
+      // First fetch still gets the legacy recording before revalidation.
       const legacy = await page.evaluate(async () =>
         (await fetch('/assets/audio/music/music_battle_act1_2.mp3'))
           .arrayBuffer()
@@ -126,6 +134,27 @@ for (const oldKeys of [[KEY], [KEY, CALM]]) {
         async () =>
           (await navigator.serviceWorker.getRegistration())?.waiting?.state === 'installed',
       );
+      // Waiting is not activation: the old build's cache is still usable, and
+      // a track it has never warmed remains available at its legacy web URL.
+      expect(await page.evaluate(() => caches.has('er-audio-assets'))).toBe(true);
+      expect(existsSync(join(DIST, 'assets/audio/music/music_title.mp3'))).toBe(!APP_PACKAGE);
+      if (!APP_PACKAGE) {
+        const legacyUnwarmed = await page.evaluate(async () => {
+          const response = await fetch('/assets/audio/music/music_title.mp3');
+          // Consume the body as a real audio loader does. An unread streaming
+          // response can keep the old worker's fetch event alive during activation.
+          await response.arrayBuffer();
+          return { ok: response.ok, type: response.headers.get('content-type') };
+        });
+        expect(legacyUnwarmed).toEqual({ ok: true, type: 'audio/mpeg' });
+        await wait(page, async () =>
+          Boolean(
+            await (
+              await caches.open('er-audio-assets')
+            ).match('/assets/audio/music/music_title.mp3'),
+          ),
+        );
+      }
       await page.evaluate(async () =>
         (await navigator.serviceWorker.getRegistration()).waiting.postMessage({
           type: 'SKIP_WAITING',
@@ -135,6 +164,8 @@ for (const oldKeys of [[KEY], [KEY, CALM]]) {
         const reg = await navigator.serviceWorker.getRegistration();
         return !reg.waiting && reg.active?.state === 'activated';
       });
+      await wait(page, async () => !(await caches.has('er-audio-assets')));
+      expect(await page.evaluate(() => caches.has('er-image-assets'))).toBe(true);
 
       const urls = [KEY, CALM].map((key) => manifest.entries[key].url);
       const fetched = await page.evaluate(
@@ -188,7 +219,10 @@ for (const oldKeys of [[KEY], [KEY, CALM]]) {
       expect(music.layers.map((l) => l.name)).toEqual(['full', 'calm']);
       expect(music.layers.map((l) => l.asset.sha256)).toEqual(fetched);
 
-      await context.setOffline(true);
+      // Playwright's offline toggle need not block a service worker's fetch.
+      // Refuse connections at the origin, including those made by the worker.
+      server.state.offline = true;
+      const servedBeforeOffline = server.state.served.length;
       await page.reload();
       const offline = await page.evaluate(
         async (urls) =>
@@ -215,8 +249,12 @@ for (const oldKeys of [[KEY], [KEY, CALM]]) {
           }
         }, unwarmed),
       ).toBe(false);
+      expect(server.state.served.length).toBe(servedBeforeOffline);
+      // Confirm the origin really rejected network attempts (a separate probe
+      // also covers Chromium versions that implement browser-wide offline).
+      await expect(fetch(`${ORIGIN}/offline-probe`)).rejects.toThrow();
+      expect(server.state.blocked).toContain('offline-probe');
     } finally {
-      await context.setOffline(false);
       await server?.close();
       rmSync(temp, { recursive: true, force: true });
     }

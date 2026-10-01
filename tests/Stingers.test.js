@@ -270,7 +270,13 @@ describe('AudioManager stingers', () => {
     }
     // each file fetched once, and only the common cues decoded
     expect(audio._fetchStingerBytes).toHaveBeenCalledTimes(fetched.size);
+    expect(fetched.size).toBe(Object.keys(MUSIC_STINGERS).length);
     expect(audio._decodeAudioData).toHaveBeenCalledTimes(STINGER_PRELOAD.length);
+    // Another prefetch in the same key reuses compressed bytes: the 142-file
+    // catalog is not fetched again at every track start.
+    audio.prefetchStingers(Object.keys(MUSIC_STINGERS));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(audio._fetchStingerBytes).toHaveBeenCalledTimes(fetched.size);
   });
 
   it('plays a prefetched cue from its kept file, without fetching it again', async () => {

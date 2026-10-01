@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { readFileSync } from 'node:fs';
 import { buildAudioAssets } from './tools/buildAudioAssets.mjs';
 import { VitePWA } from 'vite-plugin-pwa';
 import {
@@ -28,20 +29,31 @@ export const pwaWorkboxOptions = {
   // (defaults false): updates wait for old clients to close before activating, so a
   // new deploy never swaps the build under a live run — see the registerType note.
   clientsClaim: true,
+  importScripts: ['audio-cache-migration.js'],
   // SPA: navigations fall back to the cached shell, except real asset/data/SW paths.
   navigateFallback: 'index.html',
   navigateFallbackDenylist: [/^\/assets\//, /^\/data\//, /\/sw\.js$/, /\/registerSW\.js$/],
   runtimeCaching: workboxRuntimeCaching(),
 };
 
-export default defineConfig({
+export default defineConfig((env) => ({
   base: './',
   publicDir: 'public',
   plugins: [
     {
       name: 'versioned-audio-dev',
-      configureServer() {
-        buildAudioAssets({ musicDir: process.env.ER_MUSIC_ASSET_DIR });
+      configResolved(config) {
+        // Vite snapshots public/ before configureServer. Generate first so a
+        // clean `npx vite` serves MP3s rather than the SPA fallback HTML.
+        if (config.command === 'serve' && !env.isPreview)
+          buildAudioAssets({ musicDir: process.env.ER_MUSIC_ASSET_DIR });
+      },
+      transformIndexHtml(html) {
+        const manifest = JSON.parse(
+          readFileSync(new URL('./src/utils/AudioAssetManifest.json', import.meta.url), 'utf8'),
+        );
+        // Keep login music's classic script independent of the game's modules.
+        return html.replace('__ER_LOGIN_AUDIO_URL__', manifest.entries.music_login.url);
       },
     },
     VitePWA({
@@ -97,4 +109,4 @@ export default defineConfig({
     // exhausts the OS file-watcher limit and crashes the dev server.
     watch: { ignored: ['**/.claude/**', '**/References/**'] },
   },
-});
+}));

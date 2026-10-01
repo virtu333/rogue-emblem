@@ -53,7 +53,9 @@ describe('iOS music', () => {
     const wf = readFileSync(join(ROOT, '.github', 'workflows', 'testflight.yml'), 'utf8');
     expect(wf).toContain('node tools/ios/compactMusic.mjs --in assets/audio/music');
     expect(wf).toMatch(/needs: \[ci-passed, ios-music\]/);
-    expect(wf).toContain('ER_MUSIC_ASSET_DIR="$RUNNER_TEMP/ios-music" npm run build');
+    expect(wf).toContain(
+      'ER_MUSIC_ASSET_DIR="$RUNNER_TEMP/ios-music" ER_PRUNE_LEGACY_AUDIO=1 npm run build',
+    );
     expect(wf).not.toContain('cp "$RUNNER_TEMP"/ios-music/*.mp3');
     expect(wf.indexOf('ER_MUSIC_ASSET_DIR=')).toBeLessThan(wf.indexOf('npx cap sync ios'));
   });

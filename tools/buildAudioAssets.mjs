@@ -7,11 +7,12 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { MUSIC_LOOPS } from '../src/utils/musicLoops.js';
 import { MUSIC, MUSIC_LAYERS, ENTITY_FINALE } from '../src/utils/musicConfig.js';
 import { MUSIC_STINGERS } from '../src/utils/musicStingers.js';
@@ -167,9 +168,20 @@ export function checkPackagedAudio({
   return Object.keys(manifest.entries).length;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+export function isMainModule(url, entry = process.argv[1]) {
+  if (!entry) return false;
+  try {
+    return url === pathToFileURL(realpathSync(entry)).href;
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule(import.meta.url)) {
   if (process.argv.includes('--packaged'))
-    console.log(`Verified ${checkPackagedAudio({ pruneLegacy: true })} packaged audio files`);
+    console.log(
+      `Verified ${checkPackagedAudio({ pruneLegacy: process.env.ER_PRUNE_LEGACY_AUDIO === '1' })} packaged audio files`,
+    );
   else
     console.log(
       `Audio manifest: ${Object.keys(buildAudioAssets({ musicDir: process.env.ER_MUSIC_ASSET_DIR, check: process.argv.includes('--check') }).entries).length} files`,

@@ -41,7 +41,10 @@ after a render. `npm run build` performs both packaging steps automatically.
 The app requests immutable hashed filenames and verifies music/stinger bytes before
 decoding; `npm run check:audio` detects a stale manifest. For iOS, set
 `ER_MUSIC_ASSET_DIR` to the complete compact music directory before building so the
-bundled manifest hashes the final re-encoded files. `--preview` also writes files to `References/music-preview/`
+bundled manifest hashes the final re-encoded files. Set `ER_PRUNE_LEGACY_AUDIO=1`
+only for TestFlight packaging to remove duplicate legacy files. Web releases keep
+those paths available for old tabs waiting to accept an update.
+`--preview` also writes files to `References/music-preview/`
 that play through the loop jump, so you can listen to the seam.
 
 Rendered stems are cached in `References/music-cache/` (or `MUSIC_CACHE`), shared by
