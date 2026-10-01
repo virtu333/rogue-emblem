@@ -7329,17 +7329,22 @@ export class BattleScene extends Phaser.Scene {
    * After a combat's deaths are settled (kill credit read the weapon that struck), a
    * survivor whose per-battle weapon ran dry switches to one that can still strike.
    */
-  _swapSpentWeapons(...units) {
-    this._announceWeaponSwaps(swapSpentWeapons(units));
+  async _swapSpentWeapons(...units) {
+    await this._announceWeaponSwaps(swapSpentWeapons(units));
   }
 
-  /** Tell the player when one of their units switched weapons after its tome ran dry. */
-  _announceWeaponSwaps(swaps = []) {
+  /**
+   * Tell the player when one of their units switched weapons after its tome ran dry.
+   * Awaited, one banner at a time, before the combat's level-ups and the next notice.
+   */
+  async _announceWeaponSwaps(swaps = []) {
     for (const { unit, to } of swaps) {
       if (unit?.faction !== 'player' || !to?.name) continue;
-      this.showBriefBanner(`${unit.name} is out of shots: now wielding ${to.name}`)?.catch?.(
-        () => {},
-      );
+      try {
+        await this.showBriefBanner(`${unit.name} is out of shots: now wielding ${to.name}`);
+      } catch {
+        // A banner is presentation only; the switch already happened.
+      }
     }
   }
 
@@ -8404,7 +8409,7 @@ export class BattleScene extends Phaser.Scene {
       if (attacker.currentHP <= 0) {
         await this.removeUnit(attacker, { killer: defender });
       }
-      this._swapSpentWeapons(attacker, defender);
+      await this._swapSpentWeapons(attacker, defender);
 
       if (
         this._fatalDecision ||
@@ -10373,7 +10378,7 @@ export class BattleScene extends Phaser.Scene {
 
       if (target.currentHP <= 0) await this.removeUnit(target, { killer: enemy });
       if (enemy.currentHP <= 0) await this.removeUnit(enemy, { killer: target });
-      this._swapSpentWeapons(enemy, target);
+      await this._swapSpentWeapons(enemy, target);
 
       // Entity splash damage on adjacent tiles after primary attack
       if (isEntity(enemy) && enemy.currentHP > 0) {

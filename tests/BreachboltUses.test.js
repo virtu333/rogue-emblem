@@ -191,15 +191,47 @@ describe('a weapon that runs dry is swapped out at once', () => {
     expect(mira.weapon.name).toBe('Breachbolt');
   });
 
-  it('the battle announces a swap for the player own units only', () => {
+  it('the battle announces a swap for the player own units only', async () => {
     const scene = { showBriefBanner: vi.fn(() => Promise.resolve()) };
-    BattleScene.prototype._announceWeaponSwaps.call(scene, [
+    await BattleScene.prototype._announceWeaponSwaps.call(scene, [
       { unit: { name: 'Mira', faction: 'player' }, to: { name: 'Fire' } },
       { unit: { name: 'Sage', faction: 'enemy' }, to: { name: 'Fire' } },
     ]);
     expect(scene.showBriefBanner).toHaveBeenCalledTimes(1);
     expect(scene.showBriefBanner.mock.calls[0][0]).toContain('Mira');
     expect(scene.showBriefBanner.mock.calls[0][0]).toContain('Fire');
+  });
+
+  it('the banners are awaited one at a time, so nothing that follows overlaps them', async () => {
+    const shown = [];
+    let finish = [];
+    const scene = {
+      showBriefBanner: vi.fn(
+        (message) =>
+          new Promise((resolve) => {
+            shown.push(message);
+            finish.push(resolve);
+          }),
+      ),
+    };
+    let done = false;
+    const announcing = BattleScene.prototype._announceWeaponSwaps
+      .call(scene, [
+        { unit: { name: 'Mira', faction: 'player' }, to: { name: 'Fire' } },
+        { unit: { name: 'Lyra', faction: 'player' }, to: { name: 'Glimmer' } },
+      ])
+      .then(() => {
+        done = true;
+      });
+    await Promise.resolve();
+    expect(shown).toHaveLength(1); // the second waits for the first
+    finish.shift()();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(shown).toHaveLength(2);
+    expect(done).toBe(false); // the caller waits for the last banner too
+    finish.shift()();
+    await announcing;
+    expect(done).toBe(true);
   });
 });
 
