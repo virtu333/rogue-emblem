@@ -1,366 +1,318 @@
 # Dusk pressure: make efficient play pay
 
-Status: proposal with sim evidence (branch `claude/dusk-pressure-spec`). No game code or
-data has changed. The evidence comes from `sim/pacing.js` (added on this branch). First
-Light stays as it is, and boss enrage stat gains are out of scope (held).
+Status: proposal, revision 2. It takes in the review of revision 1 and the owner's
+decisions of 2026-10-01 (listed at the end). Branch `claude/dusk-pressure-spec`.
+- This branch changes no game code or data. The evidence comes from `sim/pacing.js`.
+- PR 1, which has no tuning, is on branch `claude/dusk-pressure-pr1`.
+- First Light does not change. Boss enrage stat gains are held.
 
 ## 1. Problem
 
 The Dusk playtest said: "it's way too strong to click end turn and let the enemy run
 across the map and explode… there's no penalty to just sitting there dealing with each
-wave safely and slowly." A Dusk win took 120 turns over about 24 battles (5 turns a
-battle) and gathered 0 Eclipse shadow, so every battle was S-rank.
+wave safely and slowly." A Dusk win took 120 turns over about 24 battles and gathered 0
+Eclipse shadow, so every battle was S-rank.
 
 ### Why waiting costs nothing today
 
 | Mechanism | Where | Effect on a turtle |
 |---|---|---|
-| Every enemy on a rout map chases from turn 1. Guards exist only on seize maps (15–25% of the boss half, woken at 3 tiles from their post, leashed back) | `MapGenerator.js:2150-2164`, `AIController.js:203-216` | The enemy closes the distance, so a turtle loses no time |
-| Anti-turtle: after 3 turns with no kill and no objective progress, `aggressiveMode` releases the guard leash and the seize boss's throne clamp | `BattleScene.js:3059-3107`, `constants.js:104`, `AIController.js:214,251-252` | On a seize map the guards come to the turtle as well |
-| Par = ceil((base + min(0.6n, 1.3√n) + 0.01·area + terrain) × 0.8), then × rung multiplier (Dusk 0.92), then +3 inflation, + the template's `parBonus` | `TurnBonusCalculator.js:13-56`, `turnBonus.json:2,58` | Dusk rout par is 7.5 in Act I and about 12 in Act III/IV |
-| **Every non-repeating wave that arrives adds +1 par**. This covers procedural waves too, not only scripted ones (and village bandit waves) | `BattleScene.js:2753-2777` (harness `HeadlessBattle.js:1037-1046`) | A turtle that sits through two waves gets 2 turns back |
-| Ratings: S ≤ par−3, A ≤ par, B ≤ par+3, C beyond. XP and gold decay from par+3. Boss enrage at min(12, par+2) only sets `aggressiveMode` | `turnBonus.json:29-80`, `TurnBonusCalculator.js:65-179`, `BattleScene.js:3096-3106` | Penalties start only at par+3 |
-| Eclipse gain = min(max(0, turns − max(1, par−3)), 6) × 1 on every rung | `EclipseSystem.js:114-133`, `eclipse.json:4-7` | An S clear adds 0 shadow |
-| Reinforcements: Dusk standard rout and seize templates are gated `minActByDifficulty.dusk = "act3"`. Their waves come at about T5 and T8 (±1), each wave's count gets +`enemyCountBonus`, and the arrivals copy the map's own spawns at the same level. They spawn on enemy-side edges, and only the tile and its inward neighbour must be free, so an arrival can land next to a player unit | `mapTemplates.json:109`, `MapGenerator.js:613-688`, `ReinforcementScheduler.js:314-345,465-472`, `BattleScene.js:2389-2545` | Acts I–II have no waves at all, and later waves walk into the kill zone |
-| Rout victory fires when the field is empty, even with waves still pending | `BattleScene.js:10664-10673` | Good: this rewards pushing |
-| Status staves: `dusk.statusStaffConfig = null`, Nightfall act3/4 .08. Siege only on Black Sun. Both roll **per spawn and only on eligible classes**, so the real share of battles is far below the number in the table (below) | `difficulty.json:55-56,98-105,155-162,190-198`, `MapGenerator.js:2096-2125`, `constants.js:284-287` | No ranged threat that forces anyone to move |
+| Every rout enemy chases from turn 1. Guards exist only on seize maps (15–25% of the boss half; they wake at 3 tiles from their post and are leashed back) | `MapGenerator.js:2150-2164`, `AIController.js:203-216` | The enemy walks into the kill zone |
+| Anti-turtle: after 3 enemy phases without progress, `aggressiveMode` releases the guard leashes and the boss's throne clamp. **Bug:** the baseline is captured before any enemy has spawned (`BattleScene.js:1418` vs `:1534`), so kills never count as progress | `BattleScene.js:2966-3107`, `constants.js:104` | Guards come to the turtle anyway |
+| Par = ceil((base + min(0.6n, 1.3√n) + 0.01·area + terrain) × 0.8), then × rung multiplier (Dusk 0.92), then +3 inflation + the template's `parBonus` | `TurnBonusCalculator.js:13-56`, `turnBonus.json:2,58` | Dusk rout par is 7.5 in Act I and about 11–12 later |
+| Every arriving non-repeating wave raises par by 1. That includes procedural and village bandit waves, not only scripted ones | `BattleScene.js:2753-2777`, `HeadlessBattle.js:1037-1046` | Every wave a turtle sits through gives a turn back |
+| Ratings: S at par−3 or better, A up to par, B up to par+3, C beyond. XP/gold decay from par+3 (not "5+" as `CLAUDE.md` says). Boss enrage at min(12, par+2) | `turnBonus.json:29-80`, `TurnBonusCalculator.js:65-179` | Penalties start late |
+| Eclipse gain = min(max(0, turns − max(1, par−3)), 6), ×1 on every rung | `EclipseSystem.js:114-133` | An S clear adds 0 |
+| Reinforcements on Dusk's standard templates start in Act III (T5/T8 ±1, count + `enemyCountBonus`). Arrivals copy the map's spawns at the same level and pass an Infantry-only passability check | `mapTemplates.json:109`, `ReinforcementScheduler.js:29-36,314-345`, `BattleScene.js:2389-2545` | Acts I–II have no waves; arrivals can land on Ballista, Lava or Swamp |
+| Field empty = rout victory, even with waves pending | `BattleScene.js:10664-10673` | Good: rewards pushing |
+| Status staves and siege roll **per spawn, on eligible classes only**. Dusk has none. Breachbolt uses are never spent for either faction: `spendPerBattleUse` has no caller, and `AttackOptions.js:35` only gates the player's menu | `difficulty.json`, `MapGenerator.js:2096-2125`, `Combat.js:534-549` | Enemy siege fires every phase; a looted Breachbolt (`lootTables.json:318,452`) is unlimited |
 
-The design history behind these choices: "Punish the clock, not the unit"
-(`docs/design-log.md:652`). The log rejects "untelegraphed ambush spawns" and "RNG
-sleep-lock on the player's carry" (`:703`). "Wary AI" and the twin-pincer rout template
-were deferred (`:681-690`). Dusk shipped with no status staves on purpose, as "halfway
-on every number" (`docs/playtest-triage-2026-09-28.md:124`).
+Design history: the rule "punish the clock, not the unit" (`docs/design-log.md:652`). The
+log rejects "untelegraphed ambush spawns" and "RNG sleep-lock on the player's carry"
+(`:703`).
 
-**Bug found while doing this research (and it blocks siege on Dusk):** nothing ever spends
-a Breachbolt use. No code in `src/` calls `spendPerBattleUse` (`Combat.js:546-549`). Only
-the player's attack menu checks the remaining uses (`AttackOptions.js:35`), and the AI
-never looks at them. So an enemy Breachbolt fires from range 3–10 on **every** enemy
-phase, not once.
+### Method
 
-### Baseline evidence
+`sim/pacing.js` plays whole runs through the headless harness:
+- real node maps and par, including the wave bumps;
+- real Eclipse commits;
+- protected units (HP floors at 1);
+- HP topped up between battles;
+- Master Seals bought at level 15.
 
-`sim/pacing.js` plays whole runs through the headless harness: real node maps, real par
-with the wave bumps, real Eclipse commits. Units are protected (HP never drops below 1),
-HP is topped up between battles, and Master Seals are bought at level 15. There are two
-policies:
-- **turtle** is `TacticianAgent` as shipped: bait and punish. It holds the safest tile
-  and advances only after 2 turns without contact.
-- **push** is the same agent always advancing.
+There are two policies: **turtle** (`TacticianAgent`, bait and punish) and **push** (the
+same agent always advancing). Neither is an efficient human pusher, so the ladder's cost
+to real pushers is probably lower than simulated (§3). Both fall back to the charging
+`ScriptedAgent` on seize and escape maps; those rows measure maps, not styles.
 
-Both fall back to `ScriptedAgent` on seize and escape maps, so those rows measure the map
-and not the play style.
+**Per-act calibration.** The harness player buys, forges and uses nothing, and the gap
+grows by act. `--edge` adds +N to HP, STR, MAG, SKL, SPD, DEF and RES for each battle
+only.
 
-Reproduce with `node sim/pacing.js --difficulty dusk --policy turtle|push --seeds 16 --edge 6
-[--ladder 1] [--holdRout 0.2] [--out file.jsonl]`.
+- **Grid:** 0–10, Dusk turtle, 16 runs.
+- **Rule:** each act takes the smallest edge that keeps the turtle under about 1 would-be
+  KO per rout battle (a careful human with Vision rewinds and permadeath loses almost
+  nothing). In KOs per battle at the chosen edge: Act I 0.6 (edge 0 gives 3.2), Act II
+  0.8, Act III 1.0, Act IV 1.5.
+- **Profile:** Act I +2, Act II +6, Act III +10, Act IV and final +12.
+- **Check:** the profile reproduces the playtest without being tuned to it. On Dusk the
+  turtle takes 5.6 turns per battle and ends at shadow 1.0 ± 0.3.
+- **Default army:** the table in §1 also gives the uncalibrated army.
 
-**Calibration.** The harness player buys, forges and uses nothing, so out of the box it
-is far weaker than a human. On Dusk with no edge, the turtle takes 10.6 turns per rout
-battle and suffers about 1,500 would-be KOs per run. `--edge N` adds +N to HP, STR, MAG,
-SKL, SPD, DEF and RES for each battle only. At +6 the Dusk turtle takes 6.1 turns per
-battle and ends with 3.9 shadow (all 16 runs Pale), which reproduces the playtest. Every
-number below uses edge +6, 16 runs per cell and seeds 1–16. "Shadow" is the run's final
-shadow. Battles that hit the action budget are force-won and left out of the rating rows;
-they count at par in the shadow.
+Every number below is 48 runs per cell, seeds 1–48, written as mean ± standard error.
+Turtle and push are paired on the same seeds. Force-won stalls are left out of the rating
+rows; they count at par in the shadow. The tuning calls quote the paired difference.
 
-| Rung (current data) | Rout turns turtle / push | Rout par | Turtle S/A/B/C % | Push S/A/B/C % | Shadow turtle / push |
+### Baseline (calibrated, rout maps unless noted)
+
+| Rung | Turns turtle / push | Par | Turtle S/A/B/C % | Push S/A/B/C % | Shadow turtle / push |
 |---|---|---|---|---|---|
-| First Light | 4.7 / 4.0 | 10.0 | 95/4/0/0 | 99/0/0/0 | 0.1 / 0.0 |
-| Dusk | 6.3 / 5.1 | 10.1 | 79/17/4/1 | 92/7/1/0 | 3.9 / 0.3 |
-| Nightfall | 7.4 / 6.7 | 10.4 | 67/24/9/1 | 80/16/4/1 | 8.6 / 2.9 |
-| Black Sun | 11.7 / 10.1 | 11.3 | 31/32/19/18 | 50/25/14/12 | 49.9 / 33.3 |
+| First Light | 4.7 / 3.9 | 9.9 | 98/2/0/0 | 99/1/0/0 | 0.0 / 0.0 |
+| Dusk | 5.8 / 4.6 | 9.8 | 85/13/2/0 | 96/3/0/0 | 1.0 ± 0.3 / 0.0 |
+| Nightfall | 7.5 / 6.0 | 10.1 | 60/32/7/2 | 78/20/2/0 | 7.9 ± 1.1 / 0.4 ± 0.2 |
+| Black Sun | 10.7 / 9.3 | 10.9 | 34/24/24/18 | 47/24/18/10 | 47.3 ± 2.0 / 31.5 ± 2.1 |
 
-Seize is S-rank in at least 94% of battles on every rung up to Nightfall (5–7 turns
-against a par near 12). Reinforcements on Dusk arrive at 0.2 waves per rout battle in
-Acts I–II and 1.0–1.6 in Acts III–IV. On a rout map, turtling costs about 1 turn and
-nothing else. A dominant strategy that is this safe and almost free is the problem.
+Seize is S-rank in at least 93% of battles on every rung up to Nightfall.
+`sim/eclipse.js --difficulty dusk` with fixed ratings (A-rank ends at 61 shadow) shows
+the Eclipse works once a battle runs past par−3. The turtle never gets there, because the
+enemy comes to it. Bigger maps would add walking time for both styles, and arrivals near
+the camp would reach the turtle sooner. So neither one taxes the turtle. What does tax
+it: arrivals that keep coming until the field is clear, and enemies that do not come to
+it.
 
-Two findings shape the design:
-1. **Par/Eclipse is not the broken part.** `node sim/eclipse.js --difficulty dusk` with
-   fixed ratings gives: A-rank play ends Dusk at 61 shadow (Umbral 97%), B at 97. The
-   clock bites as soon as a battle runs past par−3. The turtle never gets there because
-   the enemy walks into it.
-2. **Bigger maps or plain flank arrivals do not tax a turtle by themselves.** With every
-   enemy chasing, a bigger map adds walking time to both styles, and arrivals near the
-   player's camp reach the turtle faster. What does cost a turtle time is (a) enemies
-   that do not come to it and (b) a stream of arrivals that keeps coming until the field
-   is clear.
+DEFAULT_ARMY_TABLE
 
 ## 2. Changes
 
-### 2a. Rout reinforcement ladder (Dusk+)
+### 2a. Rout reinforcement ladder (Dusk and Nightfall, one PR)
 
-On a rout map, a fixed, finite schedule of waves starts early and arrives every 2 turns,
-each wave bigger and higher-level than the last. Clearing the field cancels the waves
-still pending (the victory rule stays as it is). A fast clear sees one or two small
-waves; a turtle sees all of them.
+A finite schedule of waves starts early and comes every 2 turns, each wave larger and
+higher-level. Clearing the field cancels the waves still pending (the victory rule is
+unchanged). A fast clear sees few waves; a turtle sees them all.
 
-**Data.** Add `routLadder` to each mode in `difficulty.json` (`null` on `normal`). Each
-row below is one wave: `[turn, count min–max, +levels]`. `turn` is the enemy phase whose
-end brings the arrival, so arrivals first move one enemy phase later and the player
-always gets a phase to react. Counts are absolute: no `enemyCountBonus` and no
-`turnJitter`. The `xp` list is the per-wave reward multiplier (gold uses the same value
-through `getEnemyRewardMultiplier`).
+**Data.** Add `routLadder` per mode in `difficulty.json`: `null` on First Light and on
+Black Sun (see 2d). One row per wave is `[turn, count min–max, +levels]`. `turn` is the
+enemy phase whose end brings the arrival. Counts are absolute: no `enemyCountBonus`, no
+jitter. `xp` is the per-wave reward multiplier, and gold uses the same value.
 
-| Rung | Act I | Act II | Act III / IV (+ final) | `xp` per wave | Promoted arrivals |
+| Rung | Act I | Act II | Act III | Act IV (+ final) | `xp` | Promoted |
+|---|---|---|---|---|---|---|
+| Dusk | T4 1, T6 1–2 | T4 1–2, T6 2 (+1), T8 2–3 (+1) | T4 2, T6 2 (+1), T8 2–3 (+1), T10 2–3 (+2) | T4 2, T6 2–3 (+1), T8 2–3 (+1), T10 3 (+2) | .75 .5 .25 .1 | never |
+| Nightfall | T4 1–2, T6 1–2, T8 2 (+1) | T3 1–2, T5 2 (+1), T7 2–3 (+1), T9 2–3 (+2) | T3 2, T5 2–3 (+1), T7 2–3 (+1), T9 3 (+2) | same as III | .75 .5 .25 .1 | 4th wave, Act III+ |
+
+- **Every rout map gets it, including village maps.** The ladder replaces the
+  template's procedural `waves`/`extraWavesByDifficulty` and stacks on scripted waves:
+  village bandits are a turn-1 scripted wave (`MapGenerator.js:395-428`). Scripted waves
+  keep their own XP and their +1 par. In the sims, all 975 Dusk and 1,022 Nightfall
+  turtle rout battles ran the ladder. Seize and escape keep their waves.
+- **The ladder is fixed at generation.** `MapGenerator.cloneReinforcementConfig` writes
+  the waves into the battle config with `waveType: 'ladder'`, together with the computed
+  `front` and `flanks`. The difficulty is never consulted at battle start.
+  - The config is locked per node (`RunManager.js:3272-3276,4390,4924`), and `turnPar`
+    is checkpointed (`BattleSuspendController.js:221-222`).
+  - So a resume or a Vision rewind replays the same ladder against the same par.
+- **Ladder waves never raise par.** `waveRaisesPar(spawn)` (PR 1) is false for
+  `repeating` and `ladder`, and both the scene and the harness use it.
+- **Escalation.** `+levels` is added to the copied template's level. Promoted waves draw
+  from the act's `pools[act].promoted`, keyed by the spawn hash. Arrivals keep the
+  copied affixes and roll no new ones.
+- **Spawn tiles.**
+  - **Edges.** Each wave chooses **one** edge for all of its arrivals, a cluster rather
+    than units scattered along the rim: wave 1 the front (the edge behind the enemy
+    centroid, axis from the player-to-enemy centroid gap), then flank A, flank B and so
+    on. A flank with fewer than 4 usable tiles (chokepoint) falls back to the front.
+  - **Cluster.** Arrivals take the wave's tiles closest to a seeded anchor on that edge.
+  - **Exclusions.** No tile within Manhattan 3 of a player unit, next to an NPC or the
+    caravan, on `REINFORCEMENT_EXCLUDED_TERRAIN` (Lava Crack, the Acidic tiles,
+    Ballista, Throne, Village), or impassable for the arriving class's move type (PR 1).
+  - **Fallback.** When the exclusions empty an edge, the wave falls back to the front;
+    whatever it cannot place counts as `blockedSpawns`. The telegraph names the
+    scheduled count and edge and says "up to", because blocked tiles can shrink a wave.
+  - **Sim note.** The sim used one edge per wave but placed units uniformly along it, not
+    clustered.
+- **Telegraph.** The objective line reads, for example, "Reinforcements 2/4 · next T6 ·
+  north flank". Fogged arrivals stay unmarked; the band still counts them.
+- **Finite.** A rout map must stay winnable by a weak army, and an open stream capped by
+  live units creates a stall equilibrium. The Eclipse and late pressure already price the
+  time.
+- **No farming after XP reaches 0:**
+  - A zero-reward kill still counts toward deed kills, but not toward `maxKillLevelGap`
+    or the terrain/weapon tallies (`DeedSystem.js:214-219`).
+  - Defender survival XP is multiplied by the reward multiplier
+    (`BattleXp.js:53,66-69`), so a 0-reward wave gives 0.
+
+**Results** (calibrated army, 48 paired runs, rout maps):
+
+| Configuration | Turns turtle / push | Turtle S/A/B/C | Push S/A/B/C | Shadow turtle / push | Paired gap |
 |---|---|---|---|---|---|
-| First Light | — | — | — | — | — |
-| Dusk | T4 1, T6 1–2 | T4 1–2, T6 2 (+1), T8 2–3 (+1) | III: T4 2, T6 2 (+1), T8 2–3 (+1), T10 2–3 (+2); IV: T4 2, T6 2–3 (+1), T8 2–3 (+1), T10 3 (+2) | .75 .5 .25 .1 | never |
-| Nightfall | T4 1–2, T6 1–2, T8 2 (+1) | T3 1–2, T5 2 (+1), T7 2–3 (+1), T9 2–3 (+2) | T3 2, T5 2–3 (+1), T7 2–3 (+1), T9 3 (+2) | .75 .5 .25 .1 | 4th wave, Act III+ |
-| Black Sun | T3 1–2, T5 2, T7 2 (+1) | T3 2, T5 2–3 (+1), T7 2–3 (+1), T9 3 (+2) | T2 2–3, T4 2–3 (+1), T6 3 (+1), T8 3–4 (+2), T10 3–4 (+2) | .75 .5 .25 .1 0 | 4th wave on, Act III+ |
+| Dusk today | 5.8 / 4.6 | 85/13/2/0 | 96/3/0/0 | 1.0 / 0.0 | 1.0 ± 0.3 |
+| Dusk ladder, inflation 3 | 7.2 / 5.5 | 58/16/18/8 | 79/9/9/3 | 22.9 (Pale 28, Waning 19) / 7.5 | 15.4 ± 2.1 |
+| **Dusk ladder, inflation 2** | 7.2 / 5.5 | 46/23/19/12 | 70/15/9/6 | **30.9** (Pale 17, Waning 26, Umbral 5) / **11.0** (Pale 46) | 19.9 ± 2.3 |
+| Dusk ladder, inflation 1 | 7.2 / 5.5 | 28/36/18/18 | 50/33/7/10 | 41.9 (Waning 31, Umbral 13) / 18.1 (Pale 38) | 23.8 ± 2.3 |
+| Nightfall today | 7.5 / 6.0 | 60/32/7/2 | 78/20/2/0 | 7.9 / 0.4 | 7.5 ± 1.2 |
+| **Nightfall ladder, inflation 3** | 10.3 / 7.9 | 22/17/27/34 | 46/18/22/15 | **66.4** (Umbral 30, Totality 14) / **36.3** (Waning 27) | 30.1 ± 2.7 |
+| Nightfall ladder, inflation 2 | 10.3 / 7.9 | 16/18/18/48 | 37/21/15/27 | 74.0 / 44.6 | 29.4 ± 2.6 |
 
-(These are `LADDERS.v2` in `sim/pacing.js`. `v1` is the heavier first prototype.)
+The Dusk ladder lands in Act II–III (2.2–2.6 waves per battle for the turtle). Act I
+maps usually end before wave 2 (0.6 per battle), and Act IV maps are short. Shipping
+Dusk and Nightfall together keeps the rungs in order (push 11 < 36, turtle 31 < 66). A
+Dusk-only ladder would put Dusk above today's Nightfall (7.9 / 0.4).
 
-- **It replaces the template's procedural `waves` and `extraWavesByDifficulty` on Dusk+
-  rout maps.** It does not stack with them. Scripted waves stay: village bandits and
-  authored maps. Templates opt out with `"ladder": false`. Seize and escape keep their
-  current waves.
-- **Ladder waves never raise par.** Today every arriving wave adds +1 par, which would
-  cancel the pressure. Add `waveRaisesPar(spawn)` (false for `repeating` and `ladder`)
-  to `ReinforcementScheduler` and use it in both the scene and the harness.
-- **Escalation.** `+levels` are added to the copied template's level. On promoted waves
-  the class is drawn from the act's `pools[act].promoted` (deterministically, from the
-  spawn hash). The arrivals keep the copied template's affixes; they get no new rolls.
-- **Where they spawn.** Wave 1 comes from the *front*, the map edge behind the enemy
-  army. The front is computed once from the player-spawn and enemy-spawn centroids; if
-  the horizontal gap is at least the vertical gap, the front is left or right, otherwise
-  top or bottom. Later waves alternate [flank A + front] and [flank B + front], the
-  flanks being the two edges across that axis. No tile within Manhattan distance 3 of a
-  player unit is eligible, and neither is any tile next to an NPC or the caravan. If an
-  edge runs out of tiles, the wave falls back to the front, and then to `blockedSpawns`.
-  There are no rear spawns: the log rejects ambush spawns, and arrivals near the camp
-  would only feed a turtle.
-- **Telegraph.** The objective line reads, for example, "Reinforcements: 2 of 4 · next
-  turn 6 · north flank". The schedule is deterministic, so this leaks nothing.
-  Arrivals in fog stay unmarked (`ReinforcementPresenter.js:7,50`); the arrival band still
-  counts them.
-- **Finite, not open-ended.** A rout map must stay winnable by a weak army. An open-ended
-  stream capped by the number of live reinforcements creates a stall equilibrium, where
-  kills just keep pace with arrivals. The Eclipse and late pressure already price the
-  time. XP falls to 0.1 and then 0, so waves cannot be farmed for XP or gold. Deeds still
-  count those kills (`DeedSystem.js:205-214`); see the open questions.
-- **Engine and scene.** `MapGenerator.cloneReinforcementConfig` builds the ladder (a pure
-  helper in `ReinforcementScheduler`, `buildRoutLadder({ ladder, act, playerSpawns,
-  enemySpawns })`). `scheduleReinforcementsForTurn` gains `avoid` and `minDistance` and
-  passes `waveType: 'ladder'`, `levelBonus` and `promote` through on each spawn. Turn
-  `buildReinforcementSpawnSpec` into a pure `engine/ReinforcementSpawnSpec.js` used by both
-  BattleScene and the harness, and delete the harness copy. That copy is already out of
-  parity: it skips `earlyEnemyAllowed` and `filterClassPoolByDifficulty`
-  (`HeadlessBattle.js:691-750`). The BattleScene glue is 3 lines in
-  `applyReinforcementsForTurn` (player positions, `waveRaisesPar`, the shared spec
-  builder) plus the objective text.
+### 2b. Hold AI (seize and escape, with a seize par fix in the same PR)
 
-**Dusk results (rout).**
+New `aiMode: 'hold'`, separate from `guard`. A holder stays put until its pack wakes,
+then hunts for the rest of the battle.
 
-| Configuration | Turns turtle / push | Turtle S/A/B/C | Push S/A/B/C | Shadow turtle / push (phases) |
-|---|---|---|---|---|
-| current | 6.3 / 5.1 | 79/17/4/1 | 92/7/1/0 | 3.9 (Pale 16) / 0.3 (Pale 16) |
-| ladder | 8.0 / 6.0 | 57/15/19/9 | 77/7/12/4 | 29.3 (Waning 11) / 12.3 (Pale 15) |
-| rout hold 25% only (2b) | 8.5 / 6.0 | 48/30/17/5 | 84/13/3/0 | 27.8 (Waning 9) / 1.4 (Pale 16) |
-| **ladder + rout hold 20%** | **10.0 / 7.2** | **33/21/22/24** | **64/16/13/8** | **51.5 (Umbral+ 10/16) / 20.5 (Pale 10, Waning 6)** |
+- **Packs.** Holders are assigned in groups of 2 or more linked within 3 tiles, so no
+  holder stands alone to be pulled away one at a time. The pack id is stored on the unit
+  and survives snapshots.
+- **Wake rule** (pure `engine/HoldActivation.js`, called at the top of
+  `AIController.processEnemyPhase`, so the scene needs no change). A pack wakes when a
+  member:
+  1. **is visible to the player** (`PlayerKnowledge` at the start of the enemy phase)
+     and has a player or NPC unit on its `ThreatForecast.enemyThreatTiles`. Those are
+     exactly the tiles the Danger overlay draws for it, so red zone = wake zone for
+     everything the player can see. A fogged holder never wakes this way: it wakes once
+     it is revealed with a player unit still in its zone, or by rule 2 or 3. Danger drops
+     fogged sources (`ThreatForecast.js:151`), so this keeps the rule honest.
+  2. is below full HP or carries a status (it was struck, shoved or hexed).
+  3. turn-pressure boss enrage has started.
+- **Anti-turtle `aggressiveMode` does not wake holders.** If it did, a turtle would only
+  have to wait 3 phases.
+- **Shares.** Seize: Dusk 35%, Nightfall 45%, Black Sun 55% of the non-boss enemies,
+  nearest the throne first; this replaces the guard roll on Dusk+. Escape: 30/40/50% of
+  the enemies in the exit half. First Light keeps its guards. Rout: 0% for now (owner).
+- **Seize par fix ships in the same PR.** With seize par loose (93% or more of seize
+  battles are S on every rung up to Nightfall), pulling holders off a pack would be free.
+  - Tune `objectiveAdjustments.seize` per rung with a seize/escape-aware agent; the
+    current fallback agent cannot measure holds.
+  - Target: a push median of par−2.
+- **Cost.** One movement flood per sleeping holder per enemy phase (about 8 at most),
+  the same cost as one Danger zone.
 
-Reinforcements per rout battle with the ladder: turtle 3.9 (Act III 6.3), push 2.6. The
-ladder on its own widens the gap between the styles from 1.2 turns to 2.0. But Act I maps
-end before the first wave (0.2 waves per battle), so a turtle is still S-rank 57% of the time.
+### 2c. Breachbolt, siege and status-staff ladder
 
-### 2b. Hold AI (seize and escape first; rout as an open question)
+**Breachbolt (PR 1, owner's numbers).**
+- **Uses.** The player's copy has 3 uses per battle and an enemy's has 5, on every rung,
+  with no MAG bonus. Data: `uses: 3` and `usesByFaction: { "enemy": 5 }` in
+  `weapons.json` (schema updated), read by `getPerBattleMaxUses`. A future per-rung
+  override would live in `siegeWeaponConfig`.
+- **Spending.** One use is spent per combat in which the wielder strikes with it,
+  attacking or countering. A spent Breachbolt cannot counter, and `canAttackWithWeapon`
+  rejects it.
+- **Enemy fallback.** An enemy siege caster keeps its own weapon behind the Breachbolt
+  and re-equips it once its shots are spent. The AI plans attacks only with weapons that
+  pass `canAttackWithWeapon`. The enemy variant skips the rank check, because Dark
+  Knight (Tomes P) carries a Mastery tome.
+- **Display.** The tooltip, keyword, unit and roster rows show the remaining uses from
+  data.
 
-New `aiMode: 'hold'`, separate from `guard`. A holder does not move until its pack
-wakes; once awake it hunts for the rest of the battle (no leash).
+**Artillery AI (later PR).** A Breachbolt holder that still has shots does not move. It
+fires from its post at the best target 3–10 away, and ThreatForecast draws its reach from
+the post (mov 0) so Danger matches the AI.
 
-- **Wake rule** (pure, `engine/HoldActivation.js`, `wakeHolders(enemies, foes, ctx)`,
-  called at the top of `AIController.processEnemyPhase`, so the scene needs no change). A
-  pack wakes when any member:
-  1. has a player or NPC unit on one of its threat tiles, from
-     `ThreatForecast.enemyThreatTiles` (damage ∪ status) computed with true positions.
-     These are the same tiles the Danger overlay draws for that unit, so "stepping into
-     its red zone wakes it" is exactly the rule.
-  2. is below full HP or carries a status condition (it was attacked, shoved or hexed).
-  3. turn-pressure boss enrage is active (`isBossEnrageActive`), which punishes the clock.
-  A pack is the set of holders linked within 3 tiles of each other at battle start,
-  stored as `holdPack`. The wake state is a plain unit field and survives
-  snapshots (`serializeBattleUnit` spreads the unit).
-- **Anti-turtle `aggressiveMode` does not wake holders.** It still releases guard
-  leashes and the throne clamp as it does today. If it woke holders, a turtle would only
-  have to wait 3 turns.
-- **Assignment** (`MapGenerator`, after `placeEnemies`): the RNG stream is derived from
-  `battleSeed` and `'hold'`, so maps stay identical apart from this.
-  - Seize: a share of the non-boss enemies, nearest the throne first. On Dusk+ it replaces
-    the 15–25% guard roll.
-  - Escape: enemies whose tile lies in the exit half.
-  - Rout: the enemies farthest from the player's centroid. Never on fog maps, so nobody
-    has to hunt holders they cannot see.
+**Frequency (later PR).** Switch from a per-spawn chance to a per-battle chance, rolled
+only when an eligible class is on the map, on a stream derived from `battleSeed`.
 
-| Share | First Light | Dusk | Nightfall | Black Sun |
-|---|---|---|---|---|
-| Seize | guard 15–25% (unchanged) | 35% | 45% | 55% |
-| Escape | 0 | 30% | 40% | 50% |
-| Rout (open question) | 0 | 20% | 25% | 30% |
-
-- **UI.** Holders keep their usual Danger zone. Inspect shows "Holding — wakes if you
-  enter its range or strike its pack". This needs no PlayerKnowledge change: previews
-  already read only seen units, and only execution and the AI see everything.
-- **Cost.** Each sleeping holder costs one movement flood per enemy phase, the same cost
-  as drawing its Danger zone; there are at most about 8 holders.
-- **Evidence.** Rout hold at 25% is the most turtle-selective lever measured: the turtle
-  loses 2.2 turns, the push player 0.9 (table above). It also makes the harness turtle
-  stall more often (force-won battles: 3 → 21 on Dusk with hold alone, 10 with
-  ladder + hold 20%). That is the reason for the fog exclusion and for the clear Inspect
-  wording. Seize and escape holds are **not** simmed: both agents fall back to the
-  charging `ScriptedAgent` there.
-
-### 2c. Siege and status-staff ladder
-
-First, fix Breachbolt. Enemy combat must spend a use (`spendPerBattleUse`). The AI picks
-only a weapon that `canAttackWithWeapon` allows. A siege holder also carries the tier's
-basic tome as a fallback, so it is not left inert once its shots are spent.
-
-**Artillery AI.** A Breachbolt holder is a holder that never moves while it has shots
-left. It fires from its post at the best target 3–10 tiles away, and it wakes into a
-normal hunter once its shots are spent. ThreatForecast must draw its reach from its
-current tile with `mov` 0 while shots remain, so the Danger overlay matches the AI. Danger
-already shows Breachbolt and staff reach for seen units (`ThreatForecast.js:54-97`). The
-result is a target the player has to go and kill, so a turtle eats a bolt every turn.
-
-**Frequency.** Replace the per-spawn chance with a **per-battle chance, rolled only when
-an eligible class is on the map**, on a stream derived from `battleSeed`. The table is
-then the share of eligible maps, which is what the player actually feels. Measured today
-(maps only, 40 seeds):
-
-| Rung | Status staff, share of all battles (Act II / III / IV / final) | Siege, share of all battles (Act III / IV / final) |
-|---|---|---|
-| Dusk now | 0 / 0 / 0 | 0 / 0 |
-| Nightfall now | 0 / 3% / 8% / 20% | 0 / 0 / 0 |
-| Black Sun now | 5% / 10% / 15% / 35% | 4% / 10% / 13% |
-
-Proposed per-battle chance, given an eligible caster (staves: Mage, Sage, Bishop on
-about 40–75% of maps; siege: Sage, Warlock, Dark Knight, Grandmaster on 22–39%):
-
-| Rung | Staff kinds | Staff chance II / III / IV / final, max | Siege chance III / IV / final, max, shots |
+| Rung | Staff kinds | Staff chance II / III / IV / final, max | Siege chance III / IV / final, max |
 |---|---|---|---|
-| Dusk | **Silence only** (the log rejects sleep-locking the carry) | 0 / .15 / .20 / —, 1 | 0 / .15 / —, 1, 2 |
-| Nightfall | Silence + Sleep | .10 / .25 / .30 / .35, 1 | .25 / .30 / .35, 1, 2 |
-| Black Sun | Silence + Sleep | .15 / .30 / .35 / .45, 2 | .35 / .40 / .45, 1, 3 |
+| Dusk | **Silence only, from Act III** (owner) | 0 / .15 / .20 / —, 1 | 0 / .15 / —, 1 |
+| Nightfall | Silence + Sleep | .10 / .25 / .30 / .35, 1 | .25 / .30 / .35, 1 |
+| Black Sun | Silence + Sleep | .15 / .30 / .35 / .45, 2 | .35 / .40 / .45, 1 |
 
-Dusk keeps shop cures (`shopCureGating: null`). Black Sun's new numbers sit close to its
-current *effective* shares once the eligibility gate is applied. The harness must mirror
-enemy staves: today `HeadlessBattle` has no `onStatusStaff` callback, so the staff
-decision is a no-op there (`HeadlessBattle.js:2107-2127`). Move the staff resolution into
-an engine function used by both.
+Measured effective shares today (map-only, 40 seeds): Nightfall staves 3% / 8% / 20% of
+battles, no siege. Black Sun staves 5% / 10% / 15% / 35%, siege 4% / 10% / 13%.
+Eligible casters appear on about 40–75% of maps for staves and 22–39% for siege. Dusk
+keeps shop cures.
 
-### 2d. Par and Eclipse
+### 2d. Par, Eclipse and Black Sun
 
-- **The Eclipse is unchanged** (grace 3, cap 6, gain ×1); it already prices time
-  correctly (section 1).
-- **Par.** No multiplier change for rout. The ladder already stops waves from inflating
-  par. Re-rated on the ladder + hold runs:
-  - Dusk inflation +2 instead of +3: turtle 60.1, push 26.9 (push mostly Waning).
-  - Keeping +3: turtle 51.5, push 20.5.
-  
-  Recommendation: keep +3 and make `parInflation` a per-difficulty table, so that later
-  tuning never touches First Light.
-- **Seize par is loose** (S ≥ 94% everywhere up to Nightfall), but the only seize player
-  we have is a protected, reckless charger. Re-measure once seize holds and a seize-aware
-  agent exist (step 5 below), then consider `objectiveAdjustments.seize` per rung.
-
-**Results with the ladder** (Nightfall and Black Sun use v2; "+hold" is rout hold 25%):
-
-| Rung | Turns turtle / push (rout) | Push S+A (rout) | Turtle B+C (rout) | Shadow turtle / push |
-|---|---|---|---|---|
-| Dusk, ladder + hold 20% | 10.0 / 7.2 | 80% | 46% | 51.5 / 20.5 |
-| Nightfall, ladder | 9.3 / 7.7 | 71% | 47% | 50.3 / 30.3 |
-| Nightfall, ladder + hold | 11.8 / 8.7 | 59% | 61% | 71.6 / 45.3 |
-| Black Sun, ladder | 13.6 / 12.1 | 49% | 69% | 83.0 / 63.9 |
-
-The rungs stay well apart: on push, Dusk 20 < Nightfall 30–45 < Black Sun 64. On Black
-Sun the ladder brings in *fewer* units than today (9.4 vs 10.1 per rout battle for push).
-The extra difficulty comes entirely from par no longer rising with each wave (11.2 →
-9.4). The army here is calibrated to a Dusk player, so the Black Sun row overstates the
-pain. Ship it only after re-running with a Black Sun calibration.
+- **Eclipse:** unchanged.
+- **Par:** make `parInflation` a per-difficulty table: First Light 3, **Dusk 2**,
+  Nightfall 3, Black Sun 3.
+  - Dusk −1 lifts the turtle from 22.9 to 30.9 shadow and the push from 7.5 to 11.0.
+    Push stays Pale in 46 of 48 runs and 85% S+A.
+  - Inflation 1 (turtle 41.9, push 18.1) is the next lever if playtests still see S
+    turtles.
+  - With inflation 2 on both, Dusk's par is about equal to Nightfall's (0.92 vs 0.85
+    multiplier), so the rungs never invert.
+- **Black Sun:** keeps its current template waves and only loses the per-wave par bump
+  (they become par-neutral like the ladder). Shadow push 31.5 → 55.4 ± 2.6, turtle
+  47.3 → 73.5 ± 2.3 (Umbral or worse in 44 of 48 runs). The calibrated army is
+  Dusk-strength, so the real Black Sun numbers will be lower. Re-run with a Black Sun
+  calibration before release.
 
 ## 3. Risks, targets, tests, rollout
 
-**Balance targets** (`sim/pacing.js --edge 6`, 16 seeds, rout):
-- Dusk push: ≥ 75% S+A and Pale or Waning at the end.
-- Dusk turtle: ≥ 40% B+C and Umbral at the end in more than half the runs.
-- Nightfall above Dusk on both styles, by at least 10 shadow.
-- First Light: identical numbers (a regression gate).
-- Force-won battles stay at or below 2× baseline.
+**Targets** (calibrated, 48 paired seeds, rout):
+- Dusk push: at least 75% S+A and mostly Pale.
+- Dusk turtle − push paired gap: at least 15 shadow.
+- Nightfall above Dusk by at least 10 shadow for each style.
+- First Light unchanged.
+- Force-won stalls: no more than 2× baseline.
 
 **Risks.**
-- XP falls on Dusk+ (fewer full-value kills); measure levels at each act's end before
-  shipping.
-- Holders could read as passive or buggy if the Inspect text and the Danger zone don't
-  make the rule obvious.
-- Flank arrivals in fog feel unfair; the telegraph line mitigates this.
-- Deed kill counts inflate on long battles.
-- Black Sun overshoot (above).
+- `push` is not an efficient human, and calibration is per act, not per player, so the
+  ladder's cost to strong pushers is overstated.
+- The Act I–II turtle cost is understated: the harness turtle advances after 2 quiet
+  turns, while a human might simply keep ending the turn.
+- XP falls on Dusk+; measure levels at each act's end.
+- Arrivals in fog can feel unfair, which is why the telegraph exists.
+- n=48 still gives ±2 shadow per cell, so tuning steps smaller than about 4 need more
+  seeds.
 
-**Tests to write** (outcome-based; each catches one realistic failure):
-1. `RoutLadder.test.js`:
-   - A ladder rout map spawns exactly the schedule, with counts and levels per wave.
-   - Par is unchanged after a ladder wave and still +1 after a scripted wave.
-   - No arrival lands within 3 tiles of a player unit.
-   - First Light configs are byte-identical to today.
-   - Seed → identical spawns.
-   - Clearing the field on turn N cancels the remaining waves (victory with the waves
-     still pending).
-2. `HoldActivation.test.js`:
-   - A player unit outside the holder's Danger tiles leaves it asleep; one tile inside
-     wakes it together with its pack.
-   - Damage wakes it.
-   - Anti-turtle `aggressiveMode` does not wake it; boss enrage does.
-   - The wake state survives `serializeBattleUnit` round trips.
-   - Preview parity with `PlayerKnowledgePreviews` worlds.
-3. `SiegeUses.test.js`:
-   - An enemy Breachbolt fires exactly `shots` times and then uses the fallback tome
-     (this fails today).
-   - The artillery Danger reach is drawn from the post.
-4. `MapGenerator`: per-battle staff and siege shares within ±3 points of the table
-   (400 seeds). Dusk never rolls Sleep.
-5. Harness parity: the same map and actions under the scene and the harness give the
-   same arrivals, levels and par (`GridParity`-style).
+**Tests:**
+- `RoutLadder`:
+  - The exact schedule, counts and levels.
+  - Par is unchanged after a ladder wave, +1 after a bandit wave.
+  - No arrival within 3 tiles of a player, on excluded terrain, or impassable for its
+    class.
+  - One edge per wave.
+  - Village maps stack.
+  - First Light configs are unchanged.
+  - A field clear at T5 cancels the T6 wave.
+  - A resume replays the same ladder.
+- `HoldActivation`:
+  - Asleep outside the Danger tiles; one tile inside wakes the whole pack.
+  - A fogged holder ignores the zone until it is seen.
+  - Damage wakes it; anti-turtle doesn't; enrage does.
+  - Snapshot round trip.
+- Deeds and XP: zero-reward kills skip `maxKillLevelGap`; survival XP from a 0-reward
+  wave is 0.
 
-**Sims to re-run:**
-- `sim/pacing.js` on all four rungs × both policies, with `--edge 6` and with the
-  default army.
-- `sim/eclipse.js --difficulty dusk|hard`.
-- `npm run sim:fullrun:pr` and `test:harness:pr`. Threshold PR notes are likely, because
-  shadow and turn counts move.
+**Sims:**
+- `sim/pacing.js` on four rungs × two policies, at 48 seeds, with the calibration
+  profile and the default army.
+- `sim/eclipse.js`.
+- `sim:fullrun:pr` and `test:harness:pr`, with threshold PR notes.
 
-**Rollout, smallest safe slice first:**
-1. Breachbolt use fix and `waveRaisesPar` (no tuning change on Dusk; Black Sun siege gets
-   shorter). Add a harness mirror for anti-turtle and enrage (`engine/TurnPressure.js`,
-   extracted from `BattleScene.js:2966-3107`) and for enemy staves.
-2. Dusk rout ladder: data, the scheduler and the shared spawn spec, plus the telegraph
-   text.
-3. Hold AI on seize and escape (Dusk+), with a seize/escape-aware agent for the sims.
-4. The status-staff and siege ladder.
-5. Nightfall ladder, then the rout hold share (owner decision), then the Black Sun ladder
-   after its own calibration. Seize par last.
+**Rollout:**
+1. **PR 1, no tuning** (`claude/dusk-pressure-pr1`):
+   - The Breachbolt fix (both factions, 3/5).
+   - `waveRaisesPar`.
+   - `engine/TurnPressure.js` (plus the baseline fix).
+   - Harness mirrors for anti-turtle, siege/staff spawns and enemy staves.
+   - Move-type-aware spawn tiles.
+2. **PR 2:** the Dusk and Nightfall ladders, Black Sun's par-neutral waves, Dusk
+   inflation 2, and the deed and survival-XP fixes.
+3. **PR 3:** hold on seize and escape, the seize par fix, and a seize/escape-aware sim
+   agent.
+4. **PR 4:** Dusk Silence staves and the per-battle staff/siege model with artillery AI.
 
-**BattleScene and the open stability PRs (#171–#175** rewrite combat, death and
-continuation code). All of the logic lives in engine modules: `ReinforcementScheduler`,
-the new `ReinforcementSpawnSpec`, `HoldActivation`, `TurnPressure`, and `AIController`.
-Scene glue is limited to:
-- `applyReinforcementsForTurn` (about 3 lines);
-- `updateObjectiveText` (the telegraph);
-- enemy combat calling the shared use-spend;
-- replacing `updateAntiTurtlePressure`'s body with the engine call.
+**BattleScene.** All the logic lives in engine modules. The draft stability stack
+(#171–#178) does not touch `BattleScene.js` 2966–3107 (anti-turtle) or 2369–2780
+(reinforcements). It rewrites combat resolution (8209–9316) and the enemy phase
+(10037–10804), so PR 1's scene glue in those areas is one call each. Land after the
+stack, or rebase onto it.
 
-None of these touch the death and continuation paths. Land after #175, or rebase on top
-of it.
+## 4. Owner decisions (2026-10-01)
 
-## 4. Open questions for the owner
+- **Rout hold share:** 0% for now. Ship the ladder alone and re-measure.
+- **Deeds:** count the kill, but exclude zero-reward units from `maxKillLevelGap` and the
+  terrain/weapon tallies. Stop survival-XP farming as well.
+- **Black Sun:** keep its waves and drop the par bump.
+- **Dusk staves:** Silence only, from Act III.
+- **Breachbolt:** player 3, enemy 5.
+- **Map sizes:** keep.
 
-1. **Rout hold share.** The ladder alone leaves the Dusk turtle S-rank on 57% of rout maps
-   (shadow 29). Adding 20% rout holders raises turtle shadow to 51 at a cost of about 1.2
-   turns to a push player. Accept it, or ship the ladder alone and re-measure with
-   players?
-2. **Deeds.** Should kills of zero-reward reinforcements count toward deed kill totals?
-3. **Black Sun.** Adopt the v2 ladder (a big step up through par alone), or keep its
-   current waves and only drop the par bump?
-4. **Dusk staves.** Silence only (proposed), or also a low Sleep rate in Act IV?
-5. **Breachbolt.** The fix ends Black Sun's de facto infinite artillery. Is 3 shots right
-   there?
-6. **Map size.** The evidence says bigger maps do not tax turtles. Keep sizes and get the
-   flanking from the ladder's edges?
+Open: confirm Dusk inflation 2, with 1 held in reserve.

@@ -43,15 +43,16 @@ const opts = parseArgs({
   csv: false,
   // Prototypes of docs/specs/dusk-pressure.md (sim-only; nothing here changes the game):
   ladder: 0, // 1 = rout reinforcement ladder (LADDERS below) replaces template waves
-  ladderSet: 'v2', // which ladder table (v1 = first prototype)
+  dropProcBump: 0, // 1 = procedural template waves no longer raise par (Black Sun proposal)
   holdRout: 0, // share of a rout map's non-boss enemies that hold until woken
   parMult: '', // override turnBonus.difficultyParMultiplier[difficulty]
   inflation: '', // override turnBonus.parInflation
   out: '', // write every battle record as JSON lines (re-rate offline under other pars)
   // Calibration: +N to HP/STR/MAG/SKL/SPD/DEF/RES of every deployed unit for the battle
-  // only. The harness player buys nothing, forges nothing and uses no items, so its army
-  // is far weaker than a human's; the edge stands in for that gap (see the spec).
-  edge: 0,
+  // only, either one number or per act ("act1:0,act2:2,act3:5,act4:7"). The harness
+  // player buys nothing, forges nothing and uses no items, so its army is far weaker than
+  // a human's; the edge stands in for that gap (see the spec for the calibration).
+  edge: '0',
 });
 
 const data = loadGameData();
@@ -59,13 +60,12 @@ if (opts.parMult !== '')
   data.turnBonus.difficultyParMultiplier[opts.difficulty] = Number(opts.parMult);
 if (opts.inflation !== '') data.turnBonus.parInflation = Number(opts.inflation);
 
-// The rout reinforcement ladder (spec section 2). Turn = the enemy phase that ends with
-// the arrival (arrivals move from the next enemy phase). Counts are absolute (no
-// enemyCountBonus). level = levels over the template the arrival copies. promoteFrom =
-// first wave index whose arrivals are promoted classes from the act pool (act3+).
-// Wave w of an act: [turn, minCount, maxCount, levels over the copied template].
-// promoteFrom = first wave whose arrivals are promoted classes from the act pool.
-// v1 = first prototype; v2 = the spec's table (lighter Nightfall / Black Sun).
+// The rout reinforcement ladder (docs/specs/dusk-pressure.md, section 2a). Each wave of an
+// act is [turn, minCount, maxCount, levels over the copied template]. Turn = the enemy
+// phase that ends with the arrival (arrivals move from the next enemy phase). Counts are
+// absolute (no enemyCountBonus, no jitter). promoteFrom = first wave index whose arrivals
+// are promoted classes from the act pool. Black Sun keeps its template waves (see
+// --dropProcBump) and has no ladder.
 const XP4 = [0.75, 0.5, 0.25, 0.1];
 const XP6 = [0.75, 0.5, 0.25, 0.1, 0, 0];
 const L = (rows, xp, promoteFrom = null) => ({
@@ -76,49 +76,32 @@ const L = (rows, xp, promoteFrom = null) => ({
   promoteFrom,
 });
 // prettier-ignore
-const DUSK = {
-  act1: L([[4, 1, 1, 0], [6, 1, 2, 0]], XP4),
-  act2: L([[4, 1, 2, 0], [6, 2, 2, 1], [8, 2, 3, 1]], XP4),
-  act3: L([[4, 2, 2, 0], [6, 2, 2, 1], [8, 2, 3, 1], [10, 2, 3, 2]], XP4),
-  act4: L([[4, 2, 2, 0], [6, 2, 3, 1], [8, 2, 3, 1], [10, 3, 3, 2]], XP4),
-};
-// prettier-ignore
-const HARD_V1_LATE = L([[3, 2, 3, 0], [5, 2, 3, 1], [7, 3, 3, 1], [9, 3, 4, 2], [11, 3, 4, 2]], XP6, 3);
-// prettier-ignore
-const LUNATIC_V1_LATE = L([[2, 3, 3, 0], [4, 3, 4, 1], [6, 3, 4, 1], [8, 3, 4, 2], [10, 4, 4, 2], [12, 4, 5, 3]], XP6, 2);
-// prettier-ignore
-const HARD_V2_LATE = L([[3, 2, 2, 0], [5, 2, 3, 1], [7, 2, 3, 1], [9, 3, 3, 2]], XP6, 3);
-// prettier-ignore
-const LUNATIC_V2_LATE = L([[2, 2, 3, 0], [4, 2, 3, 1], [6, 3, 3, 1], [8, 3, 4, 2], [10, 3, 4, 2]], XP6, 3);
+const HARD_LATE = L([[3, 2, 2, 0], [5, 2, 3, 1], [7, 2, 3, 1], [9, 3, 3, 2]], XP6, 3);
 // prettier-ignore
 const LADDERS = {
-  v1: {
-    dusk: DUSK,
-    hard: {
-      act1: L([[3, 1, 2, 0], [5, 2, 2, 0], [7, 2, 2, 1]], XP6),
-      act2: L([[3, 2, 2, 0], [5, 2, 3, 1], [7, 2, 3, 1], [9, 3, 3, 2]], XP6),
-      act3: HARD_V1_LATE, act4: HARD_V1_LATE, finalBoss: HARD_V1_LATE,
-    },
-    lunatic: {
-      act1: L([[3, 2, 2, 0], [5, 2, 2, 1], [7, 2, 3, 1]], XP6),
-      act2: L([[2, 2, 3, 0], [4, 2, 3, 1], [6, 3, 3, 1], [8, 3, 4, 2], [10, 3, 4, 2]], XP6),
-      act3: LUNATIC_V1_LATE, act4: LUNATIC_V1_LATE, finalBoss: LUNATIC_V1_LATE,
-    },
+  dusk: {
+    act1: L([[4, 1, 1, 0], [6, 1, 2, 0]], XP4),
+    act2: L([[4, 1, 2, 0], [6, 2, 2, 1], [8, 2, 3, 1]], XP4),
+    act3: L([[4, 2, 2, 0], [6, 2, 2, 1], [8, 2, 3, 1], [10, 2, 3, 2]], XP4),
+    act4: L([[4, 2, 2, 0], [6, 2, 3, 1], [8, 2, 3, 1], [10, 3, 3, 2]], XP4),
   },
-  v2: {
-    dusk: DUSK,
-    hard: {
-      act1: L([[4, 1, 2, 0], [6, 1, 2, 0], [8, 2, 2, 1]], XP6),
-      act2: L([[3, 1, 2, 0], [5, 2, 2, 1], [7, 2, 3, 1], [9, 2, 3, 2]], XP6),
-      act3: HARD_V2_LATE, act4: HARD_V2_LATE, finalBoss: HARD_V2_LATE,
-    },
-    lunatic: {
-      act1: L([[3, 1, 2, 0], [5, 2, 2, 0], [7, 2, 2, 1]], XP6),
-      act2: L([[3, 2, 2, 0], [5, 2, 3, 1], [7, 2, 3, 1], [9, 3, 3, 2]], XP6),
-      act3: LUNATIC_V2_LATE, act4: LUNATIC_V2_LATE, finalBoss: LUNATIC_V2_LATE,
-    },
+  hard: {
+    act1: L([[4, 1, 2, 0], [6, 1, 2, 0], [8, 2, 2, 1]], XP6),
+    act2: L([[3, 1, 2, 0], [5, 2, 2, 1], [7, 2, 3, 1], [9, 2, 3, 2]], XP6),
+    act3: HARD_LATE, act4: HARD_LATE, finalBoss: HARD_LATE,
   },
 };
+
+/** Calibration edge for an act: a number, or "act1:0,act2:2,act3:6,act4:8". */
+function edgeFor(act) {
+  const raw = String(opts.edge ?? 0);
+  if (!raw.includes(':')) return Math.max(0, Math.trunc(Number(raw) || 0));
+  for (const part of raw.split(',')) {
+    const [k, v] = part.split(':');
+    if (k === act) return Math.max(0, Math.trunc(Number(v) || 0));
+  }
+  return 0;
+}
 
 function centroid(units) {
   const n = Math.max(1, units.length);
@@ -145,23 +128,56 @@ function hash(text) {
   return h >>> 0;
 }
 
-/** Install the ladder on a rout battle (sim-side mirror of the proposed scheduler). */
+/** Infantry-passable tiles on an edge whose inward neighbour is passable too. */
+function edgeCapacity(bc, terrain, edge) {
+  const rows = bc.mapLayout.length;
+  const cols = bc.mapLayout[0].length;
+  const ok = (c, r) => {
+    const cost = terrain[bc.mapLayout[r]?.[c]]?.moveCost?.Infantry;
+    return cost !== undefined && cost !== '--' && !Number.isNaN(parseInt(cost, 10));
+  };
+  let n = 0;
+  for (let i = 0; i < (edge === 'left' || edge === 'right' ? rows : cols); i++) {
+    const [c, r, ic, ir] =
+      edge === 'left'
+        ? [0, i, 1, i]
+        : edge === 'right'
+          ? [cols - 1, i, cols - 2, i]
+          : edge === 'top'
+            ? [i, 0, i, 1]
+            : [i, rows - 1, i, rows - 2];
+    if (ok(c, r) && ok(ic, ir)) n++;
+  }
+  return n;
+}
+
+/**
+ * Install the ladder on a rout battle (sim-side mirror of the proposed scheduler). It
+ * stacks on scripted waves (village bandits): those keep their own XP and their +1 par.
+ * Each ladder wave comes from one edge: wave 1 the front, then flank A, flank B, ...; a
+ * flank with fewer than 4 open edge tiles falls back to the front (chokepoint maps).
+ */
 function installLadder(battle, difficulty, act) {
   const bc = battle.battleConfig;
-  const ladder = (LADDERS[opts.ladderSet] || LADDERS.v2)[difficulty]?.[act];
+  const ladder = LADDERS[difficulty]?.[act];
   if (!ladder || bc?.objective !== 'rout') return false;
-  if (bc.reinforcements?.scriptedWaves?.length) return false; // authored boss maps keep theirs
   const { front, flanks } = ladderEdges(bc);
+  const terrain = battle.gameData.terrain;
+  const flankOk = flanks.map((e) => edgeCapacity(bc, terrain, e) >= 4);
+  const edgeFor = (i) => {
+    if (i === 0) return front;
+    const f = (i - 1) % 2;
+    return flankOk[f] ? flanks[f] : flankOk[1 - f] ? flanks[1 - f] : front;
+  };
   bc.reinforcements = {
+    ...(bc.reinforcements?.scriptedWaves?.length
+      ? { scriptedWaves: bc.reinforcements.scriptedWaves }
+      : {}),
     spawnEdges: [front],
     difficultyScaling: false,
     turnJitter: [0, 0],
     xpDecay: ladder.xp,
-    waves: ladder.turns.map((turn, i) => ({
-      turn,
-      count: ladder.counts[i],
-      edges: i === 0 ? [front] : i % 2 ? [flanks[0], front] : [flanks[1], front],
-    })),
+    waves: ladder.turns.map((turn, i) => ({ turn, count: ladder.counts[i], edges: [edgeFor(i)] })),
   };
   battle.reinforcementTemplatePool = null;
   // Never spawn within 3 tiles of a player unit (no ambush arrivals).
@@ -178,7 +194,7 @@ function installLadder(battle, difficulty, act) {
   const build = battle._buildReinforcementSpawnSpec.bind(battle);
   battle._buildReinforcementSpawnSpec = (spawn, i) => {
     const spec = build(spawn, i);
-    if (!spec) return spec;
+    if (!spec || spawn.waveType === 'scripted') return spec;
     const w = Math.trunc(Number(spawn.waveIndex) || 0);
     spec.level += ladder.level[w] || 0;
     const promoted = battle.gameData.enemies?.pools?.[act]?.promoted || [];
@@ -298,7 +314,7 @@ class PacingDriver extends RunSimulationDriver {
 
   _enableInvincibilityIfConfigured(driver) {
     const battle = driver.battle;
-    const edge = Math.max(0, Math.trunc(Number(opts.edge) || 0));
+    const edge = edgeFor(this.runManager.currentAct);
     if (edge) {
       for (const u of battle.playerUnits) {
         for (const k of EDGE_STATS) u.stats[k] = (u.stats[k] || 0) + edge;
@@ -336,8 +352,7 @@ class PacingDriver extends RunSimulationDriver {
       reinfUnits: 0,
       kos: 0,
       guards: battle.enemyUnits.filter((e) => e.aiMode === 'guard').length,
-      siege: battle.enemyUnits.filter((e) => e.weapon?.name === 'Breachbolt').length,
-      staves: battle.enemyUnits.filter((e) => e.statusStaff).length,
+      edge,
     };
     record.ladder = opts.ladder ? installLadder(battle, opts.difficulty, record.act) : false;
     record.holders = installHold(battle, Number(opts.holdRout) || 0);
@@ -357,8 +372,14 @@ class PacingDriver extends RunSimulationDriver {
       const before = battle.enemyUnits.length;
       const parBefore = battle.turnPar;
       const result = originalApply(turn);
-      // Ladder waves are the clock itself: they never raise par.
-      if (battle._ladderActive) battle.turnPar = parBefore;
+      // Ladder waves are the clock itself: they never raise par (scripted waves still do).
+      // --dropProcBump: template procedural waves stop raising par as well.
+      if ((battle._ladderActive || Number(opts.dropProcBump)) && Number.isFinite(parBefore)) {
+        const scripted = new Set(
+          (result?.spawns || []).filter((s) => s.waveType === 'scripted').map((s) => s.waveIndex),
+        );
+        battle.turnPar = parBefore + scripted.size;
+      }
       const added = battle.enemyUnits.length - before;
       if (added > 0) {
         record.reinfUnits += added;
@@ -491,7 +512,8 @@ async function main() {
     Number(opts.holdRout) ? `holdRout ${opts.holdRout}` : '',
     opts.parMult !== '' ? `parMult ${opts.parMult}` : '',
     opts.inflation !== '' ? `inflation ${opts.inflation}` : '',
-    Number(opts.edge) ? `edge +${opts.edge}` : '',
+    String(opts.edge) !== '0' ? `edge ${opts.edge}` : '',
+    Number(opts.dropProcBump) ? 'no procedural par bump' : '',
   ]
     .filter(Boolean)
     .join(', ');
