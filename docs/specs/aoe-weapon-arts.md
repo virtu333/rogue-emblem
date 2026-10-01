@@ -318,6 +318,14 @@ and procs. So against a victim identical to the primary (same stats, weapon, ter
 area damage equals today's on every non-crit, non-proc strike. It is lower whenever
 today's basis strike critted or procced.
 
+**Victim order changes.** Today's splash takes its victims in row, then col order
+(`splashTargets`; lowest HP% first when it hits one). The area takes them in tile order:
+distance from the center, then row, then col (`radiusTiles`); `lowest_hp_pct` keeps its
+rule. So with several victims the blows, the hints, the credits and the removals come in
+a different order than today, and a `maxTargets` cap above 1 keeps the nearest victims,
+not the top rows. Totals for one blast are unchanged: every victim still takes its own
+blow, and removals now all follow the blows (phase 2) instead of each following its own.
+
 **Migration test.** It pins exactly that: equal on a fixture with no crit and no proc, and
 the documented difference on a fixture where the first strike crits.
 
