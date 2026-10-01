@@ -112,6 +112,7 @@ describe('fixed outcomes through production battle methods', () => {
   it('fixed suspend saves exact cursor without reseeding, including write failure', () => {
     const scene = battle();
     Object.assign(scene, {
+      _battleSession: 1,
       playerUnits: [],
       enemyUnits: [],
       npcUnits: [],

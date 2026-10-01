@@ -66,6 +66,7 @@ function makeArcher(name = 'Daska') {
 // Minimal battle scene surface the world-state contract reads and writes.
 function makeScene(extra = {}) {
   return {
+    _battleSession: 1,
     playerUnits: [],
     enemyUnits: [],
     npcUnits: [],
@@ -196,6 +197,7 @@ describe('battle world state carries the recruit records', () => {
 
   it('the canonical state validator accepts the field and rejects a malformed one', () => {
     const base = {
+      _battleSession: 1,
       version: 2,
       phase: 'player',
       turnNumber: 1,

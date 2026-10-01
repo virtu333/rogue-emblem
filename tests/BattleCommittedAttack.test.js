@@ -18,6 +18,7 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 function makeScene(overrides = {}) {
   const scene = Object.create(BattleScene.prototype);
   Object.assign(scene, {
+    _battleSession: 1,
     runManager: { battleInProgress: { checkpoint: null } },
     battleParams: {},
     turnManager: { currentPhase: 'player', turnNumber: 3 },
@@ -48,7 +49,10 @@ describe('BattleScene._commitCombatIntent', () => {
       targetId: 'u2',
       weaponArt: { artId: 'sword_slash', weaponIndex: 1 },
     });
-    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledWith({ commitIntent: true });
+    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledWith({
+      commitIntent: true,
+      session: scene._battleSession,
+    });
   });
 
   it('ignores an art selected for a different unit', () => {
@@ -141,6 +145,7 @@ describe("Gambler's Coin across a legacy resume", () => {
       row: 3,
     };
     const scene = makeScene({
+      _battleSession: 1,
       playerUnits: [edric],
       enemyUnits: [brigand],
       _battleRewindPolicy: 'legacy',

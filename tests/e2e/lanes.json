@@ -30,6 +30,7 @@
       "description": "Battle presentation and teaching: speed, effects, forecast parity, reveals, planning, hints, rewards, ceremonies",
       "specs": [
         "battle-speed.spec.js",
+        "combat-boundary.spec.js",
         "effects-settings.spec.js",
         "forecast-parity.spec.js",
         "progression-reveal.spec.js",
@@ -108,6 +109,7 @@
       "name": "battle-history",
       "description": "Battle timeline, rewinds, threat sight and refresh-safe committed attacks",
       "specs": [
+        "battle-session-pause.spec.js",
         "combat-refresh-commit.spec.js",
         "rewind-action-types.spec.js",
         "rewind-any-action.spec.js",

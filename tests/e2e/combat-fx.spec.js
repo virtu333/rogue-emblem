@@ -431,9 +431,11 @@ test('a strike cut short by a rewind or a shutdown stops cleanly', async ({ page
     const h = window.__fxTest;
     const [a, b] = h.pin(1);
     s.battleState = 'COMBAT_RESOLVING';
+    let continuations = 0;
     const run = s
       ._runCombatResolution(a, b, s._prepareCombatContext(a, b, { isPlayerInitiator: true }))
       .catch((e) => `rejected: ${e?.message}`);
+    void run.finally(() => continuations++);
     await new Promise((r) => setTimeout(r, 50));
     window.__emblemRogueGame.scene.stop('Battle');
     const settled = await Promise.race([
@@ -447,12 +449,15 @@ test('a strike cut short by a rewind or a shutdown stops cleanly', async ({ page
     const l = s._combatFx?.liveObjects || {};
     return {
       settled,
+      continuations,
       fxObjects: fxObjects.length,
       live: (l.strike || 0) + (l.lingering || 0) + (l.motes || 0) + (l.dissolves || 0),
     };
   });
-  // Nothing the strike would have drawn after the shutdown exists on the stopped scene.
-  expect(shut.settled).toBe('settled');
+  // Shutdown parks lifecycle waits: neither the combat continuation nor its finally
+  // can run against a replacement battle. Presentation still releases every object.
+  expect(shut.settled).toBe('pending');
+  expect(shut.continuations).toBe(0);
   expect(shut.fxObjects).toBe(0);
   expect(shut.live).toBe(0);
   expect(errors).toEqual([]);

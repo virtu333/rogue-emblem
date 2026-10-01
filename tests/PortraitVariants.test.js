@@ -354,6 +354,7 @@ describe('enemies', () => {
 
   it('are placed on the map with their face (battle hook) and restored as saved', () => {
     const scene = {
+      _battleSession: 1,
       runManager: { runSeed: 4, roster: [], fallenUnits: [] },
       nodeId: 'n1',
       playerUnits: [],
@@ -377,6 +378,7 @@ describe('one resolver, every surface', () => {
 
   function fakeScene(extra = {}) {
     return {
+      _battleSession: 1,
       gameData: data,
       runManager: { roster: [unit] },
       playerUnits: [unit],

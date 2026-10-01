@@ -39,7 +39,7 @@ async function boot(page) {
     s.registry.set('activeSlot', 1);
     setActiveSlot(1);
     s.runManager.visionChargesRemaining = 3;
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
   });
   return errors;
 }
@@ -174,7 +174,7 @@ test('zero charges still allows review, rotation and return to landscape, and ke
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     s.runManager.visionChargesRemaining = 0;
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
   });
   const view = await openHistory(page);
   const before = await digest(page);
@@ -392,7 +392,7 @@ test('recorded combat identifies the observed attacker and victim and reverses a
     s.updateUnitPosition(a);
     s.updateUnitPosition(d);
     s._timelineBoundary = 'turn_start';
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
     s.selectedUnit = a;
     await s.executeCombat(a, d);
   });
@@ -479,7 +479,7 @@ test('history status labels and animated HP cues never consume battle randomness
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     s.playerUnits[0]._conditions = [{ id: 'silence', turnsRemaining: 2 }];
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
   });
   const before = await digest(page);
   await openHistory(page);
