@@ -7,6 +7,11 @@ vi.mock('../../src/ui/MenuSurface.js', async () => {
   const { MenuSurface, element, button } = await import('./JourneyPresentation.js');
   return { MenuSurface, element, button };
 });
+// Hover previews are pointer-only presentation; the presentation nodes have no listeners.
+vi.mock('../../src/ui/infoAffordance.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  bindHoverPreview: () => null,
+}));
 vi.mock('../../src/ui/ChoicePicker.js', async () => ({
   ChoicePicker: (await import('./JourneyPresentation.js')).ChoicePicker,
 }));

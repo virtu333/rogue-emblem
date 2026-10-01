@@ -1192,7 +1192,12 @@ export class BattleScene extends Phaser.Scene {
         if (this.isStoryInputLocked()) return;
         this.requestVisionRewind();
         // Loot roster toggle during BATTLE_END (click button shouldn't trigger this)
-        if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
+        if (
+          this.battleState === 'BATTLE_END' &&
+          this.lootGroup?.length > 0 &&
+          !this.isTransitioningOut &&
+          this.runManager
+        ) {
           if (this.lootRosterVisible) {
             this.hideLootRoster();
           } else {
@@ -1908,7 +1913,12 @@ export class BattleScene extends Phaser.Scene {
           },
           roster: () => {
             if (this.isStoryInputLocked()) return;
-            if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
+            if (
+              this.battleState === 'BATTLE_END' &&
+              this.lootGroup?.length > 0 &&
+              !this.isTransitioningOut &&
+              this.runManager
+            ) {
               this._hideLootTooltip();
               if (this.lootRosterVisible) this.hideLootRoster();
               else this.showLootRoster();
@@ -3997,7 +4007,9 @@ export class BattleScene extends Phaser.Scene {
     if (this.isMobileInput && this.inspectMode) return true;
     if (this.pauseOverlay?.visible) return true;
     if (this.lootRosterVisible) return true;
-    if (this.battleState === 'BATTLE_END' && this.lootGroup) return true;
+    // Only the legacy canvas loot screen fills lootGroup; the DOM reward flow's is always [].
+    if (this.battleState === 'BATTLE_END' && this.lootGroup?.length > 0 && !this.isTransitioningOut)
+      return true;
     if (this.isCancelableBattleState()) return true;
     if (allowPause && this.battleState === 'PLAYER_IDLE') return true;
     return false;
@@ -4053,7 +4065,11 @@ export class BattleScene extends Phaser.Scene {
       this.inspectMode = false;
       this.clearInspectionVisuals();
       return true;
-    } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
+    } else if (
+      this.battleState === 'BATTLE_END' &&
+      this.lootGroup?.length > 0 &&
+      !this.isTransitioningOut
+    ) {
       // Toggle: a second ESC closes the open settings overlay instead of
       // stacking another one on top of it.
       if (this.lootSettingsOverlay?.visible) {
