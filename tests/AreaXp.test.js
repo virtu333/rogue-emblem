@@ -4,7 +4,7 @@
 // kill 0.6, area cap 75, all on base XP before the battle's multipliers).
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
-import { actionXpAwards, combatXpAwards } from '../src/engine/BattleXp.js';
+import { AREA_XP_LIVE, actionXpAwards, combatXpAwards } from '../src/engine/BattleXp.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { loadGameData } from './testData.js';
 
@@ -140,7 +140,7 @@ describe('the harness pays area credits', () => {
   // A full harness combat with a fixed 30-damage blast of radius 1: the neighbour (5 HP,
   // level 5 like the attacker) falls to the blast, a kill credit worth 40 × 0.6 = 24
   // base XP on top of whatever the primary combat earns.
-  function fight({ withNeighbour }) {
+  function fight({ withNeighbour, live = true }) {
     const gameData = structuredClone(data);
     const art = {
       id: 'test_blast',
@@ -210,6 +210,7 @@ describe('the harness pays area credits', () => {
       getMoveCost: () => 1,
       updateFogOfWar() {},
     };
+    battle.areaXpLive = live;
     const granted = [];
     battle._grantScaledXP = (u, xp) => granted.push([u.name, xp]);
     battle.selectedUnit = attacker;
@@ -224,7 +225,16 @@ describe('the harness pays area credits', () => {
     return { granted, neighbour };
   }
 
-  it('a full harness combat pays the blast kill on top of the primary', () => {
+  it('until the scene pays area XP, the harness pays none either (AREA_XP_LIVE)', () => {
+    expect(AREA_XP_LIVE).toBe(false);
+    expect(new HeadlessBattle(data, { act: 'act1', objective: 'rout' }).areaXpLive).toBe(false);
+    const alone = fight({ withNeighbour: false, live: false });
+    const flanked = fight({ withNeighbour: true, live: false });
+    expect(flanked.neighbour.currentHP).toBe(0);
+    expect(flanked.granted).toEqual(alone.granted);
+  });
+
+  it('with area XP live, a full harness combat pays the blast kill on top of the primary', () => {
     const alone = fight({ withNeighbour: false });
     const flanked = fight({ withNeighbour: true });
     expect(flanked.neighbour.currentHP).toBe(0);

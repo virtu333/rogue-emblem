@@ -114,7 +114,7 @@ import {
   timedBuffCombatMods,
 } from '../../src/engine/TimedWeaponArtBuffs.js';
 import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
-import { actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
+import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
 import {
   enemyWeaponArtTuning,
   scoreEnemyWeaponArt,
@@ -162,6 +162,9 @@ export class HeadlessBattle {
     if (!this.gameData.skills) this.gameData.skills = [];
     this.battleParams = battleParams || { act: 'act1', objective: 'rout' };
     this.roster = roster;
+    // Area credits pay XP only where the scene pays them (BattleXp.AREA_XP_LIVE); tests
+    // of the 4a engine path turn it on per battle.
+    this.areaXpLive = AREA_XP_LIVE;
 
     this.battleState = null;
     this.battleConfig = null;
@@ -1796,7 +1799,11 @@ export class HeadlessBattle {
         defender.currentHP <= 0,
         damageDealt,
         defenderHpAtStart,
-        { credits: (result.areaCredits || []).filter((credit) => credit.source === attacker) },
+        {
+          credits: this.areaXpLive
+            ? (result.areaCredits || []).filter((credit) => credit.source === attacker)
+            : [],
+        },
       );
     }
 
@@ -1884,7 +1891,12 @@ export class HeadlessBattle {
     });
     for (const credit of result.areaCredits || [])
       if (credit.victim.faction === 'player') this._checkPhoenixBrooch(credit.victim);
-    if (unit.faction === 'player' && unit.currentHP > 0 && result.areaCredits?.length)
+    if (
+      this.areaXpLive &&
+      unit.faction === 'player' &&
+      unit.currentHP > 0 &&
+      result.areaCredits?.length
+    )
       this._awardCombatXP(unit, null, false, null, null, { credits: result.areaCredits });
 
     if (this._checkBattleEnd()) return true;

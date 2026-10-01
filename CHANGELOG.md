@@ -13,7 +13,7 @@
   - **Benediction** (Light, Silver, 6 HP, 3 per map, player only): on a hit, allies next to you heal half the damage you dealt.
   - **Battering Ram** (Lance/Axe, Silver, 6 HP, 2 per map, player only): pushes the target up to two tiles. If something stops it, the target takes 5, and so does a foe it crashes into.
 - **Previews before you confirm.** An area art tints the tiles it covers and rings each foe you can see in reach. The forecast lists each foe's damage, KOs and heals, and the board shows them as numbers. A foe hidden in fog is never shown, though it still takes the blow.
-- **XP for every foe an area art hits** (the harness pays it now; the battle scene follows once the stability PRs land): 0.35 of the combat XP for a hit, 0.6 for a kill, at most 75 base per action.
+- **Groundwork, not yet live: XP for every foe an area art hits.** The rule is built and tested (0.35 of the combat XP for a hit, 0.6 for a kill, at most 75 base per action), but battles don't pay it yet. It turns on, in battles and the sim harness together (`AREA_XP_LIVE`), when the battle scene is wired after the stability PRs land.
 - Spec: `docs/specs/aoe-weapon-arts.md`.
 
 ### Staff Relocation Visuals (Sep 30, 2026)
