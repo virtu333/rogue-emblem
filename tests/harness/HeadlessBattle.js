@@ -114,7 +114,7 @@ import {
   timedBuffCombatMods,
 } from '../../src/engine/TimedWeaponArtBuffs.js';
 import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
-import { applyXpGain, combatXpAwards, scaledXp } from '../../src/engine/BattleXp.js';
+import { actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
 import {
   buildRisenUnit,
   createRemains,
@@ -768,9 +768,14 @@ export class HeadlessBattle {
     return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
   }
 
-  /** XP as BattleScene.awardXP grants it (BattleXp): the unit, then Mentor's Band shares. */
+  /**
+   * XP as BattleScene.awardXP grants it (BattleXp): the unit, then Mentor's Band shares.
+   * `extra.credits` are the area art's other victims (result.areaCredits).
+   */
   _awardCombatXP(unit, opponent, opponentDied, damageDealt, opponentHpAtStart, extra = {}) {
-    const awards = combatXpAwards({
+    const awards = actionXpAwards({
+      rewardMultiplierOf: (victim) => this._getEnemyXpMultiplier(victim),
+      areaXp: this.gameData.weaponArts?.areaXp,
       unit,
       opponent,
       opponentDied,
@@ -1823,6 +1828,7 @@ export class HeadlessBattle {
         defender.currentHP <= 0,
         damageDealt,
         defenderHpAtStart,
+        { credits: (result.areaCredits || []).filter((credit) => credit.source === attacker) },
       );
     }
 
