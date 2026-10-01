@@ -8302,6 +8302,8 @@ export class BattleScene extends Phaser.Scene {
     });
     await this._checkPhoenixBrooch(attacker);
     await this._checkPhoenixBrooch(defender);
+    // An area art's other victims lost HP too (result.areaCredits).
+    for (const { victim } of result.areaCredits || []) await this._checkPhoenixBrooch(victim);
 
     return { result, selectedArt };
   }
@@ -10443,6 +10445,7 @@ export class BattleScene extends Phaser.Scene {
       await (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth();
 
       (this._battleBeats ||= new BattleBeatsController(this)).onLowHealth(target);
+      for (const { victim } of result.areaCredits || []) this._battleBeats.onLowHealth(victim);
       this.checkBattleEnd();
     } catch (err) {
       console.error('[BattleScene] enemy combat error:', err);

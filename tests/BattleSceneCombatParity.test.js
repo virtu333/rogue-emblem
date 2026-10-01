@@ -320,6 +320,37 @@ describe('_runCombatResolution', () => {
     expect(scene._checkPhoenixBrooch).toHaveBeenCalledWith(defender);
   });
 
+  it("checks the Phoenix Brooch of an area art's other victims too", async () => {
+    const enemy = makeEnemy();
+    const target = makeUnit({ name: 'Target' });
+    const beside = makeUnit({
+      name: 'Beside',
+      col: 3,
+      row: 1,
+      accessory: {
+        name: 'Phoenix Brooch',
+        combatEffects: { phoenixBrooch: true, phoenixHeal: 10, phoenixThreshold: 0.25 },
+      },
+    });
+    scene.playerUnits = [target, beside];
+    scene.enemyUnits = [enemy];
+    scene._checkPhoenixBrooch = BattleScene.prototype._checkPhoenixBrooch;
+    scene.animateHeal = vi.fn(async () => {});
+    // The post-combat effects stand in for an area blow: Beside drops to 4 of 25, under
+    // the brooch's line (floor(25 × 0.25) = 6), and leaves its credit.
+    scene._applyResolvedCombatPostEffects = vi.fn(async ({ attacker, result }) => {
+      beside.currentHP = 4;
+      result.areaCredits = [
+        { source: attacker, victim: beside, damage: 21, hpBefore: 25, killed: false },
+      ];
+    });
+    const ctx = { dist: 1, atkTerrain: plainTerrain, defTerrain: plainTerrain, selectedArt: null };
+    await scene._runCombatResolution(enemy, target, ctx);
+    // 4 + 10 = 14, under the max of 25.
+    expect(beside.currentHP).toBe(14);
+    expect(beside._phoenixBroochUsed).toBe(true);
+  });
+
   it('tracks _hitByPlayerThisPhase on non-miss player attacks', async () => {
     const attacker = makeUnit({
       faction: 'player',
@@ -369,6 +400,26 @@ describe('executeCombat and executeEnemyCombat shared path', () => {
       expect.objectContaining({ dist: expect.any(Number) }),
     );
     expect(scene.battleState).not.toBe('PLAYER_IDLE');
+  });
+
+  it("an enemy's area art gives each hurt player victim its low-HP line, not only the target", async () => {
+    const enemy = makeEnemy();
+    const target = makeUnit({ name: 'Target' });
+    const beside = makeUnit({ name: 'Beside', col: 3, row: 1 });
+    scene.enemyUnits = [enemy];
+    scene.playerUnits = [target, beside];
+    const lowHealth = [];
+    scene._battleBeats = {
+      checkBossHalfHealth: async () => {},
+      onLowHealth: (unit) => lowHealth.push(unit?.name),
+    };
+    scene._applyResolvedCombatPostEffects = vi.fn(async ({ attacker, result }) => {
+      result.areaCredits = [
+        { source: attacker, victim: beside, damage: 9, hpBefore: 25, killed: false },
+      ];
+    });
+    await scene.executeEnemyCombat(enemy, target);
+    expect(lowHealth).toEqual(['Target', 'Beside']);
   });
 
   it('executeEnemyCombat routes through _prepareCombatContext and _runCombatResolution', async () => {

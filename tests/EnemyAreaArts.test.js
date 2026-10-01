@@ -319,7 +319,7 @@ describe('an armed enemy in battle (harness)', () => {
 
   // Brute: Iron Axe 7 + STR 12 = a 19 blow on DEF 0, half of it (9) to a foe beside it.
   // SKL 99 lands the strike; the targets' LCK 99 rules out a crit; the target is unarmed.
-  function fight(besideHP) {
+  function fight(besideHP, { other = null } = {}) {
     const axe = weapon('Iron Axe');
     const brute = unit(
       'Brute',
@@ -336,7 +336,7 @@ describe('an armed enemy in battle (harness)', () => {
     battle.battleParams = { act: 'act3', difficultyId: 'hard', isElite: true };
     battle.turnManager = { turnNumber: 1, unitActed() {} };
     battle.battleConfig = { objective: 'rout' };
-    battle.playerUnits = [target, beside];
+    battle.playerUnits = [target, beside, ...(other ? [other] : [])];
     battle.enemyUnits = [brute];
     battle.npcUnits = [];
     battle.grid = {
@@ -361,6 +361,18 @@ describe('an armed enemy in battle (harness)', () => {
     expect(beside.currentHP).toBe(0);
     expect(battle.playerUnits).toEqual([target]);
     expect(brute._battleWeaponArtUsage.map[CLEAVE]).toBe(1);
+  });
+
+  it("a Phoenix Brooch answers an area blow, not only the target's wounds", () => {
+    // Two 12-HP foes beside the brute: each would lose 9 of 12, 0.8 × 3 = 2.4 apiece,
+    // so −2.75 + 4.8 = 2.05 clears Nightfall's 0.75 and it swings. Each drops to 3, at
+    // the brooch's 25% line (floor(12 × 0.25) = 3); its 10 HP heal stops at the max, 12.
+    const brooch = structuredClone(data.accessories.find((a) => a.name === 'Phoenix Brooch'));
+    const other = unit('Other', 'player', 1, 2, { LCK: 99, HP: 12 }, { accessory: brooch });
+    const { beside } = fight(12, { other });
+    expect(beside.currentHP).toBe(3); // no brooch: the blow stands
+    expect(other.currentHP).toBe(12);
+    expect(other._phoenixBroochUsed).toBe(true);
   });
 
   it('holds it back when the arc would only scratch: 9 of 30 scores −2.75 + 0.96', () => {

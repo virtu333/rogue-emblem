@@ -1541,6 +1541,11 @@ export class HeadlessBattle {
     return Boolean(checkPhoenixBrooch(unit).triggered);
   }
 
+  /** An area art's other victims lost HP too (result.areaCredits), as BattleScene checks. */
+  _checkAreaVictimBrooches(result) {
+    for (const { victim } of result?.areaCredits || []) this._checkPhoenixBrooch(victim);
+  }
+
   _applyKillRewards(defeatedUnit, killer = null) {
     if (defeatedUnit?.faction !== 'enemy') return;
     this.goldEarned += calculateKillReward(defeatedUnit, killer, {
@@ -1775,6 +1780,7 @@ export class HeadlessBattle {
     });
     this._checkPhoenixBrooch(attacker);
     this._checkPhoenixBrooch(defender);
+    this._checkAreaVictimBrooches(result);
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
       const damageDealt = Math.max(
@@ -1878,8 +1884,7 @@ export class HeadlessBattle {
     runPostCombatEffectsSync(areaStrikeEffects({ unit, art, center, world }, result), {
       remove: (victim, options) => this._removeUnit(victim, options),
     });
-    for (const credit of result.areaCredits || [])
-      if (credit.victim.faction === 'player') this._checkPhoenixBrooch(credit.victim);
+    this._checkAreaVictimBrooches(result);
     if (
       this.areaXpLive &&
       unit.faction === 'player' &&
@@ -2242,6 +2247,7 @@ export class HeadlessBattle {
     });
     this._checkPhoenixBrooch(attacker);
     this._checkPhoenixBrooch(defender);
+    this._checkAreaVictimBrooches(result);
 
     // Award XP to a player defender that lived: at least the survival minimum, even
     // with no counter or no damage dealt (BattleScene.executeEnemyCombat).
