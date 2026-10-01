@@ -536,7 +536,7 @@ describe('HeadlessBattle', () => {
       gameData.weapons.find((item) => item.type === 'Tome' && item.rankRequired === 'Prof'),
     );
     healer.proficiencies.push({ type: 'Tome', rank: 'Prof' });
-    healer.inventory = [staff,tome];
+    healer.inventory = [staff, tome];
     healer.weapon = staff;
     staff.uses = 1;
     healer.stats.MAG = 6;
