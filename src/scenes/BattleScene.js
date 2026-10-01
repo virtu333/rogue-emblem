@@ -60,6 +60,7 @@ import {
   setUnitHP,
 } from '../engine/UnitHealth.js';
 import { applyEnemySpawnGear } from '../engine/EnemySpawnGear.js';
+import { settleCombatWeapons } from '../engine/PerBattleWeapons.js';
 import {
   advanceTurnPressure,
   bestLordEscapeDistance,
@@ -106,7 +107,6 @@ import {
   getStaffRemainingUses,
   getStaffMaxUses,
   spendStaffUse,
-  settlePerBattleWeaponUses,
 } from '../engine/Combat.js';
 import {
   isEntity,
@@ -7325,6 +7325,16 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
+  /** Tell the player when one of their units switched weapons after its tome ran dry. */
+  _announceWeaponSwaps(swaps = []) {
+    for (const { unit, to } of swaps) {
+      if (unit?.faction !== 'player' || !to?.name) continue;
+      this.showBriefBanner(`${unit.name} is out of shots: now wielding ${to.name}`)?.catch?.(
+        () => {},
+      );
+    }
+  }
+
   async showBriefBanner(message, color = UI_PALETTE.accentText) {
     // DOM: a toned notice band over the map (CeremonyController); same
     // reading window, awaited the same way. Canvas below is the fallback.
@@ -8201,8 +8211,9 @@ export class BattleScene extends Phaser.Scene {
 
     // Apply final HP (UnitHealth: the same outcome whether or not strikes were shown)
     applyCombatHP(attacker, defender, result);
-    // Per-battle weapons (Breachbolt) spend a use for each side that struck with them.
-    settlePerBattleWeaponUses(attacker, defender, result);
+    // Per-battle weapons (Breachbolt) spend a shot for each side that struck with them;
+    // a unit whose weapon ran dry switches to one that can still strike.
+    this._announceWeaponSwaps(settleCombatWeapons(attacker, defender, result).swaps);
 
     // Debug invincibility: restore player-faction units to full HP
     if (this.isDevToolsEnabled() && debugState.invincible) {

@@ -16,6 +16,8 @@ import {
 } from '../src/engine/Combat.js';
 import { canAttackWithWeapon } from '../src/engine/AttackOptions.js';
 import { applyEnemySpawnGear } from '../src/engine/EnemySpawnGear.js';
+import { settleCombatWeapons } from '../src/engine/PerBattleWeapons.js';
+import { BattleScene } from '../src/scenes/BattleScene.js';
 import { itemKeywords, perBattleUsesText } from '../src/engine/ItemKeywords.js';
 import { computeDangerTiles } from '../src/engine/ThreatForecast.js';
 import { Grid } from '../src/engine/Grid.js';
@@ -148,6 +150,56 @@ describe('spending shots', () => {
     const result = fight(attacker, sage, 1);
     settlePerBattleWeaponUses(attacker, sage, result);
     expect(getPerBattleRemainingUses(sage.weapon, sage)).toBe(ENEMY_SHOTS);
+  });
+});
+
+describe('a weapon that runs dry is swapped out at once', () => {
+  it('a player unit equips its next usable weapon after the last shot, and counters with it', () => {
+    const mira = caster('player');
+    for (let shot = 1; shot <= PLAYER_SHOTS; shot++) {
+      const target = soldier('enemy', 5, 0);
+      const { swaps } = settleCombatWeapons(mira, target, fight(mira, target, 5));
+      if (shot < PLAYER_SHOTS) expect(swaps).toEqual([]);
+      else expect(swaps.map((x) => [x.from.name, x.to.name])).toEqual([['Breachbolt', 'Fire']]);
+    }
+    expect(mira.weapon.name).toBe('Fire');
+    expect(mira.inventory[0]).toBe(mira.weapon); // equipped first, as a manual equip
+    const foe = soldier('enemy', 1, 0);
+    const forecast = getCombatForecast(foe, foe.weapon, mira, mira.weapon, 1, null, null, {
+      skillsData: data.skills,
+    });
+    expect(forecast.defender.canCounter).toBe(true);
+  });
+
+  it('an enemy swaps right after its last shot, not at its next turn', () => {
+    const sage = caster('enemy');
+    sage.weapon._usesSpent = ENEMY_SHOTS - 1;
+    const target = soldier('player', 5, 0);
+    const { swaps } = settleCombatWeapons(sage, target, fight(sage, target, 5));
+    expect(swaps).toHaveLength(1);
+    expect(sage.weapon.name).toBe('Fire');
+    expect(canCounter(sage, sage.weapon, 1)).toBe(true);
+  });
+
+  it('a player unit keeps the spent tome when it cannot equip anything else', () => {
+    const mira = caster('player');
+    mira.inventory = [mira.weapon, weapon('Iron Sword')]; // no Sword rank
+    mira.weapon._usesSpent = PLAYER_SHOTS - 1;
+    const target = soldier('enemy', 5, 0);
+    const { swaps } = settleCombatWeapons(mira, target, fight(mira, target, 5));
+    expect(swaps).toEqual([]);
+    expect(mira.weapon.name).toBe('Breachbolt');
+  });
+
+  it('the battle announces a swap for the player own units only', () => {
+    const scene = { showBriefBanner: vi.fn(() => Promise.resolve()) };
+    BattleScene.prototype._announceWeaponSwaps.call(scene, [
+      { unit: { name: 'Mira', faction: 'player' }, to: { name: 'Fire' } },
+      { unit: { name: 'Sage', faction: 'enemy' }, to: { name: 'Fire' } },
+    ]);
+    expect(scene.showBriefBanner).toHaveBeenCalledTimes(1);
+    expect(scene.showBriefBanner.mock.calls[0][0]).toContain('Mira');
+    expect(scene.showBriefBanner.mock.calls[0][0]).toContain('Fire');
   });
 });
 

@@ -34,7 +34,6 @@ import {
   getEffectiveStaffRange,
   getStaffMaxUses,
   spendStaffUse,
-  settlePerBattleWeaponUses,
 } from '../../src/engine/Combat.js';
 import {
   createLordUnit,
@@ -78,6 +77,7 @@ import {
   resolveStatusStaff,
 } from '../../src/engine/StatusConditionSystem.js';
 import { applyEnemySpawnGear } from '../../src/engine/EnemySpawnGear.js';
+import { settleCombatWeapons } from '../../src/engine/PerBattleWeapons.js';
 import {
   advanceTurnPressure,
   createTurnPressureState,
@@ -1815,7 +1815,7 @@ export class HeadlessBattle {
     );
 
     applyCombatHP(attacker, defender, result); // UnitHealth, as BattleScene applies it
-    settlePerBattleWeaponUses(attacker, defender, result); // Breachbolt uses, as BattleScene
+    settleCombatWeapons(attacker, defender, result); // Breachbolt shots and swap, as BattleScene
     this._recordDeedCombat(attacker, defender, result);
 
     this._applyResolvedCombatPostEffects({
@@ -2236,7 +2236,7 @@ export class HeadlessBattle {
     );
 
     applyCombatHP(attacker, defender, result); // UnitHealth, as BattleScene applies it
-    settlePerBattleWeaponUses(attacker, defender, result); // Breachbolt uses, as BattleScene
+    settleCombatWeapons(attacker, defender, result); // Breachbolt shots and swap, as BattleScene
     this._recordDeedCombat(attacker, defender, result);
 
     this._applyResolvedCombatPostEffects({
