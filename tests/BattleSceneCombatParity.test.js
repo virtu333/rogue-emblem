@@ -532,7 +532,7 @@ describe('Measured Step scene completion', () => {
       _movementSpent: 2,
     });
     const foe = makeEnemy();
-    scene.playerUnits = [unit];
+    scene.playerUnits = [unit, makeUnit({ name: 'Edric', isCommander: true })];
     scene.enemyUnits = [foe];
     scene.turnManager.currentPhase = 'player';
     scene.finishUnitAction = BattleScene.prototype.finishUnitAction.bind(scene);

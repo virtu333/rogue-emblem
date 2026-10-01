@@ -335,6 +335,9 @@ export class HeadlessBattle {
       onVictory: () => this._onVictory(),
       onDefeat: () => this._onDefeat(),
       checkBattleEnd: () => this._checkBattleEnd(),
+      onRejectedTransition: ({ action, phase, turn }) => {
+        throw new Error(`Unexpected phase rejection: ${action} in ${phase} on turn ${turn}`);
+      },
     });
     this.turnManager.init(this.playerUnits, this.enemyUnits, this.npcUnits, bc.objective);
 
@@ -1948,7 +1951,8 @@ export class HeadlessBattle {
     this.preMoveLoc = null;
     this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     this._refreshFogVisibility();
-    this.turnManager.unitActed(unit);
+    if (this.playerUnits.includes(unit)) this.turnManager.unitActed(unit);
+    else this.turnManager.checkPlayerPhaseComplete();
   }
 
   /** Mirrors VillageController.handleUnitActionEnd (gold + convoy-item reward, never XP). */
@@ -2003,7 +2007,7 @@ export class HeadlessBattle {
 
     if (this._checkBattleEnd()) return;
     this._refreshFogVisibility();
-    this.turnManager.unitActed(unit);
+    this.turnManager.checkPlayerPhaseComplete();
   }
 
   _removeUnit(unit, options = {}) {
