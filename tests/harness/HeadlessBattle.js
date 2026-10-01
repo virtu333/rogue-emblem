@@ -9,6 +9,7 @@ import {
   recordEnemyPhaseEnd,
   recordHeal,
   recordKill,
+  recordStaffUse,
 } from '../../src/engine/DeedSystem.js';
 import { AIController } from '../../src/engine/AIController.js';
 import { generateBattle, reconcileRecruitSpawnTile } from '../../src/engine/MapGenerator.js';
@@ -1889,6 +1890,7 @@ export class HeadlessBattle {
     setUnitHP(target, result.targetHPAfter);
     if (this.gameData?.deeds && healer !== target) recordHeal(healer, target.currentHP - hpBefore);
     spendStaffUse(staff);
+    if (this.gameData?.deeds) recordStaffUse(healer, staff);
 
     // Heal XP as HealController grants it: XP_BASE_HEAL through the battle's multipliers.
     if (healer.faction === 'player') this._grantScaledXP(healer, XP_BASE_HEAL);

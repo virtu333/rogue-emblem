@@ -7,7 +7,12 @@ import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
 import { migrateUnitTraits, rollAndApplyLordTrait } from './TraitSystem.js';
-import { normalizeUnitDeeds, unitEpithet } from './DeedSystem.js';
+import {
+  applyFallenBattleRecord,
+  findFallenBattleRecord,
+  normalizeUnitDeeds,
+  unitEpithet,
+} from './DeedSystem.js';
 import { migrateWaitingOath } from './SkillLoadout.js';
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
 import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
@@ -3621,9 +3626,11 @@ export class RunManager {
    * @param {Array} survivingUnits - units from BattleScene (with Phaser fields)
    * @param {string} nodeId - the node that was just completed
    * @param {number} goldEarned - accumulated kill gold from battle
-   * @param {{ completionGoldOverride?: number, caravanSurvived?: boolean, fallenRecruits?: object[] }} [options]
+   * @param {{ completionGoldOverride?: number, caravanSurvived?: boolean, fallenRecruits?: object[], fallenBattleRecords?: object[] }} [options]
    *   fallenRecruits: serialized units that joined mid-battle (Talk) and fell
    *   before victory — recorded as fallen allies like roster casualties.
+   *   fallenBattleRecords: what each casualty did before it fell (DeedSystem
+   *   `fallenBattleRecord`, committed at victory): its deeds and item use.
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
@@ -3663,6 +3670,12 @@ export class RunManager {
       if (!fallenUid || !this.fallenUnits.some((f) => unitUidOf(f) === fallenUid)) {
         const serializedFallen = serializeUnit(fallen);
         this.assignUnitUid(serializedFallen);
+        // The casualty is recorded as it entered the battle; what it did there
+        // before it fell (kills, deeds, its weapons' use) is added back.
+        applyFallenBattleRecord(
+          serializedFallen,
+          findFallenBattleRecord(options?.fallenBattleRecords, serializedFallen),
+        );
         this._transferFallenUnitItems(serializedFallen);
         this.lastBattleCasualtyNotices.push(serializedFallen._fallenItemsNotice);
         this.fallenUnits.push(serializedFallen);

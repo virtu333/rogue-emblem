@@ -366,6 +366,7 @@ export class HealController {
 
       // Spend a use and check depletion (same pattern as executeHeal)
       spendStaffUse(staff);
+      deedsFor(scene).onStaffUse(healer, staff);
       this.restoreCombatWeapon(healer);
 
       try {
@@ -433,6 +434,7 @@ export class HealController {
         await this.animateCure(target, healer);
 
         spendStaffUse(staff);
+        deedsFor(scene).onStaffUse(healer, staff);
         this.restoreCombatWeapon(healer);
 
         try {
@@ -470,6 +472,7 @@ export class HealController {
 
       // Spend a use and check depletion
       spendStaffUse(staff);
+      deedsFor(scene).onStaffUse(healer, staff);
       this.restoreCombatWeapon(healer);
 
       try {
@@ -515,6 +518,7 @@ export class HealController {
 
       // Single use spent for all targets
       spendStaffUse(staff);
+      deedsFor(scene).onStaffUse(healer, staff);
       this.restoreCombatWeapon(healer);
 
       try {

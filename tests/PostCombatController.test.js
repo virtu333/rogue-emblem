@@ -222,6 +222,28 @@ describe('PostCombatController', () => {
     );
   });
 
+  it("hands the fallen's battle records to completeBattle, their deeds already committed", async () => {
+    const { loadGameData } = await import('./testData.js');
+    const scene = makeScene();
+    scene.gameData = { deeds: loadGameData().deeds };
+    scene.nodeId = 'n4';
+    scene.runManager.completedBattles = 3;
+    scene.runManager.roster = [{ name: 'Bo', unitUid: 'u-bo', faction: 'player' }];
+    // Bo killed a boss, then fell (DeedController.onUnitRemoved left this record).
+    scene._fallenBattleRecords = [
+      { name: 'Bo', unitUid: 'u-bo', battleDeeds: { v: 1, kills: 1, bossKills: 1, bossNames: ['Warchief'] } }, // prettier-ignore
+    ];
+    new PostCombatController(scene).onVictory();
+    const [, , , options] = scene.runManager.completeBattle.mock.calls[0];
+    expect(options.fallenBattleRecords).toEqual([
+      expect.objectContaining({ name: 'Bo', unitUid: 'u-bo', deeds: expect.any(Object) }),
+    ]);
+    const [record] = options.fallenBattleRecords;
+    expect(record.battleDeeds).toBeUndefined();
+    expect(record.deeds.earned.map((e) => e.epithet)).toEqual(['Bane of the Warchief']);
+    expect(record.deeds.lastBattle).toBe('act1:n4:3');
+  });
+
   it('passes no fallen recruits when nobody joined mid-battle', () => {
     const scene = makeScene();
     new PostCombatController(scene).onVictory();

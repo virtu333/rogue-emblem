@@ -24,8 +24,18 @@
 //
 // `unit.name` is identity: epithets never go into it. Render titles through
 // `unitDisplayName` / `titledName` / `sentenceName`.
+//
+// The same seams tally each carried item's use (ItemUsage.js): a strike adds to
+// the striker's weapon, a kill to the killer's, a staff use to the staff.
+//
+// A unit that falls mid-battle keeps what it did there: the battle records its
+// scratch at death (`fallenBattleRecord`), and `commitFallenBattleDeeds` folds
+// it into the fallen unit's deeds at victory, without the deeds only a
+// survivor can earn (`survivorsOnly` in deeds.json) and without counting the
+// battle (Veteran counts battles survived).
 
 import { getXpEffectiveLevel, learnSkill } from './UnitManager.js';
+import { ITEM_USAGE_KEYS, bumpItemUsage, carryItemUsage, itemUsageByUid } from './ItemUsage.js';
 import { MAX_SKILLS } from '../utils/constants.js';
 import { DEED_FORMS, titledName, unitEpithet } from './DeedTitles.js';
 
@@ -173,6 +183,8 @@ export function recordCombat(result, attacker, defender, ctx = {}) {
     if (event?.type !== 'strike') continue;
     const striker = event.attackerSide === 'defender' ? defender : attacker;
     const target = striker === attacker ? defender : attacker;
+    // The weapon resolveCombat struck with is the striker's equipped one.
+    if (isDeedUnit(striker) && isFoe(target)) bumpItemUsage(striker.weapon, '_strikes');
     if (isDeedUnit(striker) && isFoe(target) && !event.miss && event.isCrit)
       beginBattleDeeds(striker).crits++;
     if (isDeedUnit(target) && isFoe(striker)) {
@@ -212,6 +224,7 @@ export function recordKill(victim, killer, ctx = {}) {
   if (!isFoe(victim) || !isDeedUnit(killer)) return;
   const b = beginBattleDeeds(killer);
   b.kills++;
+  bumpItemUsage(killer.weapon, '_kills');
   if (typeof ctx.terrain === 'string') bump(b.killsByTerrain, ctx.terrain);
   bump(b.killsByWeapon, typeof killer.weapon?.type === 'string' ? killer.weapon.type : null);
   const gap = getXpEffectiveLevel(victim) - getXpEffectiveLevel(killer);
@@ -230,6 +243,12 @@ export function recordHeal(healer, amount) {
   const n = count(amount);
   if (!isDeedUnit(healer) || n <= 0) return;
   beginBattleDeeds(healer).healed += n;
+}
+
+/** A player unit spent a use of `staff` (a heal, a cure, a warp or a rescue). */
+export function recordStaffUse(user, staff) {
+  if (!isDeedUnit(user)) return;
+  bumpItemUsage(staff, '_casts');
 }
 
 /** A dance / refresh that gave an ally another action. */
@@ -572,7 +591,7 @@ export function deedTitleExample(deed) {
   return resolveTokens(deed?.epithet?.text, {});
 }
 
-function mergeRunStats(stats, battle) {
+function mergeRunStats(stats, battle, { countBattle = true } = {}) {
   for (const key of RUN_SUM_KEYS) {
     const n = count(stats[key]) + count(battle[key]);
     if (n > 0) stats[key] = n;
@@ -582,7 +601,7 @@ function mergeRunStats(stats, battle) {
     for (const [k, v] of Object.entries(battle[key] || {})) bump(merged, k, count(v));
     if (Object.keys(merged).length) stats[key] = merged;
   }
-  stats.battles = count(stats.battles) + 1;
+  if (countBattle) stats.battles = count(stats.battles) + 1;
 }
 
 /** Fresh deeds state for a unit (legacy units seed battles from mastery counts). */
@@ -591,6 +610,62 @@ function freshDeeds(unit) {
     ? Object.values(unit.classBattles).reduce((sum, n) => sum + count(n), 0)
     : 0;
   return { stats: fought > 0 ? { battles: fought } : {}, earned: [], epithet: null };
+}
+
+/**
+ * Fold one unit's battle scratch into its run tallies and award every deed
+ * newly met. `fallen`: the unit died in this battle, so deeds marked
+ * `survivorsOnly` are out of reach and the battle is not counted (Veteran
+ * counts battles survived). Returns the announcements; writes `unit.deeds`
+ * and clears the scratch.
+ */
+function commitUnitDeeds(unit, battle, deeds, deedsData, ctx, { fallen = false } = {}) {
+  const state = sanitizeUnitDeeds(unit.deeds) || freshDeeds(unit);
+  if (ctx.battleKey && state.lastBattle === ctx.battleKey) {
+    delete unit._battleDeeds;
+    return [];
+  }
+  mergeRunStats(state.stats, battle, { countBattle: !fallen });
+  const have = new Set(state.earned.map((e) => e.id));
+  let seq = state.earned.reduce((max, e) => Math.max(max, e.seq), 0);
+  const fresh = [];
+  for (const deed of deeds) {
+    if (!deed?.id || have.has(deed.id) || !deed.epithet?.text) continue;
+    if (fallen && deed.survivorsOnly === true) continue;
+    const tokens = evaluateDeedCondition(deed.condition, { battle, run: state.stats }, deedsData);
+    if (!tokens) continue;
+    const entry = sanitizeEarned({
+      id: deed.id,
+      epithet: resolveTokens(deed.epithet.text, tokens),
+      form: deed.epithet.form,
+      prestige: deed.prestige,
+      seq: ++seq,
+      oath: deed.oathName ? resolveTokens(deed.oathName, tokens) : undefined,
+      awardedAt: { act: ctx.act ?? null, battle: ctx.battle ?? null },
+    });
+    if (!entry) continue;
+    have.add(entry.id);
+    state.earned.push(entry);
+    fresh.push({ entry, deed });
+  }
+  if (ctx.battleKey) state.lastBattle = String(ctx.battleKey).slice(0, 160);
+  state.epithet = pickEpithet(state.earned, state.chosenTitle);
+  unit.deeds = state;
+  delete unit._battleDeeds;
+  return fresh.map(({ entry, deed }) => ({
+    unit,
+    unitName: unit.name,
+    deedId: entry.id,
+    name: typeof deed.name === 'string' ? deed.name : entry.id,
+    epithet: entry.epithet,
+    form: entry.form,
+    lore: typeof deed.lore === 'string' ? deed.lore : '',
+    prestige: entry.prestige,
+    oath: entry.oath || null,
+    oathSkill: typeof deed.oathSkill === 'string' ? deed.oathSkill : null,
+    titled: titledName(unit.name, entry),
+    isTitle: state.epithet?.id === entry.id,
+  }));
 }
 
 /**
@@ -613,60 +688,131 @@ export function commitBattleDeeds(units, deedsData, ctx = {}) {
   const deployed = count(ctx.deployedCount);
   const announcements = [];
   for (const unit of living) {
-    const state = sanitizeUnitDeeds(unit.deeds) || freshDeeds(unit);
-    if (ctx.battleKey && state.lastBattle === ctx.battleKey) {
-      delete unit._battleDeeds;
-      continue;
-    }
     const battle = sanitizeBattleDeeds(unit._battleDeeds);
     if (nonLords.length === 1 && nonLords[0] === unit && deployed > 0) {
       battle.lastStanding = deployed;
       battle.fallenAllies = count(ctx.fallenCount);
     }
-    mergeRunStats(state.stats, battle);
-    const have = new Set(state.earned.map((e) => e.id));
-    let seq = state.earned.reduce((max, e) => Math.max(max, e.seq), 0);
-    const fresh = [];
-    for (const deed of deeds) {
-      if (!deed?.id || have.has(deed.id) || !deed.epithet?.text) continue;
-      const tokens = evaluateDeedCondition(deed.condition, { battle, run: state.stats }, deedsData);
-      if (!tokens) continue;
-      const entry = sanitizeEarned({
-        id: deed.id,
-        epithet: resolveTokens(deed.epithet.text, tokens),
-        form: deed.epithet.form,
-        prestige: deed.prestige,
-        seq: ++seq,
-        oath: deed.oathName ? resolveTokens(deed.oathName, tokens) : undefined,
-        awardedAt: { act: ctx.act ?? null, battle: ctx.battle ?? null },
-      });
-      if (!entry) continue;
-      have.add(entry.id);
-      state.earned.push(entry);
-      fresh.push({ entry, deed });
-    }
-    if (ctx.battleKey) state.lastBattle = String(ctx.battleKey).slice(0, 160);
-    state.epithet = pickEpithet(state.earned, state.chosenTitle);
-    unit.deeds = state;
-    delete unit._battleDeeds;
-    for (const { entry, deed } of fresh) {
-      announcements.push({
-        unit,
-        unitName: unit.name,
-        deedId: entry.id,
-        name: typeof deed.name === 'string' ? deed.name : entry.id,
-        epithet: entry.epithet,
-        form: entry.form,
-        lore: typeof deed.lore === 'string' ? deed.lore : '',
-        prestige: entry.prestige,
-        oath: entry.oath || null,
-        oathSkill: typeof deed.oathSkill === 'string' ? deed.oathSkill : null,
-        titled: titledName(unit.name, entry),
-        isTitle: state.epithet?.id === entry.id,
-      });
-    }
+    announcements.push(...commitUnitDeeds(unit, battle, deeds, deedsData, ctx));
   }
   return announcements;
+}
+
+// ── The fallen ───────────────────────────────────────────────────────────
+
+const MAX_FALLEN_RECORDS = 64;
+
+/**
+ * What a player unit did in this battle before it fell, as plain JSON:
+ * `{ name, unitUid?, battleDeeds?, itemUsage? }` (`itemUsage`: ItemUsage
+ * counters by item uid). Taken at its death, the last moment it can act; null
+ * for anyone else. The battle keeps these with its other world state, so a
+ * Vision rewind past the death drops the record and a resume keeps it.
+ */
+export function fallenBattleRecord(unit) {
+  if (!isDeedUnit(unit) || typeof unit.name !== 'string' || !unit.name) return null;
+  const record = { name: unit.name };
+  if (typeof unit.unitUid === 'string' && unit.unitUid) record.unitUid = unit.unitUid;
+  if (isObject(unit._battleDeeds)) record.battleDeeds = sanitizeBattleDeeds(unit._battleDeeds);
+  const carried = [...(Array.isArray(unit.inventory) ? unit.inventory : [])];
+  if (unit.weapon && !carried.includes(unit.weapon)) carried.push(unit.weapon);
+  const usage = itemUsageByUid(carried);
+  if (usage.length) record.itemUsage = usage;
+  return record;
+}
+
+function sanitizeItemUsageList(list) {
+  const out = [];
+  for (const raw of Array.isArray(list) ? list.slice(0, 64) : []) {
+    if (!isObject(raw) || typeof raw.uid !== 'string' || !raw.uid) continue;
+    const entry = { uid: raw.uid.slice(0, 128) };
+    for (const key of ITEM_USAGE_KEYS) if (count(raw[key]) > 0) entry[key] = count(raw[key]);
+    out.push(entry);
+  }
+  return out;
+}
+
+/** Clean copies of fallen battle records (garbled entries dropped). Never mutates. */
+export function normalizeFallenBattleRecords(list) {
+  const out = [];
+  for (const raw of Array.isArray(list) ? list.slice(-MAX_FALLEN_RECORDS) : []) {
+    if (!isObject(raw) || typeof raw.name !== 'string' || !raw.name) continue;
+    const record = { name: raw.name.slice(0, 80) };
+    if (typeof raw.unitUid === 'string' && raw.unitUid) record.unitUid = raw.unitUid.slice(0, 128);
+    if (isObject(raw.battleDeeds)) record.battleDeeds = sanitizeBattleDeeds(raw.battleDeeds);
+    if (isObject(raw.deeds)) {
+      const deeds = sanitizeUnitDeeds(raw.deeds);
+      if (deeds) record.deeds = deeds;
+    }
+    const usage = sanitizeItemUsageList(raw.itemUsage);
+    if (usage.length) record.itemUsage = usage;
+    out.push(record);
+  }
+  return out;
+}
+
+/** The record for `unit` (a fallen roster entrant): by unit uid, else a record without one by name. */
+export function findFallenBattleRecord(records, unit) {
+  const list = Array.isArray(records) ? records : [];
+  const uid = typeof unit?.unitUid === 'string' && unit.unitUid ? unit.unitUid : null;
+  const byUid = uid ? list.find((r) => r?.unitUid === uid) : null;
+  // A legacy unit (or record) without an identity falls back to the name.
+  return byUid || list.find((r) => !r?.unitUid && r?.name === unit?.name) || null;
+}
+
+/**
+ * Victory: fold each fallen unit's battle scratch into the deeds it entered the
+ * battle with (`entrantOf(record)`: the roster entrant, or null for a unit
+ * that had none), as `record.deeds`. Kills, crits, heals and dances count;
+ * survivor-only deeds and the battle itself do not. Idempotent per
+ * `ctx.battleKey`. Returns the posthumous awards (for the Compendium; there is
+ * no rite for the dead).
+ */
+export function commitFallenBattleDeeds(records, deedsData, ctx = {}, entrantOf = () => null) {
+  const deeds = Array.isArray(deedsData?.deeds) ? deedsData.deeds : [];
+  const announcements = [];
+  for (const record of Array.isArray(records) ? records : []) {
+    if (!isObject(record) || !isObject(record.battleDeeds)) continue;
+    const entrant = entrantOf(record) || null;
+    const unit = {
+      faction: 'player',
+      name: record.name,
+      deeds: entrant?.deeds,
+      classBattles: entrant?.classBattles,
+    };
+    announcements.push(
+      ...commitUnitDeeds(unit, sanitizeBattleDeeds(record.battleDeeds), deeds, deedsData, ctx, {
+        fallen: true,
+      }),
+    );
+    record.deeds = unit.deeds;
+    delete record.battleDeeds;
+  }
+  return announcements;
+}
+
+/**
+ * Give a fallen unit's saved record (the roster entrant, serialized) what it did
+ * in the battle where it fell: the deeds `commitFallenBattleDeeds` folded in,
+ * and its carried items' use. Items match by uid. Returns the unit.
+ */
+export function applyFallenBattleRecord(unit, record) {
+  if (!isObject(unit) || !isObject(record)) return unit;
+  if (isObject(record.deeds)) {
+    const deeds = sanitizeUnitDeeds(record.deeds);
+    if (deeds) unit.deeds = deeds;
+  }
+  const usage = sanitizeItemUsageList(record.itemUsage);
+  if (usage.length) {
+    const byUid = new Map(usage.map((entry) => [entry.uid, entry]));
+    const carried = [...(Array.isArray(unit.inventory) ? unit.inventory : [])];
+    if (unit.weapon && !carried.includes(unit.weapon)) carried.push(unit.weapon);
+    for (const item of carried) {
+      const entry = typeof item?.uid === 'string' ? byUid.get(item.uid) : null;
+      if (entry) carryItemUsage(item, entry);
+    }
+  }
+  return unit;
 }
 
 // ── Oaths ────────────────────────────────────────────────────────────────

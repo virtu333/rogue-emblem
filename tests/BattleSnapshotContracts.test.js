@@ -407,4 +407,50 @@ describe('deed progress (Deeds & Epithets)', () => {
     expect(resumed.playerUnits[0]._battleDeeds).toMatchObject({ crits: 2 });
     expect(resumed.enemyUnits[0]._slewAllies).toEqual(['Mira']);
   });
+
+  it("weapon use counts and a fallen unit's record roll back with Vision and survive a resume", async () => {
+    const { deedsFor } = await import('../src/ui/DeedController.js');
+    const s = scene();
+    s.gameData.deeds = { deeds: [] };
+    const ally = unit('Mira');
+    s.playerUnits.push(ally);
+    const [hero, mira] = s.playerUnits;
+    const [foe] = s.enemyUnits;
+    deedsFor(s).onCombat(hero, foe, { events: [crit, { ...crit, miss: true }] });
+    s.captureVisionSnapshot();
+    // After the snapshot: two more strikes, a kill, and Mira's death with her record.
+    deedsFor(s).onCombat(mira, foe, { events: [crit, crit] });
+    deedsFor(s).onUnitRemoved(s.enemyUnits[0], mira);
+    s.playerUnits.splice(1, 1);
+    deedsFor(s).onUnitRemoved(mira, null);
+    expect(mira.weapon).toMatchObject({ _strikes: 2, _kills: 1 });
+    expect(s._fallenBattleRecords).toEqual([
+      {
+        name: 'Mira',
+        battleDeeds: expect.objectContaining({ crits: 2, kills: 1 }),
+        itemUsage: [{ uid: 'Mira-sword', _strikes: 2, _kills: 1 }],
+      },
+    ]);
+    s._visionController._applySnapshot();
+    expect(s.playerUnits.map((u) => [u.name, u.weapon._strikes, u.weapon._kills])).toEqual([
+      ['Rider', 2, undefined],
+      ['Mira', undefined, undefined],
+    ]);
+    expect(s._fallenBattleRecords).toEqual([]);
+
+    // She falls again; a suspend/resume keeps her record and every count.
+    deedsFor(s).onCombat(s.playerUnits[1], s.enemyUnits[0], { events: [crit] });
+    const fallen = s.playerUnits.splice(1, 1)[0];
+    deedsFor(s).onUnitRemoved(fallen, s.enemyUnits[0]);
+    s._captureSuspendCheckpoint();
+    const resumed = restoreCheckpoint(s.runManager.battleInProgress.checkpoint);
+    expect(resumed.playerUnits[0].weapon._strikes).toBe(2);
+    expect(resumed._fallenBattleRecords).toEqual([
+      {
+        name: 'Mira',
+        battleDeeds: expect.objectContaining({ crits: 1, kills: 0 }),
+        itemUsage: [{ uid: 'Mira-sword', _strikes: 1 }],
+      },
+    ]);
+  });
 });

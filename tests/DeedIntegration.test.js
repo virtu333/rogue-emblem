@@ -85,6 +85,58 @@ describe('serialization and saves', () => {
     expect(unitEpithet(fallen).text).toBe('the Keen Edge');
   });
 
+  it('a unit that falls keeps what it did before it fell: kills, a boss, its weapon’s use', () => {
+    const run = new RunManager(data);
+    run.startRun({ runSeed: 11 });
+    const node = run.getAvailableNodes().find((n) => n.type === 'battle' || n.type === 'recruit');
+    const [lead, partner] = run.roster;
+    withDeed(partner, { crits: 3 }); // an earlier victory: the Keen Edge
+    const entryBattles = partner.deeds.stats.battles;
+    const recordDeedsEarned = vi.fn();
+    const s = {
+      gameData: data,
+      runManager: run,
+      battleParams: { deployCount: 2 },
+      nodeId: node.id,
+      turnManager: { currentPhase: 'player', turnNumber: 3 },
+      registry: { get: (k) => (k === 'meta' ? { recordDeedsEarned } : null) },
+      _fallenBattleRecords: [],
+      _battleRecruits: [],
+    };
+    const deeds = new DeedController(s);
+    const [battleLead, battlePartner] = [structuredClone(lead), structuredClone(partner)];
+    // Her own level, so the kill is no Giantslayer's.
+    const boss = { faction: 'enemy', isBoss: true, name: 'Warchief', level: partner.level };
+    const hit = { type: 'strike', miss: false, damage: 6 };
+    // She crits the boss, takes its counter down to 1 HP (the brink), and finishes it.
+    battlePartner.currentHP = 1;
+    deeds.onCombat(battlePartner, boss, {
+      events: [
+        { ...hit, attackerSide: 'attacker', isCrit: true },
+        { ...hit, attackerSide: 'defender' },
+        { ...hit, attackerSide: 'attacker' },
+      ],
+    });
+    deeds.onUnitRemoved(boss, battlePartner);
+    // Then she falls to another foe before the battle is won.
+    battlePartner.currentHP = 0;
+    deeds.onUnitRemoved(battlePartner, { faction: 'enemy', name: 'Brigand', level: 3 });
+    deeds.commitVictory([battleLead]);
+    run.completeBattle([battleLead], node.id, 0, { fallenBattleRecords: s._fallenBattleRecords });
+
+    const fallen = run.fallenUnits.find((u) => u.name === partner.name);
+    // Her two strikes, one of them a crit and the killing blow, and the boss.
+    expect(fallen.deeds.stats).toMatchObject({ crits: 4, kills: 1, bossKills: 1 });
+    // The battle she died in is not a battle survived (Veteran).
+    expect(fallen.deeds.stats.battles).toBe(entryBattles);
+    // Bane of the Warchief, posthumously; Would Not Fall is for survivors.
+    expect(fallen.deeds.earned.map((e) => e.id)).toEqual(['keen_edge', 'bossbane']);
+    expect(recordDeedsEarned).toHaveBeenCalledWith(['bossbane']);
+    // Her weapon went to the convoy with the strikes and the kill it made.
+    const weapon = run.convoy.weapons.find((w) => w.uid === partner.weapon.uid);
+    expect(weapon).toMatchObject({ _strikes: 2, _kills: 1 });
+  });
+
   it('"Continue from Map" discards battle progress: the roster is still at entry', () => {
     const run = new RunManager(data);
     run.startRun({ runSeed: 3 });
