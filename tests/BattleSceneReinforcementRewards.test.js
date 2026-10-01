@@ -340,7 +340,7 @@ describe('BattleScene reinforcement reward scaling', () => {
 
     // AI kills the last enemy during processing
     scene.enemyUnits = [{ name: 'Goblin', hasActed: false }];
-    scene.playerUnits = [{ name: 'Edric', isCommander: true }];
+    scene.playerUnits = [{ name: 'Edric', isCommander: true, currentHP: 20 }];
     scene.npcUnits = [];
     scene.aiController = {
       processEnemyPhase: vi.fn(async () => {
@@ -404,7 +404,7 @@ describe('BattleScene reinforcement reward scaling', () => {
       endEnemyPhase: vi.fn(),
     };
     scene.enemyUnits = [{ name: 'Enemy', hasActed: false }];
-    scene.playerUnits = [{ name: 'Edric', isCommander: true }];
+    scene.playerUnits = [{ name: 'Edric', isCommander: true, currentHP: 20 }];
     scene.npcUnits = [];
     scene.aiController = {
       processEnemyPhase: vi.fn(async () => {
@@ -493,7 +493,7 @@ describe('BattleScene reinforcement reward scaling', () => {
     scene._reinforcementsPendingThisTurn = false;
     scene.onVictory = vi.fn();
     scene.enemyUnits = [];
-    scene.playerUnits = [{ name: 'Edric', isCommander: true }];
+    scene.playerUnits = [{ name: 'Edric', isCommander: true, currentHP: 20 }];
 
     const ended = BattleScene.prototype.checkBattleEnd.call(scene);
     expect(ended).toBe(true);
@@ -549,7 +549,7 @@ describe('BattleScene reinforcement reward scaling', () => {
       endEnemyPhase: vi.fn(),
     };
     scene.enemyUnits = [{ name: 'Goblin', hasActed: false }];
-    scene.playerUnits = [{ name: 'Edric', isCommander: true }];
+    scene.playerUnits = [{ name: 'Edric', isCommander: true, currentHP: 20 }];
     scene.npcUnits = [];
     scene.aiController = {
       processEnemyPhase: vi.fn(async () => {

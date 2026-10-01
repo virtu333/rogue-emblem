@@ -82,7 +82,8 @@ export function checkInvariants(driver, context = {}) {
   // escape map is legally alive even though they left the field.
   if (b.battleState !== HEADLESS_STATES.BATTLE_END) {
     const commanderAlive =
-      b.playerUnits.some((u) => u.isCommander) || (b.escapedUnits || []).some((u) => u.isCommander);
+      b.playerUnits.some((u) => u.isCommander && u.currentHP > 0) ||
+      (b.escapedUnits || []).some((u) => u.isCommander);
     if (!commanderAlive) {
       errors.push(
         `commander_alive: commander not in playerUnits or escapedUnits but battle hasn't ended`,
@@ -128,7 +129,8 @@ export function checkInvariants(driver, context = {}) {
     // Mirrors HeadlessBattle._checkBattleEnd: defeat is only legal when the commander
     // is dead (not on field, not escaped) or the field is empty with nobody escaped.
     const commanderAlive =
-      b.playerUnits.some((u) => u.isCommander) || (b.escapedUnits || []).some((u) => u.isCommander);
+      b.playerUnits.some((u) => u.isCommander && u.currentHP > 0) ||
+      (b.escapedUnits || []).some((u) => u.isCommander);
     const fieldEmpty = b.playerUnits.length === 0 && !(b.escapedUnits?.length > 0);
     if (commanderAlive && !fieldEmpty) {
       errors.push(

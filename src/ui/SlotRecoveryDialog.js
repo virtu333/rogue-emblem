@@ -290,6 +290,7 @@ export function showSlotRecovery(scene, slot, notice = '') {
       'Release reservation…',
       () => {
         const expected = localStorage.getItem(getSlotCloudPendingKey(slot));
+        const expectedOwner = localStorage.getItem(getSlotRecoveryOwnerKey(slot));
         const mirror = nativeCapacitor() ? getNativeSaveMirror() : null;
         confirm(
           scene,
@@ -302,7 +303,18 @@ export function showSlotRecovery(scene, slot, notice = '') {
           () => showSlotRecovery(scene, slot),
           async () => {
             const dialog = scene.nativeDialog || scene.confirmDialog;
-            const result = releaseSlotCloudPending(slot, expected);
+            const ownsDialog = () =>
+              (scene.nativeDialog || scene.confirmDialog) === dialog &&
+              scene.sys?.isActive?.() !== false;
+            const originalData = [
+              ...getSlotDataKeys(slot).filter(
+                (key) =>
+                  ![getSlotCloudPendingKey(slot), getSlotRecoveryOwnerKey(slot)].includes(key),
+              ),
+              getSlotQuarantineKey(slot),
+              getSlotPairJournalKey(slot),
+            ].map((key) => [key, localStorage.getItem(key)]);
+            const result = releaseSlotCloudPending(slot, expected, localStorage, expectedOwner);
             if (!result.ok) {
               showSlotRecovery(scene, slot, result.reason);
               return;
@@ -310,20 +322,34 @@ export function showSlotRecovery(scene, slot, notice = '') {
             if (mirror) {
               let durable = false;
               try {
-                durable = await mirror.ensureDurable(getSlotCloudPendingKey(slot), null);
+                durable =
+                  (expectedOwner === null ||
+                    (await mirror.ensureDurable(getSlotRecoveryOwnerKey(slot), null))) &&
+                  (await mirror.ensureDurable(getSlotCloudPendingKey(slot), null));
               } catch {
                 /* Keep the reservation unless release reached device storage. */
               }
               if (!durable) {
-                // ensureDurable verifies current local bytes; remove first, then
-                // acknowledge. Failed acknowledgement restores only our marker.
-                if (localStorage.getItem(getSlotCloudPendingKey(slot)) === null)
+                // A failed acknowledgement may roll back only this dialog's
+                // release of unchanged bytes. An old wait must not reserve a
+                // newer save or resurrect markers after cancellation/restart.
+                const unchanged =
+                  ownsDialog() &&
+                  originalData.every(([key, raw]) => localStorage.getItem(key) === raw) &&
+                  localStorage.getItem(getSlotCloudPendingKey(slot)) === null &&
+                  localStorage.getItem(getSlotRecoveryOwnerKey(slot)) === null;
+                if (unchanged) {
                   localStorage.setItem(getSlotCloudPendingKey(slot), expected);
-                if ((scene.nativeDialog || scene.confirmDialog) === dialog)
+                  if (expectedOwner !== null)
+                    localStorage.setItem(getSlotRecoveryOwnerKey(slot), expectedOwner);
+                }
+                if (ownsDialog())
                   showSlotRecovery(
                     scene,
                     slot,
-                    'Device backup could not verify release. Your reservation was kept. Retry, or choose the explicit device-only exit.',
+                    unchanged
+                      ? 'Device backup could not verify release. Your reservation was kept. Retry, or choose the explicit device-only exit.'
+                      : 'Device backup could not verify release. The local save or recovery data changed; its current bytes were kept.',
                   );
                 return;
               }
@@ -345,6 +371,7 @@ export function showSlotRecovery(scene, slot, notice = '') {
         'Release on this device only…',
         () => {
           const expected = localStorage.getItem(getSlotCloudPendingKey(slot));
+          const expectedOwner = localStorage.getItem(getSlotRecoveryOwnerKey(slot));
           confirm(
             scene,
             `Release Slot ${slot} locally?`,
@@ -352,7 +379,7 @@ export function showSlotRecovery(scene, slot, notice = '') {
             'Accept risk and release locally',
             () => showSlotRecovery(scene, slot),
             () => {
-              const result = releaseSlotCloudPending(slot, expected);
+              const result = releaseSlotCloudPending(slot, expected, localStorage, expectedOwner);
               scene.drawSlots();
               showSlotRecovery(scene, slot, result.ok ? '' : result.reason);
             },

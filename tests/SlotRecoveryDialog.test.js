@@ -18,6 +18,8 @@ vi.mock('../src/utils/nativeSaveMirror.js', () => ({
 }));
 vi.mock('../src/utils/domUI.js', () => ({ hasDOMHost: mocks.dom }));
 vi.mock('../src/ui/RunFlowMenus.js', () => ({ slotDialog: mocks.dialog }));
+import { archiveAndDiscardSlot, retireSlotArchive } from '../src/engine/SlotRecovery.js';
+import { prepareRecoveryLogout } from '../src/engine/SlotManager.js';
 import { showSlotRecovery } from '../src/ui/SlotRecoveryDialog.js';
 
 let values, scene, buttons;
@@ -66,7 +68,7 @@ afterEach(() => vi.unstubAllGlobals());
 function activate(label) {
   const button = buttons.find((b) => b.copy === `[ ${label} ]`);
   expect(button, label).toBeDefined();
-  button.handlers.pointerdown();
+  return button.handlers.pointerdown();
 }
 function confirmDiscard() {
   showSlotRecovery(scene, 1);
@@ -126,6 +128,105 @@ describe('native recovery discard', () => {
       expect(values.get(RUN)).toBe('{"runRecordId":"local-live","gold":4242}');
       expect(mocks.deleteCloud).not.toHaveBeenCalled();
       expect(mocks.fetch).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['durable', 'device-only', 'failed acknowledgement'])(
+    'releases the orphan owner through the native dialog after Free cleanup fails (%s)',
+    async (kind) => {
+      const ownerKey = 'emblem_rogue_slot_1_recovery_owner';
+      const pendingKey = 'emblem_rogue_slot_1_cloud_pending';
+      expect(archiveAndDiscardSlot(1).ok).toBe(true);
+      expect(prepareRecoveryLogout('account-a').ok).toBe(true);
+      const originalOwner = values.get(ownerKey);
+      localStorage.removeItem = (key) => {
+        if (key === ownerKey) throw new Error('owner cleanup failed');
+        values.delete(key);
+      };
+      expect(retireSlotArchive(1).ok).toBe(false);
+      expect(values.has(ARCHIVE)).toBe(false);
+      expect(values.get(ownerKey)).toBe(originalOwner);
+      const pending = values.get(pendingKey);
+      localStorage.removeItem = (key) => values.delete(key);
+      // Canonical data saved by another writer is never part of the release.
+      values.set(META, '{"totalValor":999}');
+      values.set(RUN, '{"gold":4242,"runRecordId":"new-live"}');
+      mocks.durable.mockImplementation(
+        async (key, raw) => kind !== 'failed acknowledgement' && (values.get(key) ?? null) === raw,
+      );
+      showSlotRecovery(scene, 1);
+      activate('Release reservation…');
+      activate('Keep reservation');
+      expect(values.get(ownerKey)).toBe(originalOwner);
+      expect(values.get(pendingKey)).toBe(pending);
+      if (kind === 'device-only') {
+        activate('Release on this device only…');
+        activate('Accept risk and release locally');
+      } else {
+        activate('Release reservation…');
+        activate('Release reservation');
+      }
+      if (kind === 'failed acknowledgement') {
+        await vi.waitFor(() =>
+          expect(
+            scene.confirmDialog.some((o) =>
+              o.copy?.includes('Device backup could not verify release'),
+            ),
+          ).toBe(true),
+        );
+        expect(values.get(ownerKey)).toBe(originalOwner);
+        expect(values.get(pendingKey)).toBe(pending);
+        activate('Release on this device only…');
+        activate('Accept risk and release locally');
+      }
+      await vi.waitFor(() => expect(values.has(pendingKey)).toBe(false));
+      expect(values.has(ownerKey)).toBe(false);
+      expect(values.get(META)).toBe('{"totalValor":999}');
+      expect(values.get(RUN)).toBe('{"gold":4242,"runRecordId":"new-live"}');
+      expect(mocks.deleteCloud).not.toHaveBeenCalled();
+      if (kind === 'durable') {
+        expect(mocks.durable).toHaveBeenCalledWith(ownerKey, null);
+        expect(mocks.durable).toHaveBeenCalledWith(pendingKey, null);
+      }
+    },
+  );
+
+  it.each(['new save', 'cancel and new save', 'cancel', 'restart', 'new owner', 'new reservation'])(
+    'ignores stale native release rollback after %s',
+    async (kind) => {
+      values.clear();
+      const pendingKey = 'emblem_rogue_slot_1_cloud_pending';
+      const ownerKey = 'emblem_rogue_slot_1_recovery_owner';
+      values.set(pendingKey, '{"version":1,"userId":"account-a"}');
+      values.set(ownerKey, '{"version":1,"userId":"account-a"}');
+      let finish;
+      mocks.durable.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
+      showSlotRecovery(scene, 1);
+      activate('Release reservation…');
+      const release = activate('Release reservation');
+      expect(values.has(pendingKey)).toBe(false);
+      expect(values.has(ownerKey)).toBe(false);
+      if (kind.includes('cancel')) scene.requestCancel();
+      if (kind === 'restart') {
+        scene.confirmDialog = [];
+        scene.sys.isActive = () => false;
+      }
+      if (kind.includes('new save')) {
+        values.set(META, '{"totalValor":99}');
+        values.set(RUN, '{"runRecordId":"new-run","gold":4242}');
+      }
+      if (kind === 'new owner') values.set(ownerKey, 'new ownership evidence');
+      if (kind === 'new reservation') values.set(pendingKey, 'new reservation evidence');
+      const current = new Map(values);
+      finish(false);
+      await release;
+      expect(values).toEqual(current);
+      expect(mocks.deleteCloud).not.toHaveBeenCalled();
     },
   );
 

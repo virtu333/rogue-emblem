@@ -331,13 +331,13 @@ export function retireSlotArchive(
       throw new Error('Could not free this slot. Retry.');
     // Ownership remains intact through acknowledgement/cancellation and until
     // the copy itself is gone. If this deletion fails, the owner marker still
-    // reserves the slot and can be archived/discarded through recovery.
+    // reserves the slot until its warned release clears both markers.
     try {
       storage.removeItem(ownerKey);
       if (storage.getItem(ownerKey) !== null) throw new Error('Could not verify owner cleanup.');
     } catch {
       throw new Error(
-        'The copy was removed but ownership cleanup failed. Archive and discard the remaining recovery record, then free the slot.',
+        'The copy was removed but ownership cleanup failed. You can explicitly release the remaining reservation after reviewing the warning.',
       );
     }
     return { ok: true };
@@ -347,27 +347,58 @@ export function retireSlotArchive(
 }
 
 /** Explicitly abandon cloud recovery; preserve all canonical bytes and cloud data. */
-export function releaseSlotCloudPending(slot, expectedRaw, storage = globalThis.localStorage) {
+export function releaseSlotCloudPending(
+  slot,
+  expectedRaw,
+  storage = globalThis.localStorage,
+  expectedOwnerRaw = null,
+) {
+  const pendingKey = getSlotCloudPendingKey(slot);
+  const ownerKey = getSlotRecoveryOwnerKey(slot);
+  let removedOwner = false;
   try {
     if (
       !validSlot(slot) ||
       typeof expectedRaw !== 'string' ||
-      storage.getItem(getSlotCloudPendingKey(slot)) !== expectedRaw
+      storage.getItem(pendingKey) !== expectedRaw
     )
       throw new Error('The reservation changed. Review it again.');
     if (
-      [getSlotQuarantineKey(slot), getSlotPairJournalKey(slot), getSlotRecoveryOwnerKey(slot)].some(
+      [getSlotQuarantineKey(slot), getSlotPairJournalKey(slot)].some(
         (key) => storage.getItem(key) !== null,
       )
     )
       throw new Error(
         'Keep or resolve the remaining recovery data before releasing this reservation.',
       );
-    storage.removeItem(getSlotCloudPendingKey(slot));
-    if (storage.getItem(getSlotCloudPendingKey(slot)) !== null)
+    // Free can remove the archive successfully and then fail owner cleanup.
+    // The warned release may retire that leftover ownership marker too, but
+    // only the exact marker the player reviewed; canonical save bytes stay put.
+    if (storage.getItem(ownerKey) !== expectedOwnerRaw)
+      throw new Error('The recovery owner changed. Review it again.');
+    if (expectedOwnerRaw !== null) {
+      removedOwner = true;
+      storage.removeItem(ownerKey);
+      if (storage.getItem(ownerKey) !== null)
+        throw new Error('Could not clear the recovery owner. Retry.');
+    }
+    if (storage.getItem(pendingKey) !== expectedRaw)
+      throw new Error('The reservation changed. Review it again.');
+    storage.removeItem(pendingKey);
+    if (storage.getItem(pendingKey) !== null)
       throw new Error('Could not release the reservation. Retry.');
     return { ok: true };
   } catch (err) {
+    try {
+      if (
+        removedOwner &&
+        storage.getItem(ownerKey) === null &&
+        storage.getItem(pendingKey) === expectedRaw
+      )
+        storage.setItem(ownerKey, expectedOwnerRaw);
+    } catch {
+      /* The pending reservation still protects the slot if owner rollback fails. */
+    }
     return { ok: false, reason: err.message };
   }
 }

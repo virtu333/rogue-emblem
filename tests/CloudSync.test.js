@@ -44,6 +44,7 @@ import {
   __resetCloudSyncStatusForTests,
   __resetCloudSyncQueuesForTests,
   fetchAllToLocalStorage,
+  isCloudHydrationComplete,
   getCloudSyncStatus,
   pushSettings,
   shouldPreferLocalMeta,
@@ -190,11 +191,87 @@ describe('CloudSync run merge guard', () => {
           })
           .mockResolvedValue(invalid);
       else mocked.getSession.mockResolvedValue(invalid);
-      await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+      const result = await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+      expect(isCloudHydrationComplete(result)).toBe(false);
+      expect(result.deferredReservationSlots).toEqual([1]);
       expect(store).toEqual({ [getSlotCloudPendingKey(1)]: marker });
       expect(getNextAvailableSlot()).toBe(2);
     },
   );
+
+  it.each(['rejected', 'timed out', 'anonymous'])(
+    'hydrates other slots and retries when reserved-slot auth is %s',
+    async (kind) => {
+      const marker = '{"version":1,"userId":"account-a"}';
+      store[getSlotCloudPendingKey(1)] = marker;
+      store[getMetaKey(2)] = '{"totalValor":2,"savedAt":1}';
+      store[getRunKey(2)] = '{"runRecordId":"older-local","gold":2,"savedAt":1}';
+      mockCloudBootstrap({
+        runData: {
+          1: { runRecordId: 'reserved-cloud', gold: 11, savedAt: 100 },
+          2: { runRecordId: 'newer-cloud', gold: 731, savedAt: 100 },
+          3: { runRecordId: 'new-cloud-slot', gold: 73, savedAt: 100 },
+        },
+        metaData: {
+          1: { totalValor: 11 },
+          2: { totalValor: 347, savedAt: 100 },
+          3: { totalValor: 731, savedAt: 100 },
+        },
+        settingsData: { masterVolume: 0.42, savedAt: 100 },
+      });
+      if (kind === 'timed out') vi.useFakeTimers();
+      try {
+        if (kind === 'rejected') mocked.getSession.mockRejectedValue(new Error('session failed'));
+        else if (kind === 'timed out')
+          mocked.getSession.mockImplementation(() => new Promise(() => {}));
+        else mocked.getSession.mockResolvedValue({ data: { session: null } });
+        const pull = fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+        if (kind === 'timed out') await vi.advanceTimersByTimeAsync(2000);
+        const result = await pull;
+        expect(result).toEqual({ rejectedCount: 0, deferredReservationSlots: [1] });
+        expect(isCloudHydrationComplete(result)).toBe(false);
+        expect(store[getSlotCloudPendingKey(1)]).toBe(marker);
+        expect(store[getRunKey(1)]).toBeUndefined();
+        expect(store[getMetaKey(1)]).toBeUndefined();
+        expect(JSON.parse(store[getRunKey(2)]).gold).toBe(731);
+        expect(
+          pushRunSave('account-a', 2, { runRecordId: 'older-local', gold: 2, savedAt: 999 }),
+        ).toMatchObject({ queued: false, reason: 'protected_slot' });
+        expect(JSON.parse(store[getMetaKey(2)]).totalValor).toBe(2);
+        expect(JSON.parse(store[getRunKey(3)]).gold).toBe(73);
+        expect(JSON.parse(store[getMetaKey(3)]).totalValor).toBe(731);
+        expect(JSON.parse(store.emblem_rogue_settings).savedAt).toBe(100);
+        expect(mocked.reportAsyncError).toHaveBeenCalledWith(
+          'cloud_pending_session_unavailable',
+          expect.any(Error),
+          expect.objectContaining({ slots: [1] }),
+        );
+        // A background retry after auth recovers must perform a fresh bound fetch.
+        mocked.getSession.mockResolvedValue({
+          data: {
+            session: {
+              user: { id: 'account-a' },
+              access_token: 'account-a-token',
+            },
+          },
+        });
+        const retried = await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+        expect(isCloudHydrationComplete(retried)).toBe(true);
+        expect(store[getSlotCloudPendingKey(1)]).toBeUndefined();
+        expect(JSON.parse(store[getRunKey(1)]).gold).toBe(11);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+  it('requires an explicit complete cloud result before stopping background refetch', () => {
+    expect(isCloudHydrationComplete(undefined)).toBe(false);
+    expect(isCloudHydrationComplete({ rejectedCount: 1 })).toBe(false);
+    expect(isCloudHydrationComplete({ rejectedCount: 0 })).toBe(true);
+    expect(isCloudHydrationComplete({ rejectedCount: 0, deferredReservationSlots: [1] })).toBe(
+      false,
+    );
+  });
 
   it.each(['new meta', 'new run', 'quarantine', 'pair journal', 'owner'])(
     'keeps occupied reservation bytes during hydration (%s)',

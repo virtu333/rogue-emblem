@@ -129,6 +129,68 @@ test('damaged and orphaned saves stay occupied; failed archival loses no data', 
   expect(errors).toEqual([]);
 });
 
+test('native orphan-owner cleanup failure has a warned local release at 640×480', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 640, height: 480 });
+  const errors = await openPicker(page, { phone: false });
+  const before = await page.evaluate(async () => {
+    const { archiveAndDiscardSlot, retireSlotArchive } =
+      await import('/src/engine/SlotRecovery.js');
+    const ownerKey = 'emblem_rogue_slot_1_recovery_owner';
+    const pendingKey = 'emblem_rogue_slot_1_cloud_pending';
+    localStorage.setItem('emblem_rogue_slot_1_meta', '{damaged original');
+    if (!archiveAndDiscardSlot(1).ok) throw new Error('fixture discard failed');
+    localStorage.setItem(ownerKey, '{"version":1,"userId":"original-account"}');
+    const remove = Storage.prototype.removeItem;
+    let result;
+    Storage.prototype.removeItem = function (key) {
+      if (key === ownerKey) throw new Error('owner cleanup failed');
+      return remove.call(this, key);
+    };
+    try {
+      result = retireSlotArchive(1);
+    } finally {
+      Storage.prototype.removeItem = remove;
+    }
+    if (result.ok || localStorage.getItem('emblem_rogue_slot_1_quarantine') !== null)
+      throw new Error('fixture did not reproduce failed owner retirement');
+    // Browser adapter for native presentation policy. Device storage is absent,
+    // so only the separately warned device-only choice acknowledges that risk.
+    window.Capacitor = { nativePromise() {}, isNativePlatform: () => true };
+    const scene = window.__emblemRogueGame.scene.getScene('SlotPicker');
+    scene.drawSlots();
+    return { owner: localStorage.getItem(ownerKey), pending: localStorage.getItem(pendingKey) };
+  });
+  await page.getByRole('button', { name: 'Review recovery for Slot 1', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Export recovery copy', exact: true })).toHaveCount(
+    0,
+  );
+  await page.getByRole('button', { name: 'Release on this device only…', exact: true }).click();
+  const confirm = page.getByRole('dialog', { name: 'Release Slot 1 locally?', exact: true });
+  await expect(confirm).toContainText('may replace the cloud copy');
+  await expect(
+    page.getByRole('button', { name: 'Accept risk and release locally', exact: true }),
+  ).toBeInViewport();
+  await page.getByRole('button', { name: 'Keep reservation', exact: true }).click();
+  expect(
+    await page.evaluate(() => ({
+      owner: localStorage.getItem('emblem_rogue_slot_1_recovery_owner'),
+      pending: localStorage.getItem('emblem_rogue_slot_1_cloud_pending'),
+    })),
+  ).toEqual(before);
+  await page.getByRole('button', { name: 'Release on this device only…', exact: true }).click();
+  await page.getByRole('button', { name: 'Accept risk and release locally', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'New run in Slot 1', exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(() => ({
+      owner: localStorage.getItem('emblem_rogue_slot_1_recovery_owner'),
+      pending: localStorage.getItem('emblem_rogue_slot_1_cloud_pending'),
+    })),
+  ).toEqual({ owner: null, pending: null });
+  expect(errors).toEqual([]);
+});
+
 test('Title preserves every storage byte and Continue opens the picker when a save needs recovery', async ({
   page,
 }) => {
