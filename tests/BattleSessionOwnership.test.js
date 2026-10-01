@@ -18,6 +18,7 @@ import { AbilityController } from '../src/ui/AbilityController.js';
 import { PostCombatController } from '../src/ui/PostCombatController.js';
 import { HealController } from '../src/ui/HealController.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { reportAsyncError } from '../src/utils/errorReporter.js';
 import { isCurrentBattleSession } from '../src/ui/BattleSession.js';
 import { LootScreenController } from '../src/ui/LootScreenController.js';
 import { BossRecruitOverlay } from '../src/ui/BossRecruitOverlay.js';
@@ -903,3 +904,99 @@ it.each(['player', 'enemy'])(
     expect(scene._clearSelectedWeaponArt).not.toHaveBeenCalled();
   },
 );
+
+describe('checkpoint omissions are observable without granting access', () => {
+  it('reports a missing origin while preserving the live and durable run', () => {
+    const { scene, store } = liveCheckpointHost();
+    const unit = { hasActed: false };
+    const before = protectedState(scene, store, unit);
+    reportAsyncError.mockClear();
+    expect(scene._captureSuspendCheckpoint()).toBe(false);
+    expect(reportAsyncError).toHaveBeenCalledWith(
+      'battle_checkpoint_missing_session',
+      expect.objectContaining({ message: 'Checkpoint origin session required' }),
+      expect.any(Object),
+    );
+    expect(protectedState(scene, store, unit)).toEqual(before);
+    reportAsyncError.mockClear();
+    expect(scene._captureSuspendCheckpoint({ session: scene._battleSession - 1 })).toBe(false);
+    expect(reportAsyncError).not.toHaveBeenCalled();
+    expect(protectedState(scene, store, unit)).toEqual(before);
+  });
+
+  it('the real enemy loop saves its acted enemy under its originating session', async () => {
+    const { scene, store } = liveCheckpointHost();
+    const enemy = {
+      name: 'Enemy',
+      battleEntityId: 'enemy-1',
+      faction: 'enemy',
+      currentHP: 20,
+      stats: { HP: 20 },
+      inventory: [],
+      skills: [],
+      col: 0,
+      row: 0,
+      hasActed: false,
+    };
+    scene.enemyUnits = [enemy];
+    scene.turnManager.currentPhase = 'enemy';
+    scene.battleState = 'ENEMY_PHASE';
+    scene._pendingActionCompletion = null;
+    scene._pendingLevelUpPopups = [];
+    scene.isDevToolsEnabled = () => false;
+    scene.createEnemyPhaseAiStats = () => ({});
+    scene.finalizeEnemyPhaseAiStats = vi.fn();
+    scene.dimUnit = vi.fn();
+    let callbacks;
+    let release;
+    scene.aiController = {
+      processEnemyPhase: vi.fn(async (_enemies, _players, _npcs, hooks) => {
+        callbacks = hooks;
+        await new Promise((resolve) => {
+          release = resolve;
+        });
+      }),
+    };
+    const origin = scene._battleSession;
+    const capture = vi.spyOn(scene, '_captureSuspendCheckpoint');
+    const pending = scene.startEnemyPhase();
+    await drain();
+    await callbacks.onUnitDone(enemy);
+    expect(capture).toHaveBeenCalledWith({ session: origin });
+    const checkpoint = JSON.parse(store.get(getRunKey(1))).battleInProgress.checkpoint;
+    expect(checkpoint.phase).toBe('enemy');
+    expect(checkpoint.checkpointIndex).toBe(1);
+    expect(checkpoint.enemyUnits[0]).toMatchObject({ battleEntityId: 'enemy-1', hasActed: true });
+    expect(scene._enemyActionCheckpoint).toBe(false);
+    restart(scene);
+    const replacementSave = [...store.entries()];
+    release();
+    await pending;
+    expect([...store.entries()]).toEqual(replacementSave);
+  });
+});
+
+describe('checkpoint retry cannot replace a terminal decision', () => {
+  for (const [field, value] of [
+    ['battleState', 'BATTLE_END'],
+    ['_fatalDecision', {}],
+    ['_fatalCapturePending', true],
+    ['_defeatDecision', {}],
+  ]) {
+    it('refuses retry during ' + field + ' without rewriting storage', () => {
+      const { scene, store } = liveCheckpointHost();
+      const controller = new BattleSuspendController(scene);
+      const persisted = scene._persistBattleRunState.bind(scene);
+      scene._persistBattleRunState = vi.fn(() => ({ ok: false, reason: 'write_error' }));
+      expect(controller.captureCheckpoint()).toBe(false);
+      expect(controller._retryCandidate).toBeTruthy();
+      scene._persistBattleRunState = vi.fn(persisted);
+      scene[field] = value;
+      const before = { storage: [...store.entries()], run: scene.runManager.toJSON() };
+      expect(controller.retryCheckpoint()).toEqual({ ok: false, reason: 'unstable_boundary' });
+      expect(scene._persistBattleRunState).not.toHaveBeenCalled();
+      expect({ storage: [...store.entries()], run: scene.runManager.toJSON() }).toEqual(before);
+      expect(controller._retryCandidate).toBeTruthy();
+    });
+  }
+});

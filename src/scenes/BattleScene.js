@@ -9271,6 +9271,16 @@ export class BattleScene extends Phaser.Scene {
 
   /** Suspend-checkpoint shim (see BattleSuspendController). */
   _captureSuspendCheckpoint(options = {}) {
+    if (!Number.isInteger(options.session)) {
+      reportAsyncError(
+        'battle_checkpoint_missing_session',
+        new Error('Checkpoint origin session required'),
+        {
+          scene: this.scene?.key || 'Battle',
+        },
+      );
+      return false;
+    }
     if (!isCurrentBattleSession(this, options.session)) return false;
     return (this._battleSuspendController ||= new BattleSuspendController(this)).captureCheckpoint(
       options,
