@@ -83,7 +83,7 @@
         },
         "count": {
           "type": "array",
-          "items": { "type": "integer", "minimum": 0 },
+          "items": { "type": "integer", "minimum": 1 },
           "minItems": 2,
           "maxItems": 2
         },
