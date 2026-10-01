@@ -180,3 +180,118 @@ test('roster Spirit Dust previews, cancels, applies once and saves immediately',
   ).toEqual({ mag: before + 2, count: 0 });
   expect(errors).toEqual([]);
 });
+
+// Hover previews for the item-art links: a mouse sees what a click would open; touch
+// keeps the tap exactly as it was.
+async function openShopWithMire(page, { mobile }) {
+  await page.goto(`/?devScene=nodemap${mobile ? '&mobilePreview=1' : ''}`);
+  await waitForGame(page);
+  await waitForScene(page, 'NodeMap');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('NodeMap').dialogueOverlay?.visible,
+  );
+  await page.getByRole('button', { name: 'Skip conversation', exact: true }).click();
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    s.registry.set('activeSlot', 1);
+    s.runManager.gold = 10000;
+    const item = structuredClone(s.gameData.weapons.find((w) => w.name === 'Sunflare'));
+    item.weaponArtIds = ['magic_mire'];
+    s.runManager.roster[0].inventory = [item];
+    const n = s.runManager.getAvailableNodes()[0];
+    n.type = 'shop';
+    s.showShopOverlay(n, [{ type: 'weapon', item, price: 2300 }]);
+  });
+  return page.locator('.shop-menu');
+}
+// The one place a wait on time is unavoidable: proving a preview did NOT open means
+// letting its show delay (280ms) pass. Every positive check waits on state instead.
+const pastShowDelay = (page) => page.evaluate(() => new Promise((r) => setTimeout(r, 600)));
+
+test('desktop: item-art links preview on hover, hide on leave, and still click through', async ({
+  browser,
+}) => {
+  // This file's phone profile is the default for contexts; a desktop mouse overrides it.
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+    userAgent: devices['Desktop Chrome'].userAgent,
+    isMobile: false,
+    hasTouch: false,
+    deviceScaleFactor: 1,
+  });
+  const page = await context.newPage();
+  const errors = collectErrors(page);
+  const shop = await openShopWithMire(page, { mobile: false });
+  expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(
+    true,
+  );
+  const tip = page.getByRole('tooltip');
+  const summary = shop.getByText('Weapon art: Mire', { exact: true });
+  const details = shop.locator('.item-art-details');
+
+  // The art's sheet previews on hover, wired for assistive tech, and goes on leave.
+  await summary.hover();
+  await expect(tip).toContainText('Cost 5 HP · 3 per battle');
+  await expect(tip).toHaveAttribute('data-footer', 'Click to expand');
+  await expect(summary).toHaveAttribute('aria-describedby', (await tip.getAttribute('id')) || '');
+  await page.mouse.move(2, 2);
+  await expect(tip).toHaveCount(0);
+  await expect(details).not.toHaveAttribute('open', '');
+
+  // Clicking still expands the disclosure and puts the preview away.
+  await summary.hover();
+  await expect(tip).toBeVisible();
+  await summary.click();
+  await expect(details).toHaveAttribute('open', '');
+  await expect(tip).toHaveCount(0);
+
+  // Open, the sheet is on screen already: hovering its summary previews nothing.
+  await page.mouse.move(2, 2);
+  await summary.hover();
+  await pastShowDelay(page);
+  await expect(tip).toHaveCount(0);
+
+  // The shared-rules link previews the guide's lead blocks; this guide is long, so it
+  // stops short and points at the click.
+  const help = details.getByRole('button', { name: 'How weapon arts work', exact: true });
+  await help.hover();
+  await expect(tip).toContainText('An art powers up one attack and costs HP.');
+  await expect(tip).toContainText('Limits');
+  await expect(tip).not.toContainText('In combat');
+  await expect(tip).toHaveAttribute('data-footer', 'Click for full guide');
+  // The popover never takes pointer events, so the click lands on the link.
+  expect(await tip.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
+  await help.click();
+  const guide = page.getByRole('dialog', { name: 'Weapon arts', exact: true });
+  await expect(guide).toContainText('never adds a Speed follow-up');
+  await expect(tip).toHaveCount(0);
+  await guide.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(guide).toHaveCount(0);
+  expect(errors).toEqual([]);
+  await context.close();
+});
+
+test('touch: tapping the item-art links shows no hover preview', async ({ browser }) => {
+  const context = await browser.newContext({
+    ...devices['iPhone SE'],
+    viewport: { width: 667, height: 375 },
+  });
+  const page = await context.newPage();
+  const errors = collectErrors(page);
+  const shop = await openShopWithMire(page, { mobile: true });
+  expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(
+    false,
+  );
+  const details = shop.locator('.item-art-details');
+  await shop.getByText('Weapon art: Mire', { exact: true }).tap();
+  await expect(details).toHaveAttribute('open', '');
+  await details.getByRole('button', { name: 'How weapon arts work', exact: true }).tap();
+  const guide = page.getByRole('dialog', { name: 'Weapon arts', exact: true });
+  await expect(guide).toBeVisible();
+  await pastShowDelay(page);
+  await expect(page.locator('.re-info-tip:popover-open')).toHaveCount(0);
+  await guide.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(guide).toHaveCount(0);
+  expect(errors).toEqual([]);
+  await context.close();
+});

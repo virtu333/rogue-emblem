@@ -4,7 +4,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { loadGameData } from './testData.js';
 import { RunManager, serializeUnit } from '../src/engine/RunManager.js';
-import { mergeRunRecords } from '../src/engine/RunRecords.js';
+import { fallenRecord, mergeRunRecords } from '../src/engine/RunRecords.js';
 import {
   createLordUnit,
   createUnit,
@@ -136,6 +136,12 @@ describe('serialization and saves', () => {
     // Her weapon went to the convoy with the strikes and the kill it made.
     const weapon = run.convoy.weapons.find((w) => w.uid === partner.weapon.uid);
     expect(weapon).toMatchObject({ _strikes: 2, _kills: 1 });
+    // Her victory-record entry carries the battle she died in, and where she fell.
+    expect(fallenRecord(fallen)).toMatchObject({
+      name: partner.name,
+      tally: { kills: 1, bossKills: 1, crits: 4 },
+      fellAt: { battle: run.completedBattles || 0 },
+    });
   });
 
   describe('a unit that falls is saved with what it carried as it fell', () => {

@@ -11,8 +11,8 @@ import {
   applyFallenBattleRecord,
   findFallenBattleRecord,
   normalizeUnitDeeds,
-  unitEpithet,
 } from './DeedSystem.js';
+import { RUN_RECORD_VERSION, fallenForRecord, fallenRecord, survivorRecord } from './RunRecords.js';
 import { migrateWaitingOath } from './SkillLoadout.js';
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
 import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
@@ -322,12 +322,6 @@ function stampUnitItemUids(unit) {
   if (Array.isArray(unit.consumables)) unit.consumables.forEach(ensureItemUid);
   if (unit.weapon && typeof unit.weapon === 'object') ensureItemUid(unit.weapon);
   if (unit.accessory && typeof unit.accessory === 'object') ensureItemUid(unit.accessory);
-}
-
-/** Victory-record fields for a unit's title (omitted when it has none). */
-function deedRecordFields(unit) {
-  const epithet = unitEpithet(unit);
-  return epithet ? { epithet: epithet.text, epithetForm: epithet.form } : {};
 }
 
 function parsePersonalSkillId(personalSkillStr) {
@@ -3679,6 +3673,11 @@ export class RunManager {
           findFallenBattleRecord(options?.fallenBattleRecords, serializedFallen),
         );
         this._transferFallenUnitItems(serializedFallen);
+        // Where they fell, for the victory record (the battle's number as deeds count it).
+        serializedFallen.fellAt = {
+          act: this.currentAct || null,
+          battle: (Number(this.completedBattles) || 0) + 1,
+        };
         this.lastBattleCasualtyNotices.push(serializedFallen._fallenItemsNotice);
         this.fallenUnits.push(serializedFallen);
         // Narrative memory: lords who fell in a battle that actually
@@ -3912,6 +3911,7 @@ export class RunManager {
     if (!this.spendGold(cost)) return false;
 
     const unit = this.fallenUnits.splice(idx, 1)[0];
+    delete unit.fellAt; // Back among the living: the record's Fallen list is for the dead.
 
     // Normalize class state after serialization round-trip (fixes promotion eligibility)
     const classData = (this.gameData?.classes || []).find((c) => c.name === unit.className);
@@ -4284,6 +4284,7 @@ export class RunManager {
         victoryRecord:
           summary.result === 'victory'
             ? {
+                v: RUN_RECORD_VERSION,
                 id: this.runRecordId || `legacy-${this.runSeed}`,
                 endedAt: Date.now(),
                 difficulty: this.difficultyId,
@@ -4292,16 +4293,8 @@ export class RunManager {
                 actsCleared: this.actIndex + 1,
                 totalTurns: this.totalTurns,
                 shadow: this.isEclipseActive() ? this.eclipse.shadow : null,
-                roster: this.roster.map((unit) => ({
-                  name: unit.name,
-                  className: unit.className,
-                  level: unit.level,
-                  isLord: unit.isLord,
-                  specialCharId: unit.specialCharId,
-                  tier: unit.tier,
-                  portraitVariant: unit.portraitVariant, // the face the unit wore (portrait variety)
-                  ...deedRecordFields(unit),
-                })),
+                roster: this.roster.map(survivorRecord),
+                fallen: fallenForRecord(this.fallenUnits).map(fallenRecord),
               }
             : null,
         act: this.currentAct,
