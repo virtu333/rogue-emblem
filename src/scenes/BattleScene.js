@@ -119,7 +119,6 @@ import {
   addToConsumables,
   removeFromConsumables,
   equipWeapon,
-  equipIfUnarmed,
   normalizeEquippedFirst,
   getStaffWeapon,
   getCombatWeapons,
@@ -131,7 +130,6 @@ import {
   applyStatBoost,
   canReclass,
   getReclassTargets,
-  reclassUnit,
   inventoryDisplayOrder,
 } from '../engine/UnitManager.js';
 import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
@@ -314,6 +312,7 @@ import { BoundingFocusController } from '../ui/BoundingFocusController.js';
 import { LootScreenController } from '../ui/LootScreenController.js';
 import { PostCombatController } from '../ui/PostCombatController.js';
 import { PromotionController } from '../ui/PromotionController.js';
+import { ReclassController } from '../ui/ReclassController.js';
 import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
 import { TutorialController } from '../ui/TutorialController.js';
 import { locateUnit, nextReadyUnit } from '../ui/UnitLocator.js';
@@ -695,6 +694,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._promotionController) {
       this._promotionController.destroy();
       this._promotionController = null;
+    }
+    if (this._reclassController) {
+      this._reclassController.destroy();
+      this._reclassController = null;
     }
     this._pinnedThreats?.destroy();
     this._pinnedThreats = null;
@@ -7580,57 +7583,12 @@ export class BattleScene extends Phaser.Scene {
     this._registerActionMenu();
   }
 
-  async executeReclass(unit, sealItem, newClassData) {
-    if (!canReclass(unit)) return;
-    this.hideActionMenu();
-    this.battleState = 'COMBAT_RESOLVING'; // block input
-
-    const oldClassData = this.gameData.classes.find((c) => c.name === unit.className);
-    if (!oldClassData) {
-      await this.showBriefBanner('Reclass data missing.', UI_PALETTE.bad);
-      this.battleState = 'UNIT_ACTION_MENU';
-      this.showActionMenu(unit);
-      return;
-    }
-
-    // Track old proficiency types to detect new ones
-    const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
-
-    reclassUnit(
+  executeReclass(unit, sealItem, newClassData) {
+    return (this._reclassController ||= new ReclassController(this)).executeReclass(
       unit,
+      sealItem,
       newClassData,
-      oldClassData,
-      this.gameData.classes,
-      this.gameData.skills,
-      this.gameData.traits || null,
     );
-    observeHistoryAction(this, 'reclassed', unit, null, newClassData.name);
-
-    // Refresh sprite
-    this.removeUnitGraphic(unit);
-    this.addUnitGraphic(unit);
-
-    // Grant Iron weapons for newly gained proficiency types
-    for (const prof of unit.proficiencies) {
-      if (oldTypes.has(prof.type)) continue;
-      const newWeapon = this.gameData.weapons.find(
-        (w) => w.type === prof.type && w.tier === 'Iron',
-      );
-      if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-        // A unit whose old weapon no longer fits (or had none) takes up the new one.
-        if (addToInventory(unit, newWeapon)) equipIfUnarmed(unit, unit.inventory.at(-1));
-      }
-    }
-
-    this.updateHPBar(unit);
-
-    await this.showBriefBanner(`${unit.name} reclassed to ${newClassData.name}!`, UI_PALETTE.info);
-
-    // Consume seal
-    sealItem.uses = (sealItem.uses ?? 1) - 1;
-    if (sealItem.uses <= 0) removeFromConsumables(unit, sealItem);
-
-    this.finishUnitAction(unit);
   }
 
   _getCombatRollSessionKey(attacker, defender) {

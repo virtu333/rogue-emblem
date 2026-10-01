@@ -204,7 +204,7 @@ describe('executePromotion error recovery', () => {
     expect(seal.uses).toBe(0);
     expect(unit.consumables).not.toContain(seal);
     expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { skipCanto: true });
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit);
   });
 });
 
