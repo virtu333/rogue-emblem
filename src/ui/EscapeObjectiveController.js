@@ -131,8 +131,8 @@ export class EscapeObjectiveController {
     scene._timelineFacts = [...(scene._timelineFacts || []), `${unit.name} escaped.`];
     // Vision from those still on the field (the escaped unit's path never revealed).
     revealSettledVision(scene);
-    scene._captureSuspendCheckpoint?.({ session: session });
-    scene.turnManager.unitActed(unit);
+    scene._captureSuspendCheckpoint?.({ session });
+    scene.turnManager.checkPlayerPhaseComplete();
   }
 
   _showEscapeFloat(unit, message) {

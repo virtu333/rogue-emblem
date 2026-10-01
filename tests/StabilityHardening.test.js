@@ -115,7 +115,12 @@ function setupScene() {
   scene.attackTargets = [];
   scene.movementRange = null;
   scene.unitPositions = null;
-  scene.turnManager = { endPlayerPhase: vi.fn(), unitActed: vi.fn(), turnNumber: 1 };
+  scene.turnManager = {
+    endPlayerPhase: vi.fn(),
+    unitActed: vi.fn(),
+    checkPlayerPhaseComplete: vi.fn(),
+    turnNumber: 1,
+  };
   scene.runManager = {
     getActHitBonusForUnit: vi.fn(() => 0),
     getTerrainCombatBonuses: vi.fn(() => []),
@@ -477,6 +482,7 @@ describe('Fix 1b: executeCombat error recovery consumes attacker action', () => 
 
   it('sets attacker.hasActed and calls turnManager.unitActed on error recovery', async () => {
     const attacker = makeUnit({ faction: 'player', currentHP: 25 });
+    scene.playerUnits = [attacker];
     const defender = makeUnit({ faction: 'enemy', col: 3, row: 2 });
 
     scene._runCombatResolution = vi.fn(async () => {
