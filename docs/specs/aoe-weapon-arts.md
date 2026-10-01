@@ -94,24 +94,46 @@ areaTilesFor(area, {attacker, target, center}, bounds)   // dispatches on area.s
 stops at a wall leaks nothing. **Units never block a line**, so its geometry can't depend
 on a hidden unit.
 
+- **A line starts past the target.** A hostile standing between the attacker and the
+  target (a range-2 shot) is not touched.
+- **`unitsOnTiles` excludes by identity,** not by tile. The Entity's other footprint tiles
+  can't bring the excluded primary back in.
+- **Factions come from `world.hostilesOf`.** For a player that is the enemy roster only
+  (`_getTier5HostileUnitsFor` `:8607-8611`), so area arts never hit `npcUnits`.
+
 ### 2.2 Per-victim damage: `Combat.areaStrikeDamage`
 
 Extract the attacker-damage block of `getCombatForecast` (`Combat.js:954-971`) into
-`strikeDamage(attacker, atkWeapon, victim, victimWeapon, victimTerrain, atkMods, defMods)`.
-Then:
+`strikeDamage(attacker, atkWeapon, victim, victimWeapon, victimTerrain, atkMods, defMods,
+{ effectivenessCap })`. Then:
 
 - `getCombatForecast` calls `strikeDamage`. Forecast numbers must not move; pin them first.
-- `areaStrikeDamage(attacker, weapon, victim, {art, world})` calls the same helper with:
-  - **atkMods:** the art's `combatMods`, the weapon's imbue mods and the attacker's
-    `timedBuffCombatMods`. Skills, procs and accessory phase mods are left out.
+- `areaStrikeDamage(attacker, weapon, victim, { art, skillAtkMods, world })` calls the
+  same helper.
+  - **atkMods:** the primary combat's already built `skillCtx.atkMods`, merged with the
+    art's `combatMods` and the weapon's imbue mods exactly as the forecast merges them
+    (`Combat.js:923-930`). These are the deterministic flat mods: passive skills,
+    accessories, timed buffs, the act's hit bonus.
+    - The scene builds them in `buildSkillCtx` (`BattleScene.js:7781`, through
+      `getSkillCombatMods`, `SkillSystem.js:199`).
+    - The forecast path gets them from `_buildForecastSkillCtx`, the harness from
+      `_buildSkillCtx` (`HeadlessBattle.js:1700-1714`).
+    - They were computed against the primary, so a bonus that depends on the opponent
+      reads the primary. This is accepted, and the rule text says so.
+  - **chosen_center** has no primary combat. It uses the art, imbue and
+    `timedBuffCombatMods` only.
   - **defMods:** only the victim's timed-buff DEF/RES.
-  - The triangle against the victim's own weapon, the victim's terrain DEF and
-    `getCombinedEffectivenessMultiplier` (5× cap, `negateEffectiveness`).
-- An area strike never rolls hit or crit. Rule text: "an area blow is the art's own
-  strike: it always lands, never crits, and skills don't trigger."
+  - **The victim's side:** the triangle against the victim's own weapon, and the victim's
+    terrain DEF.
+  - **Effectiveness:** weapon and art effectiveness (and `negateEffectiveness`), capped at
+    **3×** for area blows. This is tentative, pending owner. The 5× cap stays for the
+    primary.
+- **Excluded:** per-strike procs (`rollStrikeSkills`: Luna, Sol, Astra and the like). An
+  area blow never rolls hit or crit. Rule text: "an area blow always lands and never crits;
+  strike skills don't trigger on it."
 - The result is deterministic, so the same function serves execution, the preview and the
-  AI. A parity test holds `strikeDamage` equal to `resolveCombat`'s non-crit strike damage
-  (`:1532`) on fixtures, so the two copies can't drift.
+  AI. A parity test holds `strikeDamage` equal to `resolveCombat`'s non-crit, non-proc
+  strike damage (`:1532`) on fixtures, so the two copies can't drift.
 
 ### 2.3 One area step replaces splash and pierce
 
@@ -146,43 +168,77 @@ runs depends on the shape:
 HP changes only through `UnitHealth` (`damageUnit` / `healUnit`). The generator never
 touches the scene.
 
-### 2.4 Credits: a ledger, not a beat
+### 2.4 Credits ride on `result`
 
-`postCombatEffects(combat, world)` gets `combat.credits = []`. The area step pushes
-`{ source, victim, damage, hpBefore, killed }` at the moment HP changes; nothing is pushed
-for the primary. The owner reads the ledger after the generator finishes.
+The area step pushes `{ source, victim, damage, hpBefore, killed }` onto
+`result.areaCredits` (created on first use) at the moment HP changes. `killed` is decided
+by the blow itself, not by a later chain. Nothing is pushed for the primary.
+
+Why `result`:
+
+- The scene builds the combat object inline for `_applyResolvedCombatPostEffects`
+  (`BattleScene.js:8313-8319`) and returns only `{ result, selectedArt }` (`:8328`). The
+  harness does the same (`HeadlessBattle.js:1810-1826`).
+- `result` already reaches `executeCombat` and the harness's XP code, so no signature
+  changes.
 
 Why not a beat: on **#175**, beats other than `remove`/`moved` run inside
-`safeBattlePresentation`. A credit carried by a beat would be lost on a cosmetic failure,
-or would need a third required kind. The ledger is plain state, so the scene and the
-harness read identical credits however presentation goes.
+`safeBattlePresentation`, so a credit carried by a beat would be lost on a cosmetic
+failure.
 
 ### 2.5 XP for many victims: `BattleXp.actionXpAwards`
 
 `actionXpAwards({ unit, primary, credits, ...the inputs of combatXpAwards })` returns the
-same `{unit, baseXp, share}[]`, with **one entry per recipient**:
+same `{unit, baseXp, share}[]`, with **one entry per recipient**.
 
-- **Primary:** exactly what `combatXpAwards` gives today (damage ratio, kill, survival
-  floor). Behaviour pinned.
-- **Each credit:** `calculateCombatXP(unit, victim, killed)`. A hit that doesn't kill is
-  scaled by `min(1, damage/hpBefore)`. Then multiply by the victim's own
-  `getEnemyXpMultiplier`, pressure and Training Doctrine, and by
-  `areaXp.hitRate` (0.5) or `areaXp.killRate` (1.0). Victims with `_noXP` are skipped.
-- **chosen_center** has no primary. The credit with the highest base counts at the
-  primary rate; the rest count as secondary.
-- **Cap.** Area credits can't raise the action's base above
-  `max(primaryBase, areaXp.actionBaseCap)` (100), and never lower the primary.
-- **Mentor's Band.** Recipients are fixed once, from the holder's position after
-  post-combat moves, before the holder's gain (as today). Each recipient's share is the
-  sum of `calculateSharedXp` over the primary and every credit, with the same rates, under
-  the same cap.
-- **Scaling.** One `awardScaledXP` per recipient. `scaledXp`'s 1-XP floor and the
-  level-up order apply once per action, not once per victim.
-- **Not counted:** player victims of an enemy area art earn nothing (they weren't in
-  combat). The primary defender keeps `survivedAttack`. A Deathburst kill belongs to the
-  unit that burst (killer = the dying unit), so it earns no XP, as today.
+The rates are **tentative, pending owner**. They are data: a new root block, `areaXp`, in
+`weaponArts.json`.
 
-`areaXp` is a new root block in `weaponArts.json`, so the numbers are data.
+**Primary.** Exactly what `combatXpAwards` gives today: damage ratio, kill bonus,
+survival floor. Pinned.
+
+**Each credit**, computed on *base* XP before any battle multiplier:
+
+1. Start from `calculateCombatXP(unit, victim, killed)`.
+2. If the blow did not kill, multiply by `min(1, damage/hpBefore)`.
+3. Multiply by `areaXp.hitRate` (**0.35**), or by `areaXp.killRate` (**0.6**) for a kill.
+4. Multiply by the victim's own `getEnemyXpMultiplier`, the turn-pressure multiplier and
+   Training Doctrine, as the primary gets.
+
+Victims with `_noXP` are skipped.
+
+**Cap.** The summed credit base is capped at `areaXp.actionBaseCap` (**75**) and never
+lowers the primary. `scaledXp`'s battle multipliers (par, difficulty, blessings, trait)
+then apply once to the total.
+
+**chosen_center** has no primary. The credit with the highest base counts at the primary
+rate; the rest count as area credits.
+
+**Mentor's Band.**
+
+- Recipients are fixed once, before the holder's gain (as today), from the holder's
+  position after post-combat moves.
+- Each recipient's share is the sum of `calculateSharedXp` over the primary and every
+  credit, at the same rates and under the same cap.
+- Each recipient gets one `awardScaledXP` per action. So the 1-XP floor applies once, and
+  level-ups happen once, in order.
+
+**Who gets credit for a kill.**
+
+- *Keeping today's rule.* `executeCombat` reads `defender.currentHP <= 0` after the
+  post-combat effects (`BattleScene.js:8458-8463`). So when a splash victim's Deathburst
+  finishes the *primary*, the attacker gets the primary's kill XP. Gold is paid once, at
+  removal. The rule stays: the primary counts as killed by the action, whatever finished it
+  inside the action. A test pins it.
+- An area victim that the blow left alive and a Deathburst chain then finished gives a
+  *hit* credit, because `killed` is decided at the blow.
+- If a Deathburst kills the source during phase 2, the source keeps its credits. Kill
+  rewards and history attribution stay as they are (`_applyKillRewards` / `onKill` /
+  `observeHistoryAction`: main `:9101`, `:9203-9204`; **#175** `:9309`, `:9422-9425`).
+  No XP is paid, because `awardXP` requires a living attacker.
+
+**Not counted.** Player victims of an enemy area art earn nothing. The primary defender
+keeps `survivedAttack`.
 
 ### 2.6 Order when one action kills several units
 
@@ -193,12 +249,20 @@ Final shape (**#171**+**#175**):
    gold, Zombie remains, boss bar and FOE VANQUISHED, last words, Deathburst chains.
 3. Phoenix checks run for the attacker, the defender, and **every player-side area
    victim** (new: an enemy area art can drop a Brooch holder into range).
-4. `awardXP` runs from the ledger, only if the attacker is alive.
+4. `awardXP` runs from `result.areaCredits`, only if the attacker is alive.
 5. The primary is removed, then the attacker, then `_sweepFallenUnits`.
 6. **#171** `hasBattleDefeat → checkBattleEnd` runs. The commander falling anywhere in
    steps 2-5, including a chain from a splash kill, ends the run here, before popups.
 7. Level-ups, then `completeResolvedAction → checkBattleEnd`. A rout cleared by the area
-   wins only after XP, as today.
+   wins only after XP.
+
+**Main differs today.** On main, a Deathburst chain calls `checkBattleEnd()` itself when it
+unwinds to depth 0 (`removeUnit`'s `finally`, `BattleScene.js:9265-9270`). So a splash
+kill whose Deathburst kills the last foe wins the battle *before* the attacker's XP.
+**#171** removes that call ("a chain must not steal that work", #171 head `:9350`).
+
+The post-merge rule is victory after XP. The §9 death-order matrix pins it, and the
+scene-side slices wait for #171.
 
 Seize is unchanged: a boss killed by the area unlocks the throne, and the seize itself
 still needs a lord.
@@ -239,18 +303,33 @@ multiplier, maxTargets and cadence. The blow is now computed against each victim
 | Radiant Burst | radius 1, `lowest_hp_pct`, maxTargets 1, ×0.75 |
 | Barrage | radius 1, ×0.5, once (still includes Oathbow's 0.9 per-strike factor) |
 | Cataclysm | radius 2, fixed 5 |
-| Tempest | radius 1, ×0.75; its 3× now reaches fliers in the area |
+| Tempest | radius 1, ×0.75; fliers in the area now take its effectiveness (area cap 3×) |
 | Cataclysm Bolt | radius 2, ×0.5 |
 | Piercing Charge | line 1, ×1.0, each_landed |
 | Doom Thrust | line 1, ×1.0, each_landed |
 
-Against a victim with the primary's DEF/RES, splash numbers equal today's.
+**Parity, stated precisely.** Today's basis is the *actual* first landed strike on the
+primary for splash, or each landed strike for pierce (`WeaponArtPostCombat.js:45-58`,
+`:76-90`, `:271-273`). That number includes the flat skill and accessory mods, and also
+any crit or strike proc (Luna and the like).
 
-Pierce changes in one more way: today it re-applies each landed strike's actual damage,
-crits included; now it applies the victim's own blow per landed strike, and that blow
-never crits. Doomblade (1-2) gains a pierce at range 2, because the line shape works at
-range (open question 3). Saves hold art ids, never art bodies, so no save migration is
-needed.
+The new blow keeps the flat mods (§2.2: the primary's `skillCtx.atkMods`) and drops crits
+and procs. So against a victim identical to the primary (same stats, weapon, terrain), the
+area damage equals today's on every non-crit, non-proc strike. It is lower whenever
+today's basis strike critted or procced.
+
+**Migration test.** It pins exactly that: equal on a fixture with no crit and no proc, and
+the documented difference on a fixture where the first strike crits.
+
+**Doom Thrust.** Doomblade (1-2) gains a pierce at range 2, because the line shape works
+at range (recommended, pending owner). Its push still needs adjacency
+(`resolvePostCombatMove` returns `not_adjacent`). Its display row says so: "at range 2 it
+pierces but doesn't push".
+
+**Saves.** Saves hold art ids, never art bodies, so no save migration is needed.
+
+**Balance note.** Slice 3 changes the live balance of existing arts by itself. It ships
+with a CHANGELOG entry and a help note.
 
 ### 3.3 New arts
 
@@ -261,10 +340,15 @@ needed.
 | `light_benediction` Benediction | Light | Silver, act3, Prof | 6 | map 3 | allyHeal r1, 50% of damage dealt | Atk +2, Hit +10 | player |
 | `lance_battering_ram` Battering Ram | Lance, Axe | Silver, act3, Prof | 6 | map 2 | ram 2, collision 5 | Atk +3, Hit +10 | any |
 | `legend_stormcall` Stormcall | Breachbolt | Legendary, act3, Mast | 8 | map 2, turn 1 | chosen_center r1, range = weapon (3-10), ×0.8 | none | player |
-| `magic_ashfall` Ashfall (scrollOnly) | Tome | Silver, act4, Prof | 9 | map 1 | chosen_center r1, range 2-5, ×0.6 | none | player |
 
 Names are display names, kept free of FE names in the spirit of #137. Breachbolt keeps
 Cataclysm Bolt and gains Stormcall as a second binding (`weaponArtIds`, at most 3).
+
+**Deferred:** Ashfall, a non-legendary act-4 Tome scroll. Stormcall is the only
+chosen-center art in this spec.
+
+**`any` faction** means the art is legal for enemies. Today no enemy spawn path gives
+enemies arts (§7).
 
 **Power check.** Typical act 2-3 numbers, against arts that already exist:
 
@@ -279,12 +363,12 @@ Cataclysm Bolt and gains Stormcall as a second binding (`weaponArtIds`, at most 
 - **Stormcall.** MAG 22 + 8 − RES 6 = 24 × 0.8 ≈ 19 to each of up to 5 tiles, with no
   miss and no counter. Cataclysm Bolt: about 29 at Breachbolt's 55 base Hit, plus ×0.5
   over 12 tiles. Same budget, traded for reliability.
-- **Ashfall.** About 13 per victim, once per map.
-- **Tempest vs fliers** reaches the 5× cap through Firstwind's own 3×, so a flier in the
-  area takes about 60 and most die. The owner asked for this restore. Flagged for
-  playtest.
+- **Tempest vs fliers.** Area blows cap at 3× (tentative), so a flier in the area takes
+  about (MAG 25 + 12×3 + 5 − RES 10) × 0.75 ≈ 42. At the primary's 5× cap it would be
+  about 60. The owner asked for the restore; the 3× area cap keeps it below a guaranteed
+  one-shot.
 
-`WeaponArtDataBalance.test.js` counts become Mast 16 and Prof 73. Every new legendary
+`WeaponArtDataBalance.test.js` counts become Mast 16 and Prof 72. Every new legendary
 stays Mast with HP ≥ 5 and map ≤ 2.
 
 ### 3.4 Validators and rule text
@@ -303,6 +387,7 @@ stays Mast with HP ≥ 5 and map ≤ 2.
   - "Area: 50% blow to each foe next to you"
   - "Area: 60% blow to up to 2 foes behind the target, per hit"
   - "Aim: any tile 3-10 away; a 1-tile blast; always lands, no counter"
+  - Doom Thrust: "at range 2 it pierces but doesn't push"
   - "On hit: allies next to you heal 50% of the damage"
   - "On hit: push 2; a crash deals 5 (and 5 to a foe it hits)"
   - "On kill: you may move again"
@@ -310,7 +395,7 @@ stays Mast with HP ≥ 5 and map ≤ 2.
     `WEAPON_ARTS_HELP`.
 - **Then:** `npm run sync-data`, `check:reference`, and an icon atlas rebuild for the new
   scroll items (Skewer, Sweeping Cleave, Battering Ram and Benediction scrolls in act 2/3
-  `weaponArtScroll` pools; Ashfall in act 4).
+  `weaponArtScroll` pools).
 
 New pool entries shift loot RNG, so the content slice carries `check:threshold-pr-notes`.
 
@@ -319,8 +404,9 @@ New pool entries shift loot RNG, so the content slice carries `check:threshold-p
 ### Battering Ram (`mode: "ram"`)
 
 - **Direction:** cardinal adjacency, as with push.
-- **Immovable targets:** a target that is rooted, the Entity, or Anchored doesn't move and
-  takes no collision. The hint is "Braced!".
+- **Immovable targets:** a target that is rooted, the Entity, or Anchored doesn't move
+  and takes no collision. The hint is "Braced!". Anchored becomes a shared rule for push,
+  swap and ram alike (slice 0, §10).
 - **The push:** step up to `distance` tiles. Stop before a tile that is out of bounds,
   impassable for the target's `moveType`, or holds a live unit.
 - **Collision:** if the push stopped short, the target takes `collisionDamage`
@@ -332,27 +418,46 @@ New pool entries shift loot RNG, so the content slice carries `check:threshold-p
 ### Benediction (`allyHeal`)
 
 - **Gate:** hit-gated.
-- **Amount:** `floor(hpLost × pct/100)`. `hpLost` is the HP the primary actually lost to
-  the user's landed strikes, read from the strike events' `targetHPAfter`.
+- **Amount:** `floor(dealt × pct/100)`.
+  - `dealt` is Divine Charge's sum: Σ `e.damage` over the user's landed strikes
+    (`Combat.js:2205-2215`).
+  - It is capped at the primary's HP at the start of combat, so overkill heals nothing.
+  - Benediction computes `dealt` itself in the pipeline from `result.events`; it doesn't
+    need the skill.
 - **Who:** each living ally within 1 of the user, the user excluded.
 - **How:** `healUnit` each one (Wounded heals 0). The `divine_charge` beat path is reused.
   Divine Charge itself keeps its single most-hurt target.
 
-### Oathstorm kill-move (`killMove`)
+### Oathstorm kill-move (`killMove`): two options, owner to choose
 
-The owner asked to reuse Dance/refresh. Dance hands the whole action back; Canto is the
-move-only primitive that already survives a refresh.
+Either way, Oathstorm's placeholder `advance 1` is removed. It stood in for this
+(`weapon_arts_tier2_legendary_spec_2026-02-17.md:38-50`). `set_hp 5` and the ally buff
+stay. Both options trigger after `executeCombat` removes its casualties, when the attacker
+is alive and not rooted and the primary died.
 
-- **Trigger:** after `executeCombat` removes its casualties, if the attacker is alive and
-  not rooted and the primary died.
-- **Continuation:** gains `freeMove: unit's MOV` (`ActionContinuation.js` validates an
-  integer 1-20; the snapshot validator uses the same reader).
-- **Move:** `completeResolvedAction → finishUnitAction(unit, { freeMove })` starts
-  `startCantoMove(unit, max(freeMove, cantoRemaining))` even without a Canto skill.
-- **Precedence:** Commander's Gambit wins (it already refreshes everything).
-- **Data:** the placeholder `advance 1` is removed (it stood in for this,
-  `weapon_arts_tier2_legendary_spec_2026-02-17.md:38-50`). `set_hp 5` and the ally buff
-  stay.
+**(a) Move only, through Canto.** The owner's wording ("move only").
+
+- `ActionContinuation.readActionContinuation` (`:20-40`) accepts an optional
+  `freeMove: integer 1-20` (the unit's MOV). `BattleStateSnapshot.js:124-127` validates
+  it through the same reader.
+- `completeResolvedAction` (`BattlePresentationCheckpoint.js:117-124`) passes it to
+  `finishUnitAction(unit, { skipCanto, freeMove })`.
+- `finishUnitAction`'s Canto branch (`BattleScene.js:5125-5143`) starts
+  `startCantoMove(unit, max(freeMove, remaining))` even without a Canto skill.
+- Size: small-medium. Four touch points, all on code #171/#175 rewrite.
+
+**(b) Full refresh, FE Galeforce.** The unit may act again.
+
+- The continuation gains a `refreshActor` boolean, validated the same way.
+- `completeResolvedAction`'s existing Gambit refresh path
+  (`BattlePresentationCheckpoint.js:97-116`) refreshes the actor alone: clear `hasActed`,
+  `hasMoved`, `_movementCommitted`, `_movementSpent`; record history "refreshed"; take the
+  checkpoint.
+- About 10 lines. It is much stronger, so it would want `perTurnLimit 1` (already set) and
+  an HP-cost review.
+
+**Both options:** Commander's Gambit wins if both fire. The harness ignores the
+continuation (Canto off), a documented residual gap.
 
 ## 5. Previews (all area arts, before confirmation)
 
@@ -408,187 +513,245 @@ Action menu → Weapon Art → a `chosen_center` art. The art's availability is
 `canUseWeaponArt` plus "some center in range". It never depends on targets, so fog can't
 shape the menu. The art's weapon is equipped on confirm, as with other arts.
 
-### States
+### One state, reusing the Blink tile flow
 
-These are new `battleState` values. They are registered in every state list: the cancel
-list (`BattleScene.js:3948`), `handleCancel` (`:4088`), `canForceEndTurn` (`:4187`),
-`_emitMobileContext` (`:4219`) and the `InputController` click switch (`:484`). A test
-greps the lists for `SELECTING_ABILITY_TILE` and requires the new states beside it. Vision
-rewind stays idle-only (`VisionRewindController.js:427`), as for Attack targeting.
+The flow adds a single new `battleState`, `SELECTING_AREA_CENTER`. It is built the way
+Blink's `SELECTING_ABILITY_TILE` is: `AbilityController.startBlinkTileSelection` (`:238`)
+and the `InputController` click switch (`:484-486`). The confirm step is a prompt, like
+`AbilityController._showConfirmPrompt` (`:323`), not a second state.
 
 ```
-UNIT_ACTION_MENU ──pick art──▶ SELECTING_AREA_CENTER ──aim──▶ CONFIRMING_AREA_STRIKE ──fire──▶ COMBAT_RESOLVING
-        ▲                         │  ▲ back                      │ re-aim (stays)
-        └──────── back ───────────┘  └───────── back ────────────┘
+UNIT_ACTION_MENU ──pick art──▶ SELECTING_AREA_CENTER ──legal tile──▶ confirm prompt [Fire] [Back]
+        ▲                         ▲   │ back                               │ back      │ fire
+        └──────── back ───────────┼───┘                                    │           ▼
+                                  └────────────────────────────────────────┘    COMBAT_RESOLVING
 ```
 
-**`src/ui/AreaTargetingController.js`** owns the whole flow (`create`/`destroy`, plus
-`begin(unit, art)`, `aim(tile)`, `confirm()`, `back()`).
+**Registration.** The state goes into every list `SELECTING_ABILITY_TILE` is in:
 
-**Aiming:**
+- the cancel list (`BattleScene.js:3948`)
+- `handleCancel` (`:4088`)
+- `canForceEndTurn` (`:4187`)
+- `_emitMobileContext` (`:4219`)
+- the click switch
 
-- **Range:** `centerTiles` gets a range tint.
-- **Initial aim:** the cursor snaps to the nearest *seen* hostile in range, else the unit's
-  own tile clamped into range.
-- **Live preview:** each hover or cursor step re-runs the preview, through
-  `InputController.refreshHoverInfo`, which both mouse and grid cursor already call.
+A test greps for `SELECTING_ABILITY_TILE` and requires the new state beside it. Vision
+rewind stays idle-only (`VisionRewindController.js:427`).
 
-**Confirm panel:** art name, HP `32→24`, the forecast Area row, [Fire] [Back].
+**`src/ui/AreaTargetingController.js`** owns the flow: `create`/`destroy`, plus
+`begin(unit, art)`, `aim(tile)`, `lock(tile)`, `fire()`, `back()`.
+
+**Aiming.**
+
+- The legal centers (`centerTiles`) get a range tint.
+- The cursor starts on the nearest *seen* hostile in range. If there is none, it starts on
+  the unit's tile, clamped into range.
+- Every hover or cursor step re-runs the preview through
+  `InputController.refreshHoverInfo`, which both the mouse and the grid cursor already
+  call.
+
+**The prompt.** It shows the art name, HP `32→24`, the forecast Area row and
+[Fire] [Back]. While it is open the state is the prompt's, as with `_showConfirmPrompt`.
+Back reopens aiming on the same tile.
 
 ### Input by device
 
-| Device | Aim | Lock | Fire | Back | Cycle seen foes |
+| Device | Aim | Lock (opens prompt) | Fire | Back | Cycle seen foes |
 |---|---|---|---|---|---|
-| Mouse | hover | left-click a legal tile | click the same tile or Fire | right-click | none |
-| Keyboard | arrows (`GridCursorController.move`) | Enter/Z | Enter/Z again | Esc/X | Q/E |
-| Gamepad | D-pad/stick | A | A again | B | L1/R1 |
-| Touch | tap a tile | the tap locks | tap the same tile or the Confirm button | Cancel button | Prev/Next buttons |
+| Mouse | hover | left-click a legal tile | Fire, or click the same tile | right-click | none |
+| Keyboard | arrows (`GridCursorController.move`) | Enter/Z | Enter/Z on Fire | Esc/X | Q/E |
+| Gamepad | D-pad/stick | A | A on Fire | B | L1/R1 |
+| Touch | tap a tile | the tap locks | Fire, or tap the same tile | Cancel button | Prev/Next buttons |
 
-- **Locking:** an illegal tile does nothing, and so does the first click after a camera
-  drag.
+- An illegal tile does nothing, and neither does the first click after a camera drag.
 - **Touch:** a new context `battle_area_target` in `MobileControls.js` shows
-  [Confirm][Cancel][◀ Foe ▶]. Long-press still inspects. A press from before a geometry
-  change never acts (existing).
-- **Gamepad:** `padTap` drives it in e2e.
+  [Cancel] [◀ Foe ▶]. Long-press still inspects. A press that began before a geometry
+  change never acts (existing behaviour).
+- **Gamepad:** e2e drives it with `padTap`.
 
 **Portrait.** The cursor's arrows already follow the drawn board
-(`grid.board.displayDeltaToGrid`, `GridCursorController.js:50`). Centers are stored in game
-coordinates. A turn of the phone mid-aim waits: `canSwitchBattlePresentation` needs
-`PLAYER_IDLE` (`portraitBattle.js:190`), and the note reads "…when this action is done".
+(`grid.board.displayDeltaToGrid`, `GridCursorController.js:50`). Centers are stored in
+game coordinates. If the phone turns mid-aim, the switch waits:
+`canSwitchBattlePresentation` needs `PLAYER_IDLE` (`portraitBattle.js:190`), and the note
+reads "…when this action is done".
 
-**Esc order.** Overlays above the battle (unit detail, pause, help) consume first
-(`consumeEscEvent`); the controller checks `isEscConsumed`. Then: confirm → aiming → art
-picker → action menu. The unit stays where it moved, matching Attack's cancel. End Turn
-cancels the flow first.
+**Esc.** Overlays above the battle (unit detail, pause, help) consume Esc first through
+`consumeEscEvent`; the controller checks `isEscConsumed`. After that, each Esc steps back
+one level: prompt → aiming → art picker → action menu. The unit stays where it moved, as
+when Attack is cancelled. End Turn cancels the flow first.
 
-### Suspend and resume
+### What the strike does that `executeCombat` does (B2)
 
-Aiming is UI state, so a refresh while aiming resumes at the last checkpoint, as attack
-targeting does now.
+A chosen-center strike never calls `resolveCombat`. It has its own owner,
+`executeAreaStrike(unit, art, center)`, which mirrors `executeCombat`'s tail. Each side
+effect of `executeCombat` / `_runCombatResolutionAtSpeed`, decided:
 
-Fire runs `_commitCombatIntent`'s sibling: a new `readCommittedAction` kind
-(`BattlePresentationCheckpoint.js:17` accepts only `attack` today):
+| Side effect (main) | Decision |
+|---|---|
+| `_commitCombatIntent` (`:8336`, needs `defender.battleEntityId` `:8340`) | **Sibling** `_commitAreaStrikeIntent`: `{ kind: 'area_strike', unitId, unitName, center: {col,row}, weaponArt }`. Same checkpoint call, same session. |
+| Art cost, `recordWeaponArtUse`, recoil guard, caster Phoenix | **Do**, as `_runCombatResolutionAtSpeed` does. |
+| `resetFortHealStreak` (`:8439`, sets `_fortHealStreak = 0`) | **Do**: it is an attack action. |
+| Music `onCombat` / `onCombatResolved` (`:8209-8215`) | **Do**: the controller wraps the strike the way `_runCombatResolution` does. |
+| History and timeline facts (`:8252-8275`) | **Do**: `observeHistoryAction('called down', unit, null, art.name)`, then one fact per victim the player can see (`historyUnitVisible`). No strike rows (there are no strikes). |
+| `_hitByPlayerThisPhase` / Shielded (`:8296-8303`; `Combat.js:1702`; `AffixForecast.js:48`) | **Ignore and don't spend.** Area blows, like today's splash and pierce (`damageUnit`), bypass Shielded's first-hit negation and leave the guard up. The rule text says "area blows go around a shield"; `AffixForecast` stays accurate. |
+| `deedsFor().onCombat` (`:8314`) | **Skip**: there is no combat result. Kills still reach deeds through `removeUnit → onUnitRemoved`. |
+| `checkBossHalfHealth` / `onLowHealth` (`:8491-8494`) | **Do**, guarded as presentation: boss half health after the blows; `onLowHealth` for the caster after the HP cost. |
+| Tutorial hooks (`:8467` XP lesson, `:8475` permadeath hint) | **Skip**: the tutorial has no chosen-center art. |
+| XP, removals, sweep, `hasBattleDefeat`, level-ups, `completeResolvedAction` | **Do**: the §2.6 tail. The continuation is `kind: 'combat'`, so Canto applies. |
 
-```
-{ kind: 'area_strike', unitId, unitName, center: {col, row}, weaponArt }
-```
+**Resume.** `BattleSuspendController.js:302-303` calls `readCommittedAction` and then
+`resumeCommittedAttack`. Both learn the new kind:
 
-`resumeCommittedAreaStrike` replays it, so the growth rolls after XP land the same.
+- `readCommittedAction` (`BattlePresentationCheckpoint.js:17`; `attack` only today, `:19`)
+  validates `area_strike`: the unit id, and a center in bounds.
+- The dispatcher calls `resumeCommittedAreaStrike` for it.
+- `BattleFatalDecision.js:27-28` already clears any pending intent, whatever its kind.
 
-The strike itself:
-
-1. Art cost, `recordWeaponArtUse`, a Phoenix check.
-2. The engine generator `areaStrikeEffects` (`engine/AreaStrike.js`): the §2.3 two-phase
-   step with every victim a credit, and no counter.
-3. The §2.6 tail, with continuation `kind: 'combat'` (Canto applies).
-
-History records "called down Stormcall" plus per-victim facts, with the timeline's usual
-visibility check. Rewind treats it as an action (add to `rewind-action-types`).
+Aiming is UI state, so a refresh while aiming resumes at the last checkpoint, as Attack
+targeting does now. Rewind treats the strike as an action; add it to
+`rewind-action-types`.
 
 ## 7. Enemy AI
 
-- **Extraction.** `_scoreEnemyWeaponArt` moves to `engine/EnemyArtScoring.js` unchanged
-  (pinned). The harness copy (`HeadlessBattle.js:1541-1590`) is deleted and imports it, per
-  the residual-gap rule.
-- **Area bonus.** `scoreAreaBonus(unit, art, target, world)` runs the preview planner with
-  the *full* world (the AI sees all):
-  `0.8 × Σ (min(damage, hp)/hp × 4 + kill × 6)`, plus heal value for Benediction-like arts.
-  Allies are never in a hostile area, so there is no ally penalty, and a test pins that.
-  The AI picks the art after choosing its target, so it doesn't reposition for a better
-  area. That is acceptable at "reasonably easy".
-- **Never for the AI:** `_selectEnemyWeaponArt` filters out `chosen_center` arts.
-- **Dormant until enemies carry arts.** Today no enemy spawns with one (§1), so this stays
-  dormant until a spawn path exists (open question 6).
-- **Danger / ThreatForecast:** unchanged. Danger shows where a foe can *start* a fight.
-  Spill is conditional on who stands where, and painting it would mostly be noise.
-  Threat Sight's per-unit panel gains a line ("Art: Skewer, also hits 2 tiles behind").
-  Owner to confirm (open question 7).
+### Extraction
+
+`_scoreEnemyWeaponArt` moves to `engine/EnemyArtScoring.js`. The scene's version
+(`WeaponArtController.js:413-456`) is the one moved, and it is pinned. The harness copy
+(`HeadlessBattle.js:1541-1570`) is deleted, per the residual-gap rule.
+
+That copy already lacks six terms the scene has: status count, `damageMultiplier`,
+`ignoreWeaponTriangle`, `ignoreRES`, `killBuff` and `selfDamageOnMiss`. So the extraction
+changes the harness's art picks, and slice 7 carries `check:threshold-pr-notes`.
+
+### Area bonus
+
+`scoreAreaBonus(unit, art, target, world)` runs the preview planner with the *full* world
+(the AI sees every unit):
+
+`0.8 × Σ (min(damage, hp)/hp × 4 + kill × 6)`, plus heal value for Benediction-like arts.
+
+- An ally is never in a hostile area, so there is no ally penalty; a test pins that.
+- The AI picks its art after choosing a target, so it doesn't reposition for a better
+  area. That counts as "reasonably easy".
+- `_selectEnemyWeaponArt` filters out `chosen_center` arts.
+
+### Which enemies get area arts
+
+No enemy spawn path gives enemies arts today (§1). Tentative, pending owner:
+
+- **Who:** act 3+ elites, on Nightfall and above (`isDifficultyAtLeast`).
+- **What:** Sweeping Cleave or Skewer only, bound to their weapon at spawn.
+- **Where:** a small data-driven hook in `difficulty.json`, with a `dusk` entry.
+
+That hook is its own slice (7b). Until it lands, slice 7 is scoring only.
+
+### Danger and ThreatForecast
+
+Unchanged (recommended, pending owner). Danger shows where a foe can *start* a fight.
+Spill depends on who stands where, so painting it would mostly be noise. Threat Sight's
+per-unit panel gains one line, e.g. "Art: Skewer, also hits 2 tiles behind".
 
 ## 8. Harness parity
 
-- **Shared through the generator:** area damage, credits, removes, ram moves, Benediction
-  heals. `runPostCombatEffectsSync` is unchanged, and the harness reads `combat.credits`
-  into `_awardCombatXP → actionXpAwards`.
-- **`HeadlessBattle.executeAreaStrike(unit, artId, center)`** drives `engine/AreaStrike.js`.
-- **Kill-move** is ignored by the harness (Canto off). This is a documented residual gap.
+- **Through the shared generator:** area damage, `result.areaCredits`, removes, ram moves,
+  and Benediction heals. `runPostCombatEffectsSync` is unchanged. The harness passes
+  `result.areaCredits` into `_awardCombatXP → actionXpAwards`
+  (`HeadlessBattle.js:1810-1826`).
+- **Chosen center:** `HeadlessBattle.executeAreaStrike(unit, artId, center)` drives
+  `engine/AreaStrike.js`.
+- **Kill-move continuation:** ignored, because the harness runs with Canto off. This is a
+  documented residual gap.
 - **Optional:** move Entity splash into the engine as an `entity_splash` step that takes
-  `world.random`, keeping today's draw order (**#175** note: hoisting the rolls would
-  change fixed-v1). The harness then gains it.
+  `world.random`, keeping today's draw order. The harness then gains it. (**#175** notes
+  that hoisting the rolls would change the fixed-v1 stream.)
 
 ## 9. Tests
 
-Each test targets one way the change could fail, asserts outcomes, and derives its
-expected numbers by hand from data. Each new test is proved by planting its bug once.
+Each test targets one way the change could fail. It asserts outcomes, and its expected
+numbers come from hand-derivation from data. Each new test is proved by planting its bug
+once.
 
-| Slice | Failure it must catch |
+| Area | Failure it must catch |
 |---|---|
-| AreaShapes | Off-by-one at an edge; a diagonal line where only cardinal ones exist; a line that passes a wall; an Entity counted twice; order unstable between calls. |
-| strikeDamage | Forecast numbers move (pinned before the refactor); an area blow ignores DEF vs RES, triangle, terrain or 3× (Tempest vs a pegasus = hand-computed 5× cap); drift from `resolveCombat`. |
-| Area step | A victim at 0 HP is hit again; a Deathburst from victim 1 changes victim 2's damage (two-phase); `nonLethal` floor; each_landed counts misses; the primary takes splash; the primary is in credits. |
-| XP | Primary XP unchanged (pinned); a splash kill pays kill XP; the cap; Mentor's Band shares once per recipient; `_noXP`; no XP when the attacker died in a chain; one level-up queue. |
-| Death order (scene, matrix from **#175**'s `PresentationFailureProxy`) | A splash kill of the last foe wins only after XP; a splash kill whose Deathburst kills Edric ends the run before popups; boss splash kill → banner + throne; gold once per victim; same state with presentation shown, skipped or failed. |
-| Ram | A rooted/Anchored/Entity target moves; collision without a block; an ally obstacle hurt; a hidden obstacle shown in the preview. |
-| Benediction | Heals by raw damage instead of HP lost; heals the user; heals a Wounded ally. |
-| Kill-move | Granted on a miss or a non-kill; ignores root; lost on refresh (resume continuation); beats Gambit. |
+| AreaShapes | Off-by-one at an edge; a diagonal line; a line through a wall; a hostile between attacker and target hit by a line; an Entity counted twice, or excluded by tile instead of identity; unstable order. |
+| strikeDamage | Forecast numbers move (pin them before the refactor); flat skill mods dropped from the area blow; a crit or proc leaking into it; DEF/RES, triangle, terrain or effectiveness ignored; the area effectiveness cap at 5× instead of 3× (Tempest vs a pegasus, hand-computed); drift from `resolveCombat`. |
+| Migration | Equal to today when no crit and no proc; the documented difference when the first strike crits. |
+| Area step | A victim at 0 HP hit again; victim 1's Deathburst changing victim 2's damage (two-phase); the `nonLethal` floor; each_landed counting misses; the primary taking splash or getting a credit; NPCs hit. |
+| XP | Primary XP unchanged (pinned); rates applied after the battle multipliers instead of before; the 75 cap; one Mentor's Band share per recipient; `_noXP`; a chain-finished victim counted as a kill; a primary finished by a splash victim's Deathburst still paying the attacker kill XP; no XP when the source died in a chain; one level-up queue. |
+| Death order (scene; the **#175** `PresentationFailureProxy` matrix) | A splash kill of the last foe wins only after XP. A splash kill whose Deathburst kills the last foe wins only after XP: today main ends the battle first (`:9265-9270`), and this test fails until #171. A splash kill whose Deathburst kills Edric ends the run before popups. A boss splash kill gives the banner and the throne. Gold is paid once per victim. State is the same whether presentation is shown, skipped or failed. |
+| Shielded | An area blow spends the guard or is negated by it. |
+| Ram / Anchored | A rooted, Anchored or Entity target moved (by push, swap or ram); a collision without a block; an allied obstacle hurt; a hidden obstacle in the preview. |
+| Benediction | Overkill heals; the user heals; a Wounded ally heals. |
+| Kill-move (option chosen) | Granted on a miss or a non-kill; ignores root; lost on refresh (resume continuation); beats Gambit. |
 | Preview | Each PlayerKnowledge pair (§5); chips equal the executed damage when nothing is hidden. |
-| Pick-a-center | Esc order; illegal tile locks; state lists complete; commit-intent resume gives identical HP and RNG cursor; portrait cursor mapping. |
-| AI | Pinned scores for every existing art; area bonus zero with no victims; `chosen_center` never chosen; harness and scene pick the same art for a seed. |
-| Data | Validator rejects the retired keys and a bad `centerRange`; balance counts; display rows exist for every area art. |
+| Pick-a-center | Esc order; an illegal tile locks; the state lists are complete; resuming from the `area_strike` intent gives identical HP and RNG cursor; a fatal decision clears the intent; history and boss half-health fire; deeds `onCombat` doesn't; portrait cursor mapping. |
+| AI | Pinned scene scores for every existing art; the area bonus is zero with no victims; `chosen_center` never chosen; harness and scene pick the same art for a seed. |
+| Data | The validator rejects retired keys and a bad `centerRange`; balance counts; display rows exist for every area art. |
 
-**e2e** (each spec joins a lane in `tests/e2e/lanes.json` and waits on state):
+**e2e.** Each spec joins a lane in `tests/e2e/lanes.json` and waits on state, never on
+time.
 
-- `area-art-preview.spec.js` in `presentation`: chips, the fog-hidden unit gets none, the
-  post-commit reveal label.
-- `area-center-targeting.spec.js` in `battle-input`: keyboard and gamepad aim, lock, fire,
-  back, Esc.
-- `portrait-area-targeting.spec.js` in `portrait` (`portraitHelpers.js`): tap, Confirm and
-  Cancel on the turned board.
-- Extend `combat-refresh-commit.spec.js` in `battle-history` with a refresh mid-Stormcall.
+- `area-art-preview.spec.js` (lane `presentation`): chips; a fog-hidden unit gets none; the
+  label that reveals it after commit.
+- `area-center-targeting.spec.js` (lane `battle-input`): keyboard and gamepad aim, lock,
+  fire, back, Esc.
+- `portrait-area-targeting.spec.js` (lane `portrait`, uses `portraitHelpers.js`): tap,
+  Fire and Cancel on the turned board.
+- `combat-refresh-commit.spec.js` (lane `battle-history`): extended with a refresh in the
+  middle of Stormcall.
 
 ## 10. Implementation slices
 
-**Pre** can land before #171/#175 merge. **Post** waits, because it edits code those PRs
-rewrite (`executeCombat`, `_runCombatResolutionAtSpeed`, `_playPostCombatBeats`,
-`BattlePresentationCheckpoint`). Neither PR touches `PostCombatEffects`, `BattleXp`,
-`AttackFlowController`, `WeaponArtController` or `ForecastOverlay`.
+**Pre:** can land before #171/#175 merge. **Post:** edits code those PRs rewrite
+(`executeCombat`, `_runCombatResolutionAtSpeed`, `_playPostCombatBeats`,
+`BattlePresentationCheckpoint`, `removeUnit`).
+
+#171 and #175 are not ancestors of each other (their common base is e25885cf). Post slices
+are re-anchored after **both** land, with line numbers re-read on the merged tree. Neither
+PR touches `PostCombatEffects`, `WeaponArtPostCombat`, `BattleXp`, `AttackFlowController`,
+`WeaponArtController` or `ForecastOverlay`.
 
 | # | Slice | When | Size |
 |---|---|---|---|
+| 0 | Anchored respected by push, swap and ram in `resolvePostCombatMove` (`WeaponArtPostCombat.js:387-393`; the world passes an immovable check through `world.affixes`) | Pre, first | XS |
 | 1 | `AreaShapes.js` + tests | Pre | S (~150 + 250 test) |
-| 2 | `strikeDamage` / `areaStrikeDamage` extraction, forecast pinned | Pre | S-M |
-| 3 | Area step replaces splash/pierce; migrate the 8 arts; `area` schema + validators + display rows; credits ledger (written, unread); `_postCombatWorld` gains `getTerrainAt`/`isSolid` (2 lines; that function is untouched by #175) | Pre | M |
+| 2 | `strikeDamage` / `areaStrikeDamage` extraction; forecast pinned | Pre | S-M |
+| 3 | Area step replaces splash and pierce; migrate the 8 arts; `area` schema, validators and display rows; `result.areaCredits` written but unread; `_postCombatWorld` gains `getTerrainAt`/`isSolid` (2 lines in a function #175 leaves alone); CHANGELOG + help note (live balance change) | Pre | M |
 | 4a | `actionXpAwards` + harness wiring | Pre | S-M |
-| 4b | Scene reads `combat.credits` into `awardXP`; Phoenix on area victims | Post | S |
-| 5 | Engine support for ram, `allyHeal`, `around_attacker`, line at range, with fixture arts only (no loot) | Pre | M |
+| 4b | Scene passes `result.areaCredits` to `awardXP`; Phoenix for area victims | Post | S |
+| 5 | Engine support for ram, `allyHeal`, `around_attacker`, line at range; fixture arts only, nothing in loot | Pre | M |
 | 6 | `AreaPreview.js` + `AreaPreviewController` + forecast Area row + PlayerKnowledge pairs | Pre | M-L |
-| 7 | `EnemyArtScoring.js` extraction + area bonus; harness copy deleted | Pre | S-M |
-| 8 | Content: Sweeping Cleave, Skewer, Benediction, Battering Ram data + scrolls + loot + help + icons + threshold notes (after 6, so no area art ships without a preview) | Pre (after 6) | M |
+| 7 | `EnemyArtScoring.js` extraction + area bonus; harness copy deleted; threshold PR notes | Pre | S-M |
+| 7b | Enemy elite art binding (pending owner) | Pre | S |
+| 8 | Content: Sweeping Cleave, Skewer, Benediction, Battering Ram data, scrolls, loot, help, icons, threshold notes (after 6, so no area art ships without a preview) | Pre, after 6 | M |
 | 9 | `AreaStrike.js` + harness `executeAreaStrike` + tests | Pre | M |
-| 10 | Pick-a-center scene wiring: `AreaTargetingController`, states, input, mobile context, commit intent/resume, history/rewind, Stormcall + Ashfall data, e2e | Post | L |
-| 11 | Oathstorm kill-move (continuation, `finishUnitAction`, data) | Post | S-M |
+| 10 | Pick-a-center scene wiring: `AreaTargetingController`, `SELECTING_AREA_CENTER`, input, mobile context, the `area_strike` intent and resume dispatch, history and rewind, Stormcall data, e2e | Post | L |
+| 11 | Oathstorm kill-move, option (a) or (b) | Post | S (b) / S-M (a) |
 | 12 | Entity splash into the engine (optional) | Post | S |
 
-Order: 1 → 2 → 3 → 4a → 5 → 6 → 7 → 8 → 9, then 4b → 10 → 11 → 12 once both stability PRs
-are in. Slice 3 changes the balance of existing arts by itself: ship it with a CHANGELOG
-note.
+**Order:** 0 → 1 → 2 → 3 → 4a → 5 → 6 → 7 → 8 → 9, then 4b → 10 → 11 → 12 once both
+stability PRs are in and the post slices are re-anchored.
 
 ## 11. Open questions for the owner
 
-1. **Friendly fire.** The spec says none for every art; a ram never hurts an ally. Should
-   Stormcall/Ashfall hit allies, as a trade-off?
-2. **Blind fire.** May a chosen-center art fire at a center with no *seen* foe in the area?
-   The spec allows it, and the confirm panel says "no known foes". Hidden victims then get
-   revealed by labels.
-3. **Doom Thrust** gains pierce at range 2 through the line shape. Accept, or keep the
-   existing pierce arts melee-only?
-4. **Oathstorm:** replace `advance 1` with the kill-move (spec), or keep both?
-5. **Anchored:** its flag is read nowhere today. Should every art push (Overrun, Doom
-   Thrust, Battering Ram) respect it? The spec does this for Ram only.
-6. **Enemy access.** No enemy carries an art today. Should Act 3+ elites or bosses get
-   Sweeping Cleave, Skewer or Battering Ram, so the AI work matters?
-7. **Danger.** Keep it to primary reach, with the Threat Sight text line (spec)?
-8. **XP rates:** 0.5 per hit, 1.0 per kill, base cap 100.
-9. **Collision 5:** fixed or scaled? Should an enemy obstacle take it too (spec: yes)?
-10. **Names:** Sweeping Cleave, Skewer, Benediction, Battering Ram, Stormcall, Ashfall.
-11. **Ashfall:** an act 4 scroll, or leave Stormcall as the only chosen-center art?
-12. **Tempest:** the 5× cap vs fliers in the area one-shots most fliers. Keep it?
+Each answer marked *(recommended)* is the spec's default until the owner decides.
+
+1. **Friendly fire:** none for any art; a ram never hurts an ally. *(recommended)*
+2. **Blind fire:** allowed. Stormcall may target a center with no *seen* foe in the area;
+   the prompt says "no known foes", and hidden victims are revealed by labels.
+   *(recommended)*
+3. **Doom Thrust:** accept the pierce at range 2; it can't push there, and its row says so.
+   *(recommended)*
+4. **Oathstorm:** replace `advance 1` (decided). Kill-move option (a) move-only through
+   Canto, or (b) full refresh through the Gambit path?
+5. **Anchored:** respected by every push, swap and ram (slice 0). *(recommended)*
+6. **Enemy area arts:** act 3+ elites, Sweeping Cleave and Skewer only, Nightfall and
+   above. *(tentative)*
+7. **Danger:** primary reach only, plus a Threat Sight line. *(recommended)*
+8. **XP:** hit 0.35, kill 0.6, cap 75, all on base XP before the battle multipliers.
+   *(tentative)*
+9. **Area effectiveness cap:** 3×, with 5× kept for the primary. *(tentative)*
+10. **Collision:** fixed 5, and an enemy obstacle takes it too. *(recommended)*
+11. **Names:** Sweeping Cleave, Skewer, Benediction, Battering Ram, Stormcall.
+12. **Ashfall:** deferred; Stormcall is the only chosen-center art for now.
+
