@@ -1539,6 +1539,9 @@ export class BattleScene extends Phaser.Scene {
         for (const spawn of bc.enemySpawns) {
           this.addEnemyFromSpawn(spawn);
         }
+        // The anti-turtle clock measures from the populated field (the reset above ran
+        // on empty unit arrays, which made kills never count as progress).
+        this.initializeAntiTurtleState();
       }
       this._bossName = this._resolveBossDialogueName(
         this.enemyUnits.find((unit) => unit.isBoss)?.name || null,
