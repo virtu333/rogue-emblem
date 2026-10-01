@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { loadGameData } from './testData.js';
 
@@ -37,13 +37,12 @@ describe('Headless Harness Phase Parity', () => {
     enemy.stats.HP = 20;
     enemy.currentHP = 10;
 
-    // Transition to Player Phase (turn 2)
-    // _onPhaseChange('player', 2) is where turn-start effects are applied
-    battle.turnManager.phase = 'enemy';
-    battle.turnManager.turnNumber = 1;
-
-    // This should trigger turn-start for player units, NOT enemy units
-    battle._onPhaseChange('player', 2);
+    // Set up a completed enemy phase; the real transition applies only the
+    // player side's turn-start effects.
+    battle.turnManager.currentPhase = 'enemy';
+    battle.turnManager.endEnemyPhase();
+    expect(battle.turnManager.turnNumber).toBe(2);
+    expect(battle.turnManager.currentPhase).toBe('player');
 
     expect(enemy.currentHP).toBe(10); // Should remain at 10
   });
@@ -72,7 +71,8 @@ describe('Headless Harness Phase Parity', () => {
     enemy.stats.HP = 20;
     enemy.currentHP = 10;
 
-    // _processEnemyPhase is where enemy turn-start effects are applied
+    // Enter the enemy phase through the real transition before processing AI.
+    await battle.endTurn();
     await battle._processEnemyPhase();
 
     // Regenerator heals 20% max HP (20 * 0.2 = 4)

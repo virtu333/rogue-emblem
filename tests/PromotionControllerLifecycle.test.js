@@ -93,7 +93,7 @@ for (const shutdown of [false, true])
       if (shutdown) scene._sceneShutdownCleanedUp = true;
       release();
       expect(await pending).toBe(true);
-      expect(scene._stopLevelUpSfx).toHaveBeenCalledTimes(1);
+      expect(scene._stopLevelUpSfx).toHaveBeenCalledTimes(shutdown ? 0 : 1);
       expect(scene.finishUnitAction).toHaveBeenCalledTimes(shutdown ? 0 : 1);
       expect(unit.consumables).toEqual([]);
     } finally {

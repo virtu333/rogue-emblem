@@ -24,18 +24,35 @@ import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import { applyPromotionOath, promotionOathCandidates } from '../engine/DeedSystem.js';
 
-const sceneEnded = (scene) => scene._sceneShutdownCleanedUp || scene.sys?.isActive?.() === false;
+const sceneEnded = (scene, session) =>
+  scene._battleSession !== session ||
+  scene._sceneShutdownCleanedUp ||
+  scene.sys?.isActive?.() === false;
 
 export class PromotionController {
   constructor(scene) {
     this.scene = scene;
+    this.pending = new WeakSet();
   }
 
   async executePromotion(unit, promotionItem = null) {
+    if (this.pending.has(unit)) return false;
+    this.pending.add(unit);
+    try {
+      return await this._executePromotion(unit, promotionItem);
+    } finally {
+      this.pending.delete(unit);
+    }
+  }
+
+  async _executePromotion(unit, promotionItem = null) {
     const scene = this.scene;
+    const session = scene._battleSession;
+    if (sceneEnded(scene, session)) return false;
     const seal = promotionItem || scene.getPromotionConsumable(unit);
-    if (!seal) {
+    if (!seal || (seal.uses ?? 0) <= 0) {
       await scene.showBriefBanner('Master Seal required to promote.', UI_PALETTE.bad);
+      if (sceneEnded(scene, session)) return false;
       scene.battleState = 'UNIT_ACTION_MENU';
       scene.showActionMenu(unit);
       return false;
@@ -44,6 +61,7 @@ export class PromotionController {
     const refusal = speakSpecialCharacterRefusal(scene.gameData, unit, 'promote', scene.runManager);
     if (refusal) {
       await scene.showBriefBanner(refusal, UI_PALETTE.bad);
+      if (sceneEnded(scene, session)) return false;
       scene.battleState = 'UNIT_ACTION_MENU';
       scene.showActionMenu(unit);
       return false;
@@ -55,6 +73,7 @@ export class PromotionController {
     let sealConsumed = false;
     try {
       return await this._executePromotionFlow(unit, seal, {
+        session,
         markPromotionApplied: () => {
           promotionApplied = true;
         },
@@ -63,7 +82,7 @@ export class PromotionController {
         },
       });
     } catch (err) {
-      if (sceneEnded(scene)) return promotionApplied;
+      if (sceneEnded(scene, session)) return promotionApplied;
       if (!promotionApplied) {
         console.error('[PromotionController] promotion error:', err);
         if (scene.battleState !== 'BATTLE_END') {
@@ -72,7 +91,7 @@ export class PromotionController {
             scene.showActionMenu(unit);
           } catch (menuErr) {
             console.error('[PromotionController] promotion recovery error:', menuErr);
-            scene._recoverUnitActionError(unit, 'promotion', err);
+            scene._recoverUnitActionError(unit, 'promotion', err, { session });
           }
         }
         return false;
@@ -85,12 +104,12 @@ export class PromotionController {
           console.error('[PromotionController] promotion seal-consume error:', sealErr);
         }
       }
-      scene._recoverUnitActionError(unit, 'promotion', err);
+      scene._recoverUnitActionError(unit, 'promotion', err, { session });
       return true;
     }
   }
 
-  async _executePromotionFlow(unit, seal, { markPromotionApplied, markSealConsumed }) {
+  async _executePromotionFlow(unit, seal, { markPromotionApplied, markSealConsumed, session }) {
     const scene = this.scene;
     // Find promotion targets
     const lordData = scene.gameData.lords.find((l) => l.name === unit.name);
@@ -100,6 +119,7 @@ export class PromotionController {
         'Promotion to that class is currently unavailable.',
         UI_PALETTE.bad,
       );
+      if (sceneEnded(scene, session)) return false;
       scene.battleState = 'UNIT_ACTION_MENU';
       scene.showActionMenu(unit);
       return false;
@@ -117,10 +137,10 @@ export class PromotionController {
       scene.battleState = 'COMBAT_RESOLVING'; // block gameplay hotkeys while chooser is open
       // Show promotion choice panel
       const { PromotionChoicePanel } = await import('./PromotionChoicePanel.js');
-      if (sceneEnded(scene)) return false;
+      if (sceneEnded(scene, session)) return false;
       const panel = new PromotionChoicePanel(scene, unit, targets, scene.gameData.skills);
       promotedClassData = await panel.show();
-      if (sceneEnded(scene)) return false;
+      if (sceneEnded(scene, session)) return false;
       if (!promotedClassData) {
         // Cancelled -- return to action menu
         scene.battleState = 'UNIT_ACTION_MENU';
@@ -142,6 +162,7 @@ export class PromotionController {
 
     if (!promotionBonuses) {
       await scene.showBriefBanner('Promotion data missing for this unit.', UI_PALETTE.bad);
+      if (sceneEnded(scene, session)) return false;
       scene.battleState = 'UNIT_ACTION_MENU';
       scene.showActionMenu(unit);
       return false;
@@ -180,10 +201,6 @@ export class PromotionController {
     if (seal.uses <= 0) removeFromConsumables(unit, seal);
     markSealConsumed();
 
-    // Refresh sprite to show promoted class
-    scene.removeUnitGraphic(unit);
-    scene.addUnitGraphic(unit);
-
     // Grant Iron weapons for any new weapon proficiencies gained
     if (promotionWeapons) {
       // Lords get specific promotion weapons (e.g. "Lances (P)")
@@ -217,52 +234,68 @@ export class PromotionController {
       }
     }
 
-    // Update HP bar (max HP increased)
-    scene.updateHPBar(unit);
-
-    captureResolvedAction(scene, { kind: 'finish', unitName: unit.name });
-
-    // The rite (DOM): portrait in the Hollow Sun, the class burning away,
-    // bonuses igniting, ranks and skills sealed in. Everything it shows is
-    // already applied and checkpointed above; a refresh never replays it.
-    const growth = riteContent ? growthCeremonies(scene) : null;
-    let riteShown = false;
-    if (growth) {
-      riteShown = await growth.showPromotionRite({ unit, content: riteContent, beforeUnit });
-      if (sceneEnded(scene)) return true;
-    }
-    if (!riteShown) {
-      // Canvas fallback: banner, then the gains as a level-up style popup.
-      await scene.showPromotionBanner(unit, promotedClassData.name);
-      if (sceneEnded(scene)) return true;
-      const gains = { gains: { ...promotionBonuses }, newLevel: 1 };
-      const popup = new LevelUpPopup(
-        scene,
-        unit,
-        gains,
-        true,
-        [],
-        promotedClassData.growthBonuses || null,
-      );
-      scene._playLevelUpSfx?.('promotion');
-      try {
-        await popup.show();
-      } finally {
-        scene._stopLevelUpSfx?.();
-      }
-      if (sceneEnded(scene)) return true;
-    }
-
-    // Tell the player about innates lost to the skill cap (never silent)
-    const droppedNotice = formatDroppedSkillsNotice(
-      unit.name,
-      promotionResult?.droppedSkills,
-      scene.gameData.skills,
+    captureResolvedAction(
+      scene,
+      {
+        kind: 'finish',
+        unitName: unit.name,
+        ...(unit.battleEntityId ? { unitId: unit.battleEntityId } : {}),
+      },
+      { session },
     );
-    // (the rite lists them in its closing note)
-    if (droppedNotice && !riteShown) await scene.showBriefBanner(droppedNotice, UI_PALETTE.bad);
-    if (sceneEnded(scene)) return true;
 
+    // All class, weapon, Oath and seal changes are already captured. Drawing
+    // failures skip the rest of the ceremony and finish the same action once.
+    try {
+      scene.removeUnitGraphic(unit);
+      scene.addUnitGraphic(unit);
+      scene.updateHPBar(unit);
+
+      // The rite (DOM): portrait in the Hollow Sun, the class burning away,
+      // bonuses igniting, ranks and skills sealed in. Everything it shows is
+      // already applied and checkpointed above; a refresh never replays it.
+      const growth = riteContent ? growthCeremonies(scene) : null;
+      let riteShown = false;
+      if (growth) {
+        riteShown = await growth.showPromotionRite({ unit, content: riteContent, beforeUnit });
+        if (sceneEnded(scene, session)) return true;
+      }
+      if (!riteShown) {
+        // Canvas fallback: banner, then the gains as a level-up style popup.
+        await scene.showPromotionBanner(unit, promotedClassData.name);
+        if (sceneEnded(scene, session)) return true;
+        const gains = { gains: { ...promotionBonuses }, newLevel: 1 };
+        const popup = new LevelUpPopup(
+          scene,
+          unit,
+          gains,
+          true,
+          [],
+          promotedClassData.growthBonuses || null,
+        );
+        scene._playLevelUpSfx?.('promotion');
+        try {
+          await popup.show();
+        } finally {
+          if (!sceneEnded(scene, session)) scene._stopLevelUpSfx?.();
+        }
+        if (sceneEnded(scene, session)) return true;
+      }
+
+      // Tell the player about innates lost to the skill cap (never silent)
+      const droppedNotice = formatDroppedSkillsNotice(
+        unit.name,
+        promotionResult?.droppedSkills,
+        scene.gameData.skills,
+      );
+      // (the rite lists them in its closing note)
+      if (droppedNotice && !riteShown) await scene.showBriefBanner(droppedNotice, UI_PALETTE.bad);
+      if (sceneEnded(scene, session)) return true;
+    } catch (error) {
+      if (!sceneEnded(scene, session))
+        console.warn('[PromotionController] presentation failed:', error);
+    }
+    if (sceneEnded(scene, session)) return true;
     scene.finishUnitAction(unit);
     return true;
   }
