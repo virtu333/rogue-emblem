@@ -151,6 +151,24 @@ describe('a chosen-center strike through the harness', () => {
     expect([caster.currentHP, foe.currentHP, caster.hasActed]).toEqual([40, 30, undefined]);
   });
 
+  it("aims by the art's weapon, and a refused center leaves the sword equipped", () => {
+    const caster = sage();
+    const tome = caster.weapon;
+    const sword = weapon('Iron Sword');
+    caster.inventory = [sword, tome];
+    caster.weapon = sword;
+    caster.proficiencies.push({ type: 'Sword', rank: 'Prof' });
+    const foe = unit('Foe', 'enemy', 1, 3);
+    const far = unit('Far', 'enemy', 4, 3, { RES: 6 });
+    const battle = battleWith([caster, foe, far]);
+    // Next to the caster: the sword reaches it, Breachbolt (3-10) doesn't.
+    expect(battle.executeAreaStrike(caster, stormcall.id, { col: 1, row: 3 })).toBe(false);
+    expect([caster.weapon?.name, caster.currentHP, foe.currentHP]).toEqual(['Iron Sword', 40, 30]);
+    // Four tiles out: past the sword, inside Breachbolt. The strike equips the tome.
+    expect(battle.executeAreaStrike(caster, stormcall.id, { col: 4, row: 3 })).toBe(true);
+    expect([caster.weapon?.name, far.currentHP]).toEqual(['Breachbolt', 11]);
+  });
+
   it('draws no random number (exact on resume, no hit roll)', () => {
     const caster = sage();
     const foe = unit('Foe', 'enemy', 4, 3, { RES: 6 });

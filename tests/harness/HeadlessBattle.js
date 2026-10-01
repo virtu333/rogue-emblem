@@ -1862,9 +1862,10 @@ export class HeadlessBattle {
       ...artCostOpts,
     });
     if (!check.ok) return false;
-    if (unit.weapon !== weapon) equipWeapon(unit, weapon);
+    // Aim with the art's weapon before equipping it: a refused center changes nothing.
     const world = this._postCombatWorld();
-    if (!isAreaStrikeCenter(unit, art, center, world)) return false;
+    if (!isAreaStrikeCenter(unit, art, center, world, weapon)) return false;
+    if (unit.weapon !== weapon) equipWeapon(unit, weapon);
 
     applyWeaponArtCost(unit, art, artCostOpts);
     recordWeaponArtUse(unit, art, { turnNumber: this.turnManager?.turnNumber });

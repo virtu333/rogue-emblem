@@ -25,27 +25,31 @@ export function areaStrikeMods(unit, art) {
   );
 }
 
-/** The distances a chosen-center art may be aimed at from `unit`, or null. */
-export function areaStrikeRange(unit, art) {
+/**
+ * The distances a chosen-center art may be aimed at from `unit`, or null. A
+ * `centerRange: 'weapon'` art reaches as far as `weapon` does: the weapon that carries
+ * the art, which need not be the one equipped yet (default: the equipped one).
+ */
+export function areaStrikeRange(unit, art, weapon = unit?.weapon) {
   const area = getWeaponArtArea(art);
   if (!area || getWeaponArtTargeting(art) !== 'chosen_center') return null;
   if (area.centerRange === 'weapon') {
-    if (!unit?.weapon) return null;
-    const range = parseRange(unit.weapon.range);
+    if (!weapon) return null;
+    const range = parseRange(weapon.range);
     return { min: range.min, max: range.max };
   }
   return area.centerRange || null;
 }
 
-/** Every tile `unit` may aim `art` at (in AreaShapes order), or []. */
-export function areaStrikeCenters(unit, art, world) {
-  const range = areaStrikeRange(unit, art);
+/** Every tile `unit` may aim `art` (carried by `weapon`) at, in AreaShapes order, or []. */
+export function areaStrikeCenters(unit, art, world, weapon = unit?.weapon) {
+  const range = areaStrikeRange(unit, art, weapon);
   return range ? centerTiles(unit, range, areaBounds(world)) : [];
 }
 
-export function isAreaStrikeCenter(unit, art, center, world) {
+export function isAreaStrikeCenter(unit, art, center, world, weapon = unit?.weapon) {
   if (!center) return false;
-  return areaStrikeCenters(unit, art, world).some(
+  return areaStrikeCenters(unit, art, world, weapon).some(
     (t) => t.col === center.col && t.row === center.row,
   );
 }
