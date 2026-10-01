@@ -30,6 +30,7 @@
       "description": "Battle presentation and teaching: speed, effects, forecast parity, reveals, planning, hints, rewards, ceremonies",
       "specs": [
         "battle-speed.spec.js",
+        "combat-boundary.spec.js",
         "effects-settings.spec.js",
         "forecast-parity.spec.js",
         "progression-reveal.spec.js",

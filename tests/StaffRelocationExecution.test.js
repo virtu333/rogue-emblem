@@ -11,6 +11,7 @@ vi.mock('phaser', () => ({
 }));
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { settleTeleporterWarp } from '../src/engine/AffixSystem.js';
 import { XP_BASE_HEAL } from '../src/utils/constants.js';
 import { UI_HEX } from '../src/utils/uiStyles.js';
 import { loadGameData } from './testData.js';
@@ -158,7 +159,22 @@ describe('executeRelocate', () => {
       ctx.grid.cols = 10;
       ctx.grid.rows = 10;
       ctx.grid.getMoveCost = () => 1;
-      await BattleScene.prototype.executeWarp.call(ctx, ally, 2, { col: 4, row: 6 });
+      const random = vi.fn(() => 0);
+      const warp = settleTeleporterWarp({
+        unit: ally,
+        range: 2,
+        attacker: { col: 4, row: 6 },
+        grid: ctx.grid,
+        getUnitAt: ctx.getUnitAt,
+        random,
+      });
+      expect(warp).not.toBeNull();
+      expect(random).toHaveBeenCalledTimes(1);
+      expect({ col: ally.col, row: ally.row }).toEqual(warp.to);
+      await BattleScene.prototype._presentWarp.call(ctx, ally, warp, {
+        session: ctx._battleSession,
+      });
+      expect(ctx.updateUnitPosition).toHaveBeenCalledWith(ally);
     } else {
       await BattleScene.prototype.executeRelocate.call(ctx, makeHealer(freshStaff(name)), ally, {
         col: 5,

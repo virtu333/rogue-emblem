@@ -627,6 +627,7 @@ describe('Scene wiring', () => {
 
     let storyLocked = true;
     const scene = {
+      _battleSession: 1,
       _postLootTransitionStarted: false,
       _postLootTransitionCompleted: false,
       _postLootTransitionStartedAt: 0,

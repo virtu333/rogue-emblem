@@ -566,3 +566,26 @@ Every scenario compares settled and durable state across shown, skipped, paused,
 missing-sprite, all-failure and every-nth-failure worlds. Seven non-equivalent combat
 mutations were caught; two inner story-reporting mutants and the actual parked-chain
 depth-reset mutant were also caught. Physical iOS and WebKit remain unverified.
+
+
+### Final combined verification for round two
+
+PR 5 is open as [#175](https://github.com/virtu333/rogue-emblem/pull/175); CI coverage
+is [#174](https://github.com/virtu333/rogue-emblem/pull/174). Updated #167, #171, #173
+and #172 retain separate reviewable heads; #172 targets #173. The verification
+branch links the published heads as actual merge parents rather than a squash copy.
+
+The merged source passed 574 unit files / 9,284 tests, 23 harness/simulation files /
+236 tests, strict PR fuzz and full-run slices, all data/audio/content/lane checks,
+formatting, lint and the production build. The final combined Chromium pass passed
+22 tests without retries, including a real Teleporter normal/missing-bar/renderer-error
+comparison of live and durable state. A temporary renderer-dependent warp mutation
+failed that browser regression. Earlier independent branch passes covered 57 battle
+and 22 save browser cases. Physical iOS and WebKit remain outstanding.
+
+The full unit pass found constructor-free fixtures missing the now-required session
+counter; those fixtures were updated without changing gameplay assertions. Current
+main also added an opacity regression calling the removed `executeWarp`; it now uses
+real settlement followed by `_presentWarp`, preserving its movement/opacity assertions.
+The final unit rerun passed. CI is green on #167, #171 and #174; the final #173/#172/#175
+heads are rerunning checks after fixture updates. Main remains unchanged.
