@@ -11,6 +11,7 @@ import { ChoicePicker } from './ChoicePicker.js';
 import { unitPortrait } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { tradeWarningText } from './tradeMenuModel.js';
+import { TRADE_WARNINGS } from '../engine/ItemTrade.js';
 import {
   shopOwnedItems,
   shopBuyBlock,
@@ -373,11 +374,12 @@ export class ShopMenu {
     } else if (tab === 'sell') {
       reason = shopSellBlock(this.run, row);
       // Selling the last weapon is allowed; say what it costs before and at the confirm.
-      const warning = shopSellWarnings(this.run, row)
-        .map(tradeWarningText)
-        .filter(Boolean)
-        .map((text) => `${text}.`)
-        .join(' ');
+      // The last weapon of a type is a note (muted), not a warning; the confirm's
+      // plain text says both.
+      const warnings = shopSellWarnings(this.run, row).filter((w) => tradeWarningText(w));
+      const sentence = (w) => `${tradeWarningText(w)}.`;
+      const soft = (w) => w.code === TRADE_WARNINGS.leavesNoType;
+      const warning = warnings.map(sentence).join(' ');
       const b = button(
         `Sell · ${getSellPrice(item)} G`,
         () =>
@@ -391,7 +393,13 @@ export class ShopMenu {
       b.disabled = !!reason;
       if (warning && !reason) {
         b.setAttribute('aria-description', warning);
-        action.append(el('p', warning, 'shop-warning'));
+        const hard = warnings
+          .filter((w) => !soft(w))
+          .map(sentence)
+          .join(' ');
+        const note = warnings.filter(soft).map(sentence).join(' ');
+        if (hard) action.append(el('p', hard, 'shop-warning'));
+        if (note) action.append(el('p', note, 'shop-warning is-soft'));
       }
       action.append(b);
     } else {

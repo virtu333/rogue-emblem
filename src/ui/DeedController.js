@@ -12,6 +12,7 @@
 // must never break a battle.
 
 import {
+  addFallenBattleRecord,
   commitBattleDeeds,
   commitFallenBattleDeeds,
   fallenBattleRecord,
@@ -70,26 +71,26 @@ export class DeedController {
 
   /**
    * From removeUnit: the single death funnel. A fallen player unit leaves a
-   * record of what it did this battle (`scene._fallenBattleRecords`, world
-   * state that rewinds and resumes with the battle), committed at victory.
+   * record of what it did and carried this battle (`scene._fallenBattleRecords`,
+   * world state that rewinds and resumes with the battle), used at victory.
    */
   onUnitRemoved(unit, killer = null) {
+    const s = this.scene;
+    // The death record carries what the unit held as it fell (its fallen record
+    // and the convoy depend on it), so it is taken in any run battle, deeds or not.
+    if (s?.runManager && !s.battleParams?.tutorialMode) {
+      try {
+        const record = fallenBattleRecord(unit);
+        if (record) s._fallenBattleRecords = addFallenBattleRecord(s._fallenBattleRecords, record);
+      } catch (error) {
+        warn('fallen', error);
+      }
+    }
     if (!this.active()) return;
     try {
       recordKill(unit, killer, { terrain: killer ? this._terrainName(killer) : null });
     } catch (error) {
       warn('kill', error);
-    }
-    try {
-      const record = fallenBattleRecord(unit);
-      const s = this.scene;
-      if (record)
-        s._fallenBattleRecords = [
-          ...(Array.isArray(s._fallenBattleRecords) ? s._fallenBattleRecords : []),
-          record,
-        ];
-    } catch (error) {
-      warn('fallen', error);
     }
   }
 

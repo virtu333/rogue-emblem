@@ -316,7 +316,8 @@ damage dealt), and enemies target it freely.
   (`ShopCommands.shopSellRisk`): "Only weapon" (`only_weapon` → `leaves_unarmed`), "Only staff"
   (a staff user's last usable staff, `only_staff` → `leaves_no_staff`: "Leaves ⟨unit⟩ without a
   staff") and, quieter, "Only bow" etc. (`only_type` → `leaves_no_type`: the last usable weapon
-  of a type a unit keeps beside another). Spares, unusable items, supplies and the convoy carry
+  of a type a unit keeps beside another; a muted note in the sell pane, not a warning, and plain
+  text in the confirm like the others). Spares, unusable items, supplies and the convoy carry
   none. The row also shows how much the item was used (`engine/ItemUsage.js`).
 - A usable combat weapon that reaches an unarmed unit is equipped (`equipIfUnarmed`): a trade,
   Withdraw, a battle reward, a shop purchase, and a weapon granted by an in-battle promotion or

@@ -9,7 +9,6 @@ import { RunManager, serializeUnit } from '../src/engine/RunManager.js';
 import {
   ITEM_USAGE_KEYS,
   bumpItemUsage,
-  carryItemUsage,
   itemUsage,
   itemUsageShort,
   itemUsageText,
@@ -75,13 +74,36 @@ describe('what counts', () => {
     expect(hero.weapon._strikes).toBe(3);
   });
 
-  it("counts a kill on the killer's weapon; an enemy's kill counts on nothing", () => {
+  it('credits a kill to the weapon whose strike made it, never a kill made otherwise', () => {
     const hero = fighter('Edric');
     const foe = fighter('Brigand', 'enemy', 'Iron Axe');
+    // A miss, a wounding hit, the foe's counter that downs the hero (an enemy's kill),
+    // then the hero's strike that leaves the foe at 0 HP.
+    recordCombat(
+      {
+        events: [
+          strike('attacker', { miss: true, targetHPAfter: 9 }),
+          strike('attacker', { targetHPAfter: 4 }),
+          strike('defender', { targetHPAfter: 0 }),
+          strike('attacker', { targetHPAfter: 0 }),
+        ],
+      },
+      hero,
+      foe,
+      {},
+    );
     recordKill(foe, hero, { terrain: 'Plain' });
-    recordKill(fighter('Mira'), foe, {});
-    expect(hero.weapon._kills).toBe(1);
+    expect(hero.weapon).toMatchObject({ _strikes: 3, _kills: 1 });
     expect(foe.weapon._kills).toBeUndefined();
+    // A kill no strike made (a turn-start aura, a burst, poison): the deed still
+    // counts it, the weapon does not. A healer's staff never "kills".
+    const healer = fighter('Sera', 'player', 'Heal');
+    recordKill(fighter('Thief', 'enemy'), healer, {});
+    recordKill(fighter('Archer', 'enemy'), hero, {});
+    expect(healer._battleDeeds.kills).toBe(1);
+    expect(healer.weapon._kills).toBeUndefined();
+    expect(hero._battleDeeds.kills).toBe(2);
+    expect(hero.weapon._kills).toBe(1);
   });
 
   it("counts a staff use on the staff, only for the player's army", () => {
@@ -104,7 +126,7 @@ describe('what counts', () => {
         battleParams: { tutorialMode },
         turnManager: { currentPhase: 'player' },
       });
-      deeds.onCombat(hero, foe, { events: [strike('attacker')] });
+      deeds.onCombat(hero, foe, { events: [strike('attacker', { targetHPAfter: 0 })] });
       deeds.onUnitRemoved(foe, hero);
       deeds.onStaffUse(hero, hero.weapon);
       return usageOf(hero.weapon);
@@ -134,18 +156,12 @@ describe('how it reads', () => {
     [{ type: 'Bow', _strikes: 14, _kills: 3 }, 'Used in 14 strikes · 3 kills', '14 strikes'],
     [{ type: 'Axe', _strikes: 2, _kills: 1 }, 'Used in 2 strikes · 1 kill', '2 strikes'],
     [{ type: 'Staff' }, '', ''],
-    [{ type: 'Staff', _casts: 1 }, 'Used once', '1 use'],
-    [{ type: 'Staff', _casts: 9 }, 'Used 9 times', '9 uses'],
+    // A staff's count reads as casts, never as charges left ("Uses 2/3").
+    [{ type: 'Staff', _casts: 1 }, 'Cast once', '1 cast'],
+    [{ type: 'Staff', _casts: 9 }, 'Cast 9 times', '9 casts'],
   ])('%o → "%s" / "%s"', (item, text, short) => {
     expect(itemUsageText(item)).toBe(text);
     expect(itemUsageShort(item)).toBe(short);
-  });
-
-  it('carries only higher counts onto another copy of the same item', () => {
-    const older = { _strikes: 5, _kills: 2 };
-    expect(carryItemUsage(older, { _strikes: 9, _kills: 1, _casts: 0 })).toBe(true);
-    expect(older).toEqual({ _strikes: 9, _kills: 2 });
-    expect(carryItemUsage(older, { _strikes: 9 })).toBe(false);
   });
 });
 

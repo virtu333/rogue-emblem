@@ -157,8 +157,14 @@ function validRestoreFields(state, width, height) {
           text(entry.name) &&
           optional(entry, 'unitUid', text) &&
           optional(entry, 'battleDeeds', record) &&
-          optional(entry, 'itemUsage', (usage) =>
-            list(usage, (item) => record(item) && text(item.uid), 64),
+          optional(
+            entry,
+            'bags',
+            (bags) =>
+              record(bags) &&
+              items(bags.inventory) &&
+              optional(bags, 'consumables', items) &&
+              (bags.weapon == null || integer(bags.weapon) || record(bags.weapon)),
           ),
         64,
       ),

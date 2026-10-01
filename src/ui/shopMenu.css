@@ -210,6 +210,10 @@
   margin: 0 0 6px;
   color: var(--re-warn);
 }
+/* The last weapon of a type ("Leaves Kai without a bow"): a note, not a warning. */
+.shop-warning.is-soft {
+  color: var(--re-muted);
+}
 .shop-footer {
   display: flex;
   justify-content: space-between;

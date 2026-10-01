@@ -37,51 +37,23 @@ export function itemUsage(item) {
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 /**
- * The item card's line: "Used in 14 strikes · 3 kills", "Used 9 times" (a
- * staff), or '' when the item has no recorded use.
+ * The item card's line: "Used in 14 strikes · 3 kills", "Cast 9 times" (a
+ * staff), or '' when the item has no recorded use. Staff counts say "cast", never
+ * "uses", which the staff's remaining charges already say ("Uses 2/3").
  */
 export function itemUsageText(item) {
   const { strikes, kills, casts } = itemUsage(item);
   if (item?.type === 'Staff')
-    return casts > 0 ? `Used ${casts === 1 ? 'once' : `${casts} times`}` : '';
+    return casts > 0 ? `Cast ${casts === 1 ? 'once' : `${casts} times`}` : '';
   const parts = [];
   if (strikes > 0) parts.push(plural(strikes, 'strike', 'strikes'));
   if (kills > 0) parts.push(plural(kills, 'kill', 'kills'));
   return parts.length ? `Used in ${parts.join(' · ')}` : '';
 }
 
-/** The list row's short form: "14 strikes", "9 uses" (a staff), or ''. */
+/** The list row's short form: "14 strikes", "9 casts" (a staff), or ''. */
 export function itemUsageShort(item) {
   const { strikes, casts } = itemUsage(item);
-  if (item?.type === 'Staff') return casts > 0 ? plural(casts, 'use', 'uses') : '';
+  if (item?.type === 'Staff') return casts > 0 ? plural(casts, 'cast', 'casts') : '';
   return strikes > 0 ? plural(strikes, 'strike', 'strikes') : '';
-}
-
-/**
- * Raise `target`'s counters to `source`'s where the source has more (the same
- * item instance seen later). Returns true when anything changed.
- */
-export function carryItemUsage(target, source) {
-  if (!isItem(target) || !isItem(source)) return false;
-  let changed = false;
-  for (const key of ITEM_USAGE_KEYS) {
-    const n = count(source[key]);
-    if (n > count(target[key])) {
-      target[key] = n;
-      changed = true;
-    }
-  }
-  return changed;
-}
-
-/** `{ uid, _strikes?, _kills?, _casts? }` for each used item that has a uid. */
-export function itemUsageByUid(items) {
-  const out = [];
-  for (const item of Array.isArray(items) ? items : []) {
-    if (!isItem(item) || typeof item.uid !== 'string' || !item.uid) continue;
-    const entry = { uid: item.uid };
-    for (const key of ITEM_USAGE_KEYS) if (count(item[key]) > 0) entry[key] = count(item[key]);
-    if (Object.keys(entry).length > 1) out.push(entry);
-  }
-  return out;
 }

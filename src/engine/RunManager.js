@@ -3629,8 +3629,8 @@ export class RunManager {
    * @param {{ completionGoldOverride?: number, caravanSurvived?: boolean, fallenRecruits?: object[], fallenBattleRecords?: object[] }} [options]
    *   fallenRecruits: serialized units that joined mid-battle (Talk) and fell
    *   before victory — recorded as fallen allies like roster casualties.
-   *   fallenBattleRecords: what each casualty did before it fell (DeedSystem
-   *   `fallenBattleRecord`, committed at victory): its deeds and item use.
+   *   fallenBattleRecords: each casualty's death record (DeedSystem
+   *   `fallenBattleRecord`, deeds committed at victory): its deeds and its bags.
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
@@ -3670,8 +3670,10 @@ export class RunManager {
       if (!fallenUid || !this.fallenUnits.some((f) => unitUidOf(f) === fallenUid)) {
         const serializedFallen = serializeUnit(fallen);
         this.assignUnitUid(serializedFallen);
-        // The casualty is recorded as it entered the battle; what it did there
-        // before it fell (kills, deeds, its weapons' use) is added back.
+        // The casualty is the unit as it entered the battle; its death record
+        // adds what it did there (kills, deeds) and swaps in the bags it carried
+        // as it fell, so a traded, given or drunk item is neither duplicated,
+        // lost nor refunded. No record (an older checkpoint): the entry bags.
         applyFallenBattleRecord(
           serializedFallen,
           findFallenBattleRecord(options?.fallenBattleRecords, serializedFallen),

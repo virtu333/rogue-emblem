@@ -35,7 +35,7 @@
 // battle (Veteran counts battles survived).
 
 import { getXpEffectiveLevel, learnSkill } from './UnitManager.js';
-import { ITEM_USAGE_KEYS, bumpItemUsage, carryItemUsage, itemUsageByUid } from './ItemUsage.js';
+import { bumpItemUsage } from './ItemUsage.js';
 import { MAX_SKILLS } from '../utils/constants.js';
 import { DEED_FORMS, titledName, unitEpithet } from './DeedTitles.js';
 
@@ -184,7 +184,12 @@ export function recordCombat(result, attacker, defender, ctx = {}) {
     const striker = event.attackerSide === 'defender' ? defender : attacker;
     const target = striker === attacker ? defender : attacker;
     // The weapon resolveCombat struck with is the striker's equipped one.
-    if (isDeedUnit(striker) && isFoe(target)) bumpItemUsage(striker.weapon, '_strikes');
+    if (isDeedUnit(striker) && isFoe(target)) {
+      bumpItemUsage(striker.weapon, '_strikes');
+      // A kill counts on the weapon only when this strike made it (an aura, a
+      // burst or a status kill was not that weapon's).
+      if (!event.miss && Number(event.targetHPAfter) <= 0) bumpItemUsage(striker.weapon, '_kills');
+    }
     if (isDeedUnit(striker) && isFoe(target) && !event.miss && event.isCrit)
       beginBattleDeeds(striker).crits++;
     if (isDeedUnit(target) && isFoe(striker)) {
@@ -224,7 +229,6 @@ export function recordKill(victim, killer, ctx = {}) {
   if (!isFoe(victim) || !isDeedUnit(killer)) return;
   const b = beginBattleDeeds(killer);
   b.kills++;
-  bumpItemUsage(killer.weapon, '_kills');
   if (typeof ctx.terrain === 'string') bump(b.killsByTerrain, ctx.terrain);
   bump(b.killsByWeapon, typeof killer.weapon?.type === 'string' ? killer.weapon.type : null);
   const gap = getXpEffectiveLevel(victim) - getXpEffectiveLevel(killer);
@@ -704,32 +708,48 @@ const MAX_FALLEN_RECORDS = 64;
 
 /**
  * What a player unit did in this battle before it fell, as plain JSON:
- * `{ name, unitUid?, battleDeeds?, itemUsage? }` (`itemUsage`: ItemUsage
- * counters by item uid). Taken at its death, the last moment it can act; null
- * for anyone else. The battle keeps these with its other world state, so a
- * Vision rewind past the death drops the record and a resume keeps it.
+ * `{ name, unitUid?, battleDeeds?, bags? }`. `bags` is what it carried as it
+ * fell (`{ inventory, consumables, weapon }`: item copies, `weapon` an index
+ * into `inventory`, an item not carried there, or null), so its record keeps
+ * the items it really had (a trade, a Vulnerary drunk) and each item's use
+ * counts. Taken at its death, the last moment it can act; null for anyone
+ * else. The battle keeps these with its other world state, so a Vision rewind
+ * past the death drops the record and a resume keeps it. The accessory is not
+ * recorded: it cannot change hands in battle, and its stats live on the unit.
  */
 export function fallenBattleRecord(unit) {
   if (!isDeedUnit(unit) || typeof unit.name !== 'string' || !unit.name) return null;
   const record = { name: unit.name };
   if (typeof unit.unitUid === 'string' && unit.unitUid) record.unitUid = unit.unitUid;
   if (isObject(unit._battleDeeds)) record.battleDeeds = sanitizeBattleDeeds(unit._battleDeeds);
-  const carried = [...(Array.isArray(unit.inventory) ? unit.inventory : [])];
-  if (unit.weapon && !carried.includes(unit.weapon)) carried.push(unit.weapon);
-  const usage = itemUsageByUid(carried);
-  if (usage.length) record.itemUsage = usage;
+  const bags = sanitizeBags({
+    inventory: unit.inventory,
+    consumables: unit.consumables,
+    weapon: unit.weapon
+      ? Array.isArray(unit.inventory) && unit.inventory.includes(unit.weapon)
+        ? unit.inventory.indexOf(unit.weapon)
+        : unit.weapon
+      : null,
+  });
+  if (bags) record.bags = bags;
   return record;
 }
 
-function sanitizeItemUsageList(list) {
-  const out = [];
-  for (const raw of Array.isArray(list) ? list.slice(0, 64) : []) {
-    if (!isObject(raw) || typeof raw.uid !== 'string' || !raw.uid) continue;
-    const entry = { uid: raw.uid.slice(0, 128) };
-    for (const key of ITEM_USAGE_KEYS) if (count(raw[key]) > 0) entry[key] = count(raw[key]);
-    out.push(entry);
-  }
-  return out;
+const MAX_BAG_ITEMS = 16;
+const isItemRecord = (item) => isObject(item) && typeof item.name === 'string' && !!item.name;
+
+/** Clean copies of recorded bags, or null when they are not usable as a whole. */
+function sanitizeBags(raw) {
+  if (!isObject(raw) || !Array.isArray(raw.inventory)) return null;
+  const consumables = Array.isArray(raw.consumables) ? raw.consumables : [];
+  const lists = [raw.inventory, consumables];
+  if (lists.some((list) => list.length > MAX_BAG_ITEMS || !list.every(isItemRecord))) return null;
+  const inventory = raw.inventory.map((item) => structuredClone(item));
+  let weapon = null;
+  if (Number.isInteger(raw.weapon) && raw.weapon >= 0 && raw.weapon < inventory.length)
+    weapon = raw.weapon;
+  else if (isItemRecord(raw.weapon)) weapon = structuredClone(raw.weapon);
+  return { inventory, consumables: consumables.map((item) => structuredClone(item)), weapon };
 }
 
 /** Clean copies of fallen battle records (garbled entries dropped). Never mutates. */
@@ -744,11 +764,23 @@ export function normalizeFallenBattleRecords(list) {
       const deeds = sanitizeUnitDeeds(raw.deeds);
       if (deeds) record.deeds = deeds;
     }
-    const usage = sanitizeItemUsageList(raw.itemUsage);
-    if (usage.length) record.itemUsage = usage;
+    const bags = raw.bags === undefined ? null : sanitizeBags(raw.bags);
+    if (bags) record.bags = bags;
     out.push(record);
   }
   return out;
+}
+
+/**
+ * Add a death record, replacing an earlier one for the same unit (a death is
+ * recorded once; a repeated removal keeps the latest). Returns a new list.
+ */
+export function addFallenBattleRecord(list, record) {
+  const records = Array.isArray(list) ? list : [];
+  if (!isObject(record)) return [...records];
+  const same = (r) =>
+    record.unitUid ? r?.unitUid === record.unitUid : !r?.unitUid && r?.name === record.name;
+  return [...records.filter((r) => !same(r)), record];
 }
 
 /** The record for `unit` (a fallen roster entrant): by unit uid, else a record without one by name. */
@@ -792,9 +824,12 @@ export function commitFallenBattleDeeds(records, deedsData, ctx = {}, entrantOf 
 }
 
 /**
- * Give a fallen unit's saved record (the roster entrant, serialized) what it did
- * in the battle where it fell: the deeds `commitFallenBattleDeeds` folded in,
- * and its carried items' use. Items match by uid. Returns the unit.
+ * Give a fallen unit's saved record (the roster entrant, serialized: what it
+ * carried as it ENTERED the battle) what it did there before it fell: the
+ * deeds `commitFallenBattleDeeds` folded in, and the bags it carried as it
+ * fell (items traded away stay with their new owner, a drunk Vulnerary stays
+ * drunk, an item it was given comes with it). A record without bags (none was
+ * taken) leaves the entry bags. Returns the unit.
  */
 export function applyFallenBattleRecord(unit, record) {
   if (!isObject(unit) || !isObject(record)) return unit;
@@ -802,15 +837,11 @@ export function applyFallenBattleRecord(unit, record) {
     const deeds = sanitizeUnitDeeds(record.deeds);
     if (deeds) unit.deeds = deeds;
   }
-  const usage = sanitizeItemUsageList(record.itemUsage);
-  if (usage.length) {
-    const byUid = new Map(usage.map((entry) => [entry.uid, entry]));
-    const carried = [...(Array.isArray(unit.inventory) ? unit.inventory : [])];
-    if (unit.weapon && !carried.includes(unit.weapon)) carried.push(unit.weapon);
-    for (const item of carried) {
-      const entry = typeof item?.uid === 'string' ? byUid.get(item.uid) : null;
-      if (entry) carryItemUsage(item, entry);
-    }
+  const bags = record.bags === undefined ? null : sanitizeBags(record.bags);
+  if (bags) {
+    unit.inventory = bags.inventory;
+    unit.consumables = bags.consumables;
+    unit.weapon = Number.isInteger(bags.weapon) ? bags.inventory[bags.weapon] : bags.weapon;
   }
   return unit;
 }

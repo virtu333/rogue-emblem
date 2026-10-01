@@ -408,27 +408,40 @@ describe('deed progress (Deeds & Epithets)', () => {
     expect(resumed.enemyUnits[0]._slewAllies).toEqual(['Mira']);
   });
 
-  it("weapon use counts and a fallen unit's record roll back with Vision and survive a resume", async () => {
+  it("weapon use counts and a fallen unit's record (deeds, bags) roll back with Vision and survive a resume", async () => {
     const { deedsFor } = await import('../src/ui/DeedController.js');
     const s = scene();
     s.gameData.deeds = { deeds: [] };
     const ally = unit('Mira');
+    ally.consumables = [{ uid: 'Mira-vul', name: 'Vulnerary', type: 'Consumable', uses: 3 }];
     s.playerUnits.push(ally);
     const [hero, mira] = s.playerUnits;
     const [foe] = s.enemyUnits;
     deedsFor(s).onCombat(hero, foe, { events: [crit, { ...crit, miss: true }] });
     s.captureVisionSnapshot();
-    // After the snapshot: two more strikes, a kill, and Mira's death with her record.
-    deedsFor(s).onCombat(mira, foe, { events: [crit, crit] });
+    // After the snapshot: she drinks once, strikes twice (the second kills), and falls.
+    mira.consumables[0].uses = 2;
+    deedsFor(s).onCombat(mira, foe, { events: [crit, { ...crit, targetHPAfter: 0 }] });
     deedsFor(s).onUnitRemoved(s.enemyUnits[0], mira);
     s.playerUnits.splice(1, 1);
     deedsFor(s).onUnitRemoved(mira, null);
     expect(mira.weapon).toMatchObject({ _strikes: 2, _kills: 1 });
+    const carried = (strikes, kills, uses) => ({
+      inventory: [
+        expect.objectContaining({
+          uid: 'Mira-sword',
+          _strikes: strikes,
+          ...(kills ? { _kills: kills } : {}),
+        }),
+      ],
+      consumables: [expect.objectContaining({ uid: 'Mira-vul', uses })],
+      weapon: 0,
+    });
     expect(s._fallenBattleRecords).toEqual([
       {
         name: 'Mira',
         battleDeeds: expect.objectContaining({ crits: 2, kills: 1 }),
-        itemUsage: [{ uid: 'Mira-sword', _strikes: 2, _kills: 1 }],
+        bags: carried(2, 1, 2),
       },
     ]);
     s._visionController._applySnapshot();
@@ -436,9 +449,10 @@ describe('deed progress (Deeds & Epithets)', () => {
       ['Rider', 2, undefined],
       ['Mira', undefined, undefined],
     ]);
+    expect(s.playerUnits[1].consumables[0].uses).toBe(3);
     expect(s._fallenBattleRecords).toEqual([]);
 
-    // She falls again; a suspend/resume keeps her record and every count.
+    // She falls again; a suspend/resume keeps her record, its bags and every count.
     deedsFor(s).onCombat(s.playerUnits[1], s.enemyUnits[0], { events: [crit] });
     const fallen = s.playerUnits.splice(1, 1)[0];
     deedsFor(s).onUnitRemoved(fallen, s.enemyUnits[0]);
@@ -449,7 +463,7 @@ describe('deed progress (Deeds & Epithets)', () => {
       {
         name: 'Mira',
         battleDeeds: expect.objectContaining({ crits: 1, kills: 0 }),
-        itemUsage: [{ uid: 'Mira-sword', _strikes: 1 }],
+        bags: carried(1, undefined, 3),
       },
     ]);
   });

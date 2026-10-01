@@ -296,7 +296,7 @@ it("sell rows tag someone's only weapon or staff and say how much each item was 
   expect(tagsOf(rowOf(sword))).toEqual([['Only weapon', 'hard']]);
   expect(subOf(rowOf(sword)).textContent).toMatch(/^Edric · \+\d+ G · 14 strikes$/);
   expect(tagsOf(rowOf(heal))).toEqual([['Only staff', 'hard']]);
-  expect(subOf(rowOf(heal)).textContent).toMatch(/^Mae · \+\d+ G · 9 uses$/);
+  expect(subOf(rowOf(heal)).textContent).toMatch(/^Mae · \+\d+ G · 9 casts$/);
   // The convoy's lance belongs to no one: no tag, and no use yet.
   const lance = d.run.convoy.weapons[0];
   expect(tagsOf(rowOf(lance))).toEqual([]);
@@ -309,4 +309,31 @@ it("sell rows tag someone's only weapon or staff and say how much each item was 
   edric.inventory.push(weapon('Iron Sword'));
   menu.render();
   expect(tagsOf(rowOf(sword))).toEqual([]);
+});
+
+it('the last weapon of a type is a muted note in the sell pane; the last weapon is a warning', () => {
+  const [edric] = d.run.roster;
+  const weapon = (name) => structuredClone(d.data.weapons.find((i) => i.name === name));
+  const sword = Object.assign(weapon('Iron Sword'), { uid: 'note-sword' });
+  const bow = Object.assign(weapon('Iron Bow'), { uid: 'note-bow' });
+  edric.proficiencies = [
+    { type: 'Sword', rank: 'Prof' },
+    { type: 'Bow', rank: 'Prof' },
+  ];
+  edric.inventory = [sword, bow];
+  edric.weapon = sword;
+  d.run.roster = [edric];
+  const menu = d.shop.nativeMenu;
+  d.scene.activeShopTab = 'sell';
+  const notes = (item) => {
+    menu.selected = item;
+    menu.render();
+    return menu.surface.body
+      .all()
+      .filter((n) => n.classList.contains('shop-warning'))
+      .map((n) => [n.textContent, n.classList.contains('is-soft') ? 'muted' : 'warn']);
+  };
+  expect(notes(bow)).toEqual([['Leaves Edric without a bow.', 'muted']]);
+  edric.inventory = [sword];
+  expect(notes(sword)).toEqual([['Leaves Edric unarmed.', 'warn']]);
 });
