@@ -145,6 +145,11 @@ export function itemKeywords(item) {
   return tags;
 }
 
+/** A weapon type in plain words ("Sword", "Light Tome"); the type itself when unknown. */
+export function weaponTypeNoun(type) {
+  return TYPE_NOUN[type] || (typeof type === 'string' ? type : '');
+}
+
 /**
  * What the item is, in plain words: "Silver Lance", "Legend Sword", "Light Tome".
  * Null for anything that isn't a combat weapon or staff.

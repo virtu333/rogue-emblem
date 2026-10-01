@@ -312,6 +312,12 @@ damage dealt), and enemies target it freely.
 - Shop: selling a unit's last combat weapon is allowed too (`ShopCommands.shopSellWarnings`):
   the sell pane and the confirm say "Leaves ⟨unit⟩ unarmed.", and the message after the sale
   says the unit is now unarmed. (Before, "Keep at least one combat weapon." refused the sale.)
+  The Sell list tags the risk on the row itself, before a row is chosen
+  (`ShopCommands.shopSellRisk`): "Only weapon" (`only_weapon` → `leaves_unarmed`), "Only staff"
+  (a staff user's last usable staff, `only_staff` → `leaves_no_staff`: "Leaves ⟨unit⟩ without a
+  staff") and, quieter, "Only bow" etc. (`only_type` → `leaves_no_type`: the last usable weapon
+  of a type a unit keeps beside another). Spares, unusable items, supplies and the convoy carry
+  none. The row also shows how much the item was used (`engine/ItemUsage.js`).
 - A usable combat weapon that reaches an unarmed unit is equipped (`equipIfUnarmed`): a trade,
   Withdraw, a battle reward, a shop purchase, and a weapon granted by an in-battle promotion or
   reclass. Before, the last three left `weapon: null`, so the unit read "Unarmed" and could not

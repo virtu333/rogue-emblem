@@ -6,9 +6,11 @@ import {
   equipIfUnarmed,
   removeFromInventory,
   removeFromConsumables,
-  isLastCombatWeapon,
   inventoryDisplayOrder,
+  canEquip,
+  getCombatWeapons,
 } from './UnitManager.js';
+import { weaponTypeNoun } from './ItemKeywords.js';
 import { getSellPrice } from './LootSystem.js';
 import { forgeStatBlock, applyForge, forgePrice } from './ForgeSystem.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
@@ -109,28 +111,80 @@ export function purchaseShopItem(run, stock, entry, recipient) {
     message: `${entry.item.name} → ${pool === 'accessories' && recipient != null && recipient !== 'pool' ? `${recipient.name} (equipped)` : pool ? (pool === 'scrolls' ? 'Scroll pool' : 'Accessory pool') : convoy ? 'Convoy' : recipient.name}.`,
   };
 }
-// Selling a unit's last combat weapon is allowed (a unit may carry nothing);
-// shopSellWarnings says so first.
+// Selling a unit's last combat weapon (or staff) is allowed (a unit may carry
+// nothing); shopSellWarnings says so first.
 export function shopSellBlock(run, row) {
   if (!shopItemOwned(run, row)) return 'This item is no longer available.';
   if (getSellPrice(row.item) <= 0) return 'This item cannot be sold.';
   return '';
 }
+
+/** Sell-row risk codes (shopSellRisk). */
+export const SELL_RISKS = Object.freeze({
+  onlyWeapon: 'only_weapon',
+  onlyStaff: 'only_staff',
+  onlyType: 'only_type',
+});
+
 /**
- * What an allowed sale costs the seller, as ItemTrade-style warnings: selling a
- * unit's last combat weapon leaves it unarmed ([{ code: 'leaves_unarmed', unit }],
- * worded by tradeWarningText). [] when blocked or when there is nothing to say.
+ * What selling this row would take from its owner, before anything is chosen:
+ * - `only_weapon`: the owner's last combat weapon it can wield (it would be unarmed);
+ * - `only_staff`: the last staff a staff user can wield (no more healing);
+ * - `only_type`: the last weapon of its type the owner can wield while it keeps
+ *   another (a bow-and-sword unit's only bow; `weaponType` names the type in
+ *   plain words), the softer note.
+ * Items the owner can't use, spares (another usable item of the kind), supplies,
+ * convoy and team-pool items carry none. [] when the row is stale or unsellable.
+ * Pure; never mutates. Returns `[{ code, unit, weaponType? }]` (at most one).
+ */
+export function shopSellRisk(run, row) {
+  if (row?.kind !== 'inventory' || !row.unit || shopSellBlock(run, row)) return [];
+  const { unit, item } = row;
+  const usable = (other) => canEquip(unit, other);
+  if (item?.type === 'Staff') {
+    if (!usable(item)) return [];
+    const spare = unit.inventory.some((o) => o !== item && o?.type === 'Staff' && usable(o));
+    return spare ? [] : [{ code: SELL_RISKS.onlyStaff, unit }];
+  }
+  const combat = getCombatWeapons(unit);
+  if (!combat.includes(item)) return [];
+  if (combat.length === 1) return [{ code: SELL_RISKS.onlyWeapon, unit }];
+  if (combat.some((o) => o !== item && o.type === item.type)) return [];
+  return [{ code: SELL_RISKS.onlyType, unit, weaponType: weaponTypeNoun(item.type) }];
+}
+
+/** The sell row's tag for a risk: "Only weapon", "Only staff", "Only bow". */
+export function sellRiskLabel(risk) {
+  if (risk?.code === SELL_RISKS.onlyWeapon) return 'Only weapon';
+  if (risk?.code === SELL_RISKS.onlyStaff) return 'Only staff';
+  if (risk?.code === SELL_RISKS.onlyType && risk.weaponType)
+    return `Only ${String(risk.weaponType).toLowerCase()}`;
+  return '';
+}
+
+const RISK_WARNINGS = {
+  [SELL_RISKS.onlyWeapon]: TRADE_WARNINGS.leavesUnarmed,
+  [SELL_RISKS.onlyStaff]: TRADE_WARNINGS.leavesNoStaff,
+  [SELL_RISKS.onlyType]: TRADE_WARNINGS.leavesNoType,
+};
+
+/**
+ * What an allowed sale costs the seller, as ItemTrade-style warnings worded by
+ * tradeWarningText: `leaves_unarmed` (its last combat weapon), `leaves_no_staff`
+ * (its last staff) or `leaves_no_type` (its last weapon of a type, `weaponType`),
+ * each `{ code, unit }`. [] when blocked or when there is nothing to say.
  */
 export function shopSellWarnings(run, row) {
-  if (shopSellBlock(run, row)) return [];
-  return row.kind === 'inventory' && isLastCombatWeapon(row.unit, row.item)
-    ? [{ code: TRADE_WARNINGS.leavesUnarmed, unit: row.unit }]
-    : [];
+  return shopSellRisk(run, row).map(({ code, unit, weaponType }) =>
+    weaponType
+      ? { code: RISK_WARNINGS[code], unit, weaponType }
+      : { code: RISK_WARNINGS[code], unit },
+  );
 }
 export function sellShopItem(run, row) {
   const reason = shopSellBlock(run, row);
   if (reason) return { ok: false, reason };
-  const leavesUnarmed = shopSellWarnings(run, row).length > 0;
+  const risk = shopSellRisk(run, row)[0]?.code;
   const price = getSellPrice(row.item);
   if (row.kind === 'inventory') removeFromInventory(row.unit, row.item);
   else if (row.kind === 'consumable') removeFromConsumables(row.unit, row.item);
@@ -144,10 +198,13 @@ export function sellShopItem(run, row) {
   }
   if (typeof run.awardGold === 'function') run.awardGold(price);
   else run.addGold(price);
-  return {
-    ok: true,
-    message: `Sold ${row.item.name} for ${price}G.${leavesUnarmed ? ` ${row.unit.name} is now unarmed.` : ''}`,
-  };
+  const after =
+    risk === SELL_RISKS.onlyWeapon
+      ? ` ${row.unit.name} is now unarmed.`
+      : risk === SELL_RISKS.onlyStaff
+        ? ` ${row.unit.name} has no staff now.`
+        : '';
+  return { ok: true, message: `Sold ${row.item.name} for ${price}G.${after}` };
 }
 export function shopForgeBlock(
   run,

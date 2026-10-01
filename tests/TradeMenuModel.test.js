@@ -551,6 +551,15 @@ describe('cancel and messages', () => {
     expect(tradeWarningText({ code: 'leaves_unarmed', unit: { name: 'Edric' } })).toBe(
       'Leaves Edric unarmed',
     );
+    expect(tradeWarningText({ code: 'leaves_no_staff', unit: { name: 'Sera' } })).toBe(
+      'Leaves Sera without a staff',
+    );
+    const noType = (weaponType) =>
+      tradeWarningText({ code: 'leaves_no_type', unit: { name: 'Kai' }, weaponType });
+    expect(noType('Bow')).toBe('Leaves Kai without a bow');
+    expect(noType('Axe')).toBe('Leaves Kai without an axe');
+    expect(noType('Light Tome')).toBe('Leaves Kai without a light tome');
+    expect(noType(undefined)).toBe('');
     expect(tradeWarningText({ code: 'mystery', unit: { name: 'Edric' } })).toBe('');
   });
 });
