@@ -71,6 +71,7 @@ function makeRecruit(col, row) {
 function makeScene(npcUnits) {
   const scene = new BattleScene();
   Object.assign(scene, {
+    _battleSession: 1,
     hideActionMenu: vi.fn(),
     _showWeaponDetailTooltip: vi.fn(),
     _hideWeaponDetailTooltip: vi.fn(),
@@ -138,7 +139,7 @@ describe('merchant caravan is not a recruit', () => {
 
     await scene.executeTalk(lord);
 
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(lord);
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(lord, { session: scene._battleSession });
     expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
     expect(caravan.faction).toBe('npc');
     expect(scene.npcUnits).toEqual([caravan]);

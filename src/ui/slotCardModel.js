@@ -148,6 +148,21 @@ export function slotCardModel(slot, summary, { gameData = {}, now = Date.now(), 
       canDelete: false,
     };
   }
+  if (summary.recoveryRequired) {
+    return {
+      ...base,
+      state: 'damaged',
+      grade: 'unlit',
+      title:
+        summary.slotStatus === 'recovery-required' ? 'Recovery copy kept' : 'Save needs recovery',
+      status:
+        summary.slotStatus === 'unreadable'
+          ? 'Storage could not be read. Your save has been kept.'
+          : 'Your data has been kept. Review recovery before playing.',
+      primary: { label: 'Review recovery', ariaLabel: `Review recovery for Slot ${slot}` },
+      canDelete: false,
+    };
+  }
   const seals = sealsFor(summary.milestones);
   const common = {
     ...base,

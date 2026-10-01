@@ -191,7 +191,7 @@ describe('title menu model', () => {
     const resumeSlot = pickResumeSlot([
       { slot: 1, hasActiveRun: true, actReached: 2, savedAt: 1000 },
       { slot: 2, hasActiveRun: true, actReached: 4, savedAt: 5000 },
-      { slot: 3, hasActiveRun: true, runCorrupt: true, savedAt: 9000 },
+      { slot: 3, hasActiveRun: false, savedAt: 9000 },
     ]);
     expect(resumeSlot).toMatchObject({ slot: 2, latestOf: 2 });
     const items = buildTitleMenu({ hasSlots: true, tutorialDone: true, resumeSlot });
@@ -252,12 +252,14 @@ describe('title menu model', () => {
         { slot: 2, hasActiveRun: true },
       ]),
     ).toBeNull();
-    expect(pickResumeSlot([{ slot: 1, hasActiveRun: true, runCorrupt: true }])).toBeNull();
+    expect(pickResumeSlot([{ slot: 1, hasActiveRun: true, runCorrupt: true }])).toEqual({
+      requiresSelection: true,
+    });
     expect(
       pickResumeSlot([
         { slot: 1, hasActiveRun: true, runCorrupt: true },
         { slot: 3, hasActiveRun: true },
       ]),
-    ).toMatchObject({ slot: 3 });
+    ).toEqual({ requiresSelection: true });
   });
 });

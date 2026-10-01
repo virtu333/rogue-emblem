@@ -125,7 +125,7 @@ async function setup(page, { secondWeapon = false } = {}) {
     s.grid.setTerrainAt(enemy.col, enemy.row, 0);
     s.updateUnitPosition(enemy);
     s.updateHPBar(enemy);
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
     return {
       name: u.name,
       attackerHP: u.currentHP,

@@ -265,7 +265,7 @@ describe('BattleScene fog snapshot lifecycle', () => {
     scene.preMoveLoc = { col: 1, row: 1 };
     scene._preFogSnapshot = new Set(['0,0']);
 
-    BattleScene.prototype.finishUnitAction.call(scene, unit);
+    BattleScene.prototype.finishUnitAction.call(scene, unit, { session: scene._battleSession });
 
     expect(scene._preFogSnapshot).toBeNull();
     expect(restoreSpy).not.toHaveBeenCalled();
@@ -281,7 +281,7 @@ describe('BattleScene fog snapshot lifecycle', () => {
     scene._preFogSnapshot = new Set(['0,0']);
     scene.startCantoMove = vi.fn();
 
-    BattleScene.prototype.finishUnitAction.call(scene, unit);
+    BattleScene.prototype.finishUnitAction.call(scene, unit, { session: scene._battleSession });
 
     expect(scene._preFogSnapshot).toBeNull();
     expect(scene.preMoveLoc).toBeNull();
@@ -381,7 +381,10 @@ describe('BattleScene deferred vision snapshot commit', () => {
     const { scene, unit } = setupScene();
     const { pending } = primeVisionSnapshots(scene);
 
-    BattleScene.prototype.finishUnitAction.call(scene, unit, { skipCanto: true });
+    BattleScene.prototype.finishUnitAction.call(scene, unit, {
+      skipCanto: true,
+      session: scene._battleSession,
+    });
 
     expect(scene.visionSnapshot).toBe(pending);
     expect(scene.pendingVisionSnapshot).toBeNull();
@@ -615,7 +618,7 @@ describe('BattleScene _movementSpent reset', () => {
 
     // Stay-in-place action path after undo.
     BattleScene.prototype.handleSelectedClick.call(scene, { col: 1, row: 1 });
-    BattleScene.prototype.finishUnitAction.call(scene, unit);
+    BattleScene.prototype.finishUnitAction.call(scene, unit, { session: scene._battleSession });
 
     expect(scene.startCantoMove).toHaveBeenCalledWith(unit, 7);
     expect(scene.turnManager.unitActed).not.toHaveBeenCalled();

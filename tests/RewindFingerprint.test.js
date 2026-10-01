@@ -52,6 +52,7 @@ function swordsman(id, items) {
 
 function scene(units, run = {}) {
   return {
+    _battleSession: 1,
     playerUnits: units,
     runManager: {
       gold: 900,
@@ -94,7 +95,11 @@ describe('rewind fingerprint: item identity (R1)', () => {
     // clone a checkpoint or rewind hands back (and a JSON save round trip).
     expect(itemFingerprint(structuredClone(might))).toBe(itemFingerprint(might));
     expect(itemFingerprint(JSON.parse(JSON.stringify(might)))).toBe(itemFingerprint(might));
-    const restored = { playerUnits: [structuredClone(unit)], runManager: s.runManager };
+    const restored = {
+      _battleSession: 1,
+      playerUnits: [structuredClone(unit)],
+      runManager: s.runManager,
+    };
     expect(fingerprintChanges(restored, rewindFingerprint(s)).changed).toBe(false);
     expect(itemFingerprint(might)).not.toBe(itemFingerprint(hit));
   });

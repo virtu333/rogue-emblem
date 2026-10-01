@@ -223,10 +223,10 @@ test('battle: an action taken before backgrounding is there after a reload', asy
   await attachSlot(page);
   const acted = await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
     const unit = s.playerUnits[0];
     s.selectUnit(unit);
-    s.finishUnitAction(unit, { skipCanto: true }); // Wait in place: a completed action
+    s.finishUnitAction(unit, { skipCanto: true, session: s._battleSession }); // Wait in place: a completed action
     await new Promise((resolve) => setTimeout(resolve, 300));
     return { name: unit.name, col: unit.col, row: unit.row, hasActed: unit.hasActed };
   });

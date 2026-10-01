@@ -334,6 +334,7 @@ describe('every lord join path records the lord at the join', () => {
   describe('PostCombatController', () => {
     function sceneFor(rm, meta) {
       return {
+        _battleSession: 1,
         gameData,
         runManager: rm,
         registry: { get: (key) => (key === 'meta' ? meta : null) },

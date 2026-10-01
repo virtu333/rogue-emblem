@@ -41,6 +41,7 @@ function makeScene({ fog = false } = {}) {
     ...extra,
   });
   const scene = {
+    _battleSession: 1,
     grid: {
       cols: 3,
       rows: 2,

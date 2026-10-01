@@ -1,3 +1,4 @@
+import { battleSession } from './BattleSession.js';
 import { persistWithTimelineFallback } from '../engine/BattleTimelinePersistence.js';
 import { captureBattleState } from './BattleCheckpointAdapter.js';
 import { recordBattleTimeline } from './BattleTimelineRecorder.js';
@@ -5,6 +6,7 @@ import { recordBattleTimeline } from './BattleTimelineRecorder.js';
 // Terminal decision is a durable recovery kind, never a playable destination.
 // A failed write freezes the settled board and retries the same candidate.
 export function persistFatalDecision(scene) {
+  const session = battleSession(scene);
   const rm = scene.runManager;
   if (!rm?.battleInProgress) return { ok: false, reason: 'missing_battle' };
   if (scene._fatalDecision?.durable) return { ok: true };
@@ -51,7 +53,7 @@ export function persistFatalDecision(scene) {
   }
   scene.battleState = 'PAUSED';
   const result = persistWithTimelineFallback(scene._fatalDecision.candidate, (candidate) =>
-    scene._persistBattleRunState(candidate),
+    scene._persistBattleRunState(candidate, { session: session }),
   );
   scene._fatalDecision.candidate = result.candidate;
   // No active slot (dev/QA routes) means there is nothing to lock; treat the
@@ -85,6 +87,7 @@ export function resumeFatalDecision(scene, checkpoint) {
 // Prepare defeat without publishing it. Rewards and scene transitions are
 // permitted only after this same record has reached durable storage.
 export function persistBattleDefeat(scene, context) {
+  const session = battleSession(scene);
   const rm = scene.runManager;
   if (!scene._defeatDecision) {
     const candidate = Object.assign(
@@ -100,14 +103,14 @@ export function persistBattleDefeat(scene, context) {
   if (!decision.durable) {
     let result;
     try {
-      result = scene._persistBattleRunState(decision.candidate);
+      result = scene._persistBattleRunState(decision.candidate, { session: session });
     } catch {
       result = { ok: false, reason: 'write_error' };
     }
     if (result?.reason === 'quota' && decision.candidate.lastBattleReport) {
       decision.candidate.lastBattleReport = null;
       try {
-        result = scene._persistBattleRunState(decision.candidate);
+        result = scene._persistBattleRunState(decision.candidate, { session: session });
       } catch {
         result = { ok: false, reason: 'write_error' };
       }

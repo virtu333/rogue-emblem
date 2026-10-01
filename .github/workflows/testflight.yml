@@ -227,13 +227,9 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
-          npm run build
-          # the app's lighter music: the same files, re-encoded (the ios-music job)
-          MUSIC=dist/assets/audio/music
-          diff <(ls "$MUSIC") <(ls "$RUNNER_TEMP/ios-music") \
-            || { echo "::error::the app's music doesn't match the build's track list"; exit 1; }
-          echo "Music: $(du -sh "$MUSIC" | cut -f1) -> $(du -sh "$RUNNER_TEMP/ios-music" | cut -f1)"
-          cp "$RUNNER_TEMP"/ios-music/*.mp3 "$MUSIC"/
+          # Hash the final compact bytes before Vite bundles the audio manifest.
+          # The builder checks the compact logical-key set and packaged digests.
+          ER_MUSIC_ASSET_DIR="$RUNNER_TEMP/ios-music" ER_PRUNE_LEGACY_AUDIO=1 npm run build
           echo "Web game: $(du -sh dist | cut -f1)"
           npx cap sync ios
           if ! git diff --quiet -- ios/App/CapApp-SPM/Package.swift; then

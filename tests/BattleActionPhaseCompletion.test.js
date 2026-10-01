@@ -7,6 +7,7 @@ import { journeyBattleScene } from './harness/JourneyBattleScene.js';
 
 function setup({ survivorActed = true } = {}) {
   const scene = journeyBattleScene({ battleInProgress: null }, {});
+  scene._battleSession = 1;
   const survivor = {
     name: 'Commander',
     faction: 'player',
@@ -55,7 +56,7 @@ function setup({ survivorActed = true } = {}) {
 describe('action completion with a real TurnManager', () => {
   it('advances after the last attacker falls to a counter and every survivor already acted', () => {
     const { scene, fallen, saves } = setup();
-    scene.finishUnitAction(fallen, { skipCanto: true });
+    scene.finishUnitAction(fallen, { skipCanto: true, session: scene._battleSession });
     expect(scene.turnManager.currentPhase).toBe('enemy');
     expect(scene.battleState).toBe('ENEMY_PHASE');
     expect(saves).toEqual([{ phase: 'player', players: [{ name: 'Commander', acted: true }] }]);
@@ -63,14 +64,18 @@ describe('action completion with a real TurnManager', () => {
 
   it('keeps the phase playable if another survivor still has an action', () => {
     const { scene, fallen } = setup({ survivorActed: false });
-    scene.finishUnitAction(fallen, { skipCanto: true });
+    scene.finishUnitAction(fallen, { skipCanto: true, session: scene._battleSession });
     expect(scene.turnManager.currentPhase).toBe('player');
     expect(scene.battleState).toBe('PLAYER_IDLE');
   });
 
   it.each(['combat', 'finish'])('advances a resumed %s when its actor is already gone', (kind) => {
     const { scene, fallen, saves } = setup();
-    completeResolvedAction(scene, { kind, unitName: fallen.name });
+    completeResolvedAction(
+      scene,
+      { kind, unitName: fallen.name },
+      { session: scene._battleSession },
+    );
     expect(scene.turnManager.currentPhase).toBe('enemy');
     expect(scene.battleState).toBe('ENEMY_PHASE');
     expect(saves).toEqual([{ phase: 'player', players: [{ name: 'Commander', acted: true }] }]);
@@ -78,11 +83,15 @@ describe('action completion with a real TurnManager', () => {
 
   it('advances the Gambit continuation when its caster has already fallen', () => {
     const { scene, fallen } = setup();
-    completeResolvedAction(scene, {
-      kind: 'combat',
-      unitName: fallen.name,
-      gambitTriggered: true,
-    });
+    completeResolvedAction(
+      scene,
+      {
+        kind: 'combat',
+        unitName: fallen.name,
+        gambitTriggered: true,
+      },
+      { session: scene._battleSession },
+    );
     expect(scene.turnManager.currentPhase).toBe('enemy');
   });
 
@@ -93,7 +102,11 @@ describe('action completion with a real TurnManager', () => {
     scene.startCantoMove = () => {
       scene.battleState = 'CANTO_MOVING';
     };
-    completeResolvedAction(scene, { kind: 'combat', unitName: fallen.name });
+    completeResolvedAction(
+      scene,
+      { kind: 'combat', unitName: fallen.name },
+      { session: scene._battleSession },
+    );
     expect(fallen.hasActed).toBe(false);
     expect(scene.turnManager.currentPhase).toBe('enemy');
     expect(scene.battleState).toBe('ENEMY_PHASE');
@@ -111,7 +124,11 @@ describe('action completion with a real TurnManager', () => {
       if (index !== -1) scene.playerUnits.splice(index, 1);
       return false;
     };
-    completeResolvedAction(scene, { kind: 'combat', unitName: fallen.name });
+    completeResolvedAction(
+      scene,
+      { kind: 'combat', unitName: fallen.name },
+      { session: scene._battleSession },
+    );
     expect(scene.playerUnits.map((unit) => unit.name)).toEqual(['Commander']);
     expect(scene.turnManager.currentPhase).toBe('enemy');
     expect(scene.battleState).toBe('ENEMY_PHASE');
@@ -119,11 +136,15 @@ describe('action completion with a real TurnManager', () => {
 
   it('keeps a living Gambit caster available after refreshing the army', () => {
     const { scene, survivor } = setup();
-    completeResolvedAction(scene, {
-      kind: 'combat',
-      unitName: survivor.name,
-      gambitTriggered: true,
-    });
+    completeResolvedAction(
+      scene,
+      {
+        kind: 'combat',
+        unitName: survivor.name,
+        gambitTriggered: true,
+      },
+      { session: scene._battleSession },
+    );
     expect(survivor.hasActed).toBe(false);
     expect(survivor._gambitUsedThisTurn).toBe(true);
     expect(scene.turnManager.currentPhase).toBe('player');

@@ -243,7 +243,7 @@ describe('_applyEntitySplash resolves before terminal decision', () => {
 
 describe('Tutorial delayed callback isActive guards', () => {
   it('first tutorial callback (tutorialStep=0) does nothing when scene is inactive', async () => {
-    const scene = makeTutorialScene({ isActive: false, tutorialStep: 0, turn: 1 });
+    const scene = makeTutorialScene({ isActive: true, tutorialStep: 0, turn: 1 });
 
     // Call the REAL onPhaseChange - registers the 1500ms tutorial callback
     BattleScene.prototype.onPhaseChange.call(scene, 'player', 1);
@@ -252,7 +252,9 @@ describe('Tutorial delayed callback isActive guards', () => {
     const entry = scene._capturedCallbacks.find((c) => c.ms === 1500);
     expect(entry).toBeDefined();
 
-    // Invoke the captured callback - scene is inactive
+    scene._sceneShutdownCleanedUp = true;
+    scene.scene.isActive = () => false;
+    // Invoke the captured callback after shutdown
     if (scene.scene.isActive()) {
       await scene._capturedCallbacks.find((c) => c.ms === 1200).cb();
     }
@@ -286,7 +288,7 @@ describe('Tutorial delayed callback isActive guards', () => {
   });
 
   it('turn-3 vision tutorial callback does nothing when scene is inactive', async () => {
-    const scene = makeTutorialScene({ isActive: false, tutorialStep: 1, turn: 3 });
+    const scene = makeTutorialScene({ isActive: true, tutorialStep: 1, turn: 3 });
     // tutorialStep > 0 so we skip the step-0 branch; _tutorialVisionIntroShown = false
     // triggers the turn-3 branch
 
@@ -296,6 +298,8 @@ describe('Tutorial delayed callback isActive guards', () => {
     // (line 10333), so the guard can't prevent that - only assert callback-side effects
     const entry = scene._capturedCallbacks.find((c) => c.ms === 1500);
     expect(entry).toBeDefined();
+    scene._sceneShutdownCleanedUp = true;
+    scene.scene.isActive = () => false;
 
     if (scene.scene.isActive()) {
       await scene._capturedCallbacks.find((c) => c.ms === 1200).cb();

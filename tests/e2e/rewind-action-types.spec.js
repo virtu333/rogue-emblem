@@ -42,7 +42,7 @@ async function boot(page) {
     ];
     patient._conditions = [{ id: 'poison', turnsRemaining: 3 }];
     s._timelineBoundary = 'turn_start';
-    s._captureSuspendCheckpoint();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
   });
   return errors;
 }

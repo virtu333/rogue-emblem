@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import './harness/JourneyTestSetup.js';
 import { journeyBattleScene } from './harness/JourneyBattleScene.js';
 import { loadGameData } from './testData.js';
-import { BattleScene } from '../src/scenes/BattleScene.js';
+import { BattleScene, resetUnitForBattle } from '../src/scenes/BattleScene.js';
 import { aoeSplash, allyBuff } from '../src/engine/PostCombatEffects.js';
 import { createBattleRng } from '../src/engine/BattleRng.js';
 import { createUnit } from '../src/engine/UnitManager.js';
@@ -13,7 +13,11 @@ import { createVillageState } from '../src/engine/VillageSystem.js';
 import { completeBattleAction } from '../src/ui/BattleActionCompletion.js';
 import { RunDriver, JourneyStorage } from './harness/RunDriver.js';
 import { _resetUidCounter } from '../src/utils/itemUid.js';
-import { isolateBattleTextFactory } from '../src/utils/presentationText.js';
+import { safeBattlePresentation } from '../src/ui/safeBattlePresentation.js';
+import * as errors from '../src/utils/errorReporter.js';
+import { HeadlessBattle, HEADLESS_STATES } from './harness/HeadlessBattle.js';
+import { checkInvariants } from './harness/Invariants.js';
+import { presentationFailureProxy as rendering } from './harness/PresentationFailureProxy.js';
 
 const data = loadGameData();
 const originalRandom = Math.random;
@@ -37,61 +41,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// Proxy every rendering surface supplied by the Journey fixture. Throw at the
-// nth actual presentation call, rather than mirroring production failure points.
-function rendering(scene, failure = 0) {
-  let calls = 0;
-  const call =
-    (fn) =>
-    (...args) => {
-      calls++;
-      if (failure === 'all' || calls === failure) throw new Error('Renderer unavailable');
-      return fn(...args);
-    };
-  const visual = new Proxy(
-    {},
-    { get: (_, key) => (key === 'then' ? undefined : call(() => visual)) },
-  );
-  const surface = (methods) =>
-    new Proxy(methods, {
-      get: (target, key) => (typeof target[key] === 'function' ? call(target[key]) : target[key]),
-    });
-  scene.add = surface({
-    text: () => {
-      Math.random();
-      return visual;
-    },
-  });
-  scene.tweens = surface({ add: () => {} });
-  scene._combatFx = surface({
-    deathFade: async () => {},
-    playOverlay: () => {},
-    playStatus: () => {},
-    finishStrike: () => {},
-  });
-  scene._musicCtrl = surface({ onCombat: () => {}, onCombatResolved: () => {} });
-  scene._battleBeats = surface({ onKill: () => {}, onAllyFall: () => {} });
-  scene._inputController = surface({ refreshHoverInfo: () => {} });
-  scene._pinnedThreats = surface({ invalidate: () => {} });
-  for (const name of [
-    'updateHPBar',
-    'removeUnitGraphic',
-    'updateObjectiveText',
-    'showMinorHintAt',
-    'updateUnitPosition',
-    'refreshVisibleDangerZone',
-    'updateEnemyVisibility',
-    'animateHeal',
-  ]) {
-    scene[name] = call(() => {});
-  }
-  scene._awaitSceneDelay = call(async () => {});
-  isolateBattleTextFactory(scene); // Production fixed-v1 setup; legacy streams intentionally differ.
-  const count = () => calls;
-  count.visual = visual;
-  count.call = call;
-  return count;
-}
 function unit(name, faction, col, row, hp = 20) {
   return {
     name,
@@ -117,6 +66,7 @@ function fixture(failure = 0, seed = 42) {
   scene.battleConfig = { objective: 'rout' };
   scene.goldEarned = 0;
   scene.getEnemyRewardMultiplier = () => 1;
+  scene.getEnemyXpMultiplier = () => 1;
   scene.getTurnPressureState = () => ({ goldMultiplier: 1, xpMultiplier: 1 });
   scene.getCurrentTurnNumber = () => 1;
   scene.showLordDeathVisionPrompt = () => false;
@@ -200,6 +150,7 @@ async function scenario(kind, failure = 0) {
     expect(scene._playerDeathsThisBattle).toBe(1);
     expect(scene.goldEarned).toBe(72); // Two level-1 enemies at28+8 each, once.
     expect(scene._deathAffixChainDepth).toBe(0);
+    scene.checkBattleEnd();
     expect(scene.result).toBe('defeat');
   } else if (kind === 'Entity splash') {
     const primary = unit('Primary', 'player', 2, 2);
@@ -293,7 +244,7 @@ async function scenario(kind, failure = 0) {
       checkBattleEnd: () => scene.checkBattleEnd(),
     });
     scene.turnManager.init(scene.playerUnits, scene.enemyUnits, scene.npcUnits);
-    completeBattleAction(scene, commander);
+    completeBattleAction(scene, commander, { session: scene._battleSession });
     const saved = JSON.parse(storage.getItem('emblem_rogue_slot_1_run'))?.battleInProgress
       ?.checkpoint;
     expect(saved).toBeTruthy();
@@ -368,4 +319,336 @@ it('required post-combat beat errors remain visible to the caller', async () => 
   await expect(scene._playPostCombatBeats([{ kind: 'remove', unit: {} }])).rejects.toThrow(
     'required removal failed',
   );
+});
+
+function combatEntryFixture(accessoryName = "Bounty Hunter's Mark") {
+  const { scene } = fixture();
+  const fighter = (name, faction, col, row, hp = 20) => ({
+    ...structuredClone(veteranFixture),
+    name,
+    faction,
+    col,
+    row,
+    level: 1,
+    xp: 0,
+    currentHP: hp,
+    stats: { HP: 20, STR: 30, MAG: 30, SKL: 30, SPD: 8, LCK: 30, DEF: 0, RES: 0, MOV: 5 },
+    skills: [],
+    affixes: [],
+    hasActed: false,
+  });
+  const actor = fighter('Edric', 'player', 1, 1, accessoryName === 'Phoenix Brooch' ? 2 : 20);
+  actor.isCommander = true;
+  actor.isLord = true;
+  actor.weapon = { ...data.weapons.find((w) => w.name === 'Glimmer'), hit: 200, crit: 0 };
+  actor.inventory = [actor.weapon];
+  actor.accessory = data.accessories.find((a) => a.name === accessoryName);
+  const primary = fighter('Zombie', 'enemy', 2, 1, 1);
+  primary.className = 'Zombie';
+  primary.weapon = null;
+  primary.inventory = [];
+  const burst = fighter('Burst', 'enemy', 3, 1, 1);
+  burst.affixes = ['deathburst'];
+  burst.weapon = null;
+  burst.inventory = [];
+  scene.runManager = { battleInProgress: {}, roster: [actor], getDifficultyModifier: () => 1 };
+  scene.playerUnits = [actor];
+  scene.enemyUnits = [primary, burst];
+  scene.grid.getTerrainAt = () => data.terrain.find((t) => t.name === 'Plain');
+  scene._getSelectedWeaponArtForUnit = () => ({
+    id: 'probe_pierce',
+    hpCost: 0,
+    effects: { afterCombat: [{ type: 'pierce_through', target: 'defender', maxTargets: 1 }] },
+  });
+  scene.animateStrike = async () => {};
+  scene.animateSkillActivation = async () => {};
+  scene._battleBeats.checkBossHalfHealth = async () => {};
+  scene._battleBeats.onChipLance = () => {};
+  scene._battleBeats.onLowHealth = () => {};
+  scene.sys = { isActive: () => true };
+  scene.scene = { isActive: () => true };
+  return { scene, actor, primary, burst, fighter };
+}
+
+it('player entry preserves bounty, Light remains suppression, deed and history attribution through a third-party Deathburst', async () => {
+  const { scene, actor, primary, burst } = combatEntryFixture();
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  await scene.executeCombat(actor, primary);
+  expect(error).not.toHaveBeenCalled();
+  expect(scene.enemyUnits).toEqual([]);
+  expect(scene.goldEarned).toBe(672); // 28+8 each, plus two 300-gold bounties.
+  expect(scene._zombieTombstones || []).toEqual([]);
+  expect(actor._battleDeeds.kills).toBe(2);
+  expect(scene._historyBeats.filter((b) => b.type === 'defeated').map((b) => b.label)).toEqual([
+    'Edric defeated Burst.',
+    'Edric defeated Zombie.',
+  ]);
+  expect(primary._removing).toBe(false);
+  expect(burst._removing).toBe(false);
+  expect(scene.result).toBe('victory');
+});
+
+it('victory waits for Phoenix and XP after a third-party Deathburst', async () => {
+  const { scene, actor, primary } = combatEntryFixture('Phoenix Brooch');
+  primary.className = 'Soldier'; // No revival can mask premature victory in this ordering case.
+  scene.onVictory = () => {
+    expect(actor._phoenixBroochUsed).toBe(true);
+    expect(actor.currentHP).toBe(12);
+    expect(actor.xp).toBeGreaterThan(0);
+    expect(scene._historyBeats.some((b) => b.label === 'Edric defeated Zombie.')).toBe(true);
+    scene.result = 'victory';
+    scene.battleState = 'BATTLE_END';
+  };
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  await scene.executeCombat(actor, primary);
+  expect(error).not.toHaveBeenCalled();
+  expect(scene.result).toBe('victory');
+});
+
+it('enemy entry attributes its primary casualty after a splash victim starts a Deathburst', async () => {
+  const { scene, actor: commander, fighter } = combatEntryFixture();
+  const enemy = fighter('Slayer', 'enemy', 1, 1);
+  enemy.weapon = { ...data.weapons.find((w) => w.name === 'Glimmer'), hit: 200, crit: 0 };
+  enemy.inventory = [enemy.weapon];
+  const primary = fighter('Ally', 'player', 2, 1, 1);
+  primary.weapon = null;
+  primary.inventory = [];
+  const burst = fighter('Ally Burst', 'player', 3, 1, 1);
+  burst.affixes = ['deathburst'];
+  Object.assign(commander, { col: 0, row: 0 });
+  scene.playerUnits = [commander, primary, burst];
+  scene.enemyUnits = [enemy];
+  scene._selectEnemyWeaponArt = () => ({
+    id: 'probe_splash',
+    hpCost: 0,
+    effects: { aoeSplash: { radius: 1, damageKind: 'fixed', fixedDamage: 1 } },
+  });
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  await scene.executeEnemyCombat(enemy, primary);
+  expect(error).not.toHaveBeenCalled();
+  expect(scene.playerUnits).toEqual([commander]);
+  expect(scene._playerDeathsThisBattle).toBe(2);
+  expect(enemy._slewAllies).toEqual(['Ally Burst', 'Ally']);
+  expect(scene._historyBeats.filter((b) => b.type === 'defeated').map((b) => b.label)).toEqual([
+    'Slayer defeated Ally Burst.',
+    'Slayer defeated Ally.',
+  ]);
+});
+
+it('init clears counters after a real cancelled Deathburst wait parks its old finally', async () => {
+  const { scene } = fixture();
+  const burst = { ...unit('Burst', 'enemy', 1, 1, 0), affixes: ['deathburst'] };
+  scene.playerUnits = [{ ...unit('Edric', 'player', 0, 0), isCommander: true }];
+  scene.enemyUnits = [burst];
+  scene.scene = { isActive: () => true };
+  scene._awaitSceneDelay = BattleScene.prototype._awaitSceneDelay;
+  let entered;
+  const waiting = new Promise((resolve) => {
+    entered = resolve;
+  });
+  const timer = { remove: vi.fn() };
+  // The rendering fixture supplies the clock; the production delay creates its
+  // actual lifecycle guard and timeout. No tick is delivered before shutdown.
+  scene.time = {
+    delayedCall: vi.fn(() => {
+      entered();
+      return timer;
+    }),
+  };
+  let completed = false;
+  void scene.removeUnit(burst).then(() => {
+    completed = true;
+  });
+  await waiting;
+  const oldSession = scene._battleSession;
+  expect(scene._lifecycleAwaitGuards.size).toBe(1);
+  expect(scene._deathAffixChainDepth).toBe(1);
+  expect(burst._removing).toBe(true);
+  scene._combatSpeedSnapshot = 4;
+  // Use the real shutdown cancellation entry point, then Phaser's synchronous
+  // re-init order on this same Scene object. Obsolete promises remain parked.
+  scene._sceneShutdownCleanedUp = true;
+  scene._cancelLifecycleAwaits('scene_shutdown');
+  expect(scene._lifecycleAwaitGuards.size).toBe(0);
+  expect(timer.remove).toHaveBeenCalledOnce();
+  scene.init({ gameData: data });
+  for (let n = 0; n < 8; n++) await Promise.resolve();
+  expect(scene._battleSession).toBeGreaterThan(oldSession);
+  expect(completed).toBe(false);
+  expect(burst._removing).toBe(true);
+  expect(scene._deathAffixChainDepth).toBe(0);
+  expect(scene._combatSpeedSnapshot).toBeUndefined();
+  // The replacement battle can resolve a defeat while the old finally stays parked.
+  scene.playerUnits = [{ ...unit('Edric', 'player', 0, 0, 0), isCommander: true }];
+  scene.enemyUnits = [unit('Enemy', 'enemy', 3, 3)];
+  scene.battleState = 'PLAYER_IDLE';
+  expect(scene.checkBattleEnd()).toBe(true);
+  expect(scene.result).toBe('defeat');
+});
+
+it('a removing unit cannot end battle while its Deathburst cascade is unresolved', () => {
+  const { scene } = fixture();
+  scene.playerUnits = [{ ...unit('Edric', 'player', 0, 0, 0), isCommander: true }];
+  scene._deathAffixChainDepth = 1;
+  expect(scene.checkBattleEnd()).toBe(false);
+  expect(scene.result).toBeUndefined();
+});
+
+it('redeployment clears a removal flag left by a parked old death continuation', () => {
+  const unit = { _removing: true };
+  resetUnitForBattle(unit);
+  expect(unit._removing).toBe(false);
+});
+
+it('visibility failure on one enemy or NPC does not prevent hiding the rest', () => {
+  const report = vi.spyOn(errors, 'reportAsyncError').mockImplementation(() => {});
+  const { scene } = fixture();
+  scene.grid.fogEnabled = true;
+  scene.grid.isVisible = () => false;
+  const bad = {
+    setVisible: () => {
+      throw new Error('destroyed');
+    },
+  };
+  const goodEnemy = { setVisible: vi.fn() };
+  const goodNpc = { setVisible: vi.fn() };
+  scene.enemyUnits = [
+    { ...unit('Bad', 'enemy', 1, 1), graphic: bad },
+    { ...unit('Good', 'enemy', 2, 1), graphic: goodEnemy },
+  ];
+  scene.npcUnits = [
+    { ...unit('Bad NPC', 'npc', 1, 2), graphic: bad, isCaravan: true },
+    { ...unit('Good NPC', 'npc', 2, 2), graphic: goodNpc, isCaravan: true },
+  ];
+  BattleScene.prototype.updateEnemyVisibility.call(scene);
+  expect(goodEnemy.setVisible).toHaveBeenCalledWith(false);
+  expect(goodNpc.setVisible).toHaveBeenCalledWith(false);
+  expect(report).toHaveBeenCalledWith('battle_presentation_failed', expect.any(Error), {
+    label: 'enemy visibility',
+    battleState: 'PLAYER_IDLE',
+    phase: 'player',
+    turn: 1,
+  });
+});
+
+it('presentation failures report context once per label and scene per minute', async () => {
+  const report = vi.spyOn(errors, 'reportAsyncError').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const scene = {
+    battleState: 'COMBAT_RESOLVING',
+    turnManager: { currentPhase: 'enemy', turnNumber: 7 },
+  };
+  const now = vi.spyOn(Date, 'now').mockReturnValue(10);
+  for (let n = 0; n < 400; n++) {
+    safeBattlePresentation(
+      'fog overlay',
+      () => {
+        throw new Error('destroyed');
+      },
+      { scene },
+    );
+  }
+  expect(report).toHaveBeenCalledTimes(1);
+  expect(report).toHaveBeenCalledWith('battle_presentation_failed', expect.any(Error), {
+    label: 'fog overlay',
+    battleState: 'COMBAT_RESOLVING',
+    phase: 'enemy',
+    turn: 7,
+  });
+  await safeBattlePresentation('other', () => Promise.reject(new Error('destroyed')), { scene });
+  expect(report).toHaveBeenCalledTimes(2);
+  now.mockReturnValue(60_010);
+  safeBattlePresentation(
+    'fog overlay',
+    () => {
+      throw new Error('destroyed');
+    },
+    { scene },
+  );
+  expect(report).toHaveBeenCalledTimes(3);
+});
+
+it('headless battle and invariants count a zero-HP commander as fallen before roster removal', () => {
+  const dead = { ...unit('Edric', 'player', 0, 0, 0), isCommander: true };
+  const battle = {
+    playerUnits: [dead, unit('Ally', 'player', 1, 0)],
+    enemyUnits: [unit('Enemy', 'enemy', 2, 0)],
+    npcUnits: [],
+    escapedUnits: [],
+    turnManager: { turnNumber: 1, currentPhase: 'player' },
+    battleConfig: { objective: 'rout' },
+    battleState: HEADLESS_STATES.PLAYER_IDLE,
+    _onDefeat: vi.fn(),
+  };
+  expect(checkInvariants({ battle })).toContain(
+    "commander_alive: commander not in playerUnits or escapedUnits but battle hasn't ended",
+  );
+  expect(HeadlessBattle.prototype._checkBattleEnd.call(battle)).toBe(true);
+  expect(battle._onDefeat).toHaveBeenCalledOnce();
+  battle.result = 'defeat';
+  battle.battleState = HEADLESS_STATES.BATTLE_END;
+  expect(checkInvariants({ battle }).some((e) => e.includes('defeat result'))).toBe(false);
+});
+
+it.each(['shot', 'HP', 'text', 'tween'])(
+  'Ballista still removes its casualty after a %s visual failure',
+  async (failure) => {
+    const { scene } = fixture();
+    scene._reduceMotion = () => true;
+    scene.ballistas = [{ col: 0, row: 0, range: 5, owner: 'player' }];
+    scene.playerUnits = [{ ...unit('Edric', 'player', 3, 3), isCommander: true }];
+    const target = { ...unit('Burst', 'enemy', 1, 0, 1), affixes: ['deathburst'], graphic: {} };
+    // A pre-existing casualty is reconciled by the shot owner, never by a chain.
+    const fallen = unit('Fallen', 'npc', 3, 0, 0);
+    scene.enemyUnits = [target];
+    scene.npcUnits = [fallen];
+    Math.random = () => 0;
+    const throws = () => {
+      throw new Error('destroyed');
+    };
+    scene._combatFx.ballistaShot = failure === 'shot' ? throws : async () => {};
+    if (failure === 'HP') scene.updateHPBar = throws;
+    if (failure === 'text') scene.add.text = throws;
+    scene._awaitSceneTween = failure === 'tween' ? throws : async () => {};
+    await scene.processBallistaFire(scene.enemyUnits, 'player');
+    expect(scene.enemyUnits).toEqual([]);
+    expect(scene.npcUnits).toEqual([]);
+    expect(target._removing).toBe(false);
+    expect(scene.result).toBe('victory');
+  },
+);
+
+it('Ballista misses keep the phase moving when the miss float fails', async () => {
+  const { scene } = fixture();
+  scene._reduceMotion = () => true;
+  scene.ballistas = [{ col: 0, row: 0, range: 5, owner: 'enemy' }];
+  const target = { ...unit('Edric', 'player', 1, 0), isCommander: true, graphic: {} };
+  scene.playerUnits = [target];
+  Math.random = () => 0.999;
+  scene._combatFx.ballistaShot = async () => {};
+  scene.add.text = () => {
+    throw new Error('destroyed');
+  };
+  await scene.processBallistaFire(scene.playerUnits, 'enemy');
+  expect(target.currentHP).toBe(20);
+  expect(scene.playerUnits).toEqual([target]);
+  expect(scene.battleState).toBe('PLAYER_IDLE');
+});
+
+it('death fade and graphic failures are reported without interrupting removal', async () => {
+  const report = vi.spyOn(errors, 'reportAsyncError').mockImplementation(() => {});
+  const { scene } = fixture('all');
+  const target = unit('Enemy', 'enemy', 1, 0, 0);
+  scene.playerUnits = [{ ...unit('Edric', 'player', 0, 0), isCommander: true }];
+  scene.enemyUnits = [target];
+  await scene.removeUnit(target);
+  expect(scene.enemyUnits).toEqual([]);
+  expect(target._removing).toBe(false);
+  for (const label of ['death fade', 'death graphic cleanup'])
+    expect(report).toHaveBeenCalledWith('battle_presentation_failed', expect.any(Error), {
+      label,
+      battleState: 'PLAYER_IDLE',
+      phase: 'player',
+      turn: 1,
+    });
 });

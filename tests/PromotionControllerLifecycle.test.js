@@ -22,6 +22,7 @@ function fixture() {
     consumables: [seal],
   };
   const scene = {
+    _battleSession: 1,
     gameData: { lords: [], classes: [], skills: [], weapons: [] },
     showActionMenu: vi.fn(),
     removeUnitGraphic: vi.fn(),

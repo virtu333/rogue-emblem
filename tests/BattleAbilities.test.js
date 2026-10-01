@@ -365,7 +365,7 @@ describe('Blink (SELECTING_ABILITY_TILE)', () => {
     });
     expect(scene.commitVisionSnapshotIfPending).toHaveBeenCalled();
     // finishUnitAction without skipCanto — Canto applies like other actions
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit);
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { session: scene._battleSession });
   });
 
   it('a blink error routes through _recoverUnitActionError instead of softlocking', async () => {
@@ -383,7 +383,7 @@ describe('Blink (SELECTING_ABILITY_TILE)', () => {
       unit,
       'ability_blink',
       expect.any(Error),
-      { session: undefined },
+      { session: scene._battleSession },
     );
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
   });
@@ -441,6 +441,7 @@ describe('state registration for SELECTING_ABILITY_TILE', () => {
 
   it('timeline review waits until ability tile selection is finished or canceled', () => {
     const scene = {
+      _battleSession: 1,
       turnManager: { currentPhase: 'player' },
       battleState: 'SELECTING_ABILITY_TILE',
       pauseOverlay: null,
@@ -499,7 +500,9 @@ describe('ability execution blocks input while resolving', () => {
     expect(vision.canUseNow()).toBe(false);
 
     release();
-    await vi.waitFor(() => expect(scene.finishUnitAction).toHaveBeenCalledWith(unit));
+    await vi.waitFor(() =>
+      expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { session: scene._battleSession }),
+    );
     expect(unit.col).toBe(5);
     expect(unit.row).toBe(7);
   });
@@ -530,7 +533,7 @@ describe('ability execution blocks input while resolving', () => {
 
     release();
     await done;
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit);
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { session: scene._battleSession });
   });
 });
 
@@ -581,7 +584,7 @@ describe('Rally Cry effect', () => {
     // Out-of-radius ally untouched
     expect(far._battleTimedWeaponArtBuffs).toBeUndefined();
     expect(unit._battleAbilityUsage.map.rally_cry_skill).toBe(1);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit);
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { session: scene._battleSession });
     expect(scene._combatFx.playBuff).toHaveBeenCalledTimes(1);
 
     // Shared expiry sweep reverts the stats
@@ -609,7 +612,7 @@ describe('Healing Circle effect', () => {
     expect(far.currentHP).toBe(1); // out of radius
     expect(scene._combatFx.playHeal).toHaveBeenCalledTimes(2);
     expect(unit._battleAbilityUsage.map.healing_circle).toBe(1);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit);
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { session: scene._battleSession });
   });
 });
 
@@ -632,7 +635,7 @@ describe('Ensnare effect', () => {
     expect(scene._addConditionIcon).toHaveBeenCalledWith(near, 'root');
     expect(scene.dangerZoneStale).toBe(true);
     expect(unit._battleAbilityUsage.map.ensnare).toBe(1);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit);
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { session: scene._battleSession });
   });
 
   it('respects statusImmunity accessories', async () => {

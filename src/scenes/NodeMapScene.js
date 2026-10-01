@@ -1043,7 +1043,10 @@ export class NodeMapScene extends Phaser.Scene {
           // A payout that did not reach disk keeps the save so it can retry.
           if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
             clearSavedRun(
-              cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+              cloud
+                ? (resolvedSlot, abandonedRun) =>
+                    deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+                : null,
               slot,
             );
           const audio = this.registry.get('audio');
