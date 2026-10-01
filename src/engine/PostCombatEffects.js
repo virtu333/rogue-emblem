@@ -298,7 +298,8 @@ function* collide(step, sourceUnit, targetUnit, moveResult, world, result) {
         hpBefore: dealt.get(obstacle).hpBefore,
         killed: obstacle.currentHP <= 0,
       });
-    if (obstacle.currentHP <= 0) yield { kind: 'remove', unit: obstacle, killer: sourceUnit };
+    if (obstacle.currentHP <= 0 && stillStanding(obstacle, sourceUnit, world))
+      yield { kind: 'remove', unit: obstacle, killer: sourceUnit };
   }
 }
 
@@ -378,22 +379,34 @@ export function* areaDamage(step, sourceUnit, primary, world, result = null) {
     }
   }
 
+  // Who the blows themselves killed is settled before anyone falls: a fall's own effects
+  // (a Deathburst finishing a survivor) are that unit's to remove, never ours again.
+  const fellToBlows = [];
   for (const { unit } of plan) {
     const { hpBefore, damage } = dealt.get(unit);
     if (damage <= 0) continue;
+    const killed = unit.currentHP <= 0;
+    if (killed) fellToBlows.push(unit);
     if (result)
       (result.areaCredits ||= []).push({
         source: sourceUnit,
         victim: unit,
         damage,
         hpBefore,
-        killed: unit.currentHP <= 0,
+        killed,
       });
   }
-  for (const { unit } of plan) {
-    if (dealt.get(unit).damage > 0 && unit.currentHP <= 0)
-      yield { kind: 'remove', unit, killer: sourceUnit };
+  for (const unit of fellToBlows) {
+    if (!stillStanding(unit, sourceUnit, world)) continue;
+    yield { kind: 'remove', unit, killer: sourceUnit };
   }
+}
+
+/** A unit still on the board to be removed: not mid-removal and still on its roster. */
+function stillStanding(unit, sourceUnit, world) {
+  if (!unit || unit._removing) return false;
+  const roster = world.hostilesOf?.(sourceUnit);
+  return !Array.isArray(roster) || roster.includes(unit);
 }
 
 /**

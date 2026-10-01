@@ -87,6 +87,62 @@ describe('PostCombatEffects beats', () => {
     expect(kinds).toEqual(['hp', 'hint', 'hp', 'hint', 'remove', 'remove']);
   });
 
+  it("a survivor finished by a victim's Deathburst is removed once, by that chain", () => {
+    // A falls to the blast; its removal (as the scene's removeUnit does) bursts for 5 on
+    // its neighbours and removes whoever that drops. B survived the blast with 3 HP, so
+    // the burst finishes it. The blast must not ask to remove B a second time: that would
+    // pay its gold, remains, deeds and Deathburst twice.
+    const caster = unit('Mage', 'player', 0, 0, 20);
+    const primary = unit('Primary', 'enemy', 5, 5, 30);
+    const a = unit('A', 'enemy', 5, 4, 6, 30);
+    const b = unit('B', 'enemy', 4, 5, 9, 30);
+    const enemies = [primary, a, b];
+    const removals = [];
+    const remove = (u) => {
+      if (u._removing) return;
+      u._removing = true;
+      removals.push(u.name);
+      enemies.splice(enemies.indexOf(u), 1);
+      if (u === a)
+        for (const other of [...enemies]) {
+          if (Math.abs(other.col - u.col) + Math.abs(other.row - u.row) > 2) continue; // a 2-tile burst
+          other.currentHP = Math.max(0, other.currentHP - 5);
+          if (other.currentHP <= 0) remove(other);
+        }
+      u._removing = false;
+    };
+    const w = { ...world([caster], enemies), hostilesOf: () => enemies };
+    const result = {};
+    for (const beat of areaDamage(blast, caster, primary, w, result))
+      if (beat.kind === 'remove') remove(beat.unit);
+    expect(removals).toEqual(['A', 'B']);
+    // B's credit is a hit: the blast left it standing.
+    expect(result.areaCredits.map((c) => [c.victim.name, c.killed])).toEqual([
+      ['A', true],
+      ['B', false],
+    ]);
+  });
+
+  it('a blast victim someone else already removed is not removed again', () => {
+    // Both fall to the blast; removing A also sweeps every fallen unit off the board
+    // (as a sweep would). By B's turn it is gone, so the blast skips it.
+    const caster = unit('Mage', 'player', 0, 0, 20);
+    const primary = unit('Primary', 'enemy', 5, 5, 30);
+    const a = unit('A', 'enemy', 5, 4, 6, 30);
+    const b = unit('B', 'enemy', 4, 5, 6, 30);
+    const enemies = [primary, a, b];
+    const removals = [];
+    const remove = (u) => {
+      removals.push(u.name);
+      enemies.splice(enemies.indexOf(u), 1);
+      if (u === a) for (const other of enemies.filter((e) => e.currentHP <= 0)) remove(other);
+    };
+    const w = { ...world([caster], enemies), hostilesOf: () => enemies };
+    for (const beat of areaDamage(blast, caster, primary, w, {}))
+      if (beat.kind === 'remove') remove(beat.unit);
+    expect(removals).toEqual(['A', 'B']);
+  });
+
   it('the sync driver acts on the required beats only, in order', () => {
     const caster = unit('Mage', 'player', 0, 0, 20);
     const primary = unit('Primary', 'enemy', 1, 0, 20);
