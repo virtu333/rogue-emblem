@@ -4,7 +4,7 @@ This implements the user-provided re-review and PR 6 design. Review findings are
 
 | PR | Required work | Release dependency |
 | --- | --- | --- |
-| #174 | Existing minimal any-base CI trigger; optional concurrency deferred | Merge approval; existing CI green |
+| #174 | Existing minimal any-base CI trigger; optional concurrency deferred | Merged (`ddf7cc93`); any-base CI enabled |
 | #168 | Existing guarded phase completion is sound | Merged; carry Escape checkPlayerPhaseComplete through conflicts |
 | #171 | Decide commander/empty-player-field defeat immediately after attributed owner cleanup, before boss/level-up presentation or a commanderless save; retain attribution. Pin removed chain-end decision. Rate limit by label and error name. | Reconcile main; targeted and integrated checks |
 | #173 | Enforce six missing-origin contracts using real run state/storage. Pin loot, recruit, death-fade, Ballista and XP continuations; check session before graphic cleanup. | Updated #171/main; construction-only origin limitation disclosed |
@@ -13,7 +13,7 @@ This implements the user-provided re-review and PR 6 design. Review findings are
 | #167 | S1 warned reservation-release exit; S2 authenticated identity before absence; S3 local-delete/archive/abandon guards pinned; S4 empty canonical slot and overlap-safe native hydration. Preserve raw evidence and cloud on release. | Independent save branch; browser/native-adapter tests |
 | 6a | Staff and supported consumables settle targets/cost/equipment/XP before capture and presentation; shared wrapper and proxy | Corrected #175 |
 | 6b | Movement/ability/recruit/Dance settlement, double-tap rejection, Ballista damage before shot | 6a |
-| 6c | Frozen save retry, exact gates, explicit degraded/exit choices, 640×480 and phone layout | 6b |
+| #178 (6c) | Frozen save retry, exact gates, explicit degraded/exit choices, 640×480 and phone layout | 6b |
 
 Merge order: #174/#168, #171, #173, #172, #175; #167 after S1–S4 independently. Main integration must retain phase-completion checks for absent/dead actors and Escape, plus originating-session checks. Round-three branch publication and CI are tracked at the exact published heads.
 
@@ -25,7 +25,7 @@ Verification entries below distinguish targeted tests, integrated local runs, in
 
 ## Final local integration verification
 
-PR 6a staff/consumables is published as #176 and PR 6b movement/abilities as #177. Save retry (6c) follows them. The local combined branch uses actual merges of the corrected battle stack, #172 and #167; the verified source head is `4df5e656` (tree `1e1032fe`). Published commit IDs can differ because publication preserves the canonical GitHub parents; compare source trees.
+PR 6a staff/consumables is published as #176 and PR 6b movement/abilities as #177. Save retry (6c) is #178. The local combined branch uses actual merges of the corrected battle stack, #172 and #167; the historical local run used unpublished checkout `4df5e656`. Reproducible equivalent source and tests are available at [published equivalent source/tests `4e54ff267`](https://github.com/virtu333/rogue-emblem/commit/4e54ff26706819ae4c179197a4f6a48810276e7a). That published revision differs only in documentation and ancestry; the historical totals below are local execution reports, not CI results for that published hash.
 
 | Check | Final result | Scope |
 | --- | --- | --- |
