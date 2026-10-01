@@ -14,9 +14,10 @@ export function safeBattlePresentation(label, present, { scene } = {}) {
       if (!reports) sceneReports.set(scene, (reports = new Map()));
     }
     const now = Date.now();
-    const prior = reports.get(label);
+    const key = `${label}:${error?.name || 'Error'}`;
+    const prior = reports.get(key);
     if (prior !== undefined && now - prior < REPORT_INTERVAL_MS) return;
-    reports.set(label, now);
+    reports.set(key, now);
     console.warn(`[BattleScene] ${label} presentation failed; continuing:`, error);
     reportAsyncError('battle_presentation_failed', error, {
       label,

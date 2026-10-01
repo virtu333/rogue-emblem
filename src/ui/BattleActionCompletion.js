@@ -42,6 +42,7 @@ export function completeBattleAction(scene, unit, { skipDim = false } = {}) {
   // change; this also covers state loaded from before it did).
   for (const ally of scene.playerUnits || []) settleAccessoryHpOwed(ally);
   scene._captureSuspendCheckpoint?.();
-  if (!skipDim) safeBattlePresentation('action dim', () => scene.dimUnit(unit), { scene: scene });
-  scene.turnManager.unitActed(unit);
+  if (!skipDim) safeBattlePresentation('action dim', () => scene.dimUnit(unit), { scene });
+  if (scene.playerUnits.includes(unit)) scene.turnManager.unitActed(unit);
+  else scene.turnManager.checkPlayerPhaseComplete();
 }

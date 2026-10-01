@@ -460,6 +460,82 @@ it('victory waits for Phoenix and XP after a third-party Deathburst', async () =
   expect(scene.result).toBe('victory');
 });
 
+it.each(['player', 'enemy'])(
+  '%s combat decides commander defeat before popups or durable capture',
+  async (owner) => {
+    const { scene, actor, primary, burst, fighter } = combatEntryFixture();
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const storage = new JourneyStorage();
+    vi.stubGlobal('localStorage', storage);
+    const driver = new RunDriver(storage);
+    driver.run.beginBattleInProgress(driver.run.nodeMap.nodes[0].id, { battleParams: {} });
+    scene.runManager = driver.run;
+    const commander = fighter('Commander', 'player', 3, 0, 1);
+    commander.isCommander = true;
+    commander.isLord = true;
+    actor.name = 'Veteran';
+    actor.isCommander = false;
+    actor.isLord = false;
+    actor.xp = 99; // Real XP settlement must queue a level-up before cleanup.
+    scene.playerUnits = [actor, commander];
+    driver.run.roster = scene.playerUnits;
+    for (const unit of [...scene.playerUnits, ...scene.enemyUnits]) scene.addUnitGraphic(unit);
+    scene._captureSuspendCheckpoint();
+    expect(driver.run.battleInProgress.checkpoint.playerUnits.map((unit) => unit.name)).toContain(
+      'Commander',
+    );
+    const savedArmies = [];
+    const capture = scene._captureSuspendCheckpoint.bind(scene);
+    scene._captureSuspendCheckpoint = (...args) => {
+      savedArmies.push(scene.playerUnits.map((unit) => unit.name));
+      return capture(...args);
+    };
+    const bossBeat = vi.fn(async () => {});
+    scene._battleBeats.checkBossHalfHealth = bossBeat;
+    scene.onDefeat = () => {
+      // Domain cleanup and the owner's kill attribution must precede defeat.
+      expect(scene.enemyUnits).not.toContain(primary);
+      expect(primary._removing).toBe(false);
+      scene._defeatDecision = { killerName: scene._commanderKillerName };
+      scene.result = 'defeat';
+      scene.battleState = 'BATTLE_END';
+    };
+    if (owner === 'player') {
+      await scene.executeCombat(actor, primary);
+    } else {
+      // The defender kills the primary enemy on its counter; that enemy's
+      // Deathburst reaches the commander while the surviving defender gains XP.
+      primary.weapon = {
+        ...data.weapons.find((weapon) => weapon.name === 'Iron Sword'),
+        hit: 200,
+        crit: 0,
+        might: 0,
+      };
+      primary.inventory = [primary.weapon];
+      primary.stats.STR = 0;
+      scene._getSelectedWeaponArtForUnit = () => null;
+      scene._selectEnemyWeaponArt = () => null;
+      // Keep the cascade real while supplying its required post-combat removal:
+      // the primary enemy's own Deathburst reaches the commander at range one.
+      primary.affixes = ['deathburst'];
+      Object.assign(commander, { col: 2, row: 0 });
+      await scene.executeEnemyCombat(primary, actor);
+    }
+    expect(errors).not.toHaveBeenCalled();
+    expect(scene._pendingLevelUpPopups.length).toBeGreaterThan(0);
+    expect(scene.playerUnits).not.toContain(commander);
+    expect(scene.result).toBe('defeat');
+    expect(scene._defeatDecision.killerName).toBe(owner === 'player' ? burst.name : primary.name);
+    expect(bossBeat).not.toHaveBeenCalled();
+    expect(savedArmies.every((army) => army.includes('Commander'))).toBe(true);
+    expect(scene._pendingActionCompletion).toBeFalsy();
+    const stored = JSON.parse(storage.getItem('emblem_rogue_slot_1_run'));
+    expect(stored.battleInProgress.checkpoint.playerUnits.map((unit) => unit.name)).toContain(
+      'Commander',
+    );
+  },
+);
+
 it('enemy entry attributes its primary casualty after a splash victim starts a Deathburst', async () => {
   const { scene, actor: commander, fighter } = combatEntryFixture();
   const enemy = fighter('Slayer', 'enemy', 1, 1);
@@ -563,7 +639,7 @@ it('visibility failure on one enemy or NPC does not prevent hiding the rest', ()
   });
 });
 
-it('presentation failures report context once per label and scene per minute', async () => {
+it('presentation failures report context once per label, error name and scene per minute', async () => {
   const report = vi.spyOn(errors, 'reportAsyncError').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   const scene = {
@@ -589,6 +665,14 @@ it('presentation failures report context once per label and scene per minute', a
   });
   await safeBattlePresentation('other', () => Promise.reject(new Error('destroyed')), { scene });
   expect(report).toHaveBeenCalledTimes(2);
+  safeBattlePresentation(
+    'fog overlay',
+    () => {
+      throw new TypeError('different failure');
+    },
+    { scene },
+  );
+  expect(report).toHaveBeenCalledTimes(3);
   now.mockReturnValue(60_010);
   safeBattlePresentation(
     'fog overlay',
@@ -597,7 +681,7 @@ it('presentation failures report context once per label and scene per minute', a
     },
     { scene },
   );
-  expect(report).toHaveBeenCalledTimes(3);
+  expect(report).toHaveBeenCalledTimes(4);
 });
 
 it('headless battle and invariants count a zero-HP commander as fallen before roster removal', () => {

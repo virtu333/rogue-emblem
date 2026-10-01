@@ -27,6 +27,7 @@ import { battlePlace } from '../ui/placeDisplay.js';
 import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
 import { presentationText, isolateBattleTextFactory } from '../utils/presentationText.js';
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
+import { hasBattleDefeat } from '../engine/BattleDefeat.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
 import {
@@ -1690,6 +1691,11 @@ export class BattleScene extends Phaser.Scene {
         onVictory: () => this.onVictory(),
         onDefeat: () => this.onDefeat(),
         checkBattleEnd: () => this.checkBattleEnd(),
+        onRejectedTransition: (transition) =>
+          console.warn('[BattleScene] rejected phase transition:', {
+            ...transition,
+            battleState: this.battleState,
+          }),
       });
       this.turnManager.init(this.playerUnits, this.enemyUnits, this.npcUnits, bc.objective);
 
@@ -8493,6 +8499,12 @@ export class BattleScene extends Phaser.Scene {
         await this.removeUnit(attacker, { killer: defender });
       }
       await this._sweepFallenUnits();
+      // A fatal cascade must decide defeat before a popup can checkpoint an
+      // army with no commander. Victory still waits for the combat owner's XP.
+      if (hasBattleDefeat(this.playerUnits, this.escapedUnits)) {
+        this.checkBattleEnd();
+        return;
+      }
 
       if (
         this._fatalDecision ||
@@ -10553,6 +10565,12 @@ export class BattleScene extends Phaser.Scene {
         await this._applyEntitySplash(enemy, target);
       }
       await this._sweepFallenUnits();
+      // A fatal cascade must decide defeat before a popup can checkpoint an
+      // army with no commander. Victory still waits for the combat owner's XP.
+      if (hasBattleDefeat(this.playerUnits, this.escapedUnits)) {
+        this.checkBattleEnd();
+        return;
+      }
 
       if (
         this._fatalDecision ||
@@ -10765,10 +10783,7 @@ export class BattleScene extends Phaser.Scene {
     // check: stamped at battle setup and deserialize, so a missing flag means
     // the commander has fallen.
     const commanderEscaped = (this.escapedUnits || []).some((u) => u.isCommander);
-    const commanderAlive =
-      this.playerUnits.some((u) => u.isCommander && u.currentHP > 0) || commanderEscaped;
-    const fieldEmpty = this.playerUnits.length === 0 && !(this.escapedUnits?.length > 0);
-    if (!commanderAlive || fieldEmpty) {
+    if (hasBattleDefeat(this.playerUnits, this.escapedUnits)) {
       if (this.showLordDeathVisionPrompt()) {
         return true;
       }
