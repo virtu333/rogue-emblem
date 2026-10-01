@@ -104,9 +104,11 @@ describe('executeTalk error recovery', () => {
 
     await scene.executeTalk(lord);
 
+    expect(scene.playerUnits).toContain(npc);
+    expect(scene.npcUnits).toEqual([]);
+    expect(npc.faction).toBe('player');
     expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
     expect(scene.finishUnitAction).toHaveBeenCalledWith(lord, {
-      skipCanto: true,
       session: scene._battleSession,
     });
   });
@@ -265,8 +267,9 @@ describe('executeDance error recovery', () => {
       u.hasActed = true;
       scene.battleState = 'PLAYER_IDLE';
     });
-    const dancer = makeUnit({ name: 'Dancer' });
-    const target = { ally: makeUnit({ name: 'Ally', hasActed: true }) };
+    const dancer = makeUnit({ name: 'Dancer', skills: ['dance'] });
+    const target = { ally: makeUnit({ name: 'Ally', row: 1, hasActed: true }) };
+    scene.playerUnits = [dancer, target.ally];
 
     await scene.executeDance(dancer, target);
 

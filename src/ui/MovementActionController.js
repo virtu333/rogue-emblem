@@ -1,0 +1,209 @@
+import { battleSession, isCurrentBattleSession } from './BattleSession.js';
+import { settleAndPresent } from './BattleActionSettlement.js';
+import { settleMoves } from '../engine/ActionMovement.js';
+import { settleRecruitJoin, validateRecruitJoin } from '../engine/BattleRecruits.js';
+import { observeHistoryAction } from './BattleHistoryRecorder.js';
+import { deedsFor } from './DeedController.js';
+import { presentSettledMoves } from './ActionMovementPresentation.js';
+import { safeBattlePresentation } from './safeBattlePresentation.js';
+import { CombatFxController } from './CombatFxController.js';
+import { XP_BASE_DANCE } from '../utils/constants.js';
+import { UI_HEX } from '../utils/uiStyles.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { growthCeremonies } from './GrowthCeremonyController.js';
+
+function isActor(scene, unit) {
+  return !!unit && scene.playerUnits.includes(unit) && unit.currentHP > 0 && !unit.hasActed;
+}
+function matches(a, b, keys) {
+  return a?.ally === b?.ally && keys.every((key) => a[key] === b[key]);
+}
+
+export class MovementActionController {
+  constructor(scene) {
+    this.scene = scene;
+  }
+
+  executeMove(kind, unit, target, { session = battleSession(this.scene) } = {}) {
+    const scene = this.scene;
+    const title = kind[0].toUpperCase() + kind.slice(1);
+    const keys =
+      kind === 'shove'
+        ? ['destCol', 'destRow']
+        : kind === 'pull'
+          ? ['retreatCol', 'retreatRow']
+          : [];
+    return settleAndPresent(scene, {
+      unit,
+      session,
+      label: kind,
+      validate: () =>
+        isActor(scene, unit) &&
+        (kind === 'swap' || unit.skills?.includes(kind)) &&
+        target?.ally?.currentHP > 0 &&
+        scene[`find${title}Targets`](unit).some((entry) => matches(entry, target, keys)),
+      settle: () => {
+        const allyWasActed = target.ally.hasActed;
+        observeHistoryAction(
+          scene,
+          kind === 'swap' ? 'swapped with' : kind === 'pull' ? 'pulled' : 'shoved',
+          unit,
+          target.ally,
+        );
+        const moves =
+          kind === 'shove'
+            ? [{ unit: target.ally, to: { col: target.destCol, row: target.destRow } }]
+            : [
+                {
+                  unit,
+                  to:
+                    kind === 'pull'
+                      ? { col: target.retreatCol, row: target.retreatRow }
+                      : { col: target.ally.col, row: target.ally.row },
+                },
+                { unit: target.ally, to: { col: unit.col, row: unit.row } },
+              ];
+        return { moves: settleMoves(moves), allyWasActed };
+      },
+      present: async ({ moves, allyWasActed }) => {
+        safeBattlePresentation(`${kind} menu`, () => scene.hideActionMenu(), { scene });
+        await presentSettledMoves(scene, moves, {
+          session,
+          label: kind,
+          duration: kind === 'swap' ? 120 : 80,
+        });
+        if (!isCurrentBattleSession(scene, session)) return;
+        safeBattlePresentation(
+          `${kind} movement state`,
+          () =>
+            scene._refreshPostCombatMovementState(
+              moves.map((move) => move.unit),
+              { revealFog: false },
+            ),
+          { scene },
+        );
+        if (kind === 'swap' && allyWasActed)
+          safeBattlePresentation('swap acted ally dim', () => scene.dimUnit(target.ally), {
+            scene,
+          });
+      },
+    });
+  }
+
+  executeDance(unit, target, { session = battleSession(this.scene) } = {}) {
+    const scene = this.scene;
+    return settleAndPresent(scene, {
+      unit,
+      session,
+      label: 'dance',
+      validate: () =>
+        isActor(scene, unit) &&
+        unit.skills?.includes('dance') &&
+        target?.ally?.currentHP > 0 &&
+        scene.findDanceTargets(unit).some((entry) => entry.ally === target?.ally),
+      settle: () => {
+        observeHistoryAction(scene, 'danced for', unit, target.ally);
+        deedsFor(scene).onRefresh(unit);
+        target.ally.hasMoved = false;
+        target.ally._movementCommitted = false;
+        target.ally.hasActed = false;
+        return { xp: scene.awardScaledXP(unit, XP_BASE_DANCE, { present: false }) };
+      },
+      present: ({ xp }) => {
+        safeBattlePresentation('dance menu', () => scene.hideActionMenu(), { scene });
+        safeBattlePresentation('dance refresh graphic', () => scene.undimUnit(target.ally), {
+          scene,
+        });
+        safeBattlePresentation(
+          'dance sparkle',
+          () => {
+            scene.registry.get('audio')?.playSFX('sfx_heal');
+            const pos = scene.grid.gridToPixel(target.ally.col, target.ally.row);
+            (scene._combatFx ||= new CombatFxController(scene)).playBuff(pos.x, pos.y);
+            const sparkle = scene.add
+              .circle(pos.x, pos.y, 20, UI_HEX.hpHigh, scene._reduceMotion() ? 0.4 : 0.6)
+              .setDepth(200);
+            if (scene._reduceMotion()) scene.time.delayedCall(120, () => sparkle.destroy());
+            else
+              scene.tweens.add({
+                targets: sparkle,
+                alpha: 0,
+                scale: 1.5,
+                duration: 400,
+                ease: 'Quad.easeOut',
+                onComplete: () => sparkle.destroy(),
+              });
+          },
+          { scene },
+        );
+        scene._presentScaledXP(unit, xp);
+      },
+    });
+  }
+
+  executeTalk(lord, { session = battleSession(this.scene) } = {}) {
+    const scene = this.scene;
+    let npc;
+    return settleAndPresent(scene, {
+      unit: lord,
+      session,
+      label: 'talk',
+      state: 'COMBAT_RESOLVING',
+      validate: () =>
+        isActor(scene, lord) &&
+        lord.isLord === true &&
+        !!(npc = scene.findTalkTarget(lord)) &&
+        validateRecruitJoin(npc, scene.npcUnits, scene.playerUnits),
+      settle: () => {
+        const result = settleRecruitJoin({
+          npc,
+          npcUnits: scene.npcUnits,
+          playerUnits: scene.playerUnits,
+          battleRecruits: scene._battleRecruits,
+          runManager: scene.runManager,
+        });
+        scene._battleRecruits = result.battleRecruits;
+        observeHistoryAction(scene, 'recruited', lord, npc);
+        const lines = (npc.isLord ? scene.gameData.dialogue?.lordRecruitLines?.[npc.name] : null) ||
+          scene.gameData.dialogue?.recruitLines?.[npc.className] || ['Joined the army!'];
+        return {
+          npc,
+          line:
+            scene.runManager?.pickNarrativeLine?.(
+              lines,
+              `recruit:${npc.className}:${npc.isLord ? npc.name : 'class'}`,
+            ) || lines[0],
+        };
+      },
+      present: async ({ npc, line }) => {
+        safeBattlePresentation('talk menu', () => scene.hideActionMenu(), { scene });
+        let carded = false;
+        await safeBattlePresentation(
+          'talk recruit card',
+          async () => {
+            const growth = hasDOMHost() ? growthCeremonies(scene) : null;
+            if (growth) carded = await growth.showRecruit({ unit: npc, kind: 'recruit', line });
+          },
+          { scene },
+        );
+        if (!isCurrentBattleSession(scene, session)) return;
+        if (!carded)
+          await safeBattlePresentation(
+            'talk dialogue',
+            () => scene.dialogueOverlay.show(npc.name, line, scene._getPortraitKey(npc)),
+            { scene },
+          );
+        if (!isCurrentBattleSession(scene, session)) return;
+        safeBattlePresentation(
+          'talk recruit graphic',
+          () => {
+            scene.removeUnitGraphic(npc);
+            scene.addUnitGraphic(npc);
+          },
+          { scene },
+        );
+        safeBattlePresentation('talk objective', () => scene.updateObjectiveText(), { scene });
+      },
+    });
+  }
+}

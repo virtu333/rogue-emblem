@@ -295,9 +295,11 @@ describe('moves inside an action (Rescue/Warp, Blink) lift the fog only on commi
     expect(scene.saved).toEqual([false, true]);
   });
 
-  it('Blink with Canto: the new tile reveals nothing until Canto ends', async () => {
+  it('Blink with Canto: nearby fog stays hidden until Canto ends', async () => {
     const { scene, grid, edric } = setup();
     edric.skills = ['blink', 'canto'];
+    // Revalidation uses the targeting menu's seen-tile rule.
+    grid.visibleSet.add('4,1');
     edric._movementSpent = 1;
     let litAtCanto = null;
     scene.startCantoMove = vi.fn(() => {
@@ -312,10 +314,10 @@ describe('moves inside an action (Rescue/Warp, Blink) lift the fog only on commi
     expect([edric.col, edric.row]).toEqual([4, 1]);
     expect(scene.startCantoMove).toHaveBeenCalled();
     expect(litAtCanto).toBe(false);
-    expect(scene.saved).toEqual([]);
+    expect(scene.saved).toEqual([false]);
     completeBattleAction(scene, edric, { session: scene._battleSession });
     expect(grid.isVisible(5, 1)).toBe(true);
-    expect(scene.saved).toEqual([true]);
+    expect(scene.saved).toEqual([false, true]);
   });
 });
 
