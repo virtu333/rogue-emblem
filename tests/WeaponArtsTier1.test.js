@@ -124,7 +124,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
         const hasTier4 = Boolean(mods.multiHit) || (mods.drainPercent || 0) > 0;
         const hasStructuredTier2 =
           Array.isArray(art?.effects?.afterCombat) && art.effects.afterCombat.length > 0;
-        const hasStructuredTier5 = Boolean(art?.effects?.aoeSplash || art?.effects?.allyBuff);
+        const hasStructuredTier5 = Boolean(art?.area || art?.effects?.allyBuff);
         const hasBespoke =
           (mods.damageMultiplier || 0) > 1 ||
           mods.ignoreWeaponTriangle ||

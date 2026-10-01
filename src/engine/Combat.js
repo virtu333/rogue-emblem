@@ -2267,5 +2267,8 @@ export function resolveCombat(
     // Backward compat: expose first poison entry as flat fields
     poisonDamage: poisonEffects.length > 0 ? poisonEffects[0].damage : 0,
     poisonTarget: poisonEffects.length > 0 ? poisonEffects[0].target : null,
+    // Each side's flat combat mods (skills, accessories, art, imbue, timed buffs; no
+    // procs): an area weapon art's blows reuse them against every other victim.
+    strikeMods: { attacker: atkMods, defender: defMods },
   };
 }

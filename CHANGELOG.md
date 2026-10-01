@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Area Weapon Arts, Engine (Oct 1, 2026)
+
+- **Balance change: splash and pierce are now each victim's own blow.** Cinder Quake (Burning Quake), Radiant Burst, Barrage, Cataclysm Bolt and Tempest no longer pass on a share of the hit that landed on the target. Each foe in the area takes the art's own strike against its own DEF or RES, terrain, weapon triangle and weapon bonuses. Crits and strike skills no longer carry over, and the art's flat bonuses and passive skills still count. Against a foe built like the target, the numbers match the old non-crit splash. Tempest's effectiveness now reaches fliers in its area, capped at 3× (only the target itself can reach 5×). Cataclysm keeps its fixed 5.
+- **Piercing Charge and Doom Thrust** strike the foe behind with their own blow on every landed hit. Doom Thrust now pierces at range 2 as well, though its push still needs it to stand next to the target. Pierce, like before, lands even if the counter then fells its user.
+- **Anchored** foes can no longer be pushed or swapped by weapon arts (Overrun, Doom Thrust, Lunge). Before, the affix's protection was never applied.
+- Spec: `docs/specs/aoe-weapon-arts.md`.
+
 ### Staff Relocation Visuals (Sep 30, 2026)
 
 - Rescue and Warp preserve each visual element's opacity when moving an already-used ally, so the next turn restores its ready appearance without leaving the sprite or HP bar faded.

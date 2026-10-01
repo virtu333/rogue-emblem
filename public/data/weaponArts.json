@@ -9,6 +9,11 @@
       "All catalog mechanics are implemented; structured effects live in each art's effects/combatMods blocks (no deferred placeholders remain)."
     ]
   },
+  "areaXp": {
+    "hitRate": 0.35,
+    "killRate": 0.6,
+    "actionBaseCap": 75
+  },
   "arts": [
     {
       "id": "sword_precise_cut",
@@ -1527,19 +1532,19 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
+      "area": {
+        "shape": "radius",
+        "radius": 1,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.6
+        },
+        "strikes": "once"
+      },
       "description": "The ground erupts, scorching enemies around the mark.",
       "allowedFactions": [
         "player"
       ],
-      "effects": {
-        "aoeSplash": {
-          "radius": 1,
-          "damageKind": "scaled",
-          "damageMultiplier": 0.6,
-          "basis": "first_landed_strike",
-          "nonLethal": false
-        }
-      },
       "combatMods": {
         "hitBonus": 10,
         "activated": [
@@ -1563,20 +1568,21 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
+      "area": {
+        "shape": "radius",
+        "radius": 1,
+        "pick": "lowest_hp_pct",
+        "maxTargets": 1,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.75
+        },
+        "strikes": "once"
+      },
       "description": "Light flares wide enough to catch one foe alongside.",
       "allowedFactions": [
         "player"
       ],
-      "effects": {
-        "aoeSplash": {
-          "radius": 1,
-          "maxTargets": 1,
-          "damageKind": "scaled",
-          "damageMultiplier": 0.75,
-          "basis": "first_landed_strike",
-          "nonLethal": false
-        }
-      },
       "combatMods": {
         "hitBonus": 10,
         "activated": [
@@ -1770,6 +1776,15 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
+      "area": {
+        "shape": "line",
+        "length": 1,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 1
+        },
+        "strikes": "each_landed"
+      },
       "description": "Oathlance strikes twice and drives clean through.",
       "allowedFactions": [
         "player"
@@ -1777,15 +1792,6 @@
       "legendaryWeaponIds": [
         "Oathlance"
       ],
-      "effects": {
-        "afterCombat": [
-          {
-            "type": "pierce_through",
-            "target": "defender",
-            "maxTargets": 1
-          }
-        ]
-      },
       "combatMods": {
         "multiHit": {
           "count": 2,
@@ -1868,6 +1874,15 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
+      "area": {
+        "shape": "radius",
+        "radius": 1,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.5
+        },
+        "strikes": "once"
+      },
       "description": "Oathbow rains twice, catching foes beside the mark.",
       "allowedFactions": [
         "player"
@@ -1875,15 +1890,6 @@
       "legendaryWeaponIds": [
         "Oathbow"
       ],
-      "effects": {
-        "aoeSplash": {
-          "radius": 1,
-          "damageKind": "scaled",
-          "damageMultiplier": 0.5,
-          "basis": "first_landed_strike",
-          "nonLethal": false
-        }
-      },
       "combatMods": {
         "multiHit": {
           "count": 2,
@@ -1984,6 +1990,15 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
+      "area": {
+        "shape": "line",
+        "length": 1,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 1
+        },
+        "strikes": "each_landed"
+      },
       "description": "Doomblade runs one foe through and shoves it back.",
       "allowedFactions": [
         "player"
@@ -1993,11 +2008,6 @@
       ],
       "effects": {
         "afterCombat": [
-          {
-            "type": "pierce_through",
-            "target": "defender",
-            "maxTargets": 1
-          },
           {
             "type": "move",
             "mode": "push",
@@ -2072,6 +2082,15 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
+      "area": {
+        "shape": "radius",
+        "radius": 2,
+        "damage": {
+          "kind": "fixed",
+          "amount": 5
+        },
+        "strikes": "once"
+      },
       "description": "Tidebreaker splits the ground: huge power, wide splash.",
       "allowedFactions": [
         "player"
@@ -2079,15 +2098,6 @@
       "legendaryWeaponIds": [
         "Tidebreaker"
       ],
-      "effects": {
-        "aoeSplash": {
-          "radius": 2,
-          "damageKind": "fixed",
-          "fixedDamage": 5,
-          "basis": "first_landed_strike",
-          "nonLethal": false
-        }
-      },
       "combatMods": {
         "atkBonus": 20,
         "hitBonus": 10,
@@ -2154,6 +2164,15 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
+      "area": {
+        "shape": "radius",
+        "radius": 1,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.75
+        },
+        "strikes": "once"
+      },
       "description": "Firstwind's gale tears fliers down and spreads outward.",
       "allowedFactions": [
         "player"
@@ -2161,15 +2180,6 @@
       "legendaryWeaponIds": [
         "Firstwind"
       ],
-      "effects": {
-        "aoeSplash": {
-          "radius": 1,
-          "damageKind": "scaled",
-          "damageMultiplier": 0.75,
-          "basis": "first_landed_strike",
-          "nonLethal": false
-        }
-      },
       "combatMods": {
         "atkBonus": 5,
         "hitBonus": 10,
@@ -2201,6 +2211,15 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
+      "area": {
+        "shape": "radius",
+        "radius": 2,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.5
+        },
+        "strikes": "once"
+      },
       "description": "Breachbolt calls thunder down across a wide circle.",
       "allowedFactions": [
         "player"
@@ -2208,15 +2227,6 @@
       "legendaryWeaponIds": [
         "Breachbolt"
       ],
-      "effects": {
-        "aoeSplash": {
-          "radius": 2,
-          "damageKind": "scaled",
-          "damageMultiplier": 0.5,
-          "basis": "first_landed_strike",
-          "nonLethal": false
-        }
-      },
       "combatMods": {
         "atkBonus": 5,
         "hitBonus": 10,

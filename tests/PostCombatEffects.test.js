@@ -4,10 +4,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   allyBuff,
-  aoeSplash,
+  areaDamage,
   runPostCombatEffectsSync,
   postCombatEffects,
-  splashDamage,
 } from '../src/engine/PostCombatEffects.js';
 
 const unit = (name, faction, col, row, hp, max = hp) => ({
@@ -35,15 +34,31 @@ function world(players, enemies) {
 }
 
 describe('PostCombatEffects beats', () => {
-  it('a splash that drops a foe changes HP first, then asks for its removal', () => {
+  // A fixed 6-damage blast of radius 1 (Cataclysm's kind of area, smaller).
+  const blast = {
+    area: {
+      shape: 'radius',
+      radius: 1,
+      pick: 'all',
+      maxTargets: null,
+      damage: { kind: 'fixed', amount: 6 },
+      strikes: 'once',
+      nonLethal: false,
+    },
+    blows: 1,
+  };
+
+  it('every blow lands before anyone falls; each victim leaves one credit', () => {
     const caster = unit('Mage', 'player', 0, 0, 20);
     const primary = unit('Primary', 'enemy', 1, 0, 20);
     const frail = unit('Frail', 'enemy', 1, 1, 4, 20);
     const sturdy = unit('Sturdy', 'enemy', 2, 0, 20);
-    const step = { radius: 1, damageKind: 'fixed', fixedDamage: 6, nonLethal: false };
-    expect(splashDamage(step)).toBe(6);
-    const beats = [...aoeSplash(step, caster, primary, world([caster], [primary, frail, sturdy]))];
-    // Row-major order: Sturdy (row 0) before Frail (row 1).
+    const result = {};
+    const beats = [
+      ...areaDamage(blast, caster, primary, world([caster], [primary, frail, sturdy]), result),
+    ];
+    // Distance from the target, then row: Sturdy (2,0) and Frail (1,1) are both 1 away;
+    // Sturdy is on row 0. Both blows, then the fall.
     expect(beats.map((b) => [b.kind, b.unit.name, b.text ?? ''])).toEqual([
       ['hp', 'Sturdy', ''],
       ['hint', 'Sturdy', 'Splash -6'],
@@ -52,7 +67,24 @@ describe('PostCombatEffects beats', () => {
       ['remove', 'Frail', ''],
     ]);
     expect(beats.at(-1).killer).toBe(caster);
-    expect([sturdy.currentHP, frail.currentHP]).toEqual([14, 0]);
+    expect([sturdy.currentHP, frail.currentHP, primary.currentHP]).toEqual([14, 0, 20]);
+    expect(result.areaCredits.map((c) => [c.victim.name, c.damage, c.hpBefore, c.killed])).toEqual([
+      ['Sturdy', 6, 20, false],
+      ['Frail', 4, 4, true],
+    ]);
+  });
+
+  it("a fall from an earlier victim cannot change a later victim's blow", () => {
+    // Both neighbours at 6 HP: both take their blow before either falls, so a death
+    // effect resolved by the first removal would find the second already struck.
+    const caster = unit('Mage', 'player', 0, 0, 20);
+    const primary = unit('Primary', 'enemy', 1, 0, 20);
+    const a = unit('A', 'enemy', 2, 0, 6);
+    const b = unit('B', 'enemy', 1, 1, 6);
+    const kinds = [...areaDamage(blast, caster, primary, world([caster], [primary, a, b]), {})].map(
+      (beat) => beat.kind,
+    );
+    expect(kinds).toEqual(['hp', 'hint', 'hp', 'hint', 'remove', 'remove']);
   });
 
   it('the sync driver acts on the required beats only, in order', () => {
@@ -61,12 +93,7 @@ describe('PostCombatEffects beats', () => {
     const frail = unit('Frail', 'enemy', 1, 1, 4, 20);
     const removed = [];
     runPostCombatEffectsSync(
-      aoeSplash(
-        { radius: 1, damageKind: 'fixed', fixedDamage: 6 },
-        caster,
-        primary,
-        world([caster], [primary, frail]),
-      ),
+      areaDamage(blast, caster, primary, world([caster], [primary, frail])),
       { remove: (u, { killer }) => removed.push([u.name, killer.name]) },
     );
     expect(removed).toEqual([['Frail', 'Mage']]);

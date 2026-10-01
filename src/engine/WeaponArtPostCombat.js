@@ -1,9 +1,13 @@
 import {
+  getWeaponArtArea,
+  getWeaponArtCombatMods,
+  getWeaponArtTargeting,
   getWeaponArtTier2Effects,
   getWeaponArtTier5Effects,
   getWeaponArtMissEffects,
   getWeaponArtKillEffects,
 } from './WeaponArtSystem.js';
+import { mergeCombatMods } from './Combat.js';
 import { isRooted } from './StatusConditionSystem.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
@@ -11,7 +15,7 @@ const TIER2_EFFECT_ORDER = [
   'afterCombatDamage',
   'afterCombatDebuff',
   'inflictStatus',
-  'pierceThrough',
+  'lineArea',
   'postCombatMove',
   'setHp',
 ];
@@ -40,21 +44,6 @@ export function didCombatSideLandHit(events, side, attacker = null, defender = n
     }
     return fallbackName !== null && event.attacker === fallbackName;
   });
-}
-
-export function getFirstLandedStrikeDamage(events, side, attacker = null, defender = null) {
-  if (!Array.isArray(events)) return 0;
-  const fallbackName = getFallbackNameForSide(side, attacker, defender);
-  for (const event of events) {
-    if (event?.type !== 'strike' || event?.miss) continue;
-    if (event.attackerSide === 'attacker' || event.attackerSide === 'defender') {
-      if (event.attackerSide !== side) continue;
-    } else if (fallbackName === null || event.attacker !== fallbackName) {
-      continue;
-    }
-    return Math.max(0, Math.trunc(Number(event.damage) || 0));
-  }
-  return 0;
 }
 
 export function getMissedStrikeCount(events, side, attacker = null, defender = null) {
@@ -87,6 +76,31 @@ export function getLandedStrikeDamages(events, side, attacker = null, defender =
     out.push(Math.max(0, Math.trunc(Number(event.damage) || 0)));
   }
   return out;
+}
+
+/**
+ * The `area_damage` step of a normal-attack area art (docs/specs/aoe-weapon-arts.md §2.3),
+ * or null. The blow reuses the side's flat combat mods from the resolved combat
+ * (`result.strikeMods`); a result without them (a hand-built one) falls back to the
+ * art's own mods.
+ */
+function areaDamageStep(side, art, result, attacker, defender) {
+  if (getWeaponArtTargeting(art) !== 'normal_attack') return null;
+  const area = getWeaponArtArea(art);
+  if (!area) return null;
+  const landed = getLandedStrikeDamages(result?.events, side, attacker, defender).length;
+  return {
+    type: 'area_damage',
+    sourceSide: side,
+    targetSide: getOpposingSide(side),
+    artId: art?.id || null,
+    area,
+    blows: area.strikes === 'each_landed' ? landed : 1,
+    // A line runs through with the strike, so it lands even if the counter then fells
+    // its user (as pierce always has); a blast around the target needs its user alive.
+    requiresLiveSource: area.shape !== 'line',
+    strikeMods: result?.strikeMods?.[side] ?? mergeCombatMods(null, getWeaponArtCombatMods(art)),
+  };
 }
 
 export function getPostCombatPipelineSteps({
@@ -162,12 +176,13 @@ export function getPostCombatPipelineSteps({
     for (const side of SIDE_ORDER) {
       const hitGated = effectType !== 'setHp';
       if (hitGated && !hitBySide[side]) continue;
+      if (effectType === 'lineArea') {
+        const step = areaDamageStep(side, artsBySide[side], result, attacker, defender);
+        if (step?.area.shape === 'line') steps.push(step);
+        continue;
+      }
       const effects = getWeaponArtTier2Effects(artsBySide[side])[effectType] || [];
       if (effects.length <= 0) continue;
-      const landedDamages =
-        effectType === 'pierceThrough'
-          ? getLandedStrikeDamages(result?.events, side, attacker, defender)
-          : null;
       for (const effect of effects) {
         if (effectType === 'afterCombatDamage') {
           steps.push({
@@ -196,16 +211,6 @@ export function getPostCombatPipelineSteps({
             targetSide: resolveRelativeTargetSide(side, effect.target),
             status: effect.status,
             durationPhases: effect.durationPhases,
-          });
-          continue;
-        }
-        if (effectType === 'pierceThrough') {
-          steps.push({
-            type: 'tier2_pierce',
-            sourceSide: side,
-            targetSide: resolveRelativeTargetSide(side, effect.target),
-            maxTargets: effect.maxTargets,
-            damages: [...(landedDamages || [])],
           });
           continue;
         }
@@ -266,27 +271,8 @@ export function getPostCombatPipelineSteps({
     if (!hitBySide[side]) continue;
     const art = artsBySide[side];
     const tier5Effects = getWeaponArtTier5Effects(art);
-    if (tier5Effects.aoeSplash) {
-      const splash = tier5Effects.aoeSplash;
-      const basisDamage =
-        splash.basis === 'first_landed_strike'
-          ? getFirstLandedStrikeDamage(result?.events, side, attacker, defender)
-          : 0;
-      steps.push({
-        type: 'tier5_aoe_splash',
-        sourceSide: side,
-        targetSide: getOpposingSide(side),
-        artId: art?.id || null,
-        radius: splash.radius,
-        maxTargets: splash.maxTargets,
-        damageKind: splash.damageKind,
-        damageMultiplier: splash.damageMultiplier,
-        fixedDamage: splash.fixedDamage,
-        nonLethal: splash.nonLethal === true,
-        basis: splash.basis,
-        basisDamage,
-      });
-    }
+    const areaStep = areaDamageStep(side, art, result, attacker, defender);
+    if (areaStep && areaStep.area.shape !== 'line') steps.push(areaStep);
     if (tier5Effects.allyBuff) {
       const buff = tier5Effects.allyBuff;
       steps.push({

@@ -240,5 +240,36 @@ export function validateCrossReferences(datasets = null) {
     }
   }
 
+  // Area weapon arts (docs/specs/aoe-weapon-arts.md §3): the retired splash/pierce keys
+  // are gone, and each area matches how its art is aimed.
+  for (const art of Array.isArray(weaponArtsData?.arts) ? weaponArtsData.arts : []) {
+    const where = `weaponArts.json:${art?.id}`;
+    if (art?.effects?.aoeSplash) errors.push(`${where} uses retired effects.aoeSplash (use area)`);
+    if ((art?.effects?.afterCombat || []).some((e) => e?.type === 'pierce_through'))
+      errors.push(`${where} uses retired pierce_through (use area)`);
+    for (const id of toStringArray(art?.legendaryWeaponIds)) {
+      if (!weaponNames.has(id))
+        errors.push(`${where}.legendaryWeaponIds references unknown weapon "${id}"`);
+    }
+    const area = art?.area;
+    const chosenCenter = art?.targeting === 'chosen_center';
+    if (chosenCenter && !area) errors.push(`${where} is chosen_center but has no area`);
+    if (!area) continue;
+    if (area.shape === 'line' && !(area.length >= 1))
+      errors.push(`${where}.area is a line without a length`);
+    if (area.shape !== 'line' && !(area.radius >= 1)) errors.push(`${where}.area needs a radius`);
+    if (chosenCenter) {
+      if (area.shape !== 'radius')
+        errors.push(`${where} is chosen_center: its area must be a radius`);
+      if (area.centerRange === undefined)
+        errors.push(`${where} is chosen_center without centerRange`);
+      const factions = toStringArray(art.allowedFactions);
+      if (factions.length !== 1 || factions[0] !== 'player')
+        errors.push(`${where} is chosen_center: the enemy AI cannot aim it (player only)`);
+    } else if (area.centerRange !== undefined) {
+      errors.push(`${where}.area.centerRange only applies to chosen_center arts`);
+    }
+  }
+
   return { valid: errors.length === 0, errors };
 }

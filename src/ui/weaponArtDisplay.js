@@ -1,4 +1,6 @@
 import {
+  getWeaponArtArea,
+  getWeaponArtTargeting,
   getEffectiveWeaponArtHpCost,
   getWeaponArtTier2Effects,
   getWeaponArtTier5Effects,
@@ -33,6 +35,47 @@ const STATUS_MEANING = {
 };
 
 /**
+ * An area art's row (docs/specs/aoe-weapon-arts.md §3.4). An area blow is the art's own
+ * strike against each victim (its DEF or RES): it always lands and never crits.
+ */
+export function weaponArtAreaRow(area, targeting = 'normal_attack') {
+  const blow =
+    area.damage.kind === 'fixed'
+      ? `${area.damage.amount} damage`
+      : `a ${Math.round(area.damage.multiplier * 100)}% blow`;
+  const cannotKill = area.nonLethal ? ' (cannot kill)' : '';
+  if (targeting === 'chosen_center') {
+    const range = area.centerRange;
+    const reach =
+      range === 'weapon' ? 'within your weapon range' : `${range.min}-${range.max} tiles away`;
+    return {
+      label: 'Aim',
+      text: `pick any tile ${reach}: ${blow} to each enemy within ${tiles(area.radius)} of it${cannotKill}; no counter`,
+    };
+  }
+  if (area.shape === 'line')
+    return {
+      label: 'Area',
+      text: `${blow} to each enemy up to ${tiles(area.length)} behind the target${area.strikes === 'each_landed' ? ', per hit' : ''}${cannotKill}`,
+    };
+  if (area.shape === 'around_attacker')
+    return {
+      label: 'Area',
+      text: `${blow} to each other enemy within ${tiles(area.radius)} of you${cannotKill}`,
+    };
+  const who =
+    area.pick === 'lowest_hp_pct' && area.maxTargets === 1
+      ? 'the most wounded other enemy'
+      : area.maxTargets
+        ? `up to ${plural(area.maxTargets, 'other enemy', 'other enemies')}`
+        : 'each other enemy';
+  return {
+    label: 'Area',
+    text: `${blow} to ${who} within ${tiles(area.radius)} of the target${cannotKill}`,
+  };
+}
+
+/**
  * What an art does beyond its numbers, one labelled row per effect: On hit, After
  * combat, On miss, On kill. Rules every art shares (moves need room, the foe still
  * counters first) live in WEAPON_ARTS_HELP, not here.
@@ -61,27 +104,13 @@ export function weaponArtEffectRows(art) {
         advance: `step ${tiles(e.distance)} toward the target`,
         retreat: `step back ${tiles(e.distance)}`,
         swap: 'swap places with the target',
-        push: `push the target back ${tiles(e.distance)}`,
+        push: `push the target back ${tiles(e.distance)} (only when next to it)`,
         through: `pass ${tiles(e.distance)} through the target`,
       }[e.mode] || `move (${e.mode})`,
     );
-  for (const e of effects.pierceThrough || [])
-    onHit(
-      `each hit also strikes ${e.maxTargets === 1 ? 'the enemy' : `up to ${e.maxTargets} enemies`} right behind the target`,
-    );
-  const { aoeSplash, allyBuff } = getWeaponArtTier5Effects(art);
-  if (aoeSplash) {
-    const amount =
-      aoeSplash.damageKind === 'fixed'
-        ? `${aoeSplash.fixedDamage} damage`
-        : `${Math.round(aoeSplash.damageMultiplier * 100)}% of the first hit`;
-    const who = aoeSplash.maxTargets
-      ? `up to ${plural(aoeSplash.maxTargets, 'other enemy', 'other enemies')}`
-      : 'other enemies';
-    onHit(
-      `${amount} to ${who} within ${tiles(aoeSplash.radius)} of the target${aoeSplash.nonLethal ? ' (cannot kill)' : ''}`,
-    );
-  }
+  const area = getWeaponArtArea(art);
+  if (area) rows.push(weaponArtAreaRow(area, getWeaponArtTargeting(art)));
+  const { allyBuff } = getWeaponArtTier5Effects(art);
   if (allyBuff)
     onHit(
       `allies within ${tiles(allyBuff.range)} get ${statList(allyBuff.stats)} for ${phases(allyBuff.durationPhases)}${allyBuff.includeSelf ? ', you included' : ''}`,

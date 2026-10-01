@@ -1730,6 +1730,7 @@ export class HeadlessBattle {
       rows: this.grid.rows,
       getMoveCost: (col, row, moveType) => this.grid.getMoveCost(col, row, moveType),
       getUnitAt: (col, row) => this.getUnitAt(col, row),
+      getTerrainAt: (col, row) => this.grid.getTerrainAt?.(col, row) ?? null,
       hostilesOf: (unit) =>
         unit?.faction === 'enemy' ? this.playerUnits || [] : unit ? this.enemyUnits || [] : [],
       alliesOf: (unit) => this._getDivineChargeAllies(unit),

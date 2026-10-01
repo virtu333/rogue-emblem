@@ -8561,6 +8561,7 @@ export class BattleScene extends Phaser.Scene {
       rows: this.grid.rows,
       getMoveCost: (col, row, moveType) => this.grid.getMoveCost(col, row, moveType),
       getUnitAt: (col, row) => this.getUnitAt(col, row),
+      getTerrainAt: (col, row) => this.grid.getTerrainAt?.(col, row) ?? null,
       hostilesOf: (unit) => this._getTier5HostileUnitsFor(unit),
       alliesOf: (unit) => this.getDivineChargeAllies(unit),
       turnNumber: this.turnManager?.turnNumber,
