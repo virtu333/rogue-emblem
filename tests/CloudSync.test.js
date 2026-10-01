@@ -204,6 +204,7 @@ describe('CloudSync run merge guard', () => {
     const key = getRunKey(1);
     const local = { marker: 'local', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
     mockCloudBootstrap({ runData: {} });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
@@ -216,7 +217,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local', savedAt: 300 };
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -228,7 +233,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local', savedAt: 100 };
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -266,7 +275,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local-ts', savedAt: 200 };
     const cloud = { marker: 'cloud-no-ts' };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -278,7 +291,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local-no-ts' };
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -290,7 +307,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local-invalid-ts', savedAt: '200' };
     const cloud = { marker: 'cloud', savedAt: 300 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -302,7 +323,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local-no-ts' };
     const cloud = { marker: 'cloud-no-ts' };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -315,7 +340,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local', savedAt: 200 };
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -325,7 +354,10 @@ describe('CloudSync run merge guard', () => {
   it('applies cloud run slot when local slot is absent', async () => {
     const key = getRunKey(1);
     const cloud = { marker: 'cloud', savedAt: 200 };
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -346,15 +378,28 @@ describe('CloudSync run merge guard', () => {
     expect(JSON.parse(store[getRunKey(1)])).toEqual(local);
     expect(JSON.parse(store[getMetaKey(1)])).toEqual(meta);
   });
-  it('heals malformed local run slot from cloud data', async () => {
+  it('keeps malformed local run bytes and earned progression for explicit recovery', async () => {
     const key = getRunKey(1);
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, '{not-json');
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    const metaRaw = JSON.stringify({ savedAt: 50, totalValor: 27 });
+    store[getMetaKey(1)] = metaRaw;
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
-    expect(JSON.parse(store[key])).toEqual(cloud);
+    expect(store[key]).toBe('{not-json');
+    expect(store[getMetaKey(1)]).toBe(metaRaw);
+  });
+
+  it('never populates an empty slot with a cloud run lacking progression', async () => {
+    mockCloudBootstrap({ runData: { 1: { gold: 91, savedAt: 200 } } });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    expect(store[getRunKey(1)]).toBeUndefined();
+    expect(store[getMetaKey(1)]).toBeUndefined();
   });
 });
 

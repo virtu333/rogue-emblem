@@ -571,10 +571,16 @@ export class NativeSaveMirror {
   }
 
   /** A destructive caller needs acknowledgement, not a fire-and-forget flush. */
-  async ensureDurable(key, value) {
+  async ensureDurable(key, value, timeoutMs = 6000) {
     if (!this.active || !shouldMirrorKey(key) || this.storage.getItem(key) !== value) return false;
     this.dirty.add(key);
-    await this.flush();
+    let timer;
+    await Promise.race([
+      this.flush().then(() => true),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(false), timeoutMs);
+      }),
+    ]).finally(() => clearTimeout(timer));
     if (!this.active || this.storage.getItem(key) !== value) return false;
     const entry = this.records.get(key);
     if (!entry) return value === null && !this.stamps.has(key);

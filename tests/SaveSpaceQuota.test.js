@@ -96,6 +96,18 @@ function suspendedBattleSave() {
   return { saved, gameData: driver.data };
 }
 
+it('quota cleanup preserves structurally damaged JSON objects byte for byte', () => {
+  const storage = new QuotaStorage(50000);
+  storage.setItem(getMetaKey(2), '{}');
+  const raw = JSON.stringify({
+    roster: 7,
+    lastBattleReport: { presentation: { records: ['raw recovery evidence'] } },
+  });
+  storage.setItem(getRunKey(2), raw);
+  expect(shedOtherSlotsHistory(1, 1, storage)).toBe(false);
+  expect(storage.getItem(getRunKey(2))).toBe(raw);
+});
+
 describe('shedOptionalHistory', () => {
   it('sheds frames, then earlier turns, then the timeline — never the checkpoint', () => {
     const { saved } = suspendedBattleSave();
@@ -126,6 +138,22 @@ describe('shedOptionalHistory', () => {
 });
 
 describe('a save that hits the quota makes room in the other slots', () => {
+  it.each(['bad-meta', 'missing-meta', 'quarantine', 'pair_journal'])(
+    'never rewrites optional history in a recovery slot (%s)',
+    (kind) => {
+      const { saved } = suspendedBattleSave();
+      const storage = new QuotaStorage(10_000_000);
+      storage.setItem(getRunKey(2), JSON.stringify(saved));
+      if (kind === 'bad-meta') storage.setItem(getMetaKey(2), '{bad');
+      else if (kind !== 'missing-meta') {
+        storage.setItem(getMetaKey(2), '{}');
+        storage.setItem(`emblem_rogue_slot_2_${kind}`, 'raw recovery evidence');
+      }
+      const before = new Map(storage.map);
+      expect(shedOtherSlotsHistory(1, 1, storage)).toBe(false);
+      expect(storage.map).toEqual(before);
+    },
+  );
   it('saveRun succeeds by shedding another slot’s history; that battle still resumes', () => {
     const { saved, gameData } = suspendedBattleSave();
     const other = JSON.stringify(saved);
@@ -134,9 +162,10 @@ describe('a save that hits the quota makes room in the other slots', () => {
     const mine = JSON.stringify({ ...rm.toJSON(), savedAt: 1 });
     // Room for the other slot's full save plus most, not all, of this one.
     const storage = new QuotaStorage(
-      getRunKey(2).length + other.length + getRunKey(1).length + mine.length - 2000,
+      getRunKey(2).length + other.length + getRunKey(1).length + mine.length - 1900,
     );
     storage.setItem(getRunKey(2), other);
+    storage.setItem(getMetaKey(2), '{}');
     vi.stubGlobal('localStorage', storage);
     vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -178,8 +207,11 @@ describe('a save that hits the quota makes room in the other slots', () => {
     vi.stubGlobal('localStorage', probe);
     new MetaProgressionManager(gameData.metaUpgrades, getMetaKey(1))._save();
     const metaSize = getMetaKey(1).length + probe.getItem(getMetaKey(1)).length;
-    const storage = new QuotaStorage(getRunKey(3).length + other.length + metaSize - 50);
+    const storage = new QuotaStorage(
+      getRunKey(3).length + other.length + metaSize + getMetaKey(3).length + 2 - 50,
+    );
     storage.setItem(getRunKey(3), other);
+    storage.setItem(getMetaKey(3), '{}');
     vi.stubGlobal('localStorage', storage);
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const meta = new MetaProgressionManager(gameData.metaUpgrades, getMetaKey(1));

@@ -27,6 +27,7 @@ const VIEWPORTS = [
 test('damaged and orphaned saves stay occupied; failed archival loses no data', async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 640, height: 480 });
   const errors = await openPicker(page, { phone: false });
   const raw = await page.evaluate(() => {
     localStorage.setItem('emblem_rogue_slot_1_meta', '{bad original meta');
@@ -88,6 +89,45 @@ test('damaged and orphaned saves stay occupied; failed archival loses no data', 
   expect(
     await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_quarantine')),
   ).not.toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test('Title preserves every storage byte and Continue opens the picker when a save needs recovery', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 640, height: 480 });
+  const errors = await openPicker(page, { phone: false });
+  const before = await page.evaluate(async () => {
+    localStorage.setItem('emblem_rogue_slot_2_meta', '{broken progression');
+    localStorage.setItem(
+      'emblem_rogue_slot_2_run',
+      JSON.stringify({ savedAt: Date.now(), gold: 999 }),
+    );
+    const snapshot = Object.fromEntries(
+      Object.keys(localStorage).map((key) => [key, localStorage.getItem(key)]),
+    );
+    const s = window.__emblemRogueGame.scene.getScene('SlotPicker');
+    const { ensureSceneLoaded } = await import('/src/utils/sceneLoader.js');
+    await ensureSceneLoaded(s, 'Title');
+    s.scene.start('Title', { gameData: s.gameData });
+    return snapshot;
+  });
+  await waitForScene(page, 'Title');
+  expect(
+    await page.evaluate(() =>
+      Object.fromEntries(Object.keys(localStorage).map((key) => [key, localStorage.getItem(key)])),
+    ),
+  ).toEqual(before);
+  await page.getByRole('button', { name: 'Continue · Select save', exact: true }).click();
+  await waitForScene(page, 'SlotPicker');
+  await expect(
+    page.getByRole('button', { name: 'Review recovery for Slot 2', exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      Object.fromEntries(Object.keys(localStorage).map((key) => [key, localStorage.getItem(key)])),
+    ),
+  ).toEqual(before);
   expect(errors).toEqual([]);
 });
 

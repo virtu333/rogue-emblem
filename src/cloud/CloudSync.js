@@ -13,6 +13,7 @@ import {
   getRunClockFloorKey,
   getRunKey,
   hasSlotRecoveryRecord,
+  getSlotSummary,
   MAX_SLOTS,
 } from '../engine/SlotManager.js';
 import { markStartup } from '../utils/startupTelemetry.js';
@@ -109,28 +110,43 @@ async function fetchTableRow(userId, table) {
   };
 }
 
+function protectedLocalSlot(slot) {
+  try {
+    return (
+      hasSlotRecoveryRecord(slot) ||
+      getSlotSummary(slot)?.recoveryRequired === true ||
+      localStorage.getItem(`emblem_rogue_slot_${slot}_cloud_conflict`) !== null
+    );
+  } catch {
+    return true;
+  }
+}
+
 function applyRunSlots(runData, metaData) {
   const runSlots = migrateCloudData(runData);
   const metaSlots = migrateCloudData(metaData);
   const skipped = new Set();
   for (let i = 1; i <= MAX_SLOTS; i++) {
-    if (hasSlotRecoveryRecord(i)) {
+    if (protectedLocalSlot(i)) {
       skipped.add(i);
       continue;
     }
     const key = getRunKey(i);
     const cloudSlot = runSlots[String(i)];
     if (cloudSlot == null) continue;
+    if (
+      !isCloudSlotPayload(metaSlots[String(i)]) &&
+      !isCloudSlotPayload(readLocalJSON(getMetaKey(i)))
+    ) {
+      skipped.add(i);
+      continue;
+    }
 
     const localState = readLocalJSONWithState(key);
     if (localState.parseError) {
-      // Corrupted local JSON is not recoverable; heal from cloud when available.
-      try {
-        localStorage.setItem(key, JSON.stringify(cloudSlot));
-      } catch (e) {
-        skipped.add(i);
-        console.warn('[CloudSync] localStorage write failed:', key, e);
-      }
+      // Another tab may have changed the slot after inspection. Raw damaged
+      // data still needs an explicit recovery decision before replacement.
+      skipped.add(i);
       continue;
     }
 
@@ -165,7 +181,12 @@ function applyRunSlots(runData, metaData) {
 function applyMetaSlots(metaData, skipped = new Set()) {
   const metaSlots = migrateCloudData(metaData);
   for (let i = 1; i <= MAX_SLOTS; i++) {
-    if (skipped.has(i) || hasSlotRecoveryRecord(i)) continue;
+    if (
+      skipped.has(i) ||
+      hasSlotRecoveryRecord(i) ||
+      localStorage.getItem(`emblem_rogue_slot_${i}_cloud_conflict`) !== null
+    )
+      continue;
     const key = getMetaKey(i);
     const cloudSlot = metaSlots[String(i)];
     if (cloudSlot == null) continue;
@@ -324,12 +345,12 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
 }
 
 export function pushRunSave(userId, slot, runData) {
-  if (!supabase) return;
+  if (!supabase || protectedLocalSlot(slot)) return;
   updateSlotInTable(userId, TABLES.run, slot, runData);
 }
 
 export function pushMeta(userId, slot, metaData) {
-  if (!supabase) return;
+  if (!supabase || protectedLocalSlot(slot)) return;
   updateSlotInTable(userId, TABLES.meta, slot, metaData);
 }
 
@@ -486,6 +507,7 @@ export async function flushCloudSyncQueues(timeoutMs = FLUSH_QUEUE_TIMEOUT_MS) {
 export function pushAllLocalSlots(userId) {
   if (!supabase || !userId) return;
   for (let i = 1; i <= MAX_SLOTS; i++) {
+    if (protectedLocalSlot(i)) continue;
     const metaState = readLocalJSONWithState(getMetaKey(i));
     if (metaState.exists && !metaState.parseError && isCloudSlotPayload(metaState.value)) {
       pushMeta(userId, i, metaState.value);
@@ -502,11 +524,19 @@ export function pushAllLocalSlots(userId) {
  * Capture all payloads before scheduling any writes so failure/timeout leaves the
  * caller's local recovery copy intact, and later unrelated writes cannot mask it.
  */
-export async function backupAllLocalSlots(userId, { timeoutMs = FLUSH_QUEUE_TIMEOUT_MS } = {}) {
+export async function backupAllLocalSlots(
+  userId,
+  { timeoutMs = FLUSH_QUEUE_TIMEOUT_MS, skipRecovery = false } = {},
+) {
   if (!supabase || !userId) return false;
   const batch = [];
   try {
     for (let slot = 1; slot <= MAX_SLOTS; slot++) {
+      const protectedSlot = protectedLocalSlot(slot);
+      if (protectedSlot) {
+        if (skipRecovery) continue;
+        return false;
+      }
       for (const [table, key] of [
         [TABLES.meta, getMetaKey(slot)],
         [TABLES.run, getRunKey(slot)],
@@ -646,6 +676,7 @@ function isFreshMetaPayload(metaSlot) {
 }
 
 function healLocalMetaFromRemote(slot, remoteSlot) {
+  if (protectedLocalSlot(slot)) return;
   const key = getMetaKey(slot);
   try {
     localStorage.setItem(key, JSON.stringify(remoteSlot));

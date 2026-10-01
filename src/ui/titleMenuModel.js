@@ -35,7 +35,9 @@ export function buildTitleMenu({
   if (resumeSlot)
     run.push({
       id: 'resume',
-      label: `Resume · Act ${resumeSlot.actReached ?? 1}`,
+      label: resumeSlot.requiresSelection
+        ? 'Continue · Select save'
+        : `Resume · Act ${resumeSlot.actReached ?? 1}`,
       group: 'run',
       // With several runs going, say which one Resume opens.
       ...(resumeSlot.latestOf > 1 ? { sub: `Latest save · Slot ${resumeSlot.slot}` } : {}),
@@ -69,6 +71,8 @@ export function buildTitleMenu({
  * single run is known to be newest (a legacy save without a time, or a tie).
  */
 export function pickResumeSlot(slotSummaries = []) {
+  if (slotSummaries.some((slot) => slot?.recoveryRequired || slot?.runCorrupt))
+    return { requiresSelection: true };
   const active = slotSummaries.filter((slot) => slot?.hasActiveRun && !slot.runCorrupt);
   if (active.length === 1) return active[0];
   const newest = newestBy(active, (slot) => slot.savedAt);

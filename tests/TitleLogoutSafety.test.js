@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   signOut: vi.fn(),
   clear: vi.fn(),
   summary: vi.fn(),
+  prepare: vi.fn(),
 }));
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 vi.mock('../src/cloud/CloudSync.js', () => ({
@@ -20,12 +21,14 @@ vi.mock('../src/engine/SlotManager.js', () => ({
   getNextAvailableSlot: vi.fn(),
   getMetaKey: vi.fn(),
   setActiveSlot: vi.fn(),
+  prepareRecoveryLogout: mocks.prepare,
 }));
 vi.mock('../src/utils/domUI.js', () => ({ hasDOMHost: () => false }));
 import { TitleScene } from '../src/scenes/TitleScene.js';
 let scene, values, reload;
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.prepare.mockReturnValue({ ok: true, markers: [] });
   values = new Map([['save', 'precious progress']]);
   vi.stubGlobal('localStorage', {
     getItem: (k) => values.get(k) ?? null,
@@ -43,27 +46,29 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 describe('logout preserves local progress unless backup and signout succeed', () => {
   it.each([{ recoveryRequired: true }, { runCorrupt: true }])(
-    'keeps damaged saves before backup or signout (%j)',
+    'signs out while retaining recovery data (%j)',
     async (summary) => {
       mocks.summary.mockReturnValue(summary);
+      mocks.flush.mockResolvedValue(true);
+      mocks.clear.mockReturnValue(false);
       await scene._handleLogout({ userId: 'tester' });
-      await scene._finishLogout();
-      expect(mocks.flush).not.toHaveBeenCalled();
-      expect(mocks.signOut).not.toHaveBeenCalled();
-      expect(mocks.clear).not.toHaveBeenCalled();
+      expect(mocks.flush).toHaveBeenCalledWith('tester', { skipRecovery: true });
+      expect(mocks.signOut).toHaveBeenCalledOnce();
       expect(values.get('save')).toBe('precious progress');
+      expect(reload).toHaveBeenCalledOnce();
     },
   );
-  it('will not log out while a retained device/cloud conflict remains unresolved', async () => {
+  it('signs out without deleting unchosen device/cloud conflict evidence', async () => {
     values.set(
       'emblem_rogue_slot_1_cloud_conflict',
       JSON.stringify({ localRun: { gold: 213 }, cloudRun: { gold: 987 } }),
     );
+    mocks.flush.mockResolvedValue(true);
+    mocks.clear.mockReturnValue(false);
     await scene._handleLogout({ userId: 'tester' });
-    expect(mocks.flush).not.toHaveBeenCalled();
-    expect(mocks.signOut).not.toHaveBeenCalled();
-    expect(values.has('save')).toBe(true);
+    expect(mocks.signOut).toHaveBeenCalledOnce();
     expect(values.has('emblem_rogue_slot_1_cloud_conflict')).toBe(true);
+    expect(reload).toHaveBeenCalledOnce();
   });
   it('retries the backup after each failure, never treating an earlier failure as consent', async () => {
     mocks.flush.mockResolvedValue(false);
