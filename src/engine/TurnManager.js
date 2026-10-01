@@ -47,7 +47,11 @@ export class TurnManager {
   checkPlayerPhaseComplete() {
     if (this._battleEnded || this.currentPhase !== 'player')
       return this._rejectTransition('checkPlayerPhaseComplete');
-    if (!this.playerUnits.filter((unit) => unit != null).every((unit) => unit.hasActed))
+    if (
+      !this.playerUnits
+        .filter((unit) => unit != null && !(unit.currentHP <= 0))
+        .every((unit) => unit.hasActed)
+    )
       return false;
     return this.endPlayerPhase();
   }

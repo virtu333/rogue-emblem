@@ -123,6 +123,16 @@ describe('HeadlessBattle', () => {
     expect(battle.playerUnits.some((u) => u.name === 'Sera')).toBe(true);
   });
 
+  it('fails unexpected phase rejections instead of silently accepting a broken flow', () => {
+    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout' });
+    battle.init();
+    expect(() => battle.turnManager.endEnemyPhase()).toThrow(
+      'Unexpected phase rejection: endEnemyPhase in player on turn 1',
+    );
+    expect(battle.turnManager.currentPhase).toBe('player');
+    expect(battle.turnManager.turnNumber).toBe(1);
+  });
+
   it('recruit-node regular promoted source can downgrade to base on high roll', () => {
     const recruitData = buildPromotedRecruitData(gameData);
     const noLordRoster = buildAllLordRoster(recruitData);

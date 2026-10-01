@@ -335,6 +335,9 @@ export class HeadlessBattle {
       onVictory: () => this._onVictory(),
       onDefeat: () => this._onDefeat(),
       checkBattleEnd: () => this._checkBattleEnd(),
+      onRejectedTransition: ({ action, phase, turn }) => {
+        throw new Error(`Unexpected phase rejection: ${action} in ${phase} on turn ${turn}`);
+      },
     });
     this.turnManager.init(this.playerUnits, this.enemyUnits, this.npcUnits, bc.objective);
 
