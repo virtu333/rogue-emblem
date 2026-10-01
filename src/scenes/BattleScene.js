@@ -8625,6 +8625,7 @@ export class BattleScene extends Phaser.Scene {
         if (!isCurrentBattleSession(this, session)) return;
       }
       await this._sweepFallenUnits();
+      if (!isCurrentBattleSession(this, session)) return;
       // A fatal cascade must decide defeat before a popup can checkpoint an
       // army with no commander. Victory still waits for the combat owner's XP.
       if (hasBattleDefeat(this.playerUnits, this.escapedUnits)) {
@@ -10773,6 +10774,7 @@ export class BattleScene extends Phaser.Scene {
         if (!isCurrentBattleSession(this, session)) return;
       }
       await this._sweepFallenUnits();
+      if (!isCurrentBattleSession(this, session)) return;
       // A fatal cascade must decide defeat before a popup can checkpoint an
       // army with no commander. Victory still waits for the combat owner's XP.
       if (hasBattleDefeat(this.playerUnits, this.escapedUnits)) {

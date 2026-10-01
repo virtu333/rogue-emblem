@@ -855,3 +855,51 @@ describe('previous-session continuations leave replacement state intact', () => 
     expect(scene.battleState).toBe('PLAYER_IDLE');
   });
 });
+
+it.each(['player', 'enemy'])(
+  'a completed old %s cleanup cannot decide defeat for the replacement field',
+  async (owner) => {
+    const { scene } = sceneWithPendingTween();
+    const player = { name: 'Old commander', faction: 'player', currentHP: 10, isCommander: true };
+    const enemy = { name: 'Old enemy', faction: 'enemy', currentHP: 10 };
+    scene.grid = { clearAttackHighlights() {} };
+    scene.playerUnits = [player];
+    scene.enemyUnits = [enemy];
+    scene.escapedUnits = [];
+    scene._commitCombatIntent = () => {};
+    scene.resetFortHealStreak = () => {};
+    scene._prepareCombatContext = () => ({});
+    scene._runCombatResolution = async () => ({
+      result: { attackerHP: 10, defenderHP: 10, events: [] },
+    });
+    scene.awardXP = async () => {};
+    scene._maybeShowTutorialPermadeathHint = async () => {};
+    let release;
+    let entered = false;
+    scene._sweepFallenUnits = () =>
+      new Promise((resolve) => {
+        entered = true;
+        release = resolve;
+      });
+    scene.checkBattleEnd = vi.fn();
+    scene._clearCombatRollSession = vi.fn();
+    scene._clearSelectedWeaponArt = vi.fn();
+    const work =
+      owner === 'player'
+        ? scene.executeCombat(player, enemy)
+        : scene.executeEnemyCombat(enemy, player);
+    for (let i = 0; i < 12 && !entered; i++) await Promise.resolve();
+    expect(entered).toBe(true);
+    restart(scene);
+    const replacement = { name: 'New commander', isCommander: true, currentHP: 0 };
+    scene.playerUnits = [replacement];
+    scene.escapedUnits = [];
+    release();
+    await work;
+    expect(scene.checkBattleEnd).not.toHaveBeenCalled();
+    expect(scene.playerUnits).toEqual([replacement]);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene._clearCombatRollSession).not.toHaveBeenCalled();
+    expect(scene._clearSelectedWeaponArt).not.toHaveBeenCalled();
+  },
+);
