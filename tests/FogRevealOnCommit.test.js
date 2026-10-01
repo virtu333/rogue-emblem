@@ -81,7 +81,12 @@ function setup() {
     npcUnits: [],
     battleParams: { tutorialMode: false },
     battleState: 'UNIT_MOVING',
-    turnManager: { currentPhase: 'player', unitActed: vi.fn(), endPlayerPhase: vi.fn() },
+    turnManager: {
+      currentPhase: 'player',
+      unitActed: vi.fn(),
+      endPlayerPhase: vi.fn(),
+      checkPlayerPhaseComplete: vi.fn(),
+    },
     registry: { get: () => null },
   });
   for (const name of [
@@ -230,7 +235,7 @@ describe('fog lifts only once an action is committed', () => {
     expect(grid.isVisible(2, 1)).toBe(true);
     expect(grid.everSeenSet.has('5,1')).toBe(false);
     expect(scene.saved).toEqual([false]);
-    expect(scene.turnManager.unitActed).toHaveBeenCalledWith(edric);
+    expect(scene.turnManager.checkPlayerPhaseComplete).toHaveBeenCalled();
   });
 });
 

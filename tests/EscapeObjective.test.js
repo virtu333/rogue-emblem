@@ -21,6 +21,7 @@ import {
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import { calculatePar } from '../src/engine/TurnBonusCalculator.js';
 import { EscapeObjectiveController } from '../src/ui/EscapeObjectiveController.js';
+import { TurnManager } from '../src/engine/TurnManager.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { VisionRewindController } from '../src/ui/VisionRewindController.js';
@@ -539,9 +540,18 @@ function makeEscapeScene(overrides = {}) {
     updateObjectiveText: vi.fn(),
     checkBattleEnd: vi.fn(() => false),
     _captureSuspendCheckpoint: vi.fn(),
-    turnManager: { unitActed: vi.fn() },
   };
-  return Object.assign(scene, overrides);
+  Object.assign(scene, overrides);
+  if (!scene.turnManager) {
+    scene.turnManager = new TurnManager({
+      onPhaseChange: vi.fn(),
+      onVictory: vi.fn(),
+      onDefeat: vi.fn(),
+      checkBattleEnd: scene.checkBattleEnd,
+    });
+    scene.turnManager.init(scene.playerUnits, [], [], 'escape');
+  }
+  return scene;
 }
 
 describe('EscapeObjectiveController', () => {
@@ -560,7 +570,7 @@ describe('EscapeObjectiveController', () => {
     expect(scene.goldEarned).toBe(ESCAPE_EVAC_GOLD_BY_ACT.act2);
     expect(scene.removeUnitGraphic).toHaveBeenCalledWith(unit);
     expect(scene.commitVisionSnapshotIfPending).toHaveBeenCalled();
-    expect(scene.turnManager.unitActed).toHaveBeenCalledWith(unit);
+    expect(scene.turnManager.currentPhase).toBe('enemy');
   });
 
   it('pays no evac bonus for lords', () => {
@@ -576,16 +586,25 @@ describe('EscapeObjectiveController', () => {
 
   it('checkpoints the resolved escape before handing the turn over', () => {
     const unit = makeUnit();
-    const callOrder = [];
+    const staying = makeUnit({ name: 'Edric', isLord: true, hasActed: true });
+    const persisted = [];
     const scene = makeEscapeScene({
-      playerUnits: [unit],
-      _captureSuspendCheckpoint: vi.fn(() => callOrder.push('checkpoint')),
-      turnManager: { unitActed: vi.fn(() => callOrder.push('unitActed')) },
+      playerUnits: [unit, staying],
     });
+    scene._captureSuspendCheckpoint = () =>
+      persisted.push({
+        phase: scene.turnManager.currentPhase,
+        onField: scene.playerUnits.map((u) => u.name),
+        escaped: scene.escapedUnits.map((u) => u.name),
+        acted: unit.hasActed,
+      });
 
     new EscapeObjectiveController(scene).executeEscape(unit);
 
-    expect(callOrder).toEqual(['checkpoint', 'unitActed']);
+    expect(persisted).toEqual([
+      { phase: 'player', onField: ['Edric'], escaped: ['Galvin'], acted: true },
+    ]);
+    expect(scene.turnManager.currentPhase).toBe('enemy');
   });
 
   it('stops at victory when checkBattleEnd ends the battle', () => {
@@ -599,7 +618,7 @@ describe('EscapeObjectiveController', () => {
 
     expect(scene.checkBattleEnd).toHaveBeenCalled();
     expect(scene._captureSuspendCheckpoint).not.toHaveBeenCalled();
-    expect(scene.turnManager.unitActed).not.toHaveBeenCalled();
+    expect(scene.turnManager.currentPhase).toBe('player');
   });
 
   it('reports lord progress and tile occupancy', () => {
