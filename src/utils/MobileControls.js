@@ -30,6 +30,7 @@ const CONTEXTS = {
   battle_canto: ['danger'],
   battle_forecast: ['prevWeapon', 'nextWeapon'],
   battle_area_target: ['prevFoe', 'nextFoe'],
+  battle_area_confirm: [],
   battle_end: ['roster'],
   nodemap: ['roster'],
   homebase: [],

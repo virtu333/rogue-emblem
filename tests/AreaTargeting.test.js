@@ -22,6 +22,7 @@ import { registerBattleEntity } from '../src/engine/BattleEntityIdentity.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
 import { AREA_CENTER_STATE } from '../src/ui/AreaTargetingController.js';
 import { InputController } from '../src/ui/InputController.js';
+import { showMinorHint } from '../src/ui/HintDisplay.js';
 import { readCommittedAction } from '../src/ui/BattlePresentationCheckpoint.js';
 import { getPerBattleRemainingUses } from '../src/engine/Combat.js';
 import { canUseWeaponArt } from '../src/engine/WeaponArtSystem.js';
@@ -734,6 +735,38 @@ describe('the aiming state is registered wherever the Blink tile state is', () =
     scene.game = { events: { emit: (name, data) => emitted.push([name, data?.context]) } };
     scene._emitMobileContext();
     expect(emitted).toEqual([['mobile:setContext', 'battle_area_target']]);
+  });
+
+  it('locking a tile swaps ◀ Foe ▶ for the bare Fire / Back prompt, and Back brings them back', () => {
+    const caster = sage(0, 5);
+    const { scene, area } = battle([caster, foe('Center', 4, 5)]);
+    const emitted = [];
+    scene.isMobileInput = true;
+    scene.isStoryInputLocked = () => false;
+    scene.game = { events: { emit: (name, data) => emitted.push(data?.context) } };
+    area.begin(caster, caster.weapon, stormcall);
+    area.lock({ col: 4, row: 5 });
+    expect(emitted.at(-1)).toBe('battle_area_confirm');
+    area.back(); // the prompt → aiming the same tile
+    expect(emitted.at(-1)).toBe('battle_area_target');
+  });
+
+  it('a resumed strike says so, as a resumed attack does', () => {
+    const ctx = battle([sage(0, 5), foe('Center', 4, 5)]);
+    const caster = ctx.scene.playerUnits[0];
+    ctx.scene._scheduleSafeDelayedAsync = () => {}; // the strike itself is not under test here
+    showMinorHint.mockClear(); // the journey setup stands in for the hint's rendering
+    const saved = {
+      kind: 'area_strike',
+      unitId: caster.battleEntityId,
+      unitName: 'Sage',
+      center: { col: 4, row: 5 },
+      weaponArt: { artId: 'legend_stormcall', weaponIndex: 0 },
+    };
+    expect(ctx.scene.resumeCommittedAreaStrike(readCommittedAction(saved))).toBe(true);
+    expect(showMinorHint.mock.calls.map(([, message]) => message)).toEqual([
+      'Battle resumed. Finishing your attack.',
+    ]);
   });
 
   it('every scene list naming SELECTING_ABILITY_TILE names the aiming state beside it', async () => {

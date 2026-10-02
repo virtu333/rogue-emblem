@@ -107,9 +107,13 @@ test.describe('phone, by touch', () => {
     await tapTile(page, 5, 4);
     expect((await state(page)).locked).toBeNull();
 
+    // Aiming offers ◀ Foe ▶; the Fire / Back prompt stands alone.
+    const foeButtons = page.getByRole('button', { name: /Foe/ }).filter({ visible: true });
+    await expect(hud.getByRole('button', { name: 'Foe ▶' })).toBeVisible();
     await tapTile(page, 6, 5);
     await expect.poll(async () => (await state(page)).locked).toEqual({ col: 6, row: 5 });
     await expect(hud.getByRole('button', { name: /Fire Stormcall/ })).toBeVisible();
+    await expect(foeButtons).toHaveCount(0);
     // The rail's Back tool steps back out of the prompt (the scene's cancel route).
     await page.getByLabel('Battle utilities').getByRole('button', { name: 'Back' }).tap();
     await expect.poll(async () => (await state(page)).locked).toBeNull();

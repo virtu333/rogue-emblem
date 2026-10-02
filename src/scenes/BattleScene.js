@@ -4275,8 +4275,10 @@ export class BattleScene extends Phaser.Scene {
       s === 'TRADING'
     )
       ctx = 'battle_selected';
-    // Aiming a chosen-center art: ◀ Foe ▶ (and the left panel's Cancel).
-    else if (s === AREA_CENTER_STATE) ctx = 'battle_area_target';
+    // Aiming a chosen-center art: ◀ Foe ▶ (and the left panel's Cancel); once a tile is
+    // locked, its Fire / Back prompt stands alone.
+    else if (s === AREA_CENTER_STATE)
+      ctx = this._areaTargetingController?.locked ? 'battle_area_confirm' : 'battle_area_target';
     // SHOWING_FORECAST: roster is technically allowed per _onRosterClick rosterStates,
     // but forecast mobile context prioritises weapon navigation buttons. Users can
     // B-cancel out of forecast to access roster -- acceptable UX tradeoff.

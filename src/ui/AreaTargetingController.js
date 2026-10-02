@@ -58,6 +58,7 @@ import { playerKnowledgeOf } from './battleKnowledge.js';
 import { menuRow, railOwnsMenus } from './battleMenuModel.js';
 import { resolveWeaponArtIds } from './WeaponArtVisibility.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
+import { showMinorHint } from './HintDisplay.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
 import { UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
 
@@ -269,6 +270,8 @@ export class AreaTargetingController {
     p.locked = { col: tile.col, row: tile.row };
     this.scene.registry?.get?.('audio')?.playSFX?.('sfx_confirm');
     this._showPrompt();
+    // Fire / Back replace ◀ Foe ▶ on the phone's context bar.
+    this.scene._emitMobileContext?.();
     return true;
   }
 
@@ -459,6 +462,14 @@ export class AreaTargetingController {
     scene.selectedUnit = unit;
     scene.battleState = 'COMBAT_RESOLVING';
     scene.refreshEndTurnControl?.();
+    // As a resumed attack says it.
+    try {
+      Promise.resolve(showMinorHint(scene, 'Battle resumed. Finishing your attack.')).catch(
+        () => {},
+      );
+    } catch {
+      /* cosmetic only */
+    }
     const run = () => this.execute(unit, weapon, art, intent.center);
     if (typeof scene._scheduleSafeDelayedAsync === 'function')
       scene._scheduleSafeDelayedAsync(400, 'resume_committed_area_strike', run, {
