@@ -7,6 +7,7 @@ import {
   loadRun,
   hasSavedRun,
   clearSavedRun,
+  isRunSaveCurrent,
 } from '../src/engine/RunManager.js';
 import * as NodeMapGenerator from '../src/engine/NodeMapGenerator.js';
 import { loadGameData } from './testData.js';
@@ -2071,6 +2072,39 @@ describe('RunManager', () => {
       delete globalThis.__emblemRogueStartupTelemetry;
     });
 
+    it('retains local success and the suppressed cloud result', () => {
+      rm.startRun();
+      expect(saveRun(rm, () => ({ queued: false, reason: 'protected_slot' }), 1)).toEqual({
+        ok: true,
+        cloud: { queued: false, reason: 'protected_slot' },
+      });
+      expect(JSON.parse(store['emblem_rogue_slot_1_run']).runRecordId).toBe(rm.runRecordId);
+    });
+    it('retries an explicit candidate through the raised clock floor and stamps the live manager', () => {
+      rm.startRun();
+      const candidate = structuredClone(rm.toJSON());
+      candidate.gold = 731;
+      rm.gold = 12;
+      store['emblem_rogue_slot_1_run_clock_floor'] = String(Date.now() + 100000);
+      const result = saveRun(rm, null, 1, { candidate });
+      const saved = JSON.parse(store['emblem_rogue_slot_1_run']);
+      expect(result.ok).toBe(true);
+      expect(saved.gold).toBe(731);
+      expect(saved.savedAt).toBeGreaterThan(Number(store['emblem_rogue_slot_1_run_clock_floor']));
+      expect(isRunSaveCurrent(rm, 1)).toBe(true);
+    });
+    it('captures the abandoned run identity before local deletion', () => {
+      rm.startRun();
+      saveRun(rm, null, 1);
+      const clear = vi.fn();
+      clearSavedRun(clear, 1);
+      expect(clear).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ runRecordId: rm.runRecordId }),
+      );
+      expect(hasSavedRun(1)).toBe(false);
+    });
+
     it('saveRun persists to localStorage', () => {
       rm.startRun();
       saveRun(rm, null, 1);
@@ -2211,7 +2245,7 @@ describe('RunManager', () => {
 
       expect(hasSavedRun(2)).toBe(false);
       expect(cb).toHaveBeenCalledTimes(1);
-      expect(cb).toHaveBeenCalledWith(2);
+      expect(cb).toHaveBeenCalledWith(2, expect.objectContaining({ runRecordId: rm.runRecordId }));
       const telemetry = getStartupTelemetry();
       expect(
         telemetry?.markers.some((marker) => marker.name === 'run_clear_slot_fallback_used'),

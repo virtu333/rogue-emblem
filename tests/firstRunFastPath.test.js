@@ -164,6 +164,6 @@ describe('startFirstRunFastPath', () => {
 
     await startFirstRunFastPath(scene, { gameData, slot: 2 });
 
-    expect(deleteRunSaveMock).toHaveBeenCalledWith('user-123', 2);
+    expect(deleteRunSaveMock).toHaveBeenCalledWith('user-123', 2, null);
   });
 });

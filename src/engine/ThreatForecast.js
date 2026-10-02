@@ -16,6 +16,10 @@
 //                           player knows of (PlayerKnowledge.js): a hidden unit
 //                           blocking a visible enemy's stop would give itself away
 //   costModifier(unit)      terrain-cost reduction for a unit (skills)
+//   areaArtOf(unit)?        the area art an enemy could swing next phase, or null
+//                           (EnemyArtScoring.enemyAreaArtOf). Danger still shows the
+//                           primary reach only; threat sight's line names how many
+//                           foes that reach a tile carry one.
 
 import { canInspectUnit, statusStaffThreat } from './BattleInformation.js';
 import { getFootprint, isEntity } from './EntitySystem.js';
@@ -214,9 +218,10 @@ function withinBareReach(enemy, col, row) {
  * evaluated against the moved positions, so the answer matches what the enemy
  * phase will actually see.
  *
- * @returns {{ damage: object[], status: object[], ballistas: object[], count: number,
- *   fogged: boolean }}  `count` = damage enemies + ballistas; `fogged` = fog is on,
- *   so unseen enemies may add to it.
+ * @returns {{ damage: object[], status: object[], ballistas: object[], area: object[],
+ *   count: number, fogged: boolean }}  `count` = damage enemies + ballistas; `area` =
+ *   the damage enemies carrying an area art; `fogged` = fog is on, so unseen enemies
+ *   may add to it.
  */
 export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
   const key = tileKey(col, row);
@@ -243,6 +248,7 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
     damage,
     status,
     ballistas,
+    area: damage.filter((enemy) => Boolean(ctx.areaArtOf?.(enemy))),
     count: damage.length + ballistas.length,
     fogged: Boolean(ctx.grid?.fogEnabled),
   };
@@ -266,6 +272,8 @@ export function threatWorldSignature(ctx, units = []) {
       const staff = statusStaffThreat(u);
       part += `:${visible}:${u.mov ?? u.stats?.MOV}:${u.moveType}:${u.weapon?.range ?? ''}`;
       part += `:${willRemainRootedNextPhase(u) ? 'R' : ''}:${staff ? `${staff.min}-${staff.max}` : ''}`;
+      // An area art spent or priced out of reach changes the line.
+      part += `:${ctx.areaArtOf?.(u)?.id ?? ''}`;
     }
     parts.push(part);
   }
@@ -291,16 +299,20 @@ export function threatSummaryTone(result) {
 /**
  * Short, plain move-preview text: "2 foes can reach", "2 foes can reach · 1 staff",
  * "Only 1 staff can reach" (no foe can strike, but a status staff can), "No foe can
- * reach"; under fog, " · fog may hide more". `status` lists enemies that reach the
- * tile with a status staff only (those that can also strike are in `count`).
+ * reach"; under fog, " · fog may hide more". When some of the foes that reach carry
+ * an area art, " · 1 with an area art" follows the count: the blow may land on the
+ * tiles around (or behind) this one too. `status` lists enemies that reach the tile
+ * with a status staff only (those that can also strike are in `count`).
  */
 export function threatSummaryText(result) {
   if (!result) return '';
   const hits = result.count || 0;
   const staffOnly = result.status?.length || 0;
+  const area = result.area?.length || 0;
   let text;
   if (hits > 0) {
     text = `${hits} ${hits === 1 ? 'foe' : 'foes'} can reach`;
+    if (area) text += ` · ${area} with an area art`;
     if (staffOnly) text += ` · ${staves(staffOnly)}`;
   } else if (staffOnly) {
     text = `Only ${staves(staffOnly)} can reach`;

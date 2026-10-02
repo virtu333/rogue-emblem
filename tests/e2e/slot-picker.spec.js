@@ -18,10 +18,217 @@ async function waitForScene(page, key) {
 test.setTimeout(120000);
 
 const VIEWPORTS = [
+  { width: 640, height: 480, phone: false },
   { width: 844, height: 390, phone: true },
   { width: 667, height: 375, phone: true },
   { width: 1280, height: 800, phone: false },
 ];
+
+test('damaged and orphaned saves stay occupied; failed archival loses no data', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 640, height: 480 });
+  const errors = await openPicker(page, { phone: false });
+  const raw = await page.evaluate(() => {
+    localStorage.setItem('emblem_rogue_slot_1_meta', '{bad original meta');
+    localStorage.removeItem('emblem_rogue_slot_2_meta');
+    localStorage.setItem('emblem_rogue_slot_2_run', '{"gold":137,"actIndex":0}');
+    window.__emblemRogueGame.scene.getScene('SlotPicker').drawSlots();
+    const original = Storage.prototype.setItem;
+    window.__failRecoveryCopy = true;
+    Storage.prototype.setItem = function (key, value) {
+      if (window.__failRecoveryCopy && key === 'emblem_rogue_slot_1_quarantine')
+        throw new DOMException('Recovery copy quota exceeded', 'QuotaExceededError');
+      return original.call(this, key, value);
+    };
+    return Object.fromEntries(
+      Object.keys(localStorage).map((key) => [key, localStorage.getItem(key)]),
+    );
+  });
+  await expect(
+    page.getByRole('button', { name: 'Review recovery for Slot 1', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Review recovery for Slot 2', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New run in Slot 2', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Review recovery for Slot 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Archive and discard…', exact: true }).click();
+  await page.getByRole('button', { name: 'Archive and discard', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Slot 1 recovery', exact: true })).toContainText(
+    'quota exceeded',
+  );
+  expect(
+    await page.evaluate(() =>
+      Object.fromEntries(Object.keys(localStorage).map((key) => [key, localStorage.getItem(key)])),
+    ),
+  ).toEqual(raw);
+  await page.evaluate(() => {
+    window.__failRecoveryCopy = false;
+  });
+  await page.getByRole('button', { name: 'Archive and discard…', exact: true }).click();
+  await page.getByRole('button', { name: 'Archive and discard', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Slot 1 recovery', exact: true })).toContainText(
+    'recovery copy holds',
+  );
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem('emblem_rogue_slot_1_quarantine')).values,
+    ),
+  ).toMatchObject({
+    emblem_rogue_slot_1_meta: raw.emblem_rogue_slot_1_meta,
+    emblem_rogue_slot_1_run: raw.emblem_rogue_slot_1_run,
+  });
+  await page.getByRole('button', { name: 'Keep save', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Review recovery for Slot 1', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Review recovery for Slot 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Free slot…', exact: true }).click();
+  await page.getByRole('button', { name: 'Keep recovery copy', exact: true }).click();
+  expect(
+    await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_quarantine')),
+  ).not.toBeNull();
+  await page.getByRole('button', { name: 'Free slot…', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete copy and free slot', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Review recovery for Slot 1', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New run in Slot 1', exact: true })).toHaveCount(0);
+  expect(
+    await page.evaluate(async () => {
+      const { getSlotCloudPendingKey } = await import('/src/engine/SlotManager.js');
+      return {
+        archive: localStorage.getItem('emblem_rogue_slot_1_quarantine'),
+        reserved: localStorage.getItem(getSlotCloudPendingKey(1)) !== null,
+      };
+    }),
+  ).toEqual({ archive: null, reserved: true });
+  await expect(page.getByRole('dialog', { name: 'Slot 1 recovery', exact: true })).toContainText(
+    'You are playing offline',
+  );
+  await page.getByRole('button', { name: 'Release reservation…', exact: true }).click();
+  const releaseDialog = page.getByRole('dialog', {
+    name: 'Release Slot 1 reservation?',
+    exact: true,
+  });
+  await expect(releaseDialog).toContainText('may replace that cloud copy');
+  await expect(
+    page.getByRole('button', { name: 'Release reservation', exact: true }),
+  ).toBeInViewport();
+  await page.getByRole('button', { name: 'Keep reservation', exact: true }).click();
+  expect(
+    await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_cloud_pending')),
+  ).not.toBeNull();
+  await page.getByRole('button', { name: 'Release reservation…', exact: true }).click();
+  await page.getByRole('button', { name: 'Release reservation', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'New run in Slot 1', exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_cloud_pending')),
+  ).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test('native orphan-owner cleanup failure has a warned local release at 640×480', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 640, height: 480 });
+  const errors = await openPicker(page, { phone: false });
+  const before = await page.evaluate(async () => {
+    const { archiveAndDiscardSlot, retireSlotArchive } =
+      await import('/src/engine/SlotRecovery.js');
+    const ownerKey = 'emblem_rogue_slot_1_recovery_owner';
+    const pendingKey = 'emblem_rogue_slot_1_cloud_pending';
+    localStorage.setItem('emblem_rogue_slot_1_meta', '{damaged original');
+    if (!archiveAndDiscardSlot(1).ok) throw new Error('fixture discard failed');
+    localStorage.setItem(ownerKey, '{"version":1,"userId":"original-account"}');
+    const remove = Storage.prototype.removeItem;
+    let result;
+    Storage.prototype.removeItem = function (key) {
+      if (key === ownerKey) throw new Error('owner cleanup failed');
+      return remove.call(this, key);
+    };
+    try {
+      result = retireSlotArchive(1);
+    } finally {
+      Storage.prototype.removeItem = remove;
+    }
+    if (result.ok || localStorage.getItem('emblem_rogue_slot_1_quarantine') !== null)
+      throw new Error('fixture did not reproduce failed owner retirement');
+    // Browser adapter for native presentation policy. Device storage is absent,
+    // so only the separately warned device-only choice acknowledges that risk.
+    window.Capacitor = { nativePromise() {}, isNativePlatform: () => true };
+    const scene = window.__emblemRogueGame.scene.getScene('SlotPicker');
+    scene.drawSlots();
+    return { owner: localStorage.getItem(ownerKey), pending: localStorage.getItem(pendingKey) };
+  });
+  await page.getByRole('button', { name: 'Review recovery for Slot 1', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Export recovery copy', exact: true })).toHaveCount(
+    0,
+  );
+  await page.getByRole('button', { name: 'Release on this device only…', exact: true }).click();
+  const confirm = page.getByRole('dialog', { name: 'Release Slot 1 locally?', exact: true });
+  await expect(confirm).toContainText('may replace the cloud copy');
+  await expect(
+    page.getByRole('button', { name: 'Accept risk and release locally', exact: true }),
+  ).toBeInViewport();
+  await page.getByRole('button', { name: 'Keep reservation', exact: true }).click();
+  expect(
+    await page.evaluate(() => ({
+      owner: localStorage.getItem('emblem_rogue_slot_1_recovery_owner'),
+      pending: localStorage.getItem('emblem_rogue_slot_1_cloud_pending'),
+    })),
+  ).toEqual(before);
+  await page.getByRole('button', { name: 'Release on this device only…', exact: true }).click();
+  await page.getByRole('button', { name: 'Accept risk and release locally', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'New run in Slot 1', exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(() => ({
+      owner: localStorage.getItem('emblem_rogue_slot_1_recovery_owner'),
+      pending: localStorage.getItem('emblem_rogue_slot_1_cloud_pending'),
+    })),
+  ).toEqual({ owner: null, pending: null });
+  expect(errors).toEqual([]);
+});
+
+test('Title preserves every storage byte and Continue opens the picker when a save needs recovery', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 640, height: 480 });
+  const errors = await openPicker(page, { phone: false });
+  const before = await page.evaluate(async () => {
+    localStorage.setItem('emblem_rogue_slot_2_meta', '{broken progression');
+    localStorage.setItem(
+      'emblem_rogue_slot_2_run',
+      JSON.stringify({ savedAt: Date.now(), gold: 999 }),
+    );
+    const snapshot = Object.fromEntries(
+      Object.keys(localStorage).map((key) => [key, localStorage.getItem(key)]),
+    );
+    const s = window.__emblemRogueGame.scene.getScene('SlotPicker');
+    const { ensureSceneLoaded } = await import('/src/utils/sceneLoader.js');
+    await ensureSceneLoaded(s, 'Title');
+    s.scene.start('Title', { gameData: s.gameData });
+    return snapshot;
+  });
+  await waitForScene(page, 'Title');
+  expect(
+    await page.evaluate(() =>
+      Object.fromEntries(Object.keys(localStorage).map((key) => [key, localStorage.getItem(key)])),
+    ),
+  ).toEqual(before);
+  await page.getByRole('button', { name: 'Continue · Select save', exact: true }).click();
+  await waitForScene(page, 'SlotPicker');
+  await expect(
+    page.getByRole('button', { name: 'Review recovery for Slot 2', exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      Object.fromEntries(Object.keys(localStorage).map((key) => [key, localStorage.getItem(key)])),
+    ),
+  ).toEqual(before);
+  expect(errors).toEqual([]);
+});
 
 async function openPicker(page, { phone, reduceMotion = false }) {
   const errors = [];

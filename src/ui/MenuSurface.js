@@ -64,38 +64,57 @@ export class MenuSurface {
         }
       }
     });
-    this.token = pushOverlay(scene, {
-      name: title,
-      onCancel: () => {
-        onClose();
-        return true;
-      },
-    });
-    pushInputScope(this, (action, payload) => {
-      if (this.onAction?.(action, payload)) return;
-      if ([InputAction.CANCEL, InputAction.PAUSE].includes(action)) onClose();
-      if (action === InputAction.NAVIGATE) this.focusNext(payload?.dy || payload?.dx || 1);
-      if (action === InputAction.CONFIRM && this.root.contains(document.activeElement))
-        document.activeElement.click();
-    });
-    this.shutdown = () => this.destroy();
-    scene.events.once('shutdown', this.shutdown);
-    const host = document.getElementById('game-wrapper');
-    if (modal) {
-      this.shield = element('div', null, 're-modal-shield');
-      this.shield.style.zIndex = DOM_UI_DEPTHS.MENU;
-      this.shield.append(this.root);
-      for (const type of DOM_INPUT_EVENTS)
-        this.shield.addEventListener(type, (event) => {
-          event.stopPropagation();
-          if (event.target === this.shield) {
-            event.preventDefault();
-            this.root.focus();
-          }
-        });
-      host.append(this.shield);
-    } else host.append(this.root);
-    this.root.querySelector('button').focus();
+    try {
+      this.token = pushOverlay(scene, {
+        name: title,
+        onCancel: () => {
+          onClose();
+          return true;
+        },
+      });
+      pushInputScope(this, (action, payload) => {
+        if (this.onAction?.(action, payload)) return;
+        if ([InputAction.CANCEL, InputAction.PAUSE].includes(action)) onClose();
+        if (action === InputAction.NAVIGATE) this.focusNext(payload?.dy || payload?.dx || 1);
+        if (action === InputAction.CONFIRM && this.root.contains(document.activeElement))
+          document.activeElement.click();
+      });
+      this.shutdown = () => this.destroy();
+      scene.events.once('shutdown', this.shutdown);
+      const host = document.getElementById('game-wrapper');
+      if (modal) {
+        this.shield = element('div', null, 're-modal-shield');
+        this.shield.style.zIndex = DOM_UI_DEPTHS.MENU;
+        this.shield.append(this.root);
+        for (const type of DOM_INPUT_EVENTS)
+          this.shield.addEventListener(type, (event) => {
+            event.stopPropagation();
+            if (event.target === this.shield) {
+              event.preventDefault();
+              this.root.focus();
+            }
+          });
+        host.append(this.shield);
+      } else host.append(this.root);
+      this.root.querySelector('button').focus();
+    } catch (error) {
+      // Constructor failure can occur after modal ownership but before callers
+      // receive this surface. Release each resource independently.
+      for (const release of [
+        () => removeOverlay(scene, this.token),
+        () => popInputScope(this),
+        () => scene.events.off('shutdown', this.shutdown),
+        () => this.root.remove(),
+        () => this.shield?.remove(),
+      ]) {
+        try {
+          release();
+        } catch {
+          // Continue releasing the other resources after a cleanup failure.
+        }
+      }
+      throw error;
+    }
   }
   focusContent() {
     (this.body.querySelector('button:not(:disabled),input,select,summary') || this.root).focus();

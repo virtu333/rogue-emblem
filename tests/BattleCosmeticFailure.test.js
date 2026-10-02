@@ -3,7 +3,8 @@ import './harness/JourneyTestSetup.js';
 import { journeyBattleScene } from './harness/JourneyBattleScene.js';
 import { loadGameData } from './testData.js';
 import { BattleScene, resetUnitForBattle } from '../src/scenes/BattleScene.js';
-import { aoeSplash, allyBuff } from '../src/engine/PostCombatEffects.js';
+import { allyBuff, areaDamage } from '../src/engine/PostCombatEffects.js';
+import { normalizeWeaponArtArea } from '../src/engine/WeaponArtSystem.js';
 import { createBattleRng } from '../src/engine/BattleRng.js';
 import { createUnit } from '../src/engine/UnitManager.js';
 import { Grid } from '../src/engine/Grid.js';
@@ -115,8 +116,16 @@ async function scenario(kind, failure = 0) {
     const ally = unit('Ally', 'player', 0, 1);
     scene.playerUnits.push(ally);
     function* beats() {
-      yield* aoeSplash(
-        { radius: 1, damageKind: 'fixed', fixedDamage: 6 },
+      // A fixed 6 to every foe around the primary (the area step that replaced splash).
+      yield* areaDamage(
+        {
+          area: normalizeWeaponArtArea({
+            shape: 'radius',
+            radius: 1,
+            damage: { kind: 'fixed', amount: 6 },
+          }),
+          blows: 1,
+        },
         source,
         primary,
         scene._postCombatWorld(),
@@ -355,10 +364,12 @@ function combatEntryFixture(accessoryName = "Bounty Hunter's Mark") {
   scene.playerUnits = [actor];
   scene.enemyUnits = [primary, burst];
   scene.grid.getTerrainAt = () => data.terrain.find((t) => t.name === 'Plain');
+  // A pierce: the foe behind the target takes the art's own blow on each landed hit.
   scene._getSelectedWeaponArtForUnit = () => ({
     id: 'probe_pierce',
     hpCost: 0,
-    effects: { afterCombat: [{ type: 'pierce_through', target: 'defender', maxTargets: 1 }] },
+    targeting: 'normal_attack',
+    area: { shape: 'line', length: 1, damage: { kind: 'scaled', multiplier: 1 } },
   });
   scene.animateStrike = async () => {};
   scene.animateSkillActivation = async () => {};
@@ -497,7 +508,8 @@ it('enemy entry attributes its primary casualty after a splash victim starts a D
   scene._selectEnemyWeaponArt = () => ({
     id: 'probe_splash',
     hpCost: 0,
-    effects: { aoeSplash: { radius: 1, damageKind: 'fixed', fixedDamage: 1 } },
+    targeting: 'normal_attack',
+    area: { shape: 'radius', radius: 1, damage: { kind: 'fixed', amount: 1 } },
   });
   const error = vi.spyOn(console, 'error').mockImplementation(() => {});
   await scene.executeEnemyCombat(enemy, primary);

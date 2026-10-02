@@ -155,6 +155,21 @@ test('Canto Danger works through mobile events, keyboard and hold, with Back and
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const u = s.playerUnits[0];
+    // Observe the rail's post-hold click guard. A rail rebuild may detach the
+    // pressed button, so Chrome can omit the lifting pointer's synthetic click.
+    const rail = s._mobileBattleHud.root;
+    const heldClicks = new Set();
+    window.__cantoHeldClicks = heldClicks;
+    const add = rail.addEventListener.bind(rail),
+      remove = rail.removeEventListener.bind(rail);
+    rail.addEventListener = (type, listener, options) => {
+      if (type === 'click' && options === true) heldClicks.add(listener);
+      return add(type, listener, options);
+    };
+    rail.removeEventListener = (type, listener, options) => {
+      if (type === 'click' && options === true) heldClicks.delete(listener);
+      return remove(type, listener, options);
+    };
     window.cantoUnit = u;
     window.cantoOrigin = { col: u.col, row: u.row };
     u.skills = [...new Set([...(u.skills || []), 'canto'])];
@@ -226,6 +241,16 @@ test('Canto Danger works through mobile events, keyboard and hold, with Back and
   await page.waitForFunction(
     () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'CANTO_CONFIRM',
   );
+  // The fixture directly begins a new Canto move. Wait must target that menu,
+  // after the completed hold's release-click guard has cleared.
+  await page.waitForFunction(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    return (
+      window.__cantoHeldClicks.size === 0 &&
+      s._mobileBattleHud.menu?.objects === s.actionMenu &&
+      s._mobileBattleHud.menu?.unit === s.selectedUnit
+    );
+  });
   await page.getByRole('button', { name: 'Wait', exact: true }).click();
   await page.waitForFunction(
     () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',

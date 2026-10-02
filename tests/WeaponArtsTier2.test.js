@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadGameData } from './testData.js';
-import { getWeaponArtTier2Effects } from '../src/engine/WeaponArtSystem.js';
+import { getWeaponArtArea, getWeaponArtTier2Effects } from '../src/engine/WeaponArtSystem.js';
 import {
   getPostCombatPipelineSteps,
   resolvePostCombatMove,
@@ -10,7 +10,7 @@ const gameData = loadGameData();
 const artById = new Map(gameData.weaponArts.arts.map((art) => [art.id, art]));
 
 describe('Tier 2 weapon arts', () => {
-  it('maps all 16 in-scope arts to structured Tier 2 effects', () => {
+  it('maps all 16 in-scope arts to structured Tier 2 effects (pierce is now a line area)', () => {
     const expected = {
       sword_advancing_strike: { postCombatMove: [{ mode: 'advance', distance: 1 }] },
       sword_lunge: { postCombatMove: [{ mode: 'swap', distance: 1 }] },
@@ -27,17 +27,18 @@ describe('Tier 2 weapon arts', () => {
         postCombatMove: [{ mode: 'retreat', distance: 1 }],
       },
       legend_piercing_charge: {
-        pierceThrough: [{ target: 'defender', maxTargets: 1 }],
+        line: { length: 1, strikes: 'each_landed' },
       },
+      // Its step became the Galeforce kill refresh (killMove), so no move here.
       legend_galeforce_assault: {
-        postCombatMove: [{ mode: 'advance', distance: 1 }],
+        noMove: true,
         setHp: [{ target: 'attacker', value: 5 }],
       },
       legend_storm_blade: {
         postCombatMove: [{ mode: 'retreat', distance: 1 }],
       },
       legend_doom_thrust: {
-        pierceThrough: [{ target: 'defender', maxTargets: 1 }],
+        line: { length: 1, strikes: 'each_landed' },
         postCombatMove: [{ mode: 'push', distance: 1 }],
       },
     };
@@ -58,15 +59,18 @@ describe('Tier 2 weapon arts', () => {
         expect(effects.afterCombatDebuff[0].stat).toBe(expectation.afterCombatDebuff[0].stat);
         expect(effects.afterCombatDebuff[0].amount).toBe(expectation.afterCombatDebuff[0].amount);
       }
+      if (expectation.noMove) expect(effects.postCombatMove).toEqual([]);
       if (expectation.postCombatMove) {
         expect(effects.postCombatMove).toHaveLength(1);
         expect(effects.postCombatMove[0].mode).toBe(expectation.postCombatMove[0].mode);
         expect(effects.postCombatMove[0].distance).toBe(expectation.postCombatMove[0].distance);
       }
-      if (expectation.pierceThrough) {
-        expect(effects.pierceThrough).toHaveLength(1);
-        expect(effects.pierceThrough[0].target).toBe(expectation.pierceThrough[0].target);
-        expect(effects.pierceThrough[0].maxTargets).toBe(expectation.pierceThrough[0].maxTargets);
+      if (expectation.line) {
+        expect(getWeaponArtArea(art)).toMatchObject({
+          shape: 'line',
+          ...expectation.line,
+          damage: { kind: 'scaled', multiplier: 1 },
+        });
       }
       if (expectation.setHp) {
         expect(effects.setHp).toHaveLength(1);
@@ -77,23 +81,17 @@ describe('Tier 2 weapon arts', () => {
     }
   });
 
-  it('normalizes pierce_through and set_hp while rejecting invalid payloads', () => {
+  it('normalizes set_hp and ignores the retired pierce_through', () => {
     const effects = getWeaponArtTier2Effects({
       effects: {
         afterCombat: [
           { type: 'pierce_through', target: 'defender', maxTargets: 1 },
-          { type: 'pierce_through', target: 'defender', maxTargets: 3 },
           { type: 'set_hp', target: 'self', value: 5 },
-          { type: 'pierce_through', target: 'defender', maxTargets: 0 },
           { type: 'set_hp', target: 'attacker', value: 0 },
         ],
       },
     });
-
-    expect(effects.pierceThrough).toEqual([
-      { target: 'defender', maxTargets: 1 },
-      { target: 'defender', maxTargets: 1 },
-    ]);
+    expect(effects.pierceThrough).toBeUndefined();
     expect(effects.setHp).toEqual([{ target: 'attacker', value: 5 }]);
   });
 
@@ -101,11 +99,12 @@ describe('Tier 2 weapon arts', () => {
     const attacker = { name: 'Atk', col: 0, row: 0 };
     const defender = { name: 'Def', col: 1, row: 0 };
     const art = {
+      targeting: 'normal_attack',
+      area: { shape: 'line', length: 1, damage: { kind: 'scaled', multiplier: 1 } },
       effects: {
         afterCombat: [
           { type: 'damage', target: 'defender', amount: 5, nonLethal: true },
           { type: 'debuff', target: 'defender', stat: 'SPD', amount: -4 },
-          { type: 'pierce_through', target: 'defender', maxTargets: 1 },
           { type: 'move', mode: 'retreat', distance: 1 },
           { type: 'set_hp', target: 'attacker', value: 5 },
         ],
@@ -132,7 +131,7 @@ describe('Tier 2 weapon arts', () => {
       'divine_charge',
       'tier2_damage',
       'tier2_debuff',
-      'tier2_pierce',
+      'area_damage',
       'tier2_move',
       'tier2_set_hp',
     ]);
@@ -147,19 +146,15 @@ describe('Tier 2 weapon arts', () => {
       attackerWeaponArt: art,
     });
     const missOnlyTier2Types = missOnly
-      .filter((step) => step.type.startsWith('tier2_'))
+      .filter((step) => step.type.startsWith('tier2_') || step.type === 'area_damage')
       .map((step) => step.type);
     expect(missOnlyTier2Types).toEqual(['tier2_set_hp']);
   });
 
-  it('captures landed strike damage sequence for tier2 pierce steps', () => {
+  it("a line area repeats per landed strike, and carries the combat's strike mods", () => {
     const attacker = { name: 'Atk', col: 0, row: 0 };
     const defender = { name: 'Def', col: 1, row: 0 };
-    const art = {
-      effects: {
-        afterCombat: [{ type: 'pierce_through', target: 'defender', maxTargets: 1 }],
-      },
-    };
+    const strikeMods = { atkBonus: 4 };
     const steps = getPostCombatPipelineSteps({
       attacker,
       defender,
@@ -169,12 +164,13 @@ describe('Tier 2 weapon arts', () => {
           { type: 'strike', attackerSide: 'attacker', miss: true, damage: 999 },
           { type: 'strike', attackerSide: 'attacker', miss: false, damage: 4 },
         ],
+        strikeMods: { attacker: strikeMods, defender: null },
       },
-      attackerWeaponArt: art,
+      attackerWeaponArt: artById.get('legend_piercing_charge'),
     });
-    const pierce = steps.find((step) => step.type === 'tier2_pierce');
-    expect(pierce).toBeTruthy();
-    expect(pierce.damages).toEqual([7, 4]);
+    const line = steps.find((step) => step.type === 'area_damage');
+    expect(line).toMatchObject({ blows: 2, requiresLiveSource: false });
+    expect(line.strikeMods).toBe(strikeMods);
   });
 
   it('enforces non-lethal tier2 fixed damage through pipeline metadata', () => {

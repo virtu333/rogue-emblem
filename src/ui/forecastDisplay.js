@@ -92,11 +92,15 @@ export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
   const striker = attacking ? forecast.attacker : forecast.defender;
   if (striker?.thornsReflect > 0)
     notes.push(`Thorns: −${striker.thornsReflect} HP per hit landed (leaves at least 1)`);
-  if (attacking) notes.push(triangleText(forecast), counterRisk(forecast, attackerHP));
-  else if (!forecast.defender.canCounter)
+  if (attacking) {
+    notes.push(triangleText(forecast), counterRisk(forecast, attackerHP));
+    // An area art's reach (AreaPreview.areaForecastLines): known units only.
+    notes.push(...(forecast.attacker?.areaNotes || []));
+  } else if (!forecast.defender.canCounter) {
     notes.push(
       `Cannot counter · ${forecast.display?.counterReason || 'No valid response at this range'}`,
     );
+  }
   return notes.filter(Boolean);
 }
 

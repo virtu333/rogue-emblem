@@ -177,7 +177,10 @@ export class BlessingSelectScene extends Phaser.Scene {
         const cloud = this.registry.get('cloud');
         const slot = this.registry.get('activeSlot');
         clearSavedRun(
-          cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+          cloud
+            ? (resolvedSlot, abandonedRun) =>
+                deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+            : null,
           slot,
         );
         if (this._pendingBlessingSelection) {
