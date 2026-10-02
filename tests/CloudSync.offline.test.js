@@ -35,7 +35,10 @@ describe('CloudSync offline (supabase=null)', () => {
   });
 
   it('fetchAllToLocalStorage returns without error when supabase is null', async () => {
-    await expect(fetchAllToLocalStorage('user-1')).resolves.toBeUndefined();
+    await expect(fetchAllToLocalStorage('user-1')).resolves.toEqual({
+      rejectedCount: 0,
+      deferredReservationSlots: [],
+    });
   });
 
   it('pushRunSave does not throw when supabase is null', () => {

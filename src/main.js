@@ -15,7 +15,11 @@ import { installPixelFontGrid } from './utils/pixelFontGrid.js';
 import { installCrispCanvasText } from './utils/crispCanvasText.js';
 import { BootScene } from './scenes/BootScene.js';
 import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js';
-import { fetchAllToLocalStorage, getCloudSyncStatus } from './cloud/CloudSync.js';
+import {
+  fetchAllToLocalStorage,
+  getCloudSyncStatus,
+  isCloudHydrationComplete,
+} from './cloud/CloudSync.js';
 import { getStartupFlags } from './utils/runtimeFlags.js';
 import { MobileControls } from './utils/MobileControls.js';
 import { GamepadReader } from './utils/GamepadReader.js';
@@ -449,7 +453,7 @@ async function backgroundCloudRefetch(userId, mode) {
       const result = await fetchAllToLocalStorage(userId, {
         timeoutMs: BACKGROUND_REFETCH_TIMEOUT_MS,
       });
-      if (!result || result.rejectedCount === 0) {
+      if (isCloudHydrationComplete(result)) {
         markStartup('cloud_sync_background_complete', { mode, attempt });
         return;
       }
@@ -637,7 +641,7 @@ if (!supabase) {
           markStartup('session_restore_ignored_after_boot');
           return;
         }
-        if (!pullResult || pullResult.rejectedCount > 0) {
+        if (!isCloudHydrationComplete(pullResult)) {
           void backgroundCloudRefetch(session.user.id, 'session');
         }
       }
@@ -712,7 +716,7 @@ async function handleSubmit(e) {
       markStartup('cloud_sync_gate_fallback', { mode: 'login' });
     }
     const didBoot = bootGame(user);
-    if (didBoot && (!cloudPullResult || cloudPullResult.rejectedCount > 0)) {
+    if (didBoot && !isCloudHydrationComplete(cloudPullResult)) {
       void backgroundCloudRefetch(user.id, 'login');
     }
   } catch (err) {

@@ -8,7 +8,7 @@
 // optional history is shed in stages (see shedOptionalHistory) and the write
 // is retried. The slot being written is never touched here: its own battle
 // write already degrades through persistWithTimelineFallback.
-import { MAX_SLOTS, getRunKey } from './SlotManager.js';
+import { MAX_SLOTS, getRunKey, inspectSlot } from './SlotManager.js';
 import { shedOptionalHistory } from './BattleTimelinePersistence.js';
 
 export function isQuotaExceededError(err) {
@@ -24,6 +24,7 @@ export function shedOtherSlotsHistory(excludeSlot, level, storage = globalThis.l
   let freed = false;
   for (let slot = 1; slot <= MAX_SLOTS; slot++) {
     if (slot === excludeSlot) continue;
+    if (inspectSlot(slot, storage).status !== 'valid') continue;
     const key = getRunKey(slot);
     let run;
     try {

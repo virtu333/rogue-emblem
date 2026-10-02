@@ -570,6 +570,23 @@ export class NativeSaveMirror {
     return this.writing;
   }
 
+  /** A destructive caller needs acknowledgement, not a fire-and-forget flush. */
+  async ensureDurable(key, value, timeoutMs = 6000) {
+    if (!this.active || !shouldMirrorKey(key) || this.storage.getItem(key) !== value) return false;
+    this.dirty.add(key);
+    let timer;
+    await Promise.race([
+      this.flush().then(() => true),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(false), timeoutMs);
+      }),
+    ]).finally(() => clearTimeout(timer));
+    if (!this.active || this.storage.getItem(key) !== value) return false;
+    const entry = this.records.get(key);
+    if (!entry) return value === null && !this.stamps.has(key);
+    return entry.value === value && entry.pending === 0 && Boolean(entry.slot);
+  }
+
   /** Route Storage mutations of `target` through the mirror (patches the prototype). */
   hookStorage(proto, target) {
     const mirror = this;
