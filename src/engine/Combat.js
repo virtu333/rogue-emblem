@@ -4,6 +4,7 @@
 import {
   WEAPON_TRIANGLE,
   DOUBLE_ATTACK_SPD_THRESHOLD,
+  WEAPON_ART_FOLLOW_UP_SPD_THRESHOLD,
   CRIT_MULTIPLIER,
   STAFF_BONUS_USE_THRESHOLDS,
   ZOMBIE_CLASSES,
@@ -211,6 +212,7 @@ function normalizeCombatMods(mods) {
     halfPhysicalDamage: Boolean(mods.halfPhysicalDamage),
     vengeance: Boolean(mods.vengeance),
     weaponArt: Boolean(mods.weaponArt),
+    artNoFollowUp: Boolean(mods.artNoFollowUp),
     weaponArtProjectionSafe: mods.weaponArtProjectionSafe === true,
     ignoreTerrainAvoid: Boolean(mods.ignoreTerrainAvoid),
     vantage: Boolean(mods.vantage),
@@ -254,6 +256,7 @@ export function mergeCombatMods(baseMods, extraMods) {
     halfPhysicalDamage: base.halfPhysicalDamage || extra.halfPhysicalDamage,
     vengeance: base.vengeance || extra.vengeance,
     weaponArt: base.weaponArt || extra.weaponArt,
+    artNoFollowUp: base.artNoFollowUp || extra.artNoFollowUp,
     weaponArtProjectionSafe:
       (!hasWeaponArtActivation(base) || base.weaponArtProjectionSafe) &&
       (!hasWeaponArtActivation(extra) || extra.weaponArtProjectionSafe),
@@ -883,6 +886,185 @@ export function combatStrikeMods(skillCtx, atkWeapon) {
   );
 }
 
+/** One side's merged mods without its weapon art: what an art user's follow-up strikes with. */
+function plainSideMods(skillCtx, side, weapon) {
+  const skillMods = side === 'attacker' ? skillCtx?.atkMods : skillCtx?.defMods;
+  return mergeCombatMods(
+    skillMods,
+    weapon ? getImbueCombatMods(weapon, skillCtx?.imbuesData) : null,
+  );
+}
+
+/**
+ * The Attack Speed lead a side with these merged mods needs for a follow-up: a weapon
+ * art keeps its follow-up only with a larger lead (WEAPON_ART_FOLLOW_UP_SPD_THRESHOLD).
+ */
+export function followUpSpeedThreshold(mods) {
+  if (!hasWeaponArtActivation(mods)) return DOUBLE_ATTACK_SPD_THRESHOLD;
+  // Area and range-extending arts (`noFollowUp`) never follow up.
+  return mods?.artNoFollowUp ? Infinity : WEAPON_ART_FOLLOW_UP_SPD_THRESHOLD;
+}
+
+/**
+ * A weapon art user's follow-up: one plain strike's values, worked out as the first
+ * strike is but with `strikerMods` (the side's mods without the art). The target's mods
+ * (`targetMods`, its art included) and the combat's weapon-triangle waiver from the
+ * target's side still apply. `damage` is per strike, after any multi-hit split.
+ */
+export function artFollowUpStrike(
+  striker,
+  strikerWeapon,
+  target,
+  targetWeapon,
+  targetTerrain,
+  { strikerMods = null, targetMods = null, isInitiating = true, silenced = false } = {},
+) {
+  const ignoreTriangle = Boolean(
+    strikerMods?.ignoreWeaponTriangle || targetMods?.ignoreWeaponTriangle,
+  );
+  const triangle =
+    targetWeapon && !ignoreTriangle
+      ? getWeaponTriangleBonus(strikerWeapon, targetWeapon, striker.weaponRank)
+      : { hit: 0, damage: 0 };
+  const hitsRes = strikeHitsRes(strikerWeapon, strikerMods);
+  const targetWeaponDef = targetWeapon
+    ? sumWeaponBonus(getWeaponStatBonuses(targetWeapon), hitsRes ? 'RES' : 'DEF')
+    : 0;
+  const effectiveness = getCombinedEffectivenessMultiplier(strikerWeapon, target, strikerMods);
+  const strikeDmg = (halveDefense) => {
+    let dmg = Math.max(
+      0,
+      calculateDamage(striker, strikerWeapon, target, targetWeapon, targetTerrain, isInitiating, {
+        targetsRES: strikerMods?.targetsRES,
+        halveDefense,
+        effectivenessMultiplier: effectiveness,
+        ignoreTriangle,
+        ignoreRES: strikerMods?.ignoreRES,
+      }) +
+        (strikerMods?.atkBonus || 0) -
+        combatModDefense(targetMods, hitsRes) -
+        targetWeaponDef,
+    );
+    dmg += getCombatStatScalingBonus(striker, strikerMods);
+    if (strikerMods?.vengeance) dmg += getMissingHp(striker);
+    if (targetMods?.halfPhysicalDamage && isPhysical(strikerWeapon)) dmg = Math.floor(dmg / 2);
+    if (strikerMods?.damageMultiplier > 1) dmg = Math.floor(dmg * strikerMods.damageMultiplier);
+    return Math.max(0, dmg);
+  };
+  const terrainForHit = strikerMods?.ignoreTerrainAvoid ? null : targetTerrain;
+  let hit = Math.max(
+    0,
+    Math.min(
+      100,
+      calculateHitRate(striker, strikerWeapon, target, terrainForHit, triangle) +
+        (strikerMods?.hitBonus || 0) -
+        (targetMods?.avoidBonus || 0),
+    ),
+  );
+  let crit = Math.max(
+    0,
+    Math.min(
+      100,
+      calculateCritRate(striker, strikerWeapon, target) + (strikerMods?.critBonus || 0),
+    ),
+  );
+  if (isEntity(target)) crit = Math.floor(crit * ENTITY_CRIT_RATE_MULT);
+  let damage = strikeDmg(false);
+  if (silenced) {
+    damage = 0;
+    hit = 0;
+  }
+  return { damage, lunaDamage: strikeDmg(true), hit, crit, mods: strikerMods };
+}
+
+/**
+ * The forecast's view of an art follow-up: the plain strike's damage (per strike, after
+ * any non-art multi-hit split), hit and crit, and how many strikes it makes.
+ */
+function forecastFollowUp(strike, brave) {
+  const multiHit = strike.mods?.multiHit || null;
+  const damage = multiHit
+    ? Math.max(1, Math.floor(strike.damage * multiHit.damageMultiplier))
+    : strike.damage;
+  return {
+    damage,
+    hit: strike.hit,
+    crit: strike.crit,
+    attackCount: multiHit ? multiHit.count : brave ? 2 : 1,
+  };
+}
+
+/**
+ * Tag a weapon art's follow-up strikes (`artFollowUp`): plain strikes, so the art's
+ * on-hit and per-strike effects (area blows, miss recoil, heals) skip them.
+ */
+function markArtFollowUpStrikes(events, fromIndex) {
+  for (let i = fromIndex; i < events.length; i++) {
+    if (events[i]?.type === 'strike') events[i].artFollowUp = true;
+  }
+}
+
+/** A forecast side's `followUp` entry (null without an art follow-up), drain and Thorns included. */
+function forecastFollowUpInfo(followUp, unit, plainMods, thornsPct = 0) {
+  if (!followUp) return null;
+  const wounded = isWounded(unit);
+  return {
+    ...followUp,
+    thornsReflect: thornsReflectDamage(followUp.damage, thornsPct),
+    drainPercent: wounded ? 0 : plainMods?.drainPercent || 0,
+    drainMaxPerHit: wounded ? null : plainMods?.drainMaxPerHit || null,
+    drainPerHit: wounded ? 0 : plainMods?.drainPerHit || 0,
+  };
+}
+
+/**
+ * A forecast side's strikes as groups of identical strikes, in order: the first phase
+ * (`count` strikes of `damage`), then the follow-up. Without an art the follow-up repeats
+ * the first phase; with one it is the plain strike in `side.followUp`. Read this rather
+ * than `damage × attackCount`, which is wrong for an art that keeps its follow-up.
+ */
+export function forecastStrikeGroups(side) {
+  if (!side || !(side.attackCount > 0)) return [];
+  const first = {
+    damage: side.damage,
+    hit: side.hit,
+    crit: side.crit,
+    thornsReflect: side.thornsReflect || 0,
+    drainPercent: side.drainPercent || 0,
+    drainMaxPerHit: side.drainMaxPerHit || null,
+    drainPerHit: side.drainPerHit || 0,
+  };
+  if (side.followUp) {
+    const firstCount = Math.max(0, side.attackCount - side.followUp.attackCount);
+    return [
+      { ...first, count: firstCount },
+      {
+        damage: side.followUp.damage,
+        hit: side.followUp.hit,
+        crit: side.followUp.crit,
+        thornsReflect: side.followUp.thornsReflect || 0,
+        drainPercent: side.followUp.drainPercent || 0,
+        drainMaxPerHit: side.followUp.drainMaxPerHit || null,
+        drainPerHit: side.followUp.drainPerHit || 0,
+        count: side.followUp.attackCount,
+      },
+    ].filter((group) => group.count > 0);
+  }
+  if (side.doubles) {
+    const half = Math.max(1, Math.round(side.attackCount / 2));
+    return [
+      { ...first, count: half },
+      { ...first, count: side.attackCount - half },
+    ].filter((group) => group.count > 0);
+  }
+  return [{ ...first, count: side.attackCount }];
+}
+
+/** Total damage a forecast side deals if every strike lands without a crit. */
+export function forecastRawDamage(side) {
+  return forecastStrikeGroups(side).reduce((sum, g) => sum + g.damage * g.count, 0);
+}
+
 /** True if attacker is fast enough to strike twice (after weight penalty) */
 export function canDouble(attacker, defender, atkWeapon, defWeapon) {
   const atkEffectiveSpd = calculateEffectiveSpeed(attacker, atkWeapon);
@@ -1093,12 +1275,26 @@ export function getCombatForecast(
 
   const atkArtActive = hasWeaponArtActivation(atkMods);
   const atkDoubles =
-    !atkArtActive &&
     !fDefPrevent &&
-    atkEffectiveSpd >= defEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fAtkPursuit;
+    atkEffectiveSpd >= defEffectiveSpd + followUpSpeedThreshold(atkMods) - fAtkPursuit;
   const atkBrave = atkWeapon?.special?.includes('twice consecutively') ?? false;
   const atkBaseCount = atkMultiHit ? atkMultiHit.count : atkBrave ? 2 : 1;
-  const atkCount = atkBaseCount * (atkDoubles ? 2 : 1);
+  // An art's follow-up is a plain strike: its own values and strike count.
+  const atkFollowUp =
+    atkArtActive && atkDoubles
+      ? forecastFollowUp(
+          artFollowUpStrike(attacker, atkWeapon, defender, defWeapon, defTerrain, {
+            strikerMods: plainSideMods(skillCtx, 'attacker', atkWeapon),
+            targetMods: defMods,
+            isInitiating: true,
+            silenced: fSilencedAttacker,
+          }),
+          atkBrave,
+        )
+      : null;
+  const atkCount = atkFollowUp
+    ? atkBaseCount + atkFollowUp.attackCount
+    : atkBaseCount * (atkDoubles ? 2 : 1);
 
   // Silenced defenders cannot counter with magic weapons
   const fSilencedNoCounter =
@@ -1115,7 +1311,8 @@ export function getCombatForecast(
     defCrit = 0,
     defDoubles = false,
     defBrave = false,
-    defCount = 0;
+    defCount = 0,
+    defFollowUp = null;
 
   if (defCanCounter) {
     const defTriangle = fIgnoreTriangle
@@ -1153,12 +1350,24 @@ export function getCombatForecast(
     const defArtActive = hasWeaponArtActivation(defMods);
     defDoubles =
       defMods?.quickRiposte ||
-      (!defArtActive &&
-        !fAtkPrevent &&
-        defEffectiveSpd >= atkEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fDefPursuit);
+      (!fAtkPrevent &&
+        defEffectiveSpd >= atkEffectiveSpd + followUpSpeedThreshold(defMods) - fDefPursuit);
     defBrave = defWeapon?.special?.includes('twice consecutively') ?? false;
     const defBaseCount = defMultiHit ? defMultiHit.count : defBrave ? 2 : 1;
-    defCount = defBaseCount * (defDoubles ? 2 : 1);
+    defFollowUp =
+      defArtActive && defDoubles
+        ? forecastFollowUp(
+            artFollowUpStrike(defender, defWeapon, attacker, atkWeapon, atkTerrain, {
+              strikerMods: plainSideMods(skillCtx, 'defender', defWeapon),
+              targetMods: atkMods,
+              isInitiating: false,
+            }),
+            defBrave,
+          )
+        : null;
+    defCount = defFollowUp
+      ? defBaseCount + defFollowUp.attackCount
+      : defBaseCount * (defDoubles ? 2 : 1);
   }
 
   // Collect activated skills for UI display
@@ -1283,6 +1492,12 @@ export function getCombatForecast(
       brave: atkBrave,
       attackCount: atkCount,
       multiHit: atkMultiHit,
+      followUp: forecastFollowUpInfo(
+        atkFollowUp,
+        attacker,
+        plainSideMods(skillCtx, 'attacker', atkWeapon),
+        atkThornsPct,
+      ),
       // Wounded: no drain heals (resolveCombat zeroes them); the forecast agrees.
       drainPercent: isWounded(attacker) ? 0 : atkMods?.drainPercent || 0,
       drainMaxPerHit: isWounded(attacker) ? null : atkMods?.drainMaxPerHit || null,
@@ -1303,6 +1518,12 @@ export function getCombatForecast(
       brave: defBrave,
       attackCount: defCount,
       multiHit: defMultiHit,
+      followUp: forecastFollowUpInfo(
+        defFollowUp,
+        defender,
+        plainSideMods(skillCtx, 'defender', defWeapon),
+        defThornsPct,
+      ),
       drainPercent: isWounded(defender) ? 0 : defMods?.drainPercent || 0,
       drainMaxPerHit: isWounded(defender) ? null : defMods?.drainMaxPerHit || null,
       drainPerHit: isWounded(defender) ? 0 : defMods?.drainPerHit || 0,
@@ -1687,17 +1908,14 @@ export function resolveCombat(
 
   const atkArtActive = hasWeaponArtActivation(atkMods);
   const atkDoubles =
-    !atkArtActive &&
-    !defPreventDouble &&
-    rAtkAs >= rDefAs + DOUBLE_ATTACK_SPD_THRESHOLD - atkPursuitReduction;
+    !defPreventDouble && rAtkAs >= rDefAs + followUpSpeedThreshold(atkMods) - atkPursuitReduction;
   const defArtActive = hasWeaponArtActivation(defMods);
   // Quick Riposte: always double when defending above 50% HP
   const defDoubles =
     defCanCounter &&
     (defMods?.quickRiposte ||
-      (!defArtActive &&
-        !atkPreventDouble &&
-        rDefAs >= rAtkAs + DOUBLE_ATTACK_SPD_THRESHOLD - defPursuitReduction));
+      (!atkPreventDouble &&
+        rDefAs >= rAtkAs + followUpSpeedThreshold(defMods) - defPursuitReduction));
 
   const atkBrave = atkWeapon?.special?.includes('twice consecutively') ?? false;
   const defBrave = defWeapon?.special?.includes('twice consecutively') ?? false;
@@ -1762,6 +1980,25 @@ export function resolveCombat(
     if (isEntity(attacker)) defCrit = Math.floor(defCrit * ENTITY_CRIT_RATE_MULT);
   }
 
+  // A weapon art's follow-up strikes without the art (its bonuses ride the first phase).
+  const atkFollowUp =
+    atkArtActive && atkDoubles
+      ? artFollowUpStrike(attacker, atkWeapon, defender, defWeapon, defTerrain, {
+          strikerMods: plainSideMods(skillCtx, 'attacker', atkWeapon),
+          targetMods: defMods,
+          isInitiating: true,
+          silenced: silencedAttacker,
+        })
+      : null;
+  const defFollowUp =
+    defArtActive && defDoubles
+      ? artFollowUpStrike(defender, defWeapon, attacker, atkWeapon, atkTerrain, {
+          strikerMods: plainSideMods(skillCtx, 'defender', defWeapon),
+          targetMods: atkMods,
+          isInitiating: false,
+        })
+      : null;
+
   // Build per-strike skill context for attacker and defender
   const isMelee = distance === 1;
   const atkStrikeSkills = skillCtx?.rollStrikeSkills
@@ -1819,12 +2056,13 @@ export function resolveCombat(
     count,
     strikeSkills,
     weaponSpecial,
+    strikerMods,
   ) {
     const attackerSide = isAttackingDefender ? 'attacker' : 'defender';
     const targetSide = isAttackingDefender ? 'defender' : 'attacker';
-    const drainPct = (isAttackingDefender ? atkMods : defMods)?.drainPercent || 0;
-    const drainCap = (isAttackingDefender ? atkMods : defMods)?.drainMaxPerHit || null;
-    const drainFlat = (isAttackingDefender ? atkMods : defMods)?.drainPerHit || 0;
+    const drainPct = strikerMods?.drainPercent || 0;
+    const drainCap = strikerMods?.drainMaxPerHit || null;
+    const drainFlat = strikerMods?.drainPerHit || 0;
     const strikePerHitHeal = isAttackingDefender ? atkPerHitHeal : defPerHitHeal;
     const strikeCritMult = isAttackingDefender ? atkCritMult : defCritMult;
     for (let i = 0; i < count && atkHP > 0 && defHP > 0; i++) {
@@ -1956,11 +2194,13 @@ export function resolveCombat(
     strikeSkills,
     unit,
     weapon,
+    strikerMods,
+    lunaDamage,
   ) {
     let count = braveCount;
     let phaseDmg = dmg;
     let phaseMultiplier = null;
-    const artMultiHit = (isAtkDef ? atkMods : defMods)?.multiHit;
+    const artMultiHit = strikerMods?.multiHit;
     if (artMultiHit) {
       count = artMultiHit.count;
       phaseMultiplier = artMultiHit.damageMultiplier;
@@ -1975,10 +2215,67 @@ export function resolveCombat(
       }
     }
     const originalLunaDamage = strikeSkills?.lunaDamage;
-    if (strikeSkills && phaseMultiplier !== null)
-      strikeSkills.lunaDamage = Math.max(1, Math.floor(originalLunaDamage * phaseMultiplier));
-    strike(aName, tName, hit, phaseDmg, crit, isAtkDef, count, strikeSkills, weapon?.special || '');
+    const phaseLunaDamage = lunaDamage ?? originalLunaDamage;
+    if (strikeSkills) {
+      strikeSkills.lunaDamage =
+        phaseMultiplier !== null
+          ? Math.max(1, Math.floor(phaseLunaDamage * phaseMultiplier))
+          : phaseLunaDamage;
+    }
+    strike(
+      aName,
+      tName,
+      hit,
+      phaseDmg,
+      crit,
+      isAtkDef,
+      count,
+      strikeSkills,
+      weapon?.special || '',
+      strikerMods,
+    );
     if (strikeSkills) strikeSkills.lunaDamage = originalLunaDamage;
+  }
+
+  // One side's strike phase. A weapon art's follow-up (`followUp`) is a plain strike:
+  // the art's bonuses ride the first phase only (artFollowUpStrike).
+  function atkPhase(followUp = false) {
+    const f = followUp ? atkFollowUp : null;
+    const firstEvent = events.length;
+    strikePhase(
+      attacker.name,
+      defender.name,
+      f ? f.hit : atkHit,
+      f ? f.damage : atkDmg,
+      f ? f.crit : atkCrit,
+      true,
+      atkBrave ? 2 : 1,
+      atkStrikeSkills,
+      attacker,
+      atkWeapon,
+      f ? f.mods : atkMods,
+      f ? f.lunaDamage : undefined,
+    );
+    if (f) markArtFollowUpStrikes(events, firstEvent);
+  }
+  function defPhase(followUp = false) {
+    const f = followUp ? defFollowUp : null;
+    const firstEvent = events.length;
+    strikePhase(
+      defender.name,
+      attacker.name,
+      f ? f.hit : defHit,
+      f ? f.damage : defDmg,
+      f ? f.crit : defCrit,
+      false,
+      defBrave ? 2 : 1,
+      defStrikeSkills,
+      defender,
+      defWeapon,
+      f ? f.mods : defMods,
+      f ? f.lunaDamage : undefined,
+    );
+    if (f) markArtFollowUpStrikes(events, firstEvent);
   }
 
   // Determine phase order — Vantage, Desperation modify order
@@ -1995,223 +2292,38 @@ export function resolveCombat(
   if (defenderVantage) {
     // Vantage: defender strikes first
     events.push({ type: 'skill', name: 'Vantage', unit: defender.name });
-    strikePhase(
-      defender.name,
-      attacker.name,
-      defHit,
-      defDmg,
-      defCrit,
-      false,
-      defBrave ? 2 : 1,
-      defStrikeSkills,
-      defender,
-      defWeapon,
-    );
-    if (!warpedSide())
-      strikePhase(
-        attacker.name,
-        defender.name,
-        atkHit,
-        atkDmg,
-        atkCrit,
-        true,
-        atkBrave ? 2 : 1,
-        atkStrikeSkills,
-        attacker,
-        atkWeapon,
-      );
-    if (defDoubles && !defenderFollowUpCancelled && !warpedSide())
-      strikePhase(
-        defender.name,
-        attacker.name,
-        defHit,
-        defDmg,
-        defCrit,
-        false,
-        defBrave ? 2 : 1,
-        defStrikeSkills,
-        defender,
-        defWeapon,
-      );
-    if (atkDoubles && !attackerFollowUpCancelled && !warpedSide())
-      strikePhase(
-        attacker.name,
-        defender.name,
-        atkHit,
-        atkDmg,
-        atkCrit,
-        true,
-        atkBrave ? 2 : 1,
-        atkStrikeSkills,
-        attacker,
-        atkWeapon,
-      );
+    defPhase();
+    if (!warpedSide()) atkPhase();
+    if (defDoubles && !defenderFollowUpCancelled && !warpedSide()) defPhase(true);
+    if (atkDoubles && !attackerFollowUpCancelled && !warpedSide()) atkPhase(true);
   } else if (attackerDesperation && atkDoubles) {
     // Desperation: all attacker hits before defender responds
     events.push({ type: 'skill', name: 'Desperation', unit: attacker.name });
-    strikePhase(
-      attacker.name,
-      defender.name,
-      atkHit,
-      atkDmg,
-      atkCrit,
-      true,
-      atkBrave ? 2 : 1,
-      atkStrikeSkills,
-      attacker,
-      atkWeapon,
-    );
-    if (!attackerFollowUpCancelled && !warpedSide())
-      strikePhase(
-        attacker.name,
-        defender.name,
-        atkHit,
-        atkDmg,
-        atkCrit,
-        true,
-        atkBrave ? 2 : 1,
-        atkStrikeSkills,
-        attacker,
-        atkWeapon,
-      );
+    atkPhase();
+    if (!attackerFollowUpCancelled && !warpedSide()) atkPhase(true);
     if (defCanCounter && !warpedSide()) {
-      strikePhase(
-        defender.name,
-        attacker.name,
-        defHit,
-        defDmg,
-        defCrit,
-        false,
-        defBrave ? 2 : 1,
-        defStrikeSkills,
-        defender,
-        defWeapon,
-      );
+      defPhase();
     }
-    if (defDoubles && !defenderFollowUpCancelled && !warpedSide())
-      strikePhase(
-        defender.name,
-        attacker.name,
-        defHit,
-        defDmg,
-        defCrit,
-        false,
-        defBrave ? 2 : 1,
-        defStrikeSkills,
-        defender,
-        defWeapon,
-      );
+    if (defDoubles && !defenderFollowUpCancelled && !warpedSide()) defPhase(true);
   } else if (defenderDesperation && defDoubles) {
     // Defender-side Desperation: defender follow-up occurs before attacker follow-up
-    strikePhase(
-      attacker.name,
-      defender.name,
-      atkHit,
-      atkDmg,
-      atkCrit,
-      true,
-      atkBrave ? 2 : 1,
-      atkStrikeSkills,
-      attacker,
-      atkWeapon,
-    );
+    atkPhase();
     if (atkHP > 0 && defHP > 0 && !warpedSide()) {
       events.push({ type: 'skill', name: 'Desperation', unit: defender.name });
       if (defCanCounter) {
-        strikePhase(
-          defender.name,
-          attacker.name,
-          defHit,
-          defDmg,
-          defCrit,
-          false,
-          defBrave ? 2 : 1,
-          defStrikeSkills,
-          defender,
-          defWeapon,
-        );
+        defPhase();
       }
-      if (!defenderFollowUpCancelled && !warpedSide())
-        strikePhase(
-          defender.name,
-          attacker.name,
-          defHit,
-          defDmg,
-          defCrit,
-          false,
-          defBrave ? 2 : 1,
-          defStrikeSkills,
-          defender,
-          defWeapon,
-        );
+      if (!defenderFollowUpCancelled && !warpedSide()) defPhase(true);
     }
-    if (atkDoubles && !attackerFollowUpCancelled && !warpedSide())
-      strikePhase(
-        attacker.name,
-        defender.name,
-        atkHit,
-        atkDmg,
-        atkCrit,
-        true,
-        atkBrave ? 2 : 1,
-        atkStrikeSkills,
-        attacker,
-        atkWeapon,
-      );
+    if (atkDoubles && !attackerFollowUpCancelled && !warpedSide()) atkPhase(true);
   } else {
     // Normal order
-    strikePhase(
-      attacker.name,
-      defender.name,
-      atkHit,
-      atkDmg,
-      atkCrit,
-      true,
-      atkBrave ? 2 : 1,
-      atkStrikeSkills,
-      attacker,
-      atkWeapon,
-    );
+    atkPhase();
     if (defCanCounter && !warpedSide()) {
-      strikePhase(
-        defender.name,
-        attacker.name,
-        defHit,
-        defDmg,
-        defCrit,
-        false,
-        defBrave ? 2 : 1,
-        defStrikeSkills,
-        defender,
-        defWeapon,
-      );
+      defPhase();
     }
-    if (atkDoubles && !attackerFollowUpCancelled && !warpedSide())
-      strikePhase(
-        attacker.name,
-        defender.name,
-        atkHit,
-        atkDmg,
-        atkCrit,
-        true,
-        atkBrave ? 2 : 1,
-        atkStrikeSkills,
-        attacker,
-        atkWeapon,
-      );
-    if (defDoubles && !defenderFollowUpCancelled && !warpedSide())
-      strikePhase(
-        defender.name,
-        attacker.name,
-        defHit,
-        defDmg,
-        defCrit,
-        false,
-        defBrave ? 2 : 1,
-        defStrikeSkills,
-        defender,
-        defWeapon,
-      );
+    if (atkDoubles && !attackerFollowUpCancelled && !warpedSide()) atkPhase(true);
+    if (defDoubles && !defenderFollowUpCancelled && !warpedSide()) defPhase(true);
   }
 
   // Post-combat effects: suppress effects originating FROM the escaped side.

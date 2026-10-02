@@ -1663,7 +1663,7 @@ import { sampleEnemyFromAct } from './lib/EnemySampling.js';
 import { createEnemy } from './lib/SimUnitFactory.js';
 
 import { hitProbability } from '../src/engine/HitRoll.js';
-import { getCombatForecast } from '../src/engine/Combat.js';
+import { getCombatForecast, forecastStrikeGroups } from '../src/engine/Combat.js';
 
 async function sectionArts() {
   printHeader('Scroll Archive — what a run-start scroll grant can be');
@@ -1712,16 +1712,13 @@ async function sectionArts() {
       });
       const hp = foe.currentHP ?? foe.stats.HP;
       if (opts.verbose && foe === foes[0]) console.log(JSON.stringify(plain.attacker), hp);
-      base +=
-        (Math.max(0, plain.attacker.damage) *
-          hitProbability(plain.attacker.hit) *
-          plain.attacker.attackCount) /
-        hp;
-      withArt +=
-        (Math.max(0, arted.attacker.damage) *
-          hitProbability(arted.attacker.hit) *
-          arted.attacker.attackCount) /
-        hp;
+      const expectedDamage = (side) =>
+        forecastStrikeGroups(side).reduce(
+          (sum, g) => sum + Math.max(0, g.damage) * hitProbability(g.hit) * g.count,
+          0,
+        );
+      base += expectedDamage(plain.attacker) / hp;
+      withArt += expectedDamage(arted.attacker) / hp;
     }
     rows.push({
       scroll: scroll.name,

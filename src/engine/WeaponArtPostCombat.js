@@ -35,11 +35,22 @@ function getFallbackNameForSide(side, attacker, defender) {
   return defender?.name || null;
 }
 
-export function didCombatSideLandHit(events, side, attacker = null, defender = null) {
+/**
+ * The helpers below read a side's strikes from a combat's events. `artStrikesOnly` leaves
+ * out an art user's follow-up (`artFollowUp`): a plain strike that carries none of the art.
+ */
+export function didCombatSideLandHit(
+  events,
+  side,
+  attacker = null,
+  defender = null,
+  { artStrikesOnly = false } = {},
+) {
   if (!Array.isArray(events)) return false;
   const fallbackName = getFallbackNameForSide(side, attacker, defender);
   return events.some((event) => {
     if (event?.type !== 'strike' || event?.miss) return false;
+    if (artStrikesOnly && event.artFollowUp) return false;
     if (event.attackerSide === 'attacker' || event.attackerSide === 'defender') {
       return event.attackerSide === side;
     }
@@ -47,12 +58,19 @@ export function didCombatSideLandHit(events, side, attacker = null, defender = n
   });
 }
 
-export function getMissedStrikeCount(events, side, attacker = null, defender = null) {
+export function getMissedStrikeCount(
+  events,
+  side,
+  attacker = null,
+  defender = null,
+  { artStrikesOnly = false } = {},
+) {
   if (!Array.isArray(events)) return 0;
   const fallbackName = getFallbackNameForSide(side, attacker, defender);
   let count = 0;
   for (const event of events) {
     if (event?.type !== 'strike' || !event?.miss) continue;
+    if (artStrikesOnly && event.artFollowUp) continue;
     if (event.attackerSide === 'attacker' || event.attackerSide === 'defender') {
       if (event.attackerSide !== side) continue;
     } else if (fallbackName === null || event.attacker !== fallbackName) {
@@ -63,12 +81,19 @@ export function getMissedStrikeCount(events, side, attacker = null, defender = n
   return count;
 }
 
-export function getLandedStrikeDamages(events, side, attacker = null, defender = null) {
+export function getLandedStrikeDamages(
+  events,
+  side,
+  attacker = null,
+  defender = null,
+  { artStrikesOnly = false } = {},
+) {
   if (!Array.isArray(events)) return [];
   const fallbackName = getFallbackNameForSide(side, attacker, defender);
   const out = [];
   for (const event of events) {
     if (event?.type !== 'strike' || event?.miss) continue;
+    if (artStrikesOnly && event.artFollowUp) continue;
     if (event.attackerSide === 'attacker' || event.attackerSide === 'defender') {
       if (event.attackerSide !== side) continue;
     } else if (fallbackName === null || event.attacker !== fallbackName) {
@@ -89,7 +114,9 @@ function areaDamageStep(side, art, result, attacker, defender) {
   if (getWeaponArtTargeting(art) !== 'normal_attack') return null;
   const area = getWeaponArtArea(art);
   if (!area) return null;
-  const landed = getLandedStrikeDamages(result?.events, side, attacker, defender).length;
+  const landed = getLandedStrikeDamages(result?.events, side, attacker, defender, {
+    artStrikesOnly: true,
+  }).length;
   return {
     type: 'area_damage',
     sourceSide: side,
@@ -165,8 +192,12 @@ export function getPostCombatPipelineSteps({
   }
 
   const hitBySide = {
-    attacker: didCombatSideLandHit(result?.events, 'attacker', attacker, defender),
-    defender: didCombatSideLandHit(result?.events, 'defender', attacker, defender),
+    attacker: didCombatSideLandHit(result?.events, 'attacker', attacker, defender, {
+      artStrikesOnly: true,
+    }),
+    defender: didCombatSideLandHit(result?.events, 'defender', attacker, defender, {
+      artStrikesOnly: true,
+    }),
   };
   const artsBySide = {
     attacker: attackerWeaponArt,
@@ -241,7 +272,9 @@ export function getPostCombatPipelineSteps({
     const art = artsBySide[side];
     const { selfDamageOnMiss } = getWeaponArtMissEffects(art);
     if (!selfDamageOnMiss) continue;
-    const missCount = getMissedStrikeCount(result?.events, side, attacker, defender);
+    const missCount = getMissedStrikeCount(result?.events, side, attacker, defender, {
+      artStrikesOnly: true,
+    });
     if (missCount <= 0) continue;
     steps.push({
       type: 'art_miss_self_damage',
@@ -278,10 +311,9 @@ export function getPostCombatPipelineSteps({
     if (tier5Effects.allyHeal) {
       // What the user dealt the target, overkill excluded (Divine Charge's sum, capped
       // at the HP the target entered the combat with).
-      const landed = getLandedStrikeDamages(result?.events, side, attacker, defender).reduce(
-        (sum, damage) => sum + damage,
-        0,
-      );
+      const landed = getLandedStrikeDamages(result?.events, side, attacker, defender, {
+        artStrikesOnly: true,
+      }).reduce((sum, damage) => sum + damage, 0);
       const targetStartHp = Number(result?.startHP?.[getOpposingSide(side)]);
       steps.push({
         type: 'ally_heal',

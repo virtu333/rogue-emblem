@@ -55,9 +55,9 @@ describe('Tier 4 weapon art data + parsing', () => {
     }
 
     const drainExpected = {
-      magic_healing_light: 0.3,
+      magic_healing_light: 0.75,
       magic_nosferatu: 1,
-      legend_life_drain: 1.5,
+      legend_life_drain: 1,
     };
     for (const [id, expected] of Object.entries(drainExpected)) {
       const art = artById.get(id);
@@ -235,7 +235,7 @@ describe('Tier 4 multiHit combat resolution', () => {
     expect(checkAstra).not.toHaveBeenCalled();
   });
 
-  it('keeps doubling suppressed when weapon art is active', () => {
+  it("follows a multi-hit art's strikes with one plain strike at a 10+ speed lead", () => {
     const attacker = makeUnit({
       name: 'Atk',
       stats: { HP: 30, STR: 10, MAG: 0, SKL: 8, SPD: 22, DEF: 6, RES: 3, LCK: 5 },
@@ -260,7 +260,11 @@ describe('Tier 4 multiHit combat resolution', () => {
     const strikes = result.events.filter(
       (e) => e.type === 'strike' && e.attacker === attacker.name,
     );
-    expect(strikes).toHaveLength(2);
+    // Two 90% art strikes, then one plain follow-up at full damage.
+    expect(strikes.map((e) => Boolean(e.artFollowUp))).toEqual([false, false, true]);
+    const plain = strikes[2].damage;
+    expect(strikes[0].damage).toBe(Math.max(1, Math.floor(plain * 0.9)));
+    expect(strikes[1].damage).toBe(Math.max(1, Math.floor(plain * 0.9)));
   });
 
   it('resolves defender counter only after attacker multi-hit phase completes', () => {

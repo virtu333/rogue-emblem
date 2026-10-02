@@ -97,6 +97,29 @@
         "weaponArtScroll": {
           "$ref": "#/$defs/nameArray"
         },
+        "artTiers": {
+          "description": "Iron/Steel weapon arts in this act: innateChance is the chance an Iron or Steel weapon from loot or a shop carries a random art without Iron/Steel Arms; scrollSlots is how many distinct scrolls of that tier each shop or loot roll draws (scrolls listed in weaponArtScroll are not drawn again).",
+          "type": "object",
+          "properties": {
+            "innateChance": {
+              "type": "object",
+              "properties": {
+                "Iron": { "type": "number", "minimum": 0, "maximum": 1 },
+                "Steel": { "type": "number", "minimum": 0, "maximum": 1 }
+              },
+              "additionalProperties": false
+            },
+            "scrollSlots": {
+              "type": "object",
+              "properties": {
+                "Iron": { "type": "integer", "minimum": 0 },
+                "Steel": { "type": "integer", "minimum": 0 }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
         "legendaryWeapon": {
           "$ref": "#/$defs/nameArray"
         },

@@ -26,6 +26,9 @@ export const SAFE_BOTTOM_Y = 425;
 
 // Double attack threshold
 export const DOUBLE_ATTACK_SPD_THRESHOLD = 5;
+// A weapon art keeps its follow-up only with this Attack Speed lead; the follow-up
+// is a plain strike (the art's bonuses ride the first strike only).
+export const WEAPON_ART_FOLLOW_UP_SPD_THRESHOLD = 10;
 
 // Critical multiplier
 export const CRIT_MULTIPLIER = 3;

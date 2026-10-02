@@ -28,7 +28,7 @@ import {
   forecastTeachingHints,
   formatCritChance,
   formatHitChance,
-  formatStrikes,
+  formatDamageStrikes,
 } from './forecastDisplay.js';
 import {
   canInspectUnit,
@@ -619,7 +619,7 @@ export class MobileBattleHUD {
       // Each kind of number has its own shape: damage plain and largest,
       // strikes as a multiplier, chances as percentages.
       for (const [name, value, kind] of [
-        ['Damage × hits', `${info.damage}${formatStrikes(info.attackCount)}`, 'damage'],
+        ['Damage × hits', formatDamageStrikes(info), 'damage'],
         ['Hit', formatHitChance(info.hit), 'hit'],
         ['Crit', formatCritChance(info.crit), 'crit'],
         ['AS', `${info.as}`, 'speed'],

@@ -264,7 +264,8 @@ function normalizeAreaCenterRange(value) {
  * has none or it is malformed:
  *   { shape: 'radius'|'line'|'around_attacker', radius, length, pick: 'all'|'lowest_hp_pct',
  *     maxTargets, damage: { kind: 'scaled', multiplier } | { kind: 'fixed', amount },
- *     strikes: 'once'|'each_landed', nonLethal, centerRange }
+ *     strikes: 'once'|'each_landed', nonLethal, centerRange, drainPercent }
+ * `drainPercent` heals the user that share of the damage its blows deal.
  */
 export function normalizeWeaponArtArea(area) {
   if (!area || typeof area !== 'object' || Array.isArray(area)) return null;
@@ -297,6 +298,7 @@ export function normalizeWeaponArtArea(area) {
     strikes: area.strikes === 'each_landed' ? 'each_landed' : 'once',
     nonLethal: area.nonLethal === true,
     centerRange: normalizeAreaCenterRange(area.centerRange),
+    drainPercent: Math.max(0, toFiniteNumber(area.drainPercent, 0)),
   };
 }
 
@@ -565,6 +567,8 @@ export function getWeaponArtCombatMods(art) {
     halfPhysicalDamage: Boolean(mods.halfPhysicalDamage),
     vengeance: Boolean(mods.vengeance),
     weaponArt: true,
+    // Area and range-extending arts give up the follow-up an art otherwise keeps.
+    artNoFollowUp: art?.noFollowUp === true,
     // Fail closed for hooks resolved outside Combat (damage, movement, conditions).
     // Unknown hook names stay ineligible too, even if empty today.
     weaponArtProjectionSafe:

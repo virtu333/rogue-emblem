@@ -43,7 +43,11 @@ export function weaponArtAreaRow(area, targeting = 'normal_attack') {
     area.damage.kind === 'fixed'
       ? `${area.damage.amount} damage`
       : `a ${Math.round(area.damage.multiplier * 100)}% blow`;
-  const cannotKill = area.nonLethal ? ' (cannot kill)' : '';
+  const cannotKill =
+    (area.nonLethal ? ' (cannot kill)' : '') +
+    (area.drainPercent > 0
+      ? `; heals you ${Math.round(area.drainPercent * 100)}% of the area damage`
+      : '');
   if (targeting === 'chosen_center') {
     const range = area.centerRange;
     const reach =
@@ -111,6 +115,8 @@ export function weaponArtEffectRows(art) {
     );
   const area = getWeaponArtArea(art);
   if (area) rows.push(weaponArtAreaRow(area, getWeaponArtTargeting(art)));
+  if (art?.noFollowUp === true)
+    rows.push({ label: 'Speed', text: 'strikes once however fast you are' });
   const { allyBuff, allyHeal } = getWeaponArtTier5Effects(art);
   if (allyHeal)
     onHit(

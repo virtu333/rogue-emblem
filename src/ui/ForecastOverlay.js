@@ -5,7 +5,7 @@ import {
   forecastNotes,
   formatCritChance,
   formatHitChance,
-  formatStrikes,
+  formatPlannedStrikes,
 } from './forecastDisplay.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution, getHPBarColor } from '../utils/uiStyles.js';
 /**
@@ -464,7 +464,7 @@ export class ForecastOverlay {
 
     y += 14;
     const countText = applyTextResolution(
-      scene.add.text(x + 2, y, `Planned hits: ${formatStrikes(info.attackCount)}`, {
+      scene.add.text(x + 2, y, `Planned hits: ${formatPlannedStrikes(info)}`, {
         fontFamily: 'Arial',
         fontSize: '10px',
         color: UI_PALETTE.accent,

@@ -46,6 +46,17 @@ vi.mock('../../src/ui/itemMoments.js', async (original) => {
     prefersStill: () => true,
   };
 });
+// Weapon-art sheets and the "How scrolls work" link are native <details>/help-dialog
+// presentation; shop and reward rows show only the bound art ids as inert nodes.
+vi.mock('../../src/ui/ItemArtDetails.js', async () => {
+  const { element } = await import('./JourneyPresentation.js');
+  return {
+    appendItemArtDetails: (parent, item) => {
+      for (const id of item?.weaponArtIds || [])
+        parent.append(element('p', `Weapon art: ${id}`, 'item-art-details'));
+    },
+  };
+});
 vi.mock('../../src/ui/HintDisplay.js', () => ({
   showMinorHint: vi.fn(),
   showImportantHint: vi.fn(),

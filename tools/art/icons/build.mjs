@@ -2,7 +2,7 @@
 // Item icon atlases ("Forged in code", docs/art-direction/items/README.md).
 //
 // Renders every icon in tools/art/icons/lib/catalog.mjs natively at 16, 32 and 48 px,
-// packs each size into one palette PNG atlas (16 columns, catalog order) and writes the
+// packs each size into one palette PNG atlas (20 columns, catalog order) and writes the
 // runtime manifest src/ui/itemIconManifest.json (ids -> atlas cell, socket, rim; atlas
 // sizes and hashes; the approved painted heroes). Deterministic: same data, same bytes.
 //
@@ -18,7 +18,8 @@ import { encodeIndexed } from './lib/png.mjs';
 import prettier from 'prettier';
 
 export const SIZES = [16, 32, 48];
-export const COLUMNS = 16;
+// 20 columns keep the 48 px atlas under 1024 px a side up to 400 icons.
+export const COLUMNS = 20;
 export const ATLAS_DIRS = ['assets/ui/items', 'public/assets/ui/items'];
 export const MANIFEST = 'src/ui/itemIconManifest.json';
 const HERO_SELECTIONS = 'tools/art/icons/hero/selections.json';

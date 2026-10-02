@@ -336,6 +336,48 @@ describe('forecast equals resolution for random matchups', () => {
     },
     120_000,
   );
+  // An art that keeps its follow-up (10+ Attack Speed lead) strikes the second time as
+  // a plain attack: the forecast's follow-up is the same matchup's forecast without the
+  // art, and resolution rolls exactly that.
+  it("an art's follow-up is the matchup's plain strike, in forecast and resolution", () => {
+    const mismatches = [];
+    let followUps = 0;
+    let resolvedChecks = 0;
+    for (let seed = 1; seed <= SAMPLES; seed++) {
+      const m = makeMatchup(seed);
+      if (!m.skillCtx.atkWeaponArtMods) continue;
+      const f = forecastOf(m);
+      const fu = f.attacker.followUp;
+      if (!fu) continue;
+      followUps++;
+      const plain = forecastOf({ ...m, skillCtx: { ...m.skillCtx, atkWeaponArtMods: null } });
+      const want = {
+        damage: plain.attacker.damage,
+        hit: plain.attacker.hit,
+        crit: plain.attacker.crit,
+      };
+      const got = { damage: fu.damage, hit: fu.hit, crit: fu.crit };
+      // Every strike lands and none crits at the lowest roll above every crit chance.
+      const c = Math.max(f.attacker.crit, f.defender.canCounter ? f.defender.crit : 0, fu.crit);
+      let resolved = null;
+      if (c < Math.min(f.attacker.hit, fu.hit)) {
+        const last = strikes(resolveWith((c + 0.5) / 100, m), 'attacker').at(-1);
+        if (last?.artFollowUp) {
+          resolved = last.damage;
+          resolvedChecks++;
+        }
+      }
+      if (
+        JSON.stringify(got) !== JSON.stringify(want) ||
+        (resolved !== null && resolved !== fu.damage)
+      )
+        mismatches.push({ seed, got, want, resolved });
+    }
+    expect(followUps).toBeGreaterThan(20);
+    expect(resolvedChecks).toBeGreaterThan(10);
+    expect(mismatches.slice(0, 5)).toEqual([]);
+  }, 120_000);
+
   // Thorns is an on-defend affix, so these exchanges resolve with the battle's
   // per-strike hooks (as BattleScene does). No proc skills, so every strike deals
   // the forecast damage; the projection must land on the resolved HP, reflect included.

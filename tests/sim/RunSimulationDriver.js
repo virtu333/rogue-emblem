@@ -331,7 +331,8 @@ export class RunSimulationDriver {
         this.gameData.consumables,
         this.gameData.accessories,
         roster,
-        null,
+        // As ShopController: art scrolls and weapon arts depend on the run's spawn config.
+        this.runManager.getWeaponArtSpawnConfig?.() ?? null,
         {
           itemCountBonus: shopItemDelta,
           shopCureGating: this.runManager.difficultyModifiers?.shopCureGating,

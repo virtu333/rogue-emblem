@@ -10,6 +10,7 @@ import {
   getWeaponTriangleBonus,
   isMagical,
   getCombatForecast,
+  forecastStrikeGroups,
   getStaffRemainingUses,
   getEffectiveStaffRange,
   resolveHeal,
@@ -1274,9 +1275,10 @@ export class AIController {
         { skillsData: this.gameData?.skills || [], imbuesData: this.gameData?.imbues },
       );
       const expected = (side) =>
-        Math.max(0, Number(side?.damage) || 0) *
-        hitProbability(side?.hit) *
-        (Number(side?.attackCount) || 0);
+        forecastStrikeGroups(side).reduce(
+          (sum, g) => sum + Math.max(0, Number(g.damage) || 0) * hitProbability(g.hit) * g.count,
+          0,
+        );
       const dealt = expected(forecast.attacker);
       const taken = forecast.defender?.canCounter ? expected(forecast.defender) : 0;
       const hpFraction = Math.max(0, Math.min(1, enemy.currentHP / (enemy.stats?.HP || 1)));

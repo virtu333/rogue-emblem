@@ -51,7 +51,7 @@ it('every art reads as a sheet: Cost, Needs and one flavour line with no numbers
 });
 it('rules every art shares sit behind the weapon arts help, not on each art', () => {
   const help = WEAPON_ARTS_HELP.map((block) => helpBlockText(block)).join('\n');
-  expect(help).toContain('never adds a Speed follow-up');
+  expect(help).toContain('follows up only with 10 more Attack Speed than the foe');
   expect(help).toContain('The foe still counters before you step, push or swap');
   for (const art of arts)
     expect(weaponArtDetailLines(art).join('\n'), art.name).not.toContain('follow-up');

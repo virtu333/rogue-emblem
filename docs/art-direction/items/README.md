@@ -232,7 +232,8 @@ as a 32px item sheet.
 
 ### Memory budget (mobile)
 
-- **Atlases:** 239 icons per size in one 16-column atlas. 16px: 256×240, 0.25 MB decoded.
+- **Atlases:** 344 icons per size (Oct 2026) in one 20-column atlas, under a 5 MB decoded cap
+  for all three sizes (`tests/ItemIcons.test.js`). At launch: 239 icons in one 16-column atlas. 16px: 256×240, 0.25 MB decoded.
   32px: 512×480, 0.98 MB. 48px: 768×720, 2.2 MB. All sides ≤ 1024. Downloads: 11 + 25 +
   42 KB. The DOM draws them as CSS `background-position` sprites (one decode per atlas)
   with `image-rendering: pixelated` at integer scales (32 → 32/64/96 css). Load 48 lazily

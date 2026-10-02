@@ -2203,6 +2203,458 @@
     "price": 2500
   },
   {
+    "name": "Precise Cut Scroll",
+    "lore": "Forester's fencing notes: aim for where the leaves are not shaking.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Precise Cut (Weapon Art)",
+    "teachesWeaponArtId": "sword_precise_cut",
+    "allowedWeaponTypes": [
+      "Sword"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Wrath Strike Scroll",
+    "lore": "Margins full of angry underlining. The technique works; the author never calmed down.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Wrath Strike (Weapon Art)",
+    "teachesWeaponArtId": "sword_wrath_strike",
+    "allowedWeaponTypes": [
+      "Sword"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Dueling Blade Scroll",
+    "lore": "A duelist's footwork chart, every step marked 'and then he missed.'",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Dueling Blade (Weapon Art)",
+    "teachesWeaponArtId": "sword_dueling_blade",
+    "allowedWeaponTypes": [
+      "Sword"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Advancing Strike Scroll",
+    "lore": "Drill card for the front rank: cut, step in, hold the ground you took.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Advancing Strike (Weapon Art)",
+    "teachesWeaponArtId": "sword_advancing_strike",
+    "allowedWeaponTypes": [
+      "Sword"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Piercing Drive Scroll",
+    "lore": "Pikeman's creed in one line: a lance does not care what the other man carries.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Piercing Drive (Weapon Art)",
+    "teachesWeaponArtId": "lance_piercing_drive",
+    "allowedWeaponTypes": [
+      "Lance"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Tempest Lance Scroll",
+    "lore": "Cavalry primer. Most pages are diagrams of horses arriving very quickly.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Tempest Lance (Weapon Art)",
+    "teachesWeaponArtId": "lance_tempest_lance",
+    "allowedWeaponTypes": [
+      "Lance"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Countering Strike Scroll",
+    "lore": "Garrison handbook: brace the shaft and let them come to you.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Countering Strike (Weapon Art)",
+    "teachesWeaponArtId": "lance_countering_strike",
+    "allowedWeaponTypes": [
+      "Lance"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Hit and Run Scroll",
+    "lore": "Skirmisher's rule, written twice for emphasis: never be there when they swing back.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Hit and Run (Weapon Art)",
+    "teachesWeaponArtId": "lance_hit_and_run",
+    "allowedWeaponTypes": [
+      "Lance"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Smash Scroll",
+    "lore": "One page, one drawing: an axe coming down. The caption says 'like this.'",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Smash (Weapon Art)",
+    "teachesWeaponArtId": "axe_smash",
+    "allowedWeaponTypes": [
+      "Axe"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Gamble Scroll",
+    "lore": "A dice-stained page. Half the wagers are crossed out; the winners are circled.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Gamble (Weapon Art)",
+    "teachesWeaponArtId": "axe_gamble",
+    "allowedWeaponTypes": [
+      "Axe"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Longshot Scroll",
+    "lore": "Hunter's tally of shots taken through brush. The misses column is short.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Longshot (Weapon Art)",
+    "teachesWeaponArtId": "bow_longshot",
+    "allowedWeaponTypes": [
+      "Bow"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Curved Shot Scroll",
+    "lore": "Arc tables for loosing over walls, worked out by someone with a lot of arrows.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Curved Shot (Weapon Art)",
+    "teachesWeaponArtId": "bow_curved_shot",
+    "allowedWeaponTypes": [
+      "Bow"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Heavy Draw Scroll",
+    "lore": "Bowyer's warning on the cover: do not attempt with a borrowed bow.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Heavy Draw (Weapon Art)",
+    "teachesWeaponArtId": "bow_heavy_draw",
+    "allowedWeaponTypes": [
+      "Bow"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Focused Bolt Scroll",
+    "lore": "Apprentice exercise: one spark, one point, no flourishes.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Focused Bolt (Weapon Art)",
+    "teachesWeaponArtId": "magic_focused_bolt",
+    "allowedWeaponTypes": [
+      "Tome",
+      "Light"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Resonance Scroll",
+    "lore": "A treatise on minds and fire. The longer you study it, the harder it hits.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Resonance (Weapon Art)",
+    "teachesWeaponArtId": "magic_resonance",
+    "allowedWeaponTypes": [
+      "Tome",
+      "Light"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Seal Speed Scroll",
+    "lore": "Surgeon's chart of the leg, the tendons marked in a soldier's hand.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Seal Speed (Weapon Art)",
+    "teachesWeaponArtId": "sword_seal_speed",
+    "allowedWeaponTypes": [
+      "Sword"
+    ],
+    "price": 2000
+  },
+  {
+    "name": "Poison Strike Scroll",
+    "lore": "A recipe card for blade venom, stained at one corner. Wash your hands.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Poison Strike (Weapon Art)",
+    "teachesWeaponArtId": "sword_poison_strike",
+    "allowedWeaponTypes": [
+      "Sword"
+    ],
+    "price": 2000
+  },
+  {
+    "name": "Vaulting Thrust Scroll",
+    "lore": "Lancer's vaulting drill, drawn mid-leap. The landing page is torn out.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Vaulting Thrust (Weapon Art)",
+    "teachesWeaponArtId": "lance_vaulting_thrust",
+    "allowedWeaponTypes": [
+      "Lance"
+    ],
+    "price": 2000
+  },
+  {
+    "name": "Shatter Slash Scroll",
+    "lore": "Siege notes on breaking a guard so it stays broken.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Shatter Slash (Weapon Art)",
+    "teachesWeaponArtId": "lance_shatter_slash",
+    "allowedWeaponTypes": [
+      "Lance"
+    ],
+    "price": 2000
+  },
+  {
+    "name": "Diamond Axe Scroll",
+    "lore": "Smith's boast in thick letters: hit hard enough and aim stops mattering.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Diamond Axe (Weapon Art)",
+    "teachesWeaponArtId": "axe_diamond_axe",
+    "allowedWeaponTypes": [
+      "Axe"
+    ],
+    "price": 2000
+  },
+  {
+    "name": "War Cry Scroll",
+    "lore": "Mostly blank. The war cry itself was too loud to write down.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches War Cry (Weapon Art)",
+    "teachesWeaponArtId": "axe_war_cry",
+    "allowedWeaponTypes": [
+      "Axe"
+    ],
+    "price": 2000
+  },
+  {
+    "name": "Break Shot Scroll",
+    "lore": "Field anatomy for archers: every joint in the armor, circled in red.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Break Shot (Weapon Art)",
+    "teachesWeaponArtId": "bow_break_shot",
+    "allowedWeaponTypes": [
+      "Bow"
+    ],
+    "price": 2000
+  },
+  {
+    "name": "Waning Shot Scroll",
+    "lore": "Marksman's note: wound the sword arm and the fight is half over.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Waning Shot (Weapon Art)",
+    "teachesWeaponArtId": "bow_waning_shot",
+    "allowedWeaponTypes": [
+      "Bow"
+    ],
+    "price": 2000
+  },
+  {
+    "name": "Seal Magic Scroll",
+    "lore": "Witch-hunter's pamphlet on rattling a caster mid-chant.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Seal Magic (Weapon Art)",
+    "teachesWeaponArtId": "bow_seal_magic",
+    "allowedWeaponTypes": [
+      "Bow"
+    ],
+    "price": 2000
+  },
+  {
+    "name": "Purifying Light Scroll",
+    "lore": "Temple homily on gathered light, read aloud before battle.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Purifying Light (Weapon Art)",
+    "teachesWeaponArtId": "magic_purifying_light",
+    "allowedWeaponTypes": [
+      "Light"
+    ],
+    "price": 2000
+  },
+  {
     "name": "Godsend",
     "lore": "Blessed at a roadside shrine for a copper. Its rider swears the aim was extra.",
     "type": "Lance",

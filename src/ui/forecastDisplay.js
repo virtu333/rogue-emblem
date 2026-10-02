@@ -2,6 +2,7 @@ import { traitEffectText } from './traitContent.js';
 import { getMasteryPerk } from '../engine/MasterySystem.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import { hitProbability } from '../engine/HitRoll.js';
+import { forecastRawDamage, forecastStrikeGroups } from '../engine/Combat.js';
 
 /**
  * A strike's real chance to land, as a whole percent. Hit is rolled as the
@@ -21,6 +22,25 @@ export const formatHitChance = (hit) => `${hitChancePercent(hit)}%`;
 export const formatCritChance = (crit) => `${Math.max(0, Math.min(100, Number(crit) || 0))}%`;
 export const formatStrikes = (count) => `×${Math.max(1, Number(count) || 1)}`;
 
+/**
+ * A side's strikes with their damage. A weapon art that keeps its follow-up strikes
+ * plain the second time, so its follow-up shows its own damage: "12×1 + 7×1".
+ */
+export function formatDamageStrikes(info) {
+  const fu = info?.followUp;
+  if (!fu) return `${info?.damage ?? 0}${formatStrikes(info?.attackCount)}`;
+  const firstCount = Math.max(1, (Number(info.attackCount) || 0) - fu.attackCount);
+  return `${info.damage}${formatStrikes(firstCount)} + ${fu.damage}${formatStrikes(fu.attackCount)}`;
+}
+
+/** The planned strike count; an art's plain follow-up shows its damage: "×1 then ×1 (7)". */
+export function formatPlannedStrikes(info) {
+  const fu = info?.followUp;
+  if (!fu) return formatStrikes(info?.attackCount);
+  const firstCount = Math.max(1, (Number(info.attackCount) || 0) - fu.attackCount);
+  return `${formatStrikes(firstCount)} then ${formatStrikes(fu.attackCount)} (${fu.damage})`;
+}
+
 // Conservative, RNG-free display estimate. Never used to resolve combat.
 export function forecastProjection(forecast) {
   if (!forecast?.display?.simpleExchange) return null;
@@ -28,29 +48,29 @@ export function forecastProjection(forecast) {
     d = forecast.defender;
   let attackerHP = a.hp,
     defenderHP = d.hp;
-  // Strikes per round: a brave weapon or multi-hit art strikes more than once
-  // each time it acts (attackCount already includes doubling).
-  const perRound = (info) =>
-    Math.max(1, Math.round((info.attackCount || 1) / (info.doubles ? 2 : 1)));
-  const round = (side) => {
-    const info = side === 'a' ? a : d;
-    for (let i = 0; i < perRound(info); i++) {
+  // Each side's strikes as rounds: the first (a brave weapon or multi-hit art strikes
+  // more than once), then the follow-up, which for a weapon art is a plain strike.
+  const groups = { a: forecastStrikeGroups(a), d: d.canCounter ? forecastStrikeGroups(d) : [] };
+  const round = (side, index) => {
+    const g = groups[side][index];
+    if (!g) return;
+    for (let i = 0; i < g.count; i++) {
       if (attackerHP <= 0 || defenderHP <= 0) return;
       // Thorns sends part of each landed hit back, but never takes the last HP.
-      if (side === 'a' && a.attackCount > 0 && a.hit > 0) {
-        defenderHP = Math.max(0, defenderHP - a.damage);
-        if (a.thornsReflect > 0) attackerHP = Math.max(1, attackerHP - a.thornsReflect);
+      if (side === 'a' && g.hit > 0) {
+        defenderHP = Math.max(0, defenderHP - g.damage);
+        if (g.thornsReflect > 0) attackerHP = Math.max(1, attackerHP - g.thornsReflect);
       }
-      if (side === 'd' && d.canCounter && d.hit > 0) {
-        attackerHP = Math.max(0, attackerHP - d.damage);
-        if (d.thornsReflect > 0) defenderHP = Math.max(1, defenderHP - d.thornsReflect);
+      if (side === 'd' && g.hit > 0) {
+        attackerHP = Math.max(0, attackerHP - g.damage);
+        if (g.thornsReflect > 0) defenderHP = Math.max(1, defenderHP - g.thornsReflect);
       }
     }
   };
-  round('a');
-  round('d');
-  if (a.doubles) round('a');
-  if (d.doubles) round('d');
+  round('a', 0);
+  round('d', 0);
+  round('a', 1);
+  round('d', 1);
   return { attackerHP, defenderHP };
 }
 export function triangleText(forecast) {
@@ -66,7 +86,7 @@ export function counterRisk(forecast, attackerHP = forecast?.attacker?.hp) {
   if (forecast.display?.simpleExchange && a.hit >= 100 && a.damage >= d.hp) return '';
   if (forecast.display?.counterHasDamageProc)
     return 'Enemy skills can change counterattack damage.';
-  const base = d.damage * Math.max(1, d.attackCount || 1);
+  const base = Math.max(forecastRawDamage(d), d.damage);
   const possible = base * (d.crit > 0 ? 3 : 1);
   return possible >= attackerHP
     ? `${d.crit > 0 && base < attackerHP ? 'A critical counter' : 'The counterattack'} could defeat ${a.name}.`

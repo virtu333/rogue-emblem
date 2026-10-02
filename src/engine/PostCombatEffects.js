@@ -399,6 +399,17 @@ export function* areaDamage(step, sourceUnit, primary, world, result = null) {
         killed,
       });
   }
+  // A draining area (Hollow Feast) heals its user from what the blows dealt.
+  const drainPercent = Number(step.area.drainPercent) || 0;
+  if (drainPercent > 0 && sourceUnit.currentHP > 0) {
+    let total = 0;
+    for (const { damage } of dealt.values()) total += damage;
+    const healed = healUnit(sourceUnit, Math.floor(total * drainPercent));
+    if (healed > 0) {
+      yield { kind: 'hp', unit: sourceUnit };
+      yield { kind: 'hint', unit: sourceUnit, text: `Drain +${healed}`, tone: 'heal' };
+    }
+  }
   for (const unit of fellToBlows) {
     if (!stillStanding(unit, sourceUnit, world)) continue;
     yield { kind: 'remove', unit, killer: sourceUnit };
