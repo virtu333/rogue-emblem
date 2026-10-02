@@ -592,10 +592,24 @@ heads are rerunning checks after fixture updates. Main remains unchanged.
 
 ## Round-three progress and release rules — 2026-10-01
 
-The review and accepted PR 6 design are in `stability-round3-remediation-2026-10-01.md` and `stability-pr6-action-settlement.md`. #168 has merged (`31fb3524`); #174 remains open pending merge approval. All seven individual heads had green CI before the round-three fixes. Green CI does not establish the missing guard or reservation scenarios.
+The review and accepted PR 6 design are in `stability-round3-remediation-2026-10-01.md` and `stability-pr6-action-settlement.md`. #168 has merged (`31fb3524`); #174 merged (`ddf7cc93`). All seven individual heads had green CI before the round-three fixes. Green CI does not establish the missing guard or reservation scenarios.
 
 The latest installed checkpoint wins. Retry writes its frozen candidate through saveRun and cannot reapply costs, recapture, reseed, or append a timeline row. Retain an older failed candidate across a pre-install construction failure only as recovery evidence; retry must refuse it if live gameplay has advanced. Once a newer checkpoint installs, the older candidate is discarded. Local storage failure can return a refresh/crash to the last durable checkpoint; Retry or Keep playing makes that bounded exception explicit. Cloud upload protection with a durable local save does not trigger the local-save modal.
 
 The prior round-two combined numbers (9,284 unit, 236 harness/simulation, 22 final Chromium cases) are local verification, not CI on the combined branch. Mutation counts are reports of executed checks, not independent coverage statistics. Same-build legacy live/resume and fixed-v1 presentation parity are distinct guarantees; cross-build resume parity requires a migration test and is not asserted by the live-play matrix. Physical iOS/WebKit remain unverified.
 
 Known follow-up: construction-time controller sessions cannot identify an older continuation that lazily constructs a new controller after restart. Existing waits and continuation checks are guarded; full operation-origin propagation remains a separate audited API change. Paused current-session delayed helpers may settle immediately; shutdown/replacement waits park.
+
+
+## PR 6 implementation and final local verification
+
+Staff and consumables, movement/abilities/recruitment, and local save retry now implement the accepted settlement design. PR 6a is #176, PR 6b is #177, and PR 6c is #178. Costs, HP/positions, growth and recruitment settle synchronously before the continuation checkpoint and optional presentation. Save retry keeps a frozen candidate, gates the next pipeline boundary, supports Keep playing and warned exit, and checks terminal/session ownership. Renderer failure cannot retain inaccessible modal/input ownership or prevent the retry writer.
+
+Historical local verification used unpublished checkout `4df5e656`; [published equivalent source/tests `4e54ff267`](https://github.com/virtu333/rogue-emblem/commit/4e54ff26706819ae4c179197a4f6a48810276e7a) makes the same source and tests reproducible (documentation and ancestry differ). Those local runs passed 579 unit files / 9,509 tests, 14 harness files / 226 tests and 9 simulation files / 41 tests. Real Chromium verification passed 42 unique battle/action/retry cases without retries plus 9 slot-picker cases; retry layouts were inspected at 640×480 and phone landscape/portrait. Independent review reported 185 passing targeted tests. Physical iOS/WebKit and cross-build resume parity are not covered by those numbers. The strict PR harness fuzz suite passed 50 runs and the four strict full-run PR slices passed 42 runs without stuck cases or timeouts. These are local checks; CI on the published heads is queued.
+
+The old fixture failures and the two independent retry review findings are documented in `stability-round3-remediation-2026-10-01.md`. The class-change, phase and damaged-save fixes are included in the combined source. No further architecture is introduced: construction-only controller origin propagation remains a disclosed follow-up; PR 7 pair recovery and PR 8 computed combat outcomes remain to implement.
+
+
+## Round-four remediation
+
+The checked feedback, fixes, published verification source, and remaining scope are recorded in `stability-round4-remediation-2026-10-01.md`. #171, #173 and #175 have merged. Remaining PRs merge only after their revised-head checks pass, using merge commits. Failed quota attempts retain the full frozen retry candidate; history is adopted in trimmed form only when a fallback write succeeds.

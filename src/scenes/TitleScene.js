@@ -27,6 +27,7 @@ import {
   setActiveSlot,
   getMetaKey,
   clearAllSlotData,
+  prepareRecoveryLogout,
 } from '../engine/SlotManager.js';
 import { buildTutorialRoster as _buildTutorialRoster } from '../engine/TutorialHelpers.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
@@ -40,6 +41,7 @@ import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 import { throttledRead } from '../utils/throttledRead.js';
+import { nativeCapacitor, getNativeSaveMirror } from '../utils/nativeSaveMirror.js';
 
 const VERSION = 'v0.1.0';
 const CLOUD_EXPIRED_NOTICE = 'Cloud unavailable - local saves only (re-auth required)';
@@ -328,48 +330,13 @@ export class TitleScene extends Phaser.Scene {
    */
   async _handleLogout(cloud) {
     if (this._logoutInProgress || this.nativeMenu) return;
-    const conflicts = Array.from({ length: MAX_SLOTS }, (_, i) => i + 1).filter(
-      getCloudSaveConflict,
-    );
-    if (conflicts.length) {
-      this._setLogoutNotice(
-        'Choose which save to keep in Save Slots before logging out. Both versions are still safe.',
-        'warn',
-      );
-      if (hasDOMHost()) {
-        const menu = this._openTitleMenu('Resolve saved versions first');
-        menu.body.append(
-          element(
-            'p',
-            `Slot ${conflicts.join(', ')} has both a device and cloud save. Logging out would remove the unchosen device version. Open Save Slots to choose which version to keep first.`,
-          ),
-        );
-        menu.body.append(
-          button('Stay signed in', () => this._closeTitleMenu(), 're-btn re-btn--primary'),
-        );
-        menu.body.append(
-          button('Review saved versions', () => {
-            this._closeTitleMenu();
-            void this.runMenuTransition(() =>
-              transitionToScene(
-                this,
-                'SlotPicker',
-                { gameData: this.gameData },
-                { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
-              ),
-            );
-          }),
-        );
-        menu.focusContent();
-      }
-      return;
-    }
+    this._logoutUserId = cloud.userId;
     this._logoutInProgress = true;
     this._setLogoutNotice('Backing up to cloud...', 'info');
     this._showLogoutProgress('Backing up saves', 'Checking that local progress reached the cloud…');
     let backupConfirmed = false;
     try {
-      backupConfirmed = await backupAllLocalSlots(cloud.userId);
+      backupConfirmed = await backupAllLocalSlots(cloud.userId, { skipRecovery: true });
     } catch {
       /* Keep local data and offer a fresh, explicit decision. */
     }
@@ -405,7 +372,7 @@ export class TitleScene extends Phaser.Scene {
             confirm.body.append(
               element(
                 'p',
-                'The backup did not finish. Every local save slot will be deleted from this device. Progress not already in the cloud will be lost.',
+                'The backup did not finish. Playable local save slots will be deleted from this device. Damaged saves and recovery copies are kept. Progress not already in the cloud will be lost.',
               ),
             );
             confirm.body.append(
@@ -427,9 +394,55 @@ export class TitleScene extends Phaser.Scene {
     await this._finishLogout();
   }
 
-  async _finishLogout() {
+  async _finishLogout({ keepUndurableRecovery = false } = {}) {
     if (this._logoutInProgress) return;
     this._logoutInProgress = true;
+    const prepared = prepareRecoveryLogout(
+      this._logoutUserId || this.registry?.get?.('cloud')?.userId,
+    );
+    if (!prepared.ok) {
+      this._logoutInProgress = false;
+      this._setLogoutNotice(prepared.reason, 'bad');
+      return;
+    }
+    if (nativeCapacitor() && prepared.markers.length && !keepUndurableRecovery) {
+      this._showLogoutProgress('Keeping recovery data', 'Verifying save ownership on this device…');
+      try {
+        const mirror = getNativeSaveMirror();
+        if (!mirror) throw new Error('Device backup is unavailable. Stay signed in and retry.');
+        for (const { key, raw } of prepared.markers) {
+          if (!(await mirror.ensureDurable(key, raw)))
+            throw new Error(
+              'Recovery ownership could not be saved to disk. Stay signed in and retry.',
+            );
+        }
+      } catch (error) {
+        this._logoutInProgress = false;
+        this._closeTitleMenu();
+        this._setLogoutNotice(error.message, 'bad');
+        if (hasDOMHost()) {
+          const menu = this._openTitleMenu('Keep recovery data on this device?');
+          menu.body.append(
+            element(
+              'p',
+              'The device backup could not be verified. Your recovery data and account ownership stay in this device’s local storage when you sign out. That copy can be lost if the device clears local storage. Stay signed in to retry the device backup, or explicitly keep this local copy and sign out.',
+            ),
+          );
+          menu.body.append(
+            button('Stay signed in', () => this._closeTitleMenu(), 're-btn re-btn--primary'),
+          );
+          menu.body.append(
+            button('Keep recovery data on this device and sign out', () => {
+              if (this.nativeMenu !== menu) return;
+              this._closeTitleMenu();
+              void this._finishLogout({ keepUndurableRecovery: true });
+            }),
+          );
+          menu.focusContent();
+        }
+        return;
+      }
+    }
     this._showLogoutProgress(
       'Signing out',
       'Finishing sign out before clearing this device’s account data…',
@@ -442,6 +455,8 @@ export class TitleScene extends Phaser.Scene {
       this._setLogoutNotice('Could not log out. Local saves were kept. Please retry.', 'bad');
       return;
     }
+    // Sign-out clears backed-up playable cache, preserving damaged/conflicting
+    // slots and recovery copies. Those stay blocked from play and cloud upload.
     clearAllSlotData();
     try {
       localStorage.removeItem('emblem_rogue_settings');
@@ -478,10 +493,14 @@ export class TitleScene extends Phaser.Scene {
 
   _refreshCloudSyncStatusNotice() {
     const cloud = this.registry.get('cloud');
-    const showNotice = !!cloud?.syncStatus?.authExpired;
-    if (showNotice === this._cloudNoticeShown) return;
-    this._cloudNoticeShown = showNotice;
-    this.titleView?.setCloudNotice(showNotice ? CLOUD_EXPIRED_NOTICE : '');
+    const message = cloud?.syncStatus?.authExpired
+      ? CLOUD_EXPIRED_NOTICE
+      : cloud?.syncStatus?.mode === 'local_only'
+        ? cloud.syncStatus.message
+        : '';
+    if (message === this._cloudNoticeShown) return;
+    this._cloudNoticeShown = message;
+    this.titleView?.setCloudNotice(message);
   }
 
   update() {

@@ -5307,15 +5307,17 @@ export function saveRun(runManager, onSave, slotNumber, { candidate = null } = {
     return { ok: false, reason: isQuota ? 'quota' : 'write_error', isQuotaError: isQuota };
   }
 
+  let cloud = { queued: false, reason: 'offline' };
   if (localOk && onSave) {
     try {
-      onSave(json);
+      cloud = onSave(json) ?? { queued: true };
     } catch (err) {
       console.warn('[RunManager] onSave callback error:', err?.message || err);
+      cloud = { queued: false, reason: 'callback_error' };
     }
   }
 
-  return { ok: true };
+  return { ok: true, cloud };
 }
 
 /**
@@ -5486,11 +5488,18 @@ export function clearSavedRun(onClear, slotNumber) {
   }
   const key = getRunKey(slot);
   const floorKey = getRunClockFloorKey(slot);
+  let abandonedRun = null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw !== null) abandonedRun = JSON.parse(raw);
+  } catch {
+    /* Unknown run identity cannot authorize a cloud deletion. */
+  }
   try {
     localStorage.removeItem(key);
     localStorage.removeItem(floorKey);
   } catch (_) {
     /* ignore */
   }
-  if (onClear) onClear(slot);
+  if (onClear) onClear(slot, abandonedRun);
 }

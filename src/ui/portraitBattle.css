@@ -512,3 +512,23 @@
   /* The level-up card's upright layout lives with the card (growth.css, "Upright
      phones"): it shows over the colosseum and the roster too, not only in battle. */
 }
+
+/* A failed local write remains visible while play continues. */
+.battle-save-status {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--re-depth-forecast);
+  max-width: min(92vw, 420px);
+  padding: 6px 10px;
+  background: var(--re-bg, #0a0c1e);
+  border: 1px solid var(--re-line, #3a3660);
+  color: var(--re-text, #eee);
+  font: 13px/1.35 var(--re-body, system-ui, sans-serif);
+  pointer-events: none;
+}
+
+#game-wrapper:has(.re-modal-shield [data-save-retry]) .mobile-battle-hud {
+  visibility: hidden;
+}

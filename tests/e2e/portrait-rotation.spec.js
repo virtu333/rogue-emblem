@@ -920,6 +920,9 @@ test('a switch whose save fails keeps the battle playable, and turning again ret
     await scene(page, () => window.__emblemRogueGame.scene.getScene('Battle').input.enabled),
   ).toBe(true);
   await moveAndWait(page, 'Sera');
+  await expect(page.locator('[data-save-retry="action"]')).toBeVisible();
+  await page.locator('[data-save-retry-action="keep"]').click();
+  await expect(page.locator('.battle-save-status')).toHaveText('Not saved');
   await moveAndWait(page, 'Gaspar');
   // All three starters acted: the enemy phase plays on the turned board (its saves fail too).
   await settleBattle(page, () => {

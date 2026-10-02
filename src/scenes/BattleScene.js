@@ -31,14 +31,14 @@ import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
-import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
+import { getWeaponArtIds, killMoveRefreshesActor } from '../engine/WeaponArtSystem.js';
 import {
   canInspectUnit,
   seenTileOccupant,
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
-import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
+import { playerKnowledgeOf } from '../ui/battleKnowledge.js';
 import {
   CANTO_CONFIRM_STATE,
   canUseDanger,
@@ -47,7 +47,7 @@ import {
   railOwnsMenus,
   rowText,
 } from '../ui/battleMenuModel.js';
-import { applyXpGain, combatXpAwards, scaledXp } from '../engine/BattleXp.js';
+import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../engine/BattleXp.js';
 import { postCombatEffects, allyBuff } from '../engine/PostCombatEffects.js';
 import {
   applyTimedBuffEntry,
@@ -123,6 +123,7 @@ import {
   getEntityCenter,
   entityHealth,
 } from '../engine/EntitySystem.js';
+import { bindEnemyAreaArt } from '../engine/EnemyAreaArts.js';
 import {
   createLordUnit,
   createEnemyUnit as createEnemyUnitFromClass,
@@ -333,6 +334,7 @@ import {
   findBattleEntity,
 } from '../engine/BattleEntityIdentity.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
+import { SaveRetryController } from '../ui/SaveRetryController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
 import { PortraitBattleController } from '../ui/PortraitBattleController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
@@ -395,19 +397,6 @@ const POST_COMBAT_HINT_COLORS = {
 };
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 
-/**
- * The board as the player knows it (PlayerKnowledge.js): their own units, what the
- * fog shows and the recruit's beacon (it shows through the fog). Every pre-commit
- * preview reads this view.
- */
-function playerKnowledgeOf(scene) {
-  return createPlayerKnowledge({
-    grid: scene.grid,
-    units: [...(scene.playerUnits || []), ...(scene.enemyUnits || []), ...(scene.npcUnits || [])],
-    revealed: [scene._recruitBeacon?.npc],
-  });
-}
-
 /** The battle's Zombie remains (ZombieRemainsController), made on first use. */
 function remainsOf(scene) {
   return (scene._remainsCtrl ||= new ZombieRemainsController(scene));
@@ -454,6 +443,11 @@ export class BattleScene extends Phaser.Scene {
     // Never reset this identity: Phaser restarts reuse the same Scene instance.
     this._cancelLifecycleAwaits('scene_replaced');
     this._battleSession = (this._battleSession || 0) + 1;
+    this._saveRetry?.destroy();
+    this._saveRetry = null;
+    this._checkpointPersistenceResult = null;
+    this._saveFailureReported = false;
+    this._cloudPushErrorReported = false;
     if (!data) {
       console.error('[BattleScene] init() called without data:', data);
       throw new Error('BattleScene requires data');
@@ -604,6 +598,8 @@ export class BattleScene extends Phaser.Scene {
   _runSceneShutdownCleanup() {
     if (this._sceneShutdownCleanedUp) return;
     this._sceneShutdownCleanedUp = true;
+    this._saveRetry?.destroy();
+    this._saveRetry = null;
 
     const audio = this.registry.get('audio');
     // Turning the phone re-opens the battle from its checkpoint; the re-opened scene
@@ -2258,6 +2254,7 @@ export class BattleScene extends Phaser.Scene {
 
   isStoryInputLocked() {
     return Boolean(
+      this._saveRetry?.isBlocking() ||
       this._storyDialogueActive ||
       this._ceremonies?.isBlocking?.() ||
       this.dialogueOverlay?.visible ||
@@ -2698,6 +2695,7 @@ export class BattleScene extends Phaser.Scene {
       difficultyId: this.battleParams?.difficultyId,
     });
 
+    if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
     if (
       spawn.aiTargetTile &&
@@ -3627,6 +3625,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   update() {
+    this._saveRetry?.update();
     if (this.dangerZone?.visible && this.dangerZoneStale) this.refreshVisibleDangerZone();
     this._pinnedThreats?.refresh();
     this._recruitBeacon?.sync();
@@ -4489,7 +4488,10 @@ export class BattleScene extends Phaser.Scene {
             // A payout that did not reach disk keeps the save so it can retry.
             if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
               clearSavedRun(
-                cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+                cloud
+                  ? (resolvedSlot, abandonedRun) =>
+                      deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+                  : null,
                 slot,
               );
             const audio = this.registry.get('audio');
@@ -4529,6 +4531,23 @@ export class BattleScene extends Phaser.Scene {
     const saveExitCb = this.runManager
       ? async () => {
           try {
+            const terminal = () =>
+              this.battleState === 'BATTLE_END' ||
+              this._fatalDecision ||
+              this._fatalCapturePending ||
+              this._defeatDecision;
+            if (!isCurrentBattleSession(this, session) || terminal()) return;
+            if (this._saveRetry) {
+              const durable = await this._saveRetry.ensureDurableForExit({ session });
+              if (!isCurrentBattleSession(this, session) || terminal()) return;
+              if (!durable) {
+                this.battleState = this.prePauseState || 'PLAYER_IDLE';
+                this.pauseOverlay = null;
+                this.refreshEndTurnControl();
+                onResume?.();
+                return;
+              }
+            }
             // Return to title -- the suspend checkpoint is already persisted,
             // so Continue will offer Resume Battle / Continue from Map.
             this.clearBattleScopedDeltas(this.playerUnits);
@@ -4590,11 +4609,13 @@ export class BattleScene extends Phaser.Scene {
         onResume?.();
       },
       onSaveAndExit: saveExitCb,
-      onSaveAndExitWarning: fromRewards
-        ? 'Your battle and remaining rewards are saved. Resume returns to the map, where you can reopen rewards.'
-        : backToMap
-          ? 'The battle has not started. Resume on the Title screen returns to the map; this battle waits there.'
-          : 'Battle suspended. Choose Resume on the Title screen to pick up where you left off.',
+      onSaveAndExitWarning: this._saveRetry?.isUnsaved()
+        ? 'Not saved yet. Exit tries to save it.'
+        : fromRewards
+          ? 'Your battle and remaining rewards are saved. Resume returns to the map, where you can reopen rewards.'
+          : backToMap
+            ? 'The battle has not started. Resume on the Title screen returns to the map; this battle waits there.'
+            : 'Battle suspended. Choose Resume on the Title screen to pick up where you left off.',
       onBackToMap: backToMap,
       onAbandon: abandonCb,
       campaignMapData,
@@ -7782,21 +7803,10 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  _scoreEnemyWeaponArt(unit, art) {
-    return (this._weaponArtController ||= new WeaponArtController(this))._scoreEnemyWeaponArt(
-      unit,
-      art,
-    );
-  }
-
   _getEnemyWeaponArtDifficultyId() {
     return (this._weaponArtController ||= new WeaponArtController(
       this,
     ))._getEnemyWeaponArtDifficultyId();
-  }
-
-  _getEnemyWeaponArtTuning() {
-    return (this._weaponArtController ||= new WeaponArtController(this))._getEnemyWeaponArtTuning();
   }
 
   _selectEnemyWeaponArt(unit, target) {
@@ -8209,6 +8219,11 @@ export class BattleScene extends Phaser.Scene {
     if (!isCurrentBattleSession(this, session)) return;
     await this._checkPhoenixBrooch(defender);
     if (!isCurrentBattleSession(this, session)) return;
+    // An area art's other victims lost HP too (result.areaCredits).
+    for (const { victim } of result.areaCredits || []) {
+      await this._checkPhoenixBrooch(victim);
+      if (!isCurrentBattleSession(this, session)) return;
+    }
 
     return { result, selectedArt };
   }
@@ -8325,6 +8340,18 @@ export class BattleScene extends Phaser.Scene {
       scene: this,
     });
     this._commitCombatIntent(attacker, defender);
+    const saveGate = this._saveRetryGate(session);
+    if (saveGate) {
+      await saveGate;
+      if (
+        !isCurrentBattleSession(this, session) ||
+        this.battleState === 'BATTLE_END' ||
+        this._fatalDecision ||
+        this._fatalCapturePending ||
+        this._defeatDecision
+      )
+        return;
+    }
     this.resetFortHealStreak(attacker);
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
     const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
@@ -8334,7 +8361,7 @@ export class BattleScene extends Phaser.Scene {
         isPlayerInitiator: true,
         equipArtWeapon: true,
       });
-      const { result } = await this._runCombatResolution(attacker, defender, ctx);
+      const { result, selectedArt } = await this._runCombatResolution(attacker, defender, ctx);
       if (!isCurrentBattleSession(this, session)) return;
       // The outcome is applied to live state now; every checkpoint from here
       // on reflects it, so none may carry the pre-roll intent.
@@ -8345,12 +8372,19 @@ export class BattleScene extends Phaser.Scene {
           0,
           defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
         );
+        // The area art's other victims pay too (BattleXp.AREA_XP_LIVE, the switch the
+        // harness reads), each credit the attacker's own.
         await this.awardXP(
           attacker,
           defender,
           defender.currentHP <= 0,
           damageDealt,
           defenderHpAtStart,
+          {
+            credits: AREA_XP_LIVE
+              ? (result.areaCredits || []).filter((credit) => credit.source === attacker)
+              : [],
+          },
         );
         if (!isCurrentBattleSession(this, session)) return;
       }
@@ -8426,6 +8460,10 @@ export class BattleScene extends Phaser.Scene {
         gambitTriggered: result.events.some((event) =>
           event.skillActivations?.some((skill) => skill.id === 'commanders_gambit'),
         ),
+        // Galeforce: decided now, after the casualties fell; saved with the action.
+        ...(killMoveRefreshesActor({ art: selectedArt, attacker, primary: defender })
+          ? { refreshActor: true }
+          : {}),
       };
       await presentQueuedLevelUps(this, continuation, { session });
       if (!isCurrentBattleSession(this, session)) return;
@@ -8500,6 +8538,7 @@ export class BattleScene extends Phaser.Scene {
       rows: this.grid.rows,
       getMoveCost: (col, row, moveType) => this.grid.getMoveCost(col, row, moveType),
       getUnitAt: (col, row) => this.getUnitAt(col, row),
+      getTerrainAt: (col, row) => this.grid.getTerrainAt?.(col, row) ?? null,
       hostilesOf: (unit) => this._getTier5HostileUnitsFor(unit),
       alliesOf: (unit) => this.getDivineChargeAllies(unit),
       turnNumber: this.turnManager?.turnNumber,
@@ -8834,11 +8873,15 @@ export class BattleScene extends Phaser.Scene {
     opponentDied,
     damageDealt = null,
     defenderHpAtStart = null,
-    { survivedAttack = false } = {},
+    { survivedAttack = false, credits = [] } = {},
   ) {
     const session = battleSession(this);
-    // Who earns what (BattleXp.combatXpAwards): the unit, then Mentor's Band shares.
-    const awards = combatXpAwards({
+    // Who earns what (BattleXp.actionXpAwards): the unit, then Mentor's Band shares, the
+    // area art's other victims (`credits`, result.areaCredits) included.
+    const awards = actionXpAwards({
+      credits,
+      rewardMultiplierOf: (victim) => this.getEnemyXpMultiplier(victim),
+      areaXp: this.gameData?.weaponArts?.areaXp,
       unit: playerUnit,
       opponent,
       opponentDied,
@@ -8999,6 +9042,22 @@ export class BattleScene extends Phaser.Scene {
         slot,
         { candidate },
       );
+      if (result.ok) {
+        this._saveFailureReported = false;
+        this._saveRetry?.onDurableWrite({ session });
+        if (result.cloud?.reason === 'callback_error' && !this._cloudPushErrorReported) {
+          this._cloudPushErrorReported = true;
+          reportAsyncError('battle_cloud_push_error', new Error('callback_error'));
+        }
+      } else if (['quota', 'write_error'].includes(result.reason) && !this._saveFailureReported) {
+        this._saveFailureReported = true;
+        reportAsyncError('battle_save_failed', new Error(result.reason), {
+          phase: this.turnManager?.currentPhase,
+          turn: this.turnManager?.turnNumber,
+          checkpointIndex: this.runManager.battleInProgress?.checkpoint?.checkpointIndex,
+          policy: this._battleRewindPolicy,
+        });
+      }
       if (!result.ok && result.reason !== 'missing_slot') {
         console.warn('[BattleScene] battle-state save failed:', result.reason);
       }
@@ -9007,6 +9066,18 @@ export class BattleScene extends Phaser.Scene {
       console.warn('[BattleScene] battle-state save failed:', err?.message || err);
       return { ok: false, reason: 'write_error' };
     }
+  }
+
+  _onCheckpointResult(result, options) {
+    if (!isCurrentBattleSession(this, options.session)) return;
+    (this._saveRetry ||= new SaveRetryController(this).create()).onCheckpointResult(
+      result,
+      options,
+    );
+  }
+
+  _saveRetryGate(session) {
+    return this._saveRetry?.whenSettled(session) || null;
   }
 
   /** Suspend-checkpoint shim (see BattleSuspendController). */
@@ -9587,6 +9658,18 @@ export class BattleScene extends Phaser.Scene {
             this.battleState === 'BATTLE_END'
           ) {
             return;
+          }
+          const saveGate = this._saveRetryGate(session);
+          if (saveGate) {
+            await saveGate;
+            if (
+              !isCurrentBattleSession(this, session) ||
+              this.battleState === 'BATTLE_END' ||
+              this._fatalDecision ||
+              this._fatalCapturePending ||
+              this._defeatDecision
+            )
+              return;
           }
           // The army's end-of-phase hazards also reach its NPC allies.
           await this.processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
@@ -10286,6 +10369,18 @@ export class BattleScene extends Phaser.Scene {
                 } finally {
                   this._enemyActionCheckpoint = false;
                 }
+                const saveGate = this._saveRetryGate(session);
+                if (saveGate) {
+                  await saveGate;
+                  if (
+                    !isCurrentBattleSession(this, session) ||
+                    this.battleState === 'BATTLE_END' ||
+                    this._fatalDecision ||
+                    this._fatalCapturePending ||
+                    this._defeatDecision
+                  )
+                    return;
+                }
                 await presentQueuedLevelUps(this, null, { session });
               }
             },
@@ -10559,6 +10654,13 @@ export class BattleScene extends Phaser.Scene {
         () => (this._battleBeats ||= new BattleBeatsController(this)).onLowHealth(target),
         { scene: this },
       );
+      // An area art's other victims (result.areaCredits) get their line too.
+      for (const { victim } of result.areaCredits || [])
+        safeBattlePresentation(
+          'area victim low health',
+          () => (this._battleBeats ||= new BattleBeatsController(this)).onLowHealth(victim),
+          { scene: this },
+        );
       this.checkBattleEnd();
     } catch (err) {
       if (!isCurrentBattleSession(this, session)) return;
@@ -10878,6 +10980,8 @@ export class BattleScene extends Phaser.Scene {
       ballistas: this.ballistas || [],
       positions: () => this.buildUnitPositionMap(),
       costModifier: (unit) => this._getCostModifier(unit),
+      areaArtOf: (unit) =>
+        (this._weaponArtController ||= new WeaponArtController(this)).enemyAreaArt(unit),
     };
   }
 

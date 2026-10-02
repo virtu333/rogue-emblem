@@ -557,6 +557,9 @@ export function installSceneGuard(game) {
       );
     }
 
+    if (sceneKey === 'Battle' && scene._saveRetry?.isBlocking())
+      state.battle.stateChangedAt = Date.now();
+
     // Stuck in blocking battle state > 15s
     if (sceneKey === 'Battle' && state.battle.state && state.battle.stateChangedAt) {
       if (BLOCKING_STATES.has(state.battle.state)) {

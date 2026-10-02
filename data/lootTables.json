@@ -177,7 +177,9 @@
       "Encloser Scroll",
       "Ward Arrow Scroll",
       "Healing Light Scroll",
-      "Seraphim Scroll"
+      "Seraphim Scroll",
+      "Sweeping Cleave Scroll",
+      "Skewer Scroll"
     ],
     "legendaryWeapon": [],
     "accessories": [
@@ -310,7 +312,11 @@
       "Hunter's Volley Scroll",
       "Burning Quake Scroll",
       "Nosferatu Scroll",
-      "Silence Strike Scroll"
+      "Silence Strike Scroll",
+      "Sweeping Cleave Scroll",
+      "Skewer Scroll",
+      "Benediction Scroll",
+      "Battering Ram Scroll"
     ],
     "legendaryWeapon": [
       "Ragnarok",

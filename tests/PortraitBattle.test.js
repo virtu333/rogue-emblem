@@ -484,6 +484,8 @@ describe('PortraitBattleController', () => {
     expect(c.check()).toBe(true);
     expect(scene._battleSuspendController.captureCheckpoint).toHaveBeenCalledWith({
       preserveRng: true,
+      progress: false,
+      session: 1,
     });
     expect(scene.scene.restart).toHaveBeenCalledTimes(1);
     const data = scene.scene.restart.mock.calls[0][0];

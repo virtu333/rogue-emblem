@@ -8,11 +8,18 @@ import { getPostCombatPipelineSteps } from '../src/engine/WeaponArtPostCombat.js
 const arts = loadGameData().weaponArts.arts;
 const find = (name) => arts.find((a) => a.name === name);
 const details = (name) => weaponArtDetailLines(find(name)).join('\n');
-it('explains splash amounts, radius and target caps', () => {
+it('explains area amounts, radius, lines and target picks', () => {
   expect(details('Radiant Burst')).toContain(
-    'On hit: 75% of the first hit to up to 1 other enemy within 1 tile of the target',
+    'Area: a 75% blow to the most wounded other enemy within 1 tile of the target',
   );
-  expect(details('Cataclysm')).toContain('On hit: 5 damage to other enemies within 2 tiles');
+  expect(details('Cataclysm')).toContain(
+    'Area: 5 damage to each other enemy within 2 tiles of the target',
+  );
+  expect(details('Piercing Charge')).toContain(
+    'Area: a 100% blow to each enemy up to 1 tile behind the target, per hit',
+  );
+  // Doom Thrust pierces at range 2 but its push needs it to stand next to the target.
+  expect(details('Doom Thrust')).toContain('push the target back 1 tile (only when next to it)');
 });
 it('explains ally buffs, exclusions and duration', () => {
   // The user is left out unless the data says includeSelf.

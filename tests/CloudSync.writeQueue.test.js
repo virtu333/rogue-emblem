@@ -339,9 +339,100 @@ describe('CloudSync write queue hardening', () => {
     expect(status.mode).toBe('ok');
   });
 
+  it.each(['missing local identity', 'different remote run', 'changed during CAS retry'])(
+    'keeps the cloud run when deletion identity is unverified (%s)',
+    async (scenario) => {
+      const runApi = makeSlotTableApi({
+        slotMap: {
+          1: { runRecordId: 'cloud-other', savedAt: 100 },
+          2: { runRecordId: 'untouched' },
+        },
+        injectSingleUpdateConflict:
+          scenario === 'changed during CAS retry'
+            ? (state) => {
+                state.row.data['1'] = { runRecordId: 'new-remote-run', savedAt: 300 };
+                state.row.updated_at = 'rev-concurrent';
+              }
+            : null,
+      });
+      if (scenario === 'changed during CAS retry')
+        runApi.state.row.data['1'].runRecordId = 'abandoned-run';
+      const metaApi = makeSlotTableApi({ slotMap: { 1: { totalValor: 50, savedAt: 100 } } });
+      localStorage.setItem(getMetaKey(1), JSON.stringify({ totalValor: 99, savedAt: 200 }));
+      mocked.fromMock.mockImplementation((table) => (table === 'run_saves' ? runApi : metaApi));
+      const result = deleteRunSave(
+        'user-1',
+        1,
+        scenario === 'missing local identity' ? null : { runRecordId: 'abandoned-run' },
+      );
+      if (scenario === 'missing local identity')
+        expect(result).toEqual({ queued: false, reason: 'unverified_run' });
+      await __flushCloudSyncQueuesForTests();
+      expect(runApi.state.row.data['1'].runRecordId).toBe(
+        scenario === 'changed during CAS retry' ? 'new-remote-run' : 'cloud-other',
+      );
+      expect(runApi.state.row.data['2'].runRecordId).toBe('untouched');
+      expect(metaApi.state.row.data['1'].totalValor).toBe(50);
+    },
+  );
+
+  it.each(['same snapshot', 'different gold', 'new ID'])(
+    'deletes a legacy run only with the complete abandoned snapshot (%s)',
+    async (kind) => {
+      const abandoned = { runSeed: 7, gold: 137, savedAt: 100 };
+      const remote =
+        kind === 'different gold'
+          ? { ...abandoned, gold: 999 }
+          : kind === 'new ID'
+            ? { ...abandoned, runRecordId: 'new-run' }
+            : { savedAt: 100, gold: 137, runSeed: 7 };
+      const runApi = makeSlotTableApi({ slotMap: { 1: remote, 2: { runSeed: 8 } } });
+      const metaApi = makeSlotTableApi({ slotMap: { 1: { totalValor: 50 } } });
+      localStorage.setItem(getMetaKey(1), '{"totalValor":99,"savedAt":200}');
+      mocked.fromMock.mockImplementation((table) => (table === 'run_saves' ? runApi : metaApi));
+      deleteRunSave('user-1', 1, abandoned);
+      await __flushCloudSyncQueuesForTests();
+      if (kind === 'same snapshot') expect(runApi.state.row.data['1']).toBeUndefined();
+      else expect(runApi.state.row.data['1']).toEqual(remote);
+      expect(runApi.state.row.data['2']).toEqual({ runSeed: 8 });
+    },
+  );
+
+  it('reports suppressed cloud backup once while preserving local-only status', () => {
+    localStorage.setItem('emblem_rogue_slot_1_cloud_conflict', 'raw original conflict');
+    for (let i = 0; i < 3; i++)
+      expect(pushRunSave('user-1', 1, { runRecordId: 'live' })).toEqual({
+        queued: false,
+        reason: 'protected_slot',
+      });
+    expect(
+      mocked.reportAsyncError.mock.calls.filter(
+        ([context]) => context === 'cloud_backup_protected_slot',
+      ),
+    ).toHaveLength(1);
+    expect(getCloudSyncStatus()).toMatchObject({ mode: 'local_only', context: 'protected_slot' });
+    expect(mocked.fromMock).not.toHaveBeenCalled();
+  });
+
+  it('clears the shared protected-slot notice when backup can resume', async () => {
+    const conflict = 'emblem_rogue_slot_1_cloud_conflict';
+    localStorage.setItem(conflict, 'original conflict');
+    pushRunSave('user-1', 1, { runRecordId: 'live' });
+    const shared = getCloudSyncStatus();
+    expect(shared.mode).toBe('local_only');
+    localStorage.removeItem(conflict);
+    localStorage.setItem(getMetaKey(1), '{}');
+    const runApi = makeSlotTableApi();
+    mocked.fromMock.mockReturnValue(runApi);
+    expect(pushRunSave('user-1', 1, { runRecordId: 'live' })).toEqual({ queued: true });
+    expect(shared.mode).toBe('ok');
+    expect(shared.message).toBe('');
+    await __flushCloudSyncQueuesForTests();
+  });
+
   it('syncs local meta to cloud when deleteRunSave removes a run slot', async () => {
     const runApi = makeSlotTableApi({
-      slotMap: { 1: { runSeed: 7 } },
+      slotMap: { 1: { runRecordId: 'abandoned-run', runSeed: 7 } },
     });
     const metaApi = makeSlotTableApi({
       slotMap: { 2: { totalValor: 10 } },
@@ -355,7 +446,7 @@ describe('CloudSync write queue hardening', () => {
     const localMeta = { totalValor: 99, savedAt: 123 };
     localStorage.setItem(getMetaKey(1), JSON.stringify(localMeta));
 
-    deleteRunSave('user-1', 1);
+    deleteRunSave('user-1', 1, { runRecordId: 'abandoned-run' });
     await __flushCloudSyncQueuesForTests();
 
     expect(runApi.state.row).toBeNull();
@@ -367,7 +458,7 @@ describe('CloudSync write queue hardening', () => {
 
   it('serializes deleteRunSave with concurrent run/meta writes on shared queues', async () => {
     const runApi = makeSlotTableApi({
-      slotMap: { 1: { runSeed: 7, savedAt: 100 } },
+      slotMap: { 1: { runRecordId: 'abandoned-run', runSeed: 7, savedAt: 100 } },
     });
 
     let releaseFirstMetaUpdate;
@@ -430,7 +521,7 @@ describe('CloudSync write queue hardening', () => {
 
     localStorage.setItem(getMetaKey(1), JSON.stringify({ totalValor: 99, savedAt: 123 }));
 
-    deleteRunSave('user-1', 1);
+    deleteRunSave('user-1', 1, { runRecordId: 'abandoned-run' });
     for (let i = 0; i < 25 && metaState.updateCalls === 0; i++) await Promise.resolve();
     expect(metaState.updateCalls).toBe(1);
 
@@ -445,8 +536,38 @@ describe('CloudSync write queue hardening', () => {
     expect(metaState.updateCalls).toBe(2);
   });
 
+  it('compensating restore never overwrites a different remote run after a meta write failure', async () => {
+    const runApi = makeSlotTableApi({
+      slotMap: { 1: { runRecordId: 'abandoned-run', runSeed: 7, savedAt: 222 } },
+    });
+    const metaApi = makeSlotTableApi({
+      slotMap: { 1: { totalValor: 5, savedAt: 50 } },
+      injectSingleUpdateConflict: () => {
+        runApi.state.row = {
+          data: { 1: { runRecordId: 'new-remote', gold: 731, savedAt: 1 } },
+          updated_at: 'rev-new-run',
+        };
+      },
+      updateErrorSequence: [null, new Error('meta failed')],
+    });
+    mocked.fromMock.mockImplementation((table) => (table === 'run_saves' ? runApi : metaApi));
+    localStorage.setItem(getMetaKey(1), JSON.stringify({ totalValor: 99, savedAt: 123 }));
+    deleteRunSave('user-1', 1, { runRecordId: 'abandoned-run' });
+    await __flushCloudSyncQueuesForTests();
+    expect(runApi.state.row.data['1']).toEqual({
+      runRecordId: 'new-remote',
+      gold: 731,
+      savedAt: 1,
+    });
+    expect(mocked.reportAsyncError).toHaveBeenCalledWith(
+      'cloud_delete_run',
+      expect.any(Error),
+      expect.objectContaining({ slot: 1 }),
+    );
+  });
+
   it('restores run slot when deleteRunSave meta sync fails after run delete', async () => {
-    const runSlot = { runSeed: 7, savedAt: 222 };
+    const runSlot = { runRecordId: 'abandoned-run', runSeed: 7, savedAt: 222 };
     const runApi = makeSlotTableApi({
       slotMap: { 1: runSlot },
     });
@@ -462,7 +583,7 @@ describe('CloudSync write queue hardening', () => {
 
     localStorage.setItem(getMetaKey(1), JSON.stringify({ totalValor: 99, savedAt: 123 }));
 
-    deleteRunSave('user-1', 1);
+    deleteRunSave('user-1', 1, { runRecordId: 'abandoned-run' });
     await __flushCloudSyncQueuesForTests();
 
     expect(runApi.state.row?.data?.['1']).toEqual(runSlot);
@@ -564,7 +685,7 @@ describe('CloudSync write queue hardening', () => {
 
   it('skips deleteRunSave meta sync when local meta is malformed', async () => {
     const runApi = makeSlotTableApi({
-      slotMap: { 1: { runSeed: 7 } },
+      slotMap: { 1: { runRecordId: 'abandoned-run', runSeed: 7 } },
     });
     const metaApi = makeSlotTableApi({
       slotMap: { 1: { totalValor: 5 } },
@@ -577,22 +698,18 @@ describe('CloudSync write queue hardening', () => {
 
     localStorage.setItem(getMetaKey(1), '{bad-json');
 
-    deleteRunSave('user-1', 1);
+    deleteRunSave('user-1', 1, { runRecordId: 'abandoned-run' });
     await __flushCloudSyncQueuesForTests();
 
-    expect(runApi.state.row).toBeNull();
+    expect(runApi.state.row?.data['1'].runRecordId).toBe('abandoned-run');
     expect(metaApi.state.row?.data).toEqual({ 1: { totalValor: 5 } });
-    expect(mocked.reportAsyncError).toHaveBeenCalledWith(
-      'cloud_delete_run_meta_sync_skipped',
-      expect.any(Error),
-      expect.objectContaining({ slot: 1, reason: 'parse_error' }),
-    );
+    expect(mocked.reportAsyncError).not.toHaveBeenCalled();
   });
 
   it('skips deleteRunSave meta sync without async error when local meta is missing', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const runApi = makeSlotTableApi({
-      slotMap: { 1: { runSeed: 7 } },
+      slotMap: { 1: { runRecordId: 'abandoned-run', runSeed: 7 } },
     });
     const metaApi = makeSlotTableApi({
       slotMap: { 1: { totalValor: 5 } },
@@ -603,7 +720,7 @@ describe('CloudSync write queue hardening', () => {
       return makeSlotTableApi();
     });
 
-    deleteRunSave('user-1', 1);
+    deleteRunSave('user-1', 1, { runRecordId: 'abandoned-run' });
     await __flushCloudSyncQueuesForTests();
 
     expect(runApi.state.row).toBeNull();

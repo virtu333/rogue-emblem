@@ -177,7 +177,9 @@ export class HomeBaseScene extends Phaser.Scene {
     // before anything here can start a new run over its save.
     const cloud = this.registry.get('cloud');
     retryPendingEndRunPayout(this.gameData, this.meta, this.registry.get('activeSlot'), {
-      onClear: cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+      onClear: cloud
+        ? (resolvedSlot, abandonedRun) => deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+        : null,
     });
     this.activeTab = 'recruit_stats';
     this.tabScrollOffsets = {};
