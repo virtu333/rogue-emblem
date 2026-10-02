@@ -195,8 +195,8 @@ export function actionXpAwards({
   const rates = areaXpRates(areaXp);
   let rest = (credits || []).filter((c) => c?.victim && c.victim !== primary.opponent);
   let primaryInputs = primary;
-  if (!primary.opponent) {
-    if (rest.length === 0) return [];
+  // With no credits this is exactly combatXpAwards, whatever the opponent (even none).
+  if (!primary.opponent && rest.length > 0) {
     // The credit worth the most at the primary rate becomes the primary (first wins ties).
     const worth = (c) => creditXp(unit, c, { hitRate: 1, killRate: 1 }, rewardMultiplierOf);
     const best = rest.reduce((a, b) => (worth(b) > worth(a) ? b : a));

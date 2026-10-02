@@ -132,7 +132,10 @@ describe('actionXpAwards', () => {
     expect(awardsOf(actionXpAwards({ unit: hero, opponent: null, credits: twoCredits() }))).toEqual(
       [['Hero', 42, false]],
     );
-    expect(actionXpAwards({ unit: hero, opponent: null, credits: [] })).toEqual([]);
+    // No credits: exactly combatXpAwards, even with no opponent (awardXP's null guard).
+    expect(awardsOf(actionXpAwards({ unit: hero, opponent: null, credits: [] }))).toEqual(
+      awardsOf(combatXpAwards({ unit: hero, opponent: null })),
+    );
   });
 });
 
