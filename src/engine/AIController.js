@@ -35,6 +35,7 @@ import { isAcidTerrainIndex } from './TerrainHazards.js';
 import { createScopedLogger } from '../utils/logger.js';
 import { setUnitHP } from './UnitHealth.js';
 import { HOLD_AI_MODE, wakeHolders } from './HoldActivation.js';
+import { isArtilleryPlanted, settleArtilleryStances } from './SiegeArtillery.js';
 
 const DEBUG_AI = false;
 const aiLog = createScopedLogger('AI', { debug: DEBUG_AI });
@@ -102,6 +103,13 @@ export class AIController {
     });
     if (woken.length) await callbacks.onHoldersWoke?.(woken);
     if (callbacks.isCurrent?.() === false) return;
+    // Siege casters take their stance from the board the player left (SiegeArtillery):
+    // planted while a player unit is in siege range, as the Danger overlay draws them.
+    settleArtilleryStances({
+      enemyUnits,
+      playerUnits,
+      turn: callbacks.turnNumber ?? null,
+    });
 
     // Copy array since units might die during processing
     const enemies = [...enemyUnits];
@@ -241,6 +249,25 @@ export class AIController {
   }
 
   /**
+   * A planted siege caster: no path, the best target its siege tome reaches from where
+   * it stands (player units and NPCs, scored as any attack), never a weapon swap (its
+   * reach is the siege ring the Danger overlay draws).
+   */
+  _decideArtilleryAction(enemy, playerUnits, npcUnits) {
+    const target = this._selectBestInRangeTarget(enemy, [...playerUnits, ...(npcUnits || [])]);
+    return this._finalizeDecision(enemy, {
+      path: null,
+      target,
+      reason: target ? 'artillery_fire' : 'artillery_hold',
+      detail: {
+        weaponName: enemy.weapon?.name || null,
+        post: { col: enemy.col, row: enemy.row },
+        targetName: target?.name || null,
+      },
+    });
+  }
+
+  /**
    * Decide where to move and who to attack.
    * Strategy: find tile in movement range that puts a player in weapon range.
    * If none, move toward nearest player.
@@ -259,6 +286,9 @@ export class AIController {
     // anti-turtle clock says.
     if (enemy.aiMode === HOLD_AI_MODE)
       return this._finalizeDecision(enemy, { path: null, target: null, reason: 'hold' });
+    // Artillery planted this phase (SiegeArtillery): it fires from its post at the best
+    // target in siege range, or waits there; it never walks, whatever its orders.
+    if (isArtilleryPlanted(enemy)) return this._decideArtilleryAction(enemy, playerUnits, npcUnits);
     if (enemy.aiMode === 'guard') {
       enemy.guardPost ||= { col: enemy.col, row: enemy.row };
       const nearestDist = Math.min(

@@ -4,7 +4,9 @@
 // An enemy threatens a tile when, next enemy phase, it can stop on some tile of its
 // movement range (movement + terrain costs + blocking units + roots) from which the
 // tile is inside its weapon range. Entities are stationary and strike from their
-// footprint; enemy-owned ballistas are independent sources. Status staves are a
+// footprint; enemy-owned ballistas are independent sources. A siege caster planted by
+// a player unit in its siege range (SiegeArtillery.js) does not move, so it strikes
+// from its post. Status staves are a
 // separate, non-damage threat. Only enemies the player can currently see count:
 // fog-hidden units are never evaluated, so nothing here can reveal them.
 //
@@ -26,7 +28,8 @@ import { getFootprint, isEntity } from './EntitySystem.js';
 import { willRemainRootedNextPhase } from './StatusConditionSystem.js';
 import { getBallistaDangerTiles } from './BallistaEngine.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
-import { isStaff, nextStrikeWeapon, parseRange } from './Combat.js';
+import { getPerBattleRemainingUses, isStaff, nextStrikeWeapon, parseRange } from './Combat.js';
+import { plantsAmongPositions } from './SiegeArtillery.js';
 
 const tileKey = (col, row) => `${col},${row}`;
 
@@ -71,18 +74,21 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
     }
     return { damage, status };
   }
-  // willRemainRootedNextPhase, not isRooted: a root expiring at the enemy's next
-  // phase start must not understate its threat range.
+  // No movement while it stays rooted (willRemainRootedNextPhase, not isRooted: a root
+  // expiring at the enemy's next phase start must not understate its threat range), nor
+  // while a player unit stands in its siege range (planted artillery, SiegeArtillery.js).
+  const planted = plantsAmongPositions(enemy, positions);
   const moveRange = grid.getMovementRange(
     enemy.col,
     enemy.row,
-    willRemainRootedNextPhase(enemy) ? 0 : enemy.mov || enemy.stats?.MOV,
+    planted || willRemainRootedNextPhase(enemy) ? 0 : enemy.mov || enemy.stats?.MOV,
     enemy.moveType,
     positions,
     enemy.faction,
     ctx.costModifier ? ctx.costModifier(enemy) : 0,
   );
-  const staff = statusStaffThreat(enemy);
+  // Planted artillery only fires (AIController._decideArtilleryAction): no staff.
+  const staff = planted ? null : statusStaffThreat(enemy);
   const weapon = strikingWeapon(enemy);
   for (const [key, entry] of moveRange) {
     if (entry?.stoppable === false) continue;
@@ -206,6 +212,7 @@ function gridHasIce(grid) {
 }
 
 function withinBareReach(enemy, col, row) {
+  // Planted artillery moves 0: mov stays an upper bound for the prune.
   const mov = willRemainRootedNextPhase(enemy) ? 0 : Number(enemy.mov || enemy.stats?.MOV) || 0;
   const weapon = strikingWeapon(enemy);
   let reach = weapon ? parseRange(weapon.range).max : 0;
@@ -273,6 +280,10 @@ export function threatWorldSignature(ctx, units = []) {
       const visible = isThreatSourceVisible(grid, u) ? 1 : 0;
       const staff = statusStaffThreat(u);
       part += `:${visible}:${u.mov ?? u.stats?.MOV}:${u.moveType}:${u.weapon?.range ?? ''}`;
+      // The weapon it strikes with next and its shots: a spent Breachbolt gives way to
+      // its fallback, and only a siege tome with shots left plants (SiegeArtillery).
+      const strike = nextStrikeWeapon(u);
+      part += `:${strike?.name ?? ''}:${strike?.perBattleUses ? getPerBattleRemainingUses(strike, u) : ''}:${u.aiMode ?? ''}`;
       part += `:${willRemainRootedNextPhase(u) ? 'R' : ''}:${staff ? `${staff.min}-${staff.max}` : ''}`;
       // An area art spent or priced out of reach changes the line.
       part += `:${ctx.areaArtOf?.(u)?.id ?? ''}`;
