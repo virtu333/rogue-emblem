@@ -314,6 +314,42 @@ describe('inspecting while aiming', () => {
   });
 });
 
+describe('aiming at the Entity (a 3×3 body anchored top-left)', () => {
+  const entity = (col, row) => foe('Entity', col, row, 30, { isEntity: true, isBoss: true });
+
+  it('opens on its seen body tile nearest the caster, not on its anchor', () => {
+    // Body (4..6, 3..5); from (0,5) the nearest body tile is (4,5), 4 away; the
+    // anchor (4,3) is 6 away.
+    const caster = sage(0, 5);
+    const { area } = battle([caster, entity(4, 3)]);
+    area.begin(caster, caster.weapon, stormcall);
+    expect(area.pending.aim).toEqual({ col: 4, row: 5 });
+  });
+
+  it('is offered when only its body is in reach, and only on tiles the player sees', () => {
+    // Body (1..3, 4..6): the anchor (1,4) is 2 away, inside the minimum range 3.
+    // In fog only (3,5) and (3,6) are seen: (3,5) is 3 away, (3,6) 4.
+    const caster = sage(0, 5);
+    const fogVisible = new Set(['0,5', '3,5', '3,6']);
+    const { area } = battle([caster, entity(1, 4)], { fogVisible });
+    area.begin(caster, caster.weapon, stormcall);
+    expect(area.pending.aim).toEqual({ col: 3, row: 5 });
+  });
+
+  it('Q/E counts the cursor on any body tile as the Entity and steps past it', () => {
+    const caster = sage(0, 5);
+    const soldier = foe('Soldier', 0, 9); // 4 away, below the body in board order
+    const { area } = battle([caster, entity(4, 3), soldier]);
+    area.begin(caster, caster.weapon, stormcall);
+    // Board order of the aim tiles: Entity (4,5), then Soldier (0,9).
+    area.aim({ col: 5, row: 3 }); // the cursor on another tile of the body
+    area.handleKey({ key: 'e', preventDefault() {} });
+    expect(area.pending.aim).toEqual({ col: 0, row: 9 });
+    area.handleKey({ key: 'e', preventDefault() {} });
+    expect(area.pending.aim).toEqual({ col: 4, row: 5 });
+  });
+});
+
 describe('the prompt and Back', () => {
   it('an illegal tile does nothing; a legal one opens [Fire] [Back]', () => {
     const caster = sage(0, 5);

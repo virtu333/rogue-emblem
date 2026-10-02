@@ -40,6 +40,7 @@ import { deedsFor } from './DeedController.js';
 import { findBattleEntity } from '../engine/BattleEntityIdentity.js';
 import { spendAreaStrikeShot } from '../engine/PerBattleWeapons.js';
 import { equipWeapon } from '../engine/UnitManager.js';
+import { getFootprint } from '../engine/EntitySystem.js';
 import {
   applyWeaponArtCost,
   canUseWeaponArt,
@@ -154,10 +155,10 @@ export class AreaTargetingController {
     );
   }
 
-  /** The nearest foe the player sees whose tile is a center; else the center nearest the unit. */
+  /** The nearest foe the player sees on a center (its aim tile); else the center nearest the unit. */
   _startTile(unit, centers) {
     const foe = this._seenFoesInReach()
-      .slice()
+      .map(({ tile }) => tile)
       .sort((a, b) => distance(unit, a) - distance(unit, b) || a.row - b.row || a.col - b.col)[0];
     if (foe) return { col: foe.col, row: foe.row };
     const nearest = centers
@@ -166,15 +167,28 @@ export class AreaTargetingController {
     return nearest ? { col: nearest.col, row: nearest.row } : { col: unit.col, row: unit.row };
   }
 
-  /** Foes the player sees standing on a legal center, in board order. */
+  /**
+   * Foes the player sees with a seen tile on a legal center, as `{ foe, tile, tiles }` in
+   * board order of `tile`. `tile` is where aiming at that foe lands: for the Entity (3×3),
+   * the seen center tile of its body nearest the caster; `tiles` is every tile of the
+   * body that counts as that foe. A body tile the fog hides is never offered.
+   */
   _seenFoesInReach() {
     const p = this.pending;
     const scene = this.scene;
     if (!p) return [];
+    const grid = scene.grid;
+    const seen = (t) => !grid?.fogEnabled || grid.isVisible(t.col, t.row);
+    const byNearest = (a, b) =>
+      distance(p.unit, a) - distance(p.unit, b) || a.row - b.row || a.col - b.col;
     return (scene._getTier5HostileUnitsFor(p.unit) || [])
-      .filter((foe) => foe.currentHP > 0 && canInspectUnit(scene.grid, foe))
-      .filter((foe) => p.keys.has(key(foe)))
-      .sort((a, b) => a.row - b.row || a.col - b.col);
+      .filter((foe) => foe.currentHP > 0 && canInspectUnit(grid, foe))
+      .map((foe) => {
+        const tiles = getFootprint(foe).filter((t) => p.keys.has(key(t)) && seen(t));
+        return { foe, tiles, tile: tiles.slice().sort(byNearest)[0] || null };
+      })
+      .filter(({ tile }) => tile)
+      .sort((a, b) => a.tile.row - b.tile.row || a.tile.col - b.tile.col);
   }
 
   isCenter(tile) {
@@ -226,14 +240,15 @@ export class AreaTargetingController {
     if (!this.active || p.locked) return false;
     const foes = this._seenFoesInReach();
     if (!foes.length) return false;
-    const at = foes.findIndex((foe) => sameTile(foe, p.aim));
+    // The aim on any tile of a foe's body (the Entity) counts as that foe.
+    const at = foes.findIndex(({ tiles }) => tiles.some((t) => sameTile(t, p.aim)));
     const next =
       at === -1
         ? direction > 0
           ? 0
           : foes.length - 1
         : (at + (direction > 0 ? 1 : -1) + foes.length) % foes.length;
-    const tile = { col: foes[next].col, row: foes[next].row };
+    const tile = { col: foes[next].tile.col, row: foes[next].tile.row };
     this.scene._gridCursor?.snapTo(tile.col, tile.row);
     this.aim(tile);
     return true;
