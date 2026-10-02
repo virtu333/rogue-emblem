@@ -170,8 +170,16 @@ multiplier (0 past the list), and gold uses the same value. A template opts out 
 - **No farming after XP reaches 0:**
   - A zero-reward kill still counts toward deed kills, but not toward `maxKillLevelGap`
     or the terrain/weapon tallies (`DeedSystem.js:214-219`).
-  - Defender survival XP is multiplied by the reward multiplier
-    (`BattleXp.js:53,66-69`), so a 0-reward wave gives 0.
+  - Defender survival XP is 0 against an attacker whose wave pays 0, and the usual
+    minimum (`XP_DEFEND_SURVIVE`, 1) against any other (`BattleXp.combatXpAwards`). It
+    is not multiplied by the reward. The minimum is 1 XP, so a multiplied, floored value
+    would already be 0 at the first ladder wave (.75). A rounded one would only split
+    the .5 and .25 waves. Neither stops farming better than the 0 rule, and both cost an
+    honest defender its floor.
+  - **Future-proofing.** The shipped data never triggers these rules. Every ladder has at
+    most 4 waves against 4 `xp` entries (.75 .5 .25 .1). No template wave, pursuit wave
+    or scripted wave pays 0 (escape pursuit pays .25). A 0 appears only if a ladder grows
+    past its `xp` list.
 
 **Results** (calibrated army, 48 paired runs, rout maps):
 
@@ -374,7 +382,9 @@ Open: confirm Dusk inflation 2, with 1 held in reserve.
   its old pacing for the rest of the run: no ladder, inflation 3 and par-raising waves.
   The same holds for its locked maps.
 - **Zero-reward arrivals.** A kill still counts toward deeds but skips the level gap and
-  the terrain/weapon tallies. Surviving one earns no XP.
+  the terrain/weapon tallies. Surviving one earns no XP; surviving any other keeps the
+  1 XP minimum. These rules are future-proofing: nothing in the shipped data pays 0
+  (see §2a).
 - **Results** (`sim/pacing.js`, calibrated profile, 48 paired seeds, final shadow mean ±
   SE). "Prototype" reruns this branch's sim ladder on the PR 2 code. It shows that the
   shipped ladder matches the simulated one, and that the drift from §2 comes from PR 1's
