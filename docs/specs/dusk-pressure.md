@@ -130,7 +130,9 @@ multiplier (0 past the list), and gold uses the same value. A template opts out 
   `repeating` and `ladder`, and both the scene and the harness use it.
 - **Escalation.** `+levels` is added to the copied template's level. Promoted waves draw
   from the act's `pools[act].promoted`, keyed by the spawn hash. Arrivals keep the
-  copied affixes and roll no new ones.
+  copied affixes and roll no new ones; a promoted arrival drops any its new class is
+  excluded from (`affixes.json` `class_exclude`: no hasted Paladin, no teleporting
+  General).
 - **Spawn tiles.**
   - **Edges.** Each wave chooses **one** edge for all of its arrivals: wave 1 the front
     (the edge behind the enemy centroid, axis from the player-to-enemy centroid gap),

@@ -26,6 +26,7 @@ import {
   routLadderStatus,
 } from '../src/engine/RoutLadder.js';
 import { calculatePar } from '../src/engine/TurnBonusCalculator.js';
+import { buildReinforcementSpawnSpec } from '../src/engine/ReinforcementSpawns.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { HeadlessBattle, HEADLESS_STATES } from './harness/HeadlessBattle.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
@@ -432,6 +433,35 @@ describe('ladder arrivals in a battle (headless harness, as the scene)', () => {
       }
     }
     expect(seen).toBeGreaterThan(0);
+  });
+
+  it('a promoted arrival keeps only the copied affixes its new class may carry', () => {
+    // affixes.json class_exclude: no haste on Paladins or Falcon Knights, no teleporter
+    // on Knights or Generals. Every other class keeps the copied affix.
+    const excluded = { haste: ['Paladin', 'Falcon Knight'], teleporter: ['General'] };
+    for (const [affix, banned] of Object.entries(excluded)) {
+      const classes = { banned: 0, kept: 0 };
+      for (let seed = 1; seed <= 300; seed++) {
+        const spec = buildReinforcementSpawnSpec({
+          scheduledSpawn: { col: seed % 13, row: seed % 7, waveIndex: 3, promoted: true },
+          seed,
+          templates: [{ className: 'Fighter', level: 14, affixes: [affix] }],
+          battleConfig: { enemySpawns: [] },
+          battleParams: { act: 'act4', difficultyId: 'hard' },
+          gameData: data,
+        });
+        expect(data.enemies.pools.act4.promoted).toContain(spec.className);
+        if (banned.includes(spec.className)) {
+          classes.banned++;
+          expect(spec.affixes, `${spec.className} seed ${seed}`).not.toContain(affix);
+        } else {
+          classes.kept++;
+          expect(spec.affixes, `${spec.className} seed ${seed}`).toContain(affix);
+        }
+      }
+      expect(classes.banned, affix).toBeGreaterThan(0);
+      expect(classes.kept, affix).toBeGreaterThan(0);
+    }
   });
 
   it('a ladder wave leaves par alone; a village bandit wave still adds one', () => {

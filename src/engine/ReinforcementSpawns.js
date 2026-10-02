@@ -9,6 +9,7 @@
 // ReinforcementScheduler decides when and where; this module decides who.
 
 import { filterClassPoolByDifficulty, XP_SPECIAL_ENEMY_MULTIPLIER } from '../utils/constants.js';
+import { affixesAllowedForClass } from './AffixEngine.js';
 import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
 import { getFootprint, isEntity } from './EntitySystem.js';
 import { reinforcementMoveTypes, scheduleReinforcementsForTurn } from './ReinforcementScheduler.js';
@@ -131,7 +132,7 @@ export function reinforcementTemplateHash(seed, spawn, spawnOrdinal = 0) {
  * affixes win over the template's. A ladder arrival (engine/RoutLadder.js) adds its
  * wave's `levelBonus` to the copied level; a promoted wave swaps the class for one of
  * the act's promoted classes (hashed, without Sunder or poison) and keeps the copied
- * affixes. Arrivals roll no new affixes.
+ * affixes the new class may carry. Arrivals roll no new affixes.
  */
 export function buildReinforcementSpawnSpec({
   scheduledSpawn,
@@ -202,6 +203,9 @@ export function buildReinforcementSpawnSpec({
       spec.className = promoted[classHash % promoted.length];
       spec.sunderWeapon = false;
       spec.poisonWeapon = false;
+      // The copied affixes were rolled for the template's class: drop any the new class
+      // is excluded from (affixes.json class_exclude).
+      spec.affixes = affixesAllowedForClass(spec.affixes, spec.className, gameData?.affixes);
     }
   }
   return spec;
