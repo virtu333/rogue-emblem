@@ -120,7 +120,10 @@ export class TransitionRecoveryController {
       // A payout that did not reach disk keeps the save so it can retry.
       if (!endRunPayoutPending(scene.runManager, scene.registry.get('meta')))
         clearSavedRun(
-          cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+          cloud
+            ? (resolvedSlot, abandonedRun) =>
+                deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+            : null,
           slot,
         );
       const audio = scene.registry.get('audio');
@@ -261,7 +264,10 @@ export class TransitionRecoveryController {
       // A payout that did not reach disk keeps the save so it can retry.
       if (!endRunPayoutPending(scene.runManager, scene.registry.get('meta')))
         clearSavedRun(
-          cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+          cloud
+            ? (resolvedSlot, abandonedRun) =>
+                deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+            : null,
           slot,
         );
       const audio = scene.registry.get('audio');

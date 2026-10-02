@@ -71,6 +71,30 @@
       },
       "additionalProperties": false
     },
+    "eliteAreaArts": {
+      "description": "Area weapon arts some enemies carry on elite battles (EnemyAreaArts.js).",
+      "type": "object",
+      "properties": {
+        "minDifficulty": { "type": "string", "minLength": 1 },
+        "acts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^(act[1-4]|postAct|finalBoss)$" }
+        },
+        "count": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "byWeaponType": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        }
+      },
+      "required": ["minDifficulty", "acts", "count", "byWeaponType"],
+      "additionalProperties": false
+    },
     "enemyCountByTiles": {
       "type": "object",
       "patternProperties": {

@@ -56,6 +56,19 @@ describe('friendlySavedTime', () => {
 });
 
 describe('slotCardModel', () => {
+  it.each(['damaged', 'unreadable', 'recovery-required'])(
+    'renders %s as reserved recovery instead of a new run',
+    (slotStatus) => {
+      const card = slotCardModel(1, { recoveryRequired: true, slotStatus, hasActiveRun: true });
+      expect(card).toMatchObject({
+        state: 'damaged',
+        canDelete: false,
+        primary: { label: 'Review recovery' },
+      });
+      expect(card.status).toMatch(/kept/);
+      expect(card.currency).toBeUndefined();
+    },
+  );
   it('names the map a suspended battle waits on, the commander first', () => {
     expect(templateName(gameData.mapTemplates, 'river_crossing')).toBe('River Crossing');
     const model = slotCardModel(1, activeSummary(), { gameData, now: NOW });

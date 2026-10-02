@@ -12,6 +12,11 @@ const mocked = vi.hoisted(() => ({
   loadRunMock: vi.fn(() => null),
   ensureAudioUnlockedMock: vi.fn(async () => {}),
   metaInstances: [],
+  summary: vi.fn(() => null),
+  showRecovery: vi.fn(),
+  deleteSlot: vi.fn(),
+  domHost: vi.fn(() => false),
+  dialogActions: [],
 }));
 
 vi.mock('../src/utils/SceneRouter.js', () => ({
@@ -25,12 +30,23 @@ vi.mock('../src/utils/firstRunFastPath.js', async (importActual) => {
   return { ...actual, startFirstRunFastPath: mocked.startFirstRunFastPathMock };
 });
 
-vi.mock('../src/engine/SlotManager.js', () => ({
+vi.mock('../src/engine/SlotManager.js', async (importActual) => ({
+  ...(await importActual()),
   MAX_SLOTS: 3,
-  getSlotSummary: vi.fn(() => null),
-  deleteSlot: vi.fn(),
+  getSlotSummary: mocked.summary,
+  deleteSlot: mocked.deleteSlot,
   setActiveSlot: mocked.setActiveSlotMock,
   getMetaKey: mocked.getMetaKeyMock,
+}));
+
+vi.mock('../src/ui/SlotRecoveryDialog.js', () => ({ showSlotRecovery: mocked.showRecovery }));
+vi.mock('../src/utils/domUI.js', () => ({ hasDOMHost: mocked.domHost }));
+vi.mock('../src/ui/RunFlowMenus.js', async (importActual) => ({
+  ...(await importActual()),
+  slotDialog: (_scene, _title, _copy, actions) => {
+    mocked.dialogActions = actions;
+    return { destroyed: false, destroy: vi.fn() };
+  },
 }));
 
 vi.mock('../src/engine/MetaProgressionManager.js', () => ({
@@ -96,6 +112,150 @@ describe('SlotPickerScene selectSlot transition safety', () => {
     mocked.transitionToSceneMock.mockResolvedValue(true);
     mocked.startFirstRunFastPathMock.mockResolvedValue(true);
     mocked.loadRunMock.mockReturnValue(null);
+    mocked.summary.mockReturnValue(null);
+    mocked.domHost.mockReturnValue(false);
+  });
+
+  it.each([null, 'account-a'])(
+    'offers a preserved cloud choice with missing progression for owner %s',
+    async (owner) => {
+      const values = new Map([
+        [
+          'emblem_rogue_slot_1_cloud_conflict',
+          JSON.stringify({
+            localRun: { gold: 10 },
+            cloudRun: { gold: 20 },
+            cloudMeta: { totalValor: 90 },
+          }),
+        ],
+      ]);
+      if (owner)
+        values.set(
+          'emblem_rogue_slot_1_recovery_owner',
+          JSON.stringify({ version: 1, userId: owner }),
+        );
+      vi.stubGlobal('localStorage', { getItem: (key) => values.get(key) ?? null });
+      mocked.domHost.mockReturnValue(true);
+      mocked.summary.mockReturnValue({
+        recoveryRequired: true,
+        slotStatus: owner ? 'recovery-required' : 'damaged',
+      });
+      const { scene } = makeScene({ cloud: { userId: 'account-a' } });
+      scene._showCloudChoice = vi.fn();
+      await scene.selectSlot(1, { recoveryRequired: true });
+      expect(scene._showCloudChoice).toHaveBeenCalledOnce();
+      expect(mocked.showRecovery).not.toHaveBeenCalled();
+      vi.unstubAllGlobals();
+    },
+  );
+
+  it.each(['account-b', 'malformed'])(
+    'refuses another or unknown recovery owner (%s)',
+    async (owner) => {
+      const values = new Map([
+        [
+          'emblem_rogue_slot_1_cloud_conflict',
+          JSON.stringify({
+            localRun: { gold: 10 },
+            cloudRun: { gold: 20 },
+            cloudMeta: { totalValor: 90 },
+          }),
+        ],
+        [
+          'emblem_rogue_slot_1_recovery_owner',
+          owner === 'malformed' ? '{bad' : JSON.stringify({ version: 1, userId: owner }),
+        ],
+      ]);
+      vi.stubGlobal('localStorage', { getItem: (key) => values.get(key) ?? null });
+      mocked.domHost.mockReturnValue(true);
+      mocked.summary.mockReturnValue({ recoveryRequired: true, slotStatus: 'recovery-required' });
+      const { scene } = makeScene({ cloud: { userId: 'account-a' } });
+      scene._showCloudChoice = vi.fn();
+      const before = new Map(values);
+      await scene.selectSlot(1, { recoveryRequired: true });
+      expect(scene._showCloudChoice).not.toHaveBeenCalled();
+      expect(mocked.showRecovery).toHaveBeenCalledWith(scene, 1);
+      expect(values).toEqual(before);
+      vi.unstubAllGlobals();
+    },
+  );
+
+  it('does not offer cloud versions from an unfinished exported-discard sentinel', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: (key) =>
+        key.endsWith('_cloud_conflict') ? JSON.stringify({ _exportDiscardPending: true }) : null,
+    });
+    const { scene } = makeScene({ cloud: { userId: 'account-a' } });
+    expect(scene._canChooseCloudSave(1)).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it('rechecks a formerly healthy slot before confirming deletion', () => {
+    mocked.domHost.mockReturnValue(true);
+    const { scene } = makeScene();
+    scene.confirmDelete(1);
+    mocked.summary.mockReturnValue({ recoveryRequired: true });
+    mocked.dialogActions.find(([label]) => label === 'Delete save')[1]();
+    expect(mocked.deleteSlot).not.toHaveBeenCalled();
+    expect(mocked.showRecovery).toHaveBeenCalledWith(scene, 1);
+  });
+
+  it('ignores an old DOM delete callback after another dialog opens', () => {
+    mocked.domHost.mockReturnValue(true);
+    const { scene } = makeScene();
+    scene.confirmDelete(1);
+    const oldDelete = mocked.dialogActions.find(([label]) => label === 'Delete save')[1];
+    scene.confirmDelete(2);
+    oldDelete();
+    expect(mocked.deleteSlot).not.toHaveBeenCalled();
+  });
+
+  it.each(['became damaged', 'another dialog opened'])(
+    'guards canvas deletion when %s',
+    (reason) => {
+      const { scene } = makeScene();
+      const display = (copy) => {
+        const object = { copy, handlers: {}, destroy: vi.fn() };
+        for (const method of [
+          'setDepth',
+          'setInteractive',
+          'setStrokeStyle',
+          'setOrigin',
+          'setColor',
+          'setResolution',
+        ])
+          object[method] = () => object;
+        object.on = (event, callback) => {
+          object.handlers[event] = callback;
+          return object;
+        };
+        return object;
+      };
+      scene.cameras = { main: { centerX: 320, centerY: 240 } };
+      scene.add = { rectangle: () => display(), text: (_x, _y, copy) => display(copy) };
+      scene._setDialogFocus = vi.fn();
+      scene.confirmDelete(1);
+      const oldDelete = scene.confirmDialog.find((object) => object.copy === '[ Delete ]').handlers
+        .pointerdown;
+      if (reason === 'became damaged') mocked.summary.mockReturnValue({ recoveryRequired: true });
+      else scene.confirmDelete(2);
+      oldDelete();
+      expect(mocked.deleteSlot).not.toHaveBeenCalled();
+      if (reason === 'became damaged') expect(mocked.showRecovery).toHaveBeenCalledWith(scene, 1);
+    },
+  );
+
+  it('refuses stale healthy selection when the current slot needs recovery', async () => {
+    mocked.summary.mockReturnValue({ recoveryRequired: true });
+    const { scene, store } = makeScene({ activeSlot: 1, meta: { totalValor: 900 } });
+    const before = new Map(store);
+    await scene.selectSlot(2, { hasActiveRun: true });
+    expect(store).toEqual(before);
+    expect(mocked.metaInstances).toHaveLength(0);
+    expect(mocked.transitionToSceneMock).not.toHaveBeenCalled();
+    expect(mocked.startFirstRunFastPathMock).not.toHaveBeenCalled();
+    expect(mocked.setActiveSlotMock).not.toHaveBeenCalled();
+    expect(mocked.showRecovery).toHaveBeenCalledWith(scene, 2);
   });
 
   it('rolls back staged slot state when transition returns false', async () => {

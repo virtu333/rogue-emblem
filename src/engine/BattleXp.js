@@ -134,3 +134,116 @@ export function applyXpGain(unit, xp, { classes = [], extendedLevelingEnabled = 
   }
   return { result, statsAfterGain, levelUps };
 }
+
+/**
+ * Whether area credits pay XP. The battle scene and the harness both read this one
+ * switch (docs/specs/aoe-weapon-arts.md slice 4b), so sims never earn XP a player
+ * cannot. actionXpAwards itself always counts the credits it is given; this only decides
+ * whether callers pass them.
+ */
+export const AREA_XP_LIVE = true;
+
+/** Area credit rates (owner decision 2026-10-01; data: weaponArts.json `areaXp`). */
+export const AREA_XP_DEFAULTS = Object.freeze({ hitRate: 0.35, killRate: 0.6, actionBaseCap: 75 });
+
+function areaXpRates(areaXp) {
+  const num = (value, fallback) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+  return {
+    hitRate: Math.max(0, num(areaXp?.hitRate, AREA_XP_DEFAULTS.hitRate)),
+    killRate: Math.max(0, num(areaXp?.killRate, AREA_XP_DEFAULTS.killRate)),
+    actionBaseCap: Math.max(0, num(areaXp?.actionBaseCap, AREA_XP_DEFAULTS.actionBaseCap)),
+  };
+}
+
+/**
+ * The unscaled share of one area credit for `earner`, whose combat formula is used
+ * (the holder, or a Mentor's Band recipient). `perCredit` carries the victim's reward
+ * multiplier, turn pressure and Training Doctrine.
+ */
+function creditXp(earner, credit, rates, perCredit) {
+  const victim = credit?.victim;
+  const damage = Math.max(0, Math.trunc(Number(credit?.damage) || 0));
+  if (!victim || victim._noXP || damage <= 0) return 0;
+  const killed = credit.killed === true;
+  let base = calculateCombatXP(earner, victim, killed);
+  if (!killed) base *= Math.min(1, damage / Math.max(1, Math.trunc(Number(credit.hpBefore) || 0)));
+  return base * (killed ? rates.killRate : rates.hitRate) * perCredit(victim);
+}
+
+/**
+ * Base XP for one action that hit several foes (docs/specs/aoe-weapon-arts.md §2.5): the
+ * primary exactly as combatXpAwards grants it, plus each area credit
+ * ({ victim, damage, hpBefore, killed }) at `areaXp.hitRate` or `areaXp.killRate`, its
+ * victim's own reward multiplier, turn pressure and Training Doctrine. Area credits add
+ * at most `areaXp.actionBaseCap` and are base XP: the battle's multipliers (scaledXp)
+ * apply once to the total. One entry per recipient: the unit first, then Mentor's Band
+ * shares (each recipient's own formula, the same rates and cap).
+ *
+ * With no primary `opponent` (a chosen-center strike), the credit worth the most base XP
+ * counts as the primary and the rest as area credits.
+ *
+ * @param {object} p  combatXpAwards' inputs plus:
+ * @param {object[]} p.credits
+ * @param {(victim: object) => number} p.rewardMultiplierOf  a victim's reward multiplier
+ * @param {object} [p.areaXp]  { hitRate, killRate, actionBaseCap }
+ */
+export function actionXpAwards({
+  credits = [],
+  rewardMultiplierOf = () => 1,
+  areaXp = null,
+  ...primary
+}) {
+  const unit = primary.unit;
+  if (!unit) return [];
+  const rates = areaXpRates(areaXp);
+  let rest = (credits || []).filter((c) => c?.victim && c.victim !== primary.opponent);
+  let primaryInputs = primary;
+  // With no credits this is exactly combatXpAwards, whatever the opponent (even none).
+  if (!primary.opponent && rest.length > 0) {
+    // The credit worth the most at the primary rate becomes the primary (first wins ties).
+    const worth = (c) => creditXp(unit, c, { hitRate: 1, killRate: 1 }, rewardMultiplierOf);
+    const best = rest.reduce((a, b) => (worth(b) > worth(a) ? b : a));
+    rest = rest.filter((c) => c !== best);
+    primaryInputs = {
+      ...primary,
+      opponent: best.victim,
+      opponentDied: best.killed === true,
+      damageDealt: best.damage,
+      opponentHpAtStart: best.hpBefore,
+      rewardMultiplier: rewardMultiplierOf(best.victim),
+    };
+  }
+  const awards = combatXpAwards(primaryInputs);
+  if (rest.length === 0) return awards;
+
+  const pressure = Number(primary.pressureXpMultiplier ?? 1);
+  const doctrine = (earner) => (earner.isLord ? 0 : Number(primary.recruitXpBonus) || 0);
+  const perCreditFor = (earner) => (victim) =>
+    rewardMultiplierOf(victim) * pressure * (1 + doctrine(earner));
+  const capped = (sum) => Math.floor(Math.min(rates.actionBaseCap, sum));
+  const add = (earner, share, extra) => {
+    if (extra <= 0) return;
+    const entry = awards.find((a) => a.unit === earner);
+    if (entry) entry.baseXp += extra;
+    else if (share) awards.push({ unit: earner, baseXp: extra, share: true });
+    else awards.unshift({ unit: earner, baseXp: extra, share: false });
+  };
+
+  // Mentor's Band recipients are fixed before anyone's gain, from the holder's tile.
+  const ratio = getXpShareRatio(unit);
+  const recipients =
+    ratio > 0
+      ? getXpShareRecipients(unit, primary.allies || []).filter((ally) => ally.currentHP > 0)
+      : [];
+
+  const own = rest.reduce((sum, c) => sum + creditXp(unit, c, rates, perCreditFor(unit)), 0);
+  add(unit, false, capped(own));
+  for (const ally of recipients) {
+    // A share uses the recipient's own formula and the holder's context (as Mentor's
+    // Band does for the primary: no Training Doctrine of the recipient's own).
+    const holderContext = (victim) => rewardMultiplierOf(victim) * pressure;
+    const share = rest.reduce((sum, c) => sum + creditXp(ally, c, rates, holderContext), 0);
+    add(ally, true, capped(share * ratio));
+  }
+  return awards;
+}

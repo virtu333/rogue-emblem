@@ -251,8 +251,15 @@ describe('forecast equals resolution for random matchups', () => {
         }
         // Strike count: all strikes miss at c ≈ 1, so nobody dies and every
         // planned strike is attempted.
+        // A side with 100 Hit still lands at c ≈ 1: when that kills (a Vengeance art at
+        // a large HP deficit), the other side's planned strikes never come, so the
+        // count cannot be read from this exchange.
         const allMiss = resolveWith(0.999999, m);
-        const countOk = info.hit >= 100 || strikes(allMiss, side).length === info.attackCount;
+        const countOk =
+          info.hit >= 100 ||
+          allMiss.attackerDied ||
+          allMiss.defenderDied ||
+          strikes(allMiss, side).length === info.attackCount;
         if (!hitOk || !damageOk || !critOk || !countOk) {
           mismatches.push({
             seed,

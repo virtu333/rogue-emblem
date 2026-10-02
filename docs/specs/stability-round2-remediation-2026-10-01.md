@@ -138,7 +138,7 @@ All pass on #171. `BattleSessionOwnership.test.js:379` asserts the broken behavi
 1. **Retry costs every save.** `retryCheckpoint` and `_checkpointPersistenceResult` have no production caller, yet every checkpoint now also runs `structuredClone(rm.toJSON())`.
    - Do `const json = rm.toJSON(); persist(json)`, and keep a deep-cloned retry candidate only when persisting fails. The clone is needed because `toJSON` shares `battleInProgress` by reference (`RunManager.js:69`).
    - Retry goes back through `saveRun` so `computeNextRunSavedAt` re-stamps it. Replaying the stored string could fall below a raised clock floor and would skip `lastRunSaveStamps`.
-   - With the quota fallback, the most-trimmed candidate is the retry candidate. When a retry succeeds, adopt the trimmed `battleInProgress` and timeline in memory.
+   - Round-four correction: failed quota fallback attempts retain the full frozen retry candidate. Adopt a trimmed `battleInProgress` and timeline only after that trimmed candidate has been durably written. A later retry with sufficient space keeps the complete history.
    - Add a test that fails if the clone is removed. That regression currently survives.
 2. **Helpers sample the session at call time.** About 40 callers rely on defaults that read the current session: `completeBattleAction`, `captureResolvedAction`, `presentQueuedLevelUps`, `completeResolvedAction`, `finishUnitAction`, `_persistBattleRunState`, `_isSceneActiveForAsync`.
    - Make `session` a required parameter on every helper that can run after an await.
