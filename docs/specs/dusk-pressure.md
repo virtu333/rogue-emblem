@@ -229,6 +229,13 @@ then hunts for the rest of the battle.
      (`holdPackSize`), so a member killed from outside every zone (a Canto rider, a
      Breachbolt, a ballista) wakes the rest: a pack can't be picked off one at a time.
   3. turn-pressure boss enrage has started.
+- **Breachbolt carriers never hold.** A siege-tome holder's Danger zone covers most of
+  the map, so once seen it would wake its pack on turn 1 and drag its packmates out
+  with it: the hold would be a promise the overlay breaks. Leaving it out of the
+  candidates is one filter and keeps every pack's red zone honest, so it keeps its
+  normal orders (Breachbolt ladder, §2c) until an Artillery AI gives siege units their
+  own behaviour. Writing it up as a known interaction instead would leave Nightfall and
+  Black Sun packs (where Breachbolts are common) waking on sight.
 - **Anti-turtle `aggressiveMode` does not wake holders.** If it did, a turtle would only
   have to wait 3 phases.
 - **Shares.** Seize: Dusk 35%, Nightfall 45%, Black Sun 55% of the non-boss enemies,

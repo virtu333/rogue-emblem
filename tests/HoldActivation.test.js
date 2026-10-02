@@ -81,6 +81,10 @@ describe('who holds', () => {
           const label = `${rung} ${act} seed ${seed}`;
           const nonBoss = bc.enemySpawns.filter((s) => !s.isBoss);
           const holders = nonBoss.filter((s) => s.aiMode === 'hold');
+          expect(
+            holders.some((s) => s.siegeWeapon),
+            label,
+          ).toBe(false);
           const target = Math.round(shares.seize * nonBoss.length);
           expect(holders.length, label).toBeLessThanOrEqual(target + 1);
           expect(bc.enemySpawns.find((s) => s.isBoss)?.aiMode, label).not.toBe('hold');
@@ -102,7 +106,7 @@ describe('who holds', () => {
             );
           }
           // The nearest candidate with a partner within 3 always holds.
-          const eligible = nonBoss.filter((x) => x.aiMode !== 'heal');
+          const eligible = nonBoss.filter((x) => x.aiMode !== 'heal' && !x.siegeWeapon);
           const firstPaired = [...eligible]
             .sort(
               (a, b) =>
@@ -114,11 +118,9 @@ describe('who holds', () => {
           if (target >= 2 && firstPaired) expect(firstPaired.aiMode, label).toBe('hold');
           // Holders are the nearest the throne: any closer non-holder had no partner.
           const far = Math.max(-1, ...holders.map((h) => manhattan(h, bc.thronePos)));
-          for (const s of nonBoss.filter((x) => x.aiMode !== 'hold' && x.aiMode !== 'heal')) {
+          for (const s of eligible.filter((x) => x.aiMode !== 'hold')) {
             if (manhattan(s, bc.thronePos) >= far) continue;
-            const partners = nonBoss.filter(
-              (o) => o !== s && o.aiMode !== 'heal' && manhattan(o, s) <= HOLD_PACK_RADIUS,
-            );
+            const partners = eligible.filter((o) => o !== s && manhattan(o, s) <= HOLD_PACK_RADIUS);
             expect(
               holders.length >= target || partners.length === 0,
               `${label}: (${s.col},${s.row}) skipped`,
@@ -218,6 +220,19 @@ describe('who holds', () => {
     // The two exit-half enemies stand 9 apart: no pack. The pair is in the player half.
     expect(n).toBe(0);
     expect(spawns.every((sp) => sp.aiMode === undefined)).toBe(true);
+  });
+
+  it('a Breachbolt carrier never holds; it keeps its normal orders', () => {
+    // Its Danger zone covers most of the map, so as a holder it would wake its pack on
+    // turn 1 once seen. Nearest the throne, paired: still left out (spec §2b).
+    const spawns = [
+      { className: 'Mage', col: 9, row: 1, siegeWeapon: 'Breachbolt' },
+      { className: 'Fighter', col: 8, row: 1 },
+      { className: 'Fighter', col: 7, row: 1 },
+      { className: 'Fighter', col: 6, row: 1 },
+    ];
+    assignHolders({ spawns, objective: 'seize', share: 0.5, thronePos: { col: 10, row: 1 } });
+    expect(spawns.map((s) => s.aiMode || null)).toEqual([null, 'hold', 'hold', null]);
   });
 
   it('a lone candidate never holds; a share too small for a pair assigns none', () => {

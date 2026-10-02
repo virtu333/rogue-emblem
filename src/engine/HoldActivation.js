@@ -43,14 +43,17 @@ export function holdShareFor(holdShare, objective) {
 
 /**
  * The spawns that may hold, nearest the objective first: on seize every non-boss enemy
- * without another AI role (guards included: holds replace them), measured to the
+ * without another AI role (guards included: holds replace them) and without a siege
+ * tome, measured to the
  * throne; on escape those of them in the exit half of the map (the half, across the
  * player-to-exit axis, that holds the exits), measured to the exits' centre.
  * `pool` is the count the share applies to.
  */
 function holdCandidates({ spawns, objective, thronePos, escapeTiles, playerSpawns }) {
+  // A siege-tome carrier (Breachbolt) never holds: its Danger zone covers most of the
+  // map, so it would wake its pack on turn 1 once seen. It keeps its normal orders.
   const eligible = (spawns || []).filter(
-    (s) => s && !s.isBoss && !s.isEntity && (!s.aiMode || s.aiMode === 'guard'),
+    (s) => s && !s.isBoss && !s.isEntity && !s.siegeWeapon && (!s.aiMode || s.aiMode === 'guard'),
   );
   const nonBoss = (spawns || []).filter((s) => s && !s.isBoss && !s.isEntity);
   let anchor = null;
