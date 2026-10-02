@@ -380,7 +380,7 @@ describe('StatusConditionSystem', () => {
       expect(remedy.price).toBeGreaterThan(0);
     });
 
-    it('difficulty.json has statusStaffConfig on hard/lunatic, null on normal', () => {
+    it('difficulty.json has statusStaffConfig on Dusk and up, null on normal', () => {
       const gd = loadGameData();
       const normal = gd.difficulty.modes.normal;
       const hard = gd.difficulty.modes.hard;
@@ -393,7 +393,7 @@ describe('StatusConditionSystem', () => {
       expect(hard.statusStaffConfig.maxPerBattle).toBe(1);
       expect(hard.statusStaffConfig.act3).toBeGreaterThan(0);
       expect(hard.statusStaffConfig.act1).toBe(0);
-      expect(hard.statusStaffConfig.act2).toBe(0);
+      expect(hard.statusStaffConfig.act2).toBeGreaterThan(0); // Dusk pressure §2c: from Act II
 
       expect(lunatic.statusStaffConfig).toBeDefined();
       expect(lunatic.statusStaffConfig.maxPerBattle).toBe(2);

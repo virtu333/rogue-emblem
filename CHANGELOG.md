@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Dusk Pressure PR 4: Status Staves and Siege Tomes by Rung (Oct 2, 2026)
+
+- **Staves and siege tomes are a per-battle chance.** When a caster who could carry one
+  stands on the map, the battle rolls once: Dusk fields Silence staves only, from Act III
+  (15% / 20%), and a Breachbolt in Act IV (15%); Nightfall staves from Act II
+  (10 / 25 / 30 / 35%) and siege from Act III (25 / 30 / 35%); Black Sun a little more
+  of each, with up to two staves. Before, each caster rolled a few percent, so they were
+  rare however the rungs were set.
+- Shops guarantee cures in every act that fields staves (now Dusk Acts III–IV and
+  Nightfall Act II too).
+- The roll never changes the map itself, and runs saved before keep their old odds.
+- Siege casters still move and fire like other casters; an Artillery AI that fires from
+  a post is a later change. Spec: `docs/specs/dusk-pressure.md` §2c.
+
 ### Dusk Pressure PR 3: Hold-Position Garrisons and the Seize Par Fix (Oct 2, 2026)
 
 - **Garrisons hold their ground on Dusk and harder.**

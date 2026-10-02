@@ -301,12 +301,33 @@ then hunts for the rest of the battle.
   - `REINFORCEMENT_EXCLUDED_TERRAIN`.
   - Harness mirrors for anti-turtle, spawn gear and enemy staves.
 
-**Artillery AI (later PR).** A Breachbolt holder that still has shots does not move. It
-fires from its post at the best target 3–10 away, and ThreatForecast draws its reach from
-the post (mov 0) so Danger matches the AI.
+**Artillery AI (later PR, decided in PR 4).** Siege casters get no hold-and-fire
+behaviour yet. A static Breachbolt caster changes the Danger contract (ThreatForecast
+would draw its reach from the post with mov 0, and every preview must agree), and the
+caster already falls back to its own tome when its shots are spent; both deserve their
+own PR and tests. Until then a siege caster moves and fires like any caster, and never
+holds (§2b: its Danger zone would wake its pack on sight). The later PR: a Breachbolt
+caster with shots left does not move, fires from its post at the best target 3–10
+away, and ThreatForecast draws its reach from the post.
 
-**Frequency (later PR).** Switch from a per-spawn chance to a per-battle chance, rolled
-only when an eligible class is on the map, on a stream derived from `battleSeed`.
+**Frequency (PR 4).** `statusStaffConfig` and `siegeWeaponConfig` with
+`perBattle: true` give, per act, the chance that a battle has one, rolled only when an
+eligible caster is on the map (Mage, Sage, Bishop for staves; Sage, Warlock, Dark
+Knight, Grandmaster for siege). With `maxPerBattle` 2, a second one takes another roll
+at the same chance after a hit. The siege tome is assigned first and a caster never
+carries both. `kinds` lists the staves a rung may field.
+- **Stream.** `engine/CasterGear.js` rolls on its own stream, hashed from the generated
+  garrison (classes, tiles, levels), act, rung and template, which the battle seed
+  already fixes. It never draws `Math.random`, so a map is identical with or without
+  the rolls; only its casters' flags differ. MapGenerator writes them into the spawns
+  (locked map, resume and Vision keep them) and `EnemySpawnGear` equips them for the
+  scene and the harness alike.
+- **Old saves.** A config without `perBattle` is the old per-spawn roll, which
+  MapGenerator still runs: a run saved before PR 4 keeps its rung's old numbers and maps.
+- **Cures.** Every rung and act that fields staves guarantees cures in its shops
+  (`shopCureGating`): Dusk Acts III–IV and Nightfall Act II join.
+- **Gap.** Dusk is Silence only, from Act III, and siege only in Act IV, each at least
+  0.10 under Nightfall's chance in every act Nightfall has one.
 
 | Rung | Staff kinds | Staff chance II / III / IV / final, max | Siege chance III / IV / final, max |
 |---|---|---|---|
@@ -314,10 +335,19 @@ only when an eligible class is on the map, on a stream derived from `battleSeed`
 | Nightfall | Silence + Sleep | .10 / .25 / .30 / .35, 1 | .25 / .30 / .35, 1 |
 | Black Sun | Silence + Sleep | .15 / .30 / .35 / .45, 2 | .35 / .40 / .45, 1 |
 
-Measured effective shares today (map-only, 40 seeds): Nightfall staves 3% / 8% / 20% of
-battles, no siege. Black Sun staves 5% / 10% / 15% / 35%, siege 4% / 10% / 13%.
-Eligible casters appear on about 40–75% of maps for staves and 22–39% for siege. Dusk
-keeps shop cures.
+Effective shares of all battles (250 seeds per act, rout and seize, deployCount 6),
+before → after PR 4. A staff or siege needs an eligible caster, which stands on about
+50–70% of maps for staves and 22–44% for siege (none in Act II):
+
+| Rung | Staves II / III / IV / final | Siege III / IV / final |
+|---|---|---|
+| Dusk | 0 / 0 / 0 → 0 / 8% / 14% | 0 / 0 → 0 / 6% |
+| Nightfall | 0 / 5% / 7% / 13% → 4% / 11% / 17% / 24% | 0 / 0 / 0 → 6% / 14% / 23% |
+| Black Sun | 6% / 9% / 14% / 24% → 8% / 14% / 23% / 24% | 3% / 6% / 19% → 8% / 17% / 38% |
+
+Given an eligible caster, the share matches the rung's chance (Nightfall Act IV staves
+27% against .30, siege 32% against .30). Black Sun's final battle keeps its staff share
+(24%): its siege rolls first and takes some Sages.
 
 ### 2d. Par, Eclipse and Black Sun
 
