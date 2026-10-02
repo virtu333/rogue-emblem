@@ -153,6 +153,40 @@ describe('recording', () => {
     expect(b.avenged).toBe(1);
   });
 
+  // A spent reinforcement ladder (docs/specs/dusk-pressure.md): a reinforcement whose
+  // wave pays nothing is still a kill, but feeds no record a waiting army could farm.
+  it('a zero-reward reinforcement counts as a kill and feeds no level gap or tally', () => {
+    const hero = unit({ level: 2 });
+    const spent = foe({ level: 9, _isReinforcement: true, _reinforcementRewardMultiplier: 0 });
+    recordKill(spent, hero, { terrain: 'Forest' });
+    let b = hero._battleDeeds;
+    expect(b.kills).toBe(1);
+    expect(b.maxKillLevelGap).toBe(0);
+    expect(b.killsByTerrain).toEqual({});
+    expect(b.killsByWeapon).toEqual({});
+    // A wave that still pays (a tenth) feeds them as any kill does: 9 - 2 = 7.
+    recordKill(
+      foe({ level: 9, _isReinforcement: true, _reinforcementRewardMultiplier: 0.1 }),
+      hero,
+      { terrain: 'Forest' },
+    );
+    b = hero._battleDeeds;
+    expect(b.kills).toBe(2);
+    expect(b.maxKillLevelGap).toBe(7);
+    expect(b.killsByTerrain).toEqual({ Forest: 1 });
+    expect(b.killsByWeapon).toEqual({ Sword: 1 });
+  });
+
+  // The weapon's own counters (ItemUsage, shown on its card, never a reward) are its
+  // history: a zero-reward reinforcement it struck and finished still counts there.
+  it("a zero-reward reinforcement still counts on the weapon's strikes and kills", () => {
+    const hero = unit({ level: 2, weapon: { type: 'Sword', name: 'Iron Sword' } });
+    const spent = foe({ level: 9, _isReinforcement: true, _reinforcementRewardMultiplier: 0 });
+    recordCombat({ events: [strike('attacker', { targetHPAfter: 0 })] }, hero, spent);
+    expect(hero.weapon._strikes).toBe(1);
+    expect(hero.weapon._kills).toBe(1);
+  });
+
   it('ignores NPC and enemy-on-enemy outcomes; heals and dances only count for players', () => {
     const enemy = foe();
     recordKill(foe(), enemy, {});

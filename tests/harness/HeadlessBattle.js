@@ -15,12 +15,20 @@ import {
   recordStaffUse,
 } from '../../src/engine/DeedSystem.js';
 import { AIController } from '../../src/engine/AIController.js';
+import { advanceCaravan, createCaravanUnit } from '../../src/engine/CaravanSystem.js';
 import { generateBattle, reconcileRecruitSpawnTile } from '../../src/engine/MapGenerator.js';
+import { parRaiseForArrivals } from '../../src/engine/ReinforcementScheduler.js';
 import {
-  parRaiseForArrivals,
-  reinforcementMoveTypes,
-  scheduleReinforcementsForTurn,
-} from '../../src/engine/ReinforcementScheduler.js';
+  buildReinforcementSpawnSpec,
+  buildReinforcementTemplatePool,
+  enemyRewardMultiplier,
+  enemySpawnFallbackLevel,
+  enemyXpMultiplier,
+  normalizeEnemyRewardMultiplier,
+  occupiedUnitTiles,
+  resolveBattleReinforcements,
+  stampReinforcementMeta,
+} from '../../src/engine/ReinforcementSpawns.js';
 import {
   armyAndNpcAllies,
   isRecruitNpc,
@@ -122,7 +130,6 @@ import {
   BOSS_STAT_BONUS,
   TERRAIN,
   XP_BASE_HEAL,
-  XP_SPECIAL_ENEMY_MULTIPLIER,
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
 import { applyCombatHP } from '../../src/engine/UnitHealth.js';
@@ -338,6 +345,12 @@ export class HeadlessBattle {
       }
     }
 
+    // Merchant Caravan, as CaravanController.spawnIfConfigured: an NPC from the config.
+    this._caravanExited = false;
+    if (bc.caravanSpawn) {
+      this.npcUnits.push(createCaravanUnit(this.battleParams?.act || 'act1', bc.caravanSpawn));
+    }
+
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       unit._phoenixBroochUsed = false;
     }
@@ -357,6 +370,7 @@ export class HeadlessBattle {
             mapLayout: bc.mapLayout,
             terrainData: this.gameData.terrain,
             parBonus: bc.parBonus || 0,
+            parInflation: bc.parInflation,
           },
           this.gameData.turnBonus,
           this.battleParams?.difficultyId,
@@ -710,18 +724,10 @@ export class HeadlessBattle {
   }
 
   _getEnemySpawnFallbackLevel() {
-    const nonBossLevels = (this.battleConfig?.enemySpawns || [])
-      .filter((spawn) => spawn && !spawn.isBoss)
-      .map((spawn) => Math.trunc(Number(spawn.level) || 0))
-      .filter((level) => level > 0);
-    if (nonBossLevels.length > 0) {
-      const total = nonBossLevels.reduce((sum, level) => sum + level, 0);
-      return Math.max(1, Math.round(total / nonBossLevels.length));
-    }
-    const byAct = { act1: 3, act2: 6, act3: 9, act4: 12, finalBoss: 14 };
-    return byAct[this.battleParams?.act] || 3;
+    return enemySpawnFallbackLevel(this.battleConfig, this.battleParams?.act);
   }
 
+  /** As BattleScene.getReinforcementTemplatePool (engine/ReinforcementSpawns.js). */
   _getReinforcementTemplatePool() {
     if (
       Array.isArray(this.reinforcementTemplatePool) &&
@@ -729,77 +735,24 @@ export class HeadlessBattle {
     ) {
       return this.reinforcementTemplatePool;
     }
-
-    const templates = [];
-    const seen = new Set();
-    for (const spawn of this.battleConfig?.enemySpawns || []) {
-      if (!spawn || spawn.isBoss || typeof spawn.className !== 'string') continue;
-      const classData = this.gameData.classes.find(
-        (candidate) => candidate.name === spawn.className,
-      );
-      if (!classData) continue;
-      const level = Math.max(
-        1,
-        Math.trunc(Number(spawn.level) || this._getEnemySpawnFallbackLevel()),
-      );
-      const key = `${spawn.className}:${level}:${spawn.sunderWeapon ? 's' : 'n'}:${spawn.poisonWeapon ? 'p' : 'n'}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      templates.push({
-        className: spawn.className,
-        level,
-        sunderWeapon: Boolean(spawn.sunderWeapon),
-        poisonWeapon: Boolean(spawn.poisonWeapon),
-        aiMode: spawn.aiMode || null,
-        affixes: Array.isArray(spawn.affixes) ? [...spawn.affixes] : [],
-      });
-    }
-
-    if (templates.length === 0) {
-      const fallbackLevel = this._getEnemySpawnFallbackLevel();
-      const act = this.battleParams?.act || 'act1';
-      const pool = this.gameData?.enemies?.pools?.[act];
-      const classNames = [
-        ...(Array.isArray(pool?.base) ? pool.base : []),
-        ...(Array.isArray(pool?.promoted) ? pool.promoted : []),
-      ];
-      for (const className of classNames) {
-        if (typeof className !== 'string') continue;
-        const classData = this.gameData.classes.find((candidate) => candidate.name === className);
-        if (!classData) continue;
-        templates.push({
-          className,
-          level: fallbackLevel,
-          sunderWeapon: false,
-          poisonWeapon: false,
-          aiMode: null,
-          affixes: [],
-        });
-      }
-    }
-
-    this.reinforcementTemplatePool = templates;
-    return templates;
+    this.reinforcementTemplatePool = buildReinforcementTemplatePool({
+      battleConfig: this.battleConfig,
+      battleParams: this.battleParams,
+      gameData: this.gameData,
+    });
+    return this.reinforcementTemplatePool;
   }
 
   _normalizeEnemyRewardMultiplier(value) {
-    if (!Number.isFinite(value)) return 1;
-    return Math.max(0, Math.min(1, value));
+    return normalizeEnemyRewardMultiplier(value);
   }
 
   _getEnemyRewardMultiplier(unit) {
-    if (!unit?._isReinforcement) return 1;
-    const rewardMultiplier = Number.isFinite(unit._reinforcementRewardMultiplier)
-      ? unit._reinforcementRewardMultiplier
-      : unit._reinforcementXpMultiplier;
-    return this._normalizeEnemyRewardMultiplier(rewardMultiplier);
+    return enemyRewardMultiplier(unit);
   }
 
   _getEnemyXpMultiplier(unit) {
-    const rewardMultiplier = this._getEnemyRewardMultiplier(unit);
-    const isSpecialEnemy = Boolean(unit?.isBoss || unit?.isElite);
-    if (!isSpecialEnemy) return rewardMultiplier;
-    return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
+    return enemyXpMultiplier(unit);
   }
 
   /**
@@ -852,75 +805,16 @@ export class HeadlessBattle {
     return Math.max(0, Math.trunc(Number(this.turnManager?.turnNumber) || 0));
   }
 
-  _hashReinforcementTemplateChoice(spawn, spawnOrdinal = 0) {
-    let hash = this._getReinforcementSeed() >>> 0;
-    const waveIndex = Math.trunc(Number(spawn?.waveIndex) || 0) + 1;
-    const col = Math.trunc(Number(spawn?.col) || 0) + 1;
-    const row = Math.trunc(Number(spawn?.row) || 0) + 1;
-    const ordinal = Math.trunc(Number(spawnOrdinal) || 0) + 1;
-    hash ^= Math.imul(waveIndex, 0x9e3779b1);
-    hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b);
-    hash ^= Math.imul(col, 0xc2b2ae35);
-    hash = Math.imul(hash ^ (hash >>> 13), 0x27d4eb2d);
-    hash ^= Math.imul(row, 0x165667b1);
-    hash ^= Math.imul(ordinal, 0x1b873593);
-    return (hash ^ (hash >>> 16)) >>> 0;
-  }
-
   _buildReinforcementSpawnSpec(scheduledSpawn, spawnOrdinal = 0) {
-    const classOverride =
-      scheduledSpawn && typeof scheduledSpawn.className === 'string'
-        ? scheduledSpawn.className
-        : null;
-
-    let template = null;
-    if (!classOverride) {
-      const templates = this._getReinforcementTemplatePool();
-      if (!Array.isArray(templates) || templates.length === 0) return null;
-      const pickIndex =
-        this._hashReinforcementTemplateChoice(scheduledSpawn, spawnOrdinal) % templates.length;
-      template = templates[pickIndex];
-      if (!template || typeof template.className !== 'string') return null;
-    }
-
-    const className = classOverride || template.className;
-    const hasLevelOverride = Number.isFinite(scheduledSpawn?.level);
-    const baseLevel = template ? template.level : this._getEnemySpawnFallbackLevel();
-    return {
-      className,
-      level: Math.max(
-        1,
-        Math.trunc(
-          Number(hasLevelOverride ? scheduledSpawn.level : baseLevel) ||
-            this._getEnemySpawnFallbackLevel(),
-        ),
-      ),
-      col: scheduledSpawn.col,
-      row: scheduledSpawn.row,
-      sunderWeapon:
-        typeof scheduledSpawn?.sunderWeapon === 'boolean'
-          ? scheduledSpawn.sunderWeapon
-          : Boolean(template?.sunderWeapon),
-      poisonWeapon:
-        typeof scheduledSpawn?.poisonWeapon === 'boolean'
-          ? scheduledSpawn.poisonWeapon
-          : Boolean(template?.poisonWeapon),
-      aiMode:
-        typeof scheduledSpawn?.aiMode === 'string'
-          ? scheduledSpawn.aiMode
-          : template?.aiMode || null,
-      aiTargetTile:
-        scheduledSpawn?.aiTargetTile &&
-        Number.isFinite(scheduledSpawn.aiTargetTile.col) &&
-        Number.isFinite(scheduledSpawn.aiTargetTile.row)
-          ? { col: scheduledSpawn.aiTargetTile.col, row: scheduledSpawn.aiTargetTile.row }
-          : null,
-      affixes: Array.isArray(scheduledSpawn?.affixes)
-        ? [...scheduledSpawn.affixes]
-        : Array.isArray(template?.affixes)
-          ? [...template.affixes]
-          : [],
-    };
+    return buildReinforcementSpawnSpec({
+      scheduledSpawn,
+      spawnOrdinal,
+      seed: this._getReinforcementSeed(),
+      templates: this._getReinforcementTemplatePool(),
+      battleConfig: this.battleConfig,
+      battleParams: this.battleParams,
+      gameData: this.gameData,
+    });
   }
 
   _addEnemyFromSpawn(spawn, options = {}) {
@@ -998,49 +892,28 @@ export class HeadlessBattle {
       delete enemy.aiTargetTile;
     }
 
-    const reinforcementMeta = options.reinforcementMeta || null;
-    if (reinforcementMeta) {
-      enemy._isReinforcement = true;
-      enemy._reinforcementWaveIndex = Math.trunc(Number(reinforcementMeta.waveIndex) || 0);
-      enemy._reinforcementSpawnTurn = Math.trunc(Number(reinforcementMeta.scheduledTurn) || 0);
-      const rewardMultiplier = this._normalizeEnemyRewardMultiplier(
-        Number(reinforcementMeta.xpMultiplier),
-      );
-      enemy._reinforcementRewardMultiplier = rewardMultiplier;
-      // Backward compatibility for legacy field name.
-      enemy._reinforcementXpMultiplier = rewardMultiplier;
-    }
+    if (options.reinforcementMeta) stampReinforcementMeta(enemy, options.reinforcementMeta);
 
     this.enemyUnits.push(enemy);
     return enemy;
   }
 
   _getReinforcementOccupiedTiles() {
-    return [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]
-      .filter((unit) => unit && Number.isFinite(unit.col) && Number.isFinite(unit.row))
-      .flatMap((unit) =>
-        isEntity(unit) ? getFootprint(unit) : [{ col: unit.col, row: unit.row }],
-      );
+    return occupiedUnitTiles([...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]);
   }
 
   _resolveReinforcementsForTurn(turn) {
-    if (!this.battleConfig?.reinforcements) return { spawns: [], dueWaves: [], blockedSpawns: 0 };
-    return scheduleReinforcementsForTurn({
+    return resolveBattleReinforcements({
       turn,
       seed: this._getReinforcementSeed(),
-      reinforcements: this.battleConfig.reinforcements,
-      mapLayout: this.battleConfig.mapLayout,
-      terrain: this.gameData.terrain,
+      battleConfig: this.battleConfig,
+      battleParams: this.battleParams,
+      gameData: this.gameData,
+      templates: this._getReinforcementTemplatePool(),
+      playerUnits: this.playerUnits,
+      enemyUnits: this.enemyUnits,
+      npcUnits: this.npcUnits,
       occupied: this._getReinforcementOccupiedTiles(),
-      moveTypes: reinforcementMoveTypes(
-        this._getReinforcementTemplatePool(),
-        this.gameData.classes,
-      ),
-      classMoveType: (name) => this.gameData.classes.find((c) => c.name === name)?.moveType,
-      difficultyId: this.battleParams?.difficultyId || 'normal',
-      difficultyTurnOffset: Math.trunc(Number(this.battleParams?.reinforcementTurnOffset) || 0),
-      enemyCountBonus: Math.trunc(Number(this.battleParams?.enemyCountBonus) || 0),
-      activeEnemyCount: this.enemyUnits.length,
     });
   }
 
@@ -2174,6 +2047,9 @@ export class HeadlessBattle {
     this._reinforcementsPendingThisTurn = true;
     try {
       this._processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
+      // Then the caravan steps toward its exit, before the AI acts (as BattleScene: the
+      // player phase's hazards burn first, startEnemyPhase steps it).
+      this._stepCaravan();
       this._processTurnStartEffects(this.enemyUnits);
       this._processZombieRevival();
       if (this.battleState === HEADLESS_STATES.BATTLE_END) return;
@@ -2225,6 +2101,23 @@ export class HeadlessBattle {
     } finally {
       this._reinforcementsPendingThisTurn = false;
     }
+  }
+
+  /** As CaravanController.stepTurn (engine/CaravanSystem.advanceCaravan), minus drawing. */
+  _stepCaravan() {
+    if (this._caravanExited) return;
+    const unit = this.npcUnits.find((u) => u.isCaravan && u.currentHP > 0);
+    if (!unit) return;
+    const { exited } = advanceCaravan(unit, {
+      units: [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits],
+      mapLayout: this.grid.mapLayout,
+      cols: this.grid.cols,
+      rows: this.grid.rows,
+      terrainData: this.grid.terrainData,
+    });
+    if (!exited) return;
+    this._caravanExited = true;
+    this.npcUnits.splice(this.npcUnits.indexOf(unit), 1);
   }
 
   _createEnemyPhaseAiStats() {

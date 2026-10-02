@@ -75,7 +75,6 @@ import {
 } from '../engine/TurnPressure.js';
 import { applyDevScenario } from '../utils/devScenarios.js';
 import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.js';
-import { earlyEnemyAllowed } from '../engine/EarlyEnemyRules.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { BattleTradeMenu } from '../ui/BattleTradeMenu.js';
 import { battleTradeController } from '../ui/BattleTradeController.js';
@@ -196,15 +195,13 @@ import {
   TERRAIN,
   TERRAIN_HEAL_PERCENT,
   FORT_HEAL_DECAY_MULTIPLIERS,
-  XP_SPECIAL_ENEMY_MULTIPLIER,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
-  filterClassPoolByDifficulty,
   ENTITY_SPLASH_COUNT,
   ENTITY_FOOTPRINT,
   ENTITY_PRIMARY_ATTACK_RANGE,
 } from '../utils/constants.js';
-import { hasRoomRightOf } from '../utils/boardOrientation.js';
+import { displayEdge, hasRoomRightOf } from '../utils/boardOrientation.js';
 import {
   getHPBarColor,
   applyTextResolution,
@@ -287,11 +284,19 @@ import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
+import { parRaiseForArrivals } from '../engine/ReinforcementScheduler.js';
 import {
-  parRaiseForArrivals,
-  reinforcementMoveTypes,
-  scheduleReinforcementsForTurn,
-} from '../engine/ReinforcementScheduler.js';
+  buildReinforcementSpawnSpec,
+  buildReinforcementTemplatePool,
+  enemyRewardMultiplier,
+  enemySpawnFallbackLevel,
+  enemyXpMultiplier,
+  normalizeEnemyRewardMultiplier,
+  occupiedUnitTiles,
+  resolveBattleReinforcements,
+  stampReinforcementMeta,
+} from '../engine/ReinforcementSpawns.js';
+import { routLadderObjectiveLine, routLadderStatus } from '../engine/RoutLadder.js';
 import {
   transitionToScene,
   transitionToSceneWithBlockedRetry,
@@ -541,6 +546,8 @@ export class BattleScene extends Phaser.Scene {
     this._managedSceneTimers = new Set();
     this._lifecycleAwaitGuards = new Set();
     this._reinforcementsPendingThisTurn = false;
+    // Turn whose ladder wave this enemy phase resolved (objective line only).
+    this._ladderResolvedTurn = 0;
     this._enemyPhaseReinforcedTurn = null;
     this._playerTurnStartPipelineTurn = null;
     this.lootSettingsOverlay = null;
@@ -1720,6 +1727,7 @@ export class BattleScene extends Phaser.Scene {
           mapLayout: this.battleConfig.mapLayout,
           terrainData: this.gameData.terrain,
           parBonus: this.battleConfig.parBonus || 0,
+          parInflation: this.battleConfig.parInflation,
         };
         this.turnPar = calculatePar(
           mapParams,
@@ -2486,18 +2494,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   getEnemySpawnFallbackLevel() {
-    const nonBossLevels = (this.battleConfig?.enemySpawns || [])
-      .filter((spawn) => spawn && !spawn.isBoss)
-      .map((spawn) => Math.trunc(Number(spawn.level) || 0))
-      .filter((level) => level > 0);
-    if (nonBossLevels.length > 0) {
-      const total = nonBossLevels.reduce((sum, level) => sum + level, 0);
-      return Math.max(1, Math.round(total / nonBossLevels.length));
-    }
-    const byAct = { act1: 3, act2: 6, act3: 9, act4: 12, finalBoss: 14 };
-    return byAct[this.battleParams?.act] || 3;
+    return enemySpawnFallbackLevel(this.battleConfig, this.battleParams?.act);
   }
 
+  /** What arrivals copy (engine/ReinforcementSpawns.js), cached for the battle. */
   getReinforcementTemplatePool() {
     if (
       Array.isArray(this.reinforcementTemplatePool) &&
@@ -2505,162 +2505,36 @@ export class BattleScene extends Phaser.Scene {
     ) {
       return this.reinforcementTemplatePool;
     }
-
-    const templates = [];
-    const seen = new Set();
-    for (const spawn of this.battleConfig?.enemySpawns || []) {
-      if (
-        !spawn ||
-        spawn.isBoss ||
-        typeof spawn.className !== 'string' ||
-        !earlyEnemyAllowed(spawn.className, this.battleParams)
-      )
-        continue;
-      const classData = this.gameData.classes.find(
-        (candidate) => candidate.name === spawn.className,
-      );
-      if (!classData) continue;
-      const level = Math.max(
-        1,
-        Math.trunc(Number(spawn.level) || this.getEnemySpawnFallbackLevel()),
-      );
-      const key = `${spawn.className}:${level}:${spawn.sunderWeapon ? 's' : 'n'}:${spawn.poisonWeapon ? 'p' : 'n'}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      templates.push({
-        className: spawn.className,
-        level,
-        sunderWeapon: Boolean(spawn.sunderWeapon),
-        poisonWeapon: Boolean(spawn.poisonWeapon),
-        aiMode: spawn.aiMode || null,
-        affixes: Array.isArray(spawn.affixes) ? [...spawn.affixes] : [],
-      });
-    }
-
-    if (templates.length === 0) {
-      const fallbackLevel = this.getEnemySpawnFallbackLevel();
-      const act = this.battleParams?.act || 'act1';
-      const pool = this.gameData?.enemies?.pools?.[act];
-      const classNames = [
-        ...(Array.isArray(pool?.base) ? pool.base : []),
-        ...(Array.isArray(pool?.promoted) ? pool.promoted : []),
-      ];
-      const filteredNames = filterClassPoolByDifficulty(
-        classNames,
-        this.battleParams?.difficultyId,
-        { act, difficulty: this.gameData?.difficulty },
-      );
-      for (const className of filteredNames) {
-        if (!earlyEnemyAllowed(className, this.battleParams)) continue;
-        if (typeof className !== 'string') continue;
-        const classData = this.gameData.classes.find((candidate) => candidate.name === className);
-        if (!classData) continue;
-        templates.push({
-          className,
-          level: fallbackLevel,
-          sunderWeapon: false,
-          poisonWeapon: false,
-          aiMode: null,
-          affixes: [],
-        });
-      }
-    }
-
-    this.reinforcementTemplatePool = templates;
-    return templates;
+    this.reinforcementTemplatePool = buildReinforcementTemplatePool({
+      battleConfig: this.battleConfig,
+      battleParams: this.battleParams,
+      gameData: this.gameData,
+    });
+    return this.reinforcementTemplatePool;
   }
 
   normalizeEnemyRewardMultiplier(value) {
-    if (!Number.isFinite(value)) return 1;
-    return Math.max(0, Math.min(1, value));
+    return normalizeEnemyRewardMultiplier(value);
   }
 
   getEnemyRewardMultiplier(enemyUnit) {
-    if (!enemyUnit?._isReinforcement) return 1;
-    const rewardMultiplier = Number.isFinite(enemyUnit._reinforcementRewardMultiplier)
-      ? enemyUnit._reinforcementRewardMultiplier
-      : enemyUnit._reinforcementXpMultiplier;
-    return this.normalizeEnemyRewardMultiplier(rewardMultiplier);
+    return enemyRewardMultiplier(enemyUnit);
   }
 
   getEnemyXpMultiplier(enemyUnit) {
-    const rewardMultiplier = this.getEnemyRewardMultiplier(enemyUnit);
-    const isSpecialEnemy = Boolean(enemyUnit?.isBoss || enemyUnit?.isElite);
-    if (!isSpecialEnemy) return rewardMultiplier;
-    return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
-  }
-
-  _hashReinforcementTemplateChoice(spawn, spawnOrdinal = 0) {
-    let hash = this.getReinforcementSeed() >>> 0;
-    const waveIndex = Math.trunc(Number(spawn?.waveIndex) || 0) + 1;
-    const col = Math.trunc(Number(spawn?.col) || 0) + 1;
-    const row = Math.trunc(Number(spawn?.row) || 0) + 1;
-    const ordinal = Math.trunc(Number(spawnOrdinal) || 0) + 1;
-    hash ^= Math.imul(waveIndex, 0x9e3779b1);
-    hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b);
-    hash ^= Math.imul(col, 0xc2b2ae35);
-    hash = Math.imul(hash ^ (hash >>> 13), 0x27d4eb2d);
-    hash ^= Math.imul(row, 0x165667b1);
-    hash ^= Math.imul(ordinal, 0x1b873593);
-    return (hash ^ (hash >>> 16)) >>> 0;
+    return enemyXpMultiplier(enemyUnit);
   }
 
   buildReinforcementSpawnSpec(scheduledSpawn, spawnOrdinal = 0) {
-    const classOverride =
-      scheduledSpawn &&
-      typeof scheduledSpawn.className === 'string' &&
-      earlyEnemyAllowed(scheduledSpawn.className, this.battleParams)
-        ? scheduledSpawn.className
-        : null;
-
-    let template = null;
-    if (!classOverride) {
-      const templates = this.getReinforcementTemplatePool();
-      if (!Array.isArray(templates) || templates.length === 0) return null;
-      const pickIndex =
-        this._hashReinforcementTemplateChoice(scheduledSpawn, spawnOrdinal) % templates.length;
-      template = templates[pickIndex];
-      if (!template || typeof template.className !== 'string') return null;
-    }
-
-    const className = classOverride || template.className;
-    const hasLevelOverride = Number.isFinite(scheduledSpawn?.level);
-    const baseLevel = template ? template.level : this.getEnemySpawnFallbackLevel();
-    return {
-      className,
-      level: Math.max(
-        1,
-        Math.trunc(
-          Number(hasLevelOverride ? scheduledSpawn.level : baseLevel) ||
-            this.getEnemySpawnFallbackLevel(),
-        ),
-      ),
-      col: scheduledSpawn.col,
-      row: scheduledSpawn.row,
-      sunderWeapon:
-        typeof scheduledSpawn?.sunderWeapon === 'boolean'
-          ? scheduledSpawn.sunderWeapon
-          : Boolean(template?.sunderWeapon),
-      poisonWeapon:
-        typeof scheduledSpawn?.poisonWeapon === 'boolean'
-          ? scheduledSpawn.poisonWeapon
-          : Boolean(template?.poisonWeapon),
-      aiMode:
-        typeof scheduledSpawn?.aiMode === 'string'
-          ? scheduledSpawn.aiMode
-          : template?.aiMode || null,
-      aiTargetTile:
-        scheduledSpawn?.aiTargetTile &&
-        Number.isFinite(scheduledSpawn.aiTargetTile.col) &&
-        Number.isFinite(scheduledSpawn.aiTargetTile.row)
-          ? { col: scheduledSpawn.aiTargetTile.col, row: scheduledSpawn.aiTargetTile.row }
-          : null,
-      affixes: Array.isArray(scheduledSpawn?.affixes)
-        ? [...scheduledSpawn.affixes]
-        : Array.isArray(template?.affixes)
-          ? [...template.affixes]
-          : [],
-    };
+    return buildReinforcementSpawnSpec({
+      scheduledSpawn,
+      spawnOrdinal,
+      seed: this.getReinforcementSeed(),
+      templates: this.getReinforcementTemplatePool(),
+      battleConfig: this.battleConfig,
+      battleParams: this.battleParams,
+      gameData: this.gameData,
+    });
   }
 
   addEnemyFromSpawn(spawn, options = {}) {
@@ -2738,18 +2612,7 @@ export class BattleScene extends Phaser.Scene {
     // Village bandits that spawn after the village resolved revert to chase.
     this._villageController?.sanitizeSpawnedEnemy(enemy);
 
-    const reinforcementMeta = options.reinforcementMeta || null;
-    if (reinforcementMeta) {
-      enemy._isReinforcement = true;
-      enemy._reinforcementWaveIndex = Math.trunc(Number(reinforcementMeta.waveIndex) || 0);
-      enemy._reinforcementSpawnTurn = Math.trunc(Number(reinforcementMeta.scheduledTurn) || 0);
-      const rewardMultiplier = this.normalizeEnemyRewardMultiplier(
-        Number(reinforcementMeta.xpMultiplier),
-      );
-      enemy._reinforcementRewardMultiplier = rewardMultiplier;
-      // Backward compatibility for legacy field name.
-      enemy._reinforcementXpMultiplier = rewardMultiplier;
-    }
+    if (options.reinforcementMeta) stampReinforcementMeta(enemy, options.reinforcementMeta);
 
     this.enemyUnits.push(enemy);
     this.addUnitGraphic(enemy);
@@ -2757,42 +2620,34 @@ export class BattleScene extends Phaser.Scene {
   }
 
   getReinforcementOccupiedTiles() {
-    const tiles = [];
-    for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
-      if (!unit || !Number.isFinite(unit.col) || !Number.isFinite(unit.row)) continue;
-      if (isEntity(unit)) {
-        for (const t of getFootprint(unit)) tiles.push(t);
-      } else {
-        tiles.push({ col: unit.col, row: unit.row });
-      }
-    }
-    return tiles;
+    return occupiedUnitTiles([...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]);
   }
 
   resolveReinforcementsForTurn(turn) {
-    if (!this.battleConfig?.reinforcements) {
-      return { spawns: [], dueWaves: [], blockedSpawns: 0 };
-    }
-    return scheduleReinforcementsForTurn({
+    return resolveBattleReinforcements({
       turn,
       seed: this.getReinforcementSeed(),
-      reinforcements: this.battleConfig.reinforcements,
-      mapLayout: this.battleConfig.mapLayout,
-      terrain: this.gameData.terrain,
+      battleConfig: this.battleConfig,
+      battleParams: this.battleParams,
+      gameData: this.gameData,
+      templates: this.getReinforcementTemplatePool(),
+      playerUnits: this.playerUnits,
+      enemyUnits: this.enemyUnits,
+      npcUnits: this.npcUnits,
       occupied: this.getReinforcementOccupiedTiles(),
-      // Every class an arrival may copy must be able to stand on its tile.
-      moveTypes: reinforcementMoveTypes(this.getReinforcementTemplatePool(), this.gameData.classes),
-      classMoveType: (name) => this.gameData.classes.find((c) => c.name === name)?.moveType,
-      difficultyId: this.battleParams?.difficultyId || this.runManager?.difficultyId || 'normal',
-      difficultyTurnOffset: Math.trunc(Number(this.battleParams?.reinforcementTurnOffset) || 0),
-      enemyCountBonus: Math.trunc(Number(this.battleParams?.enemyCountBonus) || 0),
-      activeEnemyCount: this.enemyUnits.length,
+      fallbackDifficultyId: this.runManager?.difficultyId || 'normal',
     });
   }
 
   applyReinforcementsForTurn(turn) {
     const schedule = this.resolveReinforcementsForTurn(turn);
     this.lastReinforcementSchedule = schedule;
+    // The ladder's objective line counts this turn's wave as resolved for the rest of
+    // this enemy phase, even when every tile it wanted was blocked.
+    if (this.battleConfig?.reinforcements?.ladder) {
+      this._ladderResolvedTurn = Math.trunc(Number(turn) || 0);
+      this.updateObjectiveText();
+    }
     if (!Array.isArray(schedule.spawns) || schedule.spawns.length === 0)
       return { ...schedule, spawned: 0 };
 
@@ -10971,6 +10826,25 @@ export class BattleScene extends Phaser.Scene {
     return false;
   }
 
+  /**
+   * The rout ladder's objective line (engine/RoutLadder.js): waves resolved, the next
+   * one's turn, its most arrivals and its edge as drawn (a portrait board is turned).
+   */
+  getLadderObjectiveLine() {
+    const rotation = this.grid?.board?.rotation || 'none';
+    return routLadderObjectiveLine(this.getLadderStatus(), (edge) => displayEdge(edge, rotation));
+  }
+
+  /** Where the rout ladder stands (null without one); see getLadderObjectiveLine. */
+  getLadderStatus() {
+    const turn = Math.trunc(Number(this.turnManager?.turnNumber) || 0);
+    const resolvedNow =
+      this.turnManager?.currentPhase === 'enemy' && this._ladderResolvedTurn === turn;
+    return routLadderStatus(this.battleConfig?.reinforcements, {
+      resolvedThroughTurn: resolvedNow ? turn : turn - 1,
+    });
+  }
+
   updateObjectiveText() {
     if (!this.objectiveText) return;
     let label;
@@ -10992,6 +10866,8 @@ export class BattleScene extends Phaser.Scene {
       const count = this.enemyUnits.length;
       const foes = `${count} ${count === 1 ? 'enemy' : 'enemies'}`;
       label = tombCount > 0 ? `Rout: ${foes} + ${tombCount} reviving` : `Rout: ${foes} remaining`;
+      const ladderLine = this.getLadderObjectiveLine();
+      if (ladderLine) label += `\n${ladderLine}`;
     }
     if (hasRecruitNpc(this.npcUnits)) {
       label += `\n${this._recruitBeacon?.getObjectiveSuffix() || 'Recruit: Talk to green unit'}`;

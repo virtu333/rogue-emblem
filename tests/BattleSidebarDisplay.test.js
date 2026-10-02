@@ -60,6 +60,30 @@ describe('side objectives in the compact header', () => {
     ).toEqual(['Village intact', 'Caravan 8/26 HP']);
   });
 
+  it('names the rout ladder while a wave is still to come, after the village and caravan', () => {
+    const ladder = (resolved, next) => ({ resolved, total: 4, next });
+    expect(texts({ ladder: ladder(1, { turn: 6, max: 2, edge: 'top' }) })).toEqual([
+      ['reinforcements', 'Waves 1/4 · next T6', 'warn'],
+    ]);
+    expect(texts({ ladder: ladder(4, null) })).toEqual([]);
+    expect(
+      texts({ village: 'intact', ladder: ladder(0, { turn: 4, max: 1, edge: 'right' }) }).map(
+        (p) => p[0],
+      ),
+    ).toEqual(['village', 'reinforcements']);
+    // The scene's ladder status rides along only when the battle has one.
+    const status = ladder(2, { turn: 8, max: 3, edge: 'left' });
+    expect(sideObjectiveInputs({ battleConfig: {}, getLadderStatus: () => status })).toEqual({
+      village: null,
+      caravan: null,
+      ladder: status,
+    });
+    expect(sideObjectiveInputs({ battleConfig: {}, getLadderStatus: () => null })).toEqual({
+      village: null,
+      caravan: null,
+    });
+  });
+
   const grid = (visible = () => true, fogEnabled = false) => ({
     fogEnabled,
     isVisible: (col, row) => visible(col, row),

@@ -970,6 +970,7 @@ export function validateMapTemplatesConfig(config, options = {}) {
         'parBonus',
         'weight',
         'caravan',
+        'ladder',
         'acts',
         'biome',
         'zones',
@@ -1138,6 +1139,10 @@ export function validateMapTemplatesConfig(config, options = {}) {
       validateBridges(path, template, errors);
       if (template.caravan !== undefined && typeof template.caravan !== 'boolean') {
         errors.push(`${path}.caravan must be a boolean when provided`);
+      }
+      // `ladder: false` keeps a rout template off the Dusk/Nightfall reinforcement ladder.
+      if (template.ladder !== undefined && template.ladder !== false) {
+        errors.push(`${path}.ladder may only be false (opt out of the rout ladder)`);
       }
       if (template.fogChance !== undefined) {
         if (

@@ -370,3 +370,26 @@ export function isCaravanAtEdge(unit, cols, rows = Infinity) {
   if (dr > 0) return unit.row >= rows - 1;
   return unit.row <= 0;
 }
+
+/**
+ * The caravan's turn (start of every enemy phase): one step toward its exit
+ * (computeCaravanStep, around every other living unit), then whether it now stands on
+ * its exit edge. Moves `unit` in place. BattleScene's CaravanController and the headless
+ * harness both call it.
+ * @returns {{ from: {col:number,row:number}, step: {col:number,row:number}|null,
+ *   exited: boolean }}
+ */
+export function advanceCaravan(unit, { units = [], mapLayout, cols, rows, terrainData }) {
+  const from = { col: unit.col, row: unit.row };
+  const occupied = new Set();
+  for (const u of units) {
+    if (!u || u === unit || u.currentHP <= 0) continue;
+    occupied.add(`${u.col},${u.row}`);
+  }
+  const step = computeCaravanStep(unit, mapLayout, cols, rows, terrainData, occupied);
+  if (step) {
+    unit.col = step.col;
+    unit.row = step.row;
+  }
+  return { from, step, exited: isCaravanAtEdge(unit, cols, rows) };
+}

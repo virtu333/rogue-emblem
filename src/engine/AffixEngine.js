@@ -53,6 +53,16 @@ function isAffixAllowed(affix, selectedIds, className, exclusionMaps) {
   return true;
 }
 
+/**
+ * The affixes a unit of `className` may keep: drops those affixes.json's class_exclude
+ * rules forbid for the class (a hasted Paladin, a teleporting General). Used when a unit
+ * changes class after its affixes were rolled (a promoted reinforcement wave).
+ */
+export function affixesAllowedForClass(affixIds, className, affixConfig) {
+  const { classExclude } = buildExclusionMaps(affixConfig);
+  return toArray(affixIds).filter((id) => !classExclude.get(id)?.has(className));
+}
+
 function weightedPick(entries) {
   const total = entries.reduce((sum, e) => sum + e.weight, 0);
   if (total <= 0) return null;
