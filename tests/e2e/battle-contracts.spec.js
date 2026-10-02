@@ -69,7 +69,17 @@ async function summary(page) {
       turn: s.turnManager.turnNumber,
       village: s._villageState,
       gold: s.goldEarned,
-      checkpoint: s.runManager.battleInProgress.checkpoint,
+      convoy: Object.values(s.runManager.convoy).flat(),
+      checkpoint: JSON.parse(JSON.stringify(s.runManager.battleInProgress.checkpoint)),
+      durable: JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run') || 'null')
+        ?.battleInProgress?.checkpoint,
+      visionActions: (s._battleTimeline?.entries || []).filter(
+        (entry) => entry.kind === 'player_action' && entry.destination,
+      ).length,
+      fogUpdates: window.__cantoFogUpdates || 0,
+      fog: s.grid.fogEnabled
+        ? { visible: [...s.grid.visibleSet].sort(), everSeen: [...s.grid.everSeenSet].sort() }
+        : null,
       units: s.playerUnits.map((u) => ({
         name: u.name,
         col: u.col,
@@ -500,9 +510,25 @@ test.describe('phone Canto and rewind contracts', () => {
     }, testInfo) => {
       const errors = await boot(page, true);
       const village = ending === 'move' ? { col: 2, row: 2 } : { col: 3, row: 3 };
-      const maxHP = await page.evaluate((pos) => {
+      const maxHP = await page.evaluate(async (pos) => {
         const s = window.__emblemRogueGame.scene.getScene('Battle'),
           u = s.playerUnits.find((u) => u.name === 'Edric');
+        const { getMetaKey, setActiveSlot } = await import('/src/engine/SlotManager.js');
+        const meta = s.registry.get('meta');
+        meta.storageKey = getMetaKey(1);
+        meta._save();
+        s.registry.set('activeSlot', 1);
+        setActiveSlot(1);
+        s.battleParams.fogEnabled = true;
+        s.runManager.battleInProgress.battleParams.fogEnabled = true;
+        s.grid.fogEnabled = true;
+        s.grid.updateFogOfWar(s.playerUnits);
+        window.__cantoFogUpdates = 0;
+        const updateFog = s.grid.updateFogOfWar.bind(s.grid);
+        s.grid.updateFogOfWar = (...args) => {
+          window.__cantoFogUpdates++;
+          return updateFog(...args);
+        };
         u.skills.push('canto');
         u.currentHP -= 10;
         u.consumables = [
@@ -534,25 +560,84 @@ test.describe('phone Canto and rewind contracts', () => {
       await page.waitForFunction(
         () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'CANTO_MOVING',
       );
-      if (ending === 'Back') await back(page, true);
-      else await tile(page, village.col, village.row, true);
+      const settled = await summary(page);
+      expect(settled.checkpoint.checkpointIndex).toBe(before.checkpoint.checkpointIndex + 1);
+      expect(settled.durable).toEqual(settled.checkpoint);
+      expect(settled.durable.pendingActionCompletion).toMatchObject({
+        kind: 'finish',
+        unitName: 'Edric',
+      });
+      const savedActor = settled.durable.playerUnits.find((unit) => unit.name === 'Edric');
+      expect(savedActor.currentHP).toBe(maxHP);
+      expect(savedActor.consumables[0].uses).toBe(2);
+      expect(savedActor.inventory[savedActor.equippedInventoryIndex].name).toBe('Iron Sword');
+      expect(settled.village.status).toBe('intact');
+      expect(settled.gold).toBe(before.gold);
+      expect(settled.convoy).toEqual(before.convoy);
+      expect(settled.visionActions).toBe(before.visionActions);
+      if (ending === 'Back') {
+        // Exercise the shipping Resume path from actual durable JSON. The saved
+        // continuation enters Canto; it never consumes the item or heals again.
+        await page.evaluate(async () => {
+          const s = window.__emblemRogueGame.scene.getScene('Battle');
+          window.__cantoOriginSession = s._battleSession;
+          const { loadRun } = await import('/src/engine/RunManager.js');
+          const rm = loadRun(s.gameData, 1),
+            bip = rm.battleInProgress;
+          s.scene.restart({
+            gameData: s.gameData,
+            runManager: rm,
+            battleParams: bip.battleParams,
+            roster: rm.getRoster(),
+            nodeId: bip.nodeId,
+            isBoss: bip.isBoss,
+            isElite: bip.isElite,
+            resumeCheckpoint: bip.checkpoint,
+          });
+        });
+        await page.waitForFunction(() => {
+          const scene = window.__emblemRogueGame.scene.getScene('Battle');
+          return (
+            scene._battleSession > window.__cantoOriginSession &&
+            scene.battleState === 'CANTO_MOVING'
+          );
+        });
+        const resumed = await summary(page);
+        expect(resumed.units.find((unit) => unit.name === 'Edric')).toMatchObject({
+          hp: maxHP,
+          consumables: [expect.objectContaining({ uses: 2 })],
+        });
+        expect(resumed.checkpoint.checkpointIndex).toBe(settled.checkpoint.checkpointIndex);
+        await back(page, true);
+      } else await tile(page, village.col, village.row, true);
       if (ending === 'move') {
-        // A Canto step is not settled by the tap: Wait confirms it, and nothing (village,
-        // save) happens before then.
+        // Healing is durable already; Wait settles the Canto location, village
+        // reward, fog and the single Vision destination.
         await page.waitForFunction(
           () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'CANTO_CONFIRM',
         );
         const pending = await summary(page);
         expect(pending.village.status).toBe('intact');
         expect(pending.gold).toBe(before.gold);
-        expect(pending.checkpoint.checkpointIndex).toBe(before.checkpoint.checkpointIndex);
+        expect(pending.checkpoint.checkpointIndex).toBe(settled.checkpoint.checkpointIndex);
+        expect(pending.durable).toEqual(settled.durable);
+        expect(pending.fogUpdates).toBe(settled.fogUpdates);
+        expect(pending.visionActions).toBe(before.visionActions);
         await action(page, 'Wait', true);
       }
       await idle(page);
       const after = await summary(page);
       expect(after.village.status).toBe('visited');
-      expect(after.gold).toBeGreaterThan(before.gold);
-      expect(after.checkpoint.checkpointIndex).toBe(before.checkpoint.checkpointIndex + 1);
+      expect(after.gold).toBe(before.gold + 300); // The Act II preset pays one village reward.
+      expect(after.convoy).toHaveLength(before.convoy.length + 1);
+      expect(after.convoy.filter((item) => item.uid === after.village.rewardItemUid)).toHaveLength(
+        1,
+      );
+      expect(after.checkpoint.checkpointIndex).toBe(before.checkpoint.checkpointIndex + 2);
+      expect(after.durable).toEqual(after.checkpoint);
+      expect(after.visionActions).toBe(before.visionActions + 1);
+      expect([...after.checkpoint.fog.visible].sort()).toEqual(after.fog.visible);
+      expect([...after.checkpoint.fog.everSeen].sort()).toEqual(after.fog.everSeen);
       // The visit's gold and supplies belong to this action's point: nothing is left over
       // for the next activation to record as a free change.
       expect(
