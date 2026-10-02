@@ -354,7 +354,8 @@ export class BattleSuspendController {
       return;
     }
     const committed = readCommittedAction(checkpoint.pendingCommittedAction);
-    if (committed && scene.resumeCommittedAttack?.(committed)) return;
+    if (committed?.kind === 'area_strike' && scene.resumeCommittedAreaStrike?.(committed)) return;
+    if (committed?.kind === 'attack' && scene.resumeCommittedAttack?.(committed)) return;
     try {
       const note = scene._presentationSwitch
         ? scene.grid?.board?.rotated

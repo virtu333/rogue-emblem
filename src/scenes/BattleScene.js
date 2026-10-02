@@ -333,6 +333,7 @@ import { PortraitBattleController } from '../ui/PortraitBattleController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
 import { AbilityController } from '../ui/AbilityController.js';
+import { AREA_CENTER_STATE, AreaTargetingController } from '../ui/AreaTargetingController.js';
 import { GridCursorController } from '../ui/GridCursorController.js';
 import { FormationController, FORMATION_STATE } from '../ui/FormationController.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
@@ -658,6 +659,8 @@ export class BattleScene extends Phaser.Scene {
     }
     this._attackFlowController?.destroy();
     this._attackFlowController = null;
+    this._areaTargetingController?.destroy();
+    this._areaTargetingController = null;
     this._combatFx?.destroy?.();
     this._combatFx = null;
     this._combatSpeedSnapshot = undefined;
@@ -794,6 +797,11 @@ export class BattleScene extends Phaser.Scene {
     if (
       (this.battleState === 'SELECTING_TARGET' || this.battleState === 'SHOWING_FORECAST') &&
       this._attackFlow().handleInputAction(action, payload, InputAction)
+    )
+      return;
+    if (
+      this.battleState === AREA_CENTER_STATE &&
+      this._areaTargeting().handleInputAction(action, InputAction)
     )
       return;
     const inMenu = isUnitMenuState(this.battleState);
@@ -1224,6 +1232,8 @@ export class BattleScene extends Phaser.Scene {
       },
       forceEndTurn: () => {
         if (this.isStoryInputLocked()) return;
+        // Aiming a chosen-center art, E steps to the next foe (AreaTargetingController).
+        if (this.battleState === AREA_CENTER_STATE) return;
         this.forceEndTurn();
       },
       cancel: (event) => {
@@ -1285,6 +1295,8 @@ export class BattleScene extends Phaser.Scene {
           this.isStoryInputLocked() ||
           this.unitDetailOverlay?.visible
         )
+          return;
+        if (this.battleState === AREA_CENTER_STATE && this._areaTargeting().handleKey(event))
           return;
         this._attackFlow().handleKey(event);
       },
@@ -1981,6 +1993,14 @@ export class BattleScene extends Phaser.Scene {
           prevWeapon: () => {
             if (this.isStoryInputLocked()) return;
             this._cycleForecastWeapon(-1);
+          },
+          prevFoe: () => {
+            if (this.isStoryInputLocked()) return;
+            this._areaTargeting().cycle(-1);
+          },
+          nextFoe: () => {
+            if (this.isStoryInputLocked()) return;
+            this._areaTargeting().cycle(1);
           },
           nextWeapon: () => {
             if (this.isStoryInputLocked()) return;
@@ -4029,6 +4049,7 @@ export class BattleScene extends Phaser.Scene {
       'SELECTING_BREAK_TARGET',
       SMASH_TARGET_STATE,
       'SELECTING_ABILITY_TILE',
+      AREA_CENTER_STATE,
       'TRADING',
       'CANTO_MOVING',
       CANTO_CONFIRM_STATE,
@@ -4223,6 +4244,9 @@ export class BattleScene extends Phaser.Scene {
     } else if (this.battleState === 'SELECTING_ABILITY_TILE') {
       this._cancelAbilityTileSelection();
       this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === AREA_CENTER_STATE) {
+      // Prompt → aiming → the art picker (AreaTargetingController.back).
+      if (!this._areaTargeting().back()) this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === 'TRADING') {
       this.cleanupTradeUI();
       const tradeMutated = this.tradeMutatedThisSession;
@@ -4271,6 +4295,7 @@ export class BattleScene extends Phaser.Scene {
       'SELECTING_SWAP_TARGET',
       'SELECTING_DANCE_TARGET',
       'SELECTING_ABILITY_TILE',
+      AREA_CENTER_STATE,
       'TRADING',
       'CANTO_MOVING',
       CANTO_CONFIRM_STATE,
@@ -4320,6 +4345,8 @@ export class BattleScene extends Phaser.Scene {
       s === 'TRADING'
     )
       ctx = 'battle_selected';
+    // Aiming a chosen-center art: ◀ Foe ▶ (and the left panel's Cancel).
+    else if (s === AREA_CENTER_STATE) ctx = 'battle_area_target';
     // SHOWING_FORECAST: roster is technically allowed per _onRosterClick rosterStates,
     // but forecast mobile context prioritises weapon navigation buttons. Users can
     // B-cancel out of forecast to access roster -- acceptable UX tradeoff.
@@ -4484,6 +4511,7 @@ export class BattleScene extends Phaser.Scene {
     this.tradeTargets = [];
     this.swapTargets = [];
     this.danceTargets = [];
+    this._areaTargetingController?.clear();
     this._clearSelectedWeaponArt();
     this.preMoveLoc = null;
     this._preFogSnapshot = null;
@@ -6848,6 +6876,21 @@ export class BattleScene extends Phaser.Scene {
 
   _cancelAbilityTileSelection() {
     (this._abilityController ||= new AbilityController(this)).cancelTileSelection();
+  }
+
+  /** Chosen-center weapon arts (Stormcall): aiming, the prompt and the strike. */
+  _areaTargeting() {
+    return (this._areaTargetingController ||= new AreaTargetingController(this));
+  }
+
+  /** Save a chosen-center strike before it is applied (readCommittedAction `area_strike`). */
+  _commitAreaStrikeIntent(unit, weapon, art, center) {
+    return this._areaTargeting().commitIntent(unit, weapon, art, center);
+  }
+
+  /** Resume a saved chosen-center strike, or drop it when it is no longer legal. */
+  resumeCommittedAreaStrike(intent) {
+    return this._areaTargeting().resumeIntent(intent);
   }
 
   // --- Equip sub-menu ---

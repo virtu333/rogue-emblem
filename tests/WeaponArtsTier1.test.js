@@ -24,8 +24,8 @@ const artById = new Map(allArts.map((a) => [a.id, a]));
 describe('Tier 1 Weapon Arts Expansion', () => {
   // 83, plus the four area arts of docs/specs/aoe-weapon-arts.md (Sweeping Cleave, Skewer,
   // Benediction, Battering Ram).
-  it('has exactly 87 arts', () => {
-    expect(allArts.length).toBe(87);
+  it('has exactly 88 arts', () => {
+    expect(allArts.length).toBe(88);
   });
 
   it('all art IDs are unique', () => {
@@ -67,7 +67,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     });
 
     it('legendary tier has correct count', () => {
-      expect(legendaryArts.length).toBe(15);
+      expect(legendaryArts.length).toBe(16);
     });
 
     it('all legendary arts have legendaryWeaponIds', () => {

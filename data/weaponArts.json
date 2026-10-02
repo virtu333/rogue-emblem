@@ -2235,6 +2235,45 @@
       }
     },
     {
+      "id": "legend_stormcall",
+      "name": "Stormcall",
+      "weaponType": "Tome",
+      "allowedTypes": [
+        "Tome"
+      ],
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 8,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "chosen_center",
+      "area": {
+        "shape": "radius",
+        "radius": 1,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.8
+        },
+        "centerRange": "weapon"
+      },
+      "description": "Breachbolt brings the storm down on any spot in its reach.",
+      "allowedFactions": [
+        "player"
+      ],
+      "legendaryWeaponIds": [
+        "Breachbolt"
+      ],
+      "combatMods": {
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Stormcall"
+          }
+        ]
+      }
+    },
+    {
       "id": "legend_divine_flare",
       "name": "Divine Flare",
       "weaponType": "Tome",

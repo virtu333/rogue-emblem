@@ -1,0 +1,447 @@
+// Pick-a-center weapon arts in the battle scene (docs/specs/aoe-weapon-arts.md §6):
+// Stormcall on Breachbolt, aimed by AreaTargetingController. The ways this can fail:
+// the menu hides the art without a target (or offers it with no reach, while silenced,
+// or with Breachbolt spent); aiming starts on, previews or names a foe the fog hides;
+// an illegal tile acts; Back skips a level; the strike counters, misses, skips its cost,
+// its XP, a kill or its continuation; its intent is not saved first, a saved intent is
+// trusted when it should not be, or replays when no longer legal; a stale session acts.
+//
+// Numbers worked by hand: Sage MAG 22 with Breachbolt (8 might) on RES 6 is 24, × 0.8 =
+// 19 a blow. Stormcall costs 8 HP. Breachbolt reaches 3-10 tiles.
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import './harness/JourneyTestSetup.js';
+import { journeyBattleScene } from './harness/JourneyBattleScene.js';
+import { presentationFailureProxy as rendering } from './harness/PresentationFailureProxy.js';
+import { HeadlessBattle } from './harness/HeadlessBattle.js';
+import { createBattleRng } from '../src/engine/BattleRng.js';
+import { registerBattleEntity } from '../src/engine/BattleEntityIdentity.js';
+import { applyCondition } from '../src/engine/StatusConditionSystem.js';
+import { AREA_CENTER_STATE } from '../src/ui/AreaTargetingController.js';
+import { readCommittedAction } from '../src/ui/BattlePresentationCheckpoint.js';
+import { loadGameData } from './testData.js';
+
+const data = loadGameData();
+const stormcall = data.weaponArts.arts.find((a) => a.id === 'legend_stormcall');
+const breachbolt = () => structuredClone(data.weapons.find((w) => w.name === 'Breachbolt'));
+const originalRandom = Math.random;
+afterEach(() => {
+  Math.random = originalRandom;
+  vi.restoreAllMocks();
+});
+
+const sage = (col = 0, row = 5, extra = {}) => {
+  const tome = breachbolt();
+  return {
+    name: 'Sage',
+    faction: 'player',
+    level: 10,
+    tier: 'base', // level 10 like its foes, for XP that is easy to work by hand
+    className: 'Sage',
+    col,
+    row,
+    xp: 0,
+    currentHP: 32,
+    stats: { HP: 40, STR: 0, MAG: 22, SKL: 10, SPD: 10, DEF: 5, RES: 10, LCK: 5, MOV: 5 },
+    moveType: 'Infantry',
+    weapon: tome,
+    inventory: [tome],
+    proficiencies: [{ type: 'Tome', rank: 'Mast' }],
+    skills: [],
+    accessory: null,
+    affixes: [],
+    isCommander: true,
+    isLord: true,
+    ...extra,
+  };
+};
+const foe = (name, col, row, hp = 30, extra = {}) => ({
+  name,
+  faction: 'enemy',
+  level: 10,
+  tier: 'base',
+  className: 'Soldier',
+  col,
+  row,
+  currentHP: hp,
+  stats: { HP: 30, STR: 8, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 6, LCK: 0, MOV: 5 },
+  moveType: 'Infantry',
+  weapon: structuredClone(data.weapons.find((w) => w.name === 'Iron Lance')),
+  inventory: [],
+  skills: [],
+  accessory: null,
+  affixes: [],
+  ...extra,
+});
+
+/** A 12×12 battle on the production scene, with the phone rail's menu captured. */
+function battle(units, { fogVisible = null } = {}) {
+  const scene = journeyBattleScene({ battleInProgress: {} }, data);
+  scene.runManager = null;
+  scene._battleRewindPolicy = 'fixed-v1';
+  scene._battleRng = createBattleRng(42);
+  Math.random = scene._battleRng;
+  Object.assign(scene.grid, {
+    cols: 12,
+    rows: 12,
+    fogEnabled: Boolean(fogVisible),
+    isVisible: (col, row) => !fogVisible || fogVisible.has(`${col},${row}`),
+    clearTemporaryTerrainsBySource: () => {},
+    getMoveCost: () => 1,
+    getTerrainAt: () => data.terrain.find((t) => t.name === 'Plain'),
+  });
+  scene.battleConfig = { objective: 'rout' };
+  scene.goldEarned = 0;
+  scene.turnPar = 99;
+  scene.turnBonusConfig = data.turnBonus;
+  scene.getCurrentTurnNumber = () => 1;
+  scene.playerUnits = units.filter((u) => u.faction === 'player');
+  scene.enemyUnits = units.filter((u) => u.faction === 'enemy');
+  scene.npcUnits = [];
+  rendering(scene, 0);
+  for (const u of units) registerBattleEntity(scene, u);
+  scene.sys = { isActive: () => true };
+  scene.scene = { isActive: () => true };
+  const rail = { items: null };
+  scene._mobileBattleHud = {
+    showMenu: (items) => (rail.items = items),
+    hideMenu: () => (rail.items = null),
+    focusMenuItem() {},
+  };
+  scene.showWeaponArtPicker = vi.fn(() => {
+    scene.battleState = 'UNIT_ACTION_MENU';
+    scene.inEquipMenu = true;
+  });
+  scene.showActionMenu = vi.fn();
+  scene.selectedUnit = scene.playerUnits[0];
+  const granted = [];
+  scene.awardScaledXP = async (u, xp) => granted.push([u.name, xp]);
+  return { scene, rail, granted, area: scene._areaTargeting() };
+}
+
+describe('the art menu offers Stormcall by reach, never by targets', () => {
+  it('with no foe anywhere, Stormcall is still offered', () => {
+    const caster = sage();
+    const { scene } = battle([caster]);
+    expect(scene._hasUsableWeaponArtTargets(caster, caster.weapon, { isInitiating: true })).toBe(
+      true,
+    );
+  });
+
+  it('not while silenced, with Breachbolt spent, or with too little HP', () => {
+    for (const setup of [
+      (u) => applyCondition(u, 'silence', 2),
+      (u) => (u.weapon._usesSpent = 99), // every shot this battle spent
+      (u) => (u.currentHP = 8),
+    ]) {
+      const caster = sage();
+      setup(caster);
+      const { scene } = battle([caster]);
+      expect(scene._hasUsableWeaponArtTargets(caster, caster.weapon, { isInitiating: true })).toBe(
+        false,
+      );
+    }
+  });
+});
+
+describe('aiming', () => {
+  it('opens on the nearest foe the player sees, never one the fog hides', () => {
+    const caster = sage(0, 5);
+    const hidden = foe('Hidden', 3, 5); // 3 tiles, in reach, in fog
+    const seen = foe('Seen', 6, 5); // 6 tiles, seen
+    const fogVisible = new Set(['0,5', '6,5', '5,5', '7,5', '6,4', '6,6']);
+    const { scene, area } = battle([caster, hidden, seen], { fogVisible });
+    expect(area.begin(caster, caster.weapon, stormcall)).toBe(true);
+    expect(scene.battleState).toBe(AREA_CENTER_STATE);
+    expect(area.pending.aim).toEqual({ col: 6, row: 5 });
+  });
+
+  it('with no seen foe it opens on the nearest legal tile (3 away)', () => {
+    const caster = sage(0, 5);
+    const { area } = battle([caster]);
+    area.begin(caster, caster.weapon, stormcall);
+    const aim = area.pending.aim;
+    expect(Math.abs(aim.col - 0) + Math.abs(aim.row - 5)).toBe(3);
+  });
+
+  it('the preview names only seen foes, though the blast reaches the hidden one too', () => {
+    const caster = sage(0, 5);
+    const seen = foe('Seen', 6, 5);
+    const hidden = foe('Hidden', 6, 6);
+    const fogVisible = new Set(['0,5', '6,5', '5,5', '7,5', '6,4']);
+    const { area } = battle([caster, seen, hidden], { fogVisible });
+    area.begin(caster, caster.weapon, stormcall);
+    const preview = area.previewAt({ col: 6, row: 5 });
+    expect(preview.victims.map((v) => v.unit.name)).toEqual(['Seen']);
+    expect(preview.victims[0].damage).toBe(19);
+  });
+
+  it('Q/E (and L1/R1) step through seen foes in reach only', () => {
+    const caster = sage(0, 5);
+    const a = foe('A', 4, 5);
+    const b = foe('B', 6, 3);
+    const hidden = foe('Hidden', 5, 7);
+    const far = foe('Far', 11, 11); // out of reach (17 tiles)
+    const fogVisible = new Set(['0,5', '4,5', '6,3', '11,11']);
+    const { area } = battle([caster, a, b, hidden, far], { fogVisible });
+    area.begin(caster, caster.weapon, stormcall);
+    expect(area.pending.aim).toEqual({ col: 4, row: 5 }); // A is nearest
+    const steps = [];
+    for (let i = 0; i < 3; i++) {
+      area.handleKey({ key: 'e', preventDefault() {} });
+      steps.push(`${area.pending.aim.col},${area.pending.aim.row}`);
+    }
+    // Board order is row then col: B (6,3) then A (4,5).
+    expect(steps).toEqual(['6,3', '4,5', '6,3']);
+  });
+});
+
+describe('the prompt and Back', () => {
+  it('an illegal tile does nothing; a legal one opens [Fire] [Back]', () => {
+    const caster = sage(0, 5);
+    const target = foe('Target', 4, 5);
+    const { scene, area, rail } = battle([caster, target]);
+    area.begin(caster, caster.weapon, stormcall);
+    expect(area.lock({ col: 1, row: 5 })).toBe(false); // 1 tile: inside the minimum range
+    expect(area.locked).toBeNull();
+    expect(area.lock({ col: 4, row: 5 })).toBe(true);
+    expect(area.locked).toEqual({ col: 4, row: 5 });
+    expect(scene.battleState).toBe(AREA_CENTER_STATE);
+    expect(rail.items.map((i) => i.id)).toEqual(['area:fire', 'area:back']);
+    const lines = area.promptLines();
+    expect(lines.hp).toBe('HP 32→24');
+    expect(lines.area[0]).toBe('Area: 1 foe');
+  });
+
+  it('a blind shot says so', () => {
+    const caster = sage(0, 5);
+    const { area } = battle([caster]);
+    area.begin(caster, caster.weapon, stormcall);
+    area.lock({ col: 4, row: 5 });
+    expect(area.promptLines().area).toEqual(['No known foes in the blast']);
+  });
+
+  it('Esc steps back one level: prompt → aiming on the same tile → the art picker', () => {
+    const caster = sage(0, 5);
+    const target = foe('Target', 4, 5);
+    const { scene, area } = battle([caster, target]);
+    area.begin(caster, caster.weapon, stormcall);
+    area.lock({ col: 4, row: 5 });
+    expect(scene.requestCancel({ allowPause: false })).toBe(true);
+    expect([scene.battleState, area.locked, area.pending.aim]).toEqual([
+      AREA_CENTER_STATE,
+      null,
+      { col: 4, row: 5 },
+    ]);
+    expect(scene.requestCancel({ allowPause: false })).toBe(true);
+    expect(area.pending).toBeNull();
+    expect(scene.showWeaponArtPicker).toHaveBeenCalledWith(caster);
+    expect(caster.currentHP).toBe(32); // nothing spent
+  });
+});
+
+describe('the strike', () => {
+  async function fire(units, options) {
+    const ctx = battle(units, options);
+    const { area, scene } = ctx;
+    const caster = scene.playerUnits[0];
+    area.begin(caster, caster.weapon, stormcall);
+    area.lock({ col: 4, row: 5 });
+    area.lock({ col: 4, row: 5 }); // the same tile again fires
+    for (let i = 0; i < 20 && scene.battleState === 'COMBAT_RESOLVING'; i++)
+      await new Promise((r) => setTimeout(r, 0));
+    return { ...ctx, caster, units };
+  }
+
+  it('every foe in the blast takes 19, no counter, no miss; 8 HP and one use spent', async () => {
+    const center = foe('Center', 4, 5);
+    const side = foe('Side', 4, 6);
+    const outside = foe('Outside', 6, 5);
+    const { caster, scene } = await fire([sage(0, 5), center, side, outside]);
+    expect([center, side, outside].map((u) => u.currentHP)).toEqual([11, 11, 30]);
+    expect(caster.currentHP).toBe(24);
+    expect(caster._battleWeaponArtUsage.map.legend_stormcall).toBe(1);
+    expect(caster.hasActed).toBe(true);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+  });
+
+  it('a kill is removed and the best credit pays as the primary', async () => {
+    // Frail (10 HP) dies: a level-10 kill 40 (25 + 15) at the primary rate; Sturdy took
+    // 19 of 30: 25 × 19/30 × 0.35 = 5.5 → 5. Base 45 (before the battle's multipliers).
+    const frail = foe('Frail', 4, 5, 10);
+    const sturdy = foe('Sturdy', 4, 6);
+    const { scene, granted } = await fire([sage(0, 5), frail, sturdy]);
+    expect(scene.enemyUnits).toEqual([sturdy]);
+    expect(granted).toEqual([['Sage', 45]]);
+  });
+
+  it('saves the intent before anything is applied, and drops it once applied', async () => {
+    const saves = [];
+    const ctx = battle([sage(0, 5), foe('Center', 4, 5)]);
+    ctx.scene.runManager = { battleInProgress: {} };
+    ctx.scene._captureSuspendCheckpoint = ({ commitIntent } = {}) => {
+      saves.push({
+        commitIntent: Boolean(commitIntent),
+        intent:
+          ctx.scene._pendingCommittedAction && structuredClone(ctx.scene._pendingCommittedAction),
+        hp: ctx.scene.playerUnits[0].currentHP,
+      });
+      return true;
+    };
+    const caster = ctx.scene.playerUnits[0];
+    await ctx.area.execute(caster, caster.weapon, stormcall, { col: 4, row: 5 });
+    expect(saves[0]).toEqual({
+      commitIntent: true,
+      hp: 32,
+      intent: {
+        kind: 'area_strike',
+        unitId: caster.battleEntityId,
+        unitName: 'Sage',
+        center: { col: 4, row: 5 },
+        weaponArt: { artId: 'legend_stormcall', weaponIndex: 0 },
+      },
+    });
+    expect(readCommittedAction(saves[0].intent)).toEqual(saves[0].intent);
+    expect(ctx.scene._pendingCommittedAction).toBeNull();
+  });
+
+  it('matches the harness: HP, the cost and the XP', async () => {
+    const units = () => [sage(0, 5), foe('Frail', 4, 5, 10), foe('Sturdy', 4, 6)];
+    const sceneRun = await fire(units());
+    const hUnits = units();
+    const harness = new HeadlessBattle(
+      { ...data, weaponArts: structuredClone(data.weaponArts) },
+      { act: 'act3', objective: 'rout' },
+    );
+    Object.assign(harness, {
+      turnManager: { turnNumber: 1, unitActed() {} },
+      battleConfig: { objective: 'rout' },
+      turnPar: 99,
+      playerUnits: [hUnits[0]],
+      enemyUnits: hUnits.slice(1),
+      npcUnits: [],
+      grid: {
+        cols: 12,
+        rows: 12,
+        fogEnabled: false,
+        getTerrainAt: () => ({}),
+        getMoveCost: () => 1,
+        updateFogOfWar() {},
+      },
+    });
+    const hGranted = [];
+    harness._grantScaledXP = (u, xp) => hGranted.push([u.name, xp]);
+    expect(harness.executeAreaStrike(hUnits[0], 'legend_stormcall', { col: 4, row: 5 })).toBe(true);
+    // Sage 32 − 8; Frail 10 − 19 → 0; Sturdy 30 − 19.
+    expect(sceneRun.units.map((u) => u.currentHP)).toEqual([24, 0, 11]);
+    expect(hUnits.map((u) => u.currentHP)).toEqual([24, 0, 11]);
+    expect(hGranted).toEqual(sceneRun.granted);
+  });
+
+  it('a strike from a finished battle session does nothing', async () => {
+    const ctx = battle([sage(0, 5), foe('Center', 4, 5)]);
+    const caster = ctx.scene.playerUnits[0];
+    ctx.area.session = -1;
+    expect(await ctx.area.execute(caster, caster.weapon, stormcall, { col: 4, row: 5 })).toBe(
+      false,
+    );
+    expect(caster.currentHP).toBe(32);
+  });
+});
+
+describe('a saved strike', () => {
+  const intent = (over = {}) => ({
+    kind: 'area_strike',
+    unitId: 'u1',
+    unitName: 'Sage',
+    center: { col: 4, row: 5 },
+    weaponArt: { artId: 'legend_stormcall', weaponIndex: 0 },
+    ...over,
+  });
+
+  it.each([
+    ['valid', intent(), true],
+    [
+      'with a weapon uid',
+      intent({ weaponArt: { artId: 'legend_stormcall', weaponIndex: 0, weaponUid: 'w1' } }),
+      true,
+    ],
+    ['no unit id', intent({ unitId: 7 }), false],
+    ['no name', intent({ unitName: ' ' }), false],
+    ['a fractional center', intent({ center: { col: 1.5, row: 2 } }), false],
+    ['a negative center', intent({ center: { col: -1, row: 2 } }), false],
+    ['no art', intent({ weaponArt: null }), false],
+    [
+      'a bad weapon index',
+      intent({ weaponArt: { artId: 'legend_stormcall', weaponIndex: -2 } }),
+      false,
+    ],
+  ])('%s', (_label, value, ok) => {
+    expect(readCommittedAction(value) !== null).toBe(ok);
+  });
+
+  it('replays when still legal, and is dropped when not', async () => {
+    const ctx = battle([sage(0, 5), foe('Center', 4, 5)]);
+    const caster = ctx.scene.playerUnits[0];
+    ctx.scene._scheduleSafeDelayedAsync = (_ms, _label, run) => run();
+    const saved = intent({ unitId: caster.battleEntityId });
+    expect(ctx.scene.resumeCommittedAreaStrike(readCommittedAction(saved))).toBe(true);
+    for (let i = 0; i < 20 && ctx.scene.battleState === 'COMBAT_RESOLVING'; i++)
+      await new Promise((r) => setTimeout(r, 0));
+    expect(ctx.scene.enemyUnits[0].currentHP).toBe(11);
+
+    const spent = battle([sage(0, 5), foe('Center', 4, 5)]);
+    const tired = spent.scene.playerUnits[0];
+    tired.currentHP = 8; // can no longer pay 8 HP
+    spent.scene._pendingCommittedAction = saved;
+    expect(
+      spent.scene.resumeCommittedAreaStrike(
+        readCommittedAction(intent({ unitId: tired.battleEntityId })),
+      ),
+    ).toBe(false);
+    expect(spent.scene._pendingCommittedAction).toBeNull();
+    expect(spent.scene.enemyUnits[0].currentHP).toBe(30);
+  });
+});
+
+describe('the aiming state is registered wherever the Blink tile state is', () => {
+  it('cancel, End Turn, the phone context', () => {
+    const caster = sage(0, 5);
+    const { scene, area } = battle([caster, foe('Center', 4, 5)]);
+    area.begin(caster, caster.weapon, stormcall);
+    expect(scene.canRequestCancel({ allowPause: false })).toBe(true);
+    expect(scene.canForceEndTurn()).toBe(true);
+    const emitted = [];
+    scene.isMobileInput = true;
+    scene.isStoryInputLocked = () => false;
+    scene.game = { events: { emit: (name, data) => emitted.push([name, data?.context]) } };
+    scene._emitMobileContext();
+    expect(emitted).toEqual([['mobile:setContext', 'battle_area_target']]);
+  });
+
+  it('every scene list naming SELECTING_ABILITY_TILE names the aiming state beside it', async () => {
+    const { readFileSync } = await import('node:fs');
+    const lines = readFileSync('src/scenes/BattleScene.js', 'utf8').split('\n');
+    const at = lines
+      .map((line, i) => (line.includes("'SELECTING_ABILITY_TILE'") ? i : -1))
+      .filter((i) => i >= 0);
+    expect(at.length).toBeGreaterThan(0);
+    for (const i of at)
+      expect(
+        lines.slice(i - 1, i + 7).some((line) => line.includes('AREA_CENTER_STATE')),
+        `BattleScene.js:${i + 1}`,
+      ).toBe(true);
+  });
+
+  it('End Turn drops the aim first', () => {
+    const caster = sage(0, 5);
+    const { scene, area } = battle([caster, foe('Center', 4, 5)]);
+    area.begin(caster, caster.weapon, stormcall);
+    scene.startEnemyPhase = vi.fn();
+    scene.turnManager.endPlayerPhase = vi.fn();
+    scene._isTutorialStrictGateActive = () => false;
+    scene.isStoryInputLocked = () => false;
+    scene.forceEndTurn();
+    expect(area.pending).toBeNull();
+    expect(caster.currentHP).toBe(32);
+  });
+});

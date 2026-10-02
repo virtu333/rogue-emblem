@@ -144,6 +144,11 @@ export class InputController {
     // Threat sight follows the same hover/grid-cursor tile as the path preview.
     scene._threatFocusTile = { col, row };
     scene._threatSight?.sync();
+    // Aiming a chosen-center art: the blast preview follows the hover / grid cursor.
+    if (scene.battleState === 'SELECTING_AREA_CENTER') {
+      scene._areaTargeting?.().aim({ col, row });
+      return;
+    }
     if (scene.battleState === 'UNIT_SELECTED' && scene.selectedUnit && scene.movementRange) {
       const key = `${col},${row}`;
       const previewEntry = scene.movementRange.get(key);
@@ -483,6 +488,9 @@ export class InputController {
         break;
       case 'SELECTING_ABILITY_TILE':
         scene.handleAbilityTileClick(gp);
+        break;
+      case 'SELECTING_AREA_CENTER':
+        scene._areaTargeting().lock(gp);
         break;
       case 'CANTO_MOVING':
         scene.handleCantoClick(gp);

@@ -633,6 +633,34 @@ Aiming is UI state, so a refresh while aiming resumes at the last checkpoint, as
 targeting does now. Rewind treats the strike as an action; add it to
 `rewind-action-types`.
 
+### Built (slice 10)
+
+- `src/ui/AreaTargetingController.js` owns aiming, the prompt and the strike; BattleScene
+  only registers `SELECTING_AREA_CENTER` beside `SELECTING_ABILITY_TILE` (cancel list,
+  `handleCancel`, `canForceEndTurn`, the phone context `battle_area_target`; a test
+  holds every such list to it), routes clicks (`InputController`), hover and cursor
+  (`updatePathPreview`), keys and pad actions to it, and drops the aim on End Turn.
+  Keyboard E cycles foes while aiming instead of ending the turn.
+- The prompt is a menu registered under the aiming state (as Canto's confirm is), so
+  the cursor keeps moving under it and confirming the locked tile fires. The phone rail
+  shows its rows and ◀ Foe ▶; the left panel's Cancel and the rail's Back step back.
+- **Not `settleAndPresent`** (#177). It settles synchronously and checkpoints before
+  presenting; a strike kills through `removeUnit` (gold, deeds, Deathburst, last
+  words), which is async, and pays XP for every victim. So it follows `executeCombat`:
+  the `area_strike` intent is saved before any cost or blow, and a refresh replays it
+  from that state (`resumeCommittedAreaStrike`, which drops it when no longer legal);
+  then the blows, Phoenix checks, XP, the sweep, `hasBattleDefeat`, and the `combat`
+  continuation that level-ups save and `completeResolvedAction` finishes. Every step
+  checks the session the action began in. Rewind needs no list: the continuation's
+  `player_action` boundary makes the strike a rewind point like any action.
+- **Breachbolt's shots.** Availability goes through `canAttackWithWeapon`
+  (AttackOptions), which already refuses a per-battle weapon with no uses left, so it
+  composes with the Dusk PR's per-faction shots unchanged. A cast does not spend a shot
+  yet: main's combat does not spend them either. The follow-up for whichever lands
+  second: in `execute`, `if (weapon.perBattleUses) spendPerBattleUse(weapon)` beside the
+  art cost, then `swapSpentWeapons([unit])` after the sweep, and a test that a cast
+  spends one shot and the last one swaps the caster's weapon.
+
 ## 7. Enemy AI
 
 ### Extraction
