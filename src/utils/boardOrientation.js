@@ -75,6 +75,20 @@ export function createBoardTransform(cols, rows, rotation = 'none') {
 }
 
 /**
+ * The edge of the drawn board a grid edge ('left' | 'right' | 'top' | 'bottom') appears
+ * on. 'ccw' draws the left edge at the bottom and row 0 on the left; 'cw' draws the
+ * right edge at the bottom and row 0 on the right.
+ */
+export function displayEdge(edge, rotation = 'none') {
+  const mode = normalizeRotation(rotation);
+  if (mode === 'ccw')
+    return { left: 'bottom', right: 'top', top: 'left', bottom: 'right' }[edge] || edge;
+  if (mode === 'cw')
+    return { left: 'top', right: 'bottom', top: 'right', bottom: 'left' }[edge] || edge;
+  return edge;
+}
+
+/**
  * Terrain layout re-indexed by display cell, for renderers whose art depends on the
  * drawn neighbors (shores, walls, bridges). Returns the original array when the board
  * is not rotated.

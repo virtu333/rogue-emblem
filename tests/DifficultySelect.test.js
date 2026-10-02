@@ -101,6 +101,19 @@ describe('generateModifierSummary', () => {
     expect(result.some((l) => l.includes('+3 extra enemies'))).toBe(true);
   });
 
+  it("names the rout ladder on Dusk and Nightfall, and Black Sun's par-neutral waves", () => {
+    const lines = (id) => generateModifierSummary(gameData.difficulty.modes[id]);
+    const ladder = 'Rout maps: reinforcement waves every 2 turns';
+    const neutral =
+      'Map reinforcement waves no longer extend par; village bandits and keep garrisons still do';
+    expect(lines('normal')).not.toContain(ladder);
+    expect(lines('dusk')).toContain(ladder);
+    expect(lines('hard')).toContain(ladder);
+    expect(lines('lunatic')).not.toContain(ladder);
+    expect(lines('lunatic')).toContain(neutral);
+    expect(lines('hard')).not.toContain(neutral);
+  });
+
   it('detects fog chance bonus', () => {
     const mode = { ...DIFFICULTY_DEFAULTS, fogChanceBonus: 0.2 };
     const result = generateModifierSummary(mode);

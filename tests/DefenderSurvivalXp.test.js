@@ -217,6 +217,20 @@ describe('a player unit that is attacked and survives', () => {
     expect(unit.currentHP).toBe(15);
     expect(s.awardScaledXP).not.toHaveBeenCalled();
   });
+
+  // A spent reinforcement ladder (docs/specs/dusk-pressure.md): waiting out its last
+  // waves must not farm XP. A wave that pays anything still gives the minimum.
+  it('earns nothing from a reinforcement whose wave pays nothing', async () => {
+    const unit = defender();
+    const zero = brute({ _isReinforcement: true, _reinforcementRewardMultiplier: 0 });
+    const { s } = await attacked(unit, zero);
+    expect(unit.currentHP).toBe(15);
+    expect(s.awardScaledXP).not.toHaveBeenCalled();
+    expect(unit.xp).toBe(0);
+    const paid = defender();
+    await attacked(paid, brute({ _isReinforcement: true, _reinforcementRewardMultiplier: 0.1 }));
+    expect(paid.xp).toBe(1);
+  });
 });
 
 describe('awardXP survival minimum', () => {
@@ -282,7 +296,7 @@ describe('awardXP survival minimum', () => {
 });
 
 describe('headless harness mirror', () => {
-  it('grants a surviving defender at least 1 XP when its multipliers round to 0', () => {
+  function survive(rewardMultiplier) {
     const roster = [
       {
         ...defender(),
@@ -299,12 +313,20 @@ describe('headless harness mirror', () => {
       col: unit.col + 1,
       row: unit.row,
       _isReinforcement: true,
-      _reinforcementRewardMultiplier: 0, // floor(base × 0) = 0
+      _reinforcementRewardMultiplier: rewardMultiplier,
     });
     b.enemyUnits.push(enemy);
     const xpBefore = unit.xp;
     b._executeEnemyCombat(enemy, unit);
     expect(unit.currentHP).toBeGreaterThan(0);
-    expect(unit.xp).toBe(xpBefore + 1);
+    return unit.xp - xpBefore;
+  }
+
+  it('grants a surviving defender at least 1 XP when its multipliers round to 0', () => {
+    expect(survive(0.01)).toBe(1); // floor(base × 0.01) = 0, lifted to the minimum
+  });
+
+  it('grants nothing for surviving a reinforcement whose wave pays nothing', () => {
+    expect(survive(0)).toBe(0);
   });
 });

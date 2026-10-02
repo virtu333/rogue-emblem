@@ -38,6 +38,7 @@ import { getXpEffectiveLevel, learnSkill } from './UnitManager.js';
 import { bumpItemUsage } from './ItemUsage.js';
 import { MAX_SKILLS } from '../utils/constants.js';
 import { DEED_FORMS, titledName, unitEpithet } from './DeedTitles.js';
+import { isZeroRewardUnit } from './ReinforcementSpawns.js';
 
 // Display helpers live in DeedTitles (dependency-free); re-exported here.
 export {
@@ -229,10 +230,14 @@ export function recordKill(victim, killer, ctx = {}) {
   if (!isFoe(victim) || !isDeedUnit(killer)) return;
   const b = beginBattleDeeds(killer);
   b.kills++;
-  if (typeof ctx.terrain === 'string') bump(b.killsByTerrain, ctx.terrain);
-  bump(b.killsByWeapon, typeof killer.weapon?.type === 'string' ? killer.weapon.type : null);
-  const gap = getXpEffectiveLevel(victim) - getXpEffectiveLevel(killer);
-  if (gap > b.maxKillLevelGap) b.maxKillLevelGap = gap;
+  // A reinforcement whose wave pays nothing (a spent ladder) counts as a kill but feeds
+  // no record: no terrain or weapon tally, no level gap (docs/specs/dusk-pressure.md).
+  if (!isZeroRewardUnit(victim)) {
+    if (typeof ctx.terrain === 'string') bump(b.killsByTerrain, ctx.terrain);
+    bump(b.killsByWeapon, typeof killer.weapon?.type === 'string' ? killer.weapon.type : null);
+    const gap = getXpEffectiveLevel(victim) - getXpEffectiveLevel(killer);
+    if (gap > b.maxKillLevelGap) b.maxKillLevelGap = gap;
+  }
   if (victim.isBoss) {
     b.bossKills++;
     if (typeof victim.name === 'string' && victim.name)

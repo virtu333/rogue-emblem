@@ -28,6 +28,9 @@ import {
   buildBanditScriptedWave,
 } from './VillageSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
+import { buildRoutLadder } from './RoutLadder.js';
+import { buildReinforcementTemplatePool } from './ReinforcementSpawns.js';
+import { reinforcementMoveTypes } from './ReinforcementScheduler.js';
 
 const DEBUG_MAP_GEN = false;
 const mapGenLog = createScopedLogger('MapGen', { debug: DEBUG_MAP_GEN });
@@ -440,6 +443,43 @@ export function generateBattleLayout(params, deps) {
     }
   }
 
+  // Dusk/Nightfall rout ladder (engine/RoutLadder.js, docs/specs/dusk-pressure.md): it
+  // replaces the template's procedural waves and stacks on scripted ones (the village's
+  // bandits). Written into the config here, so a locked map keeps its ladder.
+  const ladder =
+    objective === 'rout' && template.ladder !== false && params.routLadder
+      ? buildRoutLadder({
+          routLadder: params.routLadder,
+          act,
+          playerSpawns,
+          enemySpawns,
+          mapLayout,
+          terrain,
+          moveTypes: reinforcementMoveTypes(
+            buildReinforcementTemplatePool({
+              battleConfig: { enemySpawns },
+              battleParams: params,
+              gameData: deps,
+            }),
+            classes,
+          ),
+        })
+      : null;
+  if (ladder) {
+    reinforcementConfig.reinforcements = {
+      ...(reinforcementConfig.reinforcements || {}),
+      waves: [],
+      ladder,
+    };
+  }
+  // Black Sun: the template's procedural waves keep coming but no longer raise par.
+  if (
+    params.templateWavesRaisePar === false &&
+    reinforcementConfig.reinforcements?.waves?.length > 0
+  ) {
+    reinforcementConfig.reinforcements.wavesRaisePar = false;
+  }
+
   const battleConfig = {
     mapLayout,
     cols,
@@ -458,6 +498,10 @@ export function generateBattleLayout(params, deps) {
     ballistas: ballistas.length > 0 ? ballistas : undefined,
     templateId: template.id,
     parBonus: Number.isFinite(template.parBonus) ? Math.max(0, Math.trunc(template.parBonus)) : 0,
+    // The rung's par inflation, locked with the map (absent: turnBonus.parInflation).
+    ...(Number.isFinite(params.parInflation)
+      ? { parInflation: Math.max(0, Math.trunc(params.parInflation)) }
+      : {}),
     toxicTiles,
     ...reinforcementConfig,
     ...hybridConfig,

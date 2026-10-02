@@ -5,7 +5,7 @@ import { observeHistoryAction, rememberHistoryPath } from './BattleHistoryRecord
 // removal, and the escaped/destroyed toast. Pure movement/creation logic
 // lives in engine/CaravanSystem.js; this controller is the Phaser-facing shim.
 
-import { createCaravanUnit, computeCaravanStep, isCaravanAtEdge } from '../engine/CaravanSystem.js';
+import { advanceCaravan, createCaravanUnit } from '../engine/CaravanSystem.js';
 import { showContextualHint } from './HintDisplay.js';
 import { UI_HEX } from '../utils/uiStyles.js';
 import { RING_OFFSET_Y, restyleFactionRing } from './FactionRings.js';
@@ -68,24 +68,15 @@ export class CaravanController {
     const unit = this._findCaravanUnit();
     if (!unit) return;
 
-    const occupied = new Set();
-    for (const u of [...scene.playerUnits, ...scene.enemyUnits, ...scene.npcUnits]) {
-      if (u === unit || u.currentHP <= 0) continue;
-      occupied.add(`${u.col},${u.row}`);
-    }
-
-    const step = computeCaravanStep(
-      unit,
-      scene.grid.mapLayout,
-      scene.grid.cols,
-      scene.grid.rows,
-      scene.grid.terrainData,
-      occupied,
-    );
+    const { from, step, exited } = advanceCaravan(unit, {
+      units: [...scene.playerUnits, ...scene.enemyUnits, ...scene.npcUnits],
+      mapLayout: scene.grid.mapLayout,
+      cols: scene.grid.cols,
+      rows: scene.grid.rows,
+      terrainData: scene.grid.terrainData,
+    });
     if (step) {
-      rememberHistoryPath(scene, unit, [{ col: unit.col, row: unit.row }, step], false);
-      unit.col = step.col;
-      unit.row = step.row;
+      rememberHistoryPath(scene, unit, [from, step], false);
       const pos = scene.grid.gridToPixel(unit.col, unit.row);
       if (unit.graphic) {
         unit.graphic.x = pos.x;
@@ -112,9 +103,7 @@ export class CaravanController {
       }
     }
 
-    if (isCaravanAtEdge(unit, scene.grid.cols, scene.grid.rows)) {
-      this._handleExit(unit);
-    }
+    if (exited) this._handleExit(unit);
   }
 
   _handleExit(unit) {
