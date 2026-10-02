@@ -58,8 +58,30 @@
       "enemySkillChance": 0.1,
       "enemyPoisonChance": 0.04,
       "enemyStatusStaffChance": 0,
-      "statusStaffConfig": null,
-      "shopCureGating": null,
+      "statusStaffConfig": {
+        "perBattle": true,
+        "kinds": ["silence"],
+        "act1": 0,
+        "act2": 0,
+        "act3": 0.15,
+        "act4": 0.2,
+        "maxPerBattle": 1
+      },
+      "siegeWeaponConfig": {
+        "perBattle": true,
+        "act1": 0,
+        "act2": 0,
+        "act3": 0,
+        "act4": 0.15,
+        "maxPerBattle": 1,
+        "weaponName": "Breachbolt"
+      },
+      "shopCureGating": {
+        "act1": false,
+        "act2": false,
+        "act3": true,
+        "act4": true
+      },
       "goldMultiplier": 0.95,
       "shopPriceMultiplier": 1.08,
       "lootQualityShift": 0,
@@ -133,16 +155,28 @@
       "enemyPoisonChance": 0.08,
       "enemyStatusStaffChance": 0,
       "statusStaffConfig": {
+        "perBattle": true,
+        "kinds": ["sleep", "silence"],
+        "act1": 0,
+        "act2": 0.1,
+        "act3": 0.25,
+        "act4": 0.3,
+        "finalBoss": 0.35,
+        "maxPerBattle": 1
+      },
+      "siegeWeaponConfig": {
+        "perBattle": true,
         "act1": 0,
         "act2": 0,
-        "act3": 0.08,
-        "act4": 0.08,
-        "finalBoss": 0.15,
-        "maxPerBattle": 1
+        "act3": 0.25,
+        "act4": 0.3,
+        "finalBoss": 0.35,
+        "maxPerBattle": 1,
+        "weaponName": "Breachbolt"
       },
       "shopCureGating": {
         "act1": false,
-        "act2": false,
+        "act2": true,
         "act3": true,
         "act4": true,
         "finalBoss": true
@@ -230,11 +264,13 @@
       "enemyPoisonChance": 0.2,
       "enemyStatusStaffChance": 0.15,
       "statusStaffConfig": {
+        "perBattle": true,
+        "kinds": ["sleep", "silence"],
         "act1": 0,
-        "act2": 0.08,
-        "act3": 0.15,
-        "act4": 0.15,
-        "finalBoss": 0.25,
+        "act2": 0.15,
+        "act3": 0.3,
+        "act4": 0.35,
+        "finalBoss": 0.45,
         "maxPerBattle": 2
       },
       "shopCureGating": {
@@ -265,11 +301,12 @@
       "growthBonusMultiplier": 0.5,
       "rewindGranularity": "turn",
       "siegeWeaponConfig": {
+        "perBattle": true,
         "act1": 0,
         "act2": 0,
-        "act3": 0.1,
-        "act4": 0.12,
-        "finalBoss": 0.15,
+        "act3": 0.35,
+        "act4": 0.4,
+        "finalBoss": 0.45,
         "maxPerBattle": 1,
         "weaponName": "Breachbolt"
       },

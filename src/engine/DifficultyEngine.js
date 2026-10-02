@@ -220,7 +220,10 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
     const firstAct = ['act1', 'act2', 'act3', 'act4'].find((a) => cfg[a] > 0);
     if (firstAct) {
       const actNum = firstAct.replace('act', '');
-      lines.push(`Status staves from Act ${actNum}+ (max ${cfg.maxPerBattle}/battle)`);
+      const kinds = Array.isArray(cfg.kinds) ? cfg.kinds : null;
+      const name =
+        kinds?.length === 1 ? `${kinds[0][0].toUpperCase()}${kinds[0].slice(1)}` : 'Status';
+      lines.push(`${name} staves from Act ${actNum}+ (max ${cfg.maxPerBattle}/battle)`);
     }
   }
   if (Number.isFinite(mode.churchPromotionLimit) && mode.churchPromotionLimit >= 0) {
@@ -356,6 +359,39 @@ export function validateDifficultyConfig(config) {
   return { valid: errors.length === 0, errors };
 }
 
+/**
+ * Per-battle staff / siege configs (`perBattle: true`, CasterGear.js): per-act chances
+ * between 0 and 1, a non-negative integer maxPerBattle, staff kinds from sleep/silence,
+ * a siege weaponName. Configs without `perBattle` are the old per-spawn shape.
+ */
+function validateCasterGear(mode, path) {
+  const errors = [];
+  for (const key of ['statusStaffConfig', 'siegeWeaponConfig']) {
+    const cfg = mode[key];
+    if (!isObject(cfg) || cfg.perBattle !== true) continue;
+    for (const act of ['act1', 'act2', 'act3', 'act4', 'postAct', 'finalBoss']) {
+      if (cfg[act] === undefined) continue;
+      if (!isFiniteNumber(cfg[act]) || cfg[act] < 0 || cfg[act] > 1)
+        errors.push(`${path}.${key}.${act} must be a chance between 0 and 1`);
+    }
+    if (!(Number.isInteger(cfg.maxPerBattle) && cfg.maxPerBattle >= 0))
+      errors.push(`${path}.${key}.maxPerBattle must be a non-negative integer`);
+    if (key === 'statusStaffConfig') {
+      const kinds = cfg.kinds;
+      if (
+        kinds !== undefined &&
+        (!Array.isArray(kinds) ||
+          kinds.length === 0 ||
+          kinds.some((k) => !['sleep', 'silence'].includes(k)))
+      )
+        errors.push(`${path}.${key}.kinds must be a non-empty list of sleep/silence`);
+    } else if (typeof cfg.weaponName !== 'string' || cfg.weaponName.length === 0) {
+      errors.push(`${path}.${key}.weaponName must name the siege tome`);
+    }
+  }
+  return errors;
+}
+
 /** The pacing keys (all optional): routLadder, parInflation, templateWavesRaisePar. */
 function validateBattlePacing(mode, path) {
   const errors = [];
@@ -367,6 +403,7 @@ function validateBattlePacing(mode, path) {
     errors.push(`${path}.parInflation must be null or a non-negative integer`);
   if (mode.templateWavesRaisePar !== undefined && typeof mode.templateWavesRaisePar !== 'boolean')
     errors.push(`${path}.templateWavesRaisePar must be boolean`);
+  errors.push(...validateCasterGear(mode, path));
   for (const key of ['holdShare', 'objectiveParOffset']) {
     const value = mode[key];
     if (value === undefined || value === null) continue;

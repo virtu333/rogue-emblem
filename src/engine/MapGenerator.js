@@ -31,6 +31,7 @@ import { createScopedLogger } from '../utils/logger.js';
 import { buildRoutLadder } from './RoutLadder.js';
 import { assignHolders, holdShareFor } from './HoldActivation.js';
 import { seizeParFloor } from './SeizeParFloor.js';
+import { assignCasterGear, isPerBattleGearConfig } from './CasterGear.js';
 import { buildReinforcementTemplatePool } from './ReinforcementSpawns.js';
 import { reinforcementMoveTypes } from './ReinforcementScheduler.js';
 
@@ -242,6 +243,14 @@ export function generateBattleLayout(params, deps) {
     classes,
     { enemyPoisonChance, statusStaffConfig, siegeWeaponConfig, difficultyId: params.difficultyId },
   );
+  // Per-battle staves and siege tomes (CasterGear.js, its own stream: no Math.random).
+  assignCasterGear(enemySpawns, {
+    act,
+    difficultyId: params.difficultyId,
+    templateId: template?.id,
+    statusStaffConfig,
+    siegeWeaponConfig,
+  });
   enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
     allowAffixes:
       params.allowEnemyAffixes !== false && recruitAffixesAllowed(params, deps.difficulty),
@@ -2173,9 +2182,13 @@ function generateEnemies(
       poisonWeapon = poisonRoll < poisonChance;
     }
 
-    // Status staff assignment (enemy-only, difficulty-gated)
+    // Status staff assignment, the legacy per-spawn roll (a run saved before the
+    // per-battle chance keeps its rung's old config)
     let statusStaff;
-    const ssCfg = extraOptions.statusStaffConfig;
+    // A per-battle config is rolled once for the map (CasterGear.js), not per spawn.
+    const ssCfg = isPerBattleGearConfig(extraOptions.statusStaffConfig)
+      ? null
+      : extraOptions.statusStaffConfig;
     if (ssCfg && STATUS_STAFF_ELIGIBLE_CLASSES.has(className)) {
       const ssChance = Number(ssCfg[act] || 0);
       const ssMaxPerBattle = ssCfg.maxPerBattle || 0;
@@ -2190,9 +2203,11 @@ function generateEnemies(
       }
     }
 
-    // Siege weapon assignment (Lunatic-only, promoted Tome users)
+    // Siege weapon assignment, the legacy per-spawn roll (promoted Tome users)
     let siegeWeapon;
-    const swCfg = extraOptions.siegeWeaponConfig;
+    const swCfg = isPerBattleGearConfig(extraOptions.siegeWeaponConfig)
+      ? null
+      : extraOptions.siegeWeaponConfig;
     if (swCfg && SIEGE_ELIGIBLE_CLASSES.has(className)) {
       const swChance = Number(swCfg[act] || 0);
       const swMaxPerBattle = swCfg.maxPerBattle || 0;
