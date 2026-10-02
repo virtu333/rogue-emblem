@@ -340,7 +340,7 @@ export function fitText(node, { max = null, min = 12 } = {}) {
   const dpr = globalThis.devicePixelRatio || 1;
   const smaller = (value) =>
     pixel
-      ? snapPixelFontSize(value - 0.01, { dpr, mode: 'down', tolerance: 1 })
+      ? snapPixelFontSize(value - 0.01, { dpr, mode: 'down', tolerance: 1, maxShrink: 1 })
       : Math.max(min, value - 1);
   let size = max ? Math.min(max, computed) : computed;
   node.style.fontSize = `${size}px`;

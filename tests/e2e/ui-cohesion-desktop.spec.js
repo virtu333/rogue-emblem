@@ -76,3 +76,64 @@ test('full-screen menus keep their centered column on wide desktop', async ({ pa
   });
   expect(pad).toEqual({ compact: false, live: true, left: 250 });
 });
+
+// Menu titles on a DPR 1 desktop. The shared menu surface (MenuSurface: Settings,
+// Victory records, Compendium, Help, shops…) titles itself in --re-pf-11 and the
+// roster sheet matches it. The desktop pixel-font grid once snapped 11px to its
+// nearest crisp size at DPR 1, 8px, so every title read smaller than the 13px
+// copy under it (and the roster's 10px title shrank to its 8px tab labels).
+const titleSize = (dialog) =>
+  dialog.evaluate((el) => {
+    const h2 = el.querySelector('header h2');
+    return {
+      size: parseFloat(getComputedStyle(h2).fontSize),
+      overflows: h2.scrollWidth > h2.clientWidth + 1,
+      dpr: window.devicePixelRatio,
+    };
+  });
+
+for (const [width, height] of [
+  [640, 480],
+  [1280, 720],
+  [1920, 1080],
+]) {
+  test(`menu titles keep their design size on a ${width}x${height} DPR 1 desktop`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+    const errors = collectErrors(page);
+    await page.goto('/');
+    await waitForScene(page, 'Title');
+    await page.evaluate(() => document.fonts.ready);
+    for (const [open, name] of [
+      ['Settings', 'Settings'],
+      ['Records', 'Victory records'],
+      ['Compendium', 'Compendium'],
+    ]) {
+      await page.getByRole('button', { name: open, exact: true }).click();
+      const dialog = page.getByRole('dialog', { name, exact: true });
+      await expect(dialog).toBeVisible();
+      expect(await titleSize(dialog), name).toEqual({ size: 11, overflows: false, dpr: 1 });
+      await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+    }
+    expect(errors).toEqual([]);
+  });
+}
+
+test('the roster title matches the menu titles on a DPR 1 desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/?devScene=nodemap&preset=battle_smoke&seed=42');
+  await waitForScene(page, 'NodeMap');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('NodeMap').dialogueOverlay?.visible,
+  );
+  await page.getByRole('button', { name: 'Skip conversation', exact: true }).click();
+  await page.waitForFunction(
+    () => !window.__emblemRogueGame.scene.getScene('NodeMap').dialogueOverlay?.visible,
+  );
+  await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._openRoster());
+  const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+  await expect(roster).toBeVisible();
+  expect(await titleSize(roster)).toEqual({ size: 11, overflows: false, dpr: 1 });
+});

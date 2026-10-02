@@ -421,9 +421,11 @@
   gap: 8px;
   padding-bottom: 4px;
 }
+/* The menu title size (.re-live-menu .re-header h2). At 10px the desktop pixel
+   grid lands it on 8px, the size of the tab labels beside it. */
 .mr-sheet header h2 {
   margin: 0;
-  font-size: var(--re-pf-10, 10px);
+  font-size: var(--re-pf-11, 11px);
 }
 .mr-sheet header .mr-tabs {
   margin: 0;

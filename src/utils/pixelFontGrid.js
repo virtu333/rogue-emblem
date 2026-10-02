@@ -20,10 +20,16 @@ export const PIXEL_FONT_SIZES = Object.freeze([6, 7, 8, 9, 10, 11, 12, 13, 14, 1
 /**
  * Nearest size (CSS px, before `scale`) whose font pixels land on whole device
  * pixels. Ties go down (a label never grows into its neighbour). A snap that would
- * change the size by more than `tolerance` (e.g. 12px at DPR 1 -> 8 or 16) keeps
- * the design size instead.
+ * grow the size by more than `tolerance` or shrink it by more than `maxShrink`
+ * keeps the design size instead: at DPR 1 the only crisp sizes are 8, 16 and 24px,
+ * so 12px (-> 8 or 16) and 11px (-> 8, a quarter smaller, which left every desktop
+ * menu title smaller than its 13px body copy) stay as designed.
  */
-export function snapPixelFontSize(size, { dpr = 1, scale = 1, tolerance = 0.3, mode } = {}) {
+export const PIXEL_FONT_MAX_SHRINK = 0.2;
+export function snapPixelFontSize(
+  size,
+  { dpr = 1, scale = 1, tolerance = 0.3, maxShrink = PIXEL_FONT_MAX_SHRINK, mode } = {},
+) {
   const n = Number(size);
   if (!Number.isFinite(n) || n <= 0) return size;
   const d = Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
@@ -34,7 +40,8 @@ export function snapPixelFontSize(size, { dpr = 1, scale = 1, tolerance = 0.3, m
   const up = Math.max(1, Math.ceil(units - 1e-6)) * step;
   const candidates = mode === 'down' ? [down] : up - n < n - down - 1e-6 ? [up, down] : [down, up];
   for (const candidate of candidates) {
-    if (Math.abs(candidate - n) / n <= tolerance + 1e-9) return Math.round(candidate * 1000) / 1000;
+    const limit = candidate < n ? Math.min(tolerance, maxShrink) : tolerance;
+    if (Math.abs(candidate - n) / n <= limit + 1e-9) return Math.round(candidate * 1000) / 1000;
   }
   return n;
 }
