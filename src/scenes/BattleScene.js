@@ -9682,7 +9682,8 @@ export class BattleScene extends Phaser.Scene {
       if (!isCurrent()) return;
       if (!unit || unit.currentHP <= 0 || !isAcidPoisoned(unit)) continue;
       const tickDamage = computeAcidDamage(unit.stats?.HP);
-      const appliedDamage = damageUnit(unit, tickDamage, { floor: 1 });
+      // The ground's own damage: it never disturbs a holder (HoldDisturbance).
+      const appliedDamage = damageUnit(unit, tickDamage, { floor: 1, disturbs: false });
       if (appliedDamage <= 0) continue;
       this.updateHPBar(unit);
       if (this._showsTurnEffectOn(unit)) await this.showAcidDamage(unit, appliedDamage);
@@ -9969,7 +9970,7 @@ export class BattleScene extends Phaser.Scene {
         if (!lavaBurnsUnit(unit)) continue; // Fliers pass over the crack unburned
         const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP, LAVA_CRACK_DAMAGE);
         if (appliedDamage <= 0) continue;
-        setUnitHP(unit, nextHP);
+        setUnitHP(unit, nextHP, { disturbs: false }); // terrain never disturbs a holder
         this.updateHPBar(unit);
         const shown = this._showsTurnEffectOn(unit);
         if (shown) {
@@ -9998,7 +9999,7 @@ export class BattleScene extends Phaser.Scene {
       if (unit.poisonImmune || unit.terrainHazardImmune) continue;
 
       const shown = this._showsTurnEffectOn(unit);
-      if (!applyCondition(unit, 'acid')) {
+      if (!applyCondition(unit, 'acid', undefined, { disturbs: false })) {
         // statusImmunity accessory — surface the block like the staff/art paths
         const pos = this.grid.gridToPixel(unit.col, unit.row);
         if (shown) this.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);

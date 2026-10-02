@@ -34,6 +34,11 @@ export function isAcidTerrainIndex(terrainIndex) {
   return ACID_TERRAIN_TYPES.has(terrainIndex);
 }
 
+/** Ground that hurts whoever stands on it each turn: Lava Crack and acid. */
+export function isHazardTerrainIndex(terrainIndex) {
+  return isLavaCrackTerrainIndex(terrainIndex) || isAcidTerrainIndex(terrainIndex);
+}
+
 /**
  * Turn starts on which acid ground still hurts after a unit's last exposure.
  * Standing on it at the end of its phase gives the unit Acid for

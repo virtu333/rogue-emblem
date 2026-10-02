@@ -19,6 +19,7 @@
 import { gridDistance } from './Combat.js';
 import { enemyThreatTiles, isThreatSourceVisible } from './ThreatForecast.js';
 import { HOLD_AI_MODE } from './HoldDisturbance.js';
+import { isHazardTerrainIndex } from './TerrainHazards.js';
 
 export { HOLD_AI_MODE };
 export const HOLD_PACK_RADIUS = 3;
@@ -49,11 +50,19 @@ export function holdShareFor(holdShare, objective) {
  * player-to-exit axis, that holds the exits), measured to the exits' centre.
  * `pool` is the count the share applies to.
  */
-function holdCandidates({ spawns, objective, thronePos, escapeTiles, playerSpawns }) {
+function holdCandidates({ spawns, objective, thronePos, escapeTiles, playerSpawns, mapLayout }) {
   // A siege-tome carrier (Breachbolt) never holds: its Danger zone covers most of the
   // map, so it would wake its pack on turn 1 once seen. It keeps its normal orders.
+  // Nor does a unit on lava or acid: the ground hurts it every turn on its own.
+  const onHazard = (s) => isHazardTerrainIndex(mapLayout?.[s.row]?.[s.col]);
   const eligible = (spawns || []).filter(
-    (s) => s && !s.isBoss && !s.isEntity && !s.siegeWeapon && (!s.aiMode || s.aiMode === 'guard'),
+    (s) =>
+      s &&
+      !s.isBoss &&
+      !s.isEntity &&
+      !s.siegeWeapon &&
+      !onHazard(s) &&
+      (!s.aiMode || s.aiMode === 'guard'),
   );
   const nonBoss = (spawns || []).filter((s) => s && !s.isBoss && !s.isEntity);
   let anchor = null;
@@ -97,6 +106,7 @@ export function assignHolders({
   thronePos = null,
   escapeTiles = null,
   playerSpawns = null,
+  mapLayout = null,
 }) {
   if (!(share > 0)) return 0;
   const { candidates, pool } = holdCandidates({
@@ -105,6 +115,7 @@ export function assignHolders({
     thronePos,
     escapeTiles,
     playerSpawns,
+    mapLayout,
   });
   const target = Math.round(share * pool.length);
   if (target < 2) return 0;

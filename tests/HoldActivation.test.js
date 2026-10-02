@@ -222,6 +222,75 @@ describe('who holds', () => {
     expect(spawns.every((sp) => sp.aiMode === undefined)).toBe(true);
   });
 
+  it('no holder posts on lava or acid ground', () => {
+    // A unit there burns or corrodes every turn on its own; as a holder it would wake its
+    // pack with no player action. Nearest the throne and paired, still left out.
+    const layout = Array.from({ length: 3 }, () => Array(12).fill(T.Plain));
+    layout[1][9] = T['Lava Crack'];
+    layout[1][8] = T['Acidic Swamp'];
+    const spawns = [
+      { className: 'Fighter', col: 9, row: 1 },
+      { className: 'Fighter', col: 8, row: 1 },
+      { className: 'Fighter', col: 7, row: 1 },
+      { className: 'Fighter', col: 6, row: 1 },
+    ];
+    assignHolders({
+      spawns,
+      objective: 'seize',
+      share: 0.5,
+      thronePos: { col: 10, row: 1 },
+      mapLayout: layout,
+    });
+    expect(spawns.map((s) => s.aiMode || null)).toEqual([null, null, 'hold', 'hold']);
+    // Generated maps: Eruption Point (Act IV seize) is full of lava cracks.
+    let eruption = 0;
+    for (let seed = 1; seed <= 80; seed++) {
+      const params = { ...resolveDifficultyMode(data.difficulty, 'hard').modifiers, difficultyId: 'hard', act: 'act4', objective: 'seize', deployCount: 6 }; // prettier-ignore
+      const bc = gen(params, seed);
+      if (bc.templateId === 'eruption_point') eruption++;
+      for (const h of bc.enemySpawns.filter((s) => s.aiMode === 'hold')) {
+        const name = data.terrain[bc.mapLayout[h.row][h.col]]?.name;
+        expect(['Lava Crack', 'Acidic Swamp', 'Acidic Bog'], `seed ${seed}`).not.toContain(name);
+      }
+    }
+    expect(eruption).toBeGreaterThan(0);
+  });
+
+  it("a holder standing in a hazard is not disturbed by it (the scene's terrain pass)", async () => {
+    // Defence in depth: a holder on lava or acid (an authored post, a shove) takes its
+    // burn and its acid without waking the pack. A strike still disturbs it.
+    const width = 6;
+    const layout = [Array(width).fill(T.Plain)];
+    layout[0][1] = T['Lava Crack'];
+    layout[0][2] = T['Acidic Swamp'];
+    const unit = (col) =>
+      applyHoldSpawn(
+        { name: `H${col}`, faction: 'enemy', col, row: 0, currentHP: 20, stats: { HP: 20 }, moveType: 'Infantry' }, // prettier-ignore
+        { aiMode: 'hold', holdPack: 0, holdPackSize: 2 },
+      );
+    const [lava, acid] = [unit(1), unit(2)];
+    const noop = () => {};
+    const scene = new Proxy(
+      {
+        _battleSession: 1,
+        _sceneShutdownCleanedUp: false,
+        grid: { mapLayout: layout, gridToPixel: () => ({ x: 0, y: 0 }) },
+        _showsTurnEffectOn: () => false,
+        _checkPhoenixBrooch: async () => {},
+      },
+      { get: (t, k) => (k in t ? t[k] : noop) },
+    );
+    await BattleScene.prototype.processTerrainDamage.call(scene, [lava, acid]);
+    expect(lava.currentHP).toBeLessThan(20); // it burned
+    expect(acid._conditions.map((c) => c.id)).toEqual(['acid']); // it corroded
+    await BattleScene.prototype._processAcidTicks.call(scene, [acid]);
+    expect(acid.currentHP).toBeLessThan(20);
+    expect([lava.holdDisturbed, acid.holdDisturbed]).toEqual([undefined, undefined]);
+    expect(wakeHolders({ enemyUnits: [lava, acid], playerUnits: [] })).toEqual([]);
+    damageUnit(lava, 1); // a blow still counts
+    expect(lava.holdDisturbed).toBe('hurt');
+  });
+
   it('a Breachbolt carrier never holds; it keeps its normal orders', () => {
     // Its Danger zone covers most of the map, so as a holder it would wake its pack on
     // turn 1 once seen. Nearest the throne, paired: still left out (spec §2b).

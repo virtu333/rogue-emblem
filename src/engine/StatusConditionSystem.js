@@ -26,7 +26,8 @@ export function applyCondition(unit, conditionId, turnsRemaining, options = {}) 
     condition.recoveryChance = Math.max(0, Math.min(1, options.recoveryChance));
   }
   unit._conditions.push(condition);
-  markHoldDisturbed(unit, 'status'); // a holder hexed wakes its pack, even once cured
+  // A holder hexed wakes its pack, even once cured; acid from its own ground does not.
+  if (options.disturbs !== false) markHoldDisturbed(unit, 'status');
   return true;
 }
 

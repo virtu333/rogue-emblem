@@ -455,6 +455,7 @@ export function generateBattleLayout(params, deps) {
     thronePos,
     escapeTiles,
     playerSpawns,
+    mapLayout,
   });
 
   // Dusk/Nightfall rout ladder (engine/RoutLadder.js, docs/specs/dusk-pressure.md): it

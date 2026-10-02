@@ -236,6 +236,11 @@ then hunts for the rest of the battle.
   normal orders (Breachbolt ladder, §2c) until an Artillery AI gives siege units their
   own behaviour. Writing it up as a known interaction instead would leave Nightfall and
   Black Sun packs (where Breachbolts are common) waking on sight.
+- **No posts on hazards.** A unit on Lava Crack or acid ground (Acidic Swamp/Bog) never
+  holds: the ground hurts it every turn, and Eruption Point (Act IV seize) would
+  otherwise wake its packs on turn 2 with no player action. As defence in depth, the
+  ground's own damage and acid (`disturbs: false` on the terrain pass and acid ticks)
+  never mark a holder disturbed; a strike, a hex or a shove still does.
 - **Anti-turtle `aggressiveMode` does not wake holders.** If it did, a turtle would only
   have to wait 3 phases.
 - **Shares.** Seize: Dusk 35%, Nightfall 45%, Black Sun 55% of the non-boss enemies,

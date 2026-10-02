@@ -47,10 +47,11 @@ const maxHpOf = (unit) => Number(unit?.stats?.HP);
  * Set a unit's current HP (the caller has already applied its own floor or cap).
  * @returns {{ prev: number, hp: number, delta: number }}
  */
-export function setUnitHP(unit, hp) {
+export function setUnitHP(unit, hp, { disturbs = true } = {}) {
   const prev = Number(unit.currentHP) || 0;
   unit.currentHP = hp;
-  if (hp < prev) markHoldDisturbed(unit, 'hurt'); // a holder struck wakes its pack
+  // A holder struck wakes its pack; the ground it stands on (lava, acid) does not.
+  if (hp < prev && disturbs) markHoldDisturbed(unit, 'hurt');
   settleAccessoryHpOwed(unit);
   return { prev, hp, delta: hp - prev };
 }
@@ -82,10 +83,10 @@ export function healUnitFully(unit) {
  * Take damage, never below `floor` (1 for effects that cannot kill). A unit already
  * at or below the floor loses nothing. @returns the HP actually lost.
  */
-export function damageUnit(unit, amount, { floor = 0 } = {}) {
+export function damageUnit(unit, amount, { floor = 0, disturbs = true } = {}) {
   const prev = Number(unit.currentHP) || 0;
   const next = Math.min(prev, Math.max(floor, prev - Math.max(0, Number(amount) || 0)));
-  setUnitHP(unit, next);
+  setUnitHP(unit, next, { disturbs });
   return prev - next;
 }
 
