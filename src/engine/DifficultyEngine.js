@@ -235,6 +235,13 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   if (mode.holdShare && Object.values(mode.holdShare).some((n) => n > 0)) {
     lines.push('Part of each seize and escape garrison holds its ground until disturbed');
   }
+  const seizeOffset = mode.objectiveParOffset?.seize;
+  if (Number.isInteger(seizeOffset) && seizeOffset < 0) {
+    const n = -seizeOffset;
+    lines.push(
+      `Seize maps: par ${n} turn${n === 1 ? '' : 's'} tighter, never below a walk to the throne`,
+    );
+  }
   if (mode.templateWavesRaisePar === false) {
     lines.push(
       'Map reinforcement waves no longer extend par; village bandits and keep garrisons still do',

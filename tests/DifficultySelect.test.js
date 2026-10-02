@@ -121,6 +121,19 @@ describe('generateModifierSummary', () => {
     for (const id of ['dusk', 'hard', 'lunatic']) expect(lines(id)).toContain(line);
   });
 
+  it('names the tighter seize par, by its own offset, on Dusk and harder only', () => {
+    const lines = (id) => generateModifierSummary(gameData.difficulty.modes[id]);
+    const seize = (id) => lines(id).filter((l) => l.startsWith('Seize maps:'));
+    expect(seize('normal')).toEqual([]);
+    // Written out by hand from difficulty.json's objectiveParOffset.seize.
+    expect(seize('dusk')).toEqual(['Seize maps: par 3 turns tighter, never below a walk to the throne']); // prettier-ignore
+    expect(seize('hard')).toEqual(['Seize maps: par 4 turns tighter, never below a walk to the throne']); // prettier-ignore
+    expect(seize('lunatic')).toEqual(['Seize maps: par 4 turns tighter, never below a walk to the throne']); // prettier-ignore
+    // A mode with no seize offset, or a looser one, says nothing.
+    const mode = { ...gameData.difficulty.modes.dusk, objectiveParOffset: { seize: 2 } };
+    expect(generateModifierSummary(mode).some((l) => l.startsWith('Seize maps:'))).toBe(false);
+  });
+
   it('detects fog chance bonus', () => {
     const mode = { ...DIFFICULTY_DEFAULTS, fogChanceBonus: 0.2 };
     const result = generateModifierSummary(mode);
