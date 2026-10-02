@@ -217,7 +217,10 @@ export function wakeHolders({
     .filter(isHolding)
     .filter((u) => !checked || u.holdCheckedTurn !== turn);
   if (!holders.length) return [];
-  const targets = [...(playerUnits || []), ...(npcUnits || [])].filter(
+  // The player's own units, and the NPCs the player knows of (PlayerKnowledge: a fogged
+  // NPC counts only through the recruit beacon), exactly as the Danger overlay sees them.
+  const knows = threatContext?.isKnown || (() => true);
+  const targets = [...(playerUnits || []), ...(npcUnits || []).filter((u) => knows(u))].filter(
     (u) => u && u.currentHP > 0 && !u._removing,
   );
   let positions = null;

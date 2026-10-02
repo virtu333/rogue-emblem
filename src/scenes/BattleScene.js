@@ -10937,6 +10937,8 @@ export class BattleScene extends Phaser.Scene {
       enemyUnits: this.enemyUnits || [],
       ballistas: this.ballistas || [],
       positions: () => this.buildUnitPositionMap(),
+      // Who the player knows of (the hold wake rule's targets): PlayerKnowledge.
+      isKnown: (unit) => playerKnowledgeOf(this).isKnown(unit),
       costModifier: (unit) => this._getCostModifier(unit),
       areaArtOf: (unit) =>
         (this._weaponArtController ||= new WeaponArtController(this)).enemyAreaArt(unit),

@@ -32,6 +32,7 @@ import {
 import {
   armyAndNpcAllies,
   isRecruitNpc,
+  findRecruitNpc,
   staffAllyCandidates,
 } from '../../src/engine/RecruitNpc.js';
 import { canInspectUnit } from '../../src/engine/BattleInformation.js';
@@ -1069,13 +1070,15 @@ export class HeadlessBattle {
     const knowledge = createPlayerKnowledge({
       grid: this.grid,
       units: [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits],
-      revealed: this.npcUnits.filter((u) => isRecruitNpc(u)),
+      // As battleKnowledge.js: only the recruit beacon's NPC shows through the fog.
+      revealed: [findRecruitNpc(this.npcUnits)],
     });
     return {
       grid: this.grid,
       enemyUnits: this.enemyUnits,
       ballistas: this.ballistas || [],
       positions: () => knowledge.positions(),
+      isKnown: knowledge.isKnown,
       costModifier: (unit) => getTerrainCostReduction(unit, this.gameData?.skills),
     };
   }

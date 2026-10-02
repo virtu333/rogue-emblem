@@ -336,6 +336,36 @@ describe('when a pack wakes', () => {
     expect(woken.length > 0).toBe(seesA);
   });
 
+  it('an NPC wakes a seen holder only when the player knows it is there', () => {
+    // A is in plain sight; only the NPC's tile (8,3), inside A's reach, is fogged. The
+    // hero stands far out of every zone. A recruit NPC shows through the fog
+    // (BattleInformation.canInspectUnit, and the beacon), so it wakes the pack; the
+    // Merchant Caravan does not show through fog, so a fogged caravan wakes nothing.
+    for (const [isCaravan, wakes] of [
+      [true, false],
+      [false, true],
+    ]) {
+      const f = field({ fog: true });
+      f.grid.visibleSet = new Set();
+      for (let c = 0; c < 14; c++) for (let r = 0; r < 7; r++) f.grid.visibleSet.add(`${c},${r}`);
+      f.grid.visibleSet.delete('8,3');
+      const npc = { name: 'Npc', faction: 'npc', isCaravan, col: 8, row: 3, currentHP: 15, stats: { HP: 15 } }; // prettier-ignore
+      const knowledge = createPlayerKnowledge({ grid: f.grid, units: [f.hero, ...f.enemies, npc] });
+      const woken = wakeHolders({
+        enemyUnits: f.enemies,
+        playerUnits: [f.hero],
+        npcUnits: [npc],
+        threatContext: {
+          grid: f.grid,
+          enemyUnits: f.enemies,
+          positions: () => knowledge.positions(),
+          isKnown: knowledge.isKnown,
+        },
+      });
+      expect(woken.length > 0, `caravan ${isCaravan}`).toBe(wakes);
+    }
+  });
+
   it('a unit the player cannot see never changes the zone (PlayerKnowledge)', () => {
     // A (Soldier, 4 moves, lance) reaches the hero at (6,3) only by stopping on (7,3).
     // A fogged enemy stands on (7,3): in the world A could not stop there, but the
@@ -640,6 +670,38 @@ describe('in a battle (headless harness, as the scene)', () => {
     battle.grid.visibleSet = new Set(battle.playerUnits.map((u) => `${u.col},${u.row}`));
     const keys = [...battle._playerThreatContext().positions().keys()];
     expect(keys.sort()).toEqual(battle.playerUnits.map((u) => `${u.col},${u.row}`).sort());
+  });
+
+  it('the harness and the scene know the same NPCs through the fog', () => {
+    const battle = seizeBattle('hard', 2);
+    battle.grid.fogEnabled = true;
+    battle.grid.visibleSet = new Set(battle.playerUnits.map((u) => `${u.col},${u.row}`));
+    const npc = (name, col, extra = {}) => ({ name, faction: 'npc', col, row: 0, currentHP: 10, stats: { HP: 10 }, ...extra }); // prettier-ignore
+    const recruits = [npc('First', 0), npc('Second', 1)];
+    const caravan = npc('Caravan', 2, { isCaravan: true });
+    battle.npcUnits = [...recruits, caravan];
+    const harness = battle._playerThreatContext();
+    const scene = new BattleScene();
+    Object.assign(scene, {
+      grid: battle.grid,
+      playerUnits: battle.playerUnits,
+      enemyUnits: battle.enemyUnits,
+      npcUnits: battle.npcUnits,
+      ballistas: [],
+      _recruitBeacon: { npc: recruits[0] }, // RecruitBeaconController: the first recruit NPC
+    });
+    const view = scene.threatContext();
+    for (const [name, ctx] of [
+      ['harness', harness],
+      ['scene', view],
+    ]) {
+      expect(
+        recruits.map((u) => ctx.isKnown(u)),
+        name,
+      ).toEqual([true, true]);
+      expect(ctx.isKnown(caravan), name).toBe(false);
+    }
+    expect([...harness.positions().keys()].sort()).toEqual([...view.positions().keys()].sort());
   });
 
   it('reinforcements never copy a hold', () => {

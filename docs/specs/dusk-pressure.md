@@ -454,6 +454,10 @@ fielding the caravan.
   harness alike. Each passes a threat context built from the board as the player knows
   it (BattleScene `threatContext()`, harness `_playerThreatContext()`, both
   PlayerKnowledge). Each also passes the turn-pressure enrage (`setBossEnraged`).
+  - The wake targets are the player's units and the NPCs the player knows of
+    (`isKnown` in both contexts). Recruit NPCs show through fog (`canInspectUnit`), so
+    they count wherever they stand; a fogged Merchant Caravan does not. The harness
+    reveals exactly what `battleKnowledge.js` reveals (the beacon's NPC).
   - A visible pack that wakes shows "The garrison stirs!".
   - Danger is unchanged: it already draws a holder's full reach, which is its wake zone.
   - Reinforcements never copy a hold.
