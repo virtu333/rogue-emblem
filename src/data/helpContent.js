@@ -291,7 +291,10 @@ const STATIC_HELP_TABS = [
           { text: 'Starfall - Bow, range 2-3', color: GOLD },
           { text: 'Tidebreaker - Axe, +5 DEF/RES', color: GOLD },
           { text: 'Ruin - Axe, ignores triangle penalty', color: GOLD },
-          { text: 'Breachbolt - Tome, range 3-10 (limited uses)', color: GOLD },
+          {
+            text: 'Breachbolt - Tome, range 3-10 (limited shots, refilled each battle)',
+            color: GOLD,
+          },
           { text: '' },
           { text: 'Random Legendary:', color: CYAN },
           { text: '  One unique weapon generated per run.' },
