@@ -468,4 +468,29 @@ describe('deed progress (Deeds & Epithets)', () => {
       },
     ]);
   });
+
+  it('a unit felled outside a combat (a Ballista bolt, a burst) is swept through the death record', async () => {
+    const s = scene();
+    const ally = unit('Mira');
+    ally.consumables = [{ uid: 'Mira-vul', name: 'Vulnerary', type: 'Consumable', uses: 1 }];
+    s.playerUnits.push(ally);
+    s._fallenBattleRecords = [];
+    // The damage settled elsewhere (no killer to name); the sweep finds her at 0 HP.
+    ally.currentHP = 0;
+    await s._sweepFallenUnits();
+    expect(s.playerUnits.map((u) => u.name)).toEqual(['Rider']);
+    expect(s._fallenBattleRecords).toEqual([
+      {
+        name: 'Mira',
+        bags: {
+          inventory: [expect.objectContaining({ uid: 'Mira-sword' })],
+          consumables: [expect.objectContaining({ uid: 'Mira-vul', uses: 1 })],
+          weapon: 0,
+        },
+      },
+    ]);
+    // A second sweep (another effect resolving) does not record her again.
+    await s._sweepFallenUnits();
+    expect(s._fallenBattleRecords).toHaveLength(1);
+  });
 });

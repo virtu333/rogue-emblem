@@ -151,8 +151,9 @@ The same seams count each carried item's use (`engine/ItemUsage.js`, per instanc
 JSON on the item like `_usesSpent`): `_strikes` (strikes made with it, hits and misses;
 `recordCombat`), `_kills` (the strike that left its target at 0 HP, in `recordCombat`;
 a kill no strike made, such as an aura, a burst or poison, counts for the deed but not
-the weapon), `_casts` (staff uses: heal, cure, warp, rescue; `recordStaffUse` from
-`HealController`). Only the player's army counts, never in the
+the weapon), `_casts` (staff uses: heal, cure, warp, rescue; `recordStaffUse`, once per use spent,
+inside `HealController`'s settlement, before its checkpoint, so a resume or a rewind
+never counts a use twice). Only the player's army counts, never in the
 tutorial. The counts follow the item through trades, the convoy, forges, whetstones,
 imbues and renames, roll back with a battle checkpoint, and a bought or looted item
 starts at none. The shop's Sell tab shows them on the row ("14 strikes", "9 casts") and in

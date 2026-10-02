@@ -3,12 +3,18 @@ import { isolateBattleTextFactory } from '../../src/utils/presentationText.js';
 /** Count actual rendering calls, including fluent calls, and fail a chosen call.
  * Lifecycle predicates deliberately remain real booleans, never generic proxies.
  */
-export function presentationFailureProxy(scene, failure = 0, { skipped = false } = {}) {
+export function presentationFailureProxy(
+  scene,
+  failure = 0,
+  { skipped = false, fastTweens = false } = {},
+) {
   let calls = 0;
+  let observe;
   const labels = [];
   const call =
     (fn = () => {}, label = 'presentation') =>
     (...args) => {
+      observe?.(label);
       labels.push(label);
       calls++;
       if (failure === 'all' || calls === failure) throw new Error(`Renderer unavailable: ${label}`);
@@ -39,6 +45,7 @@ export function presentationFailureProxy(scene, failure = 0, { skipped = false }
         Math.random();
         return visual;
       },
+      circle: () => visual,
       image: () => visual,
       rectangle: () => visual,
       graphics: () => visual,
@@ -73,6 +80,9 @@ export function presentationFailureProxy(scene, failure = 0, { skipped = false }
       'deathFade',
       'playOverlay',
       'playStatus',
+      'playHeal',
+      'playBuff',
+      'ballistaShot',
       'clear',
     ].map((name) => [name, () => {}]),
   );
@@ -101,6 +111,8 @@ export function presentationFailureProxy(scene, failure = 0, { skipped = false }
     'grid.clearAttackHighlights',
   );
   for (const name of [
+    '_removeAllConditionIcons',
+    '_addConditionIcon',
     'updateHPBar',
     'removeUnitGraphic',
     'updateObjectiveText',
@@ -108,7 +120,6 @@ export function presentationFailureProxy(scene, failure = 0, { skipped = false }
     'updateUnitPosition',
     'refreshVisibleDangerZone',
     'updateEnemyVisibility',
-    'animateHeal',
     'dimUnit',
     'undimUnit',
     '_playLevelUpSfx',
@@ -116,8 +127,24 @@ export function presentationFailureProxy(scene, failure = 0, { skipped = false }
   ])
     scene[name] = call(() => {}, name);
   scene._awaitSceneDelay = call(async () => ({ status: 'finished' }), 'delay');
+  if (fastTweens)
+    scene._awaitSceneTween = call(async (config) => {
+      config.onComplete?.();
+      return { status: 'finished' };
+    }, 'tween');
+  scene.showBriefBanner = call(async () => {}, 'showBriefBanner');
+  for (const name of ['showHealRange', 'showAttackRange'])
+    scene.grid[name] = call(() => {}, `grid.${name}`);
   isolateBattleTextFactory(scene);
   const count = () => calls;
-  Object.assign(count, { visual, call, surface, labels });
+  Object.assign(count, {
+    visual,
+    call,
+    surface,
+    labels,
+    observe: (callback) => {
+      observe = callback;
+    },
+  });
   return count;
 }
