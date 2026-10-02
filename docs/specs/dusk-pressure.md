@@ -543,13 +543,15 @@ fielding the caravan.
 - first_bad_sha: 2d95a4f9 (PR 3). parent_sha: 68e0b968.
 - Failing metrics (threshold breaches): `avg_shop_spent=6749.83 < 6770.00` at
   2d95a4f9. Re-measured after the review fixes (guards kept, the offsets −3 / −4 / −4
-  and the floor): `avg_shop_spent=6746`, still under 6770.
-- Slice metrics, main (2a5f12f3) → this branch: `avg_shop_spent` 8210 → 6746 (−18%),
-  `avg_gold` 47265 → 49059 (+3.8%: gold rose, it did not fall),
+  and the floor): `avg_shop_spent=6746`, still under 6770. After the harness learned
+  the scene's lava and acid (and holders left hazard tiles): 7175.
+- Slice metrics, main (2a5f12f3) → this branch (final): `avg_shop_spent` 8210 → 7175
+  (−13%), `avg_gold` 47265 → 48184 (+1.9%: gold rose, it did not fall),
   `avg_ambush_battles` 0.33 → 0.25 (4 → 3 of 12 runs; floor 0.20), win rate, timeouts,
   units lost and invalid shop entries unchanged.
 - The shop drop is per-seed divergence, not a lower income: the invincible agent's runs
-  take different roads once a battle's rating or a holder changes. Per seed (301–312),
+  take different roads once a battle's rating or a holder changes. Per seed (301–312,
+  measured at f49275a2, average 6746),
   shop spending moves both ways: 303 −13003, 304 −7744, 307 −3587, 312 −105; 306 +2908,
   311 +2898, 301 +747, 309 +314; 302, 305, 308 and 310 are unchanged (three of them
   spend nothing on either side). Seed 303 alone is 1084 of the 1464 average drop.
@@ -557,9 +559,10 @@ fielding the caravan.
   needs 3. One more run without an ambush fails the slice. The floor stays (it is the
   coverage check the procedure keeps enabled); `docs/harness-thresholds.md` records the
   margin so a later breach is read as this divergence first.
-- Change: `--min-avg-shop-spent` 6770.00 → 6400.00, 5% under the measured 6746 (the
-  procedure's `floor(observed × 0.85)` = 5734 would hide a real shop regression on this
-  slice, so the window stays tight). Every other window is unchanged.
+- Change: `--min-avg-shop-spent` 6770.00 → 6400.00, 11% under the final 7175 (5% under
+  the 6746 low point; the procedure's `floor(observed × 0.85)` = 6098 would hide more of
+  a real shop regression on this slice, so the window stays tighter). Every other
+  window is unchanged.
 - Touched files: `tests/sim/fullrun-slices.js` (threshold), `data/difficulty.json`
   (holdShare, objectiveParOffset), `src/engine/HoldActivation.js`, `HoldDisturbance.js`,
   `SeizeParFloor.js`, `AIController.js`, `MapGenerator.js`, `TurnBonusCalculator.js`,

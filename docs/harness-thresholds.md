@@ -137,20 +137,22 @@ The current strict-slice windows are anchored to intentional gameplay shifts:
     `StatusConditionSystem.js`), `src/scenes/BattleScene.js`,
     `tests/harness/HeadlessBattle.js`, tests and docs.
   - observed shift, re-measured after the review fixes (seeds 301-312, hard, invincible),
-    main `2a5f12f3` → branch: `avg_shop_spent` 8210 → 6746, `avg_gold` 47265 → 49059
-    (+3.8%, inside 56800), `avg_ambush_battles` 0.33 → 0.25; win rate, timeouts, units
-    lost and invalid shop entries unchanged.
+    main `2a5f12f3` → branch: `avg_shop_spent` 8210 → 7175, `avg_gold` 47265 → 48184
+    (+1.9%, inside 56800), `avg_ambush_battles` 0.33 → 0.25; win rate, timeouts, units
+    lost and invalid shop entries unchanged. (At `f49275a2`, before the harness learned
+    the scene's lava and acid: shop spent 6746, gold 49059.)
   - cause: per-seed divergence, not lower income (gold rose). The scripted runs take
     different roads once seize ratings and holders change; shop spending moves both ways
-    per seed (303 −13003, 304 −7744, 307 −3587; 306 +2908, 311 +2898), and seed 303
-    alone is 1084 of the 1464 average drop.
-  - window: 6400, 5% under the observed 6746, tighter than the procedure's
-    `floor(6746 * 0.85)` = 5734 so a real shop regression on this slice still fails.
+    per seed (at `f49275a2`: 303 −13003, 304 −7744, 307 −3587; 306 +2908, 311 +2898),
+    and seed 303 alone was 1084 of that 1464 average drop.
+  - window: 6400, 11% under the final 7175 and 5% under the 6746 low point, tighter
+    than the procedure's `floor(7175 * 0.85)` = 6098 so a real shop regression on this
+    slice still fails.
   - **ambush coverage margin:** 3 of 12 runs see an ambush (0.25) against the
     `min_avg_ambush_battles=0.20` floor, which needs 3. One run fewer fails the slice.
     The floor is kept; if it breaches next, first check the per-seed roads (the same
     divergence as above) before touching ambush generation.
-  - no other strict slice left its window (`progression_invincible` gold 7656, shop
+  - no other strict slice left its window (`progression_invincible` gold 7737, shop
     spent 8206; Act I pressure slices 384 / 200 gold).
 
 Do not attribute these shifts to later UI/refactor commits without first-bad verification.
