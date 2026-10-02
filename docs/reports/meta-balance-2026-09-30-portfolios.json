@@ -1,0 +1,1401 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "3362e34cb380a957fe19d460d3c9642224369805",
+  "options": {
+    "mode": "portfolios",
+    "seeds": 100,
+    "seedStart": 3001,
+    "workers": 4,
+    "difficulty": "normal",
+    "agent": "tactician",
+    "route": "recruit",
+    "profile": "act1",
+    "variants": [
+      "extra_starting_unit_pool",
+      "deploy_limit",
+      "recruit_skill",
+      "recruit_accessory",
+      "veteran_recruits",
+      "recruit_spd_growth",
+      "recruit_def_growth",
+      "lord_spd_growth",
+      "lord_def_growth",
+      "weapon_tier",
+      "extra_starting_unit_pool+deploy_limit"
+    ],
+    "runs": 20,
+    "fractions": [0.5, 0.65, 0.8, 1],
+    "deployCosts": [150],
+    "buyPolicy": "battalion",
+    "buying": "save",
+    "commander": "Edric",
+    "partner": "Sera",
+    "maxActions": 2600,
+    "starters": [],
+    "supplyBudget": 800,
+    "valorBudget": 800,
+    "loadout": null,
+    "out": "docs/reports/meta-balance-2026-09-30-portfolios.json",
+    "rawOut": "docs/reports/meta-balance-2026-09-30-portfolios.rows.json.gz",
+    "help": false
+  },
+  "plan": {
+    "loadout": {
+      "purchases": {
+        "lord_hp_growth": 1,
+        "lord_str_growth": 1,
+        "lord_spd_growth": 1,
+        "weapon_forge": 1
+      },
+      "milestones": ["beatAct1"]
+    },
+    "variants": [
+      {
+        "expression": "battalion",
+        "purchases": {
+          "lord_hp_growth": 1,
+          "lord_str_growth": 1,
+          "lord_spd_growth": 1,
+          "weapon_forge": 1,
+          "extra_starting_unit_pool": 1,
+          "deploy_limit": 1,
+          "recruit_skill": 1,
+          "lord_def_growth": 1,
+          "weapon_tier": 1,
+          "unlock_guard": 1,
+          "unlock_miracle": 1,
+          "starting_accessory": 1
+        },
+        "changes": [
+          {
+            "id": "extra_starting_unit_pool",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "deploy_limit",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "recruit_skill",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "lord_def_growth",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "weapon_tier",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "unlock_guard",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "unlock_miracle",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "starting_accessory",
+            "from": 0,
+            "to": 1
+          }
+        ],
+        "gaps": [],
+        "costs": {
+          "supply": 600,
+          "valor": 790
+        },
+        "unusedBudget": {
+          "supply": 200,
+          "valor": 10
+        }
+      },
+      {
+        "expression": "stats",
+        "purchases": {
+          "lord_hp_growth": 1,
+          "lord_str_growth": 1,
+          "lord_spd_growth": 1,
+          "weapon_forge": 1,
+          "recruit_spd_growth": 1,
+          "recruit_def_growth": 1,
+          "recruit_hp_growth": 1,
+          "recruit_str_growth": 1,
+          "extra_starting_unit_pool": 1,
+          "deploy_limit": 1,
+          "recruit_skill": 1,
+          "lord_def_growth": 1,
+          "weapon_tier": 1,
+          "unlock_guard": 1,
+          "unlock_miracle": 1,
+          "starting_accessory": 1
+        },
+        "changes": [
+          {
+            "id": "recruit_spd_growth",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "recruit_def_growth",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "recruit_hp_growth",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "recruit_str_growth",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "extra_starting_unit_pool",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "deploy_limit",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "recruit_skill",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "lord_def_growth",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "weapon_tier",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "unlock_guard",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "unlock_miracle",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "starting_accessory",
+            "from": 0,
+            "to": 1
+          }
+        ],
+        "gaps": [],
+        "costs": {
+          "supply": 800,
+          "valor": 790
+        },
+        "unusedBudget": {
+          "supply": 0,
+          "valor": 10
+        }
+      },
+      {
+        "expression": "economy",
+        "purchases": {
+          "lord_hp_growth": 1,
+          "lord_str_growth": 1,
+          "lord_spd_growth": 1,
+          "weapon_forge": 1,
+          "starting_gold": 1,
+          "battle_gold": 1,
+          "extra_starting_unit_pool": 1,
+          "veteran_recruits": 1,
+          "deploy_limit": 1,
+          "lord_def_growth": 1,
+          "weapon_tier": 1,
+          "unlock_guard": 1,
+          "unlock_miracle": 1,
+          "starting_accessory": 1
+        },
+        "changes": [
+          {
+            "id": "starting_gold",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "battle_gold",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "extra_starting_unit_pool",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "veteran_recruits",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "deploy_limit",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "lord_def_growth",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "weapon_tier",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "unlock_guard",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "unlock_miracle",
+            "from": 0,
+            "to": 1
+          },
+          {
+            "id": "starting_accessory",
+            "from": 0,
+            "to": 1
+          }
+        ],
+        "gaps": [],
+        "costs": {
+          "supply": 675,
+          "valor": 790
+        },
+        "unusedBudget": {
+          "supply": 125,
+          "valor": 10
+        }
+      }
+    ],
+    "skipped": [],
+    "schedules": [
+      {
+        "fraction": 0.5,
+        "deployCost": 150,
+        "name": "battalion_0.5_deploy_150"
+      },
+      {
+        "fraction": 0.65,
+        "deployCost": 150,
+        "name": "battalion_0.65_deploy_150"
+      },
+      {
+        "fraction": 0.8,
+        "deployCost": 150,
+        "name": "battalion_0.8_deploy_150"
+      },
+      {
+        "fraction": 1,
+        "deployCost": 150,
+        "name": "battalion_1_deploy_150"
+      }
+    ]
+  },
+  "coverage": {
+    "recruit_hp_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_str_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_mag_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_def_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_spd_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_skl_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_res_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_lck_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_hp_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_str_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_mag_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_def_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_spd_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_skl_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_res_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_lck_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_hp_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_str_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_mag_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_def_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_spd_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_skl_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_res_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_lck_growth": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_hp_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_str_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_mag_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_def_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_spd_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_skl_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_res_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lord_lck_flat": {
+      "status": "modeled_with_policy_limits"
+    },
+    "starting_gold": {
+      "status": "modeled_with_policy_limits"
+    },
+    "battle_gold": {
+      "status": "modeled_with_policy_limits"
+    },
+    "starting_vulnerary": {
+      "status": "unmeasured",
+      "reason": "The battle agent cannot use consumables."
+    },
+    "loot_quality": {
+      "status": "unmeasured",
+      "reason": "The reward policy takes gold or skips; it does not use loot equipment."
+    },
+    "studied_training": {
+      "status": "unmeasured",
+      "reason": "The reward policy does not learn scrolls."
+    },
+    "trinket_collector": {
+      "status": "unmeasured",
+      "reason": "The reward policy does not equip loot accessories."
+    },
+    "heros_call": {
+      "status": "modeled_with_policy_limits"
+    },
+    "trade_contacts": {
+      "status": "unmeasured",
+      "reason": "The run policy does not transact with caravans."
+    },
+    "deploy_limit": {
+      "status": "modeled_with_policy_limits"
+    },
+    "vision_charges_2": {
+      "status": "unmeasured",
+      "reason": "The battle agent cannot rewind."
+    },
+    "vision_charges_3": {
+      "status": "unmeasured",
+      "reason": "The battle agent cannot rewind."
+    },
+    "legendary_heir": {
+      "status": "modeled_with_policy_limits"
+    },
+    "commander_choice": {
+      "status": "unmeasured",
+      "reason": "A fixed starting pair does not measure selection freedom."
+    },
+    "partner_choice": {
+      "status": "unmeasured",
+      "reason": "A fixed starting pair does not measure selection freedom."
+    },
+    "recruit_skill": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_field_supplies": {
+      "status": "unmeasured",
+      "reason": "The battle agent cannot use consumables."
+    },
+    "veteran_recruits": {
+      "status": "modeled_with_policy_limits"
+    },
+    "extra_starting_unit_pool": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lethal_armory": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lethal_armory_killer": {
+      "status": "modeled_with_policy_limits"
+    },
+    "lethal_armory_silver": {
+      "status": "modeled_with_policy_limits"
+    },
+    "master_of_arms": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_xp": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_accessory": {
+      "status": "modeled_with_policy_limits"
+    },
+    "recruit_weapon_forge": {
+      "status": "modeled_with_policy_limits"
+    },
+    "weapon_forge": {
+      "status": "modeled_with_policy_limits"
+    },
+    "weapon_tier": {
+      "status": "modeled_with_policy_limits"
+    },
+    "weapon_tier_silver": {
+      "status": "modeled_with_policy_limits"
+    },
+    "iron_arms": {
+      "status": "unmeasured",
+      "reason": "The battle agent does not choose weapon arts."
+    },
+    "steel_arms": {
+      "status": "unmeasured",
+      "reason": "The battle agent does not choose weapon arts."
+    },
+    "art_adept": {
+      "status": "unmeasured",
+      "reason": "The battle agent does not choose weapon arts."
+    },
+    "starting_accessory": {
+      "status": "modeled_with_policy_limits"
+    },
+    "staff_upgrade": {
+      "status": "modeled_with_policy_limits"
+    },
+    "starting_reclass_seal": {
+      "status": "unmeasured",
+      "reason": "The run policy does not reclass."
+    },
+    "extra_skill_slot": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_sol": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_luna": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_astra": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_vantage": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_wrath": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_adept": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_miracle": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_guard": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_pavise": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_aegis": {
+      "status": "modeled_with_policy_limits"
+    },
+    "unlock_renewal": {
+      "status": "modeled_with_policy_limits"
+    },
+    "legendary_lord_chance": {
+      "status": "modeled_with_policy_limits"
+    }
+  },
+  "limitations": [
+    "Seed pairing shares initial seeds, not identical subsequent events: upgrades can change RNG consumption and routes.",
+    "No consumable use, weapon-art decisions, rewinds, reclassing, caravan trades, colosseum transactions, or loot-equipment use.",
+    "Gold/team-XP or skip reward policy; church-only promotion; lords-first deployment; limited weapon switching; no skill bench decisions.",
+    "Tactician uses the simple rescue agent on seize/escape; rescue/scripted agents charge enemies.",
+    "No blessings selected. Results condition on fixed difficulty/pair/routing and saving or opportunistic buying; difficulty unlock progression is not modeled.",
+    "Timeout/stuck cohorts are censored, not defeats, and receive no payout; report their counts before interpreting complete pairs.",
+    "Normal approximate paired intervals are screening diagnostics; zero discordant pairs do not establish equivalence.",
+    "Starter exemptions are owner-supplied labels, not inferred recommendations. No production prices change."
+  ],
+  "summary": [
+    {
+      "expression": "battalion",
+      "purchases": {
+        "lord_hp_growth": 1,
+        "lord_str_growth": 1,
+        "lord_spd_growth": 1,
+        "weapon_forge": 1,
+        "extra_starting_unit_pool": 1,
+        "deploy_limit": 1,
+        "recruit_skill": 1,
+        "lord_def_growth": 1,
+        "weapon_tier": 1,
+        "unlock_guard": 1,
+        "unlock_miracle": 1,
+        "starting_accessory": 1
+      },
+      "changes": [
+        {
+          "id": "extra_starting_unit_pool",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "deploy_limit",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "recruit_skill",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "lord_def_growth",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "weapon_tier",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "unlock_guard",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "unlock_miracle",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "starting_accessory",
+          "from": 0,
+          "to": 1
+        }
+      ],
+      "gaps": [],
+      "costs": {
+        "supply": 600,
+        "valor": 790
+      },
+      "unusedBudget": {
+        "supply": 200,
+        "valor": 10
+      },
+      "starterException": false,
+      "status": "measured_with_policy_limits",
+      "unusedComponents": [],
+      "exposureSummary": {
+        "pairsWithOrdinaryRecruits": 100,
+        "pairsFillingExtraSlot": 29,
+        "baselineRecruitDeployments": 3.49,
+        "treatmentRecruitDeployments": 9.63
+      },
+      "eligiblePairs": 100,
+      "censoredPairs": 0,
+      "baselineWinRate": 0,
+      "treatmentWinRate": 0,
+      "baselineBattles": 3.22,
+      "treatmentBattles": 4.31,
+      "baselineOutcomes": {
+        "win": 0,
+        "act1Clear": 0.06,
+        "act2Clear": 0,
+        "battles": 3.22,
+        "unitsLost": 3.11,
+        "turns": 21.39,
+        "overParTurns": 2.78,
+        "shadow": 1.24,
+        "valor": 51.3,
+        "supply": 51.3,
+        "recruitDeployments": 3.49,
+        "extraSlotFilled": 0
+      },
+      "treatmentOutcomes": {
+        "win": 0,
+        "act1Clear": 0.2,
+        "act2Clear": 0,
+        "battles": 4.31,
+        "unitsLost": 4.06,
+        "turns": 24.24,
+        "overParTurns": 0.56,
+        "shadow": 0.8,
+        "valor": 74.65,
+        "supply": 74.65,
+        "recruitDeployments": 9.63,
+        "extraSlotFilled": 0.54
+      },
+      "deltas": {
+        "win": {
+          "n": 100,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "act1Clear": {
+          "n": 100,
+          "mean": 0.14,
+          "se": 0.044991581704163564,
+          "ci95": [0.051816499859839424, 0.2281835001401606],
+          "nonzeroPairs": 22
+        },
+        "act2Clear": {
+          "n": 100,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "battles": {
+          "n": 100,
+          "mean": 1.09,
+          "se": 0.25189985183309527,
+          "ci95": [0.5962762904071334, 1.5837237095928667],
+          "nonzeroPairs": 79
+        },
+        "unitsLost": {
+          "n": 100,
+          "mean": 0.95,
+          "se": 0.20761999086326102,
+          "ci95": [0.5430648179080084, 1.3569351820919915],
+          "nonzeroPairs": 80
+        },
+        "turns": {
+          "n": 100,
+          "mean": 2.85,
+          "se": 3.024057579217738,
+          "ci95": [-3.077152855266767, 8.777152855266767],
+          "nonzeroPairs": 96
+        },
+        "overParTurns": {
+          "n": 100,
+          "mean": -2.22,
+          "se": 2.594461077531959,
+          "ci95": [-7.305143711962639, 2.8651437119626393],
+          "nonzeroPairs": 16
+        },
+        "shadow": {
+          "n": 100,
+          "mean": -0.44,
+          "se": 0.23151673805580456,
+          "ci95": [-0.8937728065893769, 0.013772806589376907],
+          "nonzeroPairs": 65
+        },
+        "valor": {
+          "n": 100,
+          "mean": 23.35,
+          "se": 5.5782111284837,
+          "ci95": [12.41670618817195, 34.28329381182805],
+          "nonzeroPairs": 79
+        },
+        "supply": {
+          "n": 100,
+          "mean": 23.35,
+          "se": 5.5782111284837,
+          "ci95": [12.41670618817195, 34.28329381182805],
+          "nonzeroPairs": 79
+        },
+        "recruitDeployments": {
+          "n": 100,
+          "mean": 6.14,
+          "se": 0.5152267324766698,
+          "ci95": [5.130155604345727, 7.149844395654273],
+          "nonzeroPairs": 95
+        },
+        "extraSlotFilled": {
+          "n": 100,
+          "mean": 0.54,
+          "se": 0.09787644241490386,
+          "ci95": [0.3481621728667885, 0.7318378271332115],
+          "nonzeroPairs": 29
+        }
+      },
+      "efficiency": null
+    },
+    {
+      "expression": "stats",
+      "purchases": {
+        "lord_hp_growth": 1,
+        "lord_str_growth": 1,
+        "lord_spd_growth": 1,
+        "weapon_forge": 1,
+        "recruit_spd_growth": 1,
+        "recruit_def_growth": 1,
+        "recruit_hp_growth": 1,
+        "recruit_str_growth": 1,
+        "extra_starting_unit_pool": 1,
+        "deploy_limit": 1,
+        "recruit_skill": 1,
+        "lord_def_growth": 1,
+        "weapon_tier": 1,
+        "unlock_guard": 1,
+        "unlock_miracle": 1,
+        "starting_accessory": 1
+      },
+      "changes": [
+        {
+          "id": "recruit_spd_growth",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "recruit_def_growth",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "recruit_hp_growth",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "recruit_str_growth",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "extra_starting_unit_pool",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "deploy_limit",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "recruit_skill",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "lord_def_growth",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "weapon_tier",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "unlock_guard",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "unlock_miracle",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "starting_accessory",
+          "from": 0,
+          "to": 1
+        }
+      ],
+      "gaps": [],
+      "costs": {
+        "supply": 800,
+        "valor": 790
+      },
+      "unusedBudget": {
+        "supply": 0,
+        "valor": 10
+      },
+      "starterException": false,
+      "status": "measured_with_policy_limits",
+      "unusedComponents": [],
+      "exposureSummary": {
+        "pairsWithOrdinaryRecruits": 97,
+        "pairsFillingExtraSlot": 25,
+        "baselineRecruitDeployments": 3.3917525773195876,
+        "treatmentRecruitDeployments": 9.721649484536082
+      },
+      "eligiblePairs": 97,
+      "censoredPairs": 3,
+      "baselineWinRate": 0,
+      "treatmentWinRate": 0,
+      "baselineBattles": 3.185567010309278,
+      "treatmentBattles": 4.329896907216495,
+      "baselineOutcomes": {
+        "win": 0,
+        "act1Clear": 0.05154639175257732,
+        "act2Clear": 0,
+        "battles": 3.185567010309278,
+        "unitsLost": 3.0927835051546393,
+        "turns": 21.309278350515463,
+        "overParTurns": 2.865979381443299,
+        "shadow": 1.2268041237113403,
+        "valor": 50.36082474226804,
+        "supply": 50.36082474226804,
+        "recruitDeployments": 3.3917525773195876,
+        "extraSlotFilled": 0
+      },
+      "treatmentOutcomes": {
+        "win": 0,
+        "act1Clear": 0.17525773195876287,
+        "act2Clear": 0,
+        "battles": 4.329896907216495,
+        "unitsLost": 4.030927835051546,
+        "turns": 23.876288659793815,
+        "overParTurns": 0.24742268041237114,
+        "shadow": 0.7422680412371134,
+        "valor": 73.71134020618557,
+        "supply": 73.71134020618557,
+        "recruitDeployments": 9.721649484536082,
+        "extraSlotFilled": 0.5360824742268041
+      },
+      "deltas": {
+        "win": {
+          "n": 97,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "act1Clear": {
+          "n": 97,
+          "mean": 0.12371134020618557,
+          "se": 0.04211374906795927,
+          "ci95": [0.041168392032985404, 0.20625428837938575],
+          "nonzeroPairs": 18
+        },
+        "act2Clear": {
+          "n": 97,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "battles": {
+          "n": 97,
+          "mean": 1.1443298969072164,
+          "se": 0.27495301485592244,
+          "ci95": [0.6054219877896084, 1.6832378060248243],
+          "nonzeroPairs": 76
+        },
+        "unitsLost": {
+          "n": 97,
+          "mean": 0.9381443298969072,
+          "se": 0.2112668550941196,
+          "ci95": [0.5240612939124327, 1.3522273658813817],
+          "nonzeroPairs": 76
+        },
+        "turns": {
+          "n": 97,
+          "mean": 2.5670103092783507,
+          "se": 3.1276159915316146,
+          "ci95": [-3.563117034123614, 8.697137652680315],
+          "nonzeroPairs": 94
+        },
+        "overParTurns": {
+          "n": 97,
+          "mean": -2.618556701030928,
+          "se": 2.663487821486729,
+          "ci95": [-7.838992831144916, 2.6018794290830605],
+          "nonzeroPairs": 12
+        },
+        "shadow": {
+          "n": 97,
+          "mean": -0.4845360824742268,
+          "se": 0.22897566332413688,
+          "ci95": [-0.9333283825895351, -0.03574378235891851],
+          "nonzeroPairs": 57
+        },
+        "valor": {
+          "n": 97,
+          "mean": 23.350515463917525,
+          "se": 5.751942769754216,
+          "ci95": [12.076707635199263, 34.624323292635786],
+          "nonzeroPairs": 76
+        },
+        "supply": {
+          "n": 97,
+          "mean": 23.350515463917525,
+          "se": 5.751942769754216,
+          "ci95": [12.076707635199263, 34.624323292635786],
+          "nonzeroPairs": 76
+        },
+        "recruitDeployments": {
+          "n": 97,
+          "mean": 6.329896907216495,
+          "se": 0.5977696320196365,
+          "ci95": [5.1582684284580065, 7.501525385974983],
+          "nonzeroPairs": 92
+        },
+        "extraSlotFilled": {
+          "n": 97,
+          "mean": 0.5360824742268041,
+          "se": 0.11262817790568876,
+          "ci95": [0.31533124553165415, 0.7568337029219541],
+          "nonzeroPairs": 25
+        }
+      },
+      "efficiency": null
+    },
+    {
+      "expression": "economy",
+      "purchases": {
+        "lord_hp_growth": 1,
+        "lord_str_growth": 1,
+        "lord_spd_growth": 1,
+        "weapon_forge": 1,
+        "starting_gold": 1,
+        "battle_gold": 1,
+        "extra_starting_unit_pool": 1,
+        "veteran_recruits": 1,
+        "deploy_limit": 1,
+        "lord_def_growth": 1,
+        "weapon_tier": 1,
+        "unlock_guard": 1,
+        "unlock_miracle": 1,
+        "starting_accessory": 1
+      },
+      "changes": [
+        {
+          "id": "starting_gold",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "battle_gold",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "extra_starting_unit_pool",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "veteran_recruits",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "deploy_limit",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "lord_def_growth",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "weapon_tier",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "unlock_guard",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "unlock_miracle",
+          "from": 0,
+          "to": 1
+        },
+        {
+          "id": "starting_accessory",
+          "from": 0,
+          "to": 1
+        }
+      ],
+      "gaps": [],
+      "costs": {
+        "supply": 675,
+        "valor": 790
+      },
+      "unusedBudget": {
+        "supply": 125,
+        "valor": 10
+      },
+      "starterException": false,
+      "status": "measured_with_policy_limits",
+      "unusedComponents": [],
+      "exposureSummary": {
+        "pairsWithOrdinaryRecruits": 100,
+        "pairsFillingExtraSlot": 28,
+        "baselineRecruitDeployments": 3.49,
+        "treatmentRecruitDeployments": 10.32
+      },
+      "eligiblePairs": 100,
+      "censoredPairs": 0,
+      "baselineWinRate": 0,
+      "treatmentWinRate": 0,
+      "baselineBattles": 3.22,
+      "treatmentBattles": 4.54,
+      "baselineOutcomes": {
+        "win": 0,
+        "act1Clear": 0.06,
+        "act2Clear": 0,
+        "battles": 3.22,
+        "unitsLost": 3.11,
+        "turns": 21.39,
+        "overParTurns": 2.78,
+        "shadow": 1.24,
+        "valor": 51.3,
+        "supply": 51.3,
+        "recruitDeployments": 3.49,
+        "extraSlotFilled": 0
+      },
+      "treatmentOutcomes": {
+        "win": 0,
+        "act1Clear": 0.21,
+        "act2Clear": 0,
+        "battles": 4.54,
+        "unitsLost": 4.51,
+        "turns": 25.34,
+        "overParTurns": 0.15,
+        "shadow": 0.95,
+        "valor": 78.6,
+        "supply": 78.6,
+        "recruitDeployments": 10.32,
+        "extraSlotFilled": 0.67
+      },
+      "deltas": {
+        "win": {
+          "n": 100,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "act1Clear": {
+          "n": 100,
+          "mean": 0.15,
+          "se": 0.045781651302236784,
+          "ci95": [0.060267963447615897, 0.2397320365523841],
+          "nonzeroPairs": 23
+        },
+        "act2Clear": {
+          "n": 100,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "battles": {
+          "n": 100,
+          "mean": 1.32,
+          "se": 0.2673778395658643,
+          "ci95": [0.795939434450906, 1.844060565549094],
+          "nonzeroPairs": 81
+        },
+        "unitsLost": {
+          "n": 100,
+          "mean": 1.4,
+          "se": 0.1994943101894884,
+          "ci95": [1.0089911520286026, 1.7910088479713973],
+          "nonzeroPairs": 86
+        },
+        "turns": {
+          "n": 100,
+          "mean": 3.95,
+          "se": 3.0224204294778794,
+          "ci95": [-1.973944041776643, 9.873944041776642],
+          "nonzeroPairs": 97
+        },
+        "overParTurns": {
+          "n": 100,
+          "mean": -2.63,
+          "se": 2.582601264796655,
+          "ci95": [-7.691898479001444, 2.431898479001444],
+          "nonzeroPairs": 11
+        },
+        "shadow": {
+          "n": 100,
+          "mean": -0.29,
+          "se": 0.21569478997936506,
+          "ci95": [-0.7127617883595555, 0.13276178835955554],
+          "nonzeroPairs": 64
+        },
+        "valor": {
+          "n": 100,
+          "mean": 27.3,
+          "se": 5.902584607653248,
+          "ci95": [15.730934168999635, 38.86906583100037],
+          "nonzeroPairs": 81
+        },
+        "supply": {
+          "n": 100,
+          "mean": 27.3,
+          "se": 5.902584607653248,
+          "ci95": [15.730934168999635, 38.86906583100037],
+          "nonzeroPairs": 81
+        },
+        "recruitDeployments": {
+          "n": 100,
+          "mean": 6.83,
+          "se": 0.647458902404647,
+          "ci95": [5.560980551286892, 8.099019448713108],
+          "nonzeroPairs": 95
+        },
+        "extraSlotFilled": {
+          "n": 100,
+          "mean": 0.67,
+          "se": 0.13562798197624817,
+          "ci95": [0.4041691553265536, 0.9358308446734465],
+          "nonzeroPairs": 28
+        }
+      },
+      "efficiency": null
+    }
+  ],
+  "comparisons": [
+    {
+      "baseline": "battalion",
+      "portfolio": "stats",
+      "eligiblePairs": 97,
+      "censoredPairs": 3,
+      "deltas": {
+        "win": {
+          "n": 97,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "act1Clear": {
+          "n": 97,
+          "mean": 0,
+          "se": 0.025383654128340476,
+          "ci95": [-0.04975196209154733, 0.04975196209154733],
+          "nonzeroPairs": 6
+        },
+        "act2Clear": {
+          "n": 97,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "battles": {
+          "n": 97,
+          "mean": 0.1134020618556701,
+          "se": 0.1284960325545428,
+          "ci95": [-0.13845016195123383, 0.365254285662574],
+          "nonzeroPairs": 20
+        },
+        "unitsLost": {
+          "n": 97,
+          "mean": 0.07216494845360824,
+          "se": 0.12712744799111875,
+          "ci95": [-0.1770048496089845, 0.321334746516201],
+          "nonzeroPairs": 26
+        },
+        "turns": {
+          "n": 97,
+          "mean": 0.27835051546391754,
+          "se": 0.7893108738052071,
+          "ci95": [-1.2686987971942885, 1.8253998281221233],
+          "nonzeroPairs": 35
+        },
+        "overParTurns": {
+          "n": 97,
+          "mean": -0.21649484536082475,
+          "se": 0.184345925177811,
+          "ci95": [-0.5778128587093343, 0.1448231679876848],
+          "nonzeroPairs": 7
+        },
+        "shadow": {
+          "n": 97,
+          "mean": -0.061855670103092786,
+          "se": 0.12068535759992988,
+          "ci95": [-0.29839897099895535, 0.17468763079276978],
+          "nonzeroPairs": 18
+        },
+        "valor": {
+          "n": 97,
+          "mean": 1.7010309278350515,
+          "se": 2.923610962972366,
+          "ci95": [-4.029246559590785, 7.431308415260888],
+          "nonzeroPairs": 20
+        },
+        "supply": {
+          "n": 97,
+          "mean": 1.7010309278350515,
+          "se": 2.923610962972366,
+          "ci95": [-4.029246559590785, 7.431308415260888],
+          "nonzeroPairs": 20
+        },
+        "recruitDeployments": {
+          "n": 97,
+          "mean": 0.41237113402061853,
+          "se": 0.29191297061624527,
+          "ci95": [-0.1597782883872222, 0.9845205564284593],
+          "nonzeroPairs": 22
+        },
+        "extraSlotFilled": {
+          "n": 97,
+          "mean": 0.061855670103092786,
+          "se": 0.05828010517576162,
+          "ci95": [-0.05237333604139999, 0.17608467624758556],
+          "nonzeroPairs": 8
+        }
+      }
+    },
+    {
+      "baseline": "battalion",
+      "portfolio": "economy",
+      "eligiblePairs": 100,
+      "censoredPairs": 0,
+      "deltas": {
+        "win": {
+          "n": 100,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "act1Clear": {
+          "n": 100,
+          "mean": 0.01,
+          "se": 0.05221362491019585,
+          "ci95": [-0.09233870482398387, 0.11233870482398386],
+          "nonzeroPairs": 27
+        },
+        "act2Clear": {
+          "n": 100,
+          "mean": 0,
+          "se": 0,
+          "ci95": [0, 0],
+          "nonzeroPairs": 0
+        },
+        "battles": {
+          "n": 100,
+          "mean": 0.23,
+          "se": 0.24447635237111773,
+          "ci95": [-0.24917365064739075, 0.7091736506473908],
+          "nonzeroPairs": 73
+        },
+        "unitsLost": {
+          "n": 100,
+          "mean": 0.45,
+          "se": 0.24010729924663915,
+          "ci95": [-0.020610306523412725, 0.9206103065234128],
+          "nonzeroPairs": 75
+        },
+        "turns": {
+          "n": 100,
+          "mean": 1.1,
+          "se": 1.5707876168896089,
+          "ci95": [-1.9787437291036332, 4.178743729103633],
+          "nonzeroPairs": 93
+        },
+        "overParTurns": {
+          "n": 100,
+          "mean": -0.41,
+          "se": 0.23010537770440057,
+          "ci95": [-0.8610065403006251, 0.041006540300625116],
+          "nonzeroPairs": 14
+        },
+        "shadow": {
+          "n": 100,
+          "mean": 0.15,
+          "se": 0.20169734302121622,
+          "ci95": [-0.2453267923215838, 0.5453267923215838],
+          "nonzeroPairs": 54
+        },
+        "valor": {
+          "n": 100,
+          "mean": 3.95,
+          "se": 5.9481322932310245,
+          "ci95": [-7.708339294732808, 15.608339294732808],
+          "nonzeroPairs": 73
+        },
+        "supply": {
+          "n": 100,
+          "mean": 3.95,
+          "se": 5.9481322932310245,
+          "ci95": [-7.708339294732808, 15.608339294732808],
+          "nonzeroPairs": 73
+        },
+        "recruitDeployments": {
+          "n": 100,
+          "mean": 0.69,
+          "se": 0.6303269954651485,
+          "ci95": [-0.5454409111116911, 1.925440911111691],
+          "nonzeroPairs": 86
+        },
+        "extraSlotFilled": {
+          "n": 100,
+          "mean": 0.13,
+          "se": 0.13077469251357549,
+          "ci95": [-0.12631839732660793, 0.38631839732660794],
+          "nonzeroPairs": 35
+        }
+      }
+    }
+  ],
+  "rowCount": 400,
+  "rawArtifact": "docs/reports/meta-balance-2026-09-30-portfolios.rows.json.gz"
+}
