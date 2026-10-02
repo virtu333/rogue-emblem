@@ -489,39 +489,71 @@ fielding the caravan.
   stalls. Push walks straight at the boss. Turtle edges forward until something can reach
   it, then holds and punishes, which pulls holders out. Escape still falls back to
   ScriptedAgent, so escape holds are measured only by that charging policy.
-- **Results** (`sim/pacing.js`, calibrated profile, 48 paired seeds). Seize battles
-  only, turns − par median and S/A share; "base" has no holds and no offset:
+- **Results** (`sim/pacing.js`, calibrated profile `--edge
+  act1:2,act2:6,act3:10,act4:12,finalBoss:12`, 48 paired seeds), after the review fixes
+  (offsets −3 / −4 / −4 with the floor). Seize battles only, turns − par median; "base"
+  has no holds and no offset:
 
-| Rung | Push base | Push shipped | Push S+A shipped | Turtle base | Turtle shipped | Run shadow turtle / push (base → shipped) |
-|---|---|---|---|---|---|---|
-| First Light | −7 | −7 | 100% | −5 | −5 | 0.5 / 0.0 (unchanged) |
-| Dusk | −6 | **−2** | 91% | −4 | 0 | 40.2 / 10.6 → 42.7 / 10.8 |
-| Nightfall | −6 | **−2** | 84% | −3 | 0 | 68.9 / 33.9 → 70.9 / 38.4 |
-| Black Sun | −4 | **−2** | 72% | 0 | +2 | 83.3 / 60.3 → 83.5 / 60.9 |
+| Rung | Push base | Push shipped | Turtle base | Turtle shipped | Run shadow turtle / push (base → shipped) |
+|---|---|---|---|---|---|
+| First Light | −7 | −7 | −5 | −5 | 0.5 / 0.0 (unchanged) |
+| Dusk | −6 | **−3** | −4 | −1 | 40.8 / 12.3 → 50.1 / 12.0 |
+| Nightfall | −6 | **−3** | −4 | −1 | 70.3 / 34.8 → 78.4 / 41.5 |
+| Black Sun | −4 | **−1** | −1 | +2 | 84.5 / 59.8 → 88.0 / 68.4 |
 
+  Push S / A share of seize battles, Act I apart (its maps are the smallest, so the
+  floor binds most there):
+
+| Rung | Seize par, Act I / Act II+ | Push Act I S / A | Push Act II+ S / A | Push S+A, all |
+|---|---|---|---|---|
+| First Light | 10–12 / 11–15 | 100 / 0 | 100 / 0 | 100% |
+| Dusk | 6–8 / 7–11 | 27 / 70 | 73 / 27 | 99% |
+| Nightfall | 6–8 / 6–12 | 7 / 73 | 76 / 21 | 93% |
+| Black Sun | 6–8 / 7–12 | 0 / 28 | 33 / 41 | 65% |
+
+  - Map by map (60 seeds per act, deployCount 6): the floor lifts 34 of 120 Act I and
+    59 of 360 Act II–IV Dusk maps, 120 and 238 on Nightfall, 120 and 232 on Black Sun.
+    No map is left without an S for a lord walking straight in (the PR 3 offsets left
+    it out of reach on every Act I map by that bar). Black Sun's seize par went from
+    7–10 to 6–10, under Dusk's on every map.
+  - The floor is what sets most Nightfall and Black Sun seize pars, so the push median
+    lands at par − 3 on Dusk and Nightfall, a turn looser than the PR 3 target of par − 2;
+    tightening the offsets further would not move a floored map. Black Sun, where the
+    floor binds least, is the tightest at par − 1.
   - Holds alone barely move a push: it goes for the boss and wakes what it walks into.
     They cost the turtle about half a turn per seize map.
-  - The par offset is what makes seize speed count. The seize push now lands in A as
-    often as S, and the turtle lands in A to B.
   - Most seize battles in a run are boss maps (192 of 286 on Dusk), so the offset applies
     to every act boss.
-  - Boss enrage arrives earlier with the lower par, at min(12, par + 2). That is intended:
-    enrage also wakes every holder.
+  - Boss enrage arrives earlier with the lower par, at min(12, par + 2), and never later
+    on a harder rung. That is intended: enrage also wakes every holder.
 
 **Strict threshold PR note** (`sim:fullrun:pr`, slice `ambush_hard_invincible`):
 - Attribution command: `npm run sim:fullrun:triage -- --slice ambush_hard_invincible
   --range 68e0b968..2d95a4f9`. The same answer was confirmed by A/B runs of the slice
   with data toggles.
 - first_bad_sha: 2d95a4f9 (PR 3). parent_sha: 68e0b968.
-- Failing metrics (threshold breaches): `avg_shop_spent=6749.83 < 6770.00`.
-  - Holds alone give 7233, and the seize offset alone gives 7626.
-  - Together, Nightfall seize battles rate lower, so they pay less turn-bonus gold
-    (avg_gold 48497), and the scripted runs spend a little less at shops.
-  - That is the intended economy effect of the par fix, not a broken shop flow:
-    ambush coverage, win rate, timeouts and invalid entries are unchanged.
-- Change: `--min-avg-shop-spent` 6770.00 → 6400.00 (about 5% under the new value).
+- Failing metrics (threshold breaches): `avg_shop_spent=6749.83 < 6770.00` at
+  2d95a4f9. Re-measured after the review fixes (guards kept, the offsets −3 / −4 / −4
+  and the floor): `avg_shop_spent=6746`, still under 6770.
+- Slice metrics, main (2a5f12f3) → this branch: `avg_shop_spent` 8210 → 6746 (−18%),
+  `avg_gold` 47265 → 49059 (+3.8%: gold rose, it did not fall),
+  `avg_ambush_battles` 0.33 → 0.25 (4 → 3 of 12 runs; floor 0.20), win rate, timeouts,
+  units lost and invalid shop entries unchanged.
+- The shop drop is per-seed divergence, not a lower income: the invincible agent's runs
+  take different roads once a battle's rating or a holder changes. Per seed (301–312),
+  shop spending moves both ways: 303 −13003, 304 −7744, 307 −3587, 312 −105; 306 +2908,
+  311 +2898, 301 +747, 309 +314; 302, 305, 308 and 310 are unchanged (three of them
+  spend nothing on either side). Seed 303 alone is 1084 of the 1464 average drop.
+- Ambush coverage is one run above its floor: 3 of 12 runs (0.25) against 0.20, which
+  needs 3. One more run without an ambush fails the slice. The floor stays (it is the
+  coverage check the procedure keeps enabled); `docs/harness-thresholds.md` records the
+  margin so a later breach is read as this divergence first.
+- Change: `--min-avg-shop-spent` 6770.00 → 6400.00, 5% under the measured 6746 (the
+  procedure's `floor(observed × 0.85)` = 5734 would hide a real shop regression on this
+  slice, so the window stays tight). Every other window is unchanged.
 - Touched files: `tests/sim/fullrun-slices.js` (threshold), `data/difficulty.json`
-  (holdShare, objectiveParOffset), `src/engine/HoldActivation.js`, `AIController.js`,
-  `MapGenerator.js`, `TurnBonusCalculator.js`, `RunManager.js`, `DifficultyEngine.js`,
-  `ReinforcementSpawns.js`, `BattleScene.js`, `tests/harness/HeadlessBattle.js`.
+  (holdShare, objectiveParOffset), `src/engine/HoldActivation.js`, `HoldDisturbance.js`,
+  `SeizeParFloor.js`, `AIController.js`, `MapGenerator.js`, `TurnBonusCalculator.js`,
+  `RunManager.js`, `DifficultyEngine.js`, `ReinforcementSpawns.js`, `UnitHealth.js`,
+  `StatusConditionSystem.js`, `BattleScene.js`, `tests/harness/HeadlessBattle.js`.
 
