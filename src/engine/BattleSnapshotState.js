@@ -1,6 +1,7 @@
 import { normalizeSpecialCharacter } from './SpecialCharacterPolicy.js';
 import { migrateUnitTraits } from './TraitSystem.js';
 import { normalizeBattleRecruits, reconcileRecruitIdentities } from './BattleRecruits.js';
+import { normalizeFallenBattleRecords } from './DeedSystem.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
 // in snapshot order; references into that table survive JSON and duplicate names.
 const UNIT_GROUPS = ['playerUnits', 'enemyUnits', 'npcUnits'];
@@ -22,6 +23,9 @@ export function captureBattleWorldState(scene) {
     // Mid-battle recruits as they joined: the fallen record for a recruit who
     // dies before the battle ends (see BattleRecruits.js).
     battleRecruits: normalizeBattleRecruits(scene._battleRecruits),
+    // What each unit that fell this battle did before it fell (deeds, item use),
+    // committed to its fallen record at victory (DeedController).
+    fallenBattleRecords: normalizeFallenBattleRecords(scene._fallenBattleRecords),
   };
 }
 
@@ -54,7 +58,8 @@ export function restoreBattleWorldState(scene, snapshot) {
   if (Array.isArray(snapshot.appliedHybridOverrideTurns)) {
     scene.appliedHybridOverrideTurns = new Set(snapshot.appliedHybridOverrideTurns);
   }
-  // Older snapshots predate the list; they carry no mid-battle recruit record.
+  // Older snapshots predate these lists: no mid-battle recruit or fallen record.
+  scene._fallenBattleRecords = normalizeFallenBattleRecords(snapshot.fallenBattleRecords);
   scene._battleRecruits = normalizeBattleRecruits(snapshot.battleRecruits);
   reconcileRecruitIdentities(
     scene._battleRecruits,

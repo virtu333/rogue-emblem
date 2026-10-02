@@ -8,7 +8,11 @@ import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
 import { migrateUnitTraits, rollAndApplyLordTrait } from './TraitSystem.js';
-import { normalizeUnitDeeds } from './DeedSystem.js';
+import {
+  applyFallenBattleRecord,
+  findFallenBattleRecord,
+  normalizeUnitDeeds,
+} from './DeedSystem.js';
 import { RUN_RECORD_VERSION, fallenForRecord, fallenRecord, survivorRecord } from './RunRecords.js';
 import { migrateWaitingOath } from './SkillLoadout.js';
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
@@ -3617,9 +3621,11 @@ export class RunManager {
    * @param {Array} survivingUnits - units from BattleScene (with Phaser fields)
    * @param {string} nodeId - the node that was just completed
    * @param {number} goldEarned - accumulated kill gold from battle
-   * @param {{ completionGoldOverride?: number, caravanSurvived?: boolean, fallenRecruits?: object[] }} [options]
+   * @param {{ completionGoldOverride?: number, caravanSurvived?: boolean, fallenRecruits?: object[], fallenBattleRecords?: object[] }} [options]
    *   fallenRecruits: serialized units that joined mid-battle (Talk) and fell
    *   before victory — recorded as fallen allies like roster casualties.
+   *   fallenBattleRecords: each casualty's death record (DeedSystem
+   *   `fallenBattleRecord`, deeds committed at victory): its deeds and its bags.
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
@@ -3659,6 +3665,14 @@ export class RunManager {
       if (!fallenUid || !this.fallenUnits.some((f) => unitUidOf(f) === fallenUid)) {
         const serializedFallen = serializeUnit(fallen);
         this.assignUnitUid(serializedFallen);
+        // The casualty is the unit as it entered the battle; its death record
+        // adds what it did there (kills, deeds) and swaps in the bags it carried
+        // as it fell, so a traded, given or drunk item is neither duplicated,
+        // lost nor refunded. No record (an older checkpoint): the entry bags.
+        applyFallenBattleRecord(
+          serializedFallen,
+          findFallenBattleRecord(options?.fallenBattleRecords, serializedFallen),
+        );
         this._transferFallenUnitItems(serializedFallen);
         // Where they fell, for the victory record (the battle's number as deeds count it).
         serializedFallen.fellAt = {

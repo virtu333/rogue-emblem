@@ -43,6 +43,13 @@ No tuning yet (docs/specs/dusk-pressure.md, PR 1).
   - **Fix:** the clock's baseline was taken before any enemy had spawned, so kills never counted as progress and the AI turned aggressive three turns into every battle. Kills now reset it.
 - **Headless harness parity:** enemy spawn gear (Entity weapons, Sunder and Poison, siege tomes, status staves, Nightfall+ secondaries) now comes from one engine module (`engine/EnemySpawnGear.js`), and the harness's enemies use their status staves.
 
+### Sell Safety, Item Use Counts and the Fallen (Oct 1, 2026)
+
+- **Sell list risk tags**: each Sell row says whose only weapon ("Only weapon") or staff ("Only staff") it is, and, more quietly, a unit's last weapon of a type ("Only bow"). Selling a healer's only staff now warns ("Leaves Sera without a staff"), like the last weapon always did.
+- **Item use counts**: every weapon counts its strikes and the kills its strikes made, and every staff its casts, per item. Sell rows show them ("14 strikes", "9 casts"), and so do the sell detail and the roster's item card ("Used in 14 strikes · 3 kills", "Cast 9 times").
+- **The fallen keep their last battle**: kills, crits and deeds a unit earned in the battle where it fell are no longer lost (deeds only a survivor can earn excepted, and the fatal battle does not count toward Veteran).
+- **Fix: a fallen unit's items**: a unit that fell was saved with the bags it entered the battle with, so an item it traded away mid-battle was duplicated (with its new owner and in the convoy), an item it was given was lost, and a Vulnerary it drank came back full. Its record now carries what it held as it fell.
+
 ### Staff Relocation Visuals (Sep 30, 2026)
 
 - Rescue and Warp preserve each visual element's opacity when moving an already-used ally, so the next turn restores its ready appearance without leaving the sprite or HP bar faded.

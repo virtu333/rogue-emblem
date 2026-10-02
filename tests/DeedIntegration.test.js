@@ -4,7 +4,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { loadGameData } from './testData.js';
 import { RunManager, serializeUnit } from '../src/engine/RunManager.js';
-import { mergeRunRecords } from '../src/engine/RunRecords.js';
+import { fallenRecord, mergeRunRecords } from '../src/engine/RunRecords.js';
 import {
   createLordUnit,
   createUnit,
@@ -12,6 +12,7 @@ import {
   resolvePromotionTargets,
 } from '../src/engine/UnitManager.js';
 import { applyRosterClassChange } from '../src/engine/RosterCommands.js';
+import { applyTrade, unitHolder } from '../src/engine/ItemTrade.js';
 import { promoteAtChurch } from '../src/engine/ChurchCommands.js';
 import {
   commitBattleDeeds,
@@ -83,6 +84,157 @@ describe('serialization and saves', () => {
     expect(run.roster[0]._battleDeeds).toBeUndefined();
     const fallen = run.fallenUnits.find((u) => u.name === partner.name);
     expect(unitEpithet(fallen).text).toBe('the Keen Edge');
+  });
+
+  it('a unit that falls keeps what it did before it fell: kills, a boss, its weapon’s use', () => {
+    const run = new RunManager(data);
+    run.startRun({ runSeed: 11 });
+    const node = run.getAvailableNodes().find((n) => n.type === 'battle' || n.type === 'recruit');
+    const [lead, partner] = run.roster;
+    withDeed(partner, { crits: 3 }); // an earlier victory: the Keen Edge
+    const entryBattles = partner.deeds.stats.battles;
+    const recordDeedsEarned = vi.fn();
+    const s = {
+      gameData: data,
+      runManager: run,
+      battleParams: { deployCount: 2 },
+      nodeId: node.id,
+      turnManager: { currentPhase: 'player', turnNumber: 3 },
+      registry: { get: (k) => (k === 'meta' ? { recordDeedsEarned } : null) },
+      _fallenBattleRecords: [],
+      _battleRecruits: [],
+    };
+    const deeds = new DeedController(s);
+    const [battleLead, battlePartner] = [structuredClone(lead), structuredClone(partner)];
+    // Her own level, so the kill is no Giantslayer's.
+    const boss = { faction: 'enemy', isBoss: true, name: 'Warchief', level: partner.level };
+    const hit = { type: 'strike', miss: false, damage: 6 };
+    // She crits the boss, takes its counter down to 1 HP (the brink), and finishes it.
+    battlePartner.currentHP = 1;
+    deeds.onCombat(battlePartner, boss, {
+      events: [
+        { ...hit, attackerSide: 'attacker', isCrit: true },
+        { ...hit, attackerSide: 'defender' },
+        { ...hit, attackerSide: 'attacker', targetHPAfter: 0 },
+      ],
+    });
+    deeds.onUnitRemoved(boss, battlePartner);
+    // Then she falls to another foe before the battle is won.
+    battlePartner.currentHP = 0;
+    deeds.onUnitRemoved(battlePartner, { faction: 'enemy', name: 'Brigand', level: 3 });
+    deeds.commitVictory([battleLead]);
+    run.completeBattle([battleLead], node.id, 0, { fallenBattleRecords: s._fallenBattleRecords });
+
+    const fallen = run.fallenUnits.find((u) => u.name === partner.name);
+    // Her two strikes, one of them a crit and the killing blow, and the boss.
+    expect(fallen.deeds.stats).toMatchObject({ crits: 4, kills: 1, bossKills: 1 });
+    // The battle she died in is not a battle survived (Veteran).
+    expect(fallen.deeds.stats.battles).toBe(entryBattles);
+    // Bane of the Warchief, posthumously; Would Not Fall is for survivors.
+    expect(fallen.deeds.earned.map((e) => e.id)).toEqual(['keen_edge', 'bossbane']);
+    expect(recordDeedsEarned).toHaveBeenCalledWith(['bossbane']);
+    // Her weapon went to the convoy with the strikes and the kill it made.
+    const weapon = run.convoy.weapons.find((w) => w.uid === partner.weapon.uid);
+    expect(weapon).toMatchObject({ _strikes: 2, _kills: 1 });
+    // Her victory-record entry carries the battle she died in, and where she fell.
+    expect(fallenRecord(fallen)).toMatchObject({
+      name: partner.name,
+      tally: { kills: 1, bossKills: 1, crits: 4 },
+      fellAt: { battle: run.completedBattles || 0 },
+    });
+  });
+
+  describe('a unit that falls is saved with what it carried as it fell', () => {
+    // One battle: the roster enters as copies, `during` plays out, the partner
+    // falls (the removeUnit deed hook takes its death record), the lead wins.
+    function battle(during, { record = true, before = () => {} } = {}) {
+      const run = new RunManager(data);
+      run.startRun({ runSeed: 11 });
+      before(run.roster[1]);
+      const node = run.getAvailableNodes().find((n) => n.type === 'battle' || n.type === 'recruit'); // prettier-ignore
+      const [lead, partner] = run.roster.map((u) => structuredClone(u));
+      const s = {
+        gameData: data,
+        runManager: run,
+        battleParams: { deployCount: 2 },
+        nodeId: node.id,
+        turnManager: { currentPhase: 'player', turnNumber: 3 },
+        _fallenBattleRecords: [],
+        _battleRecruits: [],
+      };
+      const deeds = new DeedController(s);
+      during(lead, partner);
+      partner.currentHP = 0;
+      if (record) deeds.onUnitRemoved(partner, { faction: 'enemy', name: 'Brigand', level: 3 });
+      deeds.commitVictory([lead]);
+      run.completeBattle([lead], node.id, 0, { fallenBattleRecords: s._fallenBattleRecords });
+      const everywhere = (uid) =>
+        [
+          ...run.roster.flatMap((u) => [...u.inventory, ...(u.consumables || [])]),
+          ...run.convoy.weapons,
+          ...run.convoy.consumables,
+          ...run.fallenUnits.flatMap((u) => [...u.inventory, ...(u.consumables || [])]),
+        ].filter((i) => i.uid === uid);
+      return { run, lead, partner, everywhere };
+    }
+    const give = (from, to, item) =>
+      applyTrade(
+        { context: 'battle' },
+        { holder: unitHolder(from), bag: 'inventory', item },
+        { holder: unitHolder(to), bag: 'inventory', item: null },
+      );
+
+    it('an item it gave away mid-battle is not duplicated into the convoy', () => {
+      let uid;
+      const { run, everywhere } = battle((lead, partner) => {
+        uid = partner.inventory[0].uid;
+        expect(give(partner, lead, partner.inventory[0]).ok).toBe(true);
+      });
+      expect(everywhere(uid)).toHaveLength(1);
+      expect(run.roster[0].inventory.some((i) => i.uid === uid)).toBe(true);
+    });
+
+    it('an item it was given mid-battle is not lost', () => {
+      let uid;
+      const { run, everywhere } = battle((lead, partner) => {
+        uid = lead.inventory[0].uid;
+        expect(give(lead, partner, lead.inventory[0]).ok).toBe(true);
+      });
+      expect(everywhere(uid)).toHaveLength(1);
+      expect(run.convoy.weapons.some((i) => i.uid === uid)).toBe(true);
+    });
+
+    it('a Vulnerary it drank stays drunk; one it finished does not come back', () => {
+      const vulnerary = (uid, uses) => ({
+        ...structuredClone(data.consumables.find((c) => c.name === 'Vulnerary')),
+        uid,
+        uses,
+      });
+      const { everywhere } = battle(
+        (lead, partner) => {
+          partner.consumables.find((c) => c.uid === 'sip').uses = 1;
+          partner.consumables = partner.consumables.filter((c) => c.uid !== 'last');
+        },
+        // It enters the battle with two (the roster record), then drinks.
+        {
+          before: (partner) => (partner.consumables = [vulnerary('sip', 3), vulnerary('last', 1)]),
+        },
+      );
+      expect(everywhere('sip').map((c) => c.uses)).toEqual([1]);
+      expect(everywhere('last')).toEqual([]);
+    });
+
+    it('with no death record (a checkpoint from before them) it keeps the entry bags', () => {
+      let uid;
+      const { run, everywhere } = battle(
+        (lead, partner) => {
+          uid = partner.inventory[0].uid;
+        },
+        { record: false },
+      );
+      expect(everywhere(uid)).toHaveLength(1);
+      expect(run.convoy.weapons.some((i) => i.uid === uid)).toBe(true);
+    });
   });
 
   it('"Continue from Map" discards battle progress: the roster is still at entry', () => {
@@ -337,6 +489,23 @@ describe('DeedController', () => {
     const s = scene({ registry: { get: (k) => (k === 'meta' ? { recordDeedsEarned } : null) } });
     new DeedController(s).commitVictory([hero]);
     expect(recordDeedsEarned).toHaveBeenCalledWith(['held_the_line']);
+  });
+
+  it('a death leaves one record per unit, in any run battle (deeds or not), never in the tutorial', () => {
+    const hero = { ...fighter('Bo'), unitUid: 'u-bo' };
+    const killer = { faction: 'enemy', name: 'x', level: 1 };
+    const s = scene({ _fallenBattleRecords: [] });
+    const deeds = new DeedController(s);
+    deeds.onUnitRemoved(hero, killer);
+    deeds.onUnitRemoved(hero, killer); // a repeated removal of the same death
+    expect(s._fallenBattleRecords.map((r) => r.unitUid)).toEqual(['u-bo']);
+    // Without deed data the record (its bags) is still taken.
+    const plain = scene({ gameData: {}, _fallenBattleRecords: [] });
+    new DeedController(plain).onUnitRemoved(hero, killer);
+    expect(plain._fallenBattleRecords[0].bags.inventory).toHaveLength(hero.inventory.length);
+    const tutorial = scene({ battleParams: { tutorialMode: true }, _fallenBattleRecords: [] });
+    new DeedController(tutorial).onUnitRemoved(hero, killer);
+    expect(tutorial._fallenBattleRecords).toEqual([]);
   });
 
   it('heals count only HP actually restored to someone else', () => {

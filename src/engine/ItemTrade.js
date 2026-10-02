@@ -53,6 +53,10 @@ export function cannotWieldReason(unit, item) {
 export const TRADE_WARNINGS = Object.freeze({
   cannotEquip: 'cannot_equip',
   leavesUnarmed: 'leaves_unarmed',
+  // Selling (ShopCommands.shopSellWarnings) words these too: a staff user's last
+  // usable staff, and a fighter's last usable weapon of one type (`weaponType`).
+  leavesNoStaff: 'leaves_no_staff',
+  leavesNoType: 'leaves_no_type',
 });
 
 const BAGS = new Set(['inventory', 'consumables', 'accessory']);

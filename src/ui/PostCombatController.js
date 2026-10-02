@@ -209,6 +209,8 @@ export class PostCombatController {
             allUnits,
             scene.runManager.roster,
           ),
+          // What the fallen did before they fell (DeedController.commitFallen).
+          fallenBattleRecords: scene._fallenBattleRecords,
         },
       );
       // A lord recruited in this battle (a recruit node's Talk) has now joined.

@@ -11,11 +11,15 @@ import { ChoicePicker } from './ChoicePicker.js';
 import { unitPortrait } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { tradeWarningText } from './tradeMenuModel.js';
+import { TRADE_WARNINGS } from '../engine/ItemTrade.js';
 import {
   shopOwnedItems,
   shopBuyBlock,
   purchaseShopItem,
   shopSellBlock,
+  shopSellRisk,
+  sellRiskLabel,
+  SELL_RISKS,
   shopSellWarnings,
   sellShopItem,
   shopForgeBlock,
@@ -30,6 +34,7 @@ import {
 import { getSellPrice } from '../engine/LootSystem.js';
 import { canEquip } from '../engine/UnitManager.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
+import { itemUsageShort, itemUsageText } from '../engine/ItemUsage.js';
 import {
   SHOP_FORGE_LIMITS,
   SHOP_REROLL_COST,
@@ -206,19 +211,27 @@ export class ShopMenu {
       b.dataset.shopFocus = `item-${i}`;
       if (short(row)) b.classList.add('is-short');
       b.setAttribute('aria-pressed', String(row.item === this.selected));
+      const selling = this.scene.activeShopTab === 'sell';
       const sub =
         this.scene.activeShopTab === 'buy'
           ? [`${row.entry.price} G`, row.item.type, itemKeywordText(row.item)]
               .filter(Boolean)
               .join(' · ')
-          : this.scene.activeShopTab === 'sell'
-            ? `${row.owner} · +${getSellPrice(row.item)} G`
+          : selling
+            ? // How much it has been used: "Edric · +875 G · 14 strikes".
+              [row.owner, `+${getSellPrice(row.item)} G`, itemUsageShort(row.item)]
+                .filter(Boolean)
+                .join(' · ')
             : `${row.owner} · Forge ${row.item._forgeLevel || 0}`;
       const name = el('strong', row.item.name);
       if (row.kind === 'inventory' && row.unit?.weapon === row.item)
         name.append(equippedBadgeElement((tag) => el(tag)));
       const text = el('span', null, 'shop-row-text');
       text.append(name, el('span', sub));
+      // Selling someone's only weapon (or staff, or bow) reads on the row itself,
+      // before it is chosen; spares, supplies and the convoy carry no tag.
+      const risks = selling ? this.riskTags(row) : null;
+      if (risks) text.append(risks);
       b.append(itemIcon(row.item, { size: 32 }), text);
       stock.append(b);
     });
@@ -308,6 +321,9 @@ export class ShopMenu {
         'shop-mechanics',
       ),
     );
+    // How much this very item has been used, beside its numbers (a sale decides on it).
+    const usage = this.scene.activeShopTab === 'buy' ? '' : itemUsageText(item);
+    if (usage) title.append(el('p', usage, 'shop-usage'));
     if (item.lore) copy.append(el('p', item.lore, 'shop-lore'));
     appendItemArtDetails(copy, item, this.scene.gameData.weaponArts?.arts || [], {
       openHelp: (title, blocks) => this.openHelp(title, blocks),
@@ -358,11 +374,12 @@ export class ShopMenu {
     } else if (tab === 'sell') {
       reason = shopSellBlock(this.run, row);
       // Selling the last weapon is allowed; say what it costs before and at the confirm.
-      const warning = shopSellWarnings(this.run, row)
-        .map(tradeWarningText)
-        .filter(Boolean)
-        .map((text) => `${text}.`)
-        .join(' ');
+      // The last weapon of a type is a note (muted), not a warning; the confirm's
+      // plain text says both.
+      const warnings = shopSellWarnings(this.run, row).filter((w) => tradeWarningText(w));
+      const sentence = (w) => `${tradeWarningText(w)}.`;
+      const soft = (w) => w.code === TRADE_WARNINGS.leavesNoType;
+      const warning = warnings.map(sentence).join(' ');
       const b = button(
         `Sell · ${getSellPrice(item)} G`,
         () =>
@@ -376,7 +393,13 @@ export class ShopMenu {
       b.disabled = !!reason;
       if (warning && !reason) {
         b.setAttribute('aria-description', warning);
-        action.append(el('p', warning, 'shop-warning'));
+        const hard = warnings
+          .filter((w) => !soft(w))
+          .map(sentence)
+          .join(' ');
+        const note = warnings.filter(soft).map(sentence).join(' ');
+        if (hard) action.append(el('p', hard, 'shop-warning'));
+        if (note) action.append(el('p', note, 'shop-warning is-soft'));
       }
       action.append(b);
     } else {
@@ -395,6 +418,20 @@ export class ShopMenu {
     if (reason)
       action.prepend(el('p', reason, goldShort ? 'shop-reason shop-reason--gold' : 'shop-reason'));
     container.append(copy, action);
+  }
+  /** The sell row's risk tags ("Only weapon", "Only staff", "Only bow"), or null. */
+  riskTags(row) {
+    const risks = shopSellRisk(this.run, row).filter((risk) => sellRiskLabel(risk));
+    if (!risks.length) return null;
+    const tags = el('span', null, 'shop-risks');
+    for (const risk of risks) {
+      const tag = el('span', sellRiskLabel(risk), 'shop-risk');
+      // The last weapon or staff is a hard warning; the last of a type is a note.
+      tag.classList.add(risk.code === SELL_RISKS.onlyType ? 'is-soft' : 'is-hard');
+      tag.dataset.risk = risk.code;
+      tags.append(tag);
+    }
+    return tags;
   }
   persist() {
     this.controller._saveShopState();

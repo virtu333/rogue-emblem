@@ -1382,6 +1382,7 @@ export class BattleScene extends Phaser.Scene {
       this.inspectMode = false;
       this._playerDeathsThisBattle = 0;
       this._battleRecruits = [];
+      this._fallenBattleRecords = []; // DeedController.onUnitRemoved
 
       // Track non-deployed units for merging back on victory
       if (!this.battleParams?.tutorialMode && this.roster && deployedRoster) {
