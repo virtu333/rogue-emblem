@@ -225,9 +225,9 @@ describe('the harness pays area credits', () => {
     return { granted, neighbour };
   }
 
-  it('until the scene pays area XP, the harness pays none either (AREA_XP_LIVE)', () => {
-    expect(AREA_XP_LIVE).toBe(false);
-    expect(new HeadlessBattle(data, { act: 'act1', objective: 'rout' }).areaXpLive).toBe(false);
+  it('area XP is live, and with the switch off the harness pays none (AREA_XP_LIVE)', () => {
+    expect(AREA_XP_LIVE).toBe(true);
+    expect(new HeadlessBattle(data, { act: 'act1', objective: 'rout' }).areaXpLive).toBe(true);
     const alone = fight({ withNeighbour: false, live: false });
     const flanked = fight({ withNeighbour: true, live: false });
     expect(flanked.neighbour.currentHP).toBe(0);

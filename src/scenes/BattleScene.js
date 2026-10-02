@@ -46,7 +46,7 @@ import {
   railOwnsMenus,
   rowText,
 } from '../ui/battleMenuModel.js';
-import { applyXpGain, combatXpAwards, scaledXp } from '../engine/BattleXp.js';
+import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../engine/BattleXp.js';
 import { postCombatEffects, allyBuff } from '../engine/PostCombatEffects.js';
 import {
   applyTimedBuffEntry,
@@ -8579,14 +8579,19 @@ export class BattleScene extends Phaser.Scene {
           0,
           defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
         );
-        // Area victims (result.areaCredits) pay no XP here yet. Slice 4b pays them by
-        // reading BattleXp.AREA_XP_LIVE, the switch the harness already reads.
+        // The area art's other victims pay too (BattleXp.AREA_XP_LIVE, the switch the
+        // harness reads), each credit the attacker's own.
         await this.awardXP(
           attacker,
           defender,
           defender.currentHP <= 0,
           damageDealt,
           defenderHpAtStart,
+          {
+            credits: AREA_XP_LIVE
+              ? (result.areaCredits || []).filter((credit) => credit.source === attacker)
+              : [],
+          },
         );
         if (!isCurrentBattleSession(this, session)) return;
       }
@@ -9067,11 +9072,15 @@ export class BattleScene extends Phaser.Scene {
     opponentDied,
     damageDealt = null,
     defenderHpAtStart = null,
-    { survivedAttack = false } = {},
+    { survivedAttack = false, credits = [] } = {},
   ) {
     const session = battleSession(this);
-    // Who earns what (BattleXp.combatXpAwards): the unit, then Mentor's Band shares.
-    const awards = combatXpAwards({
+    // Who earns what (BattleXp.actionXpAwards): the unit, then Mentor's Band shares, the
+    // area art's other victims (`credits`, result.areaCredits) included.
+    const awards = actionXpAwards({
+      credits,
+      rewardMultiplierOf: (victim) => this.getEnemyXpMultiplier(victim),
+      areaXp: this.gameData?.weaponArts?.areaXp,
       unit: playerUnit,
       opponent,
       opponentDied,

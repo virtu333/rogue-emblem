@@ -159,8 +159,8 @@ export class HeadlessBattle {
     if (!this.gameData.skills) this.gameData.skills = [];
     this.battleParams = battleParams || { act: 'act1', objective: 'rout' };
     this.roster = roster;
-    // Area credits pay XP only where the scene pays them (BattleXp.AREA_XP_LIVE); tests
-    // of the 4a engine path turn it on per battle.
+    // Area credits pay XP as the scene pays them (BattleXp.AREA_XP_LIVE, one switch for
+    // both); a test may turn it off per battle.
     this.areaXpLive = AREA_XP_LIVE;
 
     this.battleState = null;

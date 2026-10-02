@@ -133,12 +133,12 @@ export function applyXpGain(unit, xp, { classes = [], extendedLevelingEnabled = 
 }
 
 /**
- * Whether area credits pay XP in live battles. False until the battle scene pays them
- * (docs/specs/aoe-weapon-arts.md slice 4b): the harness reads this same switch, so sims
- * never earn XP a player cannot. actionXpAwards itself always counts the credits it is
- * given; this only decides whether callers pass them.
+ * Whether area credits pay XP. The battle scene and the harness both read this one
+ * switch (docs/specs/aoe-weapon-arts.md slice 4b), so sims never earn XP a player
+ * cannot. actionXpAwards itself always counts the credits it is given; this only decides
+ * whether callers pass them.
  */
-export const AREA_XP_LIVE = false;
+export const AREA_XP_LIVE = true;
 
 /** Area credit rates (owner decision 2026-10-01; data: weaponArts.json `areaXp`). */
 export const AREA_XP_DEFAULTS = Object.freeze({ hitRate: 0.35, killRate: 0.6, actionBaseCap: 75 });
