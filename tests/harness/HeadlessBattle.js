@@ -376,6 +376,7 @@ export class HeadlessBattle {
             parBonus: bc.parBonus || 0,
             parInflation: bc.parInflation,
             parOffset: bc.parOffset,
+            parFloor: bc.parFloor,
           },
           this.gameData.turnBonus,
           this.battleParams?.difficultyId,

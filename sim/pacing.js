@@ -227,6 +227,7 @@ class PacingDriver extends RunSimulationDriver {
         null,
       ),
       parBonus: battle.battleConfig.parBonus || 0,
+      parFloor: battle.battleConfig.parFloor ?? null,
       hasWaves: Boolean(
         battle.battleConfig?.reinforcements?.waves?.length ||
         battle.battleConfig?.reinforcements?.scriptedWaves?.length,

@@ -16,8 +16,9 @@
   - Waiting out the anti-turtle clock does not wake them.
   - "The garrison stirs!" marks a pack you can see waking.
   - Holds replace the seize guards on those rungs. First Light keeps its guards.
-- **Seize par is tighter** on Dusk (−4), Nightfall (−4) and Black Sun (−2). A fast seize
-  now lands in A as often as S, and a slow one in B.
+- **Seize par is tighter** on Dusk (−3), Nightfall (−4) and Black Sun (−4), never looser
+  on a harder rung, and never below a lord's straight walk to the throne plus 4 turns,
+  so an S stays reachable. A slow seize lands in B.
 - Both are fixed when a map is generated, so saved and locked battles play as they did.
 - Spec: `docs/specs/dusk-pressure.md` §2b and §6.
 

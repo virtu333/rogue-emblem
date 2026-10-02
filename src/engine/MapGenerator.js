@@ -30,6 +30,7 @@ import {
 import { createScopedLogger } from '../utils/logger.js';
 import { buildRoutLadder } from './RoutLadder.js';
 import { assignHolders, holdShareFor } from './HoldActivation.js';
+import { seizeParFloor } from './SeizeParFloor.js';
 import { buildReinforcementTemplatePool } from './ReinforcementSpawns.js';
 import { reinforcementMoveTypes } from './ReinforcementScheduler.js';
 
@@ -515,11 +516,16 @@ export function generateBattleLayout(params, deps) {
     ...(Number.isFinite(params.parInflation)
       ? { parInflation: Math.max(0, Math.trunc(params.parInflation)) }
       : {}),
-    // The rung's par offset for this objective (seize), locked with the map.
-    ...(Number.isInteger(params.objectiveParOffset?.[objective]) &&
-    params.objectiveParOffset[objective] !== 0
-      ? { parOffset: params.objectiveParOffset[objective] }
-      : {}),
+    // The rung's par offset for this objective (seize), locked with the map, and the
+    // floor that keeps an S reachable under it (SeizeParFloor.js).
+    ...parOffsetConfig(params, objective, {
+      mapLayout,
+      cols,
+      rows,
+      terrainData: terrain,
+      playerSpawns,
+      thronePos,
+    }),
     toxicTiles,
     ...reinforcementConfig,
     ...hybridConfig,
@@ -3030,6 +3036,14 @@ const RECRUIT_TILE_EXCLUDED = new Set([
   'Throne',
   'Ballista',
 ]);
+
+/** `parOffset` (and on seize its `parFloor`) for a rung with an objective par offset. */
+function parOffsetConfig(params, objective, map) {
+  const offset = params.objectiveParOffset?.[objective];
+  if (!Number.isInteger(offset) || offset === 0) return {};
+  const floor = objective === 'seize' ? seizeParFloor(map) : null;
+  return { parOffset: offset, ...(Number.isInteger(floor) ? { parFloor: floor } : {}) };
+}
 
 function moveCostOf(terrainData, idx, moveType) {
   const t = terrainData[idx];

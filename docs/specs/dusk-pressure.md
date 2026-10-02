@@ -244,9 +244,24 @@ then hunts for the rest of the battle.
   the enemies in the exit half. First Light keeps its guards. Rout: 0% for now (owner).
 - **Seize par fix ships in the same PR.** With seize par loose (93% or more of seize
   battles are S on every rung up to Nightfall), pulling holders off a pack would be free.
-  - Tuned per rung as `objectiveParOffset.seize` in `difficulty.json` (Dusk −4,
-    Nightfall −4, Black Sun −2; First Light none), locked into the battle config as
+  - Tuned per rung as `objectiveParOffset.seize` in `difficulty.json` (Dusk −3,
+    Nightfall −4, Black Sun −4; First Light none), locked into the battle config as
     `parOffset`, measured with a seize-aware agent (§6).
+  - **Rung order.** Seize par is floor(mult × raw) + inflation + offset, with mult .92 /
+    .85 / .8 and inflation 2 / 3 / 3 on Dusk / Nightfall / Black Sun. floor(.92r) ≥
+    floor(.85r) ≥ floor(.8r) for every raw par r, and the floors are equal on small maps,
+    so the order First Light ≥ Dusk ≥ Nightfall ≥ Black Sun holds on every map exactly
+    when Dusk's offset is at least Nightfall's + 1 (Dusk inflates 1 less) and
+    Nightfall's at least Black Sun's. −3 / −4 / −4 keeps Nightfall's PR 3 offset,
+    loosens Dusk by one turn and tightens Black Sun by two: every rung then has par
+    floor(mult × raw) − 1. A harder rung's boss never enrages later (min(12, par + 2)).
+  - **Floor.** On a rung with a seize offset the map also locks `parFloor`
+    (`engine/SeizeParFloor.js`): the turns the slowest lords (Infantry, MOV 4: Edric,
+    Kira, Voss, Sera, Cael) need to walk from the nearest deploy tile to the throne,
+    ignoring enemies, + 3 (an S is par − 3) + 1 (one turn to beat the boss on the
+    throne before the seize). Par rises to the floor, but never above the map's First
+    Light par, so the order above survives it. Without it, the offsets left S out of
+    reach of a straight walk on most Act I maps (par 5 needs the seize by turn 2).
   - Target: a push median of par−2.
 - **Cost.** One movement flood per sleeping holder per enemy phase (about 8 at most),
   the same cost as one Danger zone.

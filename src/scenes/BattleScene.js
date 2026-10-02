@@ -1730,6 +1730,7 @@ export class BattleScene extends Phaser.Scene {
           parBonus: this.battleConfig.parBonus || 0,
           parInflation: this.battleConfig.parInflation,
           parOffset: this.battleConfig.parOffset,
+          parFloor: this.battleConfig.parFloor,
         };
         this.turnPar = calculatePar(
           mapParams,
