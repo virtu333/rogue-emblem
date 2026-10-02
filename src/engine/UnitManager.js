@@ -404,7 +404,26 @@ function parseEnemyDifficultyConfig(difficultyConfig = 1.0) {
     ? Math.trunc(Number(difficultyConfig.enemyEquipTierShift ?? 0))
     : 0;
   const classStatBonuses = isConfigObject ? difficultyConfig.classStatBonuses : null;
-  return { difficultyMod, enemyStatBonus, enemyEquipTierShift, classStatBonuses };
+  const rawSkillChanceBonus = isConfigObject ? Number(difficultyConfig.skillChanceBonus ?? 0) : 0;
+  const skillChanceBonus = Number.isFinite(rawSkillChanceBonus)
+    ? Math.max(0, rawSkillChanceBonus)
+    : 0;
+  return { difficultyMod, enemyStatBonus, enemyEquipTierShift, classStatBonuses, skillChanceBonus };
+}
+
+/**
+ * The difficulty config enemy creation reads, from a battle's params (BattleScene and
+ * the headless harness both build their enemies from it).
+ */
+export function enemyDifficultyConfigFromParams(battleParams = {}) {
+  return {
+    multiplier: battleParams.difficultyMod || 1.0,
+    enemyStatBonus: Math.trunc(battleParams.enemyStatBonus || 0),
+    classStatBonuses: battleParams.classStatBonuses || {},
+    enemyEquipTierShift: Math.trunc(battleParams.enemyEquipTierShift || 0),
+    // difficulty.json `enemySkillChance`: added to the act's combat-skill chance.
+    skillChanceBonus: Number(battleParams.enemySkillChance) || 0,
+  };
 }
 
 export function applyEnemyDifficultyModifiers(unit, difficultyConfig = 1.0) {
@@ -435,7 +454,7 @@ export function applyEnemyDifficultyModifiers(unit, difficultyConfig = 1.0) {
   return unit;
 }
 
-function assignEnemySkills(unit, classData, level, skillsData, act) {
+function assignEnemySkills(unit, classData, level, skillsData, act, difficultyConfig = 1.0) {
   if (!skillsData) return;
 
   // Promoted enemies get class innate skills.
@@ -454,7 +473,8 @@ function assignEnemySkills(unit, classData, level, skillsData, act) {
     act4: 0.6,
     finalBoss: 0.65,
   };
-  const chance = SKILL_CHANCE_BY_ACT[act] || 0.0;
+  const { skillChanceBonus } = parseEnemyDifficultyConfig(difficultyConfig);
+  const chance = Math.min(1, (SKILL_CHANCE_BY_ACT[act] || 0.0) + skillChanceBonus);
 
   // Level 5+ enemies roll for 1 random combat skill based on act.
   if (level >= 5 && Math.random() < chance) {
@@ -535,7 +555,7 @@ export function createEnemyUnit(
 
   applyEnemyDifficultyModifiers(unit, difficultyConfig);
   if (classData.tier !== 'boss') {
-    assignEnemySkills(unit, classData, enemyLevel, skillsData, act);
+    assignEnemySkills(unit, classData, enemyLevel, skillsData, act, difficultyConfig);
   }
 
   return unit;
@@ -591,7 +611,7 @@ export function createPromotedEnemyUnit(
   }
 
   applyEnemyDifficultyModifiers(enemy, difficultyConfig);
-  assignEnemySkills(enemy, promotedClassData, spawnLevel, skillsData, act);
+  assignEnemySkills(enemy, promotedClassData, spawnLevel, skillsData, act, difficultyConfig);
   return enemy;
 }
 

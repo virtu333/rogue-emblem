@@ -33,14 +33,21 @@ const STAFF_CLASSES = ['Mage', 'Sage', 'Bishop'];
 const SIEGE_CLASSES = ['Sage', 'Warlock', 'Dark Knight', 'Grandmaster'];
 const modifiers = (rung) => resolveDifficultyMode(data.difficulty, rung).modifiers;
 
-function gen(params, seed) {
+function gen(params, seed, gameData = data) {
   installSeed(seed);
   try {
-    return generateBattle({ deployCount: 6, row: 3, ...params }, data);
+    return generateBattle({ deployCount: 6, row: 3, ...params }, gameData);
   } finally {
     restoreMathRandom();
   }
 }
+
+// The data as main had it when MAIN below was captured: Act IV drew 30% promoted.
+const dataAtCapture = (() => {
+  const pools = structuredClone(data.enemies.pools);
+  pools.act4.promotedShare = 0.3;
+  return { ...data, enemies: { ...data.enemies, pools } };
+})();
 
 /** A synthetic garrison: `casters` of a class among fighters, at distinct tiles. */
 function garrison(seed, casters, className = 'Mage', fighters = 4) {
@@ -226,13 +233,13 @@ describe('in generated maps', () => {
       88: [[3, 'Mage', 'silence', null], [6, 'Sage', null, 'Breachbolt']],
     }; // prettier-ignore
     for (const [seed, expected] of Object.entries(MAIN)) {
-      const bc = gen({ act: 'act4', objective: 'rout', difficultyId: 'lunatic', ...legacy }, Number(seed)); // prettier-ignore
+      const bc = gen({ act: 'act4', objective: 'rout', difficultyId: 'lunatic', ...legacy }, Number(seed), dataAtCapture); // prettier-ignore
       const flags = bc.enemySpawns
         .map((sp, i) => [i, sp.className, sp.statusStaff || null, sp.siegeWeapon || null])
         .filter((f) => f[2] || f[3]);
       expect(flags, `seed ${seed}`).toEqual(expected);
       // And nothing else about the garrison moves.
-      const bare = gen({ act: 'act4', objective: 'rout', difficultyId: 'lunatic' }, Number(seed));
+      const bare = gen({ act: 'act4', objective: 'rout', difficultyId: 'lunatic' }, Number(seed), dataAtCapture); // prettier-ignore
       const strip = (b) => b.enemySpawns.map(({ statusStaff: _a, siegeWeapon: _b, ...r }) => r);
       expect(strip(bc)).toEqual(strip(bare));
     }

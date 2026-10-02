@@ -3131,6 +3131,8 @@ export class RunManager {
     battleParams.enemyLevelBonus =
       this.getDifficultyModifier('enemyLevelBonus', 0) +
       this.getBlessingEnemyLevelDelta(battleParams.act || this.currentAct);
+    battleParams.bossLevelBonus = this.getDifficultyModifier('bossLevelBonus', 0);
+    battleParams.enemySkillChance = this.getDifficultyModifier('enemySkillChance', 0);
     battleParams.enemyCountBase = this.getDifficultyModifier('enemyCountBase', 0);
     battleParams.recruitEnemyCountBonus = this.getDifficultyModifier('recruitEnemyCountBonus', 0);
     battleParams.act1EnemyCountDeployCap = this.getDifficultyModifier('act1EnemyCountDeployCap', 3);
