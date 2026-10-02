@@ -472,6 +472,8 @@ export class WeaponArtController {
         return 'Rank too low';
       case 'insufficient_hp':
         return 'Not enough HP';
+      case 'no_shots':
+        return 'Out of shots';
       case 'silenced':
         return 'Silenced';
       case 'per_turn_limit':

@@ -24,6 +24,7 @@ import { AREA_CENTER_STATE } from '../src/ui/AreaTargetingController.js';
 import { InputController } from '../src/ui/InputController.js';
 import { readCommittedAction } from '../src/ui/BattlePresentationCheckpoint.js';
 import { getPerBattleRemainingUses } from '../src/engine/Combat.js';
+import { canUseWeaponArt } from '../src/engine/WeaponArtSystem.js';
 import { recordAreaStrike } from '../src/engine/DeedSystem.js';
 import { loadGameData } from './testData.js';
 
@@ -147,6 +148,54 @@ describe('the art menu offers Stormcall by reach, never by targets', () => {
         false,
       );
     }
+  });
+});
+
+describe('a Breachbolt out of shots', () => {
+  it('lists its arts disabled as "Out of shots", as an attack with it is refused', () => {
+    const caster = sage();
+    caster.weapon._usesSpent = 3; // a player's 3 shots
+    const { scene } = battle([caster, foe('Center', 4, 5)]);
+    const rows = scene._getWeaponArtChoices(caster, caster.weapon, { isInitiating: true });
+    expect(rows.map((r) => [r.art.id, r.canUse, r.reason])).toEqual([
+      ['legend_cataclysm_bolt', false, 'no_shots'],
+      ['legend_stormcall', false, 'no_shots'],
+    ]);
+    const stormRow = rows.find((r) => r.art.id === 'legend_stormcall');
+    expect(scene._getWeaponArtStatusLine(caster, stormcall, stormRow)).toMatch(/^Out of shots · /);
+    expect(scene._hasUsableWeaponArtTargets(caster, caster.weapon, { isInitiating: true })).toBe(
+      false,
+    );
+  });
+
+  it('counts the shots each side has: a player 3, an enemy 5; other weapons never', () => {
+    const ctx = { turnNumber: 1, isInitiating: true };
+    const player = sage();
+    player.weapon._usesSpent = 2;
+    expect(canUseWeaponArt(player, player.weapon, stormcall, ctx).ok).toBe(true);
+    player.weapon._usesSpent = 3;
+    expect(canUseWeaponArt(player, player.weapon, stormcall, ctx).reason).toBe('no_shots');
+    // An enemy wielder has 5 (usesByFaction), with any tome art open to enemies.
+    const enemy = foe('Warlock', 6, 5, 30, {
+      className: 'Sage',
+      stats: { ...sage().stats },
+      proficiencies: [{ type: 'Tome', rank: 'Mast' }],
+    });
+    enemy.weapon = breachbolt();
+    const tomeArt = data.weaponArts.arts.find(
+      (a) => canUseWeaponArt(enemy, enemy.weapon, a, ctx).ok,
+    );
+    expect(tomeArt).toBeTruthy();
+    enemy.weapon._usesSpent = 4;
+    expect(canUseWeaponArt(enemy, enemy.weapon, tomeArt, ctx).ok).toBe(true);
+    enemy.weapon._usesSpent = 5;
+    expect(canUseWeaponArt(enemy, enemy.weapon, tomeArt, ctx).reason).toBe('no_shots');
+    // A weapon without per-battle shots ignores a stray _usesSpent.
+    const blade = structuredClone(data.weapons.find((w) => w.name === 'Oathblade'));
+    blade._usesSpent = 99;
+    const rush = data.weaponArts.arts.find((a) => a.id === 'legend_phantom_rush');
+    const swordsman = sage(0, 5, { proficiencies: [{ type: 'Sword', rank: 'Mast' }] });
+    expect(canUseWeaponArt(swordsman, blade, rush, ctx).ok).toBe(true);
   });
 });
 
