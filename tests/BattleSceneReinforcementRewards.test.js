@@ -612,6 +612,31 @@ describe('BattleScene reinforcement reward scaling', () => {
       expect(scene.turnPar).toBe(10); // 8 + 2 effective waves
     });
 
+    it('ladder and repeating waves are the clock itself and never raise par', () => {
+      const scene = new BattleScene();
+      scene.turnPar = 8;
+      scene.dangerZoneStale = false;
+      scene.grid = { fogEnabled: false };
+      scene.updateObjectiveText = vi.fn();
+      scene.showReinforcementBanner = vi.fn();
+      scene.resolveReinforcementsForTurn = vi.fn(() => ({
+        spawns: [
+          { col: 0, row: 0, waveIndex: 0, waveType: 'ladder' },
+          { col: 1, row: 0, waveIndex: 1000, waveType: 'repeating' },
+          { col: 2, row: 0, waveIndex: 0, waveType: 'scripted' },
+          { col: 3, row: 0, waveIndex: 2 },
+        ],
+        dueWaves: [],
+        blockedSpawns: 0,
+      }));
+      scene.buildReinforcementSpawnSpec = vi.fn((s) => s);
+      scene.addEnemyFromSpawn = vi.fn(() => ({ name: 'Enemy' }));
+
+      BattleScene.prototype.applyReinforcementsForTurn.call(scene, 4);
+
+      expect(scene.turnPar).toBe(10); // the scripted and the procedural wave only
+    });
+
     it('does not bump turnPar when all waves blocked (spawnedCount=0)', () => {
       const scene = new BattleScene();
       scene.turnPar = 8;

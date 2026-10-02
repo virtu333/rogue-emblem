@@ -28,6 +28,14 @@
       "healBase": { "type": "integer" },
       "uses": { "type": "integer", "minimum": 1 },
       "perBattleUses": { "type": "boolean" },
+      "usesByFaction": {
+        "type": "object",
+        "properties": {
+          "player": { "type": "integer", "minimum": 1 },
+          "enemy": { "type": "integer", "minimum": 1 }
+        },
+        "additionalProperties": false
+      },
       "healAll": { "type": "boolean" },
       "rangeBonuses": {
         "type": "array",

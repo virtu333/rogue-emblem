@@ -230,25 +230,30 @@ describe('Magic sword (Thunderbrand)', () => {
 // ─── Wave 3: Breachbolt Per-Battle Uses ───
 
 describe('Per-battle weapon uses (Breachbolt)', () => {
-  it('Breachbolt has perBattleUses flag', () => {
+  // Owner decision (docs/specs/dusk-pressure.md 2c): 3 uses a battle for the player,
+  // 5 for an enemy, on every rung, with no MAG bonus.
+  it('Breachbolt refills each battle: 3 uses, 5 for enemies', () => {
     const bolting = data.weapons.find((w) => w.name === 'Breachbolt');
     expect(bolting.perBattleUses).toBe(true);
-    expect(bolting.uses).toBe(1);
+    expect(bolting.uses).toBe(3);
+    expect(bolting.usesByFaction).toEqual({ enemy: 5 });
   });
 
-  it('getPerBattleMaxUses includes MAG bonus', () => {
+  it('getPerBattleMaxUses reads the faction count and ignores MAG', () => {
     const bolting = structuredClone(data.weapons.find((w) => w.name === 'Breachbolt'));
-    const unit = makeUnit({ stats: { ...makeUnit().stats, MAG: 14 } });
-    const maxUses = getPerBattleMaxUses(bolting, unit);
-    // Base 1 + bonuses at MAG 8 (+1) and MAG 14 (+1) = 3
-    expect(maxUses).toBe(3);
+    for (const MAG of [0, 8, 14, 25]) {
+      const player = makeUnit({ stats: { ...makeUnit().stats, MAG } });
+      const enemy = makeUnit({ faction: 'enemy', stats: { ...makeUnit().stats, MAG } });
+      expect(getPerBattleMaxUses(bolting, player)).toBe(3);
+      expect(getPerBattleMaxUses(bolting, enemy)).toBe(5);
+    }
   });
 
-  it('spendPerBattleUse tracks usage', () => {
+  it('spendPerBattleUse tracks usage down to zero', () => {
     const bolting = structuredClone(data.weapons.find((w) => w.name === 'Breachbolt'));
     const unit = makeUnit({ stats: { ...makeUnit().stats, MAG: 5 } });
-    expect(getPerBattleRemainingUses(bolting, unit)).toBe(1);
-    spendPerBattleUse(bolting);
+    expect(getPerBattleRemainingUses(bolting, unit)).toBe(3);
+    for (let i = 0; i < 3; i++) spendPerBattleUse(bolting);
     expect(getPerBattleRemainingUses(bolting, unit)).toBe(0);
   });
 });
