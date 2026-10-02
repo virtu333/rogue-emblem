@@ -144,6 +144,11 @@ export class InputController {
     // Threat sight follows the same hover/grid-cursor tile as the path preview.
     scene._threatFocusTile = { col, row };
     scene._threatSight?.sync();
+    // Aiming a chosen-center art: the blast preview follows the hover / grid cursor.
+    if (scene.battleState === 'SELECTING_AREA_CENTER') {
+      scene._areaTargeting?.().aim({ col, row });
+      return;
+    }
     if (scene.battleState === 'UNIT_SELECTED' && scene.selectedUnit && scene.movementRange) {
       const key = `${col},${row}`;
       const previewEntry = scene.movementRange.get(key);
@@ -483,6 +488,9 @@ export class InputController {
         break;
       case 'SELECTING_ABILITY_TILE':
         scene.handleAbilityTileClick(gp);
+        break;
+      case 'SELECTING_AREA_CENTER':
+        scene._areaTargeting().lock(gp);
         break;
       case 'CANTO_MOVING':
         scene.handleCantoClick(gp);
@@ -1000,7 +1008,9 @@ export class InputController {
     if (!canInspectUnit(scene.grid, unit)) return false;
     this._ballistaRangeShown = false;
     const planning = this.isPlanningSelection();
-    if (!planning) scene.grid.clearAttackHighlights?.();
+    // Aiming an area art keeps its lit centers under the inspection.
+    if (!planning && scene.battleState !== 'SELECTING_AREA_CENTER')
+      scene.grid.clearAttackHighlights?.();
     const terrain = scene.grid.getTerrainAt(unit.col, unit.row);
     scene.inspectionPanel.show(unit, terrain, scene.gameData);
     if (typeof scene._pinToScreen === 'function')
@@ -1075,6 +1085,8 @@ export class InputController {
     if (scene.inspectionPanel?.visible) scene.inspectionPanel.hide();
     scene.grid.clearHighlights();
     scene.grid.clearAttackHighlights();
+    // Still aiming an area art: its legal centers come back (a no-op otherwise).
+    scene._areaTargetingController?.redrawCenters();
     scene.refreshEndTurnControl();
   }
 

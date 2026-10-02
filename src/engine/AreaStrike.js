@@ -4,6 +4,7 @@
 // drive the same generator (presentation and the art's cost are the owner's).
 
 import { combatStrikeMods, parseRange } from './Combat.js';
+import { canAttackWithWeapon } from './AttackOptions.js';
 import { areaBounds } from './AreaDamage.js';
 import { centerTiles } from './AreaShapes.js';
 import { areaDamage } from './PostCombatEffects.js';
@@ -18,11 +19,23 @@ import {
  * A chosen-center strike's flat mods: the art, the weapon's imbue and the user's timed
  * buffs. There is no combat, so no skill context (passive skills don't apply).
  */
-export function areaStrikeMods(unit, art) {
+export function areaStrikeMods(unit, art, weapon = unit?.weapon) {
   return combatStrikeMods(
     { atkMods: timedBuffCombatMods(unit), atkWeaponArtMods: getWeaponArtCombatMods(art) },
-    unit?.weapon,
+    weapon,
   );
+}
+
+/**
+ * Can `unit` aim `art` (carried by `weapon`) now: a chosen-center art, a weapon it may
+ * strike with (proficiency, silence, a per-battle weapon's uses: AttackOptions), and a
+ * center in reach. Usability itself (HP cost, limits, rank) is canUseWeaponArt's. Targets
+ * never count, so the fog cannot shape the menu.
+ */
+export function canStartAreaStrike(unit, weapon, art, world) {
+  if (getWeaponArtTargeting(art) !== 'chosen_center') return false;
+  if (!canAttackWithWeapon(unit, weapon)) return false;
+  return areaStrikeCenters(unit, art, world, weapon).length > 0;
 }
 
 /**

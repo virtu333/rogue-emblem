@@ -156,6 +156,28 @@ describe('Cross-reference validation', () => {
     expect(result.valid).toBe(false);
     expect(result.errors.some((entry) => entry.includes('__missing_skill__'))).toBe(true);
   });
+
+  it('fails when a weapon has a different number of art sources than art ids', () => {
+    const weapons = loadData('weapons.json');
+    const withSources = (w) => Array.isArray(w.weaponArtSources) && w.weaponArtIds?.length;
+    for (const [mutate, expected] of [
+      [(w) => w.weaponArtSources.push('innate'), 'Oathblade'], // the slip once shipped
+      [(w) => w.weaponArtSources.pop(), 'Oathblade'],
+      [(w) => w.weaponArtIds.push(w.weaponArtIds[0]), 'Oathblade'],
+    ]) {
+      const bad = structuredClone(weapons);
+      const oathblade = bad.find((w) => w.name === 'Oathblade');
+      expect(withSources(oathblade)).toBe(1);
+      mutate(oathblade);
+      const { errors } = validateCrossReferences({ weapons: bad });
+      expect(errors.filter((e) => e.includes('weaponArtSources'))).toEqual([
+        expect.stringContaining(`weapons.json:${expected}.weaponArtSources`),
+      ]);
+    }
+    expect(
+      validateCrossReferences({ weapons }).errors.filter((e) => e.includes('weaponArtSources')),
+    ).toEqual([]);
+  });
 });
 
 // --- Negative: known-bad fixtures catch errors ---

@@ -672,9 +672,11 @@
     "perBattleUses": true,
     "special": "Siege magic",
     "weaponArtIds": [
-      "legend_cataclysm_bolt"
+      "legend_cataclysm_bolt",
+      "legend_stormcall"
     ],
     "weaponArtSources": [
+      "innate",
       "innate"
     ],
     "price": 0

@@ -7,6 +7,7 @@ import { HeadlessGrid } from './HeadlessGrid.js';
 import { TurnManager } from '../../src/engine/TurnManager.js';
 import {
   commitBattleDeeds,
+  recordAreaStrike,
   recordCombat,
   recordEnemyPhaseEnd,
   recordHeal,
@@ -90,7 +91,11 @@ import {
 import { applyEnemySpawnGear } from '../../src/engine/EnemySpawnGear.js';
 import { applyHoldSpawn } from '../../src/engine/HoldActivation.js';
 import { createPlayerKnowledge } from '../../src/engine/PlayerKnowledge.js';
-import { spendCombatShots, swapSpentWeapons } from '../../src/engine/PerBattleWeapons.js';
+import {
+  spendAreaStrikeShot,
+  spendCombatShots,
+  swapSpentWeapons,
+} from '../../src/engine/PerBattleWeapons.js';
 import { canAttackWithWeapon, getAttackWeapons } from '../../src/engine/AttackOptions.js';
 import { combatDistance, getFootprint, isEntity } from '../../src/engine/EntitySystem.js';
 import {
@@ -132,7 +137,11 @@ import {
 } from '../../src/utils/constants.js';
 import { applyCombatHP } from '../../src/engine/UnitHealth.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
-import { areaStrikeEffects, isAreaStrikeCenter } from '../../src/engine/AreaStrike.js';
+import {
+  areaStrikeEffects,
+  canStartAreaStrike,
+  isAreaStrikeCenter,
+} from '../../src/engine/AreaStrike.js';
 import {
   applyTimedBuffEntry,
   expireTimedBuffs,
@@ -1808,11 +1817,14 @@ export class HeadlessBattle {
     });
     if (!check.ok) return false;
     // Aim with the art's weapon before equipping it: a refused center changes nothing.
+    // canStartAreaStrike: a weapon it may strike with (silence, a spent per-battle weapon).
     const world = this._postCombatWorld();
+    if (!canStartAreaStrike(unit, weapon, art, world)) return false;
     if (!isAreaStrikeCenter(unit, art, center, world, weapon)) return false;
     if (unit.weapon !== weapon) equipWeapon(unit, weapon);
 
     applyWeaponArtCost(unit, art, artCostOpts);
+    spendAreaStrikeShot(weapon); // one Breachbolt shot a cast, as BattleScene
     recordWeaponArtUse(unit, art, { turnNumber: this.turnManager?.turnNumber });
     this._applyRecoilGuardAfterArtUse(unit, art);
     this._checkPhoenixBrooch(unit);
@@ -1821,6 +1833,7 @@ export class HeadlessBattle {
     runPostCombatEffectsSync(areaStrikeEffects({ unit, art, center, world }, result), {
       remove: (victim, options) => this._removeUnit(victim, options),
     });
+    if (this.gameData?.deeds) recordAreaStrike(unit, weapon, result.areaCredits);
     this._checkAreaVictimBrooches(result);
     if (
       this.areaXpLive &&
@@ -1829,6 +1842,7 @@ export class HeadlessBattle {
       result.areaCredits?.length
     )
       this._awardCombatXP(unit, null, false, null, null, { credits: result.areaCredits });
+    swapSpentWeapons([unit]); // after the blast's deaths, as BattleScene
 
     if (this._checkBattleEnd()) return true;
     this._finishUnitAction(unit);

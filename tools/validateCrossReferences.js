@@ -114,6 +114,15 @@ export function validateCrossReferences(datasets = null) {
         errors.push(`weapons.json:${weapon.name}.weaponArtIds references unknown art "${artId}"`);
       }
     }
+    // One source per bound art, in the same order (WeaponArtSystem pairs them by index).
+    if (weapon?.weaponArtSources !== undefined) {
+      const ids = Array.isArray(weapon.weaponArtIds) ? weapon.weaponArtIds.length : 0;
+      const sources = Array.isArray(weapon.weaponArtSources) ? weapon.weaponArtSources.length : -1;
+      if (sources !== ids)
+        errors.push(
+          `weapons.json:${weapon.name}.weaponArtSources has ${Math.max(0, sources)} entries for ${ids} weaponArtIds`,
+        );
+    }
   }
 
   for (const [actId, table] of Object.entries(lootTables || {})) {

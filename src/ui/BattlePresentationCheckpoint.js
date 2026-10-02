@@ -18,6 +18,7 @@ export { readActionContinuation };
 // Save fields are untrusted; validate the shape before replaying anything.
 export function readCommittedAction(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  if (value.kind === 'area_strike') return readAreaStrikeIntent(value);
   if (value.kind !== 'attack') return null;
   const id = isBattleEntityId;
   if (!id(value.unitId) || !id(value.targetId) || value.unitId === value.targetId) return null;
@@ -117,6 +118,47 @@ function clearRefreshedActionState(scene) {
   scene._preFogSnapshot = null;
   scene.cantoRange = null;
   scene._cantoPending = null;
+}
+
+/** A saved weapon-art reference ({ artId, weaponIndex, weaponUid? }), or null. */
+function readSavedArt(art) {
+  if (
+    !art ||
+    typeof art !== 'object' ||
+    typeof art.artId !== 'string' ||
+    !art.artId ||
+    !Number.isInteger(art.weaponIndex) ||
+    art.weaponIndex < -1
+  )
+    return null;
+  return {
+    artId: art.artId,
+    weaponIndex: art.weaponIndex,
+    ...(typeof art.weaponUid === 'string' && art.weaponUid && art.weaponUid.length <= 64
+      ? { weaponUid: art.weaponUid }
+      : {}),
+  };
+}
+
+/**
+ * A chosen-center strike saved before it is applied (AreaTargetingController.commitIntent):
+ * the caster, its art and weapon, and the center. Resume checks it is still legal.
+ */
+function readAreaStrikeIntent(value) {
+  if (!isBattleEntityId(value.unitId)) return null;
+  if (typeof value.unitName !== 'string' || !value.unitName.trim()) return null;
+  const c = value.center;
+  const coord = (n) => Number.isInteger(n) && n >= 0 && n < 256;
+  if (!c || typeof c !== 'object' || !coord(c.col) || !coord(c.row)) return null;
+  const weaponArt = readSavedArt(value.weaponArt);
+  if (!weaponArt) return null;
+  return {
+    kind: 'area_strike',
+    unitId: value.unitId,
+    unitName: value.unitName,
+    center: { col: c.col, row: c.row },
+    weaponArt,
+  };
 }
 
 export function completeResolvedAction(scene, continuation, { session } = {}) {
