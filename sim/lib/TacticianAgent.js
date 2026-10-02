@@ -6,7 +6,9 @@
 // action:
 // * Threat map: for every enemy, the tiles it can reach next enemy phase (real
 //   movement, player units block) and the expected damage it would deal to a given
-//   unit standing on a given tile (getCombatForecast, 2RN hit odds).
+//   unit standing on a given tile (getCombatForecast, 2RN hit odds). Siege artillery
+//   reads the Danger overlay's rule with the move previewed (enemyThreatTiles): it
+//   strikes only from its post while a player unit is in its siege range.
 // * Attack plans score expected damage dealt, a kill bonus, the counter taken, and the
 //   danger of the landing tile (remaining foes only if the kill is likely). A plan that
 //   leaves the commander in lethal danger is almost never taken.
@@ -30,9 +32,12 @@ import {
   isStaff,
   getEffectiveStaffRange,
   resolveHeal,
+  nextStrikeWeapon,
 } from '../../src/engine/Combat.js';
 import { hitProbability } from '../../src/engine/HitRoll.js';
 import { getCombatWeapons } from '../../src/engine/UnitManager.js';
+import { enemyThreatTiles, positionsWithMoverAt } from '../../src/engine/ThreatForecast.js';
+import { artilleryWeapon, plantsAmongPositions } from '../../src/engine/SiegeArtillery.js';
 import { distanceFieldToAdjacent } from './RescueAgent.js';
 
 const key = (c, r) => `${c},${r}`;
@@ -143,17 +148,41 @@ export class TacticianAgent {
   _threats() {
     const b = this.b;
     const out = [];
+    // The Danger overlay's view (BattleScene.threatContext), for siege artillery: whether
+    // it plants depends on where the planning unit ends its move (SiegeArtillery).
+    let ctx = null;
+    let positions = null;
     for (const e of b.enemyUnits) {
-      if (!e.weapon || isStaff(e.weapon) || e.currentHP <= 0) continue;
+      // The weapon it strikes with next: a spent Breachbolt gives way to its fallback.
+      const weapon = nextStrikeWeapon(e);
+      if (!weapon || isStaff(weapon) || e.currentHP <= 0) continue;
       const reach = [];
       for (const [k, entry] of this._enemyReach(e)) {
         if (entry?.stoppable === false) continue;
         const [c, r] = k.split(',').map(Number);
         reach.push({ c, r });
       }
-      out.push({ e, reach, range: parseRange(e.weapon.range) });
+      const threat = { e, weapon, reach, range: parseRange(weapon.range) };
+      if (artilleryWeapon(e)) {
+        ctx ||= b._playerThreatContext();
+        positions ||= ctx.positions();
+        Object.assign(threat, { artillery: true, ctx, positions });
+      }
+      out.push(threat);
     }
     return out;
+  }
+
+  /**
+   * Siege artillery, with `unit` moved to `tile`: null when it cannot strike the tile
+   * (ThreatForecast.enemyThreatTiles, as Danger with the move previewed), its post when
+   * it plants there, else undefined (it moves: search its reach as for any foe).
+   */
+  _artilleryStrike(t, unit, tile) {
+    const positions = positionsWithMoverAt(t.positions, unit, tile.col, tile.row);
+    if (!enemyThreatTiles(t.ctx, t.e, positions).damage.has(key(tile.col, tile.row))) return null;
+    if (!plantsAmongPositions(t.e, positions)) return undefined;
+    return { d: gridDistance(t.e.col, t.e.row, tile.col, tile.row), p: { c: t.e.col, r: t.e.row } };
   }
 
   /** Expected damage foes could deal to `unit` standing on `tile` next enemy phase. */
@@ -168,8 +197,9 @@ export class TacticianAgent {
     const defTerrain = b.grid.getTerrainAt(tile.col, tile.row);
     for (const t of threats) {
       if (t.e === exclude) continue;
-      let best = null;
-      for (const p of t.reach) {
+      let best = t.artillery ? this._artilleryStrike(t, unit, tile) : undefined;
+      if (best === null) continue;
+      for (const p of best ? [] : t.reach) {
         if (occupied.has(key(p.c, p.r))) continue;
         if (p.c === tile.col && p.r === tile.row) continue;
         const d = gridDistance(p.c, p.r, tile.col, tile.row);
@@ -181,7 +211,7 @@ export class TacticianAgent {
       attackers++;
       const fc = getCombatForecast(
         { ...t.e },
-        t.e.weapon,
+        t.weapon,
         { ...unit, col: tile.col, row: tile.row },
         unit.weapon,
         best.d,
