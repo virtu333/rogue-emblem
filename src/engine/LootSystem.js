@@ -293,6 +293,15 @@ function resolveSpawnTierFromArt(art) {
   return null;
 }
 
+/** The weapon tiers an art spawns on: its `spawnTiers` list, else its one tier. */
+function resolveSpawnTiersFromArt(art) {
+  if (Array.isArray(art?.spawnTiers) && art.spawnTiers.length > 0) {
+    return [...new Set(art.spawnTiers.map(normalizeSpawnTier).filter(Boolean))];
+  }
+  const tier = resolveSpawnTierFromArt(art);
+  return tier ? [tier] : [];
+}
+
 function isPlayerEligibleSpawnArt(art) {
   if (!art?.id || art.scrollOnly) return false;
   if (art.legacy === true) return false;
@@ -360,13 +369,14 @@ function buildMetaInnateArtPoolsByTier(weaponArtSpawnConfig) {
       META_INNATE_WEAPON_TYPES.has(weaponType),
     );
     if (weaponTypes.length <= 0) continue;
-    const tier = resolveSpawnTierFromArt(art);
-    if (!tier || !enabledTiers.has(tier)) continue;
-    if (!poolsByTier.has(tier)) poolsByTier.set(tier, new Map());
-    const byType = poolsByTier.get(tier);
-    for (const weaponType of weaponTypes) {
-      if (!byType.has(weaponType)) byType.set(weaponType, []);
-      byType.get(weaponType).push(art.id);
+    for (const tier of resolveSpawnTiersFromArt(art)) {
+      if (!enabledTiers.has(tier)) continue;
+      if (!poolsByTier.has(tier)) poolsByTier.set(tier, new Map());
+      const byType = poolsByTier.get(tier);
+      for (const weaponType of weaponTypes) {
+        if (!byType.has(weaponType)) byType.set(weaponType, []);
+        byType.get(weaponType).push(art.id);
+      }
     }
   }
 

@@ -107,7 +107,8 @@ export const WEAPON_ARTS_HELP = [
   {
     title: 'In combat',
     points: [
-      'An art never adds a Speed follow-up. Multi-strike arts use their own count.',
+      'An art follows up only with 10 more Attack Speed than the foe, as a plain strike.',
+      'Area and long-reach arts never follow up. Multi-strike arts use their own count.',
       { term: 'On hit', text: 'happens after combat, if any strike landed.' },
       'The foe still counters before you step, push or swap.',
       'Moves need an adjacent target and a free tile; Root stops them.',

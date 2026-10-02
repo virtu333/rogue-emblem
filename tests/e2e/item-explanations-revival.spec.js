@@ -41,7 +41,7 @@ test('Mire details are tappable in shop and roster; revival previews and saves c
   await page.screenshot({ path: info.outputPath('mire-details.png') });
   await details.getByRole('button', { name: 'How weapon arts work', exact: true }).tap();
   const help = page.getByRole('dialog', { name: 'Weapon arts', exact: true });
-  await expect(help).toContainText('never adds a Speed follow-up');
+  await expect(help).toContainText('follows up only with 10 more Attack Speed than the foe');
   await help.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(help).toHaveCount(0);
   await expect(details).toBeVisible();
@@ -263,7 +263,7 @@ test('desktop: item-art links preview on hover, hide on leave, and still click t
   expect(await tip.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
   await help.click();
   const guide = page.getByRole('dialog', { name: 'Weapon arts', exact: true });
-  await expect(guide).toContainText('never adds a Speed follow-up');
+  await expect(guide).toContainText('follows up only with 10 more Attack Speed than the foe');
   await expect(tip).toHaveCount(0);
   await guide.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(guide).toHaveCount(0);

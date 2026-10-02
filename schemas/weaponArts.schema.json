@@ -37,6 +37,13 @@
           },
           "tierAffinity": { "type": "string", "enum": ["Iron", "Steel", "Silver", "Legendary"] },
           "legacy": { "type": "boolean" },
+          "noFollowUp": { "type": "boolean" },
+          "spawnTiers": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["Iron", "Steel", "Silver"] },
+            "minItems": 1,
+            "uniqueItems": true
+          },
           "scrollOnly": { "type": "boolean" },
           "unlockAct": { "type": "string", "enum": ["act1", "act2", "act3", "act4", "finalBoss"] },
           "requiredRank": { "type": "string", "enum": ["Prof", "Mast"] },
@@ -76,6 +83,7 @@
               },
               "strikes": { "type": "string", "enum": ["once", "each_landed"] },
               "nonLethal": { "type": "boolean" },
+              "drainPercent": { "type": "number", "exclusiveMinimum": 0 },
               "centerRange": {
                 "oneOf": [
                   { "const": "weapon" },

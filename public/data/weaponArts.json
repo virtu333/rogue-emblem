@@ -106,7 +106,11 @@
             "name": "Grounder"
           }
         ]
-      }
+      },
+      "spawnTiers": [
+        "Iron",
+        "Steel"
+      ]
     },
     {
       "id": "sword_advancing_strike",
@@ -448,7 +452,7 @@
       "targeting": "normal_attack",
       "description": "One surging thrust, all momentum and raw attack power.",
       "combatMods": {
-        "atkBonus": 8,
+        "atkBonus": 7,
         "activated": [
           {
             "id": "weapon_art",
@@ -668,7 +672,8 @@
             "name": "Longearche"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "lance_overrun",
@@ -762,7 +767,7 @@
       "targeting": "normal_attack",
       "description": "Trade accuracy for raw power and pray it lands.",
       "combatMods": {
-        "atkBonus": 10,
+        "atkBonus": 7,
         "hitBonus": -15,
         "activated": [
           {
@@ -796,7 +801,11 @@
             "name": "Helm Splitter"
           }
         ]
-      }
+      },
+      "spawnTiers": [
+        "Iron",
+        "Steel"
+      ]
     },
     {
       "id": "axe_rending_cleave",
@@ -1065,7 +1074,8 @@
             "name": "Curved Shot"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "bow_heavy_draw",
@@ -1295,7 +1305,8 @@
             "name": "Deadeye"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "bow_all_or_nothing",
@@ -1474,12 +1485,12 @@
       "tierAffinity": "Steel",
       "unlockAct": "act2",
       "requiredRank": "Prof",
-      "hpCost": 7,
+      "hpCost": 4,
       "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "Wounds the enemy and mends you from the wound.",
       "combatMods": {
-        "drainPercent": 0.3,
+        "drainPercent": 0.75,
         "hitBonus": 10,
         "activated": [
           {
@@ -1517,7 +1528,8 @@
             "name": "Mire"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "magic_burning_quake",
@@ -1553,7 +1565,8 @@
             "name": "Burning Quake"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "magic_radiant_burst",
@@ -1591,7 +1604,8 @@
             "name": "Radiant Burst"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "magic_silence_strike",
@@ -1805,7 +1819,8 @@
             "name": "Piercing Charge"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "legend_galeforce_assault",
@@ -1826,7 +1841,9 @@
         "Oathaxe"
       ],
       "effects": {
-        "killMove": { "refresh": true },
+        "killMove": {
+          "refresh": true
+        },
         "afterCombat": [
           {
             "type": "set_hp",
@@ -1899,7 +1916,8 @@
             "name": "Barrage"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "legend_storm_blade",
@@ -1947,7 +1965,7 @@
     },
     {
       "id": "legend_life_drain",
-      "name": "Life Drain",
+      "name": "Hollow Feast",
       "weaponType": "Sword",
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
@@ -1956,7 +1974,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Namethief feeds, and the wound comes back as your own.",
+      "description": "Namethief reaches past its edge to drink from all near the wound.",
       "allowedFactions": [
         "player"
       ],
@@ -1964,16 +1982,31 @@
         "Namethief"
       ],
       "combatMods": {
-        "drainPercent": 1.5,
-        "atkBonus": 8,
+        "rangeOverride": {
+          "min": 1,
+          "max": 2
+        },
+        "atkBonus": 5,
         "hitBonus": 10,
+        "drainPercent": 1,
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Life Drain"
+            "name": "Hollow Feast"
           }
         ]
-      }
+      },
+      "area": {
+        "shape": "radius",
+        "radius": 1,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.6
+        },
+        "strikes": "once",
+        "drainPercent": 1
+      },
+      "noFollowUp": true
     },
     {
       "id": "legend_doom_thrust",
@@ -2020,7 +2053,8 @@
             "name": "Doom Thrust"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "legend_blood_lance",
@@ -2095,7 +2129,7 @@
         "Tidebreaker"
       ],
       "combatMods": {
-        "atkBonus": 20,
+        "atkBonus": 14,
         "hitBonus": 10,
         "defBonus": 5,
         "resBonus": 5,
@@ -2105,7 +2139,8 @@
             "name": "Cataclysm"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "legend_annihilate",
@@ -2191,7 +2226,8 @@
             "name": "Tempest"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "legend_cataclysm_bolt",
@@ -2232,7 +2268,8 @@
             "name": "Cataclysm Bolt"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "legend_stormcall",
@@ -2271,7 +2308,8 @@
             "name": "Stormcall"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "legend_divine_flare",
@@ -2412,7 +2450,8 @@
           }
         ]
       },
-      "scrollOnly": true
+      "scrollOnly": true,
+      "noFollowUp": true
     },
     {
       "id": "magic_starless_flame",
@@ -2541,7 +2580,8 @@
             "name": "Sweeping Cleave"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "lance_skewer",
@@ -2575,7 +2615,8 @@
             "name": "Skewer"
           }
         ]
-      }
+      },
+      "noFollowUp": true
     },
     {
       "id": "light_benediction",

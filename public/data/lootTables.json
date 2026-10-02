@@ -29,7 +29,7 @@
       "Master Seal"
     ],
     "skillScroll": [],
-    "weaponArtScroll": [],
+    "weaponArtScroll": ["Grounder Scroll", "Helm Splitter Scroll"],
     "legendaryWeapon": [],
     "accessories": [
       "Goddess Icon",
@@ -443,6 +443,8 @@
       "Ensnare Scroll"
     ],
     "weaponArtScroll": [
+      "Grounder Scroll",
+      "Helm Splitter Scroll",
       "Courtbreaker Scroll",
       "Last Bastion Scroll",
       "Crown Splitter Scroll",

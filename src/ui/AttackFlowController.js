@@ -23,7 +23,7 @@
 import { ForecastOverlay } from './ForecastOverlay.js';
 import { AreaPreviewController } from './AreaPreviewController.js';
 import { areaForecastLines, previewAreaArt } from '../engine/AreaPreview.js';
-import { combatStrikeMods } from '../engine/Combat.js';
+import { combatStrikeMods, forecastRawDamage, forecastStrikeGroups } from '../engine/Combat.js';
 import { playerKnowledgeOf } from './battleKnowledge.js';
 import { TutorialController } from './TutorialController.js';
 import { combatDistance, getFootprint, isEntity } from '../engine/EntitySystem.js';
@@ -410,9 +410,10 @@ export class AttackFlowController {
         scene._buildForecastSkillCtx?.(attacker, defender, weaponArt, { weapon: chosen }),
         chosen,
       );
-      const hits = Math.max(1, Number(forecast.attacker.attackCount) || 1);
+      // An art's follow-up is a plain strike: it adds damage but no area blows.
+      const hits = Math.max(1, Number(forecastStrikeGroups(forecast.attacker)[0]?.count) || 1);
       const dealt = Math.min(
-        Math.max(0, Number(forecast.attacker.damage) || 0) * hits,
+        forecastRawDamage(forecast.attacker),
         Math.max(0, Number(defender.currentHP) || 0),
       );
       const preview = this.showAreaPreview(defender, {

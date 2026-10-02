@@ -2307,6 +2307,57 @@ describe('RunManager', () => {
       expect(steelSword?.weaponArtIds || []).toEqual([]);
     });
 
+    it('an art with spawnTiers spawns on each listed tier (Grounder on Steel too)', () => {
+      const localData = loadGameData();
+      localData.weaponArts.arts = [
+        {
+          id: 'iron_only_art',
+          name: 'Iron Only Art',
+          weaponType: 'Sword',
+          tierAffinity: 'Iron',
+          unlockAct: 'act1',
+          requiredRank: 'Prof',
+          hpCost: 1,
+          perMapLimit: 3,
+          combatMods: { hitBonus: 5 },
+        },
+        {
+          id: 'iron_and_steel_art',
+          name: 'Iron And Steel Art',
+          weaponType: 'Sword',
+          tierAffinity: 'Iron',
+          spawnTiers: ['Iron', 'Steel'],
+          unlockAct: 'act1',
+          requiredRank: 'Prof',
+          hpCost: 1,
+          perMapLimit: 3,
+          combatMods: { hitBonus: 5 },
+        },
+      ];
+      const rmMeta = new RunManager(localData, { steelArms: 1 });
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        rmMeta.startRun();
+      } finally {
+        randomSpy.mockRestore();
+      }
+      const edric = rmMeta.roster[0];
+      const ironSword = edric.inventory.find((w) => w.type === 'Sword' && w.tier === 'Iron');
+      const steelSword = edric.inventory.find((w) => w.type === 'Sword' && w.tier === 'Steel');
+      expect(steelSword?.weaponArtIds).toEqual(['iron_and_steel_art']);
+      expect(ironSword?.weaponArtIds || []).toEqual([]);
+
+      // The shipped catalog: Grounder and Helm Splitter roll on Iron and Steel weapons.
+      const pools = new RunManager(loadGameData(), {})._buildWeaponArtSpawnPools({
+        includeIron: true,
+        includeSteel: true,
+      });
+      for (const tier of ['Iron', 'Steel']) {
+        expect(pools.get(tier).get('Sword')).toContain('sword_grounder');
+        expect(pools.get(tier).get('Axe')).toContain('axe_helm_splitter');
+      }
+    });
+
     it('artAdept adds one extra non-duplicate art to one eligible starting weapon', () => {
       const localData = loadGameData();
       localData.weaponArts.arts = [

@@ -14,6 +14,8 @@ import {
   canDouble,
   canCounter,
   getCombatForecast,
+  forecastStrikeGroups,
+  forecastRawDamage,
   resolveCombat,
   getEffectivenessMultiplier,
   calculateHealAmount,
@@ -478,40 +480,49 @@ describe('Combat forecast', () => {
     expect(withArt.attacker.damage).toBe(base.attacker.damage + Math.floor(attacker.stats.MAG / 3));
   });
 
-  it('suppresses normal attacker follow-up when weapon art is active', () => {
-    const attacker = makeUnit({ stats: { ...makeUnit().stats, SPD: 20 } });
+  // A weapon art keeps its follow-up only with a 10+ Attack Speed lead (twice the usual
+  // 5), and that follow-up is a plain strike; area and reach arts never follow up.
+  it('an art follows up only with a 10-point Attack Speed lead, as a plain strike', () => {
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
     const defender = makeUnit({
       name: 'Enemy',
       faction: 'enemy',
       stats: { ...makeUnit().stats, SPD: 10 },
       weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find((t) => t.name === 'Plain');
+    const art = { atkBonus: 5, activated: [{ id: 'weapon_art', name: 'Test Art' }] };
+    const forecast = (spd, mods) =>
+      getCombatForecast(
+        makeUnit({ stats: { ...makeUnit().stats, SPD: spd } }),
+        makeUnit().weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+        mods ? { atkWeaponArtMods: mods } : null,
+      );
+    // Iron Sword (5 Mt) + STR 8 - DEF 5 = 8 a plain strike; the art adds 5 to its strike only.
+    const lead9 = forecast(19, art);
+    expect(forecast(19).attacker.doubles).toBe(true);
+    expect(lead9.attacker.doubles).toBe(false);
+    expect(lead9.attacker.attackCount).toBe(1);
+    expect(lead9.attacker.followUp).toBeNull();
 
-    const base = getCombatForecast(
-      attacker,
-      attacker.weapon,
-      defender,
-      defender.weapon,
-      1,
-      terrain,
-      terrain,
-    );
-    expect(base.attacker.doubles).toBe(true);
+    const lead10 = forecast(20, art);
+    expect(lead10.attacker.doubles).toBe(true);
+    expect(lead10.attacker.damage).toBe(13);
+    expect(lead10.attacker.attackCount).toBe(2);
+    expect(lead10.attacker.followUp).toMatchObject({ damage: 8, attackCount: 1 });
+    expect(forecastStrikeGroups(lead10.attacker).map((g) => [g.damage, g.count])).toEqual([
+      [13, 1],
+      [8, 1],
+    ]);
+    expect(forecastRawDamage(lead10.attacker)).toBe(21);
 
-    const withArt = getCombatForecast(
-      attacker,
-      attacker.weapon,
-      defender,
-      defender.weapon,
-      1,
-      terrain,
-      terrain,
-      {
-        atkWeaponArtMods: { activated: [{ id: 'weapon_art', name: 'Test Art' }] },
-      },
-    );
-    expect(withArt.attacker.doubles).toBe(false);
+    const noFollowUp = forecast(30, { ...art, artNoFollowUp: true });
+    expect(noFollowUp.attacker.doubles).toBe(false);
+    expect(noFollowUp.attacker.attackCount).toBe(1);
   });
 
   it('still allows defender follow-up against an art-using attacker', () => {
@@ -889,22 +900,27 @@ describe('Combat resolution', () => {
     expect(result.poisonEffects.length).toBe(0);
   });
 
-  it('suppresses attacker follow-up strikes in resolution when weapon art is active', () => {
-    const attacker = makeUnit({
-      stats: { ...makeUnit().stats, HP: 40, STR: 1, SPD: 20, DEF: 10 },
-      currentHP: 40,
-    });
-    const defender = makeUnit({
-      name: 'Enemy',
-      faction: 'enemy',
-      stats: { ...makeUnit().stats, HP: 40, STR: 1, SPD: 5, DEF: 20 },
-      currentHP: 40,
-      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
-    });
+  it('resolves an art follow-up as a plain strike: no art damage, no art drain', () => {
     const terrain = data.terrain.find((t) => t.name === 'Plain');
-    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    const make = () => ({
+      attacker: makeUnit({ stats: { ...makeUnit().stats, HP: 40, SPD: 20 }, currentHP: 20 }),
+      defender: makeUnit({
+        name: 'Enemy',
+        faction: 'enemy',
+        stats: { ...makeUnit().stats, HP: 40, SPD: 10 },
+        currentHP: 40,
+      }),
+    });
+    // Rolls of 30: every strike lands (hit well above 30) and none crits (crit 0).
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.3);
     try {
-      const base = resolveCombat(
+      const art = {
+        atkBonus: 5,
+        drainPercent: 1,
+        activated: [{ id: 'weapon_art', name: 'Test Art' }],
+      };
+      const { attacker, defender } = make();
+      const result = resolveCombat(
         attacker,
         attacker.weapon,
         defender,
@@ -912,25 +928,33 @@ describe('Combat resolution', () => {
         1,
         terrain,
         terrain,
+        { atkWeaponArtMods: art },
       );
-      const withArt = resolveCombat(
-        attacker,
-        attacker.weapon,
-        defender,
-        defender.weapon,
-        1,
-        terrain,
-        terrain,
-        { atkWeaponArtMods: { activated: [{ id: 'weapon_art', name: 'Test Art' }] } },
-      );
+      const strikes = result.events.filter((e) => e.type === 'strike');
+      // Art strike 13 (drains 13), counter 8, plain follow-up 8 (no drain).
+      expect(strikes.map((e) => [e.attackerSide, e.damage, Boolean(e.artFollowUp)])).toEqual([
+        ['attacker', 13, false],
+        ['defender', 8, false],
+        ['attacker', 8, true],
+      ]);
+      expect(result.defenderHP).toBe(40 - 13 - 8);
+      expect(result.attackerHP).toBe(20 + 13 - 8);
 
-      const baseAttackerStrikes = base.events.filter(
-        (e) => e.type === 'strike' && e.attacker === attacker.name,
-      ).length;
-      const artAttackerStrikes = withArt.events.filter(
-        (e) => e.type === 'strike' && e.attacker === attacker.name,
-      ).length;
-      expect(baseAttackerStrikes).toBeGreaterThan(artAttackerStrikes);
+      const slow = make();
+      slow.attacker.stats.SPD = 19;
+      const noFollow = resolveCombat(
+        slow.attacker,
+        slow.attacker.weapon,
+        slow.defender,
+        slow.defender.weapon,
+        1,
+        terrain,
+        terrain,
+        { atkWeaponArtMods: art },
+      );
+      expect(
+        noFollow.events.filter((e) => e.type === 'strike' && e.attackerSide === 'attacker'),
+      ).toHaveLength(1);
     } finally {
       randomSpy.mockRestore();
     }

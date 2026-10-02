@@ -339,6 +339,8 @@ export class RunDriver {
           // A church's blessing is its one vow: taking it would close the promotion
           // this fixture's single church must cover (ChurchVow.test.js covers it).
           String(button.className || '').includes('church-blessing') ||
+          // Shared rules ("How scrolls work") open a read-only help dialog over the menu.
+          String(button.className || '').includes('item-art-help') ||
           button.attributes['aria-pressed'] === 'true'
         )
           return [];

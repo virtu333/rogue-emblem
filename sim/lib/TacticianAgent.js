@@ -25,6 +25,8 @@
 import { ScriptedAgent } from '../../tests/agents/ScriptedAgent.js';
 import {
   getCombatForecast,
+  forecastStrikeGroups,
+  forecastRawDamage,
   gridDistance,
   parseRange,
   isStaff,
@@ -38,10 +40,9 @@ import { distanceFieldToAdjacent } from './RescueAgent.js';
 const key = (c, r) => `${c},${r}`;
 
 function expected(side) {
-  return (
-    Math.max(0, Number(side?.damage) || 0) *
-    hitProbability(side?.hit) *
-    Math.max(0, Number(side?.attackCount) || 0)
+  return forecastStrikeGroups(side).reduce(
+    (sum, g) => sum + Math.max(0, Number(g.damage) || 0) * hitProbability(g.hit) * g.count,
+    0,
   );
 }
 
@@ -190,9 +191,7 @@ export class TacticianAgent {
         { skillsData: b.gameData.skills || [] },
       );
       total += expected(fc.attacker);
-      worst +=
-        Math.max(0, Number(fc.attacker?.damage) || 0) *
-        Math.max(0, Number(fc.attacker?.attackCount) || 0);
+      worst += forecastRawDamage(fc.attacker);
     }
     return { total, worst, attackers };
   }

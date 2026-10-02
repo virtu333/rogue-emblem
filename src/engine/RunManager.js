@@ -2323,6 +2323,18 @@ export class RunManager {
     return null;
   }
 
+  /** The weapon tiers an art spawns on: its `spawnTiers` list, else its one tier. */
+  _resolveWeaponArtSpawnTiers(art) {
+    if (Array.isArray(art?.spawnTiers) && art.spawnTiers.length > 0) {
+      const tiers = art.spawnTiers.map((tier) =>
+        this._resolveWeaponArtSpawnTier({ spawnTier: tier }),
+      );
+      return [...new Set(tiers.filter(Boolean))];
+    }
+    const tier = this._resolveWeaponArtSpawnTier(art);
+    return tier ? [tier] : [];
+  }
+
   _buildWeaponArtSpawnPools({
     includeIron = false,
     includeSteel = false,
@@ -2346,14 +2358,14 @@ export class RunManager {
         WEAPON_ART_SPAWN_WEAPON_TYPES.has(weaponType),
       );
       if (weaponTypes.length <= 0) continue;
-      const tier = this._resolveWeaponArtSpawnTier(art);
-      if (!tier || !enabledTiers.has(tier)) continue;
-
-      if (!poolsByTier.has(tier)) poolsByTier.set(tier, new Map());
-      const byType = poolsByTier.get(tier);
-      for (const weaponType of weaponTypes) {
-        if (!byType.has(weaponType)) byType.set(weaponType, []);
-        byType.get(weaponType).push(art.id);
+      for (const tier of this._resolveWeaponArtSpawnTiers(art)) {
+        if (!enabledTiers.has(tier)) continue;
+        if (!poolsByTier.has(tier)) poolsByTier.set(tier, new Map());
+        const byType = poolsByTier.get(tier);
+        for (const weaponType of weaponTypes) {
+          if (!byType.has(weaponType)) byType.set(weaponType, []);
+          byType.get(weaponType).push(art.id);
+        }
       }
     }
 
