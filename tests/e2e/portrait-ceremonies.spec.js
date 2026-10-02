@@ -739,6 +739,16 @@ for (const viewport of PORTRAIT_PHONES) {
       const errors = pageErrors(page);
       await quietSettings(page);
       await emulateSafeArea(page, NOTCH_PORTRAIT);
+      // The fall toast lives 4.2 s and may come and go while the story lines below are
+      // read, so count every toast the route map shows rather than catching one live.
+      await page.addInitScript(() => {
+        window.__eclipseToasts = 0;
+        new MutationObserver((records) => {
+          for (const r of records)
+            for (const n of r.addedNodes)
+              if (n.nodeType === 1 && n.matches('.re-eclipse-toast')) window.__eclipseToasts++;
+        }).observe(document, { childList: true, subtree: true });
+      });
       await page.goto('/?devScene=nodemap&preset=eclipse&seed=42');
       await waitForScene(page, 'NodeMap');
       await expectPortraitUi(page);
@@ -816,7 +826,9 @@ for (const viewport of PORTRAIT_PHONES) {
       }
 
       // The Eclipse explainer: a compact card that hugs its words inside the safe area.
-      await expect(page.locator('.re-eclipse-toast')).toHaveCount(1, { timeout: 15_000 });
+      await expect
+        .poll(() => page.evaluate(() => window.__eclipseToasts), { timeout: 15_000 })
+        .toBeGreaterThan(0);
       await page.locator('.re-eclipse-medal').tap();
       const eclipse = page.getByRole('dialog', { name: 'The Eclipse', exact: true });
       await expect(eclipse).toContainText('What darkens it');
