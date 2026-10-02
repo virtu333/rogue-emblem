@@ -60,7 +60,8 @@ function makeUnit(overrides = {}) {
     inventory: [],
     consumables: [],
     skills: [],
-    stats: { MOV: 5 },
+    stats: { HP: 20, MOV: 5 },
+    currentHP: 20,
     graphic: { clearTint: vi.fn(), setTint: vi.fn(), setAlpha: vi.fn() },
     label: null,
     hpBar: null,
@@ -88,6 +89,7 @@ function setupScene() {
     clearPath: vi.fn(),
     getMovementRange: vi.fn(() => new Map()),
     getAttackRange: vi.fn(() => []),
+    getMoveCost: vi.fn(() => 1),
     gridToPixel: () => ({ x: 64, y: 64 }),
     cols: 10,
     rows: 10,
@@ -491,14 +493,17 @@ describe('BattleScene deferred vision snapshot commit', () => {
     expect(scene.pendingVisionSnapshot).toBe(pending);
   });
 
-  it('promotes pending snapshot on executeShove entry', () => {
+  it('promotes pending snapshot on executeShove entry', async () => {
     const { scene } = setupScene();
     const { pending } = primeVisionSnapshots(scene);
     scene.tweens = { add: vi.fn() };
-    const actor = makeUnit({ col: 4, row: 4, label: { x: 0, y: 0 } });
+    const actor = makeUnit({ skills: ['shove'], col: 4, row: 4, label: { x: 0, y: 0 } });
     const ally = makeUnit({ col: 5, row: 4, label: { x: 0, y: 0 } });
 
-    BattleScene.prototype.executeShove.call(scene, actor, {
+    scene.playerUnits = [actor, ally];
+    scene._awaitSceneTween = vi.fn(async () => ({ status: 'completed' }));
+    scene.finishUnitAction = vi.fn();
+    const actionPromise = BattleScene.prototype.executeShove.call(scene, actor, {
       ally,
       destCol: 6,
       destRow: 4,
@@ -506,16 +511,21 @@ describe('BattleScene deferred vision snapshot commit', () => {
 
     expect(scene.visionSnapshot).toBe(pending);
     expect(scene.pendingVisionSnapshot).toBeNull();
+    expect(await actionPromise).toBe(true);
+    expect(scene.finishUnitAction).toHaveBeenCalledOnce();
   });
 
-  it('promotes pending snapshot on executePull entry', () => {
+  it('promotes pending snapshot on executePull entry', async () => {
     const { scene } = setupScene();
     const { pending } = primeVisionSnapshots(scene);
     scene.tweens = { add: vi.fn() };
-    const actor = makeUnit({ col: 4, row: 4, label: { x: 0, y: 0 } });
+    const actor = makeUnit({ skills: ['pull'], col: 4, row: 4, label: { x: 0, y: 0 } });
     const ally = makeUnit({ col: 4, row: 5, label: { x: 0, y: 0 } });
 
-    BattleScene.prototype.executePull.call(scene, actor, {
+    scene.playerUnits = [actor, ally];
+    scene._awaitSceneTween = vi.fn(async () => ({ status: 'completed' }));
+    scene.finishUnitAction = vi.fn();
+    const actionPromise = BattleScene.prototype.executePull.call(scene, actor, {
       ally,
       retreatCol: 4,
       retreatRow: 3,
@@ -523,19 +533,26 @@ describe('BattleScene deferred vision snapshot commit', () => {
 
     expect(scene.visionSnapshot).toBe(pending);
     expect(scene.pendingVisionSnapshot).toBeNull();
+    expect(await actionPromise).toBe(true);
+    expect(scene.finishUnitAction).toHaveBeenCalledOnce();
   });
 
-  it('promotes pending snapshot on executeSwap entry', () => {
+  it('promotes pending snapshot on executeSwap entry', async () => {
     const { scene } = setupScene();
     const { pending } = primeVisionSnapshots(scene);
     scene.tweens = { add: vi.fn() };
     const actor = makeUnit({ col: 4, row: 4, label: { x: 0, y: 0 } });
     const ally = makeUnit({ col: 5, row: 4, label: { x: 0, y: 0 } });
 
-    BattleScene.prototype.executeSwap.call(scene, actor, { ally });
+    scene.playerUnits = [actor, ally];
+    scene._awaitSceneTween = vi.fn(async () => ({ status: 'completed' }));
+    scene.finishUnitAction = vi.fn();
+    const actionPromise = BattleScene.prototype.executeSwap.call(scene, actor, { ally });
 
     expect(scene.visionSnapshot).toBe(pending);
     expect(scene.pendingVisionSnapshot).toBeNull();
+    expect(await actionPromise).toBe(true);
+    expect(scene.finishUnitAction).toHaveBeenCalledOnce();
   });
 
   it('promotes pending snapshot on executeDance entry', async () => {
@@ -550,17 +567,21 @@ describe('BattleScene deferred vision snapshot commit', () => {
     };
     scene._reduceMotion = vi.fn(() => true);
     scene.tweens = { add: vi.fn() };
-    scene.awardScaledXP = vi.fn(async () => {});
+    scene.awardScaledXP = vi.fn(() => null);
     scene.finishUnitAction = vi.fn();
-    const actor = makeUnit({ name: 'Dancer' });
-    const ally = makeUnit({ hasMoved: true, hasActed: true });
+    const actor = makeUnit({ name: 'Dancer', skills: ['dance'], col: 1, row: 1 });
+    const ally = makeUnit({ col: 2, row: 1, hasMoved: true, hasActed: true });
 
+    scene.playerUnits = [actor, ally];
+    scene._awaitSceneTween = vi.fn(async () => ({ status: 'completed' }));
+    scene.finishUnitAction = vi.fn();
     const actionPromise = BattleScene.prototype.executeDance.call(scene, actor, { ally });
 
     expect(scene.visionSnapshot).toBe(pending);
     expect(scene.pendingVisionSnapshot).toBeNull();
 
-    await actionPromise;
+    expect(await actionPromise).toBe(true);
+    expect(scene.finishUnitAction).toHaveBeenCalledOnce();
   });
 
   it('standalone rewind after select-before-action uses prior committed snapshot', () => {
