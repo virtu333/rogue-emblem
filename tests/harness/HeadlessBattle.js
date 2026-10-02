@@ -86,7 +86,11 @@ import {
   recordWeaponArtUse,
 } from '../../src/engine/WeaponArtSystem.js';
 import {
+  applyCondition,
+  isAcidPoisoned,
+  isSleeping,
   processConditionRecovery,
+  removeCondition,
   resolveStatusStaff,
 } from '../../src/engine/StatusConditionSystem.js';
 import { applyEnemySpawnGear } from '../../src/engine/EnemySpawnGear.js';
@@ -121,7 +125,9 @@ import {
   VILLAGE_STATUS,
 } from '../../src/engine/VillageSystem.js';
 import {
+  computeAcidDamage,
   computeLavaCrackHp,
+  isAcidTerrainIndex,
   isLavaCrackTerrainIndex,
   lavaBurnsUnit,
 } from '../../src/engine/TerrainHazards.js';
@@ -136,7 +142,7 @@ import {
   XP_BASE_HEAL,
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
-import { applyCombatHP } from '../../src/engine/UnitHealth.js';
+import { applyCombatHP, damageUnit, setUnitHP } from '../../src/engine/UnitHealth.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
 import {
   areaStrikeEffects,
@@ -1127,6 +1133,12 @@ export class HeadlessBattle {
 
   _processTurnStartEffects(units) {
     if (!Array.isArray(units)) return;
+    // 0b. Acid ticks, as BattleScene._processAcidTicks: non-lethal, and the ground's own
+    // damage never disturbs a holder.
+    for (const unit of units) {
+      if (!unit || unit.currentHP <= 0 || !isAcidPoisoned(unit)) continue;
+      damageUnit(unit, computeAcidDamage(unit.stats?.HP), { floor: 1, disturbs: false });
+    }
     // 1. Skills
     const skillEffects = getTurnStartEffects(units, this.gameData.skills);
     for (const effect of skillEffects) {
@@ -1150,15 +1162,25 @@ export class HeadlessBattle {
     }
   }
 
+  /** As BattleScene.processTerrainDamage: lava burns (and wakes a sleeper), acid corrodes. */
   _processTerrainDamage(units) {
     for (const unit of [...(units || [])]) {
-      if (!unit || unit.currentHP <= 0) continue;
+      if (!unit || unit._removing || unit.currentHP <= 0) continue;
+      if (isEntity(unit)) continue; // the Entity is immune to terrain hazards
       const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
-      if (!isLavaCrackTerrainIndex(terrainIdx) || !lavaBurnsUnit(unit)) continue;
-      const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP);
-      if (appliedDamage <= 0) continue;
-      unit.currentHP = nextHP;
-      this._checkPhoenixBrooch(unit);
+      if (isLavaCrackTerrainIndex(terrainIdx)) {
+        if (!lavaBurnsUnit(unit)) continue;
+        const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP);
+        if (appliedDamage <= 0) continue;
+        // Through UnitHealth, as the scene: the ground never disturbs a holder.
+        setUnitHP(unit, nextHP, { disturbs: false });
+        if (isSleeping(unit)) removeCondition(unit, 'sleep');
+        this._checkPhoenixBrooch(unit);
+        continue;
+      }
+      if (!isAcidTerrainIndex(terrainIdx)) continue;
+      if (unit.moveType === 'Flying' || unit.poisonImmune || unit.terrainHazardImmune) continue;
+      applyCondition(unit, 'acid', undefined, { disturbs: false });
     }
   }
 
