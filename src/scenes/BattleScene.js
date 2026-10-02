@@ -1,3 +1,4 @@
+import { MovementActionController } from '../ui/MovementActionController.js';
 import { cantoRuleFor } from '../engine/CantoRule.js';
 import {
   specialCharacterRefusalText,
@@ -190,7 +191,6 @@ import {
   ANTI_TURTLE_NO_PROGRESS_TURNS,
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
-  XP_BASE_DANCE,
   XP_SPECIAL_ENEMY_MULTIPLIER,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
@@ -275,7 +275,6 @@ import {
   resolveDialogueCast,
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
-import { recordBattleRecruit } from '../engine/BattleRecruits.js';
 import { armyAndNpcAllies, hasRecruitNpc, isRecruitNpc } from '../engine/RecruitNpc.js';
 import { isSameUnit } from '../engine/UnitIdentity.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
@@ -339,7 +338,6 @@ import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
 import { CombatChoreography } from '../ui/CombatChoreography.js';
 import { CeremonyController } from '../ui/CeremonyController.js';
-import { growthCeremonies } from '../ui/GrowthCeremonyController.js';
 import { ReinforcementPresenter } from '../ui/ReinforcementPresenter.js';
 import { createStatusBadge, STATUS_BADGE_SPACING } from '../ui/StatusBadges.js';
 import { BossPresenceController } from '../ui/BossPresenceController.js';
@@ -5428,65 +5426,22 @@ export class BattleScene extends Phaser.Scene {
 
   executeShove(unit, target) {
     const session = battleSession(this);
-    this.commitVisionSnapshotIfPending();
-    this.hideActionMenu();
-    const pos = this.grid.gridToPixel(target.destCol, target.destRow);
-    const targets = target.ally.label
-      ? [target.ally.graphic, target.ally.label]
-      : [target.ally.graphic];
-    this.tweens.add({
-      targets,
-      x: pos.x,
-      y: pos.y,
-      duration: 80,
-      ease: 'Linear',
-      onComplete: () => {
-        observeHistoryAction(this, 'shoved', unit, target.ally);
-        target.ally.col = target.destCol;
-        target.ally.row = target.destRow;
-        this.updateUnitPosition(target.ally);
-        this.finishUnitAction(unit, { session: session });
-      },
-    });
+    return (this._movementActions ||= new MovementActionController(this)).executeMove(
+      'shove',
+      unit,
+      target,
+      { session },
+    );
   }
 
   executePull(unit, target) {
     const session = battleSession(this);
-    this.commitVisionSnapshotIfPending();
-    this.hideActionMenu();
-    // Move both simultaneously: unit retreats, ally moves to unit's old spot
-    const unitPos = this.grid.gridToPixel(target.retreatCol, target.retreatRow);
-    const allyPos = this.grid.gridToPixel(unit.col, unit.row);
-    const unitTargets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
-    const allyTargets = target.ally.label
-      ? [target.ally.graphic, target.ally.label]
-      : [target.ally.graphic];
-    const allyDestCol = unit.col;
-    const allyDestRow = unit.row;
-    this.tweens.add({
-      targets: unitTargets,
-      x: unitPos.x,
-      y: unitPos.y,
-      duration: 80,
-      ease: 'Linear',
-    });
-    this.tweens.add({
-      targets: allyTargets,
-      x: allyPos.x,
-      y: allyPos.y,
-      duration: 80,
-      ease: 'Linear',
-      onComplete: () => {
-        observeHistoryAction(this, 'pulled', unit, target.ally);
-        unit.col = target.retreatCol;
-        unit.row = target.retreatRow;
-        target.ally.col = allyDestCol;
-        target.ally.row = allyDestRow;
-        this.updateUnitPosition(unit);
-        this.updateUnitPosition(target.ally);
-        this.finishUnitAction(unit, { session: session });
-      },
-    });
+    return (this._movementActions ||= new MovementActionController(this)).executeMove(
+      'pull',
+      unit,
+      target,
+      { session },
+    );
   }
 
   startBreakTargetSelection(unit) {
@@ -5742,48 +5697,12 @@ export class BattleScene extends Phaser.Scene {
 
   executeSwap(unit, target) {
     const session = battleSession(this);
-    this.commitVisionSnapshotIfPending();
-    this.hideActionMenu();
-    const unitPos = this.grid.gridToPixel(target.ally.col, target.ally.row);
-    const allyPos = this.grid.gridToPixel(unit.col, unit.row);
-    const unitTargets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
-    const allyTargets = target.ally.label
-      ? [target.ally.graphic, target.ally.label]
-      : [target.ally.graphic];
-
-    // Store positions for swap
-    const unitOldCol = unit.col,
-      unitOldRow = unit.row;
-    const allyOldCol = target.ally.col,
-      allyOldRow = target.ally.row;
-
-    // Animate both units simultaneously
-    this.tweens.add({
-      targets: unitTargets,
-      x: unitPos.x,
-      y: unitPos.y,
-      duration: 120,
-      ease: 'Quad.easeInOut',
-    });
-    this.tweens.add({
-      targets: allyTargets,
-      x: allyPos.x,
-      y: allyPos.y,
-      duration: 120,
-      ease: 'Quad.easeInOut',
-      onComplete: () => {
-        observeHistoryAction(this, 'swapped with', unit, target.ally);
-        const allyWasActed = target.ally.hasActed;
-        unit.col = allyOldCol;
-        unit.row = allyOldRow;
-        target.ally.col = unitOldCol;
-        target.ally.row = unitOldRow;
-        this.updateUnitPosition(unit);
-        this.updateUnitPosition(target.ally);
-        this.finishUnitAction(unit, { session: session });
-        if (allyWasActed) this.dimUnit(target.ally);
-      },
-    });
+    return (this._movementActions ||= new MovementActionController(this)).executeMove(
+      'swap',
+      unit,
+      target,
+      { session },
+    );
   }
 
   startDanceTargetSelection(unit) {
@@ -5794,52 +5713,13 @@ export class BattleScene extends Phaser.Scene {
     this.grid.showAttackRange(tiles, UI_HEX.hpHigh, 0.4);
   }
 
-  async executeDance(unit, target) {
+  executeDance(unit, target) {
     const session = battleSession(this);
-    this.commitVisionSnapshotIfPending();
-    this.hideActionMenu();
-    const audio = this.registry.get('audio');
-    if (audio) audio.playSFX('sfx_heal');
-
-    // Visual feedback: brief sparkle/glow on target
-    const pos = this.grid.gridToPixel(target.ally.col, target.ally.row);
-    (this._combatFx ||= new CombatFxController(this)).playBuff(pos.x, pos.y);
-    const sparkle = this.add
-      .circle(pos.x, pos.y, 20, UI_HEX.hpHigh, this._reduceMotion() ? 0.4 : 0.6)
-      .setDepth(200);
-    if (this._reduceMotion()) {
-      this.time.delayedCall(120, () => sparkle.destroy());
-    } else {
-      this.tweens.add({
-        targets: sparkle,
-        alpha: 0,
-        scale: 1.5,
-        duration: 400,
-        ease: 'Quad.easeOut',
-        onComplete: () => sparkle.destroy(),
-      });
-    }
-
-    observeHistoryAction(this, 'danced for', unit, target.ally);
-    deedsFor(this).onRefresh(unit);
-    // Reset target's action state
-    target.ally.hasMoved = false;
-    target.ally._movementCommitted = false;
-    target.ally.hasActed = false;
-    this.undimUnit(target.ally);
-
-    try {
-      try {
-        await this.awardScaledXP(unit, XP_BASE_DANCE);
-        if (!isCurrentBattleSession(this, session)) return;
-      } finally {
-        // Dancer ends turn
-        if (isCurrentBattleSession(this, session))
-          this.finishUnitAction(unit, { session: session });
-      }
-    } catch (err) {
-      this._recoverUnitActionError(unit, 'dance', err, { session });
-    }
+    return (this._movementActions ||= new MovementActionController(this)).executeDance(
+      unit,
+      target,
+      { session },
+    );
   }
 
   startShoveTargetSelection(unit) {
@@ -6835,65 +6715,11 @@ export class BattleScene extends Phaser.Scene {
     return null;
   }
 
-  async executeTalk(lord) {
+  executeTalk(lord) {
     const session = battleSession(this);
-    const npc = this.findTalkTarget(lord);
-    if (!npc) {
-      this.finishUnitAction(lord, { session: session });
-      return;
-    }
-
-    this.battleState = 'COMBAT_RESOLVING'; // block input
-
-    try {
-      // Show recruitment dialogue -- lords get personal lines, others use class-based
-      const lordLines = npc.isLord ? this.gameData.dialogue?.lordRecruitLines?.[npc.name] : null;
-      const recruitLines = lordLines ||
-        this.gameData.dialogue?.recruitLines?.[npc.className] || ['Joined the army!'];
-      const line =
-        this.runManager?.pickNarrativeLine?.(
-          recruitLines,
-          `recruit:${npc.className}:${npc.isLord ? npc.name : 'class'}`,
-        ) || recruitLines[0];
-      // Joins your army: portrait, crest, the line (DOM ceremony); the
-      // dialogue box stays the canvas fallback. Shown before the join is
-      // applied, exactly where the line always played.
-      const growth = hasDOMHost() ? growthCeremonies(this) : null;
-      const carded = growth
-        ? await growth.showRecruit({ unit: npc, kind: 'recruit', line })
-        : false;
-      if (!isCurrentBattleSession(this, session)) return;
-      if (!carded) await this.dialogueOverlay.show(npc.name, line, this._getPortraitKey(npc));
-      if (!isCurrentBattleSession(this, session)) return;
-
-      // Remove from NPC array
-      const npcIdx = this.npcUnits.indexOf(npc);
-      if (npcIdx !== -1) this.npcUnits.splice(npcIdx, 1);
-      this.updateObjectiveText();
-
-      // Convert faction
-      npc.faction = 'player';
-      observeHistoryAction(this, 'recruited', lord, npc);
-
-      // Destroy and re-create graphics (correct sprite key + tint + HP bar color)
-      this.removeUnitGraphic(npc);
-      this.addUnitGraphic(npc);
-
-      // Add to player units
-      this.runManager?.grantRecruitBlessingConsumables?.(npc);
-      this.playerUnits.push(npc);
-      // Recruit can move + act this turn (FE convention); force fresh action flags.
-      npc.hasMoved = false;
-      npc.hasActed = false;
-      // Fallen-ally record should the recruit die before the battle ends. An NPC
-      // restored from a checkpoint older than unit identity gets its uid now.
-      this.runManager?.assignUnitUid?.(npc);
-      this._battleRecruits = recordBattleRecruit(this._battleRecruits, npc);
-
-      this.finishUnitAction(lord, { session: session });
-    } catch (err) {
-      this._recoverUnitActionError(lord, 'talk', err, { session });
-    }
+    return (this._movementActions ||= new MovementActionController(this)).executeTalk(lord, {
+      session,
+    });
   }
 
   // --- Heal flow (delegates to HealController) ---
@@ -9949,6 +9775,7 @@ export class BattleScene extends Phaser.Scene {
       const target = selectBallistaTarget(ballista, targetUnits);
       if (!target) continue;
       const result = resolveBallistaStrike(ballista, target);
+      if (result.didHit) damageUnit(target, result.damage);
       // Presentation of the resolved shot: the bolt flies before the number shows.
       await safeBattlePresentation(
         'ballista shot',
@@ -9961,7 +9788,6 @@ export class BattleScene extends Phaser.Scene {
       );
       if (!isCurrent()) return;
       if (result.didHit) {
-        damageUnit(target, result.damage);
         await safeBattlePresentation(
           'ballista hit',
           async () => {

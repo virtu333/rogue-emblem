@@ -1,3 +1,4 @@
+import { settleRecruitJoin } from '../../src/engine/BattleRecruits.js';
 import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
 // HeadlessBattle — Synchronous battle state machine for headless testing.
 // Mirrors BattleScene's MVP subset (7 states) using real engine functions.
@@ -1924,16 +1925,16 @@ export class HeadlessBattle {
   }
 
   _executeTalk(lord, npc) {
-    // Convert NPC to player faction
-    npc.faction = 'player';
-    const idx = this.npcUnits.indexOf(npc);
-    if (idx !== -1) this.npcUnits.splice(idx, 1);
-    this.playerUnits.push(npc);
-    // Recruit can move + act this turn (FE convention); keep action flags fresh.
-    npc.hasMoved = false;
-    npc.hasActed = false;
+    const joined = settleRecruitJoin({
+      npc,
+      npcUnits: this.npcUnits,
+      playerUnits: this.playerUnits,
+      battleRecruits: this._battleRecruits,
+      runManager: this.runManager,
+    });
+    if (!joined) throw new Error(`Invalid Talk recruit: ${npc?.name || 'missing target'}`);
+    this._battleRecruits = joined.battleRecruits;
     this._refreshFogVisibility();
-
     this._finishUnitAction(lord);
   }
 

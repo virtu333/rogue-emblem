@@ -44,6 +44,7 @@ function makeLord() {
     name: 'Edric',
     faction: 'player',
     isLord: true,
+    hasActed: false,
     col: 3,
     row: 2,
     currentHP: 20,
@@ -139,7 +140,8 @@ describe('merchant caravan is not a recruit', () => {
 
     await scene.executeTalk(lord);
 
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(lord, { session: scene._battleSession });
+    expect(scene.finishUnitAction).not.toHaveBeenCalled();
+    expect(lord.hasActed).toBe(false);
     expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
     expect(caravan.faction).toBe('npc');
     expect(scene.npcUnits).toEqual([caravan]);

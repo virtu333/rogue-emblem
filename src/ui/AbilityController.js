@@ -1,3 +1,6 @@
+import { settleAndPresent } from './BattleActionSettlement.js';
+import { safeBattlePresentation } from './safeBattlePresentation.js';
+import { presentSettledMoves } from './ActionMovementPresentation.js';
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // AbilityController — the "Ability" action-menu surface for utility abilities
@@ -14,17 +17,19 @@ import {
   getAbilityUsageCount,
   canUseAbility,
   markUsed,
+  settleBlink,
+  settleRally,
+  settleHealingCircle,
+  settleEnsnare,
   getBlinkTiles,
   collectAffected,
   abilityHasTargets,
 } from '../engine/ActionAbilitySystem.js';
-import { applyCondition } from '../engine/StatusConditionSystem.js';
 import { staffAllyCandidates } from '../engine/RecruitNpc.js';
 import { canInspectUnit, seenTileOccupant } from '../engine/BattleInformation.js';
 import { deedsFor } from './DeedController.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
-import { healUnit } from '../engine/UnitHealth.js';
 import { menuRow, railOwnsMenus, rowText } from './battleMenuModel.js';
 
 const BLINK_TILE_COLOR = UI_HEX.lineStrong;
@@ -278,52 +283,50 @@ export class AbilityController {
     scene._pendingAbility = null;
   }
 
-  async executeBlink(unit, skill, tile) {
+  executeBlink(unit, skill, tile) {
     const scene = this.scene;
     const session = battleSession(scene);
     if (session !== this.session) return false;
-    if (!isCurrentBattleSession(scene, session)) return;
-    // Block input (cancel/End Turn/Vision) while the teleport resolves —
-    // same convention as HealController.executeRelocate. finishUnitAction
-    // moves the state onward once the effect completes.
-    scene.battleState = 'HEAL_RESOLVING';
-    scene.commitVisionSnapshotIfPending();
-    scene.hideActionMenu();
-    markUsed(unit, skill.id);
-    try {
-      const targets = [
-        unit.graphic,
-        unit.label,
-        unit.factionIndicator,
-        unit.hpBar?.bg,
-        unit.hpBar?.fill,
-      ].filter(Boolean);
-      if (targets.length > 0) {
-        await scene._awaitSceneTween(
-          { targets, alpha: 0, duration: 180 },
-          { label: 'ability_blink_fade_out' },
-        );
+    return settleAndPresent(scene, {
+      unit,
+      session,
+      label: 'ability_blink',
+      validate: () =>
+        this._validateAbility(unit, skill) &&
+        skill.actionAbility.kind === 'teleport_self' &&
+        getBlinkTiles(
+          unit,
+          skill.actionAbility.range,
+          scene.grid,
+          seenTileOccupant(scene.grid, (col, row) => scene.getUnitAt(col, row)),
+        ).some((entry) => entry.col === tile?.col && entry.row === tile?.row),
+      settle: () => {
+        observeHistoryAction(scene, 'relocated', unit, null, skill.name);
+        return settleBlink(unit, skill, tile);
+      },
+      present: async ({ moves }) => {
+        safeBattlePresentation('ability menu', () => scene.hideActionMenu(), { scene });
+        await presentSettledMoves(scene, moves, { session, label: 'ability_blink', fade: true });
         if (!isCurrentBattleSession(scene, session)) return;
-      }
-      observeHistoryAction(scene, 'relocated', unit, null, skill.name);
-      unit.col = tile.col;
-      unit.row = tile.row;
-      scene.updateUnitPosition(unit);
-      if (targets.length > 0) {
-        await scene._awaitSceneTween(
-          { targets, alpha: 1, duration: 180 },
-          { label: 'ability_blink_fade_in' },
+        safeBattlePresentation(
+          'ability movement state',
+          () => scene._refreshPostCombatMovementState([unit], { revealFog: false }),
+          { scene },
         );
-        if (!isCurrentBattleSession(scene, session)) return;
-      }
-      // A teleport is movement: the danger zone is stale; the fog lifts only when
-      // the action is committed (finishUnitAction, or where Canto ends).
-      scene._refreshPostCombatMovementState([unit], { revealFog: false });
-      scene.finishUnitAction(unit, { session: session });
-    } catch (err) {
-      if (!isCurrentBattleSession(scene, session)) return;
-      scene._recoverUnitActionError(unit, 'ability_blink', err, { session });
-    }
+      },
+    });
+  }
+
+  _validateAbility(unit, skill) {
+    const scene = this.scene;
+    return (
+      !!unit &&
+      scene.playerUnits.includes(unit) &&
+      unit.currentHP > 0 &&
+      !unit.hasActed &&
+      this._getAbilityById(unit, skill?.id) === skill &&
+      canUseAbility(unit, skill).ok
+    );
   }
 
   // --- Self-centered AOE (Rally Cry / Healing Circle / Ensnare) ---
@@ -415,115 +418,127 @@ export class AbilityController {
     scene._registerActionMenu();
   }
 
-  async executeSelfCentered(unit, skill) {
+  executeSelfCentered(unit, skill) {
     const scene = this.scene;
     const session = battleSession(scene);
     if (session !== this.session) return false;
-    if (!isCurrentBattleSession(scene, session)) return;
-    // Block input while the effect resolves (see executeBlink) — otherwise
-    // UNIT_ACTION_MENU stays live through the awaited FX/buff steps.
-    scene.battleState = 'HEAL_RESOLVING';
-    scene.commitVisionSnapshotIfPending();
-    scene.hideActionMenu(); // menu cleanup clears the AOE preview highlights
-    scene.inEquipMenu = false;
-    markUsed(unit, skill.id);
-    try {
-      const kind = skill.actionAbility?.kind;
-      if (kind === 'ally_buff') {
-        await this._applyRally(unit, skill);
-        if (!isCurrentBattleSession(scene, session)) return;
-      } else if (kind === 'aoe_heal') {
-        await this._applyHealingCircle(unit, skill);
-        if (!isCurrentBattleSession(scene, session)) return;
-      } else if (kind === 'aoe_root') {
-        await this._applyEnsnare(unit, skill);
-        if (!isCurrentBattleSession(scene, session)) return;
-      }
-      scene.finishUnitAction(unit, { session: session });
-    } catch (err) {
-      if (!isCurrentBattleSession(scene, session)) return;
-      scene._recoverUnitActionError(unit, 'ability', err, { session });
-    }
-  }
-
-  async _applyRally(unit, skill) {
-    const scene = this.scene;
-    const session = battleSession(scene);
-    if (session !== this.session) return false;
-    if (!isCurrentBattleSession(scene, session)) return;
-    const ability = skill.actionAbility;
-    const audio = scene.registry.get('audio');
-    if (audio) audio.playSFX('sfx_heal');
-    const affected = collectAffected(unit, ability, scene.getDivineChargeAllies(unit));
-    // Buff FX before the stat application hints (dance playBuff precedent)
-    for (const ally of affected) {
-      const pos = scene.grid.gridToPixel(ally.col, ally.row);
-      (scene._combatFx ||= new CombatFxController(scene)).playBuff(pos.x, pos.y);
-    }
-    for (const ally of affected) observeHistoryAction(scene, 'rallied', unit, ally, skill.name);
-    // Reuse the tier-5 timed-buff pipeline: entries land in
-    // unit._battleTimedWeaponArtBuffs and expire via the shared phase sweep.
-    await scene._applyTier5AllyBuffStep(
-      {
-        artId: `ability::${skill.id}`,
-        range: ability.radius,
-        stats: ability.stats,
-        durationPhases: ability.durationPhases,
-        includeSelf: ability.includeSelf === true,
-      },
+    return settleAndPresent(scene, {
       unit,
-    );
-    if (!isCurrentBattleSession(scene, session)) return;
-  }
-
-  async _applyHealingCircle(unit, skill) {
-    const scene = this.scene;
-    const ability = skill.actionAbility;
-    const amount = Math.max(0, Math.trunc(Number(ability.amount) || 0));
-    const affected = collectAffected(unit, ability, this._allyPool(unit, ability.kind));
-    const audio = scene.registry.get('audio');
-    if (audio) audio.playSFX('sfx_heal');
-    for (const ally of affected) {
-      const oldHP = Number(ally.currentHP) || 0;
-      const healed = healUnit(ally, amount);
-      if (healed <= 0) continue;
-      deedsFor(scene).onHeal(unit, ally, oldHP);
-      observeHistoryAction(scene, 'healed', unit, ally, `${healed} HP`, { amount: healed });
-      scene.updateHPBar(ally);
-      const pos = scene.grid.gridToPixel(ally.col, ally.row);
-      (scene._combatFx ||= new CombatFxController(scene)).playHeal(pos.x, pos.y);
-      scene.showMinorHintAt(pos.x, pos.y, `+${healed}`, '#66ff88');
-    }
-  }
-
-  async _applyEnsnare(unit, skill) {
-    const scene = this.scene;
-    const ability = skill.actionAbility;
-    const duration = Math.max(1, Math.trunc(Number(ability.durationPhases) || 1));
-    const affected = collectAffected(unit, ability, scene._getTier5HostileUnitsFor(unit));
-    let anyRooted = false;
-    for (const enemy of affected) {
-      const pos = scene.grid.gridToPixel(enemy.col, enemy.row);
-      // durationPhases = full phases the target stays rooted; recovery
-      // decrements at the start of the afflicted side's phase before it
-      // acts, hence the +1 (same convention as weapon-art tier2 statuses).
-      const applied = applyCondition(enemy, 'root', duration + 1, { recoveryChance: 0 });
-      if (!applied) {
-        // statusImmunity accessory blocked it
-        scene.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);
-        continue;
-      }
-      observeHistoryAction(scene, 'rooted', unit, enemy, skill.name);
-      anyRooted = true;
-      scene._addConditionIcon(enemy, 'root');
-      (scene._combatFx ||= new CombatFxController(scene)).playStatus(pos.x, pos.y, 'root');
-      scene.showMinorHintAt(pos.x, pos.y, 'Rooted!', UI_PALETTE.rarityEpic);
-    }
-    // Rooted enemies can't move — their threat ranges shrink
-    if (anyRooted) {
-      scene.dangerZoneStale = true;
-      scene._pinnedThreats?.invalidate();
-    }
+      session,
+      label: 'ability',
+      validate: () =>
+        this._validateAbility(unit, skill) &&
+        ['ally_buff', 'aoe_heal', 'aoe_root'].includes(skill.actionAbility.kind) &&
+        abilityHasTargets(unit, skill, {
+          allies: this._allyPool(unit, skill.actionAbility.kind),
+          enemies: this._seenHostiles(unit),
+        }),
+      settle: () => {
+        const ability = skill.actionAbility;
+        markUsed(unit, skill.id);
+        if (ability.kind === 'ally_buff') {
+          const affected = collectAffected(unit, ability, scene.getDivineChargeAllies(unit));
+          for (const ally of affected)
+            observeHistoryAction(scene, 'rallied', unit, ally, skill.name);
+          const beats = settleRally(
+            {
+              artId: `ability::${skill.id}`,
+              range: ability.radius,
+              stats: ability.stats,
+              durationPhases: ability.durationPhases,
+              includeSelf: ability.includeSelf === true,
+            },
+            unit,
+            scene._postCombatWorld(),
+          );
+          return { kind: ability.kind, affected, beats };
+        }
+        if (ability.kind === 'aoe_heal') {
+          const targets = settleHealingCircle(unit, ability, this._allyPool(unit, ability.kind));
+          for (const entry of targets)
+            if (entry.healed > 0) {
+              deedsFor(scene).onHeal(unit, entry.unit, entry.hpBefore);
+              observeHistoryAction(scene, 'healed', unit, entry.unit, `${entry.healed} HP`, {
+                amount: entry.healed,
+              });
+            }
+          return { kind: ability.kind, targets };
+        }
+        const targets = settleEnsnare(unit, ability, scene._getTier5HostileUnitsFor(unit));
+        for (const entry of targets)
+          if (entry.rooted) observeHistoryAction(scene, 'rooted', unit, entry.unit, skill.name);
+        if (targets.some((entry) => entry.rooted)) scene.dangerZoneStale = true;
+        return { kind: ability.kind, targets };
+      },
+      present: async (facts) => {
+        safeBattlePresentation('ability menu', () => scene.hideActionMenu(), { scene });
+        scene.inEquipMenu = false;
+        if (facts.kind === 'ally_buff' || facts.kind === 'aoe_heal')
+          safeBattlePresentation(
+            'ability sound',
+            () => scene.registry.get('audio')?.playSFX('sfx_heal'),
+            { scene },
+          );
+        if (facts.kind === 'ally_buff') {
+          for (const ally of facts.affected)
+            safeBattlePresentation(
+              'rally buff',
+              () => {
+                const pos = scene.grid.gridToPixel(ally.col, ally.row);
+                (scene._combatFx ||= new CombatFxController(scene)).playBuff(pos.x, pos.y);
+              },
+              { scene },
+            );
+          await scene._playPostCombatBeats(facts.beats);
+          return;
+        }
+        for (const entry of facts.targets) {
+          if (!isCurrentBattleSession(scene, session)) return;
+          const target = entry.unit;
+          if (facts.kind === 'aoe_heal') {
+            if (entry.healed <= 0) continue;
+            safeBattlePresentation(
+              'healing circle target',
+              () => {
+                scene.updateHPBar(target);
+                const pos = scene.grid.gridToPixel(target.col, target.row);
+                (scene._combatFx ||= new CombatFxController(scene)).playHeal(pos.x, pos.y);
+                scene.showMinorHintAt(pos.x, pos.y, `+${entry.healed}`, '#66ff88');
+              },
+              { scene },
+            );
+          } else {
+            safeBattlePresentation(
+              'ensnare target',
+              () => {
+                const pos = scene.grid.gridToPixel(target.col, target.row);
+                if (entry.rooted) {
+                  scene._addConditionIcon(target, 'root');
+                  (scene._combatFx ||= new CombatFxController(scene)).playStatus(
+                    pos.x,
+                    pos.y,
+                    'root',
+                  );
+                }
+                scene.showMinorHintAt(
+                  pos.x,
+                  pos.y,
+                  entry.rooted ? 'Rooted!' : 'Immune!',
+                  entry.rooted ? UI_PALETTE.rarityEpic : UI_PALETTE.good,
+                );
+              },
+              { scene },
+            );
+          }
+        }
+        if (facts.kind === 'aoe_root')
+          safeBattlePresentation(
+            'ensnare threat refresh',
+            () => scene._pinnedThreats?.invalidate(),
+            { scene },
+          );
+      },
+    });
   }
 
   destroy() {
