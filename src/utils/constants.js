@@ -74,6 +74,10 @@ export const DEPLOY_LIMITS = {
   finalBoss: { min: 5, max: 8 },
 };
 
+// Share of a map's filler enemies drawn from the act's promoted pool when its
+// enemies.json pool sets no `promotedShare`.
+export const DEFAULT_ENEMY_PROMOTED_SHARE = 0.3;
+
 // Enemy count = deployCount + roll(min, max)
 // Pattern matches ACT_LEVEL_SCALING in NodeMapGenerator.js
 export const ENEMY_COUNT_OFFSET = {

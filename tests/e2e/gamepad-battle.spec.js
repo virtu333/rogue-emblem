@@ -279,17 +279,23 @@ test.describe('Gamepad battle loop', () => {
     });
     expect(order.length).toBeGreaterThan(1); // need >1 to prove cycling
 
-    // NEXT from an off-unit cursor snaps to the first un-acted unit.
-    await tap(page, BTN.R1);
-    expect(await getCursor(page)).toEqual(order[0]);
+    // The cursor opens wherever the map put it, sometimes on a unit. NEXT steps from
+    // the unit under the cursor, or snaps to the first un-acted unit from off-unit.
+    const start = await getCursor(page);
+    const at = order.findIndex((u) => u.col === start.col && u.row === start.row);
+    const first = (at + 1) % order.length;
+    const second = (first + 1) % order.length;
 
-    // NEXT again advances to the second.
     await tap(page, BTN.R1);
-    expect(await getCursor(page)).toEqual(order[1]);
+    expect(await getCursor(page)).toEqual(order[first]);
 
-    // PREV steps back to the first.
+    // NEXT again advances to the following unit.
+    await tap(page, BTN.R1);
+    expect(await getCursor(page)).toEqual(order[second]);
+
+    // PREV steps back.
     await tap(page, BTN.L1);
-    expect(await getCursor(page)).toEqual(order[0]);
+    expect(await getCursor(page)).toEqual(order[first]);
   });
 
   test('INSPECT toggles the inspection panel at the cursor', async ({ page }) => {

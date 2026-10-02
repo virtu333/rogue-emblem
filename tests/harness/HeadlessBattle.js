@@ -52,6 +52,7 @@ import {
   createLordUnit,
   createEnemyUnit,
   createPromotedEnemyUnit,
+  enemyDifficultyConfigFromParams,
   equipWeapon,
   hasStaff,
   getCombatWeapons,
@@ -713,12 +714,7 @@ export class HeadlessBattle {
   }
 
   _getEnemyDifficultyConfig() {
-    return {
-      multiplier: this.battleParams.difficultyMod || 1.0,
-      enemyStatBonus: Math.trunc(this.battleParams.enemyStatBonus || 0),
-      classStatBonuses: this.battleParams.classStatBonuses || {},
-      enemyEquipTierShift: Math.trunc(this.battleParams.enemyEquipTierShift || 0),
-    };
+    return enemyDifficultyConfigFromParams(this.battleParams);
   }
 
   _deriveBattleSeed() {

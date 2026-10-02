@@ -127,6 +127,7 @@ import {
   createLordUnit,
   createEnemyUnit as createEnemyUnitFromClass,
   createPromotedEnemyUnit,
+  enemyDifficultyConfigFromParams,
   addToInventory,
   addToConsumables,
   removeFromConsumables,
@@ -2484,12 +2485,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   getEnemyDifficultyConfig() {
-    return {
-      multiplier: this.battleParams.difficultyMod || 1.0,
-      enemyStatBonus: Math.trunc(this.battleParams.enemyStatBonus || 0),
-      classStatBonuses: this.battleParams.classStatBonuses || {},
-      enemyEquipTierShift: Math.trunc(this.battleParams.enemyEquipTierShift || 0),
-    };
+    return enemyDifficultyConfigFromParams(this.battleParams);
   }
 
   getReinforcementSeed() {

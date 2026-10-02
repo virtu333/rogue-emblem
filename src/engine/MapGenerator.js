@@ -16,6 +16,7 @@ import {
   ENTITY_FOOTPRINT,
   filterClassPoolByDifficulty,
   RECRUIT_PROMOTION_BASE_LEVEL,
+  DEFAULT_ENEMY_PROMOTED_SHARE,
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
 import { assignEnemyAreaArts } from './EnemyAreaArts.js';
@@ -241,7 +242,14 @@ export function generateBattleLayout(params, deps) {
     thronePos,
     adjustedLevelRange,
     classes,
-    { enemyPoisonChance, statusStaffConfig, siegeWeaponConfig, difficultyId: params.difficultyId },
+    {
+      enemyPoisonChance,
+      statusStaffConfig,
+      siegeWeaponConfig,
+      difficultyId: params.difficultyId,
+      // Elite captains already scale with the act's (rung-adjusted) level range.
+      bossLevelBonus: params.isElite === true && !isBoss ? 0 : params.bossLevelBonus,
+    },
   );
   // Per-battle staves and siege tomes (CasterGear.js, its own stream: no Math.random).
   assignCasterGear(enemySpawns, {
@@ -1955,6 +1963,9 @@ function generateEnemies(
       if (filtered.length > 0) candidates = filtered;
     }
     const bossDef = candidates[Math.floor(Math.random() * candidates.length)];
+    // The rung's boss level bonus (difficulty.json `bossLevelBonus`): boss levels are
+    // otherwise fixed by their definitions and ignore `enemyLevelBonus`.
+    const bossLevelBonus = Math.max(0, Math.trunc(Number(extraOptions.bossLevelBonus) || 0));
 
     // Entity boss: place at entitySpawn coords if template provides them
     const entityFootprintInBounds =
@@ -1988,7 +1999,7 @@ function generateEnemies(
       }
       spawns.push({
         className: bossDef.className,
-        level: bossDef.level,
+        level: bossDef.level + bossLevelBonus,
         col: ec,
         row: er,
         isBoss: true,
@@ -2014,7 +2025,7 @@ function generateEnemies(
         usedPositions.add(`${bossPos.col},${bossPos.row}`);
         spawns.push({
           className: bossDef.className,
-          level: bossDef.level,
+          level: bossDef.level + bossLevelBonus,
           col: bossPos.col,
           row: bossPos.row,
           isBoss: true,
@@ -2107,6 +2118,10 @@ function generateEnemies(
   const [minLvl, maxLvl] = levelRangeOverride || pool.levelRange;
   const allClasses = [...pool.base, ...pool.promoted];
   const usePromoted = pool.promoted.length > 0;
+  // Share of filler enemies drawn from the promoted pool (enemies.json `promotedShare`).
+  const promotedShare = Number.isFinite(Number(pool.promotedShare))
+    ? Math.max(0, Math.min(1, Number(pool.promotedShare)))
+    : DEFAULT_ENEMY_PROMOTED_SHARE;
 
   // Template composition weights for class selection
   const enemyWeights = template.enemyWeights || null;
@@ -2123,7 +2138,7 @@ function generateEnemies(
   for (let i = 0; i < remaining && candidateTiles.length > 0; i++) {
     // Pick class using template-weighted selection
     let className;
-    if (usePromoted && Math.random() < 0.3) {
+    if (usePromoted && Math.random() < promotedShare) {
       className = weightedClassPick(pool.promoted, enemyWeights, classes);
     } else if (pool.base.length > 0) {
       className = weightedClassPick(

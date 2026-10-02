@@ -111,6 +111,8 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   enemyClassEarliestAct: Object.freeze({}),
   enemyCountBonus: 0,
   enemyLevelBonus: 0,
+  // Act bosses' levels are fixed per boss (enemies.json); this raises them per rung.
+  bossLevelBonus: 0,
   enemyCountBase: 0,
   recruitEnemyCountBonus: 0,
   recruitAffixCount: 0,
@@ -181,6 +183,9 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   }
   if (mode.enemyLevelBonus > (defaults.enemyLevelBonus || 0)) {
     lines.push(`Enemy levels +${mode.enemyLevelBonus}`);
+  }
+  if (mode.bossLevelBonus > (defaults.bossLevelBonus || 0)) {
+    lines.push(`Boss levels +${mode.bossLevelBonus}`);
   }
   if (mode.enemyCountBase > (defaults.enemyCountBase || 0)) {
     lines.push(`Enemies scale as if you field at least ${mode.enemyCountBase} units`);
@@ -307,6 +312,13 @@ export function validateDifficultyConfig(config) {
         ))
     ) {
       errors.push(`modes.${difficultyId}.enemyClassEarliestAct must map classes to act ids`);
+    }
+
+    if (
+      mode.bossLevelBonus !== undefined &&
+      (!Number.isInteger(mode.bossLevelBonus) || mode.bossLevelBonus < 0)
+    ) {
+      errors.push(`modes.${difficultyId}.bossLevelBonus must be a non-negative integer`);
     }
 
     if (

@@ -69,7 +69,8 @@
         "Revenant"
       ],
       "sunderChance": 0.2,
-      "poisonChance": 0.12
+      "poisonChance": 0.12,
+      "promotedShare": 0.3
     },
     "act4": {
       "levelRange": [
@@ -111,7 +112,8 @@
         "Dragon Lord"
       ],
       "sunderChance": 0.25,
-      "poisonChance": 0.15
+      "poisonChance": 0.15,
+      "promotedShare": 0.6
     },
     "postAct": {
       "levelRange": [
@@ -146,7 +148,8 @@
         "Hunter"
       ],
       "sunderChance": 0.2,
-      "poisonChance": 0.12
+      "poisonChance": 0.12,
+      "promotedShare": 0.3
     },
     "finalBoss": {
       "levelRange": [
