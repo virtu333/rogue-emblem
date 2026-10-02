@@ -265,8 +265,12 @@ then hunts for the rest of the battle.
     Kira, Voss, Sera, Cael) need to walk from the nearest deploy tile to the throne,
     ignoring enemies, + 3 (an S is par − 3) + 1 (one turn to beat the boss on the
     throne before the seize). Par rises to the floor, but never above the map's First
-    Light par, so the order above survives it. Without it, the offsets left S out of
-    reach of a straight walk on most Act I maps (par 5 needs the seize by turn 2).
+    Light par, so the order above survives it. The floor assumes an MOV-4 Infantry lord
+    is in the army. An army whose only lord is Cavalry (Rowan alone: MOV 5, but forest,
+    sand and bog cost him more and mountains and swamps stop him) can need one turn
+    more to reach the throne on rare maps, so its S can be a turn out of reach there.
+    Without the floor, the offsets left S out of reach of a straight walk on most Act I
+    maps (par 5 needs the seize by turn 2).
   - Target: a push median of par−2.
 - **Cost.** One movement flood per sleeping holder per enemy phase (about 8 at most),
   the same cost as one Danger zone.
