@@ -29,6 +29,8 @@ import {
 } from './VillageSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
 import { buildRoutLadder } from './RoutLadder.js';
+import { assignHolders, holdShareFor } from './HoldActivation.js';
+import { seizeParFloor } from './SeizeParFloor.js';
 import { buildReinforcementTemplatePool } from './ReinforcementSpawns.js';
 import { reinforcementMoveTypes } from './ReinforcementScheduler.js';
 
@@ -443,6 +445,19 @@ export function generateBattleLayout(params, deps) {
     }
   }
 
+  // Dusk and harder: part of a seize or escape garrison holds its ground until its pack
+  // is disturbed (engine/HoldActivation.js); holds replace the seize guard roll. No RNG:
+  // holders are the enemies nearest the objective, so the map is drawn as before.
+  assignHolders({
+    spawns: enemySpawns,
+    objective,
+    share: holdShareFor(params.holdShare, objective),
+    thronePos,
+    escapeTiles,
+    playerSpawns,
+    mapLayout,
+  });
+
   // Dusk/Nightfall rout ladder (engine/RoutLadder.js, docs/specs/dusk-pressure.md): it
   // replaces the template's procedural waves and stacks on scripted ones (the village's
   // bandits). Written into the config here, so a locked map keeps its ladder.
@@ -502,6 +517,16 @@ export function generateBattleLayout(params, deps) {
     ...(Number.isFinite(params.parInflation)
       ? { parInflation: Math.max(0, Math.trunc(params.parInflation)) }
       : {}),
+    // The rung's par offset for this objective (seize), locked with the map, and the
+    // floor that keeps an S reachable under it (SeizeParFloor.js).
+    ...parOffsetConfig(params, objective, {
+      mapLayout,
+      cols,
+      rows,
+      terrainData: terrain,
+      playerSpawns,
+      thronePos,
+    }),
     toxicTiles,
     ...reinforcementConfig,
     ...hybridConfig,
@@ -3012,6 +3037,14 @@ const RECRUIT_TILE_EXCLUDED = new Set([
   'Throne',
   'Ballista',
 ]);
+
+/** `parOffset` (and on seize its `parFloor`) for a rung with an objective par offset. */
+function parOffsetConfig(params, objective, map) {
+  const offset = params.objectiveParOffset?.[objective];
+  if (!Number.isInteger(offset) || offset === 0) return {};
+  const floor = objective === 'seize' ? seizeParFloor(map) : null;
+  return { parOffset: offset, ...(Number.isInteger(floor) ? { parFloor: floor } : {}) };
+}
 
 function moveCostOf(terrainData, idx, moveType) {
   const t = terrainData[idx];

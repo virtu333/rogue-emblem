@@ -44,7 +44,7 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
   - `max_timeout_rate=0.00`
   - `min_win_rate=95.00`
   - `min_avg_nodes=25.00`
-  - `min_avg_gold=9000`, `max_avg_gold=52200`
+  - `min_avg_gold=9000`, `max_avg_gold=56800`
   - `min_avg_shop_spent=6770`, `max_avg_shop_spent=26000`
   - `max_avg_units_lost=0.00`
   - `max_avg_invalid_shop_entries=0.00`
@@ -113,6 +113,31 @@ The current strict-slice windows are anchored to intentional gameplay shifts:
     RescueAgent recruit routes in `sim/strategy.js`, not by this slice.
   - window per the procedure: `floor(0.00 * 0.85)` = 0.00. No other slice moved outside
     its window.
+
+- `ambush_hard_invincible` (`max_avg_gold` 52200 → 54400 → 56800): two raises recorded
+  only in their PR notes until now (`docs/playtest-triage-2026-09-28.md`, PRs #152 and
+  #161).
+  - 52200 → 54400: the difficulty ladder (Nightfall now runs on to the Entity);
+    first_bad_sha `6a3778b8`, parent_sha `3539f856`; `avg_gold` 50460 → 52607 (+1 act,
+    35 → 37 nodes, 29 → 30 battles). Same ~3.4% headroom.
+  - 54400 → 56800: Wounded (the Grievous affix joins the tier-1 pool Hard rolls from);
+    first_bad_sha `e6e7f191`, parent_sha `887c03c2`; `avg_gold` 53483 → 54901. Same
+    ~3.4% headroom.
+
+- `ambush_hard_invincible`, no threshold change (observation for the next breach): Dusk
+  pressure part 3 (hold-position garrisons and the seize par fix,
+  `docs/specs/dusk-pressure.md` §2b, §6) on branch `claude/dusk-pressure-pr3`
+  - main `2a5f12f3` → branch (seeds 301-312, hard, invincible): `avg_shop_spent`
+    8210 → 7175 (inside 6770), `avg_gold` 47265 → 48184, `avg_ambush_battles`
+    0.33 → 0.25. An intermediate commit (`2d95a4f9`) briefly read 6749.83 < 6770; the
+    review fixes brought it back above the floor, so the floor was not loosened.
+  - cause: per-seed divergence, not lower income. The scripted runs take different roads
+    once seize ratings and holders change, and shop spending moves both ways per seed
+    (at `f49275a2`: 303 −13003, 304 −7744, 307 −3587; 306 +2908, 311 +2898).
+  - **ambush coverage margin:** 3 of 12 runs see an ambush (0.25) against the
+    `min_avg_ambush_battles=0.20` floor, which needs 3. One run fewer fails the slice.
+    If it breaches next, first check the per-seed roads before touching ambush
+    generation.
 
 Do not attribute these shifts to later UI/refactor commits without first-bad verification.
 

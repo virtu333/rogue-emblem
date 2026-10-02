@@ -2,6 +2,7 @@ import { canEquip } from './UnitManager.js';
 import { resolveHeal, spendStaffUse, getStaffRemainingUses } from './Combat.js';
 import { setUnitHP } from './UnitHealth.js';
 import { clearAllConditions } from './StatusConditionSystem.js';
+import { markHoldDisturbed } from './HoldDisturbance.js';
 import { applyLegendaryStaffHeal } from './TraitSystem.js';
 
 export function validateStaffAction({ staff, healer, targets, usable, destinations, dest }) {
@@ -60,6 +61,7 @@ export function settleStaffRelocation({ staff, ally, dest }) {
   const from = { col: ally.col, row: ally.row };
   ally.col = dest.col;
   ally.row = dest.row;
+  markHoldDisturbed(ally, 'moved');
   spendStaffUse(staff);
   return { kind: 'relocate', moves: [{ unit: ally, from, to: { ...dest } }], usesSpent: 1 };
 }

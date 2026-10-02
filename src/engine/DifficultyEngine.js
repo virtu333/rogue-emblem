@@ -145,6 +145,10 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   routLadder: null,
   parInflation: null,
   templateWavesRaisePar: true,
+  // Hold-position garrisons ({ seize, escape } shares, null: none) and a par offset per
+  // objective that a new map locks in ({ seize: -2 }, null: none).
+  holdShare: null,
+  objectiveParOffset: null,
 });
 
 const recruitAffixExclusions = (config, id) =>
@@ -227,6 +231,16 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   }
   if (mode.routLadder?.acts && Object.keys(mode.routLadder.acts).length > 0) {
     lines.push('Rout maps: reinforcement waves every 2 turns');
+  }
+  if (mode.holdShare && Object.values(mode.holdShare).some((n) => n > 0)) {
+    lines.push('Part of each seize and escape garrison holds its ground until disturbed');
+  }
+  const seizeOffset = mode.objectiveParOffset?.seize;
+  if (Number.isInteger(seizeOffset) && seizeOffset < 0) {
+    const n = -seizeOffset;
+    lines.push(
+      `Seize maps: par ${n} turn${n === 1 ? '' : 's'} tighter, never below a walk to the throne`,
+    );
   }
   if (mode.templateWavesRaisePar === false) {
     lines.push(
@@ -353,6 +367,23 @@ function validateBattlePacing(mode, path) {
     errors.push(`${path}.parInflation must be null or a non-negative integer`);
   if (mode.templateWavesRaisePar !== undefined && typeof mode.templateWavesRaisePar !== 'boolean')
     errors.push(`${path}.templateWavesRaisePar must be boolean`);
+  for (const key of ['holdShare', 'objectiveParOffset']) {
+    const value = mode[key];
+    if (value === undefined || value === null) continue;
+    if (!isObject(value)) {
+      errors.push(`${path}.${key} must be null or an object keyed by objective`);
+      continue;
+    }
+    for (const [objective, n] of Object.entries(value)) {
+      if (!['seize', 'escape'].includes(objective))
+        errors.push(`${path}.${key}.${objective} is not a seize/escape objective`);
+      const ok = key === 'holdShare' ? isFiniteNumber(n) && n >= 0 && n <= 1 : Number.isInteger(n);
+      if (!ok)
+        errors.push(
+          `${path}.${key}.${objective} must be ${key === 'holdShare' ? 'a share between 0 and 1' : 'an integer'}`,
+        );
+    }
+  }
   const ladder = mode.routLadder;
   if (ladder === undefined || ladder === null) return errors;
   if (!isObject(ladder) || !isObject(ladder.acts)) {

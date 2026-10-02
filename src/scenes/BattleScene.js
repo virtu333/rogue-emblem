@@ -297,6 +297,7 @@ import {
   stampReinforcementMeta,
 } from '../engine/ReinforcementSpawns.js';
 import { routLadderObjectiveLine, routLadderStatus } from '../engine/RoutLadder.js';
+import { applyHoldSpawn } from '../engine/HoldActivation.js';
 import {
   transitionToScene,
   transitionToSceneWithBlockedRetry,
@@ -1728,6 +1729,8 @@ export class BattleScene extends Phaser.Scene {
           terrainData: this.gameData.terrain,
           parBonus: this.battleConfig.parBonus || 0,
           parInflation: this.battleConfig.parInflation,
+          parOffset: this.battleConfig.parOffset,
+          parFloor: this.battleConfig.parFloor,
         };
         this.turnPar = calculatePar(
           mapParams,
@@ -1790,6 +1793,8 @@ export class BattleScene extends Phaser.Scene {
         objective: bc.objective,
         thronePos: bc.thronePos,
       });
+      // Holders wake on the Danger overlay's tiles: the board as the player knows it.
+      this.aiController.setHoldContext?.(() => this.threatContext());
 
       // Cursor highlight
       this.cursorHighlight = this.add
@@ -2602,6 +2607,8 @@ export class BattleScene extends Phaser.Scene {
 
     if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
+    // A garrison holder keeps its post until its pack wakes (HoldActivation).
+    applyHoldSpawn(enemy, spawn);
     if (
       spawn.aiTargetTile &&
       Number.isFinite(spawn.aiTargetTile.col) &&
@@ -2967,6 +2974,7 @@ export class BattleScene extends Phaser.Scene {
     });
     this.antiTurtleState = step.state;
     this.aiController?.setAggressiveMode?.(step.aggressiveMode);
+    this.aiController?.setBossEnraged?.(step.turnEnrageActive);
     if (step.becameEnraged) this._playBossEnrageFx();
     this._bossPresence?.sync();
   }
@@ -9674,7 +9682,8 @@ export class BattleScene extends Phaser.Scene {
       if (!isCurrent()) return;
       if (!unit || unit.currentHP <= 0 || !isAcidPoisoned(unit)) continue;
       const tickDamage = computeAcidDamage(unit.stats?.HP);
-      const appliedDamage = damageUnit(unit, tickDamage, { floor: 1 });
+      // The ground's own damage: it never disturbs a holder (HoldDisturbance).
+      const appliedDamage = damageUnit(unit, tickDamage, { floor: 1, disturbs: false });
       if (appliedDamage <= 0) continue;
       this.updateHPBar(unit);
       if (this._showsTurnEffectOn(unit)) await this.showAcidDamage(unit, appliedDamage);
@@ -9961,7 +9970,7 @@ export class BattleScene extends Phaser.Scene {
         if (!lavaBurnsUnit(unit)) continue; // Fliers pass over the crack unburned
         const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP, LAVA_CRACK_DAMAGE);
         if (appliedDamage <= 0) continue;
-        setUnitHP(unit, nextHP);
+        setUnitHP(unit, nextHP, { disturbs: false }); // terrain never disturbs a holder
         this.updateHPBar(unit);
         const shown = this._showsTurnEffectOn(unit);
         if (shown) {
@@ -9990,7 +9999,7 @@ export class BattleScene extends Phaser.Scene {
       if (unit.poisonImmune || unit.terrainHazardImmune) continue;
 
       const shown = this._showsTurnEffectOn(unit);
-      if (!applyCondition(unit, 'acid')) {
+      if (!applyCondition(unit, 'acid', undefined, { disturbs: false })) {
         // statusImmunity accessory — surface the block like the staff/art paths
         const pos = this.grid.gridToPixel(unit.col, unit.row);
         if (shown) this.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);
@@ -10240,6 +10249,19 @@ export class BattleScene extends Phaser.Scene {
           this.npcUnits,
           {
             isCurrent: () => !phaseSuperseded() && !this.visionDialog,
+            // The hold wake check runs once per turn, so a resumed phase skips it.
+            turnNumber: this.turnManager.turnNumber,
+            // A garrison pack the player can see leaves its post (HoldActivation).
+            onHoldersWoke: (woken) => {
+              if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
+              if (!woken.some(({ unit }) => canInspectUnit(this.grid, unit)))
+                return Promise.resolve();
+              return safeBattlePresentation(
+                'holders woke',
+                () => this.showBriefBanner('The garrison stirs!', UI_PALETTE.warn),
+                { scene: this },
+              );
+            },
             onMoveUnit: (enemy, path) => {
               if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
               return this.animateEnemyMove(enemy, path);
@@ -10917,6 +10939,8 @@ export class BattleScene extends Phaser.Scene {
       enemyUnits: this.enemyUnits || [],
       ballistas: this.ballistas || [],
       positions: () => this.buildUnitPositionMap(),
+      // Who the player knows of (the hold wake rule's targets): PlayerKnowledge.
+      isKnown: (unit) => playerKnowledgeOf(this).isKnown(unit),
       costModifier: (unit) => this._getCostModifier(unit),
       areaArtOf: (unit) =>
         (this._weaponArtController ||= new WeaponArtController(this)).enemyAreaArt(unit),

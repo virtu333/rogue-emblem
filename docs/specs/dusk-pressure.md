@@ -6,6 +6,8 @@ decisions of 2026-10-01 (listed at the end). Branch `claude/dusk-pressure-spec`.
 - PR 1, which has no tuning, is on branch `claude/dusk-pressure-pr1`.
 - PR 2 (the Dusk and Nightfall ladders) is on `claude/dusk-pressure-pr2`; §5 has its
   notes and measured results.
+- PR 3 (holds and the seize par fix) is on `claude/dusk-pressure-pr3`; §6 has its notes
+  and measured results.
 - First Light does not change. Boss enrage stat gains are held.
 
 ## 1. Problem
@@ -215,17 +217,60 @@ then hunts for the rest of the battle.
      everything the player can see. A fogged holder never wakes this way: it wakes once
      it is revealed with a player unit still in its zone, or by rule 2 or 3. Danger drops
      fogged sources (`ThreatForecast.js:151`), so this keeps the rule honest.
-  2. is below full HP or carries a status (it was struck, shoved or hexed).
+  2. was struck, hexed or shoved, or a packmate is gone. The mark (`holdDisturbed`,
+     `engine/HoldDisturbance.js`) is written the moment it happens, by the hooks every
+     path shares: `UnitHealth` for combat, area blows and terrain damage (a strike that a
+     drain tops back up still counts), `applyCondition` for staves, arts and acid,
+     `settleMoves` / the post-combat move / Teleporter / relocation for moves. It is
+     never inferred from HP or conditions at phase start, where a fort, Renewal,
+     Regenerator or status recovery could already have erased the evidence (a Canto
+     poke would then go unanswered). Standing off its post is a backstop for any move
+     without a hook. A packmate gone: each holder stores its pack's size at spawn
+     (`holdPackSize`), so a member killed from outside every zone (a Canto rider, a
+     Breachbolt, a ballista) wakes the rest: a pack can't be picked off one at a time.
   3. turn-pressure boss enrage has started.
+- **Breachbolt carriers never hold.** A siege-tome holder's Danger zone covers most of
+  the map, so once seen it would wake its pack on turn 1 and drag its packmates out
+  with it: the hold would be a promise the overlay breaks. Leaving it out of the
+  candidates is one filter and keeps every pack's red zone honest, so it keeps its
+  normal orders (Breachbolt ladder, §2c) until an Artillery AI gives siege units their
+  own behaviour. Writing it up as a known interaction instead would leave Nightfall and
+  Black Sun packs (where Breachbolts are common) waking on sight.
+- **No posts on hazards.** A unit on Lava Crack or acid ground (Acidic Swamp/Bog) never
+  holds: the ground hurts it every turn, and Eruption Point (Act IV seize) would
+  otherwise wake its packs on turn 2 with no player action. As defence in depth, the
+  ground's own damage and acid (`disturbs: false` on the terrain pass and acid ticks)
+  never mark a holder disturbed; a strike, a hex or a shove still does.
 - **Anti-turtle `aggressiveMode` does not wake holders.** If it did, a turtle would only
   have to wait 3 phases.
 - **Shares.** Seize: Dusk 35%, Nightfall 45%, Black Sun 55% of the non-boss enemies,
-  nearest the throne first; this replaces the guard roll on Dusk+. Escape: 30/40/50% of
+  nearest the throne first; this replaces the guard roll on Dusk+ wherever a pack forms
+  (a map with no pack keeps its guards). Escape: 30/40/50% of
   the enemies in the exit half. First Light keeps its guards. Rout: 0% for now (owner).
 - **Seize par fix ships in the same PR.** With seize par loose (93% or more of seize
   battles are S on every rung up to Nightfall), pulling holders off a pack would be free.
-  - Tune `objectiveAdjustments.seize` per rung with a seize/escape-aware agent; the
-    current fallback agent cannot measure holds.
+  - Tuned per rung as `objectiveParOffset.seize` in `difficulty.json` (Dusk −3,
+    Nightfall −4, Black Sun −4; First Light none), locked into the battle config as
+    `parOffset`, measured with a seize-aware agent (§6).
+  - **Rung order.** Seize par is floor(mult × raw) + inflation + offset, with mult .92 /
+    .85 / .8 and inflation 2 / 3 / 3 on Dusk / Nightfall / Black Sun. floor(.92r) ≥
+    floor(.85r) ≥ floor(.8r) for every raw par r, and the floors are equal on small maps,
+    so the order First Light ≥ Dusk ≥ Nightfall ≥ Black Sun holds on every map exactly
+    when Dusk's offset is at least Nightfall's + 1 (Dusk inflates 1 less) and
+    Nightfall's at least Black Sun's. −3 / −4 / −4 keeps Nightfall's PR 3 offset,
+    loosens Dusk by one turn and tightens Black Sun by two: every rung then has par
+    floor(mult × raw) − 1. A harder rung's boss never enrages later (min(12, par + 2)).
+  - **Floor.** On a rung with a seize offset the map also locks `parFloor`
+    (`engine/SeizeParFloor.js`): the turns the slowest lords (Infantry, MOV 4: Edric,
+    Kira, Voss, Sera, Cael) need to walk from the nearest deploy tile to the throne,
+    ignoring enemies, + 3 (an S is par − 3) + 1 (one turn to beat the boss on the
+    throne before the seize). Par rises to the floor, but never above the map's First
+    Light par, so the order above survives it. The floor assumes an MOV-4 Infantry lord
+    is in the army. An army whose only lord is Cavalry (Rowan alone: MOV 5, but forest,
+    sand and bog cost him more and mountains and swamps stop him) can need one turn
+    more to reach the throne on rare maps, so its S can be a turn out of reach there.
+    Without the floor, the offsets left S out of reach of a straight walk on most Act I
+    maps (par 5 needs the seize by turn 2).
   - Target: a push median of par−2.
 - **Cost.** One movement flood per sleeping holder per enemy phase (about 8 at most),
   the same cost as one Danger zone.
@@ -410,4 +455,94 @@ Targets (§3) on the shipped numbers:
 
 All rows come from the code after the review fixes: one edge per wave, and the harness
 fielding the caravan.
+
+## 6. PR 3 as shipped (`claude/dusk-pressure-pr3`)
+
+- **Holders.**
+  - `engine/HoldActivation.js` picks the holders when the map is generated
+    (`difficulty.json` `holdShare`, seize and escape). They are the non-boss enemies
+    nearest the throne, or the exits' centre within the exit half; heal-role units are
+    left out. That takes round(share × the count) of them in packs. A candidate joins
+    when it stands within 3 of a chosen holder, or together with its nearest free
+    partner within 3, which can add one past the count. A candidate with no partner is
+    skipped, so nobody holds alone.
+  - Holds replace the seize guard roll on Dusk and harder, on maps where a pack forms.
+    A map with no pack (a Dusk Act I garrison of four is too small for one) keeps the
+    guards it rolled, so it is never softer than First Light. The guard draws still
+    happen, so the generated map is the same as before. Only `aiMode` and `holdPack`
+    change.
+- **Locked with the map.**
+  - Holders (`aiMode: 'hold'`, `holdPack`) and the seize `parOffset` are in the battle
+    config.
+  - A unit stores `holdPost`, and its snapshot keeps it.
+  - The wake check runs once per enemy phase: the holders still holding record the turn
+    (`holdCheckedTurn`), so a phase resumed from a mid-phase checkpoint does not check
+    again. Enemies that already moved could otherwise open new stop tiles and break the
+    exact restore. A resume and a Vision rewind restore the boss enrage
+    (`setBossEnraged`) along with the anti-turtle state.
+  - A run saved before PR 3 holds nothing and keeps its par.
+- **Waking.** `AIController.processEnemyPhase` wakes packs first, for the scene and the
+  harness alike. Each passes a threat context built from the board as the player knows
+  it (BattleScene `threatContext()`, harness `_playerThreatContext()`, both
+  PlayerKnowledge). Each also passes the turn-pressure enrage (`setBossEnraged`).
+  - The wake targets are the player's units and the NPCs the player knows of
+    (`isKnown` in both contexts). Recruit NPCs show through fog (`canInspectUnit`), so
+    they count wherever they stand; a fogged Merchant Caravan does not. The harness
+    reveals exactly what `battleKnowledge.js` reveals (the beacon's NPC).
+  - A visible pack that wakes shows "The garrison stirs!".
+  - Danger is unchanged: it already draws a holder's full reach, which is its wake zone.
+  - Reinforcements never copy a hold.
+- **Harness agent.** `TacticianAgent` with `objectives` plays seize maps against the
+  boss and walks round walls by path cost. Once the boss falls it keeps non-lords off the
+  throne: ScriptedAgent let one park there, which caused most of the force-won seize
+  stalls. Push walks straight at the boss. Turtle edges forward until something can reach
+  it, then holds and punishes, which pulls holders out. Escape still falls back to
+  ScriptedAgent, so escape holds are measured only by that charging policy.
+- **Results** (`sim/pacing.js`, calibrated profile `--edge
+  act1:2,act2:6,act3:10,act4:12,finalBoss:12`, 48 paired seeds), after the review fixes
+  (offsets −3 / −4 / −4 with the floor). Seize battles only, turns − par median; "base"
+  has no holds and no offset:
+
+| Rung | Push base | Push shipped | Turtle base | Turtle shipped | Run shadow turtle / push (base → shipped) |
+|---|---|---|---|---|---|
+| First Light | −7 | −7 | −5 | −5 | 0.5 / 0.0 (unchanged) |
+| Dusk | −6 | **−3** | −4 | −1 | 40.8 / 12.3 → 50.1 / 12.0 |
+| Nightfall | −6 | **−3** | −4 | −1 | 70.3 / 34.8 → 78.4 / 41.5 |
+| Black Sun | −4 | **−1** | −1 | +2 | 84.5 / 59.8 → 88.0 / 68.4 |
+
+  Push S / A share of seize battles, Act I apart (its maps are the smallest, so the
+  floor binds most there):
+
+| Rung | Seize par, Act I / Act II+ | Push Act I S / A | Push Act II+ S / A | Push S+A, all |
+|---|---|---|---|---|
+| First Light | 10–12 / 11–15 | 100 / 0 | 100 / 0 | 100% |
+| Dusk | 6–8 / 7–11 | 27 / 70 | 73 / 27 | 99% |
+| Nightfall | 6–8 / 6–12 | 7 / 73 | 76 / 21 | 93% |
+| Black Sun | 6–8 / 7–12 | 0 / 28 | 33 / 41 | 65% |
+
+  - Map by map (60 seeds per act, deployCount 6): the floor lifts 34 of 120 Act I and
+    59 of 360 Act II–IV Dusk maps, 120 and 238 on Nightfall, 120 and 232 on Black Sun.
+    No map is left without an S for a lord walking straight in (the PR 3 offsets left
+    it out of reach on every Act I map by that bar). Black Sun's seize par went from
+    7–10 to 6–10, under Dusk's on every map.
+  - The floor is what sets most Nightfall and Black Sun seize pars, so the push median
+    lands at par − 3 on Dusk and Nightfall, a turn looser than the PR 3 target of par − 2;
+    tightening the offsets further would not move a floored map. Black Sun, where the
+    floor binds least, is the tightest at par − 1.
+  - Holds alone barely move a push: it goes for the boss and wakes what it walks into.
+    They cost the turtle about half a turn per seize map.
+  - Most seize battles in a run are boss maps (192 of 286 on Dusk), so the offset applies
+    to every act boss.
+  - Boss enrage arrives earlier with the lower par, at min(12, par + 2), and never later
+    on a harder rung. That is intended: enrage also wakes every holder.
+
+**Strict slices: no threshold change.** PR 3 as first written dropped
+`ambush_hard_invincible` to `avg_shop_spent=6749.83 < 6770` (first_bad_sha 2d95a4f9,
+parent 68e0b968). After the review fixes and the harness's lava and acid parity it
+measures 7175, above the 6770 floor, so the floor stays and the PR needs no threshold
+note. Against main (2a5f12f3): shop spent 8210 → 7175, gold 47265 → 48184,
+`avg_ambush_battles` 0.33 → 0.25 (3 of 12 runs against a 0.20 floor that needs 3: one
+run of margin, recorded in `docs/harness-thresholds.md`). Per seed the shop spending
+moves both ways (the invincible agent's roads diverge once seize ratings and holders
+change); at f49275a2 seed 303 alone was 1084 of a 1464 average drop.
 

@@ -77,7 +77,8 @@ export function buildReinforcementTemplatePool({ battleConfig, battleParams, gam
       level,
       sunderWeapon: Boolean(spawn.sunderWeapon),
       poisonWeapon: Boolean(spawn.poisonWeapon),
-      aiMode: spawn.aiMode || null,
+      // An arrival hunts: it never copies a garrison's hold (HoldActivation).
+      aiMode: spawn.aiMode && spawn.aiMode !== 'hold' ? spawn.aiMode : null,
       affixes: Array.isArray(spawn.affixes) ? [...spawn.affixes] : [],
     });
   }

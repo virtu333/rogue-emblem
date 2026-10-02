@@ -3,6 +3,7 @@
 
 import { gridDistance, thornsReflectDamage } from './Combat.js';
 import { applyCondition } from './StatusConditionSystem.js';
+import { markHoldDisturbed } from './HoldDisturbance.js';
 export { affixForecastNotes } from './AffixForecast.js';
 
 function getAffix(affixId, affixData) {
@@ -294,6 +295,7 @@ export function settleTeleporterWarp({
   const from = { col: unit.col, row: unit.row };
   unit.col = pick.col;
   unit.row = pick.row;
+  markHoldDisturbed(unit, 'moved');
   return { unit, from, to: { col: pick.col, row: pick.row } };
 }
 

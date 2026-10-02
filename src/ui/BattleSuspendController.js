@@ -355,6 +355,7 @@ export class BattleSuspendController {
     scene.pendingVisionSnapshot = checkpoint.pendingVisionSnapshot || null;
     scene.antiTurtleState = structuredClone(checkpoint.antiTurtleState || {});
     scene.aiController?.setAggressiveMode?.(Boolean(scene.antiTurtleState.aggressiveMode));
+    scene.aiController?.setBossEnraged?.(Boolean(scene.antiTurtleState.turnEnrageActive));
 
     if (scene.grid.fogEnabled && checkpoint.fog) {
       scene.grid.visibleSet = new Set(checkpoint.fog.visible || []);

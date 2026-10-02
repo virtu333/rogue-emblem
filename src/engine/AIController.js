@@ -34,6 +34,7 @@ import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
 import { isAcidTerrainIndex } from './TerrainHazards.js';
 import { createScopedLogger } from '../utils/logger.js';
 import { setUnitHP } from './UnitHealth.js';
+import { HOLD_AI_MODE, wakeHolders } from './HoldActivation.js';
 
 const DEBUG_AI = false;
 const aiLog = createScopedLogger('AI', { debug: DEBUG_AI });
@@ -57,20 +58,51 @@ export class AIController {
     this.objective = options.objective || 'rout';
     this.thronePos = options.thronePos || null;
     this.aggressiveMode = false;
+    this.bossEnraged = false;
+    this.holdContext = null;
   }
 
   setAggressiveMode(enabled) {
     this.aggressiveMode = Boolean(enabled);
   }
 
+  /** Turn-pressure boss enrage (TurnPressure): it wakes every holder. */
+  setBossEnraged(enabled) {
+    this.bossEnraged = Boolean(enabled);
+  }
+
+  /**
+   * Where the hold wake rules read the board as the player knows it: a function
+   * returning the Danger overlay's threat context (ThreatForecast `ctx`, PlayerKnowledge
+   * positions). Without one, holders wake only when disturbed or on enrage.
+   */
+  setHoldContext(provider) {
+    this.holdContext = typeof provider === 'function' ? provider : null;
+  }
+
   /**
    * Process all enemy units one at a time.
    * @param {Array} enemyUnits
    * @param {Array} playerUnits
-   * @param {Object} callbacks - { onMoveUnit(enemy, path), onAttack(enemy, target), onUnitDone(enemy), onDecision(enemy, decision) }
+   * @param {Object} callbacks - { onMoveUnit(enemy, path), onAttack(enemy, target), onUnitDone(enemy), onDecision(enemy, decision) },
+   *   plus `turnNumber`, the turn whose enemy phase this is (the hold wake check runs once per turn)
    * @returns {Promise<void>}
    */
   async processEnemyPhase(enemyUnits, playerUnits, npcUnits, callbacks) {
+    // Holders whose pack meets a wake rule hunt from this phase on (HoldActivation).
+    // Anti-turtle aggression is not one of the rules.
+    const woken = wakeHolders({
+      enemyUnits,
+      playerUnits,
+      npcUnits,
+      threatContext: this.holdContext?.() || null,
+      bossEnraged: this.bossEnraged,
+      // Once per turn: a phase resumed from a checkpoint skips it (HoldActivation).
+      turn: callbacks.turnNumber ?? null,
+    });
+    if (woken.length) await callbacks.onHoldersWoke?.(woken);
+    if (callbacks.isCurrent?.() === false) return;
+
     // Copy array since units might die during processing
     const enemies = [...enemyUnits];
 
@@ -223,6 +255,10 @@ export class AIController {
     this._equipUsableWeapon(enemy);
     const forceLowestHpTargeting = this._hasAiOverride(enemy, 'target_lowest_hp');
     let returnToPost = false;
+    // A holder stands its post until its pack wakes (HoldActivation), whatever the
+    // anti-turtle clock says.
+    if (enemy.aiMode === HOLD_AI_MODE)
+      return this._finalizeDecision(enemy, { path: null, target: null, reason: 'hold' });
     if (enemy.aiMode === 'guard') {
       enemy.guardPost ||= { col: enemy.col, row: enemy.row };
       const nearestDist = Math.min(

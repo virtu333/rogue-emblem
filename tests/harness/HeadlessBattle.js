@@ -32,6 +32,7 @@ import {
 import {
   armyAndNpcAllies,
   isRecruitNpc,
+  findRecruitNpc,
   staffAllyCandidates,
 } from '../../src/engine/RecruitNpc.js';
 import { canInspectUnit } from '../../src/engine/BattleInformation.js';
@@ -69,6 +70,7 @@ import {
   checkPhoenixBrooch,
   resolveGamblerDelta,
   applyAccessoryPhaseCombatMods,
+  getTerrainCostReduction,
 } from '../../src/engine/SkillSystem.js';
 import {
   getAttackAffixes,
@@ -84,10 +86,16 @@ import {
   recordWeaponArtUse,
 } from '../../src/engine/WeaponArtSystem.js';
 import {
+  applyCondition,
+  isAcidPoisoned,
+  isSleeping,
   processConditionRecovery,
+  removeCondition,
   resolveStatusStaff,
 } from '../../src/engine/StatusConditionSystem.js';
 import { applyEnemySpawnGear } from '../../src/engine/EnemySpawnGear.js';
+import { applyHoldSpawn } from '../../src/engine/HoldActivation.js';
+import { createPlayerKnowledge } from '../../src/engine/PlayerKnowledge.js';
 import {
   spendAreaStrikeShot,
   spendCombatShots,
@@ -117,7 +125,9 @@ import {
   VILLAGE_STATUS,
 } from '../../src/engine/VillageSystem.js';
 import {
+  computeAcidDamage,
   computeLavaCrackHp,
+  isAcidTerrainIndex,
   isLavaCrackTerrainIndex,
   lavaBurnsUnit,
 } from '../../src/engine/TerrainHazards.js';
@@ -132,7 +142,7 @@ import {
   XP_BASE_HEAL,
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
-import { applyCombatHP } from '../../src/engine/UnitHealth.js';
+import { applyCombatHP, damageUnit, setUnitHP } from '../../src/engine/UnitHealth.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
 import {
   areaStrikeEffects,
@@ -371,6 +381,8 @@ export class HeadlessBattle {
             terrainData: this.gameData.terrain,
             parBonus: bc.parBonus || 0,
             parInflation: bc.parInflation,
+            parOffset: bc.parOffset,
+            parFloor: bc.parFloor,
           },
           this.gameData.turnBonus,
           this.battleParams?.difficultyId,
@@ -394,6 +406,8 @@ export class HeadlessBattle {
       objective: bc.objective,
       thronePos: bc.thronePos,
     });
+    // As BattleScene: holders wake on the Danger tiles of the board the player knows.
+    this.aiController.setHoldContext(() => this._playerThreatContext());
     // Override delay for synchronous execution
     this.aiController._delay = () => Promise.resolve();
 
@@ -875,6 +889,8 @@ export class HeadlessBattle {
 
     if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
+    // A garrison holder keeps its post until its pack wakes (HoldActivation).
+    applyHoldSpawn(enemy, spawn);
     if (
       spawn.aiTargetTile &&
       Number.isFinite(spawn.aiTargetTile.col) &&
@@ -1050,6 +1066,28 @@ export class HeadlessBattle {
     });
     this.antiTurtleState = step.state;
     this.aiController?.setAggressiveMode?.(step.aggressiveMode);
+    this.aiController?.setBossEnraged?.(step.turnEnrageActive);
+  }
+
+  /**
+   * BattleScene.threatContext: the Danger overlay's view, positions from what the player
+   * knows (PlayerKnowledge: own units, what the fog shows, the recruit's beacon).
+   */
+  _playerThreatContext() {
+    const knowledge = createPlayerKnowledge({
+      grid: this.grid,
+      units: [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits],
+      // As battleKnowledge.js: only the recruit beacon's NPC shows through the fog.
+      revealed: [findRecruitNpc(this.npcUnits)],
+    });
+    return {
+      grid: this.grid,
+      enemyUnits: this.enemyUnits,
+      ballistas: this.ballistas || [],
+      positions: () => knowledge.positions(),
+      isKnown: knowledge.isKnown,
+      costModifier: (unit) => getTerrainCostReduction(unit, this.gameData?.skills),
+    };
   }
 
   _onVictory() {
@@ -1095,6 +1133,12 @@ export class HeadlessBattle {
 
   _processTurnStartEffects(units) {
     if (!Array.isArray(units)) return;
+    // 0b. Acid ticks, as BattleScene._processAcidTicks: non-lethal, and the ground's own
+    // damage never disturbs a holder.
+    for (const unit of units) {
+      if (!unit || unit.currentHP <= 0 || !isAcidPoisoned(unit)) continue;
+      damageUnit(unit, computeAcidDamage(unit.stats?.HP), { floor: 1, disturbs: false });
+    }
     // 1. Skills
     const skillEffects = getTurnStartEffects(units, this.gameData.skills);
     for (const effect of skillEffects) {
@@ -1118,15 +1162,25 @@ export class HeadlessBattle {
     }
   }
 
+  /** As BattleScene.processTerrainDamage: lava burns (and wakes a sleeper), acid corrodes. */
   _processTerrainDamage(units) {
     for (const unit of [...(units || [])]) {
-      if (!unit || unit.currentHP <= 0) continue;
+      if (!unit || unit._removing || unit.currentHP <= 0) continue;
+      if (isEntity(unit)) continue; // the Entity is immune to terrain hazards
       const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
-      if (!isLavaCrackTerrainIndex(terrainIdx) || !lavaBurnsUnit(unit)) continue;
-      const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP);
-      if (appliedDamage <= 0) continue;
-      unit.currentHP = nextHP;
-      this._checkPhoenixBrooch(unit);
+      if (isLavaCrackTerrainIndex(terrainIdx)) {
+        if (!lavaBurnsUnit(unit)) continue;
+        const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP);
+        if (appliedDamage <= 0) continue;
+        // Through UnitHealth, as the scene: the ground never disturbs a holder.
+        setUnitHP(unit, nextHP, { disturbs: false });
+        if (isSleeping(unit)) removeCondition(unit, 'sleep');
+        this._checkPhoenixBrooch(unit);
+        continue;
+      }
+      if (!isAcidTerrainIndex(terrainIdx)) continue;
+      if (unit.moveType === 'Flying' || unit.poisonImmune || unit.terrainHazardImmune) continue;
+      applyCondition(unit, 'acid', undefined, { disturbs: false });
     }
   }
 
@@ -2061,6 +2115,7 @@ export class HeadlessBattle {
           this.playerUnits,
           this.npcUnits,
           {
+            turnNumber: this.turnManager?.turnNumber ?? null, // as BattleScene
             onMoveUnit: (enemy, path) => {
               if (path && path.length >= 2) {
                 const dest = path[path.length - 1];

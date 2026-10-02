@@ -31,6 +31,7 @@ import { planAreaBlows } from './AreaDamage.js';
 import { gridDistance } from './Combat.js';
 import { applyCondition } from './StatusConditionSystem.js';
 import { damageUnit, healUnit, setUnitHP } from './UnitHealth.js';
+import { markHoldDisturbed } from './HoldDisturbance.js';
 import { applyBattleDebuff } from './BattleStatDeltas.js';
 import { applyTimedBuffEntry, resolveTimedBuffExpiry } from './TimedWeaponArtBuffs.js';
 import {
@@ -259,8 +260,10 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result) {
   }
   const units = [];
   for (const assignment of moveResult.assignments) {
+    const moved = assignment.unit.col !== assignment.col || assignment.unit.row !== assignment.row;
     assignment.unit.col = assignment.col;
     assignment.unit.row = assignment.row;
+    if (moved) markHoldDisturbed(assignment.unit, 'moved');
     units.push(assignment.unit);
   }
   if (units.length > 0) yield { kind: 'moved', units };

@@ -14,13 +14,14 @@
 //   push     TacticianAgent that always advances (closes on the nearest foe every turn,
 //            still scoring attacks, counters and landing danger the same way).
 //   scripted the harness ScriptedAgent (charges one unit at a time; a slow, reckless player).
-// Both Tactician policies fall back to ScriptedAgent on seize and escape maps, so those
-// rows measure the map, not the style.
+// Both Tactician policies play seize maps against the boss (TacticianAgent `objectives`;
+// --seizeAgent 0 restores the ScriptedAgent fallback) and fall back to ScriptedAgent on
+// escape maps, so escape rows measure the map, not the style.
 //
 // Player units are protected (HP floors at 1, as in sim:strategy's protected runs) so
 // every run reaches the end; "KOs" counts the hits that would have killed a unit, the
-// price of the style. The harness does not mirror anti-turtle aggression or boss enrage
-// (BattleScene.updateAntiTurtlePressure), so guards on seize maps never release early.
+// price of the style. The harness runs the same anti-turtle clock, boss enrage and
+// hold wake rules as the battle (engine/TurnPressure.js, engine/HoldActivation.js).
 
 import { loadGameData } from '../tests/testData.js';
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
@@ -45,6 +46,9 @@ const opts = parseArgs({
   // par-neutral template waves come from difficulty.json; these override them for a run:
   legacy: 0, // 1 = the pacing before the ladder (no ladder, inflation 3, waves raise par)
   holdRout: 0, // prototype (sim-only): share of a rout map's non-boss enemies that hold
+  noHold: 0, // 1 = no seize/escape holders (difficulty.json holdShare off for the rung)
+  seizeOffset: '', // override difficulty.json objectiveParOffset.seize for the rung
+  seizeAgent: 1, // 0 = seize maps fall back to ScriptedAgent (the pre-PR 3 sims)
   parMult: '', // override turnBonus.difficultyParMultiplier[difficulty]
   inflation: '', // override difficulty.json parInflation for the rung
   out: '', // write every battle record as JSON lines (re-rate offline under other pars)
@@ -65,6 +69,9 @@ if (Number(opts.legacy)) {
   rung.templateWavesRaisePar = true;
 }
 if (opts.inflation !== '') rung.parInflation = Number(opts.inflation);
+if (Number(opts.noHold)) rung.holdShare = null;
+if (opts.seizeOffset !== '')
+  rung.objectiveParOffset = { ...(rung.objectiveParOffset || {}), seize: Number(opts.seizeOffset) };
 
 /** Calibration edge for an act: a number, or "act1:0,act2:2,act3:6,act4:8". */
 function edgeFor(act) {
@@ -153,8 +160,9 @@ class PushAgent extends TacticianAgent {
 
 function makeAgent(driver) {
   if (opts.policy === 'scripted') return new ScriptedAgent(driver);
-  if (opts.policy === 'push') return new PushAgent(driver, { rescue: true });
-  return new TacticianAgent(driver, { rescue: true });
+  const objectives = Number(opts.seizeAgent) !== 0;
+  if (opts.policy === 'push') return new PushAgent(driver, { rescue: true, objectives });
+  return new TacticianAgent(driver, { rescue: true, objectives });
 }
 
 class PacingDriver extends RunSimulationDriver {
@@ -219,6 +227,7 @@ class PacingDriver extends RunSimulationDriver {
         null,
       ),
       parBonus: battle.battleConfig.parBonus || 0,
+      parFloor: battle.battleConfig.parFloor ?? null,
       hasWaves: Boolean(
         battle.battleConfig?.reinforcements?.waves?.length ||
         battle.battleConfig?.reinforcements?.scriptedWaves?.length,
@@ -228,6 +237,7 @@ class PacingDriver extends RunSimulationDriver {
       reinfUnits: 0,
       kos: 0,
       guards: battle.enemyUnits.filter((e) => e.aiMode === 'guard').length,
+      holdersStart: battle.enemyUnits.filter((e) => e.aiMode === 'hold').length,
       edge,
     };
     record.ladder = Boolean(battle.battleConfig?.reinforcements?.ladder?.waves?.length);

@@ -9,6 +9,12 @@ import { GOLD_PAR_BONUS_MULTIPLIER } from '../utils/constants.js';
  *   mapLayout: 2D array of terrain indices, terrainData: array from terrain.json.
  *   parInflation: the rung's inflation the battle config locked in when its map was
  *   generated (difficulty.json `parInflation`); a map without one uses config.parInflation.
+ *   parOffset: the rung's offset for the objective (difficulty.json `objectiveParOffset`,
+ *   locked as the config's `parOffset`); par never drops below 1.
+ *   parFloor: the seize par floor locked with the offset (SeizeParFloor.js: the slowest
+ *   lord's walk to the throne + 4, so an S stays reachable). Par rises to it, but never
+ *   above the map's First Light par (raw par + turnBonus.parInflation + parBonus), so
+ *   the rungs stay in order: First Light ≥ Dusk ≥ Nightfall ≥ Black Sun.
  * @param {object} config - turnBonus.json data
  * @param {string|null} [difficultyId=null] - difficulty mode id for par scaling
  * @returns {number|null} integer par, or null if objective has no basePar entry
@@ -23,6 +29,8 @@ export function calculatePar(mapParams, config, difficultyId = null) {
     terrainData,
     parBonus = 0,
     parInflation = null,
+    parOffset = 0,
+    parFloor = null,
   } = mapParams;
 
   const basePar = config.objectiveBasePar[objective];
@@ -65,8 +73,13 @@ export function calculatePar(mapParams, config, difficultyId = null) {
     : config.parInflation || 0;
   const diffMult = config.difficultyParMultiplier?.[difficultyId] ?? 1;
   const templateParBonus = Number.isFinite(parBonus) ? Math.max(0, Math.trunc(parBonus)) : 0;
-  if (diffMult >= 1) return rawPar + inflation + templateParBonus;
-  return Math.max(1, Math.floor(rawPar * diffMult)) + inflation + templateParBonus;
+  // The rung's offset for the objective (seize), locked into the battle config.
+  const offset = Number.isFinite(parOffset) ? Math.trunc(parOffset) : 0;
+  const scaled = diffMult >= 1 ? rawPar : Math.max(1, Math.floor(rawPar * diffMult));
+  const par = Math.max(1, scaled + inflation + templateParBonus + offset);
+  if (!Number.isFinite(parFloor)) return par;
+  const firstLightPar = rawPar + (config.parInflation || 0) + templateParBonus;
+  return Math.max(par, Math.min(Math.trunc(parFloor), firstLightPar));
 }
 
 /**
