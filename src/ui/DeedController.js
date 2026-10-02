@@ -18,6 +18,7 @@ import {
   fallenBattleRecord,
   findFallenBattleRecord,
   normalizeFallenBattleRecords,
+  recordAreaStrike,
   recordCombat,
   recordEnemyPhaseEnd,
   recordHeal,
@@ -66,6 +67,16 @@ export class DeedController {
       });
     } catch (error) {
       warn('combat', error);
+    }
+  }
+
+  /** After a chosen-center area art's blast is applied (no combat result). */
+  onAreaStrike(caster, weapon, credits) {
+    if (!this.active()) return;
+    try {
+      recordAreaStrike(caster, weapon, credits);
+    } catch (error) {
+      warn('area strike', error);
     }
   }
 

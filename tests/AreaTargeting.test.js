@@ -5,9 +5,13 @@
 // an illegal tile acts; Back skips a level; the strike counters, misses, skips its cost,
 // its XP, a kill or its continuation; its intent is not saved first, a saved intent is
 // trusted when it should not be, or replays when no longer legal; a stale session acts.
+// Breachbolt's shots: a cast spends none, or one per victim; a replay spends it twice;
+// the last shot swaps the tome out before the blast's kills are credited to it; the
+// tome's strike and kill counters miss a blind cast or count a kill it did not make.
 //
 // Numbers worked by hand: Sage MAG 22 with Breachbolt (8 might) on RES 6 is 24, × 0.8 =
-// 19 a blow. Stormcall costs 8 HP. Breachbolt reaches 3-10 tiles.
+// 19 a blow. Stormcall costs 8 HP. Breachbolt reaches 3-10 tiles and has 3 shots a
+// battle for a player unit.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import './harness/JourneyTestSetup.js';
 import { journeyBattleScene } from './harness/JourneyBattleScene.js';
@@ -18,6 +22,8 @@ import { registerBattleEntity } from '../src/engine/BattleEntityIdentity.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
 import { AREA_CENTER_STATE } from '../src/ui/AreaTargetingController.js';
 import { readCommittedAction } from '../src/ui/BattlePresentationCheckpoint.js';
+import { getPerBattleRemainingUses } from '../src/engine/Combat.js';
+import { recordAreaStrike } from '../src/engine/DeedSystem.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -335,6 +341,9 @@ describe('the strike', () => {
     expect(sceneRun.units.map((u) => u.currentHP)).toEqual([24, 0, 11]);
     expect(hUnits.map((u) => u.currentHP)).toEqual([24, 0, 11]);
     expect(hGranted).toEqual(sceneRun.granted);
+    // One of Breachbolt's 3 shots, in both.
+    expect(getPerBattleRemainingUses(sceneRun.units[0].weapon, sceneRun.units[0])).toBe(2);
+    expect(getPerBattleRemainingUses(hUnits[0].weapon, hUnits[0])).toBe(2);
   });
 
   it('a strike from a finished battle session does nothing', async () => {
@@ -345,6 +354,130 @@ describe('the strike', () => {
       false,
     );
     expect(caster.currentHP).toBe(32);
+  });
+});
+
+describe("Breachbolt's shots and its counters", () => {
+  const ironSword = () => structuredClone(data.weapons.find((w) => w.name === 'Iron Sword'));
+  /** A run battle (deeds on), so the tome's counters are kept. */
+  function runBattle(units) {
+    const ctx = battle(units);
+    ctx.scene.runManager = { battleInProgress: {} };
+    ctx.saves = [];
+    ctx.scene._captureSuspendCheckpoint = ({ commitIntent } = {}) => {
+      if (commitIntent)
+        ctx.saves.push({
+          intent: structuredClone(ctx.scene._pendingCommittedAction),
+          units: structuredClone([...ctx.scene.playerUnits, ...ctx.scene.enemyUnits]),
+        });
+      return true;
+    };
+    return ctx;
+  }
+  async function cast(ctx, center = { col: 4, row: 5 }) {
+    const caster = ctx.scene.playerUnits[0];
+    await ctx.area.execute(caster, caster.weapon, stormcall, center);
+    return caster;
+  }
+
+  it('a cast spends one shot and is one strike; each foe it drops is one kill', async () => {
+    const tome = (ctx) => ctx.scene.playerUnits[0].inventory[0];
+    const hit = runBattle([sage(0, 5), foe('Frail', 4, 5, 10), foe('Sturdy', 4, 6)]);
+    const caster = await cast(hit);
+    expect(getPerBattleRemainingUses(tome(hit), caster)).toBe(2);
+    expect([tome(hit)._strikes, tome(hit)._kills]).toEqual([1, 1]);
+    expect(caster._battleDeeds.kills).toBe(1);
+
+    // Empty ground: no hit roll and nobody hit, still one shot and one strike.
+    const blind = runBattle([sage(0, 5)]);
+    const lone = await cast(blind);
+    expect(getPerBattleRemainingUses(tome(blind), lone)).toBe(2);
+    expect([tome(blind)._strikes, tome(blind)._kills ?? 0]).toEqual([1, 0]);
+  });
+
+  it('the last shot puts the tome away only after the blast has settled its deaths', async () => {
+    const caster = sage(0, 5);
+    const [tome, sword] = [caster.inventory[0], ironSword()];
+    tome._usesSpent = 2; // its last shot
+    caster.inventory.push(sword);
+    caster.proficiencies.push({ type: 'Sword', rank: 'Prof' });
+    // A foe outside the blast keeps the battle going (a won battle swaps nothing).
+    const ctx = runBattle([caster, foe('Frail', 4, 5, 10), foe('Outside', 8, 5)]);
+    await cast(ctx);
+    expect(getPerBattleRemainingUses(tome, caster)).toBe(0);
+    expect(caster.weapon).toBe(sword); // swapped once the strike was done
+    // The kill was the tome's: the deed reads its type and its counter took it.
+    expect(caster._battleDeeds.killsByWeapon).toEqual({ Tome: 1 });
+    expect([tome._kills, sword._kills ?? 0, sword._strikes ?? 0]).toEqual([1, 0, 0]);
+  });
+
+  it("the counters take only the blast's own kills of foes, and only for the army", () => {
+    const caster = sage(0, 5);
+    const tome = caster.weapon;
+    const enemyCaster = foe('Warlock', 0, 0);
+    const ally = sage(1, 1, { name: 'Ally' });
+    const credits = [
+      { source: caster, victim: foe('Dropped', 4, 5), killed: true },
+      { source: caster, victim: foe('Wounded', 4, 6), killed: false },
+      { source: caster, victim: ally, killed: true }, // not a foe
+      { source: enemyCaster, victim: foe('Other', 5, 5), killed: true }, // not this blast's
+    ];
+    recordAreaStrike(caster, tome, credits);
+    expect([tome._strikes, tome._kills]).toEqual([1, 1]);
+    const enemyTome = breachbolt();
+    recordAreaStrike(enemyCaster, enemyTome, credits);
+    expect([enemyTome._strikes, enemyTome._kills]).toEqual([undefined, undefined]);
+  });
+
+  it('the harness keeps the same shot and swaps after the deaths too', () => {
+    const caster = sage(0, 5);
+    const [tome, sword] = [caster.inventory[0], ironSword()];
+    tome._usesSpent = 2;
+    caster.inventory.push(sword);
+    caster.proficiencies.push({ type: 'Sword', rank: 'Prof' });
+    const harness = new HeadlessBattle(
+      { ...data, weaponArts: structuredClone(data.weaponArts) },
+      { act: 'act3', objective: 'rout' },
+    );
+    Object.assign(harness, {
+      turnManager: { turnNumber: 1, unitActed() {} },
+      battleConfig: { objective: 'rout' },
+      turnPar: 99,
+      playerUnits: [caster],
+      enemyUnits: [foe('Frail', 4, 5, 10), foe('Outside', 8, 5)],
+      npcUnits: [],
+      grid: {
+        cols: 12,
+        rows: 12,
+        fogEnabled: false,
+        getTerrainAt: () => ({}),
+        getMoveCost: () => 1,
+        updateFogOfWar() {},
+      },
+    });
+    harness._grantScaledXP = () => {};
+    expect(harness.executeAreaStrike(caster, 'legend_stormcall', { col: 4, row: 5 })).toBe(true);
+    expect(getPerBattleRemainingUses(tome, caster)).toBe(0);
+    expect(caster.weapon).toBe(sword);
+    expect(caster._battleDeeds.killsByWeapon).toEqual({ Tome: 1 });
+    expect([tome._strikes, tome._kills]).toEqual([1, 1]);
+  });
+
+  it('a replay from the saved intent spends the shot once, not twice', async () => {
+    const ctx = runBattle([sage(0, 5), foe('Center', 4, 5)]);
+    await cast(ctx);
+    // The saved intent and the army as it was saved; a crash before the next save
+    // resumes from them in a fresh battle.
+    const [{ intent, units }] = ctx.saves;
+    const resumed = runBattle(units);
+    resumed.scene._scheduleSafeDelayedAsync = (_ms, _label, run) => run();
+    expect(resumed.scene.resumeCommittedAreaStrike(readCommittedAction(intent))).toBe(true);
+    for (let i = 0; i < 20 && resumed.scene.battleState === 'COMBAT_RESOLVING'; i++)
+      await new Promise((r) => setTimeout(r, 0));
+    const caster = resumed.scene.playerUnits[0];
+    expect(resumed.scene.enemyUnits[0].currentHP).toBe(11);
+    expect(getPerBattleRemainingUses(caster.weapon, caster)).toBe(2);
+    expect(caster.weapon._strikes).toBe(1);
   });
 });
 

@@ -653,13 +653,21 @@ targeting does now. Rewind treats the strike as an action; add it to
   continuation that level-ups save and `completeResolvedAction` finishes. Every step
   checks the session the action began in. Rewind needs no list: the continuation's
   `player_action` boundary makes the strike a rewind point like any action.
-- **Breachbolt's shots.** Availability goes through `canAttackWithWeapon`
-  (AttackOptions), which already refuses a per-battle weapon with no uses left, so it
-  composes with the Dusk PR's per-faction shots unchanged. A cast does not spend a shot
-  yet: main's combat does not spend them either. The follow-up for whichever lands
-  second: in `execute`, `if (weapon.perBattleUses) spendPerBattleUse(weapon)` beside the
-  art cost, then `swapSpentWeapons([unit])` after the sweep, and a test that a cast
-  spends one shot and the last one swaps the caster's weapon.
+- **Breachbolt's shots** (#183). Availability goes through `canAttackWithWeapon`
+  (AttackOptions), which refuses a per-battle weapon with no shots left. A cast is the
+  tome's strike, so it spends one shot (`PerBattleWeapons.spendAreaStrikeShot`) beside
+  the art cost, whatever the blast hits, empty ground included. The intent is saved
+  before it, so a replay spends it once. A tome that fired its last shot is swapped
+  out (`_swapSpentWeapons`) only after the sweep and the defeat check, as
+  `executeCombat` does: kill credit, deeds and remains read the weapon that struck. A
+  won battle swaps nothing.
+- **The item's counters** (#181). A cast has no strike events, so
+  `DeedSystem.recordAreaStrike` counts it: one `_strikes` a cast (no hit roll, still
+  one use) and one `_kills` for each foe the blast itself dropped (`areaCredits`
+  `killed`). A Deathburst kill it set off is not the tome's, as in `recordCombat`.
+  Deeds only (a run battle, not the tutorial). A targeted area art (Cataclysm Bolt,
+  Sweeping Cleave) still counts only its primary strike's kill: its area victims
+  never reach `recordCombat`.
 
 ## 7. Enemy AI
 

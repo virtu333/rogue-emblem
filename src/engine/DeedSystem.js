@@ -216,6 +216,22 @@ export function recordCombat(result, attacker, defender, ctx = {}) {
 }
 
 /**
+ * A chosen-center area art (Stormcall) fired with `weapon`. It has no strike events: the
+ * cast is the weapon's one strike, hit or empty ground, and each foe its blast dropped
+ * (`credits` from PostCombatEffects.areaDamage, `killed`) is one of the weapon's kills.
+ * A fall the blast did not make (a Deathburst it set off) is not the weapon's, as in
+ * recordCombat. Call once the blast's HP is applied.
+ */
+export function recordAreaStrike(caster, weapon, credits = []) {
+  if (!isDeedUnit(caster)) return;
+  bumpItemUsage(weapon, '_strikes');
+  for (const credit of Array.isArray(credits) ? credits : []) {
+    if (credit?.source === caster && credit.killed && isFoe(credit.victim))
+      bumpItemUsage(weapon, '_kills');
+  }
+}
+
+/**
  * A unit left the field dead. `ctx.terrain` is the killer's terrain name.
  * An enemy that kills a player unit remembers the name (Avenger).
  */

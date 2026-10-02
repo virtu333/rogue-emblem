@@ -17,10 +17,12 @@
 // The strike is an attack action, so it follows executeCombat, not settleAndPresent: it
 // kills through removeUnit (gold, deeds, Deathburst, last words), which is async, so it
 // cannot settle synchronously. Its intent is saved first (`area_strike`, before any
-// cost or blow; resume replays it from the saved state), then the blows, XP for every
-// victim, removals, the sweep and the defeat check, and the `combat` continuation that
-// level-ups save and completeResolvedAction finishes. Every step is behind the battle
-// session the action started in.
+// cost, shot or blow; resume replays it from the saved state, so a replay spends them
+// once), then the blows, XP for every victim, removals, the sweep and the defeat check,
+// the swap away from a Breachbolt that just fired its last shot (after the deaths, as
+// executeCombat: kill credit and remains read the weapon that struck), and the `combat`
+// continuation that level-ups save and completeResolvedAction finishes. Every step is
+// behind the battle session the action started in.
 
 import {
   areaStrikeCenters,
@@ -34,7 +36,9 @@ import { canAttackWithWeapon } from '../engine/AttackOptions.js';
 import { AREA_XP_LIVE } from '../engine/BattleXp.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
 import { canInspectUnit } from '../engine/BattleInformation.js';
+import { deedsFor } from './DeedController.js';
 import { findBattleEntity } from '../engine/BattleEntityIdentity.js';
+import { spendAreaStrikeShot } from '../engine/PerBattleWeapons.js';
 import { equipWeapon } from '../engine/UnitManager.js';
 import {
   applyWeaponArtCost,
@@ -464,6 +468,8 @@ export class AreaTargetingController {
       // The art's weapon is equipped on confirm, as for any art.
       if (unit.weapon !== weapon) equipWeapon(unit, weapon);
       applyWeaponArtCost(unit, art, this._costOptions());
+      // The cast is the weapon's strike: one Breachbolt shot, whatever the blast hits.
+      spendAreaStrikeShot(weapon);
       recordWeaponArtUse(unit, art, { turnNumber: scene.turnManager?.turnNumber });
       scene._applyRecoilGuardAfterArtUse?.(unit, art);
       safeBattlePresentation('area caster HP', () => scene.updateHPBar(unit), { scene });
@@ -487,6 +493,7 @@ export class AreaTargetingController {
       // Applied to live state: no later checkpoint may carry the intent.
       scene._pendingCommittedAction = null;
       const credits = result.areaCredits || [];
+      deedsFor(scene).onAreaStrike(unit, weapon, credits);
       const facts = credits
         .filter((credit) => historyUnitVisible(scene, credit.victim))
         .map(
@@ -515,6 +522,9 @@ export class AreaTargetingController {
         scene.battleState === 'BATTLE_END'
       )
         return true;
+      // Every death of the blast is settled: a tome that fired its last shot is put away.
+      await scene._swapSpentWeapons(unit);
+      if (!isCurrentBattleSession(scene, session)) return false;
       await safeBattlePresentation(
         'boss half health',
         () => (scene._battleBeats ||= new BattleBeatsController(scene)).checkBossHalfHealth(),
