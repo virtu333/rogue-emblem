@@ -14,6 +14,11 @@
   html.portrait-ui .re-header h2 {
     min-width: 0;
   }
+  /* Upright the header is ~300px wide: a 12px menu title keeps the longest one
+     ("Choose weapon for Hunter's Volley Scroll") to two lines. */
+  html.portrait-ui {
+    --re-menu-title-size: var(--re-pf-12, 12px);
+  }
 
   /* Compact menus were capped for a 390px-tall landscape phone; upright there is room. */
   html.portrait-ui .re-compact-menu {

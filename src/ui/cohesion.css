@@ -71,7 +71,14 @@
   gap: 8px;
 }
 .re-live-menu .re-header h2 {
-  font-size: var(--re-pf-11, 11px);
+  min-width: 0;
+  font-size: var(--re-menu-title-size);
+}
+/* A long title ("Choose weapon for Hunter's Volley Scroll") wraps; the header's
+   buttons keep one line ("Close", never "Clos / e"). */
+.re-live-menu .re-header > button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .re-live-menu .re-header .re-search {
   margin-left: auto;
