@@ -8,7 +8,7 @@
 //   1. can be seen by the player and has a player or NPC unit inside the tiles the Danger
 //      overlay draws for it (ThreatForecast.enemyThreatTiles over PlayerKnowledge), so the
 //      red zone is the wake zone. A holder hidden in fog never wakes this way;
-//   2. was hurt, hexed (any status) or moved off its post;
+//   2. was hurt, hexed (any status) or moved off its post, or a packmate fell;
 //   3. sees the boss enrage (turn pressure).
 // Anti-turtle aggression never wakes a holder: otherwise a turtle would only have to wait.
 // MapGenerator writes the holders into the battle config, so a locked map, a resume or a
@@ -140,18 +140,26 @@ export function assignHolders({
   if (chosen.length > 0) {
     for (const s of spawns || []) if (s?.aiMode === 'guard') delete s.aiMode;
   }
+  const packSize = new Map();
+  for (const s of chosen) packSize.set(pack.get(s), (packSize.get(pack.get(s)) || 0) + 1);
   for (const s of chosen) {
     s.aiMode = HOLD_AI_MODE;
     s.holdPack = pack.get(s);
+    s.holdPackSize = packSize.get(s.holdPack);
   }
   return chosen.length;
 }
 
-/** Copy a spawn's hold onto the enemy built from it (its post is where it stands). */
+/**
+ * Copy a spawn's hold onto the enemy built from it: its pack, the pack's size at spawn
+ * (its roster count: a pack with fewer living holders lost one) and its post, where it
+ * stands.
+ */
 export function applyHoldSpawn(enemy, spawn) {
   if (!enemy || spawn?.aiMode !== HOLD_AI_MODE) return enemy;
   enemy.aiMode = HOLD_AI_MODE;
   enemy.holdPack = Number.isInteger(spawn.holdPack) ? spawn.holdPack : 0;
+  if (Number.isInteger(spawn.holdPackSize)) enemy.holdPackSize = spawn.holdPackSize;
   enemy.holdPost = { col: enemy.col, row: enemy.row };
   return enemy;
 }
@@ -202,10 +210,14 @@ export function wakeHolders({
     (u) => u && u.currentHP > 0 && !u._removing,
   );
   let positions = null;
+  const living = new Map();
+  for (const unit of holders) living.set(unit.holdPack, (living.get(unit.holdPack) || 0) + 1);
   const packReason = new Map();
   for (const unit of holders) {
     if (packReason.has(unit.holdPack)) continue;
     let reason = bossEnraged ? 'enrage' : disturbed(unit);
+    // A member is gone (killed, even from outside every zone): the rest wake.
+    if (!reason && living.get(unit.holdPack) < unit.holdPackSize) reason = 'fallen';
     if (!reason) {
       positions ||= threatContext?.positions?.() || null;
       if (threatened(unit, threatContext, positions, targets)) reason = 'threat';

@@ -218,7 +218,9 @@ then hunts for the rest of the battle.
      it is revealed with a player unit still in its zone, or by rule 2 or 3. Danger drops
      fogged sources (`ThreatForecast.js:151`), so this keeps the rule honest.
   2. is below full HP, carries a status, or stands off its post (it was struck, hexed or
-     shoved).
+     shoved), or a packmate is gone. Each holder stores its pack's size at spawn
+     (`holdPackSize`), so a member killed from outside every zone (a Canto rider, a
+     Breachbolt, a ballista) wakes the rest: a pack can't be picked off one at a time.
   3. turn-pressure boss enrage has started.
 - **Anti-turtle `aggressiveMode` does not wake holders.** If it did, a turtle would only
   have to wait 3 phases.

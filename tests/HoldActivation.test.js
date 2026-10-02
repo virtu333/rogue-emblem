@@ -89,6 +89,10 @@ describe('who holds', () => {
               mates.every((m) => m.holdPack === h.holdPack),
               label,
             ).toBe(true);
+            // Each holder knows how many stood in its pack at spawn.
+            expect(h.holdPackSize, label).toBe(
+              holders.filter((o) => o.holdPack === h.holdPack).length,
+            );
           }
           // The nearest candidate with a partner within 3 always holds.
           const eligible = nonBoss.filter((x) => x.aiMode !== 'heal');
@@ -176,7 +180,7 @@ describe('who holds', () => {
           ).toBe(false);
           if (oldGuards) replacedGuards++;
           const strip = (spawns) =>
-            spawns.map(({ aiMode, holdPack, ...rest }) => ({
+            spawns.map(({ aiMode, holdPack: _pack, holdPackSize: _size, ...rest }) => ({
               ...rest,
               aiMode: aiMode === 'hold' || aiMode === 'guard' ? undefined : aiMode,
             }));
@@ -244,7 +248,7 @@ function field({ fog = false, width = 14, height = 7 } = {}) {
         inventory: [],
         skills: [],
       },
-      { aiMode: 'hold', holdPack: pack },
+      { aiMode: 'hold', holdPack: pack, holdPackSize: 2 },
     );
   const enemies = [foe('A', 11, 3), foe('B', 13, 3)];
   const hero = { name: 'Hero', faction: 'player', col: 0, row: 3, currentHP: 20, stats: { HP: 20 } }; // prettier-ignore
@@ -355,6 +359,34 @@ describe('when a pack wakes', () => {
     expect(quiet.wake([quiet.hero])).toEqual([]);
   });
 
+  it('a fallen packmate wakes the rest: no picking a pack off one unit at a time', () => {
+    // Killed out of reach of the others' zones (a Canto rider, a Breachbolt, a ballista):
+    // gone from the board, or still on it at 0 HP while it falls.
+    for (const fall of [(f) => f.enemies.pop(), (f) => (f.enemies[1].currentHP = 0)]) {
+      const f = field();
+      fall(f);
+      const woken = f.wake([f.hero]);
+      expect(woken.map((w) => [w.unit.name, w.reason])).toEqual([['A', 'fallen']]);
+      expect(f.enemies[0].aiMode).toBeUndefined();
+    }
+    // A whole pack stays asleep; so does a pack beside one that lost a member.
+    const f = field();
+    expect(f.wake([f.hero])).toEqual([]);
+    const other = applyHoldSpawn(
+      { ...structuredClone(f.enemies[0]), name: 'C', col: 12, row: 0, aiMode: undefined },
+      { aiMode: 'hold', holdPack: 1, holdPackSize: 2 },
+    );
+    f.enemies.push(other);
+    expect(f.wake([f.hero]).map((w) => w.unit.name)).toEqual(['C']);
+    expect(f.enemies.slice(0, 2).every((e) => e.aiMode === 'hold')).toBe(true);
+  });
+
+  it('a holder keeps its pack size through a snapshot', () => {
+    const f = field();
+    const copy = JSON.parse(JSON.stringify(serializeBattleUnit(f.enemies[0])));
+    expect(copy.holdPackSize).toBe(2);
+  });
+
   it('boss enrage wakes every pack; anti-turtle aggression wakes none', async () => {
     const f = field();
     const ai = new AIController(f.grid, data, { objective: 'seize' });
@@ -410,6 +442,7 @@ describe('in a battle (headless harness, as the scene)', () => {
       // As BattleScene.addEnemyFromSpawn: each holder knows its pack and its post.
       for (const h of holders) {
         expect(Number.isInteger(h.holdPack)).toBe(true);
+        expect(h.holdPackSize).toBe(holders.filter((o) => o.holdPack === h.holdPack).length);
         expect(h.holdPost).toEqual({ col: h.col, row: h.row });
       }
       // Keep the player far: back to the spawn corner, out of every reach.
