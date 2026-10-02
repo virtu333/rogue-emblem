@@ -168,9 +168,10 @@ function normalizeDamageMultiplier(value) {
   return n > 1 ? n : null;
 }
 
-const VALID_TIER2_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through']);
+const VALID_TIER2_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through', 'ram']);
 const VALID_TIER2_DEBUFF_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
-const VALID_TIER5_SPLASH_BASIS = new Set(['first_landed_strike']);
+const VALID_AREA_SHAPES = new Set(['radius', 'line', 'around_attacker']);
+const VALID_TARGETING = new Set(['normal_attack', 'chosen_center']);
 // Conditions weapon arts may inflict (must exist in STATUS_CONDITIONS)
 const VALID_ART_STATUS_IDS = new Set(['root', 'silence', 'sleep', 'acid']);
 
@@ -214,17 +215,11 @@ function normalizeTier2MoveEffect(effect) {
   const mode = toNonEmptyString(effect.mode)?.toLowerCase();
   if (!mode || !VALID_TIER2_MOVE_MODES.has(mode)) return null;
   const distance = Math.max(1, Math.trunc(toFiniteNumber(effect.distance, 1)));
-  return { mode, distance };
-}
-
-function normalizeTier2PierceEffect(effect) {
-  if (!effect || typeof effect !== 'object') return null;
-  const target = normalizeTier2Target(effect.target);
-  if (!target) return null;
-  const rawMaxTargets = Math.trunc(toFiniteNumber(effect.maxTargets, 1));
-  if (rawMaxTargets <= 0) return null;
-  // Tier 2 pierce currently supports exactly one unit behind the primary target.
-  return { target, maxTargets: 1 };
+  if (mode !== 'ram') return { mode, distance };
+  // A ram pushes up to `distance` tiles; stopped short, the target (and a foe it hits)
+  // takes `collisionDamage`.
+  const collisionDamage = Math.max(0, Math.trunc(toFiniteNumber(effect.collisionDamage, 0)));
+  return { mode, distance, collisionDamage };
 }
 
 function normalizeTier2StatusEffect(effect) {
@@ -249,39 +244,76 @@ function normalizeTier2SetHpEffect(effect) {
   return { target, value };
 }
 
-export function normalizeTier5AoeSplashEffect(effect) {
-  if (!effect || typeof effect !== 'object') return null;
-  const radius = Math.max(1, Math.trunc(toFiniteNumber(effect.radius, 0)));
-  if (radius <= 0) return null;
+/** How an art picks its target: a unit (`normal_attack`) or a tile (`chosen_center`). */
+export function getWeaponArtTargeting(art) {
+  const token = toNonEmptyString(art?.targeting)?.toLowerCase();
+  return VALID_TARGETING.has(token) ? token : 'normal_attack';
+}
 
-  const rawMaxTargets = Math.trunc(toFiniteNumber(effect.maxTargets, 0));
-  const maxTargets = rawMaxTargets > 0 ? rawMaxTargets : null;
-  const basisToken = toNonEmptyString(effect.basis)?.toLowerCase() || 'first_landed_strike';
-  const basis = VALID_TIER5_SPLASH_BASIS.has(basisToken) ? basisToken : 'first_landed_strike';
+function normalizeAreaCenterRange(value) {
+  if (value === 'weapon') return 'weapon';
+  if (!value || typeof value !== 'object') return null;
+  const min = Math.max(0, Math.trunc(toFiniteNumber(value.min, 0)));
+  const max = Math.trunc(toFiniteNumber(value.max, 0));
+  return max >= Math.max(1, min) ? { min, max } : null;
+}
 
-  let damageKind = toNonEmptyString(effect.damageKind)?.toLowerCase() || null;
-  const fixedDamage = Math.max(0, Math.trunc(toFiniteNumber(effect.fixedDamage, 0)));
-  let damageMultiplier = toFiniteNumber(effect.damageMultiplier, 0);
-  if (damageMultiplier > 1) damageMultiplier /= 100;
+/**
+ * An art's `area` block (docs/specs/aoe-weapon-arts.md §3.1), normalized, or null when it
+ * has none or it is malformed:
+ *   { shape: 'radius'|'line'|'around_attacker', radius, length, pick: 'all'|'lowest_hp_pct',
+ *     maxTargets, damage: { kind: 'scaled', multiplier } | { kind: 'fixed', amount },
+ *     strikes: 'once'|'each_landed', nonLethal, centerRange }
+ */
+export function normalizeWeaponArtArea(area) {
+  if (!area || typeof area !== 'object' || Array.isArray(area)) return null;
+  const shape = toNonEmptyString(area.shape)?.toLowerCase();
+  if (!shape || !VALID_AREA_SHAPES.has(shape)) return null;
+  const radius = Math.max(0, Math.trunc(toFiniteNumber(area.radius, 0)));
+  const length = Math.max(0, Math.trunc(toFiniteNumber(area.length, 0)));
+  if (shape === 'line' ? length < 1 : radius < 1) return null;
 
-  if (!damageKind) {
-    if (fixedDamage > 0) damageKind = 'fixed';
-    else damageKind = 'scaled';
+  const rawDamage = area.damage && typeof area.damage === 'object' ? area.damage : {};
+  const kind = toNonEmptyString(rawDamage.kind)?.toLowerCase();
+  let damage = null;
+  if (kind === 'fixed') {
+    const amount = Math.trunc(toFiniteNumber(rawDamage.amount, 0));
+    if (amount > 0) damage = { kind, amount };
+  } else if (kind === 'scaled') {
+    const multiplier = toFiniteNumber(rawDamage.multiplier, 0);
+    if (multiplier > 0) damage = { kind, multiplier };
   }
-  if (damageKind === 'multiplier') damageKind = 'scaled';
-  if (damageKind !== 'fixed' && damageKind !== 'scaled') return null;
-  if (damageKind === 'fixed' && fixedDamage <= 0) return null;
-  if (damageKind === 'scaled' && !(damageMultiplier > 0)) return null;
+  if (!damage) return null;
 
+  const maxTargets = Math.trunc(toFiniteNumber(area.maxTargets, 0));
   return {
+    shape,
     radius,
-    maxTargets,
-    damageKind,
-    damageMultiplier: damageKind === 'scaled' ? damageMultiplier : null,
-    fixedDamage: damageKind === 'fixed' ? fixedDamage : null,
-    nonLethal: effect.nonLethal === true,
-    basis,
+    length,
+    pick: area.pick === 'lowest_hp_pct' ? 'lowest_hp_pct' : 'all',
+    maxTargets: maxTargets > 0 ? maxTargets : null,
+    damage,
+    strikes: area.strikes === 'each_landed' ? 'each_landed' : 'once',
+    nonLethal: area.nonLethal === true,
+    centerRange: normalizeAreaCenterRange(area.centerRange),
   };
+}
+
+/** The art's normalized area, or null. */
+export function getWeaponArtArea(art) {
+  return normalizeWeaponArtArea(art?.area);
+}
+
+/**
+ * Benediction-style heal: on hit, every ally within `radius` of the user heals
+ * `percentOfDamage`% of the damage the user dealt the target (overkill excluded).
+ */
+export function normalizeAllyHealEffect(effect) {
+  if (!effect || typeof effect !== 'object') return null;
+  const radius = Math.trunc(toFiniteNumber(effect.radius, 0));
+  const percentOfDamage = toFiniteNumber(effect.percentOfDamage, 0);
+  if (radius < 1 || !(percentOfDamage > 0)) return null;
+  return { radius, percentOfDamage };
 }
 
 export function normalizeTier5AllyBuffEffect(effect) {
@@ -314,7 +346,6 @@ export function getWeaponArtTier2Effects(art) {
   const out = {
     afterCombatDamage: [],
     afterCombatDebuff: [],
-    pierceThrough: [],
     postCombatMove: [],
     setHp: [],
     inflictStatus: [],
@@ -338,11 +369,6 @@ export function getWeaponArtTier2Effects(art) {
     if (type === 'move') {
       const normalized = normalizeTier2MoveEffect(effect);
       if (normalized) out.postCombatMove.push(normalized);
-      continue;
-    }
-    if (type === 'pierce_through') {
-      const normalized = normalizeTier2PierceEffect(effect);
-      if (normalized) out.pierceThrough.push(normalized);
       continue;
     }
     if (type === 'set_hp') {
@@ -390,7 +416,7 @@ export function getWeaponArtKillEffects(art) {
 
 export function getWeaponArtTier5Effects(art) {
   return {
-    aoeSplash: normalizeTier5AoeSplashEffect(art?.effects?.aoeSplash),
+    allyHeal: normalizeAllyHealEffect(art?.effects?.allyHeal),
     allyBuff: normalizeTier5AllyBuffEffect(art?.effects?.allyBuff),
   };
 }

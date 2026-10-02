@@ -38,7 +38,7 @@ import {
   statusStaffThreat,
 } from '../engine/BattleInformation.js';
 import { ambushStop, pathCostTo } from '../engine/FogAmbush.js';
-import { createPlayerKnowledge } from '../engine/PlayerKnowledge.js';
+import { playerKnowledgeOf } from '../ui/battleKnowledge.js';
 import {
   CANTO_CONFIRM_STATE,
   canUseDanger,
@@ -115,6 +115,7 @@ import {
   getEntityCenter,
   entityHealth,
 } from '../engine/EntitySystem.js';
+import { bindEnemyAreaArt } from '../engine/EnemyAreaArts.js';
 import {
   createLordUnit,
   createEnemyUnit as createEnemyUnitFromClass,
@@ -388,19 +389,6 @@ const POST_COMBAT_HINT_COLORS = {
   heal: '#00ff00',
 };
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
-
-/**
- * The board as the player knows it (PlayerKnowledge.js): their own units, what the
- * fog shows and the recruit's beacon (it shows through the fog). Every pre-commit
- * preview reads this view.
- */
-function playerKnowledgeOf(scene) {
-  return createPlayerKnowledge({
-    grid: scene.grid,
-    units: [...(scene.playerUnits || []), ...(scene.enemyUnits || []), ...(scene.npcUnits || [])],
-    revealed: [scene._recruitBeacon?.npc],
-  });
-}
 
 /** The battle's Zombie remains (ZombieRemainsController), made on first use. */
 function remainsOf(scene) {
@@ -2753,6 +2741,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
+    if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
     if (
       spawn.aiTargetTile &&
@@ -7872,21 +7861,10 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  _scoreEnemyWeaponArt(unit, art) {
-    return (this._weaponArtController ||= new WeaponArtController(this))._scoreEnemyWeaponArt(
-      unit,
-      art,
-    );
-  }
-
   _getEnemyWeaponArtDifficultyId() {
     return (this._weaponArtController ||= new WeaponArtController(
       this,
     ))._getEnemyWeaponArtDifficultyId();
-  }
-
-  _getEnemyWeaponArtTuning() {
-    return (this._weaponArtController ||= new WeaponArtController(this))._getEnemyWeaponArtTuning();
   }
 
   _selectEnemyWeaponArt(unit, target) {
@@ -8296,6 +8274,11 @@ export class BattleScene extends Phaser.Scene {
     if (!isCurrentBattleSession(this, session)) return;
     await this._checkPhoenixBrooch(defender);
     if (!isCurrentBattleSession(this, session)) return;
+    // An area art's other victims lost HP too (result.areaCredits).
+    for (const { victim } of result.areaCredits || []) {
+      await this._checkPhoenixBrooch(victim);
+      if (!isCurrentBattleSession(this, session)) return;
+    }
 
     return { result, selectedArt };
   }
@@ -8432,6 +8415,8 @@ export class BattleScene extends Phaser.Scene {
           0,
           defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
         );
+        // Area victims (result.areaCredits) pay no XP here yet. Slice 4b pays them by
+        // reading BattleXp.AREA_XP_LIVE, the switch the harness already reads.
         await this.awardXP(
           attacker,
           defender,
@@ -8583,6 +8568,7 @@ export class BattleScene extends Phaser.Scene {
       rows: this.grid.rows,
       getMoveCost: (col, row, moveType) => this.grid.getMoveCost(col, row, moveType),
       getUnitAt: (col, row) => this.getUnitAt(col, row),
+      getTerrainAt: (col, row) => this.grid.getTerrainAt?.(col, row) ?? null,
       hostilesOf: (unit) => this._getTier5HostileUnitsFor(unit),
       alliesOf: (unit) => this.getDivineChargeAllies(unit),
       turnNumber: this.turnManager?.turnNumber,
@@ -10638,6 +10624,13 @@ export class BattleScene extends Phaser.Scene {
         () => (this._battleBeats ||= new BattleBeatsController(this)).onLowHealth(target),
         { scene: this },
       );
+      // An area art's other victims (result.areaCredits) get their line too.
+      for (const { victim } of result.areaCredits || [])
+        safeBattlePresentation(
+          'area victim low health',
+          () => (this._battleBeats ||= new BattleBeatsController(this)).onLowHealth(victim),
+          { scene: this },
+        );
       this.checkBattleEnd();
     } catch (err) {
       if (!isCurrentBattleSession(this, session)) return;
@@ -10957,6 +10950,8 @@ export class BattleScene extends Phaser.Scene {
       ballistas: this.ballistas || [],
       positions: () => this.buildUnitPositionMap(),
       costModifier: (unit) => this._getCostModifier(unit),
+      areaArtOf: (unit) =>
+        (this._weaponArtController ||= new WeaponArtController(this)).enemyAreaArt(unit),
     };
   }
 

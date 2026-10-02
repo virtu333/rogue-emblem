@@ -296,6 +296,17 @@
       { "className": "Assassin", "name": "Ritual Blade" }
     ]
   },
+  "eliteAreaArts": {
+    "minDifficulty": "hard",
+    "acts": ["act3", "act4", "postAct", "finalBoss"],
+    "count": [1, 2],
+    "byWeaponType": {
+      "Axe": "axe_sweeping_cleave",
+      "Sword": "axe_sweeping_cleave",
+      "Lance": "lance_skewer",
+      "Bow": "lance_skewer"
+    }
+  },
   "enemyCountByTiles": {
     "80": [
       2,

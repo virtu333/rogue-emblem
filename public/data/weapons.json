@@ -2123,6 +2123,81 @@
     "price": 3000
   },
   {
+    "name": "Sweeping Cleave Scroll",
+    "lore": "Barracks drill for a crowded doorway: swing wide, then count who is still standing.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Sweeping Cleave (Weapon Art)",
+    "teachesWeaponArtId": "axe_sweeping_cleave",
+    "allowedWeaponTypes": [
+      "Axe",
+      "Sword"
+    ],
+    "price": 2000
+  },
+  {
+    "name": "Skewer Scroll",
+    "lore": "A hunter's page: the second boar in the line is the one that pays for the arrow.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Skewer (Weapon Art)",
+    "teachesWeaponArtId": "lance_skewer",
+    "allowedWeaponTypes": [
+      "Lance",
+      "Bow"
+    ],
+    "price": 2000
+  },
+  {
+    "name": "Benediction Scroll",
+    "lore": "Chapel copy, margins full of names: every one a friend who stood close enough.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Benediction (Weapon Art)",
+    "teachesWeaponArtId": "light_benediction",
+    "allowedWeaponTypes": [
+      "Light"
+    ],
+    "price": 2500
+  },
+  {
+    "name": "Battering Ram Scroll",
+    "lore": "Siege-yard notes: the gate is optional; the wall behind him is not.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Battering Ram (Weapon Art)",
+    "teachesWeaponArtId": "lance_battering_ram",
+    "allowedWeaponTypes": [
+      "Lance",
+      "Axe"
+    ],
+    "price": 2500
+  },
+  {
     "name": "Godsend",
     "lore": "Blessed at a roadside shrine for a copper. Its rider swears the aim was extra.",
     "type": "Lance",

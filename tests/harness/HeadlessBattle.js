@@ -64,7 +64,6 @@ import {
 import {
   applyWeaponArtCost,
   canUseWeaponArt,
-  getEffectiveWeaponArtHpCost,
   getWeaponArtCombatMods,
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
@@ -108,6 +107,7 @@ import {
 } from '../../src/utils/constants.js';
 import { applyCombatHP } from '../../src/engine/UnitHealth.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
+import { areaStrikeEffects, isAreaStrikeCenter } from '../../src/engine/AreaStrike.js';
 import {
   applyTimedBuffEntry,
   expireTimedBuffs,
@@ -115,7 +115,9 @@ import {
   timedBuffCombatMods,
 } from '../../src/engine/TimedWeaponArtBuffs.js';
 import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
-import { applyXpGain, combatXpAwards, scaledXp } from '../../src/engine/BattleXp.js';
+import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
+import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
+import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import {
   buildRisenUnit,
   createRemains,
@@ -158,6 +160,9 @@ export class HeadlessBattle {
     if (!this.gameData.skills) this.gameData.skills = [];
     this.battleParams = battleParams || { act: 'act1', objective: 'rout' };
     this.roster = roster;
+    // Area credits pay XP only where the scene pays them (BattleXp.AREA_XP_LIVE); tests
+    // of the 4a engine path turn it on per battle.
+    this.areaXpLive = AREA_XP_LIVE;
 
     this.battleState = null;
     this.battleConfig = null;
@@ -769,9 +774,14 @@ export class HeadlessBattle {
     return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
   }
 
-  /** XP as BattleScene.awardXP grants it (BattleXp): the unit, then Mentor's Band shares. */
+  /**
+   * XP as BattleScene.awardXP grants it (BattleXp): the unit, then Mentor's Band shares.
+   * `extra.credits` are the area art's other victims (result.areaCredits).
+   */
   _awardCombatXP(unit, opponent, opponentDied, damageDealt, opponentHpAtStart, extra = {}) {
-    const awards = combatXpAwards({
+    const awards = actionXpAwards({
+      rewardMultiplierOf: (victim) => this._getEnemyXpMultiplier(victim),
+      areaXp: this.gameData.weaponArts?.areaXp,
       unit,
       opponent,
       opponentDied,
@@ -964,6 +974,7 @@ export class HeadlessBattle {
       }
     }
 
+    if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
     if (
       spawn.aiTargetTile &&
@@ -1531,6 +1542,11 @@ export class HeadlessBattle {
     return Boolean(checkPhoenixBrooch(unit).triggered);
   }
 
+  /** An area art's other victims lost HP too (result.areaCredits), as BattleScene checks. */
+  _checkAreaVictimBrooches(result) {
+    for (const { victim } of result?.areaCredits || []) this._checkPhoenixBrooch(victim);
+  }
+
   _applyKillRewards(defeatedUnit, killer = null) {
     if (defeatedUnit?.faction !== 'enemy') return;
     this.goldEarned += calculateKillReward(defeatedUnit, killer, {
@@ -1539,46 +1555,8 @@ export class HeadlessBattle {
     });
   }
 
-  _scoreEnemyWeaponArt(unit, art) {
-    const mods = getWeaponArtCombatMods(art);
-    const artOpts = {
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-    };
-    const hpCost = getEffectiveWeaponArtHpCost(unit, art, artOpts);
-    const effectivenessScore =
-      mods.effectiveness?.multiplier > 1 ? (mods.effectiveness.multiplier - 1) * 4 : 0;
-    const rangeOverrideScore = mods.rangeOverride
-      ? (Math.max(mods.rangeOverride.min, mods.rangeOverride.max) - 1) * 1.5
-      : 0;
-    return (
-      mods.atkBonus * 3 +
-      mods.hitBonus * 0.35 +
-      mods.critBonus * 0.25 +
-      mods.spdBonus * 0.5 +
-      mods.avoidBonus * 0.15 +
-      mods.defBonus * 0.1 +
-      effectivenessScore +
-      (mods.rangeBonus || 0) * 1.2 +
-      rangeOverrideScore +
-      (mods.preventCounter ? 3.5 : 0) +
-      (mods.targetsRES ? 2.5 : 0) +
-      (mods.halfPhysicalDamage ? 2.5 : 0) +
-      (mods.vengeance ? 4 : 0) -
-      hpCost * 0.75
-    );
-  }
-
   _getEnemyWeaponArtDifficultyId() {
     return this.battleParams?.difficultyId || null;
-  }
-
-  _getEnemyWeaponArtTuning() {
-    const rawDifficulty = this._getEnemyWeaponArtDifficultyId();
-    if (!rawDifficulty) return { minScore: 0.75, useChance: 1.0 };
-    const difficultyId = String(rawDifficulty).toLowerCase();
-    if (difficultyId === 'normal') return { minScore: 2.25, useChance: 0.6 };
-    if (difficultyId === 'lunatic') return { minScore: 0.25, useChance: 1.0 };
-    return { minScore: 0.75, useChance: 0.9 };
   }
 
   _rollEnemyWeaponArtChance() {
@@ -1590,9 +1568,9 @@ export class HeadlessBattle {
     return Math.min(1, Math.max(0, roll));
   }
 
+  /** The scene's rule (engine/EnemyArtScoring), over the harness's world. */
   _selectEnemyWeaponArt(unit, target) {
     if (!unit?.weapon) return null;
-    const tuning = this._getEnemyWeaponArtTuning();
     const choices = this._getWeaponArtChoices(unit, unit.weapon, {
       isAI: true,
       isInitiating: true,
@@ -1600,24 +1578,15 @@ export class HeadlessBattle {
       targetFaction: target?.faction,
     }).filter((entry) => entry.canUse);
     if (choices.length <= 0) return null;
-    const scored = choices
-      .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(unit, choice.art) }))
-      .filter((entry) => entry.score >= tuning.minScore);
-    if (scored.length <= 0) return null;
-    if (tuning.useChance < 1 && this._rollEnemyWeaponArtChance() > tuning.useChance) return null;
-    scored.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      const sortArtOpts = {
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-      };
-      const aCost = getEffectiveWeaponArtHpCost(unit, a.art, sortArtOpts);
-      const bCost = getEffectiveWeaponArtHpCost(unit, b.art, sortArtOpts);
-      if (aCost !== bCost) return aCost - bCost;
-      const aId = String(a.art?.id || '');
-      const bId = String(b.art?.id || '');
-      return aId.localeCompare(bId);
+    return selectEnemyWeaponArt({
+      unit,
+      target,
+      choices,
+      world: () => this._postCombatWorld(),
+      difficultyId: this._getEnemyWeaponArtDifficultyId(),
+      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      roll: () => this._rollEnemyWeaponArtChance(),
     });
-    return scored[0].art;
   }
 
   _buildSkillCtx(attacker, defender, weaponArt = null) {
@@ -1731,6 +1700,7 @@ export class HeadlessBattle {
       rows: this.grid.rows,
       getMoveCost: (col, row, moveType) => this.grid.getMoveCost(col, row, moveType),
       getUnitAt: (col, row) => this.getUnitAt(col, row),
+      getTerrainAt: (col, row) => this.grid.getTerrainAt?.(col, row) ?? null,
       hostilesOf: (unit) =>
         unit?.faction === 'enemy' ? this.playerUnits || [] : unit ? this.enemyUnits || [] : [],
       alliesOf: (unit) => this._getDivineChargeAllies(unit),
@@ -1811,6 +1781,7 @@ export class HeadlessBattle {
     });
     this._checkPhoenixBrooch(attacker);
     this._checkPhoenixBrooch(defender);
+    this._checkAreaVictimBrooches(result);
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
       const damageDealt = Math.max(
@@ -1823,6 +1794,11 @@ export class HeadlessBattle {
         defender.currentHP <= 0,
         damageDealt,
         defenderHpAtStart,
+        {
+          credits: this.areaXpLive
+            ? (result.areaCredits || []).filter((credit) => credit.source === attacker)
+            : [],
+        },
       );
     }
 
@@ -1873,6 +1849,54 @@ export class HeadlessBattle {
     }
 
     this._finishUnitAction(attacker);
+  }
+
+  /**
+   * A chosen-center weapon art (engine/AreaStrike.js): the art's cost, every blow in the
+   * blast, removals, then XP from the credits, as BattleScene will resolve it. Returns
+   * false (nothing spent) when the art cannot be used or the center is out of range.
+   */
+  executeAreaStrike(unit, artId, center) {
+    if (!unit || unit.currentHP <= 0 || unit.hasActed) return false;
+    const entry = this._getAvailableWeaponArtEntriesForUnit(unit).find((e) => e.art.id === artId);
+    if (!entry) return false;
+    const { weapon, art } = entry;
+    const artCostOpts = {
+      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+    };
+    const check = canUseWeaponArt(unit, weapon, art, {
+      turnNumber: this.turnManager?.turnNumber,
+      isInitiating: true,
+      actorFaction: unit.faction,
+      ...artCostOpts,
+    });
+    if (!check.ok) return false;
+    // Aim with the art's weapon before equipping it: a refused center changes nothing.
+    const world = this._postCombatWorld();
+    if (!isAreaStrikeCenter(unit, art, center, world, weapon)) return false;
+    if (unit.weapon !== weapon) equipWeapon(unit, weapon);
+
+    applyWeaponArtCost(unit, art, artCostOpts);
+    recordWeaponArtUse(unit, art, { turnNumber: this.turnManager?.turnNumber });
+    this._applyRecoilGuardAfterArtUse(unit, art);
+    this._checkPhoenixBrooch(unit);
+
+    const result = {};
+    runPostCombatEffectsSync(areaStrikeEffects({ unit, art, center, world }, result), {
+      remove: (victim, options) => this._removeUnit(victim, options),
+    });
+    this._checkAreaVictimBrooches(result);
+    if (
+      this.areaXpLive &&
+      unit.faction === 'player' &&
+      unit.currentHP > 0 &&
+      result.areaCredits?.length
+    )
+      this._awardCombatXP(unit, null, false, null, null, { credits: result.areaCredits });
+
+    if (this._checkBattleEnd()) return true;
+    this._finishUnitAction(unit);
+    return true;
   }
 
   _healOptions() {
@@ -2224,6 +2248,7 @@ export class HeadlessBattle {
     });
     this._checkPhoenixBrooch(attacker);
     this._checkPhoenixBrooch(defender);
+    this._checkAreaVictimBrooches(result);
 
     // Award XP to a player defender that lived: at least the survival minimum, even
     // with no counter or no damage dealt (BattleScene.executeEnemyCombat).
