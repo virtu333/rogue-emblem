@@ -298,6 +298,7 @@ import {
 } from '../engine/ReinforcementSpawns.js';
 import { routLadderObjectiveLine, routLadderStatus } from '../engine/RoutLadder.js';
 import { applyHoldSpawn } from '../engine/HoldActivation.js';
+import { settleArtilleryStances } from '../engine/SiegeArtillery.js';
 import {
   transitionToScene,
   transitionToSceneWithBlockedRetry,
@@ -9562,6 +9563,9 @@ export class BattleScene extends Phaser.Scene {
       }
     } else if (phase === 'enemy') {
       this.battleState = 'ENEMY_PHASE';
+      // Siege casters take their stance from the board the player left, before any
+      // phase-start blow (hazards, ballistas) can empty a ring Danger drew (SiegeArtillery).
+      settleArtilleryStances({ enemyUnits: this.enemyUnits, playerUnits: this.playerUnits, turn });
       // A fresh enemy phase (including one replayed after a Vision rewind)
       // has not applied its reinforcements yet.
       this._enemyPhaseReinforcedTurn = null;

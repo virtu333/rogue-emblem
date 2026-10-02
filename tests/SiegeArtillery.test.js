@@ -31,6 +31,7 @@ import {
   settleArtilleryStances,
 } from '../src/engine/SiegeArtillery.js';
 import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
+import { createPlayerKnowledge } from '../src/engine/PlayerKnowledge.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { HeadlessBattle, HEADLESS_STATES } from './harness/HeadlessBattle.js';
 import { loadFixture } from './fixtures/battles/index.js';
@@ -300,6 +301,72 @@ describe('the stance is taken once, at the top of the phase', () => {
     expect(outside.currentHP).toBe(1);
   });
 
+  it('a phase-start blow that empties the ring does not send it walking (scene)', async () => {
+    // The caster at 12,12; A 6 away (in range), B 12 away. Danger shows B's tile safe.
+    // An enemy ballista fells A as the enemy phase begins, before the AI runs.
+    const grid = makeGrid(25, 25);
+    grid.tickTemporaryTerrains = () => {};
+    const caster = sage(12, 12);
+    const a = foe('A', 12, 6, { fragile: true });
+    const b = foe('B', 12, 24, { fragile: true });
+    expect(damageKeys(computeDangerTiles(threatCtx(grid, [caster], [a, b]))).has(key(12, 24))).toBe(
+      false,
+    );
+    const scene = new BattleScene();
+    Object.assign(scene, {
+      scene: { isActive: () => true },
+      showPhaseBanner: vi.fn(),
+      dangerZone: { hide: vi.fn() },
+      updateAntiTurtlePressure: vi.fn(),
+      grid,
+      enemyUnits: [caster],
+      playerUnits: [a, b],
+      npcUnits: [],
+      refreshEndTurnControl: vi.fn(),
+      processTerrainDamage: vi.fn(async () => {}),
+      processTurnStartEffects: vi.fn(async () => {}),
+      processZombieRevival: vi.fn(async () => {}),
+      processBallistaFire: vi.fn(async () => {
+        a.currentHP = 0;
+        scene.playerUnits.splice(scene.playerUnits.indexOf(a), 1);
+      }),
+      applyDueHybridOverridesForTurn: vi.fn(),
+      turnManager: { currentPhase: 'enemy', turnNumber: 4 },
+    });
+    let phase = null;
+    scene.startEnemyPhase = vi.fn(async () => {
+      phase = await enemyPhase(controller(grid), {
+        enemies: scene.enemyUnits,
+        players: scene.playerUnits,
+        turn: 4,
+      });
+    });
+    let pipeline = null;
+    scene.time = { delayedCall: vi.fn((_ms, cb) => (pipeline = cb)) };
+    BattleScene.prototype.onPhaseChange.call(scene, 'enemy', 4);
+    await pipeline();
+    expect(scene.processBallistaFire).toHaveBeenCalled();
+    expect(phase.attacks).toEqual([]);
+    expect({ col: caster.col, row: caster.row }).toEqual({ col: 12, row: 12 });
+    expect(b.currentHP).toBe(1);
+  });
+
+  it('only living player units, 3-10 away, plant it', () => {
+    const at = (col, row, extra = {}) => ({ ...foe('U', col, row), ...extra });
+    const stance = (players) => {
+      const caster = sage(12, 12);
+      settleArtilleryStances({ enemyUnits: [caster], playerUnits: players, turn: 1 });
+      return caster.artilleryStance.planted;
+    };
+    expect(stance([at(12, 9)])).toBe(true); // 3 away: the near edge
+    expect(stance([at(12, 2)])).toBe(true); // 10 away: the far edge
+    expect(stance([at(12, 10)])).toBe(false); // 2 away: inside the minimum range
+    expect(stance([at(12, 11)])).toBe(false); // adjacent
+    expect(stance([at(12, 1)])).toBe(false); // 11 away
+    expect(stance([at(12, 6, { currentHP: 0 })])).toBe(false); // fallen
+    expect(stance([at(12, 6, { _removing: true })])).toBe(false); // being removed
+  });
+
   it('a phase resumed from a checkpoint keeps the stance; the next turn takes a new one', async () => {
     const grid = makeGrid(25, 25);
     const caster = sage(12, 12);
@@ -356,6 +423,24 @@ describe('what the player sees is the reach it uses', () => {
     caster.weapon._usesSpent = ENEMY_SHOTS;
     tiles = computeDangerTiles(ctx);
     expect(farthest(tiles, post)).toBe(MOV + 2);
+  });
+
+  it('Danger: a unit inside the minimum range, an NPC or a fallen unit does not plant it', () => {
+    const grid = makeGrid(41, 41);
+    const caster = sage(20, 20);
+    const post = { col: 20, row: 20 };
+    // Positions as the scene builds them: PlayerKnowledge over every unit on the board.
+    const reachWith = (others) => {
+      const knowledge = createPlayerKnowledge({ grid, units: [caster, ...others] });
+      const ctx = { ...threatCtx(grid, [caster], []), positions: () => knowledge.positions() };
+      return farthest(computeDangerTiles(ctx), post);
+    };
+    expect(reachWith([foe('Close', 20, 18)])).toBe(MOV + SIEGE_MAX); // 2 away
+    expect(reachWith([{ ...foe('Villager', 20, 14), faction: 'npc' }])).toBe(MOV + SIEGE_MAX);
+    expect(reachWith([{ ...foe('Fallen', 20, 14), currentHP: 0 }])).toBe(MOV + SIEGE_MAX);
+    expect(reachWith([{ ...foe('Leaving', 20, 14), _removing: true }])).toBe(MOV + SIEGE_MAX);
+    // The same unit standing, 6 away: planted, the ring only.
+    expect(reachWith([foe('Standing', 20, 14)])).toBe(SIEGE_MAX);
   });
 
   it('every tile Danger marks is one it strikes, and no other (planted and moving)', async () => {
@@ -460,7 +545,8 @@ describe('what the player sees is the reach it uses', () => {
 });
 
 describe('in a battle (headless harness, as the scene)', () => {
-  it('a siege Sage holds its post and fires at the unit in range, not the one it could walk to', async () => {
+  /** A siege Sage at 0,0; `near` 9 away (in range), `far` 12 away (a walk away). */
+  function siegeBattle() {
     installSeed(7);
     const fixture = loadFixture('act1_rout_basic');
     const battle = new HeadlessBattle(data, { ...fixture.battleParams }, fixture.buildRoster(data));
@@ -503,9 +589,30 @@ describe('in a battle (headless harness, as the scene)', () => {
     battle.turnManager.turnNumber = 2;
     battle.turnManager.currentPhase = 'enemy';
     battle.battleState = HEADLESS_STATES.ENEMY_PHASE;
+    return { battle, caster, near, far, struck };
+  }
+
+  it('a siege Sage holds its post and fires at the unit in range, not the one it could walk to', async () => {
+    const { battle, caster, near, struck } = siegeBattle();
     await battle._processEnemyPhase();
     expect(struck).toEqual([near]);
     expect({ col: caster.col, row: caster.row }).toEqual({ col: 0, row: 0 });
     expect(caster.artilleryStance).toEqual({ turn: 2, planted: true });
+  });
+
+  it('the stance is taken before the phase-start hazards, as the scene', async () => {
+    const { battle, caster, near, far, struck } = siegeBattle();
+    // A phase-start blow fells the only unit in range (in the scene an enemy ballista
+    // can; the harness's hazards are not lethal, so this one is staged).
+    const hazards = battle._processTerrainDamage.bind(battle);
+    battle._processTerrainDamage = (units) => {
+      hazards(units);
+      near.currentHP = 0;
+      battle._removeUnit(near, { killer: null });
+    };
+    await battle._processEnemyPhase();
+    expect(battle.playerUnits).toEqual([far]);
+    expect(struck).toEqual([]);
+    expect({ col: caster.col, row: caster.row }).toEqual({ col: 0, row: 0 });
   });
 });

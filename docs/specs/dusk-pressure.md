@@ -305,22 +305,30 @@ walked and fired like any caster: from any tile within MOV it fired at anything 
 away (Danger: MOV + 10, about 15 tiles), it stepped onto cover to fire when it could
 already fire from where it stood (cover breaks the attack score's ties), and with nobody
 within MOV + 10 it walked toward the nearest player unit.
-- **Stance.** At the top of every enemy phase each enemy whose next strike weapon is a
-  siege tome with shots left takes a stance from the board the player left: **planted**
-  when one of the player's own units stands 3–10 from it, else its normal orders. Only
-  the player's units count: they are never hidden, and none moves before the stance (an
-  NPC can: the caravan steps first). Holders and village bandits (`seek_tile`) keep their
-  orders; a guard's walk back to its post never beats a planted stance.
+- **Stance.** As the enemy phase begins, before anything else happens in it (the
+  player's hazards, enemy turn-start effects, enemy ballista fire), each enemy whose next
+  strike weapon is a siege tome with shots left takes a stance from the board the player
+  left: **planted** when one of the player's own units stands 3–10 from it, else its
+  normal orders. `BattleScene.onPhaseChange('enemy')` and the top of
+  `HeadlessBattle._processEnemyPhase` take it; `AIController.processEnemyPhase` keeps it
+  (same turn) and only fills in a unit without one. Holders and village bandits
+  (`seek_tile`) keep their orders; a guard's walk back to its post never beats a planted
+  stance.
+- **Player units only (owner, on purpose).** Unlike the hold wake rule and the guard
+  trigger, which also count the NPCs the player knows of, only the player's own units
+  plant a caster: they are never hidden and none moves before the stance, while an NPC
+  can (the caravan steps first). An NPC in range is still a target once it is planted.
+  Fallen units and units 1–2 away (inside Breachbolt's minimum range) do not plant it.
 - **Planted.** It does not move. It fires its siege tome from its post at the best
   target 3–10 away (player units and NPCs, the usual attack score), never swaps weapons,
   and never uses a status staff (only an old per-spawn roll gives a caster both). With
-  no target left by its turn (an ally killed it) it waits.
+  no target left by its turn (a ballista or an ally felled it) it waits.
 - **Fixed for the phase.** The stance is saved on the unit (`artilleryStance: { turn,
-  planted }`), so an ally killing its target first never sends it walking at a unit
+  planted }`), so no phase-start blow and no ally's kill sends it walking at a unit
   Danger called safe, and a phase resumed from a mid-phase checkpoint keeps it.
 - **Fallback.** Shots spent: the caster re-equips its own weapon (PR 1) and is no longer
-  artillery. Nobody in range: it moves and fires as before, and plants once a player
-  unit is in range.
+  artillery. **Nobody in range (owner): it keeps moving**, and fires as before; it plants
+  once a player unit is in range at a phase start.
 - **Danger.** `ThreatForecast.enemyThreatTiles` reads the same rule from the player's
   positions (PlayerKnowledge): a planted caster's reach is the 3–10 ring round its post
   (no movement, no staff), otherwise its full reach. Threat Sight evaluates the rule on
@@ -328,8 +336,9 @@ within MOV + 10 it walked toward the nearest player unit.
   caster's walk back), the inspected enemy's range shows no movement, and the Threat
   Sight cache now keys on the strike weapon and its shots. `tests/SiegeArtillery.test.js`
   checks, tile by tile, that Danger marks exactly the tiles the AI strikes.
-- **Known gap.** A player unit the ground kills as the phase turns (lava, acid) can
-  leave the ring empty; the caster then walks although Danger drew the ring.
+- **Sim agent.** `TacticianAgent` judges siege artillery with `enemyThreatTiles` on the
+  board after its planned move (planted: struck only from the post) and every foe with
+  its next strike weapon (a spent Breachbolt gives way to its fallback).
 
 **Frequency (PR 4).** `statusStaffConfig` and `siegeWeaponConfig` with
 `perBattle: true` give, per act, the chance that a battle has one, rolled only when an

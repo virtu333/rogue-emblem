@@ -2,21 +2,22 @@
 // Pure, no Phaser, no RNG.
 //
 // An enemy whose next strike weapon is a siege tome (Breachbolt: "Siege magic", 3-10)
-// with shots left is artillery. At the top of each enemy phase it takes a stance from
-// the board the player left:
+// with shots left is artillery. As the enemy phase begins, before anything else happens
+// (the player's hazards, enemy turn-start effects, ballista fire: BattleScene.onPhaseChange
+// and HeadlessBattle._processEnemyPhase), it takes a stance from the board the player left:
 //   * planted, when one of the player's units stands inside its siege range: it does
 //     not move this phase and fires from where it stands at the best target in range
 //     (none left by then: it waits);
 //   * otherwise it moves and fires like any caster (out of range, or out of shots).
-// The stance is fixed for the phase, so an ally killing its target first never sends it
-// walking, and the Danger overlay (ThreatForecast) can draw exactly the reach it will
-// use: the ring from its post while a player unit is in it, its full reach otherwise.
-// Only the player's own units count: they are never hidden, and none of them moves
-// between the player's last action and the stance (an NPC, the caravan, steps first;
-// a unit the ground kills as the phase turns is the one way the ring can empty).
-// The stance is saved with the unit (`artilleryStance: { turn, planted }`), so a phase
-// resumed from a mid-phase checkpoint keeps it instead of reading a board that enemies
-// have already changed.
+// The stance is fixed for the phase, so no phase-start blow and no ally's kill sends it
+// walking, and the Danger overlay (ThreatForecast) draws exactly the reach it will use:
+// the ring from its post while a player unit is in it, its full reach otherwise.
+// Only the player's own units count, on purpose: they are never hidden and none moves
+// between the player's last action and the stance. (The hold wake and guard rules also
+// count the NPCs the player knows of; an NPC can move first: the caravan steps.)
+// The stance is saved with the unit (`artilleryStance: { turn, planted }`), keyed by turn:
+// AIController.processEnemyPhase settles it again and keeps it, and so does a phase
+// resumed from a mid-phase checkpoint, instead of reading a board that has changed.
 //
 // Holders (HoldActivation: a siege caster never holds) and village bandits (`seek_tile`)
 // keep their own orders. The Entity has its own AI.

@@ -103,8 +103,9 @@ export class AIController {
     });
     if (woken.length) await callbacks.onHoldersWoke?.(woken);
     if (callbacks.isCurrent?.() === false) return;
-    // Siege casters take their stance from the board the player left (SiegeArtillery):
-    // planted while a player unit is in siege range, as the Danger overlay draws them.
+    // Siege casters' stances (SiegeArtillery). The scene and the harness take them as the
+    // phase begins, before its hazards and ballistas; this keeps those (same turn) and
+    // covers a caller that did not (a unit that has none for this turn).
     settleArtilleryStances({
       enemyUnits,
       playerUnits,
