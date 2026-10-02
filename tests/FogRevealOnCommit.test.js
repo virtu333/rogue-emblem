@@ -253,6 +253,7 @@ describe('moves inside an action (Rescue/Warp, Blink) lift the fog only on commi
     edric.weapon = { ...RESCUE };
     edric.inventory = [edric.weapon];
     edric.proficiencies = [{ type: 'Staff', rank: 'Prof' }];
+    edric.stats.MAG = 18; // Rescue's MAG thresholds extend range to the original ally tile.
     if (canto) {
       edric.skills = ['canto'];
       edric._movementSpent = 4;
@@ -266,12 +267,10 @@ describe('moves inside an action (Rescue/Warp, Blink) lift the fog only on commi
     scene.startCantoMove = vi.fn(() => {
       litAtCanto = grid.isVisible(5, 1);
     });
-    scene.awardScaledXP = vi.fn(async () => {});
+    scene.awardScaledXP = vi.fn(() => 20);
+    scene._presentScaledXP = vi.fn();
     const heal = new HealController(scene);
-    heal.animateRelocate = vi.fn(async (ally, dest) => {
-      ally.col = dest.col;
-      ally.row = dest.row;
-    });
+    heal.animateRelocate = vi.fn(async () => {});
     heal.restoreCombatWeapon = vi.fn();
     scene.selectedUnit = edric;
     await heal.executeRelocate(edric, sera, { col: 3, row: 1 });
@@ -284,16 +283,16 @@ describe('moves inside an action (Rescue/Warp, Blink) lift the fog only on commi
     expect(scene.startCantoMove).toHaveBeenCalledWith(edric, 1);
     expect(litAtCanto()).toBe(false);
     expect(grid.everSeenSet.has('5,1')).toBe(false);
-    expect(scene.saved).toEqual([]);
+    expect(scene.saved).toEqual([false]);
     completeBattleAction(scene, edric, { session: scene._battleSession });
     expect(grid.isVisible(5, 1)).toBe(true);
-    expect(scene.saved).toEqual([true]);
+    expect(scene.saved).toEqual([false, true]);
   });
 
   it("Rescue without Canto: the fog lifts with the action's suspend save", async () => {
     const { scene, grid } = await rescue({ canto: false });
     expect(grid.isVisible(5, 1)).toBe(true);
-    expect(scene.saved).toEqual([true]);
+    expect(scene.saved).toEqual([false, true]);
   });
 
   it('Blink with Canto: the new tile reveals nothing until Canto ends', async () => {

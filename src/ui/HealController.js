@@ -1,7 +1,14 @@
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { TutorialController } from './TutorialController.js';
-import { applyLegendaryStaffHeal } from '../engine/TraitSystem.js';
+import { settleAndPresent } from './BattleActionSettlement.js';
+import { safeBattlePresentation } from './safeBattlePresentation.js';
+import {
+  validateStaffAction,
+  settleStaffHeal,
+  settleStaffCure,
+  settleStaffRelocation,
+} from '../engine/StaffSettlement.js';
 import { deedsFor } from './DeedController.js';
 // HealController -- staff heal flow extracted from BattleScene.
 // Owns staff selection, heal target selection, and heal resolution/animation.
@@ -17,7 +24,6 @@ import {
   getStaffRemainingUses,
   getStaffMaxUses,
   getEffectiveStaffRange,
-  spendStaffUse,
   gridDistance,
 } from '../engine/Combat.js';
 import {
@@ -28,7 +34,7 @@ import {
   normalizeEquippedFirst,
   inventoryDisplayOrder,
 } from '../engine/UnitManager.js';
-import { isCureStaff, clearAllConditions } from '../engine/StatusConditionSystem.js';
+import { isCureStaff } from '../engine/StatusConditionSystem.js';
 import {
   isRelocateStaff,
   findRelocateTargets,
@@ -40,7 +46,6 @@ import { showContextualHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import { EQUIPPED_MARKER } from './equippedBadge.js';
-import { setUnitHP } from '../engine/UnitHealth.js';
 
 /** Heal motes cross from a visible healer to the target (presentation only). */
 function healSource(source, target, scene) {
@@ -348,47 +353,76 @@ export class HealController {
    * CASTER's action. The moved ally's acted state is deliberately untouched
    * (FE-classic: an un-acted ally can still act after being moved).
    */
-  async executeRelocate(healer, ally, dest) {
+  executeRelocate(healer, ally, dest) {
+    const scene = this.scene;
+    const staff = healer?.weapon;
+    return this._runStaff(healer, 'staffRelocate', {
+      validate: () =>
+        validateStaffAction({
+          staff,
+          healer,
+          targets: [ally],
+          usable: this.findHealTargets(healer, staff),
+          dest,
+          destinations: getRelocationDestinations(
+            staff,
+            healer,
+            ally,
+            scene.grid,
+            seenTileOccupant(scene.grid, (c, r) => scene.getUnitAt(c, r)),
+          ),
+        }),
+      settle: () => {
+        const facts = settleStaffRelocation({ staff, ally, dest });
+        observeHistoryAction(scene, 'relocated', healer, ally, staff.name);
+        scene.staffRelocateTargets = [];
+        scene.staffRelocateAlly = null;
+        scene.staffRelocateTiles = [];
+        return facts;
+      },
+      present: async (facts, { session }) => {
+        await safeBattlePresentation('staff relocation', () => this.animateRelocate(ally, dest), {
+          scene,
+        });
+        if (!isCurrentBattleSession(scene, session)) return;
+        safeBattlePresentation('staff danger', () => scene.refreshVisibleDangerZone?.(), { scene });
+      },
+    });
+  }
+
+  _runStaff(healer, label, { validate, settle, present }) {
     const scene = this.scene;
     const session = battleSession(scene);
     if (session !== this.session) return false;
-    if (!isCurrentBattleSession(scene, session)) return;
-    scene.battleState = 'HEAL_RESOLVING';
-    scene.grid.clearAttackHighlights();
-    scene.staffRelocateTargets = [];
-    scene.staffRelocateAlly = null;
-    scene.staffRelocateTiles = [];
-
-    try {
-      const staff = healer.weapon; // Should already be equipped
-
-      await this.animateRelocate(ally, dest);
-      if (!isCurrentBattleSession(scene, session)) return;
-      observeHistoryAction(scene, 'relocated', healer, ally, healer.weapon?.name);
-
-      // The landing's vision lifts the fog only when the caster's action is
-      // committed (finishUnitAction, or where Canto ends), with the suspend save.
-      scene.refreshVisibleDangerZone?.();
-
-      // Spend a use and check depletion (same pattern as executeHeal)
-      spendStaffUse(staff);
-      this.restoreCombatWeapon(healer);
-
-      try {
-        await scene.awardScaledXP(healer, XP_BASE_HEAL);
-        if (!isCurrentBattleSession(scene, session)) return;
-      } finally {
-        if (isCurrentBattleSession(scene, session))
-          scene.finishUnitAction(healer, { session: session });
-      }
-    } catch (err) {
-      if (!isCurrentBattleSession(scene, session)) return;
-      scene._recoverUnitActionError(healer, 'staffRelocate', err, { session });
-    }
+    return settleAndPresent(scene, {
+      session,
+      unit: healer,
+      label,
+      validate: () =>
+        (scene.playerUnits || []).includes(healer) && healer.faction === 'player' && validate(),
+      onInvalid: () => this.restoreCombatWeapon(healer),
+      settle: () => {
+        const facts = settle();
+        this.restoreCombatWeapon(healer);
+        const xp = scene.awardScaledXP(healer, XP_BASE_HEAL, { present: false });
+        if (xp && typeof xp.then === 'function') {
+          Promise.resolve(xp).catch(() => {});
+          throw new TypeError('Battle action XP settlement must be synchronous');
+        }
+        facts.xp = xp;
+        return facts;
+      },
+      present: async (facts, options) => {
+        safeBattlePresentation('staff XP', () => scene._presentScaledXP?.(healer, facts.xp), {
+          scene,
+        });
+        await present(facts, options);
+      },
+    });
   }
 
   /** Fade-out → move → fade-in (BattleScene.executeWarp pattern). */
-  async animateRelocate(ally, dest) {
+  async animateRelocate(ally, _dest) {
     const scene = this.scene;
     const session = battleSession(scene);
     if (session !== this.session) return false;
@@ -407,157 +441,114 @@ export class HealController {
     // A blanket 0.5 also dims the sprite/HP bar beyond the next turn's reset.
     const originalAlpha = new Map(targets.map((target) => [target, target.alpha ?? 1]));
 
-    if (targets.length > 0) {
-      await scene._awaitSceneTween(
-        { targets, alpha: 0, duration: 180 },
-        { label: 'staff_relocate_fade_out' },
-      );
-      if (!isCurrentBattleSession(scene, session)) return;
-    }
-    ally.col = dest.col;
-    ally.row = dest.row;
-    scene.updateUnitPosition(ally);
-    if (targets.length > 0) {
-      await scene._awaitSceneTween(
-        { targets, alpha: (target) => originalAlpha.get(target), duration: 180 },
-        { label: 'staff_relocate_fade_in' },
-      );
-      if (!isCurrentBattleSession(scene, session)) return;
-    }
-  }
-
-  async executeHeal(healer, target) {
-    const scene = this.scene;
-    const session = battleSession(scene);
-    if (session !== this.session) return false;
-    if (!isCurrentBattleSession(scene, session)) return;
-    if (scene.battleState === 'HEAL_RESOLVING') return;
-    scene.battleState = 'HEAL_RESOLVING';
-    scene.grid.clearAttackHighlights();
-
     try {
-      const staff = healer.weapon; // Should already be equipped
-
-      if (isCureStaff(staff)) {
-        // Restore-style staff: cleanse instead of heal. A slept ally cured
-        // during player phase can act this turn (selection reads conditions live).
-        clearAllConditions(target);
-        observeHistoryAction(scene, 'cured', healer, target, staff.name);
-        scene._removeAllConditionIcons(target);
-        // Un-dim only sleepers that can still act — keep the acted-grey on
-        // allies that already moved this phase (same pattern as Swap).
-        if (!target.hasActed) scene.undimUnit(target);
-        await this.animateCure(target, healer);
-        if (!isCurrentBattleSession(scene, session)) return;
-
-        spendStaffUse(staff);
-        this.restoreCombatWeapon(healer);
-
-        try {
-          await scene.awardScaledXP(healer, XP_BASE_HEAL);
-          if (!isCurrentBattleSession(scene, session)) return;
-        } finally {
-          if (isCurrentBattleSession(scene, session))
-            scene.finishUnitAction(healer, { session: session });
-        }
-        return;
-      }
-
-      const healOpts = this.getHealOptions();
-      const result = resolveHeal(staff, healer, target, healOpts);
-
-      // Apply heal
-      const hpBefore = target.currentHP;
-      setUnitHP(target, result.targetHPAfter);
-      deedsFor(scene).onHeal(healer, target, hpBefore);
-      observeHistoryAction(scene, 'healed', healer, target, `${result.healAmount} HP`, {
-        amount: result.healAmount,
-      });
-      scene.updateHPBar(target);
-      const selfHeal = applyLegendaryStaffHeal(
-        healer,
-        target,
-        result.healAmount,
-        scene.gameData?.traits,
-        scene.turnManager?.turnNumber,
-        scene.turnManager?.currentPhase,
-      );
-      if (selfHeal) scene.updateHPBar(healer);
-
-      // Animate
-      await scene.animateHeal(target, result.healAmount, healer);
-      if (!isCurrentBattleSession(scene, session)) return;
-      if (selfHeal) await scene.animateHeal(healer, selfHeal);
-      if (!isCurrentBattleSession(scene, session)) return;
-
-      // Spend a use and check depletion
-      spendStaffUse(staff);
-      this.restoreCombatWeapon(healer);
-
-      try {
-        await scene.awardScaledXP(healer, XP_BASE_HEAL);
-        if (!isCurrentBattleSession(scene, session)) return;
-      } finally {
-        if (isCurrentBattleSession(scene, session))
-          scene.finishUnitAction(healer, { session: session });
-      }
-    } catch (err) {
-      if (!isCurrentBattleSession(scene, session)) return;
-      scene._recoverUnitActionError(healer, 'heal', err, { session });
-    }
-  }
-
-  async executeHealAll(healer, targets) {
-    const scene = this.scene;
-    const session = battleSession(scene);
-    if (session !== this.session) return false;
-    if (!isCurrentBattleSession(scene, session)) return;
-    scene.battleState = 'HEAL_RESOLVING';
-    scene.grid.clearAttackHighlights();
-
-    try {
-      const staff = healer.weapon;
-      const healOpts = this.getHealOptions();
-
-      for (const target of targets) {
-        const result = resolveHeal(staff, healer, target, healOpts);
-        const hpBefore = target.currentHP;
-        setUnitHP(target, result.targetHPAfter);
-        deedsFor(scene).onHeal(healer, target, hpBefore);
-        observeHistoryAction(scene, 'healed', healer, target, `${result.healAmount} HP`, {
-          amount: result.healAmount,
-        });
-        scene.updateHPBar(target);
-        const selfHeal = applyLegendaryStaffHeal(
-          healer,
-          target,
-          result.healAmount,
-          scene.gameData?.traits,
-          scene.turnManager?.turnNumber,
-          scene.turnManager?.currentPhase,
+      if (targets.length > 0) {
+        await scene._awaitSceneTween(
+          { targets, alpha: 0, duration: 180 },
+          { label: 'staff_relocate_fade_out' },
         );
-        if (selfHeal) scene.updateHPBar(healer);
-        await scene.animateHeal(target, result.healAmount, healer);
-        if (!isCurrentBattleSession(scene, session)) return;
-        if (selfHeal) await scene.animateHeal(healer, selfHeal);
         if (!isCurrentBattleSession(scene, session)) return;
       }
-
-      // Single use spent for all targets
-      spendStaffUse(staff);
-      this.restoreCombatWeapon(healer);
-
-      try {
-        await scene.awardScaledXP(healer, XP_BASE_HEAL);
+      scene.updateUnitPosition(ally);
+      if (targets.length > 0) {
+        await scene._awaitSceneTween(
+          { targets, alpha: (target) => originalAlpha.get(target), duration: 180 },
+          { label: 'staff_relocate_fade_in' },
+        );
         if (!isCurrentBattleSession(scene, session)) return;
-      } finally {
-        if (isCurrentBattleSession(scene, session))
-          scene.finishUnitAction(healer, { session: session });
       }
-    } catch (err) {
-      if (!isCurrentBattleSession(scene, session)) return;
-      scene._recoverUnitActionError(healer, 'healAll', err, { session });
+    } finally {
+      if (isCurrentBattleSession(scene, session)) {
+        for (const target of targets)
+          safeBattlePresentation(
+            'staff opacity cleanup',
+            () => target.setAlpha?.(originalAlpha.get(target)),
+            { scene },
+          );
+      }
     }
+  }
+
+  executeHeal(healer, target) {
+    return this._executeHealing(healer, [target], false);
+  }
+
+  executeHealAll(healer, targets) {
+    return this._executeHealing(healer, targets, true);
+  }
+
+  _executeHealing(healer, targets, all) {
+    const scene = this.scene;
+    const staff = healer?.weapon;
+    // Fortify's supplied list can contain a full-health ally; recompute the
+    // same menu targets and settle only the still-mendable supplied allies.
+    let selected;
+    return this._runStaff(healer, all ? 'healAll' : 'heal', {
+      validate: () => {
+        if (!staff || isRelocateStaff(staff)) return false;
+        const usable = this.findHealTargets(healer, staff);
+        selected = all ? usable.filter((target) => targets?.includes(target)) : targets;
+        return (
+          (!all || staff?.healAll) &&
+          validateStaffAction({ staff, healer, targets: selected, usable })
+        );
+      },
+      settle: () => {
+        if (isCureStaff(staff)) {
+          const facts = settleStaffCure({ staff, target: selected[0] });
+          observeHistoryAction(scene, 'cured', healer, facts.target, staff.name);
+          return facts;
+        }
+        return settleStaffHeal({
+          staff,
+          healer,
+          targets: selected,
+          healOpts: this.getHealOptions(),
+          traits: scene.gameData?.traits,
+          turn: scene.turnManager?.turnNumber,
+          phase: scene.turnManager?.currentPhase,
+          onTarget: ({ unit, hpBefore, healAmount }) => {
+            deedsFor(scene).onHeal(healer, unit, hpBefore);
+            observeHistoryAction(scene, 'healed', healer, unit, `${healAmount} HP`, {
+              amount: healAmount,
+            });
+          },
+        });
+      },
+      present: async (facts, { session }) => {
+        if (facts.kind === 'cure') {
+          safeBattlePresentation(
+            'staff condition icons',
+            () => scene._removeAllConditionIcons(facts.target),
+            { scene },
+          );
+          if (!facts.target.hasActed)
+            safeBattlePresentation('staff undim', () => scene.undimUnit(facts.target), { scene });
+          await safeBattlePresentation('staff cure', () => this.animateCure(facts.target, healer), {
+            scene,
+          });
+          return;
+        }
+        for (const result of facts.targets) {
+          if (!isCurrentBattleSession(scene, session)) return;
+          safeBattlePresentation('staff HP', () => scene.updateHPBar(result.unit), { scene });
+          if (result.selfHeal)
+            safeBattlePresentation('staff grace HP', () => scene.updateHPBar(healer), { scene });
+          await safeBattlePresentation(
+            'staff heal',
+            () => scene.animateHeal(result.unit, result.healAmount, healer),
+            { scene },
+          );
+          if (!isCurrentBattleSession(scene, session)) return;
+          if (result.selfHeal)
+            await safeBattlePresentation(
+              'staff grace',
+              () => scene.animateHeal(healer, result.selfHeal),
+              { scene },
+            );
+        }
+      },
+    });
   }
 
   async animateCure(target, source = null) {
@@ -568,7 +559,7 @@ export class HealController {
     const reduced = scene._reduceMotion();
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
-    if (target.graphic.setTint) target.graphic.setTint(0x88ffcc);
+    if (target.graphic?.setTint) target.graphic.setTint(0x88ffcc);
 
     const pos = scene.grid.gridToPixel(target.col, target.row);
     (scene._combatFx ||= new CombatFxController(scene)).playHeal(
@@ -596,7 +587,7 @@ export class HealController {
 
     await scene._awaitSceneDelay(reduced ? 120 : 250, { label: 'animate_cure_tint_clear' });
     if (!isCurrentBattleSession(scene, session)) return;
-    if (target.graphic.clearTint) target.graphic.clearTint();
+    if (target.graphic?.clearTint) target.graphic.clearTint();
     await scene._awaitSceneDelay(reduced ? 100 : 250, { label: 'animate_cure_tail' });
     if (!isCurrentBattleSession(scene, session)) return;
   }
@@ -610,7 +601,7 @@ export class HealController {
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
     // Flash target green
-    if (target.graphic.setTint) target.graphic.setTint(UI_HEX.hpHigh);
+    if (target.graphic?.setTint) target.graphic.setTint(UI_HEX.hpHigh);
 
     const pos = scene.grid.gridToPixel(target.col, target.row);
     (scene._combatFx ||= new CombatFxController(scene)).playHeal(
@@ -638,7 +629,7 @@ export class HealController {
 
     await scene._awaitSceneDelay(reduced ? 120 : 250, { label: 'animate_heal_tint_clear' });
     if (!isCurrentBattleSession(scene, session)) return;
-    if (target.graphic.clearTint) target.graphic.clearTint();
+    if (target.graphic?.clearTint) target.graphic.clearTint();
     await scene._awaitSceneDelay(reduced ? 100 : 250, { label: 'animate_heal_tail' });
     if (!isCurrentBattleSession(scene, session)) return;
   }

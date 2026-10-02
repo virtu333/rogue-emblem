@@ -113,33 +113,44 @@ describe('executeTalk error recovery', () => {
 });
 
 describe('executeHeal error recovery', () => {
-  it('finishes the healer action when the heal flow throws mid-way', async () => {
+  it('refuses a stale staff selection without spending the action', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const scene = makeScene();
     const healer = makeUnit({ name: 'Cleric', weapon: null }); // resolveHeal(null, ...) throws
-    const target = makeUnit({ name: 'Hurt', currentHP: 5 });
+    const target = makeUnit({ name: 'Hurt', currentHP: 5, row: 1 });
+    healer.proficiencies = [{ type: 'Staff', rank: 'Prof' }];
+    scene.playerUnits = [healer, target];
 
     await scene.executeHeal(healer, target);
 
-    expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
-    expect(scene.finishUnitAction).toHaveBeenCalledWith(healer, {
-      skipCanto: true,
-      session: scene._battleSession,
-    });
+    expect(scene.finishUnitAction).not.toHaveBeenCalled();
+    expect(scene.showActionMenu).toHaveBeenCalledWith(healer);
+    expect(target.currentHP).toBe(5);
   });
 
   it('does not double-finish when the inner XP award throws after finishUnitAction ran', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const scene = makeScene();
-    const staff = { name: 'Heal', type: 'Staff', healPower: 10, uses: 20, _usesSpent: 0 };
+    const staff = {
+      name: 'Heal',
+      type: 'Staff',
+      healBase: 10,
+      range: '1',
+      rankRequired: 'Prof',
+      healAll: true,
+      uses: 20,
+      _usesSpent: 0,
+    };
     const healer = makeUnit({ name: 'Cleric', weapon: staff, inventory: [staff] });
-    const target = makeUnit({ name: 'Hurt', currentHP: 5 });
+    const target = makeUnit({ name: 'Hurt', currentHP: 5, row: 1 });
+    healer.proficiencies = [{ type: 'Staff', rank: 'Prof' }];
+    scene.playerUnits = [healer, target];
     scene.finishUnitAction = vi.fn((unit) => {
       unit.hasActed = true;
       scene.battleState = 'PLAYER_IDLE';
     });
     scene.animateHeal = vi.fn(async () => {});
-    scene.awardScaledXP = vi.fn(async () => {
+    scene.awardScaledXP = vi.fn(() => {
       throw new Error('xp boom');
     });
 
@@ -154,9 +165,20 @@ describe('executeHealAll error recovery', () => {
   it('finishes the healer action when a target animation throws', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const scene = makeScene();
-    const staff = { name: 'Fortify', type: 'Staff', healPower: 10, uses: 20, _usesSpent: 0 };
+    const staff = {
+      name: 'Fortify',
+      type: 'Staff',
+      healBase: 10,
+      range: '1',
+      rankRequired: 'Prof',
+      healAll: true,
+      uses: 20,
+      _usesSpent: 0,
+    };
     const healer = makeUnit({ name: 'Bishop', weapon: staff, inventory: [staff] });
-    const target = makeUnit({ name: 'Hurt', currentHP: 5 });
+    const target = makeUnit({ name: 'Hurt', currentHP: 5, row: 1 });
+    healer.proficiencies = [{ type: 'Staff', rank: 'Prof' }];
+    scene.playerUnits = [healer, target];
     scene.animateHeal = vi.fn(async () => {
       throw new Error('anim boom');
     });
@@ -165,7 +187,6 @@ describe('executeHealAll error recovery', () => {
 
     expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
     expect(scene.finishUnitAction).toHaveBeenCalledWith(healer, {
-      skipCanto: true,
       session: scene._battleSession,
     });
   });
@@ -236,7 +257,7 @@ describe('executeDance error recovery', () => {
     };
     scene.time = { delayedCall: vi.fn() };
     scene.undimUnit = vi.fn();
-    scene.awardScaledXP = vi.fn(async () => {
+    scene.awardScaledXP = vi.fn(() => {
       throw new Error('xp boom');
     });
     scene.finishUnitAction = vi.fn((u) => {

@@ -1,3 +1,4 @@
+import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
 // HeadlessBattle — Synchronous battle state machine for headless testing.
 // Mirrors BattleScene's MVP subset (7 states) using real engine functions.
 
@@ -29,7 +30,6 @@ import {
   getStaffRemainingUses,
   getEffectiveStaffRange,
   getStaffMaxUses,
-  spendStaffUse,
 } from '../../src/engine/Combat.js';
 import {
   createLordUnit,
@@ -105,7 +105,7 @@ import {
   XP_SPECIAL_ENEMY_MULTIPLIER,
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
-import { applyCombatHP, setUnitHP } from '../../src/engine/UnitHealth.js';
+import { applyCombatHP } from '../../src/engine/UnitHealth.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
 import {
   applyTimedBuffEntry,
@@ -1884,22 +1884,21 @@ export class HeadlessBattle {
   _executeHeal(healer, target) {
     const staff = this._getActiveHealStaff(healer);
     if (!staff) return;
-    const result = resolveHeal(staff, healer, target, this._healOptions());
-    const hpBefore = target.currentHP;
-    setUnitHP(target, result.targetHPAfter);
-    if (this.gameData?.deeds && healer !== target) recordHeal(healer, target.currentHP - hpBefore);
-    spendStaffUse(staff);
-
-    // Heal XP as HealController grants it: XP_BASE_HEAL through the battle's multipliers.
+    settleStaffHeal({
+      staff,
+      healer,
+      targets: [target],
+      healOpts: this._healOptions(),
+      traits: this.gameData?.traits,
+      turn: this.turnManager.turnNumber,
+      phase: this.turnManager.currentPhase,
+      onTarget: ({ healAmount }) => {
+        if (this.gameData?.deeds && healer !== target) recordHeal(healer, healAmount);
+      },
+    });
     if (healer.faction === 'player') this._grantScaledXP(healer, XP_BASE_HEAL);
-
-    // Check staff depletion
-    if (getStaffRemainingUses(staff, healer) <= 0) {
-      const idx = healer.inventory.indexOf(staff);
-      if (idx !== -1) healer.inventory.splice(idx, 1);
-      const combat = getCombatWeapons(healer);
-      if (combat.length > 0) equipWeapon(healer, combat[0]);
-    }
+    const combat = getCombatWeapons(healer);
+    if (combat.length > 0) equipWeapon(healer, combat[0]);
 
     this._finishUnitAction(healer);
   }

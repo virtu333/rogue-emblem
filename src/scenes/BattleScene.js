@@ -300,6 +300,8 @@ import { resetTransitionLocks, ensureSceneLoaded } from '../utils/sceneLoader.js
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
+import { settleAndPresent } from '../ui/BattleActionSettlement.js';
+import { validateConsumable, settleConsumable } from '../engine/ConsumableSettlement.js';
 import { battleSession, isCurrentBattleSession } from '../ui/BattleSession.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import { BattleCameraController } from '../utils/BattleCameraController.js';
@@ -518,6 +520,9 @@ export class BattleScene extends Phaser.Scene {
     this._transitionAfterBattlePromise = null;
     this._levelUpSfxKey = null;
     this._pendingLevelUpPopups = [];
+    this._pendingCureTarget = null;
+    this._pendingCureItem = null;
+    this._pendingCureUser = null;
     this._pendingActionCompletion = null;
     this._pendingCommittedAction = null;
     // Cancelled operations may never reach their finally blocks.
@@ -4176,6 +4181,7 @@ export class BattleScene extends Phaser.Scene {
     } else if (this.battleState === 'SELECTING_CURE_TARGET') {
       this.grid.clearAttackHighlights();
       this.healTargets = [];
+      this._pendingCureTarget = null;
       this._pendingCureItem = null;
       this._pendingCureUser = null;
       this.showActionMenu(this.selectedUnit);
@@ -5247,8 +5253,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleState === 'BATTLE_END') return;
     try {
       if (unit && !unit.hasActed) {
-        this.finishUnitAction(unit, { skipCanto: true, session: session });
-        return;
+        return this.finishUnitAction(unit, { skipCanto: true, session: session });
       }
     } catch (recoveryErr) {
       console.error(`[BattleScene] ${label} recovery error:`, recoveryErr);
@@ -6927,7 +6932,6 @@ export class BattleScene extends Phaser.Scene {
   _handleCureTargetClick(gp) {
     const target = (this.healTargets || []).find((t) => t.col === gp.col && t.row === gp.row);
     if (!target) return;
-    this.grid.clearAttackHighlights();
     this.healTargets = [];
     const item = this._pendingCureItem;
     const user = this._pendingCureUser;
@@ -7440,71 +7444,61 @@ export class BattleScene extends Phaser.Scene {
 
   async useConsumable(unit, item) {
     const session = battleSession(this);
-    this.hideActionMenu();
-    this.inEquipMenu = false;
-
-    if (item.effect === 'promote') {
-      const didPromote = await this.executePromotion(unit, item).catch((error) => {
+    if (!isCurrentBattleSession(this, session)) return false;
+    if (item?.effect === 'promote')
+      return this.executePromotion(unit, item).catch((error) => {
         reportAsyncError('promotion_failed', error, { unit: unit.name });
         return false;
       });
-      if (!isCurrentBattleSession(this, session)) return;
-      if (!didPromote) return;
-      return;
-    } else if (item.effect === 'reclass') {
-      this.showReclassClassPicker(unit, item);
-      return;
-    }
-
-    // Non-cancelable while the effect applies (same contract as the staff
-    // path's HEAL_RESOLVING): ESC during the awaited banner could otherwise
-    // re-enter handleCancel and undo the move of an already-consumed item.
-    this.battleState = 'HEAL_RESOLVING';
-    try {
-      this.commitVisionSnapshotIfPending();
-
-      if (item.effect === 'heal') {
-        const healed = healUnit(unit, item.value);
-        this.updateHPBar(unit);
-        await this.showBriefBanner(`${unit.name} healed ${healed} HP!`, UI_PALETTE.good);
-        if (!isCurrentBattleSession(this, session)) return;
-      } else if (item.effect === 'healFull') {
-        healUnitFully(unit);
-        this.updateHPBar(unit);
-        await this.showBriefBanner(`${unit.name} fully healed!`, UI_PALETTE.good);
-        if (!isCurrentBattleSession(this, session)) return;
-      } else if (item.effect === 'cure' || item.effect === 'cureHeal') {
-        // Use on the cure target (self or adjacent ally)
-        const target = this._pendingCureTarget || unit;
+    if (item?.effect === 'reclass') return this.showReclassClassPicker(unit, item);
+    const target = ['cure', 'cureHeal'].includes(item?.effect)
+      ? this._pendingCureTarget || unit
+      : unit;
+    return settleAndPresent(this, {
+      session,
+      unit,
+      label: 'consumable',
+      validate: () =>
+        (this.playerUnits || []).includes(unit) &&
+        unit.faction === 'player' &&
+        validateConsumable(unit, item, target) &&
+        (target === unit ||
+          ((this.playerUnits || []).includes(target) &&
+            gridDistance(unit.col, unit.row, target.col, target.row) <= 1)),
+      settle: () => {
         this._pendingCureTarget = null;
-        clearAllConditions(target);
-        this._removeAllConditionIcons(target);
-        // Un-dim only sleepers that can still act — keep the acted-grey on
-        // allies that already moved this phase (same pattern as Swap).
-        if (!target.hasActed) this.undimUnit(target);
-        if (item.effect === 'cureHeal' && item.value > 0) {
-          const healed = healUnit(target, item.value);
-          this.updateHPBar(target);
-          await this.showBriefBanner(
-            `${target.name} cured and healed ${healed} HP!`,
-            UI_PALETTE.good,
+        this.inEquipMenu = false;
+        const facts = settleConsumable(unit, item, target);
+        observeHistoryAction(this, 'used', unit, null, item.name);
+        return facts;
+      },
+      present: async (facts) => {
+        safeBattlePresentation('item menu', () => this.hideActionMenu(), { scene: this });
+        if (facts.cleared.length) {
+          safeBattlePresentation(
+            'item condition icons',
+            () => this._removeAllConditionIcons(target),
+            { scene: this },
           );
-          if (!isCurrentBattleSession(this, session)) return;
-        } else {
-          await this.showBriefBanner(`${target.name}'s conditions cured!`, UI_PALETTE.good);
-          if (!isCurrentBattleSession(this, session)) return;
+          if (!target.hasActed)
+            safeBattlePresentation('item undim', () => this.undimUnit(target), { scene: this });
         }
-      }
-
-      observeHistoryAction(this, 'used', unit, null, item.name);
-      // Decrement uses, remove if depleted
-      item.uses--;
-      if (item.uses <= 0) removeFromConsumables(unit, item);
-
-      this.finishUnitAction(unit, { session: session });
-    } catch (err) {
-      this._recoverUnitActionError(unit, 'consumable', err, { session });
-    }
+        safeBattlePresentation('item HP', () => this.updateHPBar(target), { scene: this });
+        const message =
+          facts.effect === 'healFull'
+            ? `${target.name} fully healed!`
+            : facts.effect === 'heal'
+              ? `${target.name} healed ${facts.healed} HP!`
+              : facts.effect === 'cureHeal'
+                ? `${target.name} cured and healed ${facts.healed} HP!`
+                : `${target.name}'s conditions cured!`;
+        await safeBattlePresentation(
+          'item banner',
+          () => this.showBriefBanner(message, UI_PALETTE.good),
+          { scene: this },
+        );
+      },
+    });
   }
 
   async showSkillLearnedBanner(unit, skillName) {
@@ -9129,7 +9123,7 @@ export class BattleScene extends Phaser.Scene {
     this._levelUpSfxKey = null;
   }
 
-  async awardScaledXP(playerUnit, baseXp) {
+  awardScaledXP(playerUnit, baseXp, { present = true } = {}) {
     const session = battleSession(this);
     const hasTurnInfo = typeof this.getCurrentTurnNumber === 'function';
     const turnsTaken = hasTurnInfo ? this.getCurrentTurnNumber() : 0;
@@ -9164,7 +9158,8 @@ export class BattleScene extends Phaser.Scene {
       // shutdown hook resolves the await) -- don't build popups on a dead scene.
       if (!isCurrentBattleSession(this, session)) break;
       // Update HP bar after level-up (maxHP may have increased)
-      safeBattlePresentation('level-up HP', () => this.updateHPBar(playerUnit), { scene: this });
+      if (present)
+        safeBattlePresentation('level-up HP', () => this.updateHPBar(playerUnit), { scene: this });
       const lvUp = cards[i];
       const blockedNames = levelUps[i].blockedIds.map(skillName);
       if (blockedNames.length) lvUp.blockedSkills = blockedNames;
@@ -9175,6 +9170,11 @@ export class BattleScene extends Phaser.Scene {
         learnedNames: levelUps[i].learnedIds.map(skillName),
       });
     }
+    if (present) BattleScene.prototype._presentScaledXP.call(this, playerUnit, xp);
+    return xp;
+  }
+
+  _presentScaledXP(playerUnit, xp) {
     safeBattlePresentation(
       'XP',
       () => {

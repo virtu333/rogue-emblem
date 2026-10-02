@@ -641,7 +641,7 @@ describe('Canto confirm checkpoint rollback', () => {
     expect(scene._cantoPending).toBeNull();
     expect(grid.isVisible(5, 1)).toBe(false);
   });
-  it('after a consumable restores the earlier checkpoint, including the unused item and HP', async () => {
+  it('after a consumable restores its settled HP and uses at the origin, then offers Canto again', async () => {
     const { scene, edric, grid } = setup({ remaining: 3 });
     withPersistence(scene, edric);
     edric.hasActed = false;
@@ -655,13 +655,20 @@ describe('Canto confirm checkpoint rollback', () => {
     cantoTo(scene, 3);
     expect(scene.battleState).toBe('CANTO_CONFIRM');
     const cp = restoreSavedScene(scene);
-    expect(cp.pendingActionCompletion).toBeNull();
-    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(cp.pendingActionCompletion).toEqual({
+      kind: 'finish',
+      unitId: 'u1',
+      unitName: edric.name,
+      skipCanto: false,
+    });
+    expect(scene.battleState).toBe('CANTO_MOVING');
+    expect(scene._cantoRemaining).toBe(3);
+    expect(scene._cantoPending).toBeNull();
     const restored = scene.playerUnits[0];
     expect([restored.col, restored.row, restored.currentHP, restored.consumables[0].uses]).toEqual([
-      0, 1, 8, 3,
+      0, 1, 18, 2,
     ]);
-    expect(restored.hasActed).toBe(false);
+    expect(restored.hasActed).toBe(true);
     expect(grid.isVisible(5, 1)).toBe(false);
   });
 });
