@@ -86,6 +86,8 @@ for (const mobile of [true, false]) {
       await expect(bench.locator('.fm-chip').filter({ hasText: 'Patient' })).toContainText(
         'Fighter · Unarmed',
       );
+      // The waiting card reads left-aligned (a .re-btn centres its content by default).
+      await expect(bench.locator('.fm-chip').first()).toHaveCSS('justify-content', 'flex-start');
       await finishFormation(page);
       await waitState(page, 'PLAYER_IDLE');
       const at = await battle(

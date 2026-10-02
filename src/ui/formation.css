@@ -23,9 +23,12 @@
   gap: 6px;
   margin-top: 8px;
 }
-.fm-chip {
+.fm-chip,
+.re-btn.fm-chip {
   display: flex;
   align-items: center;
+  /* .re-btn centres its content; a card of portrait + name reads left-aligned. */
+  justify-content: flex-start;
   gap: 6px;
   min-height: 44px;
   padding: 4px 6px;
@@ -38,6 +41,7 @@
 }
 .fm-chip-text {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   min-width: 0;
 }
