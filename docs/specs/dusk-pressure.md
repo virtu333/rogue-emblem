@@ -536,36 +536,13 @@ fielding the caravan.
   - Boss enrage arrives earlier with the lower par, at min(12, par + 2), and never later
     on a harder rung. That is intended: enrage also wakes every holder.
 
-**Strict threshold PR note** (`sim:fullrun:pr`, slice `ambush_hard_invincible`):
-- Attribution command: `npm run sim:fullrun:triage -- --slice ambush_hard_invincible
-  --range 68e0b968..2d95a4f9`. The same answer was confirmed by A/B runs of the slice
-  with data toggles.
-- first_bad_sha: 2d95a4f9 (PR 3). parent_sha: 68e0b968.
-- Failing metrics (threshold breaches): `avg_shop_spent=6749.83 < 6770.00` at
-  2d95a4f9. Re-measured after the review fixes (guards kept, the offsets −3 / −4 / −4
-  and the floor): `avg_shop_spent=6746`, still under 6770. After the harness learned
-  the scene's lava and acid (and holders left hazard tiles): 7175.
-- Slice metrics, main (2a5f12f3) → this branch (final): `avg_shop_spent` 8210 → 7175
-  (−13%), `avg_gold` 47265 → 48184 (+1.9%: gold rose, it did not fall),
-  `avg_ambush_battles` 0.33 → 0.25 (4 → 3 of 12 runs; floor 0.20), win rate, timeouts,
-  units lost and invalid shop entries unchanged.
-- The shop drop is per-seed divergence, not a lower income: the invincible agent's runs
-  take different roads once a battle's rating or a holder changes. Per seed (301–312,
-  measured at f49275a2, average 6746),
-  shop spending moves both ways: 303 −13003, 304 −7744, 307 −3587, 312 −105; 306 +2908,
-  311 +2898, 301 +747, 309 +314; 302, 305, 308 and 310 are unchanged (three of them
-  spend nothing on either side). Seed 303 alone is 1084 of the 1464 average drop.
-- Ambush coverage is one run above its floor: 3 of 12 runs (0.25) against 0.20, which
-  needs 3. One more run without an ambush fails the slice. The floor stays (it is the
-  coverage check the procedure keeps enabled); `docs/harness-thresholds.md` records the
-  margin so a later breach is read as this divergence first.
-- Change: `--min-avg-shop-spent` 6770.00 → 6400.00, 11% under the final 7175 (5% under
-  the 6746 low point; the procedure's `floor(observed × 0.85)` = 6098 would hide more of
-  a real shop regression on this slice, so the window stays tighter). Every other
-  window is unchanged.
-- Touched files: `tests/sim/fullrun-slices.js` (threshold), `data/difficulty.json`
-  (holdShare, objectiveParOffset), `src/engine/HoldActivation.js`, `HoldDisturbance.js`,
-  `SeizeParFloor.js`, `AIController.js`, `MapGenerator.js`, `TurnBonusCalculator.js`,
-  `RunManager.js`, `DifficultyEngine.js`, `ReinforcementSpawns.js`, `UnitHealth.js`,
-  `StatusConditionSystem.js`, `BattleScene.js`, `tests/harness/HeadlessBattle.js`.
+**Strict slices: no threshold change.** PR 3 as first written dropped
+`ambush_hard_invincible` to `avg_shop_spent=6749.83 < 6770` (first_bad_sha 2d95a4f9,
+parent 68e0b968). After the review fixes and the harness's lava and acid parity it
+measures 7175, above the 6770 floor, so the floor stays and the PR needs no threshold
+note. Against main (2a5f12f3): shop spent 8210 → 7175, gold 47265 → 48184,
+`avg_ambush_battles` 0.33 → 0.25 (3 of 12 runs against a 0.20 floor that needs 3: one
+run of margin, recorded in `docs/harness-thresholds.md`). Per seed the shop spending
+moves both ways (the invincible agent's roads diverge once seize ratings and holders
+change); at f49275a2 seed 303 alone was 1084 of a 1464 average drop.
 

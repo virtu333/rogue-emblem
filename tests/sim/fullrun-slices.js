@@ -120,7 +120,7 @@ export const FULLRUN_SLICES = {
       '--max-avg-gold',
       '56800.00',
       '--min-avg-shop-spent',
-      '6400.00',
+      '6770.00',
       '--max-avg-shop-spent',
       '26000.00',
       '--max-avg-invalid-shop-entries',

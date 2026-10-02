@@ -45,7 +45,7 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
   - `min_win_rate=95.00`
   - `min_avg_nodes=25.00`
   - `min_avg_gold=9000`, `max_avg_gold=56800`
-  - `min_avg_shop_spent=6400`, `max_avg_shop_spent=26000`
+  - `min_avg_shop_spent=6770`, `max_avg_shop_spent=26000`
   - `max_avg_units_lost=0.00`
   - `max_avg_invalid_shop_entries=0.00`
   - `min_avg_ambush_battles=0.20`
@@ -124,36 +124,20 @@ The current strict-slice windows are anchored to intentional gameplay shifts:
     first_bad_sha `e6e7f191`, parent_sha `887c03c2`; `avg_gold` 53483 → 54901. Same
     ~3.4% headroom.
 
-- `ambush_hard_invincible` (`min_avg_shop_spent` 6770 → 6400): Dusk pressure part 3
-  (hold-position garrisons and the seize par fix, `docs/specs/dusk-pressure.md` §2b, §6)
-  on branch `claude/dusk-pressure-pr3`
-  - attribution: `npm run sim:fullrun:triage -- --slice ambush_hard_invincible --range
-    68e0b968..2d95a4f9` → `first_bad_sha=2d95a4f9`, `parent_sha=68e0b968`; failing metric
-    `avg_shop_spent=6749.83 < threshold=6770.00`; touched files: `data/difficulty.json`
-    (holdShare, objectiveParOffset), the hold and seize-par engine
-    (`src/engine/HoldActivation.js`, `HoldDisturbance.js`, `SeizeParFloor.js`,
-    `AIController.js`, `MapGenerator.js`, `TurnBonusCalculator.js`, `RunManager.js`,
-    `DifficultyEngine.js`, `ReinforcementSpawns.js`, `UnitHealth.js`,
-    `StatusConditionSystem.js`), `src/scenes/BattleScene.js`,
-    `tests/harness/HeadlessBattle.js`, tests and docs.
-  - observed shift, re-measured after the review fixes (seeds 301-312, hard, invincible),
-    main `2a5f12f3` → branch: `avg_shop_spent` 8210 → 7175, `avg_gold` 47265 → 48184
-    (+1.9%, inside 56800), `avg_ambush_battles` 0.33 → 0.25; win rate, timeouts, units
-    lost and invalid shop entries unchanged. (At `f49275a2`, before the harness learned
-    the scene's lava and acid: shop spent 6746, gold 49059.)
-  - cause: per-seed divergence, not lower income (gold rose). The scripted runs take
-    different roads once seize ratings and holders change; shop spending moves both ways
-    per seed (at `f49275a2`: 303 −13003, 304 −7744, 307 −3587; 306 +2908, 311 +2898),
-    and seed 303 alone was 1084 of that 1464 average drop.
-  - window: 6400, 11% under the final 7175 and 5% under the 6746 low point, tighter
-    than the procedure's `floor(7175 * 0.85)` = 6098 so a real shop regression on this
-    slice still fails.
+- `ambush_hard_invincible`, no threshold change (observation for the next breach): Dusk
+  pressure part 3 (hold-position garrisons and the seize par fix,
+  `docs/specs/dusk-pressure.md` §2b, §6) on branch `claude/dusk-pressure-pr3`
+  - main `2a5f12f3` → branch (seeds 301-312, hard, invincible): `avg_shop_spent`
+    8210 → 7175 (inside 6770), `avg_gold` 47265 → 48184, `avg_ambush_battles`
+    0.33 → 0.25. An intermediate commit (`2d95a4f9`) briefly read 6749.83 < 6770; the
+    review fixes brought it back above the floor, so the floor was not loosened.
+  - cause: per-seed divergence, not lower income. The scripted runs take different roads
+    once seize ratings and holders change, and shop spending moves both ways per seed
+    (at `f49275a2`: 303 −13003, 304 −7744, 307 −3587; 306 +2908, 311 +2898).
   - **ambush coverage margin:** 3 of 12 runs see an ambush (0.25) against the
     `min_avg_ambush_battles=0.20` floor, which needs 3. One run fewer fails the slice.
-    The floor is kept; if it breaches next, first check the per-seed roads (the same
-    divergence as above) before touching ambush generation.
-  - no other strict slice left its window (`progression_invincible` gold 7737, shop
-    spent 8206; Act I pressure slices 384 / 200 gold).
+    If it breaches next, first check the per-seed roads before touching ambush
+    generation.
 
 Do not attribute these shifts to later UI/refactor commits without first-bad verification.
 
