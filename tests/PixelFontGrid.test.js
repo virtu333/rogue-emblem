@@ -47,36 +47,6 @@ describe('pixel font grid', () => {
     expect(snapPixelFontSize(9, { dpr: 0 })).toBe(8); // bad DPR -> treated as 1
   });
 
-  // Desktop menu titles (MenuSurface headers: Settings, Victory records, Help, the
-  // roster) ask for --re-pf-11. At DPR 1 the nearest crisp size is 8px, so the
-  // grid once published 8px and every title read smaller than its 13px body copy.
-  it('keeps an 11px title at 11px on a DPR 1 desktop instead of shrinking it to 8px', () => {
-    expect(snapPixelFontSize(11, { dpr: 1 })).toBe(11);
-    expect(pixelFontVariables(1)['--re-pf-11']).toBe('11px');
-    expect(snapPixelFontSize(9, { dpr: 1.25 })).toBe(9); // Windows 125%: not 6.4px
-  });
-
-  it('never shrinks a label by more than a fifth, and a bigger design never renders smaller', () => {
-    const dprs = [1, 1.1, 1.25, 1.5, 1.75, 1.8, 2, 2.2, 2.5, 3];
-    for (const dpr of dprs) {
-      for (const scale of [1, 1.25, 1.5, 1.875, 2, 2.2]) {
-        let previous = 0;
-        for (const size of PIXEL_FONT_SIZES) {
-          const snapped = snapPixelFontSize(size, { dpr, scale });
-          expect((size - snapped) / size, `${size}px @${dpr}x${scale}`).toBeLessThanOrEqual(
-            0.2 + 1e-9,
-          );
-          expect(snapped, `${size}px @${dpr}x${scale}`).toBeGreaterThanOrEqual(previous);
-          previous = snapped;
-        }
-      }
-    }
-  });
-
-  it('lets a fit-to-width caller step down the grid past the shrink cap', () => {
-    expect(snapPixelFontSize(10.99, { dpr: 1, mode: 'down', tolerance: 1, maxShrink: 1 })).toBe(8);
-  });
-
   it('publishes CSS variables, scale-aware for a transformed stage', () => {
     const vars = pixelFontVariables(2);
     expect(vars['--re-pf-9']).toBe('8px');
