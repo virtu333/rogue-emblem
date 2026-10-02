@@ -107,7 +107,11 @@ import {
 } from '../../src/utils/constants.js';
 import { applyCombatHP } from '../../src/engine/UnitHealth.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
-import { areaStrikeEffects, isAreaStrikeCenter } from '../../src/engine/AreaStrike.js';
+import {
+  areaStrikeEffects,
+  canStartAreaStrike,
+  isAreaStrikeCenter,
+} from '../../src/engine/AreaStrike.js';
 import {
   applyTimedBuffEntry,
   expireTimedBuffs,
@@ -1872,7 +1876,9 @@ export class HeadlessBattle {
     });
     if (!check.ok) return false;
     // Aim with the art's weapon before equipping it: a refused center changes nothing.
+    // canStartAreaStrike: a weapon it may strike with (silence, a spent per-battle weapon).
     const world = this._postCombatWorld();
+    if (!canStartAreaStrike(unit, weapon, art, world)) return false;
     if (!isAreaStrikeCenter(unit, art, center, world, weapon)) return false;
     if (unit.weapon !== weapon) equipWeapon(unit, weapon);
 
