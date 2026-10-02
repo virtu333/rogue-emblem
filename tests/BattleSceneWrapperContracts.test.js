@@ -677,19 +677,7 @@ describe('BattleScene shim delegation contracts', () => {
         'status line',
       ],
       ['_weaponArtReasonLabel', '_weaponArtReasonLabel', ['insufficient_hp'], 'Not enough HP'],
-      [
-        '_scoreEnemyWeaponArt',
-        '_scoreEnemyWeaponArt',
-        [{ name: 'Enemy' }, { id: 'enemy_art' }],
-        3.5,
-      ],
       ['_getEnemyWeaponArtDifficultyId', '_getEnemyWeaponArtDifficultyId', [], 'lunatic'],
-      [
-        '_getEnemyWeaponArtTuning',
-        '_getEnemyWeaponArtTuning',
-        [],
-        { minScore: 0.25, useChance: 1 },
-      ],
       [
         '_selectEnemyWeaponArt',
         '_selectEnemyWeaponArt',

@@ -113,6 +113,14 @@ export const WEAPON_ARTS_HELP = [
       'Moves need an adjacent target and a free tile; Root stops them.',
     ],
   },
+  {
+    title: 'Area',
+    points: [
+      "An area blow strikes each enemy it reaches against that enemy's own DEF or RES.",
+      'It always lands and never crits; strike skills do not trigger on it.',
+      'Weapon effectiveness reaches 3× at most in an area.',
+    ],
+  },
   { tip: 'Outside battle this sheet shows eligibility and cost only.' },
 ];
 

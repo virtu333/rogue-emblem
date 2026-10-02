@@ -14,6 +14,16 @@
       "required": ["wave", "costModel", "notes"],
       "additionalProperties": false
     },
+    "areaXp": {
+      "type": "object",
+      "properties": {
+        "hitRate": { "type": "number", "minimum": 0 },
+        "killRate": { "type": "number", "minimum": 0 },
+        "actionBaseCap": { "type": "number", "minimum": 0 }
+      },
+      "required": ["hitRate", "killRate", "actionBaseCap"],
+      "additionalProperties": false
+    },
     "arts": {
       "type": "array",
       "items": {
@@ -33,7 +43,57 @@
           "hpCost": { "type": "integer", "minimum": 0 },
           "perTurnLimit": { "type": "integer", "minimum": 1 },
           "perMapLimit": { "type": "integer", "minimum": 1 },
-          "targeting": { "type": "string" },
+          "targeting": { "type": "string", "enum": ["normal_attack", "chosen_center"] },
+          "area": {
+            "type": "object",
+            "properties": {
+              "shape": { "type": "string", "enum": ["radius", "line", "around_attacker"] },
+              "radius": { "type": "integer", "minimum": 1 },
+              "length": { "type": "integer", "minimum": 1 },
+              "pick": { "type": "string", "enum": ["all", "lowest_hp_pct"] },
+              "maxTargets": { "type": "integer", "minimum": 1 },
+              "damage": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": { "const": "scaled" },
+                      "multiplier": { "type": "number", "exclusiveMinimum": 0 }
+                    },
+                    "required": ["kind", "multiplier"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": { "const": "fixed" },
+                      "amount": { "type": "integer", "minimum": 1 }
+                    },
+                    "required": ["kind", "amount"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "strikes": { "type": "string", "enum": ["once", "each_landed"] },
+              "nonLethal": { "type": "boolean" },
+              "centerRange": {
+                "oneOf": [
+                  { "const": "weapon" },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "min": { "type": "integer", "minimum": 0 },
+                      "max": { "type": "integer", "minimum": 1 }
+                    },
+                    "required": ["min", "max"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": ["shape", "damage"],
+            "additionalProperties": false
+          },
           "description": { "type": "string" },
           "combatMods": { "type": "object" },
           "effects": { "type": "object" },

@@ -1,21 +1,26 @@
 import {
+  getWeaponArtArea,
+  getWeaponArtCombatMods,
+  getWeaponArtTargeting,
   getWeaponArtTier2Effects,
   getWeaponArtTier5Effects,
   getWeaponArtMissEffects,
   getWeaponArtKillEffects,
 } from './WeaponArtSystem.js';
+import { mergeCombatMods } from './Combat.js';
 import { isRooted } from './StatusConditionSystem.js';
+import { isEntity } from './EntitySystem.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = [
   'afterCombatDamage',
   'afterCombatDebuff',
   'inflictStatus',
-  'pierceThrough',
+  'lineArea',
   'postCombatMove',
   'setHp',
 ];
-const VALID_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through']);
+const VALID_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through', 'ram']);
 
 function getOpposingSide(side) {
   return side === 'attacker' ? 'defender' : 'attacker';
@@ -40,21 +45,6 @@ export function didCombatSideLandHit(events, side, attacker = null, defender = n
     }
     return fallbackName !== null && event.attacker === fallbackName;
   });
-}
-
-export function getFirstLandedStrikeDamage(events, side, attacker = null, defender = null) {
-  if (!Array.isArray(events)) return 0;
-  const fallbackName = getFallbackNameForSide(side, attacker, defender);
-  for (const event of events) {
-    if (event?.type !== 'strike' || event?.miss) continue;
-    if (event.attackerSide === 'attacker' || event.attackerSide === 'defender') {
-      if (event.attackerSide !== side) continue;
-    } else if (fallbackName === null || event.attacker !== fallbackName) {
-      continue;
-    }
-    return Math.max(0, Math.trunc(Number(event.damage) || 0));
-  }
-  return 0;
 }
 
 export function getMissedStrikeCount(events, side, attacker = null, defender = null) {
@@ -87,6 +77,31 @@ export function getLandedStrikeDamages(events, side, attacker = null, defender =
     out.push(Math.max(0, Math.trunc(Number(event.damage) || 0)));
   }
   return out;
+}
+
+/**
+ * The `area_damage` step of a normal-attack area art (docs/specs/aoe-weapon-arts.md §2.3),
+ * or null. The blow reuses the side's flat combat mods from the resolved combat
+ * (`result.strikeMods`); a result without them (a hand-built one) falls back to the
+ * art's own mods.
+ */
+function areaDamageStep(side, art, result, attacker, defender) {
+  if (getWeaponArtTargeting(art) !== 'normal_attack') return null;
+  const area = getWeaponArtArea(art);
+  if (!area) return null;
+  const landed = getLandedStrikeDamages(result?.events, side, attacker, defender).length;
+  return {
+    type: 'area_damage',
+    sourceSide: side,
+    targetSide: getOpposingSide(side),
+    artId: art?.id || null,
+    area,
+    blows: area.strikes === 'each_landed' ? landed : 1,
+    // A line runs through with the strike, so it lands even if the counter then fells
+    // its user (as pierce always has); a blast around the target needs its user alive.
+    requiresLiveSource: area.shape !== 'line',
+    strikeMods: result?.strikeMods?.[side] ?? mergeCombatMods(null, getWeaponArtCombatMods(art)),
+  };
 }
 
 export function getPostCombatPipelineSteps({
@@ -162,12 +177,13 @@ export function getPostCombatPipelineSteps({
     for (const side of SIDE_ORDER) {
       const hitGated = effectType !== 'setHp';
       if (hitGated && !hitBySide[side]) continue;
+      if (effectType === 'lineArea') {
+        const step = areaDamageStep(side, artsBySide[side], result, attacker, defender);
+        if (step?.area.shape === 'line') steps.push(step);
+        continue;
+      }
       const effects = getWeaponArtTier2Effects(artsBySide[side])[effectType] || [];
       if (effects.length <= 0) continue;
-      const landedDamages =
-        effectType === 'pierceThrough'
-          ? getLandedStrikeDamages(result?.events, side, attacker, defender)
-          : null;
       for (const effect of effects) {
         if (effectType === 'afterCombatDamage') {
           steps.push({
@@ -199,16 +215,6 @@ export function getPostCombatPipelineSteps({
           });
           continue;
         }
-        if (effectType === 'pierceThrough') {
-          steps.push({
-            type: 'tier2_pierce',
-            sourceSide: side,
-            targetSide: resolveRelativeTargetSide(side, effect.target),
-            maxTargets: effect.maxTargets,
-            damages: [...(landedDamages || [])],
-          });
-          continue;
-        }
         if (effectType === 'postCombatMove') {
           steps.push({
             type: 'tier2_move',
@@ -216,6 +222,7 @@ export function getPostCombatPipelineSteps({
             targetSide: getOpposingSide(side),
             mode: effect.mode,
             distance: effect.distance,
+            ...(effect.mode === 'ram' ? { collisionDamage: effect.collisionDamage } : {}),
           });
           continue;
         }
@@ -266,25 +273,23 @@ export function getPostCombatPipelineSteps({
     if (!hitBySide[side]) continue;
     const art = artsBySide[side];
     const tier5Effects = getWeaponArtTier5Effects(art);
-    if (tier5Effects.aoeSplash) {
-      const splash = tier5Effects.aoeSplash;
-      const basisDamage =
-        splash.basis === 'first_landed_strike'
-          ? getFirstLandedStrikeDamage(result?.events, side, attacker, defender)
-          : 0;
+    const areaStep = areaDamageStep(side, art, result, attacker, defender);
+    if (areaStep && areaStep.area.shape !== 'line') steps.push(areaStep);
+    if (tier5Effects.allyHeal) {
+      // What the user dealt the target, overkill excluded (Divine Charge's sum, capped
+      // at the HP the target entered the combat with).
+      const landed = getLandedStrikeDamages(result?.events, side, attacker, defender).reduce(
+        (sum, damage) => sum + damage,
+        0,
+      );
+      const targetStartHp = Number(result?.startHP?.[getOpposingSide(side)]);
       steps.push({
-        type: 'tier5_aoe_splash',
+        type: 'ally_heal',
         sourceSide: side,
-        targetSide: getOpposingSide(side),
         artId: art?.id || null,
-        radius: splash.radius,
-        maxTargets: splash.maxTargets,
-        damageKind: splash.damageKind,
-        damageMultiplier: splash.damageMultiplier,
-        fixedDamage: splash.fixedDamage,
-        nonLethal: splash.nonLethal === true,
-        basis: splash.basis,
-        basisDamage,
+        radius: tier5Effects.allyHeal.radius,
+        percent: tier5Effects.allyHeal.percentOfDamage,
+        dealt: Number.isFinite(targetStartHp) ? Math.min(landed, targetStartHp) : landed,
       });
     }
     if (tier5Effects.allyBuff) {
@@ -370,6 +375,7 @@ export function resolvePostCombatMove({
   rows = 0,
   getMoveCost = null,
   getUnitAt = null,
+  isImmovable = null,
 } = {}) {
   if (!sourceUnit || typeof getMoveCost !== 'function' || typeof getUnitAt !== 'function') {
     return { ok: false, reason: 'invalid_input' };
@@ -381,22 +387,33 @@ export function resolvePostCombatMove({
     .toLowerCase();
   if (!VALID_MOVE_MODES.has(normalizedMode)) return { ok: false, reason: 'invalid_mode' };
 
-  // Root pins units against art-driven displacement: a rooted source cannot
-  // reposition itself, and a rooted defender cannot be swapped or pushed.
-  // (Deliberate ally actions like Shove/Pull remain allowed as counterplay.)
-  const movesSource = normalizedMode !== 'push';
-  const movesTarget = normalizedMode === 'swap' || normalizedMode === 'push';
-  if (movesSource && isRooted(sourceUnit)) return { ok: false, reason: 'rooted' };
-  if (movesTarget && targetUnit && isRooted(targetUnit)) return { ok: false, reason: 'rooted' };
+  // Every art move needs the target beside its user; from range nothing moves, so no
+  // pin (root, Anchored) is ever reported for a move that could not have happened.
   const stepDistance = Math.max(1, Math.trunc(Number(distance) || 1));
   const direction = isCardinalAdjacent(sourceUnit, targetUnit);
   if (!direction) return { ok: false, reason: 'not_adjacent' };
+
+  // Root pins units against art-driven displacement: a rooted source cannot
+  // reposition itself, and a rooted defender cannot be swapped or pushed.
+  // (Deliberate ally actions like Shove/Pull remain allowed as counterplay.)
+  const movesSource = normalizedMode !== 'push' && normalizedMode !== 'ram';
+  const movesTarget =
+    normalizedMode === 'swap' || normalizedMode === 'push' || normalizedMode === 'ram';
+  if (movesSource && isRooted(sourceUnit)) return { ok: false, reason: 'rooted' };
+  if (movesTarget && targetUnit && isRooted(targetUnit)) return { ok: false, reason: 'rooted' };
+  // Anchored (and anything else the caller pins) is never displaced by another unit.
+  if (movesTarget && targetUnit && isImmovable?.(targetUnit)) {
+    return { ok: false, reason: 'immovable' };
+  }
 
   const targetAlive = targetUnit?.currentHP > 0;
   const targetStillAtExpectedTile =
     targetUnit && getUnitAt(targetUnit.col, targetUnit.row) === targetUnit;
   const requiresLiveTarget =
-    normalizedMode === 'swap' || normalizedMode === 'push' || normalizedMode === 'through';
+    normalizedMode === 'swap' ||
+    normalizedMode === 'push' ||
+    normalizedMode === 'through' ||
+    normalizedMode === 'ram';
   if (requiresLiveTarget && (!targetAlive || !targetStillAtExpectedTile)) {
     return { ok: false, reason: 'invalid_target' };
   }
@@ -476,6 +493,40 @@ export function resolvePostCombatMove({
         { unit: sourceUnit, col: sourceDestCol, row: sourceDestRow },
         { unit: targetUnit, col: targetDestCol, row: targetDestRow },
       ],
+    };
+  }
+
+  if (normalizedMode === 'ram') {
+    // The Entity's footprint never moves. Otherwise the target slides up to `distance`
+    // tiles and stops before the edge, impassable ground or a living unit; stopping
+    // short is a collision (with that unit, or with nothing for a wall).
+    if (isEntity(targetUnit)) return { ok: false, reason: 'immovable' };
+    let col = targetUnit.col;
+    let row = targetUnit.row;
+    let collision = null;
+    for (let i = 0; i < stepDistance; i++) {
+      const nextCol = col + direction.dc;
+      const nextRow = row + direction.dr;
+      if (
+        !isInBounds(nextCol, nextRow, cols, rows) ||
+        !Number.isFinite(getMoveCost(nextCol, nextRow, targetUnit.moveType))
+      ) {
+        collision = { obstacle: null };
+        break;
+      }
+      const occupant = getUnitAt(nextCol, nextRow);
+      if (occupant && occupant !== targetUnit && !(occupant.currentHP <= 0)) {
+        collision = { obstacle: occupant };
+        break;
+      }
+      col = nextCol;
+      row = nextRow;
+    }
+    const moved = col !== targetUnit.col || row !== targetUnit.row;
+    return {
+      ok: true,
+      assignments: moved ? [{ unit: targetUnit, col, row }] : [],
+      collision,
     };
   }
 

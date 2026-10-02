@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
+import { getWeaponArtTier2Effects } from '../src/engine/WeaponArtSystem.js';
 
 const DATA_DIR = path.resolve('data');
 
@@ -36,6 +38,7 @@ export function validateCrossReferences(datasets = null) {
   const recruits = datasets?.recruits ?? readJson('recruits.json');
   const deedsData = datasets?.deeds ?? readJson('deeds.json');
   const terrain = datasets?.terrain ?? readJson('terrain.json');
+  const enemiesData = datasets?.enemies ?? readJson('enemies.json');
 
   const classByName = new Map(
     (Array.isArray(classes) ? classes : [])
@@ -237,6 +240,74 @@ export function validateCrossReferences(datasets = null) {
   for (const type of Object.keys(deedsData?.weapons || {})) {
     if (type !== 'Dark' && !weaponTypes.has(type)) {
       errors.push(`deeds.json:weapons references unknown weapon type "${type}"`);
+    }
+  }
+
+  // Area weapon arts (docs/specs/aoe-weapon-arts.md §3): the retired splash/pierce keys
+  // are gone, and each area matches how its art is aimed.
+  for (const art of Array.isArray(weaponArtsData?.arts) ? weaponArtsData.arts : []) {
+    const where = `weaponArts.json:${art?.id}`;
+    if (art?.effects?.aoeSplash) errors.push(`${where} uses retired effects.aoeSplash (use area)`);
+    if ((art?.effects?.afterCombat || []).some((e) => e?.type === 'pierce_through'))
+      errors.push(`${where} uses retired pierce_through (use area)`);
+    for (const id of toStringArray(art?.legendaryWeaponIds)) {
+      if (!weaponNames.has(id))
+        errors.push(`${where}.legendaryWeaponIds references unknown weapon "${id}"`);
+    }
+    const area = art?.area;
+    const chosenCenter = art?.targeting === 'chosen_center';
+    if (chosenCenter && !area) errors.push(`${where} is chosen_center but has no area`);
+    if (!area) continue;
+    if (area.shape === 'line' && !(area.length >= 1))
+      errors.push(`${where}.area is a line without a length`);
+    if (area.shape !== 'line' && !(area.radius >= 1)) errors.push(`${where}.area needs a radius`);
+    if (chosenCenter) {
+      if (area.shape !== 'radius')
+        errors.push(`${where} is chosen_center: its area must be a radius`);
+      if (area.centerRange === undefined)
+        errors.push(`${where} is chosen_center without centerRange`);
+      const factions = toStringArray(art.allowedFactions);
+      if (factions.length !== 1 || factions[0] !== 'player')
+        errors.push(`${where} is chosen_center: the enemy AI cannot aim it (player only)`);
+    } else if (area.centerRange !== undefined) {
+      errors.push(`${where}.area.centerRange only applies to chosen_center arts`);
+    }
+  }
+
+  // Elite area arts (enemies.json eliteAreaArts, EnemyAreaArts.js): a real rung, a
+  // sane count, and each art one the AI can swing with that weapon type. Never a
+  // knockback: no enemy art moves a unit.
+  const eliteArts = enemiesData?.eliteAreaArts;
+  if (eliteArts) {
+    const where = 'enemies.json:eliteAreaArts';
+    if (!DIFFICULTY_IDS.includes(eliteArts.minDifficulty))
+      errors.push(`${where}.minDifficulty is not a difficulty id ("${eliteArts.minDifficulty}")`);
+    const [min, max] = Array.isArray(eliteArts.count) ? eliteArts.count : [];
+    if (!(Number.isInteger(min) && Number.isInteger(max) && min >= 1 && max >= min))
+      errors.push(`${where}.count must be [min, max] with 1 <= min <= max`);
+    const artsById = new Map(
+      (Array.isArray(weaponArtsData?.arts) ? weaponArtsData.arts : []).map((a) => [a?.id, a]),
+    );
+    for (const [type, artId] of Object.entries(eliteArts.byWeaponType || {})) {
+      const art = artsById.get(artId);
+      const at = `${where}.byWeaponType.${type}`;
+      if (!art) {
+        errors.push(`${at} references unknown art "${artId}"`);
+        continue;
+      }
+      const types = toStringArray(art.allowedTypes);
+      if (!(types.length ? types : [art.weaponType]).includes(type))
+        errors.push(`${at}: "${artId}" cannot be used with a ${type}`);
+      if (!art.area || (art.targeting ?? 'normal_attack') !== 'normal_attack')
+        errors.push(`${at}: "${artId}" is not an area art the AI can swing`);
+      const factions = toStringArray(art.allowedFactions);
+      if (factions.length && !factions.includes('enemy'))
+        errors.push(`${at}: "${artId}" is not open to enemies`);
+      if (art.aiEnabled === false) errors.push(`${at}: "${artId}" is off for the AI`);
+      if (toStringArray(art.legendaryWeaponIds).length > 0)
+        errors.push(`${at}: "${artId}" belongs to a legendary weapon`);
+      if (getWeaponArtTier2Effects(art).postCombatMove.length > 0)
+        errors.push(`${at}: "${artId}" moves units (no enemy knockback)`);
     }
   }
 
