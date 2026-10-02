@@ -24,6 +24,7 @@ import { assignCasterGear } from '../src/engine/CasterGear.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import { loadGameData } from './testData.js';
+import { HELP_TABS } from '../src/data/helpContent.js';
 
 const data = loadGameData();
 afterEach(() => restoreMathRandom());
@@ -207,26 +208,34 @@ describe('in generated maps', () => {
   });
 
   it('a saved run keeps its old per-spawn config and its old maps', () => {
-    // The pre-ladder Black Sun config, as a run saved before it holds it.
+    // The pre-ladder Black Sun config, as a run saved before PR 4 holds it.
     const legacy = {
       statusStaffConfig: { act1: 0, act2: 0.08, act3: 0.15, act4: 0.15, finalBoss: 0.25, maxPerBattle: 2 }, // prettier-ignore
       siegeWeaponConfig: { act1: 0, act2: 0, act3: 0.1, act4: 0.12, finalBoss: 0.15, maxPerBattle: 1, weaponName: 'Breachbolt' }, // prettier-ignore
     };
-    let staves = 0;
-    let sieges = 0;
-    for (let seed = 1; seed <= 120; seed++) {
-      const bc = gen({ act: 'act4', objective: 'rout', difficultyId: 'lunatic', ...legacy }, seed);
-      // Same draws as the per-spawn roll gives with the casters it rolled for: a map
-      // with no gear config at all differs only by those flags.
-      const bare = gen({ act: 'act4', objective: 'rout', difficultyId: 'lunatic' }, seed);
+    // [spawn index, class, staff, siege] as origin/main (6dad6929, before PR 4) generates
+    // them for these seeds (Act IV rout, deployCount 6, row 3): captured from main's code,
+    // not this branch's. The old roll allows a Sage both (seed 40).
+    const MAIN = {
+      1: [],
+      6: [[5, 'Mage', 'silence', null]],
+      27: [[5, 'Sage', null, 'Breachbolt']],
+      37: [[4, 'Mage', 'sleep', null], [7, 'Mage', 'sleep', null]],
+      40: [[3, 'Sage', 'sleep', 'Breachbolt'], [4, 'Mage', 'sleep', null]],
+      56: [[0, 'Dark Knight', null, 'Breachbolt']],
+      88: [[3, 'Mage', 'silence', null], [6, 'Sage', null, 'Breachbolt']],
+    }; // prettier-ignore
+    for (const [seed, expected] of Object.entries(MAIN)) {
+      const bc = gen({ act: 'act4', objective: 'rout', difficultyId: 'lunatic', ...legacy }, Number(seed)); // prettier-ignore
+      const flags = bc.enemySpawns
+        .map((sp, i) => [i, sp.className, sp.statusStaff || null, sp.siegeWeapon || null])
+        .filter((f) => f[2] || f[3]);
+      expect(flags, `seed ${seed}`).toEqual(expected);
+      // And nothing else about the garrison moves.
+      const bare = gen({ act: 'act4', objective: 'rout', difficultyId: 'lunatic' }, Number(seed));
       const strip = (b) => b.enemySpawns.map(({ statusStaff: _a, siegeWeapon: _b, ...r }) => r);
       expect(strip(bc)).toEqual(strip(bare));
-      staves += bc.enemySpawns.filter((s) => s.statusStaff).length;
-      sieges += bc.enemySpawns.filter((s) => s.siegeWeapon).length;
     }
-    // The old per-spawn rolls still run for both.
-    expect(staves).toBeGreaterThan(0);
-    expect(sieges).toBeGreaterThan(0);
   });
 });
 
@@ -275,6 +284,20 @@ describe('data and summary', () => {
     expect(errors).toMatch(/hard\.statusStaffConfig\.act3/);
     expect(errors).toMatch(/lunatic\.siegeWeaponConfig\.maxPerBattle/);
     expect(errors).toMatch(/hard\.siegeWeaponConfig\.weaponName/);
+  });
+
+  it('the help page names the first rung that fields each staff', () => {
+    const RUNG_LABEL = { dusk: 'Dusk and harder', hard: 'Nightfall/Black Sun only' };
+    const firstRung = (kind) =>
+      ['normal', 'dusk', 'hard', 'lunatic'].find((r) => {
+        const cfg = modifiers(r).statusStaffConfig;
+        return cfg && (cfg.kinds || ['sleep', 'silence']).includes(kind);
+      });
+    const texts = HELP_TABS.flatMap((tab) => tab.pages || [tab]).flatMap((page) =>
+      (page.lines || []).map((l) => l.text),
+    );
+    expect(texts).toContain(`Sleep (${RUNG_LABEL[firstRung('sleep')]}):`);
+    expect(texts).toContain(`Silence (${RUNG_LABEL[firstRung('silence')]}):`);
   });
 
   it('the summary names the staff kinds and the first act', () => {

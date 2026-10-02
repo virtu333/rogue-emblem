@@ -29,7 +29,7 @@ Eclipse shadow, so every battle was S-rank.
 | Eclipse gain = min(max(0, turns − max(1, par−3)), 6), ×1 on every rung | `EclipseSystem.js:114-133` | An S clear adds 0 |
 | Reinforcements on Dusk's standard templates start in Act III (T5/T8 ±1, count + `enemyCountBonus`). Arrivals copy the map's spawns at the same level and pass an Infantry-only passability check | `mapTemplates.json:109`, `ReinforcementScheduler.js:29-36,314-345`, `BattleScene.js:2389-2545` | Acts I–II have no waves; arrivals can land on Ballista, Lava or Swamp |
 | Field empty = rout victory, even with waves pending | `BattleScene.js:10664-10673` | Good: rewards pushing |
-| Status staves and siege roll **per spawn, on eligible classes only**. Dusk has none. Breachbolt uses are never spent for either faction: `spendPerBattleUse` has no caller, and `AttackOptions.js:35` only gates the player's menu | `difficulty.json`, `MapGenerator.js:2096-2125`, `Combat.js:534-549` | Enemy siege fires every phase; a looted Breachbolt (`lootTables.json:318,452`) is unlimited |
+| Status staves and siege roll **per spawn, on eligible classes only**. Dusk had none (before PR 4). Breachbolt uses are never spent for either faction: `spendPerBattleUse` has no caller, and `AttackOptions.js:35` only gates the player's menu | `difficulty.json`, `MapGenerator.js:2096-2125`, `Combat.js:534-549` | Enemy siege fires every phase; a looted Breachbolt (`lootTables.json:318,452`) is unlimited |
 
 Design history: the rule "punish the clock, not the unit" (`docs/design-log.md:652`). The
 log rejects "untelegraphed ambush spawns" and "RNG sleep-lock on the player's carry"
@@ -424,7 +424,7 @@ Given an eligible caster, the share matches the rung's chance (Nightfall Act IV 
    inflation 2, and the deed and survival-XP fixes.
 3. **PR 3:** hold on seize and escape, the seize par fix, and a seize/escape-aware sim
    agent.
-4. **PR 4:** Dusk Silence staves and the per-battle staff/siege model with artillery AI.
+4. **PR 4:** Dusk Silence staves and the per-battle staff/siege model (artillery AI deferred, §2c).
 
 **BattleScene.** All the logic lives in engine modules. The draft stability stack
 (#171–#178) does not touch `BattleScene.js` 2966–3107 (anti-turtle) or 2369–2780
