@@ -12,7 +12,9 @@ import { safeBattlePresentation } from './safeBattlePresentation.js';
 export function revealSettledVision(scene) {
   if (!scene.grid?.fogEnabled) return;
   scene.grid.updateFogOfWar(scene.playerUnits);
-  scene.updateEnemyVisibility?.();
+  safeBattlePresentation('settled fog visibility', () => scene.updateEnemyVisibility?.(), {
+    scene,
+  });
 }
 
 // Complete an action only after its final location is settled, including Canto.
