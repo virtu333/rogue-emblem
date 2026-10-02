@@ -25,6 +25,10 @@ import {
 import { computeDangerTiles } from '../src/engine/ThreatForecast.js';
 import { createPlayerKnowledge } from '../src/engine/PlayerKnowledge.js';
 import { AIController } from '../src/engine/AIController.js';
+import { BattleScene } from '../src/scenes/BattleScene.js';
+import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
+import { VisionRewindController } from '../src/ui/VisionRewindController.js';
+import { BATTLE_UNIT_GROUPS } from '../src/engine/BattleEntityIdentity.js';
 import { buildReinforcementTemplatePool } from '../src/engine/ReinforcementSpawns.js';
 import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
 import { calculatePar } from '../src/engine/TurnBonusCalculator.js';
@@ -444,6 +448,134 @@ describe('when a pack wakes', () => {
     expect(f.enemies.every((e) => e.holdWoke === 'enrage')).toBe(true);
   });
 
+  it('a resumed enemy phase does not run the wake check again', async () => {
+    // Turn 3's enemy phase checks the packs once. A refresh mid-phase restores the units
+    // from the checkpoint and replays the rest of the phase: by then enemies that already
+    // moved may have opened new tiles for a holder (here the hero stands inside A's zone).
+    // In the uninterrupted phase the pack kept holding, so the resume must too.
+    const f = field();
+    const ai = new AIController(f.grid, data, { objective: 'seize' });
+    ai._delay = () => Promise.resolve();
+    const reasons = [];
+    const callbacks = (turnNumber) => ({
+      turnNumber,
+      onDecision: (_e, d) => reasons.push(d.reason),
+      onMoveUnit: async () => {},
+      onAttack: async () => {},
+      onUnitDone: async (e) => (e.hasActed = true),
+    });
+    let hero = f.hero;
+    ai.setHoldContext(() => f.ctxFor([hero]));
+    await ai.processEnemyPhase(f.enemies, [hero], [], callbacks(3));
+    expect(reasons).toEqual(['hold', 'hold']);
+    // The checkpoint: the units as saved, restored. One holder has not acted yet.
+    const restored = f.enemies.map((e) => JSON.parse(JSON.stringify(serializeBattleUnit(e))));
+    restored[1].hasActed = false;
+    f.enemies.splice(0, 2, ...restored);
+    hero = { ...f.hero, col: 8, row: 3 }; // inside A's reach now
+    reasons.length = 0;
+    await ai.processEnemyPhase(f.enemies, [hero], [], callbacks(3));
+    expect(reasons).toEqual(['hold']);
+    expect(f.enemies.every((e) => e.aiMode === 'hold')).toBe(true);
+    // The next turn's enemy phase checks again, and the pack wakes.
+    for (const e of f.enemies) e.hasActed = false;
+    reasons.length = 0;
+    await ai.processEnemyPhase(f.enemies, [hero], [], callbacks(4));
+    expect(f.enemies.map((e) => e.holdWoke)).toEqual(['threat', 'threat']);
+    expect(reasons).not.toContain('hold');
+  });
+
+  it('BattleScene hands the turn to the wake check, fresh or resumed', async () => {
+    for (const resume of [false, true]) {
+      const scene = new BattleScene();
+      scene.scene = { isActive: () => true };
+      scene.battleState = 'ENEMY_PHASE';
+      scene.battleConfig = { objective: 'seize' };
+      scene.playerUnits = [{ name: 'Edric', currentHP: 10 }];
+      scene.enemyUnits = [{ name: 'Soldier', currentHP: 10 }];
+      scene.npcUnits = [];
+      scene.visionDialog = null;
+      scene.isDevToolsEnabled = () => false;
+      scene.createEnemyPhaseAiStats = () => ({});
+      scene.finalizeEnemyPhaseAiStats = () => {};
+      scene.processTerrainDamage = async () => {};
+      scene.applyReinforcementsForTurn = () => {};
+      scene.checkBattleEnd = () => false;
+      scene.turnManager = { currentPhase: 'enemy', turnNumber: 7, endEnemyPhase: () => {} };
+      const seen = [];
+      scene.aiController = {
+        processEnemyPhase: async (_e, _p, _n, callbacks) => seen.push(callbacks.turnNumber),
+      };
+      await scene.startEnemyPhase({ resume });
+      expect(seen, `resume ${resume}`).toEqual([7]);
+    }
+  });
+
+  it('a resume and a Vision rewind restore the boss enrage with the turn pressure', () => {
+    const noop = () => {};
+    // A scene with the live fields these restores read; any other method is a no-op.
+    const sceneFor = (ai, extra = {}) => {
+      const base = {
+        ...Object.fromEntries(BATTLE_UNIT_GROUPS.map((key) => [key, []])),
+        _battleSession: 1,
+        aiController: ai,
+        turnManager: { currentPhase: 'player', turnNumber: 9, endPlayerPhase: noop },
+        grid: { fogEnabled: false, clearHighlights: noop, clearAttackHighlights: noop, clearPath: noop }, // prettier-ignore
+        playerUnits: [],
+        enemyUnits: [],
+        npcUnits: [],
+        nonDeployedUnits: [],
+        turnPar: null,
+        turnCounterText: null,
+        _pinnedThreats: null,
+        _battleTimeline: null,
+        runManager: null,
+        registry: { get: () => null },
+        cameras: null,
+        visionBaseSeed: 1,
+        getTurnPressureSummary: () => '',
+        ...extra,
+      };
+      return new Proxy(base, { get: (t, k) => (k in t ? t[k] : noop) });
+    };
+    const enraged = { aggressiveMode: true, turnEnrageActive: true };
+    const calm = { aggressiveMode: false, turnEnrageActive: false };
+    for (const [saved, expected] of [
+      [enraged, true],
+      [calm, false],
+    ]) {
+      // Resume from the checkpoint (a live AI that disagrees, as a fresh scene's would).
+      const ai = new AIController(null, data, { objective: 'seize' });
+      ai.setBossEnraged(!expected);
+      const scene = sceneFor(ai);
+      new BattleSuspendController(scene).finalizeResume({
+        phase: 'player',
+        turnNumber: 9,
+        rngSeed: 5,
+        antiTurtleState: saved,
+      });
+      expect(ai.bossEnraged, 'resume').toBe(expected);
+      // Vision rewind to a turn-start snapshot.
+      const ai2 = new AIController(null, data, { objective: 'seize' });
+      ai2.setBossEnraged(!expected);
+      const scene2 = sceneFor(ai2, {
+        visionSnapshot: {
+          phase: 'player',
+          turnNumber: 9,
+          playerUnits: [],
+          enemyUnits: [],
+          npcUnits: [],
+          antiTurtleState: saved,
+        },
+      });
+      const vision = new VisionRewindController(scene2);
+      vision.updateHud = noop;
+      vision.playRewindEffect = noop;
+      expect(vision._applySnapshot()).toBe(true);
+      expect(ai2.bossEnraged, 'vision').toBe(expected);
+    }
+  });
+
   it('a holder survives a snapshot round trip and keeps its post', () => {
     const f = field();
     const copy = JSON.parse(JSON.stringify(serializeBattleUnit(f.enemies[0])));
@@ -490,10 +622,13 @@ describe('in a battle (headless harness, as the scene)', () => {
         ),
       );
       if (battle.playerUnits.some((u) => zone.has(`${u.col},${u.row}`))) continue;
+      const turn = battle.turnManager.turnNumber;
       await battle._processEnemyPhase();
       const awake = holders.filter((h) => h.currentHP > 0 && h.aiMode !== 'hold');
       if (awake.length) continue; // a stray blow can wake one; this seed proves nothing
       expect(holders.map((h) => ({ col: h.col, row: h.row }))).toEqual(posts);
+      // As the scene: the phase's turn is recorded, so a resume would not check again.
+      expect(holders.every((h) => h.holdCheckedTurn === turn)).toBe(true);
       checked++;
     }
     expect(checked).toBeGreaterThan(0);

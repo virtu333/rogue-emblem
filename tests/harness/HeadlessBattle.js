@@ -2089,6 +2089,7 @@ export class HeadlessBattle {
           this.playerUnits,
           this.npcUnits,
           {
+            turnNumber: this.turnManager?.turnNumber ?? null, // as BattleScene
             onMoveUnit: (enemy, path) => {
               if (path && path.length >= 2) {
                 const dest = path[path.length - 1];

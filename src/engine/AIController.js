@@ -84,7 +84,8 @@ export class AIController {
    * Process all enemy units one at a time.
    * @param {Array} enemyUnits
    * @param {Array} playerUnits
-   * @param {Object} callbacks - { onMoveUnit(enemy, path), onAttack(enemy, target), onUnitDone(enemy), onDecision(enemy, decision) }
+   * @param {Object} callbacks - { onMoveUnit(enemy, path), onAttack(enemy, target), onUnitDone(enemy), onDecision(enemy, decision) },
+   *   plus `turnNumber`, the turn whose enemy phase this is (the hold wake check runs once per turn)
    * @returns {Promise<void>}
    */
   async processEnemyPhase(enemyUnits, playerUnits, npcUnits, callbacks) {
@@ -96,6 +97,8 @@ export class AIController {
       npcUnits,
       threatContext: this.holdContext?.() || null,
       bossEnraged: this.bossEnraged,
+      // Once per turn: a phase resumed from a checkpoint skips it (HoldActivation).
+      turn: callbacks.turnNumber ?? null,
     });
     if (woken.length) await callbacks.onHoldersWoke?.(woken);
     if (callbacks.isCurrent?.() === false) return;

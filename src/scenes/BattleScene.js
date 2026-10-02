@@ -10247,6 +10247,8 @@ export class BattleScene extends Phaser.Scene {
           this.npcUnits,
           {
             isCurrent: () => !phaseSuperseded() && !this.visionDialog,
+            // The hold wake check runs once per turn, so a resumed phase skips it.
+            turnNumber: this.turnManager.turnNumber,
             // A garrison pack the player can see leaves its post (HoldActivation).
             onHoldersWoke: (woken) => {
               if (this.visionDialog || phaseSuperseded()) return Promise.resolve();

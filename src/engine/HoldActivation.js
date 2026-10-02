@@ -196,9 +196,12 @@ function threatened(unit, threatContext, positions, targets) {
 
 /**
  * Wake the packs whose members meet a wake rule (mutates them: aiMode cleared, `holdWoke`
- * records why). Call at the top of an enemy phase.
+ * records why). Call at the top of an enemy phase, with its turn number: the holders
+ * still holding afterwards record it (`holdCheckedTurn`, saved with the unit), so a
+ * phase resumed from a checkpoint never checks again. By then enemies that already moved
+ * may have opened new stop tiles, and a second check would break the exact restore.
  * @param {{ enemyUnits: object[], playerUnits: object[], npcUnits?: object[],
- *   threatContext?: object|null, bossEnraged?: boolean }} battle
+ *   threatContext?: object|null, bossEnraged?: boolean, turn?: number|null }} battle
  * @returns {{ unit: object, reason: string }[]} the holders woken, in pack order
  */
 export function wakeHolders({
@@ -207,8 +210,12 @@ export function wakeHolders({
   npcUnits = [],
   threatContext = null,
   bossEnraged = false,
+  turn = null,
 }) {
-  const holders = (enemyUnits || []).filter(isHolding);
+  const checked = Number.isInteger(turn);
+  const holders = (enemyUnits || [])
+    .filter(isHolding)
+    .filter((u) => !checked || u.holdCheckedTurn !== turn);
   if (!holders.length) return [];
   const targets = [...(playerUnits || []), ...(npcUnits || [])].filter(
     (u) => u && u.currentHP > 0 && !u._removing,
@@ -231,7 +238,10 @@ export function wakeHolders({
   const woken = [];
   for (const unit of holders) {
     const reason = packReason.get(unit.holdPack);
-    if (!reason) continue;
+    if (!reason) {
+      if (checked) unit.holdCheckedTurn = turn;
+      continue;
+    }
     delete unit.aiMode;
     delete unit.holdDisturbed;
     unit.holdWoke = reason;

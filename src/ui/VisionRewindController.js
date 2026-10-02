@@ -295,6 +295,7 @@ export class VisionRewindController {
       },
     );
     scene.aiController?.setAggressiveMode?.(Boolean(scene.antiTurtleState.aggressiveMode));
+    scene.aiController?.setBossEnraged?.(Boolean(scene.antiTurtleState.turnEnrageActive));
 
     if (scene.grid.fogEnabled) {
       const fog = scene.visionSnapshot.fog || { visible: [], everSeen: [] };

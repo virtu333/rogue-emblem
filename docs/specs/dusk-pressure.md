@@ -444,6 +444,11 @@ fielding the caravan.
   - Holders (`aiMode: 'hold'`, `holdPack`) and the seize `parOffset` are in the battle
     config.
   - A unit stores `holdPost`, and its snapshot keeps it.
+  - The wake check runs once per enemy phase: the holders still holding record the turn
+    (`holdCheckedTurn`), so a phase resumed from a mid-phase checkpoint does not check
+    again. Enemies that already moved could otherwise open new stop tiles and break the
+    exact restore. A resume and a Vision rewind restore the boss enrage
+    (`setBossEnraged`) along with the anti-turtle state.
   - A run saved before PR 3 holds nothing and keeps its par.
 - **Waking.** `AIController.processEnemyPhase` wakes packs first, for the scene and the
   harness alike. Each passes a threat context built from the board as the player knows
