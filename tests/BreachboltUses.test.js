@@ -352,3 +352,73 @@ describe('an enemy siege caster through the headless enemy phase', () => {
     expect(nextStrikeWeapon(sage)).toBeNull();
   });
 });
+
+// Area weapon arts (docs/specs/aoe-weapon-arts.md) on a per-battle weapon: Cataclysm Bolt
+// is Breachbolt's own area art. Using it is a combat in which the wielder strikes with
+// the tome, so it spends one shot like a plain attack. Its other victims never spend a
+// second one, and the last shot still swaps the tome out once every death has settled.
+describe('an area art fired with a Breachbolt', () => {
+  afterEach(() => restoreMathRandom());
+
+  function boltDuel(shotsLeft = PLAYER_SHOTS) {
+    installSeed(11);
+    const fixture = loadFixture('act1_rout_basic');
+    const battle = new HeadlessBattle(
+      data,
+      { ...fixture.battleParams, act: 'act3' },
+      fixture.buildRoster(data),
+    );
+    battle.init();
+    const rows = battle.battleConfig.mapLayout.length;
+    const cols = battle.battleConfig.mapLayout[0].length;
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) battle.battleConfig.mapLayout[r][c] = 0;
+    battle.grid.mapLayout = battle.battleConfig.mapLayout;
+    const mage = battle.playerUnits[0];
+    battle.playerUnits = [mage];
+    const bolt = weapon('Breachbolt');
+    bolt._usesSpent = PLAYER_SHOTS - shotsLeft;
+    const fire = weapon('Fire');
+    Object.assign(mage, { col: 0, row: 0, hasMoved: false, hasActed: false });
+    Object.assign(mage.stats, { HP: 99, MAG: 30, SKL: 40, SPD: 40, DEF: 40, RES: 40 });
+    mage.currentHP = 99;
+    mage.proficiencies = [{ type: 'Tome', rank: 'Mast' }];
+    mage.inventory = [bolt, fire];
+    mage.weapon = bolt;
+    battle.enemyUnits = [];
+    const foe = (name, col, row) => {
+      const unit = soldier('enemy', col, row);
+      unit.name = name;
+      return unit;
+    };
+    // The target at range 5, a second foe next to it inside the art's radius.
+    const target = foe('Target', 5, 0);
+    const beside = foe('Beside', 5, 1);
+    battle.enemyUnits.push(target, beside);
+    return { battle, mage, bolt, target, beside };
+  }
+
+  function fireArt(battle, mage, targetName) {
+    battle.selectUnit(mage.name);
+    battle.moveTo(mage.col, mage.row);
+    battle.chooseAction('Attack');
+    battle.selectWeaponArt('legend_cataclysm_bolt', mage.weapon);
+    battle.chooseAttackTarget(targetName);
+  }
+
+  it('spends exactly one shot, however many foes the area hits', () => {
+    const { battle, mage, bolt, beside } = boltDuel();
+    fireArt(battle, mage, 'Target');
+    expect(beside.currentHP).toBeLessThan(60); // the area blow landed
+    expect(getPerBattleRemainingUses(bolt, mage)).toBe(PLAYER_SHOTS - 1);
+  });
+
+  it('its last shot swaps the tome out once the area deaths are settled', () => {
+    const { battle, mage, bolt, beside } = boltDuel(1);
+    beside.currentHP = 1; // the area blow fells it
+    fireArt(battle, mage, 'Target');
+    expect(battle.enemyUnits).not.toContain(beside);
+    expect(getPerBattleRemainingUses(bolt, mage)).toBe(0);
+    expect(mage.weapon.name).toBe('Fire');
+  });
+});
