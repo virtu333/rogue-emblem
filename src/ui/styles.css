@@ -12,6 +12,8 @@
 @import './shopMenu.css';
 
 @import './runFlow.css';
+/* Victory Records: the list of won runs and one run's chronicle. */
+@import './runRecords.css';
 
 /* Ceremonies: boss cards, fate bands, cut-ins, act titles, the boss bar. */
 @import './ceremony.css';

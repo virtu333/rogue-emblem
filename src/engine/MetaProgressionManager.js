@@ -1,7 +1,7 @@
 import { isDifficultyId } from './DifficultyEngine.js';
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
-import { mergeRunRecords } from './RunRecords.js';
-import { setItemFreeingSpace } from './SaveSpace.js';
+import { mergeRunRecords, runRecordsUnderPressure } from './RunRecords.js';
+import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
 // MetaProgressionManager.js — Pure class: persistent meta-progression (dual currency + upgrades)
 // No Phaser deps. Follows SettingsManager pattern.
 
@@ -1389,6 +1389,26 @@ export class MetaProgressionManager {
     return result;
   }
 
+  /**
+   * Retry a quota-failed meta write with smaller victory archives (runRecordsUnderPressure);
+   * the first that fits becomes the archive in memory too. False when none fits.
+   */
+  _writeWithLeanerRecords(payload, slot) {
+    for (const records of runRecordsUnderPressure(this.runRecords)) {
+      try {
+        setItemFreeingSpace(this.storageKey, JSON.stringify({ ...payload, runRecords: records }), slot); // prettier-ignore
+      } catch (err) {
+        if (isQuotaExceededError(err)) continue;
+        return false;
+      }
+      payload.runRecords = records;
+      this.runRecords = records;
+      console.warn(`[MetaProgression] storage full: victory records kept lean (${records.length})`);
+      return true;
+    }
+    return false;
+  }
+
   _captureState() {
     return structuredClone({
       totalValor: this.totalValor,
@@ -1446,13 +1466,17 @@ export class MetaProgressionManager {
       savedAt: this.savedAt,
     };
     let localOk = false;
+    // On a full store, other slots' optional battle history makes room first.
+    const slot = Number(/^emblem_rogue_slot_(\d+)_meta$/.exec(this.storageKey)?.[1]) || null;
     try {
-      // On a full store, other slots' optional battle history makes room first.
-      const slot = Number(/^emblem_rogue_slot_(\d+)_meta$/.exec(this.storageKey)?.[1]) || null;
       setItemFreeingSpace(this.storageKey, JSON.stringify(payload), slot);
       localOk = true;
     } catch (err) {
-      console.warn('[MetaProgression] localStorage write failed:', err?.message || err);
+      // Still full: the victory records give way (lean, then oldest first) before the
+      // save does, so a payout or an upgrade never waits on the archive's detail.
+      if (isQuotaExceededError(err)) localOk = this._writeWithLeanerRecords(payload, slot);
+      if (!localOk)
+        console.warn('[MetaProgression] localStorage write failed:', err?.message || err);
     }
 
     if (localOk && this.onSave) {
