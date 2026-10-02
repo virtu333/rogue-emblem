@@ -577,19 +577,23 @@ describe("Breachbolt's shots and its counters", () => {
   });
 
   it('the last shot puts the tome away only after the blast has settled its deaths', async () => {
-    const caster = sage(0, 5);
-    const [tome, sword] = [caster.inventory[0], ironSword()];
-    tome._usesSpent = 2; // its last shot
-    caster.inventory.push(sword);
-    caster.proficiencies.push({ type: 'Sword', rank: 'Prof' });
-    // A foe outside the blast keeps the battle going (a won battle swaps nothing).
-    const ctx = runBattle([caster, foe('Frail', 4, 5, 10), foe('Outside', 8, 5)]);
-    await cast(ctx);
-    expect(getPerBattleRemainingUses(tome, caster)).toBe(0);
-    expect(caster.weapon).toBe(sword); // swapped once the strike was done
-    // The kill was the tome's: the deed reads its type and its counter took it.
-    expect(caster._battleDeeds.killsByWeapon).toEqual({ Tome: 1 });
-    expect([tome._kills, sword._kills ?? 0, sword._strikes ?? 0]).toEqual([1, 0, 0]);
+    // With a foe left outside the blast, and with the blast winning the battle: as in
+    // executeCombat, victory is decided after the swap, so both swap. Only a defeat or a
+    // fatal decision (the battle already over) skips it.
+    for (const others of [[foe('Outside', 8, 5)], []]) {
+      const caster = sage(0, 5);
+      const [tome, sword] = [caster.inventory[0], ironSword()];
+      tome._usesSpent = 2; // its last shot
+      caster.inventory.push(sword);
+      caster.proficiencies.push({ type: 'Sword', rank: 'Prof' });
+      const ctx = runBattle([caster, foe('Frail', 4, 5, 10), ...others]);
+      await cast(ctx);
+      expect(getPerBattleRemainingUses(tome, caster)).toBe(0);
+      expect(caster.weapon).toBe(sword); // swapped once the strike was done
+      // The kill was the tome's: the deed reads its type and its counter took it.
+      expect(caster._battleDeeds.killsByWeapon).toEqual({ Tome: 1 });
+      expect([tome._kills, sword._kills ?? 0, sword._strikes ?? 0]).toEqual([1, 0, 0]);
+    }
   });
 
   it("the counters take only the blast's own kills of foes, and only for the army", () => {

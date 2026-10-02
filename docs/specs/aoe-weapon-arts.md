@@ -660,7 +660,8 @@ targeting does now. Rewind treats the strike as an action; add it to
   before it, so a replay spends it once. A tome that fired its last shot is swapped
   out (`_swapSpentWeapons`) only after the sweep and the defeat check, as
   `executeCombat` does: kill credit, deeds and remains read the weapon that struck. A
-  won battle swaps nothing.
+  blast that wins the battle still swaps (victory is decided after it, when the
+  action completes); a defeat or a fatal decision returns before the swap.
 - **The item's counters** (#181). A cast has no strike events, so
   `DeedSystem.recordAreaStrike` counts it: one `_strikes` a cast (no hit roll, still
   one use) and one `_kills` for each foe the blast itself dropped (`areaCredits`
