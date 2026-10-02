@@ -114,6 +114,7 @@ function runOnce(data, seed, offset) {
           terrainData: data.terrain,
           parBonus: bc.parBonus || 0,
           parInflation: bc.parInflation,
+          parOffset: bc.parOffset,
         },
         data.turnBonus,
         DIFFICULTY,

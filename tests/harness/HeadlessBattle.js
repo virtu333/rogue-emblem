@@ -68,6 +68,7 @@ import {
   checkPhoenixBrooch,
   resolveGamblerDelta,
   applyAccessoryPhaseCombatMods,
+  getTerrainCostReduction,
 } from '../../src/engine/SkillSystem.js';
 import {
   getAttackAffixes,
@@ -87,6 +88,8 @@ import {
   resolveStatusStaff,
 } from '../../src/engine/StatusConditionSystem.js';
 import { applyEnemySpawnGear } from '../../src/engine/EnemySpawnGear.js';
+import { applyHoldSpawn } from '../../src/engine/HoldActivation.js';
+import { createPlayerKnowledge } from '../../src/engine/PlayerKnowledge.js';
 import { spendCombatShots, swapSpentWeapons } from '../../src/engine/PerBattleWeapons.js';
 import { canAttackWithWeapon, getAttackWeapons } from '../../src/engine/AttackOptions.js';
 import { combatDistance, getFootprint, isEntity } from '../../src/engine/EntitySystem.js';
@@ -362,6 +365,7 @@ export class HeadlessBattle {
             terrainData: this.gameData.terrain,
             parBonus: bc.parBonus || 0,
             parInflation: bc.parInflation,
+            parOffset: bc.parOffset,
           },
           this.gameData.turnBonus,
           this.battleParams?.difficultyId,
@@ -385,6 +389,8 @@ export class HeadlessBattle {
       objective: bc.objective,
       thronePos: bc.thronePos,
     });
+    // As BattleScene: holders wake on the Danger tiles of the board the player knows.
+    this.aiController.setHoldContext(() => this._playerThreatContext());
     // Override delay for synchronous execution
     this.aiController._delay = () => Promise.resolve();
 
@@ -866,6 +872,8 @@ export class HeadlessBattle {
 
     if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
+    // A garrison holder keeps its post until its pack wakes (HoldActivation).
+    applyHoldSpawn(enemy, spawn);
     if (
       spawn.aiTargetTile &&
       Number.isFinite(spawn.aiTargetTile.col) &&
@@ -1041,6 +1049,26 @@ export class HeadlessBattle {
     });
     this.antiTurtleState = step.state;
     this.aiController?.setAggressiveMode?.(step.aggressiveMode);
+    this.aiController?.setBossEnraged?.(step.turnEnrageActive);
+  }
+
+  /**
+   * BattleScene.threatContext: the Danger overlay's view, positions from what the player
+   * knows (PlayerKnowledge: own units, what the fog shows, the recruit's beacon).
+   */
+  _playerThreatContext() {
+    const knowledge = createPlayerKnowledge({
+      grid: this.grid,
+      units: [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits],
+      revealed: this.npcUnits.filter((u) => isRecruitNpc(u)),
+    });
+    return {
+      grid: this.grid,
+      enemyUnits: this.enemyUnits,
+      ballistas: this.ballistas || [],
+      positions: () => knowledge.positions(),
+      costModifier: (unit) => getTerrainCostReduction(unit, this.gameData?.skills),
+    };
   }
 
   _onVictory() {

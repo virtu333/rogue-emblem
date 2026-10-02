@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Dusk Pressure PR 3: Hold-Position Garrisons and the Seize Par Fix (Oct 2, 2026)
+
+- **Garrisons hold their ground on Dusk and harder.**
+  - Part of a seize or escape map's enemies now holds instead of marching into your kill
+    zone: 35/45/55% of a seize garrison and 30/40/50% of an escape garrison's exit half.
+    They are the enemies nearest the throne or the exits, in packs of two or more.
+  - A pack wakes when one of its members:
+    - sees a unit of yours inside its Danger tiles (the red zone is the wake zone; a
+      holder hidden in fog does not count until you see it);
+    - is struck, hexed or shoved;
+    - sees its boss enrage.
+  - Waiting out the anti-turtle clock does not wake them.
+  - "The garrison stirs!" marks a pack you can see waking.
+  - Holds replace the seize guards on those rungs. First Light keeps its guards.
+- **Seize par is tighter** on Dusk (−4), Nightfall (−4) and Black Sun (−2). A fast seize
+  now lands in A as often as S, and a slow one in B.
+- Both are fixed when a map is generated, so saved and locked battles play as they did.
+- Spec: `docs/specs/dusk-pressure.md` §2b and §6.
+
 ### Area Weapon Arts, Engine (Oct 1, 2026)
 
 - **Elite enemies swing area arts on Nightfall and Black Sun.** From Act III, one or two

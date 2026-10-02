@@ -114,6 +114,13 @@ describe('generateModifierSummary', () => {
     expect(lines('hard')).not.toContain(neutral);
   });
 
+  it('names the hold-position garrisons on Dusk and harder only', () => {
+    const line = 'Part of each seize and escape garrison holds its ground until disturbed';
+    const lines = (id) => generateModifierSummary(gameData.difficulty.modes[id]);
+    expect(lines('normal')).not.toContain(line);
+    for (const id of ['dusk', 'hard', 'lunatic']) expect(lines(id)).toContain(line);
+  });
+
   it('detects fog chance bonus', () => {
     const mode = { ...DIFFICULTY_DEFAULTS, fogChanceBonus: 0.2 };
     const result = generateModifierSummary(mode);

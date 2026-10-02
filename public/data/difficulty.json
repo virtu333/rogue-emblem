@@ -41,6 +41,8 @@
       "parInflation": 3,
       "templateWavesRaisePar": true,
       "routLadder": null,
+      "holdShare": null,
+      "objectiveParOffset": null,
       "enemyClassEarliestAct": {},
       "recruitAffixExcludedActs": ["act1"]
     },
@@ -111,6 +113,8 @@
           ]
         }
       },
+      "holdShare": { "seize": 0.35, "escape": 0.3 },
+      "objectiveParOffset": { "seize": -4 },
       "enemyClassEarliestAct": {
         "Dragon": "act4"
       },
@@ -208,6 +212,8 @@
           ]
         }
       },
+      "holdShare": { "seize": 0.45, "escape": 0.4 },
+      "objectiveParOffset": { "seize": -4 },
       "enemyClassEarliestAct": {},
       "recruitAffixExcludedActs": []
     },
@@ -277,6 +283,8 @@
       "parInflation": 3,
       "templateWavesRaisePar": false,
       "routLadder": null,
+      "holdShare": { "seize": 0.55, "escape": 0.5 },
+      "objectiveParOffset": { "seize": -2 },
       "enemyClassEarliestAct": {},
       "recruitAffixExcludedActs": []
     }

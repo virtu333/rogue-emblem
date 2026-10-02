@@ -6,6 +6,8 @@ decisions of 2026-10-01 (listed at the end). Branch `claude/dusk-pressure-spec`.
 - PR 1, which has no tuning, is on branch `claude/dusk-pressure-pr1`.
 - PR 2 (the Dusk and Nightfall ladders) is on `claude/dusk-pressure-pr2`; §5 has its
   notes and measured results.
+- PR 3 (holds and the seize par fix) is on `claude/dusk-pressure-pr3`; §6 has its notes
+  and measured results.
 - First Light does not change. Boss enrage stat gains are held.
 
 ## 1. Problem
@@ -215,7 +217,8 @@ then hunts for the rest of the battle.
      everything the player can see. A fogged holder never wakes this way: it wakes once
      it is revealed with a player unit still in its zone, or by rule 2 or 3. Danger drops
      fogged sources (`ThreatForecast.js:151`), so this keeps the rule honest.
-  2. is below full HP or carries a status (it was struck, shoved or hexed).
+  2. is below full HP, carries a status, or stands off its post (it was struck, hexed or
+     shoved).
   3. turn-pressure boss enrage has started.
 - **Anti-turtle `aggressiveMode` does not wake holders.** If it did, a turtle would only
   have to wait 3 phases.
@@ -224,8 +227,9 @@ then hunts for the rest of the battle.
   the enemies in the exit half. First Light keeps its guards. Rout: 0% for now (owner).
 - **Seize par fix ships in the same PR.** With seize par loose (93% or more of seize
   battles are S on every rung up to Nightfall), pulling holders off a pack would be free.
-  - Tune `objectiveAdjustments.seize` per rung with a seize/escape-aware agent; the
-    current fallback agent cannot measure holds.
+  - Tuned per rung as `objectiveParOffset.seize` in `difficulty.json` (Dusk −4,
+    Nightfall −4, Black Sun −2; First Light none), locked into the battle config as
+    `parOffset`, measured with a seize-aware agent (§6).
   - Target: a push median of par−2.
 - **Cost.** One movement flood per sleeping holder per enemy phase (about 8 at most),
   the same cost as one Danger zone.
@@ -410,4 +414,53 @@ Targets (§3) on the shipped numbers:
 
 All rows come from the code after the review fixes: one edge per wave, and the harness
 fielding the caravan.
+
+## 6. PR 3 as shipped (`claude/dusk-pressure-pr3`)
+
+- **Holders.**
+  - `engine/HoldActivation.js` picks the holders when the map is generated
+    (`difficulty.json` `holdShare`, seize and escape). They are the non-boss enemies
+    nearest the throne, or the exits' centre within the exit half; heal-role units are
+    left out. That takes round(share × the count) of them in packs. A candidate joins
+    when it stands within 3 of a chosen holder, or together with its nearest free
+    partner within 3, which can add one past the count. A candidate with no partner is
+    skipped, so nobody holds alone.
+  - Holds replace the seize guard roll on Dusk and harder. The guard draws still happen,
+    so the generated map is the same as before. Only `aiMode` and `holdPack` change.
+- **Locked with the map.**
+  - Holders (`aiMode: 'hold'`, `holdPack`) and the seize `parOffset` are in the battle
+    config.
+  - A unit stores `holdPost`, and its snapshot keeps it.
+  - A run saved before PR 3 holds nothing and keeps its par.
+- **Waking.** `AIController.processEnemyPhase` wakes packs first, for the scene and the
+  harness alike. Each passes a threat context built from the board as the player knows
+  it (BattleScene `threatContext()`, harness `_playerThreatContext()`, both
+  PlayerKnowledge). Each also passes the turn-pressure enrage (`setBossEnraged`).
+  - A visible pack that wakes shows "The garrison stirs!".
+  - Danger is unchanged: it already draws a holder's full reach, which is its wake zone.
+  - Reinforcements never copy a hold.
+- **Harness agent.** `TacticianAgent` with `objectives` plays seize maps against the
+  boss and walks round walls by path cost. Once the boss falls it keeps non-lords off the
+  throne: ScriptedAgent let one park there, which caused most of the force-won seize
+  stalls. Push walks straight at the boss. Turtle edges forward until something can reach
+  it, then holds and punishes, which pulls holders out. Escape still falls back to
+  ScriptedAgent, so escape holds are measured only by that charging policy.
+- **Results** (`sim/pacing.js`, calibrated profile, 48 paired seeds). Seize battles
+  only, turns − par median and S/A share; "base" has no holds and no offset:
+
+| Rung | Push base | Push shipped | Push S+A shipped | Turtle base | Turtle shipped | Run shadow turtle / push (base → shipped) |
+|---|---|---|---|---|---|---|
+| First Light | −7 | −7 | 100% | −5 | −5 | 0.5 / 0.0 (unchanged) |
+| Dusk | −6 | **−2** | 91% | −4 | 0 | 40.2 / 10.6 → 42.7 / 10.8 |
+| Nightfall | −6 | **−2** | 84% | −3 | 0 | 68.9 / 33.9 → 70.9 / 38.4 |
+| Black Sun | −4 | **−2** | 72% | 0 | +2 | 83.3 / 60.3 → 83.5 / 60.9 |
+
+  - Holds alone barely move a push: it goes for the boss and wakes what it walks into.
+    They cost the turtle about half a turn per seize map.
+  - The par offset is what makes seize speed count. The seize push now lands in A as
+    often as S, and the turtle lands in A to B.
+  - Most seize battles in a run are boss maps (192 of 286 on Dusk), so the offset applies
+    to every act boss.
+  - Boss enrage arrives earlier with the lower par, at min(12, par + 2). That is intended:
+    enrage also wakes every holder.
 

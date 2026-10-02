@@ -15,8 +15,12 @@
 // * Units with nothing worth doing hold the safest tile near the squad (bait-and-punish,
 //   the dominant human strategy). If nothing has come into contact for two turns the
 //   squad advances, still weighting danger, so guard maps do not stall.
-// Seize and escape objectives fall back to ScriptedAgent's rules. Deterministic: no
-// randomness of its own.
+// Escape objectives fall back to ScriptedAgent's rules. Seize objectives do too unless
+// `objectives` is set: then, while the boss lives, the same planning advances on the
+// boss instead of the nearest foe (a push walks straight at it; a careful player edges
+// forward until something can reach it, then holds and punishes, which pulls a
+// garrison's holders out to it), and once the boss falls ScriptedAgent walks a lord to
+// the throne and seizes. Deterministic: no randomness of its own.
 
 import { ScriptedAgent } from '../../tests/agents/ScriptedAgent.js';
 import {
@@ -46,6 +50,7 @@ export class TacticianAgent {
     this.driver = driver;
     this.fallback = new ScriptedAgent(driver);
     this.rescue = options.rescue !== false;
+    this.objectives = options.objectives === true;
     this.plan = null;
     this.lastContactTurn = 1;
     this._fields = new Map();
@@ -58,7 +63,24 @@ export class TacticianAgent {
   chooseAction(legal) {
     const b = this.b;
     const obj = b.battleConfig?.objective;
-    if (obj === 'seize' || obj === 'escape') return this.fallback.chooseAction(legal);
+    if (obj === 'escape') return this.fallback.chooseAction(legal);
+    if (obj === 'seize' && (!this.objectives || !this._boss())) {
+      // With the boss down, only a lord can seize: keep the others off the throne (a
+      // non-lord parked on it stalls the battle; ScriptedAgent has no such rule).
+      const throne = b.battleConfig?.thronePos;
+      const sel = b.selectedUnit;
+      if (this.objectives && throne && sel && !sel.isLord) {
+        const moves = legal.filter(
+          (a) =>
+            a.type === 'move_to' && !(a.payload.col === throne.col && a.payload.row === throne.row),
+        );
+        if (moves.length)
+          return (
+            moves.find((a) => a.payload.col === sel.col && a.payload.row === sel.row) || moves[0]
+          );
+      }
+      return this.fallback.chooseAction(legal);
+    }
     const byType = (t) => legal.filter((a) => a.type === t);
 
     if (legal.some((a) => a.type === 'select_unit')) {
@@ -96,6 +118,11 @@ export class TacticianAgent {
       return t || byType('choose_target')[0];
     }
     return legal.find((a) => a.type === 'end_turn') || legal[0];
+  }
+
+  /** The living seize boss, or null. */
+  _boss() {
+    return this.b.enemyUnits.find((e) => e.isBoss && e.currentHP > 0) || null;
   }
 
   // --- threat model -------------------------------------------------------
@@ -231,11 +258,18 @@ export class TacticianAgent {
     const npcField = npc ? this._field(npc, u.moveType) : null;
     const weapons = getCombatWeapons(u);
     const allies = b.playerUnits.filter((a) => a !== u);
+    // What an advance closes on: the seize boss (with `objectives`), else the nearest foe.
+    // Path cost round walls (a castle keep), not straight-line tiles.
+    const boss = this.objectives && b.battleConfig?.objective === 'seize' ? this._boss() : null;
+    const bossField = boss ? this._field(boss, u.moveType) : null;
     const nearestEnemyDist = (tile) =>
-      Math.min(
-        Infinity,
-        ...b.enemyUnits.map((e) => gridDistance(tile.col, tile.row, e.col, e.row)),
-      );
+      boss
+        ? (bossField.get(key(tile.col, tile.row)) ??
+          20 + gridDistance(tile.col, tile.row, boss.col, boss.row))
+        : Math.min(
+            Infinity,
+            ...b.enemyUnits.map((e) => gridDistance(tile.col, tile.row, e.col, e.row)),
+          );
     let best = null;
     const consider = (plan) => {
       if (!best || plan.score > best.score) best = plan;

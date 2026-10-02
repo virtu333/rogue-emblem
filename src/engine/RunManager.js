@@ -3200,6 +3200,8 @@ export class RunManager {
     if (Number.isFinite(parInflation)) battleParams.parInflation = parInflation;
     else delete battleParams.parInflation;
     battleParams.templateWavesRaisePar = this.getDifficultyModifier('templateWavesRaisePar', true);
+    battleParams.holdShare = this.difficultyModifiers?.holdShare ?? null;
+    battleParams.objectiveParOffset = this.difficultyModifiers?.objectiveParOffset ?? null;
     this._repairDuplicateRosterNames();
     // Units enter the battle (RunManager.getRoster clones) with their run identity.
     this.ensureUnitUids();
