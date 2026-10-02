@@ -79,7 +79,8 @@ function holdCandidates({ spawns, objective, thronePos, escapeTiles, playerSpawn
 
 /**
  * Mark a map's holders on its spawns (mutates them): `aiMode: 'hold'` and a `holdPack`
- * id per pack. Guards on a map with holds lose their guard role. Takes
+ * id per pack. Guards on a map with holders lose their guard role; a map where no pack
+ * forms keeps its guards. Takes
  * round(share × pool) holders nearest the objective, in packs: a candidate joins when it
  * is within 3 tiles of a chosen holder, or comes with its nearest unchosen partner within
  * 3 (which may take one past the target count); a candidate with no partner is skipped.
@@ -94,7 +95,6 @@ export function assignHolders({
   playerSpawns = null,
 }) {
   if (!(share > 0)) return 0;
-  for (const s of spawns || []) if (s?.aiMode === 'guard') delete s.aiMode;
   const { candidates, pool } = holdCandidates({
     spawns,
     objective,
@@ -134,6 +134,11 @@ export function assignHolders({
       }
     }
     next++;
+  }
+  // Holds replace guards, but only on a map that has holders: a map with no pack keeps
+  // the guards it rolled (otherwise it would be softer than First Light's).
+  if (chosen.length > 0) {
+    for (const s of spawns || []) if (s?.aiMode === 'guard') delete s.aiMode;
   }
   for (const s of chosen) {
     s.aiMode = HOLD_AI_MODE;

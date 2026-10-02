@@ -136,23 +136,57 @@ describe('who holds', () => {
   });
 
   it('First Light keeps its guards and has no holders; no rung draws the map differently', () => {
+    let keptGuards = 0;
+    let replacedGuards = 0;
     for (let seed = 1; seed <= 6; seed++) {
       const fl = gen({ act: 'act2', objective: 'seize', ...pacing('normal') }, seed);
       expect(fl.enemySpawns.some((s) => s.aiMode === 'hold')).toBe(false);
       const before = gen({ act: 'act2', objective: 'seize', difficultyId: 'normal' }, seed);
       expect(fl).toEqual(before);
-      for (const rung of Object.keys(SHARES)) {
-        const now = gen({ act: 'act2', objective: 'seize', ...pacing(rung) }, seed);
-        const old = gen({ act: 'act2', objective: 'seize', difficultyId: rung }, seed);
-        expect(now.mapLayout).toEqual(old.mapLayout);
-        const strip = (spawns) =>
-          spawns.map(({ aiMode, holdPack, ...rest }) => ({
-            ...rest,
-            aiMode: aiMode === 'hold' || aiMode === 'guard' ? undefined : aiMode,
-          }));
-        expect(strip(now.enemySpawns)).toEqual(strip(old.enemySpawns));
+    }
+    // The run's own battle params (Act I caps the garrison by the deploy count, so some
+    // Dusk Act I maps are too small for a pack).
+    for (const act of ['act1', 'act2']) {
+      for (let seed = 1; seed <= 12; seed++) {
+        for (const rung of Object.keys(SHARES)) {
+          const label = `${rung} ${act} seed ${seed}`;
+          const params = {
+            ...resolveDifficultyMode(data.difficulty, rung).modifiers,
+            difficultyId: rung,
+            act,
+            objective: 'seize',
+            deployCount: 6,
+            row: 5,
+          };
+          const now = gen(params, seed);
+          const old = gen({ ...params, holdShare: null }, seed);
+          expect(now.mapLayout, label).toEqual(old.mapLayout);
+          const oldGuards = old.enemySpawns.filter((s) => s.aiMode === 'guard').length;
+          if (!now.enemySpawns.some((s) => s.aiMode === 'hold')) {
+            // No pack formed: the garrison is exactly the one the rung drew before, guards
+            // and all (a map with neither holders nor guards would be softer than First Light).
+            expect(now.enemySpawns, label).toEqual(old.enemySpawns);
+            if (oldGuards) keptGuards++;
+            continue;
+          }
+          // Holds replace guards; nothing else about the garrison changes.
+          expect(
+            now.enemySpawns.some((s) => s.aiMode === 'guard'),
+            label,
+          ).toBe(false);
+          if (oldGuards) replacedGuards++;
+          const strip = (spawns) =>
+            spawns.map(({ aiMode, holdPack, ...rest }) => ({
+              ...rest,
+              aiMode: aiMode === 'hold' || aiMode === 'guard' ? undefined : aiMode,
+            }));
+          expect(strip(now.enemySpawns), label).toEqual(strip(old.enemySpawns));
+        }
       }
     }
+    // Both branches ran: some maps kept their guards, some traded them for holds.
+    expect(keptGuards).toBeGreaterThan(0);
+    expect(replacedGuards).toBeGreaterThan(0);
   });
 
   it('escape: only enemies in the exit half count, and only they hold', () => {

@@ -223,7 +223,8 @@ then hunts for the rest of the battle.
 - **Anti-turtle `aggressiveMode` does not wake holders.** If it did, a turtle would only
   have to wait 3 phases.
 - **Shares.** Seize: Dusk 35%, Nightfall 45%, Black Sun 55% of the non-boss enemies,
-  nearest the throne first; this replaces the guard roll on Dusk+. Escape: 30/40/50% of
+  nearest the throne first; this replaces the guard roll on Dusk+ wherever a pack forms
+  (a map with no pack keeps its guards). Escape: 30/40/50% of
   the enemies in the exit half. First Light keeps its guards. Rout: 0% for now (owner).
 - **Seize par fix ships in the same PR.** With seize par loose (93% or more of seize
   battles are S on every rung up to Nightfall), pulling holders off a pack would be free.
@@ -425,8 +426,11 @@ fielding the caravan.
     when it stands within 3 of a chosen holder, or together with its nearest free
     partner within 3, which can add one past the count. A candidate with no partner is
     skipped, so nobody holds alone.
-  - Holds replace the seize guard roll on Dusk and harder. The guard draws still happen,
-    so the generated map is the same as before. Only `aiMode` and `holdPack` change.
+  - Holds replace the seize guard roll on Dusk and harder, on maps where a pack forms.
+    A map with no pack (a Dusk Act I garrison of four is too small for one) keeps the
+    guards it rolled, so it is never softer than First Light. The guard draws still
+    happen, so the generated map is the same as before. Only `aiMode` and `holdPack`
+    change.
 - **Locked with the map.**
   - Holders (`aiMode: 'hold'`, `holdPack`) and the seize `parOffset` are in the battle
     config.
