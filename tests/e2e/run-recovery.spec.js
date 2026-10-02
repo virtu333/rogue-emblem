@@ -7,6 +7,9 @@ async function boot(page) {
   await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
   await waitForGame(page);
   await waitForScene(page, 'Battle');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+  );
   return errors;
 }
 async function result(page, dialogue = false) {
@@ -131,20 +134,75 @@ test('staff action re-equips tome before committing the action', async ({ page }
       ally = s.playerUnits.find((u) => u !== healer);
     const tome = healer.weapon;
     const staff = healer.inventory.find((w) => w.type === 'Staff');
+    // battle_smoke's first ally starts two tiles away from Heal's range of one.
+    // Set up a legal target, then use the same finder as the player command.
+    const tile = [
+      { col: healer.col + 1, row: healer.row },
+      { col: healer.col - 1, row: healer.row },
+      { col: healer.col, row: healer.row + 1 },
+      { col: healer.col, row: healer.row - 1 },
+    ].find(({ col, row }) => !s.getUnitAt(col, row));
+    if (!tile) throw new Error('Staff fixture has no adjacent empty tile');
+    Object.assign(ally, tile);
     ally.currentHP = Math.max(1, ally.stats.HP - 8);
+    const hpBefore = ally.currentHP;
+    const targets = s.findHealTargets(healer, staff);
     s.selectedUnit = healer;
-    s.startHealTargetSelection(healer, [ally], staff);
+    s.startHealTargetSelection(healer, targets, staff);
     await s.executeHeal(healer, ally);
     return {
+      legal: targets.includes(ally),
+      hpBefore,
+      hpAfter: ally.currentHP,
       weapon: healer.weapon.name,
       prior: tome.name,
       spent: staff._usesSpent,
       acted: healer.hasActed,
     };
   });
+  expect(outcome.legal).toBe(true);
+  expect(outcome.hpAfter).toBeGreaterThan(outcome.hpBefore);
   expect(outcome.weapon).toBe(outcome.prior);
   expect(outcome.spent).toBe(1);
   expect(outcome.acted).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('a stale out-of-range staff target restores equipment without healing or charging', async ({
+  page,
+}) => {
+  const errors = await boot(page);
+  const outcome = await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const healer = s.playerUnits.find((u) => u.name === 'Sera');
+    const ally = s.playerUnits.find((u) => u !== healer);
+    const prior = healer.weapon.name;
+    const staff = healer.inventory.find((w) => w.type === 'Staff');
+    ally.currentHP = Math.max(1, ally.stats.HP - 8);
+    const hpBefore = ally.currentHP;
+    const spentBefore = staff._usesSpent || 0;
+    const targetOffered = s.findHealTargets(healer, staff).includes(ally);
+    s.selectedUnit = healer;
+    // Simulate a selection list that became stale before confirming the staff.
+    s.startHealTargetSelection(healer, [ally], staff);
+    const accepted = await s.executeHeal(healer, ally);
+    return {
+      targetOffered,
+      accepted,
+      hpBefore,
+      hpAfter: ally.currentHP,
+      spent: (staff._usesSpent || 0) - spentBefore,
+      weapon: healer.weapon.name,
+      prior,
+      acted: healer.hasActed,
+    };
+  });
+  expect(outcome.targetOffered).toBe(false);
+  expect(outcome.accepted).toBe(false);
+  expect(outcome.hpAfter).toBe(outcome.hpBefore);
+  expect(outcome.spent).toBe(0);
+  expect(outcome.weapon).toBe(outcome.prior);
+  expect(outcome.acted).toBe(false);
   expect(errors).toEqual([]);
 });
 

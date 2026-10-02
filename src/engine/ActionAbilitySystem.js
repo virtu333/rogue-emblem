@@ -10,7 +10,10 @@
 // - `perMapLimit` uses are tracked on `unit._battleAbilityUsage`, mirroring
 //   the weapon-art `_battleWeaponArtUsage` counter (survives suspend/resume
 //   and Vision rewinds; scrubbed between battles by RunManager.serializeUnit).
-import { isSilenced } from './StatusConditionSystem.js';
+import { settleMoves } from './ActionMovement.js';
+import { healUnit } from './UnitHealth.js';
+import { allyBuff } from './PostCombatEffects.js';
+import { applyCondition, isSilenced } from './StatusConditionSystem.js';
 import { gridDistance } from './Combat.js';
 
 /** Ability kinds the engine + BattleScene glue know how to execute. */
@@ -144,4 +147,31 @@ export function abilityHasTargets(unit, skill, ctx = {}) {
     default:
       return false;
   }
+}
+
+/** All domain writes land before any ability effects are rendered. */
+export function settleBlink(unit, skill, tile) {
+  markUsed(unit, skill.id);
+  return { moves: settleMoves([{ unit, to: tile }]), usage: getAbilityUsageCount(unit, skill.id) };
+}
+
+export function settleHealingCircle(unit, ability, pool) {
+  const amount = Math.max(0, Math.trunc(Number(ability.amount) || 0));
+  return collectAffected(unit, ability, pool).map((target) => {
+    const hpBefore = target.currentHP;
+    const healed = healUnit(target, amount);
+    return { unit: target, hpBefore, hpAfter: target.currentHP, healed };
+  });
+}
+
+export function settleEnsnare(unit, ability, pool) {
+  const duration = Math.max(1, Math.trunc(Number(ability.durationPhases) || 1));
+  return collectAffected(unit, ability, pool).map((target) => ({
+    unit: target,
+    rooted: applyCondition(target, 'root', duration + 1, { recoveryChance: 0 }),
+  }));
+}
+
+export function settleRally(step, unit, world) {
+  return [...allyBuff(step, unit, world)];
 }
