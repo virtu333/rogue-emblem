@@ -464,3 +464,20 @@ fielding the caravan.
   - Boss enrage arrives earlier with the lower par, at min(12, par + 2). That is intended:
     enrage also wakes every holder.
 
+**Strict threshold PR note** (`sim:fullrun:pr`, slice `ambush_hard_invincible`):
+- Attribution command: `npm run sim:fullrun:triage -- --slice ambush_hard_invincible
+  --range 68e0b968..2d95a4f9`. The same answer was confirmed by A/B runs of the slice
+  with data toggles.
+- first_bad_sha: 2d95a4f9 (PR 3). parent_sha: 68e0b968.
+- Failing metrics (threshold breaches): `avg_shop_spent=6749.83 < 6770.00`.
+  - Holds alone give 7233, and the seize offset alone gives 7626.
+  - Together, Nightfall seize battles rate lower, so they pay less turn-bonus gold
+    (avg_gold 48497), and the scripted runs spend a little less at shops.
+  - That is the intended economy effect of the par fix, not a broken shop flow:
+    ambush coverage, win rate, timeouts and invalid entries are unchanged.
+- Change: `--min-avg-shop-spent` 6770.00 → 6400.00 (about 5% under the new value).
+- Touched files: `tests/sim/fullrun-slices.js` (threshold), `data/difficulty.json`
+  (holdShare, objectiveParOffset), `src/engine/HoldActivation.js`, `AIController.js`,
+  `MapGenerator.js`, `TurnBonusCalculator.js`, `RunManager.js`, `DifficultyEngine.js`,
+  `ReinforcementSpawns.js`, `BattleScene.js`, `tests/harness/HeadlessBattle.js`.
+
