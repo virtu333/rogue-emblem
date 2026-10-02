@@ -396,13 +396,16 @@ Open: confirm Dusk inflation 2, with 1 held in reserve.
 | Rung | Spec turtle / push | Shipped turtle / push | Prototype, same code | Today (PR 1 code) |
 |---|---|---|---|---|
 | First Light | 0.0 / 0.0 | 0.0 / 0.0 | — | — |
-| Dusk (infl. 2) | 30.9 / 11.0 | 37.2 ± 1.5 / 9.1 ± 1.2 | 34.5 / 11.7 | 0.9 / 0.1 |
-| Nightfall | 66.4 / 36.3 | 61.4 ± 2.5 / 35.0 ± 2.5 | 64.9 / 37.2 | 5.8 / 0.2 |
-| Black Sun | 73.5 / 55.4 | 73.3 ± 2.1 / 55.6 ± 2.8 | — | — |
+| Dusk (infl. 2) | 30.9 / 11.0 | 35.0 ± 1.6 / 10.3 ± 1.1 | 34.5 / 11.7 | 0.9 / 0.1 |
+| Nightfall | 66.4 / 36.3 | 62.9 ± 2.3 / 37.9 ± 2.7 | 64.9 / 37.2 | 5.8 / 0.2 |
+| Black Sun | 73.5 / 55.4 | 73.0 ± 2.1 / 59.7 ± 2.7 | — | — |
 
 Targets (§3) on the shipped numbers:
-- Dusk push is S+A in 87% of rout battles and Pale in 44 of 48 runs.
-- The paired Dusk gap is 28.1 ± 1.9.
-- Nightfall sits 24 / 26 above Dusk.
-- Force-won stalls are within 1.5× of today.
+- Dusk push is S+A in 86% of rout battles and Pale in 45 of 48 runs.
+- The paired Dusk gap is 24.8 ± 1.9.
+- Nightfall sits 28 / 28 above Dusk.
+- Force-won stalls are within 2× of today (Nightfall turtle 15 vs 8).
+
+All rows come from the code after the review fixes: one edge per wave, and the harness
+fielding the caravan.
 
