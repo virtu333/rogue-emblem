@@ -261,6 +261,9 @@ export function validateCrossReferences(datasets = null) {
       const factions = toStringArray(art.allowedFactions);
       if (factions.length !== 1 || factions[0] !== 'player')
         errors.push(`${where} has a killMove: it must be player only`);
+      // The turn limit is what stops a refreshed unit from refreshing again.
+      if (!(Number.isInteger(art.perTurnLimit) && art.perTurnLimit >= 1))
+        errors.push(`${where} has a killMove: it needs a perTurnLimit, or refreshes chain`);
     }
     const area = art?.area;
     const chosenCenter = art?.targeting === 'chosen_center';

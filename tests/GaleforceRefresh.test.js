@@ -52,6 +52,13 @@ describe('the data', () => {
     expect(validateCrossReferences(data).errors.filter((e) => e.includes('killMove'))).toEqual([]);
   });
 
+  it('the validator requires a turn limit on a kill-move art', () => {
+    const weaponArts = structuredClone(data.weaponArts);
+    delete weaponArts.arts.find((a) => a.id === 'legend_galeforce_assault').perTurnLimit;
+    const { errors } = validateCrossReferences({ ...data, weaponArts });
+    expect(errors.some((e) => e.includes('galeforce') && e.includes('perTurnLimit'))).toBe(true);
+  });
+
   it('no other art refreshes its user', () => {
     const others = data.weaponArts.arts.filter((a) => getWeaponArtKillEffects(a).killMove);
     expect(others.map((a) => a.id)).toEqual(['legend_galeforce_assault']);
@@ -135,6 +142,35 @@ describe('the refresh (completeResolvedAction)', () => {
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
   });
 
+  it("a refresh clears the last action's leftovers, without ending the next", () => {
+    for (const continuation of [
+      { kind: 'combat', unitName: 'Kael', refreshActor: true },
+      { kind: 'combat', unitName: 'Kael', gambitTriggered: true },
+    ]) {
+      const { scene, units } = completionScene();
+      Object.assign(scene, {
+        _selectedWeaponArt: { unitName: 'Kael', artId: 'legend_galeforce_assault' },
+        _combatRollSession: { key: 'Kael>Primary' },
+        preMoveLoc: { col: 0, row: 1 },
+        _preFogSnapshot: { visible: [] },
+        cantoRange: new Map(),
+        dimUnit: vi.fn(),
+      });
+      scene.turnManager.unitActed = vi.fn();
+      completeResolvedAction(scene, resumed(continuation), { session: 1 });
+      expect(scene._selectedWeaponArt ?? null).toBeNull();
+      expect(scene._combatRollSession ?? null).toBeNull();
+      expect([scene.preMoveLoc, scene._preFogSnapshot, scene.cantoRange]).toEqual([
+        null,
+        null,
+        null,
+      ]);
+      expect(units[0].hasActed).toBe(false);
+      expect(scene.dimUnit).not.toHaveBeenCalled();
+      expect(scene.turnManager.unitActed).not.toHaveBeenCalled();
+    }
+  });
+
   it('without the flag the action finishes as before', () => {
     const { scene, units } = completionScene();
     completeResolvedAction(scene, resumed({ kind: 'combat', unitName: 'Kael' }), { session: 1 });
@@ -192,7 +228,10 @@ describe('the refresh (completeResolvedAction)', () => {
 });
 
 describe('a Galeforce Assault in the scene (executeCombat)', () => {
-  async function fight(primaryHP) {
+  async function fight(
+    primaryHP,
+    { art = galeforce, rooted = false, lastFoe = false, xp = null } = {},
+  ) {
     const oathaxe = structuredClone(data.weapons.find((w) => w.name === 'Oathaxe'));
     const kael = {
       name: 'Kael',
@@ -250,9 +289,9 @@ describe('a Galeforce Assault in the scene (executeCombat)', () => {
     scene.turnPar = 99;
     scene.getCurrentTurnNumber = () => 1;
     scene.playerUnits = [kael];
-    scene.enemyUnits = [primary, far];
+    scene.enemyUnits = lastFoe ? [primary] : [primary, far];
     rendering(scene, 0);
-    scene._getSelectedWeaponArtForUnit = () => galeforce;
+    scene._getSelectedWeaponArtForUnit = () => art;
     scene.animateStrike = async () => {};
     scene.animateSkillActivation = async () => {};
     scene._battleBeats.checkBossHalfHealth = async () => {};
@@ -260,10 +299,25 @@ describe('a Galeforce Assault in the scene (executeCombat)', () => {
     scene._battleBeats.onLowHealth = () => {};
     scene.sys = { isActive: () => true };
     scene.scene = { isActive: () => true };
-    scene.awardScaledXP = async () => {};
+    if (xp === null) scene.awardScaledXP = async () => {};
+    else Object.assign(kael, { xp, className: 'Warrior', growths: {} });
+    if (rooted) applyCondition(kael, 'root', 2);
+    if (lastFoe) {
+      scene.checkBattleEnd = BattleScene.prototype.checkBattleEnd;
+      scene.onVictory = () => {
+        scene.result = 'victory';
+        scene.battleState = 'BATTLE_END';
+      };
+    }
+    // Every save records the continuation it saves (a suspend checkpoint holds it).
+    const saved = [];
+    scene._captureSuspendCheckpoint = () => {
+      saved.push(scene._pendingActionCompletion ? resumed(scene._pendingActionCompletion) : null);
+      return true;
+    };
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     await scene.executeCombat(kael, primary);
-    return { scene, kael, primary };
+    return { scene, kael, primary, saved };
   }
 
   it('a kill leaves its user free to move and act, at 5 HP', async () => {
@@ -282,6 +336,36 @@ describe('a Galeforce Assault in the scene (executeCombat)', () => {
       expect(canUseWeaponArt(unit, unit.weapon, galeforce, { turnNumber: 1 }).reason).toBe(
         'per_turn_limit',
       );
+  });
+
+  it('a kill that wins the battle refreshes nobody and saves no more than any kill', async () => {
+    const won = await fight(20, { lastFoe: true });
+    const plain = await fight(20, {
+      lastFoe: true,
+      art: data.weaponArts.arts.find((a) => a.id === 'axe_smash'),
+    });
+    expect(won.scene.result).toBe('victory');
+    expect(won.scene._timelineFacts || []).not.toContain('Kael can act again.');
+    expect(won.saved.length).toBe(plain.saved.length);
+  });
+
+  it('a rooted user gets no refresh', async () => {
+    const { kael, primary } = await fight(20, { rooted: true });
+    expect(primary.currentHP).toBe(0);
+    expect(kael.hasActed).toBe(true);
+  });
+
+  it('a level-up saves the refresh with the action, and the save resumes it', async () => {
+    const { scene, kael, saved } = await fight(20, { xp: 99 });
+    expect(kael.level).toBe(16);
+    const pending = saved.find((c) => c?.refreshActor);
+    expect(pending).toMatchObject({ kind: 'combat', unitName: 'Kael', refreshActor: true });
+    expect(kael.hasActed).toBe(false);
+    // The same save, read back after a reload, refreshes the same unit.
+    const { scene: reloaded, units } = completionScene();
+    completeResolvedAction(reloaded, { ...pending, unitId: undefined }, { session: 1 });
+    expect(units[0].hasActed).toBe(false);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
   });
 
   it('a survivor ends its turn as any attack does', async () => {

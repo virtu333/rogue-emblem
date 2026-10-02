@@ -98,6 +98,27 @@ export async function presentQueuedLevelUps(scene, continuation = null, { sessio
   }
 }
 
+/**
+ * A refresh (Gambit, Galeforce) starts the actor's next action, so what finishUnitAction
+ * would have cleared about the last one goes too: the chosen art, the combat's roll
+ * session, open menus and target lists, and the move's undo point (`preMoveLoc`, the
+ * pre-move fog). Not the unit's action: nothing is dimmed or marked acted.
+ */
+function clearRefreshedActionState(scene) {
+  scene._clearCombatRollSession?.();
+  scene._clearSelectedWeaponArt?.();
+  safeBattlePresentation('refresh menu cleanup', () => scene.hideActionMenu?.(), { scene });
+  scene.healTargets = [];
+  scene.staffRelocateTargets = [];
+  scene.staffRelocateAlly = null;
+  scene.staffRelocateTiles = [];
+  scene.inEquipMenu = false;
+  scene.preMoveLoc = null;
+  scene._preFogSnapshot = null;
+  scene.cantoRange = null;
+  scene._cantoPending = null;
+}
+
 export function completeResolvedAction(scene, continuation, { session } = {}) {
   if (!isCurrentBattleSession(scene, session)) return false;
   scene._pendingActionCompletion = null;
@@ -145,6 +166,7 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
     });
     return;
   }
+  if (gambit || galeforce) clearRefreshedActionState(scene);
   scene.selectedUnit = null;
   scene.battleState = 'PLAYER_IDLE';
   safeBattlePresentation('resolved action highlights', () => scene.grid.clearAttackHighlights(), {
