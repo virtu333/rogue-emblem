@@ -58,6 +58,7 @@ Rogue Dawn (formerly Emblem Rogue) is a browser tactical RPG that combines Fire 
 - Requires `GOOGLE_API_KEY` in `.env`
 
 ## Canonical References
+- Player mechanics questions: [docs/ASK_ABOUT_MECHANICS.md](docs/ASK_ABOUT_MECHANICS.md) (source routes, interaction tracing, and answer guidance)
 - Game design: `docs/gdd/GDD_OVERVIEW.md`
 - Difficulty/system details: `docs/specs/difficulty_spec.md`
 - Mobile/input constraints: `docs/mobile-controls-spec.md`
@@ -65,4 +66,3 @@ Rogue Dawn (formerly Emblem Rogue) is a browser tactical RPG that combines Fire 
 
 ## Maintenance Rule
 Keep this file operational and stable. Avoid volatile counts and deep design dumps here; store detailed evolving specs under `docs/`.
-
