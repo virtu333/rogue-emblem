@@ -9,6 +9,7 @@ import {
   generateLootChoices,
   generateShopInventory,
   generateRandomLegendary,
+  actArtScrollPool,
 } from '../src/engine/LootSystem.js';
 import {
   GOLD_PER_KILL_BASE,
@@ -1048,8 +1049,10 @@ describe('LootSystem', () => {
     });
 
     it('act2/act3 weapon-art split pools include advanced weapon-art scrolls', () => {
-      const act2Rare = gameData.lootTables.act2.weaponArtScroll;
-      const act3Rare = gameData.lootTables.act3.weaponArtScroll;
+      const pool = (act) =>
+        actArtScrollPool(gameData.lootTables[act], gameData.weapons, gameData.weaponArts.arts);
+      const act2Rare = pool('act2');
+      const act3Rare = pool('act3');
       const expected = [
         'Knightkneeler Scroll',
         'Vengeance Scroll',

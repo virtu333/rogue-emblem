@@ -16,6 +16,7 @@ import {
   getWeaponArtAllowedTypes,
 } from '../src/engine/WeaponArtSystem.js';
 import { applyForge } from '../src/engine/ForgeSystem.js';
+import { actArtScrollPool } from '../src/engine/LootSystem.js';
 
 const gameData = loadGameData();
 const allArts = gameData.weaponArts.arts;
@@ -190,8 +191,9 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       (w) => w.type === 'Scroll' && w.teachesWeaponArtId,
     );
 
-    it('has 30 weapon art scrolls', () => {
-      expect(weaponArtScrolls.length).toBe(34); // + the four area art scrolls
+    it('has 59 weapon art scrolls', () => {
+      // 34 + one for each Iron/Steel art that had none (21) and the 4 revived legacy arts.
+      expect(weaponArtScrolls.length).toBe(59);
     });
 
     it('every scroll references a valid art ID', () => {
@@ -314,18 +316,15 @@ describe('Tier 1 Weapon Arts Expansion', () => {
   });
 
   describe('legacy art exclusion', () => {
+    // Precise Cut, Piercing Drive, Vaulting Thrust and Longshot came back in Oct 2026.
     const legacyIds = [
-      'sword_precise_cut',
       'sword_comet_edge',
-      'lance_piercing_drive',
-      'lance_vaulting_thrust',
       'axe_wild_swing',
       'axe_rending_cleave',
-      'bow_longshot',
       'bow_hunters_focus',
     ];
 
-    it('all 8 legacy arts have legacy: true', () => {
+    it('the 4 retired legacy arts have legacy: true', () => {
       for (const id of legacyIds) {
         expect(artById.get(id).legacy).toBe(true);
       }
@@ -340,12 +339,12 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       }
     });
 
-    it('active Iron pool has 14 arts (18 minus 4 legacy)', () => {
-      expect(allArts.filter((a) => a.tierAffinity === 'Iron' && !a.legacy).length).toBe(14);
+    it('active Iron pool has 17 arts (18 minus 1 legacy)', () => {
+      expect(allArts.filter((a) => a.tierAffinity === 'Iron' && !a.legacy).length).toBe(17);
     });
 
-    it('active Steel pool has 22 arts (26 minus 4 legacy)', () => {
-      expect(allArts.filter((a) => a.tierAffinity === 'Steel' && !a.legacy).length).toBe(22);
+    it('active Steel pool has 23 arts (26 minus 3 legacy)', () => {
+      expect(allArts.filter((a) => a.tierAffinity === 'Steel' && !a.legacy).length).toBe(23);
     });
   });
 
@@ -365,20 +364,28 @@ describe('Tier 1 Weapon Arts Expansion', () => {
   });
 
   describe('Silver innate art spawning config', () => {
+    const actPool = (act) => actArtScrollPool(gameData.lootTables[act], gameData.weapons, allArts);
+
     it('loot tables have updated act2 weapon art scroll pool', () => {
-      const act2Pool = gameData.lootTables.act2.weaponArtScroll;
+      // Act 2 lists only the anytime utility scrolls; every other Iron/Steel scroll is drawn.
+      expect(gameData.lootTables.act2.weaponArtScroll).toEqual([
+        'Grounder Scroll',
+        'Helm Splitter Scroll',
+      ]);
+      const act2Pool = actPool('act2');
       expect(act2Pool).toContain('Windsweep Scroll');
       expect(act2Pool).toContain('Seraphim Scroll');
-      expect(act2Pool).not.toContain('Precise Cut Scroll');
-      expect(act2Pool.length).toBe(15); // + Sweeping Cleave, Skewer
+      expect(act2Pool).toContain('Precise Cut Scroll');
+      expect(act2Pool).not.toContain('Comet Edge Scroll');
+      expect(act2Pool.length).toBe(2 + 15 + 23); // listed + Iron + Steel
     });
 
     it('loot tables have updated act3 weapon art scroll pool', () => {
-      const act3Pool = gameData.lootTables.act3.weaponArtScroll;
+      const act3Pool = actPool('act3');
       expect(act3Pool).toContain('Dragonhaze Scroll');
       expect(act3Pool).toContain('Nosferatu Scroll');
       expect(act3Pool).not.toContain('Comet Edge Scroll');
-      expect(act3Pool.length).toBe(26); // + the four area art scrolls
+      expect(gameData.lootTables.act3.weaponArtScroll.length).toBe(13); // 2 anytime + 11 Silver
     });
   });
 });

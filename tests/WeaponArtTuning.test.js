@@ -1,8 +1,14 @@
 // The Oct 2026 weapon-art tuning: art follow-ups, spawn tiers, scrolls in every act,
-// Hollow Feast's draining splash, and art effects that skip a plain follow-up.
-import { describe, expect, it } from 'vitest';
+// Hollow Feast's draining splash, art effects that skip a plain follow-up, the four
+// revived legacy arts, and Iron/Steel arts reachable without Iron Arms or Steel Arms.
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadGameData } from './testData.js';
-import { generateShopInventory } from '../src/engine/LootSystem.js';
+import {
+  actArtScrollPool,
+  drawTierArtScrolls,
+  generateShopInventory,
+} from '../src/engine/LootSystem.js';
+import { getCombatForecast } from '../src/engine/Combat.js';
 import { getPostCombatPipelineSteps } from '../src/engine/WeaponArtPostCombat.js';
 import { areaDamage } from '../src/engine/PostCombatEffects.js';
 import { getWeaponArtArea, getWeaponArtCombatMods } from '../src/engine/WeaponArtSystem.js';
@@ -174,5 +180,215 @@ describe('draining area blows', () => {
     [...areaDamage(step, source, null, { cols: 10, rows: 10, hostilesOf: () => foes }, null)];
     expect(foes[0].currentHP).toBe(14);
     expect(source.currentHP).toBe(10);
+  });
+});
+
+// Seeded Math.random so the rates below are exact replays, not flaky samples.
+function seedRandom(seed) {
+  let a = seed >>> 0;
+  vi.spyOn(Math, 'random').mockImplementation(() => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  });
+}
+
+describe('revived legacy arts', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const terrain = (name) => data.terrain.find((t) => t.name === name);
+  const unit = (weaponName, faction, stats = {}) => ({
+    name: faction,
+    className: 'Test',
+    tier: 'base',
+    level: 1,
+    isLord: false,
+    stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 8, DEF: 5, RES: 3, LCK: 5, ...stats },
+    currentHP: 30,
+    faction,
+    weapon: data.weapons.find((w) => w.name === weaponName),
+    inventory: [],
+    proficiencies: ['Sword', 'Lance', 'Axe', 'Bow'].map((type) => ({ type, rank: 'Prof' })),
+    skills: [],
+    moveType: 'Infantry',
+  });
+  // A fast foe (avoid 45 on a plain) keeps every hit below the 100 cap.
+  const strike = (artId, weaponName, foeWeapon, foeTerrain, distance = 1) => {
+    const attacker = unit(weaponName, 'player');
+    const foe = unit(foeWeapon, 'enemy', { SPD: 20 });
+    const mods = artId ? { atkWeaponArtMods: getWeaponArtCombatMods(art(artId)) } : null;
+    return getCombatForecast(
+      attacker,
+      attacker.weapon,
+      foe,
+      foe.weapon,
+      distance,
+      terrain('Plain'),
+      terrain(foeTerrain),
+      mods,
+    ).attacker;
+  };
+
+  it('spawn again, and the four that duplicate live arts stay retired', () => {
+    for (const id of [
+      'sword_precise_cut',
+      'lance_piercing_drive',
+      'lance_vaulting_thrust',
+      'bow_longshot',
+    ])
+      expect(art(id).legacy, id).toBeUndefined();
+    for (const id of [
+      'sword_comet_edge',
+      'axe_wild_swing',
+      'axe_rending_cleave',
+      'bow_hunters_focus',
+    ])
+      expect(art(id).legacy, id).toBe(true);
+  });
+
+  it("Precise Cut and Longshot ignore the foe's cover", () => {
+    // A forest's 20 avoid costs a plain strike 20 hit and these arts none.
+    expect(
+      strike(null, 'Iron Sword', 'Iron Sword', 'Plain').hit -
+        strike(null, 'Iron Sword', 'Iron Sword', 'Forest').hit,
+    ).toBe(20);
+    for (const [id, weapon, distance] of [
+      ['sword_precise_cut', 'Iron Sword', 1],
+      ['bow_longshot', 'Iron Bow', 2],
+    ]) {
+      const open = strike(id, weapon, 'Iron Sword', 'Plain', distance);
+      expect(open.hit, id).toBeLessThan(100);
+      expect(strike(id, weapon, 'Iron Sword', 'Forest', distance).hit, id).toBe(open.hit);
+    }
+    // Longshot's +4 rides the strike: Iron Bow vs DEF 5 deals 4 more than a plain shot.
+    expect(strike('bow_longshot', 'Iron Bow', 'Iron Sword', 'Plain', 2).damage).toBe(
+      strike(null, 'Iron Bow', 'Iron Sword', 'Plain', 2).damage + 4,
+    );
+  });
+
+  it('Piercing Drive takes no triangle penalty against an axe', () => {
+    // Plain: a lance hits an axe-wielder for 1 less than a bow-wielder (triangle disadvantage).
+    const vsAxe = strike(null, 'Iron Lance', 'Iron Axe', 'Plain');
+    const vsBow = strike(null, 'Iron Lance', 'Iron Bow', 'Plain');
+    expect(vsBow.damage - vsAxe.damage).toBe(1);
+    const drive = strike('lance_piercing_drive', 'Iron Lance', 'Iron Axe', 'Plain');
+    expect(drive.damage).toBe(vsBow.damage + 3);
+    expect(drive.hit).toBe(strike('lance_piercing_drive', 'Iron Lance', 'Iron Bow', 'Plain').hit);
+  });
+});
+
+describe('Iron and Steel arts without Iron Arms or Steel Arms', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const acts = ['act1', 'act2', 'act3', 'act4'];
+  const tierOf = (scrollName) =>
+    art(data.weapons.find((w) => w.name === scrollName).teachesWeaponArtId).tierAffinity;
+
+  it('every live Iron or Steel art has a scroll some act offers', () => {
+    const offered = new Set(
+      acts.flatMap((act) => actArtScrollPool(data.lootTables[act], data.weapons, arts)),
+    );
+    const live = arts.filter(
+      (a) => ['Iron', 'Steel'].includes(a.tierAffinity) && !a.legacy && !a.scrollOnly,
+    );
+    expect(live.length).toBe(40);
+    for (const a of live) {
+      const scroll = data.weapons.find((w) => w.teachesWeaponArtId === a.id);
+      expect(scroll?.name, a.name).toBe(`${a.name} Scroll`);
+      expect(offered.has(scroll.name), a.name).toBe(true);
+    }
+  });
+
+  it("each roll draws the act's scroll slots: distinct, of that tier, never a listed one", () => {
+    seedRandom(7);
+    for (const act of acts) {
+      const table = data.lootTables[act];
+      for (let roll = 0; roll < 20; roll++) {
+        const drawn = drawTierArtScrolls(table, data.weapons, arts);
+        expect(new Set(drawn).size, act).toBe(drawn.length);
+        for (const tier of ['Iron', 'Steel'])
+          expect(drawn.filter((n) => tierOf(n) === tier).length, `${act} ${tier}`).toBe(
+            table.artTiers.scrollSlots[tier],
+          );
+        for (const name of drawn) expect(table.weaponArtScroll, act).not.toContain(name);
+      }
+    }
+  });
+
+  it('Iron scrolls thin out after Act 2 and Steel scrolls peak in Acts 2-3', () => {
+    const slots = (tier) => acts.map((act) => data.lootTables[act].artTiers.scrollSlots[tier]);
+    const [i1, i2, i3, i4] = slots('Iron');
+    expect(i3).toBeLessThan(i2);
+    expect(i4).toBeLessThanOrEqual(i3);
+    const [s1, s2, s3, s4] = slots('Steel');
+    expect(Math.min(s2, s3)).toBeGreaterThan(Math.max(s1, s4));
+    expect(i1).toBeGreaterThan(0);
+  });
+
+  it('a roster draws only scrolls it can use', () => {
+    seedRandom(11);
+    const drawn = drawTierArtScrolls(data.lootTables.act2, data.weapons, arts, {
+      rosterTypes: new Set(['Sword']),
+    });
+    expect(drawn.length).toBeGreaterThan(0);
+    for (const name of drawn)
+      expect(data.weapons.find((w) => w.name === name).allowedWeaponTypes, name).toContain('Sword');
+  });
+
+  const ironSwordShops = (chance, spawnConfig, shops = 400) => {
+    const lootTables = {
+      act1: {
+        weapons: ['Iron Sword'],
+        healing: [],
+        weaponArtScroll: [],
+        artTiers: { innateChance: { Iron: chance } },
+      },
+    };
+    const swords = [];
+    for (let i = 0; i < shops; i++) {
+      const shop = generateShopInventory(
+        'act1',
+        lootTables,
+        data.weapons,
+        data.consumables,
+        data.accessories,
+        null,
+        { weaponArtCatalog: arts, ...spawnConfig },
+      );
+      swords.push(shop.find((entry) => entry.item.name === 'Iron Sword').item);
+    }
+    return swords;
+  };
+
+  it("an Iron weapon carries an art at the act's base chance, marked innate", () => {
+    seedRandom(3);
+    const swords = ironSwordShops(0.3, {});
+    const withArt = swords.filter((s) => s.weaponArtIds?.length);
+    // 400 seeded shops at 30%: 120 expected, sd about 9.
+    expect(withArt.length).toBeGreaterThan(90);
+    expect(withArt.length).toBeLessThan(150);
+    for (const s of withArt) {
+      expect(s.weaponArtSource).toBe('innate');
+      expect(art(s.weaponArtId).tierAffinity).toBe('Iron');
+    }
+    expect(ironSwordShops(0, {}, 50).every((s) => !s.weaponArtIds?.length)).toBe(true);
+  });
+
+  it('Iron Arms still puts an art on every Iron weapon', () => {
+    seedRandom(5);
+    const swords = ironSwordShops(0.3, { ironArms: true }, 50);
+    expect(swords.every((s) => s.weaponArtIds?.length === 1)).toBe(true);
+    expect(swords.every((s) => s.weaponArtSource === 'meta_innate')).toBe(true);
+  });
+
+  it('the base chance fades for Iron and peaks mid-run for Steel', () => {
+    const chance = (tier) => acts.map((act) => data.lootTables[act].artTiers.innateChance[tier]);
+    const iron = chance('Iron');
+    for (let i = 1; i < iron.length; i++) expect(iron[i]).toBeLessThanOrEqual(iron[i - 1]);
+    const [s1, s2, s3, s4] = chance('Steel');
+    expect(Math.min(s2, s3)).toBeGreaterThan(Math.max(s1, s4));
+    for (const act of acts)
+      for (const tier of ['Iron', 'Steel'])
+        expect(data.lootTables[act].artTiers.innateChance[tier]).toBeLessThan(1);
   });
 });

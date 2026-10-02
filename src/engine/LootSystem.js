@@ -27,6 +27,8 @@ import { getImbueStoneItems } from './ImbueSystem.js';
 import { isSignatureWeapon } from './SignatureWeapons.js';
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel', 'Silver']);
+// Tiers an act tunes in lootTables.json `artTiers` (base art chance, scroll slots).
+const ART_TIER_KEYS = ['Iron', 'Steel'];
 const META_INNATE_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
 const LOOT_WEAPON_TIER_UPGRADE_ORDER = ['Iron', 'Steel', 'Silver', 'Legend'];
 const LOOT_WEAPON_TIER_INDEX = new Map(
@@ -317,6 +319,60 @@ function isPlayerEligibleSpawnArt(art) {
   return true;
 }
 
+/** Every scroll of each Iron/Steel tier an act could draw (those it doesn't already list). */
+function tierArtScrollCandidates(table, allWeapons, catalog) {
+  const byTier = new Map(ART_TIER_KEYS.map((tier) => [tier, []]));
+  if (!Array.isArray(catalog) || !Array.isArray(allWeapons)) return byTier;
+  const artsById = new Map(catalog.map((art) => [art?.id, art]));
+  const listed = new Set(normalizeLootArray(table?.weaponArtScroll));
+  for (const item of allWeapons) {
+    if (item?.type !== 'Scroll' || !(item.price > 0) || listed.has(item.name)) continue;
+    const art = artsById.get(item.teachesWeaponArtId);
+    if (!art || art.legacy === true) continue;
+    byTier.get(normalizeSpawnTier(art.tierAffinity))?.push(item.name);
+  }
+  return byTier;
+}
+
+const tierScrollSlots = (table, tier) =>
+  Math.max(0, Math.floor(normalizeLootNumber(table?.artTiers?.scrollSlots?.[tier])));
+
+/**
+ * Iron and Steel art scrolls for one shop or loot roll: `artTiers.scrollSlots`
+ * draws that many distinct scrolls per tier, from every scroll of that tier the
+ * act does not already list, so a big tier never crowds the act's own list.
+ * @param {object} table - one act's loot table
+ * @param {Array} allWeapons - weapons.json (scrolls live there)
+ * @param {Array} catalog - weaponArts.json arts
+ * @param {{ rosterTypes?: Set<string>|null }} [options]
+ * @returns {string[]} scroll names
+ */
+export function drawTierArtScrolls(table, allWeapons, catalog, options = {}) {
+  if (!table?.artTiers?.scrollSlots) return [];
+  const drawn = [];
+  for (const [tier, candidates] of tierArtScrollCandidates(table, allWeapons, catalog)) {
+    let remaining = tierScrollSlots(table, tier);
+    if (remaining <= 0) continue;
+    const names = options.rosterTypes
+      ? filterByRosterTypes(candidates, options.rosterTypes, allWeapons)
+      : [...candidates];
+    for (let i = 0; i < names.length && remaining > 0; i++, remaining--) {
+      const j = i + Math.floor(Math.random() * (names.length - i));
+      [names[i], names[j]] = [names[j], names[i]];
+      drawn.push(names[i]);
+    }
+  }
+  return drawn;
+}
+
+/** Every art scroll an act can offer: its own list plus each tier it draws from. */
+export function actArtScrollPool(table, allWeapons, catalog) {
+  const pool = [...normalizeLootArray(table?.weaponArtScroll)];
+  for (const [tier, candidates] of tierArtScrollCandidates(table, allWeapons, catalog))
+    if (tierScrollSlots(table, tier) > 0) pool.push(...candidates);
+  return pool;
+}
+
 function buildLegacyMetaInnateArtByWeaponType(weaponArtSpawnConfig) {
   const unlockedIds = Array.isArray(weaponArtSpawnConfig?.unlockedWeaponArtIds)
     ? weaponArtSpawnConfig.unlockedWeaponArtIds
@@ -348,18 +404,31 @@ function buildLegacyMetaInnateArtByWeaponType(weaponArtSpawnConfig) {
   return byType.size > 0 ? byType : null;
 }
 
-function buildMetaInnateArtPoolsByTier(weaponArtSpawnConfig) {
+/**
+ * The chance a weapon of each tier spawns with an art: 1 where a meta upgrade
+ * (or Silver's standing rule) turns the tier on, else the act's `innateChance`.
+ */
+function resolveInnateArtChanceByTier(weaponArtSpawnConfig, innateChance = null) {
+  const chanceByTier = new Map();
+  if (weaponArtSpawnConfig?.enableIron || weaponArtSpawnConfig?.ironArms)
+    chanceByTier.set('Iron', 1);
+  if (weaponArtSpawnConfig?.enableSteel || weaponArtSpawnConfig?.steelArms)
+    chanceByTier.set('Steel', 1);
+  if (weaponArtSpawnConfig?.enableSilver || weaponArtSpawnConfig?.silverInnate)
+    chanceByTier.set('Silver', 1);
+  for (const tier of ART_TIER_KEYS) {
+    if (chanceByTier.has(tier)) continue;
+    const chance = Math.min(1, Math.max(0, normalizeLootNumber(innateChance?.[tier])));
+    if (chance > 0) chanceByTier.set(tier, chance);
+  }
+  return chanceByTier;
+}
+
+function buildMetaInnateArtPoolsByTier(weaponArtSpawnConfig, enabledTiers) {
   const catalog = Array.isArray(weaponArtSpawnConfig?.weaponArtCatalog)
     ? weaponArtSpawnConfig.weaponArtCatalog
     : [];
   if (catalog.length <= 0) return null;
-
-  const enabledTiers = new Set();
-  if (weaponArtSpawnConfig?.enableIron || weaponArtSpawnConfig?.ironArms) enabledTiers.add('Iron');
-  if (weaponArtSpawnConfig?.enableSteel || weaponArtSpawnConfig?.steelArms)
-    enabledTiers.add('Steel');
-  if (weaponArtSpawnConfig?.enableSilver || weaponArtSpawnConfig?.silverInnate)
-    enabledTiers.add('Silver');
   if (enabledTiers.size <= 0) return null;
 
   const poolsByTier = new Map();
@@ -383,9 +452,13 @@ function buildMetaInnateArtPoolsByTier(weaponArtSpawnConfig) {
   return poolsByTier.size > 0 ? poolsByTier : null;
 }
 
-function buildMetaInnateArtConfig(weaponArtSpawnConfig) {
-  const poolsByTier = buildMetaInnateArtPoolsByTier(weaponArtSpawnConfig);
-  if (poolsByTier) return { mode: 'tier_pools', value: poolsByTier };
+function buildMetaInnateArtConfig(weaponArtSpawnConfig, innateChance = null) {
+  const chanceByTier = resolveInnateArtChanceByTier(weaponArtSpawnConfig, innateChance);
+  const poolsByTier = buildMetaInnateArtPoolsByTier(
+    weaponArtSpawnConfig,
+    new Set(chanceByTier.keys()),
+  );
+  if (poolsByTier) return { mode: 'tier_pools', value: poolsByTier, chanceByTier };
   const legacy = buildLegacyMetaInnateArtByWeaponType(weaponArtSpawnConfig);
   if (legacy) return { mode: 'legacy_map', value: legacy };
   return null;
@@ -402,11 +475,11 @@ function hasAnyBoundArt(item) {
   return typeof item.weaponArtId === 'string' && item.weaponArtId.trim().length > 0;
 }
 
-function writeMetaInnateArt(item, artId) {
+function writeMetaInnateArt(item, artId, source = 'meta_innate') {
   item.weaponArtIds = [artId];
-  item.weaponArtSources = ['meta_innate'];
+  item.weaponArtSources = [source];
   item.weaponArtId = artId;
-  item.weaponArtSource = 'meta_innate';
+  item.weaponArtSource = source;
 }
 
 function applyMetaInnateArtToItem(item, artConfig) {
@@ -426,9 +499,12 @@ function applyMetaInnateArtToItem(item, artConfig) {
     const tierPools = artConfig.value.get(item.tier);
     const pool = tierPools?.get(item.type) || [];
     if (pool.length <= 0) return item;
+    // Below 1 the art is the act's base chance, not an upgrade's promise.
+    const chance = artConfig.chanceByTier?.get(item.tier) ?? 1;
+    if (chance < 1 && Math.random() >= chance) return item;
     const artId = pool[Math.floor(Math.random() * pool.length)];
     if (!artId) return item;
-    writeMetaInnateArt(item, artId);
+    writeMetaInnateArt(item, artId, chance < 1 ? 'innate' : 'meta_innate');
     return item;
   }
 
@@ -897,10 +973,21 @@ export function generateLootChoices(
   const baseTable = lootTables[actId] || lootTables.act3;
   const table = isBoss && baseTable.bossRewards ? baseTable.bossRewards : baseTable;
   const [baseGoldMin, baseGoldMax] = getValidGoldRange(table);
-  const metaInnateArtConfig = buildMetaInnateArtConfig(weaponArtSpawnConfig);
+  // A boss's reward table is its own list; the act's art chance still applies.
+  const metaInnateArtConfig = buildMetaInnateArtConfig(
+    weaponArtSpawnConfig,
+    baseTable.artTiers?.innateChance,
+  );
   const qualityBonusPercent = normalizeLootNumber(lootWeaponQualityBonus);
   const { pools, weights } = buildLootTablesFromAct(table, allWeapons, consumables);
   const options = generateOptions || {};
+  const rosterTypes = roster ? getRosterWeaponTypes(roster) : null;
+  pools.weaponArtScroll = [
+    ...pools.weaponArtScroll,
+    ...drawTierArtScrolls(table, allWeapons, weaponArtSpawnConfig?.weaponArtCatalog, {
+      rosterTypes,
+    }),
+  ];
 
   // Imbuing stones (whetstone-like, from imbues.json) resolve through the
   // whetstone lookup so `forge` pools can list them without a schema change.
@@ -924,7 +1011,6 @@ export function generateLootChoices(
   const maxAttempts = count * 5;
   let attempts = 0;
 
-  const rosterTypes = roster ? getRosterWeaponTypes(roster) : null;
   const qualityPoolsByType = buildWeaponUpgradePools(allWeapons, rosterTypes);
 
   while (choices.length < count && attempts < maxAttempts) {
@@ -1043,7 +1129,10 @@ export function generateShopInventory(
   const baseCount =
     itemCountRange.min + Math.floor(Math.random() * (itemCountRange.max - itemCountRange.min + 1));
   const itemCount = Math.max(1, baseCount + bonusItems);
-  const metaInnateArtConfig = buildMetaInnateArtConfig(weaponArtSpawnConfig);
+  const metaInnateArtConfig = buildMetaInnateArtConfig(
+    weaponArtSpawnConfig,
+    table.artTiers?.innateChance,
+  );
 
   const recentNames = new Set(generateOptions?.recentItemNames || []);
   const preferFresh = (pool) => {
@@ -1063,7 +1152,12 @@ export function generateShopInventory(
     return filterByRosterTypes(source, rosterTypes, allWeapons);
   };
   const filteredSkillScrolls = filteredForRoster('skillScroll', pools.skillScroll);
-  const filteredWeaponArtScrolls = filteredForRoster('weaponArtScroll', pools.weaponArtScroll);
+  const filteredWeaponArtScrolls = [
+    ...filteredForRoster('weaponArtScroll', pools.weaponArtScroll),
+    ...drawTierArtScrolls(table, allWeapons, weaponArtSpawnConfig?.weaponArtCatalog, {
+      rosterTypes,
+    }),
+  ];
   const filteredLegendaryWeapons = filteredForRoster('legendaryWeapon', pools.legendaryWeapon);
   const filteredAccessories = normalizeLootArray(pools.accessory);
   const filteredForge = normalizeLootArray(pools.forge);

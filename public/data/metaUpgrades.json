@@ -1786,7 +1786,7 @@
   {
     "id": "iron_arms",
     "name": "Iron Arms",
-    "description": "Iron weapons can spawn with 1 random type-appropriate weapon art",
+    "description": "Every Iron weapon you start with or find carries a random weapon art",
     "category": "starting_equipment",
     "maxLevel": 1,
     "costs": [
@@ -1801,7 +1801,7 @@
   {
     "id": "steel_arms",
     "name": "Steel Arms",
-    "description": "Steel weapons can spawn with 1 random type-appropriate weapon art",
+    "description": "Every Steel weapon you start with or find carries a random weapon art",
     "category": "starting_equipment",
     "maxLevel": 1,
     "costs": [

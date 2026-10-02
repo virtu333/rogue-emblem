@@ -229,7 +229,7 @@ describe('itemIcon helper', () => {
 
 describe('item art texture budget (mobile)', () => {
   const decoded = (w, h) => w * h * 4;
-  it('atlases stay small: sides <= 1024, decoded <= 4.5 MB total, download <= 160 KB', () => {
+  it('atlases stay small: sides <= 1024, decoded <= 5 MB total, download <= 160 KB', () => {
     let bytes = 0;
     let dec = 0;
     for (const size of SIZES) {
@@ -239,7 +239,8 @@ describe('item art texture budget (mobile)', () => {
       bytes += a.bytes;
       dec += decoded(a.w, a.h);
     }
-    expect(dec).toBeLessThanOrEqual(4.5 * 1024 * 1024);
+    // 5 MB holds 360 cells (Oct 2026: 344 icons after the Iron/Steel art scrolls).
+    expect(dec).toBeLessThanOrEqual(5 * 1024 * 1024);
     expect(bytes).toBeLessThanOrEqual(160 * 1024);
   });
 

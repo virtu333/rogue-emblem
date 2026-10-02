@@ -30,6 +30,10 @@
     ],
     "skillScroll": [],
     "weaponArtScroll": ["Grounder Scroll", "Helm Splitter Scroll"],
+    "artTiers": {
+      "innateChance": {"Iron": 0.3, "Steel": 0.1},
+      "scrollSlots": {"Iron": 2, "Steel": 0}
+    },
     "legendaryWeapon": [],
     "accessories": [
       "Goddess Icon",
@@ -164,23 +168,11 @@
       "Healing Circle Scroll",
       "Ensnare Scroll"
     ],
-    "weaponArtScroll": [
-      "Windsweep Scroll",
-      "Lunge Scroll",
-      "Grounder Scroll",
-      "Hexblade Scroll",
-      "Knightkneeler Scroll",
-      "Vengeance Scroll",
-      "Helm Splitter Scroll",
-      "Wild Abandon Scroll",
-      "Rushing Blow Scroll",
-      "Encloser Scroll",
-      "Ward Arrow Scroll",
-      "Healing Light Scroll",
-      "Seraphim Scroll",
-      "Sweeping Cleave Scroll",
-      "Skewer Scroll"
-    ],
+    "weaponArtScroll": ["Grounder Scroll", "Helm Splitter Scroll"],
+    "artTiers": {
+      "innateChance": {"Iron": 0.25, "Steel": 0.2},
+      "scrollSlots": {"Iron": 2, "Steel": 11}
+    },
     "legendaryWeapon": [],
     "accessories": [
       "Power Ring",
@@ -291,19 +283,8 @@
       "Ensnare Scroll"
     ],
     "weaponArtScroll": [
-      "Windsweep Scroll",
-      "Lunge Scroll",
       "Grounder Scroll",
-      "Hexblade Scroll",
-      "Knightkneeler Scroll",
-      "Vengeance Scroll",
       "Helm Splitter Scroll",
-      "Wild Abandon Scroll",
-      "Rushing Blow Scroll",
-      "Encloser Scroll",
-      "Ward Arrow Scroll",
-      "Healing Light Scroll",
-      "Seraphim Scroll",
       "Dragonhaze Scroll",
       "Longearche Scroll",
       "Glowing Ember Scroll",
@@ -313,11 +294,13 @@
       "Burning Quake Scroll",
       "Nosferatu Scroll",
       "Silence Strike Scroll",
-      "Sweeping Cleave Scroll",
-      "Skewer Scroll",
       "Benediction Scroll",
       "Battering Ram Scroll"
     ],
+    "artTiers": {
+      "innateChance": {"Iron": 0.1, "Steel": 0.25},
+      "scrollSlots": {"Iron": 1, "Steel": 8}
+    },
     "legendaryWeapon": [
       "Ragnarok",
       "Namethief",
@@ -454,6 +437,10 @@
       "Sanctuary Scroll",
       "Dawn's Judgment Scroll"
     ],
+    "artTiers": {
+      "innateChance": {"Iron": 0.05, "Steel": 0.15},
+      "scrollSlots": {"Iron": 0, "Steel": 1}
+    },
     "legendaryWeapon": [
       "Ragnarok",
       "Namethief",

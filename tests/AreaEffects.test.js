@@ -7,6 +7,7 @@ import { loadGameData } from './testData.js';
 import { postCombatEffects } from '../src/engine/PostCombatEffects.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
 import { weaponArtDetailLines } from '../src/ui/weaponArtDisplay.js';
+import { actArtScrollPool } from '../src/engine/LootSystem.js';
 
 const data = loadGameData();
 const weapon = (name) => structuredClone(data.weapons.find((w) => w.name === name));
@@ -193,6 +194,8 @@ describe('the shipped area arts (catalog)', () => {
   });
 
   it('each is taught by a scroll that drops in acts 2-3', () => {
+    const pool = (act) =>
+      actArtScrollPool(data.lootTables[act], data.weapons, data.weaponArts.arts);
     const teaches = (id) => data.weapons.find((w) => w.teachesWeaponArtId === id)?.name;
     for (const [id, acts] of [
       ['axe_sweeping_cleave', ['act2', 'act3']],
@@ -202,8 +205,7 @@ describe('the shipped area arts (catalog)', () => {
     ]) {
       const scroll = teaches(id);
       expect(scroll, id).toBe(`${catalog(id).name} Scroll`);
-      for (const act of acts)
-        expect(data.lootTables[act].weaponArtScroll, `${id} ${act}`).toContain(scroll);
+      for (const act of acts) expect(pool(act), `${id} ${act}`).toContain(scroll);
     }
   });
 
