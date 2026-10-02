@@ -1,214 +1,629 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  inspectSlot,
   getSlotSummary,
-  getMetaKey,
-  getRunKey,
+  getSlotCount,
+  getOccupiedSlots,
   getNextAvailableSlot,
+  clearAllSlotData,
+  hasSlotRecoveryRecord,
+  getSlotDataKeys,
+  getSlotCloudPendingKey,
+  getSlotRecoveryOwner,
+  prepareRecoveryLogout,
 } from '../src/engine/SlotManager.js';
+import {
+  archiveAndDiscardSlot,
+  archiveSlot,
+  claimUnassignedCloudPending,
+  retireSlotArchive,
+  readSlotArchive,
+  retakeSlotArchive,
+  forgetSlotArchive,
+  MAX_SLOT_ARCHIVE_BYTES,
+  discardExportedSlot,
+  releaseSlotCloudPending,
+  slotArchiveByteSize,
+} from '../src/engine/SlotRecovery.js';
 
-// Mock localStorage
-const store = {};
-const localStorageMock = {
-  getItem: vi.fn((key) => store[key] ?? null),
-  setItem: vi.fn((key, val) => {
-    store[key] = val;
-  }),
-  removeItem: vi.fn((key) => {
-    delete store[key];
-  }),
-  clear: vi.fn(() => {
-    for (const k of Object.keys(store)) delete store[k];
-  }),
-};
-Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
+let values, storage;
+const META = 'emblem_rogue_slot_1_meta';
+const RUN = 'emblem_rogue_slot_1_run';
+const ARCHIVE = 'emblem_rogue_slot_1_quarantine';
+const JOURNAL = 'emblem_rogue_slot_1_pair_journal';
+beforeEach(() => {
+  values = new Map();
+  storage = {
+    getItem: vi.fn((key) => values.get(key) ?? null),
+    setItem: vi.fn((key, value) => values.set(key, String(value))),
+    removeItem: vi.fn((key) => values.delete(key)),
+  };
+  vi.stubGlobal('localStorage', storage);
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
-describe('SlotManager corruption handling', () => {
-  let errorSpy;
+describe('read-only slot inspection and allocation', () => {
+  it.each([false, true])(
+    'logout ownership survives pending discard, including interrupted deletion (%s)',
+    (interrupted) => {
+      values.set(META, '{bad');
+      values.set(RUN, '{"gold":137}');
+      expect(archiveSlot(1).ok).toBe(true);
+      if (interrupted) {
+        storage.removeItem.mockImplementation((key) => {
+          if (key === RUN) throw new Error('interrupted');
+          values.delete(key);
+        });
+        expect(archiveAndDiscardSlot(1).ok).toBe(false);
+        storage.removeItem.mockImplementation((key) => values.delete(key));
+      }
+      expect(prepareRecoveryLogout('account-a').ok).toBe(true);
+      expect(archiveAndDiscardSlot(1).ok).toBe(true);
+      expect(getSlotRecoveryOwner(1)).toBe('account-a');
+      expect(values.has(META)).toBe(false);
+      expect(values.has(RUN)).toBe(false);
+      const removed = storage.removeItem.mock.calls.map(([key]) => key);
+      expect(removed.at(-1)).toBe('emblem_rogue_slot_1_recovery_owner');
+    },
+  );
 
-  beforeEach(() => {
-    localStorageMock.clear();
-    localStorageMock.getItem.mockImplementation((key) => store[key] ?? null);
-    localStorageMock.setItem.mockImplementation((key, val) => {
-      store[key] = val;
+  it.each([null, 'account-a', 'malformed'])(
+    'claims only an explicitly unassigned empty cloud reservation (%s)',
+    (owner) => {
+      const key = getSlotCloudPendingKey(1);
+      const raw =
+        owner === 'malformed' ? '{bad pending' : JSON.stringify({ version: 1, userId: owner });
+      values.set(key, raw);
+      const result = claimUnassignedCloudPending(1, 'account-b');
+      if (owner === null) {
+        expect(result.ok).toBe(true);
+        expect(JSON.parse(values.get(key)).userId).toBe('account-b');
+      } else {
+        expect(result.ok).toBe(false);
+        expect(values.get(key)).toBe(raw);
+      }
+    },
+  );
+  it('exporting and discarding a reservation preserves its original account ownership', () => {
+    const key = getSlotCloudPendingKey(1);
+    values.set(key, '{"version":1,"userId":"original-account","savedAt":100}');
+    const snapshot = Object.fromEntries(
+      [...getSlotDataKeys(1), ARCHIVE, JOURNAL].map((recordKey) => [
+        recordKey,
+        storage.getItem(recordKey),
+      ]),
+    );
+    expect(discardExportedSlot(1, snapshot, true).ok).toBe(true);
+    expect(getSlotRecoveryOwner(1)).toBe('original-account');
+    expect(retireSlotArchive(1, storage, undefined, undefined, 'different-account').ok).toBe(true);
+    expect(JSON.parse(values.get(key)).userId).toBe('original-account');
+  });
+
+  it('release is explicit and does not remove a newer reservation or remaining evidence', () => {
+    const key = getSlotCloudPendingKey(1);
+    const original = '{"version":1,"userId":null}';
+    values.set(key, original);
+    expect(releaseSlotCloudPending(1, undefined).ok).toBe(false);
+    values.set(key, 'new reservation');
+    expect(releaseSlotCloudPending(1, original).ok).toBe(false);
+    expect(values.get(key)).toBe('new reservation');
+    values.set(ARCHIVE, 'raw preserved evidence');
+    expect(releaseSlotCloudPending(1, 'new reservation').ok).toBe(false);
+    expect(values.get(ARCHIVE)).toBe('raw preserved evidence');
+  });
+
+  it.each(['new owner', 'owner delete failure', 'pending delete failure'])(
+    'keeps the reviewed orphan reservation when release races or fails (%s)',
+    (kind) => {
+      const key = getSlotCloudPendingKey(1);
+      const ownerKey = 'emblem_rogue_slot_1_recovery_owner';
+      const pending = '{"version":1,"userId":"account-a"}';
+      const owner = '{"version":1,"userId":"account-a","savedAt":123}';
+      values.set(key, pending);
+      values.set(ownerKey, kind === 'new owner' ? 'new ownership evidence' : owner);
+      values.set(RUN, '{"gold":4242}');
+      if (kind !== 'new owner')
+        storage.removeItem.mockImplementation((recordKey) => {
+          if (recordKey === (kind === 'owner delete failure' ? ownerKey : key)) {
+            if (recordKey === ownerKey) values.delete(recordKey);
+            throw new Error('interrupted delete');
+          }
+          values.delete(recordKey);
+        });
+      expect(releaseSlotCloudPending(1, pending, storage, owner).ok).toBe(false);
+      expect(values.get(key)).toBe(pending);
+      expect(values.get(ownerKey)).toBe(kind === 'new owner' ? 'new ownership evidence' : owner);
+      expect(values.get(RUN)).toBe('{"gold":4242}');
+    },
+  );
+
+  it('a native archive sized just below the lifecycle envelope limit can finish discard', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1800000000000);
+    const emptyEnvelopeBytes = slotArchiveByteSize(1);
+    const payloadCharacters = Math.floor((MAX_SLOT_ARCHIVE_BYTES - emptyEnvelopeBytes) / 2) - 5;
+    values.set(RUN, 'x'.repeat(payloadCharacters));
+    expect(slotArchiveByteSize(1)).toBeLessThanOrEqual(MAX_SLOT_ARCHIVE_BYTES);
+    expect(archiveAndDiscardSlot(1).ok).toBe(true);
+    expect(values.has(RUN)).toBe(false);
+    expect(JSON.parse(values.get(ARCHIVE)).values[RUN]).toHaveLength(payloadCharacters);
+    expect(JSON.parse(values.get(ARCHIVE)).state).toBe('archived');
+  });
+
+  it('archive size includes keys and the complete envelope at the native limit', () => {
+    // String values alone fit, but escaped strings and envelope overhead do not.
+    values.set(RUN, 'x'.repeat(MAX_SLOT_ARCHIVE_BYTES / 2 - 100));
+    expect(values.get(RUN).length * 2).toBeLessThan(MAX_SLOT_ARCHIVE_BYTES);
+    expect(slotArchiveByteSize(1)).toBeGreaterThan(MAX_SLOT_ARCHIVE_BYTES);
+    expect(archiveSlot(1).ok).toBe(false);
+    expect(values.has(RUN)).toBe(true);
+    expect(values.has(ARCHIVE)).toBe(false);
+  });
+
+  it('does not claim an unassigned reservation over newly written local run bytes', () => {
+    const key = getSlotCloudPendingKey(1);
+    const raw = JSON.stringify({ version: 1, userId: null });
+    values.set(key, raw);
+    values.set(RUN, 'new local run bytes');
+    expect(claimUnassignedCloudPending(1, 'account-b').ok).toBe(false);
+    expect(values.get(key)).toBe(raw);
+    expect(values.get(RUN)).toBe('new local run bytes');
+  });
+
+  it('refuses to retake a native pending copy when an original key already reached deletion on disk', () => {
+    values.set(META, '{bad');
+    values.set(RUN, 'original run bytes');
+    expect(archiveSlot(1).ok).toBe(true);
+    values.delete(RUN); // disk replay before discardStarted reached disk
+    const before = new Map(values);
+    expect(retakeSlotArchive(1)).toMatchObject({ ok: false });
+    expect(values).toEqual(before);
+    expect(readSlotArchive(1).values[RUN]).toBe('original run bytes');
+  });
+
+  it('fails closed when recovery evidence cannot be read', () => {
+    storage.getItem.mockImplementation(() => {
+      throw new Error('storage denied');
     });
-    localStorageMock.removeItem.mockClear();
-    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(hasSlotRecoveryRecord(1)).toBe(true);
   });
+  it.each(['{bad', 'null', '[]', '42', '"x"', '', null])(
+    'preserves every byte when metadata is %s and a run survives',
+    (raw) => {
+      if (raw !== null) values.set(META, raw);
+      values.set(RUN, '{"actIndex":1,"gold":137}');
+      values.set('unrelated', 'keep me');
+      const before = new Map(values);
+      expect(inspectSlot(1)).toMatchObject({
+        status: 'damaged',
+        hasRunData: true,
+        runParseable: true,
+      });
+      expect(getSlotSummary(1)).toMatchObject({
+        slot: 1,
+        recoveryRequired: true,
+        hasActiveRun: false,
+        runRecoverable: true,
+      });
+      expect(getSlotCount()).toBe(1);
+      expect(getOccupiedSlots()).toEqual([1]);
+      expect(getNextAvailableSlot()).toBe(2);
+      expect(values).toEqual(before);
+    },
+  );
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+  it.each(['cloud_conflict', 'quarantine', 'pair_journal'])(
+    'reserves a slot with only %s evidence',
+    (suffix) => {
+      values.set(`emblem_rogue_slot_1_${suffix}`, 'raw recovery evidence');
+      const before = new Map(values);
+      expect(getSlotSummary(1)?.recoveryRequired).toBe(true);
+      expect(getNextAvailableSlot()).toBe(2);
+      expect(values).toEqual(before);
+    },
+  );
 
-  it('returns runCorrupt: true when run JSON is invalid but meta is valid', () => {
-    const slot = 1;
-    store[getMetaKey(slot)] = JSON.stringify({
-      totalValor: 500,
-      totalSupply: 200,
-      runsCompleted: 3,
+  it('excludes unreadable slots and preserves available metadata in their summary', () => {
+    values.set(META, '{"totalValor":500,"totalSupply":200}');
+    storage.getItem.mockImplementation((key) => {
+      if (key === RUN) throw new Error('SecurityError');
+      return values.get(key) ?? null;
     });
-    store[getRunKey(slot)] = '{{{bad json';
-
-    const summary = getSlotSummary(slot);
-
-    expect(summary).not.toBeNull();
-    expect(summary.hasActiveRun).toBe(false);
-    expect(summary.runCorrupt).toBe(true);
-    expect(summary.valor).toBe(500);
-    expect(summary.supply).toBe(200);
-    expect(summary.runsCompleted).toBe(3);
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining(`slot ${slot}`));
-  });
-
-  it('returns null and auto-cleans malformed meta JSON', () => {
-    const slot = 2;
-    store[getMetaKey(slot)] = '{{{bad meta';
-    store[getRunKey(slot)] = JSON.stringify({ actIndex: 1 });
-
-    let summary;
-    expect(() => {
-      summary = getSlotSummary(slot);
-    }).not.toThrow();
-
-    expect(summary).toBeNull();
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getMetaKey(slot));
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getRunKey(slot));
-  });
-
-  it('returns runCorrupt: false for healthy slot', () => {
-    const slot = 3;
-    store[getMetaKey(slot)] = JSON.stringify({
-      totalValor: 100,
-      totalSupply: 50,
-      runsCompleted: 1,
+    expect(inspectSlot(1).status).toBe('unreadable');
+    expect(getSlotSummary(1)).toMatchObject({
+      valor: 500,
+      supply: 200,
+      recoveryRequired: true,
+      runCorrupt: true,
     });
-    store[getRunKey(slot)] = JSON.stringify({ actIndex: 2 });
-
-    const summary = getSlotSummary(slot);
-
-    expect(summary).not.toBeNull();
-    expect(summary.runCorrupt).toBe(false);
-    expect(summary.hasActiveRun).toBe(true);
-    expect(summary.actReached).toBe(3);
+    expect(getNextAvailableSlot()).toBe(2);
+    expect(storage.setItem).not.toHaveBeenCalled();
+    expect(storage.removeItem).not.toHaveBeenCalled();
   });
 
-  it('returns runCorrupt: true when localStorage.getItem throws on run key', () => {
-    const slot = 1;
-    store[getMetaKey(slot)] = JSON.stringify({
-      totalValor: 300,
-      totalSupply: 100,
+  it('treats total storage unavailability as occupied rather than allocating a slot', () => {
+    storage.getItem.mockImplementation(() => {
+      throw new Error('denied');
+    });
+    expect(getSlotCount()).toBe(3);
+    expect(getNextAvailableSlot()).toBeNull();
+    expect(getSlotSummary(1)?.slotStatus).toBe('unreadable');
+  });
+
+  it('keeps the healthy summary and optional-meta-field compatibility', () => {
+    values.set(META, '{"runsCompleted":2}');
+    values.set(RUN, '{"actIndex":2}');
+    expect(getSlotSummary(1)).toMatchObject({
+      valor: 0,
+      supply: 0,
       runsCompleted: 2,
+      runsStarted: 2,
+      hasActiveRun: true,
+      actReached: 3,
+      runCorrupt: false,
     });
+    expect(getSlotSummary(2)).toBeNull();
+    values.set(META, '{}');
+    values.delete(RUN);
+    expect(getSlotSummary(1)).toMatchObject({ hasActiveRun: false, runCorrupt: false });
+  });
 
-    // Make getItem throw only for the run key (simulates SecurityError in private browsing)
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === getRunKey(slot)) throw new DOMException('SecurityError');
-      return store[key] ?? null;
+  it.each(['{bad', 'null', '[]', '42', '', '{"roster":42}'])(
+    'never advertises malformed run %s as active, and keeps its bytes',
+    (run) => {
+      values.set(META, '{"totalValor":500,"totalSupply":200}');
+      values.set(RUN, run);
+      expect(getSlotSummary(1)).toMatchObject({
+        hasActiveRun: false,
+        runCorrupt: true,
+        valor: 500,
+        supply: 200,
+      });
+      expect(values.get(RUN)).toBe(run);
+    },
+  );
+
+  it('keeps bookkeeping-only keys read-only without mistaking them for a lost run', () => {
+    values.set('emblem_rogue_slot_1_run_clock_floor', '123');
+    values.set('emblem_rogue_slot_1_meta_clock_floor', '456');
+    values.set('emblem_rogue_slot_1_hints', '["heal"]');
+    const before = new Map(values);
+    expect(getSlotSummary(1)).toBeNull();
+    expect(getNextAvailableSlot()).toBe(1);
+    expect(values).toEqual(before);
+  });
+});
+
+function seedDamagedSave() {
+  values.set(META, '{bad raw meta');
+  values.set(RUN, '{"actIndex":1,"gold":137}');
+  values.set('emblem_rogue_slot_1_cloud_conflict', 'raw conflict');
+  values.set('emblem_rogue_slot_1_run_clock_floor', '123');
+  values.set('emblem_rogue_slot_1_meta_clock_floor', '456');
+  values.set('emblem_rogue_slot_1_hints', '["heal"]');
+  values.set('unrelated', 'untouched');
+}
+
+describe('explicit archive, discard and retirement', () => {
+  it('discards a verified conflict-only export at full quota', () => {
+    const conflictKey = 'emblem_rogue_slot_1_cloud_conflict';
+    values.set(
+      conflictKey,
+      JSON.stringify({
+        localRun: { gold: 10 },
+        cloudRun: { gold: 20 },
+        cloudMeta: { totalValor: 91 },
+        data: 'x'.repeat(MAX_SLOT_ARCHIVE_BYTES),
+      }),
+    );
+    const limit = [...values.values()].reduce((sum, raw) => sum + raw.length, 0);
+    storage.setItem.mockImplementation((key, raw) => {
+      const size =
+        [...values].reduce((sum, [k, value]) => sum + (k === key ? 0 : value.length), 0) +
+        raw.length;
+      if (size > limit) throw new Error('quota exceeded');
+      values.set(key, raw);
     });
-
-    const summary = getSlotSummary(slot);
-
-    expect(summary).not.toBeNull();
-    expect(summary.runCorrupt).toBe(true);
-    expect(summary.valor).toBe(300);
-    expect(summary.supply).toBe(100);
-    expect(summary.runsCompleted).toBe(2);
-    expect(summary.hasActiveRun).toBe(false);
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining(`slot ${slot}`));
+    const snapshot = Object.fromEntries(
+      [...getSlotDataKeys(1), ARCHIVE, JOURNAL].map((key) => [key, values.get(key) ?? null]),
+    );
+    expect(discardExportedSlot(1, snapshot, true).ok).toBe(true);
+    expect(readSlotArchive(1)).toMatchObject({ externalCopy: true, state: 'archived' });
+    expect(values.has(conflictKey)).toBe(false);
   });
 
-  it('returns runCorrupt: false when no run data exists', () => {
-    const slot = 1;
-    store[getMetaKey(slot)] = JSON.stringify({
-      totalValor: 0,
-      totalSupply: 0,
-      runsCompleted: 0,
+  it('keeps a failed conflict-anchor discard reserved even with readable progression', () => {
+    const conflictKey = 'emblem_rogue_slot_1_cloud_conflict';
+    values.set(META, JSON.stringify({ totalValor: 91, totalSupply: 17 }));
+    values.set(conflictKey, 'x'.repeat(MAX_SLOT_ARCHIVE_BYTES));
+    const snapshot = Object.fromEntries(
+      [...getSlotDataKeys(1), ARCHIVE, JOURNAL].map((key) => [key, values.get(key) ?? null]),
+    );
+    storage.setItem.mockImplementation((key, raw) => {
+      if (key === ARCHIVE) throw new Error('disk full');
+      values.set(key, raw);
     });
-
-    const summary = getSlotSummary(slot);
-
-    expect(summary).not.toBeNull();
-    expect(summary.runCorrupt).toBe(false);
-    expect(summary.hasActiveRun).toBe(false);
+    expect(discardExportedSlot(1, snapshot, true).ok).toBe(false);
+    expect(getSlotSummary(1)).toMatchObject({ recoveryRequired: true, valor: 91, supply: 17 });
+    expect(getNextAvailableSlot()).toBe(2);
   });
 
-  it.each([
-    ['null', 'null'],
-    ['array', '[]'],
-    ['string', '"x"'],
-    ['number', '42'],
-  ])('returns null and auto-cleans parseable invalid meta (%s)', (_label, rawMeta) => {
-    const slot = 2;
-    store[getMetaKey(slot)] = rawMeta;
-    store[getRunKey(slot)] = JSON.stringify({ actIndex: 1 });
-
-    let summary;
-    expect(() => {
-      summary = getSlotSummary(slot);
-    }).not.toThrow();
-
-    expect(summary).toBeNull();
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getMetaKey(slot));
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getRunKey(slot));
-  });
-
-  it('corrupt meta auto-cleans: deleteSlot is called and summary returns null', () => {
-    const slot = 2;
-    store[getMetaKey(slot)] = '{{{bad meta';
-    store[getRunKey(slot)] = JSON.stringify({ actIndex: 1 });
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    const summary = getSlotSummary(slot);
-
-    expect(summary).toBeNull();
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getMetaKey(slot));
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getRunKey(slot));
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(`slot ${slot}`));
-    warnSpy.mockRestore();
-  });
-
-  it('storage access error does NOT delete slot data', () => {
-    const slot = 1;
-    store[getMetaKey(slot)] = JSON.stringify({ totalValor: 100 });
-
-    // Make getItem throw for the meta key (simulates SecurityError)
-    localStorageMock.getItem.mockImplementation((key) => {
-      if (key === getMetaKey(slot)) throw new DOMException('SecurityError');
-      return store[key] ?? null;
+  it('can recover an ownership-only residue when retirement deletion fails', () => {
+    seedDamagedSave();
+    expect(archiveAndDiscardSlot(1).ok).toBe(true);
+    const ownerKey = 'emblem_rogue_slot_1_recovery_owner';
+    const owner = JSON.stringify({ version: 1, userId: 'account-a' });
+    values.set(ownerKey, owner);
+    storage.removeItem.mockImplementation((key) => {
+      if (key === ownerKey) throw new Error('delete blocked');
+      values.delete(key);
     });
-
-    const summary = getSlotSummary(slot);
-
-    expect(summary).toBeNull();
-    expect(localStorageMock.removeItem).not.toHaveBeenCalled();
+    expect(retireSlotArchive(1)).toMatchObject({
+      ok: false,
+      reason: expect.stringContaining('explicitly release'),
+    });
+    expect(values.has(ARCHIVE)).toBe(false);
+    expect(values.get(ownerKey)).toBe(owner);
+    expect(getSlotSummary(1)).toMatchObject({ recoveryRequired: true });
+    expect(getNextAvailableSlot()).toBe(2);
+    storage.removeItem.mockImplementation((key) => values.delete(key));
+    expect(archiveAndDiscardSlot(1).ok).toBe(true);
+    expect(readSlotArchive(1).values[ownerKey]).toBe(owner);
+    expect(retireSlotArchive(1).ok).toBe(true);
+    expect(getNextAvailableSlot()).toBe(2);
   });
 
-  it('getNextAvailableSlot cleans corrupt slots before allocation', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    // Slot 1 has parseable-but-invalid meta shape.
-    store[getMetaKey(1)] = 'null';
-    // Slot 2 is healthy
-    store[getMetaKey(2)] = JSON.stringify({ totalValor: 50 });
-    // Slot 3 is empty
-
-    const slot = getNextAvailableSlot();
-
-    // Should return 1 because corrupt slot 1 was cleaned
-    expect(slot).toBe(1);
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getMetaKey(1));
-    warnSpy.mockRestore();
+  it('can discard a verified export when storage has no room for a second full copy', () => {
+    seedDamagedSave();
+    values.set(
+      META,
+      JSON.stringify({
+        totalValor: 900,
+        totalSupply: 350,
+        purchases: { leadership: 3 },
+        savedAt: 10,
+      }),
+    );
+    values.set(RUN, 'x'.repeat(MAX_SLOT_ARCHIVE_BYTES));
+    const limit = [...values.values()].reduce((sum, raw) => sum + raw.length, 0);
+    storage.setItem.mockImplementation((key, raw) => {
+      const size =
+        [...values].reduce((sum, [k, value]) => sum + (k === key ? 0 : value.length), 0) +
+        raw.length;
+      if (size > limit) throw new Error('quota exceeded');
+      values.set(key, raw);
+    });
+    const keys = [...getSlotDataKeys(1), ARCHIVE, JOURNAL];
+    const snapshot = Object.fromEntries(keys.map((key) => [key, values.get(key) ?? null]));
+    expect(archiveAndDiscardSlot(1).ok).toBe(false);
+    expect(discardExportedSlot(1, snapshot, true).ok).toBe(true);
+    expect(readSlotArchive(1)).toMatchObject({ externalCopy: true, state: 'archived' });
+    expect(values.get('unrelated')).toBe('untouched');
   });
 
-  it('keeps healthy object meta (with missing optional fields) without deleting', () => {
-    const slot = 3;
-    store[getMetaKey(slot)] = JSON.stringify({ runsCompleted: 2 });
+  it.each(['reservation', 'deletion'])(
+    'retains a damaged/reserved slot if exported discard fails during %s',
+    (stage) => {
+      seedDamagedSave();
+      values.set(
+        META,
+        JSON.stringify({
+          totalValor: 900,
+          totalSupply: 350,
+          purchases: { leadership: 3 },
+          savedAt: 10,
+        }),
+      );
+      values.set(RUN, 'x'.repeat(MAX_SLOT_ARCHIVE_BYTES));
+      const keys = [...getSlotDataKeys(1), ARCHIVE, JOURNAL];
+      const snapshot = Object.fromEntries(keys.map((key) => [key, values.get(key) ?? null]));
+      if (stage === 'reservation')
+        storage.setItem.mockImplementation((key, raw) => {
+          if (key === ARCHIVE) throw new Error('disk full');
+          values.set(key, raw);
+        });
+      else
+        storage.removeItem.mockImplementation((key) => {
+          if (key === RUN) throw new Error('delete blocked');
+          values.delete(key);
+        });
+      expect(discardExportedSlot(1, snapshot, true).ok).toBe(false);
+      expect(getSlotSummary(1)).toMatchObject({ recoveryRequired: true });
+      expect(getNextAvailableSlot()).toBe(2);
+      expect(retireSlotArchive(1).ok).toBe(false);
+      expect(snapshot[RUN]).toBe('x'.repeat(MAX_SLOT_ARCHIVE_BYTES));
+    },
+  );
 
-    const summary = getSlotSummary(slot);
+  it('permits oversized discard only after an explicitly verified, unchanged external export', () => {
+    seedDamagedSave();
+    values.set(RUN, 'x'.repeat(MAX_SLOT_ARCHIVE_BYTES));
+    const snapshot = Object.fromEntries(
+      [
+        META,
+        RUN,
+        ARCHIVE,
+        JOURNAL,
+        'emblem_rogue_slot_1_run_clock_floor',
+        'emblem_rogue_slot_1_meta_clock_floor',
+        'emblem_rogue_slot_1_cloud_conflict',
+        'emblem_rogue_slot_1_hints',
+        'emblem_rogue_slot_1_recovery_owner',
+        'emblem_rogue_slot_1_cloud_pending',
+      ].map((key) => [key, values.get(key) ?? null]),
+    );
+    const before = new Map(values);
+    expect(discardExportedSlot(1, snapshot, false).ok).toBe(false);
+    expect(values).toEqual(before);
+    expect(discardExportedSlot(1, snapshot, true).ok).toBe(true);
+    expect(values.has(RUN)).toBe(false);
+    expect(readSlotArchive(1)).toMatchObject({ externalCopy: true, state: 'archived' });
+    expect(getNextAvailableSlot()).toBe(2);
+    expect(retireSlotArchive(1).ok).toBe(true);
+    expect(getNextAvailableSlot()).toBe(2);
+  });
 
-    expect(summary).not.toBeNull();
-    expect(summary.valor).toBe(0);
-    expect(summary.supply).toBe(0);
-    expect(summary.runsCompleted).toBe(2);
-    expect(localStorageMock.removeItem).not.toHaveBeenCalled();
+  it('refuses external discard when new data arrived after export', () => {
+    seedDamagedSave();
+    const snapshot = {};
+    const before = new Map(values);
+    expect(discardExportedSlot(1, snapshot, true).ok).toBe(false);
+    expect(values).toEqual(before);
+  });
+  it('retakes changed pending data only before any deletion has started', () => {
+    seedDamagedSave();
+    storage.removeItem.mockImplementationOnce(() => {
+      throw new Error('blocked');
+    });
+    // Preparing alone (such as a cancelled native acknowledgement) permits retake.
+    const originalRemove = storage.removeItem;
+    values.set(
+      ARCHIVE,
+      JSON.stringify({
+        version: 1,
+        slot: 1,
+        state: 'archiving',
+        values: Object.fromEntries(
+          [
+            META,
+            RUN,
+            'emblem_rogue_slot_1_run_clock_floor',
+            'emblem_rogue_slot_1_meta_clock_floor',
+            'emblem_rogue_slot_1_cloud_conflict',
+            'emblem_rogue_slot_1_hints',
+          ].map((key) => [key, values.get(key) ?? null]),
+        ),
+      }),
+    );
+    values.set(RUN, '{"gold":888}');
+    expect(retakeSlotArchive(1).ok).toBe(true);
+    expect(readSlotArchive(1).values[RUN]).toBe('{"gold":888}');
+    expect(archiveAndDiscardSlot(1).ok).toBe(false);
+    expect(retakeSlotArchive(1).ok).toBe(false);
+    expect(values.get(RUN)).toBe('{"gold":888}');
+    expect(originalRemove).toHaveBeenCalled();
+  });
+
+  it('refuses oversized archives without removing the raw originals', () => {
+    seedDamagedSave();
+    values.set(RUN, 'x'.repeat(MAX_SLOT_ARCHIVE_BYTES));
+    const before = new Map(values);
+    expect(archiveAndDiscardSlot(1)).toMatchObject({ ok: false });
+    expect(values).toEqual(before);
+  });
+
+  it('can explicitly forget malformed recovery evidence without touching canonical or cloud bytes', () => {
+    seedDamagedSave();
+    values.set(ARCHIVE, '{bad archive');
+    const before = new Map(values);
+    expect(forgetSlotArchive(1)).toEqual({ ok: true });
+    before.delete(ARCHIVE);
+    expect(values).toEqual(before);
+  });
+  it('keeps the exact raw bytes before discard and reserves the recovery-only slot', () => {
+    seedDamagedSave();
+    const originals = Object.fromEntries([...values].filter(([key]) => key !== 'unrelated'));
+    expect(archiveAndDiscardSlot(1)).toEqual({ ok: true });
+    expect(readSlotArchive(1)).toMatchObject({
+      version: 1,
+      slot: 1,
+      state: 'archived',
+      values: originals,
+    });
+    expect([...values.keys()].sort()).toEqual([ARCHIVE, 'unrelated'].sort());
+    expect(getNextAvailableSlot()).toBe(2);
+    expect(retireSlotArchive(1)).toEqual({ ok: true });
+    expect(getNextAvailableSlot()).toBe(2);
+    expect(values.get('unrelated')).toBe('untouched');
+  });
+
+  it('records absent keys explicitly without inventing metadata', () => {
+    values.set(RUN, '{"gold":137}');
+    expect(archiveAndDiscardSlot(1).ok).toBe(true);
+    expect(readSlotArchive(1).values[META]).toBeNull();
+    expect(values.has(META)).toBe(false);
+  });
+
+  it('does not remove any data if a recovery copy cannot be written', () => {
+    seedDamagedSave();
+    const before = new Map(values);
+    storage.setItem.mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+    expect(archiveAndDiscardSlot(1).ok).toBe(false);
+    expect(values).toEqual(before);
+    expect(storage.removeItem).not.toHaveBeenCalled();
+  });
+
+  it('does not delete canonical data if backup verification fails', () => {
+    seedDamagedSave();
+    storage.setItem.mockImplementation((key) => values.set(key, 'truncated'));
+    expect(archiveAndDiscardSlot(1).ok).toBe(false);
+    expect(values.get(RUN)).toBe('{"actIndex":1,"gold":137}');
+    expect(values.get(META)).toBe('{bad raw meta');
+    expect(storage.removeItem).not.toHaveBeenCalled();
+  });
+
+  it.each([META, RUN, 'emblem_rogue_slot_1_hints'])(
+    'retains a complete recovery copy and safely retries partial deletion at %s',
+    (failureKey) => {
+      seedDamagedSave();
+      const originals = Object.fromEntries([...values].filter(([key]) => key !== 'unrelated'));
+      storage.removeItem.mockImplementation((key) => {
+        if (key === failureKey) throw new Error('write denied');
+        values.delete(key);
+      });
+      expect(archiveAndDiscardSlot(1).ok).toBe(false);
+      expect(readSlotArchive(1)).toMatchObject({ state: 'archiving', values: originals });
+      expect(getSlotSummary(1)?.recoveryRequired).toBe(true);
+      expect(retireSlotArchive(1).ok).toBe(false);
+      storage.removeItem.mockImplementation((key) => values.delete(key));
+      expect(archiveAndDiscardSlot(1).ok).toBe(true);
+      expect(readSlotArchive(1).values).toEqual({
+        ...originals,
+        emblem_rogue_slot_1_recovery_owner: null,
+        emblem_rogue_slot_1_cloud_pending: null,
+      });
+    },
+  );
+
+  it('never overwrites an existing archive or deletes data changed after partial discard', () => {
+    seedDamagedSave();
+    storage.removeItem.mockImplementation(() => {
+      throw new Error('denied');
+    });
+    archiveAndDiscardSlot(1);
+    const firstCopy = values.get(ARCHIVE);
+    values.set(RUN, 'new progress from another tab');
+    storage.removeItem.mockImplementation((key) => values.delete(key));
+    expect(archiveAndDiscardSlot(1).ok).toBe(false);
+    expect(values.get(ARCHIVE)).toBe(firstCopy);
+    expect(values.get(RUN)).toBe('new progress from another tab');
+    expect(retireSlotArchive(1).ok).toBe(false);
+  });
+
+  it('refuses discard/retirement while a pair restore remains unfinished', () => {
+    seedDamagedSave();
+    values.set(JOURNAL, 'raw restore evidence');
+    const before = new Map(values);
+    expect(archiveAndDiscardSlot(1).ok).toBe(false);
+    expect(retireSlotArchive(1).ok).toBe(false);
+    expect(values).toEqual(before);
+  });
+
+  it('logout clears healthy cache but keeps damaged and archived recovery evidence', () => {
+    seedDamagedSave();
+    values.set('emblem_rogue_slot_2_meta', '{"totalValor":250}');
+    const before = new Map(values);
+    expect(clearAllSlotData()).toBe(false);
+    before.delete('emblem_rogue_slot_2_meta');
+    expect(values).toEqual(before);
+    archiveAndDiscardSlot(1);
+    const afterDiscard = new Map(values);
+    expect(clearAllSlotData()).toBe(false);
+    expect(values).toEqual(afterDiscard);
   });
 });

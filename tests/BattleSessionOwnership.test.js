@@ -652,7 +652,7 @@ describe('checkpoint retry uses the live save owner', () => {
     const floor = Date.now() + 100000;
     store.set(getRunClockFloorKey(1), String(floor));
     quota = false;
-    expect(ctrl.retryCheckpoint()).toMatchObject({ ok: true });
+    expect(ctrl.retryCheckpoint({ session: 1 })).toMatchObject({ ok: true });
     const saved = JSON.parse(store.get(getRunKey(1)));
     expect(saved.savedAt).toBeGreaterThan(floor);
     expect(isRunSaveCurrent(rm, 1)).toBe(true);
@@ -1028,6 +1028,7 @@ describe('checkpoint retry cannot replace a terminal decision', () => {
   ]) {
     it('refuses retry during ' + field + ' without rewriting storage', () => {
       const { scene, store } = liveCheckpointHost();
+      const session = scene._battleSession;
       const controller = new BattleSuspendController(scene);
       const persisted = scene._persistBattleRunState.bind(scene);
       scene._persistBattleRunState = vi.fn(() => ({ ok: false, reason: 'write_error' }));
@@ -1036,7 +1037,10 @@ describe('checkpoint retry cannot replace a terminal decision', () => {
       scene._persistBattleRunState = vi.fn(persisted);
       scene[field] = value;
       const before = { storage: [...store.entries()], run: scene.runManager.toJSON() };
-      expect(controller.retryCheckpoint()).toEqual({ ok: false, reason: 'unstable_boundary' });
+      expect(controller.retryCheckpoint({ session })).toEqual({
+        ok: false,
+        reason: 'unstable_boundary',
+      });
       expect(scene._persistBattleRunState).not.toHaveBeenCalled();
       expect({ storage: [...store.entries()], run: scene.runManager.toJSON() }).toEqual(before);
       expect(controller._retryCandidate).toBeTruthy();
