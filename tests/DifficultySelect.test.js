@@ -104,7 +104,8 @@ describe('generateModifierSummary', () => {
   it("names the rout ladder on Dusk and Nightfall, and Black Sun's par-neutral waves", () => {
     const lines = (id) => generateModifierSummary(gameData.difficulty.modes[id]);
     const ladder = 'Rout maps: reinforcement waves every 2 turns';
-    const neutral = 'Reinforcements no longer extend par';
+    const neutral =
+      'Map reinforcement waves no longer extend par; village bandits and keep garrisons still do';
     expect(lines('normal')).not.toContain(ladder);
     expect(lines('dusk')).toContain(ladder);
     expect(lines('hard')).toContain(ladder);

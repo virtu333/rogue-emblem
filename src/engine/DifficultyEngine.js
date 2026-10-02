@@ -229,7 +229,9 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
     lines.push('Rout maps: reinforcement waves every 2 turns');
   }
   if (mode.templateWavesRaisePar === false) {
-    lines.push('Reinforcements no longer extend par');
+    lines.push(
+      'Map reinforcement waves no longer extend par; village bandits and keep garrisons still do',
+    );
   }
   if (mode.siegeWeaponConfig) {
     const cfg = mode.siegeWeaponConfig;
