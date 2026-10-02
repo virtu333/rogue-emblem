@@ -129,13 +129,7 @@ export class AreaTargetingController {
       aim: null,
       locked: null,
     };
-    safeBattlePresentation(
-      'area centers',
-      () => scene.grid.showAttackRange(centers, CENTER_TINT, 0.25),
-      {
-        scene,
-      },
-    );
+    this.redrawCenters();
     const start = this._startTile(unit, centers);
     this.aim(start);
     // Keyboard and pad aim from here; snapping refreshes the tile info (and aims again).
@@ -143,6 +137,21 @@ export class AreaTargetingController {
     scene.refreshEndTurnControl?.();
     scene._emitMobileContext?.();
     return true;
+  }
+
+  /**
+   * Tint the legal centers. Inspecting a unit while aiming keeps them, and closing the
+   * inspection (which clears the board's marks) draws them again.
+   */
+  redrawCenters() {
+    const p = this.pending;
+    const scene = this.scene;
+    if (!p || scene?.battleState !== AREA_CENTER_STATE) return;
+    safeBattlePresentation(
+      'area centers',
+      () => scene.grid.showAttackRange(p.centers, CENTER_TINT, 0.25),
+      { scene },
+    );
   }
 
   /** The nearest foe the player sees whose tile is a center; else the center nearest the unit. */

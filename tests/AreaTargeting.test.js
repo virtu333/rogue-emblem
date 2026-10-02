@@ -21,6 +21,7 @@ import { createBattleRng } from '../src/engine/BattleRng.js';
 import { registerBattleEntity } from '../src/engine/BattleEntityIdentity.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
 import { AREA_CENTER_STATE } from '../src/ui/AreaTargetingController.js';
+import { InputController } from '../src/ui/InputController.js';
 import { readCommittedAction } from '../src/ui/BattlePresentationCheckpoint.js';
 import { getPerBattleRemainingUses } from '../src/engine/Combat.js';
 import { recordAreaStrike } from '../src/engine/DeedSystem.js';
@@ -198,6 +199,69 @@ describe('aiming', () => {
     }
     // Board order is row then col: B (6,3) then A (4,5).
     expect(steps).toEqual(['6,3', '4,5', '6,3']);
+  });
+});
+
+describe('inspecting while aiming', () => {
+  /** The real InputController over a grid that records what is lit, and a panel. */
+  function inspectable(units) {
+    const ctx = battle(units);
+    const { scene } = ctx;
+    const marks = { lit: [] };
+    Object.assign(scene.grid, {
+      showAttackRange: (tiles) => (marks.lit = tiles.map(({ col, row }) => `${col},${row}`)),
+      clearAttackHighlights: () => (marks.lit = []),
+      clearHighlights() {},
+      pixelToGrid: (x, y) => ({ col: x, row: y }),
+      gridToPixel: (col, row) => ({ x: col, y: row }),
+    });
+    scene.inspectionPanel = {
+      visible: false,
+      show(unit) {
+        this.visible = true;
+        this._unit = unit;
+      },
+      hide() {
+        this.visible = false;
+        this._unit = null;
+      },
+    };
+    scene._inputController = new InputController(scene);
+    scene.refreshEndTurnControl = () => {};
+    return { ...ctx, marks };
+  }
+
+  it('keeps the lit centers under the panel and has them back once it closes', () => {
+    const caster = sage(0, 5);
+    const target = foe('Target', 4, 5);
+    const { scene, area, marks } = inspectable([caster, target]);
+    area.begin(caster, caster.weapon, stormcall);
+    const centers = area.pending.centers.map(({ col, row }) => `${col},${row}`);
+    expect(marks.lit).toEqual(centers);
+    // Pad L2 and a long-press both inspect through _showInspectionAtPixel.
+    expect(scene._showInspectionAtPixel(target.col, target.row)).toBe(true);
+    expect(scene.inspectionPanel._unit).toBe(target);
+    expect(marks.lit).toEqual(centers);
+    scene.clearInspectionVisuals();
+    expect(scene.inspectionPanel.visible).toBe(false);
+    expect(marks.lit).toEqual(centers);
+    expect(scene.battleState).toBe(AREA_CENTER_STATE);
+  });
+
+  it('closing an inspection once the aim is over draws no centers', () => {
+    for (const leave of [
+      (scene, area) => area.back(), // to the art picker
+      // Any other way out of the state (a rewind, the enemy phase) leaves no tint behind,
+      // even if it skipped clearing the aim.
+      (scene) => (scene.battleState = 'PLAYER_IDLE'),
+    ]) {
+      const caster = sage(0, 5);
+      const { scene, area, marks } = inspectable([caster, foe('Target', 4, 5)]);
+      area.begin(caster, caster.weapon, stormcall);
+      leave(scene, area);
+      scene.clearInspectionVisuals();
+      expect(marks.lit).toEqual([]);
+    }
   });
 });
 

@@ -1008,7 +1008,9 @@ export class InputController {
     if (!canInspectUnit(scene.grid, unit)) return false;
     this._ballistaRangeShown = false;
     const planning = this.isPlanningSelection();
-    if (!planning) scene.grid.clearAttackHighlights?.();
+    // Aiming an area art keeps its lit centers under the inspection.
+    if (!planning && scene.battleState !== 'SELECTING_AREA_CENTER')
+      scene.grid.clearAttackHighlights?.();
     const terrain = scene.grid.getTerrainAt(unit.col, unit.row);
     scene.inspectionPanel.show(unit, terrain, scene.gameData);
     if (typeof scene._pinToScreen === 'function')
@@ -1083,6 +1085,8 @@ export class InputController {
     if (scene.inspectionPanel?.visible) scene.inspectionPanel.hide();
     scene.grid.clearHighlights();
     scene.grid.clearAttackHighlights();
+    // Still aiming an area art: its legal centers come back (a no-op otherwise).
+    scene._areaTargetingController?.redrawCenters();
     scene.refreshEndTurnControl();
   }
 
