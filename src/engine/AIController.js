@@ -14,6 +14,8 @@ import {
   getEffectiveStaffRange,
   resolveHeal,
   spendStaffUse,
+  hasPerBattleUsesLeft,
+  nextStrikeWeapon,
 } from './Combat.js';
 import { canEquip } from './UnitManager.js';
 import { computeEffectivePath } from './Grid.js';
@@ -140,7 +142,11 @@ export class AIController {
         decision.target.col,
         decision.target.row,
       );
-      if (!enemy.weapon || !isInRange(enemy.weapon, plannedDist)) {
+      if (
+        !enemy.weapon ||
+        !hasPerBattleUsesLeft(enemy.weapon, enemy) ||
+        !isInRange(enemy.weapon, plannedDist)
+      ) {
         targetToAttack = this._selectBestInRangeTarget(enemy, [
           ...playerUnits,
           ...(npcUnits || []),
@@ -190,6 +196,19 @@ export class AIController {
   }
 
   /**
+   * A per-battle weapon whose uses are spent this battle (an enemy Breachbolt after its
+   * shots) cannot attack or counter (Combat.canCounter, AttackOptions). Swap to the
+   * first carried combat weapon that can still strike; with none, keep it: attack
+   * planning then skips the unit's attacks (it only moves), as the Danger overlay
+   * shows it. Proficiency is not checked: enemy gear is assigned by MapGenerator, not
+   * equipped by rank (a Dark Knight carries Breachbolt).
+   */
+  _equipUsableWeapon(enemy) {
+    const next = nextStrikeWeapon(enemy);
+    if (next && next !== enemy.weapon) enemy.weapon = next;
+  }
+
+  /**
    * Decide where to move and who to attack.
    * Strategy: find tile in movement range that puts a player in weapon range.
    * If none, move toward nearest player.
@@ -201,6 +220,7 @@ export class AIController {
    *   If no attack available, stay put (don't chase away from throne).
    */
   _decideAction(enemy, allEnemies, playerUnits, npcUnits) {
+    this._equipUsableWeapon(enemy);
     const forceLowestHpTargeting = this._hasAiOverride(enemy, 'target_lowest_hp');
     let returnToPost = false;
     if (enemy.aiMode === 'guard') {
@@ -483,7 +503,8 @@ export class AIController {
     // Combine player + NPC units as valid attack targets
     const attackableUnits = [...playerUnits, ...(npcUnits || [])];
     for (const candidate of candidatePlans) {
-      if (!enemy.weapon) break;
+      // No strike with a spent per-battle weapon and nothing to swap to.
+      if (!enemy.weapon || !hasPerBattleUsesLeft(enemy.weapon, enemy)) break;
 
       for (const target of attackableUnits) {
         if (!target || target.currentHP <= 0 || target._removing) continue;
@@ -518,7 +539,7 @@ export class AIController {
           bestAttack.target.row,
         );
         const best = pickBestWeapon(enemy, bestAttack.target, (ent, wpn, tgt) => {
-          if (!isInRange(wpn, dist)) return -Infinity;
+          if (!isInRange(wpn, dist) || !hasPerBattleUsesLeft(wpn, ent)) return -Infinity;
           const atkStat = isMagical(wpn) ? ent.stats.MAG : ent.stats.STR;
           const defStat = isMagical(wpn) ? tgt.stats.RES : tgt.stats.DEF;
           let score = Math.max(0, atkStat + (wpn.might || 0) - defStat);
@@ -715,7 +736,7 @@ export class AIController {
     const blocker = attackable.find((u) => u.col === goal.col && u.row === goal.row) || null;
 
     // A unit blocking the village tile is the one target worth deviating for.
-    if (blocker && enemy.weapon) {
+    if (blocker && enemy.weapon && hasPerBattleUsesLeft(enemy.weapon, enemy)) {
       let best = null;
       let bestPathLen = Infinity;
       for (const candidate of candidatePlans) {
@@ -800,7 +821,7 @@ export class AIController {
 
     // Opportunistic attack from the landing tile — may be null; never deviates.
     let target = null;
-    if (enemy.weapon) {
+    if (enemy.weapon && hasPerBattleUsesLeft(enemy.weapon, enemy)) {
       let bestScore = -Infinity;
       for (const unit of attackable) {
         const dist = gridDistance(finalTile.col, finalTile.row, unit.col, unit.row);
@@ -1216,6 +1237,7 @@ export class AIController {
 
   _selectBestInRangeTarget(enemy, targets) {
     if (!enemy?.weapon || !Array.isArray(targets) || targets.length === 0) return null;
+    if (!hasPerBattleUsesLeft(enemy.weapon, enemy)) return null;
     const forceLowestHpTargeting = this._hasAiOverride(enemy, 'target_lowest_hp');
     let best = null;
     let bestScore = -Infinity;

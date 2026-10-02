@@ -371,7 +371,7 @@ describe('Fix 4: fetchAllToLocalStorage returns rejectedCount', () => {
   it('returns rejectedCount 0 when all fetches succeed', async () => {
     mocked.fromMock.mockImplementation(() => makeTableApi());
     const result = await fetchAllToLocalStorage('user-1');
-    expect(result).toEqual({ rejectedCount: 0 });
+    expect(result).toEqual({ rejectedCount: 0, deferredReservationSlots: [] });
   });
 
   it('returns rejectedCount > 0 when a fetch rejects', async () => {

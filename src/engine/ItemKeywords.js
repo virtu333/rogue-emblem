@@ -8,7 +8,12 @@
 // never promise something combat doesn't do. The help glossary explains each
 // keyword once (src/data/helpContent.js, "Keywords").
 
-import { getWeaponStatBonuses } from './Combat.js';
+import {
+  getPerBattleMaxUses,
+  getPerBattleRemainingUses,
+  getWeaponStatBonuses,
+  isStaff,
+} from './Combat.js';
 import { WEAPON_TRIANGLE } from '../utils/constants.js';
 
 const TIER_WORDS = new Set(['Iron', 'Steel', 'Silver']);
@@ -141,8 +146,37 @@ export function itemKeywords(item) {
   for (const { stat, value } of getWeaponStatBonuses(item))
     add('equipped', `+${value} ${stat}`, `+${value} ${stat} while equipped.`);
   if (special.includes('Siege magic'))
-    add('siege', `Range ${item.range}`, `Siege magic: strikes from range ${item.range}.`);
+    add(
+      'siege',
+      `Range ${item.range}`,
+      `Siege magic: strikes from range ${item.range}.${perBattleShotsSentence(item)}`,
+    );
   return tags;
+}
+
+/** A weapon type in plain words ("Sword", "Light Tome"); the type itself when unknown. */
+export function weaponTypeNoun(type) {
+  return TYPE_NOUN[type] || (typeof type === 'string' ? type : '');
+}
+
+/** " 3 shots per battle (an enemy's: 5)." for a per-battle weapon, read from data. */
+function perBattleShotsSentence(item) {
+  if (!item?.perBattleUses || isStaff(item)) return '';
+  const own = getPerBattleMaxUses(item, { faction: 'player' });
+  const enemy = getPerBattleMaxUses(item, { faction: 'enemy' });
+  const shots = (n) => `${n} shot${n === 1 ? '' : 's'}`;
+  return enemy === own
+    ? ` ${shots(own)} per battle.`
+    : ` ${shots(own)} per battle (an enemy's: ${enemy}).`;
+}
+
+/**
+ * "Uses 2/3 this battle" for a combat weapon that refills each battle (Breachbolt),
+ * from the holder's faction count; null for anything else (staves show their own).
+ */
+export function perBattleUsesText(item, unit) {
+  if (!item?.perBattleUses || isStaff(item)) return null;
+  return `Uses ${getPerBattleRemainingUses(item, unit)}/${getPerBattleMaxUses(item, unit)} this battle`;
 }
 
 /**

@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
 import { HintManager } from '../src/engine/HintManager.js';
-import { getRunKey, getMetaKey } from '../src/engine/SlotManager.js';
+import {
+  getSlotCloudPendingKey,
+  getNextAvailableSlot,
+  clearAllSlotData,
+  getRunKey,
+  getMetaKey,
+} from '../src/engine/SlotManager.js';
 
 const store = {};
 const localStorageMock = {
@@ -17,6 +23,7 @@ Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, wri
 
 const mocked = vi.hoisted(() => ({
   fromMock: vi.fn(),
+  getSession: vi.fn(),
   reportAsyncError: vi.fn(),
   markStartup: vi.fn(),
 }));
@@ -24,14 +31,20 @@ const mocked = vi.hoisted(() => ({
 vi.mock('../src/cloud/supabaseClient.js', () => ({
   supabase: {
     from: mocked.fromMock,
+    auth: { getSession: mocked.getSession },
   },
 }));
 vi.mock('../src/utils/errorReporter.js', () => ({ reportAsyncError: mocked.reportAsyncError }));
 vi.mock('../src/utils/startupTelemetry.js', () => ({ markStartup: mocked.markStartup }));
 
+import { archiveAndDiscardSlot, retireSlotArchive } from '../src/engine/SlotRecovery.js';
 import {
+  pushRunSave,
+  deleteRunSave,
   __resetCloudSyncStatusForTests,
+  __resetCloudSyncQueuesForTests,
   fetchAllToLocalStorage,
+  isCloudHydrationComplete,
   getCloudSyncStatus,
   pushSettings,
   shouldPreferLocalMeta,
@@ -42,6 +55,9 @@ function makeTableApi({ data = null, selectError = null } = {}) {
   return {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
+        setHeader() {
+          return this;
+        },
         maybeSingle: vi.fn(async () => {
           if (selectError) return { data: null, error: selectError };
           return { data: data == null ? null : { data }, error: null };
@@ -74,7 +90,259 @@ describe('CloudSync run merge guard', () => {
     mocked.reportAsyncError.mockReset();
     mocked.markStartup.mockReset();
     __resetCloudSyncStatusForTests();
+    __resetCloudSyncQueuesForTests();
+    mocked.getSession.mockReset().mockResolvedValue({
+      data: { session: { user: { id: 'account-a' }, access_token: 'account-a-token' } },
+      error: null,
+    });
   });
+
+  it.each(['healthy', 'absent', 'missing progression', 'wrong account', 'write failure'])(
+    'Free reserves the cloud copy until a complete owned fetch (%s)',
+    async (scenario) => {
+      store[getMetaKey(1)] = '{bad';
+      store[getRunKey(1)] = '{"runRecordId":"local-damaged","gold":137}';
+      expect(archiveAndDiscardSlot(1).ok).toBe(true);
+      expect(retireSlotArchive(1, localStorage, undefined, undefined, 'account-a').ok).toBe(true);
+      const pending = store[getSlotCloudPendingKey(1)];
+      clearAllSlotData();
+      expect(store[getSlotCloudPendingKey(1)]).toBe(pending);
+      expect(getNextAvailableSlot()).toBe(2);
+      expect(pushRunSave('account-a', 1, { runRecordId: 'new-game', savedAt: 999 })).toEqual({
+        queued: false,
+        reason: 'protected_slot',
+      });
+      expect(deleteRunSave('account-a', 1, null)).toMatchObject({ queued: false });
+      mockCloudBootstrap({
+        runData:
+          scenario === 'absent'
+            ? null
+            : { 1: { runRecordId: 'cloud-healthy', gold: 731, savedAt: 100 } },
+        metaData: ['absent', 'missing progression'].includes(scenario)
+          ? null
+          : { 1: { totalValor: 347, savedAt: 100 } },
+      });
+      if (scenario === 'write failure')
+        localStorageMock.setItem.mockImplementation((key, raw) => {
+          if (key === getRunKey(1)) throw new Error('quota');
+          store[key] = String(raw);
+        });
+      await fetchAllToLocalStorage(scenario === 'wrong account' ? 'account-b' : 'account-a', {
+        timeoutMs: 50,
+      });
+      if (['missing progression', 'wrong account', 'write failure'].includes(scenario)) {
+        expect(store[getSlotCloudPendingKey(1)]).toBe(pending);
+        expect(getNextAvailableSlot()).toBe(2);
+      } else {
+        expect(store[getSlotCloudPendingKey(1)]).toBeUndefined();
+        if (scenario === 'healthy') {
+          expect(JSON.parse(store[getRunKey(1)]).runRecordId).toBe('cloud-healthy');
+          expect(JSON.parse(store[getMetaKey(1)]).totalValor).toBe(347);
+        } else expect(getNextAvailableSlot()).toBe(1);
+      }
+      localStorageMock.setItem.mockImplementation((key, raw) => {
+        store[key] = String(raw);
+      });
+    },
+  );
+
+  it.each([{ roster: 7 }, { nodeMap: { nodes: {} } }, { _exportDiscardPending: true }])(
+    'keeps cloud recovery reserved for unreadable remote run %j',
+    async (run) => {
+      store[getSlotCloudPendingKey(1)] = JSON.stringify({ version: 1, userId: 'account-a' });
+      mockCloudBootstrap({ runData: { 1: run }, metaData: { 1: { totalValor: 731 } } });
+      await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+      expect(store[getSlotCloudPendingKey(1)]).toBeDefined();
+      expect(store[getRunKey(1)]).toBeUndefined();
+      expect(getNextAvailableSlot()).toBe(2);
+    },
+  );
+  it.each([[], 42, { purchasedUpgrades: 7 }, { milestones: {} }])(
+    'keeps cloud recovery reserved for unreadable progression %j',
+    async (meta) => {
+      store[getSlotCloudPendingKey(1)] = JSON.stringify({ version: 1, userId: 'account-a' });
+      mockCloudBootstrap({ runData: { 1: { runRecordId: 'cloud-run' } }, metaData: { 1: meta } });
+      await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+      expect(store[getSlotCloudPendingKey(1)]).toBeDefined();
+      expect(store[getRunKey(1)]).toBeUndefined();
+    },
+  );
+  it.each(['anonymous', 'different user', 'missing bearer', 'auth error', 'dropped during fetch'])(
+    'does not treat an empty RLS result as proof of absence (%s)',
+    async (kind) => {
+      const marker = JSON.stringify({ version: 1, userId: 'account-a' });
+      store[getSlotCloudPendingKey(1)] = marker;
+      mockCloudBootstrap();
+      const invalid = {
+        data: {
+          session:
+            kind === 'different user'
+              ? { user: { id: 'account-b' }, access_token: 'account-b-token' }
+              : kind === 'missing bearer'
+                ? { user: { id: 'account-a' } }
+                : null,
+        },
+        error: kind === 'auth error' ? new Error('expired') : null,
+      };
+      if (kind === 'dropped during fetch')
+        mocked.getSession
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'account-a' }, access_token: 'account-a-token' } },
+          })
+          .mockResolvedValue(invalid);
+      else mocked.getSession.mockResolvedValue(invalid);
+      const result = await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+      expect(isCloudHydrationComplete(result)).toBe(false);
+      expect(result.deferredReservationSlots).toEqual([1]);
+      expect(store).toEqual({ [getSlotCloudPendingKey(1)]: marker });
+      expect(getNextAvailableSlot()).toBe(2);
+    },
+  );
+
+  it.each(['rejected', 'timed out', 'anonymous'])(
+    'hydrates other slots and retries when reserved-slot auth is %s',
+    async (kind) => {
+      const marker = '{"version":1,"userId":"account-a"}';
+      store[getSlotCloudPendingKey(1)] = marker;
+      store[getMetaKey(2)] = '{"totalValor":2,"savedAt":1}';
+      store[getRunKey(2)] = '{"runRecordId":"older-local","gold":2,"savedAt":1}';
+      mockCloudBootstrap({
+        runData: {
+          1: { runRecordId: 'reserved-cloud', gold: 11, savedAt: 100 },
+          2: { runRecordId: 'newer-cloud', gold: 731, savedAt: 100 },
+          3: { runRecordId: 'new-cloud-slot', gold: 73, savedAt: 100 },
+        },
+        metaData: {
+          1: { totalValor: 11 },
+          2: { totalValor: 347, savedAt: 100 },
+          3: { totalValor: 731, savedAt: 100 },
+        },
+        settingsData: { masterVolume: 0.42, savedAt: 100 },
+      });
+      if (kind === 'timed out') vi.useFakeTimers();
+      try {
+        if (kind === 'rejected') mocked.getSession.mockRejectedValue(new Error('session failed'));
+        else if (kind === 'timed out')
+          mocked.getSession.mockImplementation(() => new Promise(() => {}));
+        else mocked.getSession.mockResolvedValue({ data: { session: null } });
+        const pull = fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+        if (kind === 'timed out') await vi.advanceTimersByTimeAsync(2000);
+        const result = await pull;
+        expect(result).toEqual({ rejectedCount: 0, deferredReservationSlots: [1] });
+        expect(isCloudHydrationComplete(result)).toBe(false);
+        expect(store[getSlotCloudPendingKey(1)]).toBe(marker);
+        expect(store[getRunKey(1)]).toBeUndefined();
+        expect(store[getMetaKey(1)]).toBeUndefined();
+        expect(JSON.parse(store[getRunKey(2)]).gold).toBe(731);
+        expect(
+          pushRunSave('account-a', 2, { runRecordId: 'older-local', gold: 2, savedAt: 999 }),
+        ).toMatchObject({ queued: false, reason: 'protected_slot' });
+        expect(JSON.parse(store[getMetaKey(2)]).totalValor).toBe(2);
+        expect(JSON.parse(store[getRunKey(3)]).gold).toBe(73);
+        expect(JSON.parse(store[getMetaKey(3)]).totalValor).toBe(731);
+        expect(JSON.parse(store.emblem_rogue_settings).savedAt).toBe(100);
+        expect(mocked.reportAsyncError).toHaveBeenCalledWith(
+          'cloud_pending_session_unavailable',
+          expect.any(Error),
+          expect.objectContaining({ slots: [1] }),
+        );
+        // A background retry after auth recovers must perform a fresh bound fetch.
+        mocked.getSession.mockResolvedValue({
+          data: {
+            session: {
+              user: { id: 'account-a' },
+              access_token: 'account-a-token',
+            },
+          },
+        });
+        const retried = await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+        expect(isCloudHydrationComplete(retried)).toBe(true);
+        expect(store[getSlotCloudPendingKey(1)]).toBeUndefined();
+        expect(JSON.parse(store[getRunKey(1)]).gold).toBe(11);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+  it('requires an explicit complete cloud result before stopping background refetch', () => {
+    expect(isCloudHydrationComplete(undefined)).toBe(false);
+    expect(isCloudHydrationComplete({ rejectedCount: 1 })).toBe(false);
+    expect(isCloudHydrationComplete({ rejectedCount: 0 })).toBe(true);
+    expect(isCloudHydrationComplete({ rejectedCount: 0, deferredReservationSlots: [1] })).toBe(
+      false,
+    );
+  });
+
+  it.each(['new meta', 'new run', 'quarantine', 'pair journal', 'owner'])(
+    'keeps occupied reservation bytes during hydration (%s)',
+    async (kind) => {
+      const marker = JSON.stringify({ version: 1, userId: 'account-a' });
+      store[getSlotCloudPendingKey(1)] = marker;
+      const key = {
+        'new meta': getMetaKey(1),
+        'new run': getRunKey(1),
+        quarantine: 'emblem_rogue_slot_1_quarantine',
+        'pair journal': 'emblem_rogue_slot_1_pair_journal',
+        owner: 'emblem_rogue_slot_1_recovery_owner',
+      }[kind];
+      store[key] =
+        kind === 'new meta'
+          ? '{"totalValor":999}'
+          : kind === 'new run'
+            ? '{"gold":4242,"runRecordId":"new-live-run"}'
+            : 'original recovery bytes';
+      const before = { ...store };
+      mockCloudBootstrap({
+        runData: { 1: { runRecordId: 'cloud-old', gold: 3 } },
+        metaData: { 1: { totalValor: 3 } },
+      });
+      await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+      expect(store).toEqual(before);
+    },
+  );
+
+  it('keeps the reservation when clearing it throws, then idempotently retries the complete cloud pair', async () => {
+    const marker = JSON.stringify({ version: 1, userId: 'account-a' });
+    store[getSlotCloudPendingKey(1)] = marker;
+    mockCloudBootstrap({
+      runData: { 1: { runRecordId: 'cloud-run', gold: 731 } },
+      metaData: { 1: { totalValor: 347 } },
+    });
+    localStorageMock.removeItem.mockImplementation((key) => {
+      if (key === getSlotCloudPendingKey(1)) throw new Error('clear blocked');
+      delete store[key];
+    });
+    await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+    expect(store[getSlotCloudPendingKey(1)]).toBe(marker);
+    expect(JSON.parse(store[getRunKey(1)]).gold).toBe(731);
+    expect(JSON.parse(store[getMetaKey(1)]).totalValor).toBe(347);
+    localStorageMock.removeItem.mockImplementation((key) => {
+      delete store[key];
+    });
+    await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+    expect(store[getSlotCloudPendingKey(1)]).toBeUndefined();
+    expect(JSON.parse(store[getRunKey(1)]).gold).toBe(731);
+    expect(JSON.parse(store[getMetaKey(1)]).totalValor).toBe(347);
+  });
+
+  it.each(['quarantine', 'pair_journal'])(
+    'never hydrates an occupied %s recovery slot, but hydrates other slots',
+    async (suffix) => {
+      store[`emblem_rogue_slot_1_${suffix}`] = 'raw recovery evidence';
+      store[getRunKey(1)] = 'original run bytes';
+      store[getMetaKey(1)] = 'original meta bytes';
+      mockCloudBootstrap({
+        runData: { 1: { gold: 999, savedAt: 200 }, 2: { gold: 57, savedAt: 200 } },
+        metaData: { 1: { totalValor: 999, savedAt: 200 }, 2: { totalValor: 23, savedAt: 200 } },
+      });
+      await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+      expect(store[getRunKey(1)]).toBe('original run bytes');
+      expect(store[getMetaKey(1)]).toBe('original meta bytes');
+      expect(store[`emblem_rogue_slot_1_${suffix}`]).toBe('raw recovery evidence');
+      expect(JSON.parse(store[getRunKey(2)]).gold).toBe(57);
+      expect(JSON.parse(store[getMetaKey(2)]).totalValor).toBe(23);
+    },
+  );
 
   it('normalizes cloud effects settings with the same OS-based migration', async () => {
     mockCloudBootstrap({
@@ -185,6 +453,7 @@ describe('CloudSync run merge guard', () => {
     const key = getRunKey(1);
     const local = { marker: 'local', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
     mockCloudBootstrap({ runData: {} });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
@@ -197,7 +466,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local', savedAt: 300 };
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -209,7 +482,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local', savedAt: 100 };
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -247,7 +524,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local-ts', savedAt: 200 };
     const cloud = { marker: 'cloud-no-ts' };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -259,7 +540,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local-no-ts' };
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -271,7 +556,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local-invalid-ts', savedAt: '200' };
     const cloud = { marker: 'cloud', savedAt: 300 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -283,7 +572,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local-no-ts' };
     const cloud = { marker: 'cloud-no-ts' };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -296,7 +589,11 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local', savedAt: 200 };
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    store[getMetaKey(1)] = JSON.stringify({ savedAt: 50, totalValor: 1 });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -306,7 +603,10 @@ describe('CloudSync run merge guard', () => {
   it('applies cloud run slot when local slot is absent', async () => {
     const key = getRunKey(1);
     const cloud = { marker: 'cloud', savedAt: 200 };
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -327,15 +627,28 @@ describe('CloudSync run merge guard', () => {
     expect(JSON.parse(store[getRunKey(1)])).toEqual(local);
     expect(JSON.parse(store[getMetaKey(1)])).toEqual(meta);
   });
-  it('heals malformed local run slot from cloud data', async () => {
+  it('keeps malformed local run bytes and earned progression for explicit recovery', async () => {
     const key = getRunKey(1);
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, '{not-json');
-    mockCloudBootstrap({ runData: { 1: cloud } });
+    const metaRaw = JSON.stringify({ savedAt: 50, totalValor: 27 });
+    store[getMetaKey(1)] = metaRaw;
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 50, totalValor: 1 } },
+    });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
-    expect(JSON.parse(store[key])).toEqual(cloud);
+    expect(store[key]).toBe('{not-json');
+    expect(store[getMetaKey(1)]).toBe(metaRaw);
+  });
+
+  it('never populates an empty slot with a cloud run lacking progression', async () => {
+    mockCloudBootstrap({ runData: { 1: { gold: 91, savedAt: 200 } } });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    expect(store[getRunKey(1)]).toBeUndefined();
+    expect(store[getMetaKey(1)]).toBeUndefined();
   });
 });
 

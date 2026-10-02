@@ -4,6 +4,49 @@
 export const REINFORCEMENT_EDGES = Object.freeze(['left', 'right', 'top', 'bottom']);
 const EDGE_SET = new Set(REINFORCEMENT_EDGES);
 
+// Terrain a procedural arrival never lands on: it hurts on arrival or belongs to
+// another rule (FormationPlacement keeps the same list for spare tiles). Authored
+// (scripted) placements are trusted.
+export const REINFORCEMENT_EXCLUDED_TERRAIN = Object.freeze(
+  new Set(['Lava Crack', 'Acidic Swamp', 'Acidic Bog', 'Throne', 'Ballista', 'Village']),
+);
+
+// Wave types that are the battle's clock rather than an added objective: their
+// arrivals never raise par. Repeating pursuit waves (escape maps) and, later, the
+// rout ladder (docs/specs/dusk-pressure.md).
+export const PAR_NEUTRAL_WAVE_TYPES = Object.freeze(new Set(['repeating', 'ladder']));
+
+/** Whether the wave a spawned arrival belongs to raises the battle's par by one. */
+export function waveRaisesPar(spawn) {
+  return spawn?.waveIndex != null && !PAR_NEUTRAL_WAVE_TYPES.has(spawn.waveType);
+}
+
+/**
+ * How much par rises for these arrivals: one per distinct wave that raises par
+ * (BattleScene and the headless harness both apply it to turnPar).
+ */
+export function parRaiseForArrivals(spawns) {
+  const waves = new Set();
+  for (const spawn of spawns || []) {
+    if (waveRaisesPar(spawn)) waves.add(`${spawn.waveType || 'procedural'}:${spawn.waveIndex}`);
+  }
+  return waves.size;
+}
+
+/**
+ * The move types a procedural arrival can have: the classes of the reinforcement
+ * template pool (an arrival copies one of them after its tile is chosen, so the tile
+ * must suit all of them). Infantry when the pool names no known class.
+ */
+export function reinforcementMoveTypes(templates, classes) {
+  const types = new Set();
+  for (const template of templates || []) {
+    const moveType = (classes || []).find((c) => c.name === template?.className)?.moveType;
+    if (moveType) types.add(moveType);
+  }
+  return types.size ? [...types].sort() : ['Infantry'];
+}
+
 function toTileKey(col, row) {
   return `${col},${row}`;
 }
@@ -34,6 +77,19 @@ function isPassable(terrain, mapLayout, col, row, moveType = 'Infantry') {
   if (!tile) return false;
   const cost = tile.moveCost?.[moveType];
   return cost !== '--' && !Number.isNaN(parseInt(cost, 10));
+}
+
+function isPassableForAll(terrain, mapLayout, col, row, moveTypes) {
+  return moveTypes.every((moveType) => isPassable(terrain, mapLayout, col, row, moveType));
+}
+
+function isExcludedTerrain(terrain, mapLayout, col, row) {
+  return REINFORCEMENT_EXCLUDED_TERRAIN.has(terrain?.[mapLayout?.[row]?.[col]]?.name);
+}
+
+function normalizeMoveTypes(moveTypes, moveType) {
+  const list = Array.isArray(moveTypes) ? moveTypes.filter((m) => typeof m === 'string') : [];
+  return list.length ? list : [moveType || 'Infantry'];
 }
 
 function getInwardNeighbor(edge, col, row) {
@@ -311,16 +367,23 @@ function getDueScriptedReinforcementWaves({
   return due;
 }
 
+/**
+ * Edge tiles a procedural arrival may take: free, not on excluded terrain, and
+ * standable for every move type in `moveTypes` (default: `moveType`), with an inward
+ * neighbour they can all step onto next turn.
+ */
 export function collectEdgeSpawnCandidates({
   edge,
   mapLayout,
   terrain,
   occupied = [],
   moveType = 'Infantry',
+  moveTypes = null,
 } = {}) {
   const rows = Array.isArray(mapLayout) ? mapLayout.length : 0;
   const cols = rows > 0 && Array.isArray(mapLayout[0]) ? mapLayout[0].length : 0;
   const occupiedSet = normalizeOccupiedSet(occupied);
+  const types = normalizeMoveTypes(moveTypes, moveType);
   const tiles = getEdgeTiles(edge, cols, rows);
   const candidates = [];
 
@@ -328,14 +391,15 @@ export function collectEdgeSpawnCandidates({
     const { col, row } = tile;
     const key = toTileKey(col, row);
     if (occupiedSet.has(key)) continue;
-    if (!isPassable(terrain, mapLayout, col, row, moveType)) continue;
+    if (isExcludedTerrain(terrain, mapLayout, col, row)) continue;
+    if (!isPassableForAll(terrain, mapLayout, col, row, types)) continue;
 
     // Edge spawns must be able to step into the map on the next turn.
     const inward = getInwardNeighbor(edge, col, row);
     if (!inward || !isInBounds(inward.col, inward.row, cols, rows)) continue;
     const inwardKey = toTileKey(inward.col, inward.row);
     if (occupiedSet.has(inwardKey)) continue;
-    if (!isPassable(terrain, mapLayout, inward.col, inward.row, moveType)) continue;
+    if (!isPassableForAll(terrain, mapLayout, inward.col, inward.row, types)) continue;
 
     candidates.push({ col, row });
   }
@@ -361,6 +425,8 @@ export function scheduleReinforcementsForTurn({
   terrain,
   occupied = [],
   moveType = 'Infantry',
+  moveTypes = null,
+  classMoveType = null,
   difficultyId = 'normal',
   difficultyTurnOffset = 0,
   enemyCountBonus = 0,
@@ -409,10 +475,14 @@ export function scheduleReinforcementsForTurn({
       const row = normalizeInteger(rawSpawn?.row, -1);
       const occupiedNow = new Set([...baseOccupied, ...spawnedKeys]);
       const key = toTileKey(col, row);
+      // An authored placement must suit the class it names (classMoveType), else Infantry.
+      const placedMoveType =
+        (typeof rawSpawn?.className === 'string' && classMoveType?.(rawSpawn.className)) ||
+        moveType;
       const legal =
         isInBounds(col, row, mapLayout?.[0]?.length || 0, mapLayout?.length || 0) &&
         !occupiedNow.has(key) &&
-        isPassable(terrain, mapLayout, col, row, moveType);
+        isPassable(terrain, mapLayout, col, row, placedMoveType);
       if (!legal) {
         blockedSpawns++;
         continue;
@@ -492,6 +562,7 @@ export function scheduleReinforcementsForTurn({
             terrain,
             occupied: occupiedNow,
             moveType,
+            moveTypes,
           }),
         );
       }

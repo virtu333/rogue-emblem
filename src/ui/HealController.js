@@ -402,7 +402,13 @@ export class HealController {
         (scene.playerUnits || []).includes(healer) && healer.faction === 'player' && validate(),
       onInvalid: () => this.restoreCombatWeapon(healer),
       settle: () => {
+        // The staff this action spends (equipped for it; restored to the combat
+        // weapon right after).
+        const staff = healer.weapon;
         const facts = settle();
+        // Its use count, once per use spent, inside the settlement: a checkpoint
+        // keeps it with the item, so a resume or a rewind never counts it twice.
+        if (facts?.usesSpent > 0) deedsFor(scene).onStaffUse(healer, staff);
         this.restoreCombatWeapon(healer);
         const xp = scene.awardScaledXP(healer, XP_BASE_HEAL, { present: false });
         if (xp && typeof xp.then === 'function') {

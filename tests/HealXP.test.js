@@ -269,3 +269,70 @@ describe('Heal XP', () => {
     expect(unit.xp).toBe(10); // floor(20 * 0.5) = 10
   });
 });
+
+// Item use counts (engine/ItemUsage.js): a staff counts its casts inside the
+// settlement, before the checkpoint, so a resume (which restores the checkpoint and
+// never settles again) or a rewind cannot count a use twice or lose one.
+describe('staff cast count', () => {
+  function setup() {
+    const ctx = makeSceneCtx();
+    ctx.gameData = loadGameData();
+    ctx.runManager = {};
+    ctx.turnManager = { turnNumber: 1, currentPhase: 'player' };
+    ctx.animateHeal = vi.fn(async () => {});
+    ctx.awardScaledXP = vi.fn(() => {});
+    const staff = {
+      name: 'Physic',
+      type: 'Staff',
+      rankRequired: 'Prof',
+      range: '1-3',
+      healAll: true,
+      healBase: 5,
+      _usesSpent: 0,
+      uses: 3,
+    };
+    const healer = {
+      name: 'Sera',
+      faction: 'player',
+      currentHP: 20,
+      col: 1,
+      row: 1,
+      weapon: staff,
+      inventory: [staff],
+      proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+      stats: { HP: 20, MAG: 10 },
+    };
+    const targets = [1, 2, 3].map((col) => ({ col, row: 2, currentHP: 5, stats: { HP: 30 } }));
+    ctx.playerUnits = [healer, ...targets];
+    const atCheckpoint = [];
+    ctx._captureSuspendCheckpoint = vi.fn(() => {
+      atCheckpoint.push(staff._casts);
+      return true;
+    });
+    return { ctx, staff, healer, targets, atCheckpoint };
+  }
+
+  it('one heal is one cast, counted before the checkpoint', async () => {
+    const { ctx, staff, healer, targets, atCheckpoint } = setup();
+    await BattleScene.prototype.executeHeal.call(ctx, healer, targets[0]);
+    expect(staff._usesSpent).toBe(1);
+    expect(staff._casts).toBe(1);
+    expect(atCheckpoint).toEqual([1]);
+  });
+
+  it('a heal-all spends one use and is one cast, however many it mends', async () => {
+    const { ctx, staff, healer, targets } = setup();
+    await BattleScene.prototype.executeHealAll.call(ctx, healer, targets);
+    expect(staff._usesSpent).toBe(1);
+    expect(staff._casts).toBe(1);
+  });
+
+  it('a refused action (a target out of reach) counts nothing', async () => {
+    const { ctx, staff, healer } = setup();
+    const far = { col: 9, row: 9, currentHP: 5, stats: { HP: 30 } };
+    ctx.playerUnits.push(far);
+    await BattleScene.prototype.executeHeal.call(ctx, healer, far);
+    expect(staff._usesSpent).toBe(0);
+    expect(staff._casts).toBeUndefined();
+  });
+});

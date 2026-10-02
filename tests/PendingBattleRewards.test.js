@@ -51,6 +51,17 @@ function setup() {
   return scene;
 }
 describe('durable native rewards', () => {
+  it('releases the scene lootGroup when the flow ends, so no canvas loot screen looks open', () => {
+    const s = setup(),
+      c = new PendingRewardController(s, { onLeave: vi.fn(), onComplete: vi.fn() });
+    s.lootGroup = c.lootGroup;
+    c.destroy();
+    expect(s.lootGroup).toBeNull();
+    const legacy = [{}];
+    s.lootGroup = legacy;
+    c.destroy();
+    expect(s.lootGroup).toBe(legacy);
+  });
   it('prepares once and survives reload without saving first or rerolling', () => {
     const s = setup(),
       before = JSON.parse(JSON.stringify(s.runManager.pendingBattleReward));

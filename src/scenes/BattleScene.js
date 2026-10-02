@@ -64,7 +64,15 @@ import {
   healUnitFully,
   setUnitHP,
 } from '../engine/UnitHealth.js';
-import { isDifficultyAtLeast } from '../engine/DifficultyEngine.js';
+import { applyEnemySpawnGear } from '../engine/EnemySpawnGear.js';
+import { spendCombatShots, swapSpentWeapons } from '../engine/PerBattleWeapons.js';
+import {
+  advanceTurnPressure,
+  bestLordEscapeDistance,
+  bestLordThroneDistance,
+  createTurnPressureState,
+  measureTurnPressure,
+} from '../engine/TurnPressure.js';
 import { applyDevScenario } from '../utils/devScenarios.js';
 import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.js';
 import { earlyEnemyAllowed } from '../engine/EarlyEnemyRules.js';
@@ -129,7 +137,6 @@ import {
   getCombatWeapons,
   canPromote,
   resolvePromotionTargetClass,
-  grantSecondaryWeapons,
   hasProficiency,
   canEquip,
   applyStatBoost,
@@ -189,9 +196,6 @@ import {
   TERRAIN,
   TERRAIN_HEAL_PERCENT,
   FORT_HEAL_DECAY_MULTIPLIERS,
-  ANTI_TURTLE_NO_PROGRESS_TURNS,
-  SUNDER_WEAPON_BY_TYPE,
-  POISON_WEAPON_BY_TYPE,
   XP_SPECIAL_ENEMY_MULTIPLIER,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
@@ -199,7 +203,6 @@ import {
   ENTITY_SPLASH_COUNT,
   ENTITY_FOOTPRINT,
   ENTITY_PRIMARY_ATTACK_RANGE,
-  ENTITY_WEAPON_NAMES,
 } from '../utils/constants.js';
 import { hasRoomRightOf } from '../utils/boardOrientation.js';
 import {
@@ -250,7 +253,6 @@ import {
   getRating,
   getLatePressureState,
   getBossEnrageTurn,
-  isBossEnrageActive,
   getParXpMultiplier,
   formatParTooltip,
 } from '../engine/TurnBonusCalculator.js';
@@ -285,7 +287,11 @@ import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
-import { scheduleReinforcementsForTurn } from '../engine/ReinforcementScheduler.js';
+import {
+  parRaiseForArrivals,
+  reinforcementMoveTypes,
+  scheduleReinforcementsForTurn,
+} from '../engine/ReinforcementScheduler.js';
 import {
   transitionToScene,
   transitionToSceneWithBlockedRetry,
@@ -328,6 +334,7 @@ import {
   findBattleEntity,
 } from '../engine/BattleEntityIdentity.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
+import { SaveRetryController } from '../ui/SaveRetryController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
 import { PortraitBattleController } from '../ui/PortraitBattleController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
@@ -437,6 +444,11 @@ export class BattleScene extends Phaser.Scene {
     // Never reset this identity: Phaser restarts reuse the same Scene instance.
     this._cancelLifecycleAwaits('scene_replaced');
     this._battleSession = (this._battleSession || 0) + 1;
+    this._saveRetry?.destroy();
+    this._saveRetry = null;
+    this._checkpointPersistenceResult = null;
+    this._saveFailureReported = false;
+    this._cloudPushErrorReported = false;
     if (!data) {
       console.error('[BattleScene] init() called without data:', data);
       throw new Error('BattleScene requires data');
@@ -587,6 +599,8 @@ export class BattleScene extends Phaser.Scene {
   _runSceneShutdownCleanup() {
     if (this._sceneShutdownCleanedUp) return;
     this._sceneShutdownCleanedUp = true;
+    this._saveRetry?.destroy();
+    this._saveRetry = null;
 
     const audio = this.registry.get('audio');
     // Turning the phone re-opens the battle from its checkpoint; the re-opened scene
@@ -1250,7 +1264,12 @@ export class BattleScene extends Phaser.Scene {
         if (this.isStoryInputLocked()) return;
         this.requestVisionRewind();
         // Loot roster toggle during BATTLE_END (click button shouldn't trigger this)
-        if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
+        if (
+          this.battleState === 'BATTLE_END' &&
+          this.lootGroup?.length > 0 &&
+          !this.isTransitioningOut &&
+          this.runManager
+        ) {
           if (this.lootRosterVisible) {
             this.hideLootRoster();
           } else {
@@ -1375,6 +1394,7 @@ export class BattleScene extends Phaser.Scene {
       this.inspectMode = false;
       this._playerDeathsThisBattle = 0;
       this._battleRecruits = [];
+      this._fallenBattleRecords = []; // DeedController.onUnitRemoved
 
       // Track non-deployed units for merging back on victory
       if (!this.battleParams?.tutorialMode && this.roster && deployedRoster) {
@@ -1594,6 +1614,9 @@ export class BattleScene extends Phaser.Scene {
         for (const spawn of bc.enemySpawns) {
           this.addEnemyFromSpawn(spawn);
         }
+        // The anti-turtle clock measures from the populated field (the reset above ran
+        // on empty unit arrays, which made kills never count as progress).
+        this.initializeAntiTurtleState();
       }
       this._bossName = this._resolveBossDialogueName(
         this.enemyUnits.find((unit) => unit.isBoss)?.name || null,
@@ -1970,7 +1993,12 @@ export class BattleScene extends Phaser.Scene {
           },
           roster: () => {
             if (this.isStoryInputLocked()) return;
-            if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
+            if (
+              this.battleState === 'BATTLE_END' &&
+              this.lootGroup?.length > 0 &&
+              !this.isTransitioningOut &&
+              this.runManager
+            ) {
               this._hideLootTooltip();
               if (this.lootRosterVisible) this.hideLootRoster();
               else this.showLootRoster();
@@ -2257,6 +2285,7 @@ export class BattleScene extends Phaser.Scene {
 
   isStoryInputLocked() {
     return Boolean(
+      this._saveRetry?.isBlocking() ||
       this._storyDialogueActive ||
       this._ceremonies?.isBlocking?.() ||
       this.dialogueOverlay?.visible ||
@@ -2689,67 +2718,13 @@ export class BattleScene extends Phaser.Scene {
       }
       enemy.currentHP = enemy.stats.HP;
     }
-    if (spawn.isEntity) {
-      enemy.isEntity = true;
-      // Dual weapon assignment -- Entity gets both Eldritch Grasp and Twisting Vortex
-      const entityWeapons = this.gameData.weapons
-        .filter((w) => ENTITY_WEAPON_NAMES.includes(w.name))
-        .map((w) => structuredClone(w));
-      if (entityWeapons.length === 0) {
-        console.warn('Entity spawn missing expected weapons:', ENTITY_WEAPON_NAMES);
-      } else if (entityWeapons.length > 0) {
-        enemy.inventory = entityWeapons;
-        enemy.weapon = entityWeapons[0];
-      }
-    }
-    if (spawn.sunderWeapon) {
-      const primaryType = enemy.proficiencies?.[0]?.type;
-      const sunderName = primaryType ? SUNDER_WEAPON_BY_TYPE[primaryType] : null;
-      if (sunderName) {
-        const sunderData = this.gameData.weapons.find((weapon) => weapon.name === sunderName);
-        if (sunderData) {
-          const sunderClone = structuredClone(sunderData);
-          enemy.weapon = sunderClone;
-          enemy.inventory = [sunderClone];
-        }
-      }
-    } else if (spawn.poisonWeapon) {
-      const primaryType = enemy.proficiencies?.[0]?.type;
-      const poisonName = primaryType ? POISON_WEAPON_BY_TYPE[primaryType] : null;
-      if (poisonName) {
-        const poisonData = this.gameData.weapons.find((weapon) => weapon.name === poisonName);
-        if (poisonData) {
-          const poisonClone = structuredClone(poisonData);
-          enemy.weapon = poisonClone;
-          enemy.inventory = [poisonClone];
-        }
-      }
-    }
-    // Siege weapon assignment (enemy-only, replaces combat weapon)
-    if (spawn.siegeWeapon) {
-      const siegeData = this.gameData.weapons.find((w) => w.name === spawn.siegeWeapon);
-      if (siegeData) {
-        const siegeClone = structuredClone(siegeData);
-        enemy.weapon = siegeClone;
-        enemy.inventory = [siegeClone];
-      }
-    }
-    // Status staff assignment (enemy-only, separate from combat weapon)
-    if (spawn.statusStaff) {
-      const staffName = spawn.statusStaff === 'sleep' ? 'Sleep Staff' : 'Silence Staff';
-      const staffData = this.gameData.weapons.find((w) => w.name === staffName);
-      if (staffData) {
-        enemy.statusStaff = structuredClone(staffData);
-      }
-    }
-
-    // Grant secondary weapons for multi-proficiency enemies on Nightfall/Black Sun
-    if (!spawn.sunderWeapon && !spawn.poisonWeapon && !spawn.siegeWeapon && !spawn.isEntity) {
-      const diffId = this.battleParams?.difficultyId;
-      if (isDifficultyAtLeast(diffId, 'hard')) {
-        grantSecondaryWeapons(enemy, this.gameData.weapons, enemy.weapon?.tier || 'Iron');
-      }
-    }
+    if (spawn.isEntity) enemy.isEntity = true;
+    // Entity weapons, Sunder/Poison, siege (own weapons kept behind it), status staff,
+    // Nightfall+ secondaries: shared with the headless harness.
+    applyEnemySpawnGear(enemy, spawn, {
+      weapons: this.gameData.weapons,
+      difficultyId: this.battleParams?.difficultyId,
+    });
 
     if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
@@ -2805,6 +2780,9 @@ export class BattleScene extends Phaser.Scene {
       mapLayout: this.battleConfig.mapLayout,
       terrain: this.gameData.terrain,
       occupied: this.getReinforcementOccupiedTiles(),
+      // Every class an arrival may copy must be able to stand on its tile.
+      moveTypes: reinforcementMoveTypes(this.getReinforcementTemplatePool(), this.gameData.classes),
+      classMoveType: (name) => this.gameData.classes.find((c) => c.name === name)?.moveType,
       difficultyId: this.battleParams?.difficultyId || this.runManager?.difficultyId || 'normal',
       difficultyTurnOffset: Math.trunc(Number(this.battleParams?.reinforcementTurnOffset) || 0),
       enemyCountBonus: Math.trunc(Number(this.battleParams?.enemyCountBonus) || 0),
@@ -2821,7 +2799,7 @@ export class BattleScene extends Phaser.Scene {
     let spawned = 0;
     let banditSpawned = 0;
     const spawnedUnits = [];
-    const successfulWaveKeys = new Set();
+    const arrived = [];
     for (let i = 0; i < schedule.spawns.length; i++) {
       const scheduledSpawn = schedule.spawns[i];
       const spec = this.buildReinforcementSpawnSpec(scheduledSpawn, i);
@@ -2832,13 +2810,7 @@ export class BattleScene extends Phaser.Scene {
         spawned++;
         spawnedUnits.push(enemy);
         if (enemy.aiMode === 'seek_tile') banditSpawned++;
-        // Repeating pursuit waves are constant pressure, not added objectives —
-        // they never bump par.
-        if (scheduledSpawn.waveIndex != null && scheduledSpawn.waveType !== 'repeating') {
-          successfulWaveKeys.add(
-            `${scheduledSpawn.waveType || 'procedural'}:${scheduledSpawn.waveIndex}`,
-          );
-        }
+        arrived.push(scheduledSpawn);
       }
     }
 
@@ -2853,10 +2825,10 @@ export class BattleScene extends Phaser.Scene {
         bandits: banditSpawned,
       });
 
-      // Bump par for each wave that actually instantiated enemies
-      if (Number.isFinite(this.turnPar) && successfulWaveKeys.size > 0) {
-        this.turnPar += successfulWaveKeys.size;
-      }
+      // +1 par per wave that actually instantiated enemies, except waves that are the
+      // clock itself (repeating pursuit, ladder): ReinforcementScheduler.waveRaisesPar.
+      const parRaise = parRaiseForArrivals(arrived);
+      if (Number.isFinite(this.turnPar) && parRaise > 0) this.turnPar += parRaise;
     }
 
     return { ...schedule, spawned };
@@ -3049,38 +3021,28 @@ export class BattleScene extends Phaser.Scene {
   }
 
   initializeAntiTurtleState() {
-    this.antiTurtleState = {
-      noProgressTurns: 0,
-      aggressiveMode: false,
-      turnEnrageActive: false,
-      bestEnemyCount: this.enemyUnits.length,
-      bestLordThroneDistance: this.getBestLordThroneDistance(),
-      bestLordEscapeDistance: this.getBestLordEscapeDistance(),
-      bestEscapedCount: (this.escapedUnits || []).length,
+    this.antiTurtleState = createTurnPressureState(this._measureTurnPressure());
+  }
+
+  /** What the anti-turtle clock measures progress against (engine/TurnPressure.js). */
+  _measureTurnPressure() {
+    return {
+      ...measureTurnPressure({
+        enemyUnits: this.enemyUnits,
+        escapedUnits: this.escapedUnits,
+        battleConfig: this.battleConfig,
+      }),
+      lordThroneDistance: this.getBestLordThroneDistance(),
+      lordEscapeDistance: this.getBestLordEscapeDistance(),
     };
   }
 
   getBestLordThroneDistance() {
-    if (this.battleConfig?.objective !== 'seize' || !this.battleConfig?.thronePos) return Infinity;
-    const lords = (this.playerUnits || []).filter((u) => u.isLord && u.currentHP > 0);
-    if (!lords.length) return Infinity;
-    const throne = this.battleConfig.thronePos;
-    return Math.min(...lords.map((u) => gridDistance(u.col, u.row, throne.col, throne.row)));
+    return bestLordThroneDistance(this.playerUnits, this.battleConfig);
   }
 
   getBestLordEscapeDistance() {
-    if (this.battleConfig?.objective !== 'escape' || !this.battleConfig?.escapeTiles?.length) {
-      return Infinity;
-    }
-    const lords = (this.playerUnits || []).filter((u) => u.isLord && u.currentHP > 0);
-    if (!lords.length) return Infinity;
-    let best = Infinity;
-    for (const lord of lords) {
-      for (const tile of this.battleConfig.escapeTiles) {
-        best = Math.min(best, gridDistance(lord.col, lord.row, tile.col, tile.row));
-      }
-    }
-    return best;
+    return bestLordEscapeDistance(this.playerUnits, this.battleConfig);
   }
 
   getCurrentTurnNumber(turnOverride = null) {
@@ -3143,53 +3105,14 @@ export class BattleScene extends Phaser.Scene {
 
   updateAntiTurtlePressure(turnOverride = null) {
     if (!this.antiTurtleState) return;
-    const enemyCount = this.enemyUnits.length;
-    const lordThroneDist = this.getBestLordThroneDistance();
-    const lordEscapeDist = this.getBestLordEscapeDistance();
-    const escapedCount = (this.escapedUnits || []).length;
-    const enemyProgress = enemyCount < this.antiTurtleState.bestEnemyCount;
-    // ?? Infinity also covers Infinity → null after a JSON round trip (suspend
-    // checkpoint / vision snapshot persistence)
-    const seizeProgress =
-      lordThroneDist < (this.antiTurtleState.bestLordThroneDistance ?? Infinity);
-    const escapeProgress =
-      lordEscapeDist < (this.antiTurtleState.bestLordEscapeDistance ?? Infinity) ||
-      escapedCount > (this.antiTurtleState.bestEscapedCount ?? 0);
-    const progressed = enemyProgress || seizeProgress || escapeProgress;
-
-    if (progressed) {
-      this.antiTurtleState.noProgressTurns = 0;
-      this.antiTurtleState.bestEnemyCount = Math.min(
-        this.antiTurtleState.bestEnemyCount,
-        enemyCount,
-      );
-      this.antiTurtleState.bestLordThroneDistance = Math.min(
-        this.antiTurtleState.bestLordThroneDistance ?? Infinity,
-        lordThroneDist,
-      );
-      this.antiTurtleState.bestLordEscapeDistance = Math.min(
-        this.antiTurtleState.bestLordEscapeDistance ?? Infinity,
-        lordEscapeDist,
-      );
-      this.antiTurtleState.bestEscapedCount = Math.max(
-        this.antiTurtleState.bestEscapedCount ?? 0,
-        escapedCount,
-      );
-    } else {
-      this.antiTurtleState.noProgressTurns++;
-    }
-
-    const currentTurn = this.getCurrentTurnNumber(turnOverride);
-    const hasLivingBoss = this.enemyUnits.some((u) => u?.isBoss && u.currentHP > 0);
-    const turnEnrageActive =
-      hasLivingBoss && isBossEnrageActive(currentTurn, this.turnPar, this.turnBonusConfig);
-    const shouldAggro =
-      this.antiTurtleState.noProgressTurns >= ANTI_TURTLE_NO_PROGRESS_TURNS || turnEnrageActive;
-    this.antiTurtleState.aggressiveMode = shouldAggro;
-    const becameEnraged = turnEnrageActive && !this.antiTurtleState.turnEnrageActive;
-    this.antiTurtleState.turnEnrageActive = turnEnrageActive;
-    this.aiController?.setAggressiveMode?.(shouldAggro);
-    if (becameEnraged) this._playBossEnrageFx();
+    const step = advanceTurnPressure(this.antiTurtleState, this._measureTurnPressure(), {
+      turn: this.getCurrentTurnNumber(turnOverride),
+      par: this.turnPar,
+      turnBonusConfig: this.turnBonusConfig,
+    });
+    this.antiTurtleState = step.state;
+    this.aiController?.setAggressiveMode?.(step.aggressiveMode);
+    if (step.becameEnraged) this._playBossEnrageFx();
     this._bossPresence?.sync();
   }
 
@@ -3733,6 +3656,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   update() {
+    this._saveRetry?.update();
     if (this.dangerZone?.visible && this.dangerZoneStale) this.refreshVisibleDangerZone();
     this._pinnedThreats?.refresh();
     this._recruitBeacon?.sync();
@@ -4085,7 +4009,9 @@ export class BattleScene extends Phaser.Scene {
     if (this.isMobileInput && this.inspectMode) return true;
     if (this.pauseOverlay?.visible) return true;
     if (this.lootRosterVisible) return true;
-    if (this.battleState === 'BATTLE_END' && this.lootGroup) return true;
+    // Only the legacy canvas loot screen fills lootGroup; the DOM reward flow's is always [].
+    if (this.battleState === 'BATTLE_END' && this.lootGroup?.length > 0 && !this.isTransitioningOut)
+      return true;
     if (this.isCancelableBattleState()) return true;
     if (allowPause && this.battleState === 'PLAYER_IDLE') return true;
     return false;
@@ -4141,7 +4067,11 @@ export class BattleScene extends Phaser.Scene {
       this.inspectMode = false;
       this.clearInspectionVisuals();
       return true;
-    } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
+    } else if (
+      this.battleState === 'BATTLE_END' &&
+      this.lootGroup?.length > 0 &&
+      !this.isTransitioningOut
+    ) {
       // Toggle: a second ESC closes the open settings overlay instead of
       // stacking another one on top of it.
       if (this.lootSettingsOverlay?.visible) {
@@ -4603,7 +4533,10 @@ export class BattleScene extends Phaser.Scene {
             // A payout that did not reach disk keeps the save so it can retry.
             if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
               clearSavedRun(
-                cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+                cloud
+                  ? (resolvedSlot, abandonedRun) =>
+                      deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+                  : null,
                 slot,
               );
             const audio = this.registry.get('audio');
@@ -4643,6 +4576,23 @@ export class BattleScene extends Phaser.Scene {
     const saveExitCb = this.runManager
       ? async () => {
           try {
+            const terminal = () =>
+              this.battleState === 'BATTLE_END' ||
+              this._fatalDecision ||
+              this._fatalCapturePending ||
+              this._defeatDecision;
+            if (!isCurrentBattleSession(this, session) || terminal()) return;
+            if (this._saveRetry) {
+              const durable = await this._saveRetry.ensureDurableForExit({ session });
+              if (!isCurrentBattleSession(this, session) || terminal()) return;
+              if (!durable) {
+                this.battleState = this.prePauseState || 'PLAYER_IDLE';
+                this.pauseOverlay = null;
+                this.refreshEndTurnControl();
+                onResume?.();
+                return;
+              }
+            }
             // Return to title -- the suspend checkpoint is already persisted,
             // so Continue will offer Resume Battle / Continue from Map.
             this.clearBattleScopedDeltas(this.playerUnits);
@@ -4704,11 +4654,13 @@ export class BattleScene extends Phaser.Scene {
         onResume?.();
       },
       onSaveAndExit: saveExitCb,
-      onSaveAndExitWarning: fromRewards
-        ? 'Your battle and remaining rewards are saved. Resume returns to the map, where you can reopen rewards.'
-        : backToMap
-          ? 'The battle has not started. Resume on the Title screen returns to the map; this battle waits there.'
-          : 'Battle suspended. Choose Resume on the Title screen to pick up where you left off.',
+      onSaveAndExitWarning: this._saveRetry?.isUnsaved()
+        ? 'Not saved yet. Exit tries to save it.'
+        : fromRewards
+          ? 'Your battle and remaining rewards are saved. Resume returns to the map, where you can reopen rewards.'
+          : backToMap
+            ? 'The battle has not started. Resume on the Title screen returns to the map; this battle waits there.'
+            : 'Battle suspended. Choose Resume on the Title screen to pick up where you left off.',
       onBackToMap: backToMap,
       onAbandon: abandonCb,
       campaignMapData,
@@ -7396,6 +7348,29 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
+  /**
+   * After a combat's deaths are settled (kill credit read the weapon that struck), a
+   * survivor whose per-battle weapon ran dry switches to one that can still strike.
+   */
+  async _swapSpentWeapons(...units) {
+    await this._announceWeaponSwaps(swapSpentWeapons(units));
+  }
+
+  /**
+   * Tell the player when one of their units switched weapons after its tome ran dry.
+   * Awaited, one banner at a time, before the combat's level-ups and the next notice.
+   */
+  async _announceWeaponSwaps(swaps = []) {
+    for (const { unit, to } of swaps) {
+      if (unit?.faction !== 'player' || !to?.name) continue;
+      try {
+        await this.showBriefBanner(`${unit.name} is out of shots: now wielding ${to.name}`);
+      } catch {
+        // A banner is presentation only; the switch already happened.
+      }
+    }
+  }
+
   async showBriefBanner(message, color = UI_PALETTE.accentText) {
     // DOM: a toned notice band over the map (CeremonyController); same
     // reading window, awaited the same way. Canvas below is the fallback.
@@ -8268,6 +8243,9 @@ export class BattleScene extends Phaser.Scene {
 
     // Apply final HP (UnitHealth: the same outcome whether or not strikes were shown)
     applyCombatHP(attacker, defender, result);
+    // Per-battle weapons (Breachbolt) spend a shot for each side that struck with them
+    // (the switch away from a dry weapon waits for the deaths: _swapSpentWeapons).
+    spendCombatShots(attacker, defender, result);
 
     // Debug invincibility: restore player-faction units to full HP
     if (this.isDevToolsEnabled() && debugState.invincible) {
@@ -8422,6 +8400,18 @@ export class BattleScene extends Phaser.Scene {
       scene: this,
     });
     this._commitCombatIntent(attacker, defender);
+    const saveGate = this._saveRetryGate(session);
+    if (saveGate) {
+      await saveGate;
+      if (
+        !isCurrentBattleSession(this, session) ||
+        this.battleState === 'BATTLE_END' ||
+        this._fatalDecision ||
+        this._fatalCapturePending ||
+        this._defeatDecision
+      )
+        return;
+    }
     this.resetFortHealStreak(attacker);
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
     const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
@@ -8503,6 +8493,10 @@ export class BattleScene extends Phaser.Scene {
         this.battleState === 'BATTLE_END'
       )
         return;
+      // Every death of this combat is settled (kill credit read the weapon that
+      // struck): a survivor whose per-battle weapon ran dry switches weapons.
+      await this._swapSpentWeapons(attacker, defender);
+      if (!isCurrentBattleSession(this, session)) return;
       await safeBattlePresentation(
         'boss half health',
         () => (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth(),
@@ -9108,6 +9102,22 @@ export class BattleScene extends Phaser.Scene {
         slot,
         { candidate },
       );
+      if (result.ok) {
+        this._saveFailureReported = false;
+        this._saveRetry?.onDurableWrite({ session });
+        if (result.cloud?.reason === 'callback_error' && !this._cloudPushErrorReported) {
+          this._cloudPushErrorReported = true;
+          reportAsyncError('battle_cloud_push_error', new Error('callback_error'));
+        }
+      } else if (['quota', 'write_error'].includes(result.reason) && !this._saveFailureReported) {
+        this._saveFailureReported = true;
+        reportAsyncError('battle_save_failed', new Error(result.reason), {
+          phase: this.turnManager?.currentPhase,
+          turn: this.turnManager?.turnNumber,
+          checkpointIndex: this.runManager.battleInProgress?.checkpoint?.checkpointIndex,
+          policy: this._battleRewindPolicy,
+        });
+      }
       if (!result.ok && result.reason !== 'missing_slot') {
         console.warn('[BattleScene] battle-state save failed:', result.reason);
       }
@@ -9116,6 +9126,18 @@ export class BattleScene extends Phaser.Scene {
       console.warn('[BattleScene] battle-state save failed:', err?.message || err);
       return { ok: false, reason: 'write_error' };
     }
+  }
+
+  _onCheckpointResult(result, options) {
+    if (!isCurrentBattleSession(this, options.session)) return;
+    (this._saveRetry ||= new SaveRetryController(this).create()).onCheckpointResult(
+      result,
+      options,
+    );
+  }
+
+  _saveRetryGate(session) {
+    return this._saveRetry?.whenSettled(session) || null;
   }
 
   /** Suspend-checkpoint shim (see BattleSuspendController). */
@@ -9696,6 +9718,18 @@ export class BattleScene extends Phaser.Scene {
             this.battleState === 'BATTLE_END'
           ) {
             return;
+          }
+          const saveGate = this._saveRetryGate(session);
+          if (saveGate) {
+            await saveGate;
+            if (
+              !isCurrentBattleSession(this, session) ||
+              this.battleState === 'BATTLE_END' ||
+              this._fatalDecision ||
+              this._fatalCapturePending ||
+              this._defeatDecision
+            )
+              return;
           }
           // The army's end-of-phase hazards also reach its NPC allies.
           await this.processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
@@ -10395,6 +10429,18 @@ export class BattleScene extends Phaser.Scene {
                 } finally {
                   this._enemyActionCheckpoint = false;
                 }
+                const saveGate = this._saveRetryGate(session);
+                if (saveGate) {
+                  await saveGate;
+                  if (
+                    !isCurrentBattleSession(this, session) ||
+                    this.battleState === 'BATTLE_END' ||
+                    this._fatalDecision ||
+                    this._fatalCapturePending ||
+                    this._defeatDecision
+                  )
+                    return;
+                }
                 await presentQueuedLevelUps(this, null, { session });
               }
             },
@@ -10652,6 +10698,10 @@ export class BattleScene extends Phaser.Scene {
         this.battleState === 'BATTLE_END'
       )
         return;
+      // Every death of this combat is settled (kill credit read the weapon that
+      // struck): a survivor whose per-battle weapon ran dry switches weapons.
+      await this._swapSpentWeapons(enemy, target);
+      if (!isCurrentBattleSession(this, session)) return;
       await safeBattlePresentation(
         'boss half health',
         () => (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth(),

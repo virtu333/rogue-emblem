@@ -120,6 +120,9 @@ export class PendingRewardController {
   }
   destroy() {
     this.mobileRewards?.destroy();
+    // The scene's lootGroup marks the legacy canvas loot screen as open; this flow has no
+    // canvas objects, so a leftover [] must not keep Esc/Start routed to the loot settings.
+    if (this.host.lootGroup === this.lootGroup) this.host.lootGroup = null;
   }
   _teardownInputFocus() {
     this.destroy();

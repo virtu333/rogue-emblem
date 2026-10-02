@@ -23,6 +23,34 @@
 - **XP for every foe an area art hits.** Besides the target's usual XP, each other foe the area hits pays 0.35 of the combat XP for that foe, or 0.6 for a kill, at most 75 base per action, before the battle's XP multipliers. Elite and boss victims count their own bonus, and Mentor's Band shares it. Battles and the sim harness pay it together (`AREA_XP_LIVE`).
 - Spec: `docs/specs/aoe-weapon-arts.md`.
 
+### Dusk Pressure PR 1: Breachbolt Shots, Par-Neutral Waves, Shared Turn Pressure (Oct 1, 2026)
+
+No tuning yet (docs/specs/dusk-pressure.md, PR 1).
+
+- **Breachbolt shots are spent:**
+  - Nothing ever spent a Breachbolt use, so an enemy siege caster fired every enemy phase and a looted copy never ran dry.
+  - A combat in which the wielder strikes with it (attacking or countering, hit or miss) now spends one shot. The player's copy has 3 per battle and an enemy's has 5 (`weapons.json` `uses` / `usesByFaction`), with no MAG bonus. Shots refill after every battle.
+  - A spent copy cannot counter.
+  - An enemy siege caster keeps its own weapon behind the tome and switches to it once its shots are gone. The Danger overlay draws that weapon's reach.
+  - A unit whose Breachbolt fires its last shot switches to its next usable weapon as soon as the combat's deaths are settled, so it can counter again at once. Kill credit still goes to the Breachbolt. A player unit only switches to a weapon it can equip, and a banner names the new weapon. An enemy with nothing to switch to stops attacking.
+  - The weapon tooltip, the roster card and the Siege keyword show the shots, read from data. A Breachbolt already in a save (still holding `uses: 1`) takes the catalog counts when the run loads (`engine/WeaponCatalogMigration.js`, beside the item-name and Gambler's Coin migrations).
+- **Par-neutral waves:** whether a wave raises par is now one rule shared by the battle and the headless harness (`ReinforcementScheduler.waveRaisesPar`). Repeating pursuit waves stay par-neutral as before, and the coming rout ladder will be too.
+- **Reinforcement tiles:**
+  - Procedural arrivals no longer land on Lava Crack, the Acidic tiles, a Ballista, a Throne or a Village.
+  - An arrival's tile must suit every class it might copy, so an Armored arrival is never left stranded on Swamp.
+  - An authored arrival is checked against its own class.
+- **Anti-turtle clock:**
+  - The anti-turtle and boss enrage clock moved to `engine/TurnPressure.js`, and the headless harness now runs it too. Before, harness guards never left their posts.
+  - **Fix:** the clock's baseline was taken before any enemy had spawned, so kills never counted as progress and the AI turned aggressive three turns into every battle. Kills now reset it.
+- **Headless harness parity:** enemy spawn gear (Entity weapons, Sunder and Poison, siege tomes, status staves, Nightfall+ secondaries) now comes from one engine module (`engine/EnemySpawnGear.js`), and the harness's enemies use their status staves.
+
+### Sell Safety, Item Use Counts and the Fallen (Oct 1, 2026)
+
+- **Sell list risk tags**: each Sell row says whose only weapon ("Only weapon") or staff ("Only staff") it is, and, more quietly, a unit's last weapon of a type ("Only bow"). Selling a healer's only staff now warns ("Leaves Sera without a staff"), like the last weapon always did.
+- **Item use counts**: every weapon counts its strikes and the kills its strikes made, and every staff its casts, per item. Sell rows show them ("14 strikes", "9 casts"), and so do the sell detail and the roster's item card ("Used in 14 strikes · 3 kills", "Cast 9 times").
+- **The fallen keep their last battle**: kills, crits and deeds a unit earned in the battle where it fell are no longer lost (deeds only a survivor can earn excepted, and the fatal battle does not count toward Veteran).
+- **Fix: a fallen unit's items**: a unit that fell was saved with the bags it entered the battle with, so an item it traded away mid-battle was duplicated (with its new owner and in the convoy), an item it was given was lost, and a Vulnerary it drank came back full. Its record now carries what it held as it fell.
+
 ### Staff Relocation Visuals (Sep 30, 2026)
 
 - Rescue and Warp preserve each visual element's opacity when moving an already-used ally, so the next turn restores its ready appearance without leaving the sprite or HP bar faded.

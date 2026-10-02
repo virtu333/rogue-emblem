@@ -148,6 +148,29 @@ function validRestoreFields(state, width, height) {
     )
   )
     return false;
+  if (
+    !optional(state, 'fallenBattleRecords', (value) =>
+      list(
+        value,
+        (entry) =>
+          record(entry) &&
+          text(entry.name) &&
+          optional(entry, 'unitUid', text) &&
+          optional(entry, 'battleDeeds', record) &&
+          optional(
+            entry,
+            'bags',
+            (bags) =>
+              record(bags) &&
+              items(bags.inventory) &&
+              optional(bags, 'consumables', items) &&
+              (bags.weapon == null || integer(bags.weapon) || record(bags.weapon)),
+          ),
+        64,
+      ),
+    )
+  )
+    return false;
   if (!optional(state, 'appliedHybridOverrideTurns', (v) => list(v, (turn) => integer(turn, 1))))
     return false;
   for (const key of ['playerDeathsThisBattle', 'goldEarned', 'checkpointIndex'])

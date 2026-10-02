@@ -28,6 +28,54 @@ export function helpPreview(blocks) {
   return helpBlockText((blocks || []).find((b) => helpBlockText(b)));
 }
 
+/**
+ * A hover preview shows a guide whole while its text stays within this many characters
+ * (about 15 lines in the 280px popover). A longer guide shows its leading blocks only
+ * and points at the click, so a hover never becomes a wall of text.
+ */
+export const HELP_PREVIEW_CHARS = 600;
+
+/** Which blocks a hover preview shows, in reading order: the first always, then while they fit. */
+export function helpPreviewPlan(blocks, budget = HELP_PREVIEW_CHARS) {
+  const all = (blocks || []).filter((block) => helpBlockText(block));
+  const shown = [];
+  let used = 0;
+  for (const block of all) {
+    const size = helpBlockText(block).length;
+    if (shown.length && used + size > budget) break;
+    shown.push(block);
+    used += size;
+  }
+  return { shown, truncated: shown.length < all.length };
+}
+
+function previewBlock(block) {
+  if (typeof block === 'string') return element('p', block, 're-tip-text');
+  if (block.lead) return element('p', block.lead, 're-tip-lead');
+  if (block.tip) return element('p', block.tip, 're-tip-note');
+  if (block.stats) return element('p', helpBlockText(block), 're-tip-text');
+  const section = element('div', null, 're-tip-section');
+  if (block.title) section.append(element('strong', block.title));
+  const list = element('ul');
+  for (const point of block.points || []) {
+    const item = element('li');
+    if (typeof point === 'string') item.textContent = point;
+    else item.append(element('b', point.term), document.createTextNode(` ${point.text}`));
+    list.append(item);
+  }
+  section.append(list);
+  return section;
+}
+
+/** Hover-preview content for a guide: `{ content, footer }` for `bindHoverPreview`. */
+export function helpPreviewContent(blocks, { budget } = {}) {
+  const { shown, truncated } = helpPreviewPlan(blocks, budget);
+  return {
+    content: shown.map(previewBlock),
+    footer: truncated ? 'Click for full guide' : 'Click to open',
+  };
+}
+
 function renderBlock(block) {
   if (typeof block === 'string') return element('p', block, 'ch-text');
   if (block.lead) return element('p', block.lead, 'ch-lead');

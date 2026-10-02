@@ -12,6 +12,7 @@
 //
 // Rules and saves are untouched: the board turn is Grid presentation only.
 
+import { battleSession } from './BattleSession.js';
 import { classifyBattleBoundary } from './BattleCheckpointAdapter.js';
 import { BattleSuspendController } from './BattleSuspendController.js';
 import { battlefieldLabEnabled } from './BattlefieldLab.js';
@@ -255,6 +256,7 @@ export class PortraitBattleController {
 
   _switch() {
     const s = this.scene;
+    const session = battleSession(s);
     const rm = s.runManager;
     const before = Number(rm?.battleInProgress?.checkpoint?.checkpointIndex) || 0;
     // Save exactly the state on screen: the RNG stream is kept, not reseeded.
@@ -263,7 +265,8 @@ export class PortraitBattleController {
     // the in-memory checkpoint before writing, so its result, not the index,
     // says whether the save is durable.
     const suspend = (s._battleSuspendController ||= new BattleSuspendController(s));
-    const saved = suspend.captureCheckpoint({ preserveRng: true }) === true;
+    const saved =
+      suspend.captureCheckpoint({ preserveRng: true, progress: false, session }) === true;
     const bip = rm?.battleInProgress;
     const checkpoint = bip?.checkpoint;
     if (!saved || !checkpoint || (Number(checkpoint.checkpointIndex) || 0) <= before) {

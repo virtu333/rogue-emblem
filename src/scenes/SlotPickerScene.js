@@ -5,6 +5,7 @@ import {
   describeSavedRun,
 } from '../engine/CloudSaveConflict.js';
 import { hasDOMHost } from '../utils/domUI.js';
+import { showSlotRecovery } from '../ui/SlotRecoveryDialog.js';
 import { slotMenu, slotDialog } from '../ui/RunFlowMenus.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // SlotPickerScene — Save slot selection screen
@@ -16,6 +17,10 @@ import {
   deleteSlot,
   setActiveSlot,
   getMetaKey,
+  getSlotRecoveryOwner,
+  getSlotRecoveryOwnerKey,
+  getSlotQuarantineKey,
+  getSlotPairJournalKey,
 } from '../engine/SlotManager.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { HintManager } from '../engine/HintManager.js';
@@ -39,6 +44,7 @@ export class SlotPickerScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
+    this._recoveryAttempt = null;
     const slotArg = (value) =>
       Number.isInteger(value) && value >= 1 && value <= MAX_SLOTS ? value : null;
     // Title's Resume: continue this slot's run in progress.
@@ -61,7 +67,7 @@ export class SlotPickerScene extends Phaser.Scene {
         const ready = resume
           ? summary?.hasActiveRun && !summary.runCorrupt
           : hasMetaProgression(summary);
-        if (ready) void this.selectSlot(slot, summary);
+        if (ready && !summary?.recoveryRequired) void this.selectSlot(slot, summary);
       });
     }
     const cx = this.cameras.main.centerX;
@@ -321,6 +327,31 @@ export class SlotPickerScene extends Phaser.Scene {
         }),
       ).setOrigin(0.5);
       this.slotCards.push(emptyText);
+    } else if (summary.recoveryRequired) {
+      const note = applyTextResolution(
+        this.add.text(x, y - 12, 'Save needs recovery\nYour data is kept.', {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: UI_PALETTE.warn,
+          align: 'center',
+          wordWrap: { width: w - 16 },
+          lineSpacing: 6,
+        }),
+      ).setOrigin(0.5);
+      const review = applyTextResolution(
+        this.add.text(x, y + 40, '[ Review ]', {
+          fontFamily: 'Arial',
+          fontSize: '14px',
+          color: UI_PALETTE.good,
+          backgroundColor: UI_PALETTE.selected,
+          padding: { x: 12, y: 6 },
+        }),
+      )
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      review.on('pointerdown', () => this.selectSlot(slot, summary));
+      this.slotCards.push(note, review);
+      this._slotFocusEntries.push({ slot, summary, selectBtn: review });
     } else {
       // Valor
       const valorText = applyTextResolution(
@@ -422,13 +453,45 @@ export class SlotPickerScene extends Phaser.Scene {
       this._slotFocusEntries.push({ slot, summary, selectBtn, deleteBtn });
     }
   }
+  _canChooseCloudSave(slot) {
+    try {
+      const owner = getSlotRecoveryOwner(slot);
+      return (
+        (owner === null || owner === this.registry.get('cloud')?.userId) &&
+        getCloudSaveConflict(slot)?._exportDiscardPending !== true &&
+        localStorage.getItem(getSlotQuarantineKey(slot)) === null &&
+        localStorage.getItem(getSlotPairJournalKey(slot)) === null
+      );
+    } catch {
+      return false;
+    }
+  }
+
   _showCloudChoice(slot, conflict) {
     if (this.nativeDialog) return;
     if (this.slotMenu) this.slotMenu.root.inert = true;
+    const expectedConflict = JSON.stringify(conflict);
+    let dialog;
     const choose = (version) => {
+      if (this.nativeDialog !== dialog) return;
+      if (
+        !this._canChooseCloudSave(slot) ||
+        JSON.stringify(getCloudSaveConflict(slot)) !== expectedConflict
+      ) {
+        showSlotRecovery(this, slot, 'The save or account changed. Review the current data first.');
+        return;
+      }
       const result = resolveCloudSaveConflict(slot, version);
       if (!result.ok) {
         this.nativeDialog.body.append(document.createTextNode(result.reason));
+        return;
+      }
+      try {
+        localStorage.removeItem(getSlotRecoveryOwnerKey(slot));
+        if (localStorage.getItem(getSlotRecoveryOwnerKey(slot)) !== null)
+          throw new Error('Could not clear recovery ownership.');
+      } catch (err) {
+        showSlotRecovery(this, slot, err.message);
         return;
       }
       const cloud = this.registry.get('cloud');
@@ -440,7 +503,7 @@ export class SlotPickerScene extends Phaser.Scene {
       this.slotMenu?.render();
       void this.selectSlot(slot, getSlotSummary(slot));
     };
-    this.nativeDialog = slotDialog(
+    dialog = this.nativeDialog = slotDialog(
       this,
       'Choose save version',
       `A newer cloud save differs from this device. Both versions were preserved for this choice.\n\nThis device: ${describeSavedRun(conflict.localRun)}\n\nCloud: ${describeSavedRun(conflict.cloudRun)}\n\nChoosing a version keeps that run and its progression; the other version will be discarded.`,
@@ -454,9 +517,20 @@ export class SlotPickerScene extends Phaser.Scene {
 
   async selectSlot(slot, summary) {
     if (this.isTransitioning) return;
+    const currentSummary = getSlotSummary(slot);
     const conflict = getCloudSaveConflict(slot);
-    if (conflict && hasDOMHost()) {
+    if (
+      conflict &&
+      hasDOMHost() &&
+      this._canChooseCloudSave(slot) &&
+      currentSummary?.slotStatus !== 'unreadable'
+    ) {
       this._showCloudChoice(slot, conflict);
+      return;
+    }
+    // Re-read before constructing default metadata, including stale Title shortcuts.
+    if (currentSummary?.recoveryRequired || summary?.recoveryRequired) {
+      showSlotRecovery(this, slot);
       return;
     }
     this.isTransitioning = true;
@@ -864,10 +938,15 @@ export class SlotPickerScene extends Phaser.Scene {
 
   confirmDelete(slot) {
     if (this.isTransitioning) return;
+    if (getSlotSummary(slot)?.recoveryRequired) {
+      showSlotRecovery(this, slot);
+      return;
+    }
     if (hasDOMHost()) {
       this.nativeDialog?.destroy();
       if (this.slotMenu) this.slotMenu.root.inert = true;
-      this.nativeDialog = slotDialog(
+      let dialog;
+      dialog = this.nativeDialog = slotDialog(
         this,
         `Delete Slot ${slot}?`,
         'This deletes the run and all progress in this slot. This cannot be undone.',
@@ -876,7 +955,11 @@ export class SlotPickerScene extends Phaser.Scene {
           [
             'Delete save',
             () => {
-              if (!this.nativeDialog || this.nativeDialog.destroyed) return;
+              if (this.nativeDialog !== dialog || dialog.destroyed) return;
+              if (getSlotSummary(slot)?.recoveryRequired) {
+                showSlotRecovery(this, slot);
+                return;
+              }
               deleteSlot(slot);
               const cloud = this.registry.get('cloud');
               if (cloud) deleteSlotCloud(cloud.userId, slot);
@@ -891,6 +974,7 @@ export class SlotPickerScene extends Phaser.Scene {
     // Show confirmation dialog
     if (this.confirmDialog) this.confirmDialog.forEach((o) => o.destroy());
     this.confirmDialog = [];
+    const dialog = this.confirmDialog;
 
     const cx = this.cameras.main.centerX;
     const cy = this.cameras.main.centerY;
@@ -948,6 +1032,11 @@ export class SlotPickerScene extends Phaser.Scene {
     yesBtn.on('pointerover', () => yesBtn.setColor(UI_PALETTE.bad));
     yesBtn.on('pointerout', () => yesBtn.setColor(UI_PALETTE.bad));
     yesBtn.on('pointerdown', () => {
+      if (this.confirmDialog !== dialog) return;
+      if (getSlotSummary(slot)?.recoveryRequired) {
+        showSlotRecovery(this, slot);
+        return;
+      }
       deleteSlot(slot);
       const cloud = this.registry.get('cloud');
       if (cloud) deleteSlotCloud(cloud.userId, slot);
@@ -974,6 +1063,7 @@ export class SlotPickerScene extends Phaser.Scene {
     noBtn.on('pointerover', () => noBtn.setColor(UI_PALETTE.accent));
     noBtn.on('pointerout', () => noBtn.setColor(UI_PALETTE.text));
     noBtn.on('pointerdown', () => {
+      if (this.confirmDialog !== dialog) return;
       this.confirmDialog.forEach((o) => o.destroy());
       this.confirmDialog = null;
     });

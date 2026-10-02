@@ -1,0 +1,366 @@
+/* Victory Records (Title → Records, src/ui/RunRecordsMenu.js): the list of won runs and
+   one run's chronicle — a header plate, the survivors' cards and the fallen. Kit tokens
+   only; the difficulty chip takes its colour from difficulty.json (--rr-mode). */
+
+.rr-records .re-menu-body {
+  gap: var(--re-s2);
+}
+.rr-intro {
+  margin: 0 0 var(--re-s1);
+  color: var(--re-muted);
+  font: var(--re-t-small);
+}
+.rr-empty {
+  margin: 0;
+  color: var(--re-muted);
+  font-style: italic;
+}
+
+/* ───────── Difficulty chip and badges */
+.rr-mode {
+  --rr-mode: var(--re-muted);
+  display: inline-block;
+  flex: none;
+  padding: 3px 6px 2px;
+  border: 1px solid var(--rr-mode);
+  border-radius: var(--re-radius);
+  background: var(--re-sunken);
+  color: var(--rr-mode);
+  font: var(--re-pf-8, 8px) / 1.3 var(--re-pixel);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.rr-badge {
+  display: inline-block;
+  flex: none;
+  padding: 3px 6px 2px;
+  border-radius: var(--re-radius);
+  background: var(--re-gold);
+  color: var(--re-bg);
+  font: var(--re-pf-8, 8px) / 1.3 var(--re-pixel);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ───────── The list: one plate per victory */
+.re-btn.rr-entry {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--re-s3);
+  width: 100%;
+  min-height: var(--re-tap-row);
+  padding: var(--re-s2) var(--re-s3);
+  text-align: left;
+  font-weight: 400;
+  background: linear-gradient(90deg, var(--re-raised), var(--re-panel));
+  border-left: 3px solid var(--re-line);
+}
+.re-btn.rr-entry:hover,
+.re-btn.rr-entry:focus-visible {
+  border-left-color: var(--re-gold);
+}
+.rr-entry-faces {
+  display: flex;
+  flex: none;
+  min-width: 32px;
+}
+.rr-entry-faces > * + * {
+  margin-left: -8px;
+}
+.rr-entry-faces .mr-unit-face {
+  box-shadow: 0 0 0 1px var(--re-void);
+}
+.rr-entry-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.rr-entry-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--re-s1) var(--re-s2);
+}
+.rr-entry-date {
+  margin-left: auto;
+  color: var(--re-muted);
+  font: var(--re-t-micro);
+  white-space: nowrap;
+}
+.rr-entry-lords {
+  color: var(--re-accent-text);
+  font: 700 14px/1.25 var(--re-body);
+  overflow-wrap: anywhere;
+}
+.rr-entry-meta {
+  color: var(--re-muted);
+  font: var(--re-t-micro);
+}
+
+/* ───────── The chronicle: header plate */
+.re-btn.rr-back {
+  align-self: flex-start;
+  flex: none;
+}
+.rr-hero {
+  flex: none;
+  padding: var(--re-s3) var(--re-s4);
+  background:
+    radial-gradient(ellipse at 0% 0%, var(--re-ember-haze), transparent 60%), var(--re-raised);
+  border: var(--re-hairline);
+  border-radius: var(--re-radius);
+}
+.rr-hero-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--re-s1) var(--re-s2);
+}
+.rr-hero-date {
+  margin-left: auto;
+  color: var(--re-muted);
+  font: var(--re-t-small);
+}
+.rr-hero-title {
+  margin: var(--re-s2) 0;
+  color: var(--re-accent-text);
+  font: 700 20px/1.2 var(--re-display);
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+}
+.rr-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--re-s2) var(--re-s3);
+  margin: 0;
+}
+.rr-fact {
+  min-width: 0;
+  padding-top: var(--re-s1);
+  border-top: 1px solid var(--re-line-soft);
+}
+.rr-fact dt {
+  color: var(--re-muted);
+  font: var(--re-pf-8, 8px) / 1.6 var(--re-pixel);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.rr-fact dd {
+  margin: 0;
+  color: var(--re-text);
+  font: 700 14px/1.3 var(--re-body);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.rr-fact-eclipse[data-phase='umbral'] dd,
+.rr-fact-eclipse[data-phase='totality'] dd {
+  color: var(--re-threat-status);
+}
+.rr-fact-eclipse[data-phase='hollow'] dd {
+  color: var(--re-bad);
+}
+
+/* ───────── Sections */
+.rr-section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--re-s2);
+  flex: none;
+  margin: var(--re-s3) 0 0;
+  padding-bottom: var(--re-s1);
+  border-bottom: 1px solid transparent;
+  border-image: var(--re-gilt-rule) 1;
+  color: var(--re-accent-text);
+  font: var(--re-t-label);
+  text-transform: uppercase;
+}
+.rr-count {
+  color: var(--re-muted);
+}
+.rr-units {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 268px), 1fr));
+  gap: var(--re-s2);
+  flex: none;
+}
+
+/* ───────── A unit's card */
+.rr-unit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--re-s2);
+  min-width: 0;
+  padding: var(--re-s2) var(--re-s3) var(--re-s3);
+  background: var(--re-panel);
+  border: var(--re-hairline);
+  border-radius: var(--re-radius);
+  box-shadow: var(--re-bevel);
+}
+.rr-unit[data-lord='true'] {
+  border-color: var(--re-gilt);
+}
+.rr-unit-head {
+  display: flex;
+  align-items: center;
+  gap: var(--re-s3);
+  min-width: 0;
+}
+.rr-face {
+  flex: none;
+  width: 48px;
+  height: 56px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: var(--re-sunken);
+  border: 1px solid var(--re-line);
+}
+.rr-unit-id {
+  min-width: 0;
+  flex: 1;
+}
+.rr-unit-name {
+  margin: 0;
+  color: var(--re-text);
+  font: 700 14px/1.25 var(--re-body);
+  overflow-wrap: anywhere;
+}
+.rr-epithet {
+  color: var(--re-accent);
+  font-style: italic;
+  font-weight: 500;
+}
+.rr-unit-class {
+  margin: 2px 0 0;
+  color: var(--re-muted);
+  font: var(--re-t-small);
+}
+.rr-lord {
+  display: inline-block;
+  padding: 2px 4px 1px;
+  border: 1px solid var(--re-gilt);
+  border-radius: var(--re-radius);
+  color: var(--re-accent-text);
+  font: var(--re-pf-8, 8px) / 1.3 var(--re-pixel);
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+.rr-fell {
+  margin: 2px 0 0;
+  color: var(--re-bad);
+  font: var(--re-t-small);
+}
+
+/* Stat strip: eight cells, label over value. */
+.rr-stats {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  margin: 0;
+  background: var(--re-sunken);
+  border: 1px solid var(--re-line-soft);
+  border-radius: var(--re-radius);
+}
+.rr-stat {
+  padding: 3px 0 2px;
+  text-align: center;
+}
+.rr-stat + .rr-stat {
+  border-left: 1px solid var(--re-line-soft);
+}
+.rr-stat dt {
+  color: var(--re-muted);
+  font: var(--re-pf-8, 8px) / 1.5 var(--re-pixel);
+}
+.rr-stat dd {
+  margin: 0;
+  color: var(--re-accent-text);
+  font: 700 13px/1.3 var(--re-body);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chips: gear (with its icon), skills, deeds. */
+.rr-gear,
+.rr-skills,
+.rr-deeds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--re-s1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 2px 6px;
+  background: var(--re-raised);
+  border: 1px solid var(--re-line-soft);
+  border-radius: var(--re-radius);
+  color: var(--re-text);
+  font: var(--re-t-micro);
+  overflow-wrap: anywhere;
+}
+.rr-chip .ia-icon {
+  flex: none;
+}
+.rr-gear-weapon {
+  border-color: var(--re-line-strong);
+  font-weight: 700;
+}
+.rr-gear-accessory {
+  border-color: var(--re-info);
+}
+.rr-skill {
+  border-color: var(--re-verdigris-deep);
+  color: var(--re-good);
+}
+.rr-deed {
+  border-color: var(--re-gilt-lo);
+  background: var(--re-ember-deep);
+  color: var(--re-ember-pale);
+}
+.rr-tally {
+  margin: 0;
+  color: var(--re-muted);
+  font: var(--re-t-small);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The fallen: ash-grey faces, a darker plate. */
+.rr-unit.is-fallen {
+  background: var(--re-sunken);
+  border-color: var(--re-line-soft);
+}
+.rr-unit.is-fallen .rr-face {
+  filter: grayscale(1) brightness(0.7);
+}
+.rr-unit.is-fallen .rr-unit-name {
+  color: var(--re-parchment-dim);
+}
+
+/* v1 records: the plain rows they always had. */
+.rr-plain {
+  margin: 0;
+}
+
+/* Upright phones (portrait mode): the header facts read two to a row and the cards
+   fill the width. Landscape and desktop never match. */
+@media (orientation: portrait) {
+  html.portrait-ui .rr-records .rr-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  html.portrait-ui .rr-records .rr-hero {
+    padding: var(--re-s3);
+  }
+  html.portrait-ui .rr-records .rr-entry-date {
+    margin-left: 0;
+  }
+}

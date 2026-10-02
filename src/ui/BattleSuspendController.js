@@ -42,6 +42,7 @@ import {
   BATTLE_UNIT_GROUPS,
 } from '../engine/BattleEntityIdentity.js';
 import { captureBattleState } from './BattleCheckpointAdapter.js';
+import { RETRYABLE_SAVE_REASONS } from '../engine/SavePersistenceStatus.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 
 export const serializeSuspendUnit = serializeBattleUnit;
@@ -51,6 +52,8 @@ export class BattleSuspendController {
     this.scene = scene;
     this.session = battleSession(scene);
     this._retryCheckpoint = null;
+    this._retryCandidate = null;
+    this._retryReplaced = false;
   }
 
   /**
@@ -65,26 +68,29 @@ export class BattleSuspendController {
    *   before its rolls: keep the RNG stream and decision key untouched (the
    *   forecast's roll session depends on it) and add no timeline row.
    */
-  captureCheckpoint({ preserveRng = false, commitIntent = false, session = this.session } = {}) {
+  captureCheckpoint({
+    preserveRng = false,
+    commitIntent = false,
+    progress = true,
+    session = this.session,
+  } = {}) {
     const scene = this.scene;
+    const report = (result) => this._captureResult(result, { session, progress });
     if (!isCurrentBattleSession(scene, session) || session !== this.session)
-      return this._captureResult({ ok: false, reason: 'stale_session' });
+      return report({ ok: false, reason: 'stale_session' });
     const rm = scene.runManager;
-    if (!rm?.battleInProgress) return this._captureResult({ ok: false, reason: 'no_battle' }); // tutorial/standalone or battle already settled
+    if (!rm?.battleInProgress) return report({ ok: false, reason: 'no_battle' }); // tutorial/standalone or battle already settled
     if (
       scene.battleState === 'BATTLE_END' ||
       scene._fatalDecision ||
       scene._fatalCapturePending ||
       scene._defeatDecision
     )
-      return this._captureResult({ ok: false, reason: 'unstable_boundary' });
+      return report({ ok: false, reason: 'unstable_boundary' });
     const enemyBoundary =
       scene.turnManager?.currentPhase === 'enemy' && scene._enemyActionCheckpoint === true;
     if (scene.turnManager?.currentPhase !== 'player' && !enemyBoundary)
-      return this._captureResult({ ok: false, reason: 'wrong_phase' });
-    // A newer capture owns retry state even if serialization itself fails.
-    this._retryCandidate = null;
-    this._retryCheckpoint = null;
+      return report({ ok: false, reason: 'wrong_phase' });
     try {
       const index = (Number(rm.battleInProgress.checkpoint?.checkpointIndex) || 0) + 1;
       const base = Number.isFinite(scene.visionBaseSeed) ? scene.visionBaseSeed >>> 0 : 0;
@@ -98,6 +104,10 @@ export class BattleSuspendController {
         scene._battleDecisionRngState = scene._battleRng?.getState?.() || null;
       const checkpoint = this._buildCheckpoint(index, seed);
       rm.setBattleCheckpoint(checkpoint);
+      // Installing a newer checkpoint supersedes every older retry candidate.
+      this._retryCandidate = null;
+      this._retryUnsafe = false;
+      this._retryReplaced = false;
       this._retryCheckpoint = checkpoint;
       if (!commitIntent) {
         try {
@@ -109,6 +119,7 @@ export class BattleSuspendController {
         }
       }
       let candidate = rm.toJSON ? rm.toJSON() : null;
+      const fullCandidate = candidate;
       let persisted = scene._persistBattleRunState?.(candidate, { session });
       if (persisted?.reason === 'quota' && rm.toJSON && rm.battleInProgress.timeline) {
         const fallback = persistWithTimelineFallback(
@@ -120,30 +131,82 @@ export class BattleSuspendController {
         if (fallback.candidate) candidate = fallback.candidate;
         if (fallback.ok) {
           rm.battleInProgress = fallback.candidate.battleInProgress;
+          this._retryCheckpoint = rm.battleInProgress.checkpoint;
           scene._battleTimeline = rm.battleInProgress.timeline;
           scene._timelineCurrentEntryId = rm.battleInProgress.timelineCurrentEntryId;
         }
       }
-      this._retryCandidate = persisted?.ok ? null : candidate && structuredClone(candidate);
-      return this._captureResult(persisted || { ok: false, reason: 'missing_persistence' });
+      this._retryCandidate =
+        RETRYABLE_SAVE_REASONS.includes(persisted?.reason) && candidate
+          ? structuredClone(fullCandidate)
+          : null;
+      if (this._retryCandidate) this._retryLiveFingerprint = this._liveFingerprint();
+      return report(persisted || { ok: false, reason: 'missing_persistence' });
     } catch (err) {
       console.warn('[BattleSuspend] checkpoint capture failed:', err?.message || err);
-      return this._captureResult({ ok: false, reason: 'capture_error' });
+      // An older checkpoint can remain installed while a newer action changes live
+      // HP/RNG. Keep the evidence, but never report writing it as saving that action.
+      if (this._retryCandidate)
+        this._retryUnsafe =
+          !this._retryLiveFingerprint || this._liveFingerprint() !== this._retryLiveFingerprint;
+      else {
+        this._retryReplaced ||= !!this._retryCheckpoint;
+        this._retryCheckpoint = null;
+      }
+      return report({ ok: false, reason: 'capture_error' });
     }
   }
 
-  _captureResult(result) {
+  _captureResult(result, { session = this.session, progress = true } = {}) {
     this.lastResult = result;
-    if (isCurrentBattleSession(this.scene, this.session))
+    if (isCurrentBattleSession(this.scene, session)) {
       this.scene._checkpointPersistenceResult = result;
+      this.scene._onCheckpointResult?.(result, { session, progress });
+    }
     return result.ok === true;
   }
 
-  // A storage retry must not recapture, append history or reseed legacy RNG.
-  retryCheckpoint() {
+  hasRetryCandidate() {
+    return !!this._retryCandidate && !this._retryUnsafe;
+  }
+
+  dropRetryCandidate() {
+    this._retryCandidate = null;
+    this._retryUnsafe = false;
+    this._retryReplaced = false;
+    this._retryLiveFingerprint = null;
+  }
+
+  _liveFingerprint() {
+    try {
+      const scene = this.scene;
+      const checkpoint = this._retryCheckpoint;
+      const run = structuredClone(scene.runManager.toJSON());
+      delete run.savedAt;
+      if (run.battleInProgress) {
+        delete run.battleInProgress.timeline;
+        delete run.battleInProgress.timelineCurrentEntryId;
+      }
+      return JSON.stringify({
+        run,
+        battle: captureBattleState(scene, {
+          checkpointIndex: checkpoint.checkpointIndex,
+          rngSeed: checkpoint.rngSeed,
+        }),
+        rng: scene._battleRng?.getState?.(),
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  // A storage retry never recaptures, appends history, or reseeds RNG.
+  retryCheckpoint({ session } = {}) {
     const scene = this.scene;
-    if (!isCurrentBattleSession(scene, this.session)) return { ok: false, reason: 'stale_session' };
-    if (!scene.runManager?.battleInProgress) return { ok: false, reason: 'no_battle' };
+    if (!isCurrentBattleSession(scene, session) || session !== this.session)
+      return { ok: false, reason: 'stale_session' };
+    const rm = scene.runManager;
+    if (!rm?.battleInProgress) return { ok: false, reason: 'no_battle' };
     if (
       scene.battleState === 'BATTLE_END' ||
       scene._fatalDecision ||
@@ -152,24 +215,37 @@ export class BattleSuspendController {
     )
       return { ok: false, reason: 'unstable_boundary' };
     if (
-      !this._retryCandidate ||
-      !this._retryCheckpoint ||
-      scene.runManager?.battleInProgress?.checkpoint !== this._retryCheckpoint
+      this._retryUnsafe ||
+      this._retryReplaced ||
+      (this._retryCheckpoint && rm.battleInProgress.checkpoint !== this._retryCheckpoint)
     )
       return { ok: false, reason: 'checkpoint_replaced' };
-    const result = scene._persistBattleRunState?.(this._retryCandidate, {
-      session: this.session,
-    }) || {
+    if (!this._retryCandidate) return { ok: false, reason: 'no_candidate' };
+    let candidate = this._retryCandidate;
+    let result = scene._persistBattleRunState?.(candidate, { session }) || {
       ok: false,
       reason: 'missing_persistence',
     };
-    if (result.ok) {
-      scene.runManager.battleInProgress = this._retryCandidate.battleInProgress;
-      scene._battleTimeline = scene.runManager.battleInProgress.timeline;
-      scene._timelineCurrentEntryId = scene.runManager.battleInProgress.timelineCurrentEntryId;
-      this._retryCandidate = null;
+    if (result.reason === 'quota') {
+      const fallback = persistWithTimelineFallback(
+        candidate,
+        (value) => scene._persistBattleRunState(value, { session }),
+        result,
+      );
+      candidate = fallback.candidate;
+      const { candidate: _candidate, ...status } = fallback;
+      result = status;
     }
-    this._captureResult(result);
+    if (result.ok) {
+      rm.battleInProgress = candidate.battleInProgress;
+      this._retryCheckpoint = rm.battleInProgress.checkpoint;
+      scene._battleTimeline = rm.battleInProgress.timeline;
+      scene._timelineCurrentEntryId = rm.battleInProgress.timelineCurrentEntryId;
+      this.dropRetryCandidate();
+    }
+    // On failure retain the full frozen candidate. A later Retry may have enough
+    // storage; only a successfully written fallback can shed optional history.
+    this._captureResult(result, { session });
     return result;
   }
 

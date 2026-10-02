@@ -98,12 +98,39 @@
   pointer-events: none;
   text-align: left;
 }
-.re-info-tip::after {
-  content: 'Click ⓘ for more';
+/* The line under the content is set per preview (data-footer); none when empty. */
+.re-info-tip[data-footer]:not([data-footer=''])::after {
+  content: attr(data-footer);
   display: block;
   margin-top: 4px;
   color: var(--re-muted);
   font: var(--re-t-micro);
+}
+
+/* Rich previews (a help guide's first blocks, a weapon art's sheet). */
+.re-info-tip p,
+.re-info-tip ul {
+  margin: 0;
+}
+.re-info-tip p + p,
+.re-info-tip * + ul,
+.re-info-tip div + div {
+  margin-top: 4px;
+}
+.re-info-tip ul {
+  padding-left: 14px;
+}
+.re-info-tip strong,
+.re-info-tip b {
+  color: var(--re-accent-text);
+}
+.re-info-tip .re-tip-lead {
+  font-weight: 700;
+}
+.re-info-tip .re-tip-note,
+.re-info-tip .item-art-flavour {
+  color: var(--re-muted);
+  font-style: italic;
 }
 
 /* Hold gesture: no text selection/callout; a gilt thread fills while pressing. */

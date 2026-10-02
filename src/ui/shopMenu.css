@@ -67,6 +67,30 @@
   color: var(--re-muted);
   font-size: 13px;
 }
+/* Sell rows: what selling would take from its owner (ShopCommands.shopSellRisk). The
+   last weapon or staff is a warning; the last weapon of a type is a quieter note. */
+.shop-row-text .shop-risks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.shop-row-text .shop-risk {
+  font: 700 10px/1 var(--re-body);
+  letter-spacing: 0.03em;
+  padding: 3px 5px;
+  border-radius: 2px;
+  white-space: nowrap;
+  background: var(--re-sunken);
+}
+.shop-row-text .shop-risk.is-hard {
+  color: var(--re-warn);
+  box-shadow: inset 0 0 0 1px var(--re-warn);
+}
+.shop-row-text .shop-risk.is-soft {
+  color: var(--re-muted);
+  box-shadow: inset 0 0 0 1px var(--re-line);
+}
 /* The item, large: painted hero (or 2x pixel icon) beside kicker and name. */
 .shop-hero {
   display: flex;
@@ -139,6 +163,10 @@
 .shop-meta {
   color: var(--re-muted);
 }
+/* "Used in 14 strikes · 3 kills" (ItemUsage). */
+.shop-copy .shop-usage {
+  color: var(--re-muted);
+}
 .shop-mechanics {
   white-space: pre-line;
 }
@@ -181,6 +209,10 @@
 .shop-warning {
   margin: 0 0 6px;
   color: var(--re-warn);
+}
+/* The last weapon of a type ("Leaves Kai without a bow"): a note, not a warning. */
+.shop-warning.is-soft {
+  color: var(--re-muted);
 }
 .shop-footer {
   display: flex;

@@ -2,6 +2,7 @@ import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
 import { saveServiceRun } from './serviceSave.js';
 import { skillScrollText, weaponArtScrollText } from './weaponArtDisplay.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
+import { itemUsageText } from '../engine/ItemUsage.js';
 import { statusDescriptions, statusStaffInfo } from '../engine/BattleInformation.js';
 import { classChangePreview } from './classChangeDisplay.js';
 import {
@@ -65,7 +66,7 @@ import {
 import { equippedBadgeElement } from './equippedBadge.js';
 import { weaponComparisonParts } from './equipmentComparison.js';
 import { itemKeywordRow } from './itemKeywordChips.js';
-import { itemKeywords, itemBaseLine } from '../engine/ItemKeywords.js';
+import { itemKeywords, itemBaseLine, perBattleUsesText } from '../engine/ItemKeywords.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
 import {
   getWeaponArtIds,
@@ -1268,7 +1269,8 @@ export class MobileRosterSheet {
     }
     // The keyword row above already names the type ("Silver Sword").
     const kind = itemBaseLine(item) ? '' : `${item.type} · `;
-    return `${kind}Might ${item.might ?? '—'} · Hit ${item.hit ?? '—'} · Crit ${item.crit ?? '—'} · Weight ${item.weight ?? '—'} · Range ${item.range ?? '—'}`;
+    const uses = perBattleUsesText(item, unit);
+    return `${kind}Might ${item.might ?? '—'} · Hit ${item.hit ?? '—'} · Crit ${item.crit ?? '—'} · Weight ${item.weight ?? '—'} · Range ${item.range ?? '—'}${uses ? ` · ${uses}` : ''}`;
   }
   itemCard(item, unit) {
     const forge = getForgeDisplayInfo(item);
@@ -1293,6 +1295,9 @@ export class MobileRosterSheet {
       );
     const imbue = getImbueDisplayInfo(item, this.gameData.imbues);
     if (imbue) c.append(el('p', `${imbue.name}: ${imbue.description}`));
+    // How much this very item has been used ("Used in 14 strikes · 3 kills").
+    const usage = itemUsageText(item);
+    if (usage) c.append(el('p', usage, 'mr-usage'));
     if (equipped) c.append(el('p', 'Equipped', 'mr-equipped'));
     // A special the tags already state isn't repeated; staves and flavour keep theirs.
     if (item.special && !itemKeywords(item).length) c.append(el('p', item.special));

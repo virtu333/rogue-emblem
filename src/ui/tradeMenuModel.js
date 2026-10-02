@@ -41,9 +41,12 @@ export function sameItem(holder, a, b) {
   return isConvoyHolder(holder) && a.uid != null && a.uid === b.uid;
 }
 
+const withIndefinite = (noun) => `${/^[aeiou]/.test(noun) ? 'an' : 'a'} ${noun}`;
+
 /**
- * "Sera can't wield Iron Axe" / "Leaves Edric unarmed"; '' for an unknown code. A swap
- * can warn about both items, so each warning names its own.
+ * "Sera can't wield Iron Axe" / "Leaves Edric unarmed" / "Leaves Sera without a
+ * staff" / "Leaves Kai without a bow" (`weaponType` in plain words); '' for an
+ * unknown code. A swap can warn about both items, so each warning names its own.
  */
 export function tradeWarningText(warning) {
   const name = warning?.unit?.name || 'This unit';
@@ -52,6 +55,9 @@ export function tradeWarningText(warning) {
       ? `${name} can't wield ${warning.item.name}`
       : `${name} can't wield this`;
   if (warning?.code === 'leaves_unarmed') return `Leaves ${name} unarmed`;
+  if (warning?.code === 'leaves_no_staff') return `Leaves ${name} without a staff`;
+  if (warning?.code === 'leaves_no_type' && warning.weaponType)
+    return `Leaves ${name} without ${withIndefinite(String(warning.weaponType).toLowerCase())}`;
   return '';
 }
 

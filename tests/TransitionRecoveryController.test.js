@@ -171,7 +171,7 @@ describe('TransitionRecoveryController', () => {
     await Promise.resolve();
 
     expect(clearSavedRunMock).toHaveBeenCalledWith(expect.any(Function), undefined);
-    expect(deleteRunSaveMock).toHaveBeenCalledWith('user-1', 2);
+    expect(deleteRunSaveMock).toHaveBeenCalledWith('user-1', 2, undefined);
     expect(transitionToSceneMock).toHaveBeenCalledWith(
       scene,
       'Title',
