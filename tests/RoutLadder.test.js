@@ -370,6 +370,43 @@ describe('where ladder arrivals land', () => {
     expect(blocked.spawns).toEqual([]);
     expect(blocked.blockedSpawns).toBe(2);
   });
+
+  it('a flank with one free tile keeps its whole wave: one edge, the rest blocked', () => {
+    // A player at (2,0) covers columns 0-5 of the top edge of a 7-wide map: column 6 is
+    // the flank's only free tile. The wave never splits between the flank and the front.
+    const layout = Array.from({ length: H }, () => Array(7).fill(T.Plain));
+    const reinforcements = ladderConfig([{ turn: 4, count: [3, 3], edge: 'top', xpMultiplier: 1 }]);
+    for (let seed = 1; seed <= 10; seed++) {
+      const r = run({ seed, reinforcements, mapLayout: layout, playerTiles: [{ col: 2, row: 0 }] });
+      expect(r.spawns.map((s) => [s.edge, s.col, s.row])).toEqual([['top', 6, 0]]);
+      expect(r.blockedSpawns).toBe(2);
+    }
+  });
+
+  it('the objective line names every edge a wave can come from', () => {
+    // Wherever the units stand, the arrivals come from an edge the line named.
+    const layout = Array.from({ length: H }, () => Array(7).fill(T.Plain));
+    const reinforcements = ladderConfig([{ turn: 4, count: [2, 2], edge: 'top', xpMultiplier: 1 }]);
+    const status = routLadderStatus(reinforcements, { resolvedThroughTurn: 3 });
+    expect(routLadderObjectiveLine(status)).toBe(
+      'Reinforcements 0/1 · T4: up to 2, top or right edge',
+    );
+    const named = [status.next.edge, status.next.fallback];
+    for (const playerTiles of [
+      [],
+      [{ col: 3, row: 0 }],
+      [{ col: 2, row: 0 }],
+      [{ col: 6, row: 4 }],
+    ]) {
+      for (const s of run({ reinforcements, mapLayout: layout, playerTiles }).spawns)
+        expect(named).toContain(s.edge);
+    }
+    // A front wave has nowhere else to go: one edge named.
+    const front = ladderConfig([{ turn: 4, count: [2, 2], edge: 'right', xpMultiplier: 1 }]);
+    expect(routLadderObjectiveLine(routLadderStatus(front, { resolvedThroughTurn: 3 }))).toBe(
+      'Reinforcements 0/1 · T4: up to 2, right edge',
+    );
+  });
 });
 
 describe('ladder arrivals in a battle (headless harness, as the scene)', () => {
@@ -654,7 +691,7 @@ describe('the objective line', () => {
     const line = (through) =>
       routLadderObjectiveLine(routLadderStatus(reinforcements, { resolvedThroughTurn: through }));
     expect(line(0)).toBe('Reinforcements 0/2 · T4: up to 2, right edge');
-    expect(line(4)).toBe('Reinforcements 1/2 · T6: up to 3, top edge');
+    expect(line(4)).toBe('Reinforcements 1/2 · T6: up to 3, top or right edge');
     expect(line(6)).toBe('Reinforcements 2/2 · no more waves');
     expect(routLadderStatus({ waves: [] })).toBeNull();
   });
@@ -679,12 +716,19 @@ describe('the objective line', () => {
     );
     // The enemy phase of turn 4 resolved its wave: the line moves on at once.
     const after = scene({ turn: 4, phase: 'enemy', resolvedTurn: 4 });
-    expect(after.getLadderObjectiveLine()).toBe('Reinforcements 1/2 · T6: up to 3, top edge');
-    // Upright (portrait) boards are turned: the grid's top edge is drawn on the left.
+    expect(after.getLadderObjectiveLine()).toBe(
+      'Reinforcements 1/2 · T6: up to 3, top or right edge',
+    );
+    // Upright (portrait) boards are turned: 'ccw' draws the grid's top edge on the left
+    // and its right edge at the top; 'cw' draws them on the right and at the bottom.
     const upright = scene({ turn: 5, phase: 'player', rotation: 'ccw' });
-    expect(upright.getLadderObjectiveLine()).toBe('Reinforcements 1/2 · T6: up to 3, left edge');
+    expect(upright.getLadderObjectiveLine()).toBe(
+      'Reinforcements 1/2 · T6: up to 3, left or top edge',
+    );
     const cw = scene({ turn: 5, phase: 'player', rotation: 'cw' });
-    expect(cw.getLadderObjectiveLine()).toBe('Reinforcements 1/2 · T6: up to 3, right edge');
+    expect(cw.getLadderObjectiveLine()).toBe(
+      'Reinforcements 1/2 · T6: up to 3, right or bottom edge',
+    );
     // A rewind back into turn 4's player phase does not count turn 4 as resolved.
     const rewound = scene({ turn: 4, phase: 'player', resolvedTurn: 4 });
     expect(rewound.getLadderObjectiveLine()).toBe('Reinforcements 0/2 · T4: up to 2, right edge');

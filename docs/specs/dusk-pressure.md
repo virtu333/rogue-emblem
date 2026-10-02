@@ -146,14 +146,18 @@ multiplier (0 past the list), and gold uses the same value. A template opts out 
     caravan, on `REINFORCEMENT_EXCLUDED_TERRAIN` (Lava Crack, the Acidic tiles,
     Ballista, Throne, Village), or impassable for the arriving class's move type (PR 1;
     a promoted wave also checks the act's promoted classes).
-  - **Fallback.** When the exclusions empty an edge, the wave falls back to the front;
-    whatever it cannot place counts as `blockedSpawns`. The telegraph names the
-    scheduled count and edge and says "up to", because blocked tiles can shrink a wave.
+  - **Fallback.** The edge is settled once, as the wave arrives. A flank wave whose
+    flank has no tile free of the exclusions goes to the front, whole. Arrivals that
+    the wave's edge cannot take count as `blockedSpawns`, so a wave never splits
+    between two edges. Which edge it takes depends on where units stand at the end of
+    the enemy phase, so the telegraph cannot know it in advance.
 - **Telegraph.** The rout objective gains a line such as "Reinforcements 1/4 · T6: up to
-  3, top edge" (waves resolved, the next wave's turn, its most arrivals, its edge as the
-  board is drawn: an upright portrait board is turned a quarter). The compact mobile
-  header shows "Waves 1/4 · next T6". Fogged arrivals stay unmarked; the band still counts
-  them.
+  3, top or right edge". It gives the waves resolved, the next wave's turn and its most
+  arrivals. "Up to" is there because blocked tiles can shrink a wave. It then names the
+  wave's edge and, for a flank wave, the front it falls back to. Both are named as the
+  board is drawn: an upright portrait board is turned a quarter. A front wave names one
+  edge. The compact mobile header shows "Waves 1/4 · next T6". Fogged arrivals stay
+  unmarked; the band still counts them.
 - **Finite.** A rout map must stay winnable by a weak army, and an open stream capped by
   live units creates a stall equilibrium. The Eclipse and late pressure already price the
   time.

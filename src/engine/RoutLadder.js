@@ -144,6 +144,8 @@ export function routLadderStatus(reinforcements, { resolvedThroughTurn = 0 } = {
   const next = waves
     .filter((w) => int(w?.turn) > through)
     .sort((a, b) => int(a.turn) - int(b.turn))[0];
+  const front = reinforcements.ladder.front || null;
+  const edge = next?.edge || front;
   return {
     resolved,
     total: waves.length,
@@ -151,7 +153,10 @@ export function routLadderStatus(reinforcements, { resolvedThroughTurn = 0 } = {
       ? {
           turn: int(next.turn),
           max: Math.max(0, int(next.count?.[1], int(next.count?.[0]))),
-          edge: next.edge || reinforcements.ladder.front || null,
+          edge,
+          // A flank wave goes to the front when, as it arrives, no tile on its flank is
+          // free of the player-distance and NPC exclusions (unit positions then decide).
+          fallback: front && edge && edge !== front ? front : null,
         }
       : null,
   };
@@ -159,14 +164,17 @@ export function routLadderStatus(reinforcements, { resolvedThroughTurn = 0 } = {
 
 /**
  * The objective line that announces the ladder, e.g.
- * "Reinforcements 1/4 · T6: up to 2, top edge". `edgeLabel` turns a grid edge into the
- * edge the player sees (a portrait board is turned a quarter). "Up to": blocked tiles can
- * shrink a wave.
+ * "Reinforcements 1/4 · T6: up to 2, top or right edge". `edgeLabel` turns a grid edge
+ * into the edge the player sees (a portrait board is turned a quarter). "Up to": blocked
+ * tiles can shrink a wave. A flank wave names the front as well, because units standing
+ * near the flank at arrival time send the whole wave there.
  */
 export function routLadderObjectiveLine(status, edgeLabel = (edge) => edge) {
   if (!status) return null;
   const head = `Reinforcements ${status.resolved}/${status.total}`;
   if (!status.next) return `${head} · no more waves`;
-  const where = status.next.edge ? `, ${edgeLabel(status.next.edge)} edge` : '';
+  const { edge, fallback } = status.next;
+  const edges = [edge, fallback].filter(Boolean).map((e) => edgeLabel(e));
+  const where = edges.length ? `, ${edges.join(' or ')} edge` : '';
   return `${head} · T${status.next.turn}: up to ${status.next.max}${where}`;
 }

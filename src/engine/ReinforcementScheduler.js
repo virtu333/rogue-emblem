@@ -667,10 +667,11 @@ export function scheduleReinforcementsForTurn({
     });
   }
 
-  // The rout ladder: each wave comes from its one edge (wave 1 the front, later waves the
+  // The rout ladder: each wave comes from one edge (wave 1 the front, later waves the
   // flanks), its arrivals drawn along that edge, never within `minPlayerDistance` of a
-  // player unit or `npcDistance` of an NPC (the caravan included). An edge the exclusions
-  // empty falls back to the front; what the front cannot take is blocked.
+  // player unit or `npcDistance` of an NPC (the caravan included). A flank the exclusions
+  // leave empty as its wave begins sends the whole wave to the front instead; arrivals
+  // the wave's edge cannot take are blocked.
   if (dueLadderWaves.length > 0) {
     const ladder = reinforcements.ladder;
     const front = EDGE_SET.has(ladder.front) ? ladder.front : null;
@@ -706,14 +707,14 @@ export function scheduleReinforcementsForTurn({
       const requestedCount = rollWaveCount(due.wave, rng, 0);
       const levelBonus = Math.max(0, normalizeInteger(due.wave?.levelBonus, 0));
       const promoted = due.wave?.promoted === true;
+      // The whole wave comes from one edge: its own, or the front when the exclusions
+      // leave its own empty as the wave begins.
+      let usedEdge = edge;
+      if (usedEdge && front && usedEdge !== front && candidatesOn(usedEdge, promoted).length === 0)
+        usedEdge = front;
       let spawnedCount = 0;
       for (let i = 0; i < requestedCount; i++) {
-        let usedEdge = edge;
-        let pool = usedEdge ? candidatesOn(usedEdge, promoted) : [];
-        if (pool.length === 0 && front && usedEdge !== front) {
-          usedEdge = front;
-          pool = candidatesOn(front, promoted);
-        }
+        const pool = usedEdge ? candidatesOn(usedEdge, promoted) : [];
         if (pool.length === 0) {
           blockedSpawns++;
           continue;
