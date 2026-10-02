@@ -29,8 +29,9 @@ describe('Tier 2 weapon arts', () => {
       legend_piercing_charge: {
         line: { length: 1, strikes: 'each_landed' },
       },
+      // Its step became the Galeforce kill refresh (killMove), so no move here.
       legend_galeforce_assault: {
-        postCombatMove: [{ mode: 'advance', distance: 1 }],
+        noMove: true,
         setHp: [{ target: 'attacker', value: 5 }],
       },
       legend_storm_blade: {
@@ -58,6 +59,7 @@ describe('Tier 2 weapon arts', () => {
         expect(effects.afterCombatDebuff[0].stat).toBe(expectation.afterCombatDebuff[0].stat);
         expect(effects.afterCombatDebuff[0].amount).toBe(expectation.afterCombatDebuff[0].amount);
       }
+      if (expectation.noMove) expect(effects.postCombatMove).toEqual([]);
       if (expectation.postCombatMove) {
         expect(effects.postCombatMove).toHaveLength(1);
         expect(effects.postCombatMove[0].mode).toBe(expectation.postCombatMove[0].mode);

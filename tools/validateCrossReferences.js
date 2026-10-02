@@ -254,6 +254,17 @@ export function validateCrossReferences(datasets = null) {
       if (!weaponNames.has(id))
         errors.push(`${where}.legendaryWeaponIds references unknown weapon "${id}"`);
     }
+    // Galeforce (killMove): a refresh, player-only (the enemy turn has no refresh).
+    if (art?.effects?.killMove !== undefined) {
+      if (art.effects.killMove?.refresh !== true)
+        errors.push(`${where}.effects.killMove must be { "refresh": true }`);
+      const factions = toStringArray(art.allowedFactions);
+      if (factions.length !== 1 || factions[0] !== 'player')
+        errors.push(`${where} has a killMove: it must be player only`);
+      // The turn limit is what stops a refreshed unit from refreshing again.
+      if (!(Number.isInteger(art.perTurnLimit) && art.perTurnLimit >= 1))
+        errors.push(`${where} has a killMove: it needs a perTurnLimit, or refreshes chain`);
+    }
     const area = art?.area;
     const chosenCenter = art?.targeting === 'chosen_center';
     if (chosenCenter && !area) errors.push(`${where} is chosen_center but has no area`);

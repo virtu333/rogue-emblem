@@ -131,12 +131,13 @@ export function weaponArtEffectRows(art) {
       label: 'On miss',
       text: `you lose ${selfDamageOnMiss} HP per missed strike (cannot kill)`,
     });
-  const { killBuff } = getWeaponArtKillEffects(art);
+  const { killBuff, killMove } = getWeaponArtKillEffects(art);
   if (killBuff)
     rows.push({
       label: 'On kill',
       text: `you get ${statList(killBuff.stats)} for ${phases(killBuff.durationPhases)}`,
     });
+  if (killMove?.refresh) rows.push({ label: 'On kill', text: 'you can move and act again' });
   return rows;
 }
 

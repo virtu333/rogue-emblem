@@ -133,7 +133,6 @@ describe('a chosen-center strike through the harness', () => {
     const frail = unit('Frail', 'enemy', 4, 3, { RES: 6, HP: 10 });
     const sturdy = unit('Sturdy', 'enemy', 4, 4, { RES: 6 });
     const battle = battleWith([caster, frail, sturdy]);
-    battle.areaXpLive = true; // the 4a engine path (off in live battles until slice 4b)
     const granted = [];
     battle._grantScaledXP = (u, xp) => granted.push([u.name, xp]);
     battle.executeAreaStrike(caster, stormcall.id, { col: 4, row: 3 });
