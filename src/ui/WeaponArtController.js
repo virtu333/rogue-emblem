@@ -5,6 +5,7 @@ import { TOOLTIP_HOVER_DELAY_MS, TOOLTIP_LONG_PRESS_MS } from '../utils/tooltipT
 import {
   canUseWeaponArt,
   getEffectiveWeaponArtHpCost,
+  getWeaponArtTargeting,
   isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
 import { resolveWeaponArtIds } from './WeaponArtVisibility.js';
@@ -133,6 +134,11 @@ export class WeaponArtController {
           });
           if (!latest.ok) {
             this.showWeaponArtPicker(unit);
+            return;
+          }
+          // A chosen-center art aims a tile instead (AreaTargetingController).
+          if (getWeaponArtTargeting(art) === 'chosen_center') {
+            if (!scene._areaTargeting().begin(unit, weapon, art)) this.showWeaponArtPicker(unit);
             return;
           }
           const audio = scene.registry.get('audio');
@@ -402,6 +408,9 @@ export class WeaponArtController {
       (entry) => entry.canUse,
     );
     return usableChoices.some(({ weapon: sourceWeapon, art }) => {
+      // A chosen-center art (Stormcall) needs a center in reach, never a target.
+      if (getWeaponArtTargeting(art) === 'chosen_center')
+        return scene._areaTargeting().canBegin(unit, sourceWeapon, art);
       const targets = scene.findAttackTargets(unit, { weapon: sourceWeapon, weaponArt: art });
       return targets.length > 0;
     });
@@ -463,6 +472,8 @@ export class WeaponArtController {
         return 'Rank too low';
       case 'insufficient_hp':
         return 'Not enough HP';
+      case 'no_shots':
+        return 'Out of shots';
       case 'silenced':
         return 'Silenced';
       case 'per_turn_limit':

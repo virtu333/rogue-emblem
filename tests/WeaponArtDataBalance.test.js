@@ -52,7 +52,7 @@ describe('weapon arts data guards', () => {
 
     // All Mast arts are legendary-only and distribution remains stable.
     const mastArts = arts.filter((art) => art?.requiredRank === 'Mast');
-    expect(mastArts.length).toBe(15);
+    expect(mastArts.length).toBe(16);
     for (const art of mastArts) {
       expect(Array.isArray(art?.legendaryWeaponIds)).toBe(true);
       expect(art.legendaryWeaponIds.length).toBeGreaterThan(0);

@@ -68,6 +68,7 @@
       "name": "portrait",
       "description": "Portrait mode on upright phones: the turned board and upright rail, rotation round trips, the upright route map, drafts, lists and every other upright surface",
       "specs": [
+        "portrait-area-strike.spec.js",
         "portrait-battle.spec.js",
         "loom-portrait.spec.js",
         "portrait-cards.spec.js",
@@ -90,6 +91,7 @@
       "description": "Battle input on every device: attack flow, menus, touch, keyboard and gamepad, input isolation, camera",
       "shards": 3,
       "specs": [
+        "area-strike.spec.js",
         "attack-flow.spec.js",
         "battle-invariants.spec.js",
         "battle-sidebar.spec.js",

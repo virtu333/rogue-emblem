@@ -2,7 +2,8 @@
 // Pure, no Phaser. BattleScene and the headless harness call it in two steps:
 //
 // 1. spendCombatShots, right after the combat's HP is applied: each side that struck
-//    with a per-battle weapon spends one shot (Combat.settlePerBattleWeaponUses).
+//    with a per-battle weapon spends one shot (Combat.settlePerBattleWeaponUses). A
+//    chosen-center area art has no combat: spendAreaStrikeShot spends its one shot.
 // 2. swapSpentWeapons, once the combat's deaths are settled (after removeUnit, so kill
 //    credit, deeds, zombie remains and lord quips see the weapon that struck): a living
 //    unit whose equipped weapon ran dry equips the next weapon that can still strike,
@@ -12,7 +13,13 @@
 //    (Combat.nextStrikeWeapon: enemy gear is assigned, not equipped by rank). With
 //    nothing to swap to, the spent weapon stays equipped (no counter, no attack). The
 //    forecast and Danger read the equipped / next weapon, so they follow the swap.
-import { hasPerBattleUsesLeft, nextStrikeWeapon, settlePerBattleWeaponUses } from './Combat.js';
+import {
+  hasPerBattleUsesLeft,
+  isStaff,
+  nextStrikeWeapon,
+  settlePerBattleWeaponUses,
+  spendPerBattleUse,
+} from './Combat.js';
 import { equipWeapon, getCombatWeapons } from './UnitManager.js';
 
 /** The weapon a unit with a spent equipped weapon switches to, or null. */
@@ -31,6 +38,17 @@ export function replacementForSpentWeapon(unit) {
 /** Step 1: spend the shots a resolved combat used (mutates weapons). */
 export function spendCombatShots(attacker, defender, result) {
   return settlePerBattleWeaponUses(attacker, defender, result);
+}
+
+/**
+ * Step 1 for a chosen-center area art (Stormcall): the cast struck with `weapon`, so it
+ * spends one shot however many units the blast hits, or none. No combat result, no hit
+ * roll: the cast itself is the strike. Returns whether a shot was spent.
+ */
+export function spendAreaStrikeShot(weapon) {
+  if (!weapon?.perBattleUses || isStaff(weapon)) return false;
+  spendPerBattleUse(weapon);
+  return true;
 }
 
 /**

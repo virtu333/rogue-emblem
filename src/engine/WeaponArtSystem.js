@@ -1,5 +1,6 @@
 // WeaponArtSystem.js - Weapon Art gating, usage tracking, and combat mod helpers
 
+import { hasPerBattleUsesLeft } from './Combat.js';
 import { isRooted, isSilenced } from './StatusConditionSystem.js';
 import { setUnitHP } from './UnitHealth.js';
 
@@ -630,6 +631,9 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
   // below the owner/faction/legendary/weapon-type gates so arts those checks
   // hide from UI lists (HIDDEN_WEAPON_ART_REASONS) stay hidden while silenced.
   if (isSilenced(unit)) return { ok: false, reason: 'silenced' };
+  // A per-battle weapon with no shots left (Breachbolt) cannot strike, and
+  // canAttackWithWeapon refuses it for an attack the same way, so its arts are out too.
+  if (!hasPerBattleUsesLeft(weapon, unit)) return { ok: false, reason: 'no_shots' };
 
   const unitRank = getUnitRankForType(unit, weapon.type);
   if (!unitRank) return { ok: false, reason: 'no_proficiency' };

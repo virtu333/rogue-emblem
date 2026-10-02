@@ -1057,6 +1057,8 @@ export class UnitDetailOverlay {
         return 'Rank too low';
       case 'insufficient_hp':
         return 'Not enough HP';
+      case 'no_shots':
+        return 'Out of shots';
       case 'per_turn_limit':
         return 'Turn limit';
       case 'per_map_limit':
