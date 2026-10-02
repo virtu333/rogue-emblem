@@ -13,7 +13,9 @@
 // name alone: a mercenary can share a recruit's name (legacy saves), and a living
 // namesake must not hide the recruit's death.
 //
-// Pure: no RNG, no scene access beyond the arrays it is handed.
+// Record helpers draw no RNG and take no scene. Joining delegates uid and
+// blessing grants to the run manager; item-uid draws belong to settlement.
+import { isRecruitNpc } from './RecruitNpc.js';
 import { serializeUnit } from './RunManager.js';
 import { matchUnitsToSurvivors, unitUidOf } from './UnitIdentity.js';
 
@@ -132,4 +134,29 @@ export function reconcileRecruitIdentities(records, battleUnits = [], allocate) 
       if (unit) unit.unitUid = uid;
     }
   }
+}
+
+/** Validate roster identity before changing a recruit's faction or granting items. */
+export function validateRecruitJoin(npc, npcUnits, playerUnits) {
+  return (
+    isRecruitNpc(npc) &&
+    npc.faction === 'npc' &&
+    Array.isArray(npcUnits) &&
+    npcUnits.includes(npc) &&
+    Array.isArray(playerUnits) &&
+    !playerUnits.includes(npc)
+  );
+}
+
+/** Join an already validated adjacent recruit, independently of its ceremony. */
+export function settleRecruitJoin({ npc, npcUnits, playerUnits, battleRecruits, runManager }) {
+  if (!validateRecruitJoin(npc, npcUnits, playerUnits)) return null;
+  npcUnits.splice(npcUnits.indexOf(npc), 1);
+  npc.faction = 'player';
+  runManager?.grantRecruitBlessingConsumables?.(npc);
+  playerUnits.push(npc);
+  npc.hasMoved = false;
+  npc.hasActed = false;
+  runManager?.assignUnitUid?.(npc);
+  return { npc, battleRecruits: recordBattleRecruit(battleRecruits, npc) };
 }

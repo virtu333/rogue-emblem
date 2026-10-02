@@ -266,7 +266,10 @@ describe('countermeasures: Restore staff flow', () => {
     const ctx = {
       _battleSession: 1,
       battleParams: { xpMultiplier: 1 },
-      battleState: '',
+      battleState: 'UNIT_ACTION_MENU',
+      turnManager: { turnNumber: 1, currentPhase: 'player' },
+      npcUnits: [],
+      _captureSuspendCheckpoint: BattleScene.prototype._captureSuspendCheckpoint,
       registry: { get: () => ({ playSFX() {} }) },
       grid: {
         clearAttackHighlights() {},
@@ -293,7 +296,7 @@ describe('countermeasures: Restore staff flow', () => {
       _awaitSceneDelay: async () => {},
       _removeAllConditionIcons: vi.fn(),
       undimUnit: vi.fn(),
-      awardScaledXP: vi.fn(async () => {}),
+      awardScaledXP: vi.fn(() => XP_BASE_HEAL),
       finishUnitAction: vi.fn(),
       updateHPBar: vi.fn(),
       hideActionMenu() {},
@@ -381,13 +384,13 @@ describe('countermeasures: Restore staff flow', () => {
     applyCondition(target, 'root', 2, { recoveryChance: 0 });
     ctx.playerUnits = [healer, target];
 
-    await BattleScene.prototype.executeHeal.call(ctx, healer, target);
+    expect(await BattleScene.prototype.executeHeal.call(ctx, healer, target)).toBe(true);
 
     expect(getConditions(target)).toEqual([]);
     expect(ctx._removeAllConditionIcons).toHaveBeenCalledWith(target);
     expect(ctx.undimUnit).toHaveBeenCalledWith(target);
     expect(staff._usesSpent).toBe(1);
-    expect(ctx.awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL);
+    expect(ctx.awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL, { present: false });
     expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
     // Target HP untouched — Restore is cure-only
     expect(target.currentHP).toBe(target.stats.HP);
@@ -418,7 +421,7 @@ describe('countermeasures: Restore staff flow', () => {
     applyCondition(target, 'silence', 3);
     ctx.playerUnits = [healer, target];
 
-    await BattleScene.prototype.executeHeal.call(ctx, healer, target);
+    expect(await BattleScene.prototype.executeHeal.call(ctx, healer, target)).toBe(true);
 
     expect(staff._usesSpent).toBe(2);
     expect(healer.weapon).toBe(sword);
