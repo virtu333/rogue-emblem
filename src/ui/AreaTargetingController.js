@@ -462,6 +462,21 @@ export class AreaTargetingController {
     scene.battleState = 'COMBAT_RESOLVING';
     safeBattlePresentation('area highlights', () => scene.grid.clearAttackHighlights(), { scene });
     this.commitIntent(unit, weapon, art, center);
+    // As executeCombat: a failed intent save holds the strike under the save-retry
+    // prompt. Resolving first would let a refresh undo a blast that had already shown
+    // the player foes the fog hid.
+    const saveGate = scene._saveRetryGate?.(session);
+    if (saveGate) {
+      await saveGate;
+      if (
+        !isCurrentBattleSession(scene, session) ||
+        scene.battleState === 'BATTLE_END' ||
+        scene._fatalDecision ||
+        scene._fatalCapturePending ||
+        scene._defeatDecision
+      )
+        return false;
+    }
     scene.resetFortHealStreak?.(unit);
     scene._musicCtrl?.onCombat?.();
     try {

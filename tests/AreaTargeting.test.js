@@ -346,6 +346,38 @@ describe('the strike', () => {
     expect(getPerBattleRemainingUses(hUnits[0].weapon, hUnits[0])).toBe(2);
   });
 
+  it('a failed intent save holds the strike until the retry gate passes', async () => {
+    const ctx = battle([sage(0, 5), foe('Center', 4, 5)]);
+    ctx.scene.runManager = { battleInProgress: {} }; // a run battle saves its intent
+    ctx.scene._captureSuspendCheckpoint = () => false; // and the save fails
+    const caster = ctx.scene.playerUnits[0];
+    let release;
+    ctx.scene._saveRetryGate = () => new Promise((resolve) => (release = resolve));
+    const pending = ctx.area.execute(caster, caster.weapon, stormcall, { col: 4, row: 5 });
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    // Held: the intent is saved, nothing is spent or struck.
+    expect(ctx.scene._pendingCommittedAction?.kind).toBe('area_strike');
+    expect([caster.currentHP, caster.weapon._usesSpent ?? 0]).toEqual([32, 0]);
+    expect(ctx.scene.enemyUnits[0].currentHP).toBe(30);
+    release();
+    expect(await pending).toBe(true);
+    expect([caster.currentHP, caster.weapon._usesSpent]).toEqual([24, 1]);
+    expect(ctx.scene.enemyUnits[0].currentHP).toBe(11);
+  });
+
+  it('a battle decided while the gate held never strikes', async () => {
+    const ctx = battle([sage(0, 5), foe('Center', 4, 5)]);
+    const caster = ctx.scene.playerUnits[0];
+    let release;
+    ctx.scene._saveRetryGate = () => new Promise((resolve) => (release = resolve));
+    const pending = ctx.area.execute(caster, caster.weapon, stormcall, { col: 4, row: 5 });
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    ctx.scene._fatalDecision = { kind: 'test' };
+    release();
+    expect(await pending).toBe(false);
+    expect([caster.currentHP, ctx.scene.enemyUnits[0].currentHP]).toEqual([32, 30]);
+  });
+
   it('a strike from a finished battle session does nothing', async () => {
     const ctx = battle([sage(0, 5), foe('Center', 4, 5)]);
     const caster = ctx.scene.playerUnits[0];
