@@ -1,3 +1,4 @@
+import { MovementActionController } from '../ui/MovementActionController.js';
 import { cantoRuleFor } from '../engine/CantoRule.js';
 import {
   specialCharacterRefusalText,
@@ -190,7 +191,6 @@ import {
   ANTI_TURTLE_NO_PROGRESS_TURNS,
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
-  XP_BASE_DANCE,
   XP_SPECIAL_ENEMY_MULTIPLIER,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
@@ -275,7 +275,6 @@ import {
   resolveDialogueCast,
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
-import { recordBattleRecruit } from '../engine/BattleRecruits.js';
 import { armyAndNpcAllies, hasRecruitNpc, isRecruitNpc } from '../engine/RecruitNpc.js';
 import { isSameUnit } from '../engine/UnitIdentity.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
@@ -300,6 +299,8 @@ import { resetTransitionLocks, ensureSceneLoaded } from '../utils/sceneLoader.js
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
+import { settleAndPresent } from '../ui/BattleActionSettlement.js';
+import { validateConsumable, settleConsumable } from '../engine/ConsumableSettlement.js';
 import { battleSession, isCurrentBattleSession } from '../ui/BattleSession.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import { BattleCameraController } from '../utils/BattleCameraController.js';
@@ -337,7 +338,6 @@ import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
 import { CombatChoreography } from '../ui/CombatChoreography.js';
 import { CeremonyController } from '../ui/CeremonyController.js';
-import { growthCeremonies } from '../ui/GrowthCeremonyController.js';
 import { ReinforcementPresenter } from '../ui/ReinforcementPresenter.js';
 import { createStatusBadge, STATUS_BADGE_SPACING } from '../ui/StatusBadges.js';
 import { BossPresenceController } from '../ui/BossPresenceController.js';
@@ -518,6 +518,9 @@ export class BattleScene extends Phaser.Scene {
     this._transitionAfterBattlePromise = null;
     this._levelUpSfxKey = null;
     this._pendingLevelUpPopups = [];
+    this._pendingCureTarget = null;
+    this._pendingCureItem = null;
+    this._pendingCureUser = null;
     this._pendingActionCompletion = null;
     this._pendingCommittedAction = null;
     // Cancelled operations may never reach their finally blocks.
@@ -4176,6 +4179,7 @@ export class BattleScene extends Phaser.Scene {
     } else if (this.battleState === 'SELECTING_CURE_TARGET') {
       this.grid.clearAttackHighlights();
       this.healTargets = [];
+      this._pendingCureTarget = null;
       this._pendingCureItem = null;
       this._pendingCureUser = null;
       this.showActionMenu(this.selectedUnit);
@@ -5250,8 +5254,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleState === 'BATTLE_END') return;
     try {
       if (unit && !unit.hasActed) {
-        this.finishUnitAction(unit, { skipCanto: true, session: session });
-        return;
+        return this.finishUnitAction(unit, { skipCanto: true, session: session });
       }
     } catch (recoveryErr) {
       console.error(`[BattleScene] ${label} recovery error:`, recoveryErr);
@@ -5426,65 +5429,22 @@ export class BattleScene extends Phaser.Scene {
 
   executeShove(unit, target) {
     const session = battleSession(this);
-    this.commitVisionSnapshotIfPending();
-    this.hideActionMenu();
-    const pos = this.grid.gridToPixel(target.destCol, target.destRow);
-    const targets = target.ally.label
-      ? [target.ally.graphic, target.ally.label]
-      : [target.ally.graphic];
-    this.tweens.add({
-      targets,
-      x: pos.x,
-      y: pos.y,
-      duration: 80,
-      ease: 'Linear',
-      onComplete: () => {
-        observeHistoryAction(this, 'shoved', unit, target.ally);
-        target.ally.col = target.destCol;
-        target.ally.row = target.destRow;
-        this.updateUnitPosition(target.ally);
-        this.finishUnitAction(unit, { session: session });
-      },
-    });
+    return (this._movementActions ||= new MovementActionController(this)).executeMove(
+      'shove',
+      unit,
+      target,
+      { session },
+    );
   }
 
   executePull(unit, target) {
     const session = battleSession(this);
-    this.commitVisionSnapshotIfPending();
-    this.hideActionMenu();
-    // Move both simultaneously: unit retreats, ally moves to unit's old spot
-    const unitPos = this.grid.gridToPixel(target.retreatCol, target.retreatRow);
-    const allyPos = this.grid.gridToPixel(unit.col, unit.row);
-    const unitTargets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
-    const allyTargets = target.ally.label
-      ? [target.ally.graphic, target.ally.label]
-      : [target.ally.graphic];
-    const allyDestCol = unit.col;
-    const allyDestRow = unit.row;
-    this.tweens.add({
-      targets: unitTargets,
-      x: unitPos.x,
-      y: unitPos.y,
-      duration: 80,
-      ease: 'Linear',
-    });
-    this.tweens.add({
-      targets: allyTargets,
-      x: allyPos.x,
-      y: allyPos.y,
-      duration: 80,
-      ease: 'Linear',
-      onComplete: () => {
-        observeHistoryAction(this, 'pulled', unit, target.ally);
-        unit.col = target.retreatCol;
-        unit.row = target.retreatRow;
-        target.ally.col = allyDestCol;
-        target.ally.row = allyDestRow;
-        this.updateUnitPosition(unit);
-        this.updateUnitPosition(target.ally);
-        this.finishUnitAction(unit, { session: session });
-      },
-    });
+    return (this._movementActions ||= new MovementActionController(this)).executeMove(
+      'pull',
+      unit,
+      target,
+      { session },
+    );
   }
 
   startBreakTargetSelection(unit) {
@@ -5740,48 +5700,12 @@ export class BattleScene extends Phaser.Scene {
 
   executeSwap(unit, target) {
     const session = battleSession(this);
-    this.commitVisionSnapshotIfPending();
-    this.hideActionMenu();
-    const unitPos = this.grid.gridToPixel(target.ally.col, target.ally.row);
-    const allyPos = this.grid.gridToPixel(unit.col, unit.row);
-    const unitTargets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
-    const allyTargets = target.ally.label
-      ? [target.ally.graphic, target.ally.label]
-      : [target.ally.graphic];
-
-    // Store positions for swap
-    const unitOldCol = unit.col,
-      unitOldRow = unit.row;
-    const allyOldCol = target.ally.col,
-      allyOldRow = target.ally.row;
-
-    // Animate both units simultaneously
-    this.tweens.add({
-      targets: unitTargets,
-      x: unitPos.x,
-      y: unitPos.y,
-      duration: 120,
-      ease: 'Quad.easeInOut',
-    });
-    this.tweens.add({
-      targets: allyTargets,
-      x: allyPos.x,
-      y: allyPos.y,
-      duration: 120,
-      ease: 'Quad.easeInOut',
-      onComplete: () => {
-        observeHistoryAction(this, 'swapped with', unit, target.ally);
-        const allyWasActed = target.ally.hasActed;
-        unit.col = allyOldCol;
-        unit.row = allyOldRow;
-        target.ally.col = unitOldCol;
-        target.ally.row = unitOldRow;
-        this.updateUnitPosition(unit);
-        this.updateUnitPosition(target.ally);
-        this.finishUnitAction(unit, { session: session });
-        if (allyWasActed) this.dimUnit(target.ally);
-      },
-    });
+    return (this._movementActions ||= new MovementActionController(this)).executeMove(
+      'swap',
+      unit,
+      target,
+      { session },
+    );
   }
 
   startDanceTargetSelection(unit) {
@@ -5792,52 +5716,13 @@ export class BattleScene extends Phaser.Scene {
     this.grid.showAttackRange(tiles, UI_HEX.hpHigh, 0.4);
   }
 
-  async executeDance(unit, target) {
+  executeDance(unit, target) {
     const session = battleSession(this);
-    this.commitVisionSnapshotIfPending();
-    this.hideActionMenu();
-    const audio = this.registry.get('audio');
-    if (audio) audio.playSFX('sfx_heal');
-
-    // Visual feedback: brief sparkle/glow on target
-    const pos = this.grid.gridToPixel(target.ally.col, target.ally.row);
-    (this._combatFx ||= new CombatFxController(this)).playBuff(pos.x, pos.y);
-    const sparkle = this.add
-      .circle(pos.x, pos.y, 20, UI_HEX.hpHigh, this._reduceMotion() ? 0.4 : 0.6)
-      .setDepth(200);
-    if (this._reduceMotion()) {
-      this.time.delayedCall(120, () => sparkle.destroy());
-    } else {
-      this.tweens.add({
-        targets: sparkle,
-        alpha: 0,
-        scale: 1.5,
-        duration: 400,
-        ease: 'Quad.easeOut',
-        onComplete: () => sparkle.destroy(),
-      });
-    }
-
-    observeHistoryAction(this, 'danced for', unit, target.ally);
-    deedsFor(this).onRefresh(unit);
-    // Reset target's action state
-    target.ally.hasMoved = false;
-    target.ally._movementCommitted = false;
-    target.ally.hasActed = false;
-    this.undimUnit(target.ally);
-
-    try {
-      try {
-        await this.awardScaledXP(unit, XP_BASE_DANCE);
-        if (!isCurrentBattleSession(this, session)) return;
-      } finally {
-        // Dancer ends turn
-        if (isCurrentBattleSession(this, session))
-          this.finishUnitAction(unit, { session: session });
-      }
-    } catch (err) {
-      this._recoverUnitActionError(unit, 'dance', err, { session });
-    }
+    return (this._movementActions ||= new MovementActionController(this)).executeDance(
+      unit,
+      target,
+      { session },
+    );
   }
 
   startShoveTargetSelection(unit) {
@@ -6833,65 +6718,11 @@ export class BattleScene extends Phaser.Scene {
     return null;
   }
 
-  async executeTalk(lord) {
+  executeTalk(lord) {
     const session = battleSession(this);
-    const npc = this.findTalkTarget(lord);
-    if (!npc) {
-      this.finishUnitAction(lord, { session: session });
-      return;
-    }
-
-    this.battleState = 'COMBAT_RESOLVING'; // block input
-
-    try {
-      // Show recruitment dialogue -- lords get personal lines, others use class-based
-      const lordLines = npc.isLord ? this.gameData.dialogue?.lordRecruitLines?.[npc.name] : null;
-      const recruitLines = lordLines ||
-        this.gameData.dialogue?.recruitLines?.[npc.className] || ['Joined the army!'];
-      const line =
-        this.runManager?.pickNarrativeLine?.(
-          recruitLines,
-          `recruit:${npc.className}:${npc.isLord ? npc.name : 'class'}`,
-        ) || recruitLines[0];
-      // Joins your army: portrait, crest, the line (DOM ceremony); the
-      // dialogue box stays the canvas fallback. Shown before the join is
-      // applied, exactly where the line always played.
-      const growth = hasDOMHost() ? growthCeremonies(this) : null;
-      const carded = growth
-        ? await growth.showRecruit({ unit: npc, kind: 'recruit', line })
-        : false;
-      if (!isCurrentBattleSession(this, session)) return;
-      if (!carded) await this.dialogueOverlay.show(npc.name, line, this._getPortraitKey(npc));
-      if (!isCurrentBattleSession(this, session)) return;
-
-      // Remove from NPC array
-      const npcIdx = this.npcUnits.indexOf(npc);
-      if (npcIdx !== -1) this.npcUnits.splice(npcIdx, 1);
-      this.updateObjectiveText();
-
-      // Convert faction
-      npc.faction = 'player';
-      observeHistoryAction(this, 'recruited', lord, npc);
-
-      // Destroy and re-create graphics (correct sprite key + tint + HP bar color)
-      this.removeUnitGraphic(npc);
-      this.addUnitGraphic(npc);
-
-      // Add to player units
-      this.runManager?.grantRecruitBlessingConsumables?.(npc);
-      this.playerUnits.push(npc);
-      // Recruit can move + act this turn (FE convention); force fresh action flags.
-      npc.hasMoved = false;
-      npc.hasActed = false;
-      // Fallen-ally record should the recruit die before the battle ends. An NPC
-      // restored from a checkpoint older than unit identity gets its uid now.
-      this.runManager?.assignUnitUid?.(npc);
-      this._battleRecruits = recordBattleRecruit(this._battleRecruits, npc);
-
-      this.finishUnitAction(lord, { session: session });
-    } catch (err) {
-      this._recoverUnitActionError(lord, 'talk', err, { session });
-    }
+    return (this._movementActions ||= new MovementActionController(this)).executeTalk(lord, {
+      session,
+    });
   }
 
   // --- Heal flow (delegates to HealController) ---
@@ -6930,7 +6761,6 @@ export class BattleScene extends Phaser.Scene {
   _handleCureTargetClick(gp) {
     const target = (this.healTargets || []).find((t) => t.col === gp.col && t.row === gp.row);
     if (!target) return;
-    this.grid.clearAttackHighlights();
     this.healTargets = [];
     const item = this._pendingCureItem;
     const user = this._pendingCureUser;
@@ -7443,71 +7273,61 @@ export class BattleScene extends Phaser.Scene {
 
   async useConsumable(unit, item) {
     const session = battleSession(this);
-    this.hideActionMenu();
-    this.inEquipMenu = false;
-
-    if (item.effect === 'promote') {
-      const didPromote = await this.executePromotion(unit, item).catch((error) => {
+    if (!isCurrentBattleSession(this, session)) return false;
+    if (item?.effect === 'promote')
+      return this.executePromotion(unit, item).catch((error) => {
         reportAsyncError('promotion_failed', error, { unit: unit.name });
         return false;
       });
-      if (!isCurrentBattleSession(this, session)) return;
-      if (!didPromote) return;
-      return;
-    } else if (item.effect === 'reclass') {
-      this.showReclassClassPicker(unit, item);
-      return;
-    }
-
-    // Non-cancelable while the effect applies (same contract as the staff
-    // path's HEAL_RESOLVING): ESC during the awaited banner could otherwise
-    // re-enter handleCancel and undo the move of an already-consumed item.
-    this.battleState = 'HEAL_RESOLVING';
-    try {
-      this.commitVisionSnapshotIfPending();
-
-      if (item.effect === 'heal') {
-        const healed = healUnit(unit, item.value);
-        this.updateHPBar(unit);
-        await this.showBriefBanner(`${unit.name} healed ${healed} HP!`, UI_PALETTE.good);
-        if (!isCurrentBattleSession(this, session)) return;
-      } else if (item.effect === 'healFull') {
-        healUnitFully(unit);
-        this.updateHPBar(unit);
-        await this.showBriefBanner(`${unit.name} fully healed!`, UI_PALETTE.good);
-        if (!isCurrentBattleSession(this, session)) return;
-      } else if (item.effect === 'cure' || item.effect === 'cureHeal') {
-        // Use on the cure target (self or adjacent ally)
-        const target = this._pendingCureTarget || unit;
+    if (item?.effect === 'reclass') return this.showReclassClassPicker(unit, item);
+    const target = ['cure', 'cureHeal'].includes(item?.effect)
+      ? this._pendingCureTarget || unit
+      : unit;
+    return settleAndPresent(this, {
+      session,
+      unit,
+      label: 'consumable',
+      validate: () =>
+        (this.playerUnits || []).includes(unit) &&
+        unit.faction === 'player' &&
+        validateConsumable(unit, item, target) &&
+        (target === unit ||
+          ((this.playerUnits || []).includes(target) &&
+            gridDistance(unit.col, unit.row, target.col, target.row) <= 1)),
+      settle: () => {
         this._pendingCureTarget = null;
-        clearAllConditions(target);
-        this._removeAllConditionIcons(target);
-        // Un-dim only sleepers that can still act — keep the acted-grey on
-        // allies that already moved this phase (same pattern as Swap).
-        if (!target.hasActed) this.undimUnit(target);
-        if (item.effect === 'cureHeal' && item.value > 0) {
-          const healed = healUnit(target, item.value);
-          this.updateHPBar(target);
-          await this.showBriefBanner(
-            `${target.name} cured and healed ${healed} HP!`,
-            UI_PALETTE.good,
+        this.inEquipMenu = false;
+        const facts = settleConsumable(unit, item, target);
+        observeHistoryAction(this, 'used', unit, null, item.name);
+        return facts;
+      },
+      present: async (facts) => {
+        safeBattlePresentation('item menu', () => this.hideActionMenu(), { scene: this });
+        if (facts.cleared.length) {
+          safeBattlePresentation(
+            'item condition icons',
+            () => this._removeAllConditionIcons(target),
+            { scene: this },
           );
-          if (!isCurrentBattleSession(this, session)) return;
-        } else {
-          await this.showBriefBanner(`${target.name}'s conditions cured!`, UI_PALETTE.good);
-          if (!isCurrentBattleSession(this, session)) return;
+          if (!target.hasActed)
+            safeBattlePresentation('item undim', () => this.undimUnit(target), { scene: this });
         }
-      }
-
-      observeHistoryAction(this, 'used', unit, null, item.name);
-      // Decrement uses, remove if depleted
-      item.uses--;
-      if (item.uses <= 0) removeFromConsumables(unit, item);
-
-      this.finishUnitAction(unit, { session: session });
-    } catch (err) {
-      this._recoverUnitActionError(unit, 'consumable', err, { session });
-    }
+        safeBattlePresentation('item HP', () => this.updateHPBar(target), { scene: this });
+        const message =
+          facts.effect === 'healFull'
+            ? `${target.name} fully healed!`
+            : facts.effect === 'heal'
+              ? `${target.name} healed ${facts.healed} HP!`
+              : facts.effect === 'cureHeal'
+                ? `${target.name} cured and healed ${facts.healed} HP!`
+                : `${target.name}'s conditions cured!`;
+        await safeBattlePresentation(
+          'item banner',
+          () => this.showBriefBanner(message, UI_PALETTE.good),
+          { scene: this },
+        );
+      },
+    });
   }
 
   async showSkillLearnedBanner(unit, skillName) {
@@ -9132,7 +8952,7 @@ export class BattleScene extends Phaser.Scene {
     this._levelUpSfxKey = null;
   }
 
-  async awardScaledXP(playerUnit, baseXp) {
+  awardScaledXP(playerUnit, baseXp, { present = true } = {}) {
     const session = battleSession(this);
     const hasTurnInfo = typeof this.getCurrentTurnNumber === 'function';
     const turnsTaken = hasTurnInfo ? this.getCurrentTurnNumber() : 0;
@@ -9167,7 +8987,8 @@ export class BattleScene extends Phaser.Scene {
       // shutdown hook resolves the await) -- don't build popups on a dead scene.
       if (!isCurrentBattleSession(this, session)) break;
       // Update HP bar after level-up (maxHP may have increased)
-      safeBattlePresentation('level-up HP', () => this.updateHPBar(playerUnit), { scene: this });
+      if (present)
+        safeBattlePresentation('level-up HP', () => this.updateHPBar(playerUnit), { scene: this });
       const lvUp = cards[i];
       const blockedNames = levelUps[i].blockedIds.map(skillName);
       if (blockedNames.length) lvUp.blockedSkills = blockedNames;
@@ -9178,6 +8999,11 @@ export class BattleScene extends Phaser.Scene {
         learnedNames: levelUps[i].learnedIds.map(skillName),
       });
     }
+    if (present) BattleScene.prototype._presentScaledXP.call(this, playerUnit, xp);
+    return xp;
+  }
+
+  _presentScaledXP(playerUnit, xp) {
     safeBattlePresentation(
       'XP',
       () => {
@@ -9952,6 +9778,7 @@ export class BattleScene extends Phaser.Scene {
       const target = selectBallistaTarget(ballista, targetUnits);
       if (!target) continue;
       const result = resolveBallistaStrike(ballista, target);
+      if (result.didHit) damageUnit(target, result.damage);
       // Presentation of the resolved shot: the bolt flies before the number shows.
       await safeBattlePresentation(
         'ballista shot',
@@ -9964,7 +9791,6 @@ export class BattleScene extends Phaser.Scene {
       );
       if (!isCurrent()) return;
       if (result.didHit) {
-        damageUnit(target, result.damage);
         await safeBattlePresentation(
           'ballista hit',
           async () => {

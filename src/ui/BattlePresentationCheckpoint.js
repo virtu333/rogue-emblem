@@ -62,12 +62,12 @@ export function readCommittedAction(value) {
 
 // Presentation must never be the only thing preventing a resolved action from
 // reaching storage. Resume runs this small continuation, never combat or XP.
-export function captureResolvedAction(scene, continuation, { session } = {}) {
+export function captureResolvedAction(scene, continuation, { session, preserveRng = false } = {}) {
   if (!isCurrentBattleSession(scene, session)) return false;
   if (scene._fatalDecision || scene._fatalCapturePending || scene._defeatDecision) return;
   scene.commitVisionSnapshotIfPending?.();
   scene._pendingActionCompletion = continuation;
-  return scene._captureSuspendCheckpoint?.({ session }) === true;
+  return scene._captureSuspendCheckpoint?.({ session, preserveRng }) === true;
 }
 
 export async function presentQueuedLevelUps(scene, continuation = null, { session } = {}) {

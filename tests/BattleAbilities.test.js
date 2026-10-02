@@ -368,7 +368,7 @@ describe('Blink (SELECTING_ABILITY_TILE)', () => {
     expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { session: scene._battleSession });
   });
 
-  it('a blink error routes through _recoverUnitActionError instead of softlocking', async () => {
+  it('a blink rendering error still settles movement and consumes the action', async () => {
     const unit = makeUnit({ skills: ['blink'] });
     const scene = makeAbilityScene({ unit });
     scene.hideActionMenu = vi.fn();
@@ -379,13 +379,10 @@ describe('Blink (SELECTING_ABILITY_TILE)', () => {
 
     await scene._abilityController.executeBlink(unit, skillById.get('blink'), { col: 6, row: 5 });
 
-    expect(scene._recoverUnitActionError).toHaveBeenCalledWith(
-      unit,
-      'ability_blink',
-      expect.any(Error),
-      { session: scene._battleSession },
-    );
-    expect(scene.finishUnitAction).not.toHaveBeenCalled();
+    expect([unit.col, unit.row]).toEqual([6, 5]);
+    expect(unit._battleAbilityUsage.map.blink).toBe(1);
+    expect(scene._recoverUnitActionError).not.toHaveBeenCalled();
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, { session: scene._battleSession });
   });
 });
 
@@ -509,21 +506,23 @@ describe('ability execution blocks input while resolving', () => {
 
   it('executeSelfCentered enters HEAL_RESOLVING before its effect awaits', async () => {
     const unit = makeUnit({ name: 'Caster', skills: ['rally_cry_skill'] });
-    const scene = makeAbilityScene({ unit });
+    const ally = makeUnit({ name: 'Ally', col: 5, row: 6 });
+    const scene = makeAbilityScene({ unit, allies: [ally] });
     scene.hideActionMenu = vi.fn();
     wireInputGates(scene);
     let release;
     const pending = new Promise((resolve) => {
       release = resolve;
     });
-    scene._applyTier5AllyBuffStep = vi.fn(() => pending);
+    scene._playPostCombatBeats = vi.fn(() => pending);
 
     const done = scene._abilityController.executeSelfCentered(
       unit,
       skillById.get('rally_cry_skill'),
     );
 
-    expect(scene._applyTier5AllyBuffStep).toHaveBeenCalled();
+    expect(ally._battleTimedWeaponArtBuffs).toHaveLength(1);
+    expect(scene._playPostCombatBeats).toHaveBeenCalled();
     expect(scene.battleState).toBe('HEAL_RESOLVING');
     expect(scene.isCancelableBattleState()).toBe(false);
     expect(scene.canForceEndTurn()).toBe(false);

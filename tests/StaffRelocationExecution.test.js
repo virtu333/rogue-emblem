@@ -30,6 +30,9 @@ function makeSceneCtx() {
     registry: { get: () => ({ playSFX() {} }) },
     grid: {
       fogEnabled: false,
+      cols: 12,
+      rows: 12,
+      getMoveCost: () => 1,
       clearAttackHighlights: vi.fn(),
       showAttackRange: vi.fn(),
       showHealRange: vi.fn(),
@@ -39,17 +42,21 @@ function makeSceneCtx() {
     _awaitSceneTween: vi.fn(async () => {}),
     updateUnitPosition: vi.fn(),
     finishUnitAction: vi.fn(),
-    awardScaledXP: vi.fn(async () => {}),
+    awardScaledXP: vi.fn(() => {}),
     _recoverUnitActionError: vi.fn(),
     getUnitAt: () => null,
     hideActionMenu() {},
     gameData: { classes: [], skills: [] },
+    playerUnits: [],
+    npcUnits: [],
+    showActionMenu: vi.fn(),
   };
 }
 
 function makeHealer(staff, overrides = {}) {
   return {
     name: 'Bishop',
+    faction: 'player',
     col: 4,
     row: 4,
     weapon: staff,
@@ -82,6 +89,8 @@ describe('executeRelocate', () => {
     const healer = makeHealer(staff);
     const ally = makeAlly();
 
+    ctx.playerUnits = [healer, ally];
+    if (staff.relocate === 'warp') ally.row = healer.row + 1;
     await BattleScene.prototype.executeRelocate.call(ctx, healer, ally, { col: 5, row: 4 });
 
     expect(ally.col).toBe(5);
@@ -89,7 +98,7 @@ describe('executeRelocate', () => {
     expect(ctx.updateUnitPosition).toHaveBeenCalledWith(ally);
     expect(staff._usesSpent).toBe(1);
     expect(ctx.awardScaledXP).toHaveBeenCalledTimes(1);
-    expect(ctx.awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL);
+    expect(ctx.awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL, { present: false });
     expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
     expect(ctx._recoverUnitActionError).not.toHaveBeenCalled();
   });
@@ -100,6 +109,8 @@ describe('executeRelocate', () => {
     const healer = makeHealer(staff);
     const unacted = makeAlly({ hasActed: false });
 
+    ctx.playerUnits = [healer, unacted];
+    unacted.row = healer.row + 1;
     await BattleScene.prototype.executeRelocate.call(ctx, healer, unacted, { col: 8, row: 4 });
     expect(unacted.hasActed).toBe(false);
     expect(ctx.finishUnitAction).toHaveBeenCalledTimes(1);
@@ -109,6 +120,8 @@ describe('executeRelocate', () => {
     const staff2 = freshStaff('Warp Staff');
     const healer2 = makeHealer(staff2);
     const acted = makeAlly({ hasActed: true });
+    ctx2.playerUnits = [healer2, acted];
+    acted.row = healer2.row + 1;
     await BattleScene.prototype.executeRelocate.call(ctx2, healer2, acted, { col: 8, row: 4 });
     expect(acted.hasActed).toBe(true);
     expect(ctx2.finishUnitAction).toHaveBeenCalledWith(healer2, { session: ctx2._battleSession });
@@ -206,6 +219,8 @@ describe('executeRelocate', () => {
     });
     ally.graphic = {}; // so the fade path runs
 
+    ctx.playerUnits = [healer, ally];
+    if (staff.relocate === 'warp') ally.row = healer.row + 1;
     await BattleScene.prototype.executeRelocate.call(ctx, healer, ally, { col: 5, row: 4 });
 
     expect(stateAtFade).toBe('HEAL_RESOLVING');
@@ -228,6 +243,8 @@ describe('executeRelocate', () => {
     });
     const ally = makeAlly();
 
+    ctx.playerUnits = [healer, ally];
+    if (staff.relocate === 'warp') ally.row = healer.row + 1;
     await BattleScene.prototype.executeRelocate.call(ctx, healer, ally, { col: 5, row: 4 });
 
     expect(staff._usesSpent).toBe(1);
@@ -247,6 +264,8 @@ describe('executeRelocate', () => {
     });
     const ally = makeAlly();
 
+    ctx.playerUnits = [healer, ally];
+    if (staff.relocate === 'warp') ally.row = healer.row + 1;
     await BattleScene.prototype.executeRelocate.call(ctx, healer, ally, { col: 5, row: 4 });
 
     expect(staff._usesSpent).toBe(1);
@@ -255,18 +274,19 @@ describe('executeRelocate', () => {
 
   it('still calls finishUnitAction if awardScaledXP rejects, then routes to error recovery', async () => {
     const ctx = makeSceneCtx();
-    ctx.awardScaledXP = vi.fn(async () => {
+    ctx.awardScaledXP = vi.fn(() => {
       throw new Error('popup failed');
     });
     const staff = freshStaff('Rescue Staff');
     const healer = makeHealer(staff);
     const ally = makeAlly();
 
+    ctx.playerUnits = [healer, ally];
     await BattleScene.prototype.executeRelocate
       .call(ctx, healer, ally, { col: 5, row: 4 })
       .catch(() => {});
 
-    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
+    expect(ctx.finishUnitAction).not.toHaveBeenCalled();
     expect(ctx._recoverUnitActionError).toHaveBeenCalledWith(
       healer,
       'staffRelocate',
@@ -284,19 +304,19 @@ describe('executeRelocate', () => {
     const healer = makeHealer(staff);
     const ally = makeAlly({ graphic: {} });
 
+    ctx.playerUnits = [healer, ally];
+    if (staff.relocate === 'warp') ally.row = healer.row + 1;
     await BattleScene.prototype.executeRelocate.call(ctx, healer, ally, { col: 5, row: 4 });
 
-    expect(ctx._recoverUnitActionError).toHaveBeenCalledWith(
-      healer,
-      'staffRelocate',
-      expect.any(Error),
-      { session: ctx._battleSession },
-    );
+    expect(ctx._recoverUnitActionError).not.toHaveBeenCalled();
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
+    expect(staff._usesSpent).toBe(1);
   });
 
   it('leaves the fog to the action completion (finishUnitAction), never before it', async () => {
     const ctx = makeSceneCtx();
     ctx.grid.fogEnabled = true;
+    ctx.grid.isVisible = () => true;
     ctx.grid.updateFogOfWar = vi.fn();
     ctx.updateEnemyVisibility = vi.fn();
     ctx.playerUnits = [];
@@ -311,6 +331,8 @@ describe('executeRelocate', () => {
       return finish?.(...args);
     });
 
+    ctx.playerUnits = [healer, ally];
+    if (staff.relocate === 'warp') ally.row = healer.row + 1;
     await BattleScene.prototype.executeRelocate.call(ctx, healer, ally, { col: 8, row: 4 });
 
     expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });

@@ -250,7 +250,9 @@ describe('originating battle session ownership', () => {
     scene.resetFortHealStreak = () => {};
     scene.hideActionMenu = () => {};
     scene.updateHPBar = () => {};
+    scene._presentScaledXP = () => {};
     scene._getCombatFx = () => ({});
+    scene.awardScaledXP = () => 20;
     scene.finishUnitAction = vi.fn();
     scene._recoverUnitActionError = vi.fn();
     scene.animateHeal = () =>
@@ -260,12 +262,26 @@ describe('originating battle session ownership', () => {
     let reject;
     const healer = {
       name: 'Old healer',
-      stats: { MAG: 5 },
-      weapon: { type: 'Staff', name: 'Heal', healBase: 5 },
+      stats: { MAG: 5, HP: 20 },
+      currentHP: 20,
+      col: 1,
+      row: 1,
+      proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+      weapon: {
+        type: 'Staff',
+        name: 'Heal',
+        healBase: 5,
+        rankRequired: 'Prof',
+        range: '1',
+        uses: 3,
+      },
       inventory: [],
       faction: 'player',
     };
-    const target = { name: 'Old target', stats: { HP: 20 }, currentHP: 10 };
+    const target = { name: 'Old target', stats: { HP: 20 }, currentHP: 10, col: 1, row: 2 };
+    healer.inventory = [healer.weapon];
+    scene.playerUnits = [healer, target];
+    scene.npcUnits = [];
     const pending = controller.executeHeal(healer, target);
     expect(reject).toBeTypeOf('function');
     restart(scene);
@@ -332,14 +348,41 @@ describe('originating battle session ownership', () => {
     scene.finishUnitAction = vi.fn();
     scene._recoverUnitActionError = vi.fn();
     let reject;
-    controller._applyRally = () =>
+    const skill = {
+      id: 'rally',
+      trigger: 'action',
+      actionAbility: { kind: 'ally_buff', radius: 2, stats: { STR: 2 }, perMapLimit: 1 },
+    };
+    const actor = {
+      name: 'Old actor',
+      faction: 'player',
+      currentHP: 20,
+      col: 0,
+      row: 0,
+      skills: ['rally'],
+    };
+    const ally = {
+      name: 'Old ally',
+      faction: 'player',
+      currentHP: 20,
+      col: 1,
+      row: 0,
+      stats: { STR: 5 },
+    };
+    scene.playerUnits = [actor, ally];
+    scene.enemyUnits = [];
+    scene.npcUnits = [];
+    scene.gameData = { skills: [skill] };
+    scene.turnManager = { currentPhase: 'player', turnNumber: 1 };
+    scene.grid = { clearAttackHighlights() {}, gridToPixel: () => ({ x: 0, y: 0 }) };
+    scene._combatFx = { playBuff() {} };
+    scene._playPostCombatBeats = () =>
       new Promise((_r, j) => {
         reject = j;
       });
-    const pending = controller.executeSelfCentered(
-      { name: 'Old actor' },
-      { id: 'rally', actionAbility: { kind: 'ally_buff' } },
-    );
+    const pending = controller.executeSelfCentered(actor, skill);
+    expect(ally.stats.STR).toBe(7);
+    expect(reject).toBeTypeOf('function');
     restart(scene);
     reject(new Error('old effect closed'));
     await pending;
@@ -806,7 +849,7 @@ describe('previous-session continuations leave replacement state intact', () => 
     expect(scene.removeUnitGraphic).not.toHaveBeenCalled();
     expect(scene.updateObjectiveText).not.toHaveBeenCalled();
   });
-  it('an old ballista shot cannot apply damage after a synchronous restart', async () => {
+  it('a settled old ballista shot cannot mutate the replacement battle', async () => {
     const { scene } = liveCheckpointHost();
     const target = {
       name: 'Restored target',
@@ -833,7 +876,7 @@ describe('previous-session continuations leave replacement state intact', () => 
       scene.playerUnits = [target];
       finishShot();
       await pending;
-      expect(target.currentHP).toBe(20);
+      expect(target.currentHP).toBe(10);
       expect(scene.updateHPBar).not.toHaveBeenCalled();
     } finally {
       rng.mockRestore();

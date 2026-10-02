@@ -584,11 +584,15 @@ describe('Measured Step scene completion', () => {
 
   it('a noncombat item action retains Gaspar remaining movement', async () => {
     const { scene, unit } = movementScene(['measured_step'], 'old_knight');
-    const item = { name: 'Energy Drop', effect: 'statBoost', stat: 'STR', value: 2, uses: 1 };
+    const item = { name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 };
+    unit.currentHP -= 10;
+    const hpBefore = unit.currentHP;
     unit.consumables = [item];
     scene.showBriefBanner = vi.fn(async () => {});
     scene.updateUnitPosition = vi.fn();
     await scene.useConsumable(unit, item);
+    expect(unit.currentHP).toBe(hpBefore + 10);
+    expect(item.uses).toBe(2);
     expect(scene.battleState).toBe('CANTO_MOVING');
     expect(scene.grid.getMovementRange).toHaveBeenCalledWith(
       unit.col,
