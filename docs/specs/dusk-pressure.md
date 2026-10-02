@@ -381,6 +381,9 @@ Open: confirm Dusk inflation 2, with 1 held in reserve.
   the map through the run's saved `difficultyModifiers`. A run saved before PR 2 keeps
   its old pacing for the rest of the run: no ladder, inflation 3 and par-raising waves.
   The same holds for its locked maps.
+- **Caravan maps.** The harness now fields the Merchant Caravan as an NPC and steps it
+  each enemy phase through `CaravanSystem.advanceCaravan`, which the scene's
+  `CaravanController` also uses. So the ladder's NPC exclusion holds in sims too.
 - **Zero-reward arrivals.** A kill still counts toward deeds but skips the level gap and
   the terrain/weapon tallies. Surviving one earns no XP; surviving any other keeps the
   1 XP minimum. These rules are future-proofing: nothing in the shipped data pays 0

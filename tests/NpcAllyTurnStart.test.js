@@ -376,6 +376,18 @@ describe('headless harness mirror', () => {
     expect(caravan.currentHP).toBe(13);
 
     b.grid.mapLayout[caravan.row][caravan.col] = TERRAIN.LavaCrack;
+    // The harness steps the caravan at the start of the enemy phase, as the scene does.
+    // Wall it in (ahead and to both sides of its eastward exit) so it holds still beside
+    // the healer.
+    caravan.caravanExit = { dc: 1, dr: 0 };
+    for (const [dc, dr] of [
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ]) {
+      const row = b.grid.mapLayout[caravan.row + dr];
+      if (row && caravan.col + dc < row.length) row[caravan.col + dc] = TERRAIN.Wall;
+    }
     b.aiController.processEnemyPhase = async () => {}; // no AI turn: only the hazards
     b.turnManager.currentPhase = 'enemy';
     await b._processEnemyPhase();

@@ -27,6 +27,8 @@ import {
 } from '../src/engine/RoutLadder.js';
 import { calculatePar } from '../src/engine/TurnBonusCalculator.js';
 import { buildReinforcementSpawnSpec } from '../src/engine/ReinforcementSpawns.js';
+import { createCaravanUnit } from '../src/engine/CaravanSystem.js';
+import { CaravanController } from '../src/ui/CaravanController.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { HeadlessBattle, HEADLESS_STATES } from './harness/HeadlessBattle.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
@@ -649,6 +651,72 @@ describe('the scene and the harness resolve arrivals with the same code', () => 
         );
       }
     }
+  });
+});
+
+describe('caravan maps: the harness fields the merchant as the scene does', () => {
+  function caravanBattle() {
+    for (let seed = 1; seed <= 60; seed++) {
+      const battle = harness({ act: 'act2', hasCaravan: true, ...pacing('dusk') }, seed);
+      if (battle.battleConfig.caravanSpawn) return battle;
+    }
+    throw new Error('no seed placed a caravan');
+  }
+
+  it('spawns the caravan into the NPCs, as CaravanController.spawnIfConfigured', () => {
+    const battle = caravanBattle();
+    const caravans = battle.npcUnits.filter((u) => u.isCaravan);
+    expect(caravans).toHaveLength(1);
+    expect(caravans[0]).toMatchObject(createCaravanUnit('act2', battle.battleConfig.caravanSpawn));
+  });
+
+  it('steps and exits on the same turns as CaravanController.stepTurn', () => {
+    const battle = caravanBattle();
+    const scene = {
+      _caravanExited: false,
+      playerUnits: structuredClone(battle.playerUnits),
+      enemyUnits: structuredClone(battle.enemyUnits),
+      npcUnits: structuredClone(battle.npcUnits),
+      grid: { ...battle.grid, gridToPixel: () => ({ x: 0, y: 0 }) },
+      removeUnitGraphic() {},
+    };
+    const ctrl = new CaravanController(scene);
+    const where = (units) => units.filter((u) => u.isCaravan).map((u) => [u.col, u.row]);
+    let exitedOn = null;
+    for (let turn = 1; turn <= 30 && exitedOn == null; turn++) {
+      ctrl.stepTurn();
+      battle._stepCaravan();
+      expect(where(battle.npcUnits), `turn ${turn}`).toEqual(where(scene.npcUnits));
+      expect(battle._caravanExited, `turn ${turn}`).toBe(scene._caravanExited);
+      if (battle._caravanExited) exitedOn = turn;
+    }
+    expect(exitedOn).not.toBeNull();
+  });
+
+  it('ladder arrivals keep off the tiles next to the caravan', () => {
+    let checked = 0;
+    for (let seed = 1; seed <= 60 && checked < 4; seed++) {
+      const battle = harness({ act: 'act2', hasCaravan: true, ...pacing('dusk') }, seed);
+      const caravan = battle.npcUnits.find((u) => u.isCaravan);
+      if (!caravan) continue;
+      // Park the caravan on the front edge, mid-way, where wave 1 lands.
+      const { front } = battle.battleConfig.reinforcements.ladder;
+      const { cols, rows } = battle.battleConfig;
+      const tiles = [];
+      for (let i = 0; i < (front === 'left' || front === 'right' ? rows : cols); i++)
+        tiles.push(
+          front === 'left' ? { col: 0, row: i } : front === 'right' ? { col: cols - 1, row: i }
+          : front === 'top' ? { col: i, row: 0 } : { col: i, row: rows - 1 }, // prettier-ignore
+        );
+      const free = tiles.filter((t) => !battle.getUnitAt(t.col, t.row));
+      Object.assign(caravan, free[Math.floor(free.length / 2)]);
+      const firstTurn = battle.battleConfig.reinforcements.ladder.waves[0].turn;
+      const { spawns } = battle._resolveReinforcementsForTurn(firstTurn);
+      for (const s of spawns)
+        expect(Math.abs(s.col - caravan.col) + Math.abs(s.row - caravan.row)).toBeGreaterThan(1);
+      checked++;
+    }
+    expect(checked).toBe(4);
   });
 });
 

@@ -11,6 +11,7 @@ import {
   recordKill,
 } from '../../src/engine/DeedSystem.js';
 import { AIController } from '../../src/engine/AIController.js';
+import { advanceCaravan, createCaravanUnit } from '../../src/engine/CaravanSystem.js';
 import { generateBattle, reconcileRecruitSpawnTile } from '../../src/engine/MapGenerator.js';
 import { parRaiseForArrivals } from '../../src/engine/ReinforcementScheduler.js';
 import {
@@ -325,6 +326,12 @@ export class HeadlessBattle {
         npc._phoenixBroochUsed = false;
         this.npcUnits.push(npc);
       }
+    }
+
+    // Merchant Caravan, as CaravanController.spawnIfConfigured: an NPC from the config.
+    this._caravanExited = false;
+    if (bc.caravanSpawn) {
+      this.npcUnits.push(createCaravanUnit(this.battleParams?.act || 'act1', bc.caravanSpawn));
     }
 
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
@@ -1998,6 +2005,9 @@ export class HeadlessBattle {
     this._reinforcementsPendingThisTurn = true;
     try {
       this._processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
+      // Then the caravan steps toward its exit, before the AI acts (as BattleScene: the
+      // player phase's hazards burn first, startEnemyPhase steps it).
+      this._stepCaravan();
       this._processTurnStartEffects(this.enemyUnits);
       this._processZombieRevival();
       if (this.battleState === HEADLESS_STATES.BATTLE_END) return;
@@ -2049,6 +2059,23 @@ export class HeadlessBattle {
     } finally {
       this._reinforcementsPendingThisTurn = false;
     }
+  }
+
+  /** As CaravanController.stepTurn (engine/CaravanSystem.advanceCaravan), minus drawing. */
+  _stepCaravan() {
+    if (this._caravanExited) return;
+    const unit = this.npcUnits.find((u) => u.isCaravan && u.currentHP > 0);
+    if (!unit) return;
+    const { exited } = advanceCaravan(unit, {
+      units: [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits],
+      mapLayout: this.grid.mapLayout,
+      cols: this.grid.cols,
+      rows: this.grid.rows,
+      terrainData: this.grid.terrainData,
+    });
+    if (!exited) return;
+    this._caravanExited = true;
+    this.npcUnits.splice(this.npcUnits.indexOf(unit), 1);
   }
 
   _createEnemyPhaseAiStats() {
