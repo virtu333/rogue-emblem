@@ -1,6 +1,6 @@
 // WeaponArtSystem.js - Weapon Art gating, usage tracking, and combat mod helpers
 
-import { isSilenced } from './StatusConditionSystem.js';
+import { isRooted, isSilenced } from './StatusConditionSystem.js';
 import { setUnitHP } from './UnitHealth.js';
 
 const RANK_ORDER = { Prof: 0, Mast: 1 };
@@ -394,14 +394,31 @@ export function getWeaponArtMissEffects(art) {
   return { selfDamageOnMiss: selfDamageOnMiss > 0 ? selfDamageOnMiss : null };
 }
 
-/** Timed self-buff granted when the art user's combat kills the opponent (Annihilate). */
+/**
+ * What the art does when its user's combat kills the opponent: a timed self-buff
+ * (Annihilate) and a kill-move (Oathstorm's Galeforce: `{ refresh: true }`, the user
+ * may move and act again).
+ */
 export function getWeaponArtKillEffects(art) {
-  const raw = art?.effects?.killBuff;
-  if (!raw || typeof raw !== 'object') return { killBuff: null };
+  const killMove = art?.effects?.killMove?.refresh === true ? { refresh: true } : null;
+  return { killBuff: normalizeKillBuff(art?.effects?.killBuff), killMove };
+}
+
+/**
+ * Galeforce (docs/specs/aoe-weapon-arts.md §4): the art's kill-move refreshes its user
+ * when the primary fell and the user stands, unrooted.
+ */
+export function killMoveRefreshesActor({ art, attacker, primary }) {
+  if (!getWeaponArtKillEffects(art).killMove?.refresh) return false;
+  if (!attacker || !(attacker.currentHP > 0) || isRooted(attacker)) return false;
+  return Boolean(primary) && !(primary.currentHP > 0);
+}
+
+function normalizeKillBuff(raw) {
+  if (!raw || typeof raw !== 'object') return null;
   const durationPhases = Math.max(1, Math.trunc(toFiniteNumber(raw.durationPhases, 1)));
   const rawStats = raw.stats;
-  if (!rawStats || typeof rawStats !== 'object' || Array.isArray(rawStats))
-    return { killBuff: null };
+  if (!rawStats || typeof rawStats !== 'object' || Array.isArray(rawStats)) return null;
   const stats = {};
   for (const [rawStat, rawValue] of Object.entries(rawStats)) {
     const stat = toNonEmptyString(rawStat)?.toUpperCase();
@@ -410,8 +427,8 @@ export function getWeaponArtKillEffects(art) {
     if (value === 0) continue;
     stats[stat] = value;
   }
-  if (Object.keys(stats).length <= 0) return { killBuff: null };
-  return { killBuff: { durationPhases, stats } };
+  if (Object.keys(stats).length <= 0) return null;
+  return { durationPhases, stats };
 }
 
 export function getWeaponArtTier5Effects(art) {

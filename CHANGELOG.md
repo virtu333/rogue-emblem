@@ -18,6 +18,7 @@
   - **Benediction** (Light, Silver, 6 HP, 3 per map, player only): on a hit, allies next to you heal half the damage you dealt.
   - **Battering Ram** (Lance/Axe, Silver, 6 HP, 2 per map, player only): pushes the target up to two tiles. If something stops it, the target takes 5, and so does a foe it crashes into.
 - **Previews before you confirm.** An area art tints the tiles it covers and rings each foe you can see in reach. The forecast lists each foe's damage, KOs and heals, and the board shows them as numbers. A foe hidden in fog is never shown, though it still takes the blow.
+- **Galeforce Assault (Oathaxe): a kill lets its user move and act again.** Once a turn, like the art itself. Its old one-tile step after combat is gone; the HP cut to 5 and the STR buff for allies stay. Commander's Gambit takes precedence when both fire. A saved battle resumes with the refresh intact.
 - **XP for every foe an area art hits.** Besides the target's usual XP, each other foe the area hits pays 0.35 of the combat XP for that foe, or 0.6 for a kill, at most 75 base per action, before the battle's XP multipliers. Elite and boss victims count their own bonus, and Mentor's Band shares it. Battles and the sim harness pay it together (`AREA_XP_LIVE`).
 - Spec: `docs/specs/aoe-weapon-arts.md`.
 

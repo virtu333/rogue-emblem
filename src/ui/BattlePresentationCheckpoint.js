@@ -106,12 +106,15 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
   if (scene.checkBattleEnd?.()) return;
   const actor = findBattleEntity(scene, continuation, ['playerUnits']);
   const unit = actor?.currentHP <= 0 ? null : actor;
-  if (
+  const gambit =
     continuation.kind === 'combat' &&
     unit &&
     continuation.gambitTriggered &&
-    !unit._gambitUsedThisTurn
-  ) {
+    !unit._gambitUsedThisTurn;
+  // Galeforce (a kill-move art): the actor alone moves and acts again. Commander's
+  // Gambit, which refreshes the actor too, wins when both fire (it is checked first).
+  const galeforce = continuation.kind === 'combat' && unit && continuation.refreshActor === true;
+  if (gambit) {
     unit._gambitUsedThisTurn = true;
     for (const ally of scene.playerUnits) {
       if (
@@ -126,6 +129,13 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
       ally._movementSpent = 0;
       safeBattlePresentation('Gambit tint', () => ally.graphic?.clearTint?.(), { scene });
     }
+  } else if (galeforce) {
+    observeHistoryAction(scene, 'refreshed', unit, unit, 'Galeforce');
+    unit.hasActed = false;
+    unit.hasMoved = false;
+    unit._movementCommitted = false;
+    unit._movementSpent = 0;
+    safeBattlePresentation('Galeforce tint', () => unit.graphic?.clearTint?.(), { scene });
   } else if (unit) {
     scene.finishUnitAction(unit, {
       session,
@@ -143,11 +153,14 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
   scene.attackTargets = [];
   scene.commitVisionSnapshotIfPending?.();
   scene._timelineBoundary = 'player_action';
-  if (continuation.gambitTriggered)
+  // (As before Galeforce: a Gambit trigger is noted even when its actor fell.)
+  if (continuation.gambitTriggered && (gambit || !galeforce))
     scene._timelineFacts = [
       ...(scene._timelineFacts || []),
       "Commander's Gambit refreshed nearby allies.",
     ];
+  else if (galeforce)
+    scene._timelineFacts = [...(scene._timelineFacts || []), `${unit.name} can act again.`];
   revealSettledVision(scene);
   scene._captureSuspendCheckpoint?.({ session });
   // The actor may have fallen before resume, or Gambit may have left no one

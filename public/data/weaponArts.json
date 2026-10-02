@@ -1826,12 +1826,8 @@
         "Oathaxe"
       ],
       "effects": {
+        "killMove": { "refresh": true },
         "afterCombat": [
-          {
-            "type": "move",
-            "mode": "advance",
-            "distance": 1
-          },
           {
             "type": "set_hp",
             "target": "attacker",

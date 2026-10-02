@@ -1,6 +1,6 @@
 // The resolved-action continuation: what a battle still owes after an action
 // resolved but before its follow-ups ran (level-ups, Canto, Commander's
-// Gambit). It is saved in suspend checkpoints and rewind snapshots, so its
+// Gambit, a Galeforce refresh). It is saved in suspend checkpoints and rewind snapshots, so its
 // fields are untrusted. One definition of the shape serves both readers:
 // the snapshot validator (a malformed one rejects the whole state) and the
 // resume path (a malformed one is skipped). Pure, no Phaser.
@@ -15,7 +15,7 @@ export const SAVED_TEXT_MAX = 8192;
 /**
  * A normalized copy of a saved continuation, or null when it is malformed.
  * @param {unknown} value
- * @returns {{kind:'combat'|'finish', unitName:string, unitId?:string, skipCanto?:boolean, gambitTriggered?:boolean} | null}
+ * @returns {{kind:'combat'|'finish', unitName:string, unitId?:string, skipCanto?:boolean, gambitTriggered?:boolean, refreshActor?:boolean} | null}
  */
 export function readActionContinuation(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -30,11 +30,13 @@ export function readActionContinuation(value) {
   if (value.skipCanto !== undefined && typeof value.skipCanto !== 'boolean') return null;
   if (value.gambitTriggered !== undefined && typeof value.gambitTriggered !== 'boolean')
     return null;
+  if (value.refreshActor !== undefined && typeof value.refreshActor !== 'boolean') return null;
   return {
     kind: value.kind,
     unitName: value.unitName,
     ...(value.unitId ? { unitId: value.unitId } : {}),
     ...(value.skipCanto !== undefined ? { skipCanto: value.skipCanto } : {}),
     ...(value.gambitTriggered !== undefined ? { gambitTriggered: value.gambitTriggered } : {}),
+    ...(value.refreshActor !== undefined ? { refreshActor: value.refreshActor } : {}),
   };
 }

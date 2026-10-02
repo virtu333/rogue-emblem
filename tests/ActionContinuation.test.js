@@ -71,6 +71,12 @@ const CASES = [
   ['u0 id', { kind: 'combat', unitName: 'Bram', unitId: 'u0' }, null],
   ['string flag', { kind: 'finish', unitName: 'Bram', skipCanto: 'false' }, null],
   ['string gambit', { kind: 'combat', unitName: 'Bram', gambitTriggered: 1 }, null],
+  [
+    'Galeforce refresh',
+    { kind: 'combat', unitName: 'Bram', refreshActor: true },
+    { kind: 'combat', unitName: 'Bram', refreshActor: true },
+  ],
+  ['string refresh', { kind: 'combat', unitName: 'Bram', refreshActor: 'yes' }, null],
   ['array', [{ kind: 'combat', unitName: 'Bram' }], null],
   ['false', false, null],
 ];

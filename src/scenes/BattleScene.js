@@ -30,7 +30,7 @@ import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
-import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
+import { getWeaponArtIds, killMoveRefreshesActor } from '../engine/WeaponArtSystem.js';
 import {
   canInspectUnit,
   seenTileOccupant,
@@ -8568,7 +8568,7 @@ export class BattleScene extends Phaser.Scene {
         isPlayerInitiator: true,
         equipArtWeapon: true,
       });
-      const { result } = await this._runCombatResolution(attacker, defender, ctx);
+      const { result, selectedArt } = await this._runCombatResolution(attacker, defender, ctx);
       if (!isCurrentBattleSession(this, session)) return;
       // The outcome is applied to live state now; every checkpoint from here
       // on reflects it, so none may carry the pre-roll intent.
@@ -8663,6 +8663,10 @@ export class BattleScene extends Phaser.Scene {
         gambitTriggered: result.events.some((event) =>
           event.skillActivations?.some((skill) => skill.id === 'commanders_gambit'),
         ),
+        // Galeforce: decided now, after the casualties fell; saved with the action.
+        ...(killMoveRefreshesActor({ art: selectedArt, attacker, primary: defender })
+          ? { refreshActor: true }
+          : {}),
       };
       await presentQueuedLevelUps(this, continuation, { session });
       if (!isCurrentBattleSession(this, session)) return;

@@ -471,6 +471,16 @@ path.
 
 The move-only Canto variant was considered and not chosen.
 
+**Built (slice 11).** `getWeaponArtKillEffects(art).killMove` reads the data;
+`killMoveRefreshesActor({ art, attacker, primary })` (WeaponArtSystem) is the trigger;
+`executeCombat` puts `refreshActor: true` on its continuation after the casualties fall;
+`completeResolvedAction` refreshes the actor alone (history "refreshed … Galeforce",
+timeline "X can act again."), with Gambit checked first. The flag rides the saved
+continuation, so a suspend/resume completes the same refresh, and Vision never rewinds
+into a pending continuation. The art's once-a-turn use is unit state, saved and rewound
+with it, so a refresh cannot chain. The validator holds `killMove` to a player-only
+`{ "refresh": true }`.
+
 ## 5. Previews (all area arts, before confirmation)
 
 **Pure planner: `engine/AreaPreview.js`.**

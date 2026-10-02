@@ -2017,7 +2017,7 @@ describe('BattleScene weapon art helpers', () => {
     expect(sceneAttacker.currentHP).toBe(headlessAttacker.currentHP);
   });
 
-  it('applies Galeforce Assault advance + set-to-5 while preserving ally buff parity', async () => {
+  it('applies Galeforce Assault set-to-5 without a step, preserving ally buff parity', async () => {
     const gameData = loadGameData();
     const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_galeforce_assault');
     const sceneAttacker = {
@@ -2105,7 +2105,8 @@ describe('BattleScene weapon art helpers', () => {
       defenderWeaponArt: null,
     });
 
-    expect(sceneAttacker.col).toBe(3);
+    // No advance: the kill refreshes the user instead (killMove, completeResolvedAction).
+    expect(sceneAttacker.col).toBe(2);
     expect(sceneAttacker.row).toBe(2);
     expect(sceneAttacker.currentHP).toBe(5);
     expect(sceneAlly.stats.STR).toBe(13);
