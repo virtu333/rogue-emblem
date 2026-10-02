@@ -11,6 +11,7 @@ import {
   recordEnemyPhaseEnd,
   recordHeal,
   recordKill,
+  recordStaffUse,
 } from '../../src/engine/DeedSystem.js';
 import { AIController } from '../../src/engine/AIController.js';
 import { advanceCaravan, createCaravanUnit } from '../../src/engine/CaravanSystem.js';
@@ -1828,6 +1829,8 @@ export class HeadlessBattle {
         if (this.gameData?.deeds && healer !== target) recordHeal(healer, healAmount);
       },
     });
+    // The staff's use count, as HealController's settlement records it.
+    if (this.gameData?.deeds) recordStaffUse(healer, staff);
     if (healer.faction === 'player') this._grantScaledXP(healer, XP_BASE_HEAL);
     const combat = getCombatWeapons(healer);
     if (combat.length > 0) equipWeapon(healer, combat[0]);

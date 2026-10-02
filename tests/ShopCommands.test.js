@@ -5,9 +5,12 @@ import {
   purchaseShopItem,
   sellShopItem,
   shopSellWarnings,
+  shopSellRisk,
+  sellRiskLabel,
   shopOwnedItems,
   forgeShopWeapon,
 } from '../src/engine/ShopCommands.js';
+import { tradeWarningText } from '../src/ui/tradeMenuModel.js';
 import { applyForge, getForgeCost } from '../src/engine/ForgeSystem.js';
 import { getSellPrice } from '../src/engine/LootSystem.js';
 import { FORGE_STAT_CAP, FORGE_MAX_LEVEL } from '../src/utils/constants.js';
@@ -16,6 +19,7 @@ const data = loadGameData();
 const clone = (value) => structuredClone(value);
 let run, unit;
 const sword = () => clone(data.weapons.find((item) => item.name === 'Iron Sword'));
+const weapon = (name) => clone(data.weapons.find((item) => item.name === name));
 const supply = () => clone(data.consumables.find((item) => item.name === 'Vulnerary'));
 const entryFor = (item, type = item.type === 'Consumable' ? 'consumable' : 'weapon') => ({
   item,
@@ -210,6 +214,111 @@ describe('shop sell ownership and equipment safety', () => {
       expect(run.gold).toBe(gold + getSellPrice(selected));
     },
   );
+});
+
+describe('shop sell risk: whose only weapon, staff or weapon type a row is', () => {
+  // Every row the Sell tab lists, keyed "item name / owner" → risk codes.
+  const riskTable = () =>
+    Object.fromEntries(
+      shopOwnedItems(run)
+        .filter((row) => getSellPrice(row.item) > 0)
+        .map((row) => [
+          `${row.item.name} / ${row.owner}`,
+          shopSellRisk(run, row).map((r) => r.code),
+        ]),
+    );
+  const healer = (inventory) => ({
+    name: 'Sera',
+    stats: { HP: 18 },
+    proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+    inventory,
+    weapon: null,
+    consumables: [],
+  });
+
+  it("tags a staff user's last usable staff and closes the staff gap at the confirm", () => {
+    const heal = weapon('Heal');
+    const sera = healer([heal]);
+    run.roster.push(sera);
+    const row = ownedRow(heal);
+    expect(shopSellRisk(run, row)).toEqual([{ code: 'only_staff', unit: sera }]);
+    expect(sellRiskLabel(shopSellRisk(run, row)[0])).toBe('Only staff');
+    const warnings = shopSellWarnings(run, row);
+    expect(warnings).toEqual([{ code: 'leaves_no_staff', unit: sera }]);
+    expect(warnings.map(tradeWarningText)).toEqual(['Leaves Sera without a staff']);
+    expect(sellShopItem(run, row)).toEqual({
+      ok: true,
+      message: `Sold Heal for ${getSellPrice(heal)}G. Sera has no staff now.`,
+    });
+    expect(sera.inventory).toEqual([]);
+  });
+
+  it('a second usable staff, or a staff its carrier cannot use, is safe to sell', () => {
+    run.roster.push(healer([weapon('Heal'), weapon('Mend')]));
+    unit.inventory.push(weapon('Heal')); // Edric has no Staff rank: dead weight
+    expect(riskTable()).toEqual({
+      'Iron Sword / Edric': ['only_weapon'],
+      'Heal / Edric': [],
+      'Heal / Sera': [],
+      'Mend / Sera': [],
+    });
+  });
+
+  it('tags the last weapon of a type a two-type fighter keeps, softer than the last weapon', () => {
+    const bow = weapon('Iron Bow');
+    unit.proficiencies.push({ type: 'Bow', rank: 'Prof' });
+    unit.inventory.push(bow);
+    const risk = shopSellRisk(run, ownedRow(bow));
+    expect(risk).toEqual([{ code: 'only_type', unit, weaponType: 'Bow' }]);
+    expect(sellRiskLabel(risk[0])).toBe('Only bow');
+    expect(shopSellWarnings(run, ownedRow(bow)).map(tradeWarningText)).toEqual([
+      'Leaves Edric without a bow',
+    ]);
+    // The sword is the last of its type too; a second sword makes both swords spares.
+    expect(riskTable()['Iron Sword / Edric']).toEqual(['only_type']);
+    unit.inventory.push(sword());
+    expect(riskTable()).toEqual({
+      'Iron Sword / Edric': [],
+      'Iron Bow / Edric': ['only_type'],
+    });
+    // Selling a softly tagged weapon adds nothing after: the unit is still armed.
+    expect(sellShopItem(run, ownedRow(bow))).toEqual({
+      ok: true,
+      message: `Sold Iron Bow for ${getSellPrice(bow)}G.`,
+    });
+  });
+
+  it('a weapon its owner cannot wield (no rank, or too low a rank) never protects another', () => {
+    const mastery = { ...weapon('Steel Sword'), rankRequired: 'Mast' };
+    unit.inventory.push(mastery, weapon('Iron Bow'));
+    // Only the Iron Sword is usable: it is the last weapon; the others are dead weight.
+    expect(riskTable()).toEqual({
+      'Iron Sword / Edric': ['only_weapon'],
+      'Steel Sword / Edric': [],
+      'Iron Bow / Edric': [],
+    });
+    unit.proficiencies = [{ type: 'Sword', rank: 'Mast' }];
+    expect(riskTable()['Iron Sword / Edric']).toEqual([]);
+  });
+
+  it('convoy items, supplies and duplicates read as safe; a stale row carries no risk', () => {
+    run.convoy.weapons = [weapon('Iron Lance')];
+    run.convoy.consumables = [supply()];
+    unit.consumables = [supply()];
+    const spare = sword();
+    unit.inventory.push(spare);
+    expect(riskTable()).toEqual({
+      'Iron Sword / Edric': [],
+      'Vulnerary / Edric': [],
+      'Iron Lance / Convoy': [],
+      'Vulnerary / Convoy': [],
+    });
+    const row = ownedRow(spare);
+    unit.inventory.splice(unit.inventory.indexOf(spare), 1);
+    expect(shopSellRisk(run, row)).toEqual([]);
+    // The sword left behind is now the last one.
+    expect(riskTable()['Iron Sword / Edric']).toEqual(['only_weapon']);
+  });
 });
 
 describe('shop forge mutation guards', () => {

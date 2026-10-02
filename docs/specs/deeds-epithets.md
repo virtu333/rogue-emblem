@@ -58,6 +58,9 @@ also leave a mark on promotion (an **Oath**) — the seed of hidden promotions.
   its phrase becomes the token), `all` (every part).
 - `prestige` 1–5 picks the displayed epithet (highest; ties → most recent).
 - `tuning`: `heldPhaseMinAttacks` (2), `shieldPhaseMinAttacks` (1).
+- `survivorsOnly: true` (Held the Line, Untouched, Would Not Fall, Lord's Shield, the
+  Last): a deed only a unit alive at victory can earn. A unit that falls keeps the rest
+  (see "The fallen").
 - `lore` follows `docs/lore-style-guide.md` v2 (≤85 chars, one line, no double quotes;
   `LoreContent` test): each is a found text from the march — a surgeon's note, an
   armorer's complaint, an overheard exchange, a campfire line, a triage log, a rhyme —
@@ -121,6 +124,41 @@ phase that ended (and a victory won inside the enemy phase closes it at commit),
 `PostCombatController.onVictory` for the commit and the rite. No recording without a run
 or in the tutorial. `tests/harness/HeadlessBattle.js` mirrors every call and commits at
 its victory, so the harness and the full-run sim exercise deeds.
+
+## The fallen
+
+A unit that dies mid-battle keeps what it did there before it fell. `removeUnit`'s deed
+hook (`DeedController.onUnitRemoved`) records it (`fallenBattleRecord`: the battle
+scratch and the bags it carried as it fell: inventory, consumables, the equipped weapon)
+in `scene._fallenBattleRecords`, one record per unit, in any run battle (not the
+tutorial), world state that a Vision rewind rolls back and a suspend/resume keeps
+(`BattleSnapshotState`). At victory `commitFallenBattleDeeds` folds each record into the
+deeds the unit entered with (its roster entry, or its as-joined record for a mid-battle
+recruit): kills, crits, heals, dances and every deed but the `survivorsOnly` ones count,
+the battle does not (Veteran counts battles survived), and there is no rite (the
+Compendium still learns the deed). `completeBattle({ fallenBattleRecords })` writes the
+deeds and the bags onto the fallen record (`applyFallenBattleRecord`) before its items
+go to the convoy. Before this the fallen record was only the unit as it entered: kills
+scored in the battle where it died were lost, an item it traded away mid-battle was
+duplicated into the convoy, one it was given was lost, and a Vulnerary it drank came back
+full. A record without bags (a checkpoint from before them) keeps the entry bags. The
+accessory is not recorded: it cannot change hands in battle, and its stats live on the
+unit.
+
+## Item use counts
+
+The same seams count each carried item's use (`engine/ItemUsage.js`, per instance, plain
+JSON on the item like `_usesSpent`): `_strikes` (strikes made with it, hits and misses;
+`recordCombat`), `_kills` (the strike that left its target at 0 HP, in `recordCombat`;
+a kill no strike made, such as an aura, a burst or poison, counts for the deed but not
+the weapon), `_casts` (staff uses: heal, cure, warp, rescue; `recordStaffUse`, once per use spent,
+inside `HealController`'s settlement, before its checkpoint, so a resume or a rewind
+never counts a use twice). Only the player's army counts, never in the
+tutorial. The counts follow the item through trades, the convoy, forges, whetstones,
+imbues and renames, roll back with a battle checkpoint, and a bought or looted item
+starts at none. The shop's Sell tab shows them on the row ("14 strikes", "9 casts") and in
+the detail ("Used in 14 strikes · 3 kills", "Cast 9 times"; a staff never says "uses",
+which its remaining charges already say); the roster's item card shows the detail line.
 
 ## Titles (player choice)
 

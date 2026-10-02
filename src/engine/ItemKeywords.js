@@ -154,6 +154,11 @@ export function itemKeywords(item) {
   return tags;
 }
 
+/** A weapon type in plain words ("Sword", "Light Tome"); the type itself when unknown. */
+export function weaponTypeNoun(type) {
+  return TYPE_NOUN[type] || (typeof type === 'string' ? type : '');
+}
+
 /** " 3 shots per battle (an enemy's: 5)." for a per-battle weapon, read from data. */
 function perBattleShotsSentence(item) {
   if (!item?.perBattleUses || isStaff(item)) return '';

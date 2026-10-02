@@ -3,8 +3,14 @@ import { loadGameData } from './testData.js';
 import {
   applyPromotionOath,
   beginBattleDeeds,
+  addFallenBattleRecord,
+  applyFallenBattleRecord,
   bossPhrase,
   commitBattleDeeds,
+  commitFallenBattleDeeds,
+  fallenBattleRecord,
+  findFallenBattleRecord,
+  normalizeFallenBattleRecords,
   deedsForDisplay,
   deedTallyText,
   emptyBattleDeeds,
@@ -445,6 +451,150 @@ describe('commit', () => {
       oathSkill: 'pavise',
       isTitle: true,
     });
+  });
+});
+
+describe('the fallen', () => {
+  // One battle's scratch that meets every battle deed: held, untouched, brink, five
+  // kills, a giant, a boss, an avenging, the lord's shield, three crits.
+  const everything = () => ({
+    ...emptyBattleDeeds(),
+    heldPhases: 3,
+    heldPlaces: ['Bridge', 'Bridge', 'Bridge'],
+    strikesFaced: 5,
+    woundsTaken: 0,
+    brink: 1,
+    kills: 5,
+    maxKillLevelGap: 6,
+    bossKills: 1,
+    bossNames: ['Warchief'],
+    avenged: 1,
+    shieldPhases: 3,
+    crits: 3,
+  });
+  const survivorsOnly = deedsData.deeds.filter((d) => d.survivorsOnly).map((d) => d.id);
+
+  it('marks the deeds only a survivor can earn', () => {
+    expect(survivorsOnly.sort()).toEqual(
+      ['held_the_line', 'last_of_them', 'lordshield', 'untouched', 'would_not_fall'].sort(),
+    );
+  });
+
+  it('awards the dead every deed of the same battle but the survivors’ ones, and no battle', () => {
+    const survivor = unit({ isLord: true });
+    survivor._battleDeeds = everything();
+    commit([survivor], { battleKey: 'b' });
+    const battleDeeds = deedsData.deeds.filter((d) => d.scope === 'battle').map((d) => d.id);
+    const met = earned(survivor);
+    // The survivor (a lord, so never the Last) meets every battle deed but the Last.
+    expect(met.sort()).toEqual(battleDeeds.filter((id) => id !== 'last_of_them').sort());
+
+    const record = { name: 'Bo', battleDeeds: everything() };
+    const posthumous = commitFallenBattleDeeds([record], deedsData, { battleKey: 'b' });
+    const expected = met.filter((id) => !survivorsOnly.includes(id));
+    expect(posthumous.map((a) => a.deedId).sort()).toEqual(expected.sort());
+    expect(record.deeds.earned.map((e) => e.id).sort()).toEqual(expected.sort());
+    expect(record.deeds.stats).toEqual({ kills: 5, crits: 3, bossKills: 1 });
+    expect(record.battleDeeds).toBeUndefined();
+    expect(record.deeds.lastBattle).toBe('b');
+  });
+
+  it('folds into the deeds the unit entered with, once per battle', () => {
+    const entrant = unit();
+    entrant._battleDeeds = { ...emptyBattleDeeds(), crits: 3, kills: 2 };
+    commit([entrant], { battleKey: 'earlier' });
+    const entered = structuredClone(entrant.deeds);
+    const record = { name: entrant.name, battleDeeds: { ...emptyBattleDeeds(), kills: 1 } };
+    commitFallenBattleDeeds([record], deedsData, { battleKey: 'now' }, () => entrant);
+    expect(entrant.deeds).toEqual(entered); // the roster entry itself is untouched
+    expect(record.deeds.stats).toEqual({ crits: 3, kills: 3, battles: entered.stats.battles });
+    expect(record.deeds.earned.map((e) => e.id)).toEqual(['keen_edge']);
+    // A second commit of the same battle changes nothing.
+    const again = { ...structuredClone(record), battleDeeds: { ...emptyBattleDeeds(), kills: 9 } };
+    expect(commitFallenBattleDeeds([again], deedsData, { battleKey: 'now' }, () => record)).toEqual([]); // prettier-ignore
+    expect(again.deeds).toEqual(record.deeds);
+  });
+
+  it('records a player unit at death with its bags; normalizes garbage; replaces a repeat', () => {
+    const sword = { name: 'Iron Sword', type: 'Sword', uid: 'w1', _strikes: 4, _kills: 1 };
+    const vulnerary = { name: 'Vulnerary', type: 'Consumable', uid: 'c1', uses: 1 };
+    const fallen = unit({
+      name: 'Bo',
+      unitUid: 'u-bo',
+      weapon: sword,
+      inventory: [{ name: 'Iron Bow', type: 'Bow', uid: 'w2' }, sword],
+      consumables: [vulnerary],
+    });
+    fallen._battleDeeds = { ...emptyBattleDeeds(), kills: 1 };
+    expect(fallenBattleRecord(foe())).toBeNull();
+    const record = fallenBattleRecord(fallen);
+    expect(record).toEqual({
+      name: 'Bo',
+      unitUid: 'u-bo',
+      battleDeeds: expect.objectContaining({ kills: 1 }),
+      bags: { inventory: fallen.inventory, consumables: [vulnerary], weapon: 1 },
+    });
+    // Copies: what the unit holds later never reaches the record.
+    sword._strikes = 99;
+    expect(record.bags.inventory[1]._strikes).toBe(4);
+    // A weapon not carried in the bag is kept whole; nothing equipped is null.
+    expect(fallenBattleRecord({ ...fallen, inventory: [] }).bags.weapon).toMatchObject({ uid: 'w1' }); // prettier-ignore
+    expect(fallenBattleRecord({ ...fallen, weapon: null }).bags.weapon).toBeNull();
+    // Garbled entries and garbled bags drop (the record then keeps the entry bags).
+    const { bags: _bags, ...withoutBags } = record;
+    expect(
+      normalizeFallenBattleRecords([
+        null,
+        { name: '' },
+        { ...record, bags: { inventory: [{ uid: 'no-name' }] } },
+      ]),
+    ).toEqual([withoutBags]);
+    // A repeated removal of the same unit keeps one record, the latest.
+    const later = { ...record, battleDeeds: { ...record.battleDeeds, kills: 2 } };
+    const list = addFallenBattleRecord(addFallenBattleRecord([], record), later);
+    expect(list).toEqual([later]);
+    expect(addFallenBattleRecord(list, { name: 'Cy' }).map((r) => r.name)).toEqual(['Bo', 'Cy']);
+  });
+
+  it('gives the saved (entry) unit its committed deeds and the bags it fell with', () => {
+    const entrySword = { name: 'Iron Sword', type: 'Sword', uid: 'w1' };
+    const saved = {
+      name: 'Bo',
+      unitUid: 'u-bo',
+      weapon: entrySword,
+      inventory: [entrySword, { name: 'Iron Lance', type: 'Lance', uid: 'w3' }],
+      consumables: [{ name: 'Vulnerary', type: 'Consumable', uid: 'c1', uses: 3 }],
+    };
+    const record = {
+      name: 'Bo',
+      unitUid: 'u-bo',
+      battleDeeds: { ...emptyBattleDeeds(), kills: 1 },
+      // In battle: gave the lance away, drank twice, picked up a bow and equipped it.
+      bags: {
+        inventory: [
+          { ...entrySword, _strikes: 4 },
+          { name: 'Iron Bow', type: 'Bow', uid: 'w2' },
+        ],
+        consumables: [{ name: 'Vulnerary', type: 'Consumable', uid: 'c1', uses: 1 }],
+        weapon: 1,
+      },
+    };
+    expect(findFallenBattleRecord([{ name: 'Bo' }, record], saved)).toBe(record);
+    expect(findFallenBattleRecord([record], { name: 'Bo', unitUid: 'other' })).toBeNull();
+    commitFallenBattleDeeds([record], deedsData, {});
+    applyFallenBattleRecord(saved, record);
+    expect(saved.inventory.map((i) => [i.uid, i._strikes])).toEqual([
+      ['w1', 4],
+      ['w2', undefined],
+    ]);
+    expect(saved.weapon).toBe(saved.inventory[1]);
+    expect(saved.consumables.map((c) => c.uses)).toEqual([1]);
+    expect(saved.deeds.stats).toEqual({ kills: 1 });
+    // No bags recorded (a checkpoint from before them): the entry bags stay.
+    const old = { ...structuredClone(saved), inventory: [entrySword], weapon: entrySword };
+    applyFallenBattleRecord(old, { name: 'Bo', unitUid: 'u-bo' });
+    expect(old.inventory).toEqual([entrySword]);
+    expect(old.weapon).toBe(entrySword);
   });
 });
 
