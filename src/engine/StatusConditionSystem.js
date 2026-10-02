@@ -5,6 +5,7 @@ import {
   STATUS_MAG_MULT,
   STATUS_RES_MULT,
 } from '../utils/constants.js';
+import { markHoldDisturbed } from './HoldDisturbance.js';
 
 // --- Condition storage helpers ---
 
@@ -25,6 +26,7 @@ export function applyCondition(unit, conditionId, turnsRemaining, options = {}) 
     condition.recoveryChance = Math.max(0, Math.min(1, options.recoveryChance));
   }
   unit._conditions.push(condition);
+  markHoldDisturbed(unit, 'status'); // a holder hexed wakes its pack, even once cured
   return true;
 }
 

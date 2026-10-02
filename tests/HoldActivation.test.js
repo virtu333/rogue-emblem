@@ -29,6 +29,9 @@ import { buildReinforcementTemplatePool } from '../src/engine/ReinforcementSpawn
 import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
 import { calculatePar } from '../src/engine/TurnBonusCalculator.js';
 import { RunManager } from '../src/engine/RunManager.js';
+import { applyCombatSideHP, damageUnit, healUnitFully } from '../src/engine/UnitHealth.js';
+import { applyCondition, clearAllConditions } from '../src/engine/StatusConditionSystem.js';
+import { settleMoves } from '../src/engine/ActionMovement.js';
 import { HeadlessGrid } from './harness/HeadlessGrid.js';
 import { HeadlessBattle, HEADLESS_STATES } from './harness/HeadlessBattle.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
@@ -276,6 +279,18 @@ function field({ fog = false, width = 14, height = 7 } = {}) {
   return { grid, enemies, hero, wake, ctxFor };
 }
 
+// A counter that hits B for 5, then B's counter drains it back to full.
+function drainCombat(unit) {
+  return {
+    events: [
+      { type: 'strike', attackerSide: 'attacker', targetHPAfter: unit.currentHP - 5 },
+      { type: 'strike', attackerSide: 'defender', strikerHealTo: unit.currentHP, heal: 5 },
+    ],
+    attackerHP: 20,
+    defenderHP: unit.currentHP,
+  };
+}
+
 describe('when a pack wakes', () => {
   it("red zone = wake zone: inside A's Danger tiles wakes the whole pack, outside does not", () => {
     const probe = field();
@@ -340,22 +355,40 @@ describe('when a pack wakes', () => {
     expect(woken.map((w) => w.unit.name).sort()).toEqual(['A', 'B']);
   });
 
-  it('a blow, a status or a shove wakes the pack; nothing else does', () => {
-    for (const disturb of [
-      (u) => (u.currentHP -= 1),
-      (u) => (u._conditions = [{ id: 'silence', turnsRemaining: 2 }]),
-      (u) => (u.col -= 1),
-    ]) {
+  it('a blow, a status or a shove wakes the pack, even once healed or cured', () => {
+    // Each disturbance goes through the hook the game uses (combat and area blows set HP
+    // through UnitHealth, staves and arts apply conditions, shoves settle moves), then the
+    // evidence is erased before the enemy phase checks, as a fort, Renewal, Regenerator
+    // or status recovery would. The pack still wakes.
+    const B = (f) => f.enemies[1];
+    const cases = [
+      ['hurt', (f) => damageUnit(B(f), 1), (f) => healUnitFully(B(f))],
+      [
+        'hurt',
+        (f) => applyCombatSideHP(B(f), 'defender', drainCombat(B(f))),
+        () => {}, // a counter that drained back to full in the same exchange
+      ],
+      ['status', (f) => applyCondition(B(f), 'silence', 2), (f) => clearAllConditions(B(f))],
+      [
+        'moved',
+        (f) => settleMoves([{ unit: B(f), to: { col: 12, row: 3 } }]),
+        (f) => settleMoves([{ unit: B(f), to: { col: 13, row: 3 } }]),
+      ],
+    ];
+    for (const [reason, disturb, erase] of cases) {
       const f = field();
-      disturb(f.enemies[1]);
-      expect(
-        f
-          .wake([f.hero])
-          .map((w) => w.unit.name)
-          .sort(),
-      ).toEqual(['A', 'B']);
+      disturb(f);
+      erase(f);
+      expect(B(f).currentHP).toBe(20);
+      expect(B(f)._conditions || []).toEqual([]);
+      expect({ col: B(f).col, row: B(f).row }).toEqual(B(f).holdPost);
+      const woken = f.wake([f.hero]);
+      expect(woken.map((w) => w.unit.name).sort(), reason).toEqual(['A', 'B']);
+      expect(woken.every((w) => w.reason === reason)).toBe(true);
     }
+    // A holder that starts below full HP was never struck: it stays.
     const quiet = field();
+    quiet.enemies[1].currentHP = 15;
     expect(quiet.wake([quiet.hero])).toEqual([]);
   });
 

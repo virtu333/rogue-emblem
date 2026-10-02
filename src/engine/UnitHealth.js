@@ -39,6 +39,7 @@ export function settleAccessoryHpOwed(unit) {
 }
 
 import { isWounded } from './StatusConditionSystem.js';
+import { markHoldDisturbed } from './HoldDisturbance.js';
 
 const maxHpOf = (unit) => Number(unit?.stats?.HP);
 
@@ -49,6 +50,7 @@ const maxHpOf = (unit) => Number(unit?.stats?.HP);
 export function setUnitHP(unit, hp) {
   const prev = Number(unit.currentHP) || 0;
   unit.currentHP = hp;
+  if (hp < prev) markHoldDisturbed(unit, 'hurt'); // a holder struck wakes its pack
   settleAccessoryHpOwed(unit);
   return { prev, hp, delta: hp - prev };
 }
@@ -113,14 +115,18 @@ export function applyStrikeHP(striker, target, event) {
  * arena never lets its fighter die).
  */
 export function applyCombatSideHP(unit, side, result, { floor = 0 } = {}) {
+  const start = Number(unit?.currentHP);
   for (const event of result?.events || []) {
     if (event?.type !== 'strike' || event.miss) continue;
     const strikerSide = event.attackerSide === 'defender' ? 'defender' : 'attacker';
     if (strikerSide === side) {
       touchHP(unit, event.strikerHealTo);
       touchHP(unit, event.strikerHPAfter);
+      if (event.strikerHPAfter < start) markHoldDisturbed(unit, 'hurt');
     } else {
       touchHP(unit, event.targetHPAfter);
+      // Struck mid-exchange, even if a drain tops it back up before the end.
+      if (event.targetHPAfter < start) markHoldDisturbed(unit, 'hurt');
     }
   }
   const final = side === 'defender' ? result.defenderHP : result.attackerHP;

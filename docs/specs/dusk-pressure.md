@@ -217,8 +217,15 @@ then hunts for the rest of the battle.
      everything the player can see. A fogged holder never wakes this way: it wakes once
      it is revealed with a player unit still in its zone, or by rule 2 or 3. Danger drops
      fogged sources (`ThreatForecast.js:151`), so this keeps the rule honest.
-  2. is below full HP, carries a status, or stands off its post (it was struck, hexed or
-     shoved), or a packmate is gone. Each holder stores its pack's size at spawn
+  2. was struck, hexed or shoved, or a packmate is gone. The mark (`holdDisturbed`,
+     `engine/HoldDisturbance.js`) is written the moment it happens, by the hooks every
+     path shares: `UnitHealth` for combat, area blows and terrain damage (a strike that a
+     drain tops back up still counts), `applyCondition` for staves, arts and acid,
+     `settleMoves` / the post-combat move / Teleporter / relocation for moves. It is
+     never inferred from HP or conditions at phase start, where a fort, Renewal,
+     Regenerator or status recovery could already have erased the evidence (a Canto
+     poke would then go unanswered). Standing off its post is a backstop for any move
+     without a hook. A packmate gone: each holder stores its pack's size at spawn
      (`holdPackSize`), so a member killed from outside every zone (a Canto rider, a
      Breachbolt, a ballista) wakes the rest: a pack can't be picked off one at a time.
   3. turn-pressure boss enrage has started.

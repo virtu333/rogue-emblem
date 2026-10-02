@@ -8,7 +8,8 @@
 //   1. can be seen by the player and has a player or NPC unit inside the tiles the Danger
 //      overlay draws for it (ThreatForecast.enemyThreatTiles over PlayerKnowledge), so the
 //      red zone is the wake zone. A holder hidden in fog never wakes this way;
-//   2. was hurt, hexed (any status) or moved off its post, or a packmate fell;
+//   2. was hurt, hexed (any status) or moved (marked when it happens, HoldDisturbance.js),
+//      or a packmate fell;
 //   3. sees the boss enrage (turn pressure).
 // Anti-turtle aggression never wakes a holder: otherwise a turtle would only have to wait.
 // MapGenerator writes the holders into the battle config, so a locked map, a resume or a
@@ -17,9 +18,9 @@
 
 import { gridDistance } from './Combat.js';
 import { enemyThreatTiles, isThreatSourceVisible } from './ThreatForecast.js';
-import { getConditions } from './StatusConditionSystem.js';
+import { HOLD_AI_MODE } from './HoldDisturbance.js';
 
-export const HOLD_AI_MODE = 'hold';
+export { HOLD_AI_MODE };
 export const HOLD_PACK_RADIUS = 3;
 
 const tileKey = (col, row) => `${col},${row}`;
@@ -168,10 +169,13 @@ export function isHolding(unit) {
   return unit?.aiMode === HOLD_AI_MODE && unit.currentHP > 0;
 }
 
-/** Rule 2: struck (below full HP), hexed (any status) or moved off its post. */
+/**
+ * Rule 2: struck, hexed or moved. The hooks that change a unit mark it the moment it
+ * happens (HoldDisturbance.markHoldDisturbed), so a heal or a recovery before the enemy
+ * phase cannot hide it; standing off its post is a backstop for any move without a hook.
+ */
 function disturbed(unit) {
-  if (unit.currentHP < (unit.stats?.HP ?? unit.currentHP)) return 'hurt';
-  if (getConditions(unit).length > 0) return 'status';
+  if (unit.holdDisturbed) return unit.holdDisturbed;
   const post = unit.holdPost;
   if (post && (post.col !== unit.col || post.row !== unit.row)) return 'moved';
   return null;
@@ -229,6 +233,7 @@ export function wakeHolders({
     const reason = packReason.get(unit.holdPack);
     if (!reason) continue;
     delete unit.aiMode;
+    delete unit.holdDisturbed;
     unit.holdWoke = reason;
     woken.push({ unit, reason });
   }
