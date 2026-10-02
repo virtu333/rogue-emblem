@@ -931,7 +931,11 @@ test.describe('run records upright', () => {
     await oldest.scrollIntoViewIfNeeded();
     await expectTappable(close);
     await expectTappable(oldest);
+    // The row names the difficulty by its label, never the saved id ('normal').
+    await expect(oldest).toContainText('First Light');
+    await expect(oldest).not.toContainText(/\bnormal\b/);
     await oldest.tap();
+    await expect(records.getByText(/^First Light · 4 acts cleared/)).toBeVisible();
     await expect(
       records.getByText('Benedetta · Falcon Knight · Lv 20', { exact: true }),
     ).toBeVisible();

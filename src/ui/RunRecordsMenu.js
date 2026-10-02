@@ -4,6 +4,12 @@ import { mergeRunRecords } from '../engine/RunRecords.js';
 import { titledName } from '../engine/DeedTitles.js';
 import { shadowSummary } from './eclipseContent.js';
 import { withUnitFace } from './unitPortrait.js';
+import { slotDifficulty } from './slotCardModel.js';
+
+/** A record stores the difficulty id; the player knows it by its label (First Light, ...). */
+export function recordDifficultyLabel(gameData, difficultyId) {
+  return slotDifficulty(gameData, difficultyId)?.label ?? String(difficultyId ?? 'Unknown');
+}
 
 export function showRunRecords(scene) {
   if (scene.nativeMenu) return scene.nativeMenu;
@@ -40,7 +46,7 @@ export function showRunRecords(scene) {
     for (const record of rows)
       menu.body.append(
         button(
-          `${new Date(record.endedAt).toLocaleDateString()} · ${record.difficulty}${record.noMetaMode === true ? ' · No Meta Victory' : ''} · Slot ${record.slot} · ${record.roster
+          `${new Date(record.endedAt).toLocaleDateString()} · ${recordDifficultyLabel(scene.gameData, record.difficulty)}${record.noMetaMode === true ? ' · No Meta Victory' : ''} · Slot ${record.slot} · ${record.roster
             .filter((u) => u.isLord)
             .map((u) => u.name)
             .join(' & ')}`,
@@ -54,7 +60,7 @@ export function showRunRecords(scene) {
       button('Back to victories', list),
       element(
         'p',
-        `${record.difficulty} · ${record.actsCleared} acts cleared${record.totalTurns == null ? '' : ` · ${record.totalTurns} turns`}${record.shadow == null ? '' : ` · ${shadowSummary(record.shadow, scene.gameData?.eclipse)}`} · Seed ${record.seed ?? 'unknown'}`,
+        `${recordDifficultyLabel(scene.gameData, record.difficulty)} · ${record.actsCleared} acts cleared${record.totalTurns == null ? '' : ` · ${record.totalTurns} turns`}${record.shadow == null ? '' : ` · ${shadowSummary(record.shadow, scene.gameData?.eclipse)}`} · Seed ${record.seed ?? 'unknown'}`,
       ),
     );
     if (record.noMetaMode === true) menu.body.append(element('p', 'Badge: No Meta Victory'));
