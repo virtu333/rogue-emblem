@@ -159,6 +159,7 @@ import { applyBattleDebuff, clearBattleScopedDeltas } from '../../src/engine/Bat
 import { AREA_XP_LIVE, actionXpAwards, applyXpGain, scaledXp } from '../../src/engine/BattleXp.js';
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
+import { settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
 import {
   buildRisenUnit,
   createRemains,
@@ -2099,6 +2100,13 @@ export class HeadlessBattle {
 
   async _processEnemyPhase() {
     this._reinforcementsPendingThisTurn = true;
+    // As BattleScene.onPhaseChange('enemy'): siege casters take their stance from the
+    // board the player left, before the phase-start hazards (SiegeArtillery).
+    settleArtilleryStances({
+      enemyUnits: this.enemyUnits,
+      playerUnits: this.playerUnits,
+      turn: this.turnManager?.turnNumber ?? null,
+    });
     try {
       this._processTerrainDamage(armyAndNpcAllies(this.playerUnits, this.npcUnits));
       // Then the caravan steps toward its exit, before the AI acts (as BattleScene: the

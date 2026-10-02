@@ -232,9 +232,8 @@ then hunts for the rest of the battle.
 - **Breachbolt carriers never hold.** A siege-tome holder's Danger zone covers most of
   the map, so once seen it would wake its pack on turn 1 and drag its packmates out
   with it: the hold would be a promise the overlay breaks. Leaving it out of the
-  candidates is one filter and keeps every pack's red zone honest, so it keeps its
-  normal orders (Breachbolt ladder, §2c) until an Artillery AI gives siege units their
-  own behaviour. Writing it up as a known interaction instead would leave Nightfall and
+  candidates is one filter and keeps every pack's red zone honest. It takes the
+  artillery stance instead (§2c, PR 5). Writing it up as a known interaction instead would leave Nightfall and
   Black Sun packs (where Breachbolts are common) waking on sight.
 - **No posts on hazards.** A unit on Lava Crack or acid ground (Acidic Swamp/Bog) never
   holds: the ground hurts it every turn, and Eruption Point (Act IV seize) would
@@ -301,14 +300,45 @@ then hunts for the rest of the battle.
   - `REINFORCEMENT_EXCLUDED_TERRAIN`.
   - Harness mirrors for anti-turtle, spawn gear and enemy staves.
 
-**Artillery AI (later PR, decided in PR 4).** Siege casters get no hold-and-fire
-behaviour yet. A static Breachbolt caster changes the Danger contract (ThreatForecast
-would draw its reach from the post with mov 0, and every preview must agree), and the
-caster already falls back to its own tome when its shots are spent; both deserve their
-own PR and tests. Until then a siege caster moves and fires like any caster, and never
-holds (§2b: its Danger zone would wake its pack on sight). The later PR: a Breachbolt
-caster with shots left does not move, fires from its post at the best target 3–10
-away, and ThreatForecast draws its reach from the post.
+**Artillery AI (PR 5, `engine/SiegeArtillery.js`).** Before it, an enemy siege caster
+walked and fired like any caster: from any tile within MOV it fired at anything 3–10
+away (Danger: MOV + 10, about 15 tiles), it stepped onto cover to fire when it could
+already fire from where it stood (cover breaks the attack score's ties), and with nobody
+within MOV + 10 it walked toward the nearest player unit.
+- **Stance.** As the enemy phase begins, before anything else happens in it (the
+  player's hazards, enemy turn-start effects, enemy ballista fire), each enemy whose next
+  strike weapon is a siege tome with shots left takes a stance from the board the player
+  left: **planted** when one of the player's own units stands 3–10 from it, else its
+  normal orders. `BattleScene.onPhaseChange('enemy')` and the top of
+  `HeadlessBattle._processEnemyPhase` take it; `AIController.processEnemyPhase` keeps it
+  (same turn) and only fills in a unit without one. Holders and village bandits
+  (`seek_tile`) keep their orders; a guard's walk back to its post never beats a planted
+  stance.
+- **Player units only (owner, on purpose).** Unlike the hold wake rule and the guard
+  trigger, which also count the NPCs the player knows of, only the player's own units
+  plant a caster: they are never hidden and none moves before the stance, while an NPC
+  can (the caravan steps first). An NPC in range is still a target once it is planted.
+  Fallen units and units 1–2 away (inside Breachbolt's minimum range) do not plant it.
+- **Planted.** It does not move. It fires its siege tome from its post at the best
+  target 3–10 away (player units and NPCs, the usual attack score), never swaps weapons,
+  and never uses a status staff (only an old per-spawn roll gives a caster both). With
+  no target left by its turn (a ballista or an ally felled it) it waits.
+- **Fixed for the phase.** The stance is saved on the unit (`artilleryStance: { turn,
+  planted }`), so no phase-start blow and no ally's kill sends it walking at a unit
+  Danger called safe, and a phase resumed from a mid-phase checkpoint keeps it.
+- **Fallback.** Shots spent: the caster re-equips its own weapon (PR 1) and is no longer
+  artillery. **Nobody in range (owner): it keeps moving**, and fires as before; it plants
+  once a player unit is in range at a phase start.
+- **Danger.** `ThreatForecast.enemyThreatTiles` reads the same rule from the player's
+  positions (PlayerKnowledge): a planted caster's reach is the 3–10 ring round its post
+  (no movement, no staff), otherwise its full reach. Threat Sight evaluates the rule on
+  the board after the previewed move (moving the last unit out of the ring brings the
+  caster's walk back), the inspected enemy's range shows no movement, and the Threat
+  Sight cache now keys on the strike weapon and its shots. `tests/SiegeArtillery.test.js`
+  checks, tile by tile, that Danger marks exactly the tiles the AI strikes.
+- **Sim agent.** `TacticianAgent` judges siege artillery with `enemyThreatTiles` on the
+  board after its planned move (planted: struck only from the post) and every foe with
+  its next strike weapon (a spent Breachbolt gives way to its fallback).
 
 **Frequency (PR 4).** `statusStaffConfig` and `siegeWeaponConfig` with
 `perBattle: true` give, per act, the chance that a battle has one, rolled only when an
@@ -425,6 +455,7 @@ Given an eligible caster, the share matches the rung's chance (Nightfall Act IV 
 3. **PR 3:** hold on seize and escape, the seize par fix, and a seize/escape-aware sim
    agent.
 4. **PR 4:** Dusk Silence staves and the per-battle staff/siege model (artillery AI deferred, §2c).
+5. **PR 5:** the artillery AI (§2c): planted siege casters, and Danger drawn from the post.
 
 **BattleScene.** All the logic lives in engine modules. The draft stability stack
 (#171–#178) does not touch `BattleScene.js` 2966–3107 (anti-turtle) or 2369–2780
