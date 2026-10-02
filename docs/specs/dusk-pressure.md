@@ -386,7 +386,9 @@ Open: confirm Dusk inflation 2, with 1 held in reserve.
   `CaravanController` also uses. So the ladder's NPC exclusion holds in sims too.
 - **Zero-reward arrivals.** A kill still counts toward deeds but skips the level gap and
   the terrain/weapon tallies. Surviving one earns no XP; surviving any other keeps the
-  1 XP minimum. These rules are future-proofing: nothing in the shipped data pays 0
+  1 XP minimum. The weapon's own counters (`_strikes` and `_kills`, `engine/ItemUsage.js`)
+  still count such a strike and kill. They are only shown on the weapon's card and pay
+  nothing, so there is nothing to farm, and they record what the weapon did. These rules are future-proofing: nothing in the shipped data pays 0
   (see §2a).
 - **Results** (`sim/pacing.js`, calibrated profile, 48 paired seeds, final shadow mean ±
   SE). "Prototype" reruns this branch's sim ladder on the PR 2 code. It shows that the

@@ -177,6 +177,16 @@ describe('recording', () => {
     expect(b.killsByWeapon).toEqual({ Sword: 1 });
   });
 
+  // The weapon's own counters (ItemUsage, shown on its card, never a reward) are its
+  // history: a zero-reward reinforcement it struck and finished still counts there.
+  it("a zero-reward reinforcement still counts on the weapon's strikes and kills", () => {
+    const hero = unit({ level: 2, weapon: { type: 'Sword', name: 'Iron Sword' } });
+    const spent = foe({ level: 9, _isReinforcement: true, _reinforcementRewardMultiplier: 0 });
+    recordCombat({ events: [strike('attacker', { targetHPAfter: 0 })] }, hero, spent);
+    expect(hero.weapon._strikes).toBe(1);
+    expect(hero.weapon._kills).toBe(1);
+  });
+
   it('ignores NPC and enemy-on-enemy outcomes; heals and dances only count for players', () => {
     const enemy = foe();
     recordKill(foe(), enemy, {});
