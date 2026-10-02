@@ -11,14 +11,24 @@ export const REINFORCEMENT_EXCLUDED_TERRAIN = Object.freeze(
   new Set(['Lava Crack', 'Acidic Swamp', 'Acidic Bog', 'Throne', 'Ballista', 'Village']),
 );
 
-// Wave types that are the battle's clock rather than an added objective: their
-// arrivals never raise par. Repeating pursuit waves (escape maps) and, later, the
-// rout ladder (docs/specs/dusk-pressure.md).
-export const PAR_NEUTRAL_WAVE_TYPES = Object.freeze(new Set(['repeating', 'ladder']));
+// The rout reinforcement ladder (docs/specs/dusk-pressure.md, engine/RoutLadder.js).
+export const LADDER_WAVE_TYPE = 'ladder';
 
-/** Whether the wave a spawned arrival belongs to raises the battle's par by one. */
+// Wave types that are the battle's clock rather than an added objective: their
+// arrivals never raise par. Repeating pursuit waves (escape maps) and the rout ladder.
+export const PAR_NEUTRAL_WAVE_TYPES = Object.freeze(new Set(['repeating', LADDER_WAVE_TYPE]));
+
+/**
+ * Whether the wave a spawned arrival belongs to raises the battle's par by one.
+ * Procedural template waves are par-neutral when their battle config says so
+ * (`reinforcements.wavesRaisePar: false`, Black Sun); the scheduler marks them.
+ */
 export function waveRaisesPar(spawn) {
-  return spawn?.waveIndex != null && !PAR_NEUTRAL_WAVE_TYPES.has(spawn.waveType);
+  return (
+    spawn?.waveIndex != null &&
+    spawn.parNeutral !== true &&
+    !PAR_NEUTRAL_WAVE_TYPES.has(spawn.waveType)
+  );
 }
 
 /**
@@ -408,6 +418,46 @@ export function collectEdgeSpawnCandidates({
   return candidates;
 }
 
+// The rout ladder (engine/RoutLadder.js writes it into the battle config at generation):
+// absolute turns (no difficulty offset, no jitter, no count bonus), one edge per wave.
+const LADDER_DEFAULT_MIN_PLAYER_DISTANCE = 3;
+const LADDER_DEFAULT_NPC_DISTANCE = 1;
+
+function getDueLadderWaves({ turn, reinforcements } = {}) {
+  const currentTurn = normalizeInteger(turn, 0);
+  const waves = reinforcements?.ladder?.waves;
+  if (currentTurn <= 0 || !Array.isArray(waves)) return [];
+  const due = [];
+  for (let waveIndex = 0; waveIndex < waves.length; waveIndex++) {
+    const wave = waves[waveIndex];
+    const scheduledTurn = normalizeInteger(wave?.turn, 0);
+    if (scheduledTurn <= 0 || scheduledTurn !== currentTurn) continue;
+    due.push({
+      waveType: LADDER_WAVE_TYPE,
+      waveIndex,
+      baseTurn: scheduledTurn,
+      scheduledTurn,
+      wave,
+      xpMultiplier: Number.isFinite(wave?.xpMultiplier) ? wave.xpMultiplier : 0,
+    });
+  }
+  return due;
+}
+
+/** Tiles within `distance` (Manhattan) of any of `tiles`, as "col,row" keys. */
+function tilesWithin(tiles, distance) {
+  const keys = new Set();
+  const d = Math.max(0, normalizeInteger(distance, 0));
+  for (const tile of tiles || []) {
+    if (!Number.isFinite(tile?.col) || !Number.isFinite(tile?.row)) continue;
+    for (let dc = -d; dc <= d; dc++) {
+      const span = d - Math.abs(dc);
+      for (let dr = -span; dr <= span; dr++) keys.add(toTileKey(tile.col + dc, tile.row + dr));
+    }
+  }
+  return keys;
+}
+
 function rollWaveCount(wave, rng, countBonus = 0) {
   const range = Array.isArray(wave?.count) ? wave.count : [0, 0];
   const min = normalizeInteger(range[0], 0);
@@ -431,6 +481,9 @@ export function scheduleReinforcementsForTurn({
   difficultyTurnOffset = 0,
   enemyCountBonus = 0,
   activeEnemyCount = 0,
+  playerTiles = [],
+  npcTiles = [],
+  promotedMoveTypes = null,
 } = {}) {
   const dueWaves = getDueReinforcementWaves({
     turn,
@@ -452,7 +505,13 @@ export function scheduleReinforcementsForTurn({
     difficultyTurnOffset,
     activeEnemyCount,
   });
-  if (dueWaves.length === 0 && dueScriptedWaves.length === 0 && dueRepeatingWaves.length === 0) {
+  const dueLadderWaves = getDueLadderWaves({ turn, reinforcements });
+  if (
+    dueWaves.length === 0 &&
+    dueScriptedWaves.length === 0 &&
+    dueRepeatingWaves.length === 0 &&
+    dueLadderWaves.length === 0
+  ) {
     return { spawns: [], dueWaves: [], blockedSpawns: 0 };
   }
 
@@ -579,7 +638,7 @@ export function scheduleReinforcementsForTurn({
       const chosenTile = pool[choiceIndex];
       const chosenKey = toTileKey(chosenTile.col, chosenTile.row);
 
-      spawns.push({
+      const spawn = {
         col: chosenTile.col,
         row: chosenTile.row,
         edge: chosenEdge,
@@ -587,7 +646,11 @@ export function scheduleReinforcementsForTurn({
         waveIndex: due.waveIndex,
         scheduledTurn: due.scheduledTurn,
         xpMultiplier: due.xpMultiplier,
-      });
+      };
+      // Black Sun: the template's procedural waves keep coming but no longer raise par.
+      if (waveType === 'procedural' && reinforcements?.wavesRaisePar === false)
+        spawn.parNeutral = true;
+      spawns.push(spawn);
       spawnedKeys.add(chosenKey);
       spawnedCount++;
     }
@@ -602,6 +665,86 @@ export function scheduleReinforcementsForTurn({
       spawnedCount,
       blockedCount: requestedCount - spawnedCount,
     });
+  }
+
+  // The rout ladder: each wave comes from its one edge (wave 1 the front, later waves the
+  // flanks), its arrivals drawn along that edge, never within `minPlayerDistance` of a
+  // player unit or `npcDistance` of an NPC (the caravan included). An edge the exclusions
+  // empty falls back to the front; what the front cannot take is blocked.
+  if (dueLadderWaves.length > 0) {
+    const ladder = reinforcements.ladder;
+    const front = EDGE_SET.has(ladder.front) ? ladder.front : null;
+    const reserved = new Set([
+      ...tilesWithin(
+        playerTiles,
+        Number.isFinite(ladder.minPlayerDistance)
+          ? ladder.minPlayerDistance
+          : LADDER_DEFAULT_MIN_PLAYER_DISTANCE,
+      ),
+      ...tilesWithin(
+        npcTiles,
+        Number.isFinite(ladder.npcDistance) ? ladder.npcDistance : LADDER_DEFAULT_NPC_DISTANCE,
+      ),
+    ]);
+    // A promoted wave's arrival copies a class from the act's promoted pool, so its tile
+    // must suit those move types as well.
+    const promotedTypes = [
+      ...new Set([...normalizeMoveTypes(moveTypes, moveType), ...(promotedMoveTypes || [])]),
+    ].sort();
+    const candidatesOn = (edge, promoted) =>
+      collectEdgeSpawnCandidates({
+        edge,
+        mapLayout,
+        terrain,
+        occupied: new Set([...baseOccupied, ...spawnedKeys]),
+        moveType,
+        moveTypes: promoted ? promotedTypes : moveTypes,
+      }).filter((tile) => !reserved.has(toTileKey(tile.col, tile.row)));
+
+    for (const due of dueLadderWaves) {
+      const edge = EDGE_SET.has(due.wave?.edge) ? due.wave.edge : front;
+      const requestedCount = rollWaveCount(due.wave, rng, 0);
+      const levelBonus = Math.max(0, normalizeInteger(due.wave?.levelBonus, 0));
+      const promoted = due.wave?.promoted === true;
+      let spawnedCount = 0;
+      for (let i = 0; i < requestedCount; i++) {
+        let usedEdge = edge;
+        let pool = usedEdge ? candidatesOn(usedEdge, promoted) : [];
+        if (pool.length === 0 && front && usedEdge !== front) {
+          usedEdge = front;
+          pool = candidatesOn(front, promoted);
+        }
+        if (pool.length === 0) {
+          blockedSpawns++;
+          continue;
+        }
+        const tile = pool[Math.floor(rng() * pool.length)];
+        const spawn = {
+          col: tile.col,
+          row: tile.row,
+          edge: usedEdge,
+          waveType: LADDER_WAVE_TYPE,
+          waveIndex: due.waveIndex,
+          scheduledTurn: due.scheduledTurn,
+          xpMultiplier: due.xpMultiplier,
+        };
+        if (levelBonus > 0) spawn.levelBonus = levelBonus;
+        if (promoted) spawn.promoted = true;
+        spawns.push(spawn);
+        spawnedKeys.add(toTileKey(tile.col, tile.row));
+        spawnedCount++;
+      }
+      waveResults.push({
+        waveType: LADDER_WAVE_TYPE,
+        waveIndex: due.waveIndex,
+        scheduledTurn: due.scheduledTurn,
+        xpMultiplier: due.xpMultiplier,
+        edges: edge ? [edge] : [],
+        requestedCount,
+        spawnedCount,
+        blockedCount: requestedCount - spawnedCount,
+      });
+    }
   }
 
   return {

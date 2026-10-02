@@ -4,6 +4,8 @@ Status: proposal, revision 2. It takes in the review of revision 1 and the owner
 decisions of 2026-10-01 (listed at the end). Branch `claude/dusk-pressure-spec`.
 - This branch changes no game code or data. The evidence comes from `sim/pacing.js`.
 - PR 1, which has no tuning, is on branch `claude/dusk-pressure-pr1`.
+- PR 2 (the Dusk and Nightfall ladders) is on `claude/dusk-pressure-pr2`; §5 has its
+  notes and measured results.
 - First Light does not change. Boss enrage stat gains are held.
 
 ## 1. Problem
@@ -99,10 +101,12 @@ A finite schedule of waves starts early and comes every 2 turns, each wave large
 higher-level. Clearing the field cancels the waves still pending (the victory rule is
 unchanged). A fast clear sees few waves; a turtle sees them all.
 
-**Data.** Add `routLadder` per mode in `difficulty.json`: `null` on First Light and on
-Black Sun (see 2d). One row per wave is `[turn, count min–max, +levels]`. `turn` is the
-enemy phase whose end brings the arrival. Counts are absolute: no `enemyCountBonus`, no
-jitter. `xp` is the per-wave reward multiplier, and gold uses the same value.
+**Data.** `routLadder` per mode in `difficulty.json`: `null` on First Light and on
+Black Sun (see 2d). Each act lists its waves as `{ turn, count: [min, max], levels?,
+promoted? }`. `turn` is the enemy phase whose end brings the arrival. Counts are
+absolute: no `enemyCountBonus`, no turn offset, no jitter. `xp` is the per-wave reward
+multiplier (0 past the list), and gold uses the same value. A template opts out with
+`"ladder": false` (none does today).
 
 | Rung | Act I | Act II | Act III | Act IV (+ final) | `xp` | Promoted |
 |---|---|---|---|---|---|---|
@@ -114,9 +118,11 @@ jitter. `xp` is the per-wave reward multiplier, and gold uses the same value.
   village bandits are a turn-1 scripted wave (`MapGenerator.js:395-428`). Scripted waves
   keep their own XP and their +1 par. In the sims, all 975 Dusk and 1,022 Nightfall
   turtle rout battles ran the ladder. Seize and escape keep their waves.
-- **The ladder is fixed at generation.** `MapGenerator.cloneReinforcementConfig` writes
-  the waves into the battle config with `waveType: 'ladder'`, together with the computed
-  `front` and `flanks`. The difficulty is never consulted at battle start.
+- **The ladder is fixed at generation.** `MapGenerator` (through
+  `engine/RoutLadder.js`) writes the waves into the battle config as
+  `reinforcements.ladder`, with each wave's edge, reward, level bonus and promoted flag,
+  the computed `front` and `flanks`, and the rung's `parInflation`. The difficulty is
+  never consulted at battle start. Its arrivals carry `waveType: 'ladder'`.
   - The config is locked per node (`RunManager.js:3272-3276,4390,4924`), and `turnPar`
     is checkpointed (`BattleSuspendController.js:221-222`).
   - So a resume or a Vision rewind replays the same ladder against the same par.
@@ -126,21 +132,26 @@ jitter. `xp` is the per-wave reward multiplier, and gold uses the same value.
   from the act's `pools[act].promoted`, keyed by the spawn hash. Arrivals keep the
   copied affixes and roll no new ones.
 - **Spawn tiles.**
-  - **Edges.** Each wave chooses **one** edge for all of its arrivals, a cluster rather
-    than units scattered along the rim: wave 1 the front (the edge behind the enemy
-    centroid, axis from the player-to-enemy centroid gap), then flank A, flank B and so
-    on. A flank with fewer than 4 usable tiles (chokepoint) falls back to the front.
-  - **Cluster.** Arrivals take the wave's tiles closest to a seeded anchor on that edge.
+  - **Edges.** Each wave chooses **one** edge for all of its arrivals: wave 1 the front
+    (the edge behind the enemy centroid, axis from the player-to-enemy centroid gap),
+    then flank A, flank B and so on (which flank is A is hashed from the spawns). A flank
+    with fewer than 4 usable tiles (chokepoint) passes its waves to the other flank, then
+    to the front.
+  - **Spread.** Arrivals are drawn along that edge on the turn's seeded stream, as
+    simulated. Clustering them round one anchor was measured in PR 2: it lowers the push's
+    shadow (Nightfall 36 → 27, Dusk 11 → 9), so it is held back as a lever.
   - **Exclusions.** No tile within Manhattan 3 of a player unit, next to an NPC or the
     caravan, on `REINFORCEMENT_EXCLUDED_TERRAIN` (Lava Crack, the Acidic tiles,
-    Ballista, Throne, Village), or impassable for the arriving class's move type (PR 1).
+    Ballista, Throne, Village), or impassable for the arriving class's move type (PR 1;
+    a promoted wave also checks the act's promoted classes).
   - **Fallback.** When the exclusions empty an edge, the wave falls back to the front;
     whatever it cannot place counts as `blockedSpawns`. The telegraph names the
     scheduled count and edge and says "up to", because blocked tiles can shrink a wave.
-  - **Sim note.** The sim used one edge per wave but placed units uniformly along it, not
-    clustered.
-- **Telegraph.** The objective line reads, for example, "Reinforcements 2/4 · next T6 ·
-  north flank". Fogged arrivals stay unmarked; the band still counts them.
+- **Telegraph.** The rout objective gains a line such as "Reinforcements 1/4 · T6: up to
+  3, top edge" (waves resolved, the next wave's turn, its most arrivals, its edge as the
+  board is drawn: an upright portrait board is turned a quarter). The compact mobile
+  header shows "Waves 1/4 · next T6". Fogged arrivals stay unmarked; the band still counts
+  them.
 - **Finite.** A rout map must stay winnable by a weak army, and an open stream capped by
   live units creates a stall equilibrium. The Eclipse and late pressure already price the
   time.
@@ -246,8 +257,9 @@ keeps shop cures.
 ### 2d. Par, Eclipse and Black Sun
 
 - **Eclipse:** unchanged.
-- **Par:** make `parInflation` a per-difficulty table: First Light 3, **Dusk 2**,
-  Nightfall 3, Black Sun 3.
+- **Par:** `parInflation` per rung in `difficulty.json`: First Light 3, **Dusk 2**,
+  Nightfall 3, Black Sun 3. A new map locks its rung's value into the battle config; a
+  map without one (generated before PR 2) uses `turnBonus.parInflation` (3).
   - Dusk −1 lifts the turtle from 22.9 to 30.9 shadow and the push from 7.5 to 11.0.
     Push stays Pale in 46 of 48 runs and 85% S+A.
   - Inflation 1 (turtle 41.9, push 18.1) is the next lever if playtests still see S
@@ -255,7 +267,9 @@ keeps shop cures.
   - With inflation 2 on both, Dusk's par is about equal to Nightfall's (0.92 vs 0.85
     multiplier), so the rungs never invert.
 - **Black Sun:** keeps its current template waves and only loses the per-wave par bump
-  (they become par-neutral like the ladder). Shadow push 31.5 → 55.4 ± 2.6, turtle
+  (they become par-neutral like the ladder): `templateWavesRaisePar: false` marks the
+  procedural waves of every Black Sun map (`reinforcements.wavesRaisePar`). Scripted
+  waves (village bandits, boss keeps) still add one. Shadow push 31.5 → 55.4 ± 2.6, turtle
   47.3 → 73.5 ± 2.3 (Umbral or worse in 44 of 48 runs). The calibrated army is
   Dusk-strength, so the real Black Sun numbers will be lower. Re-run with a Black Sun
   calibration before release.
@@ -334,3 +348,36 @@ stack, or rebase onto it.
 - **Map sizes:** keep.
 
 Open: confirm Dusk inflation 2, with 1 held in reserve.
+
+## 5. PR 2 as shipped (`claude/dusk-pressure-pr2`)
+
+- **Engine.** `engine/RoutLadder.js` builds the ladder at generation and words the
+  telegraph. `ReinforcementScheduler` places ladder waves. `engine/ReinforcementSpawns.js`
+  holds what used to be duplicated in BattleScene and the harness: the template pool,
+  the spawn spec (level bonus, promoted waves), the scheduler call, the reward multiplier
+  and the zero-reward rule.
+- **Locked with the map.** The ladder, `parInflation` and Black Sun's
+  `wavesRaisePar: false` are written into the battle config. The rung's values reach
+  the map through the run's saved `difficultyModifiers`. A run saved before PR 2 keeps
+  its old pacing for the rest of the run: no ladder, inflation 3 and par-raising waves.
+  The same holds for its locked maps.
+- **Zero-reward arrivals.** A kill still counts toward deeds but skips the level gap and
+  the terrain/weapon tallies. Surviving one earns no XP.
+- **Results** (`sim/pacing.js`, calibrated profile, 48 paired seeds, final shadow mean ±
+  SE). "Prototype" reruns this branch's sim ladder on the PR 2 code. It shows that the
+  shipped ladder matches the simulated one, and that the drift from §2 comes from PR 1's
+  changes and noise.
+
+| Rung | Spec turtle / push | Shipped turtle / push | Prototype, same code | Today (PR 1 code) |
+|---|---|---|---|---|
+| First Light | 0.0 / 0.0 | 0.0 / 0.0 | — | — |
+| Dusk (infl. 2) | 30.9 / 11.0 | 37.2 ± 1.5 / 9.1 ± 1.2 | 34.5 / 11.7 | 0.9 / 0.1 |
+| Nightfall | 66.4 / 36.3 | 61.4 ± 2.5 / 35.0 ± 2.5 | 64.9 / 37.2 | 5.8 / 0.2 |
+| Black Sun | 73.5 / 55.4 | 73.3 ± 2.1 / 55.6 ± 2.8 | — | — |
+
+Targets (§3) on the shipped numbers:
+- Dusk push is S+A in 87% of rout battles and Pale in 44 of 48 runs.
+- The paired Dusk gap is 28.1 ± 1.9.
+- Nightfall sits 24 / 26 above Dusk.
+- Force-won stalls are within 1.5× of today.
+

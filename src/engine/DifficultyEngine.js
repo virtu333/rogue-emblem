@@ -139,6 +139,12 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   // 'turn': only to player-turn starts.
   rewindGranularity: 'action',
   siegeWeaponConfig: null,
+  // Battle pacing (docs/specs/dusk-pressure.md). The rout reinforcement ladder (null: no
+  // ladder), the par inflation a new map locks in (null: turnBonus.parInflation), and
+  // whether a template's procedural waves raise par when they arrive.
+  routLadder: null,
+  parInflation: null,
+  templateWavesRaisePar: true,
 });
 
 const recruitAffixExclusions = (config, id) =>
@@ -218,6 +224,12 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   }
   if (Number.isFinite(mode.growthBonusMultiplier) && mode.growthBonusMultiplier < 1) {
     lines.push(`Growth bonuses ×${mode.growthBonusMultiplier}`);
+  }
+  if (mode.routLadder?.acts && Object.keys(mode.routLadder.acts).length > 0) {
+    lines.push('Rout maps: reinforcement waves every 2 turns');
+  }
+  if (mode.templateWavesRaisePar === false) {
+    lines.push('Reinforcements no longer extend par');
   }
   if (mode.siegeWeaponConfig) {
     const cfg = mode.siegeWeaponConfig;
@@ -322,9 +334,57 @@ export function validateDifficultyConfig(config) {
         errors.push(`modes.${difficultyId}.${key} must be a finite number`);
       }
     }
+    errors.push(...validateBattlePacing(mode, `modes.${difficultyId}`));
   }
 
   return { valid: errors.length === 0, errors };
+}
+
+/** The pacing keys (all optional): routLadder, parInflation, templateWavesRaisePar. */
+function validateBattlePacing(mode, path) {
+  const errors = [];
+  if (
+    mode.parInflation !== undefined &&
+    mode.parInflation !== null &&
+    !(Number.isInteger(mode.parInflation) && mode.parInflation >= 0)
+  )
+    errors.push(`${path}.parInflation must be null or a non-negative integer`);
+  if (mode.templateWavesRaisePar !== undefined && typeof mode.templateWavesRaisePar !== 'boolean')
+    errors.push(`${path}.templateWavesRaisePar must be boolean`);
+  const ladder = mode.routLadder;
+  if (ladder === undefined || ladder === null) return errors;
+  if (!isObject(ladder) || !isObject(ladder.acts)) {
+    errors.push(`${path}.routLadder must be null or an object with acts`);
+    return errors;
+  }
+  if (!Array.isArray(ladder.xp) || ladder.xp.some((x) => !isFiniteNumber(x) || x < 0 || x > 1))
+    errors.push(`${path}.routLadder.xp must be an array of rewards between 0 and 1`);
+  for (const key of ['minPlayerDistance', 'minFlankTiles']) {
+    if (ladder[key] !== undefined && !(Number.isInteger(ladder[key]) && ladder[key] >= 0))
+      errors.push(`${path}.routLadder.${key} must be a non-negative integer`);
+  }
+  for (const [act, rows] of Object.entries(ladder.acts)) {
+    const at = `${path}.routLadder.acts.${act}`;
+    if (!ENEMY_ACT_GATE_ORDER.includes(act)) errors.push(`${at} is not an act id`);
+    if (!Array.isArray(rows) || rows.length === 0) {
+      errors.push(`${at} must be a non-empty array of waves`);
+      continue;
+    }
+    let lastTurn = 0;
+    rows.forEach((row, i) => {
+      const [min, max] = Array.isArray(row?.count) ? row.count : [];
+      if (!Number.isInteger(row?.turn) || row.turn <= lastTurn)
+        errors.push(`${at}[${i}].turn must be an integer after the previous wave's`);
+      else lastTurn = row.turn;
+      if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max < min)
+        errors.push(`${at}[${i}].count must be [min, max] with 1 <= min <= max`);
+      if (row.levels !== undefined && !(Number.isInteger(row.levels) && row.levels >= 0))
+        errors.push(`${at}[${i}].levels must be a non-negative integer`);
+      if (row.promoted !== undefined && typeof row.promoted !== 'boolean')
+        errors.push(`${at}[${i}].promoted must be boolean`);
+    });
+  }
+  return errors;
 }
 
 export function resolveDifficultyMode(config, difficultyId = 'normal') {

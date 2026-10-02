@@ -3193,6 +3193,14 @@ export class RunManager {
     // statusStaffConfig is an object — read directly (getDifficultyModifier coerces objects)
     battleParams.statusStaffConfig = this.difficultyModifiers?.statusStaffConfig ?? null;
     battleParams.siegeWeaponConfig = this.difficultyModifiers?.siegeWeaponConfig ?? null;
+    // Battle pacing (docs/specs/dusk-pressure.md), written into the map when it is
+    // generated: the rout ladder, the rung's par inflation, and whether template waves
+    // raise par. A run saved before these existed keeps none of them (DIFFICULTY_DEFAULTS).
+    battleParams.routLadder = this.difficultyModifiers?.routLadder ?? null;
+    const parInflation = this.difficultyModifiers?.parInflation;
+    if (Number.isFinite(parInflation)) battleParams.parInflation = parInflation;
+    else delete battleParams.parInflation;
+    battleParams.templateWavesRaisePar = this.getDifficultyModifier('templateWavesRaisePar', true);
     this._repairDuplicateRosterNames();
     // Units enter the battle (RunManager.getRoster clones) with their run identity.
     this.ensureUnitUids();

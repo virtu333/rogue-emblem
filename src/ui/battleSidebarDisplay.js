@@ -32,9 +32,12 @@ export function sidebarCounters(turnText, charges) {
  * { state: 'escaped' } | { state: 'lost' }. The caller decides what fog lets the player
  * know (sideObjectiveInputs); this only words it.
  *
+ * `ladder`: the rout ladder's status (engine/RoutLadder.js routLadderStatus) or null; a
+ * part shows while a wave is still to come.
+ *
  * Each part: { id, text, tone } with tone 'open' (still in play), 'good', 'warn' or 'bad'.
  */
-export function secondaryObjectiveStatus({ village = null, caravan = null } = {}) {
+export function secondaryObjectiveStatus({ village = null, caravan = null, ladder = null } = {}) {
   const parts = [];
   const villageText = {
     intact: 'Village intact',
@@ -58,6 +61,13 @@ export function secondaryObjectiveStatus({ village = null, caravan = null } = {}
     parts.push({ id: 'caravan', text: 'Caravan escaped', tone: 'good' });
   } else if (caravan?.state === 'lost') {
     parts.push({ id: 'caravan', text: 'Caravan lost', tone: 'bad' });
+  }
+  if (ladder?.next) {
+    parts.push({
+      id: 'reinforcements',
+      text: `Waves ${ladder.resolved}/${ladder.total} · next T${ladder.next.turn}`,
+      tone: 'warn',
+    });
   }
   return parts;
 }
@@ -87,5 +97,6 @@ export function sideObjectiveInputs(scene, memory = {}) {
     const hidden = scene.grid?.fogEnabled && tile && !scene.grid.isVisible?.(tile.col, tile.row);
     caravan = { state: hidden ? 'unseen' : 'lost' };
   }
-  return { village: villageStatus, caravan };
+  const ladder = scene?.getLadderStatus?.() || null;
+  return { village: villageStatus, caravan, ...(ladder ? { ladder } : {}) };
 }

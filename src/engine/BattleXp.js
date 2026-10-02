@@ -51,7 +51,10 @@ export function combatXpAwards({
   allies = [],
 }) {
   if (!unit || opponent?._noXP) return [];
-  const survivalXp = survivedAttack && unit.currentHP > 0 ? XP_DEFEND_SURVIVE : 0;
+  // Surviving an attacker whose wave pays nothing earns nothing either (no farming a
+  // spent reinforcement ladder, docs/specs/dusk-pressure.md).
+  const survivalXp =
+    survivedAttack && unit.currentHP > 0 && rewardMultiplier > 0 ? XP_DEFEND_SURVIVE : 0;
   let baseXp = calculateCombatXP(unit, opponent, opponentDied);
   let damageRatio = 1;
   if (!opponentDied && Number.isFinite(damageDealt) && Number.isFinite(opponentHpAtStart)) {

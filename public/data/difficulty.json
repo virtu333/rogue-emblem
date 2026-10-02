@@ -38,6 +38,9 @@
       "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 3,
       "classStatBonuses": {},
+      "parInflation": 3,
+      "templateWavesRaisePar": true,
+      "routLadder": null,
       "enemyClassEarliestAct": {},
       "recruitAffixExcludedActs": ["act1"]
     },
@@ -78,6 +81,36 @@
       "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 3,
       "classStatBonuses": {},
+      "parInflation": 2,
+      "templateWavesRaisePar": true,
+      "routLadder": {
+        "xp": [0.75, 0.5, 0.25, 0.1],
+        "minPlayerDistance": 3,
+        "minFlankTiles": 4,
+        "acts": {
+          "act1": [
+            { "turn": 4, "count": [1, 1] },
+            { "turn": 6, "count": [1, 2] }
+          ],
+          "act2": [
+            { "turn": 4, "count": [1, 2] },
+            { "turn": 6, "count": [2, 2], "levels": 1 },
+            { "turn": 8, "count": [2, 3], "levels": 1 }
+          ],
+          "act3": [
+            { "turn": 4, "count": [2, 2] },
+            { "turn": 6, "count": [2, 2], "levels": 1 },
+            { "turn": 8, "count": [2, 3], "levels": 1 },
+            { "turn": 10, "count": [2, 3], "levels": 2 }
+          ],
+          "act4": [
+            { "turn": 4, "count": [2, 2] },
+            { "turn": 6, "count": [2, 3], "levels": 1 },
+            { "turn": 8, "count": [2, 3], "levels": 1 },
+            { "turn": 10, "count": [3, 3], "levels": 2 }
+          ]
+        }
+      },
       "enemyClassEarliestAct": {
         "Dragon": "act4"
       },
@@ -136,6 +169,44 @@
       "classStatBonuses": {
         "Fighter": 1,
         "Archer": 1
+      },
+      "parInflation": 3,
+      "templateWavesRaisePar": true,
+      "routLadder": {
+        "xp": [0.75, 0.5, 0.25, 0.1],
+        "minPlayerDistance": 3,
+        "minFlankTiles": 4,
+        "acts": {
+          "act1": [
+            { "turn": 4, "count": [1, 2] },
+            { "turn": 6, "count": [1, 2] },
+            { "turn": 8, "count": [2, 2], "levels": 1 }
+          ],
+          "act2": [
+            { "turn": 3, "count": [1, 2] },
+            { "turn": 5, "count": [2, 2], "levels": 1 },
+            { "turn": 7, "count": [2, 3], "levels": 1 },
+            { "turn": 9, "count": [2, 3], "levels": 2 }
+          ],
+          "act3": [
+            { "turn": 3, "count": [2, 2] },
+            { "turn": 5, "count": [2, 3], "levels": 1 },
+            { "turn": 7, "count": [2, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+          ],
+          "act4": [
+            { "turn": 3, "count": [2, 2] },
+            { "turn": 5, "count": [2, 3], "levels": 1 },
+            { "turn": 7, "count": [2, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+          ],
+          "finalBoss": [
+            { "turn": 3, "count": [2, 2] },
+            { "turn": 5, "count": [2, 3], "levels": 1 },
+            { "turn": 7, "count": [2, 3], "levels": 1 },
+            { "turn": 9, "count": [3, 3], "levels": 2, "promoted": true }
+          ]
+        }
       },
       "enemyClassEarliestAct": {},
       "recruitAffixExcludedActs": []
@@ -203,6 +274,9 @@
         "Fighter": 2,
         "Archer": 2
       },
+      "parInflation": 3,
+      "templateWavesRaisePar": false,
+      "routLadder": null,
       "enemyClassEarliestAct": {},
       "recruitAffixExcludedActs": []
     }
