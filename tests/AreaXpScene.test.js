@@ -37,11 +37,28 @@ const art = {
   description: 'Test.',
   combatMods: {},
 };
+const pierce = {
+  ...art,
+  id: 'test_pierce',
+  name: 'Test Pierce',
+  hpCost: 0, // usable at 1 HP
+  area: { shape: 'line', length: 1, damage: { kind: 'fixed', amount: 30 }, strikes: 'once' },
+};
+const arts = [art, pierce];
 const body = { HP: 30, STR: 12, MAG: 0, SKL: 9, SPD: 9, DEF: 7, RES: 3, LCK: 5, MOV: 5 };
 const band = data.accessories.find((a) => a.name === "Mentor's Band");
 
 /** The armies, fresh for each run: Edric, an optional Trainee, the Primary, a Neighbour. */
-function armies({ withNeighbour, eliteNeighbour = false, mentor = false }) {
+function armies({
+  withNeighbour,
+  eliteNeighbour = false,
+  mentor = false,
+  noXpNeighbour = false,
+  strongNeighbours = false,
+  armedPrimary = false,
+  edricHP = 30,
+  edricXp = 0,
+}) {
   const weapon = {
     name: 'Test Blade',
     type: 'Sword',
@@ -51,8 +68,8 @@ function armies({ withNeighbour, eliteNeighbour = false, mentor = false }) {
     weight: 5,
     range: '1',
     special: '',
-    weaponArtIds: [art.id],
-    weaponArtSources: ['scroll'],
+    weaponArtIds: arts.map((a) => a.id),
+    weaponArtSources: arts.map(() => 'scroll'),
   };
   const player = (name, level, col, row, extra = {}) => ({
     name,
@@ -75,6 +92,10 @@ function armies({ withNeighbour, eliteNeighbour = false, mentor = false }) {
     ...extra,
   });
   const edric = player('Edric', 5, 0, 0, {
+    currentHP: edricHP,
+    xp: edricXp,
+    className: 'Myrmidon',
+    growths: {},
     isCommander: true,
     isLord: true,
     weapon,
@@ -83,14 +104,14 @@ function armies({ withNeighbour, eliteNeighbour = false, mentor = false }) {
     _gambitUsedThisTurn: true,
   });
   const trainee = player('Trainee', 3, 0, 1);
-  const enemy = (name, col, hp, extra = {}) => ({
+  const enemy = (name, col, hp, extra = {}, row = 0) => ({
     name,
     level: 5,
     tier: 'base',
     faction: 'enemy',
     className: 'Soldier',
     col,
-    row: 0,
+    row,
     currentHP: hp,
     moveType: 'Infantry',
     stats: { ...body, HP: hp, DEF: 4 },
@@ -101,12 +122,41 @@ function armies({ withNeighbour, eliteNeighbour = false, mentor = false }) {
     affixes: [],
     ...extra,
   });
-  const primary = enemy('Primary', 1, 30);
-  const neighbour = enemy('Neighbour', 2, 5, eliteNeighbour ? { isElite: true } : {});
+  // An armed primary counters for 12 STR + 20 might − 7 DEF = 25.
+  const lance = {
+    name: 'Test Lance',
+    type: 'Lance',
+    might: 20,
+    hit: 300,
+    crit: 0,
+    weight: 1,
+    range: '1',
+    special: '',
+  };
+  const primary = enemy(
+    'Primary',
+    1,
+    30,
+    armedPrimary ? { weapon: lance, inventory: [lance] } : {},
+  );
+  const neighbourExtra = {
+    ...(eliteNeighbour ? { isElite: true } : {}),
+    ...(noXpNeighbour ? { _noXP: true } : {}),
+  };
+  const neighbour = enemy('Neighbour', 2, 5, neighbourExtra);
+  // Two level-10 elites: 65 × 0.6 × 1.3 = 50.7 each, 101.4 in all, over the 75 cap.
+  const strong = [
+    enemy('Strong A', 2, 5, { level: 10, isElite: true }),
+    enemy('Strong B', 1, 5, { level: 10, isElite: true }, 1),
+  ];
   return {
     edric,
     players: mentor ? [edric, trainee] : [edric],
-    enemies: withNeighbour ? [primary, neighbour] : [primary],
+    enemies: strongNeighbours
+      ? [primary, ...strong]
+      : withNeighbour
+        ? [primary, neighbour]
+        : [primary],
     primary,
     neighbour,
   };
@@ -114,10 +164,7 @@ function armies({ withNeighbour, eliteNeighbour = false, mentor = false }) {
 
 async function sceneFight(options) {
   const { edric, players, enemies, primary, neighbour } = armies(options);
-  const scene = journeyBattleScene(
-    {},
-    { ...data, weaponArts: { ...data.weaponArts, arts: [art] } },
-  );
+  const scene = journeyBattleScene({}, { ...data, weaponArts: { ...data.weaponArts, arts } });
   scene.runManager = null;
   scene._battleRewindPolicy = 'fixed-v1';
   scene._battleRng = createBattleRng(42);
@@ -131,11 +178,12 @@ async function sceneFight(options) {
   scene.battleConfig = { objective: 'rout' };
   scene.goldEarned = 0;
   scene.turnPar = 99;
+  scene.turnBonusConfig = data.turnBonus; // as create() sets it
   scene.getCurrentTurnNumber = () => 1;
   scene.playerUnits = players;
   scene.enemyUnits = enemies;
   rendering(scene, 0); // every presentation call answers; none draws
-  scene._getSelectedWeaponArtForUnit = () => art;
+  scene._getSelectedWeaponArtForUnit = () => options.art || art;
   scene.animateStrike = async () => {};
   scene.animateSkillActivation = async () => {};
   scene._battleBeats.checkBossHalfHealth = async () => {};
@@ -146,17 +194,27 @@ async function sceneFight(options) {
   scene.onVictory = () => {
     scene.battleState = 'BATTLE_END';
   };
+  scene.onDefeat = () => {
+    scene.result = 'defeat';
+    scene.battleState = 'BATTLE_END';
+  };
   const granted = [];
-  scene.awardScaledXP = async (u, xp) => granted.push([u.name, xp]);
+  const realGain = scene.awardScaledXP.bind(scene);
+  scene.awardScaledXP = async (u, xp) => {
+    granted.push([u.name, xp]);
+    if (options.realGain) await realGain(u, xp);
+  };
+  const cards = [];
+  scene._playLevelUpSfx = (kind) => cards.push(kind);
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   await scene.executeCombat(edric, primary);
-  return { granted, primary, neighbour };
+  return { granted, primary, neighbour, edric, cards, scene };
 }
 
 function harnessFight(options) {
   const { edric, players, enemies, primary, neighbour } = armies(options);
   const gameData = structuredClone(data);
-  gameData.weaponArts.arts.push(art);
+  gameData.weaponArts.arts.push(...arts);
   const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout' });
   battle.turnManager = { turnNumber: 1, unitActed() {} };
   battle.battleConfig = { objective: 'rout' };
@@ -173,9 +231,13 @@ function harnessFight(options) {
     updateFogOfWar() {},
   };
   const granted = [];
-  battle._grantScaledXP = (u, xp) => granted.push([u.name, xp]);
+  const realGain = battle._grantScaledXP.bind(battle);
+  battle._grantScaledXP = (u, xp) => {
+    granted.push([u.name, xp]);
+    if (options.realGain) realGain(u, xp);
+  };
   battle.selectedUnit = edric;
-  battle._setSelectedWeaponArt(edric, art.id, edric.weapon);
+  battle._setSelectedWeaponArt(edric, (options.art || art).id, edric.weapon);
   const prev = Math.random;
   Math.random = () => 0.01;
   try {
@@ -183,7 +245,7 @@ function harnessFight(options) {
   } finally {
     Math.random = prev;
   }
-  return { granted, primary, neighbour };
+  return { granted, primary, neighbour, edric };
 }
 
 describe('the scene pays area XP, as the harness does', () => {
@@ -222,5 +284,44 @@ describe('the scene pays area XP, as the harness does', () => {
     if (options.withNeighbour) expect(scene.neighbour.currentHP).toBe(0);
     expect(scene.granted).toEqual(expected);
     expect(harness.granted).toEqual(expected);
+  });
+});
+
+describe('what area XP never pays, and what it can reach', () => {
+  it('an attacker the counter fells earns nothing, though its pierce killed', async () => {
+    // Edric (1 HP) strikes, the armed Primary counters him down; the pierce still kills
+    // the Neighbour behind it (a line lands even when its user falls).
+    const options = { withNeighbour: true, armedPrimary: true, edricHP: 1, art: pierce };
+    for (const run of [await sceneFight(options), harnessFight(options)]) {
+      expect(run.edric.currentHP).toBe(0);
+      expect(run.neighbour.currentHP).toBe(0);
+      expect(run.granted).toEqual([]);
+    }
+  });
+
+  it('a victim that gives no XP (_noXP) adds nothing', async () => {
+    const options = { withNeighbour: true, noXpNeighbour: true };
+    const scene = await sceneFight(options);
+    expect(scene.neighbour.currentHP).toBe(0);
+    expect(scene.granted).toEqual([['Edric', 13]]);
+    expect(harnessFight(options).granted).toEqual([['Edric', 13]]);
+  });
+
+  it('area credits stop at 75 base: 13 for the primary + 75, not + 101', async () => {
+    const options = { strongNeighbours: true };
+    const scene = await sceneFight(options);
+    expect(scene.granted).toEqual([['Edric', 88]]);
+    expect(harnessFight(options).granted).toEqual([['Edric', 88]]);
+  });
+
+  it('a gain big enough to level queues its level-up card', async () => {
+    // 37 base, × 1.25 for a turn-1 finish under par (turnBonus.json S rank): 46.
+    // 90 + 46 = 136: one level, 36 left over.
+    const options = { withNeighbour: true, edricXp: 90, realGain: true };
+    const scene = await sceneFight(options);
+    const harness = harnessFight(options);
+    expect(scene.granted).toEqual([['Edric', 37]]);
+    for (const run of [scene, harness]) expect([run.edric.level, run.edric.xp]).toEqual([6, 36]);
+    expect(scene.cards).toHaveLength(1);
   });
 });
