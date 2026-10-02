@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
+import { BattleScene } from '../src/scenes/BattleScene.js';
 import { HealController } from '../src/ui/HealController.js';
 import { loadGameData } from './testData.js';
 const data = loadGameData();
@@ -8,6 +9,9 @@ function setup() {
   const staff = structuredClone(data.weapons.find((w) => w.name === 'Heal'));
   const unit = {
     name: 'Sera',
+    faction: 'player',
+    col: 0,
+    row: 0,
     weapon: tome,
     inventory: [tome, staff],
     proficiencies: [
@@ -20,12 +24,18 @@ function setup() {
   unit.proficiencies[0].type = tome.type;
   const scene = {
     _battleSession: 1,
+    battleState: 'UNIT_ACTION_MENU',
+    gameData: data,
+    turnManager: { turnNumber: 1, currentPhase: 'player' },
+    playerUnits: [unit],
+    npcUnits: [],
     grid: { clearAttackHighlights() {}, showHealRange() {} },
     registry: { get: () => null },
     updateHPBar() {},
     animateHeal: async () => {},
-    awardScaledXP: vi.fn(async () => {}),
+    awardScaledXP: vi.fn(() => 20),
     finishUnitAction: vi.fn(),
+    _captureSuspendCheckpoint: BattleScene.prototype._captureSuspendCheckpoint,
     _recoverUnitActionError: vi.fn(),
   };
   const ctrl = new HealController(scene);
@@ -34,10 +44,18 @@ function setup() {
 describe('staff action defense weapon', () => {
   it('restores the equipped tome after healing without an extra action or staff-use reset', async () => {
     const { ctrl, scene, unit, tome, staff } = setup();
-    const ally = { stats: { HP: 30 }, currentHP: 4 };
+    const ally = {
+      name: 'Ally',
+      faction: 'player',
+      col: 1,
+      row: 0,
+      stats: { HP: 30 },
+      currentHP: 4,
+    };
+    scene.playerUnits.push(ally);
     ctrl.startHealTargetSelection(unit, [ally], staff);
     expect(unit.weapon).toBe(staff);
-    await ctrl.executeHeal(unit, ally);
+    expect(await ctrl.executeHeal(unit, ally)).toBe(true);
     expect(unit.weapon).toBe(tome);
     expect(staff._usesSpent).toBe(1);
     expect(ally.currentHP).toBeGreaterThan(4);

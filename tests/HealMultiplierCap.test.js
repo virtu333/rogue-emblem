@@ -184,8 +184,9 @@ function makeSceneCtx(multiplier, playerUnits = []) {
     undimUnit() {},
     updateHPBar() {},
     animateHeal: vi.fn(async () => {}),
-    awardScaledXP: vi.fn(async () => {}),
+    awardScaledXP: vi.fn(() => 20),
     finishUnitAction: vi.fn(),
+    _captureSuspendCheckpoint: BattleScene.prototype._captureSuspendCheckpoint,
     _recoverUnitActionError: vi.fn((_u, _k, err) => {
       throw err;
     }),
@@ -198,7 +199,7 @@ describe('HealController applies the fixed resolver on every path', () => {
     const sera = healer(staff);
     const ally = target(29);
     const ctx = makeSceneCtx(0.8, [sera, ally]);
-    await BattleScene.prototype.executeHeal.call(ctx, sera, ally);
+    expect(await BattleScene.prototype.executeHeal.call(ctx, sera, ally)).toBe(true);
     expect(ally.currentHP).toBe(30);
     expect(ctx.animateHeal).toHaveBeenCalledWith(ally, 1, sera);
     expect(staff._usesSpent).toBe(1);
@@ -211,7 +212,7 @@ describe('HealController applies the fixed resolver on every path', () => {
     const sera = healer(staff);
     const ally = target(25);
     const ctx = makeSceneCtx(0.8, [sera, ally]);
-    await BattleScene.prototype.executeHeal.call(ctx, sera, ally);
+    expect(await BattleScene.prototype.executeHeal.call(ctx, sera, ally)).toBe(true);
     expect(ally.currentHP).toBe(30);
     expect(ctx.animateHeal).toHaveBeenCalledWith(ally, 5, sera);
   });
@@ -221,16 +222,18 @@ describe('HealController applies the fixed resolver on every path', () => {
     const sera = healer(staff);
     const ally = target(25);
     const ctx = makeSceneCtx(1.5, [sera, ally]);
-    await BattleScene.prototype.executeHeal.call(ctx, sera, ally);
+    expect(await BattleScene.prototype.executeHeal.call(ctx, sera, ally)).toBe(true);
     expect(ally.currentHP).toBe(30);
   });
 
   it('heal-all: every target resolves with the multiplier before the cap, one use total', async () => {
     const staff = structuredClone(data.weapons.find((w) => w.name === 'Fortify'));
     const sera = healer(staff); // MAG 5 + 5 = 10 raw, 8 effective
-    const allies = [target(29), target(25, 30, { row: 2 }), target(10, 30, { row: 3 })];
+    sera.proficiencies = [{ type: 'Staff', rank: 'Mast' }];
+    const allies = [target(29), target(25, 30, { row: 2 }), target(10, 30, { col: 1, row: 3 })];
     const ctx = makeSceneCtx(0.8, [sera, ...allies]);
-    await BattleScene.prototype.executeHealAll.call(ctx, sera, allies);
+    expect(new HealController(ctx).findHealTargets(sera, staff)).toEqual(allies);
+    expect(await BattleScene.prototype.executeHealAll.call(ctx, sera, allies)).toBe(true);
     expect(allies.map((a) => a.currentHP)).toEqual([30, 30, 18]);
     expect(ctx.animateHeal.mock.calls.map((c) => c[1])).toEqual([1, 5, 8]);
     expect(staff._usesSpent).toBe(1);
@@ -263,6 +266,7 @@ describe('HeadlessBattle heal parity', () => {
     const ctx = Object.create(HeadlessBattle.prototype);
     ctx.playerUnits = units;
     ctx.gameData = { ...data, deeds: null };
+    ctx.turnManager = { turnNumber: 1, currentPhase: 'player' };
     ctx.runManager = { blessingRuntimeModifiers: { healingEffectivenessMultiplier: multiplier } };
     ctx._finishUnitAction = vi.fn();
     return ctx;

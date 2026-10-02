@@ -50,6 +50,11 @@ function makeSceneCtx({ xpMultiplier = 1 } = {}) {
     finishUnitAction() {},
     updateHPBar() {},
     gameData: { classes: [], skills: [] },
+    npcUnits: [],
+    showActionMenu() {},
+    _recoverUnitActionError(unit, _label, _error, { session }) {
+      this.finishUnitAction(unit, { skipCanto: true, session });
+    },
   };
 }
 
@@ -61,19 +66,30 @@ describe('Heal XP', () => {
       ctx.gameData = loadGameData();
       ctx.turnManager = { turnNumber: 1, currentPhase: 'player' };
       ctx.animateHeal = vi.fn(async () => {});
-      ctx.awardScaledXP = vi.fn(async () => {});
-      const staff = { type: 'Staff', healBase: 5, _usesSpent: 0, uses: 3 };
+      ctx.awardScaledXP = vi.fn(() => {});
+      const staff = {
+        type: 'Staff',
+        rankRequired: 'Prof',
+        range: '1-3',
+        healAll: true,
+        healBase: 5,
+        _usesSpent: 0,
+        uses: 3,
+      };
       const healer = {
         name: 'Sera',
+        faction: 'player',
         col: 1,
         row: 1,
         currentHP: 10,
         weapon: staff,
         inventory: [staff],
+        proficiencies: [{ type: 'Staff', rank: 'Prof' }],
         traits: ['overflowing_grace'],
         stats: { HP: 20, MAG: 10 },
       };
       const targets = [1, 2].map((row) => ({ col: 2, row, currentHP: 5, stats: { HP: 30 } }));
+      ctx.playerUnits = [healer, ...targets];
       if (aoe) await BattleScene.prototype.executeHealAll.call(ctx, healer, targets);
       else await BattleScene.prototype.executeHeal.call(ctx, healer, targets[0]);
       expect(healer.currentHP).toBe(13);
@@ -89,77 +105,159 @@ describe('Heal XP', () => {
 
   it('executeHeal awards XP_BASE_HEAL to the healer', async () => {
     const ctx = makeSceneCtx();
-    const awardScaledXP = vi.fn(async () => {});
+    const awardScaledXP = vi.fn(() => {});
     const finishUnitAction = vi.fn();
     ctx.awardScaledXP = awardScaledXP;
     ctx.finishUnitAction = finishUnitAction;
     ctx.animateHeal = vi.fn(async () => {});
 
-    const staff = { type: 'Staff', healBase: 5, _usesSpent: 0, uses: 3 };
-    const healer = { col: 1, row: 1, weapon: staff, stats: { MAG: 10 } };
+    const staff = {
+      type: 'Staff',
+      rankRequired: 'Prof',
+      range: '1-3',
+      healAll: true,
+      healBase: 5,
+      _usesSpent: 0,
+      uses: 3,
+    };
+    const healer = {
+      name: 'Healer',
+      faction: 'player',
+      currentHP: 20,
+      col: 1,
+      row: 1,
+      weapon: staff,
+      inventory: [staff],
+      proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+      stats: { HP: 20, MAG: 10 },
+    };
     const target = { col: 1, row: 2, currentHP: 15, stats: { HP: 30 } };
 
+    ctx.playerUnits = [healer, target];
     await BattleScene.prototype.executeHeal.call(ctx, healer, target);
 
-    expect(awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL);
+    expect(awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL, { present: false });
     expect(finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
   });
 
   it('executeHealAll awards a single XP_BASE_HEAL for AoE heal', async () => {
     const ctx = makeSceneCtx();
-    const awardScaledXP = vi.fn(async () => {});
+    const awardScaledXP = vi.fn(() => {});
     const finishUnitAction = vi.fn();
     ctx.awardScaledXP = awardScaledXP;
     ctx.finishUnitAction = finishUnitAction;
     ctx.animateHeal = vi.fn(async () => {});
 
-    const staff = { type: 'Staff', healBase: 5, _usesSpent: 0, uses: 3 };
-    const healer = { col: 1, row: 1, weapon: staff, stats: { MAG: 10 } };
+    const staff = {
+      type: 'Staff',
+      rankRequired: 'Prof',
+      range: '1-3',
+      healAll: true,
+      healBase: 5,
+      _usesSpent: 0,
+      uses: 3,
+    };
+    const healer = {
+      name: 'Healer',
+      faction: 'player',
+      currentHP: 20,
+      col: 1,
+      row: 1,
+      weapon: staff,
+      inventory: [staff],
+      proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+      stats: { HP: 20, MAG: 10 },
+    };
     const targets = [
       { col: 1, row: 2, currentHP: 15, stats: { HP: 30 } },
       { col: 2, row: 2, currentHP: 10, stats: { HP: 25 } },
       { col: 3, row: 2, currentHP: 20, stats: { HP: 30 } },
     ];
 
+    ctx.playerUnits = [healer, ...targets];
     await BattleScene.prototype.executeHealAll.call(ctx, healer, targets);
 
     expect(awardScaledXP).toHaveBeenCalledTimes(1);
-    expect(awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL);
+    expect(awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL, { present: false });
     expect(finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
   });
 
   it('executeHeal still calls finishUnitAction if awardScaledXP rejects', async () => {
     const ctx = makeSceneCtx();
-    ctx.awardScaledXP = vi.fn(async () => {
+    ctx.awardScaledXP = vi.fn(() => {
       throw new Error('popup failed');
     });
     ctx.finishUnitAction = vi.fn();
     ctx.animateHeal = vi.fn(async () => {});
 
-    const staff = { type: 'Staff', healBase: 5, _usesSpent: 0, uses: 3 };
-    const healer = { col: 1, row: 1, weapon: staff, stats: { MAG: 10 } };
+    const staff = {
+      type: 'Staff',
+      rankRequired: 'Prof',
+      range: '1-3',
+      healAll: true,
+      healBase: 5,
+      _usesSpent: 0,
+      uses: 3,
+    };
+    const healer = {
+      name: 'Healer',
+      faction: 'player',
+      currentHP: 20,
+      col: 1,
+      row: 1,
+      weapon: staff,
+      inventory: [staff],
+      proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+      stats: { HP: 20, MAG: 10 },
+    };
     const target = { col: 1, row: 2, currentHP: 15, stats: { HP: 30 } };
 
+    ctx.playerUnits = [healer, target];
     await BattleScene.prototype.executeHeal.call(ctx, healer, target).catch(() => {});
 
-    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, {
+      skipCanto: true,
+      session: ctx._battleSession,
+    });
   });
 
   it('executeHealAll still calls finishUnitAction if awardScaledXP rejects', async () => {
     const ctx = makeSceneCtx();
-    ctx.awardScaledXP = vi.fn(async () => {
+    ctx.awardScaledXP = vi.fn(() => {
       throw new Error('popup failed');
     });
     ctx.finishUnitAction = vi.fn();
     ctx.animateHeal = vi.fn(async () => {});
 
-    const staff = { type: 'Staff', healBase: 5, _usesSpent: 0, uses: 3 };
-    const healer = { col: 1, row: 1, weapon: staff, stats: { MAG: 10 } };
+    const staff = {
+      type: 'Staff',
+      rankRequired: 'Prof',
+      range: '1-3',
+      healAll: true,
+      healBase: 5,
+      _usesSpent: 0,
+      uses: 3,
+    };
+    const healer = {
+      name: 'Healer',
+      faction: 'player',
+      currentHP: 20,
+      col: 1,
+      row: 1,
+      weapon: staff,
+      inventory: [staff],
+      proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+      stats: { HP: 20, MAG: 10 },
+    };
     const targets = [{ col: 1, row: 2, currentHP: 15, stats: { HP: 30 } }];
 
+    ctx.playerUnits = [healer, ...targets];
     await BattleScene.prototype.executeHealAll.call(ctx, healer, targets).catch(() => {});
 
-    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, {
+      skipCanto: true,
+      session: ctx._battleSession,
+    });
   });
 
   it('awardScaledXP applies difficulty multiplier to heal XP', async () => {
