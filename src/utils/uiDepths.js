@@ -9,7 +9,9 @@ export const UI_DEPTHS = {
   OBJECTIVE_TILE: 7, // Above movement/path overlays; below unit sprites.
   OBJECTIVE_LABEL: 15, // Readable even when a unit occupies an exit.
   TERRAIN_HIGHLIGHTS: 10,
+  AREA_PREVIEW: 12, // An area art's footprint and victim rings (AreaPreviewController).
   UNITS: 50,
+  AREA_PREVIEW_CHIP: 79, // Area preview numbers, just under floating damage numbers.
   DAMAGE_NUMBERS: 80,
   FOG_OVERLAY: 90,
   FOG_LABEL: 100,

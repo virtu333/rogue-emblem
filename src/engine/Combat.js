@@ -770,6 +770,62 @@ export function calculateDamage(
   return result;
 }
 
+/**
+ * One strike's damage before crits, procs and multi-hit (what the forecast shows and
+ * resolveCombat rolls from): attack with the art/skill/imbue mods in `atkMods`, minus
+ * the defender's DEF or RES, terrain, weapon stat bonuses and `defMods`. Deterministic.
+ * `effectivenessCap` lowers the weapon/art effectiveness cap (area blows cap at 3×).
+ */
+export function strikeDamage(
+  attacker,
+  atkWeapon,
+  defender,
+  defWeapon,
+  defTerrain,
+  atkMods = null,
+  defMods = null,
+  { effectivenessCap = null } = {},
+) {
+  if (!atkWeapon) return 0;
+  const ignoreTriangle = Boolean(atkMods?.ignoreWeaponTriangle || defMods?.ignoreWeaponTriangle);
+  const hitsRes = strikeHitsRes(atkWeapon, atkMods);
+  const defWeaponDef = defWeapon
+    ? sumWeaponBonus(getWeaponStatBonuses(defWeapon), hitsRes ? 'RES' : 'DEF')
+    : 0;
+  let effectiveness = getCombinedEffectivenessMultiplier(atkWeapon, defender, atkMods);
+  if (Number.isFinite(effectivenessCap))
+    effectiveness = Math.min(effectiveness, Math.max(1, effectivenessCap));
+  let damage = Math.max(
+    0,
+    calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
+      targetsRES: atkMods?.targetsRES,
+      effectivenessMultiplier: effectiveness,
+      ignoreTriangle,
+      ignoreRES: atkMods?.ignoreRES,
+    }) +
+      (atkMods?.atkBonus || 0) -
+      combatModDefense(defMods, hitsRes) -
+      defWeaponDef,
+  );
+  damage += getCombatStatScalingBonus(attacker, atkMods);
+  if (atkMods?.vengeance) damage += getMissingHp(attacker);
+  if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) damage = Math.floor(damage / 2);
+  if (atkMods?.damageMultiplier > 1) damage = Math.floor(damage * atkMods.damageMultiplier);
+  return Math.max(0, damage);
+}
+
+/**
+ * The attacker's merged combat mods for a combat with `skillCtx`: skills and the like
+ * (`atkMods`), the weapon art (`atkWeaponArtMods`) and the weapon's imbue, merged as the
+ * forecast and resolveCombat merge them. Area blows and their preview reuse it.
+ */
+export function combatStrikeMods(skillCtx, atkWeapon) {
+  return mergeCombatMods(
+    mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods),
+    getImbueCombatMods(atkWeapon, skillCtx?.imbuesData),
+  );
+}
+
 /** True if attacker is fast enough to strike twice (after weight penalty) */
 export function canDouble(attacker, defender, atkWeapon, defWeapon) {
   const atkEffectiveSpd = calculateEffectiveSpeed(attacker, atkWeapon);
@@ -921,10 +977,7 @@ export function getCombatForecast(
 
   // Weapon imbue mods merge exactly like weapon-art mods, on whichever side
   // wields the imbued weapon (so defensive imbues also apply when defending).
-  const atkMods = mergeCombatMods(
-    mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods),
-    getImbueCombatMods(atkWeapon, skillCtx?.imbuesData),
-  );
+  const atkMods = combatStrikeMods(skillCtx, atkWeapon);
   const defMods = mergeCombatMods(
     mergeCombatMods(skillCtx?.defMods, skillCtx?.defWeaponArtMods),
     defWeapon ? getImbueCombatMods(defWeapon, skillCtx?.imbuesData) : null,
@@ -941,33 +994,13 @@ export function getCombatForecast(
 
   // Weapon stat bonuses (e.g. Ragnarok +5 DEF, Tidebreaker +5 DEF +5 RES)
   // Pick the relevant defensive bonus based on incoming weapon type
-  const fDefWpnBonuses = defWeapon ? getWeaponStatBonuses(defWeapon) : [];
   const fAtkWpnBonuses = getWeaponStatBonuses(atkWeapon);
-  const fAtkHitsRes = strikeHitsRes(atkWeapon, atkMods);
   const fDefHitsRes = defWeapon ? strikeHitsRes(defWeapon, defMods) : false;
-  const fDefWpnDef = sumWeaponBonus(fDefWpnBonuses, fAtkHitsRes ? 'RES' : 'DEF');
   const fAtkWpnDef = defWeapon ? sumWeaponBonus(fAtkWpnBonuses, fDefHitsRes ? 'RES' : 'DEF') : 0;
 
   // Attacker stats (skill mods applied as flat adjustments)
   const defTerrainForAtkHit = atkMods?.ignoreTerrainAvoid ? null : defTerrain;
-  const atkEffectiveness = getCombinedEffectivenessMultiplier(atkWeapon, defender, atkMods);
-  let atkDmg = Math.max(
-    0,
-    calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
-      targetsRES: atkMods?.targetsRES,
-      effectivenessMultiplier: atkEffectiveness,
-      ignoreTriangle: fIgnoreTriangle,
-      ignoreRES: atkMods?.ignoreRES,
-    }) +
-      (atkMods?.atkBonus || 0) -
-      combatModDefense(defMods, fAtkHitsRes) -
-      fDefWpnDef,
-  );
-  atkDmg += getCombatStatScalingBonus(attacker, atkMods);
-  if (atkMods?.vengeance) atkDmg += getMissingHp(attacker);
-  if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
-  if (atkMods?.damageMultiplier > 1) atkDmg = Math.floor(atkDmg * atkMods.damageMultiplier);
-  atkDmg = Math.max(0, atkDmg);
+  let atkDmg = strikeDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, atkMods, defMods);
   if (atkMultiHit) atkDmg = Math.max(1, Math.floor(atkDmg * atkMultiHit.damageMultiplier));
   let atkHit =
     calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle) +
@@ -1469,6 +1502,8 @@ export function resolveCombat(
   const events = [];
   let atkHP = attacker.currentHP ?? attacker.stats.HP;
   let defHP = defender.currentHP ?? defender.stats.HP;
+  const atkStartHP = atkHP;
+  const defStartHP = defHP;
 
   // ── Null / staff attacker weapon → no-op (matches getCombatForecast) ──
   const attackerCanInitiate = !!atkWeapon && !isStaff(atkWeapon);
@@ -1495,10 +1530,7 @@ export function resolveCombat(
 
   // Weapon imbue mods merge exactly like weapon-art mods, on whichever side
   // wields the imbued weapon (so defensive imbues also apply when defending).
-  const atkMods = mergeCombatMods(
-    mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods),
-    getImbueCombatMods(atkWeapon, skillCtx?.imbuesData),
-  );
+  const atkMods = combatStrikeMods(skillCtx, atkWeapon);
   const defMods = mergeCombatMods(
     mergeCombatMods(skillCtx?.defMods, skillCtx?.defWeaponArtMods),
     defWeapon ? getImbueCombatMods(defWeapon, skillCtx?.imbuesData) : null,
@@ -1529,23 +1561,7 @@ export function resolveCombat(
 
   const defTerrainForAtkHit = atkMods?.ignoreTerrainAvoid ? null : defTerrain;
   const atkEffectiveness = getCombinedEffectivenessMultiplier(atkWeapon, defender, atkMods);
-  let atkDmg = Math.max(
-    0,
-    calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
-      targetsRES: atkMods?.targetsRES,
-      effectivenessMultiplier: atkEffectiveness,
-      ignoreTriangle,
-      ignoreRES: atkMods?.ignoreRES,
-    }) +
-      (atkMods?.atkBonus || 0) -
-      combatModDefense(defMods, atkHitsRes) -
-      defWeaponDefBonus,
-  );
-  atkDmg += getCombatStatScalingBonus(attacker, atkMods);
-  if (atkMods?.vengeance) atkDmg += getMissingHp(attacker);
-  if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
-  if (atkMods?.damageMultiplier > 1) atkDmg = Math.floor(atkDmg * atkMods.damageMultiplier);
-  atkDmg = Math.max(0, atkDmg);
+  let atkDmg = strikeDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, atkMods, defMods);
   let atkLunaDmg = Math.max(
     0,
     calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
@@ -2259,5 +2275,10 @@ export function resolveCombat(
     // Backward compat: expose first poison entry as flat fields
     poisonDamage: poisonEffects.length > 0 ? poisonEffects[0].damage : 0,
     poisonTarget: poisonEffects.length > 0 ? poisonEffects[0].target : null,
+    // Each side's flat combat mods (skills, accessories, art, imbue, timed buffs; no
+    // procs): an area weapon art's blows reuse them against every other victim.
+    strikeMods: { attacker: atkMods, defender: defMods },
+    // HP each side entered the combat with (a heal on damage dealt ignores overkill).
+    startHP: { attacker: atkStartHP, defender: defStartHP },
   };
 }

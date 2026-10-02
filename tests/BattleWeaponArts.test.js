@@ -1552,12 +1552,16 @@ describe('BattleScene weapon art helpers', () => {
     expect(sceneAttacker.row).toBe(headlessAttacker.row);
   });
 
-  it('applies Tier 2 pierce_through mirrored strike damage with scene/headless parity', async () => {
+  // Piercing Charge's line: each landed strike also strikes the foe behind with the art's
+  // own blow against that foe. Oathlance 10 might, STR 12, the art's +8 Attack, Behind's
+  // DEF 5: 25, times the art's 0.9 multi-hit factor = 22 per landed strike.
+  it('applies the Piercing Charge line per landed strike with scene/headless parity', async () => {
     const gameData = loadGameData();
     const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_piercing_charge');
     const sceneAttacker = {
       name: 'Sigurd',
       faction: 'player',
+      weapon: structuredClone(gameData.weapons.find((w) => w.name === 'Oathlance')),
       col: 2,
       row: 2,
       moveType: 'Infantry',
@@ -1579,8 +1583,8 @@ describe('BattleScene weapon art helpers', () => {
       col: 4,
       row: 2,
       moveType: 'Infantry',
-      currentHP: 20,
-      stats: { HP: 20, STR: 7, MAG: 0, SKL: 5, SPD: 6, DEF: 5, RES: 2, LCK: 2, MOV: 5 },
+      currentHP: 50,
+      stats: { HP: 50, STR: 7, MAG: 0, SKL: 5, SPD: 6, DEF: 5, RES: 2, LCK: 2, MOV: 5 },
     };
     const result = {
       events: [
@@ -1641,16 +1645,17 @@ describe('BattleScene weapon art helpers', () => {
       defenderWeaponArt: null,
     });
 
-    expect(sceneBehind.currentHP).toBe(9);
+    expect(sceneBehind.currentHP).toBe(50 - 22 - 22);
     expect(sceneBehind.currentHP).toBe(headlessBehind.currentHP);
   });
 
-  it('does not apply tier2_pierce on miss-only sequences', async () => {
+  it('does not apply the pierce line on miss-only sequences', async () => {
     const gameData = loadGameData();
     const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_piercing_charge');
     const sceneAttacker = {
       name: 'Sigurd',
       faction: 'player',
+      weapon: structuredClone(gameData.weapons.find((w) => w.name === 'Oathlance')),
       col: 2,
       row: 2,
       moveType: 'Infantry',
@@ -1672,8 +1677,8 @@ describe('BattleScene weapon art helpers', () => {
       col: 4,
       row: 2,
       moveType: 'Infantry',
-      currentHP: 20,
-      stats: { HP: 20, STR: 7, MAG: 0, SKL: 5, SPD: 6, DEF: 5, RES: 2, LCK: 2, MOV: 5 },
+      currentHP: 50,
+      stats: { HP: 50, STR: 7, MAG: 0, SKL: 5, SPD: 6, DEF: 5, RES: 2, LCK: 2, MOV: 5 },
     };
     const result = {
       events: [{ type: 'strike', attackerSide: 'attacker', miss: true, damage: 99 }],
@@ -1731,16 +1736,17 @@ describe('BattleScene weapon art helpers', () => {
       defenderWeaponArt: null,
     });
 
-    expect(sceneBehind.currentHP).toBe(20);
+    expect(sceneBehind.currentHP).toBe(50);
     expect(sceneBehind.currentHP).toBe(headlessBehind.currentHP);
   });
 
-  it('applies tier2_pierce even when the source unit is dead after combat', async () => {
+  it('applies the pierce line even when the source unit is dead after combat', async () => {
     const gameData = loadGameData();
     const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_piercing_charge');
     const sceneAttacker = {
       name: 'Sigurd',
       faction: 'player',
+      weapon: structuredClone(gameData.weapons.find((w) => w.name === 'Oathlance')),
       col: 2,
       row: 2,
       moveType: 'Infantry',
@@ -1762,8 +1768,8 @@ describe('BattleScene weapon art helpers', () => {
       col: 4,
       row: 2,
       moveType: 'Infantry',
-      currentHP: 20,
-      stats: { HP: 20, STR: 7, MAG: 0, SKL: 5, SPD: 6, DEF: 5, RES: 2, LCK: 2, MOV: 5 },
+      currentHP: 50,
+      stats: { HP: 50, STR: 7, MAG: 0, SKL: 5, SPD: 6, DEF: 5, RES: 2, LCK: 2, MOV: 5 },
     };
     const result = {
       events: [{ type: 'strike', attackerSide: 'attacker', miss: false, damage: 6 }],
@@ -1821,16 +1827,19 @@ describe('BattleScene weapon art helpers', () => {
       defenderWeaponArt: null,
     });
 
-    expect(sceneBehind.currentHP).toBe(14);
+    expect(sceneBehind.currentHP).toBe(50 - 22);
     expect(sceneBehind.currentHP).toBe(headlessBehind.currentHP);
   });
 
+  // Doomblade 12 + STR 12 + the art's +8 − Behind's DEF 5 = 27 drops Behind (5 HP)
+  // before the push moves Front into its tile.
   it('applies Doom Thrust pierce-before-push ordering with scene/headless parity', async () => {
     const gameData = loadGameData();
     const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_doom_thrust');
     const sceneAttacker = {
       name: 'Doom User',
       faction: 'player',
+      weapon: structuredClone(gameData.weapons.find((w) => w.name === 'Doomblade')),
       col: 2,
       row: 2,
       moveType: 'Infantry',

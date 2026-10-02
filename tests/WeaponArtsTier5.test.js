@@ -9,17 +9,10 @@ vi.mock('phaser', () => ({
 import { loadGameData } from './testData.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
-import { getWeaponArtTier5Effects } from '../src/engine/WeaponArtSystem.js';
-import {
-  getFirstLandedStrikeDamage,
-  getPostCombatPipelineSteps,
-} from '../src/engine/WeaponArtPostCombat.js';
-import {
-  allyBuff,
-  aoeSplash,
-  runPostCombatEffectsSync,
-  splashTargets,
-} from '../src/engine/PostCombatEffects.js';
+import { getWeaponArtArea, getWeaponArtTier5Effects } from '../src/engine/WeaponArtSystem.js';
+import { getPostCombatPipelineSteps } from '../src/engine/WeaponArtPostCombat.js';
+import { planAreaBlows } from '../src/engine/AreaDamage.js';
+import { allyBuff, areaDamage, runPostCombatEffectsSync } from '../src/engine/PostCombatEffects.js';
 
 const gameData = loadGameData();
 const artById = new Map(gameData.weaponArts.arts.map((art) => [art.id, art]));
@@ -62,6 +55,10 @@ function createSceneHarness() {
   scene.enemyUnits = [];
   scene.npcUnits = [];
   scene.grid = {
+    cols: 10,
+    rows: 10,
+    getMoveCost: () => 1,
+    getTerrainAt: () => null,
     gridToPixel: (col, row) => ({ x: col * 16, y: row * 16 }),
   };
   scene.updateHPBar = vi.fn();
@@ -90,25 +87,24 @@ function createHeadlessHarness() {
 }
 
 describe('Tier 5 weapon art data + parsing', () => {
-  it('normalizes all 10 mapped Tier 5 arts', () => {
-    const mapped = [
+  it('maps all 10 Tier 5 arts: six areas and four ally buffs', () => {
+    const areas = {
+      magic_burning_quake: { shape: 'radius', radius: 1 },
+      magic_radiant_burst: { shape: 'radius', radius: 1, pick: 'lowest_hp_pct', maxTargets: 1 },
+      legend_cataclysm: { shape: 'radius', radius: 2, damage: { kind: 'fixed', amount: 5 } },
+      legend_tempest: { shape: 'radius', radius: 1 },
+      legend_cataclysm_bolt: { shape: 'radius', radius: 2 },
+      legend_barrage: { shape: 'radius', radius: 1 },
+    };
+    for (const [id, area] of Object.entries(areas))
+      expect(getWeaponArtArea(artById.get(id)), id).toMatchObject(area);
+    for (const id of [
       'axe_war_cry',
       'axe_rallying_blow',
-      'magic_burning_quake',
-      'magic_radiant_burst',
       'legend_blood_lance',
-      'legend_cataclysm',
-      'legend_tempest',
-      'legend_cataclysm_bolt',
-      'legend_barrage',
       'legend_galeforce_assault',
-    ];
-    for (const id of mapped) {
-      const art = artById.get(id);
-      expect(art).toBeTruthy();
-      const effects = getWeaponArtTier5Effects(art);
-      expect(Boolean(effects.aoeSplash || effects.allyBuff)).toBe(true);
-    }
+    ])
+      expect(getWeaponArtTier5Effects(artById.get(id)).allyBuff, id).toBeTruthy();
   });
 
   it('standard Tier 5 arts have balance-pass combat bonuses (no crit)', () => {
@@ -121,18 +117,14 @@ describe('Tier 5 weapon art data + parsing', () => {
 });
 
 describe('Tier 5 post-combat steps', () => {
-  it('hit-gates Tier 5 steps and captures first landed strike basis damage', () => {
+  it('hit-gates the area and ally-buff steps', () => {
     const attacker = makeUnit({ name: 'Atk', faction: 'player' });
     const defender = makeUnit({ name: 'Def', faction: 'enemy', col: 1 });
     const art = {
       id: 'test_t5',
+      targeting: 'normal_attack',
+      area: { shape: 'radius', radius: 1, damage: { kind: 'scaled', multiplier: 0.5 } },
       effects: {
-        aoeSplash: {
-          radius: 1,
-          damageKind: 'scaled',
-          damageMultiplier: 0.5,
-          basis: 'first_landed_strike',
-        },
         allyBuff: { range: 2, durationPhases: 1, stats: { STR: 3 }, includeSelf: false },
       },
     };
@@ -147,10 +139,9 @@ describe('Tier 5 post-combat steps', () => {
         ],
       },
     });
-    expect(landed.some((step) => step.type === 'tier5_aoe_splash')).toBe(true);
+    // A radius blast lands once however many strikes landed.
+    expect(landed.find((step) => step.type === 'area_damage')).toMatchObject({ blows: 1 });
     expect(landed.some((step) => step.type === 'tier5_ally_buff')).toBe(true);
-    const splash = landed.find((step) => step.type === 'tier5_aoe_splash');
-    expect(splash?.basisDamage).toBe(11);
 
     const missed = getPostCombatPipelineSteps({
       attacker,
@@ -160,17 +151,7 @@ describe('Tier 5 post-combat steps', () => {
         events: [{ type: 'strike', attackerSide: 'attacker', miss: true, damage: 11 }],
       },
     });
-    expect(missed.some((step) => step.type.startsWith('tier5_'))).toBe(false);
-  });
-
-  it('finds first landed strike damage deterministically by side', () => {
-    const events = [
-      { type: 'strike', attackerSide: 'attacker', miss: true, damage: 20 },
-      { type: 'strike', attackerSide: 'defender', miss: false, damage: 7 },
-      { type: 'strike', attackerSide: 'attacker', miss: false, damage: 13 },
-    ];
-    expect(getFirstLandedStrikeDamage(events, 'attacker')).toBe(13);
-    expect(getFirstLandedStrikeDamage(events, 'defender')).toBe(7);
+    expect(missed.some((s) => s.type === 'area_damage' || s.type.startsWith('tier5_'))).toBe(false);
   });
 });
 
@@ -178,6 +159,19 @@ describe('Tier 5 post-combat steps', () => {
 // beat with presentation, the harness acts only on the required ones. Same outcome.
 const runHeadless = (battle, beats) =>
   runPostCombatEffectsSync(beats, { remove: (unit, options) => battle._removeUnit(unit, options) });
+
+const fire = () => structuredClone(gameData.weapons.find((w) => w.name === 'Fire'));
+const mageStats = { HP: 30, STR: 0, MAG: 20, SKL: 8, SPD: 8, DEF: 5, RES: 5, LCK: 5, MOV: 5 };
+
+/** The Burning Quake area step for one landed strike, as the pipeline builds it. */
+function quakeStep(source, primary) {
+  return getPostCombatPipelineSteps({
+    attacker: source,
+    defender: primary,
+    attackerWeaponArt: artById.get('magic_burning_quake'),
+    result: { events: [{ type: 'strike', attackerSide: 'attacker', miss: false, damage: 1 }] },
+  }).find((step) => step.type === 'area_damage');
+}
 
 describe('Tier 5 scene/headless parity', () => {
   let scene;
@@ -188,16 +182,10 @@ describe('Tier 5 scene/headless parity', () => {
     headless = createHeadlessHarness();
   });
 
-  it('radiant burst single-target splash is deterministic (lowest HP%, tie row/col)', () => {
+  it('radiant burst hits the most wounded foe beside the target (lowest HP%, tie row/col)', () => {
     const source = makeUnit({ name: 'Caster', faction: 'player', col: 0, row: 0 });
-    const primary = makeUnit({
-      name: 'Primary',
-      faction: 'enemy',
-      col: 1,
-      row: 0,
-      stats: { HP: 30 },
-      currentHP: 20,
-    });
+    const primary = makeUnit({ name: 'Primary', faction: 'enemy', col: 1, row: 0, currentHP: 20 });
+    // A at 4/20 = 20%, B at 2/10 = 20%: a tie on HP%, broken by row (B is on row 0).
     const enemyA = makeUnit({
       name: 'A',
       faction: 'enemy',
@@ -214,142 +202,72 @@ describe('Tier 5 scene/headless parity', () => {
       stats: { HP: 10 },
       currentHP: 2,
     });
-    const step = { radius: 1, maxTargets: 1 };
-
-    scene.playerUnits = [source];
-    scene.enemyUnits = [primary, enemyA, enemyB];
-    headless.playerUnits = [source];
-    headless.enemyUnits = [primary, enemyA, enemyB];
-
-    const sceneTargets = splashTargets(step, source, primary, scene._postCombatWorld());
-    const headlessTargets = splashTargets(step, source, primary, headless._postCombatWorld());
-
-    expect(sceneTargets.map((u) => u.name)).toEqual(['B']);
-    expect(headlessTargets.map((u) => u.name)).toEqual(['B']);
+    const area = getWeaponArtArea(artById.get('magic_radiant_burst'));
+    for (const world of [scene._postCombatWorld(), headless._postCombatWorld()]) {
+      const plan = planAreaBlows({
+        source,
+        primary,
+        area,
+        units: [primary, enemyA, enemyB],
+        world,
+      });
+      expect(plan.map((p) => p.unit.name)).toEqual(['B']);
+    }
   });
 
-  it('burning quake style splash damage matches scene/headless outcomes', async () => {
-    const sourceScene = makeUnit({ name: 'Mage', faction: 'player', col: 0, row: 0 });
-    const primaryScene = makeUnit({
-      name: 'Primary',
-      faction: 'enemy',
-      col: 1,
-      row: 0,
-      stats: { HP: 30 },
-      currentHP: 20,
-    });
-    const splashScene = makeUnit({
-      name: 'Splash',
-      faction: 'enemy',
-      col: 1,
-      row: 1,
-      stats: { HP: 30 },
-      currentHP: 19,
-    });
-    scene.playerUnits = [sourceScene];
-    scene.enemyUnits = [primaryScene, splashScene];
-
-    const sourceHeadless = makeUnit({ name: 'Mage', faction: 'player', col: 0, row: 0 });
-    const primaryHeadless = makeUnit({
-      name: 'Primary',
-      faction: 'enemy',
-      col: 1,
-      row: 0,
-      stats: { HP: 30 },
-      currentHP: 20,
-    });
-    const splashHeadless = makeUnit({
-      name: 'Splash',
-      faction: 'enemy',
-      col: 1,
-      row: 1,
-      stats: { HP: 30 },
-      currentHP: 19,
-    });
-    headless.playerUnits = [sourceHeadless];
-    headless.enemyUnits = [primaryHeadless, splashHeadless];
-
-    const step = {
-      radius: 1,
-      maxTargets: null,
-      damageKind: 'scaled',
-      damageMultiplier: 0.5,
-      basisDamage: 12,
-      nonLethal: false,
+  it('burning quake hits each neighbour with its own blow, the same in both drivers', async () => {
+    const build = () => {
+      const mage = makeUnit({ name: 'Mage', faction: 'player', stats: mageStats, weapon: fire() });
+      const primary = makeUnit({
+        name: 'Primary',
+        faction: 'enemy',
+        col: 1,
+        row: 0,
+        currentHP: 20,
+      });
+      // RES 8 (makeUnit default) and RES 2 neighbours.
+      const warded = makeUnit({ name: 'Warded', faction: 'enemy', col: 1, row: 1, currentHP: 19 });
+      const frail = makeUnit({
+        name: 'Frail',
+        faction: 'enemy',
+        col: 2,
+        row: 0,
+        stats: { ...mageStats, RES: 2 },
+        currentHP: 30,
+      });
+      return { mage, primary, warded, frail };
     };
+    const a = build();
+    const b = build();
+    scene.playerUnits = [a.mage];
+    scene.enemyUnits = [a.primary, a.warded, a.frail];
+    headless.playerUnits = [b.mage];
+    headless.enemyUnits = [b.primary, b.warded, b.frail];
 
     await scene._playPostCombatBeats(
-      aoeSplash(step, sourceScene, primaryScene, scene._postCombatWorld()),
+      areaDamage(quakeStep(a.mage, a.primary), a.mage, a.primary, scene._postCombatWorld()),
     );
     runHeadless(
       headless,
-      aoeSplash(step, sourceHeadless, primaryHeadless, headless._postCombatWorld()),
+      areaDamage(quakeStep(b.mage, b.primary), b.mage, b.primary, headless._postCombatWorld()),
     );
 
-    expect(splashScene.currentHP).toBe(13);
-    expect(splashHeadless.currentHP).toBe(13);
+    // Fire 4 might, MAG 20: vs RES 8 → 16 × 0.6 = 9; vs RES 2 → 22 × 0.6 = 13.
+    expect([a.warded.currentHP, a.frail.currentHP]).toEqual([10, 17]);
+    expect([b.warded.currentHP, b.frail.currentHP]).toEqual([10, 17]);
+    expect(a.primary.currentHP).toBe(20);
   });
 
   it('splash still resolves when the primary target is already at 0 HP', async () => {
-    const sourceScene = makeUnit({ name: 'Mage', faction: 'player', col: 0, row: 0 });
-    const primaryScene = makeUnit({
-      name: 'Primary',
-      faction: 'enemy',
-      col: 1,
-      row: 0,
-      stats: { HP: 30 },
-      currentHP: 0,
-    });
-    const splashScene = makeUnit({
-      name: 'Splash',
-      faction: 'enemy',
-      col: 1,
-      row: 1,
-      stats: { HP: 30 },
-      currentHP: 19,
-    });
-    scene.playerUnits = [sourceScene];
-    scene.enemyUnits = [primaryScene, splashScene];
-
-    const sourceHeadless = makeUnit({ name: 'Mage', faction: 'player', col: 0, row: 0 });
-    const primaryHeadless = makeUnit({
-      name: 'Primary',
-      faction: 'enemy',
-      col: 1,
-      row: 0,
-      stats: { HP: 30 },
-      currentHP: 0,
-    });
-    const splashHeadless = makeUnit({
-      name: 'Splash',
-      faction: 'enemy',
-      col: 1,
-      row: 1,
-      stats: { HP: 30 },
-      currentHP: 19,
-    });
-    headless.playerUnits = [sourceHeadless];
-    headless.enemyUnits = [primaryHeadless, splashHeadless];
-
-    const step = {
-      radius: 1,
-      maxTargets: null,
-      damageKind: 'scaled',
-      damageMultiplier: 0.5,
-      basisDamage: 12,
-      nonLethal: false,
-    };
-
+    const mage = makeUnit({ name: 'Mage', faction: 'player', stats: mageStats, weapon: fire() });
+    const primary = makeUnit({ name: 'Primary', faction: 'enemy', col: 1, row: 0, currentHP: 0 });
+    const neighbour = makeUnit({ name: 'Splash', faction: 'enemy', col: 1, row: 1, currentHP: 19 });
+    scene.playerUnits = [mage];
+    scene.enemyUnits = [primary, neighbour];
     await scene._playPostCombatBeats(
-      aoeSplash(step, sourceScene, primaryScene, scene._postCombatWorld()),
+      areaDamage(quakeStep(mage, primary), mage, primary, scene._postCombatWorld()),
     );
-    runHeadless(
-      headless,
-      aoeSplash(step, sourceHeadless, primaryHeadless, headless._postCombatWorld()),
-    );
-
-    expect(splashScene.currentHP).toBe(13);
-    expect(splashHeadless.currentHP).toBe(13);
+    expect(neighbour.currentHP).toBe(10);
   });
 
   it('ally buff applies, uses strongest stat value, and expires at source faction next phase', async () => {
