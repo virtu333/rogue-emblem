@@ -158,6 +158,12 @@ multiplier (0 past the list), and gold uses the same value. A template opts out 
   board is drawn: an upright portrait board is turned a quarter. A front wave names one
   edge. The compact mobile header shows "Waves 1/4 · next T6". Fogged arrivals stay
   unmarked; the band still counts them.
+- **Field clear.** The rule is unchanged, and a clear wins at once in the player phase;
+  the waves still pending never come. A field cleared during the enemy phase (an enemy
+  falls to a counter) waits for that phase's reinforcements: a wave due at the end of
+  that turn still arrives and the battle goes on, while a phase with no wave due ends in
+  victory (`checkBattleEnd`'s `_reinforcementsPendingThisTurn` deferral, pinned in
+  `tests/RoutLadder.test.js` for the scene and the harness).
 - **Finite.** A rout map must stay winnable by a weak army, and an open stream capped by
   live units creates a stall equilibrium. The Eclipse and late pressure already price the
   time.

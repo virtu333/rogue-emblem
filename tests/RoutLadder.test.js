@@ -559,6 +559,52 @@ describe('ladder arrivals in a battle (headless harness, as the scene)', () => {
     expect(battle.enemyUnits).toEqual([]);
   });
 
+  // The victory rule is unchanged: a field cleared during an enemy phase waits for that
+  // phase's reinforcements, so a wave due the same turn still arrives and the battle goes
+  // on. A clear in a phase with no wave due wins at the end of that phase.
+  it('a field cleared in the enemy phase still meets a wave due that turn', async () => {
+    const clearInEnemyPhase = async (turn) => {
+      const battle = harness({ act: 'act2', ...pacing('dusk') }, 6);
+      const killer = battle.playerUnits[0];
+      battle.turnManager.turnNumber = turn;
+      battle.turnManager.currentPhase = 'enemy';
+      // The enemy phase ends with every enemy fallen (on counters, say).
+      battle.aiController.processEnemyPhase = async () => {
+        for (const enemy of [...battle.enemyUnits]) battle._removeUnit(enemy, { killer });
+        battle._zombieTombstones = [];
+        battle._checkBattleEnd();
+      };
+      await battle._processEnemyPhase();
+      return battle;
+    };
+    const due = await clearInEnemyPhase(4); // Dusk Act II: a wave at the end of T4
+    expect(due.result).toBeNull();
+    expect(due.enemyUnits.length).toBeGreaterThan(0);
+    expect(due.enemyUnits.every((u) => u._isReinforcement)).toBe(true);
+    expect(due.turnManager.turnNumber).toBe(5);
+    const quiet = await clearInEnemyPhase(5); // no wave due at the end of T5
+    expect(quiet.result).toBe('victory');
+    expect(quiet.enemyUnits).toEqual([]);
+  });
+
+  it('the scene holds a rout victory the same way while the phase still owes its wave', () => {
+    const scene = new BattleScene();
+    Object.assign(scene, {
+      battleState: 'ENEMY_PHASE',
+      battleConfig: { objective: 'rout', reinforcements: { ladder: { waves: [] } } },
+      playerUnits: [{ name: 'Edric', isCommander: true, currentHP: 10, faction: 'player' }],
+      enemyUnits: [],
+      escapedUnits: [],
+      _reinforcementsPendingThisTurn: true,
+    });
+    scene.onVictory = vi.fn();
+    expect(scene.checkBattleEnd()).toBe(false);
+    expect(scene.onVictory).not.toHaveBeenCalled();
+    scene._reinforcementsPendingThisTurn = false;
+    expect(scene.checkBattleEnd()).toBe(true);
+    expect(scene.onVictory).toHaveBeenCalledTimes(1);
+  });
+
   it('a replay of the same battle brings the same arrivals', () => {
     const trace = (battle) =>
       arrivalsByTurn(battle).map(({ turn, className, level, col, row }) => ({
