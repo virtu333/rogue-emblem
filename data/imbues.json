@@ -55,7 +55,7 @@
       "id": "venom",
       "name": "Venomous",
       "adjective": "Venomous",
-      "description": "Foe loses 7 HP after combat (cannot kill)",
+      "description": "Foe loses 7 HP after combat if it hit (cannot kill)",
       "lore": "The cut looks clean. It stays that way for about an hour.",
       "weight": 10,
       "effect": {

@@ -271,7 +271,7 @@ const STATIC_HELP_TABS = [
           { text: '  it loses to what its type usually beats.' },
           { text: 'x3 vs Armored (etc.): triple might', color: GOLD },
           { text: '  against that kind of enemy.' },
-          { text: 'Poison N: target loses N HP after combat.', color: GREEN },
+          { text: 'Poison N: target loses N HP after combat if the weapon hit.', color: GREEN },
           { text: 'Drains HP: heals for damage dealt.', color: GREEN },
           { text: 'Halves DEF: halves the target DEF.' },
           { text: 'Thrown, Wind gust, Range: its reach.' },

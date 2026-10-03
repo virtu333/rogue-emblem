@@ -2331,9 +2331,13 @@ export function resolveCombat(
   // The other side's effects still apply — their hit already landed before the warp.
   // e.g. attacker has poison + defender warps → attacker poison applies, defender poison suppressed.
   const escapedSide = warpedSide(); // 'attacker' | 'defender' | null
+  // A side's after-combat poison (weapon or imbue) needs one of its strikes to have
+  // landed, like the Venomous affix and imbue status procs: a total miss poisons nothing.
+  const landedHit = (side) =>
+    events.some((event) => event.type === 'strike' && !event.miss && event.attackerSide === side);
   const poisonEffects = [];
   if (atkHP > 0 && defHP > 0) {
-    if (escapedSide !== 'attacker') {
+    if (escapedSide !== 'attacker' && landedHit('attacker')) {
       const atkPoison =
         parsePoisonDamage(atkWeapon) + getImbuePostCombatPoison(atkWeapon, skillCtx?.imbuesData);
       if (atkPoison > 0) {
@@ -2341,7 +2345,7 @@ export function resolveCombat(
         poisonEffects.push({ target: 'defender', damage: atkPoison });
       }
     }
-    if (escapedSide !== 'defender') {
+    if (escapedSide !== 'defender' && landedHit('defender')) {
       const defPoison =
         defCanCounter && defWeapon
           ? parsePoisonDamage(defWeapon) + getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)
@@ -2363,10 +2367,7 @@ export function resolveCombat(
     if (!weapon || escapedSide === sourceSide || targetHP <= 0) return;
     const statusFx = getImbuePostCombatStatus(weapon, skillCtx?.imbuesData);
     if (!statusFx) return;
-    const landedHit = events.some(
-      (event) => event.type === 'strike' && !event.miss && event.attackerSide === sourceSide,
-    );
-    if (!landedHit) return;
+    if (!landedHit(sourceSide)) return;
     if (statusFx.chance < 100 && Math.random() * 100 >= statusFx.chance) return;
     imbueStatusEffects.push({
       target: targetSide,
