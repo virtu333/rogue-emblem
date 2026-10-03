@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Poison Needs a Hit (Oct 3, 2026)
+
+- **A missed attack no longer poisons.** The enemy-only Adder Blade and Adder Bow (5) and
+  the Venomous imbue (7) took their after-combat poison even when every strike missed.
+  Now, like the Venomous affix (which already needed a hit) and status imbues such as
+  Binding, a side's poison lands only if at least one of its strikes hit. A hit that
+  deals no damage still poisons, and poison still never kills.
+- The Poison tag, the help page and the Venomous imbue's description say so.
+
 ### iOS App: Music Plays Again (Oct 3, 2026)
 
 - **The iOS app had no music** (title, map or battle) since the build with hashed audio

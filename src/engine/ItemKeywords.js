@@ -124,7 +124,11 @@ export function itemKeywords(item) {
     add('sunder', 'Halves DEF', "Halves the target's DEF in combat.");
   const poison = special.match(/Poison: target loses (\d+) HP after combat/i);
   if (poison)
-    add('poison', `Poison ${poison[1]}`, `The target loses ${poison[1]} HP after combat.`);
+    add(
+      'poison',
+      `Poison ${poison[1]}`,
+      `After combat, if it landed a hit, the target loses ${poison[1]} HP.`,
+    );
   if (/Drains HP/i.test(special)) add('drain', 'Drains HP', 'Heals the wielder for damage dealt.');
   if (special.includes('Throwable')) add('thrown', 'Thrown', `Attacks at range ${item.range}.`);
   if (special.includes('Wind gust'))
