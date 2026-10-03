@@ -185,6 +185,20 @@ describe('promoted share', () => {
 });
 
 describe('enemy skill chance', () => {
+  it('Black Sun adds 30%: above Nightfall’s 20%, below the old 40%, and the card says so', () => {
+    const chance = Object.fromEntries(
+      ['normal', 'dusk', 'hard', 'lunatic'].map((id) => [
+        id,
+        resolveDifficultyMode(data.difficulty, id).modifiers.enemySkillChance,
+      ]),
+    );
+    expect(chance.lunatic).toBe(0.3);
+    expect(chance.lunatic).toBeGreaterThan(chance.hard);
+    expect(generateModifierSummary(data.difficulty.modes.lunatic)).toContain(
+      '+30% enemy skill chance',
+    );
+  });
+
   const fighter = data.classes.find((c) => c.name === 'Fighter');
   const hasCombatSkill = (u) => (u.skills || []).some((s) => COMBAT_SKILLS.includes(s));
   // Every roll lands at 0.3: above Act II's 25% skill chance, under it plus Dusk's 10%.

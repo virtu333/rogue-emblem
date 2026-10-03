@@ -264,7 +264,7 @@
       "bossLevelBonus": 0,
       "enemyCountBase": 6,
       "enemyEquipTierShift": 1,
-      "enemySkillChance": 0.4,
+      "enemySkillChance": 0.3,
       "enemyPoisonChance": 0.2,
       "enemyStatusStaffChance": 0.15,
       "statusStaffConfig": {
