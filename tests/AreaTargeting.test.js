@@ -14,6 +14,7 @@
 // battle for a player unit.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import './harness/JourneyTestSetup.js';
+import { reportAsyncError } from '../src/utils/errorReporter.js';
 import { journeyBattleScene } from './harness/JourneyBattleScene.js';
 import { presentationFailureProxy as rendering } from './harness/PresentationFailureProxy.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
@@ -27,7 +28,10 @@ import { readCommittedAction } from '../src/ui/BattlePresentationCheckpoint.js';
 import { getPerBattleRemainingUses } from '../src/engine/Combat.js';
 import { canUseWeaponArt } from '../src/engine/WeaponArtSystem.js';
 import { recordAreaStrike } from '../src/engine/DeedSystem.js';
+import BattleMusicController from '../src/ui/BattleMusicController.js';
 import { loadGameData } from './testData.js';
+
+vi.mock('../src/utils/errorReporter.js', () => ({ reportAsyncError: vi.fn() }));
 
 const data = loadGameData();
 const stormcall = data.weaponArts.arts.find((a) => a.id === 'legend_stormcall');
@@ -35,6 +39,7 @@ const breachbolt = () => structuredClone(data.weapons.find((w) => w.name === 'Br
 const originalRandom = Math.random;
 afterEach(() => {
   Math.random = originalRandom;
+  reportAsyncError.mockClear();
   vi.restoreAllMocks();
 });
 
@@ -83,7 +88,7 @@ const foe = (name, col, row, hp = 30, extra = {}) => ({
 });
 
 /** A 12×12 battle on the production scene, with the phone rail's menu captured. */
-function battle(units, { fogVisible = null } = {}) {
+function battle(units, { fogVisible = null, failure = 0, skipped = false } = {}) {
   const scene = journeyBattleScene({ battleInProgress: {} }, data);
   scene.runManager = null;
   scene._battleRewindPolicy = 'fixed-v1';
@@ -106,7 +111,7 @@ function battle(units, { fogVisible = null } = {}) {
   scene.playerUnits = units.filter((u) => u.faction === 'player');
   scene.enemyUnits = units.filter((u) => u.faction === 'enemy');
   scene.npcUnits = [];
-  rendering(scene, 0);
+  const calls = rendering(scene, failure, { skipped });
   for (const u of units) registerBattleEntity(scene, u);
   scene.sys = { isActive: () => true };
   scene.scene = { isActive: () => true };
@@ -124,7 +129,7 @@ function battle(units, { fogVisible = null } = {}) {
   scene.selectedUnit = scene.playerUnits[0];
   const granted = [];
   scene.awardScaledXP = async (u, xp) => granted.push([u.name, xp]);
-  return { scene, rail, granted, area: scene._areaTargeting() };
+  return { scene, rail, granted, calls, area: scene._areaTargeting() };
 }
 
 describe('the art menu offers Stormcall by reach, never by targets', () => {
@@ -536,6 +541,148 @@ describe('the strike', () => {
       false,
     );
     expect(caster.currentHP).toBe(32);
+  });
+});
+
+describe('the strike when the renderer or the music fails', () => {
+  const errors = () => reportAsyncError.mock.calls.map(([context]) => context);
+
+  /** One strike through `execute`, then everything a player or a save could tell apart. */
+  async function strike({ failure = 0, skipped = false, setup } = {}) {
+    const caster = sage(0, 5);
+    const center = foe('Center', 4, 5);
+    const side = foe('Side', 4, 6);
+    const frail = foe('Frail', 5, 5, 10);
+    const ctx = battle([caster, center, side, frail, foe('Outside', 9, 5)], { failure, skipped });
+    const { scene } = ctx;
+    setup?.(ctx);
+    let finished = 0;
+    const finish = scene.finishUnitAction.bind(scene);
+    scene.finishUnitAction = (...args) => {
+      finished++;
+      return finish(...args);
+    };
+    const returned = await ctx.area.execute(caster, caster.weapon, stormcall, { col: 4, row: 5 });
+    return {
+      ...ctx,
+      caster,
+      snapshot: {
+        returned,
+        battleState: scene.battleState,
+        finished,
+        unitActed: scene.turnManager.unitActedCalls,
+        hasActed: caster.hasActed,
+        casterHP: caster.currentHP,
+        foeHPs: [center, side, frail].map((u) => u.currentHP),
+        remaining: scene.enemyUnits.map((u) => u.name),
+        usesSpent: caster.weapon._usesSpent,
+        artUses: caster._battleWeaponArtUsage?.map?.legend_stormcall,
+        xp: [caster.xp, ctx.granted],
+        pending: scene._pendingCommittedAction,
+        selected: scene.selectedUnit,
+        rng: scene._battleRng.getState(),
+      },
+    };
+  }
+
+  it('settles one completed strike, whatever the renderer does on any call', async () => {
+    const shown = await strike();
+    // The shown world is the strike itself: 3 foes struck, Frail dead, one completion.
+    expect(shown.snapshot).toMatchObject({
+      returned: true,
+      battleState: 'PLAYER_IDLE',
+      finished: 1,
+      unitActed: 1,
+      hasActed: true,
+      casterHP: 24,
+      foeHPs: [11, 11, 0],
+      remaining: ['Center', 'Side', 'Outside'],
+      usesSpent: 1,
+      artUses: 1,
+      pending: null,
+    });
+    expect(errors()).toEqual([]);
+    const total = shown.calls();
+    expect(total).toBeGreaterThan(2);
+    // The proxy counts the music calls, so the loop below fails them too.
+    expect(shown.calls.labels).toEqual(
+      expect.arrayContaining(['music.onCombat', 'music.onCombatResolved']),
+    );
+    expect((await strike({ skipped: true })).snapshot).toEqual(shown.snapshot);
+    const everything = await strike({ failure: 'all' });
+    expect(everything.snapshot).toEqual(shown.snapshot);
+    expect(errors()).not.toContain('battle_combat_domain_error');
+    for (let nth = 1; nth <= total; nth++) {
+      reportAsyncError.mockClear();
+      const world = await strike({ failure: nth });
+      const label = `call ${nth}: ${shown.calls.labels[nth - 1]}`;
+      expect(errors(), label).not.toContain('battle_combat_domain_error');
+      expect(world.snapshot, label).toEqual(shown.snapshot);
+    }
+  }, 30_000);
+
+  // Real controllers: the throw comes from the audio layer beneath, as it would in play.
+  const musicWorld =
+    (audio, prepare = () => {}) =>
+    ({ scene }) => {
+      // Every other sound is a no-op; only the named call throws.
+      const sound = new Proxy(audio, { get: (target, key) => target[key] ?? (() => {}) });
+      scene.registry = { get: (key) => (key === 'audio' ? sound : null) };
+      const music = new BattleMusicController(scene, {
+        entityHealth: () => ({ current: 1, max: 10, ratio: 0.1 }),
+      });
+      prepare(music);
+      scene._musicCtrl = music;
+    };
+  const unavailable = () => {
+    throw new Error('Web Audio unavailable');
+  };
+
+  it('a throwing onCombat charges the strike, resolves it and frees the battle', async () => {
+    const shown = await strike();
+    reportAsyncError.mockClear();
+    const world = await strike({
+      setup: musicWorld({ setMusicIntensity: unavailable }, (music) => (music.adaptive = true)),
+    });
+    expect(world.snapshot).toEqual(shown.snapshot);
+    expect(errors()).toEqual(['battle_presentation_failed']);
+    expect(world.scene.battleState).not.toBe('COMBAT_RESOLVING');
+  });
+
+  it('a throwing onCombatResolved cannot reject a strike that has already settled', async () => {
+    const shown = await strike();
+    reportAsyncError.mockClear();
+    const world = await strike({
+      setup: musicWorld(
+        { setMusicLayerGain: unavailable },
+        (music) => (music.entityStage = 'finale'),
+      ),
+    });
+    expect(world.snapshot).toEqual(shown.snapshot);
+    expect(errors()).toEqual(['battle_presentation_failed']);
+  });
+
+  it('a Fire row or tap that rejects is reported, not left unhandled', async () => {
+    const caster = sage(0, 5);
+    const { area, scene } = battle([caster, foe('Center', 4, 5)]);
+    area.begin(caster, caster.weapon, stormcall);
+    area.lock({ col: 4, row: 5 });
+    const failure = new Error('execute rejected');
+    vi.spyOn(area, 'execute').mockRejectedValue(failure);
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      area.lock({ col: 4, row: 5 }); // the second tap fires
+      for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+    expect(unhandled).not.toHaveBeenCalled();
+    expect(reportAsyncError).toHaveBeenCalledWith(
+      'battle_area_fire_rejected',
+      failure,
+      expect.objectContaining({ battleState: scene.battleState }),
+    );
   });
 });
 

@@ -2978,15 +2978,28 @@ export class BattleScene extends Phaser.Scene {
 
   /** Flame aura on living bosses the moment turn-pressure enrage kicks in. */
   _playBossEnrageFx() {
-    this._musicCtrl?.onBossEnrage();
-    const fx = (this._combatFx ||= new CombatFxController(this));
-    for (const boss of this.enemyUnits) {
-      if (!boss?.isBoss || boss.currentHP <= 0 || !boss.graphic) continue;
-      fx.playEnrage(boss);
-    }
+    // Presentation only: the enrage itself is already in the AI's state.
+    safeBattlePresentation('boss enrage music', () => this._musicCtrl?.onBossEnrage(), {
+      scene: this,
+    });
+    safeBattlePresentation(
+      'boss enrage fx',
+      () => {
+        const fx = (this._combatFx ||= new CombatFxController(this));
+        for (const boss of this.enemyUnits) {
+          if (!boss?.isBoss || boss.currentHP <= 0 || !boss.graphic) continue;
+          fx.playEnrage(boss);
+        }
+      },
+      { scene: this },
+    );
     // Headless/stub scenes (tests) have no display list -- fx above no-ops too
     if (this.add?.text) {
-      this.showBriefBanner('The boss is enraged!', '#ff5544').catch(() => {});
+      safeBattlePresentation(
+        'boss enrage banner',
+        () => this.showBriefBanner('The boss is enraged!', '#ff5544'),
+        { scene: this },
+      );
     }
   }
 
@@ -7225,11 +7238,13 @@ export class BattleScene extends Phaser.Scene {
   async _announceWeaponSwaps(swaps = []) {
     for (const { unit, to } of swaps) {
       if (unit?.faction !== 'player' || !to?.name) continue;
-      try {
-        await this.showBriefBanner(`${unit.name} is out of shots: now wielding ${to.name}`);
-      } catch {
-        // A banner is presentation only; the switch already happened.
-      }
+      // A banner is presentation only (the switch already happened): a failure is
+      // reported, never swallowed, and never stops the next notice.
+      await safeBattlePresentation(
+        'weapon swap banner',
+        () => this.showBriefBanner(`${unit.name} is out of shots: now wielding ${to.name}`),
+        { scene: this },
+      );
     }
   }
 
@@ -8422,17 +8437,23 @@ export class BattleScene extends Phaser.Scene {
           attacker?.faction === 'player' && attacker.currentHP > 0 && !attacker.hasActed;
         if (shouldConsumeAction) {
           attacker.hasActed = true;
-          try {
-            this.dimUnit(attacker);
-          } catch (_) {
-            /* best-effort visual */
-          }
+          safeBattlePresentation('combat recovery dim', () => this.dimUnit(attacker), {
+            scene: this,
+          });
         }
         // Reset state BEFORE unitActed -- matches finishUnitAction order so
-        // unitActed's phase transition (if triggered) takes final precedence
+        // unitActed's phase transition (if triggered) takes final precedence.
+        // The highlight clears are presentation: one that throws must not skip
+        // completeBattleAction, which would strand a spent unit with no unitActed.
         this.battleState = 'PLAYER_IDLE';
-        this.grid.clearHighlights();
-        this.grid.clearAttackHighlights();
+        safeBattlePresentation('combat recovery highlights', () => this.grid.clearHighlights(), {
+          scene: this,
+        });
+        safeBattlePresentation(
+          'combat recovery highlights',
+          () => this.grid.clearAttackHighlights(),
+          { scene: this },
+        );
         this.attackTargets = [];
         this.selectedUnit = null;
         if (shouldConsumeAction) {
@@ -9323,7 +9344,9 @@ export class BattleScene extends Phaser.Scene {
     this.showPhaseBanner(phase, turn);
     this.dangerZoneStale = true;
     this._pinnedThreats?.invalidate();
-    this._musicCtrl?.onPhaseStart(phase);
+    safeBattlePresentation('phase music', () => this._musicCtrl?.onPhaseStart(phase), {
+      scene: this,
+    });
     if (!this.keepDangerVisible) this.dangerZone.hide();
     if (typeof this._expireTimedWeaponArtBuffs === 'function') {
       this._expireTimedWeaponArtBuffs(phase, turn);
@@ -10269,10 +10292,17 @@ export class BattleScene extends Phaser.Scene {
             onHeal: (_enemy, target, result) => {
               if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
               observeHistoryAction(this, 'healed', _enemy, target, `${result.healAmount} HP`);
-              this.updateHPBar(target);
-              this.showBriefBanner?.(
-                `${target.name} healed ${result.healAmount} HP`,
-                UI_PALETTE.good,
+              safeBattlePresentation('enemy heal hp bar', () => this.updateHPBar(target), {
+                scene: this,
+              });
+              safeBattlePresentation(
+                'enemy heal banner',
+                () =>
+                  this.showBriefBanner?.(
+                    `${target.name} healed ${result.healAmount} HP`,
+                    UI_PALETTE.good,
+                  ),
+                { scene: this },
               );
               return Promise.resolve();
             },
@@ -10416,12 +10446,18 @@ export class BattleScene extends Phaser.Scene {
       { miss: !result.hit },
     );
     spendStaffUse(staff);
+    // Everything below is presentation: the staff use and the status are already
+    // applied, so a banner or fx that throws must not abort the enemy's turn.
     if (result.immune) {
-      await this.showBriefBanner(
-        `${enemy.name} used ${staff.name}! ${target.name} is protected!`,
-        UI_PALETTE.good,
+      await safeBattlePresentation(
+        'status staff banner',
+        () =>
+          this.showBriefBanner(
+            `${enemy.name} used ${staff.name}! ${target.name} is protected!`,
+            UI_PALETTE.good,
+          ),
+        { scene: this },
       );
-      if (!isCurrentBattleSession(this, session)) return;
       return;
     }
     const hitPct = Math.round(result.hitChance);
@@ -10430,30 +10466,47 @@ export class BattleScene extends Phaser.Scene {
         result.conditionId === 'sleep'
           ? `${target.name} fell asleep!`
           : `${target.name} was silenced!`;
-      await this.showBriefBanner(
-        `${enemy.name} used ${staff.name}! ${statusText} (${hitPct}%)`,
-        UI_PALETTE.bad,
+      await safeBattlePresentation(
+        'status staff banner',
+        () =>
+          this.showBriefBanner(
+            `${enemy.name} used ${staff.name}! ${statusText} (${hitPct}%)`,
+            UI_PALETTE.bad,
+          ),
+        { scene: this },
       );
       if (!isCurrentBattleSession(this, session)) return;
-      this._addConditionIcon(target, result.conditionId);
-      {
-        const pos = this.grid.gridToPixel(target.col, target.row);
-        (this._combatFx ||= new CombatFxController(this)).playStatus(
-          pos.x,
-          pos.y,
-          result.conditionId,
-          {
-            from: enemy.graphic?.visible ? { x: enemy.graphic.x, y: enemy.graphic.y } : null,
-            seed: this.turnManager?.turnNumber || 0,
-          },
-        );
-      }
+      safeBattlePresentation(
+        'status staff icon',
+        () => this._addConditionIcon(target, result.conditionId),
+        { scene: this },
+      );
+      safeBattlePresentation(
+        'status staff fx',
+        () => {
+          const pos = this.grid.gridToPixel(target.col, target.row);
+          (this._combatFx ||= new CombatFxController(this)).playStatus(
+            pos.x,
+            pos.y,
+            result.conditionId,
+            {
+              from: enemy.graphic?.visible ? { x: enemy.graphic.x, y: enemy.graphic.y } : null,
+              seed: this.turnManager?.turnNumber || 0,
+            },
+          );
+        },
+        { scene: this },
+      );
     } else {
-      await this.showBriefBanner(
-        `${enemy.name} used ${staff.name}! Miss! (${hitPct}%)`,
-        UI_PALETTE.muted,
+      await safeBattlePresentation(
+        'status staff banner',
+        () =>
+          this.showBriefBanner(
+            `${enemy.name} used ${staff.name}! Miss! (${hitPct}%)`,
+            UI_PALETTE.muted,
+          ),
+        { scene: this },
       );
-      if (!isCurrentBattleSession(this, session)) return;
     }
   }
 

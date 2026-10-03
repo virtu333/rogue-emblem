@@ -262,7 +262,7 @@ export class AreaTargetingController {
     const p = this.pending;
     if (!this.active || !this.isCenter(tile)) return false;
     if (sameTile(p.locked, tile)) {
-      void this.fire();
+      this._fireObserved();
       return true;
     }
     p.locked = null;
@@ -302,7 +302,7 @@ export class AreaTargetingController {
         label: lines.fire,
         status: [lines.hp, ...lines.area].join(' · '),
         color: UI_PALETTE.good,
-        invoke: () => void this.fire(),
+        invoke: () => this._fireObserved(),
       }),
       menuRow({
         id: 'area:back',
@@ -395,6 +395,20 @@ export class AreaTargetingController {
     this.clear();
     this.scene.hideActionMenu();
     return this.execute(unit, weapon, art, center);
+  }
+
+  /**
+   * Fire from a menu row or a tap, where nothing awaits the strike: a rejection
+   * is reported rather than left unhandled.
+   */
+  _fireObserved() {
+    this.fire().catch((err) =>
+      reportAsyncError('battle_area_fire_rejected', err, {
+        battleState: this.scene.battleState,
+        phase: this.scene.turnManager?.currentPhase,
+        turn: this.scene.turnManager?.turnNumber,
+      }),
+    );
   }
 
   /** Is this strike still legal right now (a resumed intent is checked the same way)? */
@@ -513,7 +527,7 @@ export class AreaTargetingController {
         return false;
     }
     scene.resetFortHealStreak?.(unit);
-    scene._musicCtrl?.onCombat?.();
+    safeBattlePresentation('area combat music', () => scene._musicCtrl?.onCombat?.(), { scene });
     try {
       // The art's weapon is equipped on confirm, as for any art.
       if (unit.weapon !== weapon) equipWeapon(unit, weapon);
@@ -600,7 +614,12 @@ export class AreaTargetingController {
       await this._recover(unit, err, session);
       return false;
     } finally {
-      if (isCurrentBattleSession(scene, session)) scene._musicCtrl?.onCombatResolved?.();
+      if (isCurrentBattleSession(scene, session))
+        safeBattlePresentation(
+          'area combat music end',
+          () => scene._musicCtrl?.onCombatResolved?.(),
+          { scene },
+        );
     }
   }
 
