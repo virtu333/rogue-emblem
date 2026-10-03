@@ -10,7 +10,7 @@ import {
   generateShopInventory,
 } from '../src/engine/LootSystem.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
-import { getCombatForecast } from '../src/engine/Combat.js';
+import { getCombatForecast, resolveCombat } from '../src/engine/Combat.js';
 import { getPostCombatPipelineSteps } from '../src/engine/WeaponArtPostCombat.js';
 import { areaDamage } from '../src/engine/PostCombatEffects.js';
 import { getWeaponArtArea, getWeaponArtCombatMods } from '../src/engine/WeaponArtSystem.js';
@@ -152,6 +152,105 @@ describe('weapon art data', () => {
     expect(text).toContain('heals you 100% of the area damage');
     expect(text).toContain('no Speed follow-up');
     expect(text).not.toContain('however fast');
+  });
+});
+
+// Owner-approved 2026-10-02 (#191): pinned so a refactor cannot drop them silently.
+describe('art follow-ups: approved rules', () => {
+  const plain = data.terrain.find((t) => t.name === 'Plain');
+  const sword = data.weapons.find((w) => w.name === 'Iron Sword');
+  const fighter = (name, faction, SPD) => ({
+    name,
+    className: 'Myrmidon',
+    tier: 'base',
+    level: 1,
+    isLord: false,
+    stats: { HP: 60, STR: 8, MAG: 0, SKL: 10, SPD, DEF: 5, RES: 3, LCK: 5 },
+    currentHP: 60,
+    faction,
+    weapon: sword,
+    inventory: [],
+    proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+    skills: [],
+    moveType: 'Infantry',
+  });
+  const fight = (attackerSpd, artId, skillMods = null) => {
+    const attacker = fighter('Atk', 'player', attackerSpd);
+    const defender = fighter('Def', 'enemy', 10);
+    const mods = getWeaponArtCombatMods(art(artId));
+    const forecast = getCombatForecast(
+      attacker,
+      sword,
+      defender,
+      sword,
+      1,
+      plain,
+      plain,
+      skillMods ? { atkWeaponArtMods: mods, ...skillMods } : { atkWeaponArtMods: mods },
+    );
+    // Every roll is 0.3: all strikes land (hit is far above 30) and none crits (crit 0).
+    const spy = vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    try {
+      const result = resolveCombat(
+        attacker,
+        sword,
+        defender,
+        sword,
+        1,
+        plain,
+        plain,
+        skillMods ? { atkWeaponArtMods: mods, ...skillMods } : { atkWeaponArtMods: mods },
+      );
+      const strikes = result.events
+        .filter((e) => e.type === 'strike')
+        .map((e) => [e.attackerSide, e.damage, Boolean(e.artFollowUp)]);
+      return { forecast, strikes };
+    } finally {
+      spy.mockRestore();
+    }
+  };
+  // Iron Sword Mt + STR 8 against DEF 5, with no triangle: a plain strike either way.
+  const plainStrike = sword.might + 8 - 5;
+
+  it('Windsweep at a +10 lead: its strike, then a plain follow-up, and no counter', () => {
+    const lead10 = fight(20, 'sword_windsweep');
+    expect(lead10.forecast.defender.canCounter).toBe(false);
+    expect(lead10.forecast.attacker.attackCount).toBe(2);
+    expect(lead10.strikes).toEqual([
+      ['attacker', plainStrike, false],
+      ['attacker', plainStrike, true],
+    ]);
+    // One short of the lead: the art strike alone, still no counter.
+    const lead9 = fight(19, 'sword_windsweep');
+    expect(lead9.forecast.attacker.attackCount).toBe(1);
+    expect(lead9.strikes).toEqual([['attacker', plainStrike, false]]);
+  });
+
+  it('an art’s DEF bonus still applies to a counter that lands after the follow-up', () => {
+    // Attacker Desperation orders the strikes A1, A2 (the follow-up), then the counter.
+    const withArt = fight(20, 'lance_countering_strike', { atkMods: { desperation: true } });
+    expect(withArt.strikes.map(([side, , followUp]) => [side, followUp])).toEqual([
+      ['attacker', false],
+      ['attacker', true],
+      ['defender', false],
+    ]);
+    // Countering Strike gives +5 DEF: the counter hits for 5 less than a bare unit's would.
+    expect(withArt.strikes[2][1]).toBe(plainStrike - 5);
+    // That is for this combat only: the same fight without the art takes the full counter.
+    const second = (() => {
+      const attacker = fighter('Atk', 'player', 20);
+      const defender = fighter('Def', 'enemy', 10);
+      const spy = vi.spyOn(Math, 'random').mockReturnValue(0.3);
+      try {
+        return resolveCombat(attacker, sword, defender, sword, 1, plain, plain, {
+          atkMods: { desperation: true },
+        });
+      } finally {
+        spy.mockRestore();
+      }
+    })();
+    const counter = second.events.find((e) => e.type === 'strike' && e.attackerSide === 'defender');
+    expect(counter.damage).toBe(plainStrike);
   });
 });
 
