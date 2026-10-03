@@ -188,6 +188,57 @@
 .mr-card .mr-usage {
   color: var(--re-muted);
 }
+/* "Compared with <equipped>": a label column and old → new with the change. */
+.mr-card .mr-compare {
+  margin: 10px 0 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--re-line-soft);
+  border-radius: 2px;
+  background: var(--re-panel);
+}
+.mr-card .mr-compare-title {
+  margin: 0 0 6px;
+  color: var(--re-muted);
+}
+.mr-card .mr-compare-title strong {
+  color: var(--re-text);
+  font-weight: 600;
+}
+.mr-compare-rows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 14px;
+  margin: 0;
+}
+.mr-compare-rows dt {
+  color: var(--re-muted);
+}
+.mr-compare-rows dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+  margin: 0;
+  color: var(--re-text);
+  overflow-wrap: anywhere;
+}
+.mr-compare-rows .mr-compare-from,
+.mr-compare-rows .mr-compare-arrow,
+.mr-compare-rows .mr-compare-same {
+  color: var(--re-muted);
+}
+.mr-compare-rows .mr-compare-to {
+  font-weight: 600;
+}
+.mr-compare-rows .mr-compare-delta {
+  font-weight: 600;
+}
+.mr-compare-rows .mr-up {
+  color: var(--re-good);
+}
+.mr-compare-rows .mr-down {
+  color: var(--re-bad);
+}
 .mr-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr) auto);

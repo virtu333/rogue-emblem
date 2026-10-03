@@ -14,6 +14,14 @@
   (level up, promotion, boss cards) load the same way; their `fetch` had the same
   problem in the app, so they fell back to their sound effects there. The web game still uses `fetch`.
 
+### Roster: The Weapon Comparison Is a Table (Oct 3, 2026)
+
+- A carried weapon's "Compared with <equipped>" note in Unit Details › Equipment is now
+  a small table, one row per stat: old → new with the change in green (better) or red
+  (worse). An unchanged stat shows once, marked "same". It sits with the item's numbers,
+  above its weapon art and lore. The shop and reward screens keep their one-line summary
+  from the same rows, so all three still agree.
+
 ### Dusk Pressure PR 4: Status Staves and Siege Tomes by Rung (Oct 2, 2026)
 
 - **Staves and siege tomes are a per-battle chance.** When a caster who could carry one
