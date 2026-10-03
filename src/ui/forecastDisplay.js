@@ -3,6 +3,10 @@ import { getMasteryPerk } from '../engine/MasterySystem.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import { hitProbability } from '../engine/HitRoll.js';
 import { forecastRawDamage, forecastStrikeGroups } from '../engine/Combat.js';
+import {
+  DOUBLE_ATTACK_SPD_THRESHOLD,
+  WEAPON_ART_FOLLOW_UP_SPD_THRESHOLD,
+} from '../utils/constants.js';
 
 /**
  * A strike's real chance to land, as a whole percent. Hit is rolled as the
@@ -135,7 +139,7 @@ export function forecastReadingPoints(forecast) {
   ];
   if (forecast?.attacker?.doubles || forecast?.defender?.doubles)
     points.push(
-      'Speed: an Attack Speed lead of 5 grants a second attack. Weapon weight lowers Attack Speed. Planned hits already counts it.',
+      `Speed: an Attack Speed lead of ${DOUBLE_ATTACK_SPD_THRESHOLD} grants a second attack (${WEAPON_ART_FOLLOW_UP_SPD_THRESHOLD} while a weapon art is active). Weapon weight lowers Attack Speed. Planned hits already counts it.`,
     );
   points.push('A defeated unit cannot finish its remaining strikes.');
   return points;

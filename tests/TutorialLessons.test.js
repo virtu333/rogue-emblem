@@ -50,6 +50,15 @@ describe('tutorial lessons', () => {
       ).message,
     ).toBe('');
   });
+  it('doubling lesson gives the plain lead and the weapon art lead', () => {
+    const forecast = { attacker: { doubles: true } };
+    const { message } = forecastTutorialLesson(
+      forecast,
+      new Set(['battle_forecast', 'battle_triangle']),
+    );
+    expect(message).toContain('A 5-point speed lead normally grants a second attack');
+    expect(message).toContain('(10 with an active weapon art)');
+  });
   it('refreshes the arrived terrain before showing its lesson and restores the action menu', async () => {
     const { scene, controller } = fixture();
     showImportantHint.mockImplementation(async () => {

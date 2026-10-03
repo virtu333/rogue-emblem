@@ -53,8 +53,17 @@ it('rules every art shares sit behind the weapon arts help, not on each art', ()
   const help = WEAPON_ARTS_HELP.map((block) => helpBlockText(block)).join('\n');
   expect(help).toContain('follows up only with 10 more Attack Speed than the foe');
   expect(help).toContain('The foe still counters before you step, push or swap');
-  for (const art of arts)
-    expect(weaponArtDetailLines(art).join('\n'), art.name).not.toContain('follow-up');
+  // The shared rule (the 10 lead) stays in the help; only an art that gives up its
+  // follow-up says so, in one "no Speed follow-up" line.
+  for (const art of arts) {
+    const lines = weaponArtDetailLines(art).filter(
+      (line) => !/^Speed: no Speed follow-up$/.test(line),
+    );
+    expect(lines.join('\n'), art.name).not.toContain('follow-up');
+    expect(weaponArtDetailLines(art).includes('Speed: no Speed follow-up'), art.name).toBe(
+      art.noFollowUp === true,
+    );
+  }
 });
 it('Phantom Rush spends 8 HP upfront and cannot reset HP after either hits or misses', () => {
   const art = find('Phantom Rush');

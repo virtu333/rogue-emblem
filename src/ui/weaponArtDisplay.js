@@ -115,8 +115,7 @@ export function weaponArtEffectRows(art) {
     );
   const area = getWeaponArtArea(art);
   if (area) rows.push(weaponArtAreaRow(area, getWeaponArtTargeting(art)));
-  if (art?.noFollowUp === true)
-    rows.push({ label: 'Speed', text: 'strikes once however fast you are' });
+  if (art?.noFollowUp === true) rows.push({ label: 'Speed', text: 'no Speed follow-up' });
   const { allyBuff, allyHeal } = getWeaponArtTier5Effects(art);
   if (allyHeal)
     onHit(

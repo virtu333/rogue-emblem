@@ -133,6 +133,13 @@ describe('conservative forecast estimates', () => {
     expect(forecastReadingPoints(f).some((p) => p.startsWith('Speed:'))).toBe(true);
     expect(JSON.stringify(f)).toBe(before);
   });
+  it('says a 5 lead doubles, and that an active weapon art needs 10', () => {
+    const a = unit('A');
+    a.stats.SPD = 20;
+    const point = forecastReadingPoints(forecast(a, unit('D'))).find((p) => p.startsWith('Speed:'));
+    expect(point).toContain('lead of 5 grants a second attack');
+    expect(point).toContain('10 while a weapon art is active');
+  });
   it('reads the speed point only when someone doubles', () => {
     const f = forecast(unit('A'), unit('D'));
     expect(f.attacker.doubles || f.defender.doubles).toBe(false);

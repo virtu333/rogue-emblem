@@ -150,7 +150,8 @@ describe('weapon art data', () => {
     expect(getWeaponArtArea(feast).drainPercent).toBe(1);
     const text = weaponArtDetailLines(feast).join('\n');
     expect(text).toContain('heals you 100% of the area damage');
-    expect(text).toContain('strikes once however fast you are');
+    expect(text).toContain('no Speed follow-up');
+    expect(text).not.toContain('however fast');
   });
 });
 

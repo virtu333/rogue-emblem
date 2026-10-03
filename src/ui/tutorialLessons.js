@@ -1,3 +1,8 @@
+import {
+  DOUBLE_ATTACK_SPD_THRESHOLD,
+  WEAPON_ART_FOLLOW_UP_SPD_THRESHOLD,
+} from '../utils/constants.js';
+
 // Completed tutorials suppress only the lessons that were actually displayed.
 export const TUTORIAL_LESSONS_KEY = 'emblem_rogue_tutorial_lessons';
 export const TUTORIAL_HINT_IDS = new Set([
@@ -47,7 +52,7 @@ export function forecastTutorialLesson(forecast, taught = new Set()) {
     !taught.has('battle_doubling')
   ) {
     lines.push(
-      'Attack speed (AS) includes weapon weight. A 5-point speed lead normally grants a second attack; Planned hits shows the result.',
+      `Attack speed (AS) includes weapon weight. A ${DOUBLE_ATTACK_SPD_THRESHOLD}-point speed lead normally grants a second attack (${WEAPON_ART_FOLLOW_UP_SPD_THRESHOLD} with an active weapon art); Planned hits shows the result.`,
     );
     ids.push('battle_doubling');
   }
