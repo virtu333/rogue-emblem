@@ -70,6 +70,30 @@ describe('boss level bonus', () => {
     }
   });
 
+  it('a Dusk run’s elite captain gets no boss bonus while its boss does', () => {
+    const rm = new RunManager(data);
+    rm.startRun({ difficultyId: 'dusk' });
+    const params = (node) => rm.getBattleParams(node);
+    const eliteParams = params({
+      id: 'e1',
+      type: 'battle',
+      battleParams: { act: 'act2', objective: 'seize', isElite: true },
+    });
+    // The Dusk +2 is on the params an elite battle is built from...
+    expect(eliteParams.bossLevelBonus).toBe(2);
+    for (let seed = 1; seed <= 6; seed++) {
+      const built = { ...eliteParams, deployCount: 5 };
+      const captainLevels = (p) =>
+        withSeed(seed, () => generateBattle(p, data)).enemySpawns.filter((s) => s.isBoss);
+      // ...yet the captain is exactly what the same battle gives with no bonus at all.
+      expect(captainLevels(built)).toEqual(captainLevels({ ...built, bossLevelBonus: 0 }));
+    }
+    const bossLevel = (p) =>
+      withSeed(3, () => generateBattle(p, data)).enemySpawns.find((s) => s.isBoss).level;
+    const boss = { ...eliteParams, isElite: false, isBoss: true, deployCount: 5 };
+    expect(bossLevel(boss)).toBe(bossLevel({ ...boss, bossLevelBonus: 0 }) + 2);
+  });
+
   it('is +2 on Dusk only, and reaches the battle params', () => {
     const bonus = Object.fromEntries(
       ['normal', 'dusk', 'hard', 'lunatic'].map((id) => [
@@ -241,6 +265,23 @@ describe('enemy skill chance', () => {
     // Act IV's chance is 60%: a 0.65 roll misses it, and hits it with +10%.
     expect(hasCombatSkill(make(0))).toBe(false);
     expect(hasCombatSkill(make(0.1))).toBe(true);
+  });
+
+  it('an act with no base chance gets no bonus either', () => {
+    // postAct and a mistyped key have no entry: they must not jump from 0 to the whole bonus.
+    for (const act of ['postAct', 'act9']) {
+      const unit = withRandom(0.01, () =>
+        createEnemyUnit(
+          fighter,
+          8,
+          data.weapons,
+          enemyDifficultyConfigFromParams({ enemySkillChance: 0.9 }),
+          data.skills,
+          act,
+        ),
+      );
+      expect(hasCombatSkill(unit), act).toBe(false);
+    }
   });
 
   it('caps the chance at 100%', () => {

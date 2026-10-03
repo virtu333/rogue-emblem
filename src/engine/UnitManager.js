@@ -474,7 +474,10 @@ function assignEnemySkills(unit, classData, level, skillsData, act, difficultyCo
     finalBoss: 0.65,
   };
   const { skillChanceBonus } = parseEnemyDifficultyConfig(difficultyConfig);
-  const chance = Math.min(1, (SKILL_CHANCE_BY_ACT[act] || 0.0) + skillChanceBonus);
+  // The rung's bonus rides on an act's base chance; an act with no base (postAct, a
+  // typo) rolls nothing rather than jumping from 0 to the whole bonus.
+  const baseChance = Object.hasOwn(SKILL_CHANCE_BY_ACT, act) ? SKILL_CHANCE_BY_ACT[act] : null;
+  const chance = baseChance === null ? 0 : Math.min(1, baseChance + skillChanceBonus);
 
   // Level 5+ enemies roll for 1 random combat skill based on act.
   if (level >= 5 && Math.random() < chance) {
