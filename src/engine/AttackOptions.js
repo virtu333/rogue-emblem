@@ -10,8 +10,7 @@
 //   - the FE-style default: the equipped weapon when it can hit that target,
 //     otherwise the first weapon in inventory order that can.
 
-import { parseRange, getPerBattleRemainingUses, isStaff } from './Combat.js';
-import { getWeaponRangeBonus } from './SkillSystem.js';
+import { getEffectiveWeaponRange, getPerBattleRemainingUses, isStaff } from './Combat.js';
 import { isSilenced } from './StatusConditionSystem.js';
 import { getWeaponArtCombatMods } from './WeaponArtSystem.js';
 import { getCombatWeapons, inventoryDisplayOrder } from './UnitManager.js';
@@ -45,12 +44,13 @@ export function getAttackWeapons(unit, { equipped = unit?.weapon } = {}) {
   return ordered.filter((weapon) => canAttackWithWeapon(unit, weapon));
 }
 
-/** Effective {min,max} attack range, matching combat resolution. */
+/**
+ * Effective {min,max} attack range, matching combat resolution: the unit's range with
+ * the weapon (Combat.getEffectiveWeaponRange, range skills included; the same range it
+ * counters with), then a chosen weapon art's range change.
+ */
 export function getAttackRange(unit, weapon, { skillsData = null, weaponArt = null } = {}) {
-  const { min: baseMin, max: baseMax } = parseRange(weapon?.range);
-  const skillBonus = getWeaponRangeBonus(unit, weapon, skillsData);
-  let min = Math.max(1, baseMin);
-  let max = Math.max(min, baseMax + skillBonus);
+  let { min, max } = getEffectiveWeaponRange(unit, weapon, { skillsData });
   if (weaponArt) {
     const mods = getWeaponArtCombatMods(weaponArt);
     if (mods.rangeOverride) {

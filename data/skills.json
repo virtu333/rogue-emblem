@@ -14,7 +14,7 @@
   {
     "id": "foresight",
     "name": "Foresight",
-    "description": "+1 range on Tome attacks",
+    "description": "+1 range on Tome attacks and counters",
     "trigger": "passive",
     "effects": {
       "tomeRangeBonus": 1

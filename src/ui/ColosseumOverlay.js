@@ -239,7 +239,8 @@ export class ColosseumOverlay {
       distance,
       plainTerrain,
       plainTerrain,
-      { atkMods, defMods, imbuesData: this.gameData.imbues || null },
+      // skillsData as the fight resolves with it: range skills decide the counter.
+      { atkMods, defMods, skillsData, imbuesData: this.gameData.imbues || null },
     );
 
     this.nativeMenu = ArenaMenu.forecast(this, forecast);

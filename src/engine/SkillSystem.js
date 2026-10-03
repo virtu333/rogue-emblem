@@ -820,27 +820,9 @@ export function checkPhoenixBrooch(unit) {
   };
 }
 
-// --- Foresight range check ---
-
-/**
- * Get bonus range for a weapon due to skills (e.g. Foresight: +1 Tome range).
- */
-export function getWeaponRangeBonus(unit, weapon, skillsData) {
-  if (!skillsData || !unit.skills || !weapon) return 0;
-
-  let bonus = 0;
-  for (const skillId of unit.skills) {
-    const skill = getSkill(skillId, skillsData);
-    if (!skill || skill.trigger !== 'passive') continue;
-
-    if (skill.id === 'foresight' && skill.effects?.tomeRangeBonus) {
-      if (weapon.type === 'Tome' || weapon.type === 'Light' || weapon.type === 'Breath') {
-        bonus += skill.effects.tomeRangeBonus;
-      }
-    }
-  }
-  return bonus;
-}
+// --- Range skills (Foresight) ---
+// The rule lives in WeaponRange.js: Combat needs it, and this file imports Combat.
+export { getWeaponRangeBonus } from './WeaponRange.js';
 
 /** Get terrain cost reduction from unit's passive skills (e.g. Pathfinder). */
 export function getTerrainCostReduction(unit, skillsData) {

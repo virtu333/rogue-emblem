@@ -194,6 +194,73 @@ const strikes = (result, side) =>
 
 afterEach(() => vi.restoreAllMocks());
 
+/**
+ * The probes for one side of a forecast against resolution: Hit, per-hit damage, Crit
+ * and strike count. null when they agree, else what disagreed.
+ */
+function sideMismatch(m, f, side) {
+  const info = f[side];
+  const critMult = m.defender.className === 'Entity' ? 1.5 : 3;
+  // Hit: lands at 100·c = hit − 0.5, misses at hit + 0.5.
+  const landed = firstStrike(resolveWith((info.hit - 0.5) / 100, m), side);
+  const missed = firstStrike(resolveWith((info.hit + 0.5) / 100, m), side);
+  const hitOk =
+    landed === INCONCLUSIVE || missed === INCONCLUSIVE
+      ? true
+      : info.hit <= 0
+        ? landed?.miss !== false
+        : info.hit >= 100
+          ? landed?.miss === false && missed?.miss === false
+          : landed?.miss === false && missed?.miss === true;
+  // Damage: at 100·c just above Crit (and below Hit) a strike lands
+  // without a critical and deals exactly the shown damage; when Crit is
+  // at least Hit, a landed strike always crits for the shown damage × 3.
+  let damageOk = true;
+  let critOk = true;
+  const shownDamage = info.damage;
+  if (info.hit > 0) {
+    if (info.crit < info.hit) {
+      const s = firstStrike(resolveWith((Math.max(info.crit, 0) + 0.5) / 100, m), side);
+      damageOk =
+        s === INCONCLUSIVE || (Boolean(s) && !s.miss && !s.isCrit && s.damage === shownDamage);
+      // Crit: a landed strike at 100·c = crit − 0.5 is critical.
+      if (info.crit > 0) {
+        const c = firstStrike(resolveWith((info.crit - 0.5) / 100, m), side);
+        critOk =
+          c === INCONCLUSIVE ||
+          (Boolean(c) && !c.miss && c.isCrit && c.damage === Math.floor(shownDamage * critMult));
+      }
+    } else {
+      const c = firstStrike(resolveWith((info.hit - 0.5) / 100, m), side);
+      critOk =
+        c === INCONCLUSIVE ||
+        (Boolean(c) && !c.miss && c.isCrit && c.damage === Math.floor(shownDamage * critMult));
+    }
+  }
+  // Strike count: all strikes miss at c ≈ 1, so nobody dies and every
+  // planned strike is attempted.
+  // A side with 100 Hit still lands at c ≈ 1: when that kills (a Vengeance art at
+  // a large HP deficit), the other side's planned strikes never come, so the
+  // count cannot be read from this exchange.
+  const allMiss = resolveWith(0.999999, m);
+  const countOk =
+    info.hit >= 100 ||
+    allMiss.attackerDied ||
+    allMiss.defenderDied ||
+    strikes(allMiss, side).length === info.attackCount;
+  if (hitOk && damageOk && critOk && countOk) return null;
+  return {
+    seed: m.seed,
+    side,
+    hitOk,
+    damageOk,
+    critOk,
+    countOk,
+    shown: { damage: info.damage, hit: info.hit, crit: info.crit, count: info.attackCount },
+    weapons: [m.attacker.weapon.name, m.defender.weapon.name],
+  };
+}
+
 describe('forecast equals resolution for random matchups', () => {
   it(`per-hit damage, Hit, Crit and strike count match (${SAMPLES} seeded matchups)`, () => {
     const mismatches = [];
@@ -203,78 +270,67 @@ describe('forecast equals resolution for random matchups', () => {
       const f = forecastOf(m);
       if (f.display?.triangle?.damage) triangleCases++;
       for (const side of ['attacker', 'defender']) {
-        const info = f[side];
-        if (side === 'defender' && !info.canCounter) continue;
-        const critMult = m.defender.className === 'Entity' ? 1.5 : 3;
-        // Hit: lands at 100·c = hit − 0.5, misses at hit + 0.5.
-        const landed = firstStrike(resolveWith((info.hit - 0.5) / 100, m), side);
-        const missed = firstStrike(resolveWith((info.hit + 0.5) / 100, m), side);
-        const hitOk =
-          landed === INCONCLUSIVE || missed === INCONCLUSIVE
-            ? true
-            : info.hit <= 0
-              ? landed?.miss !== false
-              : info.hit >= 100
-                ? landed?.miss === false && missed?.miss === false
-                : landed?.miss === false && missed?.miss === true;
-        // Damage: at 100·c just above Crit (and below Hit) a strike lands
-        // without a critical and deals exactly the shown damage; when Crit is
-        // at least Hit, a landed strike always crits for the shown damage × 3.
-        let damageOk = true;
-        let critOk = true;
-        const shownDamage = info.damage;
-        if (info.hit > 0) {
-          if (info.crit < info.hit) {
-            const s = firstStrike(resolveWith((Math.max(info.crit, 0) + 0.5) / 100, m), side);
-            damageOk =
-              s === INCONCLUSIVE ||
-              (Boolean(s) && !s.miss && !s.isCrit && s.damage === shownDamage);
-            // Crit: a landed strike at 100·c = crit − 0.5 is critical.
-            if (info.crit > 0) {
-              const c = firstStrike(resolveWith((info.crit - 0.5) / 100, m), side);
-              critOk =
-                c === INCONCLUSIVE ||
-                (Boolean(c) &&
-                  !c.miss &&
-                  c.isCrit &&
-                  c.damage === Math.floor(shownDamage * critMult));
-            }
-          } else {
-            const c = firstStrike(resolveWith((info.hit - 0.5) / 100, m), side);
-            critOk =
-              c === INCONCLUSIVE ||
-              (Boolean(c) &&
-                !c.miss &&
-                c.isCrit &&
-                c.damage === Math.floor(shownDamage * critMult));
-          }
-        }
-        // Strike count: all strikes miss at c ≈ 1, so nobody dies and every
-        // planned strike is attempted.
-        // A side with 100 Hit still lands at c ≈ 1: when that kills (a Vengeance art at
-        // a large HP deficit), the other side's planned strikes never come, so the
-        // count cannot be read from this exchange.
-        const allMiss = resolveWith(0.999999, m);
-        const countOk =
-          info.hit >= 100 ||
-          allMiss.attackerDied ||
-          allMiss.defenderDied ||
-          strikes(allMiss, side).length === info.attackCount;
-        if (!hitOk || !damageOk || !critOk || !countOk) {
-          mismatches.push({
-            seed,
-            side,
-            hitOk,
-            damageOk,
-            critOk,
-            countOk,
-            shown: { damage: info.damage, hit: info.hit, crit: info.crit, count: info.attackCount },
-            weapons: [m.attacker.weapon.name, m.defender.weapon.name],
-          });
-        }
+        if (side === 'defender' && !f[side].canCounter) continue;
+        const mismatch = sideMismatch({ ...m, seed }, f, side);
+        if (mismatch) mismatches.push(mismatch);
       }
     }
     expect(triangleCases).toBeGreaterThan(SAMPLES / 10);
+    expect(mismatches.slice(0, 5)).toEqual([]);
+  }, 120_000);
+
+  // Range skills (Foresight: a tome reaches 1 farther, to attack and to counter). The
+  // defender holds a magic weapon with or without Foresight at distances up to two past
+  // its own range; whether it counters must match resolution, and the range part of
+  // that answer must be the weapon's range plus the skill's bonus (from the data).
+  it('range skills: who counters, and the counter’s numbers, match resolution', () => {
+    const bonus = data.skills.find((s) => s.id === 'foresight').effects.tomeRangeBonus;
+    const RANGE_WEAPONS = COMBAT_WEAPONS.filter((w) =>
+      ['Tome', 'Light', 'Breath'].includes(w.type),
+    );
+    const mismatches = [];
+    let counters = 0;
+    let beyondOwnRange = 0;
+    let refusedBeyondSkill = 0;
+    for (let seed = 1; seed <= 600; seed++) {
+      const rng = mulberry32(seed + 300_000);
+      const m = makeMatchup(seed + 300_000);
+      delete m.attacker.weapon._imbueId; // no counter prevention from the attacker's side
+      const withSkill = rng() < 0.7;
+      const defWeapon = structuredClone(pick(rng, RANGE_WEAPONS));
+      delete defWeapon._imbueId;
+      const own = parseRange(defWeapon.range);
+      const skills = m.defender.skills.filter((id) => id !== 'foresight');
+      Object.assign(m.defender, {
+        weapon: defWeapon,
+        inventory: [defWeapon],
+        skills: withSkill ? [...skills, 'foresight'] : skills,
+      });
+      m.distance = 1 + Math.floor(rng() * (Math.min(own.max, 4) + 2));
+      m.defender.col = m.attacker.col + m.distance;
+      m.skillCtx = {
+        ...buildSkillCtx(rng, m.attacker, m.defender, [m.attacker], [m.defender], m.atkTerrain, m.defTerrain), // prettier-ignore
+        atkWeaponArtMods: null,
+      };
+      const f = forecastOf(m);
+      const reach = own.max + (withSkill ? bonus : 0);
+      const inReach = m.distance >= own.min && m.distance <= reach;
+      const expected = inReach && !m.skillCtx.atkMods?.preventCounter;
+      const allMiss = resolveWith(0.999999, m);
+      const struck = strikes(allMiss, 'defender').length > 0;
+      const decided = f.attacker.hit < 100 && !allMiss.attackerDied && !allMiss.defenderDied;
+      if (f.defender.canCounter !== expected || (decided && struck !== f.defender.canCounter))
+        mismatches.push({ seed, withSkill, distance: m.distance, range: defWeapon.range, shown: f.defender.canCounter, struck }); // prettier-ignore
+      if (f.defender.canCounter) {
+        counters++;
+        if (m.distance > own.max) beyondOwnRange++;
+        const mismatch = sideMismatch({ ...m, seed }, f, 'defender');
+        if (mismatch) mismatches.push(mismatch);
+      } else if (withSkill && m.distance > reach) refusedBeyondSkill++;
+    }
+    expect(counters).toBeGreaterThan(200);
+    expect(beyondOwnRange).toBeGreaterThan(40);
+    expect(refusedBeyondSkill).toBeGreaterThan(20);
     expect(mismatches.slice(0, 5)).toEqual([]);
   }, 120_000);
 

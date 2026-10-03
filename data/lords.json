@@ -60,7 +60,7 @@
     },
     "moveType": "Infantry",
     "weapon": "Tomes (P)",
-    "personalSkill": "Foresight: +1 range on Tome attacks",
+    "personalSkill": "Foresight: +1 range on Tome attacks and counters",
     "personalGrowths": {
       "HP": 0,
       "STR": 3,

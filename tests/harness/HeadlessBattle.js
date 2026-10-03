@@ -40,8 +40,6 @@ import {
   resolveCombat,
   resolveHeal,
   gridDistance,
-  parseRange,
-  isInRange,
   isStaff,
   getStaffRemainingUses,
   getEffectiveStaffRange,
@@ -67,7 +65,6 @@ import {
   rollDefenseSkills,
   checkAstra,
   getTurnStartEffects,
-  getWeaponRangeBonus,
   checkPhoenixBrooch,
   resolveGamblerDelta,
   applyAccessoryPhaseCombatMods,
@@ -102,7 +99,11 @@ import {
   spendCombatShots,
   swapSpentWeapons,
 } from '../../src/engine/PerBattleWeapons.js';
-import { canAttackWithWeapon, getAttackWeapons } from '../../src/engine/AttackOptions.js';
+import {
+  getAttackWeapons,
+  pickDefaultAttackWeapon,
+  weaponReachesDistance,
+} from '../../src/engine/AttackOptions.js';
 import { combatDistance, getFootprint, isEntity } from '../../src/engine/EntitySystem.js';
 import {
   advanceTurnPressure,
@@ -1209,11 +1210,9 @@ export class HeadlessBattle {
       if (this.grid.fogEnabled && unit.faction === 'player' && !seen) continue;
       const dist = combatDistance(unit, enemy);
       if (
-        combatWeapons.some((w) => {
-          const bonus = getWeaponRangeBonus(unit, w, this.gameData.skills);
-          const { min, max } = parseRange(w.range);
-          return dist >= min && dist <= max + bonus;
-        })
+        combatWeapons.some((w) =>
+          weaponReachesDistance(unit, w, dist, { skillsData: this.gameData.skills }),
+        )
       ) {
         targets.push(enemy);
       }
@@ -1258,23 +1257,10 @@ export class HeadlessBattle {
 
   _ensureValidWeaponForTarget(unit, target) {
     const dist = combatDistance(unit, target); // the Entity's footprint, as in combat
-    if (
-      unit.weapon &&
-      isInRange(unit.weapon, dist) &&
-      !isStaff(unit.weapon) &&
-      canAttackWithWeapon(unit, unit.weapon)
-    )
-      return;
-    // Find a weapon that can reach the target (never a spent per-battle weapon)
-    const combatWeapons = getAttackWeapons(unit);
-    for (const w of combatWeapons) {
-      const bonus = getWeaponRangeBonus(unit, w, this.gameData.skills);
-      const { min, max } = parseRange(w.range);
-      if (dist >= min && dist <= max + bonus) {
-        equipWeapon(unit, w);
-        return;
-      }
-    }
+    // The equipped weapon when it reaches, else the first usable one that does (never a
+    // spent per-battle weapon), at the range targeting uses (AttackOptions).
+    const reach = pickDefaultAttackWeapon(unit, dist, { skillsData: this.gameData.skills });
+    if (reach && reach !== unit.weapon) equipWeapon(unit, reach);
   }
 
   selectWeaponArt(artId, weapon = null) {

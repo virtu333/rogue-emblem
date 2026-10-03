@@ -17,6 +17,7 @@ import { rollHit } from './HitRoll.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
+import { getWeaponRangeBonus } from './WeaponRange.js';
 import {
   getImbueCombatMods,
   getImbuePostCombatPoison,
@@ -649,12 +650,29 @@ export function parseRange(rangeStr) {
   return { min: val, max: val };
 }
 
+/**
+ * The weapon's own range, with no skills: what the enemy AI strikes at and the Danger
+ * overlay draws (no enemy has a range skill). A unit's own attack and counter range is
+ * getEffectiveWeaponRange.
+ */
 export function isInRange(weapon, distance) {
   if (!weapon) return false;
   const dist = Number(distance);
   if (!Number.isFinite(dist)) return false;
   const { min, max } = parseRange(weapon.range);
   return dist >= min && dist <= max;
+}
+
+/**
+ * `unit`'s {min,max} range with `weapon`: the weapon's range plus range skills
+ * (Foresight, WeaponRange.js). The one range a unit attacks (AttackOptions.getAttackRange
+ * adds a chosen weapon art on top) and counters with (canCounter). `skillsData` may be
+ * omitted only for a unit without a range skill (WeaponRange throws in development).
+ */
+export function getEffectiveWeaponRange(unit, weapon, { skillsData = null } = {}) {
+  const { min: baseMin, max: baseMax } = parseRange(weapon?.range);
+  const min = Math.max(1, baseMin);
+  return { min, max: Math.max(min, baseMax + getWeaponRangeBonus(unit, weapon, skillsData)) };
 }
 
 /** Manhattan distance between two grid positions */
@@ -1072,12 +1090,45 @@ export function canDouble(attacker, defender, atkWeapon, defWeapon) {
   return atkEffectiveSpd >= defEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD;
 }
 
-/** True if defender can counter-attack at this distance */
-export function canCounter(defender, defenderWeapon, distance) {
-  if (!defenderWeapon || isStaff(defenderWeapon)) return false;
+/**
+ * Why `defender` cannot strike back with `defenderWeapon` at `distance`, or null when it
+ * can: the one counter rule. The forecast and resolution call it with the same inputs,
+ * and everything else that predicts a counter (the enemy AI's counter risk, the sims'
+ * agents) reads the forecast's `canCounter`.
+ *   - Asleep, or Silenced holding magic (or a staff), never counters;
+ *   - the attacker's mods may prevent it (`attackerMods.preventCounter`);
+ *   - a staff is no combat weapon; a per-battle weapon needs uses left this battle;
+ *   - the distance must be inside the range the defender attacks with
+ *     (getEffectiveWeaponRange: a 1–2 tome with Foresight counters at 1–3). Range skills
+ *     count for a defender of any faction, so `skillsData` is required when it has one.
+ * The reason strings are the forecast's `counterReason`.
+ */
+export function counterBlocker(
+  defender,
+  defenderWeapon,
+  distance,
+  { skillsData = null, attackerMods = null } = {},
+) {
+  if (isSleeping(defender)) return 'Asleep';
+  if (
+    isSilenced(defender) &&
+    defenderWeapon &&
+    (isMagical(defenderWeapon) || isStaff(defenderWeapon))
+  )
+    return 'Silenced';
+  if (attackerMods?.preventCounter) return 'Counter prevented by attack';
+  if (!defenderWeapon || isStaff(defenderWeapon)) return 'No combat weapon equipped';
   // A per-battle weapon with no uses left this battle cannot strike back.
-  if (!hasPerBattleUsesLeft(defenderWeapon, defender)) return false;
-  return isInRange(defenderWeapon, distance);
+  if (!hasPerBattleUsesLeft(defenderWeapon, defender)) return 'No uses left this battle';
+  const dist = Number(distance);
+  const { min, max } = getEffectiveWeaponRange(defender, defenderWeapon, { skillsData });
+  if (!Number.isFinite(dist) || dist < min || dist > max) return 'Target is outside weapon range';
+  return null;
+}
+
+/** True if `defender` counters at `distance` (counterBlocker finds no reason not to). */
+export function canCounter(defender, defenderWeapon, distance, options = {}) {
+  return counterBlocker(defender, defenderWeapon, distance, options) === null;
 }
 
 // --- Combat Forecast (deterministic preview for UI) ---
@@ -1296,14 +1347,12 @@ export function getCombatForecast(
     ? atkBaseCount + atkFollowUp.attackCount
     : atkBaseCount * (atkDoubles ? 2 : 1);
 
-  // Silenced defenders cannot counter with magic weapons
-  const fSilencedNoCounter =
-    isSilenced(defender) && defWeapon && (isMagical(defWeapon) || isStaff(defWeapon));
-  const defCanCounter =
-    !atkMods?.preventCounter &&
-    !fSilencedNoCounter &&
-    !isSleeping(defender) &&
-    canCounter(defender, defWeapon, distance);
+  // Range skills, silence, sleep and counter prevention: counterBlocker, as resolution reads it.
+  const defCounterBlocker = counterBlocker(defender, defWeapon, distance, {
+    skillsData: skillCtx?.skillsData,
+    attackerMods: atkMods,
+  });
+  const defCanCounter = defCounterBlocker === null;
   const combatSkillState = { adeptUsed: new Set() };
   let defLunaDmg = 0;
   let defDmg = 0,
@@ -1421,17 +1470,7 @@ export function getCombatForecast(
       counterHasDamageProc: [...(defender.skills || []), defWeapon?._grantedSkill].some((skill) =>
         COUNTER_DAMAGE_PROCS.has(typeof skill === 'string' ? skill : skill?.id),
       ),
-      counterReason: defCanCounter
-        ? null
-        : isSleeping(defender)
-          ? 'Asleep'
-          : fSilencedNoCounter
-            ? 'Silenced'
-            : atkMods?.preventCounter
-              ? 'Counter prevented by attack'
-              : !defWeapon || isStaff(defWeapon)
-                ? 'No combat weapon equipped'
-                : 'Target is outside weapon range',
+      counterReason: defCounterBlocker,
       // Conservative baseline: omit projections for exchanges with changing
       // HP, ordering or special effects rather than imply a guaranteed outcome.
       simpleExchange:
@@ -1883,14 +1922,11 @@ export function resolveCombat(
     atkHit = 0;
   }
 
-  // Silenced defenders cannot counter with magic weapons (Tome/Light/Staff)
-  const silencedNoCounter =
-    isSilenced(defender) && defWeapon && (isMagical(defWeapon) || isStaff(defWeapon));
-  const defCanCounter =
-    !atkMods?.preventCounter &&
-    !silencedNoCounter &&
-    !isSleeping(defender) &&
-    canCounter(defender, defWeapon, distance);
+  // Range skills, silence, sleep and counter prevention: canCounter, as the forecast reads it.
+  const defCanCounter = canCounter(defender, defWeapon, distance, {
+    skillsData: skillCtx?.skillsData,
+    attackerMods: atkMods,
+  });
 
   // Doubling: apply accessory + skill + weight modifiers
   const atkPursuitReduction = attacker.accessory?.combatEffects?.doubleThresholdReduction || 0;
