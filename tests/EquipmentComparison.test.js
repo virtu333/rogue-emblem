@@ -8,7 +8,11 @@ import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 vi.mock('../src/ui/serviceSave.js', () => ({ saveServiceRun: vi.fn(() => '') }));
 
-import { equipmentComparison, weaponComparisonParts } from '../src/ui/equipmentComparison.js';
+import {
+  equipmentComparison,
+  weaponComparisonParts,
+  weaponComparisonRows,
+} from '../src/ui/equipmentComparison.js';
 import { installFakeDom } from './helpers/fakeDom.js';
 import { MobileRosterSheet } from '../src/ui/MobileRosterSheet.js';
 import { RunManager } from '../src/engine/RunManager.js';
@@ -90,6 +94,42 @@ describe('equipmentComparison (shop and reward screen)', () => {
     ]);
   });
 
+  it('marks each number row better or worse, and leaves trade-offs unjudged', () => {
+    const blade = {
+      name: 'Plain Blade',
+      type: 'Sword',
+      might: 5,
+      hit: 90,
+      crit: 0,
+      weight: 5,
+      range: '1',
+      special: '',
+    };
+    // Heavier (weight 9: AS 7 - (9 - 2) = 0), harder (might 8), less accurate, keener.
+    const heavy = {
+      ...blade,
+      name: 'Heavy Blade',
+      might: 8,
+      weight: 9,
+      hit: 70,
+      crit: 10,
+      range: '1-2',
+    };
+    const rows = weaponComparisonRows(fighter(blade), heavy, blade);
+    expect(rows.map(({ id, from, to, delta, better }) => [id, from, to, delta, better])).toEqual([
+      ['atk', 15, 18, 3, true],
+      ['as', 4, 0, -4, false],
+      ['hit', 104, 84, -20, false],
+      ['crit', 3, 13, 10, true],
+      ['range', '1', '1-2', null, null],
+    ]);
+    const same = weaponComparisonRows(fighter(blade), { ...blade }, blade);
+    expect(same.map((r) => [r.id, r.delta, r.better])).toEqual([
+      ['atk', 0, null],
+      ['as', 0, null],
+    ]);
+  });
+
   it('keeps the staff line unchanged', () => {
     const heal = weapon('Heal');
     expect(equipmentComparison(caster(null), heal)).toMatch(/uses per map for Ottoline/);
@@ -138,16 +178,36 @@ describe('roster equipment comparison', () => {
     sheet.index = sheet.units.indexOf(mage);
     sheet.tab = 'gear';
     sheet.render();
-    const line = sheet.root
-      .querySelectorAll('p')
-      .map((p) => p.textContent)
-      .find((text) => text.startsWith('Compared with Wildfire: '));
+    const boxes = sheet.root.querySelectorAll('.mr-compare');
+    const box = boxes[0];
+    const title = box?.querySelector('.mr-compare-title')?.textContent;
+    const terms = box?.querySelectorAll('dt').map((n) => plain(n.textContent)) || [];
+    const values = box
+      ?.querySelectorAll('dd')
+      .map((n) => n.children.map((c) => plain(c.textContent)));
+    const deltas = box
+      ?.querySelectorAll('.mr-compare-delta')
+      .map((n) => [n.textContent, n.className]);
+    // It sits above the art and lore disclosures, not under them.
+    const card = box?.parentNode;
+    const order = card?.children.map((n) => n.tagName) || [];
     sheet.destroy();
+    expect(boxes.length).toBe(1);
+    expect(title).toBe('Compared with Wildfire');
     // Crit 5 → 35 (SKL 10 / 2, plus Witchfire's 30) and the Mire art it adds.
-    expect(plain(line)).toBe(
-      'Compared with Wildfire: Attack 17 → 17 · Attack speed 4 → 4 · Crit 5 → 35 · Art none → Mire',
+    expect(terms).toEqual(['Attack', 'Attack speed', 'Crit', 'Weapon art']);
+    expect(values).toEqual([
+      ['17', 'same'],
+      ['4', 'same'],
+      ['5', '→', '35', '+30'],
+      ['none', '→', 'Mire'],
+    ]);
+    expect(deltas).toEqual([['+30', 'mr-compare-delta mr-up']]);
+    expect(order.indexOf('SECTION')).toBeLessThan(order.indexOf('DETAILS'));
+    // The shop's line says the same changes.
+    const shop = plain(equipmentComparison(mage, witchfire, wildfire, { arts }));
+    expect(shop).toBe(
+      'If equipped: Attack 17 → 17 · Attack speed 4 → 4 · Crit 5 → 35 · Art none → Mire',
     );
-    const shop = equipmentComparison(mage, witchfire, wildfire, { arts });
-    expect(line.replace('Compared with Wildfire: ', '')).toBe(shop.replace('If equipped: ', ''));
   });
 });

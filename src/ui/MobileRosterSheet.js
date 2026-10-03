@@ -64,7 +64,7 @@ import {
   inventoryDisplayOrder,
 } from '../engine/UnitManager.js';
 import { equippedBadgeElement } from './equippedBadge.js';
-import { weaponComparisonParts } from './equipmentComparison.js';
+import { weaponComparisonRows } from './equipmentComparison.js';
 import { itemKeywordRow } from './itemKeywordChips.js';
 import { itemKeywords, itemBaseLine, perBattleUsesText } from '../engine/ItemKeywords.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
@@ -153,6 +153,40 @@ function el(tag, text, cls) {
   if (text != null) node.textContent = text;
   if (cls) node.className = cls;
   return node;
+}
+
+const COMPARE_LABELS = { art: 'Weapon art' };
+const signed = (n) => (n > 0 ? `+${n}` : `\u2212${-n}`);
+
+/**
+ * "Compared with <equipped>": one row per stat, old → new with the change
+ * (green better, red worse); an unchanged number shows once, marked "same".
+ */
+function comparisonTable(equippedName, rows) {
+  const box = el('section', null, 'mr-compare');
+  box.setAttribute('aria-label', `Compared with ${equippedName}`);
+  const title = el('p', 'Compared with ', 'mr-compare-title');
+  title.append(el('strong', equippedName));
+  const list = el('dl', null, 'mr-compare-rows');
+  for (const row of rows) {
+    const value = el('dd');
+    if (row.delta === 0) {
+      value.append(el('span', String(row.to)), el('span', 'same', 'mr-compare-same'));
+    } else {
+      value.append(
+        el('span', String(row.from), 'mr-compare-from'),
+        el('span', '\u2192', 'mr-compare-arrow'),
+        el('span', String(row.to), 'mr-compare-to'),
+      );
+      if (row.delta != null)
+        value.append(
+          el('span', signed(row.delta), `mr-compare-delta ${row.better ? 'mr-up' : 'mr-down'}`),
+        );
+    }
+    list.append(el('dt', COMPARE_LABELS[row.id] || row.label), value);
+  }
+  box.append(title, list);
+  return box;
 }
 
 // One presentation for read-only battle inspection and between-battle management.
@@ -1396,11 +1430,15 @@ export class MobileRosterSheet {
         item.type !== 'Staff'
       ) {
         // The shop and reward screen compare with the same helper, so all three agree.
-        const parts = weaponComparisonParts(unit, item, unit.weapon, {
+        const rows = weaponComparisonRows(unit, item, unit.weapon, {
           arts: this.gameData?.weaponArts?.arts || [],
           imbues: this.gameData?.imbues,
         });
-        c.append(el('p', `Compared with ${unit.weapon.name}: ${parts.join(' · ')}`));
+        // Beside the item's numbers, above its art and lore disclosures.
+        const table = comparisonTable(unit.weapon.name, rows);
+        const first = Array.from(c.children || []).find((n) => n.tagName === 'DETAILS');
+        if (first) c.insertBefore(table, first);
+        else c.append(table);
       }
       if (this.run) {
         if (unit.weapon !== item) this.action(c, 'Equip', unit, item, 'equip');
