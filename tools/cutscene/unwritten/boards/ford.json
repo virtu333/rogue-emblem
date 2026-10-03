@@ -1,0 +1,294 @@
+{
+  "piece": "ford",
+  "note": "The Ford's storyboard for generated frames. A take is one generated clip (4 s or more) seen through one camera setup; a cut is a slice of a take (or of code) placed on the score. Times are piece seconds (ford_blocking.js TIME, at(bar, beat)). Each take: a first key drawn from its previs frame (keys/), then a video model run with the key as its look, the previs (previs3d/) as @Video1 for blocking and camera, and a prompt with action and reaction to the second. The engine owns the edit, camera pushes, shake, hit-stop, effects, the palette snap and the rewind.",
+  "style": "Hand-drawn fantasy illustration in the manner of a Renaissance sketchbook: fine sepia ink linework inside the figures, one confident thicker contour around each silhouette, pale transparent watercolour, a cool bone-grey palette under an overcast sky. The Warden and the Empire's soldiers are painted dense iron-black and crimson; Edric lighter, like an unfinished sketch. 2D hand-drawn anime animation. No text, no logo, no border, no blood.",
+  "cast": {
+    "edric": {
+      "refs": [
+        "docs/art-direction/anime-op/cutouts/edric_standing.webp",
+        "docs/art-direction/anime-op/cutouts/f_edric_slide_burst_3_rising_cut.webp"
+      ],
+      "text": "Edric: a young swordsman, shaggy DARK CHESTNUT-BROWN hair (not red, not auburn), square jaw, heavy straight brows, deep-set tired eyes, a nose broken once, a deep teal cloak, one steel pauldron, worn leather, a plain longsword."
+    },
+    "warden": {
+      "refs": [
+        "docs/art-direction/anime-op/cutouts/f_warden_poses_1_guard_spear.webp",
+        "docs/art-direction/anime-op/refs/f_warden_helm.webp"
+      ],
+      "text": "the Warden: an imperial spearman, a closed black iron helm with a narrow eye slit, dark iron armour, a crimson tabard, a long wooden spear (2.4 m) with an iron head."
+    },
+    "rank": {
+      "refs": ["docs/art-direction/anime-op/cutouts/empire_soldier_march.webp"],
+      "text": "the Empire's rank: soldiers in black helms and crimson, long spears upright, in step."
+    }
+  },
+  "look": "References/cutscene/keys/bind/bind_nbp.png",
+  "place": "docs/art-direction/anime-op/refs/b29_ford_plate.webp",
+  "keyLegend": "The teal mannequin is Edric; the red ones are the Empire (the largest red one, nearest, is the Warden). Where a figure stands in the river, its legs go under the water and disappear below the surface, with a ring of ripples and a little broken white foam where each leg meets the water, and its reflection lies on the water under it. Where a figure stands on the bank, its boots press into the mud and it casts a soft shadow. Rain.",
+  "keyPlace": "The place is the ford of the last reference image: a shallow, slow river between low banks, reeds, grey ridges, an overcast sky.",
+  "physics": "every foot that carries weight stays planted where it stands; legs in the river go under the surface and push ripples and white foam; nothing floats or glides; every blow moves the one who takes it.",
+  "takes": [
+    {
+      "id": "W",
+      "name": "the upstream wide",
+      "camshot": "wide",
+      "range": [0.8, 4.8],
+      "cuts": ["wide"],
+      "cast": ["edric", "rank"],
+      "action": [
+        [
+          0.0,
+          1.6,
+          "Far off on the left bank, Edric breaks into a run toward the river; the Empire's rank on the far bank turns as one and steps down toward the water."
+        ],
+        [
+          1.6,
+          2.4,
+          "Edric splashes into the shallows; on the far bank the rank halts in unison at the water's edge, spears upright."
+        ],
+        [
+          2.4,
+          4.0,
+          "Edric wades on through the current, small in the wide; the river runs toward us; rain."
+        ]
+      ],
+      "camera": "Take the camera from @Video1: a slow crane down that settles into a wide shot looking up the river; the river comes toward the lens between low banks and distant grey ridges."
+    },
+    {
+      "id": "L",
+      "name": "the Warden steps in",
+      "camshot": "low",
+      "range": [1.6, 5.6],
+      "cuts": ["low"],
+      "cast": ["warden", "rank"],
+      "action": [
+        [0.0, 0.8, "The Warden walks down the bank toward the water, the rank in step behind him."],
+        [
+          0.8,
+          1.6,
+          "His iron boot steps into the shallows: a ring of ripples runs out from it; the rank's boots stamp into the edge in unison behind him."
+        ],
+        [
+          1.6,
+          4.0,
+          "He wades two steps out and plants his feet in the shallows, knee-deep; the rank stands at the water's edge."
+        ]
+      ],
+      "camera": "Low at the water, as in @Video1: the lens just above the surface, the boots large in frame. Camera locked."
+    },
+    {
+      "id": "V",
+      "name": "the spear levels",
+      "camshot": "level",
+      "range": [2.8, 6.8],
+      "cuts": ["level"],
+      "cast": ["warden"],
+      "action": [
+        [
+          0.0,
+          0.4,
+          "The Warden stands knee-deep, the spear carried upright; his weight sinks a little (anticipation)."
+        ],
+        [
+          0.4,
+          0.6,
+          "He snaps the spear down into both hands: in one sharp movement the point drops forward and levels straight at the lens."
+        ],
+        [
+          0.6,
+          4.0,
+          "He holds the guard, perfectly still; the crimson tabard settles; rain runs off the helm; the point stays on the lens."
+        ]
+      ],
+      "camera": "Low and in front of him, as in @Video1, looking up at the guard, the point foreshortened toward the lens. Camera locked."
+    },
+    {
+      "id": "T",
+      "name": "Edric runs the ford",
+      "camshot": "track",
+      "range": [3.2, 7.2],
+      "cuts": ["track"],
+      "cast": ["edric"],
+      "action": [
+        [
+          0.0,
+          2.0,
+          "Edric runs through knee-deep water from left to right, high knees, each foot plunging into the river with a splash; his legs disappear under the surface and drive through it; the cloak streams back."
+        ],
+        [
+          2.0,
+          4.0,
+          "He keeps running toward the spearman ahead (off screen right), the sword held low and back."
+        ]
+      ],
+      "camera": "A tracking profile shot as in @Video1: the camera moves with him, reeds and stones near the lens slide past fast, the far bank slides slowly. The feet stay planted in the riverbed on each step: no gliding."
+    },
+    {
+      "id": "O",
+      "name": "the thrust (over the shoulder)",
+      "camshot": "ots",
+      "range": [4.8, 8.8],
+      "cuts": ["ots"],
+      "cast": ["edric", "warden"],
+      "action": [
+        [
+          0.0,
+          0.9,
+          "Over the Warden's shoulder: Edric charges toward us through the water, growing larger."
+        ],
+        [
+          0.9,
+          1.05,
+          "Edric reads the Warden sinking and drops low; the Warden snaps the spear forward."
+        ],
+        [
+          1.05,
+          1.2,
+          "The spear reaches full length: its point shoots away from us and passes just over Edric's head as he drops into the water."
+        ],
+        [
+          1.2,
+          4.0,
+          "Edric slides through the water under the spear, throwing up a wall of spray; the Warden pulls the spear back."
+        ]
+      ],
+      "camera": "Over the Warden's right shoulder as in @Video1: his helm and shoulder dark in the foreground, Edric in the river beyond. Camera locked."
+    },
+    {
+      "id": "S",
+      "name": "the slide and the spray",
+      "camshot": "spray",
+      "range": [5.8, 9.8],
+      "cuts": ["spray", "wall", "shape"],
+      "cast": ["edric", "warden"],
+      "action": [
+        [0.0, 0.2, "Edric charges at the Warden through the water."],
+        [
+          0.2,
+          0.6,
+          "He drops and slides on his hip under a thrusting spear; a tall sheet of white spray erupts in front of him; the spear's point passes through the spray."
+        ],
+        [0.6, 1.4, "The spray hangs and falls; a shape coils inside it."],
+        [
+          1.4,
+          1.6,
+          "Edric bursts up out of the spray right in front of the Warden and strikes the spear's shaft: sparks."
+        ],
+        [1.6, 4.0, "They are locked together, sword against shaft, straining."]
+      ],
+      "camera": "Wide and low, as in @Video1, the water near the lens. Camera locked."
+    },
+    {
+      "id": "M",
+      "name": "the master: clash to fall",
+      "fixcam": 202,
+      "range": [7.2, 12.4],
+      "cuts": ["clash", "bind", "yield", "cut"],
+      "cast": ["edric", "warden"],
+      "action": [
+        [
+          0.0,
+          0.8,
+          "Edric surges up inside the spear's reach and strikes the wooden shaft: a burst of sparks; the Warden takes it on the shaft and is rocked back half a step, his back foot sliding through the water."
+        ],
+        [
+          0.8,
+          2.4,
+          "The bind: sword and shaft crossed at one point between them. Edric drives forward with his legs; the Warden holds, then gives ground half a step. Both strain; their arms shake."
+        ],
+        [2.4, 3.2, "The Warden's helm tilts very slightly: he has decided."],
+        [
+          3.2,
+          3.5,
+          "He steps back and draws the shaft off the blade, lifting it. With nothing to push against, Edric pitches forward and his front foot lands on a flat wet stone."
+        ],
+        [
+          3.5,
+          3.9,
+          "The stone throws his foot forward: he drops low onto his back foot, arms flung up and back for balance, his chest open."
+        ],
+        [3.9, 4.0, "The Warden raises the spear high over his head."],
+        [4.0, 4.4, "He brings the iron head down across Edric's chest in one sweeping stroke."],
+        [
+          4.4,
+          5.2,
+          "The blow drives Edric over backwards: he falls onto his back into the river, a big splash; the Warden stands over him."
+        ]
+      ],
+      "camera": "Locked off at the height and angle of @Video1, a medium two-shot."
+    },
+    {
+      "id": "R",
+      "name": "the fall (reverse, low)",
+      "camshot": "fall",
+      "range": [9.6, 13.6],
+      "cuts": ["fall"],
+      "cast": ["edric", "warden"],
+      "action": [
+        [0.0, 0.8, "From the far side: Edric and the Warden locked in the bind."],
+        [
+          0.8,
+          1.2,
+          "The Warden steps back and lifts the shaft away; Edric pitches forward onto a wet stone and his foot shoots out from under him; he drops low."
+        ],
+        [1.2, 1.6, "The Warden's spear comes down across Edric's chest."],
+        [
+          1.6,
+          2.8,
+          "Edric goes over backwards and lands on his back in the river: a big splash that rises and falls."
+        ],
+        [
+          2.8,
+          4.0,
+          "He lies in the shallow water, the surface settling round him in rings; rain; the Warden stands over him, the spear held low."
+        ]
+      ],
+      "camera": "Low at the water from the far side, as in @Video1. Camera locked."
+    },
+    {
+      "id": "H",
+      "name": "the helm decides",
+      "image": "docs/art-direction/anime-op/refs/f_warden_helm.webp",
+      "range": [9.6, 13.6],
+      "cuts": ["helm", "slit"],
+      "cast": ["warden"],
+      "action": [
+        [
+          0.0,
+          1.0,
+          "Extreme close-up of the black helm's eye slit in the rain; behind the slit, an eye fixed on something below. Still."
+        ],
+        [1.0, 1.4, "The helm tilts down very slightly; the eye narrows."],
+        [1.4, 4.0, "Held. Rain streams down the iron."]
+      ],
+      "camera": "Locked off. No zoom."
+    },
+    {
+      "id": "F",
+      "name": "Edric's face, struck",
+      "image": "docs/art-direction/anime-op/refs/f_edric_struck.webp",
+      "range": [11.2, 15.2],
+      "cuts": ["face"],
+      "cast": ["edric"],
+      "action": [
+        [0.0, 0.3, "Close-up of Edric's face: the blow lands; his head snaps back."],
+        [
+          0.3,
+          4.0,
+          "In slow motion: his eyes widen in shock, his hair lifts, drops of river water hang in the air around his face and drift."
+        ]
+      ],
+      "camera": "Locked off. No zoom."
+    }
+  ],
+  "code": [
+    {
+      "cut": "rush",
+      "what": "the rush down the Thread (code, as now)"
+    },
+    {
+      "cut": "eye",
+      "what": "Edric's eye with the point in it (refs/b01_edric_eye, a push and the glint in code)"
+    }
+  ]
+}

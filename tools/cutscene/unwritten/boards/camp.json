@@ -1,0 +1,180 @@
+{
+  "piece": "camp",
+  "note": "The Night Before's storyboard for generated frames (CAMP.md). Takes as in boards/ford.json. The sky shot and the Thread across the sky are code; every take's sky is left plain so the engine can draw the Thread into it.",
+  "style": "Hand-drawn fantasy illustration in the manner of a Renaissance sketchbook: fine sepia ink linework, one confident thicker contour around each figure, flat watercolour washes. Night: deep violet-blue shadows, and the campfire the only warm light, orange on the sides of things that face it and on the ground round it, long shadows thrown away from it. A plain dark night sky with a few stars and no moon. 2D hand-drawn anime animation, slow and still, with small living movements. No text, no logo, no border.",
+  "cast": {
+    "edric": {
+      "refs": [
+        "docs/art-direction/anime-op/cutouts/c_edric_fire_1_stare.webp",
+        "docs/art-direction/anime-op/cutouts/c_edric_rise_4_stand.webp"
+      ],
+      "text": "Edric: a young swordsman, shaggy DARK CHESTNUT-BROWN hair (not red, not auburn), square jaw, heavy straight brows, deep-set tired eyes, a nose broken once, a deep teal cloak, one steel pauldron, worn leather; he sits ON THE GROUND (no rock, no seat), one knee drawn up, a plain longsword across it."
+    },
+    "sera": {
+      "refs": ["docs/art-direction/anime-op/cutouts/sera_at_camp.webp"],
+      "text": "Sera: a young seer, long wavy crimson hair, a long oval face, heavy-lidded eyes, a purple robe with a gold cross; she sits on a folded striped blanket hugging her knees."
+    },
+    "kira": {
+      "refs": ["docs/art-direction/anime-op/cutouts/kira_at_camp.webp"],
+      "text": "Kira: a scout with a white ponytail, a long narrow face, narrow hooded eyes, a crimson coat; Kira sits on a wooden crate with a map on one knee."
+    }
+  },
+  "look": null,
+  "place": "docs/art-direction/anime-op/refs/b05_camp_night_plate.webp",
+  "keyLegend": "The teal mannequin is Edric, the purple one Sera, the red one Kira. Each sits exactly where the mannequin sits and on what it sits on: Edric directly on the ground, Sera on her blanket, Kira on her crate. Each body rests its weight on what it sits on, with a small dark contact shadow where it touches; the fire throws each person's long shadow away from it across the ground.",
+  "keyPlace": "The place is the army's camp of the last reference image at night: peaked ochre canvas tents, a palisade, crates and barrels, a spear tripod, trampled grass; the campfire in a ring of stones.",
+  "physics": "everyone stays seated exactly where they sit, their weight on the ground, the blanket or the crate; nobody floats or slides; when Edric stands, he pushes off the ground with his hand and his feet stay planted.",
+  "takes": [
+    {
+      "id": "CW",
+      "name": "the crane down to the camp",
+      "camshot": "crane",
+      "range": [0.0, 4.0],
+      "cuts": ["crane"],
+      "cast": ["edric", "sera", "kira"],
+      "action": [
+        [
+          0.0,
+          2.4,
+          "The night sky over the camp, then down past the ridge to the tents: the camera comes to rest on the campfire and the three small figures sitting round it. Smoke and sparks rise from the fire."
+        ],
+        [
+          2.4,
+          4.0,
+          "Held: three people at the fire, each breathing, hair stirring in a light wind; the flames flicker and the light on them flickers with them."
+        ]
+      ],
+      "camera": "Take the camera from @Video1: a slow tilt down from the sky that settles on the camp."
+    },
+    {
+      "id": "C3",
+      "name": "the three at the fire",
+      "camshot": "three",
+      "range": [3.2, 7.2],
+      "cuts": ["three"],
+      "cast": ["edric", "sera", "kira"],
+      "action": [
+        [
+          0.0,
+          0.4,
+          "The three at the fire: Edric on the left stares into the flames; Kira behind the fire studies the map; Sera on the right sits hugging her knees, chin up, looking at the sky."
+        ],
+        [
+          0.4,
+          1.2,
+          "Edric reaches out with his sword and nudges a log in the fire; sparks rise; he draws the sword back across his knee."
+        ],
+        [
+          1.2,
+          4.0,
+          "Stillness: Kira's finger taps the map, Sera breathes, the fire flickers on every face."
+        ]
+      ],
+      "camera": "Low, from the south, as in @Video1: a very slow push in."
+    },
+    {
+      "id": "CS",
+      "name": "Sera's look",
+      "camshot": "sera",
+      "range": [4.8, 8.8],
+      "cuts": ["sera"],
+      "cast": ["sera", "kira"],
+      "action": [
+        [
+          0.0,
+          0.8,
+          "Close on Sera, lit from the left by the fire, looking up at the sky; she takes a slow breath; a faint gold glint shines in her eyes."
+        ],
+        [
+          0.8,
+          1.6,
+          "Her eyelids close slowly and her eyes come down, away from the sky; one slow blink."
+        ],
+        [
+          1.6,
+          4.0,
+          "She looks across the fire, very still, her face hiding what she knows. Kira, small behind her, watches."
+        ]
+      ],
+      "camera": "Close from the south-east, as in @Video1: a slow push in."
+    },
+    {
+      "id": "CE",
+      "name": "Edric feels her look",
+      "camshot": "edric",
+      "range": [8.0, 12.0],
+      "cuts": ["edric"],
+      "cast": ["edric", "kira"],
+      "action": [
+        [0.0, 0.3, "Close on Edric, lit from the right by the fire: he stares into the flames."],
+        [
+          0.3,
+          0.8,
+          "He feels someone looking: his head comes up and turns to the right, toward the other side of the fire."
+        ],
+        [0.8, 1.6, "His eyes meet hers (off screen); he breathes out; the ghost of a tired smile."],
+        [
+          1.6,
+          4.0,
+          "He holds the look, then his eyes go back to the fire. Embers drift across the frame."
+        ]
+      ],
+      "camera": "Close from the south-west, as in @Video1: a slow push in."
+    },
+    {
+      "id": "CK",
+      "name": "Kira sees him look",
+      "camshot": "kira",
+      "range": [8.8, 12.8],
+      "cuts": ["kira"],
+      "cast": ["kira"],
+      "action": [
+        [
+          0.0,
+          0.8,
+          "Close on Kira on the crate, the fire lighting the face: a gloved finger taps the map."
+        ],
+        [
+          0.8,
+          1.2,
+          "The finger stops; Kira's eyes lift from the map to Edric (off screen left); the ponytail swings."
+        ],
+        [1.2, 2.0, "Kira folds the map shut along its crease."],
+        [2.0, 4.0, "Still, the map folded on the knee, watching."]
+      ],
+      "camera": "Close from the south-east, as in @Video1: a slow push in."
+    },
+    {
+      "id": "CR",
+      "name": "Edric rises",
+      "camshot": "rise",
+      "range": [8.8, 12.8],
+      "cuts": ["rise"],
+      "cast": ["edric", "sera", "kira"],
+      "action": [
+        [
+          0.0,
+          2.4,
+          "Low and close: Edric sits on the ground by the fire, the sword across his knee; behind him Kira and Sera at the fire."
+        ],
+        [
+          2.4,
+          2.7,
+          "He puts one hand flat on the ground and pushes; ash and grit puff up where the hand presses."
+        ],
+        [
+          2.7,
+          3.2,
+          "He rises in one move: a foot under him, up into a crouch, then standing, the sword in his right hand, the cloak swinging and settling."
+        ],
+        [
+          3.2,
+          4.0,
+          "He stands still and lifts his face to the sky. His boots stay planted; a little dust settles round them."
+        ]
+      ],
+      "camera": "Take the camera from @Video1: low and close, tilting up with him as he stands, then a smooth pull back and up."
+    }
+  ],
+  "code": [{ "cut": "sky", "what": "the Thread across the stars, on the crash (code, as now)" }]
+}

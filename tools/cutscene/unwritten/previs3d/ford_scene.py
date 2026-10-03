@@ -7,7 +7,9 @@ foot carries the weight, where the contact shadows fall.
         [--json References/cutscene/previs3d/ford.json] [--out References/cutscene/previs3d/ford] \
         [--frames 170-250] [--still 192,220] [--side] [--size 960x540] [--blend]
 
---side renders the flat side-on camera (the blocking's own view) instead of the shot cameras.
+--side renders the flat side-on camera (the blocking's own view) instead of the shot cameras;
+--fixcam F holds frame F's camera throughout; --camshot NAME plays that shot's camera move,
+held before and after it (a take longer than the cut); --sub DIR names the output folder.
 Frames are written as PNGs to <out>/<cam>/####.png; tools/cutscene/unwritten/previs3d/dailies.sh
 burns in shot names and joins them into a video.
 
@@ -392,6 +394,15 @@ else:
         # one held camera for the whole range (a reference video for a video model)
         held = cams[int(opt('fixcam'))]
         cams = [held] * len(cams)
+    if opt('camshot'):
+        # one shot's camera move, held before its first frame and after its last: a take
+        # that runs longer than the cut (a video model needs 4 s or more)
+        sh = next(x for x in D['shots'] if x['name'] == opt('camshot'))
+        f0 = math.ceil(sh['from'] * FPS - 1e-6)
+        f1 = min(NF - 1, math.ceil(sh['to'] * FPS - 1e-6) - 1)
+        own = [i for i in range(f0, f1 + 1) if cams[i]]
+        a_, b_ = own[0], own[-1]
+        cams = [cams[min(max(i, a_), b_)] for i in range(len(cams))]
     last = next(c for c in cams if c)
     mats, lens = [], []
     for c in cams:
