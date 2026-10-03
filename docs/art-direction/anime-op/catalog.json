@@ -187,6 +187,93 @@
       "size": "1672x941"
     },
     {
+      "file": "c_edric_fire_right.png",
+      "source": "batch-8",
+      "kind": "strip",
+      "subject": "Edric seated on the ground facing right, sword across his knee: stares into the fire, looks up across it, a faint smile",
+      "beats": ["5-12"],
+      "verdict": "use",
+      "why": "Faces right, so the camp no longer flips him. Seated on the ground, not on a seat: the camp must seat him on the ground (or draw the seat with him). Hair drifts auburn: retone at load (retoneHair). Denser and more saturated than the Unwritten Page sepia.",
+      "size": "1536x1024",
+      "cutouts": [
+        "cutouts/c_edric_fire_1_stare.webp",
+        "cutouts/c_edric_fire_2_look.webp",
+        "cutouts/c_edric_fire_3_smile.webp"
+      ]
+    },
+    {
+      "file": "c_edric_rise_right.png",
+      "source": "batch-8",
+      "kind": "strip",
+      "subject": "Edric rising, facing right: seated with a hand down, pushing up, half risen, standing and looking at the sky",
+      "beats": ["5-12"],
+      "verdict": "use",
+      "why": "A clean rise in four keys for first/last-frame motion. Pose 1 is three-quarter, the rest profile; the sword is longer in pose 4. Hair auburn: retone.",
+      "size": "1536x1024",
+      "cutouts": [
+        "cutouts/c_edric_rise_1_seated.webp",
+        "cutouts/c_edric_rise_2_push.webp",
+        "cutouts/c_edric_rise_3_crouch.webp",
+        "cutouts/c_edric_rise_4_stand.webp"
+      ]
+    },
+    {
+      "file": "c_sera_eye_thread.png",
+      "source": "batch-8",
+      "kind": "closeup",
+      "subject": "Sera's eye in profile, facing left, a gold line of the Thread across the iris, firelight",
+      "beats": ["5-12"],
+      "verdict": "use",
+      "why": "The Thread in her eye reads. Warmer overall than asked (the violet shadow side is small): the palette snap cools it. Big face: convert with --dither 0.2.",
+      "size": "1536x1024",
+      "ref": "refs/c_sera_eye_thread.webp"
+    },
+    {
+      "file": "c_kira_map_hands.png",
+      "source": "batch-8",
+      "kind": "strip",
+      "subject": "Kira's gloved hands on the map in three panels: tapping, finger lifted, folding it shut",
+      "beats": ["5-12"],
+      "verdict": "use",
+      "why": "Same framing in all three panels. The map has full terrain, not a faint route; it simplifies at 480x270.",
+      "size": "1536x1024",
+      "ref": "refs/c_kira_map_hands.webp"
+    },
+    {
+      "file": "c_camp_props.png",
+      "source": "batch-8",
+      "kind": "fx",
+      "subject": "Camp props: tent front (door tied back), tent side, spear tripod, barrels and crate, bench, stump",
+      "beats": ["5-12"],
+      "verdict": "use",
+      "why": "Replaces the ray-cast tents and code props. The tripod's feet anchor needs the sheet's ground line (its legs splay).",
+      "size": "1536x1024",
+      "cutouts": [
+        "cutouts/c_camp_props_1_tent_front.webp",
+        "cutouts/c_camp_props_2_tent_side.webp",
+        "cutouts/c_camp_props_3_spear_tripod.webp",
+        "cutouts/c_camp_props_4_barrels_crate.webp",
+        "cutouts/c_camp_props_5_bench.webp",
+        "cutouts/c_camp_props_6_stump.webp"
+      ]
+    },
+    {
+      "file": "c_torchbearer.png",
+      "source": "batch-8",
+      "kind": "strip",
+      "subject": "Our sentry in a grey-blue tabard and leather cap, walking right with a torch and a spear",
+      "beats": ["5-12"],
+      "verdict": "use",
+      "why": "On-model, layerable. The four poses barely differ, so they are not a walk cycle: use one as the first frame of a generated walk.",
+      "size": "1536x1024",
+      "cutouts": [
+        "cutouts/c_torchbearer_1_walk1.webp",
+        "cutouts/c_torchbearer_2_walk2.webp",
+        "cutouts/c_torchbearer_3_walk3.webp",
+        "cutouts/c_torchbearer_4_walk4.webp"
+      ]
+    },
+    {
       "file": "b13_card_astrid.png",
       "source": "batch-2",
       "kind": "character",

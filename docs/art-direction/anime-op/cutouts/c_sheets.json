@@ -1,0 +1,229 @@
+{
+  "edric_fire": {
+    "source": "../rogue-emblem-assets/batch-8/c_edric_fire_right.png",
+    "sheet": [1536, 1024],
+    "facing": 1,
+    "ground": 930.0,
+    "scale": 1,
+    "note": "1 cut-out px = 1 sheet px; place anchorSheet.y on the ground and use one scale for the whole sheet",
+    "cutouts": [
+      {
+        "file": "c_edric_fire_1_stare.webp",
+        "pose": "stare",
+        "n": 1,
+        "box": [0, 182, 556, 763],
+        "anchor": [228.8, 746.0],
+        "anchorSheet": [228.8, 928.0],
+        "size": [556, 763],
+        "figure": [7, 16, 533, 731],
+        "pixels": 255094
+      },
+      {
+        "file": "c_edric_fire_2_look.webp",
+        "pose": "look",
+        "n": 2,
+        "box": [503, 170, 558, 775],
+        "anchor": [233.0, 758.0],
+        "anchorSheet": [736.0, 928.0],
+        "size": [558, 775],
+        "figure": [16, 16, 526, 743],
+        "pixels": 252677
+      },
+      {
+        "file": "c_edric_fire_3_smile.webp",
+        "pose": "smile",
+        "n": 3,
+        "box": [1009, 170, 527, 775],
+        "anchor": [233.6, 758.0],
+        "anchorSheet": [1242.6, 928.0],
+        "size": [527, 775],
+        "figure": [16, 16, 505, 743],
+        "pixels": 251675
+      }
+    ]
+  },
+  "edric_rise": {
+    "source": "../rogue-emblem-assets/batch-8/c_edric_rise_right.png",
+    "sheet": [1536, 1024],
+    "facing": 1,
+    "ground": 867.0,
+    "scale": 1,
+    "note": "1 cut-out px = 1 sheet px; place anchorSheet.y on the ground and use one scale for the whole sheet",
+    "cutouts": [
+      {
+        "file": "c_edric_rise_1_seated.webp",
+        "pose": "seated",
+        "n": 1,
+        "box": [0, 407, 502, 471],
+        "anchor": [295.1, 454.0],
+        "anchorSheet": [295.1, 861.0],
+        "size": [502, 471],
+        "figure": [4, 16, 482, 439],
+        "pixels": 124142
+      },
+      {
+        "file": "c_edric_rise_2_push.webp",
+        "pose": "push",
+        "n": 2,
+        "box": [398, 390, 466, 487],
+        "anchor": [199.1, 470.0],
+        "anchorSheet": [597.1, 860.0],
+        "size": [466, 487],
+        "figure": [16, 16, 434, 455],
+        "pixels": 121614
+      },
+      {
+        "file": "c_edric_rise_3_crouch.webp",
+        "pose": "crouch",
+        "n": 3,
+        "box": [791, 223, 457, 654],
+        "anchor": [234.4, 637.0],
+        "anchorSheet": [1025.4, 860.0],
+        "size": [457, 654],
+        "figure": [16, 16, 425, 622],
+        "pixels": 149260
+      },
+      {
+        "file": "c_edric_rise_4_stand.webp",
+        "pose": "stand",
+        "n": 4,
+        "box": [1181, 56, 355, 826],
+        "anchor": [210.0, 809.0],
+        "anchorSheet": [1391.0, 865.0],
+        "size": [355, 826],
+        "figure": [16, 16, 334, 794],
+        "pixels": 145297
+      }
+    ]
+  },
+  "torchbearer": {
+    "source": "../rogue-emblem-assets/batch-8/c_torchbearer.png",
+    "sheet": [1536, 1024],
+    "facing": 1,
+    "ground": 892.0,
+    "scale": 1,
+    "note": "1 cut-out px = 1 sheet px; place anchorSheet.y on the ground and use one scale for the whole sheet",
+    "cutouts": [
+      {
+        "file": "c_torchbearer_1_walk1.webp",
+        "pose": "walk1",
+        "n": 1,
+        "box": [0, 59, 387, 848],
+        "anchor": [188.2, 831.0],
+        "anchorSheet": [188.2, 890.0],
+        "size": [387, 848],
+        "figure": [11, 16, 360, 816],
+        "pixels": 113686
+      },
+      {
+        "file": "c_torchbearer_2_walk2.webp",
+        "pose": "walk2",
+        "n": 2,
+        "box": [374, 58, 391, 849],
+        "anchor": [202.7, 832.0],
+        "anchorSheet": [576.7, 890.0],
+        "size": [391, 849],
+        "figure": [16, 16, 359, 817],
+        "pixels": 107674
+      },
+      {
+        "file": "c_torchbearer_3_walk3.webp",
+        "pose": "walk3",
+        "n": 3,
+        "box": [754, 60, 403, 847],
+        "anchor": [193.2, 830.0],
+        "anchorSheet": [947.2, 890.0],
+        "size": [403, 847],
+        "figure": [16, 16, 371, 815],
+        "pixels": 112019
+      },
+      {
+        "file": "c_torchbearer_4_walk4.webp",
+        "pose": "walk4",
+        "n": 4,
+        "box": [1156, 57, 380, 850],
+        "anchor": [156.6, 833.0],
+        "anchorSheet": [1312.6, 890.0],
+        "size": [380, 850],
+        "figure": [16, 16, 361, 818],
+        "pixels": 109866
+      }
+    ]
+  },
+  "camp_props": {
+    "source": "../rogue-emblem-assets/batch-8/c_camp_props.png",
+    "sheet": [1536, 1024],
+    "facing": 0,
+    "ground": 715.0,
+    "scale": 1,
+    "note": "1 cut-out px = 1 sheet px; place anchorSheet.y on the ground and use one scale for the whole sheet",
+    "cutouts": [
+      {
+        "file": "c_camp_props_1_tent_front.webp",
+        "pose": "tent_front",
+        "n": 1,
+        "box": [0, 308, 500, 419],
+        "anchor": [220.8, 399.0],
+        "anchorSheet": [220.8, 707.0],
+        "size": [500, 419],
+        "figure": [7, 16, 477, 387],
+        "pixels": 64280
+      },
+      {
+        "file": "c_camp_props_2_tent_side.webp",
+        "pose": "tent_side",
+        "n": 2,
+        "box": [421, 380, 417, 349],
+        "anchor": [190.4, 330.0],
+        "anchorSheet": [611.4, 710.0],
+        "size": [417, 349],
+        "figure": [16, 16, 385, 317],
+        "pixels": 73448
+      },
+      {
+        "file": "c_camp_props_3_spear_tripod.webp",
+        "pose": "spear_tripod",
+        "n": 3,
+        "box": [792, 300, 190, 429],
+        "anchor": [96.2, 297.0],
+        "anchorSheet": [888.2, 597.0],
+        "size": [190, 429],
+        "figure": [16, 16, 158, 397],
+        "pixels": 12214
+      },
+      {
+        "file": "c_camp_props_4_barrels_crate.webp",
+        "pose": "barrels_crate",
+        "n": 4,
+        "box": [954, 486, 257, 244],
+        "anchor": [140.4, 227.0],
+        "anchorSheet": [1094.4, 713.0],
+        "size": [257, 244],
+        "figure": [16, 16, 225, 212],
+        "pixels": 36464
+      },
+      {
+        "file": "c_camp_props_5_bench.webp",
+        "pose": "bench",
+        "n": 5,
+        "box": [1200, 587, 237, 143],
+        "anchor": [59.9, 126.0],
+        "anchorSheet": [1259.9, 713.0],
+        "size": [237, 143],
+        "figure": [16, 16, 205, 111],
+        "pixels": 12494
+      },
+      {
+        "file": "c_camp_props_6_stump.webp",
+        "pose": "stump",
+        "n": 6,
+        "box": [1397, 600, 139, 130],
+        "anchor": [75.3, 113.0],
+        "anchorSheet": [1472.3, 713.0],
+        "size": [139, 130],
+        "figure": [16, 16, 116, 98],
+        "pixels": 7929
+      }
+    ]
+  }
+}

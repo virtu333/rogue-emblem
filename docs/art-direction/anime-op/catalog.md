@@ -1,6 +1,6 @@
 # Cutscene art: reference catalogue
 
-114 images: 83 use, 1 maybe, 30 reject. Sorted by beat (first listed), then verdict. The style target is **The Unwritten Page** ([STYLE.md](STYLE.md)); verdicts judge each image against it and against the PC-98 portraits.
+120 images: 89 use, 1 maybe, 30 reject. Sorted by beat (first listed), then verdict. The style target is **The Unwritten Page** ([STYLE.md](STYLE.md)); verdicts judge each image against it and against the PC-98 portraits.
 
 | Source folder | Images | What it is |
 |---|---|---|
@@ -12,6 +12,7 @@
 | `~/Documents/rogue-emblem-assets/batch-4` | 12 | Fourth batch: distinct faces, closeup redos, allied soldiers, camp and hymn ([prompts-batch-4.md](prompts-batch-4.md)). |
 | `~/Documents/rogue-emblem-assets/batch-5` | 21 | Fifth batch: the villains ([prompts-batch-5.md](prompts-batch-5.md)). Pre-feedback versions in `earlier-versions/` are not catalogued. |
 | `~/Documents/rogue-emblem-assets/batch-6` | 2 | Sixth batch: reworks ([prompts-batch-6.md](prompts-batch-6.md)). |
+| `~/Documents/rogue-emblem-assets/batch-8` | 6 | Eighth batch: "The Night Before" ([prompts-batch-8.md](prompts-batch-8.md)). Sheets cut by `tools/cutscene/unwritten/motion/split_sheet.py` into `cutouts/c_*` (specs `cutouts/c_*.spec.json`, placement in `cutouts/c_sheets.json`). |
 
 Not catalogued: the READMEs and `index.html` review pages in each folder.
 
@@ -41,6 +42,12 @@ Not catalogued: the READMEs and `index.html` review pages in each folder.
 | `b05_sera_at_camp.png` | batch-4 | character | Sera seated, knees up, blanket round her shoulders, looking up | 5-12 | **use** | On-model; the gold cross is there. | 1024×1536 | hair, blanket, body |
 | `01-edric-standing-greenscreen.png` | rogue-dawn-sketchbook-tests | character | Edric standing, three-quarter view, looking up past the viewer; gold thread at his wrist | 5-12, 13-20 | **use** | Clean key, on-model; the model for all character assets. "Edric rises", and the standing Edric in the ensemble. | 1024×1536 | hair, head, cloak, sword arm, body, legs |
 | `storyboard/08-edric-ahead.png` | anime-op-reference | group | Edric reaches back for Sera's hand in ruins | 5-12 | **reject** | Replaced by sketchbook 04-bridge-thread: the same hands-joined beat, in style. | 1672×941 |  |
+| `c_edric_fire_right.png` | batch-8 | strip | Edric seated on the ground facing right, sword across his knee: stares into the fire, looks up across it, a faint smile | 5-12 | **use** | Faces right, so the camp no longer flips him. Seated on the ground, not on a seat: the camp must seat him on the ground (or draw the seat with him). Hair drifts auburn: retone at load (retoneHair). Denser and more saturated than the Unwritten Page sepia. | 1536×1024 | c_edric_fire_1_stare.webp, c_edric_fire_2_look.webp, c_edric_fire_3_smile.webp |
+| `c_edric_rise_right.png` | batch-8 | strip | Edric rising, facing right: seated with a hand down, pushing up, half risen, standing and looking at the sky | 5-12 | **use** | A clean rise in four keys for first/last-frame motion. Pose 1 is three-quarter, the rest profile; the sword is longer in pose 4. Hair auburn: retone. | 1536×1024 | c_edric_rise_1_seated.webp, c_edric_rise_2_push.webp, c_edric_rise_3_crouch.webp, c_edric_rise_4_stand.webp |
+| `c_sera_eye_thread.png` | batch-8 | closeup | Sera's eye in profile, facing left, a gold line of the Thread across the iris, firelight | 5-12 | **use** | The Thread in her eye reads. Warmer overall than asked (the violet shadow side is small): the palette snap cools it. Big face: convert with --dither 0.2. | 1536×1024 | refs/c_sera_eye_thread.webp |
+| `c_kira_map_hands.png` | batch-8 | strip | Kira's gloved hands on the map in three panels: tapping, finger lifted, folding it shut | 5-12 | **use** | Same framing in all three panels. The map has full terrain, not a faint route; it simplifies at 480x270. | 1536×1024 | refs/c_kira_map_hands.webp |
+| `c_camp_props.png` | batch-8 | fx | Camp props: tent front (door tied back), tent side, spear tripod, barrels and crate, bench, stump | 5-12 | **use** | Replaces the ray-cast tents and code props. The tripod's feet anchor needs the sheet's ground line (its legs splay). | 1536×1024 | c_camp_props_1_tent_front.webp, c_camp_props_2_tent_side.webp, c_camp_props_3_spear_tripod.webp, c_camp_props_4_barrels_crate.webp, c_camp_props_5_bench.webp, c_camp_props_6_stump.webp |
+| `c_torchbearer.png` | batch-8 | strip | Our sentry in a grey-blue tabard and leather cap, walking right with a torch and a spear | 5-12 | **use** | On-model, layerable. The four poses barely differ, so they are not a walk cycle: use one as the first frame of a generated walk. | 1536×1024 | c_torchbearer_1_walk1.webp, c_torchbearer_2_walk2.webp, c_torchbearer_3_walk3.webp, c_torchbearer_4_walk4.webp |
 
 ## Bars 13-20: Cross-cut: our army against the Empire
 

@@ -1,0 +1,37 @@
+{
+  "name": "camp_props",
+  "prefix": "c",
+  "facing": 0,
+  "ground": 715,
+  "poses": [
+    {
+      "n": 1,
+      "name": "tent_front",
+      "seeds": [
+        [200, 560],
+        [110, 690],
+        [290, 690]
+      ]
+    },
+    {
+      "n": 2,
+      "name": "tent_side",
+      "seeds": [
+        [600, 520],
+        [740, 640]
+      ]
+    },
+    { "n": 3, "name": "spear_tripod", "seeds": [[888, 531]] },
+    { "n": 4, "name": "barrels_crate", "seeds": [[1086, 617]] },
+    {
+      "n": 5,
+      "name": "bench",
+      "seeds": [
+        [1311, 618],
+        [1240, 680],
+        [1390, 680]
+      ]
+    },
+    { "n": 6, "name": "stump", "seeds": [[1470, 666]] }
+  ]
+}

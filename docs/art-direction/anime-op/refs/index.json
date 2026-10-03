@@ -470,5 +470,56 @@
     "verdict": "use",
     "cutout": "cutouts/warchief.webp",
     "cutoutOffset": [6, 193]
+  },
+  {
+    "source": "batch-8/c_edric_fire_right.png",
+    "verdict": "use",
+    "cutouts": [
+      "cutouts/c_edric_fire_1_stare.webp",
+      "cutouts/c_edric_fire_2_look.webp",
+      "cutouts/c_edric_fire_3_smile.webp"
+    ]
+  },
+  {
+    "source": "batch-8/c_edric_rise_right.png",
+    "verdict": "use",
+    "cutouts": [
+      "cutouts/c_edric_rise_1_seated.webp",
+      "cutouts/c_edric_rise_2_push.webp",
+      "cutouts/c_edric_rise_3_crouch.webp",
+      "cutouts/c_edric_rise_4_stand.webp"
+    ]
+  },
+  {
+    "source": "batch-8/c_sera_eye_thread.png",
+    "verdict": "use",
+    "ref": "refs/c_sera_eye_thread.webp"
+  },
+  {
+    "source": "batch-8/c_kira_map_hands.png",
+    "verdict": "use",
+    "ref": "refs/c_kira_map_hands.webp"
+  },
+  {
+    "source": "batch-8/c_camp_props.png",
+    "verdict": "use",
+    "cutouts": [
+      "cutouts/c_camp_props_1_tent_front.webp",
+      "cutouts/c_camp_props_2_tent_side.webp",
+      "cutouts/c_camp_props_3_spear_tripod.webp",
+      "cutouts/c_camp_props_4_barrels_crate.webp",
+      "cutouts/c_camp_props_5_bench.webp",
+      "cutouts/c_camp_props_6_stump.webp"
+    ]
+  },
+  {
+    "source": "batch-8/c_torchbearer.png",
+    "verdict": "use",
+    "cutouts": [
+      "cutouts/c_torchbearer_1_walk1.webp",
+      "cutouts/c_torchbearer_2_walk2.webp",
+      "cutouts/c_torchbearer_3_walk3.webp",
+      "cutouts/c_torchbearer_4_walk4.webp"
+    ]
   }
 ]
