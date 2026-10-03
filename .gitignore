@@ -20,3 +20,7 @@ test-results-release/
 
 # Content-addressed audio staging, generated before dev/build
 /public/assets/audio/versioned/
+
+# Mutation testing
+reports/
+.stryker-tmp/
