@@ -30,7 +30,8 @@ Splitting
 
 Spec (JSON, next to the cut-outs as f_<sheet>.spec.json):
   {
-    "name": "warden_poses",                 # cut-out prefix f_<name>_<n>_<pose>
+    "name": "warden_poses",                 # cut-out name <prefix>_<name>_<n>_<pose>
+    "prefix": "f",                          # optional: f (The Ford, default), c (the camp)
     "facing": -1,                           # -1 faces left, +1 right (informative)
     "poses": [ {"n": 1, "name": "guard", "seeds": [[x, y], ...]}, ... ],
     "assign": [ {"pose": 2, "component_at": [x, y]},          # whole component to a pose
@@ -328,7 +329,7 @@ def main():
         # colour under transparent pixels: black (keeps webp from smearing green in)
         crop[crop[..., 3] == 0, :3] = 0
         fx, fy = feet_anchor(al)
-        name = f"f_{spec['name']}_{k}_{p['name']}"
+        name = f"{spec.get('prefix', 'f')}_{spec['name']}_{k}_{p['name']}"
         made.append((name, crop))
         ground_feet.append(fy)
         entries.append({
@@ -373,7 +374,7 @@ def main():
         crop = out[y0:y1, x0:x1].copy()
         crop[crop[..., 3] == 0, :3] = 0
         fx, fy = feet_anchor(out[..., 3])
-        name = f"f_{spec['name']}_{k}_{v['name']}"
+        name = f"{spec.get('prefix', 'f')}_{spec['name']}_{k}_{v['name']}"
         made.append((name, crop))
         entries.append({
             'file': name + '.webp', 'pose': v['name'], 'n': k, 'variantOf': base['name'],

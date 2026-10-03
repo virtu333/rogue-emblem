@@ -17,3 +17,4 @@ tests/artifacts/fullrun/
 .eslintcache
 
 test-results-release/
+.venv-cutscene/
