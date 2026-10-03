@@ -204,6 +204,28 @@ describe('native cloud Free recovery across process kill', () => {
     expect(local.has(META)).toBe(false);
   });
 
+  it('a newer save written during the retirement acknowledgement is not buried by a restored reservation', async () => {
+    const durable = mirror.ensureDurable.bind(mirror);
+    const newer = JSON.stringify({
+      runRecordId: 'newer-local',
+      gold: 4242,
+      savedAt: 9999999999999,
+    });
+    mirror.ensureDurable = vi.fn(async (key, value) => {
+      if (key === PENDING && value === null) {
+        local.set(RUN, newer);
+        return false;
+      }
+      return durable(key, value);
+    });
+    await fetchAllToLocalStorage('account-a', { timeoutMs: 50 });
+    expect(local.has(PENDING)).toBe(false);
+    expect(local.get(RUN)).toBe(newer);
+    expect(inspectSlot(1).status).toBe('valid');
+    clearTimeout(mirror.timer);
+    clearTimeout(mirror.maxTimer);
+  });
+
   it.each(['reservation', 'meta', 'run', 'retirement', 'success'])(
     'preserves a playable pair or its reservation when disk acknowledgement %s fails',
     async (failure) => {

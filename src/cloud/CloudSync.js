@@ -166,6 +166,11 @@ async function applyPendingCloudSlot(userId, slot, runSlots, metaSlots) {
   let originalPendingRaw;
   let mirror;
   let retiredByUs = false;
+  // Ownership proof, visible to the catch: the recovery keys this operation
+  // must find empty and the canonical bytes it wrote.
+  let recoveryKeys = [];
+  let canonicalKeys = [];
+  let expected = new Map();
   try {
     const raw = localStorage.getItem(key);
     if (raw === null) return;
@@ -173,14 +178,14 @@ async function applyPendingCloudSlot(userId, slot, runSlots, metaSlots) {
     const pending = JSON.parse(raw);
     if (pending?.version !== 1 || pending.userId !== userId) return;
     if (!(await ownsAuthenticatedSession(userId))) return;
-    const recoveryKeys = [
+    recoveryKeys = [
       getSlotQuarantineKey(slot),
       getSlotPairJournalKey(slot),
       getSlotRecoveryOwnerKey(slot),
     ];
-    const canonicalKeys = [getMetaKey(slot), getRunKey(slot)];
+    canonicalKeys = [getMetaKey(slot), getRunKey(slot)];
     const previous = pendingRecoveryWrites.get(slot);
-    const expected =
+    expected =
       previous?.raw === raw
         ? previous.values
         : new Map(canonicalKeys.map((recordKey) => [recordKey, null]));
@@ -232,9 +237,20 @@ async function applyPendingCloudSlot(userId, slot, runSlots, metaSlots) {
     pendingRecoveryWrites.delete(slot);
   } catch (err) {
     // Only our retirement may be undone. A released/replaced reservation is final
-    // for this operation; a stale fetch cannot resurrect it after an await.
+    // for this operation; a stale fetch cannot resurrect it after an await. Nor
+    // can it over a newer save: the restore needs proof that this operation still
+    // owns the slot (recovery keys empty, canonical keys holding our exact bytes).
     try {
-      if (mirror && retiredByUs && originalPendingRaw && localStorage.getItem(key) === null)
+      if (
+        mirror &&
+        retiredByUs &&
+        originalPendingRaw &&
+        localStorage.getItem(key) === null &&
+        recoveryKeys.every((recordKey) => localStorage.getItem(recordKey) === null) &&
+        canonicalKeys.every(
+          (recordKey) => localStorage.getItem(recordKey) === expected.get(recordKey),
+        )
+      )
         localStorage.setItem(key, originalPendingRaw);
     } catch {
       /* Acknowledged canonical data still survives on disk. */
