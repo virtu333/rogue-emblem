@@ -30,6 +30,7 @@ import { getBallistaDangerTiles } from './BallistaEngine.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
 import { getPerBattleRemainingUses, isStaff, nextStrikeWeapon, parseRange } from './Combat.js';
 import { plantsAmongPositions } from './SiegeArtillery.js';
+import { attackFringe } from './AttackOptions.js';
 
 const tileKey = (col, row) => `${col},${row}`;
 
@@ -110,6 +111,8 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
 /**
  * Where a unit can stop with `mov` movement, and the tiles its weapon reaches
  * beyond them (the attack fringe the move preview draws in red; none for a staff).
+ * The weapon is the one it strikes with next, at raw range, as the AI attacks: the
+ * view of an enemy (or NPC). A player unit's own previews use playerUnitReach.
  * @returns {{ moveRange: Map, attackTiles: Array<{col,row}> }}
  */
 export function unitReach(grid, unit, { mov = 0, positions = null, costModifier = 0 } = {}) {
@@ -139,6 +142,30 @@ export function unitReach(grid, unit, { mov = 0, positions = null, costModifier 
     return { col, row };
   });
   return { moveRange, attackTiles };
+}
+
+/**
+ * A player unit's reach for its own previews (unit inspection, the formation screen):
+ * where it can stop, and the attack fringe targeting would allow from there
+ * (AttackOptions.attackFringe: every usable weapon at its effective range, skills
+ * included). `positions` is the player's view (PlayerKnowledge.js).
+ * @returns {{ moveRange: Map, attackTiles: Array<{col,row}> }}
+ */
+export function playerUnitReach(
+  grid,
+  unit,
+  { mov = 0, positions = null, costModifier = 0, skillsData = null } = {},
+) {
+  const moveRange = grid.getMovementRange(
+    unit.col,
+    unit.row,
+    mov,
+    unit.moveType,
+    positions,
+    unit.faction,
+    costModifier,
+  );
+  return { moveRange, attackTiles: attackFringe(grid, unit, moveRange, { skillsData }) };
 }
 
 function visibleEnemyBallistas(ctx) {

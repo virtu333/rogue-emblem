@@ -58,6 +58,7 @@ function stubGraphic() {
 }
 
 function unit(name, extra = {}) {
+  const sword = { name: 'Iron Sword', type: 'Sword', range: '1', rankRequired: 'Prof' };
   return {
     name,
     faction: 'player',
@@ -65,7 +66,10 @@ function unit(name, extra = {}) {
     mov: 2,
     stats: { MOV: 2 },
     currentHP: 20,
-    weapon: { name: 'Iron Sword', type: 'Sword', range: '1' },
+    weapon: sword,
+    inventory: [sword],
+    proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+    skills: [],
     graphic: stubGraphic(),
     ...extra,
   };
@@ -414,6 +418,29 @@ describe('Formation: the held unit shows its turn-1 reach', () => {
         { col: 3, row: 2 },
       ]),
     );
+  });
+
+  it('the fringe is what targeting allows: Foresight’s tome reach', () => {
+    const env = setup();
+    const fire = { name: 'Fire', type: 'Tome', range: '1-2', rankRequired: 'Prof' };
+    const bow = { name: 'Iron Bow', type: 'Bow', range: '2', rankRequired: 'Prof' };
+    env.c.units[3] = unit('Kira', {
+      weapon: fire,
+      inventory: [fire, bow],
+      proficiencies: [
+        { type: 'Tome', rank: 'Prof' },
+        { type: 'Bow', rank: 'Prof' },
+      ],
+      skills: ['foresight'],
+    });
+    env.c.assign(3, 2); // Kira at (0,2), MOV 2: Fire 1–3 with Foresight, the bow 2
+    tap(env.c, 2);
+    expect(env.c.heldUnit?.name).toBe('Kira');
+    // From her farthest stop (2,2) Foresight reaches (5,2); Fire alone ends at (4,2).
+    const attack = keys(env.c.reachTiles().attack);
+    expect(attack).toContain('5,2');
+    expect(attack).toContain('4,1');
+    expect(attack).not.toContain('6,2');
   });
 
   it('a visible enemy blocks the path; an enemy hidden in fog does not shape the preview', () => {

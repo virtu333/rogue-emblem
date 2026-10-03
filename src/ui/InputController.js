@@ -2,7 +2,7 @@ import { sceneHealPreview } from './healTargetPreview.js';
 import { DangerZoneOverlay } from './DangerZoneOverlay.js';
 import { canInspectUnit, terrainRuleLines } from '../engine/BattleInformation.js';
 import { computeEffectivePath } from '../engine/Grid.js';
-import { unitReach } from '../engine/ThreatForecast.js';
+import { playerUnitReach, unitReach } from '../engine/ThreatForecast.js';
 import { plantsAmongPositions } from '../engine/SiegeArtillery.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
 import {
@@ -1037,13 +1037,17 @@ export class InputController {
       const planted = unit.faction === 'enemy' && plantsAmongPositions(unit, positions);
       const mov =
         rootedForPreview || asleepPlayer || planted ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0);
-      const { moveRange, attackTiles } = unitReach(scene.grid, unit, {
-        mov,
-        positions,
-        costModifier: scene._getCostModifier(unit),
-      });
+      const reachOptions = { mov, positions, costModifier: scene._getCostModifier(unit) };
+      // A player unit's fringe is what targeting allows (every usable weapon, skill range
+      // bonuses); another unit's is the weapon it strikes with next, as the AI attacks.
+      const { moveRange, attackTiles } = isPlayer
+        ? playerUnitReach(scene.grid, unit, {
+            ...reachOptions,
+            skillsData: scene.gameData?.skills || null,
+          })
+        : unitReach(scene.grid, unit, reachOptions);
       scene.grid.showMovementRange(moveRange, unit.col, unit.row, moveColor, moveAlpha);
-      if (unit.weapon && !asleepPlayer) scene.grid.showAttackRange(attackTiles);
+      if ((isPlayer || unit.weapon) && !asleepPlayer) scene.grid.showAttackRange(attackTiles);
       if (unit.faction === 'enemy') this._showInspectedThreat(unit);
     }
 

@@ -34,7 +34,7 @@ import {
   TRANSITION_REASONS,
   TRANSITION_RESULTS,
 } from '../utils/SceneRouter.js';
-import { unitReach } from '../engine/ThreatForecast.js';
+import { playerUnitReach } from '../engine/ThreatForecast.js';
 import { isRooted } from '../engine/StatusConditionSystem.js';
 import { UI_HEX } from '../utils/uiStyles.js';
 import { ATTACK_RANGE_ALPHA, ATTACK_RANGE_COLOR, TILE_SIZE } from '../utils/constants.js';
@@ -701,10 +701,12 @@ export class FormationController {
     const unit = this.units[u];
     // The player's view (PlayerKnowledge.js): an unseen unit never shapes the preview.
     const positions = s.buildUnitPositionMap?.() || new Map();
-    const { moveRange, attackTiles } = unitReach(s.grid, unit, {
+    // The fringe is what targeting will allow (every usable weapon, Foresight included).
+    const { moveRange, attackTiles } = playerUnitReach(s.grid, unit, {
       mov: isRooted(unit) ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0),
       positions,
       costModifier: s._getCostModifier?.(unit) || 0,
+      skillsData: s.gameData?.skills || null,
     });
     const move = [];
     for (const [key, entry] of moveRange) {

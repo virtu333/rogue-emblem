@@ -112,6 +112,51 @@ export function planAttackTargets(
 }
 
 /**
+ * The attack fringe a player reach preview draws (unit inspection, the formation
+ * screen): every tile that some weapon the unit can attack with (getAttackWeapons)
+ * reaches at its effective range (getAttackRange, so Foresight counts) from a stop tile
+ * of `moveRange`, less the move tiles themselves. These are exactly the tiles targeting
+ * would let it strike from those stops (planAttackTargets), so silence, a spent
+ * per-battle weapon and a carried, unequipped weapon read the same here as there. A
+ * weapon art's range change is not included: the preview comes before an art is picked.
+ * Enemy reach (Danger, pinned threat, Threat Sight) is not this: the AI strikes with its
+ * next strike weapon at raw range (ThreatForecast.enemyThreatTiles).
+ * @param {{ cols: number, rows: number }} grid  board bounds
+ * @param {object} unit
+ * @param {Map<string, {stoppable?: boolean}>} moveRange  Grid.getMovementRange's result
+ * @param {{ skillsData?: object[]|null, weapons?: object[] }} [options]
+ * @returns {Array<{ col: number, row: number }>}
+ */
+export function attackFringe(
+  grid,
+  unit,
+  moveRange,
+  { skillsData = null, weapons = getAttackWeapons(unit) } = {},
+) {
+  if (!grid || !moveRange) return [];
+  const ranges = (weapons || []).map((weapon) => getAttackRange(unit, weapon, { skillsData }));
+  if (!ranges.length) return [];
+  const reach = Math.max(...ranges.map((r) => r.max));
+  const reaches = (distance) => ranges.some(({ min, max }) => distance >= min && distance <= max);
+  const fringe = new Map();
+  for (const [key, entry] of moveRange) {
+    if (entry?.stoppable === false) continue;
+    const [sc, sr] = key.split(',').map(Number);
+    for (let dr = -reach; dr <= reach; dr++) {
+      for (let dc = -reach; dc <= reach; dc++) {
+        if (!reaches(Math.abs(dr) + Math.abs(dc))) continue;
+        const col = sc + dc;
+        const row = sr + dr;
+        if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue;
+        const tile = `${col},${row}`;
+        if (!moveRange.has(tile) && !fringe.has(tile)) fringe.set(tile, { col, row });
+      }
+    }
+  }
+  return Array.from(fringe.values());
+}
+
+/**
  * Stable cycling order for target selection: nearest first, then reading order
  * (row, col). Cursor/keyboard cycling steps through this list and wraps.
  */
