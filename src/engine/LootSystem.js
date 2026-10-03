@@ -896,14 +896,25 @@ function normalizedLootNumberFromWeights(value) {
   return normalizeLootNumber(value);
 }
 
-function applyWeightShift(weights, shifts) {
+/**
+ * A table weight of 0 means "this act never drops the category" (Act 1 sells art
+ * scrolls but does not drop them), so the battle's shifts and the meta bonuses
+ * only raise a category the table gives weight to. A drop that must exist at 0
+ * weight belongs in a `bossRewards` table, not in a shift.
+ */
+function raiseCategoryWeight(weights, baseWeights, category, delta) {
+  const base = normalizeLootNumber(baseWeights[category]);
+  if (base <= 0) return;
+  weights[category] = Math.max(0, normalizeLootNumber(weights[category]) + delta);
+}
+
+function applyWeightShift(weights, shifts, baseWeights) {
   for (const [category, delta] of Object.entries(shifts)) {
-    weights[category] = normalizeLootNumber(weights[category]) + normalizeLootNumber(delta);
-    if (weights[category] < 0) weights[category] = 0;
+    raiseCategoryWeight(weights, baseWeights, category, normalizeLootNumber(delta));
   }
 }
 
-function applyMetaWeightBonuses(weights, options) {
+function applyMetaWeightBonuses(weights, options, baseWeights) {
   if (!options || typeof options !== 'object' || Array.isArray(options)) return;
   const bonusMap =
     options.lootCategoryWeightBonuses || options.weightBonuses || options.lootWeightBonuses;
@@ -911,8 +922,7 @@ function applyMetaWeightBonuses(weights, options) {
 
   for (const [category, rawDelta] of Object.entries(bonusMap)) {
     if (!LOOT_CATEGORY_WEIGHT_BONUS_KEYS.has(category)) continue;
-    weights[category] = normalizeLootNumber(weights[category]) + normalizeLootNumber(rawDelta);
-    if (weights[category] < 0) weights[category] = 0;
+    raiseCategoryWeight(weights, baseWeights, category, normalizeLootNumber(rawDelta));
   }
 }
 
@@ -997,13 +1007,13 @@ export function generateLootChoices(
 
   const adjustedWeights = { ...weights };
   if (options.lootCategoryWeightBonuses || options.weightBonuses) {
-    applyMetaWeightBonuses(adjustedWeights, options);
+    applyMetaWeightBonuses(adjustedWeights, options, weights);
   }
 
   if (isBoss && !baseTable.bossRewards) {
-    applyWeightShift(adjustedWeights, BOSS_LOOT_WEIGHT_SHIFT);
+    applyWeightShift(adjustedWeights, BOSS_LOOT_WEIGHT_SHIFT, weights);
   } else if (isElite) {
-    applyWeightShift(adjustedWeights, ELITE_LOOT_WEIGHT_SHIFT);
+    applyWeightShift(adjustedWeights, ELITE_LOOT_WEIGHT_SHIFT, weights);
   }
 
   const choices = [];

@@ -6,8 +6,10 @@ import { loadGameData } from './testData.js';
 import {
   actArtScrollPool,
   drawTierArtScrolls,
+  generateLootChoices,
   generateShopInventory,
 } from '../src/engine/LootSystem.js';
+import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import { getCombatForecast } from '../src/engine/Combat.js';
 import { getPostCombatPipelineSteps } from '../src/engine/WeaponArtPostCombat.js';
 import { areaDamage } from '../src/engine/PostCombatEffects.js';
@@ -36,6 +38,109 @@ describe('weapon art data', () => {
     }
     // Act 1 sells them but never drops them.
     expect(data.lootTables.act1.weights.weaponArtScroll).toBe(0);
+  });
+
+  describe('Act 1 sells the scrolls but never drops them', () => {
+    const SEEDS = 600;
+    const scrollDrops = (build) => {
+      let reward = 0;
+      for (let seed = 1; seed <= SEEDS; seed++) {
+        installSeed(seed);
+        try {
+          reward += build().filter((c) => c.type === 'weaponArtScroll').length;
+        } finally {
+          restoreMathRandom();
+        }
+      }
+      return reward;
+    };
+    const loot = (isElite, generateOptions = {}) =>
+      generateLootChoices(
+        'act1',
+        data.lootTables,
+        data.weapons,
+        data.consumables,
+        undefined,
+        0,
+        data.accessories,
+        data.whetstones,
+        null,
+        false,
+        null,
+        isElite,
+        { weaponArtCatalog: arts },
+        generateOptions,
+      );
+
+    it('an elite battle’s weight shift does not raise a zero-weight category', () => {
+      expect(scrollDrops(() => loot(true))).toBe(0);
+    });
+
+    it('Studied Training’s bonus does not raise it either', () => {
+      const bonuses = { lootCategoryWeightBonuses: { weaponArtScroll: 2, skillScroll: 2 } };
+      expect(scrollDrops(() => loot(false, bonuses))).toBe(0);
+      expect(scrollDrops(() => loot(true, bonuses))).toBe(0);
+    });
+
+    it('a category that has weight still takes shifts and bonuses (Act 2)', () => {
+      const act2 = (isElite, generateOptions) =>
+        generateLootChoices(
+          'act2',
+          data.lootTables,
+          data.weapons,
+          data.consumables,
+          undefined,
+          0,
+          data.accessories,
+          data.whetstones,
+          null,
+          false,
+          null,
+          isElite,
+          { weaponArtCatalog: arts },
+          generateOptions,
+        );
+      const drops = (isElite, generateOptions) => {
+        let n = 0;
+        for (let seed = 1; seed <= SEEDS; seed++) {
+          installSeed(seed);
+          try {
+            n += act2(isElite, generateOptions).filter((c) => c.type === 'weaponArtScroll').length;
+          } finally {
+            restoreMathRandom();
+          }
+        }
+        return n;
+      };
+      const plain = drops(false, {});
+      expect(drops(true, {})).toBeGreaterThan(plain);
+      expect(drops(false, { lootCategoryWeightBonuses: { weaponArtScroll: 6 } })).toBeGreaterThan(
+        plain,
+      );
+    });
+
+    it('the Act 1 shop still stocks both scrolls', () => {
+      const stocked = new Set();
+      for (let seed = 1; seed <= SEEDS; seed++) {
+        installSeed(seed);
+        try {
+          const shop = generateShopInventory(
+            'act1',
+            data.lootTables,
+            data.weapons,
+            data.consumables,
+            data.accessories,
+            null,
+            { weaponArtCatalog: arts },
+          );
+          for (const entry of shop) stocked.add(entry.item.name);
+        } finally {
+          restoreMathRandom();
+        }
+      }
+      expect(stocked.has('Grounder Scroll')).toBe(true);
+      expect(stocked.has('Helm Splitter Scroll')).toBe(true);
+    });
   });
 
   it('Hollow Feast strikes from two tiles and drains its splash', () => {
