@@ -139,6 +139,8 @@
         skin_test: () => import('./skin_test.js'),
         camp: () => import('./camp.js'),
         camp_previs: () => import('./camp_previs.js'),
+        ford_gen: () => import('./ford_gen.js'),
+        camp_gen: () => import('./camp_gen.js'),
       };
       const which = params.get('piece') || 'again';
       const mod = await (PIECES[which] || PIECES.again)();

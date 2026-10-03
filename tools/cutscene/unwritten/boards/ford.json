@@ -8,23 +8,26 @@
         "docs/art-direction/anime-op/cutouts/edric_standing.webp",
         "docs/art-direction/anime-op/cutouts/f_edric_slide_burst_3_rising_cut.webp"
       ],
-      "text": "Edric: a young swordsman, shaggy DARK CHESTNUT-BROWN hair (not red, not auburn), square jaw, heavy straight brows, deep-set tired eyes, a nose broken once, a deep teal cloak, one steel pauldron, worn leather, a plain longsword."
+      "text": "Edric: a young swordsman, shaggy DARK CHESTNUT-BROWN hair (not red, not auburn), square jaw, heavy straight brows, deep-set tired eyes, a nose broken once, a deep teal cloak, one steel pauldron, worn leather, a plain longsword.",
+      "mannequin": "the teal mannequin is Edric"
     },
     "warden": {
       "refs": [
         "docs/art-direction/anime-op/cutouts/f_warden_poses_1_guard_spear.webp",
         "docs/art-direction/anime-op/refs/f_warden_helm.webp"
       ],
-      "text": "the Warden: an imperial spearman, a closed black iron helm with a narrow eye slit, dark iron armour, a crimson tabard, a long wooden spear (2.4 m) with an iron head."
+      "text": "the Warden: an imperial spearman, a closed black iron helm with a narrow eye slit, dark iron armour, a crimson tabard, a long wooden spear (2.4 m) with an iron head.",
+      "mannequin": "the largest red mannequin (the nearest of the red ones) is the Warden"
     },
     "rank": {
       "refs": ["docs/art-direction/anime-op/cutouts/empire_soldier_march.webp"],
-      "text": "the Empire's rank: soldiers in black helms and crimson, long spears upright, in step."
+      "text": "the Empire's rank: soldiers in black helms and crimson, long spears upright, in step.",
+      "mannequin": "the smaller red mannequins are the Empire's rank"
     }
   },
   "look": "References/cutscene/keys/bind/bind_nbp.png",
   "place": "docs/art-direction/anime-op/refs/b29_ford_plate.webp",
-  "keyLegend": "The teal mannequin is Edric; the red ones are the Empire (the largest red one, nearest, is the Warden). Where a figure stands in the river, its legs go under the water and disappear below the surface, with a ring of ripples and a little broken white foam where each leg meets the water, and its reflection lies on the water under it. Where a figure stands on the bank, its boots press into the mud and it casts a soft shadow. Rain.",
+  "keyLegend": "Where a figure stands in the river, its legs go under the water and disappear below the surface, with a ring of ripples and a little broken white foam where each leg meets the water, and its reflection lies on the water under it. Where a figure stands on the bank, its boots press into the mud and it casts a soft shadow. Rain.",
   "keyPlace": "The place is the ford of the last reference image: a shallow, slow river between low banks, reeds, grey ridges, an overcast sky.",
   "physics": "every foot that carries weight stays planted where it stands; legs in the river go under the surface and push ripples and white foam; nothing floats or glides; every blow moves the one who takes it.",
   "takes": [
@@ -52,7 +55,8 @@
           "Edric wades on through the current, small in the wide; the river runs toward us; rain."
         ]
       ],
-      "camera": "Take the camera from @Video1: a slow crane down that settles into a wide shot looking up the river; the river comes toward the lens between low banks and distant grey ridges."
+      "camera": "Take the camera from @Video1: a slow crane down that settles into a wide shot looking up the river; the river comes toward the lens between low banks and distant grey ridges.",
+      "keyAt": 3.0
     },
     {
       "id": "L",
@@ -100,26 +104,28 @@
           "He holds the guard, perfectly still; the crimson tabard settles; rain runs off the helm; the point stays on the lens."
         ]
       ],
-      "camera": "Low and in front of him, as in @Video1, looking up at the guard, the point foreshortened toward the lens. Camera locked."
+      "camera": "Low and in front of him, as in @Video1, looking up at the guard, the point foreshortened toward the lens. Camera locked.",
+      "keyNote": "The Warden carries the spear UPRIGHT at his side in one hand, its butt by his boot and its point to the sky; it is NOT levelled yet. He stands knee-deep in the river."
     },
     {
       "id": "T",
       "name": "Edric runs the ford",
       "camshot": "track",
-      "range": [3.2, 7.2],
+      "range": [4.0, 8.0],
       "cuts": ["track"],
       "cast": ["edric"],
       "action": [
         [
           0.0,
-          2.0,
+          1.2,
           "Edric runs through knee-deep water from left to right, high knees, each foot plunging into the river with a splash; his legs disappear under the surface and drive through it; the cloak streams back."
         ],
         [
-          2.0,
-          4.0,
-          "He keeps running toward the spearman ahead (off screen right), the sword held low and back."
-        ]
+          1.2,
+          1.7,
+          "He charges harder toward the spearman ahead (off screen right), leaning forward, the sword held low and back."
+        ],
+        [1.7, 4.0, "He drops low and slides through the water, throwing up a wall of white spray."]
       ],
       "camera": "A tracking profile shot as in @Video1: the camera moves with him, reeds and stones near the lens slide past fast, the far bank slides slowly. The feet stay planted in the riverbed on each step: no gliding."
     },

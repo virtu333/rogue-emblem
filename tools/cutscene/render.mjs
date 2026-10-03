@@ -55,7 +55,7 @@ const PIECES = {
   },
   // the vertical slice (tools/cutscene/unwritten/FORD.md): bars 28.3-36, from 44.0 s
   ...Object.fromEntries(
-    ['ford', 'ford_previs', 'world_test', 'loco_test', 'figure_test', 'skin_test'].map((k) => [
+    ['ford', 'ford_gen', 'ford_previs', 'world_test', 'loco_test', 'figure_test', 'skin_test'].map((k) => [
       k,
       {
         page: `/tools/cutscene/unwritten/index.html?export=1&piece=${k}`,
@@ -66,7 +66,7 @@ const PIECES = {
   ),
   // "The Night Before" (unwritten/CAMP.md): bars 5-12, from 6.4 s; camp_previs is its layout reel
   ...Object.fromEntries(
-    ['camp', 'camp_previs'].map((k) => [
+    ['camp', 'camp_gen', 'camp_previs'].map((k) => [
       k,
       {
         page: `/tools/cutscene/unwritten/index.html?export=1&piece=${k}`,

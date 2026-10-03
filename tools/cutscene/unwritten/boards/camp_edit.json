@@ -1,0 +1,87 @@
+{
+  "scene": "camp",
+  "cuts": [
+    {
+      "name": "crane",
+      "from": 0.0,
+      "to": 3.2,
+      "take": "CW",
+      "flash": [
+        {
+          "t": 0.0,
+          "frames": 2
+        }
+      ],
+      "clip": "camp_crane",
+      "src": 0.0
+    },
+    {
+      "name": "three",
+      "from": 3.2,
+      "to": 4.8,
+      "take": "C3",
+      "cam": {
+        "zoom": [1.0, 1.05],
+        "ease": "linear"
+      },
+      "clip": "camp_three",
+      "src": 0.0
+    },
+    {
+      "name": "sera",
+      "from": 4.8,
+      "to": 6.4,
+      "take": "CS",
+      "cam": {
+        "zoom": [1.0, 1.06],
+        "ease": "linear"
+      },
+      "clip": "camp_sera",
+      "src": 1.7
+    },
+    {
+      "name": "sky",
+      "from": 6.4,
+      "to": 8.0,
+      "code": "sky"
+    },
+    {
+      "name": "edric",
+      "from": 8.0,
+      "to": 9.6,
+      "take": "CE",
+      "cam": {
+        "zoom": [1.0, 1.06],
+        "ease": "linear"
+      },
+      "clip": "camp_edric",
+      "src": 1.6
+    },
+    {
+      "name": "kira",
+      "from": 9.6,
+      "to": 10.8,
+      "take": "CK",
+      "cam": {
+        "zoom": [1.0, 1.05],
+        "ease": "linear"
+      },
+      "clip": "camp_kira",
+      "src": 1.9
+    },
+    {
+      "name": "rise",
+      "from": 10.8,
+      "to": 12.8,
+      "take": "CR",
+      "src": 1.6,
+      "rate": 1.03,
+      "hold": [12.3, 13.0],
+      "shake": [[12.3, 0.6]],
+      "cam": {
+        "zoom": [1.04, 1.0]
+      },
+      "clip": "camp_rise"
+    }
+  ]
+}

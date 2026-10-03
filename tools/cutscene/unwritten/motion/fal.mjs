@@ -121,6 +121,7 @@ export async function run(endpoint, input, { log = true, label = '' } = {}) {
         duration: input.duration ?? null,
         resolution: input.resolution ?? null,
         num_images: input.num_images ?? null,
+        draft: input.draft ?? null,
       }) + '\n',
     );
   }
@@ -137,10 +138,16 @@ export async function run(endpoint, input, { log = true, label = '' } = {}) {
     if (Date.now() - t0 > 40 * 60 * 1000) throw new Error('timed out');
   }
   return retry(async () => {
-    const r = await fetch(sub.response_url, { headers: AUTH });
-    const j = await r.json();
-    if (!r.ok) throw new Error(`result ${r.status}: ${JSON.stringify(j)}`);
-    return j;
+    for (const url of [sub.response_url, `https://queue.fal.run/${endpoint}/requests/${sub.request_id}`]) {
+      const r = await fetch(url, { headers: AUTH });
+      const j = await r.json();
+      if (r.ok) return j;
+      // the queue sometimes re-validates the finished output as if it were an input (a 422
+      // whose `input` is the result): the work is done and paid for, so keep it
+      const got = j?.detail?.[0]?.input;
+      if (r.status === 422 && got && (got.images || got.video)) return got;
+      if (url !== sub.response_url) throw new Error(`result ${r.status}: ${JSON.stringify(j)}`);
+    }
   });
 }
 

@@ -167,7 +167,11 @@ def main():
     ap.add_argument('--plate', action='store_true')
     ap.add_argument('--quality', type=int, default=84)
     ap.add_argument('--clip', default=None, help='source mp4 (default clips/<name>.mp4)')
+    ap.add_argument('--out', default=None, help='atlas folder (default docs/art-direction/anime-op/motion)')
     a = ap.parse_args()
+    global OUT
+    if a.out:
+        OUT = os.path.abspath(a.out)
 
     src = a.clip or os.path.join(CLIPS, f'{a.name}.mp4')
     raw = read_frames(src, a.fps, a.t0, a.t1)

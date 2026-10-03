@@ -8,20 +8,23 @@
         "docs/art-direction/anime-op/cutouts/c_edric_fire_1_stare.webp",
         "docs/art-direction/anime-op/cutouts/c_edric_rise_4_stand.webp"
       ],
-      "text": "Edric: a young swordsman, shaggy DARK CHESTNUT-BROWN hair (not red, not auburn), square jaw, heavy straight brows, deep-set tired eyes, a nose broken once, a deep teal cloak, one steel pauldron, worn leather; he sits ON THE GROUND (no rock, no seat), one knee drawn up, a plain longsword across it."
+      "text": "Edric: a young swordsman, shaggy DARK CHESTNUT-BROWN hair (not red, not auburn), square jaw, heavy straight brows, deep-set tired eyes, a nose broken once, a deep teal cloak, one steel pauldron, worn leather; he sits ON THE GROUND (no rock, no seat), one knee drawn up, a plain longsword across it.",
+      "mannequin": "the teal mannequin is Edric"
     },
     "sera": {
       "refs": ["docs/art-direction/anime-op/cutouts/sera_at_camp.webp"],
-      "text": "Sera: a young seer, long wavy crimson hair, a long oval face, heavy-lidded eyes, a purple robe with a gold cross; she sits on a folded striped blanket hugging her knees."
+      "text": "Sera: a young seer, long wavy crimson hair, a long oval face, heavy-lidded eyes, a purple robe with a gold cross; she sits on a folded striped blanket hugging her knees.",
+      "mannequin": "the purple mannequin is Sera"
     },
     "kira": {
       "refs": ["docs/art-direction/anime-op/cutouts/kira_at_camp.webp"],
-      "text": "Kira: a scout with a white ponytail, a long narrow face, narrow hooded eyes, a crimson coat; Kira sits on a wooden crate with a map on one knee."
+      "text": "Kira: a scout with a white ponytail, a long narrow face, narrow hooded eyes, a crimson coat; Kira sits on a wooden crate with a map on one knee.",
+      "mannequin": "the red mannequin is Kira"
     }
   },
   "look": null,
   "place": "docs/art-direction/anime-op/refs/b05_camp_night_plate.webp",
-  "keyLegend": "The teal mannequin is Edric, the purple one Sera, the red one Kira. Each sits exactly where the mannequin sits and on what it sits on: Edric directly on the ground, Sera on her blanket, Kira on her crate. Each body rests its weight on what it sits on, with a small dark contact shadow where it touches; the fire throws each person's long shadow away from it across the ground.",
+  "keyLegend": "Each person rests their weight on what they sit on (see their description), with a small dark contact shadow where they touch it; the fire throws each person's long shadow away from it across the ground.",
   "keyPlace": "The place is the army's camp of the last reference image at night: peaked ochre canvas tents, a palisade, crates and barrels, a spear tripod, trampled grass; the campfire in a ring of stones.",
   "physics": "everyone stays seated exactly where they sit, their weight on the ground, the blanket or the crate; nobody floats or slides; when Edric stands, he pushes off the ground with his hand and his feet stay planted.",
   "takes": [
@@ -44,7 +47,10 @@
           "Held: three people at the fire, each breathing, hair stirring in a light wind; the flames flicker and the light on them flickers with them."
         ]
       ],
-      "camera": "Take the camera from @Video1: a slow tilt down from the sky that settles on the camp."
+      "camera": "Take the camera from @Video1: a slow tilt down from the sky that settles on the camp.",
+      "keyAt": 3.0,
+      "keyRefs": ["References/cutscene/takes/camp/C3/key.png"],
+      "keyNote": "The three sit exactly where they sit in the second-to-last reference image (the same scene closer): Edric on the ground on the LEFT of the fire, Kira on her crate BEHIND the fire, Sera on her blanket on the RIGHT of the fire. The same look as that image."
     },
     {
       "id": "C3",
@@ -96,7 +102,8 @@
           "She looks across the fire, very still, her face hiding what she knows. Kira, small behind her, watches."
         ]
       ],
-      "camera": "Close from the south-east, as in @Video1: a slow push in."
+      "camera": "Close from the south-east: a slow push in.",
+      "image": "References/cutscene/takes/camp/CS/key.png"
     },
     {
       "id": "CE",
@@ -119,7 +126,8 @@
           "He holds the look, then his eyes go back to the fire. Embers drift across the frame."
         ]
       ],
-      "camera": "Close from the south-west, as in @Video1: a slow push in."
+      "camera": "Close from the south-west: a slow push in.",
+      "image": "References/cutscene/takes/camp/CE/key.png"
     },
     {
       "id": "CK",
@@ -142,7 +150,8 @@
         [1.2, 2.0, "Kira folds the map shut along its crease."],
         [2.0, 4.0, "Still, the map folded on the knee, watching."]
       ],
-      "camera": "Close from the south-east, as in @Video1: a slow push in."
+      "camera": "Close from the south-east: a slow push in.",
+      "image": "References/cutscene/takes/camp/CK/key.png"
     },
     {
       "id": "CR",
@@ -173,8 +182,14 @@
           "He stands still and lifts his face to the sky. His boots stay planted; a little dust settles round them."
         ]
       ],
-      "camera": "Take the camera from @Video1: low and close, tilting up with him as he stands, then a smooth pull back and up."
+      "camera": "Take the camera from @Video1: low and close, tilting up with him as he stands, then a smooth pull back and up.",
+      "keyNote": "Sera is NOT in this frame: she sits further right, out of the picture. Only Edric (large, in the foreground, seated on the ground) and Kira (small, on her crate behind the fire) are visible."
     }
   ],
-  "code": [{ "cut": "sky", "what": "the Thread across the stars, on the crash (code, as now)" }]
+  "code": [
+    {
+      "cut": "sky",
+      "what": "the Thread across the stars, on the crash (code, as now)"
+    }
+  ]
 }

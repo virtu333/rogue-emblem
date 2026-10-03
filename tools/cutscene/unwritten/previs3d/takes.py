@@ -37,6 +37,7 @@ ap.add_argument('--board', default='ford')
 ap.add_argument('--final', action='store_true')
 ap.add_argument('--models', default='nbp,sd5')
 ap.add_argument('--tag', default='', help='suffix for the motion output (a retake)')
+ap.add_argument('--force', action='store_true', help='redraw keys that exist')
 a = ap.parse_args()
 
 B = json.load(open(os.path.join(ROOT, f'tools/cutscene/unwritten/boards/{a.board}.json')))
@@ -74,8 +75,12 @@ def prompt_for(t):
     refs = []
     n = 1
     if has_previs:
-        refs.append(f'@Image{n} is the first frame and the look of this shot: draw every frame '
-                    f'in its style, with its light and its place.')
+        if 'keyAt' in t:
+            refs.append(f"@Image{n} is this shot's frame at {t['keyAt'] - t['range'][0]:.1f} s and "
+                        f'its look: draw every frame in its style, with its light and its place.')
+        else:
+            refs.append(f'@Image{n} is the first frame and the look of this shot: draw every frame '
+                        f'in its style, with its light and its place.')
         n += 1
         for c in t['cast']:
             k = len(B['cast'][c]['refs'])
@@ -84,13 +89,17 @@ def prompt_for(t):
             refs.append(f'{span}: {who} (character reference only, not a frame).')
             n += k
     head = ' '.join(refs)
+    if not has_previs:
+        head = ('Keep exactly the art style, the drawing, the character and the colours of the '
+                'first frame; it moves, it is not redrawn.')
     if has_previs:
         head += (' @Video1 is a grey 3D blocking of the same moment: take from it only the '
                  'positions, the timing, which way each figure faces, where each foot stands and '
                  'the camera; never its grey look.')
     body = (
         f"{head}\n\n{cast}\n\n"
-        f"Physics: {B['physics']}\n\n"
+        f"Physics: {B['physics']} There are no grey or pale mannequins, statues or ghost figures "
+        f"anywhere, and each person appears once.\n\n"
         + '\n'.join(lines)
         + f"\n\nCamera: {t['camera']}\n\n{B['style']}"
     )
@@ -112,7 +121,9 @@ def stage_previs(t):
     run(['ffmpeg', '-loglevel', 'error', '-y', '-framerate', str(FPS), '-start_number', str(f0),
          '-i', os.path.join(src, '%04d.png'), '-frames:v', str(f1 - f0 + 1), '-c:v', 'libx264',
          '-pix_fmt', 'yuv420p', '-crf', '16', os.path.join(d, 'previs.mp4')])
-    shutil.copy(os.path.join(src, f'{f0:04d}.png'), os.path.join(d, 'first.png'))
+    # the key frame: the first, or `keyAt` (piece time) for a shot that opens on empty sky
+    fk = round(t.get('keyAt', t['range'][0]) * FPS)
+    shutil.copy(os.path.join(src, f'{fk:04d}.png'), os.path.join(d, 'first.png'))
     print(t['id'], 'previs', rel(os.path.join(d, 'previs.mp4')))
 
 
@@ -132,13 +143,22 @@ def stage_keys(t):
         print(t['id'], 'image take: its key is', t['image'])
         return
     d = tdir(t)
+    if not a.force and any(f.startswith('key_') and f.endswith('.png') for f in os.listdir(d)):
+        print(t['id'], 'keys exist (--force to redraw)')
+        return
     first = os.path.join(d, 'first.png')
     if not os.path.exists(first):
         raise SystemExit(f'{t["id"]}: run previs first')
     cast = ' '.join(B['cast'][c]['text'] for c in t['cast'])
-    refs = [rel(first)] + [r for c in t['cast'] for r in B['cast'][c]['refs']] + [B['place']]
-    prompt = KEY_PROMPT.format(cast=cast, style=B['style'], legend=B['keyLegend'],
-                               place=B['keyPlace'])
+    refs = ([rel(first)] + [r for c in t['cast'] for r in B['cast'][c]['refs']] + t.get('keyRefs', [])
+            + [B['place']])
+    who = '; '.join(B['cast'][c]['mannequin'] for c in t['cast'])
+    legend = (f'In Image 1, {who}. Draw only these people, each exactly where and how its '
+              f'mannequin stands or sits; draw no mannequins, no ghost or pale figures, and no '
+              f'other people. {B["keyLegend"]}')
+    if t.get('keyNote'):
+        legend += ' ' + t['keyNote']
+    prompt = KEY_PROMPT.format(cast=cast, style=B['style'], legend=legend, place=B['keyPlace'])
     jobs = []
     for m in a.models.split(','):
         if m == 'nbp':

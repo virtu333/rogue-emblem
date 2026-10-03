@@ -1,0 +1,229 @@
+{
+  "scene": "ford",
+  "cuts": [
+    {
+      "name": "rush",
+      "from": 0.0,
+      "to": 0.8,
+      "code": "rush"
+    },
+    {
+      "name": "wide",
+      "from": 0.8,
+      "to": 2.4,
+      "take": "W",
+      "cam": {
+        "zoom": [1.0, 1.04]
+      },
+      "flash": [
+        {
+          "t": 0.8,
+          "frames": 2
+        }
+      ],
+      "clip": "ford_wide",
+      "src": 0.0
+    },
+    {
+      "name": "low",
+      "from": 2.4,
+      "to": 3.2,
+      "take": "L",
+      "cam": {
+        "zoom": [1.04, 1.0]
+      },
+      "shake": [[2.4, 0.5]],
+      "clip": "ford_low",
+      "src": 0.8
+    },
+    {
+      "name": "level",
+      "from": 3.2,
+      "to": 4.0,
+      "take": "V",
+      "src": 2.75,
+      "cam": {
+        "zoom": [1.0, 1.08]
+      },
+      "shake": [[3.55, 0.7]],
+      "clip": "ford_level"
+    },
+    {
+      "name": "track",
+      "from": 4.0,
+      "to": 5.2,
+      "take": "T",
+      "clip": "ford_track",
+      "src": 0.0
+    },
+    {
+      "name": "eye",
+      "from": 5.2,
+      "to": 5.6,
+      "code": "eye"
+    },
+    {
+      "name": "ots",
+      "from": 5.6,
+      "to": 6.2,
+      "take": "O",
+      "shake": [[6.0, 0.6]],
+      "clip": "ford_ots",
+      "src": 0.8
+    },
+    {
+      "name": "spray",
+      "from": 6.2,
+      "to": 6.8,
+      "take": "S",
+      "clip": "ford_spray",
+      "src": 0.9
+    },
+    {
+      "name": "wall",
+      "from": 6.8,
+      "to": 7.0,
+      "take": "S",
+      "cam": {
+        "zoom": [1.15, 1.2]
+      },
+      "clip": "ford_wall",
+      "src": 2.3
+    },
+    {
+      "name": "slit",
+      "from": 7.0,
+      "to": 7.1,
+      "take": "H",
+      "src": 0.3,
+      "clip": "ford_slit"
+    },
+    {
+      "name": "shape",
+      "from": 7.1,
+      "to": 7.2,
+      "take": "S",
+      "cam": {
+        "zoom": [1.2, 1.2]
+      },
+      "clip": "ford_shape",
+      "src": 3.1
+    },
+    {
+      "name": "clash",
+      "from": 7.2,
+      "to": 8.0,
+      "take": "M",
+      "stops": [
+        {
+          "t": 7.24,
+          "hold": 3,
+          "catch": 4
+        }
+      ],
+      "shake": [[7.2, 1.2]],
+      "flash": [
+        {
+          "t": 7.2,
+          "frames": 1
+        }
+      ],
+      "impact": [
+        {
+          "t": 7.241666666666667,
+          "frames": 2
+        }
+      ],
+      "cam": {
+        "zoom": [1.08, 1.0]
+      },
+      "clip": "ford_clash",
+      "src": 0.0
+    },
+    {
+      "name": "bind",
+      "from": 8.0,
+      "to": 9.6,
+      "take": "M",
+      "cam": {
+        "zoom": [1.0, 1.1],
+        "ease": "linear"
+      },
+      "clip": "ford_bind",
+      "src": 0.8
+    },
+    {
+      "name": "helm",
+      "from": 9.6,
+      "to": 10.4,
+      "take": "H",
+      "src": 0.6,
+      "cam": {
+        "zoom": [1.0, 1.06]
+      },
+      "clip": "ford_helm"
+    },
+    {
+      "name": "yield",
+      "from": 10.4,
+      "to": 11.2,
+      "take": "M",
+      "cam": {
+        "zoom": [1.06, 1.0]
+      },
+      "clip": "ford_yield",
+      "src": 3.2
+    },
+    {
+      "name": "cut",
+      "from": 11.2,
+      "to": 11.6,
+      "take": "M",
+      "stops": [
+        {
+          "t": 11.219999999999999,
+          "hold": 4,
+          "catch": 4
+        }
+      ],
+      "shake": [[11.2, 1.5]],
+      "impact": [
+        {
+          "t": 11.2,
+          "frames": 2,
+          "crimson": true
+        }
+      ],
+      "cam": {
+        "zoom": [1.1, 1.04]
+      },
+      "clip": "ford_cut",
+      "src": 4.0
+    },
+    {
+      "name": "face",
+      "from": 11.6,
+      "to": 12.0,
+      "take": "F",
+      "src": 0.95,
+      "rate": 0.6,
+      "shake": [[11.6, 1.0]],
+      "clip": "ford_face"
+    },
+    {
+      "name": "fall",
+      "from": 12.0,
+      "to": 13.6,
+      "take": "R",
+      "shake": [
+        [12.0, 0.6],
+        [12.4, 0.8]
+      ],
+      "cam": {
+        "zoom": [1.0, 1.05]
+      },
+      "clip": "ford_fall",
+      "src": 2.4
+    }
+  ]
+}
