@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### iOS App: Music Plays Again (Oct 3, 2026)
+
+- **The iOS app had no music** (title, map or battle) since the build with hashed audio
+  (#170). The app serves its files through Capacitor, which answers an mp3 with a bare
+  non-HTTP response, so `fetch` reported status 0 and every track was refused. Before
+  #170 a failed fetch fell back to Phaser's loader, which accepts that response; #170
+  removed the fallback so nothing could skip the recording check.
+- On `capacitor://` (and `file://`) music and ceremony cues now load through XHR, as
+  Phaser's loader does, and their bytes still pass the SHA-256 check. Ceremony cues
+  (level up, promotion, boss cards) load the same way; their `fetch` had the same
+  problem in the app, so they fell back to their sound effects there. The web game still uses `fetch`.
+
 ### Dusk Pressure PR 4: Status Staves and Siege Tomes by Rung (Oct 2, 2026)
 
 - **Staves and siege tomes are a per-battle chance.** When a caster who could carry one

@@ -3,6 +3,7 @@
 import { LoopedMusic, validLoopFor } from './LoopedMusic.js';
 import {
   audioAssetUrl,
+  fetchAudioBytes,
   verifyAudioBytes,
   rememberAudioBuffer,
   audioBufferMatches,
@@ -542,9 +543,8 @@ export class AudioManager {
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const timeout = setTimeout(() => controller?.abort(), this.musicLoadTimeoutMs);
       try {
-        const response = await fetch(src, { signal: controller?.signal });
-        if (!response?.ok) throw new Error(`http-${response?.status || 'error'}`);
-        return await verifyAudioBytes(key, await response.arrayBuffer());
+        const bytes = await fetchAudioBytes(src, { signal: controller?.signal });
+        return await verifyAudioBytes(key, bytes);
       } catch (err) {
         lastErr = err;
         this._audioEvent('asset-rejected', { key, url: src, reason: err?.message });
@@ -669,9 +669,10 @@ export class AudioManager {
         } catch (_) {}
       }, timeoutMs);
       try {
-        const response = await fetch(src, { signal: controller?.signal });
-        if (!response?.ok) throw new Error(`http-${response?.status || 'error'}`);
-        const bytes = await verifyAudioBytes(key, await response.arrayBuffer());
+        const bytes = await verifyAudioBytes(
+          key,
+          await fetchAudioBytes(src, { signal: controller?.signal }),
+        );
         const decoded = await this._decodeAudioData(context, bytes);
         this._validateMusicBuffer(key, decoded);
         cache.add(key, rememberAudioBuffer(key, decoded));

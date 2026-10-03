@@ -23,7 +23,10 @@ ordinary clock drift with the current shipped recordings was not established.
    Vite injects just the login recording URL into its classic HTML script.
 2. **Music and stinger fetches verify bytes before decoding.** Native
    `crypto.subtle.digest` is preferred, with a portable SHA-256 fallback for
-   WebViews where it is absent or unusable. Decoded music buffers carry recording
+   WebViews where it is absent or unusable. In the iOS app (`capacitor://`), music and
+   stingers load through XHR (`fetchAudioBytes`): Capacitor answers media files with a
+   non-HTTP response, which reports status 0, and `fetch` never reports it `ok`. Those
+   bytes pass the same verifier. Decoded music buffers carry recording
    identity in a shared WeakMap. An unverified cache entry is removed and loaded
    again. A fetch/decode failure never retries through a path that bypasses the
    verifier. HTML audio and the non-Web-Audio Phaser fallback use immutable URLs;
