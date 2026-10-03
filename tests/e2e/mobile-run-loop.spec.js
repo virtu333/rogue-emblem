@@ -195,23 +195,32 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
     .getByRole('dialog', { name: `Give ${entry.name} to`, exact: true })
     .getByRole('button', { name: 'Confirm', exact: true })
     .tap();
+  // The purchase goes to whoever the Give dialog picks (a lance goes to the Paladin,
+  // not necessarily the roster's first unit), so read the owner from the run's state.
+  let owner = null;
   await expect
-    .poll(() =>
-      page.evaluate(
+    .poll(async () => {
+      owner = await page.evaluate(
         (name) =>
           window.__emblemRogueGame.scene
             .getScene('NodeMap')
-            .runManager.roster.some((u) =>
+            .runManager.roster.find((u) =>
               [...u.inventory, ...(u.consumables || [])].some((i) => i.name === name),
-            ),
+            )?.name ?? null,
         entry.name,
-      ),
-    )
+      );
+      return owner !== null;
+    })
     .toBe(true);
   await page.locator('.shop-menu').getByRole('button', { name: 'Leave', exact: true }).tap();
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._openRoster());
   const sheet = page.getByRole('dialog', { name: 'Manage roster' });
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
+  // The sheet opens on the first unit; show the one that holds the purchase.
+  await sheet
+    .getByRole('navigation', { name: 'Units' })
+    .getByRole('button', { name: new RegExp(`^${owner},`) })
+    .tap();
   await expect(sheet.getByRole('heading', { name: entry.name, exact: true }).first()).toBeVisible();
   await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
   await page.waitForTimeout(800);
