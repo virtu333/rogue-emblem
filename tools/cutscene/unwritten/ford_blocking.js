@@ -13,9 +13,15 @@
 //  - the thrust's point crosses Edric's line while his head is a hand's breadth below it;
 //  - at the clash Edric is past the point (inside the reach) and the shaft is what he hits;
 //  - in the bind both weapons pass through one contact point;
-//  - the yield drags that point along Edric's blade, and his weight goes onto the slick stone.
+//  - the yield drags that point along Edric's blade, and his weight goes onto the slick stone;
+//  - the stone throws his lead foot forward, so he goes over backwards and the cut lands on
+//    his chest, not his back (a blow to the back would put him face down).
+//
+// The ground, the water and the stones are the world's own (engine/world.js), so the plan,
+// the 3D previs (previs3d/) and the picture stand on one riverbed.
 
 import { T, KIT, BEAT, BAR } from './engine/score.js';
+import { World } from './engine/world.js';
 
 export const MUSIC_OFFSET = 44.0;
 export const at = (bar, beat = 1) => T(bar, beat) - MUSIC_OFFSET;
@@ -133,54 +139,36 @@ function path(keys) {
 
 // ---------------------------------------------------------------------- the ford
 
-/** Water depth (m) at X: 0 at the banks (|X| >= 8), 0.5 by |X| = 5, 0.6 midstream. */
-export function waterDepth(X) {
-  const a = Math.abs(X);
-  if (a >= 8) return 0;
-  if (a >= 5) return 0.5 * sm((8 - a) / 3);
-  return 0.5 + 0.1 * sm((5 - a) / 5);
-}
+// One world, sampled only for its ground (W and H are its pixel buffers, kept tiny). It has
+// the shoal round the slick stone (X 2 to 5.6) that the Warden holds.
+const WORLD = new World({ W: 8, H: 8 });
 
-/** Bank height above the water (m): a gentle ramp up from the waterline at |X| = 8. */
-export function bankHeight(X) {
-  const a = Math.abs(X);
-  return a <= 8 ? 0 : 0.055 * (a - 8);
-}
+/** Water depth (m) at (X, Z). */
+export const waterDepth = (X, Z = 0) => WORLD.waterDepth(X, Z);
 
-/** The riverbed / bank surface (Y) at X. */
-export const bedY = (X) => (Math.abs(X) < 8 ? -waterDepth(X) : bankHeight(X));
+/** Bank height above the water (m) at (X, Z); 0 in the river. */
+export const bankHeight = (X, Z = 0) => Math.max(0, WORLD.groundY(X, Z));
+
+/** The riverbed / bank surface (Y) at (X, Z). */
+export const bedY = (X, Z = 0) => WORLD.groundY(X, Z);
 
 /**
- * The stones. `top` is the height of the crown above the surface, `w` the width along X,
- * `z` the offset from the ford's line (a stone with |z| > 0.3 can't take a footstep).
- * Upstream stones (z < 0) are for the wide shot only.
+ * The stones, from the world: centre (x, z), width along X (`w`, where a foot can stand) and
+ * the crown's height above the surface (`top`). The slick one lies 0.6 m toward the lens of
+ * the ford's line, where Edric's lead foot lands.
  */
-export const STONES = [
-  { id: 's-6', x: -6.0, z: 0.75, w: 0.7, top: 0.14 },
-  { id: 's-1.5', x: -1.5, z: 0.5, w: 0.6, top: 0.12 },
-  { id: 's+2', x: 2.0, z: 0.55, w: 0.6, top: 0.13 },
-  { id: 's+3.8', x: 3.8, z: 0, w: 0.55, top: 0.12, slick: true },
-  { id: 'up-7', x: -7.2, z: -3.4, w: 1.0, top: 0.2 },
-  { id: 'up-4.5', x: -4.5, z: -2.6, w: 0.8, top: 0.16 },
-  { id: 'up+0.5', x: 0.5, z: -3.6, w: 1.3, top: 0.22 },
-  { id: 'up+5.5', x: 5.5, z: -2.9, w: 0.9, top: 0.18 },
-];
-export const SLICK = STONES.find((s) => s.slick);
-
-/** Height of the stone crown at (X, Z), or -Infinity when there is no stone under it. */
-function stoneY(X, Z) {
-  let y = -Infinity;
-  for (const s of STONES) {
-    const dx = (2 * (X - s.x)) / s.w;
-    if (Math.abs(dx) >= 1 || Math.abs(Z - s.z) > 0.3) continue;
-    const bed = bedY(s.x);
-    y = Math.max(y, bed + (s.top - bed) * Math.sqrt(1 - dx ** 4));
-  }
-  return y;
-}
+export const STONES = WORLD.stones.map((q, i) => ({
+  id: `w${i}`,
+  x: q.X,
+  z: q.Z,
+  w: 2 * q.a * 0.85,
+  top: q.top,
+  slick: !!q.slick,
+}));
+export const SLICK = STONES.find((q) => q.slick);
 
 /** What a foot stands on at (X, Z): the bed, or a stone's crown. */
-export const groundY = (X, Z = 0) => Math.max(bedY(X), stoneY(X, Z));
+export const groundY = (X, Z = 0) => WORLD.standY(X, Z);
 
 // ------------------------------------------------------------------- the skeleton
 //
@@ -361,9 +349,24 @@ function makeActor(spec) {
     const stoneUp =
       wN + wF < 0.05
         ? 0
-        : (wN * (groundY(fN.x, z) - bedY(fN.x)) + wF * (groundY(fF.x, z) - bedY(fF.x))) / (wN + wF);
-    const ref = bedY(x) + 0.25 * stoneUp;
+        : (wN * (groundY(fN.x, z) - bedY(fN.x, z)) + wF * (groundY(fF.x, z) - bedY(fF.x, z))) /
+          (wN + wF);
+    // the hips ride on the bed under the feet that carry the weight (a bank or a shoal under
+    // one foot lifts them halfway), not on the bed under the hips
+    const eps = 0.05;
+    const ref =
+      (wN * bedY(fN.x, z) + wF * bedY(fF.x, z) + eps * bedY(x, z)) / (wN + wF + eps) +
+      0.25 * stoneUp;
     const hips = [x, ref + P.hipY * scale + bob];
+    // the body sinks onto a foot it can't otherwise reach (a step down a bank, onto a shoal):
+    // the hips go no higher than either leg reaches
+    const legL = (D.thigh + D.shin) * 0.995;
+    for (const ft of [fN, fF]) {
+      const dx = ft.x - hips[0];
+      if (Math.abs(dx) >= legL) continue;
+      const ty = groundY(ft.x, z) + ANKLE + ft.lift;
+      hips[1] = Math.min(hips[1], ty + Math.sqrt(legL * legL - dx * dx));
+    }
     const tv = [Math.sin(P.lean) * f, Math.cos(P.lean)];
     const nv = [Math.cos(P.lean) * f, -Math.sin(P.lean)]; // toward the chest
     const neck = [hips[0] + tv[0] * D.trunk, hips[1] + tv[1] * D.trunk];
@@ -637,27 +640,30 @@ const EDRIC_LIB = Object.fromEntries(
     },
     // the yield: the resistance is gone, the weight goes on, the blade is pressed down
     overbal: {
-      hipY: 0.46,
-      lean: 1.1,
+      hipY: 0.36,
+      lean: 1.2,
       curve: 0.06,
       head: -0.7,
       rear: [0.5, -0.36],
       gap: 0.12,
       ang: 0.1,
     },
-    slipCatch: {
-      hipY: 0.4,
-      lean: 1.22,
-      curve: 0.05,
-      head: -0.85,
-      rear: [0.45, -0.42],
-      gap: 0.12,
-      ang: 0.05,
+    // the slip: the stone throws the lead foot forward and he drops onto the rear foot, low,
+    // the chest coming up and back; both arms fly up and back for balance, the sword above his head. The
+    // chest is open to the Warden.
+    slipBack: {
+      hipY: 0.3,
+      lean: 0.12,
+      curve: -0.07,
+      head: -0.4,
+      rear: [-0.12, 0.3],
+      ang: 1.95,
+      free: [-0.38, 0.0],
     },
     // the cut: the chest opens, the head is thrown back, the sword arm flung up
     cutHit: {
-      hipY: 0.5,
-      lean: -0.15,
+      hipY: 0.3,
+      lean: -0.25,
       curve: -0.1,
       head: -0.5,
       rear: [0.15, 0.15],
@@ -665,8 +671,8 @@ const EDRIC_LIB = Object.fromEntries(
       free: [0.5, 0.2],
     },
     stagger: {
-      hipY: 0.52,
-      lean: -0.45,
+      hipY: 0.28,
+      lean: -0.5,
       curve: -0.08,
       head: -0.35,
       rear: [0.25, 0.1],
@@ -674,7 +680,7 @@ const EDRIC_LIB = Object.fromEntries(
       free: [0.45, 0.1],
     },
     falling: {
-      hipY: 0.36,
+      hipY: 0.22,
       lean: -0.85,
       curve: -0.06,
       head: -0.2,
@@ -790,16 +796,16 @@ const WARDEN_LIB = Object.fromEntries(
       ang: 0.3,
       rt: 2.6,
     },
-    // the step back, the shaft turned down over the blade
+    // the step back: the shaft drawn off the blade and lifted, already on its way to the wind-up
     yield: {
       hipY: 0.74,
       lean: -0.15,
       curve: -0.05,
       head: -0.05,
-      rear: [0.1, -0.3],
-      gap: 0.45,
-      ang: 0.0,
-      rt: 2.6,
+      rear: [0.05, -0.18],
+      gap: 0.4,
+      ang: 0.38,
+      rt: 2.5,
     },
     // the wind-up: hands to the head, the point up
     wind: {
@@ -844,20 +850,20 @@ const LANDS = []; // every footfall: { t, foot, x, actor, stance }
 // ---- the contact points (the bind, then the yield dragging it down Edric's blade)
 // The yield: the shaft is drawn away and Edric's blade slides out along it toward his own
 // point (the contact runs down the blade, away from his hands) until it clears the shaft.
-// The shaft ends up lying across the back of a man who has pitched forward under it.
-const BIND = { t0: TIME.clash, t1: 10.72 };
+// The shaft slides off the blade as the man it held up goes over on the slick stone.
+const BIND = { t0: TIME.clash, t1: 10.62 }; // the yield releases it
 const bindX = keyed([
   [7.2, 3.7],
   [7.5, 3.72, 'out'],
   [9.6, 3.85],
   [10.4, 3.9],
-  [10.72, 4.75, 'in'],
+  [10.62, 4.45, 'in'],
 ]);
 const bindY = keyed([
   [7.2, 0.9],
   [9.6, 0.86],
   [10.4, 0.8],
-  [10.72, 0.66, 'in'],
+  [10.62, 0.7, 'in'],
 ]);
 const bindPt = (t) => [bindX(t), bindY(t)];
 /** [from, to]: the seconds the weapons are locked together. */
@@ -946,8 +952,10 @@ const edric = makeActor({
   X: edricPath,
   Zf: keyed([
     [0, 0],
-    [11.55, 0],
-    [12.4, 0.55],
+    [10.4, 0],
+    [10.6, SLICK.z + 0.1, 'out'], // the overbalancing step goes diagonally onto the stone
+    [11.55, SLICK.z + 0.1],
+    [12.4, SLICK.z + 0.55],
   ]),
   face: () => 1,
   gait: { t0: 0.85, every: 0.25 },
@@ -972,8 +980,9 @@ const edric = makeActor({
     [9.6, 'bindHard'],
     [10.4, 'bindHard'],
     [10.55, 'overbal', 'out'],
-    [10.8, 'slipCatch'],
-    [11.15, 'slipCatch'],
+    [10.68, 'overbal'], // still pitched forward as the foot lands; the stone throws it at 10.7
+    [10.86, 'slipBack', 'out'],
+    [11.15, 'slipBack'],
     [11.28, 'cutHit', 'snap'],
     [11.55, 'stagger', 'out'],
     [11.85, 'falling', 'in'],
@@ -997,14 +1006,14 @@ const edric = makeActor({
     [11.55, 'fall'],
     [12.4, 'down'],
   ]),
-  aims: [{ a: 7.1, b: 7.2, c: 10.72, d: 10.78, pt: bindPt, through: 'ray' }],
+  aims: [{ a: 7.1, b: 7.2, c: 10.62, d: 10.7, pt: bindPt, through: 'ray' }],
 });
 
-// the crimson cut lands on the middle of Edric's back (the chest's normal, reversed)
-const backPt = (t) => {
+// the crimson cut lands across Edric's chest, opened by the slip (the chest's normal)
+const chestPt = (t) => {
   const s = edric.skeleton(t);
   const lean = Math.atan2((s.neck[0] - s.hips[0]) * s.facing, s.neck[1] - s.hips[1]);
-  return [s.spine[0] - Math.cos(lean) * s.facing * 0.11, s.spine[1] + Math.sin(lean) * 0.11];
+  return [s.spine[0] + Math.cos(lean) * s.facing * 0.11, s.spine[1] - Math.sin(lean) * 0.11];
 };
 
 // ---- the Warden
@@ -1100,7 +1109,7 @@ const warden = makeActor({
     [10.4, 'yieldAnt'],
     [10.6, 'yield', 'snap'],
     [10.8, 'yield'],
-    [11.08, 'wind'],
+    [11.14, 'wind'], // late enough that the head meets the chest on the crash
     [11.4, 'cutFollow', 'snap'],
     [11.6, 'cutFollow'],
     [12.0, 'standOver'],
@@ -1123,8 +1132,8 @@ const warden = makeActor({
     [12.0, 'stand'],
   ]),
   aims: [
-    { a: 7.1, b: 7.2, c: 10.72, d: 10.85, pt: bindPt, through: 'ray' },
-    { a: 11.1, b: 11.2, c: 11.2, d: 11.32, pt: backPt, through: 'reach' },
+    { a: 7.1, b: 7.2, c: 10.62, d: 10.72, pt: bindPt, through: 'ray' },
+    { a: 11.16, b: 11.2, c: 11.2, d: 11.32, pt: chestPt, through: 'reach' },
   ],
 });
 
@@ -1346,7 +1355,7 @@ ev(10.7, 'slip', {
   note: 'the foot skids off the far side',
 });
 ev(11.05, 'cutWind', { actor: 'warden' });
-const cutC = backPt(TIME.cut);
+const cutC = chestPt(TIME.cut);
 ev(TIME.cut, 'cut', { actor: 'warden', x: cutC[0], y: cutC[1], hitStop: true });
 ev(11.55, 'stagger', { actor: 'edric' });
 const fallX = edric.skeleton(TIME.fall).hips[0];
@@ -1529,7 +1538,7 @@ export function validate() {
 
   // the bind: both weapons through one point, all the way
   let worst = 0;
-  for (let t = 7.25; t <= 10.72; t += 1 / 48) {
+  for (let t = 7.25; t <= BIND.t1; t += 1 / 48) {
     const a = edric.skeleton(t).weapon;
     const b = warden.skeleton(t).weapon;
     worst = Math.max(worst, segSeg(a.butt, a.tip, b.butt, b.tip));
@@ -1583,10 +1592,10 @@ export function validate() {
     '> 0.02',
   );
 
-  // the cut lands on the back
+  // the cut lands on the chest
   const cw = warden.skeleton(TIME.cut).weapon.tip;
   const dc = Math.hypot(cw[0] - cutC[0], cw[1] - cutC[1]);
-  chk("the cut's point is on Edric's back (m)", dc < 0.12, dc.toFixed(2), '< 0.12');
+  chk("the cut's point is on Edric's chest (m)", dc < 0.12, dc.toFixed(2), '< 0.12');
 
   // the Warden never stands on the slick stone
   let close = Infinity;
