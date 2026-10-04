@@ -99,7 +99,13 @@ export class PrologueController {
     this.lessonOpen = false;
     this.activeLessonId = null;
     this.notes = Promise.resolve(); // notes show one at a time, in order
-    this.deferred = [];
+    // Notes and line sets not yet read, in order: { seq, beat, kind, id, text, event,
+    // status: 'scheduled' | 'displayed' }. Data, so a suspend checkpoint carries
+    // them (snapshot) and a resume shows them again (onResume) instead of counting
+    // them as taught; a record leaves the list when the player acknowledges it.
+    this.pending = [];
+    this.pendingSeq = 0;
+    this.deferred = []; // { run, resolve, cancelled }: tasks waiting for a playable turn
     // Presentation on screen now (a note, a line set, a nudge note): the scene's
     // turn-start pipeline waits for idle() before it reads the battle state.
     this.presenting = 0;
@@ -142,7 +148,8 @@ export class PrologueController {
     if (this.destroyed) return;
     this.destroyed = true;
     this.scene.events?.off?.('update', this._tick);
-    this.deferred = [];
+    this.cancelDeferred();
+    this.pending = [];
     this.presenting = 0;
     this.releaseIdle();
     this.clearHighlights();
@@ -178,12 +185,21 @@ export class PrologueController {
     // screen from its first line to its last note: between them nothing of the
     // scene's reads the battle state (idle()).
     const owns = !DEFERRED_EVENTS.has(event.type);
+    // The whole sequence is pending from the start (a checkpoint taken under its
+    // first line carries the notes behind it), then each piece shows in order.
+    const records = blocking.map(
+      (action) =>
+      'note' in action
+        ? this.scheduleNote(action.note, event, extra, action.beat || null)
+        : this.schedule({ kind: 'dialogue', id: action.dialogue, text: null, beat: action.beat || null, event: null }), // prettier-ignore
+    );
     if (owns) this.beginPresentation();
     try {
-      for (const action of blocking) {
+      for (const record of records) {
         if (this.destroyed) break;
-        if ('note' in action) held = (await this.note(action.note, event, extra)) || held;
-        else held = (await this.dialogue(action.dialogue)) || held;
+        if (!record) continue;
+        if (record.kind === 'note') held = (await this.presentNote(record)) || held;
+        else held = (await this.dialogue(record.id, record.beat, record)) || held;
       }
     } finally {
       if (owns) this.endPresentation();
@@ -390,21 +406,115 @@ export class PrologueController {
    * taught. On the enemy phase it is a coach nudge; raised at a phase start it waits for
    * a playable turn; otherwise it shows now and resolves when read (false on shutdown).
    */
-  note(id, event = {}, extra = {}) {
+  note(id, event = {}, extra = {}, beat = null) {
+    const record = this.scheduleNote(id, event, extra, beat);
+    return record ? this.presentNote(record) : Promise.resolve(false);
+  }
+
+  /**
+   * Schedule a note: its text is fixed now (the context it points at is on screen
+   * now). On the enemy phase it is a coach nudge, shown at once and never pending.
+   * Returns the pending record, or null when nothing is left to show.
+   */
+  scheduleNote(id, event = {}, extra = {}, beat = null) {
     const text = prologueNoteText(id, this.ctx(extra.ctx));
-    if (!text) return Promise.resolve(false);
-    for (const hint of NOTE_HINT_IDS[id] || []) {
-      this.taught.add(hint);
-      // In the run the slot is real: the in-run note this one stands in for is read.
-      if (this.run) this.scene.registry?.get?.('hints')?.markSeen?.(hint);
-    }
+    if (!text) return null;
     if (event.type === 'turnStart' && event.phase === 'enemy') {
+      // A nudge is never acknowledged: shown is read.
+      this.markTaught(id);
       const line = text.replace(/\s*\n\s*/g, ' ');
       if (!this.coach?.nudge(line, 'info')) void this.scene.showBriefBanner?.(line);
-      return Promise.resolve(true);
+      return null;
     }
-    const run = () => this.showNote(id, text);
-    return DEFERRED_EVENTS.has(event.type) ? this.defer(run) : run();
+    return this.schedule({
+      kind: 'note',
+      id,
+      text,
+      beat,
+      event: { type: event.type || null, phase: event.phase ?? null, turn: event.turn ?? null },
+    });
+  }
+
+  /** Show a scheduled note: now, or (raised at a phase start) once the player can act. */
+  presentNote(record) {
+    const run = () => this.showNote(record);
+    return DEFERRED_EVENTS.has(record.event?.type) ? this.defer(run) : run();
+  }
+
+  /**
+   * The in-run hints a note stands in for are read (NOTE_HINT_IDS): on the device's
+   * record at the chapter's end, and in the run on the slot now. Only an acknowledged
+   * note (Continue pressed) or a nudge marks them: a note the checkpoint caught
+   * scheduled or on screen is shown again on resume, and marks them then.
+   */
+  markTaught(id) {
+    for (const hint of NOTE_HINT_IDS[id] || []) {
+      this.taught.add(hint);
+      if (this.run) this.scene.registry?.get?.('hints')?.markSeen?.(hint);
+    }
+  }
+
+  // --- Pending presentation (what a checkpoint carries) ----------------------------
+
+  /** A note or a line set the player has not read yet, in order. */
+  schedule(record) {
+    const entry = { ...record, seq: ++this.pendingSeq, status: 'scheduled' };
+    this.pending.push(entry);
+    return entry;
+  }
+
+  /** The record was acknowledged (or settled): it leaves the pending list. */
+  settlePending(record) {
+    const index = this.pending.indexOf(record);
+    if (index >= 0) this.pending.splice(index, 1);
+  }
+
+  /** The pending list as plain data (snapshot). */
+  pendingRecords() {
+    return this.pending.map((r) => ({
+      beat: r.beat ?? null,
+      kind: r.kind,
+      id: r.id,
+      text: r.kind === 'note' ? r.text : null,
+      event: r.event ? { ...r.event } : null,
+      status: r.status,
+    }));
+  }
+
+  /**
+   * A resume: the checkpoint's unread notes and lines show again, in order, once the
+   * player can act, as one sequence. A line set replays whole (its lines are
+   * presentation; the dialogue's seen-key is marked only when it completes); a note
+   * shows with the text it had. Settled gameplay (the beats spent, the coach, the
+   * gate, the lesson ledger, the Vision grant) is never replayed: it came back with
+   * the snapshot.
+   */
+  resumePending(entries) {
+    const records = entries
+      .filter((e) => e && (e.kind === 'note' || e.kind === 'dialogue') && typeof e.id === 'string')
+      .map((e) =>
+        this.schedule({
+          kind: e.kind,
+          id: e.id,
+          text: e.kind === 'note' ? (typeof e.text === 'string' && e.text) || null : null,
+          beat: typeof e.beat === 'string' ? e.beat : null,
+          event: e.event && typeof e.event === 'object' ? { ...e.event } : null,
+        }),
+      );
+    if (!records.length) return;
+    void this.defer(async () => {
+      this.beginPresentation();
+      try {
+        for (const record of records) {
+          if (this.destroyed) break;
+          if (record.kind === 'dialogue') await this.dialogue(record.id, record.beat, record);
+          else await this.showNote(record);
+        }
+      } finally {
+        this.endPresentation();
+      }
+      return true;
+    });
   }
 
   /** The most hurt living player unit (lowest HP %), or null when nobody is hurt. */
@@ -423,7 +533,13 @@ export class PrologueController {
     return Boolean(this.mostHurtAlly());
   }
 
-  async showNote(id, text) {
+  /**
+   * Show a pending note (one at a time, in order). Resolves true once the player
+   * acknowledged it: only then are the hints it stands in for marked read and the
+   * record settled. A note torn down unread (a shutdown mid-note resolves false)
+   * stays pending, 'displayed', for the next checkpoint and resume.
+   */
+  async showNote(record) {
     const scene = this.scene;
     if (!this.sceneLive()) return false;
     const previous = this.notes;
@@ -432,11 +548,24 @@ export class PrologueController {
     await previous;
     try {
       if (!this.sceneLive()) return false;
+      const id = record.id;
+      const text = record.text || prologueNoteText(id, this.ctx());
+      if (!text) {
+        this.settlePending(record);
+        return false;
+      }
+      record.text = text;
+      record.status = 'displayed';
       this.lessonOpen = true;
       this.activeLessonId = id;
       this.beginPresentation();
       const result = await this.withHintState(() => this.fieldNote(text, id));
-      return result !== false && this.sceneLive();
+      const acknowledged = result !== false && this.sceneLive();
+      if (acknowledged) {
+        this.markTaught(id);
+        this.settlePending(record);
+      }
+      return acknowledged;
     } finally {
       this.lessonOpen = false;
       this.activeLessonId = null;
@@ -494,10 +623,26 @@ export class PrologueController {
     }
   }
 
+  /**
+   * Run `run` once the player can act (flushDeferred). The promise settles with
+   * `run`'s result, or false when the task is cancelled (cancelDeferred: a restart, a
+   * rewind, a skip, destroy) — a cancelled task never runs, so it can never touch a
+   * replacement session.
+   */
   defer(run) {
     return new Promise((resolve) => {
-      this.deferred.push(() => run().then(resolve, () => resolve(false)));
+      this.deferred.push({ run, resolve, cancelled: false });
     });
+  }
+
+  /** Settle every waiting task as cancelled (false) and drop it. */
+  cancelDeferred() {
+    const waiting = this.deferred;
+    this.deferred = [];
+    for (const entry of waiting) {
+      entry.cancelled = true;
+      entry.resolve(false);
+    }
   }
 
   /** Each frame: a deferred note shows once the player can act. */
@@ -511,27 +656,46 @@ export class PrologueController {
     )
       return;
     const next = this.deferred.shift();
-    next();
+    if (next.cancelled) return;
+    let result;
+    try {
+      result = next.run();
+    } catch {
+      next.resolve(false);
+      return;
+    }
+    Promise.resolve(result).then(next.resolve, () => next.resolve(false));
   }
 
-  /** A dialogue.json `prologue` line set, spoken through the scene's overlay. */
-  async dialogue(key) {
+  /**
+   * A dialogue.json `prologue` line set, spoken through the scene's overlay. Pending
+   * while it plays; a set torn down before its last line (the overlay reports it
+   * incomplete) stays pending and replays whole on resume.
+   */
+  async dialogue(key, beat = null, record = null) {
     const scene = this.scene;
     const entries = scene.gameData?.dialogue?.prologue?.[key];
-    if (!Array.isArray(entries) || !entries.length || !scene.dialogueOverlay) return false;
+    if (!Array.isArray(entries) || !entries.length || !scene.dialogueOverlay) {
+      if (record) this.settlePending(record);
+      return false;
+    }
     const sequence = entries.map((entry) => ({
       speaker: entry?.speaker || null,
       line: entry?.line || '',
       portrait: this.portraitFor(entry?.speaker),
     }));
+    const pending = record || this.schedule({ kind: 'dialogue', id: key, text: null, beat, event: null }); // prettier-ignore
+    pending.status = 'displayed';
     this.beginPresentation();
+    let completed = true;
     try {
-      await scene.dialogueOverlay.showSequence(sequence, { category: 'prologue', key });
+      completed = await scene.dialogueOverlay.showSequence(sequence, { category: 'prologue', key });
     } catch {
       /* a line is presentation: the chapter goes on without it */
     } finally {
       this.endPresentation();
     }
+    if (completed !== false && this.sceneLive()) this.settlePending(pending);
     return true;
   }
 
@@ -608,7 +772,7 @@ export class PrologueController {
    */
   snapshot() {
     return {
-      version: 1,
+      version: 2,
       started: this.started,
       fired: [...(this.beatState?.fired || [])],
       gatesSkipped: this.gatesSkipped,
@@ -620,6 +784,8 @@ export class PrologueController {
       practised: [...this.lessons.practised],
       rewound: this.rewound,
       standaloneVisionGranted: Boolean(this.standaloneVisionGranted),
+      // Unread teaching, as data: shown again on resume, never counted as taught.
+      pending: this.pendingRecords(),
     };
   }
 
@@ -632,7 +798,8 @@ export class PrologueController {
    */
   onResume(state, { turn = 1, phase = 'player' } = {}) {
     if (this.destroyed) return;
-    const valid = state && typeof state === 'object' && state.version === 1;
+    const valid =
+      state && typeof state === 'object' && (state.version === 1 || state.version === 2);
     if (valid) {
       this.started = state.started === true;
       this.beatState = { fired: Array.isArray(state.fired) ? [...state.fired] : [] };
@@ -659,6 +826,8 @@ export class PrologueController {
     // The guided step's tile ring comes back with its gate.
     if (this.gate?.kind === 'move') this.markTile(this.gate.col, this.gate.row, UI_HEX.accent);
     if (this.gate?.kind === 'select') this.highlight({ unit: this.gate.unit });
+    // The checkpoint's unread notes and lines (version 2) show again, in order.
+    if (valid && Array.isArray(state.pending)) this.resumePending(state.pending);
     this.scene.refreshEndTurnControl?.();
     this.coach?.reveal();
   }
@@ -867,7 +1036,8 @@ export class PrologueController {
     this.offeredRewind = false;
     this.restarting = false;
     this.scene._prologueFallen = null;
-    this.deferred = [];
+    this.cancelDeferred();
+    this.pending = [];
     this.clearHighlights();
     return this.emit({ type: 'rewound' });
   }
@@ -936,7 +1106,8 @@ export class PrologueController {
     scene._reinforcementsPendingThisTurn = false;
     // Ends the enemy phase (phaseSuperseded) and closes input while the line plays.
     scene.battleState = 'BATTLE_END';
-    this.deferred = [];
+    this.cancelDeferred();
+    this.pending = [];
     this.clearHighlights();
     try {
       scene.clearInspectionVisuals?.();
@@ -1075,7 +1246,8 @@ export class PrologueController {
     const resumeState = PAUSABLE_STATES.has(scene.battleState) ? scene.battleState : 'PLAYER_IDLE';
     scene._reinforcementsPendingThisTurn = false;
     scene.battleState = 'BATTLE_END';
-    this.deferred = [];
+    this.cancelDeferred();
+    this.pending = [];
     this.clearHighlights();
     this.coach?.hide?.();
     this.leaving = finishPrologue(scene, {

@@ -1099,12 +1099,72 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
     from the Seize command, before the victory flow (P4).
   - **Teaching state rides the suspend checkpoint** (Phase 2B; code review of 1B/2A):
     `BattleSuspendController` stores `prologueState: snapshot()` (beats fired, the gate, the
-    coach goal, the forecast count, the lesson ledgers, the rewind and Vision flags) and
-    `finalizeResume` hands it to `onResume`, so Resume Battle (and a rotation's re-open) keeps
-    the chapter where it was. `battleStart` belongs to turn 1 of a fresh battle only; a
-    checkpoint without teaching state (older saves) resumes as a started chapter. An opening
-    that holds the turn (lines, a note) outlasts the banner-timed coach reveal, which is guarded
-    to an idle battle, so the opening's end reveals the coach.
+    coach goal, the forecast count, the lesson ledgers, the rewind and Vision flags, and the
+    unread teaching) and `finalizeResume` hands it to `onResume`, so Resume Battle (and a
+    rotation's re-open) keeps the chapter where it was. `battleStart` belongs to turn 1 of a
+    fresh battle only; a checkpoint without teaching state (older saves) resumes as a started
+    chapter. An opening that holds the turn (lines, a note) outlasts the banner-timed coach
+    reveal, which is guarded to an idle battle, so the opening's end reveals the coach.
+
+  **Who owns the screen (the hook contract; review, 2026-10-04).** Every hook returns a
+  task that settles once the beat's notes and lines are read (at once when nothing shows),
+  and the scene awaits it through `safeBattlePresentation` at the site the beat belongs
+  to, so a blocking sequence owns that interval of the simulation instead of racing it
+  (Varro's fall used to launch his line and the seize note while combat and the enemy
+  phase went on underneath; the overlay blocked input, not the simulation). The controller
+  counts what it has on screen: a whole immediate sequence, from its first line to its
+  last note, never a note waiting for a playable turn (those would deadlock the pipeline
+  that makes the turn playable). The player turn-start pipeline awaits `idle()` before it
+  reads the battle state, so a sequence that spans the turn start (a fall on the enemy
+  phase, the line still open) delays the pipeline instead of defeating it (it used to
+  find the note's `TUTORIAL_HINT` state, return, and the note then restored
+  `TURN_START_RESOLVING` with nothing left to hand the turn over: a soft-lock).
+  `tests/PrologueBeatOwnership.test.js` drives each case.
+
+  | Hook | Awaited at | A note or line raised here |
+  |---|---|---|
+  | `onPhaseStart` (player) | `onPhaseChange`, before the banner | lines: block input only, the pipeline waits for `idle()`; notes wait for a playable turn (deferred), then block input |
+  | `onPhaseStart` (enemy) | `onPhaseChange` | decorative: a coach nudge or band, never awaited, never pending |
+  | `onUnitSelected` | end of `selectUnit` | blocks input only (nothing of the scene's runs until the player acts) |
+  | `onAfterMove` | `afterMove`, before the action menu | blocks simulation |
+  | `onForecastOpened` | `AttackFlowController.showForecast` | blocks simulation |
+  | `onCombatResolved` | both combat sites, before the casualties leave | blocks simulation |
+  | `beforeUnitActionCompletes` | `finishUnitAction` | blocks simulation (holds the action's completion and the turn's end) |
+  | `onUnitDefeated` | `removeUnit`, after the death's objective update, before its side effects | blocks simulation (the combat that caused it and the enemy phase wait) |
+  | `onLevelUp` | `presentQueuedLevelUps`, after the card | blocks simulation |
+  | `onHoldersWoke` | the AI's callback | blocks simulation (the enemy phase waits) |
+  | `onTalk`, `onHealed` | the Talk and Heal presentations, before the action completes | blocks simulation |
+  | `onSeize` | the Seize command, before `onVictory` | blocks simulation |
+  | `onRewound` | `VisionRewindController`, after the board is restored | blocks input only |
+  | `onVictory` | `PostCombatController`, after the band | blocks simulation (the victory flow waits) |
+  | gate nudges (`rejectSelect`, `rejectMove`, `rejectStep`) | input | decorative |
+
+  **What survives suspend (`snapshot()` version 2; review, 2026-10-04).** A checkpoint
+  used to record a beat as fired and its hints as taught the moment it matched, while
+  its line was still open or its note still waiting for a playable turn (the P3 opening
+  under the turn-start pipeline's checkpoint; P4's seize/par note scheduled before the
+  first checkpoint): a reload resumed a chapter whose lesson was never seen, and the
+  taught hint ids then suppressed the in-run explanation for good. Unread teaching is
+  now data (`pending`: beat id, kind, note id and text, the event, status `scheduled`
+  or `displayed`), and the replay semantics are decided per kind:
+
+  | State | In the checkpoint | On resume |
+  |---|---|---|
+  | beats spent (`once`) | yes | never replayed |
+  | the gate, the coach goal, gates skipped, the forecast count | yes | restored; the gate's ring redrawn |
+  | the lesson ledger (`markLesson` shown / practised) | yes, marked when the beat matches | restored (a beat that fired counts as exposure; its note comes back below) |
+  | taught hint ids (`NOTE_HINT_IDS`, the slot's `markSeen`) | only notes the player acknowledged (Continue, Leave, Open Rewind) and enemy-phase nudges | restored; a resumed note marks them when acknowledged |
+  | the Vision grant | the run (`prologueVisionGranted`) or the standalone flag | idempotent, never twice |
+  | pending notes and line sets | yes, in order, with status | shown again as one sequence once the player can act: a line set replays whole (its seen-key is marked only when it completes), a note keeps the text it had; a note torn down unread (shutdown resolves it `false`) stays `displayed` |
+  | highlights (a unit's ring, an enemy's reach) | no | the gate's ring only |
+  | enemy-phase nudges | no (shown is read) | nothing |
+
+  A deferred task (`defer`) settles with its result or, when cancelled by a restart, a
+  rewind, a skip or destroy, with `false`; a cancelled task never runs, so it can never
+  touch a replacement session, and the pending records it carried are dropped with it
+  (a rewind forgets the notes of the turn it undid, as before).
+  `tests/PrologueSuspendTeaching.test.js` covers the two reloads, acknowledgement and
+  cancellation.
 - **Prologue defeat (built for the standalone chapter).** The existing "Continue from Map"
   revert can't restart a battle: `VisionRewindController.showLordDeathPrompt` saves a
   `fatal_pending` checkpoint, and Accept Fate runs `onDefeat`, `failRun` and RunComplete, which

@@ -451,7 +451,7 @@ describe('resume keeps the teaching state (review: Resume Battle and rotation re
     first.onUnitSelected(edric);
     expect(first.gate).toEqual({ kind: 'move', col: 3, row: 2 });
     const state = structuredClone(first.snapshot());
-    expect(state).toMatchObject({ version: 1, started: true, gate: { kind: 'move', col: 3, row: 2 } }); // prettier-ignore
+    expect(state).toMatchObject({ version: 2, started: true, gate: { kind: 'move', col: 3, row: 2 }, pending: [] }); // prettier-ignore
     expect(state.fired).toEqual(expect.arrayContaining(['p1_select_edric', 'p1_move_to_fort']));
     first.destroy();
     // Resume Battle: a fresh controller, the checkpoint's state.
