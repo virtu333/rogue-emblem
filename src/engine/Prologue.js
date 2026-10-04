@@ -19,6 +19,13 @@
 //                     inventory   weapon and consumable names; the first weapon the
 //                                 unit can wield is equipped (staves only when nothing
 //                                 else is). [] means unarmed.
+//                     join        optional, a unit that joins on arrival at a route node
+//                                 (joins.atNode): { line, needs?, lineIfGranted? }. `line`
+//                                 is the dialogue.json `prologue` key its recruit card
+//                                 reads; `needs` names an item the army must hold when it
+//                                 joins (Tamsin's bow): when no unit carries it and the
+//                                 convoy has none, it is granted to the convoy and the
+//                                 card reads `lineIfGranted` instead (prologueArrival)
 //                   Gaspar is not here: he is the standard veteran (createVeteranKnight).
 //   chapters        [chapter], one per prologue battle:
 //                     id, node      chapter id and the route node that fights it
@@ -32,6 +39,9 @@
 //                     rosterLevels  optional { <unit key>: level }: the level a replay
 //                                   builds the unit at (seeded level-ups from its spec),
 //                                   so a replay enters at the chapter's expected level
+//                     rosterItems   optional { <unit key>: [item names] }: what a replay
+//                                   adds to an authored unit's kit (the items the run
+//                                   would have handed it by then: Tamsin's bow)
 //                     showPar       optional, default true: false hides the HUD par and
 //                                   turns the par's rules off (no late pressure, no
 //                                   rating); P1-P3 teach without it, P4 teaches it
@@ -43,7 +53,11 @@
 //                                      aiMode?, holdPack?, holdPackSize?, isBoss?, name? }]
 //                                   `id` names the enemy in beats; weapon/skills are the
 //                                   enemy's whole kit (EnemySpawnGear.applySpawnLoadout).
-//                     npc           null | { unit, className, col, row } (P3's Sera)
+//                     npc           null | { unit, className, col, row, line? }: an
+//                                   authored green unit (P3's Sera), built from `units`
+//                                   (buildPrologueNpcUnit), never a rolled recruit; it is
+//                                   protected, green or blue. `line` is the dialogue.json
+//                                   `prologue` key its Talk card reads.
 //                     villageTile   null | { col, row, reward? } on a Village tile. It is
 //                                   never contested (no bandits); `reward` names the item
 //                                   the visit sends to the convoy (default: the act's
@@ -57,9 +71,11 @@
 //                   No reinforcements, bandits or fog: a chapter has no keys for them.
 //   route           null | { title, nodes: [...], edges: [...] }: the literal route map
 //                   of the prologue run (buildPrologueNodeMap). A node is { id, row,
-//                   col?, chapter? | type?, title? }: a chapter node fights that chapter
-//                   (type 'battle', or 'boss' when given), a service node has a type
-//                   ('shop' | 'church' | 'ruins'). Edges go from a row to the next. Row 0
+//                   col?, chapter? | type?, title?, preview?, stock? }: a chapter node
+//                   fights that chapter (type 'battle', or 'boss' when given), a service
+//                   node has a type ('shop' | 'church' | 'ruins'). `preview` is the route
+//                   card's line for it; a shop's `stock` is its fixed wares (item names,
+//                   catalogue prices; buildPrologueShopStock). Edges go from a row to the next. Row 0
 //                   is the first chapter alone; the prologue ends when the chapter node
 //                   on the last row is won (prologueFinalNodeId).
 //   joins           null | { afterChapter: { <chapterId>: [unit key | special id] },
@@ -78,12 +94,19 @@
 //
 // Triggers (PROLOGUE_TRIGGERS) and the conditions each accepts:
 //   battleStart                         the battle's first player phase, before input
-//   turnStart       turn, phase         a phase begins; `phase` defaults to 'player'
-//   unitSelected    unit, turn          a player unit is selected
-//   afterMove       unit, tile, terrain, dangerFrom, turn
+//   turnStart       turn, phase, hurt   a phase begins; `phase` defaults to 'player'
+//   unitSelected    unit, turn, hurt    a player unit is selected; event.hurt is true
+//                                       while any player unit is below full HP
+//   afterMove       unit, tile, terrain, dangerFrom, turn, safe, inRange, foeDistance,
+//                   besideAlly, afterRewind
 //                                       a unit finished moving (before its action);
 //                                       event.dangerFrom lists the enemy ids whose
 //                                       Danger tiles (what the player knows) hold the tile
+//                                       (safe: none does); inRange: a foe is in its attack
+//                                       reach from here; foeDistances: its distance to
+//                                       every visible foe (foeDistance matches one);
+//                                       besideAlly: an ally stands next to it;
+//                                       afterRewind: a Vision rewind was spent this battle
 //   forecastOpened  unit, target, nth, concept, turn
 //                                       an attack forecast opened; event.nth counts the
 //                                       battle's forecasts from 1, event.concepts is
@@ -96,12 +119,15 @@
 //   levelUp         unit                a unit gained a level
 //   hpBelow         unit, pct           a unit's HP changed; matches at or below pct %
 //   holdWoken       unit                a holding enemy woke
-//   talk            unit, target        a Talk resolved
+//   talk            unit, target        a Talk resolved (the recruit has joined)
+//   healed          unit, target        a staff heal resolved
+//   rewound                             a Vision rewind was spent and the board restored
 //   seize           unit                a lord seized
 //   victory                             the battle is won
 // Condition values: unit/target are unit keys or enemy ids; tile is { col, row };
-// dangerFrom is an enemy id or '*' (any); concept is one of FORECAST_CONCEPTS; turn, nth
-// and pct are integers.
+// dangerFrom is an enemy id or '*' (any); concept is one of FORECAST_CONCEPTS; turn, nth,
+// pct and foeDistance are integers; hurt, safe, inRange, besideAlly and afterRewind are
+// booleans.
 //
 // Actions (PROLOGUE_ACTIONS), each an object with exactly one key:
 //   coach: <goal id>                    show a coach goal
@@ -112,6 +138,9 @@
 //   gateConfirm: true                   only Confirm / Cancel on the open forecast
 //   highlight: { tile } | { unit } | { reachOf: <enemy id> }
 //   markLesson: { id, kind: 'shown' | 'practised' }
+//   grantVision: true                   the prologue's one Vision charge (P3's exercise:
+//                                       RunManager.grantPrologueVision, once per run)
+//   clearCoach: true                    the coach goal (one without a gate) is done
 // The ids are resolved by the scene (PrologueController); this module only matches.
 
 import { LOOT_GOLD_TEAM_XP, NODE_TYPES, TERRAIN, XP_STAT_NAMES } from '../utils/constants.js';
@@ -130,6 +159,8 @@ import { createSpecialCharacter } from './SpecialCharacters.js';
 import { keyedBattleRandom } from './BattleRng.js';
 import { ensureItemUidWith } from '../utils/itemUid.js';
 import { validateBattleConfig } from './MapGenerator.js';
+import { shopEntryTypeForItem } from './LootSystem.js';
+import { actShopPrice } from './ShopEconomy.js';
 
 export const PROLOGUE_TEMPLATE_PREFIX = 'prologue:';
 export const PROLOGUE_ACT_ID = 'act1';
@@ -143,9 +174,20 @@ export const FORECAST_CONCEPTS = ['triangle', 'doubling', 'noCounter', 'magic', 
 
 export const PROLOGUE_TRIGGERS = Object.freeze({
   battleStart: [],
-  turnStart: ['turn', 'phase'],
-  unitSelected: ['unit', 'turn'],
-  afterMove: ['unit', 'tile', 'terrain', 'dangerFrom', 'turn'],
+  turnStart: ['turn', 'phase', 'hurt'],
+  unitSelected: ['unit', 'turn', 'hurt'],
+  afterMove: [
+    'unit',
+    'tile',
+    'terrain',
+    'dangerFrom',
+    'turn',
+    'safe',
+    'inRange',
+    'foeDistance',
+    'besideAlly',
+    'afterRewind',
+  ],
   forecastOpened: ['unit', 'target', 'nth', 'concept', 'turn'],
   combatResolved: ['unit', 'target', 'turn', 'kill'],
   unitActed: ['unit', 'turn'],
@@ -154,6 +196,8 @@ export const PROLOGUE_TRIGGERS = Object.freeze({
   hpBelow: ['unit', 'pct'],
   holdWoken: ['unit'],
   talk: ['unit', 'target'],
+  healed: ['unit', 'target'],
+  rewound: [],
   seize: ['unit'],
   victory: [],
 });
@@ -167,6 +211,8 @@ export const PROLOGUE_ACTIONS = Object.freeze([
   'gateConfirm',
   'highlight',
   'markLesson',
+  'grantVision',
+  'clearCoach',
 ]);
 
 const BEAT_KEYS = new Set(['id', 'on', 'once', 'do']);
@@ -182,13 +228,25 @@ const CHAPTER_KEYS = new Set([
   'playerSpawns',
   'enemies',
   'npc',
+  'rosterItems',
   'villageTile',
   'thronePos',
   'escapeTiles',
   'loot',
   'beats',
 ]);
-const ROUTE_NODE_KEYS = new Set(['id', 'row', 'col', 'chapter', 'type', 'title']);
+const ROUTE_NODE_KEYS = new Set([
+  'id',
+  'row',
+  'col',
+  'chapter',
+  'type',
+  'title',
+  'preview',
+  'stock',
+]);
+const NPC_KEYS = new Set(['unit', 'className', 'col', 'row', 'line']);
+const JOIN_KEYS = new Set(['line', 'needs', 'lineIfGranted']);
 const UNIT_KEYS = new Set([
   'lord',
   'className',
@@ -199,6 +257,7 @@ const UNIT_KEYS = new Set([
   'proficiencies',
   'skills',
   'inventory',
+  'join',
 ]);
 const ENEMY_KEYS = new Set([
   'id',
@@ -423,6 +482,9 @@ export function buildPrologueNodeMap(prologue) {
       completed: false,
       title: entry.title || chapter?.title || null,
     };
+    if (typeof entry.preview === 'string' && entry.preview.trim()) node.preview = entry.preview;
+    // A prologue shop's fixed wares (ShopController builds them with buildPrologueShopStock).
+    if (Array.isArray(entry.stock)) node.prologueStock = [...entry.stock];
     if (chapter) {
       node.templateId = `${PROLOGUE_TEMPLATE_PREFIX}${chapter.id}`;
       node.encounterLocked = true;
@@ -483,6 +545,41 @@ export function buildPrologueLootChoices(loot, gameData, { actId = PROLOGUE_ACT_
     if (isInt(entry.quantity) && entry.quantity > 1) choice.quantity = entry.quantity;
     return choice;
   });
+}
+
+// --- Service nodes and arrivals ------------------------------------------------------
+
+/**
+ * A prologue shop's fixed wares as shop entries (the shape generateShopInventory
+ * returns: { item, price, type }): one entry per listed name, priced as a real shop
+ * of the act prices it (actShopPrice; the caller then applies the run's own price
+ * rules, as for any shop). Never random: item uids come from `rng`.
+ * @param {string[]} stock - route node `stock`
+ * @param {object} gameData - { weapons, consumables }
+ * @param {{ rng?: () => number, actId?: string }} [options]
+ */
+export function buildPrologueShopStock(stock, gameData, { rng, actId = PROLOGUE_ACT_ID } = {}) {
+  const draw = typeof rng === 'function' ? rng : Math.random;
+  return (Array.isArray(stock) ? stock : []).map((name) => {
+    const found = findItem(gameData, name);
+    if (!found) throw new Error(`Unknown prologue shop item "${name}"`);
+    const item = ensureItemUidWith(structuredClone(found.data), draw);
+    return { item, price: actShopPrice(item.price, actId), type: shopEntryTypeForItem(item) };
+  });
+}
+
+/** The unit keys (and special ids) that join on arrival at a route node. */
+export function prologueJoinsAtNode(prologue, nodeId) {
+  const list = prologue?.joins?.atNode?.[nodeId];
+  return Array.isArray(list) ? [...list] : [];
+}
+
+/** True when some route node's arrival brings `key` in (Tamsin at the fork). */
+export function isArrivalJoin(prologue, key) {
+  const atNode = prologue?.joins?.atNode;
+  return (
+    isPlainObject(atNode) && Object.values(atNode).some((l) => Array.isArray(l) && l.includes(key))
+  );
 }
 
 // --- Protected units -----------------------------------------------------------------
@@ -557,6 +654,12 @@ const CONDITION_MATCHERS = {
   concept: (want, e) => Array.isArray(e.concepts) && e.concepts.includes(want),
   pct: (want, e) => Number.isFinite(e.hpPct) && e.hpPct <= want,
   kill: (want, e) => Boolean(e.kill) === want,
+  hurt: (want, e) => Boolean(e.hurt) === want,
+  safe: (want, e) => Array.isArray(e.dangerFrom) && (e.dangerFrom.length === 0) === want,
+  inRange: (want, e) => Boolean(e.inRange) === want,
+  foeDistance: (want, e) => Array.isArray(e.foeDistances) && e.foeDistances.includes(want),
+  besideAlly: (want, e) => Boolean(e.besideAlly) === want,
+  afterRewind: (want, e) => Boolean(e.afterRewind) === want,
 };
 
 function beatConditions(beat) {
@@ -650,15 +753,16 @@ function equipAuthored(unit) {
  * @param {object} spec - a data/prologue.json `units` entry
  * @param {object} gameData - { lords, classes, weapons, consumables }
  * @param {() => number} rng - e.g. prologueUnitRng(prologue.seed, key)
- * @param {{ name?: string, level?: number }} [options] - the unit's name when the spec
- *   has no lord; `level` raises an authored-stats unit above its spec's level with
- *   seeded level-ups (a replay entering a later chapter at its expected level)
+ * @param {{ name?: string, level?: number, items?: string[] }} [options] - the unit's
+ *   name when the spec has no lord; `level` raises an authored-stats unit above its
+ *   spec's level with seeded level-ups (a replay entering a later chapter at its
+ *   expected level); `items` are added to the authored kit (a replay's rosterItems)
  */
 export function buildPrologueUnit(
   spec,
   gameData,
   rng,
-  { name = null, level: toLevel = null } = {},
+  { name = null, level: toLevel = null, items = null } = {},
 ) {
   if (typeof rng !== 'function') throw new Error('buildPrologueUnit needs a seeded rng');
   if (!spec || typeof spec !== 'object') throw new Error('buildPrologueUnit needs a spec');
@@ -706,7 +810,11 @@ export function buildPrologueUnit(
 
   unit.inventory = [];
   unit.consumables = [];
-  for (const itemName of Array.isArray(spec.inventory) ? spec.inventory : []) {
+  const kit = [
+    ...(Array.isArray(spec.inventory) ? spec.inventory : []),
+    ...(Array.isArray(items) ? items : []),
+  ];
+  for (const itemName of kit) {
     const item = findItem(gameData, itemName);
     if (!item) throw new Error(`Unknown prologue item "${itemName}"`);
     const clone = ensureItemUidWith(structuredClone(item.data), rng);
@@ -729,7 +837,7 @@ export function buildPrologueUnits(
   prologue,
   gameData,
   keys = Object.keys(prologue?.units || {}),
-  { levels = null } = {},
+  { levels = null, items = null } = {},
 ) {
   return keys.map((key) => {
     const spec = prologue?.units?.[key];
@@ -737,8 +845,31 @@ export function buildPrologueUnits(
     return buildPrologueUnit(spec, gameData, prologueUnitRng(prologue.seed, key), {
       name: key,
       level: isInt(levels?.[key]) ? levels[key] : null,
+      items: Array.isArray(items?.[key]) ? items[key] : null,
     });
   });
+}
+
+/**
+ * The authored green unit of a chapter (P3's Sera) for a battle config's `npcSpawn`
+ * (`prologueUnit` names its `units` key): built from its authored spec on its own
+ * stream (never the recruit node's roster-average level), green, on its tile. The one
+ * builder BattleScene and the headless harness both use. Null for any other spawn.
+ * @param {object} npcSpawn - battleConfig.npcSpawn
+ * @param {object} gameData - with `prologue`
+ */
+export function buildPrologueNpcUnit(npcSpawn, gameData) {
+  const key = npcSpawn?.prologueUnit;
+  if (typeof key !== 'string' || !key) return null;
+  const prologue = gameData?.prologue;
+  if (!prologue?.units?.[key]) throw new Error(`Unknown prologue NPC unit "${key}"`);
+  const [unit] = buildPrologueUnits(prologue, gameData, [key]);
+  unit.faction = 'npc';
+  unit.col = npcSpawn.col;
+  unit.row = npcSpawn.row;
+  unit.hasMoved = false;
+  unit.hasActed = false;
+  return unit;
 }
 
 /** True when a chapter roster entry names a special character (Gaspar), not a unit spec. */
@@ -758,13 +889,14 @@ export function isSpecialRosterKey(key, gameData) {
  */
 export function buildPrologueRoster(prologue, gameData, chapter, { difficultyId = 'normal' } = {}) {
   const levels = chapter?.rosterLevels || null;
+  const items = chapter?.rosterItems || null;
   return (Array.isArray(chapter?.roster) ? chapter.roster : []).map((key) => {
     if (isSpecialRosterKey(key, gameData)) {
       const unit = createSpecialCharacter(key, gameData, { difficultyId });
       if (!unit) throw new Error(`Unknown prologue special character "${key}"`);
       return unit;
     }
-    return buildPrologueUnits(prologue, gameData, [key], { levels })[0];
+    return buildPrologueUnits(prologue, gameData, [key], { levels, items })[0];
   });
 }
 
@@ -850,6 +982,7 @@ function validateUnits(units, gameData, errors) {
         for (const id of spec.skills)
           if (!skillIds.has(id)) errors.push(`${where}.skills: unknown skill "${id}"`);
     }
+    if (spec.join !== undefined) validateJoinSpec(`${where}.join`, spec.join, gameData, errors);
     let proficiencies = classData ? classWielder(classData).proficiencies : [];
     if (spec.proficiencies !== undefined) {
       if (!Array.isArray(spec.proficiencies)) {
@@ -889,6 +1022,33 @@ function validateUnits(units, gameData, errors) {
   }
 }
 
+/** A dialogue.json `prologue` key: checked against the lines when gameData has them. */
+function validateLineKey(where, key, gameData, errors) {
+  if (typeof key !== 'string' || !ID_PATTERN.test(key)) {
+    errors.push(`${where} must be a snake_case dialogue key`);
+    return;
+  }
+  const lines = gameData?.dialogue?.prologue;
+  if (lines && !(Array.isArray(lines[key]) && lines[key].length))
+    errors.push(`${where} "${key}" has no lines in dialogue.json prologue`);
+}
+
+function validateJoinSpec(where, join, gameData, errors) {
+  if (!isPlainObject(join)) {
+    errors.push(`${where} must be { line, needs?, lineIfGranted? }`);
+    return;
+  }
+  for (const key of Object.keys(join))
+    if (!JOIN_KEYS.has(key)) errors.push(`${where} has unknown field "${key}"`);
+  validateLineKey(`${where}.line`, join.line, gameData, errors);
+  if (join.needs !== undefined && !findItem(gameData, join.needs))
+    errors.push(`${where}.needs "${join.needs}" is not a weapon or consumable`);
+  if ((join.needs === undefined) !== (join.lineIfGranted === undefined))
+    errors.push(`${where}: needs and lineIfGranted go together`);
+  if (join.lineIfGranted !== undefined)
+    validateLineKey(`${where}.lineIfGranted`, join.lineIfGranted, gameData, errors);
+}
+
 function validateCondition(where, key, value, ctx, errors) {
   const unitRef = (v) =>
     typeof v === 'string' && (ctx.unitNames.has(v) || ctx.enemyIds.has(v) || ctx.npcNames.has(v));
@@ -912,7 +1072,15 @@ function validateCondition(where, key, value, ctx, errors) {
       }
       break;
     case 'kill':
-      if (typeof value !== 'boolean') errors.push(`${where}.kill must be true or false`);
+    case 'hurt':
+    case 'safe':
+    case 'inRange':
+    case 'besideAlly':
+    case 'afterRewind':
+      if (typeof value !== 'boolean') errors.push(`${where}.${key} must be true or false`);
+      break;
+    case 'foeDistance':
+      if (!isInt(value) || value < 1) errors.push(`${where}.foeDistance must be an integer >= 1`);
       break;
     case 'tile':
       if (!ctx.inBounds(value)) errors.push(`${where}.tile is not a tile on the map`);
@@ -967,6 +1135,10 @@ function validateAction(where, action, ctx, errors) {
       break;
     case 'gateConfirm':
       if (value !== true) errors.push(`${where}.gateConfirm must be true`);
+      break;
+    case 'grantVision':
+    case 'clearCoach':
+      if (value !== true) errors.push(`${where}.${kind} must be true`);
       break;
     case 'highlight': {
       const hk = value && typeof value === 'object' ? Object.keys(value) : [];
@@ -1084,6 +1256,26 @@ function validateChapter(chapter, index, prologue, gameData, errors, seen) {
           if (!isInt(level) || level < 1)
             errors.push(`${where}.rosterLevels.${key} must be an integer >= 1`);
         }
+      }
+    }
+  }
+  if (chapter.rosterItems !== undefined) {
+    if (!isPlainObject(chapter.rosterItems)) {
+      errors.push(`${where}.rosterItems must be an object of unit key -> [item names]`);
+    } else {
+      for (const [key, names] of Object.entries(chapter.rosterItems)) {
+        const spec = prologue?.units?.[key];
+        if (!spec || !(chapter.roster || []).includes(key)) {
+          errors.push(`${where}.rosterItems: "${key}" is not an authored unit of this roster`);
+          continue;
+        }
+        if (!Array.isArray(names) || !names.length) {
+          errors.push(`${where}.rosterItems.${key} must be a non-empty array of item names`);
+          continue;
+        }
+        for (const name of names)
+          if (!findItem(gameData, name))
+            errors.push(`${where}.rosterItems.${key}: unknown item "${name}"`);
       }
     }
   }
@@ -1205,6 +1397,12 @@ function validateChapter(chapter, index, prologue, gameData, errors, seen) {
 
   const npcNames = new Set();
   if (chapter.npc) {
+    for (const key of Object.keys(chapter.npc))
+      if (!NPC_KEYS.has(key)) errors.push(`${where}.npc has unknown field "${key}"`);
+    if (chapter.npc.line !== undefined)
+      validateLineKey(`${where}.npc.line`, chapter.npc.line, gameData, errors);
+    if ((chapter.roster || []).includes(chapter.npc.unit))
+      errors.push(`${where}.npc "${chapter.npc.unit}" is also in the roster`);
     const spec = prologue?.units?.[chapter.npc.unit];
     if (!spec) errors.push(`${where}.npc.unit "${chapter.npc.unit}" is not in units`);
     else {
@@ -1328,13 +1526,21 @@ function validateJoins(joins, prologue, gameData, errors) {
         errors.push(`joins.${section}.${at} must be an array`);
         continue;
       }
-      for (const who of list)
+      for (const who of list) {
         if (!joinable.has(who)) errors.push(`joins.${section}.${at}: unknown unit "${who}"`);
+        else if (section === 'atNode' && !isPlainObject(prologue.units?.[who]?.join))
+          errors.push(`joins.atNode.${at}: "${who}" needs a join spec (units.${who}.join)`);
+      }
+      if (section === 'atNode') {
+        const node = (prologue.route?.nodes || []).find((n) => n?.id === at);
+        if (node && node.chapter)
+          errors.push(`joins.atNode: "${at}" is a chapter node (arrivals join at service nodes)`);
+      }
     }
   }
 }
 
-function validateRoute(route, prologue, errors) {
+function validateRoute(route, prologue, gameData, errors) {
   if (route == null) return;
   if (!isPlainObject(route) || !Array.isArray(route.nodes)) {
     errors.push('route must be null or { title, nodes: [...], edges: [...] }');
@@ -1363,6 +1569,22 @@ function validateRoute(route, prologue, errors) {
       errors.push(`${at}.col must be an integer from 0 to 4`);
     if (node.title !== undefined && typeof node.title !== 'string')
       errors.push(`${at}.title must be a string`);
+    if (
+      node.preview !== undefined &&
+      (typeof node.preview !== 'string' || !node.preview.trim() || node.preview.length > 160)
+    )
+      errors.push(`${at}.preview must be a string of at most 160 characters`);
+    if (node.stock !== undefined) {
+      if (node.type !== NODE_TYPES.SHOP) errors.push(`${at}: only a shop node has a stock`);
+      if (!Array.isArray(node.stock) || !node.stock.length || node.stock.length > 8)
+        errors.push(`${at}.stock must be an array of 1 to 8 item names`);
+      else
+        for (const name of node.stock) {
+          const item = findItem(gameData, name);
+          if (!item) errors.push(`${at}.stock: unknown item "${name}"`);
+          else if (!(item.data.price > 0)) errors.push(`${at}.stock: "${name}" has no price`);
+        }
+    }
     if (node.chapter !== undefined) {
       const chapter = chapterById.get(node.chapter);
       if (!chapter) errors.push(`${at}.chapter "${node.chapter}" is not a chapter`);
@@ -1464,7 +1686,7 @@ export function validatePrologueConfig(prologue, gameData = {}) {
       validateChapter(chapter, i, prologue, gameData, errors, seen),
     );
   }
-  validateRoute(prologue.route, prologue, errors);
+  validateRoute(prologue.route, prologue, gameData, errors);
   validateJoins(prologue.joins, prologue, gameData, errors);
   validateEnding(prologue.ending, errors);
   validateBoss(prologue.boss, gameData, errors);

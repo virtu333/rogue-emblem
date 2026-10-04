@@ -77,6 +77,7 @@ const prologueResult = validatePrologueConfig(readData('prologue.json'), {
   traits: readData('traits.json'),
   enemies: readData('enemies.json'),
   specialChars: readData('specialChars.json'),
+  dialogue: readData('dialogue.json'),
 });
 if (prologueResult.valid) {
   console.log('  OK  prologue.json (engine validator)');

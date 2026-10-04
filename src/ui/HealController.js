@@ -544,6 +544,13 @@ export class HealController {
               { scene },
             );
         }
+        // A prologue chapter's heal beat (Sera's lesson practised).
+        if (scene._prologue && facts.targets?.length && isCurrentBattleSession(scene, session))
+          await safeBattlePresentation(
+            'heal beat',
+            () => scene._prologue.onHealed(healer, facts.targets[0].unit),
+            { scene },
+          );
       },
     });
   }

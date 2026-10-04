@@ -94,6 +94,15 @@ export class GuidanceController {
     });
   }
 
+  /**
+   * The level the greyed Attack reasons read: a prologue chapter shows them (they are
+   * menu text, not notes: Sera's "No target in range 1–2", an unarmed unit's reason),
+   * everywhere else the Guidance level.
+   */
+  reasonLevel() {
+    return isScriptedBattle(this.scene.battleParams) ? 'full' : this.level();
+  }
+
   allows(id) {
     const hints = this.scene.registry?.get?.('hints');
     if (!hints || hints.hasSeen?.(id)) return false;
@@ -104,7 +113,7 @@ export class GuidanceController {
   noTargetAttackReason(unit, targets = []) {
     const s = this.scene;
     if (!unit || unit.faction !== 'player' || targets.length) return null;
-    if (this.level() !== 'full') return null;
+    if (this.reasonLevel() !== 'full') return null;
     // The weapons and ranges targeting uses (BattleScene.findAttackTargets): proficient,
     // not silenced, uses left, skill range bonuses (Foresight) included.
     const weapons = getAttackWeapons(unit);
@@ -124,7 +133,7 @@ export class GuidanceController {
    * only staff ranks keeps Fire Emblem's hidden Attack.
    */
   unarmedAttackReason(unit) {
-    if (!unit || unit.faction !== 'player' || this.level() !== 'full') return null;
+    if (!unit || unit.faction !== 'player' || this.reasonLevel() !== 'full') return null;
     return isUnarmed(unit) ? unarmedReason() : null;
   }
 

@@ -305,7 +305,7 @@ import {
   TRANSITION_REASONS,
   TRANSITION_RESULTS,
 } from '../utils/SceneRouter.js';
-import { buildPrologueBattleConfig } from '../engine/Prologue.js';
+import { buildPrologueBattleConfig, buildPrologueNpcUnit } from '../engine/Prologue.js';
 import {
   isScriptedBattle,
   isStandaloneScriptedBattle,
@@ -1639,8 +1639,11 @@ export class BattleScene extends Phaser.Scene {
         const npcSpawn = bc.npcSpawn;
         const preview = { className: npcSpawn.className, name: npcSpawn.name };
         const node = this.runManager?.nodeMap?.nodes?.find((n) => n.id === this.nodeId) || null;
-        const built =
-          this.runManager && node
+        // An authored green unit (P3's Sera) is built from its prologue spec, never as
+        // a rolled recruit (the harness uses the same builder).
+        const built = npcSpawn.prologueUnit
+          ? { unit: buildPrologueNpcUnit(npcSpawn, this.gameData) }
+          : this.runManager && node
             ? this.runManager.getRecruitNodeUnit(node, { preview })
             : buildRecruitNodeUnit({
                 preview,
@@ -1664,13 +1667,15 @@ export class BattleScene extends Phaser.Scene {
         const npc = built?.unit || null;
         if (npc) {
           // The tile must suit the unit that actually spawned (a lord roll can turn a
-          // Myrmidon preview into Cavalry Rowan); RNG-free re-seat if it does not.
-          reconcileRecruitSpawnTile(bc, {
-            moveType: npc.moveType || 'Infantry',
-            terrainData: this.gameData.terrain,
-            classesData: this.gameData.classes,
-            weaponsData: this.gameData.weapons,
-          });
+          // Myrmidon preview into Cavalry Rowan); RNG-free re-seat if it does not. An
+          // authored tile is validated with its data and never moves.
+          if (!npcSpawn.prologueUnit)
+            reconcileRecruitSpawnTile(bc, {
+              moveType: npc.moveType || 'Infantry',
+              terrainData: this.gameData.terrain,
+              classesData: this.gameData.classes,
+              weaponsData: this.gameData.weapons,
+            });
           npc.col = npcSpawn.col;
           npc.row = npcSpawn.row;
           // Run identity from the start, so a fallen-recruit record and a living
@@ -8880,6 +8885,13 @@ export class BattleScene extends Phaser.Scene {
     const rm = this.runManager;
     if (!rm?.battleInProgress) return 'none';
     let outcome = 'reverted';
+    // The prologue never settles a defeat: even a fatal checkpoint that can't be
+    // reopened reverts the chapter to its entry (it restarts from the map).
+    if (isPrologueRun(rm)) {
+      rm.restartPrologueBattle();
+      this._persistBattleRunState?.(null, { session: session });
+      return outcome;
+    }
     if (!rm.revertBattleInProgressToEntry()) {
       if (rm.battleInProgress?.checkpoint) rm.battleInProgress.checkpoint.restoreFailed = true;
       outcome = 'fatal';
@@ -9041,8 +9053,9 @@ export class BattleScene extends Phaser.Scene {
         }
         // After the last words: a titled unit is named in full as it falls.
         deedsFor(this).announceFall(unit);
-        // Lord farewell dialogue (non-commander; commander death triggers game over elsewhere)
-        if (unit.isLord && !unit.isCommander) {
+        // Lord farewell dialogue (non-commander; commander death triggers game over elsewhere).
+        // A prologue chapter restarts instead ("Not this thread"): no farewell.
+        if (unit.isLord && !unit.isCommander && !isScriptedBattle(this.battleParams)) {
           const farewellPool = this.gameData?.dialogue?.lordFarewell?.[unit.name];
           if (Array.isArray(farewellPool) && farewellPool.length > 0) {
             const cast = resolveDialogueCast(this.runManager?.getStartingLordNames?.());
@@ -9073,12 +9086,14 @@ export class BattleScene extends Phaser.Scene {
             if (!isCurrentBattleSession(this, session)) return;
           }
         }
-        // Someone on the field answers the loss (a quip over a living lord).
-        safeBattlePresentation(
-          'ally fall',
-          () => (this._battleBeats ||= new BattleBeatsController(this)).onAllyFall(unit),
-          { scene: this },
-        );
+        // Someone on the field answers the loss (a quip over a living lord); a prologue
+        // chapter restarts instead, so nobody mourns a fall that is undone.
+        if (!isScriptedBattle(this.battleParams))
+          safeBattlePresentation(
+            'ally fall',
+            () => (this._battleBeats ||= new BattleBeatsController(this)).onAllyFall(unit),
+            { scene: this },
+          );
       }
     } else if (unit.faction === 'npc') {
       const idx = this.npcUnits.indexOf(unit);

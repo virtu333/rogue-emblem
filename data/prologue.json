@@ -36,6 +36,73 @@
         "Iron Sword",
         "Vulnerary"
       ]
+    },
+    "Sera": {
+      "lord": "Sera",
+      "level": 1,
+      "stats": {
+        "HP": 18,
+        "STR": 2,
+        "MAG": 6,
+        "SKL": 4,
+        "SPD": 5,
+        "DEF": 3,
+        "RES": 7,
+        "LCK": 6,
+        "MOV": 4
+      },
+      "growths": {
+        "HP": 52,
+        "STR": 12,
+        "MAG": 49,
+        "SKL": 34,
+        "SPD": 38,
+        "DEF": 23,
+        "RES": 54,
+        "LCK": 46
+      },
+      "traits": [],
+      "proficiencies": [
+        "Light",
+        "Staff"
+      ],
+      "inventory": [
+        "Glimmer",
+        "Heal",
+        "Vulnerary"
+      ]
+    },
+    "Tamsin": {
+      "className": "Archer",
+      "level": 1,
+      "stats": {
+        "HP": 18,
+        "STR": 5,
+        "MAG": 0,
+        "SKL": 7,
+        "SPD": 5,
+        "DEF": 3,
+        "RES": 2,
+        "LCK": 4,
+        "MOV": 4
+      },
+      "growths": {
+        "HP": 67,
+        "STR": 42,
+        "MAG": 5,
+        "SKL": 57,
+        "SPD": 42,
+        "DEF": 25,
+        "RES": 20,
+        "LCK": 35
+      },
+      "traits": [],
+      "inventory": [],
+      "join": {
+        "line": "tamsin_joins",
+        "needs": "Iron Bow",
+        "lineIfGranted": "tamsin_joins_bow_rack"
+      }
     }
   },
   "chapters": [
@@ -142,6 +209,29 @@
           ]
         },
         {
+          "id": "p1_holding_enemy",
+          "on": "afterMove",
+          "unit": "Edric",
+          "dangerFrom": "b",
+          "once": true,
+          "do": [
+            {
+              "note": "p1_holding_enemy"
+            },
+            {
+              "highlight": {
+                "reachOf": "b"
+              }
+            },
+            {
+              "markLesson": {
+                "id": "hold_reach",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
           "id": "p1_on_the_fort",
           "on": "afterMove",
           "unit": "Edric",
@@ -235,29 +325,6 @@
             {
               "markLesson": {
                 "id": "growth",
-                "kind": "shown"
-              }
-            }
-          ]
-        },
-        {
-          "id": "p1_holding_enemy",
-          "on": "afterMove",
-          "unit": "Edric",
-          "dangerFrom": "b",
-          "once": true,
-          "do": [
-            {
-              "note": "p1_holding_enemy"
-            },
-            {
-              "highlight": {
-                "reachOf": "b"
-              }
-            },
-            {
-              "markLesson": {
-                "id": "hold_reach",
                 "kind": "shown"
               }
             }
@@ -563,6 +630,360 @@
           ]
         }
       ]
+    },
+    {
+      "id": "p3_seer_on_the_road",
+      "node": "prologue_3",
+      "title": "The Seer on the Road",
+      "objective": "rout",
+      "roster": [
+        "Edric",
+        "old_knight",
+        "Tamsin"
+      ],
+      "rosterLevels": {
+        "Edric": 3
+      },
+      "rosterItems": {
+        "Tamsin": [
+          "Iron Bow"
+        ]
+      },
+      "showPar": false,
+      "map": {
+        "legend": {
+          ".": "Plain",
+          "F": "Forest",
+          "T": "Fort"
+        },
+        "rows": [
+          ". . . . . . . F . . . .",
+          ". . . . . . F . . . . .",
+          ". . F . . . F . . . . .",
+          ". . . . . . . . . F . .",
+          ". . T . . . . . . . . ."
+        ]
+      },
+      "playerSpawns": [
+        {
+          "col": 0,
+          "row": 2
+        },
+        {
+          "col": 0,
+          "row": 1
+        },
+        {
+          "col": 0,
+          "row": 3
+        }
+      ],
+      "enemies": [
+        {
+          "id": "s",
+          "className": "Soldier",
+          "level": 1,
+          "col": 5,
+          "row": 2,
+          "weapon": "Iron Lance",
+          "skills": []
+        },
+        {
+          "id": "a",
+          "className": "Soldier",
+          "level": 1,
+          "col": 10,
+          "row": 1,
+          "weapon": "Iron Lance",
+          "skills": []
+        },
+        {
+          "id": "b",
+          "className": "Soldier",
+          "level": 1,
+          "col": 10,
+          "row": 2,
+          "weapon": "Iron Lance",
+          "skills": [],
+          "aiMode": "hold",
+          "holdPack": 0,
+          "holdPackSize": 1
+        }
+      ],
+      "npc": {
+        "unit": "Sera",
+        "className": "Light Sage",
+        "col": 4,
+        "row": 2,
+        "line": "p3_sera_joins"
+      },
+      "villageTile": null,
+      "loot": null,
+      "beats": [
+        {
+          "id": "p3_intro",
+          "on": "battleStart",
+          "once": true,
+          "do": [
+            {
+              "dialogue": "p3_intro"
+            },
+            {
+              "coach": "p3_reach_sera"
+            },
+            {
+              "highlight": {
+                "unit": "Sera"
+              }
+            },
+            {
+              "note": "p3_recruit"
+            },
+            {
+              "markLesson": {
+                "id": "recruit",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_sera_joins",
+          "on": "talk",
+          "once": true,
+          "target": "Sera",
+          "do": [
+            {
+              "clearCoach": true
+            },
+            {
+              "coach": "p3_sera_acts"
+            },
+            {
+              "markLesson": {
+                "id": "recruit",
+                "kind": "practised"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_sera_done",
+          "on": "unitActed",
+          "unit": "Sera",
+          "do": [
+            {
+              "clearCoach": true
+            }
+          ]
+        },
+        {
+          "id": "p3_heal",
+          "on": "unitSelected",
+          "once": true,
+          "unit": "Sera",
+          "hurt": true,
+          "do": [
+            {
+              "note": "p3_heal"
+            },
+            {
+              "markLesson": {
+                "id": "heal",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_healed",
+          "on": "healed",
+          "once": true,
+          "unit": "Sera",
+          "do": [
+            {
+              "markLesson": {
+                "id": "heal",
+                "kind": "practised"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_fragile_sera",
+          "on": "afterMove",
+          "once": true,
+          "unit": "Sera",
+          "dangerFrom": "*",
+          "do": [
+            {
+              "note": "p3_fragile"
+            },
+            {
+              "markLesson": {
+                "id": "threat_count",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_fragile_tamsin",
+          "on": "afterMove",
+          "once": true,
+          "unit": "Tamsin",
+          "dangerFrom": "*",
+          "do": [
+            {
+              "note": "p3_fragile"
+            },
+            {
+              "markLesson": {
+                "id": "threat_count",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_plan_cancel",
+          "on": "afterMove",
+          "once": true,
+          "unit": "Sera",
+          "inRange": false,
+          "do": [
+            {
+              "note": "p3_plan_cancel"
+            },
+            {
+              "markLesson": {
+                "id": "plan_cancel",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_range",
+          "on": "afterMove",
+          "once": true,
+          "unit": "Sera",
+          "foeDistance": 2,
+          "do": [
+            {
+              "note": "p3_range"
+            },
+            {
+              "coach": "p3_look_is_free"
+            },
+            {
+              "markLesson": {
+                "id": "range_two",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_aura",
+          "on": "afterMove",
+          "once": true,
+          "unit": "Sera",
+          "besideAlly": true,
+          "do": [
+            {
+              "note": "p3_aura"
+            },
+            {
+              "markLesson": {
+                "id": "aura",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_magic",
+          "on": "forecastOpened",
+          "once": true,
+          "unit": "Sera",
+          "concept": "magic",
+          "do": [
+            {
+              "note": "p3_magic"
+            },
+            {
+              "markLesson": {
+                "id": "magic",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_glimmer",
+          "on": "combatResolved",
+          "once": true,
+          "unit": "Sera",
+          "do": [
+            {
+              "markLesson": {
+                "id": "range_two",
+                "kind": "practised"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_rewind",
+          "on": "turnStart",
+          "once": true,
+          "turn": 2,
+          "hurt": true,
+          "do": [
+            {
+              "grantVision": true
+            },
+            {
+              "note": "p3_rewind"
+            },
+            {
+              "markLesson": {
+                "id": "rewind",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_better_plan",
+          "on": "afterMove",
+          "once": true,
+          "afterRewind": true,
+          "safe": true,
+          "do": [
+            {
+              "note": "p3_better_plan"
+            },
+            {
+              "markLesson": {
+                "id": "rewind",
+                "kind": "practised"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p3_victory",
+          "on": "victory",
+          "once": true,
+          "do": [
+            {
+              "dialogue": "p3_victory"
+            }
+          ]
+        }
+      ]
     }
   ],
   "route": {
@@ -577,12 +998,56 @@
         "id": "prologue_1",
         "row": 1,
         "chapter": "p2_old_hands"
+      },
+      {
+        "id": "prologue_2a",
+        "row": 2,
+        "col": 1,
+        "type": "shop",
+        "title": "Harrow's Market",
+        "preview": "Spend your gold on fixed stock: no restock here. The crossing's watch archer waits at either stop.",
+        "stock": [
+          "Vulnerary",
+          "Vulnerary",
+          "Iron Sword",
+          "Iron Lance",
+          "Javelin"
+        ]
+      },
+      {
+        "id": "prologue_2b",
+        "row": 2,
+        "col": 3,
+        "type": "church",
+        "title": "Harrow's Chapel",
+        "preview": "Heal the whole army for free; revive the fallen for gold. The crossing's watch archer waits at either stop."
+      },
+      {
+        "id": "prologue_3",
+        "row": 3,
+        "chapter": "p3_seer_on_the_road"
       }
     ],
     "edges": [
       [
         "prologue_0",
         "prologue_1"
+      ],
+      [
+        "prologue_1",
+        "prologue_2a"
+      ],
+      [
+        "prologue_1",
+        "prologue_2b"
+      ],
+      [
+        "prologue_2a",
+        "prologue_3"
+      ],
+      [
+        "prologue_2b",
+        "prologue_3"
       ]
     ]
   },
@@ -590,6 +1055,14 @@
     "afterChapter": {
       "p1_banner_at_dawn": [
         "old_knight"
+      ]
+    },
+    "atNode": {
+      "prologue_2a": [
+        "Tamsin"
+      ],
+      "prologue_2b": [
+        "Tamsin"
       ]
     }
   },

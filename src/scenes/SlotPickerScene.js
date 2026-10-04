@@ -25,6 +25,7 @@ import {
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { HintManager } from '../engine/HintManager.js';
 import { loadRun, saveRun, clearBattleInProgressInSave } from '../engine/RunManager.js';
+import { isPrologueRun } from '../engine/ScriptedBattle.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { pushMeta, pushRunSave, deleteSlotCloud } from '../cloud/CloudSync.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
@@ -728,18 +729,29 @@ export class SlotPickerScene extends Phaser.Scene {
     const fatal = rm.battleInProgress?.checkpoint?.recoveryKind === 'fatal_pending';
     const invalid = rm._battleRecoveryInvalid === true;
     const restoreFailed = rm._battleRecoveryRestoreFailed === true;
+    // The prologue never settles a defeat (§8): a fall there restarts the chapter, so
+    // even a fatal checkpoint can be taken back to the map, and there is no defeat.
+    const prologue = isPrologueRun(rm);
     return {
       fatal,
       invalid,
       restoreFailed,
+      prologue,
       legacy: invalid && rm._battleRecoveryLegacy === true,
       canResume: !invalid,
-      canRevert: !fatal,
-      canAcceptDefeat: fatal && (invalid || restoreFailed),
+      canRevert: !fatal || prologue,
+      canAcceptDefeat: !prologue && fatal && (invalid || restoreFailed),
     };
   }
 
   _suspendedBattleCopy(options) {
+    if (options.prologue && options.fatal)
+      return {
+        title: 'Battle in progress',
+        body: options.invalid
+          ? 'A unit fell in this chapter, and its save could not be read. Continue from Map restarts the chapter.'
+          : 'A unit fell in this chapter. Resume to decide, or Continue from Map to restart the chapter.',
+      };
     if (options.invalid && options.fatal)
       return {
         title: 'Battle save needs recovery',
@@ -947,6 +959,26 @@ export class SlotPickerScene extends Phaser.Scene {
           this,
           'RunComplete',
           { gameData: this.gameData, runManager: rm, result: 'defeat' },
+          { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+        );
+      } else if (
+        isPrologueRun(rm) &&
+        rm.battleInProgress?.checkpoint?.recoveryKind === 'fatal_pending'
+      ) {
+        // A prologue fall restarts its chapter: the same entry revert, past the fatal
+        // checkpoint (RunManager.restartPrologueBattle), saved before the map opens.
+        rm.restartPrologueBattle();
+        const saved = saveRun(rm, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null, slot);
+        if (!saved?.ok) {
+          this.isTransitioning = false;
+          if (this.input) this.input.enabled = true;
+          this._showSuspendedBattleChoice(slot, loadRun(this.gameData, slot) || rm);
+          return;
+        }
+        transitioned = await transitionToScene(
+          this,
+          'NodeMap',
+          { gameData: this.gameData, runManager: rm },
           { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
         );
       } else {

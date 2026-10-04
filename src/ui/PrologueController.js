@@ -29,7 +29,7 @@ import {
   prologueProtectedNames,
 } from '../engine/Prologue.js';
 import { isStandaloneScriptedBattle, prologueChapterOf } from '../engine/ScriptedBattle.js';
-import { finishPrologue } from './PrologueEnding.js';
+import { finishPrologue, offerSkipRetry } from './PrologueEnding.js';
 import { prologueBattleLaunchData } from '../utils/firstRunFastPath.js';
 import {
   computeDangerTiles,
@@ -40,6 +40,7 @@ import { DangerZoneOverlay } from './DangerZoneOverlay.js';
 import { PrologueCoach } from './PrologueCoach.js';
 import {
   NOTE_HINT_IDS,
+  PROLOGUE_NOTE_ACTIONS,
   prologueCoachGoal,
   prologueHandoff,
   prologueNoteText,
@@ -50,6 +51,7 @@ import { showImportantHint } from './HintDisplay.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { TILE_SIZE } from '../utils/constants.js';
+import { gridDistance } from '../engine/Combat.js';
 import { UI_HEX } from '../utils/uiStyles.js';
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 
@@ -58,7 +60,16 @@ const PAUSABLE_STATES = new Set(['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_ME
 // The battle state a modal note holds (input and the rail wait on it).
 export const PROLOGUE_NOTE_STATE = 'TUTORIAL_HINT';
 const UNIT_RING = 0x4aa3ff;
-const SYNC_ACTIONS = ['coach', 'gateSelect', 'gateMove', 'gateConfirm', 'highlight', 'markLesson'];
+const SYNC_ACTIONS = [
+  'coach',
+  'gateSelect',
+  'gateMove',
+  'gateConfirm',
+  'highlight',
+  'markLesson',
+  'grantVision',
+  'clearCoach',
+];
 // Notes raised here wait for a playable player turn (the phase banner, turn-start effects).
 const DEFERRED_EVENTS = new Set(['battleStart', 'turnStart']);
 
@@ -93,6 +104,7 @@ export class PrologueController {
     this.started = false;
     this.restarting = false;
     this.offeredRewind = false;
+    this.rewound = false; // a Vision rewind was spent this battle (afterRewind beats)
     this.leaving = null;
     this.coach = null;
     this.created = false;
@@ -171,7 +183,35 @@ export class PrologueController {
     else if ('markLesson' in action) {
       const { id, kind } = action.markLesson;
       (kind === 'practised' ? this.lessons.practised : this.lessons.shown).add(id);
+    } else if ('grantVision' in action) this.grantVision();
+    else if ('clearCoach' in action) {
+      if (!this.gate) this.coachGoal = null;
     }
+  }
+
+  /**
+   * P3's exercise: the prologue's one Vision charge. In the run it is the run's charge
+   * (RunManager.grantPrologueVision: once per run, saved with the next checkpoint);
+   * standalone, the scene's own store gets it once. Returns true when granted.
+   */
+  grantVision() {
+    const scene = this.scene;
+    let granted = false;
+    if (this.run) granted = Boolean(this.run.grantPrologueVision?.());
+    else if (!this.standaloneVisionGranted) {
+      const host = (scene._standaloneVisionState ||= { visionChargesRemaining: 0, visionCount: 0 });
+      host.visionChargesRemaining += 1;
+      this.standaloneVisionGranted = true;
+      granted = true;
+    }
+    if (granted) {
+      try {
+        scene.updateVisionHud?.();
+      } catch {
+        /* presentation only */
+      }
+    }
+    return granted;
   }
 
   // --- Gates and the coach ---------------------------------------------------------
@@ -275,6 +315,9 @@ export class PrologueController {
       touch: Boolean(scene.isMobileInput),
       lord: commander?.name || 'Edric',
       veteran: veteran?.name || 'Gaspar',
+      npc: this.chapter?.npc?.unit || null,
+      npcClass: this.chapter?.npc?.className || null,
+      ally: this.mostHurtAlly()?.name || null,
       gateTile: this.gate?.kind === 'move' ? { col: this.gate.col, row: this.gate.row } : null,
       ...extra,
     };
@@ -304,6 +347,22 @@ export class PrologueController {
     return DEFERRED_EVENTS.has(event.type) ? this.defer(run) : run();
   }
 
+  /** The most hurt living player unit (lowest HP %), or null when nobody is hurt. */
+  mostHurtAlly(exclude = null) {
+    let best = null;
+    for (const unit of this.scene.playerUnits || []) {
+      if (unit === exclude) continue;
+      if (!(unit?.currentHP > 0) || !(unit.currentHP < unit.stats?.HP)) continue;
+      if (!best || this.hpPct(unit) < this.hpPct(best)) best = unit;
+    }
+    return best;
+  }
+
+  /** True while any living player unit is below full HP. */
+  anyHurt() {
+    return Boolean(this.mostHurtAlly());
+  }
+
   async showNote(id, text) {
     const scene = this.scene;
     if (!this.sceneLive()) return false;
@@ -315,7 +374,7 @@ export class PrologueController {
       if (!this.sceneLive()) return false;
       this.lessonOpen = true;
       this.activeLessonId = id;
-      const result = await this.withHintState(() => this.fieldNote(text));
+      const result = await this.withHintState(() => this.fieldNote(text, id));
       return result !== false && this.sceneLive();
     } finally {
       this.lessonOpen = false;
@@ -326,11 +385,13 @@ export class PrologueController {
   }
 
   /** A Field note with Continue, plus a way out (choosing it opens the confirmation). */
-  async fieldNote(message) {
+  async fieldNote(message, id = null) {
     const scene = this.scene;
+    const extra = (id && PROLOGUE_NOTE_ACTIONS[id]) || [];
     const actions = hasDOMHost()
       ? [
-          { label: 'Continue', value: true, primary: true },
+          ...extra.map((a) => ({ ...a, primary: true })),
+          { label: 'Continue', value: true, primary: !extra.length },
           { label: this.run ? 'Skip prologue' : 'Leave prologue', value: 'leave' },
         ]
       : null;
@@ -338,7 +399,19 @@ export class PrologueController {
       ? await showImportantHint(scene, message, { actions })
       : await showImportantHint(scene, message);
     if (result === 'leave') setTimeout(() => this.requestLeave(), 0);
+    // The rewind exercise: the note opens Rewind once its battle state is back.
+    if (result === 'rewind') setTimeout(() => this.openRewind(), 0);
     return result;
+  }
+
+  /** Open the Rewind surface (the exercise's button); false when it can't open now. */
+  openRewind() {
+    if (this.destroyed || !this.sceneLive()) return false;
+    try {
+      return Boolean(this.scene.requestVisionRewind?.());
+    } catch {
+      return false;
+    }
   }
 
   async withHintState(fn) {
@@ -442,19 +515,89 @@ export class PrologueController {
     this.clearHighlights();
     if (phase === 'player' && !this.started) {
       this.started = true;
-      void this.emit({ type: 'battleStart' });
+      // battleStart belongs to turn 1 of a fresh battle only: a scene that comes up
+      // later (a resume without teaching state) never replays the opening.
+      if (turn === 1) void this.emit({ type: 'battleStart' });
       const reveal = async () => this.coach?.reveal();
       if (schedule) schedule(1500, 'prologue_coach_reveal', reveal);
       else void reveal();
     }
-    void this.emit({ type: 'turnStart', turn, phase });
+    void this.emit({ type: 'turnStart', turn, phase, hurt: this.anyHurt() });
+  }
+
+  // --- Suspend and resume ------------------------------------------------------------
+
+  /**
+   * The teaching state a suspend checkpoint carries (BattleSuspendController), so a
+   * Resume Battle or a rotation's re-open continues the chapter where it was: the
+   * spent beats, the guided step (gate and goal), the lesson ledger.
+   */
+  snapshot() {
+    return {
+      version: 1,
+      started: this.started,
+      fired: [...(this.beatState?.fired || [])],
+      gatesSkipped: this.gatesSkipped,
+      gate: this.gate ? { ...this.gate } : null,
+      coachGoal: this.coachGoal,
+      forecastCount: this.forecastCount,
+      taught: [...this.taught],
+      shown: [...this.lessons.shown],
+      practised: [...this.lessons.practised],
+      rewound: this.rewound,
+      standaloneVisionGranted: Boolean(this.standaloneVisionGranted),
+    };
+  }
+
+  /**
+   * A resumed battle (Resume Battle, a rotation's re-open): restore the teaching state
+   * the checkpoint carried, then reveal the coach. A checkpoint without one (saved
+   * before this existed) resumes as a started chapter: nothing replays. A checkpoint
+   * from before the opening ran (turn 1, nothing fired) opens it now, since no phase
+   * start will.
+   */
+  onResume(state, { turn = 1, phase = 'player' } = {}) {
+    if (this.destroyed) return;
+    const valid = state && typeof state === 'object' && state.version === 1;
+    if (valid) {
+      this.started = state.started === true;
+      this.beatState = { fired: Array.isArray(state.fired) ? [...state.fired] : [] };
+      this.gatesSkipped = state.gatesSkipped === true;
+      this.gate = state.gate && typeof state.gate === 'object' ? { ...state.gate } : null;
+      this.coachGoal = typeof state.coachGoal === 'string' ? state.coachGoal : null;
+      this.forecastCount = Number.isInteger(state.forecastCount) ? state.forecastCount : 0;
+      this.taught = new Set(Array.isArray(state.taught) ? state.taught : []);
+      this.lessons = {
+        shown: new Set(Array.isArray(state.shown) ? state.shown : []),
+        practised: new Set(Array.isArray(state.practised) ? state.practised : []),
+      };
+      this.rewound = state.rewound === true;
+      this.standaloneVisionGranted = state.standaloneVisionGranted === true;
+    } else {
+      this.started = true;
+    }
+    for (const unit of this.scene.playerUnits || []) this.hpSeen.set(unit.name, this.hpPct(unit));
+    if (!this.started && phase === 'player' && turn === 1) {
+      this.started = true;
+      void this.emit({ type: 'battleStart' });
+    }
+    this.started = true;
+    // The guided step's tile ring comes back with its gate.
+    if (this.gate?.kind === 'move') this.markTile(this.gate.col, this.gate.row, UI_HEX.accent);
+    if (this.gate?.kind === 'select') this.highlight({ unit: this.gate.unit });
+    this.scene.refreshEndTurnControl?.();
+    this.coach?.reveal();
   }
 
   onUnitSelected(unit) {
     if (this.destroyed || unit?.faction !== 'player') return;
     if (this.gate?.kind === 'select' && unit.name === this.gate.unit) this.releaseGate();
     this.clearReach();
-    void this.emit({ type: 'unitSelected', unit: unit.name, turn: this.turn() });
+    const ally = this.mostHurtAlly(unit);
+    void this.emit(
+      { type: 'unitSelected', unit: unit.name, turn: this.turn(), hurt: Boolean(ally) },
+      { ctx: { ally: ally?.name || null } },
+    );
   }
 
   /** A player unit finished moving (before its action). Resolves once its notes are read. */
@@ -464,15 +607,21 @@ export class PrologueController {
     if (this.gate?.kind === 'move' && unit.col === this.gate.col && unit.row === this.gate.row)
       this.releaseGate();
     const terrain = scene.grid?.getTerrainAt?.(unit.col, unit.row) || null;
+    const dangerFrom = this.dangerSources(unit.col, unit.row);
     const event = {
       type: 'afterMove',
       unit: unit.name,
       tile: { col: unit.col, row: unit.row },
       terrain: terrain?.name || null,
-      dangerFrom: this.dangerSources(unit.col, unit.row),
+      dangerFrom,
       turn: this.turn(),
+      inRange: this.foeInReach(unit),
+      foeDistances: this.foeDistances(unit),
+      besideAlly: this.besideAlly(unit),
+      afterRewind: this.rewound,
     };
-    const actions = this.match(event);
+    // One concept per decision: the first note that matches shows, the rest wait.
+    const actions = this.match(event, { oneNote: true });
     if (!actions.length) return Promise.resolve(false);
     if (actions.some((a) => a.note === 'battle_terrain')) {
       // The preview shows the arrived tile before the note points at it.
@@ -480,7 +629,34 @@ export class PrologueController {
       scene._inputController?.refreshTileInfo?.(unit.col, unit.row);
       scene._mobileBattleHud?.sync?.();
     }
-    return this.runActions(actions, event, { ctx: { terrain } });
+    return this.runActions(actions, event, {
+      ctx: { terrain, count: dangerFrom.length, unit: unit.name },
+    });
+  }
+
+  /** A foe the unit could attack from where it stands (its weapons' reach). */
+  foeInReach(unit) {
+    try {
+      const targets = this.scene.findAttackTargets?.(unit);
+      return Array.isArray(targets) && targets.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /** The unit's distance to every foe the player can see. */
+  foeDistances(unit) {
+    const grid = this.scene.grid;
+    return (this.scene.enemyUnits || [])
+      .filter((e) => e?.currentHP > 0 && (!grid?.fogEnabled || grid.isVisible?.(e.col, e.row)))
+      .map((e) => gridDistance(unit.col, unit.row, e.col, e.row));
+  }
+
+  /** Another player unit stands next to it. */
+  besideAlly(unit) {
+    return (this.scene.playerUnits || []).some(
+      (u) => u !== unit && u?.currentHP > 0 && gridDistance(u.col, u.row, unit.col, unit.row) === 1,
+    );
   }
 
   /** Enemy ids whose Danger tiles (what the player knows) hold a tile. */
@@ -578,6 +754,43 @@ export class PrologueController {
     return actions.some((a) => 'note' in a || 'dialogue' in a) ? promise : null;
   }
 
+  /** A Talk resolved (the recruit joined and its card closed). Resolves once its notes are read. */
+  onTalk(lord, npc) {
+    if (this.destroyed || !lord || !npc) return Promise.resolve(false);
+    for (const unit of this.scene.playerUnits || []) this.hpSeen.set(unit.name, this.hpPct(unit));
+    return this.emit({ type: 'talk', unit: lord.name, target: this.unitKey(npc) });
+  }
+
+  /** A staff heal resolved. Resolves once its notes are read. */
+  onHealed(healer, target) {
+    if (this.destroyed || !healer) return Promise.resolve(false);
+    return this.emit({ type: 'healed', unit: healer.name, target: this.unitKey(target) });
+  }
+
+  /** The authored line an NPC's Talk card reads (chapter.npc.line), or null. */
+  talkLine(npc) {
+    const key = this.chapter?.npc?.unit === npc?.name ? this.chapter?.npc?.line : null;
+    const entries = key ? this.scene.gameData?.dialogue?.prologue?.[key] : null;
+    const line = Array.isArray(entries) ? entries[0]?.line : null;
+    return typeof line === 'string' && line ? line : null;
+  }
+
+  /**
+   * A Vision rewind was spent and the board restored. The exercise watches the next
+   * move (afterRewind); the fall that offered the charge is forgotten, so a later
+   * fall offers a remaining charge again.
+   */
+  onRewound() {
+    if (this.destroyed) return Promise.resolve(false);
+    this.rewound = true;
+    this.offeredRewind = false;
+    this.restarting = false;
+    this.scene._prologueFallen = null;
+    this.deferred = [];
+    this.clearHighlights();
+    return this.emit({ type: 'rewound' });
+  }
+
   /** A level-up card closed. Resolves once its note is read. */
   onLevelUp(unit) {
     if (this.destroyed || unit?.faction !== 'player') return Promise.resolve(false);
@@ -602,7 +815,8 @@ export class PrologueController {
   onUnitDefeated(unit) {
     if (this.destroyed || !unit) return;
     void this.emit({ type: 'unitDefeated', unit: this.unitKey(unit) });
-    if (unit.faction === 'player' && this.isProtected(unit))
+    // Sera is protected green or blue: her fall as an NPC restarts the chapter too.
+    if ((unit.faction === 'player' || unit.faction === 'npc') && this.isProtected(unit))
       this.onDefeatIntercept({ fallen: unit });
   }
 
@@ -622,10 +836,10 @@ export class PrologueController {
     const scene = this.scene;
     if (this.destroyed) return false;
     if (this.restarting) return true;
-    if (fallen && !fallen.isCommander && !scene._fallenCommander) {
-      // The fate prompt and the FALLEN band name whoever fell.
-      scene._fallenCommander = { name: fallen.name, className: fallen.className, epithet: null };
-      scene._battleCommanderName = fallen.name;
+    if (fallen && !fallen.isCommander) {
+      // The fate prompt names whoever fell; the commander's identity is never touched
+      // (a later prompt or fatal checkpoint must still name the commander).
+      scene._prologueFallen = { name: fallen.name, className: fallen.className, epithet: null };
     }
     if (!accepted && this.run && !this.offeredRewind && this.canOfferRewind()) {
       this.offeredRewind = true;
@@ -772,15 +986,24 @@ export class PrologueController {
   skipRest() {
     if (this.leaving) return this.leaving;
     const scene = this.scene;
+    const resumeState = PAUSABLE_STATES.has(scene.battleState) ? scene.battleState : 'PLAYER_IDLE';
     scene._reinforcementsPendingThisTurn = false;
     scene.battleState = 'BATTLE_END';
     this.deferred = [];
     this.clearHighlights();
-    this.coach?.destroy();
-    this.coach = null;
+    this.coach?.hide?.();
     this.leaving = finishPrologue(scene, {
       taught: this.taught,
       practised: this.lessons.practised,
+      onCommitFailed: () => {},
+    }).then((started) => {
+      if (started || this.destroyed || !this.sceneLive()) return started;
+      // Nothing left: the chapter is playable again, and the skip can be retried.
+      this.leaving = null;
+      scene.battleState = resumeState;
+      this.coach?.reveal();
+      scene.refreshEndTurnControl?.();
+      return offerSkipRetry(scene, () => this.skipRest());
     });
     return this.leaving;
   }
@@ -825,7 +1048,9 @@ export class PrologueController {
     const scene = this.scene;
     if ('tile' in spec) this.markTile(spec.tile.col, spec.tile.row, UI_HEX.accent);
     else if ('unit' in spec) {
-      const unit = (scene.playerUnits || []).find((u) => u?.name === spec.unit);
+      const unit = [...(scene.playerUnits || []), ...(scene.npcUnits || [])].find(
+        (u) => u?.name === spec.unit,
+      );
       if (unit) this.markTile(unit.col, unit.row, UNIT_RING);
     } else if ('reachOf' in spec) this.showReach(spec.reachOf);
   }

@@ -52,6 +52,8 @@ import {
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 import { healUnitFully } from '../engine/UnitHealth.js';
+import { isPrologueRun } from '../engine/ScriptedBattle.js';
+import { PROLOGUE_SERVICE_LINES } from '../data/prologueContent.js';
 // The sanctuary's band kicker: both paths before the choice, the chosen one after.
 const RUINS_KICKER = Object.freeze({
   none: 'Heal or wares',
@@ -73,7 +75,11 @@ export class ChurchMenu {
   constructor(c) {
     this.c = c;
     this.scene = c.scene;
-    this.status = '';
+    // The prologue's chapel says what it does and what waits for the first run.
+    this.status =
+      isPrologueRun(this.scene.runManager) && !this.scene._churchRuinsMode
+        ? PROLOGUE_SERVICE_LINES.church
+        : '';
     this.open();
   }
   open() {

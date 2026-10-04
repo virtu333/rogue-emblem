@@ -756,3 +756,29 @@
     white-space: nowrap;
   }
 }
+/* The prologue's roster lesson (PrologueRosterCoach): a goal strip, never a gate. */
+.mr-lesson {
+  border: 1px solid var(--re-gold);
+  border-radius: 2px;
+  padding: var(--re-s3);
+  margin: 0 0 10px;
+  background: var(--re-panel-raised);
+}
+.mr-lesson .mr-lesson-kicker {
+  margin: 0 0 4px;
+  color: var(--re-accent-text);
+  font-size: 11px;
+}
+.mr-lesson h4 {
+  margin: 0 0 6px;
+}
+.mr-lesson p {
+  margin: 0 0 6px;
+  color: var(--re-muted);
+}
+.mr-lesson .mr-lesson-done {
+  color: var(--re-good);
+}
+.mr-lesson-actions button {
+  margin: 4px 8px 0 0;
+}

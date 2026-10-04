@@ -62,8 +62,9 @@ import { UI_DEPTHS } from '../utils/uiDepths.js';
 import { CeremonyController } from '../ui/CeremonyController.js';
 import { isPrologueRun } from '../engine/ScriptedBattle.js';
 import { prologueJoinedKeys } from '../engine/Prologue.js';
-import { finishPrologue } from '../ui/PrologueEnding.js';
-import { PROLOGUE_FIRST_RUN_ROUTE_NOTE } from '../data/prologueContent.js';
+import { finishPrologue, offerSkipRetry } from '../ui/PrologueEnding.js';
+import { PROLOGUE_FIRST_RUN_ROUTE_NOTE, PROLOGUE_FORK_NOTE } from '../data/prologueContent.js';
+import { arriveAtPrologueNode } from '../ui/PrologueArrival.js';
 
 // Maps runManager.currentAct → the meta milestone recorded on node-map entry,
 // which the Compendium Foes tab reads to gate each act's boss.
@@ -274,7 +275,13 @@ export class NodeMapScene extends Phaser.Scene {
     });
 
     const hints = this.registry.get('hints');
+    // The prologue's first fork (row 2): its own route-preview lesson, once per slot.
+    const prologueFork =
+      isPrologueRun(this.runManager) &&
+      (this.runManager.getAvailableNodes?.() || []).length > 1 &&
+      Boolean(hints && !hints.hasSeen?.('prologue_fork'));
     this._pendingNodeMapHints = {
+      showPrologueFork: prologueFork,
       // First-run onboarding: only when the fast path routed here, told once.
       showFirstRun: Boolean(this._isFirstRunFastPath && hints?.shouldShow('firstrun_onboarding')),
       showIntro: Boolean(hints?.shouldShow('nodemap_intro')),
@@ -575,6 +582,10 @@ export class NodeMapScene extends Phaser.Scene {
     const pending = this._pendingNodeMapHints;
     this._pendingNodeMapHints = null;
     if (!pending) return;
+    if (pending.showPrologueFork && this.registry.get('hints')?.shouldShow('prologue_fork')) {
+      void showMinorHint(this, PROLOGUE_FORK_NOTE);
+      return;
+    }
     if (pending.showFirstRun || pending.showIntro) {
       // After the prologue, Home Base is already known (its grant was spent there).
       const afterPrologue = this.registry.get('meta')?.getPrologueState?.() === 'complete';
@@ -1021,10 +1032,7 @@ export class NodeMapScene extends Phaser.Scene {
       prologue: prologueRun
         ? {
             title: this.runManager.nodeMap?.prologue?.title || null,
-            onSkipRest: () => {
-              this.isTransitioning = true;
-              return finishPrologue(this);
-            },
+            onSkipRest: () => this._skipPrologueRest(),
           }
         : null,
       onAbandonWarning: payout
@@ -1798,6 +1806,26 @@ export class NodeMapScene extends Phaser.Scene {
     )
       return;
     if (node.completed && !this.runManager.canReenterService?.(node.id)) return;
+    if (this._prologueArrivalBusy) return;
+    // A prologue service node: who joins there joins (the recruit card) before it opens.
+    if (
+      isPrologueRun(this.runManager) &&
+      (node.type === NODE_TYPES.CHURCH || node.type === NODE_TYPES.SHOP) &&
+      !this._prologueArrived?.has(node.id)
+    ) {
+      this.runManager.currentNodeId = node.id;
+      this._prologueArrivalBusy = true;
+      const generation = this._sceneLifecycleGeneration;
+      void arriveAtPrologueNode(this, node)
+        .catch((err) => reportAsyncError('prologue-arrival', err))
+        .finally(() => {
+          if (!isSceneLifecycleActive(this, generation)) return;
+          this._prologueArrivalBusy = false;
+          (this._prologueArrived ||= new Set()).add(node.id);
+          this.onNodeClick(node);
+        });
+      return;
+    }
     if (node.type === NODE_TYPES.CHURCH) {
       this.runManager.currentNodeId = node.id;
       this.handleChurch(node);
@@ -2116,6 +2144,19 @@ export class NodeMapScene extends Phaser.Scene {
 
   closeShopOverlay() {
     return (this._shopController ||= new ShopController(this)).closeShopOverlay();
+  }
+
+  /**
+   * Skip the rest of the prologue from the route map: the ending, then Home Base. A
+   * save that fails leaves the map usable (input back) and offers a real retry.
+   */
+  _skipPrologueRest() {
+    this.isTransitioning = true;
+    return finishPrologue(this, { onCommitFailed: () => {} }).then((started) => {
+      if (started || this._sceneShuttingDown || this.sys?.isActive?.() === false) return started;
+      this.isTransitioning = false;
+      return offerSkipRetry(this, () => this._skipPrologueRest());
+    });
   }
 
   checkActComplete() {

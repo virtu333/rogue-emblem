@@ -142,7 +142,9 @@ import {
   buildPrologueUnits,
   isSpecialRosterKey,
   prologueChapterForNode,
+  prologueJoinsAtNode,
 } from './Prologue.js';
+import { normalizeRosterLesson } from './PrologueRosterLesson.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
 
 // Phaser-specific fields that must be stripped for serialization
@@ -458,6 +460,8 @@ function applyBattleEntryRevert(run, flag) {
     run.visionChargesRemaining = patch.visionChargesRemaining;
   if (patch.visionCount !== undefined) run.visionCount = patch.visionCount;
   if (patch.rngSeed !== undefined) run.rngSeed = patch.rngSeed;
+  if (patch.prologueVisionGranted !== undefined)
+    run.prologueVisionGranted = patch.prologueVisionGranted;
   if (patch.removeConvoyUid) run.removeFromConvoyByUid(patch.removeConvoyUid);
   run.battleInProgress = null;
   return true;
@@ -475,6 +479,10 @@ export class RunManager {
     // 'standard' | 'prologue': the prologue (the first thread) is a run that never
     // counts (docs/specs/prologue-chapter.md §9); saves from before it are standard.
     this.mode = STANDARD_RUN_MODE;
+    // The prologue's one Vision charge (P3's exercise) was granted (grantPrologueVision).
+    this.prologueVisionGranted = false;
+    // The row-2 roster lesson's ledger (engine/PrologueRosterLesson.js).
+    this.prologueRosterLesson = null;
     this.status = 'active'; // 'active' | 'victory' | 'defeat'
     this.actIndex = 0;
     this.roster = [];
@@ -727,6 +735,8 @@ export class RunManager {
     this.rngSeed = this.runSeed >>> 0;
     this.visionChargesRemaining = 0;
     this.visionCount = 0;
+    this.prologueVisionGranted = false;
+    this.prologueRosterLesson = null;
     this.gold = Math.max(0, Math.trunc(Number(prologue.startingGold) || 0));
     this.randomLegendary = null;
     this.nodeMap = buildPrologueNodeMap(prologue);
@@ -813,13 +823,67 @@ export class RunManager {
     return joined;
   }
 
-  /** P3's exercise: the prologue's Vision charge, saved like any charge. */
-  grantPrologueVision(count = 1) {
+  /**
+   * P3's exercise: the prologue's one Vision charge, saved like any charge. Once per
+   * prologue run (`prologueVisionGranted`, saved): a resumed or re-shown beat never
+   * grants twice. A chapter restart or Continue from Map reverts the grant with the
+   * battle (the flag is part of the battle's entry state). Returns true when granted.
+   */
+  grantPrologueVision() {
+    if (!isPrologueRun(this) || this.prologueVisionGranted) return false;
     const current = Number.isFinite(this.visionChargesRemaining)
       ? Math.max(0, Math.trunc(this.visionChargesRemaining))
       : 0;
-    this.visionChargesRemaining = current + Math.max(0, Math.trunc(Number(count) || 0));
-    return this.visionChargesRemaining;
+    this.visionChargesRemaining = current + 1;
+    this.prologueVisionGranted = true;
+    return true;
+  }
+
+  /**
+   * Arrival at a prologue service node (`joins.atNode`): the units that join there
+   * do, once, with their recruit card line; a unit's `join.needs` item (Tamsin's
+   * bow) is granted to the convoy when nobody in the army holds one and the convoy
+   * has none, and the card then reads `lineIfGranted`. Idempotent: a unit already in
+   * the army (a reload at the node) joins nothing and grants nothing.
+   * @returns {{ joined: { name: string, line: string|null }[], granted: string[] }}
+   */
+  arriveAtPrologueNode(nodeId) {
+    const out = { joined: [], granted: [] };
+    if (!isPrologueRun(this)) return out;
+    const prologue = this.gameData?.prologue;
+    const keys = prologueJoinsAtNode(prologue, nodeId);
+    if (!keys.length) return out;
+    const present = new Set([...this.roster, ...this.fallenUnits].map((u) => u?.name));
+    for (const unit of this._buildPrologueJoinUnits(keys.filter((k) => !present.has(k)))) {
+      const join = prologue?.units?.[unit.name]?.join || null;
+      let lineKey = join?.line || null;
+      if (join?.needs && !this._armyHolds(join.needs)) {
+        const item =
+          (this.gameData?.weapons || []).find((w) => w.name === join.needs) ||
+          (this.gameData?.consumables || []).find((c) => c.name === join.needs);
+        if (item && this.addToConvoy(structuredClone(item))) {
+          out.granted.push(item.name);
+          lineKey = join.lineIfGranted || lineKey;
+        }
+      }
+      this.assignUnitUid(unit);
+      this.roster.push(unit);
+      present.add(unit.name);
+      out.joined.push({ name: unit.name, line: lineKey });
+    }
+    if (out.joined.length) this.ensurePortraitVariants();
+    return out;
+  }
+
+  /** True when a roster unit carries an item of this name or the convoy holds one. */
+  _armyHolds(name) {
+    const carried = this.roster.some((u) =>
+      [...(u.inventory || []), ...(u.consumables || [])].some((i) => i?.name === name),
+    );
+    const stored = [...(this.convoy?.weapons || []), ...(this.convoy?.consumables || [])].some(
+      (i) => i?.name === name,
+    );
+    return carried || stored;
   }
 
   /** True once the prologue's last chapter is won (its node is the map's "boss"). */
@@ -3772,6 +3836,10 @@ export class RunManager {
         : null,
       visionCountAtEntry: Number.isFinite(this.visionCount) ? this.visionCount : null,
       rngSeedAtEntry: Number.isFinite(this.rngSeed) ? this.rngSeed : null,
+      // The prologue's Vision grant reverts with the battle (a restart re-teaches it).
+      ...(isPrologueRun(this)
+        ? { prologueVisionGrantedAtEntry: this.prologueVisionGranted === true }
+        : {}),
       checkpoint: null,
     };
   }
@@ -4440,6 +4508,12 @@ export class RunManager {
    *   nothing: retreating is not "slain by".
    */
   failRun(context = null) {
+    // The prologue never settles a defeat (§8): its falls restart the chapter. A
+    // caller that gets here in prologue mode is a bug; nothing is recorded.
+    if (isPrologueRun(this)) {
+      console.warn('[RunManager] failRun refused: the prologue restarts, never fails');
+      return false;
+    }
     this.status = 'defeat';
     this.winStreak = 0;
     this.battleInProgress = null;
@@ -4566,6 +4640,14 @@ export class RunManager {
     return {
       version: 1,
       mode: this.mode === PROLOGUE_RUN_MODE ? PROLOGUE_RUN_MODE : STANDARD_RUN_MODE,
+      ...(this.mode === PROLOGUE_RUN_MODE
+        ? {
+            prologueVisionGranted: this.prologueVisionGranted === true,
+            prologueRosterLesson: this.prologueRosterLesson
+              ? structuredClone(this.prologueRosterLesson)
+              : null,
+          }
+        : {}),
       status: this.status,
       actIndex: this.actIndex,
       roster: this.roster,
@@ -4887,6 +4969,10 @@ export class RunManager {
     const rm = new RunManager(gameData, saved.metaEffects || null);
     // Saves from before the prologue carry no mode: they are standard runs.
     rm.mode = saved.mode === PROLOGUE_RUN_MODE ? PROLOGUE_RUN_MODE : STANDARD_RUN_MODE;
+    if (rm.mode === PROLOGUE_RUN_MODE) {
+      rm.prologueVisionGranted = saved.prologueVisionGranted === true;
+      rm.prologueRosterLesson = normalizeRosterLesson(saved.prologueRosterLesson);
+    }
     rm.legendaryLordChance = Math.min(0.15, Math.max(0, Number(saved.legendaryLordChance) || 0));
     rm.lastDeployment = normalizeDeploymentNames(saved.lastDeployment);
     if (
@@ -5560,6 +5646,8 @@ export function battleEntryRevertPatch(flag) {
     patch.visionChargesRemaining = flag.visionChargesAtEntry;
   if (Number.isFinite(flag.visionCountAtEntry)) patch.visionCount = flag.visionCountAtEntry;
   if (Number.isFinite(flag.rngSeedAtEntry)) patch.rngSeed = flag.rngSeedAtEntry;
+  if (typeof flag.prologueVisionGrantedAtEntry === 'boolean')
+    patch.prologueVisionGranted = flag.prologueVisionGrantedAtEntry;
   return patch;
 }
 
@@ -5590,6 +5678,8 @@ export function clearBattleInProgressInSave(onSave, slotNumber) {
       parsed.visionChargesRemaining = patch.visionChargesRemaining;
     if (patch.visionCount !== undefined) parsed.visionCount = patch.visionCount;
     if (patch.rngSeed !== undefined) parsed.rngSeed = patch.rngSeed;
+    if (patch.prologueVisionGranted !== undefined)
+      parsed.prologueVisionGranted = patch.prologueVisionGranted;
     if (patch.removeConvoyUid && parsed.convoy && typeof parsed.convoy === 'object') {
       for (const bucket of ['consumables', 'weapons']) {
         if (Array.isArray(parsed.convoy[bucket]))

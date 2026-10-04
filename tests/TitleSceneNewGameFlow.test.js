@@ -458,6 +458,7 @@ describe('TitleScene NEW GAME: the prologue offer (docs/specs/prologue-chapter.m
     expect(buttons(menu)).toEqual([
       ['Banner at Dawn', 're-btn re-btn--primary'],
       ['Old Hands', 're-btn'],
+      ['The Seer on the Road', 're-btn'],
     ]);
     expect(startPrologueRunMock).not.toHaveBeenCalled();
   });

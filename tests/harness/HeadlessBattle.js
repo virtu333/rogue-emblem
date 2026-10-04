@@ -1,3 +1,4 @@
+import { buildPrologueNpcUnit } from '../../src/engine/Prologue.js';
 import { settleRecruitJoin } from '../../src/engine/BattleRecruits.js';
 import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
 // HeadlessBattle — Synchronous battle state machine for headless testing.
@@ -337,7 +338,12 @@ export class HeadlessBattle {
     // Spawn NPC for recruit battles — the same RecruitNodeSystem build as BattleScene
     // (own seeded stream; the battle's Math.random is not consumed). Full-run sims
     // pass the run roster / seed / node id so the NPC matches the Loom preview.
-    if (bc.npcSpawn) {
+    if (bc.npcSpawn?.prologueUnit) {
+      // An authored green unit (P3's Sera): the one builder BattleScene uses too.
+      const npc = buildPrologueNpcUnit(bc.npcSpawn, this.gameData);
+      npc._phoenixBroochUsed = false;
+      this.npcUnits.push(npc);
+    } else if (bc.npcSpawn) {
       const npcSpawn = bc.npcSpawn;
       const built = buildRecruitNodeUnit({
         preview: { className: npcSpawn.className, name: npcSpawn.name },

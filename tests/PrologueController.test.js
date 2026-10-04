@@ -475,7 +475,10 @@ describe('PrologueController: records, exits and cleanup', () => {
     scene.playerUnits.splice(scene.playerUnits.indexOf(gaspar), 1);
     prologue.onUnitDefeated(gaspar);
     expect(scene.battleState).toBe('BATTLE_END');
-    expect(scene._fallenCommander).toEqual({ name: 'Gaspar', className: 'Paladin', epithet: null });
+    // The prompt names Gaspar; the commander's identity is never overwritten.
+    expect(scene._prologueFallen).toEqual({ name: 'Gaspar', className: 'Paladin', epithet: null });
+    expect(scene._fallenCommander ?? null).toBeNull();
+    expect(scene._battleCommanderName ?? null).toBeNull();
     await Promise.resolve();
     await Promise.resolve();
     expect(scene.onDefeat).not.toHaveBeenCalled();

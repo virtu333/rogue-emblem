@@ -164,15 +164,19 @@ export class MovementActionController {
         });
         scene._battleRecruits = result.battleRecruits;
         observeHistoryAction(scene, 'recruited', lord, npc);
+        // A prologue chapter's authored recruit (Sera) says its own line.
+        const authored = scene._prologue?.talkLine?.(npc) || null;
         const lines = (npc.isLord ? scene.gameData.dialogue?.lordRecruitLines?.[npc.name] : null) ||
           scene.gameData.dialogue?.recruitLines?.[npc.className] || ['Joined the army!'];
         return {
           npc,
           line:
+            authored ||
             scene.runManager?.pickNarrativeLine?.(
               lines,
               `recruit:${npc.className}:${npc.isLord ? npc.name : 'class'}`,
-            ) || lines[0],
+            ) ||
+            lines[0],
         };
       },
       present: async ({ npc, line }) => {
@@ -203,6 +207,11 @@ export class MovementActionController {
           { scene },
         );
         safeBattlePresentation('talk objective', () => scene.updateObjectiveText(), { scene });
+        // The prologue's talk beat (Sera joins: her lesson starts here).
+        if (scene._prologue)
+          await safeBattlePresentation('talk beat', () => scene._prologue.onTalk(lord, npc), {
+            scene,
+          });
       },
     });
   }

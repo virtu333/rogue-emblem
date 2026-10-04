@@ -21,6 +21,11 @@ export const TUTORIAL_HINT_IDS = new Set([
   'battle_village',
   'battle_loot',
   'guide_veteran_kills',
+  'guide_recruit_on_map',
+  'guide_healer_heals',
+  'guide_no_attack',
+  'guide_fragile_in_reach',
+  'guide_convoy',
 ]);
 
 /** This device finished (or skipped into a run from) the prologue once. */

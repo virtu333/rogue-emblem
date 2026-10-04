@@ -149,7 +149,7 @@ describe('validatePrologueConfig', () => {
 
     it('use known actions, with valid arguments', () => {
       expect(errorsAfter((p) => (p1(p).beats[0].do = [{ shout: 'x' }]))).toEqual([
-        `${P1}.beats[0].do[0] must have exactly one of: coach, note, dialogue, gateSelect, gateMove, gateConfirm, highlight, markLesson`,
+        `${P1}.beats[0].do[0] must have exactly one of: coach, note, dialogue, gateSelect, gateMove, gateConfirm, highlight, markLesson, grantVision, clearCoach`,
       ]);
       expect(errorsAfter((p) => (p1(p).beats[1].do[1] = { gateMove: { col: 9, row: 2 } }))).toEqual(
         [`${P1}.beats[1].do[1].gateMove is not a tile on the map`],

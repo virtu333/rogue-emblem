@@ -78,13 +78,27 @@ export function commitPrologueEnd(
  * @param {Phaser.Scene} scene - BattleScene or NodeMapScene of a prologue run
  * @param {{ taught?: Iterable<string>, practised?: Iterable<string> }} [ledgers]
  */
-export async function finishPrologue(scene, { taught = [], practised = [] } = {}) {
+export async function finishPrologue(
+  scene,
+  { taught = [], practised = [], onCommitFailed = null } = {},
+) {
   const rm = scene.runManager;
   if (!isPrologueRun(rm)) return false;
+  // The ending plays once per scene: a retry (a failed meta write, a transition that
+  // didn't start) only commits and leaves again.
+  if (!scene._prologueEndingPresented) {
+    await presentPrologueEnding(scene);
+    if (scene.sys?.isActive?.() === false) return false;
+    scene._prologueEndingPresented = true;
+  }
+  return commitAndLeavePrologue(scene, { taught, practised, onCommitFailed });
+}
+
+/** The ending's lines, then its title card (presentation only, never a write). */
+export async function presentPrologueEnding(scene) {
   const prologue = scene.gameData?.prologue;
   const key = prologue?.ending?.dialogue;
   const entries = key ? scene.gameData?.dialogue?.prologue?.[key] : null;
-  const audio = scene.registry?.get?.('audio');
   if (Array.isArray(entries) && entries.length && scene.dialogueOverlay?.showSequence) {
     try {
       await scene.dialogueOverlay.showSequence(
@@ -95,7 +109,7 @@ export async function finishPrologue(scene, { taught = [], practised = [] } = {}
       /* a line is presentation: the ending goes on without it */
     }
   }
-  if (scene.sys?.isActive?.() === false) return false;
+  if (scene.sys?.isActive?.() === false) return;
   const card = prologueEndingCard(prologue);
   if (card && hasDOMHost()) {
     try {
@@ -106,12 +120,22 @@ export async function finishPrologue(scene, { taught = [], practised = [] } = {}
       /* presentation only */
     }
   }
-  if (scene.sys?.isActive?.() === false) return false;
+}
+
+/** The commit (meta, lessons, save cleared) and the move to Home Base. Resolves true once it started. */
+export async function commitAndLeavePrologue(
+  scene,
+  { taught = [], practised = [], onCommitFailed = null } = {},
+) {
+  if (!isPrologueRun(scene.runManager) || scene.sys?.isActive?.() === false) return false;
   const committed = commitPrologueEnd(scene, { taught: [...taught], practised: [...practised] });
   if (!committed.ok) {
-    void showMinorHint(scene, 'Save failed — storage may be unavailable. The ending will retry.');
+    if (typeof onCommitFailed === 'function') onCommitFailed(committed);
+    else
+      void showMinorHint(scene, 'Save failed — storage may be unavailable. The ending will retry.');
     return false;
   }
+  const audio = scene.registry?.get?.('audio');
   if (audio) audio.stopMusic(scene, 0);
   return transitionToScene(
     scene,
@@ -119,4 +143,33 @@ export async function finishPrologue(scene, { taught = [], practised = [] } = {}
     { gameData: scene.gameData, prologueEnded: true },
     { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
   );
+}
+
+/** The copy a failed skip shows, with its real retry (PrologueController, NodeMapScene). */
+export const PROLOGUE_SKIP_FAILED =
+  'The prologue could not be saved as finished: device storage may be full or unavailable. Retry, or keep playing and skip again later.';
+
+/**
+ * A skip whose save failed: offer Retry (runs `retry`) or Keep playing. Resolves with
+ * what the retry resolved, or false.
+ */
+export async function offerSkipRetry(scene, retry) {
+  if (scene.sys?.isActive?.() === false) return false;
+  if (!hasDOMHost()) {
+    void showMinorHint(scene, PROLOGUE_SKIP_FAILED);
+    return false;
+  }
+  let choice;
+  try {
+    choice = await showImportantHint(scene, PROLOGUE_SKIP_FAILED, {
+      actions: [
+        { label: 'Retry', value: 'retry', primary: true },
+        { label: 'Keep playing', value: false },
+      ],
+    });
+  } catch {
+    return false;
+  }
+  if (choice === 'retry' && typeof retry === 'function') return retry();
+  return false;
 }

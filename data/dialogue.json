@@ -9583,6 +9583,44 @@
         "speaker": "???",
         "line": "Again, from the morning it began."
       }
+    ],
+    "tamsin_joins": [
+      {
+        "speaker": "Tamsin",
+        "line": "My bow burned with the watch post. Hand me the one in your convoy and I'll earn my keep."
+      }
+    ],
+    "tamsin_joins_bow_rack": [
+      {
+        "speaker": "Tamsin",
+        "line": "My bow burned with the watch post. There's one on the rack here. It'll do."
+      }
+    ],
+    "p3_sera_joins": [
+      {
+        "speaker": "Sera",
+        "line": "I have seen you before, Edric. Many times. You always come for me."
+      }
+    ],
+    "p3_victory": [
+      {
+        "speaker": "Sera",
+        "line": "I don't stand at the front. I stand where they can't reach me."
+      },
+      {
+        "speaker": "Edric",
+        "line": "Then stand behind us. We hold the road, you hold us together."
+      }
+    ],
+    "p3_intro": [
+      {
+        "speaker": "Gaspar",
+        "line": "A robed woman on the road, and soldiers at her heels."
+      },
+      {
+        "speaker": "Edric",
+        "line": "Then we reach her first. Count off and ride."
+      }
     ]
   },
   "specialChars": {

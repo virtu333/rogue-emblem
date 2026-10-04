@@ -12,6 +12,9 @@ import {
   CARAVAN_SHOP_ITEM_COUNT_RANGE,
 } from '../utils/constants.js';
 import { generateShopInventory } from '../engine/LootSystem.js';
+import { buildPrologueShopStock } from '../engine/Prologue.js';
+import { isPrologueRun } from '../engine/ScriptedBattle.js';
+import { PROLOGUE_SERVICE_LINES } from '../data/prologueContent.js';
 import { ruinsServiceBlock } from '../engine/RuinsCommands.js';
 import { isImbueStone, getImbueStoneDetailText } from '../engine/ImbueSystem.js';
 import { MUSIC, getMusicKey, pickTrack } from '../utils/musicConfig.js';
@@ -63,6 +66,12 @@ export class ShopController {
     let shopItems;
     if (cachedShop) {
       shopItems = cachedShop.items;
+    } else if (!caravan && !ruins && Array.isArray(node?.prologueStock)) {
+      // A prologue market's authored wares (docs/specs/prologue-chapter.md §6 row 2):
+      // fixed, priced as any Act 1 shop prices them, never a random draw.
+      shopItems = scene.applyDifficultyShopPricing(
+        buildPrologueShopStock(node.prologueStock, scene.gameData, { actId: shopActId }),
+      );
     } else {
       const shopItemDelta = caravan ? 0 : rm.getShopItemCountDelta();
       shopItems = generateShopInventory(
@@ -182,7 +191,13 @@ export class ShopController {
     this.nativeMenu?.destroy();
     this.nativeMenu = new ShopMenu(this);
     const lines = scene.gameData?.dialogue?.shopFlavor?.[scene.runManager.currentAct];
-    if (Array.isArray(lines) && lines.length) {
+    if (
+      isPrologueRun(scene.runManager) &&
+      !scene._currentShopIsRuins &&
+      !scene._currentShopIsCaravan
+    )
+      this.nativeMenu.render(PROLOGUE_SERVICE_LINES.shop);
+    else if (Array.isArray(lines) && lines.length) {
       this.nativeMenu.render(lines[Math.floor(Math.random() * lines.length)]);
     }
   }
@@ -292,8 +307,14 @@ export class ShopController {
     this._saveShopState();
   }
 
+  /** Restock: never in the prologue (its market's stock is authored and fixed). */
+  canReroll() {
+    return !isPrologueRun(this.scene?.runManager) && !this.scene?._currentShopIsCaravan;
+  }
+
   rerollShop() {
     const scene = this.scene;
+    if (!this.canReroll()) return false;
     const cost = SHOP_REROLL_COST + scene.shopRerollCount * SHOP_REROLL_ESCALATION;
     if (!scene.runManager.spendGold(cost)) return false;
     scene.shopRerollCount++;

@@ -558,7 +558,11 @@ export function describeLoomNode(
       ? `Hunters are closing on ${recruitView.name}. Reach them with a lord and Talk.`
       : node.type === 'ruins' && ruinsChoice
         ? chosenLine(ruinsChoice)
-        : SERVICE[node.type] || objective?.[1] || '';
+        : // An authored node (the prologue's) says what it holds itself.
+          (typeof node.preview === 'string' && node.preview) ||
+          SERVICE[node.type] ||
+          objective?.[1] ||
+          '';
   const pool = state === 'cut' || eclipsed ? null : flavorPool(node, dialogue, actId);
   const flavor =
     Array.isArray(pool) && pool.length ? pool[stableIndex(node.id, pool.length)] : null;

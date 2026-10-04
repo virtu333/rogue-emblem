@@ -32,6 +32,28 @@ export const PROLOGUE_COACH = Object.freeze({
     anchor: { kind: 'tile', ...(ctx?.gateTile || {}) },
     canSkip: true,
   }),
+  // P3, The Seer on the Road (§6 P3): goals name an aim, never a tile.
+  p3_reach_sera: (ctx) => ({
+    chapter: 'move',
+    goal: `Reach ${ctx?.npc || 'Sera'} and Talk`,
+    detail: `Move ${lordOf(ctx)} next to the green unit, then choose Talk. Only a lord can.`,
+    anchor: { kind: 'unit', name: lordOf(ctx) },
+    canSkip: true,
+  }),
+  p3_sera_acts: (ctx) => ({
+    chapter: 'fight',
+    goal: `${ctx?.npc || 'Sera'} acts right away`,
+    detail: `A unit that joins by Talk can move this turn. Keep ${ctx?.npc || 'Sera'} where the red can't reach.`,
+    anchor: { kind: 'unit', name: ctx?.npc || 'Sera' },
+    canSkip: true,
+  }),
+  p3_look_is_free: (ctx) => ({
+    chapter: 'fight',
+    goal: 'Open the forecast, then Cancel',
+    detail: `Looking is free: nothing happens until you confirm. ${ctx?.touch ? 'Back' : 'Esc or right-click'} cancels.`,
+    anchor: null,
+    canSkip: true,
+  }),
 });
 
 /** Field notes (modal, Continue to dismiss) and enemy-phase nudges, by note id. */
@@ -91,6 +113,40 @@ export const PROLOGUE_NOTES = Object.freeze({
     "A village: end a unit's action on it to visit.\nVillages give gold, and send an item to the convoy, your army's shared storage.",
   battle_loot: () =>
     'Victory pays: pick one reward on the next screen.\nA weapon goes to a unit or the convoy, a consumable to a unit, and gold also pays for revivals and promotions.',
+  // P3, The Seer on the Road (§6 P3). The recruit and fragile notes reuse the in-run
+  // Guidance copy (guide_recruit_on_map, guide_fragile_in_reach, guide_healer_heals).
+  p3_recruit: (ctx) =>
+    `${ctx?.npc || 'Sera'} (${ctx?.npcClass || 'Light Sage'}) under the gold banner can join you. Move a Lord next to her and choose Talk before enemies reach her.\n` +
+    `Only the Soldier beside her can reach her this turn. Lords alone can Talk.`,
+  p3_heal: (ctx) =>
+    `${ctx?.npc || 'Sera'} heals with her staff: move next to ${ctx?.ally || 'a hurt ally'}, choose Heal.\n` +
+    'Staff uses refill after every battle; a Vulnerary is spent for good.',
+  p3_plan_cancel: (ctx) =>
+    `Nothing is in reach from here, so Attack is greyed out.\n${ctx?.touch ? 'Back' : 'Esc or right-click'} undoes the move: nothing is final until you confirm. Try a tile 2 away from a foe.`,
+  p3_range: () =>
+    "Glimmer reaches 2 tiles. From 2 tiles away, a lance or an axe can't hit back.\nThe forecast shows No counter. Open it, then Cancel: looking is free.",
+  p3_magic: () =>
+    "Glimmer is magic: it hits RES, not DEF.\nSoldiers' armour turns blades, not light. Their RES is almost nothing.",
+  p3_fragile: (ctx) => {
+    const n = Number(ctx?.count) || 0;
+    const who = ctx?.unit || 'Sera';
+    return (
+      `Cover isn't safety. ${n} ${n === 1 ? 'enemy' : 'enemies'} can reach ${who} here, and ${who} can't take many hits.\n` +
+      `Count the red eyes, not the trees. ${ctx?.touch ? 'Tap Back' : 'Press Esc or right-click'} to choose a safer tile.`
+    );
+  },
+  p3_aura: (ctx) =>
+    `Renewal Aura: allies next to ${ctx?.npc || 'Sera'} heal 3 HP at the start of your turn.`,
+  p3_rewind: (ctx) =>
+    `${ctx?.ally || 'An ally'} is hurt. Sera grants one Vision.\n` +
+    `Rewind takes back moves. Browse the timeline for free: find the move that put ${ctx?.ally || 'them'} in reach, spend the charge to return there, then choose a different tile. Declining is fine: the charge keeps.`,
+  p3_better_plan: () =>
+    'Same turn, better plan.\nIn a real run, Vision charges last the whole run: spend them on the turn that went wrong.',
+});
+
+/** Extra buttons a note offers besides Continue (PrologueController.fieldNote). */
+export const PROLOGUE_NOTE_ACTIONS = Object.freeze({
+  p3_rewind: [{ label: 'Open Rewind', value: 'rewind' }],
 });
 
 /**
@@ -110,7 +166,84 @@ export const NOTE_HINT_IDS = Object.freeze({
   battle_danger_zone: ['battle_danger_zone'],
   p2_village_visit: ['battle_village'],
   battle_loot: ['battle_loot'],
+  p3_recruit: ['guide_recruit_on_map'],
+  p3_heal: ['guide_healer_heals'],
+  p3_plan_cancel: ['guide_no_attack'],
+  p3_range: ['battle_no_counter'],
+  p3_fragile: ['guide_fragile_in_reach'],
 });
+
+// --- Row 2: Harrow's Crossing (§6 "Route map, row 2") ----------------------------
+
+/** The route map's note at the prologue's first fork (once per slot). */
+export const PROLOGUE_FORK_NOTE =
+  "Tap a node to see what it holds. Travel commits; you can't come back.";
+
+/** A service node's opening line in the prologue (the shop / church status). */
+export const PROLOGUE_SERVICE_LINES = Object.freeze({
+  shop: "This market's stock is fixed while you're here. Every shop node stocks its own. Gold also pays for revivals and promotions.",
+  church:
+    'Heal all is free here. Reviving the fallen costs gold. Blessings begin with your first run.',
+});
+
+/** Why the chapel's blessings are greyed in the prologue (ChurchVow.churchBlessingBlock). */
+export const PROLOGUE_BLESSING_BLOCK = 'Blessings begin with your first run.';
+
+/** An unarmed unit's roster line when the convoy holds a weapon it can use. */
+export function unarmedConvoyLine(weaponType) {
+  const kind = String(weaponType || 'weapon').toLowerCase();
+  return `No weapon. A ${kind} is in the convoy.`;
+}
+
+/**
+ * The roster lesson's steps (engine/PrologueRosterLesson.js), one goal each. ctx:
+ * { subject, unit, giver, item, touch, available, reason }.
+ */
+export const PROLOGUE_ROSTER_LESSON = Object.freeze({
+  withdraw: (ctx) => ({
+    title: 'Withdraw',
+    goal: `Give ${ctx?.subject || 'Tamsin'} the ${ctx?.item || 'bow'} from the convoy`,
+    text: `Select ${ctx?.subject || 'Tamsin'}, open Convoy, and Withdraw.`,
+  }),
+  equip: (ctx) => ({
+    title: 'Equip',
+    goal: ctx?.unit ? `Equip ${ctx.unit}'s ${ctx.item}` : 'Equip a weapon',
+    text: `${ctx?.subject || 'Tamsin'} took the bow at once: a unit with nothing equipped takes the first weapon it gets. Each unit carries up to 5 weapons. The equipped one is the one they fight with.`,
+  }),
+  trade: (ctx) => ({
+    title: 'Trade',
+    goal: ctx?.giver
+      ? `Give ${ctx.subject || 'Tamsin'} ${ctx.giver}'s ${ctx.item}`
+      : `Trade an item to ${ctx?.subject || 'Tamsin'}`,
+    text: 'Trade swaps carried items between units. You can also trade in battle, with an adjacent ally.',
+  }),
+  store: (ctx) => ({
+    title: 'Store',
+    goal: ctx?.unit ? `Store ${ctx.unit}'s ${ctx.item}` : 'Store a carried item',
+    text: 'Store puts a carried item in the convoy. Withdraw hands it back.',
+  }),
+});
+
+/** Why a step was skipped on its own (the army can't do it now). */
+export const PROLOGUE_ROSTER_LESSON_SKIPS = Object.freeze({
+  no_weapon_in_convoy: (ctx) =>
+    `No weapon ${ctx?.subject || 'she'} can use is in the convoy. A shop sells one.`,
+  bag_full: (ctx) => `${ctx?.subject || 'Her'} bag is full.`,
+  no_spare_weapon: () => 'Nobody carries a second weapon to equip.',
+  no_spare_consumable: () =>
+    'Nobody carries a spare item to trade. You can trade in battle with an adjacent ally, too.',
+  nothing_to_store: () => 'Nothing to store right now.',
+});
+
+export function rosterLessonCopy(step, ctx) {
+  const build = PROLOGUE_ROSTER_LESSON[step];
+  return build ? build(ctx) : null;
+}
+
+export function rosterLessonSkipText(reason, ctx) {
+  const build = PROLOGUE_ROSTER_LESSON_SKIPS[reason];
+  return build ? build(ctx) : '';
+}
 
 /** The title card the ending stub closes on (data/prologue.json `ending.titleCard`). */
 export function prologueEndingCard(prologue) {
