@@ -843,7 +843,8 @@ describe('locked maps, saves and par', () => {
     expect(validateDifficultyConfig(data.difficulty)).toEqual({ valid: true, errors: [] });
     const m = data.difficulty.modes;
     expect(m.normal.holdShare).toBeNull();
-    expect(m.normal.objectiveParOffset).toBeNull();
+    // First Light has no seize offset (and so no floor); escape is tighter on every rung.
+    expect(m.normal.objectiveParOffset).toEqual({ escape: -2 });
     for (const [rung, shares] of Object.entries(SHARES)) expect(m[rung].holdShare).toEqual(shares);
     const bad = structuredClone(data.difficulty);
     bad.modes.dusk.holdShare = { seize: 1.5, rout: 0.2 };

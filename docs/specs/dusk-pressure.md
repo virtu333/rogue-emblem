@@ -398,6 +398,25 @@ Given an eligible caster, the share matches the rung's chance (Nightfall Act IV 
     turtles.
   - With inflation 2 on both, Dusk's par is about equal to Nightfall's (0.92 vs 0.85
     multiplier), so the rungs never invert.
+- **Par review (2026-10-04).** Pars were loose where clears are fast: a push S-ranked
+  every First Light map, 90%+ of escape maps on every rung, and 71–83% of Act IV rout
+  maps on Dusk and Nightfall (rout enemies charge from turn 1, so map area raises par but
+  barely slows a clear; Act IV frozen_pass and glacier_run fall in 3 turns against par
+  8–9). Act III–IV seize is loose only up to the floor (a straight walk plus a turn), by
+  design, and is left alone. Changes, all locked with the map:
+  - First Light `parInflation` 3 → 1 (`turnBonus.firstLightParInflation` follows it: it
+    caps the seize floor). Every First Light seize map still leaves an S for a straight
+    walk (par − floor 2–3 on average).
+  - `objectiveParOffset` now takes `rout` and a table by act. Escape −2 on First Light,
+    Dusk and Nightfall, −1 on Black Sun; Act IV rout −2 on Dusk and Nightfall, −1 on
+    Black Sun. Black Sun's escape and Act IV rout par is therefore up to a turn looser
+    than Nightfall's (owner's call: not tougher on Black Sun); seize keeps its order.
+  - Measured (`sim/pacing.js`, calibrated, 48 paired seeds), push S share before → after:
+    First Light all maps 100% → 89% (turtle 91% → 68%); escape 93/90/76% → 68/71/69%
+    (Dusk/Nightfall/Black Sun); Act IV rout 83/71/51% → 63/40/32%. Act I–III rout and
+    seize do not move. Par gold per run, push: Dusk 23.6k → 22.4k, Nightfall 23.0k →
+    21.6k, Black Sun 17.8k → 17.1k (accepted). Final shadow, push: Dusk 16.8 → 20.6,
+    Nightfall 32.8 → 37.3, Black Sun 74 → 75; First Light turtle 0.8 → 4.7.
 - **Black Sun:** keeps its current template waves and only loses the per-wave par bump
   (they become par-neutral like the ladder): `templateWavesRaisePar: false` marks the
   procedural waves of every Black Sun map (`reinforcements.wavesRaisePar`). Scripted

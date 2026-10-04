@@ -13,8 +13,8 @@ import { GOLD_PAR_BONUS_MULTIPLIER } from '../utils/constants.js';
  *   locked as the config's `parOffset`); par never drops below 1.
  *   parFloor: the seize par floor locked with the offset (SeizeParFloor.js: the slowest
  *   lord's walk to the throne + 4, so an S stays reachable). Par rises to it, but never
- *   above the map's First Light par (raw par + turnBonus.parInflation + parBonus), so
- *   the rungs stay in order: First Light ≥ Dusk ≥ Nightfall ≥ Black Sun.
+ *   above the map's First Light par (raw par + turnBonus.firstLightParInflation +
+ *   parBonus), so the rungs stay in order: First Light ≥ Dusk ≥ Nightfall ≥ Black Sun.
  * @param {object} config - turnBonus.json data
  * @param {string|null} [difficultyId=null] - difficulty mode id for par scaling
  * @returns {number|null} integer par, or null if objective has no basePar entry
@@ -78,7 +78,10 @@ export function calculatePar(mapParams, config, difficultyId = null) {
   const scaled = diffMult >= 1 ? rawPar : Math.max(1, Math.floor(rawPar * diffMult));
   const par = Math.max(1, scaled + inflation + templateParBonus + offset);
   if (!Number.isFinite(parFloor)) return par;
-  const firstLightPar = rawPar + (config.parInflation || 0) + templateParBonus;
+  // First Light's own inflation (difficulty.json normal.parInflation); parInflation
+  // stays the value for maps generated before inflation was locked with the map.
+  const firstLightInflation = config.firstLightParInflation ?? config.parInflation ?? 0;
+  const firstLightPar = rawPar + firstLightInflation + templateParBonus;
   return Math.max(par, Math.min(Math.trunc(parFloor), firstLightPar));
 }
 

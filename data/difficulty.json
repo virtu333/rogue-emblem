@@ -39,11 +39,11 @@
       "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 3,
       "classStatBonuses": {},
-      "parInflation": 3,
+      "parInflation": 1,
       "templateWavesRaisePar": true,
       "routLadder": null,
       "holdShare": null,
-      "objectiveParOffset": null,
+      "objectiveParOffset": { "escape": -2 },
       "enemyClassEarliestAct": {},
       "recruitAffixExcludedActs": ["act1"]
     },
@@ -138,7 +138,7 @@
         }
       },
       "holdShare": { "seize": 0.35, "escape": 0.3 },
-      "objectiveParOffset": { "seize": -3 },
+      "objectiveParOffset": { "seize": -3, "escape": -2, "rout": { "act4": -2 } },
       "enemyClassEarliestAct": {
         "Dragon": "act4"
       },
@@ -249,7 +249,7 @@
         }
       },
       "holdShare": { "seize": 0.45, "escape": 0.4 },
-      "objectiveParOffset": { "seize": -4 },
+      "objectiveParOffset": { "seize": -4, "escape": -2, "rout": { "act4": -2 } },
       "enemyClassEarliestAct": {},
       "recruitAffixExcludedActs": []
     },
@@ -324,7 +324,7 @@
       "templateWavesRaisePar": false,
       "routLadder": null,
       "holdShare": { "seize": 0.55, "escape": 0.5 },
-      "objectiveParOffset": { "seize": -4 },
+      "objectiveParOffset": { "seize": -4, "escape": -1, "rout": { "act4": -1 } },
       "enemyClassEarliestAct": {},
       "recruitAffixExcludedActs": []
     }

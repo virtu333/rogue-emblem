@@ -148,7 +148,8 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   parInflation: null,
   templateWavesRaisePar: true,
   // Hold-position garrisons ({ seize, escape } shares, null: none) and a par offset per
-  // objective that a new map locks in ({ seize: -2 }, null: none).
+  // objective that a new map locks in, for every act or by act
+  // ({ seize: -2, rout: { act4: -2 } }, null: none).
   holdShare: null,
   objectiveParOffset: null,
 });
@@ -423,14 +424,23 @@ function validateBattlePacing(mode, path) {
       errors.push(`${path}.${key} must be null or an object keyed by objective`);
       continue;
     }
+    const objectives = key === 'holdShare' ? ['seize', 'escape'] : ['rout', 'seize', 'escape'];
     for (const [objective, n] of Object.entries(value)) {
-      if (!['seize', 'escape'].includes(objective))
-        errors.push(`${path}.${key}.${objective} is not a seize/escape objective`);
-      const ok = key === 'holdShare' ? isFiniteNumber(n) && n >= 0 && n <= 1 : Number.isInteger(n);
-      if (!ok)
-        errors.push(
-          `${path}.${key}.${objective} must be ${key === 'holdShare' ? 'a share between 0 and 1' : 'an integer'}`,
-        );
+      const at = `${path}.${key}.${objective}`;
+      if (!objectives.includes(objective))
+        errors.push(`${at} is not a ${objectives.join('/')} objective`);
+      if (key === 'holdShare') {
+        if (!(isFiniteNumber(n) && n >= 0 && n <= 1))
+          errors.push(`${at} must be a share between 0 and 1`);
+      } else if (isObject(n)) {
+        // A par offset by act: { act4: -2 }.
+        for (const [act, v] of Object.entries(n)) {
+          if (!ENEMY_ACT_GATE_ORDER.includes(act)) errors.push(`${at}.${act} is not an act id`);
+          if (!Number.isInteger(v)) errors.push(`${at}.${act} must be an integer`);
+        }
+      } else if (!Number.isInteger(n)) {
+        errors.push(`${at} must be an integer or an object of integers by act`);
+      }
     }
   }
   const ladder = mode.routLadder;
