@@ -215,7 +215,8 @@ test('the preparation note waits for a battle that left someone below half HP, a
     );
   const notes = page.getByRole('dialog', { name: 'Field notes', exact: true });
   // Before any battle, and after one that left everyone above half HP: no note.
-  for (const hurt of [false, false, true, true]) {
+  // The third visit is the first after a battle that left Edric below half HP.
+  for (const [visit, hurt] of [false, false, true, true].entries()) {
     const restarted = await page.evaluate((hurt) => {
       const s = window.__emblemRogueGame.scene.getScene('NodeMap');
       s.runManager.completedBattles = 1;
@@ -229,7 +230,7 @@ test('the preparation note waits for a battle that left someone below half HP, a
       const s = window.__emblemRogueGame.scene.getScene('NodeMap');
       return s._sceneLifecycleGeneration !== generation && s.isSceneReady;
     }, restarted);
-    if (hurt && !(await seen())) {
+    if (visit === 2) {
       // Over 12 words, so hintReadingPolicy presents it as a modal Field notes dialog.
       await expect(notes).toContainText(
         'Edric ended that battle badly hurt. HP carries between battles',
