@@ -106,7 +106,7 @@ export function isEclipseActive(state, config) {
 /**
  * Shadow a battle adds at victory. Also the HUD projection for the current turn.
  *   gain = min(max(0, turns - max(1, par - grace)), maxGainPerBattle) * difficultyGain
- * A battle without a par adds `noParGain`; tutorial battles and an unknown turn count
+ * A battle without a par adds `noParGain`; scripted battles and an unknown turn count
  * add nothing.
  * @param {{ turnsTaken:number, par:number|null, difficultyId?:string, tutorialMode?:boolean }} input
  * @param {object} config - data/eclipse.json

@@ -239,7 +239,7 @@ export function tuneGrade(grade, tune) {
 
 /**
  * Pick the battle's mood.
- * @param {object} ctx { act, biome, isBoss, isSecret, isFinalBoss, isTutorial, hasEntity, override,
+ * @param {object} ctx { act, biome, isBoss, isSecret, isFinalBoss, isScripted, hasEntity, override,
  *   eclipsePhase (0 Pale .. 4 Hollow) }
  * @returns {{ gradeKey, label, grade, night:boolean, lightOptions:object|null, biome }}
  */
@@ -251,8 +251,8 @@ export function resolveAtmosphere(ctx = {}) {
   let tune = null;
   if (override) {
     gradeKey = override;
-  } else if (ctx.isTutorial) {
-    // Tutorial clarity first: the plain Act I dusk, never night or corruption.
+  } else if (ctx.isScripted) {
+    // A prologue chapter's clarity first: the plain Act I dusk, never night or corruption.
     gradeKey = 'act1';
   } else if (ctx.isSecret || act === 'secretAct' || ctx.hasEntity) {
     gradeKey = 'deep';
@@ -273,9 +273,9 @@ export function resolveAtmosphere(ctx = {}) {
     else if (biome === 'swamp') tune = BIOME_TUNES.swamp;
   }
   const base = ATMOSPHERE_GRADES[gradeKey];
-  // The Eclipse phase darkens every mood a little more (never the tutorial or a dev
+  // The Eclipse phase darkens every mood a little more (never a prologue chapter or a dev
   // override, which exist to show the plain grade).
-  const eclipse = override || ctx.isTutorial ? 0 : Math.max(0, Math.trunc(ctx.eclipsePhase) || 0);
+  const eclipse = override || ctx.isScripted ? 0 : Math.max(0, Math.trunc(ctx.eclipsePhase) || 0);
   const grade = eclipseGrade(tuneGrade(base, tune), eclipse);
   const presetKey = NIGHT_PRESET_BY_GRADE[gradeKey] || null;
   const night = Boolean(presetKey);

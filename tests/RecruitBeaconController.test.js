@@ -97,7 +97,7 @@ describe('RecruitBeaconController', () => {
     for (const setup of [
       () => {},
       (s) => (s._resumeCheckpoint = {}),
-      (s) => (s.battleParams.tutorialMode = true),
+      (s) => (s.battleParams.prologueChapter = 'p1_banner_at_dawn'),
     ]) {
       const scene = makeScene([npc()]);
       setup(scene);

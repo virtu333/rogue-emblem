@@ -1,4 +1,4 @@
-/* Tutorial coach (TutorialCoach.js): the persistent objective line over the map.
+/* Prologue coach (PrologueCoach.js): the persistent objective line over the map.
    Ink plate with a gilt thread; gold is the player's goal (ART_BIBLE "Gold means you"). */
 
 .re-coach[hidden] {
@@ -185,7 +185,7 @@
   }
 }
 
-/* Tutorial notes stay over the map pane, never over the command rail. */
+/* Prologue notes (.re-tutorial-note: the field-note styling hook) stay over the map pane, never over the command rail. */
 .battlefield-lab .re-modal-shield:has(.re-tutorial-note) {
   right: calc(clamp(222px, 24vw, 240px) + env(safe-area-inset-right));
 }

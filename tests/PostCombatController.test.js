@@ -101,7 +101,6 @@ function makeScene() {
     _pinToScreen: vi.fn(),
     _resolveBossDialogueName: vi.fn(() => 'boss_a'),
     _showStoryDialogueOnce: vi.fn(async () => {}),
-    _transitionTutorialToTitle: vi.fn(),
     _clearPostLootTransitionFallback: vi.fn(),
     _awardTurnBonusGold: vi.fn(() => 33),
     transitionAfterBattle: vi.fn(async () => true),

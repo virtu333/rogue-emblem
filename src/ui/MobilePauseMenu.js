@@ -85,8 +85,8 @@ export class MobilePauseMenu {
     if (!confirming) {
       const note = document.createElement('p');
       note.className = 'mp-note';
-      note.textContent = o.tutorial
-        ? 'Tutorial · practice battle — nothing here is saved.'
+      note.textContent = o.prologue
+        ? `Prologue${o.prologue.title ? ` · ${o.prologue.title}` : ''} — nothing here is saved.`
         : 'Progress saves automatically after every action.';
       panel.append(note);
     }
@@ -105,7 +105,7 @@ export class MobilePauseMenu {
       button.textContent = source.text;
       if (source.text === 'Abandon Run') button.classList.add('mp-danger');
       if (source.text === 'Resume') button.classList.add('mp-primary');
-      if (['Leave Tutorial', 'Start First Run'].includes(source.text))
+      if (['Leave Prologue', 'Start First Run'].includes(source.text))
         button.classList.add('mp-exit');
       let start = null;
       button.addEventListener('pointerdown', (e) => {

@@ -121,7 +121,6 @@ function makeScene({ runManager, deployed, npcSpawn }) {
     'updateTopLeftHudLayout',
     'updateEnemyVisibility',
     'updateVisionHud',
-    '_clearTutorialGuideHighlights',
     'cancelTouchInspectHold',
     '_hideMenuTooltip',
     '_restoreBattleRng',

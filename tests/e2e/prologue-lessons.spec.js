@@ -1,7 +1,11 @@
+// P1, "Banner at Dawn", on a phone: the title promotes the prologue, the guided steps
+// gate the first select and the move to the Fort, each note reads over the thing it
+// explains (the terrain preview, the forecast's own numbers), and victory hands a fresh
+// player to the first run while recording only the lessons shown.
 import { test, expect, devices } from '@playwright/test';
 import { waitForScene } from './helpers.js';
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
-test.setTimeout(90000);
+test.setTimeout(120000);
 async function tapTile(page, col, row) {
   const p = await page.evaluate(
     ({ col, row }) => {
@@ -18,20 +22,20 @@ async function tapTile(page, col, row) {
   );
   await page.touchscreen.tap(p.x, p.y);
 }
-test('fresh tutorial teaches visible terrain, forecast and resource lessons with safe first-run handoff', async ({
+test('a fresh prologue teaches the Fort, the forecast, the triangle and the Vulnerary, then hands off safely', async ({
   page,
 }, info) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?mobilePreview=1&battleLab=1');
   await waitForScene(page, 'Title');
-  // The title is DOM: the promoted tutorial leads the run column with its subtitle
+  // The title is DOM: the promoted prologue leads the run column with its subtitle
   // inside the same 44px+ tap target.
-  const tutorial = page.getByRole('button', { name: /^Tutorial/ });
-  await expect(tutorial).toBeVisible();
-  await expect(tutorial).toHaveClass(/is-primary/);
-  await expect(tutorial.locator('.re-title-subtext')).toHaveText('Start here');
-  const fits = await tutorial.evaluate((b) => {
+  const prologue = page.getByRole('button', { name: /^Prologue/ });
+  await expect(prologue).toBeVisible();
+  await expect(prologue).toHaveClass(/is-primary/);
+  await expect(prologue.locator('.re-title-subtext')).toHaveText('Start here');
+  const fits = await prologue.evaluate((b) => {
     const box = b.getBoundingClientRect();
     return (
       [...b.querySelectorAll('span')].every((s) => {
@@ -42,24 +46,29 @@ test('fresh tutorial teaches visible terrain, forecast and resource lessons with
       }) && box.height >= 44
     );
   });
-  if (!fits) throw new Error('Tutorial recommendation must fit its tap target');
-  await tutorial.tap();
+  if (!fits) throw new Error('Prologue recommendation must fit its tap target');
+  await prologue.tap();
   await waitForScene(page, 'Battle');
   const note = page.getByRole('dialog', { name: 'Field notes', exact: true });
   // Teach by doing: no welcome wall. The coach states one goal at a time over the map
   // and always offers a way out.
-  const coach = page.getByRole('region', { name: 'Tutorial guide', exact: true });
+  const coach = page.getByRole('region', { name: 'Prologue guide', exact: true });
   await expect(coach).toBeVisible({ timeout: 15000 });
   await expect(coach.locator('.re-coach-goal')).toHaveText('Select Edric');
-  await expect(coach.getByRole('button', { name: 'Leave tutorial', exact: true })).toBeVisible();
+  await expect(coach.getByRole('button', { name: 'Leave prologue', exact: true })).toBeVisible();
   await expect(note).toHaveCount(0);
-  await page.waitForFunction(
-    () => window.__emblemRogueGame.scene.getScene('Battle').tutorialStep === 2,
-  );
-  await tapTile(page, 1, 2);
+  await page.waitForFunction(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    return s._prologue?.gate?.kind === 'select' && s.battleState === 'PLAYER_IDLE';
+  });
+  // Edric is the only unit to select; the right tap moves the goal to the Fort, and a
+  // tap on any other tile is a nudge, not a note.
+  await tapTile(page, 0, 2);
   await expect(coach.locator('.re-coach-goal')).toHaveText('Move onto the Fort');
   await expect(note).toHaveCount(0);
-  await tapTile(page, 3, 3);
+  await tapTile(page, 2, 2);
+  await expect(coach.locator('.re-coach-nudge')).toHaveText('Move Edric to the gold-framed Fort.');
+  await tapTile(page, 3, 2);
   await expect(note).toContainText('Fort tile reached');
   await expect(note).toContainText('Defense +2');
   await expect(page.locator('.mobile-battle-hud')).toBeVisible();
@@ -68,38 +77,29 @@ test('fresh tutorial teaches visible terrain, forecast and resource lessons with
     await page.evaluate(
       () => window.__emblemRogueGame.scene.getScene('Battle')._mobileTerrainFocus,
     ),
-  ).toEqual({ col: 3, row: 3 });
+  ).toEqual({ col: 3, row: 2 });
   await page.screenshot({ path: info.outputPath('fort-note.png') });
   await note.getByRole('button', { name: 'Continue', exact: true }).tap();
   await page.waitForFunction(
-    () => window.__emblemRogueGame.scene.getScene('Battle')._tutorialStrictGateReleased,
+    () => !window.__emblemRogueGame.scene.getScene('Battle')._prologue.isGateActive(),
   );
 
-  // Controlled matchup exercises each real forecast lesson without depending on AI movement or random hits.
-  for (const expected of ['Review damage per hit', 'Weapon triangle', 'Attack speed']) {
-    await page.evaluate(() => {
+  // Each forecast lesson reads over the forecast's own numbers, one concept at a time:
+  // reading a forecast first (against `a`), the triangle against the holding Fighter `b`.
+  for (const [expected, target] of [
+    ['Reading a forecast', 'a'],
+    ['weapon triangle', 'b'],
+  ]) {
+    await page.evaluate((id) => {
       const s = window.__emblemRogueGame.scene.getScene('Battle'),
-        a = s.playerUnits[0],
-        d = s.enemyUnits[0];
+        attacker = s.playerUnits[0],
+        d = s.enemyUnits.find((u) => u.authoredId === id);
       s.hideForecast();
       s.hideActionMenu();
-      a.skills = [];
-      d.skills = [];
-      a.accessory = null;
-      d.accessory = null;
-      a.stats.SPD = 20;
-      d.stats.SPD = 1;
-      a.stats.STR = 10;
-      d.stats.HP = 100;
-      d.currentHP = 100;
-      d.col = a.col + 1;
-      d.row = a.row;
-      a.weapon = { ...s.gameData.weapons.find((w) => w.name === 'Iron Sword') };
-      a.inventory = [a.weapon];
-      d.weapon = { ...s.gameData.weapons.find((w) => w.name === 'Iron Axe') };
-      d.inventory = [d.weapon];
-      void s.showForecast(a, d);
-    });
+      d.col = attacker.col + 1;
+      d.row = attacker.row;
+      void s.showForecast(attacker, d);
+    }, target);
     await expect(note).toContainText(expected);
     const forecast = page.getByRole('dialog', { name: 'Combat forecast', exact: true });
     await expect(forecast).toBeVisible();
@@ -128,24 +128,26 @@ test('fresh tutorial teaches visible terrain, forecast and resource lessons with
     await expect.poll(() => forecast.locator('..').evaluate((e) => e.inert)).toBe(false);
     await forecast.getByRole('button', { name: 'Cancel', exact: true }).tap();
   }
-  await page.evaluate(() => {
+  // A hit that leaves Edric at 60% or less teaches the Vulnerary with its real numbers.
+  await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('Battle'),
-      sera = s.playerUnits.find((u) => u.name === 'Sera'),
       edric = s.playerUnits[0];
-    edric.currentHP = 1;
-    sera.col = edric.col;
-    sera.row = edric.row + 1;
-    s.selectedUnit = sera;
-    s.battleState = 'UNIT_ACTION_MENU';
-    s.startHealTargetSelection(sera, [edric]);
+    edric.currentHP = 11;
+    void s._prologue.onCombatResolved(s.enemyUnits[0], edric, { initiator: 'enemy' });
   });
-  await expect(note).toContainText('Staff uses refill every battle');
+  await expect(note).toContainText('Item → Vulnerary heals 10 HP');
   await note.getByRole('button', { name: 'Continue', exact: true }).tap();
-  await page.waitForFunction(
-    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'SELECTING_HEAL_TARGET',
-  );
+  await expect(note).toHaveCount(0);
+
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
-  await expect(note).toContainText('completed the tutorial');
+  // Gaspar rides in: two lines, then the handoff.
+  const edricLine = page.getByRole('dialog', { name: 'Edric', exact: true });
+  await expect(edricLine).toContainText('You swore you were done with saddles.');
+  await edricLine.getByRole('button', { name: 'Continue', exact: true }).tap();
+  const gasparLine = page.getByRole('dialog', { name: 'Gaspar', exact: true });
+  await expect(gasparLine).toContainText('The saddle was not consulted.');
+  await gasparLine.getByRole('button', { name: 'Continue', exact: true }).tap();
+  await expect(note).toContainText('Banner at Dawn is yours');
   // A fresh player may go straight into the first run; this path returns to the title.
   await expect(note.getByRole('button', { name: 'Start first run', exact: true })).toBeVisible();
   await note.getByRole('button', { name: 'Back to title', exact: true }).tap();
@@ -154,13 +156,17 @@ test('fresh tutorial teaches visible terrain, forecast and resource lessons with
   const taught = await page.evaluate(() =>
     JSON.parse(localStorage.getItem('emblem_rogue_tutorial_lessons')),
   );
-  expect(taught).toEqual(
-    expect.arrayContaining([
-      'battle_terrain',
-      'battle_triangle',
-      'battle_doubling',
-      'battle_staff_scope',
-    ]),
-  );
+  expect(taught.sort()).toEqual([
+    'battle_consumable_supply',
+    'battle_first_turn',
+    'battle_forecast',
+    'battle_terrain',
+    'battle_triangle',
+  ]);
+  expect(
+    await page.evaluate(() =>
+      Object.keys(localStorage).filter((k) => /^emblem_rogue_slot_\d_/.test(k)),
+    ),
+  ).toEqual([]);
   expect(errors).toEqual([]);
 });

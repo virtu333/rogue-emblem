@@ -299,7 +299,7 @@ describe('Recruit battle intro (playtest 4: a field note, never a dialog)', () =
     scene.turnManager.currentPhase = 'enemy';
     expect(g.pick()).toBeNull();
     scene.turnManager.currentPhase = 'player';
-    scene.battleParams.tutorialMode = true;
+    scene.battleParams.prologueChapter = 'p1_banner_at_dawn';
     expect(g.level()).toBe('off');
   });
 });
@@ -356,9 +356,9 @@ describe('GuidanceController moments', () => {
     settings.getHints = () => false;
     expect(g.level()).toBe('off');
     settings.getHints = () => true;
-    scene.battleParams.tutorialMode = true;
+    scene.battleParams.prologueChapter = 'p1_banner_at_dawn';
     expect(g.level()).toBe('off');
-    scene.battleParams.tutorialMode = false;
+    delete scene.battleParams.prologueChapter;
     hints.markSeen('guide_first_turn');
     expect(g.pick()).toBeNull();
   });

@@ -1,9 +1,9 @@
-// Tutorial-only presentation: reserve space for the modal lesson and show its
+// Prologue-only presentation: reserve space for the modal lesson and show its
 // actual forecast fields above it. No input or combat state changes here.
-export function syncTutorialForecastLayout(modal, scene, active) {
+export function syncPrologueForecastLayout(modal, scene, active) {
   if (!modal) return;
   const note = active ? document.querySelector('.re-tutorial-note') : null;
-  const lesson = scene._tutorialController?.activeLessonId;
+  const lesson = scene._prologue?.activeLessonId;
   const enabled = Boolean(
     note && ['battle_forecast', 'battle_triangle', 'battle_doubling'].includes(lesson),
   );

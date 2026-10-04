@@ -23,8 +23,7 @@ describe('battleDeployCount', () => {
       expect(battleDeployCount({ resuming: true, recorded })).toBe(2);
   });
 
-  it('the tutorial is always two, and a standalone battle without a roster is two', () => {
-    expect(battleDeployCount({ tutorialMode: true, deployedRoster: roster(5) })).toBe(2);
+  it('a standalone battle without a roster is two', () => {
     expect(battleDeployCount({ recorded: 5 })).toBe(2);
   });
 });

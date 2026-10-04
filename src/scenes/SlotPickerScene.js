@@ -1,4 +1,4 @@
-import { applyCompletedTutorialHints } from '../ui/tutorialLessons.js';
+import { applyCompletedTutorialHints } from '../ui/prologueLessons.js';
 import {
   getCloudSaveConflict,
   resolveCloudSaveConflict,

@@ -232,7 +232,7 @@ describe('Formation: returning to the map', () => {
 
   it('is refused in the tutorial, without a run, before placement and for another node', () => {
     const tutorial = formationScene(enteredRun());
-    tutorial.scene.battleParams.tutorialMode = true;
+    tutorial.scene.battleParams.prologueChapter = 'p1_banner_at_dawn';
     expect(tutorial.formation.canReturnToMap()).toBe(false);
 
     const noRun = formationScene({ rm: null, nodeId: 'x' });

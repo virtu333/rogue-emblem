@@ -1,4 +1,5 @@
 import { battleSession } from './BattleSession.js';
+import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 // Formation: before turn 1 the deployed army waits off the map and the player
 // chooses who stands on which spawn tile (engine rules: engine/FormationPlacement.js).
 //
@@ -66,7 +67,7 @@ export class FormationController {
   static shouldRun(scene) {
     return formationActive({
       deployCount: scene.playerUnits?.length || 0,
-      tutorialMode: Boolean(scene.battleParams?.tutorialMode),
+      scripted: isScriptedBattle(scene.battleParams),
       resuming: Boolean(scene._resumeCheckpoint),
       disabled:
         // Placement is a screen: headless scenes (no document) keep default tiles.
@@ -571,7 +572,7 @@ export class FormationController {
       flag &&
       !flag.checkpoint &&
       (!flag.nodeId || flag.nodeId === s.nodeId) &&
-      !s.battleParams?.tutorialMode,
+      !isScriptedBattle(s.battleParams),
     );
   }
 

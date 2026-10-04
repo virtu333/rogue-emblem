@@ -26,10 +26,11 @@
 // Also answers BattleScene's action menu: with Guidance on Full, a unit with no
 // target in reach shows a greyed "Attack" with the reason instead of no Attack.
 //
-// Presentation only: reads battle state, never changes it, no RNG. Tutorial
-// battles use their own coach and get no notes.
+// Presentation only: reads battle state, never changes it, no RNG. Prologue
+// chapters use their own coach and get no notes (engine/ScriptedBattle.js).
 
 import { canInspectUnit } from '../engine/BattleInformation.js';
+import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { findCommander } from '../engine/Commander.js';
 import { isNpcAlly, isRecruitNpc } from '../engine/RecruitNpc.js';
 import { isHealStaff } from '../engine/StatusConditionSystem.js';
@@ -85,7 +86,7 @@ export class GuidanceController {
   /** Effective level: 'full' | 'light' | 'off'. */
   level() {
     const s = this.scene;
-    if (s.battleParams?.tutorialMode) return 'off';
+    if (isScriptedBattle(s.battleParams)) return 'off';
     const settings = s.registry?.get?.('settings');
     if (settings?.getHints?.() === false) return 'off';
     return resolveGuidance(settings?.getGuidance?.() || 'auto', {

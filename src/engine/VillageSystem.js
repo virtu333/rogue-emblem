@@ -16,6 +16,7 @@ import {
   VILLAGE_BANDIT_XP_MULTIPLIER,
   VILLAGE_BANDIT_DISTANCE_MARGIN,
 } from '../utils/constants.js';
+import { isScriptedBattle } from './ScriptedBattle.js';
 
 export const VILLAGE_STATUS = Object.freeze({
   INTACT: 'intact',
@@ -30,7 +31,7 @@ export const VILLAGE_STATUS = Object.freeze({
  * caravan roll beside it.
  *
  * Gating: rout/seize objectives only (never escape), acts 1-4, never on
- * recruit/boss/ambush/tutorial/colosseum battles, and mutually exclusive with
+ * recruit/boss/ambush/scripted/colosseum battles, and mutually exclusive with
  * the Merchant Caravan — max one micro-objective per map (design-log decision).
  * @param {object} params - { act, objective, isRecruitBattle?, isBoss?, isAmbush?, hasCaravan? }
  * @param {function} [rng=Math.random]
@@ -38,8 +39,9 @@ export const VILLAGE_STATUS = Object.freeze({
  */
 export function rollVillageSpawn(params, rng = Math.random) {
   if (!params) return false;
-  const { act, objective, isRecruitBattle, isBoss, isAmbush, tutorialMode, isColosseum } = params;
-  if (isRecruitBattle || isBoss || isAmbush || tutorialMode || isColosseum) return false;
+  const { act, objective, isRecruitBattle, isBoss, isAmbush, isColosseum } = params;
+  if (isRecruitBattle || isBoss || isAmbush || isScriptedBattle(params) || isColosseum)
+    return false;
   if (params.hasCaravan) return false; // max one micro-objective per map
   if (objective !== 'rout' && objective !== 'seize') return false;
   if (!VILLAGE_ELIGIBLE_ACTS.includes(act)) return false;

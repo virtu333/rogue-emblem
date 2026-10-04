@@ -116,14 +116,14 @@ describe('what counts', () => {
     expect(shaman.weapon._casts).toBeUndefined();
   });
 
-  it('counts nothing in the tutorial; the battle seam counts in a run', () => {
-    const make = (tutorialMode) => {
+  it('counts nothing in a prologue chapter; the battle seam counts in a run', () => {
+    const make = (scripted) => {
       const hero = fighter('Edric');
       const foe = fighter('Brigand', 'enemy', 'Iron Axe');
       const deeds = new DeedController({
         runManager: {},
         gameData: { deeds: data.deeds },
-        battleParams: { tutorialMode },
+        battleParams: scripted ? { prologueChapter: 'p1_banner_at_dawn' } : {},
         turnManager: { currentPhase: 'player' },
       });
       deeds.onCombat(hero, foe, { events: [strike('attacker', { targetHPAfter: 0 })] });

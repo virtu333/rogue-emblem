@@ -1,6 +1,6 @@
 # Tutorial v2 Guided Flow Spec
 
-Status: Planned (update to shipped tutorial flow)
+Status: Retired (2026-10-04). Shipped, then replaced by the prologue's P1 (`docs/specs/prologue-chapter.md` §9: `PrologueController`, data-driven beats). Kept as history.
 Date: 2026-02-14
 Owner: Gameplay / onboarding
 

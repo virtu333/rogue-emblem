@@ -376,6 +376,7 @@ describe('prologueBeatsFor', () => {
     expect(step({ type: 'battleStart' })).toEqual([
       { coach: 'p1_select_edric' },
       { gateSelect: { unit: 'Edric' } },
+      { highlight: { unit: 'Edric' } },
     ]);
     expect(step({ type: 'unitSelected', unit: 'Edric', turn: 1 })).toContainEqual({
       gateMove: { col: 3, row: 2 },

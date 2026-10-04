@@ -11,7 +11,7 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 function createCancelScene(overrides = {}) {
   return {
     isStoryInputLocked: () => false,
-    _isTutorialStrictGateActive: () => false,
+    _isPrologueGateActive: () => false,
     isDevToolsEnabled: () => false,
     isMobileInput: true,
     inspectMode: true,

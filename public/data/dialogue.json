@@ -9489,6 +9489,16 @@
       ]
     }
   },
+  "prologue": {
+    "p1_gaspar_arrives": [
+      { "speaker": "Edric", "line": "Gaspar? You swore you were done with saddles." },
+      { "speaker": "Gaspar", "line": "The saddle was not consulted." }
+    ],
+    "not_this_thread": [
+      { "speaker": "???", "line": "Not this thread." },
+      { "speaker": "???", "line": "Stand again where the morning found you." }
+    ]
+  },
   "specialChars": {
     "old_knight": {
       "intro": [

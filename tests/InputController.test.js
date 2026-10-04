@@ -830,7 +830,7 @@ describe('mobile first-tap unit actions', () => {
     const scene = makeScene({
       isMobileInput: true,
       _mobileBattleHud: { available: () => true },
-      _isTutorialStrictGateActive: () => false,
+      _isPrologueGateActive: () => false,
       getUnitAt: () => unit,
       selectUnit: vi.fn(() => {
         scene.selectedUnit = unit;
@@ -940,7 +940,7 @@ describe('mobile first-tap unit actions', () => {
       if (kind === 'committed') unit._movementCommitted = true;
       if (kind === 'traded') scene.tradeMutatedThisSession = true;
       if (kind === 'submenu') scene.actionMenu = [];
-      if (kind === 'tutorial') scene._isTutorialStrictGateActive = () => true;
+      if (kind === 'tutorial') scene._isPrologueGateActive = () => true;
       expect(controller.handlePlanningUnitTap({ col: 0, row: 1 })).toBe(false);
       expect(scene.selectedUnit).toBe(unit);
     },
@@ -997,7 +997,7 @@ describe('mobile first-tap unit actions', () => {
   it.each(['desktop', 'tutorial', 'acted', 'no-hud'])('preserves %s selection rules', (kind) => {
     const { scene, unit, controller } = setup();
     if (kind === 'desktop') scene.isMobileInput = false;
-    if (kind === 'tutorial') scene._isTutorialStrictGateActive = () => true;
+    if (kind === 'tutorial') scene._isPrologueGateActive = () => true;
     if (kind === 'acted') unit.hasActed = true;
     if (kind === 'no-hud') scene._mobileBattleHud = null;
     controller.handleIdleClick({ col: 1, row: 1 });
@@ -1031,7 +1031,7 @@ describe('desktop: clicking an enemy while a unit is selected', () => {
       enemyUnits: [foe],
       gameData: { skills: [] },
       getUnitAt: vi.fn(at),
-      _isTutorialStrictGateActive: () => false,
+      _isPrologueGateActive: () => false,
       showActionMenu: vi.fn(() => {
         scene.battleState = 'UNIT_ACTION_MENU';
         openMenu(scene, [{ id: 'attack', disabled: false }]);
@@ -1121,7 +1121,7 @@ describe('desktop: clicking an enemy while a unit is selected', () => {
       scene.grid.isVisible = () => false;
     }
     if (kind === 'moved') unit.hasMoved = true;
-    if (kind === 'tutorial') scene._isTutorialStrictGateActive = () => true;
+    if (kind === 'tutorial') scene._isPrologueGateActive = () => true;
     expect(controller.attackApproach({ col: 3, row: 1 })).toBeNull();
     expect(controller.tryAttackFromSelection({ col: 3, row: 1 })).toBe(false);
     expect(scene.moveUnit).not.toHaveBeenCalled();

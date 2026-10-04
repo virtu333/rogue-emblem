@@ -23,7 +23,7 @@ import {
 const phone = (viewport) => (({ defaultBrowserType, ...rest }) => rest)(phoneContext(viewport));
 
 // The upright battle rail (docs/portrait-battles.md): the short strip under the turned
-// board, its submenus and lists, the forecast bottom sheet, Formation, the tutorial
+// board, its submenus and lists, the forecast bottom sheet, Formation, the prologue
 // note, the side objectives in the compact header, and the input lifecycle around it.
 // Every phone here is the real default path: a touch phone, portrait mode on by
 // default, no ?portrait=1 and no forced class.
@@ -37,7 +37,7 @@ const phone = (viewport) => (({ defaultBrowserType, ...rest }) => rest)(phoneCon
 //   - Formation's dock breaking "Danger" mid-word, a tap on the turned board placing
 //     on the wrong tile, a turn mid-placement losing the formation;
 //   - the deploy menu leading to a board that has to re-open;
-//   - the tutorial note inset for a side rail (~150px wide) over the bottom rail;
+//   - the prologue note inset for a side rail (~150px wide) over the bottom rail;
 //   - the village and caravan invisible in the compact header, or the caravan's HP
 //     read through the fog;
 //   - a finger lifted with no press on record acting on the board;
@@ -945,7 +945,7 @@ test.describe('deployment upright', () => {
   });
 });
 
-test.describe('tutorial note upright', () => {
+test.describe('prologue note upright', () => {
   for (const viewport of PORTRAIT_PHONES.slice(0, 2)) {
     test.describe(`${viewport.width}x${viewport.height}`, () => {
       test.use(phone(viewport));
@@ -954,9 +954,9 @@ test.describe('tutorial note upright', () => {
         await quietSettings(page, { hints: true });
         await page.goto('/');
         await waitForScene(page, 'Title');
-        await page.getByRole('button', { name: /^Tutorial/ }).tap();
+        await page.getByRole('button', { name: /^Prologue/ }).tap();
         await waitForScene(page, 'Battle');
-        await expect(page.getByRole('region', { name: 'Tutorial guide', exact: true })).toBeVisible(
+        await expect(page.getByRole('region', { name: 'Prologue guide', exact: true })).toBeVisible(
           {
             timeout: 20_000,
           },
@@ -989,7 +989,7 @@ test.describe('tutorial note upright', () => {
   }
 });
 
-test.describe('tutorial forecast lessons upright', () => {
+test.describe('prologue forecast lessons upright', () => {
   test.use(phone(PORTRAIT_PHONES[0]));
 
   // A lesson over the forecast shows only the numbers it teaches, between the top and
@@ -999,42 +999,45 @@ test.describe('tutorial forecast lessons upright', () => {
     await quietSettings(page, { hints: true });
     await page.goto('/');
     await waitForScene(page, 'Title');
-    await page.getByRole('button', { name: /^Tutorial/ }).tap();
+    await page.getByRole('button', { name: /^Prologue/ }).tap();
     await waitForScene(page, 'Battle');
     // Wait until the battle takes taps: a press while input is locked is not a tap.
     await page.waitForFunction(
       () => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
-        return s.tutorialStep === 2 && s.battleState === 'PLAYER_IDLE' && !s.isStoryInputLocked();
+        return (
+          s._prologue?.gate?.kind === 'select' &&
+          s.battleState === 'PLAYER_IDLE' &&
+          !s.isStoryInputLocked()
+        );
       },
       null,
       { timeout: 20_000 },
     );
-    const coach = page.getByRole('region', { name: 'Tutorial guide', exact: true });
+    const coach = page.getByRole('region', { name: 'Prologue guide', exact: true });
     const tapTile = async (col, row) => {
       const p = await tileCss(page, col, row);
       await page.touchscreen.tap(p.x, p.y);
     };
     const note = page.getByRole('dialog', { name: 'Field notes', exact: true });
-    await tapTile(1, 2);
+    await tapTile(0, 2);
     await expect(coach.locator('.re-coach-goal')).toHaveText('Move onto the Fort');
-    await tapTile(3, 3);
+    await tapTile(3, 2);
     await expect(note).toContainText('Fort tile reached');
     await note.getByRole('button', { name: 'Continue', exact: true }).tap();
     await page.waitForFunction(
-      () => window.__emblemRogueGame.scene.getScene('Battle')._tutorialStrictGateReleased,
+      () => !window.__emblemRogueGame.scene.getScene('Battle')._prologue.isGateActive(),
     );
-    for (const expected of ['Review damage per hit', 'Weapon triangle', 'Attack speed']) {
-      // The landscape lesson spec's controlled matchup (tutorial-lessons.spec.js).
+    for (const [expected, target] of [
+      ['Reading a forecast', 'a'],
+      ['weapon triangle', 'b'],
+    ]) {
+      // The landscape lesson spec's matchup (prologue-lessons.spec.js): one concept each.
       await battle(
         page,
-        `const u = s.playerUnits[0], d = s.enemyUnits[0];
+        `const u = s.playerUnits[0], d = s.enemyUnits.find((e) => e.authoredId === '${target}');
          s.hideForecast(); s.hideActionMenu();
-         u.skills = []; d.skills = []; u.accessory = null; d.accessory = null;
-         u.stats.SPD = 20; d.stats.SPD = 1; u.stats.STR = 10; d.stats.HP = 100; d.currentHP = 100;
          d.col = u.col + 1; d.row = u.row;
-         u.weapon = { ...s.gameData.weapons.find((w) => w.name === 'Iron Sword') }; u.inventory = [u.weapon];
-         d.weapon = { ...s.gameData.weapons.find((w) => w.name === 'Iron Axe') }; d.inventory = [d.weapon];
          void s.showForecast(u, d);`,
       );
       await expect(note).toContainText(expected);
@@ -1288,7 +1291,7 @@ for (const viewport of LANDSCAPE_PHONES) {
   test.describe(`landscape ${viewport.width}x${viewport.height}`, () => {
     test.use(phone(viewport));
 
-    test('the side rail, its lists, the forecast and the tutorial inset are unchanged', async ({
+    test('the side rail, its lists, the forecast and the prologue inset are unchanged', async ({
       page,
     }) => {
       test.setTimeout(90_000);
@@ -1364,13 +1367,13 @@ for (const viewport of LANDSCAPE_PHONES) {
       expect(hpBelowName).toBe(true);
       await closeAll(page);
 
-      // A tutorial note keeps its side inset: it ends where the side rail begins.
+      // A prologue note keeps its side inset: it ends where the side rail begins.
       await page.evaluate(async () => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
         const { showImportantHint } = await import('/src/ui/HintDisplay.js');
-        s.battleParams.tutorialMode = true; // the note's tutorial styling, nothing else
+        s.battleParams.prologueChapter = 'p1_banner_at_dawn'; // the note's styling, nothing else
         window.__note = showImportantHint(s, 'Forts heal a unit that starts its turn on them.');
-        s.battleParams.tutorialMode = false;
+        delete s.battleParams.prologueChapter;
       });
       const note = page.getByRole('dialog', { name: 'Field notes', exact: true });
       await expect(note).toBeVisible();

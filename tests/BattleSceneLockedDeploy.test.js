@@ -117,7 +117,6 @@ function makeScene({ runManager, roster, lockedSpawns, act = 'act3' }) {
     'updateTopLeftHudLayout',
     'updateEnemyVisibility',
     'updateVisionHud',
-    '_clearTutorialGuideHighlights',
     'cancelTouchInspectHold',
     '_hideMenuTooltip',
     '_restoreBattleRng',

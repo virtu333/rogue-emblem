@@ -24,6 +24,8 @@
 //                     id, node      chapter id and the route node that fights it
 //                     title         display name
 //                     objective     'rout' | 'seize' | 'escape'
+//                     roster        unit keys that fight it (a standalone chapter builds
+//                                   them with buildPrologueUnits; at most one per spawn)
 //                     map           { legend: { char: terrain name }, rows: ["F . T", ...] }
 //                                   rows are whitespace-separated legend characters;
 //                                   the map holds terrain only, spawns are coordinates.
@@ -141,6 +143,7 @@ const CHAPTER_KEYS = new Set([
   'node',
   'title',
   'objective',
+  'roster',
   'map',
   'playerSpawns',
   'enemies',
@@ -781,6 +784,24 @@ function validateChapter(chapter, index, prologue, gameData, errors, seen) {
   const inBounds = (t) => isTile(t) && t.col >= 0 && t.col < cols && t.row >= 0 && t.row < rows;
   const passableAt = (t, moveType) =>
     parsed.mapLayout ? passable(terrainData, parsed.mapLayout[t.row][t.col], moveType) : true;
+
+  if (!Array.isArray(chapter.roster) || chapter.roster.length === 0) {
+    errors.push(`${where}.roster must be a non-empty array of unit keys`);
+  } else {
+    const unitKeys = new Set(Object.keys(prologue?.units || {}));
+    const seenUnits = new Set();
+    for (const key of chapter.roster) {
+      if (!unitKeys.has(key)) errors.push(`${where}.roster: unknown unit "${key}"`);
+      else if (seenUnits.has(key)) errors.push(`${where}.roster: "${key}" twice`);
+      seenUnits.add(key);
+    }
+    if (
+      Array.isArray(chapter.playerSpawns) &&
+      chapter.roster.length > chapter.playerSpawns.length
+    ) {
+      errors.push(`${where}.roster has more units than playerSpawns`);
+    }
+  }
 
   if (!Array.isArray(chapter.playerSpawns) || chapter.playerSpawns.length === 0) {
     errors.push(`${where}.playerSpawns must be a non-empty array`);

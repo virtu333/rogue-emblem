@@ -44,7 +44,7 @@ describe('formation rules', () => {
     expect(FORMATION_MIN_UNITS).toBe(3);
     expect(formationActive({ deployCount: 2 })).toBe(false);
     expect(formationActive({ deployCount: 3 })).toBe(true);
-    expect(formationActive({ deployCount: 5, tutorialMode: true })).toBe(false);
+    expect(formationActive({ deployCount: 5, scripted: true })).toBe(false);
     expect(formationActive({ deployCount: 5, resuming: true })).toBe(false);
     expect(formationActive({ deployCount: 5, disabled: true })).toBe(false);
   });

@@ -267,10 +267,12 @@ describe('atmosphereContextFromScene', () => {
       isBoss: true,
       isFinalBoss: true,
       hasEntity: true,
-      isTutorial: false,
+      isScripted: false,
     });
     expect(
-      atmosphereContextFromScene({ battleParams: { act: 'act1', tutorialMode: true } }).isTutorial,
+      atmosphereContextFromScene({
+        battleParams: { act: 'act1', prologueChapter: 'p1_banner_at_dawn' },
+      }).isScripted,
     ).toBe(true);
   });
 });

@@ -65,7 +65,7 @@ describe('BattleScene._commitCombatIntent', () => {
 
   it.each([
     ['outside a saved run battle', { runManager: null }],
-    ['in the tutorial', { battleParams: { tutorialMode: true } }],
+    ['in a prologue chapter', { battleParams: { prologueChapter: 'p1_banner_at_dawn' } }],
     ['during the enemy phase', { turnManager: { currentPhase: 'enemy', turnNumber: 3 } }],
   ])('records nothing %s', (_label, overrides) => {
     const scene = makeScene(overrides);

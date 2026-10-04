@@ -261,7 +261,7 @@ describe('VisionRewindController', () => {
     });
   });
 
-  // ── standalone charge host (tutorial: no runManager) ─────
+  // ── standalone charge host (a prologue chapter: no runManager) ─────
 
   describe('standalone charge host', () => {
     it('reads granted charges from the scene-scoped store', () => {

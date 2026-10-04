@@ -18,6 +18,7 @@
       "node": "prologue_0",
       "title": "Banner at Dawn",
       "objective": "rout",
+      "roster": ["Edric"],
       "map": {
         "legend": { ".": "Plain", "F": "Forest", "T": "Fort" },
         "rows": [
@@ -53,7 +54,11 @@
           "id": "p1_select_edric",
           "on": "battleStart",
           "once": true,
-          "do": [{ "coach": "p1_select_edric" }, { "gateSelect": { "unit": "Edric" } }]
+          "do": [
+            { "coach": "p1_select_edric" },
+            { "gateSelect": { "unit": "Edric" } },
+            { "highlight": { "unit": "Edric" } }
+          ]
         },
         {
           "id": "p1_move_to_fort",

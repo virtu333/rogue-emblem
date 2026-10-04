@@ -1,6 +1,5 @@
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
-import { TutorialController } from './TutorialController.js';
 import { settleAndPresent } from './BattleActionSettlement.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import {
@@ -172,21 +171,13 @@ export class HealController {
     const scene = this.scene;
     // Auto-equip staff
     const staff = chosenStaff || scene.getActiveHealStaff(unit);
-    if (staff && scene.battleParams?.tutorialMode && scene._tutorialStrictGateReleased) {
-      const tutorial = (scene._tutorialController ||= new TutorialController(scene));
-      if (!tutorial.taught.has('battle_staff_scope'))
-        return tutorial.showResourceLesson([{ item: staff }]).then((shown) => {
-          if (shown && !scene._sceneShutdownCleanedUp && scene.sys?.isActive?.() !== false)
-            this.startHealTargetSelection(unit, targets, chosenStaff);
-        });
-    }
     if (staff) this.holdStaff(unit, staff);
     if (!staff) {
       scene.showActionMenu(unit);
       return;
     }
 
-    // First-heal tutorial hint (one-time per save slot)
+    // First-heal field note (one-time per save slot)
     const hints = scene.registry.get('hints');
     if (hints && !hints.hasSeen('battle_heal_uses')) {
       showContextualHint(

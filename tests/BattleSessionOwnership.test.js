@@ -917,7 +917,6 @@ it.each(['player', 'enemy'])(
       result: { attackerHP: 10, defenderHP: 10, events: [] },
     });
     scene.awardXP = async () => {};
-    scene._maybeShowTutorialPermadeathHint = async () => {};
     let release;
     let entered = false;
     scene._sweepFallenUnits = () =>

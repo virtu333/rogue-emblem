@@ -25,7 +25,6 @@ import { AreaPreviewController } from './AreaPreviewController.js';
 import { areaForecastLines, previewAreaArt } from '../engine/AreaPreview.js';
 import { combatStrikeMods, forecastRawDamage, forecastStrikeGroups } from '../engine/Combat.js';
 import { playerKnowledgeOf } from './battleKnowledge.js';
-import { TutorialController } from './TutorialController.js';
 import { combatDistance, getFootprint, isEntity } from '../engine/EntitySystem.js';
 import {
   getAttackWeapons,
@@ -290,6 +289,8 @@ export class AttackFlowController {
       return true;
     }
     if (scene.battleState === 'SHOWING_FORECAST') {
+      // A prologue chapter's first forecast is read as it is: Confirm or Cancel only.
+      if (scene._prologue?.allowsForecastCycling() === false) return false;
       const current = scene.forecastTarget;
       const next = stepTarget(targets, current, direction);
       if (!next || next === current) return false;
@@ -465,11 +466,9 @@ export class AttackFlowController {
     scene.forecastObjects = scene._forecastOverlay.displayObjects;
     scene._pinToScreen(scene.forecastObjects);
 
-    if (scene.battleParams?.tutorialMode) {
-      if (scene.tutorialStep === 4) scene.tutorialStep = 5;
-      await (scene._tutorialController ||= new TutorialController(scene)).showForecastLesson(
-        forecast,
-      );
+    // A prologue chapter's forecast notes read over the open forecast (first open only).
+    if (scene._prologue && !rerender) {
+      await scene._prologue.onForecastOpened(attacker, defender, forecast, chosen);
     }
     return forecast;
   }
@@ -492,6 +491,7 @@ export class AttackFlowController {
     const scene = this.scene;
     if (scene.isStoryInputLocked?.()) return false;
     if (scene.battleState !== 'SHOWING_FORECAST' || !scene.selectedUnit) return false;
+    if (scene._prologue?.allowsForecastCycling() === false) return false;
     const validWeapons = scene._forecastValidWeapons;
     if (!validWeapons || validWeapons.length < 2) return false;
     const currentIdx = validWeapons.indexOf(scene._forecastWeapon);

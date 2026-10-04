@@ -13,7 +13,7 @@
 //   - a refresh mid-battle: Resume Battle restores the exact battle (upright, after
 //     a turn of the phone, and in landscape) and Continue from Map is the sanctioned
 //     revert to the route;
-//   - the tutorial and a slotless battle keep the board they started with.
+//   - the prologue and a slotless battle keep the board they started with.
 import { test, expect } from '@playwright/test';
 import { waitForGame, attachSceneCrashArtifacts } from './helpers.js';
 import {
@@ -641,7 +641,7 @@ test.describe('refresh mid-battle, landscape phone', () => {
   });
 });
 
-// The tutorial and dev routes without a slot have no run save to re-open from: the
+// The prologue and dev routes without a slot have no run save to re-open from: the
 // board keeps the orientation it started in, the layout still follows the phone, and
 // a note says so. Nothing is restarted and the battle stays playable.
 async function markScene(page) {
@@ -654,12 +654,12 @@ const sameScene = (page) =>
     () => window.__battleSceneMark === window.__emblemRogueGame.scene.getScene('Battle').grid,
   );
 
-/** The note shows, over the map: clear of the rail and the tutorial guide's buttons. */
-async function expectKeepsBoard(page, { tutorial = false } = {}) {
+/** The note shows, over the map: clear of the rail and the prologue guide's buttons. */
+async function expectKeepsBoard(page, { prologue = false } = {}) {
   const notice = page.locator('.portrait-battle-notice');
   await expect(notice).toHaveText('The board keeps its orientation for this battle.');
   // The guide steps aside while the layout turns, then docks over the map again.
-  if (tutorial) await expect(page.getByRole('region', { name: 'Tutorial guide' })).toBeVisible();
+  if (prologue) await expect(page.getByRole('region', { name: 'Prologue guide' })).toBeVisible();
   await expect(notice).toBeVisible();
   // The guide re-docks over a few frames as the layout turns; the note follows it.
   const covered = () =>
@@ -682,31 +682,31 @@ async function expectKeepsBoard(page, { tutorial = false } = {}) {
   await expect.poll(covered, { message: 'under the note' }).toEqual([]);
 }
 
-async function openTutorial(page, errors) {
+async function openPrologue(page, errors) {
   await page.goto('/');
   await waitForGame(page);
   await activeScene(page, 'Title');
-  await page.getByRole('button', { name: /^Tutorial/ }).tap();
+  await page.getByRole('button', { name: /^Prologue/ }).tap();
   await activeScene(page, 'Battle');
   await battleIdle(page);
-  await expect(page.getByRole('region', { name: 'Tutorial guide' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Prologue guide' })).toBeVisible();
   expect(errors).toEqual([]);
 }
 
 test.describe('battles without a run save, upright start', () => {
   test.use(phone(UPRIGHT));
 
-  test('the tutorial keeps its turned board when the phone turns, and stays playable', async ({
+  test('the prologue keeps its turned board when the phone turns, and stays playable', async ({
     page,
   }) => {
     const errors = pageErrors(page);
     await quietSettings(page);
-    await openTutorial(page, errors);
+    await openPrologue(page, errors);
     expect((await battleSnapshot(page)).rotation).toBe('ccw');
     await markScene(page);
 
     await page.setViewportSize(SIDEWAYS);
-    await expectKeepsBoard(page, { tutorial: true });
+    await expectKeepsBoard(page, { prologue: true });
     expect(await sameScene(page)).toBe(true);
     expect(await battleSnapshot(page)).toMatchObject({ rotation: 'ccw', state: 'PLAYER_IDLE' });
     // The guide's first step works sideways on the turned board: tap Edric.
@@ -764,21 +764,21 @@ test.describe('battles without a run save, upright start', () => {
 test.describe('battles without a run save, landscape start', () => {
   test.use(phone(SIDEWAYS));
 
-  test('the tutorial begun sideways keeps its board upright; no rotate prompt', async ({
+  test('the prologue begun sideways keeps its board upright; no rotate prompt', async ({
     page,
   }) => {
     const errors = pageErrors(page);
     await quietSettings(page);
-    await openTutorial(page, errors);
+    await openPrologue(page, errors);
     expect((await battleSnapshot(page)).rotation).toBe('none');
     await markScene(page);
     await page.setViewportSize(UPRIGHT);
-    await expectKeepsBoard(page, { tutorial: true });
+    await expectKeepsBoard(page, { prologue: true });
     await expectPortraitUi(page);
     expect(await sameScene(page)).toBe(true);
     expect(await battleSnapshot(page)).toMatchObject({ rotation: 'none', state: 'PLAYER_IDLE' });
     await expectNoSidewaysScroll(page);
-    await expectTappable(page.getByRole('button', { name: 'Leave tutorial', exact: true }));
+    await expectTappable(page.getByRole('button', { name: 'Leave prologue', exact: true }));
     expect(errors).toEqual([]);
   });
 });

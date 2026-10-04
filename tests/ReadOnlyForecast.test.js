@@ -202,7 +202,7 @@ function makeScene({ policy = 'fixed-v1', inventory = null, heroExtra = {} } = {
     getPromotionConsumable: () => null,
     _hasAbilities: () => false,
     isStoryInputLocked: () => false,
-    _isTutorialStrictGateActive: () => false,
+    _isPrologueGateActive: () => false,
     commitVisionSnapshotIfPending: vi.fn(),
     refreshEndTurnControl: vi.fn(),
     cleanupTradeUI: vi.fn(),
@@ -226,7 +226,6 @@ function makeScene({ policy = 'fixed-v1', inventory = null, heroExtra = {} } = {
     isDevToolsEnabled: () => false,
     awardXP: vi.fn(async () => {}),
     removeUnit: vi.fn(async () => {}),
-    _maybeShowTutorialPermadeathHint: vi.fn(async () => {}),
     _battleBeats: { checkBossHalfHealth: vi.fn(async () => {}) },
     _deedController: { onCombat: vi.fn(), onUnitRemoved: vi.fn() },
   });

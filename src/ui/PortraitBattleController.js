@@ -13,6 +13,7 @@
 // Rules and saves are untouched: the board turn is Grid presentation only.
 
 import { battleSession } from './BattleSession.js';
+import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { classifyBattleBoundary } from './BattleCheckpointAdapter.js';
 import { BattleSuspendController } from './BattleSuspendController.js';
 import { battlefieldLabEnabled } from './BattlefieldLab.js';
@@ -46,7 +47,7 @@ export class PortraitBattleController {
     this.pending = false;
     this.switching = false;
     this.ended = false;
-    // Set when this battle cannot re-open (no run save, e.g. the tutorial): the layout
+    // Set when this battle cannot re-open (no run save, e.g. a prologue chapter): the layout
     // still follows the phone, the board keeps its orientation.
     this.locked = false;
     // Set when a switch's save did not reach storage (full, private mode): the request
@@ -180,7 +181,7 @@ export class PortraitBattleController {
       // nowhere to write the save it would re-open from.
       hasRunCheckpoint: Boolean(
         s.runManager?.battleInProgress &&
-        !s.battleParams?.tutorialMode &&
+        !isScriptedBattle(s.battleParams) &&
         s._battleRewindPolicy === 'fixed-v1' &&
         Number.isInteger(s.registry?.get?.('activeSlot')),
       ),
@@ -352,7 +353,7 @@ export class PortraitBattleController {
   }
 
   // The note sits over the map, never over the rail: centred on the map's area (the
-  // landscape rail stands beside it) and no wider than it. The tutorial guide docks
+  // landscape rail stands beside it) and no wider than it. The prologue guide docks
   // over the map too (top or bottom, and it re-docks as the layout turns): where the
   // note's own place would cover it, the note sits just below the guide instead,
   // never over its Skip step / Leave buttons. Checked every frame while the note

@@ -527,15 +527,19 @@ describe('PortraitBattleController', () => {
     expect(scene.scene.restart).not.toHaveBeenCalled();
   });
 
-  it('keeps the board of a battle without a run save (tutorial)', () => {
-    viewport(390, 844);
-    const scene = fakeScene({ checkpoint: false });
-    const c = controller(scene);
-    viewport(844, 390);
-    expect(c.check()).toBe(false);
-    expect(c.locked).toBe(true);
-    c.update();
-    expect(scene.scene.restart).not.toHaveBeenCalled();
+  it('keeps the board of a battle without a run save, and of a prologue chapter', () => {
+    for (const scene of [
+      fakeScene({ checkpoint: false }),
+      Object.assign(fakeScene(), { battleParams: { prologueChapter: 'p1_banner_at_dawn' } }),
+    ]) {
+      viewport(390, 844);
+      const c = controller(scene);
+      viewport(844, 390);
+      expect(c.check()).toBe(false);
+      expect(c.locked).toBe(true);
+      c.update();
+      expect(scene.scene.restart).not.toHaveBeenCalled();
+    }
   });
 
   it('keeps playing when the save point cannot be refreshed', () => {

@@ -80,6 +80,9 @@ emblem-rogue/
 ### Scene Flow
 Auth/offline gate (main.js) → Boot → Title → SlotPicker → HomeBase → DifficultySelect → BlessingSelect → NodeMap ↔ Battle → RunComplete → Title. Dev routing: `?qaStep=` or `?devScene=` query params skip to specific scenes.
 
+### The Prologue (the practice battle)
+`docs/specs/prologue-chapter.md`. The title's "Prologue" item plays P1 ("Banner at Dawn") standalone: `data/prologue.json` (authored map, enemies with authored kits, roster, declarative beats) → `engine/Prologue.js` (`buildPrologueBattleConfig`, `buildPrologueUnits`, `prologueBeatsFor`, validated by `npm run validate:data`) → `BattleScene` with `battleParams.prologueChapter` and no RunManager → `ui/PrologueController.js` (coach, gates, highlights, notes, lines, defeat restart, victory handoff). Copy: coach/note text in `src/data/prologueContent.js`, spoken lines in `dialogue.json` `prologue`. `engine/ScriptedBattle.js` `isScriptedBattle(battleParams)` is the one predicate every run-layer system reads to stay off (Eclipse, Guidance, contextual hints, deeds, formation, caravans/villages, story beats, commander last words, suspend/intent writes); `tests/ScriptedBattleSuppression.test.js` drives each reader and forbids a private flag. The chapter never counts: no slot or meta write, no Vision grant; a fallen commander restarts the chapter ("Not this thread"). Completion keeps the device-wide keys `emblem_rogue_tutorial_completed` / `emblem_rogue_tutorial_lessons` (`ui/prologueLessons.js`, `applyCompletedTutorialHints` for new slots); the `.re-tutorial-note` / `mb-tutorial-*` CSS hooks and the `TUTORIAL_HINT` battle state keep their names.
+
 ## Data File Gotchas
 Read the JSON files directly for full schemas. Non-obvious behaviors:
 - **classes.json** — Base classes have `growthRanges` (string "55-70", rolled once at recruitment). Promoted classes have `promotionBonuses`. Some have `learnableSkills: [{ skillId, level }]`.
@@ -204,7 +207,7 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 Several files have grown large enough to require active management. When adding features, prefer extracting to a new controller/module over expanding these files further.
 
 ### Critical (actively decompose)
-- **BattleScene.js (~11,100 lines)** — 13 controllers extracted (5 original + PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController, HealController, PromotionController, TutorialController). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
+- **BattleScene.js (~11,000 lines)** — 13 controllers extracted (5 original + PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController, HealController, PromotionController, PrologueController). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
 
 ### Large (watch for growth)
 - **NodeMapScene.js (~1,950 lines)** — ChurchController/ShopController now own lifecycle and persistence only; ChurchMenu/ShopMenu and ArenaMenu are the sole service renderers. Do not restore headless canvas branches for tests—use rendering-only test adapters and real engine commands.

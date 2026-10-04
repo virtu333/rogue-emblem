@@ -119,7 +119,6 @@ function startedScene() {
     'updateTopLeftHudLayout',
     'updateEnemyVisibility',
     'updateVisionHud',
-    '_clearTutorialGuideHighlights',
     'cancelTouchInspectHold',
     '_hideMenuTooltip',
     '_restoreBattleRng',

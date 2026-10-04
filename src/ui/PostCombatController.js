@@ -8,7 +8,6 @@ import { readOnlyBattleReport } from '../engine/BattleTimelineFacts.js';
 import { prepareBattleRewards } from '../engine/PendingBattleRewards.js';
 import { PendingRewardController } from './PendingRewardController.js';
 import { hasDOMHost } from '../utils/domUI.js';
-import { TutorialController } from './TutorialController.js';
 import {
   serializeUnit,
   getActTransitionKey,
@@ -31,7 +30,6 @@ import {
 } from '../utils/SceneRouter.js';
 import { retryBooleanAction } from '../utils/retry.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
-import { showImportantHint } from './HintDisplay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { BossRecruitOverlay } from './BossRecruitOverlay.js';
 import { prepareBossRecruit, resolveBossRecruit } from '../engine/PendingBossRecruit.js';
@@ -114,31 +112,12 @@ export class PostCombatController {
       timer = scene.time.delayedCall(1500, run);
     };
 
-    if (scene.battleParams.tutorialMode) {
+    if (scene._prologue) {
+      // A prologue chapter: its last lines, the lesson record and the handoff
+      // (PrologueController.onVictory). Nothing is settled or saved.
       afterVictoryBand(async () => {
         if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
-        const tutorial = (scene._tutorialController ||= new TutorialController(scene));
-        // A fresh player goes straight into their first run; anyone else returns to title.
-        const startRun = Boolean(tutorial.pauseOptions?.()?.onStartRun);
-        const choice = await showImportantHint(
-          scene,
-          startRun
-            ? "Victory! You've completed the tutorial.\nYour first run starts on the route map — pick a path, fight, and keep your commander alive."
-            : "Victory! You've completed the tutorial.\nYour saves are waiting on the title screen.",
-          {
-            actions: startRun
-              ? [
-                  { label: 'Start first run', value: 'run', primary: true },
-                  { label: 'Back to title', value: 'title' },
-                ]
-              : [{ label: 'Back to title', value: 'title', primary: true }],
-          },
-        );
-        if (!isCurrentBattleSession(scene, session)) return;
-        if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
-        tutorial.recordCompletion();
-        if (choice === 'run') scene._transitionTutorialToTitle({ autoAction: 'newGame' });
-        else scene._transitionTutorialToTitle();
+        await scene._prologue.onVictory();
       });
     } else if (scene.runManager) {
       scene.clearBattleScopedDeltas(scene.playerUnits);
@@ -913,17 +892,12 @@ export class PostCombatController {
       scene._pinToScreen(defeatBanner);
     }
 
-    if (scene.battleParams.tutorialMode) {
-      scene.time.delayedCall(1500, async () => {
+    if (scene._prologue) {
+      // A prologue chapter never loses (checkBattleEnd intercepts the commander's
+      // fall before this); any other way here restarts the chapter from its start.
+      scene.time.delayedCall(1500, () => {
         if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
-        await showImportantHint(
-          scene,
-          'Your commander fell — the battle is lost. In a real run, this would end the run.\nThe tutorial is always there to try again from the title.',
-          { actions: [{ label: 'Back to title', value: true, primary: true }] },
-        );
-        if (!isCurrentBattleSession(scene, session)) return;
-        if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
-        scene._transitionTutorialToTitle();
+        scene._prologue.restartChapter();
       });
     } else if (scene.runManager) {
       scene.clearBattleScopedDeltas(scene.playerUnits);

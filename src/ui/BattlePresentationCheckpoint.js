@@ -96,6 +96,15 @@ export async function presentQueuedLevelUps(scene, continuation = null, { sessio
       if (isCurrentBattleSession(scene, session))
         safeBattlePresentation('level-up sound cleanup', () => scene._stopLevelUpSfx(), { scene });
     }
+    // A prologue chapter's level-up note reads right after the card.
+    if (scene._prologue && isCurrentBattleSession(scene, session))
+      await safeBattlePresentation(
+        'prologue level-up note',
+        () => scene._prologue.onLevelUp(unit),
+        {
+          scene,
+        },
+      );
   }
 }
 

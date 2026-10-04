@@ -317,7 +317,7 @@ describe('ESC priority model', () => {
     scene.game = overlayScene.game;
     scene.tweens = overlayScene.tweens;
     scene.isDevToolsEnabled = () => false;
-    scene._isTutorialStrictGateActive = () => false;
+    scene._isPrologueGateActive = () => false;
     scene.requestCancel = vi.fn((opts) => BattleScene.prototype.requestCancel.call(scene, opts));
     scene._bindGameplayKeyboardHandlers();
 

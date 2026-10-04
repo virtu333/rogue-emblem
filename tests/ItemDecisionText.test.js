@@ -7,7 +7,7 @@ import {
 import { applyForge } from '../src/engine/ForgeSystem.js';
 import { FORGE_STAT_CAP } from '../src/utils/constants.js';
 import { forecastModifierText } from '../src/ui/forecastDisplay.js';
-import { tutorialCoachState } from '../src/ui/tutorialCoachModel.js';
+import { prologueCoachState } from '../src/ui/prologueCoachModel.js';
 import { loadGameData } from './testData.js';
 const data = loadGameData();
 describe('decision details', () => {
@@ -73,9 +73,9 @@ describe('decision details', () => {
     expect(forecastModifierText({ id: 'mastery' }, { className: 'Lord' }, data)).toContain('+1');
   });
   it('teaches a ranged unit its actual range', () => {
-    const info = tutorialCoachState({
-      step: 4,
-      gateReleased: true,
+    const info = prologueCoachState({
+      scripted: null,
+      gated: false,
       phase: 'player',
       state: 'PLAYER_IDLE',
       enemies: 2,

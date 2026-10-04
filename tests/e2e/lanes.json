@@ -36,7 +36,7 @@
         "forecast-parity.spec.js",
         "progression-reveal.spec.js",
         "selection-planning.spec.js",
-        "tutorial-lessons.spec.js",
+        "prologue-lessons.spec.js",
         "hint-reading.spec.js",
         "reward-menu.spec.js",
         "shop-reentry.spec.js",
@@ -169,7 +169,7 @@
         "slot-picker.spec.js",
         "strategy-layer.spec.js",
         "traits-v2.spec.js",
-        "tutorial-exit.spec.js"
+        "prologue-exit.spec.js"
       ]
     },
     {

@@ -789,7 +789,7 @@ describe('the aiming state is registered wherever the Blink tile state is', () =
     area.begin(caster, caster.weapon, stormcall);
     scene.startEnemyPhase = vi.fn();
     scene.turnManager.endPlayerPhase = vi.fn();
-    scene._isTutorialStrictGateActive = () => false;
+    scene._isPrologueGateActive = () => false;
     scene.isStoryInputLocked = () => false;
     scene.forceEndTurn();
     expect(area.pending).toBeNull();

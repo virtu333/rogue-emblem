@@ -1,5 +1,5 @@
 import { showRunRecords } from '../ui/RunRecordsMenu.js';
-import { applyCompletedTutorialHints } from '../ui/tutorialLessons.js';
+import { applyCompletedTutorialHints, TUTORIAL_COMPLETED_KEY } from '../ui/prologueLessons.js';
 import { getCloudSaveConflict } from '../engine/CloudSaveConflict.js';
 import { MenuSurface, element, button } from '../ui/MenuSurface.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -29,7 +29,8 @@ import {
   clearAllSlotData,
   prepareRecoveryLogout,
 } from '../engine/SlotManager.js';
-import { buildTutorialRoster as _buildTutorialRoster } from '../engine/TutorialHelpers.js';
+import { buildPrologueUnits } from '../engine/Prologue.js';
+import { prologueBattleParams } from '../engine/ScriptedBattle.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { HintManager } from '../engine/HintManager.js';
 import { startFirstRunFastPath } from '../utils/firstRunFastPath.js';
@@ -66,7 +67,7 @@ export class TitleScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
-    // The tutorial's "Start first run" lands here and continues into New Game, so
+    // The prologue's "Start first run" lands here and continues into New Game, so
     // slot staging and the first-run fast path live in one place (handleNewGame).
     this._autoAction = data?.autoAction === 'newGame' ? 'newGame' : null;
   }
@@ -124,7 +125,8 @@ export class TitleScene extends Phaser.Scene {
     this._resumeSlot = pickResumeSlot(slotSummaries);
     this._menuItems = buildTitleMenu({
       hasSlots,
-      tutorialDone: readFlag('emblem_rogue_tutorial_completed'),
+      prologueDone: readFlag(TUTORIAL_COMPLETED_KEY),
+      hasPrologue: Boolean(this.prologueChapter()),
       resumeSlot: this._resumeSlot,
       seenHowToPlay: readFlag('emblem_rogue_seen_how_to_play'),
     });
@@ -207,25 +209,24 @@ export class TitleScene extends Phaser.Scene {
             { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
           ),
         );
-      case 'tutorial':
+      case 'prologue': {
+        // The prologue's practice chapter (P1, "Banner at Dawn"): the authored map and
+        // roster, no RunManager, nothing saved (docs/specs/prologue-chapter.md §6).
+        const chapter = this.prologueChapter();
+        if (!chapter) return undefined;
         return this.runMenuTransition(() =>
           transitionToScene(
             this,
             'Battle',
             {
               gameData: this.gameData,
-              roster: this.buildTutorialRoster(),
-              battleParams: {
-                tutorialMode: true,
-                act: 'act1',
-                objective: 'rout',
-                battleSeed: 42,
-                deployCount: 2,
-              },
+              roster: buildPrologueUnits(this.gameData.prologue, this.gameData, chapter.roster),
+              battleParams: prologueBattleParams(chapter, { seed: this.gameData.prologue.seed }),
             },
             { reason: TRANSITION_REASONS.NEW_GAME, retryBlocked: true },
           ),
         );
+      }
       case 'howToPlay':
         if (this.howToPlayOverlay?.visible) return undefined;
         this.howToPlayOverlay = new HowToPlayOverlay(this, () => {
@@ -642,8 +643,9 @@ export class TitleScene extends Phaser.Scene {
     menu.focusContent();
   }
 
-  buildTutorialRoster() {
-    return _buildTutorialRoster(this.gameData);
+  /** The title's practice chapter: the prologue's first (null without prologue data). */
+  prologueChapter() {
+    return this.gameData?.prologue?.chapters?.[0] || null;
   }
 
   async runMenuTransition(action) {

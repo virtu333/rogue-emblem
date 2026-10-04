@@ -1,12 +1,13 @@
 # Prologue: The First Thread — design
 
-Status: Phase 1 part A built (data format, validator, `engine/Prologue.js`, authored spawn
-loadouts, P1's map proven in the harness); the scene, title and run-mode work is not. Loop ending
-approved by the user, 2026-10-04.
+Status: Phase 1 built (data format, validator, `engine/Prologue.js`, authored spawn loadouts,
+P1's map proven in the harness, `PrologueController`, the defeat intercept; P1 is the title's
+practice battle and the tutorial is deleted). Phases 2-4 (the run mode, the route, P2-P4) are
+not. Loop ending approved by the user, 2026-10-04.
 Date: 2026-10-04
-Replaces: the practice tutorial battle (`TutorialController`, `TutorialHelpers`) once the
-prologue reaches parity. `docs/tutorial-battle-spec.md` is already stale; the shipped tutorial
-is described in `docs/specs/tutorial_v2_guided_flow_spec.md` and `docs/onboarding-review-2026-09-20.md`.
+Replaced: the practice tutorial battle (`TutorialController`, `TutorialHelpers`), deleted in
+phase 1. `docs/tutorial-battle-spec.md` and `docs/specs/tutorial_v2_guided_flow_spec.md` are
+history; `docs/onboarding-review-2026-09-20.md` describes the tutorial it reviewed.
 Research: `docs/fire-emblem-tutorial-sequencing.md` (how FE7, FE8, Path of Radiance and Awakening
 stage their openings, and the teaching rules adopted in §2). Playtest evidence:
 `docs/playtest-2026-09-22.md`, `docs/browser-playtest-2026-09-20.md` and
@@ -657,9 +658,17 @@ A chapter has no keys for reinforcements, bandits or fog: the validator rejects 
 so §8's "no unannounced arrivals" is enforced by the format. Every enemy names its weapon and
 its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
 
-- **Copy** lives in `dialogue.json`: a `prologue` section, plus `bossEncounters['Captain Varro']`
-  for his pre-battle, half-health and defeat lines. Beat actions name copy by id (`coach`,
-  `note`, `dialogue`); P1's ids are in its beats, and the copy is the scene phase's job.
+- **Copy.** Spoken lines live in `dialogue.json`'s `prologue` section (`p1_gaspar_arrives`,
+  `not_this_thread`; later `bossEncounters['Captain Varro']` for his pre-battle, half-health and
+  defeat lines). Coach goals, field notes and gate nudges live in `src/data/prologueContent.js`,
+  each a function of a plain context (touch or desktop verbs, the lord's name, the arrived
+  terrain's bonuses, the consumable's real numbers). Beat actions name copy by id (`coach`,
+  `note`, `dialogue`); `tests/PrologueContent.test.js` checks every id a beat names has copy and
+  every line keeps to the voice sheet. `NOTE_HINT_IDS` maps a note to the in-run field notes it
+  stands in for (`battle_terrain`, `battle_forecast`, `battle_triangle`,
+  `battle_consumable_supply`; P1's turn note mentions Danger, so `battle_danger_zone`).
+- **A chapter names its `roster`** (unit keys, at most one per spawn; validated). The title
+  builds it with `buildPrologueUnits` and the defeat restart builds it again.
 - **Varro** is in a prologue-owned boss list. Boss-card epithets read `enemies.bosses`, and
   adding him to `bosses.act1` would put him in the real Act 1 boss pool (code review, 2026-10-04). The
   boss card's epithet lookup takes the prologue list as a fallback.
@@ -750,34 +759,64 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   - clears the run save
   `meta.prologue` and the grant ledger sync to `meta_progression` like the rest of meta.
 
-### BattleScene: `PrologueController` (new; `create(scene)` / `destroy()`)
+### BattleScene: `PrologueController` (built; `src/ui/PrologueController.js`)
 
-- Owns the coach, gates, highlights and notes, driven by `prologueBeatsFor`.
-- Absorbs the reusable parts of `TutorialController`: the strict gate, forecast lessons and
-  resource lessons. `TutorialController` is deleted when the prologue ships, not kept beside it.
-- New trigger points are small hooks the scene already has neighbours for:
-  - `unitSelected` (BattleScene 4649)
-  - `afterMove` (4955)
-  - forecast open (AttackFlowController 468)
-  - combat resolved (8314)
-  - turn start (`scheduleTurnStartHints`)
-  - unit defeated (9087 and up)
-  - `hpBelow`
-  - `talk`
-  - `seize`
-- **Prologue defeat (code review, 2026-10-04).** The first draft said the existing "Continue from Map"
-  revert would restart a battle. It can't:
-  - `VisionRewindController.showLordDeathPrompt` saves a `fatal_pending` checkpoint, which
-    `revertBattleInProgressToEntry` refuses.
-  - Accept Fate runs `onDefeat`, then `failRun`, then RunComplete, which counts a finished run
-    and pays Valor and Supply. That breaks §8.
-  So in prologue mode, a named unit's death is intercepted *before* the lord-death prompt and
-  `onDefeat`:
-  1. `commanderFall` last words don't play.
-  2. The "Not this thread" dialogue plays.
-  3. A prologue-only restart clears `battleInProgress` (even a `fatal_pending` one) and
-     re-enters the node from its locked config and the roster as it entered.
-  4. If a Vision charge is unspent, the dialogue offers the rewind first.
+- Owns the coach (`PrologueCoach`, the former `TutorialCoach`, now fed the live guided step's
+  goal by the controller; `prologueCoachModel` derives the free-play goals), the gates, the
+  highlights, the field notes and the spoken lines, all driven by `prologueBeatsFor`.
+  `TutorialController`, `TutorialHelpers`, `tutorialLessons`, `tutorialCoachModel` and
+  `tutorialForecastLayout` are deleted, not kept beside it (`prologueLessons.js`,
+  `prologueForecastLayout.js`).
+- A beat's actions apply in two passes: gates, the coach goal, highlights and the lesson ledger
+  at once, then its notes and lines one at a time, so what a note points at (the Fort's ring,
+  a Fighter's red reach) is on screen while it shows. A note is a modal Field note (battle state
+  `TUTORIAL_HINT`, the rail inert); on the enemy phase it is a coach nudge (a notice band without
+  a coach); raised at a phase start it waits until the player can act.
+- Gates: `gateSelect` and `gateMove` block free play (the scene asks `allowsSelect` /
+  `allowsMoveTo`, and refuses with a nudge); `gateConfirm` only blocks weapon and target cycling
+  on the open forecast and lifts when it closes. Skip step releases the gates for the chapter.
+- The hooks, each a line or two at an existing site (`scene._prologue?.…`):
+  - `onPhaseStart` from `onPhaseChange` (both phases); the first player phase raises
+    `battleStart` at once and reveals the coach through the phase's guarded runner after the
+    banner (1500 ms), so the gate is live from the first frame
+  - `onUnitSelected` (end of `selectUnit`), `onAfterMove` (awaited in `afterMove`, before the
+    action menu), `onForecastOpened` (awaited in `AttackFlowController.showForecast`, first open
+    only), `onForecastClosed` (`hideForecast`)
+  - `onCombatResolved` at both combat sites (the player's attack and the enemy's), awaited; it
+    raises `combatResolved` for a player-started exchange and `hpBelow` when a player unit's HP
+    changed
+  - `beforeUnitActionCompletes` at the end of `finishUnitAction`: a `unitActed` note holds the
+    action's completion (and so the turn's end) until it is read. With Edric alone the player
+    phase ends as soon as he has acted, so P1's "Wait vs End Turn" note reads there.
+  - `onLevelUp` after each card in `presentQueuedLevelUps`, `onHoldersWoke` from the AI's
+    callback, `onUnitDefeated` from `removeUnit`
+  - `onDefeatIntercept` in `checkBattleEnd`, before the lord-death prompt and `onDefeat`
+  - `onVictory` from `PostCombatController` after the victory band
+  - `talk` and `seize` are not wired yet (no P1 beat uses them; P3/P4).
+- **Prologue defeat (built for the standalone chapter).** The existing "Continue from Map"
+  revert can't restart a battle: `VisionRewindController.showLordDeathPrompt` saves a
+  `fatal_pending` checkpoint, and Accept Fate runs `onDefeat`, `failRun` and RunComplete, which
+  counts a finished run and pays Valor and Supply (§8). So the commander's fall is intercepted in
+  `checkBattleEnd` *before* the lord-death prompt and `onDefeat` (`onDefeatIntercept`):
+  1. `commanderFall` last words don't play (`isScriptedBattle`).
+  2. The battle state goes to `BATTLE_END` (the enemy phase stops) and the "Not this thread"
+     lines play, speaker `???` (Sera's voice, unnamed), no portrait.
+  3. The scene restarts (`restartScene`, same `battleParams`, the chapter's `roster` built
+     again with `buildPrologueUnits`), so the chapter begins again from its start. No Vision is
+     granted in P1 (the tutorial's lord-fall grant is gone).
+  Phase 2's run-mode restart (clearing `battleInProgress`, re-entering the node, offering an
+  unspent Vision first) is still to build.
+- **The suppress predicate.** `engine/ScriptedBattle.js` `isScriptedBattle(battleParams)` is
+  true for `battleParams.prologueChapter` and nothing else (the `tutorialMode` flag is gone).
+  Every former `tutorialMode` reader (the Eclipse clock and atmosphere, Guidance, contextual
+  hints, deeds and fallen records, formation and Back to Map, caravans and villages, story beats,
+  the commander's last words, suspend checkpoints and combat/area-strike intents, the portrait
+  re-open, the first-battle theme, locked spawn counts) reads it;
+  `tests/ScriptedBattleSuppression.test.js` drives each one with P1's params and fails if any
+  source file reads a `tutorialMode` of its own. The standalone chapter has no RunManager, so
+  `_persistBattleRunState` returns `missing_run` and nothing reaches a slot; the controller
+  never calls the registry's `HintManager` (a stale slot's manager would have written that
+  slot's meta): new slots read the device-wide lesson keys instead.
 
 ### Engine gaps to close (small)
 
@@ -810,6 +849,13 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
     is an integer;
   - use a canned roster per chapter (the authored units at that chapter's expected levels);
   - make no grant and no meta writes.
+  Phase 1 ships the item as the practice battle: "Prologue" (sub-label "Start here" on a fresh
+  device, as the tutorial's promotion was; hidden when the build has no `data/prologue.json`)
+  launches P1 standalone with `buildPrologueUnits(prologue, gameData, chapter.roster)` and
+  `prologueBattleParams(chapter)`. The pause menu offers Leave Prologue and, on a device without
+  saves, Start First Run; victory plays Gaspar's two lines, records the completion flag and the
+  lessons shown (`prologueLessons.recordTaughtLessons`), and hands off to Start first run or
+  Back to title as the tutorial did.
 - **Skip mid-way:** "Skip the rest of the prologue" in the pause menu jumps to the ending, then
   Home Base, with the grant.
 
@@ -882,7 +928,7 @@ time is secondary.
 |---|---|---|
 | 0 (this branch) | First Light: no villages in Act 1 rows 0–2. Gaspar's `guide_veteran_kills` note and help line. This spec. | Shipped |
 | 0b (optional, small) | Interim Sera fix in the current tutorial: a Sera-specific coach goal ("Sera strikes from 2 tiles, where melee can't hit back, and heals with her staff. Keep her behind Edric.") | Throwaway once P3 ships |
-| 1 | Data format and validator, `Prologue.js`, spawn weapon overrides, authored units, `PrologueController` skeleton, the defeat intercept. P1 playable from the title as the practice battle, replacing the tutorial. | Delete `TutorialHelpers` |
+| 1 | Data format and validator, `Prologue.js`, spawn weapon overrides, authored units, `PrologueController`, the defeat intercept. P1 playable from the title as the practice battle, replacing the tutorial. | Shipped 2026-10-04. `TutorialController`, `TutorialHelpers`, the tutorial coach model, lessons and forecast layout deleted; e2e `prologue-exit` / `prologue-lessons` (desktop and phone) and the portrait prologue tests replace the tutorial specs. Deviations: `talk`/`seize` hooks wait for P3/P4; the `practised` ledger is kept on the controller, not on slot meta (no slot in a standalone chapter); the enemy-phase note is a nudge, not a modal. |
 | 2 | Run mode and routing, the suppress list, the literal route map, P2, row 2 (fork, Tamsin, roster lesson), P3 | The bulk |
 | 3 | Ruins, P4, the ending, Home Base handoff and grant, skip and replay flows. First-visit notes for whichever of Shop and Church the player skipped; the Act 1 point-of-use notes in §7. | Story complete |
 | 4 | Polish: prologue music picks (existing tracks, then optional cues), the ritual scene staging, copy pass against the lore guide | |

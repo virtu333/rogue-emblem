@@ -25,7 +25,7 @@ vi.mock('../src/ui/SettingsOverlay.js', () => ({
 function endScene(overrides = {}) {
   return {
     isStoryInputLocked: () => false,
-    _isTutorialStrictGateActive: () => false,
+    _isPrologueGateActive: () => false,
     isDevToolsEnabled: () => false,
     isMobileInput: false,
     inspectMode: false,

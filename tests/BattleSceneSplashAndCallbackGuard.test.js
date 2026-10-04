@@ -35,6 +35,10 @@ vi.mock('../src/engine/EntitySystem.js', async () => {
 });
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { PrologueController } from '../src/ui/PrologueController.js';
+import { loadGameData } from './testData.js';
+
+const gameData = loadGameData();
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -113,22 +117,20 @@ function makeSplashScene({ victims }) {
 }
 
 /**
- * Build a minimal scene mock for onPhaseChange tutorial tests.
+ * Build a minimal scene mock for onPhaseChange prologue tests.
  * Stubs every method/property that onPhaseChange touches so the real
  * code path can run without throwing.
  */
-function makeTutorialScene({ isActive, tutorialStep = 0, turn = 1 }) {
+function makeTutorialScene({ isActive, turn = 1 }) {
   const scene = new BattleScene();
 
   // Core state
   scene.battleState = 'PLAYER_IDLE';
-  scene.battleParams = { tutorialMode: true };
+  scene.battleParams = {};
   scene.turnManager = { currentPhase: 'player', turnNumber: turn, endPlayerPhase: vi.fn() };
   scene.processTurnStartEffects = vi.fn(async () => {});
   scene.processBallistaFire = vi.fn(async () => {});
-  scene.tutorialStep = tutorialStep;
   scene.isMobileInput = false;
-  scene._tutorialVisionIntroShown = false;
   scene._latePressureWarningShown = false;
   scene.turnPar = null;
   scene.turnCounterText = null;
@@ -159,7 +161,6 @@ function makeTutorialScene({ isActive, tutorialStep = 0, turn = 1 }) {
   scene.updateVisionHud = vi.fn();
   scene.showBriefBanner = vi.fn();
   scene._removeConditionIcon = vi.fn();
-  scene._setTutorialGuideHighlight = vi.fn();
   scene.refreshEndTurnControl = vi.fn();
 
   // Fog disabled (skip fog path)
@@ -173,7 +174,7 @@ function makeTutorialScene({ isActive, tutorialStep = 0, turn = 1 }) {
   scene.getTurnPressureState = vi.fn(() => ({ active: false }));
   scene.getTurnPressureSummary = vi.fn(() => '');
 
-  // Registry (hints = null for tutorial mode)
+  // Registry (hints = null: no slot)
   scene.registry = { get: vi.fn(() => null) };
 
   // Capture delayed callbacks by delay time
@@ -236,96 +237,64 @@ describe('_applyEntitySplash resolves before terminal decision', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Fix 2: Delayed tutorial callback guards
-// Calls real BattleScene.prototype.onPhaseChange, captures the 1500ms
-// delayed callback, then invokes it under controlled isActive conditions.
+// Fix 2: Delayed prologue callback guards
+// Calls real BattleScene.prototype.onPhaseChange with a real PrologueController: the
+// first player phase gates the first select at once and schedules the coach's reveal
+// (1500ms) through the guarded runner; the reveal is harmless on a dead scene.
 // ---------------------------------------------------------------------------
 
-describe('Tutorial delayed callback isActive guards', () => {
-  it('first tutorial callback (tutorialStep=0) does nothing when scene is inactive', async () => {
-    const scene = makeTutorialScene({ isActive: true, tutorialStep: 0, turn: 1 });
+describe('Prologue delayed callback isActive guards', () => {
+  function makePrologueScene({ isActive, turn = 1 }) {
+    const scene = makeTutorialScene({ isActive, turn });
+    scene.gameData = gameData;
+    scene.battleParams = { prologueChapter: 'p1_banner_at_dawn' };
+    scene.playerUnits[0].name = 'Edric';
+    scene.playerUnits[0].faction = 'player';
+    scene.enemyUnits = [];
+    scene._prologue = new PrologueController(scene).create();
+    return scene;
+  }
 
-    // Call the REAL onPhaseChange - registers the 1500ms tutorial callback
-    BattleScene.prototype.onPhaseChange.call(scene, 'player', 1);
-
-    // Find the 1500ms callback (tutorial hint registration)
-    const entry = scene._capturedCallbacks.find((c) => c.ms === 1500);
-    expect(entry).toBeDefined();
-
-    scene._sceneShutdownCleanedUp = true;
-    scene.scene.isActive = () => false;
-    // Invoke the captured callback after shutdown
-    if (scene.scene.isActive()) {
-      await scene._capturedCallbacks.find((c) => c.ms === 1200).cb();
-    }
-    await entry.cb();
-
-    // Guard should have bailed - no mutations
-    expect(scene.battleState).toBe(scene.scene.isActive() ? 'PLAYER_IDLE' : 'TURN_START_RESOLVING');
-    expect(scene.tutorialStep).toBe(0);
-    expect(showImportantHintMock).not.toHaveBeenCalled();
-  });
-
-  it('first tutorial callback runs normally when scene IS active', async () => {
-    const scene = makeTutorialScene({ isActive: true, tutorialStep: 0, turn: 1 });
+  it('the first player phase gates the first select at once and schedules the coach reveal', async () => {
+    const scene = makePrologueScene({ isActive: true, turn: 1 });
 
     BattleScene.prototype.onPhaseChange.call(scene, 'player', 1);
 
+    expect(scene._prologue.gate).toEqual({ kind: 'select', unit: 'Edric' });
+    expect(scene._prologue.allowsSelect({ name: 'Sera' })).toBe(false);
     const entry = scene._capturedCallbacks.find((c) => c.ms === 1500);
     expect(entry).toBeDefined();
-
-    if (scene.scene.isActive()) {
-      await scene._capturedCallbacks.find((c) => c.ms === 1200).cb();
-    }
+    await scene._capturedCallbacks.find((c) => c.ms === 1200).cb();
     await entry.cb();
-
-    // Production restores prevState (PLAYER_IDLE) at the end of the callback
-    expect(scene.battleState).toBe(scene.scene.isActive() ? 'PLAYER_IDLE' : 'TURN_START_RESOLVING');
-    // tutorialStep advances to 2 (two showImportantHint calls: step 0->1->2)
-    expect(scene.tutorialStep).toBe(2);
-    expect(showImportantHintMock).toHaveBeenCalledTimes(2);
-    expect(scene._setTutorialGuideHighlight).toHaveBeenCalledWith('edric');
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(showImportantHintMock).not.toHaveBeenCalled(); // teach by doing: no welcome wall
   });
 
-  it('turn-3 vision tutorial callback does nothing when scene is inactive', async () => {
-    const scene = makeTutorialScene({ isActive: true, tutorialStep: 1, turn: 3 });
-    // tutorialStep > 0 so we skip the step-0 branch; _tutorialVisionIntroShown = false
-    // triggers the turn-3 branch
-
-    BattleScene.prototype.onPhaseChange.call(scene, 'player', 3);
-
-    // _tutorialVisionIntroShown is set synchronously BEFORE the delayed callback
-    // (line 10333), so the guard can't prevent that - only assert callback-side effects
+  it('the scheduled reveal does nothing on a scene that shut down meanwhile', async () => {
+    const scene = makePrologueScene({ isActive: true, turn: 1 });
+    BattleScene.prototype.onPhaseChange.call(scene, 'player', 1);
     const entry = scene._capturedCallbacks.find((c) => c.ms === 1500);
-    expect(entry).toBeDefined();
     scene._sceneShutdownCleanedUp = true;
     scene.scene.isActive = () => false;
+    scene._prologue.destroy();
 
-    if (scene.scene.isActive()) {
-      await scene._capturedCallbacks.find((c) => c.ms === 1200).cb();
-    }
     await entry.cb();
 
-    // Guard prevents callback-side effects: battleState unchanged, no hints shown
-    expect(scene.battleState).toBe(scene.scene.isActive() ? 'PLAYER_IDLE' : 'TURN_START_RESOLVING');
+    expect(scene.battleState).toBe('TURN_START_RESOLVING');
     expect(showImportantHintMock).not.toHaveBeenCalled();
   });
 
-  it('turn-3 vision tutorial callback mutates state when scene IS active', async () => {
-    const scene = makeTutorialScene({ isActive: true, tutorialStep: 1, turn: 3 });
+  it('a later player phase schedules no prologue callback and no run hints', async () => {
+    const scene = makePrologueScene({ isActive: true, turn: 1 });
+    scene.registry = { get: vi.fn(() => ({ hasSeen: () => false, shouldShow: () => true })) };
+    BattleScene.prototype.onPhaseChange.call(scene, 'player', 1);
+    scene._prologue.skipStep();
+    scene._capturedCallbacks.length = 0;
+    scene.turnManager.turnNumber = 3;
 
     BattleScene.prototype.onPhaseChange.call(scene, 'player', 3);
 
-    const entry = scene._capturedCallbacks.find((c) => c.ms === 1500);
-    expect(entry).toBeDefined();
-
-    if (scene.scene.isActive()) {
-      await scene._capturedCallbacks.find((c) => c.ms === 1200).cb();
-    }
-    await entry.cb();
-
-    // Active: hint shown, battleState restored to prevState (PLAYER_IDLE)
-    expect(scene.battleState).toBe(scene.scene.isActive() ? 'PLAYER_IDLE' : 'TURN_START_RESOLVING');
-    expect(showImportantHintMock).toHaveBeenCalledOnce();
+    expect(scene._capturedCallbacks.find((c) => c.ms === 1500)).toBeUndefined();
+    expect(scene._prologue.gate).toBeNull();
   });
 });

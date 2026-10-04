@@ -64,9 +64,9 @@ export class VisionRewindController {
 
   /**
    * Where Vision charges live. Runs charge the RunManager; standalone battles
-   * (tutorial) get a scene-scoped store so charges can be granted and spent
+   * (a prologue chapter) get a scene-scoped store so charges can be granted and spent
    * without a run — it starts at 0, so nothing changes unless something
-   * (the tutorial lord-death flow) deposits a charge.
+   * deposits a charge (nothing does today: a prologue chapter grants none).
    */
   _chargeHost() {
     if (this.runManager) return this.runManager;
@@ -986,7 +986,7 @@ export class VisionRewindController {
       this.endHistorySession();
       return false;
     }
-    // Tutorial has no run record. It retains its existing in-memory teaching
+    // A standalone battle has no run record. It retains its existing in-memory teaching
     // rewind; every persisted game uses the same transaction below.
     if (!this.runManager) {
       host.visionChargesRemaining--;

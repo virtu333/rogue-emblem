@@ -201,9 +201,9 @@ describe('guide_veteran_kills', () => {
     settings.getHints = () => false;
     expect(g.pick()).toBeNull();
     settings.getHints = () => true;
-    scene.battleParams.tutorialMode = true;
+    scene.battleParams.prologueChapter = 'p1_banner_at_dawn';
     expect(g.pick()).toBeNull();
-    scene.battleParams.tutorialMode = false;
+    delete scene.battleParams.prologueChapter;
     expect(g.pick()?.id).toBe('guide_veteran_kills');
     hints.markSeen('guide_veteran_kills');
     expect(g.pick()).toBeNull();

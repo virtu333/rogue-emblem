@@ -14,7 +14,7 @@ function makeGesturePolicyScene(overrides = {}) {
     mobileCameraEnabled: true,
     _battleCamera: {},
     isStoryInputLocked: () => false,
-    _isTutorialStrictGateActive: () => false,
+    _isPrologueGateActive: () => false,
     pauseOverlay: null,
     unitDetailOverlay: null,
     visionDialog: null,
@@ -156,7 +156,7 @@ describe('BattleScene mobile camera gesture policy', () => {
     expect(BattleScene.prototype.isCameraGestureAllowed.call(storyLocked)).toBe(false);
 
     const tutorialLocked = makeGesturePolicyScene({
-      _isTutorialStrictGateActive: () => true,
+      _isPrologueGateActive: () => true,
     });
     expect(BattleScene.prototype.isCameraGestureAllowed.call(tutorialLocked)).toBe(false);
   });

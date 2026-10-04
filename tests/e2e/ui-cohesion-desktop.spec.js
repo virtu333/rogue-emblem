@@ -37,13 +37,11 @@ for (const [width, height] of [
     const errors = collectErrors(page);
     await page.goto('/');
     await waitForScene(page, 'Title');
-    await page.getByRole('button', { name: /^Tutorial/ }).click();
-    await page.waitForFunction(
-      () => window.__emblemRogueGame.scene.getScene('Battle')?._tutorialController,
-    );
+    await page.getByRole('button', { name: /^Prologue/ }).click();
+    await page.waitForFunction(() => window.__emblemRogueGame.scene.getScene('Battle')?._prologue);
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
-      void s._tutorialController.note(
+      void s._prologue.fieldNote(
         'Fort tile reached. Fight from cover to take less damage and dodge more.',
       );
     });

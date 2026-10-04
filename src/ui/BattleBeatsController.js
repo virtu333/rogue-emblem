@@ -1,11 +1,12 @@
 import { presentationText } from '../utils/presentationText.js';
+import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
 /**
  * BattleBeatsController -- mid-battle story beats.
  *
  * Three beats, all data-driven from dialogue.json and all safe to miss
- * (missing sections or tutorial battles without a runManager safely skip):
+ * (missing sections or prologue/standalone battles without a runManager safely skip):
  *  - checkBossHalfHealth: once per battle, when the boss first drops below
  *    half HP, a brief auto-dismissing dialogue line (farewell-style).
  *    Gated through runManager.shownDialogueKeys so suspend/resume never
@@ -294,12 +295,12 @@ export class BattleBeatsController {
    * An ally fell: a lord on the field says so (playtest 2026-09-28: nobody reacted).
    * The commander speaks if it stands, else the lord nearest the fallen (ties by
    * name). Always shown, as a quip over the speaker; never for the commander's own
-   * fall (that ends the run) or in the tutorial.
+   * fall (that ends the run) or in a prologue chapter.
    */
   onAllyFall(fallen) {
     const scene = this.scene;
     if (!fallen || fallen.faction !== 'player' || fallen.isCommander) return null;
-    if (scene.battleParams?.tutorialMode) return null;
+    if (isScriptedBattle(scene.battleParams)) return null;
     const lords = (scene.playerUnits || []).filter(
       (u) => u && u !== fallen && u.isLord && u.currentHP > 0,
     );

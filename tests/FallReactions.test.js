@@ -22,7 +22,7 @@ function beatsScene({ playerUnits, dialogue = {}, tutorial = false } = {}) {
   const scene = {
     _battleSession: 1,
     playerUnits,
-    battleParams: { tutorialMode: tutorial },
+    battleParams: tutorial ? { prologueChapter: 'p1_banner_at_dawn' } : {},
     gameData: { dialogue },
     time: { now: 0 },
     runManager: { pickNarrativeLine: (pool) => pool[0] },

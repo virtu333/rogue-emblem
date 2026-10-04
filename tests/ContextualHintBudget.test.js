@@ -27,10 +27,10 @@ describe('shared optional helper budget', () => {
     settings.getHints = () => false;
     expect(claimContextualHint(scene, 'battle_doubling')).toBe(false);
     settings.getHints = () => true;
-    scene.battleParams.tutorialMode = true;
+    scene.battleParams.prologueChapter = 'p1_banner_at_dawn';
     expect(claimContextualHint(scene, 'battle_doubling')).toBe(false);
     expect(hints.markSeen).not.toHaveBeenCalled();
-    scene.battleParams.tutorialMode = false;
+    delete scene.battleParams.prologueChapter;
     expect(claimContextualHint(scene, 'battle_doubling')).toBe(true);
   });
 });

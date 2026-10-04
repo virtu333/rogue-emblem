@@ -45,7 +45,7 @@ test('title menu keeps separate 44px targets inside the viewport and opens help 
   await page.goto('/?devScene=title&mobilePreview=1');
   await waitForScene(page, 'Title');
   const menu = page.getByRole('group', { name: 'Play' });
-  await expect(menu.getByRole('button')).toHaveText([/New Game/, /Save Slots/, /Tutorial/]);
+  await expect(menu.getByRole('button')).toHaveText([/New Game/, /Save Slots/, /Prologue/]);
   await expect(
     page.getByRole('group', { name: 'Guides and records' }).getByRole('button'),
   ).toHaveText([/How to Play/, /Compendium/, /More Info/, /Records/]);
@@ -107,13 +107,13 @@ test('Save Slots follows New Game, corner actions stay clear, keyboard walks the
   await page.screenshot({ path: 'test-results/title-settings.png' });
 });
 
-test('fresh profile promotes the tutorial with NEW badges only where they apply', async ({
+test('fresh profile promotes the prologue with NEW badges only where they apply', async ({
   page,
 }) => {
   await page.goto('/?devScene=title&mobilePreview=1');
   await waitForScene(page, 'Title');
   const run = page.getByRole('group', { name: 'Play' }).getByRole('button');
-  await expect(run).toHaveText([/^Tutorial\s*Start here/, /New Game/]);
+  await expect(run).toHaveText([/^Prologue\s*Start here/, /New Game/]);
   await expect(run.first()).toHaveClass(/is-primary/);
   await expect(page.getByRole('button', { name: 'How to Play (new)', exact: true })).toBeVisible();
   await expect(page.locator('.re-title-badge')).toHaveCount(1);

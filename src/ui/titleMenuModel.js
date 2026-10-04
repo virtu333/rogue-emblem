@@ -1,6 +1,6 @@
 // titleMenuModel.js — which title actions exist, their labels, badges and order.
 // Pure (no DOM, no Phaser) so the contracts are unit-tested: focus order, the
-// "Tutorial / Start here" promotion, the single-run Resume shortcut and NEW badges.
+// "Prologue / Start here" promotion, the single-run Resume shortcut and NEW badges.
 //
 // Groups: 'run' actions stack in the left column under the lockup; 'reference'
 // actions sit in the lower-right cluster. The focus order is run then reference, and
@@ -9,7 +9,9 @@
 /**
  * @param {object} state
  * @param {boolean} state.hasSlots        any save slot exists
- * @param {boolean} state.tutorialDone    tutorial completed on this device
+ * @param {boolean} state.prologueDone    the prologue's practice chapter completed (or skipped
+ *   into a first run) on this device
+ * @param {boolean} state.hasPrologue     the build ships data/prologue.json
  * @param {{slot:number, actReached:number, latestOf?:number}|null} state.resumeSlot
  *   the run Resume opens (pickResumeSlot); `latestOf` > 1 when it is the newest of several
  * @param {boolean} state.seenHowToPlay
@@ -18,20 +20,21 @@
  */
 export function buildTitleMenu({
   hasSlots = false,
-  tutorialDone = false,
+  prologueDone = false,
+  hasPrologue = true,
   resumeSlot = null,
   seenHowToPlay = false,
 } = {}) {
-  const promoteTutorial = !hasSlots && !tutorialDone;
-  const tutorial = {
-    id: 'tutorial',
-    label: 'Tutorial',
+  const promotePrologue = hasPrologue && !hasSlots && !prologueDone;
+  const prologue = {
+    id: 'prologue',
+    label: 'Prologue',
     group: 'run',
-    ...(promoteTutorial ? { sub: 'Start here' } : {}),
-    ...(hasSlots && !tutorialDone ? { badge: 'New' } : {}),
+    ...(promotePrologue ? { sub: 'Start here' } : {}),
+    ...(hasSlots && !prologueDone ? { badge: 'New' } : {}),
   };
   const run = [];
-  if (promoteTutorial) run.push(tutorial);
+  if (promotePrologue) run.push(prologue);
   if (resumeSlot)
     run.push({
       id: 'resume',
@@ -44,11 +47,11 @@ export function buildTitleMenu({
     });
   run.push({
     id: 'newGame',
-    label: !hasSlots && tutorialDone ? 'Start First Run' : 'New Game',
+    label: !hasSlots && (prologueDone || !hasPrologue) ? 'Start First Run' : 'New Game',
     group: 'run',
   });
   if (hasSlots) run.push({ id: 'saveSlots', label: 'Save Slots', group: 'run' });
-  if (!promoteTutorial) run.push(tutorial);
+  if (hasPrologue && !promotePrologue) run.push(prologue);
   if (run.length) run[0] = { ...run[0], primary: true };
 
   const reference = [

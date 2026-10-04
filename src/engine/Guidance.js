@@ -5,7 +5,7 @@
 //          with a hurt ally, your first turn) plus the first-use explanations.
 //   Light  first-use explanations only (recruits, the commander's fall, convoy, the
 //          veteran who should not take the kills…).
-//   Off    no field notes (the practice tutorial stays available).
+//   Off    no field notes (the prologue stays available).
 //   Auto   Full for a save slot that has not finished a run yet, Light after.
 // Every note shows at most once per save slot (HintManager ids) and never blocks
 // input. Legacy "hints: false" maps to Off.

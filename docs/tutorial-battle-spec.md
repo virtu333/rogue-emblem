@@ -1,6 +1,6 @@
 # Tutorial Battle — Feature Spec
 
-**Status:** Superseded. The shipped tutorial follows `docs/specs/tutorial_v2_guided_flow_spec.md`; its planned replacement is `docs/specs/prologue-chapter.md`. Kept as history.  
+**Status:** Retired (2026-10-04). The practice battle this described, and its v2 guided flow (`docs/specs/tutorial_v2_guided_flow_spec.md`), were replaced by the prologue's first chapter, P1 "Banner at Dawn" (`docs/specs/prologue-chapter.md` §6, §9): `TutorialController`, `TutorialHelpers` and the 2v2 map are deleted; `PrologueController` plays the authored chapter from `data/prologue.json`. Kept as history.  
 **Context Sync (2026-02-13):** Tutorial mode requirements remain compatible with current runtime; it should explicitly disable reinforcements and skip run rewards/meta progression.
 
 ## Problem Statement
