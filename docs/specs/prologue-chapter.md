@@ -341,7 +341,7 @@ Soldier `d` (L1, Iron Lance) `guard`s at (9, 0) on Plain. The village is (3, 4).
 | 6 | Edric's forecast against the Soldier | The triangle against Edric (`p2_lances_beat_swords`): "Let Gaspar open the Soldier; Edric finishes it." |
 | 7 | Edric's kill | Marks `veteran_kills` practised. |
 | 8 | Turn 2 | Danger (`battle_danger_zone`). |
-| 9 | A unit ends on the village | Visit (`p2_village_visit`): gold, and an Iron Bow sent to the convoy. |
+| 9 | A unit moves onto the village (`terrain: Village`; the note shows before the Wait that visits) | Visit (`p2_village_visit`): gold, and an Iron Bow sent to the convoy. |
 | 10 | Victory | The victory lines (`p2_victory`) and the **loot screen** note (`battle_loot`), then the authored rewards. |
 
 Forecast notes fire one concept per forecast (`prologueBeatsFor`'s `oneNote`): the first
@@ -918,6 +918,13 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   - an enemy's authored `stats` name real stats (HP..LCK, MOV) as integers (HP and MOV ≥ 1)
   - beats use known triggers, only that trigger's conditions, and known actions with valid
     arguments (tiles on the map, units of the chapter, lesson kinds); beat ids are unique
+  - beats hold to their chapter: a `unit`/`target` is in this chapter's roster, NPC or
+    enemies, on the side its trigger is raised for; a `tile` is ground a unit can stand on;
+    a `terrain`/`targetTerrain` is on the map and agrees with the beat's `tile`; a beat
+    whose copy or lesson is about a place (`PROLOGUE_TERRAIN_INTENT`: the village, the
+    throne, P1's Fort) points only at it, a village beat at the chapter's `villageTile`, and
+    an `afterMove` one names the tile or terrain it waits for (review, 2026-10-04: P2's
+    village note waited on a Plain tile)
   - the boss is in no real act's pool; joins name known chapters and units
   - an arrival join (`joins.atNode`) is at a service node and its unit has a `join` spec
     (`line`; `needs` a real item and `lineIfGranted` go together)

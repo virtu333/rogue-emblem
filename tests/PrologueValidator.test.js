@@ -175,6 +175,127 @@ describe('validatePrologueConfig', () => {
     });
   });
 
+  // Every tile, unit and terrain a beat names holds against its own chapter's map and
+  // spawns: a beat that can never fire, or fires on the wrong ground, is refused.
+  describe('beats hold to their chapter', () => {
+    const P2 = 'chapters[1] (p2_old_hands)';
+    const p2 = (p) => p.chapters.find((c) => c.id === 'p2_old_hands');
+    const beatOf = (chapter, id) => chapter.beats.find((b) => b.id === id);
+    const at = (chapter, id) => `beats[${chapter.beats.findIndex((b) => b.id === id)}]`;
+    const shipped = (id) => data.prologue.chapters.find((c) => c.id === id);
+    const V = `${P2}.${at(shipped('p2_old_hands'), 'p2_village')}`;
+
+    it('a unit is one of this chapter: an authored unit of another chapter is refused', () => {
+      // Sera is an authored prologue unit, but P1 is Edric alone.
+      expect(errorsAfter((p) => (p1(p).beats[1].unit = 'Sera'))).toEqual([
+        `${P1}.beats[1].unit "Sera" names no unit of this chapter`,
+      ]);
+      expect(
+        errorsAfter((p) => (p1(p).beats[0].do[0] = { gateSelect: { unit: 'Tamsin' } })),
+      ).toEqual([`${P1}.beats[0].do[0].gateSelect.unit "Tamsin" is not a player unit`]);
+    });
+
+    it('a unit is on the side its trigger is raised for', () => {
+      const tri = at(shipped('p1_banner_at_dawn'), 'p1_triangle');
+      expect(errorsAfter((p) => (beatOf(p1(p), 'p1_triangle').target = 'Edric'))).toEqual([
+        `${P1}.${tri}.target "Edric" is not an enemy of this chapter`,
+      ]);
+      expect(errorsAfter((p) => (p1(p).beats[1].unit = 'a'))).toEqual([
+        `${P1}.beats[1].unit "a" is not a player unit of this chapter`,
+      ]);
+    });
+
+    it('the village note waits on the village, not on a plain tile beside it', () => {
+      // The review's bug: tile (2,2) is Plain; the village is (3,4).
+      expect(
+        errorsAfter((p) => {
+          const beat = beatOf(p2(p), 'p2_village');
+          delete beat.terrain;
+          beat.tile = { col: 2, row: 2 };
+        }),
+      ).toEqual([`${V}.tile (2,2) is Plain, but the beat is about Village`]);
+      // The village tile itself is fine.
+      expect(
+        errorsAfter((p) => {
+          const beat = beatOf(p2(p), 'p2_village');
+          delete beat.terrain;
+          beat.tile = { col: 3, row: 4 };
+        }),
+      ).toEqual([]);
+      // An afterMove beat about the village has to wait for it somewhere.
+      expect(errorsAfter((p) => delete beatOf(p2(p), 'p2_village').terrain)).toEqual([
+        `${V} is about Village but waits for no tile or terrain`,
+      ]);
+      // A painted Village that is not the chapter's villageTile would show the note on
+      // ground that can't be visited.
+      expect(
+        errorsAfter((p) => {
+          p2(p).map.legend.V = 'Village';
+          p2(p).map.rows[5] = 'V . F . . ~ . . . .';
+        }),
+      ).toEqual([`${V}.terrain "Village" also matches a Village tile that is not the villageTile`]);
+      expect(errorsAfter((p) => (p2(p).villageTile = null))).toContain(
+        `${V} is about a village, but the chapter has no villageTile`,
+      );
+    });
+
+    it('a tile and a terrain in one beat name the same ground', () => {
+      const fort = at(shipped('p1_banner_at_dawn'), 'p1_on_the_fort');
+      expect(
+        errorsAfter((p) => (beatOf(p1(p), 'p1_on_the_fort').tile = { col: 0, row: 2 })),
+      ).toEqual([`${P1}.${fort}.tile (0,2) is Plain, not the beat's terrain Fort`]);
+      expect(
+        errorsAfter((p) => (beatOf(p1(p), 'p1_on_the_fort').tile = { col: 3, row: 2 })),
+      ).toEqual([]);
+    });
+
+    it('a terrain is on the map, and a tile is ground a unit can stand on', () => {
+      const fort = at(shipped('p1_banner_at_dawn'), 'p1_on_the_fort');
+      expect(errorsAfter((p) => (beatOf(p1(p), 'p1_on_the_fort').terrain = 'Village'))).toEqual([
+        `${P1}.${fort}.terrain "Village" is on no tile of this map`,
+      ]);
+      // (5,0) is the river.
+      expect(
+        errorsAfter((p) => {
+          const beat = beatOf(p2(p), 'p2_village');
+          delete beat.terrain;
+          beat.do = [{ note: 'battle_loot' }];
+          beat.tile = { col: 5, row: 0 };
+        }),
+      ).toEqual([`${V}.tile (5,0) is impassable`]);
+    });
+
+    it('a beat about the throne or a Fort points only at it', () => {
+      const P4 = 'chapters[3] (p4_quarry_gate)';
+      const p4 = (p) => p.chapters.find((c) => c.id === 'p4_quarry_gate');
+      // (8,1) is a Fort below the gate.
+      expect(
+        errorsAfter(
+          (p) => (beatOf(p4(p), 'p4_start').do[1] = { highlight: { tile: { col: 8, row: 1 } } }),
+        ),
+      ).toEqual([
+        `${P4}.beats[0].do[1].highlight.tile (8,1) is Fort, but the beat is about Throne`,
+      ]);
+      expect(errorsAfter((p) => (beatOf(p4(p), 'p4_throne').targetTerrain = 'Fort'))).toEqual([
+        `${P4}.${at(shipped('p4_quarry_gate'), 'p4_throne')}.targetTerrain "Fort" differs from the beat's subject, Throne`,
+      ]);
+      expect(
+        errorsAfter((p) => {
+          const beat = beatOf(p1(p), 'p1_move_to_fort');
+          beat.do[1] = { gateMove: { col: 2, row: 2 } };
+          beat.do[2] = { highlight: { tile: { col: 2, row: 2 } } };
+        }),
+      ).toEqual([
+        `${P1}.beats[1].do[1].gateMove (2,2) is Plain, but the beat is about Fort`,
+        `${P1}.beats[1].do[2].highlight.tile (2,2) is Plain, but the beat is about Fort`,
+      ]);
+      // Copy about two places at once can't point anywhere.
+      expect(
+        errorsAfter((p) => beatOf(p2(p), 'p2_village').do.push({ note: 'p4_throne' })),
+      ).toEqual([`${V} is about Village and Throne at once`]);
+    });
+  });
+
   describe('row 2 and P3 (Phase 2B)', () => {
     const P3 = 'chapters[2] (p3_seer_on_the_road)';
     const p3 = (p) => p.chapters[2];
@@ -222,9 +343,10 @@ describe('validatePrologueConfig', () => {
       expect(errorsAfter((p) => p3(p).roster.push('Sera'))).toContain(
         `${P3}.npc "Sera" is also in the roster`,
       );
-      expect(errorsAfter((p) => (p3(p).npc.unit = 'Nobody'))).toEqual([
+      // (The beats that name Sera then name no unit of this chapter either.)
+      expect(errorsAfter((p) => (p3(p).npc.unit = 'Nobody'))).toContain(
         `${P3}.npc.unit "Nobody" is not in units`,
-      ]);
+      );
     });
 
     it('rosterItems: an authored unit of the roster, real items', () => {

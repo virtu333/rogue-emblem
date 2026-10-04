@@ -593,10 +593,7 @@
         {
           "id": "p2_village",
           "on": "afterMove",
-          "tile": {
-            "col": 2,
-            "row": 2
-          },
+          "terrain": "Village",
           "once": true,
           "do": [
             {

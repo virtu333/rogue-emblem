@@ -394,6 +394,46 @@ describe('prologueBeatsFor', () => {
       gateConfirm: true,
     });
   });
+
+  it('P2 as authored: the village note waits for a unit on the village, and only there', () => {
+    const p2 = data.prologue.chapters.find((c) => c.id === 'p2_old_hands');
+    // The event PrologueController raises: the arrived tile and its terrain name, read
+    // here straight from the authored rows and legend.
+    const terrainOf = ({ col, row }) => p2.map.legend[p2.map.rows[row].split(/\s+/)[col]];
+    const arrive = (unit, tile) =>
+      prologueBeatsFor(
+        p2,
+        {
+          type: 'afterMove',
+          unit,
+          tile,
+          terrain: terrainOf(tile),
+          dangerFrom: [],
+          turn: 1,
+          inRange: false,
+          foeDistances: [],
+          besideAlly: false,
+          afterRewind: false,
+        },
+        {},
+        { oneNote: true },
+      ).actions.filter((a) => a.note);
+    const village = { col: 3, row: 4 };
+    expect(p2.villageTile).toMatchObject(village);
+    expect(terrainOf(village)).toBe('Village');
+    for (const unit of ['Edric', 'Gaspar']) {
+      expect(arrive(unit, village)).toEqual([{ note: 'p2_village_visit', beat: 'p2_village' }]);
+    }
+    // The tile the note used to wait on (Plain, the village out of sight), and the rest
+    // of the west bank: nothing.
+    expect(terrainOf({ col: 2, row: 2 })).toBe('Plain');
+    expect(arrive('Edric', { col: 2, row: 2 })).toEqual([]);
+    for (let row = 0; row < p2.map.rows.length; row++)
+      for (let col = 0; col < 5; col++) {
+        if (col === village.col && row === village.row) continue;
+        expect(arrive('Edric', { col, row })).toEqual([]);
+      }
+  });
 });
 
 describe('buildPrologueUnit', () => {

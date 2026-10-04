@@ -154,6 +154,11 @@
 // dangerFrom is an enemy id or '*' (any); concept is one of FORECAST_CONCEPTS; turn, nth,
 // pct and foeDistance are integers; hurt, safe, inRange, besideAlly and afterRewind are
 // booleans; terrain and targetTerrain are terrain names.
+// The validator holds beats to their chapter: unit/target name this chapter's roster, NPC
+// or enemies, on the side the trigger is raised for (BEAT_UNIT_SIDES); a tile is on the
+// map and standable; a terrain is on the map and agrees with the beat's tile; a beat
+// whose copy or lesson is about a place (PROLOGUE_TERRAIN_INTENT: a village, the throne,
+// a Fort) points only at it, a village beat at the chapter's villageTile.
 //
 // Actions (PROLOGUE_ACTIONS), each an object with exactly one key:
 //   coach: <goal id>                    show a coach goal
@@ -241,6 +246,44 @@ export const PROLOGUE_ACTIONS = Object.freeze([
   'grantVision',
   'clearCoach',
 ]);
+
+/**
+ * Which side a beat's `unit` / `target` names, per trigger: the event is raised for a
+ * player unit (the roster or the chapter's NPC), for an enemy (its `id`), or for either.
+ */
+const BEAT_UNIT_SIDES = Object.freeze({
+  unitSelected: { unit: 'player' },
+  afterMove: { unit: 'player' },
+  forecastOpened: { unit: 'player', target: 'enemy' },
+  combatResolved: { unit: 'player', target: 'enemy' },
+  unitActed: { unit: 'player' },
+  levelUp: { unit: 'player' },
+  hpBelow: { unit: 'player' },
+  holdWoken: { unit: 'enemy' },
+  talk: { unit: 'player', target: 'player' },
+  healed: { unit: 'player', target: 'player' },
+  seize: { unit: 'player' },
+  unitDefeated: { unit: 'any' },
+});
+
+/**
+ * The terrain a beat is about, read from its copy (coach and note ids) and its lessons.
+ * A beat about a terrain may point (tile condition, gateMove, highlight.tile) only at
+ * that terrain, and a village beat only at the chapter's villageTile (validateBeatPlace).
+ * A new copy id or lesson about a place belongs here.
+ */
+export const PROLOGUE_TERRAIN_INTENT = Object.freeze({
+  copy: Object.freeze({
+    p1_move_to_fort: 'Fort',
+    p2_village_visit: 'Village',
+    p4_objective: 'Throne',
+    p4_seize: 'Throne',
+    p4_seize_par: 'Throne',
+    p4_seize_now: 'Throne',
+    p4_throne: 'Throne',
+  }),
+  lessons: Object.freeze({ village: 'Village', seize: 'Throne', boss_throne: 'Throne' }),
+});
 
 const BEAT_KEYS = new Set(['id', 'on', 'once', 'do']);
 const CHAPTER_KEYS = new Set([
@@ -1141,14 +1184,22 @@ function validateJoinSpec(where, join, gameData, errors) {
     validateLineKey(`${where}.lineIfGranted`, join.lineIfGranted, gameData, errors);
 }
 
-function validateCondition(where, key, value, ctx, errors) {
-  const unitRef = (v) =>
-    typeof v === 'string' && (ctx.unitNames.has(v) || ctx.enemyIds.has(v) || ctx.npcNames.has(v));
+function validateCondition(where, key, value, ctx, errors, trigger = null) {
+  const isPlayer = (v) => ctx.unitNames.has(v) || ctx.npcNames.has(v);
   switch (key) {
     case 'unit':
-    case 'target':
-      if (!unitRef(value)) errors.push(`${where}.${key} "${value}" names no unit of this chapter`);
+    case 'target': {
+      if (typeof value !== 'string' || (!isPlayer(value) && !ctx.enemyIds.has(value))) {
+        errors.push(`${where}.${key} "${value}" names no unit of this chapter`);
+        break;
+      }
+      const side = BEAT_UNIT_SIDES[trigger]?.[key];
+      if (side === 'player' && !isPlayer(value))
+        errors.push(`${where}.${key} "${value}" is not a player unit of this chapter`);
+      else if (side === 'enemy' && !ctx.enemyIds.has(value))
+        errors.push(`${where}.${key} "${value}" is not an enemy of this chapter`);
       break;
+    }
     case 'turn':
     case 'nth':
       if (!isInt(value) || value < 1) errors.push(`${where}.${key} must be an integer >= 1`);
@@ -1176,10 +1227,15 @@ function validateCondition(where, key, value, ctx, errors) {
       break;
     case 'tile':
       if (!ctx.inBounds(value)) errors.push(`${where}.tile is not a tile on the map`);
+      // A unit has to be able to stand there, or the beat never fires.
+      else if (!ctx.passable(value, 'Infantry'))
+        errors.push(`${where}.tile (${tileKey(value)}) is impassable`);
       break;
     case 'terrain':
     case 'targetTerrain':
       if (!ctx.terrainNames.has(value)) errors.push(`${where}.${key} "${value}" is not a terrain`);
+      else if (ctx.mapTerrains && !ctx.mapTerrains.has(value))
+        errors.push(`${where}.${key} "${value}" is on no tile of this map`);
       break;
     case 'dangerFrom':
       if (value !== '*' && !ctx.enemyIds.has(value)) {
@@ -1282,13 +1338,95 @@ function validateBeats(where, beats, ctx, errors) {
       for (const key of beatConditions(beat)) {
         if (!allowed.includes(key)) {
           errors.push(`${at}: trigger "${beat.on}" takes no condition "${key}"`);
-        } else validateCondition(at, key, beat[key], ctx, errors);
+        } else validateCondition(at, key, beat[key], ctx, errors, beat.on);
       }
     }
     if (!Array.isArray(beat.do) || beat.do.length === 0) {
       errors.push(`${at}.do must be a non-empty array of actions`);
-    } else beat.do.forEach((action, j) => validateAction(`${at}.do[${j}]`, action, ctx, errors));
+    } else {
+      beat.do.forEach((action, j) => validateAction(`${at}.do[${j}]`, action, ctx, errors));
+      validateBeatPlace(at, beat, ctx, errors);
+    }
   });
+}
+
+/** The terrains a beat's copy and lessons are about (PROLOGUE_TERRAIN_INTENT). */
+function beatTerrainIntents(beat) {
+  const { copy, lessons } = PROLOGUE_TERRAIN_INTENT;
+  const intents = new Set();
+  for (const action of beat.do) {
+    if (!isPlainObject(action)) continue;
+    for (const id of [action.coach, action.note]) {
+      if (typeof id === 'string' && Object.hasOwn(copy, id)) intents.add(copy[id]);
+    }
+    const lesson = action.markLesson?.id;
+    if (typeof lesson === 'string' && Object.hasOwn(lessons, lesson)) intents.add(lessons[lesson]);
+  }
+  return [...intents];
+}
+
+/**
+ * A beat's places agree with its map: a tile and a terrain condition name the same
+ * ground, and a beat whose copy or lesson is about a terrain (a village, the throne,
+ * a Fort) points only at that terrain. A village beat points at the chapter's
+ * visitable village (painted Village terrain alone is not one), and an afterMove beat
+ * about a terrain names the tile or the terrain it waits for.
+ */
+function validateBeatPlace(at, beat, ctx, errors) {
+  if (!ctx.terrainAt) return;
+  const onMap = (t) => ctx.inBounds(t);
+  if (onMap(beat.tile) && ctx.terrainNames.has(beat.terrain)) {
+    const here = ctx.terrainAt(beat.tile);
+    if (here !== beat.terrain) {
+      errors.push(
+        `${at}.tile (${tileKey(beat.tile)}) is ${here}, not the beat's terrain ${beat.terrain}`,
+      );
+    }
+  }
+  const intents = beatTerrainIntents(beat);
+  if (intents.length > 1) {
+    errors.push(`${at} is about ${intents.join(' and ')} at once`);
+    return;
+  }
+  if (!intents.length) return;
+  const [want] = intents;
+  const isVillageTile = (t) => Boolean(ctx.villageTile) && tileKey(ctx.villageTile) === tileKey(t);
+  const places = [];
+  if (onMap(beat.tile)) places.push(['tile', beat.tile]);
+  beat.do.forEach((action, j) => {
+    if (onMap(action?.gateMove)) places.push([`do[${j}].gateMove`, action.gateMove]);
+    const lit = action?.highlight?.tile;
+    if (onMap(lit)) places.push([`do[${j}].highlight.tile`, lit]);
+  });
+  for (const [label, t] of places) {
+    const here = ctx.terrainAt(t);
+    if (here !== want) {
+      errors.push(`${at}.${label} (${tileKey(t)}) is ${here}, but the beat is about ${want}`);
+    } else if (want === 'Village' && !isVillageTile(t)) {
+      errors.push(`${at}.${label} (${tileKey(t)}) is not the chapter's villageTile`);
+    }
+  }
+  for (const key of ['terrain', 'targetTerrain']) {
+    // (An unknown terrain is reported once, by validateCondition.)
+    if (ctx.terrainNames.has(beat[key]) && beat[key] !== want) {
+      errors.push(`${at}.${key} "${beat[key]}" differs from the beat's subject, ${want}`);
+    }
+  }
+  if (want === 'Village') {
+    if (!ctx.villageTile) {
+      errors.push(`${at} is about a village, but the chapter has no villageTile`);
+    } else if (
+      beat.terrain === 'Village' &&
+      ctx.tilesOf('Village').some((t) => !isVillageTile(t))
+    ) {
+      errors.push(
+        `${at}.terrain "Village" also matches a Village tile that is not the villageTile`,
+      );
+    }
+  }
+  if (beat.on === 'afterMove' && beat.tile === undefined && beat.terrain === undefined) {
+    errors.push(`${at} is about ${want} but waits for no tile or terrain`);
+  }
 }
 
 function validateChapter(chapter, index, prologue, gameData, errors, seen) {
@@ -1642,11 +1780,34 @@ function validateChapter(chapter, index, prologue, gameData, errors, seen) {
   const rosterSpecialNames = (Array.isArray(chapter.roster) ? chapter.roster : [])
     .map((key) => (gameData.specialChars || []).find((s) => s?.id === key)?.name)
     .filter(Boolean);
+  // A beat names the chapter's own units: its roster (authored keys by name), its NPC
+  // and its enemies; a unit of another chapter can never raise its event.
+  const rosterKeys = Array.isArray(chapter.roster) ? chapter.roster : [];
+  const terrainAt = (t) =>
+    parsed.mapLayout ? terrainData[parsed.mapLayout[t.row][t.col]]?.name || null : null;
+  const tilesOf = (name) => {
+    const out = [];
+    (parsed.mapLayout || []).forEach((cells, row) =>
+      cells.forEach((index, col) => {
+        if (terrainData[index]?.name === name) out.push({ col, row });
+      }),
+    );
+    return out;
+  };
   const ctx = {
-    unitNames: new Set([...Object.keys(prologue?.units || {}), ...rosterSpecialNames]),
+    unitNames: new Set([
+      ...rosterKeys.filter((key) => prologue?.units?.[key] !== undefined),
+      ...rosterSpecialNames,
+    ]),
     enemyIds,
     npcNames,
     terrainNames: new Set(terrainData.map((t) => t?.name)),
+    mapTerrains: parsed.mapLayout
+      ? new Set(parsed.mapLayout.flat().map((index) => terrainData[index]?.name))
+      : null,
+    terrainAt: parsed.mapLayout ? terrainAt : null,
+    tilesOf,
+    villageTile: inBounds(chapter.villageTile) ? chapter.villageTile : null,
     inBounds,
     passable: passableAt,
   };
