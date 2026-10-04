@@ -263,7 +263,15 @@ export class NodeMapScene extends Phaser.Scene {
     // once that chapter is won (§4). A continue that reverted P1 to its entry lands
     // here with nothing walked and re-opens it the same way.
     if (this._launchPrologueOpening(lifecycleGeneration)) return;
+    this._openRouteMap(lifecycleGeneration);
+  }
 
+  /**
+   * Draw the route map and make it ready: the entry every visit takes, and the one a
+   * prologue opening falls back to when its first chapter could not be entered.
+   */
+  _openRouteMap(lifecycleGeneration = this._sceneLifecycleGeneration) {
+    this.isSceneReady = false;
     this.drawMap();
     this.input.enabled = false;
     void this.finalizeSceneReady(lifecycleGeneration).then(() => {
@@ -464,7 +472,15 @@ export class NodeMapScene extends Phaser.Scene {
     this.isTransitioning = true;
     this.isSceneReady = false;
     if (this.input) this.input.enabled = false;
-    void this.handleBattle(node, lifecycleGeneration);
+    void Promise.resolve(this.handleBattle(node, lifecycleGeneration))
+      .then((launched) => {
+        if (launched !== false || !isSceneLifecycleActive(this, lifecycleGeneration)) return;
+        // The chapter never opened and no map was drawn behind it: show the route map
+        // the way any entry does, the chapter's node there to try again.
+        this._openRouteMap(lifecycleGeneration);
+        this.showTransientMessage('Failed to enter battle. Please try again.', UI_PALETTE.bad);
+      })
+      .catch((err) => reportAsyncError('NodeMap-prologue-opening', err));
     return true;
   }
 
@@ -1903,11 +1919,16 @@ export class NodeMapScene extends Phaser.Scene {
     return true;
   }
 
+  /**
+   * Enter a battle node. Resolves false when the battle could not be entered (the
+   * transition refused or threw: the map is usable again), true once it started, and
+   * null when nothing was attempted or the scene left meanwhile.
+   */
   async handleBattle(node, lifecycleGeneration = this._sceneLifecycleGeneration) {
-    if (!this.battleLaunchInFlight) return;
+    if (!this.battleLaunchInFlight) return null;
     try {
       await ensureAudioUnlocked(this);
-      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return null;
       const audio = this.registry.get('audio');
       // The route's track plays on through the deploy screen and while the battle's
       // own track loads, then crossfades into it (a phone can take seconds to fetch
@@ -1934,7 +1955,7 @@ export class NodeMapScene extends Phaser.Scene {
         },
         { reason: TRANSITION_REASONS.ENTER_BATTLE, retryBlocked: true },
       );
-      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return null;
       if (transitioned === false) {
         this.battleLaunchInFlight = false;
         this.isTransitioning = false;
@@ -1942,9 +1963,11 @@ export class NodeMapScene extends Phaser.Scene {
         if (this.input) this.input.enabled = true;
         if (audio)
           void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+        return false;
       }
+      return true;
     } catch (err) {
-      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return null;
       console.error('[NodeMapScene] Failed to start battle scene:', err);
       const audio = this.registry.get('audio');
       this.battleLaunchInFlight = false;
@@ -1954,6 +1977,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (audio)
         void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
       this.showTransientMessage('Failed to enter battle. Please try again.', UI_PALETTE.bad);
+      return false;
     }
   }
 
