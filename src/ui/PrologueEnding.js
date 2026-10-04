@@ -57,15 +57,23 @@ export function commitPrologueEnd(
   const meta = scene.registry?.get?.('meta');
   const prologue = scene.gameData?.prologue;
   const grant = prologue?.grant || { valor: 0, supply: 0 };
+  // The device's lesson record is optional onboarding state (it never throws).
   recordTaughtLessons(taught);
   let paid = false;
   if (meta?.completePrologue) {
-    const result = meta.completePrologue({
-      grant,
-      chaptersCompleted: chaptersWon || prologueChaptersWon(rm),
-      practised,
-    });
-    if (!result.ok) return { ok: false, reason: 'meta_write_failed' };
+    let result;
+    try {
+      result = meta.completePrologue({
+        grant,
+        chaptersCompleted: chaptersWon || prologueChaptersWon(rm),
+        practised,
+      });
+    } catch {
+      // A write that threw (not merely refused) paid nothing: completePrologue
+      // rolls its memory back before a save, so the retry pays, never twice.
+      result = { ok: false, paid: false };
+    }
+    if (!result?.ok) return { ok: false, reason: 'meta_write_failed' };
     paid = result.paid;
   }
   if (Number.isInteger(slot)) {
@@ -269,12 +277,20 @@ export async function commitAndLeavePrologue(
   }
   const audio = scene.registry?.get?.('audio');
   if (audio) audio.stopMusic(scene, 0);
-  return transitionToScene(
-    scene,
-    'HomeBase',
-    { gameData: scene.gameData, prologueEnded: true },
-    { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
-  );
+  // The grant is paid and the save cleared: a transition that fails here is retried
+  // by the caller (the same commit pays nothing the second time) and never thrown.
+  try {
+    return (
+      (await transitionToScene(
+        scene,
+        'HomeBase',
+        { gameData: scene.gameData, prologueEnded: true },
+        { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+      )) === true
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** The copy a failed skip shows, with its real retry (PrologueController, NodeMapScene). */

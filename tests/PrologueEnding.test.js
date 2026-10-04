@@ -331,6 +331,83 @@ describe('finishPrologue', () => {
   });
 });
 
+describe('the grant under faults (one grant, a recoverable continuation, Home Base in the end)', () => {
+  const grant = () => data.prologue.grant.valor;
+
+  it('a device that refuses the lesson record (before the meta write) never blocks the ending', async () => {
+    const { scene, meta } = makeScene();
+    localStorageMock.setItem.mockImplementation((key, val) => {
+      if (key === TUTORIAL_COMPLETED_KEY || key === TUTORIAL_LESSONS_KEY)
+        throw new Error('storage refused the write');
+      store[key] = String(val);
+    });
+    expect(await finishPrologue(scene, { taught: new Set(['battle_loot']) })).toBe(true);
+    expect(meta.getPrologueState()).toBe('complete');
+    expect(meta.totalValor).toBe(grant());
+    expect(transitionToScene).toHaveBeenCalledTimes(1);
+    expect(loadRun(data, 1)).toBeNull();
+    localStorageMock.setItem.mockImplementation((key, val) => {
+      store[key] = String(val);
+    });
+  });
+
+  it('a meta write that throws (not merely refuses) pays nothing; the retry pays once', async () => {
+    const { scene, meta } = makeScene();
+    const real = meta.completePrologue.bind(meta);
+    meta.completePrologue = vi.fn(() => {
+      throw new Error('quota');
+    });
+    expect(await finishPrologue(scene)).toBe(false);
+    expect(meta.getPrologueState()).toBe('none');
+    expect(meta.totalValor).toBe(0);
+    expect(transitionToScene).not.toHaveBeenCalled();
+    expect(loadRun(data, 1)).not.toBeNull();
+    meta.completePrologue = real;
+    expect(await finishPrologue(scene)).toBe(true);
+    expect(meta.totalValor).toBe(grant());
+    expect(loadRun(data, 1)).toBeNull();
+  });
+
+  it('the transition throws after the payment: nothing is thrown, no second grant, the retry leaves', async () => {
+    const { scene, meta } = makeScene();
+    vi.mocked(transitionToScene).mockRejectedValueOnce(new Error('scene manager down'));
+    expect(await finishPrologue(scene)).toBe(false);
+    expect(meta.getPrologueState()).toBe('complete');
+    expect(meta.totalValor).toBe(grant());
+    expect(loadRun(data, 1)).toBeNull();
+    expect(await finishPrologue(scene)).toBe(true);
+    expect(meta.totalValor).toBe(grant());
+    expect(transitionToScene).toHaveBeenCalledTimes(2);
+    // The ending's lines never replayed on the retry.
+    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(3);
+  });
+
+  it('a crash after the payment, before the save cleared: the route map reaches the ending again, pays nothing, leaves', async () => {
+    const { scene, meta, rm } = makeScene();
+    expect(commitPrologueEnd(scene).paid).toBe(true);
+    // The clear never landed (the tab died): the run save is still there on reload.
+    expect(saveRun(rm, null, 1).ok).toBe(true);
+    expect(loadRun(data, 1)).not.toBeNull();
+    const again = makeScene({ won: true });
+    again.scene.registry = scene.registry; // the same slot's meta
+    expect(await finishPrologue(again.scene)).toBe(true);
+    expect(meta.totalValor).toBe(grant());
+    expect(meta.getPrologueState()).toBe('complete');
+    expect(loadRun(data, 1)).toBeNull();
+    expect(transitionToScene).toHaveBeenCalledTimes(1);
+  });
+
+  it('two completion attempts in flight at once pay once', async () => {
+    const { scene, meta } = makeScene();
+    const [a, b] = await Promise.all([finishPrologue(scene), finishPrologue(scene)]);
+    expect(a).toBe(true);
+    expect(b).toBe(true);
+    expect(meta.totalValor).toBe(grant());
+    expect(meta.totalSupply).toBe(data.prologue.grant.supply);
+    expect(loadRun(data, 1)).toBeNull();
+  });
+});
+
 describe('prologueEndingScenes', () => {
   it("reads the data's scenes; a lone dialogue key (the Phase 2 shape) is one scene", () => {
     expect(prologueEndingScenes(data.prologue)).toEqual([
