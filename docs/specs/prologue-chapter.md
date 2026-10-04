@@ -588,7 +588,7 @@ checked the combat numbers with `getCombatForecast` on real data):
 ```jsonc
 {
   "seed": 1209,
-  "grant": { "valor": 60, "supply": 60 },        // tune to one cheap upgrade each
+  "grant": { "valor": 60, "supply": 40 },        // one cheap upgrade of each (§12)
   "units": {
     "Edric":  { "lord": "Edric", "level": 1, "stats": { /* authored */ }, "growths": { /* authored */ },
                 "traits": [], "inventory": ["Iron Sword", "Vulnerary"] },
@@ -808,17 +808,14 @@ time is secondary.
 | 3 | Ruins, P4, the ending, Home Base handoff and grant, skip and replay flows. First-visit notes for whichever of Shop and Church the player skipped; the Act 1 point-of-use notes in §7. | Story complete |
 | 4 | Polish: prologue music picks (existing tracks, then optional cues), the ritual scene staging, copy pass against the lore guide | |
 
-## 12. Open questions for the user
+## 12. Decisions (user, 2026-10-04)
 
-1. ~~Loop or carry-over~~. Decided: the loop (§3).
-2. **Prologue by default?** Recommended: offered on every fresh slot with the prologue
-   highlighted, never forced, and skippable mid-way.
-3. **A fourth unit for the deploy lesson.** Tamsin is an authored Archer. The alternative is
-   deploying 2 of 3 (Edric plus one of Gaspar and Sera), which is a weaker choice and
-   teaches less.
-4. **The grant.** About one cheap upgrade of each currency (Lord upgrades start at 50 Valor,
-   recruit upgrades at 35 Supply). Or nothing, and Home Base is only shown.
-5. **Fork at row 2** (Market or Chapel) versus a linear route that visits both. The fork teaches
-   path choice; linear teaches both services.
-6. **Tamsin's name.** She shares the Archer name pool on purpose, as a faint loop echo. Or she
-   gets a name the pool doesn't use.
+1. **Loop, not carry-over** (§3).
+2. **The prologue is the default.** Every fresh slot offers it, highlighted. It is never forced,
+   and it can be skipped at the start or mid-way.
+3. **The Home Base grant is small:** about one cheap upgrade of each currency. Lord upgrades start
+   at 50 Valor and recruit upgrades at 35 Supply, so the grant is 60 Valor and 40 Supply.
+4. **The row-2 fork stays** (Market or Chapel). It is the prologue's only real route choice, and
+   whichever service the player skips gets a first-visit note in Act 1.
+5. **Tamsin keeps her name** as a faint loop echo, unless the user asks otherwise.
+6. **Tamsin is the fourth unit** for the deploy lesson.
