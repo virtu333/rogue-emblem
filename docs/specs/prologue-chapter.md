@@ -5,6 +5,8 @@ Date: 2026-10-04
 Replaces: the practice tutorial battle (`TutorialController`, `TutorialHelpers`) once the
 prologue reaches parity. `docs/tutorial-battle-spec.md` is already stale; the shipped tutorial
 is described in `docs/specs/tutorial_v2_guided_flow_spec.md` and `docs/onboarding-review-2026-09-20.md`.
+Research: `docs/fire-emblem-tutorial-sequencing.md` (how FE7, FE8, Path of Radiance and Awakening
+stage their openings, and the teaching rules adopted in §2).
 
 ## 1. Why
 
@@ -56,6 +58,40 @@ tutorial with two units can't give each unit's role its own moment. A chapter st
    happen in a real run.
 6. **Short, skippable, replayable.** About 20–25 minutes. Each battle is won in 4–7 turns.
    A fresh slot offers Prologue or Skip, and any chapter can be replayed from the title.
+
+### Teaching rules (from the sequencing research)
+
+- **Need, explanation, action, result, reuse.** Every lesson starts from a situation that needs
+  it, explains it in a line or two, lets the player act, and shows the result. A later, unprompted
+  situation then asks for the same decision in a different position. Every chapter table below
+  names its **reuse** beat. A lesson without one is exposure, not learning.
+- **Hard gates only for the very first orders.** The first select, the first move and the first
+  attack confirmation are gated (as the tutorial does today). After that, coach goals name a
+  tactical aim ("keep Sera out of reach"), never a tile, and any valid solution counts.
+- **Explain before the commitment it changes.** Counters while the forecast is open, threat
+  before End Turn, consumable lifetime before use. Never cover the subject being explained.
+- **Prompts fade.** P1–P3 introduce; P4 introduces only its own new rules (deploy, seize, armor,
+  par) and coaches nothing already taught. That is the "play independently" check.
+- **Safety keeps the rules honest.** Tune encounters so retaliation and crits can't kill the
+  learner (enemy SKL/LCK and placement), rather than bending combat. Any prepared setup (P3's
+  wounds) is disclosed in the fiction and on screen.
+- **The veteran supports, never solves.** Gaspar makes the player's plan safer, but no chapter can
+  be routed by Gaspar alone without him falling (the Sacred Stones Seth risk).
+- **Exposure is not mastery.** Record "shown" and "practised" separately (§8): a note seen is
+  not a skill used.
+
+### Why a chapter run, not only a longer practice battle
+
+The research recommends a short practice battle followed by contextual lessons in the first run,
+and warns against a Lyn Mode-length course in a roguelike. This design keeps both properties:
+- **P1 is the practice battle.** It runs about 5 minutes and covers stages 1–3 and part of 5
+  (one order, predicting an exchange, reading the next phase). The title's replay entry opens it
+  directly.
+- **The full prologue plays once per slot and is skippable.** It is the only place the run layer
+  (roster, route, services, deploy, Home Base) and the story's premise can be taught before they
+  matter.
+- **Everything else stays contextual.** Promotion, skills, arts, objectives beyond seize, and so
+  on remain first-occurrence field notes in Act 1 (§7).
 
 ## 3. The decision that shapes everything: loop, not carry-over
 
@@ -190,14 +226,17 @@ E . . T . . . .
 | 3 | On the Fort | Terrain note (existing `battle_terrain`). |
 | 4 | Fighter `a` in reach | The forecast lesson (`battle_forecast`), then the triangle (`battle_triangle`) on the same exchange. |
 | 5 | Edric doubles | `battle_doubling`. |
+| 5b | Edric has acted, turn 1 | **Wait vs End Turn:** "Wait ends Edric's move. End Turn hands every enemy its move. Check who can reach Edric first." Fighter `b`'s red reach is highlighted while the End Turn prompt is up. |
 | 6 | First enemy phase | "Red units move now. The red eye showed who could reach you." |
 | 7 | Edric ≤ 60% HP | "Item → Vulnerary heals 10. You carry few, and they never come back." (existing consumable copy) |
-| 8 | Fighter `b` wakes | "Some enemies hold until you come close. Their red reach shows where." |
+| 8 | Fighter `b` wakes | "Some enemies hold until you come close. Their red reach shows where." **Reuse:** no prompt for this fight. The player picks the tile and opens the forecast unaided. |
 | 9 | Level-up | The level-up card, with one line: "Levels raise stats at random. Growth rates decide the odds." |
 | 10 | Victory | Gaspar rides in (dialogue). |
 
 Defeat: Sera's voice, off-screen and unnamed: "Not this thread." The battle restarts. This
-foreshadows her and teaches nothing false.
+foreshadows her and teaches nothing false. Safety: with the fixed seed, the harness confirms that
+no sequence of Fighter hits *and* crits can kill Edric from full HP on the Fort within two enemy
+phases.
 
 ### P2 — Old Hands (Edric + Gaspar): the Jagen lesson
 
@@ -224,9 +263,9 @@ E . . . F ~ . b . .
 - Edric finishes it from an adjacent tile: 8 damage, no counter.
 - Gaspar's Iron Sword against the same Archer kills it outright (12 × 2, AS 9 doubles). So the
   forecast shows the choice: **the lance chips, the sword kills.**
-- The coach and note: "Gaspar is strong now but barely grows. He earns little XP. Let him weaken
-  enemies and leave the final blow to Edric — he grows from it." This is the same copy as the
-  in-run `guide_veteran_kills` note added in this branch, so the prologue marks that note read.
+- The coach and note use the in-run `guide_veteran_kills` copy added in this branch: "Gaspar is
+  strong now but barely grows and earns little XP. Weaken enemies with Gaspar, then leave the
+  final blow to Edric and your recruits: they grow from it." Showing it here marks that note read.
 - The XP shown on the level-up card makes the point: Edric's kill is worth several times
   Gaspar's.
 
@@ -241,6 +280,14 @@ E . . . F ~ . b . .
 | 7 | A unit ends on the village | Visit: gold and an item (existing village copy, minus the bandit clause). |
 | 8 | Victory | **Loot screen**, first time (existing `battle_loot`, rewritten for the prologue). |
 
+**Reuse:** the guarded Soldier on the Fort is the unprompted check. Edric's sword is at a
+disadvantage, so the player has to apply the P2 pattern unaided: Gaspar softens, Edric
+finishes, and no Jagen note fires again. **Gaspar doesn't solve the map:** two Fighters with
+axes (advantage against his lance) plus the Archer are tuned so that sending Gaspar in alone
+loses him. The harness checks a Gaspar-only policy fails.
+
+**The village visit pays a bow.** Its convoy item is a fixed Iron Bow, which sets up row 1.
+
 ### Route map, row 1 — Harrow's Crossing (Shop | Chapel)
 
 The first route map appears after P2. Rows 0–4 are visible, and node preview is the lesson:
@@ -250,15 +297,21 @@ The first route map appears after P2. Rows 0–4 are visible, and node preview i
   heal, the revive price list, and the blessing service shown but greyed for the prologue). The
   other service is taught at its first Act 1 visit (new first-visit notes; §11, phase 3).
 - **Tamsin joins on arrival, at either node.** This uses the standard recruit card. She is an
-  Archer at L1 with an Iron Bow, carrying nothing else.
+  Archer at L1, and **her bow burned with her watch post**: she arrives unarmed. This is
+  Awakening's missing-axe trick. The roster has a concrete problem to solve, instead of a menu
+  tour. The cause and the remedy are shown together, so she never looks broken: her join line
+  says so, and her roster row reads "No weapon. A bow is in the convoy." If P2's village wasn't
+  visited, the bow waits at the node (her line: "There's a bow on the rack here. It'll do.").
 - **The roster lesson** runs once, the first time the player opens Roster after Tamsin joins.
   Three short steps, each gated on the player doing it:
-  1. *Equip:* "Each unit carries up to 5 weapons. The equipped one is the one they fight
-     with."
-  2. *Trade:* give Tamsin a Vulnerary (Edric has a spare from P2's village). "Trade swaps
-     items between units, between battles."
-  3. *Convoy:* store the loot weapon. "The convoy is shared storage. Units fight only with what
-     they carry." This wires up the dead `guide_convoy` copy.
+  1. *Convoy:* withdraw the Iron Bow to Tamsin. "The convoy is shared storage. Units fight
+     only with what they carry." This wires up the dead `guide_convoy` copy.
+  2. *Equip:* equip it. "Each unit carries up to 5 weapons. The equipped one is the one they
+     fight with."
+  3. *Trade:* give Tamsin a Vulnerary from Edric. "Trade swaps items between units, between
+     battles."
+  Each step can be skipped. Travel is never blocked, but an unarmed unit gets the standard
+  greyed-Attack reason ("Unarmed") in P3, so the problem stays legible.
 - **Shop branch:** buy a Vulnerary with P2's gold. "Shops change stock each visit. Gold also pays
   for revivals and promotions."
 
@@ -297,7 +350,11 @@ E . . . F . . . . c
 | 5 | Sera moved into enemy reach | **Fragile:** `guide_fragile_in_reach`, made mandatory here. "Sera would be in reach of 2 enemies. Tap Back." |
 | 6 | Glimmer forecast | **Magic:** "Glimmer is magic: it hits RES, not DEF. Axe-wielders have almost none." 6+4−1 = 9 against a Fighter, no counter. |
 | 7 | Sera ends next to an ally | **Aura:** "Renewal Aura: allies next to Sera heal 3 HP at the start of your turn." |
-| 8 | Sera falls (if) | The tutorial's lord-fall lesson, kept: a Vision charge, "Rewind to your last turn", and charges last the whole run. |
+| 8 | First enemy phase ends with an ally hurt | **Rewind, as a prepared, optional exercise** (research: don't make the player let Sera die to discover it). The prologue run holds 1 Vision charge. "Rewind takes back moves. Browse the timeline for free, and spend a charge to return. In a real run, charges last the whole run." Declining is fine; the charge stays for P4. |
+| 9 | Sera falls (if) | "Sera has fallen." The prologue's no-dead-end rule restarts the battle ("Not this thread"); the coach suggests the charge first if one is left. |
+
+**Reuse:** on turn 3, Gaspar comes back wounded from the Fighter pair. Healing him is unprompted
+(the `guide_healer_heals` note is already read), and so is choosing a 2-tile tile for Glimmer.
 
 The fight is tuned so Edric and Gaspar hold a line two tiles ahead while Sera heals and chips
 from behind. A player who walks Sera to the front sees the fragile note and the red eyes before
@@ -339,6 +396,9 @@ E . . . . . . . . .
 | 5 | Varro below half | His half-health line (existing boss beat). |
 | 6 | Varro falls | "Now Edric: step onto the gate and Seize." |
 | 7 | Seize | The ending (§5 beat 7). |
+
+Prompts fade here. The coach shows only the objective ("Defeat Varro, then Seize the gate"),
+with no goals for moving, attacking, healing or ranges.
 
 If the player leaves Sera out, Gaspar's lance still scratches Varro (about 19−13 = 6 a hit,
 depending on the boss bonus), so P4 stays winnable and the armor note teaches the deploy choice
@@ -389,8 +449,12 @@ caravans, village bandits, the Eclipse's mechanics, and reinforcements.
 - **No Eclipse shadow, no deeds, no affixes, no run counters.** The prologue doesn't count as a
   run started or finished (`runsStarted`, `runsCompleted`), so Guidance stays on Full for the
   real first run (`isVeteranMeta`).
-- **Lessons are recorded.** Every lesson shown marks its HintManager id read on this slot (as
-  `applyCompletedTutorialHints` does today), so the first run doesn't repeat them.
+- **Lessons are recorded, as two facts.** A lesson *shown* marks its HintManager id read on this
+  slot (as `applyCompletedTutorialHints` does today), so the first run doesn't repeat the text.
+  A lesson *practised* (the player healed, struck from 2 tiles, chipped for a finish, deployed)
+  is a separate record on the slot's meta, `prologue.practised: [ids]`. It is for playtest
+  analysis and for re-offering a lesson in Act 1 when it was shown but never practised. Skipped
+  and cancelled lessons never block progress.
 
 ## 9. Engineering plan
 
@@ -527,6 +591,21 @@ modules, not in code. The validator checks:
   in the first run.
 - **e2e:** a new `prologue` lane plays P1 and P3 on desktop and in portrait, waiting on state
   (`tests/e2e/lanes.json`).
+- **Harness safety:** for P1–P3, no enemy-phase sequence (hits and crits) kills Edric from the
+  position the intended script leaves him. The Gaspar-only policy loses P2.
+
+### Novice playtest (the measure that matters)
+
+From the research doc: can a novice make a safe decision in a new position once guidance fades?
+Watch for these:
+- whether they cancel a forecast and say what damage and retaliation mean
+- whether they check reach before exposing Sera or ending the turn
+- whether they heal without directions and tell staff charges from consumables
+- whether they finish P4 unprompted and recognise seize as the goal
+- whether lessons stay readable at 640×480 and on touch
+
+Record wrong commitments, help requests, repeated explanations and successful reuse. Completion
+time is secondary.
 
 ## 10. Narrative wiring
 
