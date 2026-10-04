@@ -65,7 +65,7 @@ function p4Run() {
   return { rm, node };
 }
 
-function makeP4({ run = false, deploy = ['Edric', 'Gaspar', 'Sera'] } = {}) {
+function makeP4({ run = false, deploy = ['Edric', 'Gaspar', 'Sera'], confirmed = true } = {}) {
   installSeed(5);
   let rm = null;
   let battleParams = prologueBattleParams(p4, { seed: 77 });
@@ -129,6 +129,9 @@ function makeP4({ run = false, deploy = ['Edric', 'Gaspar', 'Sera'] } = {}) {
     hideActionMenu: vi.fn(),
     dangerZone: { hide: vi.fn() },
     _battleSession: 1,
+    // The deploy screen's confirmation (BattleScene.create): the chapter's deploy
+    // lesson is practised by that choice. An auto-deploy or a resume confirms nothing.
+    _deployConfirmation: confirmed ? { count: fielded.length } : null,
   };
   const varro = battle.enemyUnits.find((u) => u.isBoss);
   return { scene, battle, rm, hints, meta, varro };

@@ -610,6 +610,8 @@ export class BattleScene extends Phaser.Scene {
     } else {
       // Roster exceeds max -- show deploy selection
       this.showDeployScreen(this.roster, limits, (selectedRoster) => {
+        // The choice was made here (a prologue chapter's deploy lesson reads it).
+        this._deployConfirmation = { count: selectedRoster.length };
         this.beginBattle(selectedRoster);
       });
     }
@@ -8299,7 +8301,11 @@ export class BattleScene extends Phaser.Scene {
       if (this._prologue) {
         await safeBattlePresentation(
           'prologue combat notes',
-          () => this._prologue.onCombatResolved(attacker, defender, { initiator: 'player' }),
+          () =>
+            this._prologue.onCombatResolved(attacker, defender, {
+              initiator: 'player',
+              hpBefore: { attacker: attackerHpAtStart, defender: defenderHpAtStart },
+            }),
           { scene: this },
         );
         if (!isCurrentBattleSession(this, session)) return;
@@ -10523,7 +10529,11 @@ export class BattleScene extends Phaser.Scene {
       if (this._prologue) {
         await safeBattlePresentation(
           'prologue combat notes',
-          () => this._prologue.onCombatResolved(enemy, target, { initiator: 'enemy' }),
+          () =>
+            this._prologue.onCombatResolved(enemy, target, {
+              initiator: 'enemy',
+              hpBefore: { attacker: enemyHpAtStart, defender: targetHpAtStart },
+            }),
           { scene: this },
         );
         if (!isCurrentBattleSession(this, session)) return;

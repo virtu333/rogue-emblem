@@ -141,9 +141,14 @@
 //                                       battle's forecasts from 1, event.concepts is
 //                                       forecastConcepts() of that forecast;
 //                                       event.targetTerrain the target's tile (Throne)
-//   combatResolved  unit, target, turn, kill
+//   combatResolved  unit, target, turn, kill, distance, damagedBy
 //                                       a combat the player started has resolved;
-//                                       event.kill is true when the target fell to it
+//                                       event.kill is true when the target fell to it;
+//                                       event.distance is the committed distance between
+//                                       the two (a strike from 2 tiles); event.damagedBy
+//                                       lists the player units that damaged this target
+//                                       earlier in the battle (damagedBy names one:
+//                                       P2's chip-then-finish needs Gaspar's chip)
 //   unitActed       unit, turn          a player unit's action is over (attack, wait...)
 //   unitDefeated    unit                a unit fell
 //   levelUp         unit                a unit gained a level
@@ -153,11 +158,15 @@
 //   healed          unit, target        a staff heal resolved
 //   rewound                             a Vision rewind was spent and the board restored
 //   seize           unit                a lord seized
+//   deployed                            the deploy screen was confirmed (a chapter with a
+//                                       `deploy` rule; never raised by an auto-deploy or
+//                                       a resumed battle), before battleStart
 //   victory                             the battle is won
 // Condition values: unit/target are unit keys or enemy ids; tile is { col, row };
 // dangerFrom is an enemy id or '*' (any); concept is one of FORECAST_CONCEPTS; turn, nth,
-// pct and foeDistance are integers; hurt, safe, inRange, besideAlly and afterRewind are
-// booleans; terrain and targetTerrain are terrain names.
+// pct, foeDistance and distance are integers; hurt, safe, inRange, besideAlly and
+// afterRewind are booleans; terrain and targetTerrain are terrain names; damagedBy is a
+// player unit key.
 // The validator holds beats to their chapter: unit/target name this chapter's roster, NPC
 // or enemies, on the side the trigger is raised for (BEAT_UNIT_SIDES); a tile is on the
 // map and standable; a terrain is on the map and agrees with the beat's tile; a beat
@@ -226,7 +235,7 @@ export const PROLOGUE_TRIGGERS = Object.freeze({
     'afterRewind',
   ],
   forecastOpened: ['unit', 'target', 'nth', 'concept', 'turn', 'targetTerrain'],
-  combatResolved: ['unit', 'target', 'turn', 'kill'],
+  combatResolved: ['unit', 'target', 'turn', 'kill', 'distance', 'damagedBy'],
   unitActed: ['unit', 'turn'],
   unitDefeated: ['unit'],
   levelUp: ['unit'],
@@ -236,6 +245,7 @@ export const PROLOGUE_TRIGGERS = Object.freeze({
   healed: ['unit', 'target'],
   rewound: [],
   seize: ['unit'],
+  deployed: [],
   victory: [],
 });
 
@@ -260,7 +270,7 @@ const BEAT_UNIT_SIDES = Object.freeze({
   unitSelected: { unit: 'player' },
   afterMove: { unit: 'player' },
   forecastOpened: { unit: 'player', target: 'enemy' },
-  combatResolved: { unit: 'player', target: 'enemy' },
+  combatResolved: { unit: 'player', target: 'enemy', damagedBy: 'player' },
   unitActed: { unit: 'player' },
   levelUp: { unit: 'player' },
   hpBelow: { unit: 'player' },
@@ -823,6 +833,8 @@ const CONDITION_MATCHERS = {
   foeDistance: (want, e) => Array.isArray(e.foeDistances) && e.foeDistances.includes(want),
   besideAlly: (want, e) => Boolean(e.besideAlly) === want,
   afterRewind: (want, e) => Boolean(e.afterRewind) === want,
+  distance: (want, e) => e.distance === want,
+  damagedBy: (want, e) => Array.isArray(e.damagedBy) && e.damagedBy.includes(want),
 };
 
 function beatConditions(beat) {
@@ -1219,7 +1231,8 @@ function validateCondition(where, key, value, ctx, errors, trigger = null) {
   const isPlayer = (v) => ctx.unitNames.has(v) || ctx.npcNames.has(v);
   switch (key) {
     case 'unit':
-    case 'target': {
+    case 'target':
+    case 'damagedBy': {
       if (typeof value !== 'string' || (!isPlayer(value) && !ctx.enemyIds.has(value))) {
         errors.push(`${where}.${key} "${value}" names no unit of this chapter`);
         break;
@@ -1254,7 +1267,8 @@ function validateCondition(where, key, value, ctx, errors, trigger = null) {
       if (typeof value !== 'boolean') errors.push(`${where}.${key} must be true or false`);
       break;
     case 'foeDistance':
-      if (!isInt(value) || value < 1) errors.push(`${where}.foeDistance must be an integer >= 1`);
+    case 'distance':
+      if (!isInt(value) || value < 1) errors.push(`${where}.${key} must be an integer >= 1`);
       break;
     case 'tile':
       if (!ctx.inBounds(value)) errors.push(`${where}.tile is not a tile on the map`);
@@ -1366,6 +1380,8 @@ function validateBeats(where, beats, ctx, errors) {
     if (!allowed) {
       errors.push(`${at}.on "${beat.on}" is not a known trigger`);
     } else {
+      if (beat.on === 'deployed' && !ctx.hasDeploy)
+        errors.push(`${at}: "deployed" needs this chapter's deploy rule (nothing to confirm)`);
       for (const key of beatConditions(beat)) {
         if (!allowed.includes(key)) {
           errors.push(`${at}: trigger "${beat.on}" takes no condition "${key}"`);
@@ -1857,6 +1873,8 @@ function validateChapter(chapter, index, prologue, gameData, errors, seen) {
     villageTile: inBounds(chapter.villageTile) ? chapter.villageTile : null,
     inBounds,
     passable: passableAt,
+    // A `deployed` beat needs a deploy screen to confirm (prologueDeployRule).
+    hasDeploy: isPlainObject(chapter.deploy),
   };
   validateBeats(where, chapter.beats, ctx, errors);
 

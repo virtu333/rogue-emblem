@@ -38,6 +38,20 @@ function atFork({ nodeId = 'prologue_2a', bow = true } = {}) {
 }
 const named = (rm, name) => rm.roster.find((u) => u.name === name);
 const step = (rm) => rosterLessonView(rm)?.step ?? null;
+/** The real Withdraw (the sheet's command), then its report to the lesson. */
+function withdrawBow(rm) {
+  const tamsin = named(rm, 'Tamsin');
+  const bow = rm.getConvoyItems().weapons.find((w) => w.name === 'Iron Bow');
+  expect(rosterItemAction(rm, tamsin, bow, 'withdraw')).toBe('');
+  return observeRosterAction(rm, { action: 'withdraw', unit: 'Tamsin', item: 'Iron Bow' });
+}
+/** The real Equip of Gaspar's spare sword, then its report. */
+function equipSpare(rm) {
+  const gaspar = named(rm, 'Gaspar');
+  const sword = gaspar.inventory.find((w) => w.name === 'Iron Sword');
+  expect(rosterItemAction(rm, gaspar, sword, 'equip')).toBe('');
+  return observeRosterAction(rm, { action: 'equip', unit: 'Gaspar', item: 'Iron Sword' });
+}
 
 describe('when the lesson runs', () => {
   it('only in the prologue run, at the node its subject joined', () => {
@@ -126,9 +140,51 @@ describe('the steps, each done by its real action', () => {
     advanceRosterLesson(rm);
     expect(observeRosterAction(rm, { action: 'store', unit: 'Gaspar', item: 'Iron Sword' })).toEqual(['store']); // prettier-ignore
     expect(step(rm)).toBe('withdraw');
-    observeRosterAction(rm, { action: 'withdraw', unit: 'Tamsin', item: 'Iron Bow' });
+    expect(withdrawBow(rm)).toEqual(['withdraw']);
     expect(step(rm)).toBe('equip');
     expect(rm.prologueRosterLesson.completed).toEqual(['store', 'withdraw']);
+  });
+
+  it('Withdraw completes only when a combat weapon she can wield reached her bag (review, 2026-10-04)', () => {
+    const rm = atFork();
+    rm.addToConvoy(structuredClone(data.consumables.find((c) => c.name === 'Vulnerary')));
+    rm.addToConvoy(weapon('Iron Lance'));
+    advanceRosterLesson(rm);
+    const tamsin = named(rm, 'Tamsin');
+    // A Vulnerary withdrawn to her is not the lesson.
+    const vulnerary = rm.getConvoyItems().consumables.find((c) => c.name === 'Vulnerary');
+    expect(rosterItemAction(rm, tamsin, vulnerary, 'withdraw')).toBe('');
+    expect(observeRosterAction(rm, { action: 'withdraw', unit: 'Tamsin', item: 'Vulnerary' })).toEqual([]); // prettier-ignore
+    // Nor a lance an Archer cannot wield.
+    const lance = rm.getConvoyItems().weapons.find((w) => w.name === 'Iron Lance');
+    expect(rosterItemAction(rm, tamsin, lance, 'withdraw')).toBe('');
+    expect(tamsin.inventory.some((w) => w.name === 'Iron Lance')).toBe(true);
+    expect(observeRosterAction(rm, { action: 'withdraw', unit: 'Tamsin', item: 'Iron Lance' })).toEqual([]); // prettier-ignore
+    // A report with no real withdraw behind it (nothing reached her bag) never counts.
+    expect(observeRosterAction(rm, { action: 'withdraw', unit: 'Tamsin', item: 'Steel Bow' })).toEqual([]); // prettier-ignore
+    expect(observeRosterAction(rm, { action: 'withdraw', unit: 'Tamsin' })).toEqual([]);
+    expect(step(rm)).toBe('withdraw');
+    expect(withdrawBow(rm)).toEqual(['withdraw']);
+    expect(tamsin.weapon?.name).toBe('Iron Bow');
+  });
+
+  it('Equip completes only when the named unit really fights with the named weapon', () => {
+    const rm = atFork();
+    advanceRosterLesson(rm);
+    withdrawBow(rm);
+    expect(step(rm)).toBe('equip');
+    const gaspar = named(rm, 'Gaspar');
+    // Reported, but nothing equipped: Gaspar still holds his lance.
+    expect(observeRosterAction(rm, { action: 'equip', unit: 'Gaspar', item: 'Iron Sword' })).toEqual([]); // prettier-ignore
+    expect(gaspar.weapon?.name).toBe('Steel Lance');
+    // The weapon he already fights with, re-equipped, is not a change of hands either
+    // (the goal names his spare); a consumable can never be the equip.
+    expect(observeRosterAction(rm, { action: 'equip', unit: 'Edric', item: 'Vulnerary' })).toEqual([]); // prettier-ignore
+    expect(observeRosterAction(rm, { action: 'equip', unit: 'Nobody', item: 'Iron Sword' })).toEqual([]); // prettier-ignore
+    expect(step(rm)).toBe('equip');
+    expect(equipSpare(rm)).toEqual(['equip']);
+    expect(gaspar.weapon?.name).toBe('Iron Sword');
+    expect(step(rm)).toBe('trade');
   });
 
   it('a trade, a withdraw and a store made in the trade menu are read as such', () => {
@@ -161,8 +217,8 @@ describe('the army decides what can be taught', () => {
   it('Edric spent his Vulnerary in P1 or P2: the trade points at any carried item, else it is skipped', () => {
     const rm = atFork();
     advanceRosterLesson(rm);
-    observeRosterAction(rm, { action: 'withdraw', unit: 'Tamsin' });
-    observeRosterAction(rm, { action: 'equip', unit: 'Gaspar' });
+    withdrawBow(rm);
+    equipSpare(rm);
     named(rm, 'Edric').consumables = [];
     named(rm, 'Gaspar').consumables = [{ name: 'Vulnerary', type: 'Consumable', uses: 3 }];
     expect(rosterLessonView(rm).target).toMatchObject({ giver: 'Gaspar', item: 'Vulnerary' });
@@ -191,7 +247,7 @@ describe('skip and leave', () => {
   it('the ledger is saved with the run and shows once: a finished lesson never comes back', () => {
     const rm = atFork();
     advanceRosterLesson(rm);
-    observeRosterAction(rm, { action: 'withdraw', unit: 'Tamsin' });
+    withdrawBow(rm);
     const loaded = RunManager.fromJSON(rm.toJSON(), data);
     expect(loaded.prologueRosterLesson).toEqual({ completed: ['withdraw'], skipped: [], dismissed: false }); // prettier-ignore
     expect(step(loaded)).toBe('equip');

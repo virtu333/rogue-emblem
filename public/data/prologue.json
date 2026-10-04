@@ -568,6 +568,7 @@
           "id": "p2_chip_then_finish",
           "on": "combatResolved",
           "unit": "Edric",
+          "damagedBy": "Gaspar",
           "once": true,
           "do": [
             {
@@ -925,6 +926,7 @@
           "on": "combatResolved",
           "once": true,
           "unit": "Sera",
+          "distance": 2,
           "do": [
             {
               "markLesson": {
@@ -1131,7 +1133,7 @@
         },
         {
           "id": "p4_deployed",
-          "on": "battleStart",
+          "on": "deployed",
           "once": true,
           "do": [
             {

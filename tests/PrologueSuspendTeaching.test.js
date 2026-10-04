@@ -221,7 +221,7 @@ describe('P4: the seize note scheduled before the first checkpoint', () => {
     await tick();
     // The note waits for a playable turn; the checkpoint lands first.
     const state = structuredClone(first.snapshot());
-    expect(state.fired).toEqual(expect.arrayContaining(['p4_start', 'p4_deployed']));
+    expect(state.fired).toEqual(expect.arrayContaining(['p4_start']));
     expect(state.pending).toEqual([
       expect.objectContaining({ beat: 'p4_start', kind: 'note', id: 'p4_seize_par', status: 'scheduled' }), // prettier-ignore
     ]);

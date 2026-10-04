@@ -169,10 +169,13 @@ export function rosterLessonView(run) {
 
 /**
  * The roster sheet applied an action. `event`: { action: 'withdraw' | 'store' |
- * 'equip' | 'trade', unit, from?, to?, item } (unit names; for a trade, `from` gives
- * `item` to `to`). Completes every step the action is (any order: a goal met early
- * counts), then settles the next one. Returns the steps it completed. Mutates the
- * run's ledger; the caller saves.
+ * 'equip' | 'trade', unit, from?, to?, item } (unit and item names; for a trade,
+ * `from` gives `item` to `to`). Completes every step the action is (any order: a goal
+ * met early counts), then settles the next one. A step completes only when the army's
+ * state shows the skill the copy promises (review, 2026-10-04): Withdraw once a combat
+ * weapon the newcomer can wield reached her bag (a Vulnerary, or a lance she can't
+ * use, is not the lesson), Equip once the named unit really fights with the named
+ * weapon. Returns the steps it completed. Mutates the run's ledger; the caller saves.
  */
 export function observeRosterAction(run, event) {
   if (!isRosterLessonLive(run) || !event) return [];
@@ -185,14 +188,36 @@ export function observeRosterAction(run, event) {
     state.skipped = state.skipped.filter((s) => s !== step);
     done.push(step);
   };
-  if (event.action === 'withdraw' && event.unit === subject?.name) complete('withdraw');
-  if (event.action === 'equip') complete('equip');
+  if (
+    event.action === 'withdraw' &&
+    event.unit === subject?.name &&
+    withdrewWeapon(subject, event.item)
+  )
+    // prettier-ignore
+    complete('withdraw');
+  if (event.action === 'equip' && equippedWeapon(run, event.unit, event.item)) complete('equip');
   if (event.action === 'trade' && event.from && event.to && event.from !== event.to)
     complete('trade');
   if (event.action === 'store') complete('store');
   run.prologueRosterLesson = state;
   if (done.length) advanceRosterLesson(run);
   return done;
+}
+
+/** The newcomer now carries the named item, and it is a combat weapon she can wield. */
+function withdrewWeapon(subject, itemName) {
+  if (!subject || typeof itemName !== 'string') return false;
+  return (subject.inventory || []).some(
+    (w) => w?.name === itemName && isCombatWeapon(w) && canEquip(subject, w),
+  );
+}
+
+/** The named unit fights with the named item now: a combat weapon, equipped. */
+function equippedWeapon(run, unitName, itemName) {
+  if (typeof unitName !== 'string' || typeof itemName !== 'string') return false;
+  const unit = (run.roster || []).find((u) => u?.name === unitName);
+  const weapon = unit?.weapon;
+  return Boolean(weapon && weapon.name === itemName && isCombatWeapon(weapon) && canEquip(unit, weapon)); // prettier-ignore
 }
 
 /** Skip the current step. Returns the skipped step, or null. Mutates; the caller saves. */

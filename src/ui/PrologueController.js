@@ -71,7 +71,7 @@ const SYNC_ACTIONS = [
   'clearCoach',
 ];
 // Notes raised here wait for a playable player turn (the phase banner, turn-start effects).
-const DEFERRED_EVENTS = new Set(['battleStart', 'turnStart']);
+const DEFERRED_EVENTS = new Set(['battleStart', 'turnStart', 'deployed']);
 
 export class PrologueController {
   constructor(scene) {
@@ -92,6 +92,11 @@ export class PrologueController {
     this.lessons = { shown: new Set(), practised: new Set() }; // the markLesson ledger
     this.forecastCount = 0;
     this.hpSeen = new Map(); // unit name -> HP % last seen; hpBelow fires on a change
+    // Who damaged which foe this battle: foe key -> Set of player unit names
+    // (combatResolved's damagedBy: P2's chip-then-finish needs Gaspar's chip first).
+    // Saved with the snapshot. foeHpSeen backs it when a caller gives no hpBefore.
+    this.damaged = new Map();
+    this.foeHpSeen = new Map();
     this.markers = [];
     this.reach = null;
     this.anchorMarker = null;
@@ -126,6 +131,7 @@ export class PrologueController {
     this.created = true;
     const scene = this.scene;
     for (const unit of scene.playerUnits || []) this.hpSeen.set(unit.name, this.hpPct(unit));
+    this.seedFoeHp();
     // The deploy screen's note (P4) was read before this controller existed.
     for (const id of scene._prologueDeployTaught || []) this.taught.add(id);
     if (hasDOMHost()) {
@@ -141,7 +147,19 @@ export class PrologueController {
     }
     this._tick = () => this.flushDeferred();
     scene.events?.on?.('update', this._tick);
+    // The deploy screen was confirmed before this controller existed (P4's deploy
+    // lesson is practised by that choice, never by the battle merely starting; an
+    // auto-deploy or a resumed battle confirms nothing).
+    const deployed = scene._deployConfirmation;
+    if (deployed && typeof deployed === 'object')
+      void this.emit({ type: 'deployed', count: Number(deployed.count) || 0 });
     return this;
+  }
+
+  /** The foes' HP as last seen (the damage ledger's fallback when no hpBefore is given). */
+  seedFoeHp() {
+    for (const foe of this.scene.enemyUnits || [])
+      this.foeHpSeen.set(this.unitKey(foe), Number(foe.currentHP) || 0);
   }
 
   destroy() {
@@ -784,6 +802,8 @@ export class PrologueController {
       practised: [...this.lessons.practised],
       rewound: this.rewound,
       standaloneVisionGranted: Boolean(this.standaloneVisionGranted),
+      // Who damaged which foe (combatResolved's damagedBy), by foe key.
+      damaged: [...this.damaged].map(([key, names]) => [key, [...names]]),
       // Unread teaching, as data: shown again on resume, never counted as taught.
       pending: this.pendingRecords(),
     };
@@ -814,10 +834,16 @@ export class PrologueController {
       };
       this.rewound = state.rewound === true;
       this.standaloneVisionGranted = state.standaloneVisionGranted === true;
+      this.damaged = new Map(
+        (Array.isArray(state.damaged) ? state.damaged : [])
+          .filter((e) => Array.isArray(e) && typeof e[0] === 'string' && Array.isArray(e[1]))
+          .map(([key, names]) => [key, new Set(names.filter((n) => typeof n === 'string'))]),
+      );
     } else {
       this.started = true;
     }
     for (const unit of this.scene.playerUnits || []) this.hpSeen.set(unit.name, this.hpPct(unit));
+    this.seedFoeHp();
     if (!this.started && phase === 'player' && turn === 1) {
       this.started = true;
       void this.emit({ type: 'battleStart' });
@@ -949,9 +975,18 @@ export class PrologueController {
    * A combat resolved (HP applied, before deaths are removed). A player-started combat
    * raises `combatResolved`; a player unit whose HP changed raises `hpBelow`.
    */
-  async onCombatResolved(attacker, defender, { initiator = 'player' } = {}) {
+  async onCombatResolved(attacker, defender, { initiator = 'player', hpBefore = null } = {}) {
     if (this.destroyed) return false;
     let held = false;
+    // The committed facts of this exchange, read before the ledger takes it in: the
+    // distance the strike was made from, and who had damaged the foe before now.
+    const foe = [attacker, defender].find((u) => u?.faction === 'enemy') || null;
+    const striker = [attacker, defender].find((u) => u?.faction === 'player') || null;
+    const foeKey = foe ? this.unitKey(foe) : null;
+    const damagedBy = foeKey ? [...(this.damaged.get(foeKey) || [])] : [];
+    const distance =
+      attacker && defender ? gridDistance(attacker.col, attacker.row, defender.col, defender.row) : null; // prettier-ignore
+    if (foe && striker) this.recordDamage(foe, striker, attacker === foe ? hpBefore?.attacker : hpBefore?.defender); // prettier-ignore
     if (initiator === 'player' && attacker?.faction === 'player') {
       held = await this.emit({
         type: 'combatResolved',
@@ -959,6 +994,8 @@ export class PrologueController {
         target: this.unitKey(defender),
         turn: this.turn(),
         kill: Boolean(defender) && !(defender.currentHP > 0),
+        distance,
+        damagedBy,
       });
     }
     for (const unit of [attacker, defender]) {
@@ -966,6 +1003,23 @@ export class PrologueController {
       held = (await this.checkHp(unit)) || held;
     }
     return held;
+  }
+
+  /**
+   * The foe lost HP in this exchange: the striker (the player unit it fought, as the
+   * attacker or as the one who countered) damaged it. `hpBefore` is the foe's HP when
+   * the combat began (the scene's); without it the HP last seen here stands in.
+   */
+  recordDamage(foe, striker, hpBefore = null) {
+    const key = this.unitKey(foe);
+    const before = Number.isFinite(Number(hpBefore)) && hpBefore !== null ? Number(hpBefore) : this.foeHpSeen.get(key); // prettier-ignore
+    const now = Number(foe.currentHP) || 0;
+    this.foeHpSeen.set(key, now);
+    if (!Number.isFinite(before) || now >= before) return false;
+    const names = this.damaged.get(key) || new Set();
+    names.add(striker.name);
+    this.damaged.set(key, names);
+    return true;
   }
 
   hpPct(unit) {

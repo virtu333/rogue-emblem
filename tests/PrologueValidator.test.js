@@ -195,6 +195,38 @@ describe('validatePrologueConfig', () => {
       ).toEqual([`${P1}.beats[0].do[0].gateSelect.unit "Tamsin" is not a player unit`]);
     });
 
+    it('a kill-on-a-chipped-foe, a strike from 2 tiles and a deploy confirmation are conditions the data holds (review, 2026-10-04)', () => {
+      const chip = at(shipped('p2_old_hands'), 'p2_chip_then_finish');
+      expect(beatOf(shipped('p2_old_hands'), 'p2_chip_then_finish')).toMatchObject({ damagedBy: 'Gaspar', kill: true }); // prettier-ignore
+      // damagedBy names a player unit of this chapter: an enemy id or a stranger is refused.
+      expect(errorsAfter((p) => (beatOf(p2(p), 'p2_chip_then_finish').damagedBy = 'a'))).toEqual([
+        `${P2}.${chip}.damagedBy "a" is not a player unit of this chapter`,
+      ]);
+      expect(errorsAfter((p) => (beatOf(p2(p), 'p2_chip_then_finish').damagedBy = 'Sera'))).toEqual(
+        [`${P2}.${chip}.damagedBy "Sera" names no unit of this chapter`],
+      );
+      // distance is a positive integer, and only combatResolved takes it.
+      const p3 = (p) => p.chapters.find((c) => c.id === 'p3_seer_on_the_road');
+      const P3 = 'chapters[2] (p3_seer_on_the_road)';
+      const glimmer = at(shipped('p3_seer_on_the_road'), 'p3_glimmer');
+      expect(beatOf(shipped('p3_seer_on_the_road'), 'p3_glimmer')).toMatchObject({ distance: 2 });
+      expect(errorsAfter((p) => (beatOf(p3(p), 'p3_glimmer').distance = 0))).toEqual([
+        `${P3}.${glimmer}.distance must be an integer >= 1`,
+      ]);
+      expect(errorsAfter((p) => (beatOf(p3(p), 'p3_range').distance = 2))).toEqual([
+        `${P3}.${at(shipped('p3_seer_on_the_road'), 'p3_range')}: trigger "afterMove" takes no condition "distance"`,
+      ]);
+      // A deployed beat needs a deploy screen to confirm: P4 has one, P1 has none.
+      const p4 = (p) => p.chapters.find((c) => c.id === 'p4_quarry_gate');
+      expect(beatOf(shipped('p4_quarry_gate'), 'p4_deployed')).toMatchObject({ on: 'deployed' });
+      expect(errorsAfter((p) => delete p4(p).deploy)).toContain(
+        `chapters[3] (p4_quarry_gate).${at(shipped('p4_quarry_gate'), 'p4_deployed')}: "deployed" needs this chapter's deploy rule (nothing to confirm)`,
+      );
+      expect(errorsAfter((p) => (p1(p).beats[0].on = 'deployed'))).toContain(
+        `${P1}.beats[0]: "deployed" needs this chapter's deploy rule (nothing to confirm)`,
+      );
+    });
+
     it('a unit is on the side its trigger is raised for', () => {
       const tri = at(shipped('p1_banner_at_dawn'), 'p1_triangle');
       expect(errorsAfter((p) => (beatOf(p1(p), 'p1_triangle').target = 'Edric'))).toEqual([
@@ -416,8 +448,11 @@ describe('validatePrologueConfig', () => {
     const node = (p, id) => p.route.nodes.find((n) => n.id === id);
 
     it('a deploy rule needs more units than spawns, a min within the spawns, a note id', () => {
+      // Without the rule the roster has nowhere to choose from, and the beat its
+      // confirmation raises (p4_deployed) has nothing to confirm.
       expect(errorsAfter((p) => delete p4(p).deploy)).toEqual([
         `${P4}.roster has more units than playerSpawns (and no deploy rule)`,
+        `${P4}.beats[1]: "deployed" needs this chapter's deploy rule (nothing to confirm)`,
       ]);
       expect(errorsAfter((p) => (p4(p).deploy.min = 4))).toEqual([
         `${P4}.deploy.min must be an integer from 1 to the spawn count (3)`,
