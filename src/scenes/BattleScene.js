@@ -30,6 +30,11 @@ import { presentationText, isolateBattleTextFactory } from '../utils/presentatio
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
+import {
+  isRoutComplete,
+  pendingRequiredRecruits,
+  routObjectiveLabel,
+} from '../engine/RoutObjective.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import { getWeaponArtIds, killMoveRefreshesActor } from '../engine/WeaponArtSystem.js';
 import {
@@ -309,6 +314,7 @@ import {
   buildPrologueBattleConfig,
   buildPrologueNpcUnit,
   prologueDeployRule,
+  battleRequiredRecruits,
 } from '../engine/Prologue.js';
 import { showPrologueDeployNote } from '../ui/PrologueDeployNote.js';
 import {
@@ -10783,13 +10789,9 @@ export class BattleScene extends Phaser.Scene {
       this.onDefeat();
       return true;
     }
-    // Rout: all enemies dead = victory
+    // Rout: all enemies dead (and every required recruit in the army) = victory
     // Defer during enemy phase until reinforcements have been applied
-    if (
-      this.battleConfig.objective === 'rout' &&
-      this.enemyUnits.length === 0 &&
-      !(this._zombieTombstones?.length > 0)
-    ) {
+    if (this.battleConfig.objective === 'rout' && isRoutComplete(this.routObjectiveState())) {
       if (this._reinforcementsPendingThisTurn) return false;
       this.onVictory();
       return true;
@@ -10805,6 +10807,31 @@ export class BattleScene extends Phaser.Scene {
     }
     // Seize victory triggers via action menu 'Seize' button
     return false;
+  }
+
+  /**
+   * What the rout's end reads (engine/RoutObjective.js): the enemies standing, the
+   * remains rising, and the recruits the battle requires in the army (a prologue
+   * chapter's; a standard run requires none). The harness reads the same predicate.
+   */
+  routObjectiveState() {
+    return {
+      enemyUnits: this.enemyUnits || [],
+      zombieTombstones: this._zombieTombstones || [],
+      requiredRecruits: battleRequiredRecruits({
+        battleConfig: this.battleConfig,
+        battleParams: this.battleParams,
+        gameData: this.gameData,
+      }),
+      playerUnits: this.playerUnits || [],
+      escapedUnits: this.escapedUnits || [],
+    };
+  }
+
+  /** The required recruits still outside the army (RoutObjective), by name. */
+  pendingRequiredRecruits() {
+    const state = this.routObjectiveState();
+    return pendingRequiredRecruits(state.requiredRecruits, state.playerUnits, state.escapedUnits);
   }
 
   /**
@@ -10843,10 +10870,11 @@ export class BattleScene extends Phaser.Scene {
       label = this._escapeController.getObjectiveLabel();
       color = UI_PALETTE.good; // green -- run for the exit
     } else {
-      const tombCount = this._zombieTombstones?.length || 0;
-      const count = this.enemyUnits.length;
-      const foes = `${count} ${count === 1 ? 'enemy' : 'enemies'}`;
-      label = tombCount > 0 ? `Rout: ${foes} + ${tombCount} reviving` : `Rout: ${foes} remaining`;
+      label = routObjectiveLabel({
+        remaining: this.enemyUnits.length,
+        reviving: this._zombieTombstones?.length || 0,
+        pendingRecruits: this.pendingRequiredRecruits(),
+      });
       const ladderLine = this.getLadderObjectiveLine();
       if (ladderLine) label += `\n${ladderLine}`;
     }

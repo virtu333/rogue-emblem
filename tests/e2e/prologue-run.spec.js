@@ -288,6 +288,27 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
         .npcUnits.map((u) => `${u.name}:${u.faction}:${u.col},${u.row}`),
     ),
   ).toEqual(['Sera:npc:4,2']);
+  // The chapter requires Sera (requiredRecruits): the three Soldiers falling before the
+  // Talk ends nothing. The battle stays playable, the objective and the coach say she
+  // must join, and nobody leaves without her.
+  await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const edric = s.playerUnits.find((u) => u.name === 'Edric');
+    for (const foe of [...s.enemyUnits]) {
+      foe.currentHP = 0;
+      await s.removeUnit(foe, { killer: edric });
+    }
+    if (s.checkBattleEnd()) throw new Error('the rout ended without Sera');
+  });
+  await prologueIdle(page);
+  expect(await battle(page)).toMatchObject({ chapter: 'p3_seer_on_the_road', units: ['Edric', 'Gaspar', 'Tamsin'] }); // prettier-ignore
+  expect(
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      return { enemies: s.enemyUnits.length, objective: s.objectiveText?.text || null };
+    }),
+  ).toEqual({ enemies: 0, objective: 'Rout: Sera must join to win\nRecruit: reach Sera with a lord · Talk' }); // prettier-ignore
+  await expect(guide).toContainText('Reach Sera and Talk');
   // Edric's own move: a tile beside Sera inside his blue range, then Talk.
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -323,15 +344,14 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
     if (await seraCard.count()) await seraCard.click({ timeout: 1000 }).catch(() => {});
     await expect(seraCard).toHaveCount(0, { timeout: 1000 });
   }).toPass();
-  await expect(guide).toContainText('Sera acts right away');
+  // Her join is the win: the rout waited on her (no scripted victory here).
   await page.waitForFunction(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const sera = s.playerUnits.find((u) => u.name === 'Sera');
-    return s.battleState === 'PLAYER_IDLE' && sera && !sera.hasActed && s.npcUnits.length === 0;
+    return s.battleState === 'BATTLE_END' && sera && s.npcUnits.length === 0;
   });
 
   // P3 won: Sera's lines, then the route map again: the watchtower is next.
-  await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
   await readLine(page, 'Sera', "I don't stand at the front.");
   await readLine(page, 'Edric', 'Then stand behind us.');
   await waitForScene(page, 'NodeMap');

@@ -361,6 +361,30 @@ describe('validatePrologueConfig', () => {
       ]);
     });
 
+    it("requiredRecruits: a rout only, naming the chapter's npc, each once (P3 requires Sera)", () => {
+      expect(data.prologue.chapters[2].requiredRecruits).toEqual(['Sera']);
+      expect(errorsAfter((p) => (p3(p).requiredRecruits = []))).toEqual([
+        `${P3}.requiredRecruits must be a non-empty array of unit keys`,
+      ]);
+      expect(errorsAfter((p) => (p3(p).requiredRecruits = 'Sera'))).toEqual([
+        `${P3}.requiredRecruits must be a non-empty array of unit keys`,
+      ]);
+      expect(errorsAfter((p) => (p3(p).requiredRecruits = ['Tamsin']))).toEqual([
+        `${P3}.requiredRecruits: "Tamsin" is not this chapter's npc (only a unit that joins by Talk can be required)`,
+      ]);
+      expect(errorsAfter((p) => (p3(p).requiredRecruits = ['Sera', 'Sera']))).toEqual([
+        `${P3}.requiredRecruits names a unit twice`,
+      ]);
+      // A seize or escape ends by its own command: a required recruit would never hold it.
+      expect(errorsAfter((p) => (p3(p).objective = 'seize'))).toContain(
+        `${P3}.requiredRecruits needs objective "rout" (it holds the rout open)`,
+      );
+      // A chapter without an npc can require nobody.
+      expect(errorsAfter((p) => (p1(p).requiredRecruits = ['Edric']))).toEqual([
+        `${P1}.requiredRecruits: "Edric" is not this chapter's npc (only a unit that joins by Talk can be required)`,
+      ]);
+    });
+
     it("a route preview is short; a stock is a shop's, 1-8 priced items", () => {
       expect(errorsAfter((p) => (node(p, 'prologue_2b').preview = 'x'.repeat(161)))).toEqual([
         'route.nodes[3] (prologue_2b).preview must be a string of at most 160 characters',

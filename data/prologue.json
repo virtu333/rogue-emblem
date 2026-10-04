@@ -633,6 +633,9 @@
       "node": "prologue_3",
       "title": "The Seer on the Road",
       "objective": "rout",
+      "requiredRecruits": [
+        "Sera"
+      ],
       "roster": [
         "Edric",
         "old_knight",

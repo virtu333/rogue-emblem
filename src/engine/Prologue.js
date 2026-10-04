@@ -31,6 +31,10 @@
 //                     id, node      chapter id and the route node that fights it
 //                     title         display name
 //                     objective     'rout' | 'seize' | 'escape'
+//                     requiredRecruits optional, a rout only: names of the chapter's
+//                                   `npc` that must have joined by Talk before the rout
+//                                   counts (P3: Sera). The last enemy's fall then leaves
+//                                   the battle playable until the Talk (RoutObjective).
 //                     roster        who fights it, in spawn order: unit keys and special
 //                                   character ids (the standard veteran, Gaspar). A standalone
 //                                   replay builds them with buildPrologueRoster; in the
@@ -193,6 +197,7 @@ import { ensureItemUidWith } from '../utils/itemUid.js';
 import { validateBattleConfig } from './MapGenerator.js';
 import { shopEntryTypeForItem } from './LootSystem.js';
 import { actShopPrice } from './ShopEconomy.js';
+import { prologueChapterOf } from './ScriptedBattle.js';
 
 export const PROLOGUE_TEMPLATE_PREFIX = 'prologue:';
 export const PROLOGUE_ACT_ID = 'act1';
@@ -291,6 +296,7 @@ const CHAPTER_KEYS = new Set([
   'node',
   'title',
   'objective',
+  'requiredRecruits',
   'roster',
   'rosterLevels',
   'showPar',
@@ -493,6 +499,8 @@ export function buildPrologueBattleConfig(chapter, terrainData) {
       : undefined,
     templateId: `${PROLOGUE_TEMPLATE_PREFIX}${chapter.id}`,
     prologueChapter: chapter.id,
+    // Who must have joined by Talk before a rout counts (RoutObjective; P3's Sera).
+    requiredRecruits: prologueRequiredRecruits(chapter),
     parBonus: 0,
     // The chapter's data decides whether par is shown and applied (showPar).
     hidePar: chapter.showPar === false,
@@ -512,6 +520,29 @@ export function prologueDeployRule(chapter) {
   const deploy = chapter?.deploy;
   if (!isPlainObject(deploy) || !isInt(deploy.min)) return null;
   return { min: deploy.min, note: typeof deploy.note === 'string' ? deploy.note : null };
+}
+
+/** The names a chapter's rout needs in the army before it counts (its NPC, by Talk). */
+export function prologueRequiredRecruits(chapter) {
+  const list = chapter?.requiredRecruits;
+  return Array.isArray(list) ? list.filter((n) => typeof n === 'string' && n) : [];
+}
+
+/**
+ * The recruits a battle's rout requires (RoutObjective.isRoutComplete): the battle
+ * config's copy, else the chapter's own data (a prologue run locked its configs when it
+ * started, so a save from before the field existed reads the chapter). [] for any
+ * battle that is not a prologue chapter: a standard run never requires a recruit.
+ * @param {{ battleConfig?: object, battleParams?: object, gameData?: object }} battle
+ */
+export function battleRequiredRecruits({
+  battleConfig = null,
+  battleParams = null,
+  gameData = null,
+} = {}) {
+  if (Array.isArray(battleConfig?.requiredRecruits))
+    return battleConfig.requiredRecruits.filter((n) => typeof n === 'string' && n);
+  return prologueRequiredRecruits(prologueChapterOf(battleParams, gameData));
 }
 
 /** True when the chapter opens formation placement (its `formation`). */
@@ -1449,6 +1480,22 @@ function validateChapter(chapter, index, prologue, gameData, errors, seen) {
   else seen.nodes.add(chapter.node);
   if (!PROLOGUE_OBJECTIVES.includes(chapter.objective)) {
     errors.push(`${where}.objective must be one of ${PROLOGUE_OBJECTIVES.join(', ')}`);
+  }
+  if (chapter.requiredRecruits !== undefined) {
+    const list = chapter.requiredRecruits;
+    if (!Array.isArray(list) || !list.length || list.some((n) => typeof n !== 'string' || !n))
+      errors.push(`${where}.requiredRecruits must be a non-empty array of unit keys`);
+    else {
+      if (chapter.objective !== 'rout')
+        errors.push(`${where}.requiredRecruits needs objective "rout" (it holds the rout open)`);
+      if (new Set(list).size !== list.length)
+        errors.push(`${where}.requiredRecruits names a unit twice`);
+      for (const name of list)
+        if (name !== chapter.npc?.unit)
+          errors.push(
+            `${where}.requiredRecruits: "${name}" is not this chapter's npc (only a unit that joins by Talk can be required)`,
+          );
+    }
   }
 
   const terrainData = gameData.terrain || [];

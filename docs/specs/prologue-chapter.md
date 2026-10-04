@@ -463,7 +463,20 @@ E . . . . . . . . F . .
   the only enemy that reaches her on enemy phase 1, and the only one that reaches any tile where
   Edric can Talk; `a` (10, 1) chases; `b` (10, 2) holds (a `hold` pack of one) until someone
   enters its reach. Enemies do attack NPCs, so the placement is what protects her.
-- **Objective:** Rout. No par.
+- **Objective:** Rout, and Sera must have joined (`requiredRecruits: ["Sera"]`; review,
+  2026-10-04). A plain rout ended the moment the third Soldier fell, even with Sera still
+  green: the victory flow carried the player units only, `completeBattle` replaced the
+  roster with them, and no join recovered her, so P4's 4-for-3 deploy lesson and the
+  watchtower lines could run without her. Now the one rout predicate
+  (`engine/RoutObjective.js` `isRoutComplete`, read by `BattleScene.checkBattleEnd` and
+  the harness alike) holds the rout open while a required recruit is outside the army.
+  If the Soldiers fall first the battle stays playable (an empty enemy phase passes), the
+  objective line reads "Rout: Sera must join to win" beside the recruit beacon's
+  "Recruit: reach Sera with a lord · Talk", the coach's goal is "Reach Sera and Talk"
+  whatever else is open, and the Talk itself checks the battle's end, so victory fires
+  the moment she joins. The validator allows `requiredRecruits` only on a rout, naming
+  the chapter's `npc`; a standard run never sets it, so its recruit rules are untouched.
+  No par.
 
 **The numbers** (`getCombatForecast` on real data, the harness's first test):
 - Glimmer against a Soldier from 2 tiles: 9, and the lance can't answer (No counter).
@@ -478,7 +491,7 @@ E . . . . . . . . F . .
 | # | Trigger | Lesson |
 |---|---|---|
 | 1 | Battle start | Gaspar's and Edric's lines (`p3_intro`), the coach "Reach Sera and Talk" (Sera highlighted), then the recruit note (`guide_recruit_on_map`): "Sera (Light Sage) under the gold banner can join you. … Only the Soldier beside her can reach her this turn. Lords alone can Talk." |
-| 2 | Talk with Sera | Her line on the recruit card, then the coach "Sera acts right away"; it clears when she acts. |
+| 2 | Talk with Sera | Her line on the recruit card, then the coach "Sera acts right away"; it clears when she acts. With the Soldiers already down, her join is the win. |
 | 3 | Sera selected while an ally is hurt | **Heal** (`guide_healer_heals`): "Sera heals with her staff: move next to {ally}, choose Heal. Staff uses refill after every battle; a Vulnerary is spent for good." {ally} is the most hurt. |
 | 4 | Sera moved where nothing is in reach | **Planning and cancelling** (`guide_no_attack`): her menu shows "Attack · No target in range 1–2"; "Nothing is in reach from here, so Attack is greyed out. Esc or right-click (Back) undoes the move… Try a tile 2 away from a foe." |
 | 5 | Sera 2 tiles from a foe | **Range** (`battle_no_counter`): "Glimmer reaches 2 tiles. From 2 tiles away, a lance or an axe can't hit back." Coach: "Open the forecast, then Cancel. Looking is free." |

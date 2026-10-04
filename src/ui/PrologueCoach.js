@@ -1,4 +1,3 @@
-import { getAttackRange } from '../engine/AttackOptions.js';
 // PrologueCoach — the prologue's persistent, non-modal objective line.
 //
 // One goal at a time (prologueCoachModel), docked over the map area on the side
@@ -7,6 +6,7 @@ import { getAttackRange } from '../engine/AttackOptions.js';
 // step first" notes. Presentation only: it reads scene state each frame and calls
 // back into PrologueController for actions and for the guided step's goal.
 
+import { getAttackRange } from '../engine/AttackOptions.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import {
   COACH_CHAPTERS,
@@ -148,6 +148,8 @@ export class PrologueCoach {
       menu,
       selected: s.selectedUnit?.name || null,
       selectionMenu: Boolean(s._inputController?.isSelectionMenu?.()),
+      // A rout that waits on a green unit (RoutObjective): the goal once the field is clear.
+      recruitsPending: typeof s.pendingRequiredRecruits === 'function' ? s.pendingRequiredRecruits() : [], // prettier-ignore
     };
   }
 

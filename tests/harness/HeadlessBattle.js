@@ -1,4 +1,5 @@
-import { buildPrologueNpcUnit } from '../../src/engine/Prologue.js';
+import { buildPrologueNpcUnit, battleRequiredRecruits } from '../../src/engine/Prologue.js';
+import { isRoutComplete } from '../../src/engine/RoutObjective.js';
 import { settleRecruitJoin } from '../../src/engine/BattleRecruits.js';
 import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
 // HeadlessBattle — Synchronous battle state machine for headless testing.
@@ -1971,6 +1972,24 @@ export class HeadlessBattle {
     this._battleRecruits = joined.battleRecruits;
     this._refreshFogVisibility();
     this._finishUnitAction(lord);
+    // As MovementActionController.executeTalk: a join can complete a rout that waited
+    // on this recruit (RoutObjective.requiredRecruits).
+    this._checkBattleEnd();
+  }
+
+  /** What the rout's end reads (RoutObjective), as BattleScene.routObjectiveState. */
+  routObjectiveState() {
+    return {
+      enemyUnits: this.enemyUnits || [],
+      zombieTombstones: this._zombieTombstones || [],
+      requiredRecruits: battleRequiredRecruits({
+        battleConfig: this.battleConfig,
+        battleParams: this.battleParams,
+        gameData: this.gameData,
+      }),
+      playerUnits: this.playerUnits || [],
+      escapedUnits: this.escapedUnits || [],
+    };
   }
 
   _finishUnitAction(unit) {
@@ -2106,7 +2125,9 @@ export class HeadlessBattle {
   }
 
   _checkBattleEnd() {
-    // Mirrors BattleScene.checkBattleEnd: strict isCommander flag, stamped at setup.
+    // Mirrors BattleScene.checkBattleEnd: idempotent once the battle ended, strict
+    // isCommander flag (stamped at setup), and the rout read through RoutObjective.
+    if (this.battleState === HEADLESS_STATES.BATTLE_END) return true;
     const commanderEscaped = (this.escapedUnits || []).some((u) => u.isCommander);
     const commanderAlive =
       this.playerUnits.some((u) => u.isCommander && u.currentHP > 0) || commanderEscaped;
@@ -2115,11 +2136,7 @@ export class HeadlessBattle {
       this._onDefeat();
       return true;
     }
-    if (
-      this.battleConfig.objective === 'rout' &&
-      this.enemyUnits.length === 0 &&
-      !(this._zombieTombstones?.length > 0)
-    ) {
+    if (this.battleConfig.objective === 'rout' && isRoutComplete(this.routObjectiveState())) {
       if (this._reinforcementsPendingThisTurn) return false;
       this._onVictory();
       return true;

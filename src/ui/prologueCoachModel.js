@@ -29,6 +29,8 @@ const CHAPTER_INDEX = Object.fromEntries(COACH_CHAPTERS.map((c, i) => [c.id, i])
  * @param {string[]} [s.menu]       choosable labels in the open action menu
  * @param {string} [s.selected]     selected unit's name
  * @param {boolean} [s.selectionMenu] the tap-selected menu (unit can still move)
+ * @param {string[]} [s.recruitsPending] green units the rout requires in the army
+ *   (RoutObjective.pendingRequiredRecruits): the goal once the field is clear
  * @returns {null | {id:string, chapter:string, goal:string, detail:string,
  *   anchor:null|{kind:'unit'|'tile'|'hud', name?:string, col?:number, row?:number, hud?:string}, canSkip:boolean}}
  */
@@ -38,7 +40,21 @@ export function prologueCoachState(s) {
   if (s.gated) return null; // a note of the guided step is showing
   const tap = s.touch ? 'Tap' : 'Click';
   const lord = s.commanderName || 'Edric';
-  if (s.enemies <= 0) return null; // victory flow owns the screen
+  const pending = Array.isArray(s.recruitsPending) ? s.recruitsPending.filter(Boolean) : [];
+  if (s.enemies <= 0) {
+    // The field is clear but the chapter waits on a recruit (P3's Sera): the one
+    // objective left, whatever is open. Without one the victory flow owns the screen.
+    if (!pending.length) return null;
+    const who = pending[0];
+    return {
+      id: 'recruit-required',
+      chapter: 'win',
+      goal: `Reach ${who} and Talk`,
+      detail: `The road is clear, but ${who} must join before this chapter ends. Move ${lord} next to ${who} and choose Talk. Only a lord can.`,
+      anchor: { kind: 'unit', name: lord },
+      canSkip: false,
+    };
+  }
   const remaining = s.enemies === 1 ? 'the last enemy' : `all ${s.enemies} enemies`;
   if (s.phase === 'enemy')
     return {

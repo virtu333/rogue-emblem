@@ -141,10 +141,10 @@ export class MovementActionController {
     });
   }
 
-  executeTalk(lord, { session = battleSession(this.scene) } = {}) {
+  async executeTalk(lord, { session = battleSession(this.scene) } = {}) {
     const scene = this.scene;
     let npc;
-    return settleAndPresent(scene, {
+    const done = await settleAndPresent(scene, {
       unit: lord,
       session,
       label: 'talk',
@@ -214,5 +214,10 @@ export class MovementActionController {
           });
       },
     });
+    // A join can complete a rout that waited on this recruit (RoutObjective's
+    // requiredRecruits: the prologue's Sera). The action's own completion only checks
+    // the battle's end when it ends the phase, so the join checks it here.
+    if (done && isCurrentBattleSession(scene, session)) scene.checkBattleEnd?.();
+    return done;
   }
 }
