@@ -3,7 +3,8 @@
 // Setting "Guidance": Auto | Full | Light | Off.
 //   Full   coaching notes while you play (a fragile unit moved into reach, a healer
 //          with a hurt ally, your first turn) plus the first-use explanations.
-//   Light  first-use explanations only (recruits, the commander's fall, convoy…).
+//   Light  first-use explanations only (recruits, the commander's fall, convoy, the
+//          veteran who should not take the kills…).
 //   Off    no field notes (the practice tutorial stays available).
 //   Auto   Full for a save slot that has not finished a run yet, Light after.
 // Every note shows at most once per save slot (HintManager ids) and never blocks
@@ -48,6 +49,7 @@ export const GUIDANCE_NOTES = Object.freeze({
   guide_no_attack: { tier: 'coach', scope: 'tile' },
   guide_commander_low_hp: { tier: 'essential' },
   guide_recruit_on_map: { tier: 'essential' },
+  guide_veteran_kills: { tier: 'essential', scope: 'unit' },
   guide_convoy: { tier: 'essential' },
   guide_zombie_remains: { tier: 'essential' },
 });
@@ -119,6 +121,8 @@ export function guidanceText(id, context = {}) {
       return `${lord} is badly hurt. If ${lord} falls, the run ends. Pull back, heal with a staff, or use a Vulnerary from Item.`;
     case 'guide_recruit_on_map':
       return `${recruitWho(npc)} under the gold banner can join you. Move a Lord next to them and choose Talk before enemies reach them.`;
+    case 'guide_veteran_kills':
+      return `${name} is strong now but barely grows and earns little XP. Weaken enemies with ${name}, then leave the final blow to ${lord} and your recruits: they grow from it.`;
     case 'guide_zombie_remains':
       return 'Fallen undead leave bones. The number counts the enemy phases until they rise again at half HP. Bring a unit within weapon reach and choose Smash to end them for good. Light magic leaves no bones.';
     case 'guide_convoy':

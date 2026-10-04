@@ -13,10 +13,13 @@
 //   guide_commander_low_hp  the commander starts a player phase at half HP or less
 //   guide_recruit_on_map    a recruitable (green) unit is on the map: names the recruit
 //                           and how to win them (the recruit battle's only intro note)
+//   guide_veteran_kills     a low-XP veteran (Gaspar: SpecialCharacterPolicy) is selected
+//                           with a living enemy in view and another unit who can grow:
+//                           weaken enemies, leave the final blow to the others
 //   guide_zombie_remains    the first Zombie remains the player sees: the countdown,
 //                           Smash, and Light (points at the bone pile)
 //
-// A note about one unit's moment (fragile / no attack / healer: Guidance.noteScope)
+// A note about one unit's moment (fragile / no attack / healer / veteran: Guidance.noteScope)
 // steps aside when that moment ends — Wait, another unit, Back to another tile, the
 // enemy phase — without being marked read, so an unread one can still teach later.
 //
@@ -32,6 +35,7 @@ import { isNpcAlly, isRecruitNpc } from '../engine/RecruitNpc.js';
 import { isHealStaff } from '../engine/StatusConditionSystem.js';
 import { getAttackRange, getAttackWeapons } from '../engine/AttackOptions.js';
 import { isUnarmed } from '../engine/UnitManager.js';
+import { isLowGrowthVeteran } from '../engine/SpecialCharacterPolicy.js';
 import {
   canUseStaff,
   guidanceAllows,
@@ -242,7 +246,33 @@ export class GuidanceController {
       if (npc)
         return { id: 'guide_healer_heals', context: { unit, commander, touch, npc }, anchor: unit };
     }
+    // The veteran who should not take the kills: a unit's own moment, but the notes
+    // about survival, recruiting and the first turn win when they are still unread.
+    if (
+      (state === 'UNIT_SELECTED' || state === 'UNIT_ACTION_MENU') &&
+      this.veteranNeedsNote(unit) &&
+      !this.priorityNote(commander, touch) &&
+      !((s.turnManager?.turnNumber ?? 1) <= 1 && coach('guide_first_turn'))
+    )
+      return { id: 'guide_veteran_kills', context: { unit, commander, touch }, anchor: unit };
     if (state !== 'PLAYER_IDLE') return null;
+    const priority = this.priorityNote(commander, touch);
+    if (priority) return priority;
+    // Remains the player has seen (drawn by RemainsMarkerController): point at a pile.
+    const remains = s._remainsCtrl?.knownTiles?.()[0] || null;
+    if (remains && this.allows('guide_zombie_remains'))
+      return { id: 'guide_zombie_remains', context: { touch }, anchor: remains };
+    if ((s.turnManager?.turnNumber ?? 1) <= 1 && coach('guide_first_turn'))
+      return { id: 'guide_first_turn', context: { touch }, anchor: commander };
+    return null;
+  }
+
+  /**
+   * The essential notes about survival and recruiting, in order: the commander at half
+   * HP, then a recruit on the map. Null when neither applies (or both were read).
+   */
+  priorityNote(commander, touch) {
+    const s = this.scene;
     if (
       commander &&
       commander.currentHP > 0 &&
@@ -259,13 +289,22 @@ export class GuidanceController {
     );
     if (npc && this.allows('guide_recruit_on_map'))
       return { id: 'guide_recruit_on_map', context: { npc, touch }, anchor: npc };
-    // Remains the player has seen (drawn by RemainsMarkerController): point at a pile.
-    const remains = s._remainsCtrl?.knownTiles?.()[0] || null;
-    if (remains && this.allows('guide_zombie_remains'))
-      return { id: 'guide_zombie_remains', context: { touch }, anchor: remains };
-    if ((s.turnManager?.turnNumber ?? 1) <= 1 && coach('guide_first_turn'))
-      return { id: 'guide_first_turn', context: { touch }, anchor: commander };
     return null;
+  }
+
+  /**
+   * Is this the moment for the veteran note: a low-XP veteran of ours is picked while
+   * an enemy is in view and someone else on the team can still grow from kills?
+   */
+  veteranNeedsNote(unit) {
+    const s = this.scene;
+    if (!unit || unit.faction !== 'player' || unit.hasActed || unit.currentHP <= 0) return false;
+    if (!isLowGrowthVeteran(unit) || !this.allows('guide_veteran_kills')) return false;
+    const foes = (s.enemyUnits || []).some((e) => e.currentHP > 0 && canInspectUnit(s.grid, e));
+    if (!foes) return false;
+    return (s.playerUnits || []).some(
+      (u) => u !== unit && u.currentHP > 0 && !isLowGrowthVeteran(u),
+    );
   }
 
   /**
