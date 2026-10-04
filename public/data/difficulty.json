@@ -44,6 +44,7 @@
       "routLadder": null,
       "holdShare": null,
       "objectiveParOffset": null,
+      "villageMinRow": { "act1": 3 },
       "enemyClassEarliestAct": {},
       "recruitAffixExcludedActs": ["act1"]
     },

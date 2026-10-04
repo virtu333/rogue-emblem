@@ -31,7 +31,9 @@ const ACT_LEVEL_SCALING = {
  * @param {string} actId - e.g. 'act1', 'act2', 'act3', 'finalBoss'
  * @param {{ name: string, rows: number }} actConfig
  * @param {Object} [mapTemplates] - map templates keyed by objective (rout, seize, escape)
- * @param {{ fogChanceBonus?: number, halfFogChance?: boolean, villageAmbushChance?: number }} [options]
+ * @param {{ fogChanceBonus?: number, halfFogChance?: boolean, villageAmbushChance?: number,
+ *   villageMinRow?: Object<string, number> }} [options] - villageMinRow: the rung's
+ *   difficulty.json `villageMinRow` (act id -> first row that may hold a village)
  * @returns {{ actId, nodes: Array, startNodeId, bossNodeId }}
  */
 export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
@@ -43,6 +45,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   const caravanChanceBonus = Number.isFinite(options.caravanChanceBonus)
     ? options.caravanChanceBonus
     : 0;
+  const villageMinRow = villageMinRowFor(options.villageMinRow, actId);
   const { rows } = actConfig;
   // Every act (incl. finalBoss, rows === 2) uses the lane flow below: the first
   // and last two rows are pinned to CENTER_COL, so the boss row is always
@@ -76,7 +79,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
         col: c,
         type,
         edges: [],
-        battleParams: buildBattleParams(actId, type, r, rows, caravanChanceBonus),
+        battleParams: buildBattleParams(actId, type, r, rows, caravanChanceBonus, villageMinRow),
         completed: false,
       };
 
@@ -143,6 +146,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
       node.row,
       rows,
       caravanChanceBonus,
+      villageMinRow,
     );
     delete node.templateId;
     delete node.fogEnabled;
@@ -228,7 +232,14 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
       if (priorStreak >= 2 || conflicts(node.type)) {
         const alternative = node.type === NODE_TYPES.SHOP ? NODE_TYPES.CHURCH : NODE_TYPES.SHOP;
         node.type = priorStreak < 2 && !conflicts(alternative) ? alternative : NODE_TYPES.BATTLE;
-        node.battleParams = buildBattleParams(actId, node.type, node.row, rows, caravanChanceBonus);
+        node.battleParams = buildBattleParams(
+          actId,
+          node.type,
+          node.row,
+          rows,
+          caravanChanceBonus,
+          villageMinRow,
+        );
         if (node.type === NODE_TYPES.BATTLE) {
           const template = pickTemplateForNode(
             node.battleParams.objective,
@@ -424,8 +435,9 @@ function canSeizeAtRow(actId, row, totalRows) {
  * @param {number} [row] - row index for per-node level scaling
  * @param {number} [totalRows] - total rows in this act (for seize eligibility)
  * @param {number} [caravanChanceBonus=0] - Trade Contacts meta effect
+ * @param {number} [villageMinRow=0] - rows above this never get a village (First Light's opening)
  */
-function buildBattleParams(actId, type, row, totalRows, caravanChanceBonus = 0) {
+function buildBattleParams(actId, type, row, totalRows, caravanChanceBonus = 0, villageMinRow = 0) {
   if (type === NODE_TYPES.BOSS) {
     return { act: actId, objective: 'seize', row, battleSeed: rollBattleSeed() };
   }
@@ -477,11 +489,23 @@ function buildBattleParams(actId, type, row, totalRows, caravanChanceBonus = 0) 
   // acts 1-4. Rolled here for the same suspend/revert determinism as the
   // caravan roll above, and mutually exclusive with it (rollVillageSpawn
   // checks params.hasCaravan) — max one micro-objective per map.
-  if (type === NODE_TYPES.BATTLE && rollVillageSpawn(params)) {
+  // The roll is always made and only its result is dropped for a gated row: it
+  // consumes Math.random under the node-map seed, so skipping it would shift every
+  // later draw and change the whole map (nodes, edges, seeds), not just the villages.
+  if (type === NODE_TYPES.BATTLE && rollVillageSpawn(params) && !(row < villageMinRow)) {
     params.hasVillage = true;
   }
 
   return params;
+}
+
+/**
+ * First row of `actId` that may hold a village, from difficulty.json `villageMinRow`
+ * ({ act1: 3 } on First Light). A missing act, a missing map or a bad value is 0.
+ */
+export function villageMinRowFor(villageMinRow, actId) {
+  const row = villageMinRow?.[actId];
+  return Number.isInteger(row) && row > 0 ? row : 0;
 }
 
 function rollBattleSeed() {

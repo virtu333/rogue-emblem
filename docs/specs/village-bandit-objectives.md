@@ -47,6 +47,11 @@ The Merchant Caravan (PR #54) is the architectural template — copy its shape:
   Constants: `VILLAGE_SPAWN_CHANCE = 0.25`, eligible acts `act1-act4`, objectives `rout`/`seize`
   only (never escape/boss/recruit/ambush/tutorial/colosseum), and **mutually exclusive with
   `hasCaravan`** — max one micro-objective per map (design-log decision).
+- **First Light opening:** difficulty.json `villageMinRow` (`normal`: `{ "act1": 3 }`) keeps villages
+  off a node map's first three rows in that act, so a new player's opening fights never show a
+  bandit squad arriving on turn 1 (it reads as reinforcements). Other rungs, acts and rows are
+  unchanged. `buildBattleParams` still makes the roll and drops a gated result, so the node-map RNG
+  stream is identical to an ungated map apart from the missing villages. Saved runs keep their maps.
 - `MapGenerator`: pick the village tile in the map's neutral band — middle third of columns, biased
   away from the main player↔enemy axis (top or bottom quarter of rows), on an open
   Infantry-passable tile; write terrain index 9; add to `reachTargets`.

@@ -619,6 +619,8 @@ export class RunManager {
         fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
         halfFogChance: this.difficultyId === 'normal',
         villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
+        // an object — read directly (getDifficultyModifier coerces objects)
+        villageMinRow: this.difficultyModifiers?.villageMinRow ?? null,
         colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
         caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
       }),
@@ -4035,6 +4037,8 @@ export class RunManager {
         fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
         halfFogChance: this.difficultyId === 'normal',
         villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
+        // an object — read directly (getDifficultyModifier coerces objects)
+        villageMinRow: this.difficultyModifiers?.villageMinRow ?? null,
         colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
         caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
       }),

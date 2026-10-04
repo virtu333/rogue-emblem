@@ -180,6 +180,7 @@ describe('RunManager · the dark takes the map', () => {
         fogChanceBonus: rm.getDifficultyModifier('fogChanceBonus', 0),
         halfFogChance: true,
         villageAmbushChance: rm.getDifficultyModifier('villageAmbushChance', 0),
+        villageMinRow: data.difficulty.modes.normal.villageMinRow,
         colosseumConfig: data.colosseum?.nodeGeneration ?? null,
         caravanChanceBonus: 0,
       }),
