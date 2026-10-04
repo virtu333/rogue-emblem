@@ -1,12 +1,16 @@
 # Prologue: The First Thread — design
 
-Status: Proposed (design only, nothing built)
+Status: Proposed (design only, nothing built). Loop ending approved by the user, 2026-10-04.
 Date: 2026-10-04
 Replaces: the practice tutorial battle (`TutorialController`, `TutorialHelpers`) once the
 prologue reaches parity. `docs/tutorial-battle-spec.md` is already stale; the shipped tutorial
 is described in `docs/specs/tutorial_v2_guided_flow_spec.md` and `docs/onboarding-review-2026-09-20.md`.
 Research: `docs/fire-emblem-tutorial-sequencing.md` (how FE7, FE8, Path of Radiance and Awakening
-stage their openings, and the teaching rules adopted in §2).
+stage their openings, and the teaching rules adopted in §2). Playtest evidence:
+`docs/playtest-2026-09-22.md`, `docs/browser-playtest-2026-09-20.md` and
+`docs/specs/threat-and-onboarding.md` §2. These are agent playthroughs in a browser, not
+human novices, so they say where confusion and deaths happened, not how a person reads the
+screen.
 
 ## 1. Why
 
@@ -116,7 +120,7 @@ This matches the canon ("runs are threads Sera re-weaves; bosses half-remember d
 roguelike rule: the army starts over, and what you buy at Home Base stays. It also gives the
 existing first-run cold open (Sera's vision of the ritual) a scene to happen in.
 
-The rest of this spec assumes B. **Open question 1** asks the user to confirm it.
+**Decided (user, 2026-10-04): B, the loop.**
 
 ## 4. Flow
 
@@ -273,7 +277,8 @@ E . . . F ~ . b . .
 |---|---|---|
 | 1 | Battle start | Gaspar's intro line. |
 | 2 | Gaspar selected | The Jagen note (above). Gaspar rides 6 tiles; Measured Step lets him keep moving after a non-combat action. |
-| 3 | Gaspar targets the Archer | Weapon choice in the attack picker: "Each weapon gives a different forecast. Pick the one that fits the job." |
+| 3 | Gaspar targets the Archer | **Weapon choice is a trade-off.** In the attack picker the lance reads 16 ×1 and the sword 12 ×2. "A heavier weapon hits harder but can cost the second strike. Switch weapons and watch the strike count." (A playtester made the same call with Iron 8×2 against Steel 11×1.) |
+| 3b | First forecast under 100 Hit | **Forecasts are possibilities.** "Hit is a chance, not a promise. Pick a plan that still holds if this misses." The reading points add: "A counter only happens if the defender survives." (Playtests: a 91-Hit attack missed, and a displayed counter never came because the enemy died first.) |
 | 4 | Adjacent to the Archer | `battle_no_counter`: bows reach two tiles only. |
 | 5 | Edric selected while the Soldier is in reach | The triangle against Edric: "Lances beat swords. Let Gaspar take the Soldier." |
 | 6 | Turn 2 | Danger (existing `battle_danger_zone`). |
@@ -310,6 +315,10 @@ The first route map appears after P2. Rows 0–4 are visible, and node preview i
      fight with."
   3. *Trade:* give Tamsin a Vulnerary from Edric. "Trade swaps items between units, between
      battles."
+  4. *Store:* put P2's loot weapon away if a unit's pack is full, or store a spare. "Store puts
+     a carried item in the convoy. Withdraw hands it back." A playtester reported not
+     understanding either word (threat-and-onboarding §2), so the prologue has the player do
+     both.
   Each step can be skipped. Travel is never blocked, but an unarmed unit gets the standard
   greyed-Attack reason ("Unarmed") in P3, so the problem stays legible.
 - **Shop branch:** buy a Vulnerary with P2's gold. "Shops change stock each visit. Gold also pays
@@ -346,11 +355,12 @@ E . . . F . . . . c
 | 1 | Battle start | "Sera is the green unit. Move Edric next to her and choose Talk." (`guide_recruit_on_map` copy; lords only.) |
 | 2 | Sera joins | Sera's line, then the coach: "Sera's turn. She acts right away." |
 | 3 | Sera selected, ally hurt | **Heal:** "Sera heals with her staff: move next to Edric, choose Heal. Staff uses refill every battle." |
-| 4 | Sera selected, a foe 2 tiles off | **Range:** "Glimmer reaches 2 tiles. From 2 tiles away, an axe or a lance can't hit back. Strike from there." The forecast shows "No counter". |
-| 5 | Sera moved into enemy reach | **Fragile:** `guide_fragile_in_reach`, made mandatory here. "Sera would be in reach of 2 enemies. Tap Back." |
+| 4 | Sera moved where no foe is in range | **Planning and cancelling** (the exercise playtests most clearly call for: players concluded Sera couldn't attack because Attack vanished without a target). Sera joins with no Fighter in reach, so her first move is likely to show the greyed "Attack · No target in range 1–2". Coach: "Nothing in reach from here. Back undoes the move. Nothing is final until you confirm." Then: "Try a tile 2 away from a Fighter." |
+| 4b | Sera 2 tiles from a Fighter | **Range:** "Glimmer reaches 2 tiles. From 2 tiles away, an axe or a lance can't hit back." The forecast shows "No counter". Coach: "Open the forecast, then Cancel to see it's safe to look." The strike can then be confirmed or not. |
+| 5 | Sera moved into enemy reach | **Count every enemy that reaches you** (the two-enemy threat exercise). The map puts a tempting Forest at the front, reached by two Fighters, and a plain tile behind Gaspar that none reach. `guide_fragile_in_reach` is mandatory here: "Cover isn't safety. 2 enemies can reach this forest. Count the red eyes, not the trees. Tap Back." (Playtests: a recruit in a forest took 16 damage from one doubling enemy, and another died to two cavalry after an advance.) |
 | 6 | Glimmer forecast | **Magic:** "Glimmer is magic: it hits RES, not DEF. Axe-wielders have almost none." 6+4−1 = 9 against a Fighter, no counter. |
 | 7 | Sera ends next to an ally | **Aura:** "Renewal Aura: allies next to Sera heal 3 HP at the start of your turn." |
-| 8 | First enemy phase ends with an ally hurt | **Rewind, as a prepared, optional exercise** (research: don't make the player let Sera die to discover it). The prologue run holds 1 Vision charge. "Rewind takes back moves. Browse the timeline for free, and spend a charge to return. In a real run, charges last the whole run." Declining is fine; the charge stays for P4. |
+| 8 | First enemy phase ends with an ally hurt | **Recover by changing the plan**, a prepared, optional exercise (research: don't make the player let Sera die to discover rewinding). The prologue run holds 1 Vision charge. "Rewind takes back moves. Browse the timeline for free: find the move that put {unit} in reach. Spend the charge to return there, then choose a different tile." After the rewind, the coach watches the replayed move. If the unit ends out of reach: "Same turn, better plan." In a real run, charges last the whole run. Declining is fine; the charge stays for P4. (Playtests: the rewind that worked was the one followed by keeping the unit back.) |
 | 9 | Sera falls (if) | "Sera has fallen." The prologue's no-dead-end rule restarts the battle ("Not this thread"); the coach suggests the charge first if one is left. |
 
 **Reuse:** on turn 3, Gaspar comes back wounded from the Fighter pair. Healing him is unprompted
@@ -431,9 +441,34 @@ for next time. A defeat restarts P4 at the deploy screen.
 | The loop: the run resets, Home Base persists | ending |
 | Home Base and meta upgrades | after the ending |
 
+Taught again in Act 1 at the point of use, because the prologue can only introduce them
+(playtest-backed; §11 phase 3):
+- **Between-battle preparation.** At the first route map after a battle where someone ended
+  below half HP: HP carries, staves refill, consumables don't, and Roster › Item heals now.
+  A playtester's Sera entered a third battle at 3/18 HP.
+- **Objective changes.** The moment an objective changes mid-battle (a boss dies and the
+  throne is left to capture; an escape's exits open), a short instruction names the new goal
+  and where it is.
+- **The first specialist's job.** When the first Dancer or flyer joins or is hired, one concrete
+  job to try: Dance refreshes an ally who has already acted; a flyer crosses water and
+  mountains. Both mattered a lot in playtests.
+
 Left to Act 1 field notes (existing or §11 phase 3): promotion, skills and scrolls, weapon arts,
 blessings, difficulty rungs, Colosseum, forge, escape maps, fog, affixes, status staves,
 caravans, village bandits, the Eclipse's mechanics, and reinforcements.
+
+### Not tutorial problems
+
+The playtests also hit confusion that more teaching won't fix. These belong on the UI-fix
+list, not in the prologue:
+- objective text that goes stale
+- commands hidden below the fold at phone size (the hire price, lower actions under the
+  selection header)
+- inconsistent inventory access: the reward screen's Roster is read-only, while the route
+  map's Roster can manage and use items
+- the battle timeline opening at the start instead of the latest event, with the casualty buried
+  in expanded detail
+- roster order changing after an escape
 
 ## 8. Rules for prologue battles
 
@@ -631,7 +666,7 @@ time is secondary.
 
 ## 12. Open questions for the user
 
-1. **Loop or carry-over** (§3). Recommended: the loop.
+1. ~~Loop or carry-over~~. Decided: the loop (§3).
 2. **Prologue by default?** Recommended: offered on every fresh slot with the prologue
    highlighted, never forced, and skippable mid-way.
 3. **A fourth unit for the deploy lesson.** Tamsin is a prologue-only Archer. The alternative is
