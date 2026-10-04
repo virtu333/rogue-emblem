@@ -407,13 +407,16 @@ export const PROLOGUE_LOST = Object.freeze({
 
 /**
  * The offer a fresh slot gets on New Game (§4): play the prologue (the highlighted
- * default on a device that has not finished it) or skip to the first run.
+ * default on a device that has not finished it) or skip to the first run. The minutes
+ * are an estimate for a first-time player from the harness's turn and action counts
+ * (docs/specs/prologue-chapter.md §9 "How long it takes"): a playtest hypothesis, not a
+ * measurement.
  */
 export const PROLOGUE_OFFER = Object.freeze({
   title: 'Begin the first thread?',
   body: "The prologue teaches the field in four short chapters, from Edric's first fight to the quarry gate. Skip it and your first run begins at once.",
   play: 'Play the Prologue',
-  playSub: 'about 20 minutes',
+  playSub: 'about 30 minutes',
   skip: 'Skip to the first run',
 });
 

@@ -108,7 +108,7 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
   await page.getByRole('button', { name: 'New Game', exact: true }).click();
   const play = page.getByRole('button', { name: /^Play the Prologue/ });
   await expect(play).toBeVisible();
-  await expect(play).toHaveText('Play the Prologue · about 20 minutes');
+  await expect(play).toHaveText('Play the Prologue · about 30 minutes');
   await expect(play).toHaveClass(/re-btn--primary/);
   await expect(page.getByRole('button', { name: 'Skip to the first run', exact: true })).toBeVisible(); // prettier-ignore
   await play.click();

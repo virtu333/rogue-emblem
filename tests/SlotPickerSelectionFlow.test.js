@@ -430,7 +430,7 @@ describe('SlotPickerScene selectSlot: the prologue offer (docs/specs/prologue-ch
     withPrologue(scene);
     await scene.selectSlot(1, null);
     expect(mocked.dialogActions.map(([label, , primary]) => [label, primary])).toEqual([
-      ['Play the Prologue · about 20 minutes', true],
+      ['Play the Prologue · about 30 minutes', true],
       ['Skip to the first run', false],
     ]);
     expect(mocked.startPrologueRunMock).not.toHaveBeenCalled();
@@ -559,7 +559,7 @@ describe('SlotPickerScene selectSlot: the prologue offer (docs/specs/prologue-ch
     await scene.selectSlot(1, null);
     expect(mocked.dialogActions.map(([label, , primary]) => [label, primary])).toEqual([
       ['Skip to the first run', true],
-      ['Play the Prologue · about 20 minutes', false],
+      ['Play the Prologue · about 30 minutes', false],
     ]);
   });
 
