@@ -41,6 +41,7 @@ export function renderFormationPanel(container, formation, makeButton, { withSta
   const count = el('p', 'fm-count', `${placed} / ${n} placed`);
   count.setAttribute('role', 'status');
   container.append(count);
+  if (formation.lesson) container.append(el('p', 'fm-notice', formation.lesson));
   if (formation.notice) container.append(el('p', 'fm-notice', formation.notice));
 
   const tools = el('div', 'fm-tools');

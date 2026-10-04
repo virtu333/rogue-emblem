@@ -291,7 +291,8 @@ export class PostCombatController {
               scene.gameData?.dialogue?.bossEncounters?.[bossName]?.defeat,
               buildNarrativeContext({ meta, runManager: scene.runManager, bossName }),
             );
-            meta?.recordBossSlain?.(bossName);
+            // The prologue counts nothing on the slot (§8): its boss is never recorded.
+            if (!prologueRun) meta?.recordBossSlain?.(bossName);
             await scene._showStoryDialogueOnce(dialogueKey, entries);
             if (!isCurrentBattleSession(scene, session)) return;
           }

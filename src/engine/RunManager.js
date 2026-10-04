@@ -739,7 +739,7 @@ export class RunManager {
     this.prologueRosterLesson = null;
     this.gold = Math.max(0, Math.trunc(Number(prologue.startingGold) || 0));
     this.randomLegendary = null;
-    this.nodeMap = buildPrologueNodeMap(prologue);
+    this.nodeMap = buildPrologueNodeMap(prologue, gameData);
     this.currentNodeId = null;
     this.completedBattles = 0;
     this.fallenUnits = [];

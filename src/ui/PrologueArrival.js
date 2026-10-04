@@ -1,9 +1,11 @@
 // PrologueArrival — a prologue service node's arrival (docs/specs/prologue-chapter.md §6
-// "Route map, row 2"): the units that join there (joins.atNode: Tamsin) join the run,
-// the run is saved, and each gets the standard recruit card with its authored line,
-// before the service (Market or Chapel) opens. Pure flow, no rendering of its own
-// beyond the card (GrowthCeremonyController.showRecruit) or, without a DOM host, a
-// dialogue line.
+// "Route map, row 2" and "row 4"): the units that join there (joins.atNode: Tamsin) join
+// the run, the node's arrival lines are marked spoken (route node `lines`: the
+// watchtower's vision), the run is saved, and then each newcomer gets the standard
+// recruit card with its authored line and the lines play, before the service (Market,
+// Chapel or the Ruins) opens. Lines play once per run: a reload at the node goes straight
+// to the service. Pure flow, no rendering of its own beyond the card
+// (GrowthCeremonyController.showRecruit) or, without a DOM host, a dialogue line.
 
 import { isPrologueRun } from '../engine/ScriptedBattle.js';
 import { saveServiceRun } from './serviceSave.js';
@@ -18,16 +20,38 @@ export function prologueLine(gameData, key) {
   return typeof line === 'string' && line ? line : null;
 }
 
+/** The run's dialogue key that records a node's arrival lines as spoken. */
+export function arrivalLinesKey(nodeId) {
+  return `prologue_lines:${nodeId}`;
+}
+
+/** A spoken line's face: a lord's portrait, else none (route-map lines). */
+function linePortrait(gameData, speaker) {
+  const lord = (gameData?.lords || []).find((l) => l?.name === speaker);
+  return lord ? `portrait_lord_${String(lord.name).toLowerCase()}` : null;
+}
+
 /**
- * Apply the node's arrivals (RunManager.arriveAtPrologueNode: once, idempotent), save,
- * then show each newcomer's card. Resolves with the arrival result (empty outside the
- * prologue run or when nobody joins).
+ * Apply the node's arrivals (RunManager.arriveAtPrologueNode: once, idempotent) and
+ * mark its arrival lines spoken, save, then show each newcomer's card and play the
+ * lines. Resolves with the arrival result plus `lines` (the key played, or null).
  */
 export async function arriveAtPrologueNode(scene, node) {
   const rm = scene?.runManager;
-  if (!isPrologueRun(rm) || !node?.id) return { joined: [], granted: [] };
-  const result = rm.arriveAtPrologueNode(node.id);
-  if (!result.joined.length) return result;
+  if (!isPrologueRun(rm) || !node?.id) return { joined: [], granted: [], lines: null };
+  const result = { ...rm.arriveAtPrologueNode(node.id), lines: null };
+  const linesKey = typeof node.prologueLines === 'string' ? node.prologueLines : null;
+  const entries = linesKey ? scene.gameData?.dialogue?.prologue?.[linesKey] : null;
+  if (
+    Array.isArray(entries) &&
+    entries.length &&
+    !rm.hasShownDialogue?.(arrivalLinesKey(node.id))
+  ) {
+    // Marked before it plays (as story lines are): a reload mid-line never replays it.
+    rm.markDialogueShown?.(arrivalLinesKey(node.id));
+    result.lines = linesKey;
+  }
+  if (!result.joined.length && !result.lines) return result;
   const warning = saveServiceRun(scene);
   if (warning) void showMinorHint(scene, warning.trim());
   for (const { name, line } of result.joined) {
@@ -47,6 +71,23 @@ export async function arriveAtPrologueNode(scene, node) {
       } catch {
         /* a line is presentation: the arrival stands without it */
       }
+    }
+  }
+  if (result.lines && scene.dialogueOverlay?.showSequence) {
+    scene._storyDialogueActive = true;
+    try {
+      await scene.dialogueOverlay.showSequence(
+        entries.map((e) => ({
+          speaker: e?.speaker || null,
+          line: e?.line || '',
+          portrait: linePortrait(scene.gameData, e?.speaker),
+        })),
+        { category: 'prologue', key: result.lines },
+      );
+    } catch {
+      /* a line is presentation: the arrival stands without it */
+    } finally {
+      scene._storyDialogueActive = false;
     }
   }
   return result;

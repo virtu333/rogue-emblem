@@ -54,6 +54,21 @@ export const PROLOGUE_COACH = Object.freeze({
     anchor: null,
     canSkip: true,
   }),
+  // P4, The Quarry Gate (§6 P4): prompts fade, so the coach names only the objective.
+  p4_objective: (ctx) => ({
+    chapter: 'seize',
+    goal: `Defeat ${ctx?.boss || 'Varro'}, then Seize the gate`,
+    detail: `${ctx?.boss || 'Varro'} holds the throne at the gate. When he falls, a lord steps onto it and chooses Seize.`,
+    anchor: null,
+    canSkip: true,
+  }),
+  p4_seize: (ctx) => ({
+    chapter: 'seize',
+    goal: 'A lord: step onto the gate and Seize',
+    detail: `${lordOf(ctx)} or another lord moves onto the throne, then chooses Seize.`,
+    anchor: null,
+    canSkip: true,
+  }),
 });
 
 /** Field notes (modal, Continue to dismiss) and enemy-phase nudges, by note id. */
@@ -142,6 +157,20 @@ export const PROLOGUE_NOTES = Object.freeze({
     `Rewind takes back moves. Browse the timeline for free: find the move that put ${ctx?.ally || 'them'} in reach, spend the charge to return there, then choose a different tile. Declining is fine: the charge keeps.`,
   p3_better_plan: () =>
     'Same turn, better plan.\nIn a real run, Vision charges last the whole run: spend them on the turn that went wrong.',
+  // P4, The Quarry Gate (§6 P4): only its own new rules (deploy, seize, par, the throne).
+  p4_deploy: (ctx) =>
+    `Your commander always deploys. Choose who fights: ${Number(ctx?.slots) || 3} slots.\n` +
+    `${ctx?.boss || 'Varro'}'s axe reaches 1 tile: who can hit from 2?`,
+  p4_seize_par: (ctx) =>
+    `Seize: defeat ${ctx?.boss || 'Varro'}, then a lord steps onto the gate and chooses Seize.\n` +
+    (Number.isFinite(ctx?.par)
+      ? `Par: win in ${ctx.par} turns or fewer for bonus gold. Safety first; speed pays.`
+      : 'Par is the target turn count: faster wins pay bonus gold. Safety first; speed pays.'),
+  p4_throne: (ctx) =>
+    `The throne guards ${ctx?.boss || 'Varro'}: harder to hurt, and he heals each turn.\n` +
+    'His axe reaches 1 tile. Strike from 2 where you can.',
+  p4_seize_now: (ctx) =>
+    `${ctx?.boss || 'Varro'} has fallen. Now a lord: step onto the gate and Seize.`,
 });
 
 /** Extra buttons a note offers besides Continue (PrologueController.fieldNote). */
@@ -171,6 +200,9 @@ export const NOTE_HINT_IDS = Object.freeze({
   p3_plan_cancel: ['guide_no_attack'],
   p3_range: ['battle_no_counter'],
   p3_fragile: ['guide_fragile_in_reach'],
+  p4_deploy: ['battle_deploy'],
+  p4_seize_par: ['battle_seize', 'battle_par'],
+  p4_seize_now: ['guide_objective_changed'],
 });
 
 // --- Row 2: Harrow's Crossing (§6 "Route map, row 2") ----------------------------
@@ -179,11 +211,18 @@ export const NOTE_HINT_IDS = Object.freeze({
 export const PROLOGUE_FORK_NOTE =
   "Tap a node to see what it holds. Travel commits; you can't come back.";
 
-/** A service node's opening line in the prologue (the shop / church status). */
+/** P4's formation lesson: the line the placement panel adds (FormationController). */
+export const PROLOGUE_FORMATION_LINE =
+  'Tap a start tile to move a unit there. Who stands in front takes the first blow.';
+
+/** A service node's opening line in the prologue (the shop / church / ruins status). */
 export const PROLOGUE_SERVICE_LINES = Object.freeze({
   shop: "This market's stock is fixed while you're here. Every shop node stocks its own. Gold also pays for revivals and promotions.",
   church:
     'Heal all is free here. Reviving the fallen costs gold. Blessings begin with your first run.',
+  ruins:
+    "The watchtower's stores are old but sound. Rest heals everyone now; Scavenge sells what is left. Only one.",
+  ruinsWares: 'Old stores, marked up: ruins charge more than a market does.',
 });
 
 /** Why the chapel's blessings are greyed in the prologue (ChurchVow.churchBlessingBlock). */
@@ -257,7 +296,7 @@ export function prologueEndingCard(prologue) {
  */
 export const PROLOGUE_OFFER = Object.freeze({
   title: 'Begin the first thread?',
-  body: 'The prologue teaches the field in three short chapters: Edric, then the old hands who find him. Skip it and your first run begins at once.',
+  body: "The prologue teaches the field in four short chapters, from Edric's first fight to the quarry gate. Skip it and your first run begins at once.",
   play: 'Play the Prologue',
   playSub: 'about 20 minutes',
   skip: 'Skip to the first run',

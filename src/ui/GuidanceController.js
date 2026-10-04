@@ -18,6 +18,11 @@
 //                           weaken enemies, leave the final blow to the others
 //   guide_zombie_remains    the first Zombie remains the player sees: the countdown,
 //                           Smash, and Light (points at the bone pile)
+//   guide_objective_changed the objective changed mid-battle: the boss of a seize map
+//                           fell, so the throne is the goal now (points at it)
+//   guide_specialist_dance  the first Dancer (or anyone who can Dance) is selected: Dance
+//   guide_specialist_flyer  the first flyer is selected: water and mountains
+//                           (docs/specs/prologue-chapter.md §7: the Act 1 follow-through)
 //
 // A note about one unit's moment (fragile / no attack / healer / veteran: Guidance.noteScope)
 // steps aside when that moment ends — Wait, another unit, Back to another tile, the
@@ -43,6 +48,7 @@ import {
   guidanceText,
   isFragileUnit,
   isVeteranMeta,
+  specialistJob,
   noTargetReason,
   noteScope,
   unarmedReason,
@@ -265,7 +271,20 @@ export class GuidanceController {
       !((s.turnManager?.turnNumber ?? 1) <= 1 && coach('guide_first_turn'))
     )
       return { id: 'guide_veteran_kills', context: { unit, commander, touch }, anchor: unit };
+    // A newly fielded specialist's one job (Dance; a flyer's ground): when first picked.
+    const job = state === 'UNIT_SELECTED' && unit && !unit.hasActed ? specialistJob(unit) : null;
+    if (job && this.allows(`guide_specialist_${job}`))
+      return { id: `guide_specialist_${job}`, context: { unit, touch }, anchor: unit };
     if (state !== 'PLAYER_IDLE') return null;
+    // The objective changed mid-battle (the boss fell: the throne now): said the moment
+    // the player can act, pointing at the new goal.
+    const changed = this.objectiveChange();
+    if (changed && this.allows('guide_objective_changed'))
+      return {
+        id: 'guide_objective_changed',
+        context: { ...changed.context, touch },
+        anchor: changed.anchor,
+      };
     const priority = this.priorityNote(commander, touch);
     if (priority) return priority;
     // Remains the player has seen (drawn by RemainsMarkerController): point at a pile.
@@ -275,6 +294,23 @@ export class GuidanceController {
     if ((s.turnManager?.turnNumber ?? 1) <= 1 && coach('guide_first_turn'))
       return { id: 'guide_first_turn', context: { touch }, anchor: commander };
     return null;
+  }
+
+  /**
+   * How the objective changed mid-battle, or null: on a seize map whose boss has fallen,
+   * the throne is left to capture (the objective line turns to it). Escape maps open
+   * their exits from the first turn, so they never change mid-battle.
+   */
+  objectiveChange() {
+    const s = this.scene;
+    const bc = s.battleConfig;
+    if (bc?.objective !== 'seize' || !bc.thronePos) return null;
+    if ((s.enemyUnits || []).some((u) => u?.isBoss && u.currentHP > 0)) return null;
+    if (!(s.playerUnits || []).some((u) => u?.isLord && u.currentHP > 0)) return null;
+    return {
+      context: { objective: 'seize', boss: s._bossName || null },
+      anchor: { col: bc.thronePos.col, row: bc.thronePos.row },
+    };
   }
 
   /**

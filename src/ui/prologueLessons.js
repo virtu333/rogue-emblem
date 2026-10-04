@@ -26,6 +26,11 @@ export const TUTORIAL_HINT_IDS = new Set([
   'guide_no_attack',
   'guide_fragile_in_reach',
   'guide_convoy',
+  // P4, The Quarry Gate: deploy, seize and par, and the objective's change at the gate.
+  'battle_deploy',
+  'battle_seize',
+  'battle_par',
+  'guide_objective_changed',
 ]);
 
 /** This device finished (or skipped into a run from) the prologue once. */

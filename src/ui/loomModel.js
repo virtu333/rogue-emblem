@@ -603,6 +603,8 @@ export function describeLoomNode(
     warning,
     templateName: eclipsed ? template?.name || null : null,
     objective: objective && node.type !== 'recruit' ? objective[0] : null,
+    // An authored node names the boss it holds (the prologue's Varro: Prologue.prologueBossLine).
+    boss: !eclipsed && typeof node.bossLine === 'string' && node.bossLine ? node.bossLine : null,
     recruit: recruitView,
     place,
     lore: template?.lore || null,

@@ -23,7 +23,13 @@
 import { ForecastOverlay } from './ForecastOverlay.js';
 import { AreaPreviewController } from './AreaPreviewController.js';
 import { areaForecastLines, previewAreaArt } from '../engine/AreaPreview.js';
-import { combatStrikeMods, forecastRawDamage, forecastStrikeGroups } from '../engine/Combat.js';
+import {
+  combatStrikeMods,
+  forecastRawDamage,
+  forecastStrikeGroups,
+  usesMagic,
+} from '../engine/Combat.js';
+import { guidanceText, isArmoredFoe } from '../engine/Guidance.js';
 import { playerKnowledgeOf } from './battleKnowledge.js';
 import { combatDistance, getFootprint, isEntity } from '../engine/EntitySystem.js';
 import {
@@ -437,6 +443,14 @@ export class AttackFlowController {
       });
     }
 
+    // The armor lesson (§7): the first forecast of a blade against armour says so, on the
+    // forecast itself (never over it), and is read when the player confirms or cancels.
+    const armor = this.armorLesson(attacker, defender, chosen);
+    if (armor) {
+      forecast.defender.lessonNote = armor;
+      this._affixLessonsShown.add('guide_armor');
+    }
+
     scene._forecastValidWeapons = validWeapons;
     const targets = scene.attackTargets || [];
     const targetIndex = targets.indexOf(defender);
@@ -471,6 +485,22 @@ export class AttackFlowController {
       await scene._prologue.onForecastOpened(attacker, defender, forecast, chosen);
     }
     return forecast;
+  }
+
+  /**
+   * The armor note's text for this forecast, or null: a player unit striking an
+   * armoured foe (Guidance.isArmoredFoe) with a weapon that hits DEF, while the slot has
+   * not read it and the Guidance level allows it (GuidanceController.allows; off in a
+   * prologue chapter).
+   */
+  armorLesson(attacker, defender, weapon) {
+    const guidance = this.scene._guidance;
+    if (attacker?.faction !== 'player' || !weapon || usesMagic(weapon)) return null;
+    if (!isArmoredFoe(defender) || !guidance?.allows?.('guide_armor')) return null;
+    return guidanceText('guide_armor', {
+      knight: defender.moveType === 'Armored',
+      target: defender,
+    });
   }
 
   /**

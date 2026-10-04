@@ -116,6 +116,8 @@ export class PrologueController {
     this.created = true;
     const scene = this.scene;
     for (const unit of scene.playerUnits || []) this.hpSeen.set(unit.name, this.hpPct(unit));
+    // The deploy screen's note (P4) was read before this controller existed.
+    for (const id of scene._prologueDeployTaught || []) this.taught.add(id);
     if (hasDOMHost()) {
       this.coach = new PrologueCoach(scene, {
         onLeave: () => this.requestLeave(),
@@ -319,6 +321,9 @@ export class PrologueController {
       npcClass: this.chapter?.npc?.className || null,
       ally: this.mostHurtAlly()?.name || null,
       gateTile: this.gate?.kind === 'move' ? { col: this.gate.col, row: this.gate.row } : null,
+      // P4: the boss the chapter names, and the par its note explains.
+      boss: (this.chapter?.enemies || []).find((e) => e?.isBoss)?.name || null,
+      par: Number.isFinite(scene.turnPar) ? scene.turnPar : null,
       ...extra,
     };
   }
@@ -700,6 +705,7 @@ export class PrologueController {
         nth: this.forecastCount,
         concepts: forecastConcepts(forecast, { weapon }),
         turn: this.turn(),
+        targetTerrain: this.scene.grid?.getTerrainAt?.(defender?.col, defender?.row)?.name || null,
       },
       {},
       { oneNote: true },
@@ -768,6 +774,12 @@ export class PrologueController {
     if (this.destroyed || !lord || !npc) return Promise.resolve(false);
     for (const unit of this.scene.playerUnits || []) this.hpSeen.set(unit.name, this.hpPct(unit));
     return this.emit({ type: 'talk', unit: lord.name, target: this.unitKey(npc) });
+  }
+
+  /** A lord chose Seize (P4): the chapter's seize beats, before the victory flow. */
+  onSeize(unit) {
+    if (this.destroyed || !unit) return Promise.resolve(false);
+    return this.emit({ type: 'seize', unit: unit.name });
   }
 
   /** A staff heal resolved. Resolves once its notes are read. */

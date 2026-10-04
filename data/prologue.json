@@ -984,6 +984,234 @@
           ]
         }
       ]
+    },
+    {
+      "id": "p4_quarry_gate",
+      "node": "prologue_5",
+      "title": "The Quarry Gate",
+      "objective": "seize",
+      "roster": [
+        "Edric",
+        "old_knight",
+        "Tamsin",
+        "Sera"
+      ],
+      "rosterLevels": {
+        "Edric": 3,
+        "Sera": 2
+      },
+      "rosterItems": {
+        "Tamsin": [
+          "Iron Bow"
+        ]
+      },
+      "deploy": {
+        "min": 2,
+        "note": "p4_deploy"
+      },
+      "formation": {
+        "tiles": [
+          {
+            "col": 1,
+            "row": 4
+          },
+          {
+            "col": 1,
+            "row": 6
+          }
+        ]
+      },
+      "map": {
+        "legend": {
+          ".": "Plain",
+          "#": "Wall",
+          "G": "Throne",
+          "F": "Forest",
+          "T": "Fort"
+        },
+        "rows": [
+          "# # # # # # # # # G # # #",
+          "# # # # # # # # T T T # #",
+          ". . . . F . . . . . . . .",
+          ". . . . . . . F . . . . .",
+          ". . T . . . . . . . F . .",
+          ". . . . . F . . . . . . .",
+          ". . . . . T . . . . . . ."
+        ]
+      },
+      "playerSpawns": [
+        {
+          "col": 0,
+          "row": 4
+        },
+        {
+          "col": 0,
+          "row": 5
+        },
+        {
+          "col": 0,
+          "row": 6
+        }
+      ],
+      "enemies": [
+        {
+          "id": "v",
+          "className": "Fighter",
+          "level": 1,
+          "col": 9,
+          "row": 0,
+          "weapon": "Iron Axe",
+          "skills": [],
+          "isBoss": true,
+          "name": "Captain Varro"
+        },
+        {
+          "id": "k",
+          "className": "Soldier",
+          "level": 1,
+          "col": 9,
+          "row": 3,
+          "weapon": "Iron Lance",
+          "skills": [],
+          "aiMode": "guard"
+        },
+        {
+          "id": "a",
+          "className": "Fighter",
+          "level": 1,
+          "col": 8,
+          "row": 6,
+          "weapon": "Iron Axe",
+          "skills": []
+        },
+        {
+          "id": "b",
+          "className": "Fighter",
+          "level": 1,
+          "col": 12,
+          "row": 5,
+          "weapon": "Iron Axe",
+          "skills": [],
+          "aiMode": "guard"
+        },
+        {
+          "id": "r",
+          "className": "Archer",
+          "level": 1,
+          "col": 6,
+          "row": 2,
+          "weapon": "Iron Bow",
+          "skills": [],
+          "aiMode": "guard"
+        }
+      ],
+      "npc": null,
+      "villageTile": null,
+      "loot": null,
+      "beats": [
+        {
+          "id": "p4_start",
+          "on": "battleStart",
+          "once": true,
+          "do": [
+            {
+              "coach": "p4_objective"
+            },
+            {
+              "highlight": {
+                "tile": {
+                  "col": 9,
+                  "row": 0
+                }
+              }
+            },
+            {
+              "note": "p4_seize_par"
+            },
+            {
+              "markLesson": {
+                "id": "seize",
+                "kind": "shown"
+              }
+            },
+            {
+              "markLesson": {
+                "id": "par",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p4_deployed",
+          "on": "battleStart",
+          "once": true,
+          "do": [
+            {
+              "markLesson": {
+                "id": "deploy",
+                "kind": "practised"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p4_throne",
+          "on": "forecastOpened",
+          "once": true,
+          "target": "v",
+          "targetTerrain": "Throne",
+          "do": [
+            {
+              "note": "p4_throne"
+            },
+            {
+              "markLesson": {
+                "id": "boss_throne",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p4_varro_falls",
+          "on": "unitDefeated",
+          "once": true,
+          "unit": "v",
+          "do": [
+            {
+              "clearCoach": true
+            },
+            {
+              "coach": "p4_seize"
+            },
+            {
+              "highlight": {
+                "tile": {
+                  "col": 9,
+                  "row": 0
+                }
+              }
+            },
+            {
+              "note": "p4_seize_now"
+            }
+          ]
+        },
+        {
+          "id": "p4_seized",
+          "on": "seize",
+          "once": true,
+          "do": [
+            {
+              "markLesson": {
+                "id": "seize",
+                "kind": "practised"
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "route": {
@@ -1026,6 +1254,26 @@
         "id": "prologue_3",
         "row": 3,
         "chapter": "p3_seer_on_the_road"
+      },
+      {
+        "id": "prologue_4",
+        "row": 4,
+        "type": "ruins",
+        "title": "The Old Watchtower",
+        "preview": "Rest heals the whole army, free. Scavenge opens the tower's old stores instead. The ruins allow one.",
+        "stock": [
+          "Vulnerary",
+          "Vulnerary",
+          "Javelin",
+          "Steel Sword"
+        ],
+        "lines": "watchtower_vision"
+      },
+      {
+        "id": "prologue_5",
+        "row": 5,
+        "type": "boss",
+        "chapter": "p4_quarry_gate"
       }
     ],
     "edges": [
@@ -1048,6 +1296,14 @@
       [
         "prologue_2b",
         "prologue_3"
+      ],
+      [
+        "prologue_3",
+        "prologue_4"
+      ],
+      [
+        "prologue_4",
+        "prologue_5"
       ]
     ]
   },
@@ -1067,8 +1323,31 @@
     }
   },
   "ending": {
-    "dialogue": "ending",
+    "music": "music_explore_deep",
+    "scenes": [
+      {
+        "dialogue": "ending_east",
+        "cue": "eclipse",
+        "shake": true,
+        "veil": "hollow_sun"
+      },
+      {
+        "dialogue": "ending_ridge"
+      },
+      {
+        "dialogue": "ending_thread",
+        "cue": "rewind",
+        "veil": "thread"
+      }
+    ],
     "titleCard": "Every run is a thread Sera weaves. When one breaks, she weaves again. Your army starts over. What you build at Home Base stays."
   },
-  "boss": null
+  "boss": {
+    "name": "Captain Varro",
+    "className": "Fighter",
+    "level": 1,
+    "weapon": "Iron Axe",
+    "epithet": "Keeper of the Quarry Gate",
+    "lore": "An imperial captain posted to a gate of cut stone. His orders name the quarry, not the reason the court needs its stone."
+  }
 }

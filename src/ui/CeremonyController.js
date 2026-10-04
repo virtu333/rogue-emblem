@@ -12,6 +12,7 @@
 // Callers fall back to their canvas presentation when there is no DOM host.
 
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
+import { prologueBossDefinitions } from '../engine/Prologue.js';
 import {
   actCardContent,
   arrivalContent,
@@ -135,7 +136,13 @@ export class CeremonyController {
    */
   async showBossIntro({ unit, actId }) {
     if (!unit || !canRenderCeremony() || this.destroyed) return false;
-    const content = bossCardContent({ unit, enemiesData: this.scene.gameData?.enemies, actId });
+    const content = bossCardContent({
+      unit,
+      enemiesData: this.scene.gameData?.enemies,
+      actId,
+      // The prologue's own boss (Varro) is in no act pool: its epithet comes from there.
+      extraBosses: prologueBossDefinitions(this.scene.gameData?.prologue),
+    });
     if (!content) return false;
     const t = this.timing('bossIntro');
     const entity = content.kind === 'entity';

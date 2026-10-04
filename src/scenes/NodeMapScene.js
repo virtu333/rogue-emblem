@@ -65,6 +65,8 @@ import { prologueJoinedKeys } from '../engine/Prologue.js';
 import { finishPrologue, offerSkipRetry } from '../ui/PrologueEnding.js';
 import { PROLOGUE_FIRST_RUN_ROUTE_NOTE, PROLOGUE_FORK_NOTE } from '../data/prologueContent.js';
 import { arriveAtPrologueNode } from '../ui/PrologueArrival.js';
+import { canShowRunNote, markNoteSeen } from '../ui/guidanceGate.js';
+import { guidanceText } from '../engine/Guidance.js';
 
 // Maps runManager.currentAct → the meta milestone recorded on node-map entry,
 // which the Compendium Foes tab reads to gate each act's boss.
@@ -285,9 +287,9 @@ export class NodeMapScene extends Phaser.Scene {
       // First-run onboarding: only when the fast path routed here, told once.
       showFirstRun: Boolean(this._isFirstRunFastPath && hints?.shouldShow('firstrun_onboarding')),
       showIntro: Boolean(hints?.shouldShow('nodemap_intro')),
-      showHpPersist: Boolean(
-        this.runManager.completedBattles >= 1 && hints && !hints.hasSeen('nodemap_hp_persist'),
-      ),
+      // Between-battle preparation (§7): the first route map after a battle that left
+      // someone below half HP, in a real run.
+      prepareFor: this._preparationNoteUnit(),
     };
   }
 
@@ -597,15 +599,26 @@ export class NodeMapScene extends Phaser.Scene {
             : 'Your first run begins here. Home Base upgrades, difficulty and blessings unlock after it ends. Tap a node to preview; Travel commits.'
           : 'Tap any node to preview it. Travel enters a connected available node. Inspect service nodes to see what this route offers.',
       );
-    } else if (
-      pending.showHpPersist &&
-      this.registry.get('hints')?.shouldShow('nodemap_hp_persist')
-    ) {
-      void showMinorHint(
-        this,
-        'HP carries between battles. Consumables can heal from Roster; inspect service nodes for other recovery options.',
-      );
+    } else if (pending.prepareFor && canShowRunNote(this, 'guide_prepare')) {
+      markNoteSeen(this, 'guide_prepare');
+      void showMinorHint(this, guidanceText('guide_prepare', { hurt: pending.prepareFor }));
     }
+  }
+
+  /**
+   * The unit the between-battle preparation note names: after a real run's battle, the
+   * most hurt roster unit below half HP (null when nobody is, or in the prologue run).
+   */
+  _preparationNoteUnit() {
+    const rm = this.runManager;
+    if (!rm || isPrologueRun(rm) || !(rm.completedBattles >= 1)) return null;
+    let worst = null;
+    for (const unit of rm.roster || []) {
+      const max = Number(unit?.stats?.HP) || 0;
+      if (!(max > 0) || !(unit.currentHP * 2 < max)) continue;
+      if (!worst || unit.currentHP / max < worst.currentHP / worst.stats.HP) worst = unit;
+    }
+    return worst ? { name: worst.name } : null;
   }
 
   _maybeOpenPendingAmbushShop(lifecycleGeneration = this._sceneLifecycleGeneration) {
@@ -1807,10 +1820,13 @@ export class NodeMapScene extends Phaser.Scene {
       return;
     if (node.completed && !this.runManager.canReenterService?.(node.id)) return;
     if (this._prologueArrivalBusy) return;
-    // A prologue service node: who joins there joins (the recruit card) before it opens.
+    // A prologue service node: who joins there joins (the recruit card) and its arrival
+    // lines play (the watchtower) before it opens.
     if (
       isPrologueRun(this.runManager) &&
-      (node.type === NODE_TYPES.CHURCH || node.type === NODE_TYPES.SHOP) &&
+      (node.type === NODE_TYPES.CHURCH ||
+        node.type === NODE_TYPES.SHOP ||
+        node.type === NODE_TYPES.RUINS) &&
       !this._prologueArrived?.has(node.id)
     ) {
       this.runManager.currentNodeId = node.id;

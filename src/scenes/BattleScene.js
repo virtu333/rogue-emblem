@@ -305,7 +305,12 @@ import {
   TRANSITION_REASONS,
   TRANSITION_RESULTS,
 } from '../utils/SceneRouter.js';
-import { buildPrologueBattleConfig, buildPrologueNpcUnit } from '../engine/Prologue.js';
+import {
+  buildPrologueBattleConfig,
+  buildPrologueNpcUnit,
+  prologueDeployRule,
+} from '../engine/Prologue.js';
+import { showPrologueDeployNote } from '../ui/PrologueDeployNote.js';
 import {
   isScriptedBattle,
   isStandaloneScriptedBattle,
@@ -567,14 +572,25 @@ export class BattleScene extends Phaser.Scene {
     // Determine deploy limits for this act (+ meta upgrade bonus)
     const act = this.battleParams.act || 'act1';
     // A re-entered battle keeps its locked map, so it deploys no more units than that
-    // map has spawns (resolveDeployLimits).
-    const limits = resolveDeployLimits({
-      base: DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1,
-      deployBonus: this.runManager?.getDeployBonus?.() || 0,
-      lockedSpawnCount: isStandaloneScriptedBattle(this.battleParams, this.runManager)
-        ? null
-        : this.runManager?.getLockedSpawnCount?.(this.nodeId),
-    });
+    // map has spawns (resolveDeployLimits). A prologue chapter with a deploy rule (P4)
+    // fields one unit per authored spawn and at least its own minimum, in the run and
+    // in a replay alike.
+    const chapter = prologueChapterOf(this.battleParams, this.gameData);
+    const deployRule = prologueDeployRule(chapter);
+    const chapterSpawns = chapter?.playerSpawns?.length || 0;
+    const limits = deployRule
+      ? {
+          min: Math.min(deployRule.min, chapterSpawns),
+          max: chapterSpawns,
+          lockedTo: null,
+        }
+      : resolveDeployLimits({
+          base: DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1,
+          deployBonus: this.runManager?.getDeployBonus?.() || 0,
+          lockedSpawnCount: isStandaloneScriptedBattle(this.battleParams, this.runManager)
+            ? null
+            : this.runManager?.getLockedSpawnCount?.(this.nodeId),
+        });
 
     if (this._resumeCheckpoint) {
       // Resuming a suspended battle -- units come from the checkpoint
@@ -2317,7 +2333,8 @@ export class BattleScene extends Phaser.Scene {
     try {
       await this._getCeremonies().showBossIntro({
         unit: (this.enemyUnits || []).find((unit) => unit.isBoss),
-        actId: this.battleParams?.act,
+        // A prologue chapter's boss card reads "Prologue", not the act it borrows.
+        actId: isScriptedBattle(this.battleParams) ? 'prologue' : this.battleParams?.act,
       });
     } catch (err) {
       console.warn('[BattleScene] boss encounter card failed:', err);
@@ -2990,6 +3007,8 @@ export class BattleScene extends Phaser.Scene {
     const overlay = new DeployScreenOverlay(this, this.runManager, this.gameData);
     this._deployOverlay = overlay;
     overlay.show(roster, limits, onConfirm, initialSelectedNames);
+    // A prologue chapter's first deploy screen opens with its note (P4).
+    showPrologueDeployNote(this, limits);
   }
 
   // --- Unit rendering ---
@@ -6223,6 +6242,7 @@ export class BattleScene extends Phaser.Scene {
         command('seize', 'Seize', () => {
           this.hideActionMenu();
           this.commitVisionSnapshotIfPending();
+          this._prologue?.onSeize(unit);
           this.onVictory();
         });
       }
