@@ -182,6 +182,7 @@ test('art pauses while covered or hidden, freezes under reduced motion and is re
   await expect.poll(animating).toBe(false);
   await expect(page.locator('.re-title')).toHaveClass(/is-still/);
   await page.getByRole('button', { name: 'New Game', exact: true }).tap();
+  await page.getByRole('button', { name: 'Skip to the first run', exact: true }).tap();
   await waitForScene(page, 'NodeMap');
   await expect(page.locator('.re-title')).toHaveCount(0);
   await expect(page.locator('.re-keyart-canvas')).toHaveCount(0);

@@ -40,6 +40,8 @@ test('production mobile bundle boots offline and uses traced battle art without 
   const newGame = page.getByRole('button', { name: 'New Game', exact: true });
   await expect(newGame).toBeVisible();
   await newGame.tap();
+  // A fresh slot is offered the prologue first; the release smoke skips to the run.
+  await page.getByRole('button', { name: 'Skip to the first run', exact: true }).tap();
   try {
     await page.waitForFunction(() => window.__emblemRogueGame.scene.isActive('NodeMap'), null, {
       timeout: 40000,

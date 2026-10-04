@@ -414,7 +414,7 @@ describe('Prologue P2: Old Hands', () => {
     expect(edricFinishes).toBeGreaterThanOrEqual(SEEDS * 0.85);
     expect(villageVisits).toBeGreaterThanOrEqual(SEEDS * 0.98);
     expect(Math.max(...turns)).toBeLessThanOrEqual(8);
-  });
+  }, 120000); // 300 seeds × a full battle: slow under a loaded CI box
 
   it('the naive policy wins (almost) every seed with nobody falling, at either level of Edric', async () => {
     for (const floor of [false, true]) {
@@ -436,7 +436,7 @@ describe('Prologue P2: Old Hands', () => {
       );
       expect(wins).toBeGreaterThanOrEqual(SEEDS * 0.98);
     }
-  });
+  }, 120000); // 300 seeds × a full battle: slow under a loaded CI box
 
   it('Gaspar alone does not solve the map: riding at the squad loses him', async () => {
     let gasparFell = 0;

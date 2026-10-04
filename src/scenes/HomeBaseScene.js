@@ -2047,11 +2047,13 @@ export class HomeBaseScene extends Phaser.Scene {
         slot: this.registry.get('activeSlot'),
       });
     }
+    // A tap inside the router's post-start cooldown (Home Base is barely open) retries
+    // instead of failing, as the phone's Begin Run always did.
     return transitionToScene(
       this,
       'DifficultySelect',
       { gameData: this.gameData },
-      { reason: TRANSITION_REASONS.BEGIN_RUN },
+      { reason: TRANSITION_REASONS.BEGIN_RUN, retryBlocked: true },
     );
   }
 

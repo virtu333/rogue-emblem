@@ -323,9 +323,11 @@ for (const viewport of [PORTRAIT_PHONES[0], PORTRAIT_PHONES[1]]) {
       const newGame = page.getByRole('button', { name: 'New Game', exact: true });
       await uprightStep(page, errors, newGame);
 
-      // A brand-new save goes straight to the route (first-run fast path); the menus
-      // this journey is about come with the slot's second run, so leave this one.
+      // A brand-new save is offered the prologue; skipped, it goes straight to the
+      // route (first-run fast path). The menus this journey is about come with the
+      // slot's second run, so leave this one.
       await newGame.tap();
+      await page.getByRole('button', { name: 'Skip to the first run', exact: true }).tap();
       await activeScene(page, 'NodeMap');
       await readyRoute(page);
       await pinRunSeed(page);
@@ -682,12 +684,29 @@ async function expectKeepsBoard(page, { prologue = false } = {}) {
   await expect.poll(covered, { message: 'under the note' }).toEqual([]);
 }
 
+/**
+ * A standalone prologue chapter (no run save): with a save on the device the title's
+ * Prologue item is a chapter select whose replays run without a RunManager
+ * (docs/specs/prologue-chapter.md §4). A fresh device's item would start the prologue
+ * run, which saves like any run.
+ */
 async function openPrologue(page, errors) {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('emblem_rogue_slot_1_meta'))
+      localStorage.setItem(
+        'emblem_rogue_slot_1_meta',
+        JSON.stringify({ totalValor: 0, totalSupply: 0, runsStarted: 1, savedAt: 1 }),
+      );
+  });
   await page.goto('/');
   await waitForGame(page);
   await activeScene(page, 'Title');
   await page.getByRole('button', { name: /^Prologue/ }).tap();
+  await page.getByRole('button', { name: 'Banner at Dawn', exact: true }).tap();
   await activeScene(page, 'Battle');
+  expect(
+    await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').runManager ?? null),
+  ).toBeNull();
   await battleIdle(page);
   await expect(page.getByRole('region', { name: 'Prologue guide' })).toBeVisible();
   expect(errors).toEqual([]);
