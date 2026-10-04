@@ -12,8 +12,9 @@
  * @param {boolean} state.prologueDone    the prologue's practice chapter completed (or skipped
  *   into a first run) on this device
  * @param {boolean} state.hasPrologue     the build ships data/prologue.json
- * @param {{slot:number, actReached:number, latestOf?:number}|null} state.resumeSlot
- *   the run Resume opens (pickResumeSlot); `latestOf` > 1 when it is the newest of several
+ * @param {{slot:number, actReached:number, latestOf?:number, prologueRun?:boolean}|null} state.resumeSlot
+ *   the run Resume opens (pickResumeSlot); `latestOf` > 1 when it is the newest of several;
+ *   `prologueRun` when that run is the prologue's (it has no act)
  * @param {boolean} state.seenHowToPlay
  * @returns {Array<{id:string,label:string,group:'run'|'reference',sub?:string,
  *   badge?:string, primary?:boolean}>}
@@ -40,14 +41,18 @@ export function buildTitleMenu({
       id: 'resume',
       label: resumeSlot.requiresSelection
         ? 'Continue · Select save'
-        : `Resume · Act ${resumeSlot.actReached ?? 1}`,
+        : resumeSlot.prologueRun
+          ? 'Resume · Prologue'
+          : `Resume · Act ${resumeSlot.actReached ?? 1}`,
       group: 'run',
       // With several runs going, say which one Resume opens.
       ...(resumeSlot.latestOf > 1 ? { sub: `Latest save · Slot ${resumeSlot.slot}` } : {}),
     });
   run.push({
     id: 'newGame',
-    label: !hasSlots && (prologueDone || !hasPrologue) ? 'Start First Run' : 'New Game',
+    // With the prologue shipped, New Game always opens the offer (Skip is its default on
+    // a device that finished the prologue), so it is never "Start First Run" there.
+    label: !hasSlots && !hasPrologue ? 'Start First Run' : 'New Game',
     group: 'run',
   });
   if (hasSlots) run.push({ id: 'saveSlots', label: 'Save Slots', group: 'run' });

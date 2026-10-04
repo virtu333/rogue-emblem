@@ -12,6 +12,7 @@ import { saveServiceRun } from './serviceSave.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { showMinorHint } from './HintDisplay.js';
+import { unitPortraitKey } from './RebuiltPortraits.js';
 
 /** The first spoken line of a dialogue.json `prologue` key, or null. */
 export function prologueLine(gameData, key) {
@@ -26,9 +27,22 @@ export function arrivalLinesKey(nodeId) {
 }
 
 /** A spoken line's face: a lord's portrait, else none (route-map lines). */
-function linePortrait(gameData, speaker) {
-  const lord = (gameData?.lords || []).find((l) => l?.name === speaker);
-  return lord ? `portrait_lord_${String(lord.name).toLowerCase()}` : null;
+/**
+ * A prologue line's face: the speaker in the army (Gaspar's own, a lord's) through the
+ * one portrait resolver, else a lord's by name, else none.
+ */
+export function prologueSpeakerPortrait(scene, speaker) {
+  if (!speaker) return null;
+  const units = [...(scene?.runManager?.roster || []), ...(scene?.playerUnits || [])];
+  const unit = units.find((u) => u?.name === speaker);
+  const lord = (scene?.gameData?.lords || []).find((l) => l?.name === speaker);
+  const lordKey = lord ? `portrait_lord_${String(lord.name).toLowerCase()}` : null;
+  if (!unit) return lordKey;
+  try {
+    return unitPortraitKey(scene, unit, scene.gameData || {}) || lordKey;
+  } catch {
+    return lordKey;
+  }
 }
 
 /**
@@ -80,7 +94,7 @@ export async function arriveAtPrologueNode(scene, node) {
         entries.map((e) => ({
           speaker: e?.speaker || null,
           line: e?.line || '',
-          portrait: linePortrait(scene.gameData, e?.speaker),
+          portrait: prologueSpeakerPortrait(scene, e?.speaker),
         })),
         { category: 'prologue', key: result.lines },
       );

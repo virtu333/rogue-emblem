@@ -509,9 +509,10 @@ export class CeremonyController {
   }
 
   /** THE THREAD IS CUT — or its gold counterpart — with where and when. */
-  showRunEnd(args, { withLines = false } = {}) {
+  showRunEnd(args, { withLines = false, content: given = null } = {}) {
     if (!canRenderCeremony() || this.destroyed) return null;
-    const content = runEndContent(args);
+    // `content`: a card that is not a run's (the prologue's ending breaks its thread).
+    const content = given || runEndContent(args);
     return this._storyCard({
       kind: 'runEnd',
       className: `ce-runend-layer ce-runend-layer--${content.tone}`,
@@ -531,6 +532,30 @@ export class CeremonyController {
           layer.addFitter(() => fitText(line, { min: 11 }));
       },
     });
+  }
+
+  /**
+   * A veil over the field that holds until closed, under any dialogue (the prologue's
+   * ending: 'hollow_sun', the sky darkening around a hollow sun). Never takes input.
+   * Returns { close, destroy } or null.
+   */
+  showVeil(kind) {
+    if (!canRenderCeremony() || this.destroyed || typeof kind !== 'string') return null;
+    const t = this.timing('runEnd');
+    const layer = this._open({
+      frame: 'screen',
+      className: `ce-veil-layer ce-veil-layer--${kind.replace(/[^a-z_]/g, '')}`,
+      animate: t.animate,
+    });
+    if (!layer) return null;
+    const sky = el('div', 'ce-veil-sky');
+    if (kind === 'hollow_sun') sky.append(el('div', 'ce-hollow-sun'));
+    layer.root.append(sky);
+    return {
+      root: layer.root,
+      close: () => this._close(layer, t.exitMs),
+      destroy: () => void this._close(layer, 0),
+    };
   }
 
   destroy() {

@@ -673,6 +673,17 @@ export function prologueProtectedNames(chapter, gameData) {
  * @param {Iterable<string>} chaptersCompleted - chapter ids (meta.prologue.chaptersCompleted)
  * @returns {Set<string>}
  */
+/**
+ * The run being played is the slot's first real run (narrative context: runsStarted
+ * counts it as it starts, as NarrativeDirector's maxRunsStarted 1 reads it). Who the
+ * prologue introduced comes from prologueJoinedKeys (the chapters this slot won).
+ * @param {{ runsStarted?: number }} ctx - buildNarrativeContext's
+ */
+export function firstRunAfterPrologue(ctx) {
+  const started = Number(ctx?.runsStarted);
+  return Number.isFinite(started) && started <= 1;
+}
+
 export function prologueJoinedKeys(prologue, chaptersCompleted = []) {
   const won = new Set(chaptersCompleted || []);
   const out = new Set();

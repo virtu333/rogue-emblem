@@ -61,7 +61,7 @@ import {
 import { UI_DEPTHS } from '../utils/uiDepths.js';
 import { CeremonyController } from '../ui/CeremonyController.js';
 import { isPrologueRun } from '../engine/ScriptedBattle.js';
-import { prologueJoinedKeys } from '../engine/Prologue.js';
+import { firstRunAfterPrologue, prologueJoinedKeys } from '../engine/Prologue.js';
 import { finishPrologue, offerSkipRetry } from '../ui/PrologueEnding.js';
 import { PROLOGUE_FIRST_RUN_ROUTE_NOTE, PROLOGUE_FORK_NOTE } from '../data/prologueContent.js';
 import { arriveAtPrologueNode } from '../ui/PrologueArrival.js';
@@ -494,11 +494,15 @@ export class NodeMapScene extends Phaser.Scene {
             ) || [];
           const veteran = this.runManager.roster?.find((unit) => unit.specialCharId);
           // A veteran the prologue already brought in (its joins, by the chapters
-          // this slot won) needs no introduction now.
-          const introduced = prologueJoinedKeys(
-            this.gameData?.prologue,
-            this.registry.get('meta')?.getPrologue?.()?.chaptersCompleted || [],
-          );
+          // this slot won) needs no introduction in the first real run after it (the
+          // run being played counts, as the cold open's maxRunsStarted reads it);
+          // every later run introduces him as before.
+          const introduced = firstRunAfterPrologue(ctx)
+            ? prologueJoinedKeys(
+                this.gameData?.prologue,
+                this.registry.get('meta')?.getPrologue?.()?.chaptersCompleted || [],
+              )
+            : new Set();
           const entries = [
             ...visionEntries,
             ...voiceEntries,

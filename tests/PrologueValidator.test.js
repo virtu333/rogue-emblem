@@ -244,7 +244,7 @@ describe('validatePrologueConfig', () => {
         'route.nodes[3] (prologue_2b).preview must be a string of at most 160 characters',
       ]);
       expect(errorsAfter((p) => (node(p, 'prologue_2b').stock = ['Vulnerary']))).toEqual([
-        'route.nodes[3] (prologue_2b): only a shop node has a stock',
+        'route.nodes[3] (prologue_2b): only a shop or a ruins node has a stock',
       ]);
       expect(errorsAfter((p) => node(p, 'prologue_2a').stock.push('Moon Bow'))).toEqual([
         'route.nodes[2] (prologue_2a).stock: unknown item "Moon Bow"',
@@ -264,18 +264,118 @@ describe('validatePrologueConfig', () => {
     });
   });
 
+  describe('the watchtower, P4 and the ending (Phase 3)', () => {
+    const P4 = 'chapters[3] (p4_quarry_gate)';
+    const p4 = (p) => p.chapters.find((c) => c.id === 'p4_quarry_gate');
+    const node = (p, id) => p.route.nodes.find((n) => n.id === id);
+
+    it('a deploy rule needs more units than spawns, a min within the spawns, a note id', () => {
+      expect(errorsAfter((p) => delete p4(p).deploy)).toEqual([
+        `${P4}.roster has more units than playerSpawns (and no deploy rule)`,
+      ]);
+      expect(errorsAfter((p) => (p4(p).deploy.min = 4))).toEqual([
+        `${P4}.deploy.min must be an integer from 1 to the spawn count (3)`,
+      ]);
+      expect(errorsAfter((p) => (p4(p).deploy.note = 'Read me'))).toEqual([
+        `${P4}.deploy.note must be a note id`,
+      ]);
+      expect(errorsAfter((p) => (p4(p).deploy.max = 3))).toEqual([
+        `${P4}.deploy has unknown field "max"`,
+      ]);
+      expect(errorsAfter((p) => (p4(p).roster = p4(p).roster.slice(0, 3)))).toContain(
+        `${P4}.deploy: the roster fits its spawns (nothing to choose)`,
+      );
+    });
+
+    it('formation tiles are free, passable, on the map and never the throne', () => {
+      expect(errorsAfter((p) => (p4(p).formation.tiles[0] = { col: 0, row: 4 }))).toEqual([
+        `${P4}.formation.tiles[0] (0,4) is already taken`,
+      ]);
+      expect(errorsAfter((p) => (p4(p).formation.tiles[0] = { col: 9, row: 0 }))).toContain(
+        `${P4}.formation.tiles[0] (9,0) is the throne`,
+      );
+      expect(errorsAfter((p) => (p4(p).formation.tiles[0] = { col: 0, row: 0 }))).toContain(
+        `${P4}.formation.tiles[0] (0,0) is impassable for Infantry`,
+      );
+      expect(errorsAfter((p) => (p4(p).formation.tiles[0] = { col: 13, row: 4 }))).toEqual([
+        `${P4}.formation.tiles[0] is off the map`,
+      ]);
+      expect(errorsAfter((p) => (p4(p).formation = { tiles: [] }))).toEqual([
+        `${P4}.formation.tiles must be a non-empty array of tiles`,
+      ]);
+    });
+
+    it("the chapter's boss is the prologue's boss, field by field", () => {
+      const varro = (p) => p4(p).enemies.find((e) => e.isBoss);
+      expect(errorsAfter((p) => (varro(p).weapon = 'Steel Axe'))).toEqual([
+        `${P4}: boss weapon "Steel Axe" differs from boss.weapon "Iron Axe"`,
+      ]);
+      expect(errorsAfter((p) => (p.boss.epithet = ''))).toEqual([
+        'boss.epithet must be a string of at most 60 characters',
+      ]);
+      expect(errorsAfter((p) => (p.boss.portrait = 'x'))).toEqual([
+        'boss has unknown field "portrait"',
+      ]);
+      expect(errorsAfter((p) => (p4(p).enemies.find((e) => !e.isBoss).isBoss = true))).toContain(
+        `${P4}: at most one enemy isBoss`,
+      );
+    });
+
+    it('a ruins node may hold the stock; a node’s lines must have lines', () => {
+      expect(node(data.prologue, 'prologue_4').type).toBe('ruins');
+      expect(errorsAfter((p) => node(p, 'prologue_4').stock.push('Moon Bow'))).toEqual([
+        'route.nodes[5] (prologue_4).stock: unknown item "Moon Bow"',
+      ]);
+      expect(errorsAfter((p) => (node(p, 'prologue_4').lines = 'no_vision'), withLines)).toEqual([
+        'route.nodes[5] (prologue_4).lines "no_vision" has no lines in dialogue.json prologue',
+      ]);
+    });
+
+    it('the ending: scenes with lines, a cue id, a boolean shake, a known veil, a track', () => {
+      expect(errorsAfter((p) => (p.ending.scenes[0].veil = 'eclipse'))).toEqual([
+        'ending.scenes[0].veil must be one of hollow_sun, thread',
+      ]);
+      expect(errorsAfter((p) => (p.ending.scenes[0].shake = 'hard'))).toEqual([
+        'ending.scenes[0].shake must be true or false',
+      ]);
+      expect(errorsAfter((p) => (p.ending.scenes[0].cue = 'The Eclipse'))).toEqual([
+        'ending.scenes[0].cue must be a stinger name',
+      ]);
+      expect(
+        errorsAfter((p) => (p.ending.scenes[1].dialogue = 'ending_nowhere'), withLines),
+      ).toEqual([
+        'ending.scenes[1].dialogue "ending_nowhere" has no lines in dialogue.json prologue',
+      ]);
+      expect(errorsAfter((p) => (p.ending.scenes = []))).toEqual([
+        'ending.scenes must be a non-empty array',
+      ]);
+      expect(errorsAfter((p) => (p.ending.dialogue = 'ending_east'))).toEqual([
+        'ending has both dialogue and scenes (scenes replace the legacy dialogue)',
+      ]);
+      expect(errorsAfter((p) => (p.ending.music = 'Explore Deep'))).toEqual([
+        'ending.music must be a music track key (music_...)',
+      ]);
+    });
+
+    it("forecastOpened may name the target's terrain (the throne lesson)", () => {
+      const throne = (p) => p4(p).beats.find((b) => b.id === 'p4_throne');
+      expect(throne(data.prologue)).toMatchObject({ targetTerrain: 'Throne' });
+      expect(errorsAfter((p) => (throne(p).targetTerrain = 'Seat'))).toHaveLength(1);
+    });
+  });
+
   describe('the rest of the file', () => {
     it('a prologue boss is in no real act boss pool', () => {
       const boss = (name, className, weapon) => ({
         name,
         className,
-        level: 3,
+        level: 1,
         weapon,
         epithet: 'x',
       });
-      expect(errorsAfter((p) => (p.boss = boss('Iron Captain', 'Cavalier', 'Iron Lance')))).toEqual(
-        ['boss "Iron Captain" is in the real act1 boss pool (prologue bosses stay out)'],
-      );
+      expect(
+        errorsAfter((p) => (p.boss = boss('Iron Captain', 'Cavalier', 'Iron Lance'))),
+      ).toContain('boss "Iron Captain" is in the real act1 boss pool (prologue bosses stay out)');
       expect(errorsAfter((p) => (p.boss = boss('Captain Varro', 'Fighter', 'Iron Axe')))).toEqual(
         [],
       );

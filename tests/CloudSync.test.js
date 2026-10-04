@@ -420,6 +420,39 @@ describe('CloudSync run merge guard', () => {
     expect(adopted.lordsMet).toEqual(['Edric', 'Rowan', 'Sera', 'Voss']);
   });
 
+  it('merges the prologue record on either copy (further state, a paid grant stays paid)', async () => {
+    const key = getMetaKey(1);
+    const done = { state: 'complete', grantPaid: true, chaptersCompleted: ['p1_banner_at_dawn', 'p4_quarry_gate'], practised: ['seize'] }; // prettier-ignore
+    // Local is newer and kept, but only began the prologue; the cloud copy finished it.
+    store[key] = JSON.stringify({
+      savedAt: 200,
+      prologue: { state: 'in_progress', grantPaid: false, chaptersCompleted: ['p1_banner_at_dawn'], practised: ['forecast'] }, // prettier-ignore
+    });
+    mockCloudBootstrap({ metaData: { 1: { savedAt: 100, prologue: done } } });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    const kept = JSON.parse(store[key]);
+    expect(kept.prologue).toEqual({ ...done, practised: ['forecast', 'seize'] });
+    // A merged-in paid grant is never paid again by the live manager.
+    const meta = new MetaProgressionManager([], key);
+    expect(meta.completePrologue({ grant: { valor: 60, supply: 40 } })).toMatchObject({
+      paid: false,
+    });
+
+    // The cloud copy is newer and wins, but never knew the prologue: local's record stays.
+    store[key] = JSON.stringify({ savedAt: 100, prologue: done });
+    mockCloudBootstrap({ metaData: { 1: { savedAt: 300 } } });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    const adopted = JSON.parse(store[key]);
+    expect(adopted.savedAt).toBe(300);
+    expect(adopted.prologue).toEqual(done);
+
+    // Neither copy has one: nothing is added to the save.
+    store[key] = JSON.stringify({ savedAt: 100 });
+    mockCloudBootstrap({ metaData: { 1: { savedAt: 300 } } });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    expect('prologue' in JSON.parse(store[key])).toBe(false);
+  });
+
   it('reconciles a live hint manager with newer cloud lessons and resets', async () => {
     const key = getMetaKey(1);
     store[key] = JSON.stringify({ savedAt: 100, hintState: { updatedAt: 100, seen: ['local'] } });

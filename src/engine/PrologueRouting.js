@@ -32,6 +32,9 @@ export const PROLOGUE_ROUTES = Object.freeze({
   STANDARD: 'standard',
 });
 
+/** Begin Run's choice was backed out of (Home Base's runTransition resets quietly). */
+export const BEGIN_RUN_CANCELLED = 'cancelled';
+
 /** The prologue state a summary carries ('none' for an empty slot or an old save). */
 export function prologueStateOfSummary(summary) {
   const state = summary?.prologue;
@@ -56,15 +59,21 @@ export function routeForSlot(summary, { hasPrologue = true } = {}) {
 
 /**
  * Where Home Base's Begin Run goes: a completed prologue's first real run takes the
- * fast path (until that run starts, which increments runsStarted); otherwise the
- * ordinary Difficulty / Blessing road.
+ * fast path (until that run starts, which increments runsStarted); a prologue left
+ * 'in_progress' whose run save is lost (unreadable: the slot opened on Home Base) gets
+ * the offer again, restart from P1 or skip, so it never silently takes the ordinary
+ * road with its grant unpaid and its state stuck; otherwise the ordinary Difficulty /
+ * Blessing road.
  * @param {{ getPrologueState?: () => string, getRunsStarted?: () => number,
  *   runsStarted?: number, runsCompleted?: number }|null} meta
+ * @param {{ hasPrologue?: boolean }} [options] - the build ships prologue data
  */
-export function routeForBeginRun(meta) {
+export function routeForBeginRun(meta, { hasPrologue = true } = {}) {
   const state = meta?.getPrologueState?.() ?? meta?.prologue?.state ?? 'none';
   const started = Number(meta?.getRunsStarted?.() ?? meta?.runsStarted ?? 0) || 0;
   const completed = Number(meta?.getRunsCompleted?.() ?? meta?.runsCompleted ?? 0) || 0;
-  if (state === 'complete' && started === 0 && completed === 0) return PROLOGUE_ROUTES.FAST_PATH;
+  const firstRun = started === 0 && completed === 0;
+  if (state === 'complete' && firstRun) return PROLOGUE_ROUTES.FAST_PATH;
+  if (state === 'in_progress' && firstRun && hasPrologue) return PROLOGUE_ROUTES.OFFER;
   return PROLOGUE_ROUTES.STANDARD;
 }

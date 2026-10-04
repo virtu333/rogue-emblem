@@ -63,13 +63,13 @@ describe('startPrologue', () => {
     const route = data.prologue.route;
     expect(rm.nodeMap.nodes.map((n) => n.id)).toEqual(route.nodes.map((n) => n.id));
     expect(rm.nodeMap.startNodeId).toBe('prologue_0');
-    // The last chapter on the route ends the prologue (P3 until P4 is authored).
-    expect(rm.nodeMap.bossNodeId).toBe('prologue_3');
+    // The last chapter on the route (P4, the quarry gate) ends the prologue.
+    expect(rm.nodeMap.bossNodeId).toBe('prologue_5');
     expect(rm.getAvailableNodes().map((n) => n.id)).toEqual(['prologue_0']);
     for (const node of route.nodes) {
       const chapter = data.prologue.chapters.find((c) => c.id === node.chapter);
       if (!chapter) {
-        // A service node (the row-2 fork): no battle, no chapter.
+        // A service node (the row-2 fork, the watchtower): no battle, no chapter.
         expect(rm.getLockedBattleConfig(node.id) ?? null).toBeNull();
         expect(rm.getPrologueChapter(node.id)).toBeNull();
         continue;
@@ -87,6 +87,19 @@ describe('startPrologue', () => {
     ]);
     expect(nodeOf(rm, 'prologue_2a').edges).toEqual(['prologue_3']);
     expect(nodeOf(rm, 'prologue_2b').edges).toEqual(['prologue_3']);
+    // Row 4: the old watchtower (Ruins, its own stock and Sera's vision), then the gate.
+    const tower = nodeOf(rm, 'prologue_4');
+    expect(tower).toMatchObject({
+      type: 'ruins',
+      prologueLines: 'watchtower_vision',
+      prologueStock: ['Vulnerary', 'Vulnerary', 'Javelin', 'Steel Sword'],
+    });
+    expect(nodeOf(rm, 'prologue_3').edges).toEqual(['prologue_4']);
+    expect(tower.edges).toEqual(['prologue_5']);
+    expect(nodeOf(rm, 'prologue_5')).toMatchObject({
+      type: 'boss',
+      bossLine: 'Captain Varro · Fighter · Iron Axe (reach 1)',
+    });
     const params = rm.getBattleParams(nodeOf(rm, 'prologue_0'));
     expect(params).toMatchObject({ prologueChapter: 'p1_banner_at_dawn', act: 'act1' });
     expect(Number.isInteger(params.battleSeed)).toBe(true);
@@ -115,6 +128,8 @@ describe('the run save', () => {
       null,
       null,
       'p3_seer_on_the_road',
+      null,
+      'p4_quarry_gate',
     ]);
     expect(loaded.visionChargesRemaining).toBe(0);
     expect(loaded.isEclipseActive()).toBe(false);
@@ -154,7 +169,7 @@ describe('the chapters commit', () => {
     expect(rm.roster.map((u) => u.name)).toEqual(['Edric', 'Gaspar']);
   });
 
-  it("P3's victory completes the prologue; the run is never advanced or settled", () => {
+  it("P4's victory completes the prologue; the run is never advanced or settled", () => {
     const rm = prologue();
     expect(rm.completeBattle(rm.roster, 'prologue_0', 0)).toBe(true);
     expect(rm.completeBattle(rm.roster, 'prologue_1', 0)).toBe(true);
@@ -164,6 +179,13 @@ describe('the chapters commit', () => {
     rm.markNodeComplete('prologue_2b');
     expect(rm.getAvailableNodes().map((n) => n.id)).toEqual(['prologue_3']);
     expect(rm.completeBattle(rm.roster, 'prologue_3', 0)).toBe(true);
+    // P3 is no longer the end: the watchtower, then the gate.
+    expect(rm.isPrologueComplete()).toBe(false);
+    expect(rm.getAvailableNodes().map((n) => n.id)).toEqual(['prologue_4']);
+    rm.currentNodeId = 'prologue_4';
+    rm.markNodeComplete('prologue_4');
+    expect(rm.getAvailableNodes().map((n) => n.id)).toEqual(['prologue_5']);
+    expect(rm.completeBattle(rm.roster, 'prologue_5', 0)).toBe(true);
     expect(rm.isPrologueComplete()).toBe(true);
     expect(rm.isActComplete()).toBe(true);
     expect(rm.visionChargesRemaining).toBe(0);

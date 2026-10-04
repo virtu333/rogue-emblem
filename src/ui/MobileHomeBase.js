@@ -11,6 +11,7 @@ import {
 import portraitManifest from './RebuiltPortraitManifest.json';
 import { hasPc98, pc98PortraitElement, usePc98 } from './portraitArt.js';
 import { metLords } from '../engine/LordsMet.js';
+import { BEGIN_RUN_CANCELLED } from '../engine/PrologueRouting.js';
 const node = (tag, cls, text) => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -124,6 +125,12 @@ export class MobileHomeBase {
         ).status === TRANSITION_RESULTS.STARTED
       );
     });
+    if (ok === BEGIN_RUN_CANCELLED) {
+      // Backed out of a choice (the lost prologue's offer): Home Base as it was.
+      this.pending = false;
+      this.render();
+      return;
+    }
     if (!ok && this.visible) {
       this.pending = false;
       this.scene.input.enabled = false;

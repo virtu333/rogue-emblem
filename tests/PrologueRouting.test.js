@@ -75,8 +75,19 @@ describe('routeForBeginRun', () => {
   it('every other state takes the ordinary road', () => {
     expect(routeForBeginRun(meta('none'))).toBe(PROLOGUE_ROUTES.STANDARD);
     expect(routeForBeginRun(meta('skipped'))).toBe(PROLOGUE_ROUTES.STANDARD);
-    expect(routeForBeginRun(meta('in_progress'))).toBe(PROLOGUE_ROUTES.STANDARD);
+    expect(routeForBeginRun(meta('in_progress', 1))).toBe(PROLOGUE_ROUTES.STANDARD);
     expect(routeForBeginRun(null)).toBe(PROLOGUE_ROUTES.STANDARD);
+  });
+
+  it('a prologue left in progress with its run save lost gets the offer again', () => {
+    // The slot reached Home Base (its prologue run save was unreadable): restart or skip,
+    // never the ordinary road with the grant unpaid and the state stuck.
+    expect(routeForBeginRun(meta('in_progress'))).toBe(PROLOGUE_ROUTES.OFFER);
+    expect(routeForBeginRun(meta('in_progress', 0, 1))).toBe(PROLOGUE_ROUTES.STANDARD);
+    // A build without the prologue has nothing to offer.
+    expect(routeForBeginRun(meta('in_progress'), { hasPrologue: false })).toBe(
+      PROLOGUE_ROUTES.STANDARD,
+    );
   });
 
   it('reads plain fields when the meta is a raw record', () => {

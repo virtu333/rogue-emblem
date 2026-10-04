@@ -78,7 +78,7 @@ describe('arrival at the fork', () => {
     await arriveAtPrologueNode(scene, node);
     vi.clearAllMocks();
     const again = await arriveAtPrologueNode(scene, node);
-    expect(again).toEqual({ joined: [], granted: [] });
+    expect(again).toEqual({ joined: [], granted: [], lines: null });
     expect(saveServiceRun).not.toHaveBeenCalled();
     expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
     expect(rm.roster.filter((u) => u.name === 'Tamsin')).toHaveLength(1);
@@ -90,8 +90,48 @@ describe('arrival at the fork', () => {
     const before = rm.roster.map((u) => u.name);
     const scene = { runManager: rm, gameData: data, dialogueOverlay: { show: vi.fn() } };
     const result = await arriveAtPrologueNode(scene, { id: 'prologue_2a', type: 'shop' });
-    expect(result).toEqual({ joined: [], granted: [] });
+    expect(result).toEqual({ joined: [], granted: [], lines: null });
     expect(rm.roster.map((u) => u.name)).toEqual(before);
     expect(saveServiceRun).not.toHaveBeenCalled();
+  });
+});
+
+describe('the old watchtower (row 4)', () => {
+  it("Sera's vision plays once, marked and saved before the first line", async () => {
+    const { scene, rm, order, node } = sceneAt('prologue_4');
+    expect(node.type).toBe('ruins');
+    const played = [];
+    scene.dialogueOverlay.showSequence = vi.fn(async (entries) => {
+      // Saved first: a reload mid-line finds the lines already spoken.
+      expect(order.map(([kind]) => kind)).toEqual(['save']);
+      expect(rm.hasShownDialogue('prologue_lines:prologue_4')).toBe(true);
+      played.push(...entries);
+    });
+    const result = await arriveAtPrologueNode(scene, node);
+    expect(result).toEqual({ joined: [], granted: [], lines: 'watchtower_vision' });
+    const vision = data.dialogue.prologue.watchtower_vision;
+    expect(played.map((e) => e.line)).toEqual(vision.map((e) => e.line));
+    expect(played.find((e) => e.speaker === 'Sera').portrait).toBe('portrait_lord_sera');
+
+    vi.clearAllMocks();
+    const again = await arriveAtPrologueNode(scene, node);
+    expect(again).toEqual({ joined: [], granted: [], lines: null });
+    expect(scene.dialogueOverlay.showSequence).not.toHaveBeenCalled();
+    expect(saveServiceRun).not.toHaveBeenCalled();
+  });
+
+  it('the spoken mark survives the run save (a refresh never replays the vision)', async () => {
+    const { scene, rm, node } = sceneAt('prologue_4');
+    scene.dialogueOverlay.showSequence = vi.fn(async () => {});
+    await arriveAtPrologueNode(scene, node);
+    const restored = RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), data);
+    const reloaded = { ...scene, runManager: restored };
+    reloaded.dialogueOverlay = { show: vi.fn(), showSequence: vi.fn() };
+    const result = await arriveAtPrologueNode(
+      reloaded,
+      restored.nodeMap.nodes.find((n) => n.id === 'prologue_4'),
+    );
+    expect(result.lines).toBe(null);
+    expect(reloaded.dialogueOverlay.showSequence).not.toHaveBeenCalled();
   });
 });

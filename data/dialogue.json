@@ -9672,7 +9672,8 @@
       },
       {
         "speaker": "Sera",
-        "line": "The ring has closed. They are finishing it. Today, not in a year."
+        "line": "The ring has closed. They are finishing it. Today, not in a year.",
+        "unmet": "???"
       },
       {
         "speaker": "Tamsin",
@@ -9684,7 +9685,8 @@
       },
       {
         "speaker": "Sera",
-        "line": "The Hollow Sun. Under the stones, what they fed is turning over."
+        "line": "The Hollow Sun. Under the stones, what they fed is turning over.",
+        "unmet": "???"
       }
     ],
     "ending_ridge": [
@@ -9704,7 +9706,8 @@
       },
       {
         "speaker": "Sera",
-        "line": "Not like this. I know this road now. Again, from the morning I reached you."
+        "line": "Not like this. I know this road now. Again, from the morning I reached you.",
+        "unmet": "???"
       }
     ]
   },

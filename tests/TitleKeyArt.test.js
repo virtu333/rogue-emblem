@@ -137,7 +137,7 @@ describe('title menu model', () => {
     expect(items.find((i) => i.id === 'howToPlay').badge).toBe('New');
   });
 
-  it('prologue done but no slots: the first run starts from "Start First Run"', () => {
+  it('prologue done but no slots: New Game leads (it opens the offer, Skip first)', () => {
     const items = buildTitleMenu({ hasSlots: false, prologueDone: true, seenHowToPlay: true });
     expect(ids(items)).toEqual([
       'newGame',
@@ -147,8 +147,21 @@ describe('title menu model', () => {
       'moreInfo',
       'records',
     ]);
-    expect(items[0]).toMatchObject({ label: 'Start First Run', primary: true });
+    expect(items[0]).toMatchObject({ label: 'New Game', primary: true });
     expect(items.some((i) => i.badge)).toBe(false);
+    // Only a build without the prologue starts the first run outright.
+    const bare = buildTitleMenu({ hasSlots: false, hasPrologue: false, seenHowToPlay: true });
+    expect(bare[0]).toMatchObject({ id: 'newGame', label: 'Start First Run', primary: true });
+  });
+
+  it('a prologue run in progress resumes as the Prologue, not an act', () => {
+    const resumeSlot = pickResumeSlot([
+      { slot: 1, hasActiveRun: true, actReached: 1, prologueRun: true },
+      null,
+      null,
+    ]);
+    const items = buildTitleMenu({ hasSlots: true, prologueDone: false, resumeSlot });
+    expect(items[0]).toMatchObject({ id: 'resume', label: 'Resume · Prologue', primary: true });
   });
 
   it('returning player with one active run: Resume leads, Save Slots follows New Game', () => {

@@ -285,10 +285,30 @@ export function rosterLessonSkipText(reason, ctx) {
 }
 
 /** The title card the ending stub closes on (data/prologue.json `ending.titleCard`). */
+/** The run-end card the ending's last scene breaks the thread on (CeremonyController.showRunEnd). */
+export const PROLOGUE_THREAD_CARD = Object.freeze({
+  tone: 'cut',
+  word: 'THE THREAD IS CUT',
+  sub: 'Sera weaves again',
+  meta: 'Prologue · The Quarry Gate',
+});
+
 export function prologueEndingCard(prologue) {
   const text = prologue?.ending?.titleCard;
   return typeof text === 'string' && text.trim() ? text.trim() : '';
 }
+
+/**
+ * Begin Run on a slot whose prologue run save could not be read (state left
+ * 'in_progress', PrologueRouting.routeForBeginRun → offer): restart it from P1 or skip
+ * to the first run. Back (the Escape default) leaves Home Base as it was.
+ */
+export const PROLOGUE_LOST = Object.freeze({
+  body: "The prologue's save could not be read. Play it again from the first chapter, or skip to your first run. The Home Base gift comes only with the prologue's end.",
+  back: 'Back',
+  restart: 'Restart the Prologue',
+  skip: 'Skip to the first run',
+});
 
 /**
  * The offer a fresh slot gets on New Game (§4): play the prologue (the highlighted

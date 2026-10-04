@@ -299,6 +299,8 @@ export function getSlotSummary(slot, storage = globalThis.localStorage) {
       if (!run || typeof run !== 'object' || Array.isArray(run)) throw new Error('Invalid run');
       summary.hasActiveRun = true;
       summary.actReached = (run.actIndex || 0) + 1;
+      // The prologue's run (RunManager mode 'prologue'): its cards and Resume say so.
+      summary.prologueRun = run.mode === 'prologue';
       summary.savedAt = Number.isFinite(run.savedAt) ? run.savedAt : null;
       const node = run.nodeMap?.nodes?.find((entry) => entry.id === run.currentNodeId);
       summary.rosterNames = (run.roster || []).slice(0, 3).map((unit) => unit.name);

@@ -1,7 +1,9 @@
 // meta.prologue (docs/specs/prologue-chapter.md §9): the state and its ledger round-trip
 // the slot's meta save, the Home Base grant is paid exactly once across a refresh
-// between the grant and the next save, a cloud merge keeps a paid grant paid, the
-// state never steps back from complete, and runsStarted / runsCompleted never move.
+// between the grant and the next save, a paid grant already on disk (another tab's
+// write) is adopted, never paid again, the state never steps back from complete, and
+// runsStarted / runsCompleted never move. The cloud fetch's merge of the record
+// (CloudSync.applyMetaSlots) is covered in CloudSync.test.js.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   MetaProgressionManager,
@@ -138,7 +140,7 @@ describe('the grant is paid once', () => {
     expect(meta.totalValor).toBe(60);
   });
 
-  it('a paid grant on disk (another device, a cloud fetch) is adopted before paying', () => {
+  it('a paid grant already on disk (another tab) is adopted before paying', () => {
     const meta = new MetaProgressionManager(upgradesData, KEY);
     meta.addValor(5); // this manager has saved once
     const foreign = {
