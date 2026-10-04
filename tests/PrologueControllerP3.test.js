@@ -214,6 +214,22 @@ describe('P3: Sera, the green unit', () => {
     expect(hints.markSeen).toHaveBeenCalledWith('guide_recruit_on_map');
   });
 
+  it('an opening that outlasts the banner still brings the coach up when it ends', async () => {
+    // The banner-timed reveal is guarded (it runs only on an idle battle); with the
+    // opening's lines and note on screen it is skipped, so the opening's end reveals.
+    const { scene } = makeP3({ run: true });
+    const prologue = new PrologueController(scene).create();
+    prologue.coach = { reveal: vi.fn(), destroy: vi.fn(), nudge: vi.fn(() => false) };
+    const scheduled = [];
+    prologue.onPhaseStart('player', 1, { schedule: (ms, key) => scheduled.push(key) });
+    expect(scheduled).toEqual(['prologue_coach_reveal']);
+    await Promise.resolve();
+    expect(prologue.coach.reveal).not.toHaveBeenCalled();
+    await flushNotes(prologue);
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    expect(prologue.coach.reveal).toHaveBeenCalled();
+  });
+
   it('Talk: her own line on the card, the goal moves to her turn, and she acts at once', async () => {
     const { scene, battle, unit } = makeP3();
     const prologue = new PrologueController(scene).create();

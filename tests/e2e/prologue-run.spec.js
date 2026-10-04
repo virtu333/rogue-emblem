@@ -1,8 +1,11 @@
 // The prologue run (docs/specs/prologue-chapter.md §4, §9): a fresh slot is offered the
 // prologue on New Game; Play opens P1 at once as a run in prologue mode (the route map
 // stays hidden); P1's win brings Gaspar in on the prologue's own route map; P2 opens
-// with the old hands; P2's win pays its authored loot, plays the ending and lands in
-// Home Base with the grant, whose Begin Run takes the first-run fast path. Skip takes
+// with the old hands; P2's win pays its authored loot and opens the row-2 fork (its
+// note), where Harrow's Market brings Tamsin in (the recruit card, her bow from the
+// rack) and the roster lesson's Withdraw is done with the real button; P3 opens with
+// Sera green, Edric reaches her and Talks, she acts at once; P3's win plays the ending
+// and lands in Home Base with the grant, whose Begin Run takes the first-run fast path. Skip takes
 // today's fast path. A refresh mid-chapter resumes the chapter or re-opens it from the
 // map. Every wait is on state, never on time.
 import { test, expect } from '@playwright/test';
@@ -68,12 +71,23 @@ async function waitForSuspendSave(page) {
   });
 }
 
+/**
+ * Read a Field note to its end: a long note ignores Continue for its first half second
+ * (HintDisplay's reading guard), so Continue is pressed until this note is gone.
+ */
+async function continueNote(page, text) {
+  const note = page.getByRole('dialog', { name: 'Field notes', exact: true }).filter({ hasText: text }); // prettier-ignore
+  await expect(note).toBeVisible();
+  await expect(async () => {
+    if (await note.count())
+      await note.getByRole('button', { name: 'Continue', exact: true }).click({ timeout: 1000 }).catch(() => {}); // prettier-ignore
+    await expect(note).toHaveCount(0, { timeout: 1000 });
+  }).toPass();
+}
+
 /** The route map's first-visit note (a modal on arrival) is read before anything else. */
 async function dismissRouteNote(page) {
-  const note = page.getByRole('dialog', { name: 'Field notes', exact: true });
-  await expect(note).toContainText('Tap any node to preview it');
-  await note.getByRole('button', { name: 'Continue', exact: true }).click();
-  await expect(note).toHaveCount(0);
+  await continueNote(page, 'Tap any node to preview it');
   await expect(page.locator('.re-node-map')).toBeVisible();
 }
 
@@ -83,7 +97,7 @@ async function readLine(page, speaker, text) {
   await line.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
-test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar on the route, P2 ends in Home Base with the grant', async ({
+test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the fork joins Tamsin, P3 recruits Sera and ends in Home Base with the grant', async ({
   browser,
 }) => {
   const { context, page, errors } = await boot(browser);
@@ -180,6 +194,142 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar on t
   const teamXp = page.getByRole('dialog', { name: 'Team XP', exact: true });
   if (await teamXp.isVisible().catch(() => false))
     await teamXp.getByRole('button', { name: 'Continue', exact: true }).click();
+
+  // Row 2: the fork. Its own note, two service nodes that say what they hold.
+  await waitForScene(page, 'NodeMap');
+  await continueNote(page, "Tap a node to see what it holds. Travel commits; you can't come back.");
+  expect(
+    await page.evaluate(() => [...document.querySelectorAll('.re-node.is-live')].map((n) => n.dataset.node)), // prettier-ignore
+  ).toEqual(['prologue_2a', 'prologue_2b']);
+  await route.locator('.re-node[data-node="prologue_2a"]').click();
+  await expect(route.locator('.re-loom-card')).toContainText("Harrow's Market");
+  await expect(route.locator('.re-loom-card')).toContainText('fixed stock: no restock here');
+  await route.getByRole('button', { name: 'Travel', exact: true }).click();
+  // Tamsin joins on arrival with the standard recruit card. P2's village was never
+  // visited here, so the node hands her a bow and her line says so.
+  const card = page.getByRole('dialog', { name: 'Tamsin joins your army', exact: true });
+  await expect(card).toContainText("There's one on the rack here.");
+  await expect(async () => {
+    if (await card.count()) await card.click({ timeout: 1000 }).catch(() => {});
+    await expect(card).toHaveCount(0, { timeout: 1000 });
+  }).toPass();
+  const shop = page.getByRole('dialog', { name: 'Village', exact: true });
+  await expect(shop).toContainText("This market's stock is fixed while you're here.");
+  await expect(shop.getByRole('button', { name: /^Restock/ })).toHaveCount(0);
+  const atMarket = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    return {
+      roster: s.runManager.roster.map((u) => u.name),
+      convoy: s.runManager.convoy.weapons.map((w) => w.name),
+      stock: s.shopBuyItems.map((e) => e.item.name),
+    };
+  });
+  expect(atMarket).toEqual({
+    roster: ['Edric', 'Gaspar', 'Tamsin'],
+    convoy: ['Iron Bow'],
+    stock: ['Vulnerary', 'Vulnerary', 'Iron Sword', 'Iron Lance', 'Javelin'],
+  });
+  // The join is saved before the card: a refresh here keeps her.
+  expect((await slotRun(page)).roster.map((u) => u.name)).toContain('Tamsin');
+  // The roster lesson: Withdraw done with the real button, then the lesson skipped.
+  await shop.getByRole('button', { name: 'Roster', exact: true }).click();
+  const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+  const lesson = roster.getByRole('region', { name: 'Roster lesson', exact: true });
+  await expect(lesson).toContainText('Roster lesson · 1 of 4 · Withdraw');
+  await expect(lesson).toContainText('Give Tamsin the Iron Bow from the convoy');
+  await expect(roster.locator('.mr-unit-card', { hasText: 'Tamsin' })).toContainText(
+    'No weapon. A bow is in the convoy.',
+  );
+  await roster.locator('.mr-unit-card', { hasText: 'Tamsin' }).click();
+  await roster.getByRole('button', { name: 'Convoy', exact: true }).click();
+  await roster
+    .locator('.mr-item-card', { has: page.locator('h4', { hasText: 'Iron Bow' }) })
+    .getByRole('button', { name: 'Withdraw', exact: true })
+    .click();
+  await expect(lesson).toContainText('Withdraw: done.');
+  await expect(lesson).toContainText('2 of 4 · Equip');
+  expect(
+    await page.evaluate(() => {
+      const rm = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
+      return rm.roster.find((u) => u.name === 'Tamsin').weapon?.name;
+    }),
+  ).toBe('Iron Bow');
+  await lesson.getByRole('button', { name: 'Skip lesson', exact: true }).click();
+  await expect(lesson).toHaveCount(0);
+  expect((await slotRun(page)).prologueRosterLesson).toMatchObject({ dismissed: true });
+  await roster.getByRole('button', { name: 'Close', exact: true }).first().click();
+  await expect(roster).toHaveCount(0);
+  await shop.getByRole('button', { name: 'Leave', exact: true }).click();
+  await expect(shop).toHaveCount(0);
+
+  // P3: the seer on the road. Sera green beside a Soldier; Edric reaches her and Talks.
+  await expect(route.locator('.re-node[data-node="prologue_3"]')).toHaveClass(/is-live/);
+  await route.locator('.re-node[data-node="prologue_3"]').click();
+  await expect(route.locator('.re-loom-card')).toContainText('The Seer on the Road');
+  await route.getByRole('button', { name: 'Travel', exact: true }).click();
+  await waitForScene(page, 'Battle');
+  await readLine(page, 'Gaspar', 'A robed woman on the road, and soldiers at her heels.');
+  await readLine(page, 'Edric', 'Then we reach her first. Count off and ride.');
+  await continueNote(page, 'can join you. Move a Lord next to her and choose Talk');
+  await prologueIdle(page);
+  const p3 = await battle(page);
+  expect(p3).toMatchObject({ mode: 'prologue', chapter: 'p3_seer_on_the_road', turnPar: null });
+  expect(p3.units).toEqual(['Edric', 'Gaspar', 'Tamsin']);
+  const guide = page.getByRole('region', { name: 'Prologue guide', exact: true });
+  await expect(guide).toContainText('Reach Sera and Talk');
+  expect(
+    await page.evaluate(() =>
+      window.__emblemRogueGame.scene
+        .getScene('Battle')
+        .npcUnits.map((u) => `${u.name}:${u.faction}:${u.col},${u.row}`),
+    ),
+  ).toEqual(['Sera:npc:4,2']);
+  // Edric's own move: a tile beside Sera inside his blue range, then Talk.
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const edric = s.playerUnits.find((u) => u.name === 'Edric');
+    const sera = s.npcUnits.find((u) => u.name === 'Sera');
+    s.selectUnit(edric);
+    const spot = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]
+      .map(([dc, dr]) => [sera.col + dc, sera.row + dr])
+      .find(([col, row]) => s.movementRange.has(`${col},${row}`) && !s.getUnitAt(col, row));
+    if (!spot) throw new Error('Edric cannot reach Sera on turn 1');
+    s.moveUnit(edric, ...spot);
+  });
+  // The action menu (canvas rows on desktop) offers Talk beside her: choose it.
+  await page.waitForFunction(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    return (
+      s.battleState === 'UNIT_ACTION_MENU' &&
+      (s.actionMenu || []).some((row) => row?.text === 'Talk' && typeof row._action === 'function')
+    );
+  });
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.actionMenu.find((row) => row?.text === 'Talk')._action();
+  });
+  const seraCard = page.getByRole('dialog', { name: 'Sera joins your army', exact: true });
+  await expect(seraCard).toContainText('I have seen you before, Edric.');
+  await expect(async () => {
+    if (await seraCard.count()) await seraCard.click({ timeout: 1000 }).catch(() => {});
+    await expect(seraCard).toHaveCount(0, { timeout: 1000 });
+  }).toPass();
+  await expect(guide).toContainText('Sera acts right away');
+  await page.waitForFunction(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const sera = s.playerUnits.find((u) => u.name === 'Sera');
+    return s.battleState === 'PLAYER_IDLE' && sera && !sera.hasActed && s.npcUnits.length === 0;
+  });
+
+  // P3 won: Sera's lines, then the ending (four unnamed lines, the title card), Home Base.
+  await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
+  await readLine(page, 'Sera', "I don't stand at the front.");
+  await readLine(page, 'Edric', 'Then stand behind us.');
   // The ending: four unnamed lines, the title card, then Home Base.
   const ending = page.getByRole('dialog', { name: '???', exact: true });
   await expect(ending).toBeVisible();
@@ -194,7 +344,7 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar on t
   expect(meta.prologue).toMatchObject({
     state: 'complete',
     grantPaid: true,
-    chaptersCompleted: ['p1_banner_at_dawn', 'p2_old_hands'],
+    chaptersCompleted: ['p1_banner_at_dawn', 'p2_old_hands', 'p3_seer_on_the_road'],
   });
   expect(meta.totalValor).toBe(60);
   expect(meta.totalSupply).toBe(40);
@@ -255,12 +405,44 @@ test('a refresh mid-P1 offers Resume Battle (the chapter as left) and Continue f
   await waitForScene(page, 'Battle');
   await prologueIdle(page);
   await waitForSuspendSave(page);
+  // Teach one step (select Edric: the gate moves on to the Fort), step back, and
+  // checkpoint there: the lesson's place rides the checkpoint.
+  const guide = page.getByRole('region', { name: 'Prologue guide', exact: true });
+  await expect(guide).toContainText('Select Edric');
+  const taught = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.selectUnit(s.playerUnits.find((u) => u.name === 'Edric'));
+    s.deselectUnit();
+    s._captureSuspendCheckpoint({ session: s._battleSession });
+    return s._prologue.snapshot();
+  });
+  expect(taught.started).toBe(true);
+  expect(taught.gate).toMatchObject({ kind: 'move' });
+  const coachBefore = (await guide.textContent()).trim();
+  expect(coachBefore).not.toContain('Select Edric');
+  await page.waitForFunction((fired) => {
+    const run = JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run') || 'null');
+    const state = run?.battleInProgress?.checkpoint?.prologueState;
+    return Boolean(state) && state.fired.length === fired;
+  }, taught.fired.length);
   await page.reload();
   await waitForScene(page, 'Title');
   await page.getByRole('button', { name: /^Resume · Act 1/ }).click();
   await page.getByRole('button', { name: 'Resume Battle', exact: true }).click();
   await waitForScene(page, 'Battle');
   await prologueIdle(page);
+  // Resume Battle: the coach and the gate as left, and the opening never replays.
+  const resumed = await page.evaluate(() =>
+    window.__emblemRogueGame.scene.getScene('Battle')._prologue.snapshot(),
+  );
+  expect(resumed).toMatchObject({
+    started: true,
+    fired: taught.fired,
+    gate: taught.gate,
+    coachGoal: taught.coachGoal,
+  });
+  await expect(guide).toBeVisible();
+  expect((await guide.textContent()).trim()).toBe(coachBefore);
   expect(await battle(page)).toMatchObject({
     mode: 'prologue',
     chapter: 'p1_banner_at_dawn',

@@ -517,10 +517,19 @@ export class PrologueController {
       this.started = true;
       // battleStart belongs to turn 1 of a fresh battle only: a scene that comes up
       // later (a resume without teaching state) never replays the opening.
-      if (turn === 1) void this.emit({ type: 'battleStart' });
+      const opening = turn === 1 ? this.emit({ type: 'battleStart' }) : null;
       const reveal = async () => this.coach?.reveal();
       if (schedule) schedule(1500, 'prologue_coach_reveal', reveal);
       else void reveal();
+      // An opening that holds the turn (lines, a note: P2, P3) outlasts the banner,
+      // and the scheduled reveal, finding the battle busy, never runs: the coach
+      // comes up when the opening ends instead.
+      if (opening)
+        void Promise.resolve(opening)
+          .then((held) => {
+            if (held && !this.destroyed) this.coach?.reveal();
+          })
+          .catch(() => {});
     }
     void this.emit({ type: 'turnStart', turn, phase, hurt: this.anyHurt() });
   }
