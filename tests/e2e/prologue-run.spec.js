@@ -419,17 +419,53 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
   await waitForSuspendSave(page);
   expect((await slotRun(page)).battleInProgress.nodeId).toBe('prologue_5');
 
-  // Varro falls: Edric's line, and the objective turns to the gate.
+  // Varro falls to a counter on the enemy phase, through ordinary combat: Gaspar stands
+  // on the gate's step with his sword, Varro (on 1 HP) strikes him from the throne and
+  // the counter kills him. His line and the seize note then hold the enemy phase (the
+  // garrison's other blows wait), and the next player turn still arrives: the sequence
+  // owns its interval instead of racing the turn start (review, 2026-10-04).
   await page.evaluate(async () => {
+    const { equipWeapon } = await import('/src/engine/UnitManager.js');
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const varro = s.enemyUnits.find((u) => u.isBoss);
-    varro.currentHP = 0;
-    await s.removeUnit(varro, { killer: s.playerUnits.find((u) => u.name === 'Edric') });
-    s.checkBattleEnd();
+    varro.currentHP = 1;
+    const gaspar = s.playerUnits.find((u) => u.name === 'Gaspar');
+    const sword = gaspar.inventory.find((w) => w.name === 'Iron Sword');
+    if (!sword) throw new Error('Gaspar carries no sword');
+    equipWeapon(gaspar, sword);
+    Object.assign(gaspar, { col: 9, row: 1 });
+    s.updateUnitPosition(gaspar);
+    s.forceEndTurn();
   });
   await readLine(page, 'Edric', 'Varro is down. The gate is ours to take');
+  // The enemy phase is still under way beneath the line and the note.
+  expect(
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      return {
+        phase: s.turnManager.currentPhase,
+        turn: s.turnManager.turnNumber,
+        varro: s.enemyUnits.some((u) => u.isBoss),
+      };
+    }),
+  ).toEqual({ phase: 'enemy', turn: 1, varro: false });
   await continueNote(page, 'Captain Varro has fallen. Now a lord: step onto the gate and Seize.');
+  // The phase goes on and the turn comes back: no soft-lock under the note.
+  await page.waitForFunction(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    return s.battleState === 'PLAYER_IDLE' && s.turnManager.turnNumber === 2;
+  });
   await expect(guide).toContainText('A lord: step onto the gate and Seize');
+  expect(
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      return {
+        gaspar: s.playerUnits.some((u) => u.name === 'Gaspar'),
+        units: s.playerUnits.length,
+        objective: s.objectiveText?.text || null,
+      };
+    }),
+  ).toEqual({ gaspar: true, units: 3, objective: 'Seize: Capture throne with a Lord!' });
 
   // The gate seized (scripted): the ending. The ritual seen from the gate, the Hollow
   // Sun, the pale man on the ridge, the thread breaks, then the title card.

@@ -6245,10 +6245,15 @@ export class BattleScene extends Phaser.Scene {
       const throne = this.battleConfig.thronePos;
       const bossAlive = this.enemyUnits.some((u) => u.isBoss && u.currentHP > 0);
       if (throne && unit.col === throne.col && unit.row === throne.row && !bossAlive) {
-        command('seize', 'Seize', () => {
+        command('seize', 'Seize', async () => {
+          const session = battleSession(this);
           this.hideActionMenu();
           this.commitVisionSnapshotIfPending();
-          this._prologue?.onSeize(unit);
+          // A prologue chapter's seize beats are read before the victory flow.
+          if (this._prologue) {
+            await safeBattlePresentation('prologue seize beats', () => this._prologue.onSeize(unit), { scene: this }); // prettier-ignore
+            if (!isCurrentBattleSession(this, session)) return;
+          }
           this.onVictory();
         });
       }
@@ -9137,7 +9142,6 @@ export class BattleScene extends Phaser.Scene {
       // smashed (engine/ZombieRemains.js, ZombieRemainsController).
       remainsOf(this).onEnemyFell(unit, killer, { col: deathCol, row: deathRow });
     }
-    this._prologue?.onUnitDefeated(unit);
     safeBattlePresentation('death hover', () => this._inputController?.refreshHoverInfo(), {
       scene: this,
     });
@@ -9163,6 +9167,13 @@ export class BattleScene extends Phaser.Scene {
         });
     }
     safeBattlePresentation('death objective', () => this.updateObjectiveText(), { scene: this });
+    // A prologue chapter's beats on this fall (Varro: his line, then the seize note; a
+    // protected unit: the chapter's restart) own this interval: the death's remaining
+    // side effects, the combat that caused it and the enemy phase all wait for them.
+    if (this._prologue) {
+      await safeBattlePresentation('prologue fall beats', () => this._prologue.onUnitDefeated(unit), { scene: this }); // prettier-ignore
+      if (!isCurrentBattleSession(this, session)) return;
+    }
 
     const deathEffects = getOnDeathAffixes(unit, this.gameData.affixes);
     const hasAoEDeathEffect = deathEffects.some((effect) => effect?.type === 'aoe_damage');
@@ -9400,6 +9411,10 @@ export class BattleScene extends Phaser.Scene {
         'player_phase_turn_start_pipeline',
         async () => {
           try {
+            // A prologue chapter's note or lines still on screen (a sequence that
+            // began on the enemy phase) hold the battle state: wait for them to be
+            // read instead of mistaking the note's state for a superseded turn.
+            await this._prologue?.idle?.();
             if (!isCurrentTurnStart()) return;
             await this.processTurnStartEffects(armyAndNpcAllies(this.playerUnits, this.npcUnits), {
               skipRecovery: true,

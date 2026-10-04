@@ -100,6 +100,10 @@ export class PrologueController {
     this.activeLessonId = null;
     this.notes = Promise.resolve(); // notes show one at a time, in order
     this.deferred = [];
+    // Presentation on screen now (a note, a line set, a nudge note): the scene's
+    // turn-start pipeline waits for idle() before it reads the battle state.
+    this.presenting = 0;
+    this.idleWaiters = [];
     this.blockingPromptActive = false;
     this.started = false;
     this.restarting = false;
@@ -139,6 +143,8 @@ export class PrologueController {
     this.destroyed = true;
     this.scene.events?.off?.('update', this._tick);
     this.deferred = [];
+    this.presenting = 0;
+    this.releaseIdle();
     this.clearHighlights();
     this.reach?.destroy?.();
     this.reach = null;
@@ -167,12 +173,59 @@ export class PrologueController {
     const sync = actions.filter((a) => SYNC_ACTIONS.some((key) => key in a));
     const blocking = actions.filter((a) => 'note' in a || 'dialogue' in a);
     for (const action of sync) this.applySync(action);
-    for (const action of blocking) {
-      if (this.destroyed) break;
-      if ('note' in action) held = (await this.note(action.note, event, extra)) || held;
-      else held = (await this.dialogue(action.dialogue)) || held;
+    if (!blocking.length) return false;
+    // A sequence raised now (not one whose notes wait for a playable turn) owns the
+    // screen from its first line to its last note: between them nothing of the
+    // scene's reads the battle state (idle()).
+    const owns = !DEFERRED_EVENTS.has(event.type);
+    if (owns) this.beginPresentation();
+    try {
+      for (const action of blocking) {
+        if (this.destroyed) break;
+        if ('note' in action) held = (await this.note(action.note, event, extra)) || held;
+        else held = (await this.dialogue(action.dialogue)) || held;
+      }
+    } finally {
+      if (owns) this.endPresentation();
     }
     return held;
+  }
+
+  // --- Presentation ownership ----------------------------------------------------
+  //
+  // Every hook the scene calls returns a promise that settles once the beat's notes
+  // and lines are read (or at once when nothing shows). The scene awaits it through
+  // safeBattlePresentation at the point the beat belongs to (a fall before the death's
+  // side effects, a move before its action menu, a combat before its casualties leave),
+  // so a blocking sequence owns that interval of the simulation. What is on screen
+  // right now is counted here, so a pipeline that must read the battle state (the
+  // player turn start) can wait for idle() instead of mistaking a note's TUTORIAL_HINT
+  // state for a superseded turn.
+
+  beginPresentation() {
+    this.presenting += 1;
+  }
+
+  endPresentation() {
+    this.presenting = Math.max(0, this.presenting - 1);
+    if (this.presenting === 0) this.releaseIdle();
+  }
+
+  releaseIdle() {
+    const waiters = this.idleWaiters;
+    this.idleWaiters = [];
+    for (const resolve of waiters) resolve();
+  }
+
+  /** Resolves once nothing of the chapter's is on screen (at once when idle or destroyed). */
+  idle() {
+    if (this.destroyed || this.presenting === 0) return Promise.resolve();
+    return new Promise((resolve) => this.idleWaiters.push(resolve));
+  }
+
+  /** True while a note or a line set is on screen. */
+  isPresenting() {
+    return !this.destroyed && this.presenting > 0;
   }
 
   applySync(action) {
@@ -300,10 +353,12 @@ export class PrologueController {
     const scene = this.scene;
     if (this.blockingPromptActive) return false;
     this.blockingPromptActive = true;
+    this.beginPresentation();
     try {
       await this.withHintState(() => showImportantHint(scene, text));
     } finally {
       this.blockingPromptActive = false;
+      this.endPresentation();
       scene.refreshEndTurnControl?.();
     }
     return true;
@@ -379,11 +434,13 @@ export class PrologueController {
       if (!this.sceneLive()) return false;
       this.lessonOpen = true;
       this.activeLessonId = id;
+      this.beginPresentation();
       const result = await this.withHintState(() => this.fieldNote(text, id));
       return result !== false && this.sceneLive();
     } finally {
       this.lessonOpen = false;
       this.activeLessonId = null;
+      this.endPresentation();
       release();
       scene.refreshEndTurnControl?.();
     }
@@ -445,7 +502,7 @@ export class PrologueController {
 
   /** Each frame: a deferred note shows once the player can act. */
   flushDeferred() {
-    if (!this.deferred.length || this.lessonOpen || this.destroyed) return;
+    if (!this.deferred.length || this.lessonOpen || this.presenting > 0 || this.destroyed) return;
     const scene = this.scene;
     if (
       scene.battleState !== 'PLAYER_IDLE' ||
@@ -467,10 +524,13 @@ export class PrologueController {
       line: entry?.line || '',
       portrait: this.portraitFor(entry?.speaker),
     }));
+    this.beginPresentation();
     try {
       await scene.dialogueOverlay.showSequence(sequence, { category: 'prologue', key });
     } catch {
       /* a line is presentation: the chapter goes on without it */
+    } finally {
+      this.endPresentation();
     }
     return true;
   }
@@ -829,16 +889,21 @@ export class PrologueController {
   }
 
   /**
-   * A unit fell. A protected player unit (every named unit of the chapter: the
-   * commander, Gaspar, later Sera and Tamsin) restarts the chapter as the commander's
-   * fall does; checkBattleEnd never sees a non-commander's fall.
+   * A unit fell (it has left its roster). Resolves once the fall's beats are read: the
+   * scene awaits it in removeUnit, before the death's side effects and before combat
+   * or the enemy phase go on, so a sequence such as Varro's (his line, then the seize
+   * note) owns that interval instead of racing it. A protected player unit (every
+   * named unit of the chapter: the commander, Gaspar, later Sera and Tamsin) restarts
+   * the chapter as the commander's fall does; checkBattleEnd never sees a
+   * non-commander's fall.
    */
   onUnitDefeated(unit) {
-    if (this.destroyed || !unit) return;
-    void this.emit({ type: 'unitDefeated', unit: this.unitKey(unit) });
+    if (this.destroyed || !unit) return Promise.resolve(false);
+    const beats = this.emit({ type: 'unitDefeated', unit: this.unitKey(unit) });
     // Sera is protected green or blue: her fall as an NPC restarts the chapter too.
     if ((unit.faction === 'player' || unit.faction === 'npc') && this.isProtected(unit))
       this.onDefeatIntercept({ fallen: unit });
+    return beats;
   }
 
   isProtected(unit) {
