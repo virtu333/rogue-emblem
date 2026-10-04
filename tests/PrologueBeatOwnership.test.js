@@ -1,6 +1,9 @@
 // A blocking tutorial sequence owns its interval of the simulation (review, 2026-10-04;
 // docs/specs/prologue-chapter.md §9 "Who owns the screen"). Varro's fall launches a
-// manual-advance line and then the seize note: the controller's hook returns a task
+// manual-advance line and then the seize tip; the contract is pinned on a blocking
+// sequence (the line, then a note: `blockingFall` makes the seize message a note again,
+// as it shipped before the density pass), and the shipped one is checked to settle on
+// the line alone with its tip never holding anything. The controller's hook returns a task
 // that settles once both are read, BattleScene.removeUnit awaits it before the death's
 // side effects and before combat or the enemy phase go on, and the player turn-start
 // pipeline waits for the chapter's presentation instead of mistaking a note's
@@ -20,9 +23,15 @@ vi.mock('../src/ui/HintDisplay.js', () => ({
   showContextualHint: vi.fn(),
 }));
 vi.mock('../src/utils/errorReporter.js', () => ({ reportAsyncError: vi.fn() }));
+vi.mock('../src/ui/PrologueTip.js', async () => {
+  const actual = await vi.importActual('../src/ui/PrologueTip.js');
+  const { fakeTipHandle } = await import('./helpers/prologueTipMock.js');
+  return { ...actual, showPrologueTip: vi.fn((_scene, opts) => fakeTipHandle(opts)) };
+});
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { PrologueController } from '../src/ui/PrologueController.js';
+import { showPrologueTip } from '../src/ui/PrologueTip.js';
 import { prologueBattleParams } from '../src/engine/ScriptedBattle.js';
 import { loadGameData } from './testData.js';
 
@@ -44,6 +53,19 @@ async function settled(promise) {
   const token = Symbol('pending');
   const result = await Promise.race([promise, Promise.resolve(token)]);
   return result !== token;
+}
+
+/** The fixture: Varro's fall as a blocking sequence (his line, then a modal note). */
+function blockingFall(prologue) {
+  prologue.chapter = {
+    ...prologue.chapter,
+    beats: prologue.chapter.beats.map((beat) =>
+      beat.id === 'p4_varro_falls'
+        ? { ...beat, do: beat.do.map((a) => ('tip' in a ? { note: a.tip } : a)) }
+        : beat,
+    ),
+  };
+  return prologue;
 }
 
 const tick = async (n = 6) => {
@@ -144,7 +166,7 @@ afterEach(() => {
 describe("the controller's fall hook is a task", () => {
   it("Varro's fall settles only once his line and the seize note are read, and idle() with it", async () => {
     const { scene, lines } = makeScene();
-    const prologue = new PrologueController(scene).create();
+    const prologue = blockingFall(new PrologueController(scene).create());
     const task = prologue.onUnitDefeated(varro());
     await tick();
     expect(lines.map((l) => l.key)).toEqual(['p4_gate_open']);
@@ -174,7 +196,7 @@ describe("the controller's fall hook is a task", () => {
 
   it('a destroyed controller releases whoever waits on idle()', async () => {
     const { scene } = makeScene();
-    const prologue = new PrologueController(scene).create();
+    const prologue = blockingFall(new PrologueController(scene).create());
     void prologue.onUnitDefeated(varro());
     await tick();
     const idle = prologue.idle();
@@ -184,10 +206,32 @@ describe("the controller's fall hook is a task", () => {
   });
 });
 
+describe('the shipped fall: his line holds, the seize tip never does', () => {
+  it('the task settles once the line is read; the tip follows it, beside the map', async () => {
+    const { scene, lines } = makeScene();
+    const prologue = new PrologueController(scene).create();
+    const task = prologue.onUnitDefeated(varro());
+    await tick();
+    expect(lines.map((l) => l.key)).toEqual(['p4_gate_open']);
+    expect(showPrologueTip).not.toHaveBeenCalled(); // after the line, not over it
+    expect(await settled(task)).toBe(false);
+    lines[0].resolve();
+    await tick();
+    expect(await settled(task)).toBe(true);
+    expect(await settled(prologue.idle())).toBe(true);
+    expect(hintCalls).toHaveLength(0);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(showPrologueTip.mock.calls.map((c) => c[1].text)).toEqual([
+      'Captain Varro has fallen. Now a lord: step onto the gate and Seize.',
+    ]);
+    expect(prologue.scripted()).toMatchObject({ goal: 'A lord: step onto the gate and Seize' });
+  });
+});
+
 describe('BattleScene.removeUnit awaits the fall beats', () => {
   it("the death's side effects, and so the combat that caused it, wait for the sequence", async () => {
     const { scene, lines } = makeScene();
-    const prologue = new PrologueController(scene).create();
+    const prologue = blockingFall(new PrologueController(scene).create());
     scene._prologue = prologue;
     const boss = varro();
     scene.enemyUnits = [boss];
@@ -216,7 +260,7 @@ describe('BattleScene.removeUnit awaits the fall beats', () => {
 describe("Varro falls to the player's own attack (the turn's final action)", () => {
   it('the combat waits for his line and the note, and the combat state comes back for the action to complete', async () => {
     const { scene, lines } = makeScene();
-    const prologue = new PrologueController(scene).create();
+    const prologue = blockingFall(new PrologueController(scene).create());
     scene._prologue = prologue;
     const boss = varro();
     scene.enemyUnits = [boss];
@@ -257,7 +301,7 @@ describe('the player turn-start pipeline and a sequence that spans the turn star
    */
   async function play(dismissAt) {
     const { scene, lines, delayedCallbacks } = makeScene();
-    const prologue = new PrologueController(scene).create();
+    const prologue = blockingFall(new PrologueController(scene).create());
     scene._prologue = prologue;
     scene.turnManager = { currentPhase: 'enemy', turnNumber: 1, endPlayerPhase: vi.fn() };
     scene.battleState = 'ENEMY_PHASE';

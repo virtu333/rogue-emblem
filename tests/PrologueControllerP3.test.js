@@ -25,7 +25,14 @@ vi.mock('../src/ui/PrologueEnding.js', async () => {
   return { ...actual, finishPrologue: vi.fn(async () => true) };
 });
 
+vi.mock('../src/ui/PrologueTip.js', async () => {
+  const actual = await vi.importActual('../src/ui/PrologueTip.js');
+  const { fakeTipHandle } = await import('./helpers/prologueTipMock.js');
+  return { ...actual, showPrologueTip: vi.fn((_scene, opts) => fakeTipHandle(opts)) };
+});
+
 import { showImportantHint } from '../src/ui/HintDisplay.js';
+import { showPrologueTip } from '../src/ui/PrologueTip.js';
 import { restartScene } from '../src/utils/SceneRouter.js';
 import { finishPrologue } from '../src/ui/PrologueEnding.js';
 import { loadGameData } from './testData.js';
@@ -139,6 +146,8 @@ function makeP3({ run = false } = {}) {
 }
 
 const notes = () => showImportantHint.mock.calls.map((call) => call[1]);
+const tips = () => showPrologueTip.mock.calls.map((call) => call[1].text);
+const tipHandle = (i = -1) => showPrologueTip.mock.results.at(i)?.value;
 const flushNotes = async (prologue) => {
   for (let i = 0; i < 10; i++) {
     prologue.flushDeferred();
@@ -302,33 +311,63 @@ describe('P3: her lessons', () => {
     expect([...prologue.lessons.practised]).toContain('heal');
   });
 
-  it('one note per move: in two reaches the threat count shows, the rest wait their turn', async () => {
+  it('one thing per move: in two reaches the threat-count tip shows, the range note waits its turn', async () => {
     const { scene, battle, unit } = makeP3();
     const prologue = new PrologueController(scene).create();
     await talk(battle, prologue, unit);
     const sera = unit('Sera');
     showImportantHint.mockClear();
     // The forest at the front: the Soldier beside her start and the two far ones reach it.
+    // Reinforcement: a tip beside the map, never holding the move or its menu.
     Object.assign(sera, { col: 6, row: 1 });
-    await prologue.onAfterMove(sera);
-    expect(notes()).toHaveLength(1);
-    expect(notes()[0]).toMatch(/^Cover isn't safety\. 3 enemies can reach Sera here/);
-    // Two tiles from the Soldier, out of the far ones' reach: the range note, now.
+    expect(await prologue.onAfterMove(sera)).toBe(false);
+    expect(notes()).toHaveLength(0);
+    expect(tips()).toHaveLength(1);
+    expect(tips()[0]).toMatch(/^Cover isn't safety\. 3 enemies can reach Sera here/);
+    const fragile = tipHandle();
+    // Two tiles from the Soldier, out of the far ones' reach: the range note (core), now.
+    // The threat tip was about her last tile: it stepped aside, unread.
     Object.assign(sera, { col: 4, row: 3 });
-    await prologue.onAfterMove(sera);
-    expect(notes()).toHaveLength(2);
-    expect(notes()[1]).toContain('Glimmer reaches 2 tiles.');
+    expect(await prologue.onAfterMove(sera)).toBe(true);
+    expect(fragile.closed).toBe(false);
+    expect(prologue.taught.has('guide_fragile_in_reach')).toBe(false);
+    expect(notes()).toHaveLength(1);
+    expect(notes()[0]).toContain('Glimmer reaches 2 tiles.');
     expect(prologue.scripted()).toMatchObject({ id: 'p3_look_is_free' });
   });
 
-  it('a Glimmer forecast is the magic lesson', async () => {
+  it('a Glimmer forecast says nothing new: magic against RES is left to Act 1 (the armor note)', async () => {
     const { scene, battle, unit } = makeP3();
     const prologue = new PrologueController(scene).create();
     await talk(battle, prologue, unit);
     const sera = unit('Sera');
     const soldier = scene.enemyUnits.find((e) => e.authoredId === 's');
+    showImportantHint.mockClear();
     await prologue.onForecastOpened(sera, soldier, { attacker: { hit: 100 }, defender: { canCounter: false } }, sera.weapon); // prettier-ignore
-    expect(notes().some((n) => n.startsWith('Glimmer is magic: it hits RES, not DEF.'))).toBe(true);
+    expect(notes()).toEqual([]);
+    expect(prologue.forecastTipText()).toBeNull();
+  });
+
+  it("Sera beside an ally: the aura is a tip, read or not, and the move's menu is never held", async () => {
+    const { scene, battle, unit, hints } = makeP3({ run: true });
+    const prologue = new PrologueController(scene).create();
+    await talk(battle, prologue, unit);
+    const sera = unit('Sera');
+    const edric = unit('Edric');
+    // The far west, out of every reach, next to Edric, nothing in range: one thing per
+    // move, so the plan-and-cancel tip speaks first and the aura waits for the next.
+    Object.assign(edric, { col: 0, row: 4 });
+    Object.assign(sera, { col: 1, row: 4 });
+    showImportantHint.mockClear();
+    expect(await prologue.onAfterMove(sera)).toBe(false);
+    expect(tips().at(-1)).toMatch(/^Nothing is in reach from here/);
+    Object.assign(sera, { col: 0, row: 3 });
+    expect(await prologue.onAfterMove(sera)).toBe(false);
+    expect(tips().at(-1)).toBe(
+      'Renewal Aura: allies next to Sera heal 3 HP at the start of your turn.',
+    );
+    expect(notes()).toEqual([]);
+    expect(hints.markSeen).not.toHaveBeenCalledWith('guide_no_attack'); // shown, never read
   });
 });
 
@@ -342,7 +381,9 @@ describe('P3: the rewind exercise', () => {
     expect(rm.visionChargesRemaining).toBe(1);
     expect(rm.prologueVisionGranted).toBe(true);
     expect(scene.updateVisionHud).toHaveBeenCalled();
-    expect(notes().at(-1)).toContain('Edric is hurt. Sera grants one Vision.');
+    // A tip (the exercise is optional): never a modal over the turn.
+    expect(notes()).toEqual([]);
+    expect(tips().at(-1)).toContain('Edric is hurt. Sera grants one Vision.');
     // A new controller (a resume) replaying the beat grants nothing.
     const again = new PrologueController(scene).create();
     again.grantVision();
@@ -369,33 +410,26 @@ describe('P3: the rewind exercise', () => {
     expect(scene._standaloneVisionState.visionChargesRemaining).toBe(1);
   });
 
-  it('the note opens Rewind; after it, a move out of reach is "Same turn, better plan"', async () => {
-    vi.useFakeTimers();
-    installFakeDom(vi); // the note's buttons are a browser's
-    try {
-      const { scene, unit } = makeP3({ run: true });
-      const prologue = new PrologueController(scene).create();
-      unit('Edric').currentHP -= 8;
-      showImportantHint.mockImplementation(async (_scene, text) =>
-        text.includes('Sera grants one Vision') ? 'rewind' : true,
-      );
-      prologue.onPhaseStart('player', 2);
-      await flushNotes(prologue);
-      const [, , options] = showImportantHint.mock.calls.find((c) => c[1].includes('one Vision'));
-      expect(options.actions.map((a) => a.label)).toEqual(['Open Rewind', 'Continue', 'Skip prologue']); // prettier-ignore
-      await vi.runAllTimersAsync();
-      expect(scene.requestVisionRewind).toHaveBeenCalledTimes(1);
-      showImportantHint.mockImplementation(async () => true);
-      // The rewind lands: the replayed move to a tile no enemy reaches.
-      await prologue.onRewound();
-      const gaspar = unit('Gaspar');
-      Object.assign(gaspar, { col: 0, row: 0 });
-      await prologue.onAfterMove(gaspar);
-      expect(notes().at(-1)).toMatch(/^Same turn, better plan\./);
-      expect([...prologue.lessons.practised]).toContain('rewind');
-    } finally {
-      vi.useRealTimers();
-    }
+  it('the tip opens Rewind; after it, a move out of reach is "Same turn, better plan"', async () => {
+    const { scene, unit, hints } = makeP3({ run: true });
+    const prologue = new PrologueController(scene).create();
+    unit('Edric').currentHP -= 8;
+    prologue.onPhaseStart('player', 2);
+    await flushNotes(prologue);
+    const rewindTip = showPrologueTip.mock.calls.find((c) => c[1].text.includes('one Vision'));
+    expect(rewindTip[1].actions.map((a) => a.label)).toEqual(['Open Rewind']);
+    rewindTip[1].actions[0].onClick();
+    expect(scene.requestVisionRewind).toHaveBeenCalledTimes(1);
+    // The rewind lands: the replayed move to a tile no enemy reaches.
+    await prologue.onRewound();
+    const gaspar = unit('Gaspar');
+    Object.assign(gaspar, { col: 0, row: 0 });
+    await prologue.onAfterMove(gaspar);
+    expect(tips().at(-1)).toMatch(/^Same turn, better plan\./);
+    expect([...prologue.lessons.practised]).toContain('rewind');
+    expect(notes()).toEqual([]);
+    // Reading the rewind tip (its button) marks nothing: it stands in for no in-run note.
+    expect(hints.markSeen).not.toHaveBeenCalledWith('battle_no_counter');
   });
 
   it('after a successful rewind a later fall offers a remaining charge again; the commander is never renamed', async () => {

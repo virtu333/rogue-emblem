@@ -71,7 +71,12 @@ export const PROLOGUE_COACH = Object.freeze({
   }),
 });
 
-/** Field notes (modal, Continue to dismiss) and enemy-phase nudges, by note id. */
+/**
+ * Note copy by id: a beat's blocking `note` (modal, Continue to dismiss: the chapter's
+ * core lessons) or non-blocking `tip` (reinforcement: docked beside the map, or one
+ * line in an open forecast's notes; on the enemy phase a coach nudge). Tips read as
+ * one paragraph (PrologueTip.tipText); a forecast tip is kept short, one line.
+ */
 export const PROLOGUE_NOTES = Object.freeze({
   battle_terrain: (ctx) => {
     const t = ctx?.terrain;
@@ -95,8 +100,9 @@ export const PROLOGUE_NOTES = Object.freeze({
   p1_level_up: () => 'Levels raise stats at random. Growth rates decide the odds.',
   p1_holding_enemy: (ctx) =>
     `Some enemies hold their post until you come close. Their red reach shows where.\n${lordOf(ctx)} is inside it now, so this Fighter will come.`,
+  // A forecast tip (P1, against the second Fighter): one line in the forecast's notes.
   battle_triangle: () =>
-    'The weapon triangle: swords beat axes, axes beat lances, lances beat swords.\nThe forecast already includes its hit and damage bonus.',
+    'Swords beat axes, axes beat lances, lances beat swords. These numbers include it.',
   battle_consumable_supply: (ctx) => {
     const item = ctx?.consumable;
     const name = item?.name || 'Vulnerary';
@@ -110,24 +116,19 @@ export const PROLOGUE_NOTES = Object.freeze({
   p2_veteran_kills: (ctx) => {
     const name = ctx?.veteran || 'Gaspar';
     return (
-      `${name} is strong now but barely grows and earns little XP. Weaken enemies with ${name}, then leave the final blow to ${lordOf(ctx)} and your recruits: they grow from it.\n` +
-      `${name} rides 6 tiles, and Measured Step lets him keep moving after a non-combat action.`
+      `${name} is strong now but barely grows and earns little XP.\n` +
+      `Weaken enemies with ${name}, then leave the final blow to ${lordOf(ctx)} and your recruits: they grow from it.`
     );
   },
   battle_doubling: () =>
     'Weapon choice: the lance reads ×1, the sword ×2.\nAttack speed decides a second strike, and heavy weapons slow you. Switch weapons on the forecast and watch the ×2. A chip leaves the kill to someone who grows from it.',
-  battle_no_counter: () =>
-    'No counter: bows reach two tiles only.\nAn archer next to you cannot strike back. The forecast says so before you commit.',
-  p2_forecast_chances: () =>
-    'Hit is a chance, not a promise.\nPick a plan that still holds if this misses. A counter only comes if the defender survives.',
+  // A forecast tip (Edric against the Soldier): one line in the forecast's notes.
   p2_lances_beat_swords: (ctx) =>
-    `Lances beat swords: ${lordOf(ctx)}'s hit and damage drop against a lance, and the counter bites.\nLet ${ctx?.veteran || 'Gaspar'} open the Soldier; ${lordOf(ctx)} finishes it.`,
+    `Lances beat swords. Let ${ctx?.veteran || 'Gaspar'} open the Soldier; ${lordOf(ctx)} finishes it.`,
   battle_danger_zone: (ctx) =>
     `${danger(ctx)} shows every tile an enemy can strike next phase.\nCheck it before you end a unit's move, not after. Holding enemies count too: they wake when you step into their reach.`,
   p2_village_visit: () =>
     "A village: end a unit's action on it to visit.\nVillages give gold, and send an item to the convoy, your army's shared storage.",
-  battle_loot: () =>
-    'Victory pays: pick one reward on the next screen.\nA weapon goes to a unit or the convoy, a consumable to a unit, and gold also pays for revivals and promotions.',
   // P3, The Seer on the Road (§6 P3). The recruit and fragile notes reuse the in-run
   // Guidance copy (guide_recruit_on_map, guide_fragile_in_reach, guide_healer_heals).
   p3_recruit: (ctx) =>
@@ -140,8 +141,6 @@ export const PROLOGUE_NOTES = Object.freeze({
     `Nothing is in reach from here, so Attack is greyed out.\n${ctx?.touch ? 'Back' : 'Esc or right-click'} undoes the move: nothing is final until you confirm. Try a tile 2 away from a foe.`,
   p3_range: () =>
     "Glimmer reaches 2 tiles. From 2 tiles away, a lance or an axe can't hit back.\nThe forecast shows No counter. Open it, then Cancel: looking is free.",
-  p3_magic: () =>
-    "Glimmer is magic: it hits RES, not DEF.\nSoldiers' armour turns blades, not light. Their RES is almost nothing.",
   p3_fragile: (ctx) => {
     const n = Number(ctx?.count) || 0;
     const who = ctx?.unit || 'Sera';
@@ -171,9 +170,9 @@ export const PROLOGUE_NOTES = Object.freeze({
     (Number.isFinite(ctx?.par)
       ? `Par: win in ${ctx.par} turns or fewer for bonus gold. Safety first; speed pays.`
       : 'Par is the target turn count: faster wins pay bonus gold. Safety first; speed pays.'),
+  // A forecast tip (the first forecast against Varro on the throne).
   p4_throne: (ctx) =>
-    `The throne guards ${ctx?.boss || 'Varro'}: harder to hurt, and he heals each turn.\n` +
-    'His axe reaches 1 tile. Strike from 2 where you can.',
+    `The throne guards ${ctx?.boss || 'Varro'}: harder to hurt, and he heals. Strike from 2.`,
   p4_seize_now: (ctx) =>
     `${ctx?.boss || 'Varro'} has fallen. Now a lord: step onto the gate and Seize.`,
 });
@@ -184,9 +183,12 @@ export const PROLOGUE_NOTE_ACTIONS = Object.freeze({
 });
 
 /**
- * Which in-run field notes a prologue note stands in for (HintManager ids). A shown
- * note marks these as taught, so a new slot skips their first-use explanation
- * (prologueLessons.applyCompletedTutorialHints).
+ * Which in-run field notes a prologue note or tip stands in for (HintManager ids). Only
+ * a read one marks them (a note acknowledged, a tip read or dismissed, a forecast tip
+ * confirmed or cancelled), so a new slot skips only the first-use explanations the
+ * player actually saw (prologueLessons.applyCompletedTutorialHints). What the prologue
+ * no longer says (P2's no-counter, chances and loot notes, P3's magic) is not here:
+ * Act 1 teaches it at its point of use (the forecast's inline notes, the loot screen).
  */
 export const NOTE_HINT_IDS = Object.freeze({
   battle_terrain: ['battle_terrain'],
@@ -196,10 +198,8 @@ export const NOTE_HINT_IDS = Object.freeze({
   p1_wait_or_end_turn: ['battle_danger_zone'],
   p2_veteran_kills: ['guide_veteran_kills'],
   battle_doubling: ['battle_doubling'],
-  battle_no_counter: ['battle_no_counter'],
   battle_danger_zone: ['battle_danger_zone'],
   p2_village_visit: ['battle_village'],
-  battle_loot: ['battle_loot'],
   p3_recruit: ['guide_recruit_on_map'],
   p3_heal: ['guide_healer_heals'],
   p3_plan_cancel: ['guide_no_attack'],

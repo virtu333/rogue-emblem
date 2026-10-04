@@ -20,7 +20,14 @@ vi.mock('../src/utils/SceneRouter.js', async () => {
   };
 });
 
+vi.mock('../src/ui/PrologueTip.js', async () => {
+  const actual = await vi.importActual('../src/ui/PrologueTip.js');
+  const { fakeTipHandle } = await import('./helpers/prologueTipMock.js');
+  return { ...actual, showPrologueTip: vi.fn((_scene, opts) => fakeTipHandle(opts)) };
+});
+
 import { showImportantHint } from '../src/ui/HintDisplay.js';
+import { showPrologueTip } from '../src/ui/PrologueTip.js';
 import { restartScene, transitionToScene } from '../src/utils/SceneRouter.js';
 import { loadGameData } from './testData.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
@@ -32,7 +39,7 @@ import {
 } from '../src/engine/Prologue.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { computeDangerTiles } from '../src/engine/ThreatForecast.js';
-import { PrologueController, PROLOGUE_NOTE_STATE } from '../src/ui/PrologueController.js';
+import { PrologueController } from '../src/ui/PrologueController.js';
 import { prologueBattleParams } from '../src/engine/ScriptedBattle.js';
 import { TUTORIAL_COMPLETED_KEY, TUTORIAL_LESSONS_KEY } from '../src/ui/prologueLessons.js';
 import { readFileSync } from 'fs';
@@ -150,6 +157,9 @@ function makeScene({
 
 const unitOf = (scene, id) => scene.enemyUnits.find((u) => u.authoredId === id);
 const notes = () => showImportantHint.mock.calls.map((call) => call[1]);
+/** The non-blocking tips shown beside the map (text as authored), and their handles. */
+const tips = () => showPrologueTip.mock.calls.map((call) => call[1].text);
+const tipHandle = (i = -1) => showPrologueTip.mock.results.at(i)?.value;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -188,7 +198,7 @@ describe('PrologueController: the guided steps', () => {
     expect(prologue.allowsSelect(edric)).toBe(true);
   });
 
-  it('selecting Edric moves the gate to the Fort; only that tile is allowed; arrival reads the terrain note once', async () => {
+  it('selecting Edric moves the gate to the Fort; only that tile is allowed; arrival shows the terrain tip once, never holding the move', async () => {
     const { scene, edric } = makeScene();
     const prologue = new PrologueController(scene).create();
     prologue.onPhaseStart('player', 1);
@@ -205,24 +215,38 @@ describe('PrologueController: the guided steps', () => {
 
     edric.col = FORT.col;
     edric.row = FORT.row;
-    let stateDuringNote = null;
-    showImportantHint.mockImplementationOnce(async () => {
-      stateDuringNote = scene.battleState;
-      return true;
-    });
+    // Reinforcement: the terrain tip docks beside the map; the move is never held.
     const held = await prologue.onAfterMove(edric);
-    expect(held).toBe(true);
-    expect(stateDuringNote).toBe(PROLOGUE_NOTE_STATE);
+    expect(held).toBe(false);
+    expect(showImportantHint).not.toHaveBeenCalled();
     expect(scene.battleState).toBe('PLAYER_IDLE');
-    expect(notes().at(-1)).toContain('Fort tile reached — Defense +2, Avoid +20.');
+    expect(tips()).toHaveLength(1);
+    expect(tips()[0]).toContain('Fort tile reached — Defense +2, Avoid +20.');
     expect(prologue.gate).toBeNull();
     expect(prologue.isGateActive()).toBe(false);
     expect(prologue.scripted()).toBeNull();
-    expect(prologue.taught.has('battle_terrain')).toBe(true);
     expect([...prologue.lessons.shown]).toEqual(['terrain']);
+    // Shown is not read: its hint is marked only once the player read it.
+    expect(prologue.taught.has('battle_terrain')).toBe(false);
+    tipHandle().read();
+    expect(prologue.taught.has('battle_terrain')).toBe(true);
     // Once only: a second arrival says nothing.
     expect(await prologue.onAfterMove(edric)).toBe(false);
-    expect(showImportantHint).toHaveBeenCalledTimes(1);
+    expect(showPrologueTip).toHaveBeenCalledTimes(1);
+  });
+
+  it('a tip about a unit steps aside unread when that unit moves on or acts', async () => {
+    const { scene, edric } = makeScene();
+    const prologue = new PrologueController(scene).create();
+    prologue.skipStep();
+    edric.col = FORT.col;
+    edric.row = FORT.row;
+    await prologue.onAfterMove(edric);
+    const handle = tipHandle();
+    expect(handle.opts.unit).toBe(edric); // docked away from the unit it is about
+    prologue.beforeUnitActionCompletes(edric);
+    expect(handle.closed).toBe(false);
+    expect(prologue.taught.has('battle_terrain')).toBe(false);
   });
 
   it('Skip step releases the gates for good', () => {
@@ -252,14 +276,37 @@ describe('PrologueController: forecasts, actions and the enemy phase', () => {
     expect(prologue.isGateActive()).toBe(false); // a confirm gate never blocks free play
     prologue.onForecastClosed();
     expect(prologue.allowsForecastCycling()).toBe(true);
-    // Against a: no triangle note (the beat names b). Against b: the triangle, once.
+    // Against a: no triangle tip (the beat names b). Against b: the triangle, once, as a
+    // line in the forecast's own notes (drawn in before it renders), never a modal.
+    expect(prologue.prepareForecast(edric, a, triangle, edric.weapon)).toBeNull();
     await prologue.onForecastOpened(edric, a, triangle, edric.weapon);
+    prologue.onForecastClosed({ acknowledge: true });
+    expect(prologue.prepareForecast(edric, b, triangle, edric.weapon)).toBe(
+      'Swords beat axes, axes beat lances, lances beat swords. These numbers include it.',
+    );
+    expect(await prologue.onForecastOpened(edric, b, triangle, edric.weapon)).toBe(false);
+    expect(prologue.forecastTipText()).toContain('Swords beat axes');
     expect(showImportantHint).toHaveBeenCalledTimes(1);
+    // Read when the player confirms or cancels; a forecast closed by anything else
+    // (End Turn, a rewind) leaves it unread.
+    prologue.onForecastClosed({ acknowledge: true });
+    expect(prologue.forecastTipText()).toBeNull();
     await prologue.onForecastOpened(edric, b, triangle, edric.weapon);
-    expect(notes().at(-1)).toContain('swords beat axes');
-    await prologue.onForecastOpened(edric, b, triangle, edric.weapon);
-    expect(showImportantHint).toHaveBeenCalledTimes(2);
+    expect(prologue.forecastTipText()).toBeNull(); // once
     expect(prologue.taught).toEqual(new Set(['battle_forecast', 'battle_triangle']));
+  });
+
+  it('a forecast tip closed without Confirm or Cancel is not read', async () => {
+    const { scene, edric } = makeScene();
+    const prologue = new PrologueController(scene).create();
+    const b = unitOf(scene, 'b');
+    const triangle = { display: { triangle: { damage: 1, hit: 10 } }, attacker: {}, defender: {} };
+    await prologue.onForecastOpened(edric, unitOf(scene, 'a'), triangle, edric.weapon);
+    prologue.onForecastClosed({ acknowledge: true });
+    await prologue.onForecastOpened(edric, b, triangle, edric.weapon);
+    expect(prologue.forecastTipText()).toContain('Swords beat axes');
+    prologue.onForecastClosed(); // End Turn, a rewind, a shutdown
+    expect(prologue.taught.has('battle_triangle')).toBe(false);
   });
 
   it("Edric's first action holds its completion for the turn note and shows a's reach under it", async () => {
@@ -302,19 +349,22 @@ describe('PrologueController: forecasts, actions and the enemy phase', () => {
     );
   });
 
-  it('a hit that leaves Edric at 60% or less teaches the Vulnerary, once, with its real numbers', async () => {
+  it('a hit that leaves Edric at 60% or less tips the Vulnerary, once, with its real numbers', async () => {
     const { scene, edric } = makeScene();
     const prologue = new PrologueController(scene).create();
     const a = unitOf(scene, 'a');
     edric.currentHP = 13; // 65%
     expect(await prologue.onCombatResolved(a, edric, { initiator: 'enemy' })).toBe(false);
     edric.currentHP = 11; // 55%
-    expect(await prologue.onCombatResolved(a, edric, { initiator: 'enemy' })).toBe(true);
-    expect(notes().at(-1)).toContain('Item → Vulnerary heals 10 HP');
+    // A tip: the enemy phase is never held for it.
+    expect(await prologue.onCombatResolved(a, edric, { initiator: 'enemy' })).toBe(false);
+    expect(tips().at(-1)).toContain('Item → Vulnerary heals 10 HP');
+    expect(showImportantHint).not.toHaveBeenCalled();
+    tipHandle().read();
     expect(prologue.taught.has('battle_consumable_supply')).toBe(true);
     edric.currentHP = 4;
     expect(await prologue.onCombatResolved(a, edric, { initiator: 'enemy' })).toBe(false);
-    expect(showImportantHint).toHaveBeenCalledTimes(1);
+    expect(showPrologueTip).toHaveBeenCalledTimes(1);
   });
 
   it("a player-started exchange practises the forecast lesson; a level-up's card gets its line", async () => {
@@ -322,9 +372,10 @@ describe('PrologueController: forecasts, actions and the enemy phase', () => {
     const prologue = new PrologueController(scene).create();
     await prologue.onCombatResolved(edric, unitOf(scene, 'a'), { initiator: 'player' });
     expect([...prologue.lessons.practised]).toEqual(['forecast']);
-    expect(await prologue.onLevelUp(edric)).toBe(true);
-    expect(notes().at(-1)).toBe('Levels raise stats at random. Growth rates decide the odds.');
-    expect(await prologue.onLevelUp(edric)).toBe(false);
+    expect(await prologue.onLevelUp(edric)).toBe(false); // a tip: the card flow goes on
+    expect(tips().at(-1)).toBe('Levels raise stats at random. Growth rates decide the odds.');
+    await prologue.onLevelUp(edric);
+    expect(showPrologueTip).toHaveBeenCalledTimes(1);
   });
 
   it("walking into b's reach names the holding enemy and shows its reach", async () => {
@@ -335,7 +386,7 @@ describe('PrologueController: forecasts, actions and the enemy phase', () => {
     const sources = prologue.dangerSources(5, 4);
     expect(sources).toContain('b');
     await prologue.onAfterMove(edric);
-    expect(notes().at(-1)).toContain('Some enemies hold their post');
+    expect(tips().at(-1)).toContain('Some enemies hold their post');
     expect(prologue.reach.tiles.some((t) => t.col === 5 && t.row === 4)).toBe(true);
     expect([...prologue.lessons.shown]).toContain('hold_reach');
   });
@@ -385,10 +436,11 @@ describe('PrologueController: records, exits and cleanup', () => {
     );
     expect(notes().at(-1)).toContain('Banner at Dawn is yours.');
     expect(store.get(TUTORIAL_COMPLETED_KEY)).toBe('1');
+    // The terrain tip showed but was never read: its lesson stays for Act 1.
+    expect(tips()).toHaveLength(1);
     expect(JSON.parse(store.get(TUTORIAL_LESSONS_KEY)).sort()).toEqual([
       'battle_first_turn',
       'battle_forecast',
-      'battle_terrain',
     ]);
     expect(slotWrites).toEqual([]);
     expect(hints.markSeen).not.toHaveBeenCalled();
@@ -493,20 +545,26 @@ describe('PrologueController: records, exits and cleanup', () => {
 });
 
 describe('PrologueController in the prologue run', () => {
-  it('a note marks the slot hints it stands in for (never standalone)', async () => {
+  it('a note marks the slot hints it stands in for (never standalone); a tip only once read', async () => {
     const standalone = makeScene();
     const p1 = new PrologueController(standalone.scene).create();
+    await p1.onForecastOpened(standalone.edric, unitOf(standalone.scene, 'a'), {}, standalone.edric.weapon); // prettier-ignore
     standalone.edric.col = FORT.col;
     standalone.edric.row = FORT.row;
     await p1.onAfterMove(standalone.edric);
+    tipHandle().read();
     expect(standalone.hints.markSeen).not.toHaveBeenCalled();
 
     const { scene, edric, hints } = makeScene({ run: true });
     const prologue = new PrologueController(scene).create();
     expect(prologue.run).toBe(scene.runManager);
+    await prologue.onForecastOpened(edric, unitOf(scene, 'a'), {}, edric.weapon);
+    expect(hints.markSeen).toHaveBeenCalledWith('battle_forecast');
     edric.col = FORT.col;
     edric.row = FORT.row;
     await prologue.onAfterMove(edric);
+    expect(hints.markSeen).not.toHaveBeenCalledWith('battle_terrain');
+    tipHandle().read();
     expect(hints.markSeen).toHaveBeenCalledWith('battle_terrain');
     expect(prologue.taught.has('battle_terrain')).toBe(true);
   });

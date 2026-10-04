@@ -35,7 +35,9 @@ function el(tag, className, text) {
 /**
  * Show a note. Returns a handle { id, close(read), root } or null when there is no
  * DOM host. `anchor` (CSS px point on screen) and `avoid` (points, or a function
- * returning them) are kept clear of the note.
+ * returning them) are kept clear of the note. `kicker` names it ("Field note"; a prologue
+ * tip says "Tip"); `actions` ([{ label, onClick }]) adds buttons before "Got it", each
+ * of which reads the note and closes it.
  */
 export function showGuidanceNote(
   scene,
@@ -48,6 +50,8 @@ export function showGuidanceNote(
     avoid = null,
     bounds = null,
     reduceMotion = false,
+    kicker: kickerText = 'Field note',
+    actions: extraActions = [],
   } = {},
 ) {
   if (!hasDOMHost() || !text) return null;
@@ -66,9 +70,22 @@ export function showGuidanceNote(
   root.addEventListener('keydown', (e) => e.stopPropagation());
   root.addEventListener('keyup', (e) => e.stopPropagation());
 
-  const kicker = el('span', 're-guide-kicker', 'Field note');
+  const kicker = el('span', 're-guide-kicker', kickerText);
   const body = el('p', 're-guide-text', text);
   const actions = el('div', 're-guide-actions');
+  // Extra choices (a prologue tip's "Open Rewind") come first; each one reads the note.
+  const extras = (Array.isArray(extraActions) ? extraActions : [])
+    .filter((a) => a && typeof a.label === 'string' && typeof a.onClick === 'function')
+    .map((a) => {
+      const button = el('button', 're-guide-btn re-guide-extra', a.label);
+      button.type = 'button';
+      button.addEventListener('click', () => {
+        close(true);
+        a.onClick();
+      });
+      return button;
+    });
+  actions.append(...extras);
   const ok = el('button', 're-guide-btn re-guide-ok', 'Got it');
   ok.type = 'button';
   actions.append(ok);

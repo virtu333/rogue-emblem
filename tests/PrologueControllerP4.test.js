@@ -18,7 +18,14 @@ vi.mock('../src/utils/SceneRouter.js', async () => {
   return { ...actual, transitionToScene: vi.fn(async () => true), restartScene: vi.fn(() => true) };
 });
 
+vi.mock('../src/ui/PrologueTip.js', async () => {
+  const actual = await vi.importActual('../src/ui/PrologueTip.js');
+  const { fakeTipHandle } = await import('./helpers/prologueTipMock.js');
+  return { ...actual, showPrologueTip: vi.fn((_scene, opts) => fakeTipHandle(opts)) };
+});
+
 import { showImportantHint } from '../src/ui/HintDisplay.js';
+import { showPrologueTip } from '../src/ui/PrologueTip.js';
 import { restartScene } from '../src/utils/SceneRouter.js';
 import { loadGameData } from './testData.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
@@ -187,16 +194,17 @@ describe('P4: the quarry gate, beat by beat', () => {
     // Another target: nothing about the throne.
     await prologue.onForecastOpened(edric, soldier, { attacker: {}, defender: {} });
     expect(notes()).toEqual([]);
-    // Varro on the throne: the note, once.
+    // Varro on the throne: a tip in the forecast's own notes (P4 fades: no modal), once.
     expect(battle.grid.getTerrainAt(varro.col, varro.row).name).toBe('Throne');
     await prologue.onForecastOpened(edric, varro, { attacker: {}, defender: {} });
-    expect(notes()).toEqual([
-      'The throne guards Captain Varro: harder to hurt, and he heals each turn.\n' +
-        'His axe reaches 1 tile. Strike from 2 where you can.',
-    ]);
+    expect(notes()).toEqual([]);
+    expect(prologue.forecastTipText()).toBe(
+      'The throne guards Captain Varro: harder to hurt, and he heals. Strike from 2.',
+    );
     expect([...prologue.lessons.shown]).toContain('boss_throne');
+    prologue.onForecastClosed({ acknowledge: true });
     await prologue.onForecastOpened(edric, varro, { attacker: {}, defender: {} });
-    expect(notes()).toHaveLength(1);
+    expect(prologue.forecastTipText()).toBeNull();
   });
 
   it('Varro off the throne draws no throne note', async () => {
@@ -209,6 +217,7 @@ describe('P4: the quarry gate, beat by beat', () => {
     const edric = battle.playerUnits.find((u) => u.name === 'Edric');
     await prologue.onForecastOpened(edric, varro, { attacker: {}, defender: {} });
     expect(notes()).toEqual([]);
+    expect(prologue.forecastTipText()).toBeNull();
   });
 
   it("Varro's fall turns the coach to the gate; a Seize records the lesson practised", async () => {
@@ -222,7 +231,8 @@ describe('P4: the quarry gate, beat by beat', () => {
     prologue.onUnitDefeated(varro);
     await flushNotes(prologue);
     expect(prologue.scripted()).toMatchObject({ goal: 'A lord: step onto the gate and Seize' });
-    // Edric says so first (he is always on the field), then the note.
+    // Edric says so first (he is always on the field), then the tip: the coach already
+    // names the goal and the gate is ringed, so the chapter adds no modal (P4 fades).
     expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledWith(
       [
         expect.objectContaining({
@@ -232,8 +242,13 @@ describe('P4: the quarry gate, beat by beat', () => {
       ],
       { category: 'prologue', key: 'p4_gate_open' },
     );
-    expect(notes()).toEqual(['Captain Varro has fallen. Now a lord: step onto the gate and Seize.']); // prettier-ignore
-    // It stands in for the real run's objective-change note on this slot.
+    expect(notes()).toEqual([]);
+    expect(showPrologueTip.mock.calls.map((c) => c[1].text)).toEqual([
+      'Captain Varro has fallen. Now a lord: step onto the gate and Seize.',
+    ]);
+    // It stands in for the real run's objective-change note on this slot, once read.
+    expect(hints.markSeen).not.toHaveBeenCalledWith('guide_objective_changed');
+    showPrologueTip.mock.results.at(-1).value.read();
     expect(hints.markSeen).toHaveBeenCalledWith('guide_objective_changed');
     expect([...prologue.lessons.practised]).not.toContain('seize');
     const edric = scene.playerUnits.find((u) => u.name === 'Edric');
