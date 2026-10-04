@@ -541,42 +541,22 @@ export class SlotPickerScene extends Phaser.Scene {
       showSlotRecovery(this, slot);
       return;
     }
+    // A fresh slot is offered the prologue (or the skip) before anything is staged or
+    // the music stops: dismissing the offer leaves the picker exactly as it was, as
+    // Title's New Game offer does. The chosen start stages the slot itself.
+    if (
+      !summary?.hasActiveRun &&
+      hasDOMHost() &&
+      routeForSlot(summary, { hasPrologue: this._hasPrologue() }) === PROLOGUE_ROUTES.OFFER
+    ) {
+      this._showPrologueOffer(slot);
+      return;
+    }
     this.isTransitioning = true;
     if (this.input) this.input.enabled = false;
 
-    const prevMeta = this.registry.get('meta');
-    const prevHints = this.registry.get('hints');
-    const prevActiveSlot = this.registry.get('activeSlot');
-    const hadPrevMeta = prevMeta !== undefined;
-    const hadPrevHints = prevHints !== undefined;
-    const hadPrevActiveSlot = prevActiveSlot !== undefined;
-    const rollbackSelectionState = () => {
-      if (hadPrevMeta) this.registry.set('meta', prevMeta);
-      else if (typeof this.registry.remove === 'function') this.registry.remove('meta');
-      else this.registry.set('meta', undefined);
-
-      if (hadPrevHints) this.registry.set('hints', prevHints);
-      else if (typeof this.registry.remove === 'function') this.registry.remove('hints');
-      else this.registry.set('hints', undefined);
-
-      if (hadPrevActiveSlot) this.registry.set('activeSlot', prevActiveSlot);
-      else if (typeof this.registry.remove === 'function') this.registry.remove('activeSlot');
-      else this.registry.set('activeSlot', undefined);
-    };
-
     // Stage slot state in registry before transition; persist active slot only on success.
-    const meta = new MetaProgressionManager(this.gameData.metaUpgrades, getMetaKey(slot));
-    const cloud = this.registry.get('cloud');
-    if (cloud) {
-      meta.onSave = (payload) => pushMeta(cloud.userId, slot, payload);
-    }
-    this.registry.set('activeSlot', slot);
-    this.registry.set('meta', meta);
-    this.registry.set(
-      'hints',
-      new HintManager(slot, () => this.registry.get('settings')?.getHints?.() !== false, meta),
-    );
-    applyCompletedTutorialHints(this.registry.get('hints'));
+    const rollbackSelectionState = this._stageSlotSelection(slot);
 
     try {
       await ensureAudioUnlocked(this);
@@ -636,13 +616,8 @@ export class SlotPickerScene extends Phaser.Scene {
         // No active run: a fresh slot is offered the prologue, or takes the first-run
         // fast path once it was skipped; a slot that played (or started a run) opens
         // Home Base (PrologueRouting.routeForSlot).
+        // (With a DOM, the offer was shown above.)
         const route = routeForSlot(summary, { hasPrologue: this._hasPrologue() });
-        if (route === PROLOGUE_ROUTES.OFFER && hasDOMHost()) {
-          this.isTransitioning = false;
-          if (this.input) this.input.enabled = true;
-          this._showPrologueOffer(slot);
-          return;
-        }
         if (route === PROLOGUE_ROUTES.OFFER || route === PROLOGUE_ROUTES.FAST_PATH) {
           // Brand-new save (fresh meta, no run started yet): skip HomeBase /
           // DifficultySelect / BlessingSelect straight to the act-1 node map. With
@@ -679,26 +654,74 @@ export class SlotPickerScene extends Phaser.Scene {
   }
 
   /**
-   * A fresh slot's offer (§4): play the prologue or skip to the first run. The slot's
-   * registry state is staged (selectSlot); the chosen start commits it. On a device
-   * that has not finished the prologue, playing it is the highlighted default.
+   * Stage a slot's state in the registry (meta, hints, activeSlot) for the start that
+   * follows. Returns the rollback that puts back what the registry held before.
+   */
+  _stageSlotSelection(slot) {
+    const prevMeta = this.registry.get('meta');
+    const prevHints = this.registry.get('hints');
+    const prevActiveSlot = this.registry.get('activeSlot');
+    const hadPrevMeta = prevMeta !== undefined;
+    const hadPrevHints = prevHints !== undefined;
+    const hadPrevActiveSlot = prevActiveSlot !== undefined;
+    const rollback = () => {
+      if (hadPrevMeta) this.registry.set('meta', prevMeta);
+      else if (typeof this.registry.remove === 'function') this.registry.remove('meta');
+      else this.registry.set('meta', undefined);
+
+      if (hadPrevHints) this.registry.set('hints', prevHints);
+      else if (typeof this.registry.remove === 'function') this.registry.remove('hints');
+      else this.registry.set('hints', undefined);
+
+      if (hadPrevActiveSlot) this.registry.set('activeSlot', prevActiveSlot);
+      else if (typeof this.registry.remove === 'function') this.registry.remove('activeSlot');
+      else this.registry.set('activeSlot', undefined);
+    };
+
+    const meta = new MetaProgressionManager(this.gameData.metaUpgrades, getMetaKey(slot));
+    const cloud = this.registry.get('cloud');
+    if (cloud) {
+      meta.onSave = (payload) => pushMeta(cloud.userId, slot, payload);
+    }
+    this.registry.set('activeSlot', slot);
+    this.registry.set('meta', meta);
+    this.registry.set(
+      'hints',
+      new HintManager(slot, () => this.registry.get('settings')?.getHints?.() !== false, meta),
+    );
+    applyCompletedTutorialHints(this.registry.get('hints'));
+    return rollback;
+  }
+
+  /**
+   * A fresh slot's offer (§4): play the prologue or skip to the first run. Nothing is
+   * staged while it is up (Esc leaves the picker as it was, its music playing); the
+   * chosen start stages the slot, and a start that fails rolls it back and brings the
+   * picker's music back. On a device that has not finished the prologue, playing it
+   * is the highlighted default.
    */
   _showPrologueOffer(slot) {
     const start = (begin) => async () => {
       if (this.isTransitioning) return;
       this.isTransitioning = true;
       if (this.input) this.input.enabled = false;
-      try {
-        const transitioned = await begin();
-        if (transitioned) setActiveSlot(slot);
-        else {
-          this.isTransitioning = false;
-          if (this.input) this.input.enabled = true;
-        }
-      } catch (err) {
-        console.error('[SlotPickerScene] prologue offer transition failed:', err);
+      const rollback = this._stageSlotSelection(slot);
+      const audio = this.registry.get('audio');
+      const giveBack = () => {
+        rollback();
         this.isTransitioning = false;
         if (this.input) this.input.enabled = true;
+        if (audio) void audio.playMusic(MUSIC.title, this, 300);
+      };
+      try {
+        await ensureAudioUnlocked(this);
+        if (audio) audio.stopMusic(this, 0);
+        const transitioned = await begin();
+        if (transitioned) setActiveSlot(slot);
+        else giveBack();
+      } catch (err) {
+        console.error('[SlotPickerScene] prologue offer transition failed:', err);
+        giveBack();
       }
     };
     const play = start(() => startPrologueRun(this, { gameData: this.gameData, slot }));

@@ -413,6 +413,7 @@ describe('SlotPickerScene selectSlot: the prologue offer (docs/specs/prologue-ch
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocked.metaInstances.length = 0;
     mocked.dialogActions = [];
     mocked.transitionToSceneMock.mockResolvedValue(true);
     mocked.startFirstRunFastPathMock.mockResolvedValue(true);
@@ -437,8 +438,76 @@ describe('SlotPickerScene selectSlot: the prologue offer (docs/specs/prologue-ch
     expect(mocked.startFirstRunFastPathMock).not.toHaveBeenCalled();
     expect(mocked.transitionToSceneMock).not.toHaveBeenCalled();
     expect(mocked.setActiveSlotMock).not.toHaveBeenCalled();
-    // The slot is staged for whichever start is chosen; the picker stays usable.
-    expect(store.get('activeSlot')).toBe(1);
+    // Nothing is staged until a start is chosen; the picker stays usable.
+    expect(store.has('activeSlot')).toBe(false);
+    expect(store.has('meta')).toBe(false);
+    expect(store.has('hints')).toBe(false);
+    expect(scene.isTransitioning).toBe(false);
+    expect(scene.input.enabled).toBe(true);
+  });
+
+  it('Esc on the offer leaves the picker as it was: registry untouched, music playing', async () => {
+    const audio = { stopMusic: vi.fn(), playMusic: vi.fn() };
+    const prevMeta = { slot: 'previous' };
+    const prevHints = { slot: 'previous' };
+    const { scene, store } = makeScene({ audio, meta: prevMeta, hints: prevHints, activeSlot: 3 });
+    withPrologue(scene);
+    await scene.selectSlot(1, null);
+    expect(scene.requestCancel()).toBe(true);
+    expect(scene.nativeDialog).toBe(null);
+    expect(store.get('meta')).toBe(prevMeta);
+    expect(store.get('hints')).toBe(prevHints);
+    expect(store.get('activeSlot')).toBe(3);
+    expect(mocked.metaInstances).toHaveLength(0);
+    expect(audio.stopMusic).not.toHaveBeenCalled();
+    expect(scene.isTransitioning).toBe(false);
+    expect(scene.input.enabled).toBe(true);
+  });
+
+  it('the chosen start stages the slot, and stops the music, before it begins', async () => {
+    const audio = { stopMusic: vi.fn(), playMusic: vi.fn() };
+    const { scene, store } = makeScene({ audio });
+    withPrologue(scene);
+    let staged = null;
+    mocked.startPrologueRunMock.mockImplementationOnce(async () => {
+      staged = {
+        activeSlot: store.get('activeSlot'),
+        metaKey: store.get('meta')?.storageKey,
+        hintsSlot: store.get('hints')?.slot,
+        musicStopped: audio.stopMusic.mock.calls.length > 0,
+      };
+      return true;
+    });
+    await scene.selectSlot(2, null);
+    await mocked.dialogActions[0][1]();
+    expect(staged).toEqual({
+      activeSlot: 2,
+      metaKey: 'slot_2_meta',
+      hintsSlot: 2,
+      musicStopped: true,
+    });
+    expect(mocked.setActiveSlotMock).toHaveBeenCalledWith(2);
+  });
+
+  it.each([
+    ['refused', () => mocked.startPrologueRunMock.mockResolvedValueOnce(false)],
+    ['thrown', () => mocked.startPrologueRunMock.mockRejectedValueOnce(new Error('boom'))],
+  ])('a %s start rolls the staged slot back and brings the music back', async (_, arrange) => {
+    arrange();
+    const audio = { stopMusic: vi.fn(), playMusic: vi.fn() };
+    const prevMeta = { slot: 'previous' };
+    const { scene, store } = makeScene({ audio, meta: prevMeta });
+    withPrologue(scene);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await scene.selectSlot(1, null);
+    await mocked.dialogActions[0][1]();
+    error.mockRestore();
+    expect(store.get('meta')).toBe(prevMeta);
+    expect(store.has('hints')).toBe(false);
+    expect(store.has('activeSlot')).toBe(false);
+    expect(audio.stopMusic).toHaveBeenCalled();
+    expect(audio.playMusic).toHaveBeenCalledWith('music_title', scene, 300);
+    expect(mocked.setActiveSlotMock).not.toHaveBeenCalled();
     expect(scene.isTransitioning).toBe(false);
     expect(scene.input.enabled).toBe(true);
   });
