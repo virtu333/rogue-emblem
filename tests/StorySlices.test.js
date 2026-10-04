@@ -90,10 +90,17 @@ describe('story slice selection contracts', () => {
     },
   );
   it('every boss supplies a reply for every commander', () => {
-    for (const boss of Object.values(data.bossEncounters))
+    // The prologue's own boss (Varro) only ever meets Edric: his reply is in his preBattle.
+    const prologueBoss = JSON.parse(readFileSync('data/prologue.json', 'utf8')).boss?.name;
+    for (const [bossName, boss] of Object.entries(data.bossEncounters)) {
+      if (bossName === prologueBoss) {
+        expect(boss.preBattle.base.at(-1).speaker).toBe('Edric');
+        continue;
+      }
       for (const name of commanders) {
         expect(selectDialogueEntries(boss.preBattleReply, ctx(name))?.[0]?.speaker).toBe(name);
       }
+    }
   });
   it('all dialogue variants use supported conditions and keep lines readable', () => {
     const walk = (value) => {

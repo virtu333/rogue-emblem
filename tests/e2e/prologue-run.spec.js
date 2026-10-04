@@ -525,7 +525,7 @@ test('a refresh mid-P1 offers Resume Battle (the chapter as left) and Continue f
   }, taught.fired.length);
   await page.reload();
   await waitForScene(page, 'Title');
-  await page.getByRole('button', { name: /^Resume · Act 1/ }).click();
+  await page.getByRole('button', { name: 'Resume · Prologue', exact: true }).click();
   await page.getByRole('button', { name: 'Resume Battle', exact: true }).click();
   await waitForScene(page, 'Battle');
   await prologueIdle(page);
@@ -550,7 +550,7 @@ test('a refresh mid-P1 offers Resume Battle (the chapter as left) and Continue f
   await waitForSuspendSave(page);
   await page.reload();
   await waitForScene(page, 'Title');
-  await page.getByRole('button', { name: /^Resume · Act 1/ }).click();
+  await page.getByRole('button', { name: 'Resume · Prologue', exact: true }).click();
   await page.getByRole('button', { name: 'Continue from Map', exact: true }).click();
   // The map re-opens the chapter at once: the first thread has no map before P1.
   await waitForScene(page, 'Battle');
