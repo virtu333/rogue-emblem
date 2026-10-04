@@ -268,6 +268,29 @@ export const PROLOGUE_ROSTER_LESSON = Object.freeze({
   }),
 });
 
+/**
+ * The roster lesson's optional part (after Withdraw and Equip): Trade and Store,
+ * offered as more, never as steps the lesson waits on. `steps` are those still open.
+ */
+export const PROLOGUE_ROSTER_LESSON_MORE = Object.freeze({
+  coreDone: 'done',
+  kicker: 'More',
+  goal: (steps = ['trade', 'store']) =>
+    `More, if you like: ${steps.map((s) => (s === 'trade' ? 'Trade' : 'Store')).join(' and ')}`,
+  text: (steps = ['trade', 'store']) =>
+    [
+      steps.includes('trade') ? 'Trade swaps carried items between units.' : '',
+      steps.includes('store') ? 'Store puts an item in the convoy.' : '',
+      'Optional: the road waits either way.',
+    ]
+      .filter(Boolean)
+      .join(' '),
+  accept: 'Show me',
+  decline: 'Done',
+  stop: 'Done',
+  declined: 'Roster lesson complete.',
+});
+
 /** Why a step was skipped on its own (the army can't do it now). */
 export const PROLOGUE_ROSTER_LESSON_SKIPS = Object.freeze({
   no_weapon_in_convoy: (ctx) =>

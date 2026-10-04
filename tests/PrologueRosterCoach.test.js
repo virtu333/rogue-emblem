@@ -3,8 +3,9 @@
 // the same sheet — the route map's Roster on desktop (RosterOverlay hands its DOM host
 // to MobileRosterSheet) and on a phone, the Market's and the Chapel's Roster buttons —
 // so the lesson attaches there. Each step completes on the button the player presses,
-// Skip step / Skip lesson work, nothing is ever blocked, it runs once, and the in-run
-// convoy note is read on the slot.
+// the core is Withdraw and Equip and Trade and Store are offered as more (Show me /
+// Done), Skip step / Skip lesson work, nothing is ever blocked, it runs once, and the
+// in-run convoy note is read on the slot.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
@@ -104,12 +105,12 @@ describe('the roster lesson in the sheet', () => {
     expect(box).toBeTruthy();
     expect(box.getAttribute('aria-label')).toBe('Roster lesson');
     expect(box.dataset.step).toBe('withdraw');
-    expect(box.textContent).toContain('Roster lesson · 1 of 4 · Withdraw');
+    expect(box.textContent).toContain('Roster lesson · 1 of 2 · Withdraw');
     expect(box.textContent).toContain('Give Tamsin the Iron Bow from the convoy');
     expect(box.textContent).toContain('shared storage between battles');
     expect(hints.markSeen).toHaveBeenCalledWith('guide_convoy');
     // The lesson started is saved with the run (a refresh keeps its place).
-    expect(run.prologueRosterLesson).toEqual({ completed: [], skipped: [], dismissed: false });
+    expect(run.prologueRosterLesson).toEqual({ completed: [], skipped: [], dismissed: false, more: null }); // prettier-ignore
     expect(saveServiceRun).toHaveBeenCalled();
     sheet.destroy();
   });
@@ -124,7 +125,7 @@ describe('the roster lesson in the sheet', () => {
     sheet.destroy();
   });
 
-  it('each step completes on the real button: Withdraw, Equip, Trade, Store', async () => {
+  it('each step completes on the real button: Withdraw, Equip, then (Show me) Trade, Store', async () => {
     const run = forkRun();
     const { sheet } = open(run);
     // Withdraw: Tamsin selected, Convoy tab, the bow's Withdraw.
@@ -138,7 +139,14 @@ describe('the roster lesson in the sheet', () => {
     // Equip: Gaspar's Iron Sword on his Equipment tab.
     show(sheet, 'Gaspar', 'gear');
     press(sheet, 'Equip', { within: cardFor(sheet, 'Iron Sword') });
+    // The core is done: more is offered, as a choice, not a step.
+    expect(strip(sheet).dataset.phase).toBe('offer');
+    expect(strip(sheet).textContent).toContain('Equip: done.');
+    expect(strip(sheet).textContent).toContain('More, if you like: Trade and Store');
+    expect(strip(sheet).textContent).toContain('Optional: the road waits either way.');
+    press(sheet, 'Show me', { within: strip(sheet) });
     expect(strip(sheet).dataset.step).toBe('trade');
+    expect(strip(sheet).textContent).toContain('More · 1 of 2 · Trade');
     expect(strip(sheet).textContent).toContain("Give Tamsin Edric's Vulnerary");
     // Trade: Edric's Vulnerary → Tamsin through the trade menu.
     show(sheet, 'Edric', 'gear');
@@ -160,6 +168,7 @@ describe('the roster lesson in the sheet', () => {
     press(sheet, 'Store', { within: cardFor(sheet, 'Steel Lance') });
     expect(run.prologueRosterLesson.completed).toEqual(['withdraw', 'equip', 'trade', 'store']);
     expect(strip(sheet).textContent).toContain('Roster lesson complete.');
+    expect(strip(sheet).textContent).not.toContain('complete. Roster lesson complete.');
     // Done once: the next render (and the next sheet) has no lesson.
     sheet.render();
     expect(strip(sheet)).toBeNull();
@@ -182,6 +191,22 @@ describe('the roster lesson in the sheet', () => {
     press(sheet, 'Skip lesson', { within: strip(sheet) });
     expect(strip(sheet)).toBeNull();
     expect(run.prologueRosterLesson.dismissed).toBe(true);
+    expect(isRosterLessonLive(run)).toBe(false);
+    sheet.destroy();
+  });
+
+  it('Done at the offer ends the lesson with the core: nothing more is asked', () => {
+    const run = forkRun();
+    const { sheet } = open(run);
+    show(sheet, 'Tamsin', 'convoy');
+    press(sheet, 'Withdraw', { within: cardFor(sheet, 'Iron Bow') });
+    show(sheet, 'Gaspar', 'gear');
+    press(sheet, 'Equip', { within: cardFor(sheet, 'Iron Sword') });
+    press(sheet, 'Done', { within: strip(sheet) });
+    expect(strip(sheet).textContent).toBe('Roster lesson complete.');
+    expect(run.prologueRosterLesson).toMatchObject({ completed: ['withdraw', 'equip'], more: 'declined' }); // prettier-ignore
+    sheet.render();
+    expect(strip(sheet)).toBeNull();
     expect(isRosterLessonLive(run)).toBe(false);
     sheet.destroy();
   });
