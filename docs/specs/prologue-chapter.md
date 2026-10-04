@@ -339,7 +339,7 @@ Soldier `d` (L1, Iron Lance) `guard`s at (9, 0) on Plain. The village is (3, 4).
 | 4 | A forecast with no counter | `battle_no_counter`: bows reach two tiles only. |
 | 5 | A forecast under 100 Hit | **Forecasts are possibilities** (`p2_forecast_chances`). |
 | 6 | Edric's forecast against the Soldier | The triangle against Edric (`p2_lances_beat_swords`): "Let Gaspar open the Soldier; Edric finishes it." |
-| 7 | Edric's kill | Marks `veteran_kills` practised. |
+| 7 | Edric's kill of a foe Gaspar already damaged | Marks `veteran_kills` practised (`p2_chip_then_finish`: `kill` and `damagedBy: "Gaspar"`; review, 2026-10-04). The controller keeps who damaged which foe from each exchange's HP before and after, the attack or the counter alike, and `combatResolved` carries it (`damagedBy`) with the committed `distance`; a kill on an untouched foe leaves the beat unspent. The ledger rides the suspend snapshot. |
 | 8 | Turn 2 | Danger (`battle_danger_zone`). |
 | 9 | A unit moves onto the village (`terrain: Village`; the note shows before the Wait that visits) | Visit (`p2_village_visit`): gold, and an Iron Bow sent to the convoy. |
 | 10 | Victory | The victory lines (`p2_victory`) and the **loot screen** note (`battle_loot`), then the authored rewards. |
@@ -412,10 +412,13 @@ the lesson.
   early counts):
   1. *Withdraw:* give Tamsin the Iron Bow from the convoy. The step's text leads with the in-run
      `guide_convoy` copy ("The convoy is shared storage…"), and starting the lesson marks that
-     hint read.
+     hint read. It completes only when a combat weapon she can wield reached her bag (the
+     sheet reports the item; a Vulnerary or a lance withdrawn to her is not the lesson;
+     review, 2026-10-04).
   2. *Equip:* a unit with nothing equipped takes the first weapon it gets, so Withdraw already
      armed Tamsin. The practice is another unit's spare: "Equip Gaspar's Iron Sword". "Each unit
-     carries up to 5 weapons. The equipped one is the one they fight with."
+     carries up to 5 weapons. The equipped one is the one they fight with." It completes
+     only when the named unit really fights with the named weapon afterwards.
   3. *Trade:* give Tamsin a carried consumable, the commander's first ("Give Tamsin Edric's
      Vulnerary"), else anyone's. When nobody carries one (Edric drank his Vulnerary in P1) the
      step skips itself with the reason ("Nobody carries a spare item to trade. You can trade in
@@ -494,7 +497,7 @@ E . . . . . . . . F . .
 | 2 | Talk with Sera | Her line on the recruit card, then the coach "Sera acts right away"; it clears when she acts. With the Soldiers already down, her join is the win. |
 | 3 | Sera selected while an ally is hurt | **Heal** (`guide_healer_heals`): "Sera heals with her staff: move next to {ally}, choose Heal. Staff uses refill after every battle; a Vulnerary is spent for good." {ally} is the most hurt. |
 | 4 | Sera moved where nothing is in reach | **Planning and cancelling** (`guide_no_attack`): her menu shows "Attack · No target in range 1–2"; "Nothing is in reach from here, so Attack is greyed out. Esc or right-click (Back) undoes the move… Try a tile 2 away from a foe." |
-| 5 | Sera 2 tiles from a foe | **Range** (`battle_no_counter`): "Glimmer reaches 2 tiles. From 2 tiles away, a lance or an axe can't hit back." Coach: "Open the forecast, then Cancel. Looking is free." |
+| 5 | Sera 2 tiles from a foe | **Range** (`battle_no_counter`): "Glimmer reaches 2 tiles. From 2 tiles away, a lance or an axe can't hit back." Coach: "Open the forecast, then Cancel. Looking is free." Practised (`p3_glimmer`) only by a strike she commits from 2 tiles (`distance: 2`; review, 2026-10-04): an adjacent strike is not the lesson. |
 | 6 | A forecast showing magic | **Magic:** "Glimmer is magic: it hits RES, not DEF. Soldiers' armour turns blades, not light." |
 | 7 | Sera or Tamsin moved into reach | **Count every enemy that reaches you** (`guide_fragile_in_reach`): "Cover isn't safety. {n} enemies can reach {unit} here… Count the red eyes, not the trees." |
 | 8 | Sera ends next to an ally | **Aura:** "Renewal Aura: allies next to Sera heal 3 HP at the start of your turn." |
@@ -1135,6 +1138,7 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   | `onHoldersWoke` | the AI's callback | blocks simulation (the enemy phase waits) |
   | `onTalk`, `onHealed` | the Talk and Heal presentations, before the action completes | blocks simulation |
   | `onSeize` | the Seize command, before `onVictory` | blocks simulation |
+  | `deployed` (raised by the controller's `create` from the deploy screen's confirmation, `scene._deployConfirmation`) | `beginBattle`, before the first phase | its lesson mark is sync; a note here would wait for a playable turn. Never raised by an auto-deploy or a resume: P4's `deploy` is practised by the choice, not by `battleStart` |
   | `onRewound` | `VisionRewindController`, after the board is restored | blocks input only |
   | `onVictory` | `PostCombatController`, after the band | blocks simulation (the victory flow waits) |
   | gate nudges (`rejectSelect`, `rejectMove`, `rejectStep`) | input | decorative |
@@ -1155,6 +1159,7 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   | the lesson ledger (`markLesson` shown / practised) | yes, marked when the beat matches | restored (a beat that fired counts as exposure; its note comes back below) |
   | taught hint ids (`NOTE_HINT_IDS`, the slot's `markSeen`) | only notes the player acknowledged (Continue, Leave, Open Rewind) and enemy-phase nudges | restored; a resumed note marks them when acknowledged |
   | the Vision grant | the run (`prologueVisionGranted`) or the standalone flag | idempotent, never twice |
+  | the damage ledger (`damaged`: who damaged which foe, for `combatResolved.damagedBy`) | yes | restored; a version-1 checkpoint resumes with nobody damaged |
   | pending notes and line sets | yes, in order, with status | shown again as one sequence once the player can act: a line set replays whole (its seen-key is marked only when it completes), a note keeps the text it had; a note torn down unread (shutdown resolves it `false`) stays `displayed` |
   | highlights (a unit's ring, an enemy's reach) | no | the gate's ring only |
   | enemy-phase nudges | no (shown is read) | nothing |
@@ -1364,6 +1369,21 @@ labels), `NarrativeScaffold` (Gaspar's intro only skipped in the first real run)
 scripted, Guidance Off). Harness: `tests/harness/PrologueP4.test.js` and
 `PrologueP4Scavenge.test.js` (P3's policies moved to `tests/harness/prologueP3Policies.js`;
 P4's are `prologueP4Policies.js`).
+
+**Review fixes, 2026-10-04** (each with a test that fails before it): `RoutObjective` and
+`PrologueRequiredRecruit` (P3 cannot end without Sera: the predicate the scene and the
+harness share, the headless regression, the coach's goal, the validator's rules;
+`BattleSceneActionErrorRecovery` holds a standard run's Talk away from `checkBattleEnd`),
+`PrologueBeatOwnership` (the hook contract: Varro's fall as a task, `removeUnit` awaiting
+it, the turn-start pipeline under an open line or note), `PrologueSuspendTeaching` (unread
+teaching as data across a reload, hints marked on acknowledgement, cancelled deferred tasks
+settled), `PrologueLessonPredicates` (the chip-then-finish ledger by attack and by counter,
+across a checkpoint; range two at a committed distance of 2; deploy from the confirmation)
+with `PrologueRosterLesson` performing the real Withdraw and Equip, `PrologueEnding` (the
+grant under faults: a refused lesson record, a throwing meta write, a throwing transition
+after the payment, a crash before the save cleared, two attempts at once). Browser: the
+`prologue` lane routs P3's Soldiers before the Talk and lets the join win, and lets Varro
+fall to Gaspar's counter on the enemy phase through ordinary combat.
 
 ### Novice playtest (the measure that matters)
 
