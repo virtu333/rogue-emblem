@@ -99,7 +99,7 @@ tutorial with two units can't give each unit's role its own moment. A chapter st
 An external review found the chapters too dense: P2 explained veteran roles, weapon
 switching, doubling, counters, hit chance, villages and loot; P3 recruitment, acting at once,
 healing, staff refills, safe range, magic against RES, fragile positioning, aura and rewind.
-Every one of them was a modal note. Each chapter now has a small **core**, and only the core
+Nearly every one of them was a modal note. Each chapter now has a small **core**, and only the core
 blocks:
 
 | Chapter | Core (blocking notes at their decision points, gates, coach goals) |
@@ -1173,8 +1173,10 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   the map: `ui/PrologueTip.js` docks a `GuidanceNote` (kicker "Tip", Got it, an extra button
   from `PROLOGUE_NOTE_ACTIONS`: P3's Open Rewind) away from the units, one at a time (a new
   one replaces the last). One raised by `afterMove` or `unitSelected` is about that unit's
-  moment and steps aside unread when the unit moves again or acts, another unit is selected,
-  or the phase changes; the others stay until read, dismissed or replaced. Raised by a
+  moment and steps aside unread when that moment ends (`syncTip` each frame: the unit acts,
+  is deselected or moves Back to another tile, a forecast opens, the phase changes); the
+  others stay until read, dismissed or replaced. A blocking note or a line set closes any
+  open tip first: a tip is never counted as read under a modal. Raised by a
   forecast: `AttackFlowController.showForecast` asks `prepareForecast` before the first
   render, so the beats are matched (one concept per forecast) and the tip is drawn into the
   attacker's notes (`forecast.attacker.lessonNote`, the armor note's slot) on every render
