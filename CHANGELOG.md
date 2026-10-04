@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### Tighter Pars Where Clears Are Fast (Oct 4, 2026)
+
+- **First Light:** par is two turns tighter on every map. A quick clear still earns an S
+  most of the time (about 9 in 10 for an aggressive player), and every seize map still
+  leaves an S for a lord who walks straight to the throne.
+- **Escape maps:** par two turns tighter (Black Sun: one). An S used to be near-certain on
+  every difficulty.
+- **Act IV rout maps:** par two turns tighter on Dusk and Nightfall (Black Sun: one).
+  Enemies charge from turn 1, so these big maps were often cleared in 3–5 turns against a
+  par of 9.
+- Act I–III rout maps and seize maps are unchanged. Fewer S-ranks mean a little less
+  par bonus gold (about 1–1.5k G over a Dusk or Nightfall run). Maps already generated
+  in a saved run keep their par.
+
+### Nightfall: Lighter Act I Rout Maps (Oct 4, 2026)
+
+- **Fewer starting enemies.** Nightfall sizes its garrisons as if you field at least 4
+  units (was 5). The first map now has 5 enemies against your 2 lords (was 6); Act I stays
+  one or two above Dusk. In Act II only a 4-unit army sees one fewer; from Act III on (5+
+  deployed) nothing changes.
+- **Fewer Act I reinforcements.** The Act I rout ladder is two waves, not three: 1–2 on
+  turn 4, then 1–2 (one level up) on turn 7. That is 2–4 arrivals, where it used to be
+  4–6 over turns 4, 6 and 8. Acts II–IV, Dusk and Black Sun are unchanged.
+
 ### Arena: Fights to the Finish (Oct 4, 2026)
 
 - **A bout now goes round by round until one fighter falls.** It used to be a single

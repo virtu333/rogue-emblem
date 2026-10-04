@@ -50,7 +50,7 @@ const SPEC = {
     act4: [[4, 2, 2], [6, 2, 3, 1], [8, 2, 3, 1], [10, 3, 3, 2]],
   },
   hard: {
-    act1: [[4, 1, 2], [6, 1, 2], [8, 2, 2, 1]],
+    act1: [[4, 1, 2], [7, 1, 2, 1]],
     act2: [[3, 1, 2], [5, 2, 2, 1], [7, 2, 3, 1], [9, 2, 3, 2]],
     act3: LATE,
     act4: LATE,
@@ -172,14 +172,16 @@ describe('the ladder a rout map is generated with', () => {
     }
   });
 
-  it('First Light maps are generated exactly as before, par included', () => {
+  // Par review 2026-10-04: First Light's inflation went 3 → 1 (every map S-ranked);
+  // the maps themselves are unchanged.
+  it('First Light maps are generated exactly as before, par two turns tighter', () => {
     for (const seed of [1, 2, 3, 4]) {
       for (const act of ['act1', 'act2', 'act3']) {
         const now = gen({ act, ...pacing('normal') }, seed);
         const before = gen({ act, ...legacy('normal') }, seed);
         const { parInflation, ...rest } = now;
         expect(rest).toEqual(before);
-        expect(parInflation).toBe(3);
+        expect(parInflation).toBe(1);
         const par = (bc) =>
           calculatePar(
             {
@@ -195,7 +197,7 @@ describe('the ladder a rout map is generated with', () => {
             data.turnBonus,
             'normal',
           );
-        expect(par(now)).toBe(par(before));
+        expect(par(now)).toBe(par(before) - 2);
       }
     }
   });
@@ -774,7 +776,7 @@ describe('locked maps and saves', () => {
   it('difficulty data: every rung has an inflation, the ladders validate, bad shapes do not', () => {
     expect(validateDifficultyConfig(data.difficulty)).toEqual({ valid: true, errors: [] });
     const m = data.difficulty.modes;
-    expect([m.normal, m.dusk, m.hard, m.lunatic].map((x) => x.parInflation)).toEqual([3, 2, 3, 3]);
+    expect([m.normal, m.dusk, m.hard, m.lunatic].map((x) => x.parInflation)).toEqual([1, 2, 3, 3]);
     expect([m.normal.routLadder, m.lunatic.routLadder]).toEqual([null, null]);
     expect(m.lunatic.templateWavesRaisePar).toBe(false);
     const bad = structuredClone(data.difficulty);

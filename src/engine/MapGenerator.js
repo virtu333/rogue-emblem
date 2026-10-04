@@ -534,8 +534,8 @@ export function generateBattleLayout(params, deps) {
     ...(Number.isFinite(params.parInflation)
       ? { parInflation: Math.max(0, Math.trunc(params.parInflation)) }
       : {}),
-    // The rung's par offset for this objective (seize), locked with the map, and the
-    // floor that keeps an S reachable under it (SeizeParFloor.js).
+    // The rung's par offset for this objective and act, locked with the map, and on
+    // seize the floor that keeps an S reachable under it (SeizeParFloor.js).
     ...parOffsetConfig(params, objective, {
       mapLayout,
       cols,
@@ -3068,10 +3068,20 @@ const RECRUIT_TILE_EXCLUDED = new Set([
   'Ballista',
 ]);
 
+/**
+ * The rung's par offset for an objective in this act: a number for every act, or a
+ * table by act ({ act4: -2 }; an act it leaves out has none).
+ */
+export function objectiveParOffsetFor(objectiveParOffset, objective, act) {
+  const entry = objectiveParOffset?.[objective];
+  const offset = entry && typeof entry === 'object' ? entry[act || 'act1'] : entry;
+  return Number.isInteger(offset) ? offset : 0;
+}
+
 /** `parOffset` (and on seize its `parFloor`) for a rung with an objective par offset. */
 function parOffsetConfig(params, objective, map) {
-  const offset = params.objectiveParOffset?.[objective];
-  if (!Number.isInteger(offset) || offset === 0) return {};
+  const offset = objectiveParOffsetFor(params.objectiveParOffset, objective, params.act);
+  if (offset === 0) return {};
   const floor = objective === 'seize' ? seizeParFloor(map) : null;
   return { parOffset: offset, ...(Number.isInteger(floor) ? { parFloor: floor } : {}) };
 }
