@@ -1,6 +1,6 @@
 # Tutorial Battle — Feature Spec
 
-**Status:** Draft (Not Implemented)  
+**Status:** Superseded. The shipped tutorial follows `docs/specs/tutorial_v2_guided_flow_spec.md`; its planned replacement is `docs/specs/prologue-chapter.md`. Kept as history.  
 **Context Sync (2026-02-13):** Tutorial mode requirements remain compatible with current runtime; it should explicitly disable reinforcements and skip run rewards/meta progression.
 
 ## Problem Statement
