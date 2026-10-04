@@ -113,8 +113,15 @@ multiplier (0 past the list), and gold uses the same value. A template opts out 
 | Rung | Act I | Act II | Act III | Act IV (+ final) | `xp` | Promoted |
 |---|---|---|---|---|---|---|
 | Dusk | T4 1, T6 1–2 | T4 1–2, T6 2 (+1), T8 2–3 (+1) | T4 2, T6 2 (+1), T8 2–3 (+1), T10 2–3 (+2) | T4 2, T6 2–3 (+1), T8 2–3 (+1), T10 3 (+2) | .75 .5 .25 .1 | never |
-| Nightfall | T4 1–2, T6 1–2, T8 2 (+1) | T3 1–2, T5 2 (+1), T7 2–3 (+1), T9 2–3 (+2) | T3 2, T5 2–3 (+1), T7 2–3 (+1), T9 3 (+2) | same as III | .75 .5 .25 .1 | 4th wave, Act III+ |
+| Nightfall | T4 1–2, T7 1–2 (+1) | T3 1–2, T5 2 (+1), T7 2–3 (+1), T9 2–3 (+2) | T3 2, T5 2–3 (+1), T7 2–3 (+1), T9 3 (+2) | same as III | .75 .5 .25 .1 | 4th wave, Act III+ |
 
+- **Nightfall Act I retune (2026-10-04).** A playtest found Nightfall Act I rout maps too
+  heavy: the first map fielded 6 enemies against 2 lords, then sent 4–6 reinforcements
+  over turns 4, 6 and 8. The starting floor `enemyCountBase` drops 5 → 4 (a floor on the
+  deploy count: `max(4, deployCount)`, so armies of up to four meet the same force and a
+  fifth unit adds one foe), and the Act I ladder is cut to two waves: T4 1–2 and T7 1–2
+  (+1 level), 2–4 arrivals in all (was 4–6). The XP/gold multipliers are unchanged and
+  apply by wave order (.75, .5). Acts II–IV, Dusk and Black Sun are unchanged.
 - **Every rout map gets it, including village maps.** The ladder replaces the
   template's procedural `waves`/`extraWavesByDifficulty` and stacks on scripted waves:
   village bandits are a turn-1 scripted wave (`MapGenerator.js:395-428`). Scripted waves

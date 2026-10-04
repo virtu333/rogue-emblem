@@ -52,8 +52,17 @@ describe('a difficulty base is a floor, never a replacement', () => {
 
   it('a small army meets at least the base; a big one meets its own size', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
-    // Nightfall: base 5. Two units meet the base; eight meet eight.
-    expect(count('hard', 8) - count('hard', 2)).toBe(8 - 5);
+    // Nightfall: base 4. Two units meet the base; eight meet eight.
+    expect(count('hard', 8) - count('hard', 2)).toBe(8 - 4);
+  });
+
+  it("Nightfall's floor is exactly 4: armies up to four meet the same force, a fifth adds one", () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    // max(4, deploy) for deploy 1..4 is 4; deploy 5 is 5, so the count steps up by one.
+    expect(count('hard', 1)).toBe(count('hard', 4));
+    expect(count('hard', 3)).toBe(count('hard', 4));
+    expect(count('hard', 5) - count('hard', 4)).toBe(1);
+    expect(modes.hard.enemyCountBase).toBe(4);
   });
 
   it('the rungs never invert: harder is never fewer, whatever the army size', () => {

@@ -152,7 +152,7 @@
       "enemyCountBonus": 1,
       "enemyLevelBonus": 1,
       "bossLevelBonus": 0,
-      "enemyCountBase": 5,
+      "enemyCountBase": 4,
       "enemyEquipTierShift": 0,
       "enemySkillChance": 0.2,
       "enemyPoisonChance": 0.08,
@@ -220,8 +220,7 @@
         "acts": {
           "act1": [
             { "turn": 4, "count": [1, 2] },
-            { "turn": 6, "count": [1, 2] },
-            { "turn": 8, "count": [2, 2], "levels": 1 }
+            { "turn": 7, "count": [1, 2], "levels": 1 }
           ],
           "act2": [
             { "turn": 3, "count": [1, 2] },
