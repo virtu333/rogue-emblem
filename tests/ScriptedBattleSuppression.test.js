@@ -117,6 +117,8 @@ describe('every teaching suppression holds in both modes', () => {
           battleParams: P,
           registry: { get: (k) => (k === 'hints' ? hints : null) },
           runManager: run,
+          // A standard battle's hint waits for an idle moment (never comes here).
+          events: { on: vi.fn(), once: vi.fn(), off: vi.fn() },
         };
         return [
           showContextualHint(scene, 'battle_par', 'x'),
