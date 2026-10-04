@@ -1,5 +1,6 @@
 // Shared helpers for Playwright E2E tests.
 // All tests rely on SceneGuard exposing window.__sceneState.
+import { expect } from '@playwright/test';
 
 /**
  * Skip the auth gate if it's visible (click "Play offline").
@@ -271,4 +272,19 @@ export async function finishFormation(page) {
     f.autoPlace();
     if (!f.start()) throw new Error('Formation could not start after Auto-place');
   });
+}
+
+/**
+ * An arena bout after Fight: press Next round in each round's dialog until the bout
+ * ends, then return the result dialog. Waits on each round's own dialog, never on
+ * time, so a stale Next round is never pressed twice.
+ */
+export async function fightArenaBout(page) {
+  const log = page.getByRole('dialog', { name: 'Arena · Combat result', exact: true });
+  for (let n = 1; ; n++) {
+    const round = page.getByRole('dialog', { name: `Arena · Round ${n}`, exact: true });
+    await expect(log.or(round)).toBeVisible();
+    if (await log.isVisible()) return log;
+    await round.getByRole('button', { name: 'Next round', exact: true }).tap();
+  }
 }

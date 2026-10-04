@@ -166,7 +166,7 @@ export function generateChallenger(
 /**
  * Calculate arena reward for a fight outcome.
  * @param {Object} tier - tier config
- * @param {'win'|'lose'|'draw'} outcome
+ * @param {'win'|'lose'|'draw'|'yield'} outcome
  * @param {number} baseXP - XP from calculateCombatXP
  * @param {number} levelsGainedThisVisit - levels gained so far at this colosseum
  * @param {Object} colosseumData
@@ -176,10 +176,12 @@ export function calculateArenaReward(tier, outcome, baseXP, levelsGainedThisVisi
   const drAfterLevels = colosseumData?.arena?.diminishingReturnsAfterLevels ?? 2;
   const drFactor = colosseumData?.arena?.diminishingReturnsFactor ?? 0.5;
 
-  if (outcome === 'lose') {
+  // A loss and a yield both forfeit the entry fee and earn nothing.
+  if (outcome === 'lose' || outcome === 'yield') {
     return { goldDelta: -tier.entryFee, xpGained: 0 };
   }
-  // Draws still train the fighter; visit limits and diminishing returns apply.
+  // A draw (the bout reached its round cap) still trains the fighter; visit limits
+  // and diminishing returns apply.
   const drawMultiplier = outcome === 'draw' ? (colosseumData?.arena?.drawXpMultiplier ?? 0.25) : 1;
   let xp = Math.round(baseXP * tier.xpMultiplier * drawMultiplier);
   if (levelsGainedThisVisit >= drAfterLevels) {

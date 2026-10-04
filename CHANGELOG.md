@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Arena: Fights to the Finish (Oct 4, 2026)
+
+- **A bout now goes round by round until one fighter falls.** It used to be a single
+  exchange, so a level-matched challenger almost never fell: 78–98% of bouts were draws
+  that paid no gold, a quarter of the XP, and cost the fighter about a third of its HP.
+  Now fewer than 3% of bouts reach the 10-round limit (a draw: the fee comes back, with a
+  little XP). Bouts last about 2.5 rounds.
+- **The forecast shows the odds** of the bout fought to the end ("Win about 60% · Lose
+  about 40%"), estimated from many simulated bouts that never touch the run's dice.
+- **The entry fee is paid when the bout starts.** A win returns it with the prize and full
+  XP. A loss keeps it and leaves the fighter at 1 HP.
+- **Yield between rounds:** the fee is gone, but the fighter keeps the HP it has. Leaving
+  mid-bout counts as yielding. Every round is saved as it is fought.
+- **Bigger prizes:** Bronze 150 → 200 G, Silver 400 → 500, Gold 800 → 1000, Platinum
+  1500 → 1800. In a sim of fresh fighters, the first bout is worth about +140 G on average
+  in Act I Bronze, +270–380 G in Silver and Gold, and +300–540 G in Platinum. HP lost in
+  the arena still carries into the next battle.
+
 ### Poison Needs a Hit (Oct 3, 2026)
 
 - **A missed attack no longer poisons.** The enemy-only Adder Blade and Adder Bow (5) and

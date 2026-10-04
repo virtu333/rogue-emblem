@@ -31,7 +31,7 @@ import {
   pageErrors,
   safeAreaInsets,
 } from './portraitHelpers.js';
-import { waitForScene } from './helpers.js';
+import { waitForScene, fightArenaBout } from './helpers.js';
 
 const [SE, IPHONE_13] = PORTRAIT_PHONES;
 
@@ -469,7 +469,7 @@ for (const viewport of [SE, IPHONE_13]) {
       const fight = forecast.getByRole('button', { name: 'Fight', exact: true });
       await expectTappable(fight);
       await fight.tap();
-      const log = page.getByRole('dialog', { name: 'Arena · Combat result', exact: true });
+      const log = await fightArenaBout(page);
       await log.getByRole('button', { name: 'Continue', exact: true }).last().tap();
       await expect(
         page.getByRole('dialog', { name: 'Arena · Rewards', exact: true }),

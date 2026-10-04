@@ -302,6 +302,12 @@
 .service-card h3 {
   margin: 0 0 6px;
 }
+/* The arena forecast's odds of the bout fought to the end. */
+.service-menu .arena-odds {
+  margin: 10px 0;
+  color: var(--re-gold-hi);
+  font-weight: 600;
+}
 @media (orientation: portrait) {
   .service-columns {
     grid-template-columns: 1fr;
