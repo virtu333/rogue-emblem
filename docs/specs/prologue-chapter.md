@@ -1001,6 +1001,16 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
 
 - A new serialized field, `mode: 'standard' | 'prologue'`. `fromJSON` defaults it to
   `'standard'`, so old saves are untouched.
+- **The prologue's run save stays on the device** (`CloudSync.isLocalOnlyRunSave`; review,
+  2026-10-04). A client from before the prologue (an un-updated TestFlight build) reads
+  `run_saves` without knowing `mode` and would open a prologue save as a standard run on the
+  seven-node authored map. So `pushRunSave` never sends one, logout's backup leaves it out,
+  and "Use this device save" with a prologue run deletes the cloud run it was chosen over
+  (identity-guarded) instead of pushing. The slot's meta syncs as usual: a device without the
+  run save sees `in_progress` with no run and gets the offer again (`routeForSlot`), and an
+  old client sees a fresh slot. A prologue row an earlier build pushed is removed on the
+  first prologue save of a session (only while the row is itself a prologue run). The cost:
+  signing out mid-prologue, or moving device, restarts the prologue from the offer.
 - `startPrologue(gameData, prologueData)`:
   - sets the prologue seed
   - starts the roster as authored Edric alone

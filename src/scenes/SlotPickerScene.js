@@ -27,7 +27,7 @@ import { HintManager } from '../engine/HintManager.js';
 import { loadRun, saveRun, clearBattleInProgressInSave } from '../engine/RunManager.js';
 import { isPrologueRun } from '../engine/ScriptedBattle.js';
 import { MUSIC } from '../utils/musicConfig.js';
-import { pushMeta, pushRunSave, deleteSlotCloud } from '../cloud/CloudSync.js';
+import { pushChosenLocalRun, pushMeta, pushRunSave, deleteSlotCloud } from '../cloud/CloudSync.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
@@ -504,7 +504,8 @@ export class SlotPickerScene extends Phaser.Scene {
       }
       const cloud = this.registry.get('cloud');
       if (version === 'local' && cloud) {
-        if (result.run) pushRunSave(cloud.userId, slot, result.run);
+        // (A prologue run is never pushed: the cloud run it replaces is deleted.)
+        if (result.run) pushChosenLocalRun(cloud.userId, slot, result.run, conflict.cloudRun);
         if (result.meta) pushMeta(cloud.userId, slot, result.meta);
       }
       this.requestCancel({ allowExit: false });

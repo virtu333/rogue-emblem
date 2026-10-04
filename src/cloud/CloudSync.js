@@ -5,6 +5,7 @@ import { normalizeSettings } from '../utils/SettingsManager.js';
 import { stampPendingCloudPair } from '../engine/CloudPendingRecovery.js';
 import { nativeCapacitor, getNativeSaveMirror } from '../utils/nativeSaveMirror.js';
 import { preserveCloudConflict } from '../engine/CloudSaveConflict.js';
+import { isPrologueRun } from '../engine/ScriptedBattle.js';
 // CloudSync.js — Fire-and-forget cloud save/load via Supabase
 // All methods catch errors and console.warn — never throw.
 // Stores per-slot data as { "1": {...}, "2": {...}, "3": {...} } in a single Supabase row.
@@ -497,7 +498,7 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
   const next = prev
     .catch(() => {})
     .then(async () => {
-      await writeSlotWithAuthRefresh(userId, table, slot, slotData, maxAttempts);
+      await writeSlotWithAuthRefresh(userId, table, slot, slotData, maxAttempts, options.expected);
       return true;
     })
     .catch((e) => {
@@ -542,6 +543,49 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
   return next;
 }
 
+/**
+ * The prologue's run save (RunManager mode 'prologue') stays on the device that plays
+ * it. A client from before the prologue reads run_saves without knowing `mode` and
+ * would open that save as a standard run on the prologue's seven-node authored map,
+ * so it never reaches the cloud: the prologue is short, the slot's meta (pushed as
+ * usual) records it 'in_progress', and a device without the run save offers it again
+ * (PrologueRouting.routeForSlot). Logout's backup leaves it out the same way.
+ */
+export function isLocalOnlyRunSave(run) {
+  return isCloudSlotPayload(run) && isPrologueRun(run);
+}
+
+// Slots whose cloud row has been checked for a prologue run save this session.
+const retiredPrologueRows = new Set();
+
+/**
+ * Remove a prologue run save an earlier build pushed to this slot's cloud row, once a
+ * session: the delete holds only while the row is itself a prologue run, so a standard
+ * run in the row (another device's) is never touched.
+ */
+function retireCloudPrologueRun(userId, slot) {
+  const signature = `${userId}:${slot}`;
+  if (retiredPrologueRows.has(signature)) return;
+  retiredPrologueRows.add(signature);
+  void updateSlotInTable(userId, TABLES.run, slot, null, { expected: isLocalOnlyRunSave }).then(
+    (done) => {
+      if (done !== true) retiredPrologueRows.delete(signature);
+    },
+  );
+}
+
+/**
+ * The cloud side of "Use this device save": the chosen local run replaces the cloud's.
+ * A local-only run (the prologue's) is never pushed, so the cloud run it was chosen
+ * over is deleted instead (only while the row still holds that run), or the next
+ * fetch would find it newer and ask again.
+ */
+export function pushChosenLocalRun(userId, slot, run, replacedCloudRun) {
+  if (!isLocalOnlyRunSave(run)) return pushRunSave(userId, slot, run);
+  if (replacedCloudRun != null) return deleteRunSave(userId, slot, replacedCloudRun);
+  return { queued: false, reason: 'prologue_local' };
+}
+
 const protectedBackupReported = new Set();
 export function pushRunSave(userId, slot, runData) {
   if (protectedLocalSlot(slot)) {
@@ -559,6 +603,10 @@ export function pushRunSave(userId, slot, runData) {
     return { queued: false, reason: 'protected_slot' };
   }
   if (!supabase || !userId) return { queued: false, reason: 'offline' };
+  if (isLocalOnlyRunSave(runData)) {
+    retireCloudPrologueRun(userId, slot);
+    return { queued: false, reason: 'prologue_local' };
+  }
   getCloudSyncStatus(); // A resolved recovery gate no longer pauses new backups.
   updateSlotInTable(userId, TABLES.run, slot, runData);
   return { queued: true };
@@ -779,6 +827,8 @@ export async function backupAllLocalSlots(
         if (raw == null) continue;
         const value = JSON.parse(raw);
         if (!isCloudSlotPayload(value)) return false;
+        // The prologue's run save is never backed up (isLocalOnlyRunSave).
+        if (table === TABLES.run && isLocalOnlyRunSave(value)) continue;
         batch.push({ slot, table, value, key, raw });
       }
     }
@@ -813,6 +863,7 @@ export async function __flushCloudSyncQueuesForTests() {
 
 export function __resetCloudSyncQueuesForTests() {
   updateQueues.clear();
+  retiredPrologueRows.clear();
   pendingRecoveryQueues.clear();
   pendingRecoveryWrites.clear();
   remoteNewerWarnedSignatures.clear();
@@ -1086,6 +1137,7 @@ async function deleteTableRowWithRevision(userId, table, expectedUpdatedAt) {
 // a newer or different legacy run cannot be mistaken for that abandoned save.
 function matchesRunIdentity(run, identity) {
   if (typeof identity === 'string') return run?.runRecordId === identity;
+  if (typeof identity === 'function') return identity(run) === true;
   const ordered = (value) =>
     Array.isArray(value)
       ? value.map(ordered)
