@@ -31,7 +31,6 @@ import {
   canStartAreaStrike,
   isAreaStrikeCenter,
 } from '../engine/AreaStrike.js';
-import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { areaForecastLines, previewAreaArt } from '../engine/AreaPreview.js';
 import { canAttackWithWeapon } from '../engine/AttackOptions.js';
 import { AREA_XP_LIVE } from '../engine/BattleXp.js';
@@ -425,7 +424,7 @@ export class AreaTargetingController {
     const scene = this.scene;
     const session = battleSession(scene);
     scene._pendingCommittedAction = null;
-    if (!scene.runManager?.battleInProgress || isScriptedBattle(scene.battleParams)) return;
+    if (!scene.runManager?.battleInProgress) return;
     if (unit?.faction !== 'player' || scene.turnManager?.currentPhase !== 'player') return;
     if (!unit.battleEntityId) return;
     const weaponIndex = Array.isArray(unit.inventory) ? unit.inventory.indexOf(weapon) : -1;

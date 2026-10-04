@@ -30,7 +30,7 @@ function bossPathTo(rm) {
 }
 
 describe('RunManager · Eclipse commit', () => {
-  it('starts every run at shadow 0, enabled; tutorial runs are off', () => {
+  it('starts every run at shadow 0, enabled; a run with the switch off (the prologue) is off', () => {
     const rm = freshRun();
     expect(rm.eclipse).toEqual({
       version: 2,
@@ -41,11 +41,16 @@ describe('RunManager · Eclipse commit', () => {
       kindledNodeIds: [],
     });
     expect(rm.isEclipseActive()).toBe(true);
-    const tutorial = new RunManager(data);
-    tutorial.startRun({ runSeed: 1, tutorialMode: true, applyBlessingsAtStart: false });
-    expect(tutorial.eclipse.enabled).toBe(false);
-    expect(tutorial.isEclipseActive()).toBe(false);
-    expect(tutorial.projectShadowGain(20, 5)).toBe(0);
+    const off = new RunManager(data);
+    off.startRun({ runSeed: 1, eclipseEnabled: false, applyBlessingsAtStart: false });
+    expect(off.eclipse.enabled).toBe(false);
+    expect(off.isEclipseActive()).toBe(false);
+    expect(off.projectShadowGain(20, 5)).toBe(0);
+    // The prologue run (docs/specs/prologue-chapter.md §8) uses that switch.
+    const prologue = new RunManager(data);
+    prologue.startPrologue(data, data.prologue);
+    expect(prologue.eclipse.enabled).toBe(false);
+    expect(prologue.projectShadowGain(20, 5)).toBe(0);
   });
 
   it('adds the battle gain at victory and records the commit', () => {

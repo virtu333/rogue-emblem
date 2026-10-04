@@ -114,6 +114,11 @@ describe('story slice selection contracts', () => {
           else if (key === 'minRunsCompleted' || key === 'maxRunsStarted') {
             expect(Number.isInteger(condition)).toBe(true);
             expect(condition).toBeGreaterThanOrEqual(0);
+          } else if (key === 'prologue') {
+            // One state or any of several ('none' | 'skipped' | 'complete').
+            const states = Array.isArray(condition) ? condition : [condition];
+            expect(states.length, key).toBeGreaterThan(0);
+            for (const state of states) expect(['none', 'skipped', 'complete']).toContain(state);
           } else {
             expect(typeof condition, key).toBe('string');
             expect(condition.length, key).toBeGreaterThan(0);

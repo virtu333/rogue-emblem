@@ -36,7 +36,6 @@
         "forecast-parity.spec.js",
         "progression-reveal.spec.js",
         "selection-planning.spec.js",
-        "prologue-lessons.spec.js",
         "hint-reading.spec.js",
         "reward-menu.spec.js",
         "shop-reentry.spec.js",
@@ -168,9 +167,13 @@
         "service-audit.spec.js",
         "slot-picker.spec.js",
         "strategy-layer.spec.js",
-        "traits-v2.spec.js",
-        "prologue-exit.spec.js"
+        "traits-v2.spec.js"
       ]
+    },
+    {
+      "name": "prologue",
+      "description": "The prologue: the first thread as a run (offer, P1, the route, P2, the ending, Home Base), its exits and restarts, the P1 lessons, the title's chapter select",
+      "specs": ["prologue-run.spec.js", "prologue-exit.spec.js", "prologue-lessons.spec.js"]
     },
     {
       "name": "menus",

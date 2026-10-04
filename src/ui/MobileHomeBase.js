@@ -31,6 +31,8 @@ export class MobileHomeBase {
       this.onboarding.push(
         'Spend Valor and Supply in Upgrades to strengthen your army across runs.',
       );
+    const grantNote = scene._prologueGrantNote?.(hints);
+    if (grantNote) this.onboarding.push(grantNote);
     if (hints?.shouldShow('homebase_begin'))
       this.onboarding.push('Choose your starting lords and skills, then Begin Run.');
     scene.mobileUpgrades = new MobileUpgradeMenu(scene, {
@@ -106,6 +108,9 @@ export class MobileHomeBase {
     this.render();
     const ok = await this.scene.runTransition(async () => {
       if (target === 'Title') this.scene.registry.get('audio')?.stopMusic(this.scene, 0);
+      // Begin Run: the scene picks the road (the first run after the prologue takes
+      // the fast path; otherwise Difficulty Select).
+      if (target === 'BeginRun') return this.scene.startRunFromHomeBase();
       return (
         (
           await transitionToSceneWithBlockedRetry(
@@ -320,7 +325,7 @@ export class MobileHomeBase {
     }
     const actions = node('div', 'mu-actions');
     actions.append(node('span', 'mu-help', `${selection.commander} + ${selection.partner}`));
-    const begin = this.button('Begin Run', () => void this.transition('DifficultySelect'));
+    const begin = this.button('Begin Run', () => void this.transition('BeginRun'));
     begin.className = 'mu-buy';
     begin.dataset.focus = 'begin';
     actions.append(begin);

@@ -100,6 +100,42 @@ function normalizeStoryFlags(raw) {
   };
 }
 
+// The prologue on this save (docs/specs/prologue-chapter.md §9): where it stands, whether
+// its Home Base grant was paid (the idempotence ledger: paid once across refreshes and
+// cloud merges), the chapters won and the lessons practised (§8).
+export const PROLOGUE_STATES = Object.freeze(['none', 'in_progress', 'skipped', 'complete']);
+const PROLOGUE_STATE_RANK = Object.freeze({ none: 0, in_progress: 1, skipped: 2, complete: 3 });
+
+function defaultPrologueState() {
+  return { state: 'none', grantPaid: false, chaptersCompleted: [], practised: [] };
+}
+
+const idList = (list) =>
+  Array.isArray(list) ? [...new Set(list.filter((id) => typeof id === 'string' && id))] : [];
+
+export function normalizePrologueState(raw) {
+  const base = defaultPrologueState();
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return base;
+  return {
+    state: PROLOGUE_STATES.includes(raw.state) ? raw.state : base.state,
+    grantPaid: raw.grantPaid === true,
+    chaptersCompleted: idList(raw.chaptersCompleted),
+    practised: idList(raw.practised),
+  };
+}
+
+/** The union of two prologue records: the further state, a paid grant stays paid. */
+export function mergePrologueState(a, b) {
+  const x = normalizePrologueState(a);
+  const y = normalizePrologueState(b);
+  return {
+    state: PROLOGUE_STATE_RANK[y.state] > PROLOGUE_STATE_RANK[x.state] ? y.state : x.state,
+    grantPaid: x.grantPaid || y.grantPaid,
+    chaptersCompleted: idList([...x.chaptersCompleted, ...y.chaptersCompleted]),
+    practised: idList([...x.practised, ...y.practised]),
+  };
+}
+
 const MAX_SETTLED_RUN_IDS = 50;
 
 /** Union of settled run ids, newest last, bounded so meta cannot grow forever. */
@@ -293,6 +329,7 @@ export class MetaProgressionManager {
     this.lordSelection = { ...DEFAULT_LORD_SELECTION }; // commander-choice picks, persisted
     this.milestones = new Set(); // e.g. "beatAct1", "beatAct2", "beatAct3"
     this.storyFlags = defaultStoryFlags(); // run-aware narrative memory
+    this.prologue = defaultPrologueState();
 
     let savedMeta = null;
     try {
@@ -340,6 +377,7 @@ export class MetaProgressionManager {
         this.seenDialogueKeys = mergeSeenDialogueKeys(saved.seenDialogueKeys || []);
         this.deedsEarned = mergeDeedIds(saved.deedsEarned);
         if (saved.storyFlags) this.storyFlags = normalizeStoryFlags(saved.storyFlags);
+        this.prologue = normalizePrologueState(saved.prologue);
         this.solRefundBasis = Number(saved.solRefundBasis) === 400 ? 400 : 600;
         if (!saved.balanceRevision && this.getUpgradeLevel('unlock_sol') > 0)
           this.solRefundBasis = 400;
@@ -489,6 +527,88 @@ export class MetaProgressionManager {
 
   getRunsStarted() {
     return this.runsStarted;
+  }
+
+  // ── The prologue ───────────────────────────────────────────────────────
+
+  /** 'none' | 'in_progress' | 'skipped' | 'complete' (routing reads this). */
+  getPrologueState() {
+    return normalizePrologueState(this.prologue).state;
+  }
+
+  /** The whole record, as a copy. */
+  getPrologue() {
+    return normalizePrologueState(this.prologue);
+  }
+
+  /**
+   * Record where the prologue stands ('in_progress' when it starts, 'skipped' when the
+   * player skips to the first run). Never steps back from 'complete', and a paid
+   * grant stays paid. Persists.
+   */
+  setPrologueState(state) {
+    if (!PROLOGUE_STATES.includes(state)) return { ok: false };
+    const current = normalizePrologueState(this.prologue);
+    if (current.state === 'complete') return { ok: true };
+    this.prologue = { ...current, state };
+    return this._save();
+  }
+
+  /** A prologue chapter won on this save (what later runs may skip explaining). */
+  recordPrologueChapter(chapterId) {
+    if (typeof chapterId !== 'string' || !chapterId) return { ok: false };
+    const current = normalizePrologueState(this.prologue);
+    if (current.chaptersCompleted.includes(chapterId)) return { ok: true };
+    this.prologue = { ...current, chaptersCompleted: [...current.chaptersCompleted, chapterId] };
+    return this._save();
+  }
+
+  /** True once the prologue won this chapter on this save (even if later skipped). */
+  hasCompletedPrologueChapter(chapterId) {
+    return normalizePrologueState(this.prologue).chaptersCompleted.includes(chapterId);
+  }
+
+  /** Lessons the player practised (not just saw) in the prologue (§8's second fact). */
+  recordProloguePractised(ids) {
+    const current = normalizePrologueState(this.prologue);
+    const practised = idList([...current.practised, ...(Array.isArray(ids) ? ids : [])]);
+    if (practised.length === current.practised.length) return { ok: true };
+    this.prologue = { ...current, practised };
+    return this._save();
+  }
+
+  /**
+   * The prologue ends (won or skipped mid-way): state 'complete', and the Home Base
+   * grant paid exactly once. The ledger flag and the currencies land in one write; a
+   * failed write rolls the memory back so a retry pays, never a second call. A copy
+   * on disk that already paid (another device, a cloud merge) is adopted first.
+   * @param {{ grant?: { valor?: number, supply?: number }, chaptersCompleted?: string[],
+   *   practised?: string[] }} [options]
+   * @returns {{ ok: boolean, paid: boolean }}
+   */
+  completePrologue({ grant = null, chaptersCompleted = [], practised = [] } = {}) {
+    this._adoptForeignDiskStateIfNewer();
+    const before = this._captureState();
+    const current = normalizePrologueState(this.prologue);
+    const paid = !current.grantPaid;
+    this.prologue = mergePrologueState(current, {
+      state: 'complete',
+      grantPaid: true,
+      chaptersCompleted,
+      practised,
+    });
+    if (paid) {
+      const valor = Math.max(0, Math.floor(Number(grant?.valor) || 0));
+      const supply = Math.max(0, Math.floor(Number(grant?.supply) || 0));
+      this.totalValor = Math.max(0, Math.floor((this.totalValor || 0) + valor));
+      this.totalSupply = Math.max(0, Math.floor((this.totalSupply || 0) + supply));
+    }
+    const result = this._save();
+    if (!result.ok) {
+      this._restoreState(before);
+      return { ok: false, paid: false };
+    }
+    return { ok: true, paid };
   }
 
   incrementRunsStarted() {
@@ -1245,6 +1365,7 @@ export class MetaProgressionManager {
     this.lordsMet = [...ALWAYS_MET_LORD_NAMES];
     this.milestones = new Set();
     this.storyFlags = defaultStoryFlags();
+    this.prologue = defaultPrologueState();
     this.runRecords = [];
     this.settledRunIds = [];
     this.seenDialogueKeys = [];
@@ -1355,6 +1476,9 @@ export class MetaProgressionManager {
       }
     }
     if (isDifficultyId(disk.lastDifficulty)) this.lastDifficulty = disk.lastDifficulty;
+    // The prologue: the further state wins and a paid grant stays paid, so the grant
+    // can never be paid twice across devices or a cloud heal.
+    this.prologue = mergePrologueState(this.prologue, disk.prologue);
     this.savedAt = diskSavedAt;
   }
 
@@ -1428,6 +1552,7 @@ export class MetaProgressionManager {
       deedsEarned: this.deedsEarned,
       lordsMet: this.lordsMet,
       hintState: this.hintState,
+      prologue: this.prologue,
       savedAt: this.savedAt,
     });
   }
@@ -1463,6 +1588,7 @@ export class MetaProgressionManager {
       deedsEarned: this.deedsEarned,
       lordsMet: this.lordsMet,
       hintState: this.hintState,
+      prologue: normalizePrologueState(this.prologue),
       savedAt: this.savedAt,
     };
     let localOk = false;

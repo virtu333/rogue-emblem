@@ -290,61 +290,82 @@ also confirms that the intended play and the naive policy win every one of 300 b
 
 Story: an imperial outrider squad at the ford, with a village the squad hasn't reached.
 
+**As built (Phase 2A, `data/prologue.json` `p2_old_hands`; the harness in
+`tests/harness/PrologueP2.test.js` pins every number below):**
+
 ```
-. . F . . ~ . . . F
-E . . . . ~ . a . .
-. . V . . = . . c .
-E . . . F ~ . b . .
+. . . F . ~ . . . .
+. . . . . ~ . . . .
+. . . . . = . . . .
+. . . . . ~ . F F .
+. . . V . ~ ~ ~ . .
 . . F . . ~ . . . .
-. . . . . ~ F . . T
 ```
-(Soldier `d` stands on the Fort at the bottom right.)
+Edric spawns at (0, 2) and Gaspar at (0, 3). Archer `a` (L1, Iron Bow) stands at (3, 1) on the
+west bank; Fighter `b` (L1, Iron Axe) holds the bridgehead at (8, 2) as a `hold` pack of one;
+Soldier `d` (L1, Iron Lance) `guard`s at (9, 0) on Plain. The village is (3, 4).
 
-- **Roster:** Edric (carries his P1 level), and Gaspar: the standard special character (Steel
-  Lance and Iron Sword, Measured Step, Aegis). His data is unchanged.
-- **Enemies:** Archer `a` (L1, Iron Bow); Fighters `b` and `c` (L1, Iron Axe); Soldier `d` (L2,
-  Iron Lance, `guard` on the Fort).
+- **Roster:** Edric at level 2 (`rosterLevels`: P1's reward, replayed standalone with seeded
+  level-ups), and Gaspar: the standard special character (Steel Lance and Iron Sword, Measured
+  Step, Aegis). His data is unchanged.
 - **Village:** an authored `villageTile` (painting `V` terrain alone is not a visitable village).
-  It's uncontested: no bandit squad (§8). The visit reward is a fixed Iron Bow, delivered to the
-  convoy as village rewards always are. It sets up row 2.
-- **Loot:** an authored offer, not a random draw: an Iron Lance, a Vulnerary, or gold. The Store
-  step at row 2 needs a weapon to exist.
-- **Objective:** Rout.
+  It's uncontested: no bandit squad (§8). The visit reward is a fixed Iron Bow (`reward`),
+  delivered to the convoy as village rewards always are. It sets up row 2.
+- **Loot:** an authored offer, not a random draw: an Iron Lance, three Vulneraries, or 150 gold
+  (`loot`; `buildPrologueLootChoices`). The Store step at row 2 needs a weapon to exist.
+- **Objective:** Rout. No par (`showPar: false`): no HUD Par, no turn bonus, no late pressure.
 
-**The Jagen beat** (verified):
-- Gaspar's Steel Lance against the Archer: 16 of 18 HP, one strike (AS 4 against the Archer's 3
-  is no double), and no counter at range 1. The Archer is left on 2.
-- Edric finishes it from an adjacent tile: 8, no counter.
-- Gaspar's Iron Sword against the same Archer: 12 ×2 (AS 9 doubles), a kill. So the forecast
-  shows the choice: **the lance chips, the sword kills.**
-- The note is the in-run `guide_veteran_kills` (this branch): "Gaspar is strong now but barely
-  grows and earns little XP. Weaken enemies with Gaspar, then leave the final blow to Edric and
-  your recruits: they grow from it." Showing it here marks it read.
-- The XP numbers make the point. Gaspar counts as promoted (effective level +12), so a kill
-  earns him the minimum `XP_MIN`, while the same kill earns Edric about 40.
-- The bridge is one tile wide, so Edric may need two turns to reach the Archer. Whether the
-  chip-then-finish lands on one turn depends on where the AI walks it, and the harness pins
-  that.
+**The Jagen beat** (verified on real data, `getCombatForecast`):
+- Gaspar's Steel Lance against the Archer: 16 of 18 HP at 88 Hit, one strike (no double), and
+  no counter at range 1. The Archer is left on 2.
+- Edric finishes it from an adjacent tile: 8 at 100 Hit, no counter.
+- Gaspar's Iron Sword against the same Archer: 12 ×2 at 100 Hit, a kill. So the forecast shows
+  the choice: **the lance chips, the sword kills.**
+- The note is the in-run `guide_veteran_kills` (`p2_veteran_kills`): "Gaspar is strong now but
+  barely grows and earns little XP. Weaken enemies with Gaspar, then leave the final blow to
+  Edric and your recruits: they grow from it." In the prologue run, showing it marks the slot's
+  hint as read.
+- The Fighter hits Gaspar (lance) for 10 at 75%; Gaspar's sword takes the Fighter at 13 ×2.
+  The Soldier hits Edric for 8 and Edric's sword is at a triangle disadvantage against it;
+  Gaspar's lance opens the Soldier for 13. No enemy can crit Edric (LCK 6).
+- The Archer starts on the west bank so the Jagen beat lands on turn 1, before the bridge.
 
 | # | Trigger | Lesson |
 |---|---|---|
-| 1 | Battle start | Gaspar's intro line. |
+| 1 | Battle start | Gaspar's intro lines (`p2_gaspar_intro`). |
 | 2 | Gaspar selected | The Jagen note (above). Gaspar rides 6 tiles; Measured Step lets him keep moving after a non-combat action. |
-| 3 | Gaspar targets the Archer | **Weapon choice and doubling** (`battle_doubling`, one concept: strike count). The lance reads 16 ×1, the sword 12 ×2. "Attack speed decides a second strike, and heavy weapons slow you. Switch weapons and watch the ×2." (A playtester made the same call with Iron 8×2 against Steel 11×1.) |
-| 4 | Adjacent to the Archer | `battle_no_counter`: bows reach two tiles only. |
-| 5 | First forecast under 100 Hit after that | **Forecasts are possibilities.** "Hit is a chance, not a promise. Pick a plan that still holds if this misses. A counter only comes if the defender survives." (Playtests: a 91-Hit attack missed, and a displayed counter never came because the enemy died first.) |
-| 6 | Edric selected while the Soldier is in reach | The triangle against Edric: "Lances beat swords. Let Gaspar take the Soldier." |
-| 7 | Turn 2 | Danger (existing `battle_danger_zone`). |
-| 8 | A unit ends on the village | Visit: gold, and an Iron Bow sent to the convoy (existing village copy, minus the bandit clause). |
-| 9 | Victory | **Loot screen**, first time (existing `battle_loot`, rewritten for the prologue). |
+| 3 | Gaspar targets the Archer | **Weapon choice and doubling** (`battle_doubling`, one concept: strike count). The lance reads 16 ×1, the sword 12 ×2. |
+| 4 | A forecast with no counter | `battle_no_counter`: bows reach two tiles only. |
+| 5 | A forecast under 100 Hit | **Forecasts are possibilities** (`p2_forecast_chances`). |
+| 6 | Edric's forecast against the Soldier | The triangle against Edric (`p2_lances_beat_swords`): "Let Gaspar open the Soldier; Edric finishes it." |
+| 7 | Edric's kill | Marks `veteran_kills` practised. |
+| 8 | Turn 2 | Danger (`battle_danger_zone`). |
+| 9 | A unit ends on the village | Visit (`p2_village_visit`): gold, and an Iron Bow sent to the convoy. |
+| 10 | Victory | The victory lines (`p2_victory`) and the **loot screen** note (`battle_loot`), then the authored rewards. |
 
-**Reuse:** the guarded Soldier on the Fort is the unprompted check. Edric's sword is at a
-disadvantage, so the player has to apply the P2 pattern unaided: Gaspar softens, Edric
-finishes, and no Jagen note fires again.
+Forecast notes fire one concept per forecast (`prologueBeatsFor`'s `oneNote`): the first
+matching note beat shows, the rest wait for a later forecast.
 
-**Gaspar doesn't solve the map.** Sending Gaspar over the bridge alone should lose him: two
-Fighters hit him for 10 at 75% each, and the Archer for 4, against 18 HP. Losing him restarts
-the chapter. The harness checks that a Gaspar-only policy fails.
+**Reuse:** the guarded Soldier is the unprompted check. Edric's sword is at a disadvantage, so
+the player has to apply the P2 pattern unaided: Gaspar softens, Edric finishes, and no Jagen
+note fires again.
+
+**Gaspar doesn't solve the map.** The harness proofs (300 seeds unless noted):
+- the intended script (lance chip so Edric finishes, sword kills only when Edric can't reach,
+  crit-free safety margins) wins 300/300; Edric's lowest HP 7, Gaspar's 3; Edric finished the
+  Archer in 295/300; the village was visited in 299/300; 3–8 turns;
+- a naive policy (path-distance nearest, equipped weapon, Vulnerary at ≤60% as P1 taught)
+  wins 298/300, and 295/300 with Edric at P1's stats;
+- a Gaspar-only policy (Gaspar rides ahead alone) loses him in 91/100;
+- no enemy-phase sequence (hits and crits) kills Edric from where the intended script leaves him
+  (the exposure guard asserts worst-case damage below his HP at every player-phase end);
+- P1 is unchanged by P2's data: 300/300 for both policies.
+
+Deviations from the first draft (each a proof result): one Fighter instead of two (two woke
+together and killed Gaspar on the bridge); the Soldier at L1 on Plain, not L2 on a Fort (the
+Fort's heal and +2 DEF stalled a naive Edric at low HP); the Archer on the west bank (across
+the bridge it drained Gaspar before the lesson); Myrmidons were tried for the Fighters and
+rejected (Gaspar soloed them, 98/100).
 
 ### Route map, row 2 — Harrow's Crossing (Market | Chapel)
 
@@ -753,11 +774,22 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
 - It reuses `act1` as the act id for its tables (enemy pools, deploy limits, music), to avoid
   the ~15 act tables a new id would need.
 - **Boss completion branches on mode.** No boss recruit screen, no third lord, no `+1 Vision`,
-  no `advanceAct` (the suppress list in §8). It calls `completePrologue()` instead, which:
-  - sets `meta.prologue = { state: 'complete' }`
-  - pays the grant once (ledger flag)
-  - clears the run save
-  `meta.prologue` and the grant ledger sync to `meta_progression` like the rest of meta.
+  no `advanceAct` (the suppress list in §8). The ending (`PrologueEnding.commitPrologueEnd`)
+  calls `meta.completePrologue({ grant, chaptersCompleted, practised })` instead, which:
+  - sets `meta.prologue.state = 'complete'`
+  - pays the grant once (the `grantPaid` ledger flag, in the same write as the currencies; a
+    failed write rolls back so a retry pays; a paid copy on disk is adopted first)
+  - then the run save is cleared
+  `meta.prologue` (`{ state, grantPaid, chaptersCompleted, practised }`) rides the meta
+  payload to `meta_progression` like the rest of meta, under the `savedAt` freshness guard;
+  a merge takes the further state, keeps a paid grant paid and unions the lists
+  (`mergePrologueState`).
+- **Built (Phase 2A):** `startPrologue` (the roster from the first-row chapter, Edric stamped
+  commander, the route from `buildPrologueNodeMap`, every chapter pre-locked, `runStart`
+  marked shown so the route map plays no cold open), `getPrologueChapter` /
+  `getActivePrologueChapter`, the authored joins committed in `completeBattle`
+  (`joins.afterChapter`, once), `grantPrologueVision`, `isPrologueComplete`,
+  `restartPrologueBattle`, `mode` in `toJSON` / `fromJSON`.
 
 ### BattleScene: `PrologueController` (built; `src/ui/PrologueController.js`)
 
@@ -824,40 +856,67 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   (`applySpawnLoadout`, above).
 - An authored lord `npcSpawn` (Sera) that doesn't go through `buildRecruitNodeUnit`'s
   roster-average level.
-- Prologue route node titles ("Harrow's Market") and the boss preview line.
+- ~~Prologue route node titles.~~ Done: an authored node's `title` names it on the loom
+  (`describeLoomNode`), and the loom header reads "Prologue · The Quarry Road"
+  (`loomHeader`'s `act` / `title` overrides). The boss preview line waits for P4.
 - The Chapel's blessing service greyed in prologue mode.
 
-### Title, slot, routing and meta
+### Title, slot, routing and meta (built, Phase 2A)
 
-- **Fresh device:** the title's primary item becomes "Prologue · start here" (today it is
-  Tutorial). New Game on a fresh slot asks Prologue / Skip, with the prologue highlighted.
-- **Routing on `meta.prologue`** (code review, 2026-10-04):
-  - `isFirstRunSlot` looks only at the run counters, so it stays true after the prologue.
-    Routing reads `meta.prologue` as well.
-  - `none`: offer the prologue.
-  - `in_progress`: Continue resumes it (`hasActiveRun` is true).
-  - `complete`: go to Home Base.
-  - `skipped`: today's fast path.
-- **Home Base after the prologue:** the existing `homebase_intro` and `homebase_begin` notes, plus
-  one line: "This is what persists. Spend the Valor and Supply from the first thread." Begin
-  Run then takes a new branch into today's fast path (First Light, no blessing), skipping
-  DifficultySelect and BlessingSelect for this run only.
-- **The fast path's route-map note** ("Home Base upgrades, difficulty and blessings unlock after
-  it ends") gets a second version for prologue players, who have already seen Home Base.
-- **Replay:** the Title item "Prologue" opens a chapter select. Replays:
-  - run with `activeSlot` cleared, because `_persistBattleRunState` saves whenever `activeSlot`
-    is an integer;
-  - use a canned roster per chapter (the authored units at that chapter's expected levels);
-  - make no grant and no meta writes.
-  Phase 1 ships the item as the practice battle: "Prologue" (sub-label "Start here" on a fresh
-  device, as the tutorial's promotion was; hidden when the build has no `data/prologue.json`)
-  launches P1 standalone with `buildPrologueUnits(prologue, gameData, chapter.roster)` and
-  `prologueBattleParams(chapter)`. The pause menu offers Leave Prologue and, on a device without
-  saves, Start First Run; victory plays Gaspar's two lines, records the completion flag and the
-  lessons shown (`prologueLessons.recordTaughtLessons`), and hands off to Start first run or
-  Back to title as the tutorial did.
-- **Skip mid-way:** "Skip the rest of the prologue" in the pause menu jumps to the ending, then
-  Home Base, with the grant.
+- **The routing table** is pure: `src/engine/PrologueRouting.js` (`routeForSlot(summary)` →
+  `offer | resume | homeBase | fastPath`, `routeForBeginRun(meta)` → `fastPath | standard`;
+  `tests/PrologueRouting.test.js`). `SlotManager.getSlotSummary` carries `prologue` (the
+  meta's state, `none` for an old save). `isFirstRunSlot` looks only at the run counters, so
+  it stays true after the prologue; routing reads `meta.prologue` as well:
+  - `none` (or an old save): offer the prologue;
+  - `in_progress`: Continue resumes it (`hasActiveRun`); with no run save left (the prologue
+    never reached a battle) the offer again;
+  - `complete`: Home Base; Begin Run takes the fast path while `runsStarted` and
+    `runsCompleted` are 0, then the ordinary road;
+  - `skipped`: today's fast path;
+  - a slot that started or finished a run is never offered the prologue (Home Base).
+- **The offer** (`PROLOGUE_OFFER` in `src/data/prologueContent.js`): "Begin the first thread?"
+  with "Play the Prologue · about 20 minutes" and "Skip to the first run". It comes from both
+  entry points, `TitleScene.handleNewGame` (a MenuSurface; `start: 'prologue' | 'skip'`) and
+  `SlotPickerScene.selectSlot` (a slot dialog). Playing it is the highlighted default on a
+  device that has not finished the prologue (`emblem_rogue_tutorial_completed`); after that,
+  Skip is. Without a DOM the offer is the skip.
+- **The starts** (`src/utils/firstRunFastPath.js`): `startPrologueRun` builds the run
+  (`RunManager.startPrologue`), clears the slot's stale run save and opens P1 at once (the
+  route map is first drawn when P1 is won; `NodeMapScene._launchPrologueOpening` re-opens it
+  the same way after a Continue from Map), then records `in_progress`;
+  `skipPrologueToFirstRun` is today's fast path plus the `skipped` record. Nothing counts:
+  `runsStarted` moves only with the first real run.
+- **A fresh device's title item** "Prologue · Start here" starts the prologue run in a new slot.
+  With saves, "Prologue" opens the chapter select (every chapter on the route, in order):
+  a replay runs standalone with the authored roster at the chapter's expected levels
+  (`buildPrologueRoster`; P2 brings Gaspar), with the title's `activeSlot`, `meta` and
+  `hints` set aside in the registry (`prologueReplayStash`) and restored by the title on
+  return; no grant, no meta write.
+- **Home Base after the prologue:** the existing `homebase_intro` and `homebase_begin` notes,
+  plus one line (`PROLOGUE_HOME_BASE_NOTE`, hint `homebase_prologue_grant`): "This is what
+  persists. Spend the Valor and Supply from the first thread." Begin Run goes through
+  `HomeBaseScene.startRunFromHomeBase` (desktop button and `MobileHomeBase`), which reads
+  `routeForBeginRun`.
+- **The fast path's route-map note** has a prologue-player version
+  (`PROLOGUE_FIRST_RUN_ROUTE_NOTE`): Home Base is already known.
+- **Skip mid-way:** "Skip Prologue" in the pause menu (battle and route map; the coach's Skip
+  and a field note's "Skip prologue" open the same confirmation) jumps to the ending
+  (`src/ui/PrologueEnding.js`: the `prologue.ending` lines, the title card, one meta write,
+  the run save cleared), then Home Base with the grant. The prologue run has no Abandon Run.
+- **The ending** is reached from the last chapter's victory (after its authored loot) in
+  `PostCombatController.transitionAfterBattle`, or from the route map after a reload
+  (`NodeMapScene.checkActComplete`), and never RunComplete or a settlement.
+- **The defeat intercept in the run:** any protected unit's fall (every unit of the chapter's
+  roster, and the commander) is intercepted in `PrologueController.onUnitDefeated` /
+  `onDefeatIntercept` before the lord-death prompt and `onDefeat`; the commander's last words
+  stay suppressed. With an unspent Vision charge the rewind is offered first (the prompt says
+  "Accepting fate restarts this chapter"); Accept Fate comes back through
+  `PostCombatController.onDefeat`, which hands a prologue chapter to the intercept before
+  anything is persisted. The restart (`RunManager.restartPrologueBattle`) reverts to the
+  battle's entry snapshot even past a `fatal_pending` checkpoint (the standard run's
+  `revertBattleInProgressToEntry` guard is untouched), clears the scene's fatal state, saves,
+  and re-opens the node from its locked config.
 
 ### Tests
 
@@ -890,8 +949,20 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   - A completed prologue routes to Home Base, then the fast path.
   - A completed prologue's lesson ids are read in the first run.
   - The suppress list holds (no `battle_par`, no Guidance note and no cold open in prologue mode).
-- **e2e:** a new `prologue` lane plays P1 and P3 on desktop and in portrait, waiting on state
-  (`tests/e2e/lanes.json`).
+- **e2e:** the `prologue` lane (`tests/e2e/lanes.json`): `prologue-run.spec.js` (the offer,
+  P1 as a run, the route, P2, the ending, Home Base, Begin Run's fast path; Skip; a refresh
+  mid-P1 with Resume Battle and Continue from Map), `prologue-exit.spec.js` (Skip from the
+  coach, the pause and a note; the restart in the run; the chapter select and a replay that
+  never touches the slot), `prologue-lessons.spec.js` (P1's notes on a phone, in the run).
+  Phase 2B adds P3 and the portrait specs.
+
+**Built in Phase 2A** (unit): `RunManagerPrologueMode` (start, save round-trip, old saves,
+joins, the restart), `MetaProgressionPrologue` (the record, the grant paid once across a
+refresh and a cloud merge, the counters), `PrologueRouting`, `PrologueEnding`,
+`ScriptedBattleSuppression` (every reader in both modes, no private flag),
+`PrologueController` (both modes), `firstRunFastPath` (the two starts),
+`TitleSceneNewGameFlow` (the offer, the chapter select, the replay stash),
+`NarrativeDirector` (the `prologue` key). Harness: `tests/harness/PrologueP2.test.js`.
 
 ### Novice playtest (the measure that matters)
 
@@ -929,8 +1000,9 @@ time is secondary.
 | 0 (this branch) | First Light: no villages in Act 1 rows 0–2. Gaspar's `guide_veteran_kills` note and help line. This spec. | Shipped |
 | 0b (optional, small) | Interim Sera fix in the current tutorial: a Sera-specific coach goal ("Sera strikes from 2 tiles, where melee can't hit back, and heals with her staff. Keep her behind Edric.") | Throwaway once P3 ships |
 | 1 | Data format and validator, `Prologue.js`, spawn weapon overrides, authored units, `PrologueController`, the defeat intercept. P1 playable from the title as the practice battle, replacing the tutorial. | Shipped 2026-10-04. `TutorialController`, `TutorialHelpers`, the tutorial coach model, lessons and forecast layout deleted; e2e `prologue-exit` / `prologue-lessons` (desktop and phone) and the portrait prologue tests replace the tutorial specs. Deviations: `talk`/`seize` hooks wait for P3/P4; the `practised` ledger is kept on the controller, not on slot meta (no slot in a standalone chapter); the enemy-phase note is a nudge, not a modal. |
-| 2 | Run mode and routing, the suppress list, the literal route map, P2, row 2 (fork, Tamsin, roster lesson), P3 | The bulk |
-| 3 | Ruins, P4, the ending, Home Base handoff and grant, skip and replay flows. First-visit notes for whichever of Shop and Church the player skipped; the Act 1 point-of-use notes in §7. | Story complete |
+| 2A | Run mode and routing, the suppress list in both modes, the literal route map, P2, the ending stub, Home Base handoff and grant, skip and replay flows. | Shipped 2026-10-04. The slice: fresh slot → (Prologue \| Skip) → P1 (row 0, map hidden) → Gaspar joins → route map → P2 → **temporary:** P2's victory completes the prologue → ending stub (data: `prologue.ending`) → Home Base (grant) → Begin Run → the fast path. Later phases insert row 2, P3, the Ruins and P4 by adding data. Deviations: P2 as built above (one Fighter, the Soldier on Plain, the Archer on the west bank); the title's "Prologue · Start here" on a fresh device starts the prologue run rather than a standalone P1; a standalone replay ends with "Back to title" only (the Start First Run handoff is gone: New Game owns the offer); the `practised` ledger lands on slot meta at each chapter's victory in the run (`recordPrologueChapter` / `recordProloguePractised`); the ending is a four-line unnamed sequence plus the title card, not yet the ritual scene. |
+| 2B | Row 2 (fork, Tamsin, roster lesson), P3 | |
+| 3 | Ruins, P4, the ritual ending scene. First-visit notes for whichever of Shop and Church the player skipped; the Act 1 point-of-use notes in §7. | Story complete |
 | 4 | Polish: prologue music picks (existing tracks, then optional cues), the ritual scene staging, copy pass against the lore guide | |
 
 ## 12. Decisions (user, 2026-10-04)

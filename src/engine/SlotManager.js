@@ -5,6 +5,8 @@ import { HintManager } from './HintManager.js';
 import { ALWAYS_MET_LORD_NAMES, lordNamesInRun, lordsMetOfMetaSave } from './LordsMet.js';
 
 export const MAX_SLOTS = 3;
+// MetaProgressionManager.PROLOGUE_STATES, read raw here (the summary never loads a manager).
+const PROLOGUE_SUMMARY_STATES = ['none', 'in_progress', 'skipped', 'complete'];
 const META_KEY_PREFIX = 'emblem_rogue_slot_';
 const META_KEY_SUFFIX = '_meta';
 const RUN_KEY_SUFFIX = '_run';
@@ -268,6 +270,8 @@ export function getSlotSummary(slot, storage = globalThis.localStorage) {
     ).reduce((sum, level) => sum + Math.max(0, Math.trunc(Number(level) || 0)), 0),
     // When this slot's progression last saved (MetaProgressionManager `savedAt`).
     metaSavedAt: Number.isFinite(meta.savedAt) ? meta.savedAt : null,
+    // Where the prologue stands on this save (routing: PrologueRouting.js).
+    prologue: PROLOGUE_SUMMARY_STATES.includes(meta.prologue?.state) ? meta.prologue.state : 'none',
     hasActiveRun: false,
     actReached: null,
     runCorrupt: false,

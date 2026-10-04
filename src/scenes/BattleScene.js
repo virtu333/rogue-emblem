@@ -306,7 +306,12 @@ import {
   TRANSITION_RESULTS,
 } from '../utils/SceneRouter.js';
 import { buildPrologueBattleConfig } from '../engine/Prologue.js';
-import { isScriptedBattle, prologueChapterOf } from '../engine/ScriptedBattle.js';
+import {
+  isScriptedBattle,
+  isStandaloneScriptedBattle,
+  isPrologueRun,
+  prologueChapterOf,
+} from '../engine/ScriptedBattle.js';
 import { resetTransitionLocks, ensureSceneLoaded } from '../utils/sceneLoader.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { markStartup } from '../utils/startupTelemetry.js';
@@ -566,7 +571,7 @@ export class BattleScene extends Phaser.Scene {
     const limits = resolveDeployLimits({
       base: DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1,
       deployBonus: this.runManager?.getDeployBonus?.() || 0,
-      lockedSpawnCount: isScriptedBattle(this.battleParams)
+      lockedSpawnCount: isStandaloneScriptedBattle(this.battleParams, this.runManager)
         ? null
         : this.runManager?.getLockedSpawnCount?.(this.nodeId),
     });
@@ -1395,7 +1400,11 @@ export class BattleScene extends Phaser.Scene {
       this._fallenBattleRecords = []; // DeedController.onUnitRemoved
 
       // Track non-deployed units for merging back on victory
-      if (!isScriptedBattle(this.battleParams) && this.roster && deployedRoster) {
+      if (
+        !isStandaloneScriptedBattle(this.battleParams, this.runManager) &&
+        this.roster &&
+        deployedRoster
+      ) {
         // By unit identity: a benched unit that shares a deployed unit's name must
         // still come back on victory (UnitIdentity.js).
         const deployed = new Set(deployedRoster);
@@ -1415,24 +1424,25 @@ export class BattleScene extends Phaser.Scene {
       this.battleParams.deployCount = deployCount;
       this.battleParams.isBoss = !!this.isBoss;
 
-      // Generate or reuse locked encounter for this node.
-      const prologueChapter = prologueChapterOf(this.battleParams, this.gameData);
-      if (prologueChapter) {
-        // A standalone prologue chapter: the authored map, never generated or locked.
+      // Generate or reuse locked encounter for this node. The prologue run's chapters
+      // are pre-locked at startPrologue (the same authored config every entry); a
+      // standalone chapter builds the authored map, never generated or locked.
+      const lockedConfig = this.runManager?.getLockedBattleConfig?.(this.nodeId);
+      const prologueChapter = lockedConfig
+        ? null
+        : prologueChapterOf(this.battleParams, this.gameData);
+      if (lockedConfig) {
+        this.battleConfig = lockedConfig;
+      } else if (prologueChapter) {
         this.battleConfig = buildPrologueBattleConfig(prologueChapter, this.gameData.terrain);
       } else {
-        const lockedConfig = this.runManager?.getLockedBattleConfig?.(this.nodeId);
-        if (lockedConfig) {
-          this.battleConfig = lockedConfig;
-        } else {
-          const battleSeed = Number.isFinite(this.battleParams?.battleSeed)
-            ? this.battleParams.battleSeed
-            : this.deriveBattleSeed();
-          this.battleConfig = this.withBattleSeed(battleSeed, () =>
-            generateBattle(this.battleParams, this.gameData),
-          );
-          this.runManager?.lockBattleConfig?.(this.nodeId, this.battleConfig);
-        }
+        const battleSeed = Number.isFinite(this.battleParams?.battleSeed)
+          ? this.battleParams.battleSeed
+          : this.deriveBattleSeed();
+        this.battleConfig = this.withBattleSeed(battleSeed, () =>
+          generateBattle(this.battleParams, this.gameData),
+        );
+        this.runManager?.lockBattleConfig?.(this.nodeId, this.battleConfig);
       }
       if (
         import.meta.env.DEV &&
@@ -1519,7 +1529,7 @@ export class BattleScene extends Phaser.Scene {
       // battle offers Resume-or-Revert on continue instead of silently
       // rewinding to the pre-battle NodeMap auto-save. Placed after the RNG
       // install so the recorded reinforcement seed matches live play.
-      if (this.runManager && !isScriptedBattle(this.battleParams) && !this._resumeCheckpoint) {
+      if (this.runManager && !this._resumeCheckpoint) {
         this.runManager.lastDeployment = (deployedRoster || []).map((unit) => unit.name);
         this.runManager.beginBattleInProgress?.(this.nodeId, {
           battleParams: { ...this.battleParams, battleSeed: this.getReinforcementSeed() },
@@ -1697,10 +1707,11 @@ export class BattleScene extends Phaser.Scene {
         this._escapeController.create();
       }
 
-      // Calculate turn par (for turn bonus system)
+      // Calculate turn par (for turn bonus system). A chapter whose data hides par
+      // (prologue `showPar: false`) has none: no HUD Par, no turn bonus, no pressure.
       this.turnPar = null;
       this.turnBonusConfig = this.gameData.turnBonus;
-      if (this.turnBonusConfig && this.battleConfig) {
+      if (this.turnBonusConfig && this.battleConfig && !this.battleConfig.hidePar) {
         const mapParams = {
           cols: this.battleConfig.cols,
           rows: this.battleConfig.rows,
@@ -4308,63 +4319,68 @@ export class BattleScene extends Phaser.Scene {
       }
       return result?.status === TRANSITION_RESULTS.STARTED;
     };
-    const abandonCb = this.runManager
-      ? async () => {
-          try {
-            const cloud = this.registry.get('cloud');
-            const slot = this.registry.get('activeSlot');
-            this.clearBattleScopedDeltas(this.playerUnits);
-            this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
-            // Settle (and persist the settled record) before dropping the
-            // save, so the rewards are never lost with it nor paid twice.
-            this.runManager.failRun();
-            settleAndPersistEndRun(this.runManager, this.registry.get('meta'), 'defeat', {
-              onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
-              slot,
-            });
-            // A payout that did not reach disk keeps the save so it can retry.
-            if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
-              clearSavedRun(
-                cloud
-                  ? (resolvedSlot, abandonedRun) =>
-                      deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
-                  : null,
+    // The prologue run is left by skipping the rest of it, never abandoned (§9).
+    const abandonCb =
+      this.runManager && !isPrologueRun(this.runManager)
+        ? async () => {
+            try {
+              const cloud = this.registry.get('cloud');
+              const slot = this.registry.get('activeSlot');
+              this.clearBattleScopedDeltas(this.playerUnits);
+              this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
+              // Settle (and persist the settled record) before dropping the
+              // save, so the rewards are never lost with it nor paid twice.
+              this.runManager.failRun();
+              settleAndPersistEndRun(this.runManager, this.registry.get('meta'), 'defeat', {
+                onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
                 slot,
-              );
-            const audio = this.registry.get('audio');
-            if (audio) audio.stopMusic(this, 0);
-            const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.ABANDON_RUN);
-            if (!isCurrentBattleSession(this, session)) return;
-            if (!ok) {
-              if (this.sys?.isActive?.() === false) {
-                // Scene already shut down -- another transition won the race;
-                // a raw start from a dead scene would stomp the live one.
-                markStartup('pause_transition_superseded', {
+              });
+              // A payout that did not reach disk keeps the save so it can retry.
+              if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
+                clearSavedRun(
+                  cloud
+                    ? (resolvedSlot, abandonedRun) =>
+                        deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+                    : null,
+                  slot,
+                );
+              const audio = this.registry.get('audio');
+              if (audio) audio.stopMusic(this, 0);
+              const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.ABANDON_RUN);
+              if (!isCurrentBattleSession(this, session)) return;
+              if (!ok) {
+                if (this.sys?.isActive?.() === false) {
+                  // Scene already shut down -- another transition won the race;
+                  // a raw start from a dead scene would stomp the live one.
+                  markStartup('pause_transition_superseded', {
+                    scene: 'Battle',
+                    reason: 'ABANDON_RUN',
+                  });
+                  return;
+                }
+                markStartup('pause_transition_fallback', {
                   scene: 'Battle',
                   reason: 'ABANDON_RUN',
                 });
-                return;
+                resetTransitionLocks(this);
+                try {
+                  this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+                } catch (err) {
+                  if (!isCurrentBattleSession(this, session)) return;
+                  markStartup('pause_transition_double_failure', {
+                    scene: 'Battle',
+                    reason: 'ABANDON_RUN',
+                  });
+                  this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
+                }
               }
-              markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'ABANDON_RUN' });
-              resetTransitionLocks(this);
-              try {
-                this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
-              } catch (err) {
-                if (!isCurrentBattleSession(this, session)) return;
-                markStartup('pause_transition_double_failure', {
-                  scene: 'Battle',
-                  reason: 'ABANDON_RUN',
-                });
-                this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
-              }
+            } catch (err) {
+              if (!isCurrentBattleSession(this, session)) return;
+              reportAsyncError('Battle-pause-abandon', err);
+              this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
             }
-          } catch (err) {
-            if (!isCurrentBattleSession(this, session)) return;
-            reportAsyncError('Battle-pause-abandon', err);
-            this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
           }
-        }
-      : null;
+        : null;
     const saveExitCb = this.runManager
       ? async () => {
           try {
@@ -8090,7 +8106,7 @@ export class BattleScene extends Phaser.Scene {
   _commitCombatIntent(attacker, defender) {
     const session = battleSession(this);
     this._pendingCommittedAction = null;
-    if (!this.runManager?.battleInProgress || isScriptedBattle(this.battleParams)) return;
+    if (!this.runManager?.battleInProgress) return;
     if (attacker?.faction !== 'player' || this.turnManager?.currentPhase !== 'player') return;
     if (!attacker.battleEntityId || !defender?.battleEntityId) return;
     const art =

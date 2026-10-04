@@ -1,15 +1,41 @@
 {
   "version": 1,
   "seed": 1209,
-  "grant": { "valor": 60, "supply": 40 },
+  "grant": {
+    "valor": 60,
+    "supply": 40
+  },
+  "startingGold": 0,
   "units": {
     "Edric": {
       "lord": "Edric",
       "level": 1,
-      "stats": { "HP": 20, "STR": 6, "MAG": 2, "SKL": 7, "SPD": 8, "DEF": 5, "RES": 3, "LCK": 6, "MOV": 4 },
-      "growths": { "HP": 60, "STR": 46, "MAG": 17, "SKL": 49, "SPD": 51, "DEF": 32, "RES": 22, "LCK": 44 },
+      "stats": {
+        "HP": 20,
+        "STR": 6,
+        "MAG": 2,
+        "SKL": 7,
+        "SPD": 8,
+        "DEF": 5,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 4
+      },
+      "growths": {
+        "HP": 60,
+        "STR": 46,
+        "MAG": 17,
+        "SKL": 49,
+        "SPD": 51,
+        "DEF": 32,
+        "RES": 22,
+        "LCK": 44
+      },
       "traits": [],
-      "inventory": ["Iron Sword", "Vulnerary"]
+      "inventory": [
+        "Iron Sword",
+        "Vulnerary"
+      ]
     }
   },
   "chapters": [
@@ -18,9 +44,16 @@
       "node": "prologue_0",
       "title": "Banner at Dawn",
       "objective": "rout",
-      "roster": ["Edric"],
+      "roster": [
+        "Edric"
+      ],
+      "showPar": false,
       "map": {
-        "legend": { ".": "Plain", "F": "Forest", "T": "Fort" },
+        "legend": {
+          ".": "Plain",
+          "F": "Forest",
+          "T": "Fort"
+        },
         "rows": [
           ". . F . . . . .",
           ". . . . F . . .",
@@ -30,9 +63,22 @@
           ". . . . F . F ."
         ]
       },
-      "playerSpawns": [{ "col": 0, "row": 2 }],
+      "playerSpawns": [
+        {
+          "col": 0,
+          "row": 2
+        }
+      ],
       "enemies": [
-        { "id": "a", "className": "Fighter", "level": 1, "col": 4, "row": 2, "weapon": "Iron Axe", "skills": [] },
+        {
+          "id": "a",
+          "className": "Fighter",
+          "level": 1,
+          "col": 4,
+          "row": 2,
+          "weapon": "Iron Axe",
+          "skills": []
+        },
         {
           "id": "b",
           "className": "Fighter",
@@ -55,9 +101,19 @@
           "on": "battleStart",
           "once": true,
           "do": [
-            { "coach": "p1_select_edric" },
-            { "gateSelect": { "unit": "Edric" } },
-            { "highlight": { "unit": "Edric" } }
+            {
+              "coach": "p1_select_edric"
+            },
+            {
+              "gateSelect": {
+                "unit": "Edric"
+              }
+            },
+            {
+              "highlight": {
+                "unit": "Edric"
+              }
+            }
           ]
         },
         {
@@ -66,9 +122,23 @@
           "unit": "Edric",
           "once": true,
           "do": [
-            { "coach": "p1_move_to_fort" },
-            { "gateMove": { "col": 3, "row": 2 } },
-            { "highlight": { "tile": { "col": 3, "row": 2 } } }
+            {
+              "coach": "p1_move_to_fort"
+            },
+            {
+              "gateMove": {
+                "col": 3,
+                "row": 2
+              }
+            },
+            {
+              "highlight": {
+                "tile": {
+                  "col": 3,
+                  "row": 2
+                }
+              }
+            }
           ]
         },
         {
@@ -77,7 +147,17 @@
           "unit": "Edric",
           "terrain": "Fort",
           "once": true,
-          "do": [{ "note": "battle_terrain" }, { "markLesson": { "id": "terrain", "kind": "shown" } }]
+          "do": [
+            {
+              "note": "battle_terrain"
+            },
+            {
+              "markLesson": {
+                "id": "terrain",
+                "kind": "shown"
+              }
+            }
+          ]
         },
         {
           "id": "p1_first_forecast",
@@ -86,9 +166,18 @@
           "nth": 1,
           "once": true,
           "do": [
-            { "note": "battle_forecast" },
-            { "gateConfirm": true },
-            { "markLesson": { "id": "forecast", "kind": "shown" } }
+            {
+              "note": "battle_forecast"
+            },
+            {
+              "gateConfirm": true
+            },
+            {
+              "markLesson": {
+                "id": "forecast",
+                "kind": "shown"
+              }
+            }
           ]
         },
         {
@@ -96,7 +185,14 @@
           "on": "combatResolved",
           "unit": "Edric",
           "once": true,
-          "do": [{ "markLesson": { "id": "forecast", "kind": "practised" } }]
+          "do": [
+            {
+              "markLesson": {
+                "id": "forecast",
+                "kind": "practised"
+              }
+            }
+          ]
         },
         {
           "id": "p1_wait_or_end_turn",
@@ -104,7 +200,16 @@
           "unit": "Edric",
           "turn": 1,
           "once": true,
-          "do": [{ "note": "p1_wait_or_end_turn" }, { "highlight": { "reachOf": "a" } }]
+          "do": [
+            {
+              "note": "p1_wait_or_end_turn"
+            },
+            {
+              "highlight": {
+                "reachOf": "a"
+              }
+            }
+          ]
         },
         {
           "id": "p1_enemy_phase",
@@ -112,14 +217,28 @@
           "phase": "enemy",
           "turn": 1,
           "once": true,
-          "do": [{ "note": "p1_enemy_phase" }]
+          "do": [
+            {
+              "note": "p1_enemy_phase"
+            }
+          ]
         },
         {
           "id": "p1_level_up",
           "on": "levelUp",
           "unit": "Edric",
           "once": true,
-          "do": [{ "note": "p1_level_up" }, { "markLesson": { "id": "growth", "kind": "shown" } }]
+          "do": [
+            {
+              "note": "p1_level_up"
+            },
+            {
+              "markLesson": {
+                "id": "growth",
+                "kind": "shown"
+              }
+            }
+          ]
         },
         {
           "id": "p1_holding_enemy",
@@ -128,9 +247,20 @@
           "dangerFrom": "b",
           "once": true,
           "do": [
-            { "note": "p1_holding_enemy" },
-            { "highlight": { "reachOf": "b" } },
-            { "markLesson": { "id": "hold_reach", "kind": "shown" } }
+            {
+              "note": "p1_holding_enemy"
+            },
+            {
+              "highlight": {
+                "reachOf": "b"
+              }
+            },
+            {
+              "markLesson": {
+                "id": "hold_reach",
+                "kind": "shown"
+              }
+            }
           ]
         },
         {
@@ -140,7 +270,17 @@
           "target": "b",
           "concept": "triangle",
           "once": true,
-          "do": [{ "note": "battle_triangle" }, { "markLesson": { "id": "triangle", "kind": "shown" } }]
+          "do": [
+            {
+              "note": "battle_triangle"
+            },
+            {
+              "markLesson": {
+                "id": "triangle",
+                "kind": "shown"
+              }
+            }
+          ]
         },
         {
           "id": "p1_vulnerary",
@@ -149,20 +289,313 @@
           "pct": 60,
           "once": true,
           "do": [
-            { "note": "battle_consumable_supply" },
-            { "markLesson": { "id": "consumables", "kind": "shown" } }
+            {
+              "note": "battle_consumable_supply"
+            },
+            {
+              "markLesson": {
+                "id": "consumables",
+                "kind": "shown"
+              }
+            }
           ]
         },
         {
           "id": "p1_victory",
           "on": "victory",
           "once": true,
-          "do": [{ "dialogue": "p1_gaspar_arrives" }]
+          "do": [
+            {
+              "dialogue": "p1_gaspar_arrives"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p2_old_hands",
+      "node": "prologue_1",
+      "title": "Old Hands",
+      "objective": "rout",
+      "roster": [
+        "Edric",
+        "old_knight"
+      ],
+      "rosterLevels": {
+        "Edric": 2
+      },
+      "showPar": false,
+      "map": {
+        "legend": {
+          ".": "Plain",
+          "F": "Forest",
+          "~": "Water",
+          "=": "Bridge",
+          "V": "Village",
+          "T": "Fort"
+        },
+        "rows": [
+          ". . . F . ~ . . . .",
+          ". . . . . ~ . . . .",
+          ". . . . . = . . . .",
+          ". . . . . ~ . F F .",
+          ". . . V . ~ ~ ~ . .",
+          ". . F . . ~ . . . ."
+        ]
+      },
+      "playerSpawns": [
+        {
+          "col": 0,
+          "row": 2
+        },
+        {
+          "col": 0,
+          "row": 3
+        }
+      ],
+      "enemies": [
+        {
+          "id": "a",
+          "className": "Archer",
+          "level": 1,
+          "col": 3,
+          "row": 1,
+          "weapon": "Iron Bow",
+          "skills": []
+        },
+        {
+          "id": "b",
+          "className": "Fighter",
+          "level": 1,
+          "col": 8,
+          "row": 2,
+          "weapon": "Iron Axe",
+          "skills": [],
+          "aiMode": "hold",
+          "holdPack": 0,
+          "holdPackSize": 1
+        },
+        {
+          "id": "d",
+          "className": "Soldier",
+          "level": 1,
+          "col": 9,
+          "row": 0,
+          "weapon": "Iron Lance",
+          "skills": [],
+          "aiMode": "guard"
+        }
+      ],
+      "npc": null,
+      "villageTile": {
+        "col": 3,
+        "row": 4,
+        "reward": "Iron Bow"
+      },
+      "loot": [
+        {
+          "item": "Iron Lance"
+        },
+        {
+          "item": "Vulnerary",
+          "quantity": 3
+        },
+        {
+          "gold": 150
+        }
+      ],
+      "beats": [
+        {
+          "id": "p2_gaspar_intro",
+          "on": "battleStart",
+          "once": true,
+          "do": [
+            {
+              "dialogue": "p2_gaspar_intro"
+            }
+          ]
+        },
+        {
+          "id": "p2_jagen",
+          "on": "unitSelected",
+          "unit": "Gaspar",
+          "once": true,
+          "do": [
+            {
+              "note": "p2_veteran_kills"
+            },
+            {
+              "markLesson": {
+                "id": "veteran_kills",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p2_weapon_choice",
+          "on": "forecastOpened",
+          "unit": "Gaspar",
+          "target": "a",
+          "once": true,
+          "do": [
+            {
+              "note": "battle_doubling"
+            },
+            {
+              "markLesson": {
+                "id": "doubling",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p2_no_counter",
+          "on": "forecastOpened",
+          "concept": "noCounter",
+          "once": true,
+          "do": [
+            {
+              "note": "battle_no_counter"
+            },
+            {
+              "markLesson": {
+                "id": "no_counter",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p2_forecast_chances",
+          "on": "forecastOpened",
+          "concept": "uncertainHit",
+          "once": true,
+          "do": [
+            {
+              "note": "p2_forecast_chances"
+            },
+            {
+              "markLesson": {
+                "id": "forecast_chances",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p2_soldier_triangle",
+          "on": "forecastOpened",
+          "unit": "Edric",
+          "target": "d",
+          "concept": "triangle",
+          "once": true,
+          "do": [
+            {
+              "note": "p2_lances_beat_swords"
+            }
+          ]
+        },
+        {
+          "id": "p2_chip_then_finish",
+          "on": "combatResolved",
+          "unit": "Edric",
+          "once": true,
+          "do": [
+            {
+              "markLesson": {
+                "id": "veteran_kills",
+                "kind": "practised"
+              }
+            }
+          ],
+          "kill": true
+        },
+        {
+          "id": "p2_danger",
+          "on": "turnStart",
+          "turn": 2,
+          "once": true,
+          "do": [
+            {
+              "note": "battle_danger_zone"
+            }
+          ]
+        },
+        {
+          "id": "p2_village",
+          "on": "afterMove",
+          "tile": {
+            "col": 2,
+            "row": 2
+          },
+          "once": true,
+          "do": [
+            {
+              "note": "p2_village_visit"
+            },
+            {
+              "markLesson": {
+                "id": "village",
+                "kind": "shown"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p2_victory",
+          "on": "victory",
+          "once": true,
+          "do": [
+            {
+              "dialogue": "p2_victory"
+            },
+            {
+              "note": "battle_loot"
+            },
+            {
+              "markLesson": {
+                "id": "loot",
+                "kind": "shown"
+              }
+            }
+          ]
         }
       ]
     }
   ],
-  "route": null,
-  "joins": null,
+  "route": {
+    "title": "The Quarry Road",
+    "nodes": [
+      {
+        "id": "prologue_0",
+        "row": 0,
+        "chapter": "p1_banner_at_dawn"
+      },
+      {
+        "id": "prologue_1",
+        "row": 1,
+        "chapter": "p2_old_hands"
+      }
+    ],
+    "edges": [
+      [
+        "prologue_0",
+        "prologue_1"
+      ]
+    ]
+  },
+  "joins": {
+    "afterChapter": {
+      "p1_banner_at_dawn": [
+        "old_knight"
+      ]
+    }
+  },
+  "ending": {
+    "dialogue": "ending",
+    "titleCard": "Every run is a thread Sera weaves. When one breaks, she weaves again. Your army starts over. What you build at Home Base stays."
+  },
   "boss": null
 }

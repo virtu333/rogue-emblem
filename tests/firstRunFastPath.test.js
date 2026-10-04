@@ -9,7 +9,7 @@ const { transitionToSceneMock, deleteRunSaveMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/utils/SceneRouter.js', () => ({
-  TRANSITION_REASONS: { BEGIN_RUN: 'begin_run' },
+  TRANSITION_REASONS: { BEGIN_RUN: 'begin_run', NEW_GAME: 'new_game' },
   transitionToScene: transitionToSceneMock,
 }));
 
@@ -17,7 +17,14 @@ vi.mock('../src/cloud/CloudSync.js', () => ({
   deleteRunSave: deleteRunSaveMock,
 }));
 
-import { isFirstRunSlot, startFirstRunFastPath } from '../src/utils/firstRunFastPath.js';
+import {
+  isFirstRunSlot,
+  startFirstRunFastPath,
+  startPrologueRun,
+  skipPrologueToFirstRun,
+  prologueBattleLaunchData,
+} from '../src/utils/firstRunFastPath.js';
+import { isPrologueRun } from '../src/engine/ScriptedBattle.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
 import { loadGameData } from './testData.js';
@@ -165,5 +172,83 @@ describe('startFirstRunFastPath', () => {
     await startFirstRunFastPath(scene, { gameData, slot: 2 });
 
     expect(deleteRunSaveMock).toHaveBeenCalledWith('user-123', 2, null);
+  });
+});
+
+describe('the prologue starts (docs/specs/prologue-chapter.md §4, §9)', () => {
+  let gameData;
+  let meta;
+
+  beforeEach(() => {
+    for (const k of Object.keys(store)) delete store[k];
+    vi.clearAllMocks();
+    transitionToSceneMock.mockResolvedValue(true);
+    gameData = loadGameData();
+    meta = new MetaProgressionManager(gameData.metaUpgrades, 'test_slot_meta');
+  });
+
+  it('startPrologueRun opens the first chapter at once, clears the stale save and records in_progress', async () => {
+    store.emblem_rogue_slot_1_run = '{"stale":true}';
+    const scene = makeScene({ meta });
+    const ok = await startPrologueRun(scene, { gameData, slot: 1 });
+    expect(ok).toBe(true);
+    const [callScene, key, payload, opts] = transitionToSceneMock.mock.calls[0];
+    expect(callScene).toBe(scene);
+    expect(key).toBe('Battle');
+    expect(opts).toEqual({ reason: 'new_game', retryBlocked: true });
+    expect(isPrologueRun(payload.runManager)).toBe(true);
+    expect(payload.nodeId).toBe('prologue_0');
+    expect(payload.isBoss).toBe(false);
+    expect(payload.isElite).toBe(false);
+    expect(payload.battleParams).toMatchObject({ prologueChapter: 'p1_banner_at_dawn' });
+    expect(payload.roster.map((u) => u.name)).toEqual(['Edric']);
+    expect(store.emblem_rogue_slot_1_run).toBeUndefined();
+    expect(meta.getPrologueState()).toBe('in_progress');
+    // Nothing counts: the prologue is not a run started.
+    expect(meta.runsStarted).toBe(0);
+    expect(payload.runManager.visionChargesRemaining).toBe(0);
+  });
+
+  it('startPrologueRun leaves the meta alone when the transition is rejected', async () => {
+    transitionToSceneMock.mockResolvedValue(false);
+    const scene = makeScene({ meta });
+    expect(await startPrologueRun(scene, { gameData, slot: 1 })).toBe(false);
+    expect(meta.getPrologueState()).toBe('none');
+  });
+
+  it('startPrologueRun refuses a build without a prologue route', async () => {
+    const scene = makeScene({ meta });
+    expect(await startPrologueRun(scene, { gameData: { ...gameData, prologue: null }, slot: 1 })).toBe(false); // prettier-ignore
+    expect(transitionToSceneMock).not.toHaveBeenCalled();
+  });
+
+  it("skipPrologueToFirstRun is today's fast path plus the slot's skip record", async () => {
+    const scene = makeScene({ meta });
+    expect(await skipPrologueToFirstRun(scene, { gameData, slot: 1 })).toBe(true);
+    const [, key, payload] = transitionToSceneMock.mock.calls[0];
+    expect(key).toBe('NodeMap');
+    expect(payload.firstRun).toBe(true);
+    expect(isPrologueRun(payload.runManager)).toBe(false);
+    expect(meta.getPrologueState()).toBe('skipped');
+    expect(meta.runsStarted).toBe(1);
+  });
+
+  it('skipPrologueToFirstRun records nothing when the transition is rejected', async () => {
+    transitionToSceneMock.mockResolvedValue(false);
+    const scene = makeScene({ meta });
+    expect(await skipPrologueToFirstRun(scene, { gameData, slot: 1 })).toBe(false);
+    expect(meta.getPrologueState()).toBe('none');
+    expect(meta.runsStarted).toBe(0);
+  });
+
+  it('prologueBattleLaunchData re-enters a chapter with the same shape the first start used', async () => {
+    const scene = makeScene({ meta });
+    await startPrologueRun(scene, { gameData, slot: 1 });
+    const [, , first] = transitionToSceneMock.mock.calls[0];
+    const rm = first.runManager;
+    const again = prologueBattleLaunchData(rm, rm.nodeMap.nodes[0], gameData);
+    expect(Object.keys(again).sort()).toEqual(Object.keys(first).sort());
+    expect(again.battleParams).toEqual(first.battleParams);
+    expect(again.nodeId).toBe(first.nodeId);
   });
 });

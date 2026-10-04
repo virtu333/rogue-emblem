@@ -63,9 +63,18 @@ describe('BattleScene._commitCombatIntent', () => {
     expect(scene._pendingCommittedAction.weaponArt).toBeNull();
   });
 
+  it('records in a prologue run chapter like any run battle (its checkpoint replays it)', () => {
+    const scene = makeScene({ battleParams: { prologueChapter: 'p1_banner_at_dawn' } });
+    scene._commitCombatIntent(scene.playerUnits[0], scene.enemyUnits[0]);
+    expect(scene._pendingCommittedAction).toMatchObject({ kind: 'attack', unitName: 'Edric' });
+  });
+
   it.each([
     ['outside a saved run battle', { runManager: null }],
-    ['in a prologue chapter', { battleParams: { prologueChapter: 'p1_banner_at_dawn' } }],
+    [
+      'in a standalone prologue chapter (no run)',
+      { runManager: null, battleParams: { prologueChapter: 'p1_banner_at_dawn' } },
+    ],
     ['during the enemy phase', { turnManager: { currentPhase: 'enemy', turnNumber: 3 } }],
   ])('records nothing %s', (_label, overrides) => {
     const scene = makeScene(overrides);

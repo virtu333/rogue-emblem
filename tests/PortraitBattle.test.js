@@ -527,10 +527,24 @@ describe('PortraitBattleController', () => {
     expect(scene.scene.restart).not.toHaveBeenCalled();
   });
 
-  it('keeps the board of a battle without a run save, and of a prologue chapter', () => {
+  it('a prologue chapter in the prologue run re-opens from its checkpoint like any battle', () => {
+    viewport(390, 844);
+    const scene = Object.assign(fakeScene(), {
+      battleParams: { prologueChapter: 'p1_banner_at_dawn' },
+    });
+    const c = controller(scene);
+    viewport(844, 390);
+    expect(c.check()).toBe(true);
+    expect(scene.scene.restart).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the board of a battle without a run save, and of a standalone prologue chapter', () => {
     for (const scene of [
       fakeScene({ checkpoint: false }),
-      Object.assign(fakeScene(), { battleParams: { prologueChapter: 'p1_banner_at_dawn' } }),
+      Object.assign(fakeScene(), {
+        runManager: null,
+        battleParams: { prologueChapter: 'p1_banner_at_dawn' },
+      }),
     ]) {
       viewport(390, 844);
       const c = controller(scene);

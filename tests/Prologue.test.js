@@ -204,7 +204,7 @@ describe('buildPrologueBattleConfig', () => {
       data.terrain,
     );
     expect(config.thronePos).toEqual({ col: 2, row: 0 });
-    expect(config.villageTile).toEqual({ col: 0, row: 1 });
+    expect(config.villageTile).toEqual({ col: 0, row: 1, uncontested: true });
     expect(config.enemySpawns[0]).toMatchObject({ isBoss: true, name: 'Captain Varro' });
     expect(validateBattleConfig(config, data)).toEqual([]);
   });

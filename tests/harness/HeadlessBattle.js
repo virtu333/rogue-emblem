@@ -122,7 +122,7 @@ import {
   razeVillage,
   clearSeekTileBandits,
   getVillageGoldReward,
-  rollVillageRewardItem,
+  villageRewardItem,
   VILLAGE_STATUS,
 } from '../../src/engine/VillageSystem.js';
 import {
@@ -384,25 +384,27 @@ export class HeadlessBattle {
     // field is populated, advanced at the start of every enemy phase.
     this.antiTurtleState = createTurnPressureState(this._measureTurnPressure());
 
-    // Turn par — mirrors BattleScene (full-run sims commit the Eclipse against it).
-    this.turnPar = this.gameData.turnBonus
-      ? calculatePar(
-          {
-            cols: bc.cols,
-            rows: bc.rows,
-            enemyCount: this.enemyUnits.length,
-            objective: bc.objective,
-            mapLayout: bc.mapLayout,
-            terrainData: this.gameData.terrain,
-            parBonus: bc.parBonus || 0,
-            parInflation: bc.parInflation,
-            parOffset: bc.parOffset,
-            parFloor: bc.parFloor,
-          },
-          this.gameData.turnBonus,
-          this.battleParams?.difficultyId,
-        )
-      : null;
+    // Turn par — mirrors BattleScene (full-run sims commit the Eclipse against it). A
+    // locked config may hide it (a prologue chapter's showPar: false): then par is off.
+    this.turnPar =
+      this.gameData.turnBonus && !bc.hidePar
+        ? calculatePar(
+            {
+              cols: bc.cols,
+              rows: bc.rows,
+              enemyCount: this.enemyUnits.length,
+              objective: bc.objective,
+              mapLayout: bc.mapLayout,
+              terrainData: this.gameData.terrain,
+              parBonus: bc.parBonus || 0,
+              parInflation: bc.parInflation,
+              parOffset: bc.parOffset,
+              parFloor: bc.parFloor,
+            },
+            this.gameData.turnBonus,
+            this.battleParams?.difficultyId,
+          )
+        : null;
 
     // Initialize turn system
     this.turnManager = new TurnManager({
@@ -1993,7 +1995,11 @@ export class HeadlessBattle {
     this.grid?.setTerrainAt?.(state.col, state.row, TERRAIN.Plain);
     const act = this.battleParams?.act || 'act1';
     this.goldEarned += getVillageGoldReward(act);
-    const item = rollVillageRewardItem(act, this.gameData?.lootTables, this.gameData?.consumables);
+    const item = villageRewardItem(this.battleConfig?.villageTile, act, {
+      lootTables: this.gameData?.lootTables,
+      consumables: this.gameData?.consumables,
+      weapons: this.gameData?.weapons,
+    });
     if (item) {
       this.villageRewardItems.push(item);
       this.runManager?.addToConvoy?.(item);

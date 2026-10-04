@@ -20,6 +20,9 @@ import {
 } from '../utils/constants.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { routeForBeginRun, PROLOGUE_ROUTES } from '../engine/PrologueRouting.js';
+import { startFirstRunFastPath } from '../utils/firstRunFastPath.js';
+import { PROLOGUE_HOME_BASE_NOTE } from '../data/prologueContent.js';
 import { hasOpenOverlay } from '../utils/overlayStack.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
@@ -315,6 +318,12 @@ export class HomeBaseScene extends Phaser.Scene {
     if (audio) audio.releaseMusic(this, 0);
   }
 
+  /** The first visit after the prologue says what its grant is for (once per slot). */
+  _prologueGrantNote(hints) {
+    if (!hints || this.registry.get('meta')?.getPrologueState?.() !== 'complete') return null;
+    return hints.shouldShow('homebase_prologue_grant') ? PROLOGUE_HOME_BASE_NOTE : null;
+  }
+
   async _runStartupHints(hints, lifecycleGeneration = this._sceneLifecycleGeneration) {
     try {
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
@@ -324,6 +333,9 @@ export class HomeBaseScene extends Phaser.Scene {
           'Spend Valor and Supply to upgrade your army.\nUpgrades persist across all runs.',
         );
       }
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+      const grantNote = this._prologueGrantNote(hints);
+      if (grantNote) await showImportantHint(this, grantNote);
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       if (hints.shouldShow('homebase_begin')) {
         void showMinorHint(
@@ -1989,14 +2001,7 @@ export class HomeBaseScene extends Phaser.Scene {
     beginBtn.on('pointerover', () => beginBtn.setColor(UI_PALETTE.accent));
     beginBtn.on('pointerout', () => beginBtn.setColor(UI_PALETTE.good));
     beginBtn.on('pointerdown', async () => {
-      await this.runTransition(() =>
-        transitionToScene(
-          this,
-          'DifficultySelect',
-          { gameData: this.gameData },
-          { reason: TRANSITION_REASONS.BEGIN_RUN },
-        ),
-      );
+      await this.runTransition(() => this.startRunFromHomeBase());
     });
 
     // Back to Title button
@@ -2026,6 +2031,28 @@ export class HomeBaseScene extends Phaser.Scene {
         );
       });
     });
+  }
+
+  /**
+   * Begin Run's road (PrologueRouting.routeForBeginRun): a completed prologue's first
+   * real run takes the first-run fast path (First Light, no blessing); every other
+   * run goes to Difficulty Select. Resolves the transition result; callers wrap it
+   * in runTransition.
+   */
+  startRunFromHomeBase() {
+    const meta = this.registry.get('meta');
+    if (routeForBeginRun(meta) === PROLOGUE_ROUTES.FAST_PATH) {
+      return startFirstRunFastPath(this, {
+        gameData: this.gameData,
+        slot: this.registry.get('activeSlot'),
+      });
+    }
+    return transitionToScene(
+      this,
+      'DifficultySelect',
+      { gameData: this.gameData },
+      { reason: TRANSITION_REASONS.BEGIN_RUN },
+    );
   }
 
   async runTransition(action) {

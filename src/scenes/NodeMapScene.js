@@ -60,6 +60,10 @@ import {
 } from '../utils/sceneTimers.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
 import { CeremonyController } from '../ui/CeremonyController.js';
+import { isPrologueRun } from '../engine/ScriptedBattle.js';
+import { prologueJoinedKeys } from '../engine/Prologue.js';
+import { finishPrologue } from '../ui/PrologueEnding.js';
+import { PROLOGUE_FIRST_RUN_ROUTE_NOTE } from '../data/prologueContent.js';
 
 // Maps runManager.currentAct → the meta milestone recorded on node-map entry,
 // which the Compendium Foes tab reads to gate each act's boss.
@@ -252,6 +256,11 @@ export class NodeMapScene extends Phaser.Scene {
       this._bindDebugToggleHandler();
     }
 
+    // The prologue run's first chapter opens at once: its route map is first shown
+    // once that chapter is won (§4). A continue that reverted P1 to its entry lands
+    // here with nothing walked and re-opens it the same way.
+    if (this._launchPrologueOpening(lifecycleGeneration)) return;
+
     this.drawMap();
     this.input.enabled = false;
     void this.finalizeSceneReady(lifecycleGeneration).then(() => {
@@ -432,6 +441,24 @@ export class NodeMapScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * The prologue run before its first chapter is won: open that chapter without
+   * drawing the map. Returns true when the launch started.
+   */
+  _launchPrologueOpening(lifecycleGeneration = this._sceneLifecycleGeneration) {
+    const rm = this.runManager;
+    if (!isPrologueRun(rm) || rm.currentNodeId || rm.pendingBattleReward) return false;
+    if (rm.isActComplete() || rm.battleInProgress) return false;
+    const node = rm.getAvailableNodes?.()?.find((n) => n?.battleParams?.prologueChapter);
+    if (!node) return false;
+    this.battleLaunchInFlight = true;
+    this.isTransitioning = true;
+    this.isSceneReady = false;
+    if (this.input) this.input.enabled = false;
+    void this.handleBattle(node, lifecycleGeneration);
+    return true;
+  }
+
   async finalizeSceneReady(lifecycleGeneration = this._sceneLifecycleGeneration) {
     try {
       // Give audio a short unlock window before we accept battle-node interactions.
@@ -457,10 +484,18 @@ export class NodeMapScene extends Phaser.Scene {
               ctx,
             ) || [];
           const veteran = this.runManager.roster?.find((unit) => unit.specialCharId);
+          // A veteran the prologue already brought in (its joins, by the chapters
+          // this slot won) needs no introduction now.
+          const introduced = prologueJoinedKeys(
+            this.gameData?.prologue,
+            this.registry.get('meta')?.getPrologue?.()?.chaptersCompleted || [],
+          );
           const entries = [
             ...visionEntries,
             ...voiceEntries,
-            ...specialCharacterEntries(this.gameData, veteran, 'intro'),
+            ...(veteran && introduced.has(veteran.specialCharId)
+              ? []
+              : specialCharacterEntries(this.gameData, veteran, 'intro')),
           ];
           if (
             Array.isArray(entries) &&
@@ -541,10 +576,14 @@ export class NodeMapScene extends Phaser.Scene {
     this._pendingNodeMapHints = null;
     if (!pending) return;
     if (pending.showFirstRun || pending.showIntro) {
+      // After the prologue, Home Base is already known (its grant was spent there).
+      const afterPrologue = this.registry.get('meta')?.getPrologueState?.() === 'complete';
       void showMinorHint(
         this,
         pending.showFirstRun
-          ? 'Your first run begins here. Home Base upgrades, difficulty and blessings unlock after it ends. Tap a node to preview; Travel commits.'
+          ? afterPrologue
+            ? PROLOGUE_FIRST_RUN_ROUTE_NOTE
+            : 'Your first run begins here. Home Base upgrades, difficulty and blessings unlock after it ends. Tap a node to preview; Travel commits.'
           : 'Tap any node to preview it. Travel enters a connected available node. Inspect service nodes to see what this route offers.',
       );
     } else if (
@@ -966,6 +1005,7 @@ export class NodeMapScene extends Phaser.Scene {
   _recordActReachedMilestone() {
     const meta = this.registry.get('meta');
     if (!meta?.recordMilestone) return;
+    if (isPrologueRun(this.runManager)) return; // the prologue reaches no act (§8)
     const milestone = ACT_REACHED_MILESTONE[this.runManager?.currentAct];
     if (!milestone) return;
     if (meta.hasMilestone?.(milestone)) return;
@@ -974,8 +1014,19 @@ export class NodeMapScene extends Phaser.Scene {
 
   showPauseMenu(options = {}) {
     if (this.pauseOverlay?.visible) return;
-    const payout = this.runManager.previewEndRunRewards?.();
+    const prologueRun = isPrologueRun(this.runManager);
+    const payout = prologueRun ? null : this.runManager.previewEndRunRewards?.();
     this.pauseOverlay = new PauseOverlay(this, {
+      // The prologue run is skipped (its ending, then Home Base), never abandoned.
+      prologue: prologueRun
+        ? {
+            title: this.runManager.nodeMap?.prologue?.title || null,
+            onSkipRest: () => {
+              this.isTransitioning = true;
+              return finishPrologue(this);
+            },
+          }
+        : null,
       onAbandonWarning: payout
         ? `Abandon this run?\nKeep ${payout.valor} Valor and ${payout.supply} Supply. This run and its gold, items and route progress will end.`
         : null,
@@ -1028,63 +1079,68 @@ export class NodeMapScene extends Phaser.Scene {
           this.showNodeMapTransitionRecovery(TRANSITION_REASONS.SAVE_EXIT);
         }
       },
-      onAbandon: async () => {
-        this.isTransitioning = true;
-        try {
-          const cloud = this.registry.get('cloud');
-          const slot = this.registry.get('activeSlot');
-          // Settle (and persist the settled record) before dropping the save,
-          // so the rewards are never lost with it nor paid twice on reload.
-          this.runManager.failRun();
-          settleAndPersistEndRun(this.runManager, this.registry.get('meta'), 'defeat', {
-            onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
-            slot,
-          });
-          // A payout that did not reach disk keeps the save so it can retry.
-          if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
-            clearSavedRun(
-              cloud
-                ? (resolvedSlot, abandonedRun) =>
-                    deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
-                : null,
-              slot,
-            );
-          const audio = this.registry.get('audio');
-          if (audio) audio.stopMusic(this, 0);
-          markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
-          const result = await transitionToSceneWithBlockedRetry(
-            this,
-            'Title',
-            { gameData: this.gameData },
-            { reason: TRANSITION_REASONS.ABANDON_RUN },
-          );
-          if (result.status !== TRANSITION_RESULTS.STARTED) {
-            if (this.sys?.isActive?.() === false) {
-              // Scene already shut down -- another transition won the race;
-              // a raw start from a dead scene would stomp the live one.
-              markStartup('pause_transition_superseded', {
-                scene: 'NodeMap',
-                reason: 'ABANDON_RUN',
-              });
-              return;
-            }
-            markStartup('pause_transition_fallback', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
-            resetTransitionLocks(this);
+      onAbandon: prologueRun
+        ? null
+        : async () => {
+            this.isTransitioning = true;
             try {
-              this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
-            } catch (err) {
-              markStartup('pause_transition_double_failure', {
-                scene: 'NodeMap',
-                reason: 'ABANDON_RUN',
+              const cloud = this.registry.get('cloud');
+              const slot = this.registry.get('activeSlot');
+              // Settle (and persist the settled record) before dropping the save,
+              // so the rewards are never lost with it nor paid twice on reload.
+              this.runManager.failRun();
+              settleAndPersistEndRun(this.runManager, this.registry.get('meta'), 'defeat', {
+                onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+                slot,
               });
+              // A payout that did not reach disk keeps the save so it can retry.
+              if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
+                clearSavedRun(
+                  cloud
+                    ? (resolvedSlot, abandonedRun) =>
+                        deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+                    : null,
+                  slot,
+                );
+              const audio = this.registry.get('audio');
+              if (audio) audio.stopMusic(this, 0);
+              markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
+              const result = await transitionToSceneWithBlockedRetry(
+                this,
+                'Title',
+                { gameData: this.gameData },
+                { reason: TRANSITION_REASONS.ABANDON_RUN },
+              );
+              if (result.status !== TRANSITION_RESULTS.STARTED) {
+                if (this.sys?.isActive?.() === false) {
+                  // Scene already shut down -- another transition won the race;
+                  // a raw start from a dead scene would stomp the live one.
+                  markStartup('pause_transition_superseded', {
+                    scene: 'NodeMap',
+                    reason: 'ABANDON_RUN',
+                  });
+                  return;
+                }
+                markStartup('pause_transition_fallback', {
+                  scene: 'NodeMap',
+                  reason: 'ABANDON_RUN',
+                });
+                resetTransitionLocks(this);
+                try {
+                  this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+                } catch (err) {
+                  markStartup('pause_transition_double_failure', {
+                    scene: 'NodeMap',
+                    reason: 'ABANDON_RUN',
+                  });
+                  this.showNodeMapTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
+                }
+              }
+            } catch (err) {
+              reportAsyncError('NodeMap-pause-abandon', err);
               this.showNodeMapTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
             }
-          }
-        } catch (err) {
-          reportAsyncError('NodeMap-pause-abandon', err);
-          this.showNodeMapTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
-        }
-      },
+          },
       gameData: this.gameData,
     });
     this.pauseOverlay.show();
@@ -2069,7 +2125,14 @@ export class NodeMapScene extends Phaser.Scene {
       return;
     }
     if (rm.isActComplete()) {
-      if (rm.isRunComplete()) {
+      if (isPrologueRun(rm)) {
+        // The prologue's last chapter is won (here after a reload, or once its
+        // rewards are claimed): the ending, then Home Base. Never RunComplete.
+        this.isTransitioning = true;
+        void finishPrologue(this).then((started) => {
+          if (!started && !this._sceneShuttingDown) this.isTransitioning = false;
+        });
+      } else if (rm.isRunComplete()) {
         this.isTransitioning = true;
         rm.status = 'victory';
         const cloud = this.registry.get('cloud');

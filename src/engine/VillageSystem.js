@@ -389,3 +389,33 @@ export function rollVillageRewardItem(act, lootTables, consumablesCatalog, rng =
     catalog.find((c) => c?.name === name) || catalog.find((c) => c?.name === 'Vulnerary');
   return item ? structuredClone(item) : null;
 }
+
+/**
+ * The visit's item: an authored village (`tile.reward`, a prologue chapter) sends that
+ * exact weapon or consumable; any other village rolls the act's consumable
+ * (rollVillageRewardItem, which draws from `rng`). Returns a clone, or null.
+ * @param {{ reward?: string }|null} tile - battleConfig.villageTile
+ */
+export function villageRewardItem(
+  tile,
+  act,
+  { lootTables, consumables, weapons },
+  rng = Math.random,
+) {
+  const name = typeof tile?.reward === 'string' ? tile.reward : null;
+  if (name) {
+    const item =
+      (Array.isArray(consumables) ? consumables : []).find((c) => c?.name === name) ||
+      (Array.isArray(weapons) ? weapons : []).find((w) => w?.name === name) ||
+      null;
+    return item ? structuredClone(item) : null;
+  }
+  return rollVillageRewardItem(act, lootTables, consumables, rng);
+}
+
+/** Objective subtext while the village stands: the race, or (uncontested) the visit. */
+export function villageObjectiveLine(tile) {
+  return tile?.uncontested
+    ? "Village: end a unit's action on it to visit"
+    : "Village: end a unit's action on it before bandits";
+}

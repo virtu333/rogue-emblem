@@ -35,12 +35,26 @@ export class PrologueCoach {
   /**
    * @param {Phaser.Scene} scene  BattleScene playing a prologue chapter
    * @param {{ onLeave: Function, onSkipStep: Function, scripted: () => object|null,
-   *   gated: () => boolean, onAnchor?: (anchor: object|null) => void, kicker?: string }} opts
+   *   gated: () => boolean, onAnchor?: (anchor: object|null) => void, kicker?: string,
+   *   leaveLabel?: string, leaveAria?: string }} opts
    *   scripted: the live guided step's coach goal (prologueContent) or null;
    *   gated: a guided step still blocks free play; onAnchor: the goal's unit/tile
-   *   anchor each frame, for the ring the controller draws.
+   *   anchor each frame, for the ring the controller draws; leaveLabel / leaveAria:
+   *   the exit button ("Leave" for a standalone replay, "Skip" in the prologue run).
    */
-  constructor(scene, { onLeave, onSkipStep, scripted, gated, onAnchor = null, kicker = null }) {
+  constructor(
+    scene,
+    {
+      onLeave,
+      onSkipStep,
+      scripted,
+      gated,
+      onAnchor = null,
+      kicker = null,
+      leaveLabel = 'Leave',
+      leaveAria = 'Leave prologue',
+    },
+  ) {
     this.scene = scene;
     this.onLeave = onLeave;
     this.onSkipStep = onSkipStep;
@@ -71,9 +85,9 @@ export class PrologueCoach {
     this.skip = el('button', 're-coach-btn', 'Skip step');
     this.skip.type = 'button';
     this.skip.addEventListener('click', () => this.onSkipStep?.());
-    this.leave = el('button', 're-coach-btn re-coach-leave', 'Leave');
+    this.leave = el('button', 're-coach-btn re-coach-leave', leaveLabel);
     this.leave.type = 'button';
-    this.leave.setAttribute('aria-label', 'Leave prologue');
+    this.leave.setAttribute('aria-label', leaveAria);
     this.leave.addEventListener('click', () => this.onLeave?.());
     actions.append(this.skip, this.leave);
     this.goal = el('p', 're-coach-goal');

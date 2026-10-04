@@ -1,7 +1,10 @@
 // PrologueController on a fake scene wrapped around the headless P1 battle: the beats
 // fire in order and once, the gates block the wrong input, the notes read what the beat
 // says, the lessons recorded are only those shown, a fall restarts the chapter without
-// ever reaching onDefeat, victory hands off, and nothing touches a slot or its meta.
+// ever reaching onDefeat, victory hands off, and (standalone) nothing touches a slot or
+// its meta. In the prologue run (a real RunManager in mode 'prologue') the notes mark
+// the slot's hints, a won chapter is recorded on the meta, and a fall restarts the
+// chapter from the run's entry snapshot, a Vision charge offered first.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/ui/HintDisplay.js', () => ({
@@ -22,7 +25,12 @@ import { restartScene, transitionToScene } from '../src/utils/SceneRouter.js';
 import { loadGameData } from './testData.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
-import { buildPrologueBattleConfig, buildPrologueUnits } from '../src/engine/Prologue.js';
+import {
+  buildPrologueBattleConfig,
+  buildPrologueUnits,
+  buildPrologueRoster,
+} from '../src/engine/Prologue.js';
+import { RunManager } from '../src/engine/RunManager.js';
 import { computeDangerTiles } from '../src/engine/ThreatForecast.js';
 import { PrologueController, PROLOGUE_NOTE_STATE } from '../src/ui/PrologueController.js';
 import { prologueBattleParams } from '../src/engine/ScriptedBattle.js';
@@ -40,14 +48,47 @@ const FORT = { col: 3, row: 2 };
 let store;
 let slotWrites;
 
-/** A fake BattleScene around the real P1 board (units, grid, threat context). */
-function makeScene({ battleParams = prologueBattleParams(chapter, { seed: 1209 }) } = {}) {
+/**
+ * A fake BattleScene around the real P1 board (units, grid, threat context).
+ * `chapterId` plays another chapter standalone; `run: true` wraps the chapter in a
+ * real prologue run (RunManager.startPrologue, the battle flag at its entry).
+ */
+function makeScene({
+  battleParams = prologueBattleParams(chapter, { seed: 1209 }),
+  chapterId = chapter.id,
+  run = false,
+} = {}) {
   installSeed(7);
-  const [edric] = buildPrologueUnits(data.prologue, data, chapter.roster);
-  const battle = new HeadlessBattle(data, { act: 'act1', objective: 'rout' }, [edric]);
-  battle.init({ battleConfig: config });
+  const played = data.prologue.chapters.find((c) => c.id === chapterId);
+  let rm = null;
+  let roster;
+  if (run) {
+    rm = new RunManager(data, null);
+    rm.startPrologue(data, data.prologue);
+    const node = rm.getAvailableNodes()[0];
+    battleParams = rm.getBattleParams(node);
+    rm.beginBattleInProgress(node.id, { battleParams, isBoss: false, isElite: false });
+    roster = rm.getRoster();
+  } else {
+    roster =
+      played === chapter
+        ? buildPrologueUnits(data.prologue, data, chapter.roster)
+        : buildPrologueRoster(data.prologue, data, played);
+    if (played !== chapter) battleParams = prologueBattleParams(played, { seed: 1209 });
+  }
+  const [edric] = roster;
+  const battle = new HeadlessBattle(data, { act: 'act1', objective: 'rout' }, roster);
+  battle.init({
+    battleConfig: played === chapter ? config : buildPrologueBattleConfig(played, data.terrain),
+  });
   const hints = { markSeen: vi.fn(), hasSeen: () => false, shouldShow: () => false };
-  const meta = { _save: vi.fn(), hintState: null, markDialogueSeen: vi.fn() };
+  const meta = {
+    _save: vi.fn(),
+    hintState: null,
+    markDialogueSeen: vi.fn(),
+    recordPrologueChapter: vi.fn(),
+    recordProloguePractised: vi.fn(),
+  };
   const events = { handlers: new Map() };
   events.on = vi.fn((name, fn) => events.handlers.set(name, fn));
   events.off = vi.fn((name) => events.handlers.delete(name));
@@ -56,7 +97,10 @@ function makeScene({ battleParams = prologueBattleParams(chapter, { seed: 1209 }
   const scene = {
     gameData: data,
     battleParams,
-    runManager: null,
+    runManager: rm,
+    nodeId: rm?.battleInProgress?.nodeId || null,
+    getVisionChargesRemaining: () => rm?.visionChargesRemaining ?? 0,
+    _persistBattleRunState: vi.fn(),
     playerUnits: battle.playerUnits,
     enemyUnits: battle.enemyUnits,
     npcUnits: [],
@@ -101,7 +145,7 @@ function makeScene({ battleParams = prologueBattleParams(chapter, { seed: 1209 }
     dangerZone: { hide: vi.fn() },
     _battleSession: 1,
   };
-  return { scene, battle, edric, hints, meta, markers, events };
+  return { scene, battle, edric, hints, meta, markers, events, rm, roster };
 }
 
 const unitOf = (scene, id) => scene.enemyUnits.find((u) => u.authoredId === id);
@@ -357,19 +401,19 @@ describe('PrologueController: records, exits and cleanup', () => {
     );
   });
 
-  it('a fresh device is offered the first run; choosing it retires the promotion and auto-starts New Game', async () => {
+  it('standalone: the victory handoff offers only the way back to the title', async () => {
     const { scene } = makeScene();
     const prologue = new PrologueController(scene).create();
     showImportantHint.mockImplementationOnce(async (_s, _m, { actions }) => {
-      expect(actions.map((a) => a.label)).toEqual(['Start first run', 'Back to title']);
-      return 'run';
+      expect(actions.map((a) => a.label)).toEqual(['Back to title']);
+      return 'title';
     });
     await prologue.onVictory();
     expect(store.get(TUTORIAL_COMPLETED_KEY)).toBe('1');
     expect(transitionToScene).toHaveBeenCalledWith(
       scene,
       'Title',
-      { gameData: data, autoAction: 'newGame' },
+      { gameData: data },
       expect.anything(),
     );
   });
@@ -410,15 +454,138 @@ describe('PrologueController: records, exits and cleanup', () => {
     expect(transitionToScene).not.toHaveBeenCalled();
   });
 
-  it('pause options offer Start First Run only on a device without saves', () => {
-    const { scene } = makeScene();
+  it('pause options: standalone leaves for the title; the run skips the rest of the prologue', () => {
+    const standalone = new PrologueController(makeScene().scene).create().pauseOptions();
+    expect(standalone.title).toBe('Banner at Dawn');
+    expect(typeof standalone.onLeave).toBe('function');
+    expect(standalone.onSkipRest).toBeUndefined();
+    const run = new PrologueController(makeScene({ run: true }).scene).create().pauseOptions();
+    expect(run.title).toBe('Banner at Dawn');
+    expect(typeof run.onSkipRest).toBe('function');
+    expect(run.onLeave).toBeUndefined();
+  });
+
+  it('standalone P2: Gaspar is protected too; his fall restarts the chapter with the authored pair', async () => {
+    const { scene, roster } = makeScene({ chapterId: 'p2_old_hands' });
     const prologue = new PrologueController(scene).create();
-    const fresh = prologue.pauseOptions();
-    expect(fresh.title).toBe('Banner at Dawn');
-    expect(typeof fresh.onLeave).toBe('function');
-    expect(typeof fresh.onStartRun).toBe('function');
-    store.set('emblem_rogue_slot_1_meta', '{}');
-    expect(prologue.pauseOptions().onStartRun).toBeNull();
+    const gaspar = roster.find((u) => u.specialCharId);
+    expect(gaspar?.name).toBe('Gaspar');
+    expect(prologue.isProtected(gaspar)).toBe(true);
+    gaspar.currentHP = 0;
+    scene.playerUnits.splice(scene.playerUnits.indexOf(gaspar), 1);
+    prologue.onUnitDefeated(gaspar);
+    expect(scene.battleState).toBe('BATTLE_END');
+    expect(scene._fallenCommander).toEqual({ name: 'Gaspar', className: 'Paladin', epithet: null });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(scene.onDefeat).not.toHaveBeenCalled();
+    expect(restartScene).toHaveBeenCalledTimes(1);
+    const [, payload] = restartScene.mock.calls[0];
+    expect(payload.roster.map((u) => u.name)).toEqual(['Edric', 'Gaspar']);
+    expect(payload.roster[1].level).toBe(gaspar.level);
+    expect(payload.roster[0].level).toBe(2); // rosterLevels: Edric arrives at P1's reward
+    expect(payload.roster[1].currentHP).toBe(payload.roster[1].stats.HP);
+    expect(slotWrites).toEqual([]);
+  });
+});
+
+describe('PrologueController in the prologue run', () => {
+  it('a note marks the slot hints it stands in for (never standalone)', async () => {
+    const standalone = makeScene();
+    const p1 = new PrologueController(standalone.scene).create();
+    standalone.edric.col = FORT.col;
+    standalone.edric.row = FORT.row;
+    await p1.onAfterMove(standalone.edric);
+    expect(standalone.hints.markSeen).not.toHaveBeenCalled();
+
+    const { scene, edric, hints } = makeScene({ run: true });
+    const prologue = new PrologueController(scene).create();
+    expect(prologue.run).toBe(scene.runManager);
+    edric.col = FORT.col;
+    edric.row = FORT.row;
+    await prologue.onAfterMove(edric);
+    expect(hints.markSeen).toHaveBeenCalledWith('battle_terrain');
+    expect(prologue.taught.has('battle_terrain')).toBe(true);
+  });
+
+  it("victory records the chapter and its practised lessons on the slot's meta and goes on with the run", async () => {
+    const { scene, edric, meta } = makeScene({ run: true });
+    const prologue = new PrologueController(scene).create();
+    await prologue.onForecastOpened(edric, unitOf(scene, 'a'), {}, edric.weapon);
+    await prologue.onCombatResolved(edric, unitOf(scene, 'a'));
+    await prologue.onVictory();
+    expect(meta.recordPrologueChapter).toHaveBeenCalledWith('p1_banner_at_dawn');
+    expect(meta.recordProloguePractised).toHaveBeenCalledWith(['forecast']);
+    expect(store.get(TUTORIAL_COMPLETED_KEY)).toBe('1');
+    expect(JSON.parse(store.get(TUTORIAL_LESSONS_KEY)).sort()).toEqual([
+      'battle_first_turn',
+      'battle_forecast',
+    ]);
+    // No handoff, no title: the run's own victory flow (loot, the route map) follows.
+    expect(notes().some((n) => n.includes('is yours.'))).toBe(false);
+    expect(transitionToScene).not.toHaveBeenCalled();
+  });
+
+  it("the commander's fall with no Vision charge restarts the chapter from the run's entry, even past a fatal checkpoint", async () => {
+    const { scene, edric, rm } = makeScene({ run: true });
+    const prologue = new PrologueController(scene).create();
+    const entryGold = rm.gold;
+    rm.gold = entryGold + 500; // battle gold the restart must give back
+    rm.setBattleCheckpoint({ recoveryKind: 'fatal_pending' });
+    expect(rm.revertBattleInProgressToEntry()).toBe(false); // the standard guard holds
+    scene._fatalDecision = { kind: 'x' };
+    scene._fatalCapturePending = true;
+    scene._defeatDecision = { durable: true };
+    scene._pendingCommittedAction = { stale: true };
+    edric.currentHP = 0;
+    scene.playerUnits.splice(0, 1);
+    expect(prologue.onDefeatIntercept({ fallen: edric })).toBe(true);
+    expect(scene.showLordDeathVisionPrompt).not.toHaveBeenCalled();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(1);
+    expect(scene.onDefeat).not.toHaveBeenCalled();
+    expect(rm.battleInProgress).toBeNull();
+    expect(rm.gold).toBe(entryGold);
+    expect(rm.mode).toBe('prologue');
+    expect(scene._fatalDecision).toBeNull();
+    expect(scene._fatalCapturePending).toBe(false);
+    expect(scene._defeatDecision).toBeNull();
+    expect(scene._pendingCommittedAction).toBeNull();
+    expect(scene._persistBattleRunState).toHaveBeenCalledTimes(1);
+    expect(restartScene).toHaveBeenCalledTimes(1);
+    const [target, payload, options] = restartScene.mock.calls[0];
+    expect(target).toBe(scene);
+    expect(options).toEqual({ reason: 'retry' });
+    expect(payload.runManager).toBe(rm);
+    expect(payload.nodeId).toBe('prologue_0');
+    expect(payload.battleParams).toEqual(rm.getBattleParams(rm.nodeMap.nodes[0]));
+    expect(payload.roster.map((u) => u.name)).toEqual(['Edric']);
+    expect(payload.roster[0].currentHP).toBe(payload.roster[0].stats.HP);
+    expect(transitionToScene).not.toHaveBeenCalled();
+  });
+
+  it('an unspent Vision charge is offered first; Accept Fate (onDefeat) then restarts', async () => {
+    const { scene, edric, rm } = makeScene({ run: true });
+    rm.visionChargesRemaining = 1;
+    scene.showLordDeathVisionPrompt = vi.fn(() => true);
+    const prologue = new PrologueController(scene).create();
+    edric.currentHP = 0;
+    scene.playerUnits.splice(0, 1);
+    expect(prologue.onDefeatIntercept({ fallen: edric })).toBe(true);
+    expect(scene.showLordDeathVisionPrompt).toHaveBeenCalledTimes(1);
+    expect(scene.battleState).not.toBe('BATTLE_END');
+    await Promise.resolve();
+    expect(scene.dialogueOverlay.showSequence).not.toHaveBeenCalled();
+    expect(restartScene).not.toHaveBeenCalled();
+    // Accept Fate: PostCombatController.onDefeat hands the decline back here.
+    expect(prologue.onDefeatIntercept({ accepted: true })).toBe(true);
+    expect(scene.showLordDeathVisionPrompt).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(1);
+    expect(restartScene).toHaveBeenCalledTimes(1);
+    expect(rm.battleInProgress).toBeNull();
   });
 
   it('destroy clears the rings and the reach and unhooks the scene', async () => {

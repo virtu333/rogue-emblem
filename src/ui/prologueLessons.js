@@ -17,7 +17,20 @@ export const TUTORIAL_HINT_IDS = new Set([
   'battle_staff_scope',
   'battle_heal_uses',
   'battle_consumable_supply',
+  'battle_no_counter',
+  'battle_village',
+  'battle_loot',
+  'guide_veteran_kills',
 ]);
+
+/** This device finished (or skipped into a run from) the prologue once. */
+export function hasCompletedTutorial() {
+  try {
+    return Boolean(localStorage.getItem(TUTORIAL_COMPLETED_KEY));
+  } catch {
+    return false;
+  }
+}
 
 export function applyCompletedTutorialHints(hints) {
   // A saved empty array is an explicit reset, not an uninitialized slot.

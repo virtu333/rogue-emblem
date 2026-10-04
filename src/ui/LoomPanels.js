@@ -19,6 +19,8 @@ export function createLoomHeading({
   rows = 0,
   frontierRow = -1,
   prefix = '',
+  act = null,
+  title: titleOverride = null,
 }) {
   const info = loomHeader({
     actIndex,
@@ -26,6 +28,8 @@ export function createLoomHeading({
     region: regionName(actId),
     rows,
     frontierRow,
+    act,
+    title: titleOverride,
   });
   const wrap = element('div', null, 're-loom-heading');
   const title = element('h2', null, 're-loom-title');

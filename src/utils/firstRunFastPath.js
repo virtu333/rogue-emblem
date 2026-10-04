@@ -1,4 +1,4 @@
-// firstRunFastPath — First-run onboarding shortcut.
+// firstRunFastPath — First-run onboarding shortcut, and the prologue's two starts.
 //
 // A brand-new save has nothing to do in Home Base (Valor/Supply are 0),
 // Difficulty Select (Normal is the only unlocked mode), or Blessing Select
@@ -11,24 +11,25 @@
 // on success incrementRunsStarted + clearSavedRun) so resume/story/economy
 // behave identically to the normal flow — the only difference is the three
 // skipped menu scenes.
+//
+// A fresh slot is first offered the prologue (docs/specs/prologue-chapter.md §9):
+// startPrologueRun begins the prologue run and opens its first chapter at once (the
+// route map stays hidden until it is won); skipPrologueToFirstRun records the skip and
+// takes today's fast path unchanged. Which of these a slot gets: engine/PrologueRouting.
 
 import { RunManager, clearSavedRun } from '../engine/RunManager.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { transitionToScene, TRANSITION_REASONS } from './SceneRouter.js';
+import { isFirstRunSlot } from '../engine/PrologueRouting.js';
+import { NODE_TYPES } from './constants.js';
 
-/**
- * A slot qualifies for the first-run fast path when it is brand new:
- * either no meta at all (getSlotSummary returns null) or a saved meta that
- * has never started or finished a run. Any active/corrupt run → not fresh.
- *
- * @param {{ hasActiveRun?: boolean, runCorrupt?: boolean, runsStarted?: number, runsCompleted?: number } | null} summary
- * @returns {boolean}
- */
-export function isFirstRunSlot(summary) {
-  if (!summary) return true; // empty slot (no meta yet)
-  if (summary.hasActiveRun) return false;
-  if (summary.runCorrupt) return false;
-  return (summary.runsStarted || 0) === 0 && (summary.runsCompleted || 0) === 0;
+export { isFirstRunSlot };
+
+function cloudClearer(scene) {
+  const cloud = scene.registry.get('cloud');
+  return cloud
+    ? (resolvedSlot, abandonedRun) => deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
+    : null;
 }
 
 /**
@@ -67,14 +68,72 @@ export async function startFirstRunFastPath(scene, { gameData, slot }) {
     // separately when the run settles). Clear any stale run save only after
     // transition success — same post-transition order as BlessingSelectScene.
     meta?.incrementRunsStarted?.();
-    const cloud = scene.registry.get('cloud');
-    clearSavedRun(
-      cloud
-        ? (resolvedSlot, abandonedRun) => deleteRunSave(cloud.userId, resolvedSlot, abandonedRun)
-        : null,
-      slot,
-    );
+    clearSavedRun(cloudClearer(scene), slot);
   }
 
   return transitioned;
+}
+
+/**
+ * Skip the prologue on a fresh slot: the slot remembers the skip (routing never
+ * offers it again, the first run keeps today's cold open) and takes the fast path.
+ */
+export async function skipPrologueToFirstRun(scene, { gameData, slot }) {
+  const meta = scene.registry.get('meta');
+  const transitioned = await startFirstRunFastPath(scene, { gameData, slot });
+  if (transitioned) meta?.setPrologueState?.('skipped');
+  return transitioned;
+}
+
+/**
+ * Begin the prologue run (RunManager.startPrologue) and open its first chapter at
+ * once: the route map is first shown after it is won (§4). The battle's own entry
+ * save (beginBattleInProgress) is the run's first save, so the stale run save of a
+ * fresh slot is cleared before the transition. Nothing counts: runsStarted is never
+ * incremented; the slot's meta records the prologue as in progress on success.
+ * @param {Phaser.Scene} scene
+ * @param {{ gameData: object, slot: number }} opts
+ * @returns {Promise<boolean>}
+ */
+export async function startPrologueRun(scene, { gameData, slot }) {
+  const prologue = gameData?.prologue;
+  if (!prologue?.route) return false;
+  const meta = scene.registry.get('meta');
+  const runManager = new RunManager(gameData, null);
+  runManager.startPrologue(gameData, prologue);
+  const node = runManager.getAvailableNodes()[0];
+  if (!node?.battleParams) return false;
+  clearSavedRun(cloudClearer(scene), slot);
+  const transitioned = await transitionToScene(
+    scene,
+    'Battle',
+    {
+      gameData,
+      runManager,
+      battleParams: runManager.getBattleParams(node),
+      roster: runManager.getRoster(),
+      nodeId: node.id,
+      isBoss: node.type === NODE_TYPES.BOSS,
+      isElite: false,
+    },
+    { reason: TRANSITION_REASONS.NEW_GAME, retryBlocked: true },
+  );
+  if (transitioned) meta?.setPrologueState?.('in_progress');
+  return transitioned;
+}
+
+/**
+ * Re-enter a prologue run's open chapter from the route map or a restart: the same
+ * launch data NodeMapScene.handleBattle builds, from the node's locked config.
+ */
+export function prologueBattleLaunchData(runManager, node, gameData) {
+  return {
+    gameData,
+    runManager,
+    battleParams: runManager.getBattleParams(node),
+    roster: runManager.getRoster(),
+    nodeId: node.id,
+    isBoss: node.type === NODE_TYPES.BOSS,
+    isElite: false,
+  };
 }

@@ -13,7 +13,6 @@
 // Rules and saves are untouched: the board turn is Grid presentation only.
 
 import { battleSession } from './BattleSession.js';
-import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { classifyBattleBoundary } from './BattleCheckpointAdapter.js';
 import { BattleSuspendController } from './BattleSuspendController.js';
 import { battlefieldLabEnabled } from './BattlefieldLab.js';
@@ -181,7 +180,6 @@ export class PortraitBattleController {
       // nowhere to write the save it would re-open from.
       hasRunCheckpoint: Boolean(
         s.runManager?.battleInProgress &&
-        !isScriptedBattle(s.battleParams) &&
         s._battleRewindPolicy === 'fixed-v1' &&
         Number.isInteger(s.registry?.get?.('activeSlot')),
       ),

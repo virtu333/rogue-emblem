@@ -33,7 +33,14 @@ import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
-import { isFirstRunSlot, startFirstRunFastPath } from '../utils/firstRunFastPath.js';
+import {
+  startFirstRunFastPath,
+  startPrologueRun,
+  skipPrologueToFirstRun,
+} from '../utils/firstRunFastPath.js';
+import { routeForSlot, PROLOGUE_ROUTES } from '../engine/PrologueRouting.js';
+import { PROLOGUE_OFFER } from '../data/prologueContent.js';
+import { hasCompletedTutorial } from '../ui/prologueLessons.js';
 import { hasMetaProgression } from '../ui/titleMenuModel.js';
 
 export class SlotPickerScene extends Phaser.Scene {
@@ -624,18 +631,33 @@ export class SlotPickerScene extends Phaser.Scene {
             { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
           );
         }
-      } else if (isFirstRunSlot(summary)) {
-        // Brand-new save (fresh meta, no run started yet): skip HomeBase /
-        // DifficultySelect / BlessingSelect straight to the act-1 node map.
-        transitioned = await startFirstRunFastPath(this, { gameData: this.gameData, slot });
       } else {
-        // No active run - go to HomeBase
-        transitioned = await transitionToScene(
-          this,
-          'HomeBase',
-          { gameData: this.gameData, corruptRunDetected: summary?.runCorrupt || false },
-          { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
-        );
+        // No active run: a fresh slot is offered the prologue, or takes the first-run
+        // fast path once it was skipped; a slot that played (or started a run) opens
+        // Home Base (PrologueRouting.routeForSlot).
+        const route = routeForSlot(summary, { hasPrologue: this._hasPrologue() });
+        if (route === PROLOGUE_ROUTES.OFFER && hasDOMHost()) {
+          this.isTransitioning = false;
+          if (this.input) this.input.enabled = true;
+          this._showPrologueOffer(slot);
+          return;
+        }
+        if (route === PROLOGUE_ROUTES.OFFER || route === PROLOGUE_ROUTES.FAST_PATH) {
+          // Brand-new save (fresh meta, no run started yet): skip HomeBase /
+          // DifficultySelect / BlessingSelect straight to the act-1 node map. With
+          // no way to ask, the offer is the skip.
+          transitioned =
+            route === PROLOGUE_ROUTES.OFFER
+              ? await skipPrologueToFirstRun(this, { gameData: this.gameData, slot })
+              : await startFirstRunFastPath(this, { gameData: this.gameData, slot });
+        } else {
+          transitioned = await transitionToScene(
+            this,
+            'HomeBase',
+            { gameData: this.gameData, corruptRunDetected: summary?.runCorrupt || false },
+            { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+          );
+        }
       }
       if (transitioned === false) {
         rollbackSelectionState();
@@ -649,6 +671,50 @@ export class SlotPickerScene extends Phaser.Scene {
       this.isTransitioning = false;
       if (this.input) this.input.enabled = true;
     }
+  }
+
+  _hasPrologue() {
+    return Boolean(this.gameData?.prologue?.route);
+  }
+
+  /**
+   * A fresh slot's offer (§4): play the prologue or skip to the first run. The slot's
+   * registry state is staged (selectSlot); the chosen start commits it. On a device
+   * that has not finished the prologue, playing it is the highlighted default.
+   */
+  _showPrologueOffer(slot) {
+    const start = (begin) => async () => {
+      if (this.isTransitioning) return;
+      this.isTransitioning = true;
+      if (this.input) this.input.enabled = false;
+      try {
+        const transitioned = await begin();
+        if (transitioned) setActiveSlot(slot);
+        else {
+          this.isTransitioning = false;
+          if (this.input) this.input.enabled = true;
+        }
+      } catch (err) {
+        console.error('[SlotPickerScene] prologue offer transition failed:', err);
+        this.isTransitioning = false;
+        if (this.input) this.input.enabled = true;
+      }
+    };
+    const play = start(() => startPrologueRun(this, { gameData: this.gameData, slot }));
+    const skip = start(() => skipPrologueToFirstRun(this, { gameData: this.gameData, slot }));
+    const playFirst = !hasCompletedTutorial();
+    const actions = [
+      [`${PROLOGUE_OFFER.play} · ${PROLOGUE_OFFER.playSub}`, play, playFirst],
+      [PROLOGUE_OFFER.skip, skip, !playFirst],
+    ];
+    this.nativeDialog?.destroy();
+    if (this.slotMenu) this.slotMenu.root.inert = true;
+    this.nativeDialog = slotDialog(
+      this,
+      PROLOGUE_OFFER.title,
+      PROLOGUE_OFFER.body,
+      playFirst ? actions : [actions[1], actions[0]],
+    );
   }
 
   /**

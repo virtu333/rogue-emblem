@@ -14,12 +14,23 @@
 // rail inert); on the enemy phase a note is a coach nudge instead, and a note raised at
 // a phase start waits until the player can act.
 //
-// The chapter never counts (§8): no RunManager, no slot or meta write, no Vision grant.
-// A named unit's fall never reaches onDefeat: the "Not this thread" line plays and the
-// chapter restarts from its start with freshly built authored units.
+// Two modes (engine/ScriptedBattle.js). In the prologue run (scene.runManager, mode
+// 'prologue') the chapter is a node of a real run: notes mark the slot's hints, a won
+// chapter records its practised lessons on the slot's meta, and a named unit's fall
+// restarts the chapter from its entry (RunManager.restartPrologueBattle) after an
+// unspent Vision charge, if any, was offered. Standalone (the title's replay, no
+// RunManager) nothing is saved: a fall rebuilds the authored roster and restarts the
+// scene. In both, the "Not this thread" line plays and onDefeat is never reached.
 
-import { prologueBeatsFor, forecastConcepts, buildPrologueUnits } from '../engine/Prologue.js';
-import { prologueChapterOf } from '../engine/ScriptedBattle.js';
+import {
+  prologueBeatsFor,
+  forecastConcepts,
+  buildPrologueRoster,
+  prologueProtectedNames,
+} from '../engine/Prologue.js';
+import { isStandaloneScriptedBattle, prologueChapterOf } from '../engine/ScriptedBattle.js';
+import { finishPrologue } from './PrologueEnding.js';
+import { prologueBattleLaunchData } from '../utils/firstRunFastPath.js';
 import {
   computeDangerTiles,
   enemyThreatTiles,
@@ -37,7 +48,6 @@ import {
 import { recordTaughtLessons } from './prologueLessons.js';
 import { showImportantHint } from './HintDisplay.js';
 import { hasDOMHost } from '../utils/domUI.js';
-import { getSlotCount } from '../engine/SlotManager.js';
 import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { TILE_SIZE } from '../utils/constants.js';
 import { UI_HEX } from '../utils/uiStyles.js';
@@ -56,6 +66,12 @@ export class PrologueController {
   constructor(scene) {
     this.scene = scene;
     this.chapter = prologueChapterOf(scene.battleParams, scene.gameData);
+    // The prologue run this chapter belongs to, or null for a standalone replay.
+    this.run = isStandaloneScriptedBattle(scene.battleParams, scene.runManager)
+      ? null
+      : scene.runManager || null;
+    // Names whose fall restarts the chapter (every unit of its roster, and the commander).
+    this.protectedNames = new Set(prologueProtectedNames(this.chapter, scene.gameData));
     this.beatState = { fired: [] };
     // { kind: 'select', unit } | { kind: 'move', col, row } | { kind: 'confirm' } | null
     this.gate = null;
@@ -76,6 +92,7 @@ export class PrologueController {
     this.blockingPromptActive = false;
     this.started = false;
     this.restarting = false;
+    this.offeredRewind = false;
     this.leaving = null;
     this.coach = null;
     this.created = false;
@@ -94,6 +111,8 @@ export class PrologueController {
         scripted: () => this.scripted(),
         gated: () => this.isGateActive(),
         onAnchor: (anchor) => this.markAnchor(anchor),
+        leaveLabel: this.run ? 'Skip' : 'Leave',
+        leaveAria: this.run ? 'Skip the rest of the prologue' : 'Leave prologue',
       });
     }
     this._tick = () => this.flushDeferred();
@@ -116,16 +135,16 @@ export class PrologueController {
   // --- Beats -----------------------------------------------------------------------
 
   /** The chapter's actions for an event (the beat state advances; `once` beats spend). */
-  match(event) {
+  match(event, options = {}) {
     if (this.destroyed || !this.chapter) return [];
-    const { actions, state } = prologueBeatsFor(this.chapter, event, this.beatState);
+    const { actions, state } = prologueBeatsFor(this.chapter, event, this.beatState, options);
     this.beatState = state;
     return actions;
   }
 
   /** Match and run. Resolves true when a note or a line held the screen. */
-  emit(event, extra = {}) {
-    const actions = this.match(event);
+  emit(event, extra = {}, options = {}) {
+    const actions = this.match(event, options);
     return actions.length ? this.runActions(actions, event, extra) : Promise.resolve(false);
   }
 
@@ -251,9 +270,11 @@ export class PrologueController {
   ctx(extra = {}) {
     const scene = this.scene;
     const commander = (scene.playerUnits || []).find((u) => u?.isCommander);
+    const veteran = (scene.playerUnits || []).find((u) => u?.specialCharId);
     return {
       touch: Boolean(scene.isMobileInput),
       lord: commander?.name || 'Edric',
+      veteran: veteran?.name || 'Gaspar',
       gateTile: this.gate?.kind === 'move' ? { col: this.gate.col, row: this.gate.row } : null,
       ...extra,
     };
@@ -269,7 +290,11 @@ export class PrologueController {
   note(id, event = {}, extra = {}) {
     const text = prologueNoteText(id, this.ctx(extra.ctx));
     if (!text) return Promise.resolve(false);
-    for (const hint of NOTE_HINT_IDS[id] || []) this.taught.add(hint);
+    for (const hint of NOTE_HINT_IDS[id] || []) {
+      this.taught.add(hint);
+      // In the run the slot is real: the in-run note this one stands in for is read.
+      if (this.run) this.scene.registry?.get?.('hints')?.markSeen?.(hint);
+    }
     if (event.type === 'turnStart' && event.phase === 'enemy') {
       const line = text.replace(/\s*\n\s*/g, ' ');
       if (!this.coach?.nudge(line, 'info')) void this.scene.showBriefBanner?.(line);
@@ -300,13 +325,13 @@ export class PrologueController {
     }
   }
 
-  /** A Field note with Continue, plus a way out (choosing Leave opens the confirmation). */
+  /** A Field note with Continue, plus a way out (choosing it opens the confirmation). */
   async fieldNote(message) {
     const scene = this.scene;
     const actions = hasDOMHost()
       ? [
           { label: 'Continue', value: true, primary: true },
-          { label: 'Leave prologue', value: 'leave' },
+          { label: this.run ? 'Skip prologue' : 'Leave prologue', value: 'leave' },
         ]
       : null;
     const result = actions
@@ -474,18 +499,26 @@ export class PrologueController {
     return out;
   }
 
-  /** An attack forecast opened (not a re-render). Resolves once its notes are read. */
+  /**
+   * An attack forecast opened (not a re-render). Resolves once its notes are read.
+   * One concept per forecast: only the first note beat that matches fires here, the
+   * others wait for a later forecast (prologueBeatsFor's oneNote).
+   */
   onForecastOpened(attacker, defender, forecast, weapon = null) {
     if (this.destroyed || attacker?.faction !== 'player') return Promise.resolve(false);
     this.forecastCount += 1;
-    return this.emit({
-      type: 'forecastOpened',
-      unit: attacker.name,
-      target: this.unitKey(defender),
-      nth: this.forecastCount,
-      concepts: forecastConcepts(forecast, { weapon }),
-      turn: this.turn(),
-    });
+    return this.emit(
+      {
+        type: 'forecastOpened',
+        unit: attacker.name,
+        target: this.unitKey(defender),
+        nth: this.forecastCount,
+        concepts: forecastConcepts(forecast, { weapon }),
+        turn: this.turn(),
+      },
+      {},
+      { oneNote: true },
+    );
   }
 
   onForecastClosed() {
@@ -505,6 +538,7 @@ export class PrologueController {
         unit: attacker.name,
         target: this.unitKey(defender),
         turn: this.turn(),
+        kill: Boolean(defender) && !(defender.currentHP > 0),
       });
     }
     for (const unit of [attacker, defender]) {
@@ -560,20 +594,43 @@ export class PrologueController {
     return held;
   }
 
+  /**
+   * A unit fell. A protected player unit (every named unit of the chapter: the
+   * commander, Gaspar, later Sera and Tamsin) restarts the chapter as the commander's
+   * fall does; checkBattleEnd never sees a non-commander's fall.
+   */
   onUnitDefeated(unit) {
     if (this.destroyed || !unit) return;
     void this.emit({ type: 'unitDefeated', unit: this.unitKey(unit) });
+    if (unit.faction === 'player' && this.isProtected(unit))
+      this.onDefeatIntercept({ fallen: unit });
+  }
+
+  isProtected(unit) {
+    return Boolean(unit && (unit.isCommander || this.protectedNames.has(unit.name)));
   }
 
   /**
-   * The commander fell. Never the lord-death prompt, never onDefeat: the screen is
-   * held, the "Not this thread" line plays, and the chapter restarts from its start.
-   * Returns true (the fall is handled).
+   * A protected unit fell. Never a settled defeat: in the run, an unspent Vision
+   * charge is offered first (the lord-death prompt; its Accept Fate comes back here
+   * through onDefeat); then the screen is held, the "Not this thread" line plays, and
+   * the chapter restarts from its entry. Returns true (the fall is handled).
+   * @param {{ fallen?: object, accepted?: boolean }} [options] - `accepted`: the rewind
+   *   was declined (or none could be offered), restart now
    */
-  onDefeatIntercept() {
+  onDefeatIntercept({ fallen = null, accepted = false } = {}) {
     const scene = this.scene;
     if (this.destroyed) return false;
     if (this.restarting) return true;
+    if (fallen && !fallen.isCommander && !scene._fallenCommander) {
+      // The fate prompt and the FALLEN band name whoever fell.
+      scene._fallenCommander = { name: fallen.name, className: fallen.className, epithet: null };
+      scene._battleCommanderName = fallen.name;
+    }
+    if (!accepted && this.run && !this.offeredRewind && this.canOfferRewind()) {
+      this.offeredRewind = true;
+      if (scene.showLordDeathVisionPrompt?.()) return true;
+    }
     this.restarting = true;
     const session = battleSession(scene);
     scene._reinforcementsPendingThisTurn = false;
@@ -596,11 +653,43 @@ export class PrologueController {
     return true;
   }
 
-  /** Re-enter the chapter from its start: the same params, freshly built authored units. */
+  /** An unspent Vision charge the run could offer against the fall. */
+  canOfferRewind() {
+    const scene = this.scene;
+    try {
+      return Number(scene.getVisionChargesRemaining?.()) > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Re-enter the chapter from its start. In the run: the battle's entry state is
+   * restored (the roster never changed; the convoy, gold, Vision and RNG come back from
+   * the entry snapshot, a fatal checkpoint included), the save is rewritten without the
+   * battle flag, and the node re-opens from its locked config. Standalone: the same
+   * params with freshly built authored units.
+   */
   restartChapter() {
     const scene = this.scene;
     const gameData = scene.gameData;
-    const roster = buildPrologueUnits(gameData.prologue, gameData, this.chapter?.roster || []);
+    const session = battleSession(scene);
+    if (this.run) {
+      const rm = this.run;
+      const nodeId = rm.battleInProgress?.nodeId || scene.nodeId;
+      const node = rm.nodeMap?.nodes?.find((n) => n.id === nodeId);
+      rm.restartPrologueBattle();
+      scene._fatalDecision = null;
+      scene._fatalCapturePending = false;
+      scene._defeatDecision = null;
+      scene._pendingCommittedAction = null;
+      scene._persistBattleRunState?.(null, { session });
+      if (!node) return false;
+      return restartScene(scene, prologueBattleLaunchData(rm, node, gameData), {
+        reason: TRANSITION_REASONS.RETRY,
+      });
+    }
+    const roster = buildPrologueRoster(gameData.prologue, gameData, this.chapter);
     return restartScene(
       scene,
       { gameData, roster, battleParams: { ...scene.battleParams } },
@@ -608,7 +697,12 @@ export class PrologueController {
     );
   }
 
-  /** The chapter is won (after the victory band): its last lines, the record, the handoff. */
+  /**
+   * The chapter is won (after the victory band): its last lines and notes. In the run
+   * the records land on the slot (the practised lessons, the chapter) and the device
+   * (the lessons shown), and the run's own victory flow goes on (loot, the route map,
+   * the ending). Standalone: the record, then the handoff to the title.
+   */
   async onVictory() {
     const scene = this.scene;
     const session = battleSession(scene);
@@ -618,22 +712,20 @@ export class PrologueController {
     await this.emit({ type: 'victory' });
     if (!live()) return;
     this.taught.add('battle_first_turn');
-    const startRun = Boolean(this.pauseOptions()?.onStartRun);
-    const choice = await showImportantHint(
+    if (this.run) {
+      this.recordChapterWon();
+      return;
+    }
+    await showImportantHint(
       scene,
-      prologueHandoff({ title: this.chapter?.title || 'The prologue', startRun }),
+      prologueHandoff({ title: this.chapter?.title || 'The prologue' }),
       {
-        actions: startRun
-          ? [
-              { label: 'Start first run', value: 'run', primary: true },
-              { label: 'Back to title', value: 'title' },
-            ]
-          : [{ label: 'Back to title', value: 'title', primary: true }],
+        actions: [{ label: 'Back to title', value: 'title', primary: true }],
       },
     );
     if (!live()) return;
     this.recordCompletion();
-    return this.leave(choice === 'run' ? 'run' : 'title');
+    return this.leave('title');
   }
 
   // --- Records ---------------------------------------------------------------------
@@ -643,9 +735,12 @@ export class PrologueController {
     return recordTaughtLessons(this.taught);
   }
 
-  /** Skipping into a first run retires the title's promotion, carrying the lessons shown. */
-  recordSkip() {
-    return recordTaughtLessons(this.taught);
+  /** The run: the chapter and its practised lessons on the slot's meta, the lessons on the device. */
+  recordChapterWon() {
+    const meta = this.scene.registry?.get?.('meta');
+    if (this.chapter?.id) meta?.recordPrologueChapter?.(this.chapter.id);
+    if (this.lessons.practised.size) meta?.recordProloguePractised?.([...this.lessons.practised]);
+    recordTaughtLessons(this.taught);
   }
 
   // --- Exits -----------------------------------------------------------------------
@@ -662,22 +757,35 @@ export class PrologueController {
     );
   }
 
-  /** Pause menu exits (no run exists to save or abandon). */
+  /**
+   * Pause menu exits. The run: "Skip the rest of the prologue" (the ending, then Home
+   * Base with the grant); the run's own Save & Return stays. Standalone: Leave
+   * Prologue (nothing to save).
+   */
   pauseOptions() {
-    let fresh;
-    try {
-      fresh = getSlotCount() === 0;
-    } catch {
-      fresh = false;
-    }
-    return {
-      title: this.chapter?.title || null,
-      onLeave: () => this.leave('title'),
-      onStartRun: fresh ? () => this.leave('run') : null,
-    };
+    const title = this.chapter?.title || null;
+    if (this.run) return { title, onSkipRest: () => this.skipRest() };
+    return { title, onLeave: () => this.leave('title') };
   }
 
-  /** Open the pause menu straight onto the leave confirmation. */
+  /** Skip the rest of the prologue from this battle: the ending, then Home Base. */
+  skipRest() {
+    if (this.leaving) return this.leaving;
+    const scene = this.scene;
+    scene._reinforcementsPendingThisTurn = false;
+    scene.battleState = 'BATTLE_END';
+    this.deferred = [];
+    this.clearHighlights();
+    this.coach?.destroy();
+    this.coach = null;
+    this.leaving = finishPrologue(scene, {
+      taught: this.taught,
+      practised: this.lessons.practised,
+    });
+    return this.leaving;
+  }
+
+  /** Open the pause menu straight onto the exit confirmation (leave, or skip the rest). */
   requestLeave() {
     const scene = this.scene;
     if (!scene.pauseOverlay?.visible) {
@@ -690,16 +798,12 @@ export class PrologueController {
     return Boolean(scene.pauseOverlay?.requestLeavePrologue?.());
   }
 
-  /**
-   * Leave the chapter. 'title' returns to the title; 'run' retires the promotion and
-   * lets the title start the first run (its normal new-game path). Nothing is saved.
-   */
-  leave(destination = 'title') {
+  /** Leave a standalone chapter for the title. Nothing is saved. */
+  leave() {
     if (this.leaving) return this.leaving;
     this.coach?.destroy();
     this.coach = null;
-    if (destination === 'run') this.recordSkip();
-    this.leaving = this.transitionToTitle(destination === 'run' ? { autoAction: 'newGame' } : null);
+    this.leaving = this.transitionToTitle(null);
     return this.leaving;
   }
 

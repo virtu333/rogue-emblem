@@ -24,8 +24,17 @@
 //                     id, node      chapter id and the route node that fights it
 //                     title         display name
 //                     objective     'rout' | 'seize' | 'escape'
-//                     roster        unit keys that fight it (a standalone chapter builds
-//                                   them with buildPrologueUnits; at most one per spawn)
+//                     roster        who fights it, in spawn order: unit keys and special
+//                                   character ids (the standard veteran, Gaspar). A standalone
+//                                   replay builds them with buildPrologueRoster; in the
+//                                   prologue run it is the run's roster. Every unit here
+//                                   is protected (its fall restarts the chapter).
+//                     rosterLevels  optional { <unit key>: level }: the level a replay
+//                                   builds the unit at (seeded level-ups from its spec),
+//                                   so a replay enters at the chapter's expected level
+//                     showPar       optional, default true: false hides the HUD par and
+//                                   turns the par's rules off (no late pressure, no
+//                                   rating); P1-P3 teach without it, P4 teaches it
 //                     map           { legend: { char: terrain name }, rows: ["F . T", ...] }
 //                                   rows are whitespace-separated legend characters;
 //                                   the map holds terrain only, spawns are coordinates.
@@ -35,15 +44,31 @@
 //                                   `id` names the enemy in beats; weapon/skills are the
 //                                   enemy's whole kit (EnemySpawnGear.applySpawnLoadout).
 //                     npc           null | { unit, className, col, row } (P3's Sera)
-//                     villageTile   null | { col, row } on a Village tile
+//                     villageTile   null | { col, row, reward? } on a Village tile. It is
+//                                   never contested (no bandits); `reward` names the item
+//                                   the visit sends to the convoy (default: the act's
+//                                   random consumable, VillageSystem.villageRewardItem)
 //                     thronePos     null | { col, row } (seize; default: the map's Throne)
 //                     escapeTiles   null | [{ col, row }]
-//                     loot          null | authored loot offer (P2+, not yet built)
+//                     loot          null | the authored reward offer that replaces the
+//                                   random draw: [{ item, quantity? } | { gold }]
+//                                   (buildPrologueLootChoices)
 //                     beats         [beat] (prologueBeatsFor)
 //                   No reinforcements, bandits or fog: a chapter has no keys for them.
-//   route           null | { nodes: [...], edges: [...] }  (P2+: buildPrologueNodeMap)
+//   route           null | { title, nodes: [...], edges: [...] }: the literal route map
+//                   of the prologue run (buildPrologueNodeMap). A node is { id, row,
+//                   col?, chapter? | type?, title? }: a chapter node fights that chapter
+//                   (type 'battle', or 'boss' when given), a service node has a type
+//                   ('shop' | 'church' | 'ruins'). Edges go from a row to the next. Row 0
+//                   is the first chapter alone; the prologue ends when the chapter node
+//                   on the last row is won (prologueFinalNodeId).
 //   joins           null | { afterChapter: { <chapterId>: [unit key | special id] },
 //                            atNode: { <nodeId>: [unit key | special id] } }
+//                   Who joins the run's roster, committed with that chapter's victory
+//                   (RunManager.completeBattle) or on arrival at that node.
+//   ending          null | { dialogue, titleCard }: the ending stub the last chapter
+//                   hands to (PrologueEnding): a dialogue.json `prologue` key and the
+//                   title card's text
 //   boss            null | { name, className, level, weapon, epithet } (P4's Varro; never
 //                   in a real act's boss pool)
 //
@@ -63,7 +88,9 @@
 //                                       an attack forecast opened; event.nth counts the
 //                                       battle's forecasts from 1, event.concepts is
 //                                       forecastConcepts() of that forecast
-//   combatResolved  unit, target, turn  a combat the player started has resolved
+//   combatResolved  unit, target, turn, kill
+//                                       a combat the player started has resolved;
+//                                       event.kill is true when the target fell to it
 //   unitActed       unit, turn          a player unit's action is over (attack, wait...)
 //   unitDefeated    unit                a unit fell
 //   levelUp         unit                a unit gained a level
@@ -87,7 +114,7 @@
 //   markLesson: { id, kind: 'shown' | 'practised' }
 // The ids are resolved by the scene (PrologueController); this module only matches.
 
-import { TERRAIN, XP_STAT_NAMES } from '../utils/constants.js';
+import { LOOT_GOLD_TEAM_XP, NODE_TYPES, TERRAIN, XP_STAT_NAMES } from '../utils/constants.js';
 import { TRAIT_RULES_VERSION } from './TraitSystem.js';
 import { usesMagic, isStaff } from './Combat.js';
 import {
@@ -99,11 +126,16 @@ import {
   applyLevelUpGains,
   parseWeaponProficiencies,
 } from './UnitManager.js';
+import { createSpecialCharacter } from './SpecialCharacters.js';
 import { keyedBattleRandom } from './BattleRng.js';
 import { ensureItemUidWith } from '../utils/itemUid.js';
 import { validateBattleConfig } from './MapGenerator.js';
 
 export const PROLOGUE_TEMPLATE_PREFIX = 'prologue:';
+export const PROLOGUE_ACT_ID = 'act1';
+/** Route nodes without a column sit on the route's centre lane (NodeMapGenerator's). */
+export const PROLOGUE_ROUTE_CENTER_COL = 2;
+export const PROLOGUE_ROUTE_SERVICE_TYPES = [NODE_TYPES.SHOP, NODE_TYPES.CHURCH, NODE_TYPES.RUINS];
 export const PROLOGUE_OBJECTIVES = ['rout', 'seize', 'escape'];
 export const PROLOGUE_ENEMY_AI_MODES = ['chase', 'guard', 'hold'];
 export const PROLOGUE_LESSON_KINDS = ['shown', 'practised'];
@@ -115,7 +147,7 @@ export const PROLOGUE_TRIGGERS = Object.freeze({
   unitSelected: ['unit', 'turn'],
   afterMove: ['unit', 'tile', 'terrain', 'dangerFrom', 'turn'],
   forecastOpened: ['unit', 'target', 'nth', 'concept', 'turn'],
-  combatResolved: ['unit', 'target', 'turn'],
+  combatResolved: ['unit', 'target', 'turn', 'kill'],
   unitActed: ['unit', 'turn'],
   unitDefeated: ['unit'],
   levelUp: ['unit'],
@@ -144,6 +176,8 @@ const CHAPTER_KEYS = new Set([
   'title',
   'objective',
   'roster',
+  'rosterLevels',
+  'showPar',
   'map',
   'playerSpawns',
   'enemies',
@@ -154,6 +188,7 @@ const CHAPTER_KEYS = new Set([
   'loot',
   'beats',
 ]);
+const ROUTE_NODE_KEYS = new Set(['id', 'row', 'col', 'chapter', 'type', 'title']);
 const UNIT_KEYS = new Set([
   'lord',
   'className',
@@ -187,6 +222,7 @@ const PLAYER_SPAWN_MOVE_TYPES = ['Infantry', 'Armored', 'Cavalry'];
 const isInt = (v) => Number.isInteger(v);
 const isTile = (t) => t && typeof t === 'object' && isInt(t.col) && isInt(t.row);
 const tileKey = (t) => `${t.col},${t.row}`;
+const isPlainObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 
 // --- Map ---------------------------------------------------------------------------
 
@@ -293,6 +329,17 @@ export function buildPrologueBattleConfig(chapter, terrainData) {
     const thrones = throneTiles(mapLayout);
     if (thrones.length === 1) thronePos = thrones[0];
   }
+  const villageTile = isTile(chapter.villageTile)
+    ? {
+        col: chapter.villageTile.col,
+        row: chapter.villageTile.row,
+        // Authored villages are never contested, and may name their reward.
+        uncontested: true,
+        ...(typeof chapter.villageTile.reward === 'string'
+          ? { reward: chapter.villageTile.reward }
+          : {}),
+      }
+    : undefined;
   return {
     mapLayout,
     cols,
@@ -302,7 +349,7 @@ export function buildPrologueBattleConfig(chapter, terrainData) {
     playerSpawns: (chapter.playerSpawns || []).map((t) => ({ col: t.col, row: t.row })),
     enemySpawns,
     npcSpawn: npc,
-    villageTile: isTile(chapter.villageTile) ? { ...chapter.villageTile } : undefined,
+    villageTile,
     thronePos,
     escapeTiles: Array.isArray(chapter.escapeTiles)
       ? chapter.escapeTiles.map((t) => ({ col: t.col, row: t.row }))
@@ -310,8 +357,170 @@ export function buildPrologueBattleConfig(chapter, terrainData) {
     templateId: `${PROLOGUE_TEMPLATE_PREFIX}${chapter.id}`,
     prologueChapter: chapter.id,
     parBonus: 0,
+    // The chapter's data decides whether par is shown and applied (showPar).
+    hidePar: chapter.showPar === false,
+    // The authored reward offer (null: the chapter ends without a loot screen).
+    loot: Array.isArray(chapter.loot) ? structuredClone(chapter.loot) : null,
     toxicTiles: [],
   };
+}
+
+// --- The route map ---------------------------------------------------------------
+
+/** The chapter the route node fights, or null for a service node / unknown id. */
+export function prologueChapterForNode(prologue, nodeId) {
+  const chapters = Array.isArray(prologue?.chapters) ? prologue.chapters : [];
+  return chapters.find((c) => c?.node === nodeId) || null;
+}
+
+/** The node whose victory ends the prologue: the chapter node on the route's last row. */
+export function prologueFinalNodeId(prologue) {
+  const nodes = Array.isArray(prologue?.route?.nodes) ? prologue.route.nodes : [];
+  let best = null;
+  for (const node of nodes) {
+    if (!node?.chapter) continue;
+    if (!best || Number(node.row) > Number(best.row)) best = node;
+  }
+  return best?.id || null;
+}
+
+/** A node's fixed battle seed: from the prologue seed and its id, never Math.random. */
+export function prologueNodeBattleSeed(seed, nodeId) {
+  const draw = keyedBattleRandom(Math.trunc(Number(seed) || 0) >>> 0, `prologue-node:${nodeId}`);
+  return Math.trunc(draw() * 0x100000000) >>> 0;
+}
+
+/**
+ * The prologue run's literal node map (the shape generateNodeMap returns, plain
+ * JSON): one node per route entry, its edges, titles, and for a chapter node the
+ * battleParams that name the chapter (`prologueChapter`) so BattleScene plays the
+ * locked authored config. The prologue is one act (PROLOGUE_ACT_ID) whose "boss"
+ * node is the last chapter's (prologueFinalNodeId): isActComplete ends it.
+ * @param {object} prologue - data/prologue.json
+ */
+export function buildPrologueNodeMap(prologue) {
+  const route = prologue?.route;
+  if (!route || !Array.isArray(route.nodes)) throw new Error('prologue.route is not authored');
+  const chapters = Array.isArray(prologue.chapters) ? prologue.chapters : [];
+  const nodes = route.nodes.map((entry) => {
+    const chapter = entry.chapter ? chapters.find((c) => c?.id === entry.chapter) : null;
+    const type = chapter ? entry.type || NODE_TYPES.BATTLE : entry.type;
+    const node = {
+      id: entry.id,
+      row: entry.row,
+      col: isInt(entry.col) ? entry.col : PROLOGUE_ROUTE_CENTER_COL,
+      type,
+      edges: [],
+      battleParams: chapter
+        ? {
+            act: PROLOGUE_ACT_ID,
+            objective: chapter.objective || 'rout',
+            row: entry.row,
+            prologueChapter: chapter.id,
+            battleSeed: prologueNodeBattleSeed(prologue.seed, entry.id),
+          }
+        : null,
+      completed: false,
+      title: entry.title || chapter?.title || null,
+    };
+    if (chapter) {
+      node.templateId = `${PROLOGUE_TEMPLATE_PREFIX}${chapter.id}`;
+      node.encounterLocked = true;
+    }
+    return node;
+  });
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  for (const [from, to] of Array.isArray(route.edges) ? route.edges : []) {
+    const node = byId.get(from);
+    if (node && byId.has(to) && !node.edges.includes(to)) node.edges.push(to);
+  }
+  const start = nodes.find((n) => n.row === 0) || nodes[0];
+  return {
+    actId: PROLOGUE_ACT_ID,
+    nodes,
+    startNodeId: start?.id || null,
+    bossNodeId: prologueFinalNodeId(prologue),
+    prologue: { title: route.title || 'The Prologue' },
+  };
+}
+
+// --- Loot --------------------------------------------------------------------------
+
+/** The loot category a catalogue item draws from (what the reward screen expects). */
+function lootCategoryOf(item, lootTables, actId) {
+  const table = lootTables?.[actId] || lootTables?.act1 || null;
+  if (item?.type === 'Scroll') return 'skillScroll';
+  if (item?.type !== 'Consumable') return 'weapon';
+  for (const category of ['healing', 'statBooster', 'promotion']) {
+    if (Array.isArray(table?.[category]) && table[category].includes(item.name)) return category;
+  }
+  if (item?.effect === 'statBoost') return 'statBooster';
+  return 'healing';
+}
+
+/**
+ * A chapter's authored reward offer as reward choices (PendingBattleRewards): the
+ * shape generateLootChoices returns, so the reward screen renders and claims them
+ * unchanged. `[{ item, quantity? } | { gold }]`; item uids come from `rng`.
+ * @param {object[]} loot - chapter.loot
+ * @param {object} gameData - { weapons, consumables, lootTables }
+ * @param {{ actId?: string, rng?: () => number }} [options]
+ */
+export function buildPrologueLootChoices(loot, gameData, { actId = PROLOGUE_ACT_ID, rng } = {}) {
+  const draw = typeof rng === 'function' ? rng : Math.random;
+  return (Array.isArray(loot) ? loot : []).map((entry) => {
+    if (isInt(entry?.gold)) {
+      return {
+        type: 'gold',
+        goldAmount: Math.max(0, entry.gold),
+        xpAmount: LOOT_GOLD_TEAM_XP[actId] || LOOT_GOLD_TEAM_XP.act1 || 0,
+      };
+    }
+    const found = findItem(gameData, entry?.item);
+    if (!found) throw new Error(`Unknown prologue loot item "${entry?.item}"`);
+    const item = ensureItemUidWith(structuredClone(found.data), draw);
+    const choice = { type: lootCategoryOf(found.data, gameData.lootTables, actId), item };
+    if (isInt(entry.quantity) && entry.quantity > 1) choice.quantity = entry.quantity;
+    return choice;
+  });
+}
+
+// --- Protected units -----------------------------------------------------------------
+
+/**
+ * The names whose fall restarts the chapter: every unit of its roster (unit keys
+ * are names; a special character id resolves to its name) — the spec's "every named
+ * unit is protected", plus the commander whatever the roster says.
+ */
+export function prologueProtectedNames(chapter, gameData) {
+  const specials = gameData?.specialChars || [];
+  const names = new Set();
+  for (const key of Array.isArray(chapter?.roster) ? chapter.roster : []) {
+    const special = specials.find((s) => s?.id === key);
+    names.add(special ? special.name : key);
+  }
+  if (chapter?.npc?.unit) names.add(chapter.npc.unit);
+  return [...names];
+}
+
+/**
+ * The roster keys (unit keys and special ids) the prologue's joins brought in by the
+ * chapters won so far: a unit the prologue already introduced needs no run-start
+ * introduction later (NodeMapScene's veteran intro).
+ * @param {object} prologue - data/prologue.json
+ * @param {Iterable<string>} chaptersCompleted - chapter ids (meta.prologue.chaptersCompleted)
+ * @returns {Set<string>}
+ */
+export function prologueJoinedKeys(prologue, chaptersCompleted = []) {
+  const won = new Set(chaptersCompleted || []);
+  const out = new Set();
+  const after = prologue?.joins?.afterChapter;
+  if (!isPlainObject(after)) return out;
+  for (const [chapterId, keys] of Object.entries(after)) {
+    if (!won.has(chapterId) || !Array.isArray(keys)) continue;
+    for (const key of keys) out.add(key);
+  }
+  return out;
 }
 
 // --- Beats -------------------------------------------------------------------------
@@ -347,6 +556,7 @@ const CONDITION_MATCHERS = {
   nth: (want, e) => e.nth === want,
   concept: (want, e) => Array.isArray(e.concepts) && e.concepts.includes(want),
   pct: (want, e) => Number.isFinite(e.hpPct) && e.hpPct <= want,
+  kill: (want, e) => Boolean(e.kill) === want,
 };
 
 function beatConditions(beat) {
@@ -363,23 +573,34 @@ function beatMatches(beat, event) {
   return conditions.every((key) => CONDITION_MATCHERS[key]?.(beat[key], event) === true);
 }
 
+const readsAloud = (beat) =>
+  (Array.isArray(beat?.do) ? beat.do : []).some((a) => a && ('note' in a || 'dialogue' in a));
+
 /**
  * The actions a chapter's beats take for one event. Pure: `state` is not mutated.
  * Beats match in authored order and their actions come out in that order, each tagged
  * with its beat id. A `once` beat fires at most once: the returned state records it.
+ * With `oneNote` (every forecastOpened event: one concept per forecast), only the first
+ * matching beat that shows a note or a line fires; later note beats are neither run
+ * nor spent, so they wait for a later event they match.
  * @param {object} chapter
  * @param {{ type: string }} event - see the module header for each trigger's fields
  * @param {{ fired?: string[] }} [state]
+ * @param {{ oneNote?: boolean }} [options]
  * @returns {{ actions: object[], fired: string[], state: { fired: string[] } }}
  */
-export function prologueBeatsFor(chapter, event, state = {}) {
+export function prologueBeatsFor(chapter, event, state = {}, { oneNote = false } = {}) {
   const done = new Set(Array.isArray(state?.fired) ? state.fired : []);
   const actions = [];
   const fired = [];
+  let spoke = false;
   if (event && typeof event.type === 'string') {
     for (const beat of Array.isArray(chapter?.beats) ? chapter.beats : []) {
       if (!beat || (beat.once && done.has(beat.id))) continue;
       if (!beatMatches(beat, event)) continue;
+      const speaks = readsAloud(beat);
+      if (oneNote && speaks && spoke) continue;
+      if (speaks) spoke = true;
       fired.push(beat.id);
       if (beat.once) done.add(beat.id);
       for (const action of Array.isArray(beat.do) ? beat.do : []) {
@@ -429,9 +650,16 @@ function equipAuthored(unit) {
  * @param {object} spec - a data/prologue.json `units` entry
  * @param {object} gameData - { lords, classes, weapons, consumables }
  * @param {() => number} rng - e.g. prologueUnitRng(prologue.seed, key)
- * @param {{ name?: string }} [options] - the unit's name when the spec has no lord
+ * @param {{ name?: string, level?: number }} [options] - the unit's name when the spec
+ *   has no lord; `level` raises an authored-stats unit above its spec's level with
+ *   seeded level-ups (a replay entering a later chapter at its expected level)
  */
-export function buildPrologueUnit(spec, gameData, rng, { name = null } = {}) {
+export function buildPrologueUnit(
+  spec,
+  gameData,
+  rng,
+  { name = null, level: toLevel = null } = {},
+) {
   if (typeof rng !== 'function') throw new Error('buildPrologueUnit needs a seeded rng');
   if (!spec || typeof spec !== 'object') throw new Error('buildPrologueUnit needs a spec');
   let unit;
@@ -463,6 +691,12 @@ export function buildPrologueUnit(spec, gameData, rng, { name = null } = {}) {
       if (gains) applyLevelUpGains(unit, gains);
     }
   }
+  // Above the spec's level (a replay's expected level): seeded level-ups from there.
+  const target = Math.max(level, Math.trunc(Number(toLevel) || 0));
+  for (let l = unit.level; l < target; l++) {
+    const gains = levelUp(unit, rng);
+    if (gains) applyLevelUpGains(unit, gains);
+  }
   unit.xp = 0;
   unit.mov = unit.stats.MOV;
   unit.currentHP = unit.stats.HP;
@@ -491,11 +725,46 @@ export function buildPrologueUnit(spec, gameData, rng, { name = null } = {}) {
  * @param {object} gameData
  * @param {string[]} [keys]
  */
-export function buildPrologueUnits(prologue, gameData, keys = Object.keys(prologue?.units || {})) {
+export function buildPrologueUnits(
+  prologue,
+  gameData,
+  keys = Object.keys(prologue?.units || {}),
+  { levels = null } = {},
+) {
   return keys.map((key) => {
     const spec = prologue?.units?.[key];
     if (!spec) throw new Error(`Unknown prologue unit "${key}"`);
-    return buildPrologueUnit(spec, gameData, prologueUnitRng(prologue.seed, key), { name: key });
+    return buildPrologueUnit(spec, gameData, prologueUnitRng(prologue.seed, key), {
+      name: key,
+      level: isInt(levels?.[key]) ? levels[key] : null,
+    });
+  });
+}
+
+/** True when a chapter roster entry names a special character (Gaspar), not a unit spec. */
+export function isSpecialRosterKey(key, gameData) {
+  return (gameData?.specialChars || []).some((s) => s?.id === key);
+}
+
+/**
+ * The units a chapter is fought with when played on its own (the title's replay):
+ * its roster in order — authored units at the chapter's `rosterLevels` (seeded), and
+ * special characters built as the run builds them (createSpecialCharacter on Normal,
+ * no meta). The prologue run never calls this: its roster is the run's.
+ * @param {object} prologue - data/prologue.json
+ * @param {object} gameData
+ * @param {object} chapter
+ * @param {{ difficultyId?: string }} [options]
+ */
+export function buildPrologueRoster(prologue, gameData, chapter, { difficultyId = 'normal' } = {}) {
+  const levels = chapter?.rosterLevels || null;
+  return (Array.isArray(chapter?.roster) ? chapter.roster : []).map((key) => {
+    if (isSpecialRosterKey(key, gameData)) {
+      const unit = createSpecialCharacter(key, gameData, { difficultyId });
+      if (!unit) throw new Error(`Unknown prologue special character "${key}"`);
+      return unit;
+    }
+    return buildPrologueUnits(prologue, gameData, [key], { levels })[0];
   });
 }
 
@@ -641,6 +910,9 @@ function validateCondition(where, key, value, ctx, errors) {
       if (value !== 'player' && value !== 'enemy') {
         errors.push(`${where}.phase must be "player" or "enemy"`);
       }
+      break;
+    case 'kill':
+      if (typeof value !== 'boolean') errors.push(`${where}.kill must be true or false`);
       break;
     case 'tile':
       if (!ctx.inBounds(value)) errors.push(`${where}.tile is not a tile on the map`);
@@ -791,7 +1063,8 @@ function validateChapter(chapter, index, prologue, gameData, errors, seen) {
     const unitKeys = new Set(Object.keys(prologue?.units || {}));
     const seenUnits = new Set();
     for (const key of chapter.roster) {
-      if (!unitKeys.has(key)) errors.push(`${where}.roster: unknown unit "${key}"`);
+      if (!unitKeys.has(key) && !isSpecialRosterKey(key, gameData))
+        errors.push(`${where}.roster: unknown unit "${key}"`);
       else if (seenUnits.has(key)) errors.push(`${where}.roster: "${key}" twice`);
       seenUnits.add(key);
     }
@@ -800,6 +1073,47 @@ function validateChapter(chapter, index, prologue, gameData, errors, seen) {
       chapter.roster.length > chapter.playerSpawns.length
     ) {
       errors.push(`${where}.roster has more units than playerSpawns`);
+    }
+    if (chapter.rosterLevels !== undefined) {
+      if (!isPlainObject(chapter.rosterLevels)) {
+        errors.push(`${where}.rosterLevels must be an object of unit key -> level`);
+      } else {
+        for (const [key, level] of Object.entries(chapter.rosterLevels)) {
+          if (!unitKeys.has(key) || !chapter.roster.includes(key))
+            errors.push(`${where}.rosterLevels: "${key}" is not an authored unit of this roster`);
+          if (!isInt(level) || level < 1)
+            errors.push(`${where}.rosterLevels.${key} must be an integer >= 1`);
+        }
+      }
+    }
+  }
+  if (chapter.showPar !== undefined && typeof chapter.showPar !== 'boolean') {
+    errors.push(`${where}.showPar must be true or false`);
+  }
+  if (chapter.loot != null) {
+    if (!Array.isArray(chapter.loot) || chapter.loot.length === 0 || chapter.loot.length > 3) {
+      errors.push(`${where}.loot must be null or an array of 1 to 3 offers`);
+    } else {
+      chapter.loot.forEach((entry, i) => {
+        const at = `${where}.loot[${i}]`;
+        if (!isPlainObject(entry)) {
+          errors.push(`${at} must be { item, quantity? } or { gold }`);
+          return;
+        }
+        if (isInt(entry.gold)) {
+          if (entry.gold < 0 || Object.keys(entry).length !== 1)
+            errors.push(`${at}: a gold offer is { gold: <integer >= 0> } alone`);
+          return;
+        }
+        for (const key of Object.keys(entry))
+          if (key !== 'item' && key !== 'quantity') errors.push(`${at} has unknown field "${key}"`);
+        const item = findItem(gameData, entry.item);
+        if (!item) errors.push(`${at}.item "${entry.item}" is not a weapon or consumable`);
+        if (entry.quantity !== undefined && (!isInt(entry.quantity) || entry.quantity < 1))
+          errors.push(`${at}.quantity must be an integer >= 1`);
+        if (entry.quantity !== undefined && item && item.kind !== 'consumable')
+          errors.push(`${at}: only a consumable offer has a quantity`);
+      });
     }
   }
 
@@ -908,6 +1222,20 @@ function validateChapter(chapter, index, prologue, gameData, errors, seen) {
       errors.push(`${where}.${field} is not a tile on the map`);
     }
   }
+  if (chapter.villageTile != null) {
+    const tile = chapter.villageTile;
+    for (const key of Object.keys(tile))
+      if (!['col', 'row', 'reward'].includes(key))
+        errors.push(`${where}.villageTile has unknown field "${key}"`);
+    if (
+      inBounds(tile) &&
+      parsed.mapLayout &&
+      parsed.mapLayout[tile.row][tile.col] !== TERRAIN.Village
+    )
+      errors.push(`${where}.villageTile (${tileKey(tile)}) is not a Village tile`);
+    if (tile.reward !== undefined && !findItem(gameData, tile.reward))
+      errors.push(`${where}.villageTile.reward "${tile.reward}" is not a weapon or consumable`);
+  }
   if (chapter.escapeTiles != null && !Array.isArray(chapter.escapeTiles)) {
     errors.push(`${where}.escapeTiles must be an array of tiles`);
   }
@@ -918,8 +1246,13 @@ function validateChapter(chapter, index, prologue, gameData, errors, seen) {
     }
   }
 
+  // Beats name player units by name: authored keys, and a roster special character's
+  // name (the standard veteran's id is Gaspar).
+  const rosterSpecialNames = (Array.isArray(chapter.roster) ? chapter.roster : [])
+    .map((key) => (gameData.specialChars || []).find((s) => s?.id === key)?.name)
+    .filter(Boolean);
   const ctx = {
-    unitNames: new Set(Object.keys(prologue?.units || {})),
+    unitNames: new Set([...Object.keys(prologue?.units || {}), ...rosterSpecialNames]),
     enemyIds,
     npcNames,
     terrainNames: new Set(terrainData.map((t) => t?.name)),
@@ -969,11 +1302,12 @@ function validateBoss(boss, gameData, errors) {
 
 function validateJoins(joins, prologue, gameData, errors) {
   if (joins == null) return;
-  if (typeof joins !== 'object' || Array.isArray(joins)) {
+  if (!isPlainObject(joins)) {
     errors.push('joins must be an object or null');
     return;
   }
   const chapterIds = new Set((prologue.chapters || []).map((c) => c?.id));
+  const nodeIds = new Set((prologue.route?.nodes || []).map((n) => n?.id));
   const joinable = new Set([
     ...Object.keys(prologue.units || {}),
     ...(gameData.specialChars || []).map((s) => s?.id),
@@ -987,6 +1321,9 @@ function validateJoins(joins, prologue, gameData, errors) {
       if (section === 'afterChapter' && !chapterIds.has(at)) {
         errors.push(`joins.afterChapter: unknown chapter "${at}"`);
       }
+      if (section === 'atNode' && !nodeIds.has(at)) {
+        errors.push(`joins.atNode: unknown route node "${at}"`);
+      }
       if (!Array.isArray(list)) {
         errors.push(`joins.${section}.${at} must be an array`);
         continue;
@@ -995,6 +1332,110 @@ function validateJoins(joins, prologue, gameData, errors) {
         if (!joinable.has(who)) errors.push(`joins.${section}.${at}: unknown unit "${who}"`);
     }
   }
+}
+
+function validateRoute(route, prologue, errors) {
+  if (route == null) return;
+  if (!isPlainObject(route) || !Array.isArray(route.nodes)) {
+    errors.push('route must be null or { title, nodes: [...], edges: [...] }');
+    return;
+  }
+  if (typeof route.title !== 'string' || !route.title.trim())
+    errors.push('route.title must be a non-empty string');
+  const chapters = Array.isArray(prologue.chapters) ? prologue.chapters : [];
+  const chapterById = new Map(chapters.map((c) => [c?.id, c]));
+  const nodes = new Map();
+  let maxRow = -1;
+  route.nodes.forEach((node, i) => {
+    const at = `route.nodes[${i}]${node?.id ? ` (${node.id})` : ''}`;
+    if (!isPlainObject(node)) {
+      errors.push(`${at} must be an object`);
+      return;
+    }
+    for (const key of Object.keys(node))
+      if (!ROUTE_NODE_KEYS.has(key)) errors.push(`${at} has unknown field "${key}"`);
+    if (typeof node.id !== 'string' || !node.id) errors.push(`${at}.id must be a node id`);
+    else if (nodes.has(node.id)) errors.push(`${at}: duplicate node id`);
+    else nodes.set(node.id, node);
+    if (!isInt(node.row) || node.row < 0) errors.push(`${at}.row must be an integer >= 0`);
+    else maxRow = Math.max(maxRow, node.row);
+    if (node.col !== undefined && (!isInt(node.col) || node.col < 0 || node.col > 4))
+      errors.push(`${at}.col must be an integer from 0 to 4`);
+    if (node.title !== undefined && typeof node.title !== 'string')
+      errors.push(`${at}.title must be a string`);
+    if (node.chapter !== undefined) {
+      const chapter = chapterById.get(node.chapter);
+      if (!chapter) errors.push(`${at}.chapter "${node.chapter}" is not a chapter`);
+      else if (chapter.node !== node.id)
+        errors.push(`${at}: chapter "${node.chapter}" fights node "${chapter.node}", not this one`);
+      if (
+        node.type !== undefined &&
+        node.type !== NODE_TYPES.BATTLE &&
+        node.type !== NODE_TYPES.BOSS
+      )
+        errors.push(`${at}.type must be "battle" or "boss" for a chapter node`);
+    } else if (!PROLOGUE_ROUTE_SERVICE_TYPES.includes(node.type)) {
+      errors.push(
+        `${at} needs a chapter or a service type (${PROLOGUE_ROUTE_SERVICE_TYPES.join(', ')})`,
+      );
+    }
+  });
+  for (const chapter of chapters) {
+    if (chapter?.node && !route.nodes.some((n) => n?.chapter === chapter.id))
+      errors.push(`route has no node for chapter "${chapter.id}" (its node "${chapter.node}")`);
+  }
+  const rowZero = route.nodes.filter((n) => n?.row === 0);
+  if (rowZero.length !== 1) errors.push('route row 0 must hold exactly one node');
+  else if (!rowZero[0].chapter)
+    errors.push('route row 0 must be a chapter node (the first battle)');
+  if (maxRow >= 0 && !route.nodes.some((n) => n?.row === maxRow && n?.chapter))
+    errors.push(
+      `route row ${maxRow} (the last) needs a chapter node: its victory ends the prologue`,
+    );
+  const incoming = new Set();
+  const outgoing = new Set();
+  if (!Array.isArray(route.edges)) errors.push('route.edges must be an array of [from, to]');
+  else
+    route.edges.forEach((edge, i) => {
+      const at = `route.edges[${i}]`;
+      if (!Array.isArray(edge) || edge.length !== 2) {
+        errors.push(`${at} must be [from, to]`);
+        return;
+      }
+      const [from, to] = edge;
+      const a = nodes.get(from);
+      const b = nodes.get(to);
+      if (!a) errors.push(`${at}: unknown node "${from}"`);
+      if (!b) errors.push(`${at}: unknown node "${to}"`);
+      if (a && b && b.row !== a.row + 1)
+        errors.push(`${at}: "${to}" is not on the row after "${from}"`);
+      outgoing.add(from);
+      incoming.add(to);
+    });
+  for (const node of nodes.values()) {
+    if (node.row > 0 && !incoming.has(node.id))
+      errors.push(`route node "${node.id}" is unreachable`);
+    if (node.row < maxRow && !outgoing.has(node.id))
+      errors.push(`route node "${node.id}" leads nowhere`);
+  }
+}
+
+function validateEnding(ending, errors) {
+  if (ending == null) return;
+  if (!isPlainObject(ending)) {
+    errors.push('ending must be null or { dialogue, titleCard }');
+    return;
+  }
+  for (const key of Object.keys(ending))
+    if (key !== 'dialogue' && key !== 'titleCard') errors.push(`ending has unknown field "${key}"`);
+  if (typeof ending.dialogue !== 'string' || !ID_PATTERN.test(ending.dialogue))
+    errors.push('ending.dialogue must be a snake_case dialogue key');
+  if (
+    typeof ending.titleCard !== 'string' ||
+    !ending.titleCard.trim() ||
+    ending.titleCard.length > 240
+  )
+    errors.push('ending.titleCard must be a string of at most 240 characters');
 }
 
 /**
@@ -1023,13 +1464,9 @@ export function validatePrologueConfig(prologue, gameData = {}) {
       validateChapter(chapter, i, prologue, gameData, errors, seen),
     );
   }
-  if (
-    prologue.route != null &&
-    (typeof prologue.route !== 'object' || !Array.isArray(prologue.route.nodes))
-  ) {
-    errors.push('route must be null or { nodes: [...], edges: [...] }');
-  }
+  validateRoute(prologue.route, prologue, errors);
   validateJoins(prologue.joins, prologue, gameData, errors);
+  validateEnding(prologue.ending, errors);
   validateBoss(prologue.boss, gameData, errors);
   return { valid: errors.length === 0, errors };
 }

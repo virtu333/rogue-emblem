@@ -1,7 +1,8 @@
-// P1, "Banner at Dawn", on a phone: the title promotes the prologue, the guided steps
-// gate the first select and the move to the Fort, each note reads over the thing it
-// explains (the terrain preview, the forecast's own numbers), and victory hands a fresh
-// player to the first run while recording only the lessons shown.
+// P1, "Banner at Dawn", on a phone: the title promotes the prologue (a fresh device's
+// item starts the prologue run), the guided steps gate the first select and the move
+// to the Fort, each note reads over the thing it explains (the terrain preview, the
+// forecast's own numbers) and marks the slot's hint as read, and victory takes the run
+// on to its route map while recording only the lessons shown.
 import { test, expect, devices } from '@playwright/test';
 import { waitForScene } from './helpers.js';
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
@@ -22,7 +23,7 @@ async function tapTile(page, col, row) {
   );
   await page.touchscreen.tap(p.x, p.y);
 }
-test('a fresh prologue teaches the Fort, the forecast, the triangle and the Vulnerary, then hands off safely', async ({
+test('a fresh prologue teaches the Fort, the forecast, the triangle and the Vulnerary, then goes on to the route', async ({
   page,
 }, info) => {
   const errors = [];
@@ -55,7 +56,12 @@ test('a fresh prologue teaches the Fort, the forecast, the triangle and the Vuln
   const coach = page.getByRole('region', { name: 'Prologue guide', exact: true });
   await expect(coach).toBeVisible({ timeout: 15000 });
   await expect(coach.locator('.re-coach-goal')).toHaveText('Select Edric');
-  await expect(coach.getByRole('button', { name: 'Leave prologue', exact: true })).toBeVisible();
+  await expect(
+    coach.getByRole('button', { name: 'Skip the rest of the prologue', exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').runManager?.mode),
+  ).toBe('prologue');
   await expect(note).toHaveCount(0);
   await page.waitForFunction(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -83,6 +89,12 @@ test('a fresh prologue teaches the Fort, the forecast, the triangle and the Vuln
   await page.waitForFunction(
     () => !window.__emblemRogueGame.scene.getScene('Battle')._prologue.isGateActive(),
   );
+  // In the run the slot is real: the terrain note stands in for the in-run hint.
+  expect(
+    await page.evaluate(() =>
+      window.__emblemRogueGame.registry.get('hints').hasSeen('battle_terrain'),
+    ),
+  ).toBe(true);
 
   // Each forecast lesson reads over the forecast's own numbers, one concept at a time:
   // reading a forecast first (against `a`), the triangle against the holding Fighter `b`.
@@ -140,19 +152,16 @@ test('a fresh prologue teaches the Fort, the forecast, the triangle and the Vuln
   await expect(note).toHaveCount(0);
 
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
-  // Gaspar rides in: two lines, then the handoff.
+  // Gaspar rides in: two lines, then the run goes on to its route map (no handoff).
   const edricLine = page.getByRole('dialog', { name: 'Edric', exact: true });
   await expect(edricLine).toContainText('You swore you were done with saddles.');
   await edricLine.getByRole('button', { name: 'Continue', exact: true }).tap();
   const gasparLine = page.getByRole('dialog', { name: 'Gaspar', exact: true });
   await expect(gasparLine).toContainText('The saddle was not consulted.');
   await gasparLine.getByRole('button', { name: 'Continue', exact: true }).tap();
-  await expect(note).toContainText('Banner at Dawn is yours');
-  // A fresh player may go straight into the first run; this path returns to the title.
-  await expect(note.getByRole('button', { name: 'Start first run', exact: true })).toBeVisible();
-  await note.getByRole('button', { name: 'Back to title', exact: true }).tap();
-  await waitForScene(page, 'Title');
-  await expect(page.getByRole('button', { name: 'Start First Run', exact: true })).toBeVisible();
+  await waitForScene(page, 'NodeMap');
+  // The only note now is the route map's own first-visit note, never a handoff.
+  await expect(note).toContainText('Tap any node to preview it');
   const taught = await page.evaluate(() =>
     JSON.parse(localStorage.getItem('emblem_rogue_tutorial_lessons')),
   );
@@ -163,10 +172,14 @@ test('a fresh prologue teaches the Fort, the forecast, the triangle and the Vuln
     'battle_terrain',
     'battle_triangle',
   ]);
-  expect(
-    await page.evaluate(() =>
-      Object.keys(localStorage).filter((k) => /^emblem_rogue_slot_\d_/.test(k)),
-    ),
-  ).toEqual([]);
+  const meta = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('emblem_rogue_slot_1_meta')),
+  );
+  expect(meta.prologue).toMatchObject({
+    state: 'in_progress',
+    chaptersCompleted: ['p1_banner_at_dawn'],
+    practised: [], // the forecasts here were looked at, never committed
+  });
+  expect(meta.runsStarted).toBe(0);
   expect(errors).toEqual([]);
 });

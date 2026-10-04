@@ -242,7 +242,25 @@
         {
           "when": {
             "maxRunsStarted": 1,
-            "lastRunResult": "none"
+            "lastRunResult": "none",
+            "prologue": "complete"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I came straight to you this time. I know this road now. It ended once."
+            }
+          ]
+        },
+        {
+          "when": {
+            "maxRunsStarted": 1,
+            "lastRunResult": "none",
+            "prologue": [
+              "none",
+              "skipped"
+            ]
           },
           "entries": [
             {
@@ -328,6 +346,20 @@
         }
       ],
       "variants": [
+        {
+          "when": {
+            "commander": "Edric",
+            "lastRunResult": "none",
+            "prologue": "complete"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Then we walk it again. Everyone count off."
+            }
+          ]
+        },
         {
           "when": {
             "commander": "Edric",
@@ -9491,12 +9523,66 @@
   },
   "prologue": {
     "p1_gaspar_arrives": [
-      { "speaker": "Edric", "line": "Gaspar? You swore you were done with saddles." },
-      { "speaker": "Gaspar", "line": "The saddle was not consulted." }
+      {
+        "speaker": "Edric",
+        "line": "Gaspar? You swore you were done with saddles."
+      },
+      {
+        "speaker": "Gaspar",
+        "line": "The saddle was not consulted."
+      }
     ],
     "not_this_thread": [
-      { "speaker": "???", "line": "Not this thread." },
-      { "speaker": "???", "line": "Stand again where the morning found you." }
+      {
+        "speaker": "???",
+        "line": "Not this thread."
+      },
+      {
+        "speaker": "???",
+        "line": "Stand again where the morning found you."
+      }
+    ],
+    "p2_gaspar_intro": [
+      {
+        "speaker": "Gaspar",
+        "line": "I will ride ahead. Watch my hands, then choose your own stroke."
+      },
+      {
+        "speaker": "Edric",
+        "line": "Then I watch. And I strike where you leave me room."
+      },
+      {
+        "speaker": "Gaspar",
+        "line": "I leave the opening. You take the blow that teaches."
+      }
+    ],
+    "p2_victory": [
+      {
+        "speaker": "Gaspar",
+        "line": "The ford is ours. The crossing is a morning east, and it is emptying."
+      },
+      {
+        "speaker": "Edric",
+        "line": "Then we ride for it. I count the people as we go."
+      }
+    ],
+    "ending": [
+      {
+        "speaker": "???",
+        "line": "East, under the consecrated stones, something turns over."
+      },
+      {
+        "speaker": "???",
+        "line": "The sun goes hollow. The land comes apart beneath us."
+      },
+      {
+        "speaker": "???",
+        "line": "Not like this. I know this road now."
+      },
+      {
+        "speaker": "???",
+        "line": "Again, from the morning it began."
+      }
     ]
   },
   "specialChars": {

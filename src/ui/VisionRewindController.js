@@ -774,7 +774,9 @@ export class VisionRewindController {
         remaining,
       },
       title: seraPresent ? "Sera's vision fractures!" : 'A vision fractures!',
-      body: `${fallen} has fallen. Accepting fate ends this run.\nRewind to reveal another path? (${charges})`,
+      body: this.scene._prologue
+        ? `${fallen} has fallen. Accepting fate restarts this chapter.\nRewind to reveal another path? (${charges})`
+        : `${fallen} has fallen. Accepting fate ends this run.\nRewind to reveal another path? (${charges})`,
       confirmLabel: 'Rewind',
       cancelLabel: 'Accept Fate',
       onConfirm: () => {

@@ -1,5 +1,6 @@
 import { generateLootChoices, calculateSkipLootBonus } from './LootSystem.js';
 import { getRating, calculateBonusGold } from './TurnBonusCalculator.js';
+import { buildPrologueLootChoices } from './Prologue.js';
 import {
   LOOT_CHOICES,
   ELITE_LOOT_CHOICES,
@@ -9,6 +10,8 @@ import {
 
 // Prepared once with the victorious roster, before the completed-battle save.
 // Rendering, leaving, and reloading must never roll choices or award earnings.
+// `ctx.authoredLoot` (a prologue chapter's offer, battleConfig.loot) replaces the
+// random draw with the authored choices.
 export function prepareBattleRewards(run, data, ctx) {
   if (run.pendingBattleReward) return run.pendingBattleReward;
   const pressure = ctx.victoryPressureState?.goldMultiplier ?? 1;
@@ -24,25 +27,27 @@ export function prepareBattleRewards(run, data, ctx) {
       ),
     );
   }
-  const choices = generateLootChoices(
-    run.currentAct,
-    data.lootTables,
-    data.weapons,
-    data.consumables,
-    ctx.isElite ? ELITE_LOOT_CHOICES : LOOT_CHOICES,
-    ctx.metaEffects?.lootWeaponQualityBonus ?? ctx.metaEffects?.lootWeaponWeightBonus ?? 0,
-    data.accessories,
-    data.whetstones,
-    run.roster,
-    ctx.isBoss,
-    null,
-    ctx.isElite,
-    run.getWeaponArtSpawnConfig(),
-    {
-      lootCategoryWeightBonuses: ctx.metaEffects?.lootCategoryWeightBonuses,
-      imbues: data.imbues || null,
-    },
-  );
+  const choices = Array.isArray(ctx.authoredLoot)
+    ? buildPrologueLootChoices(ctx.authoredLoot, data, { actId: run.currentAct })
+    : generateLootChoices(
+        run.currentAct,
+        data.lootTables,
+        data.weapons,
+        data.consumables,
+        ctx.isElite ? ELITE_LOOT_CHOICES : LOOT_CHOICES,
+        ctx.metaEffects?.lootWeaponQualityBonus ?? ctx.metaEffects?.lootWeaponWeightBonus ?? 0,
+        data.accessories,
+        data.whetstones,
+        run.roster,
+        ctx.isBoss,
+        null,
+        ctx.isElite,
+        run.getWeaponArtSpawnConfig(),
+        {
+          lootCategoryWeightBonuses: ctx.metaEffects?.lootCategoryWeightBonuses,
+          imbues: data.imbues || null,
+        },
+      );
   for (const choice of choices) if (choice.item?.name === 'Vulnerary') choice.quantity = 3;
   for (const choice of choices)
     if (choice.type === 'gold')
