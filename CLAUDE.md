@@ -50,6 +50,7 @@ emblem-rogue/
 │   ├── mapTemplates.json  # 20 zone-based templates (9 rout, 8 seize, 3 escape) incl. tundra/volcanic/castle
 │   ├── mechanicsReference.json # In-game help: combat formulas, weapon ranks
 │   ├── metaUpgrades.json  # 79 tiered upgrades in 6 categories
+│   ├── prologue.json      # The prologue's authored units + chapters (P1 so far), beats; engine/Prologue.js documents and validates it (docs/specs/prologue-chapter.md)
 │   ├── recruits.json      # Recruit pools by act (act1-act4) + namePool
 │   ├── referenceViewer.json # Reference viewer config: formulas, weapon ranks, game version
 │   ├── skills.json        # 52 skills across 7 trigger types

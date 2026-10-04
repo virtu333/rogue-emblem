@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "seed": 1209,
+  "grant": { "valor": 60, "supply": 40 },
+  "units": {
+    "Edric": {
+      "lord": "Edric",
+      "level": 1,
+      "stats": { "HP": 20, "STR": 6, "MAG": 2, "SKL": 7, "SPD": 8, "DEF": 5, "RES": 3, "LCK": 6, "MOV": 4 },
+      "growths": { "HP": 60, "STR": 46, "MAG": 17, "SKL": 49, "SPD": 51, "DEF": 32, "RES": 22, "LCK": 44 },
+      "traits": [],
+      "inventory": ["Iron Sword", "Vulnerary"]
+    }
+  },
+  "chapters": [
+    {
+      "id": "p1_banner_at_dawn",
+      "node": "prologue_0",
+      "title": "Banner at Dawn",
+      "objective": "rout",
+      "map": {
+        "legend": { ".": "Plain", "F": "Forest", "T": "Fort" },
+        "rows": [
+          ". . F . . . . .",
+          ". . . . F . . .",
+          ". . . T . F . .",
+          ". . . . . . F F",
+          ". . F . . T . .",
+          ". . . . F . F ."
+        ]
+      },
+      "playerSpawns": [{ "col": 0, "row": 2 }],
+      "enemies": [
+        { "id": "a", "className": "Fighter", "level": 1, "col": 4, "row": 2, "weapon": "Iron Axe", "skills": [] },
+        {
+          "id": "b",
+          "className": "Fighter",
+          "level": 1,
+          "col": 7,
+          "row": 5,
+          "weapon": "Iron Axe",
+          "skills": [],
+          "aiMode": "hold",
+          "holdPack": 0,
+          "holdPackSize": 1
+        }
+      ],
+      "npc": null,
+      "villageTile": null,
+      "loot": null,
+      "beats": [
+        {
+          "id": "p1_select_edric",
+          "on": "battleStart",
+          "once": true,
+          "do": [{ "coach": "p1_select_edric" }, { "gateSelect": { "unit": "Edric" } }]
+        },
+        {
+          "id": "p1_move_to_fort",
+          "on": "unitSelected",
+          "unit": "Edric",
+          "once": true,
+          "do": [
+            { "coach": "p1_move_to_fort" },
+            { "gateMove": { "col": 3, "row": 2 } },
+            { "highlight": { "tile": { "col": 3, "row": 2 } } }
+          ]
+        },
+        {
+          "id": "p1_on_the_fort",
+          "on": "afterMove",
+          "unit": "Edric",
+          "terrain": "Fort",
+          "once": true,
+          "do": [{ "note": "battle_terrain" }, { "markLesson": { "id": "terrain", "kind": "shown" } }]
+        },
+        {
+          "id": "p1_first_forecast",
+          "on": "forecastOpened",
+          "unit": "Edric",
+          "nth": 1,
+          "once": true,
+          "do": [
+            { "note": "battle_forecast" },
+            { "gateConfirm": true },
+            { "markLesson": { "id": "forecast", "kind": "shown" } }
+          ]
+        },
+        {
+          "id": "p1_first_attack",
+          "on": "combatResolved",
+          "unit": "Edric",
+          "once": true,
+          "do": [{ "markLesson": { "id": "forecast", "kind": "practised" } }]
+        },
+        {
+          "id": "p1_wait_or_end_turn",
+          "on": "unitActed",
+          "unit": "Edric",
+          "turn": 1,
+          "once": true,
+          "do": [{ "note": "p1_wait_or_end_turn" }, { "highlight": { "reachOf": "a" } }]
+        },
+        {
+          "id": "p1_enemy_phase",
+          "on": "turnStart",
+          "phase": "enemy",
+          "turn": 1,
+          "once": true,
+          "do": [{ "note": "p1_enemy_phase" }]
+        },
+        {
+          "id": "p1_level_up",
+          "on": "levelUp",
+          "unit": "Edric",
+          "once": true,
+          "do": [{ "note": "p1_level_up" }, { "markLesson": { "id": "growth", "kind": "shown" } }]
+        },
+        {
+          "id": "p1_holding_enemy",
+          "on": "afterMove",
+          "unit": "Edric",
+          "dangerFrom": "b",
+          "once": true,
+          "do": [
+            { "note": "p1_holding_enemy" },
+            { "highlight": { "reachOf": "b" } },
+            { "markLesson": { "id": "hold_reach", "kind": "shown" } }
+          ]
+        },
+        {
+          "id": "p1_triangle",
+          "on": "forecastOpened",
+          "unit": "Edric",
+          "target": "b",
+          "concept": "triangle",
+          "once": true,
+          "do": [{ "note": "battle_triangle" }, { "markLesson": { "id": "triangle", "kind": "shown" } }]
+        },
+        {
+          "id": "p1_vulnerary",
+          "on": "hpBelow",
+          "unit": "Edric",
+          "pct": 60,
+          "once": true,
+          "do": [
+            { "note": "battle_consumable_supply" },
+            { "markLesson": { "id": "consumables", "kind": "shown" } }
+          ]
+        },
+        {
+          "id": "p1_victory",
+          "on": "victory",
+          "once": true,
+          "do": [{ "dialogue": "p1_gaspar_arrives" }]
+        }
+      ]
+    }
+  ],
+  "route": null,
+  "joins": null,
+  "boss": null
+}

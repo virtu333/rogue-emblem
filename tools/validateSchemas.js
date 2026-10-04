@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import Ajv from 'ajv';
 import { validateMapTemplatesConfig } from '../src/engine/MapTemplateEngine.js';
+import { validatePrologueConfig } from '../src/engine/Prologue.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 
 const DATA_DIR = path.resolve('data');
@@ -59,6 +60,29 @@ if (mtResult.valid) {
 } else {
   console.error('FAIL  mapTemplates.json (engine validator)');
   for (const err of mtResult.errors) {
+    console.error(`      ${err}`);
+  }
+  failed = true;
+}
+
+// Validate the prologue's authored chapters against the game data (engine validator)
+const readData = (name) => JSON.parse(readFileSync(path.join(DATA_DIR, name), 'utf-8'));
+const prologueResult = validatePrologueConfig(readData('prologue.json'), {
+  terrain: readData('terrain.json'),
+  lords: readData('lords.json'),
+  classes: readData('classes.json'),
+  weapons: readData('weapons.json'),
+  consumables: readData('consumables.json'),
+  skills: readData('skills.json'),
+  traits: readData('traits.json'),
+  enemies: readData('enemies.json'),
+  specialChars: readData('specialChars.json'),
+});
+if (prologueResult.valid) {
+  console.log('  OK  prologue.json (engine validator)');
+} else {
+  console.error('FAIL  prologue.json (engine validator)');
+  for (const err of prologueResult.errors) {
     console.error(`      ${err}`);
   }
   failed = true;

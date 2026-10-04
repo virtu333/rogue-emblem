@@ -1,6 +1,8 @@
 # Prologue: The First Thread — design
 
-Status: Proposed (design only, nothing built). Loop ending approved by the user, 2026-10-04.
+Status: Phase 1 part A built (data format, validator, `engine/Prologue.js`, authored spawn
+loadouts, P1's map proven in the harness); the scene, title and run-mode work is not. Loop ending
+approved by the user, 2026-10-04.
 Date: 2026-10-04
 Replaces: the practice tutorial battle (`TutorialController`, `TutorialHelpers`) once the
 prologue reaches parity. `docs/tutorial-battle-spec.md` is already stale; the shipped tutorial
@@ -203,9 +205,10 @@ Samples:
 
 ## 6. Chapters
 
-Map sketches are proposals. The legend is `.` Plain, `F` Forest, `T` Fort, `~` Water,
-`=` Bridge, `V` Village, `G` Throne (the gate), `#` Wall, `E` player start, and lowercase
-letters are enemies.
+Map sketches are proposals, except P1's, which is the shipped map (`data/prologue.json`). The
+legend is `.` Plain, `F` Forest, `T` Fort, `~` Water, `=` Bridge, `V` Village, `G` Throne (the
+gate), `#` Wall, `E` player start, and lowercase letters are enemies. In `data/prologue.json` the
+map rows hold terrain only; spawns are coordinates.
 
 **Numbers.** Damage, hit and strike counts below come from `getCombatForecast` on real data, with
 level-1 base stats, no meta and no traits (verified 2026-10-04). They hold only for the authored
@@ -225,10 +228,10 @@ Story: deserters loot a farmstead on the quarry road. Edric rides out alone.
 ```
 . . F . . . . .
 . . . . F . . .
-E . . T a . . .
-. . . . . F . .
-. . F . . . F .
-. . . . . F . b
+E . . T a F . .
+. . . . . . F F
+. . F . . T . .
+. . . . F . F b
 ```
 
 - **Roster:** Edric L1, Iron Sword, 1 Vulnerary.
@@ -237,14 +240,24 @@ E . . T a . . .
 - **Placement rule:** the Fort is outside `b`'s Danger tiles (move 4 plus range 1, by path cost),
   so `b` stays asleep until Edric walks toward it. The first draft put the Fort 3 moves from `b`,
   which woke it on turn 1 and made both Fighters attack at once (code review, 2026-10-04).
+- **A second Fort inside `b`'s reach** (5,4) is the fight with `b`'s cover, and the reuse of the
+  terrain lesson. The harness found the first sketch unsafe (2026-10-04): a lone Edric can take
+  three Fighter strikes before `b` falls (`a`'s counter on turn 1, `a`'s attack on enemy phase 1,
+  `b`'s first attack), and 7 + 7 + 9 = 23 is more than his 20 HP plus the Fort's 2. The naive
+  policy walked onto Plain at (7,2) and lost 4% of seeds. With the second Fort, `b`'s strike is
+  7 too (21 against 22): the naive policy's turn-2 walk ends there (it is the only tile at
+  distance 3 from `b` within reach; Forests at (5,2), (6,3) and (4,5) close the others), and every
+  tile `b` can strike it from is Plain, so Edric's counters always land.
 - **Objective:** Rout. No reinforcements and no fog.
 - **Verified numbers:** Edric's sword against a Fighter is 8 per hit (triangle advantage), and he
   doubles (AS 6 vs 0): 16 a round against 22 HP. A Fighter hits Edric for 9 at 56% on Plain, or
   7 at 36% on the Fort.
 
 The intended turn 1: Edric moves onto the Fort and attacks `a` from it (the first forecast), and
-`a` is left on 6. On the enemy phase `a` attacks and Edric's counter kills it. That shows a
-counter is not just something enemies do.
+`a` is left on 6 (Edric's 1% crit can end it at once). On the enemy phase `a` attacks and Edric's
+counter kills it. That shows a counter is not just something enemies do. Turn 2: Edric steps onto
+the second Fort, inside `b`'s red reach; `b` wakes and attacks, Edric's counters leave it on 6, and
+turn 3 finishes it.
 
 | # | Trigger | Lesson (coach goal / note) |
 |---|---|---|
@@ -254,7 +267,7 @@ counter is not just something enemies do.
 | 4 | First forecast (against `a`) | **One concept: reading a forecast** (`battle_forecast`). Damage per hit, Hit chance, and whether the enemy strikes back. Confirm commits; Cancel goes back. *Gate:* the first confirm. |
 | 5 | Edric has acted, turn 1 | **Wait vs End Turn:** "Wait ends Edric's move. End Turn hands every enemy its move. Check who can reach Edric first." `a`'s red reach is shown; `b`'s doesn't reach the Fort. |
 | 6 | First enemy phase | "Red units move now. Edric strikes back when attacked, too." |
-| 7 | Level-up | The level-up card, with one line: "Levels raise stats at random. Growth rates decide the odds." |
+| 7 | Level-up | The level-up card, with one line: "Levels raise stats at random. Growth rates decide the odds." Edric's XP runs 22, 72, 94, then 144 on `b`'s kill, so this comes last, on the final blow. |
 | 8 | Edric walks into `b`'s reach | "Some enemies hold until you come close. Their red reach shows where." `b` wakes. |
 | 9 | Second forecast (against `b`) | **One concept: the triangle** (`battle_triangle`, conditional as today). "Swords beat axes. The forecast already includes it." |
 | 10 | Edric ≤ 60% HP | "Item → Vulnerary heals 10. You carry few, and they never come back." (existing consumable copy) |
@@ -266,7 +279,11 @@ weapon choice changes it, so no P1 forecast carries two concepts (the shipped on
 `tutorialLessons.js`).
 
 **Safety:** the harness confirms that no run of Fighter hits and crits kills Edric within two
-enemy phases from the Fort, or from the tile the naive policy leaves him on.
+enemy phases from the Fort, or from the tile the naive policy leaves him on (the second Fort),
+computed from the forecasts: the Fighters' crit is 0, `a` strikes at most twice, `b` can't reach
+the Fort on enemy phase 1, and the Fort heals 2 on turn 2, so the worst case leaves him on 1. It
+also confirms that the intended play and the naive policy win every one of 300 battle seeds
+(`tests/harness/PrologueP1.test.js`).
 
 ### P2 — Old Hands (Edric + Gaspar): the Jagen lesson
 
@@ -585,68 +602,130 @@ checked the combat numbers with `getCombatForecast` on real data):
 
 ### Data: `data/prologue.json` (validated, synced to `public/data`)
 
+The schema is documented at the top of `src/engine/Prologue.js`, which is the reference. Shipped
+today: the seed, the grant, authored Edric and P1. Sera, Tamsin, P2–P4, `route`, `joins` and
+`boss` are schema only (the validator checks them when present) until a later phase authors them.
+
 ```jsonc
 {
+  "version": 1,
   "seed": 1209,
   "grant": { "valor": 60, "supply": 40 },        // one cheap upgrade of each (§12)
-  "units": {
-    "Edric":  { "lord": "Edric", "level": 1, "stats": { /* authored */ }, "growths": { /* authored */ },
+  "units": {                                     // keyed by unit name (the key is the name)
+    "Edric":  { "lord": "Edric", "level": 1,
+                "stats": { /* every stat incl. MOV: his lords.json base */ },
+                "growths": { /* class-range midpoint + personal growth */ },
                 "traits": [], "inventory": ["Iron Sword", "Vulnerary"] },
-    "Sera":   { "lord": "Sera", "level": 1, "proficiencies": ["Light", "Staff"],
-                "inventory": ["Glimmer", "Heal", "Vulnerary"] },
-    "Tamsin": { "className": "Archer", "level": 1, "inventory": [] }
-    // Gaspar: createVeteranKnight, unchanged
+    // later: "Sera":   { "lord": "Sera", "level": 1, "proficiencies": ["Light", "Staff"],
+    //                    "inventory": ["Glimmer", "Heal", "Vulnerary"] },
+    //        "Tamsin": { "className": "Archer", "level": 1, "inventory": [] }
+    // Gaspar: createVeteranKnight, unchanged (never built from this file)
   },
   "chapters": [
     {
       "id": "p1_banner_at_dawn",
       "node": "prologue_0",
-      "map": { "rows": [". . F . . . . .", "..."], "legend": { ".": "Plain", "F": "Forest", "T": "Fort" } },
+      "title": "Banner at Dawn",
       "objective": "rout",
+      "map": { "legend": { ".": "Plain", "F": "Forest", "T": "Fort" },
+               "rows": [". . F . . . . .", "..."] },   // terrain only, space-separated
       "playerSpawns": [{ "col": 0, "row": 2 }],
-      "enemies": [
-        { "className": "Fighter", "level": 1, "col": 4, "row": 2, "weapon": "Iron Axe", "skills": [] },
-        { "className": "Fighter", "level": 1, "col": 7, "row": 5, "weapon": "Iron Axe", "skills": [],
-          "aiMode": "hold", "holdPack": 0, "holdPackSize": 1 }
+      "enemies": [                                     // `id` names the enemy in beats
+        { "id": "a", "className": "Fighter", "level": 1, "col": 4, "row": 2,
+          "weapon": "Iron Axe", "skills": [] },
+        { "id": "b", "className": "Fighter", "level": 1, "col": 7, "row": 5,
+          "weapon": "Iron Axe", "skills": [], "aiMode": "hold", "holdPack": 0, "holdPackSize": 1 }
       ],
+      "npc": null,            // P3: { "unit": "Sera", "className": "Light Sage", "col", "row" }
+      "villageTile": null,
       "loot": null,
       "beats": [
-        { "on": "battleStart", "do": [{ "coach": "select_commander" }] },
-        { "on": "unitSelected", "unit": "Edric", "once": true, "do": [{ "gateMove": { "col": 3, "row": 2 } }] }
+        { "id": "p1_select_edric", "on": "battleStart", "once": true,
+          "do": [{ "coach": "p1_select_edric" }, { "gateSelect": { "unit": "Edric" } }] },
+        { "id": "p1_move_to_fort", "on": "unitSelected", "unit": "Edric", "once": true,
+          "do": [{ "coach": "p1_move_to_fort" }, { "gateMove": { "col": 3, "row": 2 } }] }
       ]
     }
   ],
-  "route": { "nodes": [ /* fixed node list, edges, titles; P1 = row 0, hidden until won */ ] },
-  "joins": { "afterChapter": { "p1_banner_at_dawn": ["old_knight"] }, "atNode": { "prologue_2": ["Tamsin"] } },
-  "boss": { "name": "Captain Varro", "className": "Fighter", "level": 3, "weapon": "Iron Axe", "epithet": "..." }
+  "route": null,   // P2+: { "nodes": [...], "edges": [...] } for buildPrologueNodeMap
+  "joins": null,   // { "afterChapter": { "p1_banner_at_dawn": ["old_knight"] }, "atNode": { "prologue_2": ["Tamsin"] } }
+  "boss": null     // { "name": "Captain Varro", "className": "Fighter", "level": 3, "weapon": "Iron Axe", "epithet": "..." }
 }
 ```
 
+A chapter has no keys for reinforcements, bandits or fog: the validator rejects unknown fields,
+so §8's "no unannounced arrivals" is enforced by the format. Every enemy names its weapon and
+its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
+
 - **Copy** lives in `dialogue.json`: a `prologue` section, plus `bossEncounters['Captain Varro']`
-  for his pre-battle, half-health and defeat lines.
+  for his pre-battle, half-health and defeat lines. Beat actions name copy by id (`coach`,
+  `note`, `dialogue`); P1's ids are in its beats, and the copy is the scene phase's job.
 - **Varro** is in a prologue-owned boss list. Boss-card epithets read `enemies.bosses`, and
   adding him to `bosses.act1` would put him in the real Act 1 boss pool (code review, 2026-10-04). The
   boss card's epithet lookup takes the prologue list as a fallback.
-- **The validator checks:**
+- **The validator** (`validatePrologueConfig`, run by `npm run validate:data`;
+  `tests/PrologueValidator.test.js` breaks each rule on its own) checks:
   - map rows are rectangular and the legend resolves to terrain names
-  - spawns are in bounds and passable
-  - authored weapons exist and the unit can wield them
-  - beats reference known triggers and actions
-  - the boss is in no real act's pool
-  - `validateBattleConfig` passes for every chapter
+  - spawns are in bounds; player spawns are passable for Infantry, Armored and Cavalry (any
+    unit the prologue can deploy), enemy spawns for their class's move type
+  - authored weapons and items exist and the unit (its class, or its authored proficiencies)
+    can wield them; at most 5 weapons and 3 consumables
+  - enemy skills, unit skills and traits exist; a hold pack's `holdPackSize` is its holder count
+  - beats use known triggers, only that trigger's conditions, and known actions with valid
+    arguments (tiles on the map, units of the chapter, lesson kinds); beat ids are unique
+  - the boss is in no real act's pool; joins name known chapters and units
+  - `validateBattleConfig` passes for every chapter's built config
 
 ### Pure engine: `src/engine/Prologue.js`
 
-- `buildPrologueBattleConfig(chapter, terrain)` turns the ASCII map into a battle config with
-  terrain indices from the `TERRAIN` order. It also carries `villageTile`, `thronePos` and the
-  authored `npcSpawn`. It generalises `TutorialHelpers.buildTutorialBattleConfig`.
-- `buildPrologueNodeMap(route)` returns the literal node map: ids, rows, edges, types, titles,
-  and `battleParams` with `prologueChapter`.
-- `prologueBeatsFor(chapter, event, state)` is a pure trigger matcher. It returns the actions to
-  run, needs no Phaser, and the harness and unit tests drive it directly.
-- `buildPrologueUnit(spec, gameData, rng)` builds Edric, Sera and Tamsin from their authored
-  specs, with seeded growth rolls. The authored NPC-lord builder is shared by `BattleScene` and
-  `tests/harness/HeadlessBattle.js` (one extracted builder, not two copies, per CLAUDE.md).
+- `buildPrologueBattleConfig(chapter, terrainData)` turns the ASCII map into a battle config with
+  terrain indices from the `TERRAIN` order (looked up by name in `terrain.json`, whose order is
+  the same). The config has `generateBattle`'s shape (`templateId: 'prologue:<id>'`,
+  `prologueChapter`, `parBonus: 0`, no `reinforcements`), so `BattleScene` computes par from it as
+  it does for any locked map. Enemy spawns carry `authoredId`, `weapon`, `skills` and the hold
+  fields; it also carries `villageTile`, `thronePos` (or the map's single Throne on a seize map)
+  and the authored `npcSpawn`. It generalises `TutorialHelpers.buildTutorialBattleConfig`.
+- `buildPrologueNodeMap(route)` (P2+, not built yet) returns the literal node map: ids, rows,
+  edges, types, titles, and `battleParams` with `prologueChapter`.
+- `prologueBeatsFor(chapter, event, state)` is a pure trigger matcher. It returns
+  `{ actions, fired, state }`: the matching beats' actions in authored order, each tagged with its
+  beat id, and a new state whose `fired` lists the `once` beats spent (the input state is never
+  mutated). The vocabulary (documented in the module header):
+  - triggers: `battleStart`, `turnStart {turn, phase}` (phase defaults to the player's),
+    `unitSelected {unit, turn}`, `afterMove {unit, tile, terrain, dangerFrom, turn}`,
+    `forecastOpened {unit, target, nth, concept, turn}`, `combatResolved {unit, target, turn}`,
+    `unitActed {unit, turn}`, `unitDefeated {unit}`, `levelUp {unit}`, `hpBelow {unit, pct}`,
+    `holdWoken {unit}`, `talk {unit, target}`, `seize {unit}`, `victory`
+  - actions: `coach`, `note`, `dialogue` (ids), `gateSelect {unit}`, `gateMove {col, row}`,
+    `gateConfirm`, `highlight {tile | unit | reachOf}`, `markLesson {id, kind: shown|practised}`
+  - `forecastConcepts(forecast, { weapon })` gives a forecast's concepts (`triangle`, `doubling`,
+    `noCounter`, `magic`, `uncertainHit`) for `forecastOpened` events; `dangerFrom` is the list
+    of enemy ids whose Danger tiles (player knowledge) hold the tile.
+- `buildPrologueUnit(spec, gameData, rng, { name })` builds Edric, Sera and Tamsin from their
+  authored specs: lords through `createLordUnit`, generic classes through `createUnit`, then the
+  authored stats, growths, traits (`[]`), proficiencies, skills and inventory replace what was
+  rolled. Every draw (growths or level-ups the spec leaves out, item uids) comes from `rng`;
+  Math.random is never touched (`createLordUnit`, `createUnit` and `rollGrowthRates` take an
+  optional `rng`, defaulting to Math.random). `buildPrologueUnits(prologue, gameData, keys)` builds
+  by key, each unit on its own stream (`prologueUnitRng(seed, key)`). Sera's kit (Light and Staff
+  ranks, Glimmer equipped, Heal usable) is tested from a spec; she is not in the data yet.
+- **Not yet built:** the authored NPC-lord spawn (Sera in P3). When it is, it is one builder
+  shared by `BattleScene` and `tests/harness/HeadlessBattle.js` (per CLAUDE.md), reading
+  `npcSpawn.prologueUnit`.
+
+### Authored spawns and the harness (built)
+
+- `EnemySpawnGear.applySpawnLoadout(enemy, spawn, { weapons, skills })` runs after
+  `applyEnemySpawnGear` in `BattleScene.addEnemyFromSpawn` and the harness alike: a spawn's
+  `weapon` (by name, specials such as Javelin allowed, refused if the class can't wield it) and
+  `skills` (exactly those) replace the rolled kit, and `authoredId` is copied to the unit. The
+  new weapon takes the dropped weapon's uid, so the battle's Math.random stream is the same with
+  or without an authored kit. Spawns without these fields are built exactly as before
+  (`tests/SpawnLoadout.test.js` pins that against a capture taken before the change).
+- `HeadlessBattle.init({ battleConfig })` plays a locked config, as `BattleScene` does with
+  `RunManager.getLockedBattleConfig`.
+- Fort and Throne healing moved to `engine/TerrainHealing.js` and the harness now applies it
+  (it never did). P1's safety rests on it.
 
 ### RunManager
 
@@ -702,9 +781,8 @@ checked the combat numbers with `getCombatForecast` on real data):
 
 ### Engine gaps to close (small)
 
-- `addEnemyFromSpawn` honours an authored `weapon` (by name) and `skills`. Today it ignores
-  `spawn.weapon`, and the tier picker skips weapons with a `special`, so a Javelin can't be
-  reached any other way.
+- ~~`addEnemyFromSpawn` honours an authored `weapon` (by name) and `skills`.~~ Done
+  (`applySpawnLoadout`, above).
 - An authored lord `npcSpawn` (Sera) that doesn't go through `buildRecruitNodeUnit`'s
   roster-average level.
 - Prologue route node titles ("Harrow's Market") and the boss preview line.
@@ -747,7 +825,8 @@ checked the combat numbers with `getCombatForecast` on real data):
 - **Harness:**
   - For each chapter, the intended script wins with margin and a naive policy also wins.
   - P4 is won before the enrage turn with any deploy that includes Gaspar.
-  - The P1 Fort is outside `b`'s Danger tiles.
+  - The P1 Fort is outside `b`'s Danger tiles (built, with the rest of P1's harness checks:
+    `tests/harness/PrologueP1.test.js`).
   - P2: Gaspar's lance leaves the Archer at 2 HP and Edric's hit kills it.
   - P3: Edric reaches Sera on turn 1, and only the Soldier reaches her on enemy phase 1.
   - The Gaspar-only policy loses P2.

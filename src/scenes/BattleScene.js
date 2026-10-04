@@ -64,7 +64,8 @@ import {
   healUnitFully,
   setUnitHP,
 } from '../engine/UnitHealth.js';
-import { applyEnemySpawnGear } from '../engine/EnemySpawnGear.js';
+import { applyEnemySpawnGear, applySpawnLoadout } from '../engine/EnemySpawnGear.js';
+import { resetFortHealStreak, settleTerrainHeal } from '../engine/TerrainHealing.js';
 import { spendCombatShots, swapSpentWeapons } from '../engine/PerBattleWeapons.js';
 import {
   advanceTurnPressure,
@@ -194,8 +195,6 @@ import {
   ELITE_LOOT_CHOICES,
   DEPLOY_LIMITS,
   TERRAIN,
-  TERRAIN_HEAL_PERCENT,
-  FORT_HEAL_DECAY_MULTIPLIERS,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
   ENTITY_SPLASH_COUNT,
@@ -2601,6 +2600,11 @@ export class BattleScene extends Phaser.Scene {
       weapons: this.gameData.weapons,
       difficultyId: this.battleParams?.difficultyId,
     });
+    // An authored spawn's own weapon, skills and id win (prologue chapters).
+    applySpawnLoadout(enemy, spawn, {
+      weapons: this.gameData.weapons,
+      skills: this.gameData.skills,
+    });
 
     if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
@@ -3032,7 +3036,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   resetFortHealStreak(unit) {
-    if (unit) unit._fortHealStreak = 0;
+    resetFortHealStreak(unit);
   }
 
   // --- Deploy selection screen ---
@@ -9936,19 +9940,8 @@ export class BattleScene extends Phaser.Scene {
     const session = battleSession(this);
     for (const unit of units) {
       if (!isCurrent()) return;
-      const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
-      const onFort = terrainIdx === TERRAIN.Fort || terrainIdx === TERRAIN.Throne;
-      if (!onFort) {
-        unit._fortHealStreak = 0;
-        continue;
-      }
-      if (unit.currentHP >= unit.stats.HP) continue;
-      const streak = Math.max(0, unit._fortHealStreak || 0);
-      const decayIdx = Math.min(streak, FORT_HEAL_DECAY_MULTIPLIERS.length - 1);
-      const decayMult = FORT_HEAL_DECAY_MULTIPLIERS[decayIdx];
-      const baseHeal = Math.max(1, Math.floor(unit.stats.HP * TERRAIN_HEAL_PERCENT));
-      const healAmount = Math.floor(baseHeal * decayMult);
-      unit._fortHealStreak = streak + 1;
+      // engine/TerrainHealing.js: the amount and the Fort streak (shared with the harness).
+      const healAmount = settleTerrainHeal(unit, this.grid.mapLayout[unit.row]?.[unit.col]);
       if (healAmount <= 0) continue;
       healUnit(unit, healAmount);
       this.updateHPBar(unit);

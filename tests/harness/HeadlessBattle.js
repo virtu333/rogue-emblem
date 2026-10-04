@@ -94,7 +94,7 @@ import {
   removeCondition,
   resolveStatusStaff,
 } from '../../src/engine/StatusConditionSystem.js';
-import { applyEnemySpawnGear } from '../../src/engine/EnemySpawnGear.js';
+import { applyEnemySpawnGear, applySpawnLoadout } from '../../src/engine/EnemySpawnGear.js';
 import { applyHoldSpawn } from '../../src/engine/HoldActivation.js';
 import { createPlayerKnowledge } from '../../src/engine/PlayerKnowledge.js';
 import {
@@ -143,7 +143,8 @@ import {
   XP_BASE_HEAL,
   ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
-import { applyCombatHP, damageUnit, setUnitHP } from '../../src/engine/UnitHealth.js';
+import { applyCombatHP, damageUnit, healUnit, setUnitHP } from '../../src/engine/UnitHealth.js';
+import { resetFortHealStreak, settleTerrainHeal } from '../../src/engine/TerrainHealing.js';
 import { postCombatEffects, runPostCombatEffectsSync } from '../../src/engine/PostCombatEffects.js';
 import {
   areaStrikeEffects,
@@ -243,9 +244,18 @@ export class HeadlessBattle {
     this.remainsTargets = [];
   }
 
-  // Initialize battle — mirrors BattleScene.beginBattle
-  init() {
-    const bc = generateBattle(this.battleParams, {
+  // Initialize battle — mirrors BattleScene.beginBattle. `options.battleConfig` plays a
+  // locked config (a node's battleConfigsByNodeId entry, a prologue chapter) instead of
+  // generating one, as BattleScene does with RunManager.getLockedBattleConfig.
+  init(options = {}) {
+    const bc = options.battleConfig
+      ? structuredClone(options.battleConfig)
+      : this._generateBattleConfig();
+    this._setupBattle(bc);
+  }
+
+  _generateBattleConfig() {
+    return generateBattle(this.battleParams, {
       terrain: this.gameData.terrain,
       mapSizes: this.gameData.mapSizes,
       mapTemplates: this.gameData.mapTemplates,
@@ -256,6 +266,9 @@ export class HeadlessBattle {
       affixes: this.gameData.affixes,
       difficulty: this.gameData.difficulty,
     });
+  }
+
+  _setupBattle(bc) {
     this.battleConfig = bc;
 
     this.grid = new HeadlessGrid(
@@ -593,12 +606,16 @@ export class HeadlessBattle {
     }
   }
 
+  // `targetName` may also be the target unit itself (two enemies can share a name).
   chooseAttackTarget(targetName) {
     if (this.battleState !== HEADLESS_STATES.SELECTING_TARGET) {
       throw new Error(`Cannot choose attack target in state: ${this.battleState}`);
     }
-    const target = this.attackTargets.find((u) => u.name === targetName);
-    if (!target) throw new Error(`Target not in attack range: ${targetName}`);
+    const target =
+      targetName && typeof targetName === 'object'
+        ? this.attackTargets.find((u) => u === targetName)
+        : this.attackTargets.find((u) => u.name === targetName);
+    if (!target) throw new Error(`Target not in attack range: ${targetName?.name ?? targetName}`);
 
     // Ensure equipped weapon can reach target
     this._ensureValidWeaponForTarget(this.selectedUnit, target);
@@ -883,6 +900,11 @@ export class HeadlessBattle {
       weapons: this.gameData.weapons,
       difficultyId: this.battleParams?.difficultyId,
     });
+    // As BattleScene: an authored spawn's own weapon, skills and id win.
+    applySpawnLoadout(enemy, spawn, {
+      weapons: this.gameData.weapons,
+      skills: this.gameData.skills,
+    });
 
     if (spawn.areaArt) bindEnemyAreaArt(enemy, spawn.areaArt, this.gameData.weaponArts?.arts);
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
@@ -1156,6 +1178,11 @@ export class HeadlessBattle {
         );
       }
       // Note: spawn_terrain is not fully simulated in HeadlessBattle MVP for now
+    }
+    // 3. Terrain healing (Fort/Throne), as BattleScene.processTerrainHealing.
+    for (const unit of units) {
+      const amount = settleTerrainHeal(unit, this.grid?.mapLayout?.[unit?.row]?.[unit?.col]);
+      if (amount > 0) healUnit(unit, amount);
     }
   }
 
@@ -1696,6 +1723,7 @@ export class HeadlessBattle {
   }
 
   _executeCombat(attacker, defender) {
+    resetFortHealStreak(attacker); // as BattleScene.executeCombat
     // As BattleScene.executeCombat: measured before the art's HP cost or any strike.
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
     // As BattleScene._prepareCombatContext: the Entity fights from its footprint.
@@ -2217,6 +2245,7 @@ export class HeadlessBattle {
   }
 
   _executeEnemyCombat(attacker, defender) {
+    resetFortHealStreak(attacker); // as BattleScene.executeEnemyCombat
     // As BattleScene.executeEnemyCombat: measured before the art's HP cost or any strike.
     const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
     // As BattleScene._prepareCombatContext: the Entity fights from its footprint.
