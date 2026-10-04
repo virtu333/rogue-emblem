@@ -1,5 +1,5 @@
 import { buildPrologueNpcUnit, battleRequiredRecruits } from '../../src/engine/Prologue.js';
-import { isRoutComplete } from '../../src/engine/RoutObjective.js';
+import { isRoutComplete, pendingRequiredRecruits } from '../../src/engine/RoutObjective.js';
 import { settleRecruitJoin } from '../../src/engine/BattleRecruits.js';
 import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
 // HeadlessBattle — Synchronous battle state machine for headless testing.
@@ -1961,6 +1961,12 @@ export class HeadlessBattle {
   }
 
   _executeTalk(lord, npc) {
+    // As MovementActionController.executeTalk: a join can complete a rout that waited
+    // on this very recruit (RoutObjective.requiredRecruits), read before the join.
+    const state = this.routObjectiveState();
+    const routWaited =
+      this.battleConfig.objective === 'rout' &&
+      pendingRequiredRecruits(state.requiredRecruits, state.playerUnits, state.escapedUnits).includes(npc?.name); // prettier-ignore
     const joined = settleRecruitJoin({
       npc,
       npcUnits: this.npcUnits,
@@ -1972,9 +1978,7 @@ export class HeadlessBattle {
     this._battleRecruits = joined.battleRecruits;
     this._refreshFogVisibility();
     this._finishUnitAction(lord);
-    // As MovementActionController.executeTalk: a join can complete a rout that waited
-    // on this recruit (RoutObjective.requiredRecruits).
-    this._checkBattleEnd();
+    if (routWaited) this._checkBattleEnd();
   }
 
   /** What the rout's end reads (RoutObjective), as BattleScene.routObjectiveState. */

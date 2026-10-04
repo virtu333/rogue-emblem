@@ -144,6 +144,10 @@ export class MovementActionController {
   async executeTalk(lord, { session = battleSession(this.scene) } = {}) {
     const scene = this.scene;
     let npc;
+    // True when the rout waited on this very recruit (RoutObjective's requiredRecruits:
+    // the prologue's Sera), read before the join. A standard run requires nobody, so
+    // its Talk never reaches checkBattleEnd from here.
+    let routWaited = false;
     const done = await settleAndPresent(scene, {
       unit: lord,
       session,
@@ -155,6 +159,9 @@ export class MovementActionController {
         !!(npc = scene.findTalkTarget(lord)) &&
         validateRecruitJoin(npc, scene.npcUnits, scene.playerUnits),
       settle: () => {
+        routWaited =
+          scene.battleConfig?.objective === 'rout' &&
+          (scene.pendingRequiredRecruits?.() || []).includes(npc.name);
         const result = settleRecruitJoin({
           npc,
           npcUnits: scene.npcUnits,
@@ -214,10 +221,10 @@ export class MovementActionController {
           });
       },
     });
-    // A join can complete a rout that waited on this recruit (RoutObjective's
-    // requiredRecruits: the prologue's Sera). The action's own completion only checks
-    // the battle's end when it ends the phase, so the join checks it here.
-    if (done && isCurrentBattleSession(scene, session)) scene.checkBattleEnd?.();
+    // A join can complete a rout that waited on this recruit. The action's own
+    // completion only checks the battle's end when it ends the phase, so the join
+    // checks it here, and only then.
+    if (done && routWaited && isCurrentBattleSession(scene, session)) scene.checkBattleEnd?.();
     return done;
   }
 }
