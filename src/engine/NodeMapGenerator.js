@@ -479,7 +479,7 @@ function buildBattleParams(actId, type, row, totalRows, caravanChanceBonus = 0, 
   // passes that run later in generateNodeMap (colosseum, ambush) don't rely on
   // rollCaravanSpawn's flags at all — they discard the roll by replacing or
   // nulling battleParams outright (colosseum nulls it; ambush rebuilds it for
-  // SHOP nodes only). rollCaravanSpawn's isAmbush/tutorialMode/isColosseum
+  // SHOP nodes only). rollCaravanSpawn's isAmbush/scripted/isColosseum
   // checks are defense-in-depth, not what excludes those battles today.
   if (type === NODE_TYPES.BATTLE && rollCaravanSpawn(params, caravanChanceBonus)) {
     params.hasCaravan = true;

@@ -113,9 +113,8 @@ describe('shadow gain (victory commit and HUD projection)', () => {
     expect(gain(1, 1)).toBe(0);
   });
 
-  it('adds noParGain for battles without a par, nothing for tutorials or unknown turns', () => {
+  it('adds noParGain for battles without a par, nothing for unknown turns', () => {
     expect(gain(5, null)).toBe(1);
-    expect(gain(5, 9, { tutorialMode: true })).toBe(0);
     expect(gain(undefined, 9)).toBe(0);
     expect(gain(0, 9)).toBe(0);
     expect(computeShadowGain({ turnsTaken: 12, par: 9 }, null)).toBe(0);

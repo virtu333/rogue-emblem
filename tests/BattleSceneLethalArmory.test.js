@@ -76,7 +76,6 @@ function makeBattleSceneWithRecruit({ lethalArmoryTier = 0, recruitStartingVulne
   scene.runManager = runManager;
   scene.battleParams = {
     act: 'act1',
-    tutorialMode: false,
     fogEnabled: false,
     isRecruitBattle: true,
   };

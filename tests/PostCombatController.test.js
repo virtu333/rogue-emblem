@@ -45,7 +45,7 @@ function makeScene() {
     _postLootTransitionCompleted: false,
     isTransitioningOut: false,
     gameData: {},
-    battleParams: { tutorialMode: false, act: 'act1' },
+    battleParams: { act: 'act1' },
     nodeId: 'node-1',
     goldEarned: 50,
     isBoss: true,

@@ -87,7 +87,7 @@ function startedScene() {
   runManager.getLockedBattleConfig = vi.fn(() => battleConfig);
   scene.gameData = gameData;
   scene.runManager = runManager;
-  scene.battleParams = { act: 'act1', tutorialMode: false, fogEnabled: false };
+  scene.battleParams = { act: 'act1', fogEnabled: false };
   scene.nodeId = 'act1_0_0';
   scene.roster = deployed;
   scene.registry = {

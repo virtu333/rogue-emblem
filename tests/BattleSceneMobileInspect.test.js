@@ -63,7 +63,7 @@ function createPhaseScene(overrides = {}) {
     playerUnits: [],
     enemyUnits: [],
     npcUnits: [],
-    battleParams: { tutorialMode: false },
+    battleParams: {},
     turnCounterText: null,
     turnPar: null,
     registry: { get: vi.fn(() => null) },

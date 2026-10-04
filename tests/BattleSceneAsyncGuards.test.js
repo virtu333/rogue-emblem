@@ -81,7 +81,7 @@ describe('BattleScene async guards', () => {
     applyCondition(sleeper, 'sleep', 3);
 
     scene.scene = { isActive: () => true };
-    scene.battleParams = { tutorialMode: false };
+    scene.battleParams = {};
     scene.battleState = 'PLAYER_IDLE';
     scene.playerUnits = [sleeper];
     scene.enemyUnits = [];

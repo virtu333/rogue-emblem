@@ -106,16 +106,16 @@ export function isEclipseActive(state, config) {
 /**
  * Shadow a battle adds at victory. Also the HUD projection for the current turn.
  *   gain = min(max(0, turns - max(1, par - grace)), maxGainPerBattle) * difficultyGain
- * A battle without a par adds `noParGain`; scripted battles and an unknown turn count
- * add nothing.
- * @param {{ turnsTaken:number, par:number|null, difficultyId?:string, tutorialMode?:boolean }} input
+ * A battle without a par adds `noParGain`; an unknown turn count adds nothing. (A
+ * prologue battle never gets here: the prologue run's Eclipse is off.)
+ * @param {{ turnsTaken:number, par:number|null, difficultyId?:string }} input
  * @param {object} config - data/eclipse.json
  */
 export function computeShadowGain(
-  { turnsTaken, par = null, difficultyId = 'normal', tutorialMode = false } = {},
+  { turnsTaken, par = null, difficultyId = 'normal' } = {},
   config,
 ) {
-  if (!config || tutorialMode) return 0;
+  if (!config) return 0;
   const turns = Number(turnsTaken);
   if (!Number.isFinite(turns) || turns <= 0) return 0;
   let gain;

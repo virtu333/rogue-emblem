@@ -794,7 +794,7 @@ list, not in the prologue:
   of the coach (code review, 2026-10-04):
   - in-battle hints: `battle_par` and `battle_vision_scope_v2` on turn 1, `battle_danger_zone`
     on turn 2 (the prologue shows its own versions at its own beats)
-  - all `GuidanceController` notes; it switches off today only for `tutorialMode`
+  - all `GuidanceController` notes (it switched off only for the deleted tutorial's `tutorialMode`; now `isScriptedBattle`)
   - the route map's `runStart` cold open, the Act I card, Gaspar's run-start intro, and the
     `recordLinesPlayed` meta write
   - deed ceremonies; Church Kindle (Eclipse is off)

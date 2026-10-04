@@ -99,7 +99,7 @@ function setupScene() {
   scene.playerUnits = [unit];
   scene.enemyUnits = [];
   scene.npcUnits = [];
-  scene.battleParams = { tutorialMode: false };
+  scene.battleParams = {};
   scene.battleState = 'PLAYER_IDLE';
   scene.selectedUnit = unit;
   scene.preMoveLoc = null;
@@ -1380,7 +1380,7 @@ describe('onPhaseChange condition recovery ordering', () => {
     const unit = makeUnit({ name: 'Sleeper', currentHP: 20 });
     applyCondition(unit, 'sleep', 3);
     scene.playerUnits = [unit];
-    scene.battleParams = { tutorialMode: false };
+    scene.battleParams = {};
     scene.registry = {
       get: vi.fn(() => ({ shouldShow: vi.fn(() => true) })),
     };

@@ -76,7 +76,6 @@ export class TitleScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
-    this._autoAction = data?.autoAction === 'newGame' ? 'newGame' : null;
     // Back from a standalone prologue chapter: the slot the title had is its again.
     this._restoreSlotRegistry();
   }
@@ -171,16 +170,6 @@ export class TitleScene extends Phaser.Scene {
 
     this._refreshCloudSyncStatusNotice();
     this._setupMenuGamepadFocus();
-
-    if (this._autoAction) {
-      const action = this._autoAction;
-      this._autoAction = null;
-      // After the router's scene-start cooldown (350 ms) so the hand-off is not blocked.
-      this.time?.delayedCall?.(450, () => {
-        if (this.sys?.isActive?.() === false || this.isTransitioning) return;
-        void this._runAction(action);
-      });
-    }
   }
 
   _reducedMotion() {

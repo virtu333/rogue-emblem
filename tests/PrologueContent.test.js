@@ -53,6 +53,31 @@ describe('prologue copy', () => {
     ]);
   });
 
+  it("Varro's boss lines keep to the voice sheet too (bossEncounters, outside `prologue`)", () => {
+    const varro = data.dialogue.bossEncounters?.['Captain Varro'];
+    expect(varro).toBeTypeOf('object');
+    expect(Object.keys(varro).sort()).toEqual(['defeat', 'halfHealth', 'preBattle']);
+    let lines = 0;
+    for (const [moment, pools] of Object.entries(varro)) {
+      expect(Object.keys(pools).length, moment).toBeGreaterThan(0);
+      for (const [pool, entries] of Object.entries(pools)) {
+        const at = `${moment}.${pool}`;
+        expect(Array.isArray(entries) && entries.length > 0, at).toBe(true);
+        for (const { speaker, line } of entries) {
+          expect(typeof speaker, at).toBe('string');
+          expect(typeof line, at).toBe('string');
+          expect(line.length, `${at}: ${line}`).toBeLessThanOrEqual(90);
+          expect(line, at).not.toMatch(/["\n]/);
+          lines++;
+        }
+      }
+    }
+    expect(lines).toBeGreaterThanOrEqual(3);
+    // He speaks first at the gate and last when it falls.
+    expect(varro.preBattle.base[0].speaker).toBe('Captain Varro');
+    expect(varro.defeat.base[0].speaker).toBe('Captain Varro');
+  });
+
   it('phrases taps on touch and clicks on desktop', () => {
     expect(PROLOGUE_COACH.p1_select_edric({ touch: true }).detail).toContain('Tap Edric');
     expect(PROLOGUE_COACH.p1_select_edric({ touch: false }).detail).toContain('Click Edric');
@@ -96,11 +121,10 @@ describe('prologue copy', () => {
     );
   });
 
-  it('the handoff names the chapter and the fresh player route', () => {
-    expect(prologueHandoff({ title: 'Banner at Dawn', startRun: true })).toContain(
-      'Banner at Dawn is yours.\nYour first run starts',
+  it('the handoff names the chapter and sends the player back to the title', () => {
+    expect(prologueHandoff({ title: 'Banner at Dawn' })).toBe(
+      'Victory! Banner at Dawn is yours.\nYour saves are waiting on the title screen.',
     );
-    expect(prologueHandoff({ title: 'Banner at Dawn' })).toContain('waiting on the title');
   });
 
   it('a note that stands in for an in-run hint only does so for a hint it teaches', () => {

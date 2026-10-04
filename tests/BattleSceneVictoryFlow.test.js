@@ -54,7 +54,7 @@ describe('BattleScene onVictory', () => {
   it('transitions to NodeMap and skips loot/recruit when completeBattle is a no-op', async () => {
     const scene = new BattleScene();
     scene.battleState = 'PLAYER_IDLE';
-    scene.battleParams = { tutorialMode: false };
+    scene.battleParams = {};
     scene.scene = { isActive: () => true };
     scene.cameras = { main: { centerX: 320, centerY: 240 } };
     scene.add = {
@@ -116,7 +116,7 @@ describe('BattleScene onVictory — final boss skips loot (Q2)', () => {
   it('skips loot screen and calls transitionAfterBattle when run is complete', async () => {
     const scene = new BattleScene();
     scene.battleState = 'PLAYER_IDLE';
-    scene.battleParams = { tutorialMode: false };
+    scene.battleParams = {};
     scene.scene = { isActive: () => true };
     scene.cameras = { main: { centerX: 320, centerY: 240 } };
     scene.add = {
@@ -169,7 +169,7 @@ describe('BattleScene onVictory — final boss skips loot (Q2)', () => {
   it('shows boss recruit screen when run is NOT complete but is boss', async () => {
     const scene = new BattleScene();
     scene.battleState = 'PLAYER_IDLE';
-    scene.battleParams = { tutorialMode: false };
+    scene.battleParams = {};
     scene.scene = { isActive: () => true };
     scene.cameras = { main: { centerX: 320, centerY: 240 } };
     scene.add = {
@@ -315,7 +315,7 @@ describe('onDefeat recovery path', () => {
     const scene = makeRecoveryScene({
       _battleSession: 1,
       battleState: 'PLAYER_IDLE',
-      battleParams: { tutorialMode: false },
+      battleParams: {},
       scene: { isActive: () => true },
       time: {
         delayedCall: vi.fn((_ms, cb) => {
@@ -360,7 +360,7 @@ describe('completeBattle no-op double-failure', () => {
 
     const scene = new BattleScene();
     scene.battleState = 'PLAYER_IDLE';
-    scene.battleParams = { tutorialMode: false };
+    scene.battleParams = {};
     scene.scene = { isActive: () => true };
     scene.cameras = { main: { centerX: 320, centerY: 240 } };
     scene.add = {
@@ -412,7 +412,7 @@ describe('completeBattle no-op double-failure', () => {
 
     const scene = new BattleScene();
     scene.battleState = 'PLAYER_IDLE';
-    scene.battleParams = { tutorialMode: false };
+    scene.battleParams = {};
     scene.scene = { isActive: () => true };
     scene.cameras = { main: { centerX: 320, centerY: 240 } };
     scene.add = {

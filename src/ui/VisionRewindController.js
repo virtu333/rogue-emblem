@@ -64,9 +64,9 @@ export class VisionRewindController {
 
   /**
    * Where Vision charges live. Runs charge the RunManager; standalone battles
-   * (a prologue chapter) get a scene-scoped store so charges can be granted and spent
-   * without a run — it starts at 0, so nothing changes unless something
-   * deposits a charge (nothing does today: a prologue chapter grants none).
+   * (a prologue chapter replayed from the title) get a scene-scoped store so charges
+   * can be granted and spent without a run. It starts at 0; P3's `grantVision` beat
+   * deposits its one charge there (PrologueController.grantVision, same store).
    */
   _chargeHost() {
     if (this.runManager) return this.runManager;

@@ -319,7 +319,7 @@ describe('victory band', () => {
       gameData,
       events: emitter(),
       battleState: 'PLAYER_IDLE',
-      battleParams: { tutorialMode: false, act: 'act1' },
+      battleParams: { act: 'act1' },
       battleConfig: { objective: 'rout' },
       turnManager: { turnNumber: 7 },
       turnPar: 8,

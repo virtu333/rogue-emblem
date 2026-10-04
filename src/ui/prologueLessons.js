@@ -14,6 +14,10 @@ export const TUTORIAL_HINT_IDS = new Set([
   'battle_doubling',
   'battle_forecast',
   'battle_danger_zone',
+  // No prologue note teaches these two. The deleted practice tutorial taught them (its
+  // staff/consumable lesson) and stored them in TUTORIAL_LESSONS_KEY; they stay here so a
+  // device that finished it keeps those lessons applied to new slots, and a later
+  // prologue's recordTaughtLessons (which re-filters the stored list) doesn't drop them.
   'battle_staff_scope',
   'battle_heal_uses',
   'battle_consumable_supply',

@@ -88,7 +88,7 @@ function setup({ remaining = 4, map = null } = {}) {
     playerUnits: [edric],
     enemyUnits: [brigand],
     npcUnits: [],
-    battleParams: { tutorialMode: false },
+    battleParams: {},
     battleState: 'UNIT_MOVING',
     selectedUnit: edric,
     runManager: { battleInProgress: true },

@@ -582,7 +582,7 @@ describe('Scene wiring', () => {
     const scene = {
       _battleSession: 1,
       battleState: 'PLAYER_IDLE',
-      battleParams: { tutorialMode: false, act: 'act1' },
+      battleParams: { act: 'act1' },
       scene: { isActive: () => true },
       cameras: { main: { centerX: 320, centerY: 240 } },
       add: {
@@ -1127,7 +1127,7 @@ describe('Elite victory flavor (Surface 6)', () => {
     const scene = {
       _battleSession: 1,
       battleState: 'PLAYER_IDLE',
-      battleParams: { tutorialMode: false, act: 'act1' },
+      battleParams: { act: 'act1' },
       scene: { isActive: () => sceneState.active },
       cameras: { main: { centerX: 320, centerY: 240 } },
       add: {

@@ -80,7 +80,7 @@ function setup() {
     playerUnits: [edric],
     enemyUnits: [brigand],
     npcUnits: [],
-    battleParams: { tutorialMode: false },
+    battleParams: {},
     battleState: 'UNIT_MOVING',
     turnManager: {
       currentPhase: 'player',

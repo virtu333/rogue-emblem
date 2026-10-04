@@ -46,7 +46,7 @@ afterEach(() => {
 function makePlayerPhaseScene() {
   const scene = new BattleScene();
   scene.scene = { isActive: () => true };
-  scene.battleParams = { tutorialMode: false };
+  scene.battleParams = {};
   scene.battleState = 'PLAYER_IDLE';
   scene.playerUnits = [];
   scene.enemyUnits = [];

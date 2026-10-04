@@ -343,11 +343,9 @@ export const PROLOGUE_NUDGES = Object.freeze({
   gate_pause: () => 'You can leave once your turn is back.',
 });
 
-/** The victory handoff after the chapter's last line. */
-export function prologueHandoff({ title = 'the prologue', startRun = false } = {}) {
-  return startRun
-    ? `Victory! ${title} is yours.\nYour first run starts on the route map — pick a path, fight, and keep your commander alive.`
-    : `Victory! ${title} is yours.\nYour saves are waiting on the title screen.`;
+/** The victory handoff after a replayed chapter's last line (back to the title). */
+export function prologueHandoff({ title = 'the prologue' } = {}) {
+  return `Victory! ${title} is yours.\nYour saves are waiting on the title screen.`;
 }
 
 export function prologueCoachGoal(id, ctx) {
