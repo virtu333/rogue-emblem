@@ -1257,6 +1257,12 @@
     "music": "music_explore_deep",
     "scenes": [
       {
+        "dialogue": "ending_gate_held",
+        "card": "complete",
+        "cue": "sealed",
+        "won": true
+      },
+      {
         "dialogue": "ending_east",
         "cue": "eclipse",
         "shake": true,
@@ -1271,7 +1277,7 @@
         "veil": "thread"
       }
     ],
-    "titleCard": "Every run is a thread Sera weaves. When one breaks, she weaves again. Your army starts over. What you build at Home Base stays."
+    "titleCard": "Every run is a thread Sera weaves. When one breaks, she weaves again. This one broke in the east, not by your hand."
   },
   "boss": {
     "name": "Captain Varro",

@@ -323,14 +323,70 @@ export function rosterLessonSkipText(reason, ctx) {
   return build ? build(ctx) : '';
 }
 
-/** The title card the ending stub closes on (data/prologue.json `ending.titleCard`). */
-/** The run-end card the ending's last scene breaks the thread on (CeremonyController.showRunEnd). */
-export const PROLOGUE_THREAD_CARD = Object.freeze({
-  tone: 'cut',
-  word: 'THE THREAD IS CUT',
-  sub: 'Sera weaves again',
-  meta: 'Prologue · The Quarry Gate',
-});
+/**
+ * The ending's break (CeremonyController.showRunEnd's card over its last scene). Not a
+ * run's defeat: the player held the gate, and the world broke for its own reasons (the
+ * ritual in the east). So never the game-over words: THE THREAD BREAKS, the gate held,
+ * and (after the last chapter's win) the prologue complete. After a skip it says only
+ * that the world broke.
+ */
+export function prologueThreadCard({ won = false } = {}) {
+  return {
+    tone: 'cut',
+    word: 'THE THREAD BREAKS',
+    sub: won ? 'The gate held. The world did not.' : 'The world did not hold',
+    meta: won ? 'Prologue complete · Sera weaves again' : 'Prologue · Sera weaves again',
+  };
+}
+
+/** PROLOGUE COMPLETE: the win, said before the world breaks (the ending's `card`). */
+export function prologueCompleteCard({ chapters = 0 } = {}) {
+  const n = Math.max(0, Math.trunc(Number(chapters) || 0));
+  return {
+    tone: 'holds',
+    word: 'PROLOGUE COMPLETE',
+    sub: 'The Quarry Gate is held',
+    meta: n ? `${n} ${n === 1 ? 'chapter' : 'chapters'} won` : '',
+  };
+}
+
+/**
+ * The handoff (ui/PrologueHandoff): the one screen between the ending and Home Base,
+ * where the tutorial's protection ends. Plain words, one rule a row: what ends a run,
+ * what a fall costs, what starts over, what stays, how long Vision lasts. `lead` is
+ * the ending's title card (data/prologue.json `ending.titleCard`).
+ */
+export function prologueHandoffContent({ lead = '', won = false, commander = 'Edric' } = {}) {
+  const lord = commander || 'Edric';
+  return {
+    title: 'From here, it counts',
+    kicker: won ? 'Prologue complete' : 'The prologue ends',
+    lead: typeof lead === 'string' ? lead.trim() : '',
+    rows: [
+      {
+        term: 'A run ends',
+        text: `only when your commander falls. ${lord} leads your first run.`,
+      },
+      {
+        term: 'Fallen allies',
+        text: 'stay down until a Church revives them for gold.',
+      },
+      {
+        term: 'Starts over',
+        text: 'each run: a fresh army, with levels, items and gold reset.',
+      },
+      {
+        term: 'Stays',
+        text: 'Valor and Supply you earn, and the Home Base upgrades they buy.',
+      },
+      {
+        term: 'Vision',
+        text: 'charges last the whole run. Spend them on the turn that went wrong.',
+      },
+    ],
+    action: 'To Home Base',
+  };
+}
 
 export function prologueEndingCard(prologue) {
   const text = prologue?.ending?.titleCard;
@@ -363,11 +419,11 @@ export const PROLOGUE_OFFER = Object.freeze({
 
 /** Home Base, first visit after the prologue: what the grant is for. */
 export const PROLOGUE_HOME_BASE_NOTE =
-  'This is what persists. Spend the Valor and Supply from the first thread.';
+  'This is what stays between runs. Spend the Valor and Supply from the first thread.';
 
 /** The route-map note of a first run that followed the prologue (Home Base is known). */
 export const PROLOGUE_FIRST_RUN_ROUTE_NOTE =
-  'Your first run begins here. Difficulty and blessings unlock after it ends. Tap a node to preview; Travel commits.';
+  'Your first run begins here, and now it counts: if Edric falls, the run ends. Tap a node to preview; Travel commits.';
 
 /** Short corrections while a guided step is live (coach nudges). */
 export const PROLOGUE_NUDGES = Object.freeze({

@@ -561,6 +561,14 @@ describe('validatePrologueConfig', () => {
       expect(errorsAfter((p) => (p.ending.music = 'Explore Deep'))).toEqual([
         'ending.music must be a music track key (music_...)',
       ]);
+      // PROLOGUE COMPLETE is a known card, and a won-only scene says so with a boolean.
+      expect(data.prologue.ending.scenes[0]).toMatchObject({ card: 'complete', won: true });
+      expect(errorsAfter((p) => (p.ending.scenes[0].card = 'victory'))).toEqual([
+        'ending.scenes[0].card must be one of complete',
+      ]);
+      expect(errorsAfter((p) => (p.ending.scenes[0].won = 'yes'))).toEqual([
+        'ending.scenes[0].won must be true or false',
+      ]);
     });
 
     it("forecastOpened may name the target's terrain (the throne lesson)", () => {

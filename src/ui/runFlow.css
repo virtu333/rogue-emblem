@@ -99,3 +99,38 @@ html .re-run-flow.re-compact-menu {
     text-align: right;
   }
 }
+
+/* The prologue's handoff (PrologueHandoff): the rules that hold from the first run on,
+   a term beside each plain sentence. */
+.re-handoff-kicker {
+  margin: 0 0 4px;
+  color: var(--re-accent-text);
+  font: 12px/1.4 var(--re-pixel);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.re-handoff-lead {
+  margin: 0 0 12px;
+}
+.re-handoff-rules {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 0;
+}
+.re-handoff-rules dt {
+  color: var(--re-accent-text);
+  font-weight: 700;
+}
+.re-handoff-rules dd {
+  margin: 0;
+}
+@media (max-width: 420px) {
+  .re-handoff-rules {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .re-handoff-rules dd {
+    margin-bottom: 8px;
+  }
+}

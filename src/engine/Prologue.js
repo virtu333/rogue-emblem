@@ -105,12 +105,16 @@
 //                            atNode: { <nodeId>: [unit key | special id] } }
 //                   Who joins the run's roster, committed with that chapter's victory
 //                   (RunManager.completeBattle) or on arrival at that node.
-//   ending          null | { music?, scenes: [{ dialogue, cue?, shake?, veil? }], titleCard }
+//   ending          null | { music?, scenes: [{ dialogue, cue?, shake?, veil?, card?,
+//                   won? }], titleCard }
 //                   the ending the last chapter hands to (PrologueEnding): its scenes in
 //                   order, each a dialogue.json `prologue` key with an optional stinger
-//                   (`cue`, a musicConfig stinger name), a camera shudder (`shake`) and a
-//                   screen veil (`veil`: 'hollow_sun' | 'thread'); `music` is the track it
-//                   plays under (an existing one); then the title card's text. (A legacy
+//                   (`cue`, a musicConfig stinger name), a camera shudder (`shake`), a
+//                   screen veil (`veil`: 'hollow_sun' | 'thread') and a title card held
+//                   over its lines (`card`: 'complete', PROLOGUE COMPLETE); `won: true`
+//                   plays the scene only when the last chapter was won (never after a
+//                   skip); `music` is the track it plays under (an existing one); then
+//                   the handoff screen, which `titleCard` leads. (A legacy
 //                   { dialogue, titleCard } is one scene.)
 //   boss            null | { name, className, level, weapon, epithet, lore? } (P4's Varro;
 //                   never in a real act's boss pool). The chapter's isBoss enemy must
@@ -336,6 +340,7 @@ const CHAPTER_KEYS = new Set([
   'formation',
 ]);
 const ENDING_VEILS = Object.freeze(['hollow_sun', 'thread']);
+const ENDING_CARDS = Object.freeze(['complete']);
 const ROUTE_NODE_KEYS = new Set([
   'id',
   'row',
@@ -2127,11 +2132,11 @@ function validateEnding(ending, gameData, errors) {
     ending.scenes.forEach((scene, i) => {
       const at = `ending.scenes[${i}]`;
       if (!isPlainObject(scene)) {
-        errors.push(`${at} must be { dialogue, cue?, shake?, veil? }`);
+        errors.push(`${at} must be { dialogue, cue?, shake?, veil?, card?, won? }`);
         return;
       }
       for (const key of Object.keys(scene))
-        if (!['dialogue', 'cue', 'shake', 'veil'].includes(key))
+        if (!['dialogue', 'cue', 'shake', 'veil', 'card', 'won'].includes(key))
           errors.push(`${at} has unknown field "${key}"`);
       validateLineKey(`${at}.dialogue`, scene.dialogue, gameData, errors);
       if (scene.cue !== undefined && !isId(scene.cue))
@@ -2140,6 +2145,10 @@ function validateEnding(ending, gameData, errors) {
         errors.push(`${at}.shake must be true or false`);
       if (scene.veil !== undefined && !ENDING_VEILS.includes(scene.veil))
         errors.push(`${at}.veil must be one of ${ENDING_VEILS.join(', ')}`);
+      if (scene.card !== undefined && !ENDING_CARDS.includes(scene.card))
+        errors.push(`${at}.card must be one of ${ENDING_CARDS.join(', ')}`);
+      if (scene.won !== undefined && typeof scene.won !== 'boolean')
+        errors.push(`${at}.won must be true or false`);
     });
   if (
     ending.music !== undefined &&
