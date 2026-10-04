@@ -1,6 +1,7 @@
 // PrologueDeployNote — a prologue chapter's deploy screen opens with its own field note
 // (docs/specs/prologue-chapter.md §6 P4: "Your commander always deploys. Choose who
-// fights. Varro's axe reaches 1 tile: who can hit from 2?"). The chapter's deploy rule
+// fights", the axes swords beat and the Roster that equips before you deploy, and
+// "Varro's axe reaches 1 tile: who can hit from 2?"). The chapter's deploy rule
 // names the note (data/prologue.json `deploy.note`; copy in prologueContent). In the
 // prologue run it shows once per slot (it marks the in-run deploy hint it stands in
 // for); a replay shows it each time. The PrologueController, created once the battle
@@ -30,6 +31,8 @@ export function showPrologueDeployNote(scene, limits = {}) {
     slots: Number(limits?.max) || chapter.playerSpawns?.length || null,
     boss: boss?.name || null,
     touch: Boolean(scene.isMobileInput),
+    // The run's deploy screen has its Roster button; a replay's does not.
+    equip: Boolean(scene.runManager),
   });
   if (!text) return null;
   scene._prologueDeployNoteShown = true;

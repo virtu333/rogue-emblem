@@ -1,14 +1,13 @@
 // Prologue P4's policies and helpers (docs/specs/prologue-chapter.md §6 P4, §8), shared by
 // its proofs (PrologueP4.test.js). P4 is entered from P3's real end states (the run's own
 // army, at the levels P1-P3 leave it) after the watchtower's Rest (healed) or Scavenge
-// (HP carries), with any deploy the screen allows. The intended play applies every lesson
-// unprompted: clear the field first, keep Edric out of reach, strike Varro from 2 tiles
-// while he holds the throne (he steps down to answer), then everyone strikes him on open
-// ground, Gaspar with the weapon that beats an axe; a lord seizes the gate once he falls.
-// The naive play: the nearest enemy with the equipped weapon, plus only what the notes
-// say (heal the hurt, drink at 60%, no strike into a counter that kills, the commander
-// pulls back at half HP, strike the throne's holder from 2 where you can, and a lord
-// steps onto the gate and seizes once Varro falls).
+// (HP carries), with any deploy the screen allows, or from the replay's canned roster.
+// The naive play: the nearest enemy with the equipped weapon from the cheapest tile,
+// plus only what the notes say (the deploy note's sword against axes, heal the hurt, drink at 60%, no strike into a counter
+// that kills, switch to the weapon that shows ×2 on the forecast, a lord leaves the
+// foe whose weapon beats his to someone else to open, the commander pulls back at half HP, strike the throne's holder from 2 where you can, and a lord walks
+// to the gate and seizes once Varro falls). The
+// intended play: the same habits with every lesson applied (intended()).
 import { HeadlessBattle, HEADLESS_STATES } from './HeadlessBattle.js';
 import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
 import {
@@ -17,8 +16,8 @@ import {
   prologueProtectedNames,
 } from '../../src/engine/Prologue.js';
 import { enemyThreatTiles } from '../../src/engine/ThreatForecast.js';
-import { gridDistance } from '../../src/engine/Combat.js';
-import { equipWeapon } from '../../src/engine/UnitManager.js';
+import { getWeaponTriangleBonus, gridDistance } from '../../src/engine/Combat.js';
+import { canEquip, equipWeapon } from '../../src/engine/UnitManager.js';
 import { healUnitFully } from '../../src/engine/UnitHealth.js';
 import { serializeUnit } from '../../src/engine/RunManager.js';
 import * as P3 from './prologueP3Policies.js';
@@ -53,7 +52,10 @@ export const onThrone = (battle, u) => Boolean(u) && same(u, throne(battle));
  * P4's army: a roster (P3's end state, or the replay's), with the units named in
  * `deploy` fielded in that order (the deploy screen's choice; Edric always first).
  */
-export function startP4(seed, { roster = null, deploy = null, adjust = null } = {}) {
+export function startP4(
+  seed,
+  { roster = null, deploy = null, adjust = null, prepare = null } = {},
+) {
   installSeed(seed);
   const all = roster
     ? structuredClone(roster)
@@ -61,6 +63,7 @@ export function startP4(seed, { roster = null, deploy = null, adjust = null } = 
   adjust?.(all);
   const names = deploy || all.map((u) => u.name).slice(0, current.config.playerSpawns.length);
   const units = names.map((n) => all.find((u) => u.name === n)).filter(Boolean);
+  prepare?.(units);
   const battle = new HeadlessBattle(data, { ...PARAMS }, units);
   battle.init({ battleConfig: current.config });
   return battle;
@@ -175,10 +178,8 @@ function walkToThrone(battle, u, tiles) {
   moveAndWait(battle, best);
 }
 
-const isRanged = (o) => !o.melee;
 const terrainOf = (battle, t) => battle.grid.getTerrainAt(t.col, t.row)?.name || null;
 const healsHere = (battle, t) => ['Fort', 'Throne'].includes(terrainOf(battle, t));
-const reachesTwo = (u) => P3.combatWeapons(u).some((w) => P3.rangeOf(w).max >= 2);
 
 /** The tiles beside the throne a unit can stand on (the gate's step). */
 export function stepTiles(battle) {
@@ -204,114 +205,6 @@ function recoverTile(battle, u, tiles) {
   )[0];
 }
 
-/** Sera mends the most hurt ally from a tile where she survives (P3's habit). */
-function intendedHeal(battle, u, tiles) {
-  if (u.name !== 'Sera') return false;
-  const out = tiles.filter((t) => exposure(battle, u, t) === 0);
-  const plan =
-    P3.healPlan(battle, u, out, { below: 0.75 }) ||
-    P3.healPlan(
-      battle,
-      u,
-      tiles.filter((t) => exposure(battle, u, t) * 2 <= u.currentHP),
-      { below: 0.5 },
-    );
-  if (!plan) return false;
-  P3.healFrom(battle, plan.from[0], plan.ally);
-  return true;
-}
-
-/**
- * The intended play (§6 P4 "Prompts fade"): the naive play's habits with every lesson
- * applied, unprompted. Seize the moment a lord can; Sera mends an ally under three
- * quarters from a tile where she survives (P3); a unit at half HP drinks or recovers on
- * healing ground; the nearest enemy is struck with the better weapon (the triangle,
- * the double: P1, P2) from the strike tile the fewest enemies reach, and only when the
- * counter and the next enemy phase leave the striker standing (Edric with a margin);
- * Varro on the throne is struck from 2 where you can, in melee from the gate's step only
- * with that margin; fragile units keep out of reach (P3).
- */
-export function intended(battle, u, tiles) {
-  if (trySeize(battle, u, tiles)) return;
-  const v = boss(battle);
-  if (!v) {
-    if (u.isLord && throne(battle)) return walkToThrone(battle, u, tiles);
-    return moveAndWait(battle, recoverTile(battle, u, tiles));
-  }
-  if (intendedHeal(battle, u, tiles)) return;
-  const fragile = u.name === 'Sera' || u.name === 'Tamsin';
-  const low = u.currentHP * Number(process.env.P4LOW || 2) <= u.stats.HP;
-  if (low && P3.drinkIfHurt(battle, u, recoverTile(battle, u, tiles))) return;
-  const all = strikeOptions(battle, u, tiles, { perTarget: 8 });
-  const sureKill = low ? all.find((o) => o.kills && o.counter === 0 && o.after >= 1) : null;
-  if (sureKill) return attackFrom(battle, sureKill.from, sureKill.target, sureKill.weapon);
-  if (low) return moveAndWait(battle, recoverTile(battle, u, tiles));
-  // A guard asleep at a post off the road to the gate is left alone (seize needs only
-  // Varro): its tiles are avoided and it is never struck first.
-  const asleep = optionalGuards(battle);
-  if (asleep.length) {
-    const clear = tiles.filter((t) => asleep.every((g) => !nearPost(g, t)));
-    if (clear.length) tiles = clear;
-  }
-  const margin = u.isCommander ? Number(process.env.P4EM || 6) : Number(process.env.P4GM || 2);
-  const distance = new Map(battle.enemyUnits.map((e) => [e, P3.pathDistances(battle, u, e)(u)]));
-  const options = all.filter((o) => {
-    if (asleep.includes(o.target) || !tiles.some((t) => same(t, o.from))) return false;
-    if (fragile && !(o.counter === 0 && o.exp * 2 <= u.currentHP)) return false;
-    if (o.target.isBoss && onThrone(battle, o.target) && o.melee && reachesTwo(u)) return false;
-    return o.after >= margin;
-  });
-  // The nearest foe first (the naive habit), the best blow on it.
-  const value = (o) =>
-    -distance.get(o.target) * 10 +
-    (o.kills ? 30 : 0) +
-    o.dealt * (o.hit / 100) -
-    o.counter / 2 -
-    o.exp / 3;
-  const pick = options.sort((a, b) => value(b) - value(a) || a.from.cost - b.from.cost)[0];
-  if (pick) return attackFrom(battle, pick.from, pick.target, pick.weapon);
-  const out = tiles.filter((t) => exposure(battle, u, t) === 0);
-  moveAndWait(battle, holdTile(battle, u, fragile && out.length ? out : tiles, asleep));
-}
-
-/** Guards still at a post more than 3 tiles from the gate (and its step): optional. */
-export function optionalGuards(battle) {
-  const gate = [throne(battle), ...stepTiles(battle)].filter(Boolean);
-  return battle.enemyUnits.filter((e) => {
-    if (!(e.currentHP > 0) || e.isBoss || e.aiMode !== 'guard') return false;
-    const post = e.guardPost || { col: e.col, row: e.row };
-    if (!same(e, post)) return false;
-    return gate.every((g) => gridDistance(post.col, post.row, g.col, g.row) > 3);
-  });
-}
-
-/** Within the radius a guard charges from (AIController: 3 tiles of its post). */
-function nearPost(g, t) {
-  const post = g.guardPost || { col: g.col, row: g.row };
-  return gridDistance(post.col, post.row, t.col, t.row) <= 3;
-}
-
-intended.orderFor = () => ['Edric', 'Gaspar', 'Tamsin', 'Sera'];
-
-/** The closest tile to the nearest foe where `u` survives the worst enemy phase. */
-export function holdTile(battle, u, tiles, skip = []) {
-  const foes = battle.enemyUnits.filter((e) => e.currentHP > 0 && !skip.includes(e));
-  const nonBoss = foes.filter((e) => !e.isBoss);
-  // The nearest awake foe, else the gate's step (Varro is fought from there).
-  const goal = nonBoss.length
-    ? nonBoss.map((e) => ({ e, d: P3.pathDistances(battle, u, e)(u) })).sort((a, b) => a.d - b.d)[0]
-        .e
-    : stepTiles(battle)[0] || foes[0];
-  const to = goal ? P3.pathDistances(battle, u, goal) : () => 0;
-  const fragile = u.name === 'Sera' || u.name === 'Tamsin';
-  const keep = u.isCommander ? 6 : fragile ? Math.ceil(u.currentHP / 2) : 3;
-  const scored = tiles.map((t) => ({ t, exp: exposure(battle, u, t) }));
-  const okay = scored.filter((x) => u.currentHP - x.exp >= keep);
-  if (okay.length)
-    return okay.sort((p, q) => to(p.t) - to(q.t) || p.exp - q.exp || p.t.cost - q.t.cost)[0].t;
-  return scored.sort((p, q) => p.exp - q.exp || to(p.t) - to(q.t) || p.t.cost - q.t.cost)[0].t;
-}
-
 /**
  * The naive play (§8): the nearest enemy with the equipped weapon from the cheapest
  * tile, plus what the notes say. Seize once Varro falls (the coach); heal an ally
@@ -328,15 +221,7 @@ function naiveCore(
   battle,
   u,
   tiles,
-  {
-    bestWeapon = false,
-    healBelow = 0.6,
-    margin = 0,
-    lookAhead = false,
-    commanderSafe = false,
-    skipAsleep = false,
-    bossWary = false,
-  } = {},
+  { bestWeapon = false, healBelow = 0.6, margin = 0, bossWary = false } = {},
 ) {
   if (trySeize(battle, u, tiles)) return;
   const v = boss(battle);
@@ -376,52 +261,37 @@ function naiveCore(
     if (w && w !== u.weapon) equipWeapon(u, w);
   }
   const equipped = u.weapon && u.weapon.type !== 'Staff' ? u.weapon : weapons[0];
-  // `skipAsleep` (the intended play): a guard asleep off the road to the gate is left
-  // alone (seize needs only Varro), and its tiles are avoided.
-  const asleep = skipAsleep ? optionalGuards(battle) : [];
-  if (asleep.length) {
-    const clear = tiles.filter((t) => asleep.every((g) => !nearPost(g, t)));
-    if (clear.length) tiles = clear;
-  }
   const byDistance = battle.enemyUnits
-    .filter((e) => e.currentHP > 0 && !asleep.includes(e))
+    .filter((e) => e.currentHP > 0)
     .map((e) => ({ e, d: P3.pathDistances(battle, u, e)(u) }))
     .sort((x, y) => x.d - y.d)
     .map((x) => x.e);
   for (const target of byDistance) {
     // Weapon choice (P2's lesson, `bestWeapon`): the weapon whose forecast deals the
-    // most against this foe; the naive keeps the equipped one.
+    // most against this foe. The naive keeps the equipped one, except as P2's doubling
+    // note says ("Switch weapons on the forecast and watch the ×2"): when it strikes
+    // once and another weapon would strike twice from here, that one.
     const weapon = bestWeapon
       ? pickWeapon(battle, u, target, weapons, tiles) || equipped
-      : equipped;
+      : doublingSwitch(battle, u, target, equipped, weapons, tiles);
     // The boss note: the throne's holder is struck from 2 where you can. A unit whose
-    // weapon reaches 2 strikes from there; one that can't swings in melee (MELEE_ON_THRONE).
+    // weapon reaches 2 strikes from there; one that can't swings in melee.
     const reaches2 = P3.rangeOf(weapon).max >= 2;
     const fromTiles = P3.strikeTiles(tiles, target, weapon).filter(
       (t) =>
         !(target.isBoss && onThrone(battle, target)) ||
         gridDistance(t.col, t.row, target.col, target.row) >= 2 ||
-        (!reaches2 && naive.meleeOnThrone),
+        !reaches2,
     );
-    // `commanderSafe` (the intended play): the commander strikes only from a tile where
-    // the counter and every hit and crit of the next enemy phase leave him standing.
+    // `bossWary` (the intended play): the commander never ends a strike inside Varro's
+    // answer (the boss note: his axe reaches the gate's step) when that strike's counter
+    // and Varro's blow together could drop him.
     const safeFor = (t, f) => {
-      // The intended commander never ends in Varro's answer when the counter and his
-      // blow together could drop him (the boss note: his axe reaches the gate's step).
-      if (bossWary && u.isCommander && v && v !== target) {
-        const zone = bossReach(battle, v);
-        if (zone?.has(key(t))) {
-          const vs = worstDamage(forecastAt(battle, v, v, v.weapon, { ...u, col: t.col, row: t.row }).attacker, { crits: true }); // prettier-ignore
-          if (worstDamage(f.defender, { crits: true }) + vs >= u.currentHP) return false;
-        }
-      }
-      if (!(commanderSafe && u.isCommander)) return true;
-      const kills = f.attacker.hit >= 100 && f.attacker.damage * f.attacker.attackCount >= target.currentHP; // prettier-ignore
-      const held = u.weapon;
-      u.weapon = weapon;
-      const exp = exposure(battle, u, t, { exclude: kills ? target : null, crits: true });
-      u.weapon = held;
-      return worstDamage(f.defender, { crits: true }) + exp < u.currentHP;
+      if (!(bossWary && u.isCommander && v && v !== target)) return true;
+      const zone = bossReach(battle, v);
+      if (!zone?.has(key(t))) return true;
+      const vs = worstDamage(forecastAt(battle, v, v, v.weapon, { ...u, col: t.col, row: t.row }).attacker, { crits: true }); // prettier-ignore
+      return worstDamage(f.defender, { crits: true }) + vs < u.currentHP;
     };
     let from = null;
     let f = null;
@@ -436,35 +306,56 @@ function naiveCore(
     if (!from) continue;
     const counter = worstDamage(f.defender, { crits: false });
     if (counter >= u.currentHP - margin) continue;
-    // `lookAhead`: Varro on the throne never chases, so waiting is safe: a blow on him
-    // is struck only when his counter and his answer next phase leave the striker
-    // standing (the forecast plus Danger, P2's and P3's habit).
-    if (lookAhead && target.isBoss && onThrone(battle, target)) {
+    // P2's "Lances beat swords" note: the lord leaves a foe whose weapon beats his to
+    // someone else to open ("Let Gaspar open the Soldier"), and only finishes it.
+    if (u.isLord && !bestWeapon && beatenBy(weapon, target)) {
       const kills = f.attacker.hit >= 100 && f.attacker.damage * f.attacker.attackCount >= target.currentHP; // prettier-ignore
-      const held = u.weapon;
-      u.weapon = weapon;
-      const exp = exposure(battle, u, from, { exclude: kills ? target : null });
-      u.weapon = held;
-      if (counter + exp >= u.currentHP - margin) continue;
+      const opened = target.currentHP < target.stats.HP;
+      if (!kills && !opened) continue;
     }
     return attackFrom(battle, from, target, weapon);
   }
   const target = byDistance.find((e) => !e.isBoss) || byDistance[0];
   if (!target) return moveAndWait(battle, u);
-  // With only Varro left awake, the intended play walks to the gate's step.
-  const goal = skipAsleep && target.isBoss ? stepTiles(battle)[0] || target : target;
-  const to = P3.pathDistances(battle, u, goal);
-  let pool = tiles;
-  if (commanderSafe && u.isCommander) {
-    const safe = tiles.filter((t) => exposure(battle, u, t, { crits: true }) < u.currentHP);
-    pool = safe.length ? safe : [recoverTile(battle, u, tiles)];
-  }
-  const best = [...pool].sort(
+  const to = P3.pathDistances(battle, u, target);
+  const best = [...tiles].sort(
     (p, q) => to(p) - to(q) || p.cost - q.cost || p.row - q.row || p.col - q.col,
   )[0];
   moveAndWait(battle, best);
 }
 naive.orderFor = () => ['Edric', 'Gaspar', 'Tamsin', 'Sera'];
+
+/**
+ * The deploy note (in the run): Varro's men carry axes and swords beat axes, so Roster
+ * equips before deploying. A fielded unit holding a weapon axes beat, and carrying one
+ * that beats axes, equips that one.
+ */
+export function equipAgainstAxes(units) {
+  const axe = { type: 'Axe' };
+  for (const u of units) {
+    if (!u.weapon || getWeaponTriangleBonus(u.weapon, axe).damage >= 0) continue;
+    const better = (u.inventory || []).find(
+      (w) => w !== u.weapon && getWeaponTriangleBonus(w, axe).damage > 0 && canEquip(u, w),
+    );
+    if (better) equipWeapon(u, better);
+  }
+}
+naive.prepare = equipAgainstAxes;
+
+/** The triangle turns against `weapon` when it strikes `target` (P2's note). */
+function beatenBy(weapon, target) {
+  return getWeaponTriangleBonus(weapon, target.weapon).damage < 0;
+}
+
+/** P2's doubling note: the equipped weapon, or one that doubles where it does not. */
+function doublingSwitch(battle, u, target, equipped, weapons, tiles) {
+  const doubles = (w) => {
+    const from = P3.strikeTiles(tiles, target, w)[0];
+    return from ? forecastAt(battle, u, from, w, target).attacker.attackCount >= 2 : null;
+  };
+  if (doubles(equipped) !== false) return equipped;
+  return weapons.find((w) => w !== equipped && doubles(w) === true) || equipped;
+}
 
 /** The weapon with the most expected damage against `target` from a tile in reach. */
 function pickWeapon(battle, u, target, weapons, tiles) {
@@ -487,19 +378,24 @@ function pickWeapon(battle, u, target, weapons, tiles) {
   return best;
 }
 
-/** The naive habits with the lessons applied: weapon choice, heal at 75%, a margin. */
-export function smart(battle, u, tiles) {
+/**
+ * The intended play (§6 P4 "Prompts fade"): the naive habits with every lesson applied,
+ * unprompted. The weapon that answers the nearest foe best is in hand before acting and
+ * struck with (the triangle, P1-P2); Sera mends an ally under three quarters (P3); Edric
+ * keeps a margin of 4 over a strike's counter and never ends a strike in Varro's answer
+ * when the two together could drop him (the boss note); the throne's holder is struck
+ * from 2 where you can.
+ */
+export function intended(battle, u, tiles) {
   return naiveCore(battle, u, tiles, {
     bestWeapon: true,
     healBelow: 0.75,
     margin: u.isCommander ? 4 : 0,
-    commanderSafe: process.env.P4SAFE === '1',
-    skipAsleep: process.env.P4SKIP === '1',
-    bossWary: process.env.P4WARY !== '0',
+    bossWary: true,
   });
 }
-smart.orderFor = () => ['Edric', 'Gaspar', 'Tamsin', 'Sera'];
-naive.meleeOnThrone = process.env.P4MELEE !== '0';
+intended.orderFor = () => ['Edric', 'Gaspar', 'Tamsin', 'Sera'];
+intended.prepare = equipAgainstAxes;
 
 /** One player phase under a policy, then the enemy phase. */
 export async function playTurn(battle, policy, onPhaseEnd = null) {
@@ -582,7 +478,7 @@ export async function tally(
   for (let i = 0; i < seeds; i++) {
     const seed = i + 1;
     const roster = rosters ? rosters[i % rosters.length] : null;
-    const battle = startP4(seed, { roster, deploy });
+    const battle = startP4(seed, { roster, deploy, prepare: policy.prepare });
     const fielded = battle.playerUnits.map((u) => u.name);
     const trail = await play(battle, policy, {
       maxTurns,

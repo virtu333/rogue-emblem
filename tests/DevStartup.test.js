@@ -227,7 +227,7 @@ describe('phone review routes (deploy previews)', () => {
     expect(hints.hasSeen('roster_skill_benched')).toBe(true);
     // Nothing else interrupts the review (the route map's own first-visit notes).
     expect(hints.shouldShow('nodemap_intro')).toBe(false);
-    expect(hints.hasSeen('nodemap_hp_persist')).toBe(true);
+    expect(hints.hasSeen('guide_prepare')).toBe(true);
   });
 
   it('roster_checks keeps a real save slot’s hints, and hints off stays off', () => {

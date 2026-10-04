@@ -4862,9 +4862,9 @@
             "portrait": "portrait_enemy_fighter"
           },
           {
-            "speaker": "Sera",
-            "line": "The gate is open. A lord must take it before the column regroups.",
-            "portrait": "portrait_lord_sera"
+            "speaker": "Edric",
+            "line": "The gate is ours. Now we see what comes up that road.",
+            "portrait": "portrait_lord_edric"
           }
         ]
       }
@@ -9663,6 +9663,12 @@
       {
         "speaker": "Sera",
         "line": "I have seen this road end at that gate. I have never seen past it."
+      }
+    ],
+    "p4_gate_open": [
+      {
+        "speaker": "Edric",
+        "line": "Varro is down. The gate is ours to take, before the column regroups."
       }
     ],
     "ending_east": [

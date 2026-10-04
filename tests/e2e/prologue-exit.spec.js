@@ -86,11 +86,20 @@ const slotKeys = (page) =>
     Object.keys(localStorage).filter((k) => /^emblem_rogue_slot_\d_(meta|run)$/.test(k)),
   );
 
+/**
+ * The ending after a skip in P1 (Edric alone): Sera is a voice not yet met (???), and
+ * the lines of those he never met, or that name them, are left out.
+ */
 async function readEnding(page, click) {
-  const ending = page.getByRole('dialog', { name: '???', exact: true });
-  for (let i = 0; i < 4; i++) {
-    await expect(ending).toBeVisible();
-    await click(ending.getByRole('button', { name: 'Continue', exact: true }));
+  for (const [speaker, text] of [
+    ['???', 'The ring has closed.'],
+    ['Edric', 'Something is eating the sun.'],
+    ['???', 'The Hollow Sun.'],
+    ['???', 'Not like this. I know this road now.'],
+  ]) {
+    const line = page.getByRole('dialog', { name: speaker, exact: true });
+    await expect(line).toContainText(text);
+    await click(line.getByRole('button', { name: 'Continue', exact: true }));
   }
   const card = page.getByRole('dialog', { name: 'Field notes', exact: true });
   await expect(card).toContainText('Every run is a thread');
@@ -294,6 +303,83 @@ test('desktop: with saves, Prologue is a chapter select; a replay never touches 
   await expect(pause).toContainText('nothing here is saved');
   await pause.getByRole('button', { name: 'Leave Prologue', exact: true }).click();
   await expect(pause).toContainText('Leave the prologue?');
+  await pause.getByRole('button', { name: 'Leave prologue', exact: true }).click();
+  await waitForScene(page, 'Title');
+  expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_meta'))).toBe(
+    metaBefore,
+  );
+  expect(await slotKeys(page)).toEqual(['emblem_rogue_slot_1_meta']);
+  expect(errors).toEqual([]);
+  await context.close();
+});
+
+test('desktop: the Quarry Gate replays from the chapter select: its deploy screen and formation, the canned army, nothing saved', async ({
+  browser,
+}) => {
+  const { context, page, errors } = await openTitle(browser, { phone: false, seedSlot: true });
+  const metaBefore = await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_meta'));
+  await page.getByRole('button', { name: /^Prologue/ }).click();
+  await page.getByRole('button', { name: 'The Quarry Gate', exact: true }).click();
+  await waitForScene(page, 'Battle');
+  // The deploy note, without the Roster advice (a replay has no roster to open).
+  const note = page.getByRole('dialog', { name: 'Field notes', exact: true });
+  await expect(note).toContainText('Your commander always deploys. Choose who fights: 3 slots.');
+  await expect(note).toContainText('swords beat axes.');
+  await expect(note).not.toContainText('Roster');
+  await expect(async () => {
+    if (await note.count())
+      await note.getByRole('button', { name: 'Continue', exact: true }).click({ timeout: 1000 }).catch(() => {}); // prettier-ignore
+    await expect(note).toHaveCount(0, { timeout: 1000 });
+  }).toPass();
+  const deploy = page.getByRole('dialog', { name: 'Deploy units', exact: true });
+  await expect(deploy).toContainText('/ 3 selected');
+  await expect(deploy.getByRole('button', { name: 'Roster', exact: true })).toHaveCount(0);
+  // Only the commander is chosen for you (no earlier lineup here): pick Gaspar and Sera.
+  await expect(deploy).toContainText('1 / 3 selected · Minimum 2');
+  await expect(deploy.getByRole('button', { name: 'Deploy', exact: true })).toBeDisabled();
+  for (const name of ['Gaspar', 'Sera']) {
+    const row = deploy.locator('.re-party-row', { hasText: name });
+    await row.click();
+    await expect(row).toHaveAttribute('aria-pressed', 'true');
+  }
+  await expect(deploy).toContainText('3 / 3 selected');
+  await deploy.getByRole('button', { name: 'Deploy', exact: true }).click();
+  const formation = page.getByRole('region', { name: 'Formation', exact: true });
+  await expect(formation).toContainText('Who stands in front takes the first blow.');
+  await formation.getByRole('button', { name: 'Auto-place', exact: true }).click();
+  await formation.getByRole('button', { name: 'Start battle', exact: true }).click();
+  await expect(note).toContainText('Seize: defeat Captain Varro');
+  await expect(note).toContainText('Par: win in 11 turns or fewer');
+  await expect(async () => {
+    if (await note.count())
+      await note.getByRole('button', { name: 'Continue', exact: true }).click({ timeout: 1000 }).catch(() => {}); // prettier-ignore
+    await expect(note).toHaveCount(0, { timeout: 1000 });
+  }).toPass();
+  await prologueReady(page, { gated: false });
+  const replay = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    return {
+      run: s.runManager ?? null,
+      chapter: s.battleParams.prologueChapter,
+      units: s.playerUnits.length,
+      gaspar: s.playerUnits.find((u) => u.name === 'Gaspar')?.weapon?.name ?? null,
+      varro: s.enemyUnits.find((u) => u.isBoss)?.name ?? null,
+      par: s.turnPar,
+      activeSlot: s.registry.get('activeSlot') ?? null,
+    };
+  });
+  expect(replay).toEqual({
+    run: null,
+    chapter: 'p4_quarry_gate',
+    units: 3,
+    gaspar: 'Iron Sword',
+    varro: 'Captain Varro',
+    par: 11,
+    activeSlot: null,
+  });
+  await page.keyboard.press('Escape');
+  const pause = page.getByRole('dialog', { name: 'Paused', exact: true });
+  await pause.getByRole('button', { name: 'Leave Prologue', exact: true }).click();
   await pause.getByRole('button', { name: 'Leave prologue', exact: true }).click();
   await waitForScene(page, 'Title');
   expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_meta'))).toBe(

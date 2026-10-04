@@ -1005,6 +1005,9 @@
           "Iron Bow"
         ]
       },
+      "rosterEquip": {
+        "old_knight": "Iron Sword"
+      },
       "deploy": {
         "min": 2,
         "note": "p4_deploy"
@@ -1192,6 +1195,9 @@
                   "row": 0
                 }
               }
+            },
+            {
+              "dialogue": "p4_gate_open"
             },
             {
               "note": "p4_seize_now"

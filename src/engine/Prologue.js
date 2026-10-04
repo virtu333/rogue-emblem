@@ -42,6 +42,10 @@
 //                     rosterItems   optional { <unit key>: [item names] }: what a replay
 //                                   adds to an authored unit's kit (the items the run
 //                                   would have handed it by then: Tamsin's bow)
+//                     rosterEquip   optional { <unit key>: weapon name }: the carried
+//                                   weapon a replay's unit holds (what the roster lesson
+//                                   and the deploy note have it equip by then: Gaspar's
+//                                   sword against P4's axes)
 //                     showPar       optional, default true: false hides the HUD par and
 //                                   turns the par's rules off (no late pressure, no
 //                                   rating); P1-P3 teach without it, P4 teaches it
@@ -169,6 +173,7 @@ import {
   canEquip,
   createLordUnit,
   createUnit,
+  equipWeapon,
   levelUp,
   applyLevelUpGains,
   parseWeaponProficiencies,
@@ -247,6 +252,7 @@ const CHAPTER_KEYS = new Set([
   'enemies',
   'npc',
   'rosterItems',
+  'rosterEquip',
   'villageTile',
   'thronePos',
   'escapeTiles',
@@ -967,13 +973,16 @@ export function isSpecialRosterKey(key, gameData) {
 export function buildPrologueRoster(prologue, gameData, chapter, { difficultyId = 'normal' } = {}) {
   const levels = chapter?.rosterLevels || null;
   const items = chapter?.rosterItems || null;
+  const equips = isPlainObject(chapter?.rosterEquip) ? chapter.rosterEquip : {};
   return (Array.isArray(chapter?.roster) ? chapter.roster : []).map((key) => {
+    let unit;
     if (isSpecialRosterKey(key, gameData)) {
-      const unit = createSpecialCharacter(key, gameData, { difficultyId });
+      unit = createSpecialCharacter(key, gameData, { difficultyId });
       if (!unit) throw new Error(`Unknown prologue special character "${key}"`);
-      return unit;
-    }
-    return buildPrologueUnits(prologue, gameData, [key], { levels, items })[0];
+    } else unit = buildPrologueUnits(prologue, gameData, [key], { levels, items })[0];
+    const held = equips[key] && (unit.inventory || []).find((w) => w?.name === equips[key]);
+    if (held && unit.weapon !== held) equipWeapon(unit, held);
+    return unit;
   });
 }
 
@@ -1354,6 +1363,31 @@ function validateChapter(chapter, index, prologue, gameData, errors, seen) {
         for (const name of names)
           if (!findItem(gameData, name))
             errors.push(`${where}.rosterItems.${key}: unknown item "${name}"`);
+      }
+    }
+  }
+  if (chapter.rosterEquip !== undefined) {
+    if (!isPlainObject(chapter.rosterEquip)) {
+      errors.push(`${where}.rosterEquip must be an object of unit key -> weapon name`);
+    } else {
+      for (const [key, name] of Object.entries(chapter.rosterEquip)) {
+        if (!(chapter.roster || []).includes(key))
+          errors.push(`${where}.rosterEquip: "${key}" is not in this roster`);
+        else if (!(gameData.weapons || []).some((w) => w.name === name))
+          errors.push(`${where}.rosterEquip.${key}: unknown weapon "${name}"`);
+        else {
+          // The unit must carry it (built as the replay builds it).
+          let unit = null;
+          try {
+            unit = buildPrologueRoster(prologue, gameData, { ...chapter, rosterEquip: {} }).find(
+              (_, i) => chapter.roster[i] === key,
+            );
+          } catch {
+            unit = null;
+          }
+          if (unit && !(unit.inventory || []).some((w) => w?.name === name))
+            errors.push(`${where}.rosterEquip.${key}: "${name}" is not in its kit`);
+        }
       }
     }
   }

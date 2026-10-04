@@ -158,8 +158,10 @@ export const PROLOGUE_NOTES = Object.freeze({
   p3_better_plan: () =>
     'Same turn, better plan.\nIn a real run, Vision charges last the whole run: spend them on the turn that went wrong.',
   // P4, The Quarry Gate (§6 P4): only its own new rules (deploy, seize, par, the throne).
+  // `equip`: the deploy screen has its Roster button (the run; a replay has none).
   p4_deploy: (ctx) =>
     `Your commander always deploys. Choose who fights: ${Number(ctx?.slots) || 3} slots.\n` +
+    `${ctx?.boss || 'Varro'} and most of his men carry axes, and swords beat axes${ctx?.equip ? ': Roster equips before you deploy' : ''}.\n` +
     `${ctx?.boss || 'Varro'}'s axe reaches 1 tile: who can hit from 2?`,
   p4_seize_par: (ctx) =>
     `Seize: defeat ${ctx?.boss || 'Varro'}, then a lord steps onto the gate and chooses Seize.\n` +

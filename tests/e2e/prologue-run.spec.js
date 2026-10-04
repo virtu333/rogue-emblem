@@ -4,14 +4,18 @@
 // with the old hands; P2's win pays its authored loot and opens the row-2 fork (its
 // note), where Harrow's Market brings Tamsin in (the recruit card, her bow from the
 // rack) and the roster lesson's Withdraw is done with the real button; P3 opens with
-// Sera green, Edric reaches her and Talks, she acts at once; P3's win plays the ending
-// and lands in Home Base with the grant, whose Begin Run takes the first-run fast path. Skip takes
+// Sera green, Edric reaches her and Talks, she acts at once; P3's win opens the
+// watchtower (Sera's vision, then Rest behind its confirmation); P4's route preview
+// names Varro, its deploy screen and formation open the chapter, Varro falls and the
+// objective turns to the gate; the win plays the ending (the Hollow Sun, the thread cut,
+// the title card) and lands in Home Base with the grant, whose Begin Run takes the
+// first-run fast path. Skip takes
 // today's fast path. A refresh mid-chapter resumes the chapter or re-opens it from the
 // map. Every wait is on state, never on time.
 import { test, expect } from '@playwright/test';
 import { waitForScene as waitForSceneQuick } from './helpers.js';
 
-test.setTimeout(300000);
+test.setTimeout(480000);
 
 async function waitForScene(page, key) {
   try {
@@ -97,7 +101,7 @@ async function readLine(page, speaker, text) {
   await line.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
-test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the fork joins Tamsin, P3 recruits Sera and ends in Home Base with the grant', async ({
+test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the fork joins Tamsin, P3 recruits Sera, the watchtower rests, P4 deploys and falls to the ending, Home Base with the grant', async ({
   browser,
 }) => {
   const { context, page, errors } = await boot(browser);
@@ -326,25 +330,119 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
     return s.battleState === 'PLAYER_IDLE' && sera && !sera.hasActed && s.npcUnits.length === 0;
   });
 
-  // P3 won: Sera's lines, then the ending (four unnamed lines, the title card), Home Base.
+  // P3 won: Sera's lines, then the route map again: the watchtower is next.
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
   await readLine(page, 'Sera', "I don't stand at the front.");
   await readLine(page, 'Edric', 'Then stand behind us.');
-  // The ending: four unnamed lines, the title card, then Home Base.
-  const ending = page.getByRole('dialog', { name: '???', exact: true });
-  await expect(ending).toBeVisible();
-  for (let i = 0; i < 4; i++) {
-    await expect(ending).toBeVisible();
-    await ending.getByRole('button', { name: 'Continue', exact: true }).click();
-  }
+  await waitForScene(page, 'NodeMap');
+  await expect(route.locator('.re-node[data-node="prologue_4"]')).toHaveClass(/is-live/);
+  expect((await slotMeta(page)).prologue.state).toBe('in_progress');
+
+  // Row 4: the Old Watchtower (Ruins). Sera's vision on arrival, then Rest or Scavenge.
+  await route.locator('.re-node[data-node="prologue_4"]').click();
+  await expect(route.locator('.re-loom-card')).toContainText('The Old Watchtower');
+  await route.getByRole('button', { name: 'Travel', exact: true }).click();
+  await readLine(page, 'Sera', 'From up here I can see it.');
+  // The vision is saved as spoken before its lines play: a refresh never replays it.
+  expect((await slotRun(page)).shownDialogueKeys).toContain('prologue_lines:prologue_4');
+  await readLine(page, 'Sera', 'A crowned man watches them work.');
+  await readLine(page, 'Sera', 'Under the consecrated stones, something sleeps.');
+  await readLine(page, 'Edric', 'Then we hold the gate.');
+  await readLine(page, 'Sera', 'I have never seen past it.');
+  const ruins = page.getByRole('dialog', { name: 'Ruins sanctuary', exact: true });
+  await expect(ruins).toContainText("The watchtower's stores are old but sound.");
+  // Rest, behind its confirmation (the choice is final).
+  await ruins.getByRole('button', { name: /^Rest — heal everyone/ }).click();
+  const restConfirm = page.getByRole('dialog', { name: 'Rest here?', exact: true });
+  await restConfirm.getByRole('button', { name: 'Rest', exact: true }).click();
+  await expect(ruins).toContainText('healed');
+  await expect(ruins.getByRole('button', { name: /^Scavenge/ })).toHaveCount(0);
+  await ruins.getByRole('button', { name: 'Leave', exact: true }).click();
+  await expect(ruins).toHaveCount(0);
+
+  // P4: the route preview names the boss and his reach.
+  await expect(route.locator('.re-node[data-node="prologue_5"]')).toHaveClass(/is-live/);
+  await route.locator('.re-node[data-node="prologue_5"]').click();
+  await expect(route.locator('.re-loom-card')).toContainText('The Quarry Gate');
+  await expect(route.locator('.re-loom-card')).toContainText(
+    'Boss · Captain Varro · Fighter · Iron Axe (reach 1)',
+  );
+  await route.getByRole('button', { name: 'Travel', exact: true }).click();
+  await waitForScene(page, 'Battle');
+  // The first deploy screen: its note, four units for three slots, Edric locked in.
+  await continueNote(page, 'Your commander always deploys. Choose who fights: 3 slots.');
+  const deploy = page.getByRole('dialog', { name: 'Deploy units', exact: true });
+  await expect(deploy).toContainText('Seize: defeat the boss, then capture the throne with a Lord');
+  await expect(deploy).toContainText('Commander · Required');
+  await expect(deploy).toContainText('/ 3 selected');
+  await deploy.getByRole('button', { name: 'Deploy', exact: true }).click();
+  // Varro's card and lines over the empty field (he is the prologue's own boss).
+  await readLine(page, 'Captain Varro', 'There is no border.');
+  await readLine(page, 'Edric', 'Then you will have to cross my people');
+  // The first formation: the army waits off the field with the lesson line; Auto-place
+  // fills the start tiles, then Start battle.
+  const formation = page.getByRole('region', { name: 'Formation', exact: true });
+  await expect(formation).toContainText('Who stands in front takes the first blow.');
+  await expect(formation).toContainText('0 / 3 placed');
+  await formation.getByRole('button', { name: 'Auto-place', exact: true }).click();
+  await expect(formation).toContainText('3 / 3 placed');
+  await formation.getByRole('button', { name: 'Start battle', exact: true }).click();
+  // The chapter opens on its objective and par.
+  await continueNote(page, 'Seize: defeat Captain Varro, then a lord steps onto the gate');
+  await prologueIdle(page);
+  const p4 = await battle(page);
+  expect(p4).toMatchObject({ mode: 'prologue', chapter: 'p4_quarry_gate', nodeId: 'prologue_5' });
+  expect(p4.turnPar).toBeGreaterThan(0);
+  expect(p4.units).toHaveLength(3);
+  expect(p4.units).toContain('Edric');
+  await expect(guide).toContainText('Defeat Captain Varro, then Seize the gate');
+  await waitForSuspendSave(page);
+  expect((await slotRun(page)).battleInProgress.nodeId).toBe('prologue_5');
+
+  // Varro falls: Edric's line, and the objective turns to the gate.
+  await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const varro = s.enemyUnits.find((u) => u.isBoss);
+    varro.currentHP = 0;
+    await s.removeUnit(varro, { killer: s.playerUnits.find((u) => u.name === 'Edric') });
+    s.checkBattleEnd();
+  });
+  await readLine(page, 'Edric', 'Varro is down. The gate is ours to take');
+  await continueNote(page, 'Captain Varro has fallen. Now a lord: step onto the gate and Seize.');
+  await expect(guide).toContainText('A lord: step onto the gate and Seize');
+
+  // The gate seized (scripted): the ending. The ritual seen from the gate, the Hollow
+  // Sun, the pale man on the ridge, the thread breaks, then the title card.
+  await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
+  // Varro's last words (a boss's defeat lines play at victory), then the ending.
+  await readLine(page, 'Captain Varro', 'Nobody said what was coming up the road.');
+  await readLine(page, 'Edric', 'Now we see what comes up that road.');
+  await readLine(page, 'Gaspar', 'Look east, past the fens.');
+  await readLine(page, 'Sera', 'The ring has closed.');
+  await readLine(page, 'Tamsin', 'the ground is moving!');
+  await readLine(page, 'Edric', 'Something is eating the sun.');
+  await readLine(page, 'Sera', 'The Hollow Sun.');
+  await expect(page.locator('.ce-veil-layer--hollow_sun .ce-hollow-sun')).toHaveCount(1);
+  await readLine(page, 'Gaspar', 'A pale man, watching us.');
+  await readLine(page, 'Sera', 'He never runs.');
+  await readLine(page, 'Edric', 'Sera, tell me what to do.');
+  await expect(page.locator('.ce-runend-word')).toHaveText('THE THREAD IS CUT');
+  await readLine(page, 'Sera', 'Not like this. I know this road now. Again, from the morning I reached you.'); // prettier-ignore
   await expect(note).toContainText('Every run is a thread');
+  // Nothing is written until the card is read: the run save is still the prologue's.
+  expect((await slotMeta(page)).prologue.state).toBe('in_progress');
   await note.getByRole('button', { name: 'Continue', exact: true }).click();
   await waitForScene(page, 'HomeBase');
   const meta = await slotMeta(page);
   expect(meta.prologue).toMatchObject({
     state: 'complete',
     grantPaid: true,
-    chaptersCompleted: ['p1_banner_at_dawn', 'p2_old_hands', 'p3_seer_on_the_road'],
+    chaptersCompleted: [
+      'p1_banner_at_dawn',
+      'p2_old_hands',
+      'p3_seer_on_the_road',
+      'p4_quarry_gate',
+    ],
   });
   expect(meta.totalValor).toBe(60);
   expect(meta.totalSupply).toBe(40);
@@ -466,6 +564,141 @@ test('a refresh mid-P1 offers Resume Battle (the chapter as left) and Continue f
     ),
   ).toBeNull();
   await expect(page.getByRole('region', { name: 'Prologue guide', exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+  await context.close();
+});
+
+test('a refresh at the gate: the deploy screen returns to the route map, a battle under way resumes as left', async ({
+  browser,
+}) => {
+  const { context, page, errors } = await boot(browser);
+  // A prologue run standing before the gate (P1-P3 won, the watchtower rested), saved.
+  await page.evaluate(async () => {
+    const { RunManager, saveRun } = await import('/src/engine/RunManager.js');
+    const { buildPrologueRoster } = await import('/src/engine/Prologue.js');
+    const gd = window.__emblemRogueGame.scene.getScene('Title').gameData;
+    const rm = new RunManager(gd, null);
+    rm.startPrologue(gd, gd.prologue);
+    rm.completeBattle(rm.getRoster(), 'prologue_0', 0);
+    rm.completeBattle(rm.getRoster(), 'prologue_1', 0);
+    rm.currentNodeId = 'prologue_2a';
+    rm.arriveAtPrologueNode('prologue_2a');
+    rm.markNodeComplete('prologue_2a');
+    const p4 = gd.prologue.chapters.find((c) => c.id === 'p4_quarry_gate');
+    const sera = buildPrologueRoster(gd.prologue, gd, p4).find((u) => u.name === 'Sera');
+    rm.completeBattle([...rm.getRoster(), sera], 'prologue_3', 0);
+    rm.currentNodeId = 'prologue_4';
+    rm.markDialogueShown('prologue_lines:prologue_4');
+    rm.markNodeComplete('prologue_4');
+    if (!saveRun(rm, null, 1).ok) throw new Error('could not save the run');
+    localStorage.setItem(
+      'emblem_rogue_slot_1_meta',
+      JSON.stringify({
+        savedAt: 1,
+        prologue: {
+          state: 'in_progress',
+          grantPaid: false,
+          chaptersCompleted: ['p1_banner_at_dawn', 'p2_old_hands', 'p3_seer_on_the_road'],
+          practised: [],
+        },
+      }),
+    );
+  });
+  const resume = async () => {
+    await page.reload();
+    await waitForScene(page, 'Title');
+    // The title names the prologue's run, not an act.
+    await page.getByRole('button', { name: 'Resume · Prologue', exact: true }).click();
+  };
+  const route = page.locator('.re-node-map');
+  const travelToGate = async () => {
+    await waitForScene(page, 'NodeMap');
+    const intro = page.getByRole('dialog', { name: 'Field notes', exact: true });
+    if (await intro.isVisible().catch(() => false)) await continueNote(page, 'Tap any node');
+    await expect(route.locator('.re-node[data-node="prologue_5"]')).toHaveClass(/is-live/);
+    await route.locator('.re-node[data-node="prologue_5"]').click();
+    await route.getByRole('button', { name: 'Travel', exact: true }).click();
+    await waitForScene(page, 'Battle');
+  };
+  await resume();
+  await travelToGate();
+  await continueNote(page, 'Roster equips before you deploy');
+  const deploy = page.getByRole('dialog', { name: 'Deploy units', exact: true });
+  await expect(deploy).toBeVisible();
+  await expect(deploy.getByRole('button', { name: 'Roster', exact: true })).toBeVisible();
+  // A refresh at the deploy screen: nothing was entered yet, so the map has the gate.
+  expect((await slotRun(page)).battleInProgress ?? null).toBeNull();
+  await resume();
+  await travelToGate();
+  // The deploy note was read on this slot: it never repeats.
+  await expect(deploy).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Field notes', exact: true })).toHaveCount(0);
+  // Only the commander is chosen for you (no earlier lineup here): pick Gaspar and Sera.
+  await expect(deploy).toContainText('1 / 3 selected · Minimum 2');
+  await expect(deploy.getByRole('button', { name: 'Deploy', exact: true })).toBeDisabled();
+  for (const name of ['Gaspar', 'Sera']) {
+    const row = deploy.locator('.re-party-row', { hasText: name });
+    await row.click();
+    await expect(row).toHaveAttribute('aria-pressed', 'true');
+  }
+  await expect(deploy).toContainText('3 / 3 selected');
+  await deploy.getByRole('button', { name: 'Deploy', exact: true }).click();
+  await readLine(page, 'Captain Varro', 'There is no border.');
+  await readLine(page, 'Edric', 'Then you will have to cross my people');
+  const formation = page.getByRole('region', { name: 'Formation', exact: true });
+  await formation.getByRole('button', { name: 'Auto-place', exact: true }).click();
+  await formation.getByRole('button', { name: 'Start battle', exact: true }).click();
+  await continueNote(page, 'Seize: defeat Captain Varro');
+  await prologueIdle(page);
+  // One move made, and checkpointed.
+  const before = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const edric = s.playerUnits.find((u) => u.name === 'Edric');
+    s.selectUnit(edric);
+    const [col, row] = [...s.movementRange.keys()]
+      .map((k) => k.split(',').map(Number))
+      .find(([c, r]) => (c !== edric.col || r !== edric.row) && !s.getUnitAt(c, r));
+    s.moveUnit(edric, col, row);
+    return { col, row };
+  });
+  await page.waitForFunction(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    return s.battleState === 'UNIT_ACTION_MENU';
+  });
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.actionMenu.find((row) => row?.text === 'Wait')._action();
+  });
+  await prologueIdle(page);
+  await page.waitForFunction(({ col, row }) => {
+    const run = JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run') || 'null');
+    const units = run?.battleInProgress?.checkpoint?.playerUnits || [];
+    const edric = units.find((u) => u.name === 'Edric');
+    return edric && edric.col === col && edric.row === row;
+  }, before);
+  await resume();
+  await page.getByRole('button', { name: 'Resume Battle', exact: true }).click();
+  await waitForScene(page, 'Battle');
+  await prologueIdle(page);
+  const resumed = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const edric = s.playerUnits.find((u) => u.name === 'Edric');
+    return {
+      chapter: s.battleParams.prologueChapter,
+      units: s.playerUnits.length,
+      edric: { col: edric.col, row: edric.row, acted: Boolean(edric.hasActed) },
+      formation: Boolean(s._formation?.active),
+    };
+  });
+  expect(resumed).toEqual({
+    chapter: 'p4_quarry_gate',
+    units: 3,
+    edric: { ...before, acted: true },
+    formation: false,
+  });
+  await expect(page.getByRole('region', { name: 'Prologue guide', exact: true })).toContainText(
+    'Defeat Captain Varro, then Seize the gate',
+  );
   expect(errors).toEqual([]);
   await context.close();
 });

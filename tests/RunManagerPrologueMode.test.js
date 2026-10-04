@@ -376,3 +376,62 @@ describe('the restart', () => {
     expect(loadRun(data, 1)).toBeNull();
   });
 });
+
+describe('the watchtower and the gate survive a refresh', () => {
+  /** A run at the watchtower, its vision spoken (the arrival marks it before the lines). */
+  const atTower = () => {
+    const rm = prologue();
+    rm.completeBattle(rm.roster, 'prologue_0', 0);
+    rm.completeBattle(rm.roster, 'prologue_1', 0);
+    rm.currentNodeId = 'prologue_2b';
+    rm.markNodeComplete('prologue_2b');
+    rm.completeBattle(rm.roster, 'prologue_3', 0);
+    rm.currentNodeId = 'prologue_4';
+    rm.markDialogueShown('prologue_lines:prologue_4');
+    return rm;
+  };
+
+  it('a refresh before the choice: the vision stays spoken and both paths stay open', async () => {
+    const { ruinsChoice, ruinsChoiceBlock } = await import('../src/engine/RuinsCommands.js');
+    const rm = atTower();
+    expect(saveRun(rm, null, 1).ok).toBe(true);
+    const loaded = loadRun(data, 1);
+    expect(loaded.hasShownDialogue('prologue_lines:prologue_4')).toBe(true);
+    expect(nodeOf(loaded, 'prologue_4').completed).toBeFalsy();
+    expect(ruinsChoice(loaded, 'prologue_4')).toBeNull();
+    expect(ruinsChoiceBlock(loaded, 'prologue_4', 'rest')).toBe('');
+    expect(ruinsChoiceBlock(loaded, 'prologue_4', 'scavenge')).toBe('');
+  });
+
+  it('a refresh after Rest: the choice is kept (Scavenge stays closed) and nobody is healed twice', async () => {
+    const { chooseRuinsPath, ruinsChoice, ruinsChoiceBlock } = await import('../src/engine/RuinsCommands.js'); // prettier-ignore
+    const rm = atTower();
+    rm.roster[0].currentHP = 3;
+    expect(chooseRuinsPath(rm, 'prologue_4', 'rest').ok).toBe(true);
+    expect(rm.roster[0].currentHP).toBe(rm.roster[0].stats.HP);
+    expect(saveRun(rm, null, 1).ok).toBe(true);
+    const loaded = loadRun(data, 1);
+    expect(ruinsChoice(loaded, 'prologue_4')).toBe('rest');
+    expect(ruinsChoiceBlock(loaded, 'prologue_4', 'scavenge')).not.toBe('');
+    expect(loaded.roster[0].currentHP).toBe(loaded.roster[0].stats.HP);
+  });
+
+  it('the gate: entering it records a battle flag; a refresh before the first checkpoint returns to the map', () => {
+    const rm = atTower();
+    rm.markNodeComplete('prologue_4');
+    const gate = nodeOf(rm, 'prologue_5');
+    rm.beginBattleInProgress(gate.id, { battleParams: rm.getBattleParams(gate), isBoss: true });
+    expect(saveRun(rm, null, 1).ok).toBe(true);
+    // No checkpoint yet (the deploy screen and formation come before the first one): the
+    // load is the map with the gate still to travel to, never a half-entered battle.
+    const loaded = loadRun(data, 1);
+    expect(loaded.battleInProgress).toBeNull();
+    expect(loaded.getAvailableNodes().map((n) => n.id)).toEqual(['prologue_5']);
+    // With a checkpoint it is Resume Battle's, the chapter and the boss flag intact.
+    rm.setBattleCheckpoint({ recoveryKind: 'suspend', turn: 3 });
+    expect(saveRun(rm, null, 1).ok).toBe(true);
+    const resumed = loadRun(data, 1);
+    expect(resumed.battleInProgress).toMatchObject({ nodeId: 'prologue_5', isBoss: true });
+    expect(resumed.getActivePrologueChapter()?.id).toBe('p4_quarry_gate');
+  });
+});
