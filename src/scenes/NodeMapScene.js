@@ -65,6 +65,8 @@ import { firstRunAfterPrologue, prologueJoinedKeys } from '../engine/Prologue.js
 import { finishPrologue, offerSkipRetry } from '../ui/PrologueEnding.js';
 import { PROLOGUE_FIRST_RUN_ROUTE_NOTE, PROLOGUE_FORK_NOTE } from '../data/prologueContent.js';
 import { arriveAtPrologueNode } from '../ui/PrologueArrival.js';
+import { unarmedDeparture } from '../engine/PrologueDeparture.js';
+import { confirmPrologueDeparture } from '../ui/PrologueDepartureWarning.js';
 import { canShowRunNote, markNoteSeen } from '../ui/guidanceGate.js';
 import { guidanceText } from '../engine/Guidance.js';
 
@@ -176,6 +178,10 @@ export class NodeMapScene extends Phaser.Scene {
     this.isSceneReady = false;
     this.battleLaunchInFlight = false;
     this._pendingNodeSelection = null;
+    // A prologue arrival or departure choice left open by a scene that shut down must
+    // not hold the next visit's travel (the scene object is reused).
+    this._prologueArrivalBusy = false;
+    this._prologueDepartureBusy = false;
     // Set only when the first-run fast path routed here (skipping Home Base /
     // Difficulty / Blessing). Used to show the one-time onboarding hint below.
     this._isFirstRunFastPath = data.firstRun === true;
@@ -1813,7 +1819,12 @@ export class NodeMapScene extends Phaser.Scene {
     });
   }
 
-  onNodeClick(node) {
+  /**
+   * @param {object} node
+   * @param {{ departureChecked?: boolean }} [options] - `departureChecked`: this Travel
+   *   attempt already answered the unarmed-departure choice (Continue anyway)
+   */
+  onNodeClick(node, { departureChecked = false } = {}) {
     if (this.isTransitioning) return;
     if (this.battleLaunchInFlight) return;
     if (this.runManager?.pendingBattleReward) {
@@ -1839,7 +1850,24 @@ export class NodeMapScene extends Phaser.Scene {
     )
       return;
     if (node.completed && !this.runManager.canReenterService?.(node.id)) return;
-    if (this._prologueArrivalBusy) return;
+    if (this._prologueArrivalBusy || this._prologueDepartureBusy) return;
+    // Leaving the fork with Tamsin unarmed: a choice, once per Travel attempt, never a
+    // gate (Continue anyway travels; Open Roster opens the roster on her).
+    const departure = departureChecked ? null : unarmedDeparture(this.runManager, node);
+    if (departure) {
+      this._prologueDepartureBusy = true;
+      const generation = this._sceneLifecycleGeneration;
+      void confirmPrologueDeparture(this, departure)
+        .catch(() => 'go')
+        .then((choice) => {
+          if (!isSceneLifecycleActive(this, generation)) return;
+          this._prologueDepartureBusy = false;
+          if (choice === 'go') this.onNodeClick(node, { departureChecked: true });
+          else if (choice === 'roster')
+            this._openRoster(this.runManager.roster.find((u) => u?.name === departure.unit));
+        });
+      return;
+    }
     // A prologue service node: who joins there joins (the recruit card) and its arrival
     // lines play (the watchtower) before it opens.
     if (

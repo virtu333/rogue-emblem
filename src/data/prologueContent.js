@@ -233,6 +233,17 @@ export const PROLOGUE_SERVICE_LINES = Object.freeze({
 /** Why the chapel's blessings are greyed in the prologue (ChurchVow.churchBlessingBlock). */
 export const PROLOGUE_BLESSING_BLOCK = 'Blessings begin with your first run.';
 
+/**
+ * Travelling on from the fork with Tamsin unarmed (engine/PrologueDeparture): a
+ * choice, never a gate (ui/PrologueDepartureWarning).
+ */
+export const PROLOGUE_UNARMED_DEPARTURE = Object.freeze({
+  body: (name = 'Tamsin') =>
+    `${name} has no usable weapon.\nShe can't attack in the next battle until she carries one.`,
+  roster: 'Open Roster',
+  go: 'Continue anyway',
+});
+
 /** An unarmed unit's roster line when the convoy holds a weapon it can use. */
 export function unarmedConvoyLine(weaponType) {
   const kind = String(weaponType || 'weapon').toLowerCase();
