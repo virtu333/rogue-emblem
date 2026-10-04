@@ -370,86 +370,145 @@ rejected (Gaspar soloed them, 98/100).
 ### Route map, row 2 — Harrow's Crossing (Market | Chapel)
 
 The route map first appears after P1. Here it shows its first real choice, and node preview is
-the lesson: "Tap a node to see what it holds. Travel commits; you can't come back."
+the lesson.
 
-- **The fork** (teaches the choice): *Harrow's Market* (Shop) or *Harrow's Chapel* (Church: heal
-  all, the revive price list, and the blessing service shown but greyed for the prologue). The
-  other service is taught at its first Act 1 visit (new first-visit notes; §11, phase 3).
-- **Tamsin joins on arrival, at either node.** This uses the standard recruit card. She is an
-  authored Archer at L1, and **her bow burned with her watch post**: she arrives unarmed. This is
-  Awakening's missing-axe trick. The roster has a concrete problem to solve, instead of a menu
-  tour. The cause and the remedy show together, so she never looks broken: her join line says
-  so, and her roster row reads "No weapon. A bow is in the convoy." If P2's village wasn't
-  visited, the bow waits at the node (her line: "There's a bow on the rack here. It'll do.").
-- **The roster lesson** runs once, the first time the player opens Roster after Tamsin joins.
-  Each step is a goal the player does:
-  1. *Withdraw:* give Tamsin the Iron Bow from the convoy. "The convoy is shared storage. Units
-     fight only with what they carry." This wires up the dead `guide_convoy` copy.
-  2. *Equip:* equip it. "Each unit carries up to 5 weapons. The equipped one is the one they
-     fight with."
-  3. *Trade:* give Tamsin Edric's Vulnerary (from his P1 kit; a carried item, so this is a Trade,
-     not a Withdraw). "Trade swaps carried items between units. You can also trade in battle,
-     with an adjacent ally."
-  4. *Store:* put P2's loot weapon in the convoy, or any spare. "Store puts a carried item in
-     the convoy. Withdraw hands it back." A playtester reported not understanding either word
-     (threat-and-onboarding §2), so the prologue has the player do both.
-  Each step can be skipped. Travel is never blocked, but an unarmed unit gets the standard
-  greyed-Attack reason ("Unarmed") in P3, so the problem stays legible.
-- **Market branch:** buy a Vulnerary with P2's gold. "This market's stock is fixed while you're
-  here. Every shop node stocks its own. Gold also pays for revivals and promotions."
+**As built (Phase 2B; `data/prologue.json` `route`, `joins.atNode`, `units.Tamsin`):**
+
+- **The fork.** `prologue_1` (P2) leads to `prologue_2a` *Harrow's Market* (Shop, row 2, col 1)
+  and `prologue_2b` *Harrow's Chapel* (Church, col 3); both lead to `prologue_3` (P3). The first
+  route map with two live nodes in the prologue run shows the fork note once per slot (hint
+  `prologue_fork`, `PROLOGUE_FORK_NOTE`): "Tap a node to see what it holds. Travel commits; you
+  can't come back." Each node's card reads its authored `preview` (≤ 160 characters) in place of
+  the generic service line (`describeLoomNode`): the Market's "Spend your gold on fixed stock: no
+  restock here. The crossing's watch archer waits at either stop.", the Chapel's "Heal the whole
+  army for free; revive the fallen for gold. …". The other service is taught at its first Act 1
+  visit (§11, phase 3).
+- **The Market** sells its authored `stock` (Vulnerary, Vulnerary, Iron Sword, Iron Lance,
+  Javelin; 1–8 priced items, shop nodes only, validated): `buildPrologueShopStock` prices each as
+  an Act 1 shop does (`actShopPrice`), then the run's own price rules apply as for any shop. No
+  random Act 1 draw, and no Restock (`ShopController.canReroll` is false in the prologue run;
+  the menu hides the button). Its status line: "This market's stock is fixed while you're here.
+  Every shop node stocks its own. Gold also pays for revivals and promotions."
+- **The Chapel:** Heal all (free) and revival (for gold) work as in a run. The blessing altar is
+  shown, every offer greyed with "Blessings begin with your first run." (`churchBlessingBlock`).
+  No Kindle: the Eclipse is off in the prologue, so the Kindle row never draws. Its status line
+  says the same.
+- **Tamsin joins on arrival, at either node** (`joins.atNode`: both nodes; an arrival join needs a
+  `join` spec and a service node, validated). `RunManager.arriveAtPrologueNode` adds her once
+  (a reload at the node adds nothing) and, when the army holds no `join.needs` item (an Iron Bow
+  in the convoy or any unit's bag: P2's village wasn't visited), puts one in the convoy.
+  `ui/PrologueArrival.js` saves the run, then shows the standard recruit card with her authored
+  line, before the service opens. She is an authored Archer at L1, **unarmed: her bow burned with
+  her watch post** (Awakening's missing-axe trick). Her lines: "My bow burned with the watch
+  post. Hand me the one in your convoy and I'll earn my keep." or, with the node's bow, "…There's
+  one on the rack here. It'll do." Her roster card reads "No weapon. A bow is in the convoy."
+  (`unarmedConvoyLine`, whenever the convoy holds a weapon an unarmed unit can use).
+- **The roster lesson** (`engine/PrologueRosterLesson.js`, pure; `ui/PrologueRosterCoach.js`, the
+  strip at the top of the roster sheet) runs once, the first time Roster opens at the node where
+  Tamsin joined. Every Roster in a browser is the same sheet (`MobileRosterSheet`: the route
+  map's Roster on desktop and phone, the Market's and the Chapel's Roster buttons), so the
+  lesson lives there. Four goals, each completed by the real button (in any order: a goal met
+  early counts):
+  1. *Withdraw:* give Tamsin the Iron Bow from the convoy. The step's text leads with the in-run
+     `guide_convoy` copy ("The convoy is shared storage…"), and starting the lesson marks that
+     hint read.
+  2. *Equip:* a unit with nothing equipped takes the first weapon it gets, so Withdraw already
+     armed Tamsin. The practice is another unit's spare: "Equip Gaspar's Iron Sword". "Each unit
+     carries up to 5 weapons. The equipped one is the one they fight with."
+  3. *Trade:* give Tamsin a carried consumable, the commander's first ("Give Tamsin Edric's
+     Vulnerary"), else anyone's. When nobody carries one (Edric drank his Vulnerary in P1) the
+     step skips itself with the reason ("Nobody carries a spare item to trade. You can trade in
+     battle with an adjacent ally, too.").
+  4. *Store:* a spare weapon (one its holder isn't fighting with), else a consumable. "Store puts
+     a carried item in the convoy. Withdraw hands it back." (threat-and-onboarding §2: a
+     playtester understood neither word.)
+  "Skip step" and "Skip lesson" are always there; Close leaves the lesson where it was. The
+  ledger (`RunManager.prologueRosterLesson`: completed, skipped, dismissed) is saved with the
+  run. Nothing blocks travel: the lesson is live only while the party stands on that node. An
+  unarmed unit in P3 gets the greyed Attack reason "Unarmed: no weapon to attack with" (in a
+  prologue chapter the greyed-Attack reasons show whatever the Guidance level;
+  `GuidanceController.reasonLevel`).
 
 ### P3 — The Seer on the Road (Sera's chapter)
 
 Story: Sera runs down the road with soldiers behind her.
 
-```
-. . . F . . . . . F
-E . . . . . . . . a
-E . F . S s . . b .
-E . . F F . . . . .
-. . . T . . . F . c
-```
-(`S` = Sera, green; `s` = Soldier, next to her)
+**As built (Phase 2B, `data/prologue.json` `p3_seer_on_the_road`; the harness in
+`tests/harness/PrologueP3.test.js` pins every number below):**
 
-- **Roster:** Edric, Gaspar, Tamsin. They enter with whatever HP P2 and the row-2 choice left
-  them. There are no scripted wounds; the first draft's scripted wounds clashed with the Chapel's
-  free heal (code review, 2026-10-04).
+```
+. . . . . . . F . . . .
+E . . . . . F . . . a .
+E . F . S s F . . . b .
+E . . . . . . . . F . .
+. . T . . . . . . . . .
+```
+(`S` = Sera, green; `s` = Soldier, next to her; the `E` column is the three fixed spawns.)
+
+- **Roster:** Edric (0, 2), Gaspar (0, 1), Tamsin (0, 3). In the run they enter with whatever
+  HP, levels and kit P2 and the row-2 choice left them; there are no scripted wounds (the first
+  draft's clashed with the Chapel's free heal). A title replay builds Edric at level 3
+  (`rosterLevels`), the standard Gaspar, and Tamsin with an Iron Bow (`rosterItems`: a replay's
+  extra kit; her authored spec stays unarmed).
 - **Fixed spawns, no formation.** `playerSpawns` holds exactly the three units, so formation
-  placement (which opens at 3 units) doesn't run. That keeps Edric's turn-1 reach to Sera
-  authored. Formation is first taught in P4.
-- **Sera:**
-  - Turn-1 reach: she stands where Edric can reach a tile next to her on turn 1. The harness
-    asserts this; the first draft needed 5 or more move-cost (code review, 2026-10-04).
-  - Kit: built like the run's starting Sera (`_buildStartingLord`): Light (P) plus Staff (P),
-    Glimmer (Light, 4 might, range 1–2), Heal (3 uses), a Vulnerary, and Renewal Aura.
-    `createLordUnit` alone gives her no staff rank (code review, 2026-10-04).
-  - She joins by Talk (lords only; a lord NPC joins through `lordRecruitLines` and acts right
-    away).
-- **Enemies:** Soldier `s` (L1, Iron Lance), the only enemy that can reach Sera on enemy phase 1.
-  One hit is 9, against her 18 HP. Fighters `a`, `b` and `c` (L1, Iron Axe, melee only) start
-  outside her reach for turn 1. Enemies do attack NPCs, so the placement is what protects her.
-- **Objective:** Rout. Sera falling at any point, green or blue, restarts the chapter.
+  placement doesn't run and Edric's turn-1 reach to Sera stays authored. Formation is P4's.
+- **Sera** (`units.Sera`; the chapter's `npc`, built by `buildPrologueNpcUnit`, the one builder
+  `BattleScene` and `HeadlessBattle` share, never the recruit node's roster-average roll):
+  Light Sage L1, HP 18, MAG 6, RES 7, LCK 6, MOV 4; Light and Staff ranks; Glimmer equipped,
+  Heal carried, a Vulnerary; Renewal Aura (her lord skill). Talk joins her at once
+  (`p3_sera_joins`: "I have seen you before, Edric. Many times. You always come for me.") and she
+  acts the same turn. She is protected green or blue: her fall restarts the chapter.
+- **Enemies:** three Soldiers (L1, Iron Lance, melee only). `s` (5, 2) stands beside Sera and is
+  the only enemy that reaches her on enemy phase 1, and the only one that reaches any tile where
+  Edric can Talk; `a` (10, 1) chases; `b` (10, 2) holds (a `hold` pack of one) until someone
+  enters its reach. Enemies do attack NPCs, so the placement is what protects her.
+- **Objective:** Rout. No par.
 
-**Sera's lessons, the gap this spec exists to close.** Each one is a beat, not a footnote:
+**The numbers** (`getCombatForecast` on real data, the harness's first test):
+- Glimmer against a Soldier from 2 tiles: 9, and the lance can't answer (No counter).
+- Edric's sword against the same Soldier: 4 (DEF 6 and the triangle against him). Magic past
+  armour is more than twice the blade.
+- A Soldier on Sera: 9 of her 18, one strike, 0 crit: one hit never kills her.
+- The threat exercise: the Forest pair at the front, (6, 1) and (6, 2), is reached by exactly
+  the two far Soldiers; the plain tile (4, 3) behind the line by none.
+
+**Sera's lessons** (each a beat; one note per move, `oneNote`, the first matching note speaks):
 
 | # | Trigger | Lesson |
 |---|---|---|
-| 1 | Battle start | "Sera is the green unit. Move Edric next to her and choose Talk." (`guide_recruit_on_map` copy; lords only.) |
-| 2 | Sera joins | Sera's line, then the coach: "Sera acts right away." |
-| 3 | Sera selected, an ally hurt | **Heal:** "Sera heals with her staff: move next to {ally}, choose Heal. Staff uses refill every battle." Fires on turn 1 if someone came in hurt, otherwise after enemy phase 1. |
-| 4 | Sera moved where no foe is in range | **Planning and cancelling.** Playtests show players concluded Sera couldn't attack because Attack vanished without a target. Her menu shows the greyed "Attack · No target in range 1–2". Coach: "Nothing in reach from here. Back undoes the move. Nothing is final until you confirm." Then: "Try a tile 2 away from a Fighter." |
-| 5 | Sera 2 tiles from a Fighter | **Range:** "Glimmer reaches 2 tiles. From 2 tiles away, an axe or a lance can't hit back." The forecast shows "No counter". Coach: "Open the forecast, then Cancel. Looking is free." |
-| 6 | Glimmer forecast | **Magic:** "Glimmer is magic: it hits RES, not DEF. Axe-wielders have almost none." Verified: 9 against a Fighter, no counter. |
-| 7 | Sera moved into enemy reach | **Count every enemy that reaches you** (the two-enemy threat exercise). The Forest pair at the front is reached by two Fighters; the plain tile behind Gaspar by none. `guide_fragile_in_reach` is mandatory here: "Cover isn't safety. 2 enemies can reach this forest. Count the red eyes, not the trees. Tap Back." (Playtests: a recruit in a forest took 16 from one doubling enemy, and another died to two cavalry after an advance.) |
+| 1 | Battle start | Gaspar's and Edric's lines (`p3_intro`), the coach "Reach Sera and Talk" (Sera highlighted), then the recruit note (`guide_recruit_on_map`): "Sera (Light Sage) under the gold banner can join you. … Only the Soldier beside her can reach her this turn. Lords alone can Talk." |
+| 2 | Talk with Sera | Her line on the recruit card, then the coach "Sera acts right away"; it clears when she acts. |
+| 3 | Sera selected while an ally is hurt | **Heal** (`guide_healer_heals`): "Sera heals with her staff: move next to {ally}, choose Heal. Staff uses refill after every battle; a Vulnerary is spent for good." {ally} is the most hurt. |
+| 4 | Sera moved where nothing is in reach | **Planning and cancelling** (`guide_no_attack`): her menu shows "Attack · No target in range 1–2"; "Nothing is in reach from here, so Attack is greyed out. Esc or right-click (Back) undoes the move… Try a tile 2 away from a foe." |
+| 5 | Sera 2 tiles from a foe | **Range** (`battle_no_counter`): "Glimmer reaches 2 tiles. From 2 tiles away, a lance or an axe can't hit back." Coach: "Open the forecast, then Cancel. Looking is free." |
+| 6 | A forecast showing magic | **Magic:** "Glimmer is magic: it hits RES, not DEF. Soldiers' armour turns blades, not light." |
+| 7 | Sera or Tamsin moved into reach | **Count every enemy that reaches you** (`guide_fragile_in_reach`): "Cover isn't safety. {n} enemies can reach {unit} here… Count the red eyes, not the trees." |
 | 8 | Sera ends next to an ally | **Aura:** "Renewal Aura: allies next to Sera heal 3 HP at the start of your turn." |
-| 9 | First enemy phase ends with an ally hurt | **Recover by changing the plan**, a prepared, optional exercise (research: don't make the player let Sera die to discover rewinding). The RunManager grants the prologue's one Vision charge here (§9). "Rewind takes back moves. Browse the timeline for free: find the move that put {unit} in reach. Spend the charge to return there, then choose a different tile." After the rewind, the coach watches the replayed move. If the unit ends out of reach: "Same turn, better plan." In a real run, charges last the whole run. Declining is fine; the charge stays for P4. |
+| 9 | Player turn 2 begins with someone hurt | **Recover by changing the plan**, optional. The run's one Vision charge is granted (`grantVision`; `RunManager.grantPrologueVision`, once per run, reverted with the battle), then: "{ally} is hurt. Sera grants one Vision. Rewind takes back moves…", with an *Open Rewind* button. After a rewind, the first move that ends out of every enemy's reach: "Same turn, better plan." Declining is fine; the charge stays for P4. |
+| 10 | Victory | Sera: "I don't stand at the front. I stand where they can't reach me." Edric: "Then stand behind us. We hold the road, you hold us together." (`p3_victory`). P3 is the prologue's last chapter for now: the ending follows. |
 
-**Reuse:** a later wounded ally is healed without a prompt (the heal note is read by then), and
-the player picks a 2-tile Glimmer tile again unaided.
+**The harness proofs** (300 seeds unless noted):
+- the intended script (the lessons as a player would apply them: Talk on turn 1, Sera heals the
+  most hurt and strikes from 2 tiles, strikes only where the worst case leaves the striker
+  standing, a counter accepted only for a sure kill, the commander pulled back at half HP) wins
+  300/300 from the replay roster (lowest HP Edric 8, Gaspar 5, Tamsin 12, Sera 18; 3 turns);
+  from every end state the intended P2 leaves it wins 299/300 through the Market (one seed lost
+  Edric) and 100/100 through the Chapel;
+- a naive policy (nearest enemy with the equipped weapon, plus only what the notes say: Talk,
+  heal the hurt, back out of a fragile tile, no strike into a lethal counter, the commander
+  pulls back at half HP) wins 300/300 from the replay; from the naive P2's end states, 99/100
+  through the Market with Tamsin armed, 99/100 with her unarmed, 100/100 through the Chapel;
+- no enemy-phase sequence (hits and crits) kills Edric or Sera from where the intended script
+  leaves them;
+- battles last 2–6 turns (the replay's intended play: 3).
 
-The fight is tuned so Edric and Gaspar hold a line two tiles ahead while Sera heals and chips
-from behind. A player who walks Sera to the front sees the fragile note and the red eyes before
-committing.
+Deviations from the first draft (each a proof result): Soldiers instead of Fighters (Fighters
+reached Sera and Edric on enemy phase 1, and axe pairs killed a naive Gaspar: an axe hits his
+lance for 10, a Soldier's lance for 6); two far enemies, one chasing and one holding, instead
+of three Fighters; a 12 × 5 map; the rewind exercise starts on player turn 2 (the same moment
+as "after enemy phase 1"); the magic note names armour (Soldiers) rather than axes; the replay
+enters with Edric at level 3 (P1 always ends him at level 2 at least, so P2's "Edric at P1
+stats" floor has no P3 counterpart).
 
 ### Route map, row 4 — The Old Watchtower (Ruins)
 
@@ -625,8 +684,10 @@ checked the combat numbers with `getCombatForecast` on real data):
 ### Data: `data/prologue.json` (validated, synced to `public/data`)
 
 The schema is documented at the top of `src/engine/Prologue.js`, which is the reference. Shipped
-today: the seed, the grant, authored Edric and P1. Sera, Tamsin, P2–P4, `route`, `joins` and
-`boss` are schema only (the validator checks them when present) until a later phase authors them.
+(Phase 2B): the seed, the grant, authored Edric, Sera and Tamsin, P1–P3, the route through row 3
+(`route`, with row 2's `preview` and `stock`), `joins` (`afterChapter`: Gaspar after P1;
+`atNode`: Tamsin at either fork node) and the `ending`. P4 and `boss` are schema only (the
+validator checks them when present) until Phase 3 authors them.
 
 ```jsonc
 {
@@ -638,9 +699,13 @@ today: the seed, the grant, authored Edric and P1. Sera, Tamsin, P2–P4, `route
                 "stats": { /* every stat incl. MOV: his lords.json base */ },
                 "growths": { /* class-range midpoint + personal growth */ },
                 "traits": [], "inventory": ["Iron Sword", "Vulnerary"] },
-    // later: "Sera":   { "lord": "Sera", "level": 1, "proficiencies": ["Light", "Staff"],
-    //                    "inventory": ["Glimmer", "Heal", "Vulnerary"] },
-    //        "Tamsin": { "className": "Archer", "level": 1, "inventory": [] }
+    "Sera":   { "lord": "Sera", "level": 1, "stats": { /* … */ }, "growths": { /* … */ },
+                "traits": [], "proficiencies": ["Light", "Staff"],
+                "inventory": ["Glimmer", "Heal", "Vulnerary"] },
+    "Tamsin": { "className": "Archer", "level": 1, "stats": { /* … */ }, "growths": { /* … */ },
+                "traits": [], "inventory": [],
+                "join": { "line": "tamsin_joins", "needs": "Iron Bow",
+                          "lineIfGranted": "tamsin_joins_bow_rack" } },
     // Gaspar: createVeteranKnight, unchanged (never built from this file)
   },
   "chapters": [
@@ -658,7 +723,8 @@ today: the seed, the grant, authored Edric and P1. Sera, Tamsin, P2–P4, `route
         { "id": "b", "className": "Fighter", "level": 1, "col": 7, "row": 5,
           "weapon": "Iron Axe", "skills": [], "aiMode": "hold", "holdPack": 0, "holdPackSize": 1 }
       ],
-      "npc": null,            // P3: { "unit": "Sera", "className": "Light Sage", "col", "row" }
+      "npc": null,            // P3: { "unit": "Sera", "className": "Light Sage", "col", "row", "line" }
+      // P3 also: "rosterLevels": { "Edric": 3 }, "rosterItems": { "Tamsin": ["Iron Bow"] } (a replay's kit)
       "villageTile": null,
       "loot": null,
       "beats": [
@@ -669,8 +735,11 @@ today: the seed, the grant, authored Edric and P1. Sera, Tamsin, P2–P4, `route
       ]
     }
   ],
-  "route": null,   // P2+: { "nodes": [...], "edges": [...] } for buildPrologueNodeMap
-  "joins": null,   // { "afterChapter": { "p1_banner_at_dawn": ["old_knight"] }, "atNode": { "prologue_2": ["Tamsin"] } }
+  "route": { "title": "The Quarry Road", "nodes": [ /* …, { "id": "prologue_2a", "row": 2, "col": 1,
+             "type": "shop", "title": "Harrow's Market", "preview": "…", "stock": ["Vulnerary", …] } */ ],
+             "edges": [ /* ["prologue_1", "prologue_2a"], … */ ] },
+  "joins": { "afterChapter": { "p1_banner_at_dawn": ["old_knight"] },
+             "atNode": { "prologue_2a": ["Tamsin"], "prologue_2b": ["Tamsin"] } },
   "boss": null     // { "name": "Captain Varro", "className": "Fighter", "level": 3, "weapon": "Iron Axe", "epithet": "..." }
 }
 ```
@@ -704,6 +773,14 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   - beats use known triggers, only that trigger's conditions, and known actions with valid
     arguments (tiles on the map, units of the chapter, lesson kinds); beat ids are unique
   - the boss is in no real act's pool; joins name known chapters and units
+  - an arrival join (`joins.atNode`) is at a service node and its unit has a `join` spec
+    (`line`; `needs` a real item and `lineIfGranted` go together)
+  - every dialogue key a unit, an NPC or a beat names has lines in `dialogue.json` `prologue`
+    (when the dialogue is loaded, as `validate:data` does)
+  - a chapter's `npc` is an authored unit, of its unit's class, on the map, not in the roster;
+    `rosterItems` names authored units of the roster and real items
+  - a route node's `preview` is at most 160 characters; a `stock` is a shop's, 1–8 priced items
+  - `grantVision` and `clearCoach` take only `true`
   - `validateBattleConfig` passes for every chapter's built config
 
 ### Pure engine: `src/engine/Prologue.js`
@@ -715,8 +792,10 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   it does for any locked map. Enemy spawns carry `authoredId`, `weapon`, `skills` and the hold
   fields; it also carries `villageTile`, `thronePos` (or the map's single Throne on a seize map)
   and the authored `npcSpawn`. It generalises `TutorialHelpers.buildTutorialBattleConfig`.
-- `buildPrologueNodeMap(route)` (P2+, not built yet) returns the literal node map: ids, rows,
-  edges, types, titles, and `battleParams` with `prologueChapter`.
+- `buildPrologueNodeMap(prologue)` (built) returns the literal node map: ids, rows, edges, types,
+  titles, a node's `preview` and a shop's `prologueStock`, and `battleParams` with
+  `prologueChapter`. `buildPrologueShopStock(stock, gameData, { rng })` turns a stock into shop
+  entries at Act 1 prices; `prologueJoinsAtNode` / `isArrivalJoin` read `joins.atNode`.
 - `prologueBeatsFor(chapter, event, state)` is a pure trigger matcher. It returns
   `{ actions, fired, state }`: the matching beats' actions in authored order, each tagged with its
   beat id, and a new state whose `fired` lists the `once` beats spent (the input state is never
@@ -725,9 +804,15 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
     `unitSelected {unit, turn}`, `afterMove {unit, tile, terrain, dangerFrom, turn}`,
     `forecastOpened {unit, target, nth, concept, turn}`, `combatResolved {unit, target, turn}`,
     `unitActed {unit, turn}`, `unitDefeated {unit}`, `levelUp {unit}`, `hpBelow {unit, pct}`,
-    `holdWoken {unit}`, `talk {unit, target}`, `seize {unit}`, `victory`
+    `holdWoken {unit}`, `talk {unit, target}`, `healed {unit, target}`, `rewound`,
+    `seize {unit}`, `victory`; Phase 2B added `hurt` (someone below full HP) to `turnStart` and
+    `unitSelected`, and `safe` (no enemy reaches the tile), `inRange` (a foe is in attack reach
+    from here), `foeDistance` (one visible foe is that many tiles away), `besideAlly` and
+    `afterRewind` to `afterMove`
   - actions: `coach`, `note`, `dialogue` (ids), `gateSelect {unit}`, `gateMove {col, row}`,
-    `gateConfirm`, `highlight {tile | unit | reachOf}`, `markLesson {id, kind: shown|practised}`
+    `gateConfirm`, `highlight {tile | unit | reachOf}`, `markLesson {id, kind: shown|practised}`,
+    `grantVision` (the prologue's one Vision charge, once), `clearCoach` (drop a goal no gate
+    holds)
   - `forecastConcepts(forecast, { weapon })` gives a forecast's concepts (`triangle`, `doubling`,
     `noCounter`, `magic`, `uncertainHit`) for `forecastOpened` events; `dangerFrom` is the list
     of enemy ids whose Danger tiles (player knowledge) hold the tile.
@@ -737,11 +822,12 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   rolled. Every draw (growths or level-ups the spec leaves out, item uids) comes from `rng`;
   Math.random is never touched (`createLordUnit`, `createUnit` and `rollGrowthRates` take an
   optional `rng`, defaulting to Math.random). `buildPrologueUnits(prologue, gameData, keys)` builds
-  by key, each unit on its own stream (`prologueUnitRng(seed, key)`). Sera's kit (Light and Staff
-  ranks, Glimmer equipped, Heal usable) is tested from a spec; she is not in the data yet.
-- **Not yet built:** the authored NPC-lord spawn (Sera in P3). When it is, it is one builder
-  shared by `BattleScene` and `tests/harness/HeadlessBattle.js` (per CLAUDE.md), reading
-  `npcSpawn.prologueUnit`.
+  by key, each unit on its own stream (`prologueUnitRng(seed, key)`), with a chapter's
+  `rosterItems` for a replay.
+- **The authored NPC spawn (built, Phase 2B):** `buildPrologueNpcUnit(npcSpawn, gameData)` builds
+  the unit `npcSpawn.prologueUnit` names from its spec (green, on its tile), and is the one
+  builder `BattleScene` and `tests/harness/HeadlessBattle.js` both call (the recruit node's
+  roster-average level never touches it).
 
 ### Authored spawns and the harness (built)
 
@@ -790,6 +876,12 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   `getActivePrologueChapter`, the authored joins committed in `completeBattle`
   (`joins.afterChapter`, once), `grantPrologueVision`, `isPrologueComplete`,
   `restartPrologueBattle`, `mode` in `toJSON` / `fromJSON`.
+- **Built (Phase 2B):** `arriveAtPrologueNode(nodeId)` (the arrival joins, once, and the `needs`
+  item when the army lacks it); `prologueRosterLesson` (the roster lesson's ledger) and
+  `prologueVisionGranted` (P3's charge, once per run) saved in prologue mode; the battle entry
+  records `prologueVisionGrantedAtEntry`, so a chapter restart or a Continue from Map gives the
+  charge back with the battle (`battleEntryRevertPatch`); `failRun` refuses in the prologue (a
+  prologue run never fails: every fall restarts its chapter).
 
 ### BattleScene: `PrologueController` (built; `src/ui/PrologueController.js`)
 
@@ -824,7 +916,18 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
     callback, `onUnitDefeated` from `removeUnit`
   - `onDefeatIntercept` in `checkBattleEnd`, before the lord-death prompt and `onDefeat`
   - `onVictory` from `PostCombatController` after the victory band
-  - `talk` and `seize` are not wired yet (no P1 beat uses them; P3/P4).
+  - `onTalk` after the Talk card (`MovementActionController`; `talkLine(npc)` gives the
+    authored recruit line), `onHealed` after a staff heal (`HealController`), `onRewound` after a
+    Vision rewind lands (`VisionRewindController`; it also re-arms the rewind offer). `seize`
+    waits for P4.
+  - **Teaching state rides the suspend checkpoint** (Phase 2B; code review of 1B/2A):
+    `BattleSuspendController` stores `prologueState: snapshot()` (beats fired, the gate, the
+    coach goal, the forecast count, the lesson ledgers, the rewind and Vision flags) and
+    `finalizeResume` hands it to `onResume`, so Resume Battle (and a rotation's re-open) keeps
+    the chapter where it was. `battleStart` belongs to turn 1 of a fresh battle only; a
+    checkpoint without teaching state (older saves) resumes as a started chapter. An opening
+    that holds the turn (lines, a note) outlasts the banner-timed coach reveal, which is guarded
+    to an idle battle, so the opening's end reveals the coach.
 - **Prologue defeat (built for the standalone chapter).** The existing "Continue from Map"
   revert can't restart a battle: `VisionRewindController.showLordDeathPrompt` saves a
   `fatal_pending` checkpoint, and Accept Fate runs `onDefeat`, `failRun` and RunComplete, which
@@ -836,8 +939,9 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   3. The scene restarts (`restartScene`, same `battleParams`, the chapter's `roster` built
      again with `buildPrologueUnits`), so the chapter begins again from its start. No Vision is
      granted in P1 (the tutorial's lord-fall grant is gone).
-  Phase 2's run-mode restart (clearing `battleInProgress`, re-entering the node, offering an
-  unspent Vision first) is still to build.
+  The run-mode restart is built (Phase 2A, below). A protected non-commander's fall is kept as
+  `scene._prologueFallen` for the rewind prompt; the battle's commander fields
+  (`_battleCommanderName`, `_fallenCommander`) are never overwritten by it.
 - **The suppress predicate.** `engine/ScriptedBattle.js` `isScriptedBattle(battleParams)` is
   true for `battleParams.prologueChapter` and nothing else (the `tutorialMode` flag is gone).
   Every former `tutorialMode` reader (the Eclipse clock and atmosphere, Guidance, contextual
@@ -854,12 +958,12 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
 
 - ~~`addEnemyFromSpawn` honours an authored `weapon` (by name) and `skills`.~~ Done
   (`applySpawnLoadout`, above).
-- An authored lord `npcSpawn` (Sera) that doesn't go through `buildRecruitNodeUnit`'s
-  roster-average level.
+- ~~An authored lord `npcSpawn` (Sera) that doesn't go through `buildRecruitNodeUnit`'s
+  roster-average level.~~ Done (`buildPrologueNpcUnit`).
 - ~~Prologue route node titles.~~ Done: an authored node's `title` names it on the loom
   (`describeLoomNode`), and the loom header reads "Prologue · The Quarry Road"
   (`loomHeader`'s `act` / `title` overrides). The boss preview line waits for P4.
-- The Chapel's blessing service greyed in prologue mode.
+- ~~The Chapel's blessing service greyed in prologue mode.~~ Done (`churchBlessingBlock`).
 
 ### Title, slot, routing and meta (built, Phase 2A)
 
@@ -917,6 +1021,14 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   battle's entry snapshot even past a `fatal_pending` checkpoint (the standard run's
   `revertBattleInProgressToEntry` guard is untouched), clears the scene's fatal state, saves,
   and re-opens the node from its locked config.
+- **Unreadable or fatal checkpoints in the prologue** (Phase 2B): the slot picker never offers
+  Accept Fate for a prologue run; a `fatal_pending` checkpoint's Continue from Map restarts the
+  chapter (`restartPrologueBattle`, saved, with Retry on a failed write), and
+  `BattleScene._abandonUnrestorableResume` restarts it too, so neither path reaches `failRun`.
+- **Failed skips and endings** (Phase 2B): a Skip whose save fails leaves the battle or the map
+  playable (the leaving flag, the coach and `isTransitioning` restored) and offers a real Retry
+  (`offerSkipRetry`); the ending's lines and card play once per scene (a retry after a failed
+  meta write or transition only commits and leaves).
 
 ### Tests
 
@@ -954,7 +1066,11 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   mid-P1 with Resume Battle and Continue from Map), `prologue-exit.spec.js` (Skip from the
   coach, the pause and a note; the restart in the run; the chapter select and a replay that
   never touches the slot), `prologue-lessons.spec.js` (P1's notes on a phone, in the run).
-  Phase 2B adds P3 and the portrait specs.
+  Phase 2B extends `prologue-run.spec.js`: P2's win opens the fork (its note), Harrow's Market
+  brings Tamsin in (the card, the bow-rack line, the join saved first), the roster lesson's
+  Withdraw done with the real button, then P3 (Sera green, Edric moves beside her and Talks,
+  her card and her acting goal), the ending after P3; the refresh-mid-P1 case teaches a step
+  and checks Resume Battle brings the coach and the gate back as left.
 
 **Built in Phase 2A** (unit): `RunManagerPrologueMode` (start, save round-trip, old saves,
 joins, the restart), `MetaProgressionPrologue` (the record, the grant paid once across a
@@ -963,6 +1079,22 @@ refresh and a cloud merge, the counters), `PrologueRouting`, `PrologueEnding`,
 `PrologueController` (both modes), `firstRunFastPath` (the two starts),
 `TitleSceneNewGameFlow` (the offer, the chapter select, the replay stash),
 `NarrativeDirector` (the `prologue` key). Harness: `tests/harness/PrologueP2.test.js`.
+
+**Built in Phase 2B** (unit): `PrologueRow2P3` (the fork's nodes, the Market's stock, P3's
+replay roster and Sera, the new conditions, P3's beats in order), `PrologueValidator` (the new
+rules), `PrologueRosterLesson` (the ledger: every step, any order, auto-complete and auto-skip,
+the robust trade, persistence), `PrologueRosterCoach` (the strip in the roster sheet: each step
+on the real button, Skip step / Skip lesson, once, the desktop entry), `PrologueArrival`,
+`ShopControllerPrologue`, `ChurchVow` (the greyed altar, no Kindle, revival), `LoomModel` (the
+preview), `Guidance` (the reasons in a chapter), `PrologueControllerP3` (Talk, protection, the
+notes, the Vision grant, the rewind exercise, resume, failed skips),
+`BattleSuspendController` (teaching state in the checkpoint), `SlotPickerContinueRouting` and
+`BattleResumeFailureRevert` (the prologue's fatal and unrestorable resumes),
+`NodeMapPrologueSkip`, `PrologueEnding` (the ending once), `RunManagerPrologueMode` (the fork,
+arrivals, the Vision grant, `failRun` refused, the restart's exact restoration),
+`ScriptedBattleSuppression` (a standard-battle control row). Harness:
+`tests/harness/PrologueP3.test.js` (P2's policies moved to `tests/harness/prologueP2Policies.js`
+so P3 starts from P2's real end states).
 
 ### Novice playtest (the measure that matters)
 
@@ -1000,8 +1132,8 @@ time is secondary.
 | 0 (this branch) | First Light: no villages in Act 1 rows 0–2. Gaspar's `guide_veteran_kills` note and help line. This spec. | Shipped |
 | 0b (optional, small) | Interim Sera fix in the current tutorial: a Sera-specific coach goal ("Sera strikes from 2 tiles, where melee can't hit back, and heals with her staff. Keep her behind Edric.") | Throwaway once P3 ships |
 | 1 | Data format and validator, `Prologue.js`, spawn weapon overrides, authored units, `PrologueController`, the defeat intercept. P1 playable from the title as the practice battle, replacing the tutorial. | Shipped 2026-10-04. `TutorialController`, `TutorialHelpers`, the tutorial coach model, lessons and forecast layout deleted; e2e `prologue-exit` / `prologue-lessons` (desktop and phone) and the portrait prologue tests replace the tutorial specs. Deviations: `talk`/`seize` hooks wait for P3/P4; the `practised` ledger is kept on the controller, not on slot meta (no slot in a standalone chapter); the enemy-phase note is a nudge, not a modal. |
-| 2A | Run mode and routing, the suppress list in both modes, the literal route map, P2, the ending stub, Home Base handoff and grant, skip and replay flows. | Shipped 2026-10-04. The slice: fresh slot → (Prologue \| Skip) → P1 (row 0, map hidden) → Gaspar joins → route map → P2 → **temporary:** P2's victory completes the prologue → ending stub (data: `prologue.ending`) → Home Base (grant) → Begin Run → the fast path. Later phases insert row 2, P3, the Ruins and P4 by adding data. Deviations: P2 as built above (one Fighter, the Soldier on Plain, the Archer on the west bank); the title's "Prologue · Start here" on a fresh device starts the prologue run rather than a standalone P1; a standalone replay ends with "Back to title" only (the Start First Run handoff is gone: New Game owns the offer); the `practised` ledger lands on slot meta at each chapter's victory in the run (`recordPrologueChapter` / `recordProloguePractised`); the ending is a four-line unnamed sequence plus the title card, not yet the ritual scene. |
-| 2B | Row 2 (fork, Tamsin, roster lesson), P3 | |
+| 2A | Run mode and routing, the suppress list in both modes, the literal route map, P2, the ending stub, Home Base handoff and grant, skip and replay flows. | Shipped 2026-10-04. The slice: fresh slot → (Prologue \| Skip) → P1 (row 0, map hidden) → Gaspar joins → route map → P2 → **temporary (until 2B):** P2's victory completes the prologue → ending stub (data: `prologue.ending`) → Home Base (grant) → Begin Run → the fast path. Later phases insert row 2, P3, the Ruins and P4 by adding data. Deviations: P2 as built above (one Fighter, the Soldier on Plain, the Archer on the west bank); the title's "Prologue · Start here" on a fresh device starts the prologue run rather than a standalone P1; a standalone replay ends with "Back to title" only (the Start First Run handoff is gone: New Game owns the offer); the `practised` ledger lands on slot meta at each chapter's victory in the run (`recordPrologueChapter` / `recordProloguePractised`); the ending is a four-line unnamed sequence plus the title card, not yet the ritual scene. |
+| 2B | Row 2 (fork, Tamsin, roster lesson), P3 | Shipped 2026-10-04. The slice now runs P1 → Gaspar → P2 → the fork (Market \| Chapel; Tamsin joins at either) → P3 (Sera) → the ending → Home Base; P3's victory completes the prologue until Phase 3 adds the Ruins and P4. The title's chapter select lists P3 (replay roster: Edric L3, Gaspar, Tamsin with her bow). Deviations: P3 as built above (three Soldiers, not Fighters; two far, one holding; 12 × 5; the rewind exercise on player turn 2); the roster lesson's Equip step practises on another unit's spare (Withdraw already arms an unarmed unit), its Trade step gives the commander's first consumable and skips itself with a reason when nobody carries one, and every step completes in any order; Tamsin's lines as authored (`tamsin_joins`, `tamsin_joins_bow_rack`); the fork note is a once-per-slot route-map note. Review fixes (Phases 1B/2A), each with a test that fails before it: teaching state rides the suspend checkpoint and `battleStart` never replays; a prologue `fatal_pending` or unrestorable resume restarts the chapter (never `failRun`, which now refuses in the prologue); a successful rewind re-arms the rewind offer; a protected fall never renames the commander; a failed Skip leaves the battle or map playable with a real Retry; the ending plays once across retries; the restart test restores real state exactly; the suppression table has a standard-battle control. Found by the browser run: the coach stayed hidden after an opening that held the turn (fixed). |
 | 3 | Ruins, P4, the ritual ending scene. First-visit notes for whichever of Shop and Church the player skipped; the Act 1 point-of-use notes in §7. | Story complete |
 | 4 | Polish: prologue music picks (existing tracks, then optional cues), the ritual scene staging, copy pass against the lore guide | |
 
