@@ -249,6 +249,53 @@ describe('PrologueController: the guided steps', () => {
     expect(prologue.taught.has('battle_terrain')).toBe(false);
   });
 
+  it("a scoped tip holds through the unit's own planning, and steps aside when it ends", async () => {
+    const { scene, edric } = makeScene();
+    const prologue = new PrologueController(scene).create();
+    prologue.skipStep();
+    edric.col = FORT.col;
+    edric.row = FORT.row;
+    scene.selectedUnit = edric;
+    scene.battleState = 'UNIT_MOVING';
+    await prologue.onAfterMove(edric);
+    const handle = tipHandle();
+    // The action menu on the tile it is about: it holds (each frame checks).
+    scene.battleState = 'UNIT_ACTION_MENU';
+    prologue.syncTip();
+    expect(handle.closed).toBeNull();
+    // A forecast opens over the move: the moment is over, unread.
+    scene.battleState = 'SHOWING_FORECAST';
+    prologue.syncTip();
+    expect(handle.closed).toBe(false);
+    expect(prologue.taught.has('battle_terrain')).toBe(false);
+  });
+
+  it('a tip already read stays read when it steps aside; a modal note closes an open tip', async () => {
+    const { scene, edric } = makeScene();
+    const prologue = new PrologueController(scene).create();
+    prologue.skipStep();
+    edric.col = 5;
+    edric.row = 4; // the holding Fighter's reach: its tip (unscoped to the Fort)
+    scene.selectedUnit = edric;
+    scene.battleState = 'UNIT_ACTION_MENU';
+    await prologue.onAfterMove(edric);
+    const holding = tipHandle();
+    holding.read(); // on screen long enough
+    edric.col = 4; // Back, to another tile
+    prologue.syncTip();
+    expect(holding.closed).toBe(false);
+    // An unscoped tip (the Vulnerary at 55%), then the turn's modal note: the tip goes.
+    edric.currentHP = 11;
+    await prologue.onCombatResolved(unitOf(scene, 'a'), edric, { initiator: 'enemy' });
+    const vulnerary = tipHandle();
+    expect(vulnerary.opts.text).toContain('Vulnerary');
+    scene.battleState = 'PLAYER_IDLE';
+    await prologue.beforeUnitActionCompletes(edric);
+    expect(notes().at(-1)).toContain('Wait ends Edric');
+    expect(vulnerary.closed).toBe(false);
+    expect(prologue.taught.has('battle_consumable_supply')).toBe(false);
+  });
+
   it('Skip step releases the gates for good', () => {
     const { scene, edric } = makeScene();
     const prologue = new PrologueController(scene).create();

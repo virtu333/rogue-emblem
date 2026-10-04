@@ -80,6 +80,9 @@ const DEFERRED_EVENTS = new Set(['battleStart', 'turnStart', 'deployed']);
 // was already read) when that unit moves again or acts, another unit is selected, or
 // the phase changes. Other tips stay until read, dismissed or replaced.
 const SCOPED_TIP_EVENTS = new Set(['afterMove', 'unitSelected']);
+// The unit's own planning (GuidanceController's UNIT_TURN_STATES): a scoped tip holds
+// only while its unit is selected in one of these, on the player phase.
+const TIP_SCOPE_STATES = new Set(['UNIT_SELECTED', 'UNIT_MOVING', 'UNIT_ACTION_MENU']);
 
 export class PrologueController {
   constructor(scene) {
@@ -162,7 +165,10 @@ export class PrologueController {
         leaveAria: this.run ? 'Skip the rest of the prologue' : 'Leave prologue',
       });
     }
-    this._tick = () => this.flushDeferred();
+    this._tick = () => {
+      this.syncTip();
+      this.flushDeferred();
+    };
     scene.events?.on?.('update', this._tick);
     // The deploy screen was confirmed before this controller existed (P4's deploy
     // lesson is practised by that choice, never by the battle merely starting; an
@@ -537,8 +543,12 @@ export class PrologueController {
   openTip(id, text, event = {}) {
     if (!this.sceneLive()) return null;
     this.closeTip();
-    const scope = SCOPED_TIP_EVENTS.has(event.type) && event.unit ? event.unit : null;
-    const unit = scope ? (this.scene.playerUnits || []).find((u) => u?.name === scope) : null;
+    const name = SCOPED_TIP_EVENTS.has(event.type) && event.unit ? event.unit : null;
+    const unit = name ? (this.scene.playerUnits || []).find((u) => u?.name === name) : null;
+    // A tip about a tile (afterMove) holds while the unit stands there.
+    const scope = name
+      ? { unit: name, tile: event.type === 'afterMove' && unit ? { col: unit.col, row: unit.row } : null } // prettier-ignore
+      : null;
     const actions = (PROLOGUE_NOTE_ACTIONS[id] || []).map((a) => ({
       label: a.label,
       onClick: () => this.tipAction(a.value),
@@ -576,7 +586,7 @@ export class PrologueController {
   closeTip({ unit = null, scoped = false } = {}) {
     const handle = this.tipHandle;
     if (!handle) return false;
-    if (unit && this.tipScope !== unit) return false;
+    if (unit && this.tipScope?.unit !== unit) return false;
     if (scoped && !this.tipScope) return false;
     this.tipHandle = null;
     this.tipScope = null;
@@ -586,6 +596,25 @@ export class PrologueController {
       /* presentation only */
     }
     return true;
+  }
+
+  /**
+   * Each frame: a scoped tip steps aside once its unit's moment is over (the unit
+   * deselected or acted, another state such as an open forecast, the enemy phase, or
+   * Back to another tile), read or not, as GuidanceController's scoped notes do.
+   */
+  syncTip() {
+    const scope = this.tipScope;
+    if (!this.tipHandle || !scope) return;
+    const s = this.scene;
+    const unit = s.selectedUnit;
+    const holds =
+      unit?.name === scope.unit &&
+      !unit.hasActed &&
+      TIP_SCOPE_STATES.has(s.battleState) &&
+      (s.turnManager?.currentPhase ?? 'player') === 'player' &&
+      (!scope.tile || (unit.col === scope.tile.col && unit.row === scope.tile.row));
+    if (!holds) this.closeTip();
   }
 
   /** The open forecast's tip line (AttackFlowController draws it in), or null. */
@@ -695,6 +724,8 @@ export class PrologueController {
       }
       record.text = text;
       record.status = 'displayed';
+      // One thing on screen: a tip under a modal note is not being read.
+      this.closeTip();
       this.lessonOpen = true;
       this.activeLessonId = id;
       this.beginPresentation();
@@ -825,6 +856,7 @@ export class PrologueController {
     }));
     const pending = record || this.schedule({ kind: 'dialogue', id: key, text: null, beat, event: null }); // prettier-ignore
     pending.status = 'displayed';
+    this.closeTip();
     this.beginPresentation();
     let completed = true;
     try {
@@ -982,7 +1014,7 @@ export class PrologueController {
 
   onUnitSelected(unit) {
     if (this.destroyed || unit?.faction !== 'player') return;
-    if (this.tipScope && this.tipScope !== unit.name) this.closeTip();
+    if (this.tipScope && this.tipScope.unit !== unit.name) this.closeTip();
     if (this.gate?.kind === 'select' && unit.name === this.gate.unit) this.releaseGate();
     this.clearReach();
     const ally = this.mostHurtAlly(unit);
