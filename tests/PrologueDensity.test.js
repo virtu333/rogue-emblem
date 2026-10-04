@@ -152,10 +152,14 @@ describe('demoted lessons are conditional, and leave their hint to Act 1 until r
     for (const [id, path] of Object.entries(teachers)) expect(src(path), id).toContain(`'${id}'`);
   });
 
-  it("what the prologue no longer says is taught at its point of use: the forecast's no-counter line, the loot screen", () => {
+  it("what the prologue no longer says is taught at its point of use: the forecast's no-counter line, the armor note", () => {
     const src = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
     expect(src('ui/forecastDisplay.js')).toContain("id: 'battle_no_counter'");
-    expect(src('ui/LootScreenController.js')).toContain("shouldShow('battle_loot')");
+    expect(src('ui/forecastDisplay.js')).toContain("id: 'battle_counter_risk'");
+    expect(src('engine/Guidance.js')).toMatch(/guide_armor[\s\S]*Magic hits RES/);
+    // The loot note is cut, not moved: the reward screen's cards say what each reward is
+    // and who can use it, and the hint stays unread for the canvas loot screen's own note.
+    expect(src('ui/MobileRewards.js')).toContain('rewardForWhom(c, scene.runManager)');
     expect(NOTE_HINT_IDS.battle_loot).toBeUndefined();
     // P3's range note still teaches the no-counter rule where it is the lesson.
     expect(NOTE_HINT_IDS.p3_range).toEqual(['battle_no_counter']);

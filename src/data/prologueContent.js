@@ -188,7 +188,8 @@ export const PROLOGUE_NOTE_ACTIONS = Object.freeze({
  * confirmed or cancelled), so a new slot skips only the first-use explanations the
  * player actually saw (prologueLessons.applyCompletedTutorialHints). What the prologue
  * no longer says (P2's no-counter, chances and loot notes, P3's magic) is not here:
- * Act 1 teaches it at its point of use (the forecast's inline notes, the loot screen).
+ * Act 1 teaches it at its point of use (the forecast's inline notes, the armor note), and
+ * the reward screen explains itself (each card says what it is and who can use it).
  */
 export const NOTE_HINT_IDS = Object.freeze({
   battle_terrain: ['battle_terrain'],

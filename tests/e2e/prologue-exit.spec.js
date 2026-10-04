@@ -95,15 +95,20 @@ async function readEnding(page, click) {
     ['???', 'The ring has closed.'],
     ['Edric', 'Something is eating the sun.'],
     ['???', 'The Hollow Sun.'],
+    ['???', 'It was never yours to stop.'],
     ['???', 'Not like this. I know this road now.'],
   ]) {
     const line = page.getByRole('dialog', { name: speaker, exact: true });
     await expect(line).toContainText(text);
     await click(line.getByRole('button', { name: 'Continue', exact: true }));
   }
-  const card = page.getByRole('dialog', { name: 'Field notes', exact: true });
-  await expect(card).toContainText('Every run is a thread');
-  await click(card.getByRole('button', { name: 'Continue', exact: true }));
+  // A skip claims no win: no PROLOGUE COMPLETE; the handoff still says what counts now.
+  await expect(page.locator('.ce-runend-word', { hasText: 'PROLOGUE COMPLETE' })).toHaveCount(0);
+  const handoff = page.getByRole('dialog', { name: 'From here, it counts', exact: true });
+  await expect(handoff).toContainText('Every run is a thread');
+  await expect(handoff).toContainText('The prologue ends');
+  await expect(handoff).toContainText('only when your commander falls');
+  await click(handoff.getByRole('button', { name: 'To Home Base', exact: true }));
   await waitForScene(page, 'HomeBase');
 }
 
@@ -137,7 +142,7 @@ test('phone: the coach Skip confirms, then the ending plays and Home Base holds 
   expect(meta.totalSupply).toBe(40);
   expect(meta.runsStarted).toBe(0);
   expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_run'))).toBeNull();
-  await expect(page.locator('.mh-onboarding')).toContainText('This is what persists.');
+  await expect(page.locator('.mh-onboarding')).toContainText('This is what stays between runs.');
   expect(errors).toEqual([]);
   await context.close();
 });

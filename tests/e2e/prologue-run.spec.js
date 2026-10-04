@@ -174,15 +174,19 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
   ).toBeVisible();
   await pause.getByRole('button', { name: 'Resume', exact: true }).click();
 
-  // P2 won: the victory lines, the loot lesson, the authored rewards, the ending.
+  // P2 won: the victory lines, then the authored rewards (the reward screen explains
+  // itself: each card says what it is and who can use it; the chapter adds no note).
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
   await readLine(page, 'Gaspar', 'The ford is ours.');
   await readLine(page, 'Edric', 'Then we ride for it.');
-  const note = page.getByRole('dialog', { name: 'Field notes', exact: true });
-  await expect(note).toContainText('Victory pays');
-  await note.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Field notes', exact: true })
+      .filter({ hasText: 'Victory pays' }),
+  ).toHaveCount(0);
   const rewards = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
   await expect(rewards).toBeVisible();
+  await expect(rewards).toContainText('Take');
   const offered = await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     return s.runManager.pendingBattleReward.choices.map((c) =>
@@ -235,11 +239,23 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
   });
   // The join is saved before the card: a refresh here keeps her.
   expect((await slotRun(page)).roster.map((u) => u.name)).toContain('Tamsin');
+  // Leaving the fork with Tamsin unarmed asks, never blocks: Open Roster or Continue.
+  await shop.getByRole('button', { name: 'Leave', exact: true }).click();
+  await expect(shop).toHaveCount(0);
+  await route.locator('.re-node[data-node="prologue_3"]').click();
+  await route.getByRole('button', { name: 'Travel', exact: true }).click();
+  const unarmed = page
+    .getByRole('dialog', { name: 'Field notes', exact: true })
+    .filter({ hasText: 'Tamsin has no usable weapon.' });
+  await expect(unarmed).toBeVisible();
+  await expect(unarmed.getByRole('button', { name: 'Continue anyway', exact: true })).toBeVisible(); // prettier-ignore
+  await unarmed.getByRole('button', { name: 'Open Roster', exact: true }).click();
+  await expect(unarmed).toHaveCount(0);
+  expect(await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap').scene.isActive())).toBe(true); // prettier-ignore
   // The roster lesson: Withdraw done with the real button, then the lesson skipped.
-  await shop.getByRole('button', { name: 'Roster', exact: true }).click();
   const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
   const lesson = roster.getByRole('region', { name: 'Roster lesson', exact: true });
-  await expect(lesson).toContainText('Roster lesson · 1 of 4 · Withdraw');
+  await expect(lesson).toContainText('Roster lesson · 1 of 2 · Withdraw');
   await expect(lesson).toContainText('Give Tamsin the Iron Bow from the convoy');
   await expect(roster.locator('.mr-unit-card', { hasText: 'Tamsin' })).toContainText(
     'No weapon. A bow is in the convoy.',
@@ -251,7 +267,7 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
     .getByRole('button', { name: 'Withdraw', exact: true })
     .click();
   await expect(lesson).toContainText('Withdraw: done.');
-  await expect(lesson).toContainText('2 of 4 · Equip');
+  await expect(lesson).toContainText('2 of 2 · Equip');
   expect(
     await page.evaluate(() => {
       const rm = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
@@ -263,10 +279,9 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
   expect((await slotRun(page)).prologueRosterLesson).toMatchObject({ dismissed: true });
   await roster.getByRole('button', { name: 'Close', exact: true }).first().click();
   await expect(roster).toHaveCount(0);
-  await shop.getByRole('button', { name: 'Leave', exact: true }).click();
-  await expect(shop).toHaveCount(0);
 
-  // P3: the seer on the road. Sera green beside a Soldier; Edric reaches her and Talks.
+  // P3: the seer on the road. Tamsin armed, Travel asks nothing. Sera green beside a
+  // Soldier; Edric reaches her and Talks.
   await expect(route.locator('.re-node[data-node="prologue_3"]')).toHaveClass(/is-live/);
   await route.locator('.re-node[data-node="prologue_3"]').click();
   await expect(route.locator('.re-loom-card')).toContainText('The Seer on the Road');
@@ -421,9 +436,10 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
 
   // Varro falls to a counter on the enemy phase, through ordinary combat: Gaspar stands
   // on the gate's step with his sword, Varro (on 1 HP) strikes him from the throne and
-  // the counter kills him. His line and the seize note then hold the enemy phase (the
-  // garrison's other blows wait), and the next player turn still arrives: the sequence
-  // owns its interval instead of racing the turn start (review, 2026-10-04).
+  // the counter kills him. His line then holds the enemy phase (the garrison's other
+  // blows wait), the seize tip follows beside the map holding nothing, and the next
+  // player turn still arrives: the sequence owns its interval instead of racing the
+  // turn start (review, 2026-10-04).
   await page.evaluate(async () => {
     const { equipWeapon } = await import('/src/engine/UnitManager.js');
     const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -438,7 +454,7 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
     s.forceEndTurn();
   });
   await readLine(page, 'Edric', 'Varro is down. The gate is ours to take');
-  // The enemy phase is still under way beneath the line and the note.
+  // The enemy phase is still under way beneath the line.
   expect(
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -449,8 +465,11 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
       };
     }),
   ).toEqual({ phase: 'enemy', turn: 1, varro: false });
-  await continueNote(page, 'Captain Varro has fallen. Now a lord: step onto the gate and Seize.');
-  // The phase goes on and the turn comes back: no soft-lock under the note.
+  // P4 fades: the seize is a tip (the coach already names the goal), never a modal.
+  await expect(page.locator('.re-guide[data-guide="prologue:p4_seize_now"]')).toContainText(
+    'Captain Varro has fallen. Now a lord: step onto the gate and Seize.',
+  );
+  // The phase goes on and the turn comes back: no soft-lock.
   await page.waitForFunction(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     return s.battleState === 'PLAYER_IDLE' && s.turnManager.turnNumber === 2;
@@ -467,12 +486,18 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
     }),
   ).toEqual({ gaspar: true, units: 3, objective: 'Seize: Capture throne with a Lord!' });
 
-  // The gate seized (scripted): the ending. The ritual seen from the gate, the Hollow
-  // Sun, the pale man on the ridge, the thread breaks, then the title card.
+  // The gate seized (scripted): the ending. The win said first (PROLOGUE COMPLETE, the
+  // gate held), then the ritual seen from the gate, the Hollow Sun, the pale man on the
+  // ridge, the thread breaks (not the game over's words), then the handoff.
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
   // Varro's last words (a boss's defeat lines play at victory), then the ending.
   await readLine(page, 'Captain Varro', 'Nobody said what was coming up the road.');
   await readLine(page, 'Edric', 'Now we see what comes up that road.');
+  await expect(page.locator('.ce-runend-word')).toHaveText('PROLOGUE COMPLETE');
+  await expect(page.locator('.ce-runend-sub')).toHaveText('The Quarry Gate is held');
+  await readLine(page, 'Gaspar', 'The gate is yours, Edric. Well fought.');
+  await readLine(page, 'Edric', 'Everyone is still standing.');
+  await readLine(page, 'Tamsin', 'Not bad for an archer');
   await readLine(page, 'Gaspar', 'Look east, past the fens.');
   await readLine(page, 'Sera', 'The ring has closed.');
   await readLine(page, 'Tamsin', 'the ground is moving!');
@@ -482,12 +507,25 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
   await readLine(page, 'Gaspar', 'A pale man, watching us.');
   await readLine(page, 'Sera', 'He never runs.');
   await readLine(page, 'Edric', 'Sera, tell me what to do.');
-  await expect(page.locator('.ce-runend-word')).toHaveText('THE THREAD IS CUT');
+  await expect(page.locator('.ce-runend-word')).toHaveText('THE THREAD BREAKS');
+  await expect(page.locator('.ce-runend-sub')).toHaveText('The gate held. The world did not.');
+  await readLine(page, 'Sera', 'It was never yours to stop.');
   await readLine(page, 'Sera', 'Not like this. I know this road now. Again, from the morning I reached you.'); // prettier-ignore
-  await expect(note).toContainText('Every run is a thread');
-  // Nothing is written until the card is read: the run save is still the prologue's.
+  // The handoff: the rules that hold from here, once, in plain words.
+  const handoff = page.getByRole('dialog', { name: 'From here, it counts', exact: true });
+  await expect(handoff).toContainText('Prologue complete');
+  await expect(handoff).toContainText('Every run is a thread');
+  for (const rule of [
+    'only when your commander falls',
+    'stay down until a Church revives them for gold',
+    'levels, items and gold reset',
+    'Home Base upgrades they buy',
+    'charges last the whole run',
+  ])
+    await expect(handoff).toContainText(rule);
+  // Nothing is written until it is read: the run save is still the prologue's.
   expect((await slotMeta(page)).prologue.state).toBe('in_progress');
-  await note.getByRole('button', { name: 'Continue', exact: true }).click();
+  await handoff.getByRole('button', { name: 'To Home Base', exact: true }).click();
   await waitForScene(page, 'HomeBase');
   const meta = await slotMeta(page);
   expect(meta.prologue).toMatchObject({
@@ -504,7 +542,7 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
   expect(meta.totalSupply).toBe(40);
   expect(meta.runsStarted).toBe(0);
   expect(await slotRun(page)).toBeNull();
-  await expect(page.locator('.mh-onboarding')).toContainText('This is what persists.');
+  await expect(page.locator('.mh-onboarding')).toContainText('This is what stays between runs.');
   // The grant is spendable currency: Upgrades shows both balances.
   await page.getByRole('button', { name: 'Upgrades', exact: true }).click();
   await expect(page.locator('.mu-currency', { hasText: 'Valor 60' })).toBeVisible();
