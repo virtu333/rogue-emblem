@@ -213,6 +213,41 @@ describe('BattleScene.removeUnit awaits the fall beats', () => {
   });
 });
 
+describe("Varro falls to the player's own attack (the turn's final action)", () => {
+  it('the combat waits for his line and the note, and the combat state comes back for the action to complete', async () => {
+    const { scene, lines } = makeScene();
+    const prologue = new PrologueController(scene).create();
+    scene._prologue = prologue;
+    const boss = varro();
+    scene.enemyUnits = [boss];
+    scene.turnManager = { currentPhase: 'player', turnNumber: 3 };
+    // executeCombat's state while the casualties leave, before finishUnitAction.
+    scene.battleState = 'COMBAT_RESOLVING';
+    let after = false;
+    const removal = scene.removeUnit(boss, { killer: scene.playerUnits[0] }).then(() => {
+      after = true;
+    });
+    await tick(20);
+    expect(scene.enemyUnits).toEqual([]);
+    expect(lines.map((l) => l.key)).toEqual(['p4_gate_open']);
+    expect(after).toBe(false);
+    lines[0].resolve();
+    await tick(20);
+    expect(hintCalls.map((h) => h.text)).toEqual(['Captain Varro has fallen. Now a lord: step onto the gate and Seize.']); // prettier-ignore
+    // The note holds the rail; the combat is not over underneath it.
+    expect(scene.battleState).toBe('TUTORIAL_HINT');
+    expect(after).toBe(false);
+    hintCalls[0].resolve(true);
+    await removal;
+    expect(after).toBe(true);
+    // The action's own completion (finishUnitAction, then the phase's end) runs next,
+    // from the state it left: nothing of the sequence turned it into a playable turn.
+    expect(scene.battleState).toBe('COMBAT_RESOLVING');
+    expect(prologue.isPresenting()).toBe(false);
+    expect(prologue.scripted()).toMatchObject({ goal: 'A lord: step onto the gate and Seize' });
+  });
+});
+
 describe('the player turn-start pipeline and a sequence that spans the turn start', () => {
   /**
    * Varro falls on the enemy phase; his line is still open when the player phase
