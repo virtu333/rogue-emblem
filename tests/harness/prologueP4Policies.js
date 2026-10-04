@@ -1,13 +1,17 @@
 // Prologue P4's policies and helpers (docs/specs/prologue-chapter.md §6 P4, §8), shared by
-// its proofs (PrologueP4.test.js). P4 is entered from P3's real end states (the run's own
-// army, at the levels P1-P3 leave it) after the watchtower's Rest (healed) or Scavenge
-// (HP carries), with any deploy the screen allows, or from the replay's canned roster.
-// The naive play: the nearest enemy with the equipped weapon from the cheapest tile,
-// plus only what the notes say (the deploy note's sword against axes, heal the hurt, drink at 60%, no strike into a counter
-// that kills, switch to the weapon that shows ×2 on the forecast, a lord leaves the
-// foe whose weapon beats his to someone else to open, the commander pulls back at half HP, strike the throne's holder from 2 where you can, and a lord walks
-// to the gate and seizes once Varro falls). The
-// intended play: the same habits with every lesson applied (intended()).
+// its proofs (PrologueP4.test.js, PrologueP4Scavenge.test.js). P4 is entered from P3's real
+// end states (the run's own army, at the levels P1-P3 leave it) after the watchtower's Rest
+// (healed) or Scavenge (HP carries), with any deploy the screen allows, or from the
+// replay's canned roster.
+// The naive play: the nearest enemy with the equipped weapon from the cheapest tile, plus
+// only what the notes say (the deploy note's sword against axes, heal the hurt, drink at
+// 60%, no strike into a counter that kills, switch to the weapon that shows ×2 on the
+// forecast, a lord leaves the foe whose weapon beats his to someone else to open, the
+// commander pulls back at half HP, Sera and Tamsin keep out of reach where they can, strike
+// the throne's holder from 2 where you can, and a lord walks to the gate and seizes once
+// Varro falls). The intended play: the same habits with every lesson applied (intended()).
+// Two measures that the chapter is no free win: the reckless play (reckless()) and Gaspar
+// riding alone (gasparAlone()).
 import { HeadlessBattle, HEADLESS_STATES } from './HeadlessBattle.js';
 import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
 import {
@@ -28,6 +32,16 @@ export const CHAPTER_ID = 'p4_quarry_gate';
 export const chapter = prologue.chapters.find((c) => c.id === CHAPTER_ID) || null;
 export const PARAMS = { act: 'act1', objective: 'seize', difficultyId: 'normal' };
 export const SEEDS = 300;
+/**
+ * The deploys the proofs play (the screen allows any two or three with Edric): every
+ * three-unit deploy, and Edric with Gaspar alone. Sera is the only healer.
+ */
+export const DEPLOYS = [
+  ['Edric', 'Gaspar', 'Sera'],
+  ['Edric', 'Gaspar', 'Tamsin'],
+  ['Edric', 'Tamsin', 'Sera'],
+  ['Edric', 'Gaspar'],
+];
 
 let current = chapter
   ? { chapter, config: buildPrologueBattleConfig(chapter, data.terrain) }
@@ -221,7 +235,7 @@ function naiveCore(
   battle,
   u,
   tiles,
-  { bestWeapon = false, healBelow = 0.6, margin = 0, bossWary = false } = {},
+  { bestWeapon = false, healBelow = 0.6, margin = 0, bossWary = false, danger = false } = {},
 ) {
   if (trySeize(battle, u, tiles)) return;
   const v = boss(battle);
@@ -229,15 +243,29 @@ function naiveCore(
   // walk to the gate; the others hold where the fewest enemies reach.
   if (!v && throne(battle)) {
     if (u.isLord) return walkToThrone(battle, u, tiles);
-    return moveAndWait(battle, recoverTile(battle, u, tiles));
+    // The gate is the lords' to take: the others hold anywhere but on it.
+    const off = tiles.filter((t) => !same(t, throne(battle)));
+    return moveAndWait(battle, recoverTile(battle, u, off.length ? off : tiles));
   }
+  // `danger` (the intended play): P1's "check who can reach you first" and P3's "count
+  // every enemy that reaches you", for every unit. A tile is safe when everything that
+  // reaches it, every blow landing, leaves the unit standing (with the commander's margin).
+  const room = u.currentHP - margin;
+  const exposed = (t, exclude = null) => exposure(battle, u, t, { exclude });
   if (u.name === 'Sera') {
     const plan = P3.healPlan(battle, u, tiles, { below: healBelow });
-    if (plan) return P3.healFrom(battle, plan.from[0], plan.ally);
+    if (plan) {
+      const from = danger
+        ? [...plan.from].sort((p, q) => exposed(p) - exposed(q) || p.cost - q.cost)[0]
+        : plan.from[0];
+      return P3.healFrom(battle, from, plan.ally);
+    }
   }
   if (P3.drinkIfHurt(battle, u)) return;
   // P3's fragile note: Sera and Tamsin back out of a tile in reach when one out of
   // reach would do (the same plan, from the tiles no enemy reaches).
+  // The intended play keeps the tiles in reach for strikes it can survive there (below).
+  const allTiles = tiles;
   if (u.name === 'Sera' || u.name === 'Tamsin') {
     const out = tiles.filter((t) => reachers(battle, t).length === 0);
     if (out.length) tiles = out;
@@ -277,7 +305,7 @@ function naiveCore(
     // The boss note: the throne's holder is struck from 2 where you can. A unit whose
     // weapon reaches 2 strikes from there; one that can't swings in melee.
     const reaches2 = P3.rangeOf(weapon).max >= 2;
-    const fromTiles = P3.strikeTiles(tiles, target, weapon).filter(
+    const fromTiles = P3.strikeTiles(danger ? allTiles : tiles, target, weapon).filter(
       (t) =>
         !(target.isBoss && onThrone(battle, target)) ||
         gridDistance(t.col, t.row, target.col, target.row) >= 2 ||
@@ -295,14 +323,27 @@ function naiveCore(
     };
     let from = null;
     let f = null;
+    // `danger`: the strike's counter and everything that reaches the tile afterwards
+    // (the target too, unless the strike surely kills it) must leave the unit standing;
+    // of those tiles, the least exposed.
+    const candidates = [];
     for (const t of fromTiles) {
       const tf = forecastAt(battle, u, t, weapon, target);
-      if (safeFor(t, tf)) {
-        from = t;
-        f = tf;
+      if (!safeFor(t, tf)) continue;
+      if (!danger) {
+        candidates.push({ t, tf, risk: 0 });
         break;
       }
+      // The counter comes unless the first blow kills; the target's next blow, unless
+      // the whole strike surely kills it.
+      const sure = tf.attacker.hit >= 100;
+      const first = sure && tf.attacker.damage >= target.currentHP;
+      const kills = sure && tf.attacker.damage * tf.attacker.attackCount >= target.currentHP;
+      const risk = (first ? 0 : worstDamage(tf.defender, { crits: false })) + exposed(t, kills ? target : null); // prettier-ignore
+      if (risk < room) candidates.push({ t, tf, risk });
     }
+    candidates.sort((p, q) => p.risk - q.risk || p.t.cost - q.t.cost);
+    if (candidates.length) ({ t: from, tf: f } = candidates[0]);
     if (!from) continue;
     const counter = worstDamage(f.defender, { crits: false });
     if (counter >= u.currentHP - margin) continue;
@@ -318,12 +359,63 @@ function naiveCore(
   const target = byDistance.find((e) => !e.isBoss) || byDistance[0];
   if (!target) return moveAndWait(battle, u);
   const to = P3.pathDistances(battle, u, target);
-  const best = [...tiles].sort(
+  // `danger`: close in only through tiles the unit can stand on (else the least exposed).
+  let pool = tiles;
+  if (danger) {
+    const safe = tiles.filter((t) => exposed(t) < room);
+    pool = safe.length ? safe : [recoverTile(battle, u, tiles)];
+  }
+  const best = [...pool].sort(
     (p, q) => to(p) - to(q) || p.cost - q.cost || p.row - q.row || p.col - q.col,
   )[0];
   moveAndWait(battle, best);
 }
 naive.orderFor = () => ['Edric', 'Gaspar', 'Tamsin', 'Sera'];
+
+/**
+ * The reckless play (the measure that the chapter needs positioning): every unit
+ * strikes the nearest foe it can reach with what it holds, from the cheapest tile,
+ * whatever the forecast or the Danger says; nobody heals, drinks or pulls back.
+ */
+export function reckless(battle, u, tiles) {
+  if (trySeize(battle, u, tiles)) return;
+  if (!boss(battle) && throne(battle)) {
+    if (u.isLord) return walkToThrone(battle, u, tiles);
+    return moveAndWait(battle, u);
+  }
+  const weapons = P3.combatWeapons(u);
+  const weapon = u.weapon && u.weapon.type !== 'Staff' ? u.weapon : weapons[0];
+  if (!weapon) return moveAndWait(battle, u);
+  const byDistance = battle.enemyUnits
+    .filter((e) => e.currentHP > 0)
+    .map((e) => ({ e, d: P3.pathDistances(battle, u, e)(u) }))
+    .sort((x, y) => x.d - y.d)
+    .map((x) => x.e);
+  for (const target of byDistance) {
+    const from = P3.strikeTiles(tiles, target, weapon)[0];
+    if (from) return attackFrom(battle, from, target, weapon);
+  }
+  const target = byDistance[0];
+  if (!target) return moveAndWait(battle, u);
+  const to = P3.pathDistances(battle, u, target);
+  const best = [...tiles].sort(
+    (p, q) => to(p) - to(q) || p.cost - q.cost || p.row - q.row || p.col - q.col,
+  )[0];
+  moveAndWait(battle, best);
+}
+reckless.orderFor = () => ['Gaspar', 'Edric', 'Tamsin', 'Sera'];
+reckless.prepare = equipAgainstAxes;
+
+/**
+ * Gaspar alone (§2 "the veteran supports, never solves"): Gaspar rides at the garrison
+ * recklessly; the others hold where they stand until Varro falls, then a lord seizes.
+ */
+export function gasparAlone(battle, u, tiles) {
+  if (u.name === 'Gaspar' || !boss(battle)) return reckless(battle, u, tiles);
+  return moveAndWait(battle, u);
+}
+gasparAlone.orderFor = reckless.orderFor;
+gasparAlone.prepare = equipAgainstAxes;
 
 /**
  * The deploy note (in the run): Varro's men carry axes and swords beat axes, so Roster
@@ -381,10 +473,12 @@ function pickWeapon(battle, u, target, weapons, tiles) {
 /**
  * The intended play (§6 P4 "Prompts fade"): the naive habits with every lesson applied,
  * unprompted. The weapon that answers the nearest foe best is in hand before acting and
- * struck with (the triangle, P1-P2); Sera mends an ally under three quarters (P3); Edric
- * keeps a margin of 4 over a strike's counter and never ends a strike in Varro's answer
- * when the two together could drop him (the boss note); the throne's holder is struck
- * from 2 where you can.
+ * struck with (the triangle, P1-P2); Sera mends an ally under three quarters (P3); every
+ * unit counts what can reach it (P1's Danger, P3's "count every enemy that reaches you"):
+ * it strikes or moves only where the counter and every blow that can reach the tile leave
+ * it standing, the least exposed such tile first, Edric with a margin of 4, and never
+ * ends a strike in Varro's answer when the two together could drop him (the boss note);
+ * the throne's holder is struck from 2 where you can.
  */
 export function intended(battle, u, tiles) {
   return naiveCore(battle, u, tiles, {
@@ -392,6 +486,7 @@ export function intended(battle, u, tiles) {
     healBelow: 0.75,
     margin: u.isCommander ? 4 : 0,
     bossWary: true,
+    danger: true,
   });
 }
 intended.orderFor = () => ['Edric', 'Gaspar', 'Tamsin', 'Sera'];

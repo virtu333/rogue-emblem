@@ -198,6 +198,7 @@ describe('buildPrologueBattleConfig', () => {
             skills: [],
             isBoss: true,
             name: 'Captain Varro',
+            stats: { STR: 7 },
           },
         ],
       }),
@@ -205,7 +206,11 @@ describe('buildPrologueBattleConfig', () => {
     );
     expect(config.thronePos).toEqual({ col: 2, row: 0 });
     expect(config.villageTile).toEqual({ col: 0, row: 1, uncontested: true });
-    expect(config.enemySpawns[0]).toMatchObject({ isBoss: true, name: 'Captain Varro' });
+    expect(config.enemySpawns[0]).toMatchObject({
+      isBoss: true,
+      name: 'Captain Varro',
+      stats: { STR: 7 },
+    });
     expect(validateBattleConfig(config, data)).toEqual([]);
   });
 

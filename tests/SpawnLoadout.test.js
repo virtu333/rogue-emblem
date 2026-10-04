@@ -1,6 +1,7 @@
 // Authored spawn loadouts (engine/EnemySpawnGear.applySpawnLoadout): a spawn's own
-// `weapon` and `skills` win over the class's rolled kit, for BattleScene and the
-// headless harness alike, and a spawn without them is built exactly as before.
+// `weapon`, `skills` and `stats` win over the class's rolled kit and stats, for
+// BattleScene and the headless harness alike, and a spawn without them is built exactly
+// as before.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 import { loadGameData } from './testData.js';
@@ -18,7 +19,7 @@ afterEach(() => {
 
 const cls = (name) => data.classes.find((c) => c.name === name);
 
-// Generated-style spawns only: none carries `weapon`, `skills` or `authoredId`.
+// Generated-style spawns only: none carries `weapon`, `skills`, `stats` or `authoredId`.
 const LEGACY_SPAWNS = [
   { className: 'Fighter', level: 1, col: 1, row: 1 },
   { className: 'Soldier', level: 7, col: 2, row: 1, aiMode: 'guard' },
@@ -191,10 +192,46 @@ describe('an authored spawn carries exactly its own kit', () => {
     expect(enemy.authoredId).toBe('b');
   });
 
+  it('authored stats replace only the stats they name; HP refills to the new maximum', () => {
+    const enemy = freshFighter(1);
+    const before = structuredClone(enemy.stats);
+    enemy.currentHP = 3;
+    Math.random = () => {
+      throw new Error('Math.random was drawn');
+    };
+    applySpawnLoadout(enemy, { stats: { STR: 7, HP: 30 } }, data);
+    Math.random = realRandom;
+    expect(enemy.stats).toEqual({ ...before, STR: 7, HP: 30 });
+    expect(enemy.currentHP).toBe(30);
+    // MOV moves the unit's `mov` too; unknown stats and non-integers are ignored.
+    applySpawnLoadout(enemy, { stats: { MOV: 6, NOPE: 9, DEF: 2.5, SKL: -1 } }, data);
+    expect(enemy.stats).toEqual({ ...before, STR: 7, HP: 30, MOV: 6 });
+    expect(enemy.mov).toBe(6);
+    expect(enemy).not.toHaveProperty('stats.NOPE');
+  });
+
   for (const [label, makeBuilder] of [
     ['BattleScene', sceneFor],
     ['the harness', harnessFor],
   ]) {
+    it(`${label}: a boss's authored stats are final (after the boss bonus), on the same stream`, () => {
+      const spawn = { className: 'Fighter', level: 1, col: 1, row: 1, isBoss: true, name: 'V' };
+      const params = { act: 'act1', difficultyId: 'normal' };
+      Math.random = createSeededRng(77);
+      const authored = makeBuilder(params).add({ ...structuredClone(spawn), stats: { STR: 7 } });
+      const cursorWith = Math.random();
+      Math.random = createSeededRng(77);
+      const plain = makeBuilder(params).add(structuredClone(spawn));
+      const cursorWithout = Math.random();
+      Math.random = realRandom;
+      // The boss bonus lands on every stat; the authored STR replaces its result.
+      const base = cls('Fighter').baseStats;
+      expect(plain.stats.STR).toBe(base.STR + 2);
+      expect(authored.stats).toEqual({ ...plain.stats, STR: 7 });
+      expect(authored.currentHP).toBe(plain.stats.HP);
+      expect(cursorWith).toBe(cursorWithout);
+    });
+
     it(`${label} builds an authored spawn with its kit, on the same stream as without it`, () => {
       const authored = {
         className: 'Fighter',

@@ -321,6 +321,27 @@ describe('validatePrologueConfig', () => {
       );
     });
 
+    it("an enemy's authored stats name real stats, as integers in range", () => {
+      const varro = (p) => p4(p).enemies.find((e) => e.isBoss);
+      const at = `${P4}.enemies[0] (v)`;
+      expect(errorsAfter((p) => (varro(p).stats = { STR: 7, DEF: 4 }))).toEqual([]);
+      expect(errorsAfter((p) => (varro(p).stats = {}))).toEqual([
+        `${at}.stats must be an object naming at least one stat`,
+      ]);
+      expect(errorsAfter((p) => (varro(p).stats = [7]))).toEqual([
+        `${at}.stats must be an object naming at least one stat`,
+      ]);
+      expect(errorsAfter((p) => (varro(p).stats = { POW: 7 }))).toEqual([
+        `${at}.stats: unknown stat "POW"`,
+      ]);
+      expect(errorsAfter((p) => (varro(p).stats = { STR: 6.5, HP: 0, MOV: 0, DEF: -1 }))).toEqual([
+        `${at}.stats.STR must be an integer >= 0`,
+        `${at}.stats.HP must be an integer >= 1`,
+        `${at}.stats.MOV must be an integer >= 1`,
+        `${at}.stats.DEF must be an integer >= 0`,
+      ]);
+    });
+
     it('a ruins node may hold the stock; a node’s lines must have lines', () => {
       expect(node(data.prologue, 'prologue_4').type).toBe('ruins');
       expect(errorsAfter((p) => node(p, 'prologue_4').stock.push('Moon Bow'))).toEqual([

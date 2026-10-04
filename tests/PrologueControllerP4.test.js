@@ -155,7 +155,7 @@ afterEach(() => {
 describe('P4: the quarry gate, beat by beat', () => {
   it('the opening: the coach names only the objective; the note explains seize and this par', async () => {
     const { scene, hints } = makeP4({ run: true });
-    expect(scene.turnPar).toBe(11);
+    expect(scene.turnPar).toBe(10);
     const prologue = new PrologueController(scene).create();
     prologue.onPhaseStart('player', 1);
     await flushNotes(prologue);
@@ -164,7 +164,7 @@ describe('P4: the quarry gate, beat by beat', () => {
     });
     expect(notes()).toEqual([
       'Seize: defeat Captain Varro, then a lord steps onto the gate and chooses Seize.\n' +
-        'Par: win in 11 turns or fewer for bonus gold. Safety first; speed pays.',
+        'Par: win in 10 turns or fewer for bonus gold. Safety first; speed pays.',
     ]);
     expect([...prologue.lessons.shown]).toEqual(expect.arrayContaining(['seize', 'par']));
     expect([...prologue.lessons.practised]).toContain('deploy');

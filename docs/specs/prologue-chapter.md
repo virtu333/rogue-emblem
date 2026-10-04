@@ -530,58 +530,73 @@ replays them. The sanctuary's status line says what the tower holds
 ```
 # # # # # # # # # G # # #      G = the gate (Throne), Varro on it
 # # # # # # # # T T T # #      T = Fort
-E . . . F . r . . . . . .      E = the three spawns (col 0, rows 4-6 in the data)
-. . . . . . . F . k . . .      k = Soldier (guard), r = Archer (guard)
-E . T . . . . . . . F . .      a = Fighter (chases), b = Fighter (guard)
-E . . . . F . . . . . . b
-. . . . . T . . a . . . .
+. . . . F . . . . . . . .
+. . . . . . . F . k . . .      k = Fighter (guards the gate's approach)
+3 . T . . . . . . . F . .      1-3 = the spawns in deploy order: the commander is 1
+2 . . . . F . . . . . . .
+1 . . . . T . . a . . . .      a = Fighter (comes for the army, along row 6)
 ```
-(13 × 7. Spawns (0,4), (0,5), (0,6); formation spares (1,4), (1,6). Exact rows in
-`data/prologue.json`; the sketch shows the placement.)
+(13 × 7, exact in `data/prologue.json`. Spawns (0,6), (0,5), (0,4) in that order; formation
+spares (1,4), (1,6).)
 
 - **Route preview names the boss:** "Boss · Captain Varro · Fighter · Iron Axe (reach 1)"
   (`prologueBossLine`, on the loom card). The deploy screen shows no boss, and the boss card
   plays after deploy, so the route preview is where the deploy choice gets its information.
 - **Deploy screen, first time:** four units (Edric, Gaspar, Tamsin, Sera), three slots, Edric
   locked, at least two. Its note (`p4_deploy`, once per slot; it marks `battle_deploy` read):
-  "Your commander always deploys. Choose who fights: 3 slots. / Varro and most of his men carry
-  axes, and swords beat axes: Roster equips before you deploy. / Varro's axe reaches 1 tile:
-  who can hit from 2?" (A replay has no Roster button, so its note leaves that clause out.)
+  "Your commander always deploys. Choose who fights: 3 slots. / Varro and his men carry axes,
+  and swords beat axes: Roster equips before you deploy. / Varro's axe reaches 1 tile: who can
+  hit from 2? / Gaspar still fights well: let him weaken foes, and let the others finish them."
+  (A replay has no Roster button, so its note leaves that clause out.) The last line is P2's
+  veteran lesson as it was meant: it was about his kills, never about leaving him out. This
+  is the first deploy screen, where the misreading ("Gaspar barely grows, so bench him")
+  would first be acted on, and every Act 1 deploy screen after it inherits the answer. It
+  adds no rule, so the note still carries one decision (who fights) and the facts that
+  decide it.
 - **Formation, first time:** three deployed opens formation placement; the panel adds "Tap a
   start tile to move a unit there. Who stands in front takes the first blow."
   (`chapter.formation.tiles` gives the spares; `FormationController` opens for a chapter that
   names them.) The boss card and Varro's lines play over the empty field first, as in any
-  formation battle.
-- **Boss: Captain Varro.** A Fighter at **level 1** with `BOSS_STAT_BONUS` and an Iron Axe
-  (HP 24, STR 10, SKL 5, SPD 7, DEF 6, RES 3, LCK 4). He is the prologue's own boss
-  (`prologue.boss`, in no act pool; the boss card reads his epithet "Keeper of the Quarry Gate"
-  from there). Lines: `bossEncounters['Captain Varro']` (pre-battle with Edric's reply, half
-  health, defeat at victory). He has no enrage layer: the act's boss theme plays, and turn
-  pressure leaves it as is.
-- **The throne:** Varro is clamped to it and the tiles beside it (the boss AI on a seize map);
-  on it he gets +15 avoid and +3 defence, applied against magic as well, and heals 10% a turn.
+  formation battle. The deploy screen fields in roster order, so the commander takes the first
+  spawn, the bottom one on the row the Fighter `a` walks in by, and the last unit picked (Sera
+  or Tamsin) the top one: the default formation is already a sane one, and Auto-place keeps it.
+- **Boss: Captain Varro.** A Fighter at **level 1** with `BOSS_STAT_BONUS` and an Iron Axe,
+  his STR and SKL authored (`stats` on his spawn, applied after the boss bonus by
+  `EnemySpawnGear.applySpawnLoadout`): HP 24, STR 7, SKL 3, SPD 7, DEF 6, RES 3, LCK 4. The
+  bonus goes to his guard, not his axe. He is the prologue's own boss (`prologue.boss`, in no
+  act pool; the boss card reads his epithet "Keeper of the Quarry Gate" from there). Lines:
+  `bossEncounters['Captain Varro']` (pre-battle with Edric's reply, half health, defeat at
+  victory). He has no enrage layer: the act's boss theme plays, and turn pressure leaves it
+  as is.
+- **The throne:** Varro is clamped to it and the tiles beside it (the boss AI on a seize map:
+  here only the gate's step, (9,1), a Fort); on it he gets +15 avoid and +3 defence, applied
+  against magic as well, and heals 10% a turn. From the step he reaches the tiles 2 from the
+  throne, so striking from 2 is safe from his counter, and from his next blow only while
+  someone holds the step.
 - **Verified numbers** (the replay army: Edric L3, Gaspar L1, Sera L2, Tamsin L1; pinned by
   `tests/harness/PrologueP4.test.js` where they are rules):
 
   | Attacker | Varro on the throne | Varro on plain |
   |---|---|---|
-  | Gaspar, Iron Sword | 8 ×2 (100%), counter 10 | 11 ×2 |
-  | Gaspar, Steel Lance | 9 (64%), counter 12 (81%) | 12 |
+  | Gaspar, Iron Sword | 8 ×2 (100%), counter 7 (61%) | 11 ×2 |
+  | Gaspar, Steel Lance | 9 (64%), counter 9 (81%) | 12 |
   | Sera, Glimmer at range 2 | 5 (76%), **no counter** | 8 |
   | Tamsin, Iron Bow at range 2 | 1, no counter | 4 |
-  | Edric, Iron Sword | 3, counter 11 (60%) | 6 |
+  | Edric, Iron Sword | 3 ×2, counter 8 (60%) | 6 ×2 |
 
-  Varro's own blow: 11 on Edric, 10 on Gaspar, 14 on Sera. Par 11; the boss enrages on turn
-  min(12, par + 2) = 12.
-- **Enemies:** Soldier `k` (`guard` at (9,3): it charges anything within 3 tiles of its
-  post), Archer `r` (`guard`), Fighter `b` (`guard`), Fighter `a` (chases).
+  Varro's own blow: 8 on Edric, 7 on Gaspar, 11 on Sera and on Tamsin (a Fighter's: 9, 8,
+  12, 12). Par 10; the boss enrages on turn min(12, par + 2) = 12.
+- **Enemies:** Fighter `k` (`guard` at (9,3): it charges anything within 3 tiles of its post),
+  Fighter `a` (chases). Both are the class at level 1 with an Iron Axe: every foe on the map
+  carries an axe, so swords (Edric, Gaspar) have the triangle and the bow and the light
+  (Tamsin, Sera) strike from 2 without an answer.
 - **Objective:** Seize. Defeat Varro, then a lord stands on the gate and chooses Seize (any
   lord; the Seize command raises the chapter's `seize` beat before the victory flow).
 
 | # | Trigger | Lesson |
 |---|---|---|
-| 1 | Deploy screen | Choose who fights, the axes, the reach (above). |
-| 2 | Battle start | Seize and par, with this battle's par: "Seize: defeat Captain Varro, then a lord steps onto the gate and chooses Seize. / Par: win in 11 turns or fewer for bonus gold. Safety first; speed pays." (marks `battle_seize`, `battle_par` read) |
+| 1 | Deploy screen | Choose who fights, the axes, the reach, Gaspar's lesson as meant (above). |
+| 2 | Battle start | Seize and par, with this battle's par: "Seize: defeat Captain Varro, then a lord steps onto the gate and chooses Seize. / Par: win in 10 turns or fewer for bonus gold. Safety first; speed pays." (marks `battle_seize`, `battle_par` read) |
 | 3 | First forecast against Varro on the throne (`forecastOpened` with `targetTerrain: "Throne"`) | "The throne guards Captain Varro: harder to hurt, and he heals each turn. / His axe reaches 1 tile. Strike from 2 where you can." |
 | 4 | Varro below half | His half-health line (existing boss beat). |
 | 5 | Varro falls | Edric: "Varro is down. The gate is ours to take, before the column regroups." The coach turns to "A lord: step onto the gate and Seize", the gate is highlighted, and the note "Captain Varro has fallen. Now a lord: step onto the gate and Seize." (marks `guide_objective_changed` read) |
@@ -591,40 +606,95 @@ E . . . . F . . . . . . b
 the gate"), with no goals for moving, attacking, healing, weapons or ranges. Choosing Gaspar's
 weapon, striking from 2 tiles and healing are the unprompted reuse of P2 and P3.
 
-**Winnable without the best deploy** (`tests/harness/PrologueP4.test.js`, 100 seeds a row
-unless noted, a win = seized with nobody falling, before the enrage turn). The intended play
-(the weapon that answers the nearest foe in hand, Sera heals under 75%, Edric keeps a margin and
-never ends a strike in Varro's answer when the two blows could drop him) and the naive play
-(§8's habits plus what the notes say: the deploy note's sword against axes, P2's "watch the
-×2" weapon switch and "let Gaspar open the Soldier", heal at 60%, drink at 60%, no strike into
-a killing counter, Edric pulls back at half HP, strike the throne from 2 where you can, a lord
-walks to the gate) both win:
+**Winnable with any deploy** (`tests/harness/PrologueP4.test.js` after the watchtower's Rest,
+`tests/harness/PrologueP4Scavenge.test.js` after its Scavenge; 100 seeds a cell, the entering
+army cycling over 60 P3 end states; a win = seized with nobody falling, before the enrage
+turn). The policies (`tests/harness/prologueP4Policies.js`):
+- **naive:** §8's habits plus what the notes say: the deploy note's sword against axes, P2's
+  "watch the ×2" weapon switch and "let Gaspar open the Soldier", heal at 60%, drink at 60%,
+  no strike into a killing counter, Edric pulls back at half HP, Sera and Tamsin keep out of
+  reach where they can, strike the throne from 2 where you can, a lord walks to the gate.
+- **intended:** the same habits with every lesson applied: the weapon that answers the
+  nearest foe in hand, Sera heals under 75%, and P1's "check who can reach you" and P3's
+  "count every enemy that reaches you" for every unit: a strike or a move ends only where
+  its counter and everything that can reach the tile, every blow landing, leave the unit
+  standing (Edric with a margin of 4), the least exposed such tile first.
+- Both: a non-lord never parks on the gate once Varro falls (the note gives it to a lord).
 
-| Entering army (after Rest) | Edric+Gaspar+Sera | Edric+Gaspar+Tamsin | Edric+Gaspar |
-|---|---|---|---|
-| Replay, intended | 295/300 | 96 | 97 |
-| Replay, naive | 97 | 96 | 97 |
-| Intended P3's end states, intended / naive | 97 / 97 | 97 / 97 | 97 / 97 |
-| Naive P3's end states, intended / naive | 95 / 95 | 93 / 93 | 94 / 94 |
+Floors: Rest, every deploy: intended ≥ 95, naive ≥ 92 (the replay: ≥ 95 for both, 300 seeds
+for the recommended deploy). Scavenge with Sera fielded: intended ≥ 95, naive ≥ 85. Scavenge
+with no healer: intended ≥ 85, naive ≥ 80 (below §8's bar; see below).
 
-The losses are Gaspar (3-7 a hundred), rarely Edric (at most 1). With the recommended deploy
-(Edric, Gaspar, Sera) no run of hits and crits can kill Edric where the intended play leaves
-him. A deploy without Sera and Tamsin wins as above.
+| After Rest (intended / naive) | Edric+Gaspar+Sera | Edric+Gaspar+Tamsin | Edric+Tamsin+Sera | Edric+Gaspar |
+|---|---|---|---|---|
+| Replay | 300/300 / 100 | 100 / 97 | 100 / 100 | 100 / 95 |
+| Intended P3's end states | 100 / 100 | 100 / 96 | 100 / 100 | 100 / 97 |
+| Naive P3's end states | 100 / 100 | 100 / 96 | 100 / 100 | 100 / 97 |
 
-Recorded, not required: Scavenge leaves P3's wounds in place; with Sera fielded the army wins
-87/100, without a healer about a third, and without Gaspar (Edric, Tamsin, Sera) 14/50 even
-rested. A fall restarts P4 at its deploy screen with the army as it entered, where a different
-choice is open. Without the deploy note's habit (the naive play leaving Gaspar on the lance
-P3 handed him) the naive play wins 35/100: why the note says it, and why the replay's Gaspar
-holds his sword (`rosterEquip`).
+| After Scavenge (intended / naive) | Edric+Gaspar+Sera | Edric+Gaspar+Tamsin | Edric+Tamsin+Sera | Edric+Gaspar |
+|---|---|---|---|---|
+| Intended P3's end states | 100 / 100 | 92 / 84 | 100 / 100 | 93 / 83 |
+| Naive P3's end states | 100 / 95 | 88 / 86 | 100 / 100 | 86 / 88 |
+
+Before this tuning (the same policies' predecessors, 2026-10-04): Edric+Tamsin+Sera won 14/50
+rested; Scavenge without a healer about a third; Scavenge with Sera 87/100.
+
+**Scavenge without a healer stays below §8's bar, on purpose.** Scavenge carries P3's wounds,
+and with Sera benched nothing on the field mends them: Fort and throne heal 10% a turn, and
+Edric's Vulnerary is the army's only other heal. With Edric+Gaspar+Tamsin, 21 of the 100
+seeds after the intended P3 and 41 after the naive one enter crippled: Gaspar at 8 HP or
+less, or Edric at half or less with no Vulnerary. The intended play's losses are almost all
+there (18 of 20); the naive play's are too after the naive P3 (12 of 14), and after the
+intended P3 most are a Gaspar entering at 10-13 HP whom it walks up to the gate's step.
+Lifting those seeds to 85/95 needs a garrison that cannot hurt a wounded Gaspar: tried
+(Varro at STR 6), it does that (the naive play 86 with and without the intended P3), and it
+also lets Gaspar take the gate alone 97 times in 100 and a reckless play with him win 97-100,
+which §2 ("the veteran supports, never solves") and this chapter's lessons rule out. The gap
+is the route's lesson instead: the watchtower's preview says Rest heals the whole army, a
+fall restarts P4 at its deploy screen with Sera on the bench to pick, and the run's own Ruins
+work the same way.
+
+**The chapter still needs positioning.** A reckless play (every unit strikes the nearest foe
+from the cheapest tile, whatever the forecast or the Danger says; nobody heals, drinks or
+pulls back) loses Gaspar in 8 of 100 with Sera, 6 with Tamsin, and loses 33 of 100 without
+Gaspar; Gaspar riding at the garrison alone falls 9 times in 100 from the replay and 12 after
+P3. With the recommended deploy no run of hits and crits can kill Edric where the intended
+play leaves him.
+
+**The deploy note's sword.** Without its habit (the naive play leaving Gaspar on the lance
+P3 handed him) the naive play wins 84/100 with Edric+Gaspar+Tamsin against 96 on the sword:
+why the note says it, and why the replay's Gaspar holds his sword (`rosterEquip`).
 
 **Deviations from the draft (each a proof result).** Varro is level 1, not 3: at L3 with the
 boss bonus he hit Edric for 12-16 on the throne while Edric did 1-3, and no army P1-P3 can
-build won reliably. The map is 13 × 7 with the gate in the wall's line and four guards/chasers
-placed around it (the draft's Varro "beside the gate" never sat on the throne). The deploy note
-also teaches equipping against axes (the draft had no weapon advice, and Gaspar's lance
-against three axes is the one loss mode no other habit fixed). Sera's line at Varro's fall
-became Edric's (she may not be deployed); the half-health and defeat lines are Varro's.
+build won reliably. The map is 13 × 7 with the gate in the wall's line (the draft's Varro
+"beside the gate" never sat on the throne). The deploy note also teaches equipping against
+axes (the draft had no weapon advice, and Gaspar's lance against axes is a loss mode no other
+habit fixed). Sera's line at Varro's fall became Edric's (she may not be deployed); the
+half-health and defeat lines are Varro's.
+
+**Retune for every deploy (2026-10-04).** As first built (Varro at the full boss bonus, STR
+10; a Soldier at the gate; an Archer and a second guarding Fighter on the road; spawns top
+first) the chapter won 93-97% with Gaspar and failed without him: the throne made Varro a wall
+only Gaspar's sword broke (Tamsin 1 a hit, Edric 3 with an 11-point counter, Sera 5, against a
+2-point heal), the Archer kited Edric and Sera, the Soldier's lance beat both swords, and a
+benched Gaspar (the misreading P2's note invites) met a 28% chapter on the first deploy screen
+a player ever sees. Each change below is a proof result:
+- **The Archer and the far Fighter are gone; the gate's Soldier is a Fighter.** Removing the
+  Archer alone lifted Edric+Tamsin+Sera from 7-32% to 40-83% across the cells; with the Soldier kept
+  at the gate, Edric+Gaspar+Tamsin after Scavenge won about a third with the naive play (his
+  sword against its lance) where the Fighter gives four fifths. Every foe now carries an axe,
+  which the deploy note can say plainly, and par is 10 (enrage still on 12).
+- **Varro's STR 7 and SKL 3.** His blow on a hurt Gaspar holding the step decides most losses
+  with Gaspar fielded (at the full bonus, STR 10 and SKL 5, Edric+Gaspar+Tamsin won 59 and 65
+  of 100 after Scavenge and fell under 95 rested); at STR 6 Gaspar solos the chapter (above).
+  SKL 3 lowers his hit by 4.
+- **The commander's spawn first and at the bottom.** With the top spawn first, the last unit
+  picked (Sera or Tamsin) stood on the row the Fighter walks in by and took its first blow
+  (without Gaspar: 63-100% across the cells instead of 100%).
+- **The intended play counts every reach**, and a non-lord never parks on the gate: the old
+  intended play let a 5-HP Gaspar walk up to Varro, and Tamsin could stand on the gate and
+  block the seize.
 
 The armor lesson ("Knights shrug off swords. Magic hits RES.") moves to the first Knight a run
 meets (§7).
@@ -713,7 +783,9 @@ list, not in the prologue:
   actions give the same rolls.
 - **Forgiving.** Each chapter must be winnable by a naive policy (move toward the nearest enemy,
   attack with the equipped weapon) with no named unit falling. The intended play wins with
-  margin. The harness checks both.
+  margin. The harness checks both. P4 is checked with every deploy the screen allows, after
+  the watchtower's Rest and its Scavenge; Scavenge with no healer fielded is the recorded
+  exception (§6 P4).
 - **No named unit is lost.** Any named unit falling restarts the chapter (§6).
 - **No Eclipse shadow, no deeds, no affixes, no run counters.** The prologue doesn't count as a
   run started or finished (`runsStarted`, `runsCompleted`), so Guidance stays on Full for the
@@ -843,6 +915,7 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   - authored weapons and items exist and the unit (its class, or its authored proficiencies)
     can wield them; at most 5 weapons and 3 consumables
   - enemy skills, unit skills and traits exist; a hold pack's `holdPackSize` is its holder count
+  - an enemy's authored `stats` name real stats (HP..LCK, MOV) as integers (HP and MOV ≥ 1)
   - beats use known triggers, only that trigger's conditions, and known actions with valid
     arguments (tiles on the map, units of the chapter, lesson kinds); beat ids are unique
   - the boss is in no real act's pool; joins name known chapters and units
@@ -907,9 +980,10 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
 - `EnemySpawnGear.applySpawnLoadout(enemy, spawn, { weapons, skills })` runs after
   `applyEnemySpawnGear` in `BattleScene.addEnemyFromSpawn` and the harness alike: a spawn's
   `weapon` (by name, specials such as Javelin allowed, refused if the class can't wield it) and
-  `skills` (exactly those) replace the rolled kit, and `authoredId` is copied to the unit. The
-  new weapon takes the dropped weapon's uid, so the battle's Math.random stream is the same with
-  or without an authored kit. Spawns without these fields are built exactly as before
+  `skills` (exactly those) replace the rolled kit, `stats` (`{ <stat>: integer }`) replace
+  those stats after the class, level and boss bonus (HP refills; P4's Varro), and `authoredId`
+  is copied to the unit. The new weapon takes the dropped weapon's uid, so the battle's
+  Math.random stream is the same with or without an authored kit. Spawns without these fields are built exactly as before
   (`tests/SpawnLoadout.test.js` pins that against a capture taken before the change).
 - `HeadlessBattle.init({ battleConfig })` plays a locked config, as `BattleScene` does with
   `RunManager.getLockedBattleConfig`.
@@ -1115,8 +1189,10 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   - save round-trips of `mode`
 - **Harness:**
   - For each chapter, the intended script wins with margin and a naive policy also wins.
-  - P4 is won before the enrage turn with any deploy that includes Gaspar (built:
-    `tests/harness/PrologueP4.test.js`, the table in §6 P4).
+  - P4 is won before the enrage turn with any deploy, after Rest or Scavenge (built:
+    `tests/harness/PrologueP4.test.js` and `PrologueP4Scavenge.test.js`, the tables in §6 P4;
+    Scavenge without a healer holds a lower floor, as recorded there), a reckless play and
+    Gaspar alone still lose a share.
   - The P1 Fort is outside `b`'s Danger tiles (built, with the rest of P1's harness checks:
     `tests/harness/PrologueP1.test.js`).
   - P2: Gaspar's lance leaves the Archer at 2 HP and Edric's hit kills it.
@@ -1195,8 +1271,9 @@ leaving mid-ending), `CloudSync` (the prologue record merged), `HomeBaseLostProl
 lost-save offer), `PrologueRouting`, `TitleKeyArt` and `SlotCardModel` (the prologue run's
 labels), `NarrativeScaffold` (Gaspar's intro only skipped in the first real run),
 `GuidanceFollowThrough` and `GuidanceFirstChurch` (§7's notes: once, the right state, never
-scripted, Guidance Off). Harness: `tests/harness/PrologueP4.test.js` (P3's policies moved to
-`tests/harness/prologueP3Policies.js`; P4's are `prologueP4Policies.js`).
+scripted, Guidance Off). Harness: `tests/harness/PrologueP4.test.js` and
+`PrologueP4Scavenge.test.js` (P3's policies moved to `tests/harness/prologueP3Policies.js`;
+P4's are `prologueP4Policies.js`).
 
 ### Novice playtest (the measure that matters)
 
@@ -1252,7 +1329,7 @@ everyone: a cast member not in the army never speaks or is named, and Sera's lin
 | 1 | Data format and validator, `Prologue.js`, spawn weapon overrides, authored units, `PrologueController`, the defeat intercept. P1 playable from the title as the practice battle, replacing the tutorial. | Shipped 2026-10-04. `TutorialController`, `TutorialHelpers`, the tutorial coach model, lessons and forecast layout deleted; e2e `prologue-exit` / `prologue-lessons` (desktop and phone) and the portrait prologue tests replace the tutorial specs. Deviations: `talk`/`seize` hooks wait for P3/P4; the `practised` ledger is kept on the controller, not on slot meta (no slot in a standalone chapter); the enemy-phase note is a nudge, not a modal. |
 | 2A | Run mode and routing, the suppress list in both modes, the literal route map, P2, the ending stub, Home Base handoff and grant, skip and replay flows. | Shipped 2026-10-04. The slice: fresh slot → (Prologue \| Skip) → P1 (row 0, map hidden) → Gaspar joins → route map → P2 → **temporary (until 2B):** P2's victory completes the prologue → ending stub (data: `prologue.ending`) → Home Base (grant) → Begin Run → the fast path. Later phases insert row 2, P3, the Ruins and P4 by adding data. Deviations: P2 as built above (one Fighter, the Soldier on Plain, the Archer on the west bank); the title's "Prologue · Start here" on a fresh device starts the prologue run rather than a standalone P1; a standalone replay ends with "Back to title" only (the Start First Run handoff is gone: New Game owns the offer); the `practised` ledger lands on slot meta at each chapter's victory in the run (`recordPrologueChapter` / `recordProloguePractised`); the ending is a four-line unnamed sequence plus the title card, not yet the ritual scene. |
 | 2B | Row 2 (fork, Tamsin, roster lesson), P3 | Shipped 2026-10-04. The slice now runs P1 → Gaspar → P2 → the fork (Market \| Chapel; Tamsin joins at either) → P3 (Sera) → the ending → Home Base; P3's victory completes the prologue until Phase 3 adds the Ruins and P4. The title's chapter select lists P3 (replay roster: Edric L3, Gaspar, Tamsin with her bow). Deviations: P3 as built above (three Soldiers, not Fighters; two far, one holding; 12 × 5; the rewind exercise on player turn 2); the roster lesson's Equip step practises on another unit's spare (Withdraw already arms an unarmed unit), its Trade step gives the commander's first consumable and skips itself with a reason when nobody carries one, and every step completes in any order; Tamsin's lines as authored (`tamsin_joins`, `tamsin_joins_bow_rack`); the fork note is a once-per-slot route-map note. Review fixes (Phases 1B/2A), each with a test that fails before it: teaching state rides the suspend checkpoint and `battleStart` never replays; a prologue `fatal_pending` or unrestorable resume restarts the chapter (never `failRun`, which now refuses in the prologue); a successful rewind re-arms the rewind offer; a protected fall never renames the commander; a failed Skip leaves the battle or map playable with a real Retry; the ending plays once across retries; the restart test restores real state exactly; the suppression table has a standard-battle control. Found by the browser run: the coach stayed hidden after an opening that held the turn (fixed). |
-| 3 | Ruins, P4, the ritual ending scene. First-visit notes for whichever of Shop and Church the player skipped; the Act 1 point-of-use notes in §7. | Shipped 2026-10-04: the story is complete. The run is P1 → P2 → the fork → P3 → the Old Watchtower (§6 row 4) → P4 (§6 P4) → the ending (§10) → Home Base; the chapter select lists P4 (replay: the four-unit roster, Gaspar on his sword). The follow-through notes as §7. Leftovers fixed: the cloud fetch merges `meta.prologue` (`mergePrologueState`); the title and slot cards say "Resume · Prologue" / "Continue prologue" for the prologue's run, and New Game is never "Start First Run" while the build ships the prologue (it opens the offer, Skip first on a device that finished it); a prologue run save that cannot be read (state left `in_progress`) gets the offer again at Begin Run (Restart the Prologue from P1, Skip to the first run without the grant, or Back), never the ordinary road; Gaspar's intro is skipped only in the first real run after the prologue. Deviations: Varro at level 1 (§6 P4); the deploy note's sword against axes and the replay's `rosterEquip`; Sera's line at Varro's fall is Edric's; the throne lesson's trigger is a forecast condition (`targetTerrain`); escape maps get no objective-change note (their exits never open mid-battle); the ending's lines adapt to a skip (above). |
+| 3 | Ruins, P4, the ritual ending scene. First-visit notes for whichever of Shop and Church the player skipped; the Act 1 point-of-use notes in §7. | Shipped 2026-10-04: the story is complete. The run is P1 → P2 → the fork → P3 → the Old Watchtower (§6 row 4) → P4 (§6 P4) → the ending (§10) → Home Base; the chapter select lists P4 (replay: the four-unit roster, Gaspar on his sword). The follow-through notes as §7. Leftovers fixed: the cloud fetch merges `meta.prologue` (`mergePrologueState`); the title and slot cards say "Resume · Prologue" / "Continue prologue" for the prologue's run, and New Game is never "Start First Run" while the build ships the prologue (it opens the offer, Skip first on a device that finished it); a prologue run save that cannot be read (state left `in_progress`) gets the offer again at Begin Run (Restart the Prologue from P1, Skip to the first run without the grant, or Back), never the ordinary road; Gaspar's intro is skipped only in the first real run after the prologue. Deviations: Varro at level 1 (§6 P4); P4 retuned so every deploy wins (§6 P4, "Retune for every deploy"); the deploy note's sword against axes and the replay's `rosterEquip`; Sera's line at Varro's fall is Edric's; the throne lesson's trigger is a forecast condition (`targetTerrain`); escape maps get no objective-change note (their exits never open mid-battle); the ending's lines adapt to a skip (above). |
 | 4 | Polish: prologue music picks (existing tracks, then optional cues), the ritual scene staging, copy pass against the lore guide | |
 
 ## 12. Decisions (user, 2026-10-04)

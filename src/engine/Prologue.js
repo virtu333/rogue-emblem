@@ -62,9 +62,13 @@
 //                                   the map holds terrain only, spawns are coordinates.
 //                     playerSpawns  [{ col, row }]
 //                     enemies       [{ id, className, level, col, row, weapon, skills,
-//                                      aiMode?, holdPack?, holdPackSize?, isBoss?, name? }]
+//                                      aiMode?, holdPack?, holdPackSize?, isBoss?, name?,
+//                                      stats? }]
 //                                   `id` names the enemy in beats; weapon/skills are the
 //                                   enemy's whole kit (EnemySpawnGear.applySpawnLoadout).
+//                                   `stats` ({ <stat>: integer }, any of HP..LCK and
+//                                   MOV) replaces those stats after the class, level
+//                                   and boss bonus: the stats the chapter is tuned on.
 //                     npc           null | { unit, className, col, row, line? }: an
 //                                   authored green unit (P3's Sera), built from `units`
 //                                   (buildPrologueNpcUnit), never a rolled recruit; it is
@@ -300,6 +304,7 @@ const ENEMY_KEYS = new Set([
   'holdPackSize',
   'isBoss',
   'name',
+  'stats',
 ]);
 const ID_PATTERN = /^[a-z][a-z0-9_]*$/;
 const UNIT_STATS = [...XP_STAT_NAMES, 'MOV'];
@@ -401,6 +406,7 @@ export function buildPrologueBattleConfig(chapter, terrainData) {
     if (isInt(e.holdPackSize)) spawn.holdPackSize = e.holdPackSize;
     if (e.isBoss) spawn.isBoss = true;
     if (e.name) spawn.name = e.name;
+    if (isPlainObject(e.stats)) spawn.stats = { ...e.stats };
     return spawn;
   });
   const npc = chapter.npc
@@ -1517,6 +1523,19 @@ function validateChapter(chapter, index, prologue, gameData, errors, seen) {
         (weapon.type === 'Scroll' || !canEquip(classWielder(classData), weapon))
       ) {
         errors.push(`${at}: a ${enemy.className} can't wield "${enemy.weapon}"`);
+      }
+      if (enemy.stats !== undefined) {
+        if (!isPlainObject(enemy.stats) || Object.keys(enemy.stats).length === 0) {
+          errors.push(`${at}.stats must be an object naming at least one stat`);
+        } else {
+          for (const [stat, value] of Object.entries(enemy.stats)) {
+            if (!UNIT_STATS.includes(stat)) errors.push(`${at}.stats: unknown stat "${stat}"`);
+            else if (!isInt(value) || value < (stat === 'HP' || stat === 'MOV' ? 1 : 0)) {
+              const floor = stat === 'HP' || stat === 'MOV' ? 1 : 0;
+              errors.push(`${at}.stats.${stat} must be an integer >= ${floor}`);
+            }
+          }
+        }
       }
       if (!Array.isArray(enemy.skills)) errors.push(`${at}.skills must be an array ([] for none)`);
       else

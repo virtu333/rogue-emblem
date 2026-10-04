@@ -349,7 +349,7 @@ test('desktop: the Quarry Gate replays from the chapter select: its deploy scree
   await formation.getByRole('button', { name: 'Auto-place', exact: true }).click();
   await formation.getByRole('button', { name: 'Start battle', exact: true }).click();
   await expect(note).toContainText('Seize: defeat Captain Varro');
-  await expect(note).toContainText('Par: win in 11 turns or fewer');
+  await expect(note).toContainText('Par: win in 10 turns or fewer');
   await expect(async () => {
     if (await note.count())
       await note.getByRole('button', { name: 'Continue', exact: true }).click({ timeout: 1000 }).catch(() => {}); // prettier-ignore
@@ -374,7 +374,7 @@ test('desktop: the Quarry Gate replays from the chapter select: its deploy scree
     units: 3,
     gaspar: 'Iron Sword',
     varro: 'Captain Varro',
-    par: 11,
+    par: 10,
     activeSlot: null,
   });
   await page.keyboard.press('Escape');

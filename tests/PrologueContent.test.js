@@ -75,6 +75,27 @@ describe('prologue copy', () => {
     expect(prologueNudgeText('gate_select', { lord: 'Kira' })).toBe('Select Kira first.');
   });
 
+  it("P4's deploy note: who fights, the axes, the reach, and Gaspar's lesson as it was meant", () => {
+    const run = prologueNoteText('p4_deploy', { slots: 3, boss: 'Captain Varro', equip: true });
+    const lines = run.split('\n');
+    expect(lines).toEqual([
+      'Your commander always deploys. Choose who fights: 3 slots.',
+      'Captain Varro and his men carry axes, and swords beat axes: Roster equips before you deploy.',
+      "Captain Varro's axe reaches 1 tile: who can hit from 2?",
+      'Gaspar still fights well: let him weaken foes, and let the others finish them.',
+    ]);
+    // P2's veteran note was about kills, never about leaving him out: the deploy note
+    // says he fights, and repeats the kill rule rather than a new one.
+    expect(prologueNoteText('p2_veteran_kills')).toContain('Weaken enemies with Gaspar');
+    // A replay's deploy screen has no Roster button: no equip clause.
+    expect(prologueNoteText('p4_deploy', { boss: 'Captain Varro' })).toContain(
+      'carry axes, and swords beat axes.\n',
+    );
+    expect(prologueNoteText('p4_deploy', { veteran: 'Brann' })).toContain(
+      'Brann still fights well',
+    );
+  });
+
   it('the handoff names the chapter and the fresh player route', () => {
     expect(prologueHandoff({ title: 'Banner at Dawn', startRun: true })).toContain(
       'Banner at Dawn is yours.\nYour first run starts',

@@ -11,7 +11,8 @@
 // * Nightfall and up: secondary weapons for multi-proficiency enemies without special gear.
 //
 // applySpawnLoadout then applies what an authored spawn (data/prologue.json) fixes by
-// hand: its weapon, its skills and its authored id. Generated spawns carry none of these,
+// hand: its weapon, its skills, its authored id and any stats it fixes (P4's Captain
+// Varro). Generated spawns carry none of these,
 // so for them it does nothing.
 import { isStaff } from './Combat.js';
 import { canEquip, grantSecondaryWeapons } from './UnitManager.js';
@@ -99,6 +100,9 @@ export function applyEnemySpawnGear(enemy, spawn, { weapons, difficultyId = 'nor
  * - `spawn.skills` (an array of skill ids): exactly those skills, replacing class-innate
  *   and rolled ones; `[]` means none. Ids unknown to `skills` (when given) are dropped.
  * - `spawn.authoredId`: copied to `enemy.authoredId` (prologue beats name enemies by it).
+ * - `spawn.stats` ({ <stat>: integer }): those stats replace what the class, level and
+ *   a boss's bonus gave (any other stat stays). HP refills to the new maximum and MOV
+ *   moves the unit's `mov`. Unknown stats and non-integers are ignored.
  * A spawn without these fields leaves the enemy untouched. No RNG of its own.
  * @param {object} enemy
  * @param {object} spawn
@@ -132,6 +136,14 @@ export function applySpawnLoadout(enemy, spawn, { weapons = [], skills = null } 
     enemy.skills = spawn.skills.filter((id) => typeof id === 'string' && (!known || known.has(id)));
     delete enemy.benchedSkills;
     report.skills = [...enemy.skills];
+  }
+  if (spawn.stats && typeof spawn.stats === 'object' && enemy.stats) {
+    for (const [stat, value] of Object.entries(spawn.stats)) {
+      if (!Object.hasOwn(enemy.stats, stat) || !Number.isInteger(value) || value < 0) continue;
+      enemy.stats[stat] = stat === 'HP' ? Math.max(1, value) : value;
+    }
+    if (Object.hasOwn(spawn.stats, 'MOV')) enemy.mov = enemy.stats.MOV;
+    enemy.currentHP = enemy.stats.HP;
   }
   return report;
 }

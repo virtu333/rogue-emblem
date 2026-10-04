@@ -1045,7 +1045,7 @@
       "playerSpawns": [
         {
           "col": 0,
-          "row": 4
+          "row": 6
         },
         {
           "col": 0,
@@ -1053,7 +1053,7 @@
         },
         {
           "col": 0,
-          "row": 6
+          "row": 4
         }
       ],
       "enemies": [
@@ -1066,15 +1066,19 @@
           "weapon": "Iron Axe",
           "skills": [],
           "isBoss": true,
-          "name": "Captain Varro"
+          "name": "Captain Varro",
+          "stats": {
+            "STR": 7,
+            "SKL": 3
+          }
         },
         {
           "id": "k",
-          "className": "Soldier",
+          "className": "Fighter",
           "level": 1,
           "col": 9,
           "row": 3,
-          "weapon": "Iron Lance",
+          "weapon": "Iron Axe",
           "skills": [],
           "aiMode": "guard"
         },
@@ -1086,26 +1090,6 @@
           "row": 6,
           "weapon": "Iron Axe",
           "skills": []
-        },
-        {
-          "id": "b",
-          "className": "Fighter",
-          "level": 1,
-          "col": 12,
-          "row": 5,
-          "weapon": "Iron Axe",
-          "skills": [],
-          "aiMode": "guard"
-        },
-        {
-          "id": "r",
-          "className": "Archer",
-          "level": 1,
-          "col": 6,
-          "row": 2,
-          "weapon": "Iron Bow",
-          "skills": [],
-          "aiMode": "guard"
         }
       ],
       "npc": null,
