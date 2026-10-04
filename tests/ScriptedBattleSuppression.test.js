@@ -80,12 +80,28 @@ describe('the predicates', () => {
 });
 
 describe('every teaching suppression holds in both modes', () => {
+  // A plain run battle: the control. Every reader must be ON for it, so a row that
+  // passed only because the reader is broken for everyone fails here.
+  const STANDARD = { act: 'act1', objective: 'rout', battleSeed: 7, fogEnabled: false };
+  const CONTROL = {
+    'Guidance notes are off': 'full',
+    'contextual hints (battle_par, battle_danger_zone...) never show': [true, true],
+    'no lord answers an ally fall (story beats)': { speaker: 'Kira', line: 'Bob fell.' },
+    'deeds record nothing, and a fall leaves no fallen record': [
+      true,
+      [{ name: 'Bob', unitUid: 'ru9', bags: { inventory: [], consumables: [], weapon: null } }],
+    ],
+    'the Eclipse clock is off (no shadow projection)': [true, 9],
+    'formation placement never opens, and Back to Map is refused': [true, true],
+    'no caravan and no village roll (an authored village is carried by the config instead)': [true, true, "Village: end a unit's action on it to visit"], // prettier-ignore
+    'the first-battle theme plays': false,
+  };
   const rows = [
     [
       'Guidance notes are off',
-      (run) => {
+      (run, P = PARAMS) => {
         const scene = {
-          battleParams: PARAMS,
+          battleParams: P,
           runManager: run,
           registry: { get: () => ({ getHints: () => true, getGuidance: () => 'full' }) },
         };
@@ -95,10 +111,10 @@ describe('every teaching suppression holds in both modes', () => {
     ],
     [
       'contextual hints (battle_par, battle_danger_zone...) never show',
-      (run) => {
+      (run, P = PARAMS) => {
         const hints = { hasSeen: () => false, shouldShow: () => true, markSeen: vi.fn() };
         const scene = {
-          battleParams: PARAMS,
+          battleParams: P,
           registry: { get: (k) => (k === 'hints' ? hints : null) },
           runManager: run,
         };
@@ -111,7 +127,7 @@ describe('every teaching suppression holds in both modes', () => {
     ],
     [
       'no lord answers an ally fall (story beats)',
-      (run) => {
+      (run, P = PARAMS) => {
         const lord = {
           name: 'Kira',
           isLord: true,
@@ -122,9 +138,9 @@ describe('every teaching suppression holds in both modes', () => {
         };
         const scene = {
           _battleSession: 1,
-          battleParams: PARAMS,
+          battleParams: P,
           playerUnits: [lord],
-          gameData: data,
+          gameData: { ...data, dialogue: { lordQuips: { onAllyFall: { Kira: ['{fallen} fell.'] } } } }, // prettier-ignore
           time: { now: 0 },
           runManager: run,
         };
@@ -139,24 +155,27 @@ describe('every teaching suppression holds in both modes', () => {
     ],
     [
       'deeds record nothing, and a fall leaves no fallen record',
-      (run) => {
+      (run, P = PARAMS) => {
         const scene = {
-          battleParams: PARAMS,
+          battleParams: P,
           runManager: run,
           gameData: data,
           _fallenBattleRecords: [],
         };
         const deeds = new DeedController(scene);
-        deeds.onUnitRemoved({ name: 'Bob', inventory: [], consumables: [] }, null);
+        deeds.onUnitRemoved(
+          { name: 'Bob', faction: 'player', unitUid: 'ru9', inventory: [], consumables: [] },
+          null,
+        );
         return [deeds.active(), scene._fallenBattleRecords];
       },
       [false, []],
     ],
     [
       'the Eclipse clock is off (no shadow projection)',
-      (run) => {
+      (run, P = PARAMS) => {
         const scene = {
-          battleParams: PARAMS,
+          battleParams: P,
           runManager: run,
           turnManager: { turnNumber: 9 },
           turnPar: 5,
@@ -167,9 +186,9 @@ describe('every teaching suppression holds in both modes', () => {
     ],
     [
       'formation placement never opens, and Back to Map is refused',
-      (run) => {
+      (run, P = PARAMS) => {
         const scene = {
-          battleParams: PARAMS,
+          battleParams: P,
           runManager: run,
           nodeId: 'n1',
           playerUnits: [{}, {}, {}, {}],
@@ -178,29 +197,35 @@ describe('every teaching suppression holds in both modes', () => {
         };
         const formation = new FormationController(scene);
         formation.ready = true;
-        return [FormationController.shouldRun(scene), formation.canReturnToMap()];
+        // Placement is a screen: give the reader a document, as a browser would.
+        vi.stubGlobal('document', {});
+        try {
+          return [FormationController.shouldRun(scene), formation.canReturnToMap()];
+        } finally {
+          vi.unstubAllGlobals();
+        }
       },
       [false, false],
     ],
     [
       'no caravan and no village roll (an authored village is carried by the config instead)',
-      () => [
-        rollCaravanSpawn({ ...PARAMS, act: 'act1' }, 0, () => 0),
-        rollVillageSpawn({ ...PARAMS, act: 'act1' }, () => 0),
+      (run, P = PARAMS) => [
+        rollCaravanSpawn({ ...P, act: 'act2' }, 0, () => 0),
+        rollVillageSpawn({ ...P, act: 'act1' }, () => 0),
         villageObjectiveLine({ col: 3, row: 4, uncontested: true }),
       ],
       [false, false, "Village: end a unit's action on it to visit"],
     ],
     [
       'the first-battle theme plays',
-      (run) => battleMusicContext({ battleParams: PARAMS, runManager: run }).firstBattle,
+      (run, P = PARAMS) => battleMusicContext({ battleParams: P, runManager: run }).firstBattle,
       true,
     ],
     [
       'the atmosphere is the plain Act I dusk, whatever the Eclipse phase',
-      () => {
+      (run, P = PARAMS) => {
         const ctx = atmosphereContextFromScene({
-          battleParams: { ...PARAMS, eclipsePhaseIndex: 4 },
+          battleParams: { ...P, eclipsePhaseIndex: 4 },
           battleConfig: { biome: 'tundra' },
         });
         const mood = resolveAtmosphere(ctx);
@@ -217,6 +242,14 @@ describe('every teaching suppression holds in both modes', () => {
       });
     });
   }
+
+  describe('control: a standard battle of a standard run has every system on', () => {
+    it.each(rows)('%s', (rowLabel, read, suppressed) => {
+      const live = read(liveRun(STANDARD_RUN_MODE), STANDARD);
+      expect(live, rowLabel).not.toEqual(suppressed);
+      if (rowLabel in CONTROL) expect(live, rowLabel).toEqual(CONTROL[rowLabel]);
+    });
+  });
 });
 
 describe('persistence follows the run, not the chapter', () => {

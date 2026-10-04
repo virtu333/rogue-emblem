@@ -18,6 +18,7 @@ import {
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import { ACT_CONFIG } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
+import { buildPrologueNodeMap } from '../src/engine/Prologue.js';
 
 // The approved board's act (docs/art-direction/board/loom/graph-data.js, seed 6).
 const EDGES = {
@@ -500,6 +501,20 @@ describe('Loom inspect card', () => {
     expect(first.tags.map((t) => t.text)).toEqual(['Foes Lv 1']);
     const floor = describeLoomNode(node, { state: 'live', enemyLevelBonus: -5 });
     expect(floor.tags[0].text).toBe('Foes Lv 1');
+  });
+
+  it("an authored node says what it holds (the prologue's fork); others keep the service line", () => {
+    const route = buildPrologueNodeMap(loadGameData().prologue);
+    for (const id of ['prologue_2a', 'prologue_2b']) {
+      const node = route.nodes.find((n) => n.id === id);
+      const card = describeLoomNode(node, { state: 'live', dialogue });
+      expect(card.text, id).toBe(node.preview);
+    }
+    const market = route.nodes.find((n) => n.id === 'prologue_2a');
+    const { preview: _preview, ...plain } = market;
+    const card = describeLoomNode(plain, { state: 'live', dialogue });
+    expect(card.text).not.toBe(market.preview);
+    expect(card.text).toBeTruthy();
   });
 
   it('never reveals the hidden battle of a village ambush', () => {

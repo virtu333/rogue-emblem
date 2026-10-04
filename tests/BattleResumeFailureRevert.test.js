@@ -56,6 +56,27 @@ describe('BattleScene._abandonUnrestorableResume', () => {
     expect(reloaded.battleInProgress.checkpoint.recoveryKind).toBe('fatal_pending');
   });
 
+  it('in the prologue run a fatal checkpoint is never parked for a defeat: the chapter reverts to its entry', () => {
+    const data = loadGameData();
+    const rm = new RunManager(data, null);
+    rm.startPrologue(data, data.prologue);
+    const node = rm.getAvailableNodes()[0];
+    rm.beginBattleInProgress(node.id, { battleParams: rm.getBattleParams(node) });
+    rm.gold = 950;
+    rm.setBattleCheckpoint({ version: 2, checkpointIndex: 4, recoveryKind: 'fatal_pending' });
+    const scene = Object.create(BattleScene.prototype);
+    scene.runManager = rm;
+    scene._persistBattleRunState = vi.fn(() => ({ ok: true }));
+
+    expect(scene._abandonUnrestorableResume()).toBe('reverted');
+
+    expect(rm.battleInProgress).toBeNull();
+    expect(rm.gold).toBe(0);
+    expect(rm.status).toBe('active');
+    expect(scene._fatalResumeParked).not.toBe(true);
+    expect(scene._persistBattleRunState).toHaveBeenCalledTimes(1);
+  });
+
   it('is a no-op once the flag is gone', () => {
     const { scene, rm } = makeScene();
     rm.clearBattleInProgress();

@@ -35,6 +35,9 @@ vi.mock('../src/utils/audioUnlock.js', () => ({
 import { SlotPickerScene } from '../src/scenes/SlotPickerScene.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
+import { loadGameData } from './testData.js';
+
+const prologueData = loadGameData();
 
 // Mock localStorage (MetaProgressionManager / HintManager / setActiveSlot)
 const store = {};
@@ -339,6 +342,65 @@ describe('SlotPickerScene continue routing', () => {
 
       scene._showSuspendedBattleChoice(2, rm);
       expect(dialogButtons(scene)).toEqual(['[ Resume Battle ]']);
+    });
+
+    describe('in the prologue run (a fall restarts the chapter; nothing is ever settled)', () => {
+      /** A real prologue run suspended in P1 on a fatal checkpoint (a unit fell). */
+      function prologueRm({ invalid = false } = {}) {
+        const rm = new RunManager(prologueData, null);
+        rm.startPrologue(prologueData, prologueData.prologue);
+        const node = rm.getAvailableNodes()[0];
+        rm.beginBattleInProgress(node.id, { battleParams: rm.getBattleParams(node) });
+        rm.gold = 77; // picked up mid-battle: the restart gives it back
+        rm.setBattleCheckpoint({ recoveryKind: 'fatal_pending', checkpointIndex: 2 });
+        if (invalid) rm._battleRecoveryInvalid = true;
+        rm.failRun = vi.fn(rm.failRun.bind(rm));
+        return rm;
+      }
+
+      it('an unreadable fatal checkpoint restarts the chapter from the map, never Accept defeat', async () => {
+        const scene = makeScene();
+        const rm = prologueRm({ invalid: true });
+        scene._showSuspendedBattleChoice(2, rm);
+        expect(dialogButtons(scene)).toEqual(['[ Continue from Map ]']);
+        expect(scene._dialogObjects.some((o) => /restarts the chapter/.test(o.text || ''))).toBe(true); // prettier-ignore
+
+        await scene._continueSuspendedRun(2, rm, 'defeat');
+        expect(rm.failRun).not.toHaveBeenCalled();
+        expect(transitionToSceneMock).not.toHaveBeenCalled();
+
+        await scene._continueSuspendedRun(2, rm, 'map');
+        expect(rm.failRun).not.toHaveBeenCalled();
+        expect(rm.status).toBe('active');
+        expect(rm.battleInProgress).toBeNull();
+        expect(rm.gold).toBe(0);
+        expect(clearBattleInProgressInSaveMock).not.toHaveBeenCalled(); // it refuses fatal
+        expect(saveRunMock).toHaveBeenCalledWith(rm, null, 2);
+        expect(transitionToSceneMock).toHaveBeenCalledWith(
+          scene,
+          'NodeMap',
+          expect.objectContaining({ runManager: rm }),
+          { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+        );
+        expect(transitionToSceneMock).not.toHaveBeenCalledWith(scene, 'RunComplete', expect.anything(), expect.anything()); // prettier-ignore
+      });
+
+      it('a readable fatal checkpoint offers Resume (the rewind prompt) and the restart', () => {
+        const scene = makeScene();
+        scene._showSuspendedBattleChoice(2, prologueRm());
+        expect(dialogButtons(scene)).toEqual(['[ Resume Battle ]', '[ Continue from Map ]']);
+      });
+
+      it('a restart whose save fails keeps the choice', async () => {
+        const scene = makeScene();
+        const rm = prologueRm({ invalid: true });
+        saveRunMock.mockReturnValueOnce({ ok: false, reason: 'quota' });
+        loadRunMock.mockReturnValue(prologueRm({ invalid: true }));
+        await scene._continueSuspendedRun(2, rm, 'map');
+        expect(transitionToSceneMock).not.toHaveBeenCalled();
+        expect(scene.isTransitioning).toBe(false);
+        expect(dialogButtons(scene)).toContain('[ Continue from Map ]');
+      });
     });
   });
 });

@@ -57,6 +57,9 @@ function makeScene({ cloud = null, won = true } = {}) {
   if (won) {
     rm.completeBattle(rm.roster, 'prologue_0', 0);
     rm.completeBattle(rm.roster, 'prologue_1', 0);
+    rm.currentNodeId = 'prologue_2b';
+    rm.markNodeComplete('prologue_2b');
+    rm.completeBattle(rm.roster, 'prologue_3', 0);
   }
   expect(saveRun(rm, null, 1).ok).toBe(true);
   const meta = new MetaProgressionManager(data.metaUpgrades, META_KEY);
@@ -84,7 +87,11 @@ beforeEach(() => {
 describe('commitPrologueEnd', () => {
   it('records the slot (state, grant once, chapters, practised), the device, and clears the save', () => {
     const { scene, meta } = makeScene();
-    expect(prologueChaptersWon(scene.runManager)).toEqual(['p1_banner_at_dawn', 'p2_old_hands']);
+    expect(prologueChaptersWon(scene.runManager)).toEqual([
+      'p1_banner_at_dawn',
+      'p2_old_hands',
+      'p3_seer_on_the_road',
+    ]);
     const result = commitPrologueEnd(scene, {
       taught: ['battle_terrain'],
       practised: ['forecast'],
@@ -93,7 +100,7 @@ describe('commitPrologueEnd', () => {
     expect(meta.getPrologue()).toEqual({
       state: 'complete',
       grantPaid: true,
-      chaptersCompleted: ['p1_banner_at_dawn', 'p2_old_hands'],
+      chaptersCompleted: ['p1_banner_at_dawn', 'p2_old_hands', 'p3_seer_on_the_road'],
       practised: ['forecast'],
     });
     expect(meta.totalValor).toBe(data.prologue.grant.valor);
@@ -197,6 +204,32 @@ describe('finishPrologue', () => {
     localStorageMock.setItem.mockImplementation((key, val) => {
       store[key] = String(val);
     });
+  });
+
+  it('the ending plays once: a retry after a failed meta write or transition only commits and leaves', async () => {
+    const { scene, meta } = makeScene();
+    // First attempt: the meta write fails after the lines and the card.
+    localStorageMock.setItem.mockImplementation((key, val) => {
+      if (key === META_KEY) throw new Error('storage refused the write');
+      store[key] = String(val);
+    });
+    expect(await finishPrologue(scene)).toBe(false);
+    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(1);
+    expect(showImportantHint).toHaveBeenCalledTimes(1);
+    localStorageMock.setItem.mockImplementation((key, val) => {
+      store[key] = String(val);
+    });
+    // Second attempt: the write lands but the transition doesn't start.
+    vi.mocked(transitionToScene).mockResolvedValueOnce(false);
+    expect(await finishPrologue(scene)).toBe(false);
+    expect(meta.getPrologueState()).toBe('complete');
+    // Third attempt (the force path): commits again (already paid) and leaves.
+    expect(await finishPrologue(scene)).toBe(true);
+    expect(transitionToScene).toHaveBeenCalledTimes(2);
+    expect(meta.totalValor).toBe(data.prologue.grant.valor);
+    // The lines and the card never replayed.
+    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(1);
+    expect(showImportantHint).toHaveBeenCalledTimes(1);
   });
 
   it('refuses outside the prologue run', async () => {

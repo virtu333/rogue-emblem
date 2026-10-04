@@ -1,23 +1,30 @@
 // validatePrologueConfig (engine/Prologue.js, run by `npm run validate:data`): the
 // shipped prologue passes, and each rule fails on its own bad input.
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'fs';
 import { loadGameData } from './testData.js';
 import { validatePrologueConfig } from '../src/engine/Prologue.js';
 
 const data = loadGameData();
+const withLines = {
+  ...data,
+  dialogue: JSON.parse(readFileSync(new URL('../data/dialogue.json', import.meta.url), 'utf8')),
+};
 const P1 = 'chapters[0] (p1_banner_at_dawn)';
 
 /** The validator's errors for the shipped prologue after one mutation. */
-function errorsAfter(mutate) {
+function errorsAfter(mutate, gameData = data) {
   const prologue = structuredClone(data.prologue);
   mutate(prologue);
-  return validatePrologueConfig(prologue, data).errors;
+  return validatePrologueConfig(prologue, gameData).errors;
 }
 const p1 = (p) => p.chapters[0];
 
 describe('validatePrologueConfig', () => {
   it('the shipped prologue is valid', () => {
     expect(validatePrologueConfig(data.prologue, data)).toEqual({ valid: true, errors: [] });
+    // With dialogue.json loaded, every line key it names has lines.
+    expect(validatePrologueConfig(data.prologue, withLines)).toEqual({ valid: true, errors: [] });
   });
 
   describe('the map', () => {
@@ -164,6 +171,95 @@ describe('validatePrologueConfig', () => {
     it('have unique ids (once-state is kept by id)', () => {
       expect(errorsAfter((p) => (p1(p).beats[1].id = p1(p).beats[0].id))).toEqual([
         `${P1}.beats[1]: duplicate beat id "p1_select_edric"`,
+      ]);
+    });
+  });
+
+  describe('row 2 and P3 (Phase 2B)', () => {
+    const P3 = 'chapters[2] (p3_seer_on_the_road)';
+    const p3 = (p) => p.chapters[2];
+    const node = (p, id) => p.route.nodes.find((n) => n.id === id);
+
+    it('a line key must have lines in dialogue.json', () => {
+      expect(errorsAfter((p) => (p.units.Tamsin.join.line = 'tamsin_mumbles'), withLines)).toEqual([
+        'units.Tamsin.join.line "tamsin_mumbles" has no lines in dialogue.json prologue',
+      ]);
+      expect(errorsAfter((p) => (p3(p).npc.line = 'no_such_line'), withLines)).toEqual([
+        `${P3}.npc.line "no_such_line" has no lines in dialogue.json prologue`,
+      ]);
+    });
+
+    it('a join spec: needs a real item, and needs and lineIfGranted go together', () => {
+      expect(errorsAfter((p) => (p.units.Tamsin.join.needs = 'Moon Bow'))).toEqual([
+        'units.Tamsin.join.needs "Moon Bow" is not a weapon or consumable',
+      ]);
+      expect(errorsAfter((p) => delete p.units.Tamsin.join.lineIfGranted)).toEqual([
+        'units.Tamsin.join: needs and lineIfGranted go together',
+      ]);
+      expect(errorsAfter((p) => (p.units.Tamsin.join.mood = 'x'))).toEqual([
+        'units.Tamsin.join has unknown field "mood"',
+      ]);
+    });
+
+    it('an arrival joins at a service node and has a join spec', () => {
+      expect(errorsAfter((p) => (p.joins.atNode.prologue_3 = ['Tamsin']))).toEqual([
+        'joins.atNode: "prologue_3" is a chapter node (arrivals join at service nodes)',
+      ]);
+      expect(errorsAfter((p) => delete p.units.Tamsin.join)).toEqual([
+        'joins.atNode.prologue_2a: "Tamsin" needs a join spec (units.Tamsin.join)',
+        'joins.atNode.prologue_2b: "Tamsin" needs a join spec (units.Tamsin.join)',
+      ]);
+      expect(errorsAfter((p) => (p.joins.atNode.prologue_9 = ['Tamsin']))).toEqual([
+        'joins.atNode: unknown route node "prologue_9"',
+      ]);
+    });
+
+    it("the NPC: the unit's class, on the map, not in the roster", () => {
+      expect(errorsAfter((p) => (p3(p).npc.className = 'Cleric'))).toEqual([
+        `${P3}.npc.className must be "Light Sage" (the unit's class)`,
+      ]);
+      expect(errorsAfter((p) => (p3(p).npc.col = 40))).toContain(`${P3}.npc is off the map`);
+      expect(errorsAfter((p) => p3(p).roster.push('Sera'))).toContain(
+        `${P3}.npc "Sera" is also in the roster`,
+      );
+      expect(errorsAfter((p) => (p3(p).npc.unit = 'Nobody'))).toEqual([
+        `${P3}.npc.unit "Nobody" is not in units`,
+      ]);
+    });
+
+    it('rosterItems: an authored unit of the roster, real items', () => {
+      expect(errorsAfter((p) => (p3(p).rosterItems = { Tamsin: ['Moon Bow'] }))).toEqual([
+        `${P3}.rosterItems.Tamsin: unknown item "Moon Bow"`,
+      ]);
+      expect(errorsAfter((p) => (p3(p).rosterItems = { Rowan: ['Iron Bow'] }))).toEqual([
+        `${P3}.rosterItems: "Rowan" is not an authored unit of this roster`,
+      ]);
+      expect(errorsAfter((p) => (p3(p).rosterItems = { Tamsin: [] }))).toEqual([
+        `${P3}.rosterItems.Tamsin must be a non-empty array of item names`,
+      ]);
+    });
+
+    it("a route preview is short; a stock is a shop's, 1-8 priced items", () => {
+      expect(errorsAfter((p) => (node(p, 'prologue_2b').preview = 'x'.repeat(161)))).toEqual([
+        'route.nodes[3] (prologue_2b).preview must be a string of at most 160 characters',
+      ]);
+      expect(errorsAfter((p) => (node(p, 'prologue_2b').stock = ['Vulnerary']))).toEqual([
+        'route.nodes[3] (prologue_2b): only a shop node has a stock',
+      ]);
+      expect(errorsAfter((p) => node(p, 'prologue_2a').stock.push('Moon Bow'))).toEqual([
+        'route.nodes[2] (prologue_2a).stock: unknown item "Moon Bow"',
+      ]);
+      expect(
+        errorsAfter((p) => (node(p, 'prologue_2a').stock = Array(9).fill('Vulnerary'))),
+      ).toEqual(['route.nodes[2] (prologue_2a).stock must be an array of 1 to 8 item names']);
+    });
+
+    it('grantVision and clearCoach take only true', () => {
+      const rewind = (p) => p3(p).beats.find((b) => b.id === 'p3_rewind');
+      expect(
+        errorsAfter((p) => (rewind(p).do.find((a) => 'grantVision' in a).grantVision = 1)),
+      ).toEqual([
+        `${P3}.beats[${data.prologue.chapters[2].beats.findIndex((b) => b.id === 'p3_rewind')}].do[0].grantVision must be true`,
       ]);
     });
   });

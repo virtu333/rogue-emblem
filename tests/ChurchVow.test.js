@@ -2,7 +2,15 @@
 import { describe, expect, it } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
 import { createUnit, resolvePromotionTargets } from '../src/engine/UnitManager.js';
-import { promoteAtChurch, churchPromotionBlock } from '../src/engine/ChurchCommands.js';
+import {
+  promoteAtChurch,
+  churchPromotionBlock,
+  churchKindleBlock,
+  churchReviveBlock,
+  kindleAtChurch,
+  reviveAtChurch,
+} from '../src/engine/ChurchCommands.js';
+import { PROLOGUE_BLESSING_BLOCK } from '../src/data/prologueContent.js';
 import {
   churchBlessingBlock,
   churchBlessingOffers,
@@ -87,5 +95,47 @@ describe('the church vow', () => {
     expect(churchVow(restored, 'c1')).toBe('blessing');
     restored.advanceAct();
     expect(churchVow(restored, 'c1')).toBeNull();
+  });
+});
+
+describe("Harrow's Chapel (the prologue run)", () => {
+  function prologueRun() {
+    const rm = new RunManager(data, null);
+    rm.startPrologue(data, data.prologue);
+    rm.completeBattle(rm.roster, 'prologue_0', 0);
+    rm.completeBattle(rm.roster, 'prologue_1', 0);
+    rm.currentNodeId = 'prologue_2b';
+    return rm;
+  }
+
+  it('the altar is shown greyed: every blessing says it begins with the first run', () => {
+    const rm = prologueRun();
+    rm.gold = 99999;
+    const offers = churchBlessingOffers(rm, 'prologue_2b', data);
+    expect(offers.length).toBeGreaterThan(0);
+    for (const offer of offers) {
+      expect(churchBlessingBlock(rm, 'prologue_2b', offer.id, data)).toBe(PROLOGUE_BLESSING_BLOCK);
+    }
+    const before = rm.getActiveBlessingIds();
+    expect(takeChurchBlessing(rm, 'prologue_2b', offers[0].id, data)).toEqual({
+      ok: false,
+      reason: PROLOGUE_BLESSING_BLOCK,
+    });
+    expect(rm.getActiveBlessingIds()).toEqual(before);
+    expect(churchVow(rm, 'prologue_2b')).toBeNull();
+  });
+
+  it('no Kindle (the Eclipse sleeps), and revival still works for gold', () => {
+    const rm = prologueRun();
+    expect(rm.isEclipseActive()).toBe(false);
+    expect(churchKindleBlock(rm, 'prologue_2b')).not.toBe('');
+    expect(kindleAtChurch(rm, 'prologue_2b').ok).toBe(false);
+    const gaspar = rm.roster.find((u) => u.name === 'Gaspar');
+    rm.roster = rm.roster.filter((u) => u !== gaspar);
+    rm.fallenUnits.push(gaspar);
+    rm.gold = 99999;
+    expect(churchReviveBlock(rm, gaspar)).toBe('');
+    expect(reviveAtChurch(rm, gaspar).ok).toBe(true);
+    expect(rm.roster).toContain(gaspar);
   });
 });

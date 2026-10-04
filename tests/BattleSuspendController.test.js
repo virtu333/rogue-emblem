@@ -761,3 +761,52 @@ it('a successful retry and explicit drop both leave no candidate without a false
   expect(controller.hasRetryCandidate()).toBe(false);
   expect(controller.retryCheckpoint({ session: 1 })).toEqual({ ok: false, reason: 'no_candidate' });
 });
+
+describe('prologue teaching state rides the checkpoint', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('capture stores the chapter controller snapshot; a standard battle stores null', () => {
+    const teaching = { started: true, fired: ['p1_select_edric'], gate: null, coachGoal: 'x' };
+    const scene = makeScene({ _prologue: { snapshot: vi.fn(() => teaching) } });
+    expect(new BattleSuspendController(scene).captureCheckpoint()).toBe(true);
+    const cp = scene.runManager.battleInProgress.checkpoint;
+    expect(JSON.parse(JSON.stringify(cp)).prologueState).toEqual(teaching);
+    const plain = makeScene();
+    new BattleSuspendController(plain).captureCheckpoint();
+    expect(plain.runManager.battleInProgress.checkpoint.prologueState).toBeNull();
+  });
+
+  it('resume hands the stored state, the turn and the phase back to the chapter', () => {
+    const onResume = vi.fn();
+    const scene = makeScene({ _prologue: { onResume } });
+    scene.playerUnits = [{ name: 'A', hasActed: false }];
+    const prologueState = { started: true, fired: ['p3_intro'] };
+    new BattleSuspendController(scene).finalizeResume({
+      checkpointIndex: 2,
+      rngSeed: 1,
+      turnNumber: 2,
+      turnPar: null,
+      visionSnapshot: null,
+      pendingVisionSnapshot: null,
+      antiTurtleState: null,
+      fog: null,
+      prologueState,
+    });
+    expect(onResume).toHaveBeenCalledTimes(1);
+    expect(onResume).toHaveBeenCalledWith(prologueState, { turn: 2, phase: 'player' });
+    // A checkpoint written before the field existed resumes with null (the chapter
+    // treats it as already started).
+    onResume.mockClear();
+    new BattleSuspendController(scene).finalizeResume({
+      checkpointIndex: 3,
+      rngSeed: 1,
+      turnNumber: 3,
+      turnPar: null,
+      visionSnapshot: null,
+      pendingVisionSnapshot: null,
+      antiTurtleState: null,
+      fog: null,
+    });
+    expect(onResume).toHaveBeenCalledWith(null, { turn: 3, phase: 'player' });
+  });
+});
