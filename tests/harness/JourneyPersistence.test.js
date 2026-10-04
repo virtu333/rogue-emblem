@@ -247,6 +247,21 @@ describe('Calibration: known S1–S4 defect equivalents must be detected', () =>
     vi.mocked(saveServiceRun).mockImplementationOnce(() => '');
     await expect(d.step(press('Fight'))).rejects.toThrow('Journey persistence:');
   });
+  it('S2b: missing arena round persist (the bout goes on)', async () => {
+    const d = new RunDriver(storage);
+    await d.step(enter('church'));
+    await d.step(press('Heal all · Free'));
+    await d.step(leave);
+    await d.step(enter('arena'));
+    await d.step(press('Arena'));
+    await d.step(press(/^Edric ·/));
+    await d.step(press(/^Bronze ·/));
+    await d.step(press('Fight'));
+    // The seeded bout outlasts round 1, so there is a next round to drop a save from.
+    expect(d.buttons().some((b) => b.textContent === 'Next round')).toBe(true);
+    vi.mocked(saveServiceRun).mockImplementationOnce(() => '');
+    await expect(d.step(press('Next round'))).rejects.toThrow('Journey persistence:');
+  });
   it.each(['shop', 'church', 'arena'])('S3: missing %s leave save', async (service) => {
     const d = new RunDriver(storage);
     await d.step(enter(service));

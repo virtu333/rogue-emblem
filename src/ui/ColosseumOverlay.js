@@ -19,8 +19,14 @@ import {
   generateMercenaryCandidates,
   grantMercenaryClassSkills,
 } from '../engine/ColosseumEngine.js';
-import { resolveCombat, getCombatForecast } from '../engine/Combat.js';
-import { getSkillCombatMods, rollStrikeSkills, rollDefenseSkills } from '../engine/SkillSystem.js';
+import { getCombatForecast } from '../engine/Combat.js';
+import { getSkillCombatMods } from '../engine/SkillSystem.js';
+import {
+  arenaMaxRounds,
+  arenaRoundOutcome,
+  estimateArenaOdds,
+  resolveArenaRound,
+} from '../engine/ArenaBout.js';
 import {
   gainExperience,
   grantMasterOfArmsWeapons,
@@ -31,7 +37,6 @@ import {
 import { RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
 import { findCommander } from '../engine/Commander.js';
-import { applyCombatSideHP } from '../engine/UnitHealth.js';
 
 export class ColosseumOverlay {
   constructor(scene, runManager, gameData) {
@@ -161,6 +166,7 @@ export class ColosseumOverlay {
   _generateAndShowForecast() {
     this._settledResult = null;
     this._fightResolved = false;
+    this._bout = null;
     const unit = this._selectedUnit;
     const tier = this._selectedTier;
     const colosseumData = this._colosseumData;
@@ -242,13 +248,18 @@ export class ColosseumOverlay {
       { atkMods, defMods, imbuesData: this.gameData.imbues || null },
     );
 
-    this.nativeMenu = ArenaMenu.forecast(this, forecast);
+    // The bout fought to the end, many times over on copies (its own seeded stream:
+    // the run's dice never move, and the same matchup always shows the same odds).
+    const odds = estimateArenaOdds(unit, challenger, this.gameData, {
+      trials: 300,
+      maxRounds: arenaMaxRounds(this._colosseumData),
+    });
+    this.nativeMenu = ArenaMenu.forecast(this, forecast, odds);
   }
 
   _executeFight() {
     if (this._fightResolved) return;
     const unit = this._selectedUnit;
-    const challenger = this._challenger.unit;
     const tier = this._selectedTier;
 
     if (!this._canAffordTier(tier)) {
@@ -256,6 +267,13 @@ export class ColosseumOverlay {
       return;
     }
     if (!canFight(unit, this._fightsPerUnit[unit.name] || 0, this._maxFights)) return;
+    // The entry fee is paid as the bout starts: a win returns it with the prize, a
+    // draw returns it, a loss or a yield keeps it. Leaving mid-bout is a yield.
+    const fee = Math.max(0, tier.entryFee || 0);
+    if (fee > 0 && this.runManager.spendGold(fee) === false) {
+      this._showTierSelect(`Not enough gold to enter (${tier.entryFee}G required).`);
+      return;
+    }
     // No battle start runs before an arena bout: settle a stale accessory debt here.
     settleAccessoryHpOwed(unit);
     this._fightResolved = true;
@@ -263,84 +281,56 @@ export class ColosseumOverlay {
     const weapon = getArenaWeapon(unit);
     if (weapon !== unit.weapon) equipWeapon(unit, weapon);
 
-    const distance = getArenaDistance(unit.weapon, challenger.weapon);
-    const plainTerrain = { avoidBonus: 0, defBonus: 0 };
-
-    // Build full skill context for resolution
-    const skillsData = this.gameData.skills || [];
-    const masteryCtx = {
-      classesData: this.gameData.classes,
-      traitsData: this.gameData.traits || null,
-    };
-    const atkMods = getSkillCombatMods(
-      unit,
-      challenger,
-      [unit],
-      [challenger],
-      skillsData,
-      plainTerrain,
-      true,
-      null,
-      masteryCtx,
-    );
-    const defMods = getSkillCombatMods(
-      challenger,
-      unit,
-      [challenger],
-      [unit],
-      skillsData,
-      plainTerrain,
-      false,
-      null,
-      masteryCtx,
-    );
-
-    const skillCtx = {
-      atkMods,
-      defMods,
-      rollStrikeSkills,
-      rollDefenseSkills,
-      skillsData,
-      imbuesData: this.gameData.imbues || null,
-    };
-
-    const result = resolveCombat(
-      unit,
-      unit.weapon,
-      challenger,
-      challenger.weapon,
-      distance,
-      plainTerrain,
-      plainTerrain,
-      skillCtx,
-    );
-
-    // Determine outcome: KO wins, otherwise draw (no HP% comparison)
-    let outcome;
-    if (result.defenderDied) {
-      outcome = 'win';
-    } else if (result.attackerDied) {
-      outcome = 'lose';
-    } else {
-      outcome = 'draw';
-    }
-
-    // Apply HP (arena clamp: min 1). UnitHealth reads every strike, so a drain that
-    // topped the fighter up mid-bout settles its HP accessory debt as a battle would.
-    applyCombatSideHP(unit, 'attacker', result, { floor: 1 });
-
-    // Track fights
     this._fightsPerUnit[unit.name] = (this._fightsPerUnit[unit.name] || 0) + 1;
-    this._settleFight(outcome, tier);
-
-    // Show combat log with auto-advance
-    this._showCombatLog(result.events, outcome, tier);
+    this._bout = { tier, round: 0, feePaid: fee, outcome: null };
+    this._fightRound();
   }
 
-  _showCombatLog(events, outcome, tier) {
+  /** Fight the bout's next round; save it; show it (or the bout's end). */
+  _fightRound() {
+    const bout = this._bout;
+    if (!bout || bout.outcome) return;
+    bout.round += 1;
+    const result = resolveArenaRound(this._selectedUnit, this._challenger.unit, this.gameData);
+    const outcome = arenaRoundOutcome(result, bout.round, arenaMaxRounds(this._colosseumData));
+    const unit = this._selectedUnit;
+    const foe = this._challenger.unit;
+    const lines = [
+      { text: `Round ${bout.round}`, color: UI_PALETTE.accent },
+      ...this._roundLines(result.events),
+      {
+        text: `${unit.name} HP ${unit.currentHP}/${unit.stats.HP} · ${foe.name} HP ${foe.currentHP}/${foe.stats.HP}`,
+        color: UI_PALETTE.muted,
+      },
+    ];
+    if (outcome) {
+      bout.outcome = outcome;
+      this._settleFight(outcome, bout.tier);
+      this._showCombatLog(lines, outcome, bout.tier);
+      return;
+    }
+    // Each round's HP is saved as it lands; a bout left here counts as a yield.
+    this._persistVisit();
     this._clearScreen();
+    this.nativeMenu = ArenaMenu.round(this, {
+      round: bout.round,
+      maxRounds: arenaMaxRounds(this._colosseumData),
+      lines,
+      fee: bout.feePaid,
+    });
+  }
 
-    // Format events into text lines
+  /** Give up the bout between rounds: the fee is gone, the fighter keeps its HP. */
+  _yieldBout() {
+    const bout = this._bout;
+    if (!bout || bout.outcome) return;
+    bout.outcome = 'yield';
+    this._settleFight('yield', bout.tier);
+    this._showResult('yield', bout.tier);
+  }
+
+  /** One round's strikes as log lines. */
+  _roundLines(events) {
     const lines = [];
     for (const evt of events) {
       if (evt.type !== 'strike') continue;
@@ -380,6 +370,12 @@ export class ColosseumOverlay {
       }
     }
 
+    return lines;
+  }
+
+  _showCombatLog(lines, outcome, tier) {
+    this._clearScreen();
+    lines = [...lines];
     // Outcome line
     const outcomeColors = {
       win: UI_PALETTE.good,
@@ -389,7 +385,7 @@ export class ColosseumOverlay {
     const outcomeLabels = {
       win: 'Victory!',
       lose: 'Defeat...',
-      draw: 'Draw.',
+      draw: 'Draw: the round limit was reached. Your fee is returned.',
     };
     lines.push({ text: '', color: '#000000' });
     lines.push({
@@ -412,21 +408,11 @@ export class ColosseumOverlay {
 
     const reward = calculateArenaReward(tier, outcome, baseXP, levelsGained, colosseumData);
 
-    // Apply gold
-    if (reward.goldDelta > 0) {
-      this.runManager.awardGold(reward.goldDelta);
-    } else if (reward.goldDelta < 0) {
-      const spent = this.runManager.spendGold(Math.abs(reward.goldDelta));
-      if (spent === false) {
-        // Defensive log: this should not occur with tier affordability gating.
-        console.warn('[ColosseumOverlay] Failed to deduct arena entry fee on loss.', {
-          unit: unit?.name || null,
-          tier: tier?.name || null,
-          required: Math.abs(reward.goldDelta),
-          gold: this.runManager.gold,
-        });
-      }
-    }
+    // Apply gold. The fee was paid as the bout started (_executeFight): the payout
+    // is the net result plus that fee (a win: prize and fee; a draw: the fee back;
+    // a loss or a yield: nothing). `reward.goldDelta` stays the bout's net result.
+    const payout = reward.goldDelta + (this._bout?.feePaid || 0);
+    if (payout > 0) this.runManager.awardGold(payout);
 
     // Apply XP and track level-ups
     let levelUpInfo = null;

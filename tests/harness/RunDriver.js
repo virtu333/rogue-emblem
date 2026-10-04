@@ -54,7 +54,7 @@ export const JOURNEY_BOUNDARIES = Object.freeze({
   shop: 'entry, successful transaction, leave',
   caravan: 'entry consumes pending reward and caches stock; transaction; leave',
   church: 'successful heal/revive/promote; leave (entry is read-only)',
-  arena: 'mercenary generation; fight settlement before log; hire; leave',
+  arena: 'mercenary generation; fee and each bout round; settlement before log; hire; leave',
   back: 'no transaction; last persisted gameplay state retained',
   reload: 'read existing storage only; recreate controllers without leave/save',
   abandon: 'run save removed; meta payout persisted exactly once',

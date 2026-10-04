@@ -152,7 +152,7 @@ it('caravan stock and purchased item persist across open, transaction, reload an
   controller.leaveShopNode();
   expect(loadRun(data, 1).getPendingCaravanShop()).toBeNull();
 });
-it.each(['win', 'lose', 'draw'])(
+it.each(['win', 'lose', 'draw', 'yield'])(
   'arena %s is settled and persisted before combat log dismissal, exactly once',
   (outcome) => {
     const { run, scene, node } = runFixture();
@@ -171,13 +171,17 @@ it.each(['win', 'lose', 'draw'])(
     c._selectedUnit.currentHP = 1;
     c._fightsPerUnit[c._selectedUnit.name] = 1;
     const tier = { entryFee: 100, goldReward: 300, xpMultiplier: 1 };
+    // As _executeFight leaves it: the fee was paid as the bout started.
+    expect(run.spendGold(tier.entryFee)).not.toBe(false);
+    c._bout = { tier, round: 1, feePaid: tier.entryFee, outcome };
     const result = c._settleFight(outcome, tier);
     const first = JSON.stringify(run.toJSON());
     expect(c._settleFight(outcome, tier)).toBe(result);
     expect(JSON.stringify(run.toJSON())).toBe(first);
     const loaded = assertPersisted(run);
     expect(loaded.nodeMap.nodes[0].colosseumState.fightsPerUnit[c._selectedUnit.name]).toBe(1);
-    expect(loaded.gold).toBe(outcome === 'win' ? 10300 : outcome === 'lose' ? 9900 : 10000);
+    // Net of the fee: a win +300, a loss or a yield -100, a draw returns it.
+    expect(loaded.gold).toBe({ win: 10300, lose: 9900, yield: 9900, draw: 10000 }[outcome]);
   },
 );
 it('mercenary hire persists unit identity and the one-hire-per-visit limit', () => {

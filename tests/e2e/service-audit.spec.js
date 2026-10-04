@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene, collectErrors } from './helpers.js';
+import { waitForScene, collectErrors, fightArenaBout } from './helpers.js';
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
 test('Church heal, roster, map, promotion cancellation and arena forecast/rewards/hire', async ({
   page,
@@ -76,8 +76,10 @@ test('Church heal, roster, map, promotion cancellation and arena forecast/reward
   await page.screenshot({ path: 'test-results/audit-arena-forecast.png' });
   await forecast.getByRole('button', { name: 'Back', exact: true }).tap();
   await page.getByRole('button', { name: /^Bronze/ }).tap();
+  await expect(forecast.locator('.arena-odds')).toContainText('If fought to the end: Win');
   await forecast.getByRole('button', { name: 'Fight', exact: true }).tap();
-  await page.getByRole('button', { name: 'Continue', exact: true }).last().tap();
+  const log = await fightArenaBout(page);
+  await log.getByRole('button', { name: 'Continue', exact: true }).last().tap();
   // An arena level plays the level-up card(s) before the rewards (saved first).
   const result = page.getByRole('dialog', { name: 'Arena · Rewards', exact: true });
   const levelCard = page.getByRole('dialog', { name: 'Level up', exact: true });

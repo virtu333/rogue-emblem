@@ -1,5 +1,6 @@
 import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { arenaEntryBlock, canFight, getAvailableTiers } from '../engine/ColosseumEngine.js';
+import { arenaMaxRounds } from '../engine/ArenaBout.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { describeUnit } from './PartyMenus.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
@@ -29,6 +30,20 @@ function mercContent(c) {
 }
 function mercLabel(u, hireCost) {
   return `${u.name} · ${u.className} · Lv ${getDisplayLevel(u)} · ${hireCost} G${u._hired ? ' · Hired' : ''}`;
+}
+
+// "Win about 60% · Lose about 40%": the estimate rounded to 5%, never shown as a
+// certainty it isn't: an estimate never says 0% or 100%.
+export function arenaOddsText(odds) {
+  const pct = (p) => {
+    const v = Math.round((p * 100) / 5) * 5;
+    if (v < 5) return 'under 5%';
+    if (v > 95) return 'over 95%';
+    return `about ${v}%`;
+  };
+  const parts = [`Win ${pct(odds.win)}`, `Lose ${pct(odds.lose)}`];
+  if (odds.draw >= 0.025) parts.push(`Draw ${pct(odds.draw)}`);
+  return `If fought to the end: ${parts.join(' · ')}`;
 }
 
 // Responsive presentation only. The controller remains responsible for rolling
@@ -144,7 +159,7 @@ export class ArenaMenu {
     }
     return m.focus();
   }
-  static forecast(c, forecast) {
+  static forecast(c, forecast, odds = null) {
     const m = new ArenaMenu(c, 'Arena · Combat forecast', () => c._showTierSelect());
     const grid = el('div', null, 'service-columns');
     for (const [u, f, weapon] of [
@@ -158,16 +173,29 @@ export class ArenaMenu {
         el('p', weapon?.name || 'Unarmed'),
         el(
           'p',
-          `Damage ${f.damage} · Hits ${formatStrikes(f.attackCount)} · Hit ${formatHitChance(f.hit)} · Crit ${formatCritChance(f.crit)}`,
+          `Each round: Damage ${f.damage} · Hits ${formatStrikes(f.attackCount)} · Hit ${formatHitChance(f.hit)} · Crit ${formatCritChance(f.crit)}`,
         ),
       );
       grid.append(card);
     }
     m.surface.body.append(grid);
+    if (odds) m.surface.body.append(el('p', arenaOddsText(odds), 'arena-odds'));
+    const tier = c._selectedTier;
+    const rounds = arenaMaxRounds(c._colosseumData);
     m.text(
-      `One combat exchange: if both fighters survive, it is a draw. Wins earn full XP; draws earn 25% of normal combat XP (before the tier modifier). A loss costs ${c._selectedTier.entryFee} gold; a draw costs no gold. Your fighter keeps any HP lost, but cannot fall below 1 HP.`,
+      `Rounds repeat until one fighter falls. Entry ${tier.entryFee} G, paid now. Win: +${tier.goldReward} G and your fee back, with full XP. Lose: the fee is gone and your fighter is left at 1 HP. Between rounds you may yield: the fee is gone, your fighter keeps its HP. After ${rounds} rounds it is a draw: the fee comes back, with a little XP. HP lost here stays lost after the arena.`,
     );
     m.action('Fight', () => c._executeFight());
+    return m.focus();
+  }
+  /** Between rounds: the round just fought, then fight on or yield. */
+  static round(c, { round, maxRounds, lines, fee }) {
+    const m = new ArenaMenu(c, `Arena · Round ${round}`, () => c._yieldBout());
+    m.surface.header.querySelector('button').textContent = 'Yield';
+    for (const line of lines) if (line.text) m.text(line.text);
+    m.text(`Round ${round} of ${maxRounds}. Both fighters stand.`);
+    m.action('Next round', () => c._fightRound());
+    m.action(`Yield (forfeit ${fee} G)`, () => c._yieldBout());
     return m.focus();
   }
   static log(c, lines, outcome, tier) {
@@ -180,7 +208,14 @@ export class ArenaMenu {
   }
   static result(c, outcome, tier, reward, levelUpInfo) {
     const m = new ArenaMenu(c, 'Arena · Rewards', () => c._showMenu());
-    m.text({ win: 'Victory!', lose: 'Defeat', draw: 'Draw — no fee.' }[outcome]);
+    m.text(
+      {
+        win: 'Victory!',
+        lose: 'Defeat',
+        draw: 'Draw: the round limit was reached. Fee returned.',
+        yield: 'Yielded: the fee is forfeit.',
+      }[outcome],
+    );
     const u = c._selectedUnit;
     m.text(`${u.name} · HP ${u.currentHP}/${u.stats.HP}`);
     m.text(c._saveWarning || 'Fight results and hires save immediately.');
