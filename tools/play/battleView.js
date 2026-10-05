@@ -70,15 +70,29 @@ export const tileKey = (col, row) => `${col},${row}`;
 export class UnitIds {
   constructor() {
     this.byUnit = new Map();
+    this.aliases = new Map();
     this.next = { P: 1, E: 1, N: 1 };
   }
 
+  /** Assigns new ids; returns the units that changed id (a recruit that joined). */
   sync(battle) {
     const known = knowledgeOf(battle);
-    for (const u of battle.playerUnits) this._assign(u, 'P');
+    const renamed = [];
+    for (const u of battle.playerUnits) {
+      const old = this.byUnit.get(u);
+      if (old && !old.startsWith('P')) {
+        // A recruit joined: it answers to its army id now, and still to its old one.
+        this.byUnit.delete(u);
+        this._assign(u, 'P');
+        this.aliases.set(old.toLowerCase(), u);
+        renamed.push({ unit: u, from: old, to: this.byUnit.get(u) });
+      }
+      this._assign(u, 'P');
+    }
     for (const u of battle.escapedUnits || []) this._assign(u, 'P');
     for (const u of battle.npcUnits) if (known.isKnown(u)) this._assign(u, 'N');
     for (const u of battle.enemyUnits) if (known.isKnown(u)) this._assign(u, 'E');
+    return renamed;
   }
 
   _assign(unit, prefix) {
@@ -95,7 +109,9 @@ export class UnitIds {
       .trim()
       .toLowerCase();
     if (!t) throw new PlayError(`Name a ${what}.`);
-    const byId = pool.filter((u) => this.byUnit.get(u)?.toLowerCase() === t);
+    const byId = pool.filter(
+      (u) => this.byUnit.get(u)?.toLowerCase() === t || this.aliases.get(t) === u,
+    );
     if (byId.length === 1) return byId[0];
     const byName = pool.filter((u) => String(u.name).toLowerCase() === t);
     if (byName.length === 1) return byName[0];
@@ -232,10 +248,13 @@ export function renderDanger(battle, ids) {
     for (let c = 0; c < battle.grid.cols; c++) {
       const key = tileKey(c, r);
       const unit = units.get(key);
+      const terrain = battle.grid.getTerrainAt(c, r);
       if (unit && unit.faction === 'enemy') line += cell(ids.id(unit));
+      else if (terrain?.defBonus === '--') line += cell('#');
+      else if (!battle.grid.isVisible(c, r)) line += cell('?');
       else if (damage.has(key)) line += cell(String(Math.min(9, damage.get(key))));
       else if (status.has(key)) line += cell('s');
-      else line += cell(glyph(battle.grid.getTerrainAt(c, r)) === '#' ? '#' : '.');
+      else line += cell('.');
     }
     lines.push(line.trimEnd());
   }
@@ -444,7 +463,7 @@ export function battleView(battle, ids, { title = '' } = {}) {
   const enemies = battle.enemyUnits.filter((u) => known.isKnown(u));
   if (enemies.length) {
     out.push(
-      'Danger (visible enemies able to strike each tile next enemy phase; s = status staff only):',
+      'Danger (visible enemies able to strike each tile next enemy phase; s = status staff only; # impassable; ? fog, unknown):',
     );
     out.push(renderDanger(battle, ids));
   }
@@ -571,6 +590,16 @@ export function compactForecast(battle, unit, target, opts) {
   return `${opts.weapon?.name}${opts.art ? ` + ${opts.art.name}` : ''}: you ${side(f.attacker)} | counter ${f.defender?.canCounter ? side(f.defender) : 'none'} | all land: foe ${target.currentHP}->${target.currentHP - dealt}${dealt >= target.currentHP ? ' KO' : ''}, you ${unit.currentHP}->${unit.currentHP - taken}${taken >= unit.currentHP && taken > 0 ? ' KO' : ''}${rolled ? ' (accessory roll varies)' : ''}`;
 }
 
+/** What a unit's affixes do, as the inspection panel words them. */
+export function affixLines(unit, gameData) {
+  return (unit.affixes || [])
+    .map((a) =>
+      gameData.affixes?.affixes?.find((x) => x.id === (typeof a === 'string' ? a : a?.id)),
+    )
+    .filter(Boolean)
+    .map((a) => `${a.name}: ${a.description}`);
+}
+
 export function forecastText(battle, ids, unit, target, opts) {
   const { forecast: f, rolled } = forecastAttack(battle, unit, target, opts);
   const atk = f.attacker;
@@ -587,7 +616,11 @@ export function forecastText(battle, ids, unit, target, opts) {
     .map((s) => (typeof s === 'string' ? s : s?.name))
     .filter(Boolean);
   if (skills.length) lines.push(`  Skills in play: ${[...new Set(skills)].join(', ')}`);
+  for (const line of affixLines(target, battle.gameData)) lines.push(`  Foe affix ${line}`);
+  for (const line of affixLines(unit, battle.gameData)) lines.push(`  Your affix ${line}`);
   if (rolled) lines.push('  (An accessory rolls at combat: this preview shows one possible roll.)');
+  if (!movementTiles(battle, unit).has(tileKey(opts.col, opts.row)))
+    lines.push(`  Note: ${unit.name} cannot reach ${opts.col},${opts.row} this turn.`);
   return lines.join('\n');
 }
 
@@ -646,25 +679,32 @@ export function optionsView(battle, ids, unit, { limit = 3 } = {}) {
   }
   if (attacks.length) {
     out.push(
-      'Attacks (safest tiles first; danger = visible foes that could strike that tile next enemy phase, your target included; hit% is the real chance to land, as the forecast shows it):',
+      'Attacks, one line per weapon from its safest tile (danger dN = visible foes that could strike that tile next enemy phase, the target included; hit% is the real chance to land, as the forecast shows it; "forecast" checks any other tile):',
     );
     for (const { enemy, from } of attacks) {
+      const affixes = affixLines(enemy, battle.gameData).map((l) => l.split(':')[0]);
       out.push(
-        `- ${ids.id(enemy)} ${enemy.name} HP ${enemy.currentHP}/${enemy.stats.HP} @${enemy.col},${enemy.row}: from ${from.length} tile(s)`,
+        `- ${ids.id(enemy)} ${enemy.name} HP ${enemy.currentHP}/${enemy.stats.HP} @${enemy.col},${enemy.row}${affixes.length ? ` [${affixes.join(', ')}]` : ''}:`,
       );
-      for (const f of from.slice(0, limit)) {
-        out.push(`  from ${f.c},${f.r} (${terrainName(battle, f.c, f.r)}, danger ${f.danger}):`);
-        const first = defaultWeapon(unit, f.reaching);
-        for (const weapon of [first, ...f.reaching.filter((w) => w !== first)])
-          out.push(`    ${compactForecast(battle, unit, enemy, { col: f.c, row: f.r, weapon })}`);
-      }
-      if (from.length > limit)
+      // For each weapon: its safest tile and that forecast, then every other tile it reaches from.
+      const weapons = [...new Set(from.flatMap((f) => f.reaching))];
+      for (const weapon of weapons) {
+        const tiles = from.filter((f) => f.reaching.includes(weapon));
+        const best = tiles[0];
+        out.push(`  ${compactForecast(battle, unit, enemy, { col: best.c, row: best.r, weapon })}`);
         out.push(
-          `  (+${from.length - limit} more tile(s): ${from
-            .slice(limit)
-            .map((f) => `${f.c},${f.r}`)
-            .join(' ')})`,
+          `    from ${best.c},${best.r} (${terrainName(battle, best.c, best.r)}, danger ${best.danger})${
+            tiles.length > 1
+              ? `; also ${tiles
+                  .slice(1, 1 + limit * 4)
+                  .map((f) => `${f.c},${f.r}(d${f.danger})`)
+                  .join(
+                    ' ',
+                  )}${tiles.length > 1 + limit * 4 ? ` +${tiles.length - 1 - limit * 4} more` : ''}`
+              : ''
+          }`,
         );
+      }
     }
     const arts = (unit.inventory || [])
       .filter((w) => !isStaff(w))
@@ -685,7 +725,7 @@ export function optionsView(battle, ids, unit, { limit = 3 } = {}) {
   if (heals.size) {
     const staff = battle._getActiveHealStaff(unit);
     out.push(
-      `Heals (${staff ? weaponText(staff, unit) : 'staff'}, range ${staff ? JSON.stringify(getEffectiveStaffRange(staff, unit)) : '?'}):`,
+      `Heals (${staff ? weaponText(staff, unit) : 'staff'}, range ${staff ? `${getEffectiveStaffRange(staff, unit).min}-${getEffectiveStaffRange(staff, unit).max}` : '?'}):`,
     );
     for (const [t, from] of heals) {
       const amount = staff ? resolveHeal(staff, unit, t, battle._healOptions()).healAmount : '?';

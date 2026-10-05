@@ -2249,6 +2249,16 @@ export class HeadlessBattle {
               this._executeEnemyCombat(enemy, target);
               return Promise.resolve();
             },
+            // As BattleScene.executeEnemyBreak: a foe breaks the temporary wall beside it.
+            onBreak: (enemy, tile) => {
+              if (tile) this.grid.clearTemporaryTerrainAt?.(tile.col, tile.row);
+              return Promise.resolve();
+            },
+            // The AI has already healed (AIController.applyHealDecision); the scene only shows it.
+            onHeal: (enemy, target, result) => {
+              this._onEnemyHeal(enemy, target, result);
+              return Promise.resolve();
+            },
             // As BattleScene.executeEnemyStatusStaff without the banner and icons.
             onStatusStaff: (enemy, target) => {
               if (!enemy.statusStaff) return Promise.resolve();
@@ -2278,6 +2288,9 @@ export class HeadlessBattle {
       this._reinforcementsPendingThisTurn = false;
     }
   }
+
+  /** An enemy healer's heal, already applied: a hook for observers (tools/play). */
+  _onEnemyHeal(_enemy, _target, _result) {}
 
   /** As CaravanController.stepTurn (engine/CaravanSystem.advanceCaravan), minus drawing. */
   _stepCaravan() {

@@ -40,6 +40,22 @@ function parseArgs(argv) {
   return { flags, words };
 }
 
+/** Splits "a; b; note \"x; y\"" at semicolons outside double quotes. */
+function splitCommands(line) {
+  const out = [];
+  let current = '';
+  let quoted = false;
+  for (const ch of String(line)) {
+    if (ch === '"') quoted = !quoted;
+    if (ch === ';' && !quoted) {
+      out.push(current);
+      current = '';
+    } else current += ch;
+  }
+  out.push(current);
+  return out.map((c) => c.trim()).filter(Boolean);
+}
+
 function sessionDir(name) {
   const n = name || process.env.PLAY_SESSION || 'default';
   return isAbsolute(n) || n.includes('/') ? resolve(n) : join(SESSIONS, n);
@@ -130,41 +146,49 @@ async function main(argv) {
     save(dir, session);
     journal(dir, { type: 'rebase', at: session.log.length });
   }
-  const line = words.join(' ');
-  const commands = line
-    .split(';')
-    .map((c) => c.trim())
-    .filter(Boolean);
+  const commands = splitCommands(words.join(' '));
   let status = 0;
   let changed = false;
-  for (const cmd of commands) {
-    if (PlaySession.isQuery(cmd)) {
-      const text = await session.query(cmd);
-      journal(dir, { type: 'query', at: session.log.length, cmd });
-      console.log(text);
-      continue;
+  let note = flags.note || null; // --note belongs to the first command that changes the game
+  try {
+    for (const cmd of commands) {
+      const verb = cmd.split(/\s+/)[0].toLowerCase();
+      if (verb === 'note') {
+        const text = cmd
+          .slice(4)
+          .trim()
+          .replace(/^"(.*)"$/s, '$1');
+        journal(dir, { type: 'note', at: session.log.length, note: text });
+        console.log('Noted.');
+        continue;
+      }
+      try {
+        if (PlaySession.isQuery(cmd)) {
+          const text = await session.query(cmd);
+          journal(dir, { type: 'query', at: session.log.length, cmd });
+          console.log(text);
+          continue;
+        }
+        const { lines } = await session.exec(cmd, { note });
+        changed = true;
+        journal(dir, { type: 'cmd', at: session.log.length, cmd, note, out: lines });
+        note = null;
+        console.log(`> ${cmd}\n${lines.join('\n')}`);
+      } catch (err) {
+        if (!(err instanceof PlayError)) throw err;
+        journal(dir, { type: 'refused', at: session.log.length, cmd, error: err.message });
+        console.log(`> ${cmd}\nREFUSED: ${err.message}`);
+        const rest = commands.slice(commands.indexOf(cmd) + 1);
+        if (rest.length) console.log(`(Not run: ${rest.join('; ')})`);
+        status = 2;
+        break;
+      }
+      if (session.over) break;
     }
-    try {
-      const { lines } = await session.exec(cmd, { note: flags.note || null });
-      changed = true;
-      journal(dir, {
-        type: 'cmd',
-        at: session.log.length,
-        cmd,
-        note: flags.note || null,
-        out: lines,
-      });
-      console.log(`> ${cmd}\n${lines.join('\n')}`);
-    } catch (err) {
-      if (!(err instanceof PlayError)) throw err;
-      journal(dir, { type: 'refused', at: session.log.length, cmd, error: err.message });
-      console.log(`> ${cmd}\nREFUSED: ${err.message}`);
-      status = 2;
-      break;
-    }
-    if (session.over) break;
+  } finally {
+    // Whatever ran before a refusal or a crash stays played.
+    if (changed) save(dir, session);
   }
-  if (changed) save(dir, session);
   if (changed && !flags.brief) console.log(`\n${session.view()}`);
   if (session.over) console.log('\nThe run is over.');
   return status;
@@ -177,7 +201,7 @@ main(process.argv.slice(2))
       console.error(`REFUSED: ${err.message}`);
       process.exit(2);
     }
-    if (err instanceof ReplayDivergence) {
+    if (err instanceof ReplayDivergence || /^Replay failed/.test(err?.message || '')) {
       console.error(`${err.message}\n(If only the adapter changed, --rebase re-stamps the log.)`);
       process.exit(3);
     }

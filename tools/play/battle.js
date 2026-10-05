@@ -35,6 +35,7 @@ import {
 import { isEntity } from '../../src/engine/EntitySystem.js';
 import {
   UnitIds,
+  affixLines,
   renderBoard,
   artChoices,
   battleView,
@@ -408,12 +409,29 @@ export class PlayBattle {
         return this._eventLines();
       }
     }
-    if (verb === 'move') await this._move(words);
-    else if (verb === 'end') {
-      await b.endTurn();
-      await this._settlePhases();
-    } else if (verb === 'auto') await this._auto(words[0] || 'turn');
-    else throw new PlayError(`Unknown battle command "${verb}". Try "help".`);
+    // A turn the last order ended on its own (every unit had acted): an "end" straight
+    // after it would throw the next turn away, the usual slip in a chain of orders.
+    const autoEnded = this._autoEnded;
+    try {
+      this._autoEnded = false;
+      if (verb === 'move') await this._move(words);
+      else if (verb === 'end') {
+        if (
+          autoEnded &&
+          !['again', 'anyway'].includes(String(words[0]).toLowerCase()) &&
+          b.playerUnits.every((u) => !u.hasActed)
+        )
+          throw new PlayError(
+            `Turn ${b.turnManager.turnNumber - 1} already ended when every unit had acted. "end" now would skip turn ${b.turnManager.turnNumber} without a move; say "end again" if you mean it.`,
+          );
+        await b.endTurn();
+        await this._settlePhases();
+      } else if (verb === 'auto') await this._auto(words[0] || 'turn');
+      else throw new PlayError(`Unknown battle command "${verb}". Try "help".`);
+    } catch (err) {
+      this._autoEnded = autoEnded; // a refusal changes nothing, this included
+      throw err;
+    }
     this._afterStep();
     return this._eventLines();
   }
@@ -468,6 +486,10 @@ export class PlayBattle {
     const from = { col: b.preMoveLoc.col, row: b.preMoveLoc.row };
     this.events.push({ type: 'order', unit, from, tile, action, args, equip });
     plan();
+    if (!this.over && b.battleState === HEADLESS_STATES.ENEMY_PHASE) {
+      this.events.push({ type: 'allActed' });
+      this._autoEnded = true;
+    }
     await this._settlePhases();
   }
 
@@ -683,7 +705,7 @@ export class PlayBattle {
   }
 
   _afterStep() {
-    this.ids.sync(this.battle);
+    for (const r of this.ids.sync(this.battle)) this.events.push({ type: 'renamed', ...r });
   }
 
   // --- events ---
@@ -732,7 +754,17 @@ export class PlayBattle {
         skills: [...(unit.skills || [])],
       };
       const out = orig(unit, baseXp);
-      log({ type: 'xp', unit, before });
+      log({
+        type: 'xp',
+        unit,
+        before,
+        after: {
+          level: unit.level,
+          xp: unit.xp || 0,
+          stats: { ...unit.stats },
+          skills: [...(unit.skills || [])],
+        },
+      });
       return out;
     });
     wrap('_executeHeal', (orig, healer, target) => {
@@ -781,7 +813,18 @@ export class PlayBattle {
       if (out) log({ type: 'razed', enemy });
       return out;
     });
+    wrap('_onEnemyHeal', (orig, healer, target, result) => {
+      log({
+        type: 'enemyHeal',
+        healer,
+        target,
+        from: target.currentHP - (Number(result?.healAmount) || 0),
+        to: target.currentHP,
+      });
+      return orig(healer, target, result);
+    });
     wrap('_processEnemyPhase', async (orig) => {
+      const par = b.turnPar;
       const known = knowledgeOf(b);
       const seen = new Map(
         b.enemyUnits.filter((u) => known.isKnown(u)).map((u) => [u, { col: u.col, row: u.row }]),
@@ -789,6 +832,7 @@ export class PlayBattle {
       const roster = new Set(b.enemyUnits);
       log({ type: 'enemyPhase', turn: b.turnManager.turnNumber });
       const out = await orig();
+      if (Number.isFinite(par) && b.turnPar !== par) log({ type: 'par', from: par, to: b.turnPar });
       log({
         type: 'enemyPhaseEnd',
         seen,
@@ -798,6 +842,39 @@ export class PlayBattle {
       });
       return out;
     });
+  }
+
+  /**
+   * When a unit lost more HP than the strikes on it dealt, say whose affixes or skills
+   * added the rest (Venomous, Thorns, a weapon art's cost...): the strikes alone would
+   * not add up.
+   */
+  _effectsNote(e) {
+    if (!e.after) return '';
+    const strikes = (e.result?.events || []).filter((s) => s.type === 'strike' && !s.miss);
+    const dealt = (side) =>
+      strikes
+        .filter((s) =>
+          side === 'a' ? s.attackerSide === 'defender' : s.attackerSide !== 'defender',
+        )
+        .reduce((sum, s) => sum + (Number(s.damage) || 0), 0);
+    const notes = [];
+    for (const [side, unit, foe] of [
+      ['a', e.attacker, e.defender],
+      ['d', e.defender, e.attacker],
+    ]) {
+      const lost = e.before[side] - Math.max(0, e.after[side]);
+      const extra = lost - Math.min(dealt(side), e.before[side]);
+      if (extra <= 0) continue;
+      const sources = [
+        ...affixLines(foe, this.game.gameData).map((l) => `${foe.name}'s ${l.split(':')[0]}`),
+        ...affixLines(unit, this.game.gameData).map((l) => `own ${l.split(':')[0]}`),
+      ];
+      notes.push(
+        `${unit.name} lost ${extra} more than the strikes dealt${sources.length ? ` (${sources.join(', ')})` : ' (skills, arts or effects)'}`,
+      );
+    }
+    return notes.length ? ` ${notes.join('; ')}.` : '';
   }
 
   _eventLines() {
@@ -850,7 +927,7 @@ export class PlayBattle {
               return `${this.ids.byUnit.get(who) || name(who)} ${what}${skills.length ? ` (${skills.join(', ')})` : ''}`;
             });
           lines.push(
-            `${name(e.attacker)} [${e.weapons.a || 'no weapon'}] attacks ${name(e.defender)} [${e.weapons.d || 'no weapon'}]: ${strikes.join('; ') || 'no strikes'}. HP ${e.attacker.name} ${e.before.a}->${Math.max(0, e.after?.a ?? e.attacker.currentHP)}, ${e.defender.name} ${e.before.d}->${Math.max(0, e.after?.d ?? e.defender.currentHP)}.`,
+            `${name(e.attacker)} [${e.weapons.a || 'no weapon'}] attacks ${name(e.defender)} [${e.weapons.d || 'no weapon'}]: ${strikes.join('; ') || 'no strikes'}. HP ${e.attacker.name} ${e.before.a}->${Math.max(0, e.after?.a ?? e.attacker.currentHP)}, ${e.defender.name} ${e.before.d}->${Math.max(0, e.after?.d ?? e.defender.currentHP)}.${this._effectsNote(e)}`,
           );
           hpSeen.set(e.attacker, e.after?.a ?? e.attacker.currentHP);
           hpSeen.set(e.defender, e.after?.d ?? e.defender.currentHP);
@@ -864,20 +941,34 @@ export class PlayBattle {
           break;
         case 'xp': {
           const u = e.unit;
-          if (u.level > e.before.level) {
-            const gains = Object.entries(u.stats)
-              .filter(([k, v]) => v !== e.before.stats[k])
-              .map(([k, v]) => `${k}+${v - (e.before.stats[k] || 0)}`);
+          const { before, after } = e;
+          if (after.level > before.level) {
+            const gains = Object.entries(after.stats)
+              .filter(([k, v]) => v !== before.stats[k])
+              .map(([k, v]) => `${k}+${v - (before.stats[k] || 0)}`);
             const learned = skillNames(
-              { skills: (u.skills || []).filter((s) => !e.before.skills.includes(s)) },
+              { skills: after.skills.filter((id) => !before.skills.includes(id)) },
               this.game.gameData,
             );
             lines.push(
-              `${name(u)} LEVEL UP ${e.before.level}->${u.level}: ${gains.join(' ') || 'no stat gains'}${learned.length ? `; learned ${learned.join(', ')}` : ''}.`,
+              `${name(u)} LEVEL UP ${before.level}->${after.level}: ${gains.join(' ') || 'no stat gains'}${learned.length ? `; learned ${learned.join(', ')}` : ''}.`,
             );
-          } else lines.push(`${name(u)} xp ${e.before.xp}->${u.xp}.`);
+          } else if (after.xp !== before.xp) lines.push(`${name(u)} xp ${before.xp}->${after.xp}.`);
           break;
         }
+        case 'enemyHeal':
+          lines.push(`${name(e.healer)} heals ${name(e.target)}: HP ${e.from}->${e.to}.`);
+          hpSeen.set(e.target, e.to);
+          break;
+        case 'allActed':
+          lines.push('Every unit has acted: the player phase ends.');
+          break;
+        case 'par':
+          lines.push(`Par is now ${e.to} (was ${e.from}): reinforcements raise it.`);
+          break;
+        case 'renamed':
+          lines.push(`${e.from} ${e.unit.name} now fights as ${e.to}.`);
+          break;
         case 'heal':
           lines.push(`${name(e.healer)} heals ${name(e.target)}: HP ${e.from}->${e.to}.`);
           hpSeen.set(e.target, e.to);
@@ -979,6 +1070,7 @@ export class PlayBattle {
       fallenRecruits: fallenBattleRecruits(b._battleRecruits, allUnits, rm.roster),
     });
     const awarded = applied ? Math.max(0, Math.trunc(rm.gold || 0)) - goldBefore : 0;
+    const goldAfterBattle = Math.max(0, Math.trunc(rm.gold || 0));
     if (applied && !rm.isRunComplete()) {
       prepareBattleRewards(rm, game.gameData, {
         nodeId: this.node.id,
@@ -998,8 +1090,10 @@ export class PlayBattle {
       if (!rm.pendingBossRecruit && rm.shouldTriggerThirdLord())
         prepareThirdLord(rm, game.gameData);
     }
+    // prepareBattleRewards pays the turn rating's gold (the spoils header names it).
+    const turnBonus = Math.max(0, Math.trunc(rm.gold || 0)) - goldAfterBattle;
     const lines = [
-      `Battle won in ${turn} turn(s)${Number.isFinite(b.turnPar) ? ` (par ${b.turnPar})` : ''}. Gold +${awarded} (now ${rm.gold}).`,
+      `Battle won in ${turn} turn(s)${Number.isFinite(b.turnPar) ? ` (par ${b.turnPar})` : ''}. Gold +${awarded} for the battle${turnBonus > 0 ? `, +${turnBonus} turn bonus` : ''} (now ${rm.gold}).`,
     ];
     if (caravanSurvived) lines.push('The caravan survived: its shop opens on the route map.');
     const commit = rm.lastEclipseCommit;

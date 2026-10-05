@@ -281,4 +281,50 @@ describe('PlaySession commands', () => {
     expect(view).toMatch(/ENEMIES \(0 visible; more may hide in fog\)/);
     for (const e of hidden) expect(view).not.toContain(`@${e.col},${e.row}`);
   });
+
+  it('an "end" straight after the turn ended by itself is refused; "end again" skips on purpose', async () => {
+    const session = await firstBattle(3);
+    await session.exec('start');
+    const ids = session.game.battle.battle.playerUnits.map((u) => session.game.battle.ids.id(u));
+    let last;
+    for (const id of ids) last = await session.exec(`move ${id} stay wait`);
+    expect(last.lines).toContain('Every unit has acted: the player phase ends.');
+    const turn = session.game.battle.battle.turnManager.turnNumber;
+    const before = digestOf(session.game);
+    await expect(session.exec('end')).rejects.toThrow(/end again/);
+    expect(digestOf(session.game)).toBe(before);
+    await session.exec('end again');
+    expect(session.game.battle?.battle.turnManager.turnNumber ?? turn + 1).toBe(turn + 1);
+    // Only straight after: a later "end" is an ordinary end.
+    const turn2 = session.game.battle.battle.turnManager.turnNumber;
+    await session.exec('end');
+    expect(session.game.battle.battle.turnManager.turnNumber).toBe(turn2 + 1);
+  });
+
+  it("reports an enemy healer's heal, which the AI applies itself", async () => {
+    const session = await firstBattle(3);
+    await session.exec('start');
+    const b = session.game.battle.battle;
+    const [hurt, healer] = b.enemyUnits;
+    healer.inventory.push(structuredClone(gameData.weapons.find((w) => w.name === 'Heal')));
+    healer.proficiencies.push({ type: 'Staff', rank: 'Prof' });
+    healer.aiMode = 'heal';
+    healer.col = hurt.col;
+    healer.row = hurt.row > 0 ? hurt.row - 1 : hurt.row + 1;
+    hurt.currentHP = 5;
+    const { lines } = await session.exec('end');
+    expect(lines.some((l) => /E\d+ \w+ heals E\d+ \w+: HP 5->\d+\./.test(l))).toBe(true);
+  });
+
+  it('names the affix behind damage the strikes do not explain', async () => {
+    const session = await firstBattle(3);
+    await session.exec('start');
+    for (const e of session.game.battle.battle.enemyUnits) e.affixes = ['venomous'];
+    let seen = null;
+    for (let i = 0; i < 12 && !seen && session.phase === 'battle'; i++) {
+      const { lines } = await session.exec('end');
+      seen = lines.find((l) => /lost 5 more than the strikes dealt \(\w+'s Venomous\)/.test(l));
+    }
+    expect(seen).toBeTruthy();
+  });
 });

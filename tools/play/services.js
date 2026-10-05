@@ -41,7 +41,7 @@ import {
 import { forgePrice } from '../../src/engine/ForgeSystem.js';
 import { getSellPrice } from '../../src/engine/LootSystem.js';
 import { getReviveCost } from '../../src/engine/RunManager.js';
-import { canPromote, resolvePromotionTargets } from '../../src/engine/UnitManager.js';
+import { canEquip, canPromote, resolvePromotionTargets } from '../../src/engine/UnitManager.js';
 import { healUnitFully } from '../../src/engine/UnitHealth.js';
 import { kindlePrice } from '../../src/engine/EclipseSystem.js';
 import {
@@ -231,7 +231,7 @@ export class ShopVisit {
 
   help() {
     return [
-      'buy <n> [for <unit>|convoy]   (weapons and supplies go to a unit, else the convoy; scrolls and accessories to the team pools, an accessory "for <unit>" is equipped)',
+      'buy <n|name> for <unit>|convoy   (by number or name; scrolls and accessories go to the team pools, an accessory "for <unit>" is equipped)',
       'sell s<n>                      (see the sell list)',
       this.canForge ? 'forge <unit> <weapon> might|hit|crit|weight' : null,
       this.canRestock ? 'restock' : null,
@@ -246,7 +246,18 @@ export class ShopVisit {
     switch (verb) {
       case 'buy': {
         const { head, clauses } = splitClauses(words, ['for', 'to']);
-        const entry = this.stock[parseIndex(head[0], this.stock.length, 'stock item')];
+        // By number (the list renumbers after each purchase) or by name.
+        const entry = /^#?\d+$/.test(head.join(' '))
+          ? this.stock[parseIndex(head[0], this.stock.length, 'stock item')]
+          : this.stock.find(
+              (e) =>
+                e.item ===
+                findItem(
+                  this.stock.map((x) => x.item),
+                  head.join(' '),
+                  'item for sale',
+                ),
+            );
         const who = clauses.for || clauses.to;
         const pool = entry.type === 'scroll' || entry.type === 'accessory';
         let recipient;
@@ -258,7 +269,19 @@ export class ShopVisit {
         else recipient = this.game.resolveRosterUnit(who);
         const result = purchaseShopItem(rm, this.stock, entry, recipient);
         if (result.ok) this._save();
-        return resultLines(result);
+        const out = resultLines(result);
+        // The menu says "Cannot equip; can carry": buying it is allowed, so say so.
+        if (
+          recipient &&
+          typeof recipient === 'object' &&
+          entry.item.type !== 'Consumable' &&
+          !pool &&
+          !canEquip(recipient, entry.item)
+        )
+          out.lines.push(
+            `Note: ${recipient.name} cannot equip ${entry.item.name}; it is only carried.`,
+          );
+        return out;
       }
       case 'sell': {
         const rows = shopOwnedItems(rm);

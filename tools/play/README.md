@@ -16,7 +16,10 @@ npm run -s play -- "move P1 2,3 wait; move P2 stay heal P3; end"
 
 Each call prints what happened (combat, level-ups, enemy moves) and then the new
 state. `--brief` prints only what happened. Several commands can go in one call,
-separated by `;`. The call stops at the first refusal.
+separated by `;` (a `;` inside double quotes stays part of a note). The call stops at
+the first refusal and says which commands did not run. Everything before the refusal
+stays played. In a chain, `note "..."` writes to the journal, and `--note` belongs to
+the first command that changes the game.
 
 ## What it is
 
@@ -104,7 +107,9 @@ begins the battle.
   - `escape`
   - `smash <x,y>` (zombie remains)
   - `strike <area art> at <x,y>`
-- `end` ends the player phase. The enemy phase runs and is reported.
+- `end` ends the player phase. The enemy phase runs and is reported. When the last
+  unit acts, the phase ends by itself (as in the game). An `end` straight after that
+  is refused, because it would skip the new turn. `end again` skips it on purpose.
 - `auto turn` and `auto battle` hand the rest of the turn, or the battle, to the
   harness's tactician (`sim/lib/TacticianAgent.js`). `auto battle` hands back after
   40 turns without a result.
@@ -120,7 +125,7 @@ A move is validated in full before anything moves, so a refused order changes no
 
 **Spoils** (after a won battle):
 
-- `take <n> [to <unit>|convoy|pool]`.
+- `take <n> [to] <unit>|convoy|pool` (`take 2 Edric`, `take 3 to convoy`).
 - Forge and imbue stones: `take <n> forge <unit> <weapon> [might|hit|crit|weight|<imbue id>]`.
 - `skip` takes the gold instead.
 - A boss may offer a recruit (`recruit <n>|none`). A due lord arrival (`lord <n>|none`,
@@ -128,7 +133,9 @@ A move is validated in full before anything moves, so a refused order changes no
 
 **Shop** (also the ruins' wares and the caravan):
 
-- `buy <n> for <unit>|convoy` (scrolls and accessories go to the team pools).
+- `buy <n|name> for <unit>|convoy`. The numbers shift after each purchase, so a name
+  is safer. Scrolls and accessories go to the team pools. Buying a weapon its holder
+  cannot use is allowed, as in the shop, and is noted.
 - `sell s<n>`.
 - `forge <unit> <weapon> might|hit|crit|weight`.
 - `restock`.
@@ -145,8 +152,9 @@ A move is validated in full before anything moves, so a refused order changes no
 
 **Ruins:**
 
-- `path rest`, then `heal`, `revive <name>` and `leave`.
-- Or `path scavenge`, then `wares` and `leave`.
+- `path rest` heals everyone; then `revive <name>` and `leave`.
+- Or `path scavenge`, which opens the wares at once. Leaving them returns to the
+  ruins, where `wares` opens them again and `leave` goes on.
 
 **Colosseum:**
 

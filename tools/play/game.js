@@ -348,7 +348,8 @@ export class Game {
     const verb = (words.shift() || '').toLowerCase();
     if (verb === 'look' || verb === '') return this.view();
     if (verb === 'help') return this.help();
-    if (verb === 'roster') return rosterView(this.rm, this.gameData, { detail: true });
+    if (verb === 'roster')
+      return `${this.phase === 'battle' ? '(The army as it entered this battle: "look" shows the battle. Growths, convoy and pools below.)\n' : ''}${rosterView(this.rm, this.gameData, { detail: true })}`;
     if (verb === 'map')
       return mapView(this.rm, {
         available: this.availableNodes(),
@@ -646,8 +647,9 @@ export class Game {
       if (!result.ok) throw new PlayError(result.reason);
       return [`${item.name} applied to ${unit.name}'s ${weapon.name}.`];
     }
-    const { clauses } = splitClauses(words, ['to', 'for']);
-    const who = (clauses.to || clauses.for || '').toLowerCase();
+    const { head, clauses } = splitClauses(words, ['to', 'for']);
+    // "take 2 to Edric", or simply "take 2 Edric" / "take 2 convoy".
+    const who = (clauses.to || clauses.for || head.join(' ')).toLowerCase();
     if (choice.type === 'accessory') {
       const target = !who || who === 'pool' ? 'pool' : this.resolveRosterUnit(who);
       const result = applyAccessoryReward(rm, item, target);
@@ -792,7 +794,8 @@ export class Game {
       }
       case 'use': {
         const unit = unitFirst();
-        const pool = [...(unit.consumables || []), ...(rm.getConvoyItems().consumables || [])];
+        // The convoy's own items (getConvoyItems copies them; a copy is not "in the convoy").
+        const pool = [...(unit.consumables || []), ...(rm.convoy?.consumables || [])];
         // The item is the longest leading run of words naming one; a seal's class follows.
         if (words.length < 2) throw new PlayError('use <unit> <item> [<class>]');
         let item = null;

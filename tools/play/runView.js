@@ -45,16 +45,25 @@ const NODE_LABEL = {
 };
 
 /** One line describing an item (weapon stats, consumable effect, scroll, accessory). */
+/** Menu text as one line: no UI directions ("Use: Roster -> ..."), no empty parts. */
+function oneLine(text) {
+  return String(text || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !/^use:/i.test(l))
+    .join('; ');
+}
+
 export function itemDetail(item, gameData) {
   if (!item) return '?';
   if (item.type === 'Accessory' || item.combatEffects || item.statBonuses)
-    return `${item.name} (accessory: ${formatAccessoryDetail(item, { fallback: 'Accessory' }).replace(/\n/g, '; ')})`;
+    return `${item.name} (accessory: ${oneLine(formatAccessoryDetail(item, { fallback: 'Accessory' }))})`;
   if (item.type === 'Consumable')
     return `${item.name} (${getConsumableDescription(item) || item.special || 'consumable'}${formatUses(item) ? `, ${formatUses(item)}` : ''})`;
   if (item.teachesWeaponArtId)
-    return `${item.name} (${weaponArtScrollText(item, gameData.weaponArts?.arts || []).replace(/\n/g, '; ')})`;
+    return `${item.name} (${oneLine(weaponArtScrollText(item, gameData.weaponArts?.arts || []))})`;
   if (item.type === 'Scroll')
-    return `${item.name} (${skillScrollText(item, gameData.skills || []).replace(/\n/g, '; ')})`;
+    return `${item.name} (${oneLine(skillScrollText(item, gameData.skills || []))})`;
   if (item.type === 'Whetstone')
     return `${item.name} (forge stone: ${item.forgeStat || item.imbueId || '?'})`;
   return weaponText(item);
@@ -229,14 +238,15 @@ export function rosterView(rm, gameData, { detail = false } = {}) {
   const convoy = rm.getConvoyItems?.() || { weapons: [], consumables: [] };
   const caps = rm.getConvoyCapacities?.() || {};
   out.push(
-    `Convoy weapons (${convoy.weapons.length}/${caps.weapons ?? '?'}): ${convoy.weapons.map((i) => i.name).join(', ') || 'none'}`,
+    `Convoy weapons (${convoy.weapons.length}/${caps.weapons ?? '?'}): ${convoy.weapons.map((i) => itemDetail(i, gameData)).join('; ') || 'none'}`,
   );
   out.push(
-    `Convoy supplies (${convoy.consumables.length}/${caps.consumables ?? '?'}): ${convoy.consumables.map((i) => `${i.name}${i.uses !== undefined ? ` x${i.uses}` : ''}`).join(', ') || 'none'}`,
+    `Convoy supplies (${convoy.consumables.length}/${caps.consumables ?? '?'}): ${convoy.consumables.map((i) => itemDetail(i, gameData)).join(', ') || 'none'}`,
   );
   if (rm.accessories?.length)
     out.push(`Accessory pool: ${rm.accessories.map((a) => a.name).join(', ')}`);
-  if (rm.scrolls?.length) out.push(`Scroll pool: ${rm.scrolls.map((s) => s.name).join(', ')}`);
+  if (rm.scrolls?.length)
+    out.push(`Scroll pool: ${rm.scrolls.map((s) => itemDetail(s, gameData)).join('; ')}`);
   const blessings = (rm.activeBlessings || []).map((b) => b.name || b.id);
   if (blessings.length) out.push(`Blessings: ${blessings.join(', ')}`);
   if (Number.isFinite(rm.visionChargesRemaining))

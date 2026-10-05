@@ -141,3 +141,30 @@ describe('HeadlessBattle movement rule', () => {
     expect(reach()).toBe(true);
   });
 });
+
+describe('HeadlessBattle enemy breaks a temporary wall', () => {
+  beforeEach(() => {
+    gameData = loadGameData();
+    installSeed(7);
+  });
+  afterEach(() => restoreMathRandom());
+
+  it('a foe walled in by temporary walls breaks one (BattleScene.executeEnemyBreak)', async () => {
+    const b = battle();
+    const foe = b.enemyUnits[0];
+    const walls = [
+      [0, -1],
+      [0, 1],
+      [-1, 0],
+      [1, 0],
+    ]
+      .map(([dc, dr]) => ({ col: foe.col + dc, row: foe.row + dr }))
+      .filter((t) => t.col >= 0 && t.row >= 0 && t.col < b.grid.cols && t.row < b.grid.rows)
+      .filter((t) => !b.getUnitAt(t.col, t.row));
+    for (const t of walls) b.grid.setTemporaryTerrain(t.col, t.row, 'Wall', 5);
+    expect(walls.every((t) => b.grid.isTemporaryTerrainAt(t.col, t.row))).toBe(true);
+    await b.endTurn();
+    await b._processEnemyPhase();
+    expect(walls.some((t) => !b.grid.isTemporaryTerrainAt(t.col, t.row))).toBe(true);
+  });
+});

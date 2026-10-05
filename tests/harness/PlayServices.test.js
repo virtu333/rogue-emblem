@@ -42,7 +42,8 @@ describe('ShopVisit', () => {
       const entry = visit.stock[n];
       const bags = () => [...edric.inventory, ...edric.consumables].map((i) => i.name);
       const had = bags().filter((name) => name === entry.item.name).length;
-      visit.exec('buy', [String(n + 1), 'for', 'Edric']);
+      // By name: the numbers shift after a purchase.
+      visit.exec('buy', [...entry.item.name.split(' '), 'for', 'Edric']);
       expect(bags().filter((name) => name === entry.item.name).length).toBe(had + 1);
       expect(rm.gold).toBe(5000 - entry.price);
       expect(visit.stock).not.toContain(entry);
