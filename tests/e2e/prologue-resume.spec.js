@@ -15,6 +15,8 @@ import {
   fightOut,
   watchtower,
   travel,
+  P3_ORDER,
+  p3Opts,
 } from './prologueJourney.js';
 
 test.setTimeout(900_000);
@@ -106,7 +108,8 @@ test('refreshes mid-teaching: the reward, P3 notes, the Vision grant, P4 before 
   expect(d.notes().filter((n) => n.includes('Sera heals with her staff'))).toHaveLength(1);
 
   // The rest of turn 1, then turn 2: the Vision charge is granted once, across a refresh.
-  for (const name of ['Gaspar', 'Tamsin']) await d.act(name);
+  await d.act('Gaspar');
+  await d.act('Tamsin', { caution: 2 });
   await d.nextTurn(1);
   const charges = () =>
     page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').runManager.visionChargesRemaining); // prettier-ignore
@@ -116,9 +119,7 @@ test('refreshes mid-teaching: the reward, P3 notes, the Vision grant, P4 before 
   await refreshAndResume(d);
   await d.idle();
   expect(await charges()).toBe(granted);
-  await fightOut(d, ['Gaspar', 'Tamsin', 'Edric', 'Sera'], (name) =>
-    name === 'Sera' ? { caution: 2 } : {},
-  );
+  await fightOut(d, P3_ORDER, p3Opts);
   await toRoute(d);
   expect((await slotRun(page)).visionChargesRemaining).toBeLessThanOrEqual(1);
   const hints = await seenHints(page);

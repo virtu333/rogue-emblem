@@ -229,7 +229,10 @@ export function driver(page, { touch = false } = {}) {
         if (left <= 0) {
           const s = await d.battleState().catch(() => null);
           throw new Error(
-            `drain timed out; dialogs ${JSON.stringify(dialogs.map((x) => x.name))}, battle ${JSON.stringify(s)}`,
+            `drain timed out waiting for ${done.toString().replace(/\s+/g, ' ').slice(0, 240)}; dialogs ${JSON.stringify(dialogs.map((x) => x.name))}, battle ${JSON.stringify(s)}\nlast: ${log
+              .slice(-8)
+              .map((e) => `${e.kind} ${e.name}: ${e.text.slice(0, 160)}`)
+              .join('\n')}`,
           );
         }
         // Wait for the next thing to happen: the condition, or a dialog to appear/change.
@@ -303,11 +306,45 @@ export function driver(page, { touch = false } = {}) {
         return true;
       }
       if (top.buttons.length === 1) return press(top.buttons[0]);
-      throw new Error(`no way past dialog "${top.name}" (${top.buttons.join(' | ')})`);
+      throw new Error(
+        `no way past dialog "${top.name}" (${top.buttons.join(' | ')})\nlast: ${log
+          .slice(-8)
+          .map((e) => `${e.kind} ${e.name}: ${e.text.slice(0, 160)}`)
+          .join('\n')}`,
+      );
+    },
+
+    /**
+     * A line in the log for a failing spec to show (the board and the plan); printed
+     * as it happens with PROLOGUE_TRACE=1.
+     */
+    async trace(what) {
+      const state = await page
+        .evaluate(() => {
+          const b = window.__emblemRogueGame?.scene?.getScene('Battle');
+          if (!b?.turnManager) return '';
+          const units = [...b.playerUnits, ...b.enemyUnits, ...(b.npcUnits || [])].map(
+            (u) => `${u.authoredId || u.name}@${u.col},${u.row}:${u.currentHP}`,
+          );
+          return `T${b.turnManager.turnNumber} ${units.join(' ')}`;
+        })
+        .catch(() => '');
+      log.push({ kind: 'trace', name: 'trace', text: `${what} | ${state}` });
+      if (process.env.PROLOGUE_TRACE) console.log(`[trace] ${what} | ${state}`);
     },
 
     /** Click a unit's tile and wait until it is the selected unit. */
     async select(name) {
+      // The board takes input: the player's turn, nothing locked or being presented.
+      await d.drain(() => {
+        const b = window.__emblemRogueGame.scene.getScene('Battle');
+        return (
+          ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(b.battleState) &&
+          b.turnManager.currentPhase === 'player' &&
+          !b.isStoryInputLocked?.() &&
+          !b._prologue?.isPresenting?.()
+        );
+      });
       const u = await d.unit(name);
       if (!u) throw new Error(`${name} is not on the field`);
       await d.tile(u.col, u.row);
@@ -397,7 +434,10 @@ export function driver(page, { touch = false } = {}) {
         return;
       }
       await expect
-        .poll(async () => (await d.menuItems()).some(matches), { timeout: 15_000 })
+        .poll(async () => (await d.menuItems()).some(matches), {
+          timeout: 15_000,
+          message: `menu ${label}: ${JSON.stringify(await d.publishedMenu())}`,
+        })
         .toBe(true);
       const items = await d.menuItems();
       const target = items.findIndex(matches);
@@ -694,6 +734,7 @@ export function driver(page, { touch = false } = {}) {
     async act(name, opts = {}) {
       await d.select(name);
       let p = await d.plan(name, opts);
+      await d.trace(`${name} ${JSON.stringify(p)}`);
       // Hurt (half HP or less) with a Vulnerary in the bag and no sure kill: step to the
       // safest useful tile and drink it (Item → Vulnerary), as P1's tip teaches.
       const drink = await page.evaluate(
@@ -742,7 +783,8 @@ export function driver(page, { touch = false } = {}) {
         if (!u || u.acted) continue;
         const opts = optsFor(name);
         if (opts === null) continue;
-        await d.act(name, opts);
+        if (opts.support) await d.support(name, opts.support === true ? {} : opts.support);
+        else await d.act(name, opts);
       }
       const s = await d.battleState();
       if (s.state === 'BATTLE_END' || (await d.scene()) !== 'Battle') return;
@@ -789,6 +831,66 @@ export function driver(page, { touch = false } = {}) {
         await d.tile(t.col, t.row);
       }
       await d.acted(healer);
+    },
+
+    /**
+     * A healer's turn: heal the most hurt ally it can reach (below `below` of max HP),
+     * from the reachable tile beside them with the least exposure; else `fallback`.
+     */
+    async support(healer, { below = 0.7, fallback = { caution: 2 } } = {}) {
+      await d.select(healer);
+      const pick = await page.evaluate(
+        async ([name, below]) => {
+          const T = await import('/src/engine/ThreatForecast.js');
+          const b = window.__emblemRogueGame.scene.getScene('Battle');
+          const h = b.playerUnits.find((u) => u.name === name);
+          const C = await import('/src/engine/Combat.js');
+          const staff = (h.inventory || []).find((w) => w.type === 'Staff');
+          if (!staff || !C.hasPerBattleUsesLeft(staff, h)) return null;
+          const ctx = b.threatContext();
+          const hurt = b.playerUnits
+            .filter((u) => u !== h && u.currentHP > 0 && u.currentHP < u.stats.HP * below)
+            .sort((p, q) => p.currentHP / p.stats.HP - q.currentHP / q.stats.HP);
+          const tiles = [[h.col, h.row]];
+          for (const [k, e] of b.movementRange || []) {
+            if (e?.stoppable === false) continue;
+            const [col, row] = k.split(',').map(Number);
+            if (!b.getUnitAt(col, row)) tiles.push([col, row]);
+          }
+          for (const ally of hurt) {
+            const spots = tiles
+              .filter(([c, r]) => Math.abs(c - ally.col) + Math.abs(r - ally.row) === 1)
+              .map(([c, r]) => ({ c, r, n: T.threatsOnTile(ctx, c, r, { mover: h }).count }))
+              .sort((p, q) => p.n - q.n);
+            if (spots.length) return { target: ally.name, col: spots[0].c, row: spots[0].r };
+          }
+          return null;
+        },
+        [healer, below],
+      );
+      if (!pick) {
+        await d.trace(`${healer} support: nobody to heal`);
+        // Desktop: Esc steps back out of the selection (a phone's selection menu stays
+        // open for the act's own planning).
+        if (!touch) {
+          await page.keyboard.press('Escape');
+          await d.drain(() => !window.__emblemRogueGame.scene.getScene('Battle').selectedUnit);
+        }
+        return d.act(healer, fallback);
+      }
+      await d.trace(`${healer} heals ${pick.target} from ${pick.col},${pick.row}`);
+      await d.moveSelected(pick.col, pick.row);
+      await d.menu(/^Heal \(/);
+      await d.drain(() => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'SELECTING_HEAL_TARGET'); // prettier-ignore
+      const t = await d.unit(pick.target);
+      if (touch) {
+        const rail = page.getByRole('complementary', { name: 'Battle commands' });
+        const choice = rail.getByRole('button', { name: new RegExp(`^Heal ${pick.target}`) });
+        if (await choice.count()) await choice.first().tap();
+        else await d.tile(t.col, t.row);
+      } else await d.tile(t.col, t.row);
+      await d.acted(healer);
+      return { kind: 'heal', ...pick };
     },
 
     /** Move a lord beside a green unit and Talk. */

@@ -145,44 +145,22 @@ test('the Chapel road the wrong way round: nudges, cancelled forecasts, Gaspar t
       }, turn);
       if (!(await varroAlive(page)) && fellOnEnemyPhase === null)
         fellOnEnemyPhase = (await d.battleState()).phase === 'enemy';
+      if (await varroAlive(page)) await d.idle();
       continue;
     }
     const guards = await page.evaluate(
       () =>
       window.__emblemRogueGame.scene.getScene('Battle').enemyUnits.filter((u) => !u.isBoss).length, // prettier-ignore
     );
-    for (const name of ['Gaspar', 'Sera', 'Edric']) {
+    for (const name of ['Gaspar', 'Edric', 'Sera']) {
       const u = await d.unit(name);
       if (!u || u.acted) continue;
-      if ((await d.battleState()).phase !== 'player') break;
-      if (guards) await d.act(name, { targets: ['k', 'a'] });
-      else if (name === 'Gaspar') await d.act(name, { attack: false, toward: below });
-      else if (name === 'Sera') {
-        const g = await d.unit('Gaspar');
-        const hurt = g && g.hp < 14;
-        if (hurt) {
-          // Heal Gaspar from beside him (the fort's west step), else hold back.
-          const near = await d.page.evaluate(() => {
-            const b = window.__emblemRogueGame.scene.getScene('Battle');
-            const g = b.playerUnits.find((u) => u.name === 'Gaspar');
-            const sera = b.playerUnits.find((u) => u.name === 'Sera');
-            const tiles = [
-              [g.col - 1, g.row],
-              [g.col + 1, g.row],
-              [g.col, g.row + 1],
-            ];
-            for (const [col, row] of tiles) {
-              const x = b.getUnitAt(col, row);
-              if (x && x !== sera) continue;
-              if (col === 9 && row === 0) continue;
-              if (Math.abs(sera.col - col) + Math.abs(sera.row - row) <= 4) return { col, row };
-            }
-            return null;
-          });
-          if (near) await d.heal('Sera', 'Gaspar', { to: near });
-          else await d.act('Sera', { attack: false, caution: 5 });
-        } else await d.act('Sera', { attack: false, caution: 5, toward: { col: 8, row: 3 } });
-      } else await d.act(name, { attack: false, caution: 5, toward: { col: 7, row: 2 } });
+      if ((await d.battleState()).phase !== 'player' || !(await varroAlive(page))) break;
+      if (name === 'Sera')
+        await d.support('Sera', { below: 0.8, fallback: { attack: false, caution: 3, toward: { col: 8, row: 3 } } }); // prettier-ignore
+      else if (guards) await d.act(name, { targets: ['k', 'a'], caution: 2 });
+      else if (name === 'Gaspar') await d.act(name, { attack: false, toward: below, caution: 0 });
+      else await d.act(name, { attack: false, caution: 3, toward: { col: 7, row: 3 } });
     }
     const after = await d.battleState();
     if (after.phase === 'player' && after.turn === s.turn && (await varroAlive(page))) {

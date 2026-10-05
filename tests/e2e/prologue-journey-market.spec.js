@@ -87,11 +87,14 @@ test('the Market road: New Game to Home Base through ordinary play, Varro to the
       await d.nextTurn(s.turn);
       continue;
     }
-    for (const name of ['Gaspar', 'Tamsin', 'Sera', 'Edric']) {
+    for (const name of ['Gaspar', 'Edric', 'Sera', 'Tamsin']) {
       const u = await d.unit(name);
       if (!u || u.acted || !(await varroAlive(page))) continue;
       if ((await d.battleState()).phase !== 'player') break;
-      const plan = await d.act(name, { caution: name === 'Edric' ? 2 : 1 });
+      const plan =
+        name === 'Sera'
+          ? await d.support('Sera', { fallback: { caution: 2 } })
+          : await d.act(name, { caution: name === 'Gaspar' ? 1 : 2 });
       if (plan.kind === 'attack' && plan.target === 'v' && !(await varroAlive(page))) killer = name;
     }
     const after = await d.battleState();

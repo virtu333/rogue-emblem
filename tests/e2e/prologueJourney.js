@@ -226,12 +226,22 @@ export async function enterP3(d, { unarmedWarning = false, idle = true } = {}) {
   if (idle) await d.idle();
 }
 
+/**
+ * P3's army: the fighters first, Sera's staff next (she heals whoever is hurt), Tamsin
+ * last, so the frail ones choose their tiles with everyone else already placed.
+ */
+export const P3_ORDER = ['Gaspar', 'Edric', 'Sera', 'Tamsin'];
+export const p3Opts = (name) =>
+  name === 'Sera'
+    ? { support: { fallback: { caution: 2 } } }
+    : name === 'Tamsin'
+      ? { caution: 2 }
+      : {};
+
 export async function playP3TalkFirst(d) {
   await d.talk('Edric', { col: 3, row: 2 });
   await d.heal('Sera', 'Edric');
-  await fightOut(d, ['Gaspar', 'Tamsin', 'Edric', 'Sera'], (name) =>
-    name === 'Sera' ? { caution: 2 } : {},
-  );
+  await fightOut(d, P3_ORDER, p3Opts);
 }
 
 /** Talk to Sera from a free tile beside her, preferring her east side (`side`). */

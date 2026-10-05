@@ -67,7 +67,8 @@ test('P1: Skip on the forecast note backs out with nothing committed; Skip on th
   await d.click(forecastNote.getByRole('button', { name: 'Skip prologue', exact: true }));
   // The confirmation opens on the player's own turn; nothing was committed.
   await expect(paused(page)).toContainText('Skip the rest of the prologue?');
-  await expect(coach(page).locator('.re-coach-nudge')).not.toHaveText('You can leave once your turn is back.'); // prettier-ignore
+  const nudge = coach(page).locator('.re-coach-nudge');
+  expect((await nudge.isVisible()) && (await nudge.textContent()).includes('once your turn is back')).toBe(false); // prettier-ignore
   expect(await d.enemy('a')).toMatchObject({ hp: a.hp });
   expect(await d.unit('Edric')).toMatchObject({ hp: edric.hp, acted: false, col: 3, row: 2 });
   expect(await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').forecastTarget)).toBeNull(); // prettier-ignore
