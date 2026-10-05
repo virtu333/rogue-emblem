@@ -95,8 +95,9 @@ export async function presentQueuedProgress(scene, continuation = null, { sessio
   if (continuation && cards.length) captureResolvedAction(scene, continuation, { session });
   for (const step of progressSteps(gauges, cards)) {
     if (!isCurrentBattleSession(scene, session)) return;
-    if (step.gauge) {
-      await presentXpGauge(scene, step.gauge, { session });
+    const gauge = step.gauge ? presentXpGauge(scene, step.gauge, { session }) : null;
+    if (gauge) {
+      await gauge;
       if (!isCurrentBattleSession(scene, session)) return;
     }
     for (const card of step.cards) {
@@ -109,14 +110,23 @@ export async function presentQueuedProgress(scene, continuation = null, { sessio
 /** The old name: level-up cards are now part of the XP progress queue. */
 export const presentQueuedLevelUps = presentQueuedProgress;
 
-async function presentXpGauge(scene, record, { session }) {
-  // Never over a prologue note or line still on screen: its beat settles first.
-  if (typeof scene._prologue?.idle === 'function')
-    await safeBattlePresentation('xp gauge prologue wait', () => scene._prologue.idle(), {
-      scene,
-    });
-  if (!isCurrentBattleSession(scene, session)) return;
-  await safeBattlePresentation('xp gauge', () => xpGaugeFor(scene)?.play(record), { scene });
+/**
+ * One gauge, or null when none can show (headless: no DOM host). Returning null keeps a
+ * queue with nothing to draw synchronous up to its first card, as it was before gauges.
+ */
+function presentXpGauge(scene, record, { session }) {
+  let gauge = null;
+  safeBattlePresentation('xp gauge', () => (gauge = xpGaugeFor(scene)), { scene });
+  if (!gauge) return null;
+  return (async () => {
+    // Never over a prologue note or line still on screen: its beat settles first.
+    if (scene._prologue?.isPresenting?.())
+      await safeBattlePresentation('xp gauge prologue wait', () => scene._prologue.idle(), {
+        scene,
+      });
+    if (!isCurrentBattleSession(scene, session)) return;
+    await safeBattlePresentation('xp gauge', () => gauge.play(record), { scene });
+  })();
 }
 
 async function presentLevelUpCard(scene, { unitName, unitId, levelUp, learnedNames }, { session }) {
