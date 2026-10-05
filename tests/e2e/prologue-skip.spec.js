@@ -142,7 +142,7 @@ test('a replay: Leave on the first forecast note opens the confirmation, no atta
       'emblem_rogue_settings',
       JSON.stringify({ musicVolume: 0, sfxVolume: 0, reduceMotion: true, battleSpeed: 'instant' }),
     );
-    // A slot that already started a run: the Prologue item is a chapter select.
+    // A slot that already started a run: the Prologue item offers a new save or a replay.
     localStorage.setItem(
       'emblem_rogue_slot_1_meta',
       JSON.stringify({ totalValor: 12, totalSupply: 3, runsStarted: 1, savedAt: 1 }),
@@ -152,6 +152,7 @@ test('a replay: Leave on the first forecast note opens the confirmation, no atta
   await activeScene(page, 'Title');
   const d = driver(page);
   await d.click(page.getByRole('button', { name: /^Prologue/ }));
+  await d.click(page.getByRole('button', { name: 'Replay a chapter', exact: true }));
   await d.click(page.getByRole('button', { name: 'Banner at Dawn', exact: true }));
   await activeScene(page, 'Battle');
   await d.idle();

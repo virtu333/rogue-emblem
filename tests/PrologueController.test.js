@@ -305,6 +305,44 @@ describe('PrologueController: the guided steps', () => {
     prologue.onUnitSelected(edric); // the move beat still fires, its gate is ignored
     expect(prologue.gate).toBeNull();
     expect(prologue.allowsMoveTo(2, 2)).toBe(true);
+    // ...and its goal with it: a skipped step never leaves "Move onto the Fort" up,
+    // which nothing could complete (no gate) or clear (the steps were already skipped).
+    expect(prologue.coachGoal).toBeNull();
+    expect(prologue.scripted()).toBeNull();
+  });
+
+  it('Skip step always dismisses the goal on screen, also one left by an earlier skip (an old checkpoint)', () => {
+    const { scene } = makeScene();
+    const prologue = new PrologueController(scene).create();
+    // A checkpoint saved by the build before the fix: steps skipped, the Fort goal stuck.
+    prologue.onResume(
+      {
+        ...prologue.snapshot(),
+        started: true,
+        gatesSkipped: true,
+        gate: null,
+        coachGoal: 'p1_move_to_fort',
+      },
+      { turn: 3, phase: 'player' },
+    );
+    expect(prologue.scripted()).toMatchObject({ id: 'p1_move_to_fort', canSkip: true });
+    expect(prologue.skipStep()).toBe(true);
+    expect(prologue.scripted()).toBeNull();
+    // Nothing left to dismiss: a second press is a no-op.
+    expect(prologue.skipStep()).toBe(false);
+  });
+
+  it("P3: Sera's goals end when she acts (p3_sera_done: gateless goals end, not only by Skip step)", async () => {
+    const { scene } = makeScene({ chapterId: 'p3_seer_on_the_road' });
+    const prologue = new PrologueController(scene).create();
+    prologue.coachGoal = 'p3_look_is_free';
+    const sera = { name: 'Sera', faction: 'player', col: 0, row: 0 };
+    await prologue.beforeUnitActionCompletes(sera);
+    expect(prologue.scripted()).toBeNull();
+    // Every time, not once: a goal set later (her first strike from range) ends too.
+    prologue.coachGoal = 'p3_sera_acts';
+    await prologue.beforeUnitActionCompletes(sera);
+    expect(prologue.coachGoal).toBeNull();
   });
 });
 

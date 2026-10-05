@@ -2,7 +2,7 @@
 // item): the coach's Skip and the pause menu's Skip Prologue (phone and desktop) end
 // the prologue early, with its ending and the Home Base grant; the pause never offers
 // Abandon Run. A fallen commander never ends anything: the chapter restarts from its
-// entry. A standalone replay (the title's chapter select once saves exist) leaves for
+// entry. A standalone replay (the title's Replay a chapter once saves exist) leaves for
 // the title and never touches the slot.
 import { test, expect } from '@playwright/test';
 import { waitForScene as waitForSceneQuick } from './helpers.js';
@@ -39,7 +39,7 @@ async function openTitle(browser, { phone, seedSlot = false }) {
       'emblem_rogue_settings',
       JSON.stringify({ musicVolume: 0, sfxVolume: 0, reduceMotion: true }),
     );
-    // A slot that already started a run: the Prologue item is a chapter select.
+    // A slot that already started a run: the Prologue item offers a new save or a replay.
     if (seed)
       localStorage.setItem(
         'emblem_rogue_slot_1_meta',
@@ -263,12 +263,16 @@ test('desktop: Skip prologue from a field note opens the pause confirmation', as
   await context.close();
 });
 
-test('desktop: with saves, Prologue is a chapter select; a replay never touches the slot and leaves for the title', async ({
+test('desktop: with saves, Prologue offers a new save first and a chapter replay; a replay never touches the slot and leaves for the title', async ({
   browser,
 }) => {
   const { context, page, errors } = await openTitle(browser, { phone: false, seedSlot: true });
   const metaBefore = await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_meta'));
   await page.getByRole('button', { name: /^Prologue/ }).click();
+  await expect(
+    page.getByRole('button', { name: 'Play the Prologue · new save in Slot 2', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Replay a chapter', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Banner at Dawn', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Old Hands', exact: true }).click();
   await waitForScene(page, 'Battle');
@@ -324,6 +328,7 @@ test('desktop: the Quarry Gate replays from the chapter select: its deploy scree
   const { context, page, errors } = await openTitle(browser, { phone: false, seedSlot: true });
   const metaBefore = await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_meta'));
   await page.getByRole('button', { name: /^Prologue/ }).click();
+  await page.getByRole('button', { name: 'Replay a chapter', exact: true }).click();
   await page.getByRole('button', { name: 'The Quarry Gate', exact: true }).click();
   await waitForScene(page, 'Battle');
   // The deploy note, without the Roster advice (a replay has no roster to open).

@@ -421,6 +421,19 @@ export const PROLOGUE_OFFER = Object.freeze({
   skip: 'Skip to the first run',
 });
 
+/**
+ * The title's Prologue item once the device has saves: the prologue as a new save (or
+ * the unfinished one), with replaying a single chapter as the lesser choice.
+ */
+export const PROLOGUE_TITLE_MENU = Object.freeze({
+  title: 'Prologue',
+  body: "Four short chapters, from Edric's first fight to the quarry gate. It plays as a new save: when it ends, that save's first run begins at Home Base. Your other saves stay as they are.",
+  continue: 'Continue the prologue',
+  play: 'Play the Prologue',
+  replay: 'Replay a chapter',
+  full: 'All 3 save slots are full. Delete one in Save Slots to play the prologue as a new save.',
+});
+
 /** Home Base, first visit after the prologue: what the grant is for. */
 export const PROLOGUE_HOME_BASE_NOTE =
   'This is what stays between runs. Spend the Valor and Supply from the first thread.';

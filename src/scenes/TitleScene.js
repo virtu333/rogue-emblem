@@ -38,7 +38,7 @@ import {
   startPrologueRun,
   skipPrologueToFirstRun,
 } from '../utils/firstRunFastPath.js';
-import { PROLOGUE_OFFER } from '../data/prologueContent.js';
+import { PROLOGUE_OFFER, PROLOGUE_TITLE_MENU } from '../data/prologueContent.js';
 import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
 import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
@@ -233,14 +233,15 @@ export class TitleScene extends Phaser.Scene {
         );
       case 'prologue': {
         // A fresh device (no saves) starts the prologue run in a new slot. With saves,
-        // the item is a chapter select: each chapter replays standalone (the authored
-        // roster, no RunManager, nothing saved; docs/specs/prologue-chapter.md §4).
+        // the item offers the prologue as a new save (or the unfinished one); replaying
+        // one chapter standalone (the authored roster, no RunManager, nothing saved) is
+        // the lesser choice behind it (docs/specs/prologue-chapter.md §4).
         if (!this.prologueChapters().length) return undefined;
         if (getSlotCount() === 0)
           return this.runMenuTransition(() =>
             this.handleNewGame({ confirmed: true, start: 'prologue' }),
           );
-        if (hasDOMHost()) this._showChapterSelect();
+        if (hasDOMHost()) this._showPrologueMenu();
         return undefined;
       }
       case 'howToPlay':
@@ -787,6 +788,58 @@ export class TitleScene extends Phaser.Scene {
   /** The title's practice chapter: the prologue's first (null without prologue data). */
   prologueChapter() {
     return this.prologueChapters()[0] || null;
+  }
+
+  /**
+   * The Prologue item on a device with saves: continue the unfinished prologue run (a
+   * slot whose run is the prologue's), or play it as a new save in the next free slot
+   * (New Game's prologue start, without the offer); replaying a chapter comes last.
+   */
+  _showPrologueMenu() {
+    const menu = this._openTitleMenu(PROLOGUE_TITLE_MENU.title);
+    const unfinished =
+      Array.from({ length: MAX_SLOTS }, (_, index) => getSlotSummary(index + 1)).find(
+        (s) => s?.hasActiveRun && s.prologueRun && !s.runCorrupt,
+      ) || null;
+    const nextSlot = getNextAvailableSlot();
+    menu.body.append(element('p', PROLOGUE_TITLE_MENU.body));
+    if (unfinished) {
+      menu.body.append(
+        button(
+          `${PROLOGUE_TITLE_MENU.continue} · Slot ${unfinished.slot}`,
+          () => {
+            this._closeTitleMenu();
+            void this.runMenuTransition(() =>
+              transitionToScene(
+                this,
+                'SlotPicker',
+                { gameData: this.gameData, resumeSlot: unfinished.slot },
+                { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+              ),
+            );
+          },
+          're-btn re-btn--primary',
+        ),
+      );
+    }
+    if (nextSlot) {
+      menu.body.append(
+        button(
+          `${PROLOGUE_TITLE_MENU.play} · new save in Slot ${nextSlot}`,
+          () => {
+            this._closeTitleMenu();
+            void this.runMenuTransition(() =>
+              this.handleNewGame({ confirmed: true, start: 'prologue' }),
+            );
+          },
+          unfinished ? 're-btn' : 're-btn re-btn--primary',
+        ),
+      );
+    } else if (!unfinished) {
+      menu.body.append(element('p', PROLOGUE_TITLE_MENU.full));
+    }
+    menu.body.append(button(PROLOGUE_TITLE_MENU.replay, () => this._showChapterSelect(), 're-btn'));
+    menu.focusContent();
   }
 
   /** Chapter select: each chapter replays standalone; nothing is saved. */
