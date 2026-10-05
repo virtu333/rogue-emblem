@@ -232,7 +232,10 @@ export class XpGaugeController {
       let watchdog = null;
       let unbind = () => {};
       let fill = null;
-      const close = () => {
+      // `reason`: 'done' (filled and held), 'skip' (a press, a key, the pad, skip()),
+      // 'watchdog', or 'closed' (replaced or torn down). The layer keeps it as
+      // data-closed-by, so a check can tell a skip from the watchdog.
+      const close = (reason = 'closed') => {
         if (gauge.closed) return;
         gauge.closed = true;
         fill?.cancel();
@@ -240,27 +243,28 @@ export class XpGaugeController {
         unbind();
         // The gained span settles to the fill colour as the gauge closes.
         view.gauge.classList.add('is-settled');
+        layer.root.dataset.closedBy = reason;
         layer.destroy();
         if (this._active === gauge) this._active = null;
         resolve(true);
       };
       gauge.close = close;
-      const finish = () => {
+      const finish = (reason = 'skip') => {
         if (gauge.closed) return;
         fill?.finish({ silent: true });
-        close();
+        close(reason);
       };
       gauge.finish = finish;
       unbind = this._bindSkip(gauge, finish);
       watchdog = setTimeout(
-        finish,
+        () => finish('watchdog'),
         (timing.animate ? plan.fillMs : 0) + plan.holdMs + WATCHDOG_SLACK_MS,
       );
       if (typeof watchdog?.unref === 'function') watchdog.unref();
       fill = fillXpGauge(view, record, timing, {
         onFilled: () => {
           if (gauge.closed) return;
-          void this._clock.wait(plan.holdMs).then(() => close());
+          void this._clock.wait(plan.holdMs).then(() => close('done'));
         },
       });
     });

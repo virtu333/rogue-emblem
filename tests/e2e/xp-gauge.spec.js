@@ -152,7 +152,9 @@ async function watchGauge(page) {
         for (const node of record.removedNodes) {
           if (!node.classList?.contains('xg-layer')) continue;
           const track = node.querySelector('.xg-track');
-          events.push({ type: 'close', t, v: Number(track.getAttribute('aria-valuenow')) });
+          const v = Number(track.getAttribute('aria-valuenow'));
+          // Why it closed (XpGaugeController): done, skip, watchdog or closed.
+          events.push({ type: 'close', t, v, by: node.dataset.closedBy });
         }
       }
     }).observe(document.body, {
@@ -231,6 +233,7 @@ test('a real kill fills the gauge beside the unit; its count ends at the saved X
   expect(counts.at(-1)).toBe(xp.saved);
   expect(close.v).toBe(xp.saved);
   // The fill and hold both played (the gauge never closes early on its own).
+  expect(close.by).toBe('done');
   expect(close.t - open.t).toBeGreaterThanOrEqual(open.fillMs + open.holdMs - 50);
   // Over the map, under the menus; inside the frame, beside Edric's tile, off the rail.
   expect(open.depth).toBe(960);
@@ -285,8 +288,11 @@ test('a tap skips the gauge to its end and hands off to the level card', async (
   // 50 + 70: a wrap and 20 more.
   await stageKill(page, { xp: 50 });
   await watchGauge(page);
-  // The gauge's hold runs on the scene clock: slowed a hundredfold, the gauge cannot
-  // close on its own before the tap lands, however slow the machine.
+  // The gauge's hold runs on the scene clock: slowed a hundredfold, it cannot end on its
+  // own before the tap lands. The watchdog runs on wall time regardless (fill + hold +
+  // 2 s after the gauge opens), so a machine slow enough to tap later than that sees the
+  // watchdog close it instead: the close records which (data-closed-by), and only a skip
+  // passes.
   await page.evaluate(() => {
     window.__emblemRogueGame.scene.getScene('Battle').time.timeScale = 0.01;
   });
@@ -304,10 +310,11 @@ test('a tap skips the gauge to its end and hands off to the level card', async (
   const log = await events(page);
   const open = log.find((e) => e.type === 'open');
   const close = log.find((e) => e.type === 'close');
-  // Skipped: closed by the tap (after it, long before a hold of 100 × 350 ms could end),
-  // at the end state.
+  // Skipped: open when the tap came, closed by it (not the hold, not the watchdog), at
+  // the end state.
+  expect(open.t).toBeLessThan(tappedAt);
+  expect(close.by).toBe('skip');
   expect(close.t).toBeGreaterThanOrEqual(tappedAt);
-  expect(close.t - open.t).toBeLessThan(open.fillMs + open.holdMs * 100);
   expect(close.v).toBe((await savedXp(page)).live);
   // The card the skip handed off to is still up after the tap's lift (and its click,
   // when the browser makes one: the gesture's events have all been delivered by the
@@ -357,7 +364,7 @@ test('a tap on a rail control skips the gauge and the control still takes the ta
       zIndex: '2147483000',
     });
     hud.root.append(probe);
-    // The fill and hold: the hold (scene clock) waits for the tap.
+    // The hold runs on the scene clock: slowed, it waits for the tap.
     s.time.timeScale = 0.01;
   });
   const probe = page.locator('.xg-probe');
@@ -388,6 +395,8 @@ test('a tap on a rail control skips the gauge and the control still takes the ta
   });
   const log = await events(page);
   const close = log.find((e) => e.type === 'close');
+  // Skipped by the tap (the watchdog runs on wall time: see the tap test above).
+  expect(close.by).toBe('skip');
   expect(close.t).toBeGreaterThanOrEqual(tappedAt);
   // The tap reached the control, once, and was never read as a map tap.
   await expect.poll(() => page.evaluate(() => window.__probe)).toBe(1);

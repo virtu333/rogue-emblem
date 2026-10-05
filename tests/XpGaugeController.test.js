@@ -6,7 +6,8 @@
 //   - a press on a DOM control (the rail) that skips but loses the control's click, or
 //     whose click then lands on something the skip opened under the finger; the rail
 //     going dead (inert, dimmed) under a gauge that blocks nothing;
-//   - a gauge whose timers never fire hangs the action (the watchdog);
+//   - a gauge whose timers never fire hangs the action (the watchdog), or a close the
+//     layer misreports (data-closed-by: done / skip / watchdog);
 //   - a gauge opened headless, at the cap, or after the controller is gone.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
@@ -110,6 +111,7 @@ describe('a gauge plays one gain', () => {
     await vi.advanceTimersByTimeAsync(360);
     expect(await played).toBe(true);
     expect(layer()).toBeNull();
+    expect(root.dataset.closedBy).toBe('done');
     expect(gauge.isShowing()).toBe(false);
   });
 
@@ -196,9 +198,11 @@ describe('skipping', () => {
     expect(Number(track.getAttribute('aria-valuenow'))).toBeLessThan(70);
     const mapClick = vi.fn();
     dom.canvas.addEventListener('click', mapClick);
+    const root = layer();
     dom.canvas.dispatchEvent(new dom.FakeEvent('pointerdown', { button: 0, pointerId: 1 }));
     expect(track.getAttribute('aria-valuenow')).toBe('70');
     expect(layer()).toBeNull();
+    expect(root.dataset.closedBy).toBe('skip');
     // The board reads the block on the release (InputController) and never selects.
     expect(scene._uiClickBlocked).toBe(true);
     dom.canvas.dispatchEvent(new dom.FakeEvent('pointerup', { button: 0, pointerId: 1 }));
@@ -455,12 +459,15 @@ describe('lifecycle', () => {
     scene.sys = { isActive: () => true };
     scene.time = { delayedCall: () => ({ remove() {} }) };
     const played = new XpGaugeController(scene).play(gain);
+    const root = layer();
     const done = await settle(played);
     await vi.advanceTimersByTimeAsync(2000);
     expect(done()).toBe(false);
     await vi.advanceTimersByTimeAsync(500); // 0 fill + 400 hold + 2000 slack
     expect(done()).toBe(true);
     expect(layer()).toBeNull();
+    // Told apart from a skip (xp-gauge.spec.js's tap checks read it).
+    expect(root.dataset.closedBy).toBe('watchdog');
   });
 
   it('scene shutdown closes the gauge and settles its promise', async () => {
