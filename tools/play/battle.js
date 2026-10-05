@@ -91,6 +91,8 @@ export class PlayBattle {
     this.ids = new UnitIds();
     this.events = [];
     this.agent = null;
+    // Whether the last order ended the player phase on its own (the end-again guard).
+    this._autoEnded = false;
     this.isBoss = node.type === NODE_TYPES.BOSS;
     const rm = game.rm;
     const gameData = game.gameData;
@@ -406,7 +408,7 @@ export class PlayBattle {
       else {
         this._execFormation(verb, words);
         this._afterStep();
-        return this._eventLines();
+        return this._feeds();
       }
     }
     // A turn the last order ended on its own (every unit had acted): an "end" straight
@@ -433,6 +435,12 @@ export class PlayBattle {
       throw err;
     }
     this._afterStep();
+    return this._feeds();
+  }
+
+  /** The player's feed (returned) and the omniscient one (`diagnostics`, never shown in play). */
+  _feeds() {
+    this.diagnostics = this._eventLines({ omniscient: true });
     return this._eventLines();
   }
 
@@ -473,17 +481,20 @@ export class PlayBattle {
     // Validate the whole order before anything moves, so a refusal changes nothing.
     const plan = this._planAction(unit, tile, action, args, equip);
 
+    const from = { col: unit.col, row: unit.row };
     b.selectUnit(unit);
-    try {
-      b.moveTo(tile.col, tile.row);
-    } catch {
-      b.cancel();
-      throw new PlayError(
-        `${unit.name}'s path to ${tile.col},${tile.row} is blocked by something unseen (ambushes are not modelled headless).`,
-      );
+    // A unit whose move is locked in (it was ambushed) opens on its menu.
+    if (b.battleState === HEADLESS_STATES.UNIT_SELECTED) b.moveTo(tile.col, tile.row);
+    const ambush = b.lastAmbush;
+    if (ambush) {
+      // BattleScene: the move stops short and the unit is still to act. The order's
+      // action was planned for another tile, so it is not carried out.
+      this.events.push({ type: 'order', unit, from, tile: ambush.stop, action: null, args, equip });
+      this.events.push({ type: 'ambush', unit, ambusher: ambush.ambusher, planned: tile });
+      b.cancel(); // Back from a locked-in move only deselects.
+      return;
     }
     if (equip) b.equipFromMenu(equip);
-    const from = { col: b.preMoveLoc.col, row: b.preMoveLoc.row };
     this.events.push({ type: 'order', unit, from, tile, action, args, equip });
     plan();
     if (!this.over && b.battleState === HEADLESS_STATES.ENEMY_PHASE) {
@@ -717,7 +728,12 @@ export class PlayBattle {
 
   _instrument() {
     const b = this.battle;
-    const log = (e) => this.events.push(e);
+    // Each event records whom the player could see as it happened: the feed shows a
+    // hidden unit's doings only where the game would (its fight with a unit in view).
+    const log = (e) => {
+      e.visible = new Set(knowledgeOf(b).units);
+      this.events.push(e);
+    };
     const wrap = (name, around) => {
       const orig = b[name].bind(b);
       b[name] = (...args) => around(orig, ...args);
@@ -877,13 +893,23 @@ export class PlayBattle {
     return notes.length ? ` ${notes.join('; ')}.` : '';
   }
 
-  _eventLines() {
+  /**
+   * The events of the last command as lines. The player's feed (the default) shows
+   * what the player could see as each happened: a unit the fog hid then is named
+   * only in a fight with a unit in view (the combat panel shows both sides), and an
+   * event among hidden units only is left out. `omniscient` shows everything, for
+   * diagnostics.
+   */
+  _eventLines({ omniscient = false } = {}) {
     const b = this.battle;
     const known = knowledgeOf(b);
-    const name = (u) => {
+    const visibleTo = (u, e) =>
+      omniscient || !u || u.faction === 'player' || Boolean(e?.visible?.has(u)) || !e?.visible;
+    const name = (u, e = null) => {
       if (!u) return 'someone';
       const id = this.ids.byUnit.get(u);
-      if (!id && u.faction === 'enemy' && !known.isKnown(u)) return 'an unseen enemy';
+      if (omniscient && !id) return `(hidden) ${u.name}`;
+      if (!visibleTo(u, e)) return `an unseen ${u.name}`;
       return `${id || '?'} ${u.name}`;
     };
     const lines = [];
@@ -913,29 +939,41 @@ export class PlayBattle {
             ? `moves ${e.from.col},${e.from.row}->${e.tile.col},${e.tile.row}`
             : `holds ${e.tile.col},${e.tile.row}`;
           lines.push(
-            `${name(e.unit)} ${where}${e.equip ? `, equips ${e.equip.name}` : ''}, ${e.action}${e.args.length ? ` ${e.args.join(' ')}` : ''}.`,
+            e.action
+              ? `${name(e.unit)} ${where}${e.equip ? `, equips ${e.equip.name}` : ''}, ${e.action}${e.args.length ? ` ${e.args.join(' ')}` : ''}.`
+              : `${name(e.unit)} ${where}.`,
+          );
+          break;
+        }
+        case 'ambush': {
+          const hostile = e.ambusher.faction === 'enemy';
+          lines.push(
+            `${hostile ? 'AMBUSH! ' : ''}${name(e.ambusher)} was hidden on the way to ${e.planned.col},${e.planned.row}: ${e.unit.name} stops at ${e.unit.col},${e.unit.row}. The move is locked in; ${e.unit.name} has not acted yet: give it an action there ("move ${this.ids.id(e.unit)} stay <action>").`,
           );
           break;
         }
         case 'combat': {
+          if (!visibleTo(e.attacker, e) && !visibleTo(e.defender, e)) break;
           const strikes = (e.result?.events || [])
             .filter((s) => s.type === 'strike')
             .map((s) => {
               const who = s.attackerSide === 'defender' ? e.defender : e.attacker;
               const skills = (s.skillActivations || []).map((x) => x.name || x.id).filter(Boolean);
               const what = s.miss ? 'misses' : `${s.isCrit ? 'CRITS' : 'hits'} ${s.damage}`;
-              return `${this.ids.byUnit.get(who) || name(who)} ${what}${skills.length ? ` (${skills.join(', ')})` : ''}`;
+              return `${(visibleTo(who, e) && this.ids.byUnit.get(who)) || name(who, e)} ${what}${skills.length ? ` (${skills.join(', ')})` : ''}`;
             });
           lines.push(
-            `${name(e.attacker)} [${e.weapons.a || 'no weapon'}] attacks ${name(e.defender)} [${e.weapons.d || 'no weapon'}]: ${strikes.join('; ') || 'no strikes'}. HP ${e.attacker.name} ${e.before.a}->${Math.max(0, e.after?.a ?? e.attacker.currentHP)}, ${e.defender.name} ${e.before.d}->${Math.max(0, e.after?.d ?? e.defender.currentHP)}.${this._effectsNote(e)}`,
+            `${name(e.attacker, e)} [${e.weapons.a || 'no weapon'}] attacks ${name(e.defender, e)} [${e.weapons.d || 'no weapon'}]: ${strikes.join('; ') || 'no strikes'}. HP ${e.attacker.name} ${e.before.a}->${Math.max(0, e.after?.a ?? e.attacker.currentHP)}, ${e.defender.name} ${e.before.d}->${Math.max(0, e.after?.d ?? e.defender.currentHP)}.${this._effectsNote(e)}`,
           );
           hpSeen.set(e.attacker, e.after?.a ?? e.attacker.currentHP);
           hpSeen.set(e.defender, e.after?.d ?? e.defender.currentHP);
           break;
         }
         case 'fell':
+          hpSeen.delete(e.unit);
+          if (!visibleTo(e.unit, e)) break;
           lines.push(
-            `${name(e.unit)} falls${e.unit.faction === 'player' ? (e.unit.isCommander ? ' — the commander is down' : ' (fallen: lost unless revived)') : ''}.`,
+            `${name(e.unit, e)} falls${e.unit.faction === 'player' ? (e.unit.isCommander ? ' — the commander is down' : ' (fallen: lost unless revived)') : ''}.`,
           );
           hpSeen.delete(e.unit);
           break;
@@ -957,8 +995,10 @@ export class PlayBattle {
           break;
         }
         case 'enemyHeal':
-          lines.push(`${name(e.healer)} heals ${name(e.target)}: HP ${e.from}->${e.to}.`);
           hpSeen.set(e.target, e.to);
+          // A heal on a unit out of sight shows nothing: not that it happened, nor its HP.
+          if (!visibleTo(e.target, e)) break;
+          lines.push(`${name(e.healer, e)} heals ${name(e.target, e)}: HP ${e.from}->${e.to}.`);
           break;
         case 'allActed':
           lines.push('Every unit has acted: the player phase ends.');
@@ -991,7 +1031,8 @@ export class PlayBattle {
           );
           break;
         case 'razed':
-          lines.push(`${name(e.enemy)} razes the village.`);
+          // The village's state shows on the map whoever burned it.
+          lines.push(`${name(e.enemy, e)} razes the village.`);
           break;
         case 'enemyPhase':
           lines.push(`-- Enemy phase (turn ${e.turn}) --`);
@@ -999,7 +1040,7 @@ export class PlayBattle {
         case 'enemyPhaseEnd': {
           const moved = [];
           for (const u of b.enemyUnits) {
-            if (!known.isKnown(u)) continue;
+            if (!omniscient && !known.isKnown(u)) continue;
             const was = e.seen.get(u);
             if (!e.roster.has(u)) moved.push(`${name(u)} arrives at ${u.col},${u.row}`);
             else if (!was) moved.push(`${name(u)} spotted at ${u.col},${u.row}`);
@@ -1015,7 +1056,7 @@ export class PlayBattle {
       }
     }
     for (const u of [...b.playerUnits, ...b.npcUnits, ...b.enemyUnits]) {
-      if (!hpSeen.has(u) || (u.faction === 'enemy' && !known.isKnown(u))) continue;
+      if (!hpSeen.has(u) || (!omniscient && u.faction !== 'player' && !known.isKnown(u))) continue;
       const was = hpSeen.get(u);
       if (was !== u.currentHP)
         lines.push(`${name(u)} HP ${was}->${u.currentHP} (terrain, status or skill).`);

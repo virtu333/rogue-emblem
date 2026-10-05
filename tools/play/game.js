@@ -46,6 +46,9 @@ import { itemDetail, mapView, nodeLine, rosterView } from './runView.js';
 import { statsText, weaponText } from './battleView.js';
 import { PlayError, findItem, parseIndex, splitClauses, tokenize } from './parse.js';
 
+/** The engine's clock inside a session (2026-01-01T00:00:00Z): fixed, so replays agree. */
+export const SESSION_CLOCK = Date.UTC(2026, 0, 1);
+
 export const PHASES = Object.freeze([
   'blessing',
   'map',
@@ -88,6 +91,7 @@ export class Game {
     this.outside = countingRng(createSeededRng(hash32(`play:${this.options.seed}`)));
     this.random = this.outside;
     this.uidCounter = 0;
+    this.uuidCounter = 0;
     this.phase = null;
     this.rm = null;
     this.battle = null;
@@ -96,37 +100,67 @@ export class Game {
     this.result = null;
   }
 
-  // --- randomness and the uid counter, owned by this game while it runs ---
+  // --- randomness, the uid counter and the clock, owned by this game while it runs ---
 
+  /**
+   * Runs `fn` with this game's globals installed: its random stream, its item-uid
+   * counter, a fixed clock and seeded UUIDs. The engine stamps a few records with
+   * Date.now() and names the run with crypto.randomUUID(); a replay must rebuild
+   * exactly the same state, so neither may read the real clock or entropy.
+   */
   async run(fn) {
-    const prevRandom = Math.random;
-    const prevUid = _getUidCounter();
-    Math.random = this.random;
-    _setUidCounter(this.uidCounter);
+    const restore = this._install(this.random);
     try {
       return await fn();
     } finally {
       this.uidCounter = _getUidCounter();
-      Math.random = prevRandom;
-      _setUidCounter(prevUid);
+      restore();
     }
   }
 
   /**
    * A read: the game's globals as `run` sets them, but on a throwaway stream, and
-   * nothing kept (a look never changes what a command will roll or number).
+   * nothing kept (a look never changes what a command will roll, number or name).
    */
   peek(fn) {
-    const prevRandom = Math.random;
-    const prevUid = _getUidCounter();
-    Math.random = createSeededRng(0x2545f491);
-    _setUidCounter(this.uidCounter);
+    const uuids = this.uuidCounter;
+    const restore = this._install(createSeededRng(0x2545f491));
     try {
       return fn();
     } finally {
-      Math.random = prevRandom;
-      _setUidCounter(prevUid);
+      this.uuidCounter = uuids;
+      restore();
     }
+  }
+
+  _install(random) {
+    const prev = { random: Math.random, uid: _getUidCounter(), now: Date.now };
+    const crypto = globalThis.crypto;
+    const ownUuid = crypto && Object.prototype.hasOwnProperty.call(crypto, 'randomUUID');
+    const prevUuid = crypto?.randomUUID;
+    Math.random = random;
+    _setUidCounter(this.uidCounter);
+    Date.now = () => SESSION_CLOCK;
+    if (crypto) crypto.randomUUID = () => this._nextUuid();
+    return () => {
+      Math.random = prev.random;
+      _setUidCounter(prev.uid);
+      Date.now = prev.now;
+      if (crypto) {
+        if (ownUuid) crypto.randomUUID = prevUuid;
+        else delete crypto.randomUUID;
+      }
+    };
+  }
+
+  /** A UUID-shaped id from the seed and a counter (never from a random stream). */
+  _nextUuid() {
+    const n = this.uuidCounter++;
+    const hex = (text) => hash32(text).toString(16).padStart(8, '0');
+    const a = hex(`uuid:${this.options.seed}:${n}:a`);
+    const b = hex(`uuid:${this.options.seed}:${n}:b`);
+    const c = hex(`uuid:${this.options.seed}:${n}:c`);
+    return `${a}-${b.slice(0, 4)}-4${b.slice(5, 8)}-8${c.slice(1, 4)}-${c.slice(4)}${a.slice(0, 4)}${b.slice(0, 4)}`;
   }
 
   /** Switch streams mid-command (a battle installs its own; settling it restores ours). */
@@ -363,6 +397,7 @@ export class Game {
 
   /** Runs one state-changing command. Returns lines to show. Throws PlayError on a refusal. */
   async exec(line) {
+    this.diagnostics = null;
     const words = tokenize(line);
     const verb = (words.shift() || '').toLowerCase();
     switch (this.phase) {
@@ -524,6 +559,7 @@ export class Game {
 
   async _execBattle(verb, words) {
     const lines = await this.battle.exec(verb, words);
+    this.diagnostics = this.battle.diagnostics || null;
     if (!this.battle.over) return lines;
     return [...lines, ...this._endBattle()];
   }
@@ -805,7 +841,8 @@ export class Game {
             item = findItem(pool, words.slice(1, n + 1).join(' '), 'consumable');
             rest = words.slice(n + 1);
           } catch (err) {
-            if (n === 1) throw err;
+            // Only "no such item" moves on to a shorter name; anything else is a fault.
+            if (!(err instanceof PlayError) || n === 1) throw err;
           }
         }
         if (item.effect === 'promote' || item.effect === 'reclass') {
@@ -873,77 +910,5 @@ export class Game {
       default:
         throw new PlayError(`Unknown command "${verb}" on the route map.\n${this.help()}`);
     }
-  }
-
-  // --- state digest ---
-
-  _visitDigest() {
-    const v = this.visit;
-    if (!v || this.phase === 'map') return null;
-    return {
-      phase: this.phase,
-      node: v.node?.id ?? null,
-      stock: v.stock?.map((e) => [e.item?.name, e.price]) ?? null,
-      forges: v.forgesUsed ?? null,
-      rerolls: v.rerollCount ?? null,
-      fights: v.fightsPerUnit ?? null,
-      bout: v.bout ? [v.bout.round, v.challenger?.unit?.name, v.challenger?.unit?.currentHP] : null,
-      challenger: v.challenger?.unit?.name ?? null,
-      mercs: v.mercCandidates?.map((c) => c.unit.name) ?? null,
-    };
-  }
-
-  /** Everything a replay must reproduce, without timestamps or object identity. */
-  digest() {
-    const rm = this.rm;
-    const unit = (u) => [
-      u.name,
-      u.className,
-      u.level,
-      u.xp || 0,
-      u.currentHP,
-      u.stats,
-      u.weapon?.name || null,
-      (u.inventory || []).map((w) => [
-        w.name,
-        w.uid ?? null,
-        w._usesSpent || 0,
-        w._forgeLevel || 0,
-      ]),
-      (u.consumables || []).map((c) => [c.name, c.uid ?? null, c.uses]),
-      u.skills,
-      u.accessory?.name || null,
-    ];
-    const b = this.battle?.battle;
-    return {
-      phase: this.phase,
-      rng: this.rngState(),
-      uid: this.uidCounter,
-      run: rm && {
-        status: rm.status,
-        act: rm.currentAct,
-        node: rm.currentNodeId,
-        gold: rm.gold,
-        battles: rm.completedBattles,
-        roster: rm.roster.map(unit),
-        fallen: rm.fallenUnits.map((u) => u.name),
-        convoy: rm.getConvoyItems?.(),
-        blessings: (rm.activeBlessings || []).map((x) => x.id),
-        reward: rm.pendingBattleReward && {
-          choices: rm.pendingBattleReward.choices.length,
-          claimed: rm.pendingBattleReward.claimed,
-        },
-        shadow: rm.eclipse?.shadow ?? null,
-      },
-      visit: this._visitDigest(),
-      battle: b && {
-        formation: this.battle.formation ? this.battle.formation.at : null,
-        state: b.battleState,
-        turn: b.turnManager?.turnNumber,
-        player: b.playerUnits.map((u) => [u.name, u.col, u.row, u.currentHP, u.hasActed]),
-        enemy: b.enemyUnits.map((u) => [u.name, u.col, u.row, u.currentHP]),
-        npc: b.npcUnits.map((u) => [u.name, u.col, u.row, u.currentHP]),
-      },
-    };
   }
 }

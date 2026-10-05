@@ -141,6 +141,9 @@ export function knowledgeOf(battle) {
  * positions the player knows of (a unit the fog hides never shapes it).
  */
 export function movementTiles(battle, unit) {
+  // A locked-in move (an ambush) leaves only acting where the unit stands.
+  if (unit._movementCommitted && unit.faction === 'player')
+    return new Map([[tileKey(unit.col, unit.row), { cost: 0 }]]);
   const knowledge = knowledgeOf(battle);
   const range = battle.grid.getMovementRange(
     unit.col,
@@ -351,7 +354,14 @@ function flags(unit) {
 export function unitLines(battle, ids, unit, { detail = false, danger = null } = {}) {
   const gd = battle.gameData;
   const terrain = terrainName(battle, unit.col, unit.row);
-  const state = unit.faction === 'player' ? (unit.hasActed ? ' [done]' : ' [ready]') : '';
+  const state =
+    unit.faction === 'player'
+      ? unit.hasActed
+        ? ' [done]'
+        : unit._movementCommitted
+          ? ' [moved: may still act here]'
+          : ' [ready]'
+      : '';
   const tags = flags(unit);
   const head = `${ids.id(unit)} ${unit.name} (${unit.className}${tags.length ? `, ${tags.join(', ')}` : ''}) Lv${unit.level}${unit.faction === 'player' ? ` ${unit.xp || 0}xp` : ''} HP ${unit.currentHP}/${unit.stats.HP} @${unit.col},${unit.row} ${terrain}${state}`;
   const lines = [head];
@@ -641,14 +651,15 @@ function healTargetsFrom(battle, unit, col, row) {
  */
 export function optionsView(battle, ids, unit, { limit = 3 } = {}) {
   const tiles = movementTiles(battle, unit);
-  const { damage } = dangerMap(battle);
+  const { damage, status } = dangerMap(battle);
   const known = knowledgeOf(battle);
+  const fogged = (c, r) => battle.grid.fogEnabled && !battle.grid.isVisible(c, r);
   const out = [];
   out.push(
-    `${ids.id(unit)} ${unit.name} @${unit.col},${unit.row} HP ${unit.currentHP}/${unit.stats.HP} MOV ${unit.stats.MOV}${unit.hasActed ? ' (already acted this turn)' : ''}`,
+    `${ids.id(unit)} ${unit.name} @${unit.col},${unit.row} HP ${unit.currentHP}/${unit.stats.HP} MOV ${unit.stats.MOV}${unit.hasActed ? ' (already acted this turn)' : ''}${unit._movementCommitted && !unit.hasActed ? ' (its move is locked in: it can only act where it stands)' : ''}`,
   );
   out.push(
-    'Reachable tiles (digit = enemies able to strike there now, o = safe; @ = current tile):',
+    'Reachable tiles (digit = visible enemies able to strike there next enemy phase; s = only a status staff reaches it; o = no visible enemy reaches it; ? = in fog, unknown; @ = current tile). Counts are of what you can see: the fog may hide more.',
   );
   out.push(
     renderBoard(battle, ids, {
@@ -657,12 +668,17 @@ export function optionsView(battle, ids, unit, { limit = 3 } = {}) {
         if (!tiles.has(key)) return null;
         if (c === unit.col && r === unit.row) return '@';
         const n = damage.get(key) || 0;
-        return n ? String(Math.min(9, n)) : 'o';
+        if (n) return String(Math.min(9, n));
+        if (fogged(c, r)) return '?';
+        return status.has(key) ? 's' : 'o';
       },
     }),
   );
   const tileList = [...tiles.keys()].map((k) => k.split(',').map(Number));
   const dangerHere = (c, r) => threatsAt(battle, c, r, unit).count;
+  // A tile's known risk in one word: "d2", "d0 s" (a status staff reaches it), "d0 fog".
+  const riskText = (f) =>
+    `d${f.danger}${status.has(tileKey(f.c, f.r)) ? ' s' : ''}${fogged(f.c, f.r) ? ' fog' : ''}`;
   const avoidOf = (c, r) => Number(battle.grid.getTerrainAt(c, r)?.avoidBonus) || 0;
 
   const attacks = [];
@@ -674,30 +690,36 @@ export function optionsView(battle, ids, unit, { limit = 3 } = {}) {
     }
     if (!from.length) continue;
     for (const f of from) f.danger = dangerHere(f.c, f.r);
-    from.sort((a, b) => a.danger - b.danger || avoidOf(b.c, b.r) - avoidOf(a.c, a.r));
+    // Fewest visible attackers, then a tile in view before one in fog, then the best avoid.
+    from.sort(
+      (a, b) =>
+        a.danger - b.danger ||
+        Number(fogged(a.c, a.r)) - Number(fogged(b.c, b.r)) ||
+        avoidOf(b.c, b.r) - avoidOf(a.c, a.r),
+    );
     attacks.push({ enemy, from });
   }
   if (attacks.length) {
     out.push(
-      'Attacks, one line per weapon from its safest tile (danger dN = visible foes that could strike that tile next enemy phase, the target included; hit% is the real chance to land, as the forecast shows it; "forecast" checks any other tile):',
+      'Attacks, one line per weapon, from the tile the fewest visible foes could strike next enemy phase (then the best avoid); this ranks what you can see, it does not judge survival. dN = visible foes able to strike that tile, the target included; s = a status staff also reaches it; fog = the tile is in fog. hit% is the real chance to land, as the forecast shows it; "forecast" checks any tile:',
     );
     for (const { enemy, from } of attacks) {
       const affixes = affixLines(enemy, battle.gameData).map((l) => l.split(':')[0]);
       out.push(
         `- ${ids.id(enemy)} ${enemy.name} HP ${enemy.currentHP}/${enemy.stats.HP} @${enemy.col},${enemy.row}${affixes.length ? ` [${affixes.join(', ')}]` : ''}:`,
       );
-      // For each weapon: its safest tile and that forecast, then every other tile it reaches from.
+      // For each weapon: its first-ranked tile and that forecast, then every other tile it reaches from.
       const weapons = [...new Set(from.flatMap((f) => f.reaching))];
       for (const weapon of weapons) {
         const tiles = from.filter((f) => f.reaching.includes(weapon));
         const best = tiles[0];
         out.push(`  ${compactForecast(battle, unit, enemy, { col: best.c, row: best.r, weapon })}`);
         out.push(
-          `    from ${best.c},${best.r} (${terrainName(battle, best.c, best.r)}, danger ${best.danger})${
+          `    from ${best.c},${best.r} (${terrainName(battle, best.c, best.r)}, ${riskText(best)})${
             tiles.length > 1
               ? `; also ${tiles
                   .slice(1, 1 + limit * 4)
-                  .map((f) => `${f.c},${f.r}(d${f.danger})`)
+                  .map((f) => `${f.c},${f.r}(${riskText(f)})`)
                   .join(
                     ' ',
                   )}${tiles.length > 1 + limit * 4 ? ` +${tiles.length - 1 - limit * 4} more` : ''}`

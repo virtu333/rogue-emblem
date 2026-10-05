@@ -8,6 +8,8 @@ import { settleConsumable, validateConsumable } from '../../src/engine/Consumabl
 
 import { HeadlessGrid } from './HeadlessGrid.js';
 import { TurnManager } from '../../src/engine/TurnManager.js';
+import { computeEffectivePath } from '../../src/engine/Grid.js';
+import { ambushStop, pathCostTo } from '../../src/engine/FogAmbush.js';
 import {
   commitBattleDeeds,
   recordAreaStrike,
@@ -462,45 +464,141 @@ export class HeadlessBattle {
     if (unit.hasActed) throw new Error(`Unit already acted: ${unit.name}`);
 
     this.selectedUnit = unit;
+    this.lastAmbush = null;
+    // As BattleScene.selectUnit: a unit whose move is locked in (an ambush) goes
+    // straight to its action menu.
+    if (unit._movementCommitted) {
+      this.preMoveLoc = null;
+      this.movementRange = null;
+      this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
+      return;
+    }
     this.preMoveLoc = { col: unit.col, row: unit.row };
-    // As BattleScene.selectUnit: a rooted unit stays put, and pathfinding skills lower
-    // terrain costs. Positions are the world's (the harness has no ambush check).
+    // As BattleScene.selectUnit: a rooted unit stays put, pathfinding skills lower
+    // terrain costs, and the range is planned around the units the player knows of
+    // (buildUnitPositionMap): a unit the fog hides never shapes it.
+    this.unitPositions = this._playerKnowledge().positions();
     this.movementRange = this.grid.getMovementRange(
       unit.col,
       unit.row,
       isRooted(unit) ? 0 : (unit.mov ?? unit.stats.MOV),
       unit.moveType,
-      this._buildUnitPositionMap(unit.faction),
+      this.unitPositions,
       unit.faction,
       getTerrainCostReduction(unit, this.gameData?.skills),
     );
     this.battleState = HEADLESS_STATES.UNIT_SELECTED;
   }
 
+  /**
+   * As BattleScene.moveUnit: the path is planned on what the player knows; walking
+   * it, a unit hidden in the fog stops the move on the last tile before it where the
+   * unit may stand (FogAmbush.js). An ambushed move is locked in (no undo) and the
+   * unit may still act. `lastAmbush` says what stopped it.
+   */
   moveTo(col, row) {
     if (this.battleState !== HEADLESS_STATES.UNIT_SELECTED) {
       throw new Error(`Cannot move in state: ${this.battleState}`);
     }
+    const unit = this.selectedUnit;
     const key = `${col},${row}`;
     const rangeEntry = this.movementRange.get(key);
     // Allow staying in place (current tile always in movementRange)
     // Reject tiles marked stoppable: false (ally-occupied)
-    if (
-      !(col === this.selectedUnit.col && row === this.selectedUnit.row) &&
-      (!rangeEntry || rangeEntry.stoppable === false)
-    ) {
+    const staying = col === unit.col && row === unit.row;
+    if (!staying && (!rangeEntry || rangeEntry.stoppable === false)) {
       throw new Error(`Tile (${col},${row}) not reachable`);
     }
-
-    // Track movement spent for Canto (deferred, but track anyway)
-    const costEntry = rangeEntry;
-    this.selectedUnit._movementSpent = costEntry ? costEntry.cost : 0;
-
-    this.selectedUnit.col = col;
-    this.selectedUnit.row = row;
-    this.selectedUnit.hasMoved = true;
+    if (staying) {
+      unit._movementSpent = 0;
+      unit.hasMoved = true;
+      this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
+      return;
+    }
+    const costMod = getTerrainCostReduction(unit, this.gameData?.skills);
+    const path =
+      this.grid.reconstructIcePath(this.movementRange, unit.col, unit.row, col, row) ||
+      this.grid.findPath(
+        unit.col,
+        unit.row,
+        col,
+        row,
+        unit.moveType,
+        this.unitPositions,
+        unit.faction,
+        costMod,
+      );
+    if (!path || path.length < 2) throw new Error(`No path to (${col},${row})`);
+    const effective = computeEffectivePath(
+      path,
+      this.grid.mapLayout,
+      this.grid.terrainData,
+      this.grid.cols,
+      this.grid.rows,
+      unit.moveType,
+      unit.faction === 'player'
+        ? this._playerKnowledge().occupied(unit)
+        : this._worldOccupied(unit),
+      costMod,
+    );
+    if (!effective.effectivePath || effective.effectivePath.length < 2)
+      throw new Error(`No effective path to (${col},${row})`);
+    const cut = this._ambushCut(unit, effective, costMod);
+    const dest = cut.path[cut.path.length - 1];
+    unit.col = dest.col;
+    unit.row = dest.row;
+    unit.hasMoved = true;
+    unit._movementSpent = cut.cost;
+    if (cut.ambusher) {
+      // BattleScene._resolveAmbush: locked in, the fog lifts from where it stands.
+      unit._movementCommitted = true;
+      this.preMoveLoc = null;
+      this._refreshFogVisibility();
+      this.lastAmbush = { unit, ambusher: cut.ambusher, tile: { col, row }, stop: { ...dest } };
+    }
     // Fog waits for the action to be committed (BattleActionCompletion.revealSettledVision).
     this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
+  }
+
+  /** BattleScene._ambushCut: where a player's path meets a unit the fog hides. */
+  _ambushCut(unit, effective, costMod) {
+    const path = effective.effectivePath;
+    if (unit?.faction !== 'player' || !this.grid?.fogEnabled)
+      return { path, cost: effective.movementCost, ambusher: null };
+    const occupant = (c, r) =>
+      [...this.enemyUnits, ...this.playerUnits, ...this.npcUnits].find(
+        (u) =>
+          u &&
+          u !== unit &&
+          !u._removing &&
+          u.currentHP > 0 &&
+          (isEntity(u)
+            ? getFootprint(u).some((t) => t.col === c && t.row === r)
+            : u.col === c && u.row === r),
+      ) || null;
+    const knowledge = this._playerKnowledge();
+    const cut = ambushStop(path, {
+      hiddenAt: (c, r) => {
+        const found = occupant(c, r);
+        return found && !knowledge.isKnown(found) ? found : null;
+      },
+      blockedAt: (c, r) => Boolean(occupant(c, r)),
+    });
+    if (!cut.ambusher) return { path, cost: effective.movementCost, ambusher: null };
+    const cost = pathCostTo(path, effective.slideSegments, cut.stopIndex, (c, r) =>
+      this.grid.getMoveCost(c, r, unit.moveType, costMod),
+    );
+    return { path: cut.path, cost, ambusher: cut.ambusher };
+  }
+
+  /** BattleScene.buildOccupiedSet without seenOnly: every live unit's tiles. */
+  _worldOccupied(exclude) {
+    const occupied = new Set();
+    for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
+      if (!u || u === exclude || u._removing || u.currentHP <= 0) continue;
+      for (const t of isEntity(u) ? getFootprint(u) : [u]) occupied.add(`${t.col},${t.row}`);
+    }
+    return occupied;
   }
 
   getAvailableActions() {
@@ -715,6 +813,16 @@ export class HeadlessBattle {
   undoMove() {
     if (this.battleState !== HEADLESS_STATES.UNIT_ACTION_MENU) {
       throw new Error(`Cannot undo move in state: ${this.battleState}`);
+    }
+    // A locked-in move (an ambush) cannot be taken back: Back only deselects
+    // (TradeFlow.shouldAllowUndoMove).
+    if (this.selectedUnit?._movementCommitted) {
+      this.selectedUnit = null;
+      this.movementRange = null;
+      this.preMoveLoc = null;
+      this._clearSelectedWeaponArt();
+      this.battleState = HEADLESS_STATES.PLAYER_IDLE;
+      return;
     }
     if (this.preMoveLoc) {
       this.selectedUnit.col = this.preMoveLoc.col;
@@ -1116,6 +1224,7 @@ export class HeadlessBattle {
         u.hasActed = false;
         u._gambitUsedThisTurn = false;
         u._movementSpent = 0;
+        u._movementCommitted = false;
       }
       // Apply turn-start effects (Renewal, etc.) — skip turn 1 to match BattleScene
       if (turn > 1) {
@@ -1157,13 +1266,17 @@ export class HeadlessBattle {
    * BattleScene.threatContext: the Danger overlay's view, positions from what the player
    * knows (PlayerKnowledge: own units, what the fog shows, the recruit's beacon).
    */
-  _playerThreatContext() {
-    const knowledge = createPlayerKnowledge({
+  _playerKnowledge() {
+    return createPlayerKnowledge({
       grid: this.grid,
       units: [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits],
       // As battleKnowledge.js: only the recruit beacon's NPC shows through the fog.
       revealed: [findRecruitNpc(this.npcUnits)],
     });
+  }
+
+  _playerThreatContext() {
+    const knowledge = this._playerKnowledge();
     return {
       grid: this.grid,
       enemyUnits: this.enemyUnits,
@@ -1278,7 +1391,11 @@ export class HeadlessBattle {
     this.grid.updateFogOfWar(this.playerUnits);
   }
 
-  _buildUnitPositionMap(moverFaction) {
+  /**
+   * Every unit's tiles, the world as it is (the sim agents' omniscient planning view).
+   * The player's own moves plan on _playerKnowledge() instead, as the scene's do.
+   */
+  _buildUnitPositionMap(_moverFaction) {
     const map = new Map();
     for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       for (const t of isEntity(u) ? getFootprint(u) : [u])
@@ -1898,6 +2015,7 @@ export class HeadlessBattle {
           u.hasActed = false;
           u.hasMoved = false;
           u._movementSpent = 0;
+          u._movementCommitted = false;
         }
         this.selectedUnit = null;
         this._clearSelectedWeaponArt();

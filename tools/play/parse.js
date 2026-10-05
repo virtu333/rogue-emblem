@@ -55,9 +55,36 @@ export function splitClauses(words, keywords) {
   return { head, clauses };
 }
 
+/** An item's state apart from its identity: equal for copies that would play alike. */
+function itemSignature(item) {
+  const { uid: _uid, ...rest } = item || {};
+  return JSON.stringify(
+    Object.keys(rest)
+      .sort()
+      .map((k) => [k, rest[k]]),
+  );
+}
+
+/** What tells same-named items apart: uses left or spent, forging, imbue, arts. */
+export function itemDistinction(item) {
+  const parts = [];
+  if (item.uses !== undefined) parts.push(`${item.uses} uses`);
+  if (item._usesSpent) parts.push(`${item._usesSpent} uses spent`);
+  if (item._forgeLevel) parts.push(`forged +${item._forgeLevel}`);
+  for (const stat of ['might', 'hit', 'crit', 'weight'])
+    if (item._forgeBonuses?.[stat])
+      parts.push(`${stat} ${item._forgeBonuses[stat] > 0 ? '+' : ''}${item._forgeBonuses[stat]}`);
+  if (item._imbueId) parts.push(`imbued ${item._imbueId}`);
+  if (item.weaponArtIds?.length) parts.push(`arts ${item.weaponArtIds.join('/')}`);
+  return parts.join(', ');
+}
+
 /**
  * The item a token names among `list`: "#2" (1-based position), an exact name, or a
- * unique name prefix (case-insensitive). Throws a PlayError listing the choices.
+ * unique name prefix (case-insensitive). Several items with that name are one choice
+ * only when they are alike in every way but their uid; otherwise the token is refused
+ * with each one's position and what sets it apart. Throws a PlayError listing the
+ * choices.
  */
 export function findItem(list, token, what = 'item') {
   const items = (list || []).filter(Boolean);
@@ -72,11 +99,22 @@ export function findItem(list, token, what = 'item') {
     if (!item) throw new PlayError(`No ${what} ${token}. Choose from: ${show()}.`);
     return item;
   }
+  const oneOf = (matches) => {
+    if (matches.every((i) => itemSignature(i) === itemSignature(matches[0]))) return matches[0];
+    throw new PlayError(
+      `"${token}" names ${matches.length} different ${what}s: ${matches
+        .map(
+          (i) =>
+            `#${items.indexOf(i) + 1} ${i.name}${itemDistinction(i) ? ` (${itemDistinction(i)})` : ''}`,
+        )
+        .join('; ')}. Name one by its #number.`,
+    );
+  };
   const exact = items.filter((i) => String(i.name).toLowerCase() === t);
-  if (exact.length >= 1) return exact[0];
+  if (exact.length >= 1) return oneOf(exact);
   const prefix = items.filter((i) => String(i.name).toLowerCase().startsWith(t));
   if (prefix.length === 1) return prefix[0];
-  if (prefix.length > 1 && prefix.every((i) => i.name === prefix[0].name)) return prefix[0];
+  if (prefix.length > 1 && prefix.every((i) => i.name === prefix[0].name)) return oneOf(prefix);
   if (prefix.length > 1)
     throw new PlayError(`"${token}" matches several: ${prefix.map((i) => i.name).join(', ')}.`);
   throw new PlayError(`No ${what} "${token}". Choose from: ${show()}.`);

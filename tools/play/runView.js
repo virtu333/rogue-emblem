@@ -16,6 +16,7 @@ import { traitLines } from '../../src/ui/traitContent.js';
 import { ruinsChoice } from '../../src/engine/RuinsCommands.js';
 import { createSeededRng } from '../../src/engine/BlessingEngine.js';
 import { _getUidCounter, _setUidCounter } from '../../src/utils/itemUid.js';
+import { skillNames, statsText, weaponText } from './battleView.js';
 
 /**
  * Run a read on a throwaway random stream and give the item-uid counter back after:
@@ -32,19 +33,7 @@ export function sandboxed(fn) {
     _setUidCounter(uid);
   }
 }
-import { skillNames, statsText, weaponText } from './battleView.js';
 
-const NODE_LABEL = {
-  [NODE_TYPES.BATTLE]: 'Battle',
-  [NODE_TYPES.BOSS]: 'BOSS',
-  [NODE_TYPES.SHOP]: 'Shop',
-  [NODE_TYPES.RUINS]: 'Ruins',
-  [NODE_TYPES.RECRUIT]: 'Recruit battle',
-  [NODE_TYPES.CHURCH]: 'Church',
-  [NODE_TYPES.COLOSSEUM]: 'Colosseum',
-};
-
-/** One line describing an item (weapon stats, consumable effect, scroll, accessory). */
 /** Menu text as one line: no UI directions ("Use: Roster -> ..."), no empty parts. */
 function oneLine(text) {
   return String(text || '')
@@ -54,6 +43,7 @@ function oneLine(text) {
     .join('; ');
 }
 
+/** One line describing an item (weapon stats, consumable effect, scroll, accessory). */
 export function itemDetail(item, gameData) {
   if (!item) return '?';
   if (item.type === 'Accessory' || item.combatEffects || item.statBonuses)
@@ -138,12 +128,8 @@ function shortCard(info) {
 }
 
 export function nodeLine(rm, node, gameData = rm.gameData) {
-  try {
-    const ctx = loomContext(rm, gameData, rm.getAvailableNodes?.() || []);
-    return `${node.id} ${shortCard(describeNode(rm, gameData, node, ctx))}`;
-  } catch {
-    return `${node.id} ${NODE_LABEL[node.type] || node.type}`;
-  }
+  const ctx = loomContext(rm, gameData, rm.getAvailableNodes?.() || []);
+  return `${node.id} ${shortCard(describeNode(rm, gameData, node, ctx))}`;
 }
 
 function fullCard(info) {

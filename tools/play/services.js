@@ -542,7 +542,8 @@ export class ChurchVisit {
             );
             rest = words.slice(n);
           } catch (err) {
-            if (n === 1) throw err;
+            // Only "no such unit" moves on to a shorter name; anything else is a fault.
+            if (!(err instanceof PlayError) || n === 1) throw err;
           }
         }
         const targets = resolvePromotionTargets(unit, gd.classes, gd.lords) || [];

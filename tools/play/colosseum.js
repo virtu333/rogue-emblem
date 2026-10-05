@@ -364,25 +364,22 @@ export class ColosseumVisit {
       const lords = roster.filter((u) => u?.isLord);
       lordLevel = lords.length ? Math.max(1, ...lords.map(effectiveLevel)) : 1;
     }
-    let candidates;
-    try {
-      candidates = generateMercenaryCandidates(
-        this.actId,
-        lordLevel,
-        gd.recruits,
-        gd.classes,
-        gd.weapons,
-        gd.skills,
-        this.difficultyId,
-        this.data,
-        Math.random,
-        gd.traits || null,
-        [...(rm.getTakenUnitNames?.() || roster.map((u) => u.name))],
-        rm.getEffectiveMetaEffects?.() ?? rm.metaEffects ?? null,
-      );
-    } catch {
-      candidates = [];
-    }
+    // The overlay logs a failure here and shows an empty board; headless play lets it
+    // through as a fault, so a generation bug is never mistaken for an empty board.
+    const candidates = generateMercenaryCandidates(
+      this.actId,
+      lordLevel,
+      gd.recruits,
+      gd.classes,
+      gd.weapons,
+      gd.skills,
+      this.difficultyId,
+      this.data,
+      Math.random,
+      gd.traits || null,
+      [...(rm.getTakenUnitNames?.() || roster.map((u) => u.name))],
+      rm.getEffectiveMetaEffects?.() ?? rm.metaEffects ?? null,
+    );
     this.mercCandidates = (Array.isArray(candidates) ? candidates : []).filter(
       (c) => c?.unit?.name && c?.unit?.stats && typeof c?.hireCost === 'number',
     );

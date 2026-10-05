@@ -159,6 +159,26 @@ describe('ColosseumVisit', () => {
       expect(node.completed).toBe(true);
     });
   });
+
+  it('lets a failure to build the mercenary board through, never showing an empty board', async () => {
+    const game = await startedGame(3);
+    const node = nodeOfType(game, 'colosseum');
+    await game.run(() => {
+      const visit = new ColosseumVisit(game, node);
+      // Generation reads the act's recruit pools; without them it fails.
+      game.gameData = { ...game.gameData, recruits: null };
+      let error = null;
+      try {
+        visit.exec('mercs', []);
+      } catch (err) {
+        error = err;
+      }
+      expect(error).not.toBeNull();
+      expect(error).not.toBeInstanceOf(PlayError);
+      expect(visit.mercCandidates).toBeNull();
+      expect(node.colosseumState?.mercCandidates ?? null).toBeNull();
+    });
+  });
 });
 
 describe('route map roster commands', () => {
