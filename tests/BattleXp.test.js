@@ -180,3 +180,149 @@ describe('the headless harness gives heal XP as the game does', () => {
     expect(healer.xp).toBe(25);
   });
 });
+
+// Pinned before applyXpGain also returned a gain record (docs/specs/exp-bars.md §2.5):
+// what it returned, what it did to the unit and how many Math.random draws it took
+// must not change. Every expected value is worked by hand: growths are 100 (HP) or 0
+// (the rest), so each level-up is exactly +1 HP and takes one draw per stat (8);
+// an extended level-up takes one draw (the stat pick).
+describe('applyXpGain: results, unit state and RNG draws (pinned)', () => {
+  const growths = { HP: 100, STR: 0, MAG: 0, SKL: 0, SPD: 0, DEF: 0, RES: 0, LCK: 0 };
+  const statsOf = (hp) => ({ HP: hp, STR: 5, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 0, LCK: 0 });
+  const fighter = (level, xp, extra = {}) => ({
+    name: 'Pin',
+    className: 'Myrmidon',
+    tier: 'base',
+    faction: 'player',
+    level,
+    xp,
+    growths: { ...growths },
+    stats: statsOf(20),
+    currentHP: 20,
+    skills: [],
+    ...extra,
+  });
+  /** Run applyXpGain with a counting Math.random (always 0.5: every 100 growth hits). */
+  function run(u, xp, options = {}) {
+    let draws = 0;
+    const spy = vi.spyOn(Math, 'random').mockImplementation(() => {
+      draws++;
+      return 0.5;
+    });
+    try {
+      const out = applyXpGain(u, xp, { classes: data.classes, ...options });
+      return { out, draws };
+    } finally {
+      spy.mockRestore();
+    }
+  }
+  const plusOneHp = (newLevel) => ({
+    gains: { HP: 1, STR: 0, MAG: 0, SKL: 0, SPD: 0, DEF: 0, RES: 0, LCK: 0 },
+    newLevel,
+  });
+  const state = (u) => ({
+    level: u.level,
+    xp: u.xp,
+    extendedLevels: u.extendedLevels,
+    HP: u.stats.HP,
+    currentHP: u.currentHP,
+    skills: [...u.skills],
+  });
+
+  it('a gain inside the level: no level-up, no draws', () => {
+    const u = fighter(5, 40);
+    const { out, draws } = run(u, 30);
+    expect(draws).toBe(0);
+    expect(state(u)).toEqual({
+      level: 5,
+      xp: 70,
+      extendedLevels: undefined,
+      HP: 20,
+      currentHP: 20,
+      skills: [],
+    });
+    expect(out.result).toEqual({ levelUps: [] });
+    expect(out.statsAfterGain).toEqual(statsOf(20));
+    expect(out.levelUps).toEqual([]);
+  });
+
+  it('two wraps in one gain: two level-ups, 16 draws, 10 XP left over', () => {
+    const u = fighter(5, 80);
+    const { out, draws } = run(u, 130); // 210 → 110 (Lv 6) → 10 (Lv 7)
+    expect(draws).toBe(16);
+    expect(state(u)).toEqual({
+      level: 7,
+      xp: 10,
+      extendedLevels: undefined,
+      HP: 22,
+      currentHP: 22,
+      skills: [],
+    });
+    expect(out.result).toEqual({ levelUps: [plusOneHp(6), plusOneHp(7)] });
+    expect(out.statsAfterGain).toEqual(statsOf(22));
+    expect(out.levelUps).toEqual([
+      { levelUp: plusOneHp(6), learnedIds: [], blockedIds: [] },
+      { levelUp: plusOneHp(7), learnedIds: [], blockedIds: [] },
+    ]);
+  });
+
+  it('reaching level 10 teaches the class skill after the stat snapshot', () => {
+    const u = fighter(9, 90);
+    const { out } = run(u, 20);
+    expect(state(u)).toEqual({
+      level: 10,
+      xp: 10,
+      extendedLevels: undefined,
+      HP: 21,
+      currentHP: 21,
+      skills: ['vantage'],
+    });
+    expect(out.levelUps).toEqual([
+      { levelUp: plusOneHp(10), learnedIds: ['vantage'], blockedIds: [] },
+    ]);
+  });
+
+  it('reaching the cap keeps what is left under 100, and spends 100 more before clamping', () => {
+    const near = fighter(19, 90);
+    const a = run(near, 30); // 120 → 20 at Lv 20: the loop stops, 20 stays
+    expect(a.draws).toBe(8);
+    expect(state(near)).toMatchObject({ level: 20, xp: 20, HP: 21 });
+    expect(a.out.result).toEqual({ levelUps: [plusOneHp(20)] });
+
+    const over = fighter(19, 90);
+    run(over, 200); // 290 → 190 at Lv 20 → 90 (levelUp refuses) → min(90, 99) = 90
+    expect(state(over)).toMatchObject({ level: 20, xp: 90, HP: 21 });
+
+    const huge = fighter(19, 90);
+    run(huge, 320); // 410 → 310 at Lv 20 → 210 → min(210, 99) = 99
+    expect(state(huge)).toMatchObject({ level: 20, xp: 99, HP: 21 });
+  });
+
+  it('at the cap nothing is added and nothing is drawn', () => {
+    const u = fighter(20, 20);
+    const { out, draws } = run(u, 50);
+    expect(draws).toBe(0);
+    expect(state(u)).toMatchObject({ level: 20, xp: 20, HP: 20 });
+    expect(out.result).toEqual({ levelUps: [] });
+    expect(out.levelUps).toEqual([]);
+    // A promoted unit too, unless extended leveling is on.
+    const promoted = fighter(20, 0, { tier: 'promoted', className: 'Swordmaster' });
+    expect(run(promoted, 50).draws).toBe(0);
+    expect(promoted.xp).toBe(0);
+  });
+
+  it('extended leveling: a promoted unit at 20 keeps wrapping, one draw per bonus level', () => {
+    const u = fighter(20, 50, { tier: 'promoted', className: 'Swordmaster' });
+    const { out, draws } = run(u, 170, { extendedLevelingEnabled: true }); // 220 → 120 → 20
+    expect(draws).toBe(2);
+    expect(state(u)).toMatchObject({ level: 20, xp: 20, extendedLevels: 2 });
+    expect(out.result.levelUps.map((l) => [l.isExtended, l.newLevel, l.extendedLevel])).toEqual([
+      [true, 20, 1],
+      [true, 20, 2],
+    ]);
+    // A base unit at 20 is capped even with extended leveling on.
+    const base = fighter(20, 0);
+    expect(run(base, 50, { extendedLevelingEnabled: true }).draws).toBe(0);
+    expect(base.xp).toBe(0);
+  });
+});

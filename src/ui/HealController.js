@@ -406,13 +406,17 @@ export class HealController {
           Promise.resolve(xp).catch(() => {});
           throw new TypeError('Battle action XP settlement must be synchronous');
         }
-        facts.xp = xp;
+        facts.awardedXp = xp;
         return facts;
       },
       present: async (facts, options) => {
-        safeBattlePresentation('staff XP', () => scene._presentScaledXP?.(healer, facts.xp), {
-          scene,
-        });
+        safeBattlePresentation(
+          'staff XP',
+          () => scene._presentScaledXP?.(healer, facts.awardedXp),
+          {
+            scene,
+          },
+        );
         await present(facts, options);
       },
     });

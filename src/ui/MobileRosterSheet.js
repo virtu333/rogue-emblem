@@ -36,7 +36,7 @@ import {
 import { traitLines } from './traitContent.js';
 import { calculateAvoid } from '../engine/Combat.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
-import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_PER_LEVEL } from '../utils/constants.js';
+import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS } from '../utils/constants.js';
 import { teachScrollBlock, teachRosterScroll } from '../engine/RosterTransfers.js';
 import {
   CONVOY_HOLDER,
@@ -109,6 +109,7 @@ import {
 import { actLabel } from './ceremonyContent.js';
 import { fitText } from './ceremonyDom.js';
 import { createHealthBar } from './healthBar.js';
+import { createXpBar, createXpRow, xpBarFacts } from './xpBar.js';
 import { STAT_COLORS, UI_PALETTE } from '../utils/uiStyles.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import {
@@ -370,8 +371,18 @@ export class MobileRosterSheet {
       // the health bar so neither wraps in the narrow list column.
       const classLine = el('span', unit.className, 'mr-unit-class');
       classLine.title = unit.className;
+      // A 2px EXP line rides under the HP bar (player units only), so who is near a
+      // level reads at a glance (docs/specs/exp-bars.md §3.1).
       const hpRow = el('span', null, 'mr-unit-hp');
-      hpRow.append(createHealthBar(unit), el('small', `${unit.currentHP}/${unit.stats.HP}`));
+      const bars = el('span', null, 'mr-unit-bars');
+      bars.append(createHealthBar(unit));
+      const xpLine = createXpBar(unit, this.xpOptions());
+      if (xpLine) {
+        xpLine.classList.add('is-line');
+        xpLine.setAttribute('aria-hidden', 'true');
+        bars.append(xpLine);
+      }
+      hpRow.append(bars, el('small', `${unit.currentHP}/${unit.stats.HP}`));
       info.append(classLine, hpRow);
       // A skill that arrived with every slot full waits on the bench: the list says so
       // until the player has seen it on Skills.
@@ -380,9 +391,10 @@ export class MobileRosterSheet {
       const convoyWeapon = this.convoyWeaponFor(unit);
       if (convoyWeapon)
         info.append(el('span', unarmedConvoyLine(convoyWeapon.type), 'mr-unit-flag'));
+      const xpLabel = xpLine ? `, ${xpBarFacts(unit, this.xpOptions()).text}` : '';
       b.setAttribute(
         'aria-label',
-        `${unit.name}, Level ${getDisplayLevel(unit)} ${unit.className}, HP ${unit.currentHP} of ${unit.stats.HP}${benchNews ? ', new skill benched' : ''}`,
+        `${unit.name}, Level ${getDisplayLevel(unit)} ${unit.className}, HP ${unit.currentHP} of ${unit.stats.HP}${xpLabel}${benchNews ? ', new skill benched' : ''}`,
       );
       b.append(info);
       b.setAttribute('aria-pressed', String(index === this.index));
@@ -428,10 +440,13 @@ export class MobileRosterSheet {
       summary.append(
         el(
           'p',
-          `Lv ${getDisplayLevel(unit)} ${unit.className} · ${unit.tier === 'promoted' ? 'Promoted' : 'Base'} · XP ${unit.xp || 0}/${XP_PER_LEVEL} · HP ${unit.currentHP}/${unit.stats.HP}`,
+          `Lv ${getDisplayLevel(unit)} ${unit.className} · ${unit.tier === 'promoted' ? 'Promoted' : 'Base'} · HP ${unit.currentHP}/${unit.stats.HP}`,
         ),
       );
       summary.append(createHealthBar(unit));
+      // EXP under the HP bar; enemies and NPCs have none (createXpRow returns null).
+      const xpRow = createXpRow(unit, this.xpOptions());
+      if (xpRow) summary.append(xpRow);
       body.append(summary);
       for (const id of unit.affixes || []) {
         const affix = this.gameData.affixes?.affixes?.find((a) => a.id === id);
@@ -1653,6 +1668,16 @@ export class MobileRosterSheet {
         (w) => w && w.type !== 'Staff' && w.type !== 'Scroll' && canEquip(unit, w),
       ) || null
     );
+  }
+  /**
+   * The EXP bars' rules for this run: extended leveling (a difficulty modifier) keeps
+   * a promoted unit at 20 filling a normal bar instead of MAX. Read-only sheets
+   * (battle inspect, the church's fallen) have no `run`; the scene's run decides.
+   */
+  xpOptions() {
+    const run = this.run || this.scene?.runManager || null;
+    const enabled = run?.getDifficultyModifier?.('extendedLevelingEnabled', false);
+    return { extendedLevelingEnabled: enabled === true };
   }
   destroy() {
     this.lesson?.destroy();

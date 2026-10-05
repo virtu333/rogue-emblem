@@ -2,8 +2,24 @@
 // Gated behind DEBUG_MODE from debugMode.js — never instantiated in production.
 
 import { debugState } from '../utils/debugMode.js';
-import { gainExperience } from '../engine/UnitManager.js';
+import { applyXpGain } from '../engine/BattleXp.js';
+import { XP_PER_LEVEL } from '../utils/constants.js';
 import { healUnitFully } from '../engine/UnitHealth.js';
+
+/**
+ * One level for a unit, the way a battle gain gives it (applyXpGain: stats, then the
+ * class skills the level teaches), under the run's extended leveling. Returns whether
+ * a level was gained (none at the level cap).
+ */
+function debugLevelUp(unit, scene) {
+  const extendedLevelingEnabled =
+    scene.runManager?.getDifficultyModifier?.('extendedLevelingEnabled', false) === true;
+  const { levelUps } = applyXpGain(unit, XP_PER_LEVEL - (unit.xp || 0), {
+    classes: scene.gameData.classes,
+    extendedLevelingEnabled,
+  });
+  return levelUps.length > 0;
+}
 
 export class DebugOverlay {
   constructor(scene) {
@@ -161,8 +177,7 @@ export class DebugOverlay {
             this._toast('Select a player unit first');
             return;
           }
-          const xpNeeded = 100 - unit.xp;
-          gainExperience(unit, xpNeeded, scene.gameData.classes, scene.gameData.skills);
+          debugLevelUp(unit, scene);
           scene.updateHPBar(unit);
           this._toast(`${unit.name} → Lv ${unit.level}`);
         },
@@ -232,8 +247,7 @@ export class DebugOverlay {
           const rm = scene.runManager;
           for (const unit of rm.roster) {
             while (unit.level < 20) {
-              const xpNeeded = 100 - unit.xp;
-              gainExperience(unit, xpNeeded, scene.gameData.classes, scene.gameData.skills);
+              if (!debugLevelUp(unit, scene)) break;
             }
           }
           scene.drawMap();

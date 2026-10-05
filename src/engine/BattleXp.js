@@ -19,6 +19,7 @@ import {
   skillGateLevels,
 } from './UnitManager.js';
 import { calculateSharedXp, getXpShareRatio, getXpShareRecipients } from './XpShare.js';
+import { xpGainSegments, xpGained, xpSnapshot } from './XpProgress.js';
 
 /**
  * Base XP awards for one combat, in the order they are granted: the unit first,
@@ -114,13 +115,22 @@ export function scaledXp(
  * now that finds the unit's slots full is reported once (`blockedIds`, on the
  * level-up that reached it); later level-ups retry it silently.
  *
+ * The gain is also recorded as plain values for the EXP bars (XpProgress):
+ * `before` / `after` are xpSnapshots either side of it, and `gained` is the XP that
+ * actually counted toward levels (0 at the cap; less than `xp` when the gain reaches
+ * the cap, whose leftover can never earn a level). Recording it reads the unit only:
+ * no state or RNG changes.
+ *
  * @returns {{ result: object, statsAfterGain: object, levelUps: { levelUp: object,
- *   learnedIds: string[], blockedIds: string[] }[] }}  one entry per level gained,
- *   oldest first; `statsAfterGain` is the unit's stats before any skill is granted
- *   (what level-up cards count back from)
+ *   learnedIds: string[], blockedIds: string[] }[], before: object, after: object,
+ *   gained: number }}  one levelUps entry per level gained, oldest first;
+ *   `statsAfterGain` is the unit's stats before any skill is granted (what level-up
+ *   cards count back from)
  */
 export function applyXpGain(unit, xp, { classes = [], extendedLevelingEnabled = false } = {}) {
+  const before = xpSnapshot(unit, { extendedLevelingEnabled });
   const result = gainExperience(unit, xp, { extendedLevelingEnabled });
+  const after = xpSnapshot(unit, { extendedLevelingEnabled });
   const statsAfterGain = { ...unit.stats };
   const reachedLevels = new Set((result.levelUps || []).map((lv) => lv.newLevel));
   const gateLevels = skillGateLevels(unit, classes);
@@ -132,7 +142,8 @@ export function applyXpGain(unit, xp, { classes = [], extendedLevelingEnabled = 
     reachedLevels.clear();
     levelUps.push({ levelUp, learnedIds, blockedIds });
   }
-  return { result, statsAfterGain, levelUps };
+  const gained = xpGained(xpGainSegments(before, after, result.levelUps));
+  return { result, statsAfterGain, levelUps, before, after, gained };
 }
 
 /**

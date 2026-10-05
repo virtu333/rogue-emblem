@@ -453,6 +453,48 @@
   --re-hp: #cf7d77;
 }
 
+/* EXP (xpBar.js): the HP bar's bed and border, filled in the info colour; at the
+   level cap a full bar in the muted colour (MAX). */
+.re-xp {
+  display: block;
+  height: 7px;
+  overflow: hidden;
+  background: var(--re-sunken);
+  border: 1px solid var(--re-line-soft);
+}
+.re-xp-fill {
+  display: block;
+  height: 100%;
+  background: var(--re-info);
+}
+.re-xp.is-max .re-xp-fill {
+  background: var(--re-muted);
+}
+.re-xp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: var(--re-t-small);
+  white-space: nowrap;
+}
+.re-xp-row > .re-xp {
+  flex: 0 1 160px;
+  min-width: 0;
+  max-width: 160px;
+}
+.re-xp-label {
+  flex: none;
+  color: var(--re-info);
+}
+.re-xp-value {
+  flex: none;
+  color: var(--re-text);
+  font-variant-numeric: tabular-nums;
+}
+.re-xp.is-max + .re-xp-value {
+  color: var(--re-muted);
+}
+
 .re-pips {
   display: inline-flex;
   gap: 2px;
