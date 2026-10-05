@@ -11,8 +11,6 @@
 // spec can assert what was taught and that nothing played twice.
 import { expect } from '@playwright/test';
 
-const SCENE = (key) => `window.__emblemRogueGame?.scene?.getScene('${key}')`;
-
 /** Settings for a quiet, fast browser run (the teaching stays on: hints default). */
 export const QUIET = { musicVolume: 0, sfxVolume: 0, reduceMotion: true, battleSpeed: 'instant' };
 
@@ -49,6 +47,7 @@ const DECISION_DIALOGS = new Set([
   'Manage roster',
   'Village',
   'Ruins sanctuary',
+  'Church',
   'Rest here?',
   'Rewind',
   'From here, it counts',
@@ -238,7 +237,6 @@ export function driver(page, { touch = false } = {}) {
         await page
           .waitForFunction(
             ([doneSrc, arg, before]) => {
-               
               const done = new Function(`return (${doneSrc})`)();
               if (done(arg)) return true;
               const shown = (el) =>
@@ -260,6 +258,26 @@ export function driver(page, { touch = false } = {}) {
           )
           .catch(() => {});
       }
+    },
+
+    /**
+     * Read past notes and lines until the dialog named `name` is the topmost one on
+     * screen; returns its locator.
+     */
+    async dialog(name, { timeout = 90_000 } = {}) {
+      await d.drain(
+        (n) => {
+          const shown = (el) =>
+            el.isConnected &&
+            (el.checkVisibility ? el.checkVisibility({ visibilityProperty: true }) : true) &&
+            el.getClientRects().length > 0;
+          const all = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].filter(shown); // prettier-ignore
+          return all.at(-1)?.getAttribute('aria-label') === n;
+        },
+        name,
+        { timeout, stopAt: (top) => top.name === name },
+      );
+      return page.getByRole('dialog', { name, exact: true });
     },
 
     /** Read past one non-decision dialog. Returns true when it acted. */
@@ -316,7 +334,19 @@ export function driver(page, { touch = false } = {}) {
     menuItems() {
       return page.evaluate(() => {
         const b = window.__emblemRogueGame.scene.getScene('Battle');
-        return (b._menuFocus?.items || []).map((i) => i.button?.text ?? null);
+        return (b._menuFocus?.items || []).map((i) => i.label ?? i.button?.text ?? null);
+      });
+    },
+
+    /** The open menu as published (every row, greyed ones with their reason). */
+    publishedMenu() {
+      return page.evaluate(() => {
+        const b = window.__emblemRogueGame.scene.getScene('Battle');
+        return (b._actionMenuPublished?.items || []).map((i) => ({
+          label: i.label,
+          disabled: Boolean(i.disabled),
+          why: i.description || null,
+        }));
       });
     },
 
@@ -473,7 +503,8 @@ export function driver(page, { touch = false } = {}) {
      * What a careful player would do with the selected unit `name` this turn, read
      * from the board (its real blue range, the forecasts, the Danger tiles). Options:
      *   targets   authored enemy ids it may attack (default: any)
-     *   noKill    never take an attack that could kill (another unit takes the kill)
+     *   noKill    never take an attack that could kill (another unit takes the kill);
+     *             'hits': that could kill without a critical
      *   attack    false: only move
      *   toward    {col,row} to walk to when not attacking (default: the nearest foe)
      *   caution   how much a tile's exposure to the next enemy phase weighs (default 1)
@@ -550,7 +581,8 @@ export function driver(page, { touch = false } = {}) {
                   const dmg = a.damage || 0;
                   const max = dmg * strikes;
                   const critMax = a.crit > 0 ? dmg * 3 + dmg * Math.max(0, strikes - 1) : max;
-                  if (opts.noKill && Math.max(max, critMax) >= foe.currentHP) continue;
+                  // noKill: never a strike that could kill; 'hits' leaves crits out of it.
+                  if (opts.noKill && (opts.noKill === 'hits' ? max : Math.max(max, critMax)) >= foe.currentHP) continue; // prettier-ignore
                   const need = dmg > 0 ? Math.ceil(foe.currentHP / dmg) : Infinity;
                   const kill =
                     need > strikes ? 0 : need === 1 ? 1 - (1 - hit) ** strikes : hit ** need;
