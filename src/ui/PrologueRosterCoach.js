@@ -7,10 +7,13 @@
 //
 // The strip is a goal, never a gate: every button of the sheet keeps working, Skip
 // step and Skip lesson are always there, and Close leaves the lesson where it was
-// (it resumes on the next Roster open at the same node; travel ends it).
+// (it resumes on the next Roster open at the same node; travel ends it). The core is
+// Withdraw and Equip; then Trade and Store are offered as more ("Show me" / "Done"),
+// never as steps the lesson waits on.
 
 import {
   advanceRosterLesson,
+  chooseRosterLessonMore,
   dismissRosterLesson,
   isRosterLessonLive,
   observeRosterAction,
@@ -18,7 +21,11 @@ import {
   skipRosterLessonStep,
 } from '../engine/PrologueRosterLesson.js';
 import { isPrologueRun } from '../engine/ScriptedBattle.js';
-import { rosterLessonCopy, rosterLessonSkipText } from '../data/prologueContent.js';
+import {
+  PROLOGUE_ROSTER_LESSON_MORE,
+  rosterLessonCopy,
+  rosterLessonSkipText,
+} from '../data/prologueContent.js';
 import { guidanceText } from '../engine/Guidance.js';
 import { CONVOY_HOLDER } from '../engine/ItemTrade.js';
 
@@ -105,6 +112,16 @@ export class PrologueRosterCoach {
     this.sheet.render(`Roster lesson skipped.${warning}`);
   }
 
+  /** The offer after the core: show Trade and Store, or end the lesson here. */
+  chooseMore(accept) {
+    if (this.destroyed) return;
+    chooseRosterLessonMore(this.run, accept);
+    this.message = accept ? '' : PROLOGUE_ROSTER_LESSON_MORE.declined;
+    this.markTaught();
+    const warning = this.sheet.persistNow?.() || '';
+    this.sheet.render(warning.trim());
+  }
+
   /** Copy context for the current step. */
   context(view) {
     const t = view?.target || {};
@@ -126,16 +143,20 @@ export class PrologueRosterCoach {
     box.setAttribute('aria-label', 'Roster lesson');
     if (!view) {
       if (!this.message) return null;
-      box.append(el('p', `${this.message} Roster lesson complete.`, 'mr-lesson-done'));
+      const done = this.message.endsWith('complete.') ? this.message : `${this.message} Roster lesson complete.`; // prettier-ignore
+      box.append(el('p', done, 'mr-lesson-done'));
       this.message = '';
       container.prepend(box);
       this.root = box;
       return box;
     }
+    if (view.phase === 'offer') return this.renderOffer(container, box, view);
     const ctx = this.context(view);
     const copy = rosterLessonCopy(view.step, ctx);
     box.dataset.step = view.step;
-    box.append(el('p', `Roster lesson · ${view.index} of ${view.total} · ${copy.title}`, 'mr-lesson-kicker')); // prettier-ignore
+    box.dataset.phase = view.phase;
+    const kicker = view.phase === 'more' ? PROLOGUE_ROSTER_LESSON_MORE.kicker : 'Roster lesson';
+    box.append(el('p', `${kicker} · ${view.index} of ${view.total} · ${copy.title}`, 'mr-lesson-kicker')); // prettier-ignore
     if (this.message) box.append(el('p', this.message, 'mr-lesson-done'));
     box.append(el('h4', copy.goal, 'mr-lesson-goal'));
     const text = view.step === 'withdraw' ? `${guidanceText('guide_convoy')} ${copy.text}` : copy.text; // prettier-ignore
@@ -145,12 +166,47 @@ export class PrologueRosterCoach {
     const actions = el('div', null, 'mr-lesson-actions');
     const skip = this.sheet.button('Skip step', () => this.skipStep());
     skip.dataset.lessonAction = 'skip-step';
-    const leave = this.sheet.button('Skip lesson', () => this.skipLesson());
-    leave.dataset.lessonAction = 'skip-lesson';
+    // The optional part ends with Done (the lesson is over either way); the core with
+    // Skip lesson.
+    const leave =
+      view.phase === 'more'
+        ? this.sheet.button(PROLOGUE_ROSTER_LESSON_MORE.stop, () => this.chooseStop())
+        : this.sheet.button('Skip lesson', () => this.skipLesson());
+    leave.dataset.lessonAction = view.phase === 'more' ? 'done' : 'skip-lesson';
     actions.append(skip, leave);
     box.append(actions);
     container.prepend(box);
     this.root = box;
+    return box;
+  }
+
+  /** Done during the optional part: the lesson ends where it is. */
+  chooseStop() {
+    if (this.destroyed) return;
+    dismissRosterLesson(this.run);
+    this.message = PROLOGUE_ROSTER_LESSON_MORE.declined;
+    const warning = this.sheet.persistNow?.() || '';
+    this.sheet.render(warning.trim());
+  }
+
+  /** The core is done: Trade and Store, offered as more, never as steps. */
+  renderOffer(container, box, view) {
+    const copy = PROLOGUE_ROSTER_LESSON_MORE;
+    box.dataset.phase = 'offer';
+    box.append(el('p', `Roster lesson · ${copy.coreDone}`, 'mr-lesson-kicker'));
+    if (this.message) box.append(el('p', this.message, 'mr-lesson-done'));
+    box.append(el('h4', copy.goal(view.steps), 'mr-lesson-goal'));
+    box.append(el('p', copy.text(view.steps), 'mr-lesson-text'));
+    const actions = el('div', null, 'mr-lesson-actions');
+    const show = this.sheet.button(copy.accept, () => this.chooseMore(true));
+    show.dataset.lessonAction = 'more';
+    const done = this.sheet.button(copy.decline, () => this.chooseMore(false));
+    done.dataset.lessonAction = 'done';
+    actions.append(show, done);
+    box.append(actions);
+    container.prepend(box);
+    this.root = box;
+    this.message = '';
     return box;
   }
 }

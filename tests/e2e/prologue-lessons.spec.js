@@ -1,8 +1,10 @@
 // P1, "Banner at Dawn", on a phone: the title promotes the prologue (a fresh device's
 // item starts the prologue run), the guided steps gate the first select and the move
-// to the Fort, each note reads over the thing it explains (the terrain preview, the
-// forecast's own numbers) and marks the slot's hint as read, and victory takes the run
-// on to its route map while recording only the lessons shown.
+// to the Fort, the core note reads over the thing it explains (the forecast's own
+// numbers), the reinforcement is a tip that never takes the rail (the Fort, the
+// Vulnerary beside the map; the triangle a line in the forecast itself), each marks
+// the slot's hint only once read, and victory takes the run on to its route map while
+// recording only the lessons read.
 import { test, expect, devices } from '@playwright/test';
 import { waitForScene } from './helpers.js';
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
@@ -23,7 +25,7 @@ async function tapTile(page, col, row) {
   );
   await page.touchscreen.tap(p.x, p.y);
 }
-test('a fresh prologue teaches the Fort, the forecast, the triangle and the Vulnerary, then goes on to the route', async ({
+test('a fresh prologue teaches the forecast as a note, the Fort, the triangle and the Vulnerary as tips, then goes on to the route', async ({
   page,
 }, info) => {
   const errors = [];
@@ -75,33 +77,33 @@ test('a fresh prologue teaches the Fort, the forecast, the triangle and the Vuln
   await tapTile(page, 2, 2);
   await expect(coach.locator('.re-coach-nudge')).toHaveText('Move Edric to the gold-framed Fort.');
   await tapTile(page, 3, 2);
-  await expect(note).toContainText('Fort tile reached');
-  await expect(note).toContainText('Defense +2');
+  // The Fort is reinforcement: a tip beside the map, the rail live underneath.
+  const fortTip = page.locator('.re-guide[data-guide="prologue:battle_terrain"]');
+  await expect(fortTip).toContainText('Fort tile reached');
+  await expect(fortTip).toContainText('Defense +2');
+  await expect(fortTip.locator('.re-guide-kicker')).toHaveText('Tip');
+  await expect(note).toHaveCount(0);
   await expect(page.locator('.mobile-battle-hud')).toBeVisible();
-  await expect.poll(() => page.locator('.mobile-battle-hud').evaluate((e) => e.inert)).toBe(true);
+  expect(await page.locator('.mobile-battle-hud').evaluate((e) => e.inert)).toBe(false);
   expect(
     await page.evaluate(
       () => window.__emblemRogueGame.scene.getScene('Battle')._mobileTerrainFocus,
     ),
   ).toEqual({ col: 3, row: 2 });
-  await page.screenshot({ path: info.outputPath('fort-note.png') });
-  await note.getByRole('button', { name: 'Continue', exact: true }).tap();
+  await page.screenshot({ path: info.outputPath('fort-tip.png') });
   await page.waitForFunction(
     () => !window.__emblemRogueGame.scene.getScene('Battle')._prologue.isGateActive(),
   );
-  // In the run the slot is real: the terrain note stands in for the in-run hint.
-  expect(
-    await page.evaluate(() =>
-      window.__emblemRogueGame.registry.get('hints').hasSeen('battle_terrain'),
-    ),
-  ).toBe(true);
+  const hintSeen = (id) =>
+    page.evaluate((hint) => window.__emblemRogueGame.registry.get('hints').hasSeen(hint), id);
+  // Shown is not read: the slot's terrain hint waits for the player to read the tip.
+  expect(await hintSeen('battle_terrain')).toBe(false);
+  await fortTip.getByRole('button', { name: 'Got it', exact: true }).tap();
+  await expect(fortTip).toHaveCount(0);
+  expect(await hintSeen('battle_terrain')).toBe(true);
 
-  // Each forecast lesson reads over the forecast's own numbers, one concept at a time:
-  // reading a forecast first (against `a`), the triangle against the holding Fighter `b`.
-  for (const [expected, target] of [
-    ['Reading a forecast', 'a'],
-    ['weapon triangle', 'b'],
-  ]) {
+  // The core forecast lesson reads over the forecast's own numbers (against `a`).
+  for (const [expected, target] of [['Reading a forecast', 'a']]) {
     await page.evaluate((id) => {
       const s = window.__emblemRogueGame.scene.getScene('Battle'),
         attacker = s.playerUnits[0],
@@ -140,16 +142,37 @@ test('a fresh prologue teaches the Fort, the forecast, the triangle and the Vuln
     await expect.poll(() => forecast.locator('..').evaluate((e) => e.inert)).toBe(false);
     await forecast.getByRole('button', { name: 'Cancel', exact: true }).tap();
   }
-  // A hit that leaves Edric at 60% or less teaches the Vulnerary with its real numbers.
+  // The triangle against the holding Fighter `b`: one line in the forecast's own notes,
+  // never a note over it; read when the player cancels (or confirms).
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle'),
+      attacker = s.playerUnits[0],
+      d = s.enemyUnits.find((u) => u.authoredId === 'b');
+    s.hideForecast();
+    s.hideActionMenu();
+    d.col = attacker.col + 1;
+    d.row = attacker.row;
+    void s.showForecast(attacker, d);
+  });
+  const forecast = page.getByRole('dialog', { name: 'Combat forecast', exact: true });
+  await expect(forecast).toContainText('Swords beat axes, axes beat lances, lances beat swords.');
+  await expect(note).toHaveCount(0);
+  expect(await forecast.locator('..').evaluate((e) => e.inert)).toBe(false);
+  expect(await hintSeen('battle_triangle')).toBe(false);
+  await forecast.getByRole('button', { name: 'Cancel', exact: true }).tap();
+  await expect.poll(() => hintSeen('battle_triangle')).toBe(true);
+  // A hit that leaves Edric at 60% or less tips the Vulnerary with its real numbers.
   await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('Battle'),
       edric = s.playerUnits[0];
     edric.currentHP = 11;
     void s._prologue.onCombatResolved(s.enemyUnits[0], edric, { initiator: 'enemy' });
   });
-  await expect(note).toContainText('Item → Vulnerary heals 10 HP');
-  await note.getByRole('button', { name: 'Continue', exact: true }).tap();
+  const vulneraryTip = page.locator('.re-guide[data-guide="prologue:battle_consumable_supply"]');
+  await expect(vulneraryTip).toContainText('Item → Vulnerary heals 10 HP');
   await expect(note).toHaveCount(0);
+  await vulneraryTip.getByRole('button', { name: 'Got it', exact: true }).tap();
+  await expect(vulneraryTip).toHaveCount(0);
 
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
   // Gaspar rides in: two lines, then the run goes on to its route map (no handoff).

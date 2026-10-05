@@ -395,7 +395,7 @@ describe('prologueBeatsFor', () => {
     });
   });
 
-  it('P2 as authored: the village note waits for a unit on the village, and only there', () => {
+  it('P2 as authored: the village tip waits for a unit on the village, and only there', () => {
     const p2 = data.prologue.chapters.find((c) => c.id === 'p2_old_hands');
     // The event PrologueController raises: the arrived tile and its terrain name, read
     // here straight from the authored rows and legend.
@@ -417,12 +417,12 @@ describe('prologueBeatsFor', () => {
         },
         {},
         { oneNote: true },
-      ).actions.filter((a) => a.note);
+      ).actions.filter((a) => a.note || a.tip);
     const village = { col: 3, row: 4 };
     expect(p2.villageTile).toMatchObject(village);
     expect(terrainOf(village)).toBe('Village');
     for (const unit of ['Edric', 'Gaspar']) {
-      expect(arrive(unit, village)).toEqual([{ note: 'p2_village_visit', beat: 'p2_village' }]);
+      expect(arrive(unit, village)).toEqual([{ tip: 'p2_village_visit', beat: 'p2_village' }]);
     }
     // The tile the note used to wait on (Plain, the village out of sight), and the rest
     // of the west bank: nothing.

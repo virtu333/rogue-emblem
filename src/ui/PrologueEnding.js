@@ -8,10 +8,14 @@
 //
 // The scenes (presentation only, every piece optional): the music turns to
 // `ending.music`; each scene may sound a ceremony cue (`cue`, in the key of the
-// track), shake the camera (`shake`; never under Reduce motion), lay a veil over the
-// field (`veil`: 'hollow_sun' darkens the sky around a hollow sun, 'thread' is the run
-// end's THE THREAD IS CUT card, which then stays up to the title card) and play its
-// lines. No new art or music: the cues, the card and the track are the run's own.
+// track), shake the camera (`shake`; never under Reduce motion), hold a title card over
+// its lines (`card: 'complete'`: PROLOGUE COMPLETE, the win said before the world
+// breaks), lay a veil over the field (`veil`: 'hollow_sun' darkens the sky around a
+// hollow sun, 'thread' is the run end's card as THE THREAD BREAKS, which then stays up
+// to the handoff) and play its lines. A `won` scene plays only when the last chapter
+// was won, never after a skip. Then the handoff screen (ui/PrologueHandoff): the rules
+// that hold from the first run on. No new art or music: the cues, the cards and the
+// track are the run's own.
 //
 // Order: presentation first, then the one meta write, then the save is cleared. A
 // refresh during the lines leaves the run save in place, so the route map reaches
@@ -21,7 +25,13 @@
 
 import { hasDOMHost } from '../utils/domUI.js';
 import { showImportantHint, showMinorHint } from './HintDisplay.js';
-import { PROLOGUE_THREAD_CARD, prologueEndingCard } from '../data/prologueContent.js';
+import {
+  prologueCompleteCard,
+  prologueEndingCard,
+  prologueThreadCard,
+} from '../data/prologueContent.js';
+import { prologueFinalNodeId } from '../engine/Prologue.js';
+import { showPrologueHandoff } from './PrologueHandoff.js';
 import { CeremonyController } from './CeremonyController.js';
 import { playCue } from './ceremonyMusic.js';
 import { prologueSpeakerPortrait } from './PrologueArrival.js';
@@ -37,6 +47,16 @@ export function prologueChaptersWon(runManager) {
   return nodes
     .filter((n) => n?.completed && typeof n.battleParams?.prologueChapter === 'string')
     .map((n) => n.battleParams.prologueChapter);
+}
+
+/**
+ * The prologue was won, not skipped: the last chapter's node is complete (its victory
+ * committed through completeBattle before the ending).
+ */
+export function prologueWasWon(runManager, prologue) {
+  const id = prologueFinalNodeId(prologue);
+  const nodes = Array.isArray(runManager?.nodeMap?.nodes) ? runManager.nodeMap.nodes : [];
+  return Boolean(id && nodes.find((n) => n?.id === id)?.completed);
 }
 
 /**
@@ -130,8 +150,10 @@ export function prologueEndingScenes(prologue) {
       cue: typeof s.cue === 'string' ? s.cue : null,
       shake: s.shake === true,
       veil: typeof s.veil === 'string' ? s.veil : null,
+      card: typeof s.card === 'string' ? s.card : null,
+      won: s.won === true,
     }))
-    .filter((s) => s.dialogue || s.cue || s.shake || s.veil);
+    .filter((s) => s.dialogue || s.cue || s.shake || s.veil || s.card);
 }
 
 /**
@@ -172,8 +194,14 @@ function reduceMotion(scene) {
   return Boolean(scene.registry?.get?.('settings')?.getReduceMotion?.());
 }
 
-/** One scene: cue, shake, veil, lines. Returns the veil it left up, if any. */
-async function playEndingScene(scene, ending, ceremonies, cast) {
+/** One scene: cue, shake, card, veil, lines. Returns the veil it left up, if any. */
+async function playEndingScene(
+  scene,
+  ending,
+  ceremonies,
+  cast,
+  { won = false, chapters = 0 } = {},
+) {
   const live = () => scene.sys?.isActive?.() !== false;
   if (ending.cue) void playCue(scene, ending.cue, { waitMs: 400, duck: 0.35 });
   if (ending.shake && !reduceMotion(scene)) {
@@ -183,12 +211,21 @@ async function playEndingScene(scene, ending, ceremonies, cast) {
       /* presentation only */
     }
   }
+  // A title card held over this scene's lines, then gone before the next scene.
+  let card = null;
+  if (ending.card === 'complete' && ceremonies) {
+    try {
+      card = ceremonies.showRunEnd({}, { withLines: true, content: prologueCompleteCard({ chapters }) }); // prettier-ignore
+    } catch {
+      card = null;
+    }
+  }
   let veil = null;
   if (ending.veil && ceremonies) {
     try {
       veil =
         ending.veil === 'thread'
-          ? ceremonies.showRunEnd({}, { withLines: true, content: PROLOGUE_THREAD_CARD })
+          ? ceremonies.showRunEnd({}, { withLines: true, content: prologueThreadCard({ won }) })
           : ceremonies.showVeil(ending.veil);
     } catch {
       veil = null;
@@ -217,6 +254,15 @@ async function playEndingScene(scene, ending, ceremonies, cast) {
       scene._storyDialogueActive = false;
     }
   }
+  if (card) {
+    try {
+      // The rest of its reading window (skippable), then it leaves.
+      if (live()) await card.finish?.();
+      else card.destroy?.();
+    } catch {
+      /* presentation only */
+    }
+  }
   return veil;
 }
 
@@ -237,23 +283,28 @@ export async function presentPrologueEnding(scene) {
     hasDOMHost() && CeremonyController.available() ? new CeremonyController(scene) : null;
   const veils = [];
   try {
-    const scenes = prologueEndingScenes(prologue);
+    // A skip plays the ending too: then its won-only scenes stay out, and the cards
+    // say only that the world broke.
+    const won = prologueWasWon(scene.runManager, prologue);
+    const chapters = prologueChaptersWon(scene.runManager).length;
+    const scenes = prologueEndingScenes(prologue).filter((s) => won || !s.won);
     const cast = endingCast(scene, scenes);
     for (const ending of scenes) {
       if (!live()) return;
-      const veil = await playEndingScene(scene, ending, ceremonies, cast);
+      const veil = await playEndingScene(scene, ending, ceremonies, cast, { won, chapters });
       if (veil) veils.push(veil);
     }
     if (!live()) return;
-    const card = prologueEndingCard(prologue);
-    if (card && hasDOMHost()) {
-      try {
-        await showImportantHint(scene, card, {
-          actions: [{ label: 'Continue', value: true, primary: true }],
-        });
-      } catch {
-        /* presentation only */
-      }
+    // The handoff: the title card leads the rules that hold from the first run on.
+    const commander = (scene.runManager?.roster || []).find((u) => u?.isCommander)?.name;
+    try {
+      await showPrologueHandoff(scene, {
+        lead: prologueEndingCard(prologue),
+        won,
+        commander: commander || 'Edric',
+      });
+    } catch {
+      /* presentation only */
     }
   } finally {
     // The veils stay up under the title card; Home Base follows at once.

@@ -21,7 +21,14 @@ vi.mock('../src/utils/SceneRouter.js', async () => {
   return { ...actual, transitionToScene: vi.fn(async () => true), restartScene: vi.fn(() => true) };
 });
 
+vi.mock('../src/ui/PrologueTip.js', async () => {
+  const actual = await vi.importActual('../src/ui/PrologueTip.js');
+  const { fakeTipHandle } = await import('./helpers/prologueTipMock.js');
+  return { ...actual, showPrologueTip: vi.fn((_scene, opts) => fakeTipHandle(opts)) };
+});
+
 import { showImportantHint } from '../src/ui/HintDisplay.js';
+import { showPrologueTip } from '../src/ui/PrologueTip.js';
 import { loadGameData } from './testData.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
@@ -296,10 +303,16 @@ describe('cancelled teaching settles', () => {
     const { scene } = makeScene('p3_seer_on_the_road');
     scene.battleState = 'TURN_START_RESOLVING';
     const prologue = new PrologueController(scene).create();
+    // A turn-start note (P3's own turn-2 moment is a tip now: the mechanism is the
+    // note's), waiting for a playable turn.
+    prologue.chapter = {
+      ...prologue.chapter,
+      beats: [{ id: 'x', on: 'turnStart', turn: 2, do: [{ note: 'p3_heal' }] }],
+    };
     scene.playerUnits[0].currentHP -= 8;
     const turnStart = prologue.emit({ type: 'turnStart', turn: 2, phase: 'player', hurt: true });
     await tick();
-    expect(prologue.snapshot().pending).toEqual([expect.objectContaining({ id: 'p3_rewind', status: 'scheduled' })]); // prettier-ignore
+    expect(prologue.snapshot().pending).toEqual([expect.objectContaining({ id: 'p3_heal', status: 'scheduled' })]); // prettier-ignore
     expect(await settled(turnStart)).toBe(false);
     await prologue.onRewound();
     expect(await turnStart).toBe(false);
@@ -307,5 +320,20 @@ describe('cancelled teaching settles', () => {
     scene.battleState = 'PLAYER_IDLE';
     await flush(prologue, 2);
     expect(showImportantHint).not.toHaveBeenCalled();
+  });
+
+  it('a tip is never pending: the checkpoint carries no tip, and a rewind drops one waiting for the turn', async () => {
+    const { scene } = makeScene('p3_seer_on_the_road');
+    scene.battleState = 'TURN_START_RESOLVING';
+    const prologue = new PrologueController(scene).create();
+    scene.playerUnits[0].currentHP -= 8;
+    // P3's turn 2 with someone hurt: the charge is granted at once, the tip waits.
+    void prologue.emit({ type: 'turnStart', turn: 2, phase: 'player', hurt: true });
+    await tick();
+    expect(prologue.snapshot().pending).toEqual([]);
+    await prologue.onRewound();
+    scene.battleState = 'PLAYER_IDLE';
+    await flush(prologue, 2);
+    expect(showPrologueTip).not.toHaveBeenCalled();
   });
 });

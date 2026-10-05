@@ -1,5 +1,6 @@
 // The prologue's ending (docs/specs/prologue-chapter.md §5 beats 7-8, §9): its scenes
-// (music, cues, the shake, the veils, the lines) and title card play, then one meta write (state complete, the grant paid once), the
+// (music, cues, the shake, PROLOGUE COMPLETE after a win, the veils, the lines) and the
+// handoff play, then one meta write (state complete, the grant paid once), the
 // device's lesson record, the run save cleared, then Home Base. A refresh after the
 // meta write finds the grant paid and only clears the save; a meta write that fails
 // keeps the run save and never transitions.
@@ -18,6 +19,7 @@ vi.mock('../src/utils/SceneRouter.js', async () => {
   return { ...actual, transitionToScene: vi.fn(async () => true) };
 });
 vi.mock('../src/cloud/CloudSync.js', () => ({ deleteRunSave: vi.fn() }));
+vi.mock('../src/ui/PrologueHandoff.js', () => ({ showPrologueHandoff: vi.fn(async () => true) }));
 const ceremonyCalls = [];
 vi.mock('../src/ui/CeremonyController.js', () => ({
   CeremonyController: class {
@@ -39,6 +41,7 @@ vi.mock('../src/ui/CeremonyController.js', () => ({
 }));
 
 import { showImportantHint, showMinorHint } from '../src/ui/HintDisplay.js';
+import { showPrologueHandoff } from '../src/ui/PrologueHandoff.js';
 import { transitionToScene } from '../src/utils/SceneRouter.js';
 import { deleteRunSave } from '../src/cloud/CloudSync.js';
 import { RunManager, saveRun, loadRun } from '../src/engine/RunManager.js';
@@ -49,8 +52,9 @@ import {
   prologueChaptersWon,
   endingLinesFor,
   prologueEndingScenes,
+  prologueWasWon,
 } from '../src/ui/PrologueEnding.js';
-import { PROLOGUE_THREAD_CARD } from '../src/data/prologueContent.js';
+import { prologueCompleteCard, prologueThreadCard } from '../src/data/prologueContent.js';
 import { TUTORIAL_COMPLETED_KEY, TUTORIAL_LESSONS_KEY } from '../src/ui/prologueLessons.js';
 import { loadGameData } from './testData.js';
 import { readFileSync } from 'fs';
@@ -196,7 +200,7 @@ describe('commitPrologueEnd', () => {
 });
 
 describe('finishPrologue', () => {
-  it('plays the scenes and the card, commits, stops the music and goes to Home Base', async () => {
+  it('plays the scenes and the handoff, commits, stops the music and goes to Home Base', async () => {
     const { scene, meta, registry } = makeScene();
     // The whole army of a finished prologue (Tamsin and Sera joined on the road).
     scene.runManager.roster.push(
@@ -204,8 +208,10 @@ describe('finishPrologue', () => {
       { name: 'Sera', className: 'Light Sage', isLord: true, faction: 'player' },
     );
     expect(await finishPrologue(scene, { taught: new Set(['battle_loot']) })).toBe(true);
-    // The three scenes' lines, in order, each speaker with a lord's portrait.
-    const keys = ['ending_east', 'ending_ridge', 'ending_thread'];
+    // The four scenes' lines, in order (the gate held first: it was won), each speaker
+    // with a lord's portrait.
+    expect(prologueWasWon(scene.runManager, data.prologue)).toBe(true);
+    const keys = ['ending_gate_held', 'ending_east', 'ending_ridge', 'ending_thread'];
     expect(scene.dialogueOverlay.showSequence.mock.calls.map(([, opts]) => opts)).toEqual(
       keys.map((key) => ({ category: 'prologue', key })),
     );
@@ -228,19 +234,32 @@ describe('finishPrologue', () => {
     });
     const audio = registry.get('audio');
     expect(audio.playMusic).toHaveBeenCalledWith('music_explore_deep', scene, expect.any(Number));
-    expect(audio.playStinger.mock.calls.map(([name]) => name)).toEqual(['eclipse', 'rewind']);
+    expect(audio.playStinger.mock.calls.map(([name]) => name)).toEqual([
+      'sealed',
+      'eclipse',
+      'rewind',
+    ]);
     expect(scene.cameras.main.shake).toHaveBeenCalledTimes(1);
-    // The hollow sun, then the thread cut (the run-end card with the prologue's words).
+    // PROLOGUE COMPLETE (the win, said first), the hollow sun, then the thread breaking
+    // (the run-end card in the prologue's words: the gate held, never the game over's).
     expect(ceremonyCalls).toEqual([
+      ['runEnd', { withLines: true, content: prologueCompleteCard({ chapters: 4 }) }],
       ['veil', 'hollow_sun'],
-      ['runEnd', { withLines: true, content: PROLOGUE_THREAD_CARD }],
+      ['runEnd', { withLines: true, content: prologueThreadCard({ won: true }) }],
       ['destroy'],
     ]);
-    expect(showImportantHint).toHaveBeenCalledWith(
-      scene,
-      data.prologue.ending.titleCard,
-      expect.objectContaining({ actions: [{ label: 'Continue', value: true, primary: true }] }),
-    );
+    expect(prologueThreadCard({ won: true })).toMatchObject({
+      word: 'THE THREAD BREAKS',
+      sub: 'The gate held. The world did not.',
+    });
+    // Then the handoff, led by the title card: the rules that hold from the first run on.
+    expect(showPrologueHandoff).toHaveBeenCalledTimes(1);
+    expect(showPrologueHandoff).toHaveBeenCalledWith(scene, {
+      lead: data.prologue.ending.titleCard,
+      won: true,
+      commander: 'Edric',
+    });
+    expect(showImportantHint).not.toHaveBeenCalled();
     expect(meta.getPrologueState()).toBe('complete');
     expect(JSON.parse(store[TUTORIAL_LESSONS_KEY])).toEqual(['battle_loot']);
     expect(audio.stopMusic).toHaveBeenCalled();
@@ -250,10 +269,10 @@ describe('finishPrologue', () => {
       { gameData: data, prologueEnded: true },
       expect.objectContaining({ retryBlocked: true }),
     );
-    // The lines and the card come before the write; the write before the transition.
+    // The lines and the handoff come before the write; the write before the transition.
     const order = [
-      scene.dialogueOverlay.showSequence.mock.invocationCallOrder[2],
-      showImportantHint.mock.invocationCallOrder[0],
+      scene.dialogueOverlay.showSequence.mock.invocationCallOrder[3],
+      showPrologueHandoff.mock.invocationCallOrder[0],
       transitionToScene.mock.invocationCallOrder[0],
     ];
     expect([...order].sort((a, b) => a - b)).toEqual(order);
@@ -264,7 +283,22 @@ describe('finishPrologue', () => {
     const { scene } = makeScene({ reduceMotion: true });
     expect(await finishPrologue(scene)).toBe(true);
     expect(scene.cameras.main.shake).not.toHaveBeenCalled();
-    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(3);
+    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(4);
+  });
+
+  it('after a skip: no PROLOGUE COMPLETE, no gate held, the card says only that the world broke', async () => {
+    const { scene } = makeScene({ won: false });
+    expect(prologueWasWon(scene.runManager, data.prologue)).toBe(false);
+    expect(await finishPrologue(scene)).toBe(true);
+    const keys = scene.dialogueOverlay.showSequence.mock.calls.map(([, opts]) => opts.key);
+    expect(keys).not.toContain('ending_gate_held');
+    expect(ceremonyCalls).toEqual([
+      ['veil', 'hollow_sun'],
+      ['runEnd', { withLines: true, content: prologueThreadCard({ won: false }) }],
+      ['destroy'],
+    ]);
+    expect(JSON.stringify(ceremonyCalls)).not.toContain('PROLOGUE COMPLETE');
+    expect(showPrologueHandoff).toHaveBeenCalledWith(scene, expect.objectContaining({ won: false })); // prettier-ignore
   });
 
   it('a scene leaving mid-ending stops the ending and writes nothing', async () => {
@@ -276,7 +310,7 @@ describe('finishPrologue', () => {
     });
     expect(await finishPrologue(scene)).toBe(false);
     expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(1);
-    expect(showImportantHint).not.toHaveBeenCalled();
+    expect(showPrologueHandoff).not.toHaveBeenCalled();
     expect(meta.getPrologueState()).toBe('none');
     expect(loadRun(data, 1)).not.toBeNull();
   });
@@ -304,8 +338,8 @@ describe('finishPrologue', () => {
       store[key] = String(val);
     });
     expect(await finishPrologue(scene)).toBe(false);
-    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(3);
-    expect(showImportantHint).toHaveBeenCalledTimes(1);
+    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(4);
+    expect(showPrologueHandoff).toHaveBeenCalledTimes(1);
     localStorageMock.setItem.mockImplementation((key, val) => {
       store[key] = String(val);
     });
@@ -317,9 +351,9 @@ describe('finishPrologue', () => {
     expect(await finishPrologue(scene)).toBe(true);
     expect(transitionToScene).toHaveBeenCalledTimes(2);
     expect(meta.totalValor).toBe(data.prologue.grant.valor);
-    // The lines and the card never replayed.
-    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(3);
-    expect(showImportantHint).toHaveBeenCalledTimes(1);
+    // The lines and the handoff never replayed: shown once.
+    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(4);
+    expect(showPrologueHandoff).toHaveBeenCalledTimes(1);
   });
 
   it('refuses outside the prologue run', async () => {
@@ -379,7 +413,7 @@ describe('the grant under faults (one grant, a recoverable continuation, Home Ba
     expect(meta.totalValor).toBe(grant());
     expect(transitionToScene).toHaveBeenCalledTimes(2);
     // The ending's lines never replayed on the retry.
-    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(3);
+    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(4);
   });
 
   it('a crash after the payment, before the save cleared: the route map reaches the ending again, pays nothing, leaves', async () => {
@@ -410,13 +444,15 @@ describe('the grant under faults (one grant, a recoverable continuation, Home Ba
 
 describe('prologueEndingScenes', () => {
   it("reads the data's scenes; a lone dialogue key (the Phase 2 shape) is one scene", () => {
+    const plain = { card: null, won: false };
     expect(prologueEndingScenes(data.prologue)).toEqual([
-      { dialogue: 'ending_east', cue: 'eclipse', shake: true, veil: 'hollow_sun' },
-      { dialogue: 'ending_ridge', cue: null, shake: false, veil: null },
-      { dialogue: 'ending_thread', cue: 'rewind', shake: false, veil: 'thread' },
+      { dialogue: 'ending_gate_held', cue: 'sealed', shake: false, veil: null, card: 'complete', won: true }, // prettier-ignore
+      { dialogue: 'ending_east', cue: 'eclipse', shake: true, veil: 'hollow_sun', ...plain },
+      { dialogue: 'ending_ridge', cue: null, shake: false, veil: null, ...plain },
+      { dialogue: 'ending_thread', cue: 'rewind', shake: false, veil: 'thread', ...plain },
     ]);
     expect(prologueEndingScenes({ ending: { dialogue: 'ending' } })).toEqual([
-      { dialogue: 'ending', cue: null, shake: false, veil: null },
+      { dialogue: 'ending', cue: null, shake: false, veil: null, ...plain },
     ]);
     expect(prologueEndingScenes({ ending: { scenes: [null, {}, { shake: 'yes' }] } })).toEqual([]);
     expect(prologueEndingScenes(null)).toEqual([]);
@@ -435,7 +471,11 @@ describe('endingLinesFor (a skip plays the ending before the army met everyone)'
 
   it('the whole army hears every line, as written', () => {
     const all = play(['Edric', 'Gaspar', 'Tamsin', 'Sera']);
-    expect(all).toHaveLength(9);
+    expect(all).toHaveLength(10);
+    // Before the last word, the break is named as no failure of theirs.
+    expect(all.at(-2)).toBe(
+      'Sera: No sword could stop this from here, Edric. It was never yours to stop.',
+    );
     expect(all.at(-1)).toBe(
       'Sera: Not like this. I know this road now. Again, from the morning I reached you.',
     );
@@ -446,6 +486,7 @@ describe('endingLinesFor (a skip plays the ending before the army met everyone)'
       '???: The ring has closed. They are finishing it. Today, not in a year.',
       'Edric: The sun. Something is eating the sun.',
       '???: The Hollow Sun. Under the stones, what they fed is turning over.',
+      '???: No sword could stop this from here, Edric. It was never yours to stop.',
       '???: Not like this. I know this road now. Again, from the morning I reached you.',
     ]);
   });

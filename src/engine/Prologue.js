@@ -105,12 +105,16 @@
 //                            atNode: { <nodeId>: [unit key | special id] } }
 //                   Who joins the run's roster, committed with that chapter's victory
 //                   (RunManager.completeBattle) or on arrival at that node.
-//   ending          null | { music?, scenes: [{ dialogue, cue?, shake?, veil? }], titleCard }
+//   ending          null | { music?, scenes: [{ dialogue, cue?, shake?, veil?, card?,
+//                   won? }], titleCard }
 //                   the ending the last chapter hands to (PrologueEnding): its scenes in
 //                   order, each a dialogue.json `prologue` key with an optional stinger
-//                   (`cue`, a musicConfig stinger name), a camera shudder (`shake`) and a
-//                   screen veil (`veil`: 'hollow_sun' | 'thread'); `music` is the track it
-//                   plays under (an existing one); then the title card's text. (A legacy
+//                   (`cue`, a musicConfig stinger name), a camera shudder (`shake`), a
+//                   screen veil (`veil`: 'hollow_sun' | 'thread') and a title card held
+//                   over its lines (`card`: 'complete', PROLOGUE COMPLETE); `won: true`
+//                   plays the scene only when the last chapter was won (never after a
+//                   skip); `music` is the track it plays under (an existing one); then
+//                   the handoff screen, which `titleCard` leads. (A legacy
 //                   { dialogue, titleCard } is one scene.)
 //   boss            null | { name, className, level, weapon, epithet, lore? } (P4's Varro;
 //                   never in a real act's boss pool). The chapter's isBoss enemy must
@@ -175,7 +179,17 @@
 //
 // Actions (PROLOGUE_ACTIONS), each an object with exactly one key:
 //   coach: <goal id>                    show a coach goal
-//   note: <hint id>                     show a field note (marks the HintManager id)
+//   note: <hint id>                     a blocking field note: the chapter's core
+//                                       lesson at its decision point (marks the
+//                                       HintManager ids once acknowledged)
+//   tip: <hint id>                      a non-blocking note (reinforcement): docked
+//                                       beside the map, or a line in the open
+//                                       forecast's notes on forecastOpened; it never
+//                                       holds input or the simulation, and marks the
+//                                       HintManager ids only once read (Got it, read
+//                                       long enough, or the forecast confirmed or
+//                                       cancelled), so an unread tip is taught again
+//                                       at its point of use in Act 1
 //   dialogue: <dialogue key>            play a dialogue.json prologue line set
 //   gateSelect: { unit }                only this unit may be selected
 //   gateMove: { col, row }              the selected unit may only move here
@@ -252,6 +266,7 @@ export const PROLOGUE_TRIGGERS = Object.freeze({
 export const PROLOGUE_ACTIONS = Object.freeze([
   'coach',
   'note',
+  'tip',
   'dialogue',
   'gateSelect',
   'gateMove',
@@ -325,6 +340,7 @@ const CHAPTER_KEYS = new Set([
   'formation',
 ]);
 const ENDING_VEILS = Object.freeze(['hollow_sun', 'thread']);
+const ENDING_CARDS = Object.freeze(['complete']);
 const ROUTE_NODE_KEYS = new Set([
   'id',
   'row',
@@ -851,8 +867,12 @@ function beatMatches(beat, event) {
   return conditions.every((key) => CONDITION_MATCHERS[key]?.(beat[key], event) === true);
 }
 
+// A beat that says something: a blocking note, a line, or a non-blocking tip. One
+// concept per decision (oneNote) counts all three.
 const readsAloud = (beat) =>
-  (Array.isArray(beat?.do) ? beat.do : []).some((a) => a && ('note' in a || 'dialogue' in a));
+  (Array.isArray(beat?.do) ? beat.do : []).some(
+    (a) => a && ('note' in a || 'tip' in a || 'dialogue' in a),
+  );
 
 /**
  * The actions a chapter's beats take for one event. Pure: `state` is not mutated.
@@ -887,6 +907,28 @@ export function prologueBeatsFor(chapter, event, state = {}, { oneNote = false }
     }
   }
   return { actions, fired, state: { ...state, fired: [...done] } };
+}
+
+/**
+ * What a chapter can put in front of the player, by weight: `blocking` counts the
+ * modal field notes (each beat's `note` actions, and the deploy screen's note),
+ * `tips` the non-blocking ones. Lines (`dialogue`) are story, counted apart. The
+ * prologue's density rule (docs/specs/prologue-chapter.md §2): a chapter's blocking
+ * notes are its small core; everything else is a tip or a conditional moment.
+ * @returns {{ blocking: string[], tips: string[], dialogue: string[] }} copy ids, in order
+ */
+export function prologueNoteBudget(chapter) {
+  const out = { blocking: [], tips: [], dialogue: [] };
+  if (typeof chapter?.deploy?.note === 'string') out.blocking.push(chapter.deploy.note);
+  for (const beat of Array.isArray(chapter?.beats) ? chapter.beats : []) {
+    for (const action of Array.isArray(beat?.do) ? beat.do : []) {
+      if (!action || typeof action !== 'object') continue;
+      if (typeof action.note === 'string') out.blocking.push(action.note);
+      if (typeof action.tip === 'string') out.tips.push(action.tip);
+      if (typeof action.dialogue === 'string') out.dialogue.push(action.dialogue);
+    }
+  }
+  return out;
 }
 
 // --- Units -------------------------------------------------------------------------
@@ -1312,6 +1354,7 @@ function validateAction(where, action, ctx, errors) {
   switch (kind) {
     case 'coach':
     case 'note':
+    case 'tip':
     case 'dialogue':
       if (!isId(value)) errors.push(`${where}.${kind} must be a snake_case id`);
       break;
@@ -1403,7 +1446,7 @@ function beatTerrainIntents(beat) {
   const intents = new Set();
   for (const action of beat.do) {
     if (!isPlainObject(action)) continue;
-    for (const id of [action.coach, action.note]) {
+    for (const id of [action.coach, action.note, action.tip]) {
       if (typeof id === 'string' && Object.hasOwn(copy, id)) intents.add(copy[id]);
     }
     const lesson = action.markLesson?.id;
@@ -2089,11 +2132,11 @@ function validateEnding(ending, gameData, errors) {
     ending.scenes.forEach((scene, i) => {
       const at = `ending.scenes[${i}]`;
       if (!isPlainObject(scene)) {
-        errors.push(`${at} must be { dialogue, cue?, shake?, veil? }`);
+        errors.push(`${at} must be { dialogue, cue?, shake?, veil?, card?, won? }`);
         return;
       }
       for (const key of Object.keys(scene))
-        if (!['dialogue', 'cue', 'shake', 'veil'].includes(key))
+        if (!['dialogue', 'cue', 'shake', 'veil', 'card', 'won'].includes(key))
           errors.push(`${at} has unknown field "${key}"`);
       validateLineKey(`${at}.dialogue`, scene.dialogue, gameData, errors);
       if (scene.cue !== undefined && !isId(scene.cue))
@@ -2102,6 +2145,10 @@ function validateEnding(ending, gameData, errors) {
         errors.push(`${at}.shake must be true or false`);
       if (scene.veil !== undefined && !ENDING_VEILS.includes(scene.veil))
         errors.push(`${at}.veil must be one of ${ENDING_VEILS.join(', ')}`);
+      if (scene.card !== undefined && !ENDING_CARDS.includes(scene.card))
+        errors.push(`${at}.card must be one of ${ENDING_CARDS.join(', ')}`);
+      if (scene.won !== undefined && typeof scene.won !== 'boolean')
+        errors.push(`${at}.won must be true or false`);
     });
   if (
     ending.music !== undefined &&

@@ -4,9 +4,7 @@ export function syncPrologueForecastLayout(modal, scene, active) {
   if (!modal) return;
   const note = active ? document.querySelector('.re-tutorial-note') : null;
   const lesson = scene._prologue?.activeLessonId;
-  const enabled = Boolean(
-    note && ['battle_forecast', 'battle_triangle', 'battle_doubling'].includes(lesson),
-  );
+  const enabled = Boolean(note && ['battle_forecast', 'battle_doubling'].includes(lesson));
   modal.classList.toggle('mb-tutorial-forecast', enabled);
   if (!enabled) {
     modal.style.removeProperty('--mb-tutorial-note-top');
@@ -21,11 +19,6 @@ export function syncPrologueForecastLayout(modal, scene, active) {
         : [];
   for (const pair of modal.querySelectorAll('.mb-stats > div'))
     pair.classList.toggle('mb-tutorial-subject', fields.includes(pair.dataset.stat));
-  for (const notice of modal.querySelectorAll('.mb-notice'))
-    notice.classList.toggle(
-      'mb-tutorial-subject',
-      lesson === 'battle_triangle' && notice.textContent.startsWith('Triangle '),
-    );
   const scroller = modal.querySelector('.mb-forecast-sides');
   const subject = modal.querySelector('.mb-tutorial-subject');
   if (scroller && subject) {

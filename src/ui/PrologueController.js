@@ -11,8 +11,11 @@
 // A beat's actions apply in two passes: gates, the coach goal, highlights and the lesson
 // ledger at once, then its notes and lines one at a time, so what a note points at is on
 // screen while it shows. Notes are modal "Field notes" (battleState TUTORIAL_HINT, the
-// rail inert); on the enemy phase a note is a coach nudge instead, and a note raised at
-// a phase start waits until the player can act.
+// rail inert): a chapter's few core lessons, at their decision points. Tips are the
+// reinforcement (docs/specs/prologue-chapter.md §2): non-blocking, docked beside the map
+// (PrologueTip) or, raised by a forecast, a line in its notes; they mark the hints they
+// stand in for only once read. On the enemy phase a note or a tip is a coach nudge, and
+// one raised at a phase start waits until the player can act.
 //
 // Two modes (engine/ScriptedBattle.js). In the prologue run (scene.runManager, mode
 // 'prologue') the chapter is a node of a real run: notes mark the slot's hints, a won
@@ -47,6 +50,7 @@ import {
   prologueNudgeText,
 } from '../data/prologueContent.js';
 import { recordTaughtLessons } from './prologueLessons.js';
+import { showPrologueTip, tipText } from './PrologueTip.js';
 import { showImportantHint } from './HintDisplay.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
@@ -72,6 +76,13 @@ const SYNC_ACTIONS = [
 ];
 // Notes raised here wait for a playable player turn (the phase banner, turn-start effects).
 const DEFERRED_EVENTS = new Set(['battleStart', 'turnStart', 'deployed']);
+// A tip raised by these is about one unit's moment: it steps aside (unread, unless it
+// was already read) when that unit moves again or acts, another unit is selected, or
+// the phase changes. Other tips stay until read, dismissed or replaced.
+const SCOPED_TIP_EVENTS = new Set(['afterMove', 'unitSelected']);
+// The unit's own planning (GuidanceController's UNIT_TURN_STATES): a scoped tip holds
+// only while its unit is selected in one of these, on the player phase.
+const TIP_SCOPE_STATES = new Set(['UNIT_SELECTED', 'UNIT_MOVING', 'UNIT_ACTION_MENU']);
 
 export class PrologueController {
   constructor(scene) {
@@ -116,6 +127,15 @@ export class PrologueController {
     this.presenting = 0;
     this.idleWaiters = [];
     this.blockingPromptActive = false;
+    // The non-blocking tip on screen ({ close, isRead, onClose }) and the unit it is
+    // about (a scoped tip), or null.
+    this.tipHandle = null;
+    this.tipScope = null;
+    // A forecast's tip: { id, text }, a line in the open forecast's notes until it
+    // closes (read when the player confirms or cancels). `prepared` is the forecast's
+    // matched beats, taken before it renders (prepareForecast) so the tip is drawn in.
+    this.forecastTip = null;
+    this.prepared = null;
     this.started = false;
     this.restarting = false;
     this.offeredRewind = false;
@@ -145,7 +165,10 @@ export class PrologueController {
         leaveAria: this.run ? 'Skip the rest of the prologue' : 'Leave prologue',
       });
     }
-    this._tick = () => this.flushDeferred();
+    this._tick = () => {
+      this.syncTip();
+      this.flushDeferred();
+    };
     scene.events?.on?.('update', this._tick);
     // The deploy screen was confirmed before this controller existed (P4's deploy
     // lesson is practised by that choice, never by the battle merely starting; an
@@ -170,6 +193,9 @@ export class PrologueController {
     this.pending = [];
     this.presenting = 0;
     this.releaseIdle();
+    this.closeTip();
+    this.forecastTip = null;
+    this.prepared = null;
     this.clearHighlights();
     this.reach?.destroy?.();
     this.reach = null;
@@ -197,8 +223,17 @@ export class PrologueController {
     let held = false;
     const sync = actions.filter((a) => SYNC_ACTIONS.some((key) => key in a));
     const blocking = actions.filter((a) => 'note' in a || 'dialogue' in a);
+    // Tips never hold anything: after the beat's notes and lines (a tip that follows
+    // a line shows once the line is read), and never awaited.
+    const tips = actions.filter((a) => 'tip' in a);
     for (const action of sync) this.applySync(action);
-    if (!blocking.length) return false;
+    const showTips = () => {
+      for (const action of tips) this.tip(action.tip, event, extra, action.beat || null);
+    };
+    if (!blocking.length) {
+      showTips();
+      return false;
+    }
     // A sequence raised now (not one whose notes wait for a playable turn) owns the
     // screen from its first line to its last note: between them nothing of the
     // scene's reads the battle state (idle()).
@@ -222,6 +257,7 @@ export class PrologueController {
     } finally {
       if (owns) this.endPresentation();
     }
+    if (!this.destroyed) showTips();
     return held;
   }
 
@@ -472,6 +508,120 @@ export class PrologueController {
     }
   }
 
+  // --- Tips (non-blocking reinforcement) ------------------------------------------
+
+  /**
+   * A tip by id (prologueContent). Never holds input or the simulation. On the enemy
+   * phase it is a coach nudge (shown is read); raised by a forecast it is a line in
+   * that forecast's notes; raised at a phase start it waits for a playable turn;
+   * otherwise it docks beside the map now. Returns true when something will show.
+   */
+  tip(id, event = {}, extra = {}, beat = null) {
+    const text = prologueNoteText(id, this.ctx(extra.ctx));
+    if (!text || this.destroyed) return false;
+    if (event.type === 'turnStart' && event.phase === 'enemy') {
+      this.markTaught(id);
+      const line = tipText(text);
+      if (!this.coach?.nudge(line, 'info')) void this.scene.showBriefBanner?.(line);
+      return true;
+    }
+    if (event.type === 'forecastOpened') {
+      this.forecastTip = { id, text: tipText(text), beat };
+      return true;
+    }
+    if (DEFERRED_EVENTS.has(event.type)) {
+      void this.defer(async () => {
+        this.openTip(id, text, event);
+        return false;
+      });
+      return true;
+    }
+    return Boolean(this.openTip(id, text, event));
+  }
+
+  /** Dock a tip beside the map (one at a time: a new one replaces the last, unread). */
+  openTip(id, text, event = {}) {
+    if (!this.sceneLive()) return null;
+    this.closeTip();
+    const name = SCOPED_TIP_EVENTS.has(event.type) && event.unit ? event.unit : null;
+    const unit = name ? (this.scene.playerUnits || []).find((u) => u?.name === name) : null;
+    // A tip about a tile (afterMove) holds while the unit stands there.
+    const scope = name
+      ? { unit: name, tile: event.type === 'afterMove' && unit ? { col: unit.col, row: unit.row } : null } // prettier-ignore
+      : null;
+    const actions = (PROLOGUE_NOTE_ACTIONS[id] || []).map((a) => ({
+      label: a.label,
+      onClick: () => this.tipAction(a.value),
+    }));
+    const handle = showPrologueTip(this.scene, {
+      id,
+      text,
+      unit,
+      actions,
+      onRead: () => {
+        if (!this.destroyed) this.markTaught(id);
+      },
+    });
+    if (!handle) return null;
+    this.tipHandle = handle;
+    this.tipScope = scope;
+    handle.onClose = () => {
+      if (this.tipHandle !== handle) return;
+      this.tipHandle = null;
+      this.tipScope = null;
+    };
+    return handle;
+  }
+
+  /** A tip's extra button (the rewind exercise's Open Rewind). */
+  tipAction(value) {
+    if (value === 'rewind') return this.openRewind();
+    return false;
+  }
+
+  /**
+   * Close the tip on screen (unread: only a tip already read keeps its mark). With
+   * `unit`, only a tip scoped to that unit; with `scoped`, only a scoped one.
+   */
+  closeTip({ unit = null, scoped = false } = {}) {
+    const handle = this.tipHandle;
+    if (!handle) return false;
+    if (unit && this.tipScope?.unit !== unit) return false;
+    if (scoped && !this.tipScope) return false;
+    this.tipHandle = null;
+    this.tipScope = null;
+    try {
+      handle.close(false);
+    } catch {
+      /* presentation only */
+    }
+    return true;
+  }
+
+  /**
+   * Each frame: a scoped tip steps aside once its unit's moment is over (the unit
+   * deselected or acted, another state such as an open forecast, the enemy phase, or
+   * Back to another tile), read or not, as GuidanceController's scoped notes do.
+   */
+  syncTip() {
+    const scope = this.tipScope;
+    if (!this.tipHandle || !scope) return;
+    const s = this.scene;
+    const unit = s.selectedUnit;
+    const holds =
+      unit?.name === scope.unit &&
+      !unit.hasActed &&
+      TIP_SCOPE_STATES.has(s.battleState) &&
+      (s.turnManager?.currentPhase ?? 'player') === 'player' &&
+      (!scope.tile || (unit.col === scope.tile.col && unit.row === scope.tile.row));
+    if (!holds) this.closeTip();
+  }
+
+  /** The open forecast's tip line (AttackFlowController draws it in), or null. */
+  forecastTipText() {
+    return this.destroyed ? null : this.forecastTip?.text || null;
+  }
+
   // --- Pending presentation (what a checkpoint carries) ----------------------------
 
   /** A note or a line set the player has not read yet, in order. */
@@ -574,6 +724,8 @@ export class PrologueController {
       }
       record.text = text;
       record.status = 'displayed';
+      // One thing on screen: a tip under a modal note is not being read.
+      this.closeTip();
       this.lessonOpen = true;
       this.activeLessonId = id;
       this.beginPresentation();
@@ -704,6 +856,7 @@ export class PrologueController {
     }));
     const pending = record || this.schedule({ kind: 'dialogue', id: key, text: null, beat, event: null }); // prettier-ignore
     pending.status = 'displayed';
+    this.closeTip();
     this.beginPresentation();
     let completed = true;
     try {
@@ -760,6 +913,7 @@ export class PrologueController {
   onPhaseStart(phase, turn, { schedule = null } = {}) {
     if (this.destroyed) return;
     this.clearHighlights();
+    this.closeTip({ scoped: true });
     if (phase === 'player' && !this.started) {
       this.started = true;
       // battleStart belongs to turn 1 of a fresh battle only: a scene that comes up
@@ -860,6 +1014,7 @@ export class PrologueController {
 
   onUnitSelected(unit) {
     if (this.destroyed || unit?.faction !== 'player') return;
+    if (this.tipScope && this.tipScope.unit !== unit.name) this.closeTip();
     if (this.gate?.kind === 'select' && unit.name === this.gate.unit) this.releaseGate();
     this.clearReach();
     const ally = this.mostHurtAlly(unit);
@@ -873,6 +1028,8 @@ export class PrologueController {
   onAfterMove(unit) {
     if (this.destroyed || unit?.faction !== 'player') return Promise.resolve(false);
     const scene = this.scene;
+    // A tip about this unit's last tile steps aside: it stands somewhere else now.
+    this.closeTip({ unit: unit.name });
     if (this.gate?.kind === 'move' && unit.col === this.gate.col && unit.row === this.gate.row)
       this.releaseGate();
     const terrain = scene.grid?.getTerrainAt?.(unit.col, unit.row) || null;
@@ -892,7 +1049,7 @@ export class PrologueController {
     // One concept per decision: the first note that matches shows, the rest wait.
     const actions = this.match(event, { oneNote: true });
     if (!actions.length) return Promise.resolve(false);
-    if (actions.some((a) => a.note === 'battle_terrain')) {
+    if (actions.some((a) => a.note === 'battle_terrain' || a.tip === 'battle_terrain')) {
       // The preview shows the arrived tile before the note points at it.
       scene._mobileTerrainFocus = { col: unit.col, row: unit.row };
       scene._inputController?.refreshTileInfo?.(unit.col, unit.row);
@@ -951,24 +1108,55 @@ export class PrologueController {
    */
   onForecastOpened(attacker, defender, forecast, weapon = null) {
     if (this.destroyed || attacker?.faction !== 'player') return Promise.resolve(false);
-    this.forecastCount += 1;
-    return this.emit(
-      {
-        type: 'forecastOpened',
-        unit: attacker.name,
-        target: this.unitKey(defender),
-        nth: this.forecastCount,
-        concepts: forecastConcepts(forecast, { weapon }),
-        turn: this.turn(),
-        targetTerrain: this.scene.grid?.getTerrainAt?.(defender?.col, defender?.row)?.name || null,
-      },
-      {},
-      { oneNote: true },
-    );
+    let prepared = this.prepared;
+    this.prepared = null;
+    if (!prepared || prepared.attacker !== attacker || prepared.defender !== defender) {
+      this.prepareForecast(attacker, defender, forecast, weapon);
+      prepared = this.prepared;
+      this.prepared = null;
+    }
+    // The tip is already in the forecast's notes (prepareForecast); the rest runs now.
+    const actions = (prepared?.actions || []).filter((a) => !('tip' in a));
+    return actions.length ? this.runActions(actions, prepared.event) : Promise.resolve(false);
   }
 
-  onForecastClosed() {
+  /**
+   * A forecast is about to render (its first open, not a re-render): match its beats
+   * now, so a beat's tip is drawn into the forecast's notes. One concept per forecast:
+   * only the first beat that says something fires (oneNote). Returns the tip's line or
+   * null; onForecastOpened then runs the beats' notes and the rest.
+   */
+  prepareForecast(attacker, defender, forecast, weapon = null) {
+    this.prepared = null;
+    if (this.destroyed || attacker?.faction !== 'player') return null;
+    this.forecastTip = null;
+    this.forecastCount += 1;
+    const event = {
+      type: 'forecastOpened',
+      unit: attacker.name,
+      target: this.unitKey(defender),
+      nth: this.forecastCount,
+      concepts: forecastConcepts(forecast, { weapon }),
+      turn: this.turn(),
+      targetTerrain: this.scene.grid?.getTerrainAt?.(defender?.col, defender?.row)?.name || null,
+    };
+    const actions = this.match(event, { oneNote: true });
+    this.prepared = { attacker, defender, event, actions };
+    for (const action of actions)
+      if ('tip' in action) this.tip(action.tip, event, {}, action.beat || null);
+    return this.forecastTipText();
+  }
+
+  /**
+   * The forecast closed. `acknowledge`: the player confirmed or cancelled (having read
+   * it), so its tip is read; End Turn, a rewind or a shutdown closes it unread.
+   */
+  onForecastClosed({ acknowledge = false } = {}) {
     if (this.gate?.kind === 'confirm') this.gate = null;
+    const tip = this.forecastTip;
+    this.forecastTip = null;
+    this.prepared = null;
+    if (tip && acknowledge && this.sceneLive()) this.markTaught(tip.id);
   }
 
   /**
@@ -1045,6 +1233,7 @@ export class PrologueController {
    */
   beforeUnitActionCompletes(unit) {
     if (this.destroyed || unit?.faction !== 'player') return null;
+    this.closeTip({ unit: unit.name });
     const event = { type: 'unitActed', unit: unit.name, turn: this.turn() };
     const actions = this.match(event);
     if (!actions.length) return null;
@@ -1092,6 +1281,7 @@ export class PrologueController {
     this.scene._prologueFallen = null;
     this.cancelDeferred();
     this.pending = [];
+    this.closeTip();
     this.clearHighlights();
     return this.emit({ type: 'rewound' });
   }
@@ -1162,6 +1352,7 @@ export class PrologueController {
     scene.battleState = 'BATTLE_END';
     this.cancelDeferred();
     this.pending = [];
+    this.closeTip();
     this.clearHighlights();
     try {
       scene.clearInspectionVisuals?.();
@@ -1302,6 +1493,7 @@ export class PrologueController {
     scene.battleState = 'BATTLE_END';
     this.cancelDeferred();
     this.pending = [];
+    this.closeTip();
     this.clearHighlights();
     this.coach?.hide?.();
     this.leaving = finishPrologue(scene, {

@@ -216,7 +216,7 @@
           "once": true,
           "do": [
             {
-              "note": "p1_holding_enemy"
+              "tip": "p1_holding_enemy"
             },
             {
               "highlight": {
@@ -239,7 +239,7 @@
           "once": true,
           "do": [
             {
-              "note": "battle_terrain"
+              "tip": "battle_terrain"
             },
             {
               "markLesson": {
@@ -309,7 +309,7 @@
           "once": true,
           "do": [
             {
-              "note": "p1_enemy_phase"
+              "tip": "p1_enemy_phase"
             }
           ]
         },
@@ -320,7 +320,7 @@
           "once": true,
           "do": [
             {
-              "note": "p1_level_up"
+              "tip": "p1_level_up"
             },
             {
               "markLesson": {
@@ -339,7 +339,7 @@
           "once": true,
           "do": [
             {
-              "note": "battle_triangle"
+              "tip": "battle_triangle"
             },
             {
               "markLesson": {
@@ -357,7 +357,7 @@
           "once": true,
           "do": [
             {
-              "note": "battle_consumable_supply"
+              "tip": "battle_consumable_supply"
             },
             {
               "markLesson": {
@@ -518,40 +518,6 @@
           ]
         },
         {
-          "id": "p2_no_counter",
-          "on": "forecastOpened",
-          "concept": "noCounter",
-          "once": true,
-          "do": [
-            {
-              "note": "battle_no_counter"
-            },
-            {
-              "markLesson": {
-                "id": "no_counter",
-                "kind": "shown"
-              }
-            }
-          ]
-        },
-        {
-          "id": "p2_forecast_chances",
-          "on": "forecastOpened",
-          "concept": "uncertainHit",
-          "once": true,
-          "do": [
-            {
-              "note": "p2_forecast_chances"
-            },
-            {
-              "markLesson": {
-                "id": "forecast_chances",
-                "kind": "shown"
-              }
-            }
-          ]
-        },
-        {
           "id": "p2_soldier_triangle",
           "on": "forecastOpened",
           "unit": "Edric",
@@ -560,7 +526,7 @@
           "once": true,
           "do": [
             {
-              "note": "p2_lances_beat_swords"
+              "tip": "p2_lances_beat_swords"
             }
           ]
         },
@@ -587,7 +553,7 @@
           "once": true,
           "do": [
             {
-              "note": "battle_danger_zone"
+              "tip": "battle_danger_zone"
             }
           ]
         },
@@ -598,7 +564,7 @@
           "once": true,
           "do": [
             {
-              "note": "p2_village_visit"
+              "tip": "p2_village_visit"
             },
             {
               "markLesson": {
@@ -615,15 +581,6 @@
           "do": [
             {
               "dialogue": "p2_victory"
-            },
-            {
-              "note": "battle_loot"
-            },
-            {
-              "markLesson": {
-                "id": "loot",
-                "kind": "shown"
-              }
             }
           ]
         }
@@ -818,7 +775,7 @@
           "dangerFrom": "*",
           "do": [
             {
-              "note": "p3_fragile"
+              "tip": "p3_fragile"
             },
             {
               "markLesson": {
@@ -836,7 +793,7 @@
           "dangerFrom": "*",
           "do": [
             {
-              "note": "p3_fragile"
+              "tip": "p3_fragile"
             },
             {
               "markLesson": {
@@ -854,7 +811,7 @@
           "inRange": false,
           "do": [
             {
-              "note": "p3_plan_cancel"
+              "tip": "p3_plan_cancel"
             },
             {
               "markLesson": {
@@ -893,29 +850,11 @@
           "besideAlly": true,
           "do": [
             {
-              "note": "p3_aura"
+              "tip": "p3_aura"
             },
             {
               "markLesson": {
                 "id": "aura",
-                "kind": "shown"
-              }
-            }
-          ]
-        },
-        {
-          "id": "p3_magic",
-          "on": "forecastOpened",
-          "once": true,
-          "unit": "Sera",
-          "concept": "magic",
-          "do": [
-            {
-              "note": "p3_magic"
-            },
-            {
-              "markLesson": {
-                "id": "magic",
                 "kind": "shown"
               }
             }
@@ -947,7 +886,7 @@
               "grantVision": true
             },
             {
-              "note": "p3_rewind"
+              "tip": "p3_rewind"
             },
             {
               "markLesson": {
@@ -965,7 +904,7 @@
           "safe": true,
           "do": [
             {
-              "note": "p3_better_plan"
+              "tip": "p3_better_plan"
             },
             {
               "markLesson": {
@@ -1152,7 +1091,7 @@
           "targetTerrain": "Throne",
           "do": [
             {
-              "note": "p4_throne"
+              "tip": "p4_throne"
             },
             {
               "markLesson": {
@@ -1186,7 +1125,7 @@
               "dialogue": "p4_gate_open"
             },
             {
-              "note": "p4_seize_now"
+              "tip": "p4_seize_now"
             }
           ]
         },
@@ -1318,6 +1257,12 @@
     "music": "music_explore_deep",
     "scenes": [
       {
+        "dialogue": "ending_gate_held",
+        "card": "complete",
+        "cue": "sealed",
+        "won": true
+      },
+      {
         "dialogue": "ending_east",
         "cue": "eclipse",
         "shake": true,
@@ -1332,7 +1277,7 @@
         "veil": "thread"
       }
     ],
-    "titleCard": "Every run is a thread Sera weaves. When one breaks, she weaves again. Your army starts over. What you build at Home Base stays."
+    "titleCard": "Every run is a thread Sera weaves. When one breaks, she weaves again. This one broke in the east, not by your hand."
   },
   "boss": {
     "name": "Captain Varro",

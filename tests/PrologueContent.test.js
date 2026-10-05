@@ -21,13 +21,14 @@ const chapters = data.prologue.chapters;
 const actionsOf = (chapter) => chapter.beats.flatMap((beat) => beat.do);
 
 describe('prologue copy', () => {
-  it('every coach, note and dialogue id a beat names has copy', () => {
+  it('every coach, note, tip and dialogue id a beat names has copy', () => {
     for (const chapter of chapters) {
       for (const action of actionsOf(chapter)) {
         if ('coach' in action)
           expect(PROLOGUE_COACH[action.coach], action.coach).toBeTypeOf('function');
         if ('note' in action)
           expect(PROLOGUE_NOTES[action.note], action.note).toBeTypeOf('function');
+        if ('tip' in action) expect(PROLOGUE_NOTES[action.tip], action.tip).toBeTypeOf('function');
         if ('dialogue' in action)
           expect(data.dialogue.prologue[action.dialogue], action.dialogue).toBeInstanceOf(Array);
       }

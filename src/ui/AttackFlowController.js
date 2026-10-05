@@ -450,6 +450,12 @@ export class AttackFlowController {
       forecast.defender.lessonNote = armor;
       this._affixLessonsShown.add('guide_armor');
     }
+    // A prologue chapter's forecast tip (reinforcement, never over the forecast): its
+    // beats are matched before the first render, and the line stays in the attacker's
+    // notes, re-renders included, until the forecast closes (read on Confirm / Cancel).
+    if (scene._prologue && !rerender) scene._prologue.prepareForecast?.(attacker, defender, forecast, chosen); // prettier-ignore
+    const prologueTip = scene._prologue?.forecastTipText?.();
+    if (prologueTip) forecast.attacker.lessonNote = prologueTip;
 
     scene._forecastValidWeapons = validWeapons;
     const targets = scene.attackTargets || [];

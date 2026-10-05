@@ -231,7 +231,7 @@ describe('P3 as authored', () => {
     expect(step({ type: 'turnStart', phase: 'player', turn: 2, hurt: false })).toEqual([]);
     expect(step({ type: 'turnStart', phase: 'player', turn: 2, hurt: true })).toEqual([
       { grantVision: true },
-      { note: 'p3_rewind' },
+      { tip: 'p3_rewind' },
       { markLesson: { id: 'rewind', kind: 'shown' } },
     ]);
     // Only a safe move after a rewind practises it.
@@ -240,13 +240,13 @@ describe('P3 as authored', () => {
     ).toEqual([]);
     expect(
       step({ type: 'afterMove', unit: 'Edric', dangerFrom: [], afterRewind: true }, { oneNote: true }), // prettier-ignore
-    ).toEqual([{ note: 'p3_better_plan' }, { markLesson: { id: 'rewind', kind: 'practised' } }]);
+    ).toEqual([{ tip: 'p3_better_plan' }, { markLesson: { id: 'rewind', kind: 'practised' } }]);
   });
 
-  it('one move says one thing: the first matching note wins, the rest stay armed', () => {
+  it('one move says one thing: the first matching note or tip wins, the rest stay armed', () => {
     state = {};
-    // Sera steps into reach two tiles from a foe and beside Edric: the fragile note
-    // speaks; range and aura wait for a later move.
+    // Sera steps into reach two tiles from a foe and beside Edric: the fragile tip
+    // speaks; range (a note) and aura (a tip) wait for a later move.
     const first = step(
       {
         type: 'afterMove',
@@ -258,12 +258,12 @@ describe('P3 as authored', () => {
       },
       { oneNote: true },
     );
-    expect(first.filter((a) => a.note)).toEqual([{ note: 'p3_fragile' }]);
+    expect(first.filter((a) => a.note || a.tip)).toEqual([{ tip: 'p3_fragile' }]);
     const second = step(
       { type: 'afterMove', unit: 'Sera', dangerFrom: [], inRange: true, foeDistances: [2], besideAlly: true }, // prettier-ignore
       { oneNote: true },
     );
-    expect(second.filter((a) => a.note || a.coach)).toEqual([
+    expect(second.filter((a) => a.note || a.tip || a.coach)).toEqual([
       { note: 'p3_range' },
       { coach: 'p3_look_is_free' },
     ]);
@@ -271,6 +271,6 @@ describe('P3 as authored', () => {
       { type: 'afterMove', unit: 'Sera', dangerFrom: [], inRange: true, foeDistances: [3], besideAlly: true }, // prettier-ignore
       { oneNote: true },
     );
-    expect(third.filter((a) => a.note)).toEqual([{ note: 'p3_aura' }]);
+    expect(third.filter((a) => a.note || a.tip)).toEqual([{ tip: 'p3_aura' }]);
   });
 });

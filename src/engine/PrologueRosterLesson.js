@@ -2,20 +2,24 @@
 // "Route map, row 2"). Pure: no DOM, no Phaser, no RNG.
 //
 // The first time the player opens Roster at the fork node where a unit joined
-// (joins.atNode: Tamsin, unarmed), four goals run in order, each done by the real
+// (joins.atNode: Tamsin, unarmed), the lesson's core runs, each goal done by the real
 // action in the roster sheet (MobileRosterSheet reports what it applied):
 //   withdraw  give the newcomer a weapon from the convoy (her bow)
 //   equip     equip a weapon (Withdraw already armed an unarmed newcomer, so the
 //             practice is another unit's spare: Gaspar's sword)
+// Then, only if the player asks for more (the offer: "Show me" or "Done"), two
+// optional goals:
 //   trade     a unit-to-unit trade (Edric's Vulnerary to the newcomer)
 //   store     put a carried item in the convoy
-// A goal met another way counts (a newcomer armed before the lesson has withdrawn).
-// A goal the army can't do right now (nobody carries a spare to trade) is skipped
-// with its reason. Every step can be skipped, and so can the lesson; nothing here
-// ever blocks travel: the lesson is live only while the party stands on that node.
+// A goal met another way counts (a newcomer armed before the lesson has withdrawn; a
+// trade made during the core). A goal the army can't do right now (nobody carries a
+// spare to trade) is skipped with its reason, and an offer with nothing left to show
+// is never made. Every step can be skipped, and so can the lesson; nothing here ever
+// blocks travel: the lesson is live only while the party stands on that node.
 //
 // State lives on the run (RunManager.prologueRosterLesson, saved): null before the
-// lesson starts, then { completed: [step], skipped: [step], dismissed: bool }.
+// lesson starts, then { completed: [step], skipped: [step], dismissed: bool,
+// more: null | 'accepted' | 'declined' } (a save from before the offer reads null).
 
 import { isPrologueRun } from './ScriptedBattle.js';
 import { prologueJoinsAtNode } from './Prologue.js';
@@ -23,6 +27,11 @@ import { canEquip } from './UnitManager.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX } from '../utils/constants.js';
 
 export const ROSTER_LESSON_STEPS = Object.freeze(['withdraw', 'equip', 'trade', 'store']);
+/** The lesson's core: arming the newcomer and choosing what a unit fights with. */
+export const ROSTER_LESSON_CORE = Object.freeze(['withdraw', 'equip']);
+/** Offered once the core is done, never required. */
+export const ROSTER_LESSON_MORE = Object.freeze(['trade', 'store']);
+const MORE_CHOICES = ['accepted', 'declined'];
 
 const isWeapon = (item) =>
   Boolean(item) && item.type !== 'Consumable' && item.type !== 'Scroll' && item.type !== 'Accessory'; // prettier-ignore
@@ -37,8 +46,12 @@ export function normalizeRosterLesson(value) {
     completed: steps(value.completed),
     skipped: steps(value.skipped),
     dismissed: value.dismissed === true,
+    more: MORE_CHOICES.includes(value.more) ? value.more : null,
   };
 }
+
+const fresh = () => ({ completed: [], skipped: [], dismissed: false, more: null });
+const settled = (state, step) => state.completed.includes(step) || state.skipped.includes(step);
 
 /** The unit the lesson is about: the first one that joined at the party's node, if present. */
 export function rosterLessonSubject(run) {
@@ -58,7 +71,15 @@ function ledger(run) {
 function finished(state) {
   if (!state) return false;
   if (state.dismissed) return true;
-  return ROSTER_LESSON_STEPS.every((s) => state.completed.includes(s) || state.skipped.includes(s));
+  if (ROSTER_LESSON_STEPS.every((s) => settled(state, s))) return true;
+  return ROSTER_LESSON_CORE.every((s) => settled(state, s)) && state.more === 'declined';
+}
+
+/** Where the lesson stands: 'core', 'offer' (core done, more not chosen), 'more', or null. */
+function phaseOf(state) {
+  if (!state || finished(state)) return null;
+  if (!ROSTER_LESSON_CORE.every((s) => settled(state, s))) return 'core';
+  return state.more === 'accepted' ? 'more' : 'offer';
 }
 
 /** True while the lesson can run: the prologue run, at the node its subject joined. */
@@ -132,39 +153,77 @@ export function rosterLessonTarget(run, step) {
  */
 export function advanceRosterLesson(run) {
   if (!isRosterLessonLive(run)) return null;
-  const state = ledger(run) || { completed: [], skipped: [], dismissed: false };
-  for (const step of ROSTER_LESSON_STEPS) {
-    if (state.completed.includes(step) || state.skipped.includes(step)) continue;
-    const target = rosterLessonTarget(run, step);
-    if (target.met) state.completed.push(step);
-    else if (!target.available) state.skipped.push(step);
-    break;
+  const state = ledger(run) || fresh();
+  const settle = (steps) => {
+    for (const step of steps) {
+      if (settled(state, step)) continue;
+      const target = rosterLessonTarget(run, step);
+      if (target.met) state.completed.push(step);
+      else if (!target.available) state.skipped.push(step);
+      else return false; // this step is live
+    }
+    return true;
+  };
+  if (settle(ROSTER_LESSON_CORE)) {
+    if (state.more === 'accepted') settle(ROSTER_LESSON_MORE);
+    else if (
+      state.more === null &&
+      ROSTER_LESSON_MORE.every(
+        (step) => settled(state, step) || !rosterLessonTarget(run, step).available,
+      )
+    ) {
+      // Nothing left to offer (done early, or the army can't): no offer, the lesson ends.
+      for (const step of ROSTER_LESSON_MORE) if (!settled(state, step)) state.skipped.push(step);
+    }
   }
   run.prologueRosterLesson = state;
   return rosterLessonView(run);
 }
 
 /**
- * The step to show: { step, index (1-based), total, target, completed, skipped } or
- * null when the lesson isn't live. Pure.
+ * What to show: { phase, step, index (1-based), total, subject, target, completed,
+ * skipped } or null when the lesson isn't live. `phase` is 'core' (Withdraw, Equip),
+ * 'offer' (the core is done: more is offered, never required; `step` and `target`
+ * are null, `total` counts what more would show) or 'more' (Trade, Store). `index`
+ * and `total` count within the phase. Pure.
  */
 export function rosterLessonView(run) {
   if (!isRosterLessonLive(run)) return null;
-  const state = ledger(run) || { completed: [], skipped: [], dismissed: false };
-  const index = ROSTER_LESSON_STEPS.findIndex(
-    (s) => !state.completed.includes(s) && !state.skipped.includes(s),
-  );
-  if (index < 0) return null;
-  const step = ROSTER_LESSON_STEPS[index];
-  return {
-    step,
-    index: index + 1,
-    total: ROSTER_LESSON_STEPS.length,
+  const state = ledger(run) || fresh();
+  const phase = phaseOf(state);
+  if (!phase) return null;
+  const common = {
+    phase,
     subject: rosterLessonSubject(run)?.name || null,
-    target: rosterLessonTarget(run, step),
     completed: [...state.completed],
     skipped: [...state.skipped],
   };
+  if (phase === 'offer') {
+    const left = ROSTER_LESSON_MORE.filter((s) => !settled(state, s));
+    return { ...common, step: null, index: null, total: left.length, target: null, steps: left };
+  }
+  const steps = phase === 'core' ? ROSTER_LESSON_CORE : ROSTER_LESSON_MORE;
+  const index = steps.findIndex((s) => !settled(state, s));
+  if (index < 0) return null;
+  const step = steps[index];
+  return {
+    ...common,
+    step,
+    index: index + 1,
+    total: steps.length,
+    target: rosterLessonTarget(run, step),
+  };
+}
+
+/** The offer's answer: 'accepted' shows Trade and Store, 'declined' ends the lesson. */
+export function chooseRosterLessonMore(run, accept) {
+  const view = rosterLessonView(run);
+  if (view?.phase !== 'offer') return null;
+  const state = ledger(run) || fresh();
+  state.more = accept ? 'accepted' : 'declined';
+  run.prologueRosterLesson = state;
+  if (accept) advanceRosterLesson(run);
+  return rosterLessonView(run);
 }
 
 /**
@@ -179,7 +238,7 @@ export function rosterLessonView(run) {
  */
 export function observeRosterAction(run, event) {
   if (!isRosterLessonLive(run) || !event) return [];
-  const state = ledger(run) || { completed: [], skipped: [], dismissed: false };
+  const state = ledger(run) || fresh();
   const subject = rosterLessonSubject(run);
   const done = [];
   const complete = (step) => {
@@ -223,8 +282,8 @@ function equippedWeapon(run, unitName, itemName) {
 /** Skip the current step. Returns the skipped step, or null. Mutates; the caller saves. */
 export function skipRosterLessonStep(run) {
   const view = rosterLessonView(run);
-  if (!view) return null;
-  const state = ledger(run) || { completed: [], skipped: [], dismissed: false };
+  if (!view?.step) return null;
+  const state = ledger(run) || fresh();
   state.skipped.push(view.step);
   run.prologueRosterLesson = state;
   advanceRosterLesson(run);
@@ -234,7 +293,7 @@ export function skipRosterLessonStep(run) {
 /** Leave the lesson for good. Mutates; the caller saves. */
 export function dismissRosterLesson(run) {
   if (!isRosterLessonLive(run)) return false;
-  const state = ledger(run) || { completed: [], skipped: [], dismissed: false };
+  const state = ledger(run) || fresh();
   state.dismissed = true;
   run.prologueRosterLesson = state;
   return true;

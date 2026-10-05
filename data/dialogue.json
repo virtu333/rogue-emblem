@@ -9671,6 +9671,20 @@
         "line": "Varro is down. The gate is ours to take, before the column regroups."
       }
     ],
+    "ending_gate_held": [
+      {
+        "speaker": "Gaspar",
+        "line": "The column is breaking for the border. The gate is yours, Edric. Well fought."
+      },
+      {
+        "speaker": "Edric",
+        "line": "Everyone is still standing. I counted twice."
+      },
+      {
+        "speaker": "Tamsin",
+        "line": "Not bad for an archer whose bow burned this morning."
+      }
+    ],
     "ending_east": [
       {
         "speaker": "Gaspar",
@@ -9709,6 +9723,11 @@
       {
         "speaker": "Edric",
         "line": "The Marches are coming apart. Sera, tell me what to do. Anything."
+      },
+      {
+        "speaker": "Sera",
+        "line": "No sword could stop this from here, Edric. It was never yours to stop.",
+        "unmet": "???"
       },
       {
         "speaker": "Sera",

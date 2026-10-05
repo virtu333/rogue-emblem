@@ -394,7 +394,7 @@ describe('TitleScene NEW GAME: the prologue offer (docs/specs/prologue-chapter.m
     expect(await TitleScene.prototype.handleNewGame.call(scene)).toBe(false);
     expect(scene._openTitleMenu).toHaveBeenCalledWith('Begin the first thread?');
     expect(buttons(menu)).toEqual([
-      ['Play the Prologue · about 20 minutes', 're-btn re-btn--primary'],
+      ['Play the Prologue · about 30 minutes', 're-btn re-btn--primary'],
       ['Skip to the first run', 're-btn'],
     ]);
     expect(menu.body.children.find((n) => n.tag === 'p').text).toContain('Slot 1');
@@ -408,7 +408,7 @@ describe('TitleScene NEW GAME: the prologue offer (docs/specs/prologue-chapter.m
     await TitleScene.prototype.handleNewGame.call(scene);
     expect(buttons(menu)).toEqual([
       ['Skip to the first run', 're-btn re-btn--primary'],
-      ['Play the Prologue · about 20 minutes', 're-btn'],
+      ['Play the Prologue · about 30 minutes', 're-btn'],
     ]);
   });
 

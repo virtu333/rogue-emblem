@@ -4,7 +4,11 @@ Status: the story is complete (Phases 1-3 built). The prologue runs as a run on 
 P1, the route map, P2, the row-2 fork (Tamsin), P3 (Sera), the Old Watchtower, P4 (the Quarry
 Gate: deploy, formation, seize, the boss, par), the ritual ending, then Home Base with the
 grant; every chapter replays from the title. The Act 1 follow-through notes (§7) are built.
-Phase 4 (polish) is open. Loop ending approved by the user, 2026-10-04.
+Phase 4 (polish) is open. Loop ending approved by the user, 2026-10-04. A design review the
+same day thinned the teaching (§2 "Core and reinforcement": blocking notes 29 → 9), made the
+roster lesson's core Withdraw and Equip, asked before leaving the fork with Tamsin unarmed,
+said the win before the world breaks and added the handoff (§9), and re-estimated the length
+(§9 "How long it takes").
 Date: 2026-10-04
 Replaced: the practice tutorial battle (`TutorialController`, `TutorialHelpers`), deleted in
 phase 1. `docs/tutorial-battle-spec.md` and `docs/specs/tutorial_v2_guided_flow_spec.md` are
@@ -64,8 +68,10 @@ tutorial with two units can't give each unit's role its own moment. A chapter st
 5. **No dead ends.** A defeat in the prologue never ends anything. Sera says "Not this thread"
    and the battle restarts from its start. The commander rule is still taught, as what *will*
    happen in a real run.
-6. **Short, skippable, replayable.** About 20–25 minutes. Each battle is won in 4–7 turns.
-   A fresh slot offers Prologue or Skip, and any chapter can be replayed from the title.
+6. **Short, skippable, replayable.** About 30 minutes for a player new to the genre (an
+   estimate from the harness, §9 "How long it takes": a playtest hypothesis, not a
+   measurement). Each battle is won in 3–4 turns by the harness's policies. A fresh slot
+   offers Prologue or Skip, and any chapter can be replayed from the title.
 
 ### Teaching rules (from the sequencing research)
 
@@ -87,6 +93,59 @@ tutorial with two units can't give each unit's role its own moment. A chapter st
   be routed by Gaspar alone without him falling (the Sacred Stones Seth risk).
 - **Exposure is not mastery.** Record "shown" and "practised" separately (§8): a note seen is
   not a skill used.
+
+### Core and reinforcement (design review, 2026-10-04)
+
+An external review found the chapters too dense: P2 explained veteran roles, weapon
+switching, doubling, counters, hit chance, villages and loot; P3 recruitment, acting at once,
+healing, staff refills, safe range, magic against RES, fragile positioning, aura and rewind.
+Nearly every one of them was a modal note. Each chapter now has a small **core**, and only the core
+blocks:
+
+| Chapter | Core (blocking notes at their decision points, gates, coach goals) |
+|---|---|
+| P1 | Move (the gated select and Fort), inspect a forecast, commit an action, understand the enemy turn |
+| P2 | Use the veteran to support another unit; compare weapon choices |
+| P3 | Recruit Sera, heal someone, attack safely from range |
+| P4 | Make a deployment choice, and complete the seize with less guidance |
+
+Everything else is one of three things:
+- **Reinforcement (a `tip`):** a non-blocking note, shown only when its situation arises. On
+  the map it docks in a corner of the battlefield away from the units, as the in-run Guidance
+  note does (`GuidanceNote`, kicker "Tip", Got it); raised by a forecast it is one line in
+  the forecast's own notes, never over it; on the enemy phase it is a coach nudge. It never
+  holds input or the simulation, and is never carried by a suspend checkpoint.
+- **Cut, left to Act 1:** P2's loot note (the reward screen explains itself: each card says
+  what it is and who can use it, the skip card what it pays; the `battle_loot` hint stays
+  unread for the canvas loot screen's own note), P2's no-counter and "forecasts are
+  possibilities" notes (the
+  forecast prints "Cannot counter · reason" and its "How to read" points, a real run's
+  forecast teaches `battle_no_counter` and `battle_counter_risk` inline, and P3's range note
+  teaches the rule where it is the lesson), and P3's magic note (the forecast's numbers, then
+  Act 1's armor note, "Magic hits RES").
+
+Blocking modal notes per chapter (the authored maximum, `prologueNoteBudget`; the deploy
+screen's note counts for P4; the enemy-phase nudge never did):
+
+| Chapter | Before | After | The blocking notes now |
+|---|---|---|---|
+| P1 | 7 | 2 | `battle_forecast`, `p1_wait_or_end_turn` |
+| P2 | 8 | 2 | `p2_veteran_kills`, `battle_doubling` |
+| P3 | 10 (9 beats; the threat count twice) | 3 | `p3_recruit`, `p3_heal`, `p3_range` |
+| P4 | 4 | 2 | `p4_deploy`, `p4_seize_par` |
+
+**The slot's hints stay truthful.** A blocking note marks the in-run hints it stands in for
+(`NOTE_HINT_IDS`) when the player acknowledges it; a tip only once it is read (Got it, its
+extra button, or on screen long enough to read: `hintReadingPolicy`); a forecast tip when
+the player confirms or cancels that forecast (a forecast closed by End Turn or a rewind
+leaves it unread). A tip that stepped aside unread, or a cut note, marks nothing, so the run's
+own point-of-use note still teaches it in Act 1 (`tests/PrologueDensity.test.js` names each
+teacher; terrain has none: P1's gated Fort step already says what cover does).
+
+The rules above still hold: one concept per decision (a tip counts: `oneNote` lets one note,
+line or tip speak per move or forecast), the reuse beats (P2's Soldier, P4's unprompted
+heal and 2-tile strikes) and the fading in P4 (its only blocking notes are its own new rules:
+deploy, then seize and par; the throne and the gate's change are tips).
 
 ### Why a chapter run, not only a longer practice battle
 
@@ -129,7 +188,7 @@ existing first-run cold open (Sera's vision of the ritual) a scene to happen in.
 ## 4. Flow
 
 ```
-Fresh slot ─ New Game ─┬─ Play the Prologue (highlighted, "about 20 minutes")
+Fresh slot ─ New Game ─┬─ Play the Prologue (highlighted, "about 30 minutes")
                        └─ Skip to the first run ──► today's fast path (unchanged)
 
 Prologue (one literal route map, "The Quarry Road"; hidden until P1 is won):
@@ -182,14 +241,16 @@ they go.
 5. *The watchtower.* Sera describes what the circle is doing. The cold-open vision lines live
    here now (§10).
 6. *The quarry gate.* Varro holds the gate. Beat him, seize the gate, and the column breaks.
-7. *The ritual, seen from far off.* The sacred ground lies east, in the fens (Act 3 country), so
+7. *The gate held, then the ritual, seen from far off.* The army wins first: PROLOGUE
+   COMPLETE, "The gate is yours, Edric. Well fought." Then the sacred ground lies east, in the fens (Act 3 country), so
    the catastrophe is not at the quarry. From the gate the army sees it: the ground shudders, the
    sun goes hollow, and a light rises in the east where something under the consecrated stones
    turns over. A pale man watches from the far ridge (the Lieutenant, unnamed). The shock reaches
    the Marches and the land comes apart. Sera grabs the thread: "Not like this. I know this road
    now. Again, from the morning I reached you."
-8. *Home Base.* Title text: "Every run is a thread Sera weaves. When one breaks, she weaves
-   again. Your army starts over. What you build at Home Base stays."
+8. *Home Base.* First the handoff (§9 "The handoff"): the title text, "Every run is a thread
+   Sera weaves. When one breaks, she weaves again. This one broke in the east, not by your
+   hand.", leads the rules that hold from the first run on. Then Home Base.
 
 Why Sera is with Edric from a real run's first morning: on every thread after the first, she
 goes straight to him. The first run's opening line says so (§10).
@@ -261,19 +322,23 @@ counter kills it. That shows a counter is not just something enemies do. Turn 2:
 the second Fort, inside `b`'s red reach; `b` wakes and attacks, Edric's counters leave it on 6, and
 turn 3 finishes it.
 
-| # | Trigger | Lesson (coach goal / note) |
-|---|---|---|
-| 1 | Battle start | Coach "Select Edric". Blue units are yours, red are the empire's. |
-| 2 | Edric selected | "Move onto the Fort." Cover lowers damage and raises avoid. *Gate* (as today). |
-| 3 | On the Fort | Terrain note (existing `battle_terrain`, after the panel refreshes). |
-| 4 | First forecast (against `a`) | **One concept: reading a forecast** (`battle_forecast`). Damage per hit, Hit chance, and whether the enemy strikes back. Confirm commits; Cancel goes back. *Gate:* the first confirm. |
-| 5 | Edric has acted, turn 1 | **Wait vs End Turn:** "Wait ends Edric's move. End Turn hands every enemy its move. Check who can reach Edric first." `a`'s red reach is shown; `b`'s doesn't reach the Fort. |
-| 6 | First enemy phase | "Red units move now. Edric strikes back when attacked, too." |
-| 7 | Level-up | The level-up card, with one line: "Levels raise stats at random. Growth rates decide the odds." Edric's XP runs 22, 72, 94, then 144 on `b`'s kill, so this comes last, on the final blow. |
-| 8 | Edric walks into `b`'s reach | "Some enemies hold until you come close. Their red reach shows where." `b` wakes. |
-| 9 | Second forecast (against `b`) | **One concept: the triangle** (`battle_triangle`, conditional as today). "Swords beat axes. The forecast already includes it." |
-| 10 | Edric ≤ 60% HP | "Item → Vulnerary heals 10. You carry few, and they never come back." (existing consumable copy) |
-| 11 | Victory | Gaspar rides in (dialogue). |
+**Core:** move, inspect a forecast, commit an action, understand the enemy turn (§2 "Core and
+reinforcement"). Weight: *core* is a gate, a coach goal or a blocking note at its decision
+point; *tip* is non-blocking reinforcement, shown only when its situation arises.
+
+| # | Trigger | Lesson (coach goal / note) | Weight |
+|---|---|---|---|
+| 1 | Battle start | Coach "Select Edric". Blue units are yours, red are the empire's. | core (gate) |
+| 2 | Edric selected | "Move onto the Fort." Cover lowers damage and raises avoid. *Gate* (as today). | core (gate) |
+| 3 | On the Fort | Terrain (existing `battle_terrain`, after the panel refreshes). | tip |
+| 4 | First forecast (against `a`) | **One concept: reading a forecast** (`battle_forecast`). Damage per hit, Hit chance, and whether the enemy strikes back. Confirm commits; Cancel goes back. *Gate:* the first confirm. | core (note) |
+| 5 | Edric has acted, turn 1 | **Wait vs End Turn:** "Wait ends Edric's move. End Turn hands every enemy its move. Check who can reach Edric first." `a`'s red reach is shown; `b`'s doesn't reach the Fort. | core (note) |
+| 6 | First enemy phase | "Red units move now. Edric strikes back when attacked, too." | core (enemy-phase nudge, never modal) |
+| 7 | Level-up | After the level-up card: "Levels raise stats at random. Growth rates decide the odds." Edric's XP runs 22, 72, 94, then 144 on `b`'s kill, so this comes last, on the final blow. | tip |
+| 8 | Edric walks into `b`'s reach | "Some enemies hold until you come close. Their red reach shows where." `b` wakes. | tip |
+| 9 | Second forecast (against `b`) | **The triangle** (`battle_triangle`, conditional as today): one line in the forecast's own notes, "Swords beat axes, axes beat lances, lances beat swords. These numbers include it." | tip (forecast) |
+| 10 | Edric ≤ 60% HP | "Item → Vulnerary heals 10. You carry few, and they never come back." (existing consumable copy) | tip |
+| 11 | Victory | Gaspar rides in (dialogue). | story |
 
 **Reuse:** the fight with `b` is unprompted beyond its two notes. The player picks the tile and
 reads the forecast unaided. Doubling (the ×2 on Edric's forecasts) is explained in P2, where a
@@ -331,18 +396,20 @@ Soldier `d` (L1, Iron Lance) `guard`s at (9, 0) on Plain. The village is (3, 4).
   Gaspar's lance opens the Soldier for 13. No enemy can crit Edric (LCK 6).
 - The Archer starts on the west bank so the Jagen beat lands on turn 1, before the bridge.
 
-| # | Trigger | Lesson |
-|---|---|---|
-| 1 | Battle start | Gaspar's intro lines (`p2_gaspar_intro`). |
-| 2 | Gaspar selected | The Jagen note (above). Gaspar rides 6 tiles; Measured Step lets him keep moving after a non-combat action. |
-| 3 | Gaspar targets the Archer | **Weapon choice and doubling** (`battle_doubling`, one concept: strike count). The lance reads 16 ×1, the sword 12 ×2. |
-| 4 | A forecast with no counter | `battle_no_counter`: bows reach two tiles only. |
-| 5 | A forecast under 100 Hit | **Forecasts are possibilities** (`p2_forecast_chances`). |
-| 6 | Edric's forecast against the Soldier | The triangle against Edric (`p2_lances_beat_swords`): "Let Gaspar open the Soldier; Edric finishes it." |
-| 7 | Edric's kill of a foe Gaspar already damaged | Marks `veteran_kills` practised (`p2_chip_then_finish`: `kill` and `damagedBy: "Gaspar"`; review, 2026-10-04). The controller keeps who damaged which foe from each exchange's HP before and after, the attack or the counter alike, and `combatResolved` carries it (`damagedBy`) with the committed `distance`; a kill on an untouched foe leaves the beat unspent. The ledger rides the suspend snapshot. |
-| 8 | Turn 2 | Danger (`battle_danger_zone`). |
-| 9 | A unit moves onto the village (`terrain: Village`; the note shows before the Wait that visits) | Visit (`p2_village_visit`): gold, and an Iron Bow sent to the convoy. |
-| 10 | Victory | The victory lines (`p2_victory`) and the **loot screen** note (`battle_loot`), then the authored rewards. |
+**Core:** use the veteran to support another unit; compare weapon choices.
+
+| # | Trigger | Lesson | Weight |
+|---|---|---|---|
+| 1 | Battle start | Gaspar's intro lines (`p2_gaspar_intro`). | story |
+| 2 | Gaspar selected | The Jagen note (above), the veteran lesson alone (the Measured Step clause is cut: his skill text says it). | core (note) |
+| 3 | Gaspar targets the Archer | **Weapon choice and doubling** (`battle_doubling`, one concept: strike count). The lance reads 16 ×1, the sword 12 ×2. | core (note) |
+| 4 | A forecast with no counter | `battle_no_counter`: bows reach two tiles only. | **cut**: the forecast already prints "Cannot counter · reason"; P3's range note teaches the rule where it is the lesson, and a real run's forecast teaches it inline (`forecastTeachingHints`) |
+| 5 | A forecast under 100 Hit | Forecasts are possibilities (`p2_forecast_chances`). | **cut**: the forecast's own "How to read this forecast" points, and a real run's inline counter-risk note (`battle_counter_risk`) |
+| 6 | Edric's forecast against the Soldier | The triangle against Edric (`p2_lances_beat_swords`): "Lances beat swords. Let Gaspar open the Soldier; Edric finishes it." One line in the forecast's notes. | tip (forecast) |
+| 7 | Edric's kill of a foe Gaspar already damaged | Marks `veteran_kills` practised (`p2_chip_then_finish`: `kill` and `damagedBy: "Gaspar"`; review, 2026-10-04). The controller keeps who damaged which foe from each exchange's HP before and after, the attack or the counter alike, and `combatResolved` carries it (`damagedBy`) with the committed `distance`; a kill on an untouched foe leaves the beat unspent. The ledger rides the suspend snapshot. | ledger |
+| 8 | Turn 2 | Danger (`battle_danger_zone`; P1's turn note already named it). | tip |
+| 9 | A unit moves onto the village (`terrain: Village`; the tip shows before the Wait that visits) | Visit (`p2_village_visit`): gold, and an Iron Bow sent to the convoy. Optional discovery: nothing points at the village; Tamsin's bow comes at row 2 either way. | tip |
+| 10 | Victory | The victory lines (`p2_victory`), then the authored rewards. | story; the **loot** note is **cut**: the reward screen explains itself (each card says what it is and who can use it) |
 
 Forecast notes fire one concept per forecast (`prologueBeatsFor`'s `oneNote`): the first
 matching note beat shows, the rest wait for a later forecast.
@@ -408,8 +475,11 @@ the lesson.
   strip at the top of the roster sheet) runs once, the first time Roster opens at the node where
   Tamsin joined. Every Roster in a browser is the same sheet (`MobileRosterSheet`: the route
   map's Roster on desktop and phone, the Market's and the Chapel's Roster buttons), so the
-  lesson lives there. Four goals, each completed by the real button (in any order: a goal met
-  early counts):
+  lesson lives there. Its **core is two goals, Withdraw and Equip** ("Roster lesson · 1 of 2");
+  then **Trade and Store are offered as more**, never as steps ("More, if you like: Trade and
+  Store … Optional: the road waits either way", *Show me* / *Done*; review, 2026-10-04). Each
+  goal is completed by the real button (in any order: a goal met early counts, so a trade or
+  store made during the core leaves nothing to offer, and the lesson ends with the core):
   1. *Withdraw:* give Tamsin the Iron Bow from the convoy. The step's text leads with the in-run
      `guide_convoy` copy ("The convoy is shared storage…"), and starting the lesson marks that
      hint read. It completes only when a combat weapon she can wield reached her bag (the
@@ -419,19 +489,31 @@ the lesson.
      armed Tamsin. The practice is another unit's spare: "Equip Gaspar's Iron Sword". "Each unit
      carries up to 5 weapons. The equipped one is the one they fight with." It completes
      only when the named unit really fights with the named weapon afterwards.
-  3. *Trade:* give Tamsin a carried consumable, the commander's first ("Give Tamsin Edric's
+  3. *Trade* (more): give Tamsin a carried consumable, the commander's first ("Give Tamsin Edric's
      Vulnerary"), else anyone's. When nobody carries one (Edric drank his Vulnerary in P1) the
      step skips itself with the reason ("Nobody carries a spare item to trade. You can trade in
      battle with an adjacent ally, too.").
-  4. *Store:* a spare weapon (one its holder isn't fighting with), else a consumable. "Store puts
+  4. *Store* (more): a spare weapon (one its holder isn't fighting with), else a consumable. "Store puts
      a carried item in the convoy. Withdraw hands it back." (threat-and-onboarding §2: a
      playtester understood neither word.)
-  "Skip step" and "Skip lesson" are always there; Close leaves the lesson where it was. The
-  ledger (`RunManager.prologueRosterLesson`: completed, skipped, dismissed) is saved with the
-  run. Nothing blocks travel: the lesson is live only while the party stands on that node. An
-  unarmed unit in P3 gets the greyed Attack reason "Unarmed: no weapon to attack with" (in a
-  prologue chapter the greyed-Attack reasons show whatever the Guidance level;
-  `GuidanceController.reasonLevel`).
+  "Skip step" and "Skip lesson" are always there (in the optional part, "Done" ends it);
+  Close leaves the lesson where it was. The ledger (`RunManager.prologueRosterLesson`:
+  completed, skipped, dismissed, `more`: null | accepted | declined; a save from before the
+  offer reads null) is saved with the run. Nothing blocks travel: the lesson is live only while
+  the party stands on that node. An unarmed unit in P3 gets the greyed Attack reason
+  "Unarmed: no weapon to attack with" (in a prologue chapter the greyed-Attack reasons show
+  whatever the Guidance level; `GuidanceController.reasonLevel`).
+- **Leaving unarmed asks, never blocks** (review, 2026-10-04). Because the lesson can be skipped
+  and never gates the road, a player could reach P3 with the bow still in the convoy. Travelling
+  on from the node where Tamsin joined while she carries no combat weapon she can use
+  (`engine/PrologueDeparture.js` `unarmedDeparture`: a staff, a Vulnerary or a lance she
+  can't wield is no weapon) offers a choice (`ui/PrologueDepartureWarning.js`): "Tamsin has no
+  usable weapon. She can't attack in the next battle until she carries one." *Open Roster*
+  (the roster, on her; the lesson attaches if it is still live) or *Continue anyway* (travel
+  now). It is asked once per Travel attempt (the attempt that continues is not asked again);
+  Escape leaves the map as it was; without a DOM the road is open. It sits in
+  `NodeMapScene.onNodeClick`, which every route-map travel path reaches (the loom's Travel
+  button, a click and a phone's tap-tap on a node). `tests/PrologueDeparture.test.js`.
 
 ### P3 — The Seer on the Road (Sera's chapter)
 
@@ -491,18 +573,20 @@ E . . . . . . . . F . .
 
 **Sera's lessons** (each a beat; one note per move, `oneNote`, the first matching note speaks):
 
-| # | Trigger | Lesson |
-|---|---|---|
-| 1 | Battle start | Gaspar's and Edric's lines (`p3_intro`), the coach "Reach Sera and Talk" (Sera highlighted), then the recruit note (`guide_recruit_on_map`): "Sera (Light Sage) under the gold banner can join you. … Only the Soldier beside her can reach her this turn. Lords alone can Talk." |
-| 2 | Talk with Sera | Her line on the recruit card, then the coach "Sera acts right away"; it clears when she acts. With the Soldiers already down, her join is the win. |
-| 3 | Sera selected while an ally is hurt | **Heal** (`guide_healer_heals`): "Sera heals with her staff: move next to {ally}, choose Heal. Staff uses refill after every battle; a Vulnerary is spent for good." {ally} is the most hurt. |
-| 4 | Sera moved where nothing is in reach | **Planning and cancelling** (`guide_no_attack`): her menu shows "Attack · No target in range 1–2"; "Nothing is in reach from here, so Attack is greyed out. Esc or right-click (Back) undoes the move… Try a tile 2 away from a foe." |
-| 5 | Sera 2 tiles from a foe | **Range** (`battle_no_counter`): "Glimmer reaches 2 tiles. From 2 tiles away, a lance or an axe can't hit back." Coach: "Open the forecast, then Cancel. Looking is free." Practised (`p3_glimmer`) only by a strike she commits from 2 tiles (`distance: 2`; review, 2026-10-04): an adjacent strike is not the lesson. |
-| 6 | A forecast showing magic | **Magic:** "Glimmer is magic: it hits RES, not DEF. Soldiers' armour turns blades, not light." |
-| 7 | Sera or Tamsin moved into reach | **Count every enemy that reaches you** (`guide_fragile_in_reach`): "Cover isn't safety. {n} enemies can reach {unit} here… Count the red eyes, not the trees." |
-| 8 | Sera ends next to an ally | **Aura:** "Renewal Aura: allies next to Sera heal 3 HP at the start of your turn." |
-| 9 | Player turn 2 begins with someone hurt | **Recover by changing the plan**, optional. The run's one Vision charge is granted (`grantVision`; `RunManager.grantPrologueVision`, once per run, reverted with the battle), then: "{ally} is hurt. Sera grants one Vision. Rewind takes back moves…", with an *Open Rewind* button. After a rewind, the first move that ends out of every enemy's reach: "Same turn, better plan." Declining is fine; the charge stays for P4. |
-| 10 | Victory | Sera: "I don't stand at the front. I stand where they can't reach me." Edric: "Then stand behind us. We hold the road, you hold us together." (`p3_victory`). P3 is the prologue's last chapter for now: the ending follows. |
+**Core:** recruit Sera, heal someone, attack safely from range.
+
+| # | Trigger | Lesson | Weight |
+|---|---|---|---|
+| 1 | Battle start | Gaspar's and Edric's lines (`p3_intro`), the coach "Reach Sera and Talk" (Sera highlighted), then the recruit note (`guide_recruit_on_map`): "Sera (Light Sage) under the gold banner can join you. … Only the Soldier beside her can reach her this turn. Lords alone can Talk." | core (note) |
+| 2 | Talk with Sera | Her line on the recruit card, then the coach "Sera acts right away"; it clears when she acts. With the Soldiers already down, her join is the win. | core (coach) |
+| 3 | Sera selected while an ally is hurt | **Heal** (`guide_healer_heals`): "Sera heals with her staff: move next to {ally}, choose Heal. Staff uses refill after every battle; a Vulnerary is spent for good." {ally} is the most hurt. | core (note) |
+| 4 | Sera moved where nothing is in reach | **Planning and cancelling** (`guide_no_attack`): her menu shows "Attack · No target in range 1–2"; "Nothing is in reach from here, so Attack is greyed out. Esc or right-click (Back) undoes the move… Try a tile 2 away from a foe." | tip |
+| 5 | Sera 2 tiles from a foe | **Range** (`battle_no_counter`): "Glimmer reaches 2 tiles. From 2 tiles away, a lance or an axe can't hit back." Coach: "Open the forecast, then Cancel. Looking is free." Practised (`p3_glimmer`) only by a strike she commits from 2 tiles (`distance: 2`; review, 2026-10-04): an adjacent strike is not the lesson. | core (note) |
+| 6 | A forecast showing magic | Magic against RES. | **cut**: the forecast's numbers show it (9 against the blade's 4); Act 1's armor note (`guide_armor`, "Magic hits RES") teaches it where it decides a fight. Not folded into the range note: that note stays one concept |
+| 7 | Sera or Tamsin moved into reach | **Count every enemy that reaches you** (`guide_fragile_in_reach`): "Cover isn't safety. {n} enemies can reach {unit} here… Count the red eyes, not the trees." The action menu stays live: Back is the advice. | tip |
+| 8 | Sera ends next to an ally | **Aura:** "Renewal Aura: allies next to Sera heal 3 HP at the start of your turn." | tip |
+| 9 | Player turn 2 begins with someone hurt | **Recover by changing the plan**, optional. The run's one Vision charge is granted (`grantVision`; `RunManager.grantPrologueVision`, once per run, reverted with the battle), then the tip: "{ally} is hurt. Sera grants one Vision. Rewind takes back moves…", with an *Open Rewind* button. After a rewind, the first move that ends out of every enemy's reach: "Same turn, better plan." (tip). Declining is fine; the charge stays for P4. | tip |
+| 10 | Victory | Sera: "I don't stand at the front. I stand where they can't reach me." Edric: "Then stand behind us. We hold the road, you hold us together." (`p3_victory`). | story |
 
 **The harness proofs** (300 seeds unless noted):
 - the intended script (the lessons as a player would apply them: Talk on turn 1, Sera heals the
@@ -609,14 +693,16 @@ spares (1,4), (1,6).)
 - **Objective:** Seize. Defeat Varro, then a lord stands on the gate and chooses Seize (any
   lord; the Seize command raises the chapter's `seize` beat before the victory flow).
 
-| # | Trigger | Lesson |
-|---|---|---|
-| 1 | Deploy screen | Choose who fights, the axes, the reach, Gaspar's lesson as meant (above). |
-| 2 | Battle start | Seize and par, with this battle's par: "Seize: defeat Captain Varro, then a lord steps onto the gate and chooses Seize. / Par: win in 10 turns or fewer for bonus gold. Safety first; speed pays." (marks `battle_seize`, `battle_par` read) |
-| 3 | First forecast against Varro on the throne (`forecastOpened` with `targetTerrain: "Throne"`) | "The throne guards Captain Varro: harder to hurt, and he heals each turn. / His axe reaches 1 tile. Strike from 2 where you can." |
-| 4 | Varro below half | His half-health line (existing boss beat). |
-| 5 | Varro falls | Edric: "Varro is down. The gate is ours to take, before the column regroups." The coach turns to "A lord: step onto the gate and Seize", the gate is highlighted, and the note "Captain Varro has fallen. Now a lord: step onto the gate and Seize." (marks `guide_objective_changed` read) |
-| 6 | Seize | Varro's defeat lines (a boss's defeat lines play at victory), then the ending (§5 beat 7). |
+**Core:** make a deployment choice, and complete the seize with less guidance.
+
+| # | Trigger | Lesson | Weight |
+|---|---|---|---|
+| 1 | Deploy screen | Choose who fights, the axes, the reach, Gaspar's lesson as meant (above). | core (note) |
+| 2 | Battle start | Seize and par, with this battle's par: "Seize: defeat Captain Varro, then a lord steps onto the gate and chooses Seize. / Par: win in 10 turns or fewer for bonus gold. Safety first; speed pays." (marks `battle_seize`, `battle_par` read) | core (note) |
+| 3 | First forecast against Varro on the throne (`forecastOpened` with `targetTerrain: "Throne"`) | One line in the forecast's notes: "The throne guards Captain Varro: harder to hurt, and he heals. Strike from 2." | tip (forecast) |
+| 4 | Varro below half | His half-health line (existing boss beat). | story |
+| 5 | Varro falls | Edric: "Varro is down. The gate is ours to take, before the column regroups." The coach turns to "A lord: step onto the gate and Seize", the gate is highlighted, and then the tip "Captain Varro has fallen. Now a lord: step onto the gate and Seize." (marks `guide_objective_changed` read once read; unread, Act 1's first seize teaches it) | coach (core) + tip |
+| 6 | Seize | Varro's defeat lines (a boss's defeat lines play at victory), then the ending (§5 beat 7). | story |
 
 **Prompts fade here.** The coach shows only the objective ("Defeat Captain Varro, then Seize
 the gate"), with no goals for moving, attacking, healing, weapons or ranges. Choosing Gaspar's
@@ -717,32 +803,37 @@ meets (§7).
 
 ## 7. What the prologue teaches, and what it leaves to Act 1
 
-| Mechanic | Where |
+| Mechanic | Where (core = a blocking note, gate or coach goal; tip = non-blocking, when it arises) |
 |---|---|
-| Select, move, attack, forecast, end turn, enemy phase, counters | P1 |
-| Terrain, weapon triangle | P1 (triangle again in P2) |
-| Consumables are permanent | P1 (Vulnerary) |
-| Holding enemies and reach | P1 |
-| Level-ups and growths | P1 |
-| Doubling and attack speed, weapon choice | P2 |
-| No counter (bows), forecasts are chances, Danger | P2 |
-| Gaspar: chip, don't kill | P2, plus the in-run note |
-| Villages (visit) | P2 (uncontested) |
-| Loot screen | after P2 |
+| Select, move, attack, forecast, end turn, enemy phase, counters | P1 (core) |
+| Terrain, weapon triangle | P1 (tips; the triangle again as a forecast tip in P2, and the deploy note's "swords beat axes" in P4) |
+| Consumables are permanent | P1 (tip, at ≤ 60% HP); P3's heal note says it again |
+| Holding enemies and reach | P1 (tip) |
+| Level-ups and growths | P1 (tip after the card) |
+| Doubling and attack speed, weapon choice | P2 (core) |
+| No counter (bows), forecasts are chances | cut from P2: the forecast's own lines; P3's range note (core); a real run's inline forecast notes |
+| Danger | P1's turn note (core); P2 turn 2 (tip) |
+| Gaspar: chip, don't kill | P2 (core), plus the in-run note |
+| Villages (visit) | P2 (tip, optional discovery; uncontested) |
+| Loot screen | P2's rewards (the screen explains itself; the loot note is cut) |
 | Route map, preview, path choice | after P1; the fork at row 2 |
 | Shop or Church | row 2 (the other in Act 1) |
-| Roster: withdraw, equip, trade, store | row 2 |
-| Recruiting by Talk | P3 |
-| Sera: heal, 2-tile strike, magic vs RES, fragility, aura | P3 |
-| Planning and cancelling; counting threats | P3 |
+| Roster: withdraw, equip | row 2 (core of the roster lesson) |
+| Roster: trade, store | row 2 (offered as more); in-run `guide_convoy` |
+| Recruiting by Talk | P3 (core) |
+| Sera: heal, 2-tile strike | P3 (core) |
+| Sera: fragility (counting threats), aura | P3 (tips) |
+| Magic vs RES | cut from P3: Act 1's armor note (`guide_armor`) |
+| Planning and cancelling | P3 (tip) |
 | HP carries between battles | P3 (whatever P2 left), and Act 1 |
-| Staves refill, Vision and rewind | P3 |
+| Staves refill | P3 (the heal note, core) |
+| Vision and rewind | P3 (tip with Open Rewind); the handoff ("charges last the whole run") |
 | Ruins: Rest or Scavenge | row 4 |
-| Deploy and formation | P4 |
-| Seize, bosses, thrones, par | P4 |
-| Commander rule (taught, never enforced) | P1 coach, P3 and P4 notes |
-| The loop: the run resets, Home Base persists | ending |
-| Home Base and meta upgrades | after the ending |
+| Deploy and formation | P4 (core) |
+| Seize, bosses, par | P4 (core); thrones and the objective's change: tips |
+| Commander rule (taught, never enforced) | P1 coach, P3 and P4 notes, the handoff, the first run's route note |
+| The loop: the run resets, Home Base persists | ending and the handoff |
+| Home Base and meta upgrades | the handoff, then Home Base |
 
 Taught again in Act 1 at the point of use, because the prologue can only introduce them
 (playtest-backed; built in Phase 3). Each is a Guidance note (`engine/Guidance.js`,
@@ -897,7 +988,8 @@ The schema is documented at the top of `src/engine/Prologue.js`, which is the re
   "boss": { "name": "Captain Varro", "className": "Fighter", "level": 1, "weapon": "Iron Axe",
             "epithet": "Keeper of the Quarry Gate", "lore": "…" },
   "ending": { "music": "music_explore_deep",
-              "scenes": [ { "dialogue": "ending_east", "cue": "eclipse", "shake": true, "veil": "hollow_sun" },
+              "scenes": [ { "dialogue": "ending_gate_held", "card": "complete", "cue": "sealed", "won": true },
+                          { "dialogue": "ending_east", "cue": "eclipse", "shake": true, "veil": "hollow_sun" },
                           { "dialogue": "ending_ridge" },
                           { "dialogue": "ending_thread", "cue": "rewind", "veil": "thread" } ],
               "titleCard": "Every run is a thread Sera weaves. …" }
@@ -978,8 +1070,8 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
     `unitSelected`, and `safe` (no enemy reaches the tile), `inRange` (a foe is in attack reach
     from here), `foeDistance` (one visible foe is that many tiles away), `besideAlly` and
     `afterRewind` to `afterMove`
-  - actions: `coach`, `note`, `dialogue` (ids), `gateSelect {unit}`, `gateMove {col, row}`,
-    `gateConfirm`, `highlight {tile | unit | reachOf}`, `markLesson {id, kind: shown|practised}`,
+  - actions: `coach`, `note` (blocking), `tip` (non-blocking), `dialogue` (ids),
+    `gateSelect {unit}`, `gateMove {col, row}`, `gateConfirm`, `highlight {tile | unit | reachOf}`, `markLesson {id, kind: shown|practised}`,
     `grantVision` (the prologue's one Vision charge, once), `clearCoach` (drop a goal no gate
     holds)
   - `forecastConcepts(forecast, { weapon })` gives a forecast's concepts (`triangle`, `doubling`,
@@ -1076,6 +1168,21 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   a Fighter's red reach) is on screen while it shows. A note is a modal Field note (battle state
   `TUTORIAL_HINT`, the rail inert); on the enemy phase it is a coach nudge (a notice band without
   a coach); raised at a phase start it waits until the player can act.
+- **Tips** (a beat's `tip`, review 2026-10-04: §2 "Core and reinforcement") run after the
+  beat's notes and lines and are never awaited, never pending and never in a checkpoint. On
+  the map: `ui/PrologueTip.js` docks a `GuidanceNote` (kicker "Tip", Got it, an extra button
+  from `PROLOGUE_NOTE_ACTIONS`: P3's Open Rewind) away from the units, one at a time (a new
+  one replaces the last). One raised by `afterMove` or `unitSelected` is about that unit's
+  moment and steps aside unread when that moment ends (`syncTip` each frame: the unit acts,
+  is deselected or moves Back to another tile, a forecast opens, the phase changes); the
+  others stay until read, dismissed or replaced. A blocking note or a line set closes any
+  open tip first: a tip is never counted as read under a modal. Raised by a
+  forecast: `AttackFlowController.showForecast` asks `prepareForecast` before the first
+  render, so the beats are matched (one concept per forecast) and the tip is drawn into the
+  attacker's notes (`forecast.attacker.lessonNote`, the armor note's slot) on every render
+  until the forecast closes; `hideForecast({ acknowledge })` hands `onForecastClosed` the
+  player's Confirm or Cancel, the only close that reads it. On the enemy phase: a coach nudge.
+  A tip marks its `NOTE_HINT_IDS` only once read; with no DOM it shows and marks nothing.
 - Gates: `gateSelect` and `gateMove` block free play (the scene asks `allowsSelect` /
   `allowsMoveTo`, and refuses with a nudge); `gateConfirm` only blocks weapon and target cycling
   on the open forecast and lifts when it closes. Skip step releases the gates for the chapter.
@@ -1223,7 +1330,8 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   - `skipped`: today's fast path;
   - a slot that started or finished a run is never offered the prologue (Home Base).
 - **The offer** (`PROLOGUE_OFFER` in `src/data/prologueContent.js`): "Begin the first thread?"
-  with "Play the Prologue · about 20 minutes" and "Skip to the first run". It comes from both
+  with "Play the Prologue · about 30 minutes" (an estimate, "How long it takes" below) and
+  "Skip to the first run". It comes from both
   entry points, `TitleScene.handleNewGame` (a MenuSurface; `start: 'prologue' | 'skip'`) and
   `SlotPickerScene.selectSlot` (a slot dialog). Playing it is the highlighted default on a
   device that has not finished the prologue (`emblem_rogue_tutorial_completed`); after that,
@@ -1242,11 +1350,31 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   return; no grant, no meta write.
 - **Home Base after the prologue:** the existing `homebase_intro` and `homebase_begin` notes,
   plus one line (`PROLOGUE_HOME_BASE_NOTE`, hint `homebase_prologue_grant`): "This is what
-  persists. Spend the Valor and Supply from the first thread." Begin Run goes through
+  stays between runs. Spend the Valor and Supply from the first thread." Begin Run goes through
   `HomeBaseScene.startRunFromHomeBase` (desktop button and `MobileHomeBase`), which reads
   `routeForBeginRun`.
+- **The handoff** (review, 2026-10-04; `ui/PrologueHandoff.js`, copy
+  `prologueHandoffContent`). The tutorial's protection ends at Home Base, and a first defeat
+  is the worst place to learn its rules, so one screen says them before Home Base, in plain
+  words, after the ending's last line and before the one meta write. Its title "From here, it
+  counts", its kicker "Prologue complete" (after a skip: "The prologue ends"), the ending's
+  title card as its lead, then five rules, a term beside one sentence each:
+
+  | Term | Rule |
+  |---|---|
+  | A run ends | only when your commander falls. Edric leads your first run. |
+  | Fallen allies | stay down until a Church revives them for gold. |
+  | Starts over | each run: a fresh army, with levels, items and gold reset. |
+  | Stays | Valor and Supply you earn, and the Home Base upgrades they buy. |
+  | Vision | charges last the whole run. Spend them on the turn that went wrong. |
+
+  "To Home Base" (or Escape) continues; it never asks anything. It plays once with the ending
+  (a retry after a failed write only commits and leaves; a refresh after the write lands in
+  Home Base). Each rule fits one line of 90 characters (`tests/PrologueHandoff.test.js`).
 - **The fast path's route-map note** has a prologue-player version
-  (`PROLOGUE_FIRST_RUN_ROUTE_NOTE`): Home Base is already known.
+  (`PROLOGUE_FIRST_RUN_ROUTE_NOTE`): Home Base is already known, and it says the one rule the
+  run now enforces: "Your first run begins here, and now it counts: if Edric falls, the run
+  ends. Tap a node to preview; Travel commits."
 - **Skip mid-way:** "Skip Prologue" in the pause menu (battle and route map; the coach's Skip
   and a field note's "Skip prologue" open the same confirmation) jumps to the ending
   (`src/ui/PrologueEnding.js`: the `prologue.ending` scenes, the title card, one meta write,
@@ -1370,6 +1498,21 @@ scripted, Guidance Off). Harness: `tests/harness/PrologueP4.test.js` and
 `PrologueP4Scavenge.test.js` (P3's policies moved to `tests/harness/prologueP3Policies.js`;
 P4's are `prologueP4Policies.js`).
 
+**Design review, 2026-10-04** (unit): `PrologueDensity` (the core notes per chapter, at their
+decision points; the tips conditional; the cut copy gone; each demoted hint's Act 1 teacher;
+forecast tips one line), `PrologueController` / `PrologueControllerP3` / `PrologueControllerP4`
+(a tip never holds the move, the forecast or the fall; marks its hint only once read; a
+forecast tip read only on Confirm or Cancel; a scoped tip steps aside unread),
+`PrologueBeatOwnership` (the hook contract pinned on a blocking fixture; the shipped fall
+settles on Varro's line alone), `PrologueSuspendTeaching` (a tip is never pending),
+`PrologueRosterLesson` / `PrologueRosterCoach` (the core of two, the offer, Done, nothing to
+offer), `PrologueDeparture` (asks when unarmed, not when armed, both route paths, once per
+attempt, never blocks), `PrologueEnding` (PROLOGUE COMPLETE only after a win, THE THREAD
+BREAKS, the handoff once), `PrologueHandoff` (the five rules, plain and short), `PrologueValidator`
+(`tip`, the ending's `card` and `won`). Browser: the `prologue` lane reads the tips, the forecast's
+triangle line, the departure's choice, the roster lesson's "1 of 2", the seize tip, PROLOGUE
+COMPLETE, THE THREAD BREAKS and the handoff.
+
 **Review fixes, 2026-10-04** (each with a test that fails before it): `RoutObjective` and
 `PrologueRequiredRecruit` (P3 cannot end without Sera: the predicate the scene and the
 harness share, the headless regression, the coach's goal, the validator's rules;
@@ -1398,6 +1541,38 @@ Watch for these:
 Record wrong commitments, help requests, repeated explanations and successful reuse. Completion
 time is secondary.
 
+**The metrics to collect** (review, 2026-10-04), per player and per chapter:
+- time to the first meaningful action (P1's first committed attack, from Play the Prologue)
+- time spent in mandatory explanations (blocking notes, lines, the handoff: open to dismissed)
+- chapter retries ("Not this thread" restarts) and Vision rewinds
+- mistaken cancellations (a forecast or move backed out of, then the same order given again)
+- tips read (Got it, or on screen long enough) against tips shown
+- total time, and time per chapter
+- comprehension after Home Base, asked in the player's words: what ends a run, what happens
+  to a fallen ally, what starts over, what stays, how long Vision lasts (the handoff's five)
+
+**How long it takes: a hypothesis, not a promise.** The offer says "about 30 minutes". The
+estimate (2026-10-04) is built from the harness's own counts, not from people:
+
+| Chapter | Turns (median, naive and intended) | Unit actions |
+|---|---|---|
+| P1 | 3 | 3 |
+| P2 | 4 | 7–8 |
+| P3 | 3 | 10–11 |
+| P4 | 4 (replay army, Edric+Gaspar+Sera) | 10 |
+| Total | 14 | about 31 |
+
+At 25–40 seconds an action for a player new to the genre (select, read the blue range, move,
+open and read a forecast, confirm, watch the exchange): 13–21 minutes; the enemy phases 3; about
+37 spoken lines at 4 seconds: 2.5; the 9 blocking notes, the fork's note and the deploy note:
+2–3; the route map, the service, the roster lesson, the watchtower, deploy and formation: 5–6;
+level-up cards, recruit cards, the boss card and rewards: 2.5; the ending and the handoff: 2.
+That is 30–38 minutes for a first-timer (20–25 for a player who knows the genre, at 10–15
+seconds an action), so the offer's earlier "about 20 minutes" was the experienced figure.
+Before the density pass, the 29 blocking notes alone added about 4 minutes. The playtest's
+total time per player decides the copy: if the median first-timer lands outside 25–35
+minutes, change it.
+
 ## 10. Narrative wiring
 
 - The first-run cold open (`actTransitions.runStart`, the `maxRunsStarted: 1` variant: the
@@ -1417,18 +1592,27 @@ time is secondary.
   introduced him (`firstRunAfterPrologue`: the run being played counts, as the cold open's
   `maxRunsStarted: 1` reads it); every later run introduces him as before.
 
-**The ending as built (Phase 3).** `ui/PrologueEnding.js` plays `prologue.ending.scenes` with
-existing tools only: the music crossfades to `music_explore_deep` (the Entity's road: the
-route map before the final boss, the thing the ritual wakes); scene 1 ("the ritual seen far
-off in the east"): the `eclipse` cue, a camera shake (none under Reduce motion), the
-`hollow_sun` veil (CSS: the sky darkens from the east around a sun gone dark, ringed in pale
-fire; `CeremonyController.showVeil`), Gaspar, Sera, Tamsin, Edric, Sera; scene 2: the pale man
-on the far ridge (Gaspar, Sera); scene 3: the `rewind` cue and the run end's THE THREAD IS CUT
-card ("Sera weaves again", `PROLOGUE_THREAD_CARD` through `showRunEnd`'s `content`), Edric,
-then Sera: "Not like this. I know this road now. Again, from the morning I reached you." Then
-the title card, the one meta write, Home Base. A skip plays the ending before the army met
-everyone: a cast member not in the army never speaks or is named, and Sera's lines marked
-`unmet: "???"` are a voice not yet met (`endingLinesFor`).
+**The ending as built (Phase 3; the win said first, review 2026-10-04).** `ui/PrologueEnding.js`
+plays `prologue.ending.scenes` with existing tools only: the music crossfades to
+`music_explore_deep` (the Entity's road: the route map before the final boss, the thing the
+ritual wakes); scene 0 (`won: true`: only when P4 was won, never after a skip): the `sealed`
+cue and the gold run-end card PROLOGUE COMPLETE ("The Quarry Gate is held", "4 chapters won";
+`card: 'complete'`, `prologueCompleteCard`, held over its lines for its reading window, then
+gone), Gaspar ("The gate is yours, Edric. Well fought."), Edric ("Everyone is still standing.
+I counted twice."), Tamsin; scene 1 ("the ritual seen far off in the east"): the `eclipse`
+cue, a camera shake (none under Reduce motion), the `hollow_sun` veil (CSS: the sky darkens
+from the east around a sun gone dark, ringed in pale fire; `CeremonyController.showVeil`),
+Gaspar, Sera, Tamsin, Edric, Sera; scene 2: the pale man on the far ridge (Gaspar, Sera);
+scene 3: the `rewind` cue and the run-end card in the prologue's words, never the game
+over's: THE THREAD BREAKS, "The gate held. The world did not.", "Prologue complete · Sera
+weaves again" (after a skip: "The world did not hold", "Prologue · Sera weaves again";
+`prologueThreadCard`), Edric, then Sera: "No sword could stop this from here, Edric. It was
+never yours to stop." and "Not like this. I know this road now. Again, from the morning I
+reached you." Then the handoff (§9) led by the title card ("… This one broke in the east, not
+by your hand."), the one meta write, Home Base. The player won; the world broke for the
+story's reasons, and every piece of the ending says so. A skip plays the ending before the
+army met everyone: a cast member not in the army never speaks or is named, and Sera's lines
+marked `unmet: "???"` are a voice not yet met (`endingLinesFor`).
 
 ## 11. Phases
 
@@ -1440,7 +1624,7 @@ everyone: a cast member not in the army never speaks or is named, and Sera's lin
 | 2A | Run mode and routing, the suppress list in both modes, the literal route map, P2, the ending stub, Home Base handoff and grant, skip and replay flows. | Shipped 2026-10-04. The slice: fresh slot → (Prologue \| Skip) → P1 (row 0, map hidden) → Gaspar joins → route map → P2 → **temporary (until 2B):** P2's victory completes the prologue → ending stub (data: `prologue.ending`) → Home Base (grant) → Begin Run → the fast path. Later phases insert row 2, P3, the Ruins and P4 by adding data. Deviations: P2 as built above (one Fighter, the Soldier on Plain, the Archer on the west bank); the title's "Prologue · Start here" on a fresh device starts the prologue run rather than a standalone P1; a standalone replay ends with "Back to title" only (the Start First Run handoff is gone: New Game owns the offer); the `practised` ledger lands on slot meta at each chapter's victory in the run (`recordPrologueChapter` / `recordProloguePractised`); the ending is a four-line unnamed sequence plus the title card, not yet the ritual scene. |
 | 2B | Row 2 (fork, Tamsin, roster lesson), P3 | Shipped 2026-10-04. The slice now runs P1 → Gaspar → P2 → the fork (Market \| Chapel; Tamsin joins at either) → P3 (Sera) → the ending → Home Base; P3's victory completes the prologue until Phase 3 adds the Ruins and P4. The title's chapter select lists P3 (replay roster: Edric L3, Gaspar, Tamsin with her bow). Deviations: P3 as built above (three Soldiers, not Fighters; two far, one holding; 12 × 5; the rewind exercise on player turn 2); the roster lesson's Equip step practises on another unit's spare (Withdraw already arms an unarmed unit), its Trade step gives the commander's first consumable and skips itself with a reason when nobody carries one, and every step completes in any order; Tamsin's lines as authored (`tamsin_joins`, `tamsin_joins_bow_rack`); the fork note is a once-per-slot route-map note. Review fixes (Phases 1B/2A), each with a test that fails before it: teaching state rides the suspend checkpoint and `battleStart` never replays; a prologue `fatal_pending` or unrestorable resume restarts the chapter (never `failRun`, which now refuses in the prologue); a successful rewind re-arms the rewind offer; a protected fall never renames the commander; a failed Skip leaves the battle or map playable with a real Retry; the ending plays once across retries; the restart test restores real state exactly; the suppression table has a standard-battle control. Found by the browser run: the coach stayed hidden after an opening that held the turn (fixed). |
 | 3 | Ruins, P4, the ritual ending scene. First-visit notes for whichever of Shop and Church the player skipped; the Act 1 point-of-use notes in §7. | Shipped 2026-10-04: the story is complete. The run is P1 → P2 → the fork → P3 → the Old Watchtower (§6 row 4) → P4 (§6 P4) → the ending (§10) → Home Base; the chapter select lists P4 (replay: the four-unit roster, Gaspar on his sword). The follow-through notes as §7. Leftovers fixed: the cloud fetch merges `meta.prologue` (`mergePrologueState`); the title and slot cards say "Resume · Prologue" / "Continue prologue" for the prologue's run, and New Game is never "Start First Run" while the build ships the prologue (it opens the offer, Skip first on a device that finished it); a prologue run save that cannot be read (state left `in_progress`) gets the offer again at Begin Run (Restart the Prologue from P1, Skip to the first run without the grant, or Back), never the ordinary road; Gaspar's intro is skipped only in the first real run after the prologue. Deviations: Varro at level 1 (§6 P4); P4 retuned so every deploy wins (§6 P4, "Retune for every deploy"); the deploy note's sword against axes and the replay's `rosterEquip`; Sera's line at Varro's fall is Edric's; the throne lesson's trigger is a forecast condition (`targetTerrain`); escape maps get no objective-change note (their exits never open mid-battle); the ending's lines adapt to a skip (above). |
-| 4 | Polish: prologue music picks (existing tracks, then optional cues), the ritual scene staging, copy pass against the lore guide | |
+| 4 | Polish: prologue music picks (existing tracks, then optional cues), the ritual scene staging, copy pass against the lore guide | Open. Done in the review of 2026-10-04: the density pass (§2: each chapter's core blocks, the rest are tips; cut notes left to Act 1), the roster lesson's core and its offer of more, the unarmed departure's choice, PROLOGUE COMPLETE and THE THREAD BREAKS, the handoff, "about 30 minutes" as a hypothesis with the metrics to collect (§9). |
 
 ## 12. Decisions (user, 2026-10-04)
 

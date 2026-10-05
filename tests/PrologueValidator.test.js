@@ -156,7 +156,7 @@ describe('validatePrologueConfig', () => {
 
     it('use known actions, with valid arguments', () => {
       expect(errorsAfter((p) => (p1(p).beats[0].do = [{ shout: 'x' }]))).toEqual([
-        `${P1}.beats[0].do[0] must have exactly one of: coach, note, dialogue, gateSelect, gateMove, gateConfirm, highlight, markLesson, grantVision, clearCoach`,
+        `${P1}.beats[0].do[0] must have exactly one of: coach, note, tip, dialogue, gateSelect, gateMove, gateConfirm, highlight, markLesson, grantVision, clearCoach`,
       ]);
       expect(errorsAfter((p) => (p1(p).beats[1].do[1] = { gateMove: { col: 9, row: 2 } }))).toEqual(
         [`${P1}.beats[1].do[1].gateMove is not a tile on the map`],
@@ -166,6 +166,10 @@ describe('validatePrologueConfig', () => {
           (p) => (p1(p).beats[2].do[1] = { markLesson: { id: 'terrain', kind: 'mastered' } }),
         ),
       ).toEqual([`${P1}.beats[2].do[1].markLesson.kind must be "shown" or "practised"`]);
+      // A tip names its copy as a note does (an id the content resolves).
+      expect(errorsAfter((p) => (p1(p).beats[2].do[0] = { tip: 'Not An Id' }))).toEqual([
+        `${P1}.beats[2].do[0].tip must be a snake_case id`,
+      ]);
     });
 
     it('have unique ids (once-state is kept by id)', () => {
@@ -556,6 +560,14 @@ describe('validatePrologueConfig', () => {
       ]);
       expect(errorsAfter((p) => (p.ending.music = 'Explore Deep'))).toEqual([
         'ending.music must be a music track key (music_...)',
+      ]);
+      // PROLOGUE COMPLETE is a known card, and a won-only scene says so with a boolean.
+      expect(data.prologue.ending.scenes[0]).toMatchObject({ card: 'complete', won: true });
+      expect(errorsAfter((p) => (p.ending.scenes[0].card = 'victory'))).toEqual([
+        'ending.scenes[0].card must be one of complete',
+      ]);
+      expect(errorsAfter((p) => (p.ending.scenes[0].won = 'yes'))).toEqual([
+        'ending.scenes[0].won must be true or false',
       ]);
     });
 

@@ -1,14 +1,18 @@
 // The row-2 roster lesson (engine/PrologueRosterLesson.js; docs/specs/prologue-chapter.md
-// §6 "Route map, row 2"): live only in the prologue run at the node Tamsin joined, four
-// goals in order, each completed by the real action the roster sheet reports (any
-// order: a goal met early counts), a goal the army can't do skipped with its reason,
-// Skip step / Skip lesson, never a gate, and the ledger saved with the run.
+// §6 "Route map, row 2"): live only in the prologue run at the node Tamsin joined, a
+// core of two goals (Withdraw, Equip), then Trade and Store offered as more (Show me /
+// Done), never required; each goal completed by the real action the roster sheet
+// reports (any order: a goal met early counts), a goal the army can't do skipped with
+// its reason, Skip step / Skip lesson, never a gate, and the ledger saved with the run.
 import { describe, expect, it } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
 import {
+  ROSTER_LESSON_CORE,
+  ROSTER_LESSON_MORE,
   ROSTER_LESSON_STEPS,
   advanceRosterLesson,
+  chooseRosterLessonMore,
   dismissRosterLesson,
   isRosterLessonFinished,
   isRosterLessonLive,
@@ -75,12 +79,13 @@ describe('when the lesson runs', () => {
 });
 
 describe('the steps, each done by its real action', () => {
-  it('Withdraw, Equip, Trade, Store in order, through the roster commands the sheet runs', () => {
+  it('Withdraw and Equip (the core), then Trade and Store once asked for, through the roster commands the sheet runs', () => {
     const rm = atFork();
     expect(advanceRosterLesson(rm)).toMatchObject({
+      phase: 'core',
       step: 'withdraw',
       index: 1,
-      total: 4,
+      total: 2,
       subject: 'Tamsin',
       target: { available: true, unit: 'Tamsin', item: 'Iron Bow' },
     });
@@ -99,6 +104,10 @@ describe('the steps, each done by its real action', () => {
     const sword = gaspar.inventory.find((w) => w.name === 'Iron Sword');
     expect(rosterItemAction(rm, gaspar, sword, 'equip')).toBe('');
     expect(observeRosterAction(rm, { action: 'equip', unit: 'Gaspar', item: 'Iron Sword' })).toEqual(['equip']); // prettier-ignore
+    // The core is done: Trade and Store are offered, not required.
+    expect(rosterLessonView(rm)).toMatchObject({ phase: 'offer', step: null, total: 2 });
+    expect(isRosterLessonLive(rm)).toBe(true);
+    expect(chooseRosterLessonMore(rm, true)).toMatchObject({ phase: 'more', step: 'trade', index: 1, total: 2 }); // prettier-ignore
     // Trade: Edric's Vulnerary to Tamsin, unit to unit.
     expect(rosterLessonView(rm)).toMatchObject({
       step: 'trade',
@@ -123,7 +132,39 @@ describe('the steps, each done by its real action', () => {
       completed: ['withdraw', 'equip', 'trade', 'store'],
       skipped: [],
       dismissed: false,
+      more: 'accepted',
     });
+  });
+
+  it('Done at the offer ends the lesson after the core: Trade and Store are never required', () => {
+    const rm = atFork();
+    advanceRosterLesson(rm);
+    withdrawBow(rm);
+    equipSpare(rm);
+    expect(rosterLessonView(rm).phase).toBe('offer');
+    expect(chooseRosterLessonMore(rm, false)).toBeNull();
+    expect(isRosterLessonFinished(rm)).toBe(true);
+    expect(isRosterLessonLive(rm)).toBe(false);
+    expect(rm.prologueRosterLesson).toMatchObject({ completed: ['withdraw', 'equip'], skipped: [], more: 'declined' }); // prettier-ignore
+    // The offer answers only at the offer: during the core it does nothing.
+    const early = atFork();
+    advanceRosterLesson(early);
+    expect(chooseRosterLessonMore(early, false)).toBeNull();
+    expect(step(early)).toBe('withdraw');
+    expect(ROSTER_LESSON_CORE).toEqual(['withdraw', 'equip']);
+    expect(ROSTER_LESSON_MORE).toEqual(['trade', 'store']);
+  });
+
+  it('a trade and a store done during the core leave nothing to offer: the lesson ends with the core', () => {
+    const rm = atFork();
+    advanceRosterLesson(rm);
+    observeRosterAction(rm, { action: 'trade', from: 'Edric', to: 'Tamsin', item: 'Vulnerary' });
+    observeRosterAction(rm, { action: 'store', unit: 'Gaspar', item: 'Iron Sword' });
+    withdrawBow(rm);
+    expect(step(rm)).toBe('equip');
+    equipSpare(rm);
+    expect(rosterLessonView(rm)).toBeNull();
+    expect(isRosterLessonFinished(rm)).toBe(true);
   });
 
   it('a step only completes on its own action: browsing, using an item or the wrong unit never counts', () => {
@@ -184,7 +225,7 @@ describe('the steps, each done by its real action', () => {
     expect(step(rm)).toBe('equip');
     expect(equipSpare(rm)).toEqual(['equip']);
     expect(gaspar.weapon?.name).toBe('Iron Sword');
-    expect(step(rm)).toBe('trade');
+    expect(rosterLessonView(rm).phase).toBe('offer');
   });
 
   it('a trade, a withdraw and a store made in the trade menu are read as such', () => {
@@ -219,6 +260,7 @@ describe('the army decides what can be taught', () => {
     advanceRosterLesson(rm);
     withdrawBow(rm);
     equipSpare(rm);
+    chooseRosterLessonMore(rm, true);
     named(rm, 'Edric').consumables = [];
     named(rm, 'Gaspar').consumables = [{ name: 'Vulnerary', type: 'Consumable', uses: 3 }];
     expect(rosterLessonView(rm).target).toMatchObject({ giver: 'Gaspar', item: 'Vulnerary' });
@@ -249,7 +291,7 @@ describe('skip and leave', () => {
     advanceRosterLesson(rm);
     withdrawBow(rm);
     const loaded = RunManager.fromJSON(rm.toJSON(), data);
-    expect(loaded.prologueRosterLesson).toEqual({ completed: ['withdraw'], skipped: [], dismissed: false }); // prettier-ignore
+    expect(loaded.prologueRosterLesson).toEqual({ completed: ['withdraw'], skipped: [], dismissed: false, more: null }); // prettier-ignore
     expect(step(loaded)).toBe('equip');
     dismissRosterLesson(loaded);
     const again = RunManager.fromJSON(loaded.toJSON(), data);
@@ -260,7 +302,9 @@ describe('skip and leave', () => {
   it('a saved ledger is cleaned on load', () => {
     expect(normalizeRosterLesson(null)).toBeNull();
     expect(normalizeRosterLesson([])).toBeNull();
-    expect(normalizeRosterLesson({ completed: ['withdraw', 'bogus', 'withdraw'], skipped: 'x', dismissed: 1 })).toEqual({ completed: ['withdraw'], skipped: [], dismissed: false }); // prettier-ignore
+    expect(normalizeRosterLesson({ completed: ['withdraw', 'bogus', 'withdraw'], skipped: 'x', dismissed: 1 })).toEqual({ completed: ['withdraw'], skipped: [], dismissed: false, more: null }); // prettier-ignore
+    expect(normalizeRosterLesson({ completed: [], skipped: [], more: 'maybe' }).more).toBeNull();
+    expect(normalizeRosterLesson({ completed: [], skipped: [], more: 'declined' }).more).toBe('declined'); // prettier-ignore
     expect(ROSTER_LESSON_STEPS).toEqual(['withdraw', 'equip', 'trade', 'store']);
   });
 });

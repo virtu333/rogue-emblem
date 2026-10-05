@@ -7896,7 +7896,7 @@ export class BattleScene extends Phaser.Scene {
   /** `acknowledge`: the player confirmed or cancelled, having read the forecast's rules. */
   hideForecast({ acknowledge = false } = {}) {
     this._attackFlowController?.closeForecast({ acknowledge });
-    this._prologue?.onForecastClosed();
+    this._prologue?.onForecastClosed({ acknowledge });
     if (this._forecastOverlay) {
       this._forecastOverlay.destroy();
       this._forecastOverlay = null;

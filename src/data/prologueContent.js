@@ -71,7 +71,12 @@ export const PROLOGUE_COACH = Object.freeze({
   }),
 });
 
-/** Field notes (modal, Continue to dismiss) and enemy-phase nudges, by note id. */
+/**
+ * Note copy by id: a beat's blocking `note` (modal, Continue to dismiss: the chapter's
+ * core lessons) or non-blocking `tip` (reinforcement: docked beside the map, or one
+ * line in an open forecast's notes; on the enemy phase a coach nudge). Tips read as
+ * one paragraph (PrologueTip.tipText); a forecast tip is kept short, one line.
+ */
 export const PROLOGUE_NOTES = Object.freeze({
   battle_terrain: (ctx) => {
     const t = ctx?.terrain;
@@ -95,8 +100,9 @@ export const PROLOGUE_NOTES = Object.freeze({
   p1_level_up: () => 'Levels raise stats at random. Growth rates decide the odds.',
   p1_holding_enemy: (ctx) =>
     `Some enemies hold their post until you come close. Their red reach shows where.\n${lordOf(ctx)} is inside it now, so this Fighter will come.`,
+  // A forecast tip (P1, against the second Fighter): one line in the forecast's notes.
   battle_triangle: () =>
-    'The weapon triangle: swords beat axes, axes beat lances, lances beat swords.\nThe forecast already includes its hit and damage bonus.',
+    'Swords beat axes, axes beat lances, lances beat swords. These numbers include it.',
   battle_consumable_supply: (ctx) => {
     const item = ctx?.consumable;
     const name = item?.name || 'Vulnerary';
@@ -110,24 +116,19 @@ export const PROLOGUE_NOTES = Object.freeze({
   p2_veteran_kills: (ctx) => {
     const name = ctx?.veteran || 'Gaspar';
     return (
-      `${name} is strong now but barely grows and earns little XP. Weaken enemies with ${name}, then leave the final blow to ${lordOf(ctx)} and your recruits: they grow from it.\n` +
-      `${name} rides 6 tiles, and Measured Step lets him keep moving after a non-combat action.`
+      `${name} is strong now but barely grows and earns little XP.\n` +
+      `Weaken enemies with ${name}, then leave the final blow to ${lordOf(ctx)} and your recruits: they grow from it.`
     );
   },
   battle_doubling: () =>
     'Weapon choice: the lance reads ×1, the sword ×2.\nAttack speed decides a second strike, and heavy weapons slow you. Switch weapons on the forecast and watch the ×2. A chip leaves the kill to someone who grows from it.',
-  battle_no_counter: () =>
-    'No counter: bows reach two tiles only.\nAn archer next to you cannot strike back. The forecast says so before you commit.',
-  p2_forecast_chances: () =>
-    'Hit is a chance, not a promise.\nPick a plan that still holds if this misses. A counter only comes if the defender survives.',
+  // A forecast tip (Edric against the Soldier): one line in the forecast's notes.
   p2_lances_beat_swords: (ctx) =>
-    `Lances beat swords: ${lordOf(ctx)}'s hit and damage drop against a lance, and the counter bites.\nLet ${ctx?.veteran || 'Gaspar'} open the Soldier; ${lordOf(ctx)} finishes it.`,
+    `Lances beat swords. Let ${ctx?.veteran || 'Gaspar'} open the Soldier; ${lordOf(ctx)} finishes it.`,
   battle_danger_zone: (ctx) =>
     `${danger(ctx)} shows every tile an enemy can strike next phase.\nCheck it before you end a unit's move, not after. Holding enemies count too: they wake when you step into their reach.`,
   p2_village_visit: () =>
     "A village: end a unit's action on it to visit.\nVillages give gold, and send an item to the convoy, your army's shared storage.",
-  battle_loot: () =>
-    'Victory pays: pick one reward on the next screen.\nA weapon goes to a unit or the convoy, a consumable to a unit, and gold also pays for revivals and promotions.',
   // P3, The Seer on the Road (§6 P3). The recruit and fragile notes reuse the in-run
   // Guidance copy (guide_recruit_on_map, guide_fragile_in_reach, guide_healer_heals).
   p3_recruit: (ctx) =>
@@ -140,8 +141,6 @@ export const PROLOGUE_NOTES = Object.freeze({
     `Nothing is in reach from here, so Attack is greyed out.\n${ctx?.touch ? 'Back' : 'Esc or right-click'} undoes the move: nothing is final until you confirm. Try a tile 2 away from a foe.`,
   p3_range: () =>
     "Glimmer reaches 2 tiles. From 2 tiles away, a lance or an axe can't hit back.\nThe forecast shows No counter. Open it, then Cancel: looking is free.",
-  p3_magic: () =>
-    "Glimmer is magic: it hits RES, not DEF.\nSoldiers' armour turns blades, not light. Their RES is almost nothing.",
   p3_fragile: (ctx) => {
     const n = Number(ctx?.count) || 0;
     const who = ctx?.unit || 'Sera';
@@ -171,9 +170,9 @@ export const PROLOGUE_NOTES = Object.freeze({
     (Number.isFinite(ctx?.par)
       ? `Par: win in ${ctx.par} turns or fewer for bonus gold. Safety first; speed pays.`
       : 'Par is the target turn count: faster wins pay bonus gold. Safety first; speed pays.'),
+  // A forecast tip (the first forecast against Varro on the throne).
   p4_throne: (ctx) =>
-    `The throne guards ${ctx?.boss || 'Varro'}: harder to hurt, and he heals each turn.\n` +
-    'His axe reaches 1 tile. Strike from 2 where you can.',
+    `The throne guards ${ctx?.boss || 'Varro'}: harder to hurt, and he heals. Strike from 2.`,
   p4_seize_now: (ctx) =>
     `${ctx?.boss || 'Varro'} has fallen. Now a lord: step onto the gate and Seize.`,
 });
@@ -184,9 +183,13 @@ export const PROLOGUE_NOTE_ACTIONS = Object.freeze({
 });
 
 /**
- * Which in-run field notes a prologue note stands in for (HintManager ids). A shown
- * note marks these as taught, so a new slot skips their first-use explanation
- * (prologueLessons.applyCompletedTutorialHints).
+ * Which in-run field notes a prologue note or tip stands in for (HintManager ids). Only
+ * a read one marks them (a note acknowledged, a tip read or dismissed, a forecast tip
+ * confirmed or cancelled), so a new slot skips only the first-use explanations the
+ * player actually saw (prologueLessons.applyCompletedTutorialHints). What the prologue
+ * no longer says (P2's no-counter, chances and loot notes, P3's magic) is not here:
+ * Act 1 teaches it at its point of use (the forecast's inline notes, the armor note), and
+ * the reward screen explains itself (each card says what it is and who can use it).
  */
 export const NOTE_HINT_IDS = Object.freeze({
   battle_terrain: ['battle_terrain'],
@@ -196,10 +199,8 @@ export const NOTE_HINT_IDS = Object.freeze({
   p1_wait_or_end_turn: ['battle_danger_zone'],
   p2_veteran_kills: ['guide_veteran_kills'],
   battle_doubling: ['battle_doubling'],
-  battle_no_counter: ['battle_no_counter'],
   battle_danger_zone: ['battle_danger_zone'],
   p2_village_visit: ['battle_village'],
-  battle_loot: ['battle_loot'],
   p3_recruit: ['guide_recruit_on_map'],
   p3_heal: ['guide_healer_heals'],
   p3_plan_cancel: ['guide_no_attack'],
@@ -232,6 +233,17 @@ export const PROLOGUE_SERVICE_LINES = Object.freeze({
 
 /** Why the chapel's blessings are greyed in the prologue (ChurchVow.churchBlessingBlock). */
 export const PROLOGUE_BLESSING_BLOCK = 'Blessings begin with your first run.';
+
+/**
+ * Travelling on from the fork with Tamsin unarmed (engine/PrologueDeparture): a
+ * choice, never a gate (ui/PrologueDepartureWarning).
+ */
+export const PROLOGUE_UNARMED_DEPARTURE = Object.freeze({
+  body: (name = 'Tamsin') =>
+    `${name} has no usable weapon.\nShe can't attack in the next battle until she carries one.`,
+  roster: 'Open Roster',
+  go: 'Continue anyway',
+});
 
 /** An unarmed unit's roster line when the convoy holds a weapon it can use. */
 export function unarmedConvoyLine(weaponType) {
@@ -268,6 +280,29 @@ export const PROLOGUE_ROSTER_LESSON = Object.freeze({
   }),
 });
 
+/**
+ * The roster lesson's optional part (after Withdraw and Equip): Trade and Store,
+ * offered as more, never as steps the lesson waits on. `steps` are those still open.
+ */
+export const PROLOGUE_ROSTER_LESSON_MORE = Object.freeze({
+  coreDone: 'done',
+  kicker: 'More',
+  goal: (steps = ['trade', 'store']) =>
+    `More, if you like: ${steps.map((s) => (s === 'trade' ? 'Trade' : 'Store')).join(' and ')}`,
+  text: (steps = ['trade', 'store']) =>
+    [
+      steps.includes('trade') ? 'Trade swaps carried items between units.' : '',
+      steps.includes('store') ? 'Store puts an item in the convoy.' : '',
+      'Optional: the road waits either way.',
+    ]
+      .filter(Boolean)
+      .join(' '),
+  accept: 'Show me',
+  decline: 'Done',
+  stop: 'Done',
+  declined: 'Roster lesson complete.',
+});
+
 /** Why a step was skipped on its own (the army can't do it now). */
 export const PROLOGUE_ROSTER_LESSON_SKIPS = Object.freeze({
   no_weapon_in_convoy: (ctx) =>
@@ -289,14 +324,70 @@ export function rosterLessonSkipText(reason, ctx) {
   return build ? build(ctx) : '';
 }
 
-/** The title card the ending stub closes on (data/prologue.json `ending.titleCard`). */
-/** The run-end card the ending's last scene breaks the thread on (CeremonyController.showRunEnd). */
-export const PROLOGUE_THREAD_CARD = Object.freeze({
-  tone: 'cut',
-  word: 'THE THREAD IS CUT',
-  sub: 'Sera weaves again',
-  meta: 'Prologue · The Quarry Gate',
-});
+/**
+ * The ending's break (CeremonyController.showRunEnd's card over its last scene). Not a
+ * run's defeat: the player held the gate, and the world broke for its own reasons (the
+ * ritual in the east). So never the game-over words: THE THREAD BREAKS, the gate held,
+ * and (after the last chapter's win) the prologue complete. After a skip it says only
+ * that the world broke.
+ */
+export function prologueThreadCard({ won = false } = {}) {
+  return {
+    tone: 'cut',
+    word: 'THE THREAD BREAKS',
+    sub: won ? 'The gate held. The world did not.' : 'The world did not hold',
+    meta: won ? 'Prologue complete · Sera weaves again' : 'Prologue · Sera weaves again',
+  };
+}
+
+/** PROLOGUE COMPLETE: the win, said before the world breaks (the ending's `card`). */
+export function prologueCompleteCard({ chapters = 0 } = {}) {
+  const n = Math.max(0, Math.trunc(Number(chapters) || 0));
+  return {
+    tone: 'holds',
+    word: 'PROLOGUE COMPLETE',
+    sub: 'The Quarry Gate is held',
+    meta: n ? `${n} ${n === 1 ? 'chapter' : 'chapters'} won` : '',
+  };
+}
+
+/**
+ * The handoff (ui/PrologueHandoff): the one screen between the ending and Home Base,
+ * where the tutorial's protection ends. Plain words, one rule a row: what ends a run,
+ * what a fall costs, what starts over, what stays, how long Vision lasts. `lead` is
+ * the ending's title card (data/prologue.json `ending.titleCard`).
+ */
+export function prologueHandoffContent({ lead = '', won = false, commander = 'Edric' } = {}) {
+  const lord = commander || 'Edric';
+  return {
+    title: 'From here, it counts',
+    kicker: won ? 'Prologue complete' : 'The prologue ends',
+    lead: typeof lead === 'string' ? lead.trim() : '',
+    rows: [
+      {
+        term: 'A run ends',
+        text: `only when your commander falls. ${lord} leads your first run.`,
+      },
+      {
+        term: 'Fallen allies',
+        text: 'stay down until a Church revives them for gold.',
+      },
+      {
+        term: 'Starts over',
+        text: 'each run: a fresh army, with levels, items and gold reset.',
+      },
+      {
+        term: 'Stays',
+        text: 'Valor and Supply you earn, and the Home Base upgrades they buy.',
+      },
+      {
+        term: 'Vision',
+        text: 'charges last the whole run. Spend them on the turn that went wrong.',
+      },
+    ],
+    action: 'To Home Base',
+  };
+}
 
 export function prologueEndingCard(prologue) {
   const text = prologue?.ending?.titleCard;
@@ -317,23 +408,26 @@ export const PROLOGUE_LOST = Object.freeze({
 
 /**
  * The offer a fresh slot gets on New Game (§4): play the prologue (the highlighted
- * default on a device that has not finished it) or skip to the first run.
+ * default on a device that has not finished it) or skip to the first run. The minutes
+ * are an estimate for a first-time player from the harness's turn and action counts
+ * (docs/specs/prologue-chapter.md §9 "How long it takes"): a playtest hypothesis, not a
+ * measurement.
  */
 export const PROLOGUE_OFFER = Object.freeze({
   title: 'Begin the first thread?',
   body: "The prologue teaches the field in four short chapters, from Edric's first fight to the quarry gate. Skip it and your first run begins at once.",
   play: 'Play the Prologue',
-  playSub: 'about 20 minutes',
+  playSub: 'about 30 minutes',
   skip: 'Skip to the first run',
 });
 
 /** Home Base, first visit after the prologue: what the grant is for. */
 export const PROLOGUE_HOME_BASE_NOTE =
-  'This is what persists. Spend the Valor and Supply from the first thread.';
+  'This is what stays between runs. Spend the Valor and Supply from the first thread.';
 
 /** The route-map note of a first run that followed the prologue (Home Base is known). */
 export const PROLOGUE_FIRST_RUN_ROUTE_NOTE =
-  'Your first run begins here. Difficulty and blessings unlock after it ends. Tap a node to preview; Travel commits.';
+  'Your first run begins here, and now it counts: if Edric falls, the run ends. Tap a node to preview; Travel commits.';
 
 /** Short corrections while a guided step is live (coach nudges). */
 export const PROLOGUE_NUDGES = Object.freeze({
