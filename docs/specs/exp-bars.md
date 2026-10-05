@@ -164,7 +164,7 @@ death fade) is earlier than the cards and would split the moment in two.
 | Instant | No fill. The gauge shows the final state for a 400 ms hold, so the number still registers |
 | Reduce motion | No fill or flash. Final state with the gained span marked, a 600 ms hold. A wrap shows "LV↑" in the medallion |
 | Low effects | No glow on the flash |
-| Tap, click, Confirm or Cancel | Skips to the end state, then closes |
+| Tap, click, Enter / Space / Esc, or the pad's Confirm / Cancel / Pause | Skips to the end state, then closes (below: what else a press does) |
 
 - **Timing.** The fill and hold go through the scaled waits: new `COMBAT_WAITS` labels
   `xp_gauge_fill` and `xp_gauge_hold` in `combatTiming.js`, with entries in
@@ -174,6 +174,18 @@ death fade) is earlier than the cards and would split the moment in two.
   plays after every enemy attack that lands on a living player unit. That matches FE,
   where the bar appears after every exchange. A +1 gain at normal speed adds about
   0.4 s per enemy combat; Fast and hold-to-fast-forward halve it.
+- **A press during a gauge** (revision 4, review 2026-10-05). On the map it only skips
+  (the board never reads it as a tap). On a DOM control (the rail, a note's button, the
+  rotate button) it skips and still works the control; the rail stays live under the
+  gauge. **A key press during a gauge** that is a skip key (Enter / Space / Esc, the
+  pad's Confirm / Cancel / Pause) skips it and does nothing else, as the blocking
+  ceremonies' skip keys do; every other key passes by untouched, and a scope opened over
+  the gauge keeps its own keys. Decided rather than passing Esc / Pause on: a gauge
+  plays only while an action resolves (combat, staff or dance settling, an enemy's
+  action, the turn start, victory), where neither opens anything (pause needs a planning
+  state, Back a selection) and the one thing they would still reach is the prologue's
+  gate nudge (`requestCancel` → `rejectStep`). The press costs nothing: the next Esc is
+  the battle's.
 
 ### 2.4 How it is built
 
@@ -447,8 +459,9 @@ PR 1 alone answers the roster half of the request and ships with no battle-flow 
   skip while the gauge holds input focus (it pushes an input scope, which also routes the
   pad's Confirm / Cancel to it). That scope blocks nothing: the rail stays live and lit
   under a gauge (`XpGaugeController.holdsFocusOf`, read by `MobileBattleHUD.available`);
-  before, it went inert and dimmed for every gauge. The watchdog closes a gauge 2 s after
-  its fill and hold should have ended.
+  before, it went inert and dimmed for every gauge. Keys: a skip key only skips, decided
+  in §2.3 ("A key press during a gauge"). The watchdog closes a gauge 2 s after its fill
+  and hold should have ended.
 - **Placement.** The map frame never includes the rail (beside it in landscape, under
   it upright), so "would cover the rail" is "would leave the frame": below the tile when
   it fits, else above, clamped inside the frame. Upright the gauge spans the frame less

@@ -226,6 +226,59 @@ describe('skipping', () => {
     }
   });
 
+  // Decision (review, 2026-10-05; exp-bars.md §2.3): a skip key only skips. The gauge
+  // plays while the action resolves, where Esc / Pause open nothing (pause needs a
+  // planning state) but would still reach the prologue's gate (requestCancel →
+  // rejectStep: a coach nudge, or a blocking note on canvas builds), so passing them on
+  // would turn "skip the bar" into a scolding.
+  it('a skip key only skips: Esc and the pad’s Cancel / Pause never reach the battle', async () => {
+    const battleKey = vi.fn();
+    dom.win.addEventListener('keydown', battleKey); // Phaser's keyboard (window, bubble)
+    for (const press of [
+      () => dom.key('Escape'),
+      () => dom.key(' '),
+      () => dispatchInputAction(InputAction.CANCEL),
+      () => dispatchInputAction(InputAction.PAUSE),
+      () => dispatchInputAction(InputAction.CONFIRM),
+    ]) {
+      const scene = makeScene();
+      const battleAction = vi.fn();
+      pushInputScope(scene, battleAction);
+      const played = new XpGaugeController(scene).play(record(7, 10, 60).record);
+      press();
+      expect(layer()).toBeNull();
+      expect(await played).toBe(true);
+      expect(battleAction).not.toHaveBeenCalled();
+      // The gauge is gone: the next press is the battle's.
+      dispatchInputAction(InputAction.PAUSE);
+      expect(battleAction).toHaveBeenCalledWith(InputAction.PAUSE, undefined);
+      popInputScope(scene);
+    }
+    expect(battleKey).not.toHaveBeenCalled();
+  });
+
+  it('other keys pass by; a scope opened over the gauge keeps its own keys', async () => {
+    const battleKey = vi.fn();
+    dom.win.addEventListener('keydown', battleKey);
+    const played = new XpGaugeController(makeScene()).play(record(7, 10, 60).record);
+    dom.key('d');
+    expect(layer()).not.toBeNull();
+    expect(battleKey).toHaveBeenCalledTimes(1);
+    // A modal over the gauge (nothing a gauge opens, but a scope can): its Esc.
+    const modal = vi.fn();
+    pushInputScope('modal', modal);
+    const esc = dom.key('Escape');
+    dispatchInputAction(InputAction.CANCEL);
+    expect(layer()).not.toBeNull();
+    expect(esc.defaultPrevented).toBe(false);
+    expect(battleKey).toHaveBeenCalledTimes(2);
+    expect(modal).toHaveBeenCalledWith(InputAction.CANCEL, undefined);
+    popInputScope('modal');
+    dom.key('Escape');
+    expect(layer()).toBeNull();
+    expect(await played).toBe(true);
+  });
+
   it('a press on the map lifted off it leaves the next map click alone', () => {
     const scene = makeScene();
     scene.game = { canvas: dom.canvas };

@@ -322,14 +322,17 @@ export class XpGaugeController {
 
   /**
    * Skips while a gauge shows: a press anywhere, Enter / Space / Esc, or the pad's
-   * Confirm / Cancel. The layer takes no pointer, so a press lands on what is under it:
+   * Confirm / Cancel / Pause. The layer takes no pointer, so a press lands on what is
+   * under it:
    * - on the map (the canvas), it only skips: the board must not read its release as a
    *   tap once the battle is playable again, and its click is swallowed;
    * - on a DOM control (the rail, a note's "Got it", the rotate button), it skips and
    *   the control still takes the press: its own click goes through, once. A click
    *   that lands anywhere else (something the skip opened under the finger) is
    *   swallowed.
-   * Returns the unbind function.
+   * A skip key (Enter / Space / Esc, the pad's Confirm / Cancel / Pause) only skips,
+   * while the gauge holds the input focus: Esc and Pause are not passed on (exp-bars.md
+   * §2.3, "A key press during a gauge"). Returns the unbind function.
    */
   _bindSkip(gauge, finish) {
     const scene = this.scene;
