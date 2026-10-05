@@ -280,22 +280,32 @@ test('a wrap fills to 100 and hands off to the level card once the gauge closes'
 test('a tap skips the gauge to its end and hands off to the level card', async ({ page }) => {
   const errors = collect(page);
   await battle(page);
-  // 50 + 70: a wrap and 20 more, about 1.3 s of gauge at Normal speed.
+  // 50 + 70: a wrap and 20 more.
   await stageKill(page, { xp: 50 });
   await watchGauge(page);
+  // The gauge's hold runs on the scene clock: slowed a hundredfold, the gauge cannot
+  // close on its own before the tap lands, however slow the machine.
+  await page.evaluate(() => {
+    window.__emblemRogueGame.scene.getScene('Battle').time.timeScale = 0.01;
+  });
   await attack(page);
   await page.locator('.xg-layer').waitFor({ state: 'attached', timeout: 25_000 });
   const frame = await page.locator('.xg-layer').boundingBox();
   const tappedAt = await page.evaluate(() => performance.now());
   await page.touchscreen.tap(frame.x + frame.width / 2, frame.y + 12);
   await closed(page);
+  await page.evaluate(() => {
+    window.__emblemRogueGame.scene.getScene('Battle').time.timeScale = 1;
+  });
   const card = page.getByRole('dialog', { name: 'Level up', exact: true });
   await expect(card).toBeVisible();
   const log = await events(page);
   const open = log.find((e) => e.type === 'open');
   const close = log.find((e) => e.type === 'close');
-  // Skipped: closed before its fill and hold could end, at the end state.
-  expect(close.t - open.t).toBeLessThan(open.fillMs + open.holdMs);
+  // Skipped: closed by the tap (after it, long before a hold of 100 × 350 ms could end),
+  // at the end state.
+  expect(close.t).toBeGreaterThanOrEqual(tappedAt);
+  expect(close.t - open.t).toBeLessThan(open.fillMs + open.holdMs * 100);
   expect(close.v).toBe((await savedXp(page)).live);
   // The card the skip handed off to is still up after the tap's lift (and its click,
   // when the browser makes one: the gesture's events have all been delivered by the
