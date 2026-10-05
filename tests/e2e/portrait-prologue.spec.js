@@ -17,6 +17,26 @@ import { QUIET, driver, activeScene, slotMeta, slotRun } from './prologueDriver.
 import { playP1, playP2, toRoute, forkStop, coach } from './prologueJourney.js';
 
 test.use(phone(PORTRAIT_PHONES[1]));
+
+/** Tiles that, panned into view as far as the camera goes, are still under something. */
+function coveredTiles(page) {
+  return page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    const out = [];
+    for (let row = 0; row < b.grid.rows; row++)
+      for (let col = 0; col < b.grid.cols; col++) {
+        const w = b.grid.gridToPixel(col, row);
+        b._battleCamera?.ensureWorldVisible?.(w.x, w.y, 24);
+        const p = b._worldToScreen(w.x, w.y);
+        const r = b.game.canvas.getBoundingClientRect();
+        const x = r.left + (p.x * r.width) / b.scale.width;
+        const y = r.top + (p.y * r.height) / b.scale.height;
+        const el = document.elementFromPoint(x, y);
+        if (el?.tagName !== 'CANVAS') out.push(`${col},${row}: ${el?.className || 'nothing'}`);
+      }
+    return out;
+  });
+}
 test.setTimeout(600_000);
 
 test('upright: P1 by taps, P2, and the fork with its roster lesson', async ({ page }) => {
@@ -43,6 +63,10 @@ test('upright: P1 by taps, P2, and the fork with its roster lesson', async ({ pa
     coach(page).getByRole('button', { name: 'Skip the rest of the prologue', exact: true }),
   );
   await expectNoSidewaysScroll(page);
+  // The coach docks over the map: every tile can still be brought out from under it
+  // (the camera's pan) and tapped.
+  await expect(coach(page).locator('.re-coach-goal')).toHaveText('Select Edric');
+  expect(await coveredTiles(page)).toEqual([]);
 
   await playP1(d, { wrongWay: true, cancels: 1 });
   await toRoute(d);

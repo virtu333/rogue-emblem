@@ -75,7 +75,8 @@ test('the Market road: New Game to Home Base through ordinary play, Varro to the
   expect(d.lines().filter((l) => l.includes('From up here I can see it.'))).toHaveLength(1);
 
   // P4: the deploy note, the screen, Varro's lines, the formation, the seize/par note.
-  await enterP4(d);
+  // Edric, Gaspar and Sera: swords for the axes, and a healer.
+  await enterP4(d, { deploy: ['Gaspar', 'Sera'] });
   expect(d.notes().filter((n) => n.includes('Your commander always deploys.'))).toHaveLength(1);
   expect(d.notes().filter((n) => n.includes('Seize: defeat Captain Varro'))).toHaveLength(1);
   // Fight until Varro falls, every unit choosing its own strike: the boss falls to a
@@ -87,20 +88,33 @@ test('the Market road: New Game to Home Base through ordinary play, Varro to the
       await d.nextTurn(s.turn);
       continue;
     }
-    // The guard and the Fighter first. Then Varro's fall is kept to the player's own
-    // strikes: only Tamsin's bow chips him, from 2 tiles (a bow never counters at 1, so
-    // his own swings at her can't end him); everyone else keeps out of his reach and
-    // strikes him only when the strike likely kills.
+    // The guard and the Fighter first. Then Varro, in one phase: Gaspar's strike only
+    // once Sera stands near enough to follow it with Glimmer from 2 tiles, then Sera and
+    // Edric at him only when they can finish him. The kill is the player's own strike.
     const guards = await page.evaluate(
       () => window.__emblemRogueGame.scene.getScene('Battle').enemyUnits.filter((u) => !u.isBoss).length, // prettier-ignore
     );
-    const away = { col: 5, row: 5 };
+    const { varroHp, seraNear } = await page.evaluate(() => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      const v = b.enemyUnits.find((u) => u.isBoss);
+      const sera = b.playerUnits.find((u) => u.name === 'Sera');
+      const near =
+        Boolean(v && sera) &&
+        b.playerUnits.some((u) => u === sera) &&
+        [[-1, 1], [1, 1], [0, 2]].some(([dc, dr]) => Math.abs(sera.col - (v.col + dc)) + Math.abs(sera.row - (v.row + dr)) <= 4); // prettier-ignore
+      return { varroHp: v?.currentHP ?? 0, seraNear: near };
+    });
     const optsFor = (name) => {
       if (guards) return { targets: ['k', 'a'], caution: name === 'Gaspar' ? 1 : 2 };
-      if (name === 'Tamsin') return { targets: ['v'], minRange: 2, caution: 1, toward: { col: 8, row: 2 } }; // prettier-ignore
-      return { targets: ['v'], minKill: 0.5, caution: 10, toward: away };
+      if (name === 'Gaspar') {
+        if (varroHp > 16 && seraNear) return { targets: ['v'], caution: 1 };
+        if (varroHp > 16) return { attack: false, toward: { col: 9, row: 3 }, caution: 1 };
+        return { targets: ['v'], minKill: 0.3, caution: 3, toward: { col: 9, row: 3 } };
+      }
+      const stage = name === 'Sera' ? { col: 8, row: 3 } : { col: 7, row: 2 };
+      return { targets: ['v'], minKill: 0.3, caution: 3, toward: stage };
     };
-    const order = guards ? ['Gaspar', 'Edric', 'Sera', 'Tamsin'] : ['Tamsin', 'Gaspar', 'Edric', 'Sera']; // prettier-ignore
+    const order = ['Gaspar', 'Sera', 'Edric'];
     for (const name of order) {
       const u = await d.unit(name);
       if (!u || u.acted || !(await varroAlive(page))) continue;
