@@ -9,7 +9,7 @@ import { prepareBattleRewards } from '../engine/PendingBattleRewards.js';
 import { PendingRewardController } from './PendingRewardController.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { isPrologueRun, isStandaloneScriptedBattle } from '../engine/ScriptedBattle.js';
-import { finishPrologue } from './PrologueEnding.js';
+import { finishPrologue, offerPrologueLeaveRetry } from './PrologueEnding.js';
 import {
   serializeUnit,
   getActTransitionKey,
@@ -490,6 +490,19 @@ export class PostCombatController {
     }
   }
 
+  /** Home Base did not open after the ending: Retry (the commit pays nothing twice) or Title. */
+  async _offerPrologueLeaveRetry() {
+    const scene = this.scene;
+    const retry = async () => {
+      resetTransitionLocks(scene);
+      const ok = await finishPrologue(scene, this._prologueLedgers());
+      if (!ok && isCurrentBattleSession(scene, battleSession(scene)))
+        return this._offerPrologueLeaveRetry();
+      return ok;
+    };
+    return offerPrologueLeaveRetry(scene, retry);
+  }
+
   async forceTransitionAfterBattle() {
     const scene = this.scene;
     const session = battleSession(scene);
@@ -503,7 +516,7 @@ export class PostCombatController {
       if (isPrologueRun(scene.runManager) && scene.runManager.isActComplete()) {
         ok = await finishPrologue(scene, this._prologueLedgers());
         if (!isCurrentBattleSession(scene, session)) return;
-        if (!ok) scene.showLootStatus('Transition failed. Refresh and continue.', UI_PALETTE.bad);
+        if (!ok) void this._offerPrologueLeaveRetry();
         return;
       }
       const isRunComplete = scene.runManager?.isRunComplete?.();
@@ -545,7 +558,10 @@ export class PostCombatController {
     } catch (err) {
       if (!isCurrentBattleSession(scene, session)) return;
       console.error('[BattleScene][LootFlow] forceTransitionAfterBattle failed', err);
-      if (scene.runManager?.isRunComplete?.()) {
+      if (isPrologueRun(scene.runManager)) {
+        // The prologue never opens Run Complete: retry its own way out.
+        void this._offerPrologueLeaveRetry();
+      } else if (scene.runManager?.isRunComplete?.()) {
         scene.showVictoryTransitionRecovery();
       } else {
         scene.showLootStatus('Transition failed. Refresh and continue run.', UI_PALETTE.bad);
