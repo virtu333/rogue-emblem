@@ -88,31 +88,23 @@ test('the Market road: New Game to Home Base through ordinary play, Varro to the
       await d.nextTurn(s.turn);
       continue;
     }
-    // The guard and the Fighter first. Then Varro, in one phase: Gaspar's strike only
-    // once Sera stands near enough to follow it with Glimmer from 2 tiles, then Sera and
-    // Edric at him only when they can finish him. The kill is the player's own strike.
+    // The guard and the Fighter first. Then Varro, the player's way: Gaspar takes the
+    // step below the gate while Varro is too strong for a counter to finish him (his
+    // swing meets Gaspar's sword: 8 twice), then Gaspar's own attack ends him. The
+    // others hold back out of his reach.
     const guards = await page.evaluate(
       () => window.__emblemRogueGame.scene.getScene('Battle').enemyUnits.filter((u) => !u.isBoss).length, // prettier-ignore
     );
-    const { varroHp, seraNear } = await page.evaluate(() => {
-      const b = window.__emblemRogueGame.scene.getScene('Battle');
-      const v = b.enemyUnits.find((u) => u.isBoss);
-      const sera = b.playerUnits.find((u) => u.name === 'Sera');
-      const near =
-        Boolean(v && sera) &&
-        b.playerUnits.some((u) => u === sera) &&
-        [[-1, 1], [1, 1], [0, 2]].some(([dc, dr]) => Math.abs(sera.col - (v.col + dc)) + Math.abs(sera.row - (v.row + dr)) <= 4); // prettier-ignore
-      return { varroHp: v?.currentHP ?? 0, seraNear: near };
-    });
+    const varroHp = await page.evaluate(
+      () => window.__emblemRogueGame.scene.getScene('Battle').enemyUnits.find((u) => u.isBoss)?.currentHP ?? 0, // prettier-ignore
+    );
     const optsFor = (name) => {
       if (guards) return { targets: ['k', 'a'], caution: name === 'Gaspar' ? 1 : 2 };
-      if (name === 'Gaspar') {
-        if (varroHp > 16 && seraNear) return { targets: ['v'], caution: 1 };
-        if (varroHp > 16) return { attack: false, toward: { col: 9, row: 3 }, caution: 1 };
-        return { targets: ['v'], minKill: 0.3, caution: 3, toward: { col: 9, row: 3 } };
-      }
-      const stage = name === 'Sera' ? { col: 8, row: 3 } : { col: 7, row: 2 };
-      return { targets: ['v'], minKill: 0.3, caution: 3, toward: stage };
+      if (name === 'Gaspar')
+        return varroHp > 16
+          ? { attack: false, toward: { col: 9, row: 1 }, caution: 0 }
+          : { targets: ['v'], minKill: 0.5, caution: 0 };
+      return { attack: false, caution: 3, toward: name === 'Sera' ? { col: 8, row: 4 } : { col: 6, row: 3 } }; // prettier-ignore
     };
     const order = ['Gaspar', 'Sera', 'Edric'];
     for (const name of order) {
@@ -149,12 +141,16 @@ test('the Market road: New Game to Home Base through ordinary play, Varro to the
   // Edric walks to the gate and Seizes it from the action menu: the ending, once.
   await seizeWithEdric(d);
   const handoff = await d.dialog('From here, it counts');
-  for (const line of [
-    'Captain Varro: Captain Varro Nobody said what was coming up the road.',
-    'Sera: Sera The Hollow Sun.',
-    'Sera: Sera It was never yours to stop.',
+  // Each ending line once (Varro's last words, the Hollow Sun, Sera's break).
+  for (const [speaker, text] of [
+    ['Captain Varro', 'Nobody said what was coming up the road.'],
+    ['Sera', 'The Hollow Sun.'],
+    ['Sera', 'It was never yours to stop.'],
   ])
-    expect(d.lines().filter((l) => l.startsWith(line))).toHaveLength(1);
+    expect(
+      d.log.filter((e) => e.kind === 'line' && e.name === speaker && e.text.includes(text)),
+      `${speaker}: ${text} in ${JSON.stringify(d.lines())}`,
+    ).toHaveLength(1);
   await expect(handoff).toContainText('Prologue complete');
   await expect(handoff).toContainText('Losing your commander');
   // Nothing written until it is read.
