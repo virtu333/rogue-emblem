@@ -11,10 +11,10 @@
 // Speed and motion (§2.3): the fill and hold go through the scaled combat waits
 // (xp_gauge_fill / xp_gauge_hold), Fast or hold-to-fast-forward in the enemy phase halves
 // them; Instant and Reduce motion show the final state for a hold; Low effects drops the
-// glow. A tap, click, Enter / Space / Esc or the pad's Confirm / Cancel skips to the end
-// state and closes; a tap on a DOM control (the rail) skips and still works that control,
-// a tap on the map only skips. A watchdog closes a gauge whose timers never fire. Silent
-// (decision 4): the level-up cue on the card marks the wrap.
+// glow. A tap, click, Enter / Space / Esc or the pad's Confirm / Cancel / Pause skips to
+// the end state and closes; a tap on a DOM control (the rail) skips and still works that
+// control, a tap on the map or a skip key only skips. A watchdog closes a gauge whose
+// timers never fire. Silent (decision 4): the level-up cue on the card marks the wrap.
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { battleSpeed } from '../utils/combatTiming.js';
 import { TILE_SIZE, XP_PER_LEVEL } from '../utils/constants.js';
