@@ -1169,7 +1169,12 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   as a new save (newer than both, so the next fetch keeps it): never by taking a larger
   balance, which would restore spent currency. A kept payload with no record or `none`
   cannot vouch for a receipt (a client from before the prologue drops the record and keeps a
-  fetched grant), so the other copy's receipt is kept and nothing is added. The local
+  fetched grant), so the other copy's receipt is kept and nothing is added. That is
+  conservative on purpose: when the kept copy is an untouched new-client slot (`none`, saved
+  after the other copy completed and paid), the slot ends `complete` with `grantPaid` set
+  but without the grant in its currencies. The grant is lost there rather than ever paid
+  twice, since a `none` record cannot be told apart from an old client's copy that already
+  holds it (`MetaProgressionManager.reconcilePickedPrologue`). The local
   adopt-merge (`_adoptForeignDiskStateIfNewer`) keeps both economies at their max, so its
   receipt is the union (`mergePrologueState`): taking it from the newer copy there would pay
   twice. No transaction id: at most one payload's economy survives a pick, and the boolean on

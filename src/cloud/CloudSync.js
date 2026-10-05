@@ -575,9 +575,12 @@ export function isLocalOnlyRunSave(run) {
 const retiredPrologueRows = new Set();
 
 /**
- * Remove a prologue run save an earlier build pushed to this slot's cloud row, once a
- * session: the delete holds only while the row is itself a prologue run, so a standard
- * run in the row (another device's) is never touched.
+ * Remove a prologue run save an earlier build pushed to this slot's cloud row. The delete
+ * holds only while the row is itself a prologue run, so a standard run in the row
+ * (another device's) is never touched. Checked once a session per slot only when the
+ * check completes (the row deleted, or found holding no prologue run); a check that
+ * failed (offline, a refused write, an error) is forgotten and runs again on the slot's
+ * next prologue push.
  */
 function retireCloudPrologueRun(userId, slot) {
   const signature = `${userId}:${slot}`;
