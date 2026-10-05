@@ -409,16 +409,9 @@ export class HealController {
         facts.awardedXp = xp;
         return facts;
       },
-      present: async (facts, options) => {
-        safeBattlePresentation(
-          'staff XP',
-          () => scene._presentScaledXP?.(healer, facts.awardedXp),
-          {
-            scene,
-          },
-        );
-        await present(facts, options);
-      },
+      // The gain's EXP gauge plays after the staff's own presentation (settleAndPresent
+      // shows the queued progress), with any level-up card.
+      present: (facts, options) => present(facts, options),
     });
   }
 

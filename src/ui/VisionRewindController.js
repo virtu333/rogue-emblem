@@ -346,6 +346,7 @@ export class VisionRewindController {
       scene.visionSnapshot.decisionRngState || scene.visionSnapshot.rngState || null;
     scene._pendingActionCompletion = null;
     scene._pendingLevelUpPopups = [];
+    scene._pendingXpGauges = [];
     scene._timelineFacts = [];
     resetHistoryRecording(scene);
     scene._commanderKillerName = null;

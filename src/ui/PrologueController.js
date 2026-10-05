@@ -1394,6 +1394,10 @@ export class PrologueController {
     const scene = this.scene;
     const gameData = scene.gameData;
     const session = battleSession(scene);
+    // A level-up card or EXP gauge recorded before the fall never plays over the
+    // restarted chapter (the re-opened scene starts with empty queues too).
+    scene._pendingLevelUpPopups = [];
+    scene._pendingXpGauges = [];
     if (this.run) {
       const rm = this.run;
       const nodeId = rm.battleInProgress?.nodeId || scene.nodeId;

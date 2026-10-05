@@ -1,5 +1,5 @@
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
-import { captureResolvedAction, presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
+import { captureResolvedAction, presentQueuedProgress } from './BattlePresentationCheckpoint.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
 
@@ -90,7 +90,7 @@ export async function settleAndPresent(
       scene,
     });
     if (!isCurrentBattleSession(scene, session)) return false;
-    await presentQueuedLevelUps(scene, null, { session });
+    await presentQueuedProgress(scene, null, { session });
     if (!isCurrentBattleSession(scene, session)) return false;
     scene._pendingActionCompletion = null;
     await scene.finishUnitAction(unit, {
