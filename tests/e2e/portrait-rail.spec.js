@@ -1020,6 +1020,8 @@ test.describe('prologue forecast lessons upright', () => {
       await page.touchscreen.tap(p.x, p.y);
     };
     const note = page.getByRole('dialog', { name: 'Field notes', exact: true });
+    // The coach is revealed once the opening banner clears: until then it is hidden.
+    await expect(coach).toBeVisible({ timeout: 20_000 });
     await tapTile(0, 2);
     await expect(coach.locator('.re-coach-goal')).toHaveText('Move onto the Fort');
     await tapTile(3, 2);
