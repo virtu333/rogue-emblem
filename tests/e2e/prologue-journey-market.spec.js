@@ -87,14 +87,28 @@ test('the Market road: New Game to Home Base through ordinary play, Varro to the
       await d.nextTurn(s.turn);
       continue;
     }
-    for (const name of ['Gaspar', 'Edric', 'Sera', 'Tamsin']) {
+    // The guard and the Fighter first. Then Varro's fall is kept to the player's own
+    // strikes: only Tamsin's bow chips him, from 2 tiles (a bow never counters at 1, so
+    // his own swings at her can't end him); everyone else keeps out of his reach and
+    // strikes him only when the strike likely kills.
+    const guards = await page.evaluate(
+      () => window.__emblemRogueGame.scene.getScene('Battle').enemyUnits.filter((u) => !u.isBoss).length, // prettier-ignore
+    );
+    const away = { col: 5, row: 5 };
+    const optsFor = (name) => {
+      if (guards) return { targets: ['k', 'a'], caution: name === 'Gaspar' ? 1 : 2 };
+      if (name === 'Tamsin') return { targets: ['v'], minRange: 2, caution: 1, toward: { col: 8, row: 2 } }; // prettier-ignore
+      return { targets: ['v'], minKill: 0.5, caution: 10, toward: away };
+    };
+    const order = guards ? ['Gaspar', 'Edric', 'Sera', 'Tamsin'] : ['Tamsin', 'Gaspar', 'Edric', 'Sera']; // prettier-ignore
+    for (const name of order) {
       const u = await d.unit(name);
       if (!u || u.acted || !(await varroAlive(page))) continue;
       if ((await d.battleState()).phase !== 'player') break;
       const plan =
         name === 'Sera'
-          ? await d.support('Sera', { fallback: { caution: 2 } })
-          : await d.act(name, { caution: name === 'Gaspar' ? 1 : 2 });
+          ? await d.support('Sera', { fallback: optsFor(name) })
+          : await d.act(name, optsFor(name));
       if (plan.kind === 'attack' && plan.target === 'v' && !(await varroAlive(page))) killer = name;
     }
     const after = await d.battleState();

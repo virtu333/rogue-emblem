@@ -134,9 +134,9 @@ test("P3: with the chapter's Vision charge a fall offers the rewind first; Rewin
   await enterP3(d);
   const before = await entry(page);
   expect(before.charges).toBe(0);
-  // Turn 1 as taught: Edric Talks to Sera, she heals him.
+  // Turn 1 as taught: Edric Talks to Sera; she heals whoever is hurt.
   await d.talk('Edric', { col: 3, row: 2 });
-  await d.heal('Sera', 'Edric');
+  await d.support('Sera', { below: 1, fallback: { attack: false, stay: true } });
   // Tamsin walks into the Soldiers' reach turn after turn; the rest hold.
   expect(await sacrifice(d, 'Tamsin', ['Gaspar', 'Sera', 'Edric'])).toBe('fate');
   // The fall's offer names who fell; the rewind is the primary choice.

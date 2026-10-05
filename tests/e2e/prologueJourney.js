@@ -240,7 +240,8 @@ export const p3Opts = (name) =>
 
 export async function playP3TalkFirst(d) {
   await d.talk('Edric', { col: 3, row: 2 });
-  await d.heal('Sera', 'Edric');
+  // Sera acts at once: she heals whoever is hurt (Edric, after P2), else she fights.
+  await d.support('Sera', { below: 1, fallback: { caution: 2 } });
   await fightOut(d, P3_ORDER, p3Opts);
 }
 

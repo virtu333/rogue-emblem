@@ -1,8 +1,8 @@
 // Refreshes in the middle of the prologue's teaching, reached through ordinary play
 // (docs/specs/prologue-chapter.md §9, "Persistence"): P2's reward screen (the reward is
-// offered again and paid once), P3's opening note while it is on screen, Sera's heal
-// note, the turn the Vision charge is granted, and P4's seize/par note before it is
-// read. Each time Resume Battle brings back the unfinished teaching, once, and nothing
+// offered again and paid once), P3's opening note while it is on screen, the action
+// after Sera's join, the turn the Vision charge is granted, and P4's seize/par note
+// before it is read. Each time Resume Battle brings back the unfinished teaching, once, and nothing
 // is paid or taught twice (hint ids, the Vision grant, the gold).
 import { test, expect } from '@playwright/test';
 import { bootDesktop, driver, activeScene, slotMeta, slotRun } from './prologueDriver.js';
@@ -66,6 +66,14 @@ test('refreshes mid-teaching: the reward, P3 notes, the Vision grant, P4 before 
   await d.dialog('Battle rewards');
   const goldBefore = (await slotRun(page)).gold;
   await refreshAndResume(d, { battle: false });
+  // Back on the route map with the reward unclaimed: the map says so and its main
+  // button returns to the rewards (travel waits until they are chosen).
+  await toRoute(d);
+  const route = page.locator('.re-node-map');
+  await expect(route.locator('.re-loom-card')).toContainText(
+    'Choose your remaining battle rewards',
+  );
+  await d.click(route.getByRole('button', { name: 'Return to rewards', exact: true }));
   const rewards = await d.dialog('Battle rewards');
   await d.click(rewards.getByRole('button', { name: /^150 gold/ }));
   await d.click(rewards.getByRole('button', { name: 'Choose reward', exact: true }));
@@ -89,23 +97,31 @@ test('refreshes mid-teaching: the reward, P3 notes, the Vision grant, P4 before 
   expect(d.notes().filter((n) => n.includes('can join you'))).toHaveLength(1);
   expect((await seenHints(page)).filter((h) => h === 'guide_recruit_on_map')).toHaveLength(1);
 
-  // Edric Talks; Sera's heal note shows on her selection: refresh while it is up.
+  // Edric Talks: Sera joins. A refresh right after keeps her in the army, her card
+  // and her lines never replay, and her join is not offered again.
   await d.talk('Edric', { col: 3, row: 2 });
-  const sera = await d.unit('Sera');
-  await d.tile(sera.col, sera.row);
-  await d.drain(() => false, null, {
-    stopAt: (top) => top.name === 'Field notes' && top.text.includes('Sera heals with her staff'),
+  await page.waitForFunction(() => {
+    const run = JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run') || 'null');
+    const cp = run?.battleInProgress?.checkpoint;
+    return (cp?.playerUnits || []).some((u) => u.name === 'Sera') && !(cp?.npcUnits || []).length;
   });
-  await pendingSaved(page, 'Sera heals with her staff');
   await refreshAndResume(d);
-  await expect(noteShown(page, 'Sera heals with her staff')).toBeVisible();
   await d.idle();
-  expect(d.notes().filter((n) => n.includes('Sera heals with her staff'))).toHaveLength(1);
   expect(d.log.filter((e) => e.name === 'Sera joins your army')).toHaveLength(1);
-  expect(await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').playerUnits.map((u) => u.name))).toContain('Sera'); // prettier-ignore
-  // Selecting her again teaches nothing new; she heals.
-  await d.heal('Sera', 'Edric');
-  expect(d.notes().filter((n) => n.includes('Sera heals with her staff'))).toHaveLength(1);
+  const after = await page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    return {
+      players: b.playerUnits.map((u) => u.name),
+      npcs: (b.npcUnits || []).map((u) => u.name),
+      edricActed: b.playerUnits.find((u) => u.name === 'Edric').hasActed === true,
+    };
+  });
+  expect(after).toEqual({
+    players: ['Edric', 'Gaspar', 'Tamsin', 'Sera'],
+    npcs: [],
+    edricActed: true,
+  });
+  await d.support('Sera', { below: 1, fallback: { caution: 2 } });
 
   // The rest of turn 1, then turn 2: the Vision charge is granted once, across a refresh.
   await d.act('Gaspar');

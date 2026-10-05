@@ -1411,6 +1411,13 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   and a field note's "Skip prologue" open the same confirmation) jumps to the ending
   (`src/ui/PrologueEnding.js`: the `prologue.ending` scenes, the title card, one meta write,
   the run save cleared), then Home Base with the grant. The prologue run has no Abandon Run.
+  An exit asked for is honoured, never dropped (`PrologueController.requestLeave`): over an
+  uncommitted forecast or target choice (the first forecast's note) the plan backs out to the
+  action menu, the forecast closed unread and no attack made, and the confirmation opens;
+  where it cannot open yet (the note before the turn passes to the enemy, the enemy phase)
+  the coach says so and the request waits, opening the confirmation at the next point the
+  player can act (`flushLeave`, before any deferred note). Nothing is committed or advanced
+  to make room for it.
 - **The ending** is reached from the last chapter's victory (after its authored loot) in
   `PostCombatController.transitionAfterBattle`, or from the route map after a reload
   (`NodeMapScene.checkActComplete`), and never RunComplete or a settlement.
@@ -1472,7 +1479,8 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   - A completed prologue routes to Home Base, then the fast path.
   - A completed prologue's lesson ids are read in the first run.
   - The suppress list holds (no `battle_par`, no Guidance note and no cold open in prologue mode).
-- **e2e:** the `prologue` lane (`tests/e2e/lanes.json`): `prologue-run.spec.js` (the offer,
+- **e2e:** the `prologue` lane (`tests/e2e/lanes.json`; the ordinary-play specs are listed
+  under "Ordinary play" below): `prologue-run.spec.js` (the offer,
   P1 as a run, the route, P2, the ending, Home Base, Begin Run's fast path; Skip; a refresh
   mid-P1 with Resume Battle and Continue from Map), `prologue-exit.spec.js` (Skip from the
   coach, the pause and a note; the restart in the run; the chapter select and a replay that
@@ -1560,7 +1568,46 @@ with `PrologueRosterLesson` performing the real Withdraw and Equip, `PrologueEnd
 grant under faults: a refused lesson record, a throwing meta write, a throwing transition
 after the payment, a crash before the save cleared, two attempts at once). Browser: the
 `prologue` lane routs P3's Soldiers before the Talk and lets the join win, and lets Varro
-fall to Gaspar's counter on the enemy phase through ordinary combat.
+fall to Gaspar's counter on the enemy phase (in `prologue-run.spec.js` by setting the
+board up; through ordinary play since the review below).
+
+**Ordinary play (review, 2026-10-05).** `prologue-run.spec.js` stays the fast flow test
+(it calls `onVictory()` and sets Varro's HP to reach each screen). Beside it, the lane
+plays the thread the way a player does: nothing calls `onVictory`, `removeUnit`,
+`completeBattle` or a setter. `tests/e2e/prologueDriver.js` clicks or taps board tiles
+(after the camera brings them into view; a docked tip over a tile is read first, anything
+else covering the board fails), works the desktop's canvas action menu by keyboard and the
+phone's rail by taps, confirms or cancels the forecast (the tile, Esc, or the phone's
+buttons; ◀ ▶ choose its weapon), and reads past notes, lines, cards and level-ups while it
+waits on state, logging each so a spec can count what was taught; a small planner reads the
+live board (blue range, forecasts, Danger) to choose each unit's move.
+`tests/e2e/prologueJourney.js` plays each chapter on top of it. Specs:
+`prologue-journey-market.spec.js` (New Game's offer to Home Base: P1, P2 the lesson's way,
+the reward card, the Market's roster lesson Withdraw and Equip, P3 Talk first, the
+watchtower's Rest, P4's deploy and formation, Varro felled by the player's own strike, the
+Seize from Edric's action menu, the ending once, the grant, a refresh paying nothing twice);
+`prologue-journey-chapel.spec.js` (the wrong way round: P1's wrong tiles and a forecast
+cancelled three times, P2 with Gaspar taking every kill (completes, `veteran_kills` never
+practised), the Chapel, Withdraw skipped and the lesson dropped, the departure's Continue
+anyway, Tamsin's greyed "Unarmed" Attack, the rout before the Talk (the battle playable,
+the objective and the coach on Sera), the Talk from her far side winning it, Scavenge, P4
+without Tamsin and Varro to Gaspar's counter on the enemy phase, the next turn playable,
+the Seize, Home Base); `prologue-falls.spec.js` (Gaspar falls on P2's enemy phase: "Not this
+thread", P2 from its entry; in P3 the chapter's Vision charge offers the rewind first,
+Rewind spends it, the next fall restarts P3 with the grant reverted);
+`prologue-resume.spec.js` (refreshes at P2's reward screen (Return to rewards, paid once),
+on P3's opening note, after Sera's join, on the turn the Vision charge is granted, and on
+P4's seize/par note: each unread note back once, nothing taught or paid twice);
+`prologue-skip.spec.js` (Skip on P1's first forecast note backs out with no attack made and
+opens the confirmation; Skip on the note before the enemy-phase handoff opens it at the next
+player turn; P2's pause and the fork's route-map pause skip to the ending and Home Base with
+the grant once; a replay's Leave on the same note). `portrait-prologue.spec.js` (the
+`portrait` lane, with every upright spec): P1 by taps on the turned board, P2, the fork and
+its roster lesson on a phone. Found and fixed on the way: Skip on a note over a forecast or
+before the handoff was dropped with "You can leave once your turn is back"
+(`PrologueController.requestLeave` now backs out of the uncommitted forecast, or queues the
+exit until the player can act); a fall's offer read "A vision fractures!" with Sera on the
+field before the roster took her in (`VisionRewindController`).
 
 ### Novice playtest (the measure that matters)
 

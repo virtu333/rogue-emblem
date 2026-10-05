@@ -56,6 +56,9 @@ const DECISION_DIALOGS = new Set([
   'Trade items',
 ]);
 
+// Screens the drain waits out (they leave on their own).
+const WAIT_UNDER = new Set(['Select save']);
+
 /** Every visible dialog, topmost last: { name, text, buttons }. */
 function visibleDialogs(page) {
   return page.evaluate(() => {
@@ -219,6 +222,17 @@ export function driver(page, { touch = false } = {}) {
         const top = dialogs.at(-1);
         if (top) {
           if (stopAt?.(top)) return true;
+          // The save list stays up for a moment while Resume opens the slot it named.
+          if (WAIT_UNDER.has(top.name)) {
+            await page
+              .waitForFunction(
+                (n) => ![...document.querySelectorAll('[role="dialog"]')].some((e) => e.getAttribute('aria-label') === n && e.getClientRects().length), // prettier-ignore
+                top.name,
+                { timeout: Math.max(1000, deadline - Date.now()) },
+              )
+              .catch(() => {});
+            continue;
+          }
           if (DECISION_DIALOGS.has(top.name)) {
             if (await page.evaluate(done, arg)) return false;
             throw new Error(`drain stopped at "${top.name}": ${top.text.slice(0, 200)}`);
@@ -579,6 +593,8 @@ export function driver(page, { touch = false } = {}) {
      *   toward    {col,row} to walk to when not attacking (default: the nearest foe)
      *   caution   how much a tile's exposure to the next enemy phase weighs (default 1)
      *   stay      true: never move (attack from where it stands, or Wait)
+     *   minRange  attack only from at least this far (2: out of a melee counter)
+     *   minKill   attack only when the kill chance is at least this
      * Returns { kind: 'attack', from, target } or { kind: 'move', to }.
      */
     plan(name, opts = {}) {
@@ -654,6 +670,7 @@ export function driver(page, { touch = false } = {}) {
                 for (const w of weapons) {
                   const dist = C.gridDistance(tile.col, tile.row, foe.col, foe.row);
                   if (!C.isInRange(w, dist)) continue;
+                  if (opts.minRange && dist < opts.minRange) continue;
                   const f = forecast({ ...at(tile), weapon: w }, w, foe, foe.weapon, tile, foe);
                   const a = f.attacker;
                   const hit = Math.max(0, Math.min(100, a.hit || 0)) / 100;
@@ -666,6 +683,7 @@ export function driver(page, { touch = false } = {}) {
                   const need = dmg > 0 ? Math.ceil(foe.currentHP / dmg) : Infinity;
                   const kill =
                     need > strikes ? 0 : need === 1 ? 1 - (1 - hit) ** strikes : hit ** need;
+                  if (opts.minKill && kill < opts.minKill) continue;
                   const d = f.defender;
                   const counters = d.canCounter === false ? 0 : d.attackCount || 0;
                   const counter = (d.damage || 0) * counters * (Math.max(0, d.hit || 0) / 100);
@@ -846,7 +864,7 @@ export function driver(page, { touch = false } = {}) {
           const h = b.playerUnits.find((u) => u.name === name);
           const C = await import('/src/engine/Combat.js');
           const staff = (h.inventory || []).find((w) => w.type === 'Staff');
-          if (!staff || !C.hasPerBattleUsesLeft(staff, h)) return null;
+          if (!staff || !(C.getStaffRemainingUses(staff, h) > 0)) return null;
           const ctx = b.threatContext();
           const hurt = b.playerUnits
             .filter((u) => u !== h && u.currentHP > 0 && u.currentHP < u.stats.HP * below)
