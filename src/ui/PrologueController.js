@@ -178,6 +178,8 @@ export class PrologueController {
     // lesson is practised by that choice, never by the battle merely starting; an
     // auto-deploy or a resumed battle confirms nothing).
     const deployed = scene._deployConfirmation;
+    // Read once: a controller made again on this scene confirms nothing new.
+    scene._deployConfirmation = null;
     if (deployed && typeof deployed === 'object')
       void this.emit({ type: 'deployed', count: Number(deployed.count) || 0 });
     return this;

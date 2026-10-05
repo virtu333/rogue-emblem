@@ -520,6 +520,10 @@ export class BattleScene extends Phaser.Scene {
     this.lastHybridOverrideResult = null;
     // A prologue chapter's teaching (PrologueController), created with the HUD.
     this._prologue = null;
+    // This battle's deploy screen confirmation (create), read once by PrologueController.
+    // Phaser reuses the scene object: a later battle with no deploy screen (auto-deploy,
+    // a resume, a replay) must not inherit an earlier one's.
+    this._deployConfirmation = null;
     this._storyDialogueActive = false;
     this._ceremonies = null;
     this._bossPresence = null;

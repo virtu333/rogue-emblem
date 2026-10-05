@@ -1277,7 +1277,7 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   | `onHoldersWoke` | the AI's callback | blocks simulation (the enemy phase waits) |
   | `onTalk`, `onHealed` | the Talk and Heal presentations, before the action completes | blocks simulation |
   | `onSeize` | the Seize command, before `onVictory` | blocks simulation |
-  | `deployed` (raised by the controller's `create` from the deploy screen's confirmation, `scene._deployConfirmation`) | `beginBattle`, before the first phase | its lesson mark is sync; a note here would wait for a playable turn. Never raised by an auto-deploy or a resume: P4's `deploy` is practised by the choice, not by `battleStart` |
+  | `deployed` (raised by the controller's `create` from the deploy screen's confirmation, `scene._deployConfirmation`: reset in `BattleScene.init`, since Phaser reuses the scene object, and cleared once read) | `beginBattle`, before the first phase | its lesson mark is sync; a note here would wait for a playable turn. Never raised by an auto-deploy or a resume: P4's `deploy` is practised by the choice, not by `battleStart` |
   | `onRewound` | `VisionRewindController`, after the board is restored | blocks input only |
   | `onVictory` | `PostCombatController`, after the band | blocks simulation (the victory flow waits) |
   | gate nudges (`rejectSelect`, `rejectMove`, `rejectStep`) | input | decorative |

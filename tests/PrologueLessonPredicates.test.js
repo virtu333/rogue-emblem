@@ -3,11 +3,13 @@
 // only on a Soldier Gaspar had already damaged this battle (the attack or a counter);
 // P3's "range two" counts Sera's strike only at a committed distance of 2; P4's
 // "deploy" is practised by the deploy screen's confirmation, never by the battle
-// merely starting (an auto-deploy or a resumed battle confirms nothing). The
+// merely starting (an auto-deploy or a resumed battle confirms nothing, nor does a
+// later battle on the reused scene object inherit an earlier confirmation). The
 // combatResolved event carries the committed distance and who damaged the target
 // before now; the damage ledger rides the suspend snapshot.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 vi.mock('../src/ui/HintDisplay.js', () => ({
   showImportantHint: vi.fn(async () => true),
   showMinorHint: vi.fn(),
@@ -23,6 +25,7 @@ import {
 } from '../src/engine/Prologue.js';
 import { PrologueController } from '../src/ui/PrologueController.js';
 import { prologueBattleParams } from '../src/engine/ScriptedBattle.js';
+import { BattleScene } from '../src/scenes/BattleScene.js';
 import { readFileSync } from 'fs';
 
 const data = {
@@ -256,6 +259,35 @@ describe('P4: deploy is practised by the deploy confirmation', () => {
     const prologue = new PrologueController(resumed.scene).create();
     prologue.onResume(state, { turn: 1, phase: 'player' });
     expect(prologue.lessons.practised.has('deploy')).toBe(true);
+  });
+
+  it('a later battle on the reused scene object inherits no confirmation', () => {
+    // Phaser reuses one BattleScene: battle 1 confirmed its deploy screen (create), then
+    // battle 2 (an auto-deploy, a resume, a replay) inits the same object with none.
+    const reused = new BattleScene();
+    reused.init({ gameData: data });
+    reused._deployConfirmation = { count: 3 };
+    reused.init({ gameData: data });
+    expect(reused._deployConfirmation).toBeNull();
+    const second = makeScene('p4_quarry_gate', {
+      deploy,
+      confirmed: reused._deployConfirmation,
+    });
+    const prologue = new PrologueController(second.scene).create();
+    expect(prologue.lessons.practised.has('deploy')).toBe(false);
+    expect(prologue.beatState.fired).not.toContain('p4_deployed');
+  });
+
+  it('the controller reads the confirmation once', () => {
+    const chosen = makeScene('p4_quarry_gate', { deploy, confirmed: { count: 3 } });
+    expect(new PrologueController(chosen.scene).create().lessons.practised.has('deploy')).toBe(
+      true,
+    );
+    expect(chosen.scene._deployConfirmation).toBeNull();
+    // A controller made again on the same scene object confirms nothing new.
+    const again = new PrologueController(chosen.scene).create();
+    expect(again.lessons.practised.has('deploy')).toBe(false);
+    expect(again.beatState.fired).not.toContain('p4_deployed');
   });
 
   it('the beat is a deployed trigger, which only a chapter with a deploy rule may use', () => {
