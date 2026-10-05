@@ -356,6 +356,32 @@ describe('finishPrologue', () => {
     expect(showPrologueHandoff).toHaveBeenCalledTimes(1);
   });
 
+  it('a second call while the ending plays joins it: one ending, one commit, one Home Base', async () => {
+    const { scene, meta } = makeScene();
+    // The player is still on the handoff page when the second call comes (playtest:
+    // the battle's post-loot fallback fired under the ending and opened a failure).
+    let closeHandoff;
+    vi.mocked(showPrologueHandoff).mockImplementationOnce(
+      () => new Promise((resolve) => (closeHandoff = resolve)),
+    );
+    const first = finishPrologue(scene);
+    await vi.waitFor(() => expect(showPrologueHandoff).toHaveBeenCalledTimes(1));
+    expect(scene._prologueEndingActive).toBe(true);
+    const second = finishPrologue(scene);
+    expect(second).toBe(first);
+    closeHandoff(true);
+    expect(await first).toBe(true);
+    expect(await second).toBe(true);
+    expect(scene._prologueEndingActive).toBe(false);
+    expect(scene.dialogueOverlay.showSequence).toHaveBeenCalledTimes(4);
+    expect(showPrologueHandoff).toHaveBeenCalledTimes(1);
+    expect(transitionToScene).toHaveBeenCalledTimes(1);
+    expect(meta.totalValor).toBe(data.prologue.grant.valor);
+    // Settled: a later retry may run again (it only commits and leaves).
+    expect(await finishPrologue(scene)).toBe(true);
+    expect(showPrologueHandoff).toHaveBeenCalledTimes(1);
+  });
+
   it('refuses outside the prologue run', async () => {
     const rm = new RunManager(data, null);
     rm.startRun({ difficultyId: 'normal' });

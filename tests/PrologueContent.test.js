@@ -131,6 +131,6 @@ describe('prologue copy', () => {
   it('a note that stands in for an in-run hint only does so for a hint it teaches', () => {
     expect(NOTE_HINT_IDS.p1_wait_or_end_turn).toEqual(['battle_danger_zone']);
     expect(prologueNoteText('p1_wait_or_end_turn', {})).toMatch(/Danger/);
-    expect(NOTE_HINT_IDS.p1_level_up).toBeUndefined();
+    expect(NOTE_HINT_IDS.p1_exp).toBeUndefined();
   });
 });

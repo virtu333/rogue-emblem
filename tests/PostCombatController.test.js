@@ -13,6 +13,20 @@ vi.mock('../src/utils/SceneRouter.js', async () => {
   };
 });
 
+const { finishPrologueMock, offerPrologueLeaveRetryMock } = vi.hoisted(() => ({
+  finishPrologueMock: vi.fn(async () => true),
+  offerPrologueLeaveRetryMock: vi.fn(async () => false),
+}));
+
+vi.mock('../src/ui/PrologueEnding.js', async () => {
+  const actual = await vi.importActual('../src/ui/PrologueEnding.js');
+  return {
+    ...actual,
+    finishPrologue: finishPrologueMock,
+    offerPrologueLeaveRetry: offerPrologueLeaveRetryMock,
+  };
+});
+
 import { TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
 import { LootScreenController } from '../src/ui/LootScreenController.js';
 import { PostCombatController } from '../src/ui/PostCombatController.js';
@@ -385,6 +399,31 @@ describe('PostCombatController', () => {
       expect.objectContaining({ nodeId: scene.nodeId }),
     );
     expect(scene.forceTransitionAfterBattle).toHaveBeenCalledTimes(1);
+  });
+
+  it('the prologue never opens Run Complete: its failed exit offers its own Retry / Title', async () => {
+    for (const fail of [
+      () => finishPrologueMock.mockResolvedValueOnce(false),
+      () => finishPrologueMock.mockRejectedValueOnce(new Error('boom')),
+    ]) {
+      vi.clearAllMocks();
+      const scene = makeScene();
+      scene.runManager.mode = 'prologue';
+      scene.runManager.isActComplete = vi.fn(() => true);
+      scene.runManager.isRunComplete = vi.fn(() => true);
+      fail();
+      const controller = new PostCombatController(scene);
+      await controller.forceTransitionAfterBattle();
+      expect(finishPrologueMock).toHaveBeenCalledTimes(1);
+      expect(offerPrologueLeaveRetryMock).toHaveBeenCalledTimes(1);
+      expect(scene.showVictoryTransitionRecovery).not.toHaveBeenCalled();
+      expect(transitionToSceneMock).not.toHaveBeenCalledWith(
+        scene,
+        'RunComplete',
+        expect.anything(),
+        expect.anything(),
+      );
+    }
   });
 
   it('showLootScreen initializes loot state and forwards lootGroup from LootScreenController', () => {

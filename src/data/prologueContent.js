@@ -97,7 +97,10 @@ export const PROLOGUE_NOTES = Object.freeze({
     `Wait ends ${lordOf(ctx)}'s move. Once every unit has acted, the turn passes and each red unit gets its move.\n` +
     `Check who can reach you first: ${danger(ctx)} shows every tile an enemy can strike. The near Fighter reaches the Fort; the far one does not.`,
   p1_enemy_phase: (ctx) => `Red units move now. ${lordOf(ctx)} strikes back when attacked, too.`,
-  p1_level_up: () => 'Levels raise stats at random. Growth rates decide the odds.',
+  // Turn 2's tip (P1), once Edric has fought: the EXP bar, then what a level does. Taught
+  // here, not at the level-up, which comes with the last kill under the victory banner.
+  p1_exp: (ctx) =>
+    `The gold bar after a fight is EXP, and a kill fills it most. At 100, ${lordOf(ctx)} levels up: his stats rise at random, and growth rates decide the odds.`,
   p1_holding_enemy: (ctx) =>
     `Some enemies hold their post until you come close. Their red reach shows where.\n${lordOf(ctx)} is inside it now, so this Fighter will come.`,
   // A forecast tip (P1, against the second Fighter): one line in the forecast's notes.
@@ -111,6 +114,15 @@ export const PROLOGUE_NOTES = Object.freeze({
         ? `heals ${Number(item.value)} HP`
         : 'heals';
     return `Item → ${name} ${effect}.\nYou carry few, and they never come back: a consumable's uses are spent for good.`;
+  },
+  // P2: Gaspar's kit has no Vulnerary; the army's is Edric's. Said only when the hurt
+  // unit carries nothing to heal with and an ally does (a tip: nothing when it can't help).
+  p2_trade_vulnerary: (ctx) => {
+    const who = ctx?.unit || 'Gaspar';
+    const donor = ctx?.donor;
+    if (ctx?.healing || !donor?.name) return null;
+    const item = donor.item || 'Vulnerary';
+    return `${who} carries no ${item}, but ${donor.name} does. Move ${who} next to ${donor.name} and choose Trade to take it, then Item → ${item}: it heals him this same turn.`;
   },
   // P2, Old Hands (docs/specs/prologue-chapter.md §6 P2).
   p2_veteran_kills: (ctx) => {

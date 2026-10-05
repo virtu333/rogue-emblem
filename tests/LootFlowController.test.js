@@ -272,6 +272,23 @@ describe('LootFlowController', () => {
     vi.useRealTimers();
   });
 
+  it("the fallback never forces an exit while the prologue's ending plays, however long it is read", async () => {
+    vi.useFakeTimers();
+    const scene = makeScene();
+    scene.transitionAfterBattle = vi.fn(() => new Promise(() => {})); // the ending, in progress
+    scene._prologueEndingActive = true;
+    const controller = new LootFlowController(scene);
+    controller._startPostLootTransition();
+    // Minutes on the lines and the handoff page: past the 8 s timeout and the 30 s grace.
+    vi.advanceTimersByTime(5 * 60 * 1000);
+    expect(scene.forceTransitionAfterBattle).not.toHaveBeenCalled();
+    // The ending settled without leaving (a failure): the fallback may act again.
+    scene._prologueEndingActive = false;
+    vi.advanceTimersByTime(1000);
+    expect(scene.forceTransitionAfterBattle).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
   it('showForgeWeaponPicker branches to stat picker for choice and finalizes for specific forge', () => {
     const scene = makeScene();
     const controller = new LootFlowController(scene);

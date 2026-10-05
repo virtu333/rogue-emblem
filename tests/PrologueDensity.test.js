@@ -41,7 +41,7 @@ describe('each chapter keeps a small core of blocking notes', () => {
       'p1_holding_enemy',
       'battle_terrain',
       'p1_enemy_phase',
-      'p1_level_up',
+      'p1_exp',
       'battle_triangle',
       'battle_consumable_supply',
     ]);
@@ -49,6 +49,7 @@ describe('each chapter keeps a small core of blocking notes', () => {
       'p2_lances_beat_swords',
       'battle_danger_zone',
       'p2_village_visit',
+      'p2_trade_vulnerary',
     ]);
     expect(prologueNoteBudget(P3).tips).toEqual([
       'p3_fragile',

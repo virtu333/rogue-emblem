@@ -115,12 +115,21 @@ export function commitPrologueEnd(
  * @param {Phaser.Scene} scene - BattleScene or NodeMapScene of a prologue run
  * @param {{ taught?: Iterable<string>, practised?: Iterable<string> }} [ledgers]
  */
-export async function finishPrologue(
-  scene,
-  { taught = [], practised = [], onCommitFailed = null } = {},
-) {
-  const rm = scene.runManager;
-  if (!isPrologueRun(rm)) return false;
+export function finishPrologue(scene, ledgers = {}) {
+  if (!isPrologueRun(scene.runManager)) return Promise.resolve(false);
+  // One at a time: a second call while the ending plays (the battle's post-loot
+  // fallback, a double tap) joins it instead of starting another ending and commit.
+  if (scene._prologueFinishing) return scene._prologueFinishing;
+  scene._prologueEndingActive = true;
+  const finishing = runFinishPrologue(scene, ledgers).finally(() => {
+    if (scene._prologueFinishing === finishing) scene._prologueFinishing = null;
+    scene._prologueEndingActive = false;
+  });
+  scene._prologueFinishing = finishing;
+  return finishing;
+}
+
+async function runFinishPrologue(scene, { taught = [], practised = [], onCommitFailed = null }) {
   // The ending plays once per scene: a retry (a failed meta write, a transition that
   // didn't start) only commits and leaves again.
   if (!scene._prologueEndingPresented) {
@@ -342,6 +351,44 @@ export async function commitAndLeavePrologue(
   } catch {
     return false;
   }
+}
+
+/** The copy when Home Base would not open after the ending (the prologue is saved as finished). */
+export const PROLOGUE_LEAVE_FAILED =
+  "Home Base didn't open. The prologue is saved as finished: Retry, or return to the title and open your save there.";
+
+/**
+ * The ending was committed but Home Base did not open: Retry (runs `retry`) or Title.
+ * Never the run's victory recovery (the prologue never opens Run Complete).
+ */
+export async function offerPrologueLeaveRetry(scene, retry) {
+  if (scene.sys?.isActive?.() === false) return false;
+  if (!hasDOMHost()) {
+    void showMinorHint(scene, PROLOGUE_LEAVE_FAILED);
+    return false;
+  }
+  let choice;
+  try {
+    choice = await showImportantHint(scene, PROLOGUE_LEAVE_FAILED, {
+      actions: [
+        { label: 'Retry', value: 'retry', primary: true },
+        { label: 'Title', value: 'title' },
+      ],
+    });
+  } catch {
+    return false;
+  }
+  if (choice === 'retry' && typeof retry === 'function') return retry();
+  if (choice === 'title')
+    return (
+      (await transitionToScene(
+        scene,
+        'Title',
+        { gameData: scene.gameData },
+        { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+      )) === true
+    );
+  return false;
 }
 
 /** The copy a failed skip shows, with its real retry (PrologueController, NodeMapScene). */

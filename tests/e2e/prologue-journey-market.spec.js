@@ -155,6 +155,20 @@ test('the Market road: New Game to Home Base through ordinary play, Varro to the
   await expect(handoff).toContainText('Losing your commander');
   // Nothing written until it is read.
   expect((await slotMeta(page)).prologue.state).toBe('in_progress');
+  // Read slowly (playtest): past the battle's post-loot fallback, which once forced a
+  // second exit under the ending and opened "Could not open Run Complete". Wait on the
+  // fallback's own clock, beyond its story grace and a recheck.
+  await page.waitForFunction(
+    () => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      return Date.now() - b._postLootTransitionStartedAt > 32_000;
+    },
+    null,
+    { timeout: 60_000, polling: 500 },
+  );
+  await expect(page.getByText('Transition failed')).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'From here, it counts' })).toHaveCount(1);
+  expect(await page.evaluate(() => window.__sceneState?.activeScene)).toBe('Battle');
   await d.click(handoff.getByRole('button', { name: 'To Home Base', exact: true }));
   await activeScene(page, 'HomeBase');
   const meta = await slotMeta(page);

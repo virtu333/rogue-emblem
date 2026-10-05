@@ -187,3 +187,65 @@ test('art pauses while covered or hidden, freezes under reduced motion and is re
   await expect(page.locator('.re-title')).toHaveCount(0);
   await expect(page.locator('.re-keyart-canvas')).toHaveCount(0);
 });
+
+test.describe('desktop', () => {
+  test.use({
+    viewport: { width: 1554, height: 1040 },
+    isMobile: false,
+    hasTouch: false,
+    deviceScaleFactor: 1,
+    userAgent: devices['Desktop Chrome'].userAgent,
+  });
+
+  // Playtest: after New Game's prompt closed, focus went back to New Game and the first
+  // action (gold only while focused) turned ink on ink; "Latest save · Slot 1" wrapped
+  // its number onto a second line.
+  test('the first action keeps its gold after a prompt closes; its subline stays on one line', async ({
+    page,
+  }) => {
+    await page.goto('/?devScene=title');
+    await waitForScene(page, 'Title');
+    const run = page.getByRole('group', { name: 'Play' }).getByRole('button');
+    const primary = run.first();
+    await expect(primary).toHaveClass(/is-primary/);
+    const fill = () =>
+      page.evaluate(() => {
+        const probe = document.createElement('span');
+        probe.style.backgroundColor = 'var(--re-accent)';
+        document.body.append(probe);
+        const accent = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        const b = getComputedStyle(document.querySelector('.re-title-btn.is-primary'));
+        return { accent, bg: b.backgroundColor, image: b.backgroundImage };
+      });
+    await page.getByRole('button', { name: 'New Game', exact: true }).click();
+    const prompt = page.getByRole('dialog');
+    await expect(prompt).toBeVisible();
+    await prompt.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(prompt).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'New Game', exact: true })).toBeFocused();
+    await expect(primary).not.toBeFocused();
+    const rest = await fill();
+    expect(rest.bg).toBe(rest.accent);
+    expect(rest.image).toContain('gradient');
+    // The subline Resume carries with several runs going: one line, nothing cut off.
+    const sub = await page.evaluate(() => {
+      const b = document.querySelector('.re-title-btn.is-primary');
+      let s = b.querySelector('.re-title-subtext');
+      if (!s) {
+        s = document.createElement('span');
+        s.className = 're-title-subtext';
+        b.classList.add('has-sub');
+        b.append(s);
+      }
+      s.textContent = 'Latest save · Slot 1';
+      // Rendered line boxes (the stage is scaled, so heights are not in font units).
+      const range = document.createRange();
+      range.selectNodeContents(s);
+      const lines = new Set([...range.getClientRects()].map((r) => Math.round(r.top)));
+      return { lines: lines.size, clipped: s.scrollWidth > s.clientWidth + 0.5 };
+    });
+    expect(sub.lines).toBe(1);
+    expect(sub.clipped).toBe(false);
+  });
+});

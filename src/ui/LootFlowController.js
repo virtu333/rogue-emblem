@@ -54,7 +54,12 @@ export class LootFlowController {
       if (!isCurrentBattleSession(scene, session)) return;
       if (scene._postLootTransitionCompleted) return;
       const elapsed = Date.now() - scene._postLootTransitionStartedAt;
-      if (scene.isStoryInputLocked() && elapsed < POST_LOOT_TRANSITION_STORY_GRACE_MS) {
+      // The prologue's ending plays inside this scene for as long as the player reads
+      // it (lines, cards, the handoff page): never force a second exit under it.
+      if (
+        scene._prologueEndingActive ||
+        (scene.isStoryInputLocked() && elapsed < POST_LOOT_TRANSITION_STORY_GRACE_MS)
+      ) {
         scene._postLootTransitionTimer = setTimeout(
           maybeForceFallback,
           POST_LOOT_TRANSITION_RECHECK_MS,

@@ -809,7 +809,7 @@ meets (§7).
 | Terrain, weapon triangle | P1 (tips; the triangle again as a forecast tip in P2, and the deploy note's "swords beat axes" in P4) |
 | Consumables are permanent | P1 (tip, at ≤ 60% HP); P3's heal note says it again |
 | Holding enemies and reach | P1 (tip) |
-| Level-ups and growths | P1 (tip after the card) |
+| Level-ups and growths | P1 (a tip at turn 2, once Edric has fought: the EXP bar, then what a level does) |
 | Doubling and attack speed, weapon choice | P2 (core) |
 | No counter (bows), forecasts are chances | cut from P2: the forecast's own lines; P3's range note (core); a real run's inline forecast notes |
 | Danger | P1's turn note (core); P2 turn 2 (tip) |
