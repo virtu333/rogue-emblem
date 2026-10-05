@@ -141,9 +141,24 @@
   background: var(--re-muted);
 }
 
+/* Inline in a menu card (the arena's result): the same bar in the card's flow. */
+.xg-inline-row {
+  padding: 6px 4px 16px;
+}
+.xg-gauge.is-inline {
+  position: relative;
+  left: auto;
+  top: auto;
+  width: 100%;
+  max-width: 420px;
+  transform: none;
+  pointer-events: auto;
+  filter: none;
+}
+
 @media (orientation: portrait) {
   /* Upright the frame is a phone's width: the gauge spans it less the gutters. */
-  html:is(.portrait-ui, .portrait-battle-capable) .xg-gauge {
+  html:is(.portrait-ui, .portrait-battle-capable) .xg-layer .xg-gauge {
     width: calc(100% - 16px);
   }
 }

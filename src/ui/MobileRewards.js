@@ -22,6 +22,7 @@ import {
   softList,
 } from './choiceCards.js';
 import { unitPortrait } from './unitPortrait.js';
+import { createXpRow } from './xpBar.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import {
@@ -445,21 +446,37 @@ export class MobileRewards {
    * A claimed reward's news (team XP: who levelled, which class skill was learned or
    * found every slot full), shown before the flow moves on. Continue (or Back) goes on.
    */
-  showNotice(title, lines, onContinue) {
-    this.notice = { title, lines, onContinue };
+  /**
+   * A claimed reward's news before the flow moves on. `bars` (optional, one per line):
+   * `{ unit, extendedLevelingEnabled }` draws that unit's EXP bar under its line, at
+   * its final value (Team XP: docs/specs/exp-bars.md §2.6; a list, not a moment).
+   */
+  showNotice(title, lines, onContinue, { bars = null } = {}) {
+    this.notice = { title, lines, onContinue, bars };
     if (this.visible) this.render();
     else this.open();
     this.root?.querySelector('[data-focus="notice-continue"]')?.focus();
   }
   renderNotice() {
-    const { title, lines } = this.notice;
+    const { title, lines, bars } = this.notice;
     this.renderedStep = null;
     this.root.replaceChildren();
     this.root.classList.remove('ch-reward-screen');
     const header = node('header', null, 'mu-header');
     header.append(node('h1', title));
     const list = node('ul', null, 'reward-notice');
-    for (const line of lines) list.append(node('li', line));
+    lines.forEach((line, i) => {
+      const item = node('li', line);
+      const bar = bars?.[i];
+      const row = bar?.unit
+        ? createXpRow(bar.unit, { extendedLevelingEnabled: bar.extendedLevelingEnabled === true })
+        : null;
+      if (row) {
+        row.classList.add('reward-notice-xp');
+        item.append(row);
+      }
+      list.append(item);
+    });
     const actions = node('div', null, 'mu-actions');
     const go = this.button('Continue', () => this.closeNotice());
     go.className = 'mu-buy';

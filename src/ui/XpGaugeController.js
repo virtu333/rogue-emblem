@@ -104,6 +104,55 @@ export function renderXpGauge(view, frame, { staticWrap = false } = {}) {
   );
 }
 
+/**
+ * Drive a gauge's fill (xpGaugeFrame frame by frame, on the animation clock) from the
+ * held XP to the end state; static timings draw the end state at once. `onFilled` runs
+ * once the end state is drawn (not after `cancel`, nor after `finish({ silent: true })`).
+ * The battle gauge and the arena's result card share it.
+ * @returns {{ plan: object, finish: (o?: { silent?: boolean }) => void, cancel: () => void,
+ *   isDone: () => boolean }}
+ */
+export function fillXpGauge(view, record, timing, { onFilled = null } = {}) {
+  const plan = xpGaugePlan(record, timing);
+  const draw = (frame) => renderXpGauge(view, frame, { staticWrap: !timing.animate });
+  let raf = null;
+  let done = false;
+  const stop = () => {
+    if (raf != null) cancelFrame(raf);
+    raf = null;
+  };
+  const finish = ({ silent = false } = {}) => {
+    if (done) return;
+    done = true;
+    stop();
+    draw(xpGaugeFinal(record));
+    if (!silent) onFilled?.();
+  };
+  const cancel = () => {
+    done = true;
+    stop();
+  };
+  if (!timing.animate || !(plan.fillMs > 0)) {
+    finish();
+    return { plan, finish, cancel, isDone: () => done };
+  }
+  draw(xpGaugeFrame(record, plan, 0));
+  const start = now();
+  const step = () => {
+    raf = null;
+    if (done) return;
+    const elapsed = now() - start;
+    if (elapsed >= plan.fillMs) {
+      finish();
+      return;
+    }
+    draw(xpGaugeFrame(record, plan, elapsed));
+    raf = schedule(step);
+  };
+  raf = schedule(step);
+  return { plan, finish, cancel, isDone: () => done };
+}
+
 export class XpGaugeController {
   constructor(scene) {
     this.scene = scene;
@@ -169,22 +218,18 @@ export class XpGaugeController {
     layer.root.dataset.holdMs = String(Math.round(plan.holdMs));
     const view = buildXpGauge(record);
     layer.root.append(view.gauge);
-    const staticWrap = !timing.animate;
-    const draw = (frame) => renderXpGauge(view, frame, { staticWrap });
-    draw(timing.animate ? xpGaugeFrame(record, plan, 0) : xpGaugeFinal(record));
     layer.addFitter(() => this._place(layer, view, record));
 
     return new Promise((resolve) => {
-      const gauge = { layer, view, record, closed: false, resolve: null };
+      const gauge = { layer, view, record, closed: false };
       this._active = gauge;
-      let raf = null;
       let watchdog = null;
       let unbind = () => {};
+      let fill = null;
       const close = () => {
         if (gauge.closed) return;
         gauge.closed = true;
-        if (raf != null) globalThis.cancelAnimationFrame?.(raf);
-        raf = null;
+        fill?.cancel();
         clearTimeout(watchdog);
         unbind();
         // The gained span settles to the fill colour as the gauge closes.
@@ -196,38 +241,22 @@ export class XpGaugeController {
       gauge.close = close;
       const finish = () => {
         if (gauge.closed) return;
-        draw(xpGaugeFinal(record));
+        fill?.finish({ silent: true });
         close();
       };
       gauge.finish = finish;
       unbind = this._bindSkip(gauge, finish);
-      const hold = () => {
-        if (gauge.closed) return;
-        draw(xpGaugeFinal(record));
-        void this._clock.wait(plan.holdMs).then(() => close());
-      };
       watchdog = setTimeout(
         finish,
         (timing.animate ? plan.fillMs : 0) + plan.holdMs + WATCHDOG_SLACK_MS,
       );
       if (typeof watchdog?.unref === 'function') watchdog.unref();
-      if (!timing.animate || !(plan.fillMs > 0)) {
-        hold();
-        return;
-      }
-      const start = now();
-      const step = () => {
-        raf = null;
-        if (gauge.closed) return;
-        const elapsed = now() - start;
-        if (elapsed >= plan.fillMs) {
-          hold();
-          return;
-        }
-        draw(xpGaugeFrame(record, plan, elapsed));
-        raf = schedule(step);
-      };
-      raf = schedule(step);
+      fill = fillXpGauge(view, record, timing, {
+        onFilled: () => {
+          if (gauge.closed) return;
+          void this._clock.wait(plan.holdMs).then(() => close());
+        },
+      });
     });
   }
 
@@ -329,10 +358,14 @@ export class XpGaugeController {
   }
 }
 
+// The animation clock, with a timer where there is none (Node, tests).
+const raf = () => typeof globalThis.requestAnimationFrame === 'function';
 function schedule(fn) {
-  if (typeof globalThis.requestAnimationFrame === 'function')
-    return globalThis.requestAnimationFrame(fn);
-  return setTimeout(fn, 16);
+  return raf() ? globalThis.requestAnimationFrame(fn) : setTimeout(fn, 16);
+}
+function cancelFrame(handle) {
+  if (raf()) globalThis.cancelAnimationFrame?.(handle);
+  else clearTimeout(handle);
 }
 
 /** The scene's EXP gauge (created on demand, gone with the scene); null headless. */

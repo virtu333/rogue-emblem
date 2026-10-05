@@ -18,13 +18,7 @@ import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // RosterOverlay.js — Node map roster management (view stats, equip, trade, accessories)
 // Follows PauseOverlay/SettingsOverlay pattern with this.objects[].
 
-import {
-  XP_STAT_NAMES,
-  XP_PER_LEVEL,
-  MAX_SKILLS,
-  INVENTORY_MAX,
-  CONSUMABLE_MAX,
-} from '../utils/constants.js';
+import { XP_STAT_NAMES, MAX_SKILLS, INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 import {
   equipWeapon,
   addToInventory,
@@ -84,6 +78,7 @@ import { epithetText } from '../engine/DeedTitles.js';
 import { fitCanvasText } from './deedDisplay.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 import { healUnit } from '../engine/UnitHealth.js';
+import { drawCanvasXpRow } from './xpBar.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -1065,17 +1060,14 @@ export class RosterOverlay {
     }
 
     y += 18;
-    if (unit.xp !== undefined) {
-      const xpText = this._text(x, y, `XP: ${unit.xp}/${XP_PER_LEVEL}`, UI_PALETTE.info, '10px');
-      // Canvas fallback: the epithet shares the XP line, clear of the nav arrows.
-      const epithet = epithetText(unit);
-      if (epithet) {
-        const ex = xpText.x + xpText.width + 10;
-        fitCanvasText(
-          this._text(ex, y, epithet, UI_PALETTE.accent, '10px'),
-          DETAIL_X + DETAIL_WIDTH - 100 - ex,
-        );
-      }
+    // Canvas fallback: the epithet has its own line, clear of the nav arrows (EXP is a
+    // bar under the HP bar, as the DOM profile draws it).
+    const epithet = epithetText(unit);
+    if (epithet) {
+      fitCanvasText(
+        this._text(x, y, epithet, UI_PALETTE.accent, '10px'),
+        DETAIL_X + DETAIL_WIDTH - 100 - x,
+      );
       y += 14;
     }
 
@@ -1100,6 +1092,17 @@ export class RosterOverlay {
     );
     this.detailObjects.push(barBg, barFill);
     y += 20;
+    if (unit.xp !== undefined) {
+      this.detailObjects.push(
+        ...drawCanvasXpRow(this.scene, x, y - 4, unit, {
+          text: (tx, ty, str, color, size) => this._text(tx, ty, str, color, size),
+          depth: DEPTH_TEXT,
+          extendedLevelingEnabled:
+            this.runManager?.getDifficultyModifier?.('extendedLevelingEnabled', false) === true,
+        }),
+      );
+      y += 16;
+    }
 
     // --- Navigation Arrows ---
     const navX = DETAIL_X + DETAIL_WIDTH - 85;

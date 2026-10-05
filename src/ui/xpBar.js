@@ -3,6 +3,17 @@
 // Player units only: enemies and NPCs have no EXP to show.
 import { XP_PER_LEVEL } from '../utils/constants.js';
 import { xpSnapshot } from '../engine/XpProgress.js';
+import { UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
+
+/** The canvas row's colours: the DOM row's tokens (reKit.css .re-xp / .re-xp-row). */
+export const XP_CANVAS_COLORS = Object.freeze({
+  label: UI_PALETTE.info,
+  value: UI_PALETTE.text,
+  maxText: UI_PALETTE.muted,
+  bed: UI_HEX.sunken,
+  fill: UI_HEX.info,
+  maxFill: UI_HEX.muted,
+});
 
 /** Whether a unit's profile shows EXP at all. */
 export function showsXp(unit) {
@@ -68,4 +79,38 @@ export function createXpRow(unit, options = {}) {
   value.setAttribute('aria-hidden', 'true');
   row.append(label, bar, value);
   return row;
+}
+
+/**
+ * The same EXP row on a Phaser canvas (the headless RosterOverlay / UnitDetailOverlay
+ * fallbacks): "EXP", then a bar drawn with the panels' 180×8 HP-bar code, then the value
+ * ("45/100" or MAX). The words go through the panel's own `text(x, y, str, color, size)`
+ * helper (which owns them); returns the bar's two rectangles for the caller to own, []
+ * for a unit that shows no EXP.
+ */
+export function drawCanvasXpRow(
+  scene,
+  x,
+  y,
+  unit,
+  { text, depth, colors = XP_CANVAS_COLORS, extendedLevelingEnabled = false } = {},
+) {
+  if (!showsXp(unit) || !scene?.add?.rectangle) return [];
+  const facts = xpBarFacts(unit, { extendedLevelingEnabled });
+  const labelW = 28;
+  const barW = 180;
+  const barH = 8;
+  const objects = [];
+  text?.(x, y, 'EXP', colors.label, '10px');
+  const bx = x + labelW;
+  const bg = scene.add.rectangle(bx, y + 5, barW, barH, colors.bed).setOrigin(0, 0.5);
+  const fill = scene.add
+    .rectangle(bx, y + 5, barW * facts.ratio, barH, facts.capped ? colors.maxFill : colors.fill)
+    .setOrigin(0, 0.5);
+  for (const object of [bg, fill]) {
+    if (depth != null) object.setDepth?.(depth);
+    objects.push(object);
+  }
+  text?.(bx + barW + 8, y, facts.value, facts.capped ? colors.maxText : colors.value, '10px');
+  return objects;
 }
