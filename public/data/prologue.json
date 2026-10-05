@@ -314,13 +314,14 @@
           ]
         },
         {
-          "id": "p1_level_up",
-          "on": "levelUp",
-          "unit": "Edric",
+          "id": "p1_exp",
+          "on": "turnStart",
+          "phase": "player",
+          "turn": 2,
           "once": true,
           "do": [
             {
-              "tip": "p1_level_up"
+              "tip": "p1_exp"
             },
             {
               "markLesson": {

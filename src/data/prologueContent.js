@@ -97,7 +97,10 @@ export const PROLOGUE_NOTES = Object.freeze({
     `Wait ends ${lordOf(ctx)}'s move. Once every unit has acted, the turn passes and each red unit gets its move.\n` +
     `Check who can reach you first: ${danger(ctx)} shows every tile an enemy can strike. The near Fighter reaches the Fort; the far one does not.`,
   p1_enemy_phase: (ctx) => `Red units move now. ${lordOf(ctx)} strikes back when attacked, too.`,
-  p1_level_up: () => 'Levels raise stats at random. Growth rates decide the odds.',
+  // Turn 2's tip (P1), once Edric has fought: the EXP bar, then what a level does. Taught
+  // here, not at the level-up, which comes with the last kill under the victory banner.
+  p1_exp: (ctx) =>
+    `The gold bar after a fight is EXP, and a kill fills it most. At 100, ${lordOf(ctx)} levels up: his stats rise at random, and growth rates decide the odds.`,
   p1_holding_enemy: (ctx) =>
     `Some enemies hold their post until you come close. Their red reach shows where.\n${lordOf(ctx)} is inside it now, so this Fighter will come.`,
   // A forecast tip (P1, against the second Fighter): one line in the forecast's notes.

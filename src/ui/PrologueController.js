@@ -121,7 +121,7 @@ export class PrologueController {
     // them as taught; a record leaves the list when the player acknowledges it.
     this.pending = [];
     this.pendingSeq = 0;
-    this.deferred = []; // { run, resolve, cancelled }: tasks waiting for a playable turn
+    this.deferred = []; // { run, resolve, cancelled, ready }: tasks waiting for a playable turn
     // Presentation on screen now (a note, a line set, a nudge note): the scene's
     // turn-start pipeline waits for idle() before it reads the battle state.
     this.presenting = 0;
@@ -545,10 +545,15 @@ export class PrologueController {
       return true;
     }
     if (DEFERRED_EVENTS.has(event.type)) {
-      void this.defer(async () => {
-        this.openTip(id, text, event);
-        return false;
-      });
+      // It waits for a playable turn, and for an unread tip already up (one raised in
+      // the enemy phase, the Vulnerary's) to be read or to step aside: never replaces it.
+      void this.defer(
+        async () => {
+          this.openTip(id, text, event);
+          return false;
+        },
+        { ready: () => !this.unreadTipOpen() },
+      );
       return true;
     }
     return Boolean(this.openTip(id, text, event));
@@ -814,10 +819,21 @@ export class PrologueController {
    * rewind, a skip, destroy) — a cancelled task never runs, so it can never touch a
    * replacement session.
    */
-  defer(run) {
+  defer(run, { ready = null } = {}) {
     return new Promise((resolve) => {
-      this.deferred.push({ run, resolve, cancelled: false });
+      this.deferred.push({ run, resolve, cancelled: false, ready });
     });
+  }
+
+  /** A tip is beside the map and the player has not read it yet. */
+  unreadTipOpen() {
+    const handle = this.tipHandle;
+    if (!handle) return false;
+    try {
+      return !handle.isRead?.();
+    } catch {
+      return false;
+    }
   }
 
   /** Settle every waiting task as cancelled (false) and drop it. */
@@ -840,6 +856,8 @@ export class PrologueController {
       scene.isStoryInputLocked?.()
     )
       return;
+    // In order: the next task waits while its own condition holds it back.
+    if (!this.deferred[0].cancelled && this.deferred[0].ready && !this.deferred[0].ready()) return;
     const next = this.deferred.shift();
     if (next.cancelled) return;
     let result;

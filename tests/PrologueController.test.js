@@ -452,14 +452,31 @@ describe('PrologueController: forecasts, actions and the enemy phase', () => {
     expect(showPrologueTip).toHaveBeenCalledTimes(1);
   });
 
-  it("a player-started exchange practises the forecast lesson; a level-up's card gets its line", async () => {
+  it('a player-started exchange practises the forecast lesson; EXP is taught at turn 2, never at the level-up', async () => {
     const { scene, edric } = makeScene();
     const prologue = new PrologueController(scene).create();
     await prologue.onCombatResolved(edric, unitOf(scene, 'a'), { initiator: 'player' });
     expect([...prologue.lessons.practised]).toEqual(['forecast']);
-    expect(await prologue.onLevelUp(edric)).toBe(false); // a tip: the card flow goes on
-    expect(tips().at(-1)).toBe('Levels raise stats at random. Growth rates decide the odds.');
-    await prologue.onLevelUp(edric);
+    // P1's level-up comes with the last kill, under the victory banner: it says nothing.
+    expect(await prologue.onLevelUp(edric)).toBe(false);
+    expect(showPrologueTip).not.toHaveBeenCalled();
+    // Turn 2, once the player can act: the EXP bar and what a level does, beside the map.
+    scene.battleState = 'TURN_START_RESOLVING';
+    prologue.onPhaseStart('player', 2);
+    prologue.flushDeferred();
+    await Promise.resolve();
+    expect(showPrologueTip).not.toHaveBeenCalled();
+    scene.battleState = 'PLAYER_IDLE';
+    prologue.flushDeferred();
+    await Promise.resolve();
+    expect(tips().at(-1)).toBe(
+      'The gold bar after a fight is EXP, and a kill fills it most. At 100, Edric levels up: his stats rise at random, and growth rates decide the odds.',
+    );
+    expect([...prologue.lessons.shown]).toContain('growth');
+    // Once only.
+    prologue.onPhaseStart('player', 3);
+    prologue.flushDeferred();
+    await Promise.resolve();
     expect(showPrologueTip).toHaveBeenCalledTimes(1);
   });
 
@@ -476,12 +493,34 @@ describe('PrologueController: forecasts, actions and the enemy phase', () => {
     expect([...prologue.lessons.shown]).toContain('hold_reach');
   });
 
+  it("turn 2's tip waits for an unread tip on screen, never replacing it", async () => {
+    const { scene, edric } = makeScene();
+    const prologue = new PrologueController(scene).create();
+    // The Vulnerary tip, raised by an enemy-phase hit: still unread at turn 2.
+    edric.currentHP = 11;
+    await prologue.onCombatResolved(unitOf(scene, 'a'), edric, { initiator: 'enemy' });
+    const vulnerary = tipHandle();
+    expect(vulnerary.opts.text).toContain('Vulnerary');
+    scene.battleState = 'PLAYER_IDLE';
+    prologue.onPhaseStart('player', 2);
+    prologue.flushDeferred();
+    await Promise.resolve();
+    expect(vulnerary.closed).toBeNull();
+    expect(showPrologueTip).toHaveBeenCalledTimes(1);
+    // Read (Got it, or long enough on screen): the EXP tip follows.
+    vulnerary.read();
+    prologue.flushDeferred();
+    await Promise.resolve();
+    expect(tips().at(-1)).toContain('The gold bar after a fight is EXP');
+    expect(prologue.taught.has('battle_consumable_supply')).toBe(true);
+  });
+
   it('a note raised at a phase start waits for a playable turn', async () => {
     const { scene } = makeScene();
     const prologue = new PrologueController(scene).create();
     prologue.chapter = {
       ...chapter,
-      beats: [{ id: 'x', on: 'turnStart', turn: 2, do: [{ note: 'p1_level_up' }] }],
+      beats: [{ id: 'x', on: 'turnStart', turn: 2, do: [{ note: 'p1_exp' }] }],
     };
     scene.battleState = 'TURN_START_RESOLVING';
     prologue.onPhaseStart('player', 2);
