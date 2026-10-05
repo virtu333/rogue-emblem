@@ -201,6 +201,10 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 - **All scripts** accept `--seed S` (Mulberry32 PRNG), `--trials N`, `--csv` for data export
 - **Pattern:** Import pure engine modules + JSON via `sim/lib/SimUnitFactory.js`. Seeded RNG. No Phaser.
 
+## Headless Play
+- **Run:** `npm run -s play -- <command>` (`tools/play/README.md`): play a real run one command at a time from a shell, for agent playtests without a browser. The run goes through `RunManager` and the menus' command modules, battles through `tests/harness/HeadlessBattle.js`, the route map through the Loom's own `describeLoomNode`.
+- **Sessions:** a session (`play-sessions/<name>/`, gitignored) is its options plus a command log with a state digest per command; every call replays it and stops on a divergence. Queries never change state; a refused command changes nothing. Tests: `tests/harness/Play*.test.js`.
+
 ## Key Design Principles
 - **Data-driven:** All content in JSON. Never hardcode stats, classes, or weapons.
 - **Testable phases:** Each build phase should produce something playable/verifiable.

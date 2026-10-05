@@ -1,6 +1,7 @@
 import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { arenaEntryBlock, canFight, getAvailableTiers } from '../engine/ColosseumEngine.js';
 import { arenaMaxRounds } from '../engine/ArenaBout.js';
+import { arenaOddsText } from './arenaOddsText.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { describeUnit } from './PartyMenus.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
@@ -34,19 +35,7 @@ function mercLabel(u, hireCost) {
   return `${u.name} · ${u.className} · Lv ${getDisplayLevel(u)} · ${hireCost} G${u._hired ? ' · Hired' : ''}`;
 }
 
-// "Win about 60% · Lose about 40%": the estimate rounded to 5%, never shown as a
-// certainty it isn't: an estimate never says 0% or 100%.
-export function arenaOddsText(odds) {
-  const pct = (p) => {
-    const v = Math.round((p * 100) / 5) * 5;
-    if (v < 5) return 'under 5%';
-    if (v > 95) return 'over 95%';
-    return `about ${v}%`;
-  };
-  const parts = [`Win ${pct(odds.win)}`, `Lose ${pct(odds.lose)}`];
-  if (odds.draw >= 0.025) parts.push(`Draw ${pct(odds.draw)}`);
-  return `If fought to the end: ${parts.join(' · ')}`;
-}
+export { arenaOddsText };
 
 // Responsive presentation only. The controller remains responsible for rolling
 // opponents, combat, rewards, hire costs, and per-visit limits.

@@ -12,6 +12,7 @@ dist/
 test-results/
 playwright-report/
 tests/artifacts/replays/
+play-sessions/
 tests/artifacts/fullrun/
 .tmp_netlify_*
 .eslintcache

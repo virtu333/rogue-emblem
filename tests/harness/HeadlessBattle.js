@@ -2,6 +2,7 @@ import { buildPrologueNpcUnit, battleRequiredRecruits } from '../../src/engine/P
 import { isRoutComplete, pendingRequiredRecruits } from '../../src/engine/RoutObjective.js';
 import { settleRecruitJoin } from '../../src/engine/BattleRecruits.js';
 import { settleStaffHeal } from '../../src/engine/StaffSettlement.js';
+import { settleConsumable, validateConsumable } from '../../src/engine/ConsumableSettlement.js';
 // HeadlessBattle — Synchronous battle state machine for headless testing.
 // Mirrors BattleScene's MVP subset (7 states) using real engine functions.
 
@@ -91,6 +92,7 @@ import {
 import {
   applyCondition,
   isAcidPoisoned,
+  isRooted,
   isSleeping,
   processConditionRecovery,
   removeCondition,
@@ -444,26 +446,33 @@ export class HeadlessBattle {
 
   // --- State transitions ---
 
+  // `unitName` may also be the unit itself (two units can share a name).
   selectUnit(unitName) {
     if (this.battleState !== HEADLESS_STATES.PLAYER_IDLE) {
       throw new Error(`Cannot select unit in state: ${this.battleState}`);
     }
-    const matching = this.playerUnits.filter((u) => u.name === unitName);
-    if (matching.length === 0) throw new Error(`Unit not found: ${unitName}`);
+    const matching =
+      unitName && typeof unitName === 'object'
+        ? this.playerUnits.filter((u) => u === unitName)
+        : this.playerUnits.filter((u) => u.name === unitName);
+    if (matching.length === 0) throw new Error(`Unit not found: ${unitName?.name ?? unitName}`);
 
     // Duplicate unit names can exist in simulations; prefer any unacted match.
     const unit = matching.find((u) => !u.hasActed) || matching[0];
-    if (unit.hasActed) throw new Error(`Unit already acted: ${unitName}`);
+    if (unit.hasActed) throw new Error(`Unit already acted: ${unit.name}`);
 
     this.selectedUnit = unit;
     this.preMoveLoc = { col: unit.col, row: unit.row };
+    // As BattleScene.selectUnit: a rooted unit stays put, and pathfinding skills lower
+    // terrain costs. Positions are the world's (the harness has no ambush check).
     this.movementRange = this.grid.getMovementRange(
       unit.col,
       unit.row,
-      unit.stats.MOV,
+      isRooted(unit) ? 0 : (unit.mov ?? unit.stats.MOV),
       unit.moveType,
       this._buildUnitPositionMap(unit.faction),
       unit.faction,
+      getTerrainCostReduction(unit, this.gameData?.skills),
     );
     this.battleState = HEADLESS_STATES.UNIT_SELECTED;
   }
@@ -631,12 +640,16 @@ export class HeadlessBattle {
     this._executeCombat(this.selectedUnit, target);
   }
 
+  // `targetName` may also be the target unit itself.
   chooseHealTarget(targetName) {
     if (this.battleState !== HEADLESS_STATES.SELECTING_HEAL_TARGET) {
       throw new Error(`Cannot choose heal target in state: ${this.battleState}`);
     }
-    const target = this.healTargets.find((u) => u.name === targetName);
-    if (!target) throw new Error(`Target not in heal range: ${targetName}`);
+    const target =
+      targetName && typeof targetName === 'object'
+        ? this.healTargets.find((u) => u === targetName)
+        : this.healTargets.find((u) => u.name === targetName);
+    if (!target) throw new Error(`Target not in heal range: ${targetName?.name ?? targetName}`);
 
     this._executeHeal(this.selectedUnit, target);
   }
@@ -654,6 +667,49 @@ export class HeadlessBattle {
     // The last remains of a Rout win it, as a killing blow does.
     if (this._checkBattleEnd()) return;
     this._finishUnitAction(unit);
+  }
+
+  /**
+   * Equip from the action menu, as BattleScene.showEquipMenu: free, the menu stays open.
+   * GameDriver's agents never choose it (its menu row stays `supported: false`); the
+   * play adapter (tools/play) calls it.
+   */
+  equipFromMenu(weapon) {
+    if (this.battleState !== HEADLESS_STATES.UNIT_ACTION_MENU) {
+      throw new Error(`Cannot equip in state: ${this.battleState}`);
+    }
+    const unit = this.selectedUnit;
+    if (!unit.inventory.includes(weapon)) throw new Error('Weapon not in inventory');
+    if (weapon.type === 'Consumable' || weapon.type === 'Scroll' || !canEquip(unit, weapon)) {
+      throw new Error(`${unit.name} cannot equip ${weapon.name}`);
+    }
+    equipWeapon(unit, weapon);
+  }
+
+  /**
+   * Use a healing or curing item, as BattleScene.useConsumable (ConsumableSettlement):
+   * a heal targets the user, a cure the user or an adjacent ally; the action ends.
+   * Promotion and reclass seals are not modelled. Like Equip, only the play adapter
+   * calls it.
+   */
+  useItem(item, target = this.selectedUnit) {
+    if (this.battleState !== HEADLESS_STATES.UNIT_ACTION_MENU) {
+      throw new Error(`Cannot use an item in state: ${this.battleState}`);
+    }
+    const unit = this.selectedUnit;
+    if (item?.effect === 'promote' || item?.effect === 'reclass') {
+      throw new Error(`${item.name}: seals are not modelled in the headless battle`);
+    }
+    const adjacentAlly =
+      target !== unit &&
+      this.playerUnits.includes(target) &&
+      gridDistance(unit.col, unit.row, target.col, target.row) <= 1;
+    if (!validateConsumable(unit, item, target) || !(target === unit || adjacentAlly)) {
+      throw new Error(`${unit.name} cannot use ${item?.name ?? 'that item'} on ${target?.name}`);
+    }
+    const facts = settleConsumable(unit, item, target);
+    this._finishUnitAction(unit);
+    return facts;
   }
 
   undoMove() {
